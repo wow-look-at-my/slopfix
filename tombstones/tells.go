@@ -10,15 +10,32 @@
 package tombstones
 
 import (
-	"github.com/wow-look-at-my/go-containers/set"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
+
+// deadReferent is the tell referents.go reports.
+const deadReferent = "a name nothing in the repository defines"
 
 // IDVolume names the volume cap, whose tell carries the block's line count and
 // so cannot supply a stable name.
 const IDVolume = "tombstones/comment-volume"
+
+// AllIDs names every rule this package reports, for a caller that validates a
+// name before running.
+func AllIDs() []string {
+	ids := []string{IDVolume, ruleID(deadReferent)}
+	for _, t := range tells {
+		if id := ruleID(t.name); !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
 
 // ruleID turns a tell's words into the name that selects it.
 func ruleID(tell string) string {
@@ -171,8 +188,8 @@ func HitForName(blocks []Block, name string) Hit {
 			}
 			lineNo, pure := linePurity(b, li)
 			return Hit{
-				ID:         ruleID("a name nothing in the repository defines"),
-				Tell:       "a name nothing in the repository defines",
+				ID:         ruleID(deadReferent),
+				Tell:       deadReferent,
 				Phrase:     name,
 				Line:       strings.TrimSpace(line),
 				Strippable: pure,
@@ -180,8 +197,7 @@ func HitForName(blocks []Block, name string) Hit {
 			}
 		}
 	}
-	dead := "a name nothing in the repository defines"
-	return Hit{ID: ruleID(dead), Tell: dead, Phrase: name, Line: name, LineNo: -1}
+	return Hit{ID: ruleID(deadReferent), Tell: deadReferent, Phrase: name, Line: name, LineNo: -1}
 }
 
 func firstLine(s string) string {

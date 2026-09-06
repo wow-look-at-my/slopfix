@@ -28,6 +28,22 @@ const (
 // AllRules is what Fix applies when a caller names none.
 var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE}
 
+// IDsFor names every rule inside a category, so a caller can reject a typo
+// before it applies nothing and reads as a clean file.
+func IDsFor(rule Rule) []string {
+	switch rule {
+	case RuleTombstones:
+		return tombstones.AllIDs()
+	case RuleCounts:
+		return []string{counts.ID}
+	case RuleWrap:
+		return []string{IDHardWrap}
+	case RuleSTE:
+		return ste.AllIDs
+	}
+	return nil
+}
+
 // Request is a piece of text put to Fix.
 //
 // Path names the file the text is headed for. It decides the comment syntax,
@@ -107,16 +123,25 @@ func Fix(req Request) Repair {
 		return repair
 	}
 
-	if wants(RuleCounts) {
+	if wants(RuleCounts) && keeps(counts.ID) {
 		stripped, hits := counts.Strip(text)
 		text = stripped
 		for _, hit := range hits {
 			repair.Removed = append(repair.Removed, hit.Phrase)
 		}
 	}
-	if wants(RuleWrap) {
+	// The join and the word repair share a pass, because a rule reads a
+	// paragraph as a sentence stream and a hand wrap hides half of it. Naming a
+	// ste rule therefore rewraps the paragraph it repairs.
+	joins := wants(RuleWrap) && keeps(IDHardWrap)
+	prose := wants(RuleSTE)
+	if joins || prose {
+		word := func(text string) string { return text }
+		if prose {
+			word = func(text string) string { return ste.FixSelected(text, keeps) }
+		}
 		if _, safe := Format(text); safe {
-			text = markdown.FormatFunc(text, ste.Fix)
+			text = markdown.FormatFunc(text, word)
 		}
 	}
 	if wants(RuleSTE) {

@@ -26,6 +26,12 @@ const (
 	IDStaleCount  = "ste/count"
 )
 
+// AllIDs names every rule this package reports, for a caller that validates a
+// name before running.
+var AllIDs = []string{
+	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
+}
+
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
 	Line int
