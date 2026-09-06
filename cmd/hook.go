@@ -73,9 +73,8 @@ type hookResponse struct {
 	} `json:"hookSpecificOutput"`
 }
 
-// unit is a string a write replaces. apply puts the repaired text back into
-// the payload as it arrived, so every other field survives: old_string,
-// replace_all, and anything a later tool version adds.
+// unit is a string a write replaces. apply puts the repaired text back into the
+// payload as it arrived, so every other field survives.
 type unit struct {
 	text  string
 	apply func(string)
@@ -194,8 +193,7 @@ func respond(fill func(*hookResponse)) string {
 	return string(out)
 }
 
-// reportCap bounds what a message carries. A refusal the reader scrolls past is
-// a refusal nobody acts on.
+// reportCap bounds what a message carries: a refusal nobody reads stops nothing.
 const reportCap = 6
 
 // notice is what the model is told after the fact. The write went through, so
