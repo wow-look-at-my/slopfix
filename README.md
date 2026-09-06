@@ -18,12 +18,17 @@ The `os` parameter takes `linux`, `darwin` or `windows`. The `arch` parameter ta
 |---|---|
 | `slopfmt check <paths>` | Report every finding. A finding exits non-zero. |
 | `slopfmt fmt <paths>` | Rewrite each file in place. |
-| `slopfmt fix` | Read a document on stdin and write the repaired text back. |
-| `slopfmt counts` | Read a document on stdin and cut the cardinal out of each inventory count. |
-| `slopfmt tombstones` | Read added text on stdin and strip each tombstone comment out of it. |
+| `slopfmt fix` | Read text on stdin and write the repaired text back. |
 | `slopfmt purge <paths>` | Delete the instruction files that no longer earn their place. |
 
-Every stdin command takes `--json`, which writes the whole answer as one object. That is the shape a hook reads.
+`fix` takes `--only` to run a single rule, and `--path` to name the file the text is headed for. The path decides the comment syntax, and the tombstone rule needs it.
+
+```sh
+slopfmt fix --only counts --json < notes.md
+slopfmt fix --only tombstones --path loader.go --json < added.txt
+```
+
+`--json` writes the whole answer as one object. That is the shape a hook reads.
 
 ## The rules
 
