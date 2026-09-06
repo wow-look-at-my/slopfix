@@ -6,8 +6,8 @@
 //
 // Precision comes entirely from which identifiers are eligible. A comment about
 // low-level work is full of names the repository does not define, and reporting
-// those is how a guard earns the reputation that gets it turned off. So an
-// all-caps name is never a candidate, and neither is a short one.
+// those is how a guard earns the reputation that gets it turned off. So a name
+// that is all capitals is never a candidate, and neither is a short name.
 package tombstones
 
 import (
@@ -35,8 +35,7 @@ func identifierWords(text string) []string {
 // reads as an English word rather than a symbol.
 const minCandidate = 8
 
-// isCandidate reports whether a name is one this repository must contain. An
-// all-caps name is refused: ENOSYS and its kin belong to nobody here.
+// isCandidate reports whether this repository must contain the name.
 func isCandidate(name string) bool {
 	return len(name) >= minCandidate &&
 		name != strings.ToUpper(name) &&
@@ -55,12 +54,11 @@ func identifierShaped(name string) bool {
 			return true
 		}
 	}
-	// Prose capitalises a sentence the way a symbol capitalises its head, so
-	// an initial capital qualifies only beside a digit.
+	// Prose capitalises a sentence head too, so a capital needs a digit.
 	return name[0] >= 'A' && name[0] <= 'Z' && strings.ContainsAny(name, "0123456789")
 }
 
-// probeTimeout bounds the search, because a guard that hangs is the worse one.
+// probeTimeout bounds the search, because a guard that hangs is worse.
 const probeTimeout = 2 * time.Second
 
 // maxNames bounds what a comment may put to the repository.
@@ -125,8 +123,8 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	return dead
 }
 
-// RepoRoot walks up from path looking for a working tree. An empty result means
-// path is not inside one.
+// RepoRoot walks up from path looking for a working tree. An empty result puts
+// path outside every tree.
 func RepoRoot(path string) string {
 	dir := path
 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {

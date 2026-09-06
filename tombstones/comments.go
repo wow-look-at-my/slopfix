@@ -16,15 +16,16 @@ import (
 )
 
 // Block is a run of comment lines, or a paragraph of a document.
+//
+// LineNos gives each line of Text its position in the original source, and Pure
+// says whether deleting that line removes only this comment. Both stay nil for
+// a document paragraph, where prose shares its line the way a comment never
+// shares a line with code.
 type Block struct {
-	Text  string
-	Lines int
-	// LineNos gives each line of Text its position in the original source.
+	Text    string
+	Lines   int
 	LineNos []int
-	// Pure says whether deleting that source line removes only this comment.
-	// Both arrays stay nil for a document paragraph, where prose shares a line
-	// with other prose in a way a comment never shares a line with code.
-	Pure []bool
+	Pure    []bool
 }
 
 // style says how a language spells a comment.
@@ -104,12 +105,13 @@ func IsDocument(path string) bool {
 }
 
 // piece is a comment, which can span several physical lines.
+//
+// firstPure and lastPure ask, of the opening and closing source line, whether
+// everything outside this comment's span is whitespace. An interior line needs
+// no flag, because the scanner hands it the whole raw line.
 type piece struct {
-	line int
-	text string
-	// firstPure and lastPure ask, of the comment's opening and closing source
-	// line, whether everything outside its own span is whitespace. An interior
-	// line needs no flag: the scanner hands it the whole raw line.
+	line      int
+	text      string
 	firstPure bool
 	lastPure  bool
 }
@@ -235,8 +237,8 @@ const (
 	markerBlock
 )
 
-// nextMarker finds where the next comment starts in a line of code. It skips
-// string literals, so a quoted marker is not read as one.
+// nextMarker finds where the next comment starts in a line of code, skipping
+// string literals so a quoted marker stays a literal.
 func nextMarker(line string, st style) (int, int) {
 	for i := 0; i < len(line); i++ {
 		c := line[i]
@@ -276,8 +278,8 @@ func isQuote(c byte, quotes []byte) bool {
 	return false
 }
 
-// skipString returns the index of the closing quote, or -1 when the literal
-// runs past the end of the line.
+// skipString returns the index of the closing quote. It reports a negative
+// index when the literal runs past the end of the line.
 func skipString(line string, start int, quote byte) int {
 	for i := start + 1; i < len(line); i++ {
 		switch line[i] {

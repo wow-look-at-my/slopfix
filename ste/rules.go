@@ -30,8 +30,7 @@ func (f Finding) String() string {
 	return fmt.Sprintf("%d: %s%s. %s", f.Line, f.Rule, detail, f.Fix)
 }
 
-// SentenceWordCap is STE's limit for a descriptive sentence. An instruction has
-// a tighter limit, which this checker does not try to tell apart.
+// SentenceWordCap is STE's limit for a descriptive sentence.
 const SentenceWordCap = 25
 
 // contractions maps every banned form to the words STE writes instead.
@@ -54,7 +53,6 @@ var modals = map[string]string{
 }
 
 // spliceConjunctions open a clause a comma must not join to its predecessor.
-// Each brings a full sentence's worth of new subject and verb.
 var spliceConjunctions = []string{"so", "then", "therefore", "thus", "however"}
 
 var (
@@ -81,7 +79,7 @@ func Check(text string, line int) []Finding {
 }
 
 // strip removes the spans that are data rather than prose: inline code, and a
-// link's target. A semicolon inside either is not a sentence joiner.
+// link's target. A semicolon inside either joins no sentence.
 func strip(text string) string {
 	text = codeSpan.ReplaceAllString(text, " CODE ")
 	return linkTarget.ReplaceAllString(text, "](URL)")

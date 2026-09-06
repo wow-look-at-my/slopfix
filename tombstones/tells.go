@@ -1,11 +1,11 @@
 // tells.go holds what a tombstone looks like on the page.
 //
-// Two properties separate one from a comment worth keeping. Its referent is
-// gone: the flag, the test, the old spelling it names does not exist any more.
-// Or its audience is the reviewer: it argues for the change instead of telling
-// the next editor what breaks.
+// A property separates it from a comment worth keeping. Its referent is gone:
+// the flag, the test, the old spelling it names does not exist any more. Or its
+// audience is the reviewer: it argues for the change instead of telling the
+// next editor what breaks.
 //
-// The table matches the surface of both. Each entry names the tell so a report
+// The table matches the surface of each. An entry names the tell so a report
 // can say which property failed.
 package tombstones
 
@@ -16,19 +16,20 @@ import (
 	"strings"
 )
 
-// Hit is one tombstone found in added text.
+// Hit is a tombstone found in added text.
+//
+// Strippable means deleting LineNo removes this comment and nothing else.
+// LineNo indexes Line in the text, and means nothing without Strippable.
 type Hit struct {
 	Tell   string `json:"tell"`   // the rule that fired
 	Phrase string `json:"phrase"` // the matched words
 	Line   string `json:"line"`   // the line they sit on
 
-	// Strippable means deleting LineNo removes this comment and nothing else.
 	Strippable bool `json:"strippable"`
-	// LineNo indexes Line in the text, and means nothing unless Strippable.
-	LineNo int `json:"lineNo"`
+	LineNo     int  `json:"lineNo"`
 }
 
-// tell is one recognisable shape. name is what a report prints.
+// tell is a recognisable shape. name is what a report prints.
 type tell struct {
 	name string
 	re   *regexp.Regexp
@@ -53,8 +54,7 @@ var tells = []tell{
 	{"a change reference", regexp.MustCompile(`(?i)\b(?:pr|pull request|issue|ticket|commit)\s+#?\d+\b`)},
 	{"a change reference", regexp.MustCompile(`(?i)\b[a-z0-9][\w.-]*/[\w.-]+#\d+\b`)},
 
-	// A contrast marker states a "then" the reader cannot see. It sits above
-	// the general rules, because the earliest match names the finding.
+	// A contrast marker states a "then" the reader cannot see.
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\brather than (?:the )?(?:old|former|previous|legacy)\b`)},
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\binstead of (?:the )?(?:old|former|previous|legacy)\b`)},
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\bwhere (?:it|this|that) (?:used to|once)\b`)},
@@ -67,8 +67,7 @@ var tells = []tell{
 	{"a former state", regexp.MustCompile(`(?i)\bthe (?:former|old|previous|legacy|original) \w+`)},
 	{"a former state", regexp.MustCompile(`(?i)\b(?:was|were|has been|have been|had been|got|gets|is now|are now) (?:` + changeParticiples + `)\b`)},
 	// A demonstrative in front of a participle needs the narrower verb set,
-	// because "that split has a way to go wrong" is a noun. The ambiguous
-	// words keep their place above, where an auxiliary settles the reading.
+	// because "that split has a way to go wrong" is a noun.
 	{"a former state", regexp.MustCompile(`(?i)\b(?:we|this|it|that) (?:renamed|removed|deleted|replaced|introduced|reverted|refactored|migrated|deprecated|rewrote|reworked|consolidated)\b`)},
 	{"a former state", regexp.MustCompile(`(?i)\bthis (?:replaces|supersedes|used to)\b`)},
 	{"a former state", regexp.MustCompile(`(?i)\bstopped (?:being|working|doing)\b|\bstarted (?:being|failing)\b`)},
@@ -125,8 +124,8 @@ func Find(blocks []Block, maxLines int) []Hit {
 					continue
 				}
 				phrase := strings.TrimSpace(line[at[0]:at[1]])
-				// A line reports once per tell, because several rows of a
-				// tell can match a sentence and printing each is noise.
+				// A line reports each tell a single time, because
+				// printing every row that matched is noise.
 				key := t.name + "\x00" + strings.TrimSpace(line)
 				if seen.Contains(key) {
 					continue
@@ -141,8 +140,7 @@ func Find(blocks []Block, maxLines int) []Hit {
 	return hits
 }
 
-// linePurity looks a block-relative line index up in b's parallel arrays. An
-// absent entry reports nothing strippable, which every document paragraph is.
+// linePurity looks a block-relative line index up in b's parallel arrays.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
 	if li < len(b.LineNos) && li < len(b.Pure) {
 		return b.LineNos[li], b.Pure[li]
