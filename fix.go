@@ -37,6 +37,9 @@ type Request struct {
 	Content string
 	Path    string
 	Rules   []Rule
+	// IDs restricts what is REPORTED to the rules named, the way a compiler
+	// names one warning. Empty means every rule of every category in Rules.
+	IDs []string
 	// MaxCommentLines caps a comment block. Zero turns the cap off.
 	MaxCommentLines int
 }
@@ -76,6 +79,11 @@ func Fix(req Request) Repair {
 		rules = AllRules
 	}
 	wants := func(r Rule) bool { return slices.Contains(rules, r) }
+	// An ID names one rule inside a category, the way a compiler names a
+	// warning. Naming any turns the others off, and naming none keeps them all.
+	keeps := func(id string) bool {
+		return len(req.IDs) == 0 || slices.Contains(req.IDs, id)
+	}
 
 	text := req.Content
 	var repair Repair
@@ -84,7 +92,11 @@ func Fix(req Request) Repair {
 		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
 		text = cut.Text
 		repair.Removed = append(repair.Removed, cut.Removed...)
-		repair.Kept = cut.Kept
+		for _, hit := range cut.Kept {
+			if keeps(hit.ID) {
+				repair.Kept = append(repair.Kept, hit)
+			}
+		}
 	}
 
 	// The remaining rules read prose. Source keeps its own text, because a
@@ -108,7 +120,11 @@ func Fix(req Request) Repair {
 		}
 	}
 	if wants(RuleSTE) {
-		repair.Findings = Check(text)
+		for _, finding := range Check(text) {
+			if keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
+			}
+		}
 	}
 
 	repair.Text = text

@@ -15,9 +15,24 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
+// The rule IDs. Each one names a single rule, and a report prints the ID that
+// found the text. The same ID selects that rule on the command line, so what a
+// message says and what a caller asks for are one name.
+const (
+	IDContraction   = "ste/contraction"
+	IDModal         = "ste/modal"
+	IDSemicolon     = "ste/semicolon"
+	IDSentenceCap   = "ste/sentence-length"
+	IDCommaSplice   = "ste/comma-splice"
+	IDStaleCount    = "ste/count"
+)
+
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
 	Line int
+	// ID names the rule, and selects it on the command line.
+	ID string
+	// Rule says in words what the ID stands for.
 	Rule string
 	// Detail quotes the offending text.
 	Detail string
@@ -30,7 +45,7 @@ func (f Finding) String() string {
 	if f.Detail != "" {
 		detail = fmt.Sprintf(" %q", f.Detail)
 	}
-	return fmt.Sprintf("%d: %s%s. %s", f.Line, f.Rule, detail, f.Fix)
+	return fmt.Sprintf("%d: [%s] %s%s. %s", f.Line, f.ID, f.Rule, detail, f.Fix)
 }
 
 // SentenceWordCap is STE's cap for a descriptive sentence.
@@ -139,10 +154,10 @@ func checkWords(prose string, line int) []Finding {
 	for _, word := range wordPattern.FindAllString(prose, -1) {
 		lower := strings.ToLower(word)
 		if fix, banned := contractions[lower]; banned {
-			out = append(out, Finding{line, "STE bans contractions", word, "Write " + fix + "."})
+			out = append(out, Finding{line, IDContraction, "STE bans contractions", word, "Write " + fix + "."})
 		}
 		if fix, banned := modals[lower]; banned {
-			out = append(out, Finding{line, "STE bans this modal", word, "Write " + fix + ", or rewrite the sentence."})
+			out = append(out, Finding{line, IDModal, "STE bans this modal", word, "Write " + fix + ", or rewrite the sentence."})
 		}
 	}
 	return out
@@ -152,7 +167,7 @@ func checkSemicolons(prose string, line int) []Finding {
 	if !strings.Contains(prose, ";") {
 		return nil
 	}
-	return []Finding{{line, "STE bans the semicolon", ";", "Write a period and start a new sentence."}}
+	return []Finding{{line, IDSemicolon, "STE bans the semicolon", ";", "Write a period and start a new sentence."}}
 }
 
 func checkSentences(prose string, line int) []Finding {
@@ -164,6 +179,7 @@ func checkSentences(prose string, line int) []Finding {
 		}
 		out = append(out, Finding{
 			line,
+			IDSentenceCap,
 			fmt.Sprintf("over the %d-word sentence cap at %d words", SentenceWordCap, words),
 			truncate(strings.TrimSpace(sentence)),
 			"Split it into shorter sentences.",
@@ -189,6 +205,7 @@ func checkSplices(prose string, line int) []Finding {
 		}
 		out = append(out, Finding{
 			line,
+			IDCommaSplice,
 			"a comma joining two clauses is the semicolon STE bans, spelled differently",
 			strings.TrimSpace(prose[loc[0]:loc[1]]),
 			"Write a period in place of the comma and capitalize the next word.",
@@ -208,6 +225,7 @@ func checkCounts(prose string, line int) []Finding {
 		}
 		out = append(out, Finding{
 			line,
+			IDStaleCount,
 			"a stated count goes stale when the set changes",
 			strings.TrimSpace(prose[loc[0]:loc[1]]),
 			"Describe what is there and let the reader count.",

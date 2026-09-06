@@ -42,7 +42,9 @@ func init() {
 		RunE: runFix,
 	}
 	fix.Flags().BoolVar(&asJSON, "json", false, "write the whole answer as one JSON object on stdout")
-	fix.Flags().StringSliceVar(&fixOnly, "only", nil, "apply only these rules: "+strings.Join(ruleNames(), ", "))
+	fix.Flags().StringSliceVar(&fixOnly, "only", nil,
+		"run only these, as a comma-separated list. An entry is a category ("+
+			strings.Join(ruleNames(), ", ")+") or a single rule ID, which is the name the report prints")
 	fix.Flags().StringVar(&fixPath, "path", "", "the file the text is headed for")
 	fix.Flags().IntVar(&fixMaxLines, "max-comment-lines", tombstones.DefaultMaxCommentLines, "cap a comment block, 0 to turn the cap off")
 	rootCmd.AddCommand(fix)
@@ -56,26 +58,41 @@ func ruleNames() []string {
 	return names
 }
 
-// selectedRules turns --only into the rules Fix takes. An unknown name is an
-// error rather than a silent no-op, because a typo that quietly applies nothing
-// reads as a clean file.
-func selectedRules(only []string) ([]slopfmt.Rule, error) {
+// selectedRules turns --only into what Fix takes.
+//
+// An entry is either a category (`ste`) or a single rule ID (`ste/semicolon`),
+// which is the same name the report prints. An ID also turns its category on,
+// so naming one rule never needs the category named beside it. An unknown name
+// is an error rather than a silent no-op, because a typo that quietly applies
+// nothing reads as a clean file.
+func selectedRules(only []string) ([]slopfmt.Rule, []string, error) {
 	var rules []slopfmt.Rule
+	var ids []string
 	for _, name := range only {
-		rule := slopfmt.Rule(strings.TrimSpace(name))
+		name = strings.TrimSpace(name)
+		if category, _, isID := strings.Cut(name, "/"); isID {
+			rule := slopfmt.Rule(category)
+			if !slices.Contains(slopfmt.AllRules, rule) {
+				return nil, nil, fmt.Errorf("unknown rule %q: its category is not one of %s", name, strings.Join(ruleNames(), ", "))
+			}
+			rules = append(rules, rule)
+			ids = append(ids, name)
+			continue
+		}
+		rule := slopfmt.Rule(name)
 		if !slices.Contains(slopfmt.AllRules, rule) {
-			return nil, fmt.Errorf("unknown rule %q: pick from %s", name, strings.Join(ruleNames(), ", "))
+			return nil, nil, fmt.Errorf("unknown rule %q: pick from %s, or name one rule as category/rule", name, strings.Join(ruleNames(), ", "))
 		}
 		rules = append(rules, rule)
 	}
-	return rules, nil
+	return rules, ids, nil
 }
 
 func runFix(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return fixFiles(cmd, args)
 	}
-	rules, err := selectedRules(fixOnly)
+	rules, ids, err := selectedRules(fixOnly)
 	if err != nil {
 		return err
 	}
@@ -87,6 +104,7 @@ func runFix(cmd *cobra.Command, args []string) error {
 		Content:         string(content),
 		Path:            fixPath,
 		Rules:           rules,
+		IDs:             ids,
 		MaxCommentLines: fixMaxLines,
 	})
 
@@ -99,7 +117,7 @@ func runFix(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.ErrOrStderr(), "removed: %s\n", line)
 	}
 	for _, hit := range repair.Kept {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%s: %q\n    %s\n", hit.Tell, hit.Phrase, hit.Line)
+		fmt.Fprintf(cmd.ErrOrStderr(), "[%s] %s: %q\n    %s\n", hit.ID, hit.Tell, hit.Phrase, hit.Line)
 	}
 	for _, finding := range repair.Findings {
 		fmt.Fprintln(cmd.ErrOrStderr(), finding)

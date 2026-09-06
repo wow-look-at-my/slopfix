@@ -16,12 +16,27 @@ import (
 	"strings"
 )
 
+// IDVolume names the volume cap, whose tell carries the block's own size and so
+// cannot supply a stable name of its own.
+const IDVolume = "tombstones/comment-volume"
+
+// ruleID turns a tell's words into the name that selects it. The table stays
+// data: a new row needs no second entry anywhere.
+func ruleID(tell string) string {
+	slug := strings.ToLower(tell)
+	for _, article := range []string{"a ", "an ", "the "} {
+		slug = strings.TrimPrefix(slug, article)
+	}
+	return "tombstones/" + strings.ReplaceAll(slug, " ", "-")
+}
+
 // Hit is a tombstone found in added text.
 //
 // Strippable means deleting LineNo removes this comment and nothing else.
 // LineNo indexes Line in the text, and means nothing without Strippable.
 type Hit struct {
-	Tell   string `json:"tell"`   // the rule that fired
+	ID     string `json:"id"`     // the rule that fired, and the name that selects it
+	Tell   string `json:"tell"`   // what that rule says in words
 	Phrase string `json:"phrase"` // the matched words
 	Line   string `json:"line"`   // the line they sit on
 
@@ -111,6 +126,7 @@ func Find(blocks []Block, maxLines int) []Hit {
 			// A judgement about the whole block, not a span to excise, so
 			// Strippable stays false.
 			hits = append(hits, Hit{
+				ID:     IDVolume,
 				Tell:   "a comment block of " + strconv.Itoa(b.Lines) + " lines",
 				Phrase: firstLine(b.Text),
 				Line:   firstLine(b.Text),
@@ -131,7 +147,7 @@ func Find(blocks []Block, maxLines int) []Hit {
 					continue
 				}
 				seen.Add(key)
-				h := Hit{Tell: t.name, Phrase: phrase, Line: strings.TrimSpace(line), LineNo: -1}
+				h := Hit{ID: ruleID(t.name), Tell: t.name, Phrase: phrase, Line: strings.TrimSpace(line), LineNo: -1}
 				h.LineNo, h.Strippable = linePurity(b, li)
 				hits = append(hits, h)
 			}
@@ -158,6 +174,7 @@ func HitForName(blocks []Block, name string) Hit {
 			}
 			lineNo, pure := linePurity(b, li)
 			return Hit{
+				ID:         ruleID("a name nothing in the repository defines"),
 				Tell:       "a name nothing in the repository defines",
 				Phrase:     name,
 				Line:       strings.TrimSpace(line),
@@ -166,7 +183,8 @@ func HitForName(blocks []Block, name string) Hit {
 			}
 		}
 	}
-	return Hit{Tell: "a name nothing in the repository defines", Phrase: name, Line: name, LineNo: -1}
+	dead := "a name nothing in the repository defines"
+	return Hit{ID: ruleID(dead), Tell: dead, Phrase: name, Line: name, LineNo: -1}
 }
 
 func firstLine(s string) string {
