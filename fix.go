@@ -54,9 +54,9 @@ type Request struct {
 	Path    string
 	Rules   []Rule
 	// IDs restricts what is REPORTED to the rules named, the way a compiler
-	// names one warning. Empty means every rule of every category in Rules.
+	// names a warning. Empty means every rule of every category in Rules.
 	IDs []string
-	// MaxCommentLines caps a comment block. Zero turns the cap off.
+	// MaxCommentLines caps a comment block. A cap of nothing turns it off.
 	MaxCommentLines int
 }
 
@@ -64,7 +64,7 @@ type Request struct {
 // binary would write it, and what no rewrite can repair.
 //
 // A hook reads Text to replace the write it was about to allow, and Kept plus
-// Findings to refuse one.
+// Findings to refuse it.
 type Repair struct {
 	// Text is the repaired text. It equals the input when Changed is false.
 	Text string `json:"text"`
@@ -80,14 +80,15 @@ type Repair struct {
 
 // Fix repairs what a rewrite can repair and reports the rest.
 //
-// The repairs run in the order that keeps each one's spans valid. A tombstone
-// line goes first, because it is deleted whole. The count strip follows, on
+// The repairs run in the order that keeps every span valid. A tombstone
+// line leads, because it is deleted whole. The count strip follows, on
 // text whose deletions have landed. The wrap join comes last, and the prose
 // repair runs inside it, on each block's joined text, because a rule reads a
-// paragraph as one sentence stream and a hand wrap hides half of it.
+// paragraph as a single sentence stream and a hand wrap hides half of it.
 //
-// The join must only move newlines. Format proves that on this document first,
-// and a document it cannot prove keeps its own line breaks. The prose repair is
+// The join must only move newlines. Format proves that on this document ahead
+// of everything else, and a document it cannot prove keeps its own line
+// breaks. The prose repair is
 // different in kind: it changes words on purpose, each to what Check names.
 func Fix(req Request) Repair {
 	rules := req.Rules
@@ -95,7 +96,7 @@ func Fix(req Request) Repair {
 		rules = AllRules
 	}
 	wants := func(r Rule) bool { return slices.Contains(rules, r) }
-	// An ID names one rule inside a category, the way a compiler names a
+	// An ID names a rule inside a category, the way a compiler names a
 	// warning. Naming any turns the others off, and naming none keeps them all.
 	keeps := func(id string) bool {
 		return len(req.IDs) == 0 || slices.Contains(req.IDs, id)

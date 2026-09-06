@@ -77,7 +77,7 @@ func isYAML(path string) bool {
 // writes a rewrite that lost a word.
 //
 // A workflow is refused rather than joined. A newline is syntax there, and
-// joining a two-line concurrency: block makes GitHub reject the whole file.
+// joining a wrapped concurrency: block makes GitHub reject the whole file.
 func FormatFile(path string) (changed bool, err error) {
 	content, err := os.ReadFile(path)
 	if err != nil {

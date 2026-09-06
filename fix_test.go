@@ -53,7 +53,7 @@ func TestFixReportsWhatItCannotRepair(t *testing.T) {
 }
 
 // The prose repair runs on the joined paragraph, so a rule sees the sentence
-// the hand wrap cut in two.
+// the hand wrap split apart.
 func TestFixRepairsProseAcrossAWrap(t *testing.T) {
 	repair := prose("A sentence that is wrapped\nand that doesn't expand.\n")
 	assert.True(t, repair.Changed)

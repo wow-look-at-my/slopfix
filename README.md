@@ -15,9 +15,12 @@ slopfmt check docs/*.md   # report what the rules reject, and exit 1 when anythi
 slopfmt fix docs/*.md     # repair each file in place, and report what is left
 slopfmt fmt docs/*.md     # join every wrapped paragraph back to a single line
 slopfmt purge .           # delete the markdown a repository must not keep
+slopfmt comments .        # report a number stated in a comment, in any language
 ```
 
 `fix` also reads a document on stdin and writes the repaired one on stdout. With `--json` the whole answer is one object, which is what a hook reads.
+
+`comments` reads source rather than prose. A number in a comment is a count of what exists today, and the edit that adds an item leaves it wrong. It reads a comment by its delimiters rather than by a grammar. So it answers for every language it knows, and on a tree that does not compile. A directory is walked, skipping hidden directories, `vendor`, `node_modules`, `testdata` and `build`. A named file is read whatever its extension. go-toolchain runs this same check as its first phase.
 
 ## Naming the rules to run
 
