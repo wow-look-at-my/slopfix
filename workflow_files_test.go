@@ -54,7 +54,7 @@ func TestCheckFileStillReadsADocumentWithTheProseRules(t *testing.T) {
 	assert.Equal(t, slopfmt.IDHardWrap, findings[0].ID)
 }
 
-// A newline in YAML is syntax. Joining a two-line concurrency: block makes
+// A newline in YAML is syntax. Joining a wrapped concurrency: block makes
 // GitHub reject the whole workflow before a job starts.
 func TestFormatFileRefusesAWorkflow(t *testing.T) {
 	content := "on: push\nconcurrency:\n  group: release\n"

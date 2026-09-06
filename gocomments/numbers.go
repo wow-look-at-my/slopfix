@@ -54,8 +54,7 @@ var numberWords = set.Of(
 	"eightieth", "ninetieth", "hundredth", "thousandth",
 )
 
-// generatedMarker opens the line that marks a file as generated. Its author is
-// a program, and telling a program to write differently is not a repair.
+// generatedMarker opens the line marking a file as generated.
 const generatedMarker = "// Code generated "
 
 // generatedSuffix closes that same line.
@@ -343,10 +342,8 @@ func runesOf(s string) ([]rune, []int) {
 	return runes, offsets
 }
 
-// touchesLetter reports whether a letter sits directly against the run, or
-// against a hyphen that does. A hyphen binds a compound name as tightly as
-// nothing at all: a stated width and a stated duration are the same kind of
-// fact, and neither counts what sits below it.
+// touchesLetter reports a letter directly against the run, or past a binding
+// hyphen: a compound name states a fact rather than a count.
 func touchesLetter(runes []rune, start, end int) bool {
 	return letterAt(runes, start-1, -1) || letterAt(runes, end, 1)
 }
