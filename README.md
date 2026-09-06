@@ -1,6 +1,6 @@
 # slopfmt
 
-One tool for the prose rules this org applies to a markdown file, and for the same rules a code comment must follow.
+One tool for the prose rules this org applies to a markdown file, and for the same rules a code comment must follow. It also reads a GitHub Actions workflow and an action manifest, where the org's gate rejects other things.
 
 ## Build
 
@@ -51,6 +51,14 @@ A sentence over the word cap is reported and left alone. To split one, the write
 - A sentence over the word cap. Text in parentheses counts as a single word, which keeps a citation from inflating the count.
 - A stated count of items. The number is true until somebody changes the set, and nothing corrects it then.
 - A tombstone comment. It describes a state the code has left, or argues for the diff instead of telling the next editor what breaks.
+
+## What check reports in a workflow
+
+A workflow under `.github/workflows`, and an `action.yml` beside it, are read by rules of their own. The prose rules never run on either. `fmt` refuses one outright, because a newline there is syntax. Joining a two-line `concurrency:` block makes GitHub reject the file before a job starts.
+
+- A run of comment lines. The limit is one line. Say what a reader needs right there, and put the rest in the commit message.
+- A job named `all-builds`, by its key or by its name. The required gate is a commit status from the required-builds-manager app. A job wearing the name satisfies nothing, and shadows the real gate in the UI.
+- A test written into a `run:` script. That covers an assertion, a shell function whose name says it asserts, or a redirect naming a test file. A step that merely runs a command fails on its own exit code, and is left alone.
 
 ## What no rule reads
 
