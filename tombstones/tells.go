@@ -28,13 +28,12 @@ const IDVolume = "tombstones/comment-volume"
 // AllIDs names every rule this package reports, for a caller that validates a
 // name before running.
 func AllIDs() []string {
-	ids := []string{IDVolume, ruleID(deadReferent)}
+	ids := set.New[string]()
+	ids.AddRange(IDVolume, ruleID(deadReferent))
 	for _, t := range tells {
-		if id := ruleID(t.name); !slices.Contains(ids, id) {
-			ids = append(ids, id)
-		}
+		ids.Add(ruleID(t.name))
 	}
-	return ids
+	return slices.Sorted(ids.All())
 }
 
 // ruleID turns a tell's words into the name that selects it.
