@@ -9,8 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// errFindings is the silent sentinel a failing check exits on. Its findings are
-// already printed, so Execute must not print the error too.
+// errFindings is the silent sentinel a failing check exits on.
 var errFindings = errors.New("findings reported")
 
 var rootCmd = &cobra.Command{

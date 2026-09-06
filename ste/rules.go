@@ -33,8 +33,7 @@ func (f Finding) String() string {
 	return fmt.Sprintf("%d: %s%s. %s", f.Line, f.Rule, detail, f.Fix)
 }
 
-// SentenceWordCap is STE's limit for a descriptive sentence. An instruction has
-// a tighter limit, which this checker does not try to tell apart.
+// SentenceWordCap is STE's cap for a descriptive sentence.
 const SentenceWordCap = 25
 
 // contractions maps every banned form to the words STE writes instead.
