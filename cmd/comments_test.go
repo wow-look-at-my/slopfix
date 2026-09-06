@@ -6,17 +6,18 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// runComments drives the command against paths and returns what it printed.
+// runCommentsOn drives the command and returns what it printed. The command is
+// built per call: tests run in parallel, and rootCmd's writer is shared.
 func runCommentsOn(t *testing.T, paths ...string) (string, error) {
 	t.Helper()
 	var out bytes.Buffer
-	cmd := rootCmd
+	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
-	t.Cleanup(func() { cmd.SetOut(nil) })
 	err := runComments(cmd, paths)
 	return out.String(), err
 }
