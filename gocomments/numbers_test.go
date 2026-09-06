@@ -31,6 +31,18 @@ func TestANameCarryingDigitsIsLeftAlone(t *testing.T) {
 	assert.Empty(t, numbersFound(t, "// sha256 over the amd64 payload, capped at 10ms"))
 }
 
+// A hyphen binds a compound name as tightly as nothing at all does.
+func TestAHyphenatedCompoundIsLeftAlone(t *testing.T) {
+	assert.Empty(t, numbersFound(t, "// KERN_PROCARGS2 opens with a 4-byte argc"))
+	assert.Empty(t, numbersFound(t, "// base-64 encoded"))
+}
+
+// The hyphen has to bind the digits to a WORD. A dash with room around it is
+// punctuation, and the count behind it is still a count.
+func TestASpacedDashDoesNotBindTheDigits(t *testing.T) {
+	assert.Equal(t, []string{"4"}, numbersFound(t, "// the walk has 4 - phases"))
+}
+
 func TestAQualifiedNameIsLeftAlone(t *testing.T) {
 	assert.Empty(t, numbersFound(t, "// sync.Once guards it, and net/http serves it"))
 }
@@ -39,11 +51,16 @@ func TestAURLIsLeftAlone(t *testing.T) {
 	assert.Empty(t, numbersFound(t, "// see https://example.com/v2/spec"))
 }
 
-// A fragment is its own token, because `#` cannot sit inside a name. So a
-// numbered anchor reads as a count, which is the citation the remedy tells the
-// author to spell as a slug.
-func TestAFragmentAfterAURLIsReadOnItsOwn(t *testing.T) {
-	assert.Equal(t, []string{"3"}, numbersFound(t, "// see https://example.com/spec#section-3"))
+// A fragment is its own token, because `#` cannot sit inside a name. The
+// hyphen inside it still binds, so a slug-shaped anchor survives.
+func TestAHyphenatedFragmentSurvives(t *testing.T) {
+	assert.Empty(t, numbersFound(t, "// see https://example.com/spec#section-3"))
+}
+
+// A fragment naming a bare position has no hyphen to bind it, so it is the
+// citation the remedy tells the author to spell as a slug.
+func TestABareFragmentPositionIsStillACount(t *testing.T) {
+	assert.Equal(t, []string{"3"}, numbersFound(t, "// see https://example.com/spec#3"))
 }
 
 // The exemptions that let a citation, a protocol answer and a cost stay.

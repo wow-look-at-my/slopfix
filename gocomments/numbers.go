@@ -343,10 +343,27 @@ func runesOf(s string) ([]rune, []int) {
 	return runes, offsets
 }
 
-// touchesLetter reports whether a letter sits directly against the run.
+// touchesLetter reports whether a letter sits directly against the run, or
+// against a hyphen that does. A hyphen binds a compound name as tightly as
+// nothing at all: a stated width and a stated duration are the same kind of
+// fact, and neither counts what sits below it.
 func touchesLetter(runes []rune, start, end int) bool {
-	return (start > 0 && unicode.IsLetter(runes[start-1])) ||
-		(end < len(runes) && unicode.IsLetter(runes[end]))
+	return letterAt(runes, start-1, -1) || letterAt(runes, end, 1)
+}
+
+// letterAt reports a letter at i, or past a hyphen sitting there.
+func letterAt(runes []rune, i, step int) bool {
+	if i < 0 || i >= len(runes) {
+		return false
+	}
+	if unicode.IsLetter(runes[i]) {
+		return true
+	}
+	if runes[i] != '-' {
+		return false
+	}
+	next := i + step
+	return next >= 0 && next < len(runes) && unicode.IsLetter(runes[next])
 }
 
 // ordinalSuffixes are what a digit wears when it is still a number.
