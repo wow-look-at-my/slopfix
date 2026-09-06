@@ -21,8 +21,7 @@ import (
 // deadReferent is the tell referents.go reports.
 const deadReferent = "a name nothing in the repository defines"
 
-// IDVolume names the volume cap, whose tell carries the block's line count and
-// so cannot supply a stable name.
+// IDVolume names the volume cap, whose tell carries a line count instead.
 const IDVolume = "tombstones/comment-volume"
 
 // AllIDs names every rule this package reports, for a caller that validates a
