@@ -1,6 +1,9 @@
 package tombstones
 
-import "strings"
+import (
+	"github.com/wow-look-at-my/go-containers/set"
+	"strings"
+)
 
 // DefaultMaxCommentLines caps one comment block in source. Volume is the tier
 // no rewording defeats: an essay whose every sentence reads as true and current
@@ -51,25 +54,25 @@ func Fix(path, added string, maxLines int) Repair {
 	}
 
 	repair := Repair{Text: added}
-	drop := map[int]bool{}
+	drop := set.New[int]()
 	for _, h := range hits {
 		if h.Strippable {
-			drop[h.LineNo] = true
+			drop.Add(h.LineNo)
 			continue
 		}
 		repair.Kept = append(repair.Kept, h)
 	}
-	if len(drop) == 0 {
+	if drop.Len() == 0 {
 		return repair
 	}
 
-	seen := map[string]bool{}
+	seen := set.New[string]()
 	var kept []string
 	for i, line := range strings.Split(added, "\n") {
-		if drop[i] {
+		if drop.Contains(i) {
 			trimmed := strings.TrimSpace(line)
-			if !seen[trimmed] {
-				seen[trimmed] = true
+			if !seen.Contains(trimmed) {
+				seen.Add(trimmed)
 				repair.Removed = append(repair.Removed, trimmed)
 			}
 			continue

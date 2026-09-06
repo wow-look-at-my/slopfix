@@ -12,6 +12,7 @@ package tombstones
 
 import (
 	"context"
+	"github.com/wow-look-at-my/go-containers/set"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -87,20 +88,20 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		return nil
 	}
 
-	names := map[string]bool{}
+	names := set.New[string]()
 	for _, b := range blocks {
 		for _, m := range identifierWords(b.Text) {
 			if isCandidate(m) {
-				names[m] = true
+				names.Add(m)
 			}
 		}
 	}
-	if len(names) == 0 || len(names) > maxNames {
+	if names.Len() == 0 || names.Len() > maxNames {
 		return nil
 	}
 
 	var ordered []string
-	for n := range names {
+	for n := range names.All() {
 		if strings.Count(added, n) > 1 {
 			continue
 		}

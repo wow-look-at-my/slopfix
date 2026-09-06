@@ -10,6 +10,7 @@
 package tombstones
 
 import (
+	"github.com/wow-look-at-my/go-containers/set"
 	"regexp"
 	"strconv"
 	"strings"
@@ -116,7 +117,7 @@ var tells = []tell{
 // current. That cap is the one tier no rewording defeats. Zero turns it off.
 func Find(blocks []Block, maxLines int) []Hit {
 	var hits []Hit
-	seen := map[string]bool{}
+	seen := set.New[string]()
 	for _, b := range blocks {
 		if maxLines > 0 && b.Lines > maxLines {
 			// A judgement about the whole block, not a span to excise, so
@@ -138,10 +139,10 @@ func Find(blocks []Block, maxLines int) []Hit {
 				// One line reports once per tell. Several rows of one tell can
 				// match a sentence, and printing each is noise.
 				key := t.name + "\x00" + strings.TrimSpace(line)
-				if seen[key] {
+				if seen.Contains(key) {
 					continue
 				}
-				seen[key] = true
+				seen.Add(key)
 				h := Hit{Tell: t.name, Phrase: phrase, Line: strings.TrimSpace(line), LineNo: -1}
 				h.LineNo, h.Strippable = linePurity(b, li)
 				hits = append(hits, h)
