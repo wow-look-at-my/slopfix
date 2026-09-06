@@ -8,11 +8,9 @@ package slopfmt
 
 import (
 	"os"
-	"strings"
 
 	"github.com/wow-look-at-my/slopfmt/markdown"
 	"github.com/wow-look-at-my/slopfmt/ste"
-	"github.com/wow-look-at-my/slopfmt/workflow"
 )
 
 // IDHardWrap names the wrap rule. It lives here rather than in ste, because the
@@ -50,41 +48,20 @@ func Format(content string) (string, bool) {
 }
 
 // CheckFile reads a file and reports its findings.
-//
-// A workflow and an action manifest are judged by the workflow rules, and every
-// other file by the prose rules.
 func CheckFile(path string) ([]ste.Finding, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	if isWorkflow(path, string(content)) {
-		return workflow.Check(string(content)), nil
-	}
 	return Check(string(content)), nil
-}
-
-// isWorkflow reports whether the workflow rules own this file.
-func isWorkflow(path, content string) bool {
-	return workflow.Judges(path) || (isYAML(path) && workflow.Sniff(content))
-}
-
-func isYAML(path string) bool {
-	return strings.HasSuffix(path, ".yml") || strings.HasSuffix(path, ".yaml")
 }
 
 // FormatFile rewrites a file in place and reports whether it changed. It never
 // writes a rewrite that lost a word.
-//
-// A workflow is refused rather than joined. A newline is syntax there, and
-// joining a two-line concurrency: block makes GitHub reject the whole file.
 func FormatFile(path string) (changed bool, err error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return false, err
-	}
-	if isWorkflow(path, string(content)) {
-		return false, errNotProse{path}
 	}
 	formatted, safe := Format(string(content))
 	if !safe {
@@ -108,11 +85,4 @@ type errLossy struct{ path string }
 
 func (e errLossy) Error() string {
 	return e.path + ": refusing to write -- the rewrite changed the words, not only the line breaks"
-}
-
-// errNotProse is the refusal to reflow a file whose newlines are syntax.
-type errNotProse struct{ path string }
-
-func (e errNotProse) Error() string {
-	return e.path + ": refusing to format -- a workflow's newlines are syntax, and joining them breaks the file"
 }
