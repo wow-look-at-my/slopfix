@@ -32,8 +32,14 @@ type Hit struct {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // numberWords are the cardinals spelled out. The singular is absent, because
 // English reads it as a pronoun far more often than as a count.
+=======
+// numberWords are the cardinals spelled out. The singular is deliberately
+// absent: in English prose it is overwhelmingly a pronoun ("the wrong one"),
+// and matching it reports far more good writing than bad. That is a known gap.
+>>>>>>> origin/master
 =======
 // numberWords are the cardinals spelled out. The singular is deliberately
 // absent: in English prose it is overwhelmingly a pronoun ("the wrong one"),
@@ -45,7 +51,12 @@ const numberWords = `two|three|four|five|six|seven|eight|nine|ten|` +
 
 // quantity is a cardinal governing a plural noun, adjectives allowed between.
 <<<<<<< HEAD
+<<<<<<< HEAD
 // continuesANumber guards the digit case, since RE2 has no lookbehind.
+=======
+// continuesANumber guards the digit case instead of a lookbehind, which RE2
+// lacks, and which a negated class cannot replace here.
+>>>>>>> origin/master
 =======
 // continuesANumber guards the digit case instead of a lookbehind, which RE2
 // lacks, and which a negated class cannot replace here.
@@ -129,7 +140,12 @@ func Check(content string) []Hit {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // cardinal matches what Strip cuts, the count and the space after it.
+=======
+// cardinal matches what Strip cuts: the digits or the spelled word heading a
+// quantity, plus the space separating it from its noun.
+>>>>>>> origin/master
 =======
 // cardinal matches what Strip cuts: the digits or the spelled word heading a
 // quantity, plus the space separating it from its noun.
@@ -165,7 +181,11 @@ func Strip(content string) (string, []Hit) {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // proseLine is a line of the document's own voice, with where it begins.
+=======
+// proseLine is one line of the document's own voice, with where it begins.
+>>>>>>> origin/master
 =======
 // proseLine is one line of the document's own voice, with where it begins.
 >>>>>>> origin/master
@@ -212,7 +232,11 @@ func continuesANumber(text string, start int) bool {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // isInventory rejects a quantity whose noun measures, and any reached through a
+=======
+// isInventory rejects a quantity whose noun measures, and one reached through a
+>>>>>>> origin/master
 =======
 // isInventory rejects a quantity whose noun measures, and one reached through a
 >>>>>>> origin/master

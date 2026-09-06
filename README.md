@@ -1,6 +1,7 @@
 # slopfmt
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 slopfmt is one binary that holds this org's prose rules. It formats a document. It reports what fails the merge gate. It repairs what a machine can repair without guessing.
 
 The rules live here once. CI runs it. An editor runs it. A Claude Code plugin shells out to it. None of the three can drift from the others, because none of them carries a copy of a rule.
@@ -55,6 +56,8 @@ A caller that already knows the answer must not spend a round trip asking for it
 
 MIT. See [LICENSE](LICENSE).
 =======
+=======
+>>>>>>> origin/master
 One tool for the prose rules this org applies to a markdown file, and for the same rules a code comment must follow.
 
 ## Build
@@ -84,4 +87,7 @@ slopfmt purge .           # delete the markdown a repository must not keep
 A fenced code block, a table and a heading are data. No rule reads them. The `fmt` command never reflows them.
 
 An HTML entity ends in a semicolon, and an inline code span holds whatever it holds. Both are masked before a rule sees the text.
+<<<<<<< HEAD
+>>>>>>> origin/master
+=======
 >>>>>>> origin/master

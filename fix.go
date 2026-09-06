@@ -2,6 +2,7 @@ package slopfmt
 
 import (
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"slices"
 
 	"github.com/wow-look-at-my/slopfmt/counts"
@@ -57,6 +58,8 @@ type Repair struct {
 	// Kept carries the tombstones no whole-line deletion resolves.
 	Kept []tombstones.Hit `json:"kept,omitempty"`
 =======
+=======
+>>>>>>> origin/master
 	"github.com/wow-look-at-my/slopfmt/counts"
 	"github.com/wow-look-at-my/slopfmt/ste"
 )
@@ -73,6 +76,9 @@ type Repair struct {
 	Changed bool `json:"changed"`
 	// Removed names each count whose cardinal was cut.
 	Removed []string `json:"removed,omitempty"`
+<<<<<<< HEAD
+>>>>>>> origin/master
+=======
 >>>>>>> origin/master
 	// Findings are what a reader must repair by hand.
 	Findings []ste.Finding `json:"findings"`
@@ -80,6 +86,7 @@ type Repair struct {
 
 // Fix repairs what a rewrite can repair and reports the rest.
 //
+<<<<<<< HEAD
 <<<<<<< HEAD
 // The rules run in the order that keeps each one's spans valid: tombstone lines
 // go first, then counts, then the wrap join, which reads text whose cuts have
@@ -130,6 +137,8 @@ func Fix(req Request) Repair {
 	repair.Changed = text != req.Content
 	return repair
 =======
+=======
+>>>>>>> origin/master
 // The wrap join runs last, on text whose counts are already gone, so a hit's
 // byte span is never invalidated under it. A rewrite that changed a word is
 // dropped: joining must only move newlines, and a result whose words differ is
@@ -151,5 +160,8 @@ func Fix(content string) Repair {
 		Removed:  removed,
 		Findings: Check(formatted),
 	}
+<<<<<<< HEAD
+>>>>>>> origin/master
+=======
 >>>>>>> origin/master
 }

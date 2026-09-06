@@ -10,6 +10,7 @@ import (
 )
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // prose puts a document to Fix with no path, which is how a caller vouches for
 // text as prose.
 func prose(content string) slopfmt.Repair {
@@ -22,6 +23,10 @@ func TestFixJoinsAWrapAndCutsACount(t *testing.T) {
 func TestFixJoinsAWrapAndCutsACount(t *testing.T) {
 	repair := slopfmt.Fix("There are three sections in the payload,\nand each one is read.\n")
 >>>>>>> origin/master
+=======
+func TestFixJoinsAWrapAndCutsACount(t *testing.T) {
+	repair := slopfmt.Fix("There are three sections in the payload,\nand each one is read.\n")
+>>>>>>> origin/master
 	assert.True(t, repair.Changed)
 	assert.Equal(t, "There are sections in the payload, and each one is read.\n", repair.Text)
 	assert.Equal(t, []string{"three sections"}, repair.Removed)
@@ -30,7 +35,11 @@ func TestFixJoinsAWrapAndCutsACount(t *testing.T) {
 func TestFixLeavesACleanDocumentAlone(t *testing.T) {
 	doc := "A paragraph that needs no repair at all.\n"
 <<<<<<< HEAD
+<<<<<<< HEAD
 	repair := prose(doc)
+=======
+	repair := slopfmt.Fix(doc)
+>>>>>>> origin/master
 =======
 	repair := slopfmt.Fix(doc)
 >>>>>>> origin/master
@@ -44,7 +53,11 @@ func TestFixLeavesACleanDocumentAlone(t *testing.T) {
 func TestFixKeepsAFencedBlockWhole(t *testing.T) {
 	doc := "# Title\n\n```sh\nfirst\nsecond\n```\n"
 <<<<<<< HEAD
+<<<<<<< HEAD
 	repair := prose(doc)
+=======
+	repair := slopfmt.Fix(doc)
+>>>>>>> origin/master
 =======
 	repair := slopfmt.Fix(doc)
 >>>>>>> origin/master
@@ -55,7 +68,11 @@ func TestFixKeepsAFencedBlockWhole(t *testing.T) {
 // What a rewrite cannot repair is reported rather than guessed at.
 func TestFixReportsWhatItCannotRepair(t *testing.T) {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	repair := prose("It doesn't expand its contraction.\n")
+=======
+	repair := slopfmt.Fix("It doesn't expand its contraction.\n")
+>>>>>>> origin/master
 =======
 	repair := slopfmt.Fix("It doesn't expand its contraction.\n")
 >>>>>>> origin/master
@@ -65,7 +82,11 @@ func TestFixReportsWhatItCannotRepair(t *testing.T) {
 
 func TestFixReportsTheFindingsOfTheRepairedText(t *testing.T) {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	repair := prose("A sentence that is wrapped\nand that doesn't expand.\n")
+=======
+	repair := slopfmt.Fix("A sentence that is wrapped\nand that doesn't expand.\n")
+>>>>>>> origin/master
 =======
 	repair := slopfmt.Fix("A sentence that is wrapped\nand that doesn't expand.\n")
 >>>>>>> origin/master
@@ -73,6 +94,7 @@ func TestFixReportsTheFindingsOfTheRepairedText(t *testing.T) {
 	require.Len(t, repair.Findings, 1)
 	assert.Equal(t, 1, repair.Findings[0].Line)
 }
+<<<<<<< HEAD
 <<<<<<< HEAD
 
 func TestOnlyOneRuleRunsWhenACallerNamesOne(t *testing.T) {
@@ -97,5 +119,7 @@ func TestADocumentPathStillGetsTheProseRules(t *testing.T) {
 	repair := slopfmt.Fix(slopfmt.Request{Content: "It doesn't expand.\n", Path: "a.md"})
 	assert.NotEmpty(t, repair.Findings)
 }
+=======
+>>>>>>> origin/master
 =======
 >>>>>>> origin/master
