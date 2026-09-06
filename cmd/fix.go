@@ -19,7 +19,7 @@ var (
 	fixOnly []string
 	// fixPath names the file the text is headed for.
 	fixPath string
-	// fixMaxLines caps one comment block.
+	// fixMaxLines caps a comment block.
 	fixMaxLines int
 )
 

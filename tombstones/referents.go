@@ -20,9 +20,8 @@ import (
 	"time"
 )
 
-// identifierWords splits text into the runs the shape test judges. Splitting on
-// every character an identifier cannot contain yields exactly the runs a word
-// boundary delimits.
+// identifierWords splits text into the runs the shape test judges, by cutting
+// on every character an identifier cannot hold.
 func identifierWords(text string) []string {
 	return strings.FieldsFunc(text, func(r rune) bool {
 		return !(r == '_' ||
@@ -32,15 +31,12 @@ func identifierWords(text string) []string {
 	})
 }
 
-// minCandidate is the shortest name this rule will judge. Below it a run of
-// letters is far more likely to be an English word than a symbol.
+// minCandidate is the shortest name this rule judges. A shorter run of letters
+// reads as an English word rather than a symbol.
 const minCandidate = 8
 
-// isCandidate reports whether a name is one this repository must contain.
-//
-// An all-caps name is refused outright: ENOSYS and its kin are the shape a
-// low-level comment is full of, and none of them is the repository's to define.
-// A short name is refused from the other direction: it is too likely a word.
+// isCandidate reports whether a name is one this repository must contain. An
+// all-caps name is refused: ENOSYS and its kin belong to nobody here.
 func isCandidate(name string) bool {
 	return len(name) >= minCandidate &&
 		name != strings.ToUpper(name) &&
@@ -59,17 +55,15 @@ func identifierShaped(name string) bool {
 			return true
 		}
 	}
-	// An initial capital is the remaining symbol shape, and prose capitalises a
-	// sentence the same way. Only a name with no lower-case tail qualifies.
+	// Prose capitalises a sentence the way a symbol capitalises its head, so
+	// an initial capital qualifies only beside a digit.
 	return name[0] >= 'A' && name[0] <= 'Z' && strings.ContainsAny(name, "0123456789")
 }
 
-// probeTimeout bounds the search. A guard that hangs is worse than one that
-// misses, so an expired probe reports nothing.
+// probeTimeout bounds the search, because a guard that hangs is the worse one.
 const probeTimeout = 2 * time.Second
 
-// maxNames bounds how many identifiers one comment may put to the repository.
-// An unbounded set is a comment this rule cannot judge cheaply.
+// maxNames bounds what a comment may put to the repository.
 const maxNames = 40
 
 // DeadReferents returns the identifiers the blocks name that appear neither in

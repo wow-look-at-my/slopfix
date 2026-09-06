@@ -5,28 +5,24 @@ import (
 	"strings"
 )
 
-// DefaultMaxCommentLines caps one comment block in source. Volume is the tier
-// no rewording defeats: an essay whose every sentence reads as true and current
-// still fails here.
+// DefaultMaxCommentLines caps a comment block in source. Volume is the tier no
+// rewording defeats.
 const DefaultMaxCommentLines = 14
 
-// Repair is what a caller acts on: the text with every strippable tombstone
-// line deleted, and the findings that no deletion can resolve.
+// Repair is the text with every strippable tombstone line deleted.
 type Repair struct {
 	Text    string   `json:"text"`
 	Changed bool     `json:"changed"`
 	Removed []string `json:"removed,omitempty"`
-	// Kept carries the findings that survive the strip. A caller that refuses a
-	// write refuses on these, because a strip that guesses at a span corrupts
-	// the file worse than a round trip back to the author does.
+	// Kept carries the findings that survive the strip. A caller refuses on
+	// these, because a strip that guesses at a span corrupts the file.
 	Kept []Hit `json:"kept,omitempty"`
 }
 
 // Fix scans the text a write adds to path and strips what it safely can.
 //
-// maxLines caps one comment block; pass DefaultMaxCommentLines for the usual
-// bound and zero to turn the cap off. A document is always capless, because a
-// long paragraph is ordinary writing.
+// maxLines caps a comment block, and zero turns the cap off. A document is
+// always capless, because a long paragraph is ordinary writing.
 func Fix(path, added string, maxLines int) Repair {
 	doc := IsDocument(path)
 	if doc {
@@ -45,9 +41,8 @@ func Fix(path, added string, maxLines int) Repair {
 		return Repair{Text: added}
 	}
 	if doc {
-		// A document line is a paragraph, not a sentence: this org writes
-		// without hard wraps, so several sentences share one raw line and
-		// deleting the line takes a keeper with it.
+		// A document line is a paragraph rather than a sentence, so
+		// deleting it takes a keeper with it.
 		for i := range hits {
 			hits[i].Strippable = false
 		}

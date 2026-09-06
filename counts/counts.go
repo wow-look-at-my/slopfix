@@ -31,16 +31,14 @@ type Hit struct {
 	End    int
 }
 
-// numberWords are the cardinals spelled out. The singular is deliberately
-// absent: in English prose it is overwhelmingly a pronoun ("the wrong one"),
-// and matching it reports far more good writing than bad. That is a known gap.
+// numberWords are the cardinals spelled out. The singular is absent, because
+// English reads it as a pronoun far more often than as a count.
 const numberWords = `two|three|four|five|six|seven|eight|nine|ten|` +
 	`eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|` +
 	`nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|dozen`
 
 // quantity is a cardinal governing a plural noun, adjectives allowed between.
-// continuesANumber guards the digit case instead of a lookbehind, which RE2
-// lacks, and which a negated class cannot replace here.
+// continuesANumber guards the digit case, since RE2 has no lookbehind.
 const quantity = `(?:\d{1,4}|\b(?:` + numberWords + `))` +
 	`\s+(?:[a-z][a-z-]*\s+){0,3}?[a-z][a-z-]{2,}s\b`
 
@@ -119,8 +117,7 @@ func Check(content string) []Hit {
 	return hits
 }
 
-// cardinal matches what Strip cuts: the digits or the spelled word heading a
-// quantity, plus the space separating it from its noun.
+// cardinal matches what Strip cuts, the count and the space after it.
 var cardinal = regexp.MustCompile(`(?i)^(?:\d{1,4}|` + numberWords + `)\s+`)
 
 // Strip removes the cardinal from every inventory count and returns the
@@ -151,7 +148,7 @@ func Strip(content string) (string, []Hit) {
 	return out, cut
 }
 
-// proseLine is one line of the document's own voice, with where it begins.
+// proseLine is a line of the document's own voice, with where it begins.
 type proseLine struct {
 	text   string
 	no     int
@@ -194,7 +191,7 @@ func continuesANumber(text string, start int) bool {
 	return c == '.' || (c >= '0' && c <= '9')
 }
 
-// isInventory rejects a quantity whose noun measures, and one reached through a
+// isInventory rejects a quantity whose noun measures, and any reached through a
 // function word.
 func isInventory(phrase string) bool {
 	words := strings.Fields(strings.ToLower(phrase))

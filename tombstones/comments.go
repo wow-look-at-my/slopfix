@@ -15,21 +15,19 @@ import (
 	"strings"
 )
 
-// Block is one run of comment lines, or one paragraph of a document.
-//
-// LineNos and Pure describe each line of Text against the original source: an
-// absolute line number, and whether deleting that exact line removes nothing
-// besides this comment. Both are nil for a document paragraph, since prose
-// shares a line with other prose in a way a comment never shares one with code.
+// Block is a run of comment lines, or a paragraph of a document.
 type Block struct {
-	Text    string
-	Lines   int
+	Text  string
+	Lines int
+	// LineNos gives each line of Text its position in the original source.
 	LineNos []int
-	Pure    []bool
+	// Pure says whether deleting that source line removes only this comment.
+	// Both arrays stay nil for a document paragraph, where prose shares a line
+	// with other prose in a way a comment never shares a line with code.
+	Pure []bool
 }
 
-// style says how a language spells a comment. A language with no block form
-// leaves BlockOpen empty.
+// style says how a language spells a comment.
 type style struct {
 	line       []string
 	blockOpen  string
@@ -74,8 +72,8 @@ var byBase = map[string]style{
 	"containerfile": hashish, ".gitignore": hashish, ".dockerignore": hashish,
 }
 
-// AddedBlocks returns the prose that added contributes to path, or nil when the
-// path is one this package does not judge.
+// AddedBlocks returns the prose that added contributes to path. It returns nil
+// for a path this package does not judge.
 func AddedBlocks(path, added string) []Block {
 	if IsDocument(path) {
 		return paragraphs(added)
@@ -105,20 +103,19 @@ func IsDocument(path string) bool {
 	return false
 }
 
-// piece is one comment, possibly spanning several physical lines. firstPure and
-// lastPure describe its first and last source line: is everything on that raw
-// line, outside this comment's own span, whitespace. An interior line needs no
-// such flag, because the scanner hands the whole raw line to the comment.
+// piece is a comment, which can span several physical lines.
 type piece struct {
-	line      int
-	text      string
+	line int
+	text string
+	// firstPure and lastPure ask, of the comment's opening and closing source
+	// line, whether everything outside its own span is whitespace. An interior
+	// line needs no flag: the scanner hands it the whole raw line.
 	firstPure bool
 	lastPure  bool
 }
 
-// commentBlocks walks src and collects each comment, merging a run of adjacent
-// line comments into one block so the volume cap sees the essay rather than its
-// individual lines.
+// commentBlocks walks src and collects each comment. It merges a run of
+// adjacent line comments, so the volume cap sees the essay.
 func commentBlocks(src string, st style) []Block {
 	var pieces []piece
 
@@ -154,9 +151,8 @@ func commentBlocks(src string, st style) []Block {
 			if at < 0 {
 				break
 			}
-			// A second comment sharing this raw line makes the line's purity
-			// ambiguous: deleting it could take a sibling comment, or code, with
-			// it. Only the first marker on a line can ever be judged pure.
+			// Another comment sharing this raw line makes its purity
+			// ambiguous, because deleting it can take a sibling with it.
 			firstOnLine := piecesThisLine == 0
 			if kind == markerBlock {
 				open := rest[at+len(st.blockOpen):]
@@ -214,8 +210,7 @@ func commentBlocks(src string, st style) []Block {
 	return out
 }
 
-// pieceLines expands one piece into the per-line arrays a Block carries: the
-// source line number and the purity of each line of its text.
+// pieceLines expands a piece into the per-line arrays a Block carries.
 func pieceLines(p piece) (lineNos []int, pure []bool) {
 	n := strings.Count(p.text, "\n") + 1
 	lineNos = make([]int, n)
@@ -240,8 +235,8 @@ const (
 	markerBlock
 )
 
-// nextMarker finds where the next comment starts in one line of code, skipping
-// string literals so a quoted marker is not read as one.
+// nextMarker finds where the next comment starts in a line of code. It skips
+// string literals, so a quoted marker is not read as one.
 func nextMarker(line string, st style) (int, int) {
 	for i := 0; i < len(line); i++ {
 		c := line[i]
@@ -295,9 +290,8 @@ func skipString(line string, start int, quote byte) int {
 	return -1
 }
 
-// paragraphs splits a document into blank-line-separated blocks, dropping the
-// parts that are not the document's own voice: fenced code, indented code, HTML
-// comments and frontmatter.
+// paragraphs splits a document into blank-line-separated blocks. It drops what
+// is not the document's own voice: code, HTML comments and frontmatter.
 func paragraphs(doc string) []Block {
 	lines := strings.Split(doc, "\n")
 	start := 0
@@ -347,8 +341,7 @@ func paragraphs(doc string) []Block {
 }
 
 // blankInlineCode replaces each backtick span with spaces, keeping every byte
-// offset. A phrase inside verbatim machinery is a literal, not the document's
-// own claim.
+// offset. A phrase inside verbatim machinery is a literal, not a claim.
 func blankInlineCode(line string) string {
 	var b strings.Builder
 	in := false

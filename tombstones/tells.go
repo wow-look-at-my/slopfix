@@ -22,11 +22,10 @@ type Hit struct {
 	Phrase string `json:"phrase"` // the matched words
 	Line   string `json:"line"`   // the line they sit on
 
-	// Strippable is true when Line is exactly one source line whose deletion
-	// removes nothing but this comment: no code, no sibling comment. LineNo is
-	// that line's index in the text, and means nothing unless Strippable is set.
+	// Strippable means deleting LineNo removes this comment and nothing else.
 	Strippable bool `json:"strippable"`
-	LineNo     int  `json:"lineNo"`
+	// LineNo indexes Line in the text, and means nothing unless Strippable.
+	LineNo int `json:"lineNo"`
 }
 
 // tell is one recognisable shape. name is what a report prints.
@@ -43,23 +42,19 @@ const changeParticiples = `renamed|removed|added|deleted|moved|replaced|` +
 
 // tells is the table. It is data: extending this package is adding a row.
 //
-// Every row traces to a shape that survives paraphrase badly enough to be worth
-// matching by surface. The tiers that do not read the wording at all are the
-// volume cap in Find and the dead-referent check in referents.go.
+// Every row traces to a shape that survives paraphrase badly. The tiers that do
+// not read the wording at all are the volume cap in Find and referents.go.
 var tells = []tell{
-	// A date is the purest marker: git already timestamps the line, so a date
-	// in a comment can only narrate when something happened.
+	// Git already timestamps the line, so a date can only narrate.
 	{"a date", regexp.MustCompile(`(?i)\b(?:19|20)\d{2}-\d{2}-\d{2}\b`)},
 	{"a date", regexp.MustCompile(`(?i)\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(?:\d{1,2},?\s+)?(?:19|20)\d{2}\b`)},
 
-	// A change reference points at the commit that made the edit. The commit
-	// message is where that belongs; here it rots the moment the ref is stale.
+	// The commit message is where a change reference belongs.
 	{"a change reference", regexp.MustCompile(`(?i)\b(?:pr|pull request|issue|ticket|commit)\s+#?\d+\b`)},
 	{"a change reference", regexp.MustCompile(`(?i)\b[a-z0-9][\w.-]*/[\w.-]+#\d+\b`)},
 
-	// A contrast marker states a "then" the reader cannot see. These sit above
-	// the general former-state rules because several sentences satisfy both,
-	// and the first match names the finding.
+	// A contrast marker states a "then" the reader cannot see. It sits above
+	// the general rules, because the earliest match names the finding.
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\brather than (?:the )?(?:old|former|previous|legacy)\b`)},
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\binstead of (?:the )?(?:old|former|previous|legacy)\b`)},
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\bwhere (?:it|this|that) (?:used to|once)\b`)},
@@ -71,11 +66,9 @@ var tells = []tell{
 	{"a former state", regexp.MustCompile(`(?i)\bno longer\b|\banymore\b|\bnowadays\b|\bthese days\b`)},
 	{"a former state", regexp.MustCompile(`(?i)\bthe (?:former|old|previous|legacy|original) \w+`)},
 	{"a former state", regexp.MustCompile(`(?i)\b(?:was|were|has been|have been|had been|got|gets|is now|are now) (?:` + changeParticiples + `)\b`)},
-	// A demonstrative in front of a participle needs the narrower verb set:
-	// "that split has a way to go wrong" is a noun, and refusing it is how a
-	// guard earns the reputation that gets it uninstalled. The ambiguous words
-	// keep their place in the rule above, where an auxiliary settles the
-	// reading.
+	// A demonstrative in front of a participle needs the narrower verb set,
+	// because "that split has a way to go wrong" is a noun. The ambiguous
+	// words keep their place above, where an auxiliary settles the reading.
 	{"a former state", regexp.MustCompile(`(?i)\b(?:we|this|it|that) (?:renamed|removed|deleted|replaced|introduced|reverted|refactored|migrated|deprecated|rewrote|reworked|consolidated)\b`)},
 	{"a former state", regexp.MustCompile(`(?i)\bthis (?:replaces|supersedes|used to)\b`)},
 	{"a former state", regexp.MustCompile(`(?i)\bstopped (?:being|working|doing)\b|\bstarted (?:being|failing)\b`)},
@@ -89,21 +82,18 @@ var tells = []tell{
 	{"an address to the reviewer", regexp.MustCompile(`(?i)\bper the (?:review|reviewer|feedback|comment)\b`)},
 	{"an address to the reviewer", regexp.MustCompile(`(?i)\b(?:flagging|to be clear|just to note|for the reviewer)\b`)},
 
-	// A defence of the change: an argument, aimed at somebody deciding whether
-	// to accept it, parked permanently in a file.
+	// An argument for the diff, parked permanently in a file.
 	{"a defence of the change", regexp.MustCompile(`(?i)\bthat is not (?:tidying|cleanup|cosmetic|churn|a rename|style|gratuitous)\b`)},
 	{"a defence of the change", regexp.MustCompile(`(?i)\bthis is not (?:just )?(?:tidying|cleanup|cosmetic|churn|a rename|refactoring for)\b`)},
 	{"a defence of the change", regexp.MustCompile(`(?i)\bwould have been\b|\bwould otherwise have\b`)},
 	{"a defence of the change", regexp.MustCompile(`(?i)\bnot (?:tidying|scope creep|gold.?plating)\b`)},
 
-	// Somebody's instruction, quoted. It reads as authority the code cannot
-	// check, and it dates the moment they said it.
+	// An instruction, quoted. It reads as authority the code cannot check.
 	{"a quoted instruction", regexp.MustCompile(`(?i)\bthe (?:owner|operator|user|reviewer|maintainer) (?:said|says|ruled|asked|wants|requested)\b`)},
 	{"a quoted instruction", regexp.MustCompile(`(?i)\bper (?:the )?(?:owner|operator|user|maintainer)\b`)},
 	{"a quoted instruction", regexp.MustCompile(`(?i)\bby (?:owner|operator) (?:ruling|request|decree)\b`)},
 
-	// An experiment reported to the reviewer. It happened once, to a tree that
-	// no longer exists, and nothing re-runs it.
+	// An experiment reported to the reviewer, which nothing re-runs.
 	{"a report of an experiment", regexp.MustCompile(`(?i)\bnegative control\b`)},
 	{"a report of an experiment", regexp.MustCompile(`(?i)\b(?:i|we) (?:ran|tried|tested|measured|verified this by|checked this by)\b`)},
 	{"a report of an experiment", regexp.MustCompile(`(?i)\bverified by (?:breaking|deleting|removing|reverting)\b`)},
@@ -112,9 +102,8 @@ var tells = []tell{
 
 // Find returns every tombstone the blocks carry.
 //
-// maxLines caps a single block. A tombstone is almost always surplus text, so
-// volume catches the essay whose every individual sentence reads as true and
-// current. That cap is the one tier no rewording defeats. Zero turns it off.
+// maxLines caps a block, and zero turns the cap off. A tombstone is surplus
+// text, so volume catches the essay no rewording defeats.
 func Find(blocks []Block, maxLines int) []Hit {
 	var hits []Hit
 	seen := set.New[string]()
@@ -136,8 +125,8 @@ func Find(blocks []Block, maxLines int) []Hit {
 					continue
 				}
 				phrase := strings.TrimSpace(line[at[0]:at[1]])
-				// One line reports once per tell. Several rows of one tell can
-				// match a sentence, and printing each is noise.
+				// A line reports once per tell, because several rows of a
+				// tell can match a sentence and printing each is noise.
 				key := t.name + "\x00" + strings.TrimSpace(line)
 				if seen.Contains(key) {
 					continue
@@ -152,9 +141,8 @@ func Find(blocks []Block, maxLines int) []Hit {
 	return hits
 }
 
-// linePurity looks up a block-relative line index in b's parallel arrays. It
-// reports that nothing is strippable when the arrays carry no entry there,
-// which is always true for a document paragraph.
+// linePurity looks a block-relative line index up in b's parallel arrays. An
+// absent entry reports nothing strippable, which every document paragraph is.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
 	if li < len(b.LineNos) && li < len(b.Pure) {
 		return b.LineNos[li], b.Pure[li]
@@ -162,8 +150,8 @@ func linePurity(b Block, li int) (lineNo int, pure bool) {
 	return -1, false
 }
 
-// HitForName builds the Hit for a dead referent: the comment line that names
-// it, with the strip metadata a wording-based tell gets.
+// HitForName builds the Hit for a dead referent, carrying the strip metadata a
+// wording-based tell gets.
 func HitForName(blocks []Block, name string) Hit {
 	for _, b := range blocks {
 		for li, line := range strings.Split(b.Text, "\n") {
