@@ -45,7 +45,7 @@ func TestFixKeepsAFencedBlockWhole(t *testing.T) {
 // long sentence needs a writer who knows which half is the point.
 func TestFixReportsWhatItCannotRepair(t *testing.T) {
 	long := "The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n"
-	repair := slopfmt.Fix(long)
+	repair := prose(long)
 	assert.False(t, repair.Changed)
 	require.NotEmpty(t, repair.Findings)
 	assert.Contains(t, repair.Findings[0].Fix, "Split it")
@@ -54,14 +54,14 @@ func TestFixReportsWhatItCannotRepair(t *testing.T) {
 // The prose repair runs on the joined paragraph, so a rule sees the sentence
 // the hand wrap cut in two.
 func TestFixRepairsProseAcrossAWrap(t *testing.T) {
-	repair := slopfmt.Fix("A sentence that is wrapped\nand that doesn't expand.\n")
+	repair := prose("A sentence that is wrapped\nand that doesn't expand.\n")
 	assert.True(t, repair.Changed)
 	assert.Equal(t, "A sentence that is wrapped and that does not expand.\n", repair.Text)
 	assert.Empty(t, repair.Findings)
 }
 
 func TestFixRepairsTheMechanicalRules(t *testing.T) {
-	repair := slopfmt.Fix("It doesn't matter; a caller should wait, so the write fails.\n")
+	repair := prose("It doesn't matter; a caller should wait, so the write fails.\n")
 	assert.True(t, repair.Changed)
 	assert.Equal(t, "It does not matter. A caller must wait. So the write fails.\n", repair.Text)
 	assert.Empty(t, repair.Findings)
@@ -69,14 +69,14 @@ func TestFixRepairsTheMechanicalRules(t *testing.T) {
 
 // A list item is prose, and its marker survives the repair.
 func TestFixKeepsAListMarker(t *testing.T) {
-	repair := slopfmt.Fix("- It doesn't run.\n")
+	repair := prose("- It doesn't run.\n")
 	assert.Equal(t, "- It does not run.\n", repair.Text)
 }
 
 // A fence is data, so no prose rule reaches inside it.
 func TestFixLeavesProseInsideAFenceAlone(t *testing.T) {
 	doc := "```sh\nit doesn't run; nothing does\n```\n"
-	repair := slopfmt.Fix(doc)
+	repair := prose(doc)
 	assert.False(t, repair.Changed)
 	assert.Equal(t, doc, repair.Text)
 }
@@ -123,5 +123,5 @@ func TestSourceGetsTheTombstoneRuleAndNoProseRule(t *testing.T) {
 
 func TestADocumentPathStillGetsTheProseRules(t *testing.T) {
 	repair := slopfmt.Fix(slopfmt.Request{Content: "It doesn't expand.\n", Path: "a.md"})
-	assert.NotEmpty(t, repair.Findings)
+	assert.Equal(t, "It does not expand.\n", repair.Text)
 }

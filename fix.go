@@ -2,6 +2,7 @@ package slopfmt
 
 import (
 	"os"
+	"slices"
 
 	"github.com/wow-look-at-my/slopfmt/counts"
 	"github.com/wow-look-at-my/slopfmt/markdown"
@@ -60,35 +61,50 @@ type Repair struct {
 
 // Fix repairs what a rewrite can repair and reports the rest.
 //
-// Three repairs run, in this order. The count strip goes first, on the source,
-// so a hit's byte span is still valid. The wrap join follows. The prose repair
-// runs inside the join, on each block's joined text, because a rule reads a
+// The repairs run in the order that keeps each one's spans valid. A tombstone
+// line goes first, because it is deleted whole. The count strip follows, on
+// text whose deletions have landed. The wrap join comes last, and the prose
+// repair runs inside it, on each block's joined text, because a rule reads a
 // paragraph as one sentence stream and a hand wrap hides half of it.
 //
 // The join must only move newlines. Format proves that on this document first,
-// and a document it cannot prove is returned with its counts cut and nothing
-// else. The prose repair is different in kind: it changes words on purpose,
-// each one to the replacement Check names.
-func Fix(content string) Repair {
-	stripped, cut := counts.Strip(content)
-	removed := make([]string, 0, len(cut))
-	for _, hit := range cut {
-		removed = append(removed, hit.Phrase)
+// and a document it cannot prove keeps its own line breaks. The prose repair is
+// different in kind: it changes words on purpose, each to what Check names.
+func Fix(req Request) Repair {
+	rules := req.Rules
+	if len(rules) == 0 {
+		rules = AllRules
+	}
+	wants := func(r Rule) bool { return slices.Contains(rules, r) }
+
+	text := req.Content
+	var repair Repair
+
+	if wants(RuleTombstones) && req.Path != "" {
+		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
+		text = cut.Text
+		repair.Removed = append(repair.Removed, cut.Removed...)
+		repair.Kept = cut.Kept
 	}
 
-	repaired := stripped
-	if _, safe := Format(stripped); safe {
-		repaired = markdown.FormatFunc(stripped, ste.Fix)
+	// The remaining rules read prose. Source keeps its own text, because a
+	// comma splice inside a code line is not a sentence.
+	if req.Path != "" && !IsDocument(req.Path) {
+		repair.Text = text
+		repair.Changed = text != req.Content
+		return repair
 	}
-	return Repair{
-		Text:     repaired,
-		Changed:  repaired != content,
-		Removed:  removed,
-		Findings: Check(repaired),
+
+	if wants(RuleCounts) {
+		stripped, hits := counts.Strip(text)
+		text = stripped
+		for _, hit := range hits {
+			repair.Removed = append(repair.Removed, hit.Phrase)
+		}
 	}
 	if wants(RuleWrap) {
-		if formatted, safe := Format(text); safe {
-			text = formatted
+		if _, safe := Format(text); safe {
+			text = markdown.FormatFunc(text, ste.Fix)
 		}
 	}
 	if wants(RuleSTE) {
@@ -100,6 +116,9 @@ func Fix(content string) Repair {
 	return repair
 }
 
+// IsDocument reports whether path names prose rather than source.
+func IsDocument(path string) bool { return tombstones.IsDocument(path) }
+
 // FixFile repairs a file in place and reports what it did. It writes nothing
 // when the repair leaves the document as it was.
 func FixFile(path string) (Repair, error) {
@@ -107,7 +126,7 @@ func FixFile(path string) (Repair, error) {
 	if err != nil {
 		return Repair{}, err
 	}
-	repair := Fix(string(content))
+	repair := Fix(Request{Content: string(content), Path: path})
 	if !repair.Changed {
 		return repair, nil
 	}

@@ -48,9 +48,36 @@ func init() {
 	rootCmd.AddCommand(fix)
 }
 
+func ruleNames() []string {
+	names := make([]string, 0, len(slopfmt.AllRules))
+	for _, rule := range slopfmt.AllRules {
+		names = append(names, string(rule))
+	}
+	return names
+}
+
+// selectedRules turns --only into the rules Fix takes. An unknown name is an
+// error rather than a silent no-op, because a typo that quietly applies nothing
+// reads as a clean file.
+func selectedRules(only []string) ([]slopfmt.Rule, error) {
+	var rules []slopfmt.Rule
+	for _, name := range only {
+		rule := slopfmt.Rule(strings.TrimSpace(name))
+		if !slices.Contains(slopfmt.AllRules, rule) {
+			return nil, fmt.Errorf("unknown rule %q: pick from %s", name, strings.Join(ruleNames(), ", "))
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
 func runFix(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return fixFiles(cmd, args)
+	}
+	rules, err := selectedRules(fixOnly)
+	if err != nil {
+		return err
 	}
 	content, err := io.ReadAll(cmd.InOrStdin())
 	if err != nil {
