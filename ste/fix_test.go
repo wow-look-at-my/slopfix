@@ -39,7 +39,7 @@ func TestFixBreaksASpliceThatCarriesAConjunction(t *testing.T) {
 }
 
 // A bare comma splices only when what precedes it already stands alone.
-// checkSplices makes that test, and the repair makes the same one.
+// checkSplices makes that test, and the repair makes the same test.
 func TestFixLeavesAnIntroductoryCommaAlone(t *testing.T) {
 	phrase := "Under the gate, the write fails."
 	assert.Equal(t, phrase, ste.Fix(phrase))
