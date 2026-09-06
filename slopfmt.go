@@ -13,6 +13,10 @@ import (
 	"github.com/wow-look-at-my/slopfmt/ste"
 )
 
+// IDHardWrap names the wrap rule. It lives here rather than in ste, because the
+// document's shape is this package's to judge.
+const IDHardWrap = "wrap/hard-wrap"
+
 // Check reports every finding in a document, in source order.
 func Check(content string) []ste.Finding {
 	var out []ste.Finding
@@ -23,6 +27,7 @@ func Check(content string) []ste.Finding {
 		if len(block.Lines) > 1 {
 			out = append(out, ste.Finding{
 				Line: block.Start,
+				ID:   IDHardWrap,
 				Rule: "a paragraph is one line",
 				Fix:  "Join it back up and let the reader's window wrap it. `slopfmt fmt` does this.",
 			})

@@ -4,13 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/slopfmt"
+	"github.com/wow-look-at-my/slopfmt/tombstones"
 )
 
-// asJSON makes the output machine-readable, which is how a hook consumes it.
-var asJSON bool
+var (
+	// asJSON makes the output machine-readable, which is how a hook consumes it.
+	asJSON bool
+	// fixOnly restricts the run to the rules a caller names.
+	fixOnly []string
+	// fixPath names the file the text is headed for.
+	fixPath string
+	// fixMaxLines caps a comment block.
+	fixMaxLines int
+)
 
 func init() {
 	fix := &cobra.Command{
@@ -31,32 +42,89 @@ func init() {
 		RunE: runFix,
 	}
 	fix.Flags().BoolVar(&asJSON, "json", false, "write the whole answer as one JSON object on stdout")
+	fix.Flags().StringSliceVar(&fixOnly, "only", nil,
+		"run only these, as a comma-separated list. An entry is a category ("+
+			strings.Join(ruleNames(), ", ")+") or a single rule ID, which is the name the report prints")
+	fix.Flags().StringVar(&fixPath, "path", "", "the file the text is headed for")
+	fix.Flags().IntVar(&fixMaxLines, "max-comment-lines", tombstones.DefaultMaxCommentLines, "cap a comment block, 0 to turn the cap off")
 	rootCmd.AddCommand(fix)
+}
+
+func ruleNames() []string {
+	names := make([]string, 0, len(slopfmt.AllRules))
+	for _, rule := range slopfmt.AllRules {
+		names = append(names, string(rule))
+	}
+	return names
+}
+
+// selectedRules turns --only into what Fix takes.
+//
+// An entry is a category (`ste`) or a rule ID (`ste/semicolon`), the name the
+// report prints. An ID turns its category on too. An unknown name is an error,
+// because a typo that quietly applies nothing reads as a clean file.
+func selectedRules(only []string) ([]slopfmt.Rule, []string, error) {
+	var rules []slopfmt.Rule
+	var ids []string
+	for _, name := range only {
+		name = strings.TrimSpace(name)
+		if category, _, isID := strings.Cut(name, "/"); isID {
+			rule := slopfmt.Rule(category)
+			if !slices.Contains(slopfmt.AllRules, rule) {
+				return nil, nil, fmt.Errorf("unknown rule %q: its category is not one of %s", name, strings.Join(ruleNames(), ", "))
+			}
+			known := slopfmt.IDsFor(rule)
+			if !slices.Contains(known, name) {
+				return nil, nil, fmt.Errorf("unknown rule %q: %s holds %s", name, category, strings.Join(known, ", "))
+			}
+			rules = append(rules, rule)
+			ids = append(ids, name)
+			continue
+		}
+		rule := slopfmt.Rule(name)
+		if !slices.Contains(slopfmt.AllRules, rule) {
+			return nil, nil, fmt.Errorf("unknown rule %q: pick from %s, or name one rule as category/rule", name, strings.Join(ruleNames(), ", "))
+		}
+		rules = append(rules, rule)
+	}
+	return rules, ids, nil
 }
 
 func runFix(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return fixFiles(cmd, args)
 	}
+	rules, ids, err := selectedRules(fixOnly)
+	if err != nil {
+		return err
+	}
 	content, err := io.ReadAll(cmd.InOrStdin())
 	if err != nil {
 		return err
 	}
-	repair := slopfmt.Fix(string(content))
+	repair := slopfmt.Fix(slopfmt.Request{
+		Content:         string(content),
+		Path:            fixPath,
+		Rules:           rules,
+		IDs:             ids,
+		MaxCommentLines: fixMaxLines,
+	})
 
 	if asJSON {
-		encoder := json.NewEncoder(cmd.OutOrStdout())
-		if err := encoder.Encode(repair); err != nil {
-			return err
-		}
-		return nil
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(repair)
 	}
 
 	fmt.Fprint(cmd.OutOrStdout(), repair.Text)
+	for _, line := range repair.Removed {
+		fmt.Fprintf(cmd.ErrOrStderr(), "removed: %s\n", line)
+	}
+	for _, hit := range repair.Kept {
+		fmt.Fprintf(cmd.ErrOrStderr(), "[%s] %s: %q\n    %s\n", hit.ID, hit.Tell, hit.Phrase, hit.Line)
+	}
 	for _, finding := range repair.Findings {
 		fmt.Fprintln(cmd.ErrOrStderr(), finding)
 	}
-	if len(repair.Findings) > 0 {
+	if len(repair.Findings) > 0 || len(repair.Kept) > 0 {
 		return errFindings
 	}
 	return nil

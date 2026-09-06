@@ -20,6 +20,9 @@ import (
 	"github.com/wow-look-at-my/slopfmt/markdown"
 )
 
+// ID names this rule, on a report and on the command line alike.
+const ID = "counts/inventory-count"
+
 // Hit is a count found in a document. The byte span is what lets the cardinal
 // be cut out in place instead of the write being refused.
 type Hit struct {

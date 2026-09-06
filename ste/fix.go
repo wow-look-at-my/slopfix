@@ -10,8 +10,21 @@ import (
 // Fix applies the repair Check names. A long sentence is left alone,
 // because splitting it needs a writer who knows the point.
 func Fix(text string) string {
+	return FixSelected(text, func(string) bool { return true })
+}
+
+// FixSelected applies the repairs whose ID keep accepts, so a caller that names
+// a rule gets that rule's repair and no other.
+func FixSelected(text string, keep func(id string) bool) string {
 	return fixProse(text, func(prose string) string {
-		return fixSplices(fixSemicolons(fixWords(prose)))
+		prose = fixWords(prose, keep)
+		if keep(IDSemicolon) {
+			prose = fixSemicolons(prose)
+		}
+		if keep(IDCommaSplice) {
+			prose = fixSplices(prose)
+		}
+		return prose
 	})
 }
 
@@ -42,12 +55,18 @@ func fixProse(text string, repair func(string) string) string {
 
 // fixWords writes the approved word for each banned word, and keeps the
 // capitalization the source used.
-func fixWords(prose string) string {
+func fixWords(prose string, keep func(id string) bool) string {
 	return wordPattern.ReplaceAllStringFunc(prose, func(word string) string {
 		lower := strings.ToLower(word)
 		replacement, banned := contractions[lower]
+		if banned && !keep(IDContraction) {
+			banned = false
+		}
 		if !banned {
 			replacement, banned = modals[lower]
+			if banned && !keep(IDModal) {
+				banned = false
+			}
 		}
 		if !banned {
 			return word
