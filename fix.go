@@ -1,8 +1,6 @@
 package slopfmt
 
 import (
-<<<<<<< HEAD
-<<<<<<< HEAD
 	"slices"
 
 	"github.com/wow-look-at-my/slopfmt/counts"
@@ -10,8 +8,8 @@ import (
 	"github.com/wow-look-at-my/slopfmt/tombstones"
 )
 
-// Rule names one repair Fix can apply. A caller that wants a single rule names
-// it rather than reaching for a command of its own.
+// Rule names a repair Fix can apply. A caller that wants a single rule names it
+// rather than reaching for a command of its own.
 type Rule string
 
 const (
@@ -28,18 +26,16 @@ const (
 // AllRules is what Fix applies when a caller names none.
 var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE}
 
-// Request is one piece of text put to Fix.
+// Request is a piece of text put to Fix.
+//
+// Path names the file the text is headed for. It decides the comment syntax,
+// and whether the prose rules apply at all. Empty means the caller vouches for
+// the text as prose. Rules restricts what is applied, and empty means AllRules.
 type Request struct {
-	// Content is the text, which may be a fragment of a file rather than all of
-	// it.
 	Content string
-	// Path is the file the text is headed for. It decides the comment syntax,
-	// and whether the prose rules apply at all. Empty means the caller vouches
-	// for the text as prose.
-	Path string
-	// Rules restricts what is applied. Empty means AllRules.
-	Rules []Rule
-	// MaxCommentLines caps one comment block. Zero turns the cap off.
+	Path    string
+	Rules   []Rule
+	// MaxCommentLines caps a comment block. Zero turns the cap off.
 	MaxCommentLines int
 }
 
@@ -57,37 +53,12 @@ type Repair struct {
 	Removed []string `json:"removed,omitempty"`
 	// Kept carries the tombstones no whole-line deletion resolves.
 	Kept []tombstones.Hit `json:"kept,omitempty"`
-=======
-=======
->>>>>>> origin/master
-	"github.com/wow-look-at-my/slopfmt/counts"
-	"github.com/wow-look-at-my/slopfmt/ste"
-)
-
-// Repair is what a caller gets back for a piece of text: the text as this
-// binary would write it, and what no rewrite can repair.
-//
-// A hook reads Text to replace the write it was about to allow, and Findings to
-// refuse one. Nothing else needs a rule of its own.
-type Repair struct {
-	// Text is the repaired document. It equals the input when Changed is false.
-	Text string `json:"text"`
-	// Changed reports whether any rewrite applied.
-	Changed bool `json:"changed"`
-	// Removed names each count whose cardinal was cut.
-	Removed []string `json:"removed,omitempty"`
-<<<<<<< HEAD
->>>>>>> origin/master
-=======
->>>>>>> origin/master
 	// Findings are what a reader must repair by hand.
 	Findings []ste.Finding `json:"findings"`
 }
 
 // Fix repairs what a rewrite can repair and reports the rest.
 //
-<<<<<<< HEAD
-<<<<<<< HEAD
 // The rules run in the order that keeps each one's spans valid: tombstone lines
 // go first, then counts, then the wrap join, which reads text whose cuts have
 // already landed. A join that changed a word is dropped, because joining must
@@ -136,32 +107,4 @@ func Fix(req Request) Repair {
 	repair.Text = text
 	repair.Changed = text != req.Content
 	return repair
-=======
-=======
->>>>>>> origin/master
-// The wrap join runs last, on text whose counts are already gone, so a hit's
-// byte span is never invalidated under it. A rewrite that changed a word is
-// dropped: joining must only move newlines, and a result whose words differ is
-// a bug in the splitter rather than a repair.
-func Fix(content string) Repair {
-	stripped, cut := counts.Strip(content)
-	removed := make([]string, 0, len(cut))
-	for _, hit := range cut {
-		removed = append(removed, hit.Phrase)
-	}
-
-	formatted, safe := Format(stripped)
-	if !safe {
-		formatted = stripped
-	}
-	return Repair{
-		Text:     formatted,
-		Changed:  formatted != content,
-		Removed:  removed,
-		Findings: Check(formatted),
-	}
-<<<<<<< HEAD
->>>>>>> origin/master
-=======
->>>>>>> origin/master
 }
