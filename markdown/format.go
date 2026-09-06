@@ -31,8 +31,7 @@ func Format(content string) string {
 }
 
 // WordsOnly reports whether both documents carry the same words in the same
-// order. Formatting must only move newlines, so a caller can prove a rewrite
-// lost nothing before it writes the file back.
+// order, which proves a rewrite moved newlines and nothing else.
 func WordsOnly(before, after string) bool {
 	return strings.Join(strings.Fields(before), " ") == strings.Join(strings.Fields(after), " ")
 }
