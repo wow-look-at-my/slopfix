@@ -19,6 +19,21 @@ slopfmt purge .           # delete the markdown a repository must not keep
 
 `fix` also reads a document on stdin and writes the repaired one on stdout. With `--json` the whole answer is one object, which is what a hook reads.
 
+## Naming the rules to run
+
+`--only` takes a comma-separated list. An entry is a category, or a rule ID inside a category. A rule ID is the name the report prints next to the finding, the way a compiler names a warning. What a message says and what a caller asks for are the same word.
+
+```sh
+slopfmt fix --only counts            # every rule in the counts category
+slopfmt fix --only ste/semicolon     # that rule alone, and no other in ste
+slopfmt fix --only tombstones,wrap   # two categories
+slopfmt fix --only ste/nosuch        # an error naming the rules ste holds
+```
+
+The categories are `tombstones`, `counts`, `wrap` and `ste`. A rule ID turns its category on, so naming a rule never needs the category named beside it. An unknown name is an error rather than a silent no-op, because a run that applies nothing reads as a clean file.
+
+A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream, and a hand wrap hides half of it. So naming a `ste` rule also joins the paragraph it repairs.
+
 ## What fix repairs
 
 - A wrapped paragraph, joined back to a single line.
