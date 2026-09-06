@@ -1,11 +1,8 @@
 package slopfmt_test
 
 import (
-<<<<<<< HEAD
 	"os"
 	"path/filepath"
-=======
->>>>>>> origin/master
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +35,6 @@ func TestFixKeepsAFencedBlockWhole(t *testing.T) {
 	assert.Equal(t, doc, repair.Text)
 }
 
-<<<<<<< HEAD
 // What a rewrite cannot repair is reported rather than guessed at. Splitting a
 // long sentence needs a writer who knows which half is the point.
 func TestFixReportsWhatItCannotRepair(t *testing.T) {
@@ -59,9 +55,9 @@ func TestFixRepairsProseAcrossAWrap(t *testing.T) {
 }
 
 func TestFixRepairsTheMechanicalRules(t *testing.T) {
-	repair := slopfmt.Fix("It doesn't matter; a caller should wait, so the gate clears.\n")
+	repair := slopfmt.Fix("It doesn't matter; a caller should wait, so the write fails.\n")
 	assert.True(t, repair.Changed)
-	assert.Equal(t, "It does not matter. A caller must wait. So the gate clears.\n", repair.Text)
+	assert.Equal(t, "It does not matter. A caller must wait. So the write fails.\n", repair.Text)
 	assert.Empty(t, repair.Findings)
 }
 
@@ -99,18 +95,4 @@ func TestFixFileLeavesACleanFileAlone(t *testing.T) {
 	repair, err := slopfmt.FixFile(path)
 	require.NoError(t, err)
 	assert.False(t, repair.Changed)
-=======
-// What a rewrite cannot repair is reported rather than guessed at.
-func TestFixReportsWhatItCannotRepair(t *testing.T) {
-	repair := slopfmt.Fix("It doesn't expand its contraction.\n")
-	require.NotEmpty(t, repair.Findings)
-	assert.Contains(t, repair.Findings[0].Fix, "does not")
-}
-
-func TestFixReportsTheFindingsOfTheRepairedText(t *testing.T) {
-	repair := slopfmt.Fix("A sentence that is wrapped\nand that doesn't expand.\n")
-	assert.True(t, repair.Changed)
-	require.Len(t, repair.Findings, 1)
-	assert.Equal(t, 1, repair.Findings[0].Line)
->>>>>>> origin/master
 }

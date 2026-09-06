@@ -16,12 +16,14 @@ func Fix(text string) string {
 }
 
 var (
-	// verbatimSpan matches the data strip also hides from Check.
-	verbatimSpan = regexp.MustCompile("`[^`]*`|\\]\\([^)]*\\)")
+	// verbatimSpan matches the data strip also hides from Check. An entity ends
+	// in a semicolon, which a repair must not touch.
+	verbatimSpan = regexp.MustCompile(
+		codeSpan.String() + `|` + linkTarget.String() + `|` + entity.String())
 	// semicolonRun matches a semicolon and the space that follows it.
 	semicolonRun = regexp.MustCompile(`;[ \t]*`)
-	// splicePattern shares checkSplices' conjunctions, so they cannot disagree.
-	splicePattern = regexp.MustCompile(`(?i),\s+(` + strings.Join(spliceConjunctions, "|") + `)\s+`)
+	// spliceComma matches the comma checkSplices reports, and nothing past it.
+	spliceComma = regexp.MustCompile(`,\s+`)
 )
 
 // fixProse applies repair to the prose of text, leaving each verbatim span
@@ -59,32 +61,37 @@ func fixWords(prose string) string {
 
 // fixSemicolons writes the period the semicolon stands in for.
 func fixSemicolons(prose string) string {
-	return breakAt(prose, semicolonRun, func(string) string { return "" })
+	return breakAt(prose, semicolonRun.FindAllStringIndex(prose, -1))
 }
 
-// fixSplices writes a period for the comma. The conjunction survives, and it
-// opens the new sentence.
+// fixSplices writes the period each spliced comma stands in for.
+//
+// The comma is found the way checkSplices finds it, guard included, so the
+// repair covers exactly what the check reports. Only the comma is rewritten:
+// a conjunction after it survives and opens the new sentence.
 func fixSplices(prose string) string {
-	return breakAt(prose, splicePattern, func(match string) string {
-		return capitalize(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(match), ",")))
-	})
-}
-
-// breakAt rewrites every joiner the pattern matches as a sentence break. opener
-// returns the word that starts the new sentence, empty when the joiner carries
-// none, and then the word already in the text takes the capital.
-func breakAt(prose string, pattern *regexp.Regexp, opener func(string) string) string {
-	var out strings.Builder
-	last := 0
-	for _, joiner := range pattern.FindAllStringIndex(prose, -1) {
-		out.WriteString(prose[last:joiner[0]])
-		last = joiner[1]
-
-		word := opener(prose[joiner[0]:joiner[1]])
-		if word != "" {
-			out.WriteString(". " + word + " ")
+	var commas [][]int
+	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
+		if bare := loc[2] < 0; bare && !isClause(clauseBefore(prose, loc[0])) {
 			continue
 		}
+		end := loc[0] + len(spliceComma.FindString(prose[loc[0]:]))
+		commas = append(commas, []int{loc[0], end})
+	}
+	return breakAt(prose, commas)
+}
+
+// breakAt rewrites each joiner span as a sentence break, and gives the word
+// after it the capital a sentence opens with.
+func breakAt(prose string, joiners [][]int) string {
+	var out strings.Builder
+	last := 0
+	for _, joiner := range joiners {
+		if joiner[0] < last {
+			continue
+		}
+		out.WriteString(prose[last:joiner[0]])
+		last = joiner[1]
 		if last == len(prose) {
 			// The joiner ends the text, so no word follows to open a sentence.
 			out.WriteString(".")

@@ -33,11 +33,7 @@ func (f Finding) String() string {
 	return fmt.Sprintf("%d: %s%s. %s", f.Line, f.Rule, detail, f.Fix)
 }
 
-<<<<<<< HEAD
-// SentenceWordCap is STE's limit for a descriptive sentence.
-=======
 // SentenceWordCap is STE's cap for a descriptive sentence.
->>>>>>> origin/master
 const SentenceWordCap = 25
 
 // contractions maps every banned form to the words STE writes instead.
@@ -59,10 +55,6 @@ var modals = map[string]string{
 	"should": "must", "shall": "must", "could": "can", "might": "can", "would": "will",
 }
 
-<<<<<<< HEAD
-// spliceConjunctions open a clause a comma must not join to its predecessor.
-var spliceConjunctions = []string{"so", "then", "therefore", "thus", "however"}
-=======
 const (
 	// clauseSubject opens a clause.
 	clauseSubject = `it|they|he|she|we|you|this|that|these|those|nothing|everything|nobody|the|a|an`
@@ -74,7 +66,6 @@ const (
 		`answers|reports|names|breaks|ends|fits|fails|passes|applies|returns|sets|adds|drops|` +
 		`moves|calls|opens|closes|splits|joins|emits|writes|prints|expands`
 )
->>>>>>> origin/master
 
 var (
 	// wordPattern keeps an internal apostrophe, so a contraction stays intact.
@@ -134,14 +125,9 @@ func Check(text string, line int) []Finding {
 	return out
 }
 
-<<<<<<< HEAD
-// strip hides what is data rather than prose: inline code, and a link's
-// target. A semicolon inside either is not a sentence joiner.
-=======
 // strip removes the spans that are data rather than prose: inline code, a
 // link's target, and an HTML entity. A semicolon inside any of them is not a
 // sentence joiner.
->>>>>>> origin/master
 func strip(text string) string {
 	text = codeSpan.ReplaceAllString(text, " CODE ")
 	text = linkTarget.ReplaceAllString(text, "](URL)")

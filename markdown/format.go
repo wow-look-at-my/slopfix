@@ -33,11 +33,7 @@ func FormatFunc(content string, repair func(string) string) string {
 }
 
 // WordsOnly reports whether both documents carry the same words in the same
-<<<<<<< HEAD
-// order. It is how a caller proves a join lost nothing before it writes.
-=======
 // order, which proves a rewrite moved newlines and nothing else.
->>>>>>> origin/master
 func WordsOnly(before, after string) bool {
 	return strings.Join(strings.Fields(before), " ") == strings.Join(strings.Fields(after), " ")
 }

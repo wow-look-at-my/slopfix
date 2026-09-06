@@ -9,11 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-<<<<<<< HEAD
-// errFindings exits a failing check without a message: its findings are out.
-=======
 // errFindings is the silent sentinel a failing check exits on.
->>>>>>> origin/master
 var errFindings = errors.New("findings reported")
 
 var rootCmd = &cobra.Command{

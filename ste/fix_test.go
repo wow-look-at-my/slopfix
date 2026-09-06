@@ -17,7 +17,7 @@ func TestFixKeepsTheCapitalTheSourceUsed(t *testing.T) {
 }
 
 func TestFixWritesTheApprovedModal(t *testing.T) {
-	assert.Equal(t, "A caller must wait, and it can fail.", ste.Fix("A caller should wait, and it might fail."))
+	assert.Equal(t, "A caller must wait. It can fail.", ste.Fix("A caller should wait. It might fail."))
 }
 
 func TestFixWritesAPeriodForASemicolon(t *testing.T) {
@@ -30,6 +30,30 @@ func TestFixWritesAPeriodForATrailingSemicolon(t *testing.T) {
 
 func TestFixWritesAPeriodForACommaSplice(t *testing.T) {
 	assert.Equal(t, "The gate is shut. So the write fails.", ste.Fix("The gate is shut, so the write fails."))
+}
+
+// A conjunction after the comma joins equals, so that comma splices whatever
+// follows it. checkSplices reports it, and the repair covers what it reports.
+func TestFixBreaksASpliceThatCarriesAConjunction(t *testing.T) {
+	assert.Equal(t, "A caller waits. And it can fail.", ste.Fix("A caller waits, and it might fail."))
+}
+
+// A bare comma splices only when what precedes it already stands alone.
+// checkSplices makes that test, and the repair makes the same one.
+func TestFixLeavesAnIntroductoryCommaAlone(t *testing.T) {
+	phrase := "Under the gate, the write fails."
+	assert.Equal(t, phrase, ste.Fix(phrase))
+}
+
+// A list carries no verb after a comma, so a comma in it is not a splice.
+func TestFixLeavesAListAlone(t *testing.T) {
+	list := "The rules cover a semicolon, a modal, and a splice."
+	assert.Equal(t, list, ste.Fix(list))
+}
+
+// An HTML entity ends in a semicolon that belongs to the entity.
+func TestFixLeavesAnEntityAlone(t *testing.T) {
+	assert.Equal(t, "Write &amp; for it. It is data.", ste.Fix("Write &amp; for it. It's data."))
 }
 
 // A semicolon inside an inline code span is what the sentence documents.
@@ -55,7 +79,7 @@ func TestFixLeavesCleanProseAlone(t *testing.T) {
 
 // A repair that leaves its own finding standing loops the caller forever.
 func TestFixClearsTheMechanicalFindings(t *testing.T) {
-	text := "It doesn't matter; a caller should wait, so the gate clears."
+	text := "It doesn't matter; a caller should wait, so the write fails."
 	assert.NotEmpty(t, ste.Check(text, 1))
 	assert.Empty(t, ste.Check(ste.Fix(text), 1))
 }
