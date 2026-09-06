@@ -8,10 +8,8 @@ import (
 // DefaultMaxCommentLines caps a comment block, the tier no rewording defeats.
 const DefaultMaxCommentLines = 14
 
-// Repair is the text with every strippable tombstone line deleted.
-//
-// Kept carries the findings that survive the strip. A caller refuses on those,
-// because a strip that guesses at a span corrupts the file.
+// Repair is the text with every strippable tombstone line deleted. Kept carries
+// what survives the strip, and a caller refuses on those.
 type Repair struct {
 	Text    string   `json:"text"`
 	Changed bool     `json:"changed"`

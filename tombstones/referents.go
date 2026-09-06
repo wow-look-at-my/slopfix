@@ -31,8 +31,7 @@ func identifierWords(text string) []string {
 	})
 }
 
-// minCandidate is the shortest name this rule judges. A shorter run of letters
-// reads as an English word rather than a symbol.
+// minCandidate is the shortest name this rule judges: shorter reads as a word.
 const minCandidate = 8
 
 // isCandidate reports whether this repository must contain the name.
