@@ -15,11 +15,8 @@ import (
 	"strings"
 )
 
-// Block is a run of comment lines, or a paragraph of a document.
-//
-// LineNos gives each line of Text its position in the original source, and Pure
-// says whether deleting that line removes only this comment. Both stay nil for a
-// document paragraph, whose line is shared prose.
+// Block is a comment run or a paragraph. LineNos and Pure place each line and
+// judge it, and are nil for a paragraph.
 type Block struct {
 	Text    string
 	Lines   int
@@ -103,10 +100,8 @@ func IsDocument(path string) bool {
 	return false
 }
 
-// piece is a comment, which can span several physical lines.
-//
-// firstPure and lastPure ask, of the opening and closing source line, whether
-// everything outside this comment's span is whitespace.
+// piece is a comment spanning physical lines. firstPure and lastPure judge
+// its opening and closing line.
 type piece struct {
 	line      int
 	text      string

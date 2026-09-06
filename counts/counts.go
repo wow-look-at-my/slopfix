@@ -42,7 +42,7 @@ const numberWords = `two|three|four|five|six|seven|eight|nine|ten|` +
 	`nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|dozen`
 
 // quantity is a cardinal governing a plural noun, adjectives allowed between.
-// RE2 has no lookbehind, so continuesANumber guards the digit case.
+// RE2 has no lookbehind, so continuesANumber guards a digit.
 const quantity = `(?:\d{1,4}|\b(?:` + numberWords + `))` +
 	`\s+(?:[a-z][a-z-]*\s+){0,3}?[a-z][a-z-]{2,}s\b`
 
