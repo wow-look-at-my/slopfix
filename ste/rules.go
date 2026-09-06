@@ -1,9 +1,9 @@
 // Package ste checks prose against ASD-STE100, Simplified Technical English.
 //
-// STE is a controlled language: an approved word has one meaning and one part
-// of speech, and a rule set keeps every sentence to a single reading. It suits
-// code prose for the reason it suits a maintenance manual. The reader is about
-// to change the thing being described, and nobody is there to ask.
+// STE is a controlled language: each approved word carries a single meaning and
+// a single part of speech, and its rules keep every sentence to a single
+// reading. It suits code prose for the reason it suits a maintenance manual. The
+// reader is about to change the thing described, and nobody is there to ask.
 package ste
 
 import (
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// Finding is one rule a line breaks, and how to repair it.
+// Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
 	Line int
 	Rule string
@@ -30,8 +30,8 @@ func (f Finding) String() string {
 	return fmt.Sprintf("%d: %s%s. %s", f.Line, f.Rule, detail, f.Fix)
 }
 
-// SentenceWordCap is STE's limit for a descriptive sentence. An instruction is
-// held to a shorter one, which this checker does not try to tell apart.
+// SentenceWordCap is STE's limit for a descriptive sentence. An instruction has
+// a tighter limit, which this checker does not try to tell apart.
 const SentenceWordCap = 25
 
 // contractions maps every banned form to the words STE writes instead.
@@ -53,13 +53,12 @@ var modals = map[string]string{
 	"should": "must", "shall": "must", "could": "can", "might": "can", "would": "will",
 }
 
-// spliceConjunctions open a clause that a comma must not join to the one before
-// it. Each is a full sentence's worth of new subject and verb.
+// spliceConjunctions open a clause a comma must not join to its predecessor.
+// Each brings a full sentence's worth of new subject and verb.
 var spliceConjunctions = []string{"so", "then", "therefore", "thus", "however"}
 
 var (
-	// wordPattern finds a word, keeping an internal apostrophe so a contraction
-	// stays one token.
+	// wordPattern keeps an internal apostrophe, so a contraction stays intact.
 	wordPattern = regexp.MustCompile(`[A-Za-z]+(?:'[A-Za-z]+)?`)
 	// sentenceEnd splits on terminal punctuation followed by a space.
 	sentenceEnd = regexp.MustCompile(`[.!?]+\s+`)
@@ -69,7 +68,7 @@ var (
 	linkTarget = regexp.MustCompile(`\]\([^)]*\)`)
 )
 
-// Check reports every rule the text breaks. The text is one prose block already
+// Check reports every rule the text breaks. The text is a prose block already
 // joined to a single line, and line is where it starts in the source.
 func Check(text string, line int) []Finding {
 	prose := strip(text)
@@ -126,9 +125,9 @@ func checkSentences(prose string, line int) []Finding {
 	return out
 }
 
-// checkSplices finds a comma doing a period's job: joining two clauses that each
-// stand alone. It looks for the conjunctions that open such a clause, which is
-// where the pattern is unambiguous.
+// checkSplices finds a comma doing a period's job, joining clauses that each
+// stand alone. It looks for the conjunctions that open such a clause, where the
+// pattern is unambiguous.
 func checkSplices(prose string, line int) []Finding {
 	var out []Finding
 	lower := strings.ToLower(prose)

@@ -2,27 +2,28 @@ package slopfmt
 
 import (
 	"fmt"
+	"github.com/wow-look-at-my/go-containers/set"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// A repository keeps two markdown files: README.md for a person arriving at the
-// repo, and CLAUDE.md for an agent working in it. Both live at the root.
+// A repository keeps README.md for a person arriving at the repo, and CLAUDE.md
+// for an agent working in it. Both live at the root.
 //
 // Every other .md is deleted on sight. The prose in them is written far more
 // often than it is read, it drifts away from the code within days, and it costs
 // its reader more than it returns. A spec repository is the exception, because
 // there the prose IS the product.
-var kept = map[string]bool{"README.md": true, "CLAUDE.md": true}
+var kept = set.Of[string]("README.md", "CLAUDE.md")
 
 // CharBudget caps each kept file. Past it, nobody skims the file, and every
 // request pays for the whole thing.
 const CharBudget = 40_000
 
 // skipDirs are never walked: their contents belong to somebody else.
-var skipDirs = map[string]bool{".git": true, "node_modules": true, "vendor": true, "dist": true}
+var skipDirs = set.Of[string](".git", "node_modules", "vendor", "dist")
 
 // PurgeResult is what a purge did, or what it would do.
 type PurgeResult struct {
@@ -52,7 +53,7 @@ func Purge(root string, dryRun bool) (*PurgeResult, error) {
 			return relErr
 		}
 		if entry.IsDir() {
-			if rel != "." && skipDirs[entry.Name()] {
+			if rel != "." && skipDirs.Contains(entry.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -60,7 +61,7 @@ func Purge(root string, dryRun bool) (*PurgeResult, error) {
 		if strings.ToLower(filepath.Ext(entry.Name())) != ".md" {
 			return nil
 		}
-		if kept[entry.Name()] && !strings.Contains(rel, string(filepath.Separator)) {
+		if kept.Contains(entry.Name()) && !strings.Contains(rel, string(filepath.Separator)) {
 			return budgetOf(path, rel, result)
 		}
 		result.Deleted = append(result.Deleted, rel)
@@ -98,7 +99,7 @@ func isSpecRepo(root string) (bool, error) {
 	return false, err
 }
 
-// BudgetError renders the over-budget files as one message.
+// BudgetError renders the over-budget files as a single message.
 func BudgetError(over map[string]int) string {
 	var b strings.Builder
 	for name, size := range over {

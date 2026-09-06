@@ -1,8 +1,8 @@
 // Package markdown splits a document into the blocks the prose rules apply to.
 //
 // Only prose is rewritten or checked. A fenced code block is data, a table is a
-// grid whose rows are not sentences, and a heading is a label. Each of those
-// reaches the caller marked as verbatim, so a rule can never reflow one.
+// grid whose rows are not sentences, and a heading is a label. Each reaches the
+// caller marked verbatim, so no rule can reflow it.
 package markdown
 
 import "strings"
@@ -11,21 +11,20 @@ import "strings"
 type Kind int
 
 const (
-	// Prose is a paragraph, or one item of a list. It is rewritten and checked.
+	// Prose is a paragraph or a list item. It is rewritten and checked.
 	Prose Kind = iota
-	// Verbatim is a fence, a table, a heading, or a blank run. It is left alone.
+	// Verbatim is a fence, a table, a heading or a blank run. It is left alone.
 	Verbatim
 )
 
-// Block is one run of lines, and what may be done to it.
+// Block is a run of lines, and what may be done to it.
 type Block struct {
 	Kind Kind
 	// Lines are the source lines, in order, without their line endings.
 	Lines []string
-	// Start is the 1-based line number of Lines[0] in the source.
+	// Start is where Lines begins in the source, counting from the top.
 	Start int
-	// Marker is the list bullet or number the item opened with, empty for a
-	// paragraph. Joining an item has to put it back.
+	// Marker is the list bullet the item opened with, empty for a paragraph.
 	Marker string
 	// Indent is the whitespace before Marker, preserved for a nested item.
 	Indent string
@@ -47,7 +46,7 @@ func (b Block) Text() string {
 	return strings.Join(parts, " ")
 }
 
-// Split walks the document once and returns its blocks in order.
+// Split walks the document and returns its blocks in order.
 func Split(content string) []Block {
 	lines := strings.Split(content, "\n")
 	var blocks []Block
@@ -70,7 +69,7 @@ func Split(content string) []Block {
 	return blocks
 }
 
-// proseBlock consumes one paragraph or list item starting at lines[i].
+// proseBlock consumes the paragraph or list item starting at lines[i].
 func proseBlock(lines []string, i int) (Block, int) {
 	indent, marker := listMarker(lines[i])
 	block := Block{Kind: Prose, Start: i + 1, Marker: marker, Indent: indent}
@@ -80,7 +79,7 @@ func proseBlock(lines []string, i int) (Block, int) {
 		if endsProse(next) {
 			return block, j
 		}
-		// A new list item ends the previous one rather than continuing it.
+		// A new list item ends its predecessor rather than continuing it.
 		if _, m := listMarker(next); m != "" {
 			return block, j
 		}
@@ -116,7 +115,7 @@ func isVerbatimLine(line string) bool {
 	case strings.HasPrefix(trimmed, "<!--"), strings.HasPrefix(trimmed, "---"):
 		return true
 	}
-	// An indented code block: four spaces or a tab, with no list marker.
+	// An indented code block, which carries no list marker.
 	if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
 		if _, marker := listMarker(line); marker == "" {
 			return true

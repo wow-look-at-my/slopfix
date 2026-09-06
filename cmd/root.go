@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// errFindings is the silent sentinel a failing check exits 1 on. The findings
-// are already printed, so Execute must not print the error too.
+// errFindings is the silent sentinel a failing check exits on. Its findings are
+// already printed, so Execute must not print the error too.
 var errFindings = errors.New("findings reported")
 
 var rootCmd = &cobra.Command{
@@ -25,7 +25,7 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: true,
 }
 
-// Execute runs the CLI, exiting 1 on a failure without a usage dump.
+// Execute runs the CLI, failing without a usage dump.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		if !errors.Is(err, errFindings) {

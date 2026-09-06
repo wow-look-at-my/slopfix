@@ -41,7 +41,6 @@ func runPurge(cmd *cobra.Command, args []string) error {
 		fmt.Fprint(cmd.ErrOrStderr(), slopfmt.BudgetError(result.OverBudget))
 		return errFindings
 	}
-	// A dry run reports. It does not fail the caller, so a hook can ask what
-	// would go without turning that question into an error.
+	// A dry run reports without failing, so a hook can ask what would go.
 	return nil
 }

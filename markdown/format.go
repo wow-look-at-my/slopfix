@@ -2,10 +2,10 @@ package markdown
 
 import "strings"
 
-// Format rewrites a document so every prose block is one line.
+// Format rewrites a document so every prose block occupies a single line.
 //
-// A wrap is one author's guess at one reader's window, frozen into the file. It
-// turns a two-word change into a diff that looks like a rewrite. Joining is the
+// A wrap freezes the author's guess at the reader's window into the file. It
+// turns a small change into a diff that looks like a rewrite. Joining is the
 // whole transformation: no word is added, removed or reordered, so a formatted
 // file differs from its source only in where the newlines were.
 func Format(content string) string {
@@ -26,12 +26,11 @@ func Format(content string) string {
 		out.WriteString(block.Text())
 		out.WriteByte('\n')
 	}
-	// Split on "\n" gives a trailing empty element for a file ending in a
-	// newline, which the loop above already wrote. Drop the duplicate.
+	// The loop already wrote the final newline. Drop the duplicate.
 	return strings.TrimSuffix(out.String(), "\n")
 }
 
-// WordsOnly reports whether two documents carry the same words in the same
+// WordsOnly reports whether both documents carry the same words in the same
 // order. Formatting must only move newlines, so a caller can prove a rewrite
 // lost nothing before it writes the file back.
 func WordsOnly(before, after string) bool {

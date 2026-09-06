@@ -1,9 +1,9 @@
-// Package slopfmt is the library behind the binary: one pass over a markdown
-// document that reports what the org's prose rules reject, and one that
-// rewrites what a rewrite can repair.
+// Package slopfmt is the library behind the binary. It reports what the org's
+// prose rules reject, rewrites what a rewrite can repair, and purges the
+// markdown files a repository must not keep.
 //
 // The binary is a thin wrapper, so a hook, a CI job and an editor integration
-// all get identical answers instead of three implementations that drift.
+// all get identical answers instead of separate implementations that drift.
 package slopfmt
 
 import (
@@ -32,7 +32,7 @@ func Check(content string) []ste.Finding {
 	return out
 }
 
-// Format returns the document with every prose block joined to one line.
+// Format returns the document with every prose block joined to a single line.
 //
 // It reports whether the rewrite is safe to write back. Joining must only move
 // newlines, so a result whose words differ from the source is a bug in the
