@@ -3,6 +3,7 @@ package slopfmt_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -124,4 +125,50 @@ func TestSourceGetsTheTombstoneRuleAndNoProseRule(t *testing.T) {
 func TestADocumentPathStillGetsTheProseRules(t *testing.T) {
 	repair := slopfmt.Fix(slopfmt.Request{Content: "It doesn't expand.\n", Path: "a.md"})
 	assert.Equal(t, "It does not expand.\n", repair.Text)
+}
+
+// A named ID repairs that rule and leaves its siblings alone, which is what
+// makes an ID worth naming at all.
+func TestANamedIDRepairsThatRuleAlone(t *testing.T) {
+	doc := "It should work; that is fine, we can't stop.\n"
+
+	semicolon := slopfmt.Fix(slopfmt.Request{
+		Content: doc,
+		Rules:   []slopfmt.Rule{slopfmt.RuleSTE},
+		IDs:     []string{"ste/semicolon"},
+	})
+	assert.Equal(t, "It should work. That is fine, we can't stop.\n", semicolon.Text)
+
+	contraction := slopfmt.Fix(slopfmt.Request{
+		Content: doc,
+		Rules:   []slopfmt.Rule{slopfmt.RuleSTE},
+		IDs:     []string{"ste/contraction"},
+	})
+	assert.Equal(t, "It should work; that is fine, we cannot stop.\n", contraction.Text)
+}
+
+// A finding outside the named ID is not reported either, so a caller that asks
+// for a rule is not handed the rest of the category.
+func TestANamedIDReportsThatRuleAlone(t *testing.T) {
+	doc := "There are three sections; each is read.\n"
+	repair := slopfmt.Fix(slopfmt.Request{
+		Content: doc,
+		Rules:   []slopfmt.Rule{slopfmt.RuleSTE},
+		IDs:     []string{"ste/count"},
+	})
+
+	require.Len(t, repair.Findings, 1)
+	assert.Equal(t, "ste/count", repair.Findings[0].ID)
+	assert.Contains(t, repair.Text, ";")
+}
+
+func TestEveryCategoryNamesItsRules(t *testing.T) {
+	for _, rule := range slopfmt.AllRules {
+		ids := slopfmt.IDsFor(rule)
+		assert.NotEmpty(t, ids, "%s names no rule", rule)
+		for _, id := range ids {
+			assert.True(t, strings.HasPrefix(id, string(rule)+"/"), "%s is not under %s", id, rule)
+		}
+	}
+	assert.Empty(t, slopfmt.IDsFor(slopfmt.Rule("nosuch")))
 }
