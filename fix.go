@@ -1,7 +1,10 @@
 package slopfmt
 
 import (
+	"os"
+
 	"github.com/wow-look-at-my/slopfmt/counts"
+	"github.com/wow-look-at-my/slopfmt/markdown"
 	"github.com/wow-look-at-my/slopfmt/ste"
 )
 
@@ -23,10 +26,15 @@ type Repair struct {
 
 // Fix repairs what a rewrite can repair and reports the rest.
 //
-// The wrap join runs last, on text whose counts are already gone, so a hit's
-// byte span is never invalidated under it. A rewrite that changed a word is
-// dropped: joining must only move newlines, and a result whose words differ is
-// a bug in the splitter rather than a repair.
+// Three repairs run, in this order. The count strip goes first, on the source,
+// so a hit's byte span is still valid. The wrap join follows. The prose repair
+// runs inside the join, on each block's joined text, because a rule reads a
+// paragraph as one sentence stream and a hand wrap hides half of it.
+//
+// The join must only move newlines. Format proves that on this document first,
+// and a document it cannot prove is returned with its counts cut and nothing
+// else. The prose repair is different in kind: it changes words on purpose,
+// each one to the replacement Check names.
 func Fix(content string) Repair {
 	stripped, cut := counts.Strip(content)
 	removed := make([]string, 0, len(cut))
@@ -34,14 +42,35 @@ func Fix(content string) Repair {
 		removed = append(removed, hit.Phrase)
 	}
 
-	formatted, safe := Format(stripped)
-	if !safe {
-		formatted = stripped
+	repaired := stripped
+	if _, safe := Format(stripped); safe {
+		repaired = markdown.FormatFunc(stripped, ste.Fix)
 	}
 	return Repair{
-		Text:     formatted,
-		Changed:  formatted != content,
+		Text:     repaired,
+		Changed:  repaired != content,
 		Removed:  removed,
-		Findings: Check(formatted),
+		Findings: Check(repaired),
 	}
+}
+
+// FixFile repairs a file in place and reports what it did. It writes nothing
+// when the repair leaves the document as it was.
+func FixFile(path string) (Repair, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return Repair{}, err
+	}
+	repair := Fix(string(content))
+	if !repair.Changed {
+		return repair, nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return repair, err
+	}
+	if err := os.WriteFile(path, []byte(repair.Text), info.Mode().Perm()); err != nil {
+		return repair, err
+	}
+	return repair, nil
 }

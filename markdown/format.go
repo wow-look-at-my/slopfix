@@ -2,13 +2,15 @@ package markdown
 
 import "strings"
 
-// Format rewrites a document so every prose block occupies a single line.
-//
-// A wrap freezes the author's guess at the reader's window into the file. It
-// turns a small change into a diff that looks like a rewrite. Joining is the
-// whole transformation: no word is added, removed or reordered, so a formatted
-// file differs from its source only in where the newlines were.
+// Format puts each prose block on a single line, moving newlines only.
 func Format(content string) string {
+	return FormatFunc(content, func(prose string) string { return prose })
+}
+
+// FormatFunc joins each prose block and passes its text through repair before
+// it is written. A verbatim block never reaches repair, so a fence, a table and
+// a heading arrive at the caller as they were.
+func FormatFunc(content string, repair func(string) string) string {
 	var out strings.Builder
 	for _, block := range Split(content) {
 		if block.Kind == Verbatim {
@@ -23,7 +25,7 @@ func Format(content string) string {
 			out.WriteString(block.Marker)
 			out.WriteByte(' ')
 		}
-		out.WriteString(block.Text())
+		out.WriteString(repair(block.Text()))
 		out.WriteByte('\n')
 	}
 	// The loop already wrote the final newline. Drop the duplicate.
@@ -31,8 +33,7 @@ func Format(content string) string {
 }
 
 // WordsOnly reports whether both documents carry the same words in the same
-// order. Formatting must only move newlines, so a caller can prove a rewrite
-// lost nothing before it writes the file back.
+// order. It is how a caller proves a join lost nothing before it writes.
 func WordsOnly(before, after string) bool {
 	return strings.Join(strings.Fields(before), " ") == strings.Join(strings.Fields(after), " ")
 }
