@@ -15,16 +15,15 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// The rule IDs. Each one names a single rule, and a report prints the ID that
-// found the text. The same ID selects that rule on the command line, so what a
-// message says and what a caller asks for are one name.
+// The rule IDs. A report prints the ID that found the text, and the same ID
+// selects that rule on the command line.
 const (
-	IDContraction   = "ste/contraction"
-	IDModal         = "ste/modal"
-	IDSemicolon     = "ste/semicolon"
-	IDSentenceCap   = "ste/sentence-length"
-	IDCommaSplice   = "ste/comma-splice"
-	IDStaleCount    = "ste/count"
+	IDContraction = "ste/contraction"
+	IDModal       = "ste/modal"
+	IDSemicolon   = "ste/semicolon"
+	IDSentenceCap = "ste/sentence-length"
+	IDCommaSplice = "ste/comma-splice"
+	IDStaleCount  = "ste/count"
 )
 
 // Finding is a rule the line breaks, and how to repair it.

@@ -16,12 +16,11 @@ import (
 	"strings"
 )
 
-// IDVolume names the volume cap, whose tell carries the block's own size and so
-// cannot supply a stable name of its own.
+// IDVolume names the volume cap, whose tell carries the block's line count and
+// so cannot supply a stable name.
 const IDVolume = "tombstones/comment-volume"
 
-// ruleID turns a tell's words into the name that selects it. The table stays
-// data: a new row needs no second entry anywhere.
+// ruleID turns a tell's words into the name that selects it.
 func ruleID(tell string) string {
 	slug := strings.ToLower(tell)
 	for _, article := range []string{"a ", "an ", "the "} {
@@ -51,7 +50,7 @@ type tell struct {
 }
 
 // changeParticiples are the verbs that describe an edit rather than a state.
-// A comment reaches for one of these only to narrate what a commit did.
+// A comment reaches for these only to narrate what a commit did.
 const changeParticiples = `renamed|removed|added|deleted|moved|replaced|` +
 	`introduced|dropped|split|merged|reverted|refactored|extracted|migrated|` +
 	`deprecated|rewritten|rewrote|bumped|reworked|consolidated|inlined|hoisted`
@@ -81,8 +80,7 @@ var tells = []tell{
 	{"a former state", regexp.MustCompile(`(?i)\bno longer\b|\banymore\b|\bnowadays\b|\bthese days\b`)},
 	{"a former state", regexp.MustCompile(`(?i)\bthe (?:former|old|previous|legacy|original) \w+`)},
 	{"a former state", regexp.MustCompile(`(?i)\b(?:was|were|has been|have been|had been|got|gets|is now|are now) (?:` + changeParticiples + `)\b`)},
-	// A demonstrative in front of a participle needs the narrower verb set,
-	// because "that split has a way to go wrong" is a noun.
+	// A demonstrative before a participle needs the narrower verb set.
 	{"a former state", regexp.MustCompile(`(?i)\b(?:we|this|it|that) (?:renamed|removed|deleted|replaced|introduced|reverted|refactored|migrated|deprecated|rewrote|reworked|consolidated)\b`)},
 	{"a former state", regexp.MustCompile(`(?i)\bthis (?:replaces|supersedes|used to)\b`)},
 	{"a former state", regexp.MustCompile(`(?i)\bstopped (?:being|working|doing)\b|\bstarted (?:being|failing)\b`)},
@@ -116,8 +114,8 @@ var tells = []tell{
 
 // Find returns every tombstone the blocks carry.
 //
-// maxLines caps a block, and zero turns the cap off. A tombstone is surplus
-// text, so volume catches the essay no rewording defeats.
+// A non-positive maxLines turns the cap off. A tombstone is surplus text, so
+// volume catches the essay no rewording defeats.
 func Find(blocks []Block, maxLines int) []Hit {
 	var hits []Hit
 	seen := set.New[string]()
@@ -140,8 +138,7 @@ func Find(blocks []Block, maxLines int) []Hit {
 					continue
 				}
 				phrase := strings.TrimSpace(line[at[0]:at[1]])
-				// A line reports each tell a single time, because
-				// printing every row that matched is noise.
+				// Report each tell per line, not each row that matched.
 				key := t.name + "\x00" + strings.TrimSpace(line)
 				if seen.Contains(key) {
 					continue
