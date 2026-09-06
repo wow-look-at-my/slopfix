@@ -25,21 +25,20 @@ var (
 
 func init() {
 	fix := &cobra.Command{
-		Use:   "fix",
-		Short: "Repair text on stdin and report what a rewrite cannot repair",
-		Long: "fix reads text on stdin and writes the repaired text on stdout.\n\n" +
-			"It strips a tombstone comment, cuts the cardinal out of an inventory\n" +
-			"count, joins each hand-wrapped paragraph, and reports what fails the\n" +
-			"merge gate. What no rewrite can repair goes to stderr, and a remaining\n" +
-			"finding exits 1.\n\n" +
-			"--only names the rules to apply, so a caller that wants a single rule\n" +
-			"asks for it here: --only counts, --only tombstones.\n\n" +
-			"--path names the file the text is headed for. It decides the comment\n" +
-			"syntax, and the tombstone rule needs it. Without it the text is read as\n" +
-			"prose.\n\n" +
+		Use:   "fix [file]...",
+		Short: "Repair a document and report what a rewrite cannot repair",
+		Long: "fix repairs each file it is named, in place. With no file it reads a\n" +
+			"document on stdin and writes the repaired document on stdout.\n\n" +
+			"It joins each hand-wrapped paragraph, cuts the cardinal out of an\n" +
+			"inventory count, expands a contraction, writes the approved word for a\n" +
+			"banned modal, and turns a semicolon and a comma splice into the period\n" +
+			"each stands in for. A sentence over the word cap needs a writer, so it\n" +
+			"is reported and left alone.\n\n" +
+			"What no rewrite can repair goes to stderr, and a remaining finding\n" +
+			"exits 1.\n\n" +
 			"With --json the whole answer is one object on stdout instead, which is\n" +
-			"what a PreToolUse hook reads.",
-		Args: cobra.NoArgs,
+			"what a PreToolUse hook reads: the repaired text, whether it changed, the\n" +
+			"counts removed, and the findings left.",
 		RunE: runFix,
 	}
 	fix.Flags().BoolVar(&asJSON, "json", false, "write the whole answer as one JSON object on stdout")
@@ -49,33 +48,9 @@ func init() {
 	rootCmd.AddCommand(fix)
 }
 
-func ruleNames() []string {
-	names := make([]string, 0, len(slopfmt.AllRules))
-	for _, rule := range slopfmt.AllRules {
-		names = append(names, string(rule))
-	}
-	return names
-}
-
-// selectedRules turns --only into the rules Fix takes. An unknown name is an
-// error rather than a silent no-op, because a typo that quietly applies nothing
-// reads as a clean file.
-func selectedRules(only []string) ([]slopfmt.Rule, error) {
-	var rules []slopfmt.Rule
-	for _, name := range only {
-		rule := slopfmt.Rule(strings.TrimSpace(name))
-		if !slices.Contains(slopfmt.AllRules, rule) {
-			return nil, fmt.Errorf("unknown rule %q: pick from %s", name, strings.Join(ruleNames(), ", "))
-		}
-		rules = append(rules, rule)
-	}
-	return rules, nil
-}
-
-func runFix(cmd *cobra.Command, _ []string) error {
-	rules, err := selectedRules(fixOnly)
-	if err != nil {
-		return err
+func runFix(cmd *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		return fixFiles(cmd, args)
 	}
 	content, err := io.ReadAll(cmd.InOrStdin())
 	if err != nil {
@@ -103,6 +78,29 @@ func runFix(cmd *cobra.Command, _ []string) error {
 		fmt.Fprintln(cmd.ErrOrStderr(), finding)
 	}
 	if len(repair.Findings) > 0 || len(repair.Kept) > 0 {
+		return errFindings
+	}
+	return nil
+}
+
+// fixFiles repairs each named file in place. It names the ones it rewrote on
+// stdout, and reports what is left on stderr against the file it belongs to.
+func fixFiles(cmd *cobra.Command, paths []string) error {
+	found := false
+	for _, path := range paths {
+		repair, err := slopfmt.FixFile(path)
+		if err != nil {
+			return err
+		}
+		if repair.Changed {
+			fmt.Fprintln(cmd.OutOrStdout(), path)
+		}
+		for _, finding := range repair.Findings {
+			found = true
+			fmt.Fprintf(cmd.ErrOrStderr(), "%s:%s\n", path, finding)
+		}
+	}
+	if found {
 		return errFindings
 	}
 	return nil
