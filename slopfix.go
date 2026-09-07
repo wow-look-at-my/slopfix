@@ -58,10 +58,27 @@ func CheckFile(path string) ([]ste.Finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	if isWorkflow(path, string(content)) {
-		return workflow.Check(string(content)), nil
+	return CheckContent(path, string(content)), nil
+}
+
+// CheckContent reports the findings in text headed for path, without reading a
+// file. A hook and an editor hold the text before it lands, and asking a
+// separate code path for that answer is how the two drift apart.
+//
+// AllIDs names every rule this can report.
+func CheckContent(path, content string) []ste.Finding {
+	if isWorkflow(path, content) {
+		return workflow.Check(content)
 	}
-	return Check(string(content)), nil
+	return Check(content)
+}
+
+// AllIDs names every rule CheckContent reports, so a caller can reject a typo
+// before it selects nothing and reads as a clean file.
+func AllIDs() []string {
+	out := append([]string{}, workflow.AllIDs...)
+	out = append(out, IDHardWrap)
+	return append(out, ste.AllIDs...)
 }
 
 // isWorkflow reports whether the workflow rules own this file.
