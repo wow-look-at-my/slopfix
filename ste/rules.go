@@ -28,9 +28,12 @@ const (
 
 // AllIDs names every rule this package reports, for a caller that validates a
 // name before running.
-var AllIDs = []string{
+//
+// A set, because every consumer asks whether a name is in it. A slice answers
+// that with a scan, and it cannot notice the same ID declared twice.
+var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
-}
+)
 
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {

@@ -75,10 +75,17 @@ func CheckContent(path, content string) []ste.Finding {
 
 // AllIDs names every rule CheckContent reports, so a caller can reject a typo
 // before it selects nothing and reads as a clean file.
-func AllIDs() []string {
-	out := append([]string{}, workflow.AllIDs...)
-	out = append(out, IDHardWrap)
-	return append(out, ste.AllIDs...)
+func AllIDs() set.Set[string] {
+	ids := workflow.AllIDs.Union(ste.AllIDs)
+	ids.Add(IDHardWrap)
+	return ids
+}
+
+// Listed renders a set of rule IDs for a person: the flag help, and the error
+// that names what a caller could have written instead. A set has no order of
+// its own, so the reader gets an alphabetical one rather than a shuffled one.
+func Listed(ids set.Set[string]) string {
+	return strings.Join(slices.Sorted(ids.All()), ", ")
 }
 
 // isWorkflow reports whether the workflow rules own this file.

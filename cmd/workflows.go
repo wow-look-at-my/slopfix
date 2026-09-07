@@ -35,7 +35,7 @@ func init() {
 		"glob patterns for paths the walk skips, for a fixture that breaks a rule on purpose")
 	command.Flags().StringSliceVar(&workflowOnly, "only", nil,
 		"report only these rule IDs, as a comma-separated list. Defaults to every rule: "+
-			strings.Join(workflow.AllIDs, ", "))
+			slopfix.Listed(workflow.AllIDs))
 	rootCmd.AddCommand(command)
 }
 
@@ -140,9 +140,9 @@ func selectedIDs(only []string) (func(string) bool, error) {
 	wanted := set.New[string]()
 	for _, name := range only {
 		name = strings.TrimSpace(name)
-		if !slices.Contains(workflow.AllIDs, name) {
+		if !workflow.AllIDs.Contains(name) {
 			return nil, fmt.Errorf("unknown rule %q: pick from %s",
-				name, strings.Join(workflow.AllIDs, ", "))
+				name, slopfix.Listed(workflow.AllIDs))
 		}
 		wanted.Add(name)
 	}

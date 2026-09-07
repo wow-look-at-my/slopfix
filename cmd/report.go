@@ -39,7 +39,7 @@ func init() {
 		"the file the text is headed for. Required: the path decides which rules read it")
 	command.Flags().StringSliceVar(&reportOnly, "only", nil,
 		"report only these rule IDs, as a comma-separated list. Defaults to every rule: "+
-			strings.Join(slopfix.AllIDs(), ", "))
+			slopfix.Listed(slopfix.AllIDs()))
 	rootCmd.AddCommand(command)
 }
 
@@ -123,8 +123,8 @@ func reportFilter(only []string) (func(string) bool, error) {
 	wanted := set.New[string]()
 	for _, name := range only {
 		name = strings.TrimSpace(name)
-		if !slices.Contains(known, name) {
-			return nil, fmt.Errorf("unknown rule %q: pick from %s", name, strings.Join(known, ", "))
+		if !known.Contains(name) {
+			return nil, fmt.Errorf("unknown rule %q: pick from %s", name, slopfix.Listed(known))
 		}
 		wanted.Add(name)
 	}
