@@ -1,4 +1,4 @@
-package slopfmt_test
+package slopfix_test
 
 import (
 	"os"
@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/slopfmt"
-	"github.com/wow-look-at-my/slopfmt/workflow"
+	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 func writeFile(t *testing.T, name, content string) string {
@@ -25,7 +25,7 @@ const workflowWithFindings = "on: push\n\n# one\n# two\njobs:\n  all-builds:\n  
 func TestCheckFileSendsAWorkflowToTheWorkflowRules(t *testing.T) {
 	path := writeFile(t, ".github/workflows/ci.yml", workflowWithFindings)
 
-	findings, err := slopfmt.CheckFile(path)
+	findings, err := slopfix.CheckFile(path)
 	require.NoError(t, err)
 
 	var ids []string
@@ -40,7 +40,7 @@ func TestCheckFileSendsAWorkflowToTheWorkflowRules(t *testing.T) {
 func TestCheckFileSniffsAWorkflowThePathDoesNotName(t *testing.T) {
 	path := writeFile(t, "ci.yml", workflowWithFindings)
 
-	findings, err := slopfmt.CheckFile(path)
+	findings, err := slopfix.CheckFile(path)
 	require.NoError(t, err)
 	assert.NotEmpty(t, findings)
 }
@@ -48,10 +48,10 @@ func TestCheckFileSniffsAWorkflowThePathDoesNotName(t *testing.T) {
 func TestCheckFileStillReadsADocumentWithTheProseRules(t *testing.T) {
 	path := writeFile(t, "notes.md", "# Title\n\nA paragraph the author wrapped\nacross two lines by hand.\n")
 
-	findings, err := slopfmt.CheckFile(path)
+	findings, err := slopfix.CheckFile(path)
 	require.NoError(t, err)
 	require.Len(t, findings, 1)
-	assert.Equal(t, slopfmt.IDHardWrap, findings[0].ID)
+	assert.Equal(t, slopfix.IDHardWrap, findings[0].ID)
 }
 
 // A newline in YAML is syntax. Joining a wrapped concurrency: block makes
@@ -60,7 +60,7 @@ func TestFormatFileRefusesAWorkflow(t *testing.T) {
 	content := "on: push\nconcurrency:\n  group: release\n"
 	path := writeFile(t, ".github/workflows/ci.yml", content)
 
-	_, err := slopfmt.FormatFile(path)
+	_, err := slopfix.FormatFile(path)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "newlines are syntax")
 

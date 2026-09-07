@@ -1,4 +1,4 @@
-module github.com/wow-look-at-my/slopfmt
+module github.com/wow-look-at-my/slopfix
 
 go 1.26
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/wow-look-at-my/slopfmt"
+	"github.com/wow-look-at-my/slopfix"
 )
 
 // listOnly is the -l flag: name the files a rewrite would change, change none.
@@ -35,7 +35,7 @@ func runFmt(cmd *cobra.Command, args []string) error {
 			}
 			continue
 		}
-		wrote, err := slopfmt.FormatFile(path)
+		wrote, err := slopfix.FormatFile(path)
 		if err != nil {
 			return err
 		}
@@ -52,7 +52,7 @@ func runFmt(cmd *cobra.Command, args []string) error {
 }
 
 func needsFormat(path string) (bool, error) {
-	findings, err := slopfmt.CheckFile(path)
+	findings, err := slopfix.CheckFile(path)
 	if err != nil {
 		return false, err
 	}

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wow-look-at-my/slopfmt/workflow"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 func TestJudgesReadsAWorkflowAndAnActionManifest(t *testing.T) {

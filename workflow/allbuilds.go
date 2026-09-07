@@ -3,7 +3,7 @@ package workflow
 import (
 	"strings"
 
-	"github.com/wow-look-at-my/slopfmt/ste"
+	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
 

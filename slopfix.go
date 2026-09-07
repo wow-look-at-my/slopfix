@@ -1,18 +1,18 @@
-// Package slopfmt is the library behind the binary. It reports what the org's
+// Package slopfix is the library behind the binary. It reports what the org's
 // prose rules reject, rewrites what a rewrite can repair, and purges the
 // markdown files a repository must not keep.
 //
 // The binary is a thin wrapper, so a hook, a CI job and an editor integration
 // all get identical answers instead of separate implementations that drift.
-package slopfmt
+package slopfix
 
 import (
 	"os"
 	"strings"
 
-	"github.com/wow-look-at-my/slopfmt/markdown"
-	"github.com/wow-look-at-my/slopfmt/ste"
-	"github.com/wow-look-at-my/slopfmt/workflow"
+	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // IDHardWrap names the wrap rule. It lives here rather than in ste, because the
@@ -31,7 +31,7 @@ func Check(content string) []ste.Finding {
 				Line: block.Start,
 				ID:   IDHardWrap,
 				Rule: "a paragraph is one line",
-				Fix:  "Join it back up and let the reader's window wrap it. `slopfmt fmt` does this.",
+				Fix:  "Join it back up and let the reader's window wrap it. `slopfix fmt` does this.",
 			})
 		}
 		out = append(out, ste.Check(block.Text(), block.Start)...)

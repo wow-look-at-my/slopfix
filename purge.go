@@ -1,4 +1,4 @@
-package slopfmt
+package slopfix
 
 import (
 	"fmt"
@@ -36,7 +36,7 @@ type PurgeResult struct {
 // Purge deletes every markdown file under root except the kept files at its own
 // top level. A dry run reports the same list and removes nothing.
 //
-// A spec repository opts out with a .slopfmt-spec marker at its root, which is
+// A spec repository opts out with a .slopfix-spec marker at its root, which is
 // the only exemption. Deciding by marker rather than by a list in this repo
 // keeps the answer with the repository it describes.
 func Purge(root string, dryRun bool) (*PurgeResult, error) {
@@ -89,7 +89,7 @@ func budgetOf(path, rel string, result *PurgeResult) error {
 
 // isSpecRepo reports whether the root opts out of the purge.
 func isSpecRepo(root string) (bool, error) {
-	_, err := os.Stat(filepath.Join(root, ".slopfmt-spec"))
+	_, err := os.Stat(filepath.Join(root, ".slopfix-spec"))
 	if err == nil {
 		return true, nil
 	}

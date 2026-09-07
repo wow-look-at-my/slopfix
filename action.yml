@@ -1,10 +1,10 @@
-name: slopfmt
-description: Run slopfmt against this repository, and fail the job when a rule rejects something
+name: slopfix
+description: Run slopfix against this repository, and fail the job when a rule rejects something
 
 inputs:
   command:
     description: >-
-      The slopfmt subcommand to run: check, workflows, comments or purge.
+      The slopfix subcommand to run: check, workflows, comments or purge.
       `fix` and `fmt` rewrite files, so they are refused here. A job that
       repairs a checkout and reports a pass has enforced nothing.
     required: false
@@ -37,17 +37,17 @@ runs:
       if: inputs.command == 'fix' || inputs.command == 'fmt'
       shell: bash
       run: |
-        echo "::error::slopfmt ${{ inputs.command }} rewrites files, so it cannot gate CI. Run check or workflows, and repair the tree locally."
+        echo "::error::slopfix ${{ inputs.command }} rewrites files, so it cannot gate CI. Run check or workflows, and repair the tree locally."
         exit 1
 
-    - name: Download slopfmt
+    - name: Download slopfix
       id: download
       uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master
       with:
-        project: slopfix/slopfmt
+        project: slopfix
 
-    # slopfmt exits non-zero when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
-    - name: Run slopfmt
+    # slopfix exits non-zero when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
+    - name: Run slopfix
       shell: bash
       env:
         SLOPFMT: ${{ steps.download.outputs.path }}

@@ -21,4 +21,4 @@ jobs:
       - uses: wow-look-at-my/go-toolchain@master
 
       # The binary this run built, not the last one released, so a new rule gates this repository before it ships.
-      - run: ./build/slopfmt workflows .
+      - run: ./build/slopfix workflows .

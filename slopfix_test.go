@@ -1,4 +1,4 @@
-package slopfmt
+package slopfix
 
 import (
 	"strings"

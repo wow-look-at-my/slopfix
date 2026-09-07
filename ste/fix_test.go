@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/wow-look-at-my/slopfmt/ste"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 func TestFixExpandsAContraction(t *testing.T) {

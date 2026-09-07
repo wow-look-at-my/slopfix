@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/wow-look-at-my/slopfmt"
-	"github.com/wow-look-at-my/slopfmt/tombstones"
+	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
 var (
@@ -51,8 +51,8 @@ func init() {
 }
 
 func ruleNames() []string {
-	names := make([]string, 0, len(slopfmt.AllRules))
-	for _, rule := range slopfmt.AllRules {
+	names := make([]string, 0, len(slopfix.AllRules))
+	for _, rule := range slopfix.AllRules {
 		names = append(names, string(rule))
 	}
 	return names
@@ -63,17 +63,17 @@ func ruleNames() []string {
 // An entry is a category (`ste`) or a rule ID (`ste/semicolon`), the name the
 // report prints. An ID turns its category on too. An unknown name is an error,
 // because a typo that quietly applies nothing reads as a clean file.
-func selectedRules(only []string) ([]slopfmt.Rule, []string, error) {
-	var rules []slopfmt.Rule
+func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
+	var rules []slopfix.Rule
 	var ids []string
 	for _, name := range only {
 		name = strings.TrimSpace(name)
 		if category, _, isID := strings.Cut(name, "/"); isID {
-			rule := slopfmt.Rule(category)
-			if !slices.Contains(slopfmt.AllRules, rule) {
+			rule := slopfix.Rule(category)
+			if !slices.Contains(slopfix.AllRules, rule) {
 				return nil, nil, fmt.Errorf("unknown rule %q: its category is not one of %s", name, strings.Join(ruleNames(), ", "))
 			}
-			known := slopfmt.IDsFor(rule)
+			known := slopfix.IDsFor(rule)
 			if !slices.Contains(known, name) {
 				return nil, nil, fmt.Errorf("unknown rule %q: %s holds %s", name, category, strings.Join(known, ", "))
 			}
@@ -81,8 +81,8 @@ func selectedRules(only []string) ([]slopfmt.Rule, []string, error) {
 			ids = append(ids, name)
 			continue
 		}
-		rule := slopfmt.Rule(name)
-		if !slices.Contains(slopfmt.AllRules, rule) {
+		rule := slopfix.Rule(name)
+		if !slices.Contains(slopfix.AllRules, rule) {
 			return nil, nil, fmt.Errorf("unknown rule %q: pick from %s, or name one rule as category/rule", name, strings.Join(ruleNames(), ", "))
 		}
 		rules = append(rules, rule)
@@ -102,7 +102,7 @@ func runFix(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	repair := slopfmt.Fix(slopfmt.Request{
+	repair := slopfix.Fix(slopfix.Request{
 		Content:         string(content),
 		Path:            fixPath,
 		Rules:           rules,
@@ -135,7 +135,7 @@ func runFix(cmd *cobra.Command, args []string) error {
 func fixFiles(cmd *cobra.Command, paths []string) error {
 	found := false
 	for _, path := range paths {
-		repair, err := slopfmt.FixFile(path)
+		repair, err := slopfix.FixFile(path)
 		if err != nil {
 			return err
 		}
