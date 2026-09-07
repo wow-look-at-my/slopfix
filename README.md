@@ -62,6 +62,8 @@ A workflow under `.github/workflows`, and an `action.yml` beside it, are read by
 
 `workflows` walks a tree for them, and `--exclude` takes a glob for a fixture that breaks a rule on purpose. The walk keeps `.github`, which the other walks skip as a hidden directory. A walk that selects no file exits non-zero. A run that read nothing enforced nothing, and in CI that means the step ran ahead of the checkout.
 
+`--only` takes rule IDs from the list above. A caller that wants one of them does not adopt its siblings. Each rule has its own CI step in the org. An unknown name is an error.
+
 - A run of comment lines. The limit is one line. Say what a reader needs right there, and put the rest in the commit message.
 - A job named `all-builds`, by its key or by its name. The required gate is a commit status from the required-builds-manager app. A job wearing the name satisfies nothing, and shadows the real gate in the UI.
 - A test written into a `run:` script. That covers an assertion, a shell function whose name says it asserts, or a redirect naming a test file. A step that merely runs a command fails on its own exit code, and is left alone.

@@ -135,7 +135,7 @@ func TestAMissingWorkflowPathIsAnError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// A caller that wants the comment-block rule must not pick up the other two by
+// A caller that wants the comment-block rule must not pick up its siblings by
 // asking for it, because a repository runs each of them from its own step.
 func TestOnlyReportsTheRuleTheCallerNamed(t *testing.T) {
 	dir := t.TempDir()

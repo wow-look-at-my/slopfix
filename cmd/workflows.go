@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfmt"
 	"github.com/wow-look-at-my/slopfmt/workflow"
 )
@@ -129,16 +130,16 @@ func selectedIDs(only []string) (func(string) bool, error) {
 	if len(only) == 0 {
 		return func(string) bool { return true }, nil
 	}
-	wanted := make(map[string]bool, len(only))
+	wanted := set.New[string]()
 	for _, name := range only {
 		name = strings.TrimSpace(name)
 		if !slices.Contains(workflow.AllIDs, name) {
 			return nil, fmt.Errorf("unknown rule %q: pick from %s",
 				name, strings.Join(workflow.AllIDs, ", "))
 		}
-		wanted[name] = true
+		wanted.Add(name)
 	}
-	return func(id string) bool { return wanted[id] }, nil
+	return func(id string) bool { return wanted.Contains(id) }, nil
 }
 
 // excludeMatcher reports whether a path matches any pattern. `**` crosses a
