@@ -44,7 +44,7 @@ runs:
       id: download
       uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master
       with:
-        project: slopfmt
+        project: slopfix/slopfmt
 
     # slopfmt exits non-zero when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
     - name: Run slopfmt
