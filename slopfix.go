@@ -8,8 +8,10 @@ package slopfix
 
 import (
 	"os"
+	"slices"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"

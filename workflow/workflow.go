@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
