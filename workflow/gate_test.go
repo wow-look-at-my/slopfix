@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The step this rule protects, written both ways. The only difference is the
-// one key, which is the point: nothing in the gate's own output shows it.
+// The step this rule protects, written both ways. They differ by a single key,
+// which is the point: nothing in the gate's own output shows it.
 const (
 	neuteredStep = "on: push\n" +
 		"jobs:\n" +
@@ -35,8 +35,8 @@ func TestAGateAllowedToFailIsReportedOnItsOwnLine(t *testing.T) {
 	assert.Contains(t, found[0].Fix, "continue-on-error")
 }
 
-// The negative control. Without it the rule above passes whether or not it can
-// tell the two steps apart.
+// The negative control. Without it the case above passes whether or not the
+// rule can tell the steps apart.
 func TestTheSameStepWithoutTheKeyIsNotReported(t *testing.T) {
 	assert.Empty(t, neuteredGates(honestStep))
 }

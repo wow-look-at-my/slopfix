@@ -48,27 +48,34 @@ func init() {
 type reportFinding struct {
 	// ID names the rule, the way a compiler names a warning.
 	ID string `json:"id"`
-	// Line is 1-based. EndLine equals it for a finding on one line.
+	// Line is where the finding starts, counting from the top of the file.
+	// EndLine repeats it for a finding that covers a single line.
 	Line    int `json:"line"`
 	EndLine int `json:"endLine"`
-	// Rule says in words what the ID stands for, Detail quotes the text, and
-	// Fix names the repair in the imperative.
+	// Rule says what the ID stands for, Detail quotes the text, and Fix names
+	// the repair.
 	Rule   string `json:"rule"`
 	Detail string `json:"detail,omitempty"`
 	Fix    string `json:"fix,omitempty"`
 }
 
 type reportOutput struct {
-	// Path echoes what was judged, so a caller batching calls can tell them apart.
+	// Path echoes what was judged, so a caller batching calls tells them apart.
 	Path     string          `json:"path"`
 	Findings []reportFinding `json:"findings"`
 }
 
 func runReport(cmd *cobra.Command, _ []string) error {
-	if reportPath == "" {
+	return reportContent(cmd, reportPath, reportOnly)
+}
+
+// reportContent takes its selection as arguments rather than reading the flag
+// globals, so a test never swaps state a parallel sibling is reading.
+func reportContent(cmd *cobra.Command, path string, only []string) error {
+	if path == "" {
 		return fmt.Errorf("--path is required: the path decides whether the workflow rules or the prose rules read the text")
 	}
-	keeps, err := reportFilter(reportOnly)
+	keeps, err := reportFilter(only)
 	if err != nil {
 		return err
 	}
@@ -77,10 +84,9 @@ func runReport(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	// A nil slice marshals to null, and a caller reading `findings.length`
-	// then crashes on a clean file. An empty list is the honest answer.
-	out := reportOutput{Path: reportPath, Findings: []reportFinding{}}
-	for _, finding := range slopfix.CheckContent(reportPath, string(content)) {
+	// A nil slice marshals to null, which crashes a caller reading its length.
+	out := reportOutput{Path: path, Findings: []reportFinding{}}
+	for _, finding := range slopfix.CheckContent(path, string(content)) {
 		if !keeps(finding.ID) {
 			continue
 		}

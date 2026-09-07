@@ -35,9 +35,8 @@ var AllIDs = []string{
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
 	Line int
-	// EndLine is the last line a multi-line finding covers. Zero means the
-	// finding sits on Line alone. An editor underlines the span, and a report
-	// that names only the first line points at part of the problem.
+	// EndLine is the last line the finding covers, and is unset for a finding
+	// that sits on Line alone.
 	EndLine int
 	// ID names the rule, and selects it on the command line.
 	ID string

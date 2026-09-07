@@ -15,15 +15,11 @@ import (
 // call, because tests run in parallel and rootCmd's writer is shared.
 func report(t *testing.T, path string, only []string, content string) (reportOutput, string, error) {
 	t.Helper()
-	previousPath, previousOnly := reportPath, reportOnly
-	reportPath, reportOnly = path, only
-	t.Cleanup(func() { reportPath, reportOnly = previousPath, previousOnly })
-
 	var out bytes.Buffer
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
 	cmd.SetIn(strings.NewReader(content))
-	err := runReport(cmd, nil)
+	err := reportContent(cmd, path, only)
 	if err != nil {
 		return reportOutput{}, out.String(), err
 	}
@@ -54,16 +50,15 @@ func TestAWorkflowIsReadByTheWorkflowRules(t *testing.T) {
 	assert.Equal(t, workflowPath, out.Path)
 }
 
-// The negative control for the case above. One comment line is the limit, so
-// the same file shape reports nothing.
+// The negative control for the case above. A comment line inside the limit
+// reports nothing, which is what proves the case can fail.
 func TestASingleCommentLineIsNotAWall(t *testing.T) {
 	out, _, err := report(t, workflowPath, nil, "name: CI\n# one\non:\n  push:\n")
 	require.NoError(t, err)
 	assert.Empty(t, out.Findings)
 }
 
-// A clean file answers with an empty list. A null there crashes a caller that
-// reads the length of what came back.
+// A null here crashes a caller that reads the length of what came back.
 func TestACleanFileAnswersWithAnEmptyList(t *testing.T) {
 	_, raw, err := report(t, workflowPath, nil, "name: CI\non:\n  push:\n")
 	require.NoError(t, err)

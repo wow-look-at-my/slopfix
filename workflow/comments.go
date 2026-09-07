@@ -54,7 +54,7 @@ func commentBlocks(content string) []ste.Finding {
 	return out
 }
 
-// span names the lines a block covers, for a report that prints one line of text.
+// span names the lines a block covers, for a report that prints plain text.
 func span(start, end int) string {
 	if start == end {
 		return fmt.Sprintf("line %d", start)

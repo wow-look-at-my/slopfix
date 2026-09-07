@@ -40,11 +40,18 @@ func init() {
 }
 
 func runWorkflows(cmd *cobra.Command, args []string) error {
-	excluded, err := excludeMatcher(workflowExcludes)
+	return reportWorkflows(cmd, args, workflowExcludes, workflowOnly)
+}
+
+// reportWorkflows takes its selection as arguments rather than reading the
+// flag globals. go-toolchain runs a package's quick tests in parallel, and a
+// test that swaps a global loses to whichever sibling restores it first.
+func reportWorkflows(cmd *cobra.Command, args, excludes, only []string) error {
+	excluded, err := excludeMatcher(excludes)
 	if err != nil {
 		return err
 	}
-	reports, err := selectedIDs(workflowOnly)
+	reports, err := selectedIDs(only)
 	if err != nil {
 		return err
 	}
