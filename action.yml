@@ -1,0 +1,79 @@
+name: slopfmt
+description: Run slopfmt against this repository, and fail the job when a rule rejects something
+
+inputs:
+  command:
+    description: >-
+      The slopfmt subcommand to run: check, workflows, comments or purge.
+      `fix` and `fmt` rewrite files, so they are refused here. A job that
+      repairs a checkout and reports a pass has enforced nothing.
+    required: false
+    default: workflows
+
+  paths:
+    description: 'Paths to read, space separated. A directory is walked.'
+    required: false
+    default: '.'
+
+  only:
+    description: >-
+      Restrict the run to these rules, comma separated. `check` takes a
+      category or a category/rule, and `workflows` takes a rule ID.
+    required: false
+    default: ''
+
+  exclude:
+    description: >-
+      Glob patterns the walk skips, comma separated, for a fixture that breaks
+      a rule on purpose. `workflows` only.
+    required: false
+    default: ''
+
+  version:
+    description: 'slopfmt release to download, for example v3. Omit for the newest build.'
+    required: false
+    default: ''
+
+  binary:
+    description: >-
+      Path to a slopfmt binary to run instead of downloading one. This
+      repository points it at its own freshly built binary, so its CI tests the
+      action it publishes rather than the last one it released.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # fix and fmt rewrite the checkout. A job that repairs its own input and then reports a pass is a green run over an unfixed repository.
+    - name: Refuse a command that rewrites files
+      if: inputs.command == 'fix' || inputs.command == 'fmt'
+      shell: bash
+      run: |
+        echo "::error::slopfmt ${{ inputs.command }} rewrites files, so it cannot gate CI. Run check or workflows, and repair the tree locally."
+        exit 1
+
+    - name: Download slopfmt
+      id: download
+      if: inputs.binary == ''
+      uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master
+      with:
+        project: slopfmt
+        version: ${{ inputs.version }}
+
+    # slopfmt exits non-zero when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
+    - name: Run slopfmt
+      shell: bash
+      env:
+        SLOPFMT: ${{ inputs.binary || steps.download.outputs.path }}
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_ONLY: ${{ inputs.only }}
+        INPUT_EXCLUDE: ${{ inputs.exclude }}
+      run: |
+        set -euo pipefail
+        # INPUT_PATHS is a list of paths, so it is deliberately unquoted.
+        "$SLOPFMT" "$INPUT_COMMAND" \
+          ${INPUT_ONLY:+--only "$INPUT_ONLY"} \
+          ${INPUT_EXCLUDE:+--exclude "$INPUT_EXCLUDE"} \
+          $INPUT_PATHS
