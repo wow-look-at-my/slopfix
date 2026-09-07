@@ -74,8 +74,8 @@ func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
 				return nil, nil, fmt.Errorf("unknown rule %q: its category is not one of %s", name, strings.Join(ruleNames(), ", "))
 			}
 			known := slopfix.IDsFor(rule)
-			if !slices.Contains(known, name) {
-				return nil, nil, fmt.Errorf("unknown rule %q: %s holds %s", name, category, strings.Join(known, ", "))
+			if !known.Contains(name) {
+				return nil, nil, fmt.Errorf("unknown rule %q: %s holds %s", name, category, slopfix.Listed(known))
 			}
 			rules = append(rules, rule)
 			ids = append(ids, name)

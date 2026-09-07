@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -35,16 +34,22 @@ func init() {
 		"glob patterns for paths the walk skips, for a fixture that breaks a rule on purpose")
 	command.Flags().StringSliceVar(&workflowOnly, "only", nil,
 		"report only these rule IDs, as a comma-separated list. Defaults to every rule: "+
-			strings.Join(workflow.AllIDs, ", "))
+			slopfix.Listed(workflow.AllIDs))
 	rootCmd.AddCommand(command)
 }
 
 func runWorkflows(cmd *cobra.Command, args []string) error {
-	excluded, err := excludeMatcher(workflowExcludes)
+	return reportWorkflows(cmd, args, workflowExcludes, workflowOnly)
+}
+
+// reportWorkflows takes its selection as arguments rather than reading the flag
+// globals, which parallel tests swap under each other.
+func reportWorkflows(cmd *cobra.Command, args, excludes, only []string) error {
+	excluded, err := excludeMatcher(excludes)
 	if err != nil {
 		return err
 	}
-	reports, err := selectedIDs(workflowOnly)
+	reports, err := selectedIDs(only)
 	if err != nil {
 		return err
 	}
@@ -133,9 +138,9 @@ func selectedIDs(only []string) (func(string) bool, error) {
 	wanted := set.New[string]()
 	for _, name := range only {
 		name = strings.TrimSpace(name)
-		if !slices.Contains(workflow.AllIDs, name) {
+		if !workflow.AllIDs.Contains(name) {
 			return nil, fmt.Errorf("unknown rule %q: pick from %s",
-				name, strings.Join(workflow.AllIDs, ", "))
+				name, slopfix.Listed(workflow.AllIDs))
 		}
 		wanted.Add(name)
 	}

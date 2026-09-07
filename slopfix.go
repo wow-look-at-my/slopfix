@@ -8,8 +8,10 @@ package slopfix
 
 import (
 	"os"
+	"slices"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -58,10 +60,34 @@ func CheckFile(path string) ([]ste.Finding, error) {
 	if err != nil {
 		return nil, err
 	}
-	if isWorkflow(path, string(content)) {
-		return workflow.Check(string(content)), nil
+	return CheckContent(path, string(content)), nil
+}
+
+// CheckContent reports the findings in text headed for path, without reading a
+// file. A hook and an editor hold the text before it lands, and asking a
+// separate code path for that answer is how the two drift apart.
+//
+// AllIDs names every rule this can report.
+func CheckContent(path, content string) []ste.Finding {
+	if isWorkflow(path, content) {
+		return workflow.Check(content)
 	}
-	return Check(string(content)), nil
+	return Check(content)
+}
+
+// AllIDs names every rule CheckContent reports, so a caller can reject a typo
+// before it selects nothing and reads as a clean file.
+func AllIDs() set.Set[string] {
+	ids := workflow.AllIDs.Union(ste.AllIDs)
+	ids.Add(IDHardWrap)
+	return ids
+}
+
+// Listed renders a set of rule IDs for a person: the flag help, and the error
+// that names what a caller could have written instead. A set has no order of
+// its own, so the reader gets an alphabetical one rather than a shuffled one.
+func Listed(ids set.Set[string]) string {
+	return strings.Join(slices.Sorted(ids.All()), ", ")
 }
 
 // isWorkflow reports whether the workflow rules own this file.

@@ -19,14 +19,10 @@ func runWorkflowsOn(t *testing.T, excludes []string, paths ...string) (string, e
 
 func runWorkflowsOnly(t *testing.T, excludes, only []string, paths ...string) (string, error) {
 	t.Helper()
-	previousExcludes, previousOnly := workflowExcludes, workflowOnly
-	workflowExcludes, workflowOnly = excludes, only
-	t.Cleanup(func() { workflowExcludes, workflowOnly = previousExcludes, previousOnly })
-
 	var out bytes.Buffer
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
-	err := runWorkflows(cmd, paths)
+	err := reportWorkflows(cmd, paths, excludes, only)
 	return out.String(), err
 }
 

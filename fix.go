@@ -4,6 +4,7 @@ import (
 	"os"
 	"slices"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -30,18 +31,18 @@ var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
-func IDsFor(rule Rule) []string {
+func IDsFor(rule Rule) set.Set[string] {
 	switch rule {
 	case RuleTombstones:
 		return tombstones.AllIDs()
 	case RuleCounts:
-		return []string{counts.ID}
+		return set.Of(counts.ID)
 	case RuleWrap:
-		return []string{IDHardWrap}
+		return set.Of(IDHardWrap)
 	case RuleSTE:
 		return ste.AllIDs
 	}
-	return nil
+	return set.New[string]()
 }
 
 // Request is a piece of text put to Fix.

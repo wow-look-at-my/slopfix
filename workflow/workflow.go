@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
@@ -18,10 +19,11 @@ const (
 	IDCommentBlock = "yaml/comment-block"
 	IDAllBuildsJob = "yaml/all-builds-job"
 	IDTestInYAML   = "yaml/test-in-workflow"
+	IDNeuteredGate = "yaml/neutered-gate"
 )
 
-// AllIDs names every rule this package reports.
-var AllIDs = []string{IDCommentBlock, IDAllBuildsJob, IDTestInYAML}
+// AllIDs names every rule this package reports, as a membership test.
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate)
 
 // Judges reports whether these rules read the file at this path. A backslash is
 // separated here rather than through filepath, which ignores it off Windows.
@@ -50,6 +52,7 @@ func Check(content string) []ste.Finding {
 	out := commentBlocks(content)
 	out = append(out, allBuildsJobs(content)...)
 	out = append(out, testsInYAML(content)...)
+	out = append(out, neuteredGates(content)...)
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
 }

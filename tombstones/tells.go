@@ -11,7 +11,6 @@ package tombstones
 
 import (
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -26,13 +25,13 @@ const IDVolume = "tombstones/comment-volume"
 
 // AllIDs names every rule this package reports, for a caller that validates a
 // name before running.
-func AllIDs() []string {
+func AllIDs() set.Set[string] {
 	ids := set.New[string]()
 	ids.AddRange(IDVolume, ruleID(deadReferent))
 	for _, t := range tells {
 		ids.Add(ruleID(t.name))
 	}
-	return slices.Sorted(ids.All())
+	return ids
 }
 
 // ruleID turns a tell's words into the name that selects it.

@@ -26,15 +26,18 @@ const (
 	IDStaleCount  = "ste/count"
 )
 
-// AllIDs names every rule this package reports, for a caller that validates a
-// name before running.
-var AllIDs = []string{
+// AllIDs names every rule this package reports. A set, because every consumer
+// asks whether a name is in it rather than reading it in order.
+var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
-}
+)
 
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
 	Line int
+	// EndLine is the last line the finding covers, and is unset on a finding
+	// that sits on Line alone.
+	EndLine int
 	// ID names the rule, and selects it on the command line.
 	ID string
 	// Rule says in words what the ID stands for.
@@ -159,10 +162,10 @@ func checkWords(prose string, line int) []Finding {
 	for _, word := range wordPattern.FindAllString(prose, -1) {
 		lower := strings.ToLower(word)
 		if fix, banned := contractions[lower]; banned {
-			out = append(out, Finding{line, IDContraction, "STE bans contractions", word, "Write " + fix + "."})
+			out = append(out, Finding{Line: line, ID: IDContraction, Rule: "STE bans contractions", Detail: word, Fix: "Write " + fix + "."})
 		}
 		if fix, banned := modals[lower]; banned {
-			out = append(out, Finding{line, IDModal, "STE bans this modal", word, "Write " + fix + ", or rewrite the sentence."})
+			out = append(out, Finding{Line: line, ID: IDModal, Rule: "STE bans this modal", Detail: word, Fix: "Write " + fix + ", or rewrite the sentence."})
 		}
 	}
 	return out
@@ -172,7 +175,7 @@ func checkSemicolons(prose string, line int) []Finding {
 	if !strings.Contains(prose, ";") {
 		return nil
 	}
-	return []Finding{{line, IDSemicolon, "STE bans the semicolon", ";", "Write a period and start a new sentence."}}
+	return []Finding{{Line: line, ID: IDSemicolon, Rule: "STE bans the semicolon", Detail: ";", Fix: "Write a period and start a new sentence."}}
 }
 
 func checkSentences(prose string, line int) []Finding {
@@ -183,11 +186,11 @@ func checkSentences(prose string, line int) []Finding {
 			continue
 		}
 		out = append(out, Finding{
-			line,
-			IDSentenceCap,
-			fmt.Sprintf("over the %d-word sentence cap at %d words", SentenceWordCap, words),
-			truncate(strings.TrimSpace(sentence)),
-			"Split it into shorter sentences.",
+			Line:   line,
+			ID:     IDSentenceCap,
+			Rule:   fmt.Sprintf("over the %d-word sentence cap at %d words", SentenceWordCap, words),
+			Detail: truncate(strings.TrimSpace(sentence)),
+			Fix:    "Split it into shorter sentences.",
 		})
 	}
 	return out
@@ -209,11 +212,11 @@ func checkSplices(prose string, line int) []Finding {
 			continue
 		}
 		out = append(out, Finding{
-			line,
-			IDCommaSplice,
-			"a comma joining two clauses is the semicolon STE bans, spelled differently",
-			strings.TrimSpace(prose[loc[0]:loc[1]]),
-			"Write a period in place of the comma and capitalize the next word.",
+			Line:   line,
+			ID:     IDCommaSplice,
+			Rule:   "a comma joining two clauses is the semicolon STE bans, spelled differently",
+			Detail: strings.TrimSpace(prose[loc[0]:loc[1]]),
+			Fix:    "Write a period in place of the comma and capitalize the next word.",
 		})
 	}
 	return out
@@ -229,11 +232,11 @@ func checkCounts(prose string, line int) []Finding {
 			continue
 		}
 		out = append(out, Finding{
-			line,
-			IDStaleCount,
-			"a stated count goes stale when the set changes",
-			strings.TrimSpace(prose[loc[0]:loc[1]]),
-			"Describe what is there and let the reader count.",
+			Line:   line,
+			ID:     IDStaleCount,
+			Rule:   "a stated count goes stale when the set changes",
+			Detail: strings.TrimSpace(prose[loc[0]:loc[1]]),
+			Fix:    "Describe what is there and let the reader count.",
 		})
 	}
 	return out
