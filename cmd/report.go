@@ -55,6 +55,9 @@ type reportFinding struct {
 	Rule   string `json:"rule"`
 	Detail string `json:"detail,omitempty"`
 	Fix    string `json:"fix,omitempty"`
+	// Repairable reports whether slopfix repairs this defect. A reporting
+	// caller takes what is false, and a repairing caller takes the rest.
+	Repairable bool `json:"repairable"`
 }
 
 type reportOutput struct {
@@ -99,12 +102,13 @@ func wireFinding(finding ste.Finding) reportFinding {
 		end = finding.Line
 	}
 	return reportFinding{
-		ID:      finding.ID,
-		Line:    finding.Line,
-		EndLine: end,
-		Rule:    finding.Rule,
-		Detail:  finding.Detail,
-		Fix:     finding.Fix,
+		ID:         finding.ID,
+		Line:       finding.Line,
+		EndLine:    end,
+		Rule:       finding.Rule,
+		Detail:     finding.Detail,
+		Fix:        finding.Fix,
+		Repairable: slopfix.Repairable(finding.ID),
 	}
 }
 

@@ -11,6 +11,7 @@
 package laziness
 
 import (
+	"github.com/wow-look-at-my/go-containers/set"
 	"regexp"
 	"strings"
 )
@@ -96,7 +97,7 @@ var pardons = []*regexp.Regexp{
 func Check(message string) []Hit {
 	text, kept := assertedText(message)
 	var hits []Hit
-	seen := map[string]bool{}
+	seen := set.New[string]()
 	for _, t := range tells {
 		at := t.re.FindStringIndex(text)
 		if at == nil {
@@ -104,10 +105,10 @@ func Check(message string) []Hit {
 		}
 		start, end := sentenceBounds(text, at[0])
 		sentence := strings.Join(strings.Fields(text[start:end]), " ")
-		if sentence == "" || seen[sentence] || isPardoned(sentence) {
+		if sentence == "" || seen.Contains(sentence) || isPardoned(sentence) {
 			continue
 		}
-		seen[sentence] = true
+		seen.Add(sentence)
 		hits = append(hits, Hit{ID: ID, Tell: t.name, Sentence: sentence, Line: lineOf(kept, start)})
 	}
 	return hits
