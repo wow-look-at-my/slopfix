@@ -34,6 +34,14 @@ inputs:
     required: false
     default: ''
 
+  project:
+    description: >-
+      The buildhost project holding the binary. This repository is named
+      slopfix and publishes as slopfmt, so the two differ until a release lands
+      under the new name.
+    required: false
+    default: slopfmt
+
   binary:
     description: >-
       Path to a slopfmt binary to run instead of downloading one. This
@@ -58,7 +66,7 @@ runs:
       if: inputs.binary == ''
       uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master
       with:
-        project: slopfmt
+        project: ${{ inputs.project }}
         version: ${{ inputs.version }}
 
     # slopfmt exits non-zero when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
