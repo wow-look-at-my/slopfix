@@ -22,8 +22,7 @@ const (
 	IDNeuteredGate = "yaml/neutered-gate"
 )
 
-// AllIDs names every rule this package reports. A set, because every consumer
-// asks whether a name is in it.
+// AllIDs names every rule this package reports, as a membership test.
 var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate)
 
 // Judges reports whether these rules read the file at this path. A backslash is

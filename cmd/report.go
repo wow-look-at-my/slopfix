@@ -47,12 +47,11 @@ func init() {
 type reportFinding struct {
 	// ID names the rule, the way a compiler names a warning.
 	ID string `json:"id"`
-	// Line is where the finding starts, counting from the top of the file.
-	// EndLine repeats it for a finding that covers a single line.
+	// Line is where the finding starts. EndLine repeats it on a finding that
+	// covers a single line.
 	Line    int `json:"line"`
 	EndLine int `json:"endLine"`
-	// Rule says what the ID stands for, Detail quotes the text, and Fix names
-	// the repair.
+	// Rule says what the ID stands for. Detail quotes the text, and Fix names the repair.
 	Rule   string `json:"rule"`
 	Detail string `json:"detail,omitempty"`
 	Fix    string `json:"fix,omitempty"`

@@ -58,7 +58,7 @@ func TestASingleCommentLineIsNotAWall(t *testing.T) {
 	assert.Empty(t, out.Findings)
 }
 
-// A null here crashes a caller that reads the length of what came back.
+// A null crashes a caller that reads the length of what came back.
 func TestACleanFileAnswersWithAnEmptyList(t *testing.T) {
 	_, raw, err := report(t, workflowPath, nil, "name: CI\non:\n  push:\n")
 	require.NoError(t, err)

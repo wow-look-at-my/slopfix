@@ -42,9 +42,8 @@ func runWorkflows(cmd *cobra.Command, args []string) error {
 	return reportWorkflows(cmd, args, workflowExcludes, workflowOnly)
 }
 
-// reportWorkflows takes its selection as arguments rather than reading the
-// flag globals. go-toolchain runs a package's quick tests in parallel, and a
-// test that swaps a global loses to whichever sibling restores it first.
+// reportWorkflows takes its selection as arguments rather than reading the flag
+// globals, which parallel tests swap under each other.
 func reportWorkflows(cmd *cobra.Command, args, excludes, only []string) error {
 	excluded, err := excludeMatcher(excludes)
 	if err != nil {

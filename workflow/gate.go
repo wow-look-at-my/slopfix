@@ -7,8 +7,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// GateMarkers name the steps this rule protects. A wrapper step switches the
-// gate off as surely as the step that runs it, so every name counts.
+// GateMarkers name the steps this rule protects, a wrapper step included.
 var GateMarkers = []string{"slopfix", "ste-lint", "common-checks"}
 
 var (

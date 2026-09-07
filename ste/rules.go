@@ -26,11 +26,8 @@ const (
 	IDStaleCount  = "ste/count"
 )
 
-// AllIDs names every rule this package reports, for a caller that validates a
-// name before running.
-//
-// A set, because every consumer asks whether a name is in it. A slice answers
-// that with a scan, and it cannot notice the same ID declared twice.
+// AllIDs names every rule this package reports. A set, because every consumer
+// asks whether a name is in it rather than reading it in order.
 var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
 )
@@ -38,7 +35,7 @@ var AllIDs = set.Of(
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
 	Line int
-	// EndLine is the last line the finding covers, and is unset for a finding
+	// EndLine is the last line the finding covers, and is unset on a finding
 	// that sits on Line alone.
 	EndLine int
 	// ID names the rule, and selects it on the command line.
