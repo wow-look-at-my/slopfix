@@ -16,6 +16,7 @@ slopfmt fix docs/*.md     # repair each file in place, and report what is left
 slopfmt fmt docs/*.md     # join every wrapped paragraph back to a single line
 slopfmt purge .           # delete the markdown a repository must not keep
 slopfmt comments .        # report a number stated in a comment, in any language
+slopfmt workflows .       # read every workflow and action manifest in the tree
 ```
 
 `fix` also reads a document on stdin and writes the repaired one on stdout. With `--json` the whole answer is one object, which is what a hook reads.
@@ -58,6 +59,8 @@ A sentence over the word cap is reported and left alone. To split one, the write
 ## What check reports in a workflow
 
 A workflow under `.github/workflows`, and an `action.yml` beside it, are read by rules of their own. The prose rules never run on either. `fmt` refuses one outright, because a newline there is syntax. Joining a two-line `concurrency:` block makes GitHub reject the file before a job starts.
+
+`workflows` walks a tree for them, and `--exclude` takes a glob for a fixture that breaks a rule on purpose. The walk keeps `.github`, which the other walks skip as a hidden directory. A walk that selects no file exits non-zero. A run that read nothing enforced nothing, and in CI that means the step ran ahead of the checkout.
 
 - A run of comment lines. The limit is one line. Say what a reader needs right there, and put the rest in the commit message.
 - A job named `all-builds`, by its key or by its name. The required gate is a commit status from the required-builds-manager app. A job wearing the name satisfies nothing, and shadows the real gate in the UI.
