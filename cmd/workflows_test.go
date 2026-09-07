@@ -14,9 +14,14 @@ import (
 // built per call: tests run in parallel, and rootCmd's writer is shared.
 func runWorkflowsOn(t *testing.T, excludes []string, paths ...string) (string, error) {
 	t.Helper()
-	previous := workflowExcludes
-	workflowExcludes = excludes
-	t.Cleanup(func() { workflowExcludes = previous })
+	return runWorkflowsOnly(t, excludes, nil, paths...)
+}
+
+func runWorkflowsOnly(t *testing.T, excludes, only []string, paths ...string) (string, error) {
+	t.Helper()
+	previousExcludes, previousOnly := workflowExcludes, workflowOnly
+	workflowExcludes, workflowOnly = excludes, only
+	t.Cleanup(func() { workflowExcludes, workflowOnly = previousExcludes, previousOnly })
 
 	var out bytes.Buffer
 	cmd := &cobra.Command{}
@@ -128,6 +133,46 @@ func TestANamedFileIsReadWhateverItsPath(t *testing.T) {
 func TestAMissingWorkflowPathIsAnError(t *testing.T) {
 	_, err := runWorkflowsOn(t, nil, filepath.Join(t.TempDir(), "absent"))
 	assert.Error(t, err)
+}
+
+// A caller that wants the comment-block rule must not pick up its siblings by
+// asking for it, because a repository runs each of them from its own step.
+func TestOnlyReportsTheRuleTheCallerNamed(t *testing.T) {
+	dir := t.TempDir()
+	writeAt(t, dir, ".github/workflows/ci.yml",
+		"on: push\n\n# one\n# two\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n")
+
+	every, err := runWorkflowsOn(t, nil, dir)
+	require.Error(t, err)
+	assert.Contains(t, every, "yaml/comment-block")
+	assert.Contains(t, every, "yaml/all-builds-job")
+
+	narrowed, err := runWorkflowsOnly(t, nil, []string{"yaml/comment-block"}, dir)
+	require.Error(t, err)
+	assert.Contains(t, narrowed, "yaml/comment-block")
+	assert.NotContains(t, narrowed, "yaml/all-builds-job")
+}
+
+// A rule the caller named that no findings match is a pass, not a walk failure.
+func TestOnlyPassesWhenTheNamedRuleFindsNothing(t *testing.T) {
+	dir := t.TempDir()
+	writeAt(t, dir, ".github/workflows/ci.yml",
+		"on: push\n\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n")
+
+	out, err := runWorkflowsOnly(t, nil, []string{"yaml/comment-block"}, dir)
+	require.NoError(t, err)
+	assert.Contains(t, out, "1 file(s) read")
+}
+
+// A typo that quietly reports nothing reads exactly like a clean tree.
+func TestAnUnknownRuleNameIsAnError(t *testing.T) {
+	dir := t.TempDir()
+	writeAt(t, dir, ".github/workflows/ci.yml", wall)
+
+	_, err := runWorkflowsOnly(t, nil, []string{"yaml/nosuch"}, dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown rule")
+	assert.Contains(t, err.Error(), "yaml/comment-block")
 }
 
 func TestAGlobStarDoesNotCrossASeparator(t *testing.T) {
