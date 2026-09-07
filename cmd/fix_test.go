@@ -6,14 +6,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wow-look-at-my/slopfmt"
+	"github.com/wow-look-at-my/slopfix"
 )
 
 func TestACategoryTurnsItsWholeRuleSetOn(t *testing.T) {
 	rules, ids, err := selectedRules([]string{"counts", " ste "})
 	require.NoError(t, err)
 
-	assert.Equal(t, []slopfmt.Rule{slopfmt.RuleCounts, slopfmt.RuleSTE}, rules)
+	assert.Equal(t, []slopfix.Rule{slopfix.RuleCounts, slopfix.RuleSTE}, rules)
 	assert.Empty(t, ids)
 }
 
@@ -23,7 +23,7 @@ func TestARuleIDTurnsItsCategoryOn(t *testing.T) {
 	rules, ids, err := selectedRules([]string{"ste/semicolon"})
 	require.NoError(t, err)
 
-	assert.Equal(t, []slopfmt.Rule{slopfmt.RuleSTE}, rules)
+	assert.Equal(t, []slopfix.Rule{slopfix.RuleSTE}, rules)
 	assert.Equal(t, []string{"ste/semicolon"}, ids)
 }
 

@@ -11,8 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfmt"
-	"github.com/wow-look-at-my/slopfmt/workflow"
+	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 var (
@@ -61,7 +61,7 @@ func runWorkflows(cmd *cobra.Command, args []string) error {
 				continue
 			}
 			scanned = append(scanned, path)
-			findings, err := slopfmt.CheckFile(path)
+			findings, err := slopfix.CheckFile(path)
 			if err != nil {
 				return err
 			}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/wow-look-at-my/slopfmt"
+	"github.com/wow-look-at-my/slopfix"
 )
 
 func init() {
@@ -19,7 +19,7 @@ func init() {
 func runCheck(cmd *cobra.Command, args []string) error {
 	found := false
 	for _, path := range args {
-		findings, err := slopfmt.CheckFile(path)
+		findings, err := slopfix.CheckFile(path)
 		if err != nil {
 			return err
 		}

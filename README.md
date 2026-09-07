@@ -1,22 +1,22 @@
-# slopfmt
+# slopfix
 
 One tool for the prose rules this org applies to a markdown file, and for the same rules a code comment must follow. It also reads a GitHub Actions workflow and an action manifest, where the org's gate rejects other things.
 
 ## Build
 
 ```sh
-go-toolchain            # builds build/slopfmt, and runs the tests
+go-toolchain            # builds build/slopfix, and runs the tests
 ```
 
 ## Use
 
 ```sh
-slopfmt check docs/*.md   # report what the rules reject, and exit 1 when anything does
-slopfmt fix docs/*.md     # repair each file in place, and report what is left
-slopfmt fmt docs/*.md     # join every wrapped paragraph back to a single line
-slopfmt purge .           # delete the markdown a repository must not keep
-slopfmt comments .        # report a number stated in a comment, in any language
-slopfmt workflows .       # read every workflow and action manifest in the tree
+slopfix check docs/*.md   # report what the rules reject, and exit 1 when anything does
+slopfix fix docs/*.md     # repair each file in place, and report what is left
+slopfix fmt docs/*.md     # join every wrapped paragraph back to a single line
+slopfix purge .           # delete the markdown a repository must not keep
+slopfix comments .        # report a number stated in a comment, in any language
+slopfix workflows .       # read every workflow and action manifest in the tree
 ```
 
 `fix` also reads a document on stdin and writes the repaired one on stdout. With `--json` the whole answer is one object, which is what a hook reads.
@@ -42,10 +42,10 @@ The action at the root of this repository downloads the published binary from bu
 `--only` takes a comma-separated list. An entry is a category, or a rule ID inside a category. A rule ID is the name the report prints next to the finding, the way a compiler names a warning. What a message says and what a caller asks for are the same word.
 
 ```sh
-slopfmt fix --only counts            # every rule in the counts category
-slopfmt fix --only ste/semicolon     # that rule alone, and no other in ste
-slopfmt fix --only tombstones,wrap   # two categories
-slopfmt fix --only ste/nosuch        # an error naming the rules ste holds
+slopfix fix --only counts            # every rule in the counts category
+slopfix fix --only ste/semicolon     # that rule alone, and no other in ste
+slopfix fix --only tombstones,wrap   # two categories
+slopfix fix --only ste/nosuch        # an error naming the rules ste holds
 ```
 
 The categories are `tombstones`, `counts`, `wrap` and `ste`. A rule ID turns its category on, so naming a rule never needs the category named beside it. An unknown name is an error rather than a silent no-op, because a run that applies nothing reads as a clean file.

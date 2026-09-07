@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfmt/markdown"
+	"github.com/wow-look-at-my/slopfix/markdown"
 )
 
 // ID names this rule, on a report and on the command line alike.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/wow-look-at-my/slopfmt"
+	"github.com/wow-look-at-my/slopfix"
 )
 
 // dryRun is the --dry-run flag: report what would go, delete nothing.
@@ -17,7 +17,7 @@ func init() {
 		Long: "A repository keeps README.md for a person and CLAUDE.md for an agent, both at\n" +
 			"its root and both under the character budget. Every other .md is deleted.\n\n" +
 			"A spec repository, where the prose is the product, opts out with an empty\n" +
-			".slopfmt-spec file at its root.",
+			".slopfix-spec file at its root.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: runPurge,
 	}
@@ -30,7 +30,7 @@ func runPurge(cmd *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		root = args[0]
 	}
-	result, err := slopfmt.Purge(root, dryRun)
+	result, err := slopfix.Purge(root, dryRun)
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func runPurge(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(cmd.OutOrStdout(), path)
 	}
 	if len(result.OverBudget) > 0 {
-		fmt.Fprint(cmd.ErrOrStderr(), slopfmt.BudgetError(result.OverBudget))
+		fmt.Fprint(cmd.ErrOrStderr(), slopfix.BudgetError(result.OverBudget))
 		return errFindings
 	}
 	// A dry run reports without failing, so a hook can ask what would go.

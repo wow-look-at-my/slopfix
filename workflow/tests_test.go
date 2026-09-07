@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/slopfmt/workflow"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 func testFindings(t *testing.T, content string) []string {

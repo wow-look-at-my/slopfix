@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/wow-look-at-my/slopfmt/ste"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // MaxCommentLines bounds a run of comment lines, and takes no input.

@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/wow-look-at-my/slopfmt/ste"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // runBlock is a run: script, and the line its content starts on.

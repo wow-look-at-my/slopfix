@@ -1,4 +1,4 @@
-package slopfmt
+package slopfix
 
 import (
 	"os"
@@ -69,7 +69,7 @@ func TestPurgeDryRunDeletesNothing(t *testing.T) {
 }
 
 func TestPurgeSkipsASpecRepo(t *testing.T) {
-	root := repo(t, map[string]string{".slopfmt-spec": "", "src/lexer.md": "the product"})
+	root := repo(t, map[string]string{".slopfix-spec": "", "src/lexer.md": "the product"})
 	result, err := Purge(root, false)
 	require.NoError(t, err)
 	assert.Empty(t, result.Deleted)

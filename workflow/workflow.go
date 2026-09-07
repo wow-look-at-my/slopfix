@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/wow-look-at-my/slopfmt/ste"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // The rule IDs. A report prints the ID that found the text.

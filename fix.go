@@ -1,13 +1,13 @@
-package slopfmt
+package slopfix
 
 import (
 	"os"
 	"slices"
 
-	"github.com/wow-look-at-my/slopfmt/counts"
-	"github.com/wow-look-at-my/slopfmt/markdown"
-	"github.com/wow-look-at-my/slopfmt/ste"
-	"github.com/wow-look-at-my/slopfmt/tombstones"
+	"github.com/wow-look-at-my/slopfix/counts"
+	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
 // Rule names a repair Fix can apply. A caller that wants a single rule names it

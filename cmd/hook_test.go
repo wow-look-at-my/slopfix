@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wow-look-at-my/slopfmt"
+	"github.com/wow-look-at-my/slopfix"
 )
 
 // answer is the decoded response, plus the raw keys, because a caller reads
@@ -166,4 +166,4 @@ func TestAnUnknownRuleIsRefusedBeforeAnyWriteIsJudged(t *testing.T) {
 	require.Error(t, err)
 }
 
-var _ = slopfmt.AllRules
+var _ = slopfix.AllRules

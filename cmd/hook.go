@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/wow-look-at-my/slopfmt"
-	"github.com/wow-look-at-my/slopfmt/tombstones"
+	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
 var (
@@ -127,7 +127,7 @@ func runHook(cmd *cobra.Command, _ []string) error {
 // judge answers a payload with the response to print, or "" to let the write
 // through. Every unreadable input answers "": a guard that refuses a write it
 // could not parse is worse than no guard.
-func judge(data []byte, rules []slopfmt.Rule, ids []string) string {
+func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	var in hookInput
 	if json.Unmarshal(data, &in) != nil {
 		return ""
@@ -149,7 +149,7 @@ func judge(data []byte, rules []slopfmt.Rule, ids []string) string {
 	var findings []string
 	changed := false
 	for _, u := range writeUnits(in.ToolName, write, raw) {
-		repair := slopfmt.Fix(slopfmt.Request{
+		repair := slopfix.Fix(slopfix.Request{
 			Content:         u.text,
 			Path:            write.FilePath,
 			Rules:           rules,
@@ -200,7 +200,7 @@ const reportCap = 6
 // it names what was cut rather than asking for a retry.
 func notice(path string, removed []string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "slopfmt repaired this write to %s. It removed:\n", path)
+	fmt.Fprintf(&b, "slopfix repaired this write to %s. It removed:\n", path)
 	for _, line := range capped(removed) {
 		fmt.Fprintf(&b, "  %q\n", strings.TrimSpace(line))
 	}

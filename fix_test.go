@@ -1,4 +1,4 @@
-package slopfmt_test
+package slopfix_test
 
 import (
 	"os"
@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wow-look-at-my/slopfmt"
+	"github.com/wow-look-at-my/slopfix"
 )
 
 // prose puts a document to Fix with no path, which is how a caller vouches for
 // text as prose.
-func prose(content string) slopfmt.Repair {
-	return slopfmt.Fix(slopfmt.Request{Content: content})
+func prose(content string) slopfix.Repair {
+	return slopfix.Fix(slopfix.Request{Content: content})
 }
 
 func TestFixJoinsAWrapAndCutsACount(t *testing.T) {
@@ -86,7 +86,7 @@ func TestFixFileWritesTheRepair(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "doc.md")
 	require.NoError(t, os.WriteFile(path, []byte("It doesn't run.\n"), 0o644))
 
-	repair, err := slopfmt.FixFile(path)
+	repair, err := slopfix.FixFile(path)
 	require.NoError(t, err)
 	assert.True(t, repair.Changed)
 
@@ -99,14 +99,14 @@ func TestFixFileLeavesACleanFileAlone(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "doc.md")
 	require.NoError(t, os.WriteFile(path, []byte("A clean line.\n"), 0o400))
 
-	repair, err := slopfmt.FixFile(path)
+	repair, err := slopfix.FixFile(path)
 	require.NoError(t, err)
 	assert.False(t, repair.Changed)
 }
 
 func TestOnlyTheNamedRuleRuns(t *testing.T) {
 	doc := "There are three sections,\nand each is read.\n"
-	repair := slopfmt.Fix(slopfmt.Request{Content: doc, Rules: []slopfmt.Rule{slopfmt.RuleCounts}})
+	repair := slopfix.Fix(slopfix.Request{Content: doc, Rules: []slopfix.Rule{slopfix.RuleCounts}})
 
 	assert.Equal(t, []string{"three sections"}, repair.Removed)
 	assert.Contains(t, repair.Text, "\nand each is read.")
@@ -115,7 +115,7 @@ func TestOnlyTheNamedRuleRuns(t *testing.T) {
 
 func TestSourceGetsTheTombstoneRuleAndNoProseRule(t *testing.T) {
 	src := "// This used to read the flag.\nx := \"a sentence far too long to pass the cap\"\n"
-	repair := slopfmt.Fix(slopfmt.Request{Content: src, Path: "a.go"})
+	repair := slopfix.Fix(slopfix.Request{Content: src, Path: "a.go"})
 
 	assert.True(t, repair.Changed)
 	assert.NotContains(t, repair.Text, "used to read")
@@ -123,7 +123,7 @@ func TestSourceGetsTheTombstoneRuleAndNoProseRule(t *testing.T) {
 }
 
 func TestADocumentPathStillGetsTheProseRules(t *testing.T) {
-	repair := slopfmt.Fix(slopfmt.Request{Content: "It doesn't expand.\n", Path: "a.md"})
+	repair := slopfix.Fix(slopfix.Request{Content: "It doesn't expand.\n", Path: "a.md"})
 	assert.Equal(t, "It does not expand.\n", repair.Text)
 }
 
@@ -132,16 +132,16 @@ func TestADocumentPathStillGetsTheProseRules(t *testing.T) {
 func TestANamedIDRepairsThatRuleAlone(t *testing.T) {
 	doc := "It should work; that is fine, we can't stop.\n"
 
-	semicolon := slopfmt.Fix(slopfmt.Request{
+	semicolon := slopfix.Fix(slopfix.Request{
 		Content: doc,
-		Rules:   []slopfmt.Rule{slopfmt.RuleSTE},
+		Rules:   []slopfix.Rule{slopfix.RuleSTE},
 		IDs:     []string{"ste/semicolon"},
 	})
 	assert.Equal(t, "It should work. That is fine, we can't stop.\n", semicolon.Text)
 
-	contraction := slopfmt.Fix(slopfmt.Request{
+	contraction := slopfix.Fix(slopfix.Request{
 		Content: doc,
-		Rules:   []slopfmt.Rule{slopfmt.RuleSTE},
+		Rules:   []slopfix.Rule{slopfix.RuleSTE},
 		IDs:     []string{"ste/contraction"},
 	})
 	assert.Equal(t, "It should work; that is fine, we cannot stop.\n", contraction.Text)
@@ -151,9 +151,9 @@ func TestANamedIDRepairsThatRuleAlone(t *testing.T) {
 // for a rule is not handed the rest of the category.
 func TestANamedIDReportsThatRuleAlone(t *testing.T) {
 	doc := "There are three sections; each is read.\n"
-	repair := slopfmt.Fix(slopfmt.Request{
+	repair := slopfix.Fix(slopfix.Request{
 		Content: doc,
-		Rules:   []slopfmt.Rule{slopfmt.RuleSTE},
+		Rules:   []slopfix.Rule{slopfix.RuleSTE},
 		IDs:     []string{"ste/count"},
 	})
 
@@ -163,12 +163,12 @@ func TestANamedIDReportsThatRuleAlone(t *testing.T) {
 }
 
 func TestEveryCategoryNamesItsRules(t *testing.T) {
-	for _, rule := range slopfmt.AllRules {
-		ids := slopfmt.IDsFor(rule)
+	for _, rule := range slopfix.AllRules {
+		ids := slopfix.IDsFor(rule)
 		assert.NotEmpty(t, ids, "%s names no rule", rule)
 		for _, id := range ids {
 			assert.True(t, strings.HasPrefix(id, string(rule)+"/"), "%s is not under %s", id, rule)
 		}
 	}
-	assert.Empty(t, slopfmt.IDsFor(slopfmt.Rule("nosuch")))
+	assert.Empty(t, slopfix.IDsFor(slopfix.Rule("nosuch")))
 }
