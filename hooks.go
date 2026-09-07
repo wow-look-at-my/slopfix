@@ -4,6 +4,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentnumbers"
 	"github.com/wow-look-at-my/slopfix/counts"
+	"github.com/wow-look-at-my/slopfix/laziness"
 )
 
 // IDInventoryCount names the stale-count rule over a document.
@@ -11,6 +12,9 @@ const IDInventoryCount = counts.ID
 
 // IDCommentNumber names the stale-count rule over a comment.
 const IDCommentNumber = commentnumbers.ID
+
+// IDPunt names the rule over a closing message.
+const IDPunt = laziness.ID
 
 // Hook is a named selection of rule IDs, and nothing else.
 //
@@ -55,6 +59,13 @@ var hooks = []Hook{
 		Runs:    "slopfix comments .",
 		Summary: "a number stated in a comment, in any language the adapter knows",
 		Only:    []string{IDCommentNumber},
+	},
+	{
+		Name:    "no-laziness",
+		Event:   "Stop",
+		Runs:    "slopfix message",
+		Summary: "a turn ending with the work undone",
+		Only:    []string{IDPunt},
 	},
 	{
 		Name:    "no-blame-language",
@@ -126,6 +137,6 @@ func EveryRuleID() set.Set[string] {
 	for _, rule := range AllRules {
 		every = every.Union(IDsFor(rule))
 	}
-	every.Add(IDCommentNumber)
+	every.AddRange(IDCommentNumber, IDPunt)
 	return every
 }
