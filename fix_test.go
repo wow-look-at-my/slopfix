@@ -165,10 +165,10 @@ func TestANamedIDReportsThatRuleAlone(t *testing.T) {
 func TestEveryCategoryNamesItsRules(t *testing.T) {
 	for _, rule := range slopfix.AllRules {
 		ids := slopfix.IDsFor(rule)
-		assert.NotEmpty(t, ids, "%s names no rule", rule)
-		for _, id := range ids {
+		assert.False(t, ids.IsEmpty(), "%s names no rule", rule)
+		for id := range ids.All() {
 			assert.True(t, strings.HasPrefix(id, string(rule)+"/"), "%s is not under %s", id, rule)
 		}
 	}
-	assert.Empty(t, slopfix.IDsFor(slopfix.Rule("nosuch")))
+	assert.True(t, slopfix.IDsFor(slopfix.Rule("nosuch")).IsEmpty())
 }

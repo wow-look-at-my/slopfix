@@ -11,7 +11,6 @@ package tombstones
 
 import (
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 
