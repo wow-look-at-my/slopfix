@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -13,7 +14,10 @@ import (
 	"github.com/wow-look-at-my/slopfmt/workflow"
 )
 
-var workflowExcludes []string
+var (
+	workflowExcludes []string
+	workflowOnly     []string
+)
 
 func init() {
 	command := &cobra.Command{
@@ -28,11 +32,18 @@ func init() {
 	}
 	command.Flags().StringSliceVar(&workflowExcludes, "exclude", nil,
 		"glob patterns for paths the walk skips, for a fixture that breaks a rule on purpose")
+	command.Flags().StringSliceVar(&workflowOnly, "only", nil,
+		"report only these rule IDs, as a comma-separated list. Defaults to every rule: "+
+			strings.Join(workflow.AllIDs, ", "))
 	rootCmd.AddCommand(command)
 }
 
 func runWorkflows(cmd *cobra.Command, args []string) error {
 	excluded, err := excludeMatcher(workflowExcludes)
+	if err != nil {
+		return err
+	}
+	reports, err := selectedIDs(workflowOnly)
 	if err != nil {
 		return err
 	}
@@ -54,6 +65,9 @@ func runWorkflows(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			for _, finding := range findings {
+				if !reports(finding.ID) {
+					continue
+				}
 				found = true
 				fmt.Fprintf(cmd.OutOrStdout(), "%s:%s\n", path, finding)
 			}
@@ -104,6 +118,27 @@ func workflowTargets(arg string) ([]string, error) {
 		return nil
 	})
 	return out, err
+}
+
+// selectedIDs turns --only into a predicate over a finding's rule ID. An empty
+// list reads as every rule.
+//
+// An unknown name is an error rather than a silent no-op, because a run that
+// reports nothing reads exactly like a clean tree.
+func selectedIDs(only []string) (func(string) bool, error) {
+	if len(only) == 0 {
+		return func(string) bool { return true }, nil
+	}
+	wanted := make(map[string]bool, len(only))
+	for _, name := range only {
+		name = strings.TrimSpace(name)
+		if !slices.Contains(workflow.AllIDs, name) {
+			return nil, fmt.Errorf("unknown rule %q: pick from %s",
+				name, strings.Join(workflow.AllIDs, ", "))
+		}
+		wanted[name] = true
+	}
+	return func(id string) bool { return wanted[id] }, nil
 }
 
 // excludeMatcher reports whether a path matches any pattern. `**` crosses a
