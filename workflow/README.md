@@ -4,7 +4,7 @@ These are substrate rules. They are about the format rather than about the prose
 
 ## A family, and why it is not split further
 
-The members share the predicate that decides which files they read at all, and a reader needs that predicate before any member makes sense. A directory per member leaves the predicate in a package holding no rule. Each member still selects on its own by ID, and the org gives each its own CI step.
+The members share the predicate that decides which files they read at all. A reader needs that predicate before any member makes sense. A directory per member leaves the predicate in a package holding no rule. Each member still selects on its own by ID, and each has its own CI step in the org.
 
 A file is read when its base name is `action.yml` or `action.yaml`, or when it is a YAML file under a `workflows` directory. A caller already inside the directory can also sniff the content: a left-margin `jobs:` or `runs:` key names the file for what it is.
 
@@ -46,11 +46,11 @@ jobs:
 
 ## What it does not flag
 
-Unparseable YAML yields no all-builds finding at all. A file this rule cannot read is a file the runner cannot read either, and it fails on its own.
+Unparseable YAML yields no all-builds finding at all. A file this rule cannot read is a file the runner cannot read either. It fails on its own.
 
 A job name holding an expression is skipped. The name resolves at run time, so no file can judge it. A matrix suffix in parentheses and a reusable workflow's path parts are stripped before the comparison. A segment must then match exactly, so a job called `all-builds2` carries a different name.
 
-A step that merely runs a command is not a test. It fails on its own exit code, and an error annotation on its own is a report rather than an expectation.
+A step that merely runs a command is not a test. It fails on its own exit code. An error annotation by itself is a report rather than an expectation.
 
 Nothing here is reflowed. A newline in a workflow is syntax, and joining a wrapped `concurrency:` block makes GitHub reject the file before a job starts. `slopfix fmt` refuses one outright.
 

@@ -12,11 +12,11 @@ The table matches the surface of each. Disowning a defect you found. Handing a r
 
 ## Why
 
-A session found a build phase that failed on every machine with bubblewrap installed, and an instruction file carrying the same bullet twice. It diagnosed both correctly and verified both with a negative control. It wrote them up under a heading saying they were worth the reader's attention, and closed the turn with the line "neither mine to fix unasked". The owner replied that fixing it is the job.
+A session found a build phase that failed on every machine with bubblewrap installed, and an instruction file carrying the same bullet twice. It diagnosed both correctly and verified both with a negative control. It wrote them up under a heading saying they were worth the reader's attention. It closed the turn with the line "neither mine to fix unasked". The owner replied that fixing it is the job.
 
-A second session hit a failing test and spent a full run confirming the failure happened on the unmodified base commit too. It reported the failure as pre-existing and closed the turn there. The owner had to force it to keep going. Two further runs found the real cause in minutes.
+A second session hit a failing test and spent a full run confirming the failure happened on the unmodified base commit too. It reported the failure as pre-existing and closed the turn there. The owner had to force it to keep going. The runs that followed found the real cause in minutes.
 
-The permission half has its own history. The refusal it answers with used to run four paragraphs, arguing autonomy and liability. That handed the model a case to argue back with, and the turn went on the argument instead of the work.
+The permission half has its own history. The refusal it answers with once ran to paragraphs, arguing autonomy and liability. That handed the model a case to argue back with, and the turn went on the argument instead of the work.
 
 ## Worked examples
 
@@ -67,7 +67,7 @@ slopfix message < message.txt
 slopfix message --json < message.txt
 ```
 
-The command exits 1 when it finds anything, and 0 when it does not. The other commands judge a file. This judges the text the model sends to the reader, which is never on disk.
+The command exits non-zero when it finds anything, and cleanly when it does not. The other commands judge a file. This judges the text the model sends to the reader, which is never on disk.
 
 ## Which hook selects it
 

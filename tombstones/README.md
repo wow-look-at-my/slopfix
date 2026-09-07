@@ -12,7 +12,7 @@ The tell table matches the surface of a tombstone. Its members are a date, a cha
 
 The dead-referent probe reads no wording at all. A comment naming a symbol that appears nowhere in the repository describes a tree that is gone. The probe shells out to ripgrep against the working tree the file sits in.
 
-The volume cap is the tier no rewording defeats. A tombstone is surplus text, so an essay whose every sentence reads as true and current still fails here. The cap counts the lines of a merged comment run, and the caller sets it. It defaults to 14 lines.
+The volume cap is the tier no rewording defeats. A tombstone is surplus text, so an essay whose every sentence reads as true and current still fails here. The cap counts the lines of a merged comment run. The caller sets it, and it defaults to 14 lines.
 
 ## Why
 

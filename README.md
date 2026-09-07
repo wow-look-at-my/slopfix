@@ -2,6 +2,26 @@
 
 One tool for the prose rules this org applies to a markdown file, and for the same rules a code comment must follow. It also reads a GitHub Actions workflow and an action manifest, where the org's gate rejects other things.
 
+## The rules, and where each one is documented
+
+A directory is a rule. Where a package holds several, they are members of one family. The family shares the machinery that decides what text is read at all, and the README covers each member under its own heading.
+
+| Directory | Rule IDs | Repairs |
+|---|---|---|
+| [counts](counts/README.md) | `counts/inventory-count` | yes |
+| [tombstones](tombstones/README.md) | `tombstones/*` | what it can excise as a whole line |
+| [ste](ste/README.md) | `ste/*` | a contraction, a modal, a semicolon, a comma splice |
+| [markdown](markdown/README.md) | `wrap/hard-wrap` | yes |
+| [workflow](workflow/README.md) | `yaml/*` | no |
+| [commentnumbers](commentnumbers/README.md) | `comments/number` | no |
+| [laziness](laziness/README.md) | `laziness/punt` | no |
+
+A directory here can hold no rule at all. [markdown](markdown/README.md) is the document model every prose rule sits on. It carries the hard-wrap rule as well. [source](source/README.md) is the substrate adapter that answers where the prose is in a source file.
+
+A hook is a named selection of rule IDs, and nothing else. That mapping lives in `hooks.go`, and `hooks_test.go` asserts that every rule has a home in it and that every entry names a rule that exists. A rule added with no home fails the build. So does an entry for a rule somebody deleted.
+
+Some rules for text the model produces still live outside this repository. The `no-blame-language`, `ask-properly` and `link-all-refs` plugins in `wow-look-at-my/cc-marketplace` each carry their own. The table names them anyway. The gap is then visible rather than assumed.
+
 ## Build
 
 ```sh
@@ -33,9 +53,9 @@ The action at the root of this repository downloads the published binary from bu
     only: yaml/comment-block
 ```
 
-`command` defaults to `workflows`. `paths` defaults to the whole workspace, so the step goes after the checkout. `only` and `exclude` are the flags of the same name. `fix` and `fmt` are refused: a job that repairs its own checkout and then reports a pass has enforced nothing.
+`command` defaults to `workflows`. `paths` defaults to the whole workspace. The step therefore goes after the checkout. `only` and `exclude` are the flags of the same name. `fix` and `fmt` are refused: a job that repairs its own checkout and then reports a pass has enforced nothing.
 
-`comments` reads source rather than prose. A number in a comment is a count of what exists today, and the edit that adds an item leaves it wrong. It reads a comment by its delimiters rather than by a grammar. So it answers for every language it knows, and on a tree that does not compile. A directory is walked, skipping hidden directories, `vendor`, `node_modules`, `testdata` and `build`. A named file is read whatever its extension. go-toolchain runs this same check as its first phase.
+`comments` reads source rather than prose. A number in a comment is a count of what exists today. The edit that adds an item leaves it wrong. It reads a comment by its delimiters rather than by a grammar. So it answers for every language it knows, and on a tree that does not compile. A directory is walked, skipping hidden directories, `vendor`, `node_modules`, `testdata` and `build`. A named file is read whatever its extension. go-toolchain runs this same check as its first phase.
 
 ## Naming the rules to run
 
