@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gocomments"
+	"github.com/wow-look-at-my/slopfix/commentnumbers"
 )
 
 func init() {
@@ -39,7 +39,7 @@ func runComments(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-			for _, hit := range gocomments.Check(path, string(src)) {
+			for _, hit := range commentnumbers.Check(path, string(src)) {
 				found = true
 				fmt.Fprintf(cmd.OutOrStdout(), "%s:%d:%d: %q is a number in a comment\n",
 					path, hit.Line, hit.Col, hit.Number)
@@ -47,7 +47,7 @@ func runComments(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if found {
-		fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", gocomments.Remedy)
+		fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", commentnumbers.Remedy)
 		return errFindings
 	}
 	return nil
@@ -74,7 +74,7 @@ func commentTargets(arg string) ([]string, error) {
 			}
 			return nil
 		}
-		if gocomments.Supported(path) {
+		if commentnumbers.Supported(path) {
 			out = append(out, path)
 		}
 		return nil

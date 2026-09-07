@@ -1,4 +1,4 @@
-package gocomments
+package commentnumbers
 
 import (
 	"testing"

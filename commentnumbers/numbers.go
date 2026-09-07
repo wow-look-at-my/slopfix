@@ -1,15 +1,18 @@
-// Package gocomments finds a number stated in a Go comment.
+// Package commentnumbers finds a number stated in a comment.
 //
 // A number in a comment is a count of what exists today, and the edit that adds
 // an item leaves it wrong. Nothing recompiles a comment, so the stale sentence
 // survives every build. Describing what the code does, and letting the reader
 // count, is the repair.
 //
-// The rule reads the comments and nothing else. It runs the Go SCANNER, which
-// tokenizes a file without building an AST, resolving an import or loading a
-// package. That is what lets the check answer before a compiler starts, on a
-// tree that does not compile at all.
-package gocomments
+// The rule reads the comments and nothing else. The source package finds them
+// by walking the bytes rather than by parsing the language, which is what lets
+// the check answer before a compiler starts, on a tree that does not compile at
+// all.
+//
+// The generated-file marker and the directive form are the Go-specific parts.
+// Everything else applies to every language the adapter knows.
+package commentnumbers
 
 import (
 	"strings"
@@ -17,10 +20,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/source"
 )
 
 // ID names this rule, on a report and on the command line alike.
-const ID = "gocomments/comment-number"
+const ID = "comments/number"
+
+// Supported reports whether this rule reads a file of that name.
+func Supported(filename string) bool { return source.Supported(filename) }
 
 // Remedy is what every finding asks the author to do instead. A reference to a
 // numbered section is the case rewriting the sentence does not cover, so it
@@ -70,7 +77,7 @@ func Check(filename, src string) []Hit {
 		return nil
 	}
 	var hits []Hit
-	for _, comment := range Extract(filename, src) {
+	for _, comment := range source.Extract(filename, src) {
 		for _, line := range commentLines(comment.Text) {
 			for _, found := range numbersIn(line.text) {
 				at := comment.Offset + line.offset + found.offset

@@ -1,4 +1,11 @@
-package gocomments
+// Package source is a substrate adapter. It answers where the prose is in a
+// source file, by extracting the comments and nothing else.
+//
+// The syntax table spans the C family and the hash family, so a rule written
+// against this adapter reaches every language in it. Nothing here is specific to
+// any language, and a rule that reads a comment reads it the same way whatever
+// wrote the file.
+package source
 
 import (
 	"path/filepath"
