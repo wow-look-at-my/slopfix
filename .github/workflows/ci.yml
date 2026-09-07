@@ -20,8 +20,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: wow-look-at-my/go-toolchain@master
 
-      # Runs the action this repository publishes against the binary this run just built, not the last one it released.
-      - uses: ./
-        with:
-          command: workflows
-          binary: build/slopfmt
+      # The binary this run built, not the last one released, so a new rule gates this repository before it ships.
+      - run: ./build/slopfmt workflows .
