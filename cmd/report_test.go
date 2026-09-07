@@ -109,7 +109,7 @@ func TestAnUnknownRuleIsAnError(t *testing.T) {
 }
 
 // The path decides which rules read the text, so there is no default for it.
-func TestAMissingPathIsAnError(t *testing.T) {
+func TestReportWithNoPathIsAnError(t *testing.T) {
 	_, _, err := report(t, "", nil, "text\n")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--path is required")

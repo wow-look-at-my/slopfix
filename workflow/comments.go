@@ -23,9 +23,9 @@ func commentBlocks(content string) []ste.Finding {
 				// The block is the finding, so a reader underlines all of it.
 				EndLine: end,
 				ID:      IDCommentBlock,
-				Rule:   fmt.Sprintf("%d comment lines in a row, where the limit is %d", count, MaxCommentLines),
-				Detail: span(start, end),
-				Fix:    "Shorten this to one line. Say only what a reader needs right here, and put the rest in the commit message.",
+				Rule:    fmt.Sprintf("%d comment lines in a row, where the limit is %d", count, MaxCommentLines),
+				Detail:  span(start, end),
+				Fix:     "Shorten this to one line. Say only what a reader needs right here, and put the rest in the commit message.",
 			})
 		}
 		count = 0
