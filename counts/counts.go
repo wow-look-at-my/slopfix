@@ -52,12 +52,16 @@ var possessiveFrame = regexp.MustCompile(
 	`(?i)\b(?:this|these|our|the)\s+(?:[a-z][a-z-]*\s+){0,2}?[a-z][a-z-]*'s\s+(` + quantity + `)`)
 
 // havingFrame is a verb asserting possession or extent, as in "it ships hooks"
-// or "there are sections".
+// or "there are sections". A reporting verb belongs here too: a document that
+// says what something MEASURES, TAKES or COSTS has written a reading down, and
+// the reading moves.
 var havingFrame = regexp.MustCompile(
 	`(?i)\b(?:has|have|had|holds?|ships?|carries|carry|contains?|covers?|` +
 		`includes?|lists?|defines?|registers?|installs?|answers?|serves?|` +
 		`provides?|exposes?|declares?|embeds?|bundles?|comprises?|spans?|` +
-		`there\s+(?:are|were))\s+(?:only\s+|just\s+|exactly\s+|all\s+)?(` + quantity + `)`)
+		`measures?|measured|takes?|took|costs?|needs?|uses?|used|` +
+		`runs?\s+(?:in|for)|completes?\s+in|finishes(?:\s+in)?|` +
+		`there\s+(?:are|were))\s+(?:only\s+|just\s+|exactly\s+|all\s+|about\s+|roughly\s+|around\s+|under\s+|over\s+)?(` + quantity + `)`)
 
 // deicticFrame points inside the document, as in "the rules below". The count
 // is of what this page shows, so editing the page breaks it.
@@ -66,17 +70,9 @@ var deicticFrame = regexp.MustCompile(
 
 var frames = []*regexp.Regexp{possessiveFrame, havingFrame, deicticFrame}
 
-// measureNouns end a quantity that measures rather than counts. A limit, a size
-// and a duration stay true after somebody adds a plugin, so even inside a frame
-// there is nothing to go stale.
-var measureNouns = set.Of[string](
-	"seconds", "minutes", "hours", "days", "weeks", "months", "years",
-	"milliseconds", "microseconds", "nanoseconds", "ms", "ns",
-	"bytes", "kilobytes", "megabytes", "gigabytes", "kbs", "mbs", "gbs",
-	"lines", "chars", "characters", "words", "columns", "pixels", "px",
-	"times", "attempts", "retries", "levels", "degrees", "percents",
-	"spaces", "tabs", "digits", "bits", "requests", "tokens",
-)
+// A measurement inside a frame is a count: a budget gets raised and a suite
+// gets slower. It reads with more authority than a tally, because it looks
+// like an instrument produced it. The number belongs where it is enforced.
 
 // gapStopWords are function words proving the noun after them is not what the
 // cardinal counts. A bare adjective run happily swallows "of the format".
@@ -195,14 +191,11 @@ func continuesANumber(text string, start int) bool {
 	return c == '.' || (c >= '0' && c <= '9')
 }
 
-// isInventory rejects a quantity whose noun measures, and a quantity reached
-// through a function word.
+// isInventory rejects a quantity reached through a function word. A quantity
+// whose noun measures is an inventory like any other, per the note above.
 func isInventory(phrase string) bool {
 	words := strings.Fields(strings.ToLower(phrase))
 	if len(words) < 2 {
-		return false
-	}
-	if measureNouns.Contains(words[len(words)-1]) {
 		return false
 	}
 	for _, w := range words[1 : len(words)-1] {
