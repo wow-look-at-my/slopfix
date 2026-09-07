@@ -36,10 +36,15 @@ func TestAQuantityWithoutAFrameIsLeftAlone(t *testing.T) {
 	}
 }
 
-// A limit and a size stay true after somebody adds a plugin.
-func TestAMeasurementIsNotACount(t *testing.T) {
-	assert.Empty(t, Check("The read has 20 seconds."))
-	assert.Empty(t, Check("It carries 500 lines."))
+// A limit and a size rot exactly as a tally does. A budget gets raised and a
+// suite gets slower, and the document keeps asserting the old value.
+func TestAMeasurementIsACount(t *testing.T) {
+	assert.NotEmpty(t, Check("The read has 20 seconds."))
+	assert.NotEmpty(t, Check("It carries 500 lines."))
+	// A doc recorded the range a build measured, and the range moved.
+	assert.NotEmpty(t, Check("An unchanged second build measures 60 seconds."))
+	assert.NotEmpty(t, Check("The step takes about 90 seconds."))
+	assert.Empty(t, Check("The budget lives in ci.yml, which is where to read it."))
 }
 
 func TestAFunctionWordBreaksTheCount(t *testing.T) {
