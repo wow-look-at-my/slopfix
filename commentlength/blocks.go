@@ -133,7 +133,7 @@ func measureCode(lines []string, from, indent int) (int, int) {
 			break
 		}
 	}
-	// The same measure the comment gets, so the two counts compare directly.
+	// The same measure the comment gets, so both counts compare directly.
 	return measure(code)
 }
 

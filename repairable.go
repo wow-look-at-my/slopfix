@@ -14,13 +14,13 @@ import (
 //
 // That is what the property exists to prevent. A reporting caller takes the
 // findings this calls false. A repairing caller takes the rest. Neither carries
-// a list, and neither has to agree with the other about one.
+// a list, and neither has to agree with the other about a finding.
 func Repairable(id string) bool {
 	return repairable.Contains(id)
 }
 
 // repairable is derived rather than declared: each entry names a repair that
-// exists in this repository, and a test drives every one of them.
+// exists in this repository, and a test drives each of them.
 var repairable = ste.Repairs.Clone().Union(set.Of(
 	// The wrap join.
 	IDHardWrap,

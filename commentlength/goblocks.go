@@ -35,7 +35,7 @@ func goBlocks(src string) (out []block, ok bool) {
 	// line walk was making for itself.
 	for group, node := range documented(file) {
 		// The package doc is never measured. It introduces the file rather than
-		// one declaration, so there is nothing of a comparable size to weigh it
+		// a declaration, so there is nothing of a comparable size to weigh it
 		// against, and the check this rule replaces skips it for that reason.
 		if group == file.Doc {
 			continue
@@ -111,6 +111,6 @@ func spanOf(fset *token.FileSet, lines []string, node ast.Node) (int, int) {
 		}
 		code = append(code, line)
 	}
-	// The same measure the comment gets, so the two counts compare directly.
+	// The same measure the comment gets, so both counts compare directly.
 	return measure(code)
 }

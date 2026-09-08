@@ -21,7 +21,7 @@ type redirTarget struct {
 	op syntax.RedirOperator
 	// fd is the descriptor the redirect rebinds, as written. An empty value is
 	// the default for the operator, which for every output form is stdout.
-	// `2> log` rebinds stderr and puts no file the tree holds at risk, so the
+	// A stderr redirect puts no file the tree holds at risk, so the
 	// destruction half has to be able to tell the descriptors apart.
 	fd   string
 	file word

@@ -26,7 +26,7 @@ func classifyFS(seg segment) []*finding {
 		// of stderr put nothing at risk and was refused anyway, over a target
 		// that needs no working directory to resolve. Content arriving at a
 		// file in the tree is still the provenance half's business at every
-		// descriptor, so `echo x 2> tracked.go` is refused there instead.
+		// descriptor, so a stderr redirect onto a tracked file is refused there.
 		if isDeviceFile(r.file.text) || !touchesStdout(r) {
 			continue
 		}

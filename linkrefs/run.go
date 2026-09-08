@@ -3,7 +3,7 @@
 //
 // The message arrives in flushes, and a fenced block can span them, so the
 // fence state is carried in a per-message file under the temp directory. A lost
-// state file costs the fence exemption on later flushes of that one message,
+// state file costs the fence exemption on later flushes of that message,
 // never a wrong rewrite of another.
 package linkrefs
 

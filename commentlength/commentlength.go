@@ -109,8 +109,8 @@ func Fix(filename, src string) (string, bool) {
 
 // judge measures a block against its code and names every measure it failed.
 //
-// The two measures are independent, and a block can fail both. Lines catch the
-// essay above a one-line declaration. Characters catch the dense paragraph that
+// The measures are independent, and a block can fail both. Lines catch the
+// essay above a short declaration. Characters catch the dense paragraph that
 // fits on fewer lines than the code but still outweighs it.
 func judge(b block) (string, bool) {
 	if b.codeLines == 0 {
@@ -134,7 +134,7 @@ func judge(b block) (string, bool) {
 
 // measure counts the non-blank lines and the non-whitespace characters of a
 // run of text. Indentation therefore carries no cost, and the same function
-// measures a comment and its code, so the two counts compare directly.
+// measures a comment and its code, so both counts compare directly.
 func measure(text []string) (lines, chars int) {
 	for _, line := range text {
 		content := false
@@ -167,7 +167,7 @@ func prose(text []string) []string {
 }
 
 // isDirective reports a line a tool reads rather than a reader. The C family
-// spells one with no space after the marker, and the hash family carries the
+// spells it with no space after the marker, and the hash family carries the
 // interpreter line and the linter pragma.
 func isDirective(line string) bool {
 	t := strings.TrimSpace(line)

@@ -36,8 +36,8 @@ func TestAnUnknownRuleIsNotRepairable(t *testing.T) {
 	assert.False(t, slopfix.Repairable("ste/not-a-real-rule"))
 }
 
-// Every rule the report can carry has an answer, and the two sides are both
-// occupied. A property that is true everywhere splits nothing.
+// Every rule the report can carry has an answer, and both sides of the split
+// are occupied. A property that is true everywhere splits nothing.
 func TestBothSidesOfTheSplitAreOccupied(t *testing.T) {
 	var repairs, reports int
 	for id := range slopfix.AllIDs().All() {

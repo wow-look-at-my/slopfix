@@ -10,10 +10,10 @@ import (
 
 // These pin the rule against the check it replaces, go-toolchain's commentspan
 // analyzer. A verdict that differs from it is a regression for every repository
-// that switches over, so each case here is one of its stated properties.
+// that switches over, so each case here pins a stated property of it.
 
-// The two measures are independent, and a block can fail both at once. Reporting
-// only the first hides half of what is wrong with the block.
+// The measures are independent, and a block can fail both together. Reporting
+// only the leading tell hides half of what is wrong with the block.
 func TestBothMeasuresAreReportedTogether(t *testing.T) {
 	long := "// " + strings.Repeat("elaboration that carries real weight ", 5)
 	src := strings.Join([]string{
@@ -69,7 +69,7 @@ func TestASentenceWithAColonIsStillProse(t *testing.T) {
 	assert.NotEmpty(t, Check("x.go", src), "the colon does not make this a directive")
 }
 
-// The package doc introduces the file rather than one declaration, so there is
+// The package doc introduces the file rather than a declaration, so there is
 // nothing of comparable size to weigh it against.
 func TestThePackageDocIsNeverMeasured(t *testing.T) {
 	doc := strings.Repeat("// A long package comment that runs for a while.\n", 8)

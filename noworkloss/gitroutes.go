@@ -161,7 +161,7 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 
 // namesExistingPath separates `git checkout master` from `git checkout src/` by
 // asking the filesystem rather than guessing from the spelling -- a tag called
-// v1.0 looks exactly like a path and is not a path.
+// a release tag looks exactly like a path and is not a path.
 func namesExistingPath(dir string, operands []word) bool {
 	for _, o := range operands {
 		if !o.static {

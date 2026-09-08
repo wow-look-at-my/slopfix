@@ -9,7 +9,7 @@ import (
 // protectedRefPrefix names a ref an EARLIER build of this hook created to hold
 // content a destructive command was about to lose. Preservation now commits to
 // the branch, so nothing creates such a ref any more. The protection stays
-// because a repository can still carry one, and there it is the ONLY place content
+// because a repository can still carry such a ref, and there it is the ONLY place content
 // survives -- see gitverb.go's checks against this prefix.
 const protectedRefPrefix = "refs/no-work-loss/"
 

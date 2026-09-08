@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The marketplace plugin is a manifest and one launcher per rule. A launcher
+// The marketplace plugin is a manifest and a launcher per rule. A launcher
 // execs a subcommand by name, so a subcommand that is missing, or that answers
 // nothing on a payload it should refuse, is a guard that reports success and
-// does nothing. These drive each one the way its launcher does.
+// does nothing. These drive each subcommand the way its launcher does.
 
 // find returns the registered subcommand of that name.
 func find(t *testing.T, name string) *cobra.Command {
@@ -40,8 +40,8 @@ func run(t *testing.T, name, payload string) string {
 	return out.String()
 }
 
-// Every launcher in the marketplace plugin execs one of these. The names are
-// the contract between the two repositories, so they are pinned here.
+// Every launcher in the marketplace plugin execs a name below. The names are
+// the contract between both repositories, so they are pinned here.
 func TestEveryHookSubcommandIsRegistered(t *testing.T) {
 	for _, name := range []string{
 		"ask-properly", "auto-allow", "busy-poll", "clean-bash",
@@ -54,7 +54,7 @@ func TestEveryHookSubcommandIsRegistered(t *testing.T) {
 	}
 }
 
-// An event a subcommand does not serve leaves the call alone. Printing on one
+// An event a subcommand does not serve leaves the call alone. Printing there
 // is how a hook interferes with work it was never meant to judge.
 func TestAnUnservedEventIsSilent(t *testing.T) {
 	payload := `{"hook_event_name":"SessionEnd","tool_name":"Bash","tool_input":{"command":"ls"}}`

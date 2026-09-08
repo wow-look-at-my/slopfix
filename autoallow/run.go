@@ -2,7 +2,7 @@
 // embedded rather than read from disk.
 //
 // The plugin used to ship rules.xml beside its binary and resolve the path from
-// os.Args[0]. slopfix is one file, so there is no adjacent layout to resolve:
+// the executable path. slopfix is a single file, so there is no adjacent layout to resolve:
 // the table travels inside the binary and a missing file cannot silently turn
 // every rule off.
 package autoallow
