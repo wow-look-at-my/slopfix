@@ -111,8 +111,8 @@ func TestRunLogsToTheDebugChannel(t *testing.T) {
 	assert.Contains(t, string(data), `reason="perl"`)
 }
 
-// The transform only maps over, edits within, or prepends to the statement
-// list, so a rewrite can add a statement and never drop one.
+// A rewrite maps over, edits within, or prepends to the statement list, so it
+// can add a statement and never drop any.
 func TestRewriteNeverDropsAStatement(t *testing.T) {
 	for _, in := range []string{
 		"echo start\nsleep 10\nls | tail -5",

@@ -1,6 +1,9 @@
 package bashclean
 
 import (
+	"fmt"
+	"io"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,9 +23,12 @@ type Result struct {
 
 var perlName = regexp.MustCompile(`^perl[0-9.]*$`)
 
-// Transform parses command, applies the cleanup-bash-cmds rules, and prints it
-// using mvdan's shell printer. Parse failures fail open.
-func Transform(command string) Result {
+// Transform applies the rules to command. A parse failure fails open.
+func Transform(command string) Result { return transform(command, maxPasses, os.Stderr) }
+
+// transform takes the pass bound and the warning sink as arguments, so a test
+// drives the exhaustion path without a global a parallel sibling can see.
+func transform(command string, passes int, warn io.Writer) Result {
 	f, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(command), "")
 	if err != nil {
 		return Result{Command: command}
@@ -65,16 +71,40 @@ func Transform(command string) Result {
 	}
 	// Runs to a fixed point: a rule's output is another rule's input, and a
 	// single pass leaves the later rewrite undone.
-	for i := 0; i < 20; i++ {
-		pass := printFile(f)
-		onePass(apply)
-		if printFile(f) == pass {
-			break
-		}
+	if !runToFixedPoint(f, apply, passes) {
+		reportNonConvergence(warn, command, printFile(f), passes)
 	}
 	apply("pipefail", ensurePipefail)
 	after := printFile(f)
 	return Result{Command: after, Changed: before != after, Rules: rules}
+}
+
+// maxPasses bounds the fixed-point loop. Raising it answers no non-convergence.
+const maxPasses = 20
+
+// runToFixedPoint applies the rules until the printed tree stops changing, and
+// reports false when the bound ran out.
+func runToFixedPoint(f *syntax.File, apply func(string, func(*syntax.File)), passes int) bool {
+	for range passes {
+		pass := printFile(f)
+		onePass(apply)
+		if printFile(f) == pass {
+			return true
+		}
+	}
+	return false
+}
+
+// reportNonConvergence says what the bound dropped. The rewrite it emits is
+// half-applied, so it can be worse than either endpoint. It goes to stderr
+// rather than the debug log, because it reports a defect in the rules and must
+// be visible without a log path set.
+func reportNonConvergence(warn io.Writer, original, partial string, passes int) {
+	fmt.Fprintf(warn,
+		"cleanup-bash-cmds: the rewrite did not reach a fixed point in %d passes, "+
+			"so a pair of rules is undoing each other. Emitting the partial rewrite.\n"+
+			"  original: %q\n  partial:  %q\n",
+		passes, original, partial)
 }
 
 func onePass(apply func(string, func(*syntax.File))) {

@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Every rule here resolves the program through shellwalk, so one entry for
-// `rm` covers the wrapper prefixes and the absolute path too. The hand-rolled
-// resolver this replaced saw `command`, `builtin` and a leading backslash
-// only, so `sudo rm -rf build` reached the shell untouched.
+// Every rule resolves the program through shellwalk, so the `rm` entry covers
+// the wrapper prefixes and the absolute path too. The hand-rolled resolver this
+// replaced saw `command`, `builtin` and a leading backslash, so `sudo rm -rf
+// build` reached the shell untouched.
 func TestWrappedCommandsResolve(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
 		{"sudo rm -rf build", "set -o pipefail\nsudo recycler trash build\n"},

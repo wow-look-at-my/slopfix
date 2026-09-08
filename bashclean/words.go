@@ -39,12 +39,9 @@ type effCmd struct {
 }
 
 // effectiveCommand names the program a call really runs, and where its word
-// sits in .Args. It peels through shellwalk, so one rule for `rm` covers a
+// sits in .Args. shellwalk peels the wrappers, so the `rm` rule covers a
 // `sudo`, `env`, `nice`, `timeout` or `xargs` prefix and an absolute path
-// alike. Enumerating the spellings of a wrapper can never be finished.
-//
-// A non-static command word ($x, $(x)) and a lookup (`command -v rm`, which
-// prints a name rather than running it) both resolve to nothing.
+// alike. A non-static command word and a lookup both resolve to nothing.
 func effectiveCommand(c *syntax.CallExpr) (effCmd, bool) {
 	if c == nil || len(c.Args) == 0 {
 		return effCmd{}, false
