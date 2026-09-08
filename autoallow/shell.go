@@ -109,9 +109,8 @@ func extractWord(word *syntax.Word) string {
 	return strings.Join(parts, "")
 }
 
-// extractExecSubCommands extracts sub-commands from exec-style flags.
-// e.g., for args ["-name", "*.h", "-exec", "grep", "-l", "pattern", "{}", ";"]
-// with execFlags ["-exec"], returns [["grep", "-l", "pattern"]].
+// extractExecSubCommands extracts the sub-commands that follow an exec-style
+// flag, up to the terminator.
 func extractExecSubCommands(args []string, execFlags []string) [][]string {
 	flagSet := set.New[string]()
 	for _, f := range execFlags {

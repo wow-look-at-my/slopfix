@@ -8,12 +8,8 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// Process-level deny: a rule matches the process a statement would START, not
-// the argv spelling, because a spelling list can never be finished.
-//
-// Reading the words, peeling the wrappers, and separating a named script from a
-// script arriving on stdin all live in shellwalk, shared with no-work-loss: a
-// wrapper that either plugin misreads is a rule the other still enforces.
+// Process-level deny: a rule matches the process a statement would START,
+// never the argv spelling, which cannot be enumerated.
 type ProcessRule struct {
 	Name string
 	// The section this rule came from: allow, ask or deny.
@@ -59,8 +55,7 @@ func isInlineScript(d ProcessRule, args []shellwalk.Word, fedByStdin bool) bool 
 
 // matchProcessRule walks EVERY statement, including the substitutions,
 // subshells and conditionals the allow path refuses to read -- a denied program
-// must never be a `$(...)` away from running. Known gap: a program named inside
-// a string handed to another interpreter is an argument here, not a command.
+// must never be a `$(...)` away from running.
 func matchProcessRule(command string, denies []ProcessRule) (string, string) {
 	if len(denies) == 0 {
 		return "", ""

@@ -20,8 +20,7 @@ type ToolInput struct {
 }
 
 // Sections evaluated deny > ask > allow. A rule matches argv as written
-// (CommandNode) or the resolved process name (ProcessRule). Sharing the node
-// type lets the same rule deny under <deny> and allow under <allow>.
+// (CommandNode) or the resolved process name (ProcessRule).
 type Rules struct {
 	Allow []CommandNode `json:"allow"`
 	Ask   []CommandNode `json:"ask"`
@@ -92,10 +91,7 @@ func evaluateCommand(command string) (string, string) {
 	return evaluateCommandWith(command, rules)
 }
 
-// evaluateCommandWith takes the rule set as a value. A test that wants its own
-// rules passes them here, so nothing has to swap the package-level `rules` and
-// put it back. go-toolchain runs a package's quick tests in parallel, and a
-// test that mutates a global loses to whichever sibling restores it.
+// evaluateCommandWith takes the rule set as a value, so a test never swaps the package-level `rules`.
 func evaluateCommandWith(command string, rules Rules) (string, string) {
 	// Process rules outrank command rules, and are answered by walking the parse
 	// tree, so they still see a command the allow path below refuses to read --
@@ -157,10 +153,8 @@ func evaluateCommandWith(command string, rules Rules) (string, string) {
 	return "", ""
 }
 
-// `allow` is the top-level allow set, carried down for the exec-flag recursion
-// below: a command run through `find -exec` has to clear the same bar the
-// command itself does. It travels as an argument so no path here reads the
-// package-level rules, which a test cannot replace safely.
+// `allow` is the top-level allow set, carried down for the exec-flag
+// recursion: a command run through `find -exec` clears the same bar.
 func evaluateArgs(args []string, nodes, allow []CommandNode) (string, string) {
 	if len(args) == 0 || len(nodes) == 0 {
 		return "", ""

@@ -37,8 +37,7 @@ func Run(r io.Reader) Result {
 	if hi.HookEventName != eventPermissionRequest && hi.HookEventName != eventPreToolUse {
 		return Result{}
 	}
-	// An allow on PreToolUse would settle the call before the user's own deny
-	// rules vote, so that event only ever refuses.
+	// An allow on PreToolUse would settle the call before the user's own deny rules vote.
 	denyOnly := hi.HookEventName == eventPreToolUse
 
 	if hi.ToolName == "Read" || hi.ToolName == "Glob" || hi.ToolName == "Grep" {

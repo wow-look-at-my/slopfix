@@ -56,9 +56,8 @@ func TestEvaluateCommands(t *testing.T) {
 	}
 }
 
-// Run evaluates through the package-level rules. A wrapper that reads some
-// other variable passes every sibling test here and denies nothing in
-// production. This test is not parallel, and nothing else touches the global.
+// Run evaluates through the package-level rules. A wrapper reading some
+// other variable denies nothing in production.
 func TestEvaluateCommandReadsTheLoadedRules(t *testing.T) {
 	saved := rules
 	t.Cleanup(func() { rules = saved })
@@ -173,11 +172,8 @@ func TestEndToEndGhRepoView(t *testing.T) {
 	}
 }
 
-// PermissionRequest is answered only after the engine lands on "ask", so a
-// deny riding it alone is silent under defaultMode "auto" -- which is how
-// python stayed runnable. These cases pin the deny half to PreToolUse, which is
-// unconditional, and pin the allow half OUT of it: an allow there settles the
-// call before the user's own deny rules are consulted.
+// A deny riding PermissionRequest alone is silent under auto mode. These pin the
+// deny half to PreToolUse, and the allow half OUT of it.
 func TestPreToolUseDeniesButNeverAllows(t *testing.T) {
 	binaryPath := buildTestBinary(t)
 
@@ -222,18 +218,8 @@ func TestPreToolUseDeniesButNeverAllows(t *testing.T) {
 	}
 }
 
-// This hook must stay SILENT for every Claude_Code_Remote tool, on both
-// events. Answering that server's approval card does not authorise anything:
-// on a hook decision the client calls cancelRequest on the bridge request that
-// is displaying the card, then re-issues the call byte-identically with no
-// grant attached, so the server -- which is waiting on a human -- rejects it
-// again and the only permitted retry is spent. An allow here therefore destroys
-// the user's sole working option, clicking, and turns a call they could have
-// approved into a guaranteed failure.
-//
-// Silence is not a missing feature here, it IS the fix, which is exactly why
-// this test asserts it: the previous version of this file required an allow
-// and pinned the broken behavior in place.
+// This hook stays SILENT for every Claude_Code_Remote tool: an answer here
+// cancels the card the user could have clicked.
 func TestCCRToolsAreNeverAnsweredByThisHook(t *testing.T) {
 	binaryPath := buildTestBinary(t)
 
@@ -298,16 +284,8 @@ func TestPermissionRequestKeepsItsOwnShape(t *testing.T) {
 	assert.Equal(t, "deny", resp.HookSpecificOutput.Decision.Behavior)
 }
 
-// buildTestBinary builds the hook and returns its path. The binary must sit
-// inside the plugin's build directory and nowhere else: hook.go resolves its
-// rules as ../rules.xml from its own location, so a binary in a temp
-// directory finds no rules at all.
-//
-// The FILE NAME is per-test. A shared name is a path every test both writes
-// and deletes, so overlapping runs -- a shuffled order, a parallel `go test`
-// against the same checkout, a CI step that rebuilds while tests run -- have
-// a test removing the binary another is about to exec, which surfaces as a
-// bare "no such file or directory" nowhere near its cause.
+// buildTestBinary builds the hook into the plugin's build directory, under a
+// per-test name so overlapping runs cannot delete it.
 func buildTestBinary(t *testing.T) string {
 	t.Helper()
 	pluginDir := filepath.Join(getRepoRoot(t), "plugins/enhanced-auto-allow")
@@ -364,10 +342,8 @@ func loadTestRules(t *testing.T) Rules {
 	return loaded
 }
 
-// A malformed byte disables EVERY rule: loadXMLRules failing makes the hook
-// exit clean and pass everything through. The usual cause is a "--" inside an
-// <!-- --> comment, which XML forbids: it turns a pile of unrelated tests red
-// and none of them says "the rules file does not parse".
+// A malformed byte disables EVERY rule: loadXMLRules failing passes everything
+// through. The usual cause is a "--" inside a comment, which XML forbids.
 func TestRulesXMLParses(t *testing.T) {
 	repoRoot := getRepoRoot(t)
 	data, err := os.ReadFile(filepath.Join(repoRoot, "plugins/enhanced-auto-allow/rules.xml"))
