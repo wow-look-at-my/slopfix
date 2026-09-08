@@ -71,11 +71,10 @@ func TestTheRuleSpansLanguages(t *testing.T) {
 		file string
 		src  string
 	}{
-		"c":      {"x.c", strings.Join(append(essay, "int n = 1;"), "\n")},
-		"cpp":    {"x.cpp", strings.Join(append(essay, "int n = 1;"), "\n")},
-		"rust":   {"x.rs", strings.Join(append(essay, "let n = 1;"), "\n")},
-		"bash":   {"x.sh", strings.Join(append(hash, "n=1"), "\n")},
-		"python": {"x.py", strings.Join(append(hash, "n = 1"), "\n")},
+		"c":    {"x.c", strings.Join(append(essay, "int n = 1;"), "\n")},
+		"cpp":  {"x.cpp", strings.Join(append(essay, "int n = 1;"), "\n")},
+		"rust": {"x.rs", strings.Join(append(essay, "let n = 1;"), "\n")},
+		"bash": {"x.sh", strings.Join(append(hash, "n=1"), "\n")},
 	} {
 		t.Run(name, func(t *testing.T) {
 			assert.NotEmpty(t, Check(tc.file, tc.src), "no finding for %s", tc.file)
@@ -83,10 +82,15 @@ func TestTheRuleSpansLanguages(t *testing.T) {
 	}
 }
 
-// A span a line walk worked out is reported and never rewritten. Wrong by a
-// line, a rewrite deletes the wrong sentence, and nobody reviews what a hook
-// applied. Go is parsed, so Go repairs; the rest report until they are too.
-func TestAGuessedSpanIsReportedButNotRewritten(t *testing.T) {
+// Every parsed language repairs, not Go alone.
+//
+// This asserted the opposite while a line walk guessed where a construct ended:
+// a span wrong by a line deletes the wrong sentence, and nobody reviews what a
+// hook applied, so the fix ran for Go and the rest only reported. The tree
+// gives each language the same exact span Go had, which is what the whole
+// grammar apparatus buys. A test that still expected the refusal would be
+// pinning the defect.
+func TestEveryParsedLanguageRepairs(t *testing.T) {
 	src := strings.Join([]string{
 		"# This helper exists because the caller cannot know the answer, and the",
 		"# answer changes per platform, and the platform is decided at run time by",
@@ -96,12 +100,26 @@ func TestAGuessedSpanIsReportedButNotRewritten(t *testing.T) {
 	}, "\n")
 
 	hits := Check("x.sh", src)
-	require.NotEmpty(t, hits, "a guessed span still reports")
-	assert.False(t, hits[0].Repairable)
+	require.NotEmpty(t, hits)
+	assert.True(t, hits[0].Repairable, "a tree span is exact, so it repairs")
 
 	out, changed := Fix("x.sh", src)
-	assert.False(t, changed, "a guessed span is never rewritten")
-	assert.Equal(t, src, out)
+	assert.True(t, changed, "bash repairs now")
+	assert.NotEqual(t, src, out)
+	assert.Contains(t, out, "n=1", "the fix cuts comment lines, never code")
+}
+
+// A file no grammar parses is still skipped outright. Reporting a span nothing
+// measured is the guess this rule stopped making.
+func TestAnUnparsedLanguageIsSkipped(t *testing.T) {
+	src := strings.Join([]string{
+		"-- This explanation runs well past the declaration it sits above, saying",
+		"-- rather little across rather many lines, which is the whole finding.",
+		"x = 1",
+	}, "\n")
+
+	assert.False(t, Parsed("x.lua"))
+	assert.Empty(t, Check("x.lua", src))
 }
 
 // A language the adapter does not spell is skipped rather than guessed at.

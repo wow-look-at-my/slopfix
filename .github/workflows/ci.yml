@@ -18,7 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: wow-look-at-my/go-toolchain@master
+        with:
+          # Approves the //go:generate directives; editing one fails the build with the new value.
+          generate: cfe21f82c9cf
 
       # The binary this run built, not the last one released, so a new rule gates this repository before it ships.
       - run: ./build/slopfix workflows .
