@@ -76,10 +76,52 @@ func languageFor(filename string) *ts.Language {
 	return bash.Language()
 }
 
-// Comment is a comment's text and where it begins in the source.
+// Comment is a comment's text and where the tree says it begins.
 type Comment struct {
 	Text   string
 	Offset int
+	// Line is where it starts, counting from the top of the file.
+	Line int
+	// Col is the byte it starts at within that line, counting from the left.
+	// A comment with code before it on the line has a column past the indent,
+	// and that is what tells the two apart.
+	Col int
+	// Lines is how many lines it spans: more than a single line for a block
+	// comment, and always a single line for the line-comment form.
+	Lines int
+}
+
+// Run is a stack of comments on adjoining lines, sharing a left edge. It is the
+// paragraph a rewrite acts on: a sentence wraps across the lines of a run, so a
+// repair that reads a line alone cuts sentences in half.
+type Run []Comment
+
+// Runs groups a file's comments into the paragraphs a rewrite acts on.
+//
+// A run breaks where the tree says the comments stop adjoining, where the left
+// edge moves, and where a comment follows code: none of those continues the
+// sentence above it.
+func Runs(filename, src string) []Run {
+	var out []Run
+	for _, c := range Extract(filename, src) {
+		if n := len(out); n > 0 {
+			last := out[n-1][len(out[n-1])-1]
+			adjoins := c.Line == last.Line+last.Lines && c.Col == last.Col && c.Col == indentOf(src, c)
+			if adjoins {
+				out[n-1] = append(out[n-1], c)
+				continue
+			}
+		}
+		out = append(out, Run{c})
+	}
+	return out
+}
+
+// indentOf reports the column the line's first non-blank byte sits at, so a
+// comment that follows code can be told from one that opens its line.
+func indentOf(src string, c Comment) int {
+	start := strings.LastIndexByte(src[:c.Offset], '\n') + 1
+	return len(src[start:c.Offset]) - len(strings.TrimLeft(src[start:c.Offset], " \t"))
 }
 
 // Extract returns every comment in the source, in source order.
@@ -120,7 +162,13 @@ func collect(node ts.Node, src string, out *[]Comment) {
 		if strings.Contains(child.Type(), "comment") {
 			start, end := int(child.StartByte()), int(child.EndByte())
 			if start >= 0 && end <= len(src) && start < end {
-				*out = append(*out, Comment{Text: src[start:end], Offset: start})
+				*out = append(*out, Comment{
+					Text:   src[start:end],
+					Offset: start,
+					Line:   int(child.StartPoint().Row) + 1,
+					Col:    int(child.StartPoint().Column),
+					Lines:  int(child.EndPoint().Row-child.StartPoint().Row) + 1,
+				})
 			}
 			continue
 		}

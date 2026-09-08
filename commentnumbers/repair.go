@@ -32,44 +32,26 @@ func Fix(filename, src string) Repair {
 	if IsGenerated(src) {
 		return Repair{Text: src}
 	}
-	commented := commentLineNumbers(filename, src)
-	if len(commented) == 0 {
+	runs := treecomments.Runs(filename, src)
+	if len(runs) == 0 {
 		return Repair{Text: src}
 	}
 
 	lines := strings.Split(src, "\n")
-	repaired, removed, blanked := repairLines(lines, commented)
+	repaired, removed, blanked := repairRuns(lines, runs)
 	out := dropEmptied(strings.Join(repaired, "\n"), blanked)
 	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
 
-// commentLineNumbers reports where a comment starts on each line carrying it,
-// as a byte offset into the line. The parser answers where the comments are, so
-// a marker inside a string literal is left alone.
-//
-// A comment that opens partway along a line follows code, and the offset is
-// what keeps that code out of the rewrite.
-func commentLineNumbers(filename, src string) map[int]int {
-	out := make(map[int]int)
-	for _, c := range treecomments.Extract(filename, src) {
-		at := 1 + strings.Count(src[:c.Offset], "\n")
-		out[at] = c.Offset - (strings.LastIndexByte(src[:c.Offset], '\n') + 1)
-		for i := range strings.Count(c.Text, "\n") {
-			out[at+i+1] = 0
-		}
-	}
-	return out
-}
-
-// repairLines rewrites a file's comments a paragraph at a time. It returns the
+// repairRuns rewrites a file's comments a run at a time. It returns the
 // repaired lines, the sentences it cut, and the lines it left with nothing to
 // say.
 //
-// A paragraph rather than a line, because a sentence wraps: cutting the share
-// a line carries leaves the rest of that sentence dangling below it.
-func repairLines(lines []string, commented map[int]int) (repaired []string, removed []string, blanked map[int]bool) {
+// A run rather than a line, because a sentence wraps: cutting the share a line
+// carries leaves the rest of that sentence dangling below it.
+func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, removed []string, blanked map[int]bool) {
 	blanked = make(map[int]bool)
-	for _, para := range paragraphsOf(lines, commented) {
+	for _, para := range paragraphsOf(lines, runs) {
 		said := Say(para.prose)
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
@@ -114,39 +96,46 @@ type para struct {
 	code string
 }
 
-// paragraphsOf groups a comment's lines into the paragraphs a rewrite acts on.
-// A directive, a blank comment line and a line carrying no marker all break the
-// run: none of them is prose a sentence continues through.
-func paragraphsOf(lines []string, commented map[int]int) []para {
+// paragraphsOf turns the parser's runs into the paragraphs a rewrite acts on. A
+// run breaks further on a directive and on a blank comment line: a directive
+// addresses a tool, and a blank line is a break somebody wrote.
+func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 	var out []para
-	var current *para
-	for i, line := range lines {
-		at, isComment := commented[i+1]
-		if !isComment || at > len(line) {
-			current = nil
-			continue
+	for _, run := range runs {
+		var current *para
+		for _, c := range run {
+			i := c.Line - 1
+			if i < 0 || i >= len(lines) {
+				continue
+			}
+			line := lines[i]
+			marker, prose, ok := split(line[min(c.Col, len(line)):])
+			marker = line[:min(c.Col, len(line))] + marker
+			if !ok || prose == "" || isDirective(c.Text) {
+				current = nil
+				continue
+			}
+			if c.Col > 0 && c.Col > indentOf(line) {
+				// A comment following code stands alone and cannot be rewrapped.
+				out = append(out, para{marker: marker, lines: []int{i}, prose: prose, width: len(line), code: line[:c.Col]})
+				current = nil
+				continue
+			}
+			if current == nil {
+				out = append(out, para{marker: marker})
+				current = &out[len(out)-1]
+			}
+			current.lines = append(current.lines, i)
+			current.prose = strings.TrimSpace(current.prose + " " + prose)
+			current.width = max(current.width, len(line))
 		}
-		marker, prose, ok := split(line[at:])
-		marker = line[:at] + marker
-		if !ok || prose == "" || isDirective(line[at:]) {
-			current = nil
-			continue
-		}
-		if at > 0 {
-			// A comment following code stands alone and cannot be rewrapped.
-			out = append(out, para{marker: marker, lines: []int{i}, prose: prose, width: len(line), code: line[:at]})
-			current = nil
-			continue
-		}
-		if current == nil || current.marker != marker {
-			out = append(out, para{marker: marker})
-			current = &out[len(out)-1]
-		}
-		current.lines = append(current.lines, i)
-		current.prose = strings.TrimSpace(current.prose + " " + prose)
-		current.width = max(current.width, len(line))
 	}
 	return out
+}
+
+// indentOf reports the column a line's first non-blank byte sits at.
+func indentOf(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
 
 // wrap lays prose back onto comment lines at the width the paragraph had. A
