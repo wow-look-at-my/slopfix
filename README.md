@@ -55,7 +55,7 @@ The action at the root of this repository downloads the published binary from bu
     only: yaml/comment-block
 ```
 
-`command` defaults to `workflows`. `paths` defaults to the whole workspace. The step therefore goes after the checkout. `only` and `exclude` are the flags of the same name. `fix` and `fmt` are refused: a job that repairs its own checkout and then reports a pass has enforced nothing.
+`command` defaults to `workflows`. `paths` defaults to the whole workspace. The step therefore goes after the checkout. `only` is the flag of the same name. There is no `exclude`: an exemption a caller writes is one a caller sets to everything. `fix` and `fmt` are refused: a job that repairs its own checkout and then reports a pass has enforced nothing.
 
 `comments` reads source rather than prose. A number in a comment is a count of what exists today. The edit that adds an item leaves it wrong. It reads a comment by its delimiters rather than by a grammar. So it answers for every language it knows, and on a tree that does not compile. A directory is walked, skipping hidden directories, `vendor`, `node_modules`, `testdata` and `build`. A named file is read whatever its extension. go-toolchain runs this same check as its first phase.
 
@@ -96,7 +96,7 @@ A sentence over the word cap is reported and left alone. To split one, the write
 
 A workflow under `.github/workflows`, and an `action.yml` beside it, are read by rules of their own. The prose rules never run on either. `fmt` refuses one outright, because a newline there is syntax. Joining a two-line `concurrency:` block makes GitHub reject the file before a job starts.
 
-`workflows` walks a tree for them, and `--exclude` takes a glob for a fixture that breaks a rule on purpose. The walk keeps `.github`, which the other walks skip as a hidden directory. A walk that selects no file exits non-zero. A run that read nothing enforced nothing, and in CI that means the step ran ahead of the checkout.
+`workflows` walks a tree for them. The walk keeps `.github`, which the other walks skip as a hidden directory. It skips this repository's registered submodules, which carry their own CI. That skip is derived from `.gitmodules` and verified against the index. A declaration alone cannot exempt a directory holding real source, and no flag widens the skip. A walk that selects no file exits non-zero. A run that read nothing enforced nothing, and in CI that means the step ran ahead of the checkout.
 
 `--only` takes rule IDs from the list above. A caller that wants one of them does not adopt its siblings. Each rule has its own CI step in the org. An unknown name is an error.
 

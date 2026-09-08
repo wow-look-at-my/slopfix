@@ -63,9 +63,10 @@ These rules report only. Every member names a change a person must make: shorten
 ```sh
 slopfix workflows .
 slopfix workflows . --only yaml/comment-block
-slopfix workflows . --exclude 'testdata/**'
 slopfix check .github/workflows/ci.yml
 ```
+
+There is no way to exempt a path. The walk skips this repository's registered submodules, which carry their own CI, and that skip is derived from `.gitmodules` and verified against the index. Nothing a caller writes widens it.
 
 A walk selecting no file exits non-zero. A run that read nothing enforced nothing, and in CI that means the step ran ahead of the checkout.
 
