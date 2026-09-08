@@ -16,6 +16,15 @@ import (
 // repository the session works in, and the project directory the CLI names.
 // Both are used because they disagree when a session is rooted on a parent
 // directory rather than on a repository.
+//
+// A directory with no .git entry above it is NOT a root. The provenance rule
+// says a file must arrive through an edit tool so that git holds the version
+// before it. Where git holds nothing, the rule protects nothing, and its
+// denial claims a working tree that is not there: `split -b 14m x x.part-`
+// in ~/Downloads was refused as "inside the working tree", and the repair it
+// named -- Write -- cannot author a binary chunk at all. The destruction half
+// already answers this way in judge, and scope.ts answers it for the language
+// server. This is the third caller of one rule.
 func guardedRoots(cwd string) []string {
 	var roots []string
 	add := func(p string) {
@@ -23,9 +32,11 @@ func guardedRoots(cwd string) []string {
 			return
 		}
 		p = filepath.Clean(p)
-		if r := repoRoot(p); r != "" {
-			p = r
+		r := repoRoot(p)
+		if r == "" {
+			return
 		}
+		p = r
 		for _, existing := range roots {
 			if existing == p {
 				return

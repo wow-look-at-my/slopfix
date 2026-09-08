@@ -73,6 +73,18 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	if f.always {
 		return f.reason + "\nrun: " + f.rewrite, ""
 	}
+	// Nothing here is under version control, so nothing here is this plugin's
+	// business. That is the same answer the tracked-content branch below
+	// reaches, and it is asked FIRST because every denial under it describes
+	// content git holds: uncommitted work, a dropped stash, commits on no
+	// other branch. A directory outside every work tree has none of those.
+	// The unresolvable-operand denial is what this reordering repairs. It
+	// refused `mv "$TMPDIR/zstsplit/"*.part-* ~/Downloads/` for what the move
+	// might overwrite, in a directory where an overwrite loses nothing git
+	// could return, and offered `git add -A && git commit` as the way out.
+	if st := cache.probe(f.dir); st.err == nil && !st.inRepo {
+		return "", ""
+	}
 	// An unresolvable operand makes the blast radius unknown. A finding read
 	// out of a script FILE is the program's own behaviour, which this hook
 	// does not sandbox; a STATIC path inside a script is still judged.
