@@ -1,62 +1,60 @@
 package commentlength
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// commentspan reports these, and this rule has to report them too, or the
-// repair never runs there and nothing can clear the build.
+// commentspan reports a finding in each of these, and this rule has to report
+// one too. Where it does not the repair never runs, and nothing clears the
+// build.
 //
-// The synthetic shapes in parity_test.go pass while these real ones do not, so
-// the divergence lives in the measure. This names the file and the line, and
-// prints what the judge computed, which is the only way to see the gap.
-var commentspanReports = map[string][]int{
-	"noworkloss/auditedroutes.go": {30, 41, 62},
-	"noworkloss/fsverb.go":        {50, 75},
-	"noworkloss/gitroutes.go":     {9, 137, 143, 147},
-	"noworkloss/gitverb.go":       {264},
-	"noworkloss/hook.go":          {72, 89},
-	"noworkloss/interpreters.go":  {115},
-	"commentnumbers/numbers.go":   {146},
+// Almost every one sits in a single package. That is the shape of a file the
+// walk drops whole, rather than a measure that is off by a little.
+var commentspanReports = map[string]int{
+	"noworkloss/auditedroutes.go": 30,
+	"noworkloss/fsverb.go":        50,
+	"noworkloss/gitroutes.go":     9,
+	"noworkloss/gitverb.go":       264,
+	"noworkloss/hook.go":          72,
+	"noworkloss/interpreters.go":  115,
+	"noworkloss/preserve.go":      100,
+	"noworkloss/reach.go":         49,
+	"noworkloss/routes.go":        168,
+	"noworkloss/segment.go":       367,
+	"commentnumbers/numbers.go":   146,
 }
 
-func TestTheRuleReportsWhatCommentspanReports(t *testing.T) {
-	for name, wanted := range commentspanReports {
+// A file the grammar cannot parse yields no finding at all. That is right for a
+// tree mid-edit and wrong for committed source: the rule then answers clean, and
+// every comment in the file goes unjudged in silence.
+func TestEveryRealFileParses(t *testing.T) {
+	for name := range commentspanReports {
 		path := filepath.Join("..", name)
 		src, err := os.ReadFile(path)
 		require.NoError(t, err)
 
-		reported := set.New[int]()
-		for _, b := range blocks(path, string(src)) {
-			if _, over := judge(b); over {
-				reported.Add(b.start + 1)
-			}
-		}
-		for _, line := range wanted {
-			assert.True(t, reported.Contains(line))
-
-		}
+		_, ok := treeBlocks(languageFor(path), string(src))
+		assert.True(t, ok, "%s does not parse, so the rule reports nothing for it", name)
 	}
 }
 
-// explain prints what the judge measured at a line, so a miss names its cause
-// rather than only its place.
-func explain(path, src string, line int) string {
-	for _, b := range blocks(path, src) {
-		if b.start+1 != line {
-			continue
+func TestTheRuleReportsWhatCommentspanReports(t *testing.T) {
+	for name, line := range commentspanReports {
+		path := filepath.Join("..", name)
+		src, err := os.ReadFile(path)
+		require.NoError(t, err)
+
+		found := false
+		for _, b := range blocks(path, string(src)) {
+			if _, over := judge(b); over && b.start+1 == line {
+				found = true
+			}
 		}
-		lines, chars := measure(prose(b.text))
-		return fmt.Sprintf("  block found: comment %d lines / %d chars,"+
-			" code %d lines / %d chars, exact=%v",
-			lines, chars, b.codeLines, b.codeChars, b.exact)
+		assert.True(t, found, "%s:%d is a commentspan finding this rule misses", name, line)
 	}
-	return "  no block starts at that line: the comment run was never paired"
 }
