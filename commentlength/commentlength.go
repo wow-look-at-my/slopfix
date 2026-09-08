@@ -37,8 +37,7 @@ type Hit struct {
 	Sentence string `json:"sentence"`
 	// Line is where the block starts, counting from the top of the file.
 	Line int `json:"line"`
-	// Repairable reports whether Fix can bring this block inside the budget
-	// without deleting its opening sentence.
+	// Repairable reports whether Fix fits the block without cutting its opening.
 	Repairable bool `json:"repairable"`
 }
 

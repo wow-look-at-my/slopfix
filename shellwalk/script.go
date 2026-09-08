@@ -6,19 +6,14 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// StdinMarkers are the operands that mean "the program arrives on stdin".
-// Naming a marker is the opposite of naming a script: `node -` and `node
-// /dev/stdin` run whatever is piped in.
+// StdinMarkers are the operands naming stdin as the source of the program.
 var StdinMarkers = set.Of[string]("-", "/dev/stdin")
 
 // NamesAScript reports whether an interpreter invocation already carries a file
 // for the interpreter to RUN. Any operand counts, static or not: what matters
 // is that stdin is then the program's INPUT rather than its program.
 //
-// This is the whole difference between `cat evil.js | node -`, which hands node
-// a program the command text does not contain, and `printf '{...}' | node
-// hook.ts`, which is how a hook gets tested with the payload it will really
-// receive. Both plugins used to refuse the latter form.
+// That separates `node -`, fed a program on stdin, from `node hook.ts`, fed a payload.
 func NamesAScript(args []Word) bool {
 	dashDash := false
 	for _, a := range args {
@@ -42,10 +37,8 @@ func NamesAScript(args []Word) bool {
 }
 
 // ShellNoExec reports whether a shell was told to parse without executing: -n,
-// --noexec, or an n inside a single-dash cluster such as -nx. Nothing the
-// script names is written, so following it into the script's text is wrong.
-// An operand ends the flags, so a script named `-n` cannot masquerade as the
-// flag. argv includes the shell itself at the leading index.
+// --noexec, or an n inside a single-dash cluster. Nothing is written, so
+// following the script's text is wrong. An operand ends the flags.
 func ShellNoExec(argv []Word) bool {
 	for i := 1; i < len(argv); i++ {
 		t := argv[i].Text

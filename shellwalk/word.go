@@ -15,10 +15,8 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// Word is an argv element: the text it expands to, and whether that text is
-// the whole story. Static is false when a part could expand to anything -- a
-// parameter, a substitution, a glob. A caller granting permission must treat a
-// non-static word as unknown; a caller refusing may still read Text.
+// Word is an argv element. Static is false when a part could expand to
+// anything, so a non-static word is unknown.
 type Word struct {
 	Text   string
 	Static bool

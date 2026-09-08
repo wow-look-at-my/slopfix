@@ -49,11 +49,7 @@ func StripWrappers(argv []Word) []Word {
 				argv = argv[1:]
 			}
 		case "command":
-			// `command -v X` and `command -V X` are LOOKUPS: they print where
-			// X lives and run nothing at all. Peeling the flag the way the
-			// other wrappers do leaves `X` in program position, so a caller
-			// reads `command -v zstd sqlite3` as zstd running against a file
-			// named sqlite3. Nothing runs, so nothing is returned.
+			// `command -v X` is a LOOKUP that runs nothing, so peeling the flag would leave X in program position.
 			argv = argv[1:]
 			for len(argv) > 0 && strings.HasPrefix(argv[0].Text, "-") {
 				if isLookupFlag(argv[0].Text) {
@@ -95,12 +91,10 @@ func StripWrappers(argv []Word) []Word {
 				argv = argv[1:]
 			}
 		case "busybox":
-			// A multi-call binary: the applet is the real program, so
-			// `busybox sed -i` must reach the sed rule.
+			// A multi-call binary: the applet is the real program, so `busybox sed -i` reaches the sed rule.
 			argv = argv[1:]
 		case "uv", "uvx", "pipx", "poetry", "hatch", "pdm", "conda", "rye", "micromamba", "npx", "bunx":
-			// A package runner: its own flags, then an optional `run`/`exec`
-			// subcommand, then the program.
+			// A package runner: its own flags, then an optional `run`/`exec` subcommand, then the program.
 			argv = argv[1:]
 			for len(argv) > 0 && strings.HasPrefix(argv[0].Text, "-") {
 				argv = argv[1:]

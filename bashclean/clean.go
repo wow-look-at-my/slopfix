@@ -8,8 +8,8 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// Result describes the parsed cleanup decision. A denied command is returned
-// unchanged; Rules contains the stable rule names used by the shell hook.
+// Result is the parsed cleanup decision. A denied command is returned
+// unchanged; Rules names the rules that fired.
 type Result struct {
 	Command string
 	Denied  bool

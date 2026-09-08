@@ -31,9 +31,8 @@ func blocks(filename, src string) []block {
 	if !source.Supported(filename) {
 		return nil
 	}
-	// Go is parsed rather than walked. This rule deletes comment text, so the
-	// language this org writes most gets the exact span from go/ast, and a file
-	// that does not parse yields nothing at all.
+	// Go is parsed rather than walked: this rule deletes comment text, so it
+	// takes the exact span from go/ast and yields nothing on a parse failure.
 	if strings.HasSuffix(strings.ToLower(filename), ".go") {
 		parsed, ok := goBlocks(src)
 		if !ok {
