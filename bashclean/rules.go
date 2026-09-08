@@ -146,6 +146,7 @@ func hasGitRM(f *syntax.File) bool {
 		return false
 	})
 }
+
 var (
 	sizeZeroFlag = regexp.MustCompile(`^(-s|--size=)0+$`)
 	allZeros     = regexp.MustCompile(`^0+$`)
@@ -269,6 +270,7 @@ func trailing(f *syntax.File, fn func(*syntax.Stmt)) {
 		fn(f.Stmts[len(f.Stmts)-1])
 	}
 }
+
 // spineLeaf is the string-end leaf of a statement: && / || chains parse
 // left-associative, so the rightmost leaf is one level down.
 func spineLeaf(s *syntax.Stmt) *syntax.Stmt {

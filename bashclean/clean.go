@@ -225,6 +225,7 @@ func allStatic(ws []*syntax.Word) bool {
 func replaceArgs(c *syntax.CallExpr, i int, ws ...*syntax.Word) {
 	c.Args = append(append(append([]*syntax.Word{}, c.Args[:i]...), ws...), c.Args[i+1:]...)
 }
+
 // ---------------------------------------------------------------------------
 // Scrub the stderr discard, tree-wide. stderr is how a command reports its own
 // failure, so a discarded stderr turns one command into two: the command, and
@@ -302,6 +303,7 @@ func dockerCompose(c *syntax.CallExpr) {
 		c.Args = append([]*syntax.Word{word("docker"), word("compose"), word("up"), word("-d"), word("--force-recreate")}, c.Args[3:]...)
 	}
 }
+
 var runID = regexp.MustCompile(`^[0-9]+$`)
 
 // onlyFlagsAndValues asks whether no remaining word is a POSITIONAL. A dash

@@ -6,16 +6,11 @@ import (
 	"strings"
 )
 
-// protectedRefPrefix names a ref an EARLIER build of this hook created to hold
-// content a destructive command was about to lose. Preservation now commits to
-// the branch, so nothing creates such a ref any more. The protection stays
-// because a repository can still carry such a ref, and there it is the ONLY place content
-// survives -- see gitverb.go's checks against this prefix.
+// protectedRefPrefix names a ref that holds content nothing else does.
 const protectedRefPrefix = "refs/no-work-loss/"
 
-// preserveResult is what a successful commit produced, for the notice the
-// caller shows after the destructive command is allowed to proceed.
-// ref names the branch the commit landed on.
+// preserveResult is what a successful commit produced. ref names the branch
+// the commit landed on.
 type preserveResult struct {
 	ref     string
 	commit  string
@@ -23,16 +18,9 @@ type preserveResult struct {
 	pushErr string
 }
 
-// preserveAtRiskPaths satisfies the guard's invariant directly instead of
-// refusing: it commits the exact paths a destructive command would destroy
-// into a dedicated ref, so the command is safe by construction as soon as the
-// commit exists. It never touches the user's own index or working tree --
-// every step below runs against a throwaway GIT_INDEX_FILE, and nothing here
-// runs `git add` or `git commit` against the repository's real index.
-//
-// ok is false only when the commit itself could not be made. Preservation
-// that did not happen must never read as success, so the caller falls back
-// to the ordinary denial in that case.
+// preserveAtRiskPaths commits the exact paths a destructive command would
+// destroy, so the command is safe by construction. It never touches the user's
+// own index or working tree, and ok is false when the commit could not be made.
 func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok bool) {
 	if root == "" || len(paths) == 0 {
 		return nil, false
@@ -44,11 +32,9 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	}
 	tmpIndex := tmp.Name()
 	tmp.Close()
-	// A 0-byte file is not an empty index -- git reads its header and refuses
-	// it ("index file smaller than expected"). Removing it leaves the path
-	// merely reserved: git treats a GIT_INDEX_FILE that does not exist yet as
-	// starting from a genuinely empty index, which is what a repository with
-	// no HEAD to read-tree from needs.
+	// An empty FILE is not an empty index -- git reads its header and refuses
+	// it. Removing it reserves the path, and a missing GIT_INDEX_FILE starts
+	// from a genuinely empty index.
 	os.Remove(tmpIndex)
 	defer os.Remove(tmpIndex)
 	env := []string{"GIT_INDEX_FILE=" + tmpIndex}
