@@ -59,8 +59,14 @@ func TestTheRuleReportsWhatCommentspanReports(t *testing.T) {
 				found = true
 			}
 		}
-		fmt.Fprintf(&report, "%s:%d parses=%v reported=%v blocks=%d\n",
-			name, line, parses, found, len(blocks(path, string(src))))
+		starts := []string{}
+		for _, b := range blocks(path, string(src)) {
+			_, over := judge(b)
+			starts = append(starts, fmt.Sprintf("%d(code=%dl/%dc,over=%v)",
+				b.start+1, b.codeLines, b.codeChars, over))
+		}
+		fmt.Fprintf(&report, "%s:%d parses=%v reported=%v\n  %s\n",
+			name, line, parses, found, strings.Join(starts, " "))
 		assert.True(t, found, "%s:%d is a commentspan finding this rule misses", name, line)
 	}
 	writeReport(t, report.String())
