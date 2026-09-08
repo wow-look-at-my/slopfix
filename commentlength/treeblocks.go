@@ -132,8 +132,7 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 		return block{}, false
 	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
-	// A run with nothing after it documents nothing, and judge reports it. The
-	// package doc is exempt before this, so what reaches here trails off the end.
+	// Nothing after it, so it documents nothing and judge says so.
 	if next >= count {
 		return b, true
 	}
