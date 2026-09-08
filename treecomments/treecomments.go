@@ -11,14 +11,17 @@ import (
 	"strings"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
-	"github.com/wow-look-at-my/slopfix/grammars/bash"
-	"github.com/wow-look-at-my/slopfix/grammars/clang"
-	"github.com/wow-look-at-my/slopfix/grammars/cpp"
-	"github.com/wow-look-at-my/slopfix/grammars/golang"
-	"github.com/wow-look-at-my/slopfix/grammars/javascript"
-	"github.com/wow-look-at-my/slopfix/grammars/rust"
-	"github.com/wow-look-at-my/slopfix/grammars/tsx"
-	"github.com/wow-look-at-my/slopfix/grammars/typescript"
+	// The grammars come from go-tree-sitter, not from this repository's own
+	// generated copies: those are gitignored, so a consumer importing this
+	// package could not compile them.
+	"github.com/wow-look-at-my/go-tree-sitter/grammars/bash"
+	"github.com/wow-look-at-my/go-tree-sitter/grammars/clang"
+	"github.com/wow-look-at-my/go-tree-sitter/grammars/cpp"
+	"github.com/wow-look-at-my/go-tree-sitter/grammars/golang"
+	"github.com/wow-look-at-my/go-tree-sitter/grammars/javascript"
+	"github.com/wow-look-at-my/go-tree-sitter/grammars/rust"
+	"github.com/wow-look-at-my/go-tree-sitter/grammars/tsx"
+	"github.com/wow-look-at-my/go-tree-sitter/grammars/typescript"
 )
 
 // grammars maps a file extension to the grammar that parses it.
