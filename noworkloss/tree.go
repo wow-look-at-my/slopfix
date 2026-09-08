@@ -65,9 +65,8 @@ var buildOutputDirs = set.Of[string]("build", "dist", "target", "out",
 	".pytest_cache", ".gradle", ".tox", ".next",
 	".parcel-cache", ".turbo", ".terraform")
 
-// protectedConfig names the live settings a session must not rewrite. These sit
-// outside every guarded root, so the path rules never reach them: re-granting
-// what this hook denies is its own route. A repository's plugin sources are not.
+// protectedConfig names the live settings a session must not rewrite. They sit
+// outside every guarded root, so the path rules never reach them.
 func isProtectedConfig(abs string) bool {
 	abs = filepath.Clean(abs)
 	base := filepath.Base(abs)

@@ -341,49 +341,260 @@ func cmdCall(c syntax.Command) string {
 	return ""
 }
 func stripMerge(s *syntax.Stmt) {
-	if len(s.Redirs) > 0 {
+	for len(s.Redirs) > 0 {
 		r := s.Redirs[len(s.Redirs)-1]
-		if r.Op == syntax.DplOut && r.N != nil && r.N.Value == "2" && isWord(r.Word, "1") {
-			s.Redirs = s.Redirs[:len(s.Redirs)-1]
-		}
-	}
-}
-func tee(s *syntax.Stmt) {
-	if len(s.Redirs) != 1 {
-		return
-	}
-	r := s.Redirs[0]
-	if r.Op != syntax.RdrOut && r.Op != syntax.AppOut {
-		return
-	}
-	if strings.HasPrefix(litOf(r.Word), "/dev/") {
-		return
-	}
-	c, ok := s.Cmd.(*syntax.CallExpr)
-	if !ok {
-		return
-	}
-	s.Cmd = &syntax.BinaryCmd{Op: syntax.Pipe, X: &syntax.Stmt{Cmd: c}, Y: &syntax.Stmt{Cmd: &syntax.CallExpr{Args: []*syntax.Word{word("tee")}}}}
-	if r.Op == syntax.AppOut {
-		s.Cmd.(*syntax.BinaryCmd).Y.Cmd.(*syntax.CallExpr).Args = append(s.Cmd.(*syntax.BinaryCmd).Y.Cmd.(*syntax.CallExpr).Args, word("-a"))
-	}
-	s.Cmd.(*syntax.BinaryCmd).Y.Cmd.(*syntax.CallExpr).Args = append(s.Cmd.(*syntax.BinaryCmd).Y.Cmd.(*syntax.CallExpr).Args, r.Word)
-	s.Redirs = nil
-}
-func ensurePipefail(f *syntax.File) {
-	if len(f.Stmts) == 0 || cmdCall(f.Stmts[0].Cmd) == "set" {
-		return
-	}
-	f.Stmts = append([]*syntax.Stmt{{Cmd: &syntax.CallExpr{Args: []*syntax.Word{word("set"), word("-o"), word("pipefail")}}}}, f.Stmts...)
-}
-func narration(f *syntax.File) {
-	walkCalls(f, func(c *syntax.CallExpr) {
-		e, ok := effectiveCommand(c)
-		if !ok || (e.name != "echo" && e.name != "printf") || len(c.Args) <= e.index+1 {
+		if r.Op != syntax.DplOut || r.N == nil || r.N.Value != "2" || !isWord(r.Word, "1") {
 			return
 		}
-		if allStatic(c.Args[e.index+1:]) {
-			c.Args = []*syntax.Word{word(":")}
+		s.Redirs = s.Redirs[:len(s.Redirs)-1]
+	}
+}
+
+func isStdoutFileAny(r *syntax.Redirect) bool {
+	return (r.N == nil || r.N.Value == "1") && (r.Op == syntax.RdrOut || r.Op == syntax.AppOut)
+}
+
+// leadingLit is a word's leading literal text, "" when it starts with an
+// expansion.
+func leadingLit(w *syntax.Word) string {
+	if w == nil || len(w.Parts) == 0 {
+		return ""
+	}
+	switch p := w.Parts[0].(type) {
+	case *syntax.Lit:
+		return p.Value
+	case *syntax.SglQuoted:
+		return p.Value
+	case *syntax.DblQuoted:
+		if len(p.Parts) > 0 {
+			if l, ok := p.Parts[0].(*syntax.Lit); ok {
+				return l.Value
+			}
 		}
-	})
+	}
+	return ""
+}
+
+func isStdoutFileTeeable(r *syntax.Redirect) bool {
+	if !isStdoutFileAny(r) || r.Word == nil || len(r.Word.Parts) == 0 {
+		return false
+	}
+	if _, ok := r.Word.Parts[0].(*syntax.ProcSubst); ok {
+		return false
+	}
+	return !strings.HasPrefix(leadingLit(r.Word), "/dev/")
+}
+
+// teeRewrite turns a trailing stdout file redirect into a pipe through tee, so
+// the output lands in the file AND stays visible. A statement with more than
+// one stdout file redirect, a /dev/ target, or a process-substitution target
+// is left alone.
+func teeRewrite(s *syntax.Stmt) {
+	redirs := &s.Redirs
+	if b, ok := s.Cmd.(*syntax.BinaryCmd); ok && b.Op == syntax.Pipe {
+		redirs = &b.Y.Redirs
+	}
+	var found []*syntax.Redirect
+	for _, r := range *redirs {
+		if isStdoutFileAny(r) {
+			found = append(found, r)
+		}
+	}
+	if len(found) != 1 || !isStdoutFileTeeable(found[0]) {
+		return
+	}
+	r := found[0]
+	kept := []*syntax.Redirect{}
+	for _, x := range *redirs {
+		if !isStdoutFileAny(x) {
+			kept = append(kept, x)
+		}
+	}
+	*redirs = kept
+	producer := &syntax.Stmt{Cmd: s.Cmd, Redirs: s.Redirs}
+	teeArgs := []*syntax.Word{word("tee")}
+	if r.Op == syntax.AppOut {
+		teeArgs = append(teeArgs, word("-a"))
+	}
+	teeArgs = append(teeArgs, r.Word)
+	s.Cmd = &syntax.BinaryCmd{
+		Op: syntax.Pipe,
+		X:  producer,
+		Y:  &syntax.Stmt{Cmd: &syntax.CallExpr{Args: teeArgs}},
+	}
+	s.Redirs = nil
+}
+
+var setOFlag = regexp.MustCompile(`^-[A-Za-z]*o$`)
+
+// enablesPipefail: `set -o pipefail`, `set -eo pipefail`, `set -e -o pipefail`
+// and multiple -o pairs all count.
+func enablesPipefail(s *syntax.Stmt) bool {
+	c, ok := s.Cmd.(*syntax.CallExpr)
+	if !ok || cmd(c) != "set" {
+		return false
+	}
+	words := make([]string, 0, len(c.Args))
+	for _, w := range c.Args[1:] {
+		if v, ok := literal(w); ok {
+			words = append(words, v)
+		} else {
+			words = append(words, " ")
+		}
+	}
+	for i := 0; i+1 < len(words); i++ {
+		if setOFlag.MatchString(words[i]) && words[i+1] == "pipefail" {
+			return true
+		}
+	}
+	return false
+}
+
+func leftmost(s *syntax.Stmt) *syntax.Stmt {
+	for {
+		b, ok := s.Cmd.(*syntax.BinaryCmd)
+		if !ok || b.Op != syntax.AndStmt {
+			return s
+		}
+		s = b.X
+	}
+}
+
+func ensurePipefail(f *syntax.File) {
+	if len(f.Stmts) == 0 || enablesPipefail(leftmost(f.Stmts[0])) {
+		return
+	}
+	f.Stmts = append([]*syntax.Stmt{{Cmd: &syntax.CallExpr{
+		Args: []*syntax.Word{word("set"), word("-o"), word("pipefail")}}}}, f.Stmts...)
+}
+
+// ---------------------------------------------------------------------------
+// Remove constant narration. An echo/printf is replaced by the no-op `:` only
+// when its stdout actually REACHES THE TERMINAL. `X=$(echo hi)`, `echo x | jq`,
+// `echo x > f`, a function body and a coproc are all data or capture, never
+// narration, so each is left alone. Visibility threads top-down, which is why
+// this traversal is hand-rolled over statement structure and never enters Word
+// parts -- $(), <() and >() are excluded by construction.
+// ---------------------------------------------------------------------------
+
+var globRisk = regexp.MustCompile(`[*?\[{]`)
+
+// wordIsConstant: a Lit with no glob or tilde risk, a single-quoted string, or
+// a double-quoted string over Lits.
+func wordIsConstant(w *syntax.Word) bool {
+	if w == nil {
+		return false
+	}
+	for _, p := range w.Parts {
+		switch x := p.(type) {
+		case *syntax.Lit:
+			if globRisk.MatchString(x.Value) || strings.HasPrefix(x.Value, "~") {
+				return false
+			}
+		case *syntax.SglQuoted:
+		case *syntax.DblQuoted:
+			for _, q := range x.Parts {
+				if _, ok := q.(*syntax.Lit); !ok {
+					return false
+				}
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// redirsStderrOnly: every redirect on the statement leaves stdout alone.
+// Anything else -- a stdout redirect, &>, fd juggling, a stdin form -- makes
+// the subtree invisible, and an unknown op fails closed into leaving the echo
+// alone.
+func redirsStderrOnly(s *syntax.Stmt) bool {
+	for _, r := range s.Redirs {
+		if r.N == nil || r.N.Value != "2" {
+			return false
+		}
+		if r.Op != syntax.RdrOut && r.Op != syntax.AppOut && r.Op != syntax.DplOut {
+			return false
+		}
+	}
+	return true
+}
+
+func isNarration(c *syntax.CallExpr) bool {
+	e, ok := effectiveCommand(c)
+	if !ok {
+		return false
+	}
+	rest := c.Args[e.index+1:]
+	switch e.name {
+	case "echo":
+		return allConstant(rest)
+	case "printf":
+		return len(rest) > 0 && allConstant(rest)
+	}
+	return false
+}
+
+func allConstant(ws []*syntax.Word) bool {
+	for _, w := range ws {
+		if !wordIsConstant(w) {
+			return false
+		}
+	}
+	return true
+}
+
+func narration(f *syntax.File) {
+	for _, s := range f.Stmts {
+		narrationStmt(s, true)
+	}
+}
+
+func narrationStmt(s *syntax.Stmt, vis bool) {
+	if s == nil || s.Cmd == nil {
+		return
+	}
+	v := vis && redirsStderrOnly(s) && !s.Coprocess
+	switch c := s.Cmd.(type) {
+	case *syntax.CallExpr:
+		if v && isNarration(c) {
+			s.Cmd = &syntax.CallExpr{Args: []*syntax.Word{word(":")}}
+		}
+	case *syntax.BinaryCmd:
+		switch c.Op {
+		case syntax.Pipe, syntax.PipeAll:
+			narrationStmt(c.X, false)
+			narrationStmt(c.Y, v)
+		case syntax.AndStmt, syntax.OrStmt:
+			narrationStmt(c.X, v)
+			narrationStmt(c.Y, v)
+		}
+	case *syntax.Block:
+		narrationStmts(c.Stmts, v)
+	case *syntax.Subshell:
+		narrationStmts(c.Stmts, v)
+	case *syntax.WhileClause:
+		narrationStmts(c.Cond, v)
+		narrationStmts(c.Do, v)
+	case *syntax.ForClause:
+		narrationStmts(c.Do, v)
+	case *syntax.IfClause:
+		for x := c; x != nil; x = x.Else {
+			narrationStmts(x.Cond, v)
+			narrationStmts(x.Then, v)
+		}
+	case *syntax.CaseClause:
+		for _, it := range c.Items {
+			narrationStmts(it.Stmts, v)
+		}
+	case *syntax.TimeClause:
+		narrationStmt(c.Stmt, v)
+	}
+}
+
+func narrationStmts(ss []*syntax.Stmt, vis bool) {
+	for _, s := range ss {
+		narrationStmt(s, vis)
+	}
 }
