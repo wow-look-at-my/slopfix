@@ -88,18 +88,6 @@
 		<rule process="python"
 			message="Python is not available here. Use jq for JSON and node for scripts."/>
 
-		<!-- The go wrapper builds, tests, vets and checks coverage together, so a
-		     bare `go build` or `go test` skips most of what a run has to do. This
-		     rule carries the reply the retired recommend-go-toolchain hook printed. -->
-		<rule name="go">
-			<test cmd="go build ./..." expect="deny"/>
-			<test cmd="go build -o myapp" expect="deny"/>
-			<test cmd="go test -v ./..." expect="deny"/>
-			<test cmd="go-toolchain" expect=""/>
-			<rule name="build" denyWithMessage="BLOCKED: Direct `go build` and `go test` are not allowed. Use `go-toolchain` instead — it builds, tests, vets, and checks coverage in one command."/>
-			<rule name="test" denyWithMessage="BLOCKED: Direct `go build` and `go test` are not allowed. Use `go-toolchain` instead — it builds, tests, vets, and checks coverage in one command."/>
-		</rule>
-
 		<!-- node, ruby and perl themselves stay usable; this environment's own
 		     hooks are `node file.ts`. What is denied is handing them a script:
 		     writing a multi-page program into a shell argument, running it, then
@@ -338,6 +326,7 @@
 		<test cmd="go doc fmt" expect="allow"/>
 		<test cmd="go doc fmt.Println" expect="allow"/>
 		<test cmd="go doc -all fmt" expect="allow"/>
+		<test cmd="go build ./..." expect=""/>
 		<rule name="version" allowedFlags="*"/>
 		<rule name="env" allowedFlags="*"/>
 		<rule name="doc" allowedFlags="*"/>
@@ -1003,7 +992,8 @@
 	     clicked, then a hard failure.
 	     Leaving this empty makes the hook return nothing for this server, the
 	     dialog stands, and a click actually authorises the call.
-	     Do NOT "fix" send_later by adding it back; that is the regression. -->
+	     Do NOT "fix" send_later by adding it back; that is the regression.
+	     see docs/ccr-approval-card.md -->
 
 	<!-- This marketplace's own grep/glob servers: the same builtin read-only
 	     tools the hook already allows by bare name. -->

@@ -1,4 +1,4 @@
-package main
+package autoallow
 
 import (
 	"encoding/xml"
