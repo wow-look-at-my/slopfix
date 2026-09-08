@@ -12,6 +12,7 @@
 package commentlength
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -134,7 +135,10 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 		return block{}, false
 	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
-	b.codeLines, b.codeChars = nodeSpan(parent.NamedChild(next), lines)
+	documented := parent.NamedChild(next)
+	b.codeLines, b.codeChars = nodeSpan(documented, lines)
+	b.documents = fmt.Sprintf("%s@%d-%d/in:%s", documented.Type(),
+		documented.StartPoint().Row+1, documented.EndPoint().Row+1, parent.Type())
 	return b, true
 }
 

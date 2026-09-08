@@ -62,8 +62,11 @@ func TestTheRuleReportsWhatCommentspanReports(t *testing.T) {
 		starts := []string{}
 		for _, b := range blocks(path, string(src)) {
 			_, over := judge(b)
-			starts = append(starts, fmt.Sprintf("%d(code=%dl/%dc,over=%v)",
-				b.start+1, b.codeLines, b.codeChars, over))
+			if b.start+1 != line {
+				continue
+			}
+			starts = append(starts, fmt.Sprintf("%d(code=%dl/%dc,over=%v,node=%s)",
+				b.start+1, b.codeLines, b.codeChars, over, b.documents))
 		}
 		fmt.Fprintf(&report, "%s:%d parses=%v reported=%v\n  %s\n",
 			name, line, parses, found, strings.Join(starts, " "))
