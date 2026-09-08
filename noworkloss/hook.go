@@ -18,6 +18,7 @@ package noworkloss
 import (
 	"encoding/json"
 	"io"
+	"os"
 	"strings"
 )
 
