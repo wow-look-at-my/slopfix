@@ -30,7 +30,7 @@ func TestWhatFixWritesCarriesNoFinding(t *testing.T) {
 // survives the repair rather than being cut.
 func TestATableEntryKeepsTheSentence(t *testing.T) {
 	repair := commentnumbers.Fix("x.go", "// It reserves one slot with one atomic add.\nfunc f() {}\n")
-	assert.Equal(t, "// It reserves a slot with an atomic add.\nfunc f() {}\n", repair.Text)
+	assert.Equal(t, "// It reserves a single slot with a single atomic add.\nfunc f() {}\n", repair.Text)
 	assert.Empty(t, repair.Removed, "a rewritten sentence is not a cut one")
 }
 
@@ -54,7 +54,7 @@ func TestACommentLeftWithNothingToSayLosesItsLine(t *testing.T) {
 func TestABlankCommentLineTheSourceCarriedSurvives(t *testing.T) {
 	src := "// It locks.\n//\n// It reserves one slot.\nfunc f() {}\n"
 	repair := commentnumbers.Fix("x.go", src)
-	assert.Equal(t, "// It locks.\n//\n// It reserves a slot.\nfunc f() {}\n", repair.Text)
+	assert.Equal(t, "// It locks.\n//\n// It reserves a single slot.\nfunc f() {}\n", repair.Text)
 }
 
 // The negative control. A file the rule reports nothing in is written back
@@ -80,7 +80,7 @@ func TestADirectiveIsNotRewritten(t *testing.T) {
 	src := "//go:build one\n\n// It reserves one slot.\npackage p\n"
 	repair := commentnumbers.Fix("x.go", src)
 	assert.Contains(t, repair.Text, "//go:build one")
-	assert.Contains(t, repair.Text, "// It reserves a slot.")
+	assert.Contains(t, repair.Text, "// It reserves a single slot.")
 }
 
 // Code is not prose. A number in a string literal or an expression is the
@@ -95,5 +95,5 @@ func TestCodeIsNotRewritten(t *testing.T) {
 // The rule reads every language the extractor knows, so the repair does too.
 func TestTheRepairFollowsTheExtractorIntoAnotherLanguage(t *testing.T) {
 	repair := commentnumbers.Fix("x.sh", "# It reserves one slot.\necho hi\n")
-	assert.Equal(t, "# It reserves a slot.\necho hi\n", repair.Text)
+	assert.Equal(t, "# It reserves a single slot.\necho hi\n", repair.Text)
 }

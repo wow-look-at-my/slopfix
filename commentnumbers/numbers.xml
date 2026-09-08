@@ -33,6 +33,15 @@
   <rewrite from="all at once" to="together" test="It releases all at once" expect="It releases together"/>
   <rewrite from="at once" to="at the same time" test="Both run at once" expect="Both run at the same time"/>
 
+  <!-- One inside a phrase that is not a count of anything. These go before the
+       determiner pattern below, which would otherwise read the number as an
+       article and write "an or more". -->
+  <rewrite from="one or more" to="any number of" test="It inserts one or more elements" expect="It inserts any number of elements"/>
+  <rewrite from="every one of" to="each of" test="It holds every one of the keys" expect="It holds each of the keys"/>
+  <rewrite from="at least one of" to="any of" test="It holds at least one of the keys" expect="It holds any of the keys"/>
+  <rewrite from="exactly one of" to="a single side of" test="It is in exactly one of the sets" expect="It is in a single side of the sets"/>
+  <rewrite from="one of" to="any of" test="It is one of the keys" expect="It is any of the keys"/>
+
   <!-- A repeat count, said without a number. -->
   <rewrite from="exactly once" to="exactly a single time" test="It runs exactly once" expect="It runs exactly a single time"/>
   <rewrite from="only once" to="a single time" test="It runs only once" expect="It runs a single time"/>
@@ -55,10 +64,10 @@
   <pattern match="(?i)\bthe first\b" to="the earliest" test="The first writer wins" expect="The earliest writer wins"/>
   <pattern match="(?i)\bfirst\b" to="earliest" test="It takes first" expect="It takes earliest"/>
 
-  <!-- One as a determiner: an article says the same thing and stays true. The
-       group carries the noun's opening letter, because RE2 has no lookahead. -->
-  <pattern match="(?i)\bone\s+([aeiou])" to="an ${1}" test="It costs one atomic add" expect="It costs an atomic add"/>
-  <pattern match="(?i)\bone\s+([a-z])" to="a ${1}" test="It reserves one slot" expect="It reserves a slot"/>
+  <!-- One as a determiner. "A single" keeps the emphasis the number carried,
+       which a bare article drops. The group carries the noun's opening letter,
+       because RE2 has no lookahead. -->
+  <pattern match="(?i)\bone\s+([a-z])" to="a single ${1}" test="It reserves one slot" expect="It reserves a single slot"/>
 
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
   <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>
