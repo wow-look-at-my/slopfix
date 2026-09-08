@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A cut lands on a sentence end wherever the prose has one.
+// A cut lands on a sentence end wherever the prose has any.
 //
 // The repair used to cut whole lines, so a line holding the end of a sentence
 // and the start of the next was kept entire. "The grammar also declares an

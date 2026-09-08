@@ -111,8 +111,7 @@ func Fix(filename, src string) (string, bool) {
 // Lines catch an essay; characters catch a dense paragraph.
 func judge(b block) (string, bool) {
 	lines, chars := measure(prose(b.text))
-	// Nothing to weigh against. The package doc is exempt before this, so a run
-	// left here trails off the end of a file and documents no construct at all.
+	// Nothing to weigh against.
 	if b.codeLines == 0 {
 		if lines == 0 {
 			return "", false
