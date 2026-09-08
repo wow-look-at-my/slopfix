@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 package noworkloss
 
 import (
@@ -5,6 +6,14 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+=======
+package main
+
+import (
+	"github.com/wow-look-at-my/go-containers/set"
+	"path/filepath"
+	"strings"
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 )
 
 // What class of content a command can destroy. Keeping these apart is the

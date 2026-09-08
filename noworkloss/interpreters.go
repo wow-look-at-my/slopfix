@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 package noworkloss
 
 import (
@@ -7,6 +8,16 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/shellwalk"
+=======
+package main
+
+import (
+	"github.com/wow-look-at-my/go-containers/set"
+	"os"
+	"path/filepath"
+	"shellwalk"
+	"strings"
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 )
 
 // An interpreter handed a script writes whatever the script says, and the script

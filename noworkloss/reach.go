@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 package noworkloss
+=======
+package main
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 
 import (
 	"strconv"

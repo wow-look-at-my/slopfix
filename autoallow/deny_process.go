@@ -4,16 +4,26 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/shellwalk"
 	"mvdan.cc/sh/v3/syntax"
+=======
+	"mvdan.cc/sh/v3/syntax"
+	"shellwalk"
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 )
 
 // Process-level deny: a rule matches the process a statement would START, not
 // the argv spelling, because a spelling list can never be finished.
 //
 // Reading the words, peeling the wrappers, and separating a named script from a
+<<<<<<< HEAD
 // script arriving on stdin all live in shellwalk, shared with noworkloss: a
 // wrapper that either half misreads is a rule the other still enforces.
+=======
+// script arriving on stdin all live in shellwalk, shared with no-work-loss: a
+// wrapper that either plugin misreads is a rule the other still enforces.
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 type ProcessRule struct {
 	Name string
 	// The section this rule came from: allow, ask or deny.

@@ -174,7 +174,11 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 		}
 		return one("truncate", operands...)
 
+<<<<<<< HEAD
 	case "mv", "install", "rsync", "scp":
+=======
+	case "cp", "mv", "install", "rsync", "scp":
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 		return copyWrites(seg, name, rest, roots)
 
 	case "ln":
@@ -281,9 +285,12 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 // through one, so moving or copying them around it -- `mv old.go new.go` -- is
 // ordinary refactoring. A source from outside is the splice this closes: write a
 // file to /tmp with Write, then move it over the target.
+<<<<<<< HEAD
 //
 // cp is not on this list. Copying a file is the ordinary way to move a tree of
 // them into place, and denying it turned one copy into one Write call per file.
+=======
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 func copyWrites(seg segment, name string, rest []word, roots []string) []write {
 	flags, operands := scanArgs(rest, set.Of[string](
 		"-t", "--target-directory", "-S", "--suffix",
@@ -429,7 +436,11 @@ func inPlaceRewrite(seg segment, name string, rest []word) []write {
 }
 
 // fromInsideTree reports whether every source is content the tree already holds.
+<<<<<<< HEAD
 // An unknowable source is not, which is what keeps `mv $SRC tracked.go` denied.
+=======
+// An unknowable source is not, which is what keeps `cp $SRC tracked.go` denied.
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 func fromInsideTree(cwd string, sources []word, roots []string) bool {
 	if len(sources) == 0 {
 		return false

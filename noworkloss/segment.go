@@ -1,12 +1,21 @@
+<<<<<<< HEAD
 package noworkloss
+=======
+package main
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 
 import (
 	"os"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/shellwalk"
 	"mvdan.cc/sh/v3/syntax"
+=======
+	"mvdan.cc/sh/v3/syntax"
+	"shellwalk"
+>>>>>>> 99cb7e7f5b90f96a807647f14508c8d28174b240
 )
 
 // A word carries its literal text plus whether that text is the whole story.
