@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -82,7 +83,29 @@ func CheckContent(path, content string) []ste.Finding {
 	if isDocument(path) {
 		return Check(content)
 	}
-	return nil
+	// A source file's lines are not paragraphs, so the prose rules stop here.
+	// Its COMMENTS are prose, and the comment rules read them.
+	return commentFindings(path, content)
+}
+
+// commentFindings are the source rules: what the comments in a source file
+// break, reported on the line they sit on.
+func commentFindings(path, content string) []ste.Finding {
+	var out []ste.Finding
+	for _, hit := range commentlength.Check(path, content) {
+		fix := "Cut the comment back inside the code it documents. Drop the trailing paragraph first."
+		if !hit.Repairable {
+			fix = "Shorten the opening sentence, or say less."
+		}
+		out = append(out, ste.Finding{
+			Line:   hit.Line,
+			ID:     hit.ID,
+			Rule:   hit.Tell,
+			Detail: hit.Sentence,
+			Fix:    fix,
+		})
+	}
+	return out
 }
 
 // documentExtensions are the files whose lines really are prose. A comment
@@ -110,7 +133,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs)
-	ids.Add(IDHardWrap)
+	ids.AddRange(IDHardWrap, commentlength.ID)
 	return ids
 }
 
