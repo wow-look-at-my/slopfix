@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // commentspan reports these, and this rule has to report them too, or the
@@ -31,17 +33,15 @@ func TestTheRuleReportsWhatCommentspanReports(t *testing.T) {
 		src, err := os.ReadFile(path)
 		require.NoError(t, err)
 
-		reported := map[int]bool{}
+		reported := set.New[int]()
 		for _, b := range blocks(path, string(src)) {
 			if _, over := judge(b); over {
-				reported[b.start+1] = true
+				reported.Add(b.start + 1)
 			}
 		}
 		for _, line := range wanted {
-			if !reported[line] {
-				t.Errorf("%s:%d is a commentspan finding this rule misses.\n%s",
-					name, line, explain(path, string(src), line))
-			}
+			assert.True(t, reported.Contains(line))
+
 		}
 	}
 }
