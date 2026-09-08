@@ -83,9 +83,10 @@ func collect(node ts.Node, root bool, lines []string, out *[]block) {
 	for i := uint32(0); i < count; i++ {
 		child := node.NamedChild(i)
 		if isComment(child) {
-			run, next := commentRun(node, i, count)
+			run, stop := commentRun(node, i, count)
+			next := afterComments(node, stop, count)
 			header := root && i == 0 && documentsThePackage(node, next, count)
-			i = next - 1
+			i = stop - 1
 			// A comment above the package declaration introduces the package
 			// rather than a construct, so there is nothing of a comparable size
 			if header {
@@ -135,11 +136,52 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 		return block{}, false
 	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
-	documented := parent.NamedChild(next)
+	documented := firstStatement(parent.NamedChild(next))
 	b.codeLines, b.codeChars = nodeSpan(documented, lines)
 	b.documents = fmt.Sprintf("%s@%d-%d/in:%s", documented.Type(),
 		documented.StartPoint().Row+1, documented.EndPoint().Row+1, parent.Type())
 	return b, true
+}
+
+// firstStatement descends through a bare sequence to the construct a comment
+// actually documents.
+//
+// A grammar can group everything left in a block into one node. Weighing a
+// comment against that node measures the rest of the block, so a note over a
+// single statement reads as proportionate to twenty lines it does not describe.
+//
+// A bare sequence is recognised without naming a language: it holds no text of
+// its own, starting exactly where its first child starts and ending exactly
+// where its last ends. The descent stops unless it saves rows, which leaves an
+// expression on a single line whole.
+func firstStatement(node ts.Node) ts.Node {
+	for !node.IsNull() {
+		count := node.NamedChildCount()
+		if count == 0 {
+			return node
+		}
+		first, last := node.NamedChild(0), node.NamedChild(count-1)
+		if node.StartByte() != first.StartByte() || node.EndByte() != last.EndByte() {
+			return node
+		}
+		if first.EndPoint().Row >= node.EndPoint().Row {
+			return node
+		}
+		node = first
+	}
+	return node
+}
+
+// afterComments advances past a comment run the pairing must not measure.
+//
+// A blank line ends a run, so the node after it can be more prose. Measuring a
+// comment against a comment gives no code at all, and the block is then dropped
+// with nothing said about it.
+func afterComments(node ts.Node, next, count uint32) uint32 {
+	for next < count && isComment(node.NamedChild(next)) {
+		next++
+	}
+	return next
 }
 
 // documentsThePackage reports whether the construct after a file's opening
