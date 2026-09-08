@@ -2,7 +2,7 @@
 
 A number stated in a comment. It is a count of what exists today. The edit that adds an item leaves it wrong.
 
-This is the same defect the `counts` rule finds in a document, over a different substrate. The exemption sets have diverged. That divergence is real rather than an oversight. The section below says why.
+This is the same defect the `counts` rule finds in a document, over a different substrate. Both read [cardinal](../cardinal/README.md), which holds the token walk, the vocabulary and the exemptions. What differs is the policy each substrate brings, and the two sit beside each other there. The section below says why they differ.
 
 ## What it rejects
 
