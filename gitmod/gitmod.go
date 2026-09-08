@@ -50,8 +50,8 @@ func Skip(target string) (set.Set[string], error) {
 }
 
 // verify requires the declared path to be a gitlink in the index. A directory
-// holding this repository's own source cannot become one: making it a gitlink
-// means replacing that source with a commit pointer.
+// holding this repository's own source cannot become a gitlink without
+// replacing that source with a commit pointer.
 func verify(root, path string) error {
 	if path == "" || path == "." || filepath.IsAbs(path) ||
 		path != filepath.ToSlash(filepath.Clean(path)) || strings.HasPrefix(path, "../") {

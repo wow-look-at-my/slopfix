@@ -188,8 +188,8 @@ func isDirective(line string) bool {
 func trim(b block) []string {
 	kept := b.text
 
-	// Tighten before cutting. A padded comment fits once its filler is gone and
-	// it is reflowed, and keeping the whole thought beats losing the last one.
+	// Tighten before cutting. A padded comment fits after its filler is gone and
+	// it is reflowed, and keeping the whole thought beats losing the last of it.
 	if tightened, did := tighten(kept); did {
 		if _, over := judge(block{text: tightened, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return tightened

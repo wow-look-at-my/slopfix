@@ -16,8 +16,8 @@ func texts(text string, s Substrate) []string {
 	return out
 }
 
-// The frame is the whole difference between the substrates, so it gets the
-// first case. The same sentence is a finding in a comment and nothing in prose.
+// The frame is the whole difference between the substrates, so it opens the
+// file. The same sentence is a finding in a comment and nothing in prose.
 func TestTheFrameIsWhatSeparatesTheSubstrates(t *testing.T) {
 	bare := "split it into three parts if that reads better"
 	assert.Empty(t, texts(bare, Prose))
@@ -28,7 +28,7 @@ func TestTheFrameIsWhatSeparatesTheSubstrates(t *testing.T) {
 }
 
 // The merge gate reads a document with no frame, and pays for that with a list
-// of units. The same sentence therefore parts the two document substrates: a
+// of units. The same sentence therefore parts both document substrates: a
 // duration is measured for the gate and counted for the inventory rule.
 func TestTheUnitsListIsTheGatesAloneAndTheFrameIsTheOtherSubstratesAlone(t *testing.T) {
 	measured := "The read has 20 seconds."
@@ -45,7 +45,8 @@ func TestTheUnitsListIsTheGatesAloneAndTheFrameIsTheOtherSubstratesAlone(t *test
 	assert.Equal(t, []string{"three parts"}, texts(bare, Gate))
 }
 
-// The gate stops at twelve, and it reads any run of digits. Neither list is
+// The gate's word list stops short of the prose one, and it reads any run of
+// digits. Neither list is
 // derived from the other, and widening either moves verdicts on the gate.
 func TestTheGateVocabularyStopsWhereItAlwaysDid(t *testing.T) {
 	assert.Empty(t, texts("it has twenty hooks", Gate))
@@ -113,7 +114,7 @@ func TestTheCommentExemptionsCarryTheShapesThatCountNothing(t *testing.T) {
 }
 
 // A quantity reached through a function word counts nothing, and a number that
-// continues a longer one is a version rather than a tally.
+// continues a longer number is a version rather than a tally.
 func TestTheProseGuardsHoldInsideAFrame(t *testing.T) {
 	assert.Empty(t, texts("it has 2 of the format drops", Prose))
 	assert.Empty(t, texts("Version 2.1.205 clients keep the builtin.", Prose))

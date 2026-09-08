@@ -135,7 +135,7 @@ func TestAnUnterminatedSingleLineLiteralEndsAtTheNewline(t *testing.T) {
 	assert.Equal(t, []string{"// read me"}, texts("x.go", "const u = \"unterminated\n// read me\n"))
 }
 
-// A multiline literal has no line to end at, so an unclosed one runs to EOF.
+// A multiline literal has no line to end at, so an unclosed literal runs to EOF.
 func TestAnUnterminatedMultilineLiteralConsumesTheRest(t *testing.T) {
 	assert.Empty(t, texts("x.go", "const u = `unterminated\n// not prose\n"))
 }

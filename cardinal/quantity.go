@@ -1,9 +1,9 @@
 // quantity.go is the finder both document substrates read: a cardinal
 // governing a plural noun. It also holds what each of them exempts.
 //
-// The two spell the shape with different tolerances, and the spellings sit here
+// Both spell the shape with different tolerances, and the spellings sit here
 // together rather than in the packages that read them. Neither is derived from
-// the other. They are what the two rules have always matched, and a fold that
+// the other. They are what both rules have always matched, and a fold that
 // merged them would move verdicts on the merge gate.
 package cardinal
 
@@ -15,7 +15,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// proseQuantity is the inventory-count spelling: a cardinal from two upward, up
+// proseQuantity is the inventory-count spelling: a plural cardinal, up
 const proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
 	`\s+(?:[a-z][a-z-]*\s+){0,3}?[a-z][a-z-]{2,}s\b`
 
@@ -38,7 +38,7 @@ type Match struct {
 type Exemption func(text string, q Match) bool
 
 // quantities returns every quantity in the text, for a substrate that asks for
-// no frame around one.
+// no frame around it.
 func quantities(text string, s Substrate) []Token {
 	var out []Token
 	for _, at := range s.quantity.FindAllStringIndex(text, -1) {

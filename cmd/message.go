@@ -33,7 +33,7 @@ type messageHit struct {
 	Line     int    `json:"line"`
 }
 
-// quoted is what a report names: the phrase where the rule found one, and the
+// quoted is what a report names: the phrase where the rule fired, and the
 // sentence where it did not.
 func (h messageHit) quoted() string {
 	if h.Phrase != "" {

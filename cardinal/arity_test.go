@@ -22,7 +22,7 @@ func TestAnArityWordCountsNothing(t *testing.T) {
 }
 
 // The control. A possession verb makes it a claim about how many things are
-// here, and that claim is wrong the moment a second one arrives.
+// here, and that claim is wrong the moment another arrives.
 func TestAPossessionVerbMakesArityACount(t *testing.T) {
 	for _, line := range []string{
 		"The map has one entry.",

@@ -1,4 +1,4 @@
-// Command probe dumps the parse of one file, for diagnosis only.
+// Command probe dumps the parse of a file, for diagnosis only.
 package main
 
 import (

@@ -20,7 +20,7 @@ func TestARealSubmoduleIsSkipped(t *testing.T) {
 }
 
 // The forgery. A declaration alone must never exempt a directory, or the check
-// is off for anyone who edits one file.
+// is off for anyone who edits a file there.
 func TestADeclaredPathThatIsNotAGitlinkIsAnError(t *testing.T) {
 	root := gitmodtest.RepoWithFakeSubmodule(t, "src")
 

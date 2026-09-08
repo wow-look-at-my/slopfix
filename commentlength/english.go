@@ -2,7 +2,7 @@
 // refuses to rewrite.
 //
 // The table is XML rather than Go, the same way autoallow carries its rules, so
-// adding a word is a one-line edit somebody can make without reading Go.
+// adding a word is a single-line edit somebody can make without reading Go.
 package commentlength
 
 import (
@@ -61,7 +61,7 @@ type xmlFlag struct {
 	Test   string `xml:"test,attr"`
 }
 
-// english is the parsed table. It is parsed once, at start, and a malformed
+// english is the parsed table. It is parsed at start, and a malformed
 // table panics rather than loading empty: a repair that silently stops
 // tightening looks exactly like a repository with nothing to tighten.
 var english = mustLoadEnglish()
@@ -117,7 +117,7 @@ type Suggestion struct {
 //
 // It is separate from Check because it is separate advice: Check measures a
 // comment against its code, and this reads what the comment says. A file can be
-// clean by length and still carry every one of these.
+// clean by length and still carry every entry here.
 func Suggest(filename, src string) []Suggestion {
 	language := languageFor(filename)
 	if language == nil {

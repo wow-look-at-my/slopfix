@@ -10,7 +10,7 @@ import (
 // spelling below moves that output somewhere a grep reads instead, which is the
 // same act. The command that caused this rule was:
 //
-//	go-toolchain --generate <hash> > log 2>&1; grep -nE "FAIL|Error:" log
+//	go-toolchain --generate <hash> > log; grep -nE "FAIL|Error:" log
 func TestADivertedGoToolchainIsDenied(t *testing.T) {
 	for _, in := range []string{
 		"go-toolchain > log",
@@ -47,7 +47,7 @@ func TestABareGoToolchainIsAllowed(t *testing.T) {
 	}
 }
 
-// The rule names one command. Redirecting anything else is ordinary work.
+// The rule names a single command. Redirecting anything else is ordinary work.
 func TestRedirectingAnotherCommandIsAllowed(t *testing.T) {
 	got := Transform("git status > log")
 	assert.False(t, got.Denied)

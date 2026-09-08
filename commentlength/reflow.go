@@ -6,14 +6,14 @@ import (
 	"strings"
 )
 
-// paragraph is one run of comment lines, or the blank marker between two runs.
+// paragraph is a run of comment lines, or the blank marker between runs.
 type paragraph struct {
 	lines []string
 	blank bool
 }
 
-// commentShape reads the indent and marker a block uses, from its first line.
-// It reports false for a block whose lines disagree, because rewriting one of
+// commentShape reads the indent and marker a block uses, from its opening line.
+// It reports false for a block whose lines disagree, because rewriting any of
 // those would change more than the prose.
 func commentShape(text []string) (marker, indent string, ok bool) {
 	if len(text) == 0 {

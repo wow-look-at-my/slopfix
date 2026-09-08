@@ -2,8 +2,8 @@
 //
 // Cutting is the blunt instrument: it removes a whole thought. Most over-long
 // comments are not over-long by a thought, they are padded by words that carry
-// nothing, and reflowed they fit. So the repair tries this first and only cuts
-// what tightening cannot save.
+// nothing, and reflowed they fit. So the repair tries this before cutting, and
+// cuts only what tightening cannot save.
 package commentlength
 
 import (
@@ -49,17 +49,17 @@ const wrapWidth = 78
 // spacing the deletions leave behind.
 func shorten(s string) string { return shortenFor(s, "comment") }
 
-// Deslop rewrites one rendered message, applying every entry that names the
+// Deslop rewrites a rendered message, applying every entry that names the
 // message surface. It is the real-time half: a MessageDisplay hook hands it the
 // delta as it streams and shows what comes back.
 //
 // It rewrites and never annotates. An annotation about a phrase the reader can
-// already see is a second thing to read; replacing it costs the reader nothing.
+// already see is another thing to read. Replacing it costs the reader nothing.
 func Deslop(s string) string { return shortenFor(s, "message") }
 
 // shortenFor applies the table entries that name a surface.
 func shortenFor(s, surface string) string {
-	// Rewrites first: a phrase like "in order to" would otherwise lose its
+	// Rewrites go before drops: a phrase like "in order to" would otherwise lose its
 	// middle to a <drop> and stop matching as a phrase at all.
 	for _, r := range english.Rewrites {
 		if appliesTo(r.Where, surface) {

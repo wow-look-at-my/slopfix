@@ -72,7 +72,7 @@ func TestReflowKeepsParagraphBreaks(t *testing.T) {
 	assert.Contains(t, strings.Join(out, "\n"), "//\n", "the blank marker is still there")
 }
 
-// A block whose lines are not all one marker is left alone: rewriting it would
+// A block whose lines disagree about the marker is left alone: rewriting it would
 // change more than the prose.
 func TestAMixedBlockIsNotTightened(t *testing.T) {
 	_, changed := tighten([]string{"// prose", "code()"})

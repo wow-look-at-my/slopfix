@@ -9,17 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// This repository's own source is the rule's first real corpus, and running the
-// rule over it is the only evidence that the repair works on prose somebody
+// This repository's own source is the rule's earliest real corpus, and running
+// the rule over it is the only evidence that the repair works on prose somebody
 // wrote for its own sake rather than for a fixture.
 //
-// It reports by default and never writes. Set SLOPFIX_SELF_REPAIR=1 to apply,
-// which is how the tree gets cleaned once: the binary that carries this rule
-// cannot be built while go-toolchain's own commentspan warnings hold the build,
-// so the first repair has to come from the test run that precedes the gate.
+// It reports by default and never writes. Setting SLOPFIX_SELF_REPAIR applies
+// the repair, which is how the tree gets cleaned: the binary that carries this
+// rule cannot be built while go-toolchain's own commentspan warnings hold the
+// build, so the repair has to come from the test run that precedes the gate.
 func TestTheRuleOverItsOwnRepository(t *testing.T) {
 	root := ".."
-	apply := os.Getenv("SLOPFIX_SELF_REPAIR") == "1"
+	apply := os.Getenv("SLOPFIX_SELF_REPAIR") != ""
 
 	var files, findings, repaired int
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {

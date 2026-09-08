@@ -18,7 +18,8 @@ const proseAlt = `two|three|four|five|six|seven|eight|nine|ten|` +
 // proseWords is the same vocabulary as a set, for a caller asking about a word.
 var proseWords = set.Of(strings.Split(proseAlt, "|")...)
 
-// gateAlt is what the merge gate's stale-count rule reads. It stops at twelve,
+// gateAlt is what the merge gate's stale-count rule reads. It stops short of the
+// prose list,
 const gateAlt = `two|three|four|five|six|seven|eight|nine|ten|eleven|twelve`
 
 // gateWords is that vocabulary as a set.

@@ -36,7 +36,7 @@ func assistantCall(name, input string) string {
 	})
 }
 
-// encodeLine writes a fixture the way the harness writes one. Go's json.Marshal
+// encodeLine writes a fixture the way the harness writes it. Go's json.Marshal
 // escapes `<` and JavaScript does not, so marshaling builds an unreal fixture.
 func encodeLine(v any) string {
 	var b strings.Builder

@@ -41,8 +41,8 @@ var frames = []*regexp.Regexp{possessiveFrame, havingFrame, deicticFrame}
 
 // framed returns every quantity a frame governs, without repeating a phrase.
 //
-// The frames are read in turn, so the same phrase can match more than one of
-// them. A phrase is reported the first time only.
+// The frames are read in turn, so the same phrase can match several of them. A
+// phrase is reported only where it matches earliest.
 func framed(text string, s Substrate) []Token {
 	var out []Token
 	seen := set.New[string]()

@@ -115,13 +115,12 @@ const arityReach = 3
 
 // Arity exempts a word that states a design rather than a count.
 //
-// "one file", "found one" and "parsed once" do not go stale when an item is
-// added elsewhere: they say the code does a thing a single time, or to a single
-// thing. That is the opposite of the claim this rule exists to catch, which is a
-// tally of what is here today.
+// An arity word does not go stale when an item is added elsewhere: it says the
+// code does a thing a single time, or to a single thing. That is the opposite of
+// the claim this rule exists to catch, which is a tally of what is here today.
 //
-// A possession verb in front makes it a tally again. "has one entry" is wrong
-// the moment a second entry arrives, so that shape is still read.
+// A possession verb in front makes it a tally again, because such a claim is
+// wrong the moment another entry arrives. That shape is still read.
 func Arity(text string, toks []Token, i int) bool {
 	if !arityWords.Contains(strings.ToLower(strings.Trim(toks[i].Text, nameMarkers+"-"))) {
 		return false
@@ -140,7 +139,7 @@ const codeBlockIndent = "\t"
 
 // CodeBlock exempts every number on an indented line of a comment. Such a line
 // is a command or a snippet the reader copies, so its digits are the thing
-// itself: rewriting `2>&1` to dodge this rule would break what it shows.
+// itself: rewriting a redirect to dodge this rule would break what it shows.
 func CodeBlock(text string, _ []Token, _ int) bool {
 	return strings.HasPrefix(text, codeBlockIndent)
 }

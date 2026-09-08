@@ -36,7 +36,7 @@ type Shape int
 const (
 	// Quantity is a cardinal governing a plural noun, as prose writes a tally.
 	Quantity Shape = iota
-	// Number is a number standing on its own, as a comment writes one.
+	// Number is a number standing on its own, as a comment writes it.
 	Number
 )
 

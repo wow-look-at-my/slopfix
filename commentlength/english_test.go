@@ -8,8 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Every entry in english.xml carries a test attribute, and every one of them
-// has to fire. Without this an entry that stopped matching -- a typo, a phrase
+// Every entry in english.xml carries a test attribute, and each has to fire. Without this an entry that stopped matching -- a typo, a phrase
 // the boundary rule rejects, a rewrite shadowed by a drop -- would sit in the
 // table looking enforced while doing nothing.
 func TestEveryDropFires(t *testing.T) {
@@ -46,7 +45,7 @@ func TestEveryPatternFires(t *testing.T) {
 
 // A pattern carries the link SHAPE. It cannot carry linkrefs' guarantee, which
 // is that a reference resolves before it becomes a link, so this pins that the
-// two are different jobs rather than one replacing the other.
+// these are different jobs rather than a replacement for each other.
 func TestAPatternLinksAReferenceItCannotVerify(t *testing.T) {
 	got := Deslop("owner/repo#99999 is open")
 	assert.Contains(t, got, "https://github.com/owner/repo/issues/99999")
@@ -66,7 +65,7 @@ func surfaceOf(where string) string {
 	return "comment"
 }
 
-// A message-only entry must not touch source. The em dash joining two clauses
+// A message-only entry must not touch source. The em dash joining clauses
 // is a chat habit; in a comment the prose rules already call it a comma splice,
 // and rewriting it here would fight them.
 func TestAMessageOnlyEntryLeavesCommentsAlone(t *testing.T) {
@@ -120,8 +119,8 @@ func TestAFlaggedPhraseIsNeverRewritten(t *testing.T) {
 	assert.NotEmpty(t, Suggest("x.go", src), "but it is still reported")
 }
 
-// Length and prose are separate advice: a file can be clean by one and not the
-// other, so Suggest reads comments Check has nothing to say about.
+// Length and prose are separate advice: a file can be clean by either and not
+// the other, so Suggest reads comments Check has nothing to say about.
 func TestSuggestFiresOnACommentThatFitsItsCode(t *testing.T) {
 	src := "package p\n\n// A hack.\nconst p = 1\n"
 	assert.Empty(t, Check("x.go", src), "short enough to pass the length rule")

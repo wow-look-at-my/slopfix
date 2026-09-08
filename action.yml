@@ -39,7 +39,7 @@ runs:
       with:
         project: slopfix
 
-    # slopfix exits non-zero when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
+    # slopfix fails when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
     - name: Run slopfix
       shell: bash
       env:
