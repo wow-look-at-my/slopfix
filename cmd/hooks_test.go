@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A launcher execs a subcommand by name, so one that is missing, or silent on a
-// payload it should refuse, is a guard that reports success and does nothing.
+// A launcher execs a subcommand by name. A missing subcommand, or a subcommand
+// silent on a payload it should refuse, reports success and guards nothing.
 
 // find returns the registered subcommand of that name.
 func find(t *testing.T, name string) *cobra.Command {

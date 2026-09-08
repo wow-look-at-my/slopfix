@@ -90,7 +90,7 @@ func TestACleanCommentIsNotRewritten(t *testing.T) {
 
 // A doc comment opens on the identifier it documents, and that identifier is
 // often unexported. Capitalising it names a symbol the package does not have,
-// so the opening capital is restored only where a deletion removed the old one.
+// so the capital is restored only where a deletion removed the opening word.
 func TestTheOpeningWordKeepsItsCase(t *testing.T) {
 	assert.Equal(t, "arityReach is how far back it looks",
 		shorten("arityReach is basically how far back it looks"))

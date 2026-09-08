@@ -259,7 +259,7 @@ func TestALocalGitCommandIsNeverAStatusRead(t *testing.T) {
 }
 
 func TestASHAInANeighbouringStatementIsNotTheSubject(t *testing.T) {
-	// The earlier call asked GitHub, then read a local object in a later one.
+	// The earlier call asked GitHub, then read a local object further along.
 	const sha = "4f7cea8b1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f60"
 	tr := stageTranscript(t,
 		callIn("t1", "gh pr view 130 && git show "+sha+":go.mod", "s", false),

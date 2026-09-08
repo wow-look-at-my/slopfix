@@ -141,11 +141,11 @@ func TestTheRealSwitchCaseShapeIsAFinding(t *testing.T) {
 		"\t\treturn len(operands)\n\t}\n\treturn 0\n}\n"
 
 	assert.NotEmpty(t, Check("x.go", src),
-		"commentspan reports 3 comment lines over 1 code line here")
+		"commentspan reports more comment lines than code lines here")
 }
 
 // The control. A comment proportionate to its statement is not a finding, or
-// every block comment in the tree becomes one.
+// every block comment in the tree becomes a finding.
 func TestAProportionateCommentInsideABlockIsNotAFinding(t *testing.T) {
 	src := "package p\n\nfunc f(n int) int {\n" +
 		"\t// The offset the caller asked for.\n" +
