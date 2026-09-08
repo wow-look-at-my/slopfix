@@ -106,8 +106,8 @@ func cutWhatIsLeft(prose string) (string, []string) {
 }
 
 // sentences splits prose on its sentence ends, keeping the punctuation with the
-// sentence it closes. A line that ends mid-sentence is a single sentence here,
-// which is why a cut can take a wrapped line's share of one.
+// sentence it closes. A line ending mid-sentence counts as whole here, which is
+// why a cut can take a wrapped line's share of the sentence it carries.
 func sentences(prose string) []string {
 	var out []string
 	start := 0

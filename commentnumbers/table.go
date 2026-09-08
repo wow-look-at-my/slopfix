@@ -41,8 +41,8 @@ type xmlPattern struct {
 	re *regexp.Regexp
 }
 
-// table is the parsed table, read at startup so a malformed entry fails the
-// binary rather than a file it was pointed at.
+// table is read at startup, so a malformed entry fails the binary rather than a
+// file.
 var table = load()
 
 // load parses the embedded table and compiles every pattern.

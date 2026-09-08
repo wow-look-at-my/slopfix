@@ -35,7 +35,7 @@ func TestATableEntryKeepsTheSentence(t *testing.T) {
 }
 
 // A number no entry covers is not guessed at. The sentence goes, and the caller
-// is told which one.
+// is told which sentence went.
 func TestANumberNoEntryCoversCutsItsSentence(t *testing.T) {
 	repair := commentnumbers.Fix("x.go", "// It is padded. Each shard is padded to 128 bytes.\nvar x int\n")
 	assert.Equal(t, "// It is padded.\nvar x int\n", repair.Text)
@@ -74,8 +74,8 @@ func TestAGeneratedFileIsLeftAlone(t *testing.T) {
 	assert.Equal(t, src, repair.Text)
 }
 
-// A directive addresses a tool rather than a reader, so the repair does not
-// rewrite one.
+// A directive addresses a tool rather than a reader, so the repair leaves it
+// alone.
 func TestADirectiveIsNotRewritten(t *testing.T) {
 	src := "//go:build one\n\n// It reserves one slot.\npackage p\n"
 	repair := commentnumbers.Fix("x.go", src)
