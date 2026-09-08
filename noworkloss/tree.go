@@ -14,8 +14,9 @@ import (
 
 // guardedRoots are the directories whose content this hook protects: the
 // repository the session works in, and the project directory the CLI names.
-// Both are used because they disagree in the two shapes that occur -- a session
-// rooted directly on one repository, and one rooted on a parent holding several.
+// Both are used because they disagree in the shapes that occur -- a session
+// rooted directly on a repository, and a session rooted on a parent holding
+// several.
 func guardedRoots(cwd string) []string {
 	var roots []string
 	add := func(p string) {
@@ -58,8 +59,8 @@ func repoRoot(dir string) string {
 }
 
 // buildOutputDirs name the directories a build, a package manager or a tool
-// cache owns. A path under one of them is writable by anything: nobody reviews
-// a compiled artifact, and requiring Edit for one would deny every build.
+// cache owns. A path under such a directory is writable by anything: nobody
+// reviews a compiled artifact, and requiring Edit there would deny every build.
 // The allowance is scoped to these directories and never to the commands that
 // write them, so `sed -i` into node_modules passes and `npm` into src does not.
 var buildOutputDirs = set.Of[string]("build", "dist", "target", "out",
@@ -102,7 +103,7 @@ func insideGuarded(roots []string, abs string) (string, bool) {
 // coversGuarded is insideGuarded's other direction: a write whose target is a
 // directory rather than a named file -- an extraction, a patch, a git verb --
 // lands somewhere under that directory, so a guarded root sitting inside it is
-// just as reachable as one containing it.
+// just as reachable as a root containing it.
 func coversGuarded(roots []string, dir string) (string, bool) {
 	if root, ok := insideGuarded(roots, dir); ok {
 		return root, true

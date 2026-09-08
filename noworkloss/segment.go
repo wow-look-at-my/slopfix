@@ -22,14 +22,15 @@ type redirTarget struct {
 	// fd is the descriptor the redirect rebinds, as written. An empty value is
 	// the default for the operator, which for every output form is stdout.
 	// `2> log` rebinds stderr and puts no file the tree holds at risk, so the
-	// destruction half has to be able to tell the two apart.
+	// destruction half has to be able to tell the descriptors apart.
 	fd   string
 	file word
 }
 
 // touchesStdout reports whether a redirect points stdout at its target. `&>`
 // and `&>>` carry both streams whatever descriptor is written in front of
-// them; everything else is stdout only when it names fd 1 or names none.
+// them; everything else is stdout only when it names the stdout descriptor or
+// names none.
 func touchesStdout(r redirTarget) bool {
 	if r.op == syntax.RdrAll || r.op == syntax.AppAll {
 		return true
@@ -38,12 +39,12 @@ func touchesStdout(r redirTarget) bool {
 }
 
 // redirLabel names a redirect the way the reader wrote it, so a message about
-// `2> log` never quotes it back as `> log`.
+// a stderr redirect never quotes it back as a stdout redirect.
 func redirLabel(r redirTarget, op string) string {
 	return r.fd + op + " " + r.file.text
 }
 
-// One executable unit: an argv with the directory it runs in, plus the redirects
+// An executable unit: an argv with the directory it runs in, plus the redirects
 // attached to it.
 type segment struct {
 	argv   []word
@@ -98,7 +99,7 @@ type walker struct {
 	// the caller's scope, so none of them raises it.
 	fileDepth int
 	piped     bool
-	// vars holds every variable this hook has proven holds one static value,
+	// vars holds every variable this hook has proven holds a static value,
 	// built up in execution order as the walk reaches each safe assignment.
 	// unsafeVars names what must never enter it; varsDisabled turns the
 	// whole feature off when some command in the tree could mutate a
@@ -108,7 +109,7 @@ type walker struct {
 	multiVars    map[string]bool
 	varsDisabled bool
 	// scopeOK marks a scope whose whole program text this walk has read, which
-	// is what makes "assigned exactly once" a fact rather than a guess. The
+	// is what makes "assigned a single time" a fact rather than a guess. The
 	// top-level command qualifies, and so does a script file run as a NEW
 	// shell: its variables are its own. A sourced file, an alias body and a
 	// `sh -c` string all borrow the caller's scope, so they get none of it.
@@ -151,7 +152,7 @@ type blocker struct {
 	fromScript bool
 }
 
-// block records one, stamping where it was found in the same place every
+// block records a blocker, stamping where it was found in the same place every
 // other origin question is answered, so a site added later cannot forget.
 func (w *walker) block(text string) {
 	w.blockers = append(w.blockers, blocker{text: text, fromScript: w.fileDepth > 0})
@@ -198,7 +199,7 @@ func (w *walker) stmt(st *syntax.Stmt, cwd *string) {
 }
 
 // command dispatches on node type. The cwd pointer is shared only where the
-// shell itself shares one: `&&`, `||`, `;` and a brace block run in the current
+// shell itself shares it: `&&`, `||`, `;` and a brace block run in the current
 // shell, so a cd carries forward. A pipe stage, a subshell and a conditional
 // body each get a copy. A background `&` changes nothing here -- the writes it
 // performs are the same writes, so its segments are walked like any other.
@@ -258,7 +259,7 @@ func (w *walker) command(c syntax.Command, cwd *string, rs []redirTarget, stdin 
 		}
 	case *syntax.FuncDecl:
 		// A function body executes when the function is called, and this hook
-		// cannot know whether that happens in this command or a later one. Its
+		// cannot know whether that happens in this command or a later call. Its
 		// writes are walked either way.
 		if x.Body != nil {
 			local := *cwd
@@ -311,7 +312,7 @@ func (w *walker) call(c *syntax.CallExpr, cwd *string, rs []redirTarget, stdin b
 		if pureAssign && w.scopeOK && !w.varsDisabled && a.Name != nil && a.Value != nil {
 			switch {
 			case w.multiVars[a.Name.Value]:
-				// Two assignments, so no one reading can be pinned at all.
+				// Several assignments, so no reading can be pinned at all.
 			case !w.unsafeVars[a.Name.Value]:
 				if v := w.resolve(a.Value); v.static {
 					w.vars[a.Name.Value] = v
@@ -319,7 +320,7 @@ func (w *walker) call(c *syntax.CallExpr, cwd *string, rs []redirTarget, stdin b
 					w.vars[a.Name.Value] = v
 				}
 			default:
-				// Assigned once, where it might not run: the value is unknown,
+				// A lone assignment that might not run: the value is unknown,
 				// but a mktemp path's directory is the same either way.
 				if v, ok := mktempPath(a.Value); ok {
 					w.vars[a.Name.Value] = v
@@ -336,7 +337,7 @@ func (w *walker) call(c *syntax.CallExpr, cwd *string, rs []redirTarget, stdin b
 		w.bare(rs, *cwd)
 		return
 	}
-	// An `env VAR=VAL` prefix carries the same relocation as a bare one.
+	// An `env VAR=VAL` prefix carries the same relocation as a bare prefix.
 	for _, a := range argv {
 		if i := strings.Index(a.text, "="); i > 0 && repoRelocatingEnv.Contains(a.text[:i]) {
 			relocated = true
@@ -365,7 +366,7 @@ func (w *walker) call(c *syntax.CallExpr, cwd *string, rs []redirTarget, stdin b
 
 // expand follows the indirections whose text this hook can still read: an alias
 // or a `sh -c` string is shell source, and a shell script file is a file of it.
-// Following them is what stops `bash ./write.sh` from being a one-word bypass of
+// Following them is what stops `bash ./write.sh` from being a trivial bypass of
 // every rule below. It reports true when the call was consumed by the walk.
 func (w *walker) expand(name string, eff []word, cwd string) bool {
 	switch {
@@ -439,7 +440,7 @@ func shellNoExec(eff []word) bool {
 }
 
 // script parses shell source found inside the command and folds its segments
-// into the same walk, so a write two levels down is judged like a write at top
+// into the same walk, so a deeply nested write is judged like a write at top
 // level.
 // self names the file a fresh shell was started from, and is empty for text
 // that runs in the caller's own scope.
@@ -455,7 +456,7 @@ func (w *walker) script(src, cwd, what, self string) {
 	}
 	w.scriptDepth++
 	if self != "" {
-		// The depth rises only once the file's text is in hand. A blocker
+		// The depth rises only after the file's text is in hand. A blocker
 		// about THIS file -- it does not parse, it nests too deep -- describes
 		// the command that named it, and stamping it as the program's own
 		// business would reopen the write-elsewhere-then-run bypass.
@@ -472,7 +473,7 @@ func (w *walker) script(src, cwd, what, self string) {
 }
 
 // scriptFile follows a shell script on disk. A script that does not exist writes
-// nothing, so it is left alone; one that exists and cannot be read or parsed is
+// nothing, so it is left alone; a script that exists and cannot be read or parsed is
 // the write-elsewhere-then-run bypass and denies.
 // fresh marks a script started as a new shell, whose variables are entirely
 // its own text; a sourced file shares the caller's scope and passes false.
@@ -504,7 +505,7 @@ func (w *walker) scriptFile(f word, cwd string, fresh bool) {
 		self = path
 	}
 	// Only a NEW shell counts as a program of its own, and script raises the
-	// depth once it has the text. A sourced file runs in the caller's scope
+	// depth after it has the text. A sourced file runs in the caller's scope
 	// and its text is the caller's text, so it stays judged exactly like the
 	// command that named it.
 	w.script(string(src), cwd, "the script "+f.text, self)
@@ -512,7 +513,7 @@ func (w *walker) scriptFile(f word, cwd string, fresh bool) {
 
 // findExec lifts the utility out of `find ... -exec <argv> ;` and walks it as a
 // call of its own. Without this, `find . -name '*.go' -exec sed -i s/a/b/ {} +`
-// reads as one invocation of a program called find.
+// reads as a single invocation of a program called find.
 func (w *walker) findExec(eff []word, cwd string) {
 	for i := 1; i < len(eff); i++ {
 		t := eff[i].text
@@ -553,7 +554,7 @@ func (w *walker) emit(argv []word, cwd string) {
 }
 
 // A command substitution runs its own shell, so its cd is contained, but the
-// command inside is every bit as able to write as one at top level.
+// command inside is every bit as able to write as a command at top level.
 func (w *walker) scanSubst(wd *syntax.Word, cwd string) {
 	if wd == nil || w.full() || w.depth > maxWalkDepth {
 		return

@@ -6,10 +6,11 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// sed and awk are the two filters that can write a file without being told to on
+// sed and awk are the filters that can write a file without being told to on
 // the argv: sed's `w` command and awk's `print >` both name their target inside
-// the program text. Reading the program is what separates a filter (`awk '$1 >
-// 5'` writes nothing) from a writer, so neither is denied for its name alone.
+// the program text. Reading the program is what separates a filter (a bare
+// comparison writes nothing) from a writer, so neither is denied for its name
+// alone.
 
 func sedWrites(seg segment, rest []word) []write {
 	valueFlags := set.Of[string]("-e", "--expression", "-f", "--file", "-l", "--line-length")
@@ -26,7 +27,7 @@ func sedWrites(seg segment, rest []word) []write {
 			continue
 		}
 		// `-i`, `-i.bak` and a cluster like `-ri` all mean in-place. A cluster
-		// ends at the first letter that takes a value, because everything after
+		// ends at the earliest letter that takes a value, because everything after
 		// it is that value.
 		for _, c := range t[1:] {
 			if c == 'i' {
@@ -63,7 +64,7 @@ func sedWrites(seg segment, rest []word) []write {
 }
 
 // sedScriptAndFiles separates the program from the files. Without -e or -f the
-// first operand is the program, which is what keeps `sed s/a/b/ f` from reading
+// leading operand is the program, which is what keeps `sed s/a/b/ f` from reading
 // its own script as a path.
 func sedScriptAndFiles(flags map[string]word, operands []word) (scripts, files []word) {
 	explicit := false
@@ -86,7 +87,7 @@ func sedScriptAndFiles(flags map[string]word, operands []word) (scripts, files [
 }
 
 // sedScriptTargets finds the files a sed program writes with `w`, `W` or the `w`
-// flag on an s command. An empty filename after one of those is a program this
+// flag on an s command. An empty filename after such a command is a program this
 // hook cannot read, which the caller turns into a denial.
 func sedScriptTargets(script string) (targets []string, unresolvable bool) {
 	for _, piece := range splitSedCommands(script) {
@@ -159,7 +160,7 @@ func sCommandWriteTarget(body string) (name string, resolved, found bool) {
 
 // splitSedCommands breaks a program at the separators sed itself uses. A `w`
 // filename runs to the end of its line, so a newline is the only separator that
-// can follow one.
+// can follow such a filename.
 func splitSedCommands(script string) []string {
 	var out []string
 	for _, line := range strings.Split(script, "\n") {
@@ -254,7 +255,7 @@ func awkWrites(seg segment, rest []word) []write {
 
 // awkRedirectTargets finds the files an awk program writes. In awk's grammar an
 // unparenthesised `>` after print or printf is a redirect, and anywhere else it
-// is a comparison -- which is why `awk '$1 > 5'` is not a writer and
+// is a comparison -- which is why `awk '$a > $b'` is not a writer and
 // `awk '{print > "f"}'` is.
 func awkRedirectTargets(prog string) (targets []string, unresolvable bool) {
 	printSeen := false

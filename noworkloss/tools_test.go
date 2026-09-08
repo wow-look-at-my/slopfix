@@ -10,7 +10,7 @@ import (
 
 // The routes that are not Bash at all. Each keeps the same pair as the shell
 // cases: the call that must be refused, and the neighbouring call that must
-// still work, so a rule that denied the whole tool would fail the second half.
+// still work, so a rule that denied the whole tool would fail the control.
 
 func TestTheEditToolsThemselvesAreLeftAlone(t *testing.T) {
 	root := newTree(t)
@@ -23,7 +23,7 @@ func TestTheEditToolsThemselvesAreLeftAlone(t *testing.T) {
 		"Write is how a new file is created")
 }
 
-// Write authors a whole file, so aiming it at one that already exists replaces
+// Write authors a whole file, so aiming it at a path that already exists replaces
 // content nobody reviewed the loss of.
 func TestWriteOverAnExistingFileIsRefused(t *testing.T) {
 	root := newTree(t)
@@ -71,7 +71,7 @@ func TestAConfigSkillCannotReGrantWhatIsDenied(t *testing.T) {
 }
 
 // Delegating is fine. Handing the child something the parent does not have is
-// the one-call bypass of everything else in this plugin.
+// the single-call bypass of everything else in this plugin.
 func TestASubagentCannotBeHandedAWiderGrant(t *testing.T) {
 	root := newTree(t)
 	widened := []map[string]any{

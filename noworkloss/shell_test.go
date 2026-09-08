@@ -82,7 +82,7 @@ func TestCdScopeFollowsTheShell(t *testing.T) {
 
 	// A cd inside a subshell does not move the commands after it. Asked of the
 	// destruction half, because the provenance half refuses a hard reset in
-	// either repository and would not tell the two cases apart.
+	// either repository and would not tell the cases apart.
 	assert.Empty(t, lossOnly(t, clean, "(cd "+dir+" && git status) && git reset --hard"),
 		"the cd was contained in the subshell, so the reset ran in the clean repo")
 
@@ -104,7 +104,7 @@ func TestRelativeAndAbsoluteCdBothResolve(t *testing.T) {
 }
 
 // `cd -` goes wherever the shell was last, which this hook cannot know, so a
-// destructive command after one is refused rather than guessed at.
+// destructive command behind it is refused rather than guessed at.
 func TestCdDashIsUnknowable(t *testing.T) {
 	dir := newRepo(t)
 	r := ask(t, dir, "cd - && git reset --hard")
@@ -112,8 +112,8 @@ func TestCdDashIsUnknowable(t *testing.T) {
 	assert.Contains(t, r, "cannot tell")
 }
 
-// newRepoAt builds a second, clean repository without re-pointing HOME, so a
-// test can hold two repositories at once.
+// newRepoAt builds another clean repository without re-pointing HOME, so a
+// test can hold several repositories together.
 func newRepoAt(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
