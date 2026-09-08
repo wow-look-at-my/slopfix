@@ -98,7 +98,6 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	// The commit lands on the CURRENT BRANCH, where the log, the diff and the next push all show it.
 	if _, _, err := runGit(root, "update-ref", "HEAD", commit); err != nil {
 		// The commit object exists but nothing names it, so git gc can reap
-		// it. That is not durable preservation, so this must not read as such.
 		return nil, false
 	}
 	// The branch moved under the real index, which would then report a STAGED
@@ -120,8 +119,6 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 // stagedTree builds a tree holding HEAD's content except at the at-risk paths, which take the USER'S index.
 func stagedTree(root string, env, paths []string, hasHead bool) string {
 	// Ask up front, in a single call, which at-risk paths have anything staged,
-	// so the ordinary tree pays nothing. A repository with no HEAD has no tree
-	// to differ from.
 	if !hasHead {
 		return ""
 	}
@@ -154,7 +151,6 @@ func stagedTree(root string, env, paths []string, hasHead bool) string {
 		fields := strings.Fields(meta)
 		if len(fields) != 3 || fields[2] != "0" {
 			// A non-default stage is an unresolved merge conflict. Its entries do
-			// not make a tree, and a conflicted path is not a state a commit
 			continue
 		}
 		info := fields[0] + "," + fields[1] + "," + path

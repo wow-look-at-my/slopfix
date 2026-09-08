@@ -169,7 +169,6 @@ func (c *varScan) command(cmd syntax.Command, risky bool) {
 		if wi, ok := x.Loop.(*syntax.WordIter); ok {
 			if wi.Name != nil {
 				// The loop variable is bound to a new value on every
-				// iteration, so no single value survives past the loop.
 				c.record(wi.Name.Value, true)
 			}
 			for _, it := range wi.Items {

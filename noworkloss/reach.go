@@ -47,8 +47,6 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 
 	case reachOrphans:
 		// --no-reflogs is the whole point: without it fsck treats a commit the
-		// reflog still names as reachable, which is exactly the commit that
-		// expiring the reflog would strand.
 		out, _, e := runGit(st.root, "fsck", "--unreachable", "--no-reflogs", "--no-progress")
 		if out == "" && e != nil {
 			return false, "", e
@@ -94,7 +92,6 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 	if e != nil || sha == "" {
 		if viaPush {
 			// No local mirror means no record of what the push overwrites, and
-			// absence of evidence is not evidence the remote is empty.
 			return false, "", errNoRemoteRef
 		}
 		// A local ref that does not exist has nothing to destroy; git will

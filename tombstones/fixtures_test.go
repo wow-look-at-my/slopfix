@@ -8,9 +8,6 @@ import (
 )
 
 // Specimens caught in the wild rather than written for the test. Each pairs
-// with the text that replaced it, so the control proves the rule accepts the
-// repair as well as rejecting the original. An invented tombstone only proves
-// the rule matches what its author had in mind.
 
 // A purge comment in a setup script, beside the code removing a hook
 const purgeNarration = `# fix-what-you-found.ts moved from Stop to MessageDisplay: a Stop hook runs

@@ -166,8 +166,6 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 
 	case "ln":
 		// A symlink replaces the path it is created at, so the link name is the
-		// write -- pointing a tracked path at writable storage changes what the
-		// tree holds without any tool seeing it.
 		flags, operands := scanArgs(rest, set.Of[string]("-t", "--target-directory"))
 		if v, ok := flags["-t"]; ok {
 			return under("ln -t", abs(seg.cwd, v.text))
@@ -188,7 +186,6 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 
 	case "patch":
 		// The files a patch touches are named inside the patch, not on the argv,
-		// so the write lands somewhere under the directory patch runs in.
 		flags, _ := scanArgs(rest, set.Of[string]("-o", "--output", "-d", "--directory", "-i", "--input", "-p", "--strip", "-B", "-D", "-r", "-z"))
 		if v, ok := flags["-o"]; ok {
 			return one("patch -o", v)

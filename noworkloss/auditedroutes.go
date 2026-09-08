@@ -28,8 +28,6 @@ func auditedWrites(seg segment, name string, rest []word) ([]write, bool) {
 
 	case "split", "csplit":
 		// Output lands beside the prefix, or in the working directory when there
-		// is no prefix, under names the command generates rather than names it
-		// is given.
 		_, operands := scanArgs(rest, set.Of[string]("-b", "-l", "-n", "-a", "-C", "--suffix-length", "--additional-suffix"))
 		dir := seg.cwd
 		if len(operands) > 1 {
@@ -39,7 +37,6 @@ func auditedWrites(seg segment, name string, rest []word) ([]write, bool) {
 
 	case "gzip", "gunzip", "bzip2", "bunzip2", "xz", "unxz", "zstd", "unzstd", "compress":
 		// These replace the file they are given with a compressed or expanded
-		// sibling, unless they are told to write to stdout instead.
 		flags, operands := scanArgs(rest, set.Of[string]("-S", "--suffix", "-T", "--threads"))
 		for _, f := range []string{"-c", "--stdout", "--to-stdout"} {
 			if _, ok := flags[f]; ok {
@@ -59,8 +56,7 @@ func auditedWrites(seg segment, name string, rest []word) ([]write, bool) {
 		return one("zip", operands[0])
 
 	case "docker", "podman":
-		// `docker cp container:/path ./local` puts a container's bytes in the
-		// tree. Every other docker subcommand writes nothing here.
+		// `docker cp container:/path./local` puts a container's bytes in the tree.
 		_, operands := scanArgs(rest, noFlags)
 		if len(operands) < 3 || operands[0].text != "cp" {
 			return nil, true

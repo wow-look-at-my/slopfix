@@ -365,7 +365,6 @@ func (w *walker) expand(name string, eff []word, cwd string) bool {
 
 func (w *walker) shellCall(eff []word, cwd string) bool {
 	// `bash -n script.sh` parses and never runs, so nothing it names is written.
-	// Following it anyway denied a syntax check over any script that writes.
 	if shellNoExec(eff) {
 		return true
 	}
@@ -421,7 +420,6 @@ func (w *walker) script(src, cwd, what, self string) {
 	w.scriptDepth++
 	if self != "" {
 		// The depth rises only after the file's text is in hand: a blocker
-		// about THIS file describes the command that named it.
 		w.fileDepth++
 		defer func() { w.fileDepth-- }()
 		defer w.enterScope(f.Stmts, self)()
@@ -540,4 +538,3 @@ func (w *walker) scanSubst(wd *syntax.Word, cwd string) {
 }
 
 // The word, wrapper and path vocabulary this walk is built on lives in
-// shellwords.go.

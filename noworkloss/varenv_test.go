@@ -12,7 +12,6 @@ import (
 // ---------------------------------------------------------------------------
 // Resolving a variable this hook can prove holds a literal value.
 // newRepo, modify, denied and allowed live in guard_test.go.
-// ---------------------------------------------------------------------------
 
 // The reported incident: literal assignments feed a redirect target outside
 // any repository, which the repo-scoping allows.

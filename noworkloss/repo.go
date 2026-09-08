@@ -200,7 +200,6 @@ func (st *repoState) atRisk(f *finding, cwd string) (tracked, untracked, ignored
 func coversPath(root, cwd string, operand word, entry string) bool {
 	if !operand.static {
 		// An unknown operand denies outright in the command text. Inside a
-		// script file it is the program's own behaviour and reaches here, where
 		return false
 	}
 	abs := operand.text

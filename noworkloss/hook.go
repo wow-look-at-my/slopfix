@@ -70,7 +70,6 @@ func Run(r io.Reader) Result {
 	raw, err := io.ReadAll(r)
 	if err != nil {
 		// Reading the payload failed, so nothing is known about the call and
-		// there is no reason to attach to a decision.
 		return Result{}
 	}
 	reason, notices := decide(raw)
@@ -88,7 +87,6 @@ func Run(r io.Reader) Result {
 func evaluateLoss(command, cwd string) (reason string, notices []string) {
 	// A cheap byte scan leads: the overwhelming majority of Bash calls name no verb
 	// that can delete anything, and those must not pay for a parse or a
-	// subprocess.
 	if command == "" || !mayDestroy(command) {
 		return "", nil
 	}

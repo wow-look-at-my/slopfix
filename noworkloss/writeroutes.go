@@ -40,7 +40,6 @@ func decide(raw []byte) (reason string, notices []string) {
 	switch {
 	case in.ToolName == "Bash":
 		// Destruction is asked ahead of provenance: where both object, losing
-		// the edits is the more urgent fact.
 		reason, notices = evaluateLoss(ti.Command, in.Cwd)
 		if reason != "" {
 			return reason, nil

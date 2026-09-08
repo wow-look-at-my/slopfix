@@ -46,7 +46,6 @@ func sedWrites(seg segment, rest []word) []write {
 		out = append(out, write{route: "sed -i", paths: files, dir: seg.cwd})
 	case inPlace:
 		// `ls | xargs sed -i s/a/b/` names no file at all: the paths arrive at
-		// runtime, so which files it rewrites is not in the command text.
 		out = append(out, write{route: "sed -i", opaque: "an in-place sed whose files are supplied at runtime rather than named in the command"})
 	}
 	for _, s := range scripts {

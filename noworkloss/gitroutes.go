@@ -9,11 +9,6 @@ import (
 // git is a legitimate thing for Bash to run, and most of it stays out of this
 // hook's way: status, log, diff, add, commit, push, fetch, branch, tag, and
 // creating or switching a branch all leave file content to the edit tools.
-//
-// What is closed is git used as an editor -- a verb that puts content into the
-// working tree or the index without any tool call showing it -- and the plumbing
-// that skips the worktree entirely by writing a blob and pointing the index at
-// it.
 
 // worktreeVerbs put committed content into the tree.
 //
@@ -135,17 +130,14 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 		return dashDash || len(operands) > 1 || namesExistingPath(dir, operands)
 	case "restore":
 		// --staged alone moves the index back to HEAD and leaves the file on
-		// disk untouched; anything else rewrites the file.
 		return !has("--staged") || has("--worktree", "-W")
 	case "stash":
 		return len(operands) > 0 && (operands[0].text == "pop" || operands[0].text == "apply")
 	case "reset":
 		// A soft or mixed reset moves refs and the index; only the flags below
-		// rewrite the files on disk.
 		return has("--hard", "--merge", "--keep")
 	case "update-ref":
 		// Setting a ref is the last step of the plumbing route, so it introduces
-		// content. Deleting a ref introduces none.
 		return !has("-d", "--delete")
 	}
 	return true

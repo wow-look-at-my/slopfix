@@ -134,8 +134,6 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
 	// A run with nothing after it documents nothing. The package doc is the
-	// exemption, and it is taken before this, so what is left is prose trailing
-	// off the end of a file with no construct to weigh it against.
 	if next >= count {
 		b.documents = "nothing"
 		return b, true
@@ -148,17 +146,7 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 }
 
 // firstStatement descends through a bare sequence to the construct a comment
-// actually documents.
-//
-// A grammar can group everything left in a block into a single node. Weighing a
-// comment against that node measures the rest of the block, so a note over a
-// lone statement reads as proportionate to lines it does not describe.
-//
-// A bare sequence is recognised without naming a language, by two properties it
-// has and a construct does not. It opens on its first child, where a construct
-// opens on a keyword or a brace of its own. And its children each begin on a
-// line of their own, where the parts of one statement share lines. The descent
-// stops unless it saves lines, so a statement spread over several stays whole.
+// documents.
 func firstStatement(node ts.Node) ts.Node {
 	for !node.IsNull() && isSequence(node) {
 		node = node.NamedChild(0)
@@ -186,10 +174,6 @@ func isSequence(node ts.Node) bool {
 }
 
 // afterComments advances past a comment run the pairing must not measure.
-//
-// A blank line ends a run, so the node after it can be more prose. Measuring a
-// comment against a comment gives no code at all, and the block is then dropped
-// with nothing said about it.
 func afterComments(node ts.Node, next, count uint32) uint32 {
 	for next < count && isComment(node.NamedChild(next)) {
 		next++

@@ -49,7 +49,6 @@ func classifyFS(seg segment) []*finding {
 	case "mv":
 		// Only the destination loses content; the source's bytes survive the
 		// move. With several sources the destination is a directory, so each
-		// lands under it by basename.
 		if len(operands) < 2 {
 			return out
 		}
@@ -74,7 +73,6 @@ func classifyFS(seg segment) []*finding {
 	case "tee":
 		// tee truncates every file it is given unless appending. A sibling
 		// plugin rewrites a trailing redirect into tee, so this shape arrives
-		// without anyone typing it.
 		if flags["-a"] || flags["--append"] || len(operands) == 0 {
 			return out
 		}

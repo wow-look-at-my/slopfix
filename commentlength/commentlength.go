@@ -5,10 +5,9 @@
 // pass through the file. The rule is a proxy rather than a judgement of
 // content: length is what a machine can measure.
 //
-// It reads the source package's adapter, so it spans the C family and the hash
-// family together -- Go, C, C++, Rust, Java, JavaScript, TypeScript, Swift,
-// Kotlin, Zig, Python, Ruby, Bash, YAML and the rest of that table. Nothing
-// here is specific to a language.
+// It reads a real syntax tree, so a span is exact rather than guessed, and the
+// same code serves every grammar in treeblocks.go. Nothing here names a
+// language.
 //
 // The repair is to cut, from the end. A comment leads with its point and
 // elaborates afterwards, so the trailing paragraph is what a reader loses least
@@ -52,7 +51,6 @@ type block struct {
 	// exact is true when a parser decided this span rather than a line walk. It gates the REPAIR and nothing else.
 	exact bool
 	// documents names the node the comment was weighed against, and its span. It
-	// is diagnosis: a wrong pairing looks exactly like a wrong measure otherwise.
 	documents string
 }
 
@@ -114,7 +112,6 @@ func Fix(filename, src string) (string, bool) {
 func judge(b block) (string, bool) {
 	lines, chars := measure(prose(b.text))
 	// Nothing to weigh against. The package doc is exempt before this, so a run
-	// left here trails off the end of a file and documents no construct at all.
 	if b.codeLines == 0 {
 		if lines == 0 {
 			return "", false

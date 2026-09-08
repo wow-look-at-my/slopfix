@@ -113,7 +113,6 @@ func namesAScript(rest []word) bool {
 
 func editorWrites(seg segment, name string, rest []word) []write {
 	// -s is silent/script mode for ed, ex and vim and takes no value; reading it
-	// as a value flag swallows the file operand and the write disappears.
 	valueFlags := set.Of[string]("-c", "--command", "--eval", "-u", "-i", "--load")
 	flags, operands := scanArgs(rest, valueFlags)
 	if len(operands) > 0 {

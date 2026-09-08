@@ -262,7 +262,6 @@ func classifyGit(seg segment) *finding {
 			"   # refuses if the remote moved since you last fetched"
 		if deleting {
 			// A deletion pushes nothing, so there is no source that could make
-			// the old tip a fast-forward.
 			src = ""
 			if len(g.operands) > 1 {
 				remote, dst = g.operands[0].text, g.operands[len(g.operands)-1].text

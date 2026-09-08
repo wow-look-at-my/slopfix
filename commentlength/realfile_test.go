@@ -76,7 +76,6 @@ func TestTheRuleReportsWhatCommentspanReports(t *testing.T) {
 }
 
 // reportPath names the file the diagnostic lands in. The build prints thousands
-// of lines, so a finding written among them is a finding nobody reads.
 const reportPath = "parity-report.txt"
 
 func writeReport(t *testing.T, body string) {
