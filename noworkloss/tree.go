@@ -14,9 +14,8 @@ import (
 
 // guardedRoots are the directories whose content this hook protects: the
 // repository the session works in, and the project directory the CLI names.
-// Both are used because they disagree in the shapes that occur -- a session
-// rooted directly on a repository, and a session rooted on a parent holding
-// several.
+// Both are used because they disagree when a session is rooted on a parent
+// directory rather than on a repository.
 func guardedRoots(cwd string) []string {
 	var roots []string
 	add := func(p string) {
@@ -58,11 +57,8 @@ func repoRoot(dir string) string {
 	}
 }
 
-// buildOutputDirs name the directories a build, a package manager or a tool
-// cache owns. A path under such a directory is writable by anything: nobody
-// reviews a compiled artifact, and requiring Edit there would deny every build.
-// The allowance is scoped to these directories and never to the commands that
-// write them, so `sed -i` into node_modules passes and `npm` into src does not.
+// buildOutputDirs name the directories a build or a package manager owns. The
+// allowance is scoped to the directory, never to the command that writes it.
 var buildOutputDirs = set.Of[string]("build", "dist", "target", "out",
 	"node_modules", "vendor", "coverage",
 	".cache", ".venv", "venv", "__pycache__",
@@ -71,9 +67,7 @@ var buildOutputDirs = set.Of[string]("build", "dist", "target", "out",
 
 // protectedConfig names the live settings a session must not rewrite. These sit
 // outside every guarded root, so the path rules never reach them: re-granting
-// what this hook denies is its own route, closed on its own terms.
-// The repository's own plugin sources are not this -- editing
-// `plugins/x/.claude-plugin/plugin.json` is ordinary work on source code.
+// what this hook denies is its own route. A repository's plugin sources are not.
 func isProtectedConfig(abs string) bool {
 	abs = filepath.Clean(abs)
 	base := filepath.Base(abs)

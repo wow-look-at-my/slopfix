@@ -9,13 +9,10 @@ import (
 	"time"
 )
 
-// A hook runs in front of every Bash call, so a hung git costs the session
-// directly. This budget is far past a normal status on any real tree; past
-// it the answer is unknown, and unknown denies.
+// A hung git costs the session directly, and past this budget unknown denies.
 const gitTimeout = 3 * time.Second
 
-// A push reaches the network, which routine status checks never do. It gets
-// more room, but still bounded: a hung push must not hang the whole hook.
+// A push reaches the network, so it gets more room, but stays bounded.
 const preservePushTimeout = 8 * time.Second
 
 var (
@@ -36,8 +33,7 @@ type repoState struct {
 	stashLoaded   bool
 }
 
-// repoCache keeps a single probe per directory per hook invocation. A chain
-// like `git checkout master && git reset --hard` must not pay for status again.
+// repoCache keeps a single probe per directory per hook invocation, so a chain never pays for status again.
 type repoCache struct{ m map[string]*repoState }
 
 func newRepoCache() *repoCache { return &repoCache{m: map[string]*repoState{}} }
@@ -73,9 +69,7 @@ func probeDir(dir string) *repoState {
 	}
 
 	// -uall matters: the default collapses an untracked directory to its name,
-	// so `rm internal/config/env.go` would find no entry called that and read
-	// as safe. Ignored files stay out of this listing, which is what keeps a
-	// gitignored build artifact deletable.
+	// so a nested path finds no entry and reads as safe.
 	out, _, err := runGit(st.root, "status", "--porcelain", "-z", "--untracked-files=all")
 	if err != nil {
 		st.err = err
@@ -226,9 +220,8 @@ func coversPath(root, cwd string, operand word, entry string) bool {
 	if rel == "." {
 		return true
 	}
-	// Containment counts in both directions: the operand may be a directory
-	// holding the entry, or -- where git still reports a collapsed directory --
-	// the entry may be the directory holding the operand.
+	// Containment counts in both directions, since git can report a collapsed
+	// directory as the entry.
 	return rel == entry ||
 		strings.HasPrefix(entry, rel+"/") ||
 		strings.HasPrefix(rel, entry+"/")

@@ -67,12 +67,9 @@ func interpreterWrites(seg segment, name string, rest []word, roots []string) ([
 			return []write{{route: name + " -", opaque: "a " + name + " script read from stdin, which is not in the command text"}}, true
 		}
 	}
-	// A pipe or a `< file` redirect only carries a SCRIPT when the interpreter was
-	// given nothing else to run. `printf '{...}' | node hook.ts` hands the program
-	// its input, and hook.ts is right there in the command text -- denying that
-	// stops a hook being tested with the payload it will really receive, which is
-	// how this fired on ordinary work. The stdin markers above still deny, so
-	// `cat evil.js | node -` and `node /dev/stdin` are unaffected.
+	// A pipe or a `< file` redirect only carries a SCRIPT when the interpreter
+	// was given nothing else to run: a named script means stdin is its input.
+	// The stdin markers above still deny.
 	if seg.stdinScript && !namesAScript(rest) {
 		return []write{{route: name + " (stdin)", opaque: "a " + name + " script piped in on stdin, which is not in the command text"}}, true
 	}
@@ -106,8 +103,7 @@ func scratchScriptWrites(seg segment, name string, rest []word, roots []string) 
 }
 
 // namesAScript reports whether the invocation already carries a file for the
-// interpreter to run. A stdin marker is an operand that names stdin, not a
-// script, so `node -` still reads as a program arriving on the pipe.
+// interpreter to run. A stdin marker names stdin rather than a script.
 func namesAScript(rest []word) bool {
 	shared := make([]shellwalk.Word, len(rest))
 	for i, a := range rest {
@@ -139,15 +135,9 @@ func editorWrites(seg segment, name string, rest []word) []write {
 }
 
 // isSessionScratchpad recognises the directory the harness ITSELF tells a
-// session to use for temporary files. Its system prompt says to put every temp
-// file there instead of /tmp, so denying the scripts written there refuses the
-// documented workflow: the file arrives through Write, is visible in the
-// transcript, and there is nowhere else the instruction allows.
-//
-// The shape is <tmp>/claude-<n>/<slug>/<session-id>/scratchpad/... -- a
-// "scratchpad" segment under an ancestor named claude or claude-<something>.
-// Both halves are required, so an ordinary /tmp/scratchpad or a stray
-// claude-notes/ directory is still a scratch path.
+// session to use for temporary files, so denying the scripts written there
+// would refuse the documented workflow. It needs a "scratchpad" segment under
+// an ancestor named claude, so an ordinary /tmp/scratchpad does not qualify.
 func isSessionScratchpad(p string) bool {
 	if p == "" || !isScratchPath(p) {
 		return false
@@ -190,15 +180,9 @@ func stripVersion(name string) string {
 	return strings.ToLower(trimmed)
 }
 
-// allowedFormatter is the explicit decision about the tools that rewrite files
-// by design. Every tool below writes only a canonical reformat, or a regeneration
-// the repository owns, of the file it is handed -- none can be pointed at
-// content the model authored, which is what separates them from `sed -i`.
-//
-// A tool that is NOT on this list does not become allowed by being a formatter:
-// an unrecognised in-place rewrite denies (see inPlaceRewrite), and the way to
-// run it is through a named recipe -- `just fmt`, `make fmt`, `npm run format`
-// -- which is a reviewable line in the repository rather than an argv.
+// allowedFormatter names the tools that rewrite files by design. Every tool
+// below writes only a canonical reformat, which is what separates them from
+// `sed -i`. A tool absent from the list denies, and runs through a recipe.
 func allowedFormatter(name string, rest []word) bool {
 	sub := ""
 	if len(rest) > 0 {

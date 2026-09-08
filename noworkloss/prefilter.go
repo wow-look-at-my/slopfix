@@ -2,13 +2,8 @@ package noworkloss
 
 import "strings"
 
-// mayDestroy is the cheap gate in front of everything expensive. It must never
-// return false for a command this plugin would otherwise deny, so it matches on
-// raw substrings rather than words: every reachable destructive form names git,
-// a file-removing utility, or a truncating redirect.
-//
-// False positives are fine and expected -- a descriptor duplication trips the
-// ">" needle. They cost a parse, and a parse alone never shells out to git.
+// mayDestroy is the cheap gate in front of everything expensive: it matches raw
+// substrings, and a false positive costs only a parse.
 func mayDestroy(command string) bool {
 	for _, n := range prefilterNeedles {
 		if strings.Contains(command, n) {
@@ -18,22 +13,15 @@ func mayDestroy(command string) bool {
 	return false
 }
 
-// A script's own text is invisible to a raw scan, and the walk follows a
-// script: `bash cleanup.sh` names no verb here and deletes the tree when
-// followed. So the spellings that START a script parse too, and the parse is
-// what sees the verbs inside. An extensionless `./deploy` run by its shebang
-// is the shape still missed here; the provenance half parses every command,
-// so it keeps covering the write routes in such a script.
+// A script's own text is invisible to a raw scan, so the spellings that START
+// a script parse too.
 var prefilterNeedles = []string{
 	"git", "rm", "mv", ">", "tee", "truncate",
 	"bash", "sh ", "zsh", "source", ".sh",
 }
 
 // destructiveKeyword reports whether raw text names something that can destroy
-// work, and what to call it. Only consulted when the parser has already failed
-// or the analysis panicked, so the answer decides between "deny on suspicion"
-// and "let it through". Ordered from most specific so the reason names the
-// most useful thing it found.
+// work. Only consulted when the parser failed or the analysis panicked.
 func destructiveKeyword(command string) (string, bool) {
 	for _, m := range destructiveMarkers {
 		if strings.Contains(command, m.needle) {

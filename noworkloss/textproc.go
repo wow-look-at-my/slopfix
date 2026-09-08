@@ -27,8 +27,7 @@ func sedWrites(seg segment, rest []word) []write {
 			continue
 		}
 		// `-i`, `-i.bak` and a cluster like `-ri` all mean in-place. A cluster
-		// ends at the earliest letter that takes a value, because everything after
-		// it is that value.
+		// ends at the earliest letter that takes a value.
 		for _, c := range t[1:] {
 			if c == 'i' {
 				inPlace = true

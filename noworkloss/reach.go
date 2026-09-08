@@ -5,22 +5,15 @@ import (
 	"strings"
 )
 
-// Commands that destroy refs or commits are not automatically unsafe. If the
-// commits survive somewhere else -- another branch, a tag, a remote, or simply
-// because they were already merged -- then nothing is lost and the command is
-// ordinary work. These checks answer "does this content exist anywhere else?"
-// so the deny is reserved for the case where it genuinely does not.
+// These checks ask whether the commits survive somewhere else, so a ref-destroying command denies only when they do not.
 type reachKind int
 
 const (
-	// reachRef: a ref is being deleted or overwritten. Safe when its tip is
-	// contained by some other ref.
+	// reachRef: a ref is deleted or overwritten. Safe when another ref contains its tip.
 	reachRef reachKind = iota
-	// reachPushed: history is being rewritten wholesale. Safe when everything
-	// on HEAD is already on a remote.
+	// reachPushed: history is rewritten wholesale. Safe when HEAD is on a remote.
 	reachPushed
-	// reachOrphans: the reflog is being destroyed. Safe when no commit depends
-	// on it to stay findable.
+	// reachOrphans: the reflog is destroyed. Safe when no commit needs it to stay findable.
 	reachOrphans
 	// reachWorktree: another worktree is being force-removed. Safe when that
 	// worktree has nothing uncommitted.
@@ -102,9 +95,8 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 	sha = strings.TrimSpace(sha)
 	if e != nil || sha == "" {
 		if viaPush {
-			// No local mirror of the remote branch means no local record of
-			// what the push would overwrite. Absence of evidence is not
-			// evidence the remote is empty.
+			// No local mirror means no record of what the push overwrites, and
+			// absence of evidence is not evidence the remote is empty.
 			return false, "", errNoRemoteRef
 		}
 		// A local ref that does not exist has nothing to destroy; git will
@@ -132,10 +124,8 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 		if name == "" || name == ref || contains(r.ignore, name) {
 			continue
 		}
-		// refs/remotes/<remote>/HEAD is a symbolic alias for the branch being
-		// overwritten, so it is the same ref wearing another name -- counting
-		// it as "somewhere else" is what made an early version of this check
-		// report every force push as safe.
+		// A remote HEAD is a symbolic alias for the branch being overwritten,
+		// so counting it as "somewhere else" reports every force push as safe.
 		if isRemoteHead(name) {
 			continue
 		}
