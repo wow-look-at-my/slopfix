@@ -61,6 +61,18 @@ func TestDeniesMoveWithUnresolvableSourcesIntoTheWorkTree(t *testing.T) {
 	assert.Contains(t, r, "cannot resolve")
 }
 
+// A root outside every work tree still stands in for a repository UNDER it.
+// The first version of this fix dropped such a root entirely, which let
+// `cd <repo> && git reset --hard` through from the directory above.
+func TestGuardsARepositoryBelowAnUntrackedRoot(t *testing.T) {
+	dir := plainDir(t)
+	root := filepath.Join(dir, "repo")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src.txt"), []byte("original\n"), 0o644))
+	r := ask(t, dir, "split -b 14m archive.zst repo/src.txt.part-")
+	assert.Contains(t, r, "working tree")
+}
+
 // The scope is the work tree, not the session's own directory. A write into
 // a repository the session is not rooted on is still refused, so the rule
 // above cannot be reached by running the command from somewhere else.

@@ -17,14 +17,8 @@ import (
 // Both are used because they disagree when a session is rooted on a parent
 // directory rather than on a repository.
 //
-// A directory with no .git entry above it is NOT a root. The provenance rule
-// says a file must arrive through an edit tool so that git holds the version
-// before it. Where git holds nothing, the rule protects nothing, and its
-// denial claims a working tree that is not there: `split -b 14m x x.part-`
-// in ~/Downloads was refused as "inside the working tree", and the repair it
-// named -- Write -- cannot author a binary chunk at all. The destruction half
-// already answers this way in judge, and scope.ts answers it for the language
-// server. This is the third caller of one rule.
+// A root with no .git entry above it stands in for the repositories UNDER it,
+// and for nothing else. That is the whole shape of the rule below.
 func guardedRoots(cwd string) []string {
 	var roots []string
 	add := func(p string) {
@@ -32,11 +26,9 @@ func guardedRoots(cwd string) []string {
 			return
 		}
 		p = filepath.Clean(p)
-		r := repoRoot(p)
-		if r == "" {
-			return
+		if r := repoRoot(p); r != "" {
+			p = r
 		}
-		p = r
 		for _, existing := range roots {
 			if existing == p {
 				return
@@ -99,6 +91,17 @@ func insideGuarded(roots []string, abs string) (string, bool) {
 		if rel == "." || isBuildOutput(rel) {
 			continue
 		}
+		// The provenance rule says a file must arrive through an edit tool, so
+		// that git holds the version before it. Where git holds nothing the rule
+		// protects nothing, and the refusal claims a working tree that is not
+		// there. `split -b 14m x x.part-` in ~/Downloads was refused as "inside
+		// the working tree", and the repair it named -- Write -- cannot author a
+		// binary chunk. So a root outside every work tree guards only what lands
+		// inside one. It still guards that: `cd <repo> && git reset --hard` run
+		// from the directory above destroys the same work either way.
+		if repoRoot(root) == "" && repoRoot(abs) == "" {
+			continue
+		}
 		return root, true
 	}
 	return "", false
@@ -114,6 +117,11 @@ func coversGuarded(roots []string, dir string) (string, bool) {
 	}
 	dir = filepath.Clean(dir)
 	for _, root := range roots {
+		// A root under no version control has nothing of its own to guard, and
+		// this direction is asking about the root's own content.
+		if repoRoot(root) == "" {
+			continue
+		}
 		rel, err := filepath.Rel(dir, root)
 		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			return root, true
