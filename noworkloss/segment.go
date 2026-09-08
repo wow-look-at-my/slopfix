@@ -10,8 +10,7 @@ import (
 )
 
 // A word carries its literal text plus whether that text is the whole story.
-// `sed -i s/a/b/ $TARGET` parses fine but its operand is unknowable, and a write
-// aimed at an unknowable path is exactly the ambiguity that must deny.
+// A write aimed at an unknowable path must deny.
 type word struct {
 	text   string
 	static bool
@@ -20,17 +19,12 @@ type word struct {
 type redirTarget struct {
 	op syntax.RedirOperator
 	// fd is the descriptor the redirect rebinds, as written. An empty value is
-	// the default for the operator, which for every output form is stdout.
-	// A stderr redirect puts no file the tree holds at risk, so the
-	// destruction half has to be able to tell the descriptors apart.
+	// the operator's default, which for every output form is stdout.
 	fd   string
 	file word
 }
 
-// touchesStdout reports whether a redirect points stdout at its target. `&>`
-// and `&>>` carry both streams whatever descriptor is written in front of
-// them; everything else is stdout only when it names the stdout descriptor or
-// names none.
+// touchesStdout reports whether a redirect points stdout at its target.
 func touchesStdout(r redirTarget) bool {
 	if r.op == syntax.RdrAll || r.op == syntax.AppAll {
 		return true
@@ -50,16 +44,12 @@ type segment struct {
 	argv   []word
 	cwd    string
 	redirs []redirTarget
-	// relocated marks a GIT_DIR / GIT_WORK_TREE prefix. Those move the repository
-	// away from the directory the path words describe, so where the write lands
-	// stops being knowable from the text.
+	// relocated marks a GIT_DIR / GIT_WORK_TREE prefix, which moves the repository away from the path words.
 	relocated bool
-	// stdinScript marks a stage fed its input by a pipe or a heredoc. An
-	// interpreter in that position is running a script nothing can resolve.
+	// stdinScript marks a stage fed by a pipe or a heredoc, where an interpreter runs an unresolvable script.
 	stdinScript bool
-	// fromScript marks a unit read out of a script FILE rather than out of the
-	// command text. The program's own writes are the program's behaviour, which
-	// this hook does not sandbox.
+	// fromScript marks a unit read out of a script FILE, whose writes are the
+	// program's own behaviour.
 	fromScript bool
 }
 
@@ -95,24 +85,17 @@ type walker struct {
 	depth       int
 	scriptDepth int
 	// fileDepth counts how deep the walk stands inside a script FILE run as a
-	// NEW shell. An alias body, a `sh -c` string and a sourced file all borrow
-	// the caller's scope, so none of them raises it.
+	// NEW shell. Anything borrowing the caller's scope leaves it alone.
 	fileDepth int
 	piped     bool
-	// vars holds every variable this hook has proven holds a static value,
-	// built up in execution order as the walk reaches each safe assignment.
-	// unsafeVars names what must never enter it; varsDisabled turns the
-	// whole feature off when some command in the tree could mutate a
-	// variable this scan cannot see through.
+	// vars holds every variable proven to hold a static value. unsafeVars
+	// names what must never enter it.
 	vars         varTable
 	unsafeVars   map[string]bool
 	multiVars    map[string]bool
 	varsDisabled bool
 	// scopeOK marks a scope whose whole program text this walk has read, which
-	// is what makes "assigned a single time" a fact rather than a guess. The
-	// top-level command qualifies, and so does a script file run as a NEW
-	// shell: its variables are its own. A sourced file, an alias body and a
-	// `sh -c` string all borrow the caller's scope, so they get none of it.
+	// is what turns an assignment count into a fact.
 	scopeOK bool
 }
 
@@ -142,18 +125,14 @@ func (w *walker) enterScope(stmts []*syntax.Stmt, self string) func() {
 	}
 }
 
-// A blocker is a piece of the command whose text this walk could not read at
-// all -- a script assembled from an expansion, a shell reading stdin, a file
-// too large or too broken to parse. fromScript records whether it was found
-// inside a script FILE the walk followed as a new shell, because there it
-// describes the running program rather than the command the session typed.
+// A blocker is a piece of the command whose text this walk could not read.
+// fromScript records whether it was found inside a script FILE.
 type blocker struct {
 	text       string
 	fromScript bool
 }
 
-// block records a blocker, stamping where it was found in the same place every
-// other origin question is answered, so a site added later cannot forget.
+// block records a blocker, stamping where it was found, so a site added later cannot forget.
 func (w *walker) block(text string) {
 	w.blockers = append(w.blockers, blocker{text: text, fromScript: w.fileDepth > 0})
 }
@@ -181,10 +160,8 @@ func (w *walker) stmt(st *syntax.Stmt, cwd *string) {
 			stdin = true
 			continue // a heredoc is input; its "target" is the delimiter word
 		}
-		// `ruby < prog.rb` is the same script-on-stdin as `cat prog.rb | ruby`,
-		// and only the pipe was counted. The interpreter rule asks separately
-		// whether a script was already named, so `node hook.ts < payload.json`
-		// stays an ordinary run of a named script.
+		// A `< file` redirect is the same script-on-stdin as a pipe. The
+		// interpreter rule asks separately whether a script was already named.
 		if r.Op == syntax.RdrIn {
 			stdin = true
 			continue // input, not a target this command writes
@@ -199,10 +176,8 @@ func (w *walker) stmt(st *syntax.Stmt, cwd *string) {
 }
 
 // command dispatches on node type. The cwd pointer is shared only where the
-// shell itself shares it: `&&`, `||`, `;` and a brace block run in the current
-// shell, so a cd carries forward. A pipe stage, a subshell and a conditional
-// body each get a copy. A background `&` changes nothing here -- the writes it
-// performs are the same writes, so its segments are walked like any other.
+// shell itself shares it, so a cd carries forward across `&&`, `||` and `;`,
+// while a pipe stage, a subshell and a conditional body each get a copy.
 func (w *walker) command(c syntax.Command, cwd *string, rs []redirTarget, stdin bool) {
 	if c == nil || w.full() {
 		return
@@ -364,10 +339,8 @@ func (w *walker) call(c *syntax.CallExpr, cwd *string, rs []redirTarget, stdin b
 	})
 }
 
-// expand follows the indirections whose text this hook can still read: an alias
-// or a `sh -c` string is shell source, and a shell script file is a file of it.
-// Following them is what stops `bash ./write.sh` from being a trivial bypass of
-// every rule below. It reports true when the call was consumed by the walk.
+// expand follows the indirections whose text this hook can read, and reports
+// true when the walk consumed the call.
 func (w *walker) expand(name string, eff []word, cwd string) bool {
 	switch {
 	case name == "alias":
@@ -456,10 +429,8 @@ func (w *walker) script(src, cwd, what, self string) {
 	}
 	w.scriptDepth++
 	if self != "" {
-		// The depth rises only after the file's text is in hand. A blocker
-		// about THIS file -- it does not parse, it nests too deep -- describes
-		// the command that named it, and stamping it as the program's own
-		// business would reopen the write-elsewhere-then-run bypass.
+		// The depth rises only after the file's text is in hand: a blocker
+		// about THIS file describes the command that named it.
 		w.fileDepth++
 		defer func() { w.fileDepth-- }()
 		defer w.enterScope(f.Stmts, self)()
@@ -504,10 +475,8 @@ func (w *walker) scriptFile(f word, cwd string, fresh bool) {
 	if fresh {
 		self = path
 	}
-	// Only a NEW shell counts as a program of its own, and script raises the
-	// depth after it has the text. A sourced file runs in the caller's scope
-	// and its text is the caller's text, so it stays judged exactly like the
-	// command that named it.
+	// Only a NEW shell counts as a program of its own. A sourced file's text is
+	// the caller's text, so it stays judged like the command that named it.
 	w.script(string(src), cwd, "the script "+f.text, self)
 }
 

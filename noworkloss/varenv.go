@@ -9,31 +9,19 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// varTable holds the shell variables this hook has proven can only ever hold
-// a single value at the point they are read: assigned exactly a single time,
-// from a fully static right-hand side, outside every construct that could run
-// it repeatedly or not at all -- a loop, a conditional, a subshell, a pipeline,
-// a background job, a function body. Anything less certain never enters
-// this map, and a name absent from it resolves exactly as it always has --
-// the word carrying it denies rather than guesses.
+// varTable holds the shell variables proven to hold a static value where they are read.
 type varTable map[string]word
 
 // varMutatingCommands names every command that can set a variable this scan
-// does not read as an assignment. Seeing any of them anywhere in the
-// command disables resolution entirely, because such a command can rewrite
-// a name this scan has no way to notice.
+// does not read as an assignment. Any of them disables resolution entirely.
 var varMutatingCommands = set.Of[string](
 	"read", "mapfile", "readarray", "getopts", "unset",
 	"eval", "set", "declare", "local", "typeset", "export",
 )
 
 // mutatesAVariable reports whether a call can bind a name behind this scan's
-// back. Everything in varMutatingCommands does, with an exception worth
-// spelling out: `set` sets SHELL OPTIONS as well as positional parameters,
-// and `set -e` or `set +o pipefail` binds nothing at all. Treating those as a
-// hazard disabled resolution for every script that opens with `set -e`, which
-// is most of them -- such a line refused a whole test suite over a path the
-// script built from its own variable. Only an operand form rebinds anything.
+// back. `set` is the exception: a shell option binds nothing, and only an
+// operand form rebinds the positional parameters.
 func mutatesAVariable(eff []word) bool {
 	name := commandName(eff[0].text)
 	if !varMutatingCommands.Contains(name) {
@@ -74,15 +62,9 @@ func setRebindsParameters(args []word) bool {
 	return false
 }
 
-// unsafeVarNames finds every variable name this hook must never resolve:
-// assigned repeatedly anywhere, assigned inside a construct that can run a
-// variable number of times, or bound by a for-loop. abort reports a
-// varMutatingCommands hit anywhere in the tree, which disables resolution
-// for the whole command regardless of what unsafe names.
-// multiply names every variable assigned repeatedly, which is a weaker
-// condition than unsafe: a name assigned inside an `if` holds a single value
-// or none, never a choice. That is enough for a resolution claiming only the
-// DIRECTORY a value sits in, and not enough for a claim about the value.
+// unsafeVarNames finds every variable name this hook must never resolve.
+// abort reports a varMutatingCommands hit anywhere in the tree. multiply is
+// weaker, and is enough for a claim about a value's DIRECTORY alone.
 func unsafeVarNames(stmts []*syntax.Stmt) (unsafe, multiply map[string]bool, abort bool) {
 	c := &varScan{counts: map[string]int{}, unsafe: map[string]bool{}}
 	c.stmts(stmts, false)
@@ -101,9 +83,8 @@ type varScan struct {
 	abort  bool
 }
 
-// record notes an assignment to name. A repeat assignment anywhere, or an
-// assignment made where it might run a variable number of times, means the
-// name can no longer be trusted to hold a single value.
+// record notes an assignment to name. A repeat, or a risky placement, means
+// the name can no longer be trusted.
 func (c *varScan) record(name string, risky bool) {
 	c.counts[name]++
 	if risky || c.counts[name] > 1 {
@@ -217,9 +198,8 @@ func (c *varScan) command(cmd syntax.Command, risky bool) {
 	}
 }
 
-// scanWord looks inside a word for command substitutions and process
-// substitutions. Each forks its own subshell and can assign anything, so
-// its content is always risky regardless of where the word itself sits.
+// scanWord looks inside a word for substitutions. Each forks its own subshell
+// and can assign anything, so its content is always risky.
 func (c *varScan) scanWord(wd *syntax.Word) {
 	if wd == nil || c.abort {
 		return
@@ -246,8 +226,7 @@ func (c *varScan) scanPart(p syntax.WordPart) {
 	}
 }
 
-// tempRoots names the directories a temp file is created under. A path under
-// such a directory is outside every guarded root by construction.
+// tempRoots names the directories a temp file is created under, which sit outside every guarded root.
 var tempRoots = []string{"/tmp", "/var/tmp"}
 
 // mktempPath resolves `$(mktemp ...)` to a path in the temp directory. The
@@ -284,10 +263,8 @@ func mktempPath(wd *syntax.Word) (word, bool) {
 }
 
 // underTempRoot reports whether a template names a path inside the temp
-// directory. It reads the word's own leading text rather than the resolved
-// text, because the common spelling is `"${TMPDIR:-/tmp}/fooXXXX"` and that
-// resolves to nothing. os.TempDir reads the same variable with the same
-// default, so the hook and the command agree on where it points.
+// directory. It reads the word's leading text, since a defaulted TMPDIR
+// resolves to nothing and os.TempDir applies the same default.
 func underTempRoot(wd *syntax.Word) bool {
 	if wd == nil || len(wd.Parts) == 0 {
 		return false
@@ -346,10 +323,8 @@ func soleCmdSubst(wd *syntax.Word) (*syntax.CmdSubst, bool) {
 	return sub, ok
 }
 
-// resolveWord renders a word the same way wordText does, except a plain
-// $NAME or ${NAME} reference is replaced with vars[NAME] when present.
-// Anything vars does not cover -- an absent name, an operator, an index, a
-// slice -- resolves exactly as it always has: unresolved, with no text.
+// resolveWord renders a word the way wordText does, except a plain $NAME
+// reference takes vars[NAME]. Anything else stays unresolved.
 func resolveWord(wd *syntax.Word, vars varTable) word {
 	if wd == nil {
 		return word{static: true}
@@ -395,10 +370,8 @@ func resolvePart(p syntax.WordPart, vars varTable, b *strings.Builder) bool {
 	}
 }
 
-// simpleVar resolves a plain $NAME / ${NAME} reference -- no negation,
-// length, width, index, slice, replace, name-listing, or default/pattern
-// operator. Any of those means the value depends on something this scan
-// does not evaluate, so it is treated exactly like an unresolved variable.
+// simpleVar resolves a plain $NAME reference and nothing else: any operator
+// makes the value depend on something this scan does not evaluate.
 func simpleVar(x *syntax.ParamExp, vars varTable) (word, bool) {
 	if x == nil || x.Param == nil {
 		return word{}, false

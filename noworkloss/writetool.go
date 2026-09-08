@@ -40,9 +40,7 @@ func writeToolReason(path string) string {
 }
 
 // inRecycleBin asks recycler, which already tracks each item's original
-// location, so this keeps no ledger of its own. Every failure -- no recycler, an
-// unreadable bin, no match -- falls through to allow: a guard that blocks a
-// legitimate Write because a helper is missing is worse than no guard.
+// location. Every failure falls through to allow.
 func inRecycleBin(path string) (string, bool) {
 	out, err := recyclerList()
 	if err != nil {

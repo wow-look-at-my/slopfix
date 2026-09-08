@@ -326,10 +326,17 @@
 		<test cmd="go doc fmt" expect="allow"/>
 		<test cmd="go doc fmt.Println" expect="allow"/>
 		<test cmd="go doc -all fmt" expect="allow"/>
-		<test cmd="go build ./..." expect=""/>
+		<test cmd="go build ./..." expect="deny"/>
+		<test cmd="go build -o bin/x ." expect="deny"/>
+		<test cmd="go test ./..." expect="deny"/>
+		<test cmd="go test -run TestX ./pkg" expect="deny"/>
+		<test cmd="cd pkg &amp;&amp; go test ./..." expect="deny"/>
+		<test cmd="go test ./... | grep FAIL" expect="deny"/>
 		<rule name="version" allowedFlags="*"/>
 		<rule name="env" allowedFlags="*"/>
 		<rule name="doc" allowedFlags="*"/>
+		<rule name="build" denyWithMessage="Direct 'go build' is not allowed. Use 'go-toolchain' instead: it builds, tests, vets, and checks coverage in one command"/>
+		<rule name="test" denyWithMessage="Direct 'go test' is not allowed. Use 'go-toolchain' instead: it builds, tests, vets, and checks coverage in one command"/>
 	</rule>
 
 	<!-- git -->

@@ -17,12 +17,8 @@ import (
 
 func loadEmbeddedTests(t *testing.T) []struct{ Command, Expected string } {
 	t.Helper()
-	repoRoot := getRepoRoot(t)
-	data, err := os.ReadFile(filepath.Join(repoRoot, "plugins/enhanced-auto-allow/rules.xml"))
-	require.NoError(t, err)
-
 	var xr xmlRules
-	require.NoError(t, xml.Unmarshal(data, &xr))
+	require.NoError(t, xml.Unmarshal(rulesXML, &xr))
 
 	type testCase = struct{ Command, Expected string }
 	var cases []testCase
@@ -158,7 +154,7 @@ func TestEndToEndGhRepoView(t *testing.T) {
 			}
 			inputBytes, _ := json.Marshal(input)
 
-			cmd := exec.Command(binaryPath)
+			cmd := exec.Command(binaryPath, "auto-allow")
 			cmd.Stdin = bytes.NewReader(inputBytes)
 			output, err := cmd.Output()
 			require.Nil(t, err, "binary exited with error: %v, output: %s", err, output)
@@ -284,20 +280,15 @@ func TestPermissionRequestKeepsItsOwnShape(t *testing.T) {
 	assert.Equal(t, "deny", resp.HookSpecificOutput.Decision.Behavior)
 }
 
-// buildTestBinary builds the hook into the plugin's build directory, under a
-// per-test name so overlapping runs cannot delete it.
+// buildTestBinary builds the slopfix CLI into a per-test path, so overlapping
+// runs cannot delete each other's copy. The hook rides `slopfix auto-allow`.
 func buildTestBinary(t *testing.T) string {
 	t.Helper()
-	pluginDir := filepath.Join(getRepoRoot(t), "plugins/enhanced-auto-allow")
+	name := "slopfix-test-" + strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
+	binaryPath := filepath.Join(t.TempDir(), name)
 
-	buildDir := filepath.Join(pluginDir, "build")
-	require.NoError(t, os.MkdirAll(buildDir, 0o755))
-	name := "enhanced-auto-allow-test-" + strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
-	binaryPath := filepath.Join(buildDir, name)
-	t.Cleanup(func() { os.Remove(binaryPath) })
-
-	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/")
-	cmd.Dir = pluginDir
+	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/slopfix")
+	cmd.Dir = getRepoRoot(t)
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "build failed: %s", out)
 	return binaryPath
@@ -308,7 +299,7 @@ func runHookBinary(t *testing.T, binaryPath string, input HookInput) []byte {
 	inputBytes, err := json.Marshal(input)
 	require.NoError(t, err)
 
-	cmd := exec.Command(binaryPath)
+	cmd := exec.Command(binaryPath, "auto-allow")
 	cmd.Stdin = bytes.NewReader(inputBytes)
 	out, err := cmd.Output()
 	require.NoError(t, err, "binary exited with error: %v, output: %s", err, out)
@@ -333,11 +324,7 @@ func getRepoRoot(t *testing.T) string {
 // than installing it, so a parallel sibling cannot replace it mid-test.
 func loadTestRules(t *testing.T) Rules {
 	t.Helper()
-	repoRoot := getRepoRoot(t)
-	rulesPath := filepath.Join(repoRoot, "plugins/enhanced-auto-allow/rules.xml")
-	data, err := os.ReadFile(rulesPath)
-	require.Nil(t, err, "Failed to read rules.xml")
-	loaded, err := loadXMLRules(data)
+	loaded, err := loadXMLRules(rulesXML)
 	require.NoError(t, err, "Failed to parse rules.xml")
 	return loaded
 }
@@ -345,22 +332,14 @@ func loadTestRules(t *testing.T) Rules {
 // A malformed byte disables EVERY rule: loadXMLRules failing passes everything
 // through. The usual cause is a "--" inside a comment, which XML forbids.
 func TestRulesXMLParses(t *testing.T) {
-	repoRoot := getRepoRoot(t)
-	data, err := os.ReadFile(filepath.Join(repoRoot, "plugins/enhanced-auto-allow/rules.xml"))
-	require.NoError(t, err)
-
-	_, err = loadXMLRules(data)
+	_, err := loadXMLRules(rulesXML)
 	require.NoError(t, err, "rules.xml does not parse; a '--' inside an XML comment is the usual cause")
 }
 
 // Indentation is tabs, so every reader picks their own width. Spaces are
 // alignment only -- they follow a tab, never open a line.
 func TestRulesXMLIndentedWithTabs(t *testing.T) {
-	repoRoot := getRepoRoot(t)
-	data, err := os.ReadFile(filepath.Join(repoRoot, "plugins/enhanced-auto-allow/rules.xml"))
-	require.NoError(t, err)
-
-	for i, line := range strings.Split(string(data), "\n") {
+	for i, line := range strings.Split(string(rulesXML), "\n") {
 		assert.False(t, strings.HasPrefix(line, " "), "rules.xml:%d indents with spaces: %q", i+1, line)
 	}
 }

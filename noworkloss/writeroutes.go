@@ -39,9 +39,8 @@ func decide(raw []byte) (reason string, notices []string) {
 
 	switch {
 	case in.ToolName == "Bash":
-		// Destruction is asked ahead of provenance. Where both halves object -- `> tracked.go`
-		// over a file with unsaved edits -- losing the edits is the more urgent
-		// fact, and its message names the stash that saves them.
+		// Destruction is asked ahead of provenance: where both object, losing
+		// the edits is the more urgent fact.
 		reason, notices = evaluateLoss(ti.Command, in.Cwd)
 		if reason != "" {
 			return reason, nil
@@ -87,13 +86,8 @@ func analyzeWrites(command, cwd string) string {
 	if !ok {
 		return "blocked: this command does not parse as shell, so the files it would write cannot be resolved. " + useTheTools
 	}
-	// A blocker found inside a script FILE is the same case as an unresolvable
-	// target found there: the program's own text, not this command's. A build
-	// script that runs `bash -c "$cmd"` or sources a path it computed is doing
-	// what a program does, and this hook does not sandbox what it starts.
-	// Denying on it made `bash tests/run-tests.sh` unrunnable -- the script
-	// runs an `sh -c` built from a variable, and that single line refused the
-	// whole suite before any write was ever judged.
+	// A blocker found inside a script FILE is the program's own text, not this
+	// command's, and this hook does not sandbox what it starts.
 	for _, b := range blockers {
 		if b.fromScript {
 			continue
@@ -251,8 +245,7 @@ func grantsShell(raw json.RawMessage) bool {
 	return false
 }
 
-// configSkills rewrite settings.json as their whole purpose, which is the same
-// act as editing the file by hand.
+// configSkills rewrite settings.json, which is the same act as editing it by hand.
 var configSkills = set.Of[string]("update-config", "fewer-permission-prompts")
 
 func skillReason(skill string) string {

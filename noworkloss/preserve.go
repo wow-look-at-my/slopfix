@@ -18,9 +18,8 @@ type preserveResult struct {
 	pushErr string
 }
 
-// preserveAtRiskPaths commits the exact paths a destructive command would
-// destroy, so the command is safe by construction. It never touches the user's
-// own index or working tree, and ok is false when the commit could not be made.
+// preserveAtRiskPaths commits the paths a destructive command would destroy.
+// It never touches the user's index, and ok is false when the commit failed.
 func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok bool) {
 	if root == "" || len(paths) == 0 {
 		return nil, false
@@ -32,17 +31,14 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	}
 	tmpIndex := tmp.Name()
 	tmp.Close()
-	// An empty FILE is not an empty index -- git reads its header and refuses
-	// it. Removing it reserves the path, and a missing GIT_INDEX_FILE starts
-	// from a genuinely empty index.
+	// An empty FILE is not an empty index: git refuses it. A missing
+	// GIT_INDEX_FILE starts from a genuinely empty index.
 	os.Remove(tmpIndex)
 	defer os.Remove(tmpIndex)
 	env := []string{"GIT_INDEX_FILE=" + tmpIndex}
 
-	// read-tree HEAD seeds the temp index with the last committed tree, so the
-	// commit below carries the CURRENT content of the at-risk paths and HEAD's
-	// content for everything else. A repository with no commits yet has no
-	// HEAD to seed from; the index starts empty and the commit gets no parent.
+	// read-tree HEAD seeds the temp index with the last committed tree. A
+	// repository with no commits has no HEAD, so the index starts empty.
 	hasHead := true
 	if _, _, err := runGitEnvTimeout(root, gitTimeout, env, "read-tree", "HEAD"); err != nil {
 		hasHead = false
@@ -56,12 +52,8 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 		}
 	}
 
-	// A staged version is a SEPARATE state, distinct from HEAD and from the
-	// working tree, and it lives only in the index. Committing the working
-	// tree and then refreshing the index to match it destroys that state, so
-	// it is captured earlier and the working tree lands on top of it. A path
-	// with nothing staged contributes no entry, and a run where nothing was
-	// staged produces no commit here at all.
+	// A staged version is a SEPARATE state that lives only in the index, so it
+	// is captured here and the working tree lands on top of it.
 	var trees []string
 	if t := stagedTree(root, env, paths, hasHead); t != "" && t != headTree {
 		trees = append(trees, t)
@@ -108,20 +100,14 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 		parent = commit
 	}
 
-	// The commit lands on the CURRENT BRANCH. A commit under a private ref
-	// prefix is invisible to every ordinary command, so nobody reviews it and
-	// the next session that notices the prefix deletes it. A commit on the
-	// branch is in the log, in the diff, and in the next push.
+	// The commit lands on the CURRENT BRANCH, where the log, the diff and the next push all show it.
 	if _, _, err := runGit(root, "update-ref", "HEAD", commit); err != nil {
 		// The commit object exists but nothing names it, so git gc can reap
 		// it. That is not durable preservation, so this must not read as such.
 		return nil, false
 	}
-	// The branch moved under the real index, which still holds the old tree
-	// for these paths. Left alone, `git status` reports a STAGED REVERT of the
-	// content just preserved, and the next `git commit` takes it. Only the
-	// preserved paths are refreshed, so other staged work is untouched and the
-	// working tree is never written.
+	// The branch moved under the real index, which would then report a STAGED
+	// REVERT. Only the preserved paths are refreshed.
 	resetArgs := append([]string{"reset", "-q", commit, "--"}, paths...)
 	runGit(root, resetArgs...)
 
@@ -137,17 +123,11 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	return res, true
 }
 
-// stagedTree builds a tree holding HEAD's content everywhere except the
-// at-risk paths, which take the content sitting in the USER'S index. It reads
-// the real index with `ls-files --stage` and copies each entry into the
-// throwaway index; the user's own index is never written. An empty result means
-// no at-risk path had a staged entry to keep, which is the ordinary case.
+// stagedTree builds a tree holding HEAD's content except at the at-risk paths, which take the USER'S index.
 func stagedTree(root string, env, paths []string, hasHead bool) string {
-	// Ask up front, in a single call, which at-risk paths have anything staged
-	// at all. A hook runs in front of every Bash call, and the ordinary tree has
-	// nothing staged, so the walk below must cost nothing there rather than
-	// a subprocess per path. A repository with no HEAD has no tree to
-	// differ from; its working-tree commit is the whole story.
+	// Ask up front, in a single call, which at-risk paths have anything staged,
+	// so the ordinary tree pays nothing. A repository with no HEAD has no tree
+	// to differ from.
 	if !hasHead {
 		return ""
 	}
@@ -241,10 +221,8 @@ func shortSHA(sha string) string {
 	return sha
 }
 
-// isProtectedRef reports whether ref names a preservation ref this hook
-// created. Deleting or force-overwriting such a ref is refused always --
-// unlike an ordinary branch or tag, it has no "somewhere else" to check
-// against, because it IS the somewhere else.
+// isProtectedRef reports a preservation ref. Deleting it is always refused,
+// because it IS the somewhere else.
 func isProtectedRef(ref string) bool {
 	return ref != "" && strings.HasPrefix(ref, protectedRefPrefix)
 }

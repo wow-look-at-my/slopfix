@@ -470,15 +470,10 @@ func ensurePipefail(f *syntax.File) {
 		Args: []*syntax.Word{word("set"), word("-o"), word("pipefail")}}}}, f.Stmts...)
 }
 
-// ---------------------------------------------------------------------------
-// Remove constant narration. An echo/printf is replaced by the no-op `:` only
-// when its stdout actually REACHES THE TERMINAL. `X=$(echo hi)`, `echo x | jq`,
-// `echo x > f`, a function body and a coproc are all data or capture, never
-// narration, so each is left alone. Visibility threads top-down, which is why
-// this traversal is hand-rolled over statement structure and never enters Word
-// parts -- $(), <() and >() are excluded by construction.
-// ---------------------------------------------------------------------------
-
+// An echo/printf becomes the no-op `:` only when its stdout REACHES THE
+// TERMINAL. `X=$(echo hi)`, `echo x | jq` and `echo x > f` are data, not
+// narration. Visibility threads top-down, so this traversal is hand-rolled
+// over statement structure and never enters Word parts.
 var globRisk = regexp.MustCompile(`[*?\[{]`)
 
 // wordIsConstant: a Lit with no glob or tilde risk, a single-quoted string, or
@@ -507,10 +502,8 @@ func wordIsConstant(w *syntax.Word) bool {
 	return true
 }
 
-// redirsStderrOnly: every redirect on the statement leaves stdout alone.
-// Anything else -- a stdout redirect, &>, fd juggling, a stdin form -- makes
-// the subtree invisible, and an unknown op fails closed into leaving the echo
-// alone.
+// redirsStderrOnly: every redirect leaves stdout alone. An unknown op fails
+// closed into leaving the echo alone.
 func redirsStderrOnly(s *syntax.Stmt) bool {
 	for _, r := range s.Redirs {
 		if r.N == nil || r.N.Value != "2" {

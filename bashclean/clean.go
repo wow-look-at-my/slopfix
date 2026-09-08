@@ -63,8 +63,8 @@ func Transform(command string) Result {
 			rules = appendUnique(rules, name)
 		}
 	}
-	// The rewrite runs to a fixed point: one rule's output is another rule's
-	// input, and a single pass leaves that second rewrite undone.
+	// Runs to a fixed point: a rule's output is another rule's input, and a
+	// single pass leaves that second rewrite undone.
 	for i := 0; i < 20; i++ {
 		pass := printFile(f)
 		onePass(apply)
@@ -226,21 +226,8 @@ func replaceArgs(c *syntax.CallExpr, i int, ws ...*syntax.Word) {
 	c.Args = append(append(append([]*syntax.Word{}, c.Args[:i]...), ws...), c.Args[i+1:]...)
 }
 
-// ---------------------------------------------------------------------------
-// Scrub the stderr discard, tree-wide. stderr is how a command reports its own
-// failure, so a discarded stderr turns one command into two: the command, and
-// a second call asking whether it worked.
-//
-//	2>/dev/null, 2>>/dev/null   dropped
-//	&>/dev/null, &>>/dev/null   demoted to >/dev/null, >>/dev/null
-//	>&/dev/null                 demoted to >/dev/null
-//	>/dev/null 2>&1             the 2>&1 goes, the >/dev/null stays
-//
-// A bare 2>&1 is a MERGE and survives. It is dropped only when an EARLIER
-// entry in the same list already sent stdout to /dev/null, so the reversed
-// `2>&1 >/dev/null`, which sends stderr to the terminal, is left alone.
-// ---------------------------------------------------------------------------
-
+// Scrub the stderr discard, tree-wide. A discarded stderr turns one command
+// into two: the command, and a call asking whether it worked.
 func isDevnull(w *syntax.Word) bool { return isWord(w, "/dev/null") }
 
 func isStderrDevnull(r *syntax.Redirect) bool {
@@ -306,12 +293,11 @@ func dockerCompose(c *syntax.CallExpr) {
 
 var runID = regexp.MustCompile(`^[0-9]+$`)
 
-// onlyFlagsAndValues asks whether no remaining word is a POSITIONAL. A dash
-// word is a flag, and a bare word directly after a dash word is that flag's
-// value (`--branch main`). A `--flag=value` form carries its own value, so the
-// word after it is a positional again. `gh pr checks 42` names one pull
-// request where `gh wait-ci checks` reads the current branch, which is a
-// different question, so a positional blocks the rewrite.
+// onlyFlagsAndValues asks whether no remaining word is a POSITIONAL. A bare
+// word right after a dash word is that flag's value (`--branch main`); a
+// `--flag=value` carries its own, so the word after it is a positional again.
+// A positional blocks the rewrite: `gh pr checks 42` names one pull request
+// where `gh wait-ci checks` reads the current branch.
 func onlyFlagsAndValues(ws []*syntax.Word) bool {
 	for i, w := range ws {
 		s, _ := literal(w)
@@ -423,10 +409,9 @@ func capSleep(c *syntax.CallExpr) {
 	}
 }
 
-// rmTargets returns the real targets of an `rm` call. `--` ends flag parsing,
-// and it is RE-EMITTED in front of a dash-leading name, so `rm -- -weirdname`
-// becomes `recycler trash -- -weirdname` and the filename is not re-read as a
-// recycler flag. Dropping the separator would change which file is deleted.
+// rmTargets returns the real targets of an `rm` call. `--` ends flag parsing
+// and is RE-EMITTED in front of a dash-leading name, so the filename is not
+// re-read as a recycler flag.
 func rmTargets(args []*syntax.Word) []*syntax.Word {
 	ops := []*syntax.Word{}
 	done := false

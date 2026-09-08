@@ -20,20 +20,15 @@ type write struct {
 	paths []word // named targets, resolved against dir
 	dir   string // where the write lands when paths is empty
 	whole bool   // the write lands somewhere under dir rather than at a named path
-	// opaque carries the reason a route's targets cannot be resolved. Such a
-	// write denies wherever it runs: fail closed means an unresolvable target is
-	// treated as the worst case.
+	// opaque carries the reason a route's targets cannot be resolved, and denies.
 	opaque string
 	// fromScript marks a write read out of a script FILE. classify stamps it,
 	// so no route below has to remember to.
 	fromScript bool
 }
 
-// classify returns every write a segment performs. A segment naming no write
-// route returns nothing and the command runs: Bash exists to run things, and
-// this hook does not sandbox the programs it starts -- a build, a test run or a
-// generator writes what it writes. What it does close is every route where the
-// command text itself performs or directs the write.
+// classify returns every write a segment performs. What it closes is every
+// route where the command text itself performs or directs the write.
 func classify(seg segment, roots []string, aliases *aliasResolver, depth int) []write {
 	return stampScriptWrites(classifyRoutes(seg, roots, aliases, depth), seg.fromScript)
 }
@@ -65,12 +60,9 @@ func classifyRoutes(seg segment, roots []string, aliases *aliasResolver, depth i
 		if len(w) > 0 {
 			return append(out, w...)
 		}
-		// A verb with no write route of its own may still be an alias for
-		// a write -- `git nuke` for `reset --hard` is exactly the destruction
-		// half's own motivating case, and provenance must see through the
-		// same aliases or a hidden write route goes untested rather than
-		// merely unnamed. expand is a no-op for a real git builtin (git
-		// refuses to let an alias shadow a builtin) and for an unconfigured name.
+		// A verb with no write route of its own may still be an alias for a
+		// write, so provenance must see through the same aliases. expand is a
+		// no-op for a real git builtin and for an unconfigured name.
 		for _, expanded := range aliases.expand(seg, depth) {
 			out = append(out, classify(expanded, roots, aliases, depth+1)...)
 		}
@@ -97,10 +89,8 @@ func redirectWrites(seg segment) []write {
 		if r.op == syntax.AppOut || r.op == syntax.AppAll {
 			op = ">>"
 		}
-		// Every descriptor counts here. This half asks how content reached a
-		// file, and a file the tree holds is authored content whichever stream
-		// filled it. The label carries the descriptor so the message quotes
-		// what the reader wrote.
+		// Every descriptor counts: a file the tree holds is authored content
+		// whichever stream filled it.
 		out = append(out, write{route: redirLabel(r, op), paths: []word{r.file}, dir: seg.cwd})
 	}
 	return out
@@ -174,7 +164,7 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 		}
 		return one("truncate", operands...)
 
-	case "cp", "mv", "install", "rsync", "scp":
+	case "mv", "install", "rsync", "scp":
 		return copyWrites(seg, name, rest, roots)
 
 	case "ln":
@@ -278,9 +268,12 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 
 // copyWrites is where the rule's real shape shows: this is about content
 // ENTERING the tree without a tool call. Bytes already in the tree have been
-// through a tool call, so moving or copying them around -- `mv old.go new.go` -- is
+// through a tool call, so moving them around -- `mv old.go new.go` -- is
 // ordinary refactoring. A source from outside is the splice this closes: write a
 // file to /tmp with Write, then move it over the target.
+//
+// `cp` is NOT routed here. Copying is how a tree of files gets put in place, and
+// denying it forces every such move through the Write tool one file at a time.
 func copyWrites(seg segment, name string, rest []word, roots []string) []write {
 	flags, operands := scanArgs(rest, set.Of[string](
 		"-t", "--target-directory", "-S", "--suffix",
@@ -388,12 +381,9 @@ func ghWrites(seg segment, rest []word) []write {
 	return []write{{route: "gh release download", dir: dir, whole: true}}
 }
 
-// inPlaceRewrite is the rule for a program this catalog does not name. A long
-// in-place flag says plainly that the program rewrites the files it is given,
-// whatever the program is, so the tool does not have to be recognised at all --
-// which is what stops the catalog from leaking every time a new tool appears.
-// Short `-i` and `-w` are ambiguous (`grep -w`, `curl -w`), so they count only
-// for the tools known to spell in-place that way.
+// inPlaceRewrite is the rule for a program this catalog does not name: a long
+// in-place flag says the program rewrites its files, whatever it is. Short
+// `-i` and `-w` are ambiguous, so they count only for the tools listed below.
 func inPlaceRewrite(seg segment, name string, rest []word) []write {
 	longFlag := false
 	shortFlag := false
@@ -479,9 +469,8 @@ func hasFileExtension(s string) bool {
 	return true
 }
 
-// Tools that spell in-place rewriting with a bare short flag. Membership here
-// only decides that the flag is read as in-place; whether the rewrite is allowed
-// is the formatter table's decision.
+// Tools that spell in-place rewriting with a bare short flag. Whether the
+// rewrite is allowed stays the formatter table's decision.
 var shortInPlaceTools = set.Of[string]("gofmt", "goimports", "shfmt", "ffs",
 	"rustfmt", "clang-format", "buf", "yq")
 

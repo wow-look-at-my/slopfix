@@ -1,8 +1,6 @@
 package autoallow
 
 import (
-	"os"
-
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,9 +86,7 @@ func TestMatchMCPServerExactTool(t *testing.T) {
 // enumerated in advance; the old server-by-server list left everything else
 // asking.
 func TestShippedRulesAllowReadOnlyMCPTools(t *testing.T) {
-	data, err := os.ReadFile("../rules.xml")
-	assert.NoError(t, err)
-	r, err := loadXMLRules(data)
+	r, err := loadXMLRules(rulesXML)
 	assert.NoError(t, err)
 
 	for _, tc := range []struct {
