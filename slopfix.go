@@ -18,8 +18,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// IDHardWrap names the wrap rule. It lives here rather than in ste, because the
-// document's shape is this package's to judge.
+// IDHardWrap names the wrap rule: the document's shape is this package's to judge.
 const IDHardWrap = "wrap/hard-wrap"
 
 // Check reports every finding in a document, in source order.
@@ -42,11 +41,8 @@ func Check(content string) []ste.Finding {
 	return out
 }
 
-// Format returns the document with every prose block joined to a single line.
-//
-// It reports whether the rewrite is safe to write back. Joining must only move
-// newlines, so a result whose words differ from the source is a bug in the
-// splitter, and the caller must keep the original.
+// Format joins every prose block to a single line, and reports whether the
+// rewrite is safe: a result whose words differ from the source is a bug.
 func Format(content string) (string, bool) {
 	formatted := markdown.Format(content)
 	return formatted, markdown.WordsOnly(content, formatted)
@@ -64,18 +60,8 @@ func CheckFile(path string) ([]ste.Finding, error) {
 	return CheckContent(path, string(content)), nil
 }
 
-// CheckContent reports the findings in text headed for path, without reading a
-// file. A hook and an editor hold the text before it lands, and asking a
-// separate code path for that answer is how they drift apart.
-//
-// AllIDs names every rule this can report.
-//
-// The PATH decides, and a path this owns no rules for gets none. Falling
-// through to the prose rules for everything that is not a workflow judged a
-// source file as a document: `report --path a.go` came back with hard-wrap at
-// the top, because a Go file's lines are not paragraphs. Every caller then had
-// to keep its own file-kind gate to undo that, which repeats the same decision
-// and is a shape a caller cannot be asked to hold.
+// CheckContent reports the findings in text headed for path. The PATH decides:
+// a Go file's lines are not paragraphs, so the prose rules skip it.
 func CheckContent(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
 		return workflow.Check(content)
@@ -108,9 +94,7 @@ func commentFindings(path, content string) []ste.Finding {
 	return out
 }
 
-// documentExtensions are the files whose lines really are prose. A comment
-// inside a source file is prose too, and it is the comment rules that read it:
-// see the commentnumbers package, which extracts before it judges.
+// documentExtensions are the files whose lines really are prose.
 var documentExtensions = []string{".md", ".markdown", ".mdown", ".txt"}
 
 // isDocument reports whether the prose rules own this file. An empty path is a
@@ -137,9 +121,8 @@ func AllIDs() set.Set[string] {
 	return ids
 }
 
-// Listed renders a set of rule IDs for a person: the flag help, and the error
-// that names what a caller could have written instead. A set has no order of
-// its own, so the reader gets an alphabetical listing rather than a shuffled listing.
+// Listed renders a set of rule IDs for a person. A set has no order of its
+// own, so the reader gets an alphabetical listing.
 func Listed(ids set.Set[string]) string {
 	return strings.Join(slices.Sorted(ids.All()), ", ")
 }

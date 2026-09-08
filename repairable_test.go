@@ -23,15 +23,14 @@ func TestARuleWithARepairIsLabelledApartFromOneWithout(t *testing.T) {
 }
 
 // The defect this property exists for. A stale count is reported under the
-// prose rule's ID and repaired under the counts rule's, so a caller reading the
-// finding's own ID alone reports what another hook already repaired.
+// prose rule's ID and repaired under the counts rule's.
 func TestAStaleCountIsRepairableUnderEitherID(t *testing.T) {
 	assert.True(t, slopfix.Repairable(ste.IDStaleCount))
 	assert.True(t, slopfix.Repairable(slopfix.IDInventoryCount))
 }
 
 // The negative control. An unknown name is not repairable, so the case above
-// passes on the answer rather than on a set that says yes to everything.
+// passes on the answer rather than on a set saying yes.
 func TestAnUnknownRuleIsNotRepairable(t *testing.T) {
 	assert.False(t, slopfix.Repairable("ste/not-a-real-rule"))
 }

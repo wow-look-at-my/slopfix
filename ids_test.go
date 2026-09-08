@@ -13,9 +13,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// The identity is a set, so a name declared again collapses rather than sitting
-// in the list as a duplicate. A slice cannot notice the duplicate at all, and every
-// consumer asked whether a name was in it regardless.
+// The identity is a set, so a name declared again collapses. A slice cannot
+// notice the duplicate at all.
 func TestARuleIDCannotBeDeclaredTwice(t *testing.T) {
 	every := slopfix.AllIDs()
 	assert.Equal(t, len(slices.Sorted(every.All())), every.Len())

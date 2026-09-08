@@ -20,11 +20,8 @@ const IDPunt = laziness.ID
 // IDBlame names the deflection rule over a closing message.
 const IDBlame = blamelanguage.ID
 
-// Hook is a named selection of rule IDs, and nothing else.
-//
-// Only holds a category or a rule ID. Empty Only means the default set, which
-// is what the org's ruling makes common-checks. Pending marks a hook whose rule
-// still lives outside this repository.
+// Hook is a named selection of rule IDs. Only holds a category or a rule ID,
+// and empty means the default set.
 type Hook struct {
 	Name    string
 	Event   string

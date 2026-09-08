@@ -12,8 +12,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
-// Rule names a repair Fix can apply. A caller that wants a single rule names it
-// rather than reaching for a command of its own.
+// Rule names a repair Fix can apply, so a caller can select a repair by name.
 type Rule string
 
 const (
@@ -50,27 +49,19 @@ func IDsFor(rule Rule) set.Set[string] {
 	return set.New[string]()
 }
 
-// Request is a piece of text put to Fix.
-//
-// Path names the file the text is headed for. It decides the comment syntax,
-// and whether the prose rules apply at all. Empty means the caller vouches for
-// the text as prose. Rules restricts what is applied, and empty means AllRules.
+// Request is a piece of text put to Fix. Path decides the comment syntax, and
+// an empty Rules means AllRules.
 type Request struct {
 	Content string
 	Path    string
 	Rules   []Rule
-	// IDs restricts what is REPORTED to the rules named, the way a compiler
-	// names a warning. Empty means every rule of every category in Rules.
+	// IDs restricts what is REPORTED. Empty means every rule in Rules.
 	IDs []string
 	// MaxCommentLines caps a comment block. A cap of nothing turns it off.
 	MaxCommentLines int
 }
 
-// Repair is what a caller gets back for a piece of text: the text as this
-// binary would write it, and what no rewrite can repair.
-//
-// A hook reads Text to replace the write it was about to allow, and Kept plus
-// Findings to refuse it.
+// Repair is the text as this binary would write it, plus what no rewrite can repair.
 type Repair struct {
 	// Text is the repaired text. It equals the input when Changed is false.
 	Text string `json:"text"`
@@ -84,18 +75,8 @@ type Repair struct {
 	Findings []ste.Finding `json:"findings"`
 }
 
-// Fix repairs what a rewrite can repair and reports the rest.
-//
-// The repairs run in the order that keeps every span valid. A tombstone
-// line leads, because it is deleted whole. The count strip follows, on
-// text whose deletions have landed. The wrap join comes last, and the prose
-// repair runs inside it, on each block's joined text, because a rule reads a
-// paragraph as a single sentence stream and a hand wrap hides half of it.
-//
-// The join must only move newlines. Format proves that on this document ahead
-// of everything else, and a document it cannot prove keeps its own line
-// breaks. The prose repair is
-// different in kind: it changes words on purpose, each to what Check names.
+// Fix repairs what a rewrite can repair and reports the rest. The repairs run
+// in an order that keeps every span valid. The join only moves newlines.
 func Fix(req Request) Repair {
 	rules := req.Rules
 	if len(rules) == 0 {

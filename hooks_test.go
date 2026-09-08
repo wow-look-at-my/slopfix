@@ -9,9 +9,8 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 )
 
-// The assertion the table exists for. A rule added with no home fails here, and
-// so does an entry naming a rule somebody deleted. Without it the mapping lives
-// in nobody's head and drifts in silence.
+// The assertion the table exists for. A rule with no home fails here, and so
+// does an entry naming a deleted rule.
 func TestEveryRuleHasAHomeAndEveryHomeNamesARealRule(t *testing.T) {
 	every := slopfix.EveryRuleID()
 	require.False(t, every.IsEmpty())
