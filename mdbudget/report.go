@@ -10,9 +10,8 @@ import (
 	"strings"
 )
 
-// widthOnly is a file whose ONLY offense is unwrapped lines: comfortably under
-// budget, nothing to extract. Reporting it in budget language is a false alarm,
-// and a guard that cries wolf gets skimmed on the run where the number is real.
+// widthOnly is a file whose ONLY offense is unwrapped lines. Reporting it in
+// budget language is a false alarm.
 func widthOnly(o offender, limit int) bool {
 	return len(o.Wide) > 0 && o.Chars < nearLimit(limit)
 }
@@ -27,9 +26,7 @@ func allWidthOnly(os []offender, limit int) bool {
 }
 
 // remedy is identical wherever it is reported from, EXCEPT that a width-only
-// finding gets only the bullets that apply to it: telling a session to extract
-// prose from a file well under budget is advice it cannot act on, and
-// wading through it is what teaches the reader to skim the whole block.
+// finding gets only the bullets that apply to it.
 func remedy() []string {
 	return remedyFor(false)
 }

@@ -153,8 +153,7 @@ func homeCandidates() []string {
 // node_modules. This is the ONLY scan every caller uses -- SessionStart's
 // census, PostToolUse/Stop's change tracking, and CI's full_scan alike -- so
 // no caller can fall back to a shallow "guess the sibling directories" mode.
-// That guess let a real violation deep under the root through unseen, caught
-// only by a CI job's own separate, hand-rolled walk.
+// That guess let a real violation deep under the root through unseen.
 func claudeMdFiles(root string) []string {
 	var out []string
 	var walk func(dir string)
@@ -180,9 +179,8 @@ func claudeMdFiles(root string) []string {
 	return out
 }
 
-// allCandidatePaths is every instruction file a session could plausibly have
-// loaded or touched: ~/.claude's CLAUDE.md and snippets, plus every CLAUDE.md
-// anywhere under cwd. Duplicates are removed by the caller.
+// allCandidatePaths is every instruction file a session could have loaded:
+// ~/.claude's files, plus every CLAUDE.md under cwd.
 func allCandidatePaths(cwd string) []string {
 	out := homeCandidates()
 	return append(out, claudeMdFiles(cwd)...)

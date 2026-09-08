@@ -30,8 +30,8 @@ func writeFile(t *testing.T, path, content string) {
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 }
 
-// wrapped builds a file of n characters that is legitimately hard-wrapped, so
-// size violations can be tested without also tripping the width rule.
+// wrapped builds a hard-wrapped file of n characters, so a size violation
+// can be tested without tripping the width rule.
 func wrapped(n int) string {
 	line := strings.Repeat("a", 100) + "\n"
 	return strings.Repeat(line, n/len(line)+1)[:n]
@@ -193,11 +193,9 @@ func TestPostToolUseFlagsUnwrappedLines(t *testing.T) {
 	require.Contains(t, ctx, "over 150 columns")
 	require.Contains(t, ctx, "within budget", "a small unwrapped file is not also a size violation")
 
-	// The hole that let the false headline ship: the assertions above are
-	// both about the DETAIL line, which was always right. Nothing checked what
-	// the report LEADS with, so every width-only notice opened by claiming the
-	// budget wall on a file with thousands of characters to spare -- and a guard
-	// that cries wolf gets skimmed on the run where the number is real.
+	// The hole that let the false headline ship: the assertions above are both
+	// about the DETAIL line. Nothing checked what the report LEADS with, so a
+	// width-only notice claimed the budget wall on a file with room to spare.
 	require.NotContains(t, ctx, "budget wall",
 		"a file under budget must not be reported as being at the wall")
 	require.NotContains(t, ctx, "OVER the",
@@ -408,12 +406,8 @@ func TestNoSessionIDDoesNotWedge(t *testing.T) {
 	require.Empty(t, fire(t, map[string]any{"hook_event_name": "Stop", "cwd": repo}))
 }
 
-// TestSessionStartFindsNestedOffender is the case that let a real
-// violation through unseen: the census used to guess the sibling directories
-// of cwd, so a deeply nested file never entered it, and only a CI
-// job's separate hand-rolled walk ever caught it. SessionStart now shares
-// full_scan's recursive walk (allCandidatePaths -> claudeMdFiles), so there
-// is no shallower mode left for a live session to fall back to.
+// The case that let a real violation through unseen: the census used to guess
+// the sibling directories of cwd, so a deeply nested file never entered it.
 func TestSessionStartFindsNestedOffender(t *testing.T) {
 	repo := isolate(t)
 	nested := filepath.Join(repo, "src", "hooks", "pr-resolve", "CLAUDE.md")
@@ -450,10 +444,8 @@ func TestFullScanCleanTreeExitsZeroSilently(t *testing.T) {
 	require.Empty(t, out)
 }
 
-// TestFullScanNearWallDoesNotFailTheBuild: a file AT the wall but not over is
-// worth naming in the log, exactly like the SessionStart census -- but it
-// must not flip CI red, because that would be a behavior CI does not have
-// today failing builds that currently pass.
+// A file AT the wall but not over is worth naming in the log, but it must not
+// flip CI red and fail builds that currently pass.
 func TestFullScanNearWallDoesNotFailTheBuild(t *testing.T) {
 	repo := isolate(t)
 	writeFile(t, filepath.Join(repo, "CLAUDE.md"), wrapped(39500)) // at the wall, under the budget

@@ -14,15 +14,8 @@ import (
 	"path/filepath"
 )
 
-// marker is the session's accumulated view.
-//
-// Seen is the size+mtime of every candidate as of the last check, which is what
-// lets the post-edit sweep find a file written by a tool that names no path.
-// Fired records the signature the Stop gate last blocked on PER FILE, not a
-// single boolean: blocking a single time per session meant that afterwards a
-// session could bloat another file -- or re-break the same file -- and end the
-// turn in silence. Keying on the signature keeps the no-wedge property (a file
-// left untouched never blocks again) while making a NEW violation audible.
+// marker is the session's accumulated view. Fired records the signature the
+// Stop gate last blocked on PER FILE, which keeps the no-wedge property.
 type marker struct {
 	Paths []string          `json:"paths"`
 	Fired map[string]string `json:"fired"`
@@ -87,9 +80,7 @@ func recordOffender(sessionID, path string) {
 }
 
 // seedSnapshot records what every candidate looked like BEFORE this session
-// touched anything, so the opening post-edit sweep has something to diff
-// against. Without it the earliest Bash-written edit of a session gets away,
-// and that edit is usually the edit that does the damage.
+// touched anything, or the earliest Bash-written edit gets away.
 func seedSnapshot(sessionID, cwd string) {
 	if sessionID == "" {
 		return
@@ -120,8 +111,7 @@ func snapshot(cwd string) map[string]string {
 }
 
 // changedFiles refreshes the snapshot and returns the instruction files that
-// CHANGED since the last check. Watching files rather than tool_input.file_path
-// is what makes the guard un-walk-aroundable: a Bash edit names no path.
+// CHANGED. Watching files rather than tool_input.file_path catches a Bash edit.
 func changedFiles(sessionID, cwd string) []string {
 	if sessionID == "" {
 		return nil

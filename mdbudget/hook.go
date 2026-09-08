@@ -16,14 +16,8 @@ import (
 )
 
 // hookInput is the payload Claude Code delivers on stdin. Every field is
-// optional: absent cwd falls back to the process's, and an absent event means
-// the session-start census, so the hook still works driven by hand.
-//
-// FullScan is never sent by Claude Code -- no real hook_event_name collides
-// with it, and it needs none of the real events' session-scoped state
-// (a marker, a size+mtime snapshot). It exists for a single caller: a CI
-// job that wants a real pass/fail signal for a whole tree, not advisory JSON
-// for whatever files a live session happened to load or touch.
+// optional, so the hook still works driven by hand. FullScan is never sent by
+// Claude Code: it serves a CI job wanting a pass/fail signal for a tree.
 type hookInput struct {
 	CWD            string `json:"cwd"`
 	HookEventName  string `json:"hook_event_name"`
@@ -81,9 +75,8 @@ func findOffenders(cwd string, limit int) []offender {
 	return offenders
 }
 
-// editReport names the instruction files this tool call left near or over the
-// wall, or unwrapped. The tool may name the file it wrote (Write/Edit) or name
-// nothing at all (Bash) -- either way the answer comes from measuring.
+// editReport names the instruction files this tool call left near the wall,
+// over it, or unwrapped. The answer always comes from measuring.
 func editReport(in hookInput, limit int) string {
 	floor := nearLimit(limit)
 
@@ -122,8 +115,7 @@ func editReport(in hookInput, limit int) string {
 }
 
 // stopBlock decides whether to refuse the end of the turn. It fires per
-// (file, content): a file left as the gate found it never blocks again, which
-// is what makes a hard block safe, but re-breaking it is a new violation.
+// (file, content), so a file left as the gate found it never blocks again.
 func stopBlock(in hookInput, limit int) string {
 	if in.StopHookActive || in.SessionID == "" {
 		return ""
@@ -153,19 +145,14 @@ func stopBlock(in hookInput, limit int) string {
 		return ""
 	}
 	worstFirst(still)
-	// Deliberately NOT clearing the marker: it also carries the size+mtime
-	// snapshot the post-edit sweep diffs against and the list of files this
-	// session has already broken. Dropping it here disarms the guard for
-	// the rest of the session as soon as a turn ends cleanly.
+	// Deliberately NOT clearing the marker: dropping it here disarms the guard
+	// for the rest of the session as soon as a turn ends cleanly.
 	writeMarker(in.SessionID, m)
 	return stopReason(still, limit)
 }
 
-// run returns the stdout payload and process exit code for a given input.
-// Every real Claude Code event always succeeds -- a size check must never
-// break a session or a turn, so nothing here can fail a caller that reads
-// only the JSON. full_scan is the path that means anything by its exit
-// code: it is not a session hook, it is CI, and CI needs a real signal.
+// run returns the stdout payload and exit code. Every real Claude Code event
+// succeeds; only full_scan means anything by its exit code.
 func run(r io.Reader) (string, int) {
 	limit := budget()
 	if limit == 0 {
