@@ -12,10 +12,10 @@ import (
 // language that only REPORTS is the failure this pins: the old path repaired Go
 // alone, and every other language got a finding nothing could act on.
 var languageFixtures = map[string]string{
-	"x.go":   "package p\n\n" + essay("//") + "const p = 1\n",
-	"x.c":    essay("//") + "int p = 1;\n",
-	"x.cc":   essay("//") + "int p = 1;\n",
-	"x.rs":   essay("//") + "const P: i32 = 1;\n",
+	"x.go": "package p\n\n" + essay("//") + "const p = 1\n",
+	"x.c":  essay("//") + "int p = 1;\n",
+	"x.cc": essay("//") + "int p = 1;\n",
+	"x.rs": essay("//") + "const P: i32 = 1;\n",
 	"x.sh": "#!/bin/sh\n" + essay("#") + "p=1\n",
 }
 
@@ -32,8 +32,8 @@ func TestEveryGrammarReportsAndRepairs(t *testing.T) {
 	for name, src := range languageFixtures {
 		require.True(t, Parsed(name), "%s: the rule does not claim this file", name)
 
-		// A grammar the runtime accepts can still yield a tree full of errors,
-		// and the rule then reports a clean file. Java did exactly that.
+		// An accepted grammar can still yield a broken tree, and the rule then
+		// answers clean. Java did that.
 		_, parses := treeBlocks(languageFor(name), src)
 		require.True(t, parses, "%s: the grammar does not parse its own fixture", name)
 
