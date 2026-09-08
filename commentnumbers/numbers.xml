@@ -42,6 +42,13 @@
   <rewrite from="exactly one of" to="a single side of" test="It is in exactly one of the sets" expect="It is in a single side of the sets"/>
   <rewrite from="one of" to="any of" test="It is one of the keys" expect="It is any of the keys"/>
 
+  <!-- A cardinal standing in for the noun. Cutting it leaves "the other run",
+       so these say the relation instead. -->
+  <rewrite from="the other two" to="the others" test="The other two run a loop" expect="The others run a loop"/>
+  <rewrite from="the two" to="both" test="The two agree" expect="Both agree"/>
+  <rewrite from="all three" to="each of them" test="All three agree" expect="Each of them agree"/>
+  <rewrite from="the three" to="each" test="The three agree" expect="Each agree"/>
+
   <!-- A repeat count, said without a number. -->
   <rewrite from="exactly once" to="exactly a single time" test="It runs exactly once" expect="It runs exactly a single time"/>
   <rewrite from="only once" to="a single time" test="It runs only once" expect="It runs a single time"/>

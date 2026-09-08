@@ -60,32 +60,105 @@ func Fix(filename, src string) Repair {
 	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
 
-// repairComment rewrites a comment token, line by line. It returns the repaired
-// token, the sentences it cut, and the lines it left with nothing to say.
+// repairComment rewrites a comment token a paragraph at a time. It returns the
+// repaired token, the sentences it cut, and the lines it left with nothing to
+// say.
+//
+// A paragraph rather than a line, because a sentence wraps: cutting the share
+// a line carries leaves the rest of that sentence dangling below it.
 func repairComment(text string) (repaired string, removed []string, blanked []int) {
 	lines := strings.Split(text, "\n")
-	for i, line := range lines {
-		if isDirective(line) {
-			continue
-		}
-		marker, prose, ok := split(line)
-		if !ok || prose == "" {
-			continue
-		}
-		said := Say(prose)
+	for _, para := range paragraphsOf(lines) {
+		said := Say(para.prose)
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
-		if said == prose {
+		if said == para.prose {
 			continue
 		}
-		if said == "" {
-			blanked = append(blanked, i)
-			lines[i] = strings.TrimRight(marker, " ")
-			continue
+		wrapped := wrap(said, para.marker, para.width)
+		for i, at := range para.lines {
+			if i < len(wrapped) {
+				lines[at] = wrapped[i]
+				continue
+			}
+			// Fewer lines than before: the rest go bare, and the caller drops them.
+			blanked = append(blanked, at)
+			lines[at] = strings.TrimRight(para.marker, " ")
 		}
-		lines[i] = marker + said
+		if len(wrapped) > len(para.lines) {
+			// It does not fit: the tail joins the last line, so no offset moves.
+			last := para.lines[len(para.lines)-1]
+			lines[last] = strings.Join(append([]string{lines[last]}, proseOf(wrapped[len(para.lines):])...), " ")
+		}
 	}
 	return strings.Join(lines, "\n"), removed, blanked
+}
+
+// para is a run of comment lines carrying a single paragraph of prose.
+type para struct {
+	// lines are the indexes the paragraph occupies, in order.
+	lines []int
+	// marker is the indent and comment marker its lines share.
+	marker string
+	// prose is the paragraph, joined.
+	prose string
+	// width is the longest line it already used, so a rewrite wraps as it did.
+	width int
+}
+
+// paragraphsOf groups a comment's lines into the paragraphs a rewrite acts on.
+// A directive, a blank comment line and a line carrying no marker all break the
+// run: none of them is prose a sentence continues through.
+func paragraphsOf(lines []string) []para {
+	var out []para
+	var current *para
+	for i, line := range lines {
+		marker, prose, ok := split(line)
+		if !ok || prose == "" || isDirective(line) {
+			current = nil
+			continue
+		}
+		if current == nil || current.marker != marker {
+			out = append(out, para{marker: marker})
+			current = &out[len(out)-1]
+		}
+		current.lines = append(current.lines, i)
+		current.prose = strings.TrimSpace(current.prose + " " + prose)
+		current.width = max(current.width, len(line))
+	}
+	return out
+}
+
+// wrap lays prose back onto comment lines at the width the paragraph had. A
+// word longer than the width goes on its own line rather than being broken: a
+// URL or an identifier split across lines stops being either.
+func wrap(prose, marker string, width int) []string {
+	words := strings.Fields(prose)
+	if len(words) == 0 {
+		return nil
+	}
+	var out []string
+	line := marker
+	for _, w := range words {
+		if line != marker && len(line)+len(w) > width {
+			out = append(out, strings.TrimRight(line, " "))
+			line = marker
+		}
+		line += w + " "
+	}
+	return append(out, strings.TrimRight(line, " "))
+}
+
+// proseOf strips the marker off each wrapped line, for a tail that has to join
+// the line above it.
+func proseOf(lines []string) []string {
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if _, prose, ok := split(line); ok {
+			out = append(out, prose)
+		}
+	}
+	return out
 }
 
 // cutWhatIsLeft removes the sentence around any number the table did not
