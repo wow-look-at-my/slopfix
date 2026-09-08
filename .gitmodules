@@ -13,6 +13,3 @@
 [submodule "grammars/bash/tree-sitter-bash"]
 	path = grammars/bash/tree-sitter-bash
 	url = https://github.com/tree-sitter/tree-sitter-bash.git
-[submodule "grammars/java/tree-sitter-java"]
-	path = grammars/java/tree-sitter-java
-	url = https://github.com/tree-sitter/tree-sitter-java.git
