@@ -1,16 +1,16 @@
 // Package commentlength finds a comment longer than the code it documents.
 //
-// A comment earns its place by stopping the next mistake. One that runs longer
-// essay, and the reader pays for it on every pass through the file. The rule is
-// a proxy rather than a judgement of content: length is what a machine can
-// measure, and past a point every long comment is doing the same thing.
+// A comment earns its place by stopping the next mistake. A comment that runs
+// longer than the code becomes an essay, and the reader pays for it on every
+// pass through the file. The rule is a proxy rather than a judgement of
+// content: length is what a machine can measure.
 //
 // It reads the source package's adapter, so it spans the C family and the hash
 // family together -- Go, C, C++, Rust, Java, JavaScript, TypeScript, Swift,
 // Kotlin, Zig, Python, Ruby, Bash, YAML and the rest of that table. Nothing
 // here is specific to a language.
 //
-// The repair is to cut, from the end. A comment says its point first and
+// The repair is to cut, from the end. A comment leads with its point and
 // elaborates afterwards, so the trailing paragraph is what a reader loses least
 // by losing. The opening sentence is never cut: a block trimmed to nothing is a
 // worse edit than a block left long.
@@ -24,8 +24,6 @@ import (
 const ID = "comments/length"
 
 // floorChars is the size a comment may always be, whatever it documents.
-// Without it a single-line declaration makes every useful sentence a finding,
-// which is how a rule earns the reputation that gets it turned off.
 const floorChars = 120
 
 // Hit is a comment block that outweighs its code.
@@ -36,7 +34,7 @@ type Hit struct {
 	Tell string `json:"tell"`
 	// Sentence quotes the comment's opening, so a report is recognisable.
 	Sentence string `json:"sentence"`
-	// Line is the block's first line, counting from the top.
+	// Line is where the block starts, counting from the top of the file.
 	Line int `json:"line"`
 	// Repairable reports whether Fix can bring this block inside the budget
 	// without deleting its opening sentence.
@@ -51,13 +49,7 @@ type block struct {
 	codeLines, codeChars int
 	// text is the comment's lines, marker and all.
 	text []string
-	// exact is true when a parser decided this span rather than a line walk.
-	//
-	// It gates the REPAIR and nothing else. A finding is worth reporting on a
-	// span that was worked out by reading lines, because a reader checks it
-	// before acting. Deleting prose on that basis is not: a span wrong by a
-	// line deletes the wrong sentence, and nobody reviews a rewrite a hook
-	// applied.
+	// exact is true when a parser decided this span rather than a line walk. It gates the REPAIR and nothing else.
 	exact bool
 }
 
@@ -80,13 +72,8 @@ func Check(filename, src string) []Hit {
 	return hits
 }
 
-// Fix returns src with every over-long comment block cut back inside its
-// budget, and whether anything changed.
-//
-// Cutting is from the end, a paragraph at a time and then a line at a time,
-// and it stops before the opening sentence. A block that cannot be brought
-// inside the budget that way is left alone and still reported: a repair that
-// deletes the only sentence worth keeping is worse than the finding.
+// Fix returns src with every over-long comment block cut back inside its budget, and whether anything changed.
+// Cutting is from the end and stops before the opening sentence.
 func Fix(filename, src string) (string, bool) {
 	bs := blocks(filename, src)
 	if len(bs) == 0 {
@@ -135,10 +122,7 @@ func judge(b block) (string, bool) {
 }
 
 // trim cuts the block's trailing prose until it fits, keeping the opening.
-//
-// A paragraph goes before a line does, because a comment's paragraphs are its
-// units of thought and half a paragraph reads as a truncation rather than as a
-// shorter comment. The opening paragraph always survives.
+// A paragraph goes before a line does, and the opening paragraph always survives.
 func trim(b block) []string {
 	kept := b.text
 	for len(kept) > 1 {
@@ -154,8 +138,7 @@ func trim(b block) []string {
 	return kept
 }
 
-// dropParagraph removes the last blank-separated paragraph of a comment block,
-// and reports false when the block holds only one.
+// dropParagraph removes the last blank-separated paragraph, and reports false when no break remains.
 func dropParagraph(text []string) ([]string, bool) {
 	for i := len(text) - 1; i > 0; i-- {
 		if isBlankComment(text[i]) {
@@ -180,8 +163,7 @@ func isBlankComment(line string) bool {
 	return t == ""
 }
 
-// opening is the block's first line of prose, bounded so a report quotes a
-// recognisable fragment rather than a paragraph.
+// opening is the block's leading line of prose, bounded so a report quotes a recognisable fragment.
 func opening(text []string) string {
 	for _, line := range text {
 		t := strings.TrimSpace(line)
@@ -196,9 +178,7 @@ func opening(text []string) string {
 	return ""
 }
 
-// charsOf is the prose weight of a comment block: its lines, markers and all,
-// with the indentation dropped, because indentation is the code's shape rather
-// than the comment's size.
+// charsOf is the prose weight of a comment block: its lines, markers and all, with the indentation dropped.
 func charsOf(text []string) int {
 	n := 0
 	for _, line := range text {

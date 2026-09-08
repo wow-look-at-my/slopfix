@@ -5,7 +5,7 @@
 // comment text, and a span that is wrong by a line deletes the wrong prose.
 // go/ast is in the standard library, needs no cgo, and answers exactly which
 // node a doc comment is attached to, so the language this org writes most gets
-// the exact answer rather than the approximate one.
+// the exact answer rather than an approximation.
 //
 // A file that does not parse yields nothing. Half a syntax tree is a worse
 // input than none, and a file mid-edit is the common case for a hook.
@@ -47,10 +47,7 @@ func goBlocks(src string) (out []block, ok bool) {
 }
 
 // documented walks the file for every node carrying a doc comment.
-//
-// Only a doc comment is measured. A free-floating comment documents nothing,
-// so there is nothing to weigh it against, and a comment on the line beside a
-// statement is a note rather than a block.
+// Only a doc comment is measured: a free-floating comment documents nothing.
 func documented(file *ast.File) map[*ast.CommentGroup]ast.Node {
 	out := map[*ast.CommentGroup]ast.Node{}
 	add := func(doc *ast.CommentGroup, node ast.Node) {

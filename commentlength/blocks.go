@@ -11,7 +11,7 @@
 // What the walk has to get right is narrow. A comment marker inside a string
 // is data, so the source adapter decides which text is really a comment and
 // this file only reads the lines it names. And the code a comment documents
-// has to end somewhere: at the close of the brace the first line opened, at
+// has to end somewhere: at the close of the brace its opening line left open, at
 // the dedent below it, or at the blank line that separates it from whatever
 // comes next.
 package commentlength
@@ -22,9 +22,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/source"
 )
 
-// maxCodeLines bounds how far a block's code is followed. Past this the
-// a long function is judged against the function's opening, which is what a
-// reader actually holds in their head while reading it.
+// maxCodeLines bounds how far a block's code is followed.
 const maxCodeLines = 40
 
 // blocks returns every comment block in the file, each with the code it
@@ -92,9 +90,7 @@ func commentLines(filename, src string, n int) []bool {
 	return out
 }
 
-// startsComment reports a line whose first token opens a comment. The markers
-// are the ones the source adapter's syntax table spells, plus the leading `*`
-// a wrapped block comment conventionally carries.
+// startsComment reports a line whose leading token opens a comment.
 func startsComment(trimmed string) bool {
 	for _, marker := range []string{"//", "/*", "#", "*/", "*"} {
 		if strings.HasPrefix(trimmed, marker) {
@@ -113,12 +109,6 @@ func lineAt(src string, offset int) int {
 }
 
 // measureCode measures the code a block documents, starting at line from.
-//
-// The span ends at whichever comes first: the close of the brace its opening
-// line left open, a line indented no deeper than the comment that is blank or
-// starts a new comment, or the bound above. A language with no braces falls
-// through to the indentation rule, which is what makes this work on Bash and
-// Python as well as on Go.
 func measureCode(lines []string, from, indent int) (int, int) {
 	depth := 0
 	count, chars := 0, 0
@@ -127,9 +117,7 @@ func measureCode(lines []string, from, indent int) (int, int) {
 		trimmed := strings.TrimSpace(line)
 
 		if trimmed == "" || startsComment(trimmed) {
-			// A blank line or a fresh comment ends the span, but only once the
-			// braces it opened are closed: a blank line inside a function body
-			// is part of that body.
+			// A blank line or a fresh comment ends the span, unless a brace is still open.
 			if depth <= 0 && count > 0 {
 				break
 			}
@@ -149,12 +137,10 @@ func measureCode(lines []string, from, indent int) (int, int) {
 	return count, chars
 }
 
-// closesNothing reports a first line that opened no brace, so the span is
-// bounded by indentation rather than by a matching close.
+// closesNothing reports an opening line that opened no brace, so indentation bounds the span.
 func closesNothing(first string) bool { return !opensBrace(first) }
 
-// opensBrace reports a line that leaves a brace open, which is how a C-family
-// declaration announces that its body follows.
+// opensBrace reports a line that leaves a brace open.
 func opensBrace(line string) bool { return braceDelta(strings.TrimSpace(line)) > 0 }
 
 // braceDelta counts the braces a line opens less the ones it closes, ignoring
@@ -183,9 +169,7 @@ func braceDelta(line string) int {
 	return delta
 }
 
-// indentOf is a line's leading whitespace width, with a tab counted as a
-// single level so a tab-indented file and a space-indented one compare the
-// same way against their own neighbours.
+// indentOf is a line's leading whitespace width, with a tab counted as a level.
 func indentOf(line string) int {
 	n := 0
 	for i := range len(line) {
