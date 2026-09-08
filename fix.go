@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -24,10 +25,12 @@ const (
 	RuleWrap Rule = "wrap"
 	// RuleSTE reports what fails the merge gate and repairs nothing.
 	RuleSTE Rule = "ste"
+	// RuleCommentLength cuts a comment back inside the code it documents.
+	RuleCommentLength Rule = "comments"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleCommentLength}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -41,6 +44,8 @@ func IDsFor(rule Rule) set.Set[string] {
 		return set.Of(IDHardWrap)
 	case RuleSTE:
 		return ste.AllIDs
+	case RuleCommentLength:
+		return set.Of(commentlength.ID)
 	}
 	return set.New[string]()
 }
@@ -114,6 +119,24 @@ func Fix(req Request) Repair {
 			if keeps(hit.ID) {
 				repair.Kept = append(repair.Kept, hit)
 			}
+		}
+	}
+
+	// The comment-length repair reads source rather than prose, so it runs
+	// before the document gate below sends a source file home.
+	if wants(RuleCommentLength) && keeps(commentlength.ID) && req.Path != "" {
+		cut, changed := commentlength.Fix(req.Path, text)
+		if changed {
+			text = cut
+			repair.Removed = append(repair.Removed, "trailing comment prose")
+		}
+		for _, hit := range commentlength.Check(req.Path, text) {
+			repair.Kept = append(repair.Kept, tombstones.Hit{
+				ID:     hit.ID,
+				Tell:   hit.Tell,
+				Phrase: hit.Sentence,
+				LineNo: hit.Line,
+			})
 		}
 	}
 
