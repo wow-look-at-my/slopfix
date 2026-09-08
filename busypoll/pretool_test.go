@@ -209,8 +209,7 @@ func preToolPayloadIn(t *testing.T, transcript, session, tool, input string) str
 }
 
 func TestAnEarlierSessionsReadIsNotThisSessionsRead(t *testing.T) {
-	// A resumed conversation writes its records into the same file, each still
-	// stamped with the session that produced it.
+	// A resumed conversation writes into the same file, each record stamped.
 	const read = "gh pr view 130 --repo wow-look-at-my/grok-build"
 	tr := stageTranscript(t,
 		callIn("t1", read, "session-before", false),
@@ -238,8 +237,7 @@ func TestASubagentsReadIsNotTheCallersRead(t *testing.T) {
 }
 
 func TestALocalGitCommandIsNeverAStatusRead(t *testing.T) {
-	// Each of these reads a local object, reaches no network, and asks what
-	// state nothing is in.
+	// Each reads a local object, reaches no network, and asks nothing's state.
 	const sha = "4f7cea8b1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f60"
 	tr := stageTranscript(t,
 		callIn("t1", "gh wait-ci checks --sha "+sha, "s", false),
@@ -261,8 +259,7 @@ func TestALocalGitCommandIsNeverAStatusRead(t *testing.T) {
 }
 
 func TestASHAInANeighbouringStatementIsNotTheSubject(t *testing.T) {
-	// The earlier call asked GitHub about a pull request, then read a local
-	// object in a later statement.
+	// The earlier call asked GitHub, then read a local object in a later one.
 	const sha = "4f7cea8b1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f60"
 	tr := stageTranscript(t,
 		callIn("t1", "gh pr view 130 && git show "+sha+":go.mod", "s", false),

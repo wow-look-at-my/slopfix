@@ -11,10 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The marketplace plugin is a manifest and a launcher per rule. A launcher
-// execs a subcommand by name, so a subcommand that is missing, or that answers
-// nothing on a payload it should refuse, is a guard that reports success and
-// does nothing. These drive each subcommand the way its launcher does.
+// A launcher execs a subcommand by name, so one that is missing, or silent on a
+// payload it should refuse, is a guard that reports success and does nothing.
 
 // find returns the registered subcommand of that name.
 func find(t *testing.T, name string) *cobra.Command {

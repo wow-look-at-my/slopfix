@@ -71,7 +71,8 @@ func isInstructionFile(path string) bool {
 	return strings.HasSuffix(path, ".md") && filepath.Base(filepath.Dir(path)) == "claude_snippets"
 }
 
-// wideLines returns 1-based line numbers that could have been wrapped and were
+// wideLines returns the line numbers, counting from the top, that could have
+// been wrapped and were
 // not. Code fences, tables, indented blocks and headings cannot be rewrapped
 // without changing what they render as, and a line whose leading widthLimit
 // columns hold no space is a single unbreakable token (a URL).

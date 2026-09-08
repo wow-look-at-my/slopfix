@@ -20,9 +20,9 @@ package busypoll
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
+	"text/template"
 )
 
 // Input is the subset of the payloads this rule reads; both events arrive on the same command.
@@ -87,23 +87,39 @@ func runPreTool(in Input) Result {
 // count, and gives the ways out, because a refusal that does not say what to
 // do instead just gets repeated with a different excuse.
 func reason(n int, calls []call, repeat bool) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "Stop. The last %d turns in a row made the exact same call, with nothing else\n", n)
-	b.WriteString("different in between and no real wait between them -- that is a busy-poll loop,\n")
-	b.WriteString("and it burns the user's tokens for zero new signal, because the answer cannot\n")
-	b.WriteString("have changed in the seconds since the last check:\n\n")
+	shown := make([]string, 0, len(calls))
 	for _, c := range calls {
-		fmt.Fprintf(&b, "  %s\n", c.disp)
+		shown = append(shown, c.disp)
 	}
-	b.WriteString("\nDo not run any of the calls above again on a hunch. Either:\n\n")
-	b.WriteString("  - Reply with NO tool call at all and wait for a real signal -- a queued\n")
-	b.WriteString("    notification, a scheduled trigger firing, an actual event arriving -- or\n")
-	b.WriteString("  - Arm a real wakeup (ScheduleWakeup / send_later / a Monitor watch) with a\n")
-	b.WriteString("    genuine delay, then stop. Never re-check by hand in the meantime.\n\n")
-	b.WriteString("Rewrite this turn so it makes none of the calls listed above, then stop.")
-	if repeat {
-		b.WriteString("\n\nThis is not the first refusal. Making the same call again will refuse again --\n")
-		b.WriteString("the fix is to stop calling it, not to call it one more time.")
+	var b strings.Builder
+	if err := reasonTemplate.Execute(&b, struct {
+		N      int
+		Calls  []string
+		Repeat bool
+	}{n, shown, repeat}); err != nil {
+		panic("busypoll: the refusal template does not render: " + err.Error())
 	}
 	return b.String()
 }
+
+// reasonTemplate is the refusal as a document. It reads as the text it produces,
+// which a run of writes does not.
+var reasonTemplate = template.Must(template.New("reason").Parse(
+	`Stop. The last {{.N}} turns in a row made the exact same call, with nothing else
+different in between and no real wait between them -- that is a busy-poll loop,
+and it burns the user's tokens for zero new signal, because the answer cannot
+have changed in the seconds since the last check:
+
+{{range .Calls}}  {{.}}
+{{end}}
+Do not run any of the calls above again on a hunch. Either:
+
+  - Reply with NO tool call at all and wait for a real signal -- a queued
+    notification, a scheduled trigger firing, an actual event arriving -- or
+  - Arm a real wakeup (ScheduleWakeup / send_later / a Monitor watch) with a
+    genuine delay, then stop. Never re-check by hand in the meantime.
+
+Rewrite this turn so it makes none of the calls listed above, then stop.{{if .Repeat}}
+
+This is not the first refusal. Making the same call again will refuse again --
+the fix is to stop calling it, not to call it one more time.{{end}}`))

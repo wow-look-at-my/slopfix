@@ -45,9 +45,9 @@ func TestTheUnitsListIsTheGatesAloneAndTheFrameIsTheOtherSubstratesAlone(t *test
 	assert.Equal(t, []string{"three parts"}, texts(bare, Gate))
 }
 
-// The gate's word list stops short of the prose one, and it reads any run of
-// digits. Neither list is
-// derived from the other, and widening either moves verdicts on the gate.
+// The gate's word list stops short of the prose list, and it reads any run of
+// digits. Neither is derived from the other, and widening either moves verdicts
+// on the gate.
 func TestTheGateVocabularyStopsWhereItAlwaysDid(t *testing.T) {
 	assert.Empty(t, texts("it has twenty hooks", Gate))
 	assert.Equal(t, []string{"twenty hooks"}, texts("It has twenty hooks.", Prose))
