@@ -146,30 +146,39 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 // firstStatement descends through a bare sequence to the construct a comment
 // actually documents.
 //
-// A grammar can group everything left in a block into one node. Weighing a
+// A grammar can group everything left in a block into a single node. Weighing a
 // comment against that node measures the rest of the block, so a note over a
-// single statement reads as proportionate to twenty lines it does not describe.
+// lone statement reads as proportionate to lines it does not describe.
 //
-// A bare sequence is recognised without naming a language: it holds no text of
-// its own, starting exactly where its first child starts and ending exactly
-// where its last ends. The descent stops unless it saves rows, which leaves an
-// expression on a single line whole.
+// A bare sequence is recognised without naming a language, by two properties it
+// has and a construct does not. It opens on its first child, where a construct
+// opens on a keyword or a brace of its own. And its children each begin on a
+// line of their own, where the parts of one statement share lines. The descent
+// stops unless it saves lines, so a statement spread over several stays whole.
 func firstStatement(node ts.Node) ts.Node {
-	for !node.IsNull() {
-		count := node.NamedChildCount()
-		if count == 0 {
-			return node
-		}
-		first, last := node.NamedChild(0), node.NamedChild(count-1)
-		if node.StartByte() != first.StartByte() || node.EndByte() != last.EndByte() {
-			return node
-		}
-		if first.EndPoint().Row >= node.EndPoint().Row {
-			return node
-		}
-		node = first
+	for !node.IsNull() && isSequence(node) {
+		node = node.NamedChild(0)
 	}
 	return node
+}
+
+func isSequence(node ts.Node) bool {
+	count := node.NamedChildCount()
+	if count < 2 || node.StartByte() != node.NamedChild(0).StartByte() {
+		return false
+	}
+	if node.NamedChild(0).EndPoint().Row >= node.EndPoint().Row {
+		return false
+	}
+	seen := node.NamedChild(0).StartPoint().Row
+	for i := uint32(1); i < count; i++ {
+		row := node.NamedChild(i).StartPoint().Row
+		if row <= seen {
+			return false
+		}
+		seen = row
+	}
+	return true
 }
 
 // afterComments advances past a comment run the pairing must not measure.
