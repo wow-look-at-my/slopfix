@@ -100,6 +100,8 @@ func denyReason(rule string) string {
 		return "truncate -s 0 empties a file in place, destroying its contents unrecoverably. Use recycler trash <path> instead, which moves it to the recycle bin."
 	case "rm_flag":
 		return "This rm carries a flag that cannot be translated to recycler trash. rm is rewritten to recycler trash (which understands only paths), so only -r/-R/--recursive, -f/--force, -v/--verbose, -i/-I/--interactive, and -- are accepted. Rerun with just the paths."
+	case "toolchain_output":
+		return "go-toolchain refuses to run when its output is piped, and redirecting or capturing it is the same act by another spelling. The full output has to land in the transcript, because a grep over a saved log shows only what you already expected to find and hides the rest. Run `go-toolchain` bare, with nothing after it."
 	}
 	return "Heredocs are banned in this environment. Write file content with the Write/Edit tools; for command stdin use printf '%s' ... | cmd or a temp file."
 }

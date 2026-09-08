@@ -225,6 +225,78 @@ func truncateTargets(args []*syntax.Word) ([]*syntax.Word, bool) {
 	return ops, true
 }
 
+// divertsGoToolchain reports a go-toolchain whose output goes anywhere but the
+// terminal.
+//
+// go-toolchain refuses to start when its stdout is a pipe, so its whole output
+// lands in the transcript. A redirect to a file defeats that and is the same
+// act: the run happens, the transcript keeps a summary line, and the failure it
+// printed is read through a grep that shows only what the reader already
+// expected. A capture is the same again.
+func divertsGoToolchain(f *syntax.File) bool {
+	found := false
+	syntax.Walk(f, func(n syntax.Node) bool {
+		switch node := n.(type) {
+		case *syntax.CmdSubst:
+			if callsGoToolchain(node) {
+				found = true
+			}
+		case *syntax.ProcSubst:
+			if callsGoToolchain(node) {
+				found = true
+			}
+		case *syntax.Stmt:
+			if isGoToolchain(node.Cmd) && divertsStdout(node.Redirs) {
+				found = true
+			}
+		case *syntax.BinaryCmd:
+			if node.Op == syntax.Pipe || node.Op == syntax.PipeAll {
+				if isGoToolchain(node.X.Cmd) {
+					found = true
+				}
+			}
+		}
+		return !found
+	})
+	return found
+}
+
+// callsGoToolchain reports the command anywhere inside a substitution, which
+// captures whatever it prints however deeply it is nested.
+func callsGoToolchain(n syntax.Node) bool {
+	found := false
+	syntax.Walk(n, func(inner syntax.Node) bool {
+		if s, ok := inner.(*syntax.Stmt); ok && isGoToolchain(s.Cmd) {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+func isGoToolchain(cmd syntax.Command) bool {
+	call, ok := cmd.(*syntax.CallExpr)
+	if !ok {
+		return false
+	}
+	e, ok := effectiveCommand(call)
+	return ok && e.name == "go-toolchain"
+}
+
+// divertsStdout reports a redirect that takes stdout off the terminal. A
+// redirect of stderr alone leaves the output where it belongs.
+func divertsStdout(rs []*syntax.Redirect) bool {
+	for _, r := range rs {
+		switch r.Op {
+		case syntax.RdrOut, syntax.AppOut, syntax.RdrAll, syntax.AppAll:
+			if r.N == nil || r.N.Value == "1" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func hasBadTruncate(f *syntax.File) bool {
 	return hasStatementCall(f, func(c *syntax.CallExpr) bool {
 		e, ok := effectiveCommand(c)

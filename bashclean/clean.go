@@ -60,6 +60,9 @@ func transform(command string, passes int, warn io.Writer) Result {
 	if hasBadRM(f) {
 		return deny(command, "rm_flag")
 	}
+	if divertsGoToolchain(f) {
+		return deny(command, "toolchain_output")
+	}
 	before := printFile(f)
 	rules := []string{}
 	apply := func(name string, fn func(*syntax.File)) {
