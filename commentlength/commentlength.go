@@ -18,6 +18,8 @@ package commentlength
 import (
 	"strings"
 	"unicode"
+
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -204,7 +206,7 @@ func trim(b block) []string {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
 		}
-		next, ok := shorten(kept)
+		next, ok := cutLastThought(kept)
 		if !ok {
 			break
 		}
@@ -215,19 +217,85 @@ func trim(b block) []string {
 	return b.text
 }
 
-// shorten cuts the last thought out of a block, and reports false when no cut
-// leaves prose that still reads.
+// cutLastThought drops the last thought out of a block, and reports false when
+// nothing is left to drop.
 //
-// Every cut lands on a sentence end. Lopping a line instead leaves a dangling
-// clause, which is a worse comment than the long one it replaced.
-func shorten(text []string) ([]string, bool) {
-	for _, cut := range []func([]string) ([]string, bool){dropParagraph, dropSentence} {
-		next, ok := cut(text)
-		if ok && len(next) > 0 && endsSentence(next[len(next)-1]) {
-			return next, true
-		}
+// A cut lands on a sentence end wherever the prose has one. Lopping a line
+// instead leaves a dangling clause, and "This scanner never" is a worse comment
+// than the long one it replaced. The line cut stays as the last resort, for
+// prose that carries no sentence end at all.
+func cutLastThought(text []string) ([]string, bool) {
+	if next, ok := dropParagraph(text); ok && endsWell(next) {
+		return next, true
+	}
+	if next, ok := dropTrailingSentence(text); ok {
+		return next, true
+	}
+	if next, ok := dropSentence(text); ok {
+		return next, true
+	}
+	if len(text) > 1 {
+		return text[:len(text)-1], true
 	}
 	return text, false
+}
+
+// endsWell reports a block whose last line closes a sentence.
+func endsWell(text []string) bool {
+	return len(text) > 0 && endsSentence(text[len(text)-1])
+}
+
+// dropTrailingSentence removes the last sentence of the last paragraph and
+// reflows what is left, so a cut lands mid-line where the prose ends there.
+//
+// It reports false for a block whose shape it cannot read, and for one whose
+// last paragraph holds a single sentence: dropParagraph and dropSentence own
+// those.
+func dropTrailingSentence(text []string) ([]string, bool) {
+	marker, indent, ok := commentShape(text)
+	if !ok {
+		return text, false
+	}
+	paras := paragraphs(text)
+	last := -1
+	for i, para := range paras {
+		if !para.blank {
+			last = i
+		}
+	}
+	if last < 0 {
+		return text, false
+	}
+
+	body := strings.Join(paras[last].lines, " ")
+	sentences := ste.Sentences(body)
+	if len(sentences) < 2 {
+		return text, false
+	}
+	kept := strings.TrimSpace(strings.Join(sentences[:len(sentences)-1], " "))
+	if kept == "" {
+		return text, false
+	}
+
+	var out []string
+	for i, para := range paras {
+		switch {
+		case i > last:
+			// Nothing follows the last prose paragraph but blank markers.
+		case para.blank:
+			out = append(out, indent+marker)
+		case i == last:
+			out = append(out, reflow(kept, indent, marker, wrapWidth)...)
+		default:
+			for _, line := range para.lines {
+				out = append(out, indent+marker+" "+line)
+			}
+		}
+	}
+	if len(out) == 0 {
+		return text, false
+	}
+	return out, true
 }
 
 // dropSentence removes the trailing lines back to the last sentence that ends,
