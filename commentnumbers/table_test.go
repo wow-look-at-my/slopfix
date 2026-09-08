@@ -41,7 +41,8 @@ func TestProseTheTableDoesNotCoverIsUntouched(t *testing.T) {
 	assert.Equal(t, "It reserves a slot and publishes it", Say("It reserves a slot and publishes it"))
 }
 
-// A word that merely contains a number word is a name, not a count.
-func TestAWordContainingANumberWordIsLeftAlone(t *testing.T) {
+// A word that merely contains a number word is a name, so the table's own
+// matching leaves it alone.
+func TestTheTableLeavesAWordContainingANumberWordAlone(t *testing.T) {
 	assert.Equal(t, "The oneShot flag and someone else", Say("The oneShot flag and someone else"))
 }
