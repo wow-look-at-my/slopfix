@@ -126,6 +126,7 @@ func hasFileRead(f *syntax.File) bool {
 		return callReadsBannedFile(c) || callIsSedLineRead(c)
 	})
 }
+
 // hasGitRM: the SUBCOMMAND is the leading non-flag word after `git`, so
 // `git -C dir rm f` counts while `git commit -m rm` does not. `--cached`
 // anywhere only unstages, and passes through.
@@ -165,7 +166,8 @@ var (
 	droppableRM  = regexp.MustCompile(`^--(recursive|force|verbose|interactive)$|^-[rRfvIi]+$`)
 )
 
-// isTruncateZero: `truncate -s 0 f`, `--size=0`, `-s0` all empty a file.
+// isTruncateZero reports a truncate that empties a file, in every spelling of
+// the size flag: separate, attached, or long with an equals sign.
 func isTruncateZero(args []*syntax.Word) bool {
 	for i, w := range args {
 		s, ok := literal(w)
@@ -184,10 +186,9 @@ func isTruncateZero(args []*syntax.Word) bool {
 	return false
 }
 
-// truncateTargets returns the files a zero-size truncate would empty. Any
+// truncateTargets returns the files an emptying truncate would clear. Any
 // OTHER flag fails, which sends the call to the deny: `-r RFILE` names a
-// reference file rather than a target, so dropping the flag and keeping its
-// value would recycle a file the command never touched.
+// reference file, so keeping its value would recycle an untouched file.
 func truncateTargets(args []*syntax.Word) ([]*syntax.Word, bool) {
 	ops := []*syntax.Word{}
 	skip, done := false, false
@@ -285,8 +286,8 @@ func trailing(f *syntax.File, fn func(*syntax.Stmt)) {
 	}
 }
 
-// spineLeaf is the string-end leaf of a statement: && / || chains parse
-// left-associative, so the rightmost leaf is one level down.
+// spineLeaf is the trailing leaf of a statement: && / || chains parse
+// left-associative, so the rightmost leaf is the right branch.
 func spineLeaf(s *syntax.Stmt) *syntax.Stmt {
 	if b, ok := s.Cmd.(*syntax.BinaryCmd); ok && (b.Op == syntax.AndStmt || b.Op == syntax.OrStmt) {
 		return b.Y
@@ -396,9 +397,9 @@ func isStdoutFileTeeable(r *syntax.Redirect) bool {
 }
 
 // teeRewrite turns a trailing stdout file redirect into a pipe through tee, so
-// the output lands in the file AND stays visible. A statement with more than
-// one stdout file redirect, a /dev/ target, or a process-substitution target
-// is left alone.
+// the output lands in the file AND stays visible. A statement with several
+// stdout file redirects, a /dev/ target, or a process-substitution target is
+// left alone.
 func teeRewrite(s *syntax.Stmt) {
 	redirs := &s.Redirs
 	if b, ok := s.Cmd.(*syntax.BinaryCmd); ok && b.Op == syntax.Pipe {
