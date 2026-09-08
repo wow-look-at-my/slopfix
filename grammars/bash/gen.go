@@ -3,4 +3,4 @@
 // from go-tree-sitter rather than being copied here.
 package bash
 
-//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package bash -standalone -scanner github.com/wow-look-at-my/go-tree-sitter/grammars/bash -out parser.go tree-sitter-bash/src/parser.c
+//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package bash -standalone -scanner github.com/wow-look-at-my/go-tree-sitter/grammars/bash -out parser.go testdata/tree-sitter-bash/src/parser.c

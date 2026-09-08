@@ -3,4 +3,4 @@
 // build time and compiled into the binary.
 package clang
 
-//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package clang -standalone -out parser.go tree-sitter-c/src/parser.c
+//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package clang -standalone -out parser.go testdata/tree-sitter-c/src/parser.c

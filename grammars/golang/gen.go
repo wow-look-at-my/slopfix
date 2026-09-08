@@ -3,4 +3,4 @@
 // generated at build time and compiled into the binary.
 package golang
 
-//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package golang -standalone -out parser.go tree-sitter-go/src/parser.c
+//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package golang -standalone -out parser.go testdata/tree-sitter-go/src/parser.c
