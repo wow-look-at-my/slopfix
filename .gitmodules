@@ -1,0 +1,15 @@
+[submodule "grammars/golang/tree-sitter-go"]
+	path = grammars/golang/tree-sitter-go
+	url = https://github.com/tree-sitter/tree-sitter-go.git
+[submodule "grammars/clang/tree-sitter-c"]
+	path = grammars/clang/tree-sitter-c
+	url = https://github.com/tree-sitter/tree-sitter-c.git
+[submodule "grammars/cpp/tree-sitter-cpp"]
+	path = grammars/cpp/tree-sitter-cpp
+	url = https://github.com/tree-sitter/tree-sitter-cpp.git
+[submodule "grammars/rust/tree-sitter-rust"]
+	path = grammars/rust/tree-sitter-rust
+	url = https://github.com/tree-sitter/tree-sitter-rust.git
+[submodule "grammars/bash/tree-sitter-bash"]
+	path = grammars/bash/tree-sitter-bash
+	url = https://github.com/tree-sitter/tree-sitter-bash.git

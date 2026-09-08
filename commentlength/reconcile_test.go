@@ -75,11 +75,12 @@ func TestATrailingCommentIsLeftAlone(t *testing.T) {
 	assert.Empty(t, Check("x.go", src))
 }
 
-// commentspan weighs a comment against the whole node. Capping the code span
-// reported a proportionate comment on a long function as an essay.
-func TestALongFunctionIsFollowedPastTheLineWalkCap(t *testing.T) {
-	body := strings.Repeat("\tcallSomethingWithARatherLongName(argumentOne, argumentTwo)\n", maxCodeLines*2)
-	doc := strings.Repeat("// A line of explanation that earns its place here.\n", maxCodeLines+5)
+// commentspan weighs a comment against the whole node. A capped code span
+// reported a proportionate comment on a long function as an essay, so the span
+// follows the node however far it runs.
+func TestALongFunctionIsFollowedToItsEnd(t *testing.T) {
+	body := strings.Repeat("\tcallSomethingWithARatherLongName(argumentOne, argumentTwo)\n", 80)
+	doc := strings.Repeat("// A line of explanation that earns its place here.\n", 45)
 	src := "package p\n\n" + doc + "func f() {\n" + body + "}\n"
 	assert.Empty(t, Check("x.go", src), "the comment is shorter than the function")
 

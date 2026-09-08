@@ -145,4 +145,3 @@ func isDirective(text string) bool {
 
 // The token walk that reads these lines, and every exemption a number can earn,
 // live in cardinal. Only the comment's own shape is here.
-
