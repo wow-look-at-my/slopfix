@@ -9,6 +9,20 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentnumbers"
 )
 
+// header is the package clause every fixture needs. The parser reports an error
+// for a Go file without it, and a file that does not parse has no comments to
+// repair, so a fixture missing it would test nothing.
+const header = "package p\n\n"
+
+// fix repairs a fixture and hands back the repair with the header off, so a
+// case reads as the snippet it is about.
+func fix(t *testing.T, src string) commentnumbers.Repair {
+	t.Helper()
+	repair := commentnumbers.Fix("x.go", header+src)
+	repair.Text = strings.TrimPrefix(repair.Text, header)
+	return repair
+}
+
 // The property the rule exists for: what Fix writes carries no finding. A
 // repair that leaves the rule reporting is not a repair.
 func TestWhatFixWritesCarriesNoFinding(t *testing.T) {
@@ -20,9 +34,9 @@ func TestWhatFixWritesCarriesNoFinding(t *testing.T) {
 		"// Each shard is padded to 128 bytes.\nvar x int\n",
 		"// First, it locks. Second, it writes.\nfunc i() {}\n",
 	} {
-		repair := commentnumbers.Fix("x.go", src)
+		repair := fix(t,src)
 		require.True(t, repair.Changed, "nothing repaired in %q", src)
-		assert.Empty(t, commentnumbers.Check("x.go", repair.Text),
+		assert.Empty(t, commentnumbers.Check("x.go", header+repair.Text),
 			"a finding survived the repair of %q: %q", src, repair.Text)
 	}
 }
@@ -30,7 +44,7 @@ func TestWhatFixWritesCarriesNoFinding(t *testing.T) {
 // The table says it in words wherever a swap keeps the meaning, so the sentence
 // survives the repair rather than being cut.
 func TestATableEntryKeepsTheSentence(t *testing.T) {
-	repair := commentnumbers.Fix("x.go", "// It reserves one slot with one atomic add.\nfunc f() {}\n")
+	repair := fix(t,"// It reserves one slot with one atomic add.\nfunc f() {}\n")
 	assert.Equal(t, "// It reserves a single slot with a single atomic add.\nfunc f() {}\n", repair.Text)
 	assert.Empty(t, repair.Removed, "a rewritten sentence is not a cut one")
 }
@@ -38,7 +52,7 @@ func TestATableEntryKeepsTheSentence(t *testing.T) {
 // A number no entry covers is not guessed at. The sentence goes, and the caller
 // is told which sentence went.
 func TestANumberNoEntryCoversCutsItsSentence(t *testing.T) {
-	repair := commentnumbers.Fix("x.go", "// It is padded. Each shard is padded to 128 bytes.\nvar x int\n")
+	repair := fix(t,"// It is padded. Each shard is padded to 128 bytes.\nvar x int\n")
 	assert.Equal(t, "// It is padded.\nvar x int\n", repair.Text)
 	assert.Equal(t, []string{"Each shard is padded to 128 bytes."}, repair.Removed)
 }
@@ -46,7 +60,7 @@ func TestANumberNoEntryCoversCutsItsSentence(t *testing.T) {
 // A comment left with nothing to say loses its line rather than sitting there
 // as a bare marker.
 func TestACommentLeftWithNothingToSayLosesItsLine(t *testing.T) {
-	repair := commentnumbers.Fix("x.go", "// Each shard is padded to 128 bytes.\nvar x int\n")
+	repair := fix(t,"// Each shard is padded to 128 bytes.\nvar x int\n")
 	assert.Equal(t, "var x int\n", repair.Text)
 }
 
@@ -58,13 +72,13 @@ func TestACutTakesAWrappedSentenceWhole(t *testing.T) {
 		"// measured take therefore also pays for 1 add. Subtract the add\n" +
 		"// benchmark to isolate the take itself.\nfunc f() {}\n"
 
-	repair := commentnumbers.Fix("x.go", src)
+	repair := fix(t,src)
 	assert.NotContains(t, repair.Text, "pays for", "the sentence carrying the number goes whole")
 	assert.NotContains(t, repair.Text, "// add.", "no fragment of it is left behind")
 	assert.Contains(t, repair.Text, "puts refillBatch values back.")
 	assert.Contains(t, repair.Text, "Subtract the add")
 	assert.Equal(t, []string{"Every measured take therefore also pays for 1 add."}, repair.Removed)
-	assert.Empty(t, commentnumbers.Check("x.go", repair.Text))
+	assert.Empty(t, commentnumbers.Check("x.go", header+repair.Text))
 }
 
 // A rewrite of a wrapped paragraph keeps the prose on its own lines rather
@@ -73,35 +87,35 @@ func TestARewrittenParagraphKeepsItsShape(t *testing.T) {
 	src := "// Bag.AddRange links the whole batch with one compare-and-swap, and\n" +
 		"// the other two run a loop instead of a single atomic write.\nfunc f() {}\n"
 
-	repair := commentnumbers.Fix("x.go", src)
+	repair := fix(t,src)
 	for _, line := range strings.Split(repair.Text, "\n") {
 		assert.LessOrEqual(t, len(line), 80, "the repair wrapped at the width the paragraph had")
 	}
 	assert.Contains(t, repair.Text, "the others run a loop", "a cardinal standing in for a noun is said, not cut")
 	assert.Empty(t, repair.Removed)
-	assert.Empty(t, commentnumbers.Check("x.go", repair.Text))
+	assert.Empty(t, commentnumbers.Check("x.go", header+repair.Text))
 }
 
 // A comment following code on its line is repaired too, and the code in front
 // of it is not prose the rewrite may touch.
 func TestACommentFollowingCodeIsRepaired(t *testing.T) {
-	repair := commentnumbers.Fix("x.go", "\tb.CompleteAdding() // A second call changes nothing.\n")
-	assert.Equal(t, "\tb.CompleteAdding() // The next call changes nothing.\n", repair.Text)
-	assert.Empty(t, commentnumbers.Check("x.go", repair.Text))
+	repair := fix(t, "func f() {\n\tb.CompleteAdding() // A second call changes nothing.\n}\n")
+	assert.Equal(t, "func f() {\n\tb.CompleteAdding() // The next call changes nothing.\n}\n", repair.Text)
+	assert.Empty(t, commentnumbers.Check("x.go", header+repair.Text))
 }
 
 // When the cut takes all of it, the code keeps its line and loses the comment.
 func TestACutTrailingCommentLeavesTheCode(t *testing.T) {
-	repair := commentnumbers.Fix("x.go", "\ts.Remove(2, 5) // 5 was never present\n")
-	assert.Equal(t, "\ts.Remove(2, 5)\n", repair.Text)
-	assert.Empty(t, commentnumbers.Check("x.go", repair.Text))
+	repair := fix(t, "func f() {\n\ts.Remove(2, 5) // 5 was never present\n}\n")
+	assert.Equal(t, "func f() {\n\ts.Remove(2, 5)\n}\n", repair.Text)
+	assert.Empty(t, commentnumbers.Check("x.go", header+repair.Text))
 }
 
 // A blank comment line the source already carried is a paragraph break somebody
 // wrote, so the repair leaves it where it is.
 func TestABlankCommentLineTheSourceCarriedSurvives(t *testing.T) {
 	src := "// It locks.\n//\n// It reserves one slot.\nfunc f() {}\n"
-	repair := commentnumbers.Fix("x.go", src)
+	repair := fix(t,src)
 	assert.Equal(t, "// It locks.\n//\n// It reserves a single slot.\nfunc f() {}\n", repair.Text)
 }
 
@@ -109,7 +123,7 @@ func TestABlankCommentLineTheSourceCarriedSurvives(t *testing.T) {
 // byte for byte, so the cases above pass on a repair rather than on any edit.
 func TestAFileWithNoFindingIsUntouched(t *testing.T) {
 	src := "// It reserves a slot and publishes it.\nfunc f() {}\n"
-	repair := commentnumbers.Fix("x.go", src)
+	repair := fix(t,src)
 	assert.False(t, repair.Changed)
 	assert.Equal(t, src, repair.Text)
 }
@@ -135,7 +149,7 @@ func TestADirectiveIsNotRewritten(t *testing.T) {
 // program, and the repair never reaches it.
 func TestCodeIsNotRewritten(t *testing.T) {
 	src := "func f() int {\n\tconst two = 2\n\treturn two + 1\n}\n"
-	repair := commentnumbers.Fix("x.go", src)
+	repair := fix(t,src)
 	assert.False(t, repair.Changed)
 	assert.Equal(t, src, repair.Text)
 }
