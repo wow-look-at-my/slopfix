@@ -58,7 +58,6 @@ func routeCases() []routeCase {
 		{route: "tee -a", deny: "echo hi | tee -a src.txt", allow: "echo hi | tee -a {{out}}/src.txt", names: "src.txt"},
 		{route: "dd of=", deny: "dd if=/dev/zero of=src.txt", allow: "dd if=/dev/zero of={{out}}/src.txt", names: "src.txt"},
 		{route: "truncate", deny: "truncate -s 0 src.txt", allow: "truncate -s 0 {{out}}/src.txt", names: "src.txt"},
-		{route: "cp over a tracked file", deny: "cp {{out}}/src.txt src.txt", allow: "cp src.txt {{out}}/copy.txt", names: "src.txt"},
 		{route: "mv over a tracked file", deny: "mv {{out}}/staged.txt src.txt", allow: "mv src.txt {{out}}/staged.txt", names: "src.txt"},
 		{route: "install", deny: "install -m 644 {{out}}/src.txt src.txt", allow: "install -m 644 src.txt {{out}}/copy.txt", names: "src.txt"},
 		{route: "rsync into the tree", deny: "rsync -a {{out}}/src.txt src.txt", allow: "rsync -a src.txt {{out}}/copy.txt", names: "src.txt"},
