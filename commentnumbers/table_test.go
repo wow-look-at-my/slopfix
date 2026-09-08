@@ -41,6 +41,13 @@ func TestProseTheTableDoesNotCoverIsUntouched(t *testing.T) {
 	assert.Equal(t, "It reserves a slot and publishes it", Say("It reserves a slot and publishes it"))
 }
 
+// A comment line often continues a wrapped sentence rather than opening it, so
+// the repair keeps the opening case the author wrote.
+func TestTheOpeningCaseIsTheOneTheAuthorWrote(t *testing.T) {
+	assert.Equal(t, "a single side of s or other.", Say("exactly one of s or other."))
+	assert.Equal(t, "Goroutines contend", Say("Two goroutines contend"))
+}
+
 // A word that merely contains a number word is a name, so the table's own
 // matching leaves it alone.
 func TestTheTableLeavesAWordContainingANumberWordAlone(t *testing.T) {

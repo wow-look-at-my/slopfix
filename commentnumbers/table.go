@@ -118,22 +118,19 @@ func isWordByte(b byte) bool {
 		(b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
 }
 
-// capitalise restores the opening capital a leading rewrite can remove.
+// capitalise gives the repaired line the opening case the source line had. A
+// comment line often continues a wrapped sentence rather than opening it, so
+// the case the author wrote is the only reliable answer.
 func capitalise(original, s string) string {
-	if s == "" || sameFirstWord(original, s) {
+	if s == "" || original == "" {
 		return s
 	}
-	if c := s[0]; c >= 'a' && c <= 'z' {
+	upper := original[0] >= 'A' && original[0] <= 'Z'
+	switch c := s[0]; {
+	case upper && c >= 'a' && c <= 'z':
 		return string(c-32) + s[1:]
+	case !upper && c >= 'A' && c <= 'Z':
+		return string(c+32) + s[1:]
 	}
 	return s
-}
-
-// sameFirstWord reports whether the repair left the opening word in place.
-func sameFirstWord(original, s string) bool {
-	before, after := strings.Fields(original), strings.Fields(s)
-	if len(before) == 0 || len(after) == 0 {
-		return false
-	}
-	return before[0] == after[0]
 }
