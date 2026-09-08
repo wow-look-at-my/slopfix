@@ -46,22 +46,42 @@ func TestAMessageThatFixedItIsAllowed(t *testing.T) {
 // The payload does not always carry the message. Without the fallback such a
 // turn ends unjudged, which reads as a guard that is off.
 func TestTheTranscriptIsReadWhenTheFieldIsAbsent(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "t.jsonl")
-	lines := `{"type":"user","message":{"content":"go on"}}
-{"type":"assistant","message":{"content":[{"type":"text","text":"earlier"}]}}
-{"type":"assistant","message":{"content":[{"type":"text","text":` + quote(t, punt) + `}]}}
-`
-	require.NoError(t, os.WriteFile(path, []byte(lines), 0o600))
+	path := transcript(t,
+		map[string]any{"type": "user", "message": map[string]any{"content": "go on"}},
+		assistantParts("earlier"),
+		assistantParts(punt),
+	)
 
 	res := run(t, payload(t, map[string]any{"transcript_path": path}))
 	assert.Equal(t, 2, res.Code)
 }
 
+// assistantParts is the shape whose content is a list of typed parts.
+func assistantParts(text string) map[string]any {
+	return map[string]any{
+		"type":    "assistant",
+		"message": map[string]any{"content": []any{map[string]any{"type": "text", "text": text}}},
+	}
+}
+
+// transcript writes the entries as JSONL and answers the path.
+func transcript(t *testing.T, entries ...map[string]any) string {
+	t.Helper()
+	var b strings.Builder
+	for _, entry := range entries {
+		data, err := json.Marshal(entry)
+		require.NoError(t, err)
+		b.Write(data)
+		b.WriteByte('\n')
+	}
+	path := filepath.Join(t.TempDir(), "t.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(b.String()), 0o600))
+	return path
+}
+
 // A transcript entry can carry its text as a plain string.
 func TestATranscriptStringContentIsRead(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "t.jsonl")
-	line := `{"role":"assistant","content":` + quote(t, punt) + "}\n"
-	require.NoError(t, os.WriteFile(path, []byte(line), 0o600))
+	path := transcript(t, map[string]any{"role": "assistant", "content": punt})
 
 	assert.Equal(t, 2, run(t, payload(t, map[string]any{"transcript_path": path})).Code)
 }
@@ -84,11 +104,4 @@ func TestEveryUnreadablePayloadIsAllowed(t *testing.T) {
 	for _, body := range []string{"{ not json", "", "{}", `{"transcript_path":"/nowhere/at/all"}`} {
 		assert.Equal(t, Result{}, run(t, body), body)
 	}
-}
-
-func quote(t *testing.T, s string) string {
-	t.Helper()
-	data, err := json.Marshal(s)
-	require.NoError(t, err)
-	return string(data)
 }
