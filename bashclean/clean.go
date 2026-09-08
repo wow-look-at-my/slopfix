@@ -214,6 +214,18 @@ func hasStatementCall(f *syntax.File, p func(*syntax.CallExpr) bool) bool {
 
 func isWord(w *syntax.Word, v string) bool { s, ok := literal(w); return ok && s == v }
 
+// anyCall asks p of every CallExpr in the tree, command substitutions
+// included.
+func anyCall(f *syntax.File, p func(*syntax.CallExpr) bool) bool {
+	hit := false
+	walkCalls(f, func(c *syntax.CallExpr) {
+		if p(c) {
+			hit = true
+		}
+	})
+	return hit
+}
+
 // Scrub the stderr discard, tree-wide. A discarded stderr turns one command
 // into two: the command, and a call asking whether it worked.
 func isDevnull(w *syntax.Word) bool { return isWord(w, "/dev/null") }
@@ -374,6 +386,7 @@ func capSleep(c *syntax.CallExpr) {
 	for _, w := range c.Args[1:] {
 		s, ok := literal(w)
 		if !ok {
+			c.Args = []*syntax.Word{c.Args[0], word("3")}
 			return
 		}
 		m := regexp.MustCompile(`^([0-9]+(?:\.[0-9]*)?|\.[0-9]+)([smhd]?)$`).FindStringSubmatch(s)

@@ -128,22 +128,37 @@ func hasFileRead(f *syntax.File) bool {
 		return callReadsBannedFile(c) || callIsSedLineRead(c)
 	})
 }
+// hasGitRM: the SUBCOMMAND is the first non-flag word after `git`, so
+// `git -C dir rm f` counts while `git commit -m rm` does not. git's own
+// pre-subcommand flags that take a separated value are skipped. `--cached`
+// anywhere only unstages, and passes through.
 func hasGitRM(f *syntax.File) bool {
 	return hasStatementCall(f, func(c *syntax.CallExpr) bool {
 		e, ok := effectiveCommand(c)
 		if !ok || e.name != "git" {
 			return false
 		}
+		sub, skip := "", false
 		for _, w := range c.Args[e.index+1:] {
 			s, st := literal(w)
 			if st && s == "--cached" {
 				return false
 			}
-			if st && !strings.HasPrefix(s, "-") {
-				return s == "rm"
+			if sub != "" || skip {
+				skip = false
+				continue
+			}
+			switch {
+			case !st:
+				sub = "?"
+			case s == "-C" || s == "-c":
+				skip = true
+			case strings.HasPrefix(s, "-"):
+			default:
+				sub = s
 			}
 		}
-		return false
+		return sub == "rm"
 	})
 }
 
@@ -242,8 +257,10 @@ func rmUnknownFlags(args []*syntax.Word) bool {
 	return false
 }
 
+// hasBadRM scans the whole tree, the same reach as the rewrite's walk, so an
+// `rm` inside `$( )` is covered too.
 func hasBadRM(f *syntax.File) bool {
-	return hasStatementCall(f, func(c *syntax.CallExpr) bool {
+	return anyCall(f, func(c *syntax.CallExpr) bool {
 		e, ok := effectiveCommand(c)
 		if !ok {
 			return false
@@ -335,12 +352,6 @@ func stripOrTrue(s *syntax.Stmt) {
 		}
 		promoteInto(s, b.X)
 	}
-}
-func cmdCall(c syntax.Command) string {
-	if x, ok := c.(*syntax.CallExpr); ok {
-		return cmd(x)
-	}
-	return ""
 }
 func stripMerge(s *syntax.Stmt) {
 	for len(s.Redirs) > 0 {

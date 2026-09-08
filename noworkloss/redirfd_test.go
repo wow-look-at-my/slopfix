@@ -13,10 +13,8 @@ import (
 // than the command's output. Each case below pairs the shape that must pass
 // with the shape that must still be refused.
 
-// The reported incident, verbatim in shape. Nothing here puts a file at risk,
-// and the working directory the redirect would resolve against is unknowable,
-// so the old verdict named an ambiguity about a path that needs no directory
-// to resolve at all.
+// The reported incident. Nothing here puts a file at risk, and the target
+// needs no working directory to resolve.
 func TestStderrDiscardInsideAnUnresolvableSubshellIsAllowed(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -25,9 +23,8 @@ func TestStderrDiscardInsideAnUnresolvableSubshellIsAllowed(t *testing.T) {
 	allowed(t, dir, `for d in a b; do (cd "$d" && git status -sb 2>/dev/null); done`)
 }
 
-// The control on the same shape: send STDOUT to a real file in a directory
-// nothing can resolve and the ambiguity is genuine again, because that file
-// may be a file the tree holds.
+// The control: STDOUT into an unresolvable directory is a genuine ambiguity,
+// because the target may be a file the tree holds.
 func TestStdoutIntoAnUnresolvableDirectoryStillDenies(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -58,8 +55,8 @@ func TestDeviceTargetsAreNeverLosable(t *testing.T) {
 	}
 }
 
-// The control every device case above rests on: the same redirect aimed at a
-// tracked file with unsaved edits is refused, and the refusal names the file.
+// The control every device case rests on: the same redirect aimed at a dirty
+// tracked file is refused by name.
 func TestStdoutIntoATrackedFileStillDenies(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -68,11 +65,8 @@ func TestStdoutIntoATrackedFileStillDenies(t *testing.T) {
 	assert.Contains(t, r, "tracked.go")
 }
 
-// A stderr capture into a real file inside the tree is still refused -- but by
-// the half whose question it actually answers. Content reaching a file the tree
-// holds is authored content whichever stream filled it, so the provenance half
-// names the file and points at the edit tools. The message quotes the
-// descriptor the reader wrote rather than reporting it as a plain `>`.
+// A stderr capture into a file inside the tree is refused by the provenance
+// half, which quotes the descriptor the reader wrote.
 func TestStderrIntoATrackedFileIsRefusedAsAWriteRatherThanALoss(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)

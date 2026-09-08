@@ -22,11 +22,9 @@ func gitOutput(t *testing.T, dir string, args ...string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// listPreservationRefs names the preservation commit this hook made in dir, or
-// nothing when it made none. Preservation commits to the CURRENT BRANCH, so
-// there is a single place to look and the caller can use the name as an ordinary
-// rev. The subject line is what identifies it: a commit the hook wrote is the
-// tip, and any other tip means no preservation happened.
+// listPreservationRefs names the preservation commit this hook made in dir.
+// Preservation commits to the CURRENT BRANCH, and the subject line identifies
+// it: any other tip means no preservation happened.
 func listPreservationRefs(t *testing.T, dir string) []string {
 	t.Helper()
 	out, err := exec.Command("git", "-C", dir, "log", "-1", "--pretty=%s").Output()
@@ -36,9 +34,8 @@ func listPreservationRefs(t *testing.T, dir string) []string {
 	return []string{"HEAD"}
 }
 
-// makeStrandedPreservationRef writes a ref under the retired prefix by hand.
-// Nothing creates such a ref any more, and the protection against deleting it
-// has to keep working for a repository that still carries it from an older build.
+// makeStrandedPreservationRef writes a ref under the retired prefix by hand,
+// for a repository that still carries it.
 func makeStrandedPreservationRef(t *testing.T, dir string) string {
 	t.Helper()
 	ref := protectedRefPrefix + "20260101T000000.000000000.1"
@@ -70,9 +67,7 @@ func TestPreservesUntrackedFileContentBeforeRm(t *testing.T) {
 	assert.Equal(t, "scratch", content)
 }
 
-// A tracked edit is preserved on top of HEAD, so the commit carries HEAD's
-// content for everything else and the CURRENT content for the at-risk path --
-// and it never writes the user's working tree to get there.
+// A tracked edit is preserved on top of HEAD, without writing the working tree.
 func TestPreservesModifiedTrackedFileOnTopOfHead(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir) // rewrites tracked.go to "package a\n// edited\n"
@@ -148,9 +143,8 @@ func TestPreservesAndPushesToOrigin(t *testing.T) {
 	assert.Equal(t, local, onRemote, "the commit pushed to the bare remote must match the local ref")
 }
 
-// No remote at all: the push has nowhere to go, but the local ref still
-// holds the content, so the command is still allowed and the notice says
-// exactly where the content is and that the push did not happen.
+// No remote at all: the local ref still holds the content, so the notice says
+// where it is and that the push did not happen.
 func TestPreservesLocallyWhenPushFails(t *testing.T) {
 	dir := newRepo(t) // no "origin" remote configured
 	untrack(t, dir, "scratch.txt")
@@ -183,9 +177,8 @@ func dirtyThreeWays(t *testing.T, dir string) {
 	untrack(t, dir, "new.txt")
 }
 
-// The commit must carry the at-risk paths on top of HEAD and nothing else. A
-// staged file the command never touches keeps HEAD's content, so preservation
-// never smuggles unrelated staged work into a commit nobody wrote.
+// The commit carries the at-risk paths on top of HEAD and nothing else, so
+// unrelated staged work never enters it.
 func TestPreservationCommitsOnlyTheAtRiskPaths(t *testing.T) {
 	dir := newRepo(t)
 	dirtyThreeWays(t, dir)
@@ -208,10 +201,8 @@ func TestPreservationCommitsOnlyTheAtRiskPaths(t *testing.T) {
 		splitLines(gitOutput(t, dir, "diff", "--name-only", head, refs[0])))
 }
 
-// The staged version of a file is a separate state, distinct from HEAD and
-// from the working tree, and it lives only in the index. Preserving the working
-// tree while overwriting the index with it destroys that state, so both go
-// into the commit chain: the index content below, the working tree on top.
+// The staged version lives only in the index, so both states go into the
+// commit chain: the index content below, the working tree on top.
 func TestPreservationKeepsAStagedVersionDistinctFromTheWorkingTree(t *testing.T) {
 	dir := newRepo(t)
 	writeAt(t, dir, "app.go", "package a\n")
@@ -229,9 +220,7 @@ func TestPreservationKeepsAStagedVersionDistinctFromTheWorkingTree(t *testing.T)
 	assert.Equal(t, "package a\n// staged", gitOutput(t, dir, "show", "HEAD^:app.go"))
 }
 
-// Nothing is staged that was not already, so a tree whose at-risk paths are
-// all unstaged produces a single commit rather than an empty commit plus the
-// real commit.
+// A tree whose at-risk paths are all unstaged produces a single commit.
 func TestPreservationMakesNoEmptyIndexCommit(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -252,12 +241,8 @@ func TestPreservationNeverWritesTheWorkingTree(t *testing.T) {
 	assert.Equal(t, before, readTree(t, dir))
 }
 
-// Preservation commits the at-risk content to the CURRENT BRANCH, so content
-// that was uncommitted before the hook ran is committed after it. That is the
-// whole point, and it is also what a session sees change: `git
-// status` and `git diff --cached` stop reporting what was just preserved.
-// This pins the shape of that change rather than leaving it to be
-// rediscovered -- and pins that it is confined to the at-risk paths.
+// Preservation commits the at-risk content, so `git status` stops reporting
+// it. This pins that the change is confined to the at-risk paths.
 func TestPreservationClearsOnlyTheAtRiskPathsFromStatus(t *testing.T) {
 	dir := newRepo(t)
 	dirtyThreeWays(t, dir)
@@ -277,8 +262,7 @@ func TestPreservationClearsOnlyTheAtRiskPathsFromStatus(t *testing.T) {
 	assert.Equal(t, "package a\n// staged", gitOutput(t, dir, "show", ":staged.go"))
 }
 
-// splitLines turns git's line output into a slice, with no entry for empty
-// output -- an assertion against nil is what "git reported nothing" means.
+// splitLines turns git's line output into a slice, with no entry for empty output.
 func splitLines(out string) []string {
 	if out == "" {
 		return nil
@@ -362,9 +346,8 @@ func TestPreserveNeverAttemptedForARefDestroyingCommand(t *testing.T) {
 	assert.Empty(t, listPreservationRefs(t, dir))
 }
 
-// Close the loop: a preservation ref is the only copy of what it holds, so
-// deleting it must never pass the "does it exist somewhere else" test every
-// other ref-destroying command gets judged on.
+// A preservation ref is the only copy of what it holds, so deleting it must
+// never pass the "does it exist somewhere else" test.
 func TestDeniesDeletingAPreservationRef(t *testing.T) {
 	dir := newRepo(t)
 	ref := makeStrandedPreservationRef(t, dir)
@@ -389,17 +372,13 @@ func TestDeniesForcePushDeletingOrOverwritingAPreservationRef(t *testing.T) {
 	assert.Contains(t, r2, "the only copy")
 }
 
-// git branch -D can never actually name a preservation ref -- a branch name
-// always resolves under refs/heads/, never under refs/no-work-loss/ -- so the
-// ordinary reachability check on branch deletion is untouched by this
-// protection. This pins that boundary rather than assuming it.
+// git branch -D can never name a preservation ref, since a branch name always
+// resolves under refs/heads/. This pins that boundary.
 func TestBranchDeleteCannotNameAPreservationRef(t *testing.T) {
 	dir := newRepo(t)
 	ref := makeStrandedPreservationRef(t, dir)
 
-	// git itself refuses this as an invalid branch name, but this hook must
-	// not be the thing standing in the way -- it should reach the ordinary
-	// reachability path (a branch that never existed is allowed) rather than
-	// treating it as naming the protected ref.
+	// git itself refuses this as an invalid branch name, so this hook must
+	// reach the ordinary reachability path instead.
 	allowed(t, dir, "git branch -D "+ref)
 }
