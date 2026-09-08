@@ -10,12 +10,12 @@ import (
 	"time"
 )
 
-// The Write tool's own two refusals, which were a separate plugin until the
-// delete-then-Write loophole made them one question with the Bash rules.
+// The Write tool's own refusals, which were a separate plugin until the
+// delete-then-Write loophole made them the same question as the Bash rules.
 //
 // Write authors a whole file. Aimed at a path that already holds something, it
 // replaces content nobody reviewed the loss of -- Edit is the tool for that. And
-// once that is refused, "delete the path, then Write it" is the obvious way
+// after that is refused, "delete the path, then Write it" is the obvious way
 // round, so a path sitting in the recycle bin is refused too: in that window the
 // only other copy of the file is in the model's context, where a compaction
 // destroys it.

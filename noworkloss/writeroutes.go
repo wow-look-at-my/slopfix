@@ -39,7 +39,7 @@ func decide(raw []byte) (reason string, notices []string) {
 
 	switch {
 	case in.ToolName == "Bash":
-		// Destruction is asked first. Where both halves object -- `> tracked.go`
+		// Destruction is asked ahead of provenance. Where both halves object -- `> tracked.go`
 		// over a file with unsaved edits -- losing the edits is the more urgent
 		// fact, and its message names the stash that saves them.
 		reason, notices = evaluateLoss(ti.Command, in.Cwd)
@@ -92,7 +92,7 @@ func analyzeWrites(command, cwd string) string {
 	// script that runs `bash -c "$cmd"` or sources a path it computed is doing
 	// what a program does, and this hook does not sandbox what it starts.
 	// Denying on it made `bash tests/run-tests.sh` unrunnable -- the script
-	// runs one `sh -c` built from a variable, and that single line refused the
+	// runs an `sh -c` built from a variable, and that single line refused the
 	// whole suite before any write was ever judged.
 	for _, b := range blockers {
 		if b.fromScript {
@@ -111,7 +111,7 @@ func analyzeWrites(command, cwd string) string {
 	return ""
 }
 
-// judgeWrite turns one write into a verdict. Every branch that cannot resolve a
+// judgeWrite turns a write into a verdict. Every branch that cannot resolve a
 // target denies: a path this hook cannot name is a path it cannot clear.
 // A write read out of a script FILE is the exception. There the unresolvable
 // target belongs to a program this hook runs rather than to the command text,
@@ -206,7 +206,7 @@ func isAgentTool(name string) bool {
 // A subagent inherits the session's hooks, so its own Bash calls arrive here
 // like any other. What does not arrive here is a grant the spawn hands the
 // child: an explicit tool list or a permissive mode makes the child able to do
-// what the parent was refused, in one call. A spawn that asks for neither is
+// what the parent was refused, in a single call. A spawn that asks for neither is
 // ordinary delegation and passes.
 func agentReason(tool string, ti toolInput) string {
 	mode := ti.PermissionMode

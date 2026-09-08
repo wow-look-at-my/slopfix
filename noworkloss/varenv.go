@@ -10,9 +10,9 @@ import (
 )
 
 // varTable holds the shell variables this hook has proven can only ever hold
-// one value at the point they are read: assigned exactly once, from a fully
-// static right-hand side, outside every construct that could run it more
-// than once or not at all -- a loop, a conditional, a subshell, a pipeline,
+// a single value at the point they are read: assigned exactly a single time,
+// from a fully static right-hand side, outside every construct that could run
+// it repeatedly or not at all -- a loop, a conditional, a subshell, a pipeline,
 // a background job, a function body. Anything less certain never enters
 // this map, and a name absent from it resolves exactly as it always has --
 // the word carrying it denies rather than guesses.
@@ -28,11 +28,11 @@ var varMutatingCommands = set.Of[string](
 )
 
 // mutatesAVariable reports whether a call can bind a name behind this scan's
-// back. Everything in varMutatingCommands does, with one exception worth
+// back. Everything in varMutatingCommands does, with an exception worth
 // spelling out: `set` sets SHELL OPTIONS as well as positional parameters,
 // and `set -e` or `set +o pipefail` binds nothing at all. Treating those as a
 // hazard disabled resolution for every script that opens with `set -e`, which
-// is most of them -- one such line refused a whole test suite over a path the
+// is most of them -- such a line refused a whole test suite over a path the
 // script built from its own variable. Only an operand form rebinds anything.
 func mutatesAVariable(eff []word) bool {
 	name := commandName(eff[0].text)
@@ -75,14 +75,14 @@ func setRebindsParameters(args []word) bool {
 }
 
 // unsafeVarNames finds every variable name this hook must never resolve:
-// assigned more than once anywhere, assigned inside a construct that can
-// run zero times or more than once, or bound by a for-loop. abort reports a
+// assigned repeatedly anywhere, assigned inside a construct that can run a
+// variable number of times, or bound by a for-loop. abort reports a
 // varMutatingCommands hit anywhere in the tree, which disables resolution
 // for the whole command regardless of what unsafe names.
-// multiply names every variable assigned more than once, which is a weaker
-// condition than unsafe: a name assigned once inside an `if` holds one value
-// or none, never two. That is enough for a resolution claiming only the
-// DIRECTORY a value sits in, and not enough for one claiming the value.
+// multiply names every variable assigned repeatedly, which is a weaker
+// condition than unsafe: a name assigned inside an `if` holds a single value
+// or none, never a choice. That is enough for a resolution claiming only the
+// DIRECTORY a value sits in, and not enough for a claim about the value.
 func unsafeVarNames(stmts []*syntax.Stmt) (unsafe, multiply map[string]bool, abort bool) {
 	c := &varScan{counts: map[string]int{}, unsafe: map[string]bool{}}
 	c.stmts(stmts, false)
@@ -101,9 +101,9 @@ type varScan struct {
 	abort  bool
 }
 
-// record notes one assignment to name. A second assignment anywhere, or a
-// first one made where it might run zero or more than once, means the name
-// can no longer be trusted to hold one value.
+// record notes an assignment to name. A repeat assignment anywhere, or an
+// assignment made where it might run a variable number of times, means the
+// name can no longer be trusted to hold a single value.
 func (c *varScan) record(name string, risky bool) {
 	c.counts[name]++
 	if risky || c.counts[name] > 1 {
@@ -133,7 +133,7 @@ func (c *varScan) stmt(st *syntax.Stmt, risky bool) {
 }
 
 // command mirrors the dispatch in segment.go's walker.command: the same
-// node types, the same idea of which branch can run more than once or might
+// node types, the same idea of which branch can run repeatedly or might
 // not run at all. It answers a narrower question, so it tracks risk rather
 // than cwd or destructive verbs.
 func (c *varScan) command(cmd syntax.Command, risky bool) {
@@ -247,13 +247,13 @@ func (c *varScan) scanPart(p syntax.WordPart) {
 }
 
 // tempRoots names the directories a temp file is created under. A path under
-// one of them is outside every guarded root by construction.
+// such a directory is outside every guarded root by construction.
 var tempRoots = []string{"/tmp", "/var/tmp"}
 
 // mktempPath resolves `$(mktemp ...)` to a path in the temp directory. The
 // exact basename is chosen by mktemp at run time and nothing here can know
 // it, but the DIRECTORY is what decides whether a write lands in the working
-// tree, and mktemp with no template or a temp-rooted one cannot leave the
+// tree, and mktemp with no template or a temp-rooted template cannot leave the
 // temp directory. A template naming any other directory resolves to nothing,
 // because `mktemp ./buildXXXX` really does write beside the source.
 func mktempPath(wd *syntax.Word) (word, bool) {
@@ -285,7 +285,7 @@ func mktempPath(wd *syntax.Word) (word, bool) {
 
 // underTempRoot reports whether a template names a path inside the temp
 // directory. It reads the word's own leading text rather than the resolved
-// one, because the common spelling is `"${TMPDIR:-/tmp}/fooXXXX"` and that
+// text, because the common spelling is `"${TMPDIR:-/tmp}/fooXXXX"` and that
 // resolves to nothing. os.TempDir reads the same variable with the same
 // default, so the hook and the command agree on where it points.
 func underTempRoot(wd *syntax.Word) bool {
@@ -329,7 +329,7 @@ func underTempRoot(wd *syntax.Word) bool {
 	return false
 }
 
-// soleCmdSubst unwraps a word whose entire content is one command
+// soleCmdSubst unwraps a word whose entire content is a lone command
 // substitution, quoted or not.
 func soleCmdSubst(wd *syntax.Word) (*syntax.CmdSubst, bool) {
 	if wd == nil || len(wd.Parts) != 1 {
@@ -364,7 +364,7 @@ func resolveWord(wd *syntax.Word, vars varTable) word {
 	return word{text: b.String(), static: static}
 }
 
-// resolvePart appends one part's literal text into b, reporting whether the
+// resolvePart appends a part's literal text into b, reporting whether the
 // text is fully known. It never writes partial text for a part it cannot
 // resolve, matching shellwalk.WordText: an unresolved word carries no text
 // that could pass for a real path.
@@ -403,10 +403,10 @@ func simpleVar(x *syntax.ParamExp, vars varTable) (word, bool) {
 	if x == nil || x.Param == nil {
 		return word{}, false
 	}
-	// ${BASH_SOURCE[0]} names the file the running script was read from, which
-	// is the one path the walk already knows when it follows a script. Element
-	// 0 is the only element that means that, so any other index is refused
-	// with every other operator below.
+	// The leading BASH_SOURCE element names the file the running script was
+	// read from, which is the path the walk already knows when it follows a
+	// script. No other element means that, so any other index is refused
+	// alongside every operator below.
 	if x.Param.Value == "BASH_SOURCE" && isIndexZero(x.Index) &&
 		!x.Excl && !x.Length && !x.Width && x.Slice == nil && x.Repl == nil && x.Names == 0 && x.Exp == nil {
 		v, ok := vars["0"]
@@ -420,7 +420,7 @@ func simpleVar(x *syntax.ParamExp, vars varTable) (word, bool) {
 	return v, ok
 }
 
-// isIndexZero reports whether an array index is the literal 0.
+// isIndexZero reports whether an array index is the literal leading index.
 func isIndexZero(idx syntax.ArithmExpr) bool {
 	w, ok := idx.(*syntax.Word)
 	if !ok || len(w.Parts) != 1 {

@@ -10,12 +10,12 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Resolving a variable this hook can prove holds one literal value.
+// Resolving a variable this hook can prove holds a literal value.
 // newRepo, modify, denied and allowed live in guard_test.go.
 // ---------------------------------------------------------------------------
 
-// The reported incident: two literal assignments feed a redirect target, and
-// the target lands outside any repository. Once the path resolves, the
+// The reported incident: a pair of literal assignments feed a redirect target,
+// and the target lands outside any repository. After the path resolves, the
 // existing repo-scoping already allows it -- no new carve-out was needed.
 func TestAllowsRedirectBuiltFromSequentialLiteralAssignments(t *testing.T) {
 	dir := newRepo(t)
@@ -39,7 +39,7 @@ echo x > "$NAME"`)
 	assert.Contains(t, r, "tracked.go")
 }
 
-// A name assigned twice must never be trusted, even when both assignments
+// A name assigned repeatedly must never be trusted, even when both assignments
 // are in the safe sequential flow this hook otherwise resolves.
 func TestReassignedVariableStaysUnresolvable(t *testing.T) {
 	dir := newRepo(t)
@@ -72,7 +72,7 @@ func TestReadDisablesResolutionForTheWholeCommand(t *testing.T) {
 	assert.Contains(t, r, "cannot resolve")
 }
 
-// A prefix assignment is scoped to the one command it rides on and must
+// A prefix assignment is scoped to the command it rides on and must
 // never leak into a later statement.
 func TestPrefixAssignmentDoesNotPersist(t *testing.T) {
 	dir := newRepo(t)
