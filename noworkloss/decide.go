@@ -77,6 +77,13 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	// out of a script FILE is the program's own behaviour, which this hook
 	// does not sandbox; a STATIC path inside a script is still judged.
 	for _, p := range f.paths {
+		// A device file holds nothing to lose, and it names itself absolutely,
+		// so an unknown working directory says nothing about it. Asking whether
+		// the path resolves first refused `2>/dev/null` under a cd this hook
+		// cannot follow, which is ordinary shell rather than a loss.
+		if isDeviceFile(p.text) {
+			continue
+		}
 		if !p.static && !f.fromScript {
 			return fmt.Sprintf("blocked: %s targets a path this hook cannot resolve (%s), so what it would delete is unknown."+
 				"\nrun: %s", f.label, describeUnresolved(p), f.rewrite), ""
