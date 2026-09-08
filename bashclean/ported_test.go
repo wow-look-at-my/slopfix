@@ -79,6 +79,7 @@ var rewriteCases = []cleanCase{
 	{"| tailscale untouched (word boundary)", "cmd | tailscale status", "set -o pipefail\ncmd | tailscale status"},
 	{"| head5 untouched (word boundary)", "cmd | head5", "set -o pipefail\ncmd | head5"},
 	{"head inside $() capture preserved", "VAR=$(ls | head -1)", "set -o pipefail\nVAR=$(ls | head -1)"},
+	{"head inside a capture preserved", "VAR=$(ls | head -1)", "set -o pipefail\nVAR=$(ls | head -1)"},
 	{"head inside plain command substitution preserved", "echo $(ls | head -1)", "set -o pipefail\necho $(ls | head -1)"},
 	{"head inside process substitution preserved", "diff <(ls | head -2) file", "set -o pipefail\ndiff <(ls | head -2) file"},
 	{"literal-string carrier containing | head untouched", ": \"foo | head\"", "set -o pipefail\n: \"foo | head\""},
