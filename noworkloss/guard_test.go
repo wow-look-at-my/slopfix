@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newRepo builds a real repository with one committed file. The tests drive
+// newRepo builds a real repository with a committed file. The tests drive
 // git for state rather than faking it, because every interesting case in this
 // plugin is a question about what `git status` actually reports.
 func newRepo(t *testing.T) string {
@@ -55,8 +55,8 @@ func writeAt(t *testing.T, dir, name, content string) {
 	require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
 }
 
-// modify dirties a tracked file; untrack adds a file git has never seen. The
-// two are deliberately separate everywhere in these tests.
+// modify dirties a tracked file; untrack adds a file git has never seen. They
+// are deliberately separate everywhere in these tests.
 func modify(t *testing.T, dir string) { writeAt(t, dir, "tracked.go", "package a\n// edited\n") }
 func untrack(t *testing.T, dir string, name string) {
 	writeAt(t, dir, name, "scratch\n")
@@ -68,7 +68,7 @@ func stage(t *testing.T, dir string) {
 	git(t, dir, "add", "-A")
 }
 
-// ask lives in harness_test.go: one entry-point driver for both halves.
+// ask lives in harness_test.go: a shared entry-point driver for both halves.
 
 func denied(t *testing.T, cwd, command string) string {
 	t.Helper()
@@ -90,9 +90,9 @@ func allowed(t *testing.T, cwd, command string) {
 // The cases the plugin exists to get right.
 // ---------------------------------------------------------------------------
 
-// A hard reset over a dirty tree is denied twice for two different reasons.
+// A hard reset over a dirty tree is denied by each half for its own reason.
 // The destruction half no longer refuses it: the tracked edit is preserved
-// into a ref first, satisfying the "nothing is lost" invariant directly. The
+// into a ref beforehand, satisfying the "nothing is lost" invariant. The
 // provenance half still refuses it regardless of dirty state -- a hard reset
 // replaces tracked files with a commit's content, which is authored change
 // no edit tool made (TestAllowsResetHardOnCleanTree pins that half alone).
@@ -124,8 +124,8 @@ func TestPreservesAndAllowsCheckoutOnDirtyTree(t *testing.T) {
 	assert.Contains(t, notice, "committed to master")
 }
 
-// The motivating incident: the dangerous command is the second one, and the
-// first is what made it dangerous.
+// The motivating incident: the trailing command is the dangerous command, and
+// the command ahead of it is what made it dangerous.
 func TestDeniesTheTwoCommandIncidentShape(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -434,12 +434,12 @@ func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
 	// A denial on the provenance side still lets the destruction side preserve
-	// first, so even the denied verbs leave the tree clean behind them.
+	// beforehand, so even the denied verbs leave the tree clean behind them.
 	denied(t, dir, "git rebase master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited twice\n")
 	preserved(t, dir, "git merge feature")
 	// Each preservation commits the edit, so every later verb that must see a
-	// dirty tree gets a fresh one.
+	// dirty tree gets a fresh edit.
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 	preserved(t, dir, "git pull origin master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited once more\n")
@@ -488,8 +488,8 @@ func TestPreservesAndAllowsRmDirectoryContainingUncommittedWork(t *testing.T) {
 	dir := newRepo(t)
 	untrack(t, dir, "internal/config/env.go")
 	preserved(t, dir, "rm -rf internal")
-	// Preservation committed that file, so the second spelling needs its own
-	// at-risk content rather than the first one's.
+	// Preservation committed that file, so the later spelling needs its own
+	// at-risk content rather than the earlier content.
 	untrack(t, dir, "internal/config/other.go")
 	preserved(t, dir, "rm -rf .")
 }

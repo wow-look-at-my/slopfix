@@ -13,8 +13,8 @@ import (
 // Every case in this suite is a pair: a command that must be denied because it
 // writes inside the working tree, and a control that must be allowed because the
 // same command writes somewhere else. The pair is what makes a case load-bearing
-// -- a rule that denied on the command's shape alone would pass the first half
-// and fail the second -- and each denial is additionally required to NAME the
+// -- a rule that denied on the command's shape alone would pass the denial half
+// and fail the control -- and each denial is additionally required to NAME the
 // path or route it stopped, so a deny arriving from an unrelated rule cannot
 // satisfy the assertion.
 
@@ -87,7 +87,7 @@ func preserved(t *testing.T, cwd, command string) string {
 	return strings.Join(notices, "\n")
 }
 
-// fill substitutes the two directories into a case's command. Named tokens
+// fill substitutes the tree and output directories into a case's command. Named tokens
 // rather than printf verbs, because a shell command is full of % and & and a
 // format string mangles the ones it does not understand.
 func fill(cmd, root, out string) string {

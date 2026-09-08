@@ -18,7 +18,7 @@ func TestIntegratingCommittedWorkIsAllowedOnACleanTree(t *testing.T) {
 // The other hazard is real and belongs to the destruction half: a merge into a
 // tree with uncommitted edits can clobber bytes that exist in no commit. The
 // destruction half now satisfies that concern by preserving the edit into a
-// ref first, rather than refusing the merge outright -- merge and pull name
+// ref beforehand, rather than refusing the merge outright -- merge and pull name
 // no provenance route of their own (gitroutes.go), so preservation is the
 // only thing standing between the dirty tree and the command either way.
 func TestIntegratingPreservesAndAllowsWithUncommittedWork(t *testing.T) {
@@ -27,7 +27,7 @@ func TestIntegratingPreservesAndAllowsWithUncommittedWork(t *testing.T) {
 
 	preserved(t, dir, "git merge origin/master")
 	// The line above COMMITTED the edit, so the tree is clean again. Re-dirty
-	// it, or the second spelling has nothing left to preserve.
+	// it, or the later spelling has nothing left to preserve.
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 	preserved(t, dir, "git pull origin master")
 }
@@ -42,10 +42,10 @@ func TestApplyingAPatchIsStillRefused(t *testing.T) {
 }
 
 // A staged change counts as outstanding too: the index is not a commit. It is
-// preserved the same way an unstaged one is.
+// preserved the same way an unstaged change is.
 func TestMergeAndPullPreserveOverAStagedChange(t *testing.T) {
 	// Each spelling gets its own repository. Preservation COMMITS the staged
-	// change, so a second call in the same tree finds nothing left at risk and
+	// change, so a repeat call in the same tree finds nothing left at risk and
 	// is allowed without preserving anything.
 	for _, cmd := range []string{"git merge feature", "git pull origin master", "git pull --rebase"} {
 		t.Run(cmd, func(t *testing.T) {

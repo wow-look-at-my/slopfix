@@ -1,4 +1,4 @@
-// no-work-loss: a PreToolUse hook that refuses the two ways a session loses
+// no-work-loss: a PreToolUse hook that refuses the ways a session loses
 // authorship of the working tree.
 //
 //   - Destruction: a command that would destroy content existing only in the
@@ -10,8 +10,8 @@
 //     search -- and does not author files.
 //
 // Both questions are asked of the same parsed command, which is why they live in
-// one plugin: the shell walk, the wrapper stripping and the path resolution are
-// the same machinery, and two copies of it would drift.
+// a single plugin: the shell walk, the wrapper stripping and the path
+// resolution are the same machinery, and separate copies of it would drift.
 // see docs/decision-model.md and docs/write-routes.md
 package noworkloss
 
@@ -74,7 +74,7 @@ func Run(r io.Reader) Result {
 	raw, err := io.ReadAll(r)
 	if err != nil {
 		// Reading the payload failed, so nothing is known about the call. This is
-		// the one place neither half can fail closed: with no payload there is no
+		// the place neither half can fail closed: with no payload there is no
 		// decision to emit and no reason to attach to it.
 		return Result{}
 	}
@@ -82,7 +82,7 @@ func Run(r io.Reader) Result {
 	if reason != "" {
 		return Result{Stdout: denyPayload(reason)}
 	}
-	// A preservation notice is the one case this hook writes something for an
+	// A preservation notice is the case where this hook writes something for an
 	// allowed command: it moved content into a ref, and that must never
 	// happen silently.
 	if len(notices) > 0 {
@@ -94,10 +94,10 @@ func Run(r io.Reader) Result {
 // evaluateLoss runs the destruction analysis under a recover. This half fails
 // OPEN on a panic unless the command names a destructive verb, because a bug
 // while checking `ls` must not wedge a session -- the opposite posture from
-// evaluateWrites, and deliberately so: one half refuses what it cannot verify,
-// the other only refuses what it can see is dangerous.
+// evaluateWrites, and deliberately so: that half refuses what it cannot verify,
+// while this half only refuses what it can see is dangerous.
 func evaluateLoss(command, cwd string) (reason string, notices []string) {
-	// Cheap byte scan first: the overwhelming majority of Bash calls name no verb
+	// A cheap byte scan leads: the overwhelming majority of Bash calls name no verb
 	// that can delete anything, and those must not pay for a parse or a
 	// subprocess.
 	if command == "" || !mayDestroy(command) {

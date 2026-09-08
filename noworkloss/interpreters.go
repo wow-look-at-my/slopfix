@@ -9,7 +9,7 @@ import (
 )
 
 // An interpreter handed a script writes whatever the script says, and the script
-// is not something this hook can resolve. Two shapes follow from that: an inline
+// is not something this hook can resolve. Distinct shapes follow: an inline
 // script denies wherever it runs, because its targets are unknowable; a script
 // FILE is followed when it is shell (see segment.go) and judged by where it
 // lives when it is not.
@@ -33,7 +33,7 @@ var evalFlags = map[string][]string{
 	"osascript": {"-e"},
 	"ts-node":   {"-e"},
 	"tsx":       {"-e"},
-	"jq":        nil, // jq has no way to write a file; listed so nobody adds one
+	"jq":        nil, // jq has no way to write a file; listed so nobody adds a flag
 }
 
 // Editors exist to rewrite the file they open, so they are writers by default
@@ -100,7 +100,7 @@ func scratchScriptWrites(seg segment, name string, rest []word, roots []string) 
 		if p != "" && isScratchPath(p) {
 			return []write{{route: name + " " + o.text, opaque: "a " + name + " script under a temporary directory; write the file with Write or Edit instead of generating it from a scratch script"}}
 		}
-		break // the first operand is the script; the rest are its arguments
+		break // the leading operand is the script; the rest are its arguments
 	}
 	return nil
 }
@@ -118,7 +118,7 @@ func namesAScript(rest []word) bool {
 
 func editorWrites(seg segment, name string, rest []word) []write {
 	// -s is silent/script mode for ed, ex and vim and takes no value; reading it
-	// as one swallows the file operand and the write disappears.
+	// as a value flag swallows the file operand and the write disappears.
 	valueFlags := set.Of[string]("-c", "--command", "--eval", "-u", "-i", "--load")
 	flags, operands := scanArgs(rest, valueFlags)
 	if len(operands) > 0 {
@@ -180,8 +180,8 @@ func isScratchPath(p string) bool {
 	return false
 }
 
-// stripVersion turns `perl5.36` and `python3.11` into the tool, so a rule is
-// written once instead of once per installed version.
+// stripVersion turns a versioned interpreter name into the tool, so a rule is
+// written for the tool instead of for every installed version.
 func stripVersion(name string) string {
 	trimmed := strings.TrimRight(name, "0123456789.")
 	if trimmed == "" {
@@ -191,13 +191,13 @@ func stripVersion(name string) string {
 }
 
 // allowedFormatter is the explicit decision about the tools that rewrite files
-// by design. Each one below writes only a canonical reformat, or a regeneration
+// by design. Every tool below writes only a canonical reformat, or a regeneration
 // the repository owns, of the file it is handed -- none can be pointed at
 // content the model authored, which is what separates them from `sed -i`.
 //
 // A tool that is NOT on this list does not become allowed by being a formatter:
 // an unrecognised in-place rewrite denies (see inPlaceRewrite), and the way to
-// run one is through a named recipe -- `just fmt`, `make fmt`, `npm run format`
+// run it is through a named recipe -- `just fmt`, `make fmt`, `npm run format`
 // -- which is a reviewable line in the repository rather than an argv.
 func allowedFormatter(name string, rest []word) bool {
 	sub := ""
@@ -209,7 +209,7 @@ func allowedFormatter(name string, rest []word) bool {
 		return true
 	case "go-toolchain":
 		// The org's Go entry point: it tidies go.mod, formats source and runs the
-		// tests as one unit, and refusing its rewrites would refuse every Go build.
+		// tests together, and refusing its rewrites would refuse every Go build.
 		return true
 	case "go":
 		return sub == "generate" || sub == "fmt" || sub == "mod"

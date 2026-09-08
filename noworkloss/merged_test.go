@@ -7,13 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Where the two halves disagree. Each case names both verdicts, because the
+// Where the halves disagree. Each case names both verdicts, because the
 // merged behaviour is not obvious from either rule alone and reading it back
-// later from one of them would be reading half the answer.
+// later from a single rule would be reading half the answer.
 
 // The destruction half allows a command it cannot parse when nothing in it
 // deletes; the provenance half cannot, because an unparsed command's writes are
-// unknown and unknown fails closed. The merged verdict is the stricter one.
+// unknown and unknown fails closed. The merged verdict is the stricter verdict.
 func TestDeniesUnparseableCommandEvenWithNothingDestructive(t *testing.T) {
 	dir := newRepo(t)
 	assert.Empty(t, lossOnly(t, dir, "echo `"))
@@ -35,7 +35,7 @@ func TestRedirectOntoANewFileIsStillAuthoring(t *testing.T) {
 }
 
 // The destruction half no longer blocks a redirect over dirty content -- it
-// preserves the tracked edit into a ref first, so what surfaces is the
+// preserves the tracked edit into a ref beforehand, so what surfaces is the
 // provenance half's own objection: writing a tracked file from Bash is
 // authored content no edit tool produced, preserved or not.
 func TestProvenanceMessageSurfacesOnceDestructionPreserves(t *testing.T) {
