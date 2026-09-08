@@ -5,6 +5,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/commentnumbers"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // Repairable reports whether slopfix repairs the DEFECT a finding names,
@@ -20,8 +21,13 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	// The counts rule cuts the cardinal out of the same sentence the prose
 	ste.IDStaleCount,
 	IDInventoryCount,
-	// The comment rules: one cuts a block back inside its code, and the other
-	// says the number in words or takes the sentence that states it.
+	// The comment rules: a block is cut back inside its code, and a number is
+	// said in words or loses the sentence stating it.
 	commentlength.ID,
 	commentnumbers.ID,
+	// The workflow rules: the gate loses its continue-on-error, the comment
+	// block folds to a line, and the shadowing job is renamed.
+	workflow.IDNeuteredGate,
+	workflow.IDCommentBlock,
+	workflow.IDAllBuildsJob,
 ))

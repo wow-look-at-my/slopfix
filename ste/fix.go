@@ -24,6 +24,9 @@ func FixSelected(text string, keep func(id string) bool) string {
 		if keep(IDCommaSplice) {
 			prose = fixSplices(prose)
 		}
+		if keep(IDSentenceCap) {
+			prose = fixSentenceCap(prose)
+		}
 		return prose
 	})
 }
@@ -98,6 +101,69 @@ func fixSplices(prose string) string {
 		commas = append(commas, []int{loc[0], end})
 	}
 	return breakAt(prose, commas)
+}
+
+// coordinator matches a comma joining two clauses. It is where a long sentence
+// divides without a writer choosing the seam.
+var coordinator = regexp.MustCompile(`,\s+(?:and|but|so|then|which|because|which is why)\s+`)
+
+// fixSentenceCap divides a sentence over the word cap at its coordinators.
+//
+// It divides at the seam nearest the middle, which leaves the halves closest in
+// length, and it repeats while a half is still over. A sentence carrying no
+// coordinator is left alone: the split would fall inside a clause, and the
+// report keeps naming it for a writer.
+func fixSentenceCap(prose string) string {
+	for range maxDivisions {
+		joiner, found := widestSeam(prose)
+		if !found {
+			return prose
+		}
+		prose = breakAt(prose, [][]int{joiner})
+	}
+	return prose
+}
+
+// maxDivisions bounds the repair: a sentence needing more seams than this is
+// one no seam saves.
+const maxDivisions = 8
+
+// widestSeam answers the coordinator to divide at, inside the earliest sentence
+// over the cap.
+func widestSeam(prose string) ([]int, bool) {
+	at := 0
+	for _, sentence := range Sentences(prose) {
+		start := strings.Index(prose[at:], strings.TrimSpace(sentence))
+		if start < 0 {
+			break
+		}
+		start += at
+		end := start + len(strings.TrimSpace(sentence))
+		at = end
+		if WordCount(sentence) <= SentenceWordCap {
+			continue
+		}
+		seams := coordinator.FindAllStringIndex(prose[start:end], -1)
+		if len(seams) == 0 {
+			continue
+		}
+		middle := (end - start) / 2
+		best := seams[0]
+		for _, seam := range seams {
+			if abs(seam[0]-middle) < abs(best[0]-middle) {
+				best = seam
+			}
+		}
+		return []int{start + best[0], start + best[1]}, true
+	}
+	return nil, false
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
 
 // breakAt rewrites each joiner span as a sentence break, and gives the word

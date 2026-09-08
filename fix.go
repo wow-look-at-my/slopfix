@@ -11,6 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // Rule names a repair Fix can apply, so a caller can select a repair by name.
@@ -28,10 +29,12 @@ const (
 	// RuleComments is what a comment owes its code: a block that fits inside
 	// it, and a number said in words rather than stated.
 	RuleComments Rule = "comments"
+	// RuleWorkflow is what a workflow owes the gate it runs.
+	RuleWorkflow Rule = "yaml"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -47,6 +50,8 @@ func IDsFor(rule Rule) set.Set[string] {
 		return ste.AllIDs
 	case RuleComments:
 		return set.Of(commentlength.ID, commentnumbers.ID)
+	case RuleWorkflow:
+		return workflow.AllIDs
 	}
 	return set.New[string]()
 }
@@ -93,6 +98,24 @@ func Fix(req Request) Repair {
 
 	text := req.Content
 	var repair Repair
+
+	// A workflow's newlines are syntax, so it takes its own repairs and none of
+	// the prose ones.
+	if req.Path != "" && isWorkflow(req.Path, text) {
+		if wants(RuleWorkflow) {
+			cut := workflow.Fix(text, keeps)
+			text = cut.Text
+			repair.Removed = append(repair.Removed, cut.Removed...)
+		}
+		for _, finding := range workflow.Check(text) {
+			if keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
+			}
+		}
+		repair.Text = text
+		repair.Changed = text != req.Content
+		return repair
+	}
 
 	// Naming an ID turns the other rules off, and the strip below deletes whole
 	// lines: without this guard, `--only comments/number` cuts a line the
