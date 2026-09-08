@@ -16,7 +16,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/askproperly"
 	"github.com/wow-look-at-my/slopfix/autoallow"
 	"github.com/wow-look-at-my/slopfix/bashclean"
+	"github.com/wow-look-at-my/slopfix/blamelanguage"
 	"github.com/wow-look-at-my/slopfix/busypoll"
+	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/linkrefs"
 	"github.com/wow-look-at-my/slopfix/mdbudget"
 	"github.com/wow-look-at-my/slopfix/noworkloss"
@@ -119,6 +121,31 @@ func init() {
 			"knowing whether it was worth paying.",
 		func(r io.Reader) hookResult {
 			res := linkrefs.Run(r)
+			return hookResult(res)
+		})
+
+	register("laziness",
+		"Refuse a turn that reports a defect it left alone",
+		"laziness judges the turn's closing message on Stop and sends the model\n"+
+			"back to the defect it named. Stop is the event because this rule is for\n"+
+			"the model: a MessageDisplay annotation reaches only the reader, who is\n"+
+			"not the one who can go and fix it.\n\n"+
+			"A payload that carries no message is read out of the transcript, so a\n"+
+			"turn is never left unjudged by a field that is simply absent.",
+		func(r io.Reader) hookResult {
+			res := laziness.Run(r)
+			return hookResult(res)
+		})
+
+	register("blame-language",
+		"Mark a message that hands its own defect to another author",
+		"blame-language annotates the finished message and sends nothing back to\n"+
+			"the model. MessageDisplay is the event because a Stop refusal on wording\n"+
+			"only buys a retype of the same claim.\n\n"+
+			"The message arrives in flushes and a phrase can straddle two, so the\n"+
+			"text is accumulated and judged whole.",
+		func(r io.Reader) hookResult {
+			res := blamelanguage.Run(r)
 			return hookResult(res)
 		})
 
