@@ -62,8 +62,7 @@ func grammarFor(filename string) *ts.Language {
 }
 
 // languageFor answers the grammar to read a file with. Naming a file IS the
-// request, so an unknown extension falls back to bash: a Dockerfile and a
-// dotfile carry hash comments.
+// request, so an unknown extension falls back to bash.
 func languageFor(filename string) *ts.Language {
 	if language := grammarFor(filename); language != nil {
 		return language
@@ -77,8 +76,7 @@ type Comment struct {
 	Offset int
 	// Line is where it starts, counting from the top of the file.
 	Line int
-	// Col is the byte it starts at in that line: past the indent means it
-	// follows code.
+	// Col is where it starts in that line: past the indent means it follows code.
 	Col int
 	// Lines is how many lines it spans.
 	Lines int
