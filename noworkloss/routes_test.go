@@ -69,8 +69,10 @@ func routeCases() []routeCase {
 		{route: "git am", deny: "git am {{out}}/x.patch", allow: "cd {{out}} && git am x.patch", names: "git am"},
 
 		// git used as an editor.
+		{route: "git checkout with a pathspec", deny: "git checkout master -- src", allow: "cd {{out}} && git checkout master -- src", names: "git checkout"},
 		{route: "git restore", deny: "git restore src.txt", allow: "cd {{out}} && git restore src.txt", names: "git restore"},
 		{route: "git stash pop", deny: "git stash pop", allow: "cd {{out}} && git stash pop", names: "git stash pop"},
+		{route: "git revert", deny: "git revert HEAD", allow: "cd {{out}} && git revert HEAD", names: "git revert"},
 		{route: "git cherry-pick", deny: "git cherry-pick abc123", allow: "cd {{out}} && git cherry-pick abc123", names: "git cherry-pick"},
 		{route: "git reset --hard", deny: "git reset --hard origin/master", allow: "cd {{out}} && git reset --hard origin/master", names: "git reset"},
 
@@ -225,10 +227,6 @@ func TestOrdinaryCommandsAreUntouched(t *testing.T) {
 		"git fetch origin master", "git branch -a", "git clone https://example.com/r.git {{out}}/r",
 		// Integrating a named ref's committed history, which the PR rules require.
 		"git merge origin/master", "git merge --no-ff feature", "git pull origin master",
-
-		// Recovery out of history.
-		"git revert HEAD", "git revert --no-commit abc123",
-		"git checkout master -- src", "git checkout abc123 -- a/b.go",
 
 		// Integrating a ref: no edit tool performs a merge, so denying it wedges the workflow.
 		"git merge --no-edit origin/master", "git merge FETCH_HEAD", "git pull origin master",

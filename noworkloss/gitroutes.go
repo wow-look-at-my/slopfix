@@ -11,13 +11,19 @@ import (
 // creating or switching a branch all leave file content to the edit tools.
 
 // worktreeVerbs put committed content into the tree.
+//
+// merge and pull are deliberately absent: integrating a ref writes only bytes
+// already in a commit. rebase, cherry-pick, am and apply land a tree nothing
+// holds, so they stay.
 var worktreeVerbs = map[string]string{
 	"restore":     "git restore",
 	"stash":       "git stash pop",
+	"revert":      "git revert",
 	"cherry-pick": "git cherry-pick",
 	"rebase":      "git rebase",
 	"am":          "git am",
 	"apply":       "git apply",
+	"checkout":    "git checkout",
 	"reset":       "git reset",
 }
 
