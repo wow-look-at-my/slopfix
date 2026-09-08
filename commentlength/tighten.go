@@ -27,16 +27,16 @@ var filler = []string{
 
 // replacement rewrites a phrase to a shorter one that means the same thing.
 var replacement = map[string]string{
-	"in order to":    "to",
-	"due to the fact that": "because",
-	"in the event that":    "if",
-	"for the purpose of":   "for",
-	"a large number of":    "many",
+	"in order to":           "to",
+	"due to the fact that":  "because",
+	"in the event that":     "if",
+	"for the purpose of":    "for",
+	"a large number of":     "many",
 	"at this point in time": "now",
-	"is able to":     "can",
-	"has the ability to": "can",
-	"make use of":    "use",
-	"take into account": "consider",
+	"is able to":            "can",
+	"has the ability to":    "can",
+	"make use of":           "use",
+	"take into account":     "consider",
 }
 
 // tighten rewrites a comment run: it drops filler, applies the shorter phrasing,

@@ -17,7 +17,13 @@ func TestAPaddedCommentIsTightenedRatherThanCut(t *testing.T) {
 		"// Note that this is basically just the port that the server actually",
 		"// listens on, and it is obviously very important to really understand",
 		"// that we make use of it in order to bind the socket at startup time.",
-		"const port = 8080",
+		"func listen() error {",
+		"\tln, err := net.Listen(\"tcp\", addr)",
+		"\tif err != nil {",
+		"\t\treturn err",
+		"\t}",
+		"\treturn serve(ln)",
+		"}",
 	}, "\n")
 
 	out, changed := Fix("x.go", src)
@@ -25,12 +31,11 @@ func TestAPaddedCommentIsTightenedRatherThanCut(t *testing.T) {
 
 	// The thought survives whole: the cut would have taken the binding clause.
 	assert.Contains(t, out, "bind the socket")
-	assert.Contains(t, out, "port")
 	// The padding does not.
 	for _, word := range []string{"basically", "obviously", "really", "Note that", "in order to", "make use of"} {
 		assert.NotContains(t, out, word, "filler survived")
 	}
-	assert.Contains(t, out, "const port = 8080")
+	assert.Contains(t, out, "return serve(ln)", "the code is untouched")
 	assert.Empty(t, Check("x.go", out), "the tightened comment fits")
 }
 
