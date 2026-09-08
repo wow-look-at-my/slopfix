@@ -40,6 +40,11 @@ func Fix(content string, keeps func(string) bool) Repair {
 	if keeps(IDAllBuildsJob) {
 		text = renameGuardedJob(text)
 	}
+	if keeps(IDTestInYAML) {
+		var cut []string
+		text, cut = untest(text)
+		removed = append(removed, cut...)
+	}
 	return Repair{Text: text, Changed: text != content, Removed: removed}
 }
 
@@ -62,6 +67,28 @@ func ungate(content string) (string, []string) {
 			if allowedToFail.MatchString(rows[j]) {
 				drop[j] = true
 			}
+		}
+	}
+	return without(rows, drop, content)
+}
+
+// untest deletes the assertion lines a run: script carries.
+//
+// The rule reports a line at a time: a comparison that fails the step, a helper
+// that asserts, a redirect writing a test file. Each one goes, and the caller
+// prints what went, because the suite is where the case belongs and this file
+// is not it. A step left with an empty script keeps its shape: emptying it is
+// the repair, and removing the step is the author's call.
+func untest(content string) (string, []string) {
+	findings := testsInYAML(content)
+	if len(findings) == 0 {
+		return content, nil
+	}
+	rows := lines(content)
+	drop := make(map[int]bool)
+	for _, f := range findings {
+		if f.Line-1 < len(rows) {
+			drop[f.Line-1] = true
 		}
 	}
 	return without(rows, drop, content)

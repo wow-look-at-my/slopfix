@@ -30,4 +30,5 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	workflow.IDNeuteredGate,
 	workflow.IDCommentBlock,
 	workflow.IDAllBuildsJob,
+	workflow.IDTestInYAML,
 ))
