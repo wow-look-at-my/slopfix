@@ -94,7 +94,10 @@ func Fix(req Request) Repair {
 	text := req.Content
 	var repair Repair
 
-	if wants(RuleTombstones) && req.Path != "" {
+	// Naming an ID turns the other rules off, and the strip below deletes whole
+	// lines: without this guard, `--only comments/number` cuts a line the
+	// tombstone rule judged, which is another rule's repair applied unasked.
+	if wants(RuleTombstones) && req.Path != "" && anyKept(tombstones.AllIDs(), keeps) {
 		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
 		text = cut.Text
 		repair.Removed = append(repair.Removed, cut.Removed...)
@@ -171,6 +174,16 @@ func Fix(req Request) Repair {
 	repair.Text = text
 	repair.Changed = text != req.Content
 	return repair
+}
+
+// anyKept reports whether the caller's ID selection keeps any rule of a set.
+func anyKept(ids set.Set[string], keeps func(string) bool) bool {
+	for id := range ids.All() {
+		if keeps(id) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsDocument reports whether path names prose rather than source.

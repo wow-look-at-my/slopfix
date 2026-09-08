@@ -162,6 +162,21 @@ func TestANamedIDReportsThatRuleAlone(t *testing.T) {
 	assert.Contains(t, repair.Text, ";")
 }
 
+// Naming an ID keeps every other rule's repair off the file, the whole-line
+// strip included. A caller that asked for a number repair and got a deleted
+// doc line has had another rule applied to it unasked.
+func TestANamedIDKeepsTheWholeLineStripOff(t *testing.T) {
+	src := "// Add inserts elem. It returns true when the element was added,\n" +
+		"// or false when it was already present.\nfunc Add() {}\n"
+
+	repair := slopfix.Fix(slopfix.Request{
+		Content: src,
+		Path:    "set.go",
+		IDs:     []string{"comments/number"},
+	})
+	assert.Equal(t, src, repair.Text, "no number is stated here, so nothing changes")
+}
+
 func TestEveryCategoryNamesItsRules(t *testing.T) {
 	for _, rule := range slopfix.AllRules {
 		ids := slopfix.IDsFor(rule)
