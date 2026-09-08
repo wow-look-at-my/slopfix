@@ -87,9 +87,8 @@ func preserved(t *testing.T, cwd, command string) string {
 	return strings.Join(notices, "\n")
 }
 
-// fill substitutes the tree and output directories into a case's command. Named tokens
-// rather than printf verbs, because a shell command is full of % and & and a
-// format string mangles the ones it does not understand.
+// fill substitutes the tree and output directories into a case's command.
+// Named tokens rather than printf verbs, which mangle a shell command.
 func fill(cmd, root, out string) string {
 	return strings.NewReplacer("{{tree}}", root, "{{out}}", out).Replace(cmd)
 }

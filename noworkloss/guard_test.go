@@ -11,9 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newRepo builds a real repository with a committed file. The tests drive
-// git for state rather than faking it, because every interesting case in this
-// plugin is a question about what `git status` actually reports.
+// newRepo builds a real repository with a committed file, since every
+// interesting case asks what `git status` reports.
 func newRepo(t *testing.T) string {
 	t.Helper()
 	// A hermetic config: a stray alias in the developer's own ~/.gitconfig
@@ -90,12 +89,8 @@ func allowed(t *testing.T, cwd, command string) {
 // The cases the plugin exists to get right.
 // ---------------------------------------------------------------------------
 
-// A hard reset over a dirty tree is denied by each half for its own reason.
-// The destruction half no longer refuses it: the tracked edit is preserved
-// into a ref beforehand, satisfying the "nothing is lost" invariant. The
-// provenance half still refuses it regardless of dirty state -- a hard reset
-// replaces tracked files with a commit's content, which is authored change
-// no edit tool made (TestAllowsResetHardOnCleanTree pins that half alone).
+// The destruction half preserves the tracked edit. The provenance half still
+// refuses: a hard reset replaces files with a commit's content.
 func TestDeniesResetHardOnDirtyTree(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -111,11 +106,8 @@ func TestDeniesResetHardOnDirtyTree(t *testing.T) {
 	assert.Contains(t, r, "Use Edit")
 }
 
-// git checkout <ref> with no pathspec is bare branch navigation, which the
-// provenance half leaves alone (gitroutes.go's namesExistingPath). The
-// destruction half is therefore the only thing standing between a dirty tree
-// and the checkout, and it now preserves the edit and allows the checkout
-// instead of refusing it.
+// A checkout with no pathspec is bare branch navigation, which the provenance
+// half leaves alone, so the destruction half preserves the edit and allows.
 func TestPreservesAndAllowsCheckoutOnDirtyTree(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -132,12 +124,9 @@ func TestDeniesTheTwoCommandIncidentShape(t *testing.T) {
 	denied(t, dir, "git checkout master && git reset --hard origin/master")
 }
 
-// The provenance half is scoped to the session's own guarded roots (the
-// initial cwd and CLAUDE_PROJECT_DIR) -- see tree.go's guardedRoots -- and a
-// `cd` into an unrelated repository never enters that scope. The destruction
-// half has no such scoping: it protects any repository the command reaches,
-// so it is the only thing standing between the dirty tree and the reset here,
-// and it now preserves the edit rather than refusing the whole command.
+// The provenance half is scoped to the session's guarded roots, which a `cd`
+// into an unrelated repository never enters. The destruction half has no such
+// scoping, so it preserves the edit here.
 func TestPreservesAndAllowsResetHardReachedByCdOutsideGuardedRoots(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -181,11 +170,8 @@ func TestDeniesCheckoutDashDashDot(t *testing.T) {
 	denied(t, dir, "git checkout -- .")
 }
 
-// A force push is judged on whether the remote's commits survive elsewhere,
-// not on the working tree. With no remote-tracking ref there is nothing local
-// saying what the remote holds, so it cannot be verified and is refused.
-// The recoverable/unrecoverable split is covered in refverbs_test.go against a
-// real remote.
+// A force push is judged on whether the remote's commits survive elsewhere.
+// With no remote-tracking ref nothing local says what the remote holds.
 func TestDeniesForcePushThatCannotBeVerified(t *testing.T) {
 	dir := newRepo(t)
 	r := denied(t, dir, "git push --force origin master")
@@ -216,9 +202,7 @@ func TestAllowsResetHardOnCleanTree(t *testing.T) {
 	assert.Empty(t, lossOnly(t, dir, "git reset --hard origin/master"),
 		"a clean tree has no uncommitted work to lose")
 
-	// The merged hook still refuses it, for the other reason: a hard reset
-	// replaces the files on disk with a commit's version, and that is a content
-	// change no edit tool made.
+	// The merged hook still refuses it: a hard reset replaces the files on disk.
 	assert.Contains(t, denied(t, dir, "git reset --hard origin/master"), "git reset")
 }
 
@@ -351,8 +335,7 @@ func TestDeniesUnparseableCommandNamingADestructiveVerb(t *testing.T) {
 	assert.Contains(t, r, "could not be parsed")
 }
 
-// Every spelling of the same destructive flag set reaches the same verdict:
-// preserved and allowed, since `clean` names no provenance route.
+// Every spelling of the flag set is preserved and allowed, since `clean` names no provenance route.
 func TestFlagVariantsAllReachTheSamePreservedVerdict(t *testing.T) {
 	// Every spelling is judged from the same starting state, so each gets its
 	// own repository: preservation commits the scratch file, and a shared tree
@@ -400,9 +383,8 @@ func TestAllowsStashSubcommandsThatPreserveContent(t *testing.T) {
 	allowed(t, dir, "git stash show")
 	allowed(t, dir, "git stash branch recovered")
 
-	// pop and apply destroy nothing -- that is what separates them from drop --
-	// but they put a stash's content back into the worktree, which is a change
-	// no edit tool made.
+	// pop and apply destroy nothing, but they put a stash's content back into
+	// the worktree, which no edit tool did.
 	for _, c := range []string{"git stash apply", "git stash pop"} {
 		assert.Empty(t, lossOnly(t, dir, c), "%s discards nothing", c)
 		denied(t, dir, c)
@@ -425,16 +407,13 @@ func TestDeniesForceRefspec(t *testing.T) {
 	denied(t, dir, "git push origin +master:master")
 }
 
-// rebase, restore, apply and am are provenance routes in their own right
-// (gitroutes.go's worktreeVerbs), so they stay denied on a dirty tree
-// regardless of preservation. merge and pull are deliberately absent from
-// that table -- see gitroutes.go's comment -- so the destruction half is the
-// only thing gating them, and it now preserves the dirty edit and allows.
+// rebase, restore, apply and am are provenance routes in their own right, so
+// they stay denied. merge and pull are absent from that table.
 func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
-	// A denial on the provenance side still lets the destruction side preserve
-	// beforehand, so even the denied verbs leave the tree clean behind them.
+	// A denial on the provenance side still lets the destruction side preserve,
+	// so even the denied verbs leave the tree clean.
 	denied(t, dir, "git rebase master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited twice\n")
 	preserved(t, dir, "git merge feature")
@@ -466,9 +445,8 @@ func TestDeniesTruncatingRedirectOntoDirtyFile(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
 	denied(t, dir, "echo x > tracked.go")
-	// An append loses nothing, so the destruction half allows it. The provenance
-	// half still refuses: appended text is authored content, and Edit is how
-	// authored content reaches a tracked file.
+	// An append loses nothing, so the destruction half allows it. The
+	// provenance half still refuses: appended text is authored content.
 	assert.Empty(t, lossOnly(t, dir, "echo x >> tracked.go"))
 	assert.Contains(t, denied(t, dir, "echo x >> tracked.go"), "tracked.go")
 }
