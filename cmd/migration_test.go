@@ -13,10 +13,6 @@ import (
 )
 
 // Each retired marketplace plugin, and what carries its rule now.
-//
-// The plugins were deleted, so nothing but this says where their behaviour
-// went. A rule that quietly stopped being reachable looks exactly like a rule
-// nobody happens to have triggered.
 type home struct {
 	// plugin is the directory that used to hold the rule.
 	plugin string

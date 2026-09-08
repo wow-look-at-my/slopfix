@@ -48,8 +48,8 @@ func runCommentLength(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// lengthOf reports or repairs one file, and answers whether anything is left
-// for the caller to fail over. A repaired file leaves nothing.
+// lengthOf reports or repairs a file, and answers whether anything is left for
+// the caller to fail over. A repaired file leaves nothing.
 func lengthOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 	info, err := os.Stat(path)
 	if err != nil {
