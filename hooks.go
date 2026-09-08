@@ -2,6 +2,7 @@ package slopfix
 
 import (
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/blamelanguage"
 	"github.com/wow-look-at-my/slopfix/commentnumbers"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/laziness"
@@ -15,6 +16,9 @@ const IDCommentNumber = commentnumbers.ID
 
 // IDPunt names the rule over a closing message.
 const IDPunt = laziness.ID
+
+// IDBlame names the deflection rule over a closing message.
+const IDBlame = blamelanguage.ID
 
 // Hook is a named selection of rule IDs, and nothing else.
 //
@@ -70,8 +74,9 @@ var hooks = []Hook{
 	{
 		Name:    "no-blame-language",
 		Event:   "MessageDisplay",
+		Runs:    "slopfix message --only blame",
 		Summary: "deflecting phrasing in a closing message",
-		Pending: true,
+		Only:    []string{IDBlame},
 	},
 	{
 		Name:    "ask-properly",
@@ -83,12 +88,6 @@ var hooks = []Hook{
 		Name:    "link-all-refs",
 		Event:   "MessageDisplay",
 		Summary: "a pull request, a commit or a branch named without a link",
-		Pending: true,
-	},
-	{
-		Name:    "detect-permission-seeking",
-		Event:   "Stop",
-		Summary: "asking permission in place of acting",
 		Pending: true,
 	},
 }
@@ -137,6 +136,6 @@ func EveryRuleID() set.Set[string] {
 	for _, rule := range AllRules {
 		every = every.Union(IDsFor(rule))
 	}
-	every.AddRange(IDCommentNumber, IDPunt)
+	every.AddRange(IDCommentNumber, IDPunt, IDBlame)
 	return every
 }
