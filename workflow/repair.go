@@ -72,13 +72,9 @@ func ungate(content string) (string, []string) {
 	return without(rows, drop, content)
 }
 
-// untest deletes the assertion lines a run: script carries.
-//
-// The rule reports a line at a time: a comparison that fails the step, a helper
-// that asserts, a redirect writing a test file. Each one goes, and the caller
-// prints what went, because the suite is where the case belongs and this file
-// is not it. A step left with an empty script keeps its shape: emptying it is
-// the repair, and removing the step is the author's call.
+// untest deletes the assertion lines a run: script carries, and the caller
+// prints each: the suite is where a case belongs and this file is not it. A
+// step emptied of them keeps its shape, because removing it is the author's call.
 func untest(content string) (string, []string) {
 	findings := testsInYAML(content)
 	if len(findings) == 0 {
@@ -150,8 +146,7 @@ func renameGuardedJob(content string) string {
 	return strings.Join(rows, "\n") + tail(content)
 }
 
-// replacementName is what a shadowing job is renamed to: the same job, under a
-// name the gate does not reserve.
+// replacementName is a job name the gate does not reserve.
 const replacementName = "builds"
 
 // without drops the marked lines and reports what went.

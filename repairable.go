@@ -21,12 +21,10 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	// The counts rule cuts the cardinal out of the same sentence the prose
 	ste.IDStaleCount,
 	IDInventoryCount,
-	// The comment rules: a block is cut back inside its code, and a number is
-	// said in words or loses the sentence stating it.
+	// The comment rules: a block fits its code, a number is said in words.
 	commentlength.ID,
 	commentnumbers.ID,
-	// The workflow rules: the gate loses its continue-on-error, the comment
-	// block folds to a line, and the shadowing job is renamed.
+	// The workflow rules: the gate, the comment block, the shadowing job name.
 	workflow.IDNeuteredGate,
 	workflow.IDCommentBlock,
 	workflow.IDAllBuildsJob,

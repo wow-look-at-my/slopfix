@@ -26,8 +26,7 @@ const (
 	RuleWrap Rule = "wrap"
 	// RuleSTE reports what fails the merge gate and repairs nothing.
 	RuleSTE Rule = "ste"
-	// RuleComments is what a comment owes its code: a block that fits inside
-	// it, and a number said in words rather than stated.
+	// RuleComments is a block that fits its code, and a number said in words.
 	RuleComments Rule = "comments"
 	// RuleWorkflow is what a workflow owes the gate it runs.
 	RuleWorkflow Rule = "yaml"
@@ -150,7 +149,7 @@ func Fix(req Request) Repair {
 	}
 
 	// The number repair reads source too, and runs after the length cut: a
-	// sentence the cut already took is a sentence this one need not rewrite.
+	// sentence the cut already took needs no rewrite here.
 	if wants(RuleComments) && keeps(commentnumbers.ID) && req.Path != "" {
 		said := commentnumbers.Fix(req.Path, text)
 		if said.Changed {

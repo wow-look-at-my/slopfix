@@ -144,5 +144,3 @@ func isDirective(text string) bool {
 	}
 	return true
 }
-
-// The token walk that reads these lines, and every exemption a number can earn,

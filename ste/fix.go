@@ -103,16 +103,11 @@ func fixSplices(prose string) string {
 	return breakAt(prose, commas)
 }
 
-// coordinator matches a conjunction joining two clauses, with or without the
-// comma. It is where a long sentence divides without a writer choosing the seam.
+// coordinator matches a conjunction joining clauses: the seam to divide at.
 var coordinator = regexp.MustCompile(`,?\s+(?:and|but|so|then|because)\s+`)
 
-// fixSentenceCap divides a sentence over the word cap at its coordinators.
-//
-// It divides at the seam nearest the middle, which leaves the halves closest in
-// length, and it repeats while a half is still over. A sentence carrying no
-// coordinator is left alone: the split would fall inside a clause, and the
-// report keeps naming it for a writer.
+// fixSentenceCap divides an over-cap sentence at the coordinator nearest its
+// middle, repeating while a half is over. With none it is left for a writer.
 func fixSentenceCap(prose string) string {
 	for range maxDivisions {
 		joiner, found := widestSeam(prose)
@@ -124,8 +119,7 @@ func fixSentenceCap(prose string) string {
 	return prose
 }
 
-// maxDivisions bounds the repair: a sentence needing more seams than this is
-// one no seam saves.
+// maxDivisions bounds the repair: past this, no seam saves the sentence.
 const maxDivisions = 8
 
 // widestSeam answers the coordinator to divide at, inside the earliest sentence
