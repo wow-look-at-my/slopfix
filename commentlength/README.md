@@ -28,9 +28,11 @@ A directive line, such as a build constraint, an interpreter line or a linter pr
 
 ## Repair
 
-It cuts, from the end. A comment leads with its point and elaborates afterwards. The trailing paragraph is therefore what a reader loses least by losing. A paragraph goes before a line does.
+It cuts, from the end. A comment leads with its point and elaborates afterwards. The trailing paragraph is therefore what a reader loses least by losing. A paragraph goes before a sentence does.
 
-The opening sentence is never cut. A block trimmed to nothing is a worse edit than a block left long. A block that cannot reach its budget without losing the opening is reported as unrepairable. It stays for a person to rewrite.
+Every cut lands on a sentence end, inside a line where the prose ends there. Lopping a line instead leaves a dangling clause, and a half written sentence reads worse than the long comment it replaced.
+
+The opening sentence is never cut. A block trimmed to nothing is a worse edit than a block left long. A block with no cut that both fits and reads is reported as unrepairable. It stays whole for a person to rewrite, which includes prose that carries no sentence end anywhere.
 
 ## Rule ID, and running it
 

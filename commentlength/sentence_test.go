@@ -58,14 +58,16 @@ func TestEndsSentenceReadsPastAClosingBracket(t *testing.T) {
 	}
 }
 
-// The line cut stays as the last resort. A run whose prose never closes must
-// still shorten, or the repair does not converge.
-func TestARunThatNeverClosesStillShortens(t *testing.T) {
+// A run whose prose never closes is reported and left whole.
+//
+// The repair used to lop its last line, which left a dangling clause. There is
+// no cut here that reads, and a long comment beats a broken comment.
+func TestARunThatNeverClosesIsLeftWhole(t *testing.T) {
 	body := strings.Repeat("// a clause that never closes and just keeps going onward\n", 8)
 	src := "package p\n\n" + body + "const p = 1\n"
 
+	require.NotEmpty(t, Check("x.go", src))
 	out, changed := Fix("x.go", src)
-	assert.True(t, changed, "no sentence ends anywhere, so the line cut carries it")
-	assert.Less(t, len(out), len(src))
-	assert.Contains(t, out, "const p = 1")
+	assert.False(t, changed, "no sentence ends anywhere, so no cut reads")
+	assert.Equal(t, src, out)
 }

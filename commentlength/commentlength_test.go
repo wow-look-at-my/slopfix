@@ -92,10 +92,10 @@ func TestTheRuleSpansLanguages(t *testing.T) {
 // pinning the defect.
 func TestEveryParsedLanguageRepairs(t *testing.T) {
 	src := strings.Join([]string{
-		"# This helper exists because the caller cannot know the answer, and the",
-		"# answer changes per platform, and the platform is decided at run time by",
-		"# something none of this code owns, which is why it is a function at all",
-		"# rather than a constant somebody could read at a glance.",
+		"# This helper exists because the caller cannot know the answer.",
+		"# The answer changes per platform, and the platform is decided at run",
+		"# time by something none of this code owns. That is why it is a function",
+		"# at all rather than a constant somebody reads at a glance.",
 		"n=1",
 	}, "\n")
 

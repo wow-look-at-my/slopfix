@@ -228,9 +228,7 @@ func cutLastThought(text []string) ([]string, bool) {
 	if next, ok := dropSentence(text); ok {
 		return next, true
 	}
-	if len(text) > 1 {
-		return text[:len(text)-1], true
-	}
+	// Prose with no sentence end anywhere has no cut that reads.
 	return text, false
 }
 

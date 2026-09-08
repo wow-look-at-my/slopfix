@@ -31,21 +31,6 @@ func TestARepairCutsAtASentenceEndInsideALine(t *testing.T) {
 	assert.Empty(t, Check("x.go", out))
 }
 
-// Prose that carries no sentence end at all is still shortened. The line cut is
-// the last resort, and losing the tail beats leaving the essay whole.
-func TestProseWithNoSentenceEndIsStillShortened(t *testing.T) {
-	var b strings.Builder
-	for range 6 {
-		b.WriteString("// an explanation that runs on well past the declaration below it,\n")
-	}
-	src := "package p\n\n" + b.String() + "const p = 1\n"
-
-	out, changed := Fix("x.go", src)
-	require.True(t, changed)
-	assert.Less(t, len(out), len(src))
-	assert.Empty(t, Check("x.go", out))
-}
-
 // A block that holds an earlier ending is repaired at that ending, which is the
 // control that proves the cut is not simply the last line going.
 func TestABlockWithAnEarlierEndingIsRepairedThere(t *testing.T) {

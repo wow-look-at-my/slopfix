@@ -23,7 +23,7 @@ var languageFixtures = map[string]string{
 func essay(marker string) string {
 	var b strings.Builder
 	for range 6 {
-		b.WriteString(marker + " An explanation that runs on well past the declaration below it,\n")
+		b.WriteString(marker + " An explanation that runs well past the declaration below it.\n")
 	}
 	return b.String()
 }
@@ -53,7 +53,7 @@ func TestTheRepairKeepsTheOpeningInEveryGrammar(t *testing.T) {
 	for name, src := range languageFixtures {
 		fixed, changed := Fix(name, src)
 		require.True(t, changed, name)
-		assert.Contains(t, fixed, "An explanation that runs on well past", name)
+		assert.Contains(t, fixed, "An explanation that runs well past", name)
 	}
 }
 

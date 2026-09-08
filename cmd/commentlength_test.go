@@ -28,7 +28,7 @@ func runLengthOn(t *testing.T, repair bool, paths ...string) (string, error) {
 func essay(marker string) string {
 	var b strings.Builder
 	for range 6 {
-		b.WriteString(marker + " An explanation that runs on well past the declaration below it,\n")
+		b.WriteString(marker + " An explanation that runs well past the declaration below it.\n")
 	}
 	return b.String()
 }
@@ -42,7 +42,7 @@ func TestAnOverLongCommentIsReportedAndExitsNonZero(t *testing.T) {
 	out, err := runLengthOn(t, false, path)
 	require.Error(t, err)
 	assert.Contains(t, out, path+":3:")
-	assert.Contains(t, out, "An explanation that runs on well past")
+	assert.Contains(t, out, "An explanation that runs well past")
 }
 
 // The repair is what makes this rule actionable. Reporting a finding nothing
@@ -59,7 +59,7 @@ func TestTheRepairShortensTheFileAndClearsTheFinding(t *testing.T) {
 	fixed, readErr := os.ReadFile(path)
 	require.NoError(t, readErr)
 	assert.Less(t, len(fixed), len(body))
-	assert.Contains(t, string(fixed), "An explanation that runs on well past")
+	assert.Contains(t, string(fixed), "An explanation that runs well past")
 
 	after, err := runLengthOn(t, false, path)
 	require.NoError(t, err)
