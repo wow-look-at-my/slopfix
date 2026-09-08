@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"mvdan.cc/sh/v3/syntax"
 	"github.com/wow-look-at-my/slopfix/shellwalk"
+	"mvdan.cc/sh/v3/syntax"
 )
 
 // Process-level deny: a rule matches the process a statement would START, not

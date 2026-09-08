@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"mvdan.cc/sh/v3/syntax"
 	"github.com/wow-look-at-my/slopfix/shellwalk"
+	"mvdan.cc/sh/v3/syntax"
 )
 
 // A word carries its literal text plus whether that text is the whole story.

@@ -125,6 +125,14 @@ func denyPayload(reason string) string {
 	return string(out)
 }
 
+// emitDeny writes a denial to stdout. The hook returns its payload rather than
+// printing it, so this is what the tests that assert on the raw bytes drive.
+func emitDeny(reason string) {
+	if out := denyPayload(reason); out != "" {
+		os.Stdout.WriteString(out)
+	}
+}
+
 func noticePayload(notices []string) string {
 	var resp preToolUseNotice
 	resp.HookSpecificOutput.HookEventName = "PreToolUse"
