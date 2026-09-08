@@ -21,9 +21,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/grammars/cpp"
 	"github.com/wow-look-at-my/slopfix/grammars/golang"
 	"github.com/wow-look-at-my/slopfix/grammars/java"
-	"github.com/wow-look-at-my/slopfix/grammars/javascript"
 	"github.com/wow-look-at-my/slopfix/grammars/rust"
-	"github.com/wow-look-at-my/slopfix/grammars/typescript"
 )
 
 // grammars maps a file extension to the grammar that parses it.
@@ -40,12 +38,6 @@ var grammars = map[string]func() *ts.Language{
 	".sh":   bash.Language,
 	".bash": bash.Language,
 	".java": java.Language,
-	".js":   javascript.Language,
-	".mjs":  javascript.Language,
-	".cjs":  javascript.Language,
-	".ts":   typescript.Language,
-	".mts":  typescript.Language,
-	".cts":  typescript.Language,
 }
 
 // languageFor answers the grammar for a filename, and nil when none parses it.

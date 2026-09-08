@@ -18,8 +18,6 @@ var languageFixtures = map[string]string{
 	"x.rs":   essay("//") + "const P: i32 = 1;\n",
 	"x.sh":   "#!/bin/sh\n" + essay("#") + "p=1\n",
 	"x.java": "class C {\n" + essay("  //") + "  int p = 1;\n}\n",
-	"x.js":   essay("//") + "const p = 1;\n",
-	"x.ts":   essay("//") + "const p: number = 1;\n",
 }
 
 // essay is a comment far past anything a single declaration can carry.
