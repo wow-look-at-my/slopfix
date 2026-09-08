@@ -1,6 +1,6 @@
 // display.go turns the findings into the line appended to a finished
 // message.
-//
+// 
 // This is the whole enforcement. Nothing is refused and nothing is sent back to
 // the model, because the reader is the person the question was aimed at: a
 // prose question the reader can see marked as an offloaded decision has already
