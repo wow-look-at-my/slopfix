@@ -13,12 +13,11 @@
 // one plugin: the shell walk, the wrapper stripping and the path resolution are
 // the same machinery, and two copies of it would drift.
 // see docs/decision-model.md and docs/write-routes.md
-package main
+package noworkloss
 
 import (
 	"encoding/json"
 	"io"
-	"os"
 	"strings"
 )
 
@@ -39,25 +38,27 @@ type preToolUseResponse struct {
 	} `json:"hookSpecificOutput"`
 }
 
-func main() {
-	raw, err := io.ReadAll(os.Stdin)
+// Run reads a PreToolUse payload from r and returns what to print on stdout.
+// An empty answer means the call is allowed with nothing to say about it.
+func Run(r io.Reader) string {
+	raw, err := io.ReadAll(r)
 	if err != nil {
 		// Reading the payload failed, so nothing is known about the call. This is
 		// the one place neither half can fail closed: with no payload there is no
 		// decision to emit and no reason to attach to it.
-		return
+		return ""
 	}
 	reason, notices := decide(raw)
 	if reason != "" {
-		emitDeny(reason)
-		return
+		return denyPayload(reason)
 	}
 	// A preservation notice is the one case this hook writes something for an
 	// allowed command: it moved content into a ref, and that must never
 	// happen silently.
 	if len(notices) > 0 {
-		emitNotice(notices)
+		return noticePayload(notices)
 	}
+	return ""
 }
 
 // evaluateLoss runs the destruction analysis under a recover. This half fails
@@ -83,16 +84,16 @@ func evaluateLoss(command, cwd string) (reason string, notices []string) {
 	return analyze(command, cwd)
 }
 
-func emitDeny(reason string) {
+func denyPayload(reason string) string {
 	var resp preToolUseResponse
 	resp.HookSpecificOutput.HookEventName = "PreToolUse"
 	resp.HookSpecificOutput.PermissionDecision = "deny"
 	resp.HookSpecificOutput.PermissionDecisionReason = reason
 	out, err := json.Marshal(resp)
 	if err != nil {
-		return
+		return ""
 	}
-	os.Stdout.Write(out)
+	return string(out)
 }
 
 // preToolUseNotice carries no permissionDecision at all -- a preservation
@@ -105,13 +106,13 @@ type preToolUseNotice struct {
 	SystemMessage string `json:"systemMessage"`
 }
 
-func emitNotice(notices []string) {
+func noticePayload(notices []string) string {
 	var resp preToolUseNotice
 	resp.HookSpecificOutput.HookEventName = "PreToolUse"
 	resp.SystemMessage = strings.Join(notices, "\n")
 	out, err := json.Marshal(resp)
 	if err != nil {
-		return
+		return ""
 	}
-	os.Stdout.Write(out)
+	return string(out)
 }

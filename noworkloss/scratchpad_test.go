@@ -1,4 +1,4 @@
-package main
+package noworkloss
 
 import (
 	"github.com/stretchr/testify/require"

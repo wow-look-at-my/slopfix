@@ -1,10 +1,10 @@
-package main
+package noworkloss
 
 import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"os"
 	"path/filepath"
-	"shellwalk"
+	"github.com/wow-look-at-my/slopfix/shellwalk"
 	"strings"
 )
 

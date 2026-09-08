@@ -1,4 +1,4 @@
-package main
+package noworkloss
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"mvdan.cc/sh/v3/syntax"
-	"shellwalk"
+	"github.com/wow-look-at-my/slopfix/shellwalk"
 )
 
 // A word carries its literal text plus whether that text is the whole story.
