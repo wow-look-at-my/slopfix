@@ -122,10 +122,6 @@ func isWordByte(b byte) bool {
 }
 
 // capitalise restores the opening capital a leading deletion can remove.
-//
-// It leaves a comment that still opens on the word it always did. A doc comment
-// opens on the identifier it documents, and that identifier is often lowercase:
-// capitalising it names a symbol the package does not export, or does not have.
 func capitalise(original, s string) string {
 	if s == "" || sameFirstWord(original, s) {
 		return s
