@@ -51,7 +51,6 @@ func tighten(text []string) ([]string, bool) {
 	}
 
 	// A paragraph break is structure, so reflow each paragraph on its own and
-	// keep the blank markers between them.
 	var out []string
 	changed := false
 	for _, para := range paragraphs(text) {
