@@ -39,7 +39,7 @@ func goBlocks(src string) (out []block, ok bool) {
 		if start < 0 || end > len(lines) || start >= end {
 			continue
 		}
-		b := block{start: start, end: end, text: lines[start:end]}
+		b := block{start: start, end: end, text: lines[start:end], exact: true}
 		b.codeLines, b.codeChars = spanOf(fset, lines, node)
 		out = append(out, b)
 	}

@@ -6,7 +6,7 @@
 // token plus the checkout determine the URL, so the hook writes it. Asking the
 // model to re-emit the same message with a link in it costs a round trip, and
 // the message it writes to comply names the reference again while explaining
-// itself, which trips the guard a second time. What the user reads at the end of
+// itself, which trips the guard again. What the user reads at the end of
 // that is a reply carrying nothing but links.
 //
 // displayContent is display-only, verified against the shipped bundle: the
@@ -53,9 +53,7 @@ func RewriteDelta(delta string, insideFence bool, res Resolver) (string, bool) {
 	return strings.Join(lines, "\n"), true
 }
 
-// rewriteLine splices a markdown link over every reference in a line that
-// resolves to a page. A reference that does not resolve is left exactly as it
-// was written -- see linkify.go on why a guessed URL is worse than plain text.
+// rewriteLine splices a markdown link over every reference in a line that resolves to a page.
 func rewriteLine(line string, res Resolver) (string, bool) {
 	refs := FindUnlinkedInLine(line)
 	if len(refs) == 0 {
@@ -76,10 +74,7 @@ func rewriteLine(line string, res Resolver) (string, bool) {
 	return out, changed
 }
 
-// isQuoted reports the line shapes a message uses to quote rather than assert:
-// a blockquote, and an indented code block. A message documenting this rule
-// necessarily writes references down, and rewriting those would edit the
-// example out from under the reader.
+// isQuoted reports the line shapes a message uses to quote rather than assert: a blockquote or indented code.
 func isQuoted(line string) bool {
 	trimmed := strings.TrimLeft(line, " \t")
 	if strings.HasPrefix(trimmed, ">") {

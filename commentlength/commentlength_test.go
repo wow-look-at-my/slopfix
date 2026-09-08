@@ -83,6 +83,27 @@ func TestTheRuleSpansLanguages(t *testing.T) {
 	}
 }
 
+// A span a line walk worked out is reported and never rewritten. Wrong by a
+// line, a rewrite deletes the wrong sentence, and nobody reviews what a hook
+// applied. Go is parsed, so Go repairs; the rest report until they are too.
+func TestAGuessedSpanIsReportedButNotRewritten(t *testing.T) {
+	src := strings.Join([]string{
+		"# This helper exists because the caller cannot know the answer, and the",
+		"# answer changes per platform, and the platform is decided at run time by",
+		"# something none of this code owns, which is why it is a function at all",
+		"# rather than a constant somebody could read at a glance.",
+		"n=1",
+	}, "\n")
+
+	hits := Check("x.sh", src)
+	require.NotEmpty(t, hits, "a guessed span still reports")
+	assert.False(t, hits[0].Repairable)
+
+	out, changed := Fix("x.sh", src)
+	assert.False(t, changed, "a guessed span is never rewritten")
+	assert.Equal(t, src, out)
+}
+
 // A language the adapter does not spell is skipped rather than guessed at.
 func TestAnUnknownLanguageIsSkipped(t *testing.T) {
 	assert.Empty(t, Check("x.unknownext", "// a very long comment about nothing at all whatsoever\nvalue"))

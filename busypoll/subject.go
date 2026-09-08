@@ -1,13 +1,12 @@
-// subject.go answers two questions about a tool call: is it a status read,
-// and what is it a status read ABOUT.
+// subject.go answers whether a tool call is a status read, and what it is a
+// status read ABOUT.
 //
 // The subject is what makes this half work where the Stop half's signature
-// comparison does not. A session that asks the same question four different
-// ways -- `gh wait-ci`, then `gh wait-ci checks`, then `pull_request_read`,
-// then `list_commits` -- produces four different signatures and no streak,
-// while every call asks after the same pull request and learns the same
-// nothing. Keying on the subject rather than the command text is what stops
-// a re-spelling from laundering a repeat.
+// comparison does not. A session that asks the same question several ways --
+// `gh wait-ci`, then `gh wait-ci checks`, then `pull_request_read` -- produces
+// differing signatures and no streak, while every call asks after the same
+// pull request and learns the same nothing. Keying on the subject rather than
+// the command text is what stops a re-spelling from laundering a repeat.
 package busypoll
 
 import (
@@ -36,15 +35,8 @@ var statusReadTools = set.Of(
 	"tasklist",
 )
 
-// statusReadCommands are the Bash spellings of the same question. Each is
-// matched in statement position, so `grep 'gh pr view' notes.md` is not one.
-//
-// Every entry runs `gh`, and no entry may ever run `git`. A `git` command
-// reads local objects: `git show <sha>:src/cmd/go.mod`, `git ls-tree <sha>`
-// and `git log <sha>` cost nothing, reach no network, and answer a question
-// about a file rather than about a state. All were refused while this list
-// carried `git ls-remote`, because a SHA anywhere in the command text was
-// enough to make the call a status read of that commit.
+// statusReadCommands are the Bash spellings of the same question, matched in statement position.
+// Every entry runs `gh`, and no entry may ever run `git`: a `git` command reads local objects.
 var statusReadCommands = []string{
 	"gh wait-ci",
 	"gh pr view",
@@ -56,14 +48,8 @@ var statusReadCommands = []string{
 	"gh run watch",
 }
 
-// contentSubcommands read a run's OUTPUT rather than its state: a log, a
-// search of one, the errors GitHub extracted, the artifacts, the job list.
-//
-// None of them is the poll this guard exists to stop. A finished run's log
-// does not change, and reading one is not asking the question again -- it is
-// how the failure gets diagnosed. Counting them refused the second of two red
-// jobs on a commit as a repeat of the first, which is the guard standing
-// between a session and the fix it was told to make.
+// contentSubcommands read a run's OUTPUT rather than its state: logs, searches, annotations, artifacts, jobs.
+// None of them is the poll this guard exists to stop, since a finished run's output does not change.
 var contentSubcommands = set.Of(
 	"log", "grep", "annotations", "artifacts", "jobs", "workflows",
 )
@@ -94,38 +80,26 @@ var (
 	reStatement = regexp.MustCompile(`(^|[|;&(]\s*|&&\s*|\|\|\s*)$`)
 )
 
-// isStatusRead reports whether this call's only product is a current-state
-// answer. Anything that writes, pushes, edits or runs a build is not one --
-// those calls CHANGE the world, and re-reading after one is legitimate.
+// isStatusRead reports whether this call's only product is a current-state answer.
 func isStatusRead(c toolCall) bool {
 	name := strings.ToLower(c.name)
 	if name == "bash" {
 		return namesAStatusCommand(commandOf(c.input))
 	}
-	// An MCP tool arrives as mcp__<server>__<Tool>; the bare trailing name
-	// is what identifies it, since the same tool is served under several
-	// server prefixes in this environment.
+	// An MCP tool arrives as mcp__<server>__<Tool>; the bare trailing name identifies it.
 	if i := strings.LastIndex(name, "__"); i >= 0 {
 		name = name[i+2:]
 	}
 	return statusReadTools.Contains(name)
 }
 
-// namesAStatusCommand reports whether cmd runs a status command in statement
-// position. Requiring statement position is what keeps a command that merely
-// MENTIONS one -- a grep, a commit message -- from counting.
+// namesAStatusCommand reports whether cmd runs a status command in statement position.
 func namesAStatusCommand(cmd string) bool {
 	return len(statusStatements(cmd)) > 0
 }
 
-// statusStatements returns the text of each status command cmd runs, from its
-// command word to the end of that statement, and nothing else.
-//
-// The bound is what makes the subject the command's own. Reading a subject out
-// of the whole command string let a SHA that belonged to a neighbouring
-// statement -- or to no command at all -- decide what a `gh` call was asking
-// about, so the first genuine read of that commit came back refused as a
-// repeat. A subject now has to sit in the arguments of the GitHub read itself.
+// statusStatements returns the text of each status command cmd runs, from its command word to the end of that statement.
+// The bound is what makes the subject the command's own: it must sit in the arguments of the GitHub read itself.
 func statusStatements(cmd string) []string {
 	lower := strings.ToLower(cmd)
 	var out []string
@@ -149,10 +123,7 @@ func statusStatements(cmd string) []string {
 	return out
 }
 
-// statementLen is how far a statement runs from s[0]. Anything that starts a
-// new command ends it, which is enough here: the subject regexes read flags
-// and operands, and a quoted separator inside one of those widens the span by
-// a few harmless characters rather than swallowing a neighbouring command.
+// statementLen is how far a statement runs from the start of s: anything that begins a new command ends it.
 func statementLen(s string) int {
 	for i := range len(s) {
 		switch s[i] {
@@ -163,19 +134,11 @@ func statementLen(s string) int {
 	return len(s)
 }
 
-// reCommand is hoisted because the ledger walk reads every Bash call in the
-// window, and compiling this per call would pay for the pattern each time.
+// reCommand is hoisted because the ledger walk reads every Bash call in the window.
 var reCommand = regexp.MustCompile(`"command"\s*:\s*"((?:[^"\\]|\\.)*)"`)
 
-// commandOf pulls the command string out of a Bash call's input, undone to
-// the text the shell would have run.
-//
-// It shares the record walk's replacer rather than keeping a shorter one of
-// its own. A Go encoder writes `&&` in its numeric unicode form and a
-// JavaScript one leaves it alone, so a private replacer that folded only the
-// backslash escapes read `a && b` as a single long statement on half the
-// transcripts it may be handed -- and a SHA in the second statement then named
-// the subject of the first.
+// commandOf pulls the command string out of a Bash call's input, undone to the text the shell would have run.
+// It shares the record walk's replacer, since encoders differ on whether `&&` arrives in numeric unicode form.
 func commandOf(input []byte) string {
 	m := reCommand.FindSubmatch(input)
 	if m == nil {
@@ -184,11 +147,7 @@ func commandOf(input []byte) string {
 	return unescapeReplacer.Replace(string(m[1]))
 }
 
-// subjectsIn returns every state-carrying thing named in text, normalized so
-// the same pull request reached by two different tools compares equal. It is
-// used on both sides of the decision -- the call being judged, and the
-// results already in the transcript -- so a subject that cannot be spelled
-// consistently simply never matches, which allows rather than denies.
+// subjectsIn returns every state-carrying thing named in text, normalized so the same subject compares equal.
 func subjectsIn(text string) []string {
 	seen := set.New[string]()
 
@@ -228,9 +187,7 @@ func subjectsIn(text string) []string {
 	return out
 }
 
-// looksLikeSHA separates a commit hash from a decimal number and from a word
-// spelled in hex. The rule is the sibling linkrefs package's: a real SHA
-// carries both a digit and an a-f letter.
+// looksLikeSHA separates a commit hash from a decimal number and from a word spelled in hex.
 func looksLikeSHA(s string) bool {
 	return reHasDigit.MatchString(s) && reHasHexAZ.MatchString(s)
 }

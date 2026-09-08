@@ -74,7 +74,7 @@ func Check(filename, src string) []Hit {
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: len(trim(b)) < len(b.text),
+			Repairable: b.exact && len(trim(b)) < len(b.text),
 		})
 	}
 	return hits
@@ -99,6 +99,11 @@ func Fix(filename, src string) (string, bool) {
 	for i := len(bs) - 1; i >= 0; i-- {
 		b := bs[i]
 		if _, over := judge(b); !over {
+			continue
+		}
+		// A guessed span is reported but never rewritten. Wrong by a line, it
+		// deletes the wrong sentence, and nobody reviews what a hook applied.
+		if !b.exact {
 			continue
 		}
 		kept := trim(b)
