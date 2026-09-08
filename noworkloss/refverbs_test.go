@@ -10,11 +10,8 @@ import (
 )
 
 // A ref-destroying command is only a hazard when the commits exist nowhere
-// else. Already pushed, already merged, or sitting on another branch all mean
-// nothing is lost, and the command is ordinary work.
-//
-// remoteRepo builds a repo with a real bare remote so remote-tracking refs are
-// genuine rather than simulated.
+// else. remoteRepo builds a repo with a real bare remote, so remote-tracking
+// refs are genuine rather than simulated.
 func remoteRepo(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
@@ -256,24 +253,19 @@ func TestAllowsTheSafeSpellingsOfThoseVerbs(t *testing.T) {
 func TestSubmoduleAndCheckoutIndexForceForms(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
-	// submodule names no provenance route, so the destruction half's own
-	// preserve-and-allow is the whole story for these commands.
+	// submodule names no provenance route, so preserve-and-allow is the whole story.
 	preserved(t, dir, "git submodule deinit -f vendor/lib")
 	// The line above committed that edit, so the case below needs a fresh edit.
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 	preserved(t, dir, "git submodule update --force")
-	// checkout-index IS a provenance route (gitroutes.go's plumbingVerbs) --
-	// it points the index at an object with no tool call in sight -- so it
-	// stays denied regardless of preservation.
+	// checkout-index IS a provenance route, so it stays denied.
 	denied(t, dir, "git checkout-index -f -a")
 
 	allowed(t, dir, "git submodule update --init")
 	allowed(t, dir, "git submodule status")
 
 	// `git checkout-index -a` discards nothing, so the destruction half allows
-	// it. It writes the index into the worktree, which is the plumbing route the
-	// provenance half closes -- the same reason `git update-ref` moved off the
-	// allow list above.
+	// it. It writes the index into the worktree, which provenance closes.
 	assert.Empty(t, lossOnly(t, dir, "git checkout-index -a"))
 	denied(t, dir, "git checkout-index -a")
 	denied(t, dir, "git update-ref refs/heads/x HEAD")

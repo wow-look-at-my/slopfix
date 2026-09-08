@@ -25,12 +25,8 @@ func writeScript(t *testing.T, dir, name, body string) string {
 	return "cd " + dir + " && ./" + name
 }
 
-// The Go toolchain's own src/bootstrap.bash: it takes its destination from
-// $1, cds there, and removes paths under it. Every operand is perfectly
-// static; what nothing here can know is the directory they land in. The
-// destruction half denied that outright while the provenance half had already
-// exempted it, which is how a build step stayed unrunnable after the rule
-// was written down.
+// A build script that cds to its argument and removes paths under it. Every
+// operand is static; the directory they land in is not.
 func TestAScriptsUnresolvableWorkingDirectoryIsTheProgramsOwnBusiness(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -44,9 +40,8 @@ rm -rf pkg/bootstrap pkg/obj
 	allowed(t, dir, cmd)
 }
 
-// The control: the same statements typed into the command line resolve
-// against nothing either, and there they are exactly the ambiguity this
-// plugin exists to refuse rather than guess at.
+// The control: the same statements typed into the command line are the
+// ambiguity this plugin refuses rather than guesses at.
 func TestAnUnresolvableWorkingDirectoryStillDeniesInTheCommandText(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -55,9 +50,8 @@ func TestAnUnresolvableWorkingDirectoryStillDeniesInTheCommandText(t *testing.T)
 	assert.Contains(t, r, "not statically known")
 }
 
-// The other control, and the case that matters more: a script standing
-// somewhere it named STATICALLY is judged exactly as before, so following a
-// script still sees what it deletes.
+// The other control: a script standing somewhere it named STATICALLY is still
+// judged, so the walk still sees what it deletes.
 func TestAScriptsKnownWorkingDirectoryIsStillJudged(t *testing.T) {
 	dir := newRepo(t)
 	writeAt(t, dir, "sub/keep.txt", "scratch\n")
@@ -67,11 +61,8 @@ func TestAScriptsKnownWorkingDirectoryIsStillJudged(t *testing.T) {
 	assert.Contains(t, notice, "sub/keep.txt")
 }
 
-// A script that hands another shell a command built at run time. The text of
-// that command is in no file this hook can read, so the walk records a
-// blocker -- and a blocker had no origin at all, so such a line refused the
-// whole script before any write was judged. That is what made
-// `bash tests/run-tests.sh` unrunnable in a sibling plugin.
+// A script that hands another shell a command built at run time. The walk
+// records a blocker, which used to refuse the whole script.
 func TestAScriptsUnreadableInnerShellIsTheProgramsOwnBusiness(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -90,11 +81,8 @@ func TestAnUnreadableInnerShellStillDeniesInTheCommandText(t *testing.T) {
 	assert.Contains(t, r, "assembled from an expansion")
 }
 
-// A script the walk cannot parse at all is still refused, whatever depth the
-// walk stands at when it opens the file. That blocker describes the command
-// that named the file, not the program inside it, and exempting it would
-// reopen the write-elsewhere-then-run bypass this hook follows scripts to
-// close.
+// A script the walk cannot parse is still refused: that blocker describes the
+// command that named the file, not the program inside it.
 func TestAnUnparseableScriptStillDenies(t *testing.T) {
 	dir := newRepo(t)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "broken.sh"),
@@ -104,9 +92,8 @@ func TestAnUnparseableScriptStillDenies(t *testing.T) {
 	assert.Contains(t, r, "does not parse as shell")
 }
 
-// A script whose blockers are exempt must still be judged on everything the
-// walk COULD read. Without this, exempting the blocker would quietly exempt
-// the whole file.
+// A script whose blockers are exempt must still be judged on what the walk
+// COULD read.
 func TestAScriptWithABlockerIsStillJudgedOnWhatItNamesStatically(t *testing.T) {
 	dir := newRepo(t)
 
@@ -115,10 +102,8 @@ func TestAScriptWithABlockerIsStillJudgedOnWhatItNamesStatically(t *testing.T) {
 	assert.Contains(t, r, "tracked.go")
 }
 
-// `set -e` and `set +o pipefail` set shell options. Neither binds a name, and
-// treating them as a hazard turned off variable resolution for every script
-// that opens with such a line -- which is most scripts. The redirect below resolves
-// to a path outside the tree and must be allowed.
+// `set -e` sets a shell option and binds no name, so it must not turn off
+// variable resolution. The redirect below resolves outside the tree.
 func TestShellOptionSetDoesNotDisableVariableResolution(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)

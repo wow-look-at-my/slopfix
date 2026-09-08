@@ -27,9 +27,8 @@ func TestDeniesInsideEveryCompoundForm(t *testing.T) {
 	}
 }
 
-// A syntax check never runs the script, so the writes named inside it do not
-// happen. Running the same script without -n still denies, which is what makes
-// the allow a property of -n rather than of the fixture.
+// A syntax check never runs the script. The same script without -n still
+// denies, which makes the allow a property of -n.
 func TestSyntaxCheckDoesNotRunTheScript(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -62,8 +61,7 @@ func TestDeniesThroughMoreWrappers(t *testing.T) {
 		require.NotEmpty(t, ask(t, dir, c), "expected DENY for %q", c)
 	}
 
-	// The loop above already preserved that edit onto the branch, so this needs
-	// its own dirty tree.
+	// The loop above preserved that edit, so this needs its own dirty tree.
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 
 	// A bare `git checkout` with no ref or pathspec at all -- xargs supplies
