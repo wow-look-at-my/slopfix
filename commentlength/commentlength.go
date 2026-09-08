@@ -112,6 +112,7 @@ func Fix(filename, src string) (string, bool) {
 func judge(b block) (string, bool) {
 	lines, chars := measure(prose(b.text))
 	// Nothing to weigh against. The package doc is exempt before this, so a run
+	// left here trails off the end of a file and documents no construct at all.
 	if b.codeLines == 0 {
 		if lines == 0 {
 			return "", false
@@ -212,18 +213,12 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
-	// Nothing shorter both fits and reads. The block stays whole, and the report
-	// hands it to a person.
+	// Nothing shorter both fits and reads.
 	return b.text
 }
 
 // cutLastThought drops the last thought out of a block, and reports false when
 // nothing is left to drop.
-//
-// A cut lands on a sentence end wherever the prose has any. Lopping a line
-// instead leaves a dangling clause, which reads worse than the long comment it
-// replaced. The line cut stays as the last resort, for prose that carries no
-// sentence end at all.
 func cutLastThought(text []string) ([]string, bool) {
 	if next, ok := dropParagraph(text); ok && endsWell(next) {
 		return next, true
