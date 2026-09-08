@@ -10,35 +10,6 @@ import (
 	"strings"
 )
 
-// filler is a word or phrase that survives its own deletion. Each entry is
-// checked whole, lowercased, and only between word boundaries.
-//
-// The list is deliberately short and deliberately boring. A word that changes
-// meaning in any context does not belong here: a wrong deletion is worse than
-// a comment left long, because nobody reviews what a repair applied.
-var filler = []string{
-	"actually", "basically", "essentially", "fundamentally", "simply",
-	"obviously", "clearly", "of course", "in fact", "indeed",
-	"really", "very", "quite", "rather", "somewhat", "fairly",
-	"just", "note that", "it is worth noting that", "please note that",
-	"in order to", "for the purposes of", "with respect to",
-	"at the end of the day", "needless to say",
-}
-
-// replacement rewrites a phrase to a shorter one that means the same thing.
-var replacement = map[string]string{
-	"in order to":           "to",
-	"due to the fact that":  "because",
-	"in the event that":     "if",
-	"for the purpose of":    "for",
-	"a large number of":     "many",
-	"at this point in time": "now",
-	"is able to":            "can",
-	"has the ability to":    "can",
-	"make use of":           "use",
-	"take into account":     "consider",
-}
-
 // tighten rewrites a comment run: it drops filler, applies the shorter phrasing,
 // and reflows the prose to the block's own marker and width.
 //
@@ -76,12 +47,36 @@ const wrapWidth = 78
 
 // shorten drops filler and applies the shorter phrasing, then tidies the
 // spacing the deletions leave behind.
-func shorten(s string) string {
-	for phrase, with := range replacement {
-		s = replaceWord(s, phrase, with)
+func shorten(s string) string { return shortenFor(s, "comment") }
+
+// Deslop rewrites one rendered message, applying every entry that names the
+// message surface. It is the real-time half: a MessageDisplay hook hands it the
+// delta as it streams and shows what comes back.
+//
+// It rewrites and never annotates. An annotation about a phrase the reader can
+// already see is a second thing to read; replacing it costs the reader nothing.
+func Deslop(s string) string { return shortenFor(s, "message") }
+
+// shortenFor applies the table entries that name a surface.
+func shortenFor(s, surface string) string {
+	// Rewrites first: a phrase like "in order to" would otherwise lose its
+	// middle to a <drop> and stop matching as a phrase at all.
+	for _, r := range english.Rewrites {
+		if appliesTo(r.Where, surface) {
+			s = replaceWord(s, r.From, r.To)
+		}
 	}
-	for _, word := range filler {
-		s = replaceWord(s, word, "")
+	for _, d := range english.Drops {
+		if appliesTo(d.Where, surface) {
+			s = replaceWord(s, d.Word, "")
+		}
+	}
+	// Patterns last: they carry a shape rather than a phrase, and a shape must
+	// see the text a word swap has already settled.
+	for _, p := range english.Patterns {
+		if appliesTo(p.Where, surface) {
+			s = p.re.ReplaceAllString(s, p.To)
+		}
 	}
 	s = strings.Join(strings.Fields(s), " ")
 	s = strings.ReplaceAll(s, " ,", ",")
