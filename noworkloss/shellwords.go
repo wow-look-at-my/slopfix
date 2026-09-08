@@ -10,10 +10,6 @@ import (
 )
 
 // The vocabulary the walk is built on: what a word says, which program a
-// spelling names, and where a path lands. Everything about reading a word and
-// resolving a program lives in shellwalk, shared with enhanced-auto-allow --
-// a wrapper either plugin misreads is a rule the other still enforces, so they
-// must not answer "which program runs here" separately.
 
 func wordText(wd *syntax.Word) word {
 	w := shellwalk.WordText(wd)

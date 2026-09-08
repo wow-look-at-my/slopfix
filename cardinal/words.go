@@ -11,11 +11,6 @@ import (
 
 // proseAlt is the prose vocabulary as a regular expression alternation, which
 // is the form the frames need.
-//
-// The singular is deliberately absent: in English prose it is overwhelmingly a
-// pronoun, and matching it reports far more good writing than bad. The ordinals
-// and the large scales are absent for the same reason. A comment reads the
-// wider table below, where a bare cardinal is already the finding.
 const proseAlt = `two|three|four|five|six|seven|eight|nine|ten|` +
 	`eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|` +
 	`nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|dozen`
@@ -24,9 +19,6 @@ const proseAlt = `two|three|four|five|six|seven|eight|nine|ten|` +
 var proseWords = set.Of(strings.Split(proseAlt, "|")...)
 
 // gateAlt is what the merge gate's stale-count rule reads. It stops at twelve,
-// where the prose rule carries the tens and a dozen. Neither list is derived
-// from the other: each is what its rule has always matched, and widening either
-// one moves verdicts on text nobody has edited.
 const gateAlt = `two|three|four|five|six|seven|eight|nine|ten|eleven|twelve`
 
 // gateWords is that vocabulary as a set.
@@ -50,5 +42,4 @@ var commentWords = set.Of(
 )
 
 // Leading matches the cardinal at the front of a quantity, with the space after
-// it. Cutting exactly that is the prose repair.
 var Leading = regexp.MustCompile(`(?i)^(?:\d{1,4}|` + proseAlt + `)\s+`)

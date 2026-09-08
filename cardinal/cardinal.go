@@ -25,11 +25,6 @@ import (
 )
 
 // Token is what a substrate reports, and where it starts in the text.
-//
-// The text differs by substrate on purpose. Prose reports the whole quantity,
-// the cardinal and the noun it governs, because the repair cuts the cardinal
-// off the front of it. A comment reports the number alone: there is nothing
-// there to cut.
 type Token struct {
 	Offset int
 	Text   string
@@ -46,9 +41,6 @@ const (
 )
 
 // Substrate is a kind of text, and what a number has to do inside it to count.
-//
-// Construct none of your own. The values below carry the patterns each shape
-// needs, and those fields are the package's own.
 type Substrate struct {
 	// Shape says which finder reads the text, and so which exemptions apply.
 	Shape Shape
@@ -59,19 +51,13 @@ type Substrate struct {
 	// Exempt judges a matched quantity, and Shape Quantity reads it.
 	Exempt []Exemption
 	// ExemptToken judges the text around a token, and Shape Number reads it. A
-	// token's own shape -- a URL, a qualified name -- is judged inside the
-	// number test instead, where its order against the digit test decides the
-	// answer.
 	ExemptToken []TokenExemption
 
 	// quantity matches a cardinal governing a plural noun, spelled as this
-	// substrate tolerates it. A framed substrate reads its frames instead,
-	// which carry the same shape inside them.
 	quantity *regexp.Regexp
 }
 
 // Prose is a document's own voice, as the inventory-count rule reads it. The
-// frame is what keeps an ordinary number out, so the exemptions are narrow.
 var Prose = Substrate{
 	Shape:  Quantity,
 	Frame:  true,
@@ -80,8 +66,6 @@ var Prose = Substrate{
 }
 
 // Gate is the same document, as the merge gate's stale-count rule reads it. It
-// asks for no frame, and buys that back with a list of units it will not count:
-// a size and a duration are measured rather than counted.
 var Gate = Substrate{
 	Shape:    Quantity,
 	Frame:    false,

@@ -65,7 +65,6 @@ func TestDeniesThroughMoreWrappers(t *testing.T) {
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 
 	// A bare `git checkout` names no provenance route, since the piped word
-	// never reaches the argv this hook reads.
 	preserved(t, dir, "echo x | xargs -n 1 git checkout")
 }
 
@@ -82,7 +81,6 @@ func TestCdScopeFollowsTheShell(t *testing.T) {
 		"the cd was contained in the subshell, so the reset ran in the clean repo")
 
 	// A cd in a sequence does: the reset ran against the dirty repo, so the
-	// destruction half preserves its tracked edit.
 	_, notices := lossOnlyNotices(t, clean, "cd "+dir+" && git reset --hard")
 	assert.NotEmpty(t, notices)
 }

@@ -16,7 +16,6 @@ const (
 	// reachOrphans: the reflog is destroyed. Safe when no commit needs it to stay findable.
 	reachOrphans
 	// reachWorktree: another worktree is being force-removed. Safe when that
-	// worktree has nothing uncommitted.
 	reachWorktree
 )
 
@@ -79,7 +78,6 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 
 	ref := r.ref
 	// A push names its target indirectly, via the remote-tracking ref that
-	// mirrors it. That distinction decides what a MISSING ref means below.
 	viaPush := ref == ""
 	if viaPush {
 		ref, err = c.pushRef(st, r)
@@ -100,7 +98,6 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 			return false, "", errNoRemoteRef
 		}
 		// A local ref that does not exist has nothing to destroy; git will
-		// fail on its own terms rather than losing anything.
 		return true, "no such ref", nil
 	}
 

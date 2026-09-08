@@ -19,7 +19,6 @@ func classifyFS(seg segment) []*finding {
 		}
 		// A redirect this half objects to empties a file holding content no git
 		// object has. A device has nothing to lose, and a descriptor other
-		// than stdout carries a stream rather than output.
 		if isDeviceFile(r.file.text) || !touchesStdout(r) {
 			continue
 		}
@@ -27,7 +26,6 @@ func classifyFS(seg segment) []*finding {
 			label: redirLabel(r, ">"), haz: hazTracked | hazUntracked, dir: seg.cwd,
 			paths: []word{r.file},
 			// Not `>> file`: appending is still a write outside the edit tools,
-			// so the provenance half refuses that advice on the next call.
 			rewrite: "commit the file first, then change it with Edit",
 		})
 	}
@@ -84,7 +82,6 @@ func classifyFS(seg segment) []*finding {
 			label: "tee", haz: hazTracked | hazUntracked, dir: seg.cwd,
 			paths: operands,
 			// `tee -a` is the append form, and appends are refused by the
-			// provenance half for the same reason `>>` is.
 			rewrite: "commit the file first, then change it with Edit",
 		})
 

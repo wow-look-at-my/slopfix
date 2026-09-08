@@ -11,14 +11,6 @@ import (
 )
 
 // The Write tool's own refusals, which were a separate plugin until the
-// delete-then-Write loophole made them the same question as the Bash rules.
-//
-// Write authors a whole file. Aimed at a path that already holds something, it
-// replaces content nobody reviewed the loss of -- Edit is the tool for that. And
-// after that is refused, "delete the path, then Write it" is the obvious way
-// round, so a path sitting in the recycle bin is refused too: in that window the
-// only other copy of the file is in the model's context, where a compaction
-// destroys it.
 
 const recyclerTimeout = 3 * time.Second
 
@@ -53,8 +45,6 @@ func inRecycleBin(path string) (string, bool) {
 		return "", false
 	}
 	// recycler records the physically resolved path, so on macOS /tmp/x arrives
-	// as /private/tmp/x. The file itself does not exist, so its parent is what
-	// can be resolved.
 	physical := path
 	if parent, err := filepath.EvalSymlinks(filepath.Dir(path)); err == nil {
 		physical = filepath.Join(parent, filepath.Base(path))

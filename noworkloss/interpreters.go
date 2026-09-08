@@ -69,7 +69,6 @@ func interpreterWrites(seg segment, name string, rest []word, roots []string) ([
 	}
 	// A pipe or a `< file` redirect only carries a SCRIPT when the interpreter
 	// was given nothing else to run: a named script means stdin is its input.
-	// The stdin markers above still deny.
 	if seg.stdinScript && !namesAScript(rest) {
 		return []write{{route: name + " (stdin)", opaque: "a " + name + " script piped in on stdin, which is not in the command text"}}, true
 	}
@@ -193,7 +192,6 @@ func allowedFormatter(name string, rest []word) bool {
 		return true
 	case "go-toolchain":
 		// The org's Go entry point: it tidies go.mod, formats source and runs the
-		// tests together, and refusing its rewrites would refuse every Go build.
 		return true
 	case "go":
 		return sub == "generate" || sub == "fmt" || sub == "mod"

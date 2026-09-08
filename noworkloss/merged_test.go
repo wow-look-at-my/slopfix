@@ -27,7 +27,6 @@ func TestRedirectOntoANewFileIsStillAuthoring(t *testing.T) {
 	assert.Contains(t, denied(t, dir, "echo x > brand-new.txt"), "brand-new.txt")
 
 	// A build directory is writable by whatever writes it, and a device is not a
-	// file in the tree at all.
 	allowed(t, dir, "echo x > build/out.log")
 	allowed(t, dir, "git status 2>/dev/null")
 	allowed(t, dir, "git status > /dev/null 2>&1")

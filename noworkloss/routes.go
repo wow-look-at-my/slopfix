@@ -23,7 +23,6 @@ type write struct {
 	// opaque carries the reason a route's targets cannot be resolved, and denies.
 	opaque string
 	// fromScript marks a write read out of a script FILE. classify stamps it,
-	// so no route below has to remember to.
 	fromScript bool
 }
 
@@ -62,7 +61,6 @@ func classifyRoutes(seg segment, roots []string, aliases *aliasResolver, depth i
 		}
 		// A verb with no write route of its own may still be an alias for a
 		// write, so provenance must see through the same aliases. expand is a
-		// no-op for a real git builtin and for an unconfigured name.
 		for _, expanded := range aliases.expand(seg, depth) {
 			out = append(out, classify(expanded, roots, aliases, depth+1)...)
 		}
@@ -90,7 +88,6 @@ func redirectWrites(seg segment) []write {
 			op = ">>"
 		}
 		// Every descriptor counts: a file the tree holds is authored content
-		// whichever stream filled it.
 		out = append(out, write{route: redirLabel(r, op), paths: []word{r.file}, dir: seg.cwd})
 	}
 	return out
@@ -300,7 +297,6 @@ func copyWrites(seg segment, name string, rest []word, roots []string) []write {
 	}
 	dst := operands[len(operands)-1]
 	// rsync's trailing slash, several sources, or an existing directory all mean
-	// the destination is a directory and the write lands under it by basename.
 	if len(operands) > 2 || strings.HasSuffix(dst.text, "/") {
 		return []write{{route: name, dir: abs(seg.cwd, dst.text), whole: true}}
 	}
@@ -401,8 +397,6 @@ func inPlaceRewrite(seg segment, name string, rest []word) []write {
 	}
 	_, operands := scanArgs(rest, noFlags)
 	// An unrecognised tool's operands hold its subcommand as well as its files
-	// (`ffs fmt -w x.ffs`), so only the ones that look like paths are reported --
-	// a denial naming "fmt" tells the reader nothing.
 	var targets []word
 	for _, o := range operands {
 		if looksLikePath(seg.cwd, o) {
@@ -441,7 +435,6 @@ func looksLikePath(cwd string, o word) bool {
 		return true // unknowable, and unknowable denies
 	}
 	// An expression is not a filename. `yq -i '.a = .b' config.yaml` hands the
-	// tool a program and a file, and a denial naming the program helps nobody.
 	if strings.ContainsAny(o.text, " \t") {
 		return false
 	}

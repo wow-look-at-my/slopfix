@@ -194,8 +194,6 @@ func TestPostToolUseFlagsUnwrappedLines(t *testing.T) {
 	require.Contains(t, ctx, "within budget", "a small unwrapped file is not also a size violation")
 
 	// The hole that let the false headline ship: the assertions above are both
-	// about the DETAIL line. Nothing checked what the report LEADS with, so a
-	// width-only notice claimed the budget wall on a file with room to spare.
 	require.NotContains(t, ctx, "budget wall",
 		"a file under budget must not be reported as being at the wall")
 	require.NotContains(t, ctx, "OVER the",

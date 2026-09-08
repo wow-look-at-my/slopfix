@@ -147,9 +147,6 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 		return "", ""
 	}
 	// The invariant is that this content must not be lost -- not that this
-	// exact command must be refused. Committing it satisfies the invariant
-	// directly, and as soon as the commit exists the command is safe by
-	// construction, so it is allowed rather than denied.
 	summary, names := describeAtRisk(tracked, untracked, ignored)
 	if res, ok := preserveAtRiskPaths(st.root, names); ok {
 		return "", res.notice(f.label, summary)

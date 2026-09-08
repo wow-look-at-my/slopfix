@@ -16,7 +16,6 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	// The wrap join.
 	IDHardWrap,
 	// The counts rule cuts the cardinal out of the same sentence the prose
-	// rules report a stale count in.
 	ste.IDStaleCount,
 	IDInventoryCount,
 ))

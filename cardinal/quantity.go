@@ -16,7 +16,6 @@ import (
 )
 
 // proseQuantity is the inventory-count spelling: a cardinal from two upward, up
-// to a few adjectives, and a plural noun of at least four letters.
 const proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
 	`\s+(?:[a-z][a-z-]*\s+){0,3}?[a-z][a-z-]{2,}s\b`
 
@@ -106,7 +105,6 @@ var gapStopWords = set.Of[string](
 )
 
 // Unit exempts a noun that is measured rather than counted. A budget in
-// characters names a size, and nobody revisits it when a list grows.
 func Unit(_ string, q Match) bool { return units.Contains(q.Noun) }
 
 // units are the nouns that name a measure.

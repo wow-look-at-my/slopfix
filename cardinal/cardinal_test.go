@@ -108,7 +108,6 @@ func TestTheCommentExemptionsCarryTheShapesThatCountNothing(t *testing.T) {
 	}
 
 	// The controls, so the cases above prove an exemption rather than a rule
-	// that finds nothing.
 	assert.Equal(t, []string{"403"}, texts("the proxy answers 403 here", Comment))
 	assert.Equal(t, []string{"4"}, texts("the walk has 4 - phases", Comment))
 }

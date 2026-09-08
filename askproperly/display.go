@@ -26,8 +26,6 @@ func Annotate(message string) string {
 		return ""
 	}
 	// A deferral phrase often sits inside a question already quoted ("Want me
-	// to fix it?" carries "want me to"). Naming both repeats the same thing
-	// on the reader's screen.
 	texts := make([]string, 0, len(hits))
 	for _, hit := range hits {
 		text := finding(hit)

@@ -47,8 +47,6 @@ func decide(raw []byte) (reason string, notices []string) {
 		}
 		// The provenance half can still deny a command the destruction half
 		// just preserved and allowed -- `> tracked.go` is both a truncation
-		// and a write outside the edit tools. A denied command never runs, so
-		// a notice claiming it was "allowed to proceed" would be false.
 		if writeReason := evaluateWrites(ti.Command, in.Cwd); writeReason != "" {
 			return writeReason, nil
 		}

@@ -11,7 +11,6 @@ import (
 )
 
 // TokenExemption reports whether the token at i is a number this substrate
-// reads as something other than a count.
 type TokenExemption func(text string, toks []Token, i int) bool
 
 // nameMarkers join an identifier, an import path or a label into a name.

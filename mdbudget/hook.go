@@ -86,7 +86,6 @@ func editReport(in hookInput, limit int) string {
 			paths = []string{abs}
 		}
 		// Keep the snapshot current even when the tool named its file, so a
-		// later Bash edit is diffed against the truth rather than a stale entry.
 		changedFiles(in.SessionID, in.CWD)
 	} else {
 		for _, p := range changedFiles(in.SessionID, in.CWD) {
@@ -146,7 +145,6 @@ func stopBlock(in hookInput, limit int) string {
 	}
 	worstFirst(still)
 	// Deliberately NOT clearing the marker: dropping it here disarms the guard
-	// for the rest of the session as soon as a turn ends cleanly.
 	writeMarker(in.SessionID, m)
 	return stopReason(still, limit)
 }
@@ -174,7 +172,6 @@ func run(r io.Reader) (string, int) {
 			}
 		}
 		// Plain text, not the hookSpecificOutput envelope: the reader here is
-		// a CI log, not Claude Code's hook protocol.
 		return sessionReport(offenders, limit) + "\n", exit
 	}
 

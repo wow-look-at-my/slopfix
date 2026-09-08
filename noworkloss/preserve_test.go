@@ -62,7 +62,6 @@ func TestPreservesUntrackedFileContentBeforeRm(t *testing.T) {
 	require.Len(t, refs, 1)
 
 	// The hook only analyses the command; it never runs it. The file is
-	// still on disk, and the committed content must equal it exactly.
 	content := gitOutput(t, dir, "show", refs[0]+":scratch.txt")
 	assert.Equal(t, "scratch", content)
 }
@@ -86,13 +85,11 @@ func TestPreservesModifiedTrackedFileOnTopOfHead(t *testing.T) {
 	assert.Equal(t, "package a\n// edited", content)
 
 	// The working tree still holds the edit byte for byte -- the hook analyses
-	// the command and never writes a file.
 	onDisk, err := os.ReadFile(filepath.Join(dir, "tracked.go"))
 	require.NoError(t, err)
 	assert.Equal(t, "package a\n// edited\n", string(onDisk))
 
 	// The edit is committed now, so the tree reads clean rather than showing a
-	// staged revert of the content that was just preserved.
 	assert.Empty(t, gitOutput(t, dir, "status", "--porcelain"))
 	assert.Empty(t, gitOutput(t, dir, "diff", "--cached", "--name-only"))
 }
@@ -195,7 +192,6 @@ func TestPreservationCommitsOnlyTheAtRiskPaths(t *testing.T) {
 	assert.Equal(t, "package b\n// unstaged", gitOutput(t, dir, "show", refs[0]+":unstaged.go"))
 	assert.Equal(t, "scratch", gitOutput(t, dir, "show", refs[0]+":new.txt"))
 	// staged.go was never at risk, so the commit holds HEAD's version of it
-	// rather than the version sitting in the index.
 	assert.Equal(t, "package a", gitOutput(t, dir, "show", refs[0]+":staged.go"))
 	assert.Equal(t, []string{"new.txt", "unstaged.go"},
 		splitLines(gitOutput(t, dir, "diff", "--name-only", head, refs[0])))
@@ -254,7 +250,6 @@ func TestPreservationClearsOnlyTheAtRiskPathsFromStatus(t *testing.T) {
 
 	// Both preserved paths are committed now, so they read clean. The
 	// staged file nothing threatened is still staged, and still names the
-	// same content it did before.
 	assert.Equal(t, []string{"M  staged.go"},
 		splitLines(gitOutput(t, dir, "status", "--porcelain")))
 	assert.Equal(t, []string{"staged.go"},
@@ -379,6 +374,5 @@ func TestBranchDeleteCannotNameAPreservationRef(t *testing.T) {
 	ref := makeStrandedPreservationRef(t, dir)
 
 	// git itself refuses this as an invalid branch name, so this hook must
-	// reach the ordinary reachability path instead.
 	allowed(t, dir, "git branch -D "+ref)
 }

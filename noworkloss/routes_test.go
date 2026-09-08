@@ -39,8 +39,6 @@ func routeCases() []routeCase {
 		{route: "node -e with fs.writeFileSync", deny: `node -e 'require("fs").writeFileSync("src.txt","x")'`, allow: "node --version", names: "inline node script"},
 		{route: "perl -pi -e", deny: `perl -pi -e 's/a/b/' src.txt`, allow: "perl --version", names: "inline perl script"},
 		// The control is the shape this used to refuse: an interpreter that already
-		// names a script is being fed INPUT, and the program it runs is in the
-		// command text. Denying it stops a hook being tested with a real payload.
 		{route: "a script piped into an interpreter", deny: `echo 'x' | ruby`, allow: `echo 'x' | ruby prog.rb`, names: "piped in on stdin"},
 		{route: "a script redirected into an interpreter", deny: `ruby < prog.rb`, allow: `ruby prog.rb < data.json`, names: "piped in on stdin"},
 		{route: "busybox sed -i", deny: "busybox sed -i s/a/b/ src.txt", allow: "busybox sed -i s/a/b/ {{out}}/src.txt", names: "src.txt"},
@@ -159,7 +157,6 @@ func routeCases() []routeCase {
 		{route: "a redirect into the live settings", deny: "echo '{}' > ~/.claude/settings.json", allow: "echo '{}' > {{out}}/settings.json", names: "live Claude Code settings"},
 
 		// Found by auditing the commands this environment's permission rules
-		// already allow, rather than by listing routes from memory.
 		{route: "sort -o", deny: "sort -o src.txt src.txt", allow: "sort -o {{out}}/src.txt src.txt", names: "src.txt"},
 		{route: "split", deny: "split -l 100 {{out}}/big.txt part-", allow: "split -l 100 {{out}}/big.txt {{out}}/part-", names: "split"},
 		{route: "gzip replacing a tracked file", deny: "gzip notes.md", allow: "gzip {{out}}/notes.md", names: "notes.md"},
@@ -236,7 +233,6 @@ func TestOrdinaryCommandsAreUntouched(t *testing.T) {
 		"git merge --no-edit origin/master", "git merge FETCH_HEAD", "git pull origin master",
 
 		// Copying. This is how a tree of files gets put in place, so no `cp` is a
-		// provenance route -- not over a tracked file, and not from outside the tree.
 		"cp {{out}}/src.txt src.txt", "cp src.txt {{out}}/copy.txt",
 		"cp -r {{out}}/pkg .", "cp -- {{out}}/src.txt src.txt",
 		"cp -t . {{out}}/src.txt",

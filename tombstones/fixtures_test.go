@@ -13,10 +13,6 @@ import (
 // the rule matches what its author had in mind.
 
 // A purge comment in a setup script, beside the code removing a hook
-// registration the migration retired. The owner named it a tombstone on sight,
-// and the rule missed it: no date, no change number, and none of the contrast
-// patterns matched, because they all required an adjective from a small set.
-// It is what added the "moved from" tell.
 const purgeNarration = `# fix-what-you-found.ts moved from Stop to MessageDisplay: a Stop hook runs
 # after the message has streamed, so refusing cannot unsend it -- the user reads
 # the punt, then a near-identical retype that writes the tell down again and

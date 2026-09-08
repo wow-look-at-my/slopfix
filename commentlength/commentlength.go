@@ -178,7 +178,6 @@ func isDirective(line string) bool {
 			continue
 		}
 		// `//go:build` and `# shellcheck:` carry no space before the colon.
-		// A sentence with a colon in it always does.
 		return true
 	}
 	return false

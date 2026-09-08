@@ -73,7 +73,6 @@ func TestAProseQuestionIsAnnotated(t *testing.T) {
 	assert.Contains(t, got, "ask-properly")
 	assert.Contains(t, got, `"Which one should win?"`)
 	// The repair is to DECIDE. Pointing at a card is a slower stall: the work
-	// stops either way, and the owner answers a question he did not want.
 	assert.Contains(t, got, "Make it yourself")
 	assert.NotContains(t, got, "ask it with AskUserQuestion")
 }

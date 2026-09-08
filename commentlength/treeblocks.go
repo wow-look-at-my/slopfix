@@ -87,11 +87,6 @@ func collect(node ts.Node, root bool, lines []string, out *[]block) {
 			i = next - 1
 			// A comment above the package declaration introduces the package
 			// rather than a construct, so there is nothing of a comparable size
-			// to weigh it against.
-			//
-			// Being FIRST is not enough on its own. A shell script opens with a
-			// comment that documents the assignment under it, and skipping every
-			// file's opening run reported nothing for those files at all.
 			if header {
 				continue
 			}
@@ -145,10 +140,6 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 
 // documentsThePackage reports whether the construct after a file's opening
 // comment run declares the package the file belongs to.
-//
-// It reads the node type rather than the file extension, so it stays a fact
-// about the tree. Go spells it package_clause; a grammar without the concept
-// answers no, and its opening comment is measured like any other.
 func documentsThePackage(node ts.Node, next, count uint32) bool {
 	if next >= count {
 		return false

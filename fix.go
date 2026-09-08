@@ -137,8 +137,6 @@ func Fix(req Request) Repair {
 		}
 	}
 	// The join and the word repair share a pass, because a rule reads a
-	// paragraph as a sentence stream and a hand wrap hides half of it. Naming a
-	// ste rule therefore rewraps the paragraph it repairs.
 	joins := wants(RuleWrap) && keeps(IDHardWrap)
 	prose := wants(RuleSTE)
 	if joins || prose {

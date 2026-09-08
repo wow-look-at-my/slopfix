@@ -19,7 +19,6 @@ type word struct {
 type redirTarget struct {
 	op syntax.RedirOperator
 	// fd is the descriptor the redirect rebinds, as written. An empty value is
-	// the operator's default, which for every output form is stdout.
 	fd   string
 	file word
 }
@@ -49,7 +48,6 @@ type segment struct {
 	// stdinScript marks a stage fed by a pipe or a heredoc, where an interpreter runs an unresolvable script.
 	stdinScript bool
 	// fromScript marks a unit read out of a script FILE, whose writes are the
-	// program's own behaviour.
 	fromScript bool
 }
 
@@ -85,17 +83,14 @@ type walker struct {
 	depth       int
 	scriptDepth int
 	// fileDepth counts how deep the walk stands inside a script FILE run as a
-	// NEW shell. Anything borrowing the caller's scope leaves it alone.
 	fileDepth int
 	piped     bool
 	// vars holds every variable proven to hold a static value. unsafeVars
-	// names what must never enter it.
 	vars         varTable
 	unsafeVars   map[string]bool
 	multiVars    map[string]bool
 	varsDisabled bool
 	// scopeOK marks a scope whose whole program text this walk has read, which
-	// is what turns an assignment count into a fact.
 	scopeOK bool
 }
 
@@ -235,7 +230,6 @@ func (w *walker) command(c syntax.Command, cwd *string, rs []redirTarget, stdin 
 	case *syntax.FuncDecl:
 		// A function body executes when the function is called, and this hook
 		// cannot know whether that happens in this command or a later call. Its
-		// writes are walked either way.
 		if x.Body != nil {
 			local := *cwd
 			w.stmt(x.Body, &local)
@@ -270,9 +264,6 @@ func (w *walker) isolated(sts []*syntax.Stmt, cwd string) {
 func (w *walker) call(c *syntax.CallExpr, cwd *string, rs []redirTarget, stdin bool) {
 	relocated := false
 	// A pure assignment statement -- no command word of its own -- persists
-	// in the current shell, which is the only shape this hook trusts enough
-	// to remember. `VAR=val cmd` is a temporary override scoped to cmd, and
-	// is left exactly as unresolved as it always was.
 	pureAssign := len(c.Args) == 0
 	for _, a := range c.Assigns {
 		if a == nil {
@@ -476,7 +467,6 @@ func (w *walker) scriptFile(f word, cwd string, fresh bool) {
 		self = path
 	}
 	// Only a NEW shell counts as a program of its own. A sourced file's text is
-	// the caller's text, so it stays judged like the command that named it.
 	w.script(string(src), cwd, "the script "+f.text, self)
 }
 
@@ -500,7 +490,6 @@ func (w *walker) findExec(eff []word, cwd string) {
 			continue
 		}
 		// -execdir runs in the directory of each match, which the text does not
-		// name, so the paths in it resolve against a directory nothing knows.
 		dir := cwd
 		if t == "-execdir" || t == "-okdir" {
 			dir = unknownDirText

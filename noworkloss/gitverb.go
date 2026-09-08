@@ -31,7 +31,6 @@ type finding struct {
 	// reach asks whether the commits survive elsewhere, rather than refusing outright.
 	reach *reachCheck
 	// fromScript marks a finding read out of a script FILE. classifySegment
-	// stamps it, so no rule below has to remember to.
 	fromScript bool
 }
 
@@ -206,8 +205,6 @@ func classifyGit(seg segment) *finding {
 			return nil
 		}
 		// Deliberately not gated on -f: clean.requireForce is configurable, so
-		// treating an unforced clean as harmless would leave a hole that
-		// depends on someone else's config.
 		haz := hazUntracked
 		rewrite := `git stash push -u -m "pre-clean"`
 		if g.has("-x", "-X") {

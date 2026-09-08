@@ -11,8 +11,6 @@ import (
 )
 
 // quantity is the shape a frame governs, spelled in quantity.go beside the
-// merge gate's. RE2 has no lookbehind, so the ContinuesANumber exemption
-// guards a digit instead.
 const quantity = proseQuantity
 
 // possessiveFrame is a determiner claiming the things belong here, as in "this

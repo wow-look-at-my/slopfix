@@ -8,12 +8,6 @@ import (
 
 // A commit can be made without any file ever existing locally: the GitHub
 // contents API takes the bytes in the request body, and the createCommitOnBranch
-// mutation takes them base64-encoded. Neither touches the working tree, so every
-// path rule above misses them, and the result is the same -- content in the
-// repository that no edit tool ever saw.
-//
-// These deny wherever they run. There is no "outside the tree" for a write that
-// happens on the server.
 
 func remoteWrites(seg segment, name string, rest []word) ([]write, bool) {
 	switch name {

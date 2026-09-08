@@ -203,8 +203,6 @@ func awkWrites(seg segment, rest []word) []write {
 	flags, operands := scanArgs(rest, valueFlags)
 
 	// gawk spells in-place editing as loading its inplace library, `-i inplace`,
-	// which scanArgs reads as the value of -i. A bare -i naming any other library
-	// is not in-place editing.
 	inPlace := false
 	for _, f := range []string{"-i", "--include"} {
 		if v, ok := flags[f]; ok && v.text == "inplace" {

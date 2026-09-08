@@ -11,7 +11,6 @@ import (
 )
 
 // generatedMarker is the canonical generated-file header. commentspan skips a
-// file carrying it, because nobody can act on a finding in generated code.
 var generatedMarker = regexp.MustCompile(`^\s*(?://+|#+)\s*Code generated .* DO NOT EDIT\.$`)
 
 // isGenerated reports the marker in the file's header, above any code.

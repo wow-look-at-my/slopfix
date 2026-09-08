@@ -70,7 +70,6 @@ func CheckContent(path, content string) []ste.Finding {
 		return Check(content)
 	}
 	// A source file's lines are not paragraphs, so the prose rules stop here.
-	// Its COMMENTS are prose, and the comment rules read them.
 	return commentFindings(path, content)
 }
 

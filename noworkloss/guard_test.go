@@ -16,7 +16,6 @@ import (
 func newRepo(t *testing.T) string {
 	t.Helper()
 	// A hermetic config: a stray alias in the developer's own ~/.gitconfig
-	// must not decide whether these tests pass.
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(home, "gitconfig"))
@@ -55,7 +54,6 @@ func writeAt(t *testing.T, dir, name, content string) {
 }
 
 // modify dirties a tracked file; untrack adds a file git has never seen. They
-// are deliberately separate everywhere in these tests.
 func modify(t *testing.T, dir string) { writeAt(t, dir, "tracked.go", "package a\n// edited\n") }
 func untrack(t *testing.T, dir string, name string) {
 	writeAt(t, dir, name, "scratch\n")
@@ -248,8 +246,6 @@ func TestAllowsRmOfCleanTrackedFile(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // Untracked and tracked are different states, and the verbs treat them
-// differently. Collapsing them is the bug this pair of tests pins.
-// ---------------------------------------------------------------------------
 
 func TestResetHardSparesUntrackedFiles(t *testing.T) {
 	dir := newRepo(t)
@@ -359,7 +355,6 @@ func TestAllowsDryRunAndInteractiveClean(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // Verb-level distinctions that are easy to get backwards.
-// ---------------------------------------------------------------------------
 
 func TestAllowsSoftAndMixedReset(t *testing.T) {
 	dir := newRepo(t)
@@ -413,12 +408,10 @@ func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
 	// A denial on the provenance side still lets the destruction side preserve,
-	// so even the denied verbs leave the tree clean.
 	denied(t, dir, "git rebase master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited twice\n")
 	preserved(t, dir, "git merge feature")
 	// Each preservation commits the edit, so every later verb that must see a
-	// dirty tree gets a fresh edit.
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 	preserved(t, dir, "git pull origin master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited once more\n")
@@ -433,7 +426,6 @@ func TestGitRmCachedLeavesTheFileAlone(t *testing.T) {
 	untrack(t, dir, "scratch.txt")
 	allowed(t, dir, "git rm --cached scratch.txt")
 	// `git rm` names no provenance route either, so a forced removal of an
-	// untracked file is preserved and allowed rather than refused.
 	preserved(t, dir, "git rm -f scratch.txt")
 }
 
@@ -446,7 +438,6 @@ func TestDeniesTruncatingRedirectOntoDirtyFile(t *testing.T) {
 	modify(t, dir)
 	denied(t, dir, "echo x > tracked.go")
 	// An append loses nothing, so the destruction half allows it. The
-	// provenance half still refuses: appended text is authored content.
 	assert.Empty(t, lossOnly(t, dir, "echo x >> tracked.go"))
 	assert.Contains(t, denied(t, dir, "echo x >> tracked.go"), "tracked.go")
 }
@@ -467,7 +458,6 @@ func TestPreservesAndAllowsRmDirectoryContainingUncommittedWork(t *testing.T) {
 	untrack(t, dir, "internal/config/env.go")
 	preserved(t, dir, "rm -rf internal")
 	// Preservation committed that file, so the later spelling needs its own
-	// at-risk content rather than the earlier content.
 	untrack(t, dir, "internal/config/other.go")
 	preserved(t, dir, "rm -rf .")
 }

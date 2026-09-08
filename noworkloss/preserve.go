@@ -32,13 +32,11 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	tmpIndex := tmp.Name()
 	tmp.Close()
 	// An empty FILE is not an empty index: git refuses it. A missing
-	// GIT_INDEX_FILE starts from a genuinely empty index.
 	os.Remove(tmpIndex)
 	defer os.Remove(tmpIndex)
 	env := []string{"GIT_INDEX_FILE=" + tmpIndex}
 
 	// read-tree HEAD seeds the temp index with the last committed tree. A
-	// repository with no commits has no HEAD, so the index starts empty.
 	hasHead := true
 	if _, _, err := runGitEnvTimeout(root, gitTimeout, env, "read-tree", "HEAD"); err != nil {
 		hasHead = false
@@ -53,15 +51,12 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	}
 
 	// A staged version is a SEPARATE state that lives only in the index, so it
-	// is captured here and the working tree lands on top of it.
 	var trees []string
 	if t := stagedTree(root, env, paths, hasHead); t != "" && t != headTree {
 		trees = append(trees, t)
 	}
 
 	// --force: an ignored file (clean -fdx) is exactly the case `git add`
-	// otherwise refuses to stage, and a tracked or plain untracked path is
-	// unaffected by the flag.
 	addArgs := append([]string{"add", "--force", "--"}, paths...)
 	if _, _, err := runGitEnvTimeout(root, gitTimeout, env, addArgs...); err != nil {
 		return nil, false
@@ -107,7 +102,6 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 		return nil, false
 	}
 	// The branch moved under the real index, which would then report a STAGED
-	// REVERT. Only the preserved paths are refreshed.
 	resetArgs := append([]string{"reset", "-q", commit, "--"}, paths...)
 	runGit(root, resetArgs...)
 
@@ -161,7 +155,6 @@ func stagedTree(root string, env, paths []string, hasHead bool) string {
 		if len(fields) != 3 || fields[2] != "0" {
 			// A non-default stage is an unresolved merge conflict. Its entries do
 			// not make a tree, and a conflicted path is not a state a commit
-			// can hold, so it is left to the working-tree pass below.
 			continue
 		}
 		info := fields[0] + "," + fields[1] + "," + path

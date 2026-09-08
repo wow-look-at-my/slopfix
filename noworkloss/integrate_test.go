@@ -21,7 +21,6 @@ func TestIntegratingPreservesAndAllowsWithUncommittedWork(t *testing.T) {
 
 	preserved(t, dir, "git merge origin/master")
 	// The line above COMMITTED the edit, so the tree is clean again. Re-dirty
-	// it, or the later spelling has nothing left to preserve.
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 	preserved(t, dir, "git pull origin master")
 }

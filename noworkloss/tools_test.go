@@ -33,7 +33,6 @@ func TestWriteOverAnExistingFileIsRefused(t *testing.T) {
 	assert.Contains(t, reason, "Use Edit")
 
 	// A path outside the tree is no different: this rule is about the tool's
-	// semantics, not about which directory the file is in.
 	out := outsideTree(t)
 	assert.NotEmpty(t, askTool(t, "Write", root, map[string]any{"file_path": filepath.Join(out, "src.txt")}))
 	assert.Empty(t, askTool(t, "Write", root, map[string]any{"file_path": filepath.Join(out, "fresh.txt")}))
@@ -50,7 +49,6 @@ func TestEditingTheLiveSettingsIsRefused(t *testing.T) {
 	assert.Contains(t, reason, "live Claude Code settings")
 
 	// The control: this is about the live settings, not about every file called
-	// settings.json, and certainly not about a plugin's own source.
 	assert.Empty(t, askTool(t, "Write", root, map[string]any{"file_path": filepath.Join(root, "settings.json")}))
 	assert.Empty(t, askTool(t, "Write", root, map[string]any{
 		"file_path": filepath.Join(root, "plugins", "x", ".claude-plugin", "plugin.json"),

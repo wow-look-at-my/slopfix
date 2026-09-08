@@ -69,7 +69,6 @@ func probeDir(dir string) *repoState {
 	}
 
 	// -uall matters: the default collapses an untracked directory to its name,
-	// so a nested path finds no entry and reads as safe.
 	out, _, err := runGit(st.root, "status", "--porcelain", "-z", "--untracked-files=all")
 	if err != nil {
 		st.err = err
@@ -202,7 +201,6 @@ func coversPath(root, cwd string, operand word, entry string) bool {
 	if !operand.static {
 		// An unknown operand denies outright in the command text. Inside a
 		// script file it is the program's own behaviour and reaches here, where
-		// it covers nothing rather than everything.
 		return false
 	}
 	abs := operand.text

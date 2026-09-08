@@ -180,7 +180,6 @@ func TestDeniesDeletingARemoteBranchHoldingTheOnlyCopy(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // reflog, filter-branch, worktree, update-ref
-// ---------------------------------------------------------------------------
 
 func TestAllowsReflogExpireWhenNothingDependsOnIt(t *testing.T) {
 	dir := newRepo(t)
@@ -265,7 +264,6 @@ func TestSubmoduleAndCheckoutIndexForceForms(t *testing.T) {
 	allowed(t, dir, "git submodule status")
 
 	// `git checkout-index -a` discards nothing, so the destruction half allows
-	// it. It writes the index into the worktree, which provenance closes.
 	assert.Empty(t, lossOnly(t, dir, "git checkout-index -a"))
 	denied(t, dir, "git checkout-index -a")
 	denied(t, dir, "git update-ref refs/heads/x HEAD")
