@@ -12,7 +12,7 @@ import (
 // noFlags is scanArgs' "this command has no value-taking flags" argument.
 var noFlags = set.Of[string]()
 
-// A write is one file mutation a segment would perform. Three shapes cover every
+// A write is a file mutation a segment would perform. The shapes cover every
 // route: a named target, a directory the write lands somewhere under, and a
 // target that cannot be resolved at all.
 type write struct {
@@ -22,7 +22,7 @@ type write struct {
 	whole bool   // the write lands somewhere under dir rather than at a named path
 	// opaque carries the reason a route's targets cannot be resolved. Such a
 	// write denies wherever it runs: fail closed means an unresolvable target is
-	// treated as the worst one.
+	// treated as the worst case.
 	opaque string
 	// fromScript marks a write read out of a script FILE. classify stamps it,
 	// so no route below has to remember to.
@@ -38,7 +38,7 @@ func classify(seg segment, roots []string, aliases *aliasResolver, depth int) []
 	return stampScriptWrites(classifyRoutes(seg, roots, aliases, depth), seg.fromScript)
 }
 
-// stampScriptWrites records where a write came from, in one place, so a route
+// stampScriptWrites records where a write came from, in a single place, so a route
 // added later inherits the answer instead of forgetting it.
 func stampScriptWrites(out []write, fromScript bool) []write {
 	if !fromScript {
@@ -66,11 +66,11 @@ func classifyRoutes(seg segment, roots []string, aliases *aliasResolver, depth i
 			return append(out, w...)
 		}
 		// A verb with no write route of its own may still be an alias for
-		// one -- `git nuke` for `reset --hard` is exactly the destruction
+		// a write -- `git nuke` for `reset --hard` is exactly the destruction
 		// half's own motivating case, and provenance must see through the
 		// same aliases or a hidden write route goes untested rather than
 		// merely unnamed. expand is a no-op for a real git builtin (git
-		// refuses to let an alias shadow one) and for an unconfigured name.
+		// refuses to let an alias shadow a builtin) and for an unconfigured name.
 		for _, expanded := range aliases.expand(seg, depth) {
 			out = append(out, classify(expanded, roots, aliases, depth+1)...)
 		}
@@ -111,7 +111,7 @@ func writesFile(r redirTarget) bool {
 	case syntax.RdrOut, syntax.AppOut, syntax.ClbOut, syntax.RdrAll, syntax.AppAll, syntax.RdrInOut:
 		return true
 	case syntax.DplOut:
-		// `2>&1` duplicates a descriptor; `>&file` opens a file.
+		// A digit target duplicates a descriptor; `>&file` opens a file.
 		t := r.file.text
 		if t == "-" {
 			return false
@@ -278,7 +278,7 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 
 // copyWrites is where the rule's real shape shows: this is about content
 // ENTERING the tree without a tool call. Bytes already in the tree have been
-// through one, so moving or copying them around it -- `mv old.go new.go` -- is
+// through a tool call, so moving or copying them around -- `mv old.go new.go` -- is
 // ordinary refactoring. A source from outside is the splice this closes: write a
 // file to /tmp with Write, then move it over the target.
 func copyWrites(seg segment, name string, rest []word, roots []string) []write {
@@ -390,8 +390,8 @@ func ghWrites(seg segment, rest []word) []write {
 
 // inPlaceRewrite is the rule for a program this catalog does not name. A long
 // in-place flag says plainly that the program rewrites the files it is given,
-// whatever the program is, so the tool does not have to be recognised first --
-// which is what stops the catalog from leaking every time a new one appears.
+// whatever the program is, so the tool does not have to be recognised at all --
+// which is what stops the catalog from leaking every time a new tool appears.
 // Short `-i` and `-w` are ambiguous (`grep -w`, `curl -w`), so they count only
 // for the tools known to spell in-place that way.
 func inPlaceRewrite(seg segment, name string, rest []word) []write {
@@ -450,7 +450,7 @@ func looksLikePath(cwd string, o word) bool {
 	if !o.static {
 		return true // unknowable, and unknowable denies
 	}
-	// An expression is not a filename. `yq -i '.a = 1' config.yaml` hands the
+	// An expression is not a filename. `yq -i '.a = .b' config.yaml` hands the
 	// tool a program and a file, and a denial naming the program helps nobody.
 	if strings.ContainsAny(o.text, " \t") {
 		return false
@@ -486,8 +486,8 @@ var shortInPlaceTools = set.Of[string]("gofmt", "goimports", "shfmt", "ffs",
 	"rustfmt", "clang-format", "buf", "yq")
 
 // scanArgs splits an argv into its flags and its operands. A flag named in
-// valueFlags consumes the next word, which is what keeps `head -n 20 file` from
-// reading 20 as a path. Bundled short flags each register on their own.
+// valueFlags consumes the next word, which is what keeps a count argument from
+// being read as a path. Bundled short flags each register on their own.
 func scanArgs(rest []word, valueFlags set.Set[string]) (map[string]word, []word) {
 	flags := map[string]word{}
 	var operands []word

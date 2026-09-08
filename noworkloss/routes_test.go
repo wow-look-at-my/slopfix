@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// routeCase is one write route: the command that must be refused, the control
+// routeCase is a write route: the command that must be refused, the control
 // that must still run, and the text the refusal has to name.
 type routeCase struct {
 	route string
@@ -210,7 +210,7 @@ func TestEveryRouteIsAllowedOutsideTheTree(t *testing.T) {
 }
 
 // Removing this plugin makes every deny case allowed, so the assertion above is
-// the one that turns red. Asserting that here keeps the claim honest rather than
+// the assertion that turns red. Asserting that here keeps the claim honest rather than
 // leaving it to be believed: nothing else in the suite would notice a hook that
 // stopped deciding.
 func TestDenyAssertionsFailWithNoHookInPlace(t *testing.T) {
@@ -232,13 +232,13 @@ func TestOrdinaryCommandsAreUntouched(t *testing.T) {
 		"git restore --staged src.txt", "git reset src.txt", "git diff", "git log --oneline -5",
 		"git fetch origin master", "git branch -a", "git clone https://example.com/r.git {{out}}/r",
 		// Integrating a named ref's committed history. The org's PR rules mandate
-		// this on a conflict, and denying it left no way to resolve one at all.
+		// this on a conflict, and denying it left no way to resolve a conflict.
 		// The verbs that DO put unreviewed content in a file stay denied -- see
 		// the restore/stash/checkout rows in the deny table above.
 		"git merge origin/master", "git merge --no-ff feature", "git pull origin master",
 
 		// Integrating a ref. The PR rules require merging the base branch into a
-		// PR head, there is no edit tool that performs one, and this hook has no
+		// PR head, there is no edit tool that performs a merge, and this hook has no
 		// opt-out -- so denying it wedged the workflow it was meant to protect.
 		"git merge --no-edit origin/master", "git merge FETCH_HEAD", "git pull origin master",
 

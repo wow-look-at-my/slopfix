@@ -12,7 +12,7 @@ import (
 // A script file the walk runs as a NEW shell is a program. Its variables, its
 // working directory and the text it hands another shell are all its own, and
 // this hook does not sandbox the programs it starts. varenv_test.go covers the
-// operand half of that rule. These cover the two halves it was missing: where
+// operand half of that rule. These cover the halves it was missing: where
 // the program stands, and what it could not read at all. Every case pairs the
 // script form that must run with the same text typed at top level, which must
 // still be refused.
@@ -29,7 +29,7 @@ func writeScript(t *testing.T, dir, name, body string) string {
 // $1, cds there, and removes paths under it. Every operand is perfectly
 // static; what nothing here can know is the directory they land in. The
 // destruction half denied that outright while the provenance half had already
-// exempted it, which is how one build step stayed unrunnable after the rule
+// exempted it, which is how a build step stayed unrunnable after the rule
 // was written down.
 func TestAScriptsUnresolvableWorkingDirectoryIsTheProgramsOwnBusiness(t *testing.T) {
 	dir := newRepo(t)
@@ -44,7 +44,7 @@ rm -rf pkg/bootstrap pkg/obj
 	allowed(t, dir, cmd)
 }
 
-// The control: the same two statements typed into the command line resolve
+// The control: the same statements typed into the command line resolve
 // against nothing either, and there they are exactly the ambiguity this
 // plugin exists to refuse rather than guess at.
 func TestAnUnresolvableWorkingDirectoryStillDeniesInTheCommandText(t *testing.T) {
@@ -55,7 +55,7 @@ func TestAnUnresolvableWorkingDirectoryStillDeniesInTheCommandText(t *testing.T)
 	assert.Contains(t, r, "not statically known")
 }
 
-// The other control, and the one that matters more: a script standing
+// The other control, and the case that matters more: a script standing
 // somewhere it named STATICALLY is judged exactly as before, so following a
 // script still sees what it deletes.
 func TestAScriptsKnownWorkingDirectoryIsStillJudged(t *testing.T) {
@@ -69,7 +69,7 @@ func TestAScriptsKnownWorkingDirectoryIsStillJudged(t *testing.T) {
 
 // A script that hands another shell a command built at run time. The text of
 // that command is in no file this hook can read, so the walk records a
-// blocker -- and a blocker had no origin at all, so one such line refused the
+// blocker -- and a blocker had no origin at all, so such a line refused the
 // whole script before any write was judged. That is what made
 // `bash tests/run-tests.sh` unrunnable in a sibling plugin.
 func TestAScriptsUnreadableInnerShellIsTheProgramsOwnBusiness(t *testing.T) {
@@ -117,7 +117,7 @@ func TestAScriptWithABlockerIsStillJudgedOnWhatItNamesStatically(t *testing.T) {
 
 // `set -e` and `set +o pipefail` set shell options. Neither binds a name, and
 // treating them as a hazard turned off variable resolution for every script
-// that opens with one -- which is most scripts. The redirect below resolves
+// that opens with such a line -- which is most scripts. The redirect below resolves
 // to a path outside the tree and must be allowed.
 func TestShellOptionSetDoesNotDisableVariableResolution(t *testing.T) {
 	dir := newRepo(t)
