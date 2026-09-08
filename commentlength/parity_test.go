@@ -127,6 +127,23 @@ func TestACommentInsideAFunctionBodyIsWeighedAgainstItsStatement(t *testing.T) {
 	assert.NotEmpty(t, Check("x.go", src))
 }
 
+// The shape commentspan reports at noworkloss/auditedroutes.go, copied whole
+// including the long statement. The synthetic cases above pass while the repair
+// leaves this one alone, so the divergence is in the measure and not in the
+// pairing, and only the real text shows it.
+func TestTheRealSwitchCaseShapeIsAFinding(t *testing.T) {
+	src := "package p\n\nfunc f(name string, rest []string) int {\n\tswitch name {\n" +
+		"\tcase \"split\", \"csplit\":\n" +
+		"\t\t// Output lands beside the prefix, or in the working directory when there\n" +
+		"\t\t// is no prefix, under names the command generates rather than names it\n" +
+		"\t\t// is given.\n" +
+		"\t\t_, operands := scanArgs(rest, setOf(\"-b\", \"-l\", \"-n\", \"-a\", \"-C\", \"--suffix-length\"))\n" +
+		"\t\treturn len(operands)\n\t}\n\treturn 0\n}\n"
+
+	assert.NotEmpty(t, Check("x.go", src),
+		"commentspan reports 3 comment lines over 1 code line here")
+}
+
 // The control. A comment proportionate to its statement is not a finding, or
 // every block comment in the tree becomes one.
 func TestAProportionateCommentInsideABlockIsNotAFinding(t *testing.T) {
