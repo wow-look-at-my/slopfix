@@ -17,22 +17,26 @@ const ID = "ask/prose-decision"
 
 // deferralPhrases is the phrase table for handing a decision back without a
 // question mark. Each entry offloads a choice the model was asked to make:
-// "your call" and "let me know" park the work, "or say" invents a
-// confirmation gate. A message may state what it did and stop; it may not
-// close by inviting the user to decide in prose.
-//
-// The permission-asking family -- "want me to", "shall I", "say the word" --
-// is NOT here. The laziness package already carries those phrases, and a
-// phrase written down twice is reported twice for the same defect.
+// "your call" and "let me know" park the work, "want me to" and "shall I" ask
+// for permission already granted, "say the word" invents a confirmation
+// gate. A message may state what it did and stop; it may not close by
+// inviting the user to decide in prose.
 var deferralPhrases = []string{
 	"let me know",
 	"your call",
 	"up to you",
+	"say the word",
 	"just say",
 	"tell me which",
 	"tell me what you",
 	"waiting on you",
 	"waiting for you to",
+	"if you want me to",
+	"want me to",
+	"would you like me to",
+	"do you want me to",
+	"shall i",
+	"should i proceed",
 	"i won't touch",
 	"i will not touch",
 	"and i'll pick",
