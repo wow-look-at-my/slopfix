@@ -1,12 +1,31 @@
 package commentlength
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// The Go path reads a map, and Go randomises map iteration. So the answer has
+// to be sorted before it leaves, or Fix splices with stale line numbers. Repeat
+// the call: one pass agrees with the file order about half the time.
+func TestTheBlocksComeBackInFileOrder(t *testing.T) {
+	essay := "// The point.\n//\n// Then a paragraph of elaboration that runs well past the length of the\n// declaration it sits above, several lines of it, saying little.\n"
+	src := "package p\n\n" + essay + "const a = 1\n\n" + essay + "const b = 2\n\n" + essay + "const c = 3\n"
+
+	for range 50 {
+		got := blocks("x.go", src)
+		require.Len(t, got, 3)
+		starts := make([]int, 0, len(got))
+		for _, b := range got {
+			starts = append(starts, b.start)
+		}
+		require.True(t, slices.IsSorted(starts), "blocks out of file order: %v", starts)
+	}
+}
 
 // These pin the three places this rule had drifted from go-toolchain's
 // commentspan analyzer, which is the gate every repository here is measured by.

@@ -15,6 +15,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"slices"
 	"strings"
 )
 
@@ -53,6 +54,11 @@ func goBlocks(src string) (out []block, ok bool) {
 		b.codeLines, b.codeChars = spanOf(fset, lines, node)
 		out = append(out, b)
 	}
+	// Fix splices back to front, so it needs the blocks in the order they appear
+	// in the file. documented answers out of a map, whose iteration order Go
+	// randomises: an unsorted answer spliced with stale line numbers, which
+	// panicked on some runs of the same input and passed on others.
+	slices.SortFunc(out, func(a, b block) int { return a.start - b.start })
 	return out, true
 }
 
