@@ -19,10 +19,10 @@ import (
 // Seen is the size+mtime of every candidate as of the last check, which is what
 // lets the post-edit sweep find a file written by a tool that names no path.
 // Fired records the signature the Stop gate last blocked on PER FILE, not a
-// single boolean: blocking once per session meant that after one block a session
-// could bloat a second file -- or re-break the same one -- and end the turn in
-// silence. Keying on the signature keeps the no-wedge property (a file left
-// untouched never blocks twice) while making a NEW violation always audible.
+// single boolean: blocking a single time per session meant that afterwards a
+// session could bloat another file -- or re-break the same file -- and end the
+// turn in silence. Keying on the signature keeps the no-wedge property (a file
+// left untouched never blocks again) while making a NEW violation audible.
 type marker struct {
 	Paths []string          `json:"paths"`
 	Fired map[string]string `json:"fired"`
@@ -87,9 +87,9 @@ func recordOffender(sessionID, path string) {
 }
 
 // seedSnapshot records what every candidate looked like BEFORE this session
-// touched anything, so the first post-edit sweep has something to diff against.
-// Without it the first Bash-written edit of a session is the one that gets away
-// -- and the first edit is usually the one that does the damage.
+// touched anything, so the opening post-edit sweep has something to diff
+// against. Without it the earliest Bash-written edit of a session gets away,
+// and that edit is usually the edit that does the damage.
 func seedSnapshot(sessionID, cwd string) {
 	if sessionID == "" {
 		return

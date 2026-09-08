@@ -44,7 +44,7 @@ func fire(t *testing.T, payload map[string]any) string {
 }
 
 // fireCode is fire plus the exit code, for full_scan: the only path where the
-// code carries a real signal instead of always being 0.
+// code carries a real signal instead of always reporting success.
 func fireCode(t *testing.T, payload map[string]any) (string, int) {
 	t.Helper()
 	data, err := json.Marshal(payload)
@@ -126,7 +126,7 @@ func TestSessionStartSeesSnippetsAndSiblingRepos(t *testing.T) {
 	}))
 	require.Contains(t, ctx, "huge.md", "an @-imported snippet is measured on its own")
 	require.Contains(t, ctx, filepath.Join("sibling", "CLAUDE.md"), "a sibling checkout counts")
-	// Worst first: that is the one worth fixing.
+	// Worst at the head: that is the file worth fixing.
 	require.Less(t, strings.Index(ctx, "sibling"), strings.Index(ctx, "huge.md"))
 }
 
@@ -193,7 +193,7 @@ func TestPostToolUseFlagsUnwrappedLines(t *testing.T) {
 	require.Contains(t, ctx, "over 150 columns")
 	require.Contains(t, ctx, "within budget", "a small unwrapped file is not also a size violation")
 
-	// The hole that let the false headline ship: the two assertions above are
+	// The hole that let the false headline ship: the assertions above are
 	// both about the DETAIL line, which was always right. Nothing checked what
 	// the report LEADS with, so every width-only notice opened by claiming the
 	// budget wall on a file with thousands of characters to spare -- and a guard
@@ -246,7 +246,7 @@ func TestStopBlocksAFileThisSessionLeftOversized(t *testing.T) {
 }
 
 // The no-wedge property: a file left exactly as the gate found it never blocks
-// twice, or a session could never end.
+// again, or a session could never end.
 func TestStopDoesNotBlockTwiceForAnUnchangedFile(t *testing.T) {
 	repo := isolate(t)
 	claude := filepath.Join(repo, "CLAUDE.md")
@@ -263,7 +263,7 @@ func TestStopDoesNotBlockTwiceForAnUnchangedFile(t *testing.T) {
 }
 
 // ...but touching it and still leaving it broken is a NEW violation. Blocking
-// once per session was the other half of what made this ignorable.
+// a single time per session was the other half of what made this ignorable.
 func TestStopBlocksAgainAfterAnotherBadEdit(t *testing.T) {
 	repo := isolate(t)
 	claude := filepath.Join(repo, "CLAUDE.md")
@@ -377,7 +377,7 @@ func TestBudgetOverride(t *testing.T) {
 func TestMeasuresCharactersNotBytes(t *testing.T) {
 	repo := isolate(t)
 	claude := filepath.Join(repo, "CLAUDE.md")
-	// 30,000 three-byte runes = 90,000 bytes but only 30,000 characters.
+	// Multi-byte runes: the byte count is a multiple of the character count.
 	writeFile(t, claude, strings.Repeat("世\n", 15000))
 
 	require.Empty(t, fire(t, map[string]any{
@@ -408,9 +408,9 @@ func TestNoSessionIDDoesNotWedge(t *testing.T) {
 	require.Empty(t, fire(t, map[string]any{"hook_event_name": "Stop", "cwd": repo}))
 }
 
-// TestSessionStartFindsNestedOffender is the case that once let a real
-// violation through unseen: the census used to guess one level of siblings
-// from cwd, so a file two directories down never entered it, and only a CI
+// TestSessionStartFindsNestedOffender is the case that let a real
+// violation through unseen: the census used to guess the sibling directories
+// of cwd, so a deeply nested file never entered it, and only a CI
 // job's separate hand-rolled walk ever caught it. SessionStart now shares
 // full_scan's recursive walk (allCandidatePaths -> claudeMdFiles), so there
 // is no shallower mode left for a live session to fall back to.
@@ -456,7 +456,7 @@ func TestFullScanCleanTreeExitsZeroSilently(t *testing.T) {
 // today failing builds that currently pass.
 func TestFullScanNearWallDoesNotFailTheBuild(t *testing.T) {
 	repo := isolate(t)
-	writeFile(t, filepath.Join(repo, "CLAUDE.md"), wrapped(39500)) // 98.75% of 40,000
+	writeFile(t, filepath.Join(repo, "CLAUDE.md"), wrapped(39500)) // at the wall, under the budget
 
 	out, code := fireCode(t, map[string]any{"full_scan": true, "cwd": repo})
 	require.Equal(t, 0, code, "near the wall is a warning, not a violation")
@@ -477,8 +477,8 @@ func TestFullScanSkipsGitAndNodeModules(t *testing.T) {
 }
 
 // TestFullScanRespectsBudgetOverride: full_scan shares budget() with every
-// other path, so CC_CLAUDE_MD_BUDGET=0 disables it too, exactly like a real
-// session.
+// other path, so a disabling CC_CLAUDE_MD_BUDGET turns it off too, exactly
+// like a real session.
 func TestFullScanRespectsBudgetOverride(t *testing.T) {
 	repo := isolate(t)
 	t.Setenv("CC_CLAUDE_MD_BUDGET", "0")

@@ -100,7 +100,7 @@ func TestAPackageCommentIsWeighedAgainstItsClause(t *testing.T) {
 }
 
 // A doc comment on a struct field is a block of its own, so a long note on a
-// one-line field is found rather than folded into the type.
+// single-line field is found rather than folded into the type.
 func TestAFieldDocIsItsOwnBlock(t *testing.T) {
 	src := strings.Join([]string{
 		"package p",

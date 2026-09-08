@@ -155,16 +155,16 @@ func stopBlock(in hookInput, limit int) string {
 	worstFirst(still)
 	// Deliberately NOT clearing the marker: it also carries the size+mtime
 	// snapshot the post-edit sweep diffs against and the list of files this
-	// session has already broken once. Dropping it here disarms the guard for
-	// the rest of the session the first time a turn ends cleanly.
+	// session has already broken. Dropping it here disarms the guard for
+	// the rest of the session as soon as a turn ends cleanly.
 	writeMarker(in.SessionID, m)
 	return stopReason(still, limit)
 }
 
 // run returns the stdout payload and process exit code for a given input.
-// Every real Claude Code event always exits 0 -- a size check must never
+// Every real Claude Code event always succeeds -- a size check must never
 // break a session or a turn, so nothing here can fail a caller that reads
-// only the JSON. full_scan is the one path that means anything by its exit
+// only the JSON. full_scan is the path that means anything by its exit
 // code: it is not a session hook, it is CI, and CI needs a real signal.
 func run(r io.Reader) (string, int) {
 	limit := budget()

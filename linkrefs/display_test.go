@@ -222,7 +222,7 @@ func TestASlugResolvesWithoutACheckout(t *testing.T) {
 }
 
 // /issues/N and never /pull/N: GitHub redirects an issue number to its pull
-// request, and /pull/N on a plain issue is a 404.
+// request, and /pull/N on a plain issue is an HTTP 404.
 func TestNumbersUseTheSpellingThatWorksForBoth(t *testing.T) {
 	got := rewrite(t, "o/r#42", live())
 	assert.Contains(t, got, "/issues/42")

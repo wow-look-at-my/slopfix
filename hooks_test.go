@@ -46,7 +46,8 @@ func TestAnUnhomedRuleIsCaught(t *testing.T) {
 }
 
 // A hook that is a named selection and nothing else. Reading the table by name
-// is what a caller does, so a missing name must not answer with a usable zero.
+// is what a caller does, so a missing name must not answer with a usable empty
+// value.
 func TestAHookIsFoundByName(t *testing.T) {
 	hook, ok := slopfix.FindHook("no-counts-in-docs")
 	require.True(t, ok)

@@ -3,7 +3,7 @@
 //
 // Each match carries the byte range it occupies, because the caller rewrites
 // the reference in place rather than reporting it. Text that is already a link
-// is blanked beforehand, so a correct reference is never rewritten twice.
+// is blanked beforehand, so a correct reference is never rewritten again.
 package linkrefs
 
 import (
@@ -33,8 +33,7 @@ var (
 	shaRe = regexp.MustCompile(`[0-9a-f]{7,40}`)
 	// A branch slug, matched on a conventional prefix and never ending in '.' or '/', which keeps it off file paths.
 	branchRe = regexp.MustCompile(`(?i)(?:claude|feature|feat|fix|bugfix|hotfix|release|chore|refactor|wip|renovate|dependabot)/[A-Za-z0-9._/-]*[A-Za-z0-9_-]`)
-	// A GitHub URL that survived link removal is a URL the reader must select
-	// and paste.
+	// A GitHub URL that survived link removal is text the reader must select and paste.
 	urlRe = regexp.MustCompile(`https?://(?:www\.)?github\.com/[^\s)\]<>"']+`)
 )
 
@@ -115,8 +114,8 @@ func boundedToken(text string, start, end int) bool {
 	return true
 }
 
-// continuesToken reports whether the byte at i extends the match into a longer word, reading toward dir.
-// A '.' counts only when an alphanumeric follows: `6884dd2.` is a commit, `6884dd2abc.log` is a filename.
+// continuesToken reports whether the byte at i extends the match, toward dir.
+// A '.' counts only when an alphanumeric follows: `6884dd2.` is a commit.
 func continuesToken(text string, i, dir int) bool {
 	b := text[i]
 	if b == '.' {

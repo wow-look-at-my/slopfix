@@ -45,7 +45,7 @@ func TestAProportionateCommentIsClean(t *testing.T) {
 }
 
 // A short note over a short line must never be a finding, whatever the ratio.
-// Without the floor every useful sentence in the tree becomes one.
+// Without the floor every useful sentence in the tree becomes a finding.
 func TestAShortCommentIsAlwaysAllowed(t *testing.T) {
 	src := "package p\n\n// The port.\nconst p = 1\n"
 	assert.Empty(t, Check("x.go", src))
@@ -170,7 +170,7 @@ func TestAMarkerInsideAStringIsNotAComment(t *testing.T) {
 }
 
 // Fixing back to front keeps an earlier block's line numbers valid, so several
-// findings in one file all repair.
+// findings in a single file all repair.
 func TestSeveralBlocksInAFileAllRepair(t *testing.T) {
 	essay := "// The point.\n//\n// Then a paragraph of elaboration that runs well past the length of the\n// declaration it sits above, several lines of it, saying little.\n"
 	src := "package p\n\n" + essay + "const a = 1\n\n" + essay + "const b = 2\n"

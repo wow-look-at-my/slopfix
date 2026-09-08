@@ -13,8 +13,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// The identity is a set, so a name declared twice collapses rather than sitting
-// in the list twice. A slice cannot notice the duplicate at all, and every
+// The identity is a set, so a name declared again collapses rather than sitting
+// in the list as a duplicate. A slice cannot notice the duplicate at all, and every
 // consumer asked whether a name was in it regardless.
 func TestARuleIDCannotBeDeclaredTwice(t *testing.T) {
 	every := slopfix.AllIDs()
@@ -36,7 +36,7 @@ func TestANewRuleIDDoesGrowTheSet(t *testing.T) {
 }
 
 // A set has no order of its own, so the list a person reads has to be built.
-// An unstable one puts a different rule first on every run.
+// An unstable listing puts a different rule at the head on every run.
 func TestTheListingAPersonReadsIsAlphabeticalAndStable(t *testing.T) {
 	first := slopfix.Listed(slopfix.AllIDs())
 	require.NotEmpty(t, first)

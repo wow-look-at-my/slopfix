@@ -1,5 +1,5 @@
-// The three reports: the session-start census, the post-edit notice, and the
-// Stop refusal. All three prescribe the same remedy, because there is only one.
+// The reports: the session-start census, the post-edit notice, and the Stop
+// refusal. They prescribe the same remedy, because no other remedy exists.
 
 package mdbudget
 
@@ -28,7 +28,7 @@ func allWidthOnly(os []offender, limit int) bool {
 
 // remedy is identical wherever it is reported from, EXCEPT that a width-only
 // finding gets only the bullets that apply to it: telling a session to extract
-// prose from a file that is 7% under budget is advice it cannot act on, and
+// prose from a file well under budget is advice it cannot act on, and
 // wading through it is what teaches the reader to skim the whole block.
 func remedy() []string {
 	return remedyFor(false)
@@ -248,7 +248,7 @@ func stopReason(still []offender, limit int) string {
 	return strings.Join(lines, "\n")
 }
 
-// worstFirst sorts by size descending: that is the one worth fixing.
+// worstFirst sorts by size descending: the largest file is worth fixing.
 func worstFirst(offenders []offender) {
 	sort.SliceStable(offenders, func(i, j int) bool { return offenders[i].Chars > offenders[j].Chars })
 }
