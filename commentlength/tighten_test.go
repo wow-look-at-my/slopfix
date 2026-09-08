@@ -87,3 +87,19 @@ func TestACleanCommentIsNotRewritten(t *testing.T) {
 	assert.False(t, changed)
 	assert.Equal(t, src, out)
 }
+
+// A doc comment opens on the identifier it documents, and that identifier is
+// often unexported. Capitalising it names a symbol the package does not have,
+// so the opening capital is restored only where a deletion removed the old one.
+func TestTheOpeningWordKeepsItsCase(t *testing.T) {
+	assert.Equal(t, "arityReach is how far back it looks",
+		shorten("arityReach is basically how far back it looks"))
+	assert.Equal(t, "english is the parsed table",
+		shorten("english is actually the parsed table"))
+}
+
+// The control: a deletion that removes the opening word does restore a capital,
+// or the sentence starts in lower case for no reason.
+func TestALeadingDeletionRestoresTheCapital(t *testing.T) {
+	assert.Equal(t, "It fails", shorten("Obviously it fails"))
+}

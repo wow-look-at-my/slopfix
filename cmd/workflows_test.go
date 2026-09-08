@@ -11,8 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/gitmod/gitmodtest"
 )
 
-// runWorkflowsOn drives the command and returns what it printed. The command is
-// built per call: tests run in parallel, and rootCmd's writer is shared.
+// runWorkflowsOn drives the command and returns what it printed. The command
 func runWorkflowsOn(t *testing.T, paths ...string) (string, error) {
 	t.Helper()
 	return runWorkflowsOnly(t, nil, paths...)

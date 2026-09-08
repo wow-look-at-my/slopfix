@@ -21,12 +21,6 @@ import (
 const gitlinkMode = "160000"
 
 // Skip returns the absolute submodule directories that contain target.
-//
-// Both failure directions are deliberate. A repository this cannot read yields
-// an empty set, so the walk judges everything: losing the skip makes the check
-// stricter, which nobody can exploit. A .gitmodules entry that is not a real
-// gitlink is the opposite case and returns an error, because that is the shape
-// a forged exemption takes.
 func Skip(target string) (set.Set[string], error) {
 	empty := set.New[string]()
 

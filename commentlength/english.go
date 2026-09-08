@@ -61,9 +61,7 @@ type xmlFlag struct {
 	Test   string `xml:"test,attr"`
 }
 
-// english is the parsed table. It is parsed at start, and a malformed
-// table panics rather than loading empty: a repair that silently stops
-// tightening looks exactly like a repository with nothing to tighten.
+// english is the parsed table. It is parsed at start, and a malformed table
 var english = mustLoadEnglish()
 
 func mustLoadEnglish() xmlEnglish {

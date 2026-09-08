@@ -45,7 +45,6 @@ func TestEveryPatternFires(t *testing.T) {
 
 // A pattern carries the link SHAPE. It cannot carry linkrefs' guarantee, which
 // is that a reference resolves before it becomes a link, so this pins that the
-// these are different jobs rather than a replacement for each other.
 func TestAPatternLinksAReferenceItCannotVerify(t *testing.T) {
 	got := Deslop("owner/repo#99999 is open")
 	assert.Contains(t, got, "https://github.com/owner/repo/issues/99999")

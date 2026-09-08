@@ -46,19 +46,14 @@ func tighten(text []string) ([]string, bool) {
 const wrapWidth = 78
 
 // shorten drops filler and applies the shorter phrasing, then tidies the
-// spacing the deletions leave behind.
 func shorten(s string) string { return shortenFor(s, "comment") }
 
 // Deslop rewrites a rendered message, applying every entry that names the
-// message surface. It is the real-time half: a MessageDisplay hook hands it the
-// delta as it streams and shows what comes back.
-//
-// It rewrites and never annotates. An annotation about a phrase the reader can
-// already see is another thing to read. Replacing it costs the reader nothing.
 func Deslop(s string) string { return shortenFor(s, "message") }
 
 // shortenFor applies the table entries that name a surface.
 func shortenFor(s, surface string) string {
+	original := s
 	// Rewrites go before drops: a phrase like "in order to" would otherwise lose its
 	// middle to a <drop> and stop matching as a phrase at all.
 	for _, r := range english.Rewrites {
@@ -81,7 +76,7 @@ func shortenFor(s, surface string) string {
 	s = strings.Join(strings.Fields(s), " ")
 	s = strings.ReplaceAll(s, " ,", ",")
 	s = strings.ReplaceAll(s, " .", ".")
-	return capitalise(s)
+	return capitalise(original, s)
 }
 
 // replaceWord swaps a whole word or phrase, case-insensitively, leaving a
@@ -127,12 +122,25 @@ func isWordByte(b byte) bool {
 }
 
 // capitalise restores the opening capital a leading deletion can remove.
-func capitalise(s string) string {
-	if s == "" {
+//
+// It leaves a comment that still opens on the word it always did. A doc comment
+// opens on the identifier it documents, and that identifier is often lowercase:
+// capitalising it names a symbol the package does not export, or does not have.
+func capitalise(original, s string) string {
+	if s == "" || sameFirstWord(original, s) {
 		return s
 	}
 	if c := s[0]; c >= 'a' && c <= 'z' {
 		return string(c-32) + s[1:]
 	}
 	return s
+}
+
+// sameFirstWord reports whether the repair left the opening word in place.
+func sameFirstWord(original, s string) bool {
+	before, after := strings.Fields(original), strings.Fields(s)
+	if len(before) == 0 || len(after) == 0 {
+		return false
+	}
+	return before[0] == after[0]
 }
