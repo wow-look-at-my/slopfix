@@ -5,19 +5,16 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-var (
-	workflowExcludes []string
-	workflowOnly     []string
-)
+var workflowOnly []string
 
 func init() {
 	command := &cobra.Command{
@@ -26,12 +23,13 @@ func init() {
 		Long: "Walks a directory for every workflow and every action manifest under it, and\n" +
 			"reads each by the workflow rules. A named file is read whatever its path.\n\n" +
 			"A run that selects no file is a failure, not a pass. The check that scanned\n" +
-			"nothing enforced nothing, and a green run there says the opposite.",
+			"nothing enforced nothing, and a green run there says the opposite.\n\n" +
+			"The walk skips this repository's registered submodules, which carry their own\n" +
+			"CI. That skip is derived from .gitmodules and the index. There is no flag that\n" +
+			"widens it: an exemption a caller writes is one a caller sets to everything.",
 		Args: cobra.MinimumNArgs(1),
 		RunE: runWorkflows,
 	}
-	command.Flags().StringSliceVar(&workflowExcludes, "exclude", nil,
-		"glob patterns for paths the walk skips, for a fixture that breaks a rule on purpose")
 	command.Flags().StringSliceVar(&workflowOnly, "only", nil,
 		"report only these rule IDs, as a comma-separated list. Defaults to every rule: "+
 			slopfix.Listed(workflow.AllIDs))
@@ -39,16 +37,12 @@ func init() {
 }
 
 func runWorkflows(cmd *cobra.Command, args []string) error {
-	return reportWorkflows(cmd, args, workflowExcludes, workflowOnly)
+	return reportWorkflows(cmd, args, workflowOnly)
 }
 
-// reportWorkflows takes its selection as arguments rather than reading the flag
-// globals, which parallel tests swap under each other.
-func reportWorkflows(cmd *cobra.Command, args, excludes, only []string) error {
-	excluded, err := excludeMatcher(excludes)
-	if err != nil {
-		return err
-	}
+// reportWorkflows takes its selection as an argument rather than reading the
+// flag global, which parallel tests swap under each other.
+func reportWorkflows(cmd *cobra.Command, args, only []string) error {
 	reports, err := selectedIDs(only)
 	if err != nil {
 		return err
@@ -62,9 +56,6 @@ func reportWorkflows(cmd *cobra.Command, args, excludes, only []string) error {
 			return err
 		}
 		for _, path := range paths {
-			if excluded(path) {
-				continue
-			}
 			scanned = append(scanned, path)
 			findings, err := slopfix.CheckFile(path)
 			if err != nil {
@@ -104,12 +95,19 @@ func workflowTargets(arg string) ([]string, error) {
 	if !info.IsDir() {
 		return []string{arg}, nil
 	}
+	submodules, err := gitmod.Skip(arg)
+	if err != nil {
+		return nil, err
+	}
 	var out []string
 	err = filepath.WalkDir(arg, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if entry.IsDir() {
+			if absolute, err := filepath.Abs(path); err == nil && submodules.Contains(absolute) {
+				return filepath.SkipDir
+			}
 			if path == arg || entry.Name() == ".github" {
 				return nil
 			}
@@ -145,55 +143,4 @@ func selectedIDs(only []string) (func(string) bool, error) {
 		wanted.Add(name)
 	}
 	return func(id string) bool { return wanted.Contains(id) }, nil
-}
-
-// excludeMatcher reports whether a path matches any pattern. `**` crosses a
-// separator and `*` does not, which is the spelling a workflow author writes.
-func excludeMatcher(patterns []string) (func(string) bool, error) {
-	compiled := make([]*regexp.Regexp, 0, len(patterns))
-	for _, pattern := range patterns {
-		expression, err := globToRegexp(pattern)
-		if err != nil {
-			return nil, err
-		}
-		compiled = append(compiled, expression)
-	}
-	return func(path string) bool {
-		slashed := filepath.ToSlash(path)
-		for _, expression := range compiled {
-			if expression.MatchString(slashed) {
-				return true
-			}
-		}
-		return false
-	}, nil
-}
-
-func globToRegexp(glob string) (*regexp.Regexp, error) {
-	var pattern strings.Builder
-	pattern.WriteString("^")
-	for index := 0; index < len(glob); index++ {
-		switch {
-		case glob[index] == '*' && index+1 < len(glob) && glob[index+1] == '*':
-			index++
-			if index+1 < len(glob) && glob[index+1] == '/' {
-				index++
-				pattern.WriteString("(?:.*/)?")
-				continue
-			}
-			pattern.WriteString(".*")
-		case glob[index] == '*':
-			pattern.WriteString("[^/]*")
-		case glob[index] == '?':
-			pattern.WriteString("[^/]")
-		default:
-			pattern.WriteString(regexp.QuoteMeta(string(glob[index])))
-		}
-	}
-	pattern.WriteString("$")
-	expression, err := regexp.Compile(pattern.String())
-	if err != nil {
-		return nil, fmt.Errorf("--exclude %q is not a glob this command reads: %w", glob, err)
-	}
-	return expression, nil
 }

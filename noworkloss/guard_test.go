@@ -1,0 +1,514 @@
+package noworkloss
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// newRepo builds a real repository with a committed file, since every
+// interesting case asks what `git status` reports.
+func newRepo(t *testing.T) string {
+	t.Helper()
+	// A hermetic config: a stray alias in the developer's own ~/.gitconfig
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(home, "gitconfig"))
+	t.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+
+	dir := t.TempDir()
+	// git reports the physical path, so resolve before comparing against it.
+	dir, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+
+	git(t, dir, "init", "-q")
+	git(t, dir, "config", "user.email", "guard@example.com")
+	git(t, dir, "config", "user.name", "Guard")
+	writeAt(t, dir, "tracked.go", "package a\n")
+	writeAt(t, dir, ".gitignore", "build/\n")
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-qm", "initial")
+	return dir
+}
+
+func git(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "git %s: %s", strings.Join(args, " "), out)
+}
+
+// writeAt puts a file in a fixture repository. Named for its shape rather than
+// the verb, because `write` is the type the provenance half is built on.
+func writeAt(t *testing.T, dir, name, content string) {
+	t.Helper()
+	p := filepath.Join(dir, name)
+	require.NoError(t, os.MkdirAll(filepath.Dir(p), 0o755))
+	require.NoError(t, os.WriteFile(p, []byte(content), 0o644))
+}
+
+// modify dirties a tracked file; untrack adds a file git has never seen. They
+func modify(t *testing.T, dir string) { writeAt(t, dir, "tracked.go", "package a\n// edited\n") }
+func untrack(t *testing.T, dir string, name string) {
+	writeAt(t, dir, name, "scratch\n")
+}
+
+// stage moves what modify wrote into the index, which is still not a commit.
+func stage(t *testing.T, dir string) {
+	t.Helper()
+	git(t, dir, "add", "-A")
+}
+
+// ask lives in harness_test.go: a shared entry-point driver for both halves.
+
+func denied(t *testing.T, cwd, command string) string {
+	t.Helper()
+	r := ask(t, cwd, command)
+	require.NotEmpty(t, r, "expected DENY for %q", command)
+	// Both halves owe the reader a way forward: the destruction half names a
+	// command to run instead, the provenance half names the tool to use.
+	assert.True(t, strings.Contains(r, "run: ") || strings.Contains(r, "Use Edit") || strings.Contains(r, "ask the user"),
+		"a denial must name the safe alternative: %s", r)
+	return r
+}
+
+func allowed(t *testing.T, cwd, command string) {
+	t.Helper()
+	assert.Empty(t, ask(t, cwd, command), "expected ALLOW for %q", command)
+}
+
+// ---------------------------------------------------------------------------
+// The cases the plugin exists to get right.
+// ---------------------------------------------------------------------------
+
+// The destruction half preserves the tracked edit. The provenance half still
+// refuses: a hard reset replaces files with a commit's content.
+func TestDeniesResetHardOnDirtyTree(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+
+	lossReason, notices := lossOnlyNotices(t, dir, "git reset --hard origin/master")
+	assert.Empty(t, lossReason)
+	require.NotEmpty(t, notices)
+	assert.Contains(t, notices[0], "1 modified")
+	assert.Contains(t, notices[0], "committed to master")
+
+	r := denied(t, dir, "git reset --hard origin/master")
+	assert.Contains(t, r, "git reset")
+	assert.Contains(t, r, "Use Edit")
+}
+
+// A checkout with no pathspec is bare branch navigation, which the provenance
+// half leaves alone, so the destruction half preserves the edit and allows.
+func TestPreservesAndAllowsCheckoutOnDirtyTree(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	notice := preserved(t, dir, "git checkout master")
+	assert.Contains(t, notice, "git checkout")
+	assert.Contains(t, notice, "committed to master")
+}
+
+// The motivating incident: the trailing command is the dangerous command, and
+// the command ahead of it is what made it dangerous.
+func TestDeniesTheTwoCommandIncidentShape(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	denied(t, dir, "git checkout master && git reset --hard origin/master")
+}
+
+// The provenance half is scoped to the session's guarded roots, which a `cd`
+// into an unrelated repository never enters. The destruction half has no such
+// scoping, so it preserves the edit here.
+func TestPreservesAndAllowsResetHardReachedByCdOutsideGuardedRoots(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	elsewhere := t.TempDir()
+	notice := preserved(t, elsewhere, "cd "+dir+" && git reset --hard")
+	assert.Contains(t, notice, "git reset --hard")
+}
+
+// `clean` is not a provenance route (routes.go names no such verb), so it is
+// the destruction half alone standing between the untracked file and the
+// command -- and that half now preserves the file rather than refusing.
+func TestPreservesAndAllowsCleanWithUntrackedFilesViaDashC(t *testing.T) {
+	dir := newRepo(t)
+	untrack(t, dir, "scratch.txt")
+	elsewhere := t.TempDir()
+	notice := preserved(t, elsewhere, "git -C "+dir+" clean -fdx")
+	assert.Contains(t, notice, "untracked")
+}
+
+func TestDeniesStashClearWithEntries(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	git(t, dir, "stash", "push", "-m", "wip")
+	r := denied(t, dir, "git stash clear")
+	assert.Contains(t, r, "1 stash entry")
+}
+
+// `rm` is not a provenance route either -- deletion is not authorship -- so
+// this is exactly the owner's own example: preserve the file, then allow
+// the deletion.
+func TestPreservesAndAllowsRmOfUntrackedFile(t *testing.T) {
+	dir := newRepo(t)
+	untrack(t, dir, "internal/config/env.go")
+	notice := preserved(t, dir, "rm internal/config/env.go")
+	assert.Contains(t, notice, "internal/config/env.go")
+}
+
+func TestDeniesCheckoutDashDashDot(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	denied(t, dir, "git checkout -- .")
+}
+
+// A force push is judged on whether the remote's commits survive elsewhere.
+// With no remote-tracking ref nothing local says what the remote holds.
+func TestDeniesForcePushThatCannotBeVerified(t *testing.T) {
+	dir := newRepo(t)
+	r := denied(t, dir, "git push --force origin master")
+	assert.Contains(t, r, "git fetch")
+}
+
+func TestDeniesAliasHidingResetHard(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	git(t, dir, "config", "alias.nuke", "reset --hard")
+	denied(t, dir, "git nuke")
+}
+
+func TestDeniesShellAliasHidingResetHard(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	git(t, dir, "config", "alias.boom", "!git reset --hard")
+	denied(t, dir, "git boom")
+}
+
+// ---------------------------------------------------------------------------
+// The allow list. A guard that blocks these gets switched off, and then it
+// protects nothing.
+// ---------------------------------------------------------------------------
+
+func TestAllowsResetHardOnCleanTree(t *testing.T) {
+	dir := newRepo(t)
+	assert.Empty(t, lossOnly(t, dir, "git reset --hard origin/master"),
+		"a clean tree has no uncommitted work to lose")
+
+	// The merged hook still refuses it: a hard reset replaces the files on disk.
+	assert.Contains(t, denied(t, dir, "git reset --hard origin/master"), "git reset")
+}
+
+func TestAllowsBranchCreationEvenWhenDirty(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	untrack(t, dir, "scratch.txt")
+	allowed(t, dir, "git checkout -b new-branch")
+	allowed(t, dir, "git switch -c new-branch")
+}
+
+func TestAllowsReadOnlyCommandsInAnyState(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	untrack(t, dir, "scratch.txt")
+	for _, c := range []string{
+		"git status", "git log --oneline", "git diff", "git show HEAD",
+		"git branch -a", "git stash list", "git remote -v",
+	} {
+		allowed(t, dir, c)
+	}
+}
+
+func TestAllowsCommandsThatCreateRecovery(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	untrack(t, dir, "scratch.txt")
+	allowed(t, dir, "git stash push -u")
+	allowed(t, dir, `git commit -am "save"`)
+	allowed(t, dir, "git add -A")
+}
+
+func TestAllowsRmOfGitignoredArtifact(t *testing.T) {
+	dir := newRepo(t)
+	writeAt(t, dir, "build/go-proxy", "binary\n")
+	allowed(t, dir, "rm build/go-proxy")
+}
+
+func TestAllowsRmOfCleanTrackedFile(t *testing.T) {
+	dir := newRepo(t)
+	allowed(t, dir, "rm tracked.go") // the content is in HEAD, so it is recoverable
+}
+
+// ---------------------------------------------------------------------------
+// Untracked and tracked are different states, and the verbs treat them
+
+func TestResetHardSparesUntrackedFiles(t *testing.T) {
+	dir := newRepo(t)
+	untrack(t, dir, "scratch.txt")
+	assert.Empty(t, lossOnly(t, dir, "git reset --hard"), "reset never touches untracked files")
+}
+
+func TestCleanSparesTrackedModifications(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	allowed(t, dir, "git clean -fd") // clean never touches tracked files
+}
+
+func TestCleanWithoutXSparesIgnoredFiles(t *testing.T) {
+	dir := newRepo(t)
+	writeAt(t, dir, "build/go-proxy", "binary\n")
+	allowed(t, dir, "git clean -fd")
+	notice := preserved(t, dir, "git clean -fdx")
+	assert.Contains(t, notice, "ignored")
+}
+
+// ---------------------------------------------------------------------------
+// Parsing: chains, wrappers, subshells, and the flag spellings.
+// ---------------------------------------------------------------------------
+
+func TestDeniesThroughEveryChainOperator(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	for _, c := range []string{
+		"echo hi && git reset --hard",
+		"echo hi; git reset --hard",
+		"false || git reset --hard",
+		"echo hi\ngit reset --hard",
+		"(cd " + dir + " && git reset --hard)",
+		"echo $(git reset --hard)",
+		"true | git reset --hard",
+	} {
+		require.NotEmpty(t, ask(t, dir, c), "expected DENY for %q", c)
+	}
+}
+
+func TestDeniesThroughWrappers(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	for _, c := range []string{
+		"env git reset --hard",
+		"sudo git reset --hard",
+		"sudo -E git reset --hard",
+		"command git reset --hard",
+		`\git reset --hard`,
+		"/usr/bin/git reset --hard",
+		"timeout 5 git reset --hard",
+		"echo x | xargs git reset --hard",
+		"env FOO=bar git reset --hard",
+	} {
+		require.NotEmpty(t, ask(t, dir, c), "expected DENY for %q", c)
+	}
+}
+
+// GIT_DIR moves the repository somewhere the path words no longer describe, so
+// the target becomes unknowable -- and unknowable denies.
+func TestDeniesWhenGitEnvRelocatesTheRepo(t *testing.T) {
+	dir := newRepo(t)
+	r := denied(t, dir, "GIT_DIR=/somewhere/else git reset --hard")
+	assert.Contains(t, r, "cannot tell")
+}
+
+func TestDeniesWhenCdTargetIsNotKnowable(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	denied(t, dir, "cd $TARGET && git reset --hard")
+}
+
+func TestDeniesRmWithUnresolvablePath(t *testing.T) {
+	dir := newRepo(t)
+	r := denied(t, dir, "rm $TARGET")
+	assert.Contains(t, r, "cannot resolve")
+}
+
+func TestDeniesUnparseableCommandNamingADestructiveVerb(t *testing.T) {
+	dir := newRepo(t)
+	r := denied(t, dir, "git reset --hard `") // unterminated backquote
+	assert.Contains(t, r, "could not be parsed")
+}
+
+// Every spelling of the flag set is preserved and allowed, since `clean` names no provenance route.
+func TestFlagVariantsAllReachTheSamePreservedVerdict(t *testing.T) {
+	// Every spelling is judged from the same starting state, so each gets its
+	// own repository: preservation commits the scratch file, and a shared tree
+	// would leave the later spellings nothing to preserve.
+	for _, c := range []string{
+		"git clean -f -d -x", "git clean -fdx", "git clean -xdf",
+		"git clean --force --recurse-directories",
+	} {
+		dir := newRepo(t)
+		untrack(t, dir, "scratch.txt")
+		preserved(t, dir, c)
+	}
+}
+
+func TestAllowsDryRunAndInteractiveClean(t *testing.T) {
+	dir := newRepo(t)
+	untrack(t, dir, "scratch.txt")
+	allowed(t, dir, "git clean -nd")
+	allowed(t, dir, "git clean --dry-run")
+}
+
+// ---------------------------------------------------------------------------
+// Verb-level distinctions that are easy to get backwards.
+
+func TestAllowsSoftAndMixedReset(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	allowed(t, dir, "git reset --soft HEAD~1")
+	allowed(t, dir, "git reset HEAD~1")
+	allowed(t, dir, "git reset -- tracked.go")
+}
+
+func TestRestoreStagedOnlyLeavesTheFileOnDisk(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	allowed(t, dir, "git restore --staged tracked.go")
+	denied(t, dir, "git restore tracked.go")
+}
+
+func TestAllowsStashSubcommandsThatPreserveContent(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	git(t, dir, "stash", "push", "-m", "wip")
+	allowed(t, dir, "git stash show")
+	allowed(t, dir, "git stash branch recovered")
+
+	// pop and apply destroy nothing, but they put a stash's content back into
+	// the worktree, which no edit tool did.
+	for _, c := range []string{"git stash apply", "git stash pop"} {
+		assert.Empty(t, lossOnly(t, dir, c), "%s discards nothing", c)
+		denied(t, dir, c)
+	}
+}
+
+func TestAllowsStashDropWhenStashIsEmpty(t *testing.T) {
+	dir := newRepo(t)
+	allowed(t, dir, "git stash drop")
+}
+
+func TestAllowsForceWithLease(t *testing.T) {
+	dir := newRepo(t)
+	allowed(t, dir, "git push --force-with-lease origin master")
+	allowed(t, dir, "git push origin master")
+}
+
+func TestDeniesForceRefspec(t *testing.T) {
+	dir := newRepo(t)
+	denied(t, dir, "git push origin +master:master")
+}
+
+// rebase, restore, apply and am are provenance routes in their own right, so
+// they stay denied. merge and pull are absent from that table.
+func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	// A denial on the provenance side still lets the destruction side preserve,
+	denied(t, dir, "git rebase master")
+	writeAt(t, dir, "tracked.go", "package a\n// edited twice\n")
+	preserved(t, dir, "git merge feature")
+	// Each preservation commits the edit, so every later verb that must see a
+	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
+	preserved(t, dir, "git pull origin master")
+	writeAt(t, dir, "tracked.go", "package a\n// edited once more\n")
+	denied(t, dir, "git cherry-pick abc123")
+	allowed(t, dir, "git rebase --abort")
+	allowed(t, dir, "git merge --abort")
+	allowed(t, dir, "git cherry-pick --continue")
+}
+
+func TestGitRmCachedLeavesTheFileAlone(t *testing.T) {
+	dir := newRepo(t)
+	untrack(t, dir, "scratch.txt")
+	allowed(t, dir, "git rm --cached scratch.txt")
+	// `git rm` names no provenance route either, so a forced removal of an
+	preserved(t, dir, "git rm -f scratch.txt")
+}
+
+// ---------------------------------------------------------------------------
+// Non-git destruction.
+// ---------------------------------------------------------------------------
+
+func TestDeniesTruncatingRedirectOntoDirtyFile(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	denied(t, dir, "echo x > tracked.go")
+	// An append loses nothing, so the destruction half allows it. The
+	assert.Empty(t, lossOnly(t, dir, "echo x >> tracked.go"))
+	assert.Contains(t, denied(t, dir, "echo x >> tracked.go"), "tracked.go")
+}
+
+// `mv` within the tree is not a provenance route either -- copyWrites treats
+// a source already inside the tree as ordinary refactoring -- so the
+// destination's current content is preserved and the move is allowed.
+func TestPreservesAndAllowsMvOverDirtyDestination(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	untrack(t, dir, "src.txt")
+	preserved(t, dir, "mv src.txt tracked.go")
+	allowed(t, dir, "mv src.txt renamed.txt") // destination does not exist
+}
+
+func TestPreservesAndAllowsRmDirectoryContainingUncommittedWork(t *testing.T) {
+	dir := newRepo(t)
+	untrack(t, dir, "internal/config/env.go")
+	preserved(t, dir, "rm -rf internal")
+	// Preservation committed that file, so the later spelling needs its own
+	untrack(t, dir, "internal/config/other.go")
+	preserved(t, dir, "rm -rf .")
+}
+
+func TestDeniesTeeAndTruncateOntoDirtyFile(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	denied(t, dir, "echo x | tee tracked.go")
+	assert.Empty(t, lossOnly(t, dir, "echo x | tee -a tracked.go"), "appending loses nothing")
+	denied(t, dir, "echo x | tee -a tracked.go") // but it is still authoring
+	denied(t, dir, "truncate -s 0 tracked.go")
+}
+
+// ---------------------------------------------------------------------------
+// Staying out of the way.
+// ---------------------------------------------------------------------------
+
+func TestIgnoresNonBashToolsAndOtherEvents(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+
+	assert.Empty(t, decideWithEvent(t, "PreToolUse", "Read", dir, "git reset --hard"))
+	assert.Empty(t, decideWithEvent(t, "PostToolUse", "Bash", dir, "git reset --hard"))
+	unparseable, notices := decide([]byte("not json at all"))
+	assert.Empty(t, unparseable)
+	assert.Empty(t, notices, "an unparseable payload preserves nothing, so it announces nothing")
+}
+
+func TestAllowsDestructiveCommandsOutsideAnyRepository(t *testing.T) {
+	plain := t.TempDir()
+	writeAt(t, plain, "notes.txt", "hi\n")
+	allowed(t, plain, "rm notes.txt")
+}
+
+// The prefilter must never shell out for a command that names nothing
+// destructive -- that is what keeps the common case cheap.
+func TestPrefilterRejectsOrdinaryCommands(t *testing.T) {
+	for _, c := range []string{
+		"ls -la", "echo hello", "npm test", "go build ./...", "cat file.txt",
+	} {
+		assert.False(t, mayDestroy(c), "prefilter should skip %q", c)
+	}
+	for _, c := range []string{
+		"git reset --hard", "rm x", "mv a b", "echo x > f", "truncate -s 0 f",
+	} {
+		assert.True(t, mayDestroy(c), "prefilter must not skip %q", c)
+	}
+}
+
+func BenchmarkPrefilterMiss(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		mayDestroy("npm run build && node dist/index.js --verbose")
+	}
+}

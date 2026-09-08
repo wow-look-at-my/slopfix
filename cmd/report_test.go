@@ -111,7 +111,7 @@ func TestReportWithNoPathIsAnError(t *testing.T) {
 }
 
 // A finding is the answer rather than a failure. The caller decides what it
-// means, which is why this command never exits non-zero over one.
+// means, which is why this command never fails over a finding.
 func TestAFindingIsNotAnError(t *testing.T) {
 	_, _, err := report(t, workflowPath, nil, "# one\n# two\non: push\n")
 	require.NoError(t, err)

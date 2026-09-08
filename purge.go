@@ -9,17 +9,10 @@ import (
 	"strings"
 )
 
-// A repository keeps README.md for a person arriving at the repo, and CLAUDE.md
-// for an agent working in it. Both live at the root.
-//
-// Every other .md is deleted on sight. The prose in them is written far more
-// often than it is read, it drifts away from the code within days, and it costs
-// its reader more than it returns. A spec repository is the exception, because
-// there the prose IS the product.
+// The root files a repository keeps. Every other .md is deleted on sight.
 var kept = set.Of[string]("README.md", "CLAUDE.md")
 
-// CharBudget caps each kept file. Past it, nobody skims the file, and every
-// request pays for the whole thing.
+// CharBudget caps each kept file, because every request pays for the whole file.
 const CharBudget = 40_000
 
 // skipDirs are never walked: their contents belong to somebody else.

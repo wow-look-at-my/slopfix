@@ -42,19 +42,19 @@ func init() {
 	rootCmd.AddCommand(command)
 }
 
-// reportFinding is this command's wire contract, named apart from ste.Finding
-// so a field the library renames cannot silently change what a caller reads.
+// reportFinding is this command's wire contract, held apart from ste.Finding so a rename cannot change it.
 type reportFinding struct {
 	// ID names the rule, the way a compiler names a warning.
 	ID string `json:"id"`
 	// Line is where the finding starts. EndLine repeats it on a finding that
-	// covers a single line.
 	Line    int `json:"line"`
 	EndLine int `json:"endLine"`
 	// Rule says what the ID stands for. Detail quotes the text, and Fix names the repair.
 	Rule   string `json:"rule"`
 	Detail string `json:"detail,omitempty"`
 	Fix    string `json:"fix,omitempty"`
+	// Repairable reports whether slopfix repairs this defect. A reporting
+	Repairable bool `json:"repairable"`
 }
 
 type reportOutput struct {
@@ -99,12 +99,13 @@ func wireFinding(finding ste.Finding) reportFinding {
 		end = finding.Line
 	}
 	return reportFinding{
-		ID:      finding.ID,
-		Line:    finding.Line,
-		EndLine: end,
-		Rule:    finding.Rule,
-		Detail:  finding.Detail,
-		Fix:     finding.Fix,
+		ID:         finding.ID,
+		Line:       finding.Line,
+		EndLine:    end,
+		Rule:       finding.Rule,
+		Detail:     finding.Detail,
+		Fix:        finding.Fix,
+		Repairable: slopfix.Repairable(finding.ID),
 	}
 }
 

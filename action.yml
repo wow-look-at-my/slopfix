@@ -22,13 +22,6 @@ inputs:
     required: false
     default: ''
 
-  exclude:
-    description: >-
-      Glob patterns the walk skips, comma separated, for a fixture that breaks
-      a rule on purpose. `workflows` only.
-    required: false
-    default: ''
-
 runs:
   using: composite
   steps:
@@ -46,7 +39,7 @@ runs:
       with:
         project: slopfix
 
-    # slopfix exits non-zero when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
+    # slopfix fails when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
     - name: Run slopfix
       shell: bash
       env:
@@ -54,11 +47,9 @@ runs:
         INPUT_COMMAND: ${{ inputs.command }}
         INPUT_PATHS: ${{ inputs.paths }}
         INPUT_ONLY: ${{ inputs.only }}
-        INPUT_EXCLUDE: ${{ inputs.exclude }}
       run: |
         set -euo pipefail
         # INPUT_PATHS is a list of paths, so it is deliberately unquoted.
         "$SLOPFMT" "$INPUT_COMMAND" \
           ${INPUT_ONLY:+--only "$INPUT_ONLY"} \
-          ${INPUT_EXCLUDE:+--exclude "$INPUT_EXCLUDE"} \
           $INPUT_PATHS

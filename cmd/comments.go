@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gocomments"
+	"github.com/wow-look-at-my/slopfix/commentnumbers"
 )
 
 func init() {
@@ -30,7 +30,7 @@ var skipDirs = set.Of("vendor", "node_modules", "testdata", "build")
 func runComments(cmd *cobra.Command, args []string) error {
 	found := false
 	for _, arg := range args {
-		paths, err := commentTargets(arg)
+		paths, err := commentTargets(arg, commentnumbers.Supported)
 		if err != nil {
 			return err
 		}
@@ -39,7 +39,7 @@ func runComments(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-			for _, hit := range gocomments.Check(path, string(src)) {
+			for _, hit := range commentnumbers.Check(path, string(src)) {
 				found = true
 				fmt.Fprintf(cmd.OutOrStdout(), "%s:%d:%d: %q is a number in a comment\n",
 					path, hit.Line, hit.Col, hit.Number)
@@ -47,15 +47,16 @@ func runComments(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if found {
-		fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", gocomments.Remedy)
+		fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", commentnumbers.Remedy)
 		return errFindings
 	}
 	return nil
 }
 
-// commentTargets lists what to read under an argument. A named file is read
-// whatever its extension, because naming it is the request.
-func commentTargets(arg string) ([]string, error) {
+// commentTargets lists what to read under an argument, keeping the files the
+// caller's rule reads. A named file is read whatever its extension, because
+// naming it is the request.
+func commentTargets(arg string, reads func(string) bool) ([]string, error) {
 	info, err := os.Stat(arg)
 	if err != nil {
 		return nil, err
@@ -74,7 +75,7 @@ func commentTargets(arg string) ([]string, error) {
 			}
 			return nil
 		}
-		if gocomments.Supported(path) {
+		if reads(path) {
 			out = append(out, path)
 		}
 		return nil

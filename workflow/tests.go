@@ -19,9 +19,8 @@ var runKey = regexp.MustCompile(`^(\s*)(-\s+)?run:\s*(.*)$`)
 // blockScalar matches the | and > forms, with their chomping and indent digits.
 var blockScalar = regexp.MustCompile(`^[|>][+-]?\d*$`)
 
-// runBlocks reads every run: script. A regex walk rather than a parse: run:
-// means the same thing at every depth, and a file this rule rejects may also be
-// a file a parser rejects.
+// runBlocks reads every run: script. A regex walk rather than a parse, since a
+// file this rule rejects may also be a file a parser rejects.
 func runBlocks(content string) []runBlock {
 	all := lines(content)
 	var blocks []runBlock

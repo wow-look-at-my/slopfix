@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The English the repair applies before it cuts anything.
+
+  This is the same shape as autoallow/rules.xml, and for the same reason: a rule
+  a reader can edit without reading Go is a rule that gets edited. Adding a word
+  here is a one-line change with a test beside it, not a recompile of a table
+  buried in a source file.
+
+  Every entry is matched whole, lowercased, and only between word boundaries, so
+  `just` never touches `adjustment`. A <drop> whose word changes meaning in some
+  context does not belong here at all: a wrong deletion is worse than a comment
+  left long, because nobody reviews what a repair applied.
+
+  Each entry carries a `test` attribute: the phrase as it would appear in a
+  comment. english_test.go runs every one of them through shorten() and requires
+  the entry to actually fire, so an entry that has stopped matching says so
+  rather than sitting here looking enforced.
+-->
+<english>
+
+  <!-- Words that survive their own deletion. -->
+  <drop word="actually" test="It actually fails"/>
+  <drop word="basically" test="It basically fails"/>
+  <drop word="essentially" test="It essentially fails"/>
+  <drop word="fundamentally" test="It fundamentally fails"/>
+  <drop word="simply" test="It simply fails"/>
+  <drop word="obviously" test="It obviously fails"/>
+  <drop word="clearly" test="It clearly fails"/>
+  <drop word="of course" test="It of course fails"/>
+  <drop word="in fact" test="It in fact fails"/>
+  <drop word="indeed" test="It indeed fails"/>
+  <drop word="really" test="It really fails"/>
+  <drop word="very" test="A very long name"/>
+  <drop word="quite" test="A quite long name"/>
+  <drop word="somewhat" test="A somewhat long name"/>
+  <drop word="fairly" test="A fairly long name"/>
+  <drop word="just" test="It just fails"/>
+  <drop word="note that" test="Note that it fails"/>
+  <drop word="it is worth noting that" test="It is worth noting that it fails"/>
+  <drop word="please note that" test="Please note that it fails"/>
+  <drop word="needless to say" test="Needless to say it fails"/>
+  <drop word="at the end of the day" test="At the end of the day it fails"/>
+  <drop word="for the purposes of" test="For the purposes of the check"/>
+  <drop word="with respect to" test="With respect to the check"/>
+
+  <!-- Phrases with a shorter spelling that means the same thing. -->
+  <rewrite from="in order to" to="to" test="Runs in order to bind"/>
+  <rewrite from="due to the fact that" to="because" test="Fails due to the fact that it races"/>
+  <rewrite from="in the event that" to="if" test="Retries in the event that it fails"/>
+  <rewrite from="for the purpose of" to="for" test="Kept for the purpose of the gate"/>
+  <rewrite from="a large number of" to="many" test="Holds a large number of entries"/>
+  <rewrite from="at this point in time" to="now" test="Correct at this point in time"/>
+  <rewrite from="is able to" to="can" test="It is able to retry"/>
+  <rewrite from="has the ability to" to="can" test="It has the ability to retry"/>
+  <rewrite from="make use of" to="use" test="It will make use of the cache"/>
+  <rewrite from="take into account" to="consider" test="It must take into account the offset"/>
+  <rewrite from="the reason is because" to="because" test="The reason is because it races"/>
+  <rewrite from="in spite of the fact that" to="although" test="Kept in spite of the fact that it races"/>
+  <rewrite from="a sufficient number of" to="enough" test="Holds a sufficient number of entries"/>
+  <rewrite from="prior to" to="before" test="Runs prior to the gate"/>
+  <rewrite from="subsequent to" to="after" test="Runs subsequent to the gate"/>
+  <rewrite from="in the near future" to="soon" test="Lands in the near future"/>
+  <rewrite from="on a regular basis" to="regularly" test="Runs on a regular basis"/>
+  <rewrite from="whether or not" to="whether" test="Asks whether or not it fits"/>
+
+  <!--
+    where= picks the surface an entry applies to: "comment" for source only,
+    "message" for a rendered assistant message only, "both" when it reads the
+    same in either. It defaults to both, so an entry that says nothing about
+    surface applies everywhere.
+
+    The split earns its keep on entries that are only wrong in one place. An
+    em dash joining two clauses is a chat habit; in a comment it is already
+    caught as a comma splice by the prose rules, and rewriting it here would
+    fight them.
+  -->
+  <rewrite from="— and" to="," where="message" test="Yes — and there is precedent"/>
+  <rewrite from="— but" to=", but" where="message" test="It works — but only once"/>
+  <rewrite from="— so" to=", so" where="message" test="It failed — so I retried"/>
+  <rewrite from="— which" to=", which" where="message" test="It races — which is the bug"/>
+  <rewrite from="that being said" to="but" where="message" test="That being said it races"/>
+  <drop word="it is important to note that" where="message" test="It is important to note that it races"/>
+
+  <!--
+    A <pattern> is a rewrite with captures, for a shape no whole-word swap can
+    express. `to` spells its groups $1, $2, the way Go's regexp expansion does,
+    and `expect` is what `test` must become.
+
+    A bare #N is deliberately absent. It needs the repository the reader is in,
+    which is context the table does not carry, and guessing the wrong repository
+    is worse than leaving plain text.
+
+    NOTE ON linkrefs: these carry the link SHAPE, not linkrefs' guarantee.
+    That plugin resolves a reference before it links, and leaves plain text
+    when it cannot show the target exists. A pattern cannot check existence, so
+    folding linkrefs in here would trade a verified link for a plausible one.
+    Keep both: this is for a reference already known good.
+  -->
+  <pattern match="\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]+)\b"
+           to="[$1#$2](https://github.com/$1/issues/$2)"
+           where="message"
+           test="wow-look-at-my/slopfix#14 is open"
+           expect="[wow-look-at-my/slopfix#14](https://github.com/wow-look-at-my/slopfix/issues/14) is open"/>
+
+  <pattern match="\s+([,.;:!?])" to="$1" test="A clause , and a stop ."
+           expect="A clause, and a stop."/>
+
+  <pattern match="  +" to=" " test="Two  spaces" expect="Two spaces"/>
+
+  <!--
+    Prose the rule knows is bad and must not rewrite. A <flag> has no single
+    correct replacement, so guessing one would put a wrong sentence in a comment
+    the reader trusts. The finding says what is wrong and what to write instead,
+    and a person makes the call.
+
+    `say` is addressed to whoever reads the finding, so it names the repair
+    rather than restating the rule.
+  -->
+  <flag phrase="as mentioned above" test="As mentioned above it races"
+        say="name the thing, not its position: an edit above this moves it"/>
+  <flag phrase="as mentioned below" test="As mentioned below it races"
+        say="name the thing, not its position: an edit below this moves it"/>
+  <flag phrase="see above" test="See above for the reason"
+        say="name what to look at: a reader arriving by search has no above"/>
+  <flag phrase="see below" test="See below for the reason"
+        say="name what to look at: a reader arriving by search has no below"/>
+  <flag phrase="for now" test="For now it retries once"
+        say="say what would change it, or drop it: every comment is for now"/>
+  <flag phrase="currently" test="It currently retries once"
+        say="a comment states what IS, so currently adds nothing"/>
+  <flag phrase="used to" test="It used to retry twice"
+        say="say what it does; git holds what it did"/>
+  <flag phrase="no longer" test="It no longer retries"
+        say="say what it does; git holds what it did"/>
+  <flag phrase="will be" test="This will be replaced"
+        say="a comment describes the code that is here, not the one coming"/>
+  <flag phrase="tbd" test="The limit is TBD"
+        say="state the value or the question; TBD ages into a lie"/>
+  <flag phrase="obviously wrong" test="This is obviously wrong"
+        say="say what is wrong and what it should be"/>
+  <flag phrase="hack" test="A hack around the race"
+        say="say what forced it, so the next reader can judge whether it still holds"/>
+  <flag phrase="for some reason" test="For some reason it races"
+        say="find the reason or say you could not: a shrug helps nobody"/>
+  <flag phrase="magic number" test="A magic number from the spec"
+        say="name the constant and where it comes from"/>
+  <flag phrase="do not ask" test="Do not ask why"
+        say="answer it here, or the next reader pays to rediscover it"/>
+
+</english>

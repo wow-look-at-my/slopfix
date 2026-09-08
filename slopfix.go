@@ -12,13 +12,13 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// IDHardWrap names the wrap rule. It lives here rather than in ste, because the
-// document's shape is this package's to judge.
+// IDHardWrap names the wrap rule: the document's shape is this package's to judge.
 const IDHardWrap = "wrap/hard-wrap"
 
 // Check reports every finding in a document, in source order.
@@ -41,11 +41,8 @@ func Check(content string) []ste.Finding {
 	return out
 }
 
-// Format returns the document with every prose block joined to a single line.
-//
-// It reports whether the rewrite is safe to write back. Joining must only move
-// newlines, so a result whose words differ from the source is a bug in the
-// splitter, and the caller must keep the original.
+// Format joins every prose block to a single line, and reports whether the
+// rewrite is safe: a result whose words differ from the source is a bug.
 func Format(content string) (string, bool) {
 	formatted := markdown.Format(content)
 	return formatted, markdown.WordsOnly(content, formatted)
@@ -63,29 +60,68 @@ func CheckFile(path string) ([]ste.Finding, error) {
 	return CheckContent(path, string(content)), nil
 }
 
-// CheckContent reports the findings in text headed for path, without reading a
-// file. A hook and an editor hold the text before it lands, and asking a
-// separate code path for that answer is how the two drift apart.
-//
-// AllIDs names every rule this can report.
+// CheckContent reports the findings in text headed for path. The PATH decides:
+// a Go file's lines are not paragraphs, so the prose rules skip it.
 func CheckContent(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
 		return workflow.Check(content)
 	}
-	return Check(content)
+	if isDocument(path) {
+		return Check(content)
+	}
+	// A source file's lines are not paragraphs, so the prose rules stop here.
+	return commentFindings(path, content)
+}
+
+// commentFindings are the source rules: what the comments in a source file
+// break, reported on the line they sit on.
+func commentFindings(path, content string) []ste.Finding {
+	var out []ste.Finding
+	for _, hit := range commentlength.Check(path, content) {
+		fix := "Cut the comment back inside the code it documents. Drop the trailing paragraph first."
+		if !hit.Repairable {
+			fix = "Shorten the opening sentence, or say less."
+		}
+		out = append(out, ste.Finding{
+			Line:   hit.Line,
+			ID:     hit.ID,
+			Rule:   hit.Tell,
+			Detail: hit.Sentence,
+			Fix:    fix,
+		})
+	}
+	return out
+}
+
+// documentExtensions are the files whose lines really are prose.
+var documentExtensions = []string{".md", ".markdown", ".mdown", ".txt"}
+
+// isDocument reports whether the prose rules own this file. An empty path is a
+// document, because a caller holding text and naming no file is asking about
+// prose rather than about a tree.
+func isDocument(path string) bool {
+	if path == "" {
+		return true
+	}
+	lower := strings.ToLower(path)
+	for _, ext := range documentExtensions {
+		if strings.HasSuffix(lower, ext) {
+			return true
+		}
+	}
+	return false
 }
 
 // AllIDs names every rule CheckContent reports, so a caller can reject a typo
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs)
-	ids.Add(IDHardWrap)
+	ids.AddRange(IDHardWrap, commentlength.ID)
 	return ids
 }
 
-// Listed renders a set of rule IDs for a person: the flag help, and the error
-// that names what a caller could have written instead. A set has no order of
-// its own, so the reader gets an alphabetical one rather than a shuffled one.
+// Listed renders a set of rule IDs for a person. A set has no order of its
+// own, so the reader gets an alphabetical listing.
 func Listed(ids set.Set[string]) string {
 	return strings.Join(slices.Sorted(ids.All()), ", ")
 }

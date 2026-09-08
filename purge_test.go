@@ -52,7 +52,6 @@ func TestPurgeKeepsTheRootPair(t *testing.T) {
 
 func TestPurgeDeletesAReadmeThatIsNotAtTheRoot(t *testing.T) {
 	// The pair is kept by name AND position. A README in a subdirectory is
-	// another file nobody reads.
 	root := repo(t, map[string]string{"README.md": "keep", "sub/README.md": "go"})
 	result, err := Purge(root, false)
 	require.NoError(t, err)
@@ -104,7 +103,6 @@ func TestPurgeReportsAKeptFileOverBudget(t *testing.T) {
 
 func TestPurgeCountsCharactersNotBytes(t *testing.T) {
 	// An em dash is a single character spelled in several bytes. A byte count
-	// would report this file as over budget when it reads as under.
 	root := repo(t, map[string]string{"README.md": strings.Repeat("—", CharBudget)})
 	result, err := Purge(root, false)
 	require.NoError(t, err)

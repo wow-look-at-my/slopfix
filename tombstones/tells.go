@@ -70,9 +70,6 @@ const changeParticiples = `renamed|removed|added|deleted|moved|replaced|` +
 	`deprecated|rewritten|rewrote|bumped|reworked|consolidated|inlined|hoisted`
 
 // tells is the table. It is data: extending this package is adding a row.
-//
-// Every row traces to a shape that survives paraphrase badly. The tiers that do
-// not read the wording at all are the volume cap in Find and referents.go.
 var tells = []tell{
 	// Git already timestamps the line, so a date can only narrate.
 	{"a date", regexp.MustCompile(`(?i)\b(?:19|20)\d{2}-\d{2}-\d{2}\b`)},
@@ -87,6 +84,8 @@ var tells = []tell{
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\binstead of (?:the )?(?:old|former|previous|legacy)\b`)},
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\bwhere (?:it|this|that) (?:used to|once)\b`)},
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\b[a-z]+ed now\b|\b(?:is|are) now (?:[a-z]+ed|the case)\b`)},
+	// A move names both ends, so the "then" is spelled out rather than implied.
+	{"a then-and-now contrast", regexp.MustCompile(`(?i)\b(?:moved|switched|migrated|converted|renamed|changed|ported) from\b`)},
 
 	// The referent is gone: the sentence's subject is a former state.
 	{"a former state", regexp.MustCompile(`(?i)\bused to\b`)},
@@ -126,10 +125,8 @@ var tells = []tell{
 	{"a report of an experiment", regexp.MustCompile(`(?i)\brun before trusting\b`)},
 }
 
-// Find returns every tombstone the blocks carry.
-//
-// A non-positive maxLines turns the cap off. A tombstone is surplus text, so
-// volume catches the essay no rewording defeats.
+// Find returns every tombstone the blocks carry. A non-positive maxLines turns
+// the cap off, and volume catches the essay no rewording defeats.
 func Find(blocks []Block, maxLines int) []Hit {
 	var hits []Hit
 	seen := set.New[string]()

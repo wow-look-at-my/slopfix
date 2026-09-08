@@ -5,14 +5,14 @@ import (
 	"slices"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
-// Rule names a repair Fix can apply. A caller that wants a single rule names it
-// rather than reaching for a command of its own.
+// Rule names a repair Fix can apply, so a caller can select a repair by name.
 type Rule string
 
 const (
@@ -24,10 +24,12 @@ const (
 	RuleWrap Rule = "wrap"
 	// RuleSTE reports what fails the merge gate and repairs nothing.
 	RuleSTE Rule = "ste"
+	// RuleCommentLength cuts a comment back inside the code it documents.
+	RuleCommentLength Rule = "comments"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleCommentLength}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -41,31 +43,25 @@ func IDsFor(rule Rule) set.Set[string] {
 		return set.Of(IDHardWrap)
 	case RuleSTE:
 		return ste.AllIDs
+	case RuleCommentLength:
+		return set.Of(commentlength.ID)
 	}
 	return set.New[string]()
 }
 
-// Request is a piece of text put to Fix.
-//
-// Path names the file the text is headed for. It decides the comment syntax,
-// and whether the prose rules apply at all. Empty means the caller vouches for
-// the text as prose. Rules restricts what is applied, and empty means AllRules.
+// Request is a piece of text put to Fix. Path decides the comment syntax, and
+// an empty Rules means AllRules.
 type Request struct {
 	Content string
 	Path    string
 	Rules   []Rule
-	// IDs restricts what is REPORTED to the rules named, the way a compiler
-	// names a warning. Empty means every rule of every category in Rules.
+	// IDs restricts what is REPORTED. Empty means every rule in Rules.
 	IDs []string
 	// MaxCommentLines caps a comment block. A cap of nothing turns it off.
 	MaxCommentLines int
 }
 
-// Repair is what a caller gets back for a piece of text: the text as this
-// binary would write it, and what no rewrite can repair.
-//
-// A hook reads Text to replace the write it was about to allow, and Kept plus
-// Findings to refuse it.
+// Repair is the text as this binary would write it, plus what no rewrite can repair.
 type Repair struct {
 	// Text is the repaired text. It equals the input when Changed is false.
 	Text string `json:"text"`
@@ -79,18 +75,8 @@ type Repair struct {
 	Findings []ste.Finding `json:"findings"`
 }
 
-// Fix repairs what a rewrite can repair and reports the rest.
-//
-// The repairs run in the order that keeps every span valid. A tombstone
-// line leads, because it is deleted whole. The count strip follows, on
-// text whose deletions have landed. The wrap join comes last, and the prose
-// repair runs inside it, on each block's joined text, because a rule reads a
-// paragraph as a single sentence stream and a hand wrap hides half of it.
-//
-// The join must only move newlines. Format proves that on this document ahead
-// of everything else, and a document it cannot prove keeps its own line
-// breaks. The prose repair is
-// different in kind: it changes words on purpose, each to what Check names.
+// Fix repairs what a rewrite can repair and reports the rest. The repairs run
+// in an order that keeps every span valid. The join only moves newlines.
 func Fix(req Request) Repair {
 	rules := req.Rules
 	if len(rules) == 0 {
@@ -117,6 +103,24 @@ func Fix(req Request) Repair {
 		}
 	}
 
+	// The comment-length repair reads source rather than prose, so it runs
+	// before the document gate below sends a source file home.
+	if wants(RuleCommentLength) && keeps(commentlength.ID) && req.Path != "" {
+		cut, changed := commentlength.Fix(req.Path, text)
+		if changed {
+			text = cut
+			repair.Removed = append(repair.Removed, "trailing comment prose")
+		}
+		for _, hit := range commentlength.Check(req.Path, text) {
+			repair.Kept = append(repair.Kept, tombstones.Hit{
+				ID:     hit.ID,
+				Tell:   hit.Tell,
+				Phrase: hit.Sentence,
+				LineNo: hit.Line,
+			})
+		}
+	}
+
 	// The remaining rules read prose. Source keeps its own text, because a
 	// comma splice inside a code line is not a sentence.
 	if req.Path != "" && !IsDocument(req.Path) {
@@ -133,8 +137,6 @@ func Fix(req Request) Repair {
 		}
 	}
 	// The join and the word repair share a pass, because a rule reads a
-	// paragraph as a sentence stream and a hand wrap hides half of it. Naming a
-	// ste rule therefore rewraps the paragraph it repairs.
 	joins := wants(RuleWrap) && keeps(IDHardWrap)
 	prose := wants(RuleSTE)
 	if joins || prose {
