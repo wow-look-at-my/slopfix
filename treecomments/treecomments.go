@@ -11,9 +11,7 @@ import (
 	"strings"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
-	// The grammars come from go-tree-sitter, not from this repository's own
-	// generated copies: those are gitignored, so a consumer importing this
-	// package could not compile them.
+	// go-tree-sitter commits its tables, so these parse for an importer.
 	"github.com/wow-look-at-my/go-tree-sitter/grammars/bash"
 	"github.com/wow-look-at-my/go-tree-sitter/grammars/clang"
 	"github.com/wow-look-at-my/go-tree-sitter/grammars/cpp"

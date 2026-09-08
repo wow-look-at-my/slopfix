@@ -5,6 +5,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // Fix applies the repair Check names. A long sentence is left alone,
@@ -103,11 +105,35 @@ func fixSplices(prose string) string {
 	return breakAt(prose, commas)
 }
 
-// coordinator matches a conjunction joining clauses: the seam to divide at.
+// coordinator matches a conjunction joining clauses: a candidate seam.
 var coordinator = regexp.MustCompile(`,?\s+(?:and|but|so|then|because)\s+`)
 
-// fixSentenceCap divides an over-cap sentence at the coordinator nearest its
-// middle, repeating while a half is over. With none it is left for a writer.
+// opensASubject holds the words an independent clause starts its subject with.
+// A coordinator followed by any of them joins clauses that each name who acts.
+// A coordinator followed by anything else joins verbs that SHARE a subject,
+// where a division writes a sentence with nobody in it.
+var opensASubject = set.Of("i", "we", "you", "he", "she", "it", "they", "one",
+	"this", "that", "these", "those", "there", "here",
+	"the", "a", "an", "every", "each", "any", "no", "some", "all", "both",
+	"either", "neither", "another", "such",
+	"its", "their", "his", "her", "our", "your", "my")
+
+// carriesItsOwnSubject reports whether the clause after a seam names who acts.
+// A capital opens a name, which is a subject of its own.
+func carriesItsOwnSubject(clause string) bool {
+	word, _, _ := strings.Cut(strings.TrimSpace(clause), " ")
+	word = strings.Trim(word, `"'`+"`([")
+	if word == "" {
+		return false
+	}
+	if first, _ := utf8.DecodeRuneInString(word); unicode.IsUpper(first) {
+		return true
+	}
+	return opensASubject.Contains(strings.ToLower(word))
+}
+
+// fixSentenceCap divides an over-cap sentence at the usable coordinator nearest
+// its middle, repeating while a half is over. With none it is left for a writer.
 func fixSentenceCap(prose string) string {
 	for range maxDivisions {
 		joiner, found := widestSeam(prose)
@@ -137,7 +163,12 @@ func widestSeam(prose string) ([]int, bool) {
 		if WordCount(sentence) <= SentenceWordCap {
 			continue
 		}
-		seams := coordinator.FindAllStringIndex(prose[start:end], -1)
+		var seams [][]int
+		for _, seam := range coordinator.FindAllStringIndex(prose[start:end], -1) {
+			if carriesItsOwnSubject(prose[start+seam[1] : end]) {
+				seams = append(seams, seam)
+			}
+		}
 		if len(seams) == 0 {
 			continue
 		}

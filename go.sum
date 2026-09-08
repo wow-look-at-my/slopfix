@@ -24,8 +24,8 @@ github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWD
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/wow-look-at-my/go-containers v0.0.0-20260908164146-f519b55aab33 h1:QLCqLk6WsqH4bEuyLVl1MDgfAij3NyOKVExHeKX8cu4=
 github.com/wow-look-at-my/go-containers v0.0.0-20260908164146-f519b55aab33/go.mod h1:7j8wbDwrqh+uJnlENqD5iwsgYkF4y3kIgremn/ctvVE=
-github.com/wow-look-at-my/go-tree-sitter v0.0.0-20260908150808-16329b2b2da0 h1:9stk4HVHopYWetZ0kGu+xcwO1t0RCFfmpCg9NzNkbIY=
-github.com/wow-look-at-my/go-tree-sitter v0.0.0-20260908150808-16329b2b2da0/go.mod h1:2LymJeiWN4w/O9twvKBbVU+Iy/xIkQW3Zw7Jw5bBigA=
+github.com/wow-look-at-my/go-tree-sitter v0.0.0-20260908210855-2c4a6c8653bf h1:pGVIldFx1I2NTcJ+tbdUrIbgkfhDWTAdrw5j4++iZ14=
+github.com/wow-look-at-my/go-tree-sitter v0.0.0-20260908210855-2c4a6c8653bf/go.mod h1:33euocPHXB9a9kIe3OJ5ZtT+Fe7MoRG1/sstBA8gukI=
 go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
 go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=

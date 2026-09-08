@@ -15,8 +15,10 @@ var samples = map[string]string{
 	ste.IDModal:       "It should hold.",
 	ste.IDSemicolon:   "It holds; it does not break.",
 	ste.IDCommaSplice: "The loader reads the file, it returns the rows.",
-	ste.IDSentenceCap: "The loader reads the file and returns the rows and checks the header and " +
-		"reports the count and closes the handle and logs the answer and exits cleanly now.",
+	// Every coordinator here joins clauses that each name who acts, which is the
+	// case the repair divides. A shared subject is the case it declines.
+	ste.IDSentenceCap: "The loader reads the file and the caller waits for it and the header " +
+		"check runs first and the count goes to the log and the handle closes at the end now.",
 	ste.IDStaleCount: "There are three sections.",
 }
 
