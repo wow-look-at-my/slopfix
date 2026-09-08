@@ -64,10 +64,8 @@ func TestDeniesThroughMoreWrappers(t *testing.T) {
 	// The loop above preserved that edit, so this needs its own dirty tree.
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 
-	// A bare `git checkout` with no ref or pathspec at all -- xargs supplies
-	// no operand here, since the piped word never reaches the argv this hook
-	// reads -- names no provenance route, so it is preserved and allowed
-	// like any other bare checkout on a dirty tree.
+	// A bare `git checkout` names no provenance route, since the piped word
+	// never reaches the argv this hook reads.
 	preserved(t, dir, "echo x | xargs -n 1 git checkout")
 }
 
@@ -79,14 +77,12 @@ func TestCdScopeFollowsTheShell(t *testing.T) {
 	clean := newRepoAt(t)
 
 	// A cd inside a subshell does not move the commands after it. Asked of the
-	// destruction half, because the provenance half refuses a hard reset in
-	// either repository and would not tell the cases apart.
+	// destruction half, which is the half that can tell the cases apart.
 	assert.Empty(t, lossOnly(t, clean, "(cd "+dir+" && git status) && git reset --hard"),
 		"the cd was contained in the subshell, so the reset ran in the clean repo")
 
 	// A cd in a sequence does: the reset ran against the dirty repo, so the
-	// destruction half now preserves its tracked edit rather than seeing a
-	// clean tree and staying silent.
+	// destruction half preserves its tracked edit.
 	_, notices := lossOnlyNotices(t, clean, "cd "+dir+" && git reset --hard")
 	assert.NotEmpty(t, notices)
 }

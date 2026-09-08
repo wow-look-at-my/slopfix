@@ -14,14 +14,11 @@ import (
 // newRepo, modify, denied and allowed live in guard_test.go.
 // ---------------------------------------------------------------------------
 
-// The reported incident: a pair of literal assignments feed a redirect target,
-// and the target lands outside any repository. After the path resolves, the
-// existing repo-scoping already allows it -- no new carve-out was needed.
+// The reported incident: literal assignments feed a redirect target outside
+// any repository, which the repo-scoping allows.
 func TestAllowsRedirectBuiltFromSequentialLiteralAssignments(t *testing.T) {
 	dir := newRepo(t)
-	// A dirty tree proves the point: before this fix, the unresolved "$OUT"
-	// denied regardless of where it pointed, so a clean tree would pass this
-	// test for the wrong reason.
+	// A dirty tree proves the point: a clean tree would pass for the wrong reason.
 	modify(t, dir)
 	scratch := t.TempDir()
 	allowed(t, dir, `V=2.1.263
@@ -63,9 +60,8 @@ func TestForLoopVariableStaysUnresolvable(t *testing.T) {
 	assert.Contains(t, r, "cannot resolve")
 }
 
-// read can set a variable this scan cannot see, which is exactly the case
-// the mutating-command abort exists for: resolution turns off for the whole
-// command rather than trusting a value read never touched.
+// read can set a variable this scan cannot see, so resolution turns off for
+// the whole command.
 func TestReadDisablesResolutionForTheWholeCommand(t *testing.T) {
 	dir := newRepo(t)
 	r := denied(t, dir, "read V\nrm $V")
@@ -80,9 +76,8 @@ func TestPrefixAssignmentDoesNotPersist(t *testing.T) {
 	assert.Contains(t, r, "cannot resolve")
 }
 
-// A modifier on the expansion -- a default, an index, a slice -- means the
-// value depends on something this scan does not evaluate, even when the
-// bare name behind it is otherwise resolvable.
+// A modifier on the expansion makes the value depend on something this scan
+// does not evaluate, even when the bare name is resolvable.
 func TestParamExpansionWithAModifierStaysUnresolvable(t *testing.T) {
 	dir := newRepo(t)
 	r := denied(t, dir, "V=x\nrm ${V:-fallback}")

@@ -436,9 +436,3 @@ func decisionPayload(event, behavior, message string) string {
 	}
 	return string(out) + "\n"
 }
-
-func outputDecision(event, behavior, message string) {
-	if out := decisionPayload(event, behavior, message); out != "" {
-		os.Stdout.WriteString(out)
-	}
-}
