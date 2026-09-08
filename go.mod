@@ -9,8 +9,6 @@ require (
 	github.com/wow-look-at-my/go-tree-sitter v0.0.0-20260908091356-33f3b8033dba // go-toolchain:auto-branch
 )
 
-replace github.com/wow-look-at-my/go-tree-sitter => /home/user/go-tree-sitter
-
 require (
 	go.yaml.in/yaml/v3 v3.0.5
 	mvdan.cc/sh/v3 v3.14.1
