@@ -6,17 +6,11 @@ import (
 	"strings"
 )
 
-// What class of content a command can destroy. Keeping these apart is the
-// whole point: `reset --hard` discards tracked modifications and leaves
-// untracked files alone, `clean -fd` does the exact opposite. Collapsing both
-// into a single "dirty" bit produces a guard that denies the safe half of each and
-// gets switched off.
+// What class of content a command can destroy: `reset --hard` and `clean -fd` spare opposite halves.
 type hazard uint8
 
-// There is deliberately no class for refs and commits. A command that
-// destroys those is refused outright rather than weighed against state: the
-// remote history a force push overwrites is in nobody's reflog but the
-// author's, so there is no local state that could make it safe.
+// There is deliberately no class for refs and commits: a command destroying
+// those is refused outright, since no local state can make it safe.
 const (
 	hazTracked hazard = 1 << iota
 	hazUntracked
@@ -34,8 +28,7 @@ type finding struct {
 	always  bool
 	reason  string // complete message, always-deny only
 	rewrite string
-	// reach turns a ref-destroying command into a question about whether the
-	// commits survive elsewhere, rather than a blanket refusal.
+	// reach asks whether the commits survive elsewhere, rather than refusing outright.
 	reach *reachCheck
 	// fromScript marks a finding read out of a script FILE. classifySegment
 	// stamps it, so no rule below has to remember to.
@@ -154,10 +147,8 @@ func joinDir(cwd string, w word) string {
 	return filepath.Clean(filepath.Join(cwd, w.text))
 }
 
-// classifyGit returns what this git invocation puts at risk, or nil when it
-// risks nothing. Only destructive verbs are enumerated -- every other verb,
-// known or not, falls through to allow, so read-only work never pays and a new
-// git subcommand does not arrive pre-blocked.
+// classifyGit returns what this git invocation puts at risk, or nil. Only
+// destructive verbs are enumerated; the rest fall through to allow.
 func classifyGit(seg segment) *finding {
 	g, ok := parseGit(seg.argv, seg.cwd, seg.relocated)
 	if !ok {
@@ -315,13 +306,8 @@ func classifyGit(seg segment) *finding {
 		return nil
 
 	case "rebase", "merge", "pull", "cherry-pick", "revert", "am":
-		// Everything these verbs write is reachable from a ref, so the only
-		// thing they can lose is a change that is in no object yet. A committed
-		// tree is therefore the whole condition. pull sits here rather than with
-		// the write routes because it is merge with a fetch in front of it.
-		//
 		// The recovery halves of these verbs are how a wedged tree gets fixed;
-		// blocking them would trap the session in the state it is trying to leave.
+		// blocking them traps the session in the state it is leaving.
 		if g.has("--continue", "--abort", "--skip", "--quit", "--edit-todo") {
 			return nil
 		}

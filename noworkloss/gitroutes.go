@@ -17,13 +17,9 @@ import (
 
 // worktreeVerbs put committed content into the tree.
 //
-// merge and pull are deliberately absent. Integrating a ref writes only bytes
-// that are already in a commit, with a diff to read and a reflog to reach it
-// by, which is the same reasoning the bare-ref checkout below rests on. rebase
-// and cherry-pick replay commits onto a different base, and am and apply take a
-// patch from outside git, so what those land is not a tree anything holds.
-// classifyGit still gates merge and pull on a committed tree: what they can
-// lose is a change that is in no object yet.
+// merge and pull are deliberately absent: integrating a ref writes only bytes
+// already in a commit. rebase, cherry-pick, am and apply land a tree nothing
+// holds, so they stay.
 var worktreeVerbs = map[string]string{
 	"restore":     "git restore",
 	"stash":       "git stash pop",
@@ -123,9 +119,8 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 		}
 		return false
 	}
-	// --abort and --quit put back the state the operation started from, and
-	// --continue/--skip carry on an operation already under way. The decision was
-	// made when it started, which is the invocation this rule is aimed at.
+	// --abort and --quit restore the starting state, and --continue/--skip carry
+	// on an operation whose content decision was already made.
 	if has("--abort", "--quit", "--continue", "--skip") {
 		return false
 	}
@@ -133,8 +128,7 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 	switch verb {
 	case "checkout":
 		// A pathspec is the editing form. A bare ref switch replaces the tree
-		// with a commit git already holds, which is branch navigation rather than
-		// authored content, and every session is told to work on a branch.
+		// with a commit git holds, which is navigation rather than authoring.
 		if has("-b", "-B", "--orphan", "--detach", "--track", "-t") {
 			return false
 		}
@@ -150,10 +144,8 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 		// rewrite the files on disk.
 		return has("--hard", "--merge", "--keep")
 	case "update-ref":
-		// Setting a ref is the last step of the plumbing route -- hash a blob,
-		// build a tree, point a ref at it -- so it introduces content. Deleting
-		// a ref introduces none, and the destruction half already judges whether
-		// the commits it drops survive elsewhere.
+		// Setting a ref is the last step of the plumbing route, so it introduces
+		// content. Deleting a ref introduces none.
 		return !has("-d", "--delete")
 	}
 	return true

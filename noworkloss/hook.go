@@ -22,16 +22,13 @@ import (
 	"strings"
 )
 
-// IDDestruction names the refusal of a command that would destroy content
-// held only in the working tree.
+// IDDestruction names the refusal of a command destroying working-tree content.
 const IDDestruction = "noworkloss/destruction"
 
-// IDProvenance names the refusal of a content change routed around the edit
-// tools.
+// IDProvenance names the refusal of a change routed around the edit tools.
 const IDProvenance = "noworkloss/provenance"
 
-// IDWriteTool names the refusal of a Write over a path that already holds
-// something, on disk or in the recycle bin.
+// IDWriteTool names the refusal of a Write over a path that already holds content.
 const IDWriteTool = "noworkloss/write-tool"
 
 type hookInput struct {
@@ -59,9 +56,8 @@ type preToolUseResponse struct {
 	} `json:"hookSpecificOutput"`
 }
 
-// preToolUseNotice carries no permissionDecision at all -- a preservation
-// leaves the normal permission flow exactly as untouched as every other
-// allowed command, and only adds the line saying where the content went.
+// preToolUseNotice carries no permissionDecision: a preservation leaves the
+// permission flow untouched and only says where the content went.
 type preToolUseNotice struct {
 	HookSpecificOutput struct {
 		HookEventName string `json:"hookEventName"`
@@ -73,29 +69,22 @@ type preToolUseNotice struct {
 func Run(r io.Reader) Result {
 	raw, err := io.ReadAll(r)
 	if err != nil {
-		// Reading the payload failed, so nothing is known about the call. This is
-		// the place neither half can fail closed: with no payload there is no
-		// decision to emit and no reason to attach to it.
+		// Reading the payload failed, so nothing is known about the call and
+		// there is no reason to attach to a decision.
 		return Result{}
 	}
 	reason, notices := decide(raw)
 	if reason != "" {
 		return Result{Stdout: denyPayload(reason)}
 	}
-	// A preservation notice is the case where this hook writes something for an
-	// allowed command: it moved content into a ref, and that must never
-	// happen silently.
+	// A preservation moved content into a ref, which must never happen silently.
 	if len(notices) > 0 {
 		return Result{Stdout: noticePayload(notices)}
 	}
 	return Result{}
 }
 
-// evaluateLoss runs the destruction analysis under a recover. This half fails
-// OPEN on a panic unless the command names a destructive verb, because a bug
-// while checking `ls` must not wedge a session -- the opposite posture from
-// evaluateWrites, and deliberately so: that half refuses what it cannot verify,
-// while this half only refuses what it can see is dangerous.
+// evaluateLoss runs the destruction analysis under a recover, failing OPEN on a panic.
 func evaluateLoss(command, cwd string) (reason string, notices []string) {
 	// A cheap byte scan leads: the overwhelming majority of Bash calls name no verb
 	// that can delete anything, and those must not pay for a parse or a
@@ -126,8 +115,7 @@ func denyPayload(reason string) string {
 	return string(out)
 }
 
-// emitDeny writes a denial to stdout. The hook returns its payload rather than
-// printing it, so this is what the tests that assert on the raw bytes drive.
+// emitDeny writes a denial to stdout, which is what the raw-byte tests drive.
 func emitDeny(reason string) {
 	if out := denyPayload(reason); out != "" {
 		os.Stdout.WriteString(out)
