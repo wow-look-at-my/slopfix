@@ -133,7 +133,7 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 			continue
 		}
 		// refs/remotes/<remote>/HEAD is a symbolic alias for the branch being
-		// overwritten, so it is the same ref wearing a second name -- counting
+		// overwritten, so it is the same ref wearing another name -- counting
 		// it as "somewhere else" is what made an early version of this check
 		// report every force push as safe.
 		if isRemoteHead(name) {

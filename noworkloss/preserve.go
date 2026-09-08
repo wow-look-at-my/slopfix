@@ -8,13 +8,13 @@ import (
 
 // protectedRefPrefix names a ref an EARLIER build of this hook created to hold
 // content a destructive command was about to lose. Preservation now commits to
-// the branch, so nothing creates one any more. The protection stays because a
-// repository can still carry one, and there it is the ONLY place that content
+// the branch, so nothing creates such a ref any more. The protection stays
+// because a repository can still carry one, and there it is the ONLY place content
 // survives -- see gitverb.go's checks against this prefix.
 const protectedRefPrefix = "refs/no-work-loss/"
 
 // preserveResult is what a successful commit produced, for the notice the
-// caller shows once the destructive command is allowed to proceed.
+// caller shows after the destructive command is allowed to proceed.
 // ref names the branch the commit landed on.
 type preserveResult struct {
 	ref     string
@@ -25,7 +25,7 @@ type preserveResult struct {
 
 // preserveAtRiskPaths satisfies the guard's invariant directly instead of
 // refusing: it commits the exact paths a destructive command would destroy
-// into a dedicated ref, so the command is safe by construction once the
+// into a dedicated ref, so the command is safe by construction as soon as the
 // commit exists. It never touches the user's own index or working tree --
 // every step below runs against a throwaway GIT_INDEX_FILE, and nothing here
 // runs `git add` or `git commit` against the repository's real index.
@@ -70,10 +70,10 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 		}
 	}
 
-	// A staged version is a THIRD state, distinct from HEAD and from the
+	// A staged version is a SEPARATE state, distinct from HEAD and from the
 	// working tree, and it lives only in the index. Committing the working
 	// tree and then refreshing the index to match it destroys that state, so
-	// it is captured first and the working tree lands on top of it. A path
+	// it is captured earlier and the working tree lands on top of it. A path
 	// with nothing staged contributes no entry, and a run where nothing was
 	// staged produces no commit here at all.
 	var trees []string
@@ -124,11 +124,11 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 
 	// The commit lands on the CURRENT BRANCH. A commit under a private ref
 	// prefix is invisible to every ordinary command, so nobody reviews it and
-	// the first session that notices the prefix deletes it. A commit on the
+	// the next session that notices the prefix deletes it. A commit on the
 	// branch is in the log, in the diff, and in the next push.
 	if _, _, err := runGit(root, "update-ref", "HEAD", commit); err != nil {
 		// The commit object exists but nothing names it, so git gc can reap
-		// it. That is not durable preservation, so this must not read as one.
+		// it. That is not durable preservation, so this must not read as such.
 		return nil, false
 	}
 	// The branch moved under the real index, which still holds the old tree
@@ -154,13 +154,13 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 // stagedTree builds a tree holding HEAD's content everywhere except the
 // at-risk paths, which take the content sitting in the USER'S index. It reads
 // the real index with `ls-files --stage` and copies each entry into the
-// throwaway one; the user's own index is never written. An empty result means
+// throwaway index; the user's own index is never written. An empty result means
 // no at-risk path had a staged entry to keep, which is the ordinary case.
 func stagedTree(root string, env, paths []string, hasHead bool) string {
-	// Ask first, in one call, which at-risk paths have anything staged at
-	// all. A hook runs in front of every Bash call, and the ordinary tree has
+	// Ask up front, in a single call, which at-risk paths have anything staged
+	// at all. A hook runs in front of every Bash call, and the ordinary tree has
 	// nothing staged, so the walk below must cost nothing there rather than
-	// one subprocess per path. A repository with no HEAD has no tree to
+	// a subprocess per path. A repository with no HEAD has no tree to
 	// differ from; its working-tree commit is the whole story.
 	if !hasHead {
 		return ""
@@ -193,7 +193,7 @@ func stagedTree(root string, env, paths []string, hasHead bool) string {
 		}
 		fields := strings.Fields(meta)
 		if len(fields) != 3 || fields[2] != "0" {
-			// Stage 1, 2 or 3 is an unresolved merge conflict. Its entries do
+			// A non-default stage is an unresolved merge conflict. Its entries do
 			// not make a tree, and a conflicted path is not a state a commit
 			// can hold, so it is left to the working-tree pass below.
 			continue
@@ -224,7 +224,7 @@ func preserveMessage(paths []string, working bool) string {
 }
 
 // branchName is the branch HEAD points at, for the notice. A detached HEAD
-// has no name, and saying so is better than printing an empty one.
+// has no name, and saying so is better than printing an empty name.
 func branchName(root string) string {
 	out, _, err := runGit(root, "rev-parse", "--abbrev-ref", "HEAD")
 	name := strings.TrimSpace(out)
@@ -234,7 +234,7 @@ func branchName(root string) string {
 	return name
 }
 
-// notice reports the preservation once. The commit is on the branch, so it is
+// notice reports the preservation. The commit is on the branch, so it is
 // visible in the log without this -- but a commit the session did not write
 // itself must still be announced. label is the finding's own name for the
 // command that would have destroyed the content; summary is the same
@@ -256,7 +256,7 @@ func shortSHA(sha string) string {
 }
 
 // isProtectedRef reports whether ref names a preservation ref this hook
-// created. Deleting or force-overwriting one is refused unconditionally --
+// created. Deleting or force-overwriting such a ref is refused always --
 // unlike an ordinary branch or tag, it has no "somewhere else" to check
 // against, because it IS the somewhere else.
 func isProtectedRef(ref string) bool {

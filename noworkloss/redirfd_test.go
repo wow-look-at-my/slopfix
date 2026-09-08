@@ -8,10 +8,10 @@ import (
 )
 
 // A redirect is only this hook's business when it can empty a file holding
-// content no git object has. Two shapes never can: a device target swallows
+// content no git object has. Some shapes never can: a device target swallows
 // what it is given, and a descriptor other than stdout carries a stream rather
 // than the command's output. Each case below pairs the shape that must pass
-// with the one that must still be refused.
+// with the shape that must still be refused.
 
 // The reported incident, verbatim in shape. Nothing here puts a file at risk,
 // and the working directory the redirect would resolve against is unknowable,
@@ -27,7 +27,7 @@ func TestStderrDiscardInsideAnUnresolvableSubshellIsAllowed(t *testing.T) {
 
 // The control on the same shape: send STDOUT to a real file in a directory
 // nothing can resolve and the ambiguity is genuine again, because that file
-// may be one the tree holds.
+// may be a file the tree holds.
 func TestStdoutIntoAnUnresolvableDirectoryStillDenies(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -83,9 +83,9 @@ func TestStderrIntoATrackedFileIsRefusedAsAWriteRatherThanALoss(t *testing.T) {
 	assert.Contains(t, r, useTheTools)
 }
 
-// The two halves, asked separately, on the two descriptors. This is the pair
+// Both halves, asked separately, on stdout and on stderr. This is the pair
 // the whole change turns on: stdout into a dirty tracked file is content this
-// hook must save first, and stderr into the same file is not.
+// hook must save beforehand, and stderr into the same file is not.
 func TestOnlyAStdoutRedirectIsAWorkLossFinding(t *testing.T) {
 	stdoutRepo := newRepo(t)
 	modify(t, stdoutRepo)

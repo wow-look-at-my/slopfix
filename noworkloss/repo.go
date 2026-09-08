@@ -10,7 +10,7 @@ import (
 )
 
 // A hook runs in front of every Bash call, so a hung git costs the session
-// directly. Three seconds is far past a normal status on any real tree; past
+// directly. This budget is far past a normal status on any real tree; past
 // it the answer is unknown, and unknown denies.
 const gitTimeout = 3 * time.Second
 
@@ -36,8 +36,8 @@ type repoState struct {
 	stashLoaded   bool
 }
 
-// repoCache keeps one probe per directory per hook invocation. A chain like
-// `git checkout master && git reset --hard` must not pay for status twice.
+// repoCache keeps a single probe per directory per hook invocation. A chain
+// like `git checkout master && git reset --hard` must not pay for status again.
 type repoCache struct{ m map[string]*repoState }
 
 func newRepoCache() *repoCache { return &repoCache{m: map[string]*repoState{}} }
@@ -118,7 +118,7 @@ func (c *repoCache) ensureStash(st *repoState) {
 }
 
 // parseStatusZ splits `status --porcelain -z`. NUL-separated records mean paths
-// arrive raw rather than quoted, and a rename record is followed by a second
+// arrive raw rather than quoted, and a rename record is followed by another
 // field holding the original path -- consuming it is what keeps the entries
 // after a rename from being read as status codes.
 func parseStatusZ(out string) (tracked, untracked, ignored []string) {
@@ -148,11 +148,11 @@ func runGit(dir string, args ...string) (stdout, stderr string, err error) {
 	return runGitEnvTimeout(dir, gitTimeout, nil, args...)
 }
 
-// runGitEnvTimeout is runGit with two extras a preservation commit needs and
+// runGitEnvTimeout is runGit with the extras a preservation commit needs and
 // an ordinary status probe never does: a bounded set of extra environment
 // variables (GIT_INDEX_FILE, to build a commit through a throwaway index
 // instead of the user's own), and a timeout of the caller's choosing (a push
-// reaches the network, so it gets more than the 3-second status budget).
+// reaches the network, so it gets more than the status budget).
 func runGitEnvTimeout(dir string, timeout time.Duration, extraEnv []string, args ...string) (stdout, stderr string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

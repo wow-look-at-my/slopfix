@@ -24,7 +24,7 @@ func gitOutput(t *testing.T, dir string, args ...string) string {
 
 // listPreservationRefs names the preservation commit this hook made in dir, or
 // nothing when it made none. Preservation commits to the CURRENT BRANCH, so
-// there is one place to look and the caller can use the name as an ordinary
+// there is a single place to look and the caller can use the name as an ordinary
 // rev. The subject line is what identifies it: a commit the hook wrote is the
 // tip, and any other tip means no preservation happened.
 func listPreservationRefs(t *testing.T, dir string) []string {
@@ -37,8 +37,8 @@ func listPreservationRefs(t *testing.T, dir string) []string {
 }
 
 // makeStrandedPreservationRef writes a ref under the retired prefix by hand.
-// Nothing creates one any more, and the protection against deleting one has to
-// keep working for a repository that still carries one from an older build.
+// Nothing creates such a ref any more, and the protection against deleting it
+// has to keep working for a repository that still carries it from an older build.
 func makeStrandedPreservationRef(t *testing.T, dir string) string {
 	t.Helper()
 	ref := protectedRefPrefix + "20260101T000000.000000000.1"
@@ -167,8 +167,8 @@ func TestPreservesLocallyWhenPushFails(t *testing.T) {
 // What the preservation commit contains, and what it does to the index.
 // ---------------------------------------------------------------------------
 
-// dirtyThreeWays builds the tree every question below is asked about: one
-// tracked file staged, one tracked file modified and left unstaged, and one
+// dirtyThreeWays builds the tree every question below is asked about: a
+// tracked file staged, a tracked file modified and left unstaged, and a
 // file git has never seen.
 func dirtyThreeWays(t *testing.T, dir string) {
 	t.Helper()
@@ -198,20 +198,20 @@ func TestPreservationCommitsOnlyTheAtRiskPaths(t *testing.T) {
 	require.Len(t, refs, 1)
 	assert.Equal(t, head, gitOutput(t, dir, "rev-parse", refs[0]+"^"))
 
-	// The two at-risk paths carry their working-tree content.
+	// Both at-risk paths carry their working-tree content.
 	assert.Equal(t, "package b\n// unstaged", gitOutput(t, dir, "show", refs[0]+":unstaged.go"))
 	assert.Equal(t, "scratch", gitOutput(t, dir, "show", refs[0]+":new.txt"))
 	// staged.go was never at risk, so the commit holds HEAD's version of it
-	// rather than the one sitting in the index.
+	// rather than the version sitting in the index.
 	assert.Equal(t, "package a", gitOutput(t, dir, "show", refs[0]+":staged.go"))
 	assert.Equal(t, []string{"new.txt", "unstaged.go"},
 		splitLines(gitOutput(t, dir, "diff", "--name-only", head, refs[0])))
 }
 
-// The staged version of a file is a third state, distinct from HEAD and from
-// the working tree, and it lives only in the index. Preserving the working
+// The staged version of a file is a separate state, distinct from HEAD and
+// from the working tree, and it lives only in the index. Preserving the working
 // tree while overwriting the index with it destroys that state, so both go
-// into the commit chain: the index content first, the working tree on top.
+// into the commit chain: the index content below, the working tree on top.
 func TestPreservationKeepsAStagedVersionDistinctFromTheWorkingTree(t *testing.T) {
 	dir := newRepo(t)
 	writeAt(t, dir, "app.go", "package a\n")
@@ -230,8 +230,8 @@ func TestPreservationKeepsAStagedVersionDistinctFromTheWorkingTree(t *testing.T)
 }
 
 // Nothing is staged that was not already, so a tree whose at-risk paths are
-// all unstaged produces exactly one commit rather than an empty one plus the
-// real one.
+// all unstaged produces a single commit rather than an empty commit plus the
+// real commit.
 func TestPreservationMakesNoEmptyIndexCommit(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -242,7 +242,7 @@ func TestPreservationMakesNoEmptyIndexCommit(t *testing.T) {
 }
 
 // The working tree is never written, and every at-risk path is still on disk
-// byte for byte: this hook analyses a command and never runs one.
+// byte for byte: this hook analyses a command and never runs it.
 func TestPreservationNeverWritesTheWorkingTree(t *testing.T) {
 	dir := newRepo(t)
 	dirtyThreeWays(t, dir)
@@ -254,7 +254,7 @@ func TestPreservationNeverWritesTheWorkingTree(t *testing.T) {
 
 // Preservation commits the at-risk content to the CURRENT BRANCH, so content
 // that was uncommitted before the hook ran is committed after it. That is the
-// whole point, and it is also the one thing a session sees change: `git
+// whole point, and it is also what a session sees change: `git
 // status` and `git diff --cached` stop reporting what was just preserved.
 // This pins the shape of that change rather than leaving it to be
 // rediscovered -- and pins that it is confined to the at-risk paths.
@@ -267,7 +267,7 @@ func TestPreservationClearsOnlyTheAtRiskPathsFromStatus(t *testing.T) {
 
 	preserved(t, dir, "rm unstaged.go new.txt")
 
-	// The two preserved paths are committed now, so they read clean. The
+	// Both preserved paths are committed now, so they read clean. The
 	// staged file nothing threatened is still staged, and still names the
 	// same content it did before.
 	assert.Equal(t, []string{"M  staged.go"},
@@ -315,7 +315,7 @@ func readTree(t *testing.T, dir string) map[string]string {
 // What still denies -- preservation must never widen what this hook allows.
 // ---------------------------------------------------------------------------
 
-// push --mirror rewrites every ref at once, so there is no bounded set of
+// push --mirror rewrites every ref together, so there is no bounded set of
 // paths to preserve and no bounded set of commits to verify. It stays an
 // unconditional denial regardless of a dirty tree.
 func TestPreserveNeverOverridesAnUnconditionalDenial(t *testing.T) {
@@ -336,7 +336,7 @@ func TestPreserveNeverAttemptedForAnUnresolvablePath(t *testing.T) {
 }
 
 // A stash entry is deliberately not preserved (see docs/decision-model.md),
-// so dropping one still denies exactly as before.
+// so dropping an entry still denies exactly as before.
 func TestPreserveNeverAttemptedForAStashEntry(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -377,7 +377,7 @@ func TestDeniesDeletingAPreservationRef(t *testing.T) {
 }
 
 // Same protection against a force push that deletes or overwrites the ref on
-// the remote -- the two other write shapes push can take.
+// the remote -- the other write shapes push can take.
 func TestDeniesForcePushDeletingOrOverwritingAPreservationRef(t *testing.T) {
 	dir := remoteRepo(t)
 	ref := makeStrandedPreservationRef(t, dir)
