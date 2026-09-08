@@ -8,13 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Every grammar this rule loads gets the same treatment: the same walk, the
-// same measure, the same repair. A language that only REPORTS is the failure
-// this pins -- the old path could repair Go alone, and every other language got
-// a finding nothing could act on.
-//
-// Each fixture is an over-long comment over one short declaration, written the
-// way that language writes both.
+// Every grammar gets the same walk, the same measure and the same repair. A
+// language that only REPORTS is the failure this pins: the old path repaired Go
+// alone, and every other language got a finding nothing could act on.
 var languageFixtures = map[string]string{
 	"x.go": "package p\n\n" + essay("//") + "const p = 1\n",
 	"x.c":  essay("//") + "int p = 1;\n",
