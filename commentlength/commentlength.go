@@ -187,6 +187,16 @@ func isDirective(line string) bool {
 // A paragraph goes before a line does, and the opening paragraph always survives.
 func trim(b block) []string {
 	kept := b.text
+
+	// Tighten before cutting. A padded comment fits once its filler is gone and
+	// it is reflowed, and keeping the whole thought beats losing the last one.
+	if tightened, did := tighten(kept); did {
+		if _, over := judge(block{text: tightened, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return tightened
+		}
+		kept = tightened
+	}
+
 	for len(kept) > 1 {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
@@ -206,11 +216,6 @@ func trim(b block) []string {
 
 // dropSentence removes the trailing lines back to the last sentence that ends,
 // and reports false when the run holds no earlier ending.
-//
-// A hard-wrapped comment breaks its sentences across lines, so cutting a line
-// at a time leaves a clause hanging and can strand an unclosed bracket. The
-// line cut is still the last resort, because a run with no ending anywhere must
-// shorten by something or the repair will not converge.
 func dropSentence(text []string) ([]string, bool) {
 	for i := len(text) - 1; i > 0; i-- {
 		if endsSentence(text[i-1]) {
