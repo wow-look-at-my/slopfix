@@ -82,6 +82,21 @@ func TestARewrittenParagraphKeepsItsShape(t *testing.T) {
 	assert.Empty(t, commentnumbers.Check("x.go", repair.Text))
 }
 
+// A comment following code on its line is repaired too, and the code in front
+// of it is not prose the rewrite may touch.
+func TestACommentFollowingCodeIsRepaired(t *testing.T) {
+	repair := commentnumbers.Fix("x.go", "\tb.CompleteAdding() // A second call changes nothing.\n")
+	assert.Equal(t, "\tb.CompleteAdding() // The next call changes nothing.\n", repair.Text)
+	assert.Empty(t, commentnumbers.Check("x.go", repair.Text))
+}
+
+// When the cut takes all of it, the code keeps its line and loses the comment.
+func TestACutTrailingCommentLeavesTheCode(t *testing.T) {
+	repair := commentnumbers.Fix("x.go", "\ts.Remove(2, 5) // 5 was never present\n")
+	assert.Equal(t, "\ts.Remove(2, 5)\n", repair.Text)
+	assert.Empty(t, commentnumbers.Check("x.go", repair.Text))
+}
+
 // A blank comment line the source already carried is a paragraph break somebody
 // wrote, so the repair leaves it where it is.
 func TestABlankCommentLineTheSourceCarriedSurvives(t *testing.T) {

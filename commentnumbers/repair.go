@@ -43,15 +43,19 @@ func Fix(filename, src string) Repair {
 	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
 
-// commentLineNumbers reports which lines of the source carry a comment. The
-// extractor answers where the comments are, so a marker inside a string literal
-// is left alone.
-func commentLineNumbers(filename, src string) map[int]bool {
-	out := make(map[int]bool)
+// commentLineNumbers reports where the comment starts on each line that carries
+// one, as a byte offset into the line. The extractor answers where the comments
+// are, so a marker inside a string literal is left alone.
+//
+// A comment that opens partway along a line follows code, and the offset is
+// what keeps that code out of the rewrite.
+func commentLineNumbers(filename, src string) map[int]int {
+	out := make(map[int]int)
 	for _, c := range source.Extract(filename, src) {
 		at := 1 + strings.Count(src[:c.Offset], "\n")
-		for i := range strings.Count(c.Text, "\n") + 1 {
-			out[at+i] = true
+		out[at] = c.Offset - (strings.LastIndexByte(src[:c.Offset], '\n') + 1)
+		for i := range strings.Count(c.Text, "\n") {
+			out[at+i+1] = 0
 		}
 	}
 	return out
@@ -63,13 +67,18 @@ func commentLineNumbers(filename, src string) map[int]bool {
 //
 // A paragraph rather than a line, because a sentence wraps: cutting the share
 // a line carries leaves the rest of that sentence dangling below it.
-func repairLines(lines []string, commented map[int]bool) (repaired []string, removed []string, blanked map[int]bool) {
+func repairLines(lines []string, commented map[int]int) (repaired []string, removed []string, blanked map[int]bool) {
 	blanked = make(map[int]bool)
 	for _, para := range paragraphsOf(lines, commented) {
 		said := Say(para.prose)
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
 		if said == para.prose {
+			continue
+		}
+		if said == "" && para.code != "" {
+			// A comment following code loses the comment, and the code stays.
+			lines[para.lines[0]] = strings.TrimRight(para.code, " \t")
 			continue
 		}
 		wrapped := wrap(said, para.marker, para.width)
@@ -101,17 +110,32 @@ type para struct {
 	prose string
 	// width is the longest line it already used, so a rewrite wraps as it did.
 	width int
+	// code is what sits before a comment that follows code on its line.
+	code string
 }
 
 // paragraphsOf groups a comment's lines into the paragraphs a rewrite acts on.
 // A directive, a blank comment line and a line carrying no marker all break the
 // run: none of them is prose a sentence continues through.
-func paragraphsOf(lines []string, commented map[int]bool) []para {
+func paragraphsOf(lines []string, commented map[int]int) []para {
 	var out []para
 	var current *para
 	for i, line := range lines {
-		marker, prose, ok := split(line)
-		if !commented[i+1] || !ok || prose == "" || isDirective(line) {
+		at, isComment := commented[i+1]
+		if !isComment || at > len(line) {
+			current = nil
+			continue
+		}
+		marker, prose, ok := split(line[at:])
+		marker = line[:at] + marker
+		if !ok || prose == "" || isDirective(line[at:]) {
+			current = nil
+			continue
+		}
+		if at > 0 {
+			// A comment following code stands alone: the code above it is not
+			// prose the sentence runs through, and the line cannot be rewrapped.
+			out = append(out, para{marker: marker, lines: []int{i}, prose: prose, width: len(line), code: line[:at]})
 			current = nil
 			continue
 		}

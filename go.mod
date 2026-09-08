@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
-	github.com/wow-look-at-my/go-containers v0.0.0-20260908132457-3756cfd161b0 // go-toolchain:auto-branch
+	github.com/wow-look-at-my/go-containers v0.0.0-20260908140812-16947cac4c86 // go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-tree-sitter v0.0.0-20260908135845-8de55c286140 // go-toolchain:auto-branch
 )
 
