@@ -68,11 +68,42 @@ func CheckFile(path string) ([]ste.Finding, error) {
 // separate code path for that answer is how the two drift apart.
 //
 // AllIDs names every rule this can report.
+//
+// The PATH decides, and a path this owns no rules for gets none. Falling
+// through to the prose rules for everything that is not a workflow judged a
+// source file as a document: `report --path a.go` came back with hard-wrap on
+// line 1, because a Go file's lines are not paragraphs. Every caller then had
+// to keep its own file-kind gate to undo that, which is the same decision made
+// twice and the shape a caller cannot be asked to hold.
 func CheckContent(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
 		return workflow.Check(content)
 	}
-	return Check(content)
+	if isDocument(path) {
+		return Check(content)
+	}
+	return nil
+}
+
+// documentExtensions are the files whose lines really are prose. A comment
+// inside a source file is prose too, and it is the comment rules that read it:
+// see the commentnumbers package, which extracts before it judges.
+var documentExtensions = []string{".md", ".markdown", ".mdown", ".txt"}
+
+// isDocument reports whether the prose rules own this file. An empty path is a
+// document, because a caller holding text and naming no file is asking about
+// prose rather than about a tree.
+func isDocument(path string) bool {
+	if path == "" {
+		return true
+	}
+	lower := strings.ToLower(path)
+	for _, ext := range documentExtensions {
+		if strings.HasSuffix(lower, ext) {
+			return true
+		}
+	}
+	return false
 }
 
 // AllIDs names every rule CheckContent reports, so a caller can reject a typo
