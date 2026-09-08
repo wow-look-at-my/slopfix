@@ -72,8 +72,8 @@ func Check(filename, src string) []Hit {
 	return hits
 }
 
-// Fix returns src with every over-long comment block cut back inside its budget, and whether anything changed.
-// Cutting is from the end and stops before the opening sentence.
+// Fix cuts every over-long comment block back inside its budget, from the end,
+// stopping before the opening sentence.
 func Fix(filename, src string) (string, bool) {
 	bs := blocks(filename, src)
 	if len(bs) == 0 {
@@ -107,10 +107,7 @@ func Fix(filename, src string) (string, bool) {
 }
 
 // judge measures a block against its code and names every measure it failed.
-//
-// The measures are independent, and a block can fail both. Lines catch the
-// essay above a short declaration. Characters catch the dense paragraph that
-// fits on fewer lines than the code but still outweighs it.
+// Lines catch an essay; characters catch a dense paragraph.
 func judge(b block) (string, bool) {
 	if b.codeLines == 0 {
 		return "", false
@@ -132,8 +129,7 @@ func judge(b block) (string, bool) {
 }
 
 // measure counts the non-blank lines and the non-whitespace characters of a
-// run of text. Indentation therefore carries no cost, and the same function
-// measures a comment and its code, so both counts compare directly.
+// run of text, so indentation costs nothing and both counts compare directly.
 func measure(text []string) (lines, chars int) {
 	for _, line := range text {
 		content := false
@@ -151,9 +147,8 @@ func measure(text []string) (lines, chars int) {
 	return lines, chars
 }
 
-// prose drops the directive lines from a block. A build constraint or a
-// generate line is an instruction to a tool rather than prose, so measuring it
-// reports a block nobody wrote as an essay.
+// prose drops the directive lines from a block. A build constraint is an
+// instruction to a tool, so measuring it reports an essay nobody wrote.
 func prose(text []string) []string {
 	kept := make([]string, 0, len(text))
 	for _, line := range text {

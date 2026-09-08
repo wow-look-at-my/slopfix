@@ -31,10 +31,8 @@ func assistantCall(name, input string) string {
 		`[{"type":"tool_use","name":"` + name + `","input":` + input + `}]}}`
 }
 
-// jsonString quotes text the way the harness does. Claude Code writes the
-// transcript from JavaScript, whose JSON.stringify leaves `<` alone, while
-// Go's json.Marshal escapes it -- so marshaling here would build a fixture no
-// real transcript looks like, and a test passing on it would prove nothing.
+// jsonString quotes text the way the harness does. Go's json.Marshal escapes
+// `<` and JavaScript does not, so marshaling builds an unreal fixture.
 func jsonString(text string) string {
 	var b strings.Builder
 	enc := json.NewEncoder(&b)

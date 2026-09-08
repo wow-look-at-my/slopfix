@@ -42,8 +42,7 @@ func init() {
 	rootCmd.AddCommand(command)
 }
 
-// reportFinding is this command's wire contract, named apart from ste.Finding
-// so a field the library renames cannot silently change what a caller reads.
+// reportFinding is this command's wire contract, held apart from ste.Finding so a rename cannot change it.
 type reportFinding struct {
 	// ID names the rule, the way a compiler names a warning.
 	ID string `json:"id"`

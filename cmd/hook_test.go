@@ -103,9 +103,8 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "There are rules below.", edits[2].(map[string]any)["new_string"])
 }
 
-// A finding no rewrite resolves refuses the write, rather than letting a
-// half-repaired write through. A trailing comment shares its line with code, so
-// deleting the line would take the code with it.
+// A finding no rewrite resolves refuses the write. A trailing comment shares
+// its line with code, so deleting the line takes the code too.
 func TestAFindingNoRewriteResolvesRefusesTheWrite(t *testing.T) {
 	src := "func x() {} // The owner said to keep this.\n"
 	got := ask(t, write("a.go", src), "tombstones")

@@ -17,9 +17,7 @@ import (
 // messageJSON writes the whole answer as an object, which is what a hook reads.
 var messageJSON bool
 
-// messageOnly narrows the run to the named rules. The stop refusal wants the
-// punt and the display annotation wants the deflection, so a command serving
-// both has to be selectable.
+// messageOnly narrows the run to the named rules, since each caller wants its own.
 var messageOnly []string
 
 // messageHit is this command's finding, flattened out of the packages so the
@@ -32,7 +30,7 @@ type messageHit struct {
 }
 
 // messageIDs names every rule this command can report, so a typo is rejected
-// rather than silently selecting nothing and reading as a clean message.
+// rather than reading as a clean message.
 func messageIDs() set.Set[string] {
 	return set.Of(laziness.ID, blamelanguage.ID)
 }

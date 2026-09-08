@@ -30,9 +30,7 @@ func goBlocks(src string) (out []block, ok bool) {
 	}
 	lines := splitLines(src)
 
-	// documented pairs a comment group with the node it is attached to. The
-	// parser has already decided that attachment, which is the judgement the
-	// line walk was making for itself.
+	// documented takes the parser's own attachment, which the line walk guessed at.
 	for group, node := range documented(file) {
 		// The package doc is never measured. It introduces the file rather than
 		// a declaration, so there is nothing of a comparable size to weigh it

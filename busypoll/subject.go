@@ -35,8 +35,8 @@ var statusReadTools = set.Of(
 	"tasklist",
 )
 
-// statusReadCommands are the Bash spellings of the same question, matched in statement position.
-// Every entry runs `gh`, and no entry may ever run `git`: a `git` command reads local objects.
+// statusReadCommands are the Bash spellings of the same question, in statement
+// position. Every entry runs `gh`: `git` reads local objects.
 var statusReadCommands = []string{
 	"gh wait-ci",
 	"gh pr view",
@@ -48,8 +48,8 @@ var statusReadCommands = []string{
 	"gh run watch",
 }
 
-// contentSubcommands read a run's OUTPUT rather than its state: logs, searches, annotations, artifacts, jobs.
-// None of them is the poll this guard exists to stop, since a finished run's output does not change.
+// contentSubcommands read a run's OUTPUT rather than its state, which a
+// finished run does not change.
 var contentSubcommands = set.Of(
 	"log", "grep", "annotations", "artifacts", "jobs", "workflows",
 )
@@ -137,8 +137,8 @@ func statementLen(s string) int {
 // reCommand is hoisted because the ledger walk reads every Bash call in the window.
 var reCommand = regexp.MustCompile(`"command"\s*:\s*"((?:[^"\\]|\\.)*)"`)
 
-// commandOf pulls the command string out of a Bash call's input, undone to the text the shell would have run.
-// It shares the record walk's replacer, since encoders differ on whether `&&` arrives in numeric unicode form.
+// commandOf pulls the command out of a Bash call's input, undone to the text
+// the shell would have run. Encoders differ on how `&&` arrives.
 func commandOf(input []byte) string {
 	m := reCommand.FindSubmatch(input)
 	if m == nil {

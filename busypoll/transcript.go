@@ -54,8 +54,8 @@ type turn struct {
 	endedAt   time.Time
 }
 
-// parseTurns reads the tail of the transcript at path and segments it into turns.
-// An unreadable transcript returns nil, which never triggers a refusal.
+// parseTurns reads the tail of the transcript and segments it into turns.
+// An unreadable transcript returns nil, which never refuses.
 func parseTurns(path string) []turn {
 	if path == "" {
 		return nil

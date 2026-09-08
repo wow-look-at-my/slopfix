@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// spans reports what the scanner decided, so a case asserts the measurement
-// rather than only the verdict. A wrong span is what deletes the wrong prose.
+// spans reports what the scanner decided, so a case asserts the measurement.
+// A wrong span deletes the wrong prose.
 func spans(t *testing.T, src string) []block {
 	t.Helper()
 	return blocks("x.go", src)
