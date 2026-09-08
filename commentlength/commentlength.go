@@ -195,9 +195,44 @@ func trim(b block) []string {
 			kept = next
 			continue
 		}
+		if next, ok := dropSentence(kept); ok {
+			kept = next
+			continue
+		}
 		kept = kept[:len(kept)-1]
 	}
 	return kept
+}
+
+// dropSentence removes the trailing lines back to the last sentence that ends,
+// and reports false when the run holds no earlier ending.
+//
+// A hard-wrapped comment breaks its sentences across lines, so cutting a line
+// at a time leaves a clause hanging and can strand an unclosed bracket. The
+// line cut is still the last resort, because a run with no ending anywhere must
+// shorten by something or the repair will not converge.
+func dropSentence(text []string) ([]string, bool) {
+	for i := len(text) - 1; i > 0; i-- {
+		if endsSentence(text[i-1]) {
+			return text[:i], true
+		}
+	}
+	return text, false
+}
+
+// endsSentence reports a comment line whose prose closes. It reads past a
+// closing bracket or quote, so a line ending `... (see above).` counts.
+func endsSentence(line string) bool {
+	t := strings.TrimRight(strings.TrimSpace(line), `)]}"'`+"`")
+	if t == "" {
+		return false
+	}
+	switch t[len(t)-1] {
+	case '.', '!', '?':
+		// An ellipsis or an abbreviation is not the end of a thought.
+		return !strings.HasSuffix(t, "..") && !strings.HasSuffix(t, "e.g.") && !strings.HasSuffix(t, "i.e.")
+	}
+	return false
 }
 
 // dropParagraph removes the last blank-separated paragraph, and reports false when no break remains.
