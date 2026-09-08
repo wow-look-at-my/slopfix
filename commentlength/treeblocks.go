@@ -132,10 +132,14 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 	if !startsComment(strings.TrimSpace(lines[start])) {
 		return block{}, false
 	}
-	if next >= count {
-		return block{}, false
-	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
+	// A run with nothing after it documents nothing. The package doc is the
+	// exemption, and it is taken before this, so what is left is prose trailing
+	// off the end of a file with no construct to weigh it against.
+	if next >= count {
+		b.documents = "nothing"
+		return b, true
+	}
 	documented := firstStatement(parent.NamedChild(next))
 	b.codeLines, b.codeChars = nodeSpan(documented, lines)
 	b.documents = fmt.Sprintf("%s@%d-%d/in:%s", documented.Type(),
@@ -164,7 +168,7 @@ func firstStatement(node ts.Node) ts.Node {
 
 func isSequence(node ts.Node) bool {
 	count := node.NamedChildCount()
-	if count < 2 || node.StartByte() != node.NamedChild(0).StartByte() {
+	if count == 0 || node.StartByte() != node.NamedChild(0).StartByte() {
 		return false
 	}
 	if node.NamedChild(0).EndPoint().Row >= node.EndPoint().Row {
