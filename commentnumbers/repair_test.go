@@ -9,8 +9,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentnumbers"
 )
 
-// header is the package clause every fixture needs: a Go file without it does
-// not parse, and an unparsed file has no comments to repair.
+// header is the package clause a fixture needs to parse as Go.
 const header = "package p\n\n"
 
 // fix repairs a fixture and hands back the repair with the header off, so a

@@ -133,7 +133,7 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 	return out
 }
 
-// indentOf reports the column a line's first non-blank byte sits at.
+// indentOf reports the column a line's leading non-blank byte sits at.
 func indentOf(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
 }

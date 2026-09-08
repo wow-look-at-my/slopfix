@@ -42,9 +42,7 @@ var grammars = map[string]func() *ts.Language{
 	".mts":  typescript.Language,
 	".cts":  typescript.Language,
 	".tsx":  tsx.Language,
-	// A hash-comment format is read by the bash grammar: what it recovers from
-	// a file that is not a script is the comment lines, which is all a comment
-	// rule asks of it.
+	// The bash grammar reads a hash-comment format: it recovers the comments.
 	".yml":  bash.Language,
 	".yaml": bash.Language,
 	".toml": bash.Language,
@@ -52,9 +50,7 @@ var grammars = map[string]func() *ts.Language{
 	".zsh":  bash.Language,
 }
 
-// Supported reports whether a grammar parses a file of that name. A walk reads
-// it before opening a file, so a tree it has no grammar for is skipped rather
-// than guessed at.
+// Supported reports whether a grammar parses a file of that name.
 func Supported(filename string) bool { return grammarFor(filename) != nil }
 
 // grammarFor answers the grammar an extension names, and nil when none does.
@@ -66,9 +62,8 @@ func grammarFor(filename string) *ts.Language {
 }
 
 // languageFor answers the grammar to read a file with. Naming a file IS the
-// request, so one whose extension names no grammar is read by the bash grammar
-// rather than skipped: a Dockerfile, a Makefile and a dotfile all carry hash
-// comments, and that is what the caller asked about.
+// request, so an unknown extension falls back to bash: a Dockerfile and a
+// dotfile carry hash comments.
 func languageFor(filename string) *ts.Language {
 	if language := grammarFor(filename); language != nil {
 		return language
@@ -82,25 +77,20 @@ type Comment struct {
 	Offset int
 	// Line is where it starts, counting from the top of the file.
 	Line int
-	// Col is the byte it starts at within that line, counting from the left.
-	// A comment with code before it on the line has a column past the indent,
-	// and that is what tells the two apart.
+	// Col is the byte it starts at in that line: past the indent means it
+	// follows code.
 	Col int
-	// Lines is how many lines it spans: more than a single line for a block
-	// comment, and always a single line for the line-comment form.
+	// Lines is how many lines it spans.
 	Lines int
 }
 
-// Run is a stack of comments on adjoining lines, sharing a left edge. It is the
-// paragraph a rewrite acts on: a sentence wraps across the lines of a run, so a
-// repair that reads a line alone cuts sentences in half.
+// Run is a stack of comments on adjoining lines, sharing a left edge.
 type Run []Comment
 
 // Runs groups a file's comments into the paragraphs a rewrite acts on.
 //
-// A run breaks where the tree says the comments stop adjoining, where the left
-// edge moves, and where a comment follows code: none of those continues the
-// sentence above it.
+// A run breaks where the comments stop adjoining, where the left edge moves,
+// and where a comment follows code.
 func Runs(filename, src string) []Run {
 	var out []Run
 	for _, c := range Extract(filename, src) {
@@ -117,8 +107,7 @@ func Runs(filename, src string) []Run {
 	return out
 }
 
-// indentOf reports the column the line's first non-blank byte sits at, so a
-// comment that follows code can be told from one that opens its line.
+// indentOf reports the column the line's leading non-blank byte sits at.
 func indentOf(src string, c Comment) int {
 	start := strings.LastIndexByte(src[:c.Offset], '\n') + 1
 	return len(src[start:c.Offset]) - len(strings.TrimLeft(src[start:c.Offset], " \t"))
@@ -126,9 +115,8 @@ func indentOf(src string, c Comment) int {
 
 // Extract returns every comment in the source, in source order.
 //
-// A file no grammar covers yields nothing. A file with a syntax error does
-// not: tree-sitter recovers around the error, so the comments it does find sit
-// where it says they do, and a rule answers on a file mid-edit.
+// A syntax error yields comments anyway: tree-sitter recovers around it, so a
+// rule still answers on a file mid-edit.
 func Extract(filename, src string) []Comment {
 	language := languageFor(filename)
 	if language == nil {
