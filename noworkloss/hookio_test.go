@@ -24,10 +24,8 @@ func captureStdout(t *testing.T, fn func()) string {
 	return string(out)
 }
 
-// The denial payload is a contract with the CLI, which rejects a body whose
-// hookEventName is not the event it dispatched. Asserting on the raw keys is
-// the point: unmarshalling into the producing struct would agree with itself
-// no matter what the field names were.
+// The denial payload is a contract with the CLI. Asserting on the raw keys is
+// the point: the producing struct would agree with itself.
 func TestDenialPayloadMatchesTheDocumentedSchema(t *testing.T) {
 	out := captureStdout(t, func() { emitDeny("blocked: something\nrun: git status") })
 

@@ -87,8 +87,8 @@ func preserved(t *testing.T, cwd, command string) string {
 	return strings.Join(notices, "\n")
 }
 
-// fill substitutes the tree and output directories into a case's command.
-// Named tokens rather than printf verbs, which mangle a shell command.
+// fill substitutes the tree and output directories into a case's command,
+// with named tokens rather than printf verbs.
 func fill(cmd, root, out string) string {
 	return strings.NewReplacer("{{tree}}", root, "{{out}}", out).Replace(cmd)
 }
@@ -99,10 +99,8 @@ func writeFile(t *testing.T, path, content string) {
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o755))
 }
 
-// lossOnly asks the destruction half by itself. A handful of cases below are
-// about hazard classes -- which content a verb spares -- and the provenance half
-// answers a different question about the same command, so those tests name the
-// half they mean instead of asserting on the merged verdict.
+// lossOnly asks the destruction half by itself, for the hazard-class cases
+// the provenance half answers differently.
 func lossOnly(t *testing.T, cwd, command string) string {
 	t.Helper()
 	reason, _ := evaluateLoss(command, cwd)

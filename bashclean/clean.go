@@ -120,8 +120,7 @@ func printFile(f *syntax.File) string {
 func word(v string) *syntax.Word {
 	return &syntax.Word{Parts: []syntax.WordPart{&syntax.Lit{Value: v}}}
 }
-func literal(w *syntax.Word) (string, bool)  { return wordLiteral(w) }
-func args(c *syntax.CallExpr) []*syntax.Word { return c.Args }
+func literal(w *syntax.Word) (string, bool) { return wordLiteral(w) }
 func cmd(c *syntax.CallExpr) string {
 	if len(c.Args) == 0 {
 		return ""
@@ -214,17 +213,6 @@ func hasStatementCall(f *syntax.File, p func(*syntax.CallExpr) bool) bool {
 }
 
 func isWord(w *syntax.Word, v string) bool { s, ok := literal(w); return ok && s == v }
-func allStatic(ws []*syntax.Word) bool {
-	for _, w := range ws {
-		if _, ok := literal(w); !ok {
-			return false
-		}
-	}
-	return true
-}
-func replaceArgs(c *syntax.CallExpr, i int, ws ...*syntax.Word) {
-	c.Args = append(append(append([]*syntax.Word{}, c.Args[:i]...), ws...), c.Args[i+1:]...)
-}
 
 // Scrub the stderr discard, tree-wide. A discarded stderr turns one command
 // into two: the command, and a call asking whether it worked.

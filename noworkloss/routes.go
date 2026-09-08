@@ -272,8 +272,8 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 // ordinary refactoring. A source from outside is the splice this closes: write a
 // file to /tmp with Write, then move it over the target.
 //
-// `cp` is NOT routed here. Copying is how a tree of files gets put in place, and
-// denying it forces every such move through the Write tool one file at a time.
+// `cp` is NOT routed here. Copying is how a tree of files gets put in place,
+// and denying it forces every such move through the Write tool per file.
 func copyWrites(seg segment, name string, rest []word, roots []string) []write {
 	flags, operands := scanArgs(rest, set.Of[string](
 		"-t", "--target-directory", "-S", "--suffix",

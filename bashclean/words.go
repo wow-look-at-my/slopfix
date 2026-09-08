@@ -7,7 +7,6 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-func lit(v string) *syntax.Word { return &syntax.Word{Parts: []syntax.WordPart{&syntax.Lit{Value: v}}} }
 func wordLiteral(w *syntax.Word) (string, bool) {
 	if w == nil || len(w.Parts) == 0 {
 		return "", false
@@ -33,21 +32,6 @@ func wordLiteral(w *syntax.Word) (string, bool) {
 	}
 	return b.String(), true
 }
-func litOf(w *syntax.Word) string          { s, _ := wordLiteral(w); return s }
-func wordIs(w *syntax.Word, v string) bool { s, ok := wordLiteral(w); return ok && s == v }
-func wordLitPrefix(w *syntax.Word) string  { s, _ := wordLiteral(w); return s }
-func callName(cmd syntax.Command) string {
-	c, ok := cmd.(*syntax.CallExpr)
-	if !ok || len(c.Args) == 0 {
-		return ""
-	}
-	s, ok := wordLiteral(c.Args[0])
-	if !ok {
-		return ""
-	}
-	return s
-}
-
 type effCmd struct {
 	name  string
 	index int

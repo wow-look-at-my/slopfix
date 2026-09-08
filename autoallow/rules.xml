@@ -332,6 +332,9 @@
 		<test cmd="go test -run TestX ./pkg" expect="deny"/>
 		<test cmd="cd pkg &amp;&amp; go test ./..." expect="deny"/>
 		<test cmd="go test ./... | grep FAIL" expect="deny"/>
+		<test cmd="grep -n 'go build' rules.xml" expect=""/>
+		<test cmd="grep -rn &quot;go test&quot; docs/" expect=""/>
+		<test cmd="git commit -m 'go build notes'" expect=""/>
 		<rule name="version" allowedFlags="*"/>
 		<rule name="env" allowedFlags="*"/>
 		<rule name="doc" allowedFlags="*"/>
