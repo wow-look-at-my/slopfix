@@ -17,18 +17,47 @@
 package commentlength
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/source"
 )
 
-// maxCodeLines bounds how far a block's code is followed.
+// maxCodeLines bounds how far the LINE WALK follows a block's code. It is a
+// guard on a guess, and it has no counterpart in commentspan: the Go path takes
+// an exact span from the parser and follows the node however far it runs.
 const maxCodeLines = 40
+
+// generatedMarker is the canonical generated-file header. commentspan skips a
+// file carrying it, because nobody can act on a finding in generated code.
+var generatedMarker = regexp.MustCompile(`^\s*(?://+|#+)\s*Code generated .* DO NOT EDIT\.$`)
+
+// isGenerated reports the marker in the file's header, above the first line of
+// code. commentspan looks for it above the package clause, which is that
+// region for a Go file.
+func isGenerated(lines []string) bool {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if !startsComment(trimmed) {
+			return false
+		}
+		if generatedMarker.MatchString(line) {
+			return true
+		}
+	}
+	return false
+}
 
 // blocks returns every comment block in the file, each with the code it
 // documents measured beside it.
 func blocks(filename, src string) []block {
 	if !source.Supported(filename) {
+		return nil
+	}
+	if isGenerated(splitLines(src)) {
 		return nil
 	}
 	// Go is parsed rather than walked: this rule deletes comment text, so it

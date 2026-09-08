@@ -31,7 +31,7 @@ func goBlocks(src string) (out []block, ok bool) {
 	lines := splitLines(src)
 
 	// documented takes the parser's own attachment, which the line walk guessed at.
-	for group, node := range documented(file) {
+	for group, node := range documented(fset, file) {
 		// The package doc is never measured. It introduces the file rather than
 		// a declaration, so there is nothing of a comparable size to weigh it
 		// against, and the check this rule replaces skips it for that reason.
@@ -43,6 +43,12 @@ func goBlocks(src string) (out []block, ok bool) {
 		if start < 0 || end > len(lines) || start >= end {
 			continue
 		}
+		// A trailing comment shares its line with code. Measuring that line
+		// counts the code as comment text, and cutting it deletes the code, so
+		// this rule leaves one alone where commentspan measures it.
+		if !startsComment(strings.TrimSpace(lines[start])) {
+			continue
+		}
 		b := block{start: start, end: end, text: lines[start:end], exact: true}
 		b.codeLines, b.codeChars = spanOf(fset, lines, node)
 		out = append(out, b)
@@ -50,56 +56,36 @@ func goBlocks(src string) (out []block, ok bool) {
 	return out, true
 }
 
-// documented walks the file for every node carrying a doc comment.
-// Only a doc comment is measured: a free-floating comment documents nothing.
-func documented(file *ast.File) map[*ast.CommentGroup]ast.Node {
+// documented pairs each comment group with the node it belongs to.
+//
+// It asks ast.NewCommentMap, which is what commentspan asks. A hand-rolled walk
+// over the declaration kinds saw a DOC comment and nothing else, so a comment
+// inside a function body -- the commonest essay in this codebase -- was
+// measured by the gate and reported by nothing here.
+func documented(fset *token.FileSet, file *ast.File) map[*ast.CommentGroup]ast.Node {
 	out := map[*ast.CommentGroup]ast.Node{}
-	add := func(doc *ast.CommentGroup, node ast.Node) {
-		if doc != nil && node != nil {
-			out[doc] = node
+	for node, groups := range ast.NewCommentMap(fset, file, file.Comments) {
+		for _, g := range groups {
+			out[g] = node
 		}
 	}
-	add(file.Doc, file)
-
-	ast.Inspect(file, func(n ast.Node) bool {
-		switch d := n.(type) {
-		case *ast.GenDecl:
-			add(d.Doc, d)
-		case *ast.FuncDecl:
-			add(d.Doc, d)
-		case *ast.TypeSpec:
-			add(d.Doc, d)
-		case *ast.ValueSpec:
-			add(d.Doc, d)
-		case *ast.Field:
-			add(d.Doc, d)
-		}
-		return true
-	})
 	return out
 }
 
 // spanOf measures the node a comment documents: how many source lines it
 // occupies, and how many characters of code those lines hold.
 //
-// A package clause is the exception. The file node spans the whole file, and
-// weighing a package comment against every line below it means no package
-// comment can ever be too long. It is measured against its own clause.
+// The span is followed however far the node runs, which is what commentspan
+// does. A cap here reported a long function's proportionate comment as an
+// essay, because the code it was weighed against stopped short.
 func spanOf(fset *token.FileSet, lines []string, node ast.Node) (int, int) {
 	from := fset.Position(node.Pos()).Line - 1
 	to := fset.Position(node.End()).Line
-	if file, isFile := node.(*ast.File); isFile {
-		from = fset.Position(file.Name.Pos()).Line - 1
-		to = from + 1
-	}
 	if from < 0 {
 		from = 0
 	}
 	if to > len(lines) {
 		to = len(lines)
-	}
-	if to > from+maxCodeLines {
-		to = from + maxCodeLines
 	}
 
 	code := make([]string, 0, to-from)

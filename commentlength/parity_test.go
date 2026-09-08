@@ -64,9 +64,15 @@ func TestADirectiveLineIsNotProse(t *testing.T) {
 // as a directive would drop real text out of the measurement.
 func TestASentenceWithAColonIsStillProse(t *testing.T) {
 	long := "// Never derive this: the server owns the URL grammar, and building it " +
-		"here means owning a copy of that grammar for the rest of time."
+		"here means owning a copy of that grammar for the rest of time, which " +
+		"is a copy that goes stale the first time the server changes its mind."
 	src := "package p\n\n" + long + "\nconst u = \"x\"\n"
 	assert.NotEmpty(t, Check("x.go", src), "the colon does not make this a directive")
+
+	// The control: the same sentence spelled as a directive is dropped, so the
+	// case above proves the colon was read as prose.
+	src = "package p\n\n//go:generate stringer -type=Kind\nconst u = \"x\"\n"
+	assert.Empty(t, Check("x.go", src))
 }
 
 // The package doc introduces the file rather than a declaration, so there is
