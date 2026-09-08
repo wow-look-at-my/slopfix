@@ -25,14 +25,13 @@ const (
 	RuleWrap Rule = "wrap"
 	// RuleSTE reports what fails the merge gate and repairs nothing.
 	RuleSTE Rule = "ste"
-	// RuleCommentLength cuts a comment back inside the code it documents.
-	RuleCommentLength Rule = "comments"
-	// RuleCommentNumbers says in words the number a comment states.
-	RuleCommentNumbers Rule = "numbers"
+	// RuleComments is what a comment owes its code: a block that fits inside
+	// it, and a number said in words rather than stated.
+	RuleComments Rule = "comments"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleCommentLength, RuleCommentNumbers}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -46,10 +45,8 @@ func IDsFor(rule Rule) set.Set[string] {
 		return set.Of(IDHardWrap)
 	case RuleSTE:
 		return ste.AllIDs
-	case RuleCommentLength:
-		return set.Of(commentlength.ID)
-	case RuleCommentNumbers:
-		return set.Of(commentnumbers.ID)
+	case RuleComments:
+		return set.Of(commentlength.ID, commentnumbers.ID)
 	}
 	return set.New[string]()
 }
@@ -110,7 +107,7 @@ func Fix(req Request) Repair {
 
 	// The comment-length repair reads source rather than prose, so it runs
 	// before the document gate below sends a source file home.
-	if wants(RuleCommentLength) && keeps(commentlength.ID) && req.Path != "" {
+	if wants(RuleComments) && keeps(commentlength.ID) && req.Path != "" {
 		cut, changed := commentlength.Fix(req.Path, text)
 		if changed {
 			text = cut
@@ -128,7 +125,7 @@ func Fix(req Request) Repair {
 
 	// The number repair reads source too, and runs after the length cut: a
 	// sentence the cut already took is a sentence this one need not rewrite.
-	if wants(RuleCommentNumbers) && keeps(commentnumbers.ID) && req.Path != "" {
+	if wants(RuleComments) && keeps(commentnumbers.ID) && req.Path != "" {
 		said := commentnumbers.Fix(req.Path, text)
 		if said.Changed {
 			text = said.Text
