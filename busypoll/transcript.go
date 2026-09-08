@@ -1,7 +1,7 @@
 // transcript.go turns the flat JSONL transcript into an ordered list of
 // turns, where a turn is everything the assistant did between a real user
 // prompt and the next. A tool_result record answers a call made earlier in
-// the SAME turn, so it never starts a new one; only a genuine new prompt
+// the SAME turn, so it never starts a fresh turn; only a genuine new prompt
 // does -- a real user message, or the text a Stop hook injects on refusal.
 package busypoll
 
@@ -14,8 +14,7 @@ import (
 	"time"
 )
 
-// transcriptTailBytes bounds the read. A long session's transcript reaches
-// hundreds of megabytes, and only the most recent turns matter here.
+// transcriptTailBytes bounds the read, since only the most recent turns matter.
 const transcriptTailBytes = 6 << 20 // 6 MiB
 
 // rawRecord is a JSONL line, reduced to the fields a turn needs.
@@ -30,9 +29,7 @@ type rawRecord struct {
 	} `json:"message"`
 }
 
-// rawBlock is a block inside a message's content array. ID/ToolUseID/IsError
-// tie a call to its result, which is how a read that ERRORED is told apart
-// from one that answered: only the answered read taught the session anything.
+// rawBlock is a block inside a message's content array. ID/ToolUseID/IsError tie a call to its result.
 type rawBlock struct {
 	Type      string          `json:"type"`
 	Name      string          `json:"name,omitempty"`
@@ -49,9 +46,7 @@ type call struct {
 	disp  string // "Name: <readable input>", used in the message
 }
 
-// turn is everything the assistant did between two real prompts: which
-// tools it called (sig, for comparing turns; calls, for display) and when
-// it started and finished, so an idle gap before it can be measured.
+// turn is everything the assistant did between prompts, plus when it started and finished.
 type turn struct {
 	calls     []call
 	sig       string
@@ -59,10 +54,8 @@ type turn struct {
 	endedAt   time.Time
 }
 
-// parseTurns reads the tail of the transcript at path and segments it into
-// turns. An unreadable or empty transcript returns nil, which never
-// triggers a refusal -- a guard that blocks on its own read failure is
-// worse than no guard.
+// parseTurns reads the tail of the transcript at path and segments it into turns.
+// An unreadable transcript returns nil, which never triggers a refusal.
 func parseTurns(path string) []turn {
 	if path == "" {
 		return nil
@@ -152,11 +145,7 @@ func parseTurns(path string) []turn {
 	return turns
 }
 
-// isNewPrompt reports whether a "user"-role record is a genuine new prompt
-// (real user text, or a Stop hook's injected refusal reason) rather than a
-// tool_result answering a call earlier in the same turn. A record whose
-// content is not a parseable block array -- a plain string, the shape a
-// simple user message can take -- counts as a genuine prompt too.
+// isNewPrompt reports whether a "user"-role record is a genuine new prompt rather than a tool_result.
 func isNewPrompt(content json.RawMessage) bool {
 	var blocks []rawBlock
 	if json.Unmarshal(content, &blocks) != nil {
@@ -173,9 +162,7 @@ func isNewPrompt(content json.RawMessage) bool {
 	return false
 }
 
-// canonicalJSON re-marshals input with sorted object keys, so two calls
-// built from the same field values compare equal regardless of the order a
-// map happened to iterate in when they were first encoded.
+// canonicalJSON re-marshals input with sorted object keys, so calls built from the same values compare equal.
 func canonicalJSON(input json.RawMessage) string {
 	if len(input) == 0 {
 		return ""
@@ -212,8 +199,7 @@ func renderCall(name string, input json.RawMessage) string {
 	return name
 }
 
-// oneLine collapses internal whitespace and truncates to n characters, so a
-// wrapped command or a large JSON blob still fits a message line.
+// oneLine collapses internal whitespace and truncates to n characters.
 func oneLine(s string, n int) string {
 	s = strings.Join(strings.Fields(s), " ")
 	if len(s) <= n {
@@ -222,9 +208,7 @@ func oneLine(s string, n int) string {
 	return s[:n] + "..."
 }
 
-// readTail returns the JSONL lines from the last maxBytes of the file at
-// path. When the file is longer than the window the leading line is dropped,
-// so no half record is parsed.
+// readTail returns the JSONL lines from the last maxBytes of the file at path, dropping a partial leading line.
 func readTail(path string, maxBytes int64) ([][]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {

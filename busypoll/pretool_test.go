@@ -128,8 +128,6 @@ func callWithID(id, command string) string {
 }
 
 // describedCall is callWithID plus the `description` a real Bash call carries.
-// A read counts only once it has ANSWERED, so a description test built on an
-// id-less call proves nothing.
 func describedCall(id, command, description string) string {
 	b, _ := json.Marshal(map[string]any{
 		"type": "assistant", "timestamp": "2026-09-05T01:00:00Z",
@@ -252,8 +250,8 @@ func TestALocalGitCommandIsNeverAStatusRead(t *testing.T) {
 }
 
 func TestASHAInANeighbouringStatementIsNotTheSubject(t *testing.T) {
-	// The earlier call asked GitHub about a pull request and, in a second
-	// statement, read a local object.
+	// The earlier call asked GitHub about a pull request, then read a local
+	// object in a later statement.
 	const sha = "4f7cea8b1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f60"
 	tr := stageTranscript(t,
 		callIn("t1", "gh pr view 130 && git show "+sha+":go.mod", "s", false),
@@ -399,8 +397,8 @@ func TestAUserPromptReopensTheSubject(t *testing.T) {
 }
 
 func TestReadingALogIsNotReadingAState(t *testing.T) {
-	// Two jobs failed on a commit. Reading the second one's log is new
-	// information, and refusing it leaves the session unable to diagnose.
+	// A log is new information, and refusing it leaves the session unable to
+	// diagnose the failure it was woken for.
 	tr := stageTranscript(t,
 		bashCall("gh wait-ci --sha 9b348b7"),
 		toolResult(`{"sha":"9b348b7","conclusion":"failure"}`),
@@ -418,7 +416,7 @@ func TestReadingALogIsNotReadingAState(t *testing.T) {
 
 func TestReadingTheStateAgainIsStillARepeat(t *testing.T) {
 	// The negative control for the case above. `watch` answers the question the
-	// log does not, and asking twice learns nothing.
+	// log does not, and re-asking it learns nothing.
 	tr := stageTranscript(t,
 		callWithID("t1", "gh wait-ci --sha 9b348b7"),
 		resultFor("t1", `{"sha":"9b348b7","conclusion":"failure"}`, false),
@@ -482,7 +480,7 @@ func TestADescriptionNamingACommitIsNotAReadOfIt(t *testing.T) {
 }
 
 // The same defect in the other direction: a read RECORDED off a description
-// makes the first genuine read of that commit look like a repeat.
+// makes a genuine later read of that commit look like a repeat.
 func TestADescriptionDoesNotMarkASubjectAsAlreadyRead(t *testing.T) {
 	tr := stageTranscript(t,
 		describedCall("t1", "gh wait-ci runs --branch claude/fix",

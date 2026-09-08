@@ -3,11 +3,10 @@
 // scheduled wakeup could plausibly explain the repeat.
 //
 // Spacing is what separates this from a legitimate watch loop. A session
-// that re-checks a pull request every twenty minutes via a scheduled trigger
-// repeats the same command too, but each repeat follows a genuine gap; a
-// busy-poll repeats it turn after turn with the gap measured in seconds.
-// Only the second shape wastes tokens for nothing, so only the second shape
-// refuses.
+// that re-checks a pull request on a scheduled trigger repeats the same
+// command too, but each repeat follows a genuine gap; a busy-poll repeats it
+// turn after turn with the gap measured in seconds. Only the latter shape
+// wastes tokens for nothing, so only the latter shape refuses.
 package busypoll
 
 import (
@@ -16,14 +15,10 @@ import (
 	"time"
 )
 
-// defaultThreshold is how many closely-spaced identical turns in a row it
-// takes to refuse. A few quick re-checks can be a person iterating by hand;
-// more than that with no real gap is a loop.
+// defaultThreshold is how many closely-spaced identical turns in a row it takes to refuse.
 const defaultThreshold = 4
 
-// defaultMaxGap bounds "closely spaced". A properly-armed wakeup in this
-// environment is never shorter than a few minutes, so a gap under this
-// counts as no real wait having happened.
+// defaultMaxGap bounds "closely spaced": a gap under it counts as no real wait having happened.
 const defaultMaxGap = 5 * time.Minute
 
 func threshold() int {
@@ -45,8 +40,8 @@ func maxGap() time.Duration {
 }
 
 // streak returns the length of the trailing run of turns sharing the last
-// turn's signature, each following the one before it within maxGap, plus
-// that last turn's calls for display. It returns (0, nil) when the last
+// turn's signature, each following its predecessor within maxGap, plus
+// that last turn's calls for display. It returns nothing when the last
 // turn made no tool call at all -- there is nothing repeated to refuse.
 func streak(turns []turn) (int, []call) {
 	if len(turns) == 0 {

@@ -113,11 +113,7 @@ func callText(c toolCall) string {
 	return c.name + " " + string(c.input)
 }
 
-// unescapeReplacer undoes a level of JSON string escaping. The \uXXXX
-// entries cover the characters a Go encoder escapes by default and a
-// JavaScript one leaves alone: a transcript written by either must read the
-// same, or a wake envelope is invisible on one of them and the guard fails
-// open without saying so.
+// unescapeReplacer undoes a level of JSON string escaping, including the \uXXXX forms a Go encoder emits.
 var unescapeReplacer = strings.NewReplacer(
 	`\"`, `"`,
 	`\\`, `\`,
@@ -128,11 +124,6 @@ var unescapeReplacer = strings.NewReplacer(
 )
 
 // unescape flattens a record so a verdict inside a tool result is findable.
-// A result's payload is a JSON string nested in the record's own JSON, so
-// `{"outcome":"merged"}` reaches the transcript as `{\"outcome\":\"merged\"}`
-// and matching the unescaped spelling finds nothing at all. This is text
-// matching, not parsing: a single pass makes every nesting depth's quotes
-// plain.
 func unescape(line string) string {
 	return unescapeReplacer.Replace(line)
 }

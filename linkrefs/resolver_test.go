@@ -42,9 +42,9 @@ func newRepo(t *testing.T) (dir string, head string) {
 	git(dir, "add", "f.txt")
 	git(dir, "commit", "-m", "one")
 
-	// A hash prefix carries no a-f letter about six times in a hundred, and the
-	// detector reads a token as a SHA only when it has both a digit and one.
-	// Amending until it qualifies makes the fixture state the property.
+	// A hash prefix sometimes carries no a-f letter, and the detector reads a
+	// token as a SHA only when it has a digit and such a letter. Amending until
+	// it qualifies makes the fixture state the property.
 	for i := 0; !shaLike(shortHead(t, dir)); i++ {
 		require.Less(t, i, 200, "no commit hash with a digit and an a-f letter in 200 amends")
 		git(dir, "commit", "--amend", "-m", fmt.Sprintf("one %d", i))
@@ -60,7 +60,7 @@ func newRepo(t *testing.T) (dir string, head string) {
 	return dir, shortHead(t, dir)
 }
 
-// shortHead is the seven-character prefix of the checkout's HEAD.
+// shortHead is the abbreviated prefix of the checkout's HEAD.
 func shortHead(t *testing.T, dir string) string {
 	t.Helper()
 	cmd := exec.Command("git", "rev-parse", "HEAD")
@@ -119,7 +119,7 @@ func TestCommitExistsRejectsWhatIsNotThere(t *testing.T) {
 	assert.False(t, res.CommitExists("6884dd2"))
 }
 
-// Every answer is memoized, because one message can name the same reference
+// Every answer is memoized, because a message can name the same reference
 // several times and this runs in the render path.
 func TestAnswersAreMemoized(t *testing.T) {
 	dir, head := newRepo(t)
@@ -147,7 +147,7 @@ func TestOutsideACheckoutNothingResolves(t *testing.T) {
 }
 
 // End to end through the real resolver: a reference to something in the checkout
-// is rendered, and one to something absent is left alone.
+// is rendered, and a reference to something absent is left alone.
 func TestRewriteAgainstARealCheckout(t *testing.T) {
 	dir, head := newRepo(t)
 	res := &GitResolver{Dir: dir}
@@ -190,7 +190,7 @@ func TestAPullStateIsMemoized(t *testing.T) {
 }
 
 // End to end through the real resolver: a merged pull request comes back with
-// the words bare and the dot linked, and an open one with the reference linked.
+// the words bare and the dot linked, an open pull request with the words linked.
 func TestARealResolverMovesTheLinkOnAMergedPullRequest(t *testing.T) {
 	dir, _ := newRepo(t)
 	res := &GitResolver{Dir: dir}
@@ -232,8 +232,8 @@ func TestClassifyReadsWhatGHReports(t *testing.T) {
 	}
 }
 
-// A skipped job is one that correctly did not need to run. Colouring it red
-// would make almost every message red.
+// A skipped job correctly did not need to run. Colouring it red would make
+// almost every message red.
 func TestASkippedCheckIsNotAFailure(t *testing.T) {
 	assert.False(t, checkFailed("SKIPPED"))
 	assert.False(t, checkFailed("SUCCESS"))

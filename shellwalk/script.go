@@ -18,7 +18,7 @@ var StdinMarkers = set.Of[string]("-", "/dev/stdin")
 // This is the whole difference between `cat evil.js | node -`, which hands node
 // a program the command text does not contain, and `printf '{...}' | node
 // hook.ts`, which is how a hook gets tested with the payload it will really
-// receive.
+// receive. Both plugins used to refuse the second one.
 func NamesAScript(args []Word) bool {
 	dashDash := false
 	for _, a := range args {

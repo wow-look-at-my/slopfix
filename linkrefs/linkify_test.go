@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A remote URL can carry credentials. Only the two path segments after the host
-// are taken, so a token in the userinfo cannot reach the user's screen.
+// A remote URL can carry credentials. Only the path segments after the host are
+// taken, so a token in the userinfo cannot reach the user's screen.
 func TestParseRemoteReadsEverySpellingAndDropsCredentials(t *testing.T) {
 	cases := map[string]Repo{
 		"https://github.com/o/r.git":                         {Owner: "o", Name: "r"},
@@ -54,7 +54,7 @@ func TestSplitNumber(t *testing.T) {
 }
 
 // IssueRef decides which URLs are worth asking GitHub about. `pull` and
-// `issues` are the same case, because GitHub serves a pull request under both.
+// `issues` are the same case, because GitHub serves a pull request under each.
 func TestIssueRefReadsAPullRequestOrIssueURL(t *testing.T) {
 	cases := map[string]string{
 		"https://github.com/o/r/pull/376":                 "376",
@@ -91,7 +91,7 @@ func TestLinkifyRefusesAnUnknownKind(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// A compare URL needs a base. Without one there is no page to open, so the
+// A compare URL needs a base. Lacking it there is no page to open, so the
 // reference stays plain rather than getting a guessed link.
 func TestABranchWithNoDefaultBranchIsNotLinked(t *testing.T) {
 	res := live()

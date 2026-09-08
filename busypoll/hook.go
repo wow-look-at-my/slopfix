@@ -3,7 +3,7 @@
 // else different in between. It also refuses the status read itself, before
 // it runs, when nothing it could return has changed.
 //
-// That first shape is what a manual polling loop looks like: re-running the
+// That shape is what a manual polling loop looks like: re-running the
 // same status check every turn instead of waiting for a real event or arming
 // an actual scheduled wakeup. It burns the user's tokens for no new
 // information, because the answer cannot have changed between calls seconds
@@ -12,7 +12,7 @@
 // A properly spaced watch loop -- the same check re-run after a real gap,
 // because a scheduled trigger fired or an event arrived -- is not that
 // pattern and is not refused. See detect.go for the spacing rule that tells
-// the two apart.
+// them apart.
 //
 // Every failure path allows. A guard that blocks because it could not read a
 // file is worse than no guard.
@@ -25,8 +25,7 @@ import (
 	"strings"
 )
 
-// Input is the subset of the payloads this rule reads. Both events arrive on
-// the same command, because the rule is the same question asked twice.
+// Input is the subset of the payloads this rule reads; both events arrive on the same command.
 type Input struct {
 	HookEventName  string          `json:"hook_event_name"`
 	TranscriptPath string          `json:"transcript_path"`
@@ -36,10 +35,7 @@ type Input struct {
 	ToolInput      json.RawMessage `json:"tool_input"`
 }
 
-// Result is what an invocation emits. A stop is refused with exit code 2 and
-// a reason on stderr, which is how a Stop hook hands the model its objection.
-// A tool call is refused with a deny payload on stdout, which is how a
-// PreToolUse hook does the same thing before the call runs.
+// Result is what an invocation emits: a stop refuses on stderr, a tool call refuses with a deny payload.
 type Result struct {
 	Stdout string
 	Stderr string

@@ -30,11 +30,8 @@ var greenVerdicts = []string{
 	`(rollup: success)`,
 }
 
-// terminalSubjects returns the subjects a record in recs reported as
-// finished. A record is only allowed to settle a subject it names ALONE: a
-// listing that reports many pull requests, one of them merged, cannot say
-// which the verdict belongs to, and guessing there would deny a read of a
-// pull request that is still open.
+// terminalSubjects returns the subjects a record in recs reported as finished.
+// A record may only settle a subject it names ALONE, since a listing cannot say which the verdict belongs to.
 func terminalSubjects(recs []record) map[string]bool {
 	out := map[string]bool{}
 	for _, r := range recs {

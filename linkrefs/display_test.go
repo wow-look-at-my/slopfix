@@ -17,8 +17,8 @@ type fakeResolver struct {
 	branches []string
 	commits  []string
 	// states is what each pull request is doing. A reference named here gets
-	// its dot; one that is not is a lookup that could not answer, which must
-	// render no dot and link exactly as it always did.
+	// its dot. A reference absent here is a lookup that could not answer, and
+	// must render no dot.
 	states map[string]PullState
 }
 
@@ -138,7 +138,7 @@ func TestEachLiveStateRendersItsDot(t *testing.T) {
 
 // A merged pull request is the state where the link MOVES. The words go back to
 // plain text and the purple dot carries the link. The open case beside it is the
-// control that keeps the two apart.
+// control that keeps them apart.
 func TestMergedMovesTheLinkOntoTheDot(t *testing.T) {
 	merged := rewrite(t, "o/r#376 landed.", withState("o/r#376", StateMerged))
 	assert.Equal(t, "[🟣](https://github.com/o/r/issues/376) o/r#376 landed.", merged)
@@ -150,8 +150,8 @@ func TestMergedMovesTheLinkOntoTheDot(t *testing.T) {
 	assert.Contains(t, open, "[o/r#376](", "an open pull request keeps the reference linked")
 }
 
-// A pull request closed without merging is finished the same way a merged one
-// is, so it renders the same way.
+// A pull request closed without merging is finished, so it renders the way a
+// merged pull request does.
 func TestAClosedPullRequestAlsoMovesTheLink(t *testing.T) {
 	got := rewrite(t, "o/r#376 was dropped.", withState("o/r#376", StateClosed))
 	assert.Equal(t, "[⚫](https://github.com/o/r/issues/376) o/r#376 was dropped.", got)
@@ -168,7 +168,7 @@ func TestAnUnknownStateRendersNoDot(t *testing.T) {
 }
 
 // A bare pull request URL earns a dot too, and merged moves its link the same
-// way. The trailing path on a link to a single file is ignored.
+// way. A trailing file path is ignored.
 func TestABarePullRequestURLGetsItsDot(t *testing.T) {
 	res := withState("o/r#376", StateFailing)
 	assert.Equal(t,
@@ -181,7 +181,7 @@ func TestABarePullRequestURLGetsItsDot(t *testing.T) {
 		rewrite(t, "diff: https://github.com/o/r/pull/376/files", merged))
 }
 
-// An answer for one pull request says nothing about another.
+// An answer about a pull request says nothing about any other.
 func TestOnlyTheNamedReferenceGetsItsDot(t *testing.T) {
 	res := live()
 	res.states = map[string]PullState{"o/r#1": StateMerged, "o/r#2": StatePending}
@@ -221,8 +221,8 @@ func TestASlugResolvesWithoutACheckout(t *testing.T) {
 	assert.Equal(t, "see [wow-look-at-my/dats#12](https://github.com/wow-look-at-my/dats/issues/12) for the suite.", got)
 }
 
-// /issues/N and never /pull/N: GitHub redirects an issue number to the pull
-// request when it is one, and /pull/N on a plain issue is a 404.
+// /issues/N and never /pull/N: GitHub redirects an issue number to its pull
+// request, and /pull/N on a plain issue is a 404.
 func TestNumbersUseTheSpellingThatWorksForBoth(t *testing.T) {
 	got := rewrite(t, "o/r#42", live())
 	assert.Contains(t, got, "/issues/42")
@@ -257,8 +257,8 @@ func TestTextThatIsAlreadyLinkedIsNotRewrittenAgain(t *testing.T) {
 	}
 }
 
-// A URL contains a slug that the branch matcher also matches. Rewriting both
-// would nest one link inside another.
+// A URL contains a slug that the branch matcher also matches. Rewriting each
+// would nest a link inside another link.
 func TestAURLIsRewrittenOnceNotTwice(t *testing.T) {
 	got := rewrite(t, "https://github.com/o/r/tree/claude/pushed", live())
 	assert.Equal(t, 1, strings.Count(got, "]("), "expected exactly one link in %q", got)
@@ -270,8 +270,8 @@ func TestQuotedAndFencedLinesAreLeftAlone(t *testing.T) {
 	assert.False(t, changed, "expected no rewrite, got %q", out)
 }
 
-// One flush cannot see the ``` that opened in an earlier one, so the state has
-// to be carried in.
+// A flush cannot see the ``` that opened earlier, so the state has to be
+// carried in.
 func TestFenceStateCarriesAcrossFlushes(t *testing.T) {
 	out, changed := RewriteDelta("PR #376 inside the fence\n", true, live())
 	assert.False(t, changed, "expected no rewrite inside a carried fence, got %q", out)

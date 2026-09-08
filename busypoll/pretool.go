@@ -2,7 +2,7 @@
 // the wasted call costs nothing rather than costing a round trip and then
 // earning a note about it at Stop.
 //
-// Two rules, and they answer the same question -- can this call learn
+// The rules here answer the same question -- can this call learn
 // anything? A subject that has already reached a terminal state cannot teach
 // it anything ever again. A subject read earlier with no event and no change
 // of the world since cannot teach it anything YET.
@@ -16,9 +16,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// worldChangers are the calls after which re-reading a status is legitimate,
-// because the thing being watched really may have moved. A push is the
-// obvious one: CI on the new head is a new question, not a repeat.
+// worldChangers are the calls after which re-reading a status is legitimate.
 var worldChangers = []string{
 	"git push",
 	"git commit",
@@ -59,10 +57,7 @@ func judgeCall(c toolCall, recs []record) verdict {
 	return verdict{}
 }
 
-// readSinceLastSignal returns the subjects already read since the last thing
-// that could have changed an answer: a real user prompt, a wake or
-// notification envelope, or a call that changed the world. Everything before
-// that point is irrelevant, because something genuinely happened after it.
+// readSinceLastSignal returns the subjects already read since the last thing that could have changed an answer.
 func readSinceLastSignal(recs []record) map[string]bool {
 	start := 0
 	for i, r := range recs {
@@ -77,11 +72,7 @@ func readSinceLastSignal(recs []record) map[string]bool {
 		}
 	}
 
-	// A result arrives after the call it answers, so the results are collected
-	// first and the reads judged against them. A read counts only once it
-	// ANSWERED: an errored one returned no state, and one with no result on
-	// disk yet has not returned anything at all. Counting either refuses the
-	// retry of a call that just failed, which is the call that has to run.
+	// A result arrives after the call it answers, so results are collected before the reads are judged against them.
 	failed := set.New[string]()
 	answered := set.New[string]()
 	for _, r := range recs[start:] {
@@ -118,7 +109,7 @@ makes a NEW commit, which is a different question).
 Nothing you can call will return a different answer, so this call is pure cost.
 Report the state you already have and move on to work that is not this.`
 
-// repeatText names both ways out, because a refusal that only says "do not"
+// repeatText names the ways out, because a refusal that only says "do not"
 // costs a round trip while the model guesses at what would satisfy it.
 const repeatText = `Blocked: you already read the state of %s, and nothing has happened
 since -- no message from the user, no notification or wake event, and no push or

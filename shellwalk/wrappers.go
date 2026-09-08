@@ -14,7 +14,7 @@ import (
 // A wrapper that takes its own VALUE flag has that flag's value dropped with
 // it. Without that, `nice -n 10 sed -i f` leaves `10` where the program should
 // be and the sed behind it is never seen at all -- the same hole `timeout 5
-// python` opens, an operand instead of a flag value.
+// python` opens, one operand instead of one flag value.
 func StripWrappers(argv []Word) []Word {
 	for len(argv) > 0 {
 		switch CommandName(argv[0].Text) {

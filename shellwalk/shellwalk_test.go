@@ -64,7 +64,7 @@ func TestASpellingResolvesToTheProgramItNames(t *testing.T) {
 }
 
 // Each of these left the wrapper's own operand where the program should be
-// before the vocabulary was shared.
+// before the two plugins shared one implementation.
 func TestAWrapperValueNeverStandsInForTheProgram(t *testing.T) {
 	cases := map[string]string{
 		"env FOO=1 python3 x.py":       "python3",

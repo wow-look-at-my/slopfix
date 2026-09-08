@@ -82,7 +82,7 @@ func TestADottedNameIsNotAReference(t *testing.T) {
 }
 
 // Text that is already a link is blanked before matching, so the rewrite cannot
-// nest one link inside another.
+// nest a link inside another link.
 func TestAlreadyLinkedTextIsNotMatched(t *testing.T) {
 	cases := []string{
 		"[wow-look-at-my/go-toolchain#376](https://github.com/wow-look-at-my/go-toolchain/pull/376) is merged.",
@@ -106,7 +106,7 @@ func TestOffsetsSurviveALinkEarlierOnTheLine(t *testing.T) {
 	assert.Equal(t, "#2", line[refs[0].Start:refs[0].End])
 }
 
-// A URL contains a slug the branch matcher also matches, and rewriting both
+// A URL contains a slug the branch matcher also matches, and rewriting each
 // would nest a link inside a link.
 func TestAnOverlappingMatchIsDropped(t *testing.T) {
 	refs := FindUnlinkedInLine("https://github.com/o/r/tree/claude/thing")
@@ -129,8 +129,8 @@ func TestValidBranchRequiresANameAfterThePrefix(t *testing.T) {
 	assert.True(t, validBranch("fix/a"))
 }
 
-// A SHA needs both a digit and a hex letter, which is what separates a commit
-// from a decimal number and from a word spelled in a-f.
+// A SHA needs a digit and a hex letter, which separates a commit from a decimal
+// number and from a word spelled in a-f.
 func TestValidSHA(t *testing.T) {
 	assert.True(t, validSHA("6884dd2"))
 	assert.False(t, validSHA("1234567"))
