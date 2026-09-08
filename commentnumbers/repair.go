@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
-	"github.com/wow-look-at-my/slopfix/source"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // Repair is the source with the numbers rewritten out of its comments.
@@ -51,7 +51,7 @@ func Fix(filename, src string) Repair {
 // what keeps that code out of the rewrite.
 func commentLineNumbers(filename, src string) map[int]int {
 	out := make(map[int]int)
-	for _, c := range source.Extract(filename, src) {
+	for _, c := range treecomments.Extract(filename, src) {
 		at := 1 + strings.Count(src[:c.Offset], "\n")
 		out[at] = c.Offset - (strings.LastIndexByte(src[:c.Offset], '\n') + 1)
 		for i := range strings.Count(c.Text, "\n") {
