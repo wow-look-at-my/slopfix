@@ -80,7 +80,7 @@
   <rewrite from="— so" to=", so" where="message" test="It failed — so I retried"/>
   <rewrite from="— which" to=", which" where="message" test="It races — which is the bug"/>
   <rewrite from="that being said" to="but" where="message" test="That being said it races"/>
-  <rewrite from="it is important to note that" to="" where="message" test="It is important to note that it races"/>
+  <drop word="it is important to note that" where="message" test="It is important to note that it races"/>
 
   <!--
     A <pattern> is a rewrite with captures, for a shape no whole-word swap can
@@ -145,7 +145,7 @@
         say="find the reason or say you could not: a shrug helps nobody"/>
   <flag phrase="magic number" test="A magic number from the spec"
         say="name the constant and where it comes from"/>
-  <flag phrase="don't ask" test="Do not ask why"
+  <flag phrase="do not ask" test="Do not ask why"
         say="answer it here, or the next reader pays to rediscover it"/>
 
 </english>
