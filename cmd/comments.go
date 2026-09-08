@@ -30,7 +30,7 @@ var skipDirs = set.Of("vendor", "node_modules", "testdata", "build")
 func runComments(cmd *cobra.Command, args []string) error {
 	found := false
 	for _, arg := range args {
-		paths, err := commentTargets(arg)
+		paths, err := commentTargets(arg, commentnumbers.Supported)
 		if err != nil {
 			return err
 		}
@@ -53,9 +53,10 @@ func runComments(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// commentTargets lists what to read under an argument. A named file is read
-// whatever its extension, because naming it is the request.
-func commentTargets(arg string) ([]string, error) {
+// commentTargets lists what to read under an argument, keeping the files the
+// caller's rule reads. A named file is read whatever its extension, because
+// naming it is the request.
+func commentTargets(arg string, reads func(string) bool) ([]string, error) {
 	info, err := os.Stat(arg)
 	if err != nil {
 		return nil, err
@@ -74,7 +75,7 @@ func commentTargets(arg string) ([]string, error) {
 			}
 			return nil
 		}
-		if commentnumbers.Supported(path) {
+		if reads(path) {
 			out = append(out, path)
 		}
 		return nil
