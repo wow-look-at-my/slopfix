@@ -27,7 +27,7 @@ func bashCall(command string) string {
 
 // assistantCall is an assistant record making a tool call.
 func assistantCall(name, input string) string {
-	return record(map[string]any{
+	return encodeLine(map[string]any{
 		"type":      "assistant",
 		"timestamp": "2026-09-05T01:00:00Z",
 		"message": map[string]any{"role": "assistant", "content": []any{
@@ -36,9 +36,9 @@ func assistantCall(name, input string) string {
 	})
 }
 
-// record encodes a fixture the way the harness writes one. Go's json.Marshal
+// encodeLine writes a fixture the way the harness writes one. Go's json.Marshal
 // escapes `<` and JavaScript does not, so marshaling builds an unreal fixture.
-func record(v any) string {
+func encodeLine(v any) string {
 	var b strings.Builder
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
@@ -49,14 +49,22 @@ func record(v any) string {
 // toolResult is the record a call's answer arrives in. It never starts a new
 // turn, and it is where a verdict about a subject is reported.
 func toolResult(text string) string {
-	return `{"type":"user","timestamp":"2026-09-05T01:00:01Z","message":{"role":"user","content":` +
-		`[{"type":"tool_result","content":` + jsonString(text) + `}]}}`
+	return encodeLine(map[string]any{
+		"type":      "user",
+		"timestamp": "2026-09-05T01:00:01Z",
+		"message": map[string]any{"role": "user", "content": []any{
+			map[string]any{"type": "tool_result", "content": text},
+		}},
+	})
 }
 
 // userPrompt is a genuine new prompt, which re-opens every subject.
 func userPrompt(text string) string {
-	body, _ := json.Marshal(text)
-	return `{"type":"user","timestamp":"2026-09-05T01:00:02Z","message":{"role":"user","content":` + string(body) + `}}`
+	return encodeLine(map[string]any{
+		"type":      "user",
+		"timestamp": "2026-09-05T01:00:02Z",
+		"message":   map[string]any{"role": "user", "content": text},
+	})
 }
 
 // preToolPayload is the payload the harness sends before a call runs.
@@ -365,12 +373,17 @@ func TestAWakeEnvelopeIsRecognisedInAToolResult(t *testing.T) {
 
 	// The same record written by an encoder that escapes HTML must read the
 	// same, or the guard is blind on half the transcripts it may be handed.
-	escaped, err := json.Marshal(`<wake reason="external-event"><event source="github"/></wake>`)
+	// json.Marshal escapes HTML by default, so marshaling the whole record IS
+	// the escaped spelling.
+	escaped, err := json.Marshal(map[string]any{
+		"type": "user",
+		"message": map[string]any{"role": "user", "content": []any{
+			map[string]any{"type": "tool_result", "content": `<wake reason="external-event"><event source="github"/></wake>`},
+		}},
+	})
 	require.NoError(t, err)
 	require.Contains(t, string(escaped), "\\u003c", "this fixture must be the escaped spelling")
-	recs = parseRecords(stageTranscript(t,
-		`{"type":"user","message":{"role":"user","content":`+
-			`[{"type":"tool_result","content":`+string(escaped)+`}]}}`), "")
+	recs = parseRecords(stageTranscript(t, string(escaped)), "")
 	require.Len(t, recs, 1)
 	assert.True(t, recs[0].wake, "the escaped spelling of the envelope counts too")
 }
@@ -557,8 +570,9 @@ func TestEveryFailurePathAllowsTheCall(t *testing.T) {
 			`{"hook_event_name":"PostToolUse","tool_name":"Bash"}`)))
 	})
 	t.Run("no tool name", func(t *testing.T) {
-		assert.Equal(t, allow(), Run(strings.NewReader(
-			`{"hook_event_name":"PreToolUse","transcript_path":"`+tr+`"}`)))
+		assert.Equal(t, allow(), Run(strings.NewReader(encodeLine(map[string]any{
+			"hook_event_name": "PreToolUse", "transcript_path": tr,
+		}))))
 	})
 	t.Run("missing transcript", func(t *testing.T) {
 		assert.Empty(t, denyReasonOf(t, preToolPayload(t, "/nonexistent/transcript.jsonl",
