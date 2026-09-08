@@ -30,8 +30,8 @@
   <rewrite from="one another" to="each other" test="They wait for one another" expect="They wait for each other"/>
   <rewrite from="another one" to="another" test="It cannot block another one" expect="It cannot block another"/>
   <rewrite from="no one" to="nobody" test="No one reads it" expect="Nobody reads it"/>
-  <rewrite from="at once" to="at the same time" test="Both run at once" expect="Both run at the same time"/>
   <rewrite from="all at once" to="together" test="It releases all at once" expect="It releases together"/>
+  <rewrite from="at once" to="at the same time" test="Both run at once" expect="Both run at the same time"/>
 
   <!-- A repeat count, said without a number. -->
   <rewrite from="exactly once" to="exactly a single time" test="It runs exactly once" expect="It runs exactly a single time"/>
@@ -55,11 +55,12 @@
   <pattern match="(?i)\bthe first\b" to="the earliest" test="The first writer wins" expect="The earliest writer wins"/>
   <pattern match="(?i)\bfirst\b" to="earliest" test="It takes first" expect="It takes earliest"/>
 
-  <!-- One as a determiner: an article says the same thing and stays true. -->
-  <pattern match="(?i)\bone\s+(?=[aeiou])" to="an " test="It costs one atomic add" expect="It costs an atomic add"/>
-  <pattern match="(?i)\bone\s+(?=[a-z])" to="a " test="It reserves one slot" expect="It reserves a slot"/>
+  <!-- One as a determiner: an article says the same thing and stays true. The
+       group carries the noun's opening letter, because RE2 has no lookahead. -->
+  <pattern match="(?i)\bone\s+([aeiou])" to="an ${1}" test="It costs one atomic add" expect="It costs an atomic add"/>
+  <pattern match="(?i)\bone\s+([a-z])" to="a ${1}" test="It reserves one slot" expect="It reserves a slot"/>
 
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
-  <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+(?=[a-z])" to="" test="Two goroutines contend" expect="Goroutines contend"/>
+  <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>
 
 </numbers>

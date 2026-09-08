@@ -6,6 +6,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/commentnumbers"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -26,10 +27,12 @@ const (
 	RuleSTE Rule = "ste"
 	// RuleCommentLength cuts a comment back inside the code it documents.
 	RuleCommentLength Rule = "comments"
+	// RuleCommentNumbers says in words the number a comment states.
+	RuleCommentNumbers Rule = "numbers"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleCommentLength}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleCommentLength, RuleCommentNumbers}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -45,6 +48,8 @@ func IDsFor(rule Rule) set.Set[string] {
 		return ste.AllIDs
 	case RuleCommentLength:
 		return set.Of(commentlength.ID)
+	case RuleCommentNumbers:
+		return set.Of(commentnumbers.ID)
 	}
 	return set.New[string]()
 }
@@ -118,6 +123,16 @@ func Fix(req Request) Repair {
 				Phrase: hit.Sentence,
 				LineNo: hit.Line,
 			})
+		}
+	}
+
+	// The number repair reads source too, and runs after the length cut: a
+	// sentence the cut already took is a sentence this one need not rewrite.
+	if wants(RuleCommentNumbers) && keeps(commentnumbers.ID) && req.Path != "" {
+		said := commentnumbers.Fix(req.Path, text)
+		if said.Changed {
+			text = said.Text
+			repair.Removed = append(repair.Removed, said.Removed...)
 		}
 	}
 

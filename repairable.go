@@ -2,6 +2,8 @@ package slopfix
 
 import (
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/commentnumbers"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
@@ -18,4 +20,8 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	// The counts rule cuts the cardinal out of the same sentence the prose
 	ste.IDStaleCount,
 	IDInventoryCount,
+	// The comment rules: one cuts a block back inside its code, and the other
+	// says the number in words or takes the sentence that states it.
+	commentlength.ID,
+	commentnumbers.ID,
 ))
