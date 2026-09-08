@@ -32,7 +32,9 @@ import (
 const ID = "comments/number"
 
 // Supported reports whether this rule reads a file of that name.
-func Supported(filename string) bool { return treecomments.Supported(filename) }
+func Supported(filename string) bool {
+	return treecomments.Supported(filename) || readsHash(filename)
+}
 
 // Remedy is what every finding asks the author to do instead. A reference to a
 // numbered section is the case rewriting the sentence does not cover, so it

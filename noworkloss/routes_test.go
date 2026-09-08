@@ -38,7 +38,6 @@ func routeCases() []routeCase {
 		{route: "ruby -pi -e", deny: `ruby -pi -e 'gsub(/a/,"b")' src.txt`, allow: "ruby --version", names: "inline ruby script"},
 		{route: "node -e with fs.writeFileSync", deny: `node -e 'require("fs").writeFileSync("src.txt","x")'`, allow: "node --version", names: "inline node script"},
 		{route: "perl -pi -e", deny: `perl -pi -e 's/a/b/' src.txt`, allow: "perl --version", names: "inline perl script"},
-		// The control is the shape this used to refuse: an interpreter that already
 		{route: "a script piped into an interpreter", deny: `echo 'x' | ruby`, allow: `echo 'x' | ruby prog.rb`, names: "piped in on stdin"},
 		{route: "a script redirected into an interpreter", deny: `ruby < prog.rb`, allow: `ruby prog.rb < data.json`, names: "piped in on stdin"},
 		{route: "busybox sed -i", deny: "busybox sed -i s/a/b/ src.txt", allow: "busybox sed -i s/a/b/ {{out}}/src.txt", names: "src.txt"},

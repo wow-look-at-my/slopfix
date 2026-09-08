@@ -54,8 +54,10 @@ type hookInput struct {
 type writeInput struct {
 	FilePath  string `json:"file_path"`
 	Content   string `json:"content"`
+	OldString string `json:"old_string"`
 	NewString string `json:"new_string"`
 	Edits     []struct {
+		OldString string `json:"old_string"`
 		NewString string `json:"new_string"`
 	} `json:"edits"`
 }
