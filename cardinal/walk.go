@@ -106,8 +106,12 @@ var possessionVerbs = set.Of(
 	"has", "have", "had", "hold", "holds", "ship", "ships", "carries", "carry",
 	"contain", "contains", "cover", "covers", "include", "includes", "list",
 	"lists", "define", "defines", "register", "registers", "install", "installs",
-	"leave", "leaves", "left", "are", "were", "is", "was", "gets", "get",
+	"leave", "leaves", "left",
 )
+
+// copulas count only after "there". A copula alone says what a thing IS, so
+// "it is parsed once" states a frequency, where "there is one caller" tallies.
+var copulas = set.Of("is", "are", "was", "were")
 
 // arityReach is how far back a possession verb is looked for, which is a
 const arityReach = 3
@@ -122,7 +126,12 @@ func Arity(text string, toks []Token, i int) bool {
 		return false
 	}
 	for back := i - 1; back >= 0 && back >= i-arityReach; back-- {
-		if possessionVerbs.Contains(strings.ToLower(strings.Trim(toks[back].Text, nameMarkers+"-"))) {
+		word := strings.ToLower(strings.Trim(toks[back].Text, nameMarkers+"-"))
+		if possessionVerbs.Contains(word) {
+			return false
+		}
+		if copulas.Contains(word) && back > 0 &&
+			strings.EqualFold(strings.Trim(toks[back-1].Text, nameMarkers+"-"), "there") {
 			return false
 		}
 	}

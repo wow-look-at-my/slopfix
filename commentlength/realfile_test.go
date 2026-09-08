@@ -11,11 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// commentspan reports a finding in each of these, and this rule has to report
-// one too. Where it does not the repair never runs, and nothing clears the
-// build.
+// commentspan reports a finding in each of these, and this rule has to agree.
+// Where it does not the repair never runs, and nothing clears the build.
 //
-// Almost every one sits in a single package. That is the shape of a file the
+// Almost all of them sit in a single package. That is the shape of a file the
 // walk drops whole, rather than a measure that is off by a little.
 var commentspanReports = map[string]int{
 	"noworkloss/auditedroutes.go": 30,

@@ -128,9 +128,9 @@ func TestACommentInsideAFunctionBodyIsWeighedAgainstItsStatement(t *testing.T) {
 }
 
 // The shape commentspan reports at noworkloss/auditedroutes.go, copied whole
-// including the long statement. The synthetic cases above pass while the repair
-// leaves this one alone, so the divergence is in the measure and not in the
-// pairing, and only the real text shows it.
+// including the long statement. The grammar groups the rest of the clause into
+// a sequence node, and weighing the comment against that node measured lines it
+// does not describe.
 func TestTheRealSwitchCaseShapeIsAFinding(t *testing.T) {
 	src := "package p\n\nfunc f(name string, rest []string) int {\n\tswitch name {\n" +
 		"\tcase \"split\", \"csplit\":\n" +
