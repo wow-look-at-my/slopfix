@@ -38,4 +38,3 @@ func readsHash(filename string) bool {
 	}
 	return hashExts.Contains(strings.ToLower(filepath.Ext(base)))
 }
-
