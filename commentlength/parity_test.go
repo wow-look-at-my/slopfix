@@ -144,6 +144,28 @@ func TestTheRealSwitchCaseShapeIsAFinding(t *testing.T) {
 		"commentspan reports more comment lines than code lines here")
 }
 
+// A blank line ends a comment run, so the node after it can be more prose.
+// Measuring a comment against a comment gives no code, and the block was then
+// dropped with nothing said about it.
+func TestARunIsWeighedPastTheProseThatFollowsIt(t *testing.T) {
+	src := "package p\n\n// The point, at length, over several lines of prose that\n" +
+		"// carry on well past anything the declaration below needs.\n\n" +
+		"// A second note, separated by a blank line.\n" +
+		"const p = 1\n"
+
+	assert.NotEmpty(t, Check("x.go", src),
+		"the opening run is weighed against the const, not against the note")
+}
+
+// Prose trailing off the end of a file documents nothing. The package doc is
+// exempt before this, so what is left has no construct to be weighed against.
+func TestARunWithNothingAfterItIsAFinding(t *testing.T) {
+	src := "package p\n\nconst p = 1\n\n// A section header with nothing under it,\n" +
+		"// left behind by whatever it used to introduce.\n"
+
+	assert.NotEmpty(t, Check("x.go", src))
+}
+
 // The control. A comment proportionate to its statement is not a finding, or
 // every block comment in the tree becomes a finding.
 func TestAProportionateCommentInsideABlockIsNotAFinding(t *testing.T) {

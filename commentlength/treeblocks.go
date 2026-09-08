@@ -12,7 +12,6 @@
 package commentlength
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -133,15 +132,12 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 		return block{}, false
 	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
-	// A run with nothing after it documents nothing. The package doc is the
+	// A run with nothing after it documents nothing, and judge reports it. The
+	// package doc is exempt before this, so what reaches here trails off the end.
 	if next >= count {
-		b.documents = "nothing"
 		return b, true
 	}
-	documented := firstStatement(parent.NamedChild(next))
-	b.codeLines, b.codeChars = nodeSpan(documented, lines)
-	b.documents = fmt.Sprintf("%s@%d-%d/in:%s", documented.Type(),
-		documented.StartPoint().Row+1, documented.EndPoint().Row+1, parent.Type())
+	b.codeLines, b.codeChars = nodeSpan(firstStatement(parent.NamedChild(next)), lines)
 	return b, true
 }
 

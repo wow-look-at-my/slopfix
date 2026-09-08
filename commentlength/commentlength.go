@@ -50,8 +50,6 @@ type block struct {
 	text []string
 	// exact is true when a parser decided this span rather than a line walk. It gates the REPAIR and nothing else.
 	exact bool
-	// documents names the node the comment was weighed against, and its span. It
-	documents string
 }
 
 // Check reports every comment block in src that outweighs its code.
