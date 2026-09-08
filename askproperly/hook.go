@@ -37,9 +37,7 @@ import (
 
 // HookInput is the subset of the MessageDisplay payload this plugin reads.
 // `delta` is whole lines except on the final flush, and `final` is the
-// end-of-message signal even when its delta is empty. `transcript_path` comes
-// from the base payload every hook event carries, and is what the
-// AskUserQuestion escape hatch below reads.
+// end-of-message signal even when its delta is empty.
 type HookInput struct {
 	HookEventName  string `json:"hook_event_name"`
 	TranscriptPath string `json:"transcript_path"`
@@ -66,19 +64,16 @@ type Result struct {
 	Code   int
 }
 
-// Run reads a MessageDisplay payload from r and returns what the CLI prints. An
-// empty Stdout means print nothing, which shows the original text.
+// Run reads a MessageDisplay payload from r. An empty Stdout means print
+// nothing, which shows the original text.
 func Run(r io.Reader) Result {
 	return Result{Stdout: run(r)}
 }
 
-// run decides what this flush renders as. An empty return means print nothing,
-// which shows the original.
+// run decides what this flush renders as. An empty return means print nothing.
 //
-// The message is judged whole, on its last flush. A question can span a line
-// wrap and a flush carries only the lines that completed since the previous,
-// so judging a flush on its own would miss the sentences that straddle the
-// boundary and would mark the same message several times over.
+// The message is judged whole, on its last flush: a question can span a line
+// wrap, so judging a flush alone would miss it and mark the message again.
 func run(r io.Reader) string {
 	data, err := io.ReadAll(r)
 	if err != nil || len(data) == 0 {
@@ -107,12 +102,8 @@ func run(r io.Reader) string {
 		sweep()
 	}
 
-	// A turn that already used the tool asked properly. Prose alongside a
-	// rendered card is commentary, not an offloaded decision. This reads the
-	// transcript as it stands while the message renders, so it sees a card put
-	// up earlier in the turn. A card in the very message being displayed is not
-	// recorded yet, and the annotation is worth that: it is an advisory line
-	// under a message, never a refusal.
+	// A turn that already used the tool asked properly, so prose beside a
+	// rendered card is commentary rather than an offloaded decision.
 	if ReadTurn(in.TranscriptPath).UsedAskTool {
 		return ""
 	}
@@ -142,8 +133,7 @@ func disabled() bool {
 
 var stateDir = filepath.Join(os.TempDir(), "cc-ask-properly")
 
-// unsafeName strips everything that is not plainly a filename character. A
-// message id is a UUID, but an id is never trusted straight into a path.
+// unsafeName strips what is not a filename character: an id is never trusted into a path.
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 
 func stateFile(messageID string) string {
@@ -151,7 +141,7 @@ func stateFile(messageID string) string {
 }
 
 // priorText is this message's text before the current flush. Losing it costs
-// the questions that sit in the earlier flushes, never a wrong annotation.
+// the earlier flushes' questions, never a wrong annotation.
 func priorText(messageID string) string {
 	data, err := os.ReadFile(stateFile(messageID))
 	if err != nil {

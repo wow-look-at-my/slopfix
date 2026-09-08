@@ -15,14 +15,11 @@ import (
 	"strings"
 )
 
-// annotationCap bounds how many findings the line names. The line sits under
-// the message the reader just read, so it has to stay a single line.
+// annotationCap bounds how many findings the line names, so it stays a single line.
 const annotationCap = 3
 
 // Annotate returns the text to append to a finished message, or "" when the
-// message hands over no decision. The leading blank line separates it from
-// whatever the message ended on, and the blockquote marks it as the hook
-// talking rather than the model.
+// message hands over no decision.
 func Annotate(message string) string {
 	hits := FindQuestions(message)
 	if len(hits) == 0 {
@@ -48,13 +45,10 @@ func Annotate(message string) string {
 	if len(texts) > annotationCap {
 		more = ", and more"
 	}
-	// The repair is DECIDE, not "ask on a card instead". A card is a slower
-	// stall: the work stops either way, and the owner is answering a question
-	// he did not want. His words on being pointed at a card: "the opposite of
-	// what i want". Every change here lands on a branch he can delete in seconds,
-	// so a wrong guess is cheap and a stall costs the session. A card is right
-	// only where guessing is not: an action outside the branch, a destructive
-	// action, access this session lacks, or a fork the owner reserved.
+	// The repair is DECIDE, not "ask on a card instead". A card stalls the work
+	// and the owner answers a question he did not want. A card is right only
+	// where guessing is not: an action outside the branch, a destructive action,
+	// access this session lacks, or a fork the owner reserved.
 	return fmt.Sprintf("\n\n> **ask-properly** -- %s%s. That is a decision handed over in prose. "+
 		"Make it yourself and say what you assumed. A card is for the narrow "+
 		"cases guessing cannot cover: reaching outside this branch, destroying "+
@@ -73,9 +67,7 @@ func containsFold(texts []string, needle string) bool {
 	return false
 }
 
-// findingCap bounds a quoted finding. A question hit carries its whole
-// sentence, and a paragraph quoted back under the paragraph it came from is
-// noise rather than a pointer.
+// findingCap bounds a quoted finding, so a whole paragraph is never quoted back.
 const findingCap = 80
 
 // finding renders a hit for the annotation. A question hit's text is the

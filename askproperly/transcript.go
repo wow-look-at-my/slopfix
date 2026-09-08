@@ -12,12 +12,10 @@ import (
 	"os"
 )
 
-// transcriptTailBytes bounds the read. A long session's transcript reaches
-// hundreds of megabytes, and only the last turn matters.
+// transcriptTailBytes bounds the read: only the last turn of a huge transcript matters.
 const transcriptTailBytes = 4 << 20
 
-// askTool is the tool that asks a question the right way: a rendered card the
-// user answers by selection, never prose the user has to reply to.
+// askTool is the tool that asks properly: a rendered card the user answers by selection.
 const askTool = "AskUserQuestion"
 
 type transcriptRecord struct {
@@ -40,9 +38,7 @@ type Turn struct {
 }
 
 // ReadTurn reports whether the current turn called AskUserQuestion. An
-// unreadable or empty transcript returns an empty Turn, which leaves the
-// message judged on its own text -- the worst that costs is an advisory line
-// under a message that had a card beside it.
+// unreadable transcript leaves the message judged on its own text.
 func ReadTurn(path string) Turn {
 	if path == "" {
 		return Turn{}
@@ -83,8 +79,7 @@ func ReadTurn(path string) Turn {
 
 // turnStart returns the index of the record that begins the current turn: the
 // last real user prompt. A user record carrying only tool_result blocks
-// answers a call from earlier in the SAME turn and must not split it -- the
-// same boundary rule the sibling no-busy-poll plugin uses.
+// answers an earlier call in the SAME turn.
 func turnStart(recs []transcriptRecord) int {
 	for i := len(recs) - 1; i >= 0; i-- {
 		if recs[i].Message.Role != "user" && recs[i].Type != "user" {
@@ -116,9 +111,8 @@ func isNewPrompt(rec transcriptRecord) bool {
 	return false
 }
 
-// readTail returns the JSONL lines from the last transcriptTailBytes of the
-// file. When the file is longer than the window the leading line is dropped,
-// so no half record is parsed.
+// readTail returns the JSONL lines from the tail of the file. A partial
+// leading line is dropped, so no half record is parsed.
 func readTail(path string) ([][]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
