@@ -189,14 +189,25 @@ func anyKept(ids set.Set[string], keeps func(string) bool) bool {
 // IsDocument reports whether path names prose rather than source.
 func IsDocument(path string) bool { return tombstones.IsDocument(path) }
 
-// FixFile repairs a file in place and reports what it did. It writes nothing
-// when the repair leaves the document as it was.
+// FixFile repairs a file in place under every rule.
 func FixFile(path string) (Repair, error) {
+	return FixFileWith(path, Request{})
+}
+
+// FixFileWith repairs a file in place under the caller's own selection, and
+// reports what it did. It writes nothing when the repair leaves the file as it
+// was.
+//
+// The Content and Path of req are the file's, whatever the caller put there.
+// Everything else is the caller's: a run that names a rule on the command line
+// has to reach the repair, or the selection is silently ignored.
+func FixFileWith(path string, req Request) (Repair, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return Repair{}, err
 	}
-	repair := Fix(Request{Content: string(content), Path: path})
+	req.Content, req.Path = string(content), path
+	repair := Fix(req)
 	if !repair.Changed {
 		return repair, nil
 	}
