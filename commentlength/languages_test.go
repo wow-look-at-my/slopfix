@@ -12,11 +12,14 @@ import (
 // language that only REPORTS is the failure this pins: the old path repaired Go
 // alone, and every other language got a finding nothing could act on.
 var languageFixtures = map[string]string{
-	"x.go": "package p\n\n" + essay("//") + "const p = 1\n",
-	"x.c":  essay("//") + "int p = 1;\n",
-	"x.cc": essay("//") + "int p = 1;\n",
-	"x.rs": essay("//") + "const P: i32 = 1;\n",
-	"x.sh": "#!/bin/sh\n" + essay("#") + "p=1\n",
+	"x.go":  "package p\n\n" + essay("//") + "const p = 1\n",
+	"x.c":   essay("//") + "int p = 1;\n",
+	"x.cc":  essay("//") + "int p = 1;\n",
+	"x.rs":  essay("//") + "const P: i32 = 1;\n",
+	"x.sh":  "#!/bin/sh\n" + essay("#") + "p=1\n",
+	"x.js":  essay("//") + "const p = 1;\n",
+	"x.ts":  essay("//") + "const p: number = 1;\n",
+	"x.tsx": essay("//") + "const p: number = 1;\n",
 }
 
 // essay is a comment far past anything a single declaration can carry.

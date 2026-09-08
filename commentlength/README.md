@@ -48,7 +48,7 @@ A directory is walked, skipping hidden directories and the ones holding text nob
 
 ## Languages
 
-Go, C, C++, Rust and Bash, by file extension. Every one shares this code: the walk, the measure and the repair. A language reaches the rule by adding its grammar, and `languages_test.go` refuses a grammar that no fixture proves the repair works on.
+Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX, by file extension. Every one shares this code: the walk, the measure and the repair. A language reaches the rule by adding its grammar, and `languages_test.go` refuses a grammar that no fixture proves the repair works on.
 
 ## Which consumer selects it
 
