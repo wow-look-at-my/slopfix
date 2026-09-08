@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// fakeResolver answers without a checkout, so the suite never shells out to git
-// and every case states the repository state it is written against.
+// fakeResolver answers without a checkout, so every case states the repository
+// state it is written against.
 type fakeResolver struct {
 	repo     Repo
 	found    bool

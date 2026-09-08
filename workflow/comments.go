@@ -11,7 +11,7 @@ import (
 const MaxCommentLines = 1
 
 // commentBlocks reports each run of comment lines past the limit. A blank line
-// neither counts nor ends a run: a reader sees the same paragraph either way.
+// neither counts nor ends a run.
 func commentBlocks(content string) []ste.Finding {
 	var out []ste.Finding
 	start, end, count := 0, 0, 0

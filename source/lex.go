@@ -120,8 +120,7 @@ func blockLength(rest string, b blockSpec) int {
 }
 
 // atWordStart reports whether the byte before i can precede a comment marker.
-// A shell passes `a#b` through as a single word, so the marker only opens a comment
-// where a word begins.
+// A shell passes `a#b` through whole, so the marker needs a word start.
 func atWordStart(src string, i int) bool {
 	if i == 0 {
 		return true

@@ -37,12 +37,9 @@ type tell struct {
 	re   *regexp.Regexp
 }
 
-// tells is the table. It is data: extending this package is adding a row.
-//
-// Each row is a phrase a punt is really written in, kept narrow enough that
-// ordinary reporting does not trip it. A bare diagnosis of a pre-existing
-// failure is legitimate, so that word alone is absent here. What is caught is
-// the diagnosis offered as the reason for stopping.
+// tells is the table. It is data: extending this package is adding a row. Each
+// row is a phrase a punt is written in, narrow enough that ordinary reporting
+// does not trip it.
 var tells = []tell{
 	{"disowning a defect you found", regexp.MustCompile(`(?i)\b(?:not|neither)\s+(?:mine|ours|my own)\s+to\s+fix\b`)},
 	{"disowning a defect you found", regexp.MustCompile(`(?i)\bnot\s+(?:my|our)\s+(?:problem|job|responsibility)\b`)},

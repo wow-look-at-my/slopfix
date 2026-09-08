@@ -10,10 +10,8 @@ import (
 var StdinMarkers = set.Of[string]("-", "/dev/stdin")
 
 // NamesAScript reports whether an interpreter invocation already carries a file
-// for the interpreter to RUN. Any operand counts, static or not: what matters
-// is that stdin is then the program's INPUT rather than its program.
-//
-// That separates `node -`, fed a program on stdin, from `node hook.ts`, fed a payload.
+// for the interpreter to RUN. Any operand counts, static or not: stdin is then
+// the program's INPUT rather than its program.
 func NamesAScript(args []Word) bool {
 	dashDash := false
 	for _, a := range args {

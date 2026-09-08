@@ -64,11 +64,8 @@ const probeTimeout = 2 * time.Second
 const maxNames = 40
 
 // DeadReferents returns the identifiers the blocks name that appear neither in
-// the text being written nor anywhere in the repository holding path.
-//
-// It returns nothing at all when it cannot answer: no repository, no ripgrep, a
-// timeout, or a search that errors. An absent answer must never read as "the
-// symbol is gone".
+// the text being written nor in the repository holding path. It returns
+// nothing when it cannot answer.
 func DeadReferents(path, added string, blocks []Block) []string {
 	root := RepoRoot(path)
 	if root == "" {

@@ -18,9 +18,7 @@ type Repair struct {
 }
 
 // Fix scans the text a write adds to path and strips what it safely can.
-//
-// maxLines caps a comment block, and a cap below the floor turns it off. A
-// document is always capless, because a long paragraph is ordinary writing.
+// maxLines caps a comment block, and a cap below the floor turns it off.
 func Fix(path, added string, maxLines int) Repair {
 	doc := IsDocument(path)
 	if doc {

@@ -12,8 +12,7 @@ import (
 )
 
 // newRepo builds a real repository with a commit, plus a bare "origin" it can
-// push to. The resolver shells out to git, so the only honest test of it is a
-// checkout: a fake here would be testing the fake.
+// push to. A fake here would be testing the fake.
 func newRepo(t *testing.T) (dir string, head string) {
 	t.Helper()
 	root := t.TempDir()
@@ -146,8 +145,8 @@ func TestOutsideACheckoutNothingResolves(t *testing.T) {
 	assert.False(t, res.CommitExists("6884dd2"))
 }
 
-// End to end through the real resolver: a reference to something in the checkout
-// is rendered, and a reference to something absent is left alone.
+// End to end through the real resolver: a reference in the checkout is
+// rendered, and an absent reference is left alone.
 func TestRewriteAgainstARealCheckout(t *testing.T) {
 	dir, head := newRepo(t)
 	res := &GitResolver{Dir: dir}

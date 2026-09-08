@@ -48,7 +48,7 @@ func TestThePurgeCommentsRepairIsAccepted(t *testing.T) {
 }
 
 // tellsOf names what a repair reported but could not excise, so a test can ask
-// whether a specimen was caught without caring which half caught it.
+// whether a specimen was caught at all.
 func tellsOf(r Repair) []string {
 	var out []string
 	for _, hit := range r.Kept {

@@ -16,10 +16,8 @@ type blockSpec struct {
 	nested bool
 }
 
-// stringSpec is a literal form. escape says a backslash escapes the next
-// byte. multiline says a newline is part of the literal rather than the end of
-// it. charLike marks a quote that also spells a lifetime or a plain word, so it
-// only opens a literal when a close is near.
+// stringSpec is a literal form. charLike marks a quote that also spells a
+// lifetime, so it only opens a literal when a close is near.
 type stringSpec struct {
 	open      string
 	close     string
@@ -33,8 +31,7 @@ type syntax struct {
 	line  []string
 	block []blockSpec
 	str   []stringSpec
-	// wordStartComment marks a language where a marker only opens a comment at
-	// the start of a word. `echo a#b` passes a literal hash to echo.
+	// wordStartComment marks a language where a marker only opens a comment at a word start.
 	wordStartComment bool
 	// heredoc marks the shell form, where `<<WORD` runs to a line holding WORD.
 	heredoc bool

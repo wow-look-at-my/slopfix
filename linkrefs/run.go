@@ -32,8 +32,7 @@ type Result struct {
 	Code   int
 }
 
-// disabled reports the escape hatch. This runs in the render path, and a guard
-// that can eat output is worse than no guard.
+// disabled reports the escape hatch: a guard that eats output is worse than none.
 func disabled() bool { return os.Getenv("CC_LINK_ALL_REFS") == "0" }
 
 // Run rewrites the flush it is given and returns the envelope to print.
