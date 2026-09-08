@@ -19,7 +19,7 @@ type preserveResult struct {
 }
 
 // preserveAtRiskPaths commits the paths a destructive command would destroy,
-// without touching the user's index. ok is false when the commit failed.
+// without touching the user's index.
 func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok bool) {
 	if root == "" || len(paths) == 0 {
 		return nil, false
