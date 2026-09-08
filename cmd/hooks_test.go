@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -11,8 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A launcher execs a subcommand by name. A missing subcommand, or a subcommand
-// silent on a payload it should refuse, reports success and guards nothing.
+// A subcommand silent on a payload it should refuse guards nothing.
+
+// Subcommands are shared, and driving them writes their streams and flags.
+var cmdMu sync.Mutex
 
 // find returns the registered subcommand of that name.
 func find(t *testing.T, name string) *cobra.Command {
@@ -29,6 +32,8 @@ func find(t *testing.T, name string) *cobra.Command {
 // run drives a subcommand with a payload on stdin and returns its stdout.
 func run(t *testing.T, name, payload string) string {
 	t.Helper()
+	cmdMu.Lock()
+	defer cmdMu.Unlock()
 	c := find(t, name)
 	var out bytes.Buffer
 	c.SetIn(strings.NewReader(payload))
