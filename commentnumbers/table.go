@@ -74,9 +74,16 @@ func Say(prose string) string {
 		prose = p.re.ReplaceAllString(prose, p.To)
 	}
 	prose = strings.Join(strings.Fields(prose), " ")
-	prose = strings.ReplaceAll(prose, " ,", ",")
-	prose = strings.ReplaceAll(prose, " .", ".")
+	prose = closeDanglingSpace(prose)
 	return capitalise(original, prose)
+}
+
+// danglingSpace matches a space before punctuation that CLOSES something.
+var danglingSpace = regexp.MustCompile(`\s+([.,])(\s|$)`)
+
+// closeDanglingSpace removes the space a deletion leaves before punctuation.
+func closeDanglingSpace(prose string) string {
+	return danglingSpace.ReplaceAllString(prose, "${1}${2}")
 }
 
 // replaceWord swaps a whole word or phrase, case-insensitively, leaving a

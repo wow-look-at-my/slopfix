@@ -53,3 +53,21 @@ func TestTheOpeningCaseIsTheOneTheAuthorWrote(t *testing.T) {
 func TestTheTableLeavesAWordContainingANumberWordAlone(t *testing.T) {
 	assert.Equal(t, "The oneShot flag and someone else", Say("The oneShot flag and someone else"))
 }
+
+// A dot against the word after it opens a name. Closing the space before it
+// wrote "Tests for.github/scripts" across a repository of dotfile references.
+func TestTheTableKeepsTheSpaceBeforeALeadingDot(t *testing.T) {
+	for _, prose := range []string{
+		"Tests for .github/scripts/register.sh, the step it runs",
+		"The suite lives in .dats files",
+		"Ignored by .gitignore already",
+	} {
+		assert.Equal(t, prose, Say(prose))
+	}
+}
+
+// The gap a deleted word leaves before closing punctuation still closes.
+func TestTheTableClosesTheGapBeforeClosingPunctuation(t *testing.T) {
+	assert.Equal(t, "It reserves a single slot.", Say("It reserves one slot ."))
+	assert.Equal(t, "It locks, then writes.", Say("It locks , then writes ."))
+}
