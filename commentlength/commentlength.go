@@ -18,6 +18,7 @@ package commentlength
 
 import (
 	"strings"
+	"unicode"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -106,19 +107,87 @@ func Fix(filename, src string) (string, bool) {
 	return strings.Join(lines, "\n"), true
 }
 
-// judge measures a block against its code and names which measure it failed.
+// judge measures a block against its code and names every measure it failed.
+//
+// The two measures are independent, and a block can fail both. Lines catch the
+// essay above a one-line declaration. Characters catch the dense paragraph that
+// fits on fewer lines than the code but still outweighs it.
 func judge(b block) (string, bool) {
 	if b.codeLines == 0 {
 		return "", false
 	}
-	if len(b.text) > b.codeLines {
-		return "the comment runs more lines than the code it documents", true
+	lines, chars := measure(prose(b.text))
+	limit := max(floorChars, b.codeChars)
+
+	var tells []string
+	if lines > b.codeLines {
+		tells = append(tells, "the comment runs more lines than the code it documents")
 	}
-	chars := charsOf(b.text)
-	if chars > floorChars && chars > b.codeChars {
-		return "the comment runs longer than the code it documents", true
+	if chars > limit {
+		tells = append(tells, "the comment runs longer than the code it documents")
 	}
-	return "", false
+	if len(tells) == 0 {
+		return "", false
+	}
+	return strings.Join(tells, ", and "), true
+}
+
+// measure counts the non-blank lines and the non-whitespace characters of a
+// run of text. Indentation therefore carries no cost, and the same function
+// measures a comment and its code, so the two counts compare directly.
+func measure(text []string) (lines, chars int) {
+	for _, line := range text {
+		content := false
+		for _, r := range line {
+			if unicode.IsSpace(r) {
+				continue
+			}
+			content = true
+			chars++
+		}
+		if content {
+			lines++
+		}
+	}
+	return lines, chars
+}
+
+// prose drops the directive lines from a block. A build constraint or a
+// generate line is an instruction to a tool rather than prose, so measuring it
+// reports a block nobody wrote as an essay.
+func prose(text []string) []string {
+	kept := make([]string, 0, len(text))
+	for _, line := range text {
+		if isDirective(line) {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return kept
+}
+
+// isDirective reports a line a tool reads rather than a reader. The C family
+// spells one with no space after the marker, and the hash family carries the
+// interpreter line and the linter pragma.
+func isDirective(line string) bool {
+	t := strings.TrimSpace(line)
+	for _, marker := range []string{"//", "#"} {
+		rest, found := strings.CutPrefix(t, marker)
+		if !found {
+			continue
+		}
+		if marker == "#" && strings.HasPrefix(rest, "!") {
+			return true // an interpreter line
+		}
+		name, _, hasColon := strings.Cut(rest, ":")
+		if !hasColon || name == "" || strings.ContainsAny(name, " \t") {
+			continue
+		}
+		// `//go:build` and `# shellcheck:` carry no space before the colon.
+		// A sentence with a colon in it always does.
+		return true
+	}
+	return false
 }
 
 // trim cuts the block's trailing prose until it fits, keeping the opening.
@@ -176,15 +245,6 @@ func opening(text []string) string {
 		return t
 	}
 	return ""
-}
-
-// charsOf is the prose weight of a comment block: its lines, markers and all, with the indentation dropped.
-func charsOf(text []string) int {
-	n := 0
-	for _, line := range text {
-		n += len(strings.TrimSpace(line))
-	}
-	return n
 }
 
 func splitLines(src string) []string { return strings.Split(src, "\n") }

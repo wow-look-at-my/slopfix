@@ -9,7 +9,7 @@ import (
 // What class of content a command can destroy. Keeping these apart is the
 // whole point: `reset --hard` discards tracked modifications and leaves
 // untracked files alone, `clean -fd` does the exact opposite. Collapsing both
-// into one "dirty" bit produces a guard that denies the safe half of each and
+// into a single "dirty" bit produces a guard that denies the safe half of each and
 // gets switched off.
 type hazard uint8
 
@@ -44,7 +44,7 @@ type finding struct {
 
 type gitCall struct {
 	verb     string
-	sub      string // first operand, for verbs that dispatch on one
+	sub      string // leading operand, for verbs that dispatch on it
 	flags    map[string]bool
 	operands []word
 	dashDash bool
@@ -168,7 +168,7 @@ func classifyGit(seg segment) *finding {
 	switch g.verb {
 	case "reset":
 		// Soft and mixed resets move the ref and leave the working tree
-		// alone; only these three overwrite files.
+		// alone; only the flags below overwrite files.
 		if !g.has("--hard", "--merge", "--keep") {
 			return nil
 		}
@@ -248,7 +248,7 @@ func classifyGit(seg segment) *finding {
 			return nil
 		}
 		if g.has("--mirror") {
-			// --mirror rewrites every ref at once, so there is no bounded set
+			// --mirror rewrites every ref together, so there is no bounded set
 			// of commits to check for survival.
 			return &finding{
 				label: "git push --mirror", always: true, dir: g.dir,
@@ -426,7 +426,7 @@ func lastOperand(operands []word) string {
 	return ""
 }
 
-// replaceFlag swaps the first destructive flag it finds for a safe one and
+// replaceFlag swaps the earliest destructive flag it finds for a safe flag and
 // drops the rest, so the suggested command is the user's own command.
 func replaceFlag(argv []word, remove []string, add string) []word {
 	drop := set.New[string]()

@@ -22,8 +22,8 @@ import (
 // by, which is the same reasoning the bare-ref checkout below rests on. rebase
 // and cherry-pick replay commits onto a different base, and am and apply take a
 // patch from outside git, so what those land is not a tree anything holds.
-// classifyGit still gates merge and pull on a committed tree: the one thing
-// they can lose is a change that is in no object yet.
+// classifyGit still gates merge and pull on a committed tree: what they can
+// lose is a change that is in no object yet.
 var worktreeVerbs = map[string]string{
 	"restore":     "git restore",
 	"stash":       "git stash pop",
@@ -38,7 +38,7 @@ var worktreeVerbs = map[string]string{
 
 // plumbingVerbs write objects, the index or refs directly. `git hash-object -w`
 // followed by `git update-index --cacheinfo` produces a committed change that
-// never existed as a file, which is the same act as editing one.
+// never existed as a file, which is the same act as editing a file.
 var plumbingVerbs = map[string]string{
 	"hash-object":    "git hash-object -w",
 	"update-index":   "git update-index",
@@ -52,7 +52,7 @@ var plumbingVerbs = map[string]string{
 }
 
 // gitValueOptions are the global options that take a separate value, so the verb
-// is found rather than mistaken for one of their arguments.
+// is found rather than mistaken for an argument of theirs.
 var gitValueOptions = set.Of[string]("-C", "-c", "--git-dir", "--work-tree",
 	"--namespace", "--exec-path", "--config-env")
 
@@ -124,7 +124,7 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 		return false
 	}
 	// --abort and --quit put back the state the operation started from, and
-	// --continue/--skip carry on one already under way. The content decision was
+	// --continue/--skip carry on an operation already under way. The decision was
 	// made when it started, which is the invocation this rule is aimed at.
 	if has("--abort", "--quit", "--continue", "--skip") {
 		return false
@@ -146,13 +146,13 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 	case "stash":
 		return len(operands) > 0 && (operands[0].text == "pop" || operands[0].text == "apply")
 	case "reset":
-		// A soft or mixed reset moves refs and the index; only these three
+		// A soft or mixed reset moves refs and the index; only the flags below
 		// rewrite the files on disk.
 		return has("--hard", "--merge", "--keep")
 	case "update-ref":
 		// Setting a ref is the last step of the plumbing route -- hash a blob,
 		// build a tree, point a ref at it -- so it introduces content. Deleting
-		// one introduces none, and the destruction half already judges whether
+		// a ref introduces none, and the destruction half already judges whether
 		// the commits it drops survive elsewhere.
 		return !has("-d", "--delete")
 	}
@@ -161,7 +161,7 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 
 // namesExistingPath separates `git checkout master` from `git checkout src/` by
 // asking the filesystem rather than guessing from the spelling -- a tag called
-// v1.0 looks exactly like a path and is not one.
+// v1.0 looks exactly like a path and is not a path.
 func namesExistingPath(dir string, operands []word) bool {
 	for _, o := range operands {
 		if !o.static {

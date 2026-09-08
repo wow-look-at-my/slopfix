@@ -64,23 +64,22 @@ func classifyVerbs(seg segment, aliases *aliasResolver, depth int) []*finding {
 		return append(out, f)
 	}
 	// Nothing matched a builtin verb, so the verb may be an alias hiding a
-	// destructive one behind an innocuous name.
+	// destructive verb behind an innocuous name.
 	for _, expanded := range aliases.expand(seg, depth) {
 		out = append(out, classifySegment(expanded, aliases, depth+1)...)
 	}
 	return out
 }
 
-// judge returns a denial reason, or a notice to surface once a finding was
-// preserved and allowed instead of denied. At most one of the two is ever
-// non-empty.
+// judge returns a denial reason, or a notice to surface after a finding was
+// preserved and allowed instead of denied. They are never both non-empty.
 func judge(f *finding, cache *repoCache) (deny, notice string) {
 	if f.always {
 		return f.reason + "\nrun: " + f.rewrite, ""
 	}
 	// An operand that is not statically known makes the blast radius unknown,
 	// which is the case this plugin exists to refuse rather than guess at.
-	// The remedy is the one this finding already carries -- an rm and a `>`
+	// The remedy is whatever this finding already carries -- an rm and a `>`
 	// truncation are not fixed the same way -- never a fixed line that fits
 	// neither. Nothing here can be preserved: a path that cannot be resolved
 	// cannot be named to `git add` either.
@@ -170,7 +169,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	}
 	// The invariant is that this content must not be lost -- not that this
 	// exact command must be refused. Committing it satisfies the invariant
-	// directly, and once the commit exists the command is safe by
+	// directly, and as soon as the commit exists the command is safe by
 	// construction, so it is allowed rather than denied.
 	summary, names := describeAtRisk(tracked, untracked, ignored)
 	if res, ok := preserveAtRiskPaths(st.root, names); ok {
@@ -180,9 +179,9 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 }
 
 // describeAtRisk names what a finding would destroy, split by class rather
-// than totalled -- "3 modified + 1 untracked" is the difference between a
-// command that spares half of it and one that does not -- and shared between
-// the denial and the preservation notice, so the two never drift apart.
+// than totalled -- "modified" and "untracked" is the difference between a
+// command that spares half of it and a command that does not -- and shared
+// between the denial and the preservation notice, so they never drift apart.
 func describeAtRisk(tracked, untracked, ignored []string) (summary string, names []string) {
 	var parts []string
 	add := func(entries []string, label string) {

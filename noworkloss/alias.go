@@ -6,9 +6,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// An alias can put a destructive verb behind a harmless-looking name, so a
-// classifier that only reads the words as typed is one `git nuke` away from
-// useless. Aliases are read from git itself rather than guessed at.
+// An alias hides a destructive verb behind a harmless name, so aliases are read from git rather than guessed.
 type aliasResolver struct {
 	cache map[string]map[string]string
 }
@@ -30,8 +28,7 @@ func (a *aliasResolver) table(dir string) map[string]string {
 	a.cache[dir] = t
 	out, _, err := runGit(dir, "config", "--get-regexp", `^alias\.`)
 	if err != nil {
-		// git could not read its own config, so git cannot resolve an alias
-		// either and the command fails on its own.
+		// git cannot read its own config, so it cannot resolve an alias either.
 		return t
 	}
 	for _, line := range strings.Split(out, "\n") {
@@ -45,8 +42,8 @@ func (a *aliasResolver) table(dir string) map[string]string {
 }
 
 // expand turns `git <alias> args` into the segments it really runs. Returns
-// nil when the verb is a builtin (git resolves those first and refuses to let
-// an alias shadow one) or when no such alias exists.
+// nil when the verb is a builtin (git resolves those ahead of aliases and
+// refuses to let an alias shadow a builtin) or when no such alias exists.
 func (a *aliasResolver) expand(seg segment, depth int) []segment {
 	if depth >= maxAliasDepth {
 		return nil
@@ -97,7 +94,7 @@ func argsAfterVerb(argv []word, verb string) []word {
 }
 
 // Verbs git resolves itself. Listed only to skip a config read on the common
-// path -- a name missing from here costs one `git config` call, never a wrong
+// path -- a name missing from here costs a `git config` call, never a wrong
 // verdict.
 var gitBuiltins = set.Of[string]("add", "am", "annotate", "apply", "archive",
 	"bisect", "blame", "branch", "bundle", "cat-file",

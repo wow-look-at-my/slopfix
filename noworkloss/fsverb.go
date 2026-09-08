@@ -9,7 +9,7 @@ import (
 )
 
 // classifyFS covers the destruction that never mentions git: removing a file,
-// moving another one over it, or truncating it with a redirect. Each is scoped
+// moving another file over it, or truncating it with a redirect. Each is scoped
 // to the paths it names -- a repo being dirty elsewhere is no reason to refuse
 // `rm` on a build artifact.
 func classifyFS(seg segment) []*finding {
@@ -19,15 +19,14 @@ func classifyFS(seg segment) []*finding {
 		if !truncating(r) {
 			continue
 		}
-		// A redirect this half objects to is one that empties a file holding
-		// content no git object has. Neither of these can be that file. A
-		// device swallows what it is given and has nothing to lose, and a
-		// descriptor other than stdout carries a stream rather than the
-		// command's output. `git status 2>/dev/null` put nothing at risk and
-		// was refused for both reasons at once, over a target that needs no
-		// working directory to resolve. Content arriving at a file in the tree
-		// is still the provenance half's business at every descriptor, so
-		// `echo x 2> tracked.go` is refused there and named for what it is.
+		// A redirect this half objects to empties a file holding content no git
+		// object has. Neither case below can be that file. A device swallows
+		// what it is given and has nothing to lose, and a descriptor other than
+		// stdout carries a stream rather than the command's output. A discard
+		// of stderr put nothing at risk and was refused anyway, over a target
+		// that needs no working directory to resolve. Content arriving at a
+		// file in the tree is still the provenance half's business at every
+		// descriptor, so `echo x 2> tracked.go` is refused there instead.
 		if isDeviceFile(r.file.text) || !touchesStdout(r) {
 			continue
 		}
@@ -116,7 +115,7 @@ func truncating(r redirTarget) bool {
 	case syntax.RdrOut, syntax.ClbOut, syntax.RdrAll:
 		return true
 	case syntax.DplOut:
-		// `2>&1` duplicates a descriptor; `>&file` truncates a file.
+		// A digit target duplicates a descriptor; `>&file` truncates a file.
 		t := r.file.text
 		if t == "-" {
 			return false
@@ -162,8 +161,8 @@ func splitPlain(rest []word) (map[string]bool, []word) {
 	return flags, operands
 }
 
-// zeroSize reports a truncate that empties the file, in either spelling:
-// `-s 0`, `-s0` or `--size=0`.
+// zeroSize reports a truncate that empties the file, in every spelling of the
+// size flag: separate, attached, or long with an equals sign.
 func zeroSize(argv []word) bool {
 	for i, a := range argv {
 		t := a.text
