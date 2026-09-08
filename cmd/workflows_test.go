@@ -15,7 +15,7 @@ import (
 // built per call: tests run in parallel, and rootCmd's writer is shared.
 func runWorkflowsOn(t *testing.T, paths ...string) (string, error) {
 	t.Helper()
-	return runWorkflowsOnly(t,paths...)
+	return runWorkflowsOnly(t, nil, paths...)
 }
 
 func runWorkflowsOnly(t *testing.T, only []string, paths ...string) (string, error) {
@@ -35,7 +35,7 @@ const atTheLimit = "on: push\n\n# one line is the limit\njobs: {}\n"
 // reads an empty workspace, and a pass there says the rule held when nothing
 // was read at all.
 func TestAWalkThatSelectsNothingFails(t *testing.T) {
-	_, err := runWorkflowsOn(t,t.TempDir())
+	_, err := runWorkflowsOn(t, t.TempDir())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "enforced nothing")
 	assert.Contains(t, err.Error(), "check the repository out")
@@ -45,7 +45,7 @@ func TestAWallOfCommentLinesIsReportedWithItsPlace(t *testing.T) {
 	dir := t.TempDir()
 	path := writeAt(t, dir, ".github/workflows/ci.yml", wall)
 
-	out, err := runWorkflowsOn(t,dir)
+	out, err := runWorkflowsOn(t, dir)
 	require.Error(t, err)
 	assert.Contains(t, out, path)
 	assert.Contains(t, out, "3 comment lines in a row")
@@ -56,7 +56,7 @@ func TestABlockAtTheLimitPasses(t *testing.T) {
 	dir := t.TempDir()
 	writeAt(t, dir, ".github/workflows/ci.yml", atTheLimit)
 
-	out, err := runWorkflowsOn(t,dir)
+	out, err := runWorkflowsOn(t, dir)
 	require.NoError(t, err)
 	assert.Contains(t, out, "1 file(s) read")
 }
@@ -67,7 +67,7 @@ func TestTheWalkKeepsTheDotGithubDirectory(t *testing.T) {
 	dir := t.TempDir()
 	writeAt(t, dir, ".github/workflows/ci.yml", wall)
 
-	_, err := runWorkflowsOn(t,dir)
+	_, err := runWorkflowsOn(t, dir)
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "enforced nothing")
 }
@@ -78,7 +78,7 @@ func TestAnActionManifestOutsideDotGithubIsRead(t *testing.T) {
 	dir := t.TempDir()
 	writeAt(t, dir, "my-action/action.yml", "name: a\nruns:\n  using: composite\n\n# one\n# two\n")
 
-	out, err := runWorkflowsOn(t,dir)
+	out, err := runWorkflowsOn(t, dir)
 	require.Error(t, err)
 	assert.Contains(t, out, "2 comment lines in a row")
 }
@@ -89,7 +89,7 @@ func TestTheWalkSkipsForeignAndBuildDirectories(t *testing.T) {
 	writeAt(t, dir, "build/action.yml", wall)
 	writeAt(t, dir, ".github/workflows/ci.yml", atTheLimit)
 
-	out, err := runWorkflowsOn(t,dir)
+	out, err := runWorkflowsOn(t, dir)
 	require.NoError(t, err)
 	assert.Contains(t, out, "1 file(s) read")
 }
@@ -125,13 +125,13 @@ func TestANamedFileIsReadWhateverItsPath(t *testing.T) {
 	dir := t.TempDir()
 	path := writeAt(t, dir, "somewhere.yml", wall)
 
-	out, err := runWorkflowsOn(t,path)
+	out, err := runWorkflowsOn(t, path)
 	require.Error(t, err)
 	assert.Contains(t, out, "3 comment lines in a row")
 }
 
 func TestAMissingWorkflowPathIsAnError(t *testing.T) {
-	_, err := runWorkflowsOn(t,filepath.Join(t.TempDir(), "absent"))
+	_, err := runWorkflowsOn(t, filepath.Join(t.TempDir(), "absent"))
 	assert.Error(t, err)
 }
 
@@ -142,12 +142,12 @@ func TestOnlyReportsTheRuleTheCallerNamed(t *testing.T) {
 	writeAt(t, dir, ".github/workflows/ci.yml",
 		"on: push\n\n# one\n# two\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n")
 
-	every, err := runWorkflowsOn(t,dir)
+	every, err := runWorkflowsOn(t, dir)
 	require.Error(t, err)
 	assert.Contains(t, every, "yaml/comment-block")
 	assert.Contains(t, every, "yaml/all-builds-job")
 
-	narrowed, err := runWorkflowsOnly(t,[]string{"yaml/comment-block"}, dir)
+	narrowed, err := runWorkflowsOnly(t, []string{"yaml/comment-block"}, dir)
 	require.Error(t, err)
 	assert.Contains(t, narrowed, "yaml/comment-block")
 	assert.NotContains(t, narrowed, "yaml/all-builds-job")
@@ -159,7 +159,7 @@ func TestOnlyPassesWhenTheNamedRuleFindsNothing(t *testing.T) {
 	writeAt(t, dir, ".github/workflows/ci.yml",
 		"on: push\n\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n")
 
-	out, err := runWorkflowsOnly(t,[]string{"yaml/comment-block"}, dir)
+	out, err := runWorkflowsOnly(t, []string{"yaml/comment-block"}, dir)
 	require.NoError(t, err)
 	assert.Contains(t, out, "1 file(s) read")
 }
@@ -169,7 +169,7 @@ func TestAnUnknownRuleNameIsAnError(t *testing.T) {
 	dir := t.TempDir()
 	writeAt(t, dir, ".github/workflows/ci.yml", wall)
 
-	_, err := runWorkflowsOnly(t,[]string{"yaml/nosuch"}, dir)
+	_, err := runWorkflowsOnly(t, []string{"yaml/nosuch"}, dir)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown rule")
 	assert.Contains(t, err.Error(), "yaml/comment-block")
