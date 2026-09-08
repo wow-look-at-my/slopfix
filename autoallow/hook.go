@@ -2,7 +2,6 @@ package autoallow
 
 import (
 	"encoding/json"
-	"os"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"

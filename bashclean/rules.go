@@ -16,10 +16,9 @@ var (
 )
 
 // readOperands returns the file operands of a cat/head/tail call. Flags are
-// skipped, and so is the separated VALUE of a value-taking flag (-n 5, -c 10,
-// --lines=, +N), so `head -n 20 f` does not mistake `20` for a file. A lone
-// `-` is stdin, not a file. valued enables head/tail's flag grammar; cat has
-// no value-taking flag, so for it every dash word is simply dropped.
+// skipped, and so is the separated VALUE of a value-taking flag, so a count
+// is never mistaken for a file. A lone `-` is stdin. valued enables
+// head/tail's flag grammar; for cat every dash word is simply dropped.
 func readOperands(args []*syntax.Word, valued bool) []*syntax.Word {
 	ops := []*syntax.Word{}
 	skip, done := false, false
@@ -78,8 +77,7 @@ func sedSuppressesOutput(args []*syntax.Word) bool {
 }
 
 // sedFileOperands drops the flags and the leading script word, unless -e/-f
-// already supplied the script, in which case the first non-flag word is
-// already a file.
+// already supplied the script, leaving every non-flag word a file.
 func sedFileOperands(args []*syntax.Word) []*syntax.Word {
 	scripted := false
 	for _, w := range args {
@@ -128,9 +126,8 @@ func hasFileRead(f *syntax.File) bool {
 		return callReadsBannedFile(c) || callIsSedLineRead(c)
 	})
 }
-// hasGitRM: the SUBCOMMAND is the first non-flag word after `git`, so
-// `git -C dir rm f` counts while `git commit -m rm` does not. git's own
-// pre-subcommand flags that take a separated value are skipped. `--cached`
+// hasGitRM: the SUBCOMMAND is the leading non-flag word after `git`, so
+// `git -C dir rm f` counts while `git commit -m rm` does not. `--cached`
 // anywhere only unstages, and passes through.
 func hasGitRM(f *syntax.File) bool {
 	return hasStatementCall(f, func(c *syntax.CallExpr) bool {
@@ -481,10 +478,7 @@ func ensurePipefail(f *syntax.File) {
 		Args: []*syntax.Word{word("set"), word("-o"), word("pipefail")}}}}, f.Stmts...)
 }
 
-// An echo/printf becomes the no-op `:` only when its stdout REACHES THE
-// TERMINAL. `X=$(echo hi)`, `echo x | jq` and `echo x > f` are data, not
-// narration. Visibility threads top-down, so this traversal is hand-rolled
-// over statement structure and never enters Word parts.
+// An echo becomes the no-op `:` only when its stdout REACHES THE TERMINAL.
 var globRisk = regexp.MustCompile(`[*?\[{]`)
 
 // wordIsConstant: a Lit with no glob or tilde risk, a single-quoted string, or

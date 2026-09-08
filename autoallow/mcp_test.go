@@ -83,8 +83,7 @@ func TestMatchMCPServerExactTool(t *testing.T) {
 }
 
 // The shipped rules must auto-allow read-only tools on servers nobody
-// enumerated in advance; the old server-by-server list left everything else
-// asking.
+// enumerated in advance.
 func TestShippedRulesAllowReadOnlyMCPTools(t *testing.T) {
 	r, err := loadXMLRules(rulesXML)
 	assert.NoError(t, err)

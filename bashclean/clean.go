@@ -64,7 +64,7 @@ func Transform(command string) Result {
 		}
 	}
 	// Runs to a fixed point: a rule's output is another rule's input, and a
-	// single pass leaves that second rewrite undone.
+	// single pass leaves the later rewrite undone.
 	for i := 0; i < 20; i++ {
 		pass := printFile(f)
 		onePass(apply)
@@ -226,8 +226,7 @@ func anyCall(f *syntax.File, p func(*syntax.CallExpr) bool) bool {
 	return hit
 }
 
-// Scrub the stderr discard, tree-wide. A discarded stderr turns one command
-// into two: the command, and a call asking whether it worked.
+// Scrub the stderr discard, tree-wide: a discarded stderr costs another call asking whether it worked.
 func isDevnull(w *syntax.Word) bool { return isWord(w, "/dev/null") }
 
 func isStderrDevnull(r *syntax.Redirect) bool {
@@ -249,8 +248,8 @@ func isStderrToStdout(r *syntax.Redirect) bool {
 	return r.N != nil && r.N.Value == "2" && r.Op == syntax.DplOut && isWord(r.Word, "1")
 }
 
-// One positional pass over a Redirs list: order decides whether a trailing
-// 2>&1 lands in /dev/null or on the terminal.
+// A positional pass over a Redirs list: order decides whether a trailing
+// merge lands in /dev/null or on the terminal.
 func scrubRedirs(rs []*syntax.Redirect) []*syntax.Redirect {
 	out := make([]*syntax.Redirect, 0, len(rs))
 	sawNull := false
@@ -294,10 +293,8 @@ func dockerCompose(c *syntax.CallExpr) {
 var runID = regexp.MustCompile(`^[0-9]+$`)
 
 // onlyFlagsAndValues asks whether no remaining word is a POSITIONAL. A bare
-// word right after a dash word is that flag's value (`--branch main`); a
-// `--flag=value` carries its own, so the word after it is a positional again.
-// A positional blocks the rewrite: `gh pr checks 42` names one pull request
-// where `gh wait-ci checks` reads the current branch.
+// word right after a dash word is that flag's value, while a `--flag=value`
+// carries its own. A positional blocks the rewrite, since it names a subject.
 func onlyFlagsAndValues(ws []*syntax.Word) bool {
 	for i, w := range ws {
 		s, _ := literal(w)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -342,16 +341,4 @@ func TestRulesXMLIndentedWithTabs(t *testing.T) {
 	for i, line := range strings.Split(string(rulesXML), "\n") {
 		assert.False(t, strings.HasPrefix(line, " "), "rules.xml:%d indents with spaces: %q", i+1, line)
 	}
-}
-
-func captureOutput(f func()) string {
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	f()
-	w.Close()
-	os.Stdout = old
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	return buf.String()
 }
