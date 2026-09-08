@@ -32,8 +32,7 @@ func TestEveryGrammarReportsAndRepairs(t *testing.T) {
 	for name, src := range languageFixtures {
 		require.True(t, Parsed(name), "%s: the rule does not claim this file", name)
 
-		// An accepted grammar can still yield a broken tree, and the rule then
-		// answers clean. Java did that.
+		// An accepted grammar can still yield a broken tree. Java did.
 		_, parses := treeBlocks(languageFor(name), src)
 		require.True(t, parses, "%s: the grammar does not parse its own fixture", name)
 

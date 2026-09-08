@@ -20,8 +20,7 @@ import (
 type home struct {
 	// plugin is the directory that used to hold the rule.
 	plugin string
-	// command is the subcommand a launcher execs, or the empty string for a
-	// rule reached through --only.
+	// command is the subcommand a launcher execs.
 	command string
 	// rule is the ID passed to --only, or the empty string.
 	rule string
@@ -59,9 +58,8 @@ func TestEveryRetiredPluginHasAHome(t *testing.T) {
 	}
 }
 
-// example-plugin was deleted on purpose and must not come back. It carried no
-// rule: it was the template a new plugin was copied from, and the marketplace
-// no longer takes new plugins of its own.
+// example-plugin was deleted on purpose. It carried no rule: it was the
+// template a new plugin got copied from.
 func TestTheExamplePluginIsNotMigrated(t *testing.T) {
 	for _, h := range migrated {
 		assert.NotEqual(t, "example-plugin", h.plugin)
