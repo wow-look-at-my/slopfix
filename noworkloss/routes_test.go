@@ -38,7 +38,6 @@ func routeCases() []routeCase {
 		{route: "ruby -pi -e", deny: `ruby -pi -e 'gsub(/a/,"b")' src.txt`, allow: "ruby --version", names: "inline ruby script"},
 		{route: "node -e with fs.writeFileSync", deny: `node -e 'require("fs").writeFileSync("src.txt","x")'`, allow: "node --version", names: "inline node script"},
 		{route: "perl -pi -e", deny: `perl -pi -e 's/a/b/' src.txt`, allow: "perl --version", names: "inline perl script"},
-		// The control is the shape this used to refuse: an interpreter that already
 		{route: "a script piped into an interpreter", deny: `echo 'x' | ruby`, allow: `echo 'x' | ruby prog.rb`, names: "piped in on stdin"},
 		{route: "a script redirected into an interpreter", deny: `ruby < prog.rb`, allow: `ruby prog.rb < data.json`, names: "piped in on stdin"},
 		{route: "busybox sed -i", deny: "busybox sed -i s/a/b/ src.txt", allow: "busybox sed -i s/a/b/ {{out}}/src.txt", names: "src.txt"},
@@ -70,10 +69,8 @@ func routeCases() []routeCase {
 		{route: "git am", deny: "git am {{out}}/x.patch", allow: "cd {{out}} && git am x.patch", names: "git am"},
 
 		// git used as an editor.
-		{route: "git checkout with a pathspec", deny: "git checkout master -- src", allow: "cd {{out}} && git checkout master -- src", names: "git checkout"},
 		{route: "git restore", deny: "git restore src.txt", allow: "cd {{out}} && git restore src.txt", names: "git restore"},
 		{route: "git stash pop", deny: "git stash pop", allow: "cd {{out}} && git stash pop", names: "git stash pop"},
-		{route: "git revert", deny: "git revert HEAD", allow: "cd {{out}} && git revert HEAD", names: "git revert"},
 		{route: "git cherry-pick", deny: "git cherry-pick abc123", allow: "cd {{out}} && git cherry-pick abc123", names: "git cherry-pick"},
 		{route: "git reset --hard", deny: "git reset --hard origin/master", allow: "cd {{out}} && git reset --hard origin/master", names: "git reset"},
 
@@ -228,6 +225,10 @@ func TestOrdinaryCommandsAreUntouched(t *testing.T) {
 		"git fetch origin master", "git branch -a", "git clone https://example.com/r.git {{out}}/r",
 		// Integrating a named ref's committed history, which the PR rules require.
 		"git merge origin/master", "git merge --no-ff feature", "git pull origin master",
+
+		// Recovery out of history.
+		"git revert HEAD", "git revert --no-commit abc123",
+		"git checkout master -- src", "git checkout abc123 -- a/b.go",
 
 		// Integrating a ref: no edit tool performs a merge, so denying it wedges the workflow.
 		"git merge --no-edit origin/master", "git merge FETCH_HEAD", "git pull origin master",
