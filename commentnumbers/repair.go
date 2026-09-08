@@ -43,7 +43,7 @@ func Fix(filename, src string) Repair {
 	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
 
-// commentLineNumbers reports where a comment starts on each line carrying one,
+// commentLineNumbers reports where a comment starts on each line carrying it,
 // as a byte offset into the line. The parser answers where the comments are, so
 // a marker inside a string literal is left alone.
 //
@@ -133,8 +133,7 @@ func paragraphsOf(lines []string, commented map[int]int) []para {
 			continue
 		}
 		if at > 0 {
-			// A comment following code stands alone: the code above it is not
-			// prose the sentence runs through, and the line cannot be rewrapped.
+			// A comment following code stands alone and cannot be rewrapped.
 			out = append(out, para{marker: marker, lines: []int{i}, prose: prose, width: len(line), code: line[:at]})
 			current = nil
 			continue

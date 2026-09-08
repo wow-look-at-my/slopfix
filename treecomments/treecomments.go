@@ -64,8 +64,8 @@ type Comment struct {
 // Extract returns every comment in the source, in source order.
 //
 // A file the grammar cannot parse yields nothing, and so does a file with a
-// syntax error: half a tree is a worse input than none, and a rule that
-// repaired against one would rewrite the wrong bytes.
+// syntax error: half a tree is a worse input than none, and a rule repairing
+// against it would rewrite the wrong bytes.
 func Extract(filename, src string) []Comment {
 	language := languageFor(filename)
 	if language == nil {
