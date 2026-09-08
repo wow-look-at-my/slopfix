@@ -9,18 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A directory under no version control is not this hook's business. Both
-// halves say so already -- the destruction half in judge, the language server
-// in scope.ts -- and the provenance half did not. ~/Downloads is the case
-// these cover: an ordinary place to unpack an archive, with no .git entry in
-// any ancestor.
-//
-// Each case is a pair. The denial half runs the same command inside a real
-// working tree, so a rule that stopped answering at all would pass the
-// allowance and fail the denial.
+// ~/Downloads is what these cover: an ordinary place to unpack an archive,
+// with no .git entry in any ancestor. Each case pairs an allowance with the
+// same command inside a real work tree, so a rule that stopped answering at
+// all would fail the denial half.
 
-// plainDir is a directory with no .git entry above it and no project
-// directory naming it.
+// plainDir has no .git entry above it and no project directory naming it.
 func plainDir(t *testing.T) string {
 	t.Helper()
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
@@ -30,10 +24,8 @@ func plainDir(t *testing.T) string {
 	return dir
 }
 
-// The reported incident. split writes chunks whose names it invents, so the
-// provenance half judges the directory rather than a path. Outside a work
-// tree there is no version to arrive before the write, and the repair the
-// denial named -- Write -- cannot author a binary chunk at all.
+// split names the chunks itself, so the directory is what gets judged. Write,
+// which the refusal named as the repair, cannot author a binary chunk.
 func TestAllowsSplitOutsideEveryWorkTree(t *testing.T) {
 	dir := plainDir(t)
 	assert.Empty(t, ask(t, dir, "split -b 14m archive.zst archive.zst.part-"))
@@ -45,11 +37,8 @@ func TestDeniesSplitInsideTheWorkTree(t *testing.T) {
 	assert.Contains(t, r, "working tree")
 }
 
-// The second half of the same incident. mv into a directory overwrites
-// whatever the sources are named, and the names came from a glob. What an
-// overwrite costs is what git no longer holds, so outside a work tree it
-// costs nothing, and `git add -A && git commit` is not a way out of a
-// directory with no repository in it.
+// mv into a directory overwrites whatever the sources are named, and the
+// names came from a glob. An overwrite costs what git no longer holds.
 func TestAllowsMoveWithUnresolvableSourcesOutsideEveryWorkTree(t *testing.T) {
 	dir := plainDir(t)
 	assert.Empty(t, ask(t, dir, `mv "$TMPDIR/zstsplit/"*.part-* `+dir+"/"))
@@ -61,9 +50,8 @@ func TestDeniesMoveWithUnresolvableSourcesIntoTheWorkTree(t *testing.T) {
 	assert.Contains(t, r, "cannot resolve")
 }
 
-// A root outside every work tree still stands in for a repository UNDER it.
-// The first version of this fix dropped such a root entirely, which let
-// `cd <repo> && git reset --hard` through from the directory above.
+// An untracked root still stands in for a repository under it. Dropping such
+// a root outright let `cd <repo> && git reset --hard` through from above.
 func TestGuardsARepositoryBelowAnUntrackedRoot(t *testing.T) {
 	dir := plainDir(t)
 	root := filepath.Join(dir, "repo")
@@ -73,9 +61,8 @@ func TestGuardsARepositoryBelowAnUntrackedRoot(t *testing.T) {
 	assert.Contains(t, r, "working tree")
 }
 
-// The scope is the work tree, not the session's own directory. A write into
-// a repository the session is not rooted on is still refused, so the rule
-// above cannot be reached by running the command from somewhere else.
+// Scope is the work tree, not the session's directory, so the allowance above
+// cannot be reached by running the command from somewhere else.
 func TestGuardsTheProjectDirectoryFromOutsideIt(t *testing.T) {
 	root := newTree(t)
 	dir := plainDir(t)

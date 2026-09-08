@@ -16,9 +16,6 @@ import (
 // repository the session works in, and the project directory the CLI names.
 // Both are used because they disagree when a session is rooted on a parent
 // directory rather than on a repository.
-//
-// A root with no .git entry above it stands in for the repositories UNDER it,
-// and for nothing else. That is the whole shape of the rule below.
 func guardedRoots(cwd string) []string {
 	var roots []string
 	add := func(p string) {
@@ -91,14 +88,7 @@ func insideGuarded(roots []string, abs string) (string, bool) {
 		if rel == "." || isBuildOutput(rel) {
 			continue
 		}
-		// The provenance rule says a file must arrive through an edit tool, so
-		// that git holds the version before it. Where git holds nothing the rule
-		// protects nothing, and the refusal claims a working tree that is not
-		// there. `split -b 14m x x.part-` in ~/Downloads was refused as "inside
-		// the working tree", and the repair it named -- Write -- cannot author a
-		// binary chunk. So a root outside every work tree guards only what lands
-		// inside one. It still guards that: `cd <repo> && git reset --hard` run
-		// from the directory above destroys the same work either way.
+		// An untracked root guards only paths inside a repository.
 		if repoRoot(root) == "" && repoRoot(abs) == "" {
 			continue
 		}
@@ -117,8 +107,7 @@ func coversGuarded(roots []string, dir string) (string, bool) {
 	}
 	dir = filepath.Clean(dir)
 	for _, root := range roots {
-		// A root under no version control has nothing of its own to guard, and
-		// this direction is asking about the root's own content.
+		// An untracked root owns no content.
 		if repoRoot(root) == "" {
 			continue
 		}
