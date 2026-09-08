@@ -14,6 +14,7 @@ A directory is a rule. Where a package holds several, they are members of one fa
 | [markdown](markdown/README.md) | `wrap/hard-wrap` | yes |
 | [workflow](workflow/README.md) | `yaml/*` | no |
 | [commentnumbers](commentnumbers/README.md) | `comments/number` | no |
+| [commentlength](commentlength/README.md) | `comments/length` | what it can cut without losing the opening |
 | [laziness](laziness/README.md) | `laziness/punt` | no |
 
 A directory here can hold no rule at all. [markdown](markdown/README.md) is the document model every prose rule sits on. It carries the hard-wrap rule as well. [source](source/README.md) is the substrate adapter that answers where the prose is in a source file.
@@ -38,6 +39,7 @@ slopfix fix docs/*.md     # repair each file in place, and report what is left
 slopfix fmt docs/*.md     # join every wrapped paragraph back to a single line
 slopfix purge .           # delete the markdown a repository must not keep
 slopfix comments .        # report a number stated in a comment, in any language
+slopfix comment-length .  # report a comment longer than the code it documents
 slopfix workflows .       # read every workflow and action manifest in the tree
 ```
 
@@ -58,6 +60,8 @@ The action at the root of this repository downloads the published binary from bu
 `command` defaults to `workflows`. `paths` defaults to the whole workspace. The step therefore goes after the checkout. `only` is the flag of the same name. There is no `exclude`: an exemption a caller writes is one a caller sets to everything. `fix` and `fmt` are refused: a job that repairs its own checkout and then reports a pass has enforced nothing.
 
 `comments` reads source rather than prose. A number in a comment is a count of what exists today. The edit that adds an item leaves it wrong. It reads a comment by its delimiters rather than by a grammar. So it answers for every language it knows, and on a tree that does not compile. A directory is walked, skipping hidden directories, `vendor`, `node_modules`, `testdata` and `build`. A named file is read whatever its extension. go-toolchain runs this same check as its first phase.
+
+`comment-length` reads a real syntax tree, so the span a comment is weighed against is exact rather than guessed. `--fix` cuts each over-long block back inside its budget, from the end, and never past the opening sentence. A repair the rule cannot make without losing the opening is reported instead, for a person to rewrite.
 
 ## Naming the rules to run
 
