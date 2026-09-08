@@ -43,9 +43,9 @@ func Fix(filename, src string) Repair {
 	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
 
-// commentLineNumbers reports where the comment starts on each line that carries
-// one, as a byte offset into the line. The extractor answers where the comments
-// are, so a marker inside a string literal is left alone.
+// commentLineNumbers reports where a comment starts on each line carrying one,
+// as a byte offset into the line. The parser answers where the comments are, so
+// a marker inside a string literal is left alone.
 //
 // A comment that opens partway along a line follows code, and the offset is
 // what keeps that code out of the rewrite.

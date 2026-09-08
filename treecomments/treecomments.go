@@ -3,7 +3,7 @@
 // It is the substrate adapter a comment rule reads: a comment is a node whose
 // type carries "comment", which is how every grammar spells it, so nothing here
 // names a language. A marker inside a string literal is not a comment, and a
-// comment following code on its line is one, both because the parser says so.
+// comment following code on its line is included, both because the parser says.
 package treecomments
 
 import (
