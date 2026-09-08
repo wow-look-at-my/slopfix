@@ -1,6 +1,7 @@
 package commentnumbers_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,6 +48,38 @@ func TestANumberNoEntryCoversCutsItsSentence(t *testing.T) {
 func TestACommentLeftWithNothingToSayLosesItsLine(t *testing.T) {
 	repair := commentnumbers.Fix("x.go", "// Each shard is padded to 128 bytes.\nvar x int\n")
 	assert.Equal(t, "var x int\n", repair.Text)
+}
+
+// A sentence wraps across comment lines, and a cut takes the whole sentence.
+// Cutting only the share a line carries leaves the rest dangling below it,
+// which is what the repair did before it read a paragraph at a time.
+func TestACutTakesAWrappedSentenceWhole(t *testing.T) {
+	src := "// A take that finds it empty puts refillBatch values back. Every\n" +
+		"// measured take therefore also pays for 1 add. Subtract the add\n" +
+		"// benchmark to isolate the take itself.\nfunc f() {}\n"
+
+	repair := commentnumbers.Fix("x.go", src)
+	assert.NotContains(t, repair.Text, "pays for", "the sentence carrying the number goes whole")
+	assert.NotContains(t, repair.Text, "// add.", "no fragment of it is left behind")
+	assert.Contains(t, repair.Text, "puts refillBatch values back.")
+	assert.Contains(t, repair.Text, "Subtract the add")
+	assert.Equal(t, []string{"Every measured take therefore also pays for 1 add."}, repair.Removed)
+	assert.Empty(t, commentnumbers.Check("x.go", repair.Text))
+}
+
+// A rewrite of a wrapped paragraph keeps the prose on its own lines rather
+// than running it together.
+func TestARewrittenParagraphKeepsItsShape(t *testing.T) {
+	src := "// Bag.AddRange links the whole batch with one compare-and-swap, and\n" +
+		"// the other two run a loop instead of a single atomic write.\nfunc f() {}\n"
+
+	repair := commentnumbers.Fix("x.go", src)
+	for _, line := range strings.Split(repair.Text, "\n") {
+		assert.LessOrEqual(t, len(line), 80, "the repair wrapped at the width the paragraph had")
+	}
+	assert.Contains(t, repair.Text, "the others run a loop", "a cardinal standing in for a noun is said, not cut")
+	assert.Empty(t, repair.Removed)
+	assert.Empty(t, commentnumbers.Check("x.go", repair.Text))
 }
 
 // A blank comment line the source already carried is a paragraph break somebody

@@ -32,43 +32,40 @@ func Fix(filename, src string) Repair {
 	if IsGenerated(src) {
 		return Repair{Text: src}
 	}
-	comments := source.Extract(filename, src)
-	if len(comments) == 0 {
+	commented := commentLineNumbers(filename, src)
+	if len(commented) == 0 {
 		return Repair{Text: src}
 	}
 
-	out := src
-	var removed []string
-	emptied := make(map[int]bool)
-	// Back to front, so an earlier comment's offset stays valid.
-	for i := len(comments) - 1; i >= 0; i-- {
-		c := comments[i]
-		repaired, cut, blanked := repairComment(c.Text)
-		if repaired == c.Text {
-			continue
-		}
-		removed = append(removed, cut...)
-		line := 1 + strings.Count(src[:c.Offset], "\n")
-		for _, n := range blanked {
-			emptied[line+n] = true
-		}
-		out = out[:c.Offset] + repaired + out[c.Offset+len(c.Text):]
-	}
-
-	out = dropEmptied(out, emptied)
-	reverse(removed)
+	lines := strings.Split(src, "\n")
+	repaired, removed, blanked := repairLines(lines, commented)
+	out := dropEmptied(strings.Join(repaired, "\n"), blanked)
 	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
 
-// repairComment rewrites a comment token a paragraph at a time. It returns the
-// repaired token, the sentences it cut, and the lines it left with nothing to
+// commentLineNumbers reports which lines of the source carry a comment. The
+// extractor answers where the comments are, so a marker inside a string literal
+// is left alone.
+func commentLineNumbers(filename, src string) map[int]bool {
+	out := make(map[int]bool)
+	for _, c := range source.Extract(filename, src) {
+		at := 1 + strings.Count(src[:c.Offset], "\n")
+		for i := range strings.Count(c.Text, "\n") + 1 {
+			out[at+i] = true
+		}
+	}
+	return out
+}
+
+// repairLines rewrites a file's comments a paragraph at a time. It returns the
+// repaired lines, the sentences it cut, and the lines it left with nothing to
 // say.
 //
 // A paragraph rather than a line, because a sentence wraps: cutting the share
 // a line carries leaves the rest of that sentence dangling below it.
-func repairComment(text string) (repaired string, removed []string, blanked []int) {
-	lines := strings.Split(text, "\n")
-	for _, para := range paragraphsOf(lines) {
+func repairLines(lines []string, commented map[int]bool) (repaired []string, removed []string, blanked map[int]bool) {
+	blanked = make(map[int]bool)
+	for _, para := range paragraphsOf(lines, commented) {
 		said := Say(para.prose)
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
@@ -82,7 +79,7 @@ func repairComment(text string) (repaired string, removed []string, blanked []in
 				continue
 			}
 			// Fewer lines than before: the rest go bare, and the caller drops them.
-			blanked = append(blanked, at)
+			blanked[at+1] = true
 			lines[at] = strings.TrimRight(para.marker, " ")
 		}
 		if len(wrapped) > len(para.lines) {
@@ -91,7 +88,7 @@ func repairComment(text string) (repaired string, removed []string, blanked []in
 			lines[last] = strings.Join(append([]string{lines[last]}, proseOf(wrapped[len(para.lines):])...), " ")
 		}
 	}
-	return strings.Join(lines, "\n"), removed, blanked
+	return lines, removed, blanked
 }
 
 // para is a run of comment lines carrying a single paragraph of prose.
@@ -109,12 +106,12 @@ type para struct {
 // paragraphsOf groups a comment's lines into the paragraphs a rewrite acts on.
 // A directive, a blank comment line and a line carrying no marker all break the
 // run: none of them is prose a sentence continues through.
-func paragraphsOf(lines []string) []para {
+func paragraphsOf(lines []string, commented map[int]bool) []para {
 	var out []para
 	var current *para
 	for i, line := range lines {
 		marker, prose, ok := split(line)
-		if !ok || prose == "" || isDirective(line) {
+		if !commented[i+1] || !ok || prose == "" || isDirective(line) {
 			current = nil
 			continue
 		}
@@ -241,12 +238,4 @@ func bareMarker(line string) bool {
 		return true
 	}
 	return false
-}
-
-// reverse puts the removed sentences back into source order, which the walk
-// above collects them out of.
-func reverse(s []string) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
 }
