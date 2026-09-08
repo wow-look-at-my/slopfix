@@ -66,16 +66,16 @@ func CheckFile(path string) ([]ste.Finding, error) {
 
 // CheckContent reports the findings in text headed for path, without reading a
 // file. A hook and an editor hold the text before it lands, and asking a
-// separate code path for that answer is how the two drift apart.
+// separate code path for that answer is how they drift apart.
 //
 // AllIDs names every rule this can report.
 //
 // The PATH decides, and a path this owns no rules for gets none. Falling
 // through to the prose rules for everything that is not a workflow judged a
-// source file as a document: `report --path a.go` came back with hard-wrap on
-// line 1, because a Go file's lines are not paragraphs. Every caller then had
-// to keep its own file-kind gate to undo that, which is the same decision made
-// twice and the shape a caller cannot be asked to hold.
+// source file as a document: `report --path a.go` came back with hard-wrap at
+// the top, because a Go file's lines are not paragraphs. Every caller then had
+// to keep its own file-kind gate to undo that, which repeats the same decision
+// and is a shape a caller cannot be asked to hold.
 func CheckContent(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
 		return workflow.Check(content)
@@ -139,7 +139,7 @@ func AllIDs() set.Set[string] {
 
 // Listed renders a set of rule IDs for a person: the flag help, and the error
 // that names what a caller could have written instead. A set has no order of
-// its own, so the reader gets an alphabetical one rather than a shuffled one.
+// its own, so the reader gets an alphabetical listing rather than a shuffled listing.
 func Listed(ids set.Set[string]) string {
 	return strings.Join(slices.Sorted(ids.All()), ", ")
 }

@@ -37,7 +37,7 @@ func TestAMarkerInsideALiteralIsNotAComment(t *testing.T) {
 }
 
 // Rust nests its block comments, so an inner open has to be counted. Reading
-// the first close as the end leaves the rest of the file as code.
+// the earliest close as the end leaves the rest of the file as code.
 func TestANestedBlockCommentClosesAtItsOwnEnd(t *testing.T) {
 	src := "/* outer /* inner */ still outer */\nlet n = 1;\n"
 	got := texts("x.rs", src)
@@ -45,7 +45,7 @@ func TestANestedBlockCommentClosesAtItsOwnEnd(t *testing.T) {
 	assert.Equal(t, "/* outer /* inner */ still outer */", got[0])
 }
 
-// The C family does not nest, so the same text ends at the first close. This
+// The C family does not nest, so the same text ends at the earliest close. This
 // is the control that proves the case above reads the table.
 func TestAPlainBlockCommentClosesAtTheFirstEnd(t *testing.T) {
 	got := texts("x.c", "/* outer /* inner */ still outer */\nint n = 1;\n")
@@ -89,15 +89,15 @@ func TestAQuotedHeredocDelimiterIsRead(t *testing.T) {
 	assert.Equal(t, []string{"# real"}, texts("x.sh", src))
 }
 
-// A shell passes `a#b` to the command as one word, so the marker opens a
+// A shell passes `a#b` to the command as a single word, so the marker opens a
 // comment only where a word begins.
 func TestAHashInsideAWordIsNotAComment(t *testing.T) {
 	assert.Empty(t, texts("x.sh", "echo a#b\n"))
 	assert.Equal(t, []string{"# real"}, texts("x.sh", "echo a # real\n"))
 }
 
-// Every byte belongs to exactly one span, in order. A gap loses text and an
-// overlap reports it twice.
+// Every byte belongs to a single span, in order. A gap loses text and an
+// overlap reports the same byte again.
 func TestTheSpansCoverEveryByteInOrder(t *testing.T) {
 	src := "package p\n\n// note\nconst u = \"x\" // trailing\n"
 	spans, ok := Lex("x.go", src)

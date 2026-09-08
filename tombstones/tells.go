@@ -88,7 +88,7 @@ var tells = []tell{
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\bwhere (?:it|this|that) (?:used to|once)\b`)},
 	{"a then-and-now contrast", regexp.MustCompile(`(?i)\b[a-z]+ed now\b|\b(?:is|are) now (?:[a-z]+ed|the case)\b`)},
 	// A move names both ends, so the "then" is spelled out rather than implied.
-	// The contrast patterns above all need one of a small set of adjectives, and
+	// The contrast patterns above all need an adjective from a small set, and
 	// a real specimen went uncaught for want of this: a purge comment opening
 	// "moved from Stop to MessageDisplay", whose subject is a registration the
 	// file no longer has.

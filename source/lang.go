@@ -1,5 +1,5 @@
 // lang.go is the syntax table. Every language this adapter reads is a row in
-// it, and one engine reads every row. A rule therefore behaves the same way
+// it, and a shared engine reads every row. A rule therefore behaves the same way
 // whatever wrote the file, which is the whole point of the adapter.
 package source
 
@@ -16,7 +16,7 @@ type blockSpec struct {
 	nested bool
 }
 
-// stringSpec is one literal form. escape says a backslash escapes the next
+// stringSpec is a literal form. escape says a backslash escapes the next
 // byte. multiline says a newline is part of the literal rather than the end of
 // it. charLike marks a quote that also spells a lifetime or a plain word, so it
 // only opens a literal when a close is near.
@@ -28,7 +28,7 @@ type stringSpec struct {
 	charLike  bool
 }
 
-// syntax is one language's spelling of a comment, a literal and a block.
+// syntax is a language's spelling of a comment, a literal and a block.
 type syntax struct {
 	line  []string
 	block []blockSpec

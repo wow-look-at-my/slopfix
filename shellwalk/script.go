@@ -7,7 +7,7 @@ import (
 )
 
 // StdinMarkers are the operands that mean "the program arrives on stdin".
-// Naming one is the opposite of naming a script: `node -` and `node
+// Naming a marker is the opposite of naming a script: `node -` and `node
 // /dev/stdin` run whatever is piped in.
 var StdinMarkers = set.Of[string]("-", "/dev/stdin")
 
@@ -18,7 +18,7 @@ var StdinMarkers = set.Of[string]("-", "/dev/stdin")
 // This is the whole difference between `cat evil.js | node -`, which hands node
 // a program the command text does not contain, and `printf '{...}' | node
 // hook.ts`, which is how a hook gets tested with the payload it will really
-// receive. Both plugins used to refuse the second one.
+// receive. Both plugins used to refuse the latter form.
 func NamesAScript(args []Word) bool {
 	dashDash := false
 	for _, a := range args {
@@ -45,7 +45,7 @@ func NamesAScript(args []Word) bool {
 // --noexec, or an n inside a single-dash cluster such as -nx. Nothing the
 // script names is written, so following it into the script's text is wrong.
 // An operand ends the flags, so a script named `-n` cannot masquerade as the
-// flag. argv includes the shell itself at index 0.
+// flag. argv includes the shell itself at the leading index.
 func ShellNoExec(argv []Word) bool {
 	for i := 1; i < len(argv); i++ {
 		t := argv[i].Text

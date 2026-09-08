@@ -2,7 +2,7 @@
 // source file, by extracting the comments and nothing else.
 //
 // The syntax table in lang.go spans every language this org writes, and lex.go
-// is the one walk that reads every row of it. Nothing here is specific to any
+// is the shared walk that reads every row of it. Nothing here is specific to any
 // language, and a rule that reads a comment reads it the same way whatever
 // wrote the file.
 package source

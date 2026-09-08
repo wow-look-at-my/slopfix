@@ -1,8 +1,8 @@
-// lex.go is the one engine. It walks a file once and says, for every byte,
-// whether it is code, a comment or a literal.
+// lex.go is the shared engine. It walks a file in a single pass and says, for
+// every byte, whether it is code, a comment or a literal.
 //
 // Every language shares this walk. What differs is the table it reads, so a
-// language is a row of data rather than a second implementation. That is what
+// language is a row of data rather than a separate implementation. That is what
 // keeps a rule's behaviour the same across a tree that holds several languages.
 package source
 
@@ -20,7 +20,7 @@ const (
 	KindString
 )
 
-// Span is a run of bytes of one kind. End is exclusive.
+// Span is a run of bytes of a single kind. End is exclusive.
 type Span struct {
 	Kind  Kind
 	Start int
@@ -69,7 +69,7 @@ func lexWith(s syntax, src string) []Span {
 	return out
 }
 
-// commentAt reports the length of the comment opening at i, if one does.
+// commentAt reports the length of the comment opening at i, if a comment opens there.
 func commentAt(s syntax, src string, i int) (int, bool) {
 	rest := src[i:]
 	for _, marker := range s.line {
@@ -120,7 +120,7 @@ func blockLength(rest string, b blockSpec) int {
 }
 
 // atWordStart reports whether the byte before i can precede a comment marker.
-// A shell passes `a#b` through as one word, so the marker only opens a comment
+// A shell passes `a#b` through as a single word, so the marker only opens a comment
 // where a word begins.
 func atWordStart(src string, i int) bool {
 	if i == 0 {
@@ -133,7 +133,7 @@ func atWordStart(src string, i int) bool {
 	return false
 }
 
-// literalAt reports the length of the literal opening at i, if one does.
+// literalAt reports the length of the literal opening at i, if a literal opens there.
 func literalAt(s syntax, src string, i int) (int, bool) {
 	rest := src[i:]
 	if s.heredoc {
@@ -176,7 +176,7 @@ func closesNearby(rest string, spec stringSpec) bool {
 	return false
 }
 
-// literalLength measures a literal. An unterminated one consumes the rest,
+// literalLength measures a literal. An unterminated literal consumes the rest,
 // which stops a stray quote from turning the remaining file into prose.
 func literalLength(rest string, spec stringSpec) int {
 	at := len(spec.open)

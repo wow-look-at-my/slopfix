@@ -2,8 +2,8 @@
 // enhanced-auto-allow both need: what a word says, which program a spelling
 // actually names, and whether an invocation names a script of its own.
 //
-// The two plugins keep their own segmentation and their own verdicts -- one
-// fails closed, the other fails open, deliberately. What they must NOT keep
+// Both plugins keep their own segmentation and their own verdicts -- no-work-loss
+// fails closed, enhanced-auto-allow fails open, deliberately. What they must NOT keep
 // separately is the answer to "which program does this run", because a wrapper
 // or a spelling either plugin misreads is a rule the other still enforces.
 package shellwalk
@@ -15,7 +15,7 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// Word is one argv element: the text it expands to, and whether that text is
+// Word is an argv element: the text it expands to, and whether that text is
 // the whole story. Static is false when a part could expand to anything -- a
 // parameter, a substitution, a glob. A caller granting permission must treat a
 // non-static word as unknown; a caller refusing may still read Text.
@@ -24,7 +24,7 @@ type Word struct {
 	Static bool
 }
 
-// WordText renders one syntax word. An unresolvable part contributes nothing to
+// WordText renders a syntax word. An unresolvable part contributes nothing to
 // Text and clears Static, so `"py"thon3` still yields "python3" to inspect
 // while `$X` yields the empty string and says so.
 func WordText(wd *syntax.Word) Word {
@@ -74,8 +74,8 @@ func CommandName(t string) string {
 }
 
 // MatchesProgram reports whether a resolved name is the named program. A
-// trailing version is the same program, so "python" covers python3 and
-// python3.11 without listing either.
+// trailing version is the same program, so "python" covers every versioned
+// spelling of it without listing any.
 func MatchesProgram(name, want string) bool {
 	if name == want {
 		return true
