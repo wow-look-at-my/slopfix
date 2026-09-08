@@ -111,30 +111,30 @@ func lineAt(src string, offset int) int {
 // measureCode measures the code a block documents, starting at line from.
 func measureCode(lines []string, from, indent int) (int, int) {
 	depth := 0
-	count, chars := 0, 0
-	for i := from; i < len(lines) && count < maxCodeLines; i++ {
+	var code []string
+	for i := from; i < len(lines) && len(code) < maxCodeLines; i++ {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 
 		if trimmed == "" || startsComment(trimmed) {
 			// A blank line or a fresh comment ends the span, unless a brace is still open.
-			if depth <= 0 && count > 0 {
+			if depth <= 0 && len(code) > 0 {
 				break
 			}
 			continue
 		}
-		if count > 0 && depth <= 0 && indentOf(line) <= indent && closesNothing(lines[from]) {
+		if len(code) > 0 && depth <= 0 && indentOf(line) <= indent && closesNothing(lines[from]) {
 			break
 		}
 
-		count++
-		chars += len(trimmed)
+		code = append(code, line)
 		depth += braceDelta(trimmed)
-		if count > 0 && depth <= 0 && opensBrace(lines[from]) {
+		if depth <= 0 && opensBrace(lines[from]) {
 			break
 		}
 	}
-	return count, chars
+	// The same measure the comment gets, so the two counts compare directly.
+	return measure(code)
 }
 
 // closesNothing reports an opening line that opened no brace, so indentation bounds the span.

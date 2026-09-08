@@ -34,6 +34,12 @@ func goBlocks(src string) (out []block, ok bool) {
 	// parser has already decided that attachment, which is the judgement the
 	// line walk was making for itself.
 	for group, node := range documented(file) {
+		// The package doc is never measured. It introduces the file rather than
+		// one declaration, so there is nothing of a comparable size to weigh it
+		// against, and the check this rule replaces skips it for that reason.
+		if group == file.Doc {
+			continue
+		}
 		start := fset.Position(group.Pos()).Line - 1
 		end := fset.Position(group.End()).Line
 		if start < 0 || end > len(lines) || start >= end {
@@ -98,14 +104,13 @@ func spanOf(fset *token.FileSet, lines []string, node ast.Node) (int, int) {
 		to = from + maxCodeLines
 	}
 
-	count, chars := 0, 0
+	code := make([]string, 0, to-from)
 	for _, line := range lines[from:to] {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || startsComment(trimmed) {
+		if trimmed := strings.TrimSpace(line); trimmed == "" || startsComment(trimmed) {
 			continue
 		}
-		count++
-		chars += len(trimmed)
+		code = append(code, line)
 	}
-	return count, chars
+	// The same measure the comment gets, so the two counts compare directly.
+	return measure(code)
 }
