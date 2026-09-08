@@ -370,8 +370,8 @@ func resolvePart(p syntax.WordPart, vars varTable, b *strings.Builder) bool {
 	}
 }
 
-// simpleVar resolves a plain $NAME reference and nothing else: any operator
-// makes the value depend on something this scan does not evaluate.
+// simpleVar resolves a plain $NAME reference and nothing else: an operator
+// makes the value depend on something this scan cannot evaluate.
 func simpleVar(x *syntax.ParamExp, vars varTable) (word, bool) {
 	if x == nil || x.Param == nil {
 		return word{}, false

@@ -241,6 +241,12 @@ func TestOrdinaryCommandsAreUntouched(t *testing.T) {
 		// opt-out -- so denying it wedged the workflow it was meant to protect.
 		"git merge --no-edit origin/master", "git merge FETCH_HEAD", "git pull origin master",
 
+		// Copying. This is how a tree of files gets put in place, so no `cp` is a
+		// provenance route -- not over a tracked file, and not from outside the tree.
+		"cp {{out}}/src.txt src.txt", "cp src.txt {{out}}/copy.txt",
+		"cp -r {{out}}/pkg .", "cp -- {{out}}/src.txt src.txt",
+		"cp -t . {{out}}/src.txt",
+
 		// Builds, tests and search.
 		"go build ./...", "go test ./...", "npm test", "make build", "just fmt",
 		"grep -w foo src.txt", "rg --files", "ls -la", "find . -name '*.go'",
