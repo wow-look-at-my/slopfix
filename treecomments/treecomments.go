@@ -42,17 +42,38 @@ var grammars = map[string]func() *ts.Language{
 	".mts":  typescript.Language,
 	".cts":  typescript.Language,
 	".tsx":  tsx.Language,
+	// A hash-comment format is read by the bash grammar: what it recovers from
+	// a file that is not a script is the comment lines, which is all a comment
+	// rule asks of it.
+	".yml":  bash.Language,
+	".yaml": bash.Language,
+	".toml": bash.Language,
+	".conf": bash.Language,
+	".zsh":  bash.Language,
 }
 
-// Supported reports whether a grammar parses a file of that name.
-func Supported(filename string) bool { return languageFor(filename) != nil }
+// Supported reports whether a grammar parses a file of that name. A walk reads
+// it before opening a file, so a tree it has no grammar for is skipped rather
+// than guessed at.
+func Supported(filename string) bool { return grammarFor(filename) != nil }
 
-// languageFor answers the grammar for a filename, and nil when none parses it.
-func languageFor(filename string) *ts.Language {
+// grammarFor answers the grammar an extension names, and nil when none does.
+func grammarFor(filename string) *ts.Language {
 	if load, ok := grammars[strings.ToLower(filepath.Ext(filename))]; ok {
 		return load()
 	}
 	return nil
+}
+
+// languageFor answers the grammar to read a file with. Naming a file IS the
+// request, so one whose extension names no grammar is read by the bash grammar
+// rather than skipped: a Dockerfile, a Makefile and a dotfile all carry hash
+// comments, and that is what the caller asked about.
+func languageFor(filename string) *ts.Language {
+	if language := grammarFor(filename); language != nil {
+		return language
+	}
+	return bash.Language()
 }
 
 // Comment is a comment's text and where it begins in the source.
@@ -63,9 +84,9 @@ type Comment struct {
 
 // Extract returns every comment in the source, in source order.
 //
-// A file the grammar cannot parse yields nothing, and so does a file with a
-// syntax error: half a tree is a worse input than none, and a rule repairing
-// against it would rewrite the wrong bytes.
+// A file no grammar covers yields nothing. A file with a syntax error does
+// not: tree-sitter recovers around the error, so the comments it does find sit
+// where it says they do, and a rule answers on a file mid-edit.
 func Extract(filename, src string) []Comment {
 	language := languageFor(filename)
 	if language == nil {
@@ -80,7 +101,7 @@ func Extract(filename, src string) []Comment {
 		return nil
 	}
 	root := tree.RootNode()
-	if root.IsNull() || root.HasError() {
+	if root.IsNull() {
 		return nil
 	}
 	var out []Comment

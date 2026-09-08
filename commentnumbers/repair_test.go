@@ -99,7 +99,7 @@ func TestARewrittenParagraphKeepsItsShape(t *testing.T) {
 // of it is not prose the rewrite may touch.
 func TestACommentFollowingCodeIsRepaired(t *testing.T) {
 	repair := fix(t, "func f() {\n\tb.CompleteAdding() // A second call changes nothing.\n}\n")
-	assert.Equal(t, "func f() {\n\tb.CompleteAdding() // The next call changes nothing.\n}\n", repair.Text)
+	assert.Equal(t, "func f() {\n\tb.CompleteAdding() // Another call changes nothing.\n}\n", repair.Text)
 	assert.Empty(t, commentnumbers.Check("x.go", header+repair.Text))
 }
 
