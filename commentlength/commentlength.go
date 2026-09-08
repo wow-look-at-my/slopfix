@@ -51,6 +51,14 @@ type block struct {
 	codeLines, codeChars int
 	// text is the comment's lines, marker and all.
 	text []string
+	// exact is true when a parser decided this span rather than a line walk.
+	//
+	// It gates the REPAIR and nothing else. A finding is worth reporting on a
+	// span that was worked out by reading lines, because a reader checks it
+	// before acting. Deleting prose on that basis is not: a span wrong by a
+	// line deletes the wrong sentence, and nobody reviews a rewrite a hook
+	// applied.
+	exact bool
 }
 
 // Check reports every comment block in src that outweighs its code.
