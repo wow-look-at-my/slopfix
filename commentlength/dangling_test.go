@@ -8,69 +8,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A cut lands on a sentence end or it does not happen.
+// A cut lands on a sentence end wherever the prose has one.
 //
-// The repair used to lop a line at a time once no paragraph break and no
-// earlier sentence ending were left. That left the opening line's own sentence
-// half written, so "This scanner never" and "A colon after the" both shipped.
-// A dangling clause is a worse comment than the long one it replaced.
-func TestARepairNeverLeavesAHalfWrittenSentence(t *testing.T) {
+// The repair used to cut whole lines, so a line holding the end of a sentence
+// and the start of the next was kept entire. "The grammar also declares an
+// error-recovery token. This scanner never" shipped that way. A dangling clause
+// is a worse comment than the long comment it replaced.
+func TestARepairCutsAtASentenceEndInsideALine(t *testing.T) {
 	src := strings.Join([]string{
 		"package p",
 		"",
-		"// The grammar declares a token this scanner never produces, and the blank",
-		"// below keeps every index above it right, which matters because the parser",
-		"// reads them positionally rather than by name and has no way to notice.",
+		"// The grammar declares a token this scanner never produces. The blank",
+		"// below it keeps every index above right, because the parser reads them",
+		"// by position rather than by name.",
 		"const p = 1",
 	}, "\n")
 
-	out, _ := Fix("x.go", src)
-	for _, line := range strings.Split(out, "\n") {
-		if !strings.HasPrefix(strings.TrimSpace(line), "//") {
-			continue
-		}
-		assert.True(t, endsSentence(line) || !isLastCommentLine(out, line),
-			"the repair left a dangling clause: %q", line)
-	}
-}
-
-// isLastCommentLine reports whether a line is the final comment line of its run.
-func isLastCommentLine(src, line string) bool {
-	lines := strings.Split(src, "\n")
-	for i, l := range lines {
-		if l != line {
-			continue
-		}
-		if i+1 >= len(lines) {
-			return true
-		}
-		return !strings.HasPrefix(strings.TrimSpace(lines[i+1]), "//")
-	}
-	return false
-}
-
-// A block with no clean cut stays whole. Reporting a long comment is honest.
-// Emitting a broken one is not.
-func TestABlockWithNoCleanCutIsLeftAlone(t *testing.T) {
-	body := "// One single unbroken sentence that runs on and on well past anything the " +
-		"declaration beneath it can justify carrying, with no earlier full stop anywhere in it\n"
-	src := "package p\n\n" + body + "const p = 1\n"
-
-	require.NotEmpty(t, Check("x.go", src))
 	out, changed := Fix("x.go", src)
-	assert.False(t, changed, "a block with no clean cut must not be rewritten")
-	assert.Equal(t, src, out)
+	require.True(t, changed)
+	assert.Contains(t, out, "The grammar declares a token this scanner never produces.")
+	assert.NotContains(t, out, "The blank")
+	assert.Empty(t, Check("x.go", out))
 }
 
-// A block that does hold an earlier ending is still repaired, which is the
-// control that proves the rule above did not simply stop cutting.
-func TestABlockWithAnEarlierEndingIsStillRepaired(t *testing.T) {
+// Prose that carries no sentence end at all is still shortened. The line cut is
+// the last resort, and losing the tail beats leaving the essay whole.
+func TestProseWithNoSentenceEndIsStillShortened(t *testing.T) {
+	var b strings.Builder
+	for range 6 {
+		b.WriteString("// an explanation that runs on well past the declaration below it,\n")
+	}
+	src := "package p\n\n" + b.String() + "const p = 1\n"
+
+	out, changed := Fix("x.go", src)
+	require.True(t, changed)
+	assert.Less(t, len(out), len(src))
+	assert.Empty(t, Check("x.go", out))
+}
+
+// A block that holds an earlier ending is repaired at that ending, which is the
+// control that proves the cut is not simply the last line going.
+func TestABlockWithAnEarlierEndingIsRepairedThere(t *testing.T) {
 	src := strings.Join([]string{
 		"package p",
 		"",
 		"// The bound every caller shares.",
-		"// It was raised once, and the reason is that the old value truncated a",
-		"// payload nobody had measured, which took a week of somebody's time.",
+		"// It was raised, and the reason is that the old value truncated a payload",
+		"// nobody had measured, which took a week of somebody's time.",
 		"const p = 1",
 	}, "\n")
 

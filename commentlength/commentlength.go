@@ -220,10 +220,10 @@ func trim(b block) []string {
 // cutLastThought drops the last thought out of a block, and reports false when
 // nothing is left to drop.
 //
-// A cut lands on a sentence end wherever the prose has one. Lopping a line
-// instead leaves a dangling clause, and "This scanner never" is a worse comment
-// than the long one it replaced. The line cut stays as the last resort, for
-// prose that carries no sentence end at all.
+// A cut lands on a sentence end wherever the prose has any. Lopping a line
+// instead leaves a dangling clause, which reads worse than the long comment it
+// replaced. The line cut stays as the last resort, for prose that carries no
+// sentence end at all.
 func cutLastThought(text []string) ([]string, bool) {
 	if next, ok := dropParagraph(text); ok && endsWell(next) {
 		return next, true
@@ -248,8 +248,8 @@ func endsWell(text []string) bool {
 // dropTrailingSentence removes the last sentence of the last paragraph and
 // reflows what is left, so a cut lands mid-line where the prose ends there.
 //
-// It reports false for a block whose shape it cannot read, and for one whose
-// last paragraph holds a single sentence: dropParagraph and dropSentence own
+// It reports false for a block whose shape it cannot read, and for a last
+// paragraph with no interior sentence end: dropParagraph and dropSentence own
 // those.
 func dropTrailingSentence(text []string) ([]string, bool) {
 	marker, indent, ok := commentShape(text)
