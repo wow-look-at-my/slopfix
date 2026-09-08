@@ -446,51 +446,11 @@ func needsSeparator(ops []*syntax.Word) bool {
 
 func rewriteRM(c *syntax.CallExpr) {
 	e, ok := effectiveCommand(c)
-	if !ok {
+	if !ok || e.name != "rm" {
 		return
 	}
-	switch e.name {
-	case "rm":
-		c.Args = append(append(append([]*syntax.Word{}, c.Args[:e.index]...),
-			word("recycler"), word("trash")), rmTargets(c.Args[e.index+1:])...)
-	case "xargs":
-		// Here `rm` is an ARGUMENT word of xargs, not a command word, so the
-		// effective-command resolver never sees it.
-		u, found := xargsUtility(c.Args, e.index+1)
-		if !found {
-			return
-		}
-		if s, _ := literal(c.Args[u]); s != "rm" {
-			return
-		}
-		c.Args = append(append(append([]*syntax.Word{}, c.Args[:u]...),
-			word("recycler"), word("trash")), rmTargets(c.Args[u+1:])...)
-	}
-}
-
-var xargsValuedFlag = regexp.MustCompile(`^-[nPIisLdEa]$`)
-
-// xargsUtility finds the word naming the utility xargs runs. An xargs flag
-// that takes a separated value must not be mistaken for it.
-func xargsUtility(args []*syntax.Word, start int) (int, bool) {
-	skip := false
-	for i := start; i < len(args); i++ {
-		if skip {
-			skip = false
-			continue
-		}
-		s, ok := literal(args[i])
-		switch {
-		case !ok:
-			return 0, false
-		case xargsValuedFlag.MatchString(s):
-			skip = true
-		case strings.HasPrefix(s, "-") && len(s) > 1:
-		default:
-			return i, true
-		}
-	}
-	return 0, false
+	c.Args = append(append(append([]*syntax.Word{}, c.Args[:e.index]...),
+		word("recycler"), word("trash")), rmTargets(c.Args[e.index+1:])...)
 }
 
 func rewriteTruncate(c *syntax.CallExpr) {

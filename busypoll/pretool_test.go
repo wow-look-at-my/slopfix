@@ -27,17 +27,22 @@ func bashCall(command string) string {
 
 // assistantCall is an assistant record making a tool call.
 func assistantCall(name, input string) string {
-	return `{"type":"assistant","timestamp":"2026-09-05T01:00:00Z","message":{"role":"assistant","content":` +
-		`[{"type":"tool_use","name":"` + name + `","input":` + input + `}]}}`
+	return record(map[string]any{
+		"type":      "assistant",
+		"timestamp": "2026-09-05T01:00:00Z",
+		"message": map[string]any{"role": "assistant", "content": []any{
+			map[string]any{"type": "tool_use", "name": name, "input": json.RawMessage(input)},
+		}},
+	})
 }
 
-// jsonString quotes text the way the harness does. Go's json.Marshal escapes
-// `<` and JavaScript does not, so marshaling builds an unreal fixture.
-func jsonString(text string) string {
+// record encodes a fixture the way the harness writes one. Go's json.Marshal
+// escapes `<` and JavaScript does not, so marshaling builds an unreal fixture.
+func record(v any) string {
 	var b strings.Builder
 	enc := json.NewEncoder(&b)
 	enc.SetEscapeHTML(false)
-	_ = enc.Encode(text)
+	_ = enc.Encode(v)
 	return strings.TrimRight(b.String(), "\n")
 }
 

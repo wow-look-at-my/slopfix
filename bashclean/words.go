@@ -1,9 +1,9 @@
 package bashclean
 
 import (
-	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/shellwalk"
 	"mvdan.cc/sh/v3/syntax"
 )
 
@@ -32,46 +32,27 @@ func wordLiteral(w *syntax.Word) (string, bool) {
 	}
 	return b.String(), true
 }
+
 type effCmd struct {
 	name  string
 	index int
 }
 
-var lookupFlag = regexp.MustCompile(`[vV]`)
-
+// effectiveCommand names the program a call really runs, and where its word
+// sits in .Args. It peels through shellwalk, so one rule for `rm` covers a
+// `sudo`, `env`, `nice`, `timeout` or `xargs` prefix and an absolute path
+// alike. Enumerating the spellings of a wrapper can never be finished.
+//
+// A non-static command word ($x, $(x)) and a lookup (`command -v rm`, which
+// prints a name rather than running it) both resolve to nothing.
 func effectiveCommand(c *syntax.CallExpr) (effCmd, bool) {
-	if c == nil {
+	if c == nil || len(c.Args) == 0 {
 		return effCmd{}, false
 	}
-	return resolveCommand(c.Args, 0, 10)
-}
-func resolveCommand(a []*syntax.Word, i, d int) (effCmd, bool) {
-	if d <= 0 || i >= len(a) {
+	argv := shellwalk.Words(c.Args)
+	eff := shellwalk.StripWrappers(argv)
+	if len(eff) == 0 || !eff[0].Static || eff[0].Text == "" {
 		return effCmd{}, false
 	}
-	s, ok := wordLiteral(a[i])
-	if !ok {
-		return effCmd{}, false
-	}
-	s = strings.TrimPrefix(s, `\`)
-	if s != "command" && s != "builtin" {
-		return effCmd{s, i}, true
-	}
-	for j := i + 1; j < len(a); j++ {
-		f, ok := wordLiteral(a[j])
-		if !ok {
-			return effCmd{}, false
-		}
-		if f == "--" {
-			return resolveCommand(a, j+1, d-1)
-		}
-		if strings.HasPrefix(f, "-") && len(f) > 1 {
-			if s == "command" && lookupFlag.MatchString(f) {
-				return effCmd{}, false
-			}
-			continue
-		}
-		return resolveCommand(a, j, d-1)
-	}
-	return effCmd{}, false
+	return effCmd{shellwalk.CommandName(eff[0].Text), len(argv) - len(eff)}, true
 }

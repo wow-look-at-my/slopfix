@@ -260,23 +260,7 @@ func rmUnknownFlags(args []*syntax.Word) bool {
 func hasBadRM(f *syntax.File) bool {
 	return anyCall(f, func(c *syntax.CallExpr) bool {
 		e, ok := effectiveCommand(c)
-		if !ok {
-			return false
-		}
-		switch e.name {
-		case "rm":
-			return rmUnknownFlags(c.Args[e.index+1:])
-		case "xargs":
-			u, found := xargsUtility(c.Args, e.index+1)
-			if !found {
-				return false
-			}
-			if s, _ := literal(c.Args[u]); s != "rm" {
-				return false
-			}
-			return rmUnknownFlags(c.Args[u+1:])
-		}
-		return false
+		return ok && e.name == "rm" && rmUnknownFlags(c.Args[e.index+1:])
 	})
 }
 
