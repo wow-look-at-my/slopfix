@@ -56,12 +56,28 @@ func HTTPStatus(_ string, toks []Token, i int) bool {
 	return strings.EqualFold(prefix, httpStatusPrefix) && isStatusCode(toks[i].Text)
 }
 
-// isStatusCode reports whether text is the bare digits of a status code. A name
-// marker at either end is the punctuation of the sentence, since a token keeps
-// the period that ends it.
+// isStatusCode reports whether text is the bare digits of a status code.
 func isStatusCode(text string) bool {
 	text = strings.Trim(text, nameMarkers)
-	if len(text) != statusCodeDigits {
+	return len(text) == statusCodeDigits && allDigits(text)
+}
+
+// exitStatusPrefixes name the digits after them as a status.
+var exitStatusPrefixes = set.Of("exit", "exits", "exited", "status", "errno", "signal")
+
+// ExitStatus exempts the digits of an exit status. The rule reports a count of
+// what exists today, because the edit that adds an item leaves the count wrong.
+// A status is a VALUE the program answers with, and no edit moves it.
+func ExitStatus(_ string, toks []Token, i int) bool {
+	if i == 0 || !allDigits(strings.Trim(toks[i].Text, nameMarkers)) {
+		return false
+	}
+	return exitStatusPrefixes.Contains(strings.ToLower(strings.Trim(toks[i-1].Text, nameMarkers)))
+}
+
+// allDigits reports whether text is a bare run of digits.
+func allDigits(text string) bool {
+	if text == "" {
 		return false
 	}
 	for _, r := range text {

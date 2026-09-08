@@ -96,6 +96,8 @@ func TestTheVocabulariesDifferByDesign(t *testing.T) {
 func TestTheCommentExemptionsCarryTheShapesThatCountNothing(t *testing.T) {
 	for name, text := range map[string]string{
 		"status code":   "the proxy answers HTTP 403 here",
+		"exit status":   "the loader exits 121 from a read-only path",
+		"exit word":     "it fails with status 2 and says why",
 		"section":       "the rule in §7.3 governs this",
 		"money":         "the run costs $1.43 of budget",
 		"qualified":     "sync.Once guards it, and net/http serves it",
@@ -111,6 +113,8 @@ func TestTheCommentExemptionsCarryTheShapesThatCountNothing(t *testing.T) {
 	// The controls, so the cases above prove an exemption rather than a rule
 	assert.Equal(t, []string{"403"}, texts("the proxy answers 403 here", Comment))
 	assert.Equal(t, []string{"4"}, texts("the walk has 4 - phases", Comment))
+	// The exit words exempt the status they name, never a tally beside them.
+	assert.Equal(t, []string{"3"}, texts("the exit path has 3 callers", Comment))
 }
 
 // A quantity reached through a function word counts nothing, and a number that
