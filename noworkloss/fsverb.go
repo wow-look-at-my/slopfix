@@ -8,10 +8,8 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// classifyFS covers the destruction that never mentions git: removing a file,
-// moving another file over it, or truncating it with a redirect. Each is scoped
-// to the paths it names -- a repo being dirty elsewhere is no reason to refuse
-// `rm` on a build artifact.
+// classifyFS covers the destruction that never mentions git, scoped to the
+// paths it names.
 func classifyFS(seg segment) []*finding {
 	var out []*finding
 
@@ -20,22 +18,16 @@ func classifyFS(seg segment) []*finding {
 			continue
 		}
 		// A redirect this half objects to empties a file holding content no git
-		// object has. Neither case below can be that file. A device swallows
-		// what it is given and has nothing to lose, and a descriptor other than
-		// stdout carries a stream rather than the command's output. A discard
-		// of stderr put nothing at risk and was refused anyway, over a target
-		// that needs no working directory to resolve. Content arriving at a
-		// file in the tree is still the provenance half's business at every
-		// descriptor, so a stderr redirect onto a tracked file is refused there.
+		// object has. A device has nothing to lose, and a descriptor other
+		// than stdout carries a stream rather than output.
 		if isDeviceFile(r.file.text) || !touchesStdout(r) {
 			continue
 		}
 		out = append(out, &finding{
 			label: redirLabel(r, ">"), haz: hazTracked | hazUntracked, dir: seg.cwd,
 			paths: []word{r.file},
-			// Not `>> file`: appending spares the existing content but is still
-			// a write outside the edit tools, so the provenance half refuses it
-			// and this would be advice that gets denied on the next call.
+			// Not `>> file`: appending is still a write outside the edit tools,
+			// so the provenance half refuses that advice on the next call.
 			rewrite: "commit the file first, then change it with Edit",
 		})
 	}
@@ -82,9 +74,8 @@ func classifyFS(seg segment) []*finding {
 		})
 
 	case "tee":
-		// tee truncates every file it is given unless appending. Worth
-		// covering on its own: the sibling cleanup-bash-cmds plugin rewrites a
-		// trailing `> file` into `| tee file`, so this is a shape that arrives
+		// tee truncates every file it is given unless appending. A sibling
+		// plugin rewrites a trailing redirect into tee, so this shape arrives
 		// without anyone typing it.
 		if flags["-a"] || flags["--append"] || len(operands) == 0 {
 			return out

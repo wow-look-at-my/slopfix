@@ -15,7 +15,7 @@ import (
 )
 
 // marker is the session's accumulated view. Fired records the signature the
-// Stop gate last blocked on PER FILE, which keeps the no-wedge property.
+// Stop gate blocked on PER FILE, which is the no-wedge property.
 type marker struct {
 	Paths []string          `json:"paths"`
 	Fired map[string]string `json:"fired"`

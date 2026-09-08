@@ -5,11 +5,8 @@ import (
 	"strings"
 )
 
-// analyze is the whole decision: flatten the command, classify every unit,
-// and consult repository state only for the units that could destroy
-// something. It also returns the notices a preserved-and-allowed finding
-// leaves behind, so a command that moves content into a ref is never silent
-// about it just because nothing was denied.
+// analyze flattens the command, classifies every unit, and consults
+// repository state only for the units that could destroy something.
 func analyze(command, cwd string) (string, []string) {
 	segs, _, ok := parseSegments(command, cwd)
 	if !ok {
@@ -42,9 +39,8 @@ func classifySegment(seg segment, aliases *aliasResolver, depth int) []*finding 
 	return stampScript(classifyVerbs(seg, aliases, depth), seg.fromScript)
 }
 
-// stampScript records where a finding came from. Doing it here rather than in
-// each rule means a new rule inherits the answer instead of forgetting it, and
-// an alias expanded out of a script keeps its origin.
+// stampScript records where a finding came from, in a single place, so a new
+// rule inherits the answer instead of forgetting it.
 func stampScript(out []*finding, fromScript bool) []*finding {
 	if !fromScript {
 		return out
@@ -71,25 +67,15 @@ func classifyVerbs(seg segment, aliases *aliasResolver, depth int) []*finding {
 	return out
 }
 
-// judge returns a denial reason, or a notice to surface after a finding was
-// preserved and allowed instead of denied. They are never both non-empty.
+// judge returns a denial reason, or a notice for a finding preserved and
+// allowed instead. They are never both filled.
 func judge(f *finding, cache *repoCache) (deny, notice string) {
 	if f.always {
 		return f.reason + "\nrun: " + f.rewrite, ""
 	}
-	// An operand that is not statically known makes the blast radius unknown,
-	// which is the case this plugin exists to refuse rather than guess at.
-	// The remedy is whatever this finding already carries -- an rm and a `>`
-	// truncation are not fixed the same way -- never a fixed line that fits
-	// neither. Nothing here can be preserved: a path that cannot be resolved
-	// cannot be named to `git add` either.
-	// A finding read out of a script FILE is the program's own behaviour, not
-	// a write this command text directs. This hook already declines to sandbox
-	// what it starts -- `go build`, `npm test` and `make` write what they
-	// write -- and a build script naming its output from a variable is that
-	// same case. Refusing it made `cd src && ./make.bash` unrunnable, which is
-	// an ordinary build of a Go toolchain. A STATIC path inside a script is
-	// still judged, so the write-elsewhere-then-run bypass stays closed.
+	// An unresolvable operand makes the blast radius unknown. A finding read
+	// out of a script FILE is the program's own behaviour, which this hook
+	// does not sandbox; a STATIC path inside a script is still judged.
 	for _, p := range f.paths {
 		if !p.static && !f.fromScript {
 			return fmt.Sprintf("blocked: %s targets a path this hook cannot resolve (%s), so what it would delete is unknown."+
@@ -123,15 +109,8 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 			"\nrun: %s", f.label, where, f.rewrite), ""
 	}
 
-	// The same rule as the unresolvable operand above, applied to the other
-	// half of the same question. A path resolves against a directory, and a
-	// script that runs `cd "$targ"` names that directory out of its own text.
-	// The operand `rm -f .gitignore` is perfectly static; what nothing here
-	// can know is where it lands. That is the program's business too, and
-	// refusing it made `./bootstrap.bash` -- an ordinary Go toolchain build
-	// step -- unrunnable. The provenance half already answered this way; only
-	// this half was left denying. A ref-destroying command is judged before
-	// this point and keeps its own posture.
+	// The same rule, applied to the directory a static path lands in: a script
+	// names it out of its own text.
 	if f.dir == unknownDirText && f.fromScript {
 		return "", ""
 	}
@@ -203,10 +182,8 @@ func describeAtRisk(tracked, untracked, ignored []string) (summary string, names
 	return fmt.Sprintf("%s %s (%s)", strings.Join(parts, " + "), noun, sample(names, 3)), names
 }
 
-// describeUnresolved names an unresolved word for a denial message. A word
-// built purely from an expansion -- `$OUT` and nothing else -- carries no
-// literal text at all, and quoting that as "" reads as a path rather than
-// as what it is: nothing this hook could read.
+// describeUnresolved names an unresolved word for a denial message, since
+// quoting its empty text would read as a path.
 func describeUnresolved(p word) string {
 	if p.text == "" {
 		return "an unresolved expansion"

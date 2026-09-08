@@ -74,10 +74,8 @@ func auditedWrites(seg segment, name string, rest []word) ([]write, bool) {
 	return nil, false
 }
 
-// isRemoteSpec reports whether an operand names something on another host or in
-// a container -- `host:/etc/hosts`, `web:/tmp/x` -- rather than a local path. A
-// Windows drive letter is a single character, and a path with a slash before the
-// colon is local.
+// isRemoteSpec reports whether an operand names something on another host or
+// in a container, rather than a local path.
 func isRemoteSpec(s string) bool {
 	i := strings.IndexByte(s, ':')
 	if i <= 1 {
