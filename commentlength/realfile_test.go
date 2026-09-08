@@ -1,8 +1,10 @@
 package commentlength
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,17 +46,31 @@ func TestEveryRealFileParses(t *testing.T) {
 }
 
 func TestTheRuleReportsWhatCommentspanReports(t *testing.T) {
+	var report strings.Builder
 	for name, line := range commentspanReports {
 		path := filepath.Join("..", name)
 		src, err := os.ReadFile(path)
 		require.NoError(t, err)
 
+		_, parses := treeBlocks(languageFor(path), string(src))
 		found := false
 		for _, b := range blocks(path, string(src)) {
 			if _, over := judge(b); over && b.start+1 == line {
 				found = true
 			}
 		}
+		fmt.Fprintf(&report, "%s:%d parses=%v reported=%v blocks=%d\n",
+			name, line, parses, found, len(blocks(path, string(src))))
 		assert.True(t, found, "%s:%d is a commentspan finding this rule misses", name, line)
 	}
+	writeReport(t, report.String())
+}
+
+// reportPath names the file the diagnostic lands in. The build prints thousands
+// of lines, so a finding written among them is a finding nobody reads.
+const reportPath = "parity-report.txt"
+
+func writeReport(t *testing.T, body string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(filepath.Join(os.TempDir(), reportPath), []byte(body), 0o644))
 }
