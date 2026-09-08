@@ -77,9 +77,9 @@ func compile(list []string) []matcher {
 }
 
 // Check reports every banned phrase the message carries, in table order, each
-// at its first occurrence.
+// at its earliest occurrence.
 //
-// Whitespace collapses first, so a phrase a markdown line wrap split still
+// Whitespace collapses beforehand, so a phrase a markdown line wrap split still
 // matches. The offset table is what lets a match found in the collapsed text
 // still name the line it came from.
 func Check(message string) []Hit {

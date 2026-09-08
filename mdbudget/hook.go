@@ -232,17 +232,23 @@ func encode(v map[string]any) string {
 	return string(data) + "\n"
 }
 
-func main() {
-	// Fail open, unconditionally: this runs at the start of every session and
-	// after every tool call. A size check must never break either.
+// Result is what the CLI prints and exits with.
+type Result struct {
+	Stdout string
+	Stderr string
+	Code   int
+}
+
+// Run reads a payload from r and returns the hook's response.
+//
+// It fails open, unconditionally: this runs at the start of every session and
+// after every tool call. A size check must never break either.
+func Run(r io.Reader) (res Result) {
 	defer func() {
-		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "claude-md-budget: reporting nothing: %v\n", r)
+		if p := recover(); p != nil {
+			res = Result{Stderr: fmt.Sprintf("claude-md-budget: reporting nothing: %v\n", p)}
 		}
 	}()
-	out, code := run(os.Stdin)
-	if out != "" {
-		fmt.Print(out)
-	}
-	os.Exit(code)
+	out, code := run(r)
+	return Result{Stdout: out, Code: code}
 }

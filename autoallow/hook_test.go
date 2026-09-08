@@ -313,12 +313,11 @@ func TestPermissionRequestKeepsItsOwnShape(t *testing.T) {
 // rules as ../rules.xml from its own location, so a binary in a temp
 // directory finds no rules at all.
 //
-// The FILE NAME is per-test. One shared name is a path every test both
-// writes and deletes, so any two runs that overlap -- a shuffled order, a
-// second `go test` against the same checkout, a CI step that rebuilds while
-// tests run -- have one test removing the binary another is about to exec,
-// which surfaces as a bare "no such file or directory" nowhere near its
-// cause.
+// The FILE NAME is per-test. A shared name is a path every test both writes
+// and deletes, so overlapping runs -- a shuffled order, a parallel `go test`
+// against the same checkout, a CI step that rebuilds while tests run -- have
+// a test removing the binary another is about to exec, which surfaces as a
+// bare "no such file or directory" nowhere near its cause.
 func buildTestBinary(t *testing.T) string {
 	t.Helper()
 	pluginDir := filepath.Join(getRepoRoot(t), "plugins/enhanced-auto-allow")

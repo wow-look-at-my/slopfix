@@ -1,5 +1,6 @@
 // hooks.go registers the subcommands a Claude Code hook launcher execs. Each
-// one reads its payload on stdin and writes the hook's own response on stdout.
+// subcommand reads its payload on stdin and writes the hook's own response on
+// stdout.
 //
 // They share a shape, so they share a runner. A hook that refuses does it with
 // an exit code, and the launcher passes that through: the marketplace plugin is
@@ -13,7 +14,11 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/slopfix/askproperly"
+	"github.com/wow-look-at-my/slopfix/autoallow"
+	"github.com/wow-look-at-my/slopfix/bashclean"
 	"github.com/wow-look-at-my/slopfix/busypoll"
+	"github.com/wow-look-at-my/slopfix/linkrefs"
+	"github.com/wow-look-at-my/slopfix/mdbudget"
 	"github.com/wow-look-at-my/slopfix/noworkloss"
 )
 
@@ -81,6 +86,50 @@ func init() {
 			"already streamed, and the retype carries the same question again.",
 		func(r io.Reader) hookResult {
 			res := askproperly.Run(r)
+			return hookResult(res)
+		})
+
+	register("auto-allow",
+		"Approve read-only work, and refuse a program this environment does not run",
+		"auto-allow serves PermissionRequest and PreToolUse from one command. The\n"+
+			"approval rides PermissionRequest, which fires only once the permission\n"+
+			"engine has landed on asking. The refusal rides PreToolUse, because a\n"+
+			"program has to be judged on every call. The rule table is embedded.",
+		func(r io.Reader) hookResult {
+			res := autoallow.Run(r)
+			return hookResult(res)
+		})
+
+	register("md-budget",
+		"Report an instruction file that is over its character budget",
+		"md-budget reports at session start, again the moment such a file is\n"+
+			"written, and blocks a Stop that leaves one broken. Every CLAUDE.md and\n"+
+			"every imported snippet is inlined into the prompt on every request, and\n"+
+			"nothing truncates them.",
+		func(r io.Reader) hookResult {
+			res := mdbudget.Run(r)
+			return hookResult(res)
+		})
+
+	register("link-refs",
+		"Render a pull request, a commit or a branch as a markdown link",
+		"link-refs rewrites the message as it streams and sends nothing back to the\n"+
+			"model. A reference whose target it cannot show to exist is left as plain\n"+
+			"text: a link is a demand to move your hand, and the reader pays it before\n"+
+			"knowing whether it was worth paying.",
+		func(r io.Reader) hookResult {
+			res := linkrefs.Run(r)
+			return hookResult(res)
+		})
+
+	register("clean-bash",
+		"Rewrite a Bash command rather than refusing it, wherever a rewrite exists",
+		"clean-bash turns a deletion into a recycle, puts a discarded stderr back,\n"+
+			"and spells an Actions read the way the shim accepts. It refuses only a\n"+
+			"heredoc, an inline interpreter script and a partial file read, each naming\n"+
+			"the tool that does the job instead.",
+		func(r io.Reader) hookResult {
+			res := bashclean.Run(r)
 			return hookResult(res)
 		})
 }

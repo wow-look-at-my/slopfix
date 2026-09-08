@@ -1,8 +1,8 @@
-// questions.go finds the two shapes a closing message must not end on: a
+// questions.go finds the shapes a closing message must not end on: a
 // question put to the user in prose, and a deferral that hands the user a
 // decision without asking it through AskUserQuestion.
 //
-// Both tables are data on purpose. Extending either is editing one slice,
+// Both tables are data on purpose. Extending either is editing a slice,
 // never touching the matcher.
 package askproperly
 
@@ -48,7 +48,7 @@ var deferralPhrases = []string{
 // cueWords are the interrogative cues that separate a real question from a
 // question mark doing another job. A "?" alone is not enough: this org's own
 // specs are full of nullable types (`Int?`, `String?`) and every compare URL
-// carries `?expand=1`, so matching a bare "?" reports a question in a message
+// carries an `expand` query, so matching a bare "?" reports a question in a message
 // that asked nothing.
 var cueWords = []string{
 	"what", "which", "why", "how", "when", "where", "who", "whose",
@@ -57,7 +57,7 @@ var cueWords = []string{
 	"want", "prefer", "ok", "okay", "right", "correct", "agree", "sound",
 }
 
-// Hit is one finding, with the line it sits on so the refusal can quote it.
+// Hit is a finding, with the line it sits on so the refusal can quote it.
 type Hit struct {
 	Kind string // "question" or "deferral"
 	Text string
@@ -155,7 +155,8 @@ func sentenceEndingAt(s string, i int) string {
 // than spelling a nullable type.
 //
 // A "?" alone cannot tell them apart: `Int? n` and `raw_args?` have the same
-// shape. Two things do. A question mark that ENDS ITS LINE is a question --
+// shape. The line ending and the opening word do. A question mark that ENDS
+// ITS LINE is a question --
 // a type annotation always has the thing it annotates after it. Otherwise the
 // sentence must OPEN with an interrogative cue, which "The field is Int? and
 // ..." does not, and "Is that a contract?" does.
@@ -183,9 +184,9 @@ func isTrailingCloser(c byte) bool {
 	return false
 }
 
-// opensWithCue reports whether a sentence's first two words carry an
-// interrogative cue. Two, not more: "The field is ..." reaches "is" on the
-// third word, and that sentence is a statement.
+// opensWithCue reports whether an interrogative cue sits in the opening words
+// of a sentence. The window is deliberately narrow: "The field is ..." reaches
+// "is" past it, and that sentence is a statement.
 func opensWithCue(sentence string) bool {
 	fields := strings.Fields(strings.ToLower(sentence))
 	for n, f := range fields {
@@ -201,7 +202,7 @@ func opensWithCue(sentence string) bool {
 
 // stripLinks blanks markdown link destinations and bare URLs, returning the
 // scannable text plus, for every byte kept, its offset in the input. A
-// compare URL's `?expand=1` is not a question, and neither is a query string
+// compare URL's `expand` query is not a question, and neither is a query string
 // in a bare link.
 func stripLinks(text string) (string, []int) {
 	var b strings.Builder
@@ -276,11 +277,11 @@ func assertedText(text string) string {
 }
 
 // blankQuoted replaces the inside of a double-quoted span with spaces, so a
-// phrase a message MENTIONS is not read as one it USES.
+// phrase a message MENTIONS is not read as a phrase it USES.
 //
 // A sentence naming a trigger is not that trigger. Explaining this plugin,
-// which fires on a decision handed over in prose, means writing one of its
-// phrases down, and the explanation was marked for the phrase it defined. A
+// which fires on a decision handed over in prose, means writing its phrases
+// down, and the explanation was marked for the phrase it defined. A
 // span keeps its own length so every later offset on the line still points
 // where it did, which is the same reason link-all-refs blanks rather than cuts.
 //

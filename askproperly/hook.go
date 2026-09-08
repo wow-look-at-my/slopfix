@@ -1,5 +1,5 @@
 // Package askproperly is a Claude Code MessageDisplay hook. It marks a closing
-// message that hands the user a decision in prose, by appending one line to
+// message that hands the user a decision in prose, by appending a line to
 // what the reader sees. It sends NOTHING back to the model.
 //
 // A question typed into a closing message is a decision handed back. The user
@@ -59,7 +59,7 @@ type Output struct {
 }
 
 // Result is what an invocation emits. This rule refuses nothing, so the code is
-// always zero and stderr is always empty.
+// always a success and stderr is always empty.
 type Result struct {
 	Stdout string
 	Stderr string
@@ -76,7 +76,7 @@ func Run(r io.Reader) Result {
 // which shows the original.
 //
 // The message is judged whole, on its last flush. A question can span a line
-// wrap and one flush carries only the lines that completed since the last one,
+// wrap and a flush carries only the lines that completed since the previous,
 // so judging a flush on its own would miss the sentences that straddle the
 // boundary and would mark the same message several times over.
 func run(r io.Reader) string {
@@ -111,7 +111,7 @@ func run(r io.Reader) string {
 	// rendered card is commentary, not an offloaded decision. This reads the
 	// transcript as it stands while the message renders, so it sees a card put
 	// up earlier in the turn. A card in the very message being displayed is not
-	// recorded yet, and the annotation is worth that: it is one advisory line
+	// recorded yet, and the annotation is worth that: it is an advisory line
 	// under a message, never a refusal.
 	if ReadTurn(in.TranscriptPath).UsedAskTool {
 		return ""

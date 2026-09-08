@@ -15,7 +15,7 @@ import (
 )
 
 // transcriptTailBytes bounds the read, since only the most recent turns matter.
-const transcriptTailBytes = 6 << 20 // 6 MiB
+const transcriptTailBytes = 6 << 20
 
 // rawRecord is a JSONL line, reduced to the fields a turn needs.
 type rawRecord struct {

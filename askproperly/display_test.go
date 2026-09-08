@@ -20,7 +20,7 @@ func writeTranscript(t *testing.T, lines ...string) string {
 	return path
 }
 
-// record builds one JSONL transcript line for a message with the given role
+// record builds a JSONL transcript line for a message with the given role
 // and content blocks.
 func record(role string, blocks ...map[string]any) string {
 	line, _ := json.Marshal(map[string]any{
@@ -42,7 +42,7 @@ func assistantAsk() string {
 	return record("assistant", map[string]any{"type": "tool_use", "name": askTool, "input": map[string]any{}})
 }
 
-// flush drives one MessageDisplay flush.
+// flush drives a MessageDisplay flush.
 func flush(t *testing.T, in HookInput) string {
 	t.Helper()
 	in.HookEventName = "MessageDisplay"
@@ -52,7 +52,7 @@ func flush(t *testing.T, in HookInput) string {
 }
 
 // displayed is the text the CLI shows for a flush: the hook's replacement when
-// it emitted one, and the original delta otherwise.
+// it emitted a replacement, and the original delta otherwise.
 func displayed(t *testing.T, out, delta string) string {
 	t.Helper()
 	if out == "" {
@@ -125,8 +125,8 @@ func TestProseThatMustNotBeAnnotated(t *testing.T) {
 	}
 }
 
-// The line sits under the message, so it stays one line however many findings
-// there are.
+// The line sits under the message, so it stays a single line however many
+// findings there are.
 func TestTheAnnotationNamesAtMostThreeFindings(t *testing.T) {
 	got := Annotate("Your call. Let me know. Up to you. Shall I? Want me to?")
 	require.NotEmpty(t, got)
@@ -136,7 +136,7 @@ func TestTheAnnotationNamesAtMostThreeFindings(t *testing.T) {
 }
 
 // A deferral phrase often sits inside a question already quoted, and naming
-// both says the same thing twice on the reader's screen.
+// both repeats the same thing on the reader's screen.
 func TestADeferralInsideAQuotedQuestionIsNotNamedTwice(t *testing.T) {
 	got := Annotate("Want me to fix it?")
 	require.NotEmpty(t, got)
@@ -154,9 +154,9 @@ func TestAQuotedQuestionIsBoundedAndKeepsItsMark(t *testing.T) {
 	assert.Contains(t, got, `"...`)
 }
 
-// A question can span a line wrap, and one flush carries only the lines that
-// completed since the last one. So the message is accumulated and judged whole
-// on its final flush.
+// A question can span a line wrap, and a flush carries only the lines that
+// completed since the previous flush. So the message is accumulated and judged
+// whole on its final flush.
 func TestAQuestionSplitAcrossFlushesIsStillFound(t *testing.T) {
 	assert.Empty(t, flush(t, HookInput{MessageID: "wrap", Index: 0, Delta: "Landed the fix. Which rule\n"}),
 		"a non-final flush is never annotated")
@@ -175,8 +175,8 @@ func TestAnEmptyFinalFlushStillCarriesTheAnnotation(t *testing.T) {
 	assert.NotContains(t, got, "Your call.\n", "the earlier flush is not redisplayed")
 }
 
-// The annotation is never repeated: each message is judged once, on its last
-// flush, and the accumulated text is dropped there.
+// The annotation is never repeated: each message is judged on its last flush,
+// and the accumulated text is dropped there.
 func TestAMessageIsAnnotatedOnceAndItsStateIsDropped(t *testing.T) {
 	require.NotEmpty(t, flush(t, HookInput{MessageID: "once", Final: true, Delta: "Your call."}))
 	assert.Empty(t, priorText("once"), "the accumulated text is dropped on the final flush")
@@ -211,7 +211,8 @@ func TestAnUnreadableTranscriptStillAnnotates(t *testing.T) {
 }
 
 // Nothing is sent back to the model and nothing is refused: the process always
-// exits 0, and the only output it can produce is a displayContent envelope.
+// exits with success, and the only output it can produce is a displayContent
+// envelope.
 func TestTheOnlyOutputIsADisplayContentEnvelope(t *testing.T) {
 	out := flush(t, HookInput{MessageID: "shape", Final: true, Delta: "Your call."})
 	require.NotEmpty(t, out)

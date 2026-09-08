@@ -90,60 +90,6 @@ type PreToolUseResponse struct {
 
 var rules Rules
 
-func main() {
-	input, _ := io.ReadAll(os.Stdin)
-	var hi HookInput
-	if err := json.Unmarshal(input, &hi); err != nil {
-		os.Exit(0)
-	}
-
-	if hi.HookEventName != eventPermissionRequest && hi.HookEventName != eventPreToolUse {
-		os.Exit(0)
-	}
-
-	// An allow here would settle the call before the user's deny rules vote.
-	denyOnly := hi.HookEventName == eventPreToolUse
-
-	// Allow all read-only tools
-	if hi.ToolName == "Read" || hi.ToolName == "Glob" || hi.ToolName == "Grep" {
-		if !denyOnly {
-			outputDecision(hi.HookEventName, "allow", "")
-		}
-		return
-	}
-
-	// Load rules from adjacent file
-	rulesPath := filepath.Join(filepath.Dir(os.Args[0]), "..", "rules.xml")
-	rulesData, err := os.ReadFile(rulesPath)
-	if err != nil {
-		os.Exit(0)
-	}
-	var xmlErr error
-	rules, xmlErr = loadXMLRules(rulesData)
-	if xmlErr != nil {
-		os.Exit(0)
-	}
-
-	// Allow read-only MCP tools by server + tool pattern matching
-	if server, tool := parseMCPTool(hi.ToolName); tool != "" {
-		if !denyOnly && matchMCPServer(rules.MCPServers, server, tool) {
-			outputDecision(hi.HookEventName, "allow", "")
-			return
-		}
-		os.Exit(0)
-	}
-
-	if hi.ToolName != "Bash" {
-		os.Exit(0)
-	}
-
-	decision, message := evaluateCommand(hi.ToolInput.Command)
-	if decision == "" || (denyOnly && decision != "deny") {
-		return
-	}
-	outputDecision(hi.HookEventName, decision, message)
-}
-
 func evaluateCommand(command string) (string, string) {
 	return evaluateCommandWith(command, rules)
 }
@@ -472,21 +418,35 @@ func allArgsMatchPrefix(args []string, prefixes []string) bool {
 	return true
 }
 
-func outputDecision(event, behavior, message string) {
+// decisionPayload renders the response for the event it is answering. The CLI
+// rejects a payload whose hookEventName is not the event it dispatched, so the
+// shape follows the event rather than the verdict.
+func decisionPayload(event, behavior, message string) string {
+	var v any
 	if event == eventPreToolUse {
 		resp := PreToolUseResponse{}
 		resp.HookSpecificOutput.HookEventName = eventPreToolUse
 		resp.HookSpecificOutput.PermissionDecision = behavior
 		resp.HookSpecificOutput.PermissionDecisionReason = message
-		json.NewEncoder(os.Stdout).Encode(resp)
-		return
+		v = resp
+	} else {
+		resp := PermissionResponse{}
+		resp.HookSpecificOutput.HookEventName = eventPermissionRequest
+		resp.HookSpecificOutput.Decision.Behavior = behavior
+		if message != "" {
+			resp.HookSpecificOutput.Decision.Message = message
+		}
+		v = resp
 	}
+	out, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(out) + "\n"
+}
 
-	resp := PermissionResponse{}
-	resp.HookSpecificOutput.HookEventName = eventPermissionRequest
-	resp.HookSpecificOutput.Decision.Behavior = behavior
-	if message != "" {
-		resp.HookSpecificOutput.Decision.Message = message
+func outputDecision(event, behavior, message string) {
+	if out := decisionPayload(event, behavior, message); out != "" {
+		os.Stdout.WriteString(out)
 	}
-	json.NewEncoder(os.Stdout).Encode(resp)
 }

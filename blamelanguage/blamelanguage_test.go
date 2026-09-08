@@ -70,7 +70,7 @@ func TestAFixedAndOwnedReportIsClean(t *testing.T) {
 	assert.Empty(t, Check("Found the null dereference in the parser, fixed it, and pushed. CI is green."))
 }
 
-// A phrase is reported at its first occurrence, however often the message
+// A phrase is reported at its earliest occurrence, however often the message
 // repeats it.
 func TestAPhraseIsReportedOnce(t *testing.T) {
 	hits := Check("Not my problem. Really, not my problem.")

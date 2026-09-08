@@ -1,9 +1,9 @@
-// transcript.go answers one question: did this turn ask through the
+// transcript.go answers a single question: did this turn ask through the
 // AskUserQuestion tool? The message being judged arrives on the hook payload
 // itself, flush by flush, so nothing is read out of the transcript but this.
 //
-// Only THIS turn's tool calls count. A question asked properly three turns ago
-// does not license one in prose now.
+// Only THIS turn's tool calls count. A question asked properly in an earlier
+// turn does not license a prose question now.
 package askproperly
 
 import (
@@ -14,7 +14,7 @@ import (
 
 // transcriptTailBytes bounds the read. A long session's transcript reaches
 // hundreds of megabytes, and only the last turn matters.
-const transcriptTailBytes = 4 << 20 // 4 MiB
+const transcriptTailBytes = 4 << 20
 
 // askTool is the tool that asks a question the right way: a rendered card the
 // user answers by selection, never prose the user has to reply to.
@@ -34,15 +34,15 @@ type contentBlock struct {
 	Name string `json:"name"`
 }
 
-// Turn is what one invocation reads out of the transcript.
+// Turn is what an invocation reads out of the transcript.
 type Turn struct {
 	UsedAskTool bool
 }
 
 // ReadTurn reports whether the current turn called AskUserQuestion. An
-// unreadable or empty transcript returns a zero Turn, which leaves the message
-// judged on its own text -- the worst that costs is one advisory line under a
-// message that had a card beside it.
+// unreadable or empty transcript returns an empty Turn, which leaves the
+// message judged on its own text -- the worst that costs is an advisory line
+// under a message that had a card beside it.
 func ReadTurn(path string) Turn {
 	if path == "" {
 		return Turn{}
@@ -98,7 +98,7 @@ func turnStart(recs []transcriptRecord) int {
 }
 
 // isNewPrompt reports whether a user record starts a turn rather than
-// continuing one. A plain string content is always a prompt; an array is a
+// continuing a turn. A plain string content is always a prompt; an array is a
 // prompt unless every block in it is a tool_result.
 func isNewPrompt(rec transcriptRecord) bool {
 	var blocks []contentBlock
@@ -117,8 +117,8 @@ func isNewPrompt(rec transcriptRecord) bool {
 }
 
 // readTail returns the JSONL lines from the last transcriptTailBytes of the
-// file. When the file is longer than the window the first line is dropped, so
-// no half record is parsed.
+// file. When the file is longer than the window the leading line is dropped,
+// so no half record is parsed.
 func readTail(path string) ([][]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
