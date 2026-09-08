@@ -100,3 +100,40 @@ func TestTheCharacterFloorHolds(t *testing.T) {
 	over := "// " + strings.Repeat("a", floorChars+40)
 	assert.NotEmpty(t, Check("x.go", "package p\n\n"+over+"\nconst p = 1\n"))
 }
+
+// A comment inside a switch case documents the statement under it, not the rest
+// of the clause. Weighing it against the whole body hides an essay over a line,
+// which is a shape commentspan reports and this rule has to report too.
+func TestACommentInsideASwitchCaseIsWeighedAgainstItsStatement(t *testing.T) {
+	src := "package p\n\nfunc f(n int) int {\n\tswitch n {\n\tcase 1:\n" +
+		"\t\t// Output lands beside the prefix, or in the working directory when there\n" +
+		"\t\t// is no prefix, under names the command generates rather than names it\n" +
+		"\t\t// is given.\n" +
+		"\t\tx := n + 1\n" +
+		"\t\treturn x\n\t}\n\treturn 0\n}\n"
+
+	assert.NotEmpty(t, Check("x.go", src))
+}
+
+// The same shape in a plain function body, which is the other place a run of
+// prose sits above a single statement.
+func TestACommentInsideAFunctionBodyIsWeighedAgainstItsStatement(t *testing.T) {
+	src := "package p\n\nfunc f(n int) int {\n" +
+		"\t// These replace the file they are given with a compressed or expanded\n" +
+		"\t// sibling, unless they are told to write to stdout instead.\n" +
+		"\tx := n + 1\n" +
+		"\treturn x\n}\n"
+
+	assert.NotEmpty(t, Check("x.go", src))
+}
+
+// The control. A comment proportionate to its statement is not a finding, or
+// every block comment in the tree becomes one.
+func TestAProportionateCommentInsideABlockIsNotAFinding(t *testing.T) {
+	src := "package p\n\nfunc f(n int) int {\n" +
+		"\t// The offset the caller asked for.\n" +
+		"\tx := n + 1\n" +
+		"\treturn x\n}\n"
+
+	assert.Empty(t, Check("x.go", src))
+}
