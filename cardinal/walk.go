@@ -88,6 +88,21 @@ func allDigits(text string) bool {
 	return true
 }
 
+// literalMarkers stand against the digits of a literal value.
+const literalMarkers = `="'`
+
+// Literal exempts the digits of a value the code is written against: an env
+// marker an assignment sets, or the quoted string a parser reads as unset. An
+// added item leaves a count wrong, and leaves a value alone.
+func Literal(text string, toks []Token, i int) bool {
+	tok := toks[i]
+	if !allDigits(strings.Trim(tok.Text, `"'`)) {
+		return false
+	}
+	last, size := utf8.DecodeLastRuneInString(text[:tok.Offset])
+	return size > 0 && strings.ContainsRune(literalMarkers, last)
+}
+
 // sectionSign marks the number after it as a citation of a section.
 const sectionSign = '§'
 
