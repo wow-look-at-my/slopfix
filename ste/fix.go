@@ -103,9 +103,9 @@ func fixSplices(prose string) string {
 	return breakAt(prose, commas)
 }
 
-// coordinator matches a comma joining two clauses. It is where a long sentence
-// divides without a writer choosing the seam.
-var coordinator = regexp.MustCompile(`,\s+(?:and|but|so|then|which|because|which is why)\s+`)
+// coordinator matches a conjunction joining two clauses, with or without the
+// comma. It is where a long sentence divides without a writer choosing the seam.
+var coordinator = regexp.MustCompile(`,?\s+(?:and|but|so|then|because)\s+`)
 
 // fixSentenceCap divides a sentence over the word cap at its coordinators.
 //
