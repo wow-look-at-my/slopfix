@@ -56,7 +56,7 @@ func TestEvaluateCommands(t *testing.T) {
 	}
 }
 
-// main() evaluates through the package-level rules. A wrapper that reads some
+// Run evaluates through the package-level rules. A wrapper that reads some
 // other variable passes every sibling test here and denies nothing in
 // production. This test is not parallel, and nothing else touches the global.
 func TestEvaluateCommandReadsTheLoadedRules(t *testing.T) {
@@ -128,17 +128,7 @@ func TestDuplicateEntriesDenyWins(t *testing.T) {
 
 func TestReadAllowed(t *testing.T) {
 	input := `{"hook_event_name":"PermissionRequest","tool_name":"Read","tool_input":{"file_path":"/any/path/file.txt"}}`
-	output := captureOutput(func() {
-		old := os.Stdin
-		r, w, _ := os.Pipe()
-		os.Stdin = r
-		go func() {
-			w.Write([]byte(input))
-			w.Close()
-		}()
-		main()
-		os.Stdin = old
-	})
+	output := Run(strings.NewReader(input)).Stdout
 
 	var resp PermissionResponse
 	require.NoError(t, json.Unmarshal([]byte(output), &resp), "output was: %s", output)
