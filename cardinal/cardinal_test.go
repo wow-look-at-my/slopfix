@@ -27,6 +27,41 @@ func TestTheFrameIsWhatSeparatesTheSubstrates(t *testing.T) {
 	assert.Equal(t, []string{"three hooks"}, texts(framed, Prose))
 }
 
+// The merge gate reads a document with no frame, and pays for that with a list
+// of units. The same sentence therefore parts the two document substrates: a
+// duration is measured for the gate and counted for the inventory rule.
+func TestTheUnitsListIsTheGatesAloneAndTheFrameIsTheOtherSubstratesAlone(t *testing.T) {
+	measured := "The read has 20 seconds."
+	assert.Equal(t, []string{"20 seconds"}, texts(measured, Prose))
+	assert.Empty(t, texts(measured, Gate))
+
+	counted := "The read has 20 plugins."
+	assert.Equal(t, []string{"20 plugins"}, texts(counted, Prose))
+	assert.Equal(t, []string{"20 plugins"}, texts(counted, Gate))
+
+	// No frame, so the gate reports what the inventory rule leaves alone.
+	bare := "split it into three parts if that reads better"
+	assert.Empty(t, texts(bare, Prose))
+	assert.Equal(t, []string{"three parts"}, texts(bare, Gate))
+}
+
+// The gate stops at twelve, and it reads any run of digits. Neither list is
+// derived from the other, and widening either moves verdicts on the gate.
+func TestTheGateVocabularyStopsWhereItAlwaysDid(t *testing.T) {
+	assert.Empty(t, texts("it has twenty hooks", Gate))
+	assert.Equal(t, []string{"twenty hooks"}, texts("It has twenty hooks.", Prose))
+
+	assert.Equal(t, []string{"twelve hooks"}, texts("it has twelve hooks", Gate))
+	assert.Equal(t, []string{"20000 hooks"}, texts("it has 20000 hooks", Gate))
+	assert.Empty(t, texts("It has 20000 hooks.", Prose), "the prose rule caps the digits")
+}
+
+// Arithmetic is not a tally, and that guard is the gate's own.
+func TestTheGateLeavesArithmeticAlone(t *testing.T) {
+	assert.Empty(t, texts("a range of 3-4 items", Gate))
+	assert.Equal(t, []string{"4 items"}, texts("it holds 4 items", Gate))
+}
+
 // Prose reports the quantity because the repair cuts the cardinal off the front
 // of it. A comment reports the number, because there is nothing there to cut.
 func TestEachSubstrateReportsWhatItsRepairNeeds(t *testing.T) {
@@ -50,6 +85,9 @@ func TestTheVocabulariesDifferByDesign(t *testing.T) {
 	for _, word := range []string{"three", "twenty", "dozen"} {
 		assert.True(t, commentWords.Contains(word), word)
 		assert.True(t, proseWords.Contains(word), word)
+	}
+	for _, word := range []string{"twenty", "dozen"} {
+		assert.False(t, gateWords.Contains(word), word)
 	}
 }
 

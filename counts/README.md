@@ -2,7 +2,7 @@
 
 A cardinal stated about what is HERE goes stale the moment somebody adds an item. This package finds that sentence and cuts the number out of it.
 
-Which numbers count lives in [cardinal](../cardinal/README.md), beside the policy the comment rule reads. What is here is the document: which lines carry the page's own voice, and how a cardinal is cut out of a line.
+Which numbers count lives in [cardinal](../cardinal/README.md), beside the policies the merge gate and the comment rule read. What is here is the document: which lines carry the page's own voice, and how a cardinal is cut out of a line.
 
 ## What it rejects
 
@@ -30,7 +30,7 @@ A match that continues a longer number is dropped. A version string is therefore
 
 A fenced block, an indented block, a table and a heading never reach this rule. A backtick span is blanked inside its line, because a cardinal in verbatim machinery is a literal rather than the page's own claim.
 
-A measurement inside a frame IS reported here. A budget gets raised and a suite gets slower, and the number belongs where it is enforced rather than in prose. The stale-count rule in `ste` draws that line elsewhere and exempts a unit.
+A measurement inside a frame IS reported here. A budget gets raised and a suite gets slower, and the number belongs where it is enforced rather than in prose. The stale-count rule in `ste` draws that line elsewhere and exempts a unit. Both policies sit in [cardinal](../cardinal/README.md), where the disagreement is visible rather than reimplemented.
 
 ## Repair
 

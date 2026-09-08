@@ -1,5 +1,7 @@
-// frame.go is the prose half: the sentence shapes that claim the things being
-// counted are HERE. Lacking such a shape, a number in a document counts nothing.
+// frame.go is what the inventory-count rule asks for beyond a quantity: a
+// sentence claiming the things being counted are HERE. Lacking such a shape, a
+// number in a document counts nothing. The merge gate's substrate asks for no
+// frame, which is why it carries a list of units instead.
 package cardinal
 
 import (
@@ -8,10 +10,10 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// quantity is a cardinal governing a plural noun, adjectives allowed between.
-// RE2 has no lookbehind, so continuesANumber guards a digit.
-const quantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
-	`\s+(?:[a-z][a-z-]*\s+){0,3}?[a-z][a-z-]{2,}s\b`
+// quantity is the shape a frame governs, spelled in quantity.go beside the
+// merge gate's. RE2 has no lookbehind, so the ContinuesANumber exemption
+// guards a digit instead.
+const quantity = proseQuantity
 
 // possessiveFrame is a determiner claiming the things belong here, as in "this
 // repo's plugins" or "the payload's steps".
@@ -40,18 +42,20 @@ var deicticFrame = regexp.MustCompile(
 var frames = []*regexp.Regexp{possessiveFrame, havingFrame, deicticFrame}
 
 // framed returns every quantity a frame governs, without repeating a phrase.
-func framed(text string) []Token {
+//
+// The frames are read in turn, so the same phrase can match more than one of
+// them. A phrase is reported the first time only.
+func framed(text string, s Substrate) []Token {
 	var out []Token
 	seen := set.New[string]()
 	for _, frame := range frames {
 		for _, at := range frame.FindAllStringSubmatchIndex(text, -1) {
-			start, end := at[2], at[3]
-			phrase := text[start:end]
-			if continuesANumber(text, start) || !isInventory(phrase) || seen.Contains(phrase) {
+			q := quantityAt(text, at[2], at[3])
+			if exemptQuantity(text, q, s.Exempt) || seen.Contains(q.Text) {
 				continue
 			}
-			seen.Add(phrase)
-			out = append(out, Token{Offset: start, Text: phrase})
+			seen.Add(q.Text)
+			out = append(out, Token{Offset: q.At, Text: q.Text})
 		}
 	}
 	return out

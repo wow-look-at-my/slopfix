@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/cardinal"
 )
 
 // The rule IDs. A report prints the ID that found the text, and the same ID
@@ -110,10 +111,6 @@ var (
 	subordinator = regexp.MustCompile(`(?i)^(?:(?:and|but|so|or|yet)\s+)?` +
 		`(?:if|when|whenever|where|wherever|while|because|although|though|unless|since|after|` +
 		`before|until|once|whether|provided|assuming|given|for)\b`)
-	// countPattern finds a number that counts items. The count stays true until
-	// somebody changes the set, and nothing corrects it then.
-	countPattern = regexp.MustCompile(`(?i)\b(two|three|four|five|six|seven|eight|nine|ten|` +
-		`eleven|twelve|[0-9]+)\s+(?:[a-z-]+\s+){0,2}?([a-z]+s)\b`)
 	// fileOrSection matches a lower-case sentence opener: a file name, or a
 	// section reference. Demanding a capital welds it onto its predecessor.
 	fileOrSection = regexp.MustCompile(`^(?:[A-Za-z0-9_.-]+\.` +
@@ -123,15 +120,6 @@ var (
 // abbreviations end in a period that never ends a sentence.
 var abbreviations = set.Of[string](
 	"e.g.", "i.e.", "etc.", "vs.", "cf.", "al.", "fig.", "no.", "approx.", "ca.", "resp.",
-)
-
-// units are measured, not counted. A budget in characters names a size, and
-// nobody revisits it when a list grows.
-var units = set.Of[string](
-	"bits", "bytes", "kilobytes", "megabytes", "gigabytes", "characters", "chars", "runes",
-	"words", "lines", "columns", "rows", "spaces", "digits", "seconds", "minutes", "hours",
-	"days", "weeks", "months", "years", "milliseconds", "microseconds", "nanoseconds",
-	"pixels", "points", "percent", "times", "levels", "degrees",
 )
 
 // Check reports every rule the text breaks. The text is a prose block already
@@ -223,37 +211,21 @@ func checkSplices(prose string, line int) []Finding {
 
 // checkCounts finds a stated count of items. The reader trusts the number long
 // after somebody adds the item that makes it wrong.
+// This rule's own spelling of a count, and the units it will not count, live in
+// cardinal as the Gate substrate. The document rule and the comment rule read
+// the same package with their own policies, so the three cannot drift apart.
 func checkCounts(prose string, line int) []Finding {
 	var out []Finding
-	for _, loc := range countPattern.FindAllStringSubmatchIndex(prose, -1) {
-		noun := strings.ToLower(prose[loc[4]:loc[5]])
-		if units.Contains(noun) || inExpression(prose, loc[2]) {
-			continue
-		}
+	for _, found := range cardinal.Find(prose, cardinal.Gate) {
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDStaleCount,
 			Rule:   "a stated count goes stale when the set changes",
-			Detail: strings.TrimSpace(prose[loc[0]:loc[1]]),
+			Detail: strings.TrimSpace(found.Text),
 			Fix:    "Describe what is there and let the reader count.",
 		})
 	}
 	return out
-}
-
-// inExpression reports a number that is arithmetic rather than a count. The
-// digits in an expression or a range name no set of items.
-func inExpression(prose string, start int) bool {
-	if start == 0 {
-		return false
-	}
-	before := []rune(prose[:start])
-	prev := before[len(before)-1]
-	switch prev {
-	case '-', '−', '+', '/', '*', '=', '.', ',', '_':
-		return true
-	}
-	return unicode.IsDigit(prev)
 }
 
 // clauseBefore returns the words from the end of the previous sentence up to

@@ -18,7 +18,7 @@ A directory is a rule. Where a package holds several, they are members of one fa
 
 A directory here can hold no rule at all. [markdown](markdown/README.md) is the document model every prose rule sits on. It carries the hard-wrap rule as well. [source](source/README.md) is the substrate adapter that answers where the prose is in a source file.
 
-[cardinal](cardinal/README.md) holds no rule ID either. It decides whether a number is a stated count. `counts` and `commentnumbers` are the two substrates that ask it, and each brings its own policy for how much framing a number needs.
+[cardinal](cardinal/README.md) holds no rule ID either. It decides whether a number is a stated count. `counts`, `ste` and `commentnumbers` are the three substrates that ask it. Each brings its own policy: how much framing a number needs, which words spell one, and what carries a number without counting anything.
 
 A hook is a named selection of rule IDs, and nothing else. That mapping lives in `hooks.go`, and `hooks_test.go` asserts that every rule has a home in it and that every entry names a rule that exists. A rule added with no home fails the build. So does an entry for a rule somebody deleted.
 

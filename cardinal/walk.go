@@ -10,9 +10,9 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// Exemption reports whether the token at i is a number this substrate reads as
-// something other than a count.
-type Exemption func(text string, toks []Token, i int) bool
+// TokenExemption reports whether the token at i is a number this substrate
+// reads as something other than a count.
+type TokenExemption func(text string, toks []Token, i int) bool
 
 // nameMarkers join an identifier, an import path or a label into a name.
 const nameMarkers = "._/:"
@@ -22,7 +22,7 @@ func walk(text string, s Substrate) []Token {
 	var found []Token
 	toks := tokensIn(text)
 	for i, tok := range toks {
-		if exempt(text, toks, i, s.Exempt) {
+		if exemptToken(text, toks, i, s.ExemptToken) {
 			continue
 		}
 		if hit, ok := tokenNumber(tok, s.Words); ok {
@@ -32,7 +32,7 @@ func walk(text string, s Substrate) []Token {
 	return found
 }
 
-func exempt(text string, toks []Token, i int, rules []Exemption) bool {
+func exemptToken(text string, toks []Token, i int, rules []TokenExemption) bool {
 	for _, rule := range rules {
 		if rule(text, toks, i) {
 			return true

@@ -28,6 +28,8 @@ The prose reaching `Check` is already a block joined to a single line. Finding t
 
 `ste/count` rejects a stated count of items. The number is true until somebody changes the set, and nothing corrects it then. It reports only.
 
+Its spelling of a count is the `Gate` substrate in [cardinal](../cardinal/README.md), beside the two other rules that read the same package. This one asks for no frame around a number, and exempts a unit instead: a size and a duration are measured rather than counted. The document rule draws that line elsewhere and reports a measurement inside a frame.
+
 ## Worked example
 
 ```md

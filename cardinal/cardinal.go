@@ -11,14 +11,15 @@
 // things belong here before the number is a tally. A comment REQUIRES NONE: a
 // number written beside code is nearly always a count of what the code holds,
 // so the cardinal alone is the finding, and the exemptions carry the cases that
-// are something else.
+// are something else. The merge gate reads a document with no frame either, and
+// pays for it with a list of units it will not count.
 //
-// That difference is the whole reason they looked like separate rules. It is a
-// field of Substrate now, and the values sit beside each other below.
+// Those differences are the whole reason they looked like separate rules. They
+// are fields of Substrate now, and the values sit beside each other below.
 package cardinal
 
 import (
-	"strings"
+	"regexp"
 
 	"github.com/wow-look-at-my/go-containers/set"
 )
@@ -34,68 +35,77 @@ type Token struct {
 	Text   string
 }
 
-// Substrate is a kind of text, and how much framing a number needs inside it.
+// Shape is what a substrate looks for.
+type Shape int
+
+const (
+	// Quantity is a cardinal governing a plural noun, as prose writes a tally.
+	Quantity Shape = iota
+	// Number is a number standing on its own, as a comment writes one.
+	Number
+)
+
+// Substrate is a kind of text, and what a number has to do inside it to count.
+//
+// Construct none of your own. The values below carry the patterns each shape
+// needs, and those fields are the package's own.
 type Substrate struct {
-	// Frame says a number must sit in a sentence claiming the things are HERE.
+	// Shape says which finder reads the text, and so which exemptions apply.
+	Shape Shape
+	// Frame says a quantity must sit in a sentence claiming the things are HERE.
 	Frame bool
 	// Words is the vocabulary of numbers spelled in letters.
 	Words set.Set[string]
-	// Exempt are the shapes around a token that carry a number without counting
-	// anything. A token's own shape -- a URL, a qualified name -- is judged
-	// inside the number test instead, where its order against the digit test
-	// decides the answer.
+	// Exempt judges a matched quantity, and Shape Quantity reads it.
 	Exempt []Exemption
+	// ExemptToken judges the text around a token, and Shape Number reads it. A
+	// token's own shape -- a URL, a qualified name -- is judged inside the
+	// number test instead, where its order against the digit test decides the
+	// answer.
+	ExemptToken []TokenExemption
+
+	// quantity matches a cardinal governing a plural noun, spelled as this
+	// substrate tolerates it. A framed substrate reads its frames instead,
+	// which carry the same shape inside them.
+	quantity *regexp.Regexp
 }
 
-// Prose is a document's own voice. It requires a frame, and it applies no
-// token exemption: the frame is what keeps an ordinary number out.
-var Prose = Substrate{Frame: true, Words: proseWords}
+// Prose is a document's own voice, as the inventory-count rule reads it. The
+// frame is what keeps an ordinary number out, so the exemptions are narrow.
+var Prose = Substrate{
+	Shape:  Quantity,
+	Frame:  true,
+	Words:  proseWords,
+	Exempt: []Exemption{ContinuesANumber, FunctionWordGap},
+}
 
-// Comment is a comment in a source file. It requires no frame, so every
-// exemption a number can earn has to be named here instead.
+// Gate is the same document, as the merge gate's stale-count rule reads it. It
+// asks for no frame, and buys that back with a list of units it will not count:
+// a size and a duration are measured rather than counted.
+var Gate = Substrate{
+	Shape:    Quantity,
+	Frame:    false,
+	Words:    gateWords,
+	Exempt:   []Exemption{Unit, InExpression},
+	quantity: gateQuantity,
+}
+
+// Comment is a comment in a source file. It asks for no frame either, so every
+// exemption a number can earn has to be named here.
 var Comment = Substrate{
-	Frame:  false,
-	Words:  commentWords,
-	Exempt: []Exemption{HTTPStatus, SectionRef, Money},
+	Shape:       Number,
+	Frame:       false,
+	Words:       commentWords,
+	ExemptToken: []TokenExemption{HTTPStatus, SectionRef, Money},
 }
 
 // Find returns every stated count the text carries, under that substrate.
 func Find(text string, s Substrate) []Token {
-	if s.Frame {
-		return framed(text)
+	switch {
+	case s.Shape == Number:
+		return walk(text, s)
+	case s.Frame:
+		return framed(text, s)
 	}
-	return walk(text, s)
-}
-
-// isInventory rejects a quantity reached through a function word. A bare
-// adjective run happily swallows "of the format".
-func isInventory(phrase string) bool {
-	words := strings.Fields(strings.ToLower(phrase))
-	if len(words) < 2 {
-		return false
-	}
-	for _, w := range words[1:len(words)-1] {
-		if gapStopWords.Contains(w) {
-			return false
-		}
-	}
-	return true
-}
-
-// gapStopWords are function words proving the noun after them is not what the
-// cardinal counts.
-var gapStopWords = set.Of[string](
-	"of", "the", "a", "an", "in", "on", "to", "for", "and", "or", "is", "are",
-	"was", "were", "that", "this", "with", "from", "by", "at", "as", "but",
-	"if", "so", "than", "then", "when", "while", "not", "no", "it", "its",
-)
-
-// continuesANumber reports a match that is the tail of a longer number, so a
-// version string is not read as a count.
-func continuesANumber(text string, start int) bool {
-	if start == 0 {
-		return false
-	}
-	c := text[start-1]
-	return c == '.' || (c >= '0' && c <= '9')
+	return quantities(text, s)
 }

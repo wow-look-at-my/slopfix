@@ -23,6 +23,15 @@ const proseAlt = `two|three|four|five|six|seven|eight|nine|ten|` +
 // proseWords is the same vocabulary as a set, for a caller asking about a word.
 var proseWords = set.Of(strings.Split(proseAlt, "|")...)
 
+// gateAlt is what the merge gate's stale-count rule reads. It stops at twelve,
+// where the prose rule carries the tens and a dozen. Neither list is derived
+// from the other: each is what its rule has always matched, and widening either
+// one moves verdicts on text nobody has edited.
+const gateAlt = `two|three|four|five|six|seven|eight|nine|ten|eleven|twelve`
+
+// gateWords is that vocabulary as a set.
+var gateWords = set.Of(strings.Split(gateAlt, "|")...)
+
 // commentWords are the numbers spelled as words: the cardinals, the ordinals
 // that index a list, and the words for a repeat count. A word joined to other
 // letters is a name (oneShot, someone), so only a whole word counts.
