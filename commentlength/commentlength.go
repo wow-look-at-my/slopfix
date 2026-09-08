@@ -200,21 +200,34 @@ func trim(b block) []string {
 		kept = tightened
 	}
 
-	for len(kept) > 1 {
+	for {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
 		}
-		if next, ok := dropParagraph(kept); ok {
-			kept = next
-			continue
+		next, ok := shorten(kept)
+		if !ok {
+			break
 		}
-		if next, ok := dropSentence(kept); ok {
-			kept = next
-			continue
-		}
-		kept = kept[:len(kept)-1]
+		kept = next
 	}
-	return kept
+	// Nothing shorter both fits and reads. The block stays whole, and the report
+	// hands it to a person.
+	return b.text
+}
+
+// shorten cuts the last thought out of a block, and reports false when no cut
+// leaves prose that still reads.
+//
+// Every cut lands on a sentence end. Lopping a line instead leaves a dangling
+// clause, which is a worse comment than the long one it replaced.
+func shorten(text []string) ([]string, bool) {
+	for _, cut := range []func([]string) ([]string, bool){dropParagraph, dropSentence} {
+		next, ok := cut(text)
+		if ok && len(next) > 0 && endsSentence(next[len(next)-1]) {
+			return next, true
+		}
+	}
+	return text, false
 }
 
 // dropSentence removes the trailing lines back to the last sentence that ends,
