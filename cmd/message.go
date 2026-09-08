@@ -69,11 +69,11 @@ func init() {
 		Use:   "message",
 		Short: "Report what the message rules reject, reading the message on stdin",
 		Long: "message reads a closing message on stdin and reports what the rules\n" +
-			"reject in it. It exits 1 when anything does.\n\n" +
+			"reject in it. It exits 1 when anything does, and with --json it writes\n" +
+			"the findings as one object on stdout instead.\n\n" +
 			"The other commands judge a file. This judges the text the model sends\n" +
-			"to the reader, which is never on disk. A Stop hook reads the exit code\n" +
-			"and answers a finding with the word the reader would have typed back.\n\n" +
-			"With --json the findings are one object on stdout instead.",
+			"to the reader, which is never on disk. --only narrows the run to one\n" +
+			"rule or one family, because each caller wants its own.",
 		Args: cobra.NoArgs,
 		RunE: runMessage,
 	}

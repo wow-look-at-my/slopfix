@@ -125,9 +125,11 @@ func init() {
 	register("clean-bash",
 		"Rewrite a Bash command rather than refusing it, wherever a rewrite exists",
 		"clean-bash turns a deletion into a recycle, puts a discarded stderr back,\n"+
-			"and spells an Actions read the way the shim accepts. It refuses only a\n"+
-			"heredoc, an inline interpreter script and a partial file read, each naming\n"+
-			"the tool that does the job instead.",
+			"and spells an Actions read the way the shim accepts.\n\n"+
+			"It refuses a heredoc, perl, and a partial file read, plus each destructive\n"+
+			"form no rewrite reaches: shred, git rm on the working tree, a zero-size\n"+
+			"truncate carrying a flag it will not translate, and an rm carrying one.\n"+
+			"Every refusal names the tool or the command that does the job instead.",
 		func(r io.Reader) hookResult {
 			res := bashclean.Run(r)
 			return hookResult(res)
