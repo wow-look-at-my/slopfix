@@ -129,8 +129,13 @@ func TestAFileNamedRatherThanSuffixedIsRead(t *testing.T) {
 	}
 }
 
-// An unterminated literal consumes the rest, which stops a stray quote from
-// turning the remaining file into prose.
-func TestAnUnterminatedLiteralSwallowsTheRest(t *testing.T) {
-	assert.Empty(t, texts("x.go", "const u = \"unterminated\n// not prose\n"))
+// A single-line literal ends at the newline, so a stray quote costs the rest
+// of its line and the comments below it are still read.
+func TestAnUnterminatedSingleLineLiteralEndsAtTheNewline(t *testing.T) {
+	assert.Equal(t, []string{"// read me"}, texts("x.go", "const u = \"unterminated\n// read me\n"))
+}
+
+// A multiline literal has no line to end at, so an unclosed one runs to EOF.
+func TestAnUnterminatedMultilineLiteralConsumesTheRest(t *testing.T) {
+	assert.Empty(t, texts("x.go", "const u = `unterminated\n// not prose\n"))
 }

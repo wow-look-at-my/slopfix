@@ -175,8 +175,10 @@ func closesNearby(rest string, spec stringSpec) bool {
 	return false
 }
 
-// literalLength measures a literal. An unterminated literal consumes the rest,
-// which stops a stray quote from turning the remaining file into prose.
+// literalLength measures a literal. A single-line literal ends at the newline,
+// as it does in the languages themselves, so a stray quote costs the extractor
+// ITS LINE rather than every comment below it. A multiline literal with no
+// close consumes the rest: it has no line to end at.
 func literalLength(rest string, spec stringSpec) int {
 	at := len(spec.open)
 	for at < len(rest) {
