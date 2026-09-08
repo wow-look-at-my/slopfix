@@ -23,10 +23,24 @@ var messageOnly []string
 // messageHit is this command's finding, flattened out of the packages so the
 // wire shape does not change when a rule moves between them.
 type messageHit struct {
-	ID       string `json:"id"`
-	Tell     string `json:"tell"`
+	ID string `json:"id"`
+	// Tell says in words which shape fired.
+	Tell string `json:"tell"`
+	// Phrase is the offending wording where the rule can name it. A rule that
+	// answers about a whole sentence leaves it empty.
+	Phrase string `json:"phrase,omitempty"`
+	// Sentence quotes the line, for context.
 	Sentence string `json:"sentence"`
 	Line     int    `json:"line"`
+}
+
+// quoted is what a report names: the phrase where the rule found one, and the
+// sentence where it did not.
+func (h messageHit) quoted() string {
+	if h.Phrase != "" {
+		return h.Phrase
+	}
+	return h.Sentence
 }
 
 // messageIDs names every rule this command can report, so a typo is rejected
@@ -96,12 +110,16 @@ func runMessage(cmd *cobra.Command, _ []string) error {
 	hits := []messageHit{}
 	if selected(laziness.ID) {
 		for _, hit := range laziness.Check(message) {
-			hits = append(hits, messageHit(hit))
+			hits = append(hits, messageHit{
+				ID: hit.ID, Tell: hit.Tell, Sentence: hit.Sentence, Line: hit.Line,
+			})
 		}
 	}
 	if selected(blamelanguage.ID) {
 		for _, hit := range blamelanguage.Check(message) {
-			hits = append(hits, messageHit(hit))
+			hits = append(hits, messageHit{
+				ID: hit.ID, Tell: hit.Tell, Phrase: hit.Phrase, Sentence: hit.Sentence, Line: hit.Line,
+			})
 		}
 	}
 
@@ -111,7 +129,7 @@ func runMessage(cmd *cobra.Command, _ []string) error {
 		}
 	} else {
 		for _, hit := range hits {
-			fmt.Fprintf(cmd.OutOrStdout(), "%d: [%s] %s: %q\n", hit.Line, hit.ID, hit.Tell, hit.Sentence)
+			fmt.Fprintf(cmd.OutOrStdout(), "%d: [%s] %s: %q\n", hit.Line, hit.ID, hit.Tell, hit.quoted())
 		}
 	}
 	if len(hits) > 0 {

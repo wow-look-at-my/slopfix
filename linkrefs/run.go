@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // Input is the part of the MessageDisplay payload this reads.
@@ -99,6 +100,28 @@ func readFence(messageID string) bool {
 	return err == nil
 }
 
+// fenceGlob matches every message's marker, which is what a sweep walks.
+const fenceGlob = "slopfix-linkrefs-*"
+
+// sweepFences collects what a session that died mid-message left behind, so the
+// temp directory cannot grow without bound. A marker still in use is younger
+// than the cutoff, so a sweep never takes it.
+func sweepFences() {
+	matches, err := filepath.Glob(filepath.Join(os.TempDir(), fenceGlob))
+	if err != nil {
+		return
+	}
+	for _, p := range matches {
+		info, err := os.Stat(p)
+		if err != nil {
+			continue
+		}
+		if time.Since(info.ModTime()) > time.Hour {
+			os.Remove(p)
+		}
+	}
+}
+
 func writeFence(messageID string, final, inside bool) {
 	p := fencePath(messageID)
 	if p == "" {
@@ -106,6 +129,7 @@ func writeFence(messageID string, final, inside bool) {
 	}
 	if final {
 		os.Remove(p)
+		sweepFences()
 		return
 	}
 	if inside {
@@ -122,4 +146,5 @@ func clearFence(messageID string, final bool) {
 	if p := fencePath(messageID); p != "" {
 		os.Remove(p)
 	}
+	sweepFences()
 }

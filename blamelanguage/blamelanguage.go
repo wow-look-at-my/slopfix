@@ -24,7 +24,9 @@ type Hit struct {
 	ID string `json:"id"`
 	// Tell says in words which shape fired.
 	Tell string `json:"tell"`
-	// Sentence quotes what was actually written.
+	// Phrase is the offending wording, as the writer spelled it.
+	Phrase string `json:"phrase"`
+	// Sentence quotes the line the phrase sits on, for context.
 	Sentence string `json:"sentence"`
 	// Line is where the phrase sits, counting from the top.
 	Line int `json:"line"`
@@ -95,11 +97,26 @@ func Check(message string) []Hit {
 		hits = append(hits, Hit{
 			ID:       ID,
 			Tell:     "deflecting the work onto another author or an earlier time",
+			Phrase:   spelled(text, start, offsets, at),
 			Sentence: lineAt(text, start),
 			Line:     lineOf(lines, start),
 		})
 	}
 	return hits
+}
+
+// spelled is the phrase as the writer wrote it, read back out of the original
+// text so its case survives and a line wrap inside it collapses. A match
+// reaching the end of the collapsed text has no offset after it.
+func spelled(text string, start int, offsets []int, at []int) string {
+	end := len(text)
+	if at[1] < len(offsets) {
+		end = offsets[at[1]]
+	}
+	if start >= end || end > len(text) {
+		return ""
+	}
+	return strings.Join(strings.Fields(text[start:end]), " ")
 }
 
 // normalizeWhitespace collapses each run of ASCII whitespace to a space.
