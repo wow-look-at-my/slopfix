@@ -97,6 +97,54 @@ func Money(text string, toks []Token, i int) bool {
 	return unicode.IsDigit(rune(tok.Text[0]))
 }
 
+// arityWords say a thing happens a single time, or to a single thing.
+var arityWords = set.Of("one", "once")
+
+// possessionVerbs turn an arity word back into a tally. They are havingFrame's
+// verbs, which is where the same question is already answered for prose.
+var possessionVerbs = set.Of(
+	"has", "have", "had", "hold", "holds", "ship", "ships", "carries", "carry",
+	"contain", "contains", "cover", "covers", "include", "includes", "list",
+	"lists", "define", "defines", "register", "registers", "install", "installs",
+	"leave", "leaves", "left", "are", "were", "is", "was", "gets", "get",
+)
+
+// arityReach is how far back a possession verb is looked for, which is a
+// determiner and an adjective run.
+const arityReach = 3
+
+// Arity exempts a word that states a design rather than a count.
+//
+// "one file", "found one" and "parsed once" do not go stale when an item is
+// added elsewhere: they say the code does a thing a single time, or to a single
+// thing. That is the opposite of the claim this rule exists to catch, which is a
+// tally of what is here today.
+//
+// A possession verb in front makes it a tally again. "has one entry" is wrong
+// the moment a second entry arrives, so that shape is still read.
+func Arity(text string, toks []Token, i int) bool {
+	if !arityWords.Contains(strings.ToLower(strings.Trim(toks[i].Text, nameMarkers+"-"))) {
+		return false
+	}
+	for back := i - 1; back >= 0 && back >= i-arityReach; back-- {
+		if possessionVerbs.Contains(strings.ToLower(strings.Trim(toks[back].Text, nameMarkers+"-"))) {
+			return false
+		}
+	}
+	return true
+}
+
+// codeBlockIndent opens a godoc code block, where the text is code and not the
+// comment's own voice.
+const codeBlockIndent = "\t"
+
+// CodeBlock exempts every number on an indented line of a comment. Such a line
+// is a command or a snippet the reader copies, so its digits are the thing
+// itself: rewriting `2>&1` to dodge this rule would break what it shows.
+func CodeBlock(text string, _ []Token, _ int) bool {
+	return strings.HasPrefix(text, codeBlockIndent)
+}
+
 // tokensIn splits a line into runs of name characters, so a URL, an import path
 // and a version each stay whole.
 func tokensIn(text string) []Token {
