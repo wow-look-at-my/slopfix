@@ -1,7 +1,7 @@
 // The three reports: the session-start census, the post-edit notice, and the
 // Stop refusal. All three prescribe the same remedy, because there is only one.
 
-package main
+package mdbudget
 
 import (
 	"fmt"

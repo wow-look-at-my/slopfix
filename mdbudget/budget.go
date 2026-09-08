@@ -3,7 +3,7 @@
 // on every request for the life of the session.
 //
 // see README.md
-package main
+package mdbudget
 
 import (
 	"os"
@@ -14,30 +14,19 @@ import (
 	"unicode/utf8"
 )
 
-// The CLI's own floor for the same measurement. Deliberately pinned rather than
-// recomputed per model: a budget that quintupled on a 1M-token model would
-// defeat the point, which is keeping instruction files skimmable, not merely
-// loadable.
+// The CLI's own floor, pinned rather than scaled per model: a wider budget keeps files loadable, not skimmable.
 const defaultBudget = 40000
 
 const minBudget = 1000
 
-// The room under the budget is a quota and is meant to be spent. What this
-// catches is spending the LAST of it, so the next agent's first ordinary edit is
-// the one that breaks. Hence a threshold where "no room left" is literally true
-// (1,000 characters at the default budget), not a comfortable margin that would
-// quietly make the top of the quota unusable.
+// Flags a file with almost no room left: the next ordinary edit would then break the budget.
 const nearFraction = 0.975
 
-// Hard-wrap width. An unwrapped file makes every edit a one-line diff no
-// reviewer can read, and a paragraph running for thousands of columns is the
-// SHAPE of an item that should have been a pointer to docs/.
+// Hard-wrap width. An unwrapped paragraph gives an unreadable diff, and marks an item that belongs in docs/.
 const widthLimit = 150
 
-// The width check is OFF unless CC_CLAUDE_MD_WIDTH is set to something truthy.
-// The character budget is the gate that matters; wrapping rode along with it
-// and mostly fired on files nowhere near the budget, which trains the reader to
-// skim the size number sitting next to it.
+// OFF unless CC_CLAUDE_MD_WIDTH is truthy. The budget is the gate that
+// matters, and wrap noise trains the reader to skim the size number.
 func widthEnabled() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("CC_CLAUDE_MD_WIDTH"))) {
 	case "1", "true", "yes", "on":
@@ -46,17 +35,15 @@ func widthEnabled() bool {
 	return false
 }
 
-// offender is one instruction file that is over budget, at the wall, or
-// unwrapped. Wide is 1-based line numbers; a file can be well under budget and
-// still be unreadable, so it is an independent offense rather than a tiebreak.
+// offender is an instruction file over budget, at the wall, or unwrapped. Wide lists its wide lines.
 type offender struct {
 	Path  string
 	Chars int
 	Wide  []int
 }
 
-// budget returns the character budget, honoring CC_CLAUDE_MD_BUDGET. Zero means
-// the guard is disabled entirely.
+// budget returns the character budget, honoring CC_CLAUDE_MD_BUDGET. It returns
+// nothing when the variable disables the guard entirely.
 func budget() int {
 	raw := strings.TrimSpace(os.Getenv("CC_CLAUDE_MD_BUDGET"))
 	if raw == "" {
@@ -76,8 +63,7 @@ func budget() int {
 }
 
 // isInstructionFile reports whether a path is something this guard measures: a
-// CLAUDE.md anywhere, or a snippet @-imported into one. Everything else a
-// session writes is not instruction text and costs nothing per request.
+// CLAUDE.md anywhere, or a snippet @-imported into such a file.
 func isInstructionFile(path string) bool {
 	if filepath.Base(path) == "CLAUDE.md" {
 		return true
@@ -87,7 +73,7 @@ func isInstructionFile(path string) bool {
 
 // wideLines returns 1-based line numbers that could have been wrapped and were
 // not. Code fences, tables, indented blocks and headings cannot be rewrapped
-// without changing what they render as, and a line whose first widthLimit
+// without changing what they render as, and a line whose leading widthLimit
 // columns hold no space is a single unbreakable token (a URL).
 func wideLines(text string) []int {
 	var out []int
@@ -120,11 +106,11 @@ func wideLines(text string) []int {
 	return out
 }
 
-// measure reads a file once and returns both measurements. Characters, the way
+// measure reads a file and returns both measurements. Characters, the way
 // the CLI counts them -- not bytes, so a file with non-ASCII text measures
 // smaller than wc -c reports. wide is always empty while the width check is
-// off: one choke point, so no caller and no report can bring wrapping back on
-// its own.
+// off: a single choke point, so no caller and no report can bring wrapping
+// back on its own.
 func measure(path string) (chars int, wide []int, ok bool) {
 	st, err := os.Stat(path)
 	if err != nil || !st.Mode().IsRegular() {
@@ -164,12 +150,11 @@ func homeCandidates() []string {
 }
 
 // claudeMdFiles walks root recursively for every CLAUDE.md, skipping .git and
-// node_modules. This is the ONE scan every caller uses -- SessionStart's
+// node_modules. This is the ONLY scan every caller uses -- SessionStart's
 // census, PostToolUse/Stop's change tracking, and CI's full_scan alike -- so
-// there is no shallower "guess one level of siblings" mode for any caller to
-// fall back to. That guess is exactly the shape that once let a real
-// violation two directories down (src/hooks/x/CLAUDE.md) through the plugin
-// unseen, caught only by a CI job's own separate, hand-rolled walk.
+// no caller can fall back to a shallow "guess the sibling directories" mode.
+// That guess let a real violation deep under the root through unseen, caught
+// only by a CI job's own separate, hand-rolled walk.
 func claudeMdFiles(root string) []string {
 	var out []string
 	var walk func(dir string)
@@ -205,7 +190,7 @@ func allCandidatePaths(cwd string) []string {
 
 // fullScanOffenders is claudeMdFiles measured against the budget -- the sweep
 // full_scan uses. SessionStart's census (findOffenders, in hook.go) walks the
-// exact same tree via allCandidatePaths; the two differ only in which fields
+// exact same tree via allCandidatePaths; they differ only in which fields
 // they report (width included here, dropped there), never in coverage.
 func fullScanOffenders(root string, limit int) []offender {
 	floor := nearLimit(limit)
@@ -241,7 +226,7 @@ func signature(path string) (string, bool) {
 }
 
 // growthOverHead reports how much the working tree's copy grew over the last
-// committed one, or false when there is no git, no commit, or nothing to
+// committed copy, or false when there is no git, no commit, or nothing to
 // compare against.
 func growthOverHead(path string, chars int) (int, bool) {
 	abs, err := filepath.Abs(path)

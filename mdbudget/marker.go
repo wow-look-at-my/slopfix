@@ -4,7 +4,7 @@
 // Keyed per session so parallel sessions never collide, in tmp because it is
 // turn-scoped state, not anything worth persisting.
 
-package main
+package mdbudget
 
 import (
 	"crypto/sha256"

@@ -1,10 +1,10 @@
-// Event dispatch. One binary, three events.
+// Event dispatch. A single binary behind every event.
 //
 // Everything fails open: unparseable stdin, an unreadable directory, a vanished
-// file all report nothing and exit 0. A guard that can wedge a session start is
-// worse than no guard.
+// file all report nothing and succeed. A guard that can wedge a session start
+// is worse than no guard.
 
-package main
+package mdbudget
 
 import (
 	"encoding/json"
@@ -20,8 +20,8 @@ import (
 // the session-start census, so the hook still works driven by hand.
 //
 // FullScan is never sent by Claude Code -- no real hook_event_name collides
-// with it, and it needs none of the three real events' session-scoped state
-// (a marker, a size+mtime snapshot). It exists for exactly one caller: a CI
+// with it, and it needs none of the real events' session-scoped state
+// (a marker, a size+mtime snapshot). It exists for a single caller: a CI
 // job that wants a real pass/fail signal for a whole tree, not advisory JSON
 // for whatever files a live session happened to load or touch.
 type hookInput struct {
@@ -60,8 +60,8 @@ func cwdOrDot() string {
 // findOffenders is the session-start census: the same recursive walk
 // full_scan uses (allCandidatePaths), reported size only. Width is judged on
 // what a session WRITES (see editReport) -- listing every pre-existing
-// unwrapped file at session start buries the one file that matters under
-// forty that do not, which is how a guard teaches the model to skim past it.
+// unwrapped file at session start buries the file that matters under a crowd
+// that does not, which is how a guard teaches the model to skim past it.
 func findOffenders(cwd string, limit int) []offender {
 	floor := nearLimit(limit)
 	seen := set.New[string]()
@@ -121,9 +121,9 @@ func editReport(in hookInput, limit int) string {
 	return editReportText(worst, limit, growth, hasGrowth)
 }
 
-// stopBlock decides whether to refuse the end of the turn. It fires once per
-// (file, content): a file left as the gate found it never blocks twice, which is
-// what makes a hard block safe, but re-breaking one is a new violation.
+// stopBlock decides whether to refuse the end of the turn. It fires per
+// (file, content): a file left as the gate found it never blocks again, which
+// is what makes a hard block safe, but re-breaking it is a new violation.
 func stopBlock(in hookInput, limit int) string {
 	if in.StopHookActive || in.SessionID == "" {
 		return ""
