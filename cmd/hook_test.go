@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -103,15 +104,18 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "There are rules below.", edits[2].(map[string]any)["new_string"])
 }
 
-// A finding no rewrite resolves refuses the write. A trailing comment shares
-// its line with code, so deleting the line takes the code too.
+// A finding no rewrite resolves refuses the write. A comment still over the cap
 func TestAFindingNoRewriteResolvesRefusesTheWrite(t *testing.T) {
-	src := "func x() {} // The owner said to keep this.\n"
+	src := "package p\n"
+	for i := range 40 {
+		src += fmt.Sprintf("// The loader reads step %d of the file and returns the record it names.\n", i)
+	}
+	src += "func x() {}\n"
 	got := ask(t, write("a.go", src), "tombstones")
 
 	require.NotNil(t, got.out)
 	assert.Equal(t, "deny", got.out["permissionDecision"])
-	assert.Contains(t, got.out["permissionDecisionReason"], "quoted instruction")
+	assert.Contains(t, got.out["permissionDecisionReason"], "comment block of")
 	assert.NotContains(t, got.body, "updatedInput")
 }
 
@@ -124,6 +128,7 @@ func TestAStrippableTombstoneIsCutRatherThanRefused(t *testing.T) {
 	require.NotNil(t, updated)
 	assert.Equal(t, "func x() {}\n", updated["content"])
 	assert.NotContains(t, got.body, "permissionDecision")
+	assert.Contains(t, got.out["additionalContext"], "rewrites")
 }
 
 // The rule selection reaches the payload, so a plugin naming a category is not

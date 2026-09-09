@@ -2,9 +2,11 @@ package tombstones
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/english"
 )
 
 // DefaultMaxCommentLines caps a comment block, the tier no rewording defeats.
@@ -14,29 +16,28 @@ const DefaultMaxCommentLines = 14
 // over-long comment reflowed. Kept carries what survives both, and a caller
 // refuses on those.
 type Repair struct {
-	Text      string   `json:"text"`
-	Changed   bool     `json:"changed"`
-	Removed   []string `json:"removed,omitempty"`
-	Tightened []string `json:"tightened,omitempty"`
-	Kept      []Hit    `json:"kept,omitempty"`
+	Text     string   `json:"text"`
+	Changed  bool     `json:"changed"`
+	Removed  []string `json:"removed,omitempty"`
+	Rewrites int      `json:"rewrites,omitempty"`
+	Kept     []Hit    `json:"kept,omitempty"`
 }
 
 // rewriteComments applies the english table to every comment block and reflows
-// what it leaves. It answers the new text and the opening line of each block it
-// touches.
+// what it leaves. It answers the new text and how many rewrites that took.
 //
 // Every block goes through it, not only the ones over the cap: a tombstone is a
-// phrase, and the phrase is cut wherever it sits. Blocks are taken last first,
 // so an earlier splice never moves a later block's line numbers.
-func rewriteComments(added string, blocks []Block, maxLines int) (string, []string) {
+func rewriteComments(added string, blocks []Block) (string, int) {
 	lines := strings.Split(added, "\n")
-	var tightened []string
+	rewrites := 0
+	changed := false
 	for i := len(blocks) - 1; i >= 0; i-- {
 		from, to, ok := blockSpan(blocks[i], len(lines))
 		if !ok {
 			continue
 		}
-		short, rewrote := commentlength.Tighten(lines[from : to+1])
+		short, took, rewrote := commentlength.Tighten(lines[from : to+1])
 		if !rewrote {
 			continue
 		}
@@ -45,15 +46,61 @@ func rewriteComments(added string, blocks []Block, maxLines int) (string, []stri
 		out = append(out, short...)
 		out = append(out, lines[to+1:]...)
 		lines = out
-		tightened = append(tightened, strings.TrimSpace(firstLine(blocks[i].Text)))
+		rewrites += took
+		changed = true
 	}
-	if len(tightened) == 0 {
-		return added, nil
+	if !changed {
+		return added, 0
 	}
-	return strings.Join(lines, "\n"), tightened
+	return strings.Join(lines, "\n"), rewrites
 }
 
-// blockSpan is the block's run of lines. A block whose line numbers are not one
+// rewriteParagraphs is rewriteComments for a document, where a block is a
+// paragraph rather than a comment. A paragraph carries no marker and is never
+// hard-wrapped, so it goes back as the single line the table leaves.
+func rewriteParagraphs(added string, blocks []Block) (string, int) {
+	lines := strings.Split(added, "\n")
+	rewrites := 0
+	for i := len(blocks) - 1; i >= 0; i-- {
+		from, to, ok := blockSpan(blocks[i], len(lines))
+		if !ok {
+			continue
+		}
+		body := strings.Join(lines[from:to+1], " ")
+		// A backtick span is a literal rather than a claim, and the table reads
+		if strings.Contains(body, "`") {
+			continue
+		}
+		short, took := english.FixN(body, english.Comment)
+		if took == 0 {
+			continue
+		}
+		out := make([]string, 0, len(lines)-(to-from))
+		out = append(out, lines[:from]...)
+		if hasWord(short) {
+			out = append(out, short)
+		}
+		out = append(out, lines[to+1:]...)
+		lines = out
+		rewrites += took
+	}
+	if rewrites == 0 {
+		return added, 0
+	}
+	return strings.Join(lines, "\n"), rewrites
+}
+
+// hasWord reports whether any letter or digit survives, so a paragraph the
+// table emptied is recognised as gone.
+func hasWord(s string) bool {
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return true
+		}
+	}
+	return false
+}
+
 // unbroken run is left alone, because splicing it would move code.
 func blockSpan(b Block, total int) (from, to int, ok bool) {
 	if len(b.LineNos) == 0 {
@@ -83,7 +130,6 @@ func blocksLosing(blocks []Block, drop set.Set[int]) set.Set[int] {
 // reflowStripped rewraps each block a strip took a line out of, so the prose
 // that survives reads as a paragraph rather than as a sentence with a hole.
 //
-// A block that lost every one of its lines is gone from the new text, which
 // moves every index after it. That case is left alone rather than guessed at.
 func reflowStripped(path, text string, losing set.Set[int], was int) string {
 	if losing.IsEmpty() {
@@ -102,7 +148,7 @@ func reflowStripped(path, text string, losing set.Set[int], was int) string {
 		if !ok {
 			continue
 		}
-		short, rewrapped := commentlength.Tighten(lines[from : to+1])
+		short, _, rewrapped := commentlength.Tighten(lines[from : to+1])
 		if !rewrapped {
 			continue
 		}
@@ -127,11 +173,14 @@ func Fix(path, added string, maxLines int) Repair {
 		return Repair{Text: added}
 	}
 
-	// A block over the cap is rewritten before it is judged. Most are padded
-	// rather than over-long by a thought, and reflowed they fit, so refusing
-	// the write without trying costs a round trip for nothing.
-	added, tightened := rewriteComments(added, blocks, maxLines)
-	if len(tightened) > 0 {
+	// A block over the cap is rewritten before it is judged.
+	was := added
+	rewrite := rewriteComments
+	if doc {
+		rewrite = rewriteParagraphs
+	}
+	added, rewrites := rewrite(added, blocks)
+	if added != was {
 		blocks = AddedBlocks(path, added)
 	}
 
@@ -140,7 +189,7 @@ func Fix(path, added string, maxLines int) Repair {
 		hits = append(hits, HitForName(blocks, name))
 	}
 	if len(hits) == 0 {
-		return Repair{Text: added, Changed: len(tightened) > 0, Tightened: tightened}
+		return Repair{Text: added, Changed: added != was, Rewrites: rewrites}
 	}
 	if doc {
 		// A document line is a paragraph rather than a sentence, so
@@ -150,7 +199,7 @@ func Fix(path, added string, maxLines int) Repair {
 		}
 	}
 
-	repair := Repair{Text: added, Changed: len(tightened) > 0, Tightened: tightened}
+	repair := Repair{Text: added, Changed: added != was, Rewrites: rewrites}
 	drop := set.New[int]()
 	for _, h := range hits {
 		if h.Strippable {

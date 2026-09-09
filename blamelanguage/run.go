@@ -3,8 +3,6 @@
 //
 // MessageDisplay, not Stop: a Stop refusal on wording only buys a retype. The
 // message arrives in flushes, so the text is accumulated in a per-message file
-// under the temp directory and judged whole on the final one. A phrase can
-// span a flush boundary, and judging a flush alone misses every one that does.
 package blamelanguage
 
 import (

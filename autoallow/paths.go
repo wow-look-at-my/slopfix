@@ -17,8 +17,7 @@ type PathRule struct {
 	Message string
 }
 
-// pathFields are the input keys that carry a location. Judging by key rather
-// than by value is what keeps a document that merely NAMES the tree writable.
+// pathFields are the input keys that carry a location.
 func (t ToolInput) pathFields() []string {
 	return []string{t.FilePath, t.NotebookPath, t.Path, t.Pattern}
 }
@@ -62,9 +61,7 @@ func underRoot(root, cwd, path string) bool {
 	return p == root || strings.HasPrefix(p, root+string(filepath.Separator))
 }
 
-// commandReaches reports whether a shell command names the tree. The scan is
-// over the raw text: the hook sees the command before the shell has resolved
-// anything, so each spelling of the home directory is matched as written.
+// commandReaches reports whether a shell command names the tree.
 func commandReaches(root, command string) bool {
 	if command == "" {
 		return false

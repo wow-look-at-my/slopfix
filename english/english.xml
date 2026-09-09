@@ -146,7 +146,7 @@
   <pattern match="(?i)\s*\b(?:no longer|anymore|nowadays|these days)\b" replace=""
            where="comment" test="The walk does not recurse anymore"
            expect="The walk does not recurse"/>
-  <pattern match="(?i)\bthe (?:former|old|previous|legacy|original) (\S+)" to="the $1"
+  <pattern match="(?i)\bthe (?:former|old|previous|legacy|original) (\S+)" replace="the $1"
            where="comment" test="The old scanner reads a marker byte"
            expect="The scanner reads a marker byte"/>
   <pattern match="(?i)\s*\b(?:was|were|has been|have been|had been|is now|are now) (?:renamed|removed|added|deleted|moved|replaced|introduced|dropped|split|merged|reverted|refactored|extracted|migrated|deprecated|rewritten|rewrote|bumped|reworked|consolidated|inlined|hoisted)\b[^.]*" replace=""
@@ -228,40 +228,40 @@
     A suggestion would need somebody to accept it, and the client this runs in
     has no way to accept one, so a rule that only suggests changes nothing.
   -->
-  <pattern id="english/position-reference"
+  <pattern id="tombstones/position-reference"
            match="(?i)\s*\b(?:as mentioned|as noted|as described) (?:above|below)\b[,]?" replace=""
            where="comment" test="As mentioned above it races" expect="It races"/>
-  <pattern id="english/position-reference"
+  <pattern id="tombstones/position-reference"
            match="(?i)\s*\bsee (?:above|below)\b[^.]*" replace=""
            where="comment" test="The lock is held see above for the reason"
            expect="The lock is held"/>
-  <pattern id="english/hedged-time"
+  <pattern id="tombstones/hedged-time"
            match="(?i)\s*\bfor now\b[,]?" replace=""
            where="comment" test="For now it retries once" expect="It retries once"/>
-  <pattern id="english/hedged-time"
+  <pattern id="tombstones/hedged-time"
            match="(?i)\s*\bcurrently\b[,]?" replace=""
            where="comment" test="It currently retries once" expect="It retries once"/>
-  <pattern id="english/hedged-time"
+  <pattern id="tombstones/hedged-time"
            match="(?i)\s*\bwill be\b[^.]*" replace=""
-           where="comment" test="The cap holds this will be replaced"
-           expect="The cap holds"/>
-  <pattern id="english/unstated-value"
+           where="comment" test="The retry count will be raised later"
+           expect="The retry count"/>
+  <pattern id="tombstones/unstated-value"
            match="(?i)\s*\bis (?:tbd|to be determined)\b" replace=" is not stated here"
            where="comment" test="The limit is TBD" expect="The limit is not stated here"/>
-  <pattern id="english/shrug"
+  <pattern id="tombstones/shrug"
            match="(?i)\s*\bfor some reason\b[,]?" replace=""
            where="comment" test="For some reason it races" expect="It races"/>
-  <pattern id="english/shrug"
+  <pattern id="tombstones/shrug"
            match="(?i)\s*\bdo not ask\b[^.]*" replace=""
            where="comment" test="The cap holds do not ask why"
            expect="The cap holds"/>
-  <pattern id="english/shrug"
+  <pattern id="tombstones/shrug"
            match="(?i)\s*\bobviously\b" replace=""
            where="comment" test="This is obviously wrong" expect="This is wrong"/>
-  <pattern id="english/unexplained-workaround"
+  <pattern id="tombstones/unexplained-workaround"
            match="(?i)\ba hack around\b" replace="a workaround for"
            where="comment" test="A hack around the race" expect="A workaround for the race"/>
-  <pattern id="english/unexplained-workaround"
+  <pattern id="tombstones/unexplained-workaround"
            match="(?i)\ba magic number\b" replace="a constant"
            where="comment" test="A magic number from the spec" expect="A constant from the spec"/>
 
@@ -270,8 +270,6 @@
     replacement is right and inventing one would put a wrong sentence into a
     comment the reader trusts. `say` names what to write instead.
   -->
-  <flag phrase="tbd" test="The limit is TBD"
-        say="state the value or the question: TBD ages into a lie"/>
   <flag phrase="fixme" test="FIXME the retry count"
         say="say what is wrong and what it should be"/>
   <flag phrase="somehow" test="It somehow retries twice"

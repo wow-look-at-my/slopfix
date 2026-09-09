@@ -13,9 +13,7 @@ import (
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 )
 
-// Run is a run of comment lines and where it sits. Pure says, for each line,
-// whether the line holds the comment and nothing else, so a caller knows which
-// lines it can cut without taking code with them.
+// Run is a run of comment lines and where it sits.
 type Run struct {
 	Start int
 	End   int
@@ -39,7 +37,6 @@ func Runs(filename, src string) (runs []Run, ok bool) {
 }
 
 // gatherComments walks the whole tree, so a comment inside a function body is
-// found the same way as one above a declaration.
 func gatherComments(node ts.Node, out *[]ts.Node) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {

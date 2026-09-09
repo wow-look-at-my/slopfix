@@ -25,10 +25,6 @@ func languageFor(filename string) *ts.Language { return code.LanguageFor(filenam
 func Parsed(filename string) bool { return code.Parsed(filename) }
 
 // treeBlocks pairs each comment run in a file with the construct beneath it.
-//
-// ok is false when the file does not parse, and the caller then reports nothing
-// rather than measuring against a broken tree. A file mid-edit is the common
-// case for a hook, and half a tree is a worse input than none.
 func treeBlocks(language *ts.Language, src string) (out []block, ok bool) {
 	root, ok := code.ParseWith(language, src)
 	if !ok {

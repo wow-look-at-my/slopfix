@@ -67,19 +67,14 @@ type Pattern struct {
 	re *regexp.Regexp
 }
 
-// Case is one worked example: prose in, prose out. An entry carries as many as
-// it needs, as <test in="..." out="..."/> children, and the attribute pair on
-// the entry itself is the first of them.
 type Case struct {
 	In  string `xml:"in,attr"`
 	Out string `xml:"out,attr"`
 }
 
-// Tests is every worked example an entry declares, the attribute pair first.
 func (p Pattern) Tests() []Case { return cases(p.Test, p.Expect, p.Cases) }
 
-// Tests is every worked example a drop declares. A drop states no output: the
-// assertion is that the word is gone.
+// Tests is every worked example a drop declares.
 func (d Drop) Tests() []Case { return cases(d.Test, "", d.Cases) }
 
 // Tests is every worked example a rewrite declares.
@@ -124,7 +119,6 @@ type Drop struct {
 	Cases []Case `xml:"test"`
 }
 
-// Rewrite is a phrase a repair swaps for a shorter one.
 type Rewrite struct {
 	From  string `xml:"from,attr"`
 	To    string `xml:"to,attr"`
@@ -133,14 +127,12 @@ type Rewrite struct {
 	Cases []Case `xml:"test"`
 }
 
-// AppliesTo says whether an entry covers a surface. An empty where= means both,
-// so an entry that says nothing about surface applies everywhere.
+// AppliesTo says whether an entry covers a surface.
 func AppliesTo(where, surface string) bool {
 	return where == "" || where == "both" || where == surface
 }
 
-// loaded is the parsed table. A malformed table is a build the binary refuses
-// to start, because a rule set that silently loses entries enforces nothing.
+// loaded is the parsed table.
 var loaded = mustLoad()
 
 func mustLoad() Table {

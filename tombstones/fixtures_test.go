@@ -28,8 +28,9 @@ TMP="$(mktemp)"
 func TestAPurgeCommentNarratingItsOwnMigrationIsATombstone(t *testing.T) {
 	repair := Fix("setup/bootstrap.sh", purgeNarration, DefaultMaxCommentLines)
 
-	require.NotEmpty(t, append(repair.Removed, tellsOf(repair)...),
+	require.True(t, repair.Changed || len(repair.Kept) > 0,
 		"the specimen must be caught, or this fixture proves nothing")
+	assert.NotContains(t, repair.Text, "moved from Stop to MessageDisplay")
 }
 
 func TestThePurgeCommentsRepairIsAccepted(t *testing.T) {
@@ -38,14 +39,4 @@ func TestThePurgeCommentsRepairIsAccepted(t *testing.T) {
 	assert.False(t, repair.Changed, "the repair must survive the rule it was written to satisfy")
 	assert.Empty(t, repair.Kept)
 	assert.Empty(t, repair.Removed)
-}
-
-// tellsOf names what a repair reported but could not excise, so a test can ask
-// whether a specimen was caught at all.
-func tellsOf(r Repair) []string {
-	var out []string
-	for _, hit := range r.Kept {
-		out = append(out, hit.Tell)
-	}
-	return out
 }

@@ -78,14 +78,15 @@ func paragraphs(doc string) []Block {
 
 	var out []Block
 	var cur []string
+	var nos []int
 	flush := func() {
 		if len(cur) > 0 {
-			out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur)})
-			cur = nil
+			out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos})
+			cur, nos = nil, nil
 		}
 	}
 	inFence, inComment := false, false
-	for _, line := range lines[start:] {
+	for at, line := range lines[start:] {
 		trimmed := strings.TrimSpace(line)
 		switch {
 		case strings.HasPrefix(trimmed, "```"), strings.HasPrefix(trimmed, "~~~"):
@@ -107,6 +108,7 @@ func paragraphs(doc string) []Block {
 			continue
 		}
 		cur = append(cur, blankInlineCode(line))
+		nos = append(nos, start+at)
 	}
 	flush()
 	return out

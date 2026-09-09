@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/slopfix/english"
 )
 
 // Tightening runs before cutting, so a padded comment keeps every thought it
@@ -55,7 +54,7 @@ func TestReflowKeepsParagraphBreaks(t *testing.T) {
 		"//",
 		"// The elaboration that follows it.",
 	}
-	out, changed := tighten(text)
+	out, _, changed := tighten(text)
 	require.True(t, changed || len(out) == len(text))
 	assert.Contains(t, strings.Join(out, "\n"), "//\n", "the blank marker is still there")
 }
@@ -63,7 +62,7 @@ func TestReflowKeepsParagraphBreaks(t *testing.T) {
 // A block whose lines disagree about the marker is left alone: rewriting it would
 // change more than the prose.
 func TestAMixedBlockIsNotTightened(t *testing.T) {
-	_, changed := tighten([]string{"// prose", "code()"})
+	_, _, changed := tighten([]string{"// prose", "code()"})
 	assert.False(t, changed)
 }
 

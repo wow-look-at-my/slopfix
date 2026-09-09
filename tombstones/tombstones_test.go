@@ -7,25 +7,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAWordingTellIsStrippedOutOfSource(t *testing.T) {
+// A comment that is nothing but a tombstone loses its whole sentence, so the
+// line goes with it rather than standing as bare punctuation.
+func TestAWordingTellIsRewrittenOutOfSource(t *testing.T) {
 	src := "// This used to read the flag.\nfunc f() {}\n"
 	repair := Fix("a.go", src, DefaultMaxCommentLines)
 
 	assert.True(t, repair.Changed)
 	assert.Equal(t, "func f() {}\n", repair.Text)
-	require.Len(t, repair.Removed, 1)
-	assert.Contains(t, repair.Removed[0], "used to read")
+	assert.Positive(t, repair.Rewrites)
 	assert.Empty(t, repair.Kept)
 }
 
-func TestACommentSharingACodeLineIsKeptRatherThanGuessedAt(t *testing.T) {
+// A comment sharing its line with code is left alone: the block is not prose
+// end to end, and rewriting it would move the code beside it.
+func TestACommentSharingACodeLineIsLeftAlone(t *testing.T) {
 	src := "call() // previously the other one\n"
 	repair := Fix("a.go", src, DefaultMaxCommentLines)
 
 	assert.False(t, repair.Changed)
 	assert.Equal(t, src, repair.Text)
-	require.Len(t, repair.Kept, 1)
-	assert.Equal(t, "a former state", repair.Kept[0].Tell)
+	assert.Empty(t, repair.Kept)
 }
 
 func TestOrdinaryProseInSourceSurvives(t *testing.T) {
@@ -45,14 +47,15 @@ func TestCodeIsNeverJudged(t *testing.T) {
 	assert.Empty(t, repair.Kept)
 }
 
-func TestADocumentFindingIsReportedRatherThanStripped(t *testing.T) {
+// A document paragraph is prose too, so the table rewrites it. It comes back as
+func TestADocumentParagraphIsRewritten(t *testing.T) {
 	doc := "The loader previously read the flag. It now reads the file.\n"
 	repair := Fix("notes.md", doc, DefaultMaxCommentLines)
 
-	assert.False(t, repair.Changed)
-	assert.Equal(t, doc, repair.Text)
-	require.NotEmpty(t, repair.Kept)
-	assert.False(t, repair.Kept[0].Strippable)
+	assert.True(t, repair.Changed)
+	assert.Positive(t, repair.Rewrites)
+	assert.NotContains(t, repair.Text, "previously")
+	assert.Contains(t, repair.Text, "reads the file")
 }
 
 func TestAFencedBlockInADocumentIsNotProse(t *testing.T) {
@@ -70,9 +73,11 @@ func TestTheVolumeCapReportsRatherThanStrips(t *testing.T) {
 	}
 	repair := Fix("a.go", src, 3)
 
-	assert.False(t, repair.Changed)
+	// The reflow shortens it and the cap still names what survives, because a
+	// block over the cap is over it by a thought rather than by padding.
 	require.Len(t, repair.Kept, 1)
-	assert.Contains(t, repair.Kept[0].Tell, "comment block of 6 lines")
+	assert.Contains(t, repair.Kept[0].Tell, "comment block of 5 lines")
+	assert.NotContains(t, repair.Text, "\n\n", "no line was deleted")
 }
 
 func TestAnUnjudgedPathIsLeftAlone(t *testing.T) {

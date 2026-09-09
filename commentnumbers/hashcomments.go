@@ -43,7 +43,6 @@ func readsHash(filename string) bool {
 	return hashExts.Contains(strings.ToLower(filepath.Ext(base)))
 }
 
-// extract returns a file's comments, from its grammar where it has one and
 // from the hash reader otherwise.
 func extract(filename, src string) []code.Comment {
 	if code.Parsed(filename) {

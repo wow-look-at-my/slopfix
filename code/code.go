@@ -55,7 +55,6 @@ func LanguageFor(filename string) *ts.Language {
 func Parsed(filename string) bool { return LanguageFor(filename) != nil }
 
 // Extensions is every extension a grammar claims, for a caller asserting that
-// each one it claims is actually exercised.
 func Extensions() []string {
 	out := make([]string, 0, len(grammars))
 	for ext := range grammars {
@@ -65,10 +64,6 @@ func Extensions() []string {
 }
 
 // Parse returns the root of the syntax tree.
-//
-// ok is false when no grammar parses the file, or when the parse carries an
-// error. A file mid-edit is the common case for a hook, and half a tree reads
-// code as prose.
 func Parse(filename, src string) (root ts.Node, ok bool) {
 	language := LanguageFor(filename)
 	if language == nil {

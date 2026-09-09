@@ -149,6 +149,7 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	var removed []string
 	var kept []tombstones.Hit
 	var findings []string
+	rewrites := 0
 	changed := false
 	for _, u := range writeUnits(in.ToolName, write, raw) {
 		repair := slopfix.Fix(slopfix.Request{
@@ -159,6 +160,7 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 			MaxCommentLines: hookMaxLines,
 		})
 		removed = append(removed, repair.Removed...)
+		rewrites += repair.Rewrites
 		kept = append(kept, repair.Kept...)
 		for _, f := range repair.Findings {
 			findings = append(findings, f.String())
@@ -178,7 +180,7 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	case changed:
 		return respond(func(r *hookResponse) {
 			r.HookSpecificOutput.UpdatedInput = raw
-			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed)
+			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed, rewrites)
 		})
 	}
 	return ""
@@ -200,13 +202,13 @@ const reportCap = 6
 
 // notice is what the model is told after the fact. The write went through, so
 // it names what was cut rather than asking for a retry.
-func notice(path string, removed []string) string {
+func notice(path string, removed []string, rewrites int) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "slopfix repaired this write to %s. It removed:\n", path)
+	fmt.Fprintf(&b, "slopfix repaired this write to %s. It took %d rewrites.\n", path, rewrites)
 	for _, line := range capped(removed) {
-		fmt.Fprintf(&b, "  %q\n", strings.TrimSpace(line))
+		fmt.Fprintf(&b, "  removed %q\n", strings.TrimSpace(line))
 	}
-	b.WriteString("\nThe text that was written no longer carries them. Read the sentence back and make it read naturally.")
+	b.WriteString("\nThe text on disk is the repaired text. Write prose that needs none of this.")
 	return b.String()
 }
 
