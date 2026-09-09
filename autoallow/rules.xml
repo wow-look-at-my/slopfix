@@ -148,6 +148,21 @@
 		<test cmd="which node" expect="allow"/>
 		<test cmd="which git node python" expect="allow"/>
 	</rule>
+	<!-- `command -v` is the portable spelling of which, and the one a script
+	     writes. Without it a lookup chain fell through to the permission engine,
+	     which denies with nobody there to ask. Bare `command` RUNS its argument,
+	     so only the lookup flags allow; shellwalk already unwraps the rest. -->
+	<rule name="command">
+		<test cmd="command -v jq" expect="allow"/>
+		<test cmd="command -v go-toolchain; command -v go; cat go.mod; cat justfile" expect="allow"/>
+		<test cmd="command -V rg" expect="allow"/>
+		<test cmd="command python3 script.py" expect="deny"/>
+		<test cmd="command ls -la" expect=""/>
+		<requiredFlags>
+			<flag name="-v" />
+			<flag name="-V" />
+		</requiredFlags>
+	</rule>
 	<rule name="whereis" allowedFlags="*"/>
 	<rule name="readlink" allowedFlags="*"/>
 	<rule name="basename" allowedFlags="*"/>
