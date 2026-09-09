@@ -21,6 +21,13 @@ type xmlRules struct {
 	Ask        xmlSection     `xml:"ask"`
 	Deny       xmlSection     `xml:"deny"`
 	MCPServers []xmlMCPServer `xml:"mcpServer"`
+	DenyPaths  []xmlPath      `xml:"denyPath"`
+}
+
+// A denied tree is named once and refused for every tool that reaches it.
+type xmlPath struct {
+	Prefix  string `xml:"prefix,attr"`
+	Message string `xml:",chardata"`
 }
 
 type xmlSection struct {
@@ -104,6 +111,12 @@ func loadXMLRules(data []byte) (Rules, error) {
 			}
 			*section.commands = append(*section.commands, convertXMLCommand(xc))
 		}
+	}
+	for _, p := range xr.DenyPaths {
+		r.DenyPaths = append(r.DenyPaths, PathRule{
+			Prefix:  strings.TrimSpace(p.Prefix),
+			Message: strings.TrimSpace(p.Message),
+		})
 	}
 	if len(xr.MCPServers) > 0 {
 		r.MCPServers = make(map[string][]string, len(xr.MCPServers))

@@ -1028,4 +1028,9 @@
 	<mcpServer name="plugin_glob_*">
 		<tool>Glob</tool>
 	</mcpServer>
+
+	<!-- The installed plugin tree. What lives there is a copy CI built from a
+	     marketplace repository, so a question asked of it is answered about the
+	     copy, and an edit is overwritten by the next install. -->
+	<denyPath prefix="~/.claude/plugins">Go to the plugin source directory instead.</denyPath>
 </rules>

@@ -11,11 +11,18 @@ import (
 type HookInput struct {
 	HookEventName string    `json:"hook_event_name"`
 	ToolName      string    `json:"tool_name"`
+	Cwd           string    `json:"cwd"`
 	ToolInput     ToolInput `json:"tool_input"`
 }
 
+// Every tool fills the keys its own shape has and leaves the rest empty, so one
+// struct reads the location out of any of them.
 type ToolInput struct {
-	Command string `json:"command"`
+	Command      string `json:"command"`
+	FilePath     string `json:"file_path"`
+	NotebookPath string `json:"notebook_path"`
+	Path         string `json:"path"`
+	Pattern      string `json:"pattern"`
 }
 
 // Sections evaluated deny > ask > allow. A rule matches argv as written
@@ -30,6 +37,9 @@ type Rules struct {
 	DenyProcesses  []ProcessRule `json:"denyProcesses"`
 
 	MCPServers map[string][]string `json:"mcpServers"`
+
+	// DenyPaths refuses by location, whichever tool is asking.
+	DenyPaths []PathRule `json:"denyPaths"`
 }
 
 type CommandNode struct {
