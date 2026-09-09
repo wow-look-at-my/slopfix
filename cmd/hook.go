@@ -206,14 +206,18 @@ const reportCap = 6
 // than asking for a retry.
 func notice(path string, removed []string, rewrites int, flags []string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "slopfix repaired this write to %s. It took %d rewrites.\n", path, rewrites)
+	if rewrites == 0 && len(removed) == 0 {
+		fmt.Fprintf(&b, "slopfix let this write to %s through and flagged what it reads.\n", path)
+	} else {
+		fmt.Fprintf(&b, "slopfix repaired this write to %s. It took %d rewrites.\n", path, rewrites)
+	}
 	for _, line := range capped(removed) {
 		fmt.Fprintf(&b, "  removed %q\n", strings.TrimSpace(line))
 	}
 	for _, line := range capped(flags) {
 		fmt.Fprintf(&b, "  flagged %s\n", line)
 	}
-	b.WriteString("\nThe text on disk is the repaired text. Write prose that needs none of this.")
+	b.WriteString("\nThe write went through as it stands. Write prose that needs none of this.")
 	return b.String()
 }
 
