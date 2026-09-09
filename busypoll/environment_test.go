@@ -40,8 +40,7 @@ func TestRemoteSessionReadsEitherVariable(t *testing.T) {
 }
 
 func TestStopIsAllowedInALocalSession(t *testing.T) {
-	t.Setenv("CLAUDE_CODE_REMOTE", "")
-	t.Setenv("CLAUDE_CODE_REMOTE_SESSION_ID", "")
+	localSession(t)
 	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	path := closePoll(t, 6, base, "gh pr view 186 --json state,mergedAt")
 	res := Run(strings.NewReader(stopPayload(t, path, false)))
@@ -49,26 +48,33 @@ func TestStopIsAllowedInALocalSession(t *testing.T) {
 }
 
 func TestRepeatedReadIsAllowedInALocalSession(t *testing.T) {
-	t.Setenv("CLAUDE_CODE_REMOTE", "")
-	t.Setenv("CLAUDE_CODE_REMOTE_SESSION_ID", "")
-	path := stageTranscript(t,
-		bashCall("gh pr view 186 --json state"),
-		toolResult(`{"state":"OPEN"}`),
+	localSession(t)
+	tr := stageTranscript(t,
+		callWithID("t1", "gh pr view 87 --repo wow-look-at-my/grok-build"),
+		resultFor("t1", `{"pr":"wow-look-at-my/grok-build#87","state":"open"}`, false),
 	)
-	res := Run(strings.NewReader(preToolPayload(t, path, "Bash",
-		`{"command":"gh pr view 186 --json state"}`)))
-	assert.Empty(t, res.Stdout, "a local session learns of a state change by asking again")
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh pr checks 87 --repo wow-look-at-my/grok-build")))
+
+	assert.Empty(t, reason, "a local session learns of a state change by asking again")
 }
 
 func TestTerminalSubjectIsRefusedInALocalSession(t *testing.T) {
+	localSession(t)
+	tr := stageTranscript(t,
+		bashCall("gh wait-ci checks --repo wow-look-at-my/grok-build"),
+		toolResult(`{"outcome":"merged","pr":"wow-look-at-my/grok-build#87"}`),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh pr view 87 --repo wow-look-at-my/grok-build")))
+
+	assert.Contains(t, reason, "cannot leave",
+		"a merged pull request does not un-merge on a laptop either")
+}
+
+// localSession takes away the variables a remote session carries.
+func localSession(t *testing.T) {
+	t.Helper()
 	t.Setenv("CLAUDE_CODE_REMOTE", "")
 	t.Setenv("CLAUDE_CODE_REMOTE_SESSION_ID", "")
-	path := stageTranscript(t,
-		bashCall("gh pr view 186 --json state"),
-		toolResult(`{"number":186,"state":"MERGED","merged":true}`),
-	)
-	res := Run(strings.NewReader(preToolPayload(t, path, "Bash",
-		`{"command":"gh pr view 186 --json state"}`)))
-	assert.Contains(t, res.Stdout, "already reached a state it cannot leave",
-		"a merged pull request does not un-merge on a laptop either")
 }
