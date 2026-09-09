@@ -20,6 +20,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+      # go-toolchain runs dats/ after the build, and dats needs a sandbox backend or the suites run on the runner itself.
+      - name: Install the dats sandbox backend
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - uses: wow-look-at-my/go-toolchain@master
         with:
           # Approves the //go:generate directives; editing one fails the build with the new value.
