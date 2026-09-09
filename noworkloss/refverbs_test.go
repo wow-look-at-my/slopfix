@@ -219,6 +219,15 @@ func TestUpdateRefDeleteFollowsReachability(t *testing.T) {
 	denied(t, dir, "git update-ref -d refs/heads/solo")
 }
 
+func TestSymbolicRefReadsAreAllowedAndWritesAreNot(t *testing.T) {
+	dir := newRepo(t)
+	allowed(t, dir, "git symbolic-ref HEAD")
+	allowed(t, dir, "git symbolic-ref -q HEAD")
+	allowed(t, dir, "git symbolic-ref --short HEAD")
+	denied(t, dir, "git symbolic-ref HEAD refs/heads/other")
+	denied(t, dir, "git symbolic-ref -m reason HEAD refs/heads/other")
+}
+
 func TestWorktreeRemoveForceChecksThatWorktree(t *testing.T) {
 	dir := newRepo(t)
 	wt := filepath.Join(filepath.Dir(dir), "wt")
