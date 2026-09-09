@@ -41,8 +41,9 @@ func TestWriteOverAnExistingFileIsRefused(t *testing.T) {
 
 // The refusal above names a path, so the path gets emptied and the same Write
 // goes again. Each verb that empties it leaves the file in git and off the
-// disk, and the control is the file git never held.
-func TestWriteOverAPathEmptiedToGetPastTheRefusalIsRefused(t *testing.T) {
+// disk. The hook puts the file back rather than only refusing, so Edit has
+// something to work on. The control is the file git never held.
+func TestWriteOverAPathEmptiedToGetPastTheRefusalRestoresIt(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		empty func(t *testing.T, dir string)
@@ -60,15 +61,34 @@ func TestWriteOverAPathEmptiedToGetPastTheRefusalIsRefused(t *testing.T) {
 				"the file is still on disk here")
 
 			tc.empty(t, dir)
+			require.NoFileExists(t, path, "%s empties the path", tc.name)
+
 			reason := askTool(t, "Write", dir, map[string]any{"file_path": path})
 			require.NotEmpty(t, reason, "%s must not open a route Write was refused", tc.name)
-			assert.Contains(t, reason, "git still holds tracked.go")
-			assert.Contains(t, reason, "run: git -C "+dir+" restore -- tracked.go")
+			assert.Contains(t, reason, "put the file back")
+			assert.Contains(t, reason, "Use Edit")
+
+			// The repair is the point: the file is on disk with its content.
+			restored, err := os.ReadFile(path)
+			require.NoError(t, err, "the hook must put the file back, not only refuse")
+			assert.Equal(t, "package a\n", string(restored))
 
 			// The control: a path git never held is an ordinary new file.
 			assert.Empty(t, askTool(t, "Write", dir, map[string]any{"file_path": filepath.Join(dir, "fresh.go")}))
 		})
 	}
+}
+
+// The restore writes the working tree and nothing else. A `git rm` staged the
+// removal, and that staged state is the session's to keep or undo.
+func TestTheRestoreLeavesTheIndexAlone(t *testing.T) {
+	dir := newRepo(t)
+	git(t, dir, "rm", "-q", "tracked.go")
+	staged := gitOutput(t, dir, "diff", "--cached", "--name-status")
+
+	require.NotEmpty(t, askTool(t, "Write", dir, map[string]any{"file_path": filepath.Join(dir, "tracked.go")}))
+	assert.Equal(t, staged, gitOutput(t, dir, "diff", "--cached", "--name-status"),
+		"the index must read exactly as it did")
 }
 
 // Committing the removal is the way out. The content is then in history, where

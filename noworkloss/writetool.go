@@ -3,6 +3,7 @@ package noworkloss
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,40 +37,86 @@ func writeToolReason(path string) string {
 // an `rm` and a `git rm` all leave one shape behind. Git holds content at this
 // path and the disk does not. So the answer follows that state, and no list of
 // verbs decides it.
+//
+// A guard here mitigates rather than refuses, so the file goes back on disk
+// first. The Write then meets the ordinary refusal above, which is true again,
+// and Edit has a file to work on. A restore that fails says what to run.
 func vacatedReason(path string) string {
-	root, rel, ok := trackedPath(path)
+	held, ok := trackedPath(path)
 	if !ok {
 		return ""
 	}
-	return "blocked: " + path + " is gone from the working tree, and git still holds " + rel + " at this path.\n" +
-		"Write here authors a whole file over one that exists, with the refusal stepped around rather than answered.\n" +
-		"run: git -C " + root + " restore -- " + rel + "   # then use Edit. Commit the removal first, if the file must really go."
+	if err := held.restore(); err != nil {
+		return "blocked: " + path + " is gone from the working tree, and " + held.source + " still holds " + held.rel + " at this path.\n" +
+			"Putting it back failed (" + err.Error() + "), so this Write authors a whole file over one that exists.\n" +
+			"run: " + held.restoreCommand() + "   # then use Edit"
+	}
+	return "blocked: " + path + " was gone from the working tree, and " + held.source + " still held " + held.rel + " at this path.\n" +
+		"This hook put the file back. It exists again, so Write replaces content nobody read a diff of.\n" +
+		"Use Edit to change it. Commit the removal first, if the file must really go."
 }
 
-// trackedPath reports the repository root and the path inside it, for a path
-// git knows in the index or in HEAD. Every git failure falls through to allow.
-func trackedPath(path string) (root, rel string, ok bool) {
+// heldPath is a path git holds and the disk does not, with the place git holds
+// it: the index for a rename and a plain `rm`, HEAD for a `git rm`.
+type heldPath struct {
+	root, rel, source string
+}
+
+// restore writes the path back into the working tree, and leaves the index
+// alone. Nothing is destroyed: the caller establishes that no file sits at
+// this path.
+func (h heldPath) restore() error {
+	_, stderr, err := runGit(h.root, append(h.restoreArgs(), "--", ":(literal)"+h.rel)...)
+	if err != nil && strings.TrimSpace(stderr) != "" {
+		return errors.New(strings.TrimSpace(firstLine(stderr)))
+	}
+	return err
+}
+
+func (h heldPath) restoreArgs() []string {
+	args := []string{"restore", "--worktree"}
+	if h.source == "HEAD" {
+		// The index no longer carries the entry, so the tree has to be named.
+		args = append(args, "--source=HEAD")
+	}
+	return args
+}
+
+func (h heldPath) restoreCommand() string {
+	return "git -C " + h.root + " " + strings.Join(h.restoreArgs(), " ") + " -- " + h.rel
+}
+
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// trackedPath reports where git holds a path the disk does not, and where it
+// sits inside the repository. Every git failure falls through to allow.
+func trackedPath(path string) (heldPath, bool) {
 	out, _, err := runGit(filepath.Dir(path), "rev-parse", "--show-toplevel")
 	if err != nil {
-		return "", "", false
+		return heldPath{}, false
 	}
-	root = strings.TrimSpace(out)
+	root := strings.TrimSpace(out)
 	if root == "" {
-		return "", "", false
+		return heldPath{}, false
 	}
-	rel, err = filepath.Rel(root, physicalPath(path))
+	rel, err := filepath.Rel(root, physicalPath(path))
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", "", false
+		return heldPath{}, false
 	}
 	// The index answers for a plain `rm` and a rename. HEAD answers for
 	// `git rm`, which takes the entry out of the index as it goes.
 	if out, _, err := runGit(root, "ls-files", "--", ":(literal)"+rel); err == nil && strings.TrimSpace(out) != "" {
-		return root, rel, true
+		return heldPath{root: root, rel: rel, source: "the index"}, true
 	}
 	if _, _, err := runGit(root, "cat-file", "-e", "HEAD:"+rel); err == nil {
-		return root, rel, true
+		return heldPath{root: root, rel: rel, source: "HEAD"}, true
 	}
-	return "", "", false
+	return heldPath{}, false
 }
 
 // physicalPath resolves the parent directory, since git reports the physical

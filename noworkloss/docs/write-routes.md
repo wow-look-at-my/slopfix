@@ -58,6 +58,8 @@ Write authors a whole file. So a Write over a path that already holds content re
 
 The verb is the wrong thing to judge. `mv a b` is ordinary refactoring. A rule against it refuses the rename this plugin has no quarrel with. Each route leaves the same state behind. **Git holds content at this path and the disk does not.** The Write is judged on that state. No list of verbs decides it. The index answers for a rename and a plain `rm`. HEAD answers for `git rm`, which takes the entry out of the index as it goes.
 
+A guard here mitigates rather than refuses, so the hook puts the file back before it answers. `git restore --worktree` writes the working tree alone. The index keeps whatever the session staged. A `git rm` stays staged. Nothing is destroyed either, because the check above establishes that no file sits at this path. The Write then meets the ordinary refusal, which is true again, and Edit has a file to work on. A restore that fails says what to run instead.
+
 A commit of the removal is the way out. It is also the honest one. The old content is then in history where a reader finds it. The path is free. The next Write is a genuine creation.
 
 A file git never held is outside this. A rename of an untracked file leaves its bytes on disk under another name. To find them again means to index content rather than to read state. The destruction half already refuses `rm` on an untracked file. So the gap is a rename of a file nobody committed. It is a gap rather than a decision.
