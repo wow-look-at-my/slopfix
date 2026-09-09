@@ -6,7 +6,7 @@ import (
 	"os"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
-	"github.com/wow-look-at-my/go-tree-sitter/grammars/golang"
+	"github.com/wow-look-at-my/slopfix/grammars/golang"
 )
 
 func main() {
