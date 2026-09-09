@@ -24,7 +24,7 @@ type xmlRules struct {
 	DenyPaths  []xmlPath      `xml:"denyPath"`
 }
 
-// A denied tree is named once and refused for every tool that reaches it.
+// A denied tree is named here and refused for every tool that reaches it.
 type xmlPath struct {
 	Prefix  string `xml:"prefix,attr"`
 	Message string `xml:",chardata"`

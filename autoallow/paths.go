@@ -11,8 +11,7 @@ import (
 	"strings"
 )
 
-// PathRule refuses every call that reaches a tree. The message is what the
-// caller is told, and it carries the way out.
+// PathRule refuses a call that reaches a tree, whichever tool asks.
 type PathRule struct {
 	Prefix  string
 	Message string
@@ -24,7 +23,7 @@ func (t ToolInput) pathFields() []string {
 	return []string{t.FilePath, t.NotebookPath, t.Path, t.Pattern}
 }
 
-// matchPathRule answers with the message of the first rule the call reaches.
+// matchPathRule answers with the message of whichever rule the call reaches.
 func matchPathRule(hi HookInput, rules []PathRule) string {
 	for _, rule := range rules {
 		root := expandHome(rule.Prefix)
@@ -63,11 +62,9 @@ func underRoot(root, cwd, path string) bool {
 	return p == root || strings.HasPrefix(p, root+string(filepath.Separator))
 }
 
-// commandReaches reports whether a shell command names the tree.
-//
-// The scan is over the raw text rather than over a parse. The hook sees the
-// command before the shell has resolved anything, so every spelling of the home
-// directory is matched as written.
+// commandReaches reports whether a shell command names the tree. The scan is
+// over the raw text: the hook sees the command before the shell has resolved
+// anything, so each spelling of the home directory is matched as written.
 func commandReaches(root, command string) bool {
 	if command == "" {
 		return false

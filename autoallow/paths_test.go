@@ -1,9 +1,9 @@
 package autoallow
 
 import (
+	"bytes"
 	"encoding/json"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,11 +21,17 @@ func homed(t *testing.T) string {
 }
 
 // verdict drives the shipped table on a payload and reads the decision back.
-func verdict(t *testing.T, event, tool, cwd, input string) (string, string) {
+func verdict(t *testing.T, event, tool, cwd string, input map[string]any) (string, string) {
 	t.Helper()
-	payload := `{"hook_event_name":"` + event + `","tool_name":"` + tool +
-		`","cwd":` + quoted(cwd) + `,"tool_input":` + input + `}`
-	res := Run(strings.NewReader(payload))
+	payload, err := json.Marshal(map[string]any{
+		"hook_event_name": event,
+		"tool_name":       tool,
+		"cwd":             cwd,
+		"tool_input":      input,
+	})
+	require.NoError(t, err)
+
+	res := Run(bytes.NewReader(payload))
 	if res.Stdout == "" {
 		return "", ""
 	}
@@ -39,11 +45,6 @@ func verdict(t *testing.T, event, tool, cwd, input string) (string, string) {
 	return resp.HookSpecificOutput.Decision.Behavior, resp.HookSpecificOutput.Decision.Message
 }
 
-func quoted(s string) string {
-	out, _ := json.Marshal(s)
-	return string(out)
-}
-
 func pluginTree(home string, rest ...string) string {
 	return filepath.Join(append([]string{home, ".claude", "plugins"}, rest...)...)
 }
@@ -55,10 +56,10 @@ func TestAReadOfTheInstalledPluginTreeIsRefused(t *testing.T) {
 	path := pluginTree(home, "cache", "mp", "slopfix", "CLAUDE.md")
 
 	for _, event := range []string{eventPreToolUse, eventPermissionRequest} {
-		got, why := verdict(t, event, "Read", "/repo", `{"file_path":`+quoted(path)+`}`)
+		got, why := verdict(t, event, "Read", "/repo", map[string]any{"file_path": path})
 
 		assert.Equal(t, "deny", got, event)
-		assert.Contains(t, why, "installed plugin tree", event)
+		assert.Contains(t, why, "plugin source directory", event)
 	}
 }
 
@@ -66,7 +67,10 @@ func TestAWriteInsideTheInstalledPluginTreeIsRefused(t *testing.T) {
 	home := homed(t)
 	path := pluginTree(home, "cache", "mp", "slopfix", "manifest.json")
 
-	got, _ := verdict(t, eventPreToolUse, "Write", "/repo", `{"file_path":`+quoted(path)+`,"content":"x"}`)
+	got, _ := verdict(t, eventPreToolUse, "Write", "/repo", map[string]any{
+		"file_path": path,
+		"content":   "x",
+	})
 
 	assert.Equal(t, "deny", got)
 }
@@ -75,17 +79,22 @@ func TestAnEditInsideTheInstalledPluginTreeIsRefused(t *testing.T) {
 	home := homed(t)
 	path := pluginTree(home, "cache", "mp", "grep", "server.go")
 
-	got, _ := verdict(t, eventPreToolUse, "Edit", "/repo", `{"file_path":`+quoted(path)+`,"new_string":"x"}`)
+	got, _ := verdict(t, eventPreToolUse, "Edit", "/repo", map[string]any{
+		"file_path":  path,
+		"new_string": "x",
+	})
 
 	assert.Equal(t, "deny", got)
 }
 
-// The tree is refused whole. Its branches hold the same installed copies, and a
-// rule naming one of them would leave the rest open.
+// The tree is refused whole. Its branches hold the same installed copies, and
+// naming a branch would leave every other branch open.
 func TestEveryBranchOfTheTreeIsRefused(t *testing.T) {
 	home := homed(t)
 	for _, branch := range []string{"cache", "marketplaces", "repos", "config.json"} {
-		got, _ := verdict(t, eventPreToolUse, "Read", "/repo", `{"file_path":`+quoted(pluginTree(home, branch))+`}`)
+		got, _ := verdict(t, eventPreToolUse, "Read", "/repo", map[string]any{
+			"file_path": pluginTree(home, branch),
+		})
 
 		assert.Equal(t, "deny", got, branch)
 	}
@@ -94,7 +103,9 @@ func TestEveryBranchOfTheTreeIsRefused(t *testing.T) {
 func TestTheTreeItselfIsRefused(t *testing.T) {
 	home := homed(t)
 
-	got, _ := verdict(t, eventPreToolUse, "Read", "/repo", `{"file_path":`+quoted(pluginTree(home))+`}`)
+	got, _ := verdict(t, eventPreToolUse, "Read", "/repo", map[string]any{
+		"file_path": pluginTree(home),
+	})
 
 	assert.Equal(t, "deny", got)
 }
@@ -104,8 +115,10 @@ func TestTheTreeItselfIsRefused(t *testing.T) {
 func TestASearchScopedToTheTreeIsRefused(t *testing.T) {
 	home := homed(t)
 
-	got, _ := verdict(t, eventPreToolUse, "Grep", "/repo",
-		`{"pattern":"slopfix","path":`+quoted(pluginTree(home, "cache"))+`}`)
+	got, _ := verdict(t, eventPreToolUse, "Grep", "/repo", map[string]any{
+		"pattern": "slopfix",
+		"path":    pluginTree(home, "cache"),
+	})
 
 	assert.Equal(t, "deny", got)
 }
@@ -113,19 +126,22 @@ func TestASearchScopedToTheTreeIsRefused(t *testing.T) {
 func TestAGlobPatternReachingTheTreeIsRefused(t *testing.T) {
 	home := homed(t)
 
-	got, _ := verdict(t, eventPreToolUse, "Glob", "/repo",
-		`{"pattern":`+quoted(pluginTree(home, "**", "*.json"))+`}`)
+	got, _ := verdict(t, eventPreToolUse, "Glob", "/repo", map[string]any{
+		"pattern": pluginTree(home, "**", "*.json"),
+	})
 
 	assert.Equal(t, "deny", got)
 }
 
-// The tree is refused for a server tool too, which is the route a plugin's own
-// search would otherwise take around this.
+// A server tool is refused too, which is the route a plugin's own search would
+// otherwise take around this.
 func TestAServerSearchScopedToTheTreeIsRefused(t *testing.T) {
 	home := homed(t)
 
-	got, _ := verdict(t, eventPreToolUse, "mcp__plugin_grep_grep__Grep", "/repo",
-		`{"pattern":"x","path":`+quoted(pluginTree(home, "cache"))+`}`)
+	got, _ := verdict(t, eventPreToolUse, "mcp__plugin_grep_grep__Grep", "/repo", map[string]any{
+		"pattern": "x",
+		"path":    pluginTree(home, "cache"),
+	})
 
 	assert.Equal(t, "deny", got)
 }
@@ -141,7 +157,7 @@ func TestEverySpellingOfTheTreeInACommandIsRefused(t *testing.T) {
 		"find ~/.claude/plugins -name '*.go'",
 		"git status && wc -c ~/.claude/plugins/cache/x",
 	} {
-		got, _ := verdict(t, eventPreToolUse, "Bash", "/repo", `{"command":`+quoted(command)+`}`)
+		got, _ := verdict(t, eventPreToolUse, "Bash", "/repo", map[string]any{"command": command})
 
 		assert.Equal(t, "deny", got, command)
 	}
@@ -151,8 +167,9 @@ func TestEverySpellingOfTheTreeInACommandIsRefused(t *testing.T) {
 func TestARelativePathThatLandsInTheTreeIsRefused(t *testing.T) {
 	home := homed(t)
 
-	got, _ := verdict(t, eventPreToolUse, "Read", pluginTree(home, "cache"),
-		`{"file_path":"mp/slopfix/CLAUDE.md"}`)
+	got, _ := verdict(t, eventPreToolUse, "Read", pluginTree(home, "cache"), map[string]any{
+		"file_path": "mp/slopfix/CLAUDE.md",
+	})
 
 	assert.Equal(t, "deny", got)
 }
@@ -160,12 +177,15 @@ func TestARelativePathThatLandsInTheTreeIsRefused(t *testing.T) {
 // The control that proves the refusal is earned rather than blanket.
 func TestWorkOutsideTheTreeIsNotRefused(t *testing.T) {
 	home := homed(t)
-	for name, in := range map[string]struct{ tool, input string }{
-		"a source file":     {"Read", `{"file_path":"/repo/plugins/slopfix/CLAUDE.md"}`},
-		"a listing":         {"Bash", `{"command":"ls -la /repo/plugins"}`},
-		"a search":          {"Grep", `{"pattern":"slopfix","path":"/repo"}`},
-		"the settings file": {"Read", `{"file_path":` + quoted(filepath.Join(home, ".claude", "settings.json")) + `}`},
-		"a near neighbour":  {"Read", `{"file_path":` + quoted(filepath.Join(home, ".claude", "plugins-notes.md")) + `}`},
+	for name, in := range map[string]struct {
+		tool  string
+		input map[string]any
+	}{
+		"a source file":     {"Read", map[string]any{"file_path": "/repo/plugins/slopfix/CLAUDE.md"}},
+		"a listing":         {"Bash", map[string]any{"command": "ls -la /repo/plugins"}},
+		"a search":          {"Grep", map[string]any{"pattern": "slopfix", "path": "/repo"}},
+		"the settings file": {"Read", map[string]any{"file_path": filepath.Join(home, ".claude", "settings.json")}},
+		"a near neighbour":  {"Read", map[string]any{"file_path": filepath.Join(home, ".claude", "plugins-notes.md")}},
 	} {
 		got, _ := verdict(t, eventPreToolUse, in.tool, "/repo", in.input)
 
@@ -177,10 +197,11 @@ func TestWorkOutsideTheTreeIsNotRefused(t *testing.T) {
 // location keys are read rather than every string on the payload.
 func TestADocumentThatMerelyNamesTheTreeIsNotRefused(t *testing.T) {
 	home := homed(t)
-	content := "Never read " + pluginTree(home, "cache") + " directly."
 
-	got, _ := verdict(t, eventPreToolUse, "Write", "/repo",
-		`{"file_path":"/repo/CLAUDE.md","content":`+quoted(content)+`}`)
+	got, _ := verdict(t, eventPreToolUse, "Write", "/repo", map[string]any{
+		"file_path": "/repo/CLAUDE.md",
+		"content":   "Never read " + pluginTree(home, "cache") + " directly.",
+	})
 
 	assert.NotEqual(t, "deny", got)
 }
@@ -196,7 +217,7 @@ func TestTheShippedTableNamesTheInstalledPluginTree(t *testing.T) {
 	for _, rule := range table.DenyPaths {
 		if rule.Prefix == "~/.claude/plugins" {
 			found = true
-			assert.Contains(t, rule.Message, "installed plugin tree")
+			assert.Contains(t, rule.Message, "plugin source directory")
 		}
 	}
 	assert.True(t, found, "the table names no plugin tree")

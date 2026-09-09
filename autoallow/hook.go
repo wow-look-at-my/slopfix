@@ -15,8 +15,8 @@ type HookInput struct {
 	ToolInput     ToolInput `json:"tool_input"`
 }
 
-// Every tool fills the keys its own shape has and leaves the rest empty, so one
-// struct reads the location out of any of them.
+// Every tool fills the keys its own shape has and leaves the rest empty, so
+// this reads the location out of whichever tool is asking.
 type ToolInput struct {
 	Command      string `json:"command"`
 	FilePath     string `json:"file_path"`
