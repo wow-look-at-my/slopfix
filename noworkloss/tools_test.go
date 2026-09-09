@@ -1,6 +1,7 @@
 package noworkloss
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -36,6 +37,47 @@ func TestWriteOverAnExistingFileIsRefused(t *testing.T) {
 	out := outsideTree(t)
 	assert.NotEmpty(t, askTool(t, "Write", root, map[string]any{"file_path": filepath.Join(out, "src.txt")}))
 	assert.Empty(t, askTool(t, "Write", root, map[string]any{"file_path": filepath.Join(out, "fresh.txt")}))
+}
+
+// The refusal above names a path, so the path gets emptied and the same Write
+// goes again. Each verb that empties it leaves the file in git and off the
+// disk, and the control is the file git never held.
+func TestWriteOverAPathEmptiedToGetPastTheRefusalIsRefused(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		empty func(t *testing.T, dir string)
+	}{
+		{"renamed away", func(t *testing.T, dir string) { git(t, dir, "mv", "tracked.go", "tracked.go.old") }},
+		{"deleted", func(t *testing.T, dir string) {
+			require.NoError(t, os.Remove(filepath.Join(dir, "tracked.go")))
+		}},
+		{"git rm", func(t *testing.T, dir string) { git(t, dir, "rm", "-q", "tracked.go") }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := newRepo(t)
+			path := filepath.Join(dir, "tracked.go")
+			require.NotEmpty(t, askTool(t, "Write", dir, map[string]any{"file_path": path}),
+				"the file is still on disk here")
+
+			tc.empty(t, dir)
+			reason := askTool(t, "Write", dir, map[string]any{"file_path": path})
+			require.NotEmpty(t, reason, "%s must not open a route Write was refused", tc.name)
+			assert.Contains(t, reason, "git still holds tracked.go")
+			assert.Contains(t, reason, "run: git -C "+dir+" restore -- tracked.go")
+
+			// The control: a path git never held is an ordinary new file.
+			assert.Empty(t, askTool(t, "Write", dir, map[string]any{"file_path": filepath.Join(dir, "fresh.go")}))
+		})
+	}
+}
+
+// Committing the removal is the way out. The content is then in history, where
+// a reader finds it, and the path is free.
+func TestWriteIsAllowedOnceTheRemovalIsCommitted(t *testing.T) {
+	dir := newRepo(t)
+	git(t, dir, "rm", "-q", "tracked.go")
+	git(t, dir, "commit", "-qm", "drop it")
+	assert.Empty(t, askTool(t, "Write", dir, map[string]any{"file_path": filepath.Join(dir, "tracked.go")}))
 }
 
 func TestEditingTheLiveSettingsIsRefused(t *testing.T) {
