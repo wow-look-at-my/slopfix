@@ -73,6 +73,10 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	if f.always {
 		return f.reason + "\nrun: " + f.rewrite, ""
 	}
+	// Every denial below names content git could return, so ask this ahead of them.
+	if st := cache.probe(f.dir); st.err == nil && !st.inRepo {
+		return "", ""
+	}
 	// An unresolvable operand makes the blast radius unknown. A finding read
 	// out of a script FILE is the program's own behaviour, which this hook
 	// does not sandbox; a STATIC path inside a script is still judged.

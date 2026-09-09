@@ -88,6 +88,10 @@ func insideGuarded(roots []string, abs string) (string, bool) {
 		if rel == "." || isBuildOutput(rel) {
 			continue
 		}
+		// An untracked root guards only paths inside a repository.
+		if repoRoot(root) == "" && repoRoot(abs) == "" {
+			continue
+		}
 		return root, true
 	}
 	return "", false
@@ -103,6 +107,10 @@ func coversGuarded(roots []string, dir string) (string, bool) {
 	}
 	dir = filepath.Clean(dir)
 	for _, root := range roots {
+		// An untracked root owns no content.
+		if repoRoot(root) == "" {
+			continue
+		}
 		rel, err := filepath.Rel(dir, root)
 		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			return root, true
