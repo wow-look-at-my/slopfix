@@ -14,6 +14,9 @@
 // pattern and is not refused. See detect.go for the spacing rule that tells
 // them apart.
 //
+// A refusal that says "wait for the event" needs events to exist, so both
+// rules that say it run in a remote session only. See environment.go.
+//
 // Every failure path allows. A guard that blocks because it could not read a
 // file is worse than no guard.
 package busypoll
@@ -64,6 +67,9 @@ func Run(r io.Reader) Result {
 // runStop refuses to END a turn that is the latest in a run of identical,
 // closely-spaced turns.
 func runStop(in Input) Result {
+	if !remoteSession() {
+		return allow()
+	}
 	n, calls := streak(parseTurns(in.TranscriptPath))
 	if n < threshold() {
 		return allow()
