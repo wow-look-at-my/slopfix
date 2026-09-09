@@ -23,8 +23,8 @@ func init() {
 		Use:   "hook",
 		Short: "Repair a Claude Code write, reading its PreToolUse payload on stdin",
 		Long: "hook reads a PreToolUse payload on stdin and writes the hook's own\n" +
-			"response on stdout. It repairs the text a write adds and lets the write\n" +
-			"through, and refuses only what no rewrite can repair.\n\n" +
+			"response on stdout. It repairs the text a write adds, lets the write\n" +
+			"through, and flags what the repair did not reach.\n\n" +
 			"Every plugin that guards a write is then its manifest and nothing else.\n" +
 			"Each carried its own copy of this: the same payload parse, the same three\n" +
 			"write shapes, the same splice back. A write shape added to one and not\n" +
@@ -171,16 +171,17 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		}
 	}
 
+	flags := hitLines(kept)
+	flags = append(flags, findings...)
 	switch {
-	case len(kept) > 0 || len(findings) > 0:
-		return respond(func(r *hookResponse) {
-			r.HookSpecificOutput.PermissionDecision = "deny"
-			r.HookSpecificOutput.PermissionDecisionReason = refusal(kept, findings)
-		})
 	case changed:
 		return respond(func(r *hookResponse) {
 			r.HookSpecificOutput.UpdatedInput = raw
-			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed, rewrites)
+			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed, rewrites, flags)
+		})
+	case len(flags) > 0:
+		return respond(func(r *hookResponse) {
+			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, nil, 0, flags)
 		})
 	}
 	return ""
@@ -200,29 +201,39 @@ func respond(fill func(*hookResponse)) string {
 // reportCap bounds what a message carries: a refusal nobody reads stops nothing.
 const reportCap = 6
 
-// notice is what the model is told after the fact. The write went through, so
-// it names what was cut rather than asking for a retry.
-func notice(path string, removed []string, rewrites int) string {
+// notice is what the model is told after the fact. The write always goes
+// through, so it names what was cut and flags what no rewrite reached, rather
+// than asking for a retry.
+func notice(path string, removed []string, rewrites int, flags []string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "slopfix repaired this write to %s. It took %d rewrites.\n", path, rewrites)
 	for _, line := range capped(removed) {
 		fmt.Fprintf(&b, "  removed %q\n", strings.TrimSpace(line))
 	}
+	for _, line := range capped(flags) {
+		fmt.Fprintf(&b, "  flagged %s\n", line)
+	}
 	b.WriteString("\nThe text on disk is the repaired text. Write prose that needs none of this.")
 	return b.String()
 }
 
-// refusal names each finding no rewrite resolved, and the line it sits on.
-func refusal(kept []tombstones.Hit, findings []string) string {
+// refusal is the reason a hook prints when it denies a write outright. Prose
+// never reaches it: a comment is repaired and reported.
+func refusal(lines []string) string {
 	var b strings.Builder
-	b.WriteString("blocked: this write carries what no rewrite can repair.\n")
-	for _, hit := range capped(hitLines(kept)) {
-		b.WriteString("  " + hit + "\n")
-	}
-	for _, f := range capped(findings) {
-		b.WriteString("  " + f + "\n")
+	b.WriteString("blocked:\n")
+	for _, line := range capped(lines) {
+		b.WriteString("  " + line + "\n")
 	}
 	return b.String()
+}
+
+// deny answers a write with a refusal carrying the named reasons.
+func deny(lines []string) string {
+	return respond(func(r *hookResponse) {
+		r.HookSpecificOutput.PermissionDecision = "deny"
+		r.HookSpecificOutput.PermissionDecisionReason = refusal(lines)
+	})
 }
 
 func hitLines(kept []tombstones.Hit) []string {

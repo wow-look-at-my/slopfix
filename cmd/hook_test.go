@@ -104,8 +104,8 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "There are rules below.", edits[2].(map[string]any)["new_string"])
 }
 
-// A finding no rewrite resolves refuses the write. A comment still over the cap
-func TestAFindingNoRewriteResolvesRefusesTheWrite(t *testing.T) {
+// A finding no rewrite resolves is flagged and the write still goes through.
+func TestAFindingNoRewriteResolvesIsFlaggedNotRefused(t *testing.T) {
 	src := "package p\n"
 	for i := range 40 {
 		src += fmt.Sprintf("// The loader reads step %d of the file and returns the record it names.\n", i)
@@ -114,9 +114,9 @@ func TestAFindingNoRewriteResolvesRefusesTheWrite(t *testing.T) {
 	got := ask(t, write("a.go", src), "tombstones")
 
 	require.NotNil(t, got.out)
-	assert.Equal(t, "deny", got.out["permissionDecision"])
-	assert.Contains(t, got.out["permissionDecisionReason"], "comment block of")
-	assert.NotContains(t, got.body, "updatedInput")
+	assert.NotContains(t, got.body, "permissionDecision")
+	assert.Contains(t, got.out["additionalContext"], "flagged")
+	assert.Contains(t, got.out["additionalContext"], "comment block of")
 }
 
 // A tombstone alone on its own comment line is cut, and the write proceeds.
@@ -163,6 +163,17 @@ func TestALongReportSaysItTrimmed(t *testing.T) {
 	assert.Equal(t, "... and more, not listed", got[len(got)-1])
 	// Trimming must not scribble on the caller's slice.
 	assert.Equal(t, "g", lines[reportCap])
+}
+
+// The refusal a hook prints when it denies a write.
+func TestARefusalNamesEveryReasonItCarries(t *testing.T) {
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal([]byte(deny([]string{"a reason"})), &raw))
+	out, _ := raw["hookSpecificOutput"].(map[string]any)
+
+	require.NotNil(t, out)
+	assert.Equal(t, "deny", out["permissionDecision"])
+	assert.Contains(t, out["permissionDecisionReason"], "a reason")
 }
 
 func TestAnUnknownRuleIsRefusedBeforeAnyWriteIsJudged(t *testing.T) {

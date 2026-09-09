@@ -480,14 +480,15 @@
 			<rule name="status" allowedFlags="*"/>
 		</rule>
 		<rule name="pr">
-			<test cmd="gh pr list" expect="allow"/>
 			<test cmd="gh pr view 123" expect="allow"/>
-			<test cmd="gh pr create" expect=""/>
-			<rule name="list" allowedFlags="*"/>
+			<test cmd="gh pr view --json number,state" expect="allow"/>
+			<test cmd="gh pr list" expect="deny"/>
+			<test cmd="gh pr checks" expect="deny"/>
+			<test cmd="gh pr create" expect="deny"/>
+			<test cmd="gh pr merge 123" expect="deny"/>
 			<rule name="view" allowedFlags="*"/>
-			<rule name="status" allowedFlags="*"/>
-			<rule name="diff" allowedFlags="*"/>
-			<rule name="checks" allowedFlags="*"/>
+			<rule name="checkout,checks,close,comment,create,diff,edit,list,lock,merge,ready,reopen,review,status,unlock,update-branch"
+			      denyWithMessage="gh pr view is the only gh pr this session runs"/>
 		</rule>
 		<rule name="release">
 			<test cmd="gh release list" expect="allow"/>
@@ -505,8 +506,8 @@
 			<test cmd="gh run view 123" expect="deny"/>
 			<test cmd="gh run watch 123" expect="deny"/>
 			<rule name="list" allowedFlags="*"/>
-			<rule name="view" denyWithMessage="Use 'gh run list' or 'gh pr checks' to read CI status"/>
-			<rule name="watch" denyWithMessage="A blocking CI wait kills the session. Poll with 'gh run list' or 'gh pr checks'"/>
+			<rule name="view" denyWithMessage="Use 'gh run list' to read CI status"/>
+			<rule name="watch" denyWithMessage="A blocking CI wait kills the session. Poll with 'gh run list'"/>
 		</rule>
 		<rule name="search">
 			<rule name="repos" allowedFlags="*"/>

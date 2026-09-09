@@ -141,7 +141,7 @@ func TestEndToEndGhRepoView(t *testing.T) {
 		{"gh repo view --json", "gh repo view wow-look-at-my/go-toolchain --json name,description", "allow"},
 		{"gh release list", "gh release list", "allow"},
 		{"gh release list -R", "gh release list -R owner/repo", "allow"},
-		{"gh pr list (known good)", "gh pr list", "allow"},
+		{"gh pr view (known good)", "gh pr view 123", "allow"},
 	}
 
 	for _, tt := range tests {
@@ -218,8 +218,7 @@ func TestPreToolUseDeniesButNeverAllows(t *testing.T) {
 func TestCCRToolsAreNeverAnsweredByThisHook(t *testing.T) {
 	binaryPath := buildTestBinary(t)
 
-	// The set that used to be auto-allowed, plus the account-wide Routine
-	// mutators that never were. All are treated identically now.
+	// The set. All are treated identically now.
 	for _, toolName := range []string{
 		"mcp__Claude_Code_Remote__send_later",
 		"mcp__Claude_Code_Remote__add_repo",

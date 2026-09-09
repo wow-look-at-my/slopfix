@@ -61,7 +61,7 @@ type Request struct {
 	MaxCommentLines int
 }
 
-// Repair is the text as this binary would write it, plus what no rewrite can repair.
+// Repair is the text as this binary would write it, plus what the rewrite flagged.
 type Repair struct {
 	// Text is the repaired text. It equals the input when Changed is false.
 	Text string `json:"text"`
