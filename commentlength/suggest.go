@@ -37,7 +37,7 @@ func Suggest(filename, src string) []Suggestion {
 		for i, line := range b.text {
 			lower := strings.ToLower(line)
 			for _, f := range english.Flags() {
-				if !containsWord(lower, strings.ToLower(f.Phrase)) {
+				if !english.ContainsWord(lower, strings.ToLower(f.Phrase)) {
 					continue
 				}
 				out = append(out, Suggestion{Phrase: f.Phrase, Say: f.Say, Line: b.start + i + 1})
@@ -45,20 +45,4 @@ func Suggest(filename, src string) []Suggestion {
 		}
 	}
 	return out
-}
-
-// containsWord reports a whole-word occurrence, so `hack` never matches
-// `hackney` and `for now` never matches `for nowhere`.
-func containsWord(s, word string) bool {
-	for i := 0; ; {
-		j := strings.Index(s[i:], word)
-		if j < 0 {
-			return false
-		}
-		at := i + j
-		if wordBoundary(s, at, at+len(word)) {
-			return true
-		}
-		i = at + 1
-	}
 }
