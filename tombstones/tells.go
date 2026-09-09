@@ -10,11 +10,11 @@
 package tombstones
 
 import (
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/english"
 )
 
 // deadReferent is the tell referents.go reports.
@@ -28,8 +28,8 @@ const IDVolume = "tombstones/comment-volume"
 func AllIDs() set.Set[string] {
 	ids := set.New[string]()
 	ids.AddRange(IDVolume, ruleID(deadReferent))
-	for _, t := range tells {
-		ids.Add(ruleID(t.name))
+	for _, id := range commentlength.PatternIDs() {
+		ids.Add(id)
 	}
 	return ids
 }
@@ -57,79 +57,13 @@ type Hit struct {
 	LineNo     int  `json:"lineNo"`
 }
 
-// tell is a recognisable shape. name is what a report prints.
-type tell struct {
-	name string
-	re   *regexp.Regexp
-}
-
-// changeParticiples are the verbs that describe an edit rather than a state.
-// A comment reaches for these only to narrate what a commit did.
-const changeParticiples = `renamed|removed|added|deleted|moved|replaced|` +
-	`introduced|dropped|split|merged|reverted|refactored|extracted|migrated|` +
-	`deprecated|rewritten|rewrote|bumped|reworked|consolidated|inlined|hoisted`
-
-// tells is the table. It is data: extending this package is adding a row.
-var tells = []tell{
-	// Git already timestamps the line, so a date can only narrate.
-	{"a date", regexp.MustCompile(`(?i)\b(?:19|20)\d{2}-\d{2}-\d{2}\b`)},
-	{"a date", regexp.MustCompile(`(?i)\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(?:\d{1,2},?\s+)?(?:19|20)\d{2}\b`)},
-
-	// The commit message is where a change reference belongs.
-	{"a change reference", regexp.MustCompile(`(?i)\b(?:pr|pull request|issue|ticket|commit)\s+#?\d+\b`)},
-	{"a change reference", regexp.MustCompile(`(?i)\b[a-z0-9][\w.-]*/[\w.-]+#\d+\b`)},
-
-	// A contrast marker states a "then" the reader cannot see.
-	{"a then-and-now contrast", regexp.MustCompile(`(?i)\brather than (?:the )?(?:old|former|previous|legacy)\b`)},
-	{"a then-and-now contrast", regexp.MustCompile(`(?i)\binstead of (?:the )?(?:old|former|previous|legacy)\b`)},
-	{"a then-and-now contrast", regexp.MustCompile(`(?i)\bwhere (?:it|this|that) (?:used to|once)\b`)},
-	{"a then-and-now contrast", regexp.MustCompile(`(?i)\b[a-z]+ed now\b|\b(?:is|are) now (?:[a-z]+ed|the case)\b`)},
-	// A move names both ends, so the "then" is spelled out rather than implied.
-	{"a then-and-now contrast", regexp.MustCompile(`(?i)\b(?:moved|switched|migrated|converted|renamed|changed|ported) from\b`)},
-
-	// The referent is gone: the sentence's subject is a former state.
-	{"a former state", regexp.MustCompile(`(?i)\bused to\b`)},
-	{"a former state", regexp.MustCompile(`(?i)\b(?:previously|formerly|originally|hitherto)\b`)},
-	{"a former state", regexp.MustCompile(`(?i)\bno longer\b|\banymore\b|\bnowadays\b|\bthese days\b`)},
-	{"a former state", regexp.MustCompile(`(?i)\bthe (?:former|old|previous|legacy|original) \w+`)},
-	{"a former state", regexp.MustCompile(`(?i)\b(?:was|were|has been|have been|had been|got|gets|is now|are now) (?:` + changeParticiples + `)\b`)},
-	// A demonstrative before a participle needs the narrower verb set.
-	{"a former state", regexp.MustCompile(`(?i)\b(?:we|this|it|that) (?:renamed|removed|deleted|replaced|introduced|reverted|refactored|migrated|deprecated|rewrote|reworked|consolidated)\b`)},
-	{"a former state", regexp.MustCompile(`(?i)\bthis (?:replaces|supersedes|used to)\b`)},
-	{"a former state", regexp.MustCompile(`(?i)\bstopped (?:being|working|doing)\b|\bstarted (?:being|failing)\b`)},
-
-	// The audience is the reviewer, not the next editor.
-	{"an address to the reviewer", regexp.MustCompile(`(?i)\bthis (?:pr|pull request|change|diff|commit|patch|cl)\b`)},
-	{"an address to the reviewer", regexp.MustCompile(`(?i)\bworth (?:noting|your attention|knowing here)\b`)},
-	{"an address to the reviewer", regexp.MustCompile(`(?i)\bwhat is worth [a-z]+ing here\b`)},
-	{"an address to the reviewer", regexp.MustCompile(`(?i)\b(?:as|when) requested\b|\bwas never requested\b|\bnobody asked\b`)},
-	{"an address to the reviewer", regexp.MustCompile(`(?i)\bdo not (?:reintroduce|add this back|bring (?:it|this) back)\b`)},
-	{"an address to the reviewer", regexp.MustCompile(`(?i)\bper the (?:review|reviewer|feedback|comment)\b`)},
-	{"an address to the reviewer", regexp.MustCompile(`(?i)\b(?:flagging|to be clear|just to note|for the reviewer)\b`)},
-
-	// An argument for the diff, parked permanently in a file.
-	{"a defence of the change", regexp.MustCompile(`(?i)\bthat is not (?:tidying|cleanup|cosmetic|churn|a rename|style|gratuitous)\b`)},
-	{"a defence of the change", regexp.MustCompile(`(?i)\bthis is not (?:just )?(?:tidying|cleanup|cosmetic|churn|a rename|refactoring for)\b`)},
-	{"a defence of the change", regexp.MustCompile(`(?i)\bwould have been\b|\bwould otherwise have\b`)},
-	{"a defence of the change", regexp.MustCompile(`(?i)\bnot (?:tidying|scope creep|gold.?plating)\b`)},
-
-	// An instruction, quoted. It reads as authority the code cannot check.
-	{"a quoted instruction", regexp.MustCompile(`(?i)\bthe (?:owner|operator|user|reviewer|maintainer) (?:said|says|ruled|asked|wants|requested)\b`)},
-	{"a quoted instruction", regexp.MustCompile(`(?i)\bper (?:the )?(?:owner|operator|user|maintainer)\b`)},
-	{"a quoted instruction", regexp.MustCompile(`(?i)\bby (?:owner|operator) (?:ruling|request|decree)\b`)},
-
-	// An experiment reported to the reviewer, which nothing re-runs.
-	{"a report of an experiment", regexp.MustCompile(`(?i)\bnegative control\b`)},
-	{"a report of an experiment", regexp.MustCompile(`(?i)\b(?:i|we) (?:ran|tried|tested|measured|verified this by|checked this by)\b`)},
-	{"a report of an experiment", regexp.MustCompile(`(?i)\bverified by (?:breaking|deleting|removing|reverting)\b`)},
-	{"a report of an experiment", regexp.MustCompile(`(?i)\brun before trusting\b`)},
-}
-
-// Find returns every tombstone the blocks carry. A non-positive maxLines turns
-// the cap off, and volume catches the essay no rewording defeats.
+// Find returns the blocks over the cap. A non-positive maxLines turns it off.
+//
+// The wording rules are english.xml patterns, applied as a rewrite. Volume is
+// here because it is a property of the block rather than of a phrase, and no
+// rewording defeats it.
 func Find(blocks []Block, maxLines int) []Hit {
 	var hits []Hit
-	seen := set.New[string]()
 	for _, b := range blocks {
 		if maxLines > 0 && b.Lines > maxLines {
 			// A judgement about the whole block, not a span to excise, so
@@ -141,24 +75,6 @@ func Find(blocks []Block, maxLines int) []Hit {
 				Line:   firstLine(b.Text),
 				LineNo: -1,
 			})
-		}
-		for li, line := range strings.Split(b.Text, "\n") {
-			for _, t := range tells {
-				at := t.re.FindStringIndex(line)
-				if at == nil {
-					continue
-				}
-				phrase := strings.TrimSpace(line[at[0]:at[1]])
-				// Report each tell per line, not each row that matched.
-				key := t.name + "\x00" + strings.TrimSpace(line)
-				if seen.Contains(key) {
-					continue
-				}
-				seen.Add(key)
-				h := Hit{ID: ruleID(t.name), Tell: t.name, Phrase: phrase, Line: strings.TrimSpace(line), LineNo: -1}
-				h.LineNo, h.Strippable = linePurity(b, li)
-				hits = append(hits, h)
-			}
 		}
 	}
 	return hits

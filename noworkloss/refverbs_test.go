@@ -25,7 +25,7 @@ func remoteRepo(t *testing.T) string {
 	bare := filepath.Join(base, "remote.git")
 	dir := filepath.Join(base, "work")
 
-	git(t, base, "init", "-q", "--bare", bare)
+	git(t, base, "init", "-q", "--bare", "--initial-branch=master", bare)
 	git(t, base, "clone", "-q", bare, dir)
 	git(t, dir, "config", "user.email", "guard@example.com")
 	git(t, dir, "config", "user.name", "Guard")

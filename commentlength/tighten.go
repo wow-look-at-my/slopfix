@@ -8,6 +8,8 @@ package commentlength
 
 import (
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/english"
 )
 
 // tighten rewrites a comment run: it drops filler, applies the shorter phrasing,
@@ -42,6 +44,11 @@ func tighten(text []string) ([]string, bool) {
 	return out, true
 }
 
+// Tighten rewrites a comment block shorter, reflowing its prose onto the
+// block's own marker and width. It reports false when nothing it does makes
+// the block smaller, so a caller knows tightening bought nothing.
+func Tighten(text []string) ([]string, bool) { return tighten(text) }
+
 // wrapWidth is the column a reflowed comment wraps at, marker included.
 const wrapWidth = 78
 
@@ -56,21 +63,21 @@ func shortenFor(s, surface string) string {
 	original := s
 	// Rewrites go before drops: a phrase like "in order to" would otherwise lose its
 	// middle to a <drop> and stop matching as a phrase at all.
-	for _, r := range english.Rewrites {
-		if appliesTo(r.Where, surface) {
+	for _, r := range english.Rewrites() {
+		if english.AppliesTo(r.Where, surface) {
 			s = replaceWord(s, r.From, r.To)
 		}
 	}
-	for _, d := range english.Drops {
-		if appliesTo(d.Where, surface) {
+	for _, d := range english.Drops() {
+		if english.AppliesTo(d.Where, surface) {
 			s = replaceWord(s, d.Word, "")
 		}
 	}
 	// Patterns last: they carry a shape rather than a phrase, and a shape must
 	// see the text a word swap has already settled.
-	for _, p := range english.Patterns {
-		if appliesTo(p.Where, surface) {
-			s = p.re.ReplaceAllString(s, p.To)
+	for _, p := range english.Patterns() {
+		if english.AppliesTo(p.Where, surface) {
+			s = p.Apply(s)
 		}
 	}
 	s = strings.Join(strings.Fields(s), " ")

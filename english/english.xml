@@ -84,8 +84,8 @@
 
   <!--
     A <pattern> is a rewrite with captures, for a shape no whole-word swap can
-    express. `to` spells its groups $1, $2, the way Go's regexp expansion does,
-    and `expect` is what `test` must become.
+    express. `replace` spells its groups $1, $2, the way Go's regexp expansion
+    does, and `expect` is what `test` must become.
 
     A bare #N is deliberately absent. It needs the repository the reader is in,
     which is context the table does not carry, and guessing the wrong repository
@@ -98,15 +98,128 @@
     Keep both: this is for a reference already known good.
   -->
   <pattern match="\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]+)\b"
-           to="[$1#$2](https://github.com/$1/issues/$2)"
+           replace="[$1#$2](https://github.com/$1/issues/$2)"
            where="message"
            test="wow-look-at-my/slopfix#14 is open"
            expect="[wow-look-at-my/slopfix#14](https://github.com/wow-look-at-my/slopfix/issues/14) is open"/>
 
-  <pattern match="\s+([,.;:!?])" to="$1" test="A clause , and a stop ."
+  <!--
+    A tombstone: a comment describing a state the code has left, or arguing for
+    the diff. Each one is cut as a PHRASE rather than as a line. Cutting the
+    line takes the sentence's other half with it, and the write then lands
+    broken and needs a second pass to repair.
+
+    git log carries the history these narrate, dated and attributed, so nothing
+    is lost by cutting them out of the source.
+  -->
+  <pattern id="tombstones/date"
+           match="(?i)\s*\b(?:on|as of|since)\s+(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\b" replace=""
+           where="comment" test="Verified on 2026-01-02 by hand"
+           expect="Verified by hand"/>
+  <pattern id="tombstones/date"
+           match="(?i)\s*\(?\b(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\)?" replace=""
+           where="comment" test="The cap 2026-01-02 still holds"
+           expect="The cap still holds"/>
+  <pattern id="tombstones/change-reference"
+           match="(?i)\s*\(?\b(?:see\s+)?(?:pr|pull request|issue|ticket|commit)\s+#?[0-9]+\)?" replace=""
+           where="comment" test="The gate tightened see PR 14 and stayed"
+           expect="The gate tightened and stayed"/>
+  <pattern id="tombstones/then-and-now-contrast"
+           match="(?i)\s*\binstead of (?:the )?(?:old|former|previous|legacy)\s+\S+" replace=""
+           where="comment" test="It reads the index instead of the old table"
+           expect="It reads the index"/>
+  <pattern match="(?i)\s*\brather than (?:the )?(?:old|former|previous|legacy)\s+\S+" replace=""
+           where="comment" test="It reads the index rather than the legacy table"
+           expect="It reads the index"/>
+  <pattern match="(?i)\s*\bwhere (?:it|this|that) (?:used to|once)\b[^.]*" replace=""
+           where="comment" test="The lock is here where it used to sit below"
+           expect="The lock is here"/>
+  <pattern match="(?i)\s*\b(?:moved|switched|migrated|converted|renamed|changed|ported) from\b[^.]*" replace=""
+           where="comment" test="The table is XML moved from a Go literal"
+           expect="The table is XML"/>
+  <pattern match="(?i)\s*\b(?:this|it|that) (?:used to|previously|formerly|originally)\b[^.]*" replace=""
+           where="comment" test="The parse is the only reader it used to scan bytes"
+           expect="The parse is the only reader"/>
+  <pattern match="(?i)\s*\b(?:previously|formerly|originally|hitherto)\b[,]?" replace=""
+           where="comment" test="Originally, the cap was read from a flag"
+           expect="The cap was read from a flag"/>
+  <pattern match="(?i)\s*\b(?:no longer|anymore|nowadays|these days)\b" replace=""
+           where="comment" test="The walk does not recurse anymore"
+           expect="The walk does not recurse"/>
+  <pattern match="(?i)\bthe (?:former|old|previous|legacy|original) (\S+)" to="the $1"
+           where="comment" test="The old scanner reads a marker byte"
+           expect="The scanner reads a marker byte"/>
+  <pattern match="(?i)\s*\b(?:was|were|has been|have been|had been|is now|are now) (?:renamed|removed|added|deleted|moved|replaced|introduced|dropped|split|merged|reverted|refactored|extracted|migrated|deprecated|rewritten|rewrote|bumped|reworked|consolidated|inlined|hoisted)\b[^.]*" replace=""
+           where="comment" test="The gate is now hoisted above the walk"
+           expect="The gate"/>
+  <pattern match="(?i)\s*\b(?:we|this|it|that) (?:renamed|removed|deleted|replaced|introduced|reverted|refactored|migrated|deprecated|rewrote|reworked|consolidated)\b[^.]*" replace=""
+           where="comment" test="The list is derived we removed the flag"
+           expect="The list is derived"/>
+  <pattern match="(?i)\s*\bthis (?:replaces|supersedes)\b[^.]*" replace=""
+           where="comment" test="The parse is the reader this replaces the scanner"
+           expect="The parse is the reader"/>
+  <pattern match="(?i)\s*\b(?:stopped (?:being|working|doing)|started (?:being|failing))\b[^.]*" replace=""
+           where="comment" test="The cap holds stopped being read at start"
+           expect="The cap holds"/>
+  <pattern match="(?i)\s*\bthis (?:pr|pull request|change|diff|commit|patch|cl)\b[^.]*" replace=""
+           where="comment" test="The walk is bounded this change keeps it so"
+           expect="The walk is bounded"/>
+  <pattern match="(?i)\s*\bworth (?:noting|your attention|knowing here)\b[,]?" replace=""
+           where="comment" test="Worth noting, the walk is bounded"
+           expect="The walk is bounded"/>
+  <pattern match="(?i)\s*\b(?:as|when) requested\b" replace=""
+           where="comment" test="The cap is off as requested"
+           expect="The cap is off"/>
+  <pattern match="(?i)\s*\b(?:was never requested|nobody asked)\b[^.]*" replace=""
+           where="comment" test="The cap is off nobody asked for it"
+           expect="The cap is off"/>
+  <pattern match="(?i)\s*\bdo not (?:reintroduce|add this back|bring (?:it|this) back)\b[^.]*" replace=""
+           where="comment" test="The cap is off do not reintroduce it"
+           expect="The cap is off"/>
+  <pattern match="(?i)\s*\bper the (?:review|reviewer|feedback|comment)\b" replace=""
+           where="comment" test="The cap is off per the review"
+           expect="The cap is off"/>
+  <pattern match="(?i)\s*\b(?:flagging|to be clear|just to note|for the reviewer)\b[,]?" replace=""
+           where="comment" test="To be clear, the walk is bounded"
+           expect="The walk is bounded"/>
+  <pattern match="(?i)\s*\bthat is not (?:tidying|cleanup|cosmetic|churn|a rename|style|gratuitous)\b[^.]*" replace=""
+           where="comment" test="The walk is bounded that is not cleanup"
+           expect="The walk is bounded"/>
+  <pattern match="(?i)\s*\bthis is not (?:just )?(?:tidying|cleanup|cosmetic|churn|a rename|refactoring for)\b[^.]*" replace=""
+           where="comment" test="The walk is bounded this is not cleanup"
+           expect="The walk is bounded"/>
+  <pattern match="(?i)\s*\b(?:would have been|would otherwise have)\b[^.]*" replace=""
+           where="comment" test="The walk is bounded it would have been slower"
+           expect="The walk is bounded it"/>
+  <pattern match="(?i)\s*\bnot (?:tidying|scope creep|gold.?plating)\b[^.]*" replace=""
+           where="comment" test="The walk is bounded not scope creep"
+           expect="The walk is bounded"/>
+  <pattern match="(?i)\s*\bthe (?:owner|operator|user|reviewer|maintainer) (?:said|says|ruled|asked|wants|requested)\b[^.]*" replace=""
+           where="comment" test="The cap is off the owner ruled it so"
+           expect="The cap is off"/>
+  <pattern match="(?i)\s*\bper (?:the )?(?:owner|operator|user|maintainer)\b" replace=""
+           where="comment" test="The cap is off per the owner"
+           expect="The cap is off"/>
+  <pattern match="(?i)\s*\bby (?:owner|operator) (?:ruling|request|decree)\b" replace=""
+           where="comment" test="The cap is off by owner ruling"
+           expect="The cap is off"/>
+  <pattern match="(?i)\s*\bnegative control\b[^.]*" replace=""
+           where="comment" test="The gate holds negative control proved it"
+           expect="The gate holds"/>
+  <pattern match="(?i)\s*\b(?:i|we) (?:ran|tried|tested|measured|verified this by|checked this by)\b[^.]*" replace=""
+           where="comment" test="The gate holds we ran it twice"
+           expect="The gate holds"/>
+  <pattern match="(?i)\s*\bverified by (?:breaking|deleting|removing|reverting)\b[^.]*" replace=""
+           where="comment" test="The gate holds verified by deleting the rule"
+           expect="The gate holds"/>
+  <pattern match="(?i)\s*\brun before trusting\b[^.]*" replace=""
+           where="comment" test="The gate holds run before trusting it"
+           expect="The gate holds"/>
+
+  <pattern match="\s+([,.;:!?])" replace="$1" test="A clause , and a stop ."
            expect="A clause, and a stop."/>
 
-  <pattern match="  +" to=" " test="Two  spaces" expect="Two spaces"/>
+  <pattern match="  +" replace=" " test="Two  spaces" expect="Two spaces"/>
 
   <!--
     Prose the rule knows is bad and must not rewrite. A <flag> has no single
