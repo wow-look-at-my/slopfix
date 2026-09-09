@@ -32,15 +32,16 @@ func writeToolReason(path string) string {
 	return vacatedReason(path)
 }
 
-// vacatedReason answers the way around the two checks above: the refusal names
-// a path, the path is emptied by hand, and the same Write goes again. A rename,
-// an `rm` and a `git rm` all leave one shape behind. Git holds content at this
-// path and the disk does not. So the answer follows that state, and no list of
-// verbs decides it.
+// vacatedReason answers the way around the checks above: the refusal names a
+// path, the path is emptied by hand, and the same Write goes again. A rename,
+// an `rm` and a `git rm` each leave the same shape behind. Git holds content
+// at this path and the disk does not. So the answer follows that state, and no
+// list of verbs decides it.
 //
 // A guard here mitigates rather than refuses, so the file goes back on disk
-// first. The Write then meets the ordinary refusal above, which is true again,
-// and Edit has a file to work on. A restore that fails says what to run.
+// before this answers. The Write then meets the ordinary refusal above, which
+// is true again, and Edit has a file to work on. A restore that fails says
+// what to run.
 func vacatedReason(path string) string {
 	held, ok := trackedPath(path)
 	if !ok {
