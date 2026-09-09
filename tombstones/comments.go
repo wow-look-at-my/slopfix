@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/code"
 )
 
 // Block is a comment run or a paragraph. LineNos and Pure place each line and
@@ -32,7 +32,7 @@ func AddedBlocks(path, added string) []Block {
 	if IsDocument(path) {
 		return paragraphs(added)
 	}
-	runs, ok := commentlength.Runs(path, added)
+	runs, ok := code.Runs(path, added)
 	if !ok {
 		return nil
 	}

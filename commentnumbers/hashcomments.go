@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/code"
 )
 
 // hashNames are the file names, extensions apart, whose comments open on `#`.
@@ -45,9 +45,9 @@ func readsHash(filename string) bool {
 
 // extract returns a file's comments, from its grammar where it has one and
 // from the hash reader otherwise.
-func extract(filename, src string) []commentlength.Comment {
-	if commentlength.Parsed(filename) {
-		return commentlength.Comments(filename, src)
+func extract(filename, src string) []code.Comment {
+	if code.Parsed(filename) {
+		return code.Comments(filename, src)
 	}
 	if !readsHash(filename) {
 		return nil
@@ -57,13 +57,13 @@ func extract(filename, src string) []commentlength.Comment {
 
 // hashComments returns each `#` run to the end of its line, with the offset
 // the caller counts from. A shebang is not prose, so it is skipped.
-func hashComments(src string) []commentlength.Comment {
-	var out []commentlength.Comment
+func hashComments(src string) []code.Comment {
+	var out []code.Comment
 	at := 0
 	for i, line := range strings.Split(src, "\n") {
 		if hash := strings.IndexByte(line, '#'); hash >= 0 {
 			if !(i == 0 && strings.HasPrefix(line, "#!")) {
-				out = append(out, commentlength.Comment{Text: line[hash:], Offset: at + hash})
+				out = append(out, code.Comment{Text: line[hash:], Offset: at + hash})
 			}
 		}
 		at += len(line) + 1

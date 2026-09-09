@@ -222,43 +222,59 @@
   <pattern match="  +" replace=" " test="Two  spaces" expect="Two spaces"/>
 
   <!--
-    Prose the rule knows is bad and must not rewrite. A <flag> has no single
-    correct replacement, so guessing one would put a wrong sentence in a comment
-    the reader trusts. The finding says what is wrong and what to write instead,
-    and a person makes the call.
+    Prose that points at a position, or hedges about time. Nothing here asks a
+    reader to decide: the phrase is cut and the sentence stands without it.
 
-    `say` is addressed to whoever reads the finding, so it names the repair
-    rather than restating the rule.
+    A suggestion would need somebody to accept it, and the client this runs in
+    has no way to accept one, so a rule that only suggests changes nothing.
   -->
-  <flag phrase="as mentioned above" test="As mentioned above it races"
-        say="name the thing, not its position: an edit above this moves it"/>
-  <flag phrase="as mentioned below" test="As mentioned below it races"
-        say="name the thing, not its position: an edit below this moves it"/>
-  <flag phrase="see above" test="See above for the reason"
-        say="name what to look at: a reader arriving by search has no above"/>
-  <flag phrase="see below" test="See below for the reason"
-        say="name what to look at: a reader arriving by search has no below"/>
-  <flag phrase="for now" test="For now it retries once"
-        say="say what would change it, or drop it: every comment is for now"/>
-  <flag phrase="currently" test="It currently retries once"
-        say="a comment states what IS, so currently adds nothing"/>
-  <flag phrase="used to" test="It used to retry twice"
-        say="say what it does; git holds what it did"/>
-  <flag phrase="no longer" test="It no longer retries"
-        say="say what it does; git holds what it did"/>
-  <flag phrase="will be" test="This will be replaced"
-        say="a comment describes the code that is here, not the one coming"/>
+  <pattern id="english/position-reference"
+           match="(?i)\s*\b(?:as mentioned|as noted|as described) (?:above|below)\b[,]?" replace=""
+           where="comment" test="As mentioned above it races" expect="It races"/>
+  <pattern id="english/position-reference"
+           match="(?i)\s*\bsee (?:above|below)\b[^.]*" replace=""
+           where="comment" test="The lock is held see above for the reason"
+           expect="The lock is held"/>
+  <pattern id="english/hedged-time"
+           match="(?i)\s*\bfor now\b[,]?" replace=""
+           where="comment" test="For now it retries once" expect="It retries once"/>
+  <pattern id="english/hedged-time"
+           match="(?i)\s*\bcurrently\b[,]?" replace=""
+           where="comment" test="It currently retries once" expect="It retries once"/>
+  <pattern id="english/hedged-time"
+           match="(?i)\s*\bwill be\b[^.]*" replace=""
+           where="comment" test="The cap holds this will be replaced"
+           expect="The cap holds"/>
+  <pattern id="english/unstated-value"
+           match="(?i)\s*\bis (?:tbd|to be determined)\b" replace=" is not stated here"
+           where="comment" test="The limit is TBD" expect="The limit is not stated here"/>
+  <pattern id="english/shrug"
+           match="(?i)\s*\bfor some reason\b[,]?" replace=""
+           where="comment" test="For some reason it races" expect="It races"/>
+  <pattern id="english/shrug"
+           match="(?i)\s*\bdo not ask\b[^.]*" replace=""
+           where="comment" test="The cap holds do not ask why"
+           expect="The cap holds"/>
+  <pattern id="english/shrug"
+           match="(?i)\s*\bobviously\b" replace=""
+           where="comment" test="This is obviously wrong" expect="This is wrong"/>
+  <pattern id="english/unexplained-workaround"
+           match="(?i)\ba hack around\b" replace="a workaround for"
+           where="comment" test="A hack around the race" expect="A workaround for the race"/>
+  <pattern id="english/unexplained-workaround"
+           match="(?i)\ba magic number\b" replace="a constant"
+           where="comment" test="A magic number from the spec" expect="A constant from the spec"/>
+
+  <!--
+    A <flag> names a phrase without rewriting it, for the cases where no single
+    replacement is right and inventing one would put a wrong sentence into a
+    comment the reader trusts. `say` names what to write instead.
+  -->
   <flag phrase="tbd" test="The limit is TBD"
-        say="state the value or the question; TBD ages into a lie"/>
-  <flag phrase="obviously wrong" test="This is obviously wrong"
+        say="state the value or the question: TBD ages into a lie"/>
+  <flag phrase="fixme" test="FIXME the retry count"
         say="say what is wrong and what it should be"/>
-  <flag phrase="hack" test="A hack around the race"
-        say="say what forced it, so the next reader can judge whether it still holds"/>
-  <flag phrase="for some reason" test="For some reason it races"
-        say="find the reason or say you could not: a shrug helps nobody"/>
-  <flag phrase="magic number" test="A magic number from the spec"
-        say="name the constant and where it comes from"/>
-  <flag phrase="do not ask" test="Do not ask why"
-        say="answer it here, or the next reader pays to rediscover it"/>
+  <flag phrase="somehow" test="It somehow retries twice"
+        say="find the mechanism or say you could not: a shrug helps nobody"/>
 
 </english>

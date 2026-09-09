@@ -1,10 +1,10 @@
 // comments.go exposes every comment a file carries, for a rule that reads the
 // prose rather than its size.
 //
-// It is here and not in a package of its own because the parse, the grammar map
-// and the "a comment is a node whose type carries comment" fact already live
-// here. Another extractor is another answer to which files have comments.
-package commentlength
+// It sits beside the parse because the grammar map and the "a comment is a node
+// whose type carries comment" fact already live there. Another extractor is
+// another answer to which files have comments.
+package code
 
 import ts "github.com/wow-look-at-my/go-tree-sitter"
 
@@ -23,7 +23,7 @@ type Comment struct {
 // deletes the wrong prose. A comment node carries its own span. A hook reads a
 // file mid-edit routinely, and a rule quiet exactly then enforces nothing.
 func Comments(filename, src string) []Comment {
-	language := languageFor(filename)
+	language := LanguageFor(filename)
 	if language == nil {
 		return nil
 	}
@@ -50,7 +50,7 @@ func collectComments(node ts.Node, src string, out *[]Comment) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
 		child := node.NamedChild(i)
-		if isComment(child) {
+		if IsComment(child) {
 			start, end := int(child.StartByte()), int(child.EndByte())
 			if start < 0 || end > len(src) || start >= end {
 				continue

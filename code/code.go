@@ -54,6 +54,16 @@ func LanguageFor(filename string) *ts.Language {
 // Parsed reports whether a grammar reads this file rather than skipping it.
 func Parsed(filename string) bool { return LanguageFor(filename) != nil }
 
+// Extensions is every extension a grammar claims, for a caller asserting that
+// each one it claims is actually exercised.
+func Extensions() []string {
+	out := make([]string, 0, len(grammars))
+	for ext := range grammars {
+		out = append(out, ext)
+	}
+	return out
+}
+
 // Parse returns the root of the syntax tree.
 //
 // ok is false when no grammar parses the file, or when the parse carries an
@@ -87,16 +97,6 @@ func ParseWith(language *ts.Language, src string) (root ts.Node, ok bool) {
 // IsComment reports a node every grammar spells as a comment.
 func IsComment(node ts.Node) bool {
 	return !node.IsNull() && strings.Contains(node.Type(), "comment")
-}
-
-// StartsComment reports whether a trimmed line opens a comment.
-func StartsComment(trimmed string) bool {
-	for _, marker := range []string{"///", "//", "/*", "*", "#"} {
-		if strings.HasPrefix(trimmed, marker) {
-			return true
-		}
-	}
-	return false
 }
 
 // Lines splits source the way every span here counts it.

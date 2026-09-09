@@ -28,7 +28,7 @@ const IDVolume = "tombstones/comment-volume"
 func AllIDs() set.Set[string] {
 	ids := set.New[string]()
 	ids.AddRange(IDVolume, ruleID(deadReferent))
-	for _, id := range commentlength.PatternIDs() {
+	for _, id := range english.PatternIDs() {
 		ids.Add(id)
 	}
 	return ids

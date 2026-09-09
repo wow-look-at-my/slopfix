@@ -21,25 +21,23 @@ type Repair struct {
 	Kept      []Hit    `json:"kept,omitempty"`
 }
 
-// tightenOversized reflows every block over the cap. It answers the new text
-// and the opening line of each block it touches.
+// rewriteComments applies the english table to every comment block and reflows
+// what it leaves. It answers the new text and the opening line of each block it
+// touches.
 //
-// Blocks are taken last first, so an earlier splice never moves a later block's
-// line numbers. A block the rewrite cannot bring under the cap is left exactly
-// as written, and Find reports it.
-func tightenOversized(added string, blocks []Block, maxLines int) (string, []string) {
-	if maxLines <= 0 {
-		return added, nil
-	}
+// Every block goes through it, not only the ones over the cap: a tombstone is a
+// phrase, and the phrase is cut wherever it sits. Blocks are taken last first,
+// so an earlier splice never moves a later block's line numbers.
+func rewriteComments(added string, blocks []Block, maxLines int) (string, []string) {
 	lines := strings.Split(added, "\n")
 	var tightened []string
 	for i := len(blocks) - 1; i >= 0; i-- {
 		from, to, ok := blockSpan(blocks[i], len(lines))
-		if !ok || blocks[i].Lines <= maxLines {
+		if !ok {
 			continue
 		}
 		short, rewrote := commentlength.Tighten(lines[from : to+1])
-		if !rewrote || len(short) > maxLines || len(short) >= to-from+1 {
+		if !rewrote {
 			continue
 		}
 		out := make([]string, 0, len(lines)-(to-from+1)+len(short))
@@ -132,7 +130,7 @@ func Fix(path, added string, maxLines int) Repair {
 	// A block over the cap is rewritten before it is judged. Most are padded
 	// rather than over-long by a thought, and reflowed they fit, so refusing
 	// the write without trying costs a round trip for nothing.
-	added, tightened := tightenOversized(added, blocks, maxLines)
+	added, tightened := rewriteComments(added, blocks, maxLines)
 	if len(tightened) > 0 {
 		blocks = AddedBlocks(path, added)
 	}

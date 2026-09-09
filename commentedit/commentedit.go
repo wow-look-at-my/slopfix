@@ -15,7 +15,7 @@ package commentedit
 import (
 	"strings"
 
-	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/code"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -41,16 +41,17 @@ func OnlyComments(path, before, after string) bool {
 	if before == after {
 		return false
 	}
-	if !commentlength.Parsed(path) {
+	if !code.Parsed(path) {
 		return false
 	}
-	return code(path, before) == code(path, after)
+	return blanked(path, before) == blanked(path, after)
 }
 
-// code returns the file with every comment blanked, so what remains is what the
-// compiler reads. A blank of the same length keeps every later offset in place.
-func code(path, src string) string {
-	comments := commentlength.Comments(path, src)
+// blanked returns the file with every comment blanked, so what remains is what
+// the compiler reads. A blank of the same length keeps every later offset in
+// place.
+func blanked(path, src string) string {
+	comments := code.Comments(path, src)
 	if len(comments) == 0 {
 		return src
 	}

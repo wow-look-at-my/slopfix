@@ -12,53 +12,17 @@
 package commentlength
 
 import (
-	"path/filepath"
 	"strings"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
-	"github.com/wow-look-at-my/slopfix/grammars/bash"
-	"github.com/wow-look-at-my/slopfix/grammars/clang"
-	"github.com/wow-look-at-my/slopfix/grammars/cpp"
-	"github.com/wow-look-at-my/slopfix/grammars/golang"
-	"github.com/wow-look-at-my/slopfix/grammars/javascript"
-	"github.com/wow-look-at-my/slopfix/grammars/rust"
-	"github.com/wow-look-at-my/slopfix/grammars/tsx"
-	"github.com/wow-look-at-my/slopfix/grammars/typescript"
+	"github.com/wow-look-at-my/slopfix/code"
 )
 
-// grammars maps a file extension to the grammar that parses it.
-var grammars = map[string]func() *ts.Language{
-	".go":   golang.Language,
-	".c":    clang.Language,
-	".h":    clang.Language,
-	".cc":   cpp.Language,
-	".cpp":  cpp.Language,
-	".cxx":  cpp.Language,
-	".hpp":  cpp.Language,
-	".hh":   cpp.Language,
-	".rs":   rust.Language,
-	".sh":   bash.Language,
-	".bash": bash.Language,
-	".js":   javascript.Language,
-	".jsx":  javascript.Language,
-	".mjs":  javascript.Language,
-	".cjs":  javascript.Language,
-	".ts":   typescript.Language,
-	".mts":  typescript.Language,
-	".cts":  typescript.Language,
-	".tsx":  tsx.Language,
-}
-
 // languageFor answers the grammar for a filename, and nil when none parses it.
-func languageFor(filename string) *ts.Language {
-	if load, ok := grammars[strings.ToLower(filepath.Ext(filename))]; ok {
-		return load()
-	}
-	return nil
-}
+func languageFor(filename string) *ts.Language { return code.LanguageFor(filename) }
 
 // Parsed reports whether this rule parses a file rather than skipping it.
-func Parsed(filename string) bool { return languageFor(filename) != nil }
+func Parsed(filename string) bool { return code.Parsed(filename) }
 
 // treeBlocks pairs each comment run in a file with the construct beneath it.
 //
@@ -66,16 +30,8 @@ func Parsed(filename string) bool { return languageFor(filename) != nil }
 // rather than measuring against a broken tree. A file mid-edit is the common
 // case for a hook, and half a tree is a worse input than none.
 func treeBlocks(language *ts.Language, src string) (out []block, ok bool) {
-	parser := ts.NewParser()
-	if !parser.SetLanguage(language) {
-		return nil, false
-	}
-	tree := parser.ParseString(nil, []byte(src))
-	if tree == nil {
-		return nil, false
-	}
-	root := tree.RootNode()
-	if root.IsNull() || root.HasError() {
+	root, ok := code.ParseWith(language, src)
+	if !ok {
 		return nil, false
 	}
 
@@ -92,7 +48,7 @@ func collect(node ts.Node, root bool, lines []string, out *[]block) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
 		child := node.NamedChild(i)
-		if isComment(child) {
+		if code.IsComment(child) {
 			run, stop := commentRun(node, i, count)
 			next := afterComments(node, stop, count)
 			header := root && i == 0 && documentsThePackage(node, next, count)
@@ -118,7 +74,7 @@ func commentRun(node ts.Node, i, count uint32) ([]ts.Node, uint32) {
 	j := i + 1
 	for ; j < count; j++ {
 		next := node.NamedChild(j)
-		if !isComment(next) {
+		if !code.IsComment(next) {
 			break
 		}
 		last := run[len(run)-1]
@@ -181,7 +137,7 @@ func isSequence(node ts.Node) bool {
 
 // afterComments advances past a comment run the pairing must not measure.
 func afterComments(node ts.Node, next, count uint32) uint32 {
-	for next < count && isComment(node.NamedChild(next)) {
+	for next < count && code.IsComment(node.NamedChild(next)) {
 		next++
 	}
 	return next
@@ -194,11 +150,6 @@ func documentsThePackage(node ts.Node, next, count uint32) bool {
 		return false
 	}
 	return strings.Contains(node.NamedChild(next).Type(), "package")
-}
-
-// isComment reports a node every grammar spells as a comment.
-func isComment(node ts.Node) bool {
-	return !node.IsNull() && strings.Contains(node.Type(), "comment")
 }
 
 // nodeSpan measures a construct: the source lines it occupies, and the

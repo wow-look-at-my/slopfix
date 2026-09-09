@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/english"
 )
 
 // Tightening runs before cutting, so a padded comment keeps every thought it
@@ -37,19 +38,6 @@ func TestAPaddedCommentIsTightenedRatherThanCut(t *testing.T) {
 	}
 	assert.Contains(t, out, "return serve(ln)", "the code is untouched")
 	assert.Empty(t, Check("x.go", out), "the tightened comment fits")
-}
-
-func TestFillerIsOnlyDroppedAsAWholeWord(t *testing.T) {
-	assert.Equal(t, "The adjustment", shorten("The adjustment"), "'just' inside 'adjustment' is not filler")
-	assert.Equal(t, "A basic block", shorten("A basic block"), "'basically' does not match 'basic'")
-	assert.Equal(t, "Injustice", shorten("Injustice"))
-	assert.Equal(t, "The port", shorten("The very port"))
-}
-
-func TestAShorterPhrasingReplacesTheLongOne(t *testing.T) {
-	assert.Equal(t, "Because it fails", shorten("Due to the fact that it fails"))
-	assert.Equal(t, "If it fails", shorten("In the event that it fails"))
-	assert.Equal(t, "It can retry", shorten("It has the ability to retry"))
 }
 
 // Reflow must not break a word that stops meaning anything when split.
@@ -91,15 +79,3 @@ func TestACleanCommentIsNotRewritten(t *testing.T) {
 // A doc comment opens on the identifier it documents, and that identifier is
 // often unexported. Capitalising it names a symbol the package does not have,
 // so the capital is restored only where a deletion removed the opening word.
-func TestTheOpeningWordKeepsItsCase(t *testing.T) {
-	assert.Equal(t, "arityReach is how far back it looks",
-		shorten("arityReach is basically how far back it looks"))
-	assert.Equal(t, "english is the parsed table",
-		shorten("english is actually the parsed table"))
-}
-
-// The control: a deletion that removes the opening word does restore a capital,
-// or the sentence starts in lower case for no reason.
-func TestALeadingDeletionRestoresTheCapital(t *testing.T) {
-	assert.Equal(t, "It fails", shorten("Obviously it fails"))
-}

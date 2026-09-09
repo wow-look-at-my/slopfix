@@ -5,7 +5,7 @@
 // marker byte has to be told which spelling each language uses, which quotes
 // start a literal, and which of those honour a backslash. A grammar already
 // knows, and a marker inside a string is not a comment node.
-package commentlength
+package code
 
 import (
 	"strings"
@@ -28,27 +28,14 @@ type Run struct {
 // error. A file mid-edit is the common case for a hook, and half a tree reads
 // code as prose.
 func Runs(filename, src string) (runs []Run, ok bool) {
-	language := languageFor(filename)
-	if language == nil {
+	root, ok := Parse(filename, src)
+	if !ok {
 		return nil, false
 	}
-	parser := ts.NewParser()
-	if !parser.SetLanguage(language) {
-		return nil, false
-	}
-	tree := parser.ParseString(nil, []byte(src))
-	if tree == nil {
-		return nil, false
-	}
-	root := tree.RootNode()
-	if root.IsNull() || root.HasError() {
-		return nil, false
-	}
-
 	var nodes []ts.Node
 	gatherComments(root, &nodes)
 	byStartRow(nodes)
-	return merge(nodes, splitLines(src)), true
+	return merge(nodes, Lines(src)), true
 }
 
 // gatherComments walks the whole tree, so a comment inside a function body is
@@ -57,7 +44,7 @@ func gatherComments(node ts.Node, out *[]ts.Node) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
 		child := node.NamedChild(i)
-		if isComment(child) {
+		if IsComment(child) {
 			*out = append(*out, child)
 			continue
 		}

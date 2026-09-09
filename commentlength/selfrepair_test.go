@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/code"
 )
 
 // This repository's own source is the rule's earliest real corpus, and running
@@ -67,7 +68,7 @@ func TestTheRuleOverItsOwnRepository(t *testing.T) {
 // The walk above must not be fooled by a path it cannot parse. This pins that
 // Parsed() and the extension map agree about what the rule reads.
 func TestParsedAgreesWithTheGrammarMap(t *testing.T) {
-	for ext := range grammars {
+	for _, ext := range code.Extensions() {
 		require.True(t, Parsed("x"+ext), "the map has %s but Parsed says no", ext)
 		require.True(t, Parsed("x"+strings.ToUpper(ext)), "extension match is case-insensitive")
 	}
