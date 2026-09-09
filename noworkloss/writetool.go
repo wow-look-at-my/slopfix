@@ -120,9 +120,8 @@ func trackedPath(path string) (heldPath, bool) {
 	return heldPath{}, false
 }
 
-// physicalPath resolves the parent directory, since git reports the physical
-// path and a temporary directory is a symlink on macOS. The file itself is
-// gone by the time this runs, so only the parent can be resolved.
+// physicalPath resolves the PARENT, because git reports a physical path and
+// the file itself is already gone.
 func physicalPath(path string) string {
 	parent, err := filepath.EvalSymlinks(filepath.Dir(path))
 	if err != nil {
