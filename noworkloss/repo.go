@@ -3,6 +3,7 @@ package noworkloss
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -149,7 +150,11 @@ func runGit(dir string, args ...string) (stdout, stderr string, err error) {
 func runGitEnvTimeout(dir string, timeout time.Duration, extraEnv []string, args ...string) (stdout, stderr string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	full := append([]string{"-C", dir}, args...)
+	// A repository hook is the user's code, and it can refuse or hang. It must
+	// never decide whether preservation lands: core.hooksPath points at a path
+	// that holds no hook, so pre-commit, pre-push and reference-transaction all
+	// find nothing to run.
+	full := append([]string{"-C", dir, "-c", "core.hooksPath=" + os.DevNull}, args...)
 	cmd := exec.CommandContext(ctx, "git", full...)
 	var out, errb strings.Builder
 	cmd.Stdout = &out
