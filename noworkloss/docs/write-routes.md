@@ -52,6 +52,18 @@ A catalog of program names leaks the moment a session reaches for one nobody nam
 
 That leaves the tools which rewrite by design. They are an explicit table (`allowedFormatter`). The principle is stated there: each one writes only a canonical reformat, or a regeneration the repository owns, of the file it is handed. A tool not on the table is not allowed by being a formatter. `ffs fmt -w` is the worked example.
 
+## The Write tool, and the path emptied to get past it
+
+Write authors a whole file. So a Write over a path that already holds content replaces work nobody read a diff of. That refusal names the path. The next move a session reaches for is to empty the path -- `mv old.go old.go.old`, `rm old.go`, `git rm old.go` -- and to send the same Write again. The file is then created rather than replaced. Every check above says yes.
+
+The verb is the wrong thing to judge. `mv a b` is ordinary refactoring. A rule against it refuses the rename this plugin has no quarrel with. Each route leaves the same state behind. **Git holds content at this path and the disk does not.** The Write is judged on that state. No list of verbs decides it. The index answers for a rename and a plain `rm`. HEAD answers for `git rm`, which takes the entry out of the index as it goes.
+
+A guard here mitigates rather than refuses, so the hook puts the file back before it answers. `git restore --worktree` writes the working tree alone. The index keeps whatever the session staged. A `git rm` stays staged. Nothing is destroyed either, because the check above establishes that no file sits at this path. The Write then meets the ordinary refusal, which is true again, and Edit has a file to work on. A restore that fails says what to run instead.
+
+A commit of the removal is the way out. It is also the honest one. The old content is then in history where a reader finds it. The path is free. The next Write is a genuine creation.
+
+A file git never held is outside this. A rename of an untracked file leaves its bytes on disk under another name. To find them again means to index content rather than to read state. The destruction half already refuses `rm` on an untracked file. So the gap is a rename of a file nobody committed. It is a gap rather than a decision.
+
 ## Where this collides with ordinary workflow
 
 Stated plainly rather than carved out, because a carve-out nobody sees is how a guard stops meaning anything:
