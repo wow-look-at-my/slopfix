@@ -2,7 +2,10 @@ package slopfix
 
 import (
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/commentnumbers"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // Repairable reports whether slopfix repairs the DEFECT a finding names,
@@ -18,4 +21,12 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	// The counts rule cuts the cardinal out of the same sentence the prose
 	ste.IDStaleCount,
 	IDInventoryCount,
+	// The comment rules: a block fits its code, a number is said in words.
+	commentlength.ID,
+	commentnumbers.ID,
+	// The workflow rules: the gate, the comment block, the shadowing job name.
+	workflow.IDNeuteredGate,
+	workflow.IDCommentBlock,
+	workflow.IDAllBuildsJob,
+	workflow.IDTestInYAML,
 ))

@@ -25,7 +25,7 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
-	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -33,7 +33,7 @@ const ID = "comments/number"
 
 // Supported reports whether this rule reads a file of that name.
 func Supported(filename string) bool {
-	return commentlength.Parsed(filename) || readsHash(filename)
+	return treecomments.Supported(filename) || readsHash(filename)
 }
 
 // Remedy is what every finding asks the author to do instead. A reference to a
@@ -67,7 +67,7 @@ func Check(filename, src string) []Hit {
 		return nil
 	}
 	var hits []Hit
-	for _, comment := range extract(filename, src) {
+	for _, comment := range treecomments.Extract(filename, src) {
 		for _, line := range commentLines(comment.Text) {
 			for _, found := range cardinal.Find(line.text, cardinal.Comment) {
 				at := comment.Offset + line.offset + found.Offset
@@ -144,5 +144,3 @@ func isDirective(text string) bool {
 	}
 	return true
 }
-
-// The token walk that reads these lines, and every exemption a number can earn,
