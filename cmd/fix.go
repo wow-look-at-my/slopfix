@@ -91,12 +91,12 @@ func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
 }
 
 func runFix(cmd *cobra.Command, args []string) error {
-	if len(args) > 0 {
-		return fixFiles(cmd, args)
-	}
 	rules, ids, err := selectedRules(fixOnly)
 	if err != nil {
 		return err
+	}
+	if len(args) > 0 {
+		return fixFiles(cmd, args, rules, ids)
 	}
 	content, err := io.ReadAll(cmd.InOrStdin())
 	if err != nil {
@@ -132,10 +132,14 @@ func runFix(cmd *cobra.Command, args []string) error {
 
 // fixFiles repairs each named file in place. It names the ones it rewrote on
 // stdout, and reports what is left on stderr against the file it belongs to.
-func fixFiles(cmd *cobra.Command, paths []string) error {
+func fixFiles(cmd *cobra.Command, paths []string, rules []slopfix.Rule, ids []string) error {
 	found := false
 	for _, path := range paths {
-		repair, err := slopfix.FixFile(path)
+		repair, err := slopfix.FixFileWith(path, slopfix.Request{
+			Rules:           rules,
+			IDs:             ids,
+			MaxCommentLines: fixMaxLines,
+		})
 		if err != nil {
 			return err
 		}
