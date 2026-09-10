@@ -48,6 +48,12 @@ func judgeCall(c toolCall, recs []record) verdict {
 		}
 	}
 
+	// A local session is never woken, so a re-read there is the only way to
+	// learn that the answer moved.
+	if !remoteSession() {
+		return verdict{}
+	}
+
 	already := readSinceLastSignal(recs)
 	for _, s := range subs {
 		if already[s] {
