@@ -6,10 +6,12 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/commentnumbers"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // Rule names a repair Fix can apply, so a caller can select a repair by name.
@@ -24,12 +26,14 @@ const (
 	RuleWrap Rule = "wrap"
 	// RuleSTE reports what fails the merge gate and repairs nothing.
 	RuleSTE Rule = "ste"
-	// RuleCommentLength cuts a comment back inside the code it documents.
-	RuleCommentLength Rule = "comments"
+	// RuleComments is a block that fits its code, and a number said in words.
+	RuleComments Rule = "comments"
+	// RuleWorkflow is what a workflow owes the gate it runs.
+	RuleWorkflow Rule = "yaml"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleCommentLength}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -43,8 +47,10 @@ func IDsFor(rule Rule) set.Set[string] {
 		return set.Of(IDHardWrap)
 	case RuleSTE:
 		return ste.AllIDs
-	case RuleCommentLength:
-		return set.Of(commentlength.ID)
+	case RuleComments:
+		return set.Of(commentlength.ID, commentnumbers.ID)
+	case RuleWorkflow:
+		return workflow.AllIDs
 	}
 	return set.New[string]()
 }
@@ -92,7 +98,28 @@ func Fix(req Request) Repair {
 	text := req.Content
 	var repair Repair
 
-	if wants(RuleTombstones) && req.Path != "" {
+	// A workflow's newlines are syntax, so it takes its own repairs and none of
+	// the prose ones.
+	if req.Path != "" && isWorkflow(req.Path, text) {
+		if wants(RuleWorkflow) {
+			cut := workflow.Fix(text, keeps)
+			text = cut.Text
+			repair.Removed = append(repair.Removed, cut.Removed...)
+		}
+		for _, finding := range workflow.Check(text) {
+			if keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
+			}
+		}
+		repair.Text = text
+		repair.Changed = text != req.Content
+		return repair
+	}
+
+	// Naming an ID turns the other rules off, and the strip below deletes whole
+	// lines: without this guard, `--only comments/number` cuts a line the
+	// tombstone rule judged, which is another rule's repair applied unasked.
+	if wants(RuleTombstones) && req.Path != "" && anyKept(tombstones.AllIDs(), keeps) {
 		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
 		text = cut.Text
 		repair.Removed = append(repair.Removed, cut.Removed...)
@@ -105,7 +132,7 @@ func Fix(req Request) Repair {
 
 	// The comment-length repair reads source rather than prose, so it runs
 	// before the document gate below sends a source file home.
-	if wants(RuleCommentLength) && keeps(commentlength.ID) && req.Path != "" {
+	if wants(RuleComments) && keeps(commentlength.ID) && req.Path != "" {
 		cut, changed := commentlength.Fix(req.Path, text)
 		if changed {
 			text = cut
@@ -118,6 +145,16 @@ func Fix(req Request) Repair {
 				Phrase: hit.Sentence,
 				LineNo: hit.Line,
 			})
+		}
+	}
+
+	// The number repair reads source too, and runs after the length cut: a
+	// sentence the cut already took needs no rewrite here.
+	if wants(RuleComments) && keeps(commentnumbers.ID) && req.Path != "" {
+		said := commentnumbers.Fix(req.Path, text)
+		if said.Changed {
+			text = said.Text
+			repair.Removed = append(repair.Removed, said.Removed...)
 		}
 	}
 
@@ -161,17 +198,38 @@ func Fix(req Request) Repair {
 	return repair
 }
 
+// anyKept reports whether the caller's ID selection keeps any rule of a set.
+func anyKept(ids set.Set[string], keeps func(string) bool) bool {
+	for id := range ids.All() {
+		if keeps(id) {
+			return true
+		}
+	}
+	return false
+}
+
 // IsDocument reports whether path names prose rather than source.
 func IsDocument(path string) bool { return tombstones.IsDocument(path) }
 
-// FixFile repairs a file in place and reports what it did. It writes nothing
-// when the repair leaves the document as it was.
+// FixFile repairs a file in place under every rule.
 func FixFile(path string) (Repair, error) {
+	return FixFileWith(path, Request{})
+}
+
+// FixFileWith repairs a file in place under the caller's own selection, and
+// reports what it did. It writes nothing when the repair leaves the file as it
+// was.
+//
+// The Content and Path of req are the file's, whatever the caller put there.
+// Everything else is the caller's: a run that names a rule on the command line
+// has to reach the repair, or the selection is silently ignored.
+func FixFileWith(path string, req Request) (Repair, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return Repair{}, err
 	}
-	repair := Fix(Request{Content: string(content), Path: path})
+	req.Content, req.Path = string(content), path
+	repair := Fix(req)
 	if !repair.Changed {
 		return repair, nil
 	}
