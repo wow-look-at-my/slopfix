@@ -3,6 +3,7 @@ package noworkloss
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -149,7 +150,8 @@ func runGit(dir string, args ...string) (stdout, stderr string, err error) {
 func runGitEnvTimeout(dir string, timeout time.Duration, extraEnv []string, args ...string) (stdout, stderr string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	full := append([]string{"-C", dir}, args...)
+	// A repository hook can refuse or hang, and must not decide what preservation does.
+	full := append([]string{"-C", dir, "-c", "core.hooksPath=" + os.DevNull}, args...)
 	cmd := exec.CommandContext(ctx, "git", full...)
 	var out, errb strings.Builder
 	cmd.Stdout = &out

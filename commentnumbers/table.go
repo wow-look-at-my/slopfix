@@ -1,0 +1,143 @@
+// table.go loads the English the number repair applies, and applies it to a
+// line of comment prose.
+//
+// The table is XML rather than Go, the same way commentlength carries its own,
+// so adding a phrase is an edit somebody makes without reading Go.
+package commentnumbers
+
+import (
+	_ "embed"
+	"encoding/xml"
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+//go:embed numbers.xml
+var numbersXML []byte
+
+// xmlTable mirrors numbers.xml.
+type xmlTable struct {
+	Rewrites []xmlRewrite `xml:"rewrite"`
+	Patterns []xmlPattern `xml:"pattern"`
+}
+
+// xmlRewrite swaps a whole phrase for another.
+type xmlRewrite struct {
+	From   string `xml:"from,attr"`
+	To     string `xml:"to,attr"`
+	Test   string `xml:"test,attr"`
+	Expect string `xml:"expect,attr"`
+}
+
+// xmlPattern carries a shape a phrase swap cannot express. `to` uses $1, $2 for
+// the groups, as Go's regexp expansion spells it.
+type xmlPattern struct {
+	Match  string `xml:"match,attr"`
+	To     string `xml:"to,attr"`
+	Test   string `xml:"test,attr"`
+	Expect string `xml:"expect,attr"`
+
+	re *regexp.Regexp
+}
+
+// table is read at startup: a malformed entry fails the binary, not a file.
+var table = load()
+
+// load parses the embedded table and compiles every pattern.
+func load() xmlTable {
+	var parsed xmlTable
+	if err := xml.Unmarshal(numbersXML, &parsed); err != nil {
+		panic(fmt.Sprintf("commentnumbers: numbers.xml does not parse: %v", err))
+	}
+	for i := range parsed.Patterns {
+		re, err := regexp.Compile(parsed.Patterns[i].Match)
+		if err != nil {
+			panic(fmt.Sprintf("commentnumbers: pattern %q does not compile: %v", parsed.Patterns[i].Match, err))
+		}
+		parsed.Patterns[i].re = re
+	}
+	return parsed
+}
+
+// Say rewrites a line of comment prose, applying every table entry. It says
+// nothing about what is left: the caller checks that.
+//
+// The rewrites go before the patterns, so a shape reads the text a phrase swap
+// has already settled.
+func Say(prose string) string {
+	original := prose
+	for _, r := range table.Rewrites {
+		prose = replaceWord(prose, r.From, r.To)
+	}
+	for _, p := range table.Patterns {
+		prose = p.re.ReplaceAllString(prose, p.To)
+	}
+	prose = strings.Join(strings.Fields(prose), " ")
+	prose = closeDanglingSpace(prose)
+	return capitalise(original, prose)
+}
+
+// danglingSpace matches a space before punctuation that CLOSES something.
+var danglingSpace = regexp.MustCompile(`\s+([.,])(\s|$)`)
+
+// closeDanglingSpace removes the space a deletion leaves before punctuation.
+func closeDanglingSpace(prose string) string {
+	return danglingSpace.ReplaceAllString(prose, "${1}${2}")
+}
+
+// replaceWord swaps a whole word or phrase, case-insensitively, leaving a
+// longer word that merely contains it alone.
+func replaceWord(s, word, with string) string {
+	lower := strings.ToLower(s)
+	target := strings.ToLower(word)
+	var b strings.Builder
+	for i := 0; i < len(s); {
+		j := strings.Index(lower[i:], target)
+		if j < 0 {
+			b.WriteString(s[i:])
+			break
+		}
+		at := i + j
+		end := at + len(target)
+		if !wordBoundary(s, at, end) {
+			b.WriteString(s[i : at+1])
+			i = at + 1
+			continue
+		}
+		b.WriteString(s[i:at])
+		b.WriteString(with)
+		i = end
+	}
+	return b.String()
+}
+
+// wordBoundary reports whether s[at:end] stands as its own word.
+func wordBoundary(s string, at, end int) bool {
+	if at > 0 && isWordByte(s[at-1]) {
+		return false
+	}
+	return end >= len(s) || !isWordByte(s[end])
+}
+
+func isWordByte(b byte) bool {
+	return b == '_' || b == '-' ||
+		(b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+}
+
+// capitalise gives the repaired line the opening case the source line had. A
+// comment line often continues a wrapped sentence rather than opening it, so
+// the case the author wrote is the only reliable answer.
+func capitalise(original, s string) string {
+	if s == "" || original == "" {
+		return s
+	}
+	upper := original[0] >= 'A' && original[0] <= 'Z'
+	switch c := s[0]; {
+	case upper && c >= 'a' && c <= 'z':
+		return string(c-32) + s[1:]
+	case !upper && c >= 'A' && c <= 'Z':
+		return string(c+32) + s[1:]
+	}
+	return s
+}
