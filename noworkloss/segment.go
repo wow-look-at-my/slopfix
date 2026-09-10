@@ -536,5 +536,3 @@ func (w *walker) scanSubst(wd *syntax.Word, cwd string) {
 		}
 	}
 }
-
-// The word, wrapper and path vocabulary this walk is built on lives in
