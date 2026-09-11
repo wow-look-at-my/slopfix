@@ -67,7 +67,7 @@ func Check(filename, src string) []Hit {
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && !sameText(trim(b), b.text),
+			Repairable: b.exact && !sameText(repair(b), b.text),
 		})
 	}
 	return hits
@@ -94,7 +94,7 @@ func Fix(filename, src string) (string, bool) {
 		if !b.exact {
 			continue
 		}
-		kept := trim(b)
+		kept := repair(b)
 		// A repair that keeps the line count still shortens the text, and the
 		// character half of the rule is what it answers.
 		if sameText(kept, b.text) {
@@ -152,6 +152,45 @@ func measure(text []string) (lines, chars int) {
 		}
 	}
 	return lines, chars
+}
+
+// repair rewrites a block's prose and puts its directive lines back verbatim.
+//
+// Every repair path rebuilds the block out of prose() alone, which drops the
+// directives: the rewrite then REPLACED them. A lost //go:embed leaves the
+// variable it filled empty, and the tests reading it pass on nothing.
+func repair(b block) []string {
+	lead, body, trail := splitDirectives(b.text)
+	if len(lead) == 0 && len(trail) == 0 {
+		return trim(b)
+	}
+	if len(body) == 0 {
+		return b.text
+	}
+	kept := trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact})
+	out := make([]string, 0, len(lead)+len(kept)+len(trail))
+	out = append(out, lead...)
+	out = append(out, kept...)
+	return append(out, trail...)
+}
+
+// splitDirectives separates a block's tool lines from its prose. A directive
+// binds to the declaration by position -- a build constraint leads, a go:embed
+// is last -- so each keeps the side of the prose it was written on.
+func splitDirectives(text []string) (lead, body, trail []string) {
+	seen := false
+	for _, line := range text {
+		switch {
+		case !isDirective(line):
+			seen = true
+			body = append(body, line)
+		case seen:
+			trail = append(trail, line)
+		default:
+			lead = append(lead, line)
+		}
+	}
+	return lead, body, trail
 }
 
 // prose drops the directive lines from a block. A build constraint is an
