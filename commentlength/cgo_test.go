@@ -102,3 +102,14 @@ func TestARepairKeepsALeadingBuildConstraint(t *testing.T) {
 	assert.Contains(t, out, "//go:build cgo")
 	assert.True(t, strings.HasPrefix(out, "//go:build cgo"), "it stays first")
 }
+
+// Go writes a bare marker line to separate a directive from the prose above it.
+// It holds no words, and counting it as a line left such a block over its budget
+// with no repair able to bring it back inside: the prose was already a line long.
+func TestASeparatorBeforeADirectiveIsNotProse(t *testing.T) {
+	src := "// trivialASM holds the fixture.\n" +
+		"//\n" +
+		"//go:embed testdata/trivial.spvasm\n" +
+		"var trivialASM []byte\n"
+	assert.Empty(t, Check("p.go", src), "the prose is a line, and so is the code")
+}

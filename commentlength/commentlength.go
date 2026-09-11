@@ -139,6 +139,10 @@ func judge(b block) (string, bool) {
 // run of text, so indentation costs nothing and both counts compare directly.
 func measure(text []string) (lines, chars int) {
 	for _, line := range text {
+		// A line carrying only its marker holds no words.
+		if bareMarker(line) {
+			continue
+		}
 		content := false
 		for _, r := range line {
 			if unicode.IsSpace(r) {
@@ -152,6 +156,15 @@ func measure(text []string) (lines, chars int) {
 		}
 	}
 	return lines, chars
+}
+
+// bareMarker reports a comment line holding a marker and nothing else.
+func bareMarker(line string) bool {
+	switch strings.TrimSpace(line) {
+	case "//", "///", "#", "*", "/*", "*/":
+		return true
+	}
+	return false
 }
 
 // repair rewrites a block's prose and puts its directive lines back verbatim.
