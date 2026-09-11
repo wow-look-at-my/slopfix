@@ -95,7 +95,9 @@ func Fix(filename, src string) (string, bool) {
 			continue
 		}
 		kept := trim(b)
-		if len(kept) >= len(b.text) {
+		// A repair that keeps the line count still shortens the text, and the
+		// character half of the rule is what it answers.
+		if strings.Join(kept, "\n") == strings.Join(b.text, "\n") {
 			continue
 		}
 		lines = append(lines[:b.start], append(kept, lines[b.end:]...)...)
@@ -220,8 +222,34 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
+	if forced, ok := hardFit(b); ok {
+		return forced
+	}
 	// Nothing shorter both fits and reads.
 	return b.text
+}
+
+// hardFit drops words off the end until the block fits, wherever the sentence
+// ends. It mangles prose that no honest cut reaches, so it runs last, after
+// every cut that leaves a comment somebody can read.
+func hardFit(b block) ([]string, bool) {
+	marker, indent, ok := commentShape(b.text)
+	if !ok {
+		return nil, false
+	}
+	var body []string
+	for _, line := range prose(b.text) {
+		body = append(body, stripMarker(line))
+	}
+	words := strings.Fields(strings.Join(body, " "))
+	for len(words) > 0 {
+		out := reflow(strings.Join(words, " "), indent, marker, max(floorChars, b.codeChars))
+		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return out, true
+		}
+		words = words[:len(words)-1]
+	}
+	return nil, false
 }
 
 // cutLastThought drops the last thought out of a block, and reports false when
