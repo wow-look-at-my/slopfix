@@ -131,10 +131,7 @@ func commentTargets(arg string, reads func(string) bool) ([]string, error) {
 	return out, err
 }
 
-// isSubmodule reports whether dir is a git submodule's working tree. Git marks
-// one by writing .git as a FILE holding a gitdir pointer, where an ordinary
-// checkout keeps a directory. That tree belongs to another repository, which
-// owns its prose and takes the fix, so it is skipped beside the vendored text.
+// isSubmodule reports whether dir is a git submodule's working tree.
 func isSubmodule(dir string) bool {
 	info, err := os.Stat(filepath.Join(dir, ".git"))
 	return err == nil && info.Mode().IsRegular()
