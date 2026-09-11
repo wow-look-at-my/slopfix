@@ -157,3 +157,43 @@ func TestTheRepairFollowsTheExtractorIntoAnotherLanguage(t *testing.T) {
 	repair := commentnumbers.Fix("x.sh", "# It reserves one slot.\necho hi\n")
 	assert.Equal(t, "# It reserves a single slot.\necho hi\n", repair.Text)
 }
+
+// A block comment is a single token spanning its lines. The repair read only
+// the line it opens on, so a number below the opener was reported for ever and
+// no run could clear it.
+func TestABlockCommentIsRepairedBelowItsOpener(t *testing.T) {
+	src := "int a;\n\n/* Keeps the ring.\n * The tables run to 12 sections. */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	assert.True(t, got.Changed)
+	assert.Contains(t, got.Text, "Keeps the ring.")
+	assert.NotContains(t, got.Text, "12")
+	assert.Empty(t, commentnumbers.Check("x.c", got.Text), "nothing is left to report")
+}
+
+// The closer is not prose. Dropped, the comment stays open and every
+// declaration below it is swallowed by it, so an emptied block keeps its
+// delimiters and the file still parses.
+func TestAnEmptiedBlockKeepsItsDelimiters(t *testing.T) {
+	src := "int a;\n\n/* The tables run to 12 sections. */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	assert.True(t, got.Changed)
+	assert.Contains(t, got.Text, "*/", "the block is closed")
+	assert.Contains(t, got.Text, "int b;")
+	assert.Equal(t, strings.Count(src, "/*"), strings.Count(got.Text, "/*"), "openers are balanced")
+	assert.Equal(t, strings.Count(src, "*/"), strings.Count(got.Text, "*/"), "closers are balanced")
+	assert.Empty(t, commentnumbers.Check("x.c", got.Text))
+}
+
+// A block opens a single time. Repeating its opener down the paragraph nests a
+// comment inside itself, which is a syntax error in C.
+func TestARewrittenBlockDoesNotRepeatItsOpener(t *testing.T) {
+	long := "/* Asked once. " + strings.Repeat("A clause that carries the paragraph well past a line. ", 4) + "*/\n"
+	src := "int a;\n\n" + long + "int b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	require.True(t, got.Changed)
+	assert.Equal(t, 1, strings.Count(got.Text, "/*"), "the opener is written a single time")
+	assert.Equal(t, 1, strings.Count(got.Text, "*/"))
+}
