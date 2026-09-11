@@ -119,9 +119,14 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 	for _, run := range runs {
 		var current *para
 		for _, c := range run {
-			// A block comment is a single token spanning its lines. Reading
-			// only the line it starts on left the rest of the paragraph unseen,
-			// so a number below the opener was reported and never repaired.
+			// A block comment is a single token spanning its lines.
+			if isBlock(c.Text) && !isDirective(c.Text) {
+				if b, ok := blockPara(lines, c); ok {
+					out = append(out, b)
+				}
+				current = nil
+				continue
+			}
 			for n := range max(c.Lines, 1) {
 				i := c.Line - 1 + n
 				if i < 0 || i >= len(lines) {
@@ -162,6 +167,54 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 		}
 	}
 	return out
+}
+
+// isBlock reports whether text opens a block comment.
+func isBlock(text string) bool {
+	return strings.HasPrefix(strings.TrimSpace(text), "/*")
+}
+
+// blockPara reads a whole block comment as a single paragraph, delimiters and
+// all. A blank line inside it is a break in the prose, not a break in the
+// comment, so a rewrite that honored it left the block unclosed.
+func blockPara(lines []string, c treecomments.Comment) (para, bool) {
+	b := para{}
+	for n := range max(c.Lines, 1) {
+		i := c.Line - 1 + n
+		if i < 0 || i >= len(lines) {
+			return b, false
+		}
+		col := 0
+		if n == 0 {
+			col = c.Col
+		}
+		line := lines[i]
+		marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
+		if !ok {
+			// A line inside the block carrying no marker at all: an indented example, or a table. A rewrap would destroy it, so
+			return b, false
+		}
+		marker = line[:min(col, len(line))] + marker
+		switch {
+		case n == 0:
+			b.marker, b.cont = marker, marker
+			if col > 0 && col > indentOf(line) {
+				b.code = line[:col]
+			}
+		case len(b.lines) == 1:
+			b.cont = marker
+		}
+		b.lines = append(b.lines, i)
+		if prose != "" {
+			b.prose = strings.TrimSpace(b.prose + " " + prose)
+		}
+		b.width = max(b.width, len(line))
+		if trailer != "" {
+			b.trailer = trailer
+		}
+	}
+	// A block with no closer is not a block this can safely rewrite.
+	return b, b.prose != "" && b.trailer != ""
 }
 
 // indentOf reports the column a line's leading non-blank byte sits at.

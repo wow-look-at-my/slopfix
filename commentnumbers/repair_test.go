@@ -197,3 +197,28 @@ func TestARewrittenBlockDoesNotRepeatItsOpener(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(got.Text, "/*"), "the opener is written a single time")
 	assert.Equal(t, 1, strings.Count(got.Text, "*/"))
 }
+
+// A blank line inside a block comment breaks the prose, not the comment. Split
+// into paragraphs, every half got a closer and each half past the opener
+// began a comment nothing closed, so the C file stopped compiling.
+func TestABlockCommentWithABlankLineStaysOneComment(t *testing.T) {
+	src := "int a;\n\n/* Keeps the ring, and says how.\n *\n * The tables run to 12 sections. */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	require.True(t, got.Changed)
+	assert.Equal(t, 1, strings.Count(got.Text, "/*"), "the block still opens a single time")
+	assert.Equal(t, 1, strings.Count(got.Text, "*/"), "and closes a single time")
+	assert.Contains(t, got.Text, "int b;")
+	assert.Empty(t, commentnumbers.Check("x.c", got.Text))
+}
+
+// An indented example or a table inside a block carries no marker of its own. A
+// rewrap would destroy it, so the repair declines and the finding stands rather
+// than the file being mangled.
+func TestABlockHoldingUnmarkedLinesIsDeclined(t *testing.T) {
+	src := "int a;\n\n/* Layout, in 3 parts:\n\n     a | b\n\n */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	assert.Contains(t, got.Text, "a | b", "the table survives")
+	assert.Equal(t, strings.Count(src, "*/"), strings.Count(got.Text, "*/"))
+}
