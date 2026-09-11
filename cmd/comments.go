@@ -74,10 +74,7 @@ func numbersOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 		return false, nil
 	}
 	if !repair {
-		for _, hit := range hits {
-			fmt.Fprintf(cmd.OutOrStdout(), "%s:%d:%d: %q is a number in a comment\n",
-				path, hit.Line, hit.Col, hit.Number)
-		}
+		printHits(cmd, path, hits)
 		return true, nil
 	}
 	fixed := commentnumbers.Fix(path, string(src))
@@ -91,8 +88,17 @@ func numbersOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 	for _, sentence := range fixed.Removed {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s: cut: %s\n", path, sentence)
 	}
-	// A number no table entry covers and no cut reached is still a finding.
-	return len(commentnumbers.Check(path, fixed.Text)) > 0, nil
+	left := commentnumbers.Check(path, fixed.Text)
+	printHits(cmd, path, left)
+	return len(left) > 0, nil
+}
+
+// printHits prints a finding per line, the way a compiler names a warning.
+func printHits(cmd *cobra.Command, path string, hits []commentnumbers.Hit) {
+	for _, hit := range hits {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s:%d:%d: %q is a number in a comment\n",
+			path, hit.Line, hit.Col, hit.Number)
+	}
 }
 
 // commentTargets lists what to read under an argument, keeping the files the
