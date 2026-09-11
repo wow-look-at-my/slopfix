@@ -67,7 +67,7 @@ func Check(filename, src string) []Hit {
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && len(trim(b)) < len(b.text),
+			Repairable: b.exact && !sameText(trim(b), b.text),
 		})
 	}
 	return hits
@@ -97,7 +97,7 @@ func Fix(filename, src string) (string, bool) {
 		kept := trim(b)
 		// A repair that keeps the line count still shortens the text, and the
 		// character half of the rule is what it answers.
-		if strings.Join(kept, "\n") == strings.Join(b.text, "\n") {
+		if sameText(kept, b.text) {
 			continue
 		}
 		lines = append(lines[:b.start], append(kept, lines[b.end:]...)...)
@@ -227,6 +227,12 @@ func trim(b block) []string {
 	}
 	// Nothing shorter both fits and reads.
 	return b.text
+}
+
+// sameText compares runs of lines by what they say. A line count cannot: a
+// repair often keeps the count and still shortens the text.
+func sameText(a, b []string) bool {
+	return strings.Join(a, "\n") == strings.Join(b, "\n")
 }
 
 // hardFit drops words off the end until the block fits, wherever the sentence
