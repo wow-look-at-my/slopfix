@@ -307,6 +307,10 @@ func split(line string) (marker, prose string, ok bool) {
 func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	trimmed := strings.TrimLeft(line, " \t")
 	indent := line[:len(line)-len(trimmed)]
+	// A line holding only the closer.
+	if rest, closed := strings.CutPrefix(trimmed, "*/"); closed && strings.TrimSpace(rest) == "" {
+		return indent, "", "*/", true
+	}
 	for _, m := range []string{"///", "//", "/*", "#", "*"} {
 		rest, found := strings.CutPrefix(trimmed, m)
 		if !found {

@@ -222,3 +222,18 @@ func TestABlockHoldingUnmarkedLinesIsDeclined(t *testing.T) {
 	assert.Contains(t, got.Text, "a | b", "the table survives")
 	assert.Equal(t, strings.Count(src, "*/"), strings.Count(got.Text, "*/"))
 }
+
+// A block whose closer sits on a line of its own. The marker scan read that
+// line's star as a continuation and its slash as prose, so the delimiter was
+// lost, a stray byte entered the text, and the block was declined instead.
+func TestABlockWhoseCloserHasItsOwnLineIsRepaired(t *testing.T) {
+	src := "int a;\n\n/* Keeps the ring.\n * The tables run to 12 sections.\n */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	require.True(t, got.Changed)
+	assert.NotContains(t, got.Text, "12")
+	assert.Equal(t, 1, strings.Count(got.Text, "/*"))
+	assert.Equal(t, 1, strings.Count(got.Text, "*/"))
+	assert.NotContains(t, got.Text, "sections. /", "the closer is not prose")
+	assert.Empty(t, commentnumbers.Check("x.c", got.Text))
+}
