@@ -134,7 +134,71 @@ func Extract(filename, src string) []Comment {
 	}
 	var out []Comment
 	collect(root, src, &out)
+	return dropCgoPreamble(root, src, out)
+}
+
+// dropCgoPreamble removes the comment group cgo reads as C source.
+//
+// The lines above `import "C"` are a comment to the parser and a translation
+// unit to the compiler. A rewrite there is not a rewrite of prose: joining two
+// wrapped lines puts one `#include` on the tail of another, and the package
+// stops building. So the group is not a comment for any rule's purpose, for the
+// same reason a marker inside a string literal is not one.
+func dropCgoPreamble(root ts.Node, src string, comments []Comment) []Comment {
+	at := cgoImport(root, src)
+	if at < 0 {
+		return comments
+	}
+	// Upward from the import, because the group is found by what it adjoins: the
+	// line above the import, then the line above that one. Read the other way,
+	// the first line of the group is separated from the import by the rest of
+	// the group, and nothing matches.
+	preamble := make(map[int]bool)
+	for i := len(comments) - 1; i >= 0; i-- {
+		c := comments[i]
+		if c.Offset >= at || !onlyBlanksBetween(src, c.Offset+len(c.Text), at) {
+			continue
+		}
+		preamble[c.Offset] = true
+		at = c.Offset
+	}
+	var out []Comment
+	for _, c := range comments {
+		if !preamble[c.Offset] {
+			out = append(out, c)
+		}
+	}
 	return out
+}
+
+// cgoImport reports where `import "C"` starts, and -1 when the file has none.
+// Only its own statement counts: a grouped import carries no preamble, which is
+// cgo's rule rather than this package's.
+func cgoImport(root ts.Node, src string) int {
+	count := root.NamedChildCount()
+	for i := uint32(0); i < count; i++ {
+		child := root.NamedChild(i)
+		if child.IsNull() || child.Type() != "import_declaration" {
+			continue
+		}
+		start, end := int(child.StartByte()), int(child.EndByte())
+		if start < 0 || end > len(src) || start >= end {
+			continue
+		}
+		if strings.Join(strings.Fields(src[start:end]), " ") == `import "C"` {
+			return start
+		}
+	}
+	return -1
+}
+
+// onlyBlanksBetween reports a gap carrying no blank line. A blank line ends the
+// preamble, so a comment above one is ordinary prose again.
+func onlyBlanksBetween(src string, from, to int) bool {
+	if from > to || to > len(src) {
+		return false
+	}
+	return strings.TrimSpace(src[from:to]) == "" && strings.Count(src[from:to], "\n") <= 1
 }
 
 // collect walks the tree and gathers every comment node under it.
