@@ -98,8 +98,7 @@ func collect(node ts.Node, root bool, src string, lines []string, out *[]block) 
 			header := root && i == 0 && documentsThePackage(node, next, count)
 			i = stop - 1
 			// A comment above the package declaration introduces the package
-			// rather than a construct, so there is nothing of a comparable size.
-			// A cgo preamble is not prose at all.
+			// rather than a construct, so there is nothing of a comparable size
 			if header || documentsTheCgoImport(node, src, next, count) {
 				continue
 			}
@@ -197,12 +196,8 @@ func documentsThePackage(node ts.Node, next, count uint32) bool {
 	return strings.Contains(node.NamedChild(next).Type(), "package")
 }
 
-// documentsTheCgoImport reports a run that cgo reads as C source.
-//
-// The lines above `import "C"` are a comment to the parser and a translation
-// unit to the compiler. Tightening there is not tightening prose: it puts one
-// `#include` on the tail of another, and the package stops building. Only a
-// standalone import counts, which is cgo's rule rather than this rule's.
+// documentsTheCgoImport reports a run that cgo reads as C source, which a
+// tightening would break. Only a standalone import counts, as cgo requires.
 func documentsTheCgoImport(node ts.Node, src string, next, count uint32) bool {
 	if next >= count {
 		return false

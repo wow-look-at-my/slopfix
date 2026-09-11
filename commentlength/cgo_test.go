@@ -6,8 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// A cgo preamble is C source. Tightening it joins one #include onto another and
-// the package stops compiling, so the rule must not measure or cut it.
+// A cgo preamble is C source, so the rule must not measure or cut it.
 const cgoSrc = `// Package p wraps a C library.
 package p
 
