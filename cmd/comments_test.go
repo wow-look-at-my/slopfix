@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -153,4 +154,20 @@ func commentNumbersLeft(t *testing.T, path string) []commentnumbers.Hit {
 	body, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return commentnumbers.Check(path, string(body))
+}
+
+// A submodule is another repository's checkout, and its prose is that
+// repository's to fix. The binary and the pipeline gate both skip it, or a
+// developer and CI disagree about what the tree contains.
+func TestASubmoduleIsNotWalked(t *testing.T) {
+	dir := t.TempDir()
+	writeAt(t, dir, "ours.go", "package p\n\n// Asked once.\nconst p = 1\n")
+	writeAt(t, dir, filepath.Join("upstream", ".git"), "gitdir: ../.git/modules/upstream\n")
+	writeAt(t, dir, filepath.Join("upstream", "theirs.c"), "/* runs once */\n")
+
+	paths, err := commentTargets(dir, commentnumbers.Supported)
+	require.NoError(t, err)
+	joined := strings.Join(paths, "\n")
+	assert.Contains(t, joined, "ours.go")
+	assert.NotContains(t, joined, "theirs.c")
 }
