@@ -80,7 +80,7 @@ func treeBlocks(language *ts.Language, src string) (out []block, ok bool) {
 	}
 
 	lines := splitLines(src)
-	collect(root, true, lines, &out)
+	collect(root, true, src, lines, &out)
 	sortBlocks(out)
 	return out, true
 }
@@ -88,7 +88,7 @@ func treeBlocks(language *ts.Language, src string) (out []block, ok bool) {
 // collect walks a node's children, gathering each run of comments with the
 // construct that follows it, then recurses. A comment inside a function body
 // is found the same way as a comment above a declaration.
-func collect(node ts.Node, root bool, lines []string, out *[]block) {
+func collect(node ts.Node, root bool, src string, lines []string, out *[]block) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
 		child := node.NamedChild(i)
@@ -99,7 +99,7 @@ func collect(node ts.Node, root bool, lines []string, out *[]block) {
 			i = stop - 1
 			// A comment above the package declaration introduces the package
 			// rather than a construct, so there is nothing of a comparable size
-			if header {
+			if header || documentsTheCgoImport(node, src, next, count) {
 				continue
 			}
 			if b, ok := blockFor(run, node, next, count, lines); ok {
@@ -107,7 +107,7 @@ func collect(node ts.Node, root bool, lines []string, out *[]block) {
 			}
 			continue
 		}
-		collect(child, false, lines, out)
+		collect(child, false, src, lines, out)
 	}
 }
 
@@ -194,6 +194,23 @@ func documentsThePackage(node ts.Node, next, count uint32) bool {
 		return false
 	}
 	return strings.Contains(node.NamedChild(next).Type(), "package")
+}
+
+// documentsTheCgoImport reports a run that cgo reads as C source, which a
+// tightening would break. Only a standalone import counts, as cgo requires.
+func documentsTheCgoImport(node ts.Node, src string, next, count uint32) bool {
+	if next >= count {
+		return false
+	}
+	child := node.NamedChild(next)
+	if child.IsNull() || child.Type() != "import_declaration" {
+		return false
+	}
+	start, end := int(child.StartByte()), int(child.EndByte())
+	if start < 0 || end > len(src) || start >= end {
+		return false
+	}
+	return strings.Join(strings.Fields(src[start:end]), " ") == `import "C"`
 }
 
 // isComment reports a node every grammar spells as a comment.
