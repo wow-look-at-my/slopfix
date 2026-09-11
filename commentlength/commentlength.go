@@ -202,6 +202,14 @@ func trim(b block) []string {
 		kept = tightened
 	}
 
+	// The words can fit where the wrap does not. Laying them out at the budget's
+	// own width drops none, which is what the character floor is for.
+	if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
+		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return wider
+		}
+	}
+
 	for {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
