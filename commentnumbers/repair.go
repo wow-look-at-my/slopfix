@@ -58,25 +58,36 @@ func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, rem
 		if said == para.prose {
 			continue
 		}
-		if said == "" && para.code != "" {
+		if said == "" && para.code != "" && para.trailer == "" {
 			// A comment following code loses the comment, and the code stays.
 			lines[para.lines[0]] = strings.TrimRight(para.code, " \t")
 			continue
 		}
-		wrapped := wrap(said, para.marker, para.width)
+		wrapped := wrap(said, para.marker, para.cont, para.width)
+		// An emptied block keeps its delimiters on a line of their own.
+		if len(wrapped) == 0 && para.trailer != "" {
+			wrapped = []string{strings.TrimRight(para.marker, " ")}
+		}
+		// The closer goes on last, after the line juggling below has settled which line IS last. Carried inside wrapped it
+		closeAt := -1
 		for i, at := range para.lines {
 			if i < len(wrapped) {
 				lines[at] = wrapped[i]
+				closeAt = at
 				continue
 			}
 			// Fewer lines than before: the rest go bare, and the caller drops them.
 			blanked[at+1] = true
-			lines[at] = strings.TrimRight(para.marker, " ")
+			lines[at] = strings.TrimRight(para.cont, " ")
 		}
 		if len(wrapped) > len(para.lines) {
 			// It does not fit: the tail joins the last line, so no offset moves.
 			last := para.lines[len(para.lines)-1]
 			lines[last] = strings.Join(append([]string{lines[last]}, proseOf(wrapped[len(para.lines):])...), " ")
+			closeAt = last
+		}
+		if para.trailer != "" && closeAt >= 0 {
+			lines[closeAt] = strings.TrimRight(lines[closeAt], " ") + " " + para.trailer
 		}
 	}
 	return lines, removed, blanked
@@ -94,6 +105,10 @@ type para struct {
 	width int
 	// code is what sits before a comment that follows code on its line.
 	code string
+	// cont is the marker a continuation line carries.
+	cont string
+	// trailer closes a block comment, and rides the last line a rewrite emits.
+	trailer string
 }
 
 // paragraphsOf turns the parser's runs into the paragraphs a rewrite acts on. A
@@ -104,33 +119,102 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 	for _, run := range runs {
 		var current *para
 		for _, c := range run {
-			i := c.Line - 1
-			if i < 0 || i >= len(lines) {
-				continue
-			}
-			line := lines[i]
-			marker, prose, ok := split(line[min(c.Col, len(line)):])
-			marker = line[:min(c.Col, len(line))] + marker
-			if !ok || prose == "" || isDirective(c.Text) {
+			// A block comment is a single token spanning its lines.
+			if isBlock(c.Text) && !isDirective(c.Text) {
+				if b, ok := blockPara(lines, c); ok {
+					out = append(out, b)
+				}
 				current = nil
 				continue
 			}
-			if c.Col > 0 && c.Col > indentOf(line) {
-				// A comment following code stands alone and cannot be rewrapped.
-				out = append(out, para{marker: marker, lines: []int{i}, prose: prose, width: len(line), code: line[:c.Col]})
-				current = nil
-				continue
+			for n := range max(c.Lines, 1) {
+				i := c.Line - 1 + n
+				if i < 0 || i >= len(lines) {
+					continue
+				}
+				col := 0
+				if n == 0 {
+					col = c.Col
+				}
+				line := lines[i]
+				marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
+				marker = line[:min(col, len(line))] + marker
+				if !ok || (prose == "" && trailer == "") || isDirective(c.Text) {
+					current = nil
+					continue
+				}
+				if n == 0 && col > 0 && col > indentOf(line) {
+					// A comment following code stands alone and cannot be rewrapped.
+					out = append(out, para{marker: marker, cont: marker, lines: []int{i}, prose: prose, width: len(line), code: line[:col], trailer: trailer})
+					current = nil
+					continue
+				}
+				if current == nil {
+					out = append(out, para{marker: marker, cont: marker})
+					current = &out[len(out)-1]
+				} else if len(current.lines) == 1 {
+					// The next line shows what a continuation looks like.
+					current.cont = marker
+				}
+				current.lines = append(current.lines, i)
+				current.prose = strings.TrimSpace(current.prose + " " + prose)
+				current.width = max(current.width, len(line))
+				// The closer sits on the paragraph's last line, wherever that lands.
+				if trailer != "" {
+					current.trailer = trailer
+				}
 			}
-			if current == nil {
-				out = append(out, para{marker: marker})
-				current = &out[len(out)-1]
-			}
-			current.lines = append(current.lines, i)
-			current.prose = strings.TrimSpace(current.prose + " " + prose)
-			current.width = max(current.width, len(line))
 		}
 	}
 	return out
+}
+
+// isBlock reports whether text opens a block comment.
+func isBlock(text string) bool {
+	return strings.HasPrefix(strings.TrimSpace(text), "/*")
+}
+
+// blockPara reads a whole block comment as a single paragraph, delimiters and
+// all. A blank line inside it is a break in the prose, not a break in the
+// comment, so a rewrite that honored it left the block unclosed.
+func blockPara(lines []string, c treecomments.Comment) (para, bool) {
+	b := para{}
+	for n := range max(c.Lines, 1) {
+		i := c.Line - 1 + n
+		if i < 0 || i >= len(lines) {
+			return b, false
+		}
+		col := 0
+		if n == 0 {
+			col = c.Col
+		}
+		line := lines[i]
+		marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
+		if !ok {
+			// A line inside the block carrying no marker at all: an indented example, or a table. A rewrap would destroy it, so
+			return b, false
+		}
+		marker = line[:min(col, len(line))] + marker
+		switch {
+		case n == 0:
+			b.marker, b.cont = marker, marker
+			if col > 0 && col > indentOf(line) {
+				b.code = line[:col]
+			}
+		case len(b.lines) == 1:
+			b.cont = marker
+		}
+		b.lines = append(b.lines, i)
+		if prose != "" {
+			b.prose = strings.TrimSpace(b.prose + " " + prose)
+		}
+		b.width = max(b.width, len(line))
+		if trailer != "" {
+			b.trailer = trailer
+		}
+	}
+	// A block with no closer is not a block this can safely rewrite.
+	return b, b.prose != "" && b.trailer != ""
 }
 
 // indentOf reports the column a line's leading non-blank byte sits at.
@@ -141,17 +225,18 @@ func indentOf(line string) int {
 // wrap lays prose back onto comment lines at the width the paragraph had. A
 // word longer than the width goes on its own line rather than being broken: a
 // URL or an identifier split across lines stops being either.
-func wrap(prose, marker string, width int) []string {
+func wrap(prose, marker, cont string, width int) []string {
 	words := strings.Fields(prose)
 	if len(words) == 0 {
 		return nil
 	}
 	var out []string
-	line := marker
+	line, at := marker, marker
 	for _, w := range words {
-		if line != marker && len(line)+len(w) > width {
+		if line != at && len(line)+len(w) > width {
 			out = append(out, strings.TrimRight(line, " "))
-			line = marker
+			at = cont
+			line = cont
 		}
 		line += w + " "
 	}
@@ -209,20 +294,36 @@ func sentences(prose string) []string {
 	return out
 }
 
-// split separates a comment line's marker and indent from its prose. It reports
-// false for a line carrying no marker, such as the middle of a block comment.
+// split separates a comment line's marker and indent from its prose.
 func split(line string) (marker, prose string, ok bool) {
+	marker, prose, _, ok = splitBlock(line)
+	return marker, prose, ok
+}
+
+// splitBlock is split, also reporting the delimiter that closes a block. The C
+// family opens with a slash-star and closes with a star-slash, and the closer is
+// not prose: left in the text a rewrite wraps it into the middle of the comment,
+// and dropped it leaves the block open and the file unparseable.
+func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	trimmed := strings.TrimLeft(line, " \t")
 	indent := line[:len(line)-len(trimmed)]
-	for _, m := range []string{"///", "//", "#", "*"} {
+	// A line holding only the closer.
+	if rest, closed := strings.CutPrefix(trimmed, "*/"); closed && strings.TrimSpace(rest) == "" {
+		return indent, "", "*/", true
+	}
+	for _, m := range []string{"///", "//", "/*", "#", "*"} {
 		rest, found := strings.CutPrefix(trimmed, m)
 		if !found {
 			continue
 		}
 		space := rest[:len(rest)-len(strings.TrimLeft(rest, " \t"))]
-		return indent + m + space, strings.TrimSpace(rest), true
+		body := strings.TrimSpace(rest)
+		if cut, held := strings.CutSuffix(body, "*/"); held {
+			return indent + m + space, strings.TrimSpace(cut), "*/", true
+		}
+		return indent + m + space, body, "", true
 	}
-	return "", "", false
+	return "", "", "", false
 }
 
 // dropEmptied removes the lines the repair left carrying a bare marker. A line

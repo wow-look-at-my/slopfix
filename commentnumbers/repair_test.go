@@ -157,3 +157,83 @@ func TestTheRepairFollowsTheExtractorIntoAnotherLanguage(t *testing.T) {
 	repair := commentnumbers.Fix("x.sh", "# It reserves one slot.\necho hi\n")
 	assert.Equal(t, "# It reserves a single slot.\necho hi\n", repair.Text)
 }
+
+// A block comment is a single token spanning its lines. The repair read only
+// the line it opens on, so a number below the opener was reported for ever and
+// no run could clear it.
+func TestABlockCommentIsRepairedBelowItsOpener(t *testing.T) {
+	src := "int a;\n\n/* Keeps the ring.\n * The tables run to 12 sections. */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	assert.True(t, got.Changed)
+	assert.Contains(t, got.Text, "Keeps the ring.")
+	assert.NotContains(t, got.Text, "12")
+	assert.Empty(t, commentnumbers.Check("x.c", got.Text), "nothing is left to report")
+}
+
+// The closer is not prose. Dropped, the comment stays open and every
+// declaration below it is swallowed by it, so an emptied block keeps its
+// delimiters and the file still parses.
+func TestAnEmptiedBlockKeepsItsDelimiters(t *testing.T) {
+	src := "int a;\n\n/* The tables run to 12 sections. */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	assert.True(t, got.Changed)
+	assert.Contains(t, got.Text, "*/", "the block is closed")
+	assert.Contains(t, got.Text, "int b;")
+	assert.Equal(t, strings.Count(src, "/*"), strings.Count(got.Text, "/*"), "openers are balanced")
+	assert.Equal(t, strings.Count(src, "*/"), strings.Count(got.Text, "*/"), "closers are balanced")
+	assert.Empty(t, commentnumbers.Check("x.c", got.Text))
+}
+
+// A block opens a single time. Repeating its opener down the paragraph nests a
+// comment inside itself, which is a syntax error in C.
+func TestARewrittenBlockDoesNotRepeatItsOpener(t *testing.T) {
+	long := "/* Asked once. " + strings.Repeat("A clause that carries the paragraph well past a line. ", 4) + "*/\n"
+	src := "int a;\n\n" + long + "int b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	require.True(t, got.Changed)
+	assert.Equal(t, 1, strings.Count(got.Text, "/*"), "the opener is written a single time")
+	assert.Equal(t, 1, strings.Count(got.Text, "*/"))
+}
+
+// A blank line inside a block comment breaks the prose, not the comment. Split
+// into paragraphs, every half got a closer and each half past the opener
+// began a comment nothing closed, so the C file stopped compiling.
+func TestABlockCommentWithABlankLineStaysOneComment(t *testing.T) {
+	src := "int a;\n\n/* Keeps the ring, and says how.\n *\n * The tables run to 12 sections. */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	require.True(t, got.Changed)
+	assert.Equal(t, 1, strings.Count(got.Text, "/*"), "the block still opens a single time")
+	assert.Equal(t, 1, strings.Count(got.Text, "*/"), "and closes a single time")
+	assert.Contains(t, got.Text, "int b;")
+	assert.Empty(t, commentnumbers.Check("x.c", got.Text))
+}
+
+// An indented example or a table inside a block carries no marker of its own. A
+// rewrap would destroy it, so the repair declines and the finding stands rather
+// than the file being mangled.
+func TestABlockHoldingUnmarkedLinesIsDeclined(t *testing.T) {
+	src := "int a;\n\n/* Layout, in 3 parts:\n\n     a | b\n\n */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	assert.Contains(t, got.Text, "a | b", "the table survives")
+	assert.Equal(t, strings.Count(src, "*/"), strings.Count(got.Text, "*/"))
+}
+
+// A block whose closer sits on a line of its own. The marker scan read that
+// line's star as a continuation and its slash as prose, so the delimiter was
+// lost, a stray byte entered the text, and the block was declined instead.
+func TestABlockWhoseCloserHasItsOwnLineIsRepaired(t *testing.T) {
+	src := "int a;\n\n/* Keeps the ring.\n * The tables run to 12 sections.\n */\nint b;\n"
+	got := commentnumbers.Fix("x.c", src)
+
+	require.True(t, got.Changed)
+	assert.NotContains(t, got.Text, "12")
+	assert.Equal(t, 1, strings.Count(got.Text, "/*"))
+	assert.Equal(t, 1, strings.Count(got.Text, "*/"))
+	assert.NotContains(t, got.Text, "sections. /", "the closer is not prose")
+	assert.Empty(t, commentnumbers.Check("x.c", got.Text))
+}

@@ -67,7 +67,7 @@ func Check(filename, src string) []Hit {
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && len(trim(b)) < len(b.text),
+			Repairable: b.exact && !sameText(repair(b), b.text),
 		})
 	}
 	return hits
@@ -94,8 +94,10 @@ func Fix(filename, src string) (string, bool) {
 		if !b.exact {
 			continue
 		}
-		kept := trim(b)
-		if len(kept) >= len(b.text) {
+		kept := repair(b)
+		// A repair that keeps the line count still shortens the text, and the
+		// character half of the rule is what it answers.
+		if sameText(kept, b.text) {
 			continue
 		}
 		lines = append(lines[:b.start], append(kept, lines[b.end:]...)...)
@@ -137,6 +139,10 @@ func judge(b block) (string, bool) {
 // run of text, so indentation costs nothing and both counts compare directly.
 func measure(text []string) (lines, chars int) {
 	for _, line := range text {
+		// A line carrying only its marker holds no words.
+		if bareMarker(line) {
+			continue
+		}
 		content := false
 		for _, r := range line {
 			if unicode.IsSpace(r) {
@@ -150,6 +156,54 @@ func measure(text []string) (lines, chars int) {
 		}
 	}
 	return lines, chars
+}
+
+// bareMarker reports a comment line holding a marker and nothing else.
+func bareMarker(line string) bool {
+	switch strings.TrimSpace(line) {
+	case "//", "///", "#", "*", "/*", "*/":
+		return true
+	}
+	return false
+}
+
+// repair rewrites a block's prose and puts its directive lines back verbatim.
+//
+// Every repair path rebuilds the block out of prose() alone, which drops the
+// directives: the rewrite then REPLACED them. A lost //go:embed leaves the
+// variable it filled empty, and the tests reading it pass on nothing.
+func repair(b block) []string {
+	lead, body, trail := splitDirectives(b.text)
+	if len(lead) == 0 && len(trail) == 0 {
+		return trim(b)
+	}
+	if len(body) == 0 {
+		return b.text
+	}
+	kept := trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact})
+	out := make([]string, 0, len(lead)+len(kept)+len(trail))
+	out = append(out, lead...)
+	out = append(out, kept...)
+	return append(out, trail...)
+}
+
+// splitDirectives separates a block's tool lines from its prose. A directive
+// binds to the declaration by position -- a build constraint leads, a go:embed
+// is last -- so each keeps the side of the prose it was written on.
+func splitDirectives(text []string) (lead, body, trail []string) {
+	seen := false
+	for _, line := range text {
+		switch {
+		case !isDirective(line):
+			seen = true
+			body = append(body, line)
+		case seen:
+			trail = append(trail, line)
+		default:
+			lead = append(lead, line)
+		}
+	}
+	return lead, body, trail
 }
 
 // prose drops the directive lines from a block. A build constraint is an
@@ -202,6 +256,14 @@ func trim(b block) []string {
 		kept = tightened
 	}
 
+	// The words can fit where the wrap does not. Laying them out at the budget's
+	// own width drops none, which is what the character floor is for.
+	if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
+		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return wider
+		}
+	}
+
 	for {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
@@ -212,8 +274,40 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
+	if forced, ok := hardFit(b); ok {
+		return forced
+	}
 	// Nothing shorter both fits and reads.
 	return b.text
+}
+
+// sameText compares runs of lines by what they say. A line count cannot: a
+// repair often keeps the count and still shortens the text.
+func sameText(a, b []string) bool {
+	return strings.Join(a, "\n") == strings.Join(b, "\n")
+}
+
+// hardFit drops words off the end until the block fits, wherever the sentence
+// ends. It mangles prose that no honest cut reaches, so it runs last, after
+// every cut that leaves a comment somebody can read.
+func hardFit(b block) ([]string, bool) {
+	marker, indent, ok := commentShape(b.text)
+	if !ok {
+		return nil, false
+	}
+	var body []string
+	for _, line := range prose(b.text) {
+		body = append(body, stripMarker(line))
+	}
+	words := strings.Fields(strings.Join(body, " "))
+	for len(words) > 0 {
+		out := reflow(strings.Join(words, " "), indent, marker, max(floorChars, b.codeChars))
+		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return out, true
+		}
+		words = words[:len(words)-1]
+	}
+	return nil, false
 }
 
 // cutLastThought drops the last thought out of a block, and reports false when

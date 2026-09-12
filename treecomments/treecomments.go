@@ -51,7 +51,10 @@ var grammars = map[string]func() *ts.Language{
 }
 
 // Supported reports whether a grammar parses a file of that name.
-func Supported(filename string) bool { return grammarFor(filename) != nil }
+func Supported(filename string) bool {
+	_, ok := grammars[strings.ToLower(filepath.Ext(filename))]
+	return ok
+}
 
 // grammarFor answers the grammar an extension names, and nil when none does.
 func grammarFor(filename string) *ts.Language {
@@ -218,4 +221,28 @@ func collect(node ts.Node, src string, out *[]Comment) {
 		}
 		collect(child, src, out)
 	}
+}
+
+// ready reports, per grammar, whether its generate step has run.
+var ready = map[string]func() bool{
+	"bash": bash.Ready, "clang": clang.Ready, "cpp": cpp.Ready,
+	"golang": golang.Ready, "javascript": javascript.Ready,
+	"rust": rust.Ready, "tsx": tsx.Ready, "typescript": typescript.Ready,
+}
+
+// Missing names the grammars built without their parse tables, in a stable
+// order.
+func Missing() []string {
+	var out []string
+	for _, name := range grammarNames {
+		if !ready[name]() {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// grammarNames fixes the order Missing reports, so a message does not shuffle.
+var grammarNames = []string{
+	"bash", "clang", "cpp", "golang", "javascript", "rust", "tsx", "typescript",
 }

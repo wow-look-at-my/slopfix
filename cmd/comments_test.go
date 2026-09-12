@@ -4,20 +4,28 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/commentnumbers"
 )
 
-// runCommentsOn drives the command and returns what it printed. The command is
-// built per call: tests run in parallel, and rootCmd's writer is shared.
+// runCommentsOn drives the command and returns what it printed.
 func runCommentsOn(t *testing.T, paths ...string) (string, error) {
+	t.Helper()
+	return runCommentsFix(t, false, paths...)
+}
+
+// runCommentsFix is the same, with the repair flag the command reads.
+func runCommentsFix(t *testing.T, repair bool, paths ...string) (string, error) {
 	t.Helper()
 	var out bytes.Buffer
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
+	cmd.Flags().Bool("fix", repair, "")
 	err := runComments(cmd, paths)
 	return out.String(), err
 }
@@ -93,4 +101,73 @@ func TestANamedFileIsReadWhateverItsExtension(t *testing.T) {
 func TestAMissingPathIsAnError(t *testing.T) {
 	_, err := runCommentsOn(t, filepath.Join(t.TempDir(), "absent.go"))
 	assert.Error(t, err)
+}
+
+// The rule had a repair the whole time and no way to reach it, so every finding
+// was somebody's hand edit. The table says the number in words where it can.
+func TestFixSaysTheNumberInWords(t *testing.T) {
+	dir := t.TempDir()
+	path := writeAt(t, dir, "a.go", "package p\n\n// Asked once per repository.\nconst p = 1\n")
+
+	out, err := runCommentsFix(t, true, path)
+	require.NoError(t, err, "nothing is left to fail over")
+	assert.Contains(t, out, "repaired")
+
+	body, readErr := os.ReadFile(path)
+	require.NoError(t, readErr)
+	assert.Contains(t, string(body), "a single time per repository")
+	assert.NotContains(t, string(body), "once")
+}
+
+// What the table does not cover is cut, and the cut sentence is printed: the
+// file no longer holds it, so this output is the only record.
+func TestFixCutsWhatTheTableCannotSayAndPrintsIt(t *testing.T) {
+	dir := t.TempDir()
+	path := writeAt(t, dir, "a.go", "package p\n\n// Keeps the state. The tables run to 12 sections.\nconst p = 1\n")
+
+	out, err := runCommentsFix(t, true, path)
+	require.NoError(t, err)
+	assert.Contains(t, out, "cut: The tables run to 12 sections.")
+
+	body, readErr := os.ReadFile(path)
+	require.NoError(t, readErr)
+	assert.Contains(t, string(body), "Keeps the state.", "the sentence carrying no number stays")
+	assert.NotContains(t, string(body), "12")
+}
+
+func TestFixStillFailsOnWhatItCouldNotRepair(t *testing.T) {
+	dir := t.TempDir()
+	path := writeAt(t, dir, "a.go", "package p\n\nconst p = 1 // 12\n")
+
+	_, err := runCommentsFix(t, true, path)
+	if len(commentNumbersLeft(t, path)) > 0 {
+		assert.Error(t, err)
+		return
+	}
+	assert.NoError(t, err)
+}
+
+// commentNumbersLeft re-reads the file through the rule, so the assertion above
+// tracks the repair rather than restating today's outcome.
+func commentNumbersLeft(t *testing.T, path string) []commentnumbers.Hit {
+	t.Helper()
+	body, err := os.ReadFile(path)
+	require.NoError(t, err)
+	return commentnumbers.Check(path, string(body))
+}
+
+// A submodule is another repository's checkout, and its prose is that
+// repository's to fix. The binary and the pipeline gate both skip it, or a
+// developer and CI disagree about what the tree contains.
+func TestASubmoduleIsNotWalked(t *testing.T) {
+	dir := t.TempDir()
+	writeAt(t, dir, "ours.go", "package p\n\n// Asked once.\nconst p = 1\n")
+	writeAt(t, dir, filepath.Join("upstream", ".git"), "gitdir: ../.git/modules/upstream\n")
+	writeAt(t, dir, filepath.Join("upstream", "theirs.c"), "/* runs once */\n")
+
+	paths, err := commentTargets(dir, commentnumbers.Supported)
+	require.NoError(t, err)
+	joined := strings.Join(paths, "\n")
+	assert.Contains(t, joined, "ours.go")
+	assert.NotContains(t, joined, "theirs.c")
 }

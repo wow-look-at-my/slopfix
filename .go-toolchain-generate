@@ -1,0 +1,8 @@
+# The hash this repo approves for its //go:generate directives. Editing a
+# directive moves it, so the next approval lands in a diff somebody reviews.
+#
+# Each grammar's parse tables are derived data that nothing commits. The
+# directive translates a tree-sitter parser.c, which arrives as a submodule.
+# go-tree-sitter's own grammars are covered too: they ship the same shape, and
+# the hash reads every dependency directive that names an output.
+2d888e552fde
