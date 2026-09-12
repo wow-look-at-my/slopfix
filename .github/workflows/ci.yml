@@ -26,10 +26,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bubblewrap
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # The //go:generate approval lives in .go-toolchain-generate. It is red until the published gate reads that file, and until the gate's hash covers a dependency's directives: that is what moved this repo's value off 9a44cebfe1e2.
       - uses: wow-look-at-my/go-toolchain@master
-        with:
-          # .go-toolchain-generate carries the same hash, which is what a bare local run reads. This input stays until the published gate reads that file, and the two never disagree: editing a directive fails the build with the new value either way.
-          generate: 9a44cebfe1e2
 
       # The binary this run built, not the last one released, so a new rule gates this repository before it ships.
       - run: ./build/slopfix workflows .
