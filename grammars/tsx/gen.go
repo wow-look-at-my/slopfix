@@ -9,9 +9,9 @@ import (
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 )
 
-//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package tsx -scanner github.com/wow-look-at-my/go-tree-sitter/grammars/typescript -out parser.go ../typescript/testdata/tree-sitter-typescript/tsx/src/parser.c
+//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package tsx -scanner github.com/wow-look-at-my/go-tree-sitter/grammars/typescript -out parser.gen.go ../typescript/testdata/tree-sitter-typescript/tsx/src/parser.c
 
-// load is set by the parser.go that the generate step writes.
+// load is set by the parser.gen.go that the generate step writes.
 var (
 	load      func() *ts.Language
 	loadOnce  sync.Once
