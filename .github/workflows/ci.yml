@@ -27,6 +27,9 @@ jobs:
           sudo apt-get install -y bubblewrap
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - uses: wow-look-at-my/go-toolchain@master
+        env:
+          # TEMPORARY: drop this once a go-toolchain built by gosmopolitan v500 or newer is published.
+          GO_TOOLCHAIN_COSMO_VERSION: "476"
         with:
           # Approves the //go:generate directives; editing one fails the build with the new value.
           generate: 961c60645297
