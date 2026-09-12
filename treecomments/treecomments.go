@@ -134,7 +134,65 @@ func Extract(filename, src string) []Comment {
 	}
 	var out []Comment
 	collect(root, src, &out)
-	return out
+	return dropCgoPreamble(root, src, out)
+}
+
+// dropCgoPreamble removes the comment group cgo reads as C source.
+func dropCgoPreamble(root ts.Node, src string, comments []Comment) []Comment {
+	importAt := cgoImport(root, src)
+	if importAt < 0 {
+		return comments
+	}
+	// Upward from the import, because the group is found by what it adjoins.
+	next, cut := importAt, -1
+	for i := len(comments) - 1; i >= 0; i-- {
+		c := comments[i]
+		if c.Offset >= next {
+			continue
+		}
+		if !onlyBlanksBetween(src, c.Offset+len(c.Text), next) {
+			break
+		}
+		cut, next = i, c.Offset
+	}
+	if cut < 0 {
+		return comments
+	}
+	// The group is adjoining, so it ends where the comments reach the import.
+	end := cut
+	for end < len(comments) && comments[end].Offset < importAt {
+		end++
+	}
+	return append(comments[:cut:cut], comments[end:]...)
+}
+
+// cgoImport reports where a standalone `import "C"` starts, and a negative when
+// the file has none. A grouped import carries no preamble, which is cgo's rule.
+func cgoImport(root ts.Node, src string) int {
+	count := root.NamedChildCount()
+	for i := uint32(0); i < count; i++ {
+		child := root.NamedChild(i)
+		if child.IsNull() || child.Type() != "import_declaration" {
+			continue
+		}
+		start, end := int(child.StartByte()), int(child.EndByte())
+		if start < 0 || end > len(src) || start >= end {
+			continue
+		}
+		if strings.Join(strings.Fields(src[start:end]), " ") == `import "C"` {
+			return start
+		}
+	}
+	return -1
+}
+
+// onlyBlanksBetween reports a gap carrying no blank line, which is where the
+// preamble ends: a comment above a blank line is ordinary prose again.
+func onlyBlanksBetween(src string, from, to int) bool {
+	if from > to || to > len(src) {
+		return false
+	}
+	return strings.TrimSpace(src[from:to]) == "" && strings.Count(src[from:to], "\n") <= 1
 }
 
 // collect walks the tree and gathers every comment node under it.
