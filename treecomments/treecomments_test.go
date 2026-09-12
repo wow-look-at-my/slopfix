@@ -82,6 +82,7 @@ func Free() {}
 // caller that only wanted to skip a file it cannot read decoded a parse table,
 // and got a panic where the generate step had not run.
 func TestSupportedDoesNotLoadTheGrammar(t *testing.T) {
+	t.Serial()
 	loaded := false
 	restore := grammars[".probe"]
 	grammars[".probe"] = func() *ts.Language {
