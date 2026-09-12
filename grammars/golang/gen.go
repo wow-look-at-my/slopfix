@@ -18,17 +18,23 @@ var (
 	generated *ts.Language
 )
 
-// Language returns the Go grammar, decoding its tables when a parse
-// needs them. It panics when the generate step has not run, rather than hand
-// back a language that parses nothing.
+// Language returns the Go grammar, decoding its tables when a parse needs
+// them, and nil before the generate step has run.
 func Language() *ts.Language {
 	loadOnce.Do(func() {
 		if load != nil {
 			generated = load()
 		}
 	})
-	if generated == nil {
-		panic("golang: parser.go is missing. Run: go generate ./grammars/golang")
-	}
 	return generated
+}
+
+// Ready reports whether the generate step has run for this grammar.
+func Ready() bool {
+	loadOnce.Do(func() {
+		if load != nil {
+			generated = load()
+		}
+	})
+	return generated != nil
 }

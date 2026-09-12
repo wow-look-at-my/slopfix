@@ -19,16 +19,22 @@ var (
 )
 
 // Language returns the C grammar, decoding its tables when a parse
-// needs them. It panics when the generate step has not run, rather than hand
-// back a language that parses nothing.
+// needs them, and nil before the generate step has run. Ready reports which.
 func Language() *ts.Language {
 	loadOnce.Do(func() {
 		if load != nil {
 			generated = load()
 		}
 	})
-	if generated == nil {
-		panic("clang: parser.go is missing. Run: go generate ./grammars/clang")
-	}
 	return generated
+}
+
+// Ready reports whether the generate step has run for this grammar.
+func Ready() bool {
+	loadOnce.Do(func() {
+		if load != nil {
+			generated = load()
+		}
+	})
+	return generated != nil
 }

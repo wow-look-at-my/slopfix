@@ -222,3 +222,27 @@ func collect(node ts.Node, src string, out *[]Comment) {
 		collect(child, src, out)
 	}
 }
+
+// ready reports, per grammar, whether its generate step has run.
+var ready = map[string]func() bool{
+	"bash": bash.Ready, "clang": clang.Ready, "cpp": cpp.Ready,
+	"golang": golang.Ready, "javascript": javascript.Ready,
+	"rust": rust.Ready, "tsx": tsx.Ready, "typescript": typescript.Ready,
+}
+
+// Missing names the grammars built without their parse tables, in a stable
+// order.
+func Missing() []string {
+	var out []string
+	for _, name := range grammarNames {
+		if !ready[name]() {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// grammarNames fixes the order Missing reports, so a message does not shuffle.
+var grammarNames = []string{
+	"bash", "clang", "cpp", "golang", "javascript", "rust", "tsx", "typescript",
+}

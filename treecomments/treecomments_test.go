@@ -100,3 +100,23 @@ func TestSupportedDoesNotLoadTheGrammar(t *testing.T) {
 	assert.False(t, loaded, "the table stays on disk until a parse needs it")
 	assert.False(t, Supported("a.unknown"))
 }
+
+// A grammar answers nil until its generate step has run, and a rule then reads
+// no comment from the languages it covers. Missing is how a caller says so
+// instead of reporting a clean file nobody parsed.
+func TestMissingNamesTheGrammarsWithoutTables(t *testing.T) {
+	// This suite runs from a checkout, where the generate step has run.
+	assert.Empty(t, Missing(), "a generated tree owes nothing")
+
+	for _, name := range grammarNames {
+		load, ok := ready[name]
+		require.True(t, ok, "%s has no readiness answer", name)
+		assert.True(t, load(), "%s reports its table", name)
+	}
+}
+
+// Every grammar the extension map routes to must have a readiness answer, or
+// Missing reports on a subset of what a parse can fail on.
+func TestEveryGrammarIsNamed(t *testing.T) {
+	assert.Len(t, ready, len(grammarNames))
+}
