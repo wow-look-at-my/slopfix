@@ -51,11 +51,6 @@ var grammars = map[string]func() *ts.Language{
 }
 
 // Supported reports whether a grammar parses a file of that name.
-//
-// It asks the extension and nothing else. Loading the grammar to answer meant
-// decoding a parse table to report that a name is known, and a grammar whose
-// generate step has not run panics rather than decode: a caller that only
-// wanted to skip a file it cannot read got that panic instead.
 func Supported(filename string) bool {
 	_, ok := grammars[strings.ToLower(filepath.Ext(filename))]
 	return ok
