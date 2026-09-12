@@ -1,7 +1,7 @@
 /build/
 
 # ts-translate writes each grammar's parse table from the parser.c its own
-# submodule carries. The output is derived, and it is COMMITTED anyway: a Go
-# module has no build step, so a consumer resolving this repository through the
-# proxy gets exactly what is tracked here. Ignoring the tables left every
-# importer of treecomments with a package that does not compile.
+# submodule carries. The output is derived, so the repository keeps the input
+# and generates the rest at build time.
+grammars/*/parser.go
+grammars/*/tables.zst
