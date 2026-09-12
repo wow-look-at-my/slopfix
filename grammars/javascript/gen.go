@@ -3,4 +3,4 @@
 // from go-tree-sitter rather than being copied here.
 package javascript
 
-//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package javascript -standalone -scanner github.com/wow-look-at-my/go-tree-sitter/grammars/javascript -out parser.go testdata/tree-sitter-javascript/src/parser.c
+//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package javascript -standalone -scanner github.com/wow-look-at-my/go-tree-sitter/grammars/javascript -out parser.gen.go testdata/tree-sitter-javascript/src/parser.c

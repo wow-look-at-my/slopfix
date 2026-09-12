@@ -3,4 +3,4 @@
 // go-tree-sitter rather than being copied here.
 package cpp
 
-//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package cpp -standalone -scanner github.com/wow-look-at-my/go-tree-sitter/grammars/cpp -out parser.go testdata/tree-sitter-cpp/src/parser.c
+//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package cpp -standalone -scanner github.com/wow-look-at-my/go-tree-sitter/grammars/cpp -out parser.gen.go testdata/tree-sitter-cpp/src/parser.c
