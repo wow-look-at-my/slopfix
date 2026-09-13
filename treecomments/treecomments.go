@@ -7,8 +7,11 @@
 package treecomments
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 	"github.com/wow-look-at-my/slopfix/grammars/bash"
@@ -58,21 +61,56 @@ func Supported(filename string) bool {
 	return ok
 }
 
-// grammarFor answers the grammar an extension names, and nil when none does.
-func grammarFor(filename string) *ts.Language {
-	if load, ok := grammars[strings.ToLower(filepath.Ext(filename))]; ok {
-		return load()
+// grammarFor answers the grammar an extension names. named is false when no
+// extension matches, which is a different answer from a named grammar whose
+// parse tables are absent: the first falls back to bash, the second must not.
+func grammarFor(filename string) (language *ts.Language, named bool) {
+	load, ok := grammars[strings.ToLower(filepath.Ext(filename))]
+	if !ok {
+		return nil, false
 	}
-	return nil
+	return load(), true
 }
 
 // languageFor answers the grammar to read a file with. Naming a file IS the
 // request, so an unknown extension falls back to bash.
+//
+// It answers nil when the grammar it wants has no parse tables, and says so.
+// A caller then scans no comments in that file, which is a rule going quiet
+// rather than a rule passing. Nothing else reports it, so this does.
+//
+// A named grammar without tables never falls back to bash.
 func languageFor(filename string) *ts.Language {
-	if language := grammarFor(filename); language != nil {
+	language, named := grammarFor(filename)
+	if named {
+		if language == nil {
+			reportMissingGrammar(filename)
+		}
 		return language
 	}
-	return bash.Language()
+	if language := bash.Language(); language != nil {
+		return language
+	}
+	reportMissingGrammar(filename)
+	return nil
+}
+
+// reported holds the extensions already named, so one absent grammar prints
+// once rather than once per file.
+var reported sync.Map
+
+// reportMissingGrammar names an absent grammar and what it costs, on stderr.
+func reportMissingGrammar(filename string) {
+	ext := strings.ToLower(filepath.Ext(filename))
+	if ext == "" {
+		ext = "(no extension)"
+	}
+	if _, seen := reported.LoadOrStore(ext, true); seen {
+		return
+	}
+	fmt.Fprintf(os.Stderr,
+		"slopfix: no parse tables for %s, so comment rules do not read those files. Run: go generate ./grammars/...\n",
+		ext)
 }
 
 // Comment is a comment's text and where the tree says it begins.
