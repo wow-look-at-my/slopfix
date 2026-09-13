@@ -43,13 +43,13 @@ runs:
     - name: Run slopfix through sh, because a binfmt_misc handler on the MZ magic refuses a direct exec of the APE
       shell: bash
       env:
-        SLOPFMT: ${{ steps.download.outputs.path }}
+        SLOPFIX: ${{ steps.download.outputs.path }}
         INPUT_COMMAND: ${{ inputs.command }}
         INPUT_PATHS: ${{ inputs.paths }}
         INPUT_ONLY: ${{ inputs.only }}
       run: |
         set -euo pipefail
         # INPUT_PATHS is a list of paths, so it is deliberately unquoted.
-        sh "$SLOPFMT" "$INPUT_COMMAND" \
+        sh "$SLOPFIX" "$INPUT_COMMAND" \
           ${INPUT_ONLY:+--only "$INPUT_ONLY"} \
           $INPUT_PATHS

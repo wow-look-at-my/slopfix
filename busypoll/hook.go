@@ -122,8 +122,10 @@ Do not run any of the calls above again on a hunch. Either:
 
   - Reply with NO tool call at all and wait for a real signal -- a queued
     notification, a scheduled trigger firing, an actual event arriving -- or
-  - Arm a real wakeup (ScheduleWakeup / send_later / a Monitor watch) with a
-    genuine delay, then stop. Never re-check by hand in the meantime.
+  - Arm a real wakeup with a genuine delay, using whatever this session
+    actually has, then stop. Never re-check by hand in the meantime. Do not
+    reach for a scheduling tool that is not in your tool list: an ordinary web
+    session has none, and there ending the turn IS how you wait.
 
 Rewrite this turn so it makes none of the calls listed above, then stop.{{if .Repeat}}
 
