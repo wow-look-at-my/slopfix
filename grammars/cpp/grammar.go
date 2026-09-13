@@ -30,3 +30,8 @@ func Language() *ts.Language {
 	})
 	return generated
 }
+
+// Ready reports whether the generate step has run for this grammar.
+func Ready() bool {
+	return Language() != nil
+}
