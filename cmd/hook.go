@@ -146,6 +146,15 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		return ""
 	}
 
+	// Asked before the repair: a reworded comment is refused whatever the
+	// repair would have made of the new text on its own.
+	if reason := handEditReason(in.ToolName, write, rules, ids); reason != "" {
+		return respond(func(r *hookResponse) {
+			r.HookSpecificOutput.PermissionDecision = "deny"
+			r.HookSpecificOutput.PermissionDecisionReason = reason
+		})
+	}
+
 	var removed []string
 	var kept []tombstones.Hit
 	var findings []string
@@ -166,6 +175,15 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		if repair.Changed {
 			u.apply(repair.Text)
 			changed = true
+		}
+	}
+
+	// The fragment carries no file around it, so a comment in it documents
+	// nothing and a fenced block's lines read as a wrapped paragraph.
+	if p := place(in.ToolName, write, rules, ids); p.ok {
+		findings = findings[:0]
+		for _, f := range p.findings {
+			findings = append(findings, f.String())
 		}
 	}
 
