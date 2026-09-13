@@ -43,13 +43,13 @@ runs:
     - name: Run slopfix
       shell: bash
       env:
-        SLOPFMT: ${{ steps.download.outputs.path }}
+        SLOPFIX: ${{ steps.download.outputs.path }}
         INPUT_COMMAND: ${{ inputs.command }}
         INPUT_PATHS: ${{ inputs.paths }}
         INPUT_ONLY: ${{ inputs.only }}
       run: |
         set -euo pipefail
         # INPUT_PATHS is a list of paths, so it is deliberately unquoted.
-        "$SLOPFMT" "$INPUT_COMMAND" \
+        "$SLOPFIX" "$INPUT_COMMAND" \
           ${INPUT_ONLY:+--only "$INPUT_ONLY"} \
           $INPUT_PATHS
