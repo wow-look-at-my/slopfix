@@ -16,16 +16,22 @@ var (
 )
 
 // Language returns the grammar, decoding its tables when a parse needs them.
-// It panics when the generate step has not run, rather than hand back a
-// language that parses nothing.
+// It returns nil when the generate step has not run.
+//
+// A module zip carries no generated file, so a consumer that resolves this
+// module from the proxy has no tables and never can. A panic there takes down
+// a whole toolchain over one language it was not asked about. The caller says
+// what it is skipping instead.
 func Language() *ts.Language {
 	loadOnce.Do(func() {
 		if load != nil {
 			generated = load()
 		}
 	})
-	if generated == nil {
-		panic("rust: parser.gen.go is missing. Run: go generate ./grammars/rust")
-	}
 	return generated
+}
+
+// Ready reports whether the generate step has run for this grammar.
+func Ready() bool {
+	return Language() != nil
 }
