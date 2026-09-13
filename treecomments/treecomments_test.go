@@ -31,6 +31,7 @@ func texts(comments []Comment) []string {
 // the proxy holds a grammar whose tables never load. One such grammar must not
 // end the calling toolchain.
 func TestANamedGrammarWithoutTablesReadsNoFile(t *testing.T) {
+	t.Serial()
 	grammars[".tableless"] = func() *ts.Language { return nil }
 	t.Cleanup(func() { delete(grammars, ".tableless") })
 
