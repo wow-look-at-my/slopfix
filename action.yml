@@ -40,7 +40,7 @@ runs:
         project: slopfix
 
     # slopfix fails when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
-    - name: Run slopfix
+    - name: Run slopfix through sh, because a binfmt_misc handler on the MZ magic refuses a direct exec of the APE
       shell: bash
       env:
         SLOPFMT: ${{ steps.download.outputs.path }}
@@ -50,6 +50,6 @@ runs:
       run: |
         set -euo pipefail
         # INPUT_PATHS is a list of paths, so it is deliberately unquoted.
-        "$SLOPFMT" "$INPUT_COMMAND" \
+        sh "$SLOPFMT" "$INPUT_COMMAND" \
           ${INPUT_ONLY:+--only "$INPUT_ONLY"} \
           $INPUT_PATHS
