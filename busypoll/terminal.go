@@ -44,11 +44,22 @@ func terminalSubjects(recs []record) map[string]bool {
 			}
 		}
 		if containsAny(lower, greenVerdicts) {
-			for _, s := range subs {
-				if strings.HasPrefix(s, "sha:") {
-					out[s] = true
-				}
+			if shas := shaSubjects(subs); len(shas) == 1 {
+				out[shas[0]] = true
 			}
+		}
+	}
+	return out
+}
+
+// shaSubjects keeps the commits out of a record's subjects. A verdict settles
+// the one commit its record is about, and a record naming several says which
+// of them went green no more than it says which did not.
+func shaSubjects(subs []string) []string {
+	var out []string
+	for _, sub := range subs {
+		if strings.HasPrefix(sub, "sha:") {
+			out = append(out, sub)
 		}
 	}
 	return out

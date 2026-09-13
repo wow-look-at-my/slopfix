@@ -335,6 +335,23 @@ func TestAnotherCommitIsStillReadableAfterOneGoesGreen(t *testing.T) {
 	assert.Empty(t, reason, "a push makes a new commit, which is a new question")
 }
 
+// A record naming several commits says which of them went green no more than
+// it says which did not. A green verdict sitting beside an unrelated sha used
+// to settle that sha as well, so a commit still queued answered "settled".
+func TestAGreenVerdictSettlesOnlyTheCommitItsRecordIsAbout(t *testing.T) {
+	const green = "c274ad3c1a9c7bc156d706dc6062b2ab298417c0"
+	const running = "d15b136aa1b2c3d4e5f60718293a4b5c6d7e8f90"
+	tr := stageTranscript(t,
+		bashCall("gh wait-ci runs --branch claude/work"),
+		toolResult("CI PASSED "+green+"\nqueued "+running),
+	)
+
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci checks --sha "+running)))
+
+	assert.Empty(t, reason, "the verdict was about the other commit in that listing")
+}
+
 func TestRereadingTheSameSubjectWithNothingInBetweenIsRefused(t *testing.T) {
 	tr := stageTranscript(t,
 		callWithID("t1", "gh pr view 87 --repo wow-look-at-my/grok-build"),
