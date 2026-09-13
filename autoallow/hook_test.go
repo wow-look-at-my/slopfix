@@ -55,7 +55,6 @@ func TestEvaluateCommands(t *testing.T) {
 // other variable denies nothing in production.
 func TestEvaluateCommandReadsTheLoadedRules(t *testing.T) {
 	t.Serial()
-
 	saved := rules
 	t.Cleanup(func() { rules = saved })
 
