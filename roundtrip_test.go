@@ -39,7 +39,8 @@ func roundTripFixtures() []fixture {
 				"The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion.\n\n" +
-				"The set holds three rules.\n",
+				"The set holds three rules.\n\n" +
+				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n",
 			wants: []string{
 				slopfix.IDHardWrap,
 				ste.IDContraction,
@@ -136,6 +137,24 @@ func TestFixingAFileLeavesNothingForCheckToReport(t *testing.T) {
 			assert.Empty(t, quoted(after))
 		})
 	}
+}
+
+// A number said in words is longer than the number, so the comment rewrite can
+// put a block back over the budget the length cut had just brought it under.
+// The cut runs before the rewrite, so the file came out of one pass still
+// carrying the finding, and the caller had to know to run fix twice.
+func TestALengthenedNumberIsCutBackInTheSamePass(t *testing.T) {
+	// The comment fits its budget as written and does not once every number in
+	// it is said in words, which is the whole of the interaction.
+	src := "package demo\n\n" +
+		"// Reserve takes one slot out of the arena, hands the caller back one handle to it and then publishes the newest entry it has just made now.\n" +
+		"func Reserve() {}\n"
+	require.NotContains(t, findingIDs(slopfix.CheckContent("demo.go", src)), "comments/length",
+		"the fixture has to start inside the budget, or it proves nothing about the rewrite")
+
+	repair := slopfix.Fix(slopfix.Request{Content: src, Path: "demo.go", MaxCommentLines: tombstones.DefaultMaxCommentLines})
+	require.True(t, repair.Changed)
+	assert.Empty(t, quoted(slopfix.CheckContent("demo.go", repair.Text)), repair.Text)
 }
 
 // A second pass changes nothing. A repair that provokes its own rule on the

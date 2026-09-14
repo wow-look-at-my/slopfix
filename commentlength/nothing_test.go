@@ -40,15 +40,34 @@ func TestATrailingCommentInsideABodyLosesItsLines(t *testing.T) {
 	assert.Empty(t, Check("x.go", out))
 }
 
+// A directive in the run is an instruction the prose beside it explains, so it
+// is what the prose is weighed against. A gen.go carries nothing but a
+// //go:generate line and the paragraph saying why, and the deletion above
+// would have taken that paragraph on every run.
+func TestProseBesideADirectiveIsWeighedAgainstIt(t *testing.T) {
+	src := "package p\n\n// A module zip carries the gitlink and none of the submodule's files, so a\n" +
+		"// consumer has to fetch the sources before anything can translate them.\n" +
+		"//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-fetch -repo tree-sitter/tree-sitter-go -dir testdata/tree-sitter-go\n" +
+		"//go:generate go run github.com/wow-look-at-my/go-tree-sitter/cmd/ts-translate -package golang -out parser.gen.go testdata/tree-sitter-go/src/parser.c\n"
+
+	assert.Empty(t, Check("x.go", src))
+	_, changed := Fix("x.go", src)
+	assert.False(t, changed)
+}
+
 // A directive addresses a tool rather than a reader, and a lost //go:embed
-// leaves the variable it filled empty.
-func TestADirectiveSurvivesTheDeletion(t *testing.T) {
-	src := "package p\n\nfunc f() {}\n\n//go:debug madvdontneed=1\n// A trailing note nobody attached to any code at all, sitting at the end of the file and documenting nothing whatsoever.\n"
+// leaves the variable it filled empty. So a run whose prose outweighs even its
+// directive keeps the directive and loses the prose.
+func TestADirectiveSurvivesTheCut(t *testing.T) {
+	src := "package p\n\nfunc f() {}\n\n//go:debug x=1\n" +
+		"// A trailing paragraph nobody attached to any code at all, sitting at the\n" +
+		"// end of the file, running several lines past anything it could be weighed\n" +
+		"// against, and documenting nothing whatsoever for the reader who finds it.\n"
 
 	out, changed := Fix("x.go", src)
 	require.True(t, changed)
-	assert.Contains(t, out, "//go:debug madvdontneed=1")
-	assert.NotContains(t, out, "A trailing note")
+	assert.Contains(t, out, "//go:debug x=1")
+	assert.Empty(t, Check("x.go", out))
 }
 
 // The control. A comment that DOES document code is cut back to fit rather than

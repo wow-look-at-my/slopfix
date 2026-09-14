@@ -150,9 +150,10 @@ func TestANamedIDRepairsThatRuleAlone(t *testing.T) {
 	assert.Equal(t, "It should work; that is fine, we cannot stop.\n", contraction.Text)
 }
 
-// A finding outside the named ID is not reported either, so a caller that asks
-// for a rule is not handed the rest of the category.
-func TestANamedIDReportsThatRuleAlone(t *testing.T) {
+// A finding outside the named ID is neither repaired nor reported, so a caller
+// that asks for a rule is not handed the rest of the category. The named rule
+// itself is repaired and reports nothing afterwards.
+func TestANamedIDLeavesTheRestOfItsCategoryAlone(t *testing.T) {
 	doc := "There are three sections; each is read.\n"
 	repair := slopfix.Fix(slopfix.Request{
 		Content: doc,
@@ -160,9 +161,8 @@ func TestANamedIDReportsThatRuleAlone(t *testing.T) {
 		IDs:     []string{"ste/count"},
 	})
 
-	require.Len(t, repair.Findings, 1)
-	assert.Equal(t, "ste/count", repair.Findings[0].ID)
-	assert.Contains(t, repair.Text, ";")
+	assert.Equal(t, "There are sections; each is read.\n", repair.Text)
+	assert.Empty(t, repair.Findings)
 }
 
 // Naming an ID keeps every other rule's repair off the file, the whole-line

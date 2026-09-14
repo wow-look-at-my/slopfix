@@ -213,6 +213,18 @@ func splitDirectives(text []string) (lead, body, trail []string) {
 	return lead, body, trail
 }
 
+// directivesOf keeps only the directive lines of a block, which is the half
+// prose drops.
+func directivesOf(text []string) []string {
+	kept := make([]string, 0, len(text))
+	for _, line := range text {
+		if isDirective(line) {
+			kept = append(kept, line)
+		}
+	}
+	return kept
+}
+
 // prose drops the directive lines from a block. A build constraint is an
 // instruction to a tool, so measuring it reports an essay nobody wrote.
 func prose(text []string) []string {
