@@ -1,6 +1,8 @@
 package slopfix_test
 
 import (
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -10,6 +12,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
 // fixture is a file the rule set has something to say about, and the rules it
@@ -55,7 +58,12 @@ func roundTripFixtures() []fixture {
 				"// Hold is the gate the caller waits on. It reads every file the session\n" +
 				"// touched, weighs each one against the budget the caller named, and refuses\n" +
 				"// the write when any of them carries a finding no rewrite answers.\n" +
-				"func Hold() {}\n",
+				"func Hold() {}\n\n" +
+				"// Wait blocks until the gate answers. It reads from the .gitmodules parser\n" +
+				"// above, and it holds the one top directory the walk was handed, and it\n" +
+				"// keeps every entry it saw on the way down so a later caller can ask again.\n" +
+				"func Wait() {}\n\n" +
+				"// A trailing note nobody attached to any code at all, documenting nothing.\n",
 			wants: []string{
 				slopfix.IDCommentNumber,
 				"comments/length",
@@ -102,10 +110,30 @@ func TestFixLeavesNoFindingBehind(t *testing.T) {
 					"the fixture stopped provoking %s, so this case proves nothing about it", want)
 			}
 
-			repair := slopfix.Fix(slopfix.Request{Content: f.content, Path: f.path})
+			repair := slopfix.Fix(slopfix.Request{Content: f.content, Path: f.path, MaxCommentLines: tombstones.DefaultMaxCommentLines})
 			after := slopfix.CheckContent(f.path, repair.Text)
 			assert.Empty(t, quoted(after), "a repaired file still carries findings:\n%s", repair.Text)
 			assert.Empty(t, repair.Findings, "the repair reported what it did not repair")
+			assert.Empty(t, repair.Kept, "the repair left a hit for a reader to answer by hand")
+		})
+	}
+}
+
+// The same property through the file path a caller actually runs: `slopfix fix`
+// rewrites the file, and `slopfix check` on what it wrote reports nothing.
+func TestFixingAFileLeavesNothingForCheckToReport(t *testing.T) {
+	for _, f := range roundTripFixtures() {
+		t.Run(f.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), filepath.Base(f.path))
+			require.NoError(t, os.WriteFile(path, []byte(f.content), 0o644))
+
+			repair, err := slopfix.FixFileWith(path, slopfix.Request{MaxCommentLines: tombstones.DefaultMaxCommentLines})
+			require.NoError(t, err)
+			require.True(t, repair.Changed)
+
+			after, err := slopfix.CheckFile(path)
+			require.NoError(t, err)
+			assert.Empty(t, quoted(after))
 		})
 	}
 }
@@ -115,7 +143,7 @@ func TestFixLeavesNoFindingBehind(t *testing.T) {
 func TestFixIsSettledAfterOnePass(t *testing.T) {
 	for _, f := range roundTripFixtures() {
 		t.Run(f.name, func(t *testing.T) {
-			once := slopfix.Fix(slopfix.Request{Content: f.content, Path: f.path}).Text
+			once := slopfix.Fix(slopfix.Request{Content: f.content, Path: f.path, MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
 			twice := slopfix.Fix(slopfix.Request{Content: once, Path: f.path}).Text
 			assert.Equal(t, once, twice)
 		})
