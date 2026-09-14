@@ -7,8 +7,15 @@
 package commentlength
 
 import (
+	"regexp"
 	"strings"
 )
+
+// danglingSpace matches the space a deletion leaves before punctuation that
+// CLOSES something. A period with a word against its right side opens a file
+// name or an extension, and closing the gap there welds it to the word before
+// it: `the .gitmodules parser` became `the.gitmodules parser`.
+var danglingSpace = regexp.MustCompile(`\s+([.,])(\s|$)`)
 
 // tighten rewrites a comment run: it drops filler, applies the shorter phrasing,
 // and reflows the prose to the block's own marker and width.
@@ -74,8 +81,7 @@ func shortenFor(s, surface string) string {
 		}
 	}
 	s = strings.Join(strings.Fields(s), " ")
-	s = strings.ReplaceAll(s, " ,", ",")
-	s = strings.ReplaceAll(s, " .", ".")
+	s = danglingSpace.ReplaceAllString(s, "${1}${2}")
 	return capitalise(original, s)
 }
 

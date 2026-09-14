@@ -66,11 +66,50 @@ func TestFixLeavesALinkTargetAlone(t *testing.T) {
 	assert.Equal(t, "The [it is](https://x/it's) page is not prose.", ste.Fix("The [it's](https://x/it's) page is not prose."))
 }
 
-// A coordinator joining verbs that share a subject is not a seam. A division
-// there writes a sentence with nobody in it.
-func TestFixLeavesALongSentenceAlone(t *testing.T) {
+// A coordinator joining verbs that share a subject is the weaker seam, and the
+// division is taken anyway: the cap is a limit, and a finding no repair answers
+// costs a reader the whole file. The conjunction stays and opens the new
+// sentence, so the division loses no word.
+func TestFixDividesAtASharedSubjectWhenNothingBetterIsThere(t *testing.T) {
 	long := "The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."
-	assert.Equal(t, long, ste.Fix(long))
+	assert.Equal(t,
+		"The gate reads every file in the session. And refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.",
+		ste.Fix(long))
+}
+
+// The seam a writer would have used wins over the bare one beside it.
+func TestFixPrefersAClauseSeamToAWordBoundary(t *testing.T) {
+	long := "The loader opens the file and reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs."
+	assert.Equal(t,
+		"The loader opens the file and reads every row it holds into memory. Which is the whole reason a caller waits on it before the header check runs.",
+		ste.Fix(long))
+}
+
+// With no conjunction, no comma and no clause boundary anywhere, the division
+// falls to a bare gap between two words. Awkward, and under the cap.
+func TestFixDividesASentenceCarryingNoSeamAtAll(t *testing.T) {
+	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
+	fixed := ste.Fix(long)
+	assert.NotEqual(t, long, fixed)
+	assert.Empty(t, ste.Check(fixed, 1))
+}
+
+// A division never lands inside an inline code span, so the span survives the
+// repair exactly as the source wrote it.
+func TestFixDividesALongSentenceAroundACodeSpan(t *testing.T) {
+	long := "The gate reads `a; b` out of every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "`a; b`")
+	assert.Empty(t, ste.Check(fixed, 1))
+}
+
+// A parenthetical counts as a single word, so a division inside it would halve
+// something STE says is indivisible.
+func TestFixDividesALongSentenceAroundAParenthetical(t *testing.T) {
+	long := "The gate reads every file in the session (the header, the body and the trailer alike) and refuses the write when any one of them carries a finding nothing repairs."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "(the header, the body and the trailer alike)")
+	assert.Empty(t, ste.Check(fixed, 1))
 }
 
 // A coordinator joining clauses that each name who acts IS a seam.

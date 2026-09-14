@@ -103,7 +103,11 @@
            test="wow-look-at-my/slopfix#14 is open"
            expect="[wow-look-at-my/slopfix#14](https://github.com/wow-look-at-my/slopfix/issues/14) is open"/>
 
-  <pattern match="\s+([,.;:!?])" to="$1" test="A clause , and a stop ."
+  <!-- The gap only closes when the mark CLOSES something, which is what the
+       whitespace after it says. A period with a word against its right side
+       opens a file name, and closing that gap welded `the .gitmodules parser`
+       into `the.gitmodules parser` across two repositories. -->
+  <pattern match="\s+([,.;:!?])(\s|$)" to="${1}${2}" test="A clause , and a stop ."
            expect="A clause, and a stop."/>
 
   <pattern match="  +" to=" " test="Two  spaces" expect="Two spaces"/>

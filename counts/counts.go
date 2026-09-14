@@ -43,10 +43,25 @@ var inlineCode = regexp.MustCompile("`[^`]*`")
 // cardinal inside verbatim machinery is a literal, not the page's own claim,
 // and quoting the shape is how this rule gets documented.
 func Check(content string) []Hit {
+	return find(content, cardinal.Prose)
+}
+
+// Gate returns every count the merge gate's stale-count rule reports, which is
+// the same walk over a substrate that asks for no frame around the number.
+//
+// The two rules are one rule with two thresholds, and the repair has to cover
+// what the gate REPORTS rather than what this package's own rule does. A count
+// the gate names and no strip reaches is a finding a reader clears by deleting
+// the document.
+func Gate(content string) []Hit {
+	return find(content, cardinal.Gate)
+}
+
+func find(content string, substrate cardinal.Substrate) []Hit {
 	var hits []Hit
 	for _, line := range proseLines(content) {
 		text := blankInlineCode(line.text)
-		for _, found := range cardinal.Find(text, cardinal.Prose) {
+		for _, found := range cardinal.Find(text, substrate) {
 			hits = append(hits, Hit{
 				Phrase: found.Text,
 				Line:   strings.TrimSpace(line.text),
@@ -64,7 +79,15 @@ func Check(content string) []Hit {
 // repaired text with the hits it acted on. Cutting runs back to front, so an
 // earlier span's offsets stay valid.
 func Strip(content string) (string, []Hit) {
-	hits := Check(content)
+	return strip(content, Check(content))
+}
+
+// StripGate is Strip over what the merge gate's stale-count rule reports.
+func StripGate(content string) (string, []Hit) {
+	return strip(content, Gate(content))
+}
+
+func strip(content string, hits []Hit) (string, []Hit) {
 	if len(hits) == 0 {
 		return content, nil
 	}

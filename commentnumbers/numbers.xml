@@ -71,10 +71,21 @@
   <pattern match="(?i)\bthe first\b" to="the earliest" test="The first writer wins" expect="The earliest writer wins"/>
   <pattern match="(?i)\bfirst\b" to="earliest" test="It takes first" expect="It takes earliest"/>
 
+  <!-- One standing in for a noun the reader already has. A determiner swap
+       writes "this a single", which says nothing. These go before the
+       determiner pattern below and leave a pronoun the sentence can use. -->
+  <pattern match="(?i)\b(this|that)\s+one\b" to="${1}" test="It fails when this one does not carry it" expect="It fails when this does not carry it"/>
+  <pattern match="(?i)\bthe\s+one\s+([a-z])" to="the ${1}" test="Dropping the one top directory" expect="Dropping the top directory"/>
+
   <!-- One as a determiner. "A single" keeps the emphasis the number carried,
        which a bare article drops. The group carries the noun's opening letter,
        because RE2 has no lookahead. -->
   <pattern match="(?i)\bone\s+([a-z])" to="a single ${1}" test="It reserves one slot" expect="It reserves a single slot"/>
+
+  <!-- A cardinal governing no noun at all. The tally below deletes the number
+       and trusts the next word to carry the meaning, and a function word
+       carries none: "Batch GET two of them" became "Batch GET of them". -->
+  <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+(of|or|more|other|others|such)\b" to="some ${1}" test="Batch GET two of them" expect="Batch GET some of them"/>
 
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
   <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>
