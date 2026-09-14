@@ -1,0 +1,158 @@
+package slopfix_test
+
+import (
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/ste"
+)
+
+// fixture is a file the rule set has something to say about, and the rules it
+// must provoke.
+type fixture struct {
+	name    string
+	path    string
+	content string
+	wants   []string
+}
+
+// roundTripFixtures carry at least one instance of every rule CheckContent
+// reports. TestEveryRuleAppearsInAFixture holds them to that.
+func roundTripFixtures() []fixture {
+	return []fixture{
+		{
+			name: "document",
+			path: "doc.md",
+			content: "# Title\n\n" +
+				"A paragraph the author wrapped by hand\nacross two lines.\n\n" +
+				"It doesn't run, and a caller should wait.\n\n" +
+				"The gate is shut; the write fails.\n\n" +
+				"The gate is shut, the write fails.\n\n" +
+				"The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
+				"The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
+				"A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion.\n\n" +
+				"The set holds three rules.\n",
+			wants: []string{
+				slopfix.IDHardWrap,
+				ste.IDContraction,
+				ste.IDModal,
+				ste.IDSemicolon,
+				ste.IDCommaSplice,
+				ste.IDSentenceCap,
+				ste.IDStaleCount,
+			},
+		},
+		{
+			name: "source",
+			path: "src.go",
+			content: "package demo\n\n" +
+				"// Batch GET two of them.\nfunc Batch() {}\n\n" +
+				"// Hold is the gate the caller waits on. It reads every file the session\n" +
+				"// touched, weighs each one against the budget the caller named, and refuses\n" +
+				"// the write when any of them carries a finding no rewrite answers.\n" +
+				"func Hold() {}\n",
+			wants: []string{
+				slopfix.IDCommentNumber,
+				"comments/length",
+			},
+		},
+		{
+			name: "workflow",
+			path: ".github/workflows/ci.yml",
+			content: "name: CI\n" +
+				"on:\n" +
+				"  push:\n" +
+				"jobs:\n" +
+				"  all-builds:\n" +
+				"    runs-on: ubuntu-latest\n" +
+				"    steps:\n" +
+				"      # The gate runs here.\n" +
+				"      # It reads the tree.\n" +
+				"      - uses: wow-look-at-my/slopfix@v1\n" +
+				"        continue-on-error: true\n" +
+				"      - name: assert\n" +
+				"        run: |\n" +
+				"          grep -q ok out.txt || { echo \"::error::missing\"; exit 1; }\n",
+			wants: []string{
+				"yaml/comment-block",
+				"yaml/all-builds-job",
+				"yaml/test-in-workflow",
+				"yaml/neutered-gate",
+			},
+		},
+	}
+}
+
+// Every rule slopfix REPORTS, slopfix REPAIRS. A rule the fixer cannot answer
+// leaves the reader two ways out, and the org allows neither: hand-edit the
+// prose, or delete the file. Two documents were deleted over exactly this.
+//
+// So the property is the whole contract: fix, then check, and find nothing.
+func TestFixLeavesNoFindingBehind(t *testing.T) {
+	for _, f := range roundTripFixtures() {
+		t.Run(f.name, func(t *testing.T) {
+			before := findingIDs(slopfix.CheckContent(f.path, f.content))
+			for _, want := range f.wants {
+				assert.Contains(t, before, want,
+					"the fixture stopped provoking %s, so this case proves nothing about it", want)
+			}
+
+			repair := slopfix.Fix(slopfix.Request{Content: f.content, Path: f.path})
+			after := slopfix.CheckContent(f.path, repair.Text)
+			assert.Empty(t, quoted(after), "a repaired file still carries findings:\n%s", repair.Text)
+			assert.Empty(t, repair.Findings, "the repair reported what it did not repair")
+		})
+	}
+}
+
+// A second pass changes nothing. A repair that provokes its own rule on the
+// next run leaves a caller looping, and a hook applying it never settles.
+func TestFixIsSettledAfterOnePass(t *testing.T) {
+	for _, f := range roundTripFixtures() {
+		t.Run(f.name, func(t *testing.T) {
+			once := slopfix.Fix(slopfix.Request{Content: f.content, Path: f.path}).Text
+			twice := slopfix.Fix(slopfix.Request{Content: once, Path: f.path}).Text
+			assert.Equal(t, once, twice)
+		})
+	}
+}
+
+// The fixtures cover the rule set. Without this the case above passes by
+// testing a shrinking share of the rules.
+func TestEveryRuleAppearsInAFixture(t *testing.T) {
+	covered := set.New[string]()
+	for _, f := range roundTripFixtures() {
+		covered.AddRange(f.wants...)
+	}
+	var missing []string
+	for id := range slopfix.AllIDs().All() {
+		if !covered.Contains(id) {
+			missing = append(missing, id)
+		}
+	}
+	sort.Strings(missing)
+	require.Empty(t, missing, "no round-trip fixture provokes: %s", strings.Join(missing, ", "))
+}
+
+func findingIDs(findings []ste.Finding) []string {
+	out := make([]string, 0, len(findings))
+	for _, f := range findings {
+		out = append(out, f.ID)
+	}
+	return out
+}
+
+// quoted renders findings for a failure message, so a break names what is left
+// rather than a count.
+func quoted(findings []ste.Finding) []string {
+	out := make([]string, 0, len(findings))
+	for _, f := range findings {
+		out = append(out, f.String())
+	}
+	return out
+}
