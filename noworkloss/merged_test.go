@@ -41,7 +41,7 @@ func TestProvenanceMessageSurfacesOnceDestructionPreserves(t *testing.T) {
 	lossReason, notices := lossOnlyNotices(t, dir, "echo x > tracked.go")
 	assert.Empty(t, lossReason)
 	require.NotEmpty(t, notices)
-	assert.Contains(t, notices[0], "committed to master")
+	assert.Contains(t, notices[0], "committed to "+currentBranch(t, dir))
 
 	reason := denied(t, dir, "echo x > tracked.go")
 	assert.Contains(t, reason, "tracked.go")
