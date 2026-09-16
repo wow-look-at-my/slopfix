@@ -9,7 +9,10 @@
 // cannot change.
 package busypoll
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // mergeVerdicts mark a pull request as finished. Each is a phrase a result
 // really carries, taken from the payloads this environment delivers.
@@ -25,9 +28,21 @@ var mergeVerdicts = []string{
 // greenVerdicts mark a commit's checks as finished and passing.
 var greenVerdicts = []string{
 	`ci passed`,
-	`builds passed`,
 	`rollup: success`,
 	`(rollup: success)`,
+}
+
+// tally reads the "N/M builds passed" count the required-builds status carries.
+// A status that is still waiting spells its count with the same three words, so
+// the phrase alone settles nothing: only a full count is a verdict.
+var tally = regexp.MustCompile(`(\d+)/(\d+) builds passed`)
+
+func fullTally(text string) bool {
+	m := tally.FindStringSubmatch(text)
+	if m == nil || m[2] == "0" {
+		return false
+	}
+	return m[1] == m[2]
 }
 
 // terminalSubjects returns the subjects a record reported as finished. A record
@@ -43,7 +58,7 @@ func terminalSubjects(recs []record) map[string]bool {
 				out[prs[0]] = true
 			}
 		}
-		if containsAny(lower, greenVerdicts) {
+		if containsAny(lower, greenVerdicts) || fullTally(lower) {
 			if shas := shaSubjects(subs); len(shas) == 1 {
 				out[shas[0]] = true
 			}

@@ -357,6 +357,34 @@ func TestAGreenCommitIsNeverReadAgain(t *testing.T) {
 	assert.Contains(t, reason, "c274ad3")
 }
 
+// The required-builds status spells its pending count with the same three
+// words as its passing one, so a bare phrase match reads "0/1 builds passed"
+// as a green verdict and shuts the commit before a single build has run.
+func TestAPendingBuildCountIsNotAVerdict(t *testing.T) {
+	const sha = "31b41ca7781c48fa37ba1e34b0e618e995bb0e9a"
+	tr := stageTranscript(t,
+		bashCall("gh wait-ci checks --sha "+sha),
+		toolResult("31b41ca  (rollup: pending)\nall-builds  pending  0/1 builds passed - waiting on: build"),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci --sha "+sha)))
+
+	assert.Empty(t, reason, "nothing has passed yet, so there is no verdict to re-read")
+}
+
+func TestAFullBuildCountIsAVerdict(t *testing.T) {
+	const sha = "31b41ca7781c48fa37ba1e34b0e618e995bb0e9a"
+	tr := stageTranscript(t,
+		bashCall("gh wait-ci checks --sha "+sha),
+		toolResult("Commit: "+sha+"\nall-builds  success  3/3 builds passed"),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci --sha "+sha)))
+
+	require.NotEmpty(t, reason, "every build passed, so the commit is settled")
+	assert.Contains(t, reason, "31b41ca")
+}
+
 // A verdict this session read can be partial: `gh wait-ci` reported two
 // checks green while a third was still building, and the guard then refused
 // every further read of that commit for the rest of the session. The refusal
