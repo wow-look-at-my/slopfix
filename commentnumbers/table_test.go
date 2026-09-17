@@ -35,8 +35,8 @@ func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
 	}
 }
 
-// A qualified name is one word, so no marker inside it opens a rewrite. The
-// rule reads its own package's comments, and sync.Once is what it found there.
+// A qualified name is a single word, so no marker inside it opens a rewrite.
+// The rule reads its own package's comments, and sync.a single time is what it found there.
 func TestAQualifiedNameIsLeftWhole(t *testing.T) {
 	for _, prose := range []string{
 		"sync.Once guards it",

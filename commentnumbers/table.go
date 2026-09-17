@@ -113,8 +113,8 @@ func replaceWord(s, word, with string) string {
 }
 
 // wordBoundary reports whether s[at:end] stands as its own word. A marker
-// joining it to a name on either side means it does not: sync.Once names a
-// type, and rewriting the Once out of it spells an identifier that is gone.
+// joining it to a name on either side means it does not, because rewriting a
+// word out of an identifier spells a name that does not exist.
 func wordBoundary(s string, at, end int) bool {
 	if at > 0 && (isWordByte(s[at-1]) || joinsName(s, at-1, -1)) {
 		return false
