@@ -28,8 +28,8 @@ func texts(comments []Comment) []string {
 }
 
 // A module zip carries no generated file, so a consumer resolving slopfix from
-// the proxy holds a grammar whose tables never load. One such grammar must not
-// end the calling toolchain.
+// the proxy holds a grammar whose tables never load. a single such grammar
+// must not end the calling toolchain.
 func TestANamedGrammarWithoutTablesReadsNoFile(t *testing.T) {
 	t.Serial()
 	grammars[".tableless"] = func() *ts.Language { return nil }

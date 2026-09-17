@@ -1,8 +1,8 @@
-// staleness.go bounds how long one observation keeps a subject shut. A
-// verdict can be partial -- three checks reported, one still running -- and
-// even a whole one stops being the answer once the model waits on something
-// that read could not see. So evidence ages out, and the subject re-opens by
-// itself after the same window that separates a busy-poll from a real wait.
+// staleness.go bounds how long a single observation keeps a subject shut. A
+// verdict can be partial -- checks reported, a single still running -- and
+// even a whole a single stops being the answer a single time the model waits
+// on something that read could not see. So evidence ages out, and the
+// subject re-opens by itself after the same window that separates a busy-poll from a real wait.
 package busypoll
 
 import "time"

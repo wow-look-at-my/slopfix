@@ -33,8 +33,8 @@ var greenVerdicts = []string{
 }
 
 // tally reads the "N/M builds passed" count the required-builds status carries.
-// A status that is still waiting spells its count with the same three words, so
-// the phrase alone settles nothing: only a full count is a verdict.
+// A status that is still waiting spells its count with the same words, so the
+// phrase alone settles nothing: only a full count is a verdict.
 var tally = regexp.MustCompile(`(\d+)/(\d+) builds passed`)
 
 func fullTally(text string) bool {
@@ -68,8 +68,8 @@ func terminalSubjects(recs []record) map[string]bool {
 }
 
 // shaSubjects keeps the commits out of a record's subjects. A verdict settles
-// the one commit its record is about, and a record naming several says which
-// of them went green no more than it says which did not.
+// the a single commit its record is about, and a record naming several says
+// which of them went green no more than it says which did not.
 func shaSubjects(subs []string) []string {
 	var out []string
 	for _, sub := range subs {

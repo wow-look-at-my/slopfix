@@ -20,8 +20,8 @@ var (
 //
 // A module zip carries no generated file, so a consumer that resolves this
 // module from the proxy has no tables and never can. A panic there takes down
-// a whole toolchain over one language it was not asked about. The caller says
-// what it is skipping instead.
+// a whole toolchain over a single language it was not asked about. The caller
+// says what it is skipping instead.
 func Language() *ts.Language {
 	loadOnce.Do(func() {
 		if load != nil {

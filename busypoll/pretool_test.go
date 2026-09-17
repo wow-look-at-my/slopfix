@@ -357,9 +357,6 @@ func TestAGreenCommitIsNeverReadAgain(t *testing.T) {
 	assert.Contains(t, reason, "c274ad3")
 }
 
-// The required-builds status spells its pending count with the same three
-// words as its passing one, so a bare phrase match reads "0/1 builds passed"
-// as a green verdict and shuts the commit before a single build has run.
 func TestAPendingBuildCountIsNotAVerdict(t *testing.T) {
 	const sha = "31b41ca7781c48fa37ba1e34b0e618e995bb0e9a"
 	tr := stageTranscript(t,
@@ -385,10 +382,8 @@ func TestAFullBuildCountIsAVerdict(t *testing.T) {
 	assert.Contains(t, reason, "31b41ca")
 }
 
-// A verdict this session read can be partial: `gh wait-ci` reported two
-// checks green while a third was still building, and the guard then refused
-// every further read of that commit for the rest of the session. The refusal
-// has to lapse, or one early observation outlives the thing it observed.
+// The refusal has to lapse, or a single early observation outlives the thing
+// it observed.
 func TestAGreenCommitIsReadableAgainOnceTheVerdictIsStale(t *testing.T) {
 	const sha = "c274ad3c1a9c7bc156d706dc6062b2ab298417c0"
 	tr := stageTranscript(t,
@@ -425,8 +420,8 @@ func TestARepeatedReadIsAllowedAgainOnceTheReadIsStale(t *testing.T) {
 	assert.Empty(t, reason, "a wait this long is a real wait, not a busy-poll")
 }
 
-// The window is one knob for both halves: what counts as no real wait having
-// happened is what counts as evidence still being current.
+// The window is a single knob for both halves: what counts as no real wait
+// having happened is what counts as evidence still being current.
 func TestTheWindowFollowsTheGapSetting(t *testing.T) {
 	t.Setenv("NO_BUSY_POLL_MAX_GAP_SECONDS", "3600")
 	const sha = "c274ad3c1a9c7bc156d706dc6062b2ab298417c0"

@@ -55,7 +55,7 @@ var grammars = map[string]func() *ts.Language{
 
 // Supported reports whether a grammar parses a file of that name. It asks the
 // table of extensions rather than grammarFor, because loading a grammar decodes
-// its parse tables and the question here is only whether one is named.
+// its parse tables and the question here is only whether a single is named.
 func Supported(filename string) bool {
 	_, ok := grammars[strings.ToLower(filepath.Ext(filename))]
 	return ok
@@ -63,7 +63,7 @@ func Supported(filename string) bool {
 
 // grammarFor answers the grammar an extension names. named is false when no
 // extension matches, which is a different answer from a named grammar whose
-// parse tables are absent: the first falls back to bash, the second must not.
+// parse tables are absent: the earliest falls back to bash, the next must not.
 func grammarFor(filename string) (language *ts.Language, named bool) {
 	load, ok := grammars[strings.ToLower(filepath.Ext(filename))]
 	if !ok {
@@ -95,8 +95,8 @@ func languageFor(filename string) *ts.Language {
 	return nil
 }
 
-// reported holds the extensions already named, so one absent grammar prints
-// once rather than once per file.
+// reported holds the extensions already named, so a single absent grammar
+// prints a single time rather than a single time per file.
 var reported sync.Map
 
 // reportMissingGrammar names an absent grammar and what it costs, on stderr.
