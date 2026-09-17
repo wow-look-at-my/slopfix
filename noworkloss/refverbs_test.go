@@ -156,12 +156,19 @@ func TestForceRefspecIsTreatedAsAForcePush(t *testing.T) {
 // push --delete
 // ---------------------------------------------------------------------------
 
-func TestAllowsDeletingARemoteBranchAlreadyMerged(t *testing.T) {
+// A remote branch whose commits survive elsewhere is still not deleted from
+// here: the branch is what its pull request, its CI run and any consumer
+// following it by name are attached to. A merged branch dies with the merge.
+func TestDeniesDeletingARemoteBranchEvenWhenMerged(t *testing.T) {
 	dir := remoteRepo(t)
 	git(t, dir, "push", "-q", "origin", "master:refs/heads/copy") // same commits as master
 	git(t, dir, "fetch", "-q", "origin")
 
-	allowed(t, dir, "git push --delete origin copy")
+	denied(t, dir, "git push --delete origin copy")
+	denied(t, dir, "git push -d origin copy")
+	denied(t, dir, "git push origin :copy")
+	denied(t, dir, "git push origin :refs/heads/copy")
+	denied(t, dir, "git push origin +:copy")
 }
 
 func TestDeniesDeletingARemoteBranchHoldingTheOnlyCopy(t *testing.T) {

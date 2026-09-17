@@ -47,7 +47,9 @@ Both are false positives on the safe half of a legitimate command, and both teac
 
 ## Commands that destroy refs: reachability, not refusal
 
-A separate family destroys refs, commits or the reflog rather than working-tree content: `push --force`, `push --delete`, a `+refspec`, `branch -D`, `branch -M`, `reflog expire`, `reflog delete`, `update-ref -d`, `filter-branch`, `worktree remove --force`.
+A separate family destroys refs, commits or the reflog rather than working-tree content: `push --force`, a `+refspec`, `branch -D`, `branch -M`, `reflog expire`, `reflog delete`, `update-ref -d`, `filter-branch`, `worktree remove --force`.
+
+`push --delete` (and a refspec with nothing before its colon) is not in that family: it is refused outright, whether or not the commits survive. The branch is what a pull request, a CI run and a consumer following it by name are attached to, so its deletion ends all three even when every commit lives on elsewhere, and the merge deletes a merged branch by itself.
 
 None of these is destructive on its own. So the question asked is not "is this verb dangerous" but **does this content exist anywhere else**:
 
@@ -55,7 +57,6 @@ None of these is destructive on its own. So the question asked is not "is this v
 |---|---|---|
 | `branch -D` / `-M` | the branch tip | another ref contains it |
 | `push --force` / `+refspec` | the remote-tracking tip | it is an ancestor of what is being pushed, or another ref contains it |
-| `push --delete` | the remote-tracking tip | another ref contains it |
 | `update-ref -d` | the ref's tip | another ref contains it |
 | `filter-branch` | all of HEAD | `rev-list --count HEAD --not --remotes` is 0 |
 | `reflog expire` / `delete` | nothing reflog-only | `fsck --unreachable --no-reflogs` finds no commit |
