@@ -6,22 +6,15 @@ import (
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 )
 
-// load is set by the parser.gen.go the generate step writes. The tables are
-// data, generated at build time, so this half compiles without them and a
-// consumer resolving this module from the proxy still gets a package.
+// load is set by the parser.gen.go the generate step writes, so this half
+// compiles without the tables.
 var (
 	load      func() *ts.Language
 	loadOnce  sync.Once
 	generated *ts.Language
 )
 
-// Language returns the grammar, decoding its tables when a parse needs them.
-// It returns nil when the generate step has not run.
-//
-// A module zip carries no generated file, so a consumer that resolves this
-// module from the proxy has no tables and never can. A panic there takes down
-// a whole toolchain over a single language it was not asked about. The caller
-// says what it is skipping instead.
+// Language returns the grammar, or nil when the generate step has not run.
 func Language() *ts.Language {
 	loadOnce.Do(func() {
 		if load != nil {
