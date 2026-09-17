@@ -31,7 +31,7 @@ git reset --hard origin/master  # ...and the edits are gone, with no reflog entr
 
 Note the shape. The first command is individually reasonable and destroys nothing. It is what makes the second one lethal. A guard that only gated `reset --hard` will have watched this happen.
 
-## Hazard classes, and why they are not one bit
+## Hazard classes, and why they are not a single bit
 
 The single most tempting simplification here is a boolean: is the tree dirty? It is wrong. It is the failure that gets a guard uninstalled. The verbs do not agree about what "dirty" means:
 
@@ -49,7 +49,7 @@ Both are false positives on the safe half of a legitimate command, and both teac
 
 A separate family destroys refs, commits or the reflog rather than working-tree content: `push --force`, a `+refspec`, `branch -D`, `branch -M`, `reflog expire`, `reflog delete`, `update-ref -d`, `filter-branch`, `worktree remove --force`.
 
-`push --delete` (and a refspec with nothing before its colon) is not in that family: it is refused outright, whether or not the commits survive. The branch is what a pull request, a CI run and a consumer following it by name are attached to, so its deletion ends all three even when every commit lives on elsewhere, and the merge deletes a merged branch by itself.
+`push --delete` (and a refspec with nothing before its colon) is not in that family: it is refused outright, whether or not the commits survive. The branch is what a pull request, a CI run and a consumer following it by name are attached to. Its deletion ends all three even when every commit lives on elsewhere, and the merge deletes a merged branch by itself.
 
 None of these is destructive on its own. So the question asked is not "is this verb dangerous" but **does this content exist anywhere else**:
 
@@ -64,7 +64,7 @@ None of these is destructive on its own. So the question asked is not "is this v
 
 Two facts here were established by running git, and both had already produced a wrong answer in a draft:
 
-- **`--exclude` does not take a full refname.** For `--branches` and `--remotes` the pattern matches the name *without* the `refs/heads/` or `refs/remotes/` prefix. `--exclude=refs/heads/feature --branches` silently excludes nothing, so a branch holding the only copy of a commit reported "0 would be lost". A silent false negative is the worst outcome available here, which is why containment via `for-each-ref --contains` is used instead of hand-built exclusion lists.
+- **`--exclude` does not take a full refname.** For `--branches` and `--remotes` the pattern matches the name *without* the `refs/heads/` or `refs/remotes/` prefix. `--exclude=refs/heads/feature --branches` silently excludes nothing, so a branch holding the only copy of a commit reported "0 will be lost". A silent false negative is the worst outcome available here, which is why containment via `for-each-ref --contains` is used instead of hand-built exclusion lists.
 - **`refs/remotes/<remote>/HEAD` is a symbolic alias** for the branch being overwritten. Counting it as "somewhere else" made every force push look safe. It is filtered out explicitly.
 
 `push --mirror` remains an unconditional refusal: it rewrites every ref at once, so there is no bounded set of commits whose survival can be checked. It is the only member of the family without a reachability answer.
@@ -110,7 +110,7 @@ Two redirect shapes cannot empty a file holding content no git object has. A dev
 
 ## Fail-safety, stated honestly
 
-Inside the process, failure denies for destructive verbs. A panic is recovered and converted to a denial, a git subprocess that errors or exceeds the 3-second timeout produces "cannot tell whether ... would lose uncommitted work". An unreadable repository is never assumed clean. Everything non-destructive fails open. A bug here cannot brick a session.
+Inside the process, failure denies for destructive verbs. A panic is recovered and converted to a denial, a git subprocess that errors or exceeds the 3-second timeout produces "cannot tell whether ... will lose uncommitted work". An unreadable repository is never assumed clean. Everything non-destructive fails open. A bug here cannot brick a session.
 
 So if the binary itself is killed or hangs past the harness timeout, the command proceeds. The internal 3-second git timeout exists to keep the process well inside that window so the deny path is reached rather than the harness's. A hook cannot make itself mandatory. This is a property of the platform, not something the plugin declines to handle.
 

@@ -25,8 +25,10 @@ func remoteRepo(t *testing.T) string {
 	bare := filepath.Join(base, "remote.git")
 	dir := filepath.Join(base, "work")
 
-	git(t, base, "init", "-q", "--bare", bare)
+	// The tests name the branch master; git's built-in default varies.
+	git(t, base, "init", "-q", "--bare", "-b", "master", bare)
 	git(t, base, "clone", "-q", bare, dir)
+	git(t, dir, "symbolic-ref", "HEAD", "refs/heads/master")
 	git(t, dir, "config", "user.email", "guard@example.com")
 	git(t, dir, "config", "user.name", "Guard")
 	writeAt(t, dir, "app.go", "package a\n")
