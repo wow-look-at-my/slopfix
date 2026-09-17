@@ -37,12 +37,7 @@ func bashCallAt(ts, command string) string {
 	return assistantCallAt(ts, "Bash", string(input))
 }
 
-// assistantCall is an assistant record making a tool call.
-func assistantCall(name, input string) string {
-	return assistantCallAt(justNow(3), name, input)
-}
-
-// assistantCallAt is assistantCall written at the timestamp ts.
+// assistantCallAt is an assistant record making a tool call at the timestamp ts.
 func assistantCallAt(ts, name, input string) string {
 	return encodeLine(map[string]any{
 		"type":      "assistant",
