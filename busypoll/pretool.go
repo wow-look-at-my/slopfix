@@ -42,8 +42,7 @@ func judgeCall(c toolCall, recs []record) verdict {
 		return verdict{}
 	}
 
-	// Evidence ages out, so a subject shut by a single observation re-opens
-	// on its own. See staleness.go.
+	// Evidence ages out. See staleness.go.
 	recs = recentRecords(recs)
 
 	terminal := terminalSubjects(recs)

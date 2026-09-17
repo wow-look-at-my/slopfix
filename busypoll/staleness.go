@@ -1,17 +1,13 @@
-// staleness.go bounds how long a single observation keeps a subject shut. A
-// verdict can be partial -- checks reported, a single still running -- and
-// even a whole a single stops being the answer a single time the model waits
-// on something that read could not see. So evidence ages out, and the
-// subject re-opens by itself after the same window that separates a busy-poll from a real wait.
+// staleness.go bounds how long an observation keeps a subject shut. A verdict
+// goes out of date, so evidence ages out and the subject re-opens by itself.
 package busypoll
 
 import "time"
 
-// recentRecords returns the records written inside the window, dropping the
-// older ones. It cuts a prefix, because records arrive in order, and a record
-// with no timestamp keeps the position its neighbours give it. A transcript
-// that carries no usable timestamp at all is returned whole: an unreadable
-// clock must not turn this rule off, and it must not turn it into a block.
+// recentRecords returns the records written inside the window. Records arrive
+// in order, so it cuts a prefix, and an undated record keeps the position its
+// neighbours give it. A transcript with no usable timestamp is returned whole:
+// an unreadable clock must not turn this rule into a block.
 func recentRecords(recs []record) []record {
 	var newest time.Time
 	for _, r := range recs {

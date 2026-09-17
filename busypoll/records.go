@@ -28,8 +28,7 @@ type record struct {
 	// answered names every tool_use id a result has arrived for, error or not. A call with no result carries no state.
 	answered []string
 	raw      string
-	// at is when the harness wrote this record. It is the empty time when
-	// the record carries no timestamp, or a single this package cannot parse.
+	// at is when the harness wrote this record, or the empty time when it carries no readable timestamp.
 	at time.Time
 }
 

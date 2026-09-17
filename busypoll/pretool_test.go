@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// justNow is a timestamp secondsAgo seconds old. A staged record sits near
-// the clock because the guard ages its evidence out against the clock.
+// justNow is a timestamp secondsAgo seconds old. The guard ages evidence out
+// against the clock, so a staged record has to sit near it.
 func justNow(secondsAgo int) string {
 	return time.Now().UTC().Add(-time.Duration(secondsAgo) * time.Second).Format(time.RFC3339)
 }
