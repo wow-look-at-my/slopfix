@@ -45,23 +45,25 @@ func remoteRepo(t *testing.T) string {
 
 func TestAllowsDeletingABranchWhoseCommitsSurviveElsewhere(t *testing.T) {
 	dir := newRepo(t)
+	base := currentBranch(t, dir)
 	git(t, dir, "checkout", "-q", "-b", "merged-feature")
 	writeAt(t, dir, "feature.go", "package a\n")
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-qm", "feature")
-	git(t, dir, "checkout", "-q", "master")
+	git(t, dir, "checkout", "-q", base)
 	git(t, dir, "merge", "-q", "--ff-only", "merged-feature")
 
-	allowed(t, dir, "git branch -D merged-feature") // master holds every commit
+	allowed(t, dir, "git branch -D merged-feature") // the base branch holds every commit
 }
 
 func TestDeniesDeletingABranchWithCommitsOfItsOwn(t *testing.T) {
 	dir := newRepo(t)
+	base := currentBranch(t, dir)
 	git(t, dir, "checkout", "-q", "-b", "orphan-feature")
 	writeAt(t, dir, "only-here.go", "package a\n")
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-qm", "unique work")
-	git(t, dir, "checkout", "-q", "master")
+	git(t, dir, "checkout", "-q", base)
 
 	r := denied(t, dir, "git branch -D orphan-feature")
 	assert.Contains(t, r, "exist nowhere else")
@@ -69,12 +71,13 @@ func TestDeniesDeletingABranchWithCommitsOfItsOwn(t *testing.T) {
 
 func TestAllowsDeletingABranchHeldOnlyByATag(t *testing.T) {
 	dir := newRepo(t)
+	base := currentBranch(t, dir)
 	git(t, dir, "checkout", "-q", "-b", "tagged")
 	writeAt(t, dir, "t.go", "package a\n")
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-qm", "tagged work")
 	git(t, dir, "tag", "keepsake")
-	git(t, dir, "checkout", "-q", "master")
+	git(t, dir, "checkout", "-q", base)
 
 	allowed(t, dir, "git branch -D tagged") // the tag keeps it findable
 }
@@ -163,7 +166,7 @@ func TestForceRefspecIsTreatedAsAForcePush(t *testing.T) {
 // following it by name are attached to. A merged branch dies with the merge.
 func TestDeniesDeletingARemoteBranchEvenWhenMerged(t *testing.T) {
 	dir := remoteRepo(t)
-	git(t, dir, "push", "-q", "origin", "master:refs/heads/copy") // same commits as master
+	git(t, dir, "push", "-q", "origin", "HEAD:refs/heads/copy") // same commits as the base branch
 	git(t, dir, "fetch", "-q", "origin")
 
 	denied(t, dir, "git push --delete origin copy")
@@ -217,14 +220,15 @@ func TestFilterBranchAllowedOnlyWhenHistoryIsPushed(t *testing.T) {
 
 func TestUpdateRefDeleteFollowsReachability(t *testing.T) {
 	dir := newRepo(t)
-	git(t, dir, "branch", "-q", "keeper") // same commits as master
+	base := currentBranch(t, dir)
+	git(t, dir, "branch", "-q", "keeper") // same commits as the base branch
 	allowed(t, dir, "git update-ref -d refs/heads/keeper")
 
 	git(t, dir, "checkout", "-q", "-b", "solo")
 	writeAt(t, dir, "solo.go", "package a\n")
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-qm", "solo")
-	git(t, dir, "checkout", "-q", "master")
+	git(t, dir, "checkout", "-q", base)
 	denied(t, dir, "git update-ref -d refs/heads/solo")
 }
 
