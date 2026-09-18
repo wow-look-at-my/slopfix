@@ -36,6 +36,11 @@
   <!-- One inside a phrase that is not a count of anything. These go before the
        determiner pattern below, which would otherwise read the number as an
        article and write "an or more". -->
+  <rewrite from="either one" to="either" test="It cannot fix either one" expect="It cannot fix either"/>
+  <rewrite from="each one" to="each" test="It reads each one" expect="It reads each"/>
+  <rewrite from="this one" to="this" test="It skips this one" expect="It skips this"/>
+  <rewrite from="that one" to="that" test="It skips that one" expect="It skips that"/>
+  <rewrite from="the one" to="the thing" test="It owns the one below" expect="It owns the thing below"/>
   <rewrite from="one or more" to="any number of" test="It inserts one or more elements" expect="It inserts any number of elements"/>
   <rewrite from="every one of" to="each of" test="It holds every one of the keys" expect="It holds each of the keys"/>
   <rewrite from="at least one of" to="any of" test="It holds at least one of the keys" expect="It holds any of the keys"/>

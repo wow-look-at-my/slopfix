@@ -3,7 +3,7 @@
 //
 // The table is XML rather than Go, the same way commentlength carries its own,
 // so adding a phrase is an edit somebody makes without reading Go.
-package commentnumbers
+package commentfix
 
 import (
 	_ "embed"
@@ -48,12 +48,12 @@ var table = load()
 func load() xmlTable {
 	var parsed xmlTable
 	if err := xml.Unmarshal(numbersXML, &parsed); err != nil {
-		panic(fmt.Sprintf("commentnumbers: numbers.xml does not parse: %v", err))
+		panic(fmt.Sprintf("commentfix: numbers.xml does not parse: %v", err))
 	}
 	for i := range parsed.Patterns {
 		re, err := regexp.Compile(parsed.Patterns[i].Match)
 		if err != nil {
-			panic(fmt.Sprintf("commentnumbers: pattern %q does not compile: %v", parsed.Patterns[i].Match, err))
+			panic(fmt.Sprintf("commentfix: pattern %q does not compile: %v", parsed.Patterns[i].Match, err))
 		}
 		parsed.Patterns[i].re = re
 	}
