@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/wow-look-at-my/go-containers/set"
 )
@@ -40,6 +41,9 @@ func judgeCall(c toolCall, recs []record) verdict {
 	if len(subs) == 0 {
 		return verdict{}
 	}
+
+	// Evidence ages out. See staleness.go.
+	recs = recentRecords(recs)
 
 	terminal := terminalSubjects(recs)
 	for _, s := range subs {
@@ -108,7 +112,10 @@ func readSinceLastSignal(recs []record) map[string]bool {
 // document with a hole in it rather than a run of writes, so the wording
 // reads as the reader will see it.
 const terminalText = `Blocked: %s is settled and this session watched it settle.
-The state is in your transcript. A push makes a new commit, which is a new question.`
+The state is in your transcript. A push makes a new commit, which is a new question.
+
+This refusal lapses %s after the verdict, in case the verdict covered only part
+of the answer.`
 
 // repeatText names the ways out, because a refusal that only says "do not"
 // costs a round trip while the model guesses at what would satisfy it.
@@ -116,14 +123,30 @@ const repeatText = `Blocked: you read the state of %s already, and nothing has
 happened since -- no user message, no wake event, no push of your own. Another
 tool asking after the same subject is the same call.
 
-This unblocks itself the moment anything real happens.`
+This unblocks itself the moment anything real happens, and in any case %s
+after the read you already have.`
 
 func terminalReason(subject string) string {
-	return fmt.Sprintf(terminalText, describe(subject))
+	return fmt.Sprintf(terminalText, describe(subject), spellGap(maxGap()))
 }
 
 func repeatReason(subject string) string {
-	return fmt.Sprintf(repeatText, describe(subject))
+	return fmt.Sprintf(repeatText, describe(subject), spellGap(maxGap()))
+}
+
+// spellGap writes a window the way the refusal reads it out.
+func spellGap(d time.Duration) string {
+	if d%time.Minute == 0 {
+		return plural(int(d/time.Minute), "minute")
+	}
+	return plural(int(d/time.Second), "second")
+}
+
+func plural(n int, unit string) string {
+	if n == 1 {
+		return "1 " + unit
+	}
+	return fmt.Sprintf("%d %ss", n, unit)
 }
 
 // describe renders a subject key back into something a reader recognises.

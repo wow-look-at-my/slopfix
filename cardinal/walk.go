@@ -169,7 +169,7 @@ func tokenNumber(tok Token, words set.Set[string]) (Token, bool) {
 		return hit, true
 	}
 	if isQualifiedName(tok.Text) {
-		return Token{}, false // sync.Once and net/http name themselves
+		return Token{}, false // sync.a single time and net/http name
 	}
 	return wordNumber(tok, words)
 }
