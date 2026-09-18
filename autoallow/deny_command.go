@@ -9,8 +9,7 @@ import (
 )
 
 // A rule names the command a statement RUNS, never the argv spelling, which
-// cannot be enumerated. Command means the logical one: a program, and equally a
-// shell keyword that reads like a program.
+// cannot be enumerated.
 type CommandRule struct {
 	Name string
 	// The section this rule came from: allow, ask or deny.

@@ -7,8 +7,8 @@
 // There, a check nobody makes is a check that never happens, and a repeated
 // read is the only way to learn that CI finished.
 //
-// So the two rules that tell the model to wait apply to a remote session
-// only. The terminal rule applies everywhere: a merged pull request does not
+// So both rules that tell the model to wait apply to a remote session only.
+// The terminal rule applies everywhere: a merged pull request does not
 // un-merge on a laptop either.
 package busypoll
 

@@ -46,10 +46,8 @@ func TestStopIsRefusedAfterFourCloselySpacedIdenticalTurns(t *testing.T) {
 	assert.Equal(t, 2, res.Code)
 	assert.Contains(t, res.Stderr, "gh pr view 186")
 	assert.Contains(t, res.Stderr, "busy-poll")
-	// The refusal names the ways out, because one that only says "do not" costs
-	// a round trip while the reader guesses. It names no scheduling tool: an
-	// ordinary web session has none, and sending the reader after one it cannot
-	// call is the same wasted round trip in a different direction.
+	// The refusal names the ways out, and names no scheduling tool: a web
+	// session has none, so either omission costs the reader a round trip.
 	assert.Contains(t, res.Stderr, "Arm a real wakeup")
 	assert.Contains(t, res.Stderr, "ending the turn IS how you wait")
 	for _, tool := range []string{"ScheduleWakeup", "send_later", "Monitor"} {
