@@ -112,12 +112,27 @@ func replaceWord(s, word, with string) string {
 	return b.String()
 }
 
-// wordBoundary reports whether s[at:end] stands as its own word.
+// wordBoundary reports whether s[at:end] stands as its own word. A marker
+// joining it to a name on either side means it does not, because rewriting a
+// word out of an identifier spells a name that does not exist.
 func wordBoundary(s string, at, end int) bool {
-	if at > 0 && isWordByte(s[at-1]) {
+	if at > 0 && (isWordByte(s[at-1]) || joinsName(s, at-1, -1)) {
 		return false
 	}
-	return end >= len(s) || !isWordByte(s[end])
+	return end >= len(s) || !(isWordByte(s[end]) || joinsName(s, end, +1))
+}
+
+// nameMarkers join an identifier, an import path or a label into a name.
+const nameMarkers = "._/:"
+
+// joinsName reports whether s[at] is a marker with a name character beyond it,
+// reading in the given direction.
+func joinsName(s string, at, step int) bool {
+	if strings.IndexByte(nameMarkers, s[at]) < 0 {
+		return false
+	}
+	beyond := at + step
+	return beyond >= 0 && beyond < len(s) && isWordByte(s[beyond])
 }
 
 func isWordByte(b byte) bool {

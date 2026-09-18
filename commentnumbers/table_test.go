@@ -35,8 +35,20 @@ func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
 	}
 }
 
-// The negative control. Prose the table says nothing about comes back as it went
-// in, so the cases above pass on a rewrite rather than on any edit at all.
+// A qualified name is a single word, so no marker inside it opens a rewrite.
+// The rule reads its own package's comments, and sync.a single time is what it found there.
+func TestAQualifiedNameIsLeftWhole(t *testing.T) {
+	for _, prose := range []string{
+		"sync.Once guards it",
+		"net/http serves it",
+		"it calls Do.Once here",
+	} {
+		assert.Equal(t, prose, Say(prose))
+	}
+	// The control: the same word standing alone still rewrites.
+	assert.Equal(t, "the a single time flag", Say("the once flag"))
+}
+
 func TestProseTheTableDoesNotCoverIsUntouched(t *testing.T) {
 	assert.Equal(t, "It reserves a slot and publishes it", Say("It reserves a slot and publishes it"))
 }

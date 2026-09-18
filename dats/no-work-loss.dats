@@ -4,11 +4,9 @@
 # commit decides whether the content the session is about to destroy survives.
 #
 # The suite runs the built binary against a real repository with a hook on
-# every name the preservation path reaches. An in-process Go test can build the
-# same fixture, but it runs on the host: a hook that hangs holds the test
-# machine, and a hook that reaches the network reaches the real one. dats runs
-# each command under bubblewrap, so a suite that drives a foreign hook is
-# isolated from the machine that runs it.
+# every name the preservation path reaches. dats runs each command under
+# bubblewrap, so a suite that drives a foreign hook is isolated from the
+# machine that runs it.
 #
 # Commands exec the freshly built binary as
 # "${GO_TOOLCHAIN_DATS_BUILD_DIR:-build}/slopfix": go-toolchain's dats phase
