@@ -95,7 +95,21 @@ func topLevel(target string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	return strings.TrimSpace(out), true
+	root, err := Resolve(strings.TrimSpace(out))
+	if err != nil {
+		return "", false
+	}
+	return root, true
+}
+
+// Resolve returns path absolute and free of symlinks, so both sides of a
+// comparison spell a directory alike.
+func Resolve(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(absolute)
 }
 
 func git(dir string, args ...string) (string, bool) {

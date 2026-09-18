@@ -36,6 +36,13 @@ func newRepo(t *testing.T) string {
 	return dir
 }
 
+// currentBranch asks git which branch a fixture repository is on, since
+// the name `git init` picks varies with the git that ran.
+func currentBranch(t *testing.T, dir string) string {
+	t.Helper()
+	return gitOutput(t, dir, "symbolic-ref", "--short", "HEAD")
+}
+
 func git(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
@@ -97,7 +104,7 @@ func TestDeniesResetHardOnDirtyTree(t *testing.T) {
 	assert.Empty(t, lossReason)
 	require.NotEmpty(t, notices)
 	assert.Contains(t, notices[0], "1 modified")
-	assert.Contains(t, notices[0], "committed to master")
+	assert.Contains(t, notices[0], "committed to "+currentBranch(t, dir))
 
 	r := denied(t, dir, "git reset --hard origin/master")
 	assert.Contains(t, r, "git reset")
@@ -109,9 +116,10 @@ func TestDeniesResetHardOnDirtyTree(t *testing.T) {
 func TestPreservesAndAllowsCheckoutOnDirtyTree(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
-	notice := preserved(t, dir, "git checkout master")
+	branch := currentBranch(t, dir)
+	notice := preserved(t, dir, "git checkout "+branch)
 	assert.Contains(t, notice, "git checkout")
-	assert.Contains(t, notice, "committed to master")
+	assert.Contains(t, notice, "committed to "+branch)
 }
 
 // The motivating incident: the trailing command is the dangerous command, and
