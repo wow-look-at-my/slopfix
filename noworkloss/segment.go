@@ -469,7 +469,7 @@ func (w *walker) scriptFile(f word, cwd string, fresh bool) {
 }
 
 // findExec lifts the utility out of `find ... -exec <argv> ;` and walks it as a
-// call of its own. Without this, `find . -name '*.go' -exec sed -i s/a/b/ {} +`
+// call of its own. Without this, `find. -name '*.go' -exec sed -i s/a/b/ {} +`
 // reads as a single invocation of a program called find.
 func (w *walker) findExec(eff []word, cwd string) {
 	for i := 1; i < len(eff); i++ {

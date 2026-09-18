@@ -9,8 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestMain gives every other test in this package a remote session, which is
-// the environment those rules apply to. The local case is asserted here.
+// TestMain gives every other test a remote session, which these rules govern.
 func TestMain(m *testing.M) {
 	os.Setenv("CLAUDE_CODE_REMOTE", "true")
 	os.Exit(m.Run())
