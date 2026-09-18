@@ -5,6 +5,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // Fix applies the repair Check names. A long sentence is left alone,
@@ -23,6 +25,9 @@ func FixSelected(text string, keep func(id string) bool) string {
 		}
 		if keep(IDCommaSplice) {
 			prose = fixSplices(prose)
+		}
+		if keep(IDSentenceCap) {
+			prose = fixSentenceCap(prose)
 		}
 		return prose
 	})
@@ -98,6 +103,92 @@ func fixSplices(prose string) string {
 		commas = append(commas, []int{loc[0], end})
 	}
 	return breakAt(prose, commas)
+}
+
+// coordinator matches a conjunction joining clauses: a candidate seam.
+var coordinator = regexp.MustCompile(`,?\s+(?:and|but|so|then|because)\s+`)
+
+// opensASubject holds the words an independent clause starts its subject with.
+// A coordinator followed by any of them joins clauses that each name who acts.
+// A coordinator followed by anything else joins verbs that SHARE a subject,
+// where a division writes a sentence with nobody in it.
+var opensASubject = set.Of("i", "we", "you", "he", "she", "it", "they", "one",
+	"this", "that", "these", "those", "there", "here",
+	"the", "a", "an", "every", "each", "any", "no", "some", "all", "both",
+	"either", "neither", "another", "such",
+	"its", "their", "his", "her", "our", "your", "my")
+
+// carriesItsOwnSubject reports whether the clause after a seam names who acts.
+// A capital opens a name, which is a subject of its own.
+func carriesItsOwnSubject(clause string) bool {
+	word, _, _ := strings.Cut(strings.TrimSpace(clause), " ")
+	word = strings.Trim(word, `"'`+"`([")
+	if word == "" {
+		return false
+	}
+	if first, _ := utf8.DecodeRuneInString(word); unicode.IsUpper(first) {
+		return true
+	}
+	return opensASubject.Contains(strings.ToLower(word))
+}
+
+// fixSentenceCap divides an over-cap sentence at the usable coordinator nearest
+// its middle, repeating while a half is over. With none it is left for a writer.
+func fixSentenceCap(prose string) string {
+	for range maxDivisions {
+		joiner, found := widestSeam(prose)
+		if !found {
+			return prose
+		}
+		prose = breakAt(prose, [][]int{joiner})
+	}
+	return prose
+}
+
+// maxDivisions bounds the repair: past this, no seam saves the sentence.
+const maxDivisions = 8
+
+// widestSeam answers the coordinator to divide at, inside the earliest sentence
+// over the cap.
+func widestSeam(prose string) ([]int, bool) {
+	at := 0
+	for _, sentence := range Sentences(prose) {
+		start := strings.Index(prose[at:], strings.TrimSpace(sentence))
+		if start < 0 {
+			break
+		}
+		start += at
+		end := start + len(strings.TrimSpace(sentence))
+		at = end
+		if WordCount(sentence) <= SentenceWordCap {
+			continue
+		}
+		var seams [][]int
+		for _, seam := range coordinator.FindAllStringIndex(prose[start:end], -1) {
+			if carriesItsOwnSubject(prose[start+seam[1] : end]) {
+				seams = append(seams, seam)
+			}
+		}
+		if len(seams) == 0 {
+			continue
+		}
+		middle := (end - start) / 2
+		best := seams[0]
+		for _, seam := range seams {
+			if abs(seam[0]-middle) < abs(best[0]-middle) {
+				best = seam
+			}
+		}
+		return []int{start + best[0], start + best[1]}, true
+	}
+	return nil, false
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
 
 // breakAt rewrites each joiner span as a sentence break, and gives the word

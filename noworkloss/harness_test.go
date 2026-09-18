@@ -125,5 +125,3 @@ func decideWithEvent(t *testing.T, event, tool, cwd, command string) string {
 	reason, _ := decide(raw)
 	return reason
 }
-
-// captureStdout and the payload assertion live in hookio_test.go.

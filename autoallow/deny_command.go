@@ -8,9 +8,9 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// Process-level deny: a rule matches the process a statement would START,
-// never the argv spelling, which cannot be enumerated.
-type ProcessRule struct {
+// A rule names the command a statement RUNS, never the argv spelling, which
+// cannot be enumerated.
+type CommandRule struct {
 	Name string
 	// The section this rule came from: allow, ask or deny.
 	Behavior string
@@ -23,9 +23,34 @@ type ProcessRule struct {
 	EvalSubcommands []string
 }
 
+// matchKeyword answers the rule naming a shell keyword the command uses.
+//
+// The resolver below reaches a program. It never reaches `until`, because what
+// a loop runs is its body. So a keyword is matched on the parse node, and a
+// rule is written the same way whichever kind it names.
+func matchKeyword(file *syntax.File, rules []CommandRule) (string, string) {
+	used := set.New[string]()
+	syntax.Walk(file, func(n syntax.Node) bool {
+		if w, ok := n.(*syntax.WhileClause); ok {
+			if w.Until {
+				used.Add("until")
+			} else {
+				used.Add("while")
+			}
+		}
+		return true
+	})
+	for _, rule := range rules {
+		if used.Contains(rule.Name) {
+			return rule.Name, rule.Message
+		}
+	}
+	return "", ""
+}
+
 // isInlineScript reports whether an invocation hands the interpreter a script
 // rather than a file. fedByStdin carries what the argument list cannot show.
-func isInlineScript(d ProcessRule, args []shellwalk.Word, fedByStdin bool) bool {
+func isInlineScript(d CommandRule, args []shellwalk.Word, fedByStdin bool) bool {
 	for i, a := range args {
 		arg := a.Text
 		if shellwalk.StdinMarkers.Contains(arg) {
@@ -53,16 +78,19 @@ func isInlineScript(d ProcessRule, args []shellwalk.Word, fedByStdin bool) bool 
 	return fedByStdin && !shellwalk.NamesAScript(args)
 }
 
-// matchProcessRule walks EVERY statement, including the substitutions,
+// matchCommandRule walks EVERY statement, including the substitutions,
 // subshells and conditionals the allow path refuses to read -- a denied program
 // must never be a `$(...)` away from running.
-func matchProcessRule(command string, denies []ProcessRule) (string, string) {
+func matchCommandRule(command string, denies []CommandRule) (string, string) {
 	if len(denies) == 0 {
 		return "", ""
 	}
 	file, err := syntax.NewParser().Parse(strings.NewReader(command), "")
 	if err != nil {
 		return "", ""
+	}
+	if name, msg := matchKeyword(file, denies); name != "" {
+		return name, msg
 	}
 
 	// `echo 'code' | node` smuggles a script past an argument check.

@@ -31,6 +31,12 @@
 	<test cmd='git show 54d7aa918a94 --stat &amp;&amp; echo "---" &amp;&amp; git show 54d7aa918a94 -- path/to/file.cpp' expect="allow"/>
 
 	<!-- Denied processes, in every spelling the enumeration approach misses. -->
+	<test cmd="until ! pgrep -f make.bash; do sleep 15; done" expect="deny"/>
+	<test cmd="git status &amp;&amp; until false; do sleep 1; done" expect="deny"/>
+	<test cmd="while true; do sleep 1; done" expect="deny"/>
+	<test cmd="true" expect="deny"/>
+	<test cmd="go build ./... || true" expect="deny"/>
+	<test cmd="grep -rn until docs/" expect="allow"/>
 	<test cmd="python --version" expect="deny"/>
 	<test cmd="python3 script.py" expect="deny"/>
 	<test cmd="python3.11 -c 'print(1)'" expect="deny"/>
@@ -85,35 +91,50 @@
 	     path refuses to read (command substitution, subshells, redirects):
 	     otherwise a denied program would be one `$(...)` away from running. -->
 	<deny>
-		<rule process="python"
+		<rule command="python"
 			message="Python is not available here. Use jq for JSON and node for scripts."/>
+
+		<!-- The harness re-invokes the session when a background command exits.
+		     A shell that waits for it holds the turn open, so the wake-up lands
+		     on a blocked turn and the session deadlocks until a human ends it. -->
+		<rule command="until"
+			message="Do not wait in the shell. End the turn and read the output when the command reports, or use gh wait-ci for CI."/>
+
+		<!-- A command that does nothing and reports success. It exists to make a
+		     tool call, a chain or a pipeline look like work. -->
+		<rule command="true"
+			message="This command does nothing. Run the real one, or say what is blocking."/>
+		<rule command="false"
+			message="This command does nothing. Run the real one, or say what is blocking."/>
+		<rule command=":"
+			message="This command does nothing. Run the real one, or say what is blocking."/>
 
 		<!-- node, ruby and perl themselves stay usable; this environment's own
 		     hooks are `node file.ts`. What is denied is handing them a script:
 		     writing a multi-page program into a shell argument, running it, then
 		     rewriting the whole thing to change one line, costs more tokens than
 		     the task and leaves nothing reviewable behind. Put it in a file. -->
-		<rule process="node" inlineScript="true" evalFlags="-e,--eval,-p,--print"
+		<rule command="node" inlineScript="true" evalFlags="-e,--eval,-p,--print"
 			message="Write the script to a file and run it, or use an Edit/Write tool. Inline -e/--eval programs are unreviewable and get rewritten wholesale on every tweak."/>
-		<rule process="ruby" inlineScript="true" evalFlags="-e"
+		<rule command="ruby" inlineScript="true" evalFlags="-e"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
-		<rule process="perl" inlineScript="true" evalFlags="-e,-E"
+		<rule command="perl" inlineScript="true" evalFlags="-e,-E"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
-		<rule process="php" inlineScript="true" evalFlags="-r"
+		<rule command="php" inlineScript="true" evalFlags="-r"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
-		<rule process="deno" inlineScript="true" evalFlags="-e,--eval" evalSubcommands="eval"
+		<rule command="deno" inlineScript="true" evalFlags="-e,--eval" evalSubcommands="eval"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
-		<rule process="bun" inlineScript="true" evalFlags="-e,--eval"
+		<rule command="bun" inlineScript="true" evalFlags="-e,--eval"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
-		<rule process="tsx" inlineScript="true" evalFlags="-e,--eval"
+		<rule command="tsx" inlineScript="true" evalFlags="-e,--eval"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
-		<rule process="ts-node" inlineScript="true" evalFlags="-e,--eval"
+		<rule command="ts-node" inlineScript="true" evalFlags="-e,--eval"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
-		<rule process="lua" inlineScript="true" evalFlags="-e"
+		<rule command="lua" inlineScript="true" evalFlags="-e"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
-		<rule process="Rscript" inlineScript="true" evalFlags="-e"
+		<rule command="Rscript" inlineScript="true" evalFlags="-e"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
-		<rule process="osascript" inlineScript="true" evalFlags="-e"
+		<rule command="osascript" inlineScript="true" evalFlags="-e"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
 	</deny>
 

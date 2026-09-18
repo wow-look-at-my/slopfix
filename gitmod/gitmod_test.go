@@ -16,7 +16,17 @@ func TestARealSubmoduleIsSkipped(t *testing.T) {
 
 	skip, err := gitmod.Skip(root)
 	require.NoError(t, err)
-	assert.True(t, skip.Contains(filepath.Join(root, "vendored")))
+	assert.True(t, skip.Contains(vendored(t, root)))
+}
+
+// vendored names the submodule directory the way a caller testing the skip set
+// names it: through gitmod.Resolve, which is what makes both sides of the
+// comparison agree.
+func vendored(t *testing.T, root string) string {
+	t.Helper()
+	resolved, err := gitmod.Resolve(filepath.Join(root, "vendored"))
+	require.NoError(t, err)
+	return resolved
 }
 
 // The forgery. A declaration alone must never exempt a directory, or the check
@@ -66,5 +76,5 @@ func TestAFileResolvesToItsWorkTree(t *testing.T) {
 
 	skip, err := gitmod.Skip(filepath.Join(root, ".keep"))
 	require.NoError(t, err)
-	assert.True(t, skip.Contains(filepath.Join(root, "vendored")))
+	assert.True(t, skip.Contains(vendored(t, root)))
 }

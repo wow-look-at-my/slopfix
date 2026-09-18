@@ -66,10 +66,19 @@ func TestFixLeavesALinkTargetAlone(t *testing.T) {
 	assert.Equal(t, "The [it is](https://x/it's) page is not prose.", ste.Fix("The [it's](https://x/it's) page is not prose."))
 }
 
-// Splitting a long sentence needs a writer who knows which half is the point.
+// A coordinator joining verbs that share a subject is not a seam. A division
+// there writes a sentence with nobody in it.
 func TestFixLeavesALongSentenceAlone(t *testing.T) {
 	long := "The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."
 	assert.Equal(t, long, ste.Fix(long))
+}
+
+// A coordinator joining clauses that each name who acts IS a seam.
+func TestFixDividesAtAClauseThatNamesWhoActs(t *testing.T) {
+	long := "The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own."
+	assert.Equal(t,
+		"The gate reads every file in the session. The write fails when any one of them carries a finding that a rewrite cannot repair on its own.",
+		ste.Fix(long))
 }
 
 func TestFixLeavesCleanProseAlone(t *testing.T) {

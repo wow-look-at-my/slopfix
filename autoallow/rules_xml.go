@@ -44,7 +44,7 @@ type xmlCommand struct {
 	Description string `xml:"description,attr,omitempty"`
 
 	// The resolved process name: basename, wrappers stripped, version ignored.
-	Process string `xml:"process,attr,omitempty"`
+	Command string `xml:"command,attr,omitempty"`
 	// Narrows Process to an invocation handed a script, sparing `node file.js`.
 	InlineScript    bool   `xml:"inlineScript,attr,omitempty"`
 	EvalFlags       string `xml:"evalFlags,attr,omitempty"`
@@ -97,15 +97,15 @@ func loadXMLRules(data []byte) (Rules, error) {
 	for _, section := range []struct {
 		rules    []xmlCommand
 		commands *[]CommandNode
-		procs    *[]ProcessRule
+		procs    *[]CommandRule
 		behavior string
 	}{
-		{xr.Allow.Rules, &r.Allow, &r.AllowProcesses, "allow"},
-		{xr.Ask.Rules, &r.Ask, &r.AskProcesses, "ask"},
-		{xr.Deny.Rules, &r.Deny, &r.DenyProcesses, "deny"},
+		{xr.Allow.Rules, &r.Allow, &r.AllowCommands, "allow"},
+		{xr.Ask.Rules, &r.Ask, &r.AskCommands, "ask"},
+		{xr.Deny.Rules, &r.Deny, &r.DenyCommands, "deny"},
 	} {
 		for _, xc := range section.rules {
-			if xc.Process != "" {
+			if xc.Command != "" {
 				*section.procs = append(*section.procs, convertXMLProcess(xc, section.behavior))
 				continue
 			}
@@ -127,9 +127,9 @@ func loadXMLRules(data []byte) (Rules, error) {
 	return r, nil
 }
 
-func convertXMLProcess(xc xmlCommand, behavior string) ProcessRule {
-	return ProcessRule{
-		Name:            xc.Process,
+func convertXMLProcess(xc xmlCommand, behavior string) CommandRule {
+	return CommandRule{
+		Name:            xc.Command,
 		Behavior:        behavior,
 		Message:         xc.Message,
 		InlineOnly:      xc.InlineScript,

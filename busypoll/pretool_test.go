@@ -6,10 +6,17 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// justNow is a timestamp secondsAgo seconds old. The guard ages evidence out
+// against the clock, so a staged record has to sit near it.
+func justNow(secondsAgo int) string {
+	return time.Now().UTC().Add(-time.Duration(secondsAgo) * time.Second).Format(time.RFC3339)
+}
 
 // stageTranscript writes lines as a JSONL transcript and returns its path.
 func stageTranscript(t *testing.T, lines ...string) string {
@@ -21,15 +28,20 @@ func stageTranscript(t *testing.T, lines ...string) string {
 
 // bashCall is an assistant record running a Bash command.
 func bashCall(command string) string {
-	input, _ := json.Marshal(map[string]string{"command": command})
-	return assistantCall("Bash", string(input))
+	return bashCallAt(justNow(3), command)
 }
 
-// assistantCall is an assistant record making a tool call.
-func assistantCall(name, input string) string {
+// bashCallAt is bashCall written at the timestamp ts.
+func bashCallAt(ts, command string) string {
+	input, _ := json.Marshal(map[string]string{"command": command})
+	return assistantCallAt(ts, "Bash", string(input))
+}
+
+// assistantCallAt is an assistant record making a tool call at the timestamp ts.
+func assistantCallAt(ts, name, input string) string {
 	return encodeLine(map[string]any{
 		"type":      "assistant",
-		"timestamp": "2026-09-05T01:00:00Z",
+		"timestamp": ts,
 		"message": map[string]any{"role": "assistant", "content": []any{
 			map[string]any{"type": "tool_use", "name": name, "input": json.RawMessage(input)},
 		}},
@@ -49,9 +61,14 @@ func encodeLine(v any) string {
 // toolResult is the record a call's answer arrives in. It never starts a new
 // turn, and it is where a verdict about a subject is reported.
 func toolResult(text string) string {
+	return toolResultAt(justNow(2), text)
+}
+
+// toolResultAt is toolResult written at the timestamp ts.
+func toolResultAt(ts, text string) string {
 	return encodeLine(map[string]any{
 		"type":      "user",
-		"timestamp": "2026-09-05T01:00:01Z",
+		"timestamp": ts,
 		"message": map[string]any{"role": "user", "content": []any{
 			map[string]any{"type": "tool_result", "content": text},
 		}},
@@ -62,7 +79,7 @@ func toolResult(text string) string {
 func userPrompt(text string) string {
 	return encodeLine(map[string]any{
 		"type":      "user",
-		"timestamp": "2026-09-05T01:00:02Z",
+		"timestamp": justNow(1),
 		"message":   map[string]any{"role": "user", "content": text},
 	})
 }
@@ -112,7 +129,7 @@ func TestAMergedPullRequestIsNeverReadAgain(t *testing.T) {
 	require.NotEmpty(t, reason, "a merged pull request cannot answer differently")
 	assert.Contains(t, reason, "wow-look-at-my/grok-build#87",
 		"the refusal must name the subject it settled, not just say no")
-	assert.Contains(t, reason, "cannot leave")
+	assert.Contains(t, reason, "is settled")
 }
 
 func TestADifferentPullRequestIsStillReadable(t *testing.T) {
@@ -128,8 +145,13 @@ func TestADifferentPullRequestIsStillReadable(t *testing.T) {
 // callWithID is an assistant record whose tool_use carries an id, so a result
 // can be tied back to it.
 func callWithID(id, command string) string {
+	return callWithIDAt(justNow(3), id, command)
+}
+
+// callWithIDAt is callWithID written at the timestamp ts.
+func callWithIDAt(ts, id, command string) string {
 	b, _ := json.Marshal(map[string]any{
-		"type": "assistant", "timestamp": "2026-09-05T01:00:00Z",
+		"type": "assistant", "timestamp": ts,
 		"message": map[string]any{"role": "assistant", "content": []any{
 			map[string]any{"type": "tool_use", "id": id, "name": "Bash",
 				"input": map[string]string{"command": command}},
@@ -141,7 +163,7 @@ func callWithID(id, command string) string {
 // describedCall is callWithID plus the `description` a real Bash call carries.
 func describedCall(id, command, description string) string {
 	b, _ := json.Marshal(map[string]any{
-		"type": "assistant", "timestamp": "2026-09-05T01:00:00Z",
+		"type": "assistant", "timestamp": justNow(3),
 		"message": map[string]any{"role": "assistant", "content": []any{
 			map[string]any{"type": "tool_use", "id": id, "name": "Bash",
 				"input": map[string]string{"command": command, "description": description}},
@@ -158,12 +180,17 @@ func describedInput(command, description string) string {
 
 // resultFor is a call's answer. failed says whether it came back an error.
 func resultFor(id, text string, failed bool) string {
+	return resultForAt(justNow(2), id, text, failed)
+}
+
+// resultForAt is resultFor written at the timestamp ts.
+func resultForAt(ts, id, text string, failed bool) string {
 	block := map[string]any{"type": "tool_result", "tool_use_id": id, "content": text}
 	if failed {
 		block["is_error"] = true
 	}
 	b, _ := json.Marshal(map[string]any{
-		"type": "user", "timestamp": "2026-09-05T01:00:01Z",
+		"type": "user", "timestamp": ts,
 		"message": map[string]any{"role": "user", "content": []any{block}},
 	})
 	return string(b)
@@ -173,7 +200,7 @@ func resultFor(id, text string, failed bool) string {
 // with the sidechain flag a subagent's records carry.
 func callIn(id, command, session string, sidechain bool) string {
 	b, _ := json.Marshal(map[string]any{
-		"type": "assistant", "timestamp": "2026-09-05T01:00:00Z",
+		"type": "assistant", "timestamp": justNow(3),
 		"sessionId": session, "isSidechain": sidechain,
 		"message": map[string]any{"role": "assistant", "content": []any{
 			map[string]any{"type": "tool_use", "id": id, "name": "Bash",
@@ -185,7 +212,7 @@ func callIn(id, command, session string, sidechain bool) string {
 
 func resultIn(id, text, session string, sidechain bool) string {
 	b, _ := json.Marshal(map[string]any{
-		"type": "user", "timestamp": "2026-09-05T01:00:01Z",
+		"type": "user", "timestamp": justNow(2),
 		"sessionId": session, "isSidechain": sidechain,
 		"message": map[string]any{"role": "user", "content": []any{
 			map[string]any{"type": "tool_result", "tool_use_id": id, "content": text},
@@ -325,6 +352,85 @@ func TestAGreenCommitIsNeverReadAgain(t *testing.T) {
 	assert.Contains(t, reason, "c274ad3")
 }
 
+func TestAPendingBuildCountIsNotAVerdict(t *testing.T) {
+	const sha = "31b41ca7781c48fa37ba1e34b0e618e995bb0e9a"
+	tr := stageTranscript(t,
+		bashCall("gh wait-ci checks --sha "+sha),
+		toolResult("31b41ca  (rollup: pending)\nall-builds  pending  0/1 builds passed - waiting on: build"),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci --sha "+sha)))
+
+	assert.Empty(t, reason, "nothing has passed yet, so there is no verdict to re-read")
+}
+
+func TestAFullBuildCountIsAVerdict(t *testing.T) {
+	const sha = "31b41ca7781c48fa37ba1e34b0e618e995bb0e9a"
+	tr := stageTranscript(t,
+		bashCall("gh wait-ci checks --sha "+sha),
+		toolResult("Commit: "+sha+"\nall-builds  success  3/3 builds passed"),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci --sha "+sha)))
+
+	require.NotEmpty(t, reason, "every build passed, so the commit is settled")
+	assert.Contains(t, reason, "31b41ca")
+}
+
+// The refusal has to lapse, or a single early observation outlives the thing
+// it observed.
+func TestAGreenCommitIsReadableAgainOnceTheVerdictIsStale(t *testing.T) {
+	const sha = "c274ad3c1a9c7bc156d706dc6062b2ab298417c0"
+	tr := stageTranscript(t,
+		bashCallAt(justNow(1810), "gh wait-ci --sha "+sha),
+		toolResultAt(justNow(1800), "CI PASSED\nCommit: "+sha),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci checks --sha "+sha)))
+
+	assert.Empty(t, reason, "half an hour later the verdict is not the answer any more")
+}
+
+func TestAGreenCommitIsStillShutInsideTheWindow(t *testing.T) {
+	const sha = "c274ad3c1a9c7bc156d706dc6062b2ab298417c0"
+	tr := stageTranscript(t,
+		bashCallAt(justNow(120), "gh wait-ci --sha "+sha),
+		toolResultAt(justNow(115), "CI PASSED\nCommit: "+sha),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci checks --sha "+sha)))
+
+	require.NotEmpty(t, reason, "two minutes later nothing can have changed")
+	assert.Contains(t, reason, "5 minutes", "the refusal must say when it lapses")
+}
+
+func TestARepeatedReadIsAllowedAgainOnceTheReadIsStale(t *testing.T) {
+	tr := stageTranscript(t,
+		callWithIDAt(justNow(1810), "t1", "gh pr view 87 --repo wow-look-at-my/grok-build"),
+		resultForAt(justNow(1800), "t1", `{"pr":"wow-look-at-my/grok-build#87","state":"open"}`, false),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh pr checks 87 --repo wow-look-at-my/grok-build")))
+
+	assert.Empty(t, reason, "a wait this long is a real wait, not a busy-poll")
+}
+
+// The window is a single knob for both halves: what counts as no real wait
+// having happened is what counts as evidence still being current.
+func TestTheWindowFollowsTheGapSetting(t *testing.T) {
+	t.Setenv("NO_BUSY_POLL_MAX_GAP_SECONDS", "3600")
+	const sha = "c274ad3c1a9c7bc156d706dc6062b2ab298417c0"
+	tr := stageTranscript(t,
+		bashCallAt(justNow(1810), "gh wait-ci --sha "+sha),
+		toolResultAt(justNow(1800), "CI PASSED\nCommit: "+sha),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci checks --sha "+sha)))
+
+	require.NotEmpty(t, reason, "an hour-long window still covers a half-hour-old verdict")
+	assert.Contains(t, reason, "60 minutes")
+}
+
 func TestAnotherCommitIsStillReadableAfterOneGoesGreen(t *testing.T) {
 	tr := stageTranscript(t,
 		toolResult("CI PASSED for c274ad3c1a9c7bc156d706dc6062b2ab298417c0"),
@@ -333,6 +439,23 @@ func TestAnotherCommitIsStillReadableAfterOneGoesGreen(t *testing.T) {
 		bashInput("gh wait-ci --sha d15b136aa1b2c3d4e5f60718293a4b5c6d7e8f90")))
 
 	assert.Empty(t, reason, "a push makes a new commit, which is a new question")
+}
+
+// A record naming several commits says which of them went green no more than
+// it says which did not. A green verdict sitting beside an unrelated sha used
+// to settle that sha as well, so a commit still queued answered "settled".
+func TestAGreenVerdictSettlesOnlyTheCommitItsRecordIsAbout(t *testing.T) {
+	const green = "c274ad3c1a9c7bc156d706dc6062b2ab298417c0"
+	const running = "d15b136aa1b2c3d4e5f60718293a4b5c6d7e8f90"
+	tr := stageTranscript(t,
+		bashCall("gh wait-ci runs --branch claude/work"),
+		toolResult("CI PASSED "+green+"\nqueued "+running),
+	)
+
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci checks --sha "+running)))
+
+	assert.Empty(t, reason, "the verdict was about the other commit in that listing")
 }
 
 func TestRereadingTheSameSubjectWithNothingInBetweenIsRefused(t *testing.T) {
@@ -344,7 +467,7 @@ func TestRereadingTheSameSubjectWithNothingInBetweenIsRefused(t *testing.T) {
 		bashInput("gh pr checks 87 --repo wow-look-at-my/grok-build")))
 
 	require.NotEmpty(t, reason, "nothing happened between the two reads")
-	assert.Contains(t, reason, "already read the state of")
+	assert.Contains(t, reason, "read the state of")
 }
 
 func TestRespellingTheQuestionWithAnotherToolIsStillARepeat(t *testing.T) {
@@ -357,7 +480,7 @@ func TestRespellingTheQuestionWithAnotherToolIsStillARepeat(t *testing.T) {
 
 	require.NotEmpty(t, reason,
 		"the subject is the same pull request, so a different tool is the same call")
-	assert.Contains(t, reason, "same pull request or commit")
+	assert.Contains(t, reason, "the same subject is the same call")
 }
 
 func TestAWakeEnvelopeIsRecognisedInAToolResult(t *testing.T) {

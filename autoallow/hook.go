@@ -26,15 +26,15 @@ type ToolInput struct {
 }
 
 // Sections evaluated deny > ask > allow. A rule matches argv as written
-// (CommandNode) or the resolved process name (ProcessRule).
+// (CommandNode) or the resolved process name (CommandRule).
 type Rules struct {
 	Allow []CommandNode `json:"allow"`
 	Ask   []CommandNode `json:"ask"`
 	Deny  []CommandNode `json:"deny"`
 
-	AllowProcesses []ProcessRule `json:"allowProcesses"`
-	AskProcesses   []ProcessRule `json:"askProcesses"`
-	DenyProcesses  []ProcessRule `json:"denyProcesses"`
+	AllowCommands []CommandRule `json:"allowCommands"`
+	AskCommands   []CommandRule `json:"askCommands"`
+	DenyCommands  []CommandRule `json:"denyCommands"`
 
 	MCPServers map[string][]string `json:"mcpServers"`
 
@@ -106,13 +106,13 @@ func evaluateCommandWith(command string, rules Rules) (string, string) {
 	// tree, so they still see a command the allow path below refuses to read --
 	// a `$(...)`, a subshell, anything with a redirect.
 	for _, section := range []struct {
-		rules    []ProcessRule
+		rules    []CommandRule
 		behavior string
 	}{
-		{rules.DenyProcesses, "deny"},
-		{rules.AskProcesses, "ask"},
+		{rules.DenyCommands, "deny"},
+		{rules.AskCommands, "ask"},
 	} {
-		if name, msg := matchProcessRule(command, section.rules); name != "" {
+		if name, msg := matchCommandRule(command, section.rules); name != "" {
 			if msg == "" {
 				msg = name + " may not be run here."
 			}
@@ -154,7 +154,7 @@ func evaluateCommandWith(command string, rules Rules) (string, string) {
 	}
 
 	if allAllowed {
-		if name, _ := matchProcessRule(command, rules.AllowProcesses); name != "" {
+		if name, _ := matchCommandRule(command, rules.AllowCommands); name != "" {
 			return "allow", ""
 		}
 		return "allow", ""

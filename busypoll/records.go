@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"strings"
+	"time"
 )
 
 // toolCall is a tool_use block: the tool it names and the input it carries.
@@ -27,6 +28,8 @@ type record struct {
 	// answered names every tool_use id a result has arrived for, error or not. A call with no result carries no state.
 	answered []string
 	raw      string
+	// at is when the harness wrote this record, or the empty time when it carries no readable timestamp.
+	at time.Time
 }
 
 // wakeMarkers are the envelopes the harness delivers when something really happened, re-opening every subject.
@@ -68,6 +71,9 @@ func parseRecords(path, sessionID string) []record {
 			continue
 		}
 		r := record{raw: unescape(string(line))}
+		if ts, err := time.Parse(time.RFC3339, rec.Timestamp); err == nil {
+			r.at = ts
+		}
 		lower := strings.ToLower(r.raw)
 		for _, m := range wakeMarkers {
 			if strings.Contains(lower, m) {

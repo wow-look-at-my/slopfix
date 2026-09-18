@@ -3,6 +3,8 @@
 //
 // MessageDisplay, not Stop: a Stop refusal on wording only buys a retype. The
 // message arrives in flushes, so the text is accumulated in a per-message file
+// under the temp directory and judged whole at the end. A phrase spanning a
+// flush boundary is missed by anything that judges a flush alone.
 package blamelanguage
 
 import (
@@ -73,8 +75,7 @@ func Run(r io.Reader) Result {
 	if line == "" {
 		return Result{}
 	}
-	// displayContent REPLACES the delta, so send the delta and not the whole
-	// accumulated message: that renders the text again.
+	// displayContent REPLACES the delta: sending the whole message re-renders it.
 	return Result{Stdout: envelope(in.Delta + line)}
 }
 

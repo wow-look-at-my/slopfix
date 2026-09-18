@@ -100,3 +100,27 @@ func reflow(body, indent, marker string, width int) []string {
 	}
 	return append(out, strings.TrimRight(line, " "))
 }
+
+// widen lays a block's prose out at the given width rather than the default.
+//
+// A paragraph break is structure, so each paragraph is laid out on its own.
+// It reports false when the result is no shorter, which leaves the caller to
+// cut instead.
+func widen(text []string, width int) ([]string, bool) {
+	marker, indent, ok := commentShape(text)
+	if !ok {
+		return text, false
+	}
+	var out []string
+	for _, para := range paragraphs(text) {
+		if para.blank {
+			out = append(out, indent+marker)
+			continue
+		}
+		out = append(out, reflow(strings.Join(para.lines, " "), indent, marker, width)...)
+	}
+	if len(out) >= len(text) {
+		return text, false
+	}
+	return out, true
+}

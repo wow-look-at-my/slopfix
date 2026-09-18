@@ -31,6 +31,8 @@ Some rules for text the model produces still live outside this repository. The `
 go-toolchain            # builds build/slopfix, and runs the tests
 ```
 
+`dats/` holds the CLI suites go-toolchain runs after that build. They exec the built binary under a sandbox, which is where a test that drives a foreign git hook belongs. Running one by hand needs the same environment: `GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats`, with bubblewrap installed.
+
 ## Use
 
 ```sh
