@@ -56,7 +56,7 @@ func TestPreservesUntrackedFileContentBeforeRm(t *testing.T) {
 
 	notice := preserved(t, dir, "rm scratch.txt")
 	assert.Contains(t, notice, "scratch.txt")
-	assert.Contains(t, notice, "committed to master")
+	assert.Contains(t, notice, "committed to "+currentBranch(t, dir))
 
 	refs := listPreservationRefs(t, dir)
 	require.Len(t, refs, 1)
@@ -148,7 +148,7 @@ func TestPreservesLocallyWhenPushFails(t *testing.T) {
 
 	notice := preserved(t, dir, "rm scratch.txt")
 	assert.Contains(t, notice, "The push failed")
-	assert.Contains(t, notice, "committed to master")
+	assert.Contains(t, notice, "committed to "+currentBranch(t, dir))
 
 	refs := listPreservationRefs(t, dir)
 	require.Len(t, refs, 1, "the commit must survive on the branch even though the push failed")
@@ -330,11 +330,12 @@ func TestPreserveNeverAttemptedForAStashEntry(t *testing.T) {
 // the commits survive elsewhere -- so it still denies on its own terms.
 func TestPreserveNeverAttemptedForARefDestroyingCommand(t *testing.T) {
 	dir := newRepo(t)
+	base := currentBranch(t, dir)
 	git(t, dir, "checkout", "-q", "-b", "orphan-feature")
 	writeAt(t, dir, "only-here.go", "package a\n")
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-qm", "unique work")
-	git(t, dir, "checkout", "-q", "master")
+	git(t, dir, "checkout", "-q", base)
 
 	r := denied(t, dir, "git branch -D orphan-feature")
 	assert.Contains(t, r, "exist nowhere else")

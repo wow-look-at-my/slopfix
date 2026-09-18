@@ -105,7 +105,7 @@ func workflowTargets(arg string) ([]string, error) {
 			return err
 		}
 		if entry.IsDir() {
-			if absolute, err := filepath.Abs(path); err == nil && submodules.Contains(absolute) {
+			if resolved, err := gitmod.Resolve(path); err == nil && submodules.Contains(resolved) {
 				return filepath.SkipDir
 			}
 			if path == arg || entry.Name() == ".github" {
