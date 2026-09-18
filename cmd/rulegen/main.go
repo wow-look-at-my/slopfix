@@ -30,13 +30,15 @@ func main() {
 		fmt.Fprintln(os.Stderr, "rulegen: -rules, -for, -package and -out are all required")
 		os.Exit(2)
 	}
-	if err := gen.Run(gen.Request{
+	err := gen.Run(gen.Request{
 		Rules:   *rules,
 		Target:  *target,
 		Package: *pkg,
 		Out:     *out,
 		Dir:     filepath.Dir(*out),
-	}); err != nil {
+	})
+	gen.DropCompiler()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "rulegen: %v\n", err)
 		os.Exit(1)
 	}

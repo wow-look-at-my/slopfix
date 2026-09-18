@@ -7,10 +7,47 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sync"
 )
 
-// compilerPackage is the CLI that writes the matchers, run through go run.
+// compilerPackage is the CLI that writes the matchers.
 const compilerPackage = "github.com/wow-look-at-my/go-regex-compiler/cmd/go-regex-compiler"
+
+var (
+	compilerOnce sync.Once
+	compilerPath string
+	compilerDir  string
+	compilerErr  error
+)
+
+// compiler builds the CLI a single time and answers the binary.
+//
+// go run relinks its target on every call, which a table of patterns pays for
+// per pattern. Building it a single time turns the generate step from minutes
+// into seconds, and every consumer of this module pays that step too.
+func compiler() (string, error) {
+	compilerOnce.Do(func() {
+		compilerDir, compilerErr = os.MkdirTemp("", "rulegen")
+		if compilerErr != nil {
+			return
+		}
+		compilerPath = filepath.Join(compilerDir, "go-regex-compiler")
+		build := exec.Command("go", "build", "-o", compilerPath, compilerPackage)
+		build.Stderr = os.Stderr
+		if err := build.Run(); err != nil {
+			compilerErr = fmt.Errorf("building %s: %w", compilerPackage, err)
+		}
+	})
+	return compilerPath, compilerErr
+}
+
+// DropCompiler removes the binary compiler built.
+func DropCompiler() {
+	if compilerDir != "" {
+		os.RemoveAll(compilerDir)
+	}
+}
 
 // regexJob is a single matcher to write.
 type regexJob struct {
@@ -26,7 +63,11 @@ type regexJob struct {
 // regexCompiler writes a single matcher, and reports what the compiler said
 // when it declines the pattern.
 func regexCompiler(req Request, job regexJob) error {
-	args := []string{"run", compilerPackage,
+	bin, err := compiler()
+	if err != nil {
+		return err
+	}
+	args := []string{
 		"--regex", job.Regex,
 		"--match", job.Mode,
 		"--package", req.Package,
@@ -38,7 +79,7 @@ func regexCompiler(req Request, job regexJob) error {
 			"--submatch-func", job.Submatch,
 			"--submatch-names-func", job.Names)
 	}
-	cmd := exec.Command("go", args...)
+	cmd := exec.Command(bin, args...)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("go-regex-compiler declined %s: %w", job.Regex, err)

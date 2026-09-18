@@ -122,8 +122,9 @@ func (p Pattern) match(s string, i int) (start, end int, groups []int, ok bool) 
 	return start, end, idx, true
 }
 
-// expand writes the replacement, resolving $1 and ${1} against the captures.
-// A source group sits at index k+1, because group 1 is the whole match.
+// expand writes the replacement, resolving a dollar group reference against
+// the captures. A source group sits a step along, because the whole match
+// takes the earliest slot.
 func expand(to, s string, idx []int) string {
 	if !strings.ContainsRune(to, '$') {
 		return to
