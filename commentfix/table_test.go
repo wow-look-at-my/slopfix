@@ -11,14 +11,14 @@ import (
 // Every entry in the table drives its own case. An entry that has stopped
 // firing says so here rather than sitting in the file looking enforced.
 func TestEveryTableEntryFires(t *testing.T) {
-	require.NotEmpty(t, table.Rewrites)
-	require.NotEmpty(t, table.Patterns)
+	require.NotEmpty(t, numbersTable.Rewrites)
+	require.NotEmpty(t, numbersTable.Patterns)
 
-	for _, r := range table.Rewrites {
+	for _, r := range numbersTable.Rewrites {
 		require.NotEmpty(t, r.Test, "rewrite %q carries no test", r.From)
 		assert.Equal(t, r.Expect, Say(r.Test), "rewrite %q did not fire", r.From)
 	}
-	for _, p := range table.Patterns {
+	for _, p := range numbersTable.Patterns {
 		require.NotEmpty(t, p.Test, "pattern %q carries no test", p.Match)
 		assert.Equal(t, p.Expect, Say(p.Test), "pattern %q did not fire", p.Match)
 	}
@@ -27,10 +27,10 @@ func TestEveryTableEntryFires(t *testing.T) {
 // What the table says leaves no number behind. An entry whose replacement
 // carried another number would send the repair straight to a cut.
 func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
-	for _, r := range table.Rewrites {
+	for _, r := range numbersTable.Rewrites {
 		assert.Empty(t, cardinal.Find(Say(r.Test), cardinal.Comment), "rewrite %q leaves a number", r.From)
 	}
-	for _, p := range table.Patterns {
+	for _, p := range numbersTable.Patterns {
 		assert.Empty(t, cardinal.Find(Say(p.Test), cardinal.Comment), "pattern %q leaves a number", p.Match)
 	}
 }

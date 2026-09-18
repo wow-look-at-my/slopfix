@@ -5,3 +5,7 @@
 # and generates the rest at build time.
 grammars/*/parser.gen.go
 grammars/*/tables.zst
+
+# rulegen writes the rule tables, and the matchers behind their patterns, from
+# the XML in rules/. Same reason: the repository keeps the input.
+*.gen.go

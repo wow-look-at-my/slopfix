@@ -1,104 +1,27 @@
-// english.go loads the prose table the repair applies, and the phrases it
-// refuses to rewrite.
+// english.go applies the prose table the repair writes, and names the phrases
+// it refuses to rewrite.
 //
-// The table is XML rather than Go, the same way autoallow carries its rules, so
-// adding a word is a single-line edit somebody can make without reading Go.
+// The table itself is rules/, and nothing reads it at run time. cmd/rulegen
+// parses that folder during the build. The generated file beside this holds
+// every entry as a literal, with each pattern compiled to a switch automaton.
+// Adding a word stays an edit to XML that needs no Go.
 package commentlength
 
 import (
-	_ "embed"
-	"encoding/xml"
-	"fmt"
-	"regexp"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
-//go:embed english.xml
-var englishXML []byte
+//go:generate go run github.com/wow-look-at-my/slopfix/cmd/rulegen -rules ../rules -for english -package commentlength -out english.gen.go
 
-// xmlEnglish mirrors english.xml.
-type xmlEnglish struct {
-	Drops    []xmlDrop    `xml:"drop"`
-	Rewrites []xmlRewrite `xml:"rewrite"`
-	Patterns []xmlPattern `xml:"pattern"`
-	Flags    []xmlFlag    `xml:"flag"`
-}
+// english is the table the generated file carries.
+var english = englishTable
 
-// xmlPattern is a rewrite with captures, for a shape a whole-word swap cannot
-// express. `to` uses $1, $2 for the groups, as Go's regexp expansion spells it.
-type xmlPattern struct {
-	Match  string `xml:"match,attr"`
-	To     string `xml:"to,attr"`
-	Where  string `xml:"where,attr"`
-	Test   string `xml:"test,attr"`
-	Expect string `xml:"expect,attr"`
-
-	re *regexp.Regexp
-}
-
-type xmlDrop struct {
-	Word  string `xml:"word,attr"`
-	Where string `xml:"where,attr"`
-	Test  string `xml:"test,attr"`
-}
-
-type xmlRewrite struct {
-	From  string `xml:"from,attr"`
-	To    string `xml:"to,attr"`
-	Where string `xml:"where,attr"`
-	Test  string `xml:"test,attr"`
-}
-
-// surface is where an entry applies. An empty where= means both, so an entry
-// that says nothing about surface applies everywhere.
+// appliesTo reports where an entry applies. An empty where= means both, so an
+// entry that says nothing about surface applies everywhere.
 func appliesTo(where, surface string) bool {
-	return where == "" || where == "both" || where == surface
-}
-
-type xmlFlag struct {
-	Phrase string `xml:"phrase,attr"`
-	Say    string `xml:"say,attr"`
-	Test   string `xml:"test,attr"`
-}
-
-// english is the parsed table. It is parsed at start, and a malformed table
-var english = mustLoadEnglish()
-
-func mustLoadEnglish() xmlEnglish {
-	var e xmlEnglish
-	if err := xml.Unmarshal(englishXML, &e); err != nil {
-		panic(fmt.Sprintf("commentlength: english.xml does not parse: %v", err))
-	}
-	if len(e.Drops) == 0 || len(e.Rewrites) == 0 {
-		panic("commentlength: english.xml carries no drops or no rewrites")
-	}
-	for _, d := range e.Drops {
-		if d.Word == "" || d.Test == "" {
-			panic("commentlength: a <drop> is missing its word or its test")
-		}
-	}
-	for _, r := range e.Rewrites {
-		if r.From == "" || r.To == "" || r.Test == "" {
-			panic("commentlength: a <rewrite> is missing from, to or test")
-		}
-	}
-	for _, f := range e.Flags {
-		if f.Phrase == "" || f.Say == "" || f.Test == "" {
-			panic("commentlength: a <flag> is missing phrase, say or test")
-		}
-	}
-	for i := range e.Patterns {
-		p := &e.Patterns[i]
-		if p.Match == "" || p.Test == "" || p.Expect == "" {
-			panic("commentlength: a <pattern> is missing match, test or expect")
-		}
-		re, err := regexp.Compile(p.Match)
-		if err != nil {
-			panic(fmt.Sprintf("commentlength: <pattern match=%q> does not compile: %v", p.Match, err))
-		}
-		p.re = re
-	}
-	return e
+	return table.AppliesTo(where, surface)
 }
 
 // Suggestion is prose the rule knows is bad and will not rewrite itself.

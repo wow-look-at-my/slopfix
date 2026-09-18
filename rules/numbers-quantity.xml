@@ -1,41 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The English the number repair applies before it cuts anything.
+  A cardinal counting something. The count is true until somebody changes the
+  set, so the repair says what is there and lets the reader count.
 
-  This is the same shape as commentlength/english.xml and autoallow/rules.xml,
-  and for the same reason: a rule a reader can edit without reading Go is a rule
-  that gets edited.
-
-  A <rewrite> swaps a whole phrase, lowercased, between word boundaries. A
-  <pattern> carries a shape a phrase swap cannot express, and runs after every
-  rewrite, so it sees the text the swaps settled. Order inside each kind is the
-  order here.
-
-  Every entry carries `test` and `expect`: the phrase as a comment writes it, and
-  the phrase the repair must produce. numbers_test.go drives each one, so an
-  entry that has stopped firing says so rather than sitting here looking
-  enforced.
-
-  An entry belongs here only when the swap keeps the meaning in EVERY context the
-  phrase appears in. A number the table cannot rewrite is not guessed at: the
-  repair cuts the sentence carrying it, and reports what it cut.
+  The phrase entries go before the two shapes at the foot of the file. A bare
+  cardinal rule reads "one or more" as an article and writes "an or more".
 -->
-<numbers>
+<rules for="numbers">
 
-  <!-- Phrases where the number is idiom rather than a count. -->
-  <rewrite from="first-in-first-out" to="FIFO" test="A first-in-first-out queue" expect="A FIFO queue"/>
-  <rewrite from="first in, first out" to="FIFO" test="It is first in, first out" expect="It is FIFO"/>
-  <rewrite from="last-in-first-out" to="LIFO" test="A last-in-first-out stack" expect="A LIFO stack"/>
-  <rewrite from="last in, first out" to="LIFO" test="It is last in, first out" expect="It is LIFO"/>
-  <rewrite from="one another" to="each other" test="They wait for one another" expect="They wait for each other"/>
-  <rewrite from="another one" to="another" test="It cannot block another one" expect="It cannot block another"/>
-  <rewrite from="no one" to="nobody" test="No one reads it" expect="Nobody reads it"/>
-  <rewrite from="all at once" to="together" test="It releases all at once" expect="It releases together"/>
-  <rewrite from="at once" to="at the same time" test="Both run at once" expect="Both run at the same time"/>
-
-  <!-- One inside a phrase that is not a count of anything. These go before the
-       determiner pattern below, which would otherwise read the number as an
-       article and write "an or more". -->
   <rewrite from="either one" to="either" test="It cannot fix either one" expect="It cannot fix either"/>
   <rewrite from="each one" to="each" test="It reads each one" expect="It reads each"/>
   <rewrite from="this one" to="this" test="It skips this one" expect="It skips this"/>
@@ -65,17 +37,6 @@
   <rewrite from="zero value" to="unset value" test="Its zero value is ready" expect="Its unset value is ready"/>
   <rewrite from="zero" to="empty" test="It returns zero and false" expect="It returns empty and false"/>
 
-  <!-- An ordinal opening an enumeration. The order is the sentence order. -->
-  <pattern match="(?i)\bfirst,\s+" to="" test="First, it locks" expect="It locks"/>
-  <pattern match="(?i)\bsecond,\s+" to="then " test="Second, it writes" expect="Then it writes"/>
-  <pattern match="(?i)\bthird,\s+" to="then " test="Third, it unlocks" expect="Then it unlocks"/>
-
-  <!-- An ordinal naming a position, said as a relation instead. -->
-  <pattern match="(?i)\ba second\b" to="another" test="It grows a second segment" expect="It grows another segment"/>
-  <pattern match="(?i)\bthe second\b" to="the next" test="The second call wins" expect="The next call wins"/>
-  <pattern match="(?i)\bthe first\b" to="the earliest" test="The first writer wins" expect="The earliest writer wins"/>
-  <pattern match="(?i)\bfirst\b" to="earliest" test="It takes first" expect="It takes earliest"/>
-
   <!-- One as a determiner. "A single" keeps the emphasis the number carried,
        which a bare article drops. The group carries the noun's opening letter,
        because RE2 has no lookahead. -->
@@ -84,4 +45,4 @@
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
   <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>
 
-</numbers>
+</rules>
