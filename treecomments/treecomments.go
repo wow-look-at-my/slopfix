@@ -53,17 +53,15 @@ var grammars = map[string]func() *ts.Language{
 	".zsh":  bash.Language,
 }
 
-// Supported reports whether a grammar parses a file of that name. It asks the
-// table of extensions rather than grammarFor, because loading a grammar decodes
-// its parse tables and the question here is only whether one is named.
+// Supported reports whether a grammar parses a file of that name. It reads the
+// extension table, because loading a grammar decodes its tables for nothing.
 func Supported(filename string) bool {
 	_, ok := grammars[strings.ToLower(filepath.Ext(filename))]
 	return ok
 }
 
-// grammarFor answers the grammar an extension names. named is false when no
-// extension matches, which is a different answer from a named grammar whose
-// parse tables are absent: the first falls back to bash, the second must not.
+// grammarFor answers the grammar an extension names. An unmatched extension
+// falls back to bash; a named grammar missing its tables must not.
 func grammarFor(filename string) (language *ts.Language, named bool) {
 	load, ok := grammars[strings.ToLower(filepath.Ext(filename))]
 	if !ok {
@@ -72,14 +70,9 @@ func grammarFor(filename string) (language *ts.Language, named bool) {
 	return load(), true
 }
 
-// languageFor answers the grammar to read a file with. Naming a file IS the
-// request, so an unknown extension falls back to bash.
-//
-// It answers nil when the grammar it wants has no parse tables, and says so.
-// A caller then scans no comments in that file, which is a rule going quiet
-// rather than a rule passing. Nothing else reports it, so this does.
-//
-// A named grammar without tables never falls back to bash.
+// languageFor answers the grammar to read a file with, or nil when it has no
+// parse tables. It reports that case, because a rule then goes quiet rather
+// than passing, and nothing else says so.
 func languageFor(filename string) *ts.Language {
 	language, named := grammarFor(filename)
 	if named {
@@ -95,8 +88,7 @@ func languageFor(filename string) *ts.Language {
 	return nil
 }
 
-// reported holds the extensions already named, so one absent grammar prints
-// once rather than once per file.
+// reported holds the extensions already named, so an absent grammar prints a single time.
 var reported sync.Map
 
 // reportMissingGrammar names an absent grammar and what it costs, on stderr.
