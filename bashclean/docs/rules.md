@@ -154,6 +154,21 @@ Exclusions (left exactly as written, deliberately):
 - anything inside `$(...)` or `<(...)` -- `VAR=$(cmd > f)` is untouched
 - non-stdout redirects (`cmd 2> err.log`, `cmd < in`)
 
+## go-toolchain runs stay on the terminal
+
+go-toolchain's whole output belongs in the transcript: the coverage targets, the total-coverage line, and any test or build failure. A pipeline stage or a stdout redirect truncates exactly that, so both are stripped wherever the command appears:
+
+```bash
+go-toolchain | head -20            ->   go-toolchain
+go-toolchain > build.log           ->   go-toolchain
+go-toolchain &>> build.log         ->   go-toolchain
+cd x && go-toolchain | grep FAIL   ->   cd x && go-toolchain
+```
+
+The strip is tree-wide. It reads the same wrappers `rm` does, so `sudo go-toolchain > log` is covered. Other redirects stay on the command: `go-toolchain 2> errors` keeps its stderr file. The tee rule never sees these, because the stdout redirect is already gone when it runs.
+
+A **substitution is denied** instead of rewritten. `out=$(go-toolchain)` and `diff <(go-toolchain) old` feed a value to the rest of the script. There is nothing to strip there: dropping the capture changes what the script computes. The deny is logged with `reason="toolchain_capture"`.
+
 ## Docker Compose restarts become forced recreations
 
 Every real command whose first three static words are `docker compose restart` is rewritten to use a detached forced recreation:
