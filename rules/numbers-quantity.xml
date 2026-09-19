@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A cardinal counting something. The count is true until somebody changes the
+  set, so the repair says what is there and lets the reader count.
+
+  The phrase entries go before the two shapes at the foot of the file. A bare
+  cardinal rule reads "one or more" as an article and writes "an or more".
+-->
+<rules for="numbers">
+
+  <rewrite from="either one" to="either" test="It cannot fix either one" expect="It cannot fix either"/>
+  <rewrite from="each one" to="each" test="It reads each one" expect="It reads each"/>
+  <rewrite from="this one" to="this" test="It skips this one" expect="It skips this"/>
+  <rewrite from="that one" to="that" test="It skips that one" expect="It skips that"/>
+  <rewrite from="the one" to="the thing" test="It owns the one below" expect="It owns the thing below"/>
+  <rewrite from="one or more" to="any number of" test="It inserts one or more elements" expect="It inserts any number of elements"/>
+  <rewrite from="every one of" to="each of" test="It holds every one of the keys" expect="It holds each of the keys"/>
+  <rewrite from="at least one of" to="any of" test="It holds at least one of the keys" expect="It holds any of the keys"/>
+  <rewrite from="exactly one of" to="a single side of" test="It is in exactly one of the sets" expect="It is in a single side of the sets"/>
+  <rewrite from="one of" to="any of" test="It is one of the keys" expect="It is any of the keys"/>
+
+  <!-- A cardinal standing in for the noun. Cutting it leaves "the other run",
+       so these say the relation instead. -->
+  <rewrite from="the other two" to="the others" test="The other two run a loop" expect="The others run a loop"/>
+  <rewrite from="the two" to="both" test="The two agree" expect="Both agree"/>
+  <rewrite from="all three" to="each of them" test="All three agree" expect="Each of them agree"/>
+  <rewrite from="the three" to="each" test="The three agree" expect="Each agree"/>
+
+  <!-- A repeat count, said without a number. -->
+  <rewrite from="exactly once" to="exactly a single time" test="It runs exactly once" expect="It runs exactly a single time"/>
+  <rewrite from="only once" to="a single time" test="It runs only once" expect="It runs a single time"/>
+  <rewrite from="once" to="a single time" test="It hashes once" expect="It hashes a single time"/>
+  <rewrite from="twice" to="again" test="It hashes the key twice" expect="It hashes the key again"/>
+
+  <!-- The Go idiom. An unset value is what the reader is being told about. -->
+  <rewrite from="the zero value" to="an unset value" test="The zero value is ready" expect="An unset value is ready"/>
+  <rewrite from="zero value" to="unset value" test="Its zero value is ready" expect="Its unset value is ready"/>
+  <rewrite from="zero" to="empty" test="It returns zero and false" expect="It returns empty and false"/>
+
+  <!-- One as a determiner. "A single" keeps the emphasis the number carried,
+       which a bare article drops. The group carries the noun's opening letter,
+       because RE2 has no lookahead. -->
+  <pattern match="(?i)\bone\s+([a-z])" to="a single ${1}" test="It reserves one slot" expect="It reserves a single slot"/>
+
+  <!-- A plural tally: the noun carries the meaning and the number goes. -->
+  <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>
+
+</rules>
