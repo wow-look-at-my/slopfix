@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Phrases with a shorter spelling that means the same thing. The swap holds in
+  every context the phrase appears in, which is what lets a repair apply it
+  with nobody reviewing the result.
+-->
+<rules for="english">
+
+  <rewrite from="in order to" to="to" test="Runs in order to bind"/>
+  <rewrite from="due to the fact that" to="because" test="Fails due to the fact that it races"/>
+  <rewrite from="in the event that" to="if" test="Retries in the event that it fails"/>
+  <rewrite from="for the purpose of" to="for" test="Kept for the purpose of the gate"/>
+  <rewrite from="a large number of" to="many" test="Holds a large number of entries"/>
+  <rewrite from="at this point in time" to="now" test="Correct at this point in time"/>
+  <rewrite from="is able to" to="can" test="It is able to retry"/>
+  <rewrite from="has the ability to" to="can" test="It has the ability to retry"/>
+  <rewrite from="make use of" to="use" test="It will make use of the cache"/>
+  <rewrite from="take into account" to="consider" test="It must take into account the offset"/>
+  <rewrite from="the reason is because" to="because" test="The reason is because it races"/>
+  <rewrite from="in spite of the fact that" to="although" test="Kept in spite of the fact that it races"/>
+  <rewrite from="a sufficient number of" to="enough" test="Holds a sufficient number of entries"/>
+  <rewrite from="prior to" to="before" test="Runs prior to the gate"/>
+  <rewrite from="subsequent to" to="after" test="Runs subsequent to the gate"/>
+  <rewrite from="in the near future" to="soon" test="Lands in the near future"/>
+  <rewrite from="on a regular basis" to="regularly" test="Runs on a regular basis"/>
+  <rewrite from="whether or not" to="whether" test="Asks whether or not it fits"/>
+
+</rules>

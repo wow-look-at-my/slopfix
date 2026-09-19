@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/commentlength"
-	"github.com/wow-look-at-my/slopfix/commentnumbers"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -78,10 +78,10 @@ func CheckContent(path, content string) []ste.Finding {
 // break, reported on the line they sit on.
 func commentFindings(path, content string) []ste.Finding {
 	var out []ste.Finding
-	for _, hit := range commentnumbers.Check(path, content) {
+	for _, hit := range commentfix.Check(path, content) {
 		out = append(out, ste.Finding{
 			Line:   hit.Line,
-			ID:     commentnumbers.ID,
+			ID:     commentfix.ID,
 			Rule:   "a number in a comment is a count of what exists today",
 			Detail: hit.Number,
 			Fix:    "Say it in words, or let the reader count. `slopfix fix` does this.",
@@ -126,7 +126,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs)
-	ids.AddRange(IDHardWrap, commentlength.ID, commentnumbers.ID)
+	ids.AddRange(IDHardWrap, commentlength.ID, commentfix.ID)
 	return ids
 }
 
