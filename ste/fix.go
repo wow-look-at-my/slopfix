@@ -9,16 +9,19 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// Fix applies the repair Check names. A long sentence is left alone,
-// because splitting it needs a writer who knows the point.
+// Fix applies the repair Check names, for every rule.
 func Fix(text string) string {
 	return FixSelected(text, func(string) bool { return true })
 }
 
 // FixSelected applies the repairs whose ID keep accepts, so a caller that names
 // a rule gets that rule's repair and no other.
+//
+// The cap repair runs over the whole text rather than inside fixProse. It
+// measures a sentence the way Check measures it, and Check counts a code span
+// as a single word rather than as a gap between two shorter sentences.
 func FixSelected(text string, keep func(id string) bool) string {
-	return fixProse(text, func(prose string) string {
+	text = fixProse(text, func(prose string) string {
 		prose = fixWords(prose, keep)
 		if keep(IDSemicolon) {
 			prose = fixSemicolons(prose)
@@ -26,11 +29,12 @@ func FixSelected(text string, keep func(id string) bool) string {
 		if keep(IDCommaSplice) {
 			prose = fixSplices(prose)
 		}
-		if keep(IDSentenceCap) {
-			prose = fixSentenceCap(prose)
-		}
 		return prose
 	})
+	if keep(IDSentenceCap) {
+		text = fixSentenceCap(text)
+	}
+	return text
 }
 
 var (
@@ -105,8 +109,28 @@ func fixSplices(prose string) string {
 	return breakAt(prose, commas)
 }
 
-// coordinator matches a conjunction joining clauses: a candidate seam.
-var coordinator = regexp.MustCompile(`,?\s+(?:and|but|so|then|because)\s+`)
+// The seams a division can take, strongest first. Each is a place the sentence
+// already divides in the reader's head, and the last is a bare gap between two
+// words, which divides nothing and still brings the sentence under the cap.
+//
+// Group 1 is the span the break replaces, and everything outside it survives.
+// The coordinator puts the conjunction inside the group, because the clause
+// after it already opens a sentence. Every weaker seam leaves the conjunction
+// standing, so no word is lost to a repair nobody reviews.
+var (
+	// coordinator matches a conjunction joining clauses: a candidate seam.
+	coordinator = regexp.MustCompile(`(,?\s+(?:and|but|so|then|because)\s+)`)
+	// clauseSeam matches the comma a writer put between two clauses.
+	clauseSeam = regexp.MustCompile(`(,\s+)(?:and|but|so|or|yet|then|because|since|which|` +
+		`while|although|though|unless|after|before|until|whenever|when|where|if|` +
+		`rather|instead|except)\s`)
+	// bareSeam matches the same conjunctions carrying no comma.
+	bareSeam = regexp.MustCompile(`(\s+)(?:and|but|so|or|yet|then|because|since|which|while)\s`)
+	// anyComma divides at a comma whatever follows it.
+	anyComma = regexp.MustCompile(`(,\s+)`)
+	// anySpace is the last resort, and the reason no sentence escapes the cap.
+	anySpace = regexp.MustCompile(`(\s+)`)
+)
 
 // opensASubject holds the words an independent clause starts its subject with.
 // A coordinator followed by any of them joins clauses that each name who acts.
@@ -132,11 +156,19 @@ func carriesItsOwnSubject(clause string) bool {
 	return opensASubject.Contains(strings.ToLower(word))
 }
 
-// fixSentenceCap divides an over-cap sentence at the usable coordinator nearest
-// its middle, repeating while a half is over. With none it is left for a writer.
+// fixSentenceCap divides every over-cap sentence, repeating while a half is
+// still over.
+//
+// The cap is a limit rather than a suggestion, so the repair always divides. It
+// prefers a seam a writer would have used and falls back through weaker ones to
+// a bare word boundary, which reads awkwardly and is still a repair. A finding
+// nothing answers leaves a reader two ways out, and the org allows neither:
+// hand-edit the prose, or delete the file.
 func fixSentenceCap(prose string) string {
-	for range maxDivisions {
-		joiner, found := widestSeam(prose)
+	// A division always shortens the sentence it cuts, so a pass per word is
+	// more than any text can ask for.
+	for range len(strings.Fields(prose)) + 1 {
+		joiner, found := nextDivision(prose)
 		if !found {
 			return prose
 		}
@@ -145,43 +177,114 @@ func fixSentenceCap(prose string) string {
 	return prose
 }
 
-// maxDivisions bounds the repair: past this, no seam saves the sentence.
-const maxDivisions = 8
-
-// widestSeam answers the coordinator to divide at, inside the earliest sentence
-// over the cap.
-func widestSeam(prose string) ([]int, bool) {
+// nextDivision answers the span to rewrite as a break, inside the earliest
+// sentence over the cap.
+func nextDivision(prose string) ([]int, bool) {
+	masked := mask(prose)
+	off := offLimits(prose, masked)
 	at := 0
-	for _, sentence := range Sentences(prose) {
-		start := strings.Index(prose[at:], strings.TrimSpace(sentence))
+	for _, sentence := range Sentences(masked) {
+		start := strings.Index(masked[at:], sentence)
 		if start < 0 {
 			break
 		}
 		start += at
-		end := start + len(strings.TrimSpace(sentence))
+		end := start + len(sentence)
 		at = end
 		if WordCount(sentence) <= SentenceWordCap {
 			continue
 		}
-		var seams [][]int
-		for _, seam := range coordinator.FindAllStringIndex(prose[start:end], -1) {
-			if carriesItsOwnSubject(prose[start+seam[1] : end]) {
-				seams = append(seams, seam)
-			}
+		if cut, ok := divide(masked, off, start, end); ok {
+			return cut, true
 		}
-		if len(seams) == 0 {
-			continue
-		}
-		middle := (end - start) / 2
-		best := seams[0]
-		for _, seam := range seams {
-			if abs(seam[0]-middle) < abs(best[0]-middle) {
-				best = seam
-			}
-		}
-		return []int{start + best[0], start + best[1]}, true
 	}
 	return nil, false
+}
+
+// divide picks where to cut a sentence, taking the best seam kind that has a
+// usable place in it.
+func divide(masked string, off [][]int, start, end int) ([]int, bool) {
+	if cut, ok := nearestMiddle(masked, off, start, end, coordinator, carriesItsOwnSubject); ok {
+		return cut, true
+	}
+	for _, seam := range []*regexp.Regexp{clauseSeam, bareSeam, anyComma, anySpace} {
+		if cut, ok := nearestMiddle(masked, off, start, end, seam, nil); ok {
+			return cut, true
+		}
+	}
+	return nil, false
+}
+
+// nearestMiddle answers the usable seam closest to the sentence's middle, which
+// is where a division leaves the two halves most alike.
+func nearestMiddle(masked string, off [][]int, start, end int, seam *regexp.Regexp, wants func(string) bool) ([]int, bool) {
+	middle := (end - start) / 2
+	var pick []int
+	for _, at := range seam.FindAllStringSubmatchIndex(masked[start:end], -1) {
+		cut := []int{start + at[2], start + at[3]}
+		if !usable(masked, off, cut, start, end) {
+			continue
+		}
+		if wants != nil && !wants(masked[cut[1]:end]) {
+			continue
+		}
+		if pick == nil || abs(at[2]-middle) < abs(pick[0]-start-middle) {
+			pick = cut
+		}
+	}
+	return pick, pick != nil
+}
+
+// usable reports whether a seam is a place a sentence break can go.
+func usable(masked string, off [][]int, cut []int, start, end int) bool {
+	if cut[0] <= start || cut[1] >= end {
+		return false // a half with no words in it is not a sentence
+	}
+	for _, span := range off {
+		if cut[0] < span[1] && span[0] < cut[1] {
+			return false // inside a code span, a link, an entity or a parenthetical
+		}
+	}
+	if last, _ := utf8.DecodeLastRuneInString(masked[:cut[0]]); terminator(last) {
+		return false // the sentence already ends here, and a second period reads as an ellipsis
+	}
+	if WordCount(masked[start:cut[0]]) == 0 || WordCount(masked[cut[1]:end]) == 0 {
+		return false
+	}
+	// breakAt capitalizes what follows, so the new sentence has to open with
+	// something a capital applies to. Sentences welds the halves back together
+	// otherwise, and the finding survives its own repair.
+	first, _ := utf8.DecodeRuneInString(masked[cut[1]:])
+	return unicode.IsLetter(first) || unicode.IsDigit(first)
+}
+
+// offLimits are the spans no break may land in: the data Check hides, and a
+// parenthetical, which STE counts as a single word and a break would halve.
+func offLimits(prose, masked string) [][]int {
+	off := verbatimSpan.FindAllStringIndex(prose, -1)
+	return append(off, parenthetical.FindAllStringIndex(masked, -1)...)
+}
+
+// mask writes filler over every span strip hides from Check, byte for byte, so
+// an offset into the mask is an offset into the prose and both count the same
+// words.
+func mask(prose string) string {
+	out := []byte(prose)
+	for _, span := range verbatimSpan.FindAllStringIndex(prose, -1) {
+		fill(out[span[0]:span[1]])
+	}
+	return string(out)
+}
+
+// fill writes a single filler word over a span. It keeps a space at each end,
+// so the words on either side stay words of their own.
+func fill(span []byte) {
+	for i := range span {
+		span[i] = 'x'
+	}
+	if len(span) > 2 {
+		span[0], span[len(span)-1] = ' ', ' '
+	}
 }
 
 func abs(n int) int {

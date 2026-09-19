@@ -42,14 +42,17 @@ func TestFixKeepsAFencedBlockWhole(t *testing.T) {
 	assert.Equal(t, doc, repair.Text)
 }
 
-// What a rewrite cannot repair is reported rather than guessed at. Splitting a
-// long sentence needs a writer who knows which half is the point.
-func TestFixReportsWhatItCannotRepair(t *testing.T) {
+// A sentence whose halves share a subject divides anyway. The second half reads
+// as a fragment, which is the price of a rule every caller can clear: a finding
+// no repair answers leaves a reader hand-editing prose or deleting the file.
+func TestFixDividesASentenceWithNoWriterlySeam(t *testing.T) {
 	long := "The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n"
 	repair := prose(long)
-	assert.False(t, repair.Changed)
-	require.NotEmpty(t, repair.Findings)
-	assert.Contains(t, repair.Findings[0].Fix, "Split it")
+	assert.True(t, repair.Changed)
+	assert.Equal(t,
+		"The gate reads every file in the session. And refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n",
+		repair.Text)
+	assert.Empty(t, repair.Findings)
 }
 
 // The prose repair runs on the joined paragraph, so a rule sees the sentence
@@ -147,9 +150,10 @@ func TestANamedIDRepairsThatRuleAlone(t *testing.T) {
 	assert.Equal(t, "It should work; that is fine, we cannot stop.\n", contraction.Text)
 }
 
-// A finding outside the named ID is not reported either, so a caller that asks
-// for a rule is not handed the rest of the category.
-func TestANamedIDReportsThatRuleAlone(t *testing.T) {
+// A finding outside the named ID is neither repaired nor reported, so a caller
+// that asks for a rule is not handed the rest of the category. The named rule
+// itself is repaired and reports nothing afterwards.
+func TestANamedIDLeavesTheRestOfItsCategoryAlone(t *testing.T) {
 	doc := "There are three sections; each is read.\n"
 	repair := slopfix.Fix(slopfix.Request{
 		Content: doc,
@@ -157,9 +161,8 @@ func TestANamedIDReportsThatRuleAlone(t *testing.T) {
 		IDs:     []string{"ste/count"},
 	})
 
-	require.Len(t, repair.Findings, 1)
-	assert.Equal(t, "ste/count", repair.Findings[0].ID)
-	assert.Contains(t, repair.Text, ";")
+	assert.Equal(t, "There are sections; each is read.\n", repair.Text)
+	assert.Empty(t, repair.Findings)
 }
 
 // Naming an ID keeps every other rule's repair off the file, the whole-line
