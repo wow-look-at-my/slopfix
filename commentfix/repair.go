@@ -5,7 +5,12 @@
 // covers is not guessed at, because nobody reviews what a repair applied: the
 // sentence carrying the number is cut, and the caller is told what went. A
 // comment left with nothing to say loses its line.
-package commentnumbers
+//
+// The repair is total. A number the table and the cut both miss is deleted at
+// the position the check reports it, in residual.go. So Check answers nothing
+// about a file this has repaired, and the caller never carries a finding it has
+// no remedy for.
+package commentfix
 
 import (
 	"strings"
@@ -40,7 +45,37 @@ func Fix(filename, src string) Repair {
 	lines := strings.Split(src, "\n")
 	repaired, removed, blanked := repairRuns(lines, runs)
 	out := dropEmptied(strings.Join(repaired, "\n"), blanked)
+	// A number can sit where no paragraph forms, so the position has the last word.
+	out, left := clearResidual(filename, out)
+	removed = append(removed, left...)
+	if out != src {
+		out = dropDanglingMarkers(out)
+	}
 	return Repair{Text: out, Changed: out != src, Removed: removed}
+}
+
+// dropDanglingMarkers removes a bare comment line the repair left with nothing
+// under it. The line was a paragraph break somebody wrote, and a break that
+// separates a paragraph from the code below it separates nothing.
+func dropDanglingMarkers(src string) string {
+	lines := strings.Split(src, "\n")
+	kept := make([]string, 0, len(lines))
+	for i, line := range lines {
+		if bareMarker(line) && !carriesProse(lines, i+1) {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return strings.Join(kept, "\n")
+}
+
+// carriesProse reports whether the line at i is a comment line saying something.
+func carriesProse(lines []string, i int) bool {
+	if i < 0 || i >= len(lines) {
+		return false
+	}
+	_, prose, _, ok := splitBlock(lines[i])
+	return ok && prose != ""
 }
 
 // repairRuns rewrites a file's comments a run at a time. It returns the

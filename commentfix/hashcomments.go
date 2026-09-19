@@ -4,7 +4,7 @@
 // no grammar here is keyed to their names. The comments themselves come from
 // treecomments, whose bash fallback reads that shape. What is here is the
 // membership: which names a walk opens rather than skips.
-package commentnumbers
+package commentfix
 
 import (
 	"path/filepath"
