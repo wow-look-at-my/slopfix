@@ -19,8 +19,7 @@ import (
 // nothing about what is left: the caller checks that.
 //
 // The order is rewrites, then shapes, then patterns. A phrase swap settles the
-// idioms first. A shape then reads the sentence structure, which is what says
-// whether a cardinal counts the noun after it or stands for one.
+// idioms earliest.
 func Say(prose string) string {
 	original := prose
 	for _, r := range numbersTable.Rewrites {

@@ -23,9 +23,7 @@ type Lexicon struct {
 	suffixes []Class
 }
 
-// NewLexicon indexes the declared classes. A word may belong to several: "one"
-// is a cardinal and a pronoun at once, and which of them it is in a given
-// sentence is what the grammar decides.
+// NewLexicon indexes the declared classes.
 func NewLexicon(classes []Class) *Lexicon {
 	lex := &Lexicon{classOf: map[string][]string{}}
 	for _, c := range classes {

@@ -1,15 +1,13 @@
 // grammar.go parses prose against the phrase structure rules/ declares.
 //
-// The parser is an Earley recognizer. It takes ANY context-free grammar,
-// including a left-recursive or an ambiguous one, which ordinary English needs
-// and a run of slots cannot express. A noun phrase holding a prepositional
+// The parser is an Earley recognizer. A noun phrase holding a prepositional
 // phrase holding a noun phrase is a rule naming itself, and that is what makes
 // the grammar describe a sentence of any depth rather than a fixed window.
 //
 // What the repair asks of it is never "what does this sentence mean". It is
 // narrower and decidable: can this text parse at all with the word in that
-// slot. Asking it once per candidate slot settles the role without building a
-// parse forest, and a text that parses either way is left alone.
+// slot. Asking it a single time per candidate slot settles the role without
+// building a parse forest, and a text that parses either way is left alone.
 package table
 
 import "strings"
@@ -106,7 +104,7 @@ func (g *Grammar) Parses(lex *Lexicon, tokens []string, banned map[int]map[strin
 	return false
 }
 
-// complete advances every item waiting on the rule this one just finished.
+// complete advances every item waiting on the rule this just finished.
 func (g *Grammar) complete(chart []*itemSet, i int, done item, banned map[int]map[string]bool) {
 	if i == done.origin+1 && banned[done.origin][done.rule] {
 		return

@@ -74,8 +74,8 @@ type Table struct {
 	lexicon *Lexicon
 }
 
-// Lexicon indexes the table's word classes. It is built on the first read and
-// kept, because a shape asks it for every word of every comment.
+// Lexicon indexes the table's word classes. It is built on the earliest read
+// and kept, because a shape asks it for every word of every comment.
 func (t *Table) Lexicon() *Lexicon {
 	t.once.Do(func() { t.lexicon = NewLexicon(t.Classes) })
 	return t.lexicon

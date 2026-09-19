@@ -67,7 +67,7 @@ type Prod struct {
 	Syms []Sym `xml:",any"`
 }
 
-// Rule is a phrase and the ways it can be built. A rule carries either one
+// Rule is a phrase and the ways it can be built. A rule carries either
 // <seq> or an <alt> of them.
 type Rule struct {
 	Name string `xml:"name,attr"`

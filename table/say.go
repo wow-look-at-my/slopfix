@@ -1,5 +1,5 @@
-// say.go answers what to write in place of a word, once the grammar has said
-// which slot the word fills.
+// say.go answers what to write in place of a word, a single time the grammar
+// has said which slot the word fills.
 //
 // The role is decided by asking the parser a question it can answer exactly:
 // does the text still parse with this word kept OUT of that slot. A word whose
@@ -15,9 +15,7 @@ import "strings"
 // A Say is what to write instead of a word standing in a given role.
 //
 // After names the classes that must sit before the word for this entry to
-// apply, skipping any modifiers between. It is what tells "the wrong one",
-// whose phrase already carries a determiner, from "without one", whose phrase
-// does not.
+// apply, skipping any modifiers between.
 type Say struct {
 	Word   string
 	Role   string
@@ -107,7 +105,7 @@ func roleOf(g *Grammar, lex *Lexicon, tokens []string, i int, roles []string) (s
 			continue
 		}
 		if only != "" {
-			// Two roles are each indispensable, so the text does not parse
+			// Roles are each indispensable, so the text does not parse
 			// without either. Nothing here can choose between them.
 			return "", false
 		}
@@ -117,14 +115,14 @@ func roleOf(g *Grammar, lex *Lexicon, tokens []string, i int, roles []string) (s
 		return "", false
 	}
 	// The parse has to exist at all. A text nothing covers fails every ban,
-	// which would otherwise read as every role being indispensable at once.
+	// which would otherwise read as every role being indispensable at the same time.
 	if !g.Parses(lex, tokens, nil) {
 		return "", false
 	}
 	return only, true
 }
 
-// after reports whether a word of one of the named classes sits before i, with
+// after reports whether a word of any of the named classes sits before i, with
 // only modifiers between. An entry naming no class always applies.
 func after(lex *Lexicon, tokens []string, i int, classes []string) bool {
 	if len(classes) == 0 {
