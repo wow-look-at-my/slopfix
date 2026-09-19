@@ -37,10 +37,10 @@
   <rewrite from="zero value" to="unset value" test="Its zero value is ready" expect="Its unset value is ready"/>
   <rewrite from="zero" to="empty" test="It returns zero and false" expect="It returns empty and false"/>
 
-  <!-- One as a determiner. "A single" keeps the emphasis the number carried,
-       which a bare article drops. The group carries the noun's opening letter,
-       because RE2 has no lookahead. -->
-  <pattern match="(?i)\bone\s+([a-z])" to="a single ${1}" test="It reserves one slot" expect="It reserves a single slot"/>
+  <!-- The cardinal as a determiner is decided in commentfix/one.go, not here.
+       "A single" carries its own article, so the swap holds only where no
+       article governs the slot already, and that needs the words on each side.
+       An entry here may not read them. -->
 
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
   <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>

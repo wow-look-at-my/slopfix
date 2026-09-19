@@ -23,6 +23,7 @@ func Say(prose string) string {
 	for _, r := range numbersTable.Rewrites {
 		prose = replaceWord(prose, r.From, r.To)
 	}
+	prose = sayOne(prose)
 	for _, p := range numbersTable.Patterns {
 		prose = p.Replace(prose)
 	}
