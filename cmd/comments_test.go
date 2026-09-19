@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/slopfix/commentnumbers"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
 // runCommentsOn drives the command and returns what it printed.
@@ -149,11 +149,11 @@ func TestFixStillFailsOnWhatItCouldNotRepair(t *testing.T) {
 
 // commentNumbersLeft re-reads the file through the rule, so the assertion above
 // tracks the repair rather than restating today's outcome.
-func commentNumbersLeft(t *testing.T, path string) []commentnumbers.Hit {
+func commentNumbersLeft(t *testing.T, path string) []commentfix.Hit {
 	t.Helper()
 	body, err := os.ReadFile(path)
 	require.NoError(t, err)
-	return commentnumbers.Check(path, string(body))
+	return commentfix.Check(path, string(body))
 }
 
 // A submodule is another repository's checkout, and its prose is that
@@ -165,7 +165,7 @@ func TestASubmoduleIsNotWalked(t *testing.T) {
 	writeAt(t, dir, filepath.Join("upstream", ".git"), "gitdir: ../.git/modules/upstream\n")
 	writeAt(t, dir, filepath.Join("upstream", "theirs.c"), "/* runs once */\n")
 
-	paths, err := commentTargets(dir, commentnumbers.Supported)
+	paths, err := commentTargets(dir, commentfix.Supported)
 	require.NoError(t, err)
 	joined := strings.Join(paths, "\n")
 	assert.Contains(t, joined, "ours.go")

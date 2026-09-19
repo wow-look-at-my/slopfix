@@ -1,64 +1,17 @@
-// table.go loads the English the number repair applies, and applies it to a
-// line of comment prose.
+// table.go applies the English the number repair writes instead of a number.
 //
-// The table is XML rather than Go, the same way commentlength carries its own,
-// so adding a phrase is an edit somebody makes without reading Go.
-package commentnumbers
+// The table itself is rules/, and nothing reads it at run time. cmd/rulegen
+// parses that folder during the build. The generated file beside this holds
+// every entry as a literal, with each pattern compiled to a switch automaton.
+// Adding a phrase stays an edit to XML that needs no Go, and the binary carries
+// no regexp engine.
+package commentfix
 
 import (
-	_ "embed"
-	"encoding/xml"
-	"fmt"
-	"regexp"
 	"strings"
 )
 
-//go:embed numbers.xml
-var numbersXML []byte
-
-// xmlTable mirrors numbers.xml.
-type xmlTable struct {
-	Rewrites []xmlRewrite `xml:"rewrite"`
-	Patterns []xmlPattern `xml:"pattern"`
-}
-
-// xmlRewrite swaps a whole phrase for another.
-type xmlRewrite struct {
-	From   string `xml:"from,attr"`
-	To     string `xml:"to,attr"`
-	Test   string `xml:"test,attr"`
-	Expect string `xml:"expect,attr"`
-}
-
-// xmlPattern carries a shape a phrase swap cannot express. `to` uses $1, $2 for
-// the groups, as Go's regexp expansion spells it.
-type xmlPattern struct {
-	Match  string `xml:"match,attr"`
-	To     string `xml:"to,attr"`
-	Test   string `xml:"test,attr"`
-	Expect string `xml:"expect,attr"`
-
-	re *regexp.Regexp
-}
-
-// table is read at startup: a malformed entry fails the binary, not a file.
-var table = load()
-
-// load parses the embedded table and compiles every pattern.
-func load() xmlTable {
-	var parsed xmlTable
-	if err := xml.Unmarshal(numbersXML, &parsed); err != nil {
-		panic(fmt.Sprintf("commentnumbers: numbers.xml does not parse: %v", err))
-	}
-	for i := range parsed.Patterns {
-		re, err := regexp.Compile(parsed.Patterns[i].Match)
-		if err != nil {
-			panic(fmt.Sprintf("commentnumbers: pattern %q does not compile: %v", parsed.Patterns[i].Match, err))
-		}
-		parsed.Patterns[i].re = re
-	}
-	return parsed
-}
+//go:generate go run github.com/wow-look-at-my/slopfix/cmd/rulegen -rules ../rules -for numbers -package commentfix -out numbers.gen.go
 
 // Say rewrites a line of comment prose, applying every table entry. It says
 // nothing about what is left: the caller checks that.
@@ -67,23 +20,42 @@ func load() xmlTable {
 // has already settled.
 func Say(prose string) string {
 	original := prose
-	for _, r := range table.Rewrites {
+	for _, r := range numbersTable.Rewrites {
 		prose = replaceWord(prose, r.From, r.To)
 	}
-	for _, p := range table.Patterns {
-		prose = p.re.ReplaceAllString(prose, p.To)
+	for _, p := range numbersTable.Patterns {
+		prose = p.Replace(prose)
 	}
 	prose = strings.Join(strings.Fields(prose), " ")
 	prose = closeDanglingSpace(prose)
 	return capitalise(original, prose)
 }
 
-// danglingSpace matches a space before punctuation that CLOSES something.
-var danglingSpace = regexp.MustCompile(`\s+([.,])(\s|$)`)
-
-// closeDanglingSpace removes the space a deletion leaves before punctuation.
+// closeDanglingSpace removes the space a deletion leaves before punctuation
+// that CLOSES something.
 func closeDanglingSpace(prose string) string {
-	return danglingSpace.ReplaceAllString(prose, "${1}${2}")
+	var out strings.Builder
+	for i := 0; i < len(prose); i++ {
+		if !isSpaceByte(prose[i]) {
+			out.WriteByte(prose[i])
+			continue
+		}
+		next := i
+		for next < len(prose) && isSpaceByte(prose[next]) {
+			next++
+		}
+		if next < len(prose) && (prose[next] == '.' || prose[next] == ',') &&
+			(next+1 >= len(prose) || isSpaceByte(prose[next+1])) {
+			i = next - 1
+			continue
+		}
+		out.WriteByte(prose[i])
+	}
+	return out.String()
+}
+
+func isSpaceByte(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\v' || b == '\f'
 }
 
 // replaceWord swaps a whole word or phrase, case-insensitively, leaving a
@@ -113,8 +85,7 @@ func replaceWord(s, word, with string) string {
 }
 
 // wordBoundary reports whether s[at:end] stands as its own word. A marker
-// joining it to a name on either side means it does not, because rewriting a
-// word out of an identifier spells a name that does not exist.
+// joining it to a name spells a name that does not exist.
 func wordBoundary(s string, at, end int) bool {
 	if at > 0 && (isWordByte(s[at-1]) || joinsName(s, at-1, -1)) {
 		return false

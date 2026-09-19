@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Phrases where the number is idiom rather than a count. Nothing here counts
+  anything, so the repair keeps the sentence and says the idiom another way.
+
+  These lead the folder because they hold the longest phrases. A later entry
+  matching "one" alone would otherwise take the word out of the middle of one
+  of them and leave a phrase that means nothing.
+-->
+<rules for="numbers">
+
+  <rewrite from="first-in-first-out" to="FIFO" test="A first-in-first-out queue" expect="A FIFO queue"/>
+  <rewrite from="first in, first out" to="FIFO" test="It is first in, first out" expect="It is FIFO"/>
+  <rewrite from="last-in-first-out" to="LIFO" test="A last-in-first-out stack" expect="A LIFO stack"/>
+  <rewrite from="last in, first out" to="LIFO" test="It is last in, first out" expect="It is LIFO"/>
+  <rewrite from="one another" to="each other" test="They wait for one another" expect="They wait for each other"/>
+  <rewrite from="another one" to="another" test="It cannot block another one" expect="It cannot block another"/>
+  <rewrite from="no one" to="nobody" test="No one reads it" expect="Nobody reads it"/>
+  <rewrite from="all at once" to="together" test="It releases all at once" expect="It releases together"/>
+  <rewrite from="at once" to="at the same time" test="Both run at once" expect="Both run at the same time"/>
+
+</rules>
