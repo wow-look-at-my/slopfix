@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/table"
 )
@@ -47,13 +48,13 @@ func fires(t *testing.T, kind, id string, cases []table.Test) {
 // it was written for.
 func TestEveryClassAMatchNamesIsDeclared(t *testing.T) {
 	require.NotEmpty(t, numbersTable.Classes)
-	declared := map[string]bool{"open": true}
+	declared := set.Of[string]("open")
 	for _, c := range numbersTable.Classes {
-		declared[c.Name] = true
+		declared.Add(c.Name)
 	}
 	for _, e := range numbersTable.Rephrasings {
 		for _, class := range e.Terms.Classes() {
-			assert.True(t, declared[class], "match %q names the undeclared class %q", e.Match, class)
+			assert.True(t, declared.Contains(class), "match %q names the undeclared class %q", e.Match, class)
 		}
 	}
 }
