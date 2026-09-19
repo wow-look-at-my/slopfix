@@ -60,8 +60,8 @@ func transform(command string, passes int, warn io.Writer) Result {
 	if hasBadRM(f) {
 		return deny(command, "rm_flag")
 	}
-	if divertsGoToolchain(f) {
-		return deny(command, "toolchain_output")
+	if capturesGoToolchain(f) {
+		return deny(command, "toolchain_capture")
 	}
 	before := printFile(f)
 	rules := []string{}
@@ -112,6 +112,7 @@ func reportNonConvergence(warn io.Writer, original, partial string, passes int) 
 
 func onePass(apply func(string, func(*syntax.File))) {
 	apply("devnull", scrubDevnull)
+	apply("toolchain_output", undivertToolchain)
 	apply("docker_compose_restart", func(f *syntax.File) { walkCalls(f, dockerCompose) })
 	apply("gh_wait_ci", func(f *syntax.File) { walkCalls(f, ghWaitCI) })
 	apply("rm_recycle", func(f *syntax.File) { walkCalls(f, rewriteRM) })
