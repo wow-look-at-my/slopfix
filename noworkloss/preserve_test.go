@@ -362,7 +362,7 @@ func TestDeniesForcePushDeletingOrOverwritingAPreservationRef(t *testing.T) {
 	ref := makeStrandedPreservationRef(t, dir)
 
 	r := denied(t, dir, "git push --delete origin "+ref)
-	assert.Contains(t, r, "the only copy")
+	assert.Contains(t, r, "deleting a remote branch")
 
 	r2 := denied(t, dir, "git push --force origin HEAD:"+ref)
 	assert.Contains(t, r2, "the only copy")

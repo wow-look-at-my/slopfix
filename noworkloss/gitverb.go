@@ -251,26 +251,36 @@ func classifyGit(seg segment) *finding {
 			}
 		}
 		deleting := g.has("--delete", "-d")
-		if !forced && !deleting {
+		for _, o := range g.operands {
+			// A refspec with nothing before the colon pushes nothing to dst,
+			// which deletes it.
+			if strings.HasPrefix(strings.TrimPrefix(o.text, "+"), ":") {
+				deleting = true
+			}
+		}
+		if deleting {
+			// A remote branch is never deleted from here, whether or not its
+			// commits survive elsewhere: the branch is what a pull request,
+			// a CI run and a consumer following it by name are attached to,
+			// and deleting it ends all of those. The bot that merges a pull
+			// request deletes its head branch afterwards.
+			return &finding{
+				label: "git push --delete", always: true, dir: g.dir,
+				reason:  "blocked: deleting a remote branch ends the pull request, the CI run and every consumer attached to it by name; a merged branch is deleted by the merge, and an unwanted one is left alone.",
+				rewrite: "git push origin <branch>   # keep pushing to it; the merge deletes it",
+			}
+		}
+		if !forced {
 			return nil
 		}
 		remote, dst, src := parsePushSpec(g.operands)
 		if isProtectedRef(dst) {
 			return protectedRefFinding(g.dir, "git push "+dst)
 		}
-		label, rewrite := "git push --force", shellJoin(replaceFlag(seg.argv, []string{"-f", "--force"}, "--force-with-lease"))+
-			"   # refuses if the remote moved since you last fetched"
-		if deleting {
-			// A deletion pushes nothing, so there is no source that could make
-			src = ""
-			if len(g.operands) > 1 {
-				remote, dst = g.operands[0].text, g.operands[len(g.operands)-1].text
-			}
-			label = "git push --delete"
-			rewrite = "git tag archive/" + dst + " " + remote + "/" + dst + " && " + orig + "   # keep a pointer, then delete"
-		}
 		return &finding{
-			label: label, dir: g.dir, rewrite: rewrite,
+			label: "git push --force", dir: g.dir,
+			rewrite: shellJoin(replaceFlag(seg.argv, []string{"-f", "--force"}, "--force-with-lease")) +
+				"   # refuses if the remote moved since you last fetched",
 			reach: &reachCheck{kind: reachRef, remote: remote, dst: dst, src: src},
 		}
 
