@@ -1,9 +1,6 @@
 // match.go is the matcher language the prose rules are written in. A term
 // names a word CLASS, which is the thing a regexp has no way to say:
 //
-//	{determiner:d} {modifier*:mods} one   ->   {d} {mods} thing
-//	one {noun:n}                          ->   a single {n}
-//
 // A term is {class}, or {class:name} to capture it, or {class*:name} for any
 // number including none. A bare word matches itself. The replacement is plain
 // text with {name} where a capture goes, so a rule can swap a word, delete it,
@@ -12,10 +9,11 @@ package table
 
 import "strings"
 
-// A Term is one element of a match.
+// A Term is a single element of a match.
 type Term struct {
-	// Class is the word class the term matches. A literal leaves it empty.
-	Class string
+	// Classes are the word classes the term matches, and any of them fits. A
+	// literal leaves it empty.
+	Classes []string
 	// Word is the literal a term matches, lowercased.
 	Word string
 	// Name is what the replacement calls this term's text.
@@ -60,17 +58,15 @@ func parseTerm(field string) (Term, error) {
 	if class == "" {
 		return Term{}, errBadTerm(field)
 	}
-	return Term{Class: class, Name: name, Many: many}, nil
+	return Term{Classes: strings.Split(class, "|"), Name: name, Many: many}, nil
 }
 
-// Classes answers every class a match names, which is what checks each one is
+// Classes answers every class a match names, which is what checks each is
 // declared.
 func (m Match) Classes() []string {
 	var out []string
 	for _, t := range m.Terms {
-		if t.Class != "" {
-			out = append(out, t.Class)
-		}
+		out = append(out, t.Classes...)
 	}
 	return out
 }
@@ -104,10 +100,15 @@ func (m Match) find(lex *Lexicon, tokens []string, i int) (end int, caught map[s
 
 // fits reports whether a word satisfies a term.
 func (t Term) fits(lex *Lexicon, word string) bool {
-	if t.Class == "" {
+	if len(t.Classes) == 0 {
 		return strings.EqualFold(t.Word, word)
 	}
-	return lex.Is(word, t.Class)
+	for _, class := range t.Classes {
+		if lex.Is(word, class) {
+			return true
+		}
+	}
+	return false
 }
 
 // Expand writes a replacement, putting each capture where its name stands. A

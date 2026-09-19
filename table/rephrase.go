@@ -28,7 +28,7 @@ type Normalize struct {
 	Test string
 }
 
-// Rephrasings applies every entry to prose, earliest entry first.
+// Rephrasings applies every entry to prose, earliest entry earliest.
 func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose string) string {
 	spans := wordSpans(prose)
 	if len(spans) == 0 || len(entries) == 0 {
