@@ -119,7 +119,7 @@ func Load(dir, target string) (*Loaded, error) {
 	}
 	out := &Loaded{}
 	// An id names an entry across the whole folder, so the check for a
-	// duplicate spans every file rather than each one alone.
+	// duplicate spans every file rather than each alone.
 	ids := map[string]string{}
 	for _, path := range paths {
 		raw, err := os.ReadFile(path)
@@ -150,10 +150,7 @@ func Load(dir, target string) (*Loaded, error) {
 	return out, nil
 }
 
-// validate refuses an entry that cannot be driven. Every entry carries an id
-// somebody can name it by, and at least one <test>, which is what keeps the
-// table honest: an entry that has stopped firing says so rather than sitting
-// in the file looking enforced.
+// validate refuses an entry that cannot be driven.
 func validate(path string, f file, ids map[string]string) error {
 	check := func(kind, id string, tests []Test, missing bool) error {
 		if missing {
