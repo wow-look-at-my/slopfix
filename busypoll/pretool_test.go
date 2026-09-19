@@ -364,9 +364,9 @@ func TestAPendingBuildCountIsNotAVerdict(t *testing.T) {
 	assert.Empty(t, reason, "nothing has passed yet, so there is no verdict to re-read")
 }
 
-// A read often shows more than one count: a run listing, a comparison with an
-// earlier commit, a table of two pull requests. The commit this record names is
-// the one still building, and the full count belongs to something else.
+// A read often shows more than a single count: a run listing, a comparison with
+// an earlier commit, a table of pull requests. The commit this record names is
+// the thing still building, and the full count belongs to something else.
 func TestAFullCountBesideAPartialOneIsNotAVerdict(t *testing.T) {
 	const sha = "31b41ca7781c48fa37ba1e34b0e618e995bb0e9a"
 	tr := stageTranscript(t,
