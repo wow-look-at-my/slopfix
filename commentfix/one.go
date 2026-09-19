@@ -1,4 +1,3 @@
-// one.go decides whether the cardinal `one` is a determiner or a pronoun.
 //
 // The repair for the determiner is "a single", which carries its own article.
 // Written into a slot an article already governs, it spells "the a single". So
@@ -39,9 +38,9 @@ var pronounFollowers = map[string]bool{
 	"must": true, "should": true,
 }
 
-// sayOne rewrites the determiner `one` and leaves the pronoun alone. A slot it
-// cannot read confidently keeps the cardinal, which the rule then reports. A
-// warning costs a reader nothing. A wrong repair ships prose nobody reviews.
+// A slot it cannot read confidently keeps the cardinal, which the rule then
+// reports. A warning costs a reader nothing. A wrong repair ships prose nobody
+// reviews.
 func sayOne(prose string) string {
 	var b strings.Builder
 	lower := strings.ToLower(prose)
@@ -70,8 +69,8 @@ func determines(s string, at, end int) bool {
 	if next == "" || pronounFollowers[next] {
 		return false
 	}
-	// A gerund reads as a verb here more often than as a noun, and telling the
-	// two apart needs a parser.
+	// A gerund reads as a verb here more often than as a noun, and telling
+	// both apart needs a parser.
 	if strings.HasSuffix(next, "ing") {
 		return false
 	}
