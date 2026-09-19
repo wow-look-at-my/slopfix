@@ -16,47 +16,32 @@ func TestEveryTableEntryFires(t *testing.T) {
 
 	for _, r := range numbersTable.Rewrites {
 		require.NotEmpty(t, r.Test, "rewrite %q carries no test", r.From)
-		assert.Equal(t, r.Expect, Say(r.Test), "rewrite %q did not fire", r.From)
+		assert.Equal(t, r.Expect, Reword(r.Test), "rewrite %q did not fire", r.From)
 	}
 	for _, p := range numbersTable.Patterns {
 		require.NotEmpty(t, p.Test, "pattern %q carries no test", p.Match)
-		assert.Equal(t, p.Expect, Say(p.Test), "pattern %q did not fire", p.Match)
+		assert.Equal(t, p.Expect, Reword(p.Test), "pattern %q did not fire", p.Match)
 	}
-	require.NotEmpty(t, numbersTable.Says)
-	for _, s := range numbersTable.Says {
-		require.NotEmpty(t, s.Test, "say %q carries no test", s.To)
-		assert.Equal(t, s.Expect, Say(s.Test), "say %q did not fire", s.To)
+	require.NotEmpty(t, numbersTable.Rephrasings)
+	for _, e := range numbersTable.Rephrasings {
+		require.NotEmpty(t, e.Test, "rephrase %q carries no test", e.To)
+		assert.Equal(t, e.Expect, Reword(e.Test), "rephrase %q did not fire", e.To)
 	}
 }
 
-// Every name the grammar uses resolves. A rule naming a rule that does not
-// exist, or a class nothing declares, matches nothing and costs no error, so
-// the production silently stops covering the sentences it was written for.
-func TestEveryNameTheGrammarUsesResolves(t *testing.T) {
-	require.NotNil(t, numbersTable.Grammar)
-	classes := map[string]bool{}
+// Every class a match names is declared. A typo in a class name matches
+// nothing and costs no error, so the entry silently stops covering the prose
+// it was written for.
+func TestEveryClassAMatchNamesIsDeclared(t *testing.T) {
+	require.NotEmpty(t, numbersTable.Classes)
+	declared := map[string]bool{"open": true}
 	for _, c := range numbersTable.Classes {
-		classes[c.Name] = true
+		declared[c.Name] = true
 	}
-	rules := map[string]bool{}
-	for _, r := range numbersTable.Grammar.Rules {
-		rules[r.Name] = true
-	}
-	assert.True(t, rules[numbersTable.Grammar.Start], "the start rule is not declared")
-	for _, r := range numbersTable.Grammar.Rules {
-		for _, prod := range r.Prods {
-			for _, sym := range prod {
-				switch {
-				case sym.Rule != "":
-					assert.True(t, rules[sym.Rule], "rule %q names the undeclared rule %q", r.Name, sym.Rule)
-				case sym.Class != "":
-					assert.True(t, classes[sym.Class], "rule %q names the undeclared class %q", r.Name, sym.Class)
-				}
-			}
+	for _, e := range numbersTable.Rephrasings {
+		for _, class := range e.Terms.Classes() {
+			assert.True(t, declared[class], "match %q names the undeclared class %q", e.Match, class)
 		}
-	}
-	for _, s := range numbersTable.Says {
-		assert.True(t, rules[s.Role], "say %q names the role %q, which is no rule", s.To, s.Role)
 	}
 }
 
@@ -68,7 +53,7 @@ func TestTheCardinalStaysBannedWhereTheTableRepairsNothing(t *testing.T) {
 		"The count is one",
 		"It holds one",
 	} {
-		assert.Equal(t, prose, Say(prose), "the table repaired prose this case needs it to leave")
+		assert.Equal(t, prose, Reword(prose), "the table repaired prose this case needs it to leave")
 		assert.NotEmpty(t, cardinal.Find(prose, cardinal.Comment), "the rule stopped reporting %q", prose)
 	}
 }
@@ -77,10 +62,10 @@ func TestTheCardinalStaysBannedWhereTheTableRepairsNothing(t *testing.T) {
 // carried another number would send the repair straight to a cut.
 func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
 	for _, r := range numbersTable.Rewrites {
-		assert.Empty(t, cardinal.Find(Say(r.Test), cardinal.Comment), "rewrite %q leaves a number", r.From)
+		assert.Empty(t, cardinal.Find(Reword(r.Test), cardinal.Comment), "rewrite %q leaves a number", r.From)
 	}
 	for _, p := range numbersTable.Patterns {
-		assert.Empty(t, cardinal.Find(Say(p.Test), cardinal.Comment), "pattern %q leaves a number", p.Match)
+		assert.Empty(t, cardinal.Find(Reword(p.Test), cardinal.Comment), "pattern %q leaves a number", p.Match)
 	}
 }
 
@@ -92,27 +77,27 @@ func TestAQualifiedNameIsLeftWhole(t *testing.T) {
 		"net/http serves it",
 		"it calls Do.Once here",
 	} {
-		assert.Equal(t, prose, Say(prose))
+		assert.Equal(t, prose, Reword(prose))
 	}
 	// The control: the same word standing alone still rewrites.
-	assert.Equal(t, "the a single time flag", Say("the once flag"))
+	assert.Equal(t, "the a single time flag", Reword("the once flag"))
 }
 
 func TestProseTheTableDoesNotCoverIsUntouched(t *testing.T) {
-	assert.Equal(t, "It reserves a slot and publishes it", Say("It reserves a slot and publishes it"))
+	assert.Equal(t, "It reserves a slot and publishes it", Reword("It reserves a slot and publishes it"))
 }
 
 // A comment line often continues a wrapped sentence rather than opening it, so
 // the repair keeps the opening case the author wrote.
 func TestTheOpeningCaseIsTheOneTheAuthorWrote(t *testing.T) {
-	assert.Equal(t, "a single side of s or other.", Say("exactly one of s or other."))
-	assert.Equal(t, "Goroutines contend", Say("Two goroutines contend"))
+	assert.Equal(t, "a single side of s or other.", Reword("exactly one of s or other."))
+	assert.Equal(t, "Goroutines contend", Reword("Two goroutines contend"))
 }
 
 // A word that merely contains a number word is a name, so the table's own
 // matching leaves it alone.
 func TestTheTableLeavesAWordContainingANumberWordAlone(t *testing.T) {
-	assert.Equal(t, "The oneShot flag and someone else", Say("The oneShot flag and someone else"))
+	assert.Equal(t, "The oneShot flag and someone else", Reword("The oneShot flag and someone else"))
 }
 
 // A dot against the word after it opens a name. Closing the space before it
@@ -123,12 +108,12 @@ func TestTheTableKeepsTheSpaceBeforeALeadingDot(t *testing.T) {
 		"The suite lives in .dats files",
 		"Ignored by .gitignore already",
 	} {
-		assert.Equal(t, prose, Say(prose))
+		assert.Equal(t, prose, Reword(prose))
 	}
 }
 
 // The gap a deleted word leaves before closing punctuation still closes.
 func TestTheTableClosesTheGapBeforeClosingPunctuation(t *testing.T) {
-	assert.Equal(t, "It reserves a single slot.", Say("It reserves one slot ."))
-	assert.Equal(t, "It locks, then writes.", Say("It locks , then writes ."))
+	assert.Equal(t, "It reserves a single slot.", Reword("It reserves one slot ."))
+	assert.Equal(t, "It locks, then writes.", Reword("It locks , then writes ."))
 }

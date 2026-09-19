@@ -7,6 +7,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // Drop is a word that survives its own deletion.
@@ -51,47 +53,24 @@ type Class struct {
 	Name   string `xml:"name,attr"`
 	Words  string `xml:"words,attr"`
 	Suffix string `xml:"suffix,attr"`
+	Open   bool   `xml:"open,attr"`
+	Except string `xml:"except,attr"`
 }
 
-// Sym is a symbol inside a production. The element NAME is the kind:
-// <ref name=> names another rule, <class name=> a word class, <open/> a word
-// no class claims.
-type Sym struct {
-	XMLName xml.Name
-	Name    string `xml:"name,attr"`
-}
-
-// Prod is a run of symbols. Seq is the element, so an empty <seq/> declares a
-// rule that can cover nothing.
-type Prod struct {
-	Syms []Sym `xml:",any"`
-}
-
-// Rule is a phrase and the ways it can be built. A rule carries either
-// <seq> or an <alt> of them.
-type Rule struct {
-	Name string `xml:"name,attr"`
-	Seq  *Prod  `xml:"seq"`
-	Alt  struct {
-		Seqs []Prod `xml:"seq"`
-	} `xml:"alt"`
-}
-
-// Grammar is the phrase structure of a text.
-type Grammar struct {
-	Start string `xml:"start,attr"`
-	Rules []Rule `xml:"rule"`
-}
-
-// Say is what to write instead of a word standing in a named role.
-type Say struct {
-	Word   string `xml:"word,attr"`
-	Role   string `xml:"role,attr"`
+// Rephrase is a match over word classes and what to write instead.
+type Rephrase struct {
+	Match  string `xml:"match,attr"`
 	To     string `xml:"to,attr"`
-	After  string `xml:"after,attr"`
 	Where  string `xml:"where,attr"`
 	Test   string `xml:"test,attr"`
 	Expect string `xml:"expect,attr"`
+}
+
+// Normalize settles a spelling before any match is tried.
+type Normalize struct {
+	From string `xml:"from,attr"`
+	To   string `xml:"to,attr"`
+	Test string `xml:"test,attr"`
 }
 
 // file mirrors a rules XML document.
@@ -102,8 +81,8 @@ type file struct {
 	Patterns []Pattern `xml:"pattern"`
 	Flags    []Flag    `xml:"flag"`
 	Classes  []Class   `xml:"class"`
-	Says     []Say     `xml:"say"`
-	Grammars []Grammar `xml:"grammar"`
+	Rephrases []Rephrase `xml:"rephrase"`
+	Normals   []Normalize `xml:"normalize"`
 }
 
 // Loaded is the folder's entries for a single target, in order.
@@ -112,14 +91,14 @@ type Loaded struct {
 	Rewrites []Rewrite
 	Patterns []Pattern
 	Flags    []Flag
-	Classes  []Class
-	Says     []Say
-	Grammars []Grammar
+	Classes   []Class
+	Rephrases []Rephrase
+	Normals   []Normalize
 }
 
 func (l *Loaded) empty() bool {
 	return len(l.Drops)+len(l.Rewrites)+len(l.Patterns)+len(l.Flags)+
-		len(l.Classes)+len(l.Says)+len(l.Grammars) == 0
+		len(l.Classes)+len(l.Rephrases)+len(l.Normals) == 0
 }
 
 // Load reads every XML in dir and keeps the entries declaring this target.
@@ -152,8 +131,8 @@ func Load(dir, target string) (*Loaded, error) {
 		out.Patterns = append(out.Patterns, parsed.Patterns...)
 		out.Flags = append(out.Flags, parsed.Flags...)
 		out.Classes = append(out.Classes, parsed.Classes...)
-		out.Says = append(out.Says, parsed.Says...)
-		out.Grammars = append(out.Grammars, parsed.Grammars...)
+		out.Rephrases = append(out.Rephrases, parsed.Rephrases...)
+		out.Normals = append(out.Normals, parsed.Normals...)
 	}
 	return out, nil
 }
@@ -179,6 +158,19 @@ func validate(path string, f file) error {
 	for _, fl := range f.Flags {
 		if fl.Phrase == "" || fl.Say == "" || fl.Test == "" {
 			return fmt.Errorf("%s: a <flag> is missing phrase, say or test", path)
+		}
+	}
+	for _, r := range f.Rephrases {
+		if r.Match == "" || r.Test == "" || r.Expect == "" {
+			return fmt.Errorf("%s: a <rephrase> is missing match, test or expect", path)
+		}
+		if _, err := table.ParseMatch(r.Match); err != nil {
+			return fmt.Errorf("%s: <rephrase match=%q>: %w", path, r.Match, err)
+		}
+	}
+	for _, n := range f.Normals {
+		if n.From == "" || n.To == "" {
+			return fmt.Errorf("%s: a <normalize> is missing from or to", path)
 		}
 	}
 	return nil

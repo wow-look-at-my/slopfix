@@ -54,9 +54,27 @@
        has a determiner it spells "the a single", and written over a head it
        spells "without a single that". Both shipped. -->
 
-  <say word="one" role="DET" to="a single" test="It reserves one slot" expect="It reserves a single slot"/>
-  <say word="one" role="HEAD" to="thing" after="article determiner" test="It takes the wrong one when it can" expect="It takes the wrong thing when it can"/>
-  <say word="one" role="HEAD" to="a thing" test="It is tested without one that is full" expect="It is tested without a thing that is full"/>
+  <!-- A term names a word CLASS, which a regexp has no way to say. The classes
+       are in english-classes.xml, and {name} in the replacement writes back
+       what the term of that name matched. A replacement may be longer than
+       what it matched, shorter, or empty.
+
+       The phrases come first: each is a fixed idiom the corpus shows by the
+       hundred, and a general shape below would read it wrongly. -->
+  <rephrase match="at least one" to="any" test="It holds at least one key" expect="It holds any key"/>
+  <rephrase match="at most one" to="no more than a single" test="It holds at most one key" expect="It holds no more than a single key"/>
+  <rephrase match="more than one" to="several" test="It holds more than one key" expect="It holds several keys"/>
+  <rephrase match="only one" to="a single" test="It holds only one key" expect="It holds a single key"/>
+  <rephrase match="no one" to="nobody" test="No one reads it" expect="Nobody reads it"/>
+
+  <!-- An article or determiner already governs the slot, so the cardinal after
+       it stands for the noun rather than counting it. Writing "a single" into
+       that slot spells "the a single", which shipped. -->
+  <rephrase match="{article|determiner:d} {open*:mods} one" to="{d} {mods} thing" test="It takes the wrong one" expect="It takes the wrong thing"/>
+
+  <!-- A noun follows, so the cardinal counts it. A verb form is not a noun
+       here, and the class excludes it, so "one keeping up" is left alone. -->
+  <rephrase match="one {noun:n}" to="a single {n}" test="It reserves one slot" expect="It reserves a single slot"/>
 
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
   <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>

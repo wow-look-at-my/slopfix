@@ -112,63 +112,58 @@ func render(req Request, t *Loaded) string {
 	}
 	b.WriteString("\t},\n\tClasses: []table.Class{\n")
 	for _, c := range t.Classes {
-		fmt.Fprintf(&b, "\t\t{Name: %s, Words: %s, Suffix: %s},\n",
-			q(c.Name), words(c.Words), words(c.Suffix))
+		fmt.Fprintf(&b, "\t\t{Name: %s, Words: %s, Suffix: %s, Open: %t, Except: %s},\n",
+			q(c.Name), words(c.Words), words(c.Suffix), c.Open, words(c.Except))
 	}
-	b.WriteString("\t},\n\tSays: []table.Say{\n")
-	for _, s := range t.Says {
-		fmt.Fprintf(&b, "\t\t{Word: %s, Role: %s, To: %s, After: %s, Where: %s, Test: %s, Expect: %s},\n",
-			q(s.Word), q(s.Role), q(s.To), words(s.After), q(s.Where), q(s.Test), q(s.Expect))
+	b.WriteString("\t},\n\tNormals: []table.Normalize{\n")
+	for _, n := range t.Normals {
+		fmt.Fprintf(&b, "\t\t{From: %s, To: %s, Test: %s},\n", q(n.From), q(n.To), q(n.Test))
 	}
-	b.WriteString("\t},\n")
-	renderGrammar(&b, t.Grammars)
-	b.WriteString("}\n")
+	b.WriteString("\t},\n\tRephrasings: []table.Rephrase{\n")
+	for _, r := range t.Rephrases {
+		fmt.Fprintf(&b, "\t\t{\n\t\t\tMatch: %s, To: %s, Where: %s,\n", q(r.Match), q(r.To), q(r.Where))
+		fmt.Fprintf(&b, "\t\t\tTest: %s, Expect: %s,\n", q(r.Test), q(r.Expect))
+		fmt.Fprintf(&b, "\t\t\tTerms: %s,\n\t\t},\n", renderTerms(r.Match))
+	}
+	b.WriteString("\t},\n}\n")
 	return b.String()
 }
 
-// renderGrammar writes the phrase structure. A folder declaring none leaves
-// the field nil, and the repair then rewrites nothing by role.
-func renderGrammar(b *strings.Builder, grammars []Grammar) {
-	if len(grammars) == 0 {
-		return
+// renderTerms writes a parsed match as a literal. Load has already refused a
+// match that does not parse, so this cannot fail here.
+func renderTerms(match string) string {
+	parsed, err := table.ParseMatch(match)
+	if err != nil {
+		return "table.Match{}"
 	}
-	g := grammars[0]
-	fmt.Fprintf(b, "\tGrammar: &table.Grammar{\n\t\tStart: %s,\n\t\tRules: []table.Rule{\n", q(g.Start))
-	for _, r := range g.Rules {
-		fmt.Fprintf(b, "\t\t\t{Name: %s, Prods: []table.Prod{\n", q(r.Name))
-		for _, prod := range prodsOf(r) {
-			b.WriteString("\t\t\t\t{")
-			for i, sym := range prod.Syms {
-				if i > 0 {
-					b.WriteString(", ")
-				}
-				b.WriteString(renderSym(sym))
-			}
-			b.WriteString("},\n")
+	var b strings.Builder
+	b.WriteString("table.Match{Terms: []table.Term{")
+	for i, t := range parsed.Terms {
+		if i > 0 {
+			b.WriteString(", ")
 		}
-		b.WriteString("\t\t\t}},\n")
+		fmt.Fprintf(&b, "{Classes: %s, Word: %s, Name: %s, Many: %t}",
+			list(t.Classes), q(t.Word), q(t.Name), t.Many)
 	}
-	b.WriteString("\t\t},\n\t},\n")
+	b.WriteString("}}")
+	return b.String()
 }
 
-// prodsOf answers a rule's productions, whichever spelling it used.
-func prodsOf(r Rule) []Prod {
-	if r.Seq != nil {
-		return []Prod{*r.Seq}
+// list renders a slice of strings as a Go literal.
+func list(items []string) string {
+	if len(items) == 0 {
+		return "nil"
 	}
-	return r.Alt.Seqs
-}
-
-// renderSym writes a symbol, reading its kind off the element name.
-func renderSym(s Sym) string {
-	switch s.XMLName.Local {
-	case "ref":
-		return fmt.Sprintf("{Rule: %s}", q(s.Name))
-	case "open":
-		return "{Open: true}"
-	default:
-		return fmt.Sprintf("{Class: %s}", q(s.Name))
+	var b strings.Builder
+	b.WriteString("[]string{")
+	for i, s := range items {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(q(s))
 	}
+	b.WriteString("}")
+	return b.String()
 }
 
 // words renders a whitespace-separated attribute as a Go slice literal.

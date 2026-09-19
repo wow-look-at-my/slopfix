@@ -20,12 +20,12 @@ import (
 //
 // The order is rewrites, then shapes, then patterns. A phrase swap settles the
 // idioms earliest.
-func Say(prose string) string {
+func Reword(prose string) string {
 	original := prose
 	for _, r := range numbersTable.Rewrites {
 		prose = replaceWord(prose, r.From, r.To)
 	}
-	prose = table.Apply(numbersTable.Grammar, numbersTable.Lexicon(), numbersTable.Says, prose)
+	prose = table.Rephrasings(numbersTable.Lexicon(), numbersTable.Normals, numbersTable.Rephrasings, prose)
 	for _, p := range numbersTable.Patterns {
 		prose = p.Replace(prose)
 	}

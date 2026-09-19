@@ -67,8 +67,8 @@ type Table struct {
 	Patterns []Pattern
 	Flags    []Flag
 	Classes  []Class
-	Says     []Say
-	Grammar  *Grammar
+	Normals  []Normalize
+	Rephrasings []Rephrase
 
 	once    sync.Once
 	lexicon *Lexicon

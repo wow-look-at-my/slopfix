@@ -49,9 +49,14 @@
     something anything nothing everything"/>
 
   <!-- A verb form named by its ending, because the class is open and has no
-       list. A gerund also spells a noun ("a string", "a setting"), so a shape
+       list. A gerund also spells a noun ("a string", "a setting"), so a match
        reads this as "do not decide", never as "this is a verb". -->
   <class name="verbform" suffix="ing ed"/>
+
+  <!-- A noun is what no closed class claims and no ending marks as a verb. It
+       is the open class, less the verb forms, so a term can ask for a noun
+       without asking a parser. -->
+  <class name="noun" open="true" except="verbform"/>
 
   <!-- The cardinals the rule is about. A shape names the word it governs, so
        this class is what a shape reads to find any of them at once. -->
