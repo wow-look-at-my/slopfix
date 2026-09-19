@@ -14,27 +14,37 @@ import (
 	"sync"
 )
 
+// A Test drives an entry. In is the prose somebody writes. Out is what the
+// repair must produce. An entry that asserts no particular output leaves Out
+// empty, and the test then only holds the entry to firing at all.
+type Test struct {
+	In  string
+	Out string
+}
+
 // Drop is a word that survives its own deletion.
 type Drop struct {
+	ID    string
 	Word  string
 	Where string
-	Test  string
+	Tests []Test
 }
 
 // Rewrite swaps a whole phrase for another.
 type Rewrite struct {
-	From   string
-	To     string
-	Where  string
-	Test   string
-	Expect string
+	ID    string
+	From  string
+	To    string
+	Where string
+	Tests []Test
 }
 
 // Flag names prose a rule refuses to rewrite, and what to write instead.
 type Flag struct {
+	ID     string
 	Phrase string
 	Say    string
-	Test   string
+	Tests  []Test
 }
 
 // Pattern is a rewrite with captures, compiled to Go.
@@ -43,11 +53,11 @@ type Flag struct {
 // pass, At answers the head of a string, and both allocate nothing: a run over
 // prose carrying no match therefore allocates nothing at all.
 type Pattern struct {
-	Match  string
-	To     string
-	Where  string
-	Test   string
-	Expect string
+	ID    string
+	Match string
+	To    string
+	Where string
+	Tests []Test
 
 	// Has reports a match anywhere in s.
 	Has func(s string) bool
@@ -62,12 +72,12 @@ type Pattern struct {
 
 // Table is what a single `for` value in rules/ adds up to.
 type Table struct {
-	Drops    []Drop
-	Rewrites []Rewrite
-	Patterns []Pattern
-	Flags    []Flag
-	Classes  []Class
-	Normals  []Normalize
+	Drops       []Drop
+	Rewrites    []Rewrite
+	Patterns    []Pattern
+	Flags       []Flag
+	Classes     []Class
+	Normals     []Normalize
 	Rephrasings []Rephrase
 
 	once    sync.Once

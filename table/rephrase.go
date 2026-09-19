@@ -10,22 +10,23 @@ import "strings"
 
 // A Rephrase is a match over word classes and what to write instead.
 type Rephrase struct {
+	ID string
 	// Match is the source text, kept for the error a malformed entry reports
 	// and for the name a test prints.
-	Match  string
-	Terms  Match
-	To     string
-	Where  string
-	Test   string
-	Expect string
+	Match string
+	Terms Match
+	To    string
+	Where string
+	Tests []Test
 }
 
 // A Normalize is a token rewrite applied before any match is tried, so a rule
 // is written against a settled spelling rather than against all of them.
 type Normalize struct {
-	From string
-	To   string
-	Test string
+	ID    string
+	From  string
+	To    string
+	Tests []Test
 }
 
 // Rephrasings applies every entry to prose, earliest entry earliest.

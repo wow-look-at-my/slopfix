@@ -14,15 +14,18 @@
 -->
 <rules for="english">
 
-  <pattern match="\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]+)\b"
+  <pattern id="b-a-za-z0-9" match="\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]+)\b"
            to="[$1#$2](https://github.com/$1/issues/$2)"
-           where="message"
-           test="wow-look-at-my/slopfix#14 is open"
-           expect="[wow-look-at-my/slopfix#14](https://github.com/wow-look-at-my/slopfix/issues/14) is open"/>
+           where="message">
+    <test in="wow-look-at-my/slopfix#14 is open" out="[wow-look-at-my/slopfix#14](https://github.com/wow-look-at-my/slopfix/issues/14) is open"/>
+  </pattern>
 
-  <pattern match="\s+([,.;:!?])" to="$1" test="A clause , and a stop ."
-           expect="A clause, and a stop."/>
+  <pattern id="s" match="\s+([,.;:!?])" to="$1">
+    <test in="A clause , and a stop ." out="A clause, and a stop."/>
+  </pattern>
 
-  <pattern match="  +" to=" " test="Two  spaces" expect="Two spaces"/>
+  <pattern id="pattern" match="  +" to=" ">
+    <test in="Two  spaces" out="Two spaces"/>
+  </pattern>
 
 </rules>

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // Every entry in the table drives its own case. An entry that has stopped
@@ -14,18 +15,30 @@ func TestEveryTableEntryFires(t *testing.T) {
 	require.NotEmpty(t, numbersTable.Rewrites)
 	require.NotEmpty(t, numbersTable.Patterns)
 
+	require.NotEmpty(t, numbersTable.Rephrasings)
 	for _, r := range numbersTable.Rewrites {
-		require.NotEmpty(t, r.Test, "rewrite %q carries no test", r.From)
-		assert.Equal(t, r.Expect, Reword(r.Test), "rewrite %q did not fire", r.From)
+		fires(t, "rewrite", r.ID, r.Tests)
 	}
 	for _, p := range numbersTable.Patterns {
-		require.NotEmpty(t, p.Test, "pattern %q carries no test", p.Match)
-		assert.Equal(t, p.Expect, Reword(p.Test), "pattern %q did not fire", p.Match)
+		fires(t, "pattern", p.ID, p.Tests)
 	}
-	require.NotEmpty(t, numbersTable.Rephrasings)
 	for _, e := range numbersTable.Rephrasings {
-		require.NotEmpty(t, e.Test, "rephrase %q carries no test", e.To)
-		assert.Equal(t, e.Expect, Reword(e.Test), "rephrase %q did not fire", e.To)
+		fires(t, "rephrase", e.ID, e.Tests)
+	}
+}
+
+// fires holds an entry to every case it carries. A case naming no output only
+// holds the entry to changing the prose at all.
+func fires(t *testing.T, kind, id string, cases []table.Test) {
+	t.Helper()
+	require.NotEmpty(t, cases, "<%s id=%q> carries no test", kind, id)
+	for _, c := range cases {
+		got := Reword(c.In)
+		if c.Out == "" {
+			assert.NotEqual(t, c.In, got, "<%s id=%q> did not fire on %q", kind, id, c.In)
+			continue
+		}
+		assert.Equal(t, c.Out, got, "<%s id=%q> did not fire on %q", kind, id, c.In)
 	}
 }
 
@@ -61,11 +74,20 @@ func TestTheCardinalStaysBannedWhereTheTableRepairsNothing(t *testing.T) {
 // What the table says leaves no number behind. An entry whose replacement
 // carried another number would send the repair straight to a cut.
 func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
+	leaves := func(kind, id string, cases []table.Test) {
+		for _, c := range cases {
+			assert.Empty(t, cardinal.Find(Reword(c.In), cardinal.Comment),
+				"<%s id=%q> leaves a number", kind, id)
+		}
+	}
 	for _, r := range numbersTable.Rewrites {
-		assert.Empty(t, cardinal.Find(Reword(r.Test), cardinal.Comment), "rewrite %q leaves a number", r.From)
+		leaves("rewrite", r.ID, r.Tests)
 	}
 	for _, p := range numbersTable.Patterns {
-		assert.Empty(t, cardinal.Find(Reword(p.Test), cardinal.Comment), "pattern %q leaves a number", p.Match)
+		leaves("pattern", p.ID, p.Tests)
+	}
+	for _, e := range numbersTable.Rephrasings {
+		leaves("rephrase", e.ID, e.Tests)
 	}
 }
 
