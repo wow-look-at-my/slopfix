@@ -9,6 +9,8 @@ package commentfix
 
 import (
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 //go:generate go run github.com/wow-look-at-my/slopfix/cmd/rulegen -rules ../rules -for numbers -package commentfix -out numbers.gen.go
@@ -24,9 +26,7 @@ func Say(prose string) string {
 	for _, r := range numbersTable.Rewrites {
 		prose = replaceWord(prose, r.From, r.To)
 	}
-	for _, s := range numbersTable.Shapes {
-		prose = s.Apply(numbersTable.Lexicon(), prose)
-	}
+	prose = table.Apply(numbersTable.Grammar, numbersTable.Lexicon(), numbersTable.Says, prose)
 	for _, p := range numbersTable.Patterns {
 		prose = p.Replace(prose)
 	}

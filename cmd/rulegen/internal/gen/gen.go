@@ -115,35 +115,60 @@ func render(req Request, t *Loaded) string {
 		fmt.Fprintf(&b, "\t\t{Name: %s, Words: %s, Suffix: %s},\n",
 			q(c.Name), words(c.Words), words(c.Suffix))
 	}
-	b.WriteString("\t},\n\tShapes: []table.Shape{\n")
-	for _, s := range t.Shapes {
-		fmt.Fprintf(&b, "\t\t{\n\t\t\tTo: %s, Where: %s, Test: %s, Expect: %s,\n",
-			q(s.To), q(s.Where), q(s.Test), q(s.Expect))
-		b.WriteString("\t\t\tSlots: []table.Slot{\n")
-		for _, slot := range s.Slots {
-			fmt.Fprintf(&b, "\t\t\t\t%s,\n", renderSlot(slot))
-		}
-		b.WriteString("\t\t\t},\n\t\t},\n")
+	b.WriteString("\t},\n\tSays: []table.Say{\n")
+	for _, s := range t.Says {
+		fmt.Fprintf(&b, "\t\t{Word: %s, Role: %s, To: %s, After: %s, Where: %s, Test: %s, Expect: %s},\n",
+			q(s.Word), q(s.Role), q(s.To), words(s.After), q(s.Where), q(s.Test), q(s.Expect))
 	}
-	b.WriteString("\t},\n}\n")
+	b.WriteString("\t},\n")
+	renderGrammar(&b, t.Grammars)
+	b.WriteString("}\n")
 	return b.String()
 }
 
-// renderSlot writes a slot, reading its kind off the element name.
-func renderSlot(s Slot) string {
-	classes, word, absent := s.Class, s.Word, false
-	switch s.XMLName.Local {
-	case "word":
-	case "open":
-		classes = "open"
-	case "any":
-	case "absent":
-		absent = true
-	default:
-		classes = s.XMLName.Local
+// renderGrammar writes the phrase structure. A folder declaring none leaves
+// the field nil, and the repair then rewrites nothing by role.
+func renderGrammar(b *strings.Builder, grammars []Grammar) {
+	if len(grammars) == 0 {
+		return
 	}
-	return fmt.Sprintf("{Classes: %s, Word: %s, Capture: %d, Optional: %t, Absent: %t}",
-		words(classes), q(word), s.Capture, s.Optional, absent)
+	g := grammars[0]
+	fmt.Fprintf(b, "\tGrammar: &table.Grammar{\n\t\tStart: %s,\n\t\tRules: []table.Rule{\n", q(g.Start))
+	for _, r := range g.Rules {
+		fmt.Fprintf(b, "\t\t\t{Name: %s, Prods: []table.Prod{\n", q(r.Name))
+		for _, prod := range prodsOf(r) {
+			b.WriteString("\t\t\t\t{")
+			for i, sym := range prod.Syms {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(renderSym(sym))
+			}
+			b.WriteString("},\n")
+		}
+		b.WriteString("\t\t\t}},\n")
+	}
+	b.WriteString("\t\t},\n\t},\n")
+}
+
+// prodsOf answers a rule's productions, whichever spelling it used.
+func prodsOf(r Rule) []Prod {
+	if r.Seq != nil {
+		return []Prod{*r.Seq}
+	}
+	return r.Alt.Seqs
+}
+
+// renderSym writes a symbol, reading its kind off the element name.
+func renderSym(s Sym) string {
+	switch s.XMLName.Local {
+	case "ref":
+		return fmt.Sprintf("{Rule: %s}", q(s.Name))
+	case "open":
+		return "{Open: true}"
+	default:
+		return fmt.Sprintf("{Class: %s}", q(s.Name))
+	}
 }
 
 // words renders a whitespace-separated attribute as a Go slice literal.

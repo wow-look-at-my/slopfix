@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  English phrase structure, as productions. A rule names a phrase and gives the
+  ways it can be built. A rule may name itself through another, so the grammar
+  is recursive and describes a sentence of any depth: a noun phrase holds a
+  prepositional phrase, which holds a noun phrase, and so on without limit.
+
+  This is what a run of slots could not do. A slot list reads the words beside
+  a word. It has no phrase, so it cannot say that a cardinal is the DETERMINER
+  of a noun phrase rather than its HEAD, which is the whole question the number
+  repair has to answer.
+
+  The parser is a chart parser (table/grammar.go), so an ambiguous sentence
+  yields every parse and the repair asks whether EVERY one of them agrees. A
+  reading it cannot settle is left alone.
+
+  A terminal names a class from english-classes.xml. A word no class claims is
+  open, and <open/> stands for it.
+-->
+<rules for="numbers">
+
+  <grammar start="Text">
+
+    <!-- Comment prose is rarely a whole sentence. A fragment is a text too, so
+         the grammar admits a run of phrases and the parse does not fail on a
+         clause with no verb. -->
+    <rule name="Text">
+      <alt>
+        <seq><ref name="Phrase"/></seq>
+        <seq><ref name="Phrase"/><ref name="Text"/></seq>
+      </alt>
+    </rule>
+
+    <rule name="Phrase">
+      <alt>
+        <seq><ref name="NP"/></seq>
+        <seq><ref name="VP"/></seq>
+        <seq><ref name="PP"/></seq>
+        <seq><ref name="Clause"/></seq>
+        <seq><class name="conjunction"/></seq>
+        <seq><class name="adverb"/></seq>
+      </alt>
+    </rule>
+
+    <!-- A relative clause, which is what makes a cardinal before it a head
+         rather than a determiner: "without one that is full". -->
+    <rule name="Clause">
+      <seq><class name="relative"/><ref name="Text"/></seq>
+    </rule>
+
+    <!-- A noun phrase. DET is the slot a cardinal fills when it counts, and
+         HEAD is the slot it fills when it stands for the noun. -->
+    <rule name="NP">
+      <alt>
+        <seq><ref name="DET"/><ref name="MODS"/><ref name="HEAD"/></seq>
+        <seq><ref name="MODS"/><ref name="HEAD"/></seq>
+        <seq><ref name="DET"/><ref name="MODS"/><ref name="HEAD"/><ref name="PP"/></seq>
+        <seq><ref name="HEAD"/></seq>
+      </alt>
+    </rule>
+
+    <rule name="DET">
+      <alt>
+        <seq><class name="article"/></seq>
+        <seq><class name="determiner"/></seq>
+        <seq><class name="cardinal"/></seq>
+      </alt>
+    </rule>
+
+    <!-- Any number of modifiers, including none. -->
+    <rule name="MODS">
+      <alt>
+        <seq/>
+        <seq><open/><ref name="MODS"/></seq>
+      </alt>
+    </rule>
+
+    <rule name="HEAD">
+      <alt>
+        <seq><open/></seq>
+        <seq><class name="pronoun"/></seq>
+        <seq><class name="cardinal"/></seq>
+      </alt>
+    </rule>
+
+    <rule name="PP">
+      <seq><class name="preposition"/><ref name="NP"/></seq>
+    </rule>
+
+    <rule name="VP">
+      <alt>
+        <seq><ref name="VERB"/></seq>
+        <seq><ref name="VERB"/><ref name="NP"/></seq>
+        <seq><ref name="VERB"/><ref name="PP"/></seq>
+        <seq><ref name="VERB"/><ref name="NP"/><ref name="PP"/></seq>
+      </alt>
+    </rule>
+
+    <rule name="VERB">
+      <alt>
+        <seq><class name="auxiliary"/></seq>
+        <seq><class name="verbform"/></seq>
+        <seq><class name="auxiliary"/><ref name="VERB"/></seq>
+        <seq><class name="adverb"/><ref name="VERB"/></seq>
+      </alt>
+    </rule>
+
+  </grammar>
+
+</rules>

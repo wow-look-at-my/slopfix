@@ -45,30 +45,18 @@
        determiner already holds the slot it spells "the a single", and after a
        relative pronoun it spells "without a single that". Both shipped. -->
 
-  <!-- An article or determiner governs the slot, with or without an adjective
-       between. The cardinal there stands for the noun. -->
-  <shape to="$1 $2 thing" test="It takes the wrong one when it can" expect="It takes the wrong thing when it can">
-    <any class="article determiner" capture="1"/>
-    <open capture="2" optional="true"/>
-    <word is="one"/>
-  </shape>
+  <!-- The cardinal is a determiner where it counts the noun after it, and the
+       head of its phrase where it stands for the noun instead. Nothing about
+       the word says which. The grammar in english-grammar.xml says, and these
+       name what to write for each slot it can fill.
 
-  <!-- Nothing that can head a noun phrase follows, so the cardinal is the
-       subject of what comes next. -->
-  <shape to="a thing $1" test="It is tested without one that is full" expect="It is tested without a thing that is full">
-    <word is="one"/>
-    <any class="relative auxiliary adverb conjunction preposition" capture="1"/>
-  </shape>
+       "A single" carries its own article. Written into a phrase that already
+       has a determiner it spells "the a single", and written over a head it
+       spells "without a single that". Both shipped. -->
 
-  <!-- A noun follows and nothing governs the slot, which is the cardinal as a
-       determiner. "A single" keeps the emphasis a bare article drops. A verb
-       form here is left alone: its ending spells a noun just as often, and a
-       warning costs a reader less than prose nobody reviews. -->
-  <shape to="a single $1" test="It reserves one slot" expect="It reserves a single slot">
-    <word is="one"/>
-    <absent class="verbform"/>
-    <open capture="1"/>
-  </shape>
+  <say word="one" role="DET" to="a single" test="It reserves one slot" expect="It reserves a single slot"/>
+  <say word="one" role="HEAD" to="thing" after="article determiner" test="It takes the wrong one when it can" expect="It takes the wrong thing when it can"/>
+  <say word="one" role="HEAD" to="a thing" test="It is tested without one that is full" expect="It is tested without a thing that is full"/>
 
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
   <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>

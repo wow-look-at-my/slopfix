@@ -22,26 +22,41 @@ func TestEveryTableEntryFires(t *testing.T) {
 		require.NotEmpty(t, p.Test, "pattern %q carries no test", p.Match)
 		assert.Equal(t, p.Expect, Say(p.Test), "pattern %q did not fire", p.Match)
 	}
-	require.NotEmpty(t, numbersTable.Shapes)
-	for _, s := range numbersTable.Shapes {
-		require.NotEmpty(t, s.Test, "shape %q carries no test", s.To)
-		assert.Equal(t, s.Expect, Say(s.Test), "shape %q did not fire", s.To)
+	require.NotEmpty(t, numbersTable.Says)
+	for _, s := range numbersTable.Says {
+		require.NotEmpty(t, s.Test, "say %q carries no test", s.To)
+		assert.Equal(t, s.Expect, Say(s.Test), "say %q did not fire", s.To)
 	}
 }
 
-// Every class a shape names is declared. A typo in a class name matches
-// nothing and costs no error, so the shape silently stops guarding.
-func TestEveryClassAShapeNamesIsDeclared(t *testing.T) {
-	declared := map[string]bool{"open": true}
+// Every name the grammar uses resolves. A rule naming a rule that does not
+// exist, or a class nothing declares, matches nothing and costs no error, so
+// the production silently stops covering the sentences it was written for.
+func TestEveryNameTheGrammarUsesResolves(t *testing.T) {
+	require.NotNil(t, numbersTable.Grammar)
+	classes := map[string]bool{}
 	for _, c := range numbersTable.Classes {
-		declared[c.Name] = true
+		classes[c.Name] = true
 	}
-	for _, s := range numbersTable.Shapes {
-		for _, slot := range s.Slots {
-			for _, class := range slot.Classes {
-				assert.True(t, declared[class], "shape %q names the undeclared class %q", s.To, class)
+	rules := map[string]bool{}
+	for _, r := range numbersTable.Grammar.Rules {
+		rules[r.Name] = true
+	}
+	assert.True(t, rules[numbersTable.Grammar.Start], "the start rule is not declared")
+	for _, r := range numbersTable.Grammar.Rules {
+		for _, prod := range r.Prods {
+			for _, sym := range prod {
+				switch {
+				case sym.Rule != "":
+					assert.True(t, rules[sym.Rule], "rule %q names the undeclared rule %q", r.Name, sym.Rule)
+				case sym.Class != "":
+					assert.True(t, classes[sym.Class], "rule %q names the undeclared class %q", r.Name, sym.Class)
+				}
 			}
 		}
+	}
+	for _, s := range numbersTable.Says {
+		assert.True(t, rules[s.Role], "say %q names the role %q, which is no rule", s.To, s.Role)
 	}
 }
 

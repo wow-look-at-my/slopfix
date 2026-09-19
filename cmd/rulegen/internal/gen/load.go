@@ -53,23 +53,45 @@ type Class struct {
 	Suffix string `xml:"suffix,attr"`
 }
 
-// Slot is a tag inside a shape. The element NAME is the kind: <word is=>,
-// <open/>, <any class=> and <absent class=>.
-type Slot struct {
-	XMLName  xml.Name
-	Class    string `xml:"class,attr"`
-	Word     string `xml:"is,attr"`
-	Capture  int    `xml:"capture,attr"`
-	Optional bool   `xml:"optional,attr"`
+// Sym is a symbol inside a production. The element NAME is the kind:
+// <ref name=> names another rule, <class name=> a word class, <open/> a word
+// no class claims.
+type Sym struct {
+	XMLName xml.Name
+	Name    string `xml:"name,attr"`
 }
 
-// Shape is a run of slots and what to say instead of them.
-type Shape struct {
+// Prod is a run of symbols. Seq is the element, so an empty <seq/> declares a
+// rule that can cover nothing.
+type Prod struct {
+	Syms []Sym `xml:",any"`
+}
+
+// Rule is a phrase and the ways it can be built. A rule carries either one
+// <seq> or an <alt> of them.
+type Rule struct {
+	Name string `xml:"name,attr"`
+	Seq  *Prod  `xml:"seq"`
+	Alt  struct {
+		Seqs []Prod `xml:"seq"`
+	} `xml:"alt"`
+}
+
+// Grammar is the phrase structure of a text.
+type Grammar struct {
+	Start string `xml:"start,attr"`
+	Rules []Rule `xml:"rule"`
+}
+
+// Say is what to write instead of a word standing in a named role.
+type Say struct {
+	Word   string `xml:"word,attr"`
+	Role   string `xml:"role,attr"`
 	To     string `xml:"to,attr"`
+	After  string `xml:"after,attr"`
 	Where  string `xml:"where,attr"`
 	Test   string `xml:"test,attr"`
 	Expect string `xml:"expect,attr"`
-	Slots  []Slot `xml:",any"`
 }
 
 // file mirrors a rules XML document.
@@ -80,7 +102,8 @@ type file struct {
 	Patterns []Pattern `xml:"pattern"`
 	Flags    []Flag    `xml:"flag"`
 	Classes  []Class   `xml:"class"`
-	Shapes   []Shape   `xml:"shape"`
+	Says     []Say     `xml:"say"`
+	Grammars []Grammar `xml:"grammar"`
 }
 
 // Loaded is the folder's entries for a single target, in order.
@@ -90,12 +113,13 @@ type Loaded struct {
 	Patterns []Pattern
 	Flags    []Flag
 	Classes  []Class
-	Shapes   []Shape
+	Says     []Say
+	Grammars []Grammar
 }
 
 func (l *Loaded) empty() bool {
 	return len(l.Drops)+len(l.Rewrites)+len(l.Patterns)+len(l.Flags)+
-		len(l.Classes)+len(l.Shapes) == 0
+		len(l.Classes)+len(l.Says)+len(l.Grammars) == 0
 }
 
 // Load reads every XML in dir and keeps the entries declaring this target.
@@ -128,7 +152,8 @@ func Load(dir, target string) (*Loaded, error) {
 		out.Patterns = append(out.Patterns, parsed.Patterns...)
 		out.Flags = append(out.Flags, parsed.Flags...)
 		out.Classes = append(out.Classes, parsed.Classes...)
-		out.Shapes = append(out.Shapes, parsed.Shapes...)
+		out.Says = append(out.Says, parsed.Says...)
+		out.Grammars = append(out.Grammars, parsed.Grammars...)
 	}
 	return out, nil
 }
