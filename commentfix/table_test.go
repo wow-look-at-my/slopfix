@@ -22,6 +22,40 @@ func TestEveryTableEntryFires(t *testing.T) {
 		require.NotEmpty(t, p.Test, "pattern %q carries no test", p.Match)
 		assert.Equal(t, p.Expect, Say(p.Test), "pattern %q did not fire", p.Match)
 	}
+	require.NotEmpty(t, numbersTable.Shapes)
+	for _, s := range numbersTable.Shapes {
+		require.NotEmpty(t, s.Test, "shape %q carries no test", s.To)
+		assert.Equal(t, s.Expect, Say(s.Test), "shape %q did not fire", s.To)
+	}
+}
+
+// Every class a shape names is declared. A typo in a class name matches
+// nothing and costs no error, so the shape silently stops guarding.
+func TestEveryClassAShapeNamesIsDeclared(t *testing.T) {
+	declared := map[string]bool{"open": true}
+	for _, c := range numbersTable.Classes {
+		declared[c.Name] = true
+	}
+	for _, s := range numbersTable.Shapes {
+		for _, slot := range s.Slots {
+			for _, class := range slot.Classes {
+				assert.True(t, declared[class], "shape %q names the undeclared class %q", s.To, class)
+			}
+		}
+	}
+}
+
+// The rule bans the cardinal whatever the table can repair. An entry removed
+// or narrowed here changes what the repair WRITES. It must never change what
+// the rule REPORTS, or a shape nothing covers goes quietly unreported.
+func TestTheCardinalStaysBannedWhereTheTableRepairsNothing(t *testing.T) {
+	for _, prose := range []string{
+		"The count is one",
+		"It holds one",
+	} {
+		assert.Equal(t, prose, Say(prose), "the table repaired prose this case needs it to leave")
+		assert.NotEmpty(t, cardinal.Find(prose, cardinal.Comment), "the rule stopped reporting %q", prose)
+	}
 }
 
 // What the table says leaves no number behind. An entry whose replacement

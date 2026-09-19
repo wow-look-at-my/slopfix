@@ -16,14 +16,17 @@ import (
 // Say rewrites a line of comment prose, applying every table entry. It says
 // nothing about what is left: the caller checks that.
 //
-// The rewrites go before the patterns, so a shape reads the text a phrase swap
-// has already settled.
+// The order is rewrites, then shapes, then patterns. A phrase swap settles the
+// idioms first. A shape then reads the sentence structure, which is what says
+// whether a cardinal counts the noun after it or stands for one.
 func Say(prose string) string {
 	original := prose
 	for _, r := range numbersTable.Rewrites {
 		prose = replaceWord(prose, r.From, r.To)
 	}
-	prose = sayOne(prose)
+	for _, s := range numbersTable.Shapes {
+		prose = s.Apply(numbersTable.Lexicon(), prose)
+	}
 	for _, p := range numbersTable.Patterns {
 		prose = p.Replace(prose)
 	}

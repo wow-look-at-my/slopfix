@@ -37,10 +37,38 @@
   <rewrite from="zero value" to="unset value" test="Its zero value is ready" expect="Its unset value is ready"/>
   <rewrite from="zero" to="empty" test="It returns zero and false" expect="It returns empty and false"/>
 
-  <!-- The cardinal as a determiner is decided in commentfix/one.go, not here.
-       "A single" carries its own article, so the swap holds only where no
-       article governs the slot already, and that needs the words on each side.
-       An entry here may not read them. -->
+  <!-- The cardinal is a determiner where it counts the noun after it, and a
+       pronoun where it stands for the noun instead. Nothing about the word
+       says which. The slots on each side say, so these read the slots.
+
+       "A single" carries its own article. Written where an article or a
+       determiner already holds the slot it spells "the a single", and after a
+       relative pronoun it spells "without a single that". Both shipped. -->
+
+  <!-- An article or determiner governs the slot, with or without an adjective
+       between. The cardinal there stands for the noun. -->
+  <shape to="$1 $2 thing" test="It takes the wrong one when it can" expect="It takes the wrong thing when it can">
+    <any class="article determiner" capture="1"/>
+    <open capture="2" optional="true"/>
+    <word is="one"/>
+  </shape>
+
+  <!-- Nothing that can head a noun phrase follows, so the cardinal is the
+       subject of what comes next. -->
+  <shape to="a thing $1" test="It is tested without one that is full" expect="It is tested without a thing that is full">
+    <word is="one"/>
+    <any class="relative auxiliary adverb conjunction preposition" capture="1"/>
+  </shape>
+
+  <!-- A noun follows and nothing governs the slot, which is the cardinal as a
+       determiner. "A single" keeps the emphasis a bare article drops. A verb
+       form here is left alone: its ending spells a noun just as often, and a
+       warning costs a reader less than prose nobody reviews. -->
+  <shape to="a single $1" test="It reserves one slot" expect="It reserves a single slot">
+    <word is="one"/>
+    <absent class="verbform"/>
+    <open capture="1"/>
+  </shape>
 
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
   <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>

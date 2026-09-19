@@ -9,7 +9,10 @@
 // automaton per pattern and the table as a slice literal.
 package table
 
-import "strings"
+import (
+	"strings"
+	"sync"
+)
 
 // Drop is a word that survives its own deletion.
 type Drop struct {
@@ -63,6 +66,18 @@ type Table struct {
 	Rewrites []Rewrite
 	Patterns []Pattern
 	Flags    []Flag
+	Classes  []Class
+	Shapes   []Shape
+
+	once    sync.Once
+	lexicon *Lexicon
+}
+
+// Lexicon indexes the table's word classes. It is built on the first read and
+// kept, because a shape asks it for every word of every comment.
+func (t *Table) Lexicon() *Lexicon {
+	t.once.Do(func() { t.lexicon = NewLexicon(t.Classes) })
+	return t.lexicon
 }
 
 // AppliesTo reports whether an entry's where= covers a surface, and an empty

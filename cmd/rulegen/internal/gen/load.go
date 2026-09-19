@@ -46,6 +46,32 @@ type Flag struct {
 	Test   string `xml:"test,attr"`
 }
 
+// Class is a set of words that fill the same slot, declared in its own file.
+type Class struct {
+	Name   string `xml:"name,attr"`
+	Words  string `xml:"words,attr"`
+	Suffix string `xml:"suffix,attr"`
+}
+
+// Slot is a tag inside a shape. The element NAME is the kind: <word is=>,
+// <open/>, <any class=> and <absent class=>.
+type Slot struct {
+	XMLName  xml.Name
+	Class    string `xml:"class,attr"`
+	Word     string `xml:"is,attr"`
+	Capture  int    `xml:"capture,attr"`
+	Optional bool   `xml:"optional,attr"`
+}
+
+// Shape is a run of slots and what to say instead of them.
+type Shape struct {
+	To     string `xml:"to,attr"`
+	Where  string `xml:"where,attr"`
+	Test   string `xml:"test,attr"`
+	Expect string `xml:"expect,attr"`
+	Slots  []Slot `xml:",any"`
+}
+
 // file mirrors a rules XML document.
 type file struct {
 	For      string    `xml:"for,attr"`
@@ -53,6 +79,8 @@ type file struct {
 	Rewrites []Rewrite `xml:"rewrite"`
 	Patterns []Pattern `xml:"pattern"`
 	Flags    []Flag    `xml:"flag"`
+	Classes  []Class   `xml:"class"`
+	Shapes   []Shape   `xml:"shape"`
 }
 
 // Loaded is the folder's entries for a single target, in order.
@@ -61,10 +89,13 @@ type Loaded struct {
 	Rewrites []Rewrite
 	Patterns []Pattern
 	Flags    []Flag
+	Classes  []Class
+	Shapes   []Shape
 }
 
 func (l *Loaded) empty() bool {
-	return len(l.Drops)+len(l.Rewrites)+len(l.Patterns)+len(l.Flags) == 0
+	return len(l.Drops)+len(l.Rewrites)+len(l.Patterns)+len(l.Flags)+
+		len(l.Classes)+len(l.Shapes) == 0
 }
 
 // Load reads every XML in dir and keeps the entries declaring this target.
@@ -96,6 +127,8 @@ func Load(dir, target string) (*Loaded, error) {
 		out.Rewrites = append(out.Rewrites, parsed.Rewrites...)
 		out.Patterns = append(out.Patterns, parsed.Patterns...)
 		out.Flags = append(out.Flags, parsed.Flags...)
+		out.Classes = append(out.Classes, parsed.Classes...)
+		out.Shapes = append(out.Shapes, parsed.Shapes...)
 	}
 	return out, nil
 }

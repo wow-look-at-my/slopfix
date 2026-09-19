@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The word classes a shape matches against. Every class here is CLOSED: the
+  language admits no new article and no new preposition, so the list is the
+  whole class and stays correct. An open class is what is left when no class
+  here claims the word, and a shape names that with <open/>.
+
+  A class is data. Adding a word is an edit to this file and needs no Go.
+
+  This file sorts ahead of every other, so its classes are indexed before the
+  shapes that read them.
+-->
+<rules for="numbers">
+
+  <!-- An article fills the slot "a single" needs. A shape that writes an
+       article where one of these already stands spells "the a single". -->
+  <class name="article" words="a an the"/>
+
+  <!-- A determiner governs the noun after it, the way an article does. -->
+  <class name="determiner" words="this that these those each every any no some
+    another other which whichever either neither both several many few all
+    its their our my your his her whose"/>
+
+  <!-- A relative pronoun opens a clause. A cardinal before one stands for a
+       noun rather than counting it. -->
+  <class name="relative" words="that which who whom whose when where while"/>
+
+  <!-- A conjunction joins, and heads no noun phrase. -->
+  <class name="conjunction" words="and or but so because though although if
+    unless since while whereas"/>
+
+  <!-- A preposition heads no noun phrase on its own. -->
+  <class name="preposition" words="of in on at to for with from by into onto
+    under over per as than through against between among about after before
+    during without within across"/>
+
+  <!-- An auxiliary carries the verb, so a word after a cardinal that is one of
+       these makes the cardinal the subject. -->
+  <class name="auxiliary" words="is are was were be been being am has have had
+    does do did can could will would shall may might must should"/>
+
+  <!-- An adverb modifies the verb, and heads no noun phrase. -->
+  <class name="adverb" words="still already only never always also too here
+    there now then again once twice rather quite very just even soon later
+    instead however therefore"/>
+
+  <!-- A pronoun already stands for a noun. -->
+  <class name="pronoun" words="it they them we us you he him she
+    something anything nothing everything"/>
+
+  <!-- A verb form named by its ending, because the class is open and has no
+       list. A gerund also spells a noun ("a string", "a setting"), so a shape
+       reads this as "do not decide", never as "this is a verb". -->
+  <class name="verbform" suffix="ing ed"/>
+
+  <!-- The cardinals the rule is about. A shape names the word it governs, so
+       this class is what a shape reads to find any of them at once. -->
+  <class name="cardinal" words="zero one two three four five six seven eight
+    nine ten eleven twelve dozen hundred thousand million"/>
+
+</rules>

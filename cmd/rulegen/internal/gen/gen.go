@@ -110,7 +110,57 @@ func render(req Request, t *Loaded) string {
 	for _, f := range t.Flags {
 		fmt.Fprintf(&b, "\t\t{Phrase: %s, Say: %s, Test: %s},\n", q(f.Phrase), q(f.Say), q(f.Test))
 	}
+	b.WriteString("\t},\n\tClasses: []table.Class{\n")
+	for _, c := range t.Classes {
+		fmt.Fprintf(&b, "\t\t{Name: %s, Words: %s, Suffix: %s},\n",
+			q(c.Name), words(c.Words), words(c.Suffix))
+	}
+	b.WriteString("\t},\n\tShapes: []table.Shape{\n")
+	for _, s := range t.Shapes {
+		fmt.Fprintf(&b, "\t\t{\n\t\t\tTo: %s, Where: %s, Test: %s, Expect: %s,\n",
+			q(s.To), q(s.Where), q(s.Test), q(s.Expect))
+		b.WriteString("\t\t\tSlots: []table.Slot{\n")
+		for _, slot := range s.Slots {
+			fmt.Fprintf(&b, "\t\t\t\t%s,\n", renderSlot(slot))
+		}
+		b.WriteString("\t\t\t},\n\t\t},\n")
+	}
 	b.WriteString("\t},\n}\n")
+	return b.String()
+}
+
+// renderSlot writes a slot, reading its kind off the element name.
+func renderSlot(s Slot) string {
+	classes, word, absent := s.Class, s.Word, false
+	switch s.XMLName.Local {
+	case "word":
+	case "open":
+		classes = "open"
+	case "any":
+	case "absent":
+		absent = true
+	default:
+		classes = s.XMLName.Local
+	}
+	return fmt.Sprintf("{Classes: %s, Word: %s, Capture: %d, Optional: %t, Absent: %t}",
+		words(classes), q(word), s.Capture, s.Optional, absent)
+}
+
+// words renders a whitespace-separated attribute as a Go slice literal.
+func words(list string) string {
+	fields := strings.Fields(list)
+	if len(fields) == 0 {
+		return "nil"
+	}
+	var b strings.Builder
+	b.WriteString("[]string{")
+	for i, f := range fields {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(q(f))
+	}
+	b.WriteString("}")
 	return b.String()
 }
 
