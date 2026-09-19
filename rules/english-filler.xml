@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Words that survive their own deletion. A <drop> whose word changes meaning in
+  some context does not belong here at all: a wrong deletion is worse than a
+  comment left long, because nobody reviews what a repair applied.
+-->
+<rules for="english">
+
+  <drop word="actually" test="It actually fails"/>
+  <drop word="basically" test="It basically fails"/>
+  <drop word="essentially" test="It essentially fails"/>
+  <drop word="fundamentally" test="It fundamentally fails"/>
+  <drop word="simply" test="It simply fails"/>
+  <drop word="obviously" test="It obviously fails"/>
+  <drop word="clearly" test="It clearly fails"/>
+  <drop word="of course" test="It of course fails"/>
+  <drop word="in fact" test="It in fact fails"/>
+  <drop word="indeed" test="It indeed fails"/>
+  <drop word="really" test="It really fails"/>
+  <drop word="very" test="A very long name"/>
+  <drop word="quite" test="A quite long name"/>
+  <drop word="somewhat" test="A somewhat long name"/>
+  <drop word="fairly" test="A fairly long name"/>
+  <drop word="just" test="It just fails"/>
+  <drop word="note that" test="Note that it fails"/>
+  <drop word="it is worth noting that" test="It is worth noting that it fails"/>
+  <drop word="please note that" test="Please note that it fails"/>
+  <drop word="needless to say" test="Needless to say it fails"/>
+  <drop word="at the end of the day" test="At the end of the day it fails"/>
+  <drop word="for the purposes of" test="For the purposes of the check"/>
+  <drop word="with respect to" test="With respect to the check"/>
+
+</rules>

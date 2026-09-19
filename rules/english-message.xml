@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Entries that are only wrong on one surface, which is what where= is for.
+
+  An em dash joining two clauses is a chat habit. In a comment the prose rules
+  already catch it as a comma splice, and rewriting it here would fight them.
+-->
+<rules for="english">
+
+  <rewrite from="— and" to="," where="message" test="Yes — and there is precedent"/>
+  <rewrite from="— but" to=", but" where="message" test="It works — but only once"/>
+  <rewrite from="— so" to=", so" where="message" test="It failed — so I retried"/>
+  <rewrite from="— which" to=", which" where="message" test="It races — which is the bug"/>
+  <rewrite from="that being said" to="but" where="message" test="That being said it races"/>
+  <drop word="it is important to note that" where="message" test="It is important to note that it races"/>
+
+</rules>
