@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // Request is a single generated table: which rules to read, and where to put
