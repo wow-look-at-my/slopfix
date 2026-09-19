@@ -5,9 +5,9 @@ go 1.26.0
 require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
-	github.com/wow-look-at-my/go-containers v0.0.0 // go-toolchain:auto-branch
+	github.com/wow-look-at-my/go-containers v0.0.0-20260913115023-d3bbbdd0286d // go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-regex-compiler v0.0.0 // go-toolchain:auto-branch
-	github.com/wow-look-at-my/go-tree-sitter v0.0.0 // go-toolchain:auto-branch; go-toolchain:generate=a0022f830ef0
+	github.com/wow-look-at-my/go-tree-sitter v0.0.0-20260914060416-7b7005e17078 // go-toolchain:auto-branch; go-toolchain:generate=a0022f830ef0
 )
 
 // rulegen runs this to compile every <pattern> in rules/ into Go. The module is

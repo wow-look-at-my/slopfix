@@ -40,16 +40,22 @@ func Run(r io.Reader) Result {
 	// An allow on PreToolUse would settle the call before the user's own deny rules vote.
 	denyOnly := hi.HookEventName == eventPreToolUse
 
+	table, err := loadXMLRules(rulesXML)
+	if err != nil {
+		return Result{}
+	}
+
+	// Location is judged before anything else, because the read tools are
+	// approved wholesale below and an approval settles the call.
+	if message := matchPathRule(hi, table.DenyPaths); message != "" {
+		return Result{Stdout: decisionPayload(hi.HookEventName, "deny", message)}
+	}
+
 	if hi.ToolName == "Read" || hi.ToolName == "Glob" || hi.ToolName == "Grep" {
 		if denyOnly {
 			return Result{}
 		}
 		return Result{Stdout: decisionPayload(hi.HookEventName, "allow", "")}
-	}
-
-	table, err := loadXMLRules(rulesXML)
-	if err != nil {
-		return Result{}
 	}
 
 	if server, tool := parseMCPTool(hi.ToolName); tool != "" {

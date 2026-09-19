@@ -67,7 +67,7 @@ type Request struct {
 	MaxCommentLines int
 }
 
-// Repair is the text as this binary would write it, plus what no rewrite can repair.
+// Repair is the text as this binary would write it, plus what the rewrite flagged.
 type Repair struct {
 	// Text is the repaired text. It equals the input when Changed is false.
 	Text string `json:"text"`
@@ -75,6 +75,8 @@ type Repair struct {
 	Changed bool `json:"changed"`
 	// Removed names each span the repair cut out.
 	Removed []string `json:"removed,omitempty"`
+	// Rewrites counts the prose repairs the english table had to make.
+	Rewrites int `json:"rewrites,omitempty"`
 	// Kept carries the tombstones no whole-line deletion resolves.
 	Kept []tombstones.Hit `json:"kept,omitempty"`
 	// Findings are what a reader must repair by hand.
@@ -123,6 +125,7 @@ func Fix(req Request) Repair {
 		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
 		text = cut.Text
 		repair.Removed = append(repair.Removed, cut.Removed...)
+		repair.Rewrites += cut.Rewrites
 		for _, hit := range cut.Kept {
 			if keeps(hit.ID) {
 				repair.Kept = append(repair.Kept, hit)

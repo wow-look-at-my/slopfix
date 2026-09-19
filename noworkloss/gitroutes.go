@@ -136,6 +136,9 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 	case "reset":
 		// A soft or mixed reset moves refs and the index; only the flags below
 		return has("--hard", "--merge", "--keep")
+	case "symbolic-ref":
+		// A ref name on its own prints where that ref points, which is a read.
+		return len(operands) > 1 && !has("-d", "--delete")
 	case "update-ref":
 		// Setting a ref is the last step of the plumbing route, so it introduces
 		return !has("-d", "--delete")

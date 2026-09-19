@@ -105,7 +105,7 @@ func TestPreservesInARepositoryWithNoCommitsYet(t *testing.T) {
 	dir := t.TempDir()
 	dir, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
-	git(t, dir, "init", "-q")
+	git(t, dir, "init", "-q", "--initial-branch=master")
 	git(t, dir, "config", "user.email", "guard@example.com")
 	git(t, dir, "config", "user.name", "Guard")
 	writeAt(t, dir, "new.go", "package a\n")

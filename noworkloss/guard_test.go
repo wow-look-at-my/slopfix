@@ -26,7 +26,8 @@ func newRepo(t *testing.T) string {
 	dir, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 
-	git(t, dir, "init", "-q")
+	// These tests assert on the branch by name, so the name is given here.
+	git(t, dir, "init", "-q", "--initial-branch=master")
 	git(t, dir, "config", "user.email", "guard@example.com")
 	git(t, dir, "config", "user.name", "Guard")
 	writeAt(t, dir, "tracked.go", "package a\n")

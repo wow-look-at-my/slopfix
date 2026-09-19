@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/code"
 )
 
 // Every grammar gets the same walk, the same measure and the same repair. A
@@ -67,7 +68,7 @@ func TestEveryClaimedExtensionHasAFixture(t *testing.T) {
 	for name := range languageFixtures {
 		covered[name[strings.LastIndex(name, "."):]] = true
 	}
-	for ext := range grammars {
+	for _, ext := range code.Extensions() {
 		assert.True(t, covered[ext] || sharesAGrammar(ext, covered),
 			"%s is claimed by the rule and no fixture exercises it", ext)
 	}
@@ -77,10 +78,11 @@ func TestEveryClaimedExtensionHasAFixture(t *testing.T) {
 // drives, so a header or an alias needs no fixture of its own.
 func sharesAGrammar(ext string, covered map[string]bool) bool {
 	for other := range covered {
-		if grammars[ext] == nil || grammars[other] == nil {
+		mine, theirs := code.LanguageFor("x"+ext), code.LanguageFor("x"+other)
+		if mine == nil || theirs == nil {
 			continue
 		}
-		if grammars[ext]() == grammars[other]() {
+		if mine == theirs {
 			return true
 		}
 	}
