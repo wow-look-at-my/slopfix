@@ -1,4 +1,4 @@
-package commentnumbers
+package commentfix
 
 import (
 	"strings"

@@ -77,7 +77,7 @@ func shortenFor(s, surface string) string {
 	// see the text a word swap has already settled.
 	for _, p := range english.Patterns {
 		if appliesTo(p.Where, surface) {
-			s = p.re.ReplaceAllString(s, p.To)
+			s = p.Replace(s)
 		}
 	}
 	s = strings.Join(strings.Fields(s), " ")

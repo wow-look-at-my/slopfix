@@ -16,6 +16,9 @@ import (
 
 var workflowOnly []string
 
+// skipDirs hold text nobody here authored. This walk keeps .github.
+var skipDirs = set.Of("vendor", "node_modules", "testdata", "build")
+
 func init() {
 	command := &cobra.Command{
 		Use:   "workflows <path>...",

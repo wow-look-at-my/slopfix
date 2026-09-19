@@ -1,4 +1,4 @@
-// Package commentnumbers finds a number stated in a comment.
+// Package commentfix finds a number stated in a comment.
 //
 // A number in a comment is a count of what exists today, and the edit that adds
 // an item leaves it wrong. Nothing recompiles a comment, so the stale sentence
@@ -18,7 +18,7 @@
 // demands a frame before it reads a number as a tally. What is here is the
 // comment: where it sits, which of its lines a reader was written for, and
 // where a finding lands on the screen.
-package commentnumbers
+package commentfix
 
 import (
 	"strings"

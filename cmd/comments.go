@@ -2,14 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/commentnumbers"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
 func init() {
@@ -29,9 +25,6 @@ func init() {
 	rootCmd.AddCommand(c)
 }
 
-// skipDirs hold text nobody in the tree authored.
-var skipDirs = set.Of("vendor", "node_modules", "testdata", "build")
-
 func runComments(cmd *cobra.Command, args []string) error {
 	repair, err := cmd.Flags().GetBool("fix")
 	if err != nil {
@@ -39,7 +32,7 @@ func runComments(cmd *cobra.Command, args []string) error {
 	}
 	found := false
 	for _, arg := range args {
-		paths, err := commentTargets(arg, commentnumbers.Supported)
+		paths, err := commentTargets(arg, commentfix.Supported)
 		if err != nil {
 			return err
 		}
@@ -52,7 +45,7 @@ func runComments(cmd *cobra.Command, args []string) error {
 		}
 	}
 	if found {
-		fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", commentnumbers.Remedy)
+		fmt.Fprintf(cmd.OutOrStdout(), "\n%s\n", commentfix.Remedy)
 		return errFindings
 	}
 	return nil
@@ -69,7 +62,7 @@ func numbersOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	hits := commentnumbers.Check(path, string(src))
+	hits := commentfix.Check(path, string(src))
 	if len(hits) == 0 {
 		return false, nil
 	}
@@ -77,7 +70,7 @@ func numbersOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 		printHits(cmd, path, hits)
 		return true, nil
 	}
-	fixed := commentnumbers.Fix(path, string(src))
+	fixed := commentfix.Fix(path, string(src))
 	if fixed.Changed {
 		if err := os.WriteFile(path, []byte(fixed.Text), info.Mode().Perm()); err != nil {
 			return false, err
@@ -88,22 +81,22 @@ func numbersOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 	for _, sentence := range fixed.Removed {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s: cut: %s\n", path, sentence)
 	}
-	left := commentnumbers.Check(path, fixed.Text)
+	left := commentfix.Check(path, fixed.Text)
 	printHits(cmd, path, left)
 	return len(left) > 0, nil
 }
 
 // printHits prints a finding per line, the way a compiler names a warning.
-func printHits(cmd *cobra.Command, path string, hits []commentnumbers.Hit) {
+func printHits(cmd *cobra.Command, path string, hits []commentfix.Hit) {
 	for _, hit := range hits {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s:%d:%d: %q is a number in a comment\n",
 			path, hit.Line, hit.Col, hit.Number)
 	}
 }
 
-// commentTargets lists what to read under an argument, keeping the files the
-// caller's rule reads. A named file is read whatever its extension, because
-// naming it is the request.
+// commentTargets lists what to read under an argument. A directory takes the
+// library's walk, so a caller embedding it skips the same text. A named file is
+// read whatever its extension: naming it is the request.
 func commentTargets(arg string, reads func(string) bool) ([]string, error) {
 	info, err := os.Stat(arg)
 	if err != nil {
@@ -112,27 +105,5 @@ func commentTargets(arg string, reads func(string) bool) ([]string, error) {
 	if !info.IsDir() {
 		return []string{arg}, nil
 	}
-	var out []string
-	err = filepath.WalkDir(arg, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			if path != arg && (strings.HasPrefix(d.Name(), ".") || skipDirs.Contains(d.Name()) || isSubmodule(path)) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if reads(path) {
-			out = append(out, path)
-		}
-		return nil
-	})
-	return out, err
-}
-
-// isSubmodule reports whether dir is a git submodule's working tree.
-func isSubmodule(dir string) bool {
-	info, err := os.Stat(filepath.Join(dir, ".git"))
-	return err == nil && info.Mode().IsRegular()
+	return commentfix.TreeFilesMatching(arg, reads), nil
 }
