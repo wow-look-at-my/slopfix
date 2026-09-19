@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Every entry in english.xml carries a test attribute, and each has to fire. Without this an entry that stopped matching -- a typo, a phrase
+// Every entry in rules/ carries a test attribute, and each has to fire. Without this an entry that stopped matching -- a typo, a phrase
 // the boundary rule rejects, a rewrite shadowed by a drop -- would sit in the
 // table looking enforced while doing nothing.
 func TestEveryDropFires(t *testing.T) {

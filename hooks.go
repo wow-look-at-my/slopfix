@@ -3,7 +3,7 @@ package slopfix
 import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/blamelanguage"
-	"github.com/wow-look-at-my/slopfix/commentnumbers"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/laziness"
 )
@@ -12,7 +12,7 @@ import (
 const IDInventoryCount = counts.ID
 
 // IDCommentNumber names the stale-count rule over a comment.
-const IDCommentNumber = commentnumbers.ID
+const IDCommentNumber = commentfix.ID
 
 // IDPunt names the rule over a closing message.
 const IDPunt = laziness.ID
