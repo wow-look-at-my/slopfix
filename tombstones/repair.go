@@ -17,6 +17,30 @@ type Repair struct {
 	Kept    []Hit    `json:"kept,omitempty"`
 }
 
+// codeRow reports a comment line indented past its own marker. godoc, and
+// every renderer that follows it, prints such a run verbatim as a code block.
+// Its rows are a table rather than sentences, so a strip that takes one leaves
+// the rows around it describing records nothing names. Three rows of exactly
+// this shape lost two of them to the word "original".
+func codeRow(path string, lines []string, n int) bool {
+	if n < 0 || n >= len(lines) {
+		return false
+	}
+	st, ok := styleFor(path)
+	if !ok {
+		return false
+	}
+	trimmed := strings.TrimLeft(lines[n], " \t")
+	for _, marker := range st.line {
+		rest, found := strings.CutPrefix(trimmed, marker)
+		if !found {
+			continue
+		}
+		return strings.HasPrefix(rest, "\t") || strings.HasPrefix(rest, "    ")
+	}
+	return false
+}
+
 // Fix scans the text a write adds to path and strips what it safely can.
 // maxLines caps a comment block, and a cap below the floor turns it off.
 func Fix(path, added string, maxLines int) Repair {
@@ -45,9 +69,10 @@ func Fix(path, added string, maxLines int) Repair {
 	}
 
 	repair := Repair{Text: added}
+	lines := strings.Split(added, "\n")
 	drop := set.New[int]()
 	for _, h := range hits {
-		if h.Strippable {
+		if h.Strippable && !codeRow(path, lines, h.LineNo) {
 			drop.Add(h.LineNo)
 			continue
 		}
