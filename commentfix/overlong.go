@@ -1,4 +1,4 @@
-// commentlength.go finds a comment longer than the code it documents.
+// overlong.go finds a comment longer than the code it documents.
 //
 // A comment earns its place by stopping the next mistake. A comment that runs
 // longer than the code becomes an essay, and the reader pays for it on every
@@ -393,7 +393,8 @@ func dropTrailingSentence(text []string) ([]string, bool) {
 	paras := paragraphs(text)
 	last := -1
 	for i, para := range paras {
-		if !para.blank {
+		// A code block holds no sentence to drop, so the cut looks past it.
+		if !para.blank && !para.verbatim {
 			last = i
 		}
 	}
@@ -418,6 +419,8 @@ func dropTrailingSentence(text []string) ([]string, bool) {
 			// Nothing follows the last prose paragraph but blank markers.
 		case para.blank:
 			out = append(out, indent+marker)
+		case para.verbatim:
+			out = append(out, para.raw...)
 		case i == last:
 			out = append(out, reflow(kept, indent, marker, wrapWidth)...)
 		default:

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   The English the repair applies before it cuts anything.
 
@@ -17,7 +17,7 @@
   the entry to actually fire, so an entry that has stopped matching says so
   rather than sitting here looking enforced.
 -->
-<english>
+<english xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="english.xsd">
 
   <!-- Words that survive their own deletion. -->
   <drop word="actually" test="It actually fails"/>

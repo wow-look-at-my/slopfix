@@ -1,0 +1,110 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  The command permission format: what autoallow reads to answer a PreToolUse
+  call about a Bash command.
+
+  A <rule> matches the command as written, or the resolved process name when
+  it carries command=. The section it sits in gives it its meaning, so an
+  identical node denies under <deny> and allows under <allow>. A rule nests
+  its subcommands as further <rule> children.
+
+  This is a different job from the prose format in rules/, and a different
+  shape: <test> here drives a command through the hook rather than driving a
+  rewrite over English.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <!-- One command, and the verdict the hook must return for it. An empty
+       expect= means the hook answers nothing and the caller decides. -->
+  <xs:complexType name="test">
+    <xs:attribute name="cmd" type="xs:string" use="required"/>
+    <xs:attribute name="expect" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="flagList">
+    <xs:sequence>
+      <xs:element name="flag" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="name" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="stringList">
+    <xs:sequence>
+      <xs:element name="value" type="xs:string" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- A flag whose VALUE decides the verdict, with the value assumed when the
+       flag is absent. -->
+  <xs:complexType name="requireFlagValue">
+    <xs:sequence>
+      <xs:element name="flag" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="name" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="allowed" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="default" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="rule">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="test" type="test"/>
+      <xs:element name="allowedFlags" type="flagList"/>
+      <xs:element name="deniedFlags" type="flagList"/>
+      <xs:element name="execFlags" type="flagList"/>
+      <xs:element name="requiredFlags" type="flagList"/>
+      <xs:element name="flagsWithValue" type="flagList"/>
+      <xs:element name="denyArgSubstrings" type="stringList"/>
+      <xs:element name="allowedArgPrefixes" type="stringList"/>
+      <xs:element name="requireFlagValue" type="requireFlagValue"/>
+      <xs:element name="rule" type="rule"/>
+    </xs:choice>
+    <!-- name= is the word as typed, and takes a comma-separated list of
+         spellings that mean the same command. -->
+    <xs:attribute name="name" type="xs:string"/>
+    <xs:attribute name="description" type="xs:string"/>
+    <!-- command= matches the RESOLVED process instead: basename, wrappers
+         stripped, version ignored. -->
+    <xs:attribute name="command" type="xs:string"/>
+    <xs:attribute name="inlineScript" type="xs:boolean"/>
+    <xs:attribute name="evalFlags" type="xs:string"/>
+    <xs:attribute name="evalSubcommands" type="xs:string"/>
+    <xs:attribute name="message" type="xs:string"/>
+    <!-- The "*" spelling, for a command whose flags are all acceptable. -->
+    <xs:attribute name="allowedFlags" type="xs:string"/>
+    <xs:attribute name="denyWithMessage" type="xs:string"/>
+    <xs:attribute name="helpAlwaysAllowed" type="xs:boolean"/>
+    <xs:attribute name="bareOnly" type="xs:boolean"/>
+  </xs:complexType>
+
+  <xs:complexType name="section">
+    <xs:sequence>
+      <xs:element name="rule" type="rule" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="rules">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="test" type="test"/>
+        <xs:element name="allow" type="section"/>
+        <xs:element name="ask" type="section"/>
+        <xs:element name="deny" type="section"/>
+        <xs:element name="mcpServer">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="tool" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

@@ -64,8 +64,7 @@ func CloseProse(prose string) string {
 	if len(words) == 0 {
 		return prose
 	}
-	// A comment that reached its full stop said what it meant to, whatever the
-	// word standing before it: "the file the script was read from." is whole.
+	// A comment that reached its full stop said what it meant to, whatever.
 	last := words[len(words)-1]
 	if endsSentence(last) || !dangling.Contains(strings.ToLower(trimWord(last))) {
 		return prose

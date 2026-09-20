@@ -36,6 +36,11 @@ func tighten(text []string) ([]string, int, bool) {
 			out = append(out, indent+marker)
 			continue
 		}
+		if para.verbatim {
+			// A code block is a table.
+			out = append(out, para.raw...)
+			continue
+		}
 		body := strings.Join(para.lines, " ")
 		short, took := english.FixN(body, english.Comment)
 		rewrites += took

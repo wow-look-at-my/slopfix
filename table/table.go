@@ -77,6 +77,17 @@ func (t *Table) Lexicon() *Lexicon {
 	return t.lexicon
 }
 
+// WordsOf answers the words a named class lists, so a caller that needs the
+// members themselves rather than a membership test reads them.
+func (t *Table) WordsOf(class string) []string {
+	for _, c := range t.Classes {
+		if c.Name == class {
+			return c.Words
+		}
+	}
+	return nil
+}
+
 // AppliesTo reports whether an entry's where= covers a surface, and an empty
 // value means both.
 func AppliesTo(where, surface string) bool {
@@ -84,8 +95,7 @@ func AppliesTo(where, surface string) bool {
 }
 
 // Replace rewrites every match of the pattern in s, and returns s untouched
-// when there is none. The replacement takes the case of the text it stands in
-// for, so a match that opens a sentence still opens one.
+// when there is none.
 func (p Pattern) Replace(s string) string {
 	return p.re.ReplaceAllStringFunc(s, func(matched string) string {
 		at := p.re.FindStringSubmatchIndex(matched)

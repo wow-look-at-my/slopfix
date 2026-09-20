@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   Words that survive their own deletion. A <drop> whose word changes meaning in
   some context does not belong here at all: a wrong deletion is worse than a
   comment left long, because nobody reviews what a repair applied.
 -->
-<rules for="english">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="english">
 
   <drop id="actually" word="actually">
     <test in="It actually fails"/>

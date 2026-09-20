@@ -8,8 +8,22 @@ import (
 
 // paragraph is a run of comment lines, or the blank marker between runs.
 type paragraph struct {
-	lines []string
-	blank bool
+	lines    []string
+	blank    bool
+	verbatim bool
+	raw      []string
+}
+
+// codeRow reports a line godoc renders verbatim: the prose after its marker
+// opens with a tab, which is how a doc comment spells a code block.
+func codeRow(line string) bool {
+	t := strings.TrimLeft(line, " \t")
+	for _, m := range []string{"///", "//", "#"} {
+		if rest, found := strings.CutPrefix(t, m); found {
+			return strings.HasPrefix(rest, "\t")
+		}
+	}
+	return false
 }
 
 // commentShape reads the indent and marker a block uses, from its opening line.
@@ -51,16 +65,29 @@ func paragraphs(text []string) []paragraph {
 			run = nil
 		}
 	}
+	var block []string
+	flushBlock := func() {
+		if len(block) > 0 {
+			out = append(out, paragraph{verbatim: true, raw: block})
+			block = nil
+		}
+	}
 	for _, line := range text {
 		if isBlankComment(line) {
 			flush()
+			flushBlock()
 			out = append(out, paragraph{blank: true})
 			continue
 		}
-		out = append(out, paragraph{})
-		out = out[:len(out)-1]
+		if codeRow(line) {
+			flush()
+			block = append(block, line)
+			continue
+		}
+		flushBlock()
 		run = append(run, stripMarker(line))
 	}
+	flushBlock()
 	flush()
 	return out
 }
@@ -115,6 +142,10 @@ func widen(text []string, width int) ([]string, bool) {
 	for _, para := range paragraphs(text) {
 		if para.blank {
 			out = append(out, indent+marker)
+			continue
+		}
+		if para.verbatim {
+			out = append(out, para.raw...)
 			continue
 		}
 		out = append(out, reflow(strings.Join(para.lines, " "), indent, marker, width)...)
