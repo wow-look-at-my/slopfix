@@ -28,11 +28,10 @@
   <test in="The [it's](https://x/it's) page is not prose."
         out="The [it is](https://x/it's) page is not prose."/>
 
-  <!-- A seam divides only where the clause after it names who acts. "and refuses" and ", which is" name nobody, so the sentence stands. -->
   <test in="The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."
-        out="The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."/>
+        out="The gate reads every file in the session. And refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."/>
   <test in="The loader opens the file and reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs."
-        out="The loader opens the file and reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs."/>
+        out="The loader opens the file and reads every row it holds into memory. Which is the whole reason a caller waits on it before the header check runs."/>
   <test in="The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own."
         out="The gate reads every file in the session. The write fails when any one of them carries a finding that a rewrite cannot repair on its own."/>
 

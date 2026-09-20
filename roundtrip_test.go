@@ -37,9 +37,8 @@ func roundTripFixtures() []fixture {
 				"The gate is shut; the write fails.\n\n" +
 				"The gate is shut, the write fails.\n\n" +
 				"The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
-				// A sentence with no seam that carries its own subject keeps its
-				// finding, so it belongs in ste/fix_test.go rather than here: this
-				// fixture holds what a repair answers whole.
+				"The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
+				"A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion.\n\n" +
 				"The set holds three rules.\n\n" +
 				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n",
 			wants: []string{
