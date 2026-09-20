@@ -8,8 +8,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-<<<<<<< HEAD
-=======
 func TestFixExpandsAContraction(t *testing.T) {
 	assert.Equal(t, "It does not run.", ste.Fix("It doesn't run."))
 }
@@ -127,7 +125,6 @@ func TestFixLeavesCleanProseAlone(t *testing.T) {
 	assert.Equal(t, clean, ste.Fix(clean))
 }
 
->>>>>>> origin/master
 // A repair that leaves its own finding standing loops the caller forever.
 func TestFixClearsTheMechanicalFindings(t *testing.T) {
 	text := "It doesn't matter; a caller should wait, so the write fails."

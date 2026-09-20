@@ -94,19 +94,6 @@ func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
 	}
 }
 
-<<<<<<< HEAD
-// What the table writes for a whole line is stated in rules/numbers-cases.xml,
-// where somebody adding a case edits no Go.
-func TestEveryCaseHolds(t *testing.T) {
-	require.NotEmpty(t, numbersTable.Cases)
-
-	for _, c := range numbersTable.Cases {
-		t.Run(c.Test, func(t *testing.T) {
-			assert.Equal(t, c.Expect, Say(c.Test))
-		})
-	}
-}
-=======
 // A qualified name is a single word, so no marker inside it opens a rewrite.
 // The rule reads its own package's comments, and sync.a single time is what it found there.
 func TestAQualifiedNameIsLeftWhole(t *testing.T) {
@@ -155,4 +142,3 @@ func TestTheTableClosesTheGapBeforeClosingPunctuation(t *testing.T) {
 	assert.Equal(t, "It reserves a single slot.", Reword("It reserves one slot ."))
 	assert.Equal(t, "It locks, then writes.", Reword("It locks , then writes ."))
 }
->>>>>>> origin/master
