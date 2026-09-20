@@ -27,13 +27,13 @@ func TestTheFrameIsWhatSeparatesTheSubstrates(t *testing.T) {
 	assert.Equal(t, []string{"three hooks"}, texts(framed, Prose))
 }
 
-// The merge gate reads a document with no frame, and pays for that with a list
-// of units. The same sentence therefore parts both document substrates: a
-// duration is measured for the gate and counted for the inventory rule.
-func TestTheUnitsListIsTheGatesAloneAndTheFrameIsTheOtherSubstratesAlone(t *testing.T) {
+// The frame is the only thing parting the document substrates now. A number is
+// a stated value whatever noun follows it, so a duration and a size go stale
+// exactly as a tally of items does, and both substrates say so.
+func TestTheFrameIsTheOnlyThingPartingTheDocumentSubstrates(t *testing.T) {
 	measured := "The read has 20 seconds."
 	assert.Equal(t, []string{"20 seconds"}, texts(measured, Prose))
-	assert.Empty(t, texts(measured, Gate))
+	assert.Equal(t, []string{"20 seconds"}, texts(measured, Gate))
 
 	counted := "The read has 20 plugins."
 	assert.Equal(t, []string{"20 plugins"}, texts(counted, Prose))
@@ -43,6 +43,24 @@ func TestTheUnitsListIsTheGatesAloneAndTheFrameIsTheOtherSubstratesAlone(t *test
 	bare := "split it into three parts if that reads better"
 	assert.Empty(t, texts(bare, Prose))
 	assert.Equal(t, []string{"three parts"}, texts(bare, Gate))
+}
+
+// No noun buys a number an exemption. A document saying how long a job takes,
+// or how large an artifact is, states what is true today and nothing corrects
+// it when either moves. Those read as measurements and went uncounted, which
+// is how a stale duration outlived every rewrite around it.
+func TestNoNounExemptsAStatedValue(t *testing.T) {
+	for name, text := range map[string]string{
+		"duration": "the js leg takes about 9 minutes",
+		"seconds":  "the read has 20 seconds",
+		"hours":    "the cap is 6 hours",
+		"size":     "the blob is 356 megabytes",
+		"lines":    "the rule holds for two lines",
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.NotEmpty(t, texts(text, Gate))
+		})
+	}
 }
 
 // The gate's word list stops short of the prose list, and it reads any run of

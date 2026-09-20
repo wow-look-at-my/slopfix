@@ -34,7 +34,7 @@ func init() {
 			"banned modal, and turns a semicolon and a comma splice into the period\n" +
 			"each stands in for. A sentence over the word cap needs a writer, so it\n" +
 			"is reported and left alone.\n\n" +
-			"What no rewrite can repair goes to stderr, and a remaining finding\n" +
+			"What the rewrite flagged goes to stderr, and a remaining finding\n" +
 			"exits 1.\n\n" +
 			"With --json the whole answer is one object on stdout instead, which is\n" +
 			"what a PreToolUse hook reads: the repaired text, whether it changed, the\n" +

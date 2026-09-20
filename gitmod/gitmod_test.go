@@ -19,10 +19,10 @@ func TestARealSubmoduleIsSkipped(t *testing.T) {
 	assert.True(t, skip.Contains(gitmod.Resolved(filepath.Join(root, "vendored"))))
 }
 
-// A work tree reached through a symlink has two names, and the walk comparing
-// against this set uses whichever name it was handed. The set answered for one
-// spelling only, so the walk judged the submodule's own files as though they
-// were this repository's. Every temporary directory on macOS is such a
+// A work tree reached through a symlink has names, and the walk comparing
+// against this set uses whichever name it was handed. The set answered for a
+// single spelling only, so the walk judged the submodule's own files as though
+// they were this repository's. Every temporary directory on macOS is such a
 // symlink, which is where this surfaced.
 func TestASubmoduleIsSkippedThroughASymlinkToItsWorkTree(t *testing.T) {
 	root := gitmodtest.RepoWithSubmodule(t, "vendored")
@@ -39,7 +39,7 @@ func TestASubmoduleIsSkippedThroughASymlinkToItsWorkTree(t *testing.T) {
 }
 
 // A path nothing stands at keeps a usable answer, because a caller asking
-// about it wants one rather than an error.
+// about it wants a single rather than an error.
 func TestResolvedAnswersForAPathThatIsNotThere(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "absent")
 	assert.Equal(t, missing, gitmod.Resolved(missing))

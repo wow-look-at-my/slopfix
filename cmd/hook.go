@@ -23,8 +23,8 @@ func init() {
 		Use:   "hook",
 		Short: "Repair a Claude Code write, reading its PreToolUse payload on stdin",
 		Long: "hook reads a PreToolUse payload on stdin and writes the hook's own\n" +
-			"response on stdout. It repairs the text a write adds and lets the write\n" +
-			"through, and refuses only what no rewrite can repair.\n\n" +
+			"response on stdout. It repairs the text a write adds, lets the write\n" +
+			"through, and flags what the repair did not reach.\n\n" +
 			"Every plugin that guards a write is then its manifest and nothing else.\n" +
 			"Each carried its own copy of this: the same payload parse, the same three\n" +
 			"write shapes, the same splice back. A write shape added to one and not\n" +
@@ -65,6 +65,10 @@ type writeInput struct {
 // hookResponse covers a refusal, which sets the permission fields, and a
 // repair, which sets the input and the notice. Allowing an untouched write
 // prints nothing at all.
+//
+// Prose sets the repair fields and never the permission ones: a comment is
+// repaired where it stands and reported afterwards, so a write carrying one is
+// never stopped.
 type hookResponse struct {
 	HookSpecificOutput struct {
 		HookEventName            string         `json:"hookEventName"`
@@ -146,18 +150,10 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		return ""
 	}
 
-	// Asked before the repair: a reworded comment is refused whatever the
-	// repair would have made of the new text on its own.
-	if reason := handEditReason(in.ToolName, write, rules, ids); reason != "" {
-		return respond(func(r *hookResponse) {
-			r.HookSpecificOutput.PermissionDecision = "deny"
-			r.HookSpecificOutput.PermissionDecisionReason = reason
-		})
-	}
-
 	var removed []string
 	var kept []tombstones.Hit
 	var findings []string
+	rewrites := 0
 	changed := false
 	for _, u := range writeUnits(in.ToolName, write, raw) {
 		repair := slopfix.Fix(slopfix.Request{
@@ -168,6 +164,7 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 			MaxCommentLines: hookMaxLines,
 		})
 		removed = append(removed, repair.Removed...)
+		rewrites += repair.Rewrites
 		kept = append(kept, repair.Kept...)
 		for _, f := range repair.Findings {
 			findings = append(findings, f.String())
@@ -187,16 +184,17 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		}
 	}
 
+	flags := hitLines(kept)
+	flags = append(flags, findings...)
 	switch {
-	case len(kept) > 0 || len(findings) > 0:
-		return respond(func(r *hookResponse) {
-			r.HookSpecificOutput.PermissionDecision = "deny"
-			r.HookSpecificOutput.PermissionDecisionReason = refusal(kept, findings)
-		})
 	case changed:
 		return respond(func(r *hookResponse) {
 			r.HookSpecificOutput.UpdatedInput = raw
-			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed)
+			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed, rewrites, flags)
+		})
+	case len(flags) > 0:
+		return respond(func(r *hookResponse) {
+			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, nil, 0, flags)
 		})
 	}
 	return ""
@@ -216,29 +214,43 @@ func respond(fill func(*hookResponse)) string {
 // reportCap bounds what a message carries: a refusal nobody reads stops nothing.
 const reportCap = 6
 
-// notice is what the model is told after the fact. The write went through, so
-// it names what was cut rather than asking for a retry.
-func notice(path string, removed []string) string {
+// notice is what the model is told after the fact. The write always goes
+// through, so it names what was cut and flags what no rewrite reached, rather
+// than asking for a retry.
+func notice(path string, removed []string, rewrites int, flags []string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "slopfix repaired this write to %s. It removed:\n", path)
-	for _, line := range capped(removed) {
-		fmt.Fprintf(&b, "  %q\n", strings.TrimSpace(line))
+	if rewrites == 0 && len(removed) == 0 {
+		fmt.Fprintf(&b, "slopfix let this write to %s through and flagged what it reads.\n", path)
+	} else {
+		fmt.Fprintf(&b, "slopfix repaired this write to %s. It took %d rewrites.\n", path, rewrites)
 	}
-	b.WriteString("\nThe text that was written no longer carries them. Read the sentence back and make it read naturally.")
+	for _, line := range capped(removed) {
+		fmt.Fprintf(&b, "  removed %q\n", strings.TrimSpace(line))
+	}
+	for _, line := range capped(flags) {
+		fmt.Fprintf(&b, "  flagged %s\n", line)
+	}
+	b.WriteString("\nThe write went through as it stands. Write prose that needs none of this.")
 	return b.String()
 }
 
-// refusal names each finding no rewrite resolved, and the line it sits on.
-func refusal(kept []tombstones.Hit, findings []string) string {
+// refusal is the reason a hook prints when it denies a write outright. Prose
+// never reaches it: a comment is repaired and reported.
+func refusal(lines []string) string {
 	var b strings.Builder
-	b.WriteString("blocked: this write carries what no rewrite can repair.\n")
-	for _, hit := range capped(hitLines(kept)) {
-		b.WriteString("  " + hit + "\n")
-	}
-	for _, f := range capped(findings) {
-		b.WriteString("  " + f + "\n")
+	b.WriteString("blocked:\n")
+	for _, line := range capped(lines) {
+		b.WriteString("  " + line + "\n")
 	}
 	return b.String()
+}
+
+// deny answers a write with a refusal carrying the named reasons.
+func deny(lines []string) string {
+	return respond(func(r *hookResponse) {
+		r.HookSpecificOutput.PermissionDecision = "deny"
+		r.HookSpecificOutput.PermissionDecisionReason = refusal(lines)
+	})
 }
 
 func hitLines(kept []tombstones.Hit) []string {

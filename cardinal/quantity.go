@@ -104,17 +104,6 @@ var gapStopWords = set.Of[string](
 	"if", "so", "than", "then", "when", "while", "not", "no", "it", "its",
 )
 
-// Unit exempts a noun that is measured rather than counted. A budget in
-func Unit(_ string, q Match) bool { return units.Contains(q.Noun) }
-
-// units are the nouns that name a measure.
-var units = set.Of[string](
-	"bits", "bytes", "kilobytes", "megabytes", "gigabytes", "characters", "chars", "runes",
-	"words", "lines", "columns", "rows", "spaces", "digits", "seconds", "minutes", "hours",
-	"days", "weeks", "months", "years", "milliseconds", "microseconds", "nanoseconds",
-	"pixels", "points", "percent", "times", "levels", "degrees",
-)
-
 // InExpression exempts a number that is arithmetic rather than a count. The
 // digits in an expression or a range name no set of items.
 func InExpression(text string, q Match) bool {

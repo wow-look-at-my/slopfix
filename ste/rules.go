@@ -14,6 +14,8 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/rules"
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // The rule IDs. A report prints the ID that found the text, and the same ID
@@ -59,35 +61,51 @@ func (f Finding) String() string {
 // SentenceWordCap is STE's cap for a descriptive sentence.
 const SentenceWordCap = 25
 
-// contractions maps every banned form to the words STE writes instead.
-var contractions = map[string]string{
-	"can't": "cannot", "won't": "will not", "don't": "do not", "doesn't": "does not",
-	"didn't": "did not", "isn't": "is not", "aren't": "are not", "wasn't": "was not",
-	"weren't": "were not", "wouldn't": "will not", "shouldn't": "must not",
-	"couldn't": "cannot", "mustn't": "must not", "hasn't": "has not",
-	"haven't": "have not", "hadn't": "had not", "it's": "it is", "that's": "that is",
-	"there's": "there is", "here's": "here is", "let's": "let us", "we're": "we are",
-	"they're": "they are", "you're": "you are", "i'm": "I am", "i've": "I have",
-	"we've": "we have", "they've": "they have", "you've": "you have",
-	"i'll": "I will", "we'll": "we will", "they'll": "they will", "you'll": "you will",
-	"it'll": "it will", "what's": "what is", "who's": "who is",
+// steTable is what rules/ says for="ste": the banned forms, their replacements, and the word classes the clause shapes
+var steTable = table.MustLoad(rules.FS, "ste")
+
+// irregulars maps a contraction whose ending does not spell its expansion, and modals maps each banned modal to the
+var irregulars, modals = swaps()
+
+func swaps() (map[string]string, map[string]string) {
+	odd, hedges := map[string]string{}, map[string]string{}
+	for _, r := range steTable.Rewrites {
+		if r.Where == "modal" {
+			hedges[strings.ToLower(r.From)] = r.To
+			continue
+		}
+		odd[strings.ToLower(r.From)] = r.To
+	}
+	return odd, hedges
 }
 
-// modals maps each banned modal to the word STE approves for that sense.
-var modals = map[string]string{
-	"should": "must", "shall": "must", "could": "can", "might": "can", "would": "will",
+// Expand answers the words a contraction stands for, and false for a word that
+// is not one.
+func Expand(word string) (string, bool) {
+	if full, odd := irregulars[strings.ToLower(word)]; odd {
+		return full, true
+	}
+	for _, p := range steTable.Patterns {
+		if p.Where == "contraction" && p.Matches(word) {
+			return p.Replace(word), true
+		}
+	}
+	return "", false
 }
 
-const (
+// alternation writes a named class as a regexp branch, in the order the table carries the words.
+func alternation(name string) string { return strings.Join(wordsOf(name), "|") }
+
+var (
 	// clauseSubject opens a clause.
-	clauseSubject = `it|they|he|she|we|you|this|that|these|those|nothing|everything|nobody|the|a|an`
-	// finiteVerb marks a clause. A participle and an infinitive do not, which
-	// keeps an ordinary phrase off the list.
-	finiteVerb = `is|are|was|were|has|have|had|does|do|did|can|cannot|must|will|makes|make|means|` +
-		`gives|gets|goes|comes|stays|keeps|needs|wants|says|reads|holds|owns|carries|fires|runs|` +
-		`works|costs|counts|leaves|starts|stops|takes|tells|turns|lives|looks|sits|sends|renders|` +
-		`answers|reports|names|breaks|ends|fits|fails|passes|applies|returns|sets|adds|drops|` +
-		`moves|calls|opens|closes|splits|joins|emits|writes|prints|expands`
+	clauseSubject = alternation("clause-subject")
+	// finiteVerb marks a clause. A participle and an infinitive do not, which keeps an ordinary phrase off the list.
+	finiteVerb = alternation("finite-verb")
+	// spliceConjunction may stand in front of the spliced clause, and subordinatorConjunction in front of a subordinator.
+	spliceConjunction       = alternation("splice-conjunction")
+	subordinatorConjunction = alternation("subordinator-conjunction")
+	// subordinators open a dependent clause, which a comma may join.
+	subordinators = alternation("subordinator")
 )
 
 var (
@@ -104,13 +122,12 @@ var (
 	// commaSplice wants a subject and a finite verb after the comma. The
 	// conjunction is optional, because a bare comma splices too.
 	commaSplice = regexp.MustCompile(
-		`(?i),\s+((?:and|but|so|yet|then)\s+)?(?:` + clauseSubject +
+		`(?i),\s+((?:` + spliceConjunction + `)\s+)?(?:` + clauseSubject +
 			`)\s+(?:\w+\s+){0,2}?(?:not\s+)?(?:` + finiteVerb + `)\b`)
 	finiteVerbRe = regexp.MustCompile(`(?i)\b(?:` + finiteVerb + `)\b`)
 	// subordinator opens a dependent clause, which a comma may join.
-	subordinator = regexp.MustCompile(`(?i)^(?:(?:and|but|so|or|yet)\s+)?` +
-		`(?:if|when|whenever|where|wherever|while|because|although|though|unless|since|after|` +
-		`before|until|once|whether|provided|assuming|given|for)\b`)
+	subordinator = regexp.MustCompile(`(?i)^(?:(?:` + subordinatorConjunction + `)\s+)?` +
+		`(?:` + subordinators + `)\b`)
 	// fileOrSection matches a lower-case sentence opener: a file name, or a
 	// section reference. Demanding a capital welds it onto its predecessor.
 	fileOrSection = regexp.MustCompile(`^(?:[A-Za-z0-9_.-]+\.` +
@@ -118,9 +135,17 @@ var (
 )
 
 // abbreviations end in a period that never ends a sentence.
-var abbreviations = set.Of[string](
-	"e.g.", "i.e.", "etc.", "vs.", "cf.", "al.", "fig.", "no.", "approx.", "ca.", "resp.",
-)
+var abbreviations = set.Of(wordsOf("abbreviation")...)
+
+// wordsOf answers a named class's word list.
+func wordsOf(name string) []string {
+	for _, c := range steTable.Classes {
+		if c.Name == name {
+			return c.Words
+		}
+	}
+	panic("ste: rules/ names no class " + name)
+}
 
 // Check reports every rule the text breaks. The text is a prose block already
 // joined to a single line, and line is where it starts in the source.
@@ -148,7 +173,7 @@ func checkWords(prose string, line int) []Finding {
 	var out []Finding
 	for _, word := range wordPattern.FindAllString(prose, -1) {
 		lower := strings.ToLower(word)
-		if fix, banned := contractions[lower]; banned {
+		if fix, banned := Expand(word); banned {
 			out = append(out, Finding{Line: line, ID: IDContraction, Rule: "STE bans contractions", Detail: word, Fix: "Write " + fix + "."})
 		}
 		if fix, banned := modals[lower]; banned {
@@ -211,8 +236,7 @@ func checkSplices(prose string, line int) []Finding {
 
 // checkCounts finds a stated count of items. The reader trusts the number long
 // after somebody adds the item that makes it wrong.
-// This rule's own spelling of a count, and the units it will not count, live in
-// cardinal as the Gate substrate. The document rule and the comment rule read
+// This rule's own spelling of a count lives in cardinal as the Gate substrate. The document rule and the comment rule read
 // the same package with their own policies, so they cannot drift apart.
 func checkCounts(prose string, line int) []Finding {
 	var out []Finding

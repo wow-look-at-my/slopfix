@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The words STE bans, and what it writes instead.
+
+  A banned form and its replacement are data: the rule that finds one and the
+  repair that applies it need no Go to learn a new pair. What stays in Go is
+  the shape work no table can state, such as where a sentence ends.
+
+  A <test> here names prose the entry has to act on. What the repair writes for
+  a whole sentence is in ste-sentence.xml, which drives ste.Fix directly.
+-->
+<rules for="ste">
+
+  <!-- A contraction hides the word it stands for, and a reader whose English
+       is a second language reads the full form faster.
+
+       Expanding one is a rule, not a list: the ending says what was dropped.
+       The irregulars come first, because each one expands to something its
+       own ending does not spell. -->
+  <rewrite id="ste-cant" from="can't" to="cannot">
+    <test in="It can't open the file"/>
+  </rewrite>
+  <rewrite id="ste-wont" from="won't" to="will not">
+    <test in="It won't open the file"/>
+  </rewrite>
+  <rewrite id="ste-shant" from="shan't" to="must not">
+    <test in="It shan't open the file"/>
+  </rewrite>
+  <rewrite id="ste-lets" from="let's" to="let us">
+    <test in="Let's open the file"/>
+  </rewrite>
+  <rewrite id="ste-im" from="i'm" to="I am">
+    <test in="I'm opening the file"/>
+  </rewrite>
+
+  <!-- A contraction of a banned modal carries the ban with it: "wouldn't"
+       expands to the modal STE approves for that sense, never to "would
+       not". These stand in front of the n't rule for that reason. -->
+  <rewrite id="ste-wouldnt" from="wouldn't" to="will not">
+    <test in="It wouldn't open the file"/>
+  </rewrite>
+  <rewrite id="ste-shouldnt" from="shouldn't" to="must not">
+    <test in="It shouldn't open the file"/>
+  </rewrite>
+  <rewrite id="ste-couldnt" from="couldn't" to="cannot">
+    <test in="It couldn't open the file"/>
+  </rewrite>
+  <rewrite id="ste-mightnt" from="mightn't" to="cannot">
+    <test in="It mightn't open the file"/>
+  </rewrite>
+
+  <!-- The regular endings. Each keeps the word in front of it and writes back
+       what the apostrophe swallowed, so a form nobody listed still expands. -->
+  <pattern id="ste-nt" match="(?i)^([a-z]+)n't$" to="${1} not" where="contraction">
+    <test in="The file isn't open"/>
+    <test in="They haven't opened the file"/>
+  </pattern>
+  <pattern id="ste-re" match="(?i)^([a-z]+)'re$" to="${1} are" where="contraction">
+    <test in="They're opening the file"/>
+  </pattern>
+  <pattern id="ste-ve" match="(?i)^([a-z]+)'ve$" to="${1} have" where="contraction">
+    <test in="We've opened the file"/>
+  </pattern>
+  <pattern id="ste-ll" match="(?i)^([a-z]+)'ll$" to="${1} will" where="contraction">
+    <test in="They'll open the file"/>
+  </pattern>
+
+  <!-- An apostrophe-s is "is" behind a pronoun and a possessive behind a
+       noun, and no ending tells them apart. So this one carries its word
+       list: "the file's name" owns the name and expands to nothing. -->
+  <pattern id="ste-s-is" match="(?i)^(it|that|there|here|what|who|he|she)'s$"
+           to="${1} is" where="contraction">
+    <test in="It's open already"/>
+    <test in="There's a file open"/>
+  </pattern>
+
+  <!-- A modal that hedges. STE keeps one word per sense, so the reader never
+       weighs "should" against "must" and guesses which one binds. -->
+  <rewrite id="ste-should" from="should" to="must" where="modal">
+    <test in="It should open the file"/>
+  </rewrite>
+  <rewrite id="ste-shall" from="shall" to="must" where="modal">
+    <test in="It shall open the file"/>
+  </rewrite>
+  <rewrite id="ste-could" from="could" to="can" where="modal">
+    <test in="It could open the file"/>
+  </rewrite>
+  <rewrite id="ste-might" from="might" to="can" where="modal">
+    <test in="It might open the file"/>
+  </rewrite>
+  <rewrite id="ste-would" from="would" to="will" where="modal">
+    <test in="It would open the file"/>
+  </rewrite>
+
+  <!-- An abbreviation ends in a period that never ends a sentence. A sentence
+       walk that counts it as a stop splits one sentence into two. -->
+  <class name="abbreviation" words="e.g. i.e. etc. vs. cf. al. fig. no. approx.
+    ca. resp."/>
+
+  <!-- A comma splice wants a subject and a finite verb after the comma. Both
+       lists are closed, and a word outside them leaves the comma alone. -->
+  <class name="clause-subject" words="it they he she we you this that these
+    those nothing everything nobody the a an"/>
+
+  <!-- A finite verb marks a clause. A participle and an infinitive do not,
+       which keeps an ordinary phrase off the list. -->
+  <class name="finite-verb" words="is are was were has have had does do did can
+    cannot must will makes make means gives gets goes comes stays keeps needs
+    wants says reads holds owns carries fires runs works costs counts leaves
+    starts stops takes tells turns lives looks sits sends renders answers
+    reports names breaks ends fits fails passes applies returns sets adds drops
+    moves calls opens closes splits joins emits writes prints expands"/>
+
+  <!-- A subordinator opens a dependent clause, which a comma may join. -->
+  <class name="subordinator" words="if when whenever where wherever while
+    because although though unless since after before until once whether
+    provided assuming given for"/>
+
+  <!-- A conjunction may stand in front of the spliced clause. -->
+  <class name="splice-conjunction" words="and but so yet then"/>
+
+  <!-- And in front of a subordinator, where "or" joins and "then" does not. -->
+  <class name="subordinator-conjunction" words="and but so or yet"/>
+
+</rules>

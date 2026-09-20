@@ -42,7 +42,7 @@ func TestFixKeepsAFencedBlockWhole(t *testing.T) {
 	assert.Equal(t, doc, repair.Text)
 }
 
-// A sentence whose halves share a subject divides anyway. The second half reads
+// A sentence whose halves share a subject divides anyway. the next half reads
 // as a fragment, which is the price of a rule every caller can clear: a finding
 // no repair answers leaves a reader hand-editing prose or deleting the file.
 func TestFixDividesASentenceWithNoWriterlySeam(t *testing.T) {

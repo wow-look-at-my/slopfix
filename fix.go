@@ -6,7 +6,6 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
-	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -48,7 +47,7 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleSTE:
 		return ste.AllIDs
 	case RuleComments:
-		return set.Of(commentlength.ID, commentfix.ID)
+		return set.Of(commentfix.IDLength, commentfix.ID)
 	case RuleWorkflow:
 		return workflow.AllIDs
 	}
@@ -67,7 +66,7 @@ type Request struct {
 	MaxCommentLines int
 }
 
-// Repair is the text as this binary would write it, plus what no rewrite can repair.
+// Repair is the text as this binary would write it, plus what the rewrite flagged.
 type Repair struct {
 	// Text is the repaired text. It equals the input when Changed is false.
 	Text string `json:"text"`
@@ -75,6 +74,8 @@ type Repair struct {
 	Changed bool `json:"changed"`
 	// Removed names each span the repair cut out.
 	Removed []string `json:"removed,omitempty"`
+	// Rewrites counts the prose repairs the english table had to make.
+	Rewrites int `json:"rewrites,omitempty"`
 	// Kept carries the tombstones no whole-line deletion resolves.
 	Kept []tombstones.Hit `json:"kept,omitempty"`
 	// Findings are what a reader must repair by hand.
@@ -123,6 +124,7 @@ func Fix(req Request) Repair {
 		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
 		text = cut.Text
 		repair.Removed = append(repair.Removed, cut.Removed...)
+		repair.Rewrites += cut.Rewrites
 		for _, hit := range cut.Kept {
 			if keeps(hit.ID) {
 				repair.Kept = append(repair.Kept, hit)
@@ -130,19 +132,18 @@ func Fix(req Request) Repair {
 		}
 	}
 
-	lengths := wants(RuleComments) && keeps(commentlength.ID) && req.Path != ""
+	lengths := wants(RuleComments) && keeps(commentfix.IDLength) && req.Path != ""
 	cutLong := false
 	cutComments := func() {
 		if !lengths {
 			return
 		}
-		if cut, changed := commentlength.Fix(req.Path, text); changed {
+		if cut, changed := commentfix.FixLength(req.Path, text); changed {
 			text, cutLong = cut, true
 		}
 	}
 
-	// The comment-length repair reads source rather than prose, so it runs
-	// before the document gate below sends a source file home.
+	// The comment-length repair reads source rather than prose, so it runs before the document gate below sends a source
 	cutComments()
 
 	// The number repair reads source too, and runs after the length cut: a
@@ -152,10 +153,7 @@ func Fix(req Request) Repair {
 		if said.Changed {
 			text = said.Text
 			repair.Removed = append(repair.Removed, said.Removed...)
-			// A number said in words is longer than the number, so the rewrite
-			// can put a block back over the budget the cut just brought it
-			// under. The cut runs again over what the rewrite wrote, or the
-			// file comes out of one pass still carrying a finding.
+			// A number said in words is longer than the number, so the rewrite can put a block back over the budget the cut just
 			cutComments()
 		}
 	}
@@ -164,7 +162,7 @@ func Fix(req Request) Repair {
 		repair.Removed = append(repair.Removed, "trailing comment prose")
 	}
 	if lengths {
-		for _, hit := range commentlength.Check(req.Path, text) {
+		for _, hit := range commentfix.CheckLength(req.Path, text) {
 			repair.Kept = append(repair.Kept, tombstones.Hit{
 				ID:     hit.ID,
 				Tell:   hit.Tell,
@@ -201,9 +199,7 @@ func Fix(req Request) Repair {
 			text = markdown.FormatFunc(text, word)
 		}
 	}
-	// The stale-count strip runs AFTER the join. That rule reads a paragraph as
-	// one line, so a count a hand wrap split across two lines is one it reports
-	// and a line walk over the source cannot reach.
+	// The stale-count strip runs AFTER the join.
 	if wants(RuleSTE) && keeps(ste.IDStaleCount) {
 		stripped, hits := counts.StripGate(text)
 		text = stripped

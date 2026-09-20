@@ -3,28 +3,64 @@
 // An edit's new text carries no file around it. A comment in it documents
 // nothing, because the declaration it sits above is not in the fragment. A
 // fenced block's lines read as a hand-wrapped paragraph for the same reason.
-// Judged alone, an ordinary edit is refused for what the file supplies.
+// Judged alone, an ordinary edit is flagged for what the file supplies.
 //
-// So the fragment is put back first: the file is read, the edit replayed, and
-// the rules run over the whole result. What the file already carried is then
-// subtracted, because a finding the write did not introduce belongs to whoever
-// wrote it. A finding is matched by rule and message rather than by line, since
-// every line below an edit moves.
+// So the fragment is put back earliest: the file is read, the edit replayed,
+// and the rules run over the whole result. What the file already carried is
+// then subtracted, because a finding the write did not introduce belongs to
+// whoever wrote it. A finding is matched by rule and message rather than by
+// line, since every line below an edit moves.
 package cmd
 
 import (
 	"os"
+	"strings"
 
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// placed is what an edit introduces, once the file supplies its surroundings.
+// edit is a replacement a write performs, as the payload states it.
+type edit struct {
+	old string
+	new string
+}
+
+// editsOf reads the replacements the named tool carries. Write replaces the
+// whole file and states no replacement, so it has none.
+func editsOf(tool string, in writeInput) []edit {
+	switch tool {
+	case "Edit":
+		return []edit{{old: in.OldString, new: in.NewString}}
+	case "MultiEdit":
+		out := make([]edit, 0, len(in.Edits))
+		for _, e := range in.Edits {
+			out = append(out, edit{old: e.OldString, new: e.NewString})
+		}
+		return out
+	}
+	return nil
+}
+
+// applyEdits replays the replacements onto the file. A replacement that is
+// absent, or that appears more than a single time, leaves the result unknown,
+// and the caller then judges the fragment as it always did.
+func applyEdits(src string, edits []edit) (string, bool) {
+	out := src
+	for _, e := range edits {
+		if e.old == "" || strings.Count(out, e.old) != 1 {
+			return "", false
+		}
+		out = strings.Replace(out, e.old, e.new, 1)
+	}
+	return out, true
+}
+
+// placed is what an edit introduces, a single time the file supplies its surroundings.
 type placed struct {
 	// findings are the rules the write's own text broke.
 	findings []ste.Finding
-	// ok is false when the edit could not be pinned to the file, and the
-	// caller then judges the fragment as it always did.
+	// ok is false when the edit could not be pinned to the file, and the caller then judges the fragment as it always did.
 	ok bool
 }
 
@@ -46,13 +82,11 @@ func place(tool string, in writeInput, rules []slopfix.Rule, ids []string) place
 	return placed{findings: introduced(before, after, in.FilePath, rules, ids), ok: true}
 }
 
-// introduced subtracts what the file already carried. Each earlier finding
-// cancels a matching one, so a second copy of a sentence the file already
-// breaks is still the write's own.
+// introduced subtracts what the file already carried.
 func introduced(before, after, path string, rules []slopfix.Rule, ids []string) []ste.Finding {
 	had := map[string]int{}
 	for _, f := range findingsOver(before, path, rules, ids) {
-		had[f.ID+"\x00"+f.Message]++
+		had[f.ID+"\x00"+f.Detail]++
 	}
 	var out []ste.Finding
 	for _, f := range findingsOver(after, path, rules, ids) {

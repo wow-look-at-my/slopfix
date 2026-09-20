@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  What the numbers table writes for a whole line, as opposed to what a single
+  entry writes for the phrase it names. Every test here belongs to the
+  consumer, so it drives the rewrites, the rephrasings and the patterns
+  together, in the order the repair applies them.
+
+  A test whose out repeats its in names prose the table declines. Those hold
+  the matching inside a word boundary, and dropping one lets a rewrite loose
+  inside a name.
+-->
+<rules for="numbers">
+
+  <test in="sync.Once guards it" out="sync.Once guards it"/>
+  <test in="net/http serves it" out="net/http serves it"/>
+  <test in="it calls Do.Once here" out="it calls Do.Once here"/>
+  <test in="the once flag" out="the a single time flag"/>
+  <test in="The oneShot flag and someone else" out="The oneShot flag and someone else"/>
+
+  <test in="Tests for .github/scripts/register.sh, the step it runs"
+        out="Tests for .github/scripts/register.sh, the step it runs"/>
+  <test in="The suite lives in .dats files" out="The suite lives in .dats files"/>
+  <test in="Ignored by .gitignore already" out="Ignored by .gitignore already"/>
+
+  <test in="exactly one of s or other." out="a single side of s or other."/>
+  <test in="Two goroutines contend" out="Goroutines contend"/>
+
+  <test in="It reserves one slot ." out="It reserves a single slot."/>
+  <test in="It locks , then writes ." out="It locks, then writes."/>
+
+  <test in="It reserves a slot and publishes it" out="It reserves a slot and publishes it"/>
+
+  <!-- Taken out of repositories the number repair had already been run over.
+       Each in is a comment as its author wrote it, and each out is what the
+       repair has to write instead of the wreckage it shipped. -->
+  <test in="Batch GET two of them." out="Batch GET some of them."/>
+  <test in="It fails when this one does not carry it."
+        out="It fails when this does not carry it."/>
+  <test in="The walk is dropping the one top directory."
+        out="The walk is dropping the single top directory."/>
+  <test in="Two goroutines contend for it." out="Goroutines contend for it."/>
+  <test in="One good entry and one relic."
+        out="A single good entry and a single relic."/>
+  <test in="It is a no-op once." out="It is a no-op a single time."/>
+  <test in="It reads from the first .gitmodules parser above."
+        out="It reads from the earliest .gitmodules parser above."/>
+
+</rules>

@@ -36,7 +36,7 @@ var checks = []struct {
 }, {
 	name: "hook", only: []string{"tombstones"},
 	payload: writeEnvelope("x.go", "package p\n\n// This used to read the flag from the environment.\nfunc f() {}\n"),
-	want:    "used to read the flag",
+	want:    `"content":"package p\n\nfunc f() {}\n"`,
 }, {
 	name: "message", only: []string{"blame"},
 	payload: "The suite is red, but the failure is pre-existing.",

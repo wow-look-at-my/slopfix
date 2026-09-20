@@ -1,7 +1,7 @@
 // frame.go is what the inventory-count rule asks for beyond a quantity: a
 // sentence claiming the things being counted are HERE. Lacking such a shape, a
 // number in a document counts nothing. The merge gate's substrate asks for no
-// frame, which is why it carries a list of units instead.
+// frame, so it reads a bare quantity anywhere in the line.
 package cardinal
 
 import (

@@ -19,7 +19,7 @@ func Fix(text string) string {
 //
 // The cap repair runs over the whole text rather than inside fixProse. It
 // measures a sentence the way Check measures it, and Check counts a code span
-// as a single word rather than as a gap between two shorter sentences.
+// as a single word rather than as a gap between shorter sentences.
 func FixSelected(text string, keep func(id string) bool) string {
 	text = fixProse(text, func(prose string) string {
 		prose = fixWords(prose, keep)
@@ -67,7 +67,7 @@ func fixProse(text string, repair func(string) string) string {
 func fixWords(prose string, keep func(id string) bool) string {
 	return wordPattern.ReplaceAllStringFunc(prose, func(word string) string {
 		lower := strings.ToLower(word)
-		replacement, banned := contractions[lower]
+		replacement, banned := Expand(word)
 		if banned && !keep(IDContraction) {
 			banned = false
 		}
@@ -109,18 +109,17 @@ func fixSplices(prose string) string {
 	return breakAt(prose, commas)
 }
 
-// The seams a division can take, strongest first. Each is a place the sentence
-// already divides in the reader's head, and the last is a bare gap between two
-// words, which divides nothing and still brings the sentence under the cap.
+// The seams a division can take, strongest earliest. Each is a place the
+// sentence already divides in the reader's head, and the last is a bare gap
+// between words, which divides nothing and still brings the sentence under the cap.
 //
-// Group 1 is the span the break replaces, and everything outside it survives.
 // The coordinator puts the conjunction inside the group, because the clause
 // after it already opens a sentence. Every weaker seam leaves the conjunction
 // standing, so no word is lost to a repair nobody reviews.
 var (
 	// coordinator matches a conjunction joining clauses: a candidate seam.
 	coordinator = regexp.MustCompile(`(,?\s+(?:and|but|so|then|because)\s+)`)
-	// clauseSeam matches the comma a writer put between two clauses.
+	// clauseSeam matches the comma a writer put between clauses.
 	clauseSeam = regexp.MustCompile(`(,\s+)(?:and|but|so|or|yet|then|because|since|which|` +
 		`while|although|though|unless|after|before|until|whenever|when|where|if|` +
 		`rather|instead|except)\s`)
@@ -158,12 +157,6 @@ func carriesItsOwnSubject(clause string) bool {
 
 // fixSentenceCap divides every over-cap sentence, repeating while a half is
 // still over.
-//
-// The cap is a limit rather than a suggestion, so the repair always divides. It
-// prefers a seam a writer would have used and falls back through weaker ones to
-// a bare word boundary, which reads awkwardly and is still a repair. A finding
-// nothing answers leaves a reader two ways out, and the org allows neither:
-// hand-edit the prose, or delete the file.
 func fixSentenceCap(prose string) string {
 	// A division always shortens the sentence it cuts, so a pass per word is
 	// more than any text can ask for.
@@ -216,7 +209,7 @@ func divide(masked string, off [][]int, start, end int) ([]int, bool) {
 }
 
 // nearestMiddle answers the usable seam closest to the sentence's middle, which
-// is where a division leaves the two halves most alike.
+// is where a division leaves both halves most alike.
 func nearestMiddle(masked string, off [][]int, start, end int, seam *regexp.Regexp, wants func(string) bool) ([]int, bool) {
 	middle := (end - start) / 2
 	var pick []int
@@ -246,14 +239,12 @@ func usable(masked string, off [][]int, cut []int, start, end int) bool {
 		}
 	}
 	if last, _ := utf8.DecodeLastRuneInString(masked[:cut[0]]); terminator(last) {
-		return false // the sentence already ends here, and a second period reads as an ellipsis
+		return false // the sentence already ends here, and another period reads as an ellipsis
 	}
 	if WordCount(masked[start:cut[0]]) == 0 || WordCount(masked[cut[1]:end]) == 0 {
 		return false
 	}
-	// breakAt capitalizes what follows, so the new sentence has to open with
-	// something a capital applies to. Sentences welds the halves back together
-	// otherwise, and the finding survives its own repair.
+	// breakAt capitalizes what follows, so the new sentence has to open with something a capital applies to. Sentences
 	first, _ := utf8.DecodeRuneInString(masked[cut[1]:])
 	return unicode.IsLetter(first) || unicode.IsDigit(first)
 }
