@@ -5,23 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/wow-look-at-my/slopfix/english"
 )
 
-// What the tidy pass writes for a whole line is stated in english.xml, where
-// somebody adding a case edits no Go.
-func TestEveryWholeLineCaseHolds(t *testing.T) {
-	require.NotEmpty(t, english.Cases())
-	for _, c := range english.Cases() {
-		t.Run(c.In, func(t *testing.T) {
-			assert.Equal(t, c.Out, shorten(c.In))
-		})
-	}
-}
-
-// The property behind the case above.
+// What the tidy pass writes for a whole line is stated in english.xml and
+// driven by the english package's own test. This is the property behind those
+// cases, which no worked example states: the repair may drop a word and may
+// rewrite a word, and may never run two of the author's words together.
 func TestTighteningNeverWeldsTwoWordsTogether(t *testing.T) {
 	for _, in := range []string{
 		"It reads from the .gitmodules parser above.",

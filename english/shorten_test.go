@@ -58,20 +58,16 @@ func TestEveryPatternFires(t *testing.T) {
 	}
 }
 
-// A doc comment opens on the identifier it documents, and that identifier is
-// often unexported. Capitalising it names a symbol the package does not have,
-// so the capital is restored only where a deletion removed the opening word.
-func TestTheOpeningWordKeepsItsCase(t *testing.T) {
-	assert.Equal(t, "arityReach is how far back it looks",
-		Fix("arityReach is basically how far back it looks", Comment))
-	assert.Equal(t, "english is the parsed table",
-		Fix("english is actually the parsed table", Comment))
-}
-
-// The control: a deletion that removes the opening word does restore a capital,
-// or the sentence starts in lower case for no reason.
-func TestALeadingDeletionRestoresTheCapital(t *testing.T) {
-	assert.Equal(t, "It fails", Fix("Obviously it fails", Comment))
+// A <test> under the table's root belongs to no entry: it states what the
+// repair writes for a whole line, which is where prose reaching several entries,
+// or reaching none, is said. Adding a case is an edit to english.xml.
+func TestEveryWholeLineCaseHolds(t *testing.T) {
+	require.NotEmpty(t, Cases())
+	for _, c := range Cases() {
+		t.Run(c.In, func(t *testing.T) {
+			assert.Equal(t, c.Out, Fix(c.In, Comment))
+		})
+	}
 }
 
 // A flag names a phrase and never rewrites it, so its own test must still be

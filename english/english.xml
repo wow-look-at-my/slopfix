@@ -293,4 +293,15 @@
   <test in="It reads the file ." out="It reads the file."/>
   <test in="It reads the file , and stops." out="It reads the file, and stops."/>
 
+  <!--
+    A doc comment opens on the identifier it documents, and that identifier is
+    often unexported. Capitalising it names a symbol the package does not have,
+    so the capital is restored only where a deletion removed the opening word.
+  -->
+  <test in="arityReach is basically how far back it looks"
+        out="arityReach is how far back it looks"/>
+  <test in="english is actually the parsed table"
+        out="english is the parsed table"/>
+  <test in="Obviously it fails" out="It fails"/>
+
 </english>
