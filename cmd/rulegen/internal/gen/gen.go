@@ -218,9 +218,9 @@ func q(s string) string { return strconv.Quote(s) }
 // join belongs here: a caller building a pattern out of one keeps a constant,
 // and nothing assembles the same string again at startup.
 func renderAlternations(b *strings.Builder, req Request, t *Loaded) {
-	var named []table.Class
+	var named []Class
 	for _, c := range t.Classes {
-		if len(c.Words) > 0 {
+		if len(strings.Fields(c.Words)) > 0 {
 			named = append(named, c)
 		}
 	}
@@ -229,8 +229,9 @@ func renderAlternations(b *strings.Builder, req Request, t *Loaded) {
 	}
 	fmt.Fprintf(b, "\n// Each class of %s as an alternation, for a pattern to embed.\nconst (\n", req.Target)
 	for _, c := range named {
-		quoted := make([]string, len(c.Words))
-		for i, w := range c.Words {
+		fields := strings.Fields(c.Words)
+		quoted := make([]string, len(fields))
+		for i, w := range fields {
 			quoted[i] = regexp.QuoteMeta(w)
 		}
 		fmt.Fprintf(b, "\t%sAlt%s = %s\n", req.Target, exportedName(c.Name), q(strings.Join(quoted, "|")))
