@@ -135,9 +135,16 @@
     <test in="It reports what each one got" out="It reports what each one got"/>
   </rephrase>
 
-  <!-- A plural tally: the noun carries the meaning and the number goes. -->
-  <pattern id="plural-tally-drops-its-count" match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}">
+  <!-- A plural tally: the noun carries the meaning and the number goes.
+
+       A unit is not a tally. "every 30 seconds" says how long, and dropping the
+       cardinal leaves "every seconds", which states nothing. The unit class
+       claims those words, so the noun term below never matches one. -->
+  <rephrase id="plural-tally-drops-its-count" match="{cardinal:c} {noun:n}" to="{n}">
     <test in="Two goroutines contend" out="Goroutines contend"/>
-  </pattern>
+    <test in="It polls every 30 seconds" out="It polls every 30 seconds"/>
+    <test in="It waits two minutes" out="It waits two minutes"/>
+    <test in="It reads 260 characters" out="It reads 260 characters"/>
+  </rephrase>
 
 </rules>

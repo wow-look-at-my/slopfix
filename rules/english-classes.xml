@@ -25,6 +25,19 @@
        noun rather than counting it. -->
   <class name="relative" words="that which who whom whose when where while"/>
 
+  <!-- A unit of measure. The cardinal before one is the measurement itself
+       rather than a tally of items, so cutting it destroys the fact: "every 30
+       seconds" becomes "every seconds". No set changes underneath it, which is
+       the whole reason the count rule exists, so a unit is never stale. -->
+  <class name="unit" words="nanosecond nanoseconds microsecond microseconds
+    millisecond milliseconds second seconds minute minutes hour hours day days
+    week weeks month months year years
+    bit bits byte bytes kib mib gib tib kb mb gb tb kilobyte kilobytes
+    megabyte megabytes gigabyte gigabytes terabyte terabytes
+    character characters line lines column columns row rows word words
+    percent degree degrees pixel pixels em rem
+    time times level levels version versions"/>
+
   <!-- A conjunction joins, and heads no noun phrase. -->
   <class name="conjunction" words="and or but so because though although if
     unless since while whereas"/>
