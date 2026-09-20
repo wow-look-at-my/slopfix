@@ -46,15 +46,15 @@ var checks = []struct {
 	payload: "I found an off-by-one in the retry loop and left it alone.",
 	want:    "laziness/punt",
 }, {
-	name:    "auto-allow",
+	name:    "command",
 	payload: bash("python3 -c 1"),
 	want:    `"permissionDecision":"deny"`,
 }, {
-	name:    "clean-bash",
+	name:    "command",
 	payload: bash("docker compose restart web"),
 	want:    "up -d",
 }, {
-	name:    "no-work-loss",
+	name:    "command",
 	payload: bash("sed -i s/a/b/ README.md"),
 	want:    `"permissionDecision":"deny"`,
 }, {
@@ -121,6 +121,10 @@ func TestEveryCheckAnswersItsOwnInput(t *testing.T) {
 		t.Run(check.name+" "+strings.Join(check.only, ","), func(t *testing.T) {
 			cmdMu.Lock()
 			defer cmdMu.Unlock()
+			if check.name == "command" {
+				require.Contains(t, judgeCommand([]byte(check.payload)).Stdout, check.want)
+				return
+			}
 			c := find(t, check.name)
 			if len(check.only) > 0 {
 				selectChecks(t, c, check.only)

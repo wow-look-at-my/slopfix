@@ -22,6 +22,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -60,7 +61,7 @@ func init() {
 			"With --json the answer is one object per file on stdout, which is what a\n" +
 			"language server with an open buffer reads. It still exits 1 on a finding,\n" +
 			"so a caller that only wants the verdict needs no parser.",
-		RunE: runFileCheck,
+		RunE: traced("file/check", runFileCheck),
 	}
 	check.Flags().BoolVar(&fileJSON, "json", false, "write the findings as JSON on stdout")
 	check.Flags().StringSliceVar(&fileOnly, "only", nil, onlyUsage())
@@ -78,7 +79,7 @@ func init() {
 			"stands in for, folds a run of comment lines into the one the rule allows,\n" +
 			"and cuts a comment back inside the code it documents.\n\n" +
 			"What no rewrite repairs goes to stderr, and a remaining finding exits 1.",
-		RunE: runFileFix,
+		RunE: traced("file/fix", runFileFix),
 	}
 	fix.Flags().BoolVar(&fileJSON, "json", false, "write the whole answer as one JSON object on stdout")
 	fix.Flags().StringSliceVar(&fileOnly, "only", nil, onlyUsage())
@@ -91,6 +92,16 @@ func init() {
 }
 
 // judged reports whether any rule reads this file, which is what a walk keeps.
+// traced wraps a subcommand so every run reports where its time went under
+// SLOPFIX_TRACE. This is the command CI drives over a whole tree.
+func traced(name string, run func(*cobra.Command, []string) error) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		defer trace.Report()
+		defer trace.Phase(name)()
+		return run(cmd, args)
+	}
+}
+
 func judged(path string) bool {
 	return slopfix.IsDocument(path) || commentfix.Supported(path) || workflow.Judges(path)
 }

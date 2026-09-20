@@ -12,14 +12,20 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // marker is the session's accumulated view. Fired records the signature the
 // Stop gate blocked on PER FILE, which is the no-wedge property.
+// Candidates is the walk's result, kept so a tool call costs a stat per
+// instruction file rather than a traversal of the whole tree. Finding the
+// candidates is what is expensive; measuring them is not.
 type marker struct {
-	Paths []string          `json:"paths"`
-	Fired map[string]string `json:"fired"`
-	Seen  map[string]string `json:"seen"`
+	Paths      []string          `json:"paths"`
+	Fired      map[string]string `json:"fired"`
+	Seen       map[string]string `json:"seen"`
+	Candidates []string          `json:"candidates"`
+	WalkedAt   int64             `json:"walked_at"`
 }
 
 func newMarker() *marker {
@@ -79,6 +85,22 @@ func recordOffender(sessionID, path string) {
 	writeMarker(sessionID, m)
 }
 
+// noteSignature records a single file's current signature, so the next call
+// that diffs the snapshot does not report a write this already answered for.
+func noteSignature(sessionID, path string) {
+	if sessionID == "" {
+		return
+	}
+	m := readMarker(sessionID)
+	if m == nil {
+		m = newMarker()
+	}
+	if sig, ok := signature(path); ok {
+		m.Seen[path] = sig
+	}
+	writeMarker(sessionID, m)
+}
+
 // seedSnapshot records what every candidate looked like BEFORE this session
 // touched anything, or the earliest Bash-written edit gets away.
 func seedSnapshot(sessionID, cwd string) {
@@ -89,13 +111,33 @@ func seedSnapshot(sessionID, cwd string) {
 	if m == nil {
 		m = newMarker()
 	}
-	m.Seen = snapshot(cwd)
+	m.Candidates = allCandidatePaths(cwd)
+	m.WalkedAt = time.Now().Unix()
+	m.Seen = snapshotOf(m.Candidates)
 	writeMarker(sessionID, m)
 }
 
+// walkTTL is how long a candidate list stands before the tree is walked again.
+// A CLAUDE.md that appears mid-session is reported within this, and every tool
+// call inside it costs stats instead of a traversal.
+const walkTTL = 120
+
+// candidates answers the marker's list while it is fresh, and walks otherwise.
+// It reports whether it walked, so the caller can persist what it found.
+func candidates(m *marker, cwd string) ([]string, bool) {
+	if len(m.Candidates) > 0 && time.Now().Unix()-m.WalkedAt < walkTTL {
+		return m.Candidates, false
+	}
+	return allCandidatePaths(cwd), true
+}
+
 func snapshot(cwd string) map[string]string {
+	return snapshotOf(allCandidatePaths(cwd))
+}
+
+func snapshotOf(paths []string) map[string]string {
 	seen := map[string]string{}
-	for _, path := range allCandidatePaths(cwd) {
+	for _, path := range paths {
 		key, err := filepath.Abs(path)
 		if err != nil {
 			continue
@@ -121,7 +163,12 @@ func changedFiles(sessionID, cwd string) []string {
 		m = newMarker()
 	}
 	first := len(m.Seen) == 0
-	seen := snapshot(cwd)
+	paths, walked := candidates(m, cwd)
+	if walked {
+		m.Candidates = paths
+		m.WalkedAt = time.Now().Unix()
+	}
+	seen := snapshotOf(paths)
 
 	var changed []string
 	if !first {

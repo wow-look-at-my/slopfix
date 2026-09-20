@@ -24,18 +24,18 @@ type home struct {
 
 var migrated = []home{
 	{plugin: "ask-properly", command: "ask-properly"},
-	{plugin: "enhanced-auto-allow", command: "auto-allow"},
-	{plugin: "recommend-go-toolchain", command: "auto-allow"},
-	{plugin: "cleanup-bash-cmds", command: "clean-bash"},
-	{plugin: "no-busy-poll", command: "busy-poll"},
-	{plugin: "no-work-loss", command: "no-work-loss"},
+	{plugin: "enhanced-auto-allow", command: "command"},
+	{plugin: "recommend-go-toolchain", command: "command"},
+	{plugin: "cleanup-bash-cmds", command: "command"},
+	{plugin: "no-busy-poll", command: "command"},
+	{plugin: "no-work-loss", command: "command"},
 	{plugin: "claude-md-budget", command: "md-budget"},
 	{plugin: "link-all-refs", command: "link-refs"},
 	{plugin: "no-blame-language", command: "message", rule: blamelanguage.ID},
 	{plugin: "detect-permission-seeking", command: "message", rule: laziness.ID},
 	{plugin: "no-counts-in-docs", command: "hook", rule: slopfix.IDInventoryCount},
 	{plugin: "no-tombstones", command: "hook", rule: tombstones.IDVolume},
-	{plugin: "common-checks", command: "workflows"},
+	{plugin: "common-checks", command: "file"},
 }
 
 // Every retired plugin reaches a registered subcommand, and every rule it is

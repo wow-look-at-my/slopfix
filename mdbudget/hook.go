@@ -9,10 +9,12 @@ package mdbudget
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/wow-look-at-my/go-containers/set"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // hookInput is the payload Claude Code delivers on stdin. Every field is
@@ -81,18 +83,23 @@ func editReport(in hookInput, limit int) string {
 	floor := nearLimit(limit)
 
 	var paths []string
-	if in.ToolInput.FilePath != "" && isInstructionFile(in.ToolInput.FilePath) {
-		if abs, err := filepath.Abs(in.ToolInput.FilePath); err == nil {
-			paths = []string{abs}
-		}
-		// Keep the snapshot current even when the tool named its file, so a
-		changedFiles(in.SessionID, in.CWD)
-	} else {
+	switch {
+	case in.ToolInput.FilePath == "":
+		// Bash is the common case.
 		for _, p := range changedFiles(in.SessionID, in.CWD) {
 			if isInstructionFile(p) {
 				paths = append(paths, p)
 			}
 		}
+	case isInstructionFile(in.ToolInput.FilePath):
+		if abs, err := filepath.Abs(in.ToolInput.FilePath); err == nil {
+			paths = []string{abs}
+			noteSignature(in.SessionID, abs)
+		}
+	default:
+		// The tool named a file no instruction reader loads, and an edit tool
+		// writes what it names. Nothing here can have changed a budget.
+		return ""
 	}
 
 	var offenders []offender
@@ -228,6 +235,8 @@ type Result struct {
 // It fails open, unconditionally: this runs at the start of every session and
 // after every tool call. A size check must never break either.
 func Run(r io.Reader) (res Result) {
+	defer trace.Report()
+	defer trace.Phase("mdbudget/run")()
 	defer func() {
 		if p := recover(); p != nil {
 			res = Result{Stderr: fmt.Sprintf("claude-md-budget: reporting nothing: %v\n", p)}
