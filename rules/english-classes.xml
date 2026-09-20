@@ -54,10 +54,24 @@
        reads this as "do not decide", never as "this is a verb". -->
   <class name="verbform" suffix="ing ed"/>
 
+  <!-- A past tense that no ending marks. The suffix class reaches the regular
+       forms; these spell the same thing with a vowel change and would pass for
+       nouns, which makes the cardinal before them count a verb: "what each one
+       got" became "what each a single got". Every word here is a verb form
+       only. A spelling that also names a thing ("set", "run", "read", "left",
+       "thought") belongs in the open class, because there the cardinal really
+       may be counting it. -->
+  <class name="irregular" words="got gotten went gone took taken came kept
+    held made gave given knew known told said wrote written chose chosen
+    began begun sent meant built brought bought caught taught sought
+    lost met paid sat spent stood understood wore worn won became become
+    grew grown drew drawn threw thrown spoke spoken broke broken
+    froze frozen rose risen"/>
+
   <!-- A noun is what no closed class claims and no ending marks as a verb. It
        is the open class, less the verb forms, so a term can ask for a noun
        without asking a parser. -->
-  <class name="noun" open="true" except="verbform"/>
+  <class name="noun" open="true" except="verbform irregular"/>
 
   <!-- The cardinals the rule is about. A shape names the word it governs, so
        this class is what a shape reads to find any of them at once. -->

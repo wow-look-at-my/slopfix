@@ -118,6 +118,7 @@
        here, and the class excludes it, so "one keeping up" is left alone. -->
   <rephrase id="one-counts-a-noun" match="one {noun:n}" to="a single {n}">
     <test in="It reserves one slot" out="It reserves a single slot"/>
+    <test in="It reports what each one got" out="It reports what each one got"/>
   </rephrase>
 
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
