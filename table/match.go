@@ -72,7 +72,11 @@ func (m Match) Classes() []string {
 
 // find answers the words a match covers from i, with each capture, or reports
 // that it does not fit here.
-func (m Match) find(lex *Lexicon, tokens []string, i int) (end int, caught map[string]string, ok bool) {
+//
+// A term matches the lowercased tokens and captures from written, which holds
+// the words as their author spelled them. A capture writes a word back, and a
+// name it lowercases is a name that does not exist.
+func (m Match) find(lex *Lexicon, tokens, written []string, i int) (end int, caught map[string]string, ok bool) {
 	caught = map[string]string{}
 	at := i
 	for _, term := range m.Terms {
@@ -82,7 +86,7 @@ func (m Match) find(lex *Lexicon, tokens []string, i int) (end int, caught map[s
 				at++
 			}
 			if term.Name != "" {
-				caught[term.Name] = strings.Join(tokens[start:at], " ")
+				caught[term.Name] = strings.Join(written[start:at], " ")
 			}
 			continue
 		}
@@ -90,7 +94,7 @@ func (m Match) find(lex *Lexicon, tokens []string, i int) (end int, caught map[s
 			return 0, nil, false
 		}
 		if term.Name != "" {
-			caught[term.Name] = tokens[at]
+			caught[term.Name] = written[at]
 		}
 		at++
 	}
