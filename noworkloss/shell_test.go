@@ -111,11 +111,7 @@ func newRepoAt(t *testing.T) string {
 	dir := t.TempDir()
 	dir, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
-<<<<<<< HEAD
-	git(t, dir, "init", "-q", "--initial-branch=master")
-=======
 	git(t, dir, "init", "-q", "-b", fixtureBranch)
->>>>>>> origin/master
 	git(t, dir, "config", "user.email", "guard@example.com")
 	git(t, dir, "config", "user.name", "Guard")
 	writeAt(t, dir, "tracked.go", "package a\n")

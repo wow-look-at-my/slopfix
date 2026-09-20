@@ -83,24 +83,8 @@ type Normalize struct {
 	Tests []Test `xml:"test"`
 }
 
-// Case is a phrase and what the consumer writes for it, driving the consumer
-// as a whole rather than a single entry.
-type Case struct {
-	Name   string `xml:"name,attr"`
-	Text   string `xml:"text,attr"`
-	Expect string `xml:"expect,attr"`
-}
-
 // file mirrors a rules XML document.
 type file struct {
-<<<<<<< HEAD
-	For      string    `xml:"for,attr"`
-	Drops    []Drop    `xml:"drop"`
-	Rewrites []Rewrite `xml:"rewrite"`
-	Patterns []Pattern `xml:"pattern"`
-	Flags    []Flag    `xml:"flag"`
-	Cases    []Case    `xml:"case"`
-=======
 	For       string      `xml:"for,attr"`
 	Drops     []Drop      `xml:"drop"`
 	Rewrites  []Rewrite   `xml:"rewrite"`
@@ -109,22 +93,10 @@ type file struct {
 	Classes   []Class     `xml:"class"`
 	Rephrases []Rephrase  `xml:"rephrase"`
 	Normals   []Normalize `xml:"normalize"`
->>>>>>> origin/master
 }
 
 // Loaded is the folder's entries for a single target, in order.
 type Loaded struct {
-<<<<<<< HEAD
-	Drops    []Drop
-	Rewrites []Rewrite
-	Patterns []Pattern
-	Flags    []Flag
-	Cases    []Case
-}
-
-func (l *Loaded) empty() bool {
-	return len(l.Drops)+len(l.Rewrites)+len(l.Patterns)+len(l.Flags)+len(l.Cases) == 0
-=======
 	Drops     []Drop
 	Rewrites  []Rewrite
 	Patterns  []Pattern
@@ -137,7 +109,6 @@ func (l *Loaded) empty() bool {
 func (l *Loaded) empty() bool {
 	return len(l.Drops)+len(l.Rewrites)+len(l.Patterns)+len(l.Flags)+
 		len(l.Classes)+len(l.Rephrases)+len(l.Normals) == 0
->>>>>>> origin/master
 }
 
 // Load reads every XML in dir and keeps the entries declaring this target.
@@ -172,13 +143,9 @@ func Load(dir, target string) (*Loaded, error) {
 		out.Rewrites = append(out.Rewrites, parsed.Rewrites...)
 		out.Patterns = append(out.Patterns, parsed.Patterns...)
 		out.Flags = append(out.Flags, parsed.Flags...)
-<<<<<<< HEAD
-		out.Cases = append(out.Cases, parsed.Cases...)
-=======
 		out.Classes = append(out.Classes, parsed.Classes...)
 		out.Rephrases = append(out.Rephrases, parsed.Rephrases...)
 		out.Normals = append(out.Normals, parsed.Normals...)
->>>>>>> origin/master
 	}
 	return out, nil
 }
@@ -220,11 +187,6 @@ func validate(path string, f file, ids map[string]string) error {
 	for _, p := range f.Patterns {
 		if err := check("pattern", p.ID, p.Tests, p.Match == ""); err != nil {
 			return err
-		}
-	}
-	for _, c := range f.Cases {
-		if c.Name == "" || c.Text == "" || c.Expect == "" {
-			return fmt.Errorf("%s: a <case> is missing name, text or expect", path)
 		}
 	}
 	for _, fl := range f.Flags {
