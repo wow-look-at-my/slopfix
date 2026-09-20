@@ -26,9 +26,7 @@ type Table struct {
 	Whole    []Case    `xml:"test"`
 }
 
-// Cases is every worked example the table states for itself rather than for a
-// single entry: a line of prose, and what the repair as a whole writes for it.
-// It is where prose reaching several entries, or reaching none, is stated.
+// Cases is every worked example the table states for itself rather than for a single entry: a line of prose, and what
 func Cases() []Case { return loaded.Whole }
 
 // Flag is a phrase the table names but does not rewrite, because no single

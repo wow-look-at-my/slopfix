@@ -48,15 +48,6 @@ func Skip(target string) (set.Set[string], error) {
 
 // Resolved spells a path the thing way Skip's entries are spelled:
 // absolute, with every symlink on the way followed.
-//
-// A directory reached through a symlink has names, and a set holding a single
-// answers no to the other. A walk asking about /var/folders/x/vendored misses
-// the entry for /private/var/folders/x/vendored and judges the submodule's
-// files as though they were this repository's own. Every temporary directory
-// on macOS is such a symlink, and a work tree under a single is ordinary.
-//
-// A path that does not exist keeps its absolute spelling, because a caller
-// asking about it wants an answer rather than an error.
 func Resolved(path string) string {
 	absolute, err := filepath.Abs(path)
 	if err != nil {

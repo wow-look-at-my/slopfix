@@ -1,8 +1,4 @@
-// truncate-number-comments.mjs deletes each comment line slopfix reports as
-// stating a number. It reads `slopfix comments <path>...` output on stdin.
-//
-// Deleting the line is the repair: no rewrite turns a stated count into prose,
-// and a comment that carries a count is worth less than no comment.
+// truncate-number-comments.mjs deletes each comment line slopfix reports as stating a number. It reads `slopfix
 import { readFileSync, writeFileSync } from "node:fs";
 
 const text = readFileSync(0, "utf8");

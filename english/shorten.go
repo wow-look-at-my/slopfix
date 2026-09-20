@@ -7,10 +7,7 @@ import (
 	"strings"
 )
 
-// danglingSpace matches the space a deletion leaves before punctuation that
-// CLOSES something. A period with a word against its right side opens a file
-// name or an extension, and closing the gap there welds it to the word before
-// it: `the .gitmodules parser` became `the.gitmodules parser`.
+// danglingSpace matches the space a deletion leaves before punctuation that CLOSES something. A period with a word
 var danglingSpace = regexp.MustCompile(`\s+([.,])(\s|$)`)
 
 // Surface names where prose is being read, which decides the entries that

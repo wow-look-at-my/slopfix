@@ -112,15 +112,12 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 		return block{}, false
 	}
 	// A trailing comment shares its line with code. Measuring that line counts
-	// the code as comment text, and cutting it deletes the code. The tree says
-	// so: the comment opens past the indent, so something stands in front of it.
+	// the code as comment text, and cutting it deletes the code.
 	if int(run[0].StartPoint().Column) > indentWidth(lines[start]) {
 		return block{}, false
 	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
-	// Nothing after it. A directive inside the run is still an instruction the
-	// prose beside it explains, so that is what the prose is weighed against.
-	// With no directive either, the run documents nothing and judge says so.
+	// Nothing after it.
 	if next >= count {
 		b.codeLines, b.codeChars = measure(directivesOf(b.text))
 		return b, true

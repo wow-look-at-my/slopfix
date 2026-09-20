@@ -73,8 +73,7 @@ func TestTheVolumeCapReportsRatherThanStrips(t *testing.T) {
 	}
 	repair := Fix("a.go", src, 3)
 
-	// The reflow shortens it and the cap still names what survives, because a
-	// block over the cap is over it by a thought rather than by padding.
+	// The reflow shortens it and the cap still names what survives, because a block over the cap is over it by a thought
 	require.Len(t, repair.Kept, 1)
 	assert.Contains(t, repair.Kept[0].Tell, "comment block of 5 lines")
 	assert.NotContains(t, repair.Text, "\n\n", "no line was deleted")

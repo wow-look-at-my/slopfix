@@ -60,8 +60,7 @@ func applyEdits(src string, edits []edit) (string, bool) {
 type placed struct {
 	// findings are the rules the write's own text broke.
 	findings []ste.Finding
-	// ok is false when the edit could not be pinned to the file, and the
-	// caller then judges the fragment as it always did.
+	// ok is false when the edit could not be pinned to the file, and the caller then judges the fragment as it always did.
 	ok bool
 }
 

@@ -59,8 +59,8 @@ func TestEveryPatternFires(t *testing.T) {
 }
 
 // A <test> under the table's root belongs to no entry: it states what the
-// repair writes for a whole line, which is where prose reaching several entries,
-// or reaching none, is said. Adding a case is an edit to english.xml.
+// repair writes for a whole line, which is where prose reaching several
+// entries, or reaching none, is said.
 func TestEveryWholeLineCaseHolds(t *testing.T) {
 	require.NotEmpty(t, Cases())
 	for _, c := range Cases() {

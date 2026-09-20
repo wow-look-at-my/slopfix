@@ -36,8 +36,7 @@ func newRepo(t *testing.T) string {
 	return dir
 }
 
-// fixtureBranch is the branch every fixture repository starts on, named rather
-// than inherited.
+// fixtureBranch is the branch every fixture repository starts on, named rather than inherited.
 const fixtureBranch = "master"
 
 // currentBranch asks git which branch a fixture repository is on, since

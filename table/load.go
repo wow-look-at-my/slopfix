@@ -87,8 +87,7 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 	sort.Strings(paths)
 
 	out := &Table{}
-	// An id names an entry across the whole folder, so a duplicate is caught
-	// over every file rather than over each alone.
+	// An id names an entry across the whole folder, so a duplicate is caught over every file rather than over each alone.
 	ids := map[string]string{}
 	for _, path := range paths {
 		raw, err := fs.ReadFile(fsys, path)

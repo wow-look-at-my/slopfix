@@ -11,8 +11,7 @@ import (
 )
 
 // A Test drives an entry. In is the prose somebody writes. Out is what the
-// repair must produce. An entry that asserts no particular output leaves Out
-// empty, and the test then only holds the entry to firing at all.
+// repair must produce.
 type Test struct {
 	In  string
 	Out string
@@ -65,10 +64,7 @@ type Table struct {
 	Normals     []Normalize
 	Rephrasings []Rephrase
 
-	// Tests are the worked examples the folder states for the consumer rather
-	// than for a single entry: a line of prose, and what the consumer as a
-	// whole writes for it. It is where prose reaching several entries, or
-	// reaching none, is stated.
+	// Tests are the worked examples the folder states for the consumer rather than for a single entry: a line of prose,
 	Tests []Test
 
 	once    sync.Once
@@ -94,6 +90,5 @@ func (p Pattern) Replace(s string) string {
 	return p.re.ReplaceAllString(s, p.To)
 }
 
-// Matches reports whether the pattern finds anything in s. A caller asks this
-// when the answer decides something other than the rewrite itself.
+// Matches reports whether the pattern finds anything in s.
 func (p Pattern) Matches(s string) bool { return p.re.MatchString(s) }

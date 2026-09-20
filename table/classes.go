@@ -12,8 +12,7 @@ import "strings"
 type Class struct {
 	Name  string
 	Words []string
-	// Suffix claims a word by its ending rather than by a list. An open class
-	// has no list to write, and a verb form is what its ending says it is.
+	// Suffix claims a word by its ending rather than by a list.
 	Suffix []string
 	// Open claims every word no class with a word list claims.
 	Open bool

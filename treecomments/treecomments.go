@@ -53,8 +53,7 @@ var grammars = map[string]func() *ts.Language{
 	".zsh":  bash.Language,
 }
 
-// Supported reports whether a grammar parses a file of that name. It reads the
-// extension table, because loading a grammar decodes its tables for nothing.
+// Supported reports whether a grammar parses a file of that name.
 func Supported(filename string) bool {
 	_, ok := grammars[strings.ToLower(filepath.Ext(filename))]
 	return ok

@@ -11,8 +11,7 @@ import "strings"
 // A Rephrase is a match over word classes and what to write instead.
 type Rephrase struct {
 	ID string
-	// Match is the source text, kept for the error a malformed entry reports
-	// and for the name a test prints.
+	// Match is the source text, kept for the error a malformed entry reports and for the name a test prints.
 	Match string
 	Terms Match
 	To    string
@@ -90,8 +89,7 @@ func normalize(norms []Normalize, tokens []string) []string {
 	return out
 }
 
-// closeGaps closes the doubled space a deletion leaves. Punctuation is the
-// caller's: a leading dot opens a name, so " ." must not close blindly.
+// closeGaps closes the doubled space a deletion leaves.
 func closeGaps(prose string) string {
 	for strings.Contains(prose, "  ") {
 		prose = strings.ReplaceAll(prose, "  ", " ")

@@ -61,9 +61,7 @@ func TestEveryClassAMatchNamesIsDeclared(t *testing.T) {
 
 // The rule bans the cardinal whatever the table can repair. An entry removed
 // or narrowed here changes what the repair WRITES. It must never change what
-// the rule REPORTS, or a shape nothing covers goes quietly unreported. A
-// cardinal no entry rewrites is a sentence the repair CUTS, and the rule
-// reading it is the whole of what stops the count going stale where it sits.
+// the rule REPORTS, or a shape nothing covers goes quietly unreported.
 func TestTheCardinalStaysBannedWhereTheTableRepairsNothing(t *testing.T) {
 	for _, prose := range []string{
 		"The count is one",

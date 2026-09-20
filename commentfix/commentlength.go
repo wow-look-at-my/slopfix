@@ -175,9 +175,7 @@ func bareMarkerLine(line string) bool {
 func repair(b block) []string {
 	lead, body, trail := splitDirectives(b.text)
 	// A comment with no code under it has nothing to be measured against, so no
-	// amount of cutting brings it inside a budget. The rule's verdict is that it
-	// documents nothing, and the repair is to take it at its word. A directive
-	// addresses a tool rather than a reader, and stays.
+	// amount of cutting brings it inside a budget.
 	if b.codeLines == 0 {
 		return append(append([]string{}, lead...), trail...)
 	}

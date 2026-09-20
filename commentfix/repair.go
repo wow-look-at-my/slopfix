@@ -55,12 +55,9 @@ func Fix(filename, src string) Repair {
 	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
 
-// dropDanglingMarkers removes a bare comment line the repair left with nothing
-// under it. The line was a paragraph break somebody wrote, and a break that
-// separates a paragraph from the code below it separates nothing.
+// dropDanglingMarkers removes a bare comment line the repair left with nothing under it. The line was a paragraph break somebody wrote, and a break that separates a paragraph from the code below it separates nothing.
 //
-// The tree names the lines to weigh, so a line of code that merely opens with a
-// marker's characters is never mistaken for an empty comment.
+// The tree names the lines to weigh, so a line of code that merely opens with a marker's characters is never mistaken for an empty comment.
 func dropDanglingMarkers(filename, src string) string {
 	rows := commentRowsOf(filename, src)
 	lines := strings.Split(src, "\n")

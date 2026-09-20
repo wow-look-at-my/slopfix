@@ -157,12 +157,6 @@ func carriesItsOwnSubject(clause string) bool {
 
 // fixSentenceCap divides every over-cap sentence, repeating while a half is
 // still over.
-//
-// The cap is a limit rather than a suggestion, so the repair always divides. It
-// prefers a seam a writer would have used and falls back through weaker ones to
-// a bare word boundary, which reads awkwardly and is still a repair. A finding
-// nothing answers leaves a reader ways out, and the org allows neither:
-// hand-edit the prose, or delete the file.
 func fixSentenceCap(prose string) string {
 	// A division always shortens the sentence it cuts, so a pass per word is
 	// more than any text can ask for.
@@ -250,9 +244,7 @@ func usable(masked string, off [][]int, cut []int, start, end int) bool {
 	if WordCount(masked[start:cut[0]]) == 0 || WordCount(masked[cut[1]:end]) == 0 {
 		return false
 	}
-	// breakAt capitalizes what follows, so the new sentence has to open with
-	// something a capital applies to. Sentences welds the halves back together
-	// otherwise, and the finding survives its own repair.
+	// breakAt capitalizes what follows, so the new sentence has to open with something a capital applies to. Sentences
 	first, _ := utf8.DecodeRuneInString(masked[cut[1]:])
 	return unicode.IsLetter(first) || unicode.IsDigit(first)
 }

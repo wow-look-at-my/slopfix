@@ -143,8 +143,7 @@ func Fix(req Request) Repair {
 		}
 	}
 
-	// The comment-length repair reads source rather than prose, so it runs
-	// before the document gate below sends a source file home.
+	// The comment-length repair reads source rather than prose, so it runs before the document gate below sends a source
 	cutComments()
 
 	// The number repair reads source too, and runs after the length cut: a
@@ -154,10 +153,7 @@ func Fix(req Request) Repair {
 		if said.Changed {
 			text = said.Text
 			repair.Removed = append(repair.Removed, said.Removed...)
-			// A number said in words is longer than the number, so the rewrite
-			// can put a block back over the budget the cut just brought it
-			// under. The cut runs again over what the rewrite wrote, or the
-			// file comes out of a single pass still carrying a finding.
+			// A number said in words is longer than the number, so the rewrite can put a block back over the budget the cut just
 			cutComments()
 		}
 	}
@@ -203,9 +199,7 @@ func Fix(req Request) Repair {
 			text = markdown.FormatFunc(text, word)
 		}
 	}
-	// The stale-count strip runs AFTER the join. That rule reads a paragraph as
-	// a single line, so a count a hand wrap split across lines is a single it
-	// reports and a line walk over the source cannot reach.
+	// The stale-count strip runs AFTER the join.
 	if wants(RuleSTE) && keeps(ste.IDStaleCount) {
 		stripped, hits := counts.StripGate(text)
 		text = stripped

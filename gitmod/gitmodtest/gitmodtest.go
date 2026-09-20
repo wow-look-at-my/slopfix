@@ -46,8 +46,7 @@ func RepoWithFakeSubmodule(t *testing.T, path string) string {
 
 func newRepo(t *testing.T) string {
 	t.Helper()
-	// git answers with the physical path, so the temp directory is resolved
-	// before anything compares against what git says.
+	// git answers with the physical path, so the temp directory is resolved before anything compares against what git
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 	run(t, dir, "init", "-q", "-b", "main")

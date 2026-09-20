@@ -37,22 +37,12 @@ type Hit struct {
 var inlineCode = regexp.MustCompile("`[^`]*`")
 
 // Check returns every inventory count stated in a document's own voice.
-//
-// The exemptions come from markdown.Split, the same splitter the wrap repair
-// and the STE rules read. A backtick span is blanked within its line: a
-// cardinal inside verbatim machinery is a literal, not the page's own claim,
-// and quoting the shape is how this rule gets documented.
 func Check(content string) []Hit {
 	return find(content, cardinal.Prose)
 }
 
-// Gate returns every count the merge gate's stale-count rule reports, which is
-// the same walk over a substrate that asks for no frame around the number.
-//
-// Both rules are a single rule with thresholds, and the repair has to cover
-// what the gate REPORTS rather than what this package's own rule does. A count
-// the gate names and no strip reaches is a finding a reader clears by deleting
-// the document.
+// Gate returns every count the merge gate's stale-count rule reports, which is the same walk over a substrate that asks
+// for no frame around
 func Gate(content string) []Hit {
 	return find(content, cardinal.Gate)
 }
@@ -76,8 +66,7 @@ func find(content string, substrate cardinal.Substrate) []Hit {
 }
 
 // Strip removes the cardinal from every inventory count and returns the
-// repaired text with the hits it acted on. Cutting runs back to front, so an
-// earlier span's offsets stay valid.
+// repaired text with the hits it acted on.
 func Strip(content string) (string, []Hit) {
 	return strip(content, Check(content))
 }

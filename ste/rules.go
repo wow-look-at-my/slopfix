@@ -61,13 +61,10 @@ func (f Finding) String() string {
 // SentenceWordCap is STE's cap for a descriptive sentence.
 const SentenceWordCap = 25
 
-// steTable is what rules/ says for="ste": the banned forms, their
-// replacements, and the word classes the clause shapes read.
+// steTable is what rules/ says for="ste": the banned forms, their replacements, and the word classes the clause shapes
 var steTable = table.MustLoad(rules.FS, "ste")
 
-// irregulars maps a contraction whose ending does not spell its expansion, and
-// modals maps each banned modal to the word STE approves for that sense. The
-// entry says which it is with where="modal".
+// irregulars maps a contraction whose ending does not spell its expansion, and modals maps each banned modal to the
 var irregulars, modals = swaps()
 
 func swaps() (map[string]string, map[string]string) {
@@ -84,10 +81,6 @@ func swaps() (map[string]string, map[string]string) {
 
 // Expand answers the words a contraction stands for, and false for a word that
 // is not one.
-//
-// An irregular is named outright. Every other contraction is expanded by its
-// ending, so a form nobody wrote down still comes apart: the ending says what
-// the apostrophe swallowed.
 func Expand(word string) (string, bool) {
 	if full, odd := irregulars[strings.ToLower(word)]; odd {
 		return full, true
@@ -100,18 +93,15 @@ func Expand(word string) (string, bool) {
 	return "", false
 }
 
-// alternation writes a named class as a regexp branch, in the order the table
-// carries the words.
+// alternation writes a named class as a regexp branch, in the order the table carries the words.
 func alternation(name string) string { return strings.Join(wordsOf(name), "|") }
 
 var (
 	// clauseSubject opens a clause.
 	clauseSubject = alternation("clause-subject")
-	// finiteVerb marks a clause. A participle and an infinitive do not, which
-	// keeps an ordinary phrase off the list.
+	// finiteVerb marks a clause. A participle and an infinitive do not, which keeps an ordinary phrase off the list.
 	finiteVerb = alternation("finite-verb")
-	// spliceConjunction may stand in front of the spliced clause, and
-	// subordinatorConjunction in front of a subordinator. The two lists differ.
+	// spliceConjunction may stand in front of the spliced clause, and subordinatorConjunction in front of a subordinator.
 	spliceConjunction       = alternation("splice-conjunction")
 	subordinatorConjunction = alternation("subordinator-conjunction")
 	// subordinators open a dependent clause, which a comma may join.

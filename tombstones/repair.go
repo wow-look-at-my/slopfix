@@ -225,9 +225,7 @@ func Fix(path, added string, maxLines int) Repair {
 		}
 		kept = append(kept, line)
 	}
-	// The strip leaves a paragraph with a hole in it, so what survives is
-	// rewrapped here. The write then lands finished, rather than landing broken
-	// with a note asking for it to be read back and repaired.
+	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished,
 	repair.Text = reflowStripped(path, strings.Join(kept, "\n"), blocksLosing(blocks, drop), len(blocks))
 	repair.Changed = repair.Changed || repair.Text != added
 	return repair
