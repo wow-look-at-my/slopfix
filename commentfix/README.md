@@ -1,4 +1,8 @@
-# commentlength
+# commentfix
+
+Every rule a comment answers to: a number it states, a block longer than the code it documents, and a comment that stops mid-thought. One package, one syntax tree, one command.
+
+## Longer than the code it documents
 
 A comment longer than the code it documents. A comment earns its place by stopping the next mistake. One that outruns the code becomes an essay, and the reader pays for it on every pass through the file.
 
@@ -36,12 +40,12 @@ The opening sentence is never cut. A block trimmed to nothing is a worse edit th
 
 ## Rule ID, and running it
 
-The ID is `comments/length`.
+The ID is `comments/length`, and it runs beside `comments/number` and the tail rule under one command.
 
 ```sh
-slopfix comment-length .              # report
-slopfix comment-length --fix .        # repair in place, and report what is left
-slopfix comment-length pkg/thing.go
+slopfix comments .              # report
+slopfix comments --fix .        # repair in place, and report what is left
+slopfix comments pkg/thing.go
 ```
 
 A directory is walked, skipping hidden directories and the ones holding text nobody in the tree authored. A file the rule has no grammar for is skipped.

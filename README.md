@@ -13,8 +13,7 @@ A directory is a rule. Where a package holds several, they are members of one fa
 | [ste](ste/README.md) | `ste/*` | a contraction, a modal, a semicolon, a comma splice |
 | [markdown](markdown/README.md) | `wrap/hard-wrap` | yes |
 | [workflow](workflow/README.md) | `yaml/*` | no |
-| [commentfix](commentfix/README.md) | `comments/number` | yes, every finding |
-| [commentlength](commentlength/README.md) | `comments/length` | what it can cut without losing the opening |
+| [commentfix](commentfix/README.md) | `comments/*` | yes, every finding a cut can answer |
 | [laziness](laziness/README.md) | `laziness/punt` | no |
 
 A directory here can hold no rule at all. [markdown](markdown/README.md) is the document model every prose rule sits on. It carries the hard-wrap rule as well. [source](source/README.md) is the substrate adapter that answers where the prose is in a source file.
@@ -64,7 +63,7 @@ The action at the root of this repository downloads the published binary from bu
 
 `comments` reads source rather than prose. A number in a comment is a count of what exists today. The edit that adds an item leaves it wrong. It reads a comment by its delimiters rather than by a grammar. So it answers for every language it knows, and on a tree that does not compile. A directory is walked, skipping hidden directories, `vendor`, `node_modules`, `testdata` and `build`. A named file is read whatever its extension. go-toolchain runs this same check as its first phase.
 
-`comment-length` reads a real syntax tree, so the span a comment is weighed against is exact rather than guessed. `--fix` cuts each over-long block back inside its budget, from the end, and never past the opening sentence. A repair the rule cannot make without losing the opening is reported instead, for a person to rewrite.
+The length rule inside `comments` reads the same syntax tree, so the span a comment is weighed against is exact rather than guessed. `--fix` cuts each over-long block back inside its budget, from the end, and never past the opening sentence. A repair the rule cannot make without losing the opening is reported instead, for a person to rewrite. The tail rule closes a comment left standing on a word that opens what a cut took away.
 
 ## Naming the rules to run
 
