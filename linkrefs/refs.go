@@ -126,7 +126,7 @@ func continuesToken(text string, i, dir int) bool {
 }
 
 // backtickWrapped reports whether the match at [start,end) sits inside a pair of inline backticks, and returns
-// the widened range that swallows them. Only a LONE backtick on each side counts, since ``x`` is an escape.
+// the widened range that swallows them. Only a LONE backtick on each side counts, since “x“ is an escape.
 func backtickWrapped(text string, start, end int) (int, int, bool) {
 	if start == 0 || end >= len(text) || text[start-1] != '`' || text[end] != '`' {
 		return start, end, false

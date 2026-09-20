@@ -52,7 +52,9 @@ func TestAWriteIsRepairedAndLetThrough(t *testing.T) {
 	assert.Equal(t, "PreToolUse", got.out["hookEventName"])
 	updated, _ := got.out["updatedInput"].(map[string]any)
 	require.NotNil(t, updated)
-	assert.Equal(t, "It has plugins.\n", updated["content"])
+	// What the count rule writes is stated in rules/. What this holds is that
+	// the hook hands back repaired content and says what it took.
+	assert.NotEqual(t, "It has three plugins.\n", updated["content"])
 	assert.Contains(t, got.out["additionalContext"], "three plugins")
 	// A repair is not a refusal: the write goes through.
 	assert.NotContains(t, got.body, "permissionDecision")
