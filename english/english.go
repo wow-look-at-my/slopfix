@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 //go:embed english.xml
@@ -141,7 +143,7 @@ var loaded = mustLoad()
 
 func mustLoad() Table {
 	var e Table
-	if err := xml.Unmarshal(englishXML, &e); err != nil {
+	if err := xml.Unmarshal(table.Readable(englishXML), &e); err != nil {
 		panic(fmt.Sprintf("english: english.xml does not parse: %v", err))
 	}
 	if len(e.Drops) == 0 || len(e.Rewrites) == 0 {

@@ -93,7 +93,7 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 			return nil, err
 		}
 		var doc document
-		if err := xml.Unmarshal(raw, &doc); err != nil {
+		if err := xml.Unmarshal(Readable(raw), &doc); err != nil {
 			return nil, fmt.Errorf("%s does not parse: %w", path, err)
 		}
 		if doc.For == "" {
