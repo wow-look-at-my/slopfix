@@ -47,9 +47,10 @@ func OnlyComments(path, before, after string) bool {
 	return blanked(path, before) == blanked(path, after)
 }
 
-// blanked returns the file with every comment blanked, so what remains is what
-// the compiler reads. A blank of the same length keeps every later offset in
-// place.
+// blanked returns the file with every comment taken out, so what remains is
+// what the compiler reads. The comment leaves nothing at all behind it,
+// because a reword that changes the comment's LENGTH would otherwise leave a
+// run of spaces the two sides disagree on, and every reword changes it.
 func blanked(path, src string) string {
 	comments := code.Comments(path, src)
 	if len(comments) == 0 {
@@ -62,7 +63,6 @@ func blanked(path, src string) string {
 			continue
 		}
 		b.WriteString(src[at:c.Offset])
-		b.WriteString(strings.Repeat(" ", len(c.Text)))
 		at = c.Offset + len(c.Text)
 	}
 	b.WriteString(src[at:])
