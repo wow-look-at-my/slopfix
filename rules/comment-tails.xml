@@ -28,7 +28,7 @@
   <test in="The budget is a character count, and the layout takes a"
         out="The budget is a character count."/>
   <test in="gatherComments walks the whole tree, so a comment inside a body is"
-        out="gatherComments walks the whole tree, so a comment inside a body."/>
+        out="gatherComments walks the whole tree."/>
 
   <!-- A finished comment is left exactly as it stands. -->
   <test in="A push names its target through the remote-tracking ref."

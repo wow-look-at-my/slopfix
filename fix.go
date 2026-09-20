@@ -187,8 +187,7 @@ func Fix(req Request) Repair {
 			repair.Removed = append(repair.Removed, hit.Phrase)
 		}
 	}
-	// The join and the word repair share a pass: the formatter rewrites each
-	// word as it rewraps, so asking for either one walks the text once.
+	// The join and the word repair share a pass: the formatter rewrites each.
 	joins := wants(RuleWrap) && keeps(IDHardWrap)
 	prose := wants(RuleSTE)
 	if joins || prose {

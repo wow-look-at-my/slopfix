@@ -12,9 +12,7 @@ import (
 // noFlags is scanArgs' "this command has no value-taking flags" argument.
 var noFlags = set.Of[string]()
 
-// A write is a file mutation a segment would perform. The shapes cover every
-// route: a named target, a directory the write lands somewhere under, and a
-// target that cannot be resolved at all.
+// A write is a file mutation a segment would perform.
 type write struct {
 	route string // how the message names the command
 	paths []word // named targets, resolved against dir

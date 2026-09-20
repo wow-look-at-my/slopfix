@@ -61,8 +61,7 @@ func TestPreservesUntrackedFileContentBeforeRm(t *testing.T) {
 	refs := listPreservationRefs(t, dir)
 	require.Len(t, refs, 1)
 
-	// The hook analyses the command and never runs it, so the copy holds
-	// what stood in the tree.
+	// The hook analyses the command and never runs it, so the copy holds what stood in the tree.
 	content := gitOutput(t, dir, "show", refs[0]+":scratch.txt")
 	assert.Equal(t, "scratch", content)
 }

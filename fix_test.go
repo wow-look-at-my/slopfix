@@ -69,8 +69,7 @@ func TestFixRepairsProseAcrossAWrap(t *testing.T) {
 func TestFixRepairsTheMechanicalRules(t *testing.T) {
 	repair := prose("It doesn't matter; a caller should wait, so the write fails.\n")
 	assert.True(t, repair.Changed)
-	// The contraction, the semicolon and the modal are each somebody's rule in
-	// rules/. What this holds is that one pass clears all three.
+	// The contraction, the semicolon and the modal are each somebody's rule.
 	assert.Empty(t, repair.Findings)
 }
 
@@ -154,8 +153,7 @@ func TestANamedIDRepairsThatRuleAlone(t *testing.T) {
 		IDs:     []string{"ste/contraction"},
 	})
 
-	// Each named ID repairs the document, and the two answers differ: neither
-	// rule reached what the other was named for.
+	// Each named ID repairs the document, and the two answers differ: neither rule reached what the other was named for.
 	assert.NotEqual(t, doc, semicolon.Text)
 	assert.NotEqual(t, doc, contraction.Text)
 	assert.NotEqual(t, semicolon.Text, contraction.Text)
@@ -172,8 +170,7 @@ func TestANamedIDLeavesTheRestOfItsCategoryAlone(t *testing.T) {
 		IDs:     []string{"ste/count"},
 	})
 
-	// The count is repaired, the semicolon beside it is left standing, and the
-	// rule that was not named reports nothing either.
+	// The count is repaired, the semicolon beside it is left standing.
 	assert.NotEmpty(t, repair.Removed)
 	assert.Contains(t, repair.Text, ";")
 	assert.Empty(t, repair.Findings)

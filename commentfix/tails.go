@@ -32,16 +32,35 @@ func CloseProse(prose string) string {
 	if len(sentences) == 0 {
 		return prose
 	}
-	last := sentences[len(sentences)-1]
-	closed := closeTail(strings.Fields(last))
-	if strings.Join(closed, " ") == strings.TrimSpace(last) {
+	words := strings.Fields(sentences[len(sentences)-1])
+	if len(words) == 0 || !dangling.Contains(strings.ToLower(trimWord(words[len(words)-1]))) {
 		return prose
 	}
-	// A fragment after a finished sentence leaves nothing worth keeping, so
-	// the sentences before it are the whole answer.
-	if len(closed) == 0 {
-		return strings.TrimSpace(strings.Join(sentences[:len(sentences)-1], " "))
+	kept := append([]string{}, sentences[:len(sentences)-1]...)
+	// The clause that opened what is missing goes with it, so the sentence ends
+	// where it last said something whole.
+	if clause := lastClause(words); clause != "" {
+		kept = append(kept, clause)
 	}
-	kept := append(append([]string{}, sentences[:len(sentences)-1]...), strings.Join(closed, " "))
 	return strings.TrimSpace(strings.Join(kept, " "))
+}
+
+// lastClause answers the sentence up to the punctuation that opened the clause
+// the cut took away, closed with a period. It answers "" when the whole
+// sentence was that clause.
+func lastClause(words []string) string {
+	for i := len(words) - 1; i >= 0; i-- {
+		if !strings.HasSuffix(words[i], ",") && !strings.HasSuffix(words[i], ";") &&
+			!strings.HasSuffix(words[i], ":") {
+			continue
+		}
+		joined := strings.Join(words[:i+1], " ")
+		return joined[:len(joined)-1] + "."
+	}
+	return ""
+}
+
+// trimWord drops the punctuation a word carries, leaving the word itself.
+func trimWord(w string) string {
+	return strings.Trim(w, ".,;:!?)\"'")
 }

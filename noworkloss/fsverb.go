@@ -71,17 +71,14 @@ func classifyFS(seg segment) []*finding {
 		})
 
 	case "tee":
-		// tee truncates every file it is given unless appending. A sibling
-		// plugin rewrites a trailing redirect into tee, so this shape arrives
-		// here from commands that never spelled it.
+		// tee truncates every file it is given unless appending.
 		if flags["-a"] || flags["--append"] || len(operands) == 0 {
 			return out
 		}
 		out = append(out, &finding{
 			label: "tee", haz: hazTracked | hazUntracked, dir: seg.cwd,
 			paths: operands,
-			// `tee -a` is not offered as the way out: an append into a tracked
-			// file is refused by the provenance half anyway.
+			// `tee -a` is not offered as the way out: an append into a tracked file is refused by the provenance half anyway.
 			rewrite: "commit the file first, then change it with Edit",
 		})
 

@@ -15,15 +15,13 @@ const (
 	reachPushed
 	// reachOrphans: the reflog is destroyed. Safe when no commit needs it to stay findable.
 	reachOrphans
-	// reachWorktree: another worktree is being force-removed, which is safe
-	// only when it holds nothing git does not.
+	// reachWorktree: another worktree is being force-removed, which is safe only when it holds nothing git does not.
 	reachWorktree
 )
 
 type reachCheck struct {
 	kind reachKind
 
-	// reachRef
 	ref    string   // resolved directly, e.g. refs/heads/feature
 	remote string   // for a push: "" means resolve from upstream
 	dst    string   // for a push: "" means HEAD's branch
@@ -47,8 +45,7 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 		return n == 0, "every commit on HEAD is already on a remote", nil
 
 	case reachOrphans:
-		// --no-reflogs is the whole point: without it fsck calls a commit
-		// reachable when only the reflog still mentions it.
+		// --no-reflogs is the whole point: without it fsck calls a commit reachable when only the reflog still mentions it.
 		out, _, e := runGit(st.root, "fsck", "--unreachable", "--no-reflogs", "--no-progress")
 		if out == "" && e != nil {
 			return false, "", e

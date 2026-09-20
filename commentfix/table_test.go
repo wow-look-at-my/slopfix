@@ -92,6 +92,3 @@ func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
 		leaves("rephrase", e.ID, e.Tests)
 	}
 }
-
-// What the table writes for a whole line lives in the rules folder, driven by
-// the cases test beside this file.

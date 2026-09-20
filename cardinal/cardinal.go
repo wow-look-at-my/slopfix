@@ -53,8 +53,7 @@ type Substrate struct {
 	// ExemptToken judges the text around a token, and Shape Number reads it.
 	ExemptToken []TokenExemption
 
-	// quantity matches a cardinal governing a plural noun. A substrate that
-	// leaves it nil gets the finder's own pattern.
+	// quantity matches a cardinal governing a plural noun. A substrate that leaves it nil gets the finder's own pattern.
 	quantity *regexp.Regexp
 }
 

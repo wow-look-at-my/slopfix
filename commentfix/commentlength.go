@@ -318,9 +318,7 @@ func hardFit(b block) ([]string, bool) {
 		body = append(body, stripMarker(line))
 	}
 	words := strings.Fields(strings.Join(body, " "))
-	// The budget is a character count, and the layout takes a column, so the two
-	// are not interchangeable: a comment allowed many characters still wraps at
-	// wrapWidth to stay beside the code it documents.
+	// The budget is a character count, and the layout takes a column.
 	width := min(max(floorChars, b.codeChars), wrapWidth)
 	for len(words) > 0 {
 		closed := closeTail(words)
@@ -336,8 +334,7 @@ func hardFit(b block) ([]string, bool) {
 	return nil, false
 }
 
-// dangling words open something the cut took away, so a forced cut that ends on
-// one reads as a sentence somebody abandoned. The list is data, in rules/.
+// dangling words open something the cut took away, so a forced cut that ends.
 var dangling = set.Of(danglingWords()...)
 
 // closeTail makes a forced cut read as a sentence: it drops back past a word

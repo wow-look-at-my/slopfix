@@ -47,8 +47,7 @@ type segment struct {
 	relocated bool
 	// stdinScript marks a stage fed by a pipe or a heredoc, where an interpreter runs an unresolvable script.
 	stdinScript bool
-	// fromScript marks a unit read out of a script FILE, whose writes belong to
-	// the program rather than to the command text.
+	// fromScript marks a unit read out of a script FILE, whose writes belong.
 	fromScript bool
 }
 
