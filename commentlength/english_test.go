@@ -14,22 +14,34 @@ import (
 func TestEveryDropFires(t *testing.T) {
 	require.NotEmpty(t, english.Drops)
 	for _, d := range english.Drops {
-		got := shortenFor(d.Test, surfaceOf(d.Where))
-		assert.NotContains(t, strings.ToLower(got), strings.ToLower(d.Word),
-			"<drop word=%q> did not fire on its own test %q, which gave %q", d.Word, d.Test, got)
-		assert.NotEmpty(t, got, "a drop emptied the sentence")
+		require.NotEmpty(t, d.Tests, "<drop id=%q> carries no test", d.ID)
+		for _, c := range d.Tests {
+			got := shortenFor(c.In, surfaceOf(d.Where))
+			assert.NotContains(t, strings.ToLower(got), strings.ToLower(d.Word),
+				"<drop id=%q> did not fire on %q, which gave %q", d.ID, c.In, got)
+			assert.NotEmpty(t, got, "a drop emptied the sentence")
+			if c.Out != "" {
+				assert.Equal(t, c.Out, got, "<drop id=%q> gave the wrong answer", d.ID)
+			}
+		}
 	}
 }
 
 func TestEveryRewriteFires(t *testing.T) {
 	require.NotEmpty(t, english.Rewrites)
 	for _, r := range english.Rewrites {
-		got := shortenFor(r.Test, surfaceOf(r.Where))
-		assert.NotContains(t, strings.ToLower(got), strings.ToLower(r.From),
-			"<rewrite from=%q> did not fire on %q, which gave %q", r.From, r.Test, got)
-		if r.To != "" {
-			assert.Contains(t, strings.ToLower(got), strings.ToLower(r.To),
-				"<rewrite to=%q> is missing from %q", r.To, got)
+		require.NotEmpty(t, r.Tests, "<rewrite id=%q> carries no test", r.ID)
+		for _, c := range r.Tests {
+			got := shortenFor(c.In, surfaceOf(r.Where))
+			assert.NotContains(t, strings.ToLower(got), strings.ToLower(r.From),
+				"<rewrite id=%q> did not fire on %q, which gave %q", r.ID, c.In, got)
+			if r.To != "" {
+				assert.Contains(t, strings.ToLower(got), strings.ToLower(r.To),
+					"<rewrite id=%q> lost its replacement in %q", r.ID, got)
+			}
+			if c.Out != "" {
+				assert.Equal(t, c.Out, got, "<rewrite id=%q> gave the wrong answer", r.ID)
+			}
 		}
 	}
 }
@@ -37,9 +49,16 @@ func TestEveryRewriteFires(t *testing.T) {
 func TestEveryPatternFires(t *testing.T) {
 	require.NotEmpty(t, english.Patterns)
 	for _, p := range english.Patterns {
-		got := shortenFor(p.Test, surfaceOf(p.Where))
-		assert.Equal(t, p.Expect, got,
-			"<pattern match=%q> gave the wrong answer on its own test", p.Match)
+		require.NotEmpty(t, p.Tests, "<pattern id=%q> carries no test", p.ID)
+		for _, c := range p.Tests {
+			got := shortenFor(c.In, surfaceOf(p.Where))
+			if c.Out == "" {
+				assert.NotEqual(t, c.In, got, "<pattern id=%q> did not fire on %q", p.ID, c.In)
+				continue
+			}
+			assert.Equal(t, c.Out, got,
+				"<pattern id=%q> gave the wrong answer on %q", p.ID, c.In)
+		}
 	}
 }
 
@@ -99,12 +118,15 @@ func TestDeslopLeavesCleanProseByteIdentical(t *testing.T) {
 func TestEveryFlagFires(t *testing.T) {
 	require.NotEmpty(t, english.Flags)
 	for _, f := range english.Flags {
-		src := "package p\n\n// " + f.Test + "\nconst p = 1\n"
-		got := Suggest("x.go", src)
-		require.Len(t, got, 1, "<flag phrase=%q> did not fire on %q", f.Phrase, f.Test)
-		assert.Equal(t, f.Phrase, got[0].Phrase)
-		assert.Equal(t, f.Say, got[0].Say)
-		assert.Equal(t, 3, got[0].Line)
+		require.NotEmpty(t, f.Tests, "<flag id=%q> carries no test", f.ID)
+		for _, c := range f.Tests {
+			src := "package p\n\n// " + c.In + "\nconst p = 1\n"
+			got := Suggest("x.go", src)
+			require.Len(t, got, 1, "<flag id=%q> did not fire on %q", f.ID, c.In)
+			assert.Equal(t, f.Phrase, got[0].Phrase)
+			assert.Equal(t, f.Say, got[0].Say)
+			assert.Equal(t, 3, got[0].Line)
+		}
 	}
 }
 

@@ -7,11 +7,23 @@
 -->
 <rules for="english">
 
-  <rewrite from="— and" to="," where="message" test="Yes — and there is precedent"/>
-  <rewrite from="— but" to=", but" where="message" test="It works — but only once"/>
-  <rewrite from="— so" to=", so" where="message" test="It failed — so I retried"/>
-  <rewrite from="— which" to=", which" where="message" test="It races — which is the bug"/>
-  <rewrite from="that being said" to="but" where="message" test="That being said it races"/>
-  <drop word="it is important to note that" where="message" test="It is important to note that it races"/>
+  <rewrite id="and" from="— and" to="," where="message">
+    <test in="Yes — and there is precedent"/>
+  </rewrite>
+  <rewrite id="but" from="— but" to=", but" where="message">
+    <test in="It works — but only once"/>
+  </rewrite>
+  <rewrite id="so" from="— so" to=", so" where="message">
+    <test in="It failed — so I retried"/>
+  </rewrite>
+  <rewrite id="which" from="— which" to=", which" where="message">
+    <test in="It races — which is the bug"/>
+  </rewrite>
+  <rewrite id="that-being-said" from="that being said" to="but" where="message">
+    <test in="That being said it races"/>
+  </rewrite>
+  <drop id="it-is-important-to-note" word="it is important to note that" where="message">
+    <test in="It is important to note that it races"/>
+  </drop>
 
 </rules>
