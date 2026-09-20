@@ -1,0 +1,120 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  The prose rule format: what rulegen reads out of this folder and compiles
+  into a table a consumer matches English against.
+
+  The root's for= names the consumer, and a file is collected only by the
+  generate line that asks for that target. Every entry carries its own <test>
+  children, which is what keeps a rule honest: the generator refuses an entry
+  that drives nothing.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <!-- One case for the entry holding it. out= is the text the repair must
+       produce, and an entry asserting only that it fires leaves it off. -->
+  <xs:complexType name="test">
+    <xs:attribute name="in" type="xs:string" use="required"/>
+    <xs:attribute name="out" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- where= narrows an entry to one surface, such as a comment. -->
+  <xs:attributeGroup name="placement">
+    <xs:attribute name="id" type="xs:string"/>
+    <xs:attribute name="where" type="xs:string"/>
+  </xs:attributeGroup>
+
+  <xs:element name="rules">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+
+        <!-- A word the sentence still reads without. -->
+        <xs:element name="drop">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="test" type="test" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="word" type="xs:string" use="required"/>
+            <xs:attributeGroup ref="placement"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- A whole phrase swapped for another. -->
+        <xs:element name="rewrite">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="test" type="test" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="from" type="xs:string" use="required"/>
+            <xs:attribute name="to" type="xs:string" use="required"/>
+            <xs:attributeGroup ref="placement"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- A rewrite with captures. The match is RE2, and a capture is read
+             back in to= as ${1}. -->
+        <xs:element name="pattern">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="test" type="test" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="match" type="xs:string" use="required"/>
+            <xs:attribute name="to" type="xs:string"/>
+            <xs:attributeGroup ref="placement"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- Prose the rule refuses to rewrite, and what to say instead. -->
+        <xs:element name="flag">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="test" type="test" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="phrase" type="xs:string" use="required"/>
+            <xs:attribute name="say" type="xs:string" use="required"/>
+            <xs:attributeGroup ref="placement"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- A set of words filling the same slot, named by a <rephrase> match.
+             open= lets a word outside the list fill the slot; suffix= admits a
+             word by its ending; except= takes one back out. -->
+        <xs:element name="class">
+          <xs:complexType>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="words" type="xs:string"/>
+            <xs:attribute name="suffix" type="xs:string"/>
+            <xs:attribute name="open" type="xs:boolean"/>
+            <xs:attribute name="except" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- A match over word classes rather than literal text. -->
+        <xs:element name="rephrase">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="test" type="test" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="match" type="xs:string" use="required"/>
+            <xs:attribute name="to" type="xs:string"/>
+            <xs:attributeGroup ref="placement"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- A spelling settled before any match is tried. -->
+        <xs:element name="normalize">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="test" type="test" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="from" type="xs:string" use="required"/>
+            <xs:attribute name="to" type="xs:string" use="required"/>
+            <xs:attribute name="id" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+
+      </xs:choice>
+      <xs:attribute name="for" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>
