@@ -20,8 +20,7 @@ type Rephrase struct {
 	Tests []Test
 }
 
-// A Normalize is a token rewrite applied before any match is tried, so a rule
-// is written against a settled spelling rather than against all of them.
+// A Normalize settles a token's spelling before any match is tried.
 type Normalize struct {
 	ID    string
 	From  string
@@ -91,12 +90,8 @@ func normalize(norms []Normalize, tokens []string) []string {
 	return out
 }
 
-// closeGaps closes the doubled space a deletion leaves.
-//
-// It does NOT touch punctuation. The caller settles a dangling space before a
-// full stop, and it reads what follows the stop before closing anything: a
-// leading dot opens a name -- .github, .dats, .gitignore -- and a plain swap of
-// " ." for "." ate the space in front of each of them.
+// closeGaps closes the doubled space a deletion leaves. Punctuation is the
+// caller's: a leading dot opens a name, so " ." must not close blindly.
 func closeGaps(prose string) string {
 	for strings.Contains(prose, "  ") {
 		prose = strings.ReplaceAll(prose, "  ", " ")
