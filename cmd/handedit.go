@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix"
-	"github.com/wow-look-at-my/slopfix/commentedit"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
 // edit is a replacement a write performs, as the payload states it.
@@ -58,14 +58,14 @@ func handEditReason(tool string, in writeInput, rules []slopfix.Rule, ids []stri
 	if !ok {
 		return ""
 	}
-	if !commentedit.OnlyComments(in.FilePath, before, after) {
+	if !commentfix.OnlyComments(in.FilePath, before, after) {
 		return ""
 	}
-	if !commentedit.Reports(findingIDs(before, in.FilePath, rules, ids)) {
+	if !commentfix.Reports(findingIDs(before, in.FilePath, rules, ids)) {
 		return ""
 	}
 	return "blocked: this edit rewords a comment and leaves the code as it was, in a file slopfix already reports.\n" +
-		commentedit.Remedy + ":\nrun: slopfix fix " + in.FilePath
+		commentfix.HandEditRemedy + ":\nrun: slopfix fix " + in.FilePath
 }
 
 // applyEdits replays the replacements onto the file. A replacement that is

@@ -1,4 +1,4 @@
-// Package commentedit refuses a comment rewritten by hand to clear a check.
+// handedit.go refuses a comment reworded by hand to clear a check.
 //
 // slopfix repairs a comment itself. `fix` joins a wrapped paragraph, cuts a
 // cardinal, expands a contraction and turns a semicolon into the period it
@@ -8,9 +8,9 @@
 // something else.
 //
 // The refusal is narrow on purpose. Writing a NEW comment is ordinary work, and
-// a file the rules read cleanly is not this package's business. What it catches
-// is the edit that leaves the code untouched, in a file already reported.
-package commentedit
+// a file the rules read cleanly is nothing to do with this. What it catches is
+// the edit that leaves the code untouched, in a file already reported.
+package commentfix
 
 import (
 	"strings"
@@ -18,11 +18,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/code"
 )
 
-// ID names this rule, on a report and on the command line alike.
-const ID = "comments/handedit"
+// IDHandEdit names this rule, on a report and on the command line alike.
+const IDHandEdit = "comments/handedit"
 
-// Remedy is what the refusal asks for instead.
-const Remedy = "slopfix owns the wording of a comment it reports. Run `slopfix fix` on the file and take what it writes"
+// HandEditRemedy is what the refusal asks for instead.
+const HandEditRemedy = "slopfix owns the wording of a comment it reports. Run `slopfix fix` on the file and take what it writes"
 
 // Reports answers whether the file carries a finding a comment edit could
 // clear. A caller passes the IDs its own run produced.
