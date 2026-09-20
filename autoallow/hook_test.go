@@ -155,7 +155,7 @@ func TestEndToEndGhRepoView(t *testing.T) {
 			}
 			inputBytes, _ := json.Marshal(input)
 
-			cmd := exec.Command(binaryPath, "command", "check")
+			cmd := exec.Command(binaryPath, "auto-allow")
 			cmd.Stdin = bytes.NewReader(inputBytes)
 			output, err := cmd.Output()
 			require.Nil(t, err, "binary exited with error: %v, output: %s", err, output)
@@ -281,7 +281,7 @@ func TestPermissionRequestKeepsItsOwnShape(t *testing.T) {
 }
 
 // buildTestBinary builds the slopfix CLI into a per-test path, so overlapping
-// runs cannot delete each other's copy. The hook rides `slopfix command check`.
+// runs cannot delete each other's copy. The hook rides `slopfix auto-allow`.
 func buildTestBinary(t *testing.T) string {
 	t.Helper()
 	name := "slopfix-test-" + strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
@@ -299,7 +299,7 @@ func runHookBinary(t *testing.T, binaryPath string, input HookInput) []byte {
 	inputBytes, err := json.Marshal(input)
 	require.NoError(t, err)
 
-	cmd := exec.Command(binaryPath, "command", "check")
+	cmd := exec.Command(binaryPath, "auto-allow")
 	cmd.Stdin = bytes.NewReader(inputBytes)
 	out, err := cmd.Output()
 	require.NoError(t, err, "binary exited with error: %v, output: %s", err, out)
