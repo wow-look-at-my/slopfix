@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
@@ -48,6 +49,11 @@ func Fix(filename, src string) Repair {
 	// A number can sit where no paragraph forms, so the position has the last word.
 	out, left := clearResidual(filename, out)
 	removed = append(removed, left...)
+	// The span rule is measured last, because the repairs above rewrite the
+	// lines it counts.
+	if fitted, cut := commentlength.Fix(filename, out); cut {
+		out = fitted
+	}
 	if out != src {
 		out = dropDanglingMarkers(out)
 	}

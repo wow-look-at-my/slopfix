@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   An ordinal names a position, and a position moves when somebody inserts an
   item above it. These say the relation instead, which survives the insert.
