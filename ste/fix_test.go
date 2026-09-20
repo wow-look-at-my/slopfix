@@ -14,17 +14,20 @@ import (
 
 // With no conjunction, no comma and no clause boundary anywhere, the division
 // falls to a bare gap between words. Awkward, and under the cap.
-func TestFixDividesASentenceCarryingNoSeamAtAll(t *testing.T) {
+// A sentence with no seam has nowhere to divide that leaves two sentences, so
+// the repair leaves it alone and the finding stands for the author to answer.
+// Breaking at a bare word boundary is what wrote "so the / where they are" into
+// a comment.
+func TestASentenceCarryingNoSeamAtAllSurvivesTheRepair(t *testing.T) {
 	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
-	fixed := ste.Fix(long)
-	assert.NotEqual(t, long, fixed)
-	assert.Empty(t, ste.Check(fixed, 1))
+	assert.Equal(t, long, ste.Fix(long))
+	assert.NotEmpty(t, ste.Check(long, 1), "the cap still reports it")
 }
 
 // A division never lands inside an inline code span, so the span survives the
 // repair exactly as the source wrote it.
 func TestFixDividesALongSentenceAroundACodeSpan(t *testing.T) {
-	long := "The gate reads `a; b` out of every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."
+	long := "The gate reads `a; b` out of every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own."
 	fixed := ste.Fix(long)
 	assert.Contains(t, fixed, "`a; b`")
 	assert.Empty(t, ste.Check(fixed, 1))
@@ -33,7 +36,7 @@ func TestFixDividesALongSentenceAroundACodeSpan(t *testing.T) {
 // A parenthetical counts as a single word, so a division inside it would halve
 // something STE says is indivisible.
 func TestFixDividesALongSentenceAroundAParenthetical(t *testing.T) {
-	long := "The gate reads every file in the session (the header, the body and the trailer alike) and refuses the write when any one of them carries a finding nothing repairs."
+	long := "The gate reads every file in the session (the header, the body and the trailer alike) and the write fails when any one of them carries a finding nothing repairs."
 	fixed := ste.Fix(long)
 	assert.Contains(t, fixed, "(the header, the body and the trailer alike)")
 	assert.Empty(t, ste.Check(fixed, 1))
