@@ -1,4 +1,4 @@
-// commentlength.go finds a comment longer than the code it documents.
+// overlong.go finds a comment longer than the code it documents.
 //
 // A comment earns its place by stopping the next mistake. A comment that runs
 // longer than the code becomes an essay, and the reader pays for it on every
