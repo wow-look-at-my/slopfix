@@ -230,7 +230,8 @@ func TestOrdinaryCommandsAreUntouched(t *testing.T) {
 		// Integrating a ref: no edit tool performs a merge, so denying it wedges the workflow.
 		"git merge --no-edit origin/master", "git merge FETCH_HEAD", "git pull origin master",
 
-		// Copying. This is how a tree of files gets put in place, so no `cp` is a
+		// Copying is how a tree of files gets put in place, so every `cp` into
+		// the working tree is judged.
 		"cp {{out}}/src.txt src.txt", "cp src.txt {{out}}/copy.txt",
 		"cp -r {{out}}/pkg .", "cp -- {{out}}/src.txt src.txt",
 		"cp -t . {{out}}/src.txt",
