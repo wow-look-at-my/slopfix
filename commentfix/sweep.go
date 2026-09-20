@@ -167,8 +167,7 @@ func skipDir(root, path, name string, rootIsModule bool) bool {
 		return false
 	}
 	if name == ".github" {
-		// The workflows the gate reads live under a dotted directory, so the
-		// rule below would take every one of them out of the sweep.
+		// The workflows the gate reads live under a dotted directory, so the rule.
 		return false
 	}
 	if strings.HasPrefix(name, ".") || skipDirs.Contains(name) {

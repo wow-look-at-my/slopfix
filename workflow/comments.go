@@ -65,8 +65,7 @@ func commentBlocks(content string) []ste.Finding {
 	return out
 }
 
-// scalarHeader ends a line that opens a literal or folded block scalar, with
-// the optional indentation and chomping indicators YAML allows after it.
+// scalarHeader ends a line that opens a literal or folded block scalar.
 var scalarHeader = regexp.MustCompile(`(^|\s)[|>][0-9]*[+-]?(\s+#.*)?\s*$`)
 
 // blockScalarBody reports, per row, whether it sits inside a block scalar. The

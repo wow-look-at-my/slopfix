@@ -30,11 +30,7 @@ var (
 // On reports whether tracing is enabled.
 func On() bool { return os.Getenv(EnvVar) != "" }
 
-// Phase times a span of work. The returned function ends it, so a caller
-// writes `defer trace.Phase("walk")()` and spells the name a single time.
-//
-// It costs a clock read and a map write when tracing is off, so a phase can
-// sit in a hot path.
+// Phase times a span of work.
 func Phase(name string) func() {
 	if !On() {
 		return func() {}

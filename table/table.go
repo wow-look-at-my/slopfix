@@ -78,8 +78,7 @@ func (t *Table) Lexicon() *Lexicon {
 }
 
 // WordsOf answers the words a named class lists, so a caller that needs the
-// members themselves rather than a membership test reads them from the same
-// declaration. An undeclared class answers nothing.
+// members themselves rather than a membership test reads them.
 func (t *Table) WordsOf(class string) []string {
 	for _, c := range t.Classes {
 		if c.Name == class {

@@ -9,7 +9,7 @@ import (
 )
 
 // The incident: a comment block above a trigger took a pull request red, on a
-// workflow whose author had just read the rule.
+// workflow whose author had read the rule.
 func TestACommentRunPastTheLimitIsReported(t *testing.T) {
 	findings := workflow.Check("name: CI\n\n# A preview is republished by pushing, so a branch whose\n# last run predates a change had no way to pick it up.\n# This trigger exists for that.\non:\n  workflow_dispatch:\n")
 
@@ -50,8 +50,7 @@ func TestACommentBlockAtTheEndOfTheFileIsReported(t *testing.T) {
 	assert.Equal(t, 2, findings[0].Line)
 }
 
-// A # inside a block scalar opens a shell comment. The script is content, so
-// the rule says nothing about it and the repair leaves every line where it is.
+// A # inside a block scalar opens a shell comment.
 const scriptWithComments = "on: push\njobs:\n  build:\n    steps:\n      - run: |\n          # install the backend\n          # the suites need it\n          apt-get install -y bubblewrap\n          apt-get clean\n"
 
 func TestShellCommentsInABlockScalarAreNotAYamlCommentBlock(t *testing.T) {

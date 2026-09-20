@@ -1,4 +1,4 @@
-// Package repairwrite repairs the file a write just landed, in place.
+// Package repairwrite repairs the file a write landed, in place.
 //
 // Judging the text before it lands means putting the fragment back where it
 // goes because a fence and a table are properties of the whole document. The
@@ -57,8 +57,7 @@ func Run(r io.Reader) Result {
 
 	repair, err := slopfix.FixFile(path)
 	if err != nil {
-		// Said on stderr rather than swallowed: a repair that never ran, and
-		// never said so, reads exactly like a file with nothing to repair.
+		// Said on stderr rather than swallowed: a repair that never ran, and never.
 		return Result{Stderr: fmt.Sprintf("slopfix: did not repair %s: %v\n", path, err)}
 	}
 	if !repair.Changed {

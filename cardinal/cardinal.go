@@ -65,9 +65,8 @@ var Prose = Substrate{
 	Exempt: []Exemption{ContinuesANumber, FunctionWordGap},
 }
 
-// Gate is the same document, as the merge gate's stale-count rule reads it. It
-// asks for no frame and carries its own quantity pattern. A unit earns no
-// exemption here: a stated measurement is exactly what the gate reports.
+// Gate is the same document, as the merge gate's stale-count rule reads it.
+// It asks for no frame and carries its own quantity pattern.
 var Gate = Substrate{
 	Shape:    Quantity,
 	Frame:    false,

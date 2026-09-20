@@ -7,9 +7,6 @@ import (
 )
 
 // paragraph is a run of comment lines, or the blank marker between runs.
-//
-// A verbatim paragraph carries the source lines rather than their prose,
-// because a godoc code block is a table the reader reads by its columns.
 type paragraph struct {
 	lines    []string
 	blank    bool

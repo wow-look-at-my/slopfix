@@ -37,8 +37,7 @@ func tighten(text []string) ([]string, int, bool) {
 			continue
 		}
 		if para.verbatim {
-			// A code block is a table. Joining its rows loses the columns, and
-			// rewording one states something the row never said.
+			// A code block is a table.
 			out = append(out, para.raw...)
 			continue
 		}

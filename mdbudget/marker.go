@@ -17,9 +17,6 @@ import (
 
 // marker is the session's accumulated view. Fired records the signature the
 // Stop gate blocked on PER FILE, which is the no-wedge property.
-// Candidates is the walk's result, kept so a tool call costs a stat per
-// instruction file rather than a traversal of the whole tree. Finding the
-// candidates is what is expensive; measuring them is not.
 type marker struct {
 	Paths      []string          `json:"paths"`
 	Fired      map[string]string `json:"fired"`
@@ -101,9 +98,7 @@ func seedSnapshot(sessionID, cwd string) {
 	writeMarker(sessionID, m)
 }
 
-// walkTTL is how long a candidate list stands before the tree is walked again.
-// A CLAUDE.md that appears mid-session is reported within this, and every tool
-// call inside it costs stats instead of a traversal.
+// walkTTL is how long a candidate list stands before the tree is walked.
 const walkTTL = 120
 
 // candidates answers the marker's list while it is fresh, and walks otherwise.

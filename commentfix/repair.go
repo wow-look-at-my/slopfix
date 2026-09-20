@@ -197,8 +197,7 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 					continue
 				}
 				if codeRow(line) {
-					// A tab after the marker is how a doc comment spells a code
-					// block, and godoc renders the row as the author laid it out.
+					// A tab after the marker is how a doc comment spells a code block.
 					out = append(out, para{lines: []int{i}, verbatim: true})
 					current = nil
 					continue
