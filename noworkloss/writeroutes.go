@@ -111,9 +111,6 @@ func analyzeWrites(command, cwd string) string {
 // still judged, so following a script still closes the write-elsewhere-then-run
 // bypass.
 func judgeWrite(w write, roots []string) string {
-	if w.deny != "" {
-		return w.deny
-	}
 	if w.opaque != "" {
 		if w.fromScript {
 			return ""

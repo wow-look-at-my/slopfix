@@ -22,10 +22,6 @@ type write struct {
 	whole bool   // the write lands somewhere under dir rather than at a named path
 	// opaque carries the reason a route's targets cannot be resolved, and denies.
 	opaque string
-	// deny is the whole refusal, for a route that names no path at all. It is
-	// what a command does to something outside this tree, where the question is
-	// not which file it lands in.
-	deny string
 	// fromScript marks a write read out of a script FILE. classify stamps it,
 	fromScript bool
 }

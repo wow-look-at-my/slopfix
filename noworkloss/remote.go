@@ -8,52 +8,16 @@ import (
 
 // A commit can be made without any file ever existing locally: the GitHub
 // contents API takes the bytes in the request body, and the createCommitOnBranch
+// mutation takes them in a GraphQL variable. Both are judged here.
 
 func remoteWrites(seg segment, name string, rest []word) ([]write, bool) {
 	switch name {
 	case "gh":
-		if out, hit := ghPRCloses(rest); hit {
-			return out, true
-		}
 		return ghAPIWrites(rest)
 	case "curl", "wget", "http", "httpie":
 		return httpAPIWrites(name, rest)
 	}
 	return nil, false
-}
-
-// prCloseReason is the whole refusal for closing a pull request from a shell.
-const prCloseReason = "blocked: closing a pull request is the owner's call. " +
-	"A closed PR takes its review with it, and the branch behind it is then a " +
-	"thing nobody is looking at. Say which PR should close and why, and ask the " +
-	"user to close it."
-
-// ghPRCloses refuses `gh pr close`. The review lives on the PR, so closing one
-// from a shell ends a conversation the owner is having.
-func ghPRCloses(rest []word) ([]write, bool) {
-	flags, operands := scanArgs(rest, ghAPIValueFlags)
-	if len(operands) < 2 || operands[0].text != "pr" || operands[1].text != "close" {
-		return nil, false
-	}
-	// Asking what the verb does is a read.
-	if _, help := flags["--help"]; help {
-		return nil, false
-	}
-	if _, help := flags["-h"]; help {
-		return nil, false
-	}
-	return []write{{route: "gh pr close", deny: prCloseReason}}, true
-}
-
-// closesAPullRequest reports the API spelling of the same act: a PATCH to a
-// pull request that sets its state to closed.
-func closesAPullRequest(text string) bool {
-	if !strings.Contains(text, "/pulls/") {
-		return false
-	}
-	return strings.Contains(text, "state=closed") ||
-		strings.Contains(text, `"state":"closed"`) ||
-		strings.Contains(text, `"state": "closed"`)
 }
 
 var ghAPIValueFlags = set.Of[string](
@@ -69,9 +33,6 @@ func ghAPIWrites(rest []word) ([]write, bool) {
 	}
 	if strings.Contains(argvText(rest), "createCommitOnBranch") {
 		return []write{{route: "gh api graphql createCommitOnBranch", opaque: serverSideReason}}, true
-	}
-	if closesAPullRequest(argvText(rest)) {
-		return []write{{route: "gh api", deny: prCloseReason}}, true
 	}
 	method := ""
 	for _, f := range []string{"-X", "--method"} {
@@ -92,9 +53,6 @@ func httpAPIWrites(name string, rest []word) ([]write, bool) {
 	}
 	if strings.Contains(text, "createCommitOnBranch") {
 		return []write{{route: name + " graphql createCommitOnBranch", opaque: serverSideReason}}, true
-	}
-	if closesAPullRequest(text) {
-		return []write{{route: name, deny: prCloseReason}}, true
 	}
 	flags, operands := scanArgs(rest, set.Of[string](
 		"-X", "--request", "-H", "--header",

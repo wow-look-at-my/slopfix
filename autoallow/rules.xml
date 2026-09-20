@@ -507,6 +507,11 @@
 			<test cmd="gh pr checks" expect="deny"/>
 			<test cmd="gh pr create" expect="deny"/>
 			<test cmd="gh pr merge 123" expect="deny"/>
+		<!-- Closing a PR ends a review the owner is having, and the branch behind
+		     it is then a thing nobody is looking at. -->
+		<test cmd="gh pr close 45" expect="deny"/>
+		<test cmd="gh pr close 45 --comment superseded" expect="deny"/>
+		<test cmd="gh pr reopen 45" expect="deny"/>
 			<rule name="view" allowedFlags="*"/>
 			<rule name="checkout,checks,close,comment,create,diff,edit,list,lock,merge,ready,reopen,review,status,unlock,update-branch"
 			      denyWithMessage="gh pr view is the only gh pr this session runs"/>
@@ -553,6 +558,15 @@
 		<rule name="api">
 			<test cmd="gh api /repos/owner/repo" expect="allow"/>
 			<test cmd="gh api -X POST /repos/owner/repo" expect=""/>
+			<!-- The API spelling of a PR close. Only GET is allowed here, which
+			     leaves a PATCH to be asked about; this says no outright. -->
+			<test cmd="gh api -X PATCH /repos/o/r/pulls/45 -f state=closed" expect="deny"/>
+			<test cmd="gh api /repos/o/r/pulls/45" expect="allow"/>
+			<denyArgSubstrings>
+				<value>state=closed</value>
+				<value>"state":"closed"</value>
+				<value>"state": "closed"</value>
+			</denyArgSubstrings>
 			<requireFlagValue default="GET">
 				<flag name="-X" />
 				<flag name="--method" />
