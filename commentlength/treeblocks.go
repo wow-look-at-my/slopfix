@@ -165,7 +165,6 @@ func documentsTheCgoImport(node ts.Node, src string, next, count uint32) bool {
 	return strings.Join(strings.Fields(src[start:end]), " ") == `import "C"`
 }
 
-
 // nodeSpan measures a construct: the source lines it occupies, and the
 // characters of code those lines hold.
 //
