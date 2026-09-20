@@ -40,16 +40,14 @@ runs:
         project: slopfix
 
     # slopfix fails when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
-    - name: Run slopfix through sh, because a binfmt_misc handler on the MZ magic refuses a direct exec of the APE
-      shell: bash
-      env:
-        SLOPFIX: ${{ steps.download.outputs.path }}
-        INPUT_COMMAND: ${{ inputs.command }}
-        INPUT_PATHS: ${{ inputs.paths }}
-        INPUT_ONLY: ${{ inputs.only }}
-      run: |
-        set -euo pipefail
-        # INPUT_PATHS is a list of paths, so it is deliberately unquoted.
-        sh "$SLOPFIX" "$INPUT_COMMAND" \
-          ${INPUT_ONLY:+--only "$INPUT_ONLY"} \
-          $INPUT_PATHS
+    - name: Run slopfix, through sh where a binfmt_misc handler on the MZ magic refuses a direct exec of the APE
+      uses: wow-look-at-my/actions@multicmd#latest
+      with:
+        # The paths are a list, so they are deliberately unquoted.
+        unix: >-
+          sh "${{ steps.download.outputs.path }}" ${{ inputs.command }}
+          ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} ${{ inputs.paths }}
+        # Windows registers no handler and boots the APE through its PE header, and sh there reads the shell bootstrap and looks for a loader built for another host.
+        windows: >-
+          & "${{ steps.download.outputs.path }}" ${{ inputs.command }}
+          ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} ${{ inputs.paths }}
