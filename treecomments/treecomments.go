@@ -165,7 +165,25 @@ func Extract(filename, src string) []Comment {
 	}
 	var out []Comment
 	collect(root, src, &out)
-	return dropCgoPreamble(root, src, out)
+	return dropCgoPreamble(root, src, dropShebang(out))
+}
+
+// dropShebang removes the interpreter line a script opens on. Every grammar
+// reads it as a comment, because it opens on the marker one does, and a repair
+// that reflows the run beneath it welds the first sentence onto the
+// interpreter. The kernel then reads that whole line as the program to start,
+// and the script stops running.
+//
+// Only the top line, and only at the left edge: a `#!` anywhere else is prose.
+func dropShebang(comments []Comment) []Comment {
+	if len(comments) == 0 {
+		return comments
+	}
+	head := comments[0]
+	if head.Line != 1 || head.Col != 0 || head.Lines != 1 || !strings.HasPrefix(head.Text, "#!") {
+		return comments
+	}
+	return comments[1:]
 }
 
 // dropCgoPreamble removes the comment group cgo reads as C source.
