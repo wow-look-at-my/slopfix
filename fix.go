@@ -143,7 +143,8 @@ func Fix(req Request) Repair {
 		}
 	}
 
-	// The comment-length repair reads source rather than prose, so it runs before the document gate below sends a source
+	// The length repair reads source rather than prose, so it runs ahead of the
+	// document gate below.
 	cutComments()
 
 	// The number repair reads source too, and runs after the length cut: a

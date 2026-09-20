@@ -1,4 +1,8 @@
-# commentlength
+# commentfix
+
+Every rule a comment answers to: a number it states, a block longer than the code it documents. And a comment that stops mid-thought. One package, one syntax tree, one command.
+
+## Longer than the code it documents
 
 A comment longer than the code it documents. A comment earns its place by stopping the next mistake. One that outruns the code becomes an essay, and the reader pays for it on every pass through the file.
 
@@ -30,18 +34,18 @@ A directive line, such as a build constraint, an interpreter line or a linter pr
 
 It cuts, from the end. A comment leads with its point and elaborates afterwards. The trailing paragraph is therefore what a reader loses least by losing. A paragraph goes before a sentence does.
 
-Every cut lands on a sentence end, inside a line where the prose ends there. Lopping a line instead leaves a dangling clause, and a half written sentence reads worse than the long comment it replaced.
+Every cut lands on a sentence end, inside a line where the prose ends there. Lopping a line instead leaves a dangling clause, and a half written sentence reads worse than the long comment.
 
 The opening sentence is never cut. A block trimmed to nothing is a worse edit than a block left long. A block with no cut that both fits and reads is reported as unrepairable. It stays whole for a person to rewrite, which includes prose that carries no sentence end anywhere.
 
 ## Rule ID, and running it
 
-The ID is `comments/length`.
+The ID is `comments/length`. And it runs beside `comments/number` and the tail rule under one command.
 
 ```sh
-slopfix comment-length .              # report
-slopfix comment-length --fix .        # repair in place, and report what is left
-slopfix comment-length pkg/thing.go
+slopfix comments .              # report
+slopfix comments --fix .        # repair in place, and report what is left
+slopfix comments pkg/thing.go
 ```
 
 A directory is walked, skipping hidden directories and the ones holding text nobody in the tree authored. A file the rule has no grammar for is skipped.

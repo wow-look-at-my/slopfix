@@ -13,15 +13,14 @@ A directory is a rule. Where a package holds several, they are members of one fa
 | [ste](ste/README.md) | `ste/*` | a contraction, a modal, a semicolon, a comma splice |
 | [markdown](markdown/README.md) | `wrap/hard-wrap` | yes |
 | [workflow](workflow/README.md) | `yaml/*` | no |
-| [commentfix](commentfix/README.md) | `comments/number` | yes, every finding |
-| [commentlength](commentlength/README.md) | `comments/length` | what it can cut without losing the opening |
+| [commentfix](commentfix/README.md) | `comments/*` | yes, every finding a cut can answer |
 | [laziness](laziness/README.md) | `laziness/punt` | no |
 
 A directory here can hold no rule at all. [markdown](markdown/README.md) is the document model every prose rule sits on. It carries the hard-wrap rule as well. [source](source/README.md) is the substrate adapter that answers where the prose is in a source file.
 
 [rules](rules/README.md) holds the prose tables as XML, split by purpose. The folder is embedded and [table](table/table.go) loads it, collecting the entries a single consumer declares and compiling every pattern.
 
-[cardinal](cardinal/README.md) holds no rule ID either. It decides whether a number is a stated count. `counts`, `ste` and `commentfix` are the three substrates that ask it. Each brings its own policy: how much framing a number needs, which words spell one, and what carries a number without counting anything.
+[cardinal](cardinal/README.md) holds no rule ID either. It decides whether a number is a stated count. `counts`, `ste` and `commentfix` are the substrates that ask it. Each brings its own policy: how much framing a number needs, which words spell one, and what carries a number without counting anything.
 
 A hook is a named selection of rule IDs, and nothing else. That mapping lives in `hooks.go`, and `hooks_test.go` asserts that every rule has a home in it and that every entry names a rule that exists. A rule added with no home fails the build. So does an entry for a rule somebody deleted.
 
@@ -60,11 +59,11 @@ The action at the root of this repository downloads the published binary from bu
     only: yaml/comment-block
 ```
 
-`command` defaults to `workflows`. `paths` defaults to the whole workspace. The step therefore goes after the checkout. `only` is the flag of the same name. There is no `exclude`: an exemption a caller writes is one a caller sets to everything. `fix` and `fmt` are refused: a job that repairs its own checkout and then reports a pass has enforced nothing.
+`command` defaults to `workflows`. `paths` defaults to the whole workspace. The step therefore goes after the checkout. `only` is the flag of the same name. There is no `exclude`: an exemption a caller writes is one a caller sets to. Everything. `fix` and `fmt` are refused: a job that repairs its own checkout. And then reports a pass has enforced nothing.
 
 `comments` reads source rather than prose. A number in a comment is a count of what exists today. The edit that adds an item leaves it wrong. It reads a comment by its delimiters rather than by a grammar. So it answers for every language it knows, and on a tree that does not compile. A directory is walked, skipping hidden directories, `vendor`, `node_modules`, `testdata` and `build`. A named file is read whatever its extension. go-toolchain runs this same check as its first phase.
 
-`comment-length` reads a real syntax tree, so the span a comment is weighed against is exact rather than guessed. `--fix` cuts each over-long block back inside its budget, from the end, and never past the opening sentence. A repair the rule cannot make without losing the opening is reported instead, for a person to rewrite.
+The length rule inside `comments` reads the same syntax tree. The span a comment is weighed against is exact rather than guessed. `--fix` cuts each over-long block back inside its budget, from the end. And never past the opening sentence. A repair the rule cannot make without losing the opening is reported instead, for a person to rewrite. The tail rule closes a comment left standing on a word that opens what a cut took away.
 
 ## Naming the rules to run
 
