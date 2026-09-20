@@ -70,6 +70,7 @@ func TestASentenceWithAColonIsStillProse(t *testing.T) {
 	assert.NotEmpty(t, CheckLength("x.go", src), "the colon does not make this a directive")
 
 	// The control: the same sentence spelled as a directive is dropped, so the
+	// length check has nothing left to report.
 	src = "package p\n\n//go:generate stringer -type=Kind\nconst u = \"x\"\n"
 	assert.Empty(t, CheckLength("x.go", src))
 }

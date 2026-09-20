@@ -86,6 +86,7 @@ func editReport(in hookInput, limit int) string {
 			paths = []string{abs}
 		}
 		// Keep the snapshot current even when the tool named its file, so a
+		// later call that has to find the changed files itself starts level.
 		changedFiles(in.SessionID, in.CWD)
 	} else {
 		for _, p := range changedFiles(in.SessionID, in.CWD) {
@@ -171,7 +172,8 @@ func run(r io.Reader) (string, int) {
 				break
 			}
 		}
-		// Plain text, not the hookSpecificOutput envelope: the reader here is
+		// Plain text, not the hookSpecificOutput envelope: this report is read
+		// by a person running the command, not by the hook machinery.
 		return sessionReport(offenders, limit) + "\n", exit
 	}
 

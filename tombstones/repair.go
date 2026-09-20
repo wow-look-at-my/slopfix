@@ -26,8 +26,9 @@ type Repair struct {
 // rewriteComments applies the english table to every comment block and reflows
 // what it leaves. It answers the new text and how many rewrites that took.
 //
-// Every block goes through it, not only the ones over the cap: a tombstone is a
-// so an earlier splice never moves a later block's line numbers.
+// Every block goes through it, not only the ones over the cap, and the blocks
+// are walked last to first so a splice never moves the line numbers of one that
+// has not been reached yet.
 func rewriteComments(added string, blocks []Block) (string, int) {
 	lines := strings.Split(added, "\n")
 	rewrites := 0

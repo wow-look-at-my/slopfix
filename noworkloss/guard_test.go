@@ -418,11 +418,13 @@ func TestDeniesForceRefspec(t *testing.T) {
 func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
-	// A denial on the provenance side still lets the destruction side preserve,
+	// A denial on the provenance side still lets the destruction side preserve
+	// first, so the edit survives a command that never runs.
 	denied(t, dir, "git rebase master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited twice\n")
 	preserved(t, dir, "git merge feature")
-	// Each preservation commits the edit, so every later verb that must see a
+	// Each preservation commits the edit, so every later verb needs a fresh one
+	// to have anything standing in the tree.
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 	preserved(t, dir, "git pull origin master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited once more\n")
@@ -440,6 +442,7 @@ func TestGitRmCachedLeavesTheFileAlone(t *testing.T) {
 	untrack(t, dir, "scratch.txt")
 	allowed(t, dir, "git rm --cached scratch.txt")
 	// `git rm` names no provenance route either, so a forced removal of an
+	// untracked file is preserved and then allowed to run.
 	preserved(t, dir, "git rm -f scratch.txt")
 }
 
@@ -452,6 +455,7 @@ func TestDeniesTruncatingRedirectOntoDirtyFile(t *testing.T) {
 	modify(t, dir)
 	denied(t, dir, "echo x > tracked.go")
 	// An append loses nothing, so the destruction half allows it. The
+	// provenance half still denies it: the file is tracked.
 	assert.Empty(t, lossOnly(t, dir, "echo x >> tracked.go"))
 	assert.Contains(t, denied(t, dir, "echo x >> tracked.go"), "tracked.go")
 }

@@ -27,6 +27,7 @@ type messageHit struct {
 	// Tell says in words which shape fired.
 	Tell string `json:"tell"`
 	// Phrase is the offending wording where the rule can name it. A rule that
+	// cannot point at a phrase leaves this empty.
 	Phrase string `json:"phrase,omitempty"`
 	// Sentence quotes the line, for context.
 	Sentence string `json:"sentence"`

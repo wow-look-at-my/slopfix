@@ -37,6 +37,7 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	env := []string{"GIT_INDEX_FILE=" + tmpIndex}
 
 	// read-tree HEAD seeds the temp index with the last committed tree. A
+	// repository with no commit yet has no tree to read, and says so here.
 	hasHead := true
 	if _, _, err := runGitEnvTimeout(root, gitTimeout, env, "read-tree", "HEAD"); err != nil {
 		hasHead = false

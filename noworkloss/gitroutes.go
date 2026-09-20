@@ -130,6 +130,7 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 		return dashDash || len(operands) > 1 || namesExistingPath(dir, operands)
 	case "restore":
 		// --staged alone moves the index back to HEAD and leaves the file on
+		// disk as it is, so only a restore reaching the worktree destroys work.
 		return !has("--staged") || has("--worktree", "-W")
 	case "stash":
 		return len(operands) > 0 && (operands[0].text == "pop" || operands[0].text == "apply")

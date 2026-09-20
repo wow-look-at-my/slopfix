@@ -50,14 +50,16 @@ type Substrate struct {
 	Words set.Set[string]
 	// Exempt judges a matched quantity, and Shape Quantity reads it.
 	Exempt []Exemption
-	// ExemptToken judges the text around a token, and Shape Number reads it. A
+	// ExemptToken judges the text around a token, and Shape Number reads it.
 	ExemptToken []TokenExemption
 
-	// quantity matches a cardinal governing a plural noun, spelled as this
+	// quantity matches a cardinal governing a plural noun. A substrate that
+	// leaves it nil gets the finder's own pattern.
 	quantity *regexp.Regexp
 }
 
-// Prose is a document's own voice, as the inventory-count rule reads it. The
+// Prose is a document's own voice, as the inventory-count rule reads it. It
+// asks for a frame, so a bare number in a sentence is left alone.
 var Prose = Substrate{
 	Shape:  Quantity,
 	Frame:  true,
@@ -66,6 +68,7 @@ var Prose = Substrate{
 }
 
 // Gate is the same document, as the merge gate's stale-count rule reads it. It
+// asks for no frame and carries its own quantity pattern.
 var Gate = Substrate{
 	Shape:    Quantity,
 	Frame:    false,

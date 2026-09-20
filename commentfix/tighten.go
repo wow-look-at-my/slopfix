@@ -28,6 +28,7 @@ func tighten(text []string) ([]string, int, bool) {
 	}
 
 	// A paragraph break is structure, so reflow each paragraph on its own and
+	// put the breaks back between them.
 	var out []string
 	rewrites := 0
 	changed := false

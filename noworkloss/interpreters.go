@@ -190,7 +190,8 @@ func allowedFormatter(name string, rest []word) bool {
 	case "gofmt", "goimports", "shfmt", "rustfmt", "clang-format", "prettier", "dprint", "biome":
 		return true
 	case "go-toolchain":
-		// The org's Go entry point: it tidies go.mod, formats source and runs the
+		// The org's Go entry point: it tidies go.mod and formats source, so it
+		// writes files the command never named.
 		return true
 	case "go":
 		return sub == "generate" || sub == "fmt" || sub == "mod"

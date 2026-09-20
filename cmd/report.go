@@ -47,6 +47,7 @@ type reportFinding struct {
 	// ID names the rule, the way a compiler names a warning.
 	ID string `json:"id"`
 	// Line is where the finding starts. EndLine repeats it on a finding that
+	// covers one line.
 	Line    int `json:"line"`
 	EndLine int `json:"endLine"`
 	// Rule says what the ID stands for. Detail quotes the text, and Fix names the repair.

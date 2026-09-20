@@ -240,7 +240,9 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 		line := lines[i]
 		marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
 		if !ok {
-			// A line inside the block carrying no marker at all: an indented example, or a table. A rewrap would destroy it, so
+			// A line inside the block carrying no marker at all: an indented
+			// example, or a table. A rewrap would destroy its shape, so the
+			// block is answered as it stands.
 			return b, false
 		}
 		marker = line[:min(col, len(line))] + marker
