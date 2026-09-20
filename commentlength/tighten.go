@@ -114,4 +114,3 @@ func shorten(s string) string { return english.Fix(s, english.Comment) }
 // Deslop rewrites a rendered message, applying every entry that names the
 // message surface.
 func Deslop(s string) string { return english.Fix(s, english.Message) }
-
