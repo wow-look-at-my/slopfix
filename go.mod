@@ -6,8 +6,14 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/wow-look-at-my/go-containers v0.0.0 // go-toolchain:auto-branch
+	github.com/wow-look-at-my/go-regex-compiler v0.0.0 // indirect; go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-tree-sitter v0.0.0 // go-toolchain:auto-branch; go-toolchain:generate=a0022f830ef0
 )
+
+// rulegen runs this to compile every <pattern> in rules/ into Go. The module is
+// named here because go mod tidy cannot see a go:generate line, and the run
+// that writes the generated files comes before the run that imports them.
+tool github.com/wow-look-at-my/go-regex-compiler/cmd/go-regex-compiler
 
 require (
 	github.com/spf13/pflag v1.0.9

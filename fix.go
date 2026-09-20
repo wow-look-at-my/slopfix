@@ -5,8 +5,8 @@ import (
 	"slices"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/commentlength"
-	"github.com/wow-look-at-my/slopfix/commentnumbers"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -48,7 +48,7 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleSTE:
 		return ste.AllIDs
 	case RuleComments:
-		return set.Of(commentlength.ID, commentnumbers.ID)
+		return set.Of(commentlength.ID, commentfix.ID)
 	case RuleWorkflow:
 		return workflow.AllIDs
 	}
@@ -153,8 +153,8 @@ func Fix(req Request) Repair {
 
 	// The number repair reads source too, and runs after the length cut: a
 	// sentence the cut already took needs no rewrite here.
-	if wants(RuleComments) && keeps(commentnumbers.ID) && req.Path != "" {
-		said := commentnumbers.Fix(req.Path, text)
+	if wants(RuleComments) && keeps(commentfix.ID) && req.Path != "" {
+		said := commentfix.Fix(req.Path, text)
 		if said.Changed {
 			text = said.Text
 			repair.Removed = append(repair.Removed, said.Removed...)

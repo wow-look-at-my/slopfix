@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A shape no whole-word swap can express.
+
+  A bare #N is deliberately absent. It needs the repository the reader is in,
+  which is context the table does not carry, and guessing the wrong repository
+  is worse than leaving plain text.
+
+  NOTE ON linkrefs: these carry the link SHAPE, not linkrefs' guarantee. That
+  plugin resolves a reference before it links, and leaves plain text when it
+  cannot show the target exists. A pattern cannot check existence, so folding
+  linkrefs in here would trade a verified link for a plausible one. Keep both:
+  this is for a reference already known good.
+-->
+<rules for="english">
+
+  <pattern match="\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]+)\b"
+           to="[$1#$2](https://github.com/$1/issues/$2)"
+           where="message"
+           test="wow-look-at-my/slopfix#14 is open"
+           expect="[wow-look-at-my/slopfix#14](https://github.com/wow-look-at-my/slopfix/issues/14) is open"/>
+
+  <pattern match="\s+([,.;:!?])" to="$1" test="A clause , and a stop ."
+           expect="A clause, and a stop."/>
+
+  <pattern match="  +" to=" " test="Two  spaces" expect="Two spaces"/>
+
+</rules>

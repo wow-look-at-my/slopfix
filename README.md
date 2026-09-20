@@ -13,13 +13,15 @@ A directory is a rule. Where a package holds several, they are members of one fa
 | [ste](ste/README.md) | `ste/*` | a contraction, a modal, a semicolon, a comma splice |
 | [markdown](markdown/README.md) | `wrap/hard-wrap` | yes |
 | [workflow](workflow/README.md) | `yaml/*` | no |
-| [commentnumbers](commentnumbers/README.md) | `comments/number` | no |
+| [commentfix](commentfix/README.md) | `comments/number` | yes, every finding |
 | [commentlength](commentlength/README.md) | `comments/length` | what it can cut without losing the opening |
 | [laziness](laziness/README.md) | `laziness/punt` | no |
 
 A directory here can hold no rule at all. [markdown](markdown/README.md) is the document model every prose rule sits on. It carries the hard-wrap rule as well. [source](source/README.md) is the substrate adapter that answers where the prose is in a source file.
 
-[cardinal](cardinal/README.md) holds no rule ID either. It decides whether a number is a stated count. `counts`, `ste` and `commentnumbers` are the three substrates that ask it. Each brings its own policy: how much framing a number needs, which words spell one, and what carries a number without counting anything.
+[rules](rules/README.md) holds the prose tables as XML, split by purpose. Nothing reads them at run time. `cmd/rulegen` parses the folder during the build and writes Go. It compiles each pattern with [go-regex-compiler](https://github.com/wow-look-at-my/go-regex-compiler). [table](table/table.go) is what that generated Go is made of.
+
+[cardinal](cardinal/README.md) holds no rule ID either. It decides whether a number is a stated count. `counts`, `ste` and `commentfix` are the three substrates that ask it. Each brings its own policy: how much framing a number needs, which words spell one, and what carries a number without counting anything.
 
 A hook is a named selection of rule IDs, and nothing else. That mapping lives in `hooks.go`, and `hooks_test.go` asserts that every rule has a home in it and that every entry names a rule that exists. A rule added with no home fails the build. So does an entry for a rule somebody deleted.
 
