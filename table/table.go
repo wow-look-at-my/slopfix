@@ -96,8 +96,7 @@ func AppliesTo(where, surface string) bool {
 }
 
 // Replace rewrites every match of the pattern in s, and returns s untouched
-// when there is none. The replacement takes the case of the text it stands in
-// for, so a match that opens a sentence still opens one.
+// when there is none.
 func (p Pattern) Replace(s string) string {
 	return p.re.ReplaceAllStringFunc(s, func(matched string) string {
 		at := p.re.FindStringSubmatchIndex(matched)
