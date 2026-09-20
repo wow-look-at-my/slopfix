@@ -8,13 +8,27 @@
 -->
 <rules for="numbers">
 
-  <pattern match="(?i)\bfirst,\s+" to="" test="First, it locks" expect="It locks"/>
-  <pattern match="(?i)\bsecond,\s+" to="then " test="Second, it writes" expect="Then it writes"/>
-  <pattern match="(?i)\bthird,\s+" to="then " test="Third, it unlocks" expect="Then it unlocks"/>
+  <pattern id="i-bfirst-s" match="(?i)\bfirst,\s+" to="">
+    <test in="First, it locks" out="It locks"/>
+  </pattern>
+  <pattern id="i-bsecond-s" match="(?i)\bsecond,\s+" to="then ">
+    <test in="Second, it writes" out="Then it writes"/>
+  </pattern>
+  <pattern id="i-bthird-s" match="(?i)\bthird,\s+" to="then ">
+    <test in="Third, it unlocks" out="Then it unlocks"/>
+  </pattern>
 
-  <pattern match="(?i)\ba second\b" to="another" test="It grows a second segment" expect="It grows another segment"/>
-  <pattern match="(?i)\bthe second\b" to="the next" test="The second call wins" expect="The next call wins"/>
-  <pattern match="(?i)\bthe first\b" to="the earliest" test="The first writer wins" expect="The earliest writer wins"/>
-  <pattern match="(?i)\bfirst\b" to="earliest" test="It takes first" expect="It takes earliest"/>
+  <pattern id="i-ba-second-b" match="(?i)\ba second\b" to="another">
+    <test in="It grows a second segment" out="It grows another segment"/>
+  </pattern>
+  <pattern id="i-bthe-second-b" match="(?i)\bthe second\b" to="the next">
+    <test in="The second call wins" out="The next call wins"/>
+  </pattern>
+  <pattern id="i-bthe-first-b" match="(?i)\bthe first\b" to="the earliest">
+    <test in="The first writer wins" out="The earliest writer wins"/>
+  </pattern>
+  <pattern id="i-bfirst-b" match="(?i)\bfirst\b" to="earliest">
+    <test in="It takes first" out="It takes earliest"/>
+  </pattern>
 
 </rules>

@@ -87,7 +87,7 @@ func carriesProse(lines []string, i int) bool {
 func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, removed []string, blanked map[int]bool) {
 	blanked = make(map[int]bool)
 	for _, para := range paragraphsOf(lines, runs) {
-		said := Say(para.prose)
+		said := Reword(para.prose)
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
 		if said == para.prose {

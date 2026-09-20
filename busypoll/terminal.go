@@ -36,12 +36,22 @@ var greenVerdicts = []string{
 // with the same words, so only a full count is a verdict.
 var tally = regexp.MustCompile(`(\d+)/(\d+) builds passed`)
 
+// fullTally reports whether every build count the text carries says all builds
+// passed. A record often carries several: a listing of runs, a comparison with
+// an earlier commit, a table of pull requests. a single full count beside a
+// partial a single says nothing about the commit the record names, so every
+// count has to agree before the record is a verdict.
 func fullTally(text string) bool {
-	m := tally.FindStringSubmatch(text)
-	if m == nil || m[2] == "0" {
+	all := tally.FindAllStringSubmatch(text, -1)
+	if len(all) == 0 {
 		return false
 	}
-	return m[1] == m[2]
+	for _, m := range all {
+		if m[2] == "0" || m[1] != m[2] {
+			return false
+		}
+	}
+	return true
 }
 
 // terminalSubjects returns the subjects a record reported as finished. A record

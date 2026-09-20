@@ -6,23 +6,59 @@
 -->
 <rules for="english">
 
-  <rewrite from="in order to" to="to" test="Runs in order to bind"/>
-  <rewrite from="due to the fact that" to="because" test="Fails due to the fact that it races"/>
-  <rewrite from="in the event that" to="if" test="Retries in the event that it fails"/>
-  <rewrite from="for the purpose of" to="for" test="Kept for the purpose of the gate"/>
-  <rewrite from="a large number of" to="many" test="Holds a large number of entries"/>
-  <rewrite from="at this point in time" to="now" test="Correct at this point in time"/>
-  <rewrite from="is able to" to="can" test="It is able to retry"/>
-  <rewrite from="has the ability to" to="can" test="It has the ability to retry"/>
-  <rewrite from="make use of" to="use" test="It will make use of the cache"/>
-  <rewrite from="take into account" to="consider" test="It must take into account the offset"/>
-  <rewrite from="the reason is because" to="because" test="The reason is because it races"/>
-  <rewrite from="in spite of the fact that" to="although" test="Kept in spite of the fact that it races"/>
-  <rewrite from="a sufficient number of" to="enough" test="Holds a sufficient number of entries"/>
-  <rewrite from="prior to" to="before" test="Runs prior to the gate"/>
-  <rewrite from="subsequent to" to="after" test="Runs subsequent to the gate"/>
-  <rewrite from="in the near future" to="soon" test="Lands in the near future"/>
-  <rewrite from="on a regular basis" to="regularly" test="Runs on a regular basis"/>
-  <rewrite from="whether or not" to="whether" test="Asks whether or not it fits"/>
+  <rewrite id="in-order-to" from="in order to" to="to">
+    <test in="Runs in order to bind"/>
+  </rewrite>
+  <rewrite id="due-to-the-fact-that" from="due to the fact that" to="because">
+    <test in="Fails due to the fact that it races"/>
+  </rewrite>
+  <rewrite id="in-the-event-that" from="in the event that" to="if">
+    <test in="Retries in the event that it fails"/>
+  </rewrite>
+  <rewrite id="for-the-purpose-of" from="for the purpose of" to="for">
+    <test in="Kept for the purpose of the gate"/>
+  </rewrite>
+  <rewrite id="a-large-number-of" from="a large number of" to="many">
+    <test in="Holds a large number of entries"/>
+  </rewrite>
+  <rewrite id="at-this-point-in-time" from="at this point in time" to="now">
+    <test in="Correct at this point in time"/>
+  </rewrite>
+  <rewrite id="is-able-to" from="is able to" to="can">
+    <test in="It is able to retry"/>
+  </rewrite>
+  <rewrite id="has-the-ability-to" from="has the ability to" to="can">
+    <test in="It has the ability to retry"/>
+  </rewrite>
+  <rewrite id="make-use-of" from="make use of" to="use">
+    <test in="It will make use of the cache"/>
+  </rewrite>
+  <rewrite id="take-into-account" from="take into account" to="consider">
+    <test in="It must take into account the offset"/>
+  </rewrite>
+  <rewrite id="the-reason-is-because" from="the reason is because" to="because">
+    <test in="The reason is because it races"/>
+  </rewrite>
+  <rewrite id="in-spite-of-the-fact" from="in spite of the fact that" to="although">
+    <test in="Kept in spite of the fact that it races"/>
+  </rewrite>
+  <rewrite id="a-sufficient-number-of" from="a sufficient number of" to="enough">
+    <test in="Holds a sufficient number of entries"/>
+  </rewrite>
+  <rewrite id="prior-to" from="prior to" to="before">
+    <test in="Runs prior to the gate"/>
+  </rewrite>
+  <rewrite id="subsequent-to" from="subsequent to" to="after">
+    <test in="Runs subsequent to the gate"/>
+  </rewrite>
+  <rewrite id="in-the-near-future" from="in the near future" to="soon">
+    <test in="Lands in the near future"/>
+  </rewrite>
+  <rewrite id="on-a-regular-basis" from="on a regular basis" to="regularly">
+    <test in="Runs on a regular basis"/>
+  </rewrite>
+  <rewrite id="whether-or-not" from="whether or not" to="whether">
+    <test in="Asks whether or not it fits"/>
+  </rewrite>
 
 </rules>
