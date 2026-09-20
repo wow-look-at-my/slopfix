@@ -19,6 +19,33 @@
 -->
 <english xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="english.xsd">
 
+  <!--
+    The word classes a shape reads when the words alone leave a sentence open
+    to two readings. Every class with a word list is CLOSED: the language
+    admits no new article and no new preposition, so the list is the whole
+    class. A class is data, so widening one is an edit here and needs no Go.
+  -->
+  <class name="article" words="a an the"/>
+  <class name="determiner" words="this that these those each every any no some
+    another other which whichever either neither both several many few all
+    its their our my your his her whose"/>
+  <class name="relative" words="that which who whom whose when where while"/>
+  <class name="conjunction" words="and or but so because though although if
+    unless since while whereas"/>
+  <class name="preposition" words="of in on at to for with from by into onto
+    under over per as than through against between among about after before
+    during without within across below above behind beside beyond near upon
+    until toward towards along around via despite versus off out up down"/>
+  <class name="auxiliary" words="is are was were be been being am has have had
+    does do did can could will would shall may might must should"/>
+  <class name="adverb" words="still already only never always also too here
+    there now then again once twice rather quite very just even soon later
+    instead however therefore not"/>
+  <class name="pronoun" words="it they them we us you he him she
+    something anything nothing everything"/>
+  <class name="verbform" suffix="ing ed"/>
+  <class name="noun" open="true" except="verbform"/>
+
   <!-- Words that survive their own deletion. -->
   <drop word="actually" test="It actually fails"/>
   <drop word="basically" test="It basically fails"/>
@@ -149,11 +176,18 @@
   <pattern match="(?i)\bthe (?:former|old|previous|legacy|original) (\S+)" replace="the $1"
            where="comment" test="The old scanner reads a marker byte"
            expect="The scanner reads a marker byte"/>
+  <!--
+    These two name a change verb without naming who it happened to, so the
+    subject decides the reading. A subject that opens the sentence's own
+    assertion reports the tree, and that is a tombstone. A subject a
+    subordinator opens, or one a noun hangs the clause off, reports a value the
+    running code has already handled, and the rule stands down on it.
+  -->
   <pattern match="(?i)\s*\b(?:was|were|has been|have been|had been|is now|are now) (?:renamed|removed|added|deleted|moved|replaced|introduced|dropped|split|merged|reverted|refactored|extracted|migrated|deprecated|rewritten|rewrote|bumped|reworked|consolidated|inlined|hoisted)\b[^.]*" replace=""
-           where="comment" test="The gate is now hoisted above the walk"
+           where="comment" subject="preceding" test="The gate is now hoisted above the walk"
            expect="The gate"/>
   <pattern match="(?i)\s*\b(?:we|this|it|that) (?:renamed|removed|deleted|replaced|introduced|reverted|refactored|migrated|deprecated|rewrote|reworked|consolidated)\b[^.]*" replace=""
-           where="comment" test="The list is derived we removed the flag"
+           where="comment" subject="matched" test="The list is derived we removed the flag"
            expect="The list is derived"/>
   <pattern match="(?i)\s*\bthis (?:replaces|supersedes)\b[^.]*" replace=""
            where="comment" test="The parse is the reader this replaces the scanner"
@@ -298,6 +332,26 @@
     often unexported. Capitalising it names a symbol the package does not have,
     so the capital is restored only where a deletion removed the opening word.
   -->
+  <!--
+    A change verb read against the sentence it sits in. The first group states
+    the change as the sentence's own assertion, so the tree it names is gone
+    and the words come out. The second group hangs the same verb off a
+    subordinator or off the noun in front of it, where it reports what the
+    running code has done with a value, and the words stay.
+  -->
+  <test in="The retry loop was removed from the walk"
+        out="The retry loop"/>
+  <test in="The walk is bounded it removed the retry"
+        out="The walk is bounded"/>
+  <test in="It returns true when the element was added"
+        out="It returns true when the element was added"/>
+  <test in="The case passes because nothing was added"
+        out="The case passes because nothing was added"/>
+  <test in="It names the ones it rewrote on stdout"
+        out="It names the ones it rewrote on stdout"/>
+  <test in="The failure the whole rule was rewritten to avoid"
+        out="The failure the whole rule was rewritten to avoid"/>
+
   <test in="arityReach is basically how far back it looks"
         out="arityReach is how far back it looks"/>
   <test in="english is actually the parsed table"

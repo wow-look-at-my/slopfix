@@ -75,9 +75,7 @@ func TestTheCardinalStaysBannedWhereTheTableRepairsNothing(t *testing.T) {
 // What the table says leaves no number behind. An entry whose replacement
 // carried another number would send the repair straight to a cut.
 //
-// A case the entry declines is not a replacement, so it is not held to this. A
-// measurement is the case that matters: the tally rule stands down on "every 30
-// seconds" and the number is what the sentence is for.
+// A case the entry declines is not a replacement, so it is not held to this.
 func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
 	leaves := func(kind, id string, cases []table.Test) {
 		for _, c := range cases {

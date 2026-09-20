@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// One command checks and repairs everything. Without --fix it reports and
-// writes nothing; with --fix it repairs what it can and reports the rest.
+// A single command checks and repairs everything. Without --fix it
+// reports and writes nothing; with --fix it repairs what it can and reports the rest.
 func TestCheckFixRepairsInPlace(t *testing.T) {
 	t.Serial()
 	dir := t.TempDir()

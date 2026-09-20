@@ -11,9 +11,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
-// encoding/xml refuses a 1.1 declaration outright, and every document in this
-// repository states 1.1. A loader that hands it the bytes as they sit on disk
-// panics at init, which is how a whole build died.
+// A loader that hands it the bytes as they sit on disk panics at init, which
+// is how a whole build died.
 func TestTheDeclaredVersionReachesTheParser(t *testing.T) {
 	raw := []byte(`<?xml version="1.1" encoding="UTF-8"?>` + "\n<rules for=\"numbers\"/>\n")
 
@@ -25,7 +24,6 @@ func TestTheDeclaredVersionReachesTheParser(t *testing.T) {
 	assert.Equal(t, "numbers", doc.For)
 }
 
-// Only the declaration is touched, and only when it states 1.1.
 func TestNothingElseIsRewritten(t *testing.T) {
 	raw := []byte(`<?xml version="1.0"?>` + "\n<rules for=\"x\">1.1</rules>\n")
 	assert.Equal(t, raw, table.Readable(raw))
