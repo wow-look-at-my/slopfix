@@ -5,39 +5,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/wow-look-at-my/slopfix/english"
 )
 
-// The tidy pass closed the gap in front of every period it found, and a period
-// with a word against its right side opens a file name rather than closing a
-// sentence. Comments shipped reading `from the.gitmodules parser`.
-//
-// The gap only closes when the period closes something, which is what the
-// space after it says.
-func TestTighteningKeepsTheSpaceInFrontOfAFileName(t *testing.T) {
-	for _, c := range []struct{ name, in, want string }{
-		{
-			name: "a dotfile after a determiner",
-			in:   "It reads from the .gitmodules parser above.",
-			want: "It reads from the .gitmodules parser above.",
-		},
-		{
-			name: "a dotfile mid sentence",
-			in:   "The walk skips .git and reads .gitmodules instead.",
-			want: "The walk skips .git and reads .gitmodules instead.",
-		},
-		{
-			name: "a gap a deletion really left",
-			in:   "It reads the file .",
-			want: "It reads the file.",
-		},
-		{
-			name: "a gap in front of a comma",
-			in:   "It reads the file , and stops.",
-			want: "It reads the file, and stops.",
-		},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			assert.Equal(t, c.want, shorten(c.in))
+// What the tidy pass writes for a whole line is stated in english.xml, where
+// somebody adding a case edits no Go.
+func TestEveryWholeLineCaseHolds(t *testing.T) {
+	require.NotEmpty(t, english.Cases())
+	for _, c := range english.Cases() {
+		t.Run(c.In, func(t *testing.T) {
+			assert.Equal(t, c.Out, shorten(c.In))
 		})
 	}
 }

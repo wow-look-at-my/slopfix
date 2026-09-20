@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  What the document rules write for a sentence. The repairs are sentence
+  surgery rather than a phrase swap, so this file carries no entries: every
+  test here belongs to the consumer, and drives ste.Fix as a whole.
+
+  A test whose out repeats its in names prose the repair declines. Those hold
+  each repair inside its own rule, and dropping one lets a wider match through
+  unnoticed.
+-->
+<rules for="ste">
+
+  <test in="It doesn't run." out="It does not run."/>
+  <test in="Don't run it. It's late." out="Do not run it. It is late."/>
+  <test in="A caller should wait. It might fail." out="A caller must wait. It can fail."/>
+
+  <test in="The gate is shut; the write fails." out="The gate is shut. The write fails."/>
+  <test in="The gate is shut;" out="The gate is shut."/>
+
+  <test in="The gate is shut, so the write fails." out="The gate is shut. So the write fails."/>
+  <test in="A caller waits, and it might fail." out="A caller waits. And it can fail."/>
+  <test in="Under the gate, the write fails." out="Under the gate, the write fails."/>
+  <test in="The rules cover a semicolon, a modal, and a splice."
+        out="The rules cover a semicolon, a modal, and a splice."/>
+
+  <test in="Write &amp;amp; for it. It's data." out="Write &amp;amp; for it. It is data."/>
+  <test in="Write `a; b` for it. It doesn't run." out="Write `a; b` for it. It does not run."/>
+  <test in="The [it's](https://x/it's) page is not prose."
+        out="The [it is](https://x/it's) page is not prose."/>
+
+  <test in="The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."
+        out="The gate reads every file in the session. And refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."/>
+  <test in="The loader opens the file and reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs."
+        out="The loader opens the file and reads every row it holds into memory. Which is the whole reason a caller waits on it before the header check runs."/>
+  <test in="The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own."
+        out="The gate reads every file in the session. The write fails when any one of them carries a finding that a rewrite cannot repair on its own."/>
+
+  <test in="A short sentence that breaks no rule." out="A short sentence that breaks no rule."/>
+
+</rules>

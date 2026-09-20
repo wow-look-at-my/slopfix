@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  What the numbers table writes for a whole line, as opposed to what a single
+  entry writes for the phrase it names. Every test here belongs to the
+  consumer, so it drives the rewrites, the rephrasings and the patterns
+  together, in the order the repair applies them.
+
+  A test whose out repeats its in names prose the table declines. Those hold
+  the matching inside a word boundary, and dropping one lets a rewrite loose
+  inside a name.
+-->
+<rules for="numbers">
+
+  <test in="sync.Once guards it" out="sync.Once guards it"/>
+  <test in="net/http serves it" out="net/http serves it"/>
+  <test in="it calls Do.Once here" out="it calls Do.Once here"/>
+  <test in="the once flag" out="the a single time flag"/>
+  <test in="The oneShot flag and someone else" out="The oneShot flag and someone else"/>
+
+  <test in="Tests for .github/scripts/register.sh, the step it runs"
+        out="Tests for .github/scripts/register.sh, the step it runs"/>
+  <test in="The suite lives in .dats files" out="The suite lives in .dats files"/>
+  <test in="Ignored by .gitignore already" out="Ignored by .gitignore already"/>
+
+  <test in="exactly one of s or other." out="a single side of s or other."/>
+  <test in="Two goroutines contend" out="Goroutines contend"/>
+
+  <test in="It reserves one slot ." out="It reserves a single slot."/>
+  <test in="It locks , then writes ." out="It locks, then writes."/>
+
+  <test in="It reserves a slot and publishes it" out="It reserves a slot and publishes it"/>
+
+</rules>

@@ -23,7 +23,13 @@ type Table struct {
 	Rewrites []Rewrite `xml:"rewrite"`
 	Patterns []Pattern `xml:"pattern"`
 	Flags    []Flag    `xml:"flag"`
+	Whole    []Case    `xml:"test"`
 }
+
+// Cases is every worked example the table states for itself rather than for a
+// single entry: a line of prose, and what the repair as a whole writes for it.
+// It is where prose reaching several entries, or reaching none, is stated.
+func Cases() []Case { return loaded.Whole }
 
 // Flag is a phrase the table names but does not rewrite, because no single
 // replacement is right. It carries what to write instead.

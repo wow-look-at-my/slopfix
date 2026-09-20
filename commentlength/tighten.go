@@ -107,8 +107,8 @@ func Tighten(text []string) ([]string, int, bool) { return tighten(text) }
 // wrapWidth is the column a reflowed comment wraps at, marker included.
 const wrapWidth = 78
 
-// shorten rewrites one comment sentence. The table and the rewrite itself live
-// in the english package, so every surface reads the same entries.
+// shorten rewrites a single comment sentence. The table and the rewrite itself
+// live in the english package, so every surface reads the same entries.
 func shorten(s string) string { return english.Fix(s, english.Comment) }
 
 // Deslop rewrites a rendered message, applying every entry that names the

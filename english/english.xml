@@ -275,4 +275,22 @@
   <flag phrase="somehow" test="It somehow retries twice"
         say="find the mechanism or say you could not: a shrug helps nobody"/>
 
+  <!--
+    A <test> out here belongs to no entry. It is a line of prose and what the
+    repair as a whole writes for it, which is where prose reaching several
+    entries, or reaching none, is stated.
+
+    The tidy pass closed the gap in front of every period it found, and a
+    period with a word against its right side opens a file name rather than
+    closing a sentence. Comments shipped reading `from the.gitmodules parser`.
+    The gap closes only when the period closes something, which is what the
+    space after it says.
+  -->
+  <test in="It reads from the .gitmodules parser above."
+        out="It reads from the .gitmodules parser above."/>
+  <test in="The walk skips .git and reads .gitmodules instead."
+        out="The walk skips .git and reads .gitmodules instead."/>
+  <test in="It reads the file ." out="It reads the file."/>
+  <test in="It reads the file , and stops." out="It reads the file, and stops."/>
+
 </english>
