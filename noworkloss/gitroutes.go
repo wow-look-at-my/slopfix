@@ -10,21 +10,21 @@ import (
 // hook's way: status, log, diff, add, commit, push, fetch, branch, tag, and
 // creating or switching a branch all leave file content to the edit tools.
 
-// worktreeVerbs put committed content into the tree.
+// worktreeVerbs put content into the tree that no commit holds.
 //
-// merge and pull are deliberately absent: integrating a ref writes only bytes
-// already in a commit. rebase, cherry-pick, am and apply land a tree nothing
-// holds, so they stay.
+// merge, pull and cherry-pick are deliberately absent: each replays a commit,
+// so every byte it writes is already in one, and git refuses all three on a
+// dirty tree rather than writing over the work standing there. am and apply
+// land a patch that exists nowhere else, so they stay.
 var worktreeVerbs = map[string]string{
-	"restore":     "git restore",
-	"stash":       "git stash pop",
-	"revert":      "git revert",
-	"cherry-pick": "git cherry-pick",
-	"rebase":      "git rebase",
-	"am":          "git am",
-	"apply":       "git apply",
-	"checkout":    "git checkout",
-	"reset":       "git reset",
+	"restore":  "git restore",
+	"stash":    "git stash pop",
+	"revert":   "git revert",
+	"rebase":   "git rebase",
+	"am":       "git am",
+	"apply":    "git apply",
+	"checkout": "git checkout",
+	"reset":    "git reset",
 }
 
 // plumbingVerbs write objects, the index or refs directly. `git hash-object -w`

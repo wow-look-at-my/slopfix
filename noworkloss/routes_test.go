@@ -73,7 +73,6 @@ func routeCases() []routeCase {
 		{route: "git restore", deny: "git restore src.txt", allow: "cd {{out}} && git restore src.txt", names: "git restore"},
 		{route: "git stash pop", deny: "git stash pop", allow: "cd {{out}} && git stash pop", names: "git stash pop"},
 		{route: "git revert", deny: "git revert HEAD", allow: "cd {{out}} && git revert HEAD", names: "git revert"},
-		{route: "git cherry-pick", deny: "git cherry-pick abc123", allow: "cd {{out}} && git cherry-pick abc123", names: "git cherry-pick"},
 		{route: "git reset --hard", deny: "git reset --hard origin/master", allow: "cd {{out}} && git reset --hard origin/master", names: "git reset"},
 
 		// The plumbing route, which never touches the worktree at all.
