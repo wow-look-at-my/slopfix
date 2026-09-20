@@ -7,7 +7,10 @@ package commentfix
 import (
 	"strings"
 
+<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/rules"
+=======
+>>>>>>> origin/master
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
@@ -17,13 +20,14 @@ var numbersTable = table.MustLoad(rules.FS, "numbers")
 // Say rewrites a line of comment prose, applying every table entry. It says
 // nothing about what is left: the caller checks that.
 //
-// The rewrites go before the patterns, so a shape reads the text a phrase swap
-// has already settled.
-func Say(prose string) string {
+// The order is rewrites, then shapes, then patterns. A phrase swap settles the
+// idioms earliest.
+func Reword(prose string) string {
 	original := prose
 	for _, r := range numbersTable.Rewrites {
 		prose = replaceWord(prose, r.From, r.To)
 	}
+	prose = table.Rephrasings(numbersTable.Lexicon(), numbersTable.Normals, numbersTable.Rephrasings, prose)
 	for _, p := range numbersTable.Patterns {
 		prose = p.Replace(prose)
 	}

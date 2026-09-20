@@ -29,7 +29,11 @@ jobs:
       - uses: wow-look-at-my/go-toolchain@master
         with:
           # Approves the //go:generate directives; editing one fails the build with the new value.
+<<<<<<< HEAD
           generate: 165003bec91c
+=======
+          generate: 8015b34dab00
+>>>>>>> origin/master
 
       # The binary this run built, not the last one released, so a new rule gates this repository before it ships.
       - run: ./build/slopfix workflows .
