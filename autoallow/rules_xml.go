@@ -62,6 +62,7 @@ type xmlCommand struct {
 	RequiredFlags      *xmlFlagList    `xml:"requiredFlags"`
 	FlagsWithValue     *xmlFlagList    `xml:"flagsWithValue"`
 	DenyArgSubstrings  *xmlStringList  `xml:"denyArgSubstrings"`
+	RefuseArgs         *xmlRefuseArgs  `xml:"refuseArgSubstrings"`
 	AllowedArgPrefixes *xmlStringList  `xml:"allowedArgPrefixes"`
 	RequireFlagValue   *xmlRequireFlag `xml:"requireFlagValue"`
 	Subcommands        []xmlCommand    `xml:"rule"`
@@ -77,6 +78,14 @@ type xmlFlag struct {
 
 type xmlStringList struct {
 	Values []string `xml:"value"`
+}
+
+// xmlRefuseArgs denies a command whose argument text carries one of the
+// substrings. denyArgSubstrings above only unmatches the rule, which leaves the
+// command to be asked about; this refuses it.
+type xmlRefuseArgs struct {
+	Message string   `xml:"message,attr"`
+	Values  []string `xml:"value"`
 }
 
 type xmlRequireFlag struct {
@@ -184,6 +193,11 @@ func convertXMLCommand(xc xmlCommand) CommandNode {
 
 	if xc.DenyArgSubstrings != nil {
 		node.DenyArgSubstrings = xc.DenyArgSubstrings.Values
+	}
+
+	if xc.RefuseArgs != nil {
+		node.RefuseArgSubstrings = xc.RefuseArgs.Values
+		node.RefuseArgMessage = xc.RefuseArgs.Message
 	}
 
 	if xc.AllowedArgPrefixes != nil {
