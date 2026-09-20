@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // The guard reads word classes, so a table that stopped declaring them would
@@ -23,14 +24,14 @@ func TestTheTableDeclaresItsWordClasses(t *testing.T) {
 
 // A subject position that no pattern claims is a guard nothing runs.
 func TestAPatternClaimsEachSubjectPosition(t *testing.T) {
-	claimed := map[string]bool{}
+	claimed := set.New[string]()
 	for _, p := range Patterns() {
 		if p.Subject != "" {
-			claimed[p.Subject] = true
+			claimed.Add(p.Subject)
 		}
 	}
 	for _, position := range SubjectPositions() {
-		assert.True(t, claimed[position], "no <pattern> declares subject=%q", position)
+		assert.True(t, claimed.Contains(position), "no <pattern> declares subject=%q", position)
 	}
 }
 
