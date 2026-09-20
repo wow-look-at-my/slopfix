@@ -8,6 +8,7 @@ require (
 	github.com/wow-look-at-my/go-containers v0.0.0 // go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-regex-compiler v0.0.0 // go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-tree-sitter v0.0.0 // go-toolchain:auto-branch; go-toolchain:generate=a0022f830ef0
+	github.com/wow-look-at-my/xml-validator/reader v0.0.0 // go-toolchain:auto-branch
 )
 
 // rulegen runs this to compile every <pattern> in rules/ into Go. The module is

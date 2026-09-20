@@ -103,15 +103,16 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "There are rules below.", edits[2].(map[string]any)["new_string"])
 }
 
-// A finding no rewrite resolves refuses the write. A trailing comment shares
-// its line with code, so deleting the line takes the code too.
-func TestAFindingNoRewriteResolvesRefusesTheWrite(t *testing.T) {
+// A finding no rewrite resolves is named, and the write still lands. A
+// trailing comment shares its line with code, so deleting the line takes the
+// code too, which is why nothing here rewrites it.
+func TestAFindingNoRewriteResolvesStillLetsTheWriteThrough(t *testing.T) {
 	src := "func x() {} // The owner said to keep this.\n"
 	got := ask(t, write("a.go", src), "tombstones")
 
 	require.NotNil(t, got.out)
-	assert.Equal(t, "deny", got.out["permissionDecision"])
-	assert.Contains(t, got.out["permissionDecisionReason"], "quoted instruction")
+	assert.NotContains(t, got.body, "permissionDecision")
+	assert.Contains(t, got.out["additionalContext"], "quoted instruction")
 	assert.NotContains(t, got.body, "updatedInput")
 }
 

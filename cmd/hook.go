@@ -24,7 +24,8 @@ func init() {
 		Short: "Repair a Claude Code write, reading its PreToolUse payload on stdin",
 		Long: "hook reads a PreToolUse payload on stdin and writes the hook's own\n" +
 			"response on stdout. It repairs the text a write adds and lets the write\n" +
-			"through, and refuses only what no rewrite can repair.\n\n" +
+			"through. It never refuses one: what no rewrite repairs is named in the\n" +
+			"context the model reads, and the write still lands.\n\n" +
 			"Every plugin that guards a write is then its manifest and nothing else.\n" +
 			"Each carried its own copy of this: the same payload parse, the same three\n" +
 			"write shapes, the same splice back. A write shape added to one and not\n" +
@@ -62,16 +63,13 @@ type writeInput struct {
 	} `json:"edits"`
 }
 
-// hookResponse covers a refusal, which sets the permission fields, and a
-// repair, which sets the input and the notice. Allowing an untouched write
-// prints nothing at all.
+// hookResponse carries a repaired payload, a notice, or both. Allowing an
+// untouched write prints nothing at all.
 type hookResponse struct {
 	HookSpecificOutput struct {
-		HookEventName            string         `json:"hookEventName"`
-		PermissionDecision       string         `json:"permissionDecision,omitempty"`
-		PermissionDecisionReason string         `json:"permissionDecisionReason,omitempty"`
-		UpdatedInput             map[string]any `json:"updatedInput,omitempty"`
-		AdditionalContext        string         `json:"additionalContext,omitempty"`
+		HookEventName     string         `json:"hookEventName"`
+		UpdatedInput      map[string]any `json:"updatedInput,omitempty"`
+		AdditionalContext string         `json:"additionalContext,omitempty"`
 	} `json:"hookSpecificOutput"`
 }
 
@@ -169,19 +167,15 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		}
 	}
 
-	switch {
-	case len(kept) > 0 || len(findings) > 0:
-		return respond(func(r *hookResponse) {
-			r.HookSpecificOutput.PermissionDecision = "deny"
-			r.HookSpecificOutput.PermissionDecisionReason = refusal(kept, findings)
-		})
-	case changed:
-		return respond(func(r *hookResponse) {
-			r.HookSpecificOutput.UpdatedInput = raw
-			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed)
-		})
+	if !changed && len(kept) == 0 && len(findings) == 0 {
+		return ""
 	}
-	return ""
+	return respond(func(r *hookResponse) {
+		if changed {
+			r.HookSpecificOutput.UpdatedInput = raw
+		}
+		r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed, kept, findings)
+	})
 }
 
 func respond(fill func(*hookResponse)) string {
@@ -198,28 +192,30 @@ func respond(fill func(*hookResponse)) string {
 // reportCap bounds what a message carries: a refusal nobody reads stops nothing.
 const reportCap = 6
 
-// notice is what the model is told after the fact. The write went through, so
-// it names what was cut rather than asking for a retry.
-func notice(path string, removed []string) string {
+// notice is what the model is told after the fact. The write went through
+// either way, so it names what was cut and what was left rather than asking
+// for a retry.
+func notice(path string, removed []string, kept []tombstones.Hit, findings []string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "slopfix repaired this write to %s. It removed:\n", path)
-	for _, line := range capped(removed) {
-		fmt.Fprintf(&b, "  %q\n", strings.TrimSpace(line))
+	if len(removed) > 0 {
+		fmt.Fprintf(&b, "slopfix repaired this write to %s. It removed:\n", path)
+		for _, line := range capped(removed) {
+			fmt.Fprintf(&b, "  %q\n", strings.TrimSpace(line))
+		}
+		b.WriteString("\nThe text that was written no longer carries them. Read the sentence back and make it read naturally.\n")
 	}
-	b.WriteString("\nThe text that was written no longer carries them. Read the sentence back and make it read naturally.")
-	return b.String()
-}
-
-// refusal names each finding no rewrite resolved, and the line it sits on.
-func refusal(kept []tombstones.Hit, findings []string) string {
-	var b strings.Builder
-	b.WriteString("blocked: this write carries what no rewrite can repair.\n")
-	for _, hit := range capped(hitLines(kept)) {
-		b.WriteString("  " + hit + "\n")
+	rest := append(hitLines(kept), findings...)
+	if len(rest) == 0 {
+		return b.String()
 	}
-	for _, f := range capped(findings) {
-		b.WriteString("  " + f + "\n")
+	if b.Len() > 0 {
+		b.WriteString("\n")
 	}
+	fmt.Fprintf(&b, "slopfix left these in %s, because no rewrite repairs them:\n", path)
+	for _, line := range capped(rest) {
+		b.WriteString("  " + line + "\n")
+	}
+	b.WriteString("\nThe write went through as it stands. Reword them in a follow-up edit.")
 	return b.String()
 }
 
