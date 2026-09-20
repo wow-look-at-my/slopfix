@@ -102,21 +102,34 @@ func TestCountsAreReported(t *testing.T) {
 	assert.Equal(t, "a stated count goes stale when the set changes", findings[0].Rule)
 }
 
-// Arithmetic and measurement are not counts of items. Neither goes stale when
-// somebody adds a field.
-func TestCountsLeaveArithmeticAndUnitsAlone(t *testing.T) {
+// Arithmetic is not a count of items. A range and an expression name no set,
+// so neither goes stale when somebody adds a field.
+func TestCountsLeaveArithmeticAlone(t *testing.T) {
 	cases := map[string]string{
-		"range":       "The exit code range is 0-255 and nothing outside it.",
-		"expression":  "A chain of N commands carries N-1 operators.",
-		"a size":      "The budget is 40000 characters per file.",
-		"a duration":  "The wait ends after 30 seconds.",
-		"the word so": "The rule holds for one line, and for two lines as well.",
+		"range":      "The exit code range is 0-255 and nothing outside it.",
+		"expression": "A chain of N commands carries N-1 operators.",
 	}
 	for name, text := range cases {
 		t.Run(name, func(t *testing.T) {
 			for _, finding := range Check(text, 1) {
 				assert.NotContains(t, finding.Rule, "stated count", text)
 			}
+		})
+	}
+}
+
+// A measurement is a stated value the same as a tally is. A size and a duration
+// are true today and nothing corrects either when the code around them moves.
+func TestCountsReadAMeasurement(t *testing.T) {
+	cases := map[string]string{
+		"a size":     "The budget is 40000 characters per file.",
+		"a duration": "The wait ends after 30 seconds.",
+	}
+	for name, text := range cases {
+		t.Run(name, func(t *testing.T) {
+			findings := Check(text, 1)
+			require.NotEmpty(t, findings, text)
+			assert.Equal(t, "a stated count goes stale when the set changes", findings[0].Rule)
 		})
 	}
 }

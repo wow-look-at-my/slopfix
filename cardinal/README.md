@@ -14,11 +14,11 @@ A `Substrate` says how much a piece of text has to claim before a number in it c
 | Shape | quantity | quantity | number |
 | Frame required | yes | no | no |
 | Vocabulary | two upward, plus a dozen | two to twelve | cardinals, ordinals, scales, repeat counts |
-| Exemptions | function-word gap, a longer number | unit, arithmetic | status code, section sign, currency sign |
+| Exemptions | function-word gap, a longer number | arithmetic | status code, section sign, currency sign |
 
 Prose requires a frame because a document legitimately carries numbers that count nothing: a version, a port, an example. The frame is a sentence claiming the things belong here, spelled as a possessive, a having verb, or a pointer into the page.
 
-The gate reads the same document and asks for no frame. It pays for that with a list of units, so a size and a duration are measured rather than counted. That is why `The read has 20 seconds.` is a finding for `Prose` and exempt for `Gate`. The two disagree on purpose. Folding the disagreement away moves verdicts on every repository the gate reads.
+The gate reads the same document and asks for no frame, so a bare quantity anywhere in the line is a finding. No noun buys an exemption: a duration or a size states what is true today and nothing corrects it when either moves, so `The read has 20 seconds.` is a finding for the gate as much as `The read has 20 plugins.` is. The frame is the whole of what parts the two document substrates.
 
 A comment requires no frame either, because a number written beside code is nearly always a count of what the code holds. The exemptions carry what such a number can be instead. The token's own shape carries the rest. A URL is never a count. A qualified name names itself.
 
