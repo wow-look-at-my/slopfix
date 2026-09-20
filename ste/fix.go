@@ -107,8 +107,8 @@ func fixSplices(prose string) string {
 }
 
 // The seams a division can take, strongest earliest. Each is a place the
-// sentence already divides in the reader's head, and the last is a bare gap
-// between words, which divides nothing and still brings the sentence under the cap.
+// sentence already divides in the reader's head: a conjunction, or the comma
+// before one. A sentence carrying none of them is left at its length.
 //
 // The coordinator puts the conjunction inside the group, because the clause
 // after it already opens a sentence. Every weaker seam leaves the conjunction
@@ -122,10 +122,6 @@ var (
 		`rather|instead|except)\s`)
 	// bareSeam matches the same conjunctions carrying no comma.
 	bareSeam = regexp.MustCompile(`(\s+)(?:and|but|so|or|yet|then|because|since|which|while)\s`)
-	// anyComma divides at a comma whatever follows it.
-	anyComma = regexp.MustCompile(`(,\s+)`)
-	// anySpace is the last resort, and the reason no sentence escapes the cap.
-	anySpace = regexp.MustCompile(`(\s+)`)
 )
 
 // opensASubject holds the words an independent clause starts its subject with.
@@ -191,16 +187,28 @@ func nextDivision(prose string) ([]int, bool) {
 
 // divide picks where to cut a sentence, taking the best seam kind that has a
 // usable place in it.
+//
+// A sentence offering no such place keeps its length and is reported: a cut
+// anywhere else writes a fragment, which is a worse document than a long
+// sentence. Cutting at any space wrote "the ID names an. Existing entry" into a
+// checked-in file.
 func divide(masked string, off [][]int, start, end int) ([]int, bool) {
-	if cut, ok := nearestMiddle(masked, off, start, end, coordinator, carriesItsOwnSubject); ok {
-		return cut, true
-	}
-	for _, seam := range []*regexp.Regexp{clauseSeam, bareSeam, anyComma, anySpace} {
-		if cut, ok := nearestMiddle(masked, off, start, end, seam, nil); ok {
+	for _, seam := range []*regexp.Regexp{coordinator, clauseSeam, bareSeam} {
+		if cut, ok := nearestMiddle(masked, off, start, end, seam, carriesItsOwnSubject); ok {
+			if serialList(masked[start:cut[0]]) {
+				continue
+			}
 			return cut, true
 		}
 	}
 	return nil, false
+}
+
+// serialList reports whether the half before a seam is a list of items. The
+// last "and" of "the helpers, the backends and the daemon" joins nouns
+// rather than clauses, and a cut there leaves the verb behind.
+func serialList(head string) bool {
+	return strings.Contains(head, ",")
 }
 
 // nearestMiddle answers the usable seam closest to the sentence's middle, which
