@@ -13,7 +13,6 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
-	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -87,7 +86,7 @@ func commentFindings(path, content string) []ste.Finding {
 			Fix:    "Say it in words, or let the reader count. `slopfix fix` does this.",
 		})
 	}
-	for _, hit := range commentlength.Check(path, content) {
+	for _, hit := range commentfix.CheckLength(path, content) {
 		fix := "Cut the comment back inside the code it documents. Drop the trailing paragraph first."
 		if !hit.Repairable {
 			fix = "Shorten the opening sentence, or say less."
@@ -126,7 +125,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs)
-	ids.AddRange(IDHardWrap, commentlength.ID, commentfix.ID)
+	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID)
 	return ids
 }
 

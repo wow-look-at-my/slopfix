@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
 func init() {
@@ -30,7 +30,7 @@ func runCommentLength(cmd *cobra.Command, args []string) error {
 	}
 	found := false
 	for _, arg := range args {
-		paths, err := commentTargets(arg, commentlength.Parsed)
+		paths, err := commentTargets(arg, commentfix.Parsed)
 		if err != nil {
 			return err
 		}
@@ -59,12 +59,12 @@ func lengthOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	hits := commentlength.Check(path, string(src))
+	hits := commentfix.CheckLength(path, string(src))
 	if len(hits) == 0 {
 		return false, nil
 	}
 	if repair {
-		out, changed := commentlength.Fix(path, string(src))
+		out, changed := commentfix.FixLength(path, string(src))
 		if changed {
 			if err := os.WriteFile(path, []byte(out), info.Mode().Perm()); err != nil {
 				return false, err
@@ -72,7 +72,7 @@ func lengthOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 			fmt.Fprintf(cmd.OutOrStdout(), "%s: repaired\n", path)
 		}
 		// A block the repair cannot shorten is still a finding.
-		return len(commentlength.Check(path, out)) > 0, nil
+		return len(commentfix.CheckLength(path, out)) > 0, nil
 	}
 	for _, hit := range hits {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s:%d: %s: %s\n", path, hit.Line, hit.Tell, hit.Sentence)

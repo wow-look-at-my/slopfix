@@ -6,7 +6,6 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
-	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -48,7 +47,7 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleSTE:
 		return ste.AllIDs
 	case RuleComments:
-		return set.Of(commentlength.ID, commentfix.ID)
+		return set.Of(commentfix.IDLength, commentfix.ID)
 	case RuleWorkflow:
 		return workflow.AllIDs
 	}
@@ -133,13 +132,13 @@ func Fix(req Request) Repair {
 		}
 	}
 
-	lengths := wants(RuleComments) && keeps(commentlength.ID) && req.Path != ""
+	lengths := wants(RuleComments) && keeps(commentfix.IDLength) && req.Path != ""
 	cutLong := false
 	cutComments := func() {
 		if !lengths {
 			return
 		}
-		if cut, changed := commentlength.Fix(req.Path, text); changed {
+		if cut, changed := commentfix.FixLength(req.Path, text); changed {
 			text, cutLong = cut, true
 		}
 	}
@@ -167,7 +166,7 @@ func Fix(req Request) Repair {
 		repair.Removed = append(repair.Removed, "trailing comment prose")
 	}
 	if lengths {
-		for _, hit := range commentlength.Check(req.Path, text) {
+		for _, hit := range commentfix.CheckLength(req.Path, text) {
 			repair.Kept = append(repair.Kept, tombstones.Hit{
 				ID:     hit.ID,
 				Tell:   hit.Tell,

@@ -1,4 +1,4 @@
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -20,9 +20,9 @@ func TestALongCommentOverAShortDeclarationIsFound(t *testing.T) {
 		`const base = "https://example.invalid"`,
 	}, "\n")
 
-	hits := Check("x.go", src)
+	hits := CheckLength("x.go", src)
 	require.Len(t, hits, 1)
-	assert.Equal(t, ID, hits[0].ID)
+	assert.Equal(t, IDLength, hits[0].IDLength)
 	assert.Equal(t, 3, hits[0].Line)
 	assert.Contains(t, hits[0].Tell, "longer than the code")
 	assert.True(t, hits[0].Repairable)
@@ -41,14 +41,14 @@ func TestAProportionateCommentIsClean(t *testing.T) {
 		"\tmux.Handle(\"/metrics\", metrics())",
 		"}",
 	}, "\n")
-	assert.Empty(t, Check("x.go", src))
+	assert.Empty(t, CheckLength("x.go", src))
 }
 
 // A short note over a short line must never be a finding, whatever the ratio.
 // Without the floor every useful sentence in the tree becomes a finding.
 func TestAShortCommentIsAlwaysAllowed(t *testing.T) {
 	src := "package p\n\n// The port.\nconst p = 1\n"
-	assert.Empty(t, Check("x.go", src))
+	assert.Empty(t, CheckLength("x.go", src))
 }
 
 // The rule reads the source adapter, so it spans every language that adapter
@@ -77,7 +77,7 @@ func TestTheRuleSpansLanguages(t *testing.T) {
 		"bash": {"x.sh", strings.Join(append(hash, "n=1"), "\n")},
 	} {
 		t.Run(name, func(t *testing.T) {
-			assert.NotEmpty(t, Check(tc.file, tc.src), "no finding for %s", tc.file)
+			assert.NotEmpty(t, CheckLength(tc.file, tc.src), "no finding for %s", tc.file)
 		})
 	}
 }
@@ -99,11 +99,11 @@ func TestEveryParsedLanguageRepairs(t *testing.T) {
 		"n=1",
 	}, "\n")
 
-	hits := Check("x.sh", src)
+	hits := CheckLength("x.sh", src)
 	require.NotEmpty(t, hits)
 	assert.True(t, hits[0].Repairable, "a tree span is exact, so it repairs")
 
-	out, changed := Fix("x.sh", src)
+	out, changed := FixLength("x.sh", src)
 	assert.True(t, changed, "bash repairs now")
 	assert.NotEqual(t, src, out)
 	assert.Contains(t, out, "n=1", "the fix cuts comment lines, never code")
@@ -119,19 +119,19 @@ func TestAnUnparsedLanguageIsSkipped(t *testing.T) {
 	}, "\n")
 
 	assert.False(t, Parsed("x.lua"))
-	assert.Empty(t, Check("x.lua", src))
+	assert.Empty(t, CheckLength("x.lua", src))
 }
 
 // A language the adapter does not spell is skipped rather than guessed at.
 func TestAnUnknownLanguageIsSkipped(t *testing.T) {
-	assert.Empty(t, Check("x.unknownext", "// a very long comment about nothing at all whatsoever\nvalue"))
+	assert.Empty(t, CheckLength("x.unknownext", "// a very long comment about nothing at all whatsoever\nvalue"))
 }
 
 // A trailing comment on a code line documents nothing of its own, so it is
 // never measured against the statement beside it.
 func TestATrailingCommentIsNotABlock(t *testing.T) {
 	src := "package p\n\nconst p = 1 // the port this listens on, chosen years ago for reasons nobody wrote down anywhere\n"
-	assert.Empty(t, Check("x.go", src))
+	assert.Empty(t, CheckLength("x.go", src))
 }
 
 // The repair cuts from the end, and the opening sentence survives.
@@ -147,19 +147,19 @@ func TestFixCutsTheTrailingProse(t *testing.T) {
 		`const base = "https://example.invalid"`,
 	}, "\n")
 
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
 	assert.Contains(t, out, "Never derive this: the server owns the URL grammar.")
 	assert.NotContains(t, out, "legacy spelling")
 	assert.Contains(t, out, `const base = "https://example.invalid"`)
-	assert.Empty(t, Check("x.go", out), "the repaired file is clean")
+	assert.Empty(t, CheckLength("x.go", out), "the repaired file is clean")
 }
 
 // A file with nothing to repair comes back byte-identical, so a formatter run
 // over a clean tree is a no-op.
 func TestFixLeavesACleanFileAlone(t *testing.T) {
 	src := "package p\n\n// The port.\nconst p = 1\n"
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	assert.False(t, changed)
 	assert.Equal(t, src, out)
 }
@@ -171,20 +171,20 @@ func TestASingleOpeningSentenceTooLongToFitIsStillRepaired(t *testing.T) {
 	long := "// " + strings.Repeat("a very long single opening sentence that will not fit ", 6)
 	src := "package p\n\n" + long + "\nconst p = 1\n"
 
-	hits := Check("x.go", src)
+	hits := CheckLength("x.go", src)
 	require.Len(t, hits, 1)
 	assert.True(t, hits[0].Repairable, "the force fit reaches a block no sentence cut can")
 
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	assert.True(t, changed)
-	assert.Empty(t, Check("x.go", out))
+	assert.Empty(t, CheckLength("x.go", out))
 }
 
 // A comment marker inside a string is data, and the adapter is what keeps it
 // out of the walk.
 func TestAMarkerInsideAStringIsNotAComment(t *testing.T) {
 	src := "package p\n\nconst u = \"https://example.invalid // not a comment at all, just a URL with slashes\"\n"
-	assert.Empty(t, Check("x.go", src))
+	assert.Empty(t, CheckLength("x.go", src))
 }
 
 // Fixing back to front keeps an earlier block's line numbers valid, so several
@@ -193,9 +193,9 @@ func TestSeveralBlocksInAFileAllRepair(t *testing.T) {
 	essay := "// The point.\n//\n// Then a paragraph of elaboration that runs well past the length of the\n// declaration it sits above, several lines of it, saying little.\n"
 	src := "package p\n\n" + essay + "const a = 1\n\n" + essay + "const b = 2\n"
 
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
-	assert.Empty(t, Check("x.go", out))
+	assert.Empty(t, CheckLength("x.go", out))
 	assert.Contains(t, out, "const a = 1")
 	assert.Contains(t, out, "const b = 2")
 	assert.Equal(t, 2, strings.Count(out, "// The point."))

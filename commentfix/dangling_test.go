@@ -1,4 +1,4 @@
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -24,11 +24,11 @@ func TestARepairCutsAtASentenceEndInsideALine(t *testing.T) {
 		"const p = 1",
 	}, "\n")
 
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
 	assert.Contains(t, out, "The grammar declares a token this scanner never produces.")
 	assert.NotContains(t, out, "The blank")
-	assert.Empty(t, Check("x.go", out))
+	assert.Empty(t, CheckLength("x.go", out))
 }
 
 // A block that holds an earlier ending is repaired at that ending, which is the
@@ -43,9 +43,9 @@ func TestABlockWithAnEarlierEndingIsRepairedThere(t *testing.T) {
 		"const p = 1",
 	}, "\n")
 
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
 	assert.Contains(t, out, "The bound every caller shares.")
 	assert.NotContains(t, out, "took a week")
-	assert.Empty(t, Check("x.go", out))
+	assert.Empty(t, CheckLength("x.go", out))
 }

@@ -3,20 +3,20 @@
 // The measuring is in treeblocks.go, off a real syntax tree. What is left here
 // is what comes before a parse: does a grammar cover this file, and did a
 // generator write it.
-package commentlength
+package commentfix
 
 import (
 	"regexp"
 	"strings"
 )
 
-// generatedMarker is the canonical generated-file header. commentspan skips a
-var generatedMarker = regexp.MustCompile(`^\s*(?://+|#+)\s*Code generated .* DO NOT EDIT\.$`)
+// generatedLine is the canonical generated-file header. commentspan skips a
+var generatedLine = regexp.MustCompile(`^\s*(?://+|#+)\s*Code generated .* DO NOT EDIT\.$`)
 
-// isGenerated reports the marker in the file's header, above any code.
+// isGeneratedLines reports the marker in the file's header, above any code.
 // commentspan looks for it above the package clause, which is that region for a
 // Go file.
-func isGenerated(lines []string) bool {
+func isGeneratedLines(lines []string) bool {
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
@@ -25,7 +25,7 @@ func isGenerated(lines []string) bool {
 		if !startsComment(trimmed) {
 			return false
 		}
-		if generatedMarker.MatchString(line) {
+		if generatedLine.MatchString(line) {
 			return true
 		}
 	}
@@ -39,7 +39,7 @@ func blocks(filename, src string) []block {
 	if language == nil {
 		return nil
 	}
-	if isGenerated(splitLines(src)) {
+	if isGeneratedLines(splitLines(src)) {
 		return nil
 	}
 	parsed, ok := treeBlocks(language, src)

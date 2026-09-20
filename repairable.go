@@ -3,7 +3,6 @@ package slopfix
 import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
-	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
@@ -22,7 +21,7 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	ste.IDStaleCount,
 	IDInventoryCount,
 	// The comment rules: a block fits its code, a number is said in words.
-	commentlength.ID,
+	commentfix.IDLength,
 	commentfix.ID,
 	// The workflow rules: the gate, the comment block, the shadowing job name.
 	workflow.IDNeuteredGate,

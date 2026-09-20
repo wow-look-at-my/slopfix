@@ -4,7 +4,7 @@
 // comments are not over-long by a thought, they are padded by words that carry
 // nothing, and reflowed they fit. So the repair tries this before cutting, and
 // cuts only what tightening cannot save.
-package commentlength
+package commentfix
 
 import (
 	"strings"

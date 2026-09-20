@@ -1,4 +1,4 @@
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -20,15 +20,15 @@ func TestTighteningNeverWeldsTwoWordsTogether(t *testing.T) {
 		"The walk skips .git , .gitmodules and .gitignore alike.",
 	} {
 		t.Run(in, func(t *testing.T) {
-			assert.Empty(t, welded(in, shorten(in)))
-			assert.Empty(t, welded(in, Deslop(in)))
+			assert.Empty(t, weldedPastMarks(in, shorten(in)))
+			assert.Empty(t, weldedPastMarks(in, Deslop(in)))
 		})
 	}
 }
 
-// welded names an output word made of the input carried side by side, and is
+// weldedPastMarks names an output word made of the input carried side by side, and is
 // empty when the tidy pass kept them apart.
-func welded(in, out string) string {
+func weldedPastMarks(in, out string) string {
 	have := set.Of(strings.Fields(in)...)
 	for _, word := range strings.Fields(out) {
 		if have.Contains(word) {

@@ -9,7 +9,7 @@
 // Nothing here names a language. A comment is a node whose type carries
 // "comment", which is how every grammar spells it, and the documented construct
 // is the next named sibling. Both facts come from the tree.
-package commentlength
+package commentfix
 
 import (
 	"strings"

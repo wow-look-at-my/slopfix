@@ -1,4 +1,4 @@
-// Package commentlength finds a comment longer than the code it documents.
+// commentlength.go finds a comment longer than the code it documents.
 //
 // A comment earns its place by stopping the next mistake. A comment that runs
 // longer than the code becomes an essay, and the reader pays for it on every
@@ -13,7 +13,7 @@
 // elaborates afterwards, so the trailing paragraph is what a reader loses least
 // by losing. The opening sentence is never cut: a block trimmed to nothing is a
 // worse edit than a block left long.
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -22,16 +22,16 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// ID names this rule, on a report and on the command line alike.
-const ID = "comments/length"
+// IDLength names this rule, on a report and on the command line alike.
+const IDLength = "comments/length"
 
 // floorChars is the size a comment may always be, whatever it documents.
 const floorChars = 120
 
-// Hit is a comment block that outweighs its code.
-type Hit struct {
-	// ID names the rule, the way a compiler names a warning.
-	ID string `json:"id"`
+// LengthHit is a comment block that outweighs its code.
+type LengthHit struct {
+	// IDLength names the rule, the way a compiler names a warning.
+	IDLength string `json:"id"`
 	// Tell says in words which measure was exceeded.
 	Tell string `json:"tell"`
 	// Sentence quotes the comment's opening, so a report is recognisable.
@@ -55,15 +55,15 @@ type block struct {
 }
 
 // Check reports every comment block in src that outweighs its code.
-func Check(filename, src string) []Hit {
-	var hits []Hit
+func CheckLength(filename, src string) []LengthHit {
+	var hits []LengthHit
 	for _, b := range blocks(filename, src) {
 		tell, over := judge(b)
 		if !over {
 			continue
 		}
-		hits = append(hits, Hit{
-			ID:         ID,
+		hits = append(hits, LengthHit{
+			IDLength:         IDLength,
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
@@ -75,7 +75,7 @@ func Check(filename, src string) []Hit {
 
 // Fix cuts every over-long comment block back inside its budget, from the end,
 // stopping before the opening sentence.
-func Fix(filename, src string) (string, bool) {
+func FixLength(filename, src string) (string, bool) {
 	bs := blocks(filename, src)
 	if len(bs) == 0 {
 		return src, false
@@ -140,7 +140,7 @@ func judge(b block) (string, bool) {
 func measure(text []string) (lines, chars int) {
 	for _, line := range text {
 		// A line carrying only its marker holds no words.
-		if bareMarker(line) {
+		if bareMarkerLine(line) {
 			continue
 		}
 		content := false
@@ -158,8 +158,8 @@ func measure(text []string) (lines, chars int) {
 	return lines, chars
 }
 
-// bareMarker reports a comment line holding a marker and nothing else.
-func bareMarker(line string) bool {
+// bareMarkerLine reports a comment line holding a marker and nothing else.
+func bareMarkerLine(line string) bool {
 	switch strings.TrimSpace(line) {
 	case "//", "///", "#", "*", "/*", "*/":
 		return true
@@ -201,7 +201,7 @@ func splitDirectives(text []string) (lead, body, trail []string) {
 	seen := false
 	for _, line := range text {
 		switch {
-		case !isDirective(line):
+		case !isDirectiveLine(line):
 			seen = true
 			body = append(body, line)
 		case seen:
@@ -218,7 +218,7 @@ func splitDirectives(text []string) (lead, body, trail []string) {
 func directivesOf(text []string) []string {
 	kept := make([]string, 0, len(text))
 	for _, line := range text {
-		if isDirective(line) {
+		if isDirectiveLine(line) {
 			kept = append(kept, line)
 		}
 	}
@@ -230,7 +230,7 @@ func directivesOf(text []string) []string {
 func prose(text []string) []string {
 	kept := make([]string, 0, len(text))
 	for _, line := range text {
-		if isDirective(line) {
+		if isDirectiveLine(line) {
 			continue
 		}
 		kept = append(kept, line)
@@ -238,10 +238,10 @@ func prose(text []string) []string {
 	return kept
 }
 
-// isDirective reports a line a tool reads rather than a reader. The C family
+// isDirectiveLine reports a line a tool reads rather than a reader. The C family
 // spells it with no space after the marker, and the hash family carries the
 // interpreter line and the linter pragma.
-func isDirective(line string) bool {
+func isDirectiveLine(line string) bool {
 	t := strings.TrimSpace(line)
 	for _, marker := range []string{"//", "#"} {
 		rest, found := strings.CutPrefix(t, marker)

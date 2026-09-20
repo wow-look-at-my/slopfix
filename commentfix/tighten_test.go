@@ -1,4 +1,4 @@
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -26,7 +26,7 @@ func TestAPaddedCommentIsTightenedRatherThanCut(t *testing.T) {
 		"}",
 	}, "\n")
 
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
 
 	// The thought survives whole: the cut would have taken the binding clause.
@@ -36,7 +36,7 @@ func TestAPaddedCommentIsTightenedRatherThanCut(t *testing.T) {
 		assert.NotContains(t, out, word, "filler survived")
 	}
 	assert.Contains(t, out, "return serve(ln)", "the code is untouched")
-	assert.Empty(t, Check("x.go", out), "the tightened comment fits")
+	assert.Empty(t, CheckLength("x.go", out), "the tightened comment fits")
 }
 
 // Reflow must not break a word that stops meaning anything when split.
@@ -70,7 +70,7 @@ func TestAMixedBlockIsNotTightened(t *testing.T) {
 // the tightening pass, so a clean file stays byte-identical.
 func TestACleanCommentIsNotRewritten(t *testing.T) {
 	src := "package p\n\n// The port.\nconst p = 1\n"
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	assert.False(t, changed)
 	assert.Equal(t, src, out)
 }

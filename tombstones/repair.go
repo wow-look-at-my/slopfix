@@ -5,7 +5,7 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/commentlength"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/english"
 )
 
@@ -37,7 +37,7 @@ func rewriteComments(added string, blocks []Block) (string, int) {
 		if !ok {
 			continue
 		}
-		short, took, rewrote := commentlength.Tighten(lines[from : to+1])
+		short, took, rewrote := commentfix.Tighten(lines[from : to+1])
 		if !rewrote {
 			continue
 		}
@@ -148,7 +148,7 @@ func reflowStripped(path, text string, losing set.Set[int], was int) string {
 		if !ok {
 			continue
 		}
-		short, _, rewrapped := commentlength.Tighten(lines[from : to+1])
+		short, _, rewrapped := commentfix.Tighten(lines[from : to+1])
 		if !rewrapped {
 			continue
 		}
