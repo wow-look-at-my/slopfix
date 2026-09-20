@@ -5,7 +5,7 @@
   An em dash joining two clauses is a chat habit. In a comment the prose rules
   already catch it as a comma splice, and rewriting it here would fight them.
 -->
-<rules for="english">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="english">
 
   <rewrite id="and" from="— and" to="," where="message">
     <test in="Yes — and there is precedent"/>

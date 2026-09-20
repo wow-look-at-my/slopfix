@@ -7,7 +7,7 @@
   matching "one" alone would otherwise take the word out of the middle of one
   of them and leave a phrase that means nothing.
 -->
-<rules for="numbers">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
 
   <rewrite id="first-in-first-out" from="first-in-first-out" to="FIFO">
     <test in="A first-in-first-out queue" out="A FIFO queue"/>

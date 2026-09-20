@@ -4,7 +4,7 @@
   some context does not belong here at all: a wrong deletion is worse than a
   comment left long, because nobody reviews what a repair applied.
 -->
-<rules for="english">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="english">
 
   <drop id="actually" word="actually">
     <test in="It actually fails"/>

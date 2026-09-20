@@ -4,7 +4,7 @@
   every context the phrase appears in, which is what lets a repair apply it
   with nobody reviewing the result.
 -->
-<rules for="english">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="english">
 
   <rewrite id="in-order-to" from="in order to" to="to">
     <test in="Runs in order to bind"/>

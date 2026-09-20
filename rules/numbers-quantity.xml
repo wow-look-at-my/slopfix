@@ -6,7 +6,7 @@
   The phrase entries go before the two shapes at the foot of the file. A bare
   cardinal rule reads "one or more" as an article and writes "an or more".
 -->
-<rules for="numbers">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
 
   <rewrite id="either-one" from="either one" to="either">
     <test in="It cannot fix either one" out="It cannot fix either"/>

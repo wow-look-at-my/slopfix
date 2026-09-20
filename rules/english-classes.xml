@@ -10,7 +10,7 @@
   This file sorts ahead of every other, so its classes are indexed before the
   shapes that read them.
 -->
-<rules for="numbers">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
 
   <!-- An article fills the slot "a single" needs. A shape that writes an
        article where one of these already stands spells "the a single". -->
