@@ -7,6 +7,7 @@ package commentfix
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
 )
 

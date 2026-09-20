@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/slopfix/rules"
 )
 
 // What the table writes for a whole line is stated in rules/numbers-cases.xml,
@@ -13,11 +12,9 @@ import (
 // entry. These hold the rewrites, the rephrasings and the patterns together,
 // in the order the repair applies them.
 func TestEveryWholeLineTestHolds(t *testing.T) {
-	cases, err := rules.Tests("numbers")
-	require.NoError(t, err)
-	require.NotEmpty(t, cases)
+	require.NotEmpty(t, numbersTable.Tests)
 
-	for _, c := range cases {
+	for _, c := range numbersTable.Tests {
 		t.Run(c.In, func(t *testing.T) {
 			got := Reword(c.In)
 			if c.Out == "" {

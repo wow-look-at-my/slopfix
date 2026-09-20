@@ -1,12 +1,12 @@
 // Package table is the prose tables in rules/, as the binary holds them.
 //
-// A rules file is a Table, so the XML unmarshals straight into the types a
-// consumer reads. Load takes the embedded folder and hands back what a single
-// `for` value adds up to, with every pattern compiled.
+// The folder is embedded and read at start-up: Load hands back what a single
+// `for` value adds up to, with every pattern compiled and every word class
+// indexed. This package holds the entry types and the matchers that run them.
 package table
 
 import (
-	"strings"
+	"regexp"
 	"sync"
 )
 
@@ -55,16 +55,7 @@ type Pattern struct {
 	re *regexp.Regexp
 }
 
-// Case is a phrase and what the consumer must write for it. An entry's own
-// test drives that entry alone. A case drives the whole consumer, which is
-// where a phrase that several entries reach, or that none reach, is stated.
-type Case struct {
-	Test   string `xml:"test,attr"`
-	Expect string `xml:"expect,attr"`
-}
-
-// Table is what a single `for` value in rules/ adds up to. It is also the shape
-// of a single rules file, so the folder loads into it a file at a time.
+// Table is what a single `for` value in rules/ adds up to.
 type Table struct {
 	Drops       []Drop
 	Rewrites    []Rewrite
@@ -73,6 +64,12 @@ type Table struct {
 	Classes     []Class
 	Normals     []Normalize
 	Rephrasings []Rephrase
+
+	// Tests are the worked examples the folder states for the consumer rather
+	// than for a single entry: a line of prose, and what the consumer as a
+	// whole writes for it. It is where prose reaching several entries, or
+	// reaching none, is stated.
+	Tests []Test
 
 	once    sync.Once
 	lexicon *Lexicon
