@@ -6,7 +6,6 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
-	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -48,7 +47,7 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleSTE:
 		return ste.AllIDs
 	case RuleComments:
-		return set.Of(commentlength.ID, commentfix.ID)
+		return set.Of(commentfix.IDNumber, commentfix.IDNumber)
 	case RuleWorkflow:
 		return workflow.AllIDs
 	}
@@ -132,13 +131,13 @@ func Fix(req Request) Repair {
 
 	// The comment-length repair reads source rather than prose, so it runs
 	// before the document gate below sends a source file home.
-	if wants(RuleComments) && keeps(commentlength.ID) && req.Path != "" {
-		cut, changed := commentlength.Fix(req.Path, text)
+	if wants(RuleComments) && keeps(commentfix.IDNumber) && req.Path != "" {
+		cut, changed := commentfix.FixLength(req.Path, text)
 		if changed {
 			text = cut
 			repair.Removed = append(repair.Removed, "trailing comment prose")
 		}
-		for _, hit := range commentlength.Check(req.Path, text) {
+		for _, hit := range commentfix.CheckLength(req.Path, text) {
 			repair.Kept = append(repair.Kept, tombstones.Hit{
 				ID:     hit.ID,
 				Tell:   hit.Tell,
@@ -150,7 +149,7 @@ func Fix(req Request) Repair {
 
 	// The number repair reads source too, and runs after the length cut: a
 	// sentence the cut already took needs no rewrite here.
-	if wants(RuleComments) && keeps(commentfix.ID) && req.Path != "" {
+	if wants(RuleComments) && keeps(commentfix.IDNumber) && req.Path != "" {
 		said := commentfix.Fix(req.Path, text)
 		if said.Changed {
 			text = said.Text

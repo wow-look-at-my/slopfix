@@ -22,14 +22,13 @@ package commentfix
 
 import (
 	"strings"
-	"unicode"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
-// ID names this rule, on a report and on the command line alike.
-const ID = "comments/number"
+// IDNumber names this rule, on a report and on the command line alike.
+const IDNumber = "comments/number"
 
 // Supported reports whether this rule reads a file of that name.
 func Supported(filename string) bool {
@@ -51,11 +50,8 @@ type Hit struct {
 	Col    int
 }
 
-// generatedMarker opens the line marking a file as generated.
-const generatedMarker = "// Code generated "
-
-// generatedSuffix closes that same line.
-const generatedSuffix = " DO NOT EDIT."
+// The marker is a single pattern, in blocks.go. This half matched only a
+// `//` comment, so a generated shell or Python file read as hand-written.
 
 // Check returns every number stated in a comment of a source file.
 //
@@ -94,7 +90,7 @@ func lineAndColumn(src string, at int) (line, col int) {
 func IsGenerated(src string) bool {
 	for _, line := range strings.Split(src, "\n") {
 		line = strings.TrimRight(line, "\r")
-		if strings.HasPrefix(line, generatedMarker) && strings.HasSuffix(line, generatedSuffix) {
+		if generatedMarker.MatchString(line) {
 			return true
 		}
 		if strings.HasPrefix(line, "package ") {
@@ -125,22 +121,5 @@ func commentLines(lit string) []commentLine {
 	return out
 }
 
-// isDirective reports whether the line is a compiler or tool directive, such as
-// //go:build. The colon form carries no prose to go stale.
-func isDirective(text string) bool {
-	text = strings.TrimSpace(text)
-	rest, found := strings.CutPrefix(text, "//")
-	if !found || rest == "" || strings.HasPrefix(rest, " ") {
-		return false
-	}
-	name, _, found := strings.Cut(rest, ":")
-	if !found || name == "" {
-		return false
-	}
-	for _, r := range name {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' && r != '_' {
-			return false
-		}
-	}
-	return true
-}
+// A directive is a single question, answered in commentlength.go. This half
+// read only `//`, so a `# shellcheck:` line and a shebang both read as prose.

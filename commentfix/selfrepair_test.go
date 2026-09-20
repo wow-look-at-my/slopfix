@@ -1,4 +1,4 @@
-package commentlength
+package commentfix
 
 import (
 	"os"
@@ -41,12 +41,12 @@ func TestTheRuleOverItsOwnRepository(t *testing.T) {
 			return nil
 		}
 		files++
-		hits := Check(path, string(src))
+		hits := CheckLength(path, string(src))
 		findings += len(hits)
 		if !apply || len(hits) == 0 {
 			return nil
 		}
-		out, changed := Fix(path, string(src))
+		out, changed := FixLength(path, string(src))
 		if !changed {
 			return nil
 		}

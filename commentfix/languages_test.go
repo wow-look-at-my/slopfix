@@ -1,4 +1,4 @@
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -39,14 +39,14 @@ func TestEveryGrammarReportsAndRepairs(t *testing.T) {
 		_, parses := treeBlocks(languageFor(name), src)
 		require.True(t, parses, "%s: the grammar does not parse its own fixture", name)
 
-		hits := Check(name, src)
+		hits := CheckLength(name, src)
 		require.NotEmpty(t, hits, "%s: reports nothing", name)
 		assert.True(t, hits[0].Repairable, "%s: reports a finding the repair cannot act on", name)
 
-		fixed, changed := Fix(name, src)
+		fixed, changed := FixLength(name, src)
 		assert.True(t, changed, "%s: the repair did nothing", name)
 		assert.Less(t, len(fixed), len(src), "%s: the repair did not shorten the file", name)
-		assert.Empty(t, Check(name, fixed), "%s: still over after the repair", name)
+		assert.Empty(t, CheckLength(name, fixed), "%s: still over after the repair", name)
 	}
 }
 
@@ -54,7 +54,7 @@ func TestEveryGrammarReportsAndRepairs(t *testing.T) {
 // nothing is a worse edit than a block left long.
 func TestTheRepairKeepsTheOpeningInEveryGrammar(t *testing.T) {
 	for name, src := range languageFixtures {
-		fixed, changed := Fix(name, src)
+		fixed, changed := FixLength(name, src)
 		require.True(t, changed, name)
 		assert.Contains(t, fixed, "An explanation that runs well past", name)
 	}

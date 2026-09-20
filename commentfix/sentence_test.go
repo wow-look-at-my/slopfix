@@ -1,4 +1,4 @@
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -21,7 +21,7 @@ func TestTheRepairCutsAtASentenceRatherThanALine(t *testing.T) {
 		"const p = 1",
 	}, "\n")
 
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
 
 	// What survives must not end mid-clause, and must not strand a bracket.
@@ -65,10 +65,10 @@ func TestARunThatNeverClosesIsForceFitted(t *testing.T) {
 	body := strings.Repeat("// a clause that never closes and just keeps going onward\n", 8)
 	src := "package p\n\n" + body + "const p = 1\n"
 
-	require.NotEmpty(t, Check("x.go", src))
-	out, changed := Fix("x.go", src)
+	require.NotEmpty(t, CheckLength("x.go", src))
+	out, changed := FixLength("x.go", src)
 	assert.True(t, changed)
-	assert.Empty(t, Check("x.go", out), "the force fit always lands inside the budget")
+	assert.Empty(t, CheckLength("x.go", out), "the force fit always lands inside the budget")
 	assert.Contains(t, out, "// a clause that never closes")
 	assert.Contains(t, out, "const p = 1", "the code it documents is untouched")
 }

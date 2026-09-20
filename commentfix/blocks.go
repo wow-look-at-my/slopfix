@@ -3,7 +3,7 @@
 // The measuring is in treeblocks.go, off a real syntax tree. What is left here
 // is what comes before a parse: does a grammar cover this file, and did a
 // generator write it.
-package commentlength
+package commentfix
 
 import (
 	"regexp"

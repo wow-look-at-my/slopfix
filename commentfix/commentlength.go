@@ -13,7 +13,7 @@
 // elaborates afterwards, so the trailing paragraph is what a reader loses least
 // by losing. The opening sentence is never cut: a block trimmed to nothing is a
 // worse edit than a block left long.
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -22,14 +22,14 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// ID names this rule, on a report and on the command line alike.
-const ID = "comments/length"
+// IDLength names this rule, on a report and on the command line alike.
+const IDLength = "comments/length"
 
 // floorChars is the size a comment may always be, whatever it documents.
 const floorChars = 120
 
-// Hit is a comment block that outweighs its code.
-type Hit struct {
+// LengthHit is a comment block that outweighs its code.
+type LengthHit struct {
 	// ID names the rule, the way a compiler names a warning.
 	ID string `json:"id"`
 	// Tell says in words which measure was exceeded.
@@ -55,15 +55,15 @@ type block struct {
 }
 
 // Check reports every comment block in src that outweighs its code.
-func Check(filename, src string) []Hit {
-	var hits []Hit
+func CheckLength(filename, src string) []LengthHit {
+	var hits []LengthHit
 	for _, b := range blocks(filename, src) {
 		tell, over := judge(b)
 		if !over {
 			continue
 		}
-		hits = append(hits, Hit{
-			ID:         ID,
+		hits = append(hits, LengthHit{
+			ID:         IDLength,
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
@@ -75,7 +75,7 @@ func Check(filename, src string) []Hit {
 
 // Fix cuts every over-long comment block back inside its budget, from the end,
 // stopping before the opening sentence.
-func Fix(filename, src string) (string, bool) {
+func FixLength(filename, src string) (string, bool) {
 	bs := blocks(filename, src)
 	if len(bs) == 0 {
 		return src, false
@@ -299,7 +299,7 @@ func hardFit(b block) ([]string, bool) {
 	for _, line := range prose(b.text) {
 		body = append(body, stripMarker(line))
 	}
-	// Sentences, never words. Cutting between two words leaves a fragment that
+	// Sentences, never words. Cutting between words leaves a fragment that
 	// reads as a typo, and reflowing it welds a full stop onto half a clause.
 	// A comment nothing here can shorten is left whole and still reported.
 	sentences := splitSentences(strings.Join(body, " "))
@@ -314,7 +314,7 @@ func hardFit(b block) ([]string, bool) {
 
 // splitSentences cuts prose after each terminator that closes a thought,
 // keeping the terminator on the sentence it ends. Text with no terminator is
-// one sentence, which is what makes hardFit decline rather than truncate it.
+// a single sentence, which is what makes hardFit decline rather than truncate it.
 func splitSentences(text string) []string {
 	words := strings.Fields(text)
 	var out []string
@@ -417,19 +417,31 @@ func dropSentence(text []string) ([]string, bool) {
 	return text, false
 }
 
-// endsSentence reports a comment line whose prose closes. It reads past a
-// closing bracket or quote, so a line ending `... (see above).` counts.
+// endsSentence reports prose that closes.
 func endsSentence(line string) bool {
-	t := strings.TrimRight(strings.TrimSpace(line), `)]}"'`+"`")
+	t := strings.TrimRight(strings.TrimSpace(line), closers())
 	if t == "" {
 		return false
 	}
-	switch t[len(t)-1] {
-	case '.', '!', '?':
-		// An ellipsis or an abbreviation is not the end of a thought.
-		return !strings.HasSuffix(t, "..") && !strings.HasSuffix(t, "e.g.") && !strings.HasSuffix(t, "i.e.")
+	last := t[len(t)-1:]
+	if !english.Lexicon().Is(last, "terminator") {
+		return false
 	}
-	return false
+	// A word the lexicon claims as an abbreviation or an ellipsis carries a
+	// terminator without closing a thought.
+	word := t[strings.LastIndexAny(t, " \t")+1:]
+	lex := english.Lexicon()
+	return !lex.Is(word, "abbreviation") && !lex.Is(word, "ellipsis")
+}
+
+// closers is the cutset TrimRight takes, built from the class rather than
+// spelled again.
+func closers() string {
+	var b strings.Builder
+	for _, w := range english.WordsOf("closer") {
+		b.WriteString(w)
+	}
+	return b.String()
 }
 
 // dropParagraph removes the last blank-separated paragraph, and reports false when no break remains.

@@ -4,7 +4,7 @@
 // It is here and not in a package of its own because the parse, the grammar map
 // and the "a comment is a node whose type carries comment" fact already live
 // here. Another extractor is another answer to which files have comments.
-package commentlength
+package commentfix
 
 import ts "github.com/wow-look-at-my/go-tree-sitter"
 

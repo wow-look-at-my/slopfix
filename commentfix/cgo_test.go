@@ -1,4 +1,4 @@
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -19,13 +19,13 @@ func Free() { C.free(nil) }
 `
 
 func TestFixLeavesACgoPreambleAlone(t *testing.T) {
-	out, changed := Fix("p.go", cgoSrc)
+	out, changed := FixLength("p.go", cgoSrc)
 	assert.False(t, changed)
 	assert.Equal(t, cgoSrc, out)
 }
 
 func TestCheckReportsNoCgoPreamble(t *testing.T) {
-	for _, hit := range Check("p.go", cgoSrc) {
+	for _, hit := range CheckLength("p.go", cgoSrc) {
 		assert.NotContains(t, hit.Sentence, "#include")
 	}
 }
@@ -45,10 +45,10 @@ import (
 // budget's own width is where it goes, and the floor is what allows that.
 func TestAWrapOverTheLineCountIsLaidOutRatherThanCut(t *testing.T) {
 	src := "// DefaultGLSLVersion is the GLSL version spirv-cross targets when Options\n// leaves GLSLVersion empty.\nconst DefaultGLSLVersion = 450\n"
-	out, changed := Fix("p.go", src)
+	out, changed := FixLength("p.go", src)
 	assert.True(t, changed)
 	assert.Contains(t, out, "leaves GLSLVersion empty.")
-	assert.Empty(t, Check("p.go", out))
+	assert.Empty(t, CheckLength("p.go", out))
 }
 
 // A repair that keeps the line count is still a repair. Comparing counts rather
@@ -56,10 +56,10 @@ func TestAWrapOverTheLineCountIsLaidOutRatherThanCut(t *testing.T) {
 // so the block stayed a finding that no run could clear.
 func TestARepairThatKeepsItsLineCountIsStillApplied(t *testing.T) {
 	src := "// Run does the thing, and it says so at a length no single line holds inside the budget it must meet, because the words past the floor are what the character half of the rule counts. So the cut lands here.\nfunc Run() {}\n"
-	out, changed := Fix("p.go", src)
+	out, changed := FixLength("p.go", src)
 	assert.True(t, changed, "one line in, one line out, and shorter")
 	assert.NotEqual(t, src, out)
-	assert.Empty(t, Check("p.go", out))
+	assert.Empty(t, CheckLength("p.go", out))
 }
 
 // Laying a block out rescues only what the budget already holds. Prose past it
@@ -67,11 +67,11 @@ func TestARepairThatKeepsItsLineCountIsStillApplied(t *testing.T) {
 // otherwise stay a finding forever, which no automatic pass can clear.
 func TestProsePastTheBudgetIsForceFitted(t *testing.T) {
 	long := "// Foo names a thing, and then it says a great deal more about that thing, at such length that no width lays it out inside the budget it must meet.\n// A second sentence carries on well past the point.\nconst Foo = 1\n"
-	out, changed := Fix("p.go", long)
+	out, changed := FixLength("p.go", long)
 	assert.True(t, changed)
 	assert.NotEqual(t, long, out)
 	assert.Contains(t, out, "// Foo names a thing", "the opening survives")
-	assert.Empty(t, Check("p.go", out))
+	assert.Empty(t, CheckLength("p.go", out))
 }
 
 // A directive is machine text bound to the declaration by position. Every
@@ -84,11 +84,11 @@ func TestARepairKeepsTheEmbedDirective(t *testing.T) {
 		"//\n" +
 		"//go:embed testdata/trivial.spvasm\n" +
 		"var trivialASM []byte\n"
-	out, changed := Fix("p.go", src)
+	out, changed := FixLength("p.go", src)
 
 	assert.True(t, changed)
 	assert.Contains(t, out, "//go:embed testdata/trivial.spvasm", "the directive survives")
-	assert.Empty(t, Check("p.go", out))
+	assert.Empty(t, CheckLength("p.go", out))
 }
 
 // A build constraint leads the block, and stays there.
@@ -97,7 +97,7 @@ func TestARepairKeepsALeadingBuildConstraint(t *testing.T) {
 		"// The engine is a C library, so the real command is behind the tag and this\n" +
 		"// file holds the stub that explains what to build instead.\n" +
 		"package main\n"
-	out, _ := Fix("p.go", src)
+	out, _ := FixLength("p.go", src)
 
 	assert.Contains(t, out, "//go:build cgo")
 	assert.True(t, strings.HasPrefix(out, "//go:build cgo"), "it stays first")
@@ -111,5 +111,5 @@ func TestASeparatorBeforeADirectiveIsNotProse(t *testing.T) {
 		"//\n" +
 		"//go:embed testdata/trivial.spvasm\n" +
 		"var trivialASM []byte\n"
-	assert.Empty(t, Check("p.go", src), "the prose is a line, and so is the code")
+	assert.Empty(t, CheckLength("p.go", src), "the prose is a line, and so is the code")
 }

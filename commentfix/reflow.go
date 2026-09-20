@@ -1,6 +1,6 @@
 // reflow.go is the shape half of tightening: what a comment's marker and indent
 // are, where its paragraphs break, and how prose wraps back onto lines.
-package commentlength
+package commentfix
 
 import (
 	"strings"

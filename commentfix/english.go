@@ -5,7 +5,7 @@
 // parses that folder during the build. The generated file beside this holds
 // every entry as a literal, with each pattern compiled to a switch automaton.
 // Adding a word stays an edit to XML that needs no Go.
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -13,7 +13,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
-//go:generate go run github.com/wow-look-at-my/slopfix/cmd/rulegen -rules ../rules -for english -package commentlength -out english.gen.go
+//go:generate go run github.com/wow-look-at-my/slopfix/cmd/rulegen -rules ../rules -for english -package commentfix -out english.gen.go
 
 // english is the table the generated file carries.
 var english = englishTable

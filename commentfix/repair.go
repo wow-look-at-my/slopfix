@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
-	"github.com/wow-look-at-my/slopfix/commentlength"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
@@ -51,7 +50,7 @@ func Fix(filename, src string) Repair {
 	removed = append(removed, left...)
 	// The span rule is measured last, because the repairs above rewrite the
 	// lines it counts.
-	if fitted, cut := commentlength.Fix(filename, out); cut {
+	if fitted, cut := FixLength(filename, out); cut {
 		out = fitted
 	}
 	if out != src {
@@ -386,10 +385,3 @@ func dropEmptied(src string, emptied map[int]bool) string {
 }
 
 // bareMarker reports whether the line carries a comment marker and nothing else.
-func bareMarker(line string) bool {
-	switch strings.TrimSpace(line) {
-	case "//", "///", "#", "*":
-		return true
-	}
-	return false
-}

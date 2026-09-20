@@ -1,4 +1,4 @@
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -134,7 +134,7 @@ func TestEveryFlagFires(t *testing.T) {
 // sentence into a comment the reader trusts.
 func TestAFlaggedPhraseIsNeverRewritten(t *testing.T) {
 	src := "package p\n\n// See above for the reason.\nconst p = 1\n"
-	out, changed := Fix("x.go", src)
+	out, changed := FixLength("x.go", src)
 	assert.False(t, changed)
 	assert.Equal(t, src, out)
 	assert.NotEmpty(t, Suggest("x.go", src), "but it is still reported")
@@ -144,7 +144,7 @@ func TestAFlaggedPhraseIsNeverRewritten(t *testing.T) {
 // the other, so Suggest reads comments Check has nothing to say about.
 func TestSuggestFiresOnACommentThatFitsItsCode(t *testing.T) {
 	src := "package p\n\n// A hack.\nconst p = 1\n"
-	assert.Empty(t, Check("x.go", src), "short enough to pass the length rule")
+	assert.Empty(t, CheckLength("x.go", src), "short enough to pass the length rule")
 	assert.NotEmpty(t, Suggest("x.go", src), "and still worth saying something about")
 }
 

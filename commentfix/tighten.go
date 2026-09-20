@@ -4,7 +4,7 @@
 // comments are not over-long by a thought, they are padded by words that carry
 // nothing, and reflowed they fit. So the repair tries this before cutting, and
 // cuts only what tightening cannot save.
-package commentlength
+package commentfix
 
 import (
 	"strings"
@@ -76,53 +76,17 @@ func shortenFor(s, surface string) string {
 	s = strings.Join(strings.Fields(s), " ")
 	s = strings.ReplaceAll(s, " ,", ",")
 	s = strings.ReplaceAll(s, " .", ".")
-	return capitalise(original, s)
+	return capitaliseAfterCut(original, s)
 }
 
-// replaceWord swaps a whole word or phrase, case-insensitively, leaving a
-// longer word that merely contains it alone.
-func replaceWord(s, word, with string) string {
-	lower := strings.ToLower(s)
-	target := strings.ToLower(word)
-	var b strings.Builder
-	for i := 0; i < len(s); {
-		j := strings.Index(lower[i:], target)
-		if j < 0 {
-			b.WriteString(s[i:])
-			break
-		}
-		at := i + j
-		end := at + len(target)
-		if !wordBoundary(s, at, end) {
-			b.WriteString(s[i : at+1])
-			i = at + 1
-			continue
-		}
-		b.WriteString(s[i:at])
-		b.WriteString(with)
-		i = end
-	}
-	return b.String()
-}
+// Word replacement and its boundary test live in table.go. This copy read a
+// name's dot and slash as a boundary, so `strings.Only` matched `only`.
 
-// wordBoundary reports whether s[at:end] stands as its own word.
-func wordBoundary(s string, at, end int) bool {
-	if at > 0 && isWordByte(s[at-1]) {
-		return false
-	}
-	if end < len(s) && isWordByte(s[end]) {
-		return false
-	}
-	return true
-}
-
-func isWordByte(b byte) bool {
-	return b == '_' || b == '-' ||
-		(b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
-}
-
-// capitalise restores the opening capital a leading deletion can remove.
-func capitalise(original, s string) string {
+// capitaliseAfterCut restores the opening capital a leading deletion removes.
+//
+// It differs from table.go's capitalise, which takes the case of the line it
+// repaired. Here the opening word is GONE, so the source line's case belongs to
+func capitaliseAfterCut(original, s string) string {
 	if s == "" || sameFirstWord(original, s) {
 		return s
 	}
