@@ -1,8 +1,8 @@
 // Package repairwrite repairs the file a write just landed, in place.
 //
 // Judging the text before it lands means putting the fragment back where it
-// goes first, because a fence and a table are properties of the whole document.
-// The file on disk is already whole, so this reads it and rewrites it.
+// goes because a fence and a table are properties of the whole document. The
+// file on disk is already whole, so this reads it and rewrites it.
 package repairwrite
 
 import (

@@ -125,9 +125,9 @@ func runHook(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	// One command serves both halves of a write. The event decides which,
-	// because a manifest that names a command per event is a list to keep in
-	// step with this one.
+	// A single command serves both halves of a write. The event decides
+	// which, because a manifest that names a command per event is a list to
+	// keep in step with this.
 	var event struct {
 		HookEventName string `json:"hook_event_name"`
 	}

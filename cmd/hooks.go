@@ -81,7 +81,7 @@ func init() {
 		})
 
 	register("ask-properly",
-		"Mark a message that hands the reader a decision in prose",
+		"Add a line to a message that hands the reader a decision in prose",
 		"ask-properly reads a MessageDisplay payload and appends one line to what\n"+
 			"the reader sees, when the message closes by putting a decision to them in\n"+
 			"prose. It refuses nothing: a refusal cannot unsend a message that has\n"+
@@ -138,7 +138,7 @@ func init() {
 		})
 
 	register("blame-language",
-		"Mark a message that hands its own defect to another author",
+		"Add a line to a message that hands its own defect to another author",
 		"blame-language annotates the finished message and sends nothing back to\n"+
 			"the model. MessageDisplay is the event because a Stop refusal on wording\n"+
 			"only buys a retype of the same claim.\n\n"+
