@@ -19,7 +19,6 @@ type Input struct {
 	TranscriptPath       string `json:"transcript_path"`
 }
 
-// Result is what the CLI prints and exits with.
 type Result struct {
 	Stdout string
 	Stderr string

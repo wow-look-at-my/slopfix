@@ -9,12 +9,10 @@ package mdbudget
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/wow-look-at-my/go-containers/set"
 	"io"
 	"os"
 	"path/filepath"
-
-	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // hookInput is the payload Claude Code delivers on stdin. Every field is
@@ -83,23 +81,18 @@ func editReport(in hookInput, limit int) string {
 	floor := nearLimit(limit)
 
 	var paths []string
-	switch {
-	case in.ToolInput.FilePath == "":
-		// Bash is the common case.
+	if in.ToolInput.FilePath != "" && isInstructionFile(in.ToolInput.FilePath) {
+		if abs, err := filepath.Abs(in.ToolInput.FilePath); err == nil {
+			paths = []string{abs}
+		}
+		// Keep the snapshot current even when the tool named its file, so a later.
+		changedFiles(in.SessionID, in.CWD)
+	} else {
 		for _, p := range changedFiles(in.SessionID, in.CWD) {
 			if isInstructionFile(p) {
 				paths = append(paths, p)
 			}
 		}
-	case isInstructionFile(in.ToolInput.FilePath):
-		if abs, err := filepath.Abs(in.ToolInput.FilePath); err == nil {
-			paths = []string{abs}
-			noteSignature(in.SessionID, abs)
-		}
-	default:
-		// The tool named a file no instruction reader loads, and an edit tool
-		// writes what it names. Nothing here can have changed a budget.
-		return ""
 	}
 
 	var offenders []offender
@@ -178,7 +171,7 @@ func run(r io.Reader) (string, int) {
 				break
 			}
 		}
-		// Plain text, not the hookSpecificOutput envelope: the reader here is
+		// Plain text, not the hookSpecificOutput envelope: this report is read.
 		return sessionReport(offenders, limit) + "\n", exit
 	}
 
@@ -223,7 +216,6 @@ func encode(v map[string]any) string {
 	return string(data) + "\n"
 }
 
-// Result is what the CLI prints and exits with.
 type Result struct {
 	Stdout string
 	Stderr string
@@ -235,8 +227,6 @@ type Result struct {
 // It fails open, unconditionally: this runs at the start of every session and
 // after every tool call. A size check must never break either.
 func Run(r io.Reader) (res Result) {
-	defer trace.Report()
-	defer trace.Phase("mdbudget/run")()
 	defer func() {
 		if p := recover(); p != nil {
 			res = Result{Stderr: fmt.Sprintf("claude-md-budget: reporting nothing: %v\n", p)}

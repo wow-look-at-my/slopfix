@@ -60,7 +60,7 @@ func TestFormatLosesNoWords(t *testing.T) {
 }
 
 func TestCheckReportsAWrappedParagraph(t *testing.T) {
-	findings := Check("A sentence that the author\nwrapped by hand.\n")
+	findings := Check("A sentence that the author\nwrapped in the middle.\n")
 	require.Len(t, findings, 1)
 	assert.Equal(t, "a paragraph is one line", findings[0].Rule)
 	assert.Equal(t, 1, findings[0].Line)

@@ -1,22 +1,21 @@
 // table.go applies the English the number repair writes instead of a number.
 //
-// The table itself is rules/, and nothing reads it at run time. cmd/rulegen
-// parses that folder during the build. The generated file beside this holds
-// every entry as a literal, with each pattern compiled to a switch automaton.
-// Adding a phrase stays an edit to XML that needs no Go, and the binary carries
-// no regexp engine.
+// The table itself is rules/, embedded and loaded a single time. Adding a
+// phrase stays an edit to XML that needs no Go.
 package commentfix
 
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
-//go:generate go run github.com/wow-look-at-my/slopfix/cmd/rulegen -rules ../rules -for numbers -package commentfix -out numbers.gen.go
+// numbersTable is what rules/ says for="numbers", in file name order.
+var numbersTable = table.MustLoad(rules.FS, "numbers")
 
 // Say rewrites a line of comment prose, applying every table entry. It says
-// nothing about what is left: the caller checks that.
+// nothing about what is left.
 //
 // The order is rewrites, then shapes, then patterns. A phrase swap settles the
 // idioms earliest.

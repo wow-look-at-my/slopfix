@@ -23,8 +23,7 @@ type Word struct {
 }
 
 // WordText renders a syntax word. An unresolvable part contributes nothing to
-// Text and clears Static, so `"py"thon3` still yields "python3" to inspect
-// while `$X` yields the empty string and says so.
+// Text and clears Static.
 func WordText(wd *syntax.Word) Word {
 	if wd == nil {
 		return Word{Static: true}

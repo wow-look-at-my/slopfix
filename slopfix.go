@@ -74,13 +74,13 @@ func CheckContent(path, content string) []ste.Finding {
 }
 
 // commentFindings are the source rules: what the comments in a source file
-// break, reported on the line they sit on.
+// break.
 func commentFindings(path, content string) []ste.Finding {
 	var out []ste.Finding
 	for _, hit := range commentfix.Check(path, content) {
 		out = append(out, ste.Finding{
 			Line:   hit.Line,
-			ID:     commentfix.IDNumber,
+			ID:     commentfix.ID,
 			Rule:   "a number in a comment is a count of what exists today",
 			Detail: hit.Number,
 			Fix:    "Say it in words, or let the reader count. `slopfix fix` does this.",
@@ -97,6 +97,15 @@ func commentFindings(path, content string) []ste.Finding {
 			Rule:   hit.Tell,
 			Detail: hit.Sentence,
 			Fix:    fix,
+		})
+	}
+	for _, hit := range commentfix.CheckTails(path, content) {
+		out = append(out, ste.Finding{
+			Line:   hit.Line,
+			ID:     hit.ID,
+			Rule:   hit.Tell,
+			Detail: hit.Sentence,
+			Fix:    "Finish the sentence, or let the repair close it. `slopfix comments --fix` does this.",
 		})
 	}
 	return out
@@ -125,7 +134,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs)
-	ids.AddRange(IDHardWrap, commentfix.IDNumber, commentfix.IDNumber)
+	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	return ids
 }
 

@@ -47,7 +47,7 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleSTE:
 		return ste.AllIDs
 	case RuleComments:
-		return set.Of(commentfix.IDNumber, commentfix.IDNumber)
+		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	case RuleWorkflow:
 		return workflow.AllIDs
 	}
@@ -66,7 +66,7 @@ type Request struct {
 	MaxCommentLines int
 }
 
-// Repair is the text as this binary would write it, plus what no rewrite can repair.
+// Repair is the text as this binary would write it, plus what the rewrite flagged.
 type Repair struct {
 	// Text is the repaired text. It equals the input when Changed is false.
 	Text string `json:"text"`
@@ -74,6 +74,8 @@ type Repair struct {
 	Changed bool `json:"changed"`
 	// Removed names each span the repair cut out.
 	Removed []string `json:"removed,omitempty"`
+	// Rewrites counts the prose repairs the english table had to make.
+	Rewrites int `json:"rewrites,omitempty"`
 	// Kept carries the tombstones no whole-line deletion resolves.
 	Kept []tombstones.Hit `json:"kept,omitempty"`
 	// Findings are what a reader must repair by hand.
@@ -122,6 +124,7 @@ func Fix(req Request) Repair {
 		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
 		text = cut.Text
 		repair.Removed = append(repair.Removed, cut.Removed...)
+		repair.Rewrites += cut.Rewrites
 		for _, hit := range cut.Kept {
 			if keeps(hit.ID) {
 				repair.Kept = append(repair.Kept, hit)
@@ -129,14 +132,36 @@ func Fix(req Request) Repair {
 		}
 	}
 
-	// The comment-length repair reads source rather than prose, so it runs
-	// before the document gate below sends a source file home.
-	if wants(RuleComments) && keeps(commentfix.IDNumber) && req.Path != "" {
-		cut, changed := commentfix.FixLength(req.Path, text)
-		if changed {
-			text = cut
-			repair.Removed = append(repair.Removed, "trailing comment prose")
+	lengths := wants(RuleComments) && keeps(commentfix.IDLength) && req.Path != ""
+	cutLong := false
+	cutComments := func() {
+		if !lengths {
+			return
 		}
+		if cut, changed := commentfix.FixLength(req.Path, text); changed {
+			text, cutLong = cut, true
+		}
+	}
+
+	// The length repair reads source rather than prose, so it runs ahead of the document gate below.
+	cutComments()
+
+	// The number repair reads source too, and runs after the length cut: a
+	// sentence the cut already took needs no rewrite here.
+	if wants(RuleComments) && keeps(commentfix.ID) && req.Path != "" {
+		said := commentfix.Fix(req.Path, text)
+		if said.Changed {
+			text = said.Text
+			repair.Removed = append(repair.Removed, said.Removed...)
+			// A number said in words is longer than the number, so the rewrite can put a block back over the budget the cut just
+			cutComments()
+		}
+	}
+
+	if cutLong {
+		repair.Removed = append(repair.Removed, "trailing comment prose")
+	}
+	if lengths {
 		for _, hit := range commentfix.CheckLength(req.Path, text) {
 			repair.Kept = append(repair.Kept, tombstones.Hit{
 				ID:     hit.ID,
@@ -144,16 +169,6 @@ func Fix(req Request) Repair {
 				Phrase: hit.Sentence,
 				LineNo: hit.Line,
 			})
-		}
-	}
-
-	// The number repair reads source too, and runs after the length cut: a
-	// sentence the cut already took needs no rewrite here.
-	if wants(RuleComments) && keeps(commentfix.IDNumber) && req.Path != "" {
-		said := commentfix.Fix(req.Path, text)
-		if said.Changed {
-			text = said.Text
-			repair.Removed = append(repair.Removed, said.Removed...)
 		}
 	}
 
@@ -172,7 +187,7 @@ func Fix(req Request) Repair {
 			repair.Removed = append(repair.Removed, hit.Phrase)
 		}
 	}
-	// The join and the word repair share a pass, because a rule reads a
+	// The join and the word repair share a pass: the formatter rewrites each.
 	joins := wants(RuleWrap) && keeps(IDHardWrap)
 	prose := wants(RuleSTE)
 	if joins || prose {
@@ -182,6 +197,14 @@ func Fix(req Request) Repair {
 		}
 		if _, safe := Format(text); safe {
 			text = markdown.FormatFunc(text, word)
+		}
+	}
+	// The stale-count strip runs AFTER the join.
+	if wants(RuleSTE) && keeps(ste.IDStaleCount) {
+		stripped, hits := counts.StripGate(text)
+		text = stripped
+		for _, hit := range hits {
+			repair.Removed = append(repair.Removed, hit.Phrase)
 		}
 	}
 	if wants(RuleSTE) {
@@ -216,8 +239,7 @@ func FixFile(path string) (Repair, error) {
 }
 
 // FixFileWith repairs a file in place under the caller's own selection, and
-// reports what it did. It writes nothing when the repair leaves the file as it
-// was.
+// reports what it did.
 //
 // The Content and Path of req are the file's, whatever the caller put there.
 // Everything else is the caller's: a run that names a rule on the command line

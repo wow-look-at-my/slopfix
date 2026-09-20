@@ -122,7 +122,6 @@ func TestAnUnparsedLanguageIsSkipped(t *testing.T) {
 	assert.Empty(t, CheckLength("x.lua", src))
 }
 
-// A language the adapter does not spell is skipped rather than guessed at.
 func TestAnUnknownLanguageIsSkipped(t *testing.T) {
 	assert.Empty(t, CheckLength("x.unknownext", "// a very long comment about nothing at all whatsoever\nvalue"))
 }

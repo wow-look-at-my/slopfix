@@ -1,4 +1,4 @@
-// Package commentlength finds a comment longer than the code it documents.
+// commentlength.go finds a comment longer than the code it documents.
 //
 // A comment earns its place by stopping the next mistake. A comment that runs
 // longer than the code becomes an essay, and the reader pays for it on every
@@ -19,6 +19,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
@@ -140,7 +141,7 @@ func judge(b block) (string, bool) {
 func measure(text []string) (lines, chars int) {
 	for _, line := range text {
 		// A line carrying only its marker holds no words.
-		if bareMarker(line) {
+		if bareMarkerLine(line) {
 			continue
 		}
 		content := false
@@ -158,8 +159,8 @@ func measure(text []string) (lines, chars int) {
 	return lines, chars
 }
 
-// bareMarker reports a comment line holding a marker and nothing else.
-func bareMarker(line string) bool {
+// bareMarkerLine reports a comment line holding a marker and nothing else.
+func bareMarkerLine(line string) bool {
 	switch strings.TrimSpace(line) {
 	case "//", "///", "#", "*", "/*", "*/":
 		return true
@@ -174,6 +175,11 @@ func bareMarker(line string) bool {
 // variable it filled empty, and the tests reading it pass on nothing.
 func repair(b block) []string {
 	lead, body, trail := splitDirectives(b.text)
+	// A comment with no code under it has nothing to be measured against, so no
+	// amount of cutting brings it inside a budget.
+	if b.codeLines == 0 {
+		return append(append([]string{}, lead...), trail...)
+	}
 	if len(lead) == 0 && len(trail) == 0 {
 		return trim(b)
 	}
@@ -188,13 +194,12 @@ func repair(b block) []string {
 }
 
 // splitDirectives separates a block's tool lines from its prose. A directive
-// binds to the declaration by position -- a build constraint leads, a go:embed
-// is last -- so each keeps the side of the prose it was written on.
+// binds to the declaration by position -- a build constraint leads.
 func splitDirectives(text []string) (lead, body, trail []string) {
 	seen := false
 	for _, line := range text {
 		switch {
-		case !isDirective(line):
+		case !isDirectiveLine(line):
 			seen = true
 			body = append(body, line)
 		case seen:
@@ -206,12 +211,24 @@ func splitDirectives(text []string) (lead, body, trail []string) {
 	return lead, body, trail
 }
 
+// directivesOf keeps only the directive lines of a block, which is the half
+// prose drops.
+func directivesOf(text []string) []string {
+	kept := make([]string, 0, len(text))
+	for _, line := range text {
+		if isDirectiveLine(line) {
+			kept = append(kept, line)
+		}
+	}
+	return kept
+}
+
 // prose drops the directive lines from a block. A build constraint is an
 // instruction to a tool, so measuring it reports an essay nobody wrote.
 func prose(text []string) []string {
 	kept := make([]string, 0, len(text))
 	for _, line := range text {
-		if isDirective(line) {
+		if isDirectiveLine(line) {
 			continue
 		}
 		kept = append(kept, line)
@@ -219,10 +236,10 @@ func prose(text []string) []string {
 	return kept
 }
 
-// isDirective reports a line a tool reads rather than a reader. The C family
+// isDirectiveLine reports a line a tool reads rather than a reader. The C family
 // spells it with no space after the marker, and the hash family carries the
 // interpreter line and the linter pragma.
-func isDirective(line string) bool {
+func isDirectiveLine(line string) bool {
 	t := strings.TrimSpace(line)
 	for _, marker := range []string{"//", "#"} {
 		rest, found := strings.CutPrefix(t, marker)
@@ -249,7 +266,7 @@ func trim(b block) []string {
 
 	// Tighten before cutting. A padded comment fits after its filler is gone and
 	// it is reflowed, and keeping the whole thought beats losing the last of it.
-	if tightened, did := tighten(kept); did {
+	if tightened, _, did := tighten(kept); did {
 		if _, over := judge(block{text: tightened, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return tightened
 		}
@@ -257,7 +274,7 @@ func trim(b block) []string {
 	}
 
 	// The words can fit where the wrap does not. Laying them out at the budget's
-	// own width drops none, which is what the character floor is for.
+	// own width drops none.
 	if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
 		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return wider
@@ -299,87 +316,44 @@ func hardFit(b block) ([]string, bool) {
 	for _, line := range prose(b.text) {
 		body = append(body, stripMarker(line))
 	}
-	// Sentences, never words. Cutting between words leaves a fragment that
-	// reads as a typo, and reflowing it welds a full stop onto half a clause.
-	// A comment nothing here can shorten is left whole and still reported.
-	prose := strings.Join(body, " ")
-	width := max(floorChars, b.codeChars)
-	fits := func(text string) ([]string, bool) {
-		out := reflow(text, indent, marker, width)
-		_, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars})
-		return out, !over
-	}
-	sentences := splitSentences(prose)
-	for n := len(sentences); n > 0; n-- {
-		if out, ok := fits(strings.Join(sentences[:n], " ")); ok {
+	words := strings.Fields(strings.Join(body, " "))
+	// The budget is a character count, and the layout takes a column.
+	width := min(max(floorChars, b.codeChars), wrapWidth)
+	for len(words) > 0 {
+		closed := closeTail(words)
+		if len(closed) == 0 {
+			return nil, false
+		}
+		out := reflow(strings.Join(closed, " "), indent, marker, width)
+		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return out, true
 		}
-	}
-	// One sentence longer than the budget on its own. A clause boundary is the
-	// next break a reader recognises, and a whole word the last; both keep the
-	// opening, which is the part worth keeping. The cut is closed with a
-	// terminator so what survives still reads as a sentence.
-	for _, parts := range [][]string{splitClauses(prose), strings.Fields(prose)} {
-		for n := len(parts) - 1; n > 0; n-- {
-			if out, ok := fits(closeAsSentence(strings.Join(parts[:n], " "))); ok {
-				return out, true
-			}
-		}
+		words = words[:len(words)-1]
 	}
 	return nil, false
 }
 
-// splitClauses cuts prose after each word that closes a clause, keeping the
-// punctuation on the part it ends.
-func splitClauses(text string) []string {
-	words := strings.Fields(text)
-	var out []string
-	start := 0
-	for i, word := range words {
-		if !english.Lexicon().Is(strings.TrimRight(word, closers()), "clause") {
+// dangling words open something the cut took away, so a forced cut that ends.
+var dangling = set.Of(danglingWords()...)
+
+// closeTail makes a forced cut read as a sentence: it drops back past a word
+// that opens what the cut removed, and closes what is left with a period.
+func closeTail(words []string) []string {
+	out := append([]string{}, words...)
+	for len(out) > 0 {
+		last := strings.TrimRight(out[len(out)-1], ",;:")
+		if last == "" || dangling.Contains(strings.ToLower(last)) {
+			out = out[:len(out)-1]
 			continue
 		}
-		out = append(out, strings.Join(words[start:i+1], " "))
-		start = i + 1
+		out[len(out)-1] = last
+		break
 	}
-	if start < len(words) {
-		out = append(out, strings.Join(words[start:], " "))
+	if len(out) == 0 {
+		return nil
 	}
-	return out
-}
-
-// closeAsSentence ends a cut on a terminator, dropping the clause punctuation
-// the cut left dangling. A fragment that ends on a comma reads as a truncation.
-func closeAsSentence(text string) string {
-	t := strings.TrimSpace(text)
-	if t == "" {
-		return t
-	}
-	for len(t) > 0 && english.Lexicon().Is(t[len(t)-1:], "clause") {
-		t = strings.TrimSpace(t[:len(t)-1])
-	}
-	if t == "" || endsSentence(t) {
-		return t
-	}
-	return t + "."
-}
-
-// splitSentences cuts prose after each terminator that closes a thought,
-// keeping the terminator on the sentence it ends. Text with no terminator is
-// a single sentence, which is what makes hardFit decline rather than truncate it.
-func splitSentences(text string) []string {
-	words := strings.Fields(text)
-	var out []string
-	start := 0
-	for i, word := range words {
-		if !endsSentence(word) {
-			continue
-		}
-		out = append(out, strings.Join(words[start:i+1], " "))
-		start = i + 1
-	}
-	if start < len(words) {
-		out = append(out, strings.Join(words[start:], " "))
+	if !endsSentence(out[len(out)-1]) {
+		out[len(out)-1] += "."
 	}
 	return out
 }
@@ -469,31 +443,19 @@ func dropSentence(text []string) ([]string, bool) {
 	return text, false
 }
 
-// endsSentence reports prose that closes.
+// endsSentence reports a comment line whose prose closes. It reads past a
+// closing bracket or quote, so a line ending `... (see above).` counts.
 func endsSentence(line string) bool {
-	t := strings.TrimRight(strings.TrimSpace(line), closers())
+	t := strings.TrimRight(strings.TrimSpace(line), `)]}"'`+"`")
 	if t == "" {
 		return false
 	}
-	last := t[len(t)-1:]
-	if !english.Lexicon().Is(last, "terminator") {
-		return false
+	switch t[len(t)-1] {
+	case '.', '!', '?':
+		// An ellipsis or an abbreviation is not the end of a thought.
+		return !strings.HasSuffix(t, "..") && !strings.HasSuffix(t, "e.g.") && !strings.HasSuffix(t, "i.e.")
 	}
-	// A word the lexicon claims as an abbreviation or an ellipsis carries a
-	// terminator without closing a thought.
-	word := t[strings.LastIndexAny(t, " \t")+1:]
-	lex := english.Lexicon()
-	return !lex.Is(word, "abbreviation") && !lex.Is(word, "ellipsis")
-}
-
-// closers is the cutset TrimRight takes, built from the class rather than
-// spelled again.
-func closers() string {
-	var b strings.Builder
-	for _, w := range english.WordsOf("closer") {
-		b.WriteString(w)
-	}
-	return b.String()
+	return false
 }
 
 // dropParagraph removes the last blank-separated paragraph, and reports false when no break remains.

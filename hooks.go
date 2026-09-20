@@ -58,8 +58,8 @@ var hooks = []Hook{
 		Name:    "go-toolchain comments phase",
 		Event:   "build",
 		Runs:    "slopfix comments .",
-		Summary: "a number stated in a comment, in any language the adapter knows",
-		Only:    []string{IDCommentNumber},
+		Summary: "what a comment gets wrong, in any language the adapter knows",
+		Only:    []string{IDCommentNumber, commentfix.IDTail, commentfix.IDLength},
 	},
 	{
 		Name:    "no-laziness",

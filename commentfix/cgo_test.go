@@ -42,7 +42,7 @@ import (
 }
 
 // A block inside the character budget but over on lines keeps every word: the
-// budget's own width is where it goes, and the floor is what allows that.
+// budget's own width is where it goes.
 func TestAWrapOverTheLineCountIsLaidOutRatherThanCut(t *testing.T) {
 	src := "// DefaultGLSLVersion is the GLSL version spirv-cross targets when Options\n// leaves GLSLVersion empty.\nconst DefaultGLSLVersion = 450\n"
 	out, changed := FixLength("p.go", src)

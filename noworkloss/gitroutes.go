@@ -10,21 +10,16 @@ import (
 // hook's way: status, log, diff, add, commit, push, fetch, branch, tag, and
 // creating or switching a branch all leave file content to the edit tools.
 
-// worktreeVerbs put committed content into the tree.
-//
-// merge and pull are deliberately absent: integrating a ref writes only bytes
-// already in a commit. rebase, cherry-pick, am and apply land a tree nothing
-// holds, so they stay.
+// worktreeVerbs put content into the tree that no commit holds.
 var worktreeVerbs = map[string]string{
-	"restore":     "git restore",
-	"stash":       "git stash pop",
-	"revert":      "git revert",
-	"cherry-pick": "git cherry-pick",
-	"rebase":      "git rebase",
-	"am":          "git am",
-	"apply":       "git apply",
-	"checkout":    "git checkout",
-	"reset":       "git reset",
+	"restore":  "git restore",
+	"stash":    "git stash pop",
+	"revert":   "git revert",
+	"rebase":   "git rebase",
+	"am":       "git am",
+	"apply":    "git apply",
+	"checkout": "git checkout",
+	"reset":    "git reset",
 }
 
 // plumbingVerbs write objects, the index or refs directly. `git hash-object -w`
@@ -129,13 +124,16 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 		}
 		return dashDash || len(operands) > 1 || namesExistingPath(dir, operands)
 	case "restore":
-		// --staged alone moves the index back to HEAD and leaves the file on
+		// --staged alone moves the index back to HEAD and leaves the file on disk.
 		return !has("--staged") || has("--worktree", "-W")
 	case "stash":
 		return len(operands) > 0 && (operands[0].text == "pop" || operands[0].text == "apply")
 	case "reset":
 		// A soft or mixed reset moves refs and the index; only the flags below
 		return has("--hard", "--merge", "--keep")
+	case "symbolic-ref":
+		// A ref name on its own prints where that ref points, which is a read.
+		return len(operands) > 1 && !has("-d", "--delete")
 	case "update-ref":
 		// Setting a ref is the last step of the plumbing route, so it introduces
 		return !has("-d", "--delete")
@@ -143,9 +141,9 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 	return true
 }
 
-// namesExistingPath separates `git checkout master` from `git checkout src/` by
-// asking the filesystem rather than guessing from the spelling -- a tag called
-// a release tag looks exactly like a path and is not a path.
+// namesExistingPath separates `git checkout master` from `git checkout src/`
+// by asking the filesystem rather than guessing from the spelling -- a tag
+// called a release tag looks exactly like a path.
 func namesExistingPath(dir string, operands []word) bool {
 	for _, o := range operands {
 		if !o.static {

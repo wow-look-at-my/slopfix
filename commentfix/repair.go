@@ -8,13 +8,13 @@
 //
 // The repair is total. A number the table and the cut both miss is deleted at
 // the position the check reports it, in residual.go. So Check answers nothing
-// about a file this has repaired, and the caller never carries a finding it has
-// no remedy for.
+// about a file this has repaired.
 package commentfix
 
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -34,7 +34,7 @@ type Repair struct {
 // A generated file is left alone, and so is a language the extractor has no
 // syntax for: both report no findings, so both have nothing to repair.
 func Fix(filename, src string) Repair {
-	if IsGenerated(src) {
+	if IsGenerated(filename, src) {
 		return Repair{Text: src}
 	}
 	runs := treecomments.Runs(filename, src)
@@ -54,19 +54,20 @@ func Fix(filename, src string) Repair {
 		out = fitted
 	}
 	if out != src {
-		out = dropDanglingMarkers(out)
+		out = dropDanglingMarkers(filename, out)
 	}
 	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
 
-// dropDanglingMarkers removes a bare comment line the repair left with nothing
-// under it. The line was a paragraph break somebody wrote, and a break that
-// separates a paragraph from the code below it separates nothing.
-func dropDanglingMarkers(src string) string {
+// dropDanglingMarkers removes a bare comment line the repair left with nothing under it. The line was a paragraph break somebody wrote, and a break that separates a paragraph from the code below it separates nothing.
+//
+// The tree names the lines to weigh, so a line of code that merely opens with a marker's characters is never mistaken for an empty comment.
+func dropDanglingMarkers(filename, src string) string {
+	rows := commentRowsOf(filename, src)
 	lines := strings.Split(src, "\n")
 	kept := make([]string, 0, len(lines))
 	for i, line := range lines {
-		if bareMarker(line) && !carriesProse(lines, i+1) {
+		if rows.Contains(i) && bareMarker(line) && !carriesProse(lines, rows, i+1) {
 			continue
 		}
 		kept = append(kept, line)
@@ -74,9 +75,21 @@ func dropDanglingMarkers(src string) string {
 	return strings.Join(kept, "\n")
 }
 
+// commentRowsOf names every line the grammar reads as comment, counting from
+// empty the way a line slice does.
+func commentRowsOf(filename, src string) set.Set[int] {
+	rows := set.New[int]()
+	for _, c := range treecomments.Extract(filename, src) {
+		for row := c.Line - 1; row < c.Line-1+c.Lines; row++ {
+			rows.Add(row)
+		}
+	}
+	return rows
+}
+
 // carriesProse reports whether the line at i is a comment line saying something.
-func carriesProse(lines []string, i int) bool {
-	if i < 0 || i >= len(lines) {
+func carriesProse(lines []string, rows set.Set[int], i int) bool {
+	if i < 0 || i >= len(lines) || !rows.Contains(i) {
 		return false
 	}
 	_, prose, _, ok := splitBlock(lines[i])
@@ -92,7 +105,7 @@ func carriesProse(lines []string, i int) bool {
 func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, removed []string, blanked map[int]bool) {
 	blanked = make(map[int]bool)
 	for _, para := range paragraphsOf(lines, runs) {
-		said := Reword(para.prose)
+		said := CloseProse(Reword(para.prose))
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
 		if said == para.prose {
@@ -108,7 +121,7 @@ func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, rem
 		if len(wrapped) == 0 && para.trailer != "" {
 			wrapped = []string{strings.TrimRight(para.marker, " ")}
 		}
-		// The closer goes on last, after the line juggling below has settled which line IS last. Carried inside wrapped it
+		// The closer goes on last, a single time the juggling below has settled which line is last.
 		closeAt := -1
 		for i, at := range para.lines {
 			if i < len(wrapped) {
@@ -231,7 +244,7 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 		line := lines[i]
 		marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
 		if !ok {
-			// A line inside the block carrying no marker at all: an indented example, or a table. A rewrap would destroy it, so
+			// A line inside the block carrying no marker at all: an indented example.
 			return b, false
 		}
 		marker = line[:min(col, len(line))] + marker
@@ -257,7 +270,6 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 	return b, b.prose != "" && b.trailer != ""
 }
 
-// indentOf reports the column a line's leading non-blank byte sits at.
 func indentOf(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
 }

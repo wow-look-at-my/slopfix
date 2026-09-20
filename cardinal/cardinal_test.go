@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// texts returns what a substrate reported, which is what every case asserts on.
+// texts returns what a substrate reported.
 func texts(text string, s Substrate) []string {
 	var out []string
 	for _, tok := range Find(text, s) {
@@ -27,10 +27,9 @@ func TestTheFrameIsWhatSeparatesTheSubstrates(t *testing.T) {
 	assert.Equal(t, []string{"three hooks"}, texts(framed, Prose))
 }
 
-// The frame is the only thing parting the document substrates. No noun buys a
-// number an exemption on either side: a duration and a size state what is true
-// today exactly as a tally of items does, and nothing corrects either when the
-// job gets slower or the artifact grows.
+// The frame is the only thing parting the document substrates now. A number is
+// a stated value whatever noun follows it, so a duration and a size go stale
+// exactly as a tally of items does.
 func TestTheFrameIsTheOnlyThingPartingTheDocumentSubstrates(t *testing.T) {
 	measured := "The read has 20 seconds."
 	assert.Equal(t, []string{"20 seconds"}, texts(measured, Prose))
@@ -46,12 +45,17 @@ func TestTheFrameIsTheOnlyThingPartingTheDocumentSubstrates(t *testing.T) {
 	assert.Equal(t, []string{"three parts"}, texts(bare, Gate))
 }
 
+// No noun buys a number an exemption. A document saying how long a job takes,
+// or how large an artifact is, states what is true today and nothing corrects
+// it when either moves. Those read as measurements and went uncounted, which
+// is how a stale duration outlived every rewrite around it.
 func TestNoNounExemptsAStatedValue(t *testing.T) {
 	for name, text := range map[string]string{
 		"duration": "the js leg takes about 9 minutes",
+		"seconds":  "the read has 20 seconds",
+		"hours":    "the cap is 6 hours",
 		"size":     "the blob is 356 megabytes",
-		"length":   "the header is 64 bytes",
-		"span":     "the wait ends after 30 seconds",
+		"lines":    "the rule holds for two lines",
 	} {
 		t.Run(name, func(t *testing.T) {
 			assert.NotEmpty(t, texts(text, Gate))
@@ -106,7 +110,6 @@ func TestTheVocabulariesDifferByDesign(t *testing.T) {
 	}
 }
 
-// The exemptions belong to the substrate that has no frame to lean on.
 func TestTheCommentExemptionsCarryTheShapesThatCountNothing(t *testing.T) {
 	for name, text := range map[string]string{
 		"status code":   "the proxy answers HTTP 403 here",

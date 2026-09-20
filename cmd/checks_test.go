@@ -25,7 +25,7 @@ var checks = []struct {
 	name string
 	// only is the check list --only selects, or none.
 	only []string
-	// payload is stdin: a hook envelope the check must act on.
+	// payload is stdin.
 	payload string
 	// want is a fragment the answer has to carry.
 	want string
@@ -36,7 +36,7 @@ var checks = []struct {
 }, {
 	name: "hook", only: []string{"tombstones"},
 	payload: writeEnvelope("x.go", "package p\n\n// This used to read the flag from the environment.\nfunc f() {}\n"),
-	want:    "used to read the flag",
+	want:    `"content":"package p\n\nfunc f() {}\n"`,
 }, {
 	name: "message", only: []string{"blame"},
 	payload: "The suite is red, but the failure is pre-existing.",
@@ -46,15 +46,15 @@ var checks = []struct {
 	payload: "I found an off-by-one in the retry loop and left it alone.",
 	want:    "laziness/punt",
 }, {
-	name:    "command",
+	name:    "auto-allow",
 	payload: bash("python3 -c 1"),
 	want:    `"permissionDecision":"deny"`,
 }, {
-	name:    "command",
+	name:    "clean-bash",
 	payload: bash("docker compose restart web"),
 	want:    "up -d",
 }, {
-	name:    "command",
+	name:    "no-work-loss",
 	payload: bash("sed -i s/a/b/ README.md"),
 	want:    `"permissionDecision":"deny"`,
 }, {
@@ -121,10 +121,6 @@ func TestEveryCheckAnswersItsOwnInput(t *testing.T) {
 		t.Run(check.name+" "+strings.Join(check.only, ","), func(t *testing.T) {
 			cmdMu.Lock()
 			defer cmdMu.Unlock()
-			if check.name == "command" {
-				require.Contains(t, judgeCommand([]byte(check.payload)).Stdout, check.want)
-				return
-			}
 			c := find(t, check.name)
 			if len(check.only) > 0 {
 				selectChecks(t, c, check.only)

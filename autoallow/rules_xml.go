@@ -21,6 +21,13 @@ type xmlRules struct {
 	Ask        xmlSection     `xml:"ask"`
 	Deny       xmlSection     `xml:"deny"`
 	MCPServers []xmlMCPServer `xml:"mcpServer"`
+	DenyPaths  []xmlPath      `xml:"denyPath"`
+}
+
+// A denied tree is named here and refused for every tool that reaches it.
+type xmlPath struct {
+	Prefix  string `xml:"prefix,attr"`
+	Message string `xml:",chardata"`
 }
 
 type xmlSection struct {
@@ -55,6 +62,7 @@ type xmlCommand struct {
 	RequiredFlags      *xmlFlagList    `xml:"requiredFlags"`
 	FlagsWithValue     *xmlFlagList    `xml:"flagsWithValue"`
 	DenyArgSubstrings  *xmlStringList  `xml:"denyArgSubstrings"`
+	RefuseArgs         *xmlRefuseArgs  `xml:"refuseArgSubstrings"`
 	AllowedArgPrefixes *xmlStringList  `xml:"allowedArgPrefixes"`
 	RequireFlagValue   *xmlRequireFlag `xml:"requireFlagValue"`
 	Subcommands        []xmlCommand    `xml:"rule"`
@@ -70,6 +78,13 @@ type xmlFlag struct {
 
 type xmlStringList struct {
 	Values []string `xml:"value"`
+}
+
+// xmlRefuseArgs denies a command whose argument text carries any of the
+// substrings. denyArgSubstrings above only unmatches the rule.
+type xmlRefuseArgs struct {
+	Message string   `xml:"message,attr"`
+	Values  []string `xml:"value"`
 }
 
 type xmlRequireFlag struct {
@@ -104,6 +119,12 @@ func loadXMLRules(data []byte) (Rules, error) {
 			}
 			*section.commands = append(*section.commands, convertXMLCommand(xc))
 		}
+	}
+	for _, p := range xr.DenyPaths {
+		r.DenyPaths = append(r.DenyPaths, PathRule{
+			Prefix:  strings.TrimSpace(p.Prefix),
+			Message: strings.TrimSpace(p.Message),
+		})
 	}
 	if len(xr.MCPServers) > 0 {
 		r.MCPServers = make(map[string][]string, len(xr.MCPServers))
@@ -171,6 +192,11 @@ func convertXMLCommand(xc xmlCommand) CommandNode {
 
 	if xc.DenyArgSubstrings != nil {
 		node.DenyArgSubstrings = xc.DenyArgSubstrings.Values
+	}
+
+	if xc.RefuseArgs != nil {
+		node.RefuseArgSubstrings = xc.RefuseArgs.Values
+		node.RefuseArgMessage = xc.RefuseArgs.Message
 	}
 
 	if xc.AllowedArgPrefixes != nil {

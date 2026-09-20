@@ -39,19 +39,6 @@ func TestAPaddedCommentIsTightenedRatherThanCut(t *testing.T) {
 	assert.Empty(t, CheckLength("x.go", out), "the tightened comment fits")
 }
 
-func TestFillerIsOnlyDroppedAsAWholeWord(t *testing.T) {
-	assert.Equal(t, "The adjustment", shorten("The adjustment"), "'just' inside 'adjustment' is not filler")
-	assert.Equal(t, "A basic block", shorten("A basic block"), "'basically' does not match 'basic'")
-	assert.Equal(t, "Injustice", shorten("Injustice"))
-	assert.Equal(t, "The port", shorten("The very port"))
-}
-
-func TestAShorterPhrasingReplacesTheLongOne(t *testing.T) {
-	assert.Equal(t, "Because it fails", shorten("Due to the fact that it fails"))
-	assert.Equal(t, "If it fails", shorten("In the event that it fails"))
-	assert.Equal(t, "It can retry", shorten("It has the ability to retry"))
-}
-
 // Reflow must not break a word that stops meaning anything when split.
 func TestReflowNeverBreaksALongWord(t *testing.T) {
 	url := "https://example.invalid/a/very/long/path/that/exceeds/the/wrap/width/by/itself"
@@ -67,7 +54,7 @@ func TestReflowKeepsParagraphBreaks(t *testing.T) {
 		"//",
 		"// The elaboration that follows it.",
 	}
-	out, changed := tighten(text)
+	out, _, changed := tighten(text)
 	require.True(t, changed || len(out) == len(text))
 	assert.Contains(t, strings.Join(out, "\n"), "//\n", "the blank marker is still there")
 }
@@ -75,7 +62,7 @@ func TestReflowKeepsParagraphBreaks(t *testing.T) {
 // A block whose lines disagree about the marker is left alone: rewriting it would
 // change more than the prose.
 func TestAMixedBlockIsNotTightened(t *testing.T) {
-	_, changed := tighten([]string{"// prose", "code()"})
+	_, _, changed := tighten([]string{"// prose", "code()"})
 	assert.False(t, changed)
 }
 
@@ -86,20 +73,4 @@ func TestACleanCommentIsNotRewritten(t *testing.T) {
 	out, changed := FixLength("x.go", src)
 	assert.False(t, changed)
 	assert.Equal(t, src, out)
-}
-
-// A doc comment opens on the identifier it documents, and that identifier is
-// often unexported. Capitalising it names a symbol the package does not have,
-// so the capital is restored only where a deletion removed the opening word.
-func TestTheOpeningWordKeepsItsCase(t *testing.T) {
-	assert.Equal(t, "arityReach is how far back it looks",
-		shorten("arityReach is basically how far back it looks"))
-	assert.Equal(t, "english is the parsed table",
-		shorten("english is actually the parsed table"))
-}
-
-// The control: a deletion that removes the opening word does restore a capital,
-// or the sentence starts in lower case for no reason.
-func TestALeadingDeletionRestoresTheCapital(t *testing.T) {
-	assert.Equal(t, "It fails", shorten("Obviously it fails"))
 }

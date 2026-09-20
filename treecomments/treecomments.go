@@ -45,21 +45,22 @@ var grammars = map[string]func() *ts.Language{
 	".mts":  typescript.Language,
 	".cts":  typescript.Language,
 	".tsx":  tsx.Language,
+	// The bash grammar reads a hash-comment format: it recovers the comments.
+	".yml":  bash.Language,
+	".yaml": bash.Language,
+	".toml": bash.Language,
+	".conf": bash.Language,
 	".zsh":  bash.Language,
 }
 
-// Supported reports whether this file's comments can be found at all: by a
-// grammar, or by the YAML scanner. It reads the extension table, because
-// loading a grammar decodes its tables for nothing.
+// Supported reports whether a grammar parses a file of that name.
 func Supported(filename string) bool {
-	ext := strings.ToLower(filepath.Ext(filename))
-	if yamlExts[ext] {
-		return true
-	}
-	_, ok := grammars[ext]
+	_, ok := grammars[strings.ToLower(filepath.Ext(filename))]
 	return ok
 }
 
+// grammarFor answers the grammar an extension names. An unmatched extension
+// falls back to bash; a named grammar missing its tables must not.
 func grammarFor(filename string) (language *ts.Language, named bool) {
 	load, ok := grammars[strings.ToLower(filepath.Ext(filename))]
 	if !ok {
@@ -68,20 +69,22 @@ func grammarFor(filename string) (language *ts.Language, named bool) {
 	return load(), true
 }
 
-// languageFor answers the grammar to read a file with, or nil when the
-// extension names none. It reports a named grammar missing its tables, because
-// a rule then goes quiet rather than passing, and nothing else says so.
-//
-// An unnamed extension gets no grammar. What it recovers is bash: it ends a
-// word at an `&`, so it read the `#` of an XML character reference as opening
-// a comment, and the repair that followed wrote the truncated line to disk. A
-// file nothing here can parse is a file no rule may rewrite.
+// languageFor answers the grammar to read a file with, or nil when it has no
+// parse tables. It reports that case, because a rule then goes quiet rather
+// than passing.
 func languageFor(filename string) *ts.Language {
 	language, named := grammarFor(filename)
-	if named && language == nil {
-		reportMissingGrammar(filename)
+	if named {
+		if language == nil {
+			reportMissingGrammar(filename)
+		}
+		return language
 	}
-	return language
+	if language := bash.Language(); language != nil {
+		return language
+	}
+	reportMissingGrammar(filename)
+	return nil
 }
 
 // reported holds the extensions already named, so an absent grammar prints a single time.
@@ -116,8 +119,6 @@ type Comment struct {
 // Run is a stack of comments on adjoining lines, sharing a left edge.
 type Run []Comment
 
-// Runs groups a file's comments into the paragraphs a rewrite acts on.
-//
 // A run breaks where the comments stop adjoining, where the left edge moves,
 // and where a comment follows code.
 func Runs(filename, src string) []Run {
@@ -136,7 +137,6 @@ func Runs(filename, src string) []Run {
 	return out
 }
 
-// indentOf reports the column the line's leading non-blank byte sits at.
 func indentOf(src string, c Comment) int {
 	start := strings.LastIndexByte(src[:c.Offset], '\n') + 1
 	return len(src[start:c.Offset]) - len(strings.TrimLeft(src[start:c.Offset], " \t"))
@@ -147,9 +147,6 @@ func indentOf(src string, c Comment) int {
 // A syntax error yields comments anyway: tree-sitter recovers around it, so a
 // rule still answers on a file mid-edit.
 func Extract(filename, src string) []Comment {
-	if yamlExts[strings.ToLower(filepath.Ext(filename))] {
-		return yamlComments(src)
-	}
 	language := languageFor(filename)
 	if language == nil {
 		return nil

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/slopfix"
-	"github.com/wow-look-at-my/slopfix/repairwrite"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
@@ -23,16 +21,10 @@ var (
 func init() {
 	hook := &cobra.Command{
 		Use:   "hook",
-		Short: "Repair a Claude Code write, reading its hook payload on stdin",
-		Long: "hook reads a write's payload on stdin and writes the hook's own response\n" +
-			"on stdout. It serves both events from one command, deciding on the event\n" +
-			"the payload names, so a manifest never carries a command per event.\n\n" +
-			"On PostToolUse it repairs the file the write landed, in place and whole. A\n" +
-			"fence, a table and a comment block are properties of a file rather than of\n" +
-			"a fragment, and the file on disk is the only place all three are true.\n\n" +
-			"On PreToolUse it repairs the text a write adds. It never refuses one: what\n" +
-			"no rewrite repairs is named in the context the model reads, and the write\n" +
-			"still lands.\n\n" +
+		Short: "Repair a Claude Code write, reading its PreToolUse payload on stdin",
+		Long: "hook reads a PreToolUse payload on stdin and writes the hook's own\n" +
+			"response on stdout. It repairs the text a write adds, lets the write\n" +
+			"through, and flags what the repair did not reach.\n\n" +
 			"Every plugin that guards a write is then its manifest and nothing else.\n" +
 			"Each carried its own copy of this: the same payload parse, the same three\n" +
 			"write shapes, the same splice back. A write shape added to one and not\n" +
@@ -70,13 +62,16 @@ type writeInput struct {
 	} `json:"edits"`
 }
 
-// hookResponse carries a repaired payload, a notice, or both. Allowing an
-// untouched write prints nothing at all.
+// hookResponse covers a refusal, which sets the permission fields, and a
+// repair, which sets the input and the notice. Allowing an untouched write
+// prints nothing at all.
 type hookResponse struct {
 	HookSpecificOutput struct {
-		HookEventName     string         `json:"hookEventName"`
-		UpdatedInput      map[string]any `json:"updatedInput,omitempty"`
-		AdditionalContext string         `json:"additionalContext,omitempty"`
+		HookEventName            string         `json:"hookEventName"`
+		PermissionDecision       string         `json:"permissionDecision,omitempty"`
+		PermissionDecisionReason string         `json:"permissionDecisionReason,omitempty"`
+		UpdatedInput             map[string]any `json:"updatedInput,omitempty"`
+		AdditionalContext        string         `json:"additionalContext,omitempty"`
 	} `json:"hookSpecificOutput"`
 }
 
@@ -124,24 +119,6 @@ func runHook(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return nil
 	}
-
-	// A single command serves both halves of a write. The event decides
-	// which, because a manifest that names a command per event is a list to
-	// keep in step with this.
-	var event struct {
-		HookEventName string `json:"hook_event_name"`
-	}
-	if json.Unmarshal(data, &event) == nil && event.HookEventName == "PostToolUse" {
-		res := repairwrite.Run(bytes.NewReader(data))
-		if res.Stdout != "" {
-			fmt.Fprint(cmd.OutOrStdout(), res.Stdout)
-		}
-		if res.Stderr != "" {
-			fmt.Fprint(cmd.ErrOrStderr(), res.Stderr)
-		}
-		return nil
-	}
-
 	out := judge(data, rules, ids)
 	if out != "" {
 		fmt.Fprint(cmd.OutOrStdout(), out)
@@ -172,6 +149,7 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	var removed []string
 	var kept []tombstones.Hit
 	var findings []string
+	rewrites := 0
 	changed := false
 	for _, u := range writeUnits(in.ToolName, write, raw) {
 		repair := slopfix.Fix(slopfix.Request{
@@ -182,6 +160,7 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 			MaxCommentLines: hookMaxLines,
 		})
 		removed = append(removed, repair.Removed...)
+		rewrites += repair.Rewrites
 		kept = append(kept, repair.Kept...)
 		for _, f := range repair.Findings {
 			findings = append(findings, f.String())
@@ -192,15 +171,29 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		}
 	}
 
-	if !changed && len(kept) == 0 && len(findings) == 0 {
-		return ""
-	}
-	return respond(func(r *hookResponse) {
-		if changed {
-			r.HookSpecificOutput.UpdatedInput = raw
+	// The fragment carries no file around it, so a comment in it documents
+	// nothing and a fenced block's lines read as a wrapped paragraph.
+	if p := place(in.ToolName, write, rules, ids); p.ok {
+		findings = findings[:0]
+		for _, f := range p.findings {
+			findings = append(findings, f.String())
 		}
-		r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed, kept, findings)
-	})
+	}
+
+	flags := hitLines(kept)
+	flags = append(flags, findings...)
+	switch {
+	case changed:
+		return respond(func(r *hookResponse) {
+			r.HookSpecificOutput.UpdatedInput = raw
+			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, removed, rewrites, flags)
+		})
+	case len(flags) > 0:
+		return respond(func(r *hookResponse) {
+			r.HookSpecificOutput.AdditionalContext = notice(write.FilePath, nil, 0, flags)
+		})
+	}
+	return ""
 }
 
 func respond(fill func(*hookResponse)) string {
@@ -217,31 +210,43 @@ func respond(fill func(*hookResponse)) string {
 // reportCap bounds what a message carries: a refusal nobody reads stops nothing.
 const reportCap = 6
 
-// notice is what the model is told after the fact. The write went through
-// either way, so it names what was cut and what was left rather than asking
-// for a retry.
-func notice(path string, removed []string, kept []tombstones.Hit, findings []string) string {
+// notice is what the model is told after the fact. The write always goes
+// through, so it names what was cut and flags what no rewrite reached, rather
+// than asking for a retry.
+func notice(path string, removed []string, rewrites int, flags []string) string {
 	var b strings.Builder
-	if len(removed) > 0 {
-		fmt.Fprintf(&b, "slopfix repaired this write to %s. It removed:\n", path)
-		for _, line := range capped(removed) {
-			fmt.Fprintf(&b, "  %q\n", strings.TrimSpace(line))
-		}
-		b.WriteString("\nThe text that was written no longer carries them. Read the sentence back and make it read naturally.\n")
+	if rewrites == 0 && len(removed) == 0 {
+		fmt.Fprintf(&b, "slopfix let this write to %s through and flagged what it reads.\n", path)
+	} else {
+		fmt.Fprintf(&b, "slopfix repaired this write to %s. It took %d rewrites.\n", path, rewrites)
 	}
-	rest := append(hitLines(kept), findings...)
-	if len(rest) == 0 {
-		return b.String()
+	for _, line := range capped(removed) {
+		fmt.Fprintf(&b, "  removed %q\n", strings.TrimSpace(line))
 	}
-	if b.Len() > 0 {
-		b.WriteString("\n")
+	for _, line := range capped(flags) {
+		fmt.Fprintf(&b, "  flagged %s\n", line)
 	}
-	fmt.Fprintf(&b, "slopfix left these in %s, because no rewrite repairs them:\n", path)
-	for _, line := range capped(rest) {
+	b.WriteString("\nThe write went through as it stands. Write prose that needs none of this.")
+	return b.String()
+}
+
+// refusal is the reason a hook prints when it denies a write outright. Prose
+// never reaches it: a comment is repaired and reported.
+func refusal(lines []string) string {
+	var b strings.Builder
+	b.WriteString("blocked:\n")
+	for _, line := range capped(lines) {
 		b.WriteString("  " + line + "\n")
 	}
-	b.WriteString("\nThe write went through as it stands. Reword them in a follow-up edit.")
 	return b.String()
+}
+
+// deny answers a write with a refusal carrying the named reasons.
+func deny(lines []string) string {
+	return respond(func(r *hookResponse) {
+		r.HookSpecificOutput.PermissionDecision = "deny"
+		r.HookSpecificOutput.PermissionDecisionReason = refusal(lines)
+	})
 }
 
 func hitLines(kept []tombstones.Hit) []string {

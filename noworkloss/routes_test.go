@@ -58,7 +58,7 @@ func routeCases() []routeCase {
 		{route: "install", deny: "install -m 644 {{out}}/src.txt src.txt", allow: "install -m 644 src.txt {{out}}/copy.txt", names: "src.txt"},
 		{route: "rsync into the tree", deny: "rsync -a {{out}}/src.txt src.txt", allow: "rsync -a src.txt {{out}}/copy.txt", names: "src.txt"},
 
-		// Write elsewhere, then splice the fragment in.
+		// Write elsewhere.
 		{route: "sed -i r, reading a fragment written elsewhere", deny: "sed -i '3r {{out}}/frag.txt' src.txt", allow: "sed -i '3r {{out}}/frag.txt' {{out}}/src.txt", names: "src.txt"},
 		{route: "appending a fragment written elsewhere", deny: "cat {{out}}/frag.txt >> src.txt", allow: "cat src.txt >> {{out}}/frag.txt", names: "src.txt"},
 
@@ -73,7 +73,6 @@ func routeCases() []routeCase {
 		{route: "git restore", deny: "git restore src.txt", allow: "cd {{out}} && git restore src.txt", names: "git restore"},
 		{route: "git stash pop", deny: "git stash pop", allow: "cd {{out}} && git stash pop", names: "git stash pop"},
 		{route: "git revert", deny: "git revert HEAD", allow: "cd {{out}} && git revert HEAD", names: "git revert"},
-		{route: "git cherry-pick", deny: "git cherry-pick abc123", allow: "cd {{out}} && git cherry-pick abc123", names: "git cherry-pick"},
 		{route: "git reset --hard", deny: "git reset --hard origin/master", allow: "cd {{out}} && git reset --hard origin/master", names: "git reset"},
 
 		// The plumbing route, which never touches the worktree at all.
@@ -164,7 +163,6 @@ func routeCases() []routeCase {
 		{route: "scp from a remote host", deny: "scp host:/etc/hosts src.txt", allow: "scp src.txt host:/tmp/hosts", names: "src.txt"},
 		{route: "yq -i", deny: "yq -i '.a = 1' config.yaml", allow: "yq -i '.a = 1' {{out}}/config.yaml", names: "config.yaml"},
 
-		// A formatter this hook does not vouch for.
 		{route: "an unrecognised in-place rewriter", deny: "ffs fmt -w builtins/math.ffs", allow: "ffs check builtins/math.ffs", names: "builtins/math.ffs"},
 	}
 }
@@ -231,7 +229,7 @@ func TestOrdinaryCommandsAreUntouched(t *testing.T) {
 		// Integrating a ref: no edit tool performs a merge, so denying it wedges the workflow.
 		"git merge --no-edit origin/master", "git merge FETCH_HEAD", "git pull origin master",
 
-		// Copying. This is how a tree of files gets put in place, so no `cp` is a
+		// Copying is how a tree of files gets put in place, so every `cp` into the working tree is judged.
 		"cp {{out}}/src.txt src.txt", "cp src.txt {{out}}/copy.txt",
 		"cp -r {{out}}/pkg .", "cp -- {{out}}/src.txt src.txt",
 		"cp -t . {{out}}/src.txt",

@@ -45,7 +45,7 @@ func sedWrites(seg segment, rest []word) []write {
 	case inPlace && len(files) > 0:
 		out = append(out, write{route: "sed -i", paths: files, dir: seg.cwd})
 	case inPlace:
-		// `ls | xargs sed -i s/a/b/` names no file at all: the paths arrive at
+		// `ls | xargs sed -i s/a/b/` names no file at all.
 		out = append(out, write{route: "sed -i", opaque: "an in-place sed whose files are supplied at runtime rather than named in the command"})
 	}
 	for _, s := range scripts {
@@ -250,9 +250,7 @@ func awkWrites(seg segment, rest []word) []write {
 }
 
 // awkRedirectTargets finds the files an awk program writes. In awk's grammar an
-// unparenthesised `>` after print or printf is a redirect, and anywhere else it
-// is a comparison -- which is why `awk '$a > $b'` is not a writer and
-// `awk '{print > "f"}'` is.
+// unparenthesised `>` after print or printf is a redirect.
 func awkRedirectTargets(prog string) (targets []string, unresolvable bool) {
 	printSeen := false
 	inString := false

@@ -157,10 +157,6 @@ func isNameRune(r rune) bool {
 }
 
 // tokenNumber reports the number a token carries, if it carries any.
-//
-// The order is load-bearing. A URL is never a number. Digits are tested next,
-// so a version reports the part of it no name binds. Only then does a qualified
-// name exempt what is left, which is a token spelling a number in letters.
 func tokenNumber(tok Token, words set.Set[string]) (Token, bool) {
 	if strings.Contains(tok.Text, "://") {
 		return Token{}, false // the digits of a URL are part of it

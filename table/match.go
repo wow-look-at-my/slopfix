@@ -11,8 +11,7 @@ import "strings"
 
 // A Term is a single element of a match.
 type Term struct {
-	// Classes are the word classes the term matches, and any of them fits. A
-	// literal leaves it empty.
+	// Classes are the word classes the term matches, and any of them fits. A literal leaves it empty.
 	Classes []string
 	// Word is the literal a term matches, lowercased.
 	Word string

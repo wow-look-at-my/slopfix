@@ -32,15 +32,11 @@ var greenVerdicts = []string{
 	`(rollup: success)`,
 }
 
-// tally reads the "N/M builds passed" count. A waiting status spells its count
-// with the same words, so only a full count is a verdict.
+// tally reads the "N/M builds passed" count.
 var tally = regexp.MustCompile(`(\d+)/(\d+) builds passed`)
 
-// fullTally reports whether every build count the text carries says all builds
-// passed. A record often carries several: a listing of runs, a comparison with
-// an earlier commit, a table of pull requests. a single full count beside a
-// partial a single says nothing about the commit the record names, so every
-// count has to agree before the record is a verdict.
+// fullTally reports whether every build count the text carries says all
+// builds passed.
 func fullTally(text string) bool {
 	all := tally.FindAllStringSubmatch(text, -1)
 	if len(all) == 0 {

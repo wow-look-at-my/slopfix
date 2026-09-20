@@ -49,7 +49,7 @@ func Fix(content string, keeps func(string) bool) Repair {
 }
 
 // ungate deletes the continue-on-error a gate step hides behind. The step stays
-// and starts failing, which is what a gate is for.
+// and starts failing.
 func ungate(content string) (string, []string) {
 	findings := neuteredGates(content)
 	if len(findings) == 0 {

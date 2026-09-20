@@ -11,11 +11,18 @@ import (
 type HookInput struct {
 	HookEventName string    `json:"hook_event_name"`
 	ToolName      string    `json:"tool_name"`
+	Cwd           string    `json:"cwd"`
 	ToolInput     ToolInput `json:"tool_input"`
 }
 
+// Every tool fills the keys its own shape has and leaves the rest empty, so
+// this reads the location out of whichever tool is asking.
 type ToolInput struct {
-	Command string `json:"command"`
+	Command      string `json:"command"`
+	FilePath     string `json:"file_path"`
+	NotebookPath string `json:"notebook_path"`
+	Path         string `json:"path"`
+	Pattern      string `json:"pattern"`
 }
 
 // Sections evaluated deny > ask > allow. A rule matches argv as written
@@ -30,23 +37,28 @@ type Rules struct {
 	DenyCommands  []CommandRule `json:"denyCommands"`
 
 	MCPServers map[string][]string `json:"mcpServers"`
+
+	// DenyPaths refuses by location, whichever tool is asking.
+	DenyPaths []PathRule `json:"denyPaths"`
 }
 
 type CommandNode struct {
-	Name               interface{}      `json:"name"` // string or []string
-	Description        string           `json:"description,omitempty"`
-	AllowedFlags       interface{}      `json:"allowedFlags,omitempty"` // "*" or []string
-	DeniedFlags        []string         `json:"deniedFlags,omitempty"`
-	ExecFlags          []string         `json:"execFlags,omitempty"`
-	RequiredFlags      []string         `json:"requiredFlags,omitempty"`
-	RequireFlagValue   *RequireFlagRule `json:"requireFlagValue,omitempty"`
-	DenyWithMessage    string           `json:"denyWithMessage,omitempty"`
-	FlagsWithValue     []string         `json:"flagsWithValue,omitempty"`
-	HelpAlwaysAllowed  bool             `json:"helpAlwaysAllowed,omitempty"`
-	BareOnly           bool             `json:"bareOnly,omitempty"`
-	DenyArgSubstrings  []string         `json:"denyArgSubstrings,omitempty"`
-	AllowedArgPrefixes []string         `json:"allowedArgPrefixes,omitempty"`
-	Subcommands        []CommandNode    `json:"subcommands,omitempty"`
+	Name                interface{}      `json:"name"` // string or []string
+	Description         string           `json:"description,omitempty"`
+	AllowedFlags        interface{}      `json:"allowedFlags,omitempty"` // "*" or []string
+	DeniedFlags         []string         `json:"deniedFlags,omitempty"`
+	ExecFlags           []string         `json:"execFlags,omitempty"`
+	RequiredFlags       []string         `json:"requiredFlags,omitempty"`
+	RequireFlagValue    *RequireFlagRule `json:"requireFlagValue,omitempty"`
+	DenyWithMessage     string           `json:"denyWithMessage,omitempty"`
+	FlagsWithValue      []string         `json:"flagsWithValue,omitempty"`
+	HelpAlwaysAllowed   bool             `json:"helpAlwaysAllowed,omitempty"`
+	BareOnly            bool             `json:"bareOnly,omitempty"`
+	DenyArgSubstrings   []string         `json:"denyArgSubstrings,omitempty"`
+	RefuseArgSubstrings []string         `json:"refuseArgSubstrings,omitempty"`
+	RefuseArgMessage    string           `json:"refuseArgMessage,omitempty"`
+	AllowedArgPrefixes  []string         `json:"allowedArgPrefixes,omitempty"`
+	Subcommands         []CommandNode    `json:"subcommands,omitempty"`
 }
 
 type RequireFlagRule struct {
@@ -192,6 +204,16 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 
 	if node.DenyWithMessage != "" {
 		return "deny", node.DenyWithMessage
+	}
+
+	// A refused substring is a verdict of its own: the endpoint and method are
+	// ordinary, and what the request carries decides it.
+	for _, arg := range args {
+		for _, substr := range node.RefuseArgSubstrings {
+			if strings.Contains(arg, substr) {
+				return "deny", node.RefuseArgMessage
+			}
+		}
 	}
 
 	// A denied substring unmatches the node: in a script argument (awk, sed)

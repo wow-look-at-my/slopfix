@@ -9,13 +9,12 @@
 // picks instead of composing a reply, and the model has to have thought the
 // options through well enough to write them down.
 //
-// It was a Stop hook, and that was wrong the same way the sibling
-// link-all-refs plugin's Stop hook was wrong. A Stop hook runs AFTER the
-// message has streamed, so refusing cannot unsend anything: the user reads the
-// prose question, then reads a near-identical retype of the same message. The
-// retype explains itself, which puts the decision back into prose, so the guard
-// fires again. That loop has no bound. The annotation goes to the reader
-// instead, who is the person the question was aimed at.
+// It was a Stop hook, and that was wrong the same way the sibling link-all-refs
+// plugin's Stop hook was wrong. A Stop hook runs AFTER the message has
+// streamed, so refusing cannot unsend anything: the user reads the prose
+// question, then reads a near-identical retype of the same message. The retype
+// explains itself, which puts the decision back into prose, so the guard fires
+// again. That loop has no bound. The annotation goes to the reader instead.
 //
 // displayContent is display-only, read out of the shipped bundle rather than
 // assumed: it "replaces the delta on screen without changing the stored

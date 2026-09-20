@@ -110,7 +110,7 @@ func TestACutTrailingCommentLeavesTheCode(t *testing.T) {
 }
 
 // A blank comment line the source already carried is a paragraph break somebody
-// wrote, so the repair leaves it where it is.
+// wrote.
 func TestABlankCommentLineTheSourceCarriedSurvives(t *testing.T) {
 	src := "// It locks.\n//\n// It reserves one slot.\nfunc f() {}\n"
 	repair := fix(t, src)

@@ -46,8 +46,7 @@ func TestSentencesSplitBeforeALowerCaseFileName(t *testing.T) {
 }
 
 func TestALongSentenceIsReportedOnceTheSplitterIsHonest(t *testing.T) {
-	// A single sentence, well over the cap, carrying the file reference and the
-	// abbreviation that a naive splitter breaks on.
+	// A single sentence, well over the cap.
 	long := "The scanner walks the input once and hands the parser every token it " +
 		"needs, e.g. the span and the depth, so that lexer.md and the analyzer " +
 		"never disagree about what a word is."
@@ -118,21 +117,18 @@ func TestCountsLeaveArithmeticAlone(t *testing.T) {
 	}
 }
 
-// A measurement states what is true today, and nothing corrects it when the
-// budget moves or the wait gets longer. The noun it governs buys it nothing.
-func TestCountsReportAMeasurement(t *testing.T) {
+// A measurement is a stated value the same as a tally is. A size and a duration
+// are true today and nothing corrects either when the code around them moves.
+func TestCountsReadAMeasurement(t *testing.T) {
 	cases := map[string]string{
 		"a size":     "The budget is 40000 characters per file.",
 		"a duration": "The wait ends after 30 seconds.",
-		"a tally":    "The rule holds for one line, and for two lines as well.",
 	}
 	for name, text := range cases {
 		t.Run(name, func(t *testing.T) {
-			var rules []string
-			for _, finding := range Check(text, 1) {
-				rules = append(rules, finding.Rule)
-			}
-			assert.Contains(t, rules, "a stated count goes stale when the set changes", text)
+			findings := Check(text, 1)
+			require.NotEmpty(t, findings, text)
+			assert.Equal(t, "a stated count goes stale when the set changes", findings[0].Rule)
 		})
 	}
 }

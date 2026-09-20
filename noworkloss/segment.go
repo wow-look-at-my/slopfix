@@ -18,7 +18,7 @@ type word struct {
 
 type redirTarget struct {
 	op syntax.RedirOperator
-	// fd is the descriptor the redirect rebinds, as written. An empty value is
+	// fd is the descriptor the redirect rebinds, as written. Empty means stdout.
 	fd   string
 	file word
 }
@@ -47,7 +47,7 @@ type segment struct {
 	relocated bool
 	// stdinScript marks a stage fed by a pipe or a heredoc, where an interpreter runs an unresolvable script.
 	stdinScript bool
-	// fromScript marks a unit read out of a script FILE, whose writes are the
+	// fromScript marks a unit read out of a script FILE, whose writes belong.
 	fromScript bool
 }
 
@@ -82,7 +82,7 @@ type walker struct {
 	blockers    []blocker
 	depth       int
 	scriptDepth int
-	// fileDepth counts how deep the walk stands inside a script FILE run as a
+	// fileDepth counts how deep the walk stands inside a script FILE.
 	fileDepth int
 	piped     bool
 	// vars holds every variable proven to hold a static value. unsafeVars
@@ -90,7 +90,7 @@ type walker struct {
 	unsafeVars   map[string]bool
 	multiVars    map[string]bool
 	varsDisabled bool
-	// scopeOK marks a scope whose whole program text this walk has read, which
+	// scopeOK marks a scope whose whole program text this walk has read.
 	scopeOK bool
 }
 
@@ -464,7 +464,7 @@ func (w *walker) scriptFile(f word, cwd string, fresh bool) {
 	if fresh {
 		self = path
 	}
-	// Only a NEW shell counts as a program of its own. A sourced file's text is
+	// Only a NEW shell counts as a program of its own.
 	w.script(string(src), cwd, "the script "+f.text, self)
 }
 

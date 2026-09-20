@@ -12,9 +12,7 @@ import (
 // noFlags is scanArgs' "this command has no value-taking flags" argument.
 var noFlags = set.Of[string]()
 
-// A write is a file mutation a segment would perform. The shapes cover every
-// route: a named target, a directory the write lands somewhere under, and a
-// target that cannot be resolved at all.
+// A write is a file mutation a segment would perform.
 type write struct {
 	route string // how the message names the command
 	paths []word // named targets, resolved against dir
@@ -60,7 +58,7 @@ func classifyRoutes(seg segment, roots []string, aliases *aliasResolver, depth i
 			return append(out, w...)
 		}
 		// A verb with no write route of its own may still be an alias for a
-		// write, so provenance must see through the same aliases. expand is a
+		// write, so provenance sees through the same aliases.
 		for _, expanded := range aliases.expand(seg, depth) {
 			out = append(out, classify(expanded, roots, aliases, depth+1)...)
 		}
@@ -165,7 +163,7 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 		return copyWrites(seg, name, rest, roots)
 
 	case "ln":
-		// A symlink replaces the path it is created at, so the link name is the
+		// A symlink replaces the path it is created at, so the link is written.
 		flags, operands := scanArgs(rest, set.Of[string]("-t", "--target-directory"))
 		if v, ok := flags["-t"]; ok {
 			return under("ln -t", abs(seg.cwd, v.text))
@@ -431,7 +429,7 @@ func looksLikePath(cwd string, o word) bool {
 	if !o.static {
 		return true // unknowable, and unknowable denies
 	}
-	// An expression is not a filename. `yq -i '.a = .b' config.yaml` hands the
+	// An expression is not a filename, and it carries a space.
 	if strings.ContainsAny(o.text, " \t") {
 		return false
 	}

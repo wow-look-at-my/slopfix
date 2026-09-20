@@ -26,8 +26,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bubblewrap
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      # The go:generate approval is the marker on go.mod's module line. A generate: input here would override it and go stale on its own.
       - uses: wow-look-at-my/go-toolchain@master
+        with:
+          # Approves the //go:generate directives; editing one fails the build with the new value.
+          generate: 165003bec91c
 
       # The binary this run built, not the last one released, so a new rule gates this repository before it ships.
       - run: ./build/slopfix workflows .

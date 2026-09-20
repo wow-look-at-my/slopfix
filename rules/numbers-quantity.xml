@@ -100,6 +100,15 @@
     <test in="No one reads it" out="Nobody reads it"/>
   </rephrase>
 
+  <!-- A preposition after the cardinal means the cardinal is the noun phrase
+       itself, and the count governs nothing: "two of them" names a part of a
+       group. Cutting the cardinal leaves "GET of them", a sentence with no
+       object in it, so the part is said in words instead. The phrases above
+       claim "one of" and "exactly one of" before this shape sees them. -->
+  <rephrase id="a-cardinal-governing-no-noun" match="{cardinal:c} of" to="some of">
+    <test in="Batch GET two of them" out="Batch GET some of them"/>
+  </rephrase>
+
   <!-- An article or determiner governing the slot means the cardinal stands in
        for a noun the sentence already named: "the fast one" is that earlier
        noun, not a count. Only the antecedent says which noun, and a table

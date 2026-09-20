@@ -6,11 +6,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/code"
 )
 
 // Every grammar gets the same walk, the same measure and the same repair. A
 // language that only REPORTS is the failure this pins: the old path repaired Go
-// alone, and every other language got a finding nothing could act on.
+// alone.
 var languageFixtures = map[string]string{
 	"x.go":  "package p\n\n" + essay("//") + "const p = 1\n",
 	"x.c":   essay("//") + "int p = 1;\n",
@@ -60,14 +61,13 @@ func TestTheRepairKeepsTheOpeningInEveryGrammar(t *testing.T) {
 	}
 }
 
-// Every extension the rule claims is covered above. A grammar added without a
-// fixture is a language nobody proved the repair works on.
+// Every extension the rule claims is covered above.
 func TestEveryClaimedExtensionHasAFixture(t *testing.T) {
 	covered := map[string]bool{}
 	for name := range languageFixtures {
 		covered[name[strings.LastIndex(name, "."):]] = true
 	}
-	for ext := range grammars {
+	for _, ext := range code.Extensions() {
 		assert.True(t, covered[ext] || sharesAGrammar(ext, covered),
 			"%s is claimed by the rule and no fixture exercises it", ext)
 	}
@@ -77,10 +77,11 @@ func TestEveryClaimedExtensionHasAFixture(t *testing.T) {
 // drives, so a header or an alias needs no fixture of its own.
 func sharesAGrammar(ext string, covered map[string]bool) bool {
 	for other := range covered {
-		if grammars[ext] == nil || grammars[other] == nil {
+		mine, theirs := code.LanguageFor("x"+ext), code.LanguageFor("x"+other)
+		if mine == nil || theirs == nil {
 			continue
 		}
-		if grammars[ext]() == grammars[other]() {
+		if mine == theirs {
 			return true
 		}
 	}

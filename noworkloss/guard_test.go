@@ -26,7 +26,7 @@ func newRepo(t *testing.T) string {
 	dir, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 
-	git(t, dir, "init", "-q")
+	git(t, dir, "init", "-q", "-b", fixtureBranch)
 	git(t, dir, "config", "user.email", "guard@example.com")
 	git(t, dir, "config", "user.name", "Guard")
 	writeAt(t, dir, "tracked.go", "package a\n")
@@ -35,6 +35,9 @@ func newRepo(t *testing.T) string {
 	git(t, dir, "commit", "-qm", "initial")
 	return dir
 }
+
+// fixtureBranch is the branch every fixture repository starts on, named rather than inherited.
+const fixtureBranch = "master"
 
 // currentBranch asks git which branch a fixture repository is on, since
 // the name `git init` picks varies with the git that ran.
@@ -52,7 +55,7 @@ func git(t *testing.T, dir string, args ...string) {
 }
 
 // writeAt puts a file in a fixture repository. Named for its shape rather than
-// the verb, because `write` is the type the provenance half is built on.
+// the verb.
 func writeAt(t *testing.T, dir, name, content string) {
 	t.Helper()
 	p := filepath.Join(dir, name)
@@ -415,15 +418,16 @@ func TestDeniesForceRefspec(t *testing.T) {
 func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
-	// A denial on the provenance side still lets the destruction side preserve,
+	// A denial on the provenance side still lets the destruction side preserve.
 	denied(t, dir, "git rebase master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited twice\n")
 	preserved(t, dir, "git merge feature")
-	// Each preservation commits the edit, so every later verb that must see a
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 	preserved(t, dir, "git pull origin master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited once more\n")
-	denied(t, dir, "git cherry-pick abc123")
+	// cherry-pick replays a commit, so it names no provenance route.
+	preserved(t, dir, "git cherry-pick abc123")
+	allowed(t, dir, "git cherry-pick abc123")
 	allowed(t, dir, "git rebase --abort")
 	allowed(t, dir, "git merge --abort")
 	allowed(t, dir, "git cherry-pick --continue")
@@ -433,7 +437,7 @@ func TestGitRmCachedLeavesTheFileAlone(t *testing.T) {
 	dir := newRepo(t)
 	untrack(t, dir, "scratch.txt")
 	allowed(t, dir, "git rm --cached scratch.txt")
-	// `git rm` names no provenance route either, so a forced removal of an
+	// `git rm` names no provenance route either, so a forced removal.
 	preserved(t, dir, "git rm -f scratch.txt")
 }
 
@@ -445,14 +449,14 @@ func TestDeniesTruncatingRedirectOntoDirtyFile(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
 	denied(t, dir, "echo x > tracked.go")
-	// An append loses nothing, so the destruction half allows it. The
+	// An append loses nothing, so the destruction half allows it.
 	assert.Empty(t, lossOnly(t, dir, "echo x >> tracked.go"))
 	assert.Contains(t, denied(t, dir, "echo x >> tracked.go"), "tracked.go")
 }
 
 // `mv` within the tree is not a provenance route either -- copyWrites treats
 // a source already inside the tree as ordinary refactoring -- so the
-// destination's current content is preserved and the move is allowed.
+// destination's current content.
 func TestPreservesAndAllowsMvOverDirtyDestination(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)

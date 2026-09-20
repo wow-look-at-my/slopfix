@@ -1,7 +1,7 @@
 // frame.go is what the inventory-count rule asks for beyond a quantity: a
 // sentence claiming the things being counted are HERE. Lacking such a shape, a
 // number in a document counts nothing. The merge gate's substrate asks for no
-// frame, and reports the quantity wherever it sits.
+// frame, so it reads a bare quantity anywhere in the line.
 package cardinal
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// quantity is the shape a frame governs, spelled in quantity.go beside the
+// quantity is the shape a frame governs. quantity.go spells it.
 const quantity = proseQuantity
 
 // possessiveFrame is a determiner claiming the things belong here, as in "this

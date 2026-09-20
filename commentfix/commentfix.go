@@ -21,14 +21,16 @@
 package commentfix
 
 import (
+	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
-// IDNumber names this rule, on a report and on the command line alike.
-const IDNumber = "comments/number"
+// ID names this rule, on a report and on the command line alike.
+const ID = "comments/number"
 
 // Supported reports whether this rule reads a file of that name.
 func Supported(filename string) bool {
@@ -50,8 +52,8 @@ type Hit struct {
 	Col    int
 }
 
-// The marker is a single pattern, in blocks.go. This half matched only a
-// `//` comment, so a generated shell or Python file read as hand-written.
+// generatedLine is the line marking a file as generated, in every spelling of a comment the rule reads.
+var generatedLine = regexp.MustCompile(`^\s*(?://+|#+|/\*)?\s*Code generated .* DO NOT EDIT\.\s*(?:\*/)?$`)
 
 // Check returns every number stated in a comment of a source file.
 //
@@ -59,7 +61,7 @@ type Hit struct {
 // a file that does not compile: nothing here parses the language, which is why
 // the rule answers on a tree mid-edit, before any compiler will look at it.
 func Check(filename, src string) []Hit {
-	if IsGenerated(src) {
+	if IsGenerated(filename, src) {
 		return nil
 	}
 	var hits []Hit
@@ -86,16 +88,21 @@ func lineAndColumn(src string, at int) (line, col int) {
 	return line, at - start + 1
 }
 
-// IsGenerated reports whether the file carries the generated-code marker.
-func IsGenerated(src string) bool {
-	for _, line := range strings.Split(src, "\n") {
-		line = strings.TrimRight(line, "\r")
-		if generatedMarker.MatchString(line) {
-			return true
-		}
-		if strings.HasPrefix(line, "package ") {
+// IsGenerated reports whether the file carries the generated-code marker in its header.
+//
+// The header is where the marker counts: the same words further down are prose somebody wrote. It is read off the tree, so what counts as a comment is the grammar's answer rather than a guess at a line's opening bytes, and the header ends at the earliest comment the file separates from the top with code.
+func IsGenerated(filename, src string) bool {
+	end := 0
+	for _, comment := range treecomments.Extract(filename, src) {
+		if strings.TrimSpace(src[end:comment.Offset]) != "" {
 			return false
 		}
+		for _, line := range strings.Split(comment.Text, "\n") {
+			if generatedLine.MatchString(strings.TrimRight(line, "\r")) {
+				return true
+			}
+		}
+		end = comment.Offset + len(comment.Text)
 	}
 	return false
 }
@@ -121,5 +128,22 @@ func commentLines(lit string) []commentLine {
 	return out
 }
 
-// A directive is a single question, answered in commentlength.go. This half
-// read only `//`, so a `# shellcheck:` line and a shebang both read as prose.
+// isDirective reports whether the line is a compiler or tool directive, such as
+// //go:build. The colon form carries no prose to go stale.
+func isDirective(text string) bool {
+	text = strings.TrimSpace(text)
+	rest, found := strings.CutPrefix(text, "//")
+	if !found || rest == "" || strings.HasPrefix(rest, " ") {
+		return false
+	}
+	name, _, found := strings.Cut(rest, ":")
+	if !found || name == "" {
+		return false
+	}
+	for _, r := range name {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' && r != '_' {
+			return false
+		}
+	}
+	return true
+}

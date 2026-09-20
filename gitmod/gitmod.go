@@ -20,7 +20,9 @@ import (
 // gitlinkMode is the index mode git gives a submodule entry.
 const gitlinkMode = "160000"
 
-// Skip returns the absolute submodule directories that contain target.
+// Skip returns the submodule directories that contain target, each spelled the
+// way Resolved spells a path. A caller tests a directory of its own against
+// this set, and both spellings have to agree.
 func Skip(target string) (set.Set[string], error) {
 	empty := set.New[string]()
 
@@ -28,6 +30,7 @@ func Skip(target string) (set.Set[string], error) {
 	if !ok {
 		return empty, nil
 	}
+	root = Resolved(root)
 	declared, ok := declaredPaths(root)
 	if !ok {
 		return empty, nil
@@ -41,6 +44,20 @@ func Skip(target string) (set.Set[string], error) {
 		out.Add(filepath.Join(root, filepath.FromSlash(path)))
 	}
 	return out, nil
+}
+
+// Resolved spells a path the thing way Skip's entries are spelled:
+// absolute, with every symlink on the way followed.
+func Resolved(path string) string {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	real, err := filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return absolute
+	}
+	return real
 }
 
 // verify requires the declared path to be a gitlink in the index. A directory
