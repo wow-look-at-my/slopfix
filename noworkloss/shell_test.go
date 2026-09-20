@@ -80,7 +80,7 @@ func TestCdScopeFollowsTheShell(t *testing.T) {
 	assert.Empty(t, lossOnly(t, clean, "(cd "+dir+" && git status) && git reset --hard"),
 		"the cd was contained in the subshell, so the reset ran in the clean repo")
 
-	// A cd in a sequence does: the reset ran against the dirty repo, so the
+	// A cd in a sequence does: the reset ran against the dirty repo.
 	_, notices := lossOnlyNotices(t, clean, "cd "+dir+" && git reset --hard")
 	assert.NotEmpty(t, notices)
 }
@@ -95,8 +95,7 @@ func TestRelativeAndAbsoluteCdBothResolve(t *testing.T) {
 	assert.NotEmpty(t, ask(t, parent, "cd "+dir+" && git reset --hard"), "absolute cd")
 }
 
-// `cd -` goes wherever the shell was last, which this hook cannot know, so a
-// destructive command behind it is refused rather than guessed at.
+// `cd -` goes wherever the shell was last, which this hook cannot know.
 func TestCdDashIsUnknowable(t *testing.T) {
 	dir := newRepo(t)
 	r := ask(t, dir, "cd - && git reset --hard")

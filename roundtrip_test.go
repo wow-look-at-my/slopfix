@@ -25,7 +25,7 @@ type fixture struct {
 }
 
 // roundTripFixtures carry at least a single instance of every rule
-// CheckContent reports. TestEveryRuleAppearsInAFixture holds them to that.
+// CheckContent reports.
 func roundTripFixtures() []fixture {
 	return []fixture{
 		{

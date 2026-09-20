@@ -73,8 +73,7 @@ func numbersOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 		return false, err
 	}
 	hits := commentfix.Check(path, string(src))
-	// Fix answers a number and a cut tail in one pass, so either finding earns
-	// the pass. Asking for a number alone left an unfinished comment standing.
+	// Fix answers a number and a cut tail in a single pass, so either finding.
 	tails := commentfix.CheckTails(path, string(src))
 	if len(hits)+len(tails) == 0 {
 		return false, nil

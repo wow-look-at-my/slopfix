@@ -71,7 +71,7 @@ func grammarFor(filename string) (language *ts.Language, named bool) {
 
 // languageFor answers the grammar to read a file with, or nil when it has no
 // parse tables. It reports that case, because a rule then goes quiet rather
-// than passing, and nothing else says so.
+// than passing.
 func languageFor(filename string) *ts.Language {
 	language, named := grammarFor(filename)
 	if named {
@@ -119,8 +119,6 @@ type Comment struct {
 // Run is a stack of comments on adjoining lines, sharing a left edge.
 type Run []Comment
 
-// Runs groups a file's comments into the paragraphs a rewrite acts on.
-//
 // A run breaks where the comments stop adjoining, where the left edge moves,
 // and where a comment follows code.
 func Runs(filename, src string) []Run {
@@ -139,7 +137,6 @@ func Runs(filename, src string) []Run {
 	return out
 }
 
-// indentOf reports the column the line's leading non-blank byte sits at.
 func indentOf(src string, c Comment) int {
 	start := strings.LastIndexByte(src[:c.Offset], '\n') + 1
 	return len(src[start:c.Offset]) - len(strings.TrimLeft(src[start:c.Offset], " \t"))

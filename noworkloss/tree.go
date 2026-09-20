@@ -10,7 +10,7 @@ import (
 
 // The rule is scoped to paths, never to commands. A directory a build owns is
 // writable by whatever writes it; a source file is not writable by anything but
-// the edit tools. Everything below decides which side of that line a path is on.
+// the edit tools.
 
 // guardedRoots are the directories whose content this hook protects: the
 // repository the session works in, and the project directory the CLI names.
@@ -77,7 +77,7 @@ func isProtectedConfig(abs string) bool {
 }
 
 // insideGuarded reports whether a write to abs changes content this hook
-// protects, and names the root it belongs to.
+// protects.
 func insideGuarded(roots []string, abs string) (string, bool) {
 	abs = filepath.Clean(abs)
 	for _, root := range roots {

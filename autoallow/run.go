@@ -16,7 +16,6 @@ import (
 //go:embed rules.xml
 var rulesXML []byte
 
-// Result is what the CLI prints and exits with.
 type Result struct {
 	Stdout string
 	Stderr string

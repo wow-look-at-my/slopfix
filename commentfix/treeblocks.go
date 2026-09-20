@@ -168,8 +168,6 @@ func afterComments(node ts.Node, next, count uint32) uint32 {
 	return next
 }
 
-// documentsThePackage reports whether the construct after a file's opening
-// comment run declares the package the file belongs to.
 func documentsThePackage(node ts.Node, next, count uint32) bool {
 	if next >= count {
 		return false

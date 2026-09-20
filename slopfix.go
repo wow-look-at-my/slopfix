@@ -74,7 +74,7 @@ func CheckContent(path, content string) []ste.Finding {
 }
 
 // commentFindings are the source rules: what the comments in a source file
-// break, reported on the line they sit on.
+// break.
 func commentFindings(path, content string) []ste.Finding {
 	var out []ste.Finding
 	for _, hit := range commentfix.Check(path, content) {

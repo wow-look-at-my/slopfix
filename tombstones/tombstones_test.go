@@ -47,7 +47,7 @@ func TestCodeIsNeverJudged(t *testing.T) {
 	assert.Empty(t, repair.Kept)
 }
 
-// A document paragraph is prose too, so the table rewrites it. It comes back as
+// A document paragraph is prose too, so the table rewrites it.
 func TestADocumentParagraphIsRewritten(t *testing.T) {
 	doc := "The loader previously read the flag. It now reads the file.\n"
 	repair := Fix("notes.md", doc, DefaultMaxCommentLines)

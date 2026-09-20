@@ -49,8 +49,7 @@ func pluginTree(home string, rest ...string) string {
 	return filepath.Join(append([]string{home, ".claude", "plugins"}, rest...)...)
 }
 
-// The read tools are approved wholesale, so a read of the tree is the case the
-// ordering in Run exists for.
+// The read tools are approved wholesale.
 func TestAReadOfTheInstalledPluginTreeIsRefused(t *testing.T) {
 	home := homed(t)
 	path := pluginTree(home, "cache", "mp", "slopfix", "CLAUDE.md")

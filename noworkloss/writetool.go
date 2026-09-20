@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// The Write tool's own refusals, which were a separate plugin until the
+// The Write tool's own refusals.
 
 const recyclerTimeout = 3 * time.Second
 

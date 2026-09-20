@@ -194,8 +194,7 @@ func repair(b block) []string {
 }
 
 // splitDirectives separates a block's tool lines from its prose. A directive
-// binds to the declaration by position -- a build constraint leads, a go:embed
-// is last -- so each keeps the side of the prose it was written on.
+// binds to the declaration by position -- a build constraint leads.
 func splitDirectives(text []string) (lead, body, trail []string) {
 	seen := false
 	for _, line := range text {
@@ -275,7 +274,7 @@ func trim(b block) []string {
 	}
 
 	// The words can fit where the wrap does not. Laying them out at the budget's
-	// own width drops none, which is what the character floor is for.
+	// own width drops none.
 	if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
 		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return wider

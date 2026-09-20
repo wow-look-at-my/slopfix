@@ -19,8 +19,7 @@ func walk() {}
 `
 
 // The hook repairs a write and lets it through. Nothing it judges is grounds
-// for refusing the write, so a comment reworded by hand is ordinary work: the
-// repair applies to what the write carries and the write goes on.
+// for refusing the write, so a comment reworded by hand is ordinary work.
 func TestNoWriteIsEverRefused(t *testing.T) {
 	path := onDisk(t, "a.go", reported)
 	for _, c := range []struct {

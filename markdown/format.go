@@ -8,8 +8,7 @@ func Format(content string) string {
 }
 
 // FormatFunc joins each prose block and passes its text through repair before
-// it is written. A verbatim block never reaches repair, so a fence, a table and
-// a heading arrive at the caller as they were.
+// it is written. A verbatim block never reaches repair, so a fence.
 func FormatFunc(content string, repair func(string) string) string {
 	var out strings.Builder
 	for _, block := range Split(content) {

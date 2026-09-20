@@ -42,8 +42,7 @@ func tighten(text []string) ([]string, int, bool) {
 		if short != body {
 			changed = true
 		}
-		// A paragraph the table emptied is gone: what is left is punctuation
-		// standing where a sentence was.
+		// A paragraph the table emptied is gone.
 		if !hasWord(short) {
 			continue
 		}

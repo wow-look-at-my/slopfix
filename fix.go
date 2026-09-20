@@ -239,8 +239,7 @@ func FixFile(path string) (Repair, error) {
 }
 
 // FixFileWith repairs a file in place under the caller's own selection, and
-// reports what it did. It writes nothing when the repair leaves the file as it
-// was.
+// reports what it did.
 //
 // The Content and Path of req are the file's, whatever the caller put there.
 // Everything else is the caller's: a run that names a rule on the command line

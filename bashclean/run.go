@@ -22,7 +22,6 @@ type Input struct {
 	ToolInput     json.RawMessage `json:"tool_input"`
 }
 
-// HookResult is what the CLI prints and exits with.
 type HookResult struct {
 	Stdout string
 	Stderr string

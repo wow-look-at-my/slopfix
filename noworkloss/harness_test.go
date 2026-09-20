@@ -19,8 +19,7 @@ import (
 // satisfy the assertion.
 
 // newTree builds a working tree: a repository root with source files, a build
-// directory the rules deliberately allow, and no relationship to the outside
-// directory the controls write to.
+// directory the rules deliberately allow.
 func newTree(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()

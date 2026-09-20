@@ -9,8 +9,6 @@ import (
 // protectedRefPrefix names a ref that holds content nothing else does.
 const protectedRefPrefix = "refs/no-work-loss/"
 
-// preserveResult is what a successful commit produced. ref names the branch
-// the commit landed on.
 type preserveResult struct {
 	ref     string
 	commit  string

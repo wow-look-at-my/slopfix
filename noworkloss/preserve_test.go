@@ -95,7 +95,7 @@ func TestPreservesModifiedTrackedFileOnTopOfHead(t *testing.T) {
 }
 
 // A repository with no commits yet has no HEAD to seed the preservation
-// commit from, or to parent it on.
+// commit from.
 func TestPreservesInARepositoryWithNoCommitsYet(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -122,8 +122,7 @@ func TestPreservesInARepositoryWithNoCommitsYet(t *testing.T) {
 	assert.Equal(t, "package a", content)
 }
 
-// A real bare remote: the preservation ref must actually land there, not
-// merely be claimed to.
+// A real bare remote: the preservation ref must actually land there.
 func TestPreservesAndPushesToOrigin(t *testing.T) {
 	dir := remoteRepo(t)
 	untrack(t, dir, "scratch.txt")

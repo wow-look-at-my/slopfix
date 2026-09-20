@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// texts returns what a substrate reported, which is what every case asserts on.
+// texts returns what a substrate reported.
 func texts(text string, s Substrate) []string {
 	var out []string
 	for _, tok := range Find(text, s) {
@@ -29,7 +29,7 @@ func TestTheFrameIsWhatSeparatesTheSubstrates(t *testing.T) {
 
 // The frame is the only thing parting the document substrates now. A number is
 // a stated value whatever noun follows it, so a duration and a size go stale
-// exactly as a tally of items does, and both substrates say so.
+// exactly as a tally of items does.
 func TestTheFrameIsTheOnlyThingPartingTheDocumentSubstrates(t *testing.T) {
 	measured := "The read has 20 seconds."
 	assert.Equal(t, []string{"20 seconds"}, texts(measured, Prose))
@@ -110,7 +110,6 @@ func TestTheVocabulariesDifferByDesign(t *testing.T) {
 	}
 }
 
-// The exemptions belong to the substrate that has no frame to lean on.
 func TestTheCommentExemptionsCarryTheShapesThatCountNothing(t *testing.T) {
 	for name, text := range map[string]string{
 		"status code":   "the proxy answers HTTP 403 here",

@@ -23,7 +23,6 @@ func TestRedirectOntoANewFileIsStillAuthoring(t *testing.T) {
 	dir := newRepo(t)
 	// Nothing is lost, so the destruction half is content.
 	assert.Empty(t, lossOnly(t, dir, "echo x > brand-new.txt"))
-	// But a new file with content in it is exactly what Write is for.
 	assert.Contains(t, denied(t, dir, "echo x > brand-new.txt"), "brand-new.txt")
 
 	// A build directory holds what a build put there, and a device is not.

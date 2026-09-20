@@ -1,5 +1,3 @@
-// Package markdown splits a document into the blocks the prose rules apply to.
-//
 // Only prose is rewritten or checked. A fenced code block is data, a table is a
 // grid whose rows are not sentences, and a heading is a label. Each reaches the
 // caller marked verbatim, so no rule can reflow it.

@@ -8,7 +8,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// runBlock is a run: script, and the line its content starts on.
+// runBlock is a run: script.
 type runBlock struct {
 	start int
 	lines []string
