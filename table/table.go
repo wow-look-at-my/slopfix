@@ -93,3 +93,7 @@ func AppliesTo(where, surface string) bool {
 func (p Pattern) Replace(s string) string {
 	return p.re.ReplaceAllString(s, p.To)
 }
+
+// Matches reports whether the pattern finds anything in s. A caller asks this
+// when the answer decides something other than the rewrite itself.
+func (p Pattern) Matches(s string) bool { return p.re.MatchString(s) }

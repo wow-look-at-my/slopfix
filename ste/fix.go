@@ -67,7 +67,7 @@ func fixProse(text string, repair func(string) string) string {
 func fixWords(prose string, keep func(id string) bool) string {
 	return wordPattern.ReplaceAllStringFunc(prose, func(word string) string {
 		lower := strings.ToLower(word)
-		replacement, banned := contractions[lower]
+		replacement, banned := Expand(word)
 		if banned && !keep(IDContraction) {
 			banned = false
 		}
