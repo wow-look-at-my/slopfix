@@ -19,6 +19,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
@@ -317,6 +318,15 @@ func hardFit(b block) ([]string, bool) {
 		body = append(body, stripMarker(line))
 	}
 	words := strings.Fields(strings.Join(body, " "))
+	// The budget is a character count, not a column. Laying the words out at it
+	// wrote a 124-column line, which no editor shows beside the code it documents.
+	width := min(max(floorChars, b.codeChars), wrapWidth)
+	for len(words) > 0 {
+		closed := closeTail(words)
+		if len(closed) == 0 {
+			return nil, false
+		}
+		out := reflow(strings.Join(closed, " "), indent, marker, width)
 	for len(words) > 0 {
 		out := reflow(strings.Join(words, " "), indent, marker, max(floorChars, b.codeChars))
 		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
@@ -325,6 +335,35 @@ func hardFit(b block) ([]string, bool) {
 		words = words[:len(words)-1]
 	}
 	return nil, false
+}
+
+// dangling words open something the cut took away, so a forced cut that ends on
+// one reads as a sentence somebody abandoned.
+var dangling = set.Of("and", "or", "but", "so", "yet", "then", "the", "a", "an",
+	"to", "of", "in", "on", "at", "by", "for", "from", "with", "than", "rather",
+	"that", "which", "who", "when", "while", "where", "because", "if", "is",
+	"are", "was", "were", "as", "into", "over", "under", "per")
+
+// closeTail makes a forced cut read as a sentence: it drops back past a word
+// that opens what the cut removed, and closes what is left with a period.
+func closeTail(words []string) []string {
+	out := append([]string{}, words...)
+	for len(out) > 0 {
+		last := strings.TrimRight(out[len(out)-1], ",;:")
+		if last == "" || dangling.Contains(strings.ToLower(last)) {
+			out = out[:len(out)-1]
+			continue
+		}
+		out[len(out)-1] = last
+		break
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	if !endsSentence(out[len(out)-1]) {
+		out[len(out)-1] += "."
+	}
+	return out
 }
 
 // cutLastThought drops the last thought out of a block, and reports false when
