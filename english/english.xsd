@@ -11,12 +11,26 @@
   <xs:element name="english">
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="class"/>
         <xs:element ref="drop"/>
         <xs:element ref="rewrite"/>
         <xs:element ref="pattern"/>
         <xs:element ref="flag"/>
         <xs:element ref="test"/>
       </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- A set of words that fill the same slot, which a shape reads to tell one
+       sentence structure from another. A class names its members, or claims
+       them by ending, or claims every word no other class holds. -->
+  <xs:element name="class">
+    <xs:complexType>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:attribute name="words" type="xs:string"/>
+      <xs:attribute name="suffix" type="xs:string"/>
+      <xs:attribute name="open" type="xs:boolean"/>
+      <xs:attribute name="except" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -52,8 +66,18 @@
       <xs:attribute name="expect" type="xs:string" use="required"/>
       <xs:attribute name="where" type="surface"/>
       <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="subject" type="position"/>
     </xs:complexType>
   </xs:element>
+
+  <!-- Where the subject of the clause a pattern matches stands. A pattern with
+       no subject= asks nothing of the sentence around its match. -->
+  <xs:simpleType name="position">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="matched"/>
+      <xs:enumeration value="preceding"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <!-- A phrase named rather than rewritten, where no one replacement is right. -->
   <xs:element name="flag">
