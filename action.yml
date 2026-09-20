@@ -40,7 +40,7 @@ runs:
         project: slopfix
 
     # slopfix fails when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
-    - name: Run slopfix through sh, because a binfmt_misc handler on the MZ magic refuses a direct exec of the APE
+    - name: Run slopfix, through sh where a binfmt_misc handler on the MZ magic refuses a direct exec of the APE
       shell: bash
       env:
         SLOPFIX: ${{ steps.download.outputs.path }}
@@ -49,7 +49,12 @@ runs:
         INPUT_ONLY: ${{ inputs.only }}
       run: |
         set -euo pipefail
+        # Windows has no binfmt_misc and boots the APE through its PE header, and sh there reads the bootstrap and looks for a loader built for another host.
+        run=sh
+        if [ "${RUNNER_OS:-}" = Windows ]; then
+          run=
+        fi
         # INPUT_PATHS is a list of paths, so it is deliberately unquoted.
-        sh "$SLOPFIX" "$INPUT_COMMAND" \
+        $run "$SLOPFIX" "$INPUT_COMMAND" \
           ${INPUT_ONLY:+--only "$INPUT_ONLY"} \
           $INPUT_PATHS
