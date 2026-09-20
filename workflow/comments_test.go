@@ -49,3 +49,32 @@ func TestACommentBlockAtTheEndOfTheFileIsReported(t *testing.T) {
 	require.Len(t, findings, 1)
 	assert.Equal(t, 2, findings[0].Line)
 }
+
+// A # inside a block scalar opens a shell comment. The script is content, so
+// the rule says nothing about it and the repair leaves every line where it is.
+const scriptWithComments = "on: push\njobs:\n  build:\n    steps:\n      - run: |\n          # install the backend\n          # the suites need it\n          apt-get install -y bubblewrap\n          apt-get clean\n"
+
+func TestShellCommentsInABlockScalarAreNotAYamlCommentBlock(t *testing.T) {
+	assert.Empty(t, workflow.Check(scriptWithComments))
+}
+
+func TestRepairingLeavesAScriptsCommentsAlone(t *testing.T) {
+	fixed, _ := workflow.Repair(scriptWithComments)
+	assert.Equal(t, scriptWithComments, fixed)
+}
+
+// The scalar ends where the indentation does, so the comments after it are
+// judged as the YAML comments they are.
+func TestACommentBlockAfterABlockScalarIsStillReported(t *testing.T) {
+	findings := workflow.Check("on: push\njobs:\n  build:\n    steps:\n      - run: |\n          # a shell comment\n          make\n\n# one\n# two\n")
+
+	require.Len(t, findings, 1)
+	assert.Equal(t, "lines 9-10", findings[0].Detail)
+}
+
+// A folded scalar and the chomping and indentation indicators open a body too.
+func TestEveryBlockScalarHeaderOpensABody(t *testing.T) {
+	for _, header := range []string{"|", "|-", "|+", ">", ">-", ">+", "|2", "|2-"} {
+		assert.Empty(t, workflow.Check("on: push\nscript: "+header+"\n  # one\n  # two\n"), "header %s", header)
+	}
+}
