@@ -41,9 +41,8 @@ func TestTheSubjectDecidesWhetherAChangeVerbIsATombstone(t *testing.T) {
 		name     string
 		position string
 		prose    string
-		// match is the text the pattern covers, which says where it starts.
-		match string
-		want  bool
+		match    string
+		want     bool
 	}{
 		{"opens the sentence", SubjectPreceding, "The retry loop was removed", " was", true},
 		{"opens a later sentence", SubjectPreceding, "It holds. Documents were deleted", " were", true},
