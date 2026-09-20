@@ -28,8 +28,8 @@ func Fix(s, surface string) string {
 func FixN(s, surface string) (string, int) {
 	original := s
 	n := 0
-	// Rewrites go before drops: a phrase like "to" would otherwise lose its
-	// middle to a <drop> and stop matching as a phrase at all.
+	// Rewrites go before drops: a phrase like "in order to" would otherwise lose
+	// its middle to a <drop> and stop matching as a phrase at all.
 	for _, r := range Rewrites() {
 		if AppliesTo(r.Where, surface) {
 			var took int
@@ -92,7 +92,7 @@ func replaceWordN(s, word, with string) (string, int) {
 }
 
 // ContainsWord reports a whole-word occurrence, so `hack` never matches
-// `hackney` and `` never matches `for nowhere`.
+// `hackney` and `for now` never matches `for nowhere`.
 func ContainsWord(s, word string) bool {
 	for i := 0; ; {
 		j := strings.Index(s[i:], word)

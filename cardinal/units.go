@@ -1,11 +1,9 @@
 // units.go answers whether a word names a unit of measure.
 //
 // A measurement is still a stated count and still reported. What separates it
-// is the repair: the tally rule rewrites "two goroutines" to "goroutines", and
-// doing that to "30 seconds" leaves a sentence with no magnitude in it. The
-// words are the unit class in rules/english-classes.xml, which the open noun
-// class then stops claiming, so the rephrase never matches one. A word added
-// there needs no Go.
+// is the repair: the tally rule rewrites "goroutines" to "goroutines", and
+// doing that to "30 seconds" leaves a sentence with no magnitude in it. A word
+// added there needs no Go.
 package cardinal
 
 import (

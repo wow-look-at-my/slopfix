@@ -99,7 +99,7 @@ type Pattern struct {
 	ID      string `xml:"id,attr"`
 	Cases   []Case `xml:"test"`
 
-	// Subject names where the clause's subject stands, for a match whose words.
+	// Subject names where the clause's subject stands, and empty asks nothing.
 	Subject string `xml:"subject,attr"`
 
 	re *regexp.Regexp
