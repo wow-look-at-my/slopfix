@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // The strings here were taken out of repositories the number repair had already
@@ -91,16 +92,13 @@ func TestTheRepairNeverWeldsTwoWordsTogether(t *testing.T) {
 // welded names an output word made of the input carried side by side, and is
 // empty when the repair kept them apart.
 func welded(in, out string) string {
-	have := make(map[string]bool)
-	for _, word := range strings.Fields(in) {
-		have[word] = true
-	}
+	have := set.Of(strings.Fields(in)...)
 	for _, word := range strings.Fields(out) {
-		if have[word] {
+		if have.Contains(word) {
 			continue
 		}
 		for cut := 1; cut < len(word); cut++ {
-			if have[word[:cut]] && have[word[cut:]] {
+			if have.Contains(word[:cut]) && have.Contains(word[cut:]) {
 				return word
 			}
 		}

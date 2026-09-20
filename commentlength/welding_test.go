@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // What the tidy pass writes for a whole line is stated in english.xml and
@@ -28,21 +29,18 @@ func TestTighteningNeverWeldsTwoWordsTogether(t *testing.T) {
 // welded names an output word made of the input carried side by side, and is
 // empty when the tidy pass kept them apart.
 func welded(in, out string) string {
-	have := make(map[string]bool)
-	for _, word := range strings.Fields(in) {
-		have[word] = true
-	}
+	have := set.Of(strings.Fields(in)...)
 	for _, word := range strings.Fields(out) {
-		if have[word] {
+		if have.Contains(word) {
 			continue
 		}
 		for cut := 1; cut < len(word); cut++ {
-			// A mark the source left stranded is a single the tidy pass is
+			// A mark the source left stranded is punctuation the tidy pass is
 			// meant to pull back onto the word in front of it.
 			if allMarks(word[:cut]) || allMarks(word[cut:]) {
 				continue
 			}
-			if have[word[:cut]] && have[word[cut:]] {
+			if have.Contains(word[:cut]) && have.Contains(word[cut:]) {
 				return word
 			}
 		}
