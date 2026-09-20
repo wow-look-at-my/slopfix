@@ -133,23 +133,20 @@ func Fix(req Request) Repair {
 		}
 	}
 
-	// The comment-length repair reads source rather than prose, so it runs
-	// before the document gate below sends a source file home.
-	if wants(RuleComments) && keeps(commentlength.ID) && req.Path != "" {
-		cut, changed := commentlength.Fix(req.Path, text)
-		if changed {
-			text = cut
-			repair.Removed = append(repair.Removed, "trailing comment prose")
+	lengths := wants(RuleComments) && keeps(commentlength.ID) && req.Path != ""
+	cutLong := false
+	cutComments := func() {
+		if !lengths {
+			return
 		}
-		for _, hit := range commentlength.Check(req.Path, text) {
-			repair.Kept = append(repair.Kept, tombstones.Hit{
-				ID:     hit.ID,
-				Tell:   hit.Tell,
-				Phrase: hit.Sentence,
-				LineNo: hit.Line,
-			})
+		if cut, changed := commentlength.Fix(req.Path, text); changed {
+			text, cutLong = cut, true
 		}
 	}
+
+	// The comment-length repair reads source rather than prose, so it runs
+	// before the document gate below sends a source file home.
+	cutComments()
 
 	// The number repair reads source too, and runs after the length cut: a
 	// sentence the cut already took needs no rewrite here.
@@ -158,6 +155,25 @@ func Fix(req Request) Repair {
 		if said.Changed {
 			text = said.Text
 			repair.Removed = append(repair.Removed, said.Removed...)
+			// A number said in words is longer than the number, so the rewrite
+			// can put a block back over the budget the cut just brought it
+			// under. The cut runs again over what the rewrite wrote, or the
+			// file comes out of one pass still carrying a finding.
+			cutComments()
+		}
+	}
+
+	if cutLong {
+		repair.Removed = append(repair.Removed, "trailing comment prose")
+	}
+	if lengths {
+		for _, hit := range commentlength.Check(req.Path, text) {
+			repair.Kept = append(repair.Kept, tombstones.Hit{
+				ID:     hit.ID,
+				Tell:   hit.Tell,
+				Phrase: hit.Sentence,
+				LineNo: hit.Line,
+			})
 		}
 	}
 
@@ -186,6 +202,16 @@ func Fix(req Request) Repair {
 		}
 		if _, safe := Format(text); safe {
 			text = markdown.FormatFunc(text, word)
+		}
+	}
+	// The stale-count strip runs AFTER the join. That rule reads a paragraph as
+	// one line, so a count a hand wrap split across two lines is one it reports
+	// and a line walk over the source cannot reach.
+	if wants(RuleSTE) && keeps(ste.IDStaleCount) {
+		stripped, hits := counts.StripGate(text)
+		text = stripped
+		for _, hit := range hits {
+			repair.Removed = append(repair.Removed, hit.Phrase)
 		}
 	}
 	if wants(RuleSTE) {

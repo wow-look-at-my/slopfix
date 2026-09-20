@@ -6,28 +6,74 @@
 -->
 <rules for="english">
 
-  <drop word="actually" test="It actually fails"/>
-  <drop word="basically" test="It basically fails"/>
-  <drop word="essentially" test="It essentially fails"/>
-  <drop word="fundamentally" test="It fundamentally fails"/>
-  <drop word="simply" test="It simply fails"/>
-  <drop word="obviously" test="It obviously fails"/>
-  <drop word="clearly" test="It clearly fails"/>
-  <drop word="of course" test="It of course fails"/>
-  <drop word="in fact" test="It in fact fails"/>
-  <drop word="indeed" test="It indeed fails"/>
-  <drop word="really" test="It really fails"/>
-  <drop word="very" test="A very long name"/>
-  <drop word="quite" test="A quite long name"/>
-  <drop word="somewhat" test="A somewhat long name"/>
-  <drop word="fairly" test="A fairly long name"/>
-  <drop word="just" test="It just fails"/>
-  <drop word="note that" test="Note that it fails"/>
-  <drop word="it is worth noting that" test="It is worth noting that it fails"/>
-  <drop word="please note that" test="Please note that it fails"/>
-  <drop word="needless to say" test="Needless to say it fails"/>
-  <drop word="at the end of the day" test="At the end of the day it fails"/>
-  <drop word="for the purposes of" test="For the purposes of the check"/>
-  <drop word="with respect to" test="With respect to the check"/>
+  <drop id="actually" word="actually">
+    <test in="It actually fails"/>
+  </drop>
+  <drop id="basically" word="basically">
+    <test in="It basically fails"/>
+  </drop>
+  <drop id="essentially" word="essentially">
+    <test in="It essentially fails"/>
+  </drop>
+  <drop id="fundamentally" word="fundamentally">
+    <test in="It fundamentally fails"/>
+  </drop>
+  <drop id="simply" word="simply">
+    <test in="It simply fails"/>
+  </drop>
+  <drop id="obviously" word="obviously">
+    <test in="It obviously fails"/>
+  </drop>
+  <drop id="clearly" word="clearly">
+    <test in="It clearly fails"/>
+  </drop>
+  <drop id="of-course" word="of course">
+    <test in="It of course fails"/>
+  </drop>
+  <drop id="in-fact" word="in fact">
+    <test in="It in fact fails"/>
+  </drop>
+  <drop id="indeed" word="indeed">
+    <test in="It indeed fails"/>
+  </drop>
+  <drop id="really" word="really">
+    <test in="It really fails"/>
+  </drop>
+  <drop id="very" word="very">
+    <test in="A very long name"/>
+  </drop>
+  <drop id="quite" word="quite">
+    <test in="A quite long name"/>
+  </drop>
+  <drop id="somewhat" word="somewhat">
+    <test in="A somewhat long name"/>
+  </drop>
+  <drop id="fairly" word="fairly">
+    <test in="A fairly long name"/>
+  </drop>
+  <drop id="just" word="just">
+    <test in="It just fails"/>
+  </drop>
+  <drop id="note-that" word="note that">
+    <test in="Note that it fails"/>
+  </drop>
+  <drop id="it-is-worth-noting-that" word="it is worth noting that">
+    <test in="It is worth noting that it fails"/>
+  </drop>
+  <drop id="please-note-that" word="please note that">
+    <test in="Please note that it fails"/>
+  </drop>
+  <drop id="needless-to-say" word="needless to say">
+    <test in="Needless to say it fails"/>
+  </drop>
+  <drop id="at-the-end-of-the" word="at the end of the day">
+    <test in="At the end of the day it fails"/>
+  </drop>
+  <drop id="for-the-purposes-of" word="for the purposes of">
+    <test in="For the purposes of the check"/>
+  </drop>
+  <drop id="with-respect-to" word="with respect to">
+    <test in="With respect to the check"/>
+  </drop>
 
 </rules>

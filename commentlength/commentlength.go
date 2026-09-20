@@ -174,6 +174,13 @@ func bareMarker(line string) bool {
 // variable it filled empty, and the tests reading it pass on nothing.
 func repair(b block) []string {
 	lead, body, trail := splitDirectives(b.text)
+	// A comment with no code under it has nothing to be measured against, so no
+	// amount of cutting brings it inside a budget. The rule's verdict is that it
+	// documents nothing, and the repair is to take it at its word. A directive
+	// addresses a tool rather than a reader, and stays.
+	if b.codeLines == 0 {
+		return append(append([]string{}, lead...), trail...)
+	}
 	if len(lead) == 0 && len(trail) == 0 {
 		return trim(b)
 	}
@@ -204,6 +211,18 @@ func splitDirectives(text []string) (lead, body, trail []string) {
 		}
 	}
 	return lead, body, trail
+}
+
+// directivesOf keeps only the directive lines of a block, which is the half
+// prose drops.
+func directivesOf(text []string) []string {
+	kept := make([]string, 0, len(text))
+	for _, line := range text {
+		if isDirective(line) {
+			kept = append(kept, line)
+		}
+	}
+	return kept
 }
 
 // prose drops the directive lines from a block. A build constraint is an

@@ -364,6 +364,22 @@ func TestAPendingBuildCountIsNotAVerdict(t *testing.T) {
 	assert.Empty(t, reason, "nothing has passed yet, so there is no verdict to re-read")
 }
 
+// A read often shows more than a single count: a run listing, a comparison with
+// an earlier commit, a table of pull requests. The commit this record names is
+// the thing still building, and the full count belongs to something else.
+func TestAFullCountBesideAPartialOneIsNotAVerdict(t *testing.T) {
+	const sha = "31b41ca7781c48fa37ba1e34b0e618e995bb0e9a"
+	tr := stageTranscript(t,
+		bashCall("gh wait-ci checks --sha "+sha),
+		toolResult("the run before this one reported 15/15 builds passed\n"+
+			"31b41ca  (rollup: pending)\nall-builds  pending  6/15 builds passed - waiting on: suite"),
+	)
+	reason := denyReasonOf(t, preToolPayload(t, tr, "Bash",
+		bashInput("gh wait-ci --sha "+sha)))
+
+	assert.Empty(t, reason, "this commit is still building, whatever the earlier one did")
+}
+
 func TestAFullBuildCountIsAVerdict(t *testing.T) {
 	const sha = "31b41ca7781c48fa37ba1e34b0e618e995bb0e9a"
 	tr := stageTranscript(t,
