@@ -79,7 +79,7 @@ func TestFixDividesAtASharedSubjectWhenNothingBetterIsThere(t *testing.T) {
 		ste.Fix(long))
 }
 
-// The seam a writer would have used wins over the bare one beside it.
+// The seam a writer would have used wins over the bare a single beside it.
 func TestFixPrefersAClauseSeamToAWordBoundary(t *testing.T) {
 	long := "The loader opens the file and reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs."
 	assert.Equal(t,
@@ -88,7 +88,7 @@ func TestFixPrefersAClauseSeamToAWordBoundary(t *testing.T) {
 }
 
 // With no conjunction, no comma and no clause boundary anywhere, the division
-// falls to a bare gap between two words. Awkward, and under the cap.
+// falls to a bare gap between words. Awkward, and under the cap.
 func TestFixDividesASentenceCarryingNoSeamAtAll(t *testing.T) {
 	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
 	fixed := ste.Fix(long)

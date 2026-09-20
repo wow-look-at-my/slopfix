@@ -42,8 +42,7 @@ func TestTighteningKeepsTheSpaceInFrontOfAFileName(t *testing.T) {
 	}
 }
 
-// The property behind the case above. A tidy pass may drop a word and may
-// rewrite one, and it may never run two of the author's words into one.
+// The property behind the case above.
 func TestTighteningNeverWeldsTwoWordsTogether(t *testing.T) {
 	for _, in := range []string{
 		"It reads from the .gitmodules parser above.",
@@ -58,8 +57,8 @@ func TestTighteningNeverWeldsTwoWordsTogether(t *testing.T) {
 	}
 }
 
-// welded names an output word made of two the input carried side by side, and
-// is empty when the tidy pass kept them apart.
+// welded names an output word made of the input carried side by side, and is
+// empty when the tidy pass kept them apart.
 func welded(in, out string) string {
 	have := make(map[string]bool)
 	for _, word := range strings.Fields(in) {
@@ -70,8 +69,8 @@ func welded(in, out string) string {
 			continue
 		}
 		for cut := 1; cut < len(word); cut++ {
-			// A mark the source left stranded is one the tidy pass is meant to
-			// pull back onto the word in front of it.
+			// A mark the source left stranded is a single the tidy pass is
+			// meant to pull back onto the word in front of it.
 			if allMarks(word[:cut]) || allMarks(word[cut:]) {
 				continue
 			}

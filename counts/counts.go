@@ -49,7 +49,7 @@ func Check(content string) []Hit {
 // Gate returns every count the merge gate's stale-count rule reports, which is
 // the same walk over a substrate that asks for no frame around the number.
 //
-// The two rules are one rule with two thresholds, and the repair has to cover
+// Both rules are a single rule with thresholds, and the repair has to cover
 // what the gate REPORTS rather than what this package's own rule does. A count
 // the gate names and no strip reaches is a finding a reader clears by deleting
 // the document.

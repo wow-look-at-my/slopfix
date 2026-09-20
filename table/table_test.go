@@ -43,8 +43,6 @@ func TestLoadKeepsTheTargetsEntries(t *testing.T) {
 	assert.Empty(t, loaded.Drops, "another consumer's entries stay with it")
 }
 
-// The folder is read in file name order, which is what lets a longer phrase in
-// an earlier file beat a shorter phrase in a later one.
 func TestTheFolderIsReadInFileNameOrder(t *testing.T) {
 	first := `<?xml version="1.0" encoding="UTF-8"?>
 <rules for="numbers"><rewrite from="one or more" to="any number of" test="one or more" expect="any number of"/></rules>

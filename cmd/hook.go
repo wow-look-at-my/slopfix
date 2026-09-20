@@ -189,6 +189,8 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		}
 	}
 
+	flags := hitLines(kept)
+	flags = append(flags, findings...)
 	switch {
 	case changed:
 		return respond(func(r *hookResponse) {

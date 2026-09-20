@@ -37,9 +37,7 @@ func newRepo(t *testing.T) string {
 }
 
 // fixtureBranch is the branch every fixture repository starts on, named rather
-// than inherited. git's own default is a build-time choice -- Apple's git 2.50
-// answers main where the runner's answers master -- and a fixture that takes
-// whichever it is given asserts against a name that changes with the machine.
+// than inherited.
 const fixtureBranch = "master"
 
 // currentBranch asks git which branch a fixture repository is on, since

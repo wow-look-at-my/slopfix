@@ -60,7 +60,7 @@ func drive(t *testing.T, payload string) string {
 }
 
 // The case this exists for: the comment is reworded, the code is untouched, and
-// the file is one the rules report.
+// the file is a single the rules report.
 func TestARewordedCommentIsRefusedInAReportedFile(t *testing.T) {
 	path := onDisk(t, "a.go", reported)
 	out := drive(t, editPayload(t, path, "// The walk has 3 phases.", "// The walk runs in phases."))
@@ -110,7 +110,7 @@ func TestAnUnparsedLanguageIsAllowed(t *testing.T) {
 }
 
 // Every uncertainty allows the write: a file that is not there, and a
-// replacement that does not appear exactly once.
+// replacement that does not appear exactly a single time.
 func TestEveryUncertaintyIsAllowed(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "gone.go")
 	assert.NotContains(t, drive(t, editPayload(t, missing, "// a", "// b")), `"permissionDecision":"deny"`)

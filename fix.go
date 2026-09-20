@@ -158,7 +158,7 @@ func Fix(req Request) Repair {
 			// A number said in words is longer than the number, so the rewrite
 			// can put a block back over the budget the cut just brought it
 			// under. The cut runs again over what the rewrite wrote, or the
-			// file comes out of one pass still carrying a finding.
+			// file comes out of a single pass still carrying a finding.
 			cutComments()
 		}
 	}
@@ -205,8 +205,8 @@ func Fix(req Request) Repair {
 		}
 	}
 	// The stale-count strip runs AFTER the join. That rule reads a paragraph as
-	// one line, so a count a hand wrap split across two lines is one it reports
-	// and a line walk over the source cannot reach.
+	// a single line, so a count a hand wrap split across lines is a single it
+	// reports and a line walk over the source cannot reach.
 	if wants(RuleSTE) && keeps(ste.IDStaleCount) {
 		stripped, hits := counts.StripGate(text)
 		text = stripped

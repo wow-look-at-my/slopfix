@@ -40,8 +40,8 @@ func editsOf(tool string, in writeInput) []edit {
 // handEditReason refuses the write, or answers "" to stay out of the way.
 //
 // It answers "" on every uncertainty: a file it cannot read, a replacement that
-// does not appear exactly once, a language with no grammar, and a file the
-// rules read cleanly. Writing a new comment is ordinary work.
+// does not appear exactly a single time, a language with no grammar, and a file
+// the rules read cleanly. Writing a new comment is ordinary work.
 func handEditReason(tool string, in writeInput, rules []slopfix.Rule, ids []string) string {
 	edits := editsOf(tool, in)
 	if len(edits) == 0 || in.FilePath == "" {
@@ -68,8 +68,8 @@ func handEditReason(tool string, in writeInput, rules []slopfix.Rule, ids []stri
 }
 
 // applyEdits replays the replacements onto the file. A replacement that is
-// absent, or that appears more than once, leaves the result unknown, and an
-// unknown result is never refused here.
+// absent, or that appears more than a single time, leaves the result
+// unknown, and an unknown result is never refused here.
 func applyEdits(src string, edits []edit) (string, bool) {
 	out := src
 	for _, e := range edits {

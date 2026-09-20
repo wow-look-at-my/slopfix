@@ -5,11 +5,11 @@
 // fenced block's lines read as a hand-wrapped paragraph for the same reason.
 // Judged alone, an ordinary edit is refused for what the file supplies.
 //
-// So the fragment is put back first: the file is read, the edit replayed, and
-// the rules run over the whole result. What the file already carried is then
-// subtracted, because a finding the write did not introduce belongs to whoever
-// wrote it. A finding is matched by rule and message rather than by line, since
-// every line below an edit moves.
+// So the fragment is put back earliest: the file is read, the edit replayed,
+// and the rules run over the whole result. What the file already carried is
+// then subtracted, because a finding the write did not introduce belongs to
+// whoever wrote it. A finding is matched by rule and message rather than by
+// line, since every line below an edit moves.
 package cmd
 
 import (
@@ -19,7 +19,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// placed is what an edit introduces, once the file supplies its surroundings.
+// placed is what an edit introduces, a single time the file supplies its surroundings.
 type placed struct {
 	// findings are the rules the write's own text broke.
 	findings []ste.Finding
@@ -46,9 +46,7 @@ func place(tool string, in writeInput, rules []slopfix.Rule, ids []string) place
 	return placed{findings: introduced(before, after, in.FilePath, rules, ids), ok: true}
 }
 
-// introduced subtracts what the file already carried. Each earlier finding
-// cancels a matching one, so a second copy of a sentence the file already
-// breaks is still the write's own.
+// introduced subtracts what the file already carried.
 func introduced(before, after, path string, rules []slopfix.Rule, ids []string) []ste.Finding {
 	had := map[string]int{}
 	for _, f := range findingsOver(before, path, rules, ids) {

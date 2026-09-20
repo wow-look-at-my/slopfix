@@ -24,8 +24,8 @@ type fixture struct {
 	wants   []string
 }
 
-// roundTripFixtures carry at least one instance of every rule CheckContent
-// reports. TestEveryRuleAppearsInAFixture holds them to that.
+// roundTripFixtures carry at least a single instance of every rule
+// CheckContent reports. TestEveryRuleAppearsInAFixture holds them to that.
 func roundTripFixtures() []fixture {
 	return []fixture{
 		{
@@ -98,8 +98,8 @@ func roundTripFixtures() []fixture {
 }
 
 // Every rule slopfix REPORTS, slopfix REPAIRS. A rule the fixer cannot answer
-// leaves the reader two ways out, and the org allows neither: hand-edit the
-// prose, or delete the file. Two documents were deleted over exactly this.
+// leaves the reader ways out, and the org allows neither: hand-edit the
+// prose, or delete the file. documents were deleted over exactly this.
 //
 // So the property is the whole contract: fix, then check, and find nothing.
 func TestFixLeavesNoFindingBehind(t *testing.T) {
@@ -141,11 +141,11 @@ func TestFixingAFileLeavesNothingForCheckToReport(t *testing.T) {
 
 // A number said in words is longer than the number, so the comment rewrite can
 // put a block back over the budget the length cut had just brought it under.
-// The cut runs before the rewrite, so the file came out of one pass still
-// carrying the finding, and the caller had to know to run fix twice.
+// The cut runs before the rewrite, so the file came out of a single pass still
+// carrying the finding, and the caller had to know to run fix again.
 func TestALengthenedNumberIsCutBackInTheSamePass(t *testing.T) {
-	// The comment fits its budget as written and does not once every number in
-	// it is said in words, which is the whole of the interaction.
+	// The comment fits its budget as written and does not a single time every
+	// number in it is said in words, which is the whole of the interaction.
 	src := "package demo\n\n" +
 		"// Reserve takes one slot out of the arena, hands the caller back one handle to it and then publishes the newest entry it has just made now.\n" +
 		"func Reserve() {}\n"
@@ -157,7 +157,7 @@ func TestALengthenedNumberIsCutBackInTheSamePass(t *testing.T) {
 	assert.Empty(t, quoted(slopfix.CheckContent("demo.go", repair.Text)), repair.Text)
 }
 
-// A second pass changes nothing. A repair that provokes its own rule on the
+// Another pass changes nothing. A repair that provokes its own rule on the
 // next run leaves a caller looping, and a hook applying it never settles.
 func TestFixIsSettledAfterOnePass(t *testing.T) {
 	for _, f := range roundTripFixtures() {
