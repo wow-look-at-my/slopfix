@@ -18,7 +18,7 @@ A `Substrate` says how much a piece of text has to claim before a number in it c
 
 Prose requires a frame because a document legitimately carries numbers that count nothing: a version, a port, an example. The frame is a sentence claiming the things belong here, spelled as a possessive, a having verb, or a pointer into the page.
 
-The gate reads the same document and asks for no frame. It pays for that with a list of units, so a size and a duration are measured rather than counted. That is why `The read has 20 seconds.` is a finding for `Prose` and exempt for `Gate`. The two disagree on purpose. Folding the disagreement away moves verdicts on every repository the gate reads.
+The gate reads the same document and asks for no frame, so it reports a quantity a framed reading leaves alone. No noun buys an exemption on either side. A size and a duration state what is true today exactly as a tally of items does, and nothing corrects either when the artifact grows or the job gets slower.
 
 A comment requires no frame either, because a number written beside code is nearly always a count of what the code holds. The exemptions carry what such a number can be instead. The token's own shape carries the rest. A URL is never a count. A qualified name names itself.
 

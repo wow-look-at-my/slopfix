@@ -211,8 +211,8 @@ func checkSplices(prose string, line int) []Finding {
 
 // checkCounts finds a stated count of items. The reader trusts the number long
 // after somebody adds the item that makes it wrong.
-// This rule's own spelling of a count, and the units it will not count, live in
-// cardinal as the Gate substrate. The document rule and the comment rule read
+// This rule's own spelling of a count lives in cardinal as the Gate
+// substrate. The document rule and the comment rule read
 // the same package with their own policies, so they cannot drift apart.
 func checkCounts(prose string, line int) []Finding {
 	var out []Finding

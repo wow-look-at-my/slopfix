@@ -27,13 +27,14 @@ func TestTheFrameIsWhatSeparatesTheSubstrates(t *testing.T) {
 	assert.Equal(t, []string{"three hooks"}, texts(framed, Prose))
 }
 
-// The merge gate reads a document with no frame, and pays for that with a list
-// of units. The same sentence therefore parts both document substrates: a
-// duration is measured for the gate and counted for the inventory rule.
-func TestTheUnitsListIsTheGatesAloneAndTheFrameIsTheOtherSubstratesAlone(t *testing.T) {
+// The frame is the only thing parting the document substrates. No noun buys a
+// number an exemption on either side: a duration and a size state what is true
+// today exactly as a tally of items does, and nothing corrects either when the
+// job gets slower or the artifact grows.
+func TestTheFrameIsTheOnlyThingPartingTheDocumentSubstrates(t *testing.T) {
 	measured := "The read has 20 seconds."
 	assert.Equal(t, []string{"20 seconds"}, texts(measured, Prose))
-	assert.Empty(t, texts(measured, Gate))
+	assert.Equal(t, []string{"20 seconds"}, texts(measured, Gate))
 
 	counted := "The read has 20 plugins."
 	assert.Equal(t, []string{"20 plugins"}, texts(counted, Prose))
@@ -43,6 +44,19 @@ func TestTheUnitsListIsTheGatesAloneAndTheFrameIsTheOtherSubstratesAlone(t *test
 	bare := "split it into three parts if that reads better"
 	assert.Empty(t, texts(bare, Prose))
 	assert.Equal(t, []string{"three parts"}, texts(bare, Gate))
+}
+
+func TestNoNounExemptsAStatedValue(t *testing.T) {
+	for name, text := range map[string]string{
+		"duration": "the js leg takes about 9 minutes",
+		"size":     "the blob is 356 megabytes",
+		"length":   "the header is 64 bytes",
+		"span":     "the wait ends after 30 seconds",
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.NotEmpty(t, texts(text, Gate))
+		})
+	}
 }
 
 // The gate's word list stops short of the prose list, and it reads any run of

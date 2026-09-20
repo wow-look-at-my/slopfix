@@ -46,7 +46,7 @@ func TestCheckFileSniffsAWorkflowThePathDoesNotName(t *testing.T) {
 }
 
 func TestCheckFileStillReadsADocumentWithTheProseRules(t *testing.T) {
-	path := writeFile(t, "notes.md", "# Title\n\nA paragraph the author wrapped\nacross two lines by hand.\n")
+	path := writeFile(t, "notes.md", "# Title\n\nA paragraph the author wrapped\nby hand rather than letting it run.\n")
 
 	findings, err := slopfix.CheckFile(path)
 	require.NoError(t, err)

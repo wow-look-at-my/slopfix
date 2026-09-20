@@ -12,7 +12,8 @@
 // number written beside code is nearly always a count of what the code holds,
 // so the cardinal alone is the finding, and the exemptions carry the cases that
 // are something else. The merge gate reads a document with no frame either, and
-// pays for it with a list of units it will not count.
+// counts every noun: a size and a duration state what is true today just as a
+// tally of items does, so neither earns an exemption for the noun it governs.
 //
 // Those differences are the whole reason they looked like separate rules. They
 // are fields of Substrate now, and the values sit beside each other below.
@@ -70,7 +71,7 @@ var Gate = Substrate{
 	Shape:    Quantity,
 	Frame:    false,
 	Words:    gateWords,
-	Exempt:   []Exemption{Unit, InExpression},
+	Exempt:   []Exemption{InExpression},
 	quantity: gateQuantity,
 }
 
