@@ -327,6 +327,8 @@ func hardFit(b block) ([]string, bool) {
 			return nil, false
 		}
 		out := reflow(strings.Join(closed, " "), indent, marker, width)
+	for len(words) > 0 {
+		out := reflow(strings.Join(words, " "), indent, marker, max(floorChars, b.codeChars))
 		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return out, true
 		}
