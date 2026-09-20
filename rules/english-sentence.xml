@@ -27,4 +27,9 @@
        sentence and a cut after one reads as a truncation. -->
   <class name="ellipsis" suffix=".. ..."/>
 
+  <!-- Punctuation that joins one clause to the next. A sentence with no
+       terminator anywhere still breaks here, which is the last boundary a
+       reader recognises before the cut lands between two words. -->
+  <class name="clause" suffix=", ; :"/>
+
 </rules>

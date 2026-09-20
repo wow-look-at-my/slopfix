@@ -13,20 +13,21 @@ import (
 //go:generate go run github.com/wow-look-at-my/slopfix/cmd/rulegen -rules ../rules -for numbers -package cardinal -out numbers.gen.go
 
 // proseAlt is the prose vocabulary as a regular expression alternation, which
-// is the form the frames need.
-var proseAlt = strings.Join(numbersTable.WordsOf("prose"), "|")
+// is the form the frames need. rulegen joins the words, so a pattern built out
+// of this stays a constant.
+const proseAlt = numbersAltProse
 
 // proseWords is the same vocabulary as a set, for a caller asking about a word.
-var proseWords = set.Of(numbersTable.WordsOf("prose")...)
+var proseWords = set.Of(strings.Split(proseAlt, "|")...)
 
 // gateAlt is what the merge gate's stale-count rule reads, as an alternation.
-var gateAlt = strings.Join(numbersTable.WordsOf("gate"), "|")
+const gateAlt = numbersAltGate
 
 // gateWords is that vocabulary as a set.
-var gateWords = set.Of(numbersTable.WordsOf("gate")...)
+var gateWords = set.Of(strings.Split(gateAlt, "|")...)
 
 // commentWords are the numbers a comment spells.
-var commentWords = set.Of(numbersTable.WordsOf("comment")...)
+var commentWords = set.Of(strings.Split(numbersAltComment, "|")...)
 
 // Leading matches the cardinal at the front of a quantity, with the space after
 var Leading = regexp.MustCompile(`(?i)^(?:\d{1,4}|` + proseAlt + `)\s+`)

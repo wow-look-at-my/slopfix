@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -133,6 +134,7 @@ func render(req Request, t *Loaded) string {
 		fmt.Fprintf(&b, "\t\t\tTerms: %s,\n\t\t},\n", renderTerms(r.Match))
 	}
 	b.WriteString("\t},\n}\n")
+	renderAlternations(&b, req, t)
 	return b.String()
 }
 
@@ -210,6 +212,51 @@ func words(list string) string {
 
 // q quotes a string as Go source.
 func q(s string) string { return strconv.Quote(s) }
+
+// renderAlternations writes one constant per class holding its words as a
+// regular expression alternation. The words are known while this runs, so the
+// join belongs here: a caller building a pattern out of one keeps a constant,
+// and nothing assembles the same string again at startup.
+func renderAlternations(b *strings.Builder, req Request, t *Loaded) {
+	var named []table.Class
+	for _, c := range t.Classes {
+		if len(c.Words) > 0 {
+			named = append(named, c)
+		}
+	}
+	if len(named) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "\n// Each class of %s as an alternation, for a pattern to embed.\nconst (\n", req.Target)
+	for _, c := range named {
+		quoted := make([]string, len(c.Words))
+		for i, w := range c.Words {
+			quoted[i] = regexp.QuoteMeta(w)
+		}
+		fmt.Fprintf(b, "\t%sAlt%s = %s\n", req.Target, exportedName(c.Name), q(strings.Join(quoted, "|")))
+	}
+	b.WriteString(")\n")
+}
+
+// exportedName spells a class name as a Go identifier fragment, so a name
+// carrying a hyphen still reads as one word in the constant it names.
+func exportedName(name string) string {
+	var out strings.Builder
+	upper := true
+	for _, r := range name {
+		if r == '-' || r == '_' || r == ' ' {
+			upper = true
+			continue
+		}
+		if upper {
+			out.WriteString(strings.ToUpper(string(r)))
+			upper = false
+			continue
+		}
+		out.WriteRune(r)
+	}
+	return out.String()
+}
 
 // stripBoundaries removes a leading and a trailing \b and reports which it
 // took. An interior boundary is an error: see compilePattern.
