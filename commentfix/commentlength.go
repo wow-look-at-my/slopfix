@@ -337,11 +337,8 @@ func hardFit(b block) ([]string, bool) {
 }
 
 // dangling words open something the cut took away, so a forced cut that ends on
-// one reads as a sentence somebody abandoned.
-var dangling = set.Of("and", "or", "but", "so", "yet", "then", "the", "a", "an",
-	"to", "of", "in", "on", "at", "by", "for", "from", "with", "than", "rather",
-	"that", "which", "who", "when", "while", "where", "because", "if", "is",
-	"are", "was", "were", "as", "into", "over", "under", "per")
+// one reads as a sentence somebody abandoned. The list is data, in rules/.
+var dangling = set.Of(danglingWords()...)
 
 // closeTail makes a forced cut read as a sentence: it drops back past a word
 // that opens what the cut removed, and closes what is left with a period.

@@ -101,7 +101,7 @@ func carriesProse(lines []string, rows set.Set[int], i int) bool {
 func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, removed []string, blanked map[int]bool) {
 	blanked = make(map[int]bool)
 	for _, para := range paragraphsOf(lines, runs) {
-		said := Reword(para.prose)
+		said := CloseProse(Reword(para.prose))
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
 		if said == para.prose {
@@ -117,7 +117,8 @@ func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, rem
 		if len(wrapped) == 0 && para.trailer != "" {
 			wrapped = []string{strings.TrimRight(para.marker, " ")}
 		}
-		// The closer goes on last, after the line juggling below has settled which line IS last. Carried inside wrapped it
+		// The closer goes on last, once the juggling below has settled which
+		// line is last.
 		closeAt := -1
 		for i, at := range para.lines {
 			if i < len(wrapped) {
