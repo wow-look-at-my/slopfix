@@ -92,9 +92,10 @@
   <rephrase id="at-most-one" match="at most one" to="no more than a single">
     <test in="It holds at most one key" out="It holds no more than a single key"/>
   </rephrase>
-  <rephrase id="more-than-one" match="more than one" to="several">
-    <test in="It holds more than one key" out="It holds several keys"/>
-  </rephrase>
+  <!-- "more than one" keeps its noun SINGULAR: "more than one key". Every
+       replacement that means the same thing wants a plural, so swapping the
+       phrase alone writes "several key". Pluralizing the noun is not something
+       a table can do, so this one is left for the author and reported. -->
   <rephrase id="only-one" match="only one" to="a single">
     <test in="It holds only one key" out="It holds a single key"/>
   </rephrase>
