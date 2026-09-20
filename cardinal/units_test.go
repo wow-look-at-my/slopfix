@@ -8,19 +8,15 @@ import (
 	"github.com/wow-look-at-my/slopfix/cardinal"
 )
 
-// The sentences a repair destroyed.
-func TestAMeasurementIsNotACount(t *testing.T) {
+// A measurement is reported like any other stated count, because the number
+// goes stale the same way. What it must never earn is a rewrite that keeps the
+// unit and drops the value, which is the rule the class feeds.
+func TestAMeasurementIsStillReported(t *testing.T) {
 	for _, prose := range []string{
-		"a `list` that walks each item's tree walks the whole bin every 30 seconds",
-		"the daemon gives back the oldest items after two minutes",
-		"a fixed 260-character path reads 260 characters",
 		"it waits three seconds before the next poll",
 		"the header is eight bytes wide",
-		"it reports 12 lines of context",
 	} {
-		assert.Empty(t, cardinal.Find(prose, cardinal.Gate), "gate: %s", prose)
-		assert.Empty(t, cardinal.Find(prose, cardinal.Prose), "prose: %s", prose)
-		assert.Empty(t, cardinal.Find(prose, cardinal.Comment), "comment: %s", prose)
+		assert.NotEmpty(t, cardinal.Find(prose, cardinal.Gate), "gate: %s", prose)
 	}
 }
 

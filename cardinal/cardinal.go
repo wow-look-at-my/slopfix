@@ -62,16 +62,17 @@ var Prose = Substrate{
 	Shape:  Quantity,
 	Frame:  true,
 	Words:  proseWords,
-	Exempt: []Exemption{ContinuesANumber, FunctionWordGap, GovernsAUnit},
+	Exempt: []Exemption{ContinuesANumber, FunctionWordGap},
 }
 
 // Gate is the same document, as the merge gate's stale-count rule reads it. It
-// asks for no frame and carries its own quantity pattern.
+// asks for no frame and carries its own quantity pattern. A unit earns no
+// exemption here: a stated measurement is exactly what the gate reports.
 var Gate = Substrate{
 	Shape:    Quantity,
 	Frame:    false,
 	Words:    gateWords,
-	Exempt:   []Exemption{InExpression, FunctionWordGap, GovernsAUnit},
+	Exempt:   []Exemption{InExpression, FunctionWordGap},
 	quantity: gateQuantity,
 }
 
@@ -81,7 +82,7 @@ var Comment = Substrate{
 	Shape:       Number,
 	Frame:       false,
 	Words:       commentWords,
-	ExemptToken: []TokenExemption{HTTPStatus, ExitStatus, Literal, SectionRef, Money, TokenGovernsAUnit},
+	ExemptToken: []TokenExemption{HTTPStatus, ExitStatus, Literal, SectionRef, Money},
 }
 
 // Find returns every stated count the text carries, under that substrate.
