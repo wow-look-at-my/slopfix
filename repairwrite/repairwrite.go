@@ -11,6 +11,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
 )
 
@@ -22,12 +23,7 @@ type Result struct {
 }
 
 // writeTools name the tools that put text on disk.
-var writeTools = map[string]bool{
-	"Write":        true,
-	"Edit":         true,
-	"MultiEdit":    true,
-	"NotebookEdit": true,
-}
+var writeTools = set.Of("Write", "Edit", "MultiEdit", "NotebookEdit")
 
 // input is the part of a PostToolUse payload this reads.
 type input struct {
@@ -55,7 +51,7 @@ func Run(r io.Reader) Result {
 		return Result{}
 	}
 	path := in.ToolInput.FilePath
-	if !writeTools[in.ToolName] || path == "" {
+	if !writeTools.Contains(in.ToolName) || path == "" {
 		return Result{}
 	}
 

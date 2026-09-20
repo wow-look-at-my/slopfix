@@ -85,22 +85,6 @@ func recordOffender(sessionID, path string) {
 	writeMarker(sessionID, m)
 }
 
-// noteSignature records a single file's current signature, so the next call
-// that diffs the snapshot does not report a write this already answered for.
-func noteSignature(sessionID, path string) {
-	if sessionID == "" {
-		return
-	}
-	m := readMarker(sessionID)
-	if m == nil {
-		m = newMarker()
-	}
-	if sig, ok := signature(path); ok {
-		m.Seen[path] = sig
-	}
-	writeMarker(sessionID, m)
-}
-
 // seedSnapshot records what every candidate looked like BEFORE this session
 // touched anything, or the earliest Bash-written edit gets away.
 func seedSnapshot(sessionID, cwd string) {
