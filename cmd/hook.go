@@ -65,6 +65,10 @@ type writeInput struct {
 // hookResponse covers a refusal, which sets the permission fields, and a
 // repair, which sets the input and the notice. Allowing an untouched write
 // prints nothing at all.
+//
+// Prose sets the repair fields and never the permission ones: a comment is
+// repaired where it stands and reported afterwards, so a write carrying one is
+// never stopped.
 type hookResponse struct {
 	HookSpecificOutput struct {
 		HookEventName            string         `json:"hookEventName"`
@@ -144,15 +148,6 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	var raw map[string]any
 	if json.Unmarshal(in.ToolInput, &raw) != nil {
 		return ""
-	}
-
-	// Asked before the repair: a reworded comment is refused whatever the
-	// repair would have made of the new text on its own.
-	if reason := handEditReason(in.ToolName, write, rules, ids); reason != "" {
-		return respond(func(r *hookResponse) {
-			r.HookSpecificOutput.PermissionDecision = "deny"
-			r.HookSpecificOutput.PermissionDecisionReason = reason
-		})
 	}
 
 	var removed []string

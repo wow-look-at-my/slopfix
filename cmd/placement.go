@@ -3,7 +3,7 @@
 // An edit's new text carries no file around it. A comment in it documents
 // nothing, because the declaration it sits above is not in the fragment. A
 // fenced block's lines read as a hand-wrapped paragraph for the same reason.
-// Judged alone, an ordinary edit is refused for what the file supplies.
+// Judged alone, an ordinary edit is flagged for what the file supplies.
 //
 // So the fragment is put back earliest: the file is read, the edit replayed,
 // and the rules run over the whole result. What the file already carried is
@@ -14,10 +14,47 @@ package cmd
 
 import (
 	"os"
+	"strings"
 
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
+
+// edit is a replacement a write performs, as the payload states it.
+type edit struct {
+	old string
+	new string
+}
+
+// editsOf reads the replacements the named tool carries. Write replaces the
+// whole file and states no replacement, so it has none.
+func editsOf(tool string, in writeInput) []edit {
+	switch tool {
+	case "Edit":
+		return []edit{{old: in.OldString, new: in.NewString}}
+	case "MultiEdit":
+		out := make([]edit, 0, len(in.Edits))
+		for _, e := range in.Edits {
+			out = append(out, edit{old: e.OldString, new: e.NewString})
+		}
+		return out
+	}
+	return nil
+}
+
+// applyEdits replays the replacements onto the file. A replacement that is
+// absent, or that appears more than a single time, leaves the result unknown,
+// and the caller then judges the fragment as it always did.
+func applyEdits(src string, edits []edit) (string, bool) {
+	out := src
+	for _, e := range edits {
+		if e.old == "" || strings.Count(out, e.old) != 1 {
+			return "", false
+		}
+		out = strings.Replace(out, e.old, e.new, 1)
+	}
+	return out, true
+}
 
 // placed is what an edit introduces, a single time the file supplies its surroundings.
 type placed struct {

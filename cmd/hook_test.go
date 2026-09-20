@@ -165,7 +165,8 @@ func TestALongReportSaysItTrimmed(t *testing.T) {
 	assert.Equal(t, "g", lines[reportCap])
 }
 
-// The refusal a hook prints when it denies a write.
+// The refusal a hook prints when it denies a write. Prose never takes this
+// path, and the machinery stays: a guard with something worth stopping needs it.
 func TestARefusalNamesEveryReasonItCarries(t *testing.T) {
 	var raw map[string]any
 	require.NoError(t, json.Unmarshal([]byte(deny([]string{"a reason"})), &raw))
