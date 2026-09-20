@@ -435,6 +435,21 @@ func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	allowed(t, dir, "git cherry-pick --continue")
 }
 
+// A pull request carries the review, so closing one ends a conversation the
+// owner is having. Reading and writing to it stay open.
+func TestClosingAPullRequestIsRefused(t *testing.T) {
+	dir := newRepo(t)
+	denied(t, dir, "gh pr close 45")
+	denied(t, dir, "gh pr close 45 --comment superseded")
+	denied(t, dir, "gh api -X PATCH /repos/o/r/pulls/45 -f state=closed")
+	denied(t, dir, `curl -X PATCH https://api.github.com/repos/o/r/pulls/45 -d '{"state":"closed"}'`)
+
+	allowed(t, dir, "gh pr view 45")
+	allowed(t, dir, "gh pr list")
+	allowed(t, dir, "gh pr comment 45 --body superseded")
+	allowed(t, dir, "gh pr close --help")
+}
+
 func TestGitRmCachedLeavesTheFileAlone(t *testing.T) {
 	dir := newRepo(t)
 	untrack(t, dir, "scratch.txt")
