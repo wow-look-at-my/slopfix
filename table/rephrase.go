@@ -34,21 +34,31 @@ func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose stri
 		return prose
 	}
 	tokens := make([]string, len(spans))
+	written := make([]string, len(spans))
 	for i, s := range spans {
-		tokens[i] = strings.ToLower(prose[s.at:s.end])
+		written[i] = prose[s.at:s.end]
+		tokens[i] = strings.ToLower(written[i])
 	}
 	tokens = normalize(norms, tokens)
+	// A capture writes a word back, so it writes back the author's spelling.
+	// A token the normalizer settled is that spelling now.
+	for i, tok := range tokens {
+		if tok != strings.ToLower(written[i]) {
+			written[i] = tok
+		}
+	}
 
 	var out strings.Builder
 	last, i := 0, 0
 	for i < len(tokens) {
-		entry, end, caught, ok := firstMatch(lex, entries, tokens, i)
+		entry, end, caught, ok := firstMatch(lex, entries, tokens, i, written)
 		if !ok {
 			i++
 			continue
 		}
 		out.WriteString(prose[last:spans[i].at])
-		out.WriteString(Expand(entry.To, caught))
+		matched := prose[spans[i].at:spans[end-1].end]
+		out.WriteString(MatchCase(matched, Expand(entry.To, caught)))
 		last = spans[end-1].end
 		i = end
 	}
@@ -57,9 +67,9 @@ func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose stri
 }
 
 // firstMatch answers the earliest entry that fits at i.
-func firstMatch(lex *Lexicon, entries []Rephrase, tokens []string, i int) (Rephrase, int, map[string]string, bool) {
+func firstMatch(lex *Lexicon, entries []Rephrase, tokens []string, i int, written []string) (Rephrase, int, map[string]string, bool) {
 	for _, entry := range entries {
-		end, caught, ok := entry.Terms.find(lex, tokens, i)
+		end, caught, ok := entry.Terms.find(lex, tokens, written, i)
 		if ok && end > i {
 			return entry, end, caught, true
 		}

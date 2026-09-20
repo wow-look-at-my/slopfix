@@ -83,17 +83,22 @@
 
        The phrases come first: each is a fixed idiom the corpus shows by the
        hundred, and a general shape below would read it wrongly. -->
-  <rephrase id="at-least-one" match="at least one" to="any">
+  <!-- Each names the noun it counts. Without one the cardinal IS the noun
+       phrase: "only one that exits" and "when only one is configured" both
+       name a thing the sentence already introduced, and swapping the phrase
+       there spells "a single that exits". Only the antecedent says which noun,
+       so that shape is reported and left for the author. -->
+  <rephrase id="at-least-one" match="at least one {noun:n}" to="any {n}">
     <test in="It holds at least one key" out="It holds any key"/>
   </rephrase>
-  <rephrase id="at-most-one" match="at most one" to="no more than a single">
+  <rephrase id="at-most-one" match="at most one {noun:n}" to="no more than a single {n}">
     <test in="It holds at most one key" out="It holds no more than a single key"/>
   </rephrase>
   <!-- "more than one" keeps its noun SINGULAR: "more than one key". Every
        replacement that means the same thing wants a plural, so swapping the
        phrase alone writes "several key". Pluralizing the noun is not something
        a table can do, so this one is left for the author and reported. -->
-  <rephrase id="only-one" match="only one" to="a single">
+  <rephrase id="only-one" match="only one {noun:n}" to="a single {n}">
     <test in="It holds only one key" out="It holds a single key"/>
   </rephrase>
   <rephrase id="no-one-is-nobody" match="no one" to="nobody">
