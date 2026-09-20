@@ -100,6 +100,9 @@ func carriesProse(lines []string, rows set.Set[int], i int) bool {
 func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, removed []string, blanked map[int]bool) {
 	blanked = make(map[int]bool)
 	for _, para := range paragraphsOf(lines, runs) {
+		if para.verbatim {
+			continue
+		}
 		said := CloseProse(Reword(para.prose))
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
@@ -157,6 +160,8 @@ type para struct {
 	cont string
 	// trailer closes a block comment, and rides the last line a rewrite emits.
 	trailer string
+	// verbatim marks a godoc code block, which the rewrite leaves as written.
+	verbatim bool
 }
 
 // paragraphsOf turns the parser's runs into the paragraphs a rewrite acts on. A
@@ -188,6 +193,13 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 				marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
 				marker = line[:min(col, len(line))] + marker
 				if !ok || (prose == "" && trailer == "") || isDirective(c.Text) {
+					current = nil
+					continue
+				}
+				if codeRow(line) {
+					// A tab after the marker is how a doc comment spells a code
+					// block, and godoc renders the row as the author laid it out.
+					out = append(out, para{lines: []int{i}, verbatim: true})
 					current = nil
 					continue
 				}
