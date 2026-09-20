@@ -16,6 +16,8 @@ require (
 // that writes the generated files comes before the run that imports them.
 tool github.com/wow-look-at-my/go-regex-compiler/cmd/go-regex-compiler
 
+replace github.com/wow-look-at-my/xml-validator/reader => /Users/mhaynie/repos/xml-validator/reader
+
 require (
 	github.com/spf13/pflag v1.0.9
 	go.yaml.in/yaml/v3 v3.0.5

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/repairwrite"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
@@ -21,11 +23,16 @@ var (
 func init() {
 	hook := &cobra.Command{
 		Use:   "hook",
-		Short: "Repair a Claude Code write, reading its PreToolUse payload on stdin",
-		Long: "hook reads a PreToolUse payload on stdin and writes the hook's own\n" +
-			"response on stdout. It repairs the text a write adds and lets the write\n" +
-			"through. It never refuses one: what no rewrite repairs is named in the\n" +
-			"context the model reads, and the write still lands.\n\n" +
+		Short: "Repair a Claude Code write, reading its hook payload on stdin",
+		Long: "hook reads a write's payload on stdin and writes the hook's own response\n" +
+			"on stdout. It serves both events from one command, deciding on the event\n" +
+			"the payload names, so a manifest never carries a command per event.\n\n" +
+			"On PostToolUse it repairs the file the write landed, in place and whole. A\n" +
+			"fence, a table and a comment block are properties of a file rather than of\n" +
+			"a fragment, and the file on disk is the only place all three are true.\n\n" +
+			"On PreToolUse it repairs the text a write adds. It never refuses one: what\n" +
+			"no rewrite repairs is named in the context the model reads, and the write\n" +
+			"still lands.\n\n" +
 			"Every plugin that guards a write is then its manifest and nothing else.\n" +
 			"Each carried its own copy of this: the same payload parse, the same three\n" +
 			"write shapes, the same splice back. A write shape added to one and not\n" +
@@ -117,6 +124,24 @@ func runHook(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return nil
 	}
+
+	// One command serves both halves of a write. The event decides which,
+	// because a manifest that names a command per event is a list to keep in
+	// step with this one.
+	var event struct {
+		HookEventName string `json:"hook_event_name"`
+	}
+	if json.Unmarshal(data, &event) == nil && event.HookEventName == "PostToolUse" {
+		res := repairwrite.Run(bytes.NewReader(data))
+		if res.Stdout != "" {
+			fmt.Fprint(cmd.OutOrStdout(), res.Stdout)
+		}
+		if res.Stderr != "" {
+			fmt.Fprint(cmd.ErrOrStderr(), res.Stderr)
+		}
+		return nil
+	}
+
 	out := judge(data, rules, ids)
 	if out != "" {
 		fmt.Fprint(cmd.OutOrStdout(), out)
