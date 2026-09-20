@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // Request is a single generated table: which rules to read, and where to put
@@ -92,25 +94,117 @@ func render(req Request, t *Loaded) string {
 
 	b.WriteString("\tDrops: []table.Drop{\n")
 	for _, d := range t.Drops {
-		fmt.Fprintf(&b, "\t\t{Word: %s, Where: %s, Test: %s},\n", q(d.Word), q(d.Where), q(d.Test))
+		fmt.Fprintf(&b, "\t\t{ID: %s, Word: %s, Where: %s, Tests: %s},\n",
+			q(d.ID), q(d.Word), q(d.Where), tests(d.Tests))
 	}
 	b.WriteString("\t},\n\tRewrites: []table.Rewrite{\n")
 	for _, r := range t.Rewrites {
-		fmt.Fprintf(&b, "\t\t{From: %s, To: %s, Where: %s, Test: %s, Expect: %s},\n",
-			q(r.From), q(r.To), q(r.Where), q(r.Test), q(r.Expect))
+		fmt.Fprintf(&b, "\t\t{ID: %s, From: %s, To: %s, Where: %s, Tests: %s},\n",
+			q(r.ID), q(r.From), q(r.To), q(r.Where), tests(r.Tests))
 	}
 	b.WriteString("\t},\n\tPatterns: []table.Pattern{\n")
 	for _, p := range t.Patterns {
-		fmt.Fprintf(&b, "\t\t{\n\t\t\tMatch: %s, To: %s, Where: %s,\n", q(p.Match), q(p.To), q(p.Where))
-		fmt.Fprintf(&b, "\t\t\tTest: %s, Expect: %s,\n", q(p.Test), q(p.Expect))
+		fmt.Fprintf(&b, "\t\t{\n\t\t\tID: %s, Match: %s, To: %s, Where: %s,\n",
+			q(p.ID), q(p.Match), q(p.To), q(p.Where))
+		fmt.Fprintf(&b, "\t\t\tTests: %s,\n", tests(p.Tests))
 		fmt.Fprintf(&b, "\t\t\tHas: %sHas, At: %sAt, Find: %sFindIndex,\n", p.Prefix, p.Prefix, p.Prefix)
 		fmt.Fprintf(&b, "\t\t\tLeadWord: %t, TailWord: %t,\n\t\t},\n", p.LeadWord, p.TailWord)
 	}
 	b.WriteString("\t},\n\tFlags: []table.Flag{\n")
 	for _, f := range t.Flags {
-		fmt.Fprintf(&b, "\t\t{Phrase: %s, Say: %s, Test: %s},\n", q(f.Phrase), q(f.Say), q(f.Test))
+		fmt.Fprintf(&b, "\t\t{ID: %s, Phrase: %s, Say: %s, Tests: %s},\n",
+			q(f.ID), q(f.Phrase), q(f.Say), tests(f.Tests))
+	}
+	b.WriteString("\t},\n\tClasses: []table.Class{\n")
+	for _, c := range t.Classes {
+		fmt.Fprintf(&b, "\t\t{Name: %s, Words: %s, Suffix: %s, Open: %t, Except: %s},\n",
+			q(c.Name), words(c.Words), words(c.Suffix), c.Open, words(c.Except))
+	}
+	b.WriteString("\t},\n\tNormals: []table.Normalize{\n")
+	for _, n := range t.Normals {
+		fmt.Fprintf(&b, "\t\t{ID: %s, From: %s, To: %s, Tests: %s},\n",
+			q(n.ID), q(n.From), q(n.To), tests(n.Tests))
+	}
+	b.WriteString("\t},\n\tRephrasings: []table.Rephrase{\n")
+	for _, r := range t.Rephrases {
+		fmt.Fprintf(&b, "\t\t{\n\t\t\tID: %s, Match: %s, To: %s, Where: %s,\n",
+			q(r.ID), q(r.Match), q(r.To), q(r.Where))
+		fmt.Fprintf(&b, "\t\t\tTests: %s,\n", tests(r.Tests))
+		fmt.Fprintf(&b, "\t\t\tTerms: %s,\n\t\t},\n", renderTerms(r.Match))
 	}
 	b.WriteString("\t},\n}\n")
+	return b.String()
+}
+
+// renderTerms writes a parsed match as a literal. Load has already refused a
+// match that does not parse, so this cannot fail here.
+func renderTerms(match string) string {
+	parsed, err := table.ParseMatch(match)
+	if err != nil {
+		return "table.Match{}"
+	}
+	var b strings.Builder
+	b.WriteString("table.Match{Terms: []table.Term{")
+	for i, t := range parsed.Terms {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "{Classes: %s, Word: %s, Name: %s, Many: %t}",
+			list(t.Classes), q(t.Word), q(t.Name), t.Many)
+	}
+	b.WriteString("}}")
+	return b.String()
+}
+
+// tests renders an entry's cases as a Go literal.
+func tests(cases []Test) string {
+	if len(cases) == 0 {
+		return "nil"
+	}
+	var b strings.Builder
+	b.WriteString("[]table.Test{")
+	for i, c := range cases {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "{In: %s, Out: %s}", q(c.In), q(c.Out))
+	}
+	b.WriteString("}")
+	return b.String()
+}
+
+// list renders a slice of strings as a Go literal.
+func list(items []string) string {
+	if len(items) == 0 {
+		return "nil"
+	}
+	var b strings.Builder
+	b.WriteString("[]string{")
+	for i, s := range items {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(q(s))
+	}
+	b.WriteString("}")
+	return b.String()
+}
+
+// words renders a whitespace-separated attribute as a Go slice literal.
+func words(list string) string {
+	fields := strings.Fields(list)
+	if len(fields) == 0 {
+		return "nil"
+	}
+	var b strings.Builder
+	b.WriteString("[]string{")
+	for i, f := range fields {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(q(f))
+	}
+	b.WriteString("}")
 	return b.String()
 }
 
