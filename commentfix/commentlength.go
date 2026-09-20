@@ -318,8 +318,9 @@ func hardFit(b block) ([]string, bool) {
 		body = append(body, stripMarker(line))
 	}
 	words := strings.Fields(strings.Join(body, " "))
-	// The budget is a character count, not a column. Laying the words out at it
-	// wrote a 124-column line, which no editor shows beside the code it documents.
+	// The budget is a character count, and the layout takes a column, so the two
+	// are not interchangeable: a comment allowed many characters still wraps at
+	// wrapWidth to stay beside the code it documents.
 	width := min(max(floorChars, b.codeChars), wrapWidth)
 	for len(words) > 0 {
 		closed := closeTail(words)
