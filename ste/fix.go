@@ -106,9 +106,8 @@ func fixSplices(prose string) string {
 	return breakAt(prose, commas)
 }
 
-// The seams a division can take, strongest earliest. Each is a place the
-// sentence already divides in the reader's head: a conjunction, or the comma
-// before one. A sentence carrying none of them is left at its length.
+// The seams a division can take, strongest earliest. A sentence carrying
+// none of them is left at its length.
 //
 // The coordinator puts the conjunction inside the group, because the clause
 // after it already opens a sentence. Every weaker seam leaves the conjunction
