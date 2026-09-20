@@ -11,12 +11,13 @@ import (
 func init() {
 	c := &cobra.Command{
 		Use:   "comments <path>...",
-		Short: "Report a number stated in a comment, and exit 1 when anything does",
-		Long: "Reads comments by their delimiters rather than by a grammar, so it answers\n" +
-			"for every language it knows and on a tree that does not compile. A directory\n" +
-			"is walked; a file is read whatever its extension.\n\n" +
-			"--fix says the number in words wherever the table covers it, and cuts the\n" +
-			"sentence carrying any number it does not. A cut sentence is printed, because\n" +
+		Short: "Report what a comment gets wrong, and exit 1 when anything does",
+		Long: "Every comment rule reads one syntax tree: a number a comment states, a block\n" +
+			"longer than the code it documents, and a comment that stops mid-thought. A\n" +
+			"directory is walked; a file no grammar parses is skipped.\n\n" +
+			"--fix says the number in words wherever the table covers it, cuts the sentence\n" +
+			"carrying any number it does not, closes a comment left unfinished, and brings\n" +
+			"an over-long block back inside its budget. A cut sentence is printed, because\n" +
 			"nothing else tells you what the repair took.",
 		Args: cobra.MinimumNArgs(1),
 		RunE: runComments,
@@ -42,6 +43,15 @@ func runComments(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			found = found || hit
+			// The length rule needs a grammar, which the number rule does not.
+			if !commentfix.Parsed(path) {
+				continue
+			}
+			long, err := lengthOf(cmd, path, repair)
+			if err != nil {
+				return err
+			}
+			found = found || long
 		}
 	}
 	if found {
@@ -84,6 +94,37 @@ func numbersOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 	left := commentfix.Check(path, fixed.Text)
 	printHits(cmd, path, left)
 	return len(left) > 0, nil
+}
+
+// lengthOf reports or repairs the blocks that outrun the code they document.
+func lengthOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	hits := commentfix.CheckLength(path, string(src))
+	if len(hits) == 0 {
+		return false, nil
+	}
+	if repair {
+		out, changed := commentfix.FixLength(path, string(src))
+		if changed {
+			if err := os.WriteFile(path, []byte(out), info.Mode().Perm()); err != nil {
+				return false, err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s: repaired\n", path)
+		}
+		// A block the repair cannot shorten is still a finding.
+		return len(commentfix.CheckLength(path, out)) > 0, nil
+	}
+	for _, hit := range hits {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s:%d: %s: %s\n", path, hit.Line, hit.Tell, hit.Sentence)
+	}
+	return true, nil
 }
 
 // printHits prints a finding per line, the way a compiler names a warning.

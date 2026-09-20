@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A comment ends where the reader stops, so the last word decides whether the
+  block reads as a thought or as one somebody walked away from.
+
+  The class below is the whole of that judgement, and it is CLOSED: the language
+  admits no new article, conjunction or preposition. A word in it opens
+  something the rest of the sentence was meant to supply, so a comment ending on
+  one is a comment with its ending missing, whoever removed it.
+
+  The sentence the repair drops is found by the English sentence parser, not by
+  a pattern: a full stop inside an abbreviation or a file name ends no sentence.
+-->
+<rules for="comment-tails">
+
+  <class name="dangling" words="and or but so yet then the a an to of in on at by
+    for from with than rather that which who when while where because if is are
+    was were as into over under per"/>
+
+  <!-- A fragment standing after a finished sentence is dropped whole. -->
+  <test in="Prose is a document's own voice, as the rule reads it. The"
+        out="Prose is a document's own voice, as the rule reads it."/>
+  <test in="It stops there. Inside a"
+        out="It stops there."/>
+
+  <!-- An unfinished clause is closed where it last said something, and the
+       punctuation that opened what is missing goes with it. -->
+  <test in="The budget is a character count, and the layout takes a"
+        out="The budget is a character count."/>
+  <test in="gatherComments walks the whole tree, so a comment inside a body is"
+        out="gatherComments walks the whole tree."/>
+
+  <!-- A finished comment is left exactly as it stands. -->
+  <test in="A push names its target through the remote-tracking ref."
+        out="A push names its target through the remote-tracking ref."/>
+  <test in="The list is data, in rules/."
+        out="The list is data, in rules/."/>
+
+</rules>

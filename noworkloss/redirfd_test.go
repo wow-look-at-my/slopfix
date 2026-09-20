@@ -9,7 +9,7 @@ import (
 
 // A redirect is only this hook's business when it can empty a file holding
 // content no git object has. Some shapes never can: a device target swallows
-// what it is given, and a descriptor other than stdout carries a stream rather
+// what it is given, and a descriptor other than stdout carries diagnostics.
 
 // The reported incident. Nothing here puts a file at risk, and the target
 // needs no working directory to resolve.

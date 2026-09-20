@@ -44,9 +44,6 @@ func ruleID(tell string) string {
 }
 
 // Hit is a tombstone found in added text.
-//
-// Strippable means deleting LineNo removes this comment and nothing else.
-// LineNo indexes Line in the text, and means nothing without Strippable.
 type Hit struct {
 	ID     string `json:"id"`     // the rule that fired, and the name that selects it
 	Tell   string `json:"tell"`   // what that rule says in words

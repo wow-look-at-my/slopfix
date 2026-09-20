@@ -10,7 +10,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// quantity is the shape a frame governs, spelled in quantity.go beside the
+// quantity is the shape a frame governs. quantity.go spells it.
 const quantity = proseQuantity
 
 // possessiveFrame is a determiner claiming the things belong here, as in "this

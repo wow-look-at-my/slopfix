@@ -61,7 +61,7 @@ func TestPreservesUntrackedFileContentBeforeRm(t *testing.T) {
 	refs := listPreservationRefs(t, dir)
 	require.Len(t, refs, 1)
 
-	// The hook only analyses the command; it never runs it. The file is
+	// The hook analyses the command and never runs it, so the copy holds what stood in the tree.
 	content := gitOutput(t, dir, "show", refs[0]+":scratch.txt")
 	assert.Equal(t, "scratch", content)
 }
@@ -84,12 +84,12 @@ func TestPreservesModifiedTrackedFileOnTopOfHead(t *testing.T) {
 	content := gitOutput(t, dir, "show", refs[0]+":tracked.go")
 	assert.Equal(t, "package a\n// edited", content)
 
-	// The working tree still holds the edit byte for byte -- the hook analyses
+	// The working tree still holds the edit byte for byte.
 	onDisk, err := os.ReadFile(filepath.Join(dir, "tracked.go"))
 	require.NoError(t, err)
 	assert.Equal(t, "package a\n// edited\n", string(onDisk))
 
-	// The edit is committed now, so the tree reads clean rather than showing a
+	// The edit is committed, so the tree reads clean.
 	assert.Empty(t, gitOutput(t, dir, "status", "--porcelain"))
 	assert.Empty(t, gitOutput(t, dir, "diff", "--cached", "--name-only"))
 }
@@ -248,8 +248,8 @@ func TestPreservationClearsOnlyTheAtRiskPathsFromStatus(t *testing.T) {
 
 	preserved(t, dir, "rm unstaged.go new.txt")
 
-	// Both preserved paths are committed now, so they read clean. The
-	// staged file nothing threatened is still staged, and still names the
+	// The preserved paths are committed, so only the untouched staged file
+	// is left standing in the index.
 	assert.Equal(t, []string{"M  staged.go"},
 		splitLines(gitOutput(t, dir, "status", "--porcelain")))
 	assert.Equal(t, []string{"staged.go"},

@@ -74,7 +74,3 @@ func TestACleanCommentIsNotRewritten(t *testing.T) {
 	assert.False(t, changed)
 	assert.Equal(t, src, out)
 }
-
-// A doc comment opens on the identifier it documents, and that identifier is
-// often unexported. Capitalising it names a symbol the package does not have,
-// so the capital is restored only where a deletion removed the opening word.

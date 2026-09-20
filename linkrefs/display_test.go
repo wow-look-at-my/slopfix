@@ -16,7 +16,7 @@ type fakeResolver struct {
 	base     string
 	branches []string
 	commits  []string
-	// states is what each pull request is doing. An absent reference is a
+	// states is what each pull request is doing. An absent reference is one this fake knows nothing about.
 	states map[string]PullState
 }
 

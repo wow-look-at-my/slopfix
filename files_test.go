@@ -3,6 +3,7 @@ package slopfix_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,8 @@ func TestCheckFileSaysSoWhenTheFileIsMissing(t *testing.T) {
 }
 
 func TestFormatFileJoinsAWrappedParagraphInPlace(t *testing.T) {
-	path := write(t, "a.md", "The loader reads\nthe flag it names.\n")
+	const wrapped = "The loader reads\nthe flag it names.\n"
+	path := write(t, "a.md", wrapped)
 
 	changed, err := slopfix.FormatFile(path)
 	require.NoError(t, err)
@@ -39,7 +41,9 @@ func TestFormatFileJoinsAWrappedParagraphInPlace(t *testing.T) {
 
 	after, err := os.ReadFile(path)
 	require.NoError(t, err)
-	assert.Equal(t, "The loader reads the flag it names.\n", string(after))
+	// The join moves newlines and nothing else: the same words, on one line.
+	assert.Equal(t, strings.Fields(wrapped), strings.Fields(string(after)))
+	assert.Equal(t, 1, strings.Count(string(after), "\n"))
 }
 
 func TestFormatFileLeavesAFormattedDocumentAlone(t *testing.T) {

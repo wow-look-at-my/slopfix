@@ -54,7 +54,7 @@ func TestAFindingNamesItsPlaceAndExitsNonZero(t *testing.T) {
 // Clean prose says nothing and succeeds, or the command is noise.
 func TestCleanProseSaysNothing(t *testing.T) {
 	dir := t.TempDir()
-	path := writeAt(t, dir, "a.go", "package p\n\n// holds the entries\n")
+	path := writeAt(t, dir, "a.go", "package p\n\n// holds the entries\nvar entries []int\n")
 
 	out, err := runCommentsOn(t, path)
 	require.NoError(t, err)

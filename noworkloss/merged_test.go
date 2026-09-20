@@ -26,7 +26,7 @@ func TestRedirectOntoANewFileIsStillAuthoring(t *testing.T) {
 	// But a new file with content in it is exactly what Write is for.
 	assert.Contains(t, denied(t, dir, "echo x > brand-new.txt"), "brand-new.txt")
 
-	// A build directory is writable by whatever writes it, and a device is not a
+	// A build directory holds what a build put there, and a device is not.
 	allowed(t, dir, "echo x > build/out.log")
 	allowed(t, dir, "git status 2>/dev/null")
 	allowed(t, dir, "git status > /dev/null 2>&1")

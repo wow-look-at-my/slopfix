@@ -85,7 +85,7 @@ func editReport(in hookInput, limit int) string {
 		if abs, err := filepath.Abs(in.ToolInput.FilePath); err == nil {
 			paths = []string{abs}
 		}
-		// Keep the snapshot current even when the tool named its file, so a
+		// Keep the snapshot current even when the tool named its file, so a later.
 		changedFiles(in.SessionID, in.CWD)
 	} else {
 		for _, p := range changedFiles(in.SessionID, in.CWD) {
@@ -171,7 +171,7 @@ func run(r io.Reader) (string, int) {
 				break
 			}
 		}
-		// Plain text, not the hookSpecificOutput envelope: the reader here is
+		// Plain text, not the hookSpecificOutput envelope: this report is read.
 		return sessionReport(offenders, limit) + "\n", exit
 	}
 

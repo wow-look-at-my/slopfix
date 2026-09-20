@@ -20,7 +20,7 @@ func runLengthOn(t *testing.T, repair bool, paths ...string) (string, error) {
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
 	cmd.Flags().Bool("fix", repair, "")
-	err := runCommentLength(cmd, paths)
+	err := runComments(cmd, paths)
 	return out.String(), err
 }
 

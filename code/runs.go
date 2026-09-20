@@ -37,6 +37,7 @@ func Runs(filename, src string) (runs []Run, ok bool) {
 }
 
 // gatherComments walks the whole tree, so a comment inside a function body is
+// found as well as one standing at the top level.
 func gatherComments(node ts.Node, out *[]ts.Node) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {

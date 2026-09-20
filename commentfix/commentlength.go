@@ -318,8 +318,7 @@ func hardFit(b block) ([]string, bool) {
 		body = append(body, stripMarker(line))
 	}
 	words := strings.Fields(strings.Join(body, " "))
-	// The budget is a character count, not a column. Laying the words out at it
-	// wrote a 124-column line, which no editor shows beside the code it documents.
+	// The budget is a character count, and the layout takes a column.
 	width := min(max(floorChars, b.codeChars), wrapWidth)
 	for len(words) > 0 {
 		closed := closeTail(words)
@@ -335,12 +334,8 @@ func hardFit(b block) ([]string, bool) {
 	return nil, false
 }
 
-// dangling words open something the cut took away, so a forced cut that ends on
-// one reads as a sentence somebody abandoned.
-var dangling = set.Of("and", "or", "but", "so", "yet", "then", "the", "a", "an",
-	"to", "of", "in", "on", "at", "by", "for", "from", "with", "than", "rather",
-	"that", "which", "who", "when", "while", "where", "because", "if", "is",
-	"are", "was", "were", "as", "into", "over", "under", "per")
+// dangling words open something the cut took away, so a forced cut that ends.
+var dangling = set.Of(danglingWords()...)
 
 // closeTail makes a forced cut read as a sentence: it drops back past a word
 // that opens what the cut removed, and closes what is left with a period.
