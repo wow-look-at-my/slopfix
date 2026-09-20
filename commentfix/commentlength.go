@@ -30,8 +30,8 @@ const floorChars = 120
 
 // LengthHit is a comment block that outweighs its code.
 type LengthHit struct {
-	// IDLength names the rule, the way a compiler names a warning.
-	IDLength string `json:"id"`
+	// ID names the rule, the way a compiler names a warning.
+	ID string `json:"id"`
 	// Tell says in words which measure was exceeded.
 	Tell string `json:"tell"`
 	// Sentence quotes the comment's opening, so a report is recognisable.
@@ -63,7 +63,7 @@ func CheckLength(filename, src string) []LengthHit {
 			continue
 		}
 		hits = append(hits, LengthHit{
-			IDLength:         IDLength,
+			ID:         IDLength,
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,

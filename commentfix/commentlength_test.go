@@ -22,7 +22,7 @@ func TestALongCommentOverAShortDeclarationIsFound(t *testing.T) {
 
 	hits := CheckLength("x.go", src)
 	require.Len(t, hits, 1)
-	assert.Equal(t, IDLength, hits[0].IDLength)
+	assert.Equal(t, IDLength, hits[0].ID)
 	assert.Equal(t, 3, hits[0].Line)
 	assert.Contains(t, hits[0].Tell, "longer than the code")
 	assert.True(t, hits[0].Repairable)

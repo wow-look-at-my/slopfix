@@ -21,6 +21,7 @@
 package commentfix
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -51,11 +52,9 @@ type Hit struct {
 	Col    int
 }
 
-// generatedMarker opens the line marking a file as generated.
-const generatedMarker = "// Code generated "
-
-// generatedSuffix closes that same line.
-const generatedSuffix = " DO NOT EDIT."
+// generatedLine is the line marking a file as generated, in every spelling of
+// a comment the rule reads.
+var generatedLine = regexp.MustCompile(`^\s*(?://+|#+|/\*)?\s*Code generated .* DO NOT EDIT\.\s*(?:\*/)?$`)
 
 // Check returns every number stated in a comment of a source file.
 //
@@ -63,7 +62,7 @@ const generatedSuffix = " DO NOT EDIT."
 // a file that does not compile: nothing here parses the language, which is why
 // the rule answers on a tree mid-edit, before any compiler will look at it.
 func Check(filename, src string) []Hit {
-	if IsGenerated(src) {
+	if IsGenerated(filename, src) {
 		return nil
 	}
 	var hits []Hit
@@ -90,16 +89,25 @@ func lineAndColumn(src string, at int) (line, col int) {
 	return line, at - start + 1
 }
 
-// IsGenerated reports whether the file carries the generated-code marker.
-func IsGenerated(src string) bool {
-	for _, line := range strings.Split(src, "\n") {
-		line = strings.TrimRight(line, "\r")
-		if strings.HasPrefix(line, generatedMarker) && strings.HasSuffix(line, generatedSuffix) {
-			return true
-		}
-		if strings.HasPrefix(line, "package ") {
+// IsGenerated reports whether the file carries the generated-code marker in its
+// header.
+//
+// The header is where the marker counts: the same words further down are prose
+// somebody wrote. It is read off the tree, so what counts as a comment is the
+// grammar's answer rather than a guess at a line's opening bytes, and the header
+// ends at the first comment the file separates from the top with code.
+func IsGenerated(filename, src string) bool {
+	end := 0
+	for _, comment := range treecomments.Extract(filename, src) {
+		if strings.TrimSpace(src[end:comment.Offset]) != "" {
 			return false
 		}
+		for _, line := range strings.Split(comment.Text, "\n") {
+			if generatedLine.MatchString(strings.TrimRight(line, "\r")) {
+				return true
+			}
+		}
+		end = comment.Offset + len(comment.Text)
 	}
 	return false
 }

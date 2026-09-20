@@ -5,33 +5,6 @@
 // generator write it.
 package commentfix
 
-import (
-	"regexp"
-	"strings"
-)
-
-// generatedLine is the canonical generated-file header. commentspan skips a
-var generatedLine = regexp.MustCompile(`^\s*(?://+|#+)\s*Code generated .* DO NOT EDIT\.$`)
-
-// isGeneratedLines reports the marker in the file's header, above any code.
-// commentspan looks for it above the package clause, which is that region for a
-// Go file.
-func isGeneratedLines(lines []string) bool {
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		if !startsComment(trimmed) {
-			return false
-		}
-		if generatedLine.MatchString(line) {
-			return true
-		}
-	}
-	return false
-}
-
 // blocks returns every comment block in the file, each with the code it
 // documents measured beside it.
 func blocks(filename, src string) []block {
@@ -39,7 +12,7 @@ func blocks(filename, src string) []block {
 	if language == nil {
 		return nil
 	}
-	if isGeneratedLines(splitLines(src)) {
+	if IsGenerated(filename, src) {
 		return nil
 	}
 	parsed, ok := treeBlocks(language, src)
@@ -47,14 +20,4 @@ func blocks(filename, src string) []block {
 		return nil
 	}
 	return parsed
-}
-
-// startsComment reports a line whose leading token opens a comment.
-func startsComment(trimmed string) bool {
-	for _, marker := range []string{"//", "/*", "#", "*/", "*"} {
-		if strings.HasPrefix(trimmed, marker) {
-			return true
-		}
-	}
-	return false
 }

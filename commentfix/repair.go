@@ -15,6 +15,7 @@ package commentfix
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -34,7 +35,7 @@ type Repair struct {
 // A generated file is left alone, and so is a language the extractor has no
 // syntax for: both report no findings, so both have nothing to repair.
 func Fix(filename, src string) Repair {
-	if IsGenerated(src) {
+	if IsGenerated(filename, src) {
 		return Repair{Text: src}
 	}
 	runs := treecomments.Runs(filename, src)
@@ -49,7 +50,7 @@ func Fix(filename, src string) Repair {
 	out, left := clearResidual(filename, out)
 	removed = append(removed, left...)
 	if out != src {
-		out = dropDanglingMarkers(out)
+		out = dropDanglingMarkers(filename, out)
 	}
 	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
@@ -57,11 +58,15 @@ func Fix(filename, src string) Repair {
 // dropDanglingMarkers removes a bare comment line the repair left with nothing
 // under it. The line was a paragraph break somebody wrote, and a break that
 // separates a paragraph from the code below it separates nothing.
-func dropDanglingMarkers(src string) string {
+//
+// The tree names the lines to weigh, so a line of code that merely opens with a
+// marker's characters is never mistaken for an empty comment.
+func dropDanglingMarkers(filename, src string) string {
+	rows := commentRowsOf(filename, src)
 	lines := strings.Split(src, "\n")
 	kept := make([]string, 0, len(lines))
 	for i, line := range lines {
-		if bareMarker(line) && !carriesProse(lines, i+1) {
+		if rows.Contains(i) && bareMarker(line) && !carriesProse(lines, rows, i+1) {
 			continue
 		}
 		kept = append(kept, line)
@@ -69,9 +74,21 @@ func dropDanglingMarkers(src string) string {
 	return strings.Join(kept, "\n")
 }
 
+// commentRowsOf names every line the grammar reads as comment, counting from
+// zero the way a line slice does.
+func commentRowsOf(filename, src string) set.Set[int] {
+	rows := set.New[int]()
+	for _, c := range treecomments.Extract(filename, src) {
+		for row := c.Line - 1; row < c.Line-1+c.Lines; row++ {
+			rows.Add(row)
+		}
+	}
+	return rows
+}
+
 // carriesProse reports whether the line at i is a comment line saying something.
-func carriesProse(lines []string, i int) bool {
-	if i < 0 || i >= len(lines) {
+func carriesProse(lines []string, rows set.Set[int], i int) bool {
+	if i < 0 || i >= len(lines) || !rows.Contains(i) {
 		return false
 	}
 	_, prose, _, ok := splitBlock(lines[i])
