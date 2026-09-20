@@ -27,7 +27,7 @@ func newRepo(t *testing.T) string {
 	require.NoError(t, err)
 
 	// These tests assert on the branch by name, so the name is given here.
-	git(t, dir, "init", "-q", "--initial-branch=master")
+	git(t, dir, "init", "-q", "-b", fixtureBranch)
 	git(t, dir, "config", "user.email", "guard@example.com")
 	git(t, dir, "config", "user.name", "Guard")
 	writeAt(t, dir, "tracked.go", "package a\n")
@@ -36,6 +36,12 @@ func newRepo(t *testing.T) string {
 	git(t, dir, "commit", "-qm", "initial")
 	return dir
 }
+
+// fixtureBranch is the branch every fixture repository starts on, named rather
+// than inherited. git's own default is a build-time choice -- Apple's git 2.50
+// answers main where the runner's answers master -- and a fixture that takes
+// whichever it is given asserts against a name that changes with the machine.
+const fixtureBranch = "master"
 
 // currentBranch asks git which branch a fixture repository is on, since
 // the name `git init` picks varies with the git that ran.

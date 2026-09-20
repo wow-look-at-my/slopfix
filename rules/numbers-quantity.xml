@@ -8,41 +8,121 @@
 -->
 <rules for="numbers">
 
-  <rewrite from="either one" to="either" test="It cannot fix either one" expect="It cannot fix either"/>
-  <rewrite from="each one" to="each" test="It reads each one" expect="It reads each"/>
-  <rewrite from="this one" to="this" test="It skips this one" expect="It skips this"/>
-  <rewrite from="that one" to="that" test="It skips that one" expect="It skips that"/>
-  <rewrite from="the one" to="the thing" test="It owns the one below" expect="It owns the thing below"/>
-  <rewrite from="one or more" to="any number of" test="It inserts one or more elements" expect="It inserts any number of elements"/>
-  <rewrite from="every one of" to="each of" test="It holds every one of the keys" expect="It holds each of the keys"/>
-  <rewrite from="at least one of" to="any of" test="It holds at least one of the keys" expect="It holds any of the keys"/>
-  <rewrite from="exactly one of" to="a single side of" test="It is in exactly one of the sets" expect="It is in a single side of the sets"/>
-  <rewrite from="one of" to="any of" test="It is one of the keys" expect="It is any of the keys"/>
+  <rewrite id="either-one" from="either one" to="either">
+    <test in="It cannot fix either one" out="It cannot fix either"/>
+  </rewrite>
+  <rewrite id="each-one" from="each one" to="each">
+    <test in="It reads each one" out="It reads each"/>
+  </rewrite>
+  <rewrite id="this-one" from="this one" to="this">
+    <test in="It skips this one" out="It skips this"/>
+  </rewrite>
+  <rewrite id="that-one" from="that one" to="that">
+    <test in="It skips that one" out="It skips that"/>
+  </rewrite>
+  <rewrite id="one-or-more" from="one or more" to="any number of">
+    <test in="It inserts one or more elements" out="It inserts any number of elements"/>
+  </rewrite>
+  <rewrite id="every-one-of" from="every one of" to="each of">
+    <test in="It holds every one of the keys" out="It holds each of the keys"/>
+  </rewrite>
+  <rewrite id="at-least-one-of" from="at least one of" to="any of">
+    <test in="It holds at least one of the keys" out="It holds any of the keys"/>
+  </rewrite>
+  <rewrite id="exactly-one-of" from="exactly one of" to="a single side of">
+    <test in="It is in exactly one of the sets" out="It is in a single side of the sets"/>
+  </rewrite>
+  <rewrite id="one-of" from="one of" to="any of">
+    <test in="It is one of the keys" out="It is any of the keys"/>
+  </rewrite>
 
   <!-- A cardinal standing in for the noun. Cutting it leaves "the other run",
        so these say the relation instead. -->
-  <rewrite from="the other two" to="the others" test="The other two run a loop" expect="The others run a loop"/>
-  <rewrite from="the two" to="both" test="The two agree" expect="Both agree"/>
-  <rewrite from="all three" to="each of them" test="All three agree" expect="Each of them agree"/>
-  <rewrite from="the three" to="each" test="The three agree" expect="Each agree"/>
+  <rewrite id="the-other-two" from="the other two" to="the others">
+    <test in="The other two run a loop" out="The others run a loop"/>
+  </rewrite>
+  <rewrite id="the-two" from="the two" to="both">
+    <test in="The two agree" out="Both agree"/>
+  </rewrite>
+  <rewrite id="all-three" from="all three" to="each of them">
+    <test in="All three agree" out="Each of them agree"/>
+  </rewrite>
+  <rewrite id="the-three" from="the three" to="each">
+    <test in="The three agree" out="Each agree"/>
+  </rewrite>
 
   <!-- A repeat count, said without a number. -->
-  <rewrite from="exactly once" to="exactly a single time" test="It runs exactly once" expect="It runs exactly a single time"/>
-  <rewrite from="only once" to="a single time" test="It runs only once" expect="It runs a single time"/>
-  <rewrite from="once" to="a single time" test="It hashes once" expect="It hashes a single time"/>
-  <rewrite from="twice" to="again" test="It hashes the key twice" expect="It hashes the key again"/>
+  <rewrite id="exactly-once" from="exactly once" to="exactly a single time">
+    <test in="It runs exactly once" out="It runs exactly a single time"/>
+  </rewrite>
+  <rewrite id="only-once" from="only once" to="a single time">
+    <test in="It runs only once" out="It runs a single time"/>
+  </rewrite>
+  <rewrite id="once" from="once" to="a single time">
+    <test in="It hashes once" out="It hashes a single time"/>
+  </rewrite>
+  <rewrite id="twice" from="twice" to="again">
+    <test in="It hashes the key twice" out="It hashes the key again"/>
+  </rewrite>
 
   <!-- The Go idiom. An unset value is what the reader is being told about. -->
-  <rewrite from="the zero value" to="an unset value" test="The zero value is ready" expect="An unset value is ready"/>
-  <rewrite from="zero value" to="unset value" test="Its zero value is ready" expect="Its unset value is ready"/>
-  <rewrite from="zero" to="empty" test="It returns zero and false" expect="It returns empty and false"/>
+  <rewrite id="the-zero-value" from="the zero value" to="an unset value">
+    <test in="The zero value is ready" out="An unset value is ready"/>
+  </rewrite>
+  <rewrite id="zero-value" from="zero value" to="unset value">
+    <test in="Its zero value is ready" out="Its unset value is ready"/>
+  </rewrite>
+  <rewrite id="zero" from="zero" to="empty">
+    <test in="It returns zero and false" out="It returns empty and false"/>
+  </rewrite>
 
-  <!-- One as a determiner. "A single" keeps the emphasis the number carried,
-       which a bare article drops. The group carries the noun's opening letter,
-       because RE2 has no lookahead. -->
-  <pattern match="(?i)\bone\s+([a-z])" to="a single ${1}" test="It reserves one slot" expect="It reserves a single slot"/>
+  <!-- A term names a word CLASS, which a regexp has no way to say. The classes
+       are in english-classes.xml, and {name} in the replacement writes back
+       what the term of that name matched. A replacement may be longer than
+       what it matched, shorter, or empty.
+
+       The phrases come first: each is a fixed idiom the corpus shows by the
+       hundred, and a general shape below would read it wrongly. -->
+  <rephrase id="at-least-one" match="at least one" to="any">
+    <test in="It holds at least one key" out="It holds any key"/>
+  </rephrase>
+  <rephrase id="at-most-one" match="at most one" to="no more than a single">
+    <test in="It holds at most one key" out="It holds no more than a single key"/>
+  </rephrase>
+  <!-- "more than one" keeps its noun SINGULAR: "more than one key". Every
+       replacement that means the same thing wants a plural, so swapping the
+       phrase alone writes "several key". Pluralizing the noun is not something
+       a table can do, so this one is left for the author and reported. -->
+  <rephrase id="only-one" match="only one" to="a single">
+    <test in="It holds only one key" out="It holds a single key"/>
+  </rephrase>
+  <rephrase id="no-one-is-nobody" match="no one" to="nobody">
+    <test in="No one reads it" out="Nobody reads it"/>
+  </rephrase>
+
+  <!-- An article or determiner governing the slot means the cardinal stands in
+       for a noun the sentence already named: "the fast one" is that earlier
+       noun, not a count. Only the antecedent says which noun, and a table
+       cannot reach it. Writing "thing" in its place erased the reference in
+       134 of 886 repaired paragraphs measured over a prose corpus, so this
+       shape is reported and left for the author.
+
+       A noun DOES follow in "the one key", and there the cardinal counts it
+       after all. This shape goes before the bare count below, which would
+       otherwise write the article a second time and spell "the a single". -->
+  <rephrase id="a-governed-one-counts-its-noun" match="{article|determiner:d} one {noun:n}" to="{d} single {n}">
+    <test in="It holds the one key" out="It holds the single key"/>
+  </rephrase>
+
+  <!-- A noun follows, so the cardinal counts it. A verb form is not a noun
+       here, and the class excludes it, so "one keeping up" is left alone. -->
+  <rephrase id="one-counts-a-noun" match="one {noun:n}" to="a single {n}">
+    <test in="It reserves one slot" out="It reserves a single slot"/>
+  </rephrase>
 
   <!-- A plural tally: the noun carries the meaning and the number goes. -->
-  <pattern match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}" test="Two goroutines contend" expect="Goroutines contend"/>
+  <pattern id="plural-tally-drops-its-count" match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}">
+    <test in="Two goroutines contend" out="Goroutines contend"/>
+  </pattern>
 
 </rules>
