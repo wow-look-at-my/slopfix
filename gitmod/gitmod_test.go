@@ -16,17 +16,33 @@ func TestARealSubmoduleIsSkipped(t *testing.T) {
 
 	skip, err := gitmod.Skip(root)
 	require.NoError(t, err)
-	assert.True(t, skip.Contains(vendored(t, root)))
+	assert.True(t, skip.Contains(gitmod.Resolved(filepath.Join(root, "vendored"))))
 }
 
-// vendored names the submodule directory the way a caller testing the skip set
-// names it: through gitmod.Resolve, which is what makes both sides of the
-// comparison agree.
-func vendored(t *testing.T, root string) string {
-	t.Helper()
-	resolved, err := gitmod.Resolve(filepath.Join(root, "vendored"))
+// A work tree reached through a symlink has two names, and the walk comparing
+// against this set uses whichever name it was handed. The set answered for one
+// spelling only, so the walk judged the submodule's own files as though they
+// were this repository's. Every temporary directory on macOS is such a
+// symlink, which is where this surfaced.
+func TestASubmoduleIsSkippedThroughASymlinkToItsWorkTree(t *testing.T) {
+	root := gitmodtest.RepoWithSubmodule(t, "vendored")
+	link := filepath.Join(t.TempDir(), "link")
+	require.NoError(t, os.Symlink(root, link))
+
+	skip, err := gitmod.Skip(link)
 	require.NoError(t, err)
-	return resolved
+	assert.True(t, skip.Contains(gitmod.Resolved(filepath.Join(link, "vendored"))))
+	assert.Equal(t,
+		gitmod.Resolved(filepath.Join(root, "vendored")),
+		gitmod.Resolved(filepath.Join(link, "vendored")),
+		"the two names of one directory have to reduce to one entry")
+}
+
+// A path nothing stands at keeps a usable answer, because a caller asking
+// about it wants one rather than an error.
+func TestResolvedAnswersForAPathThatIsNotThere(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "absent")
+	assert.Equal(t, missing, gitmod.Resolved(missing))
 }
 
 // The forgery. A declaration alone must never exempt a directory, or the check
@@ -76,5 +92,5 @@ func TestAFileResolvesToItsWorkTree(t *testing.T) {
 
 	skip, err := gitmod.Skip(filepath.Join(root, ".keep"))
 	require.NoError(t, err)
-	assert.True(t, skip.Contains(vendored(t, root)))
+	assert.True(t, skip.Contains(gitmod.Resolved(filepath.Join(root, "vendored"))))
 }

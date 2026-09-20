@@ -143,8 +143,11 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string)
 		return block{}, false
 	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
-	// Nothing after it, so it documents nothing and judge says so.
+	// Nothing after it. A directive inside the run is still an instruction the
+	// prose beside it explains, so that is what the prose is weighed against.
+	// With no directive either, the run documents nothing and judge says so.
 	if next >= count {
+		b.codeLines, b.codeChars = measure(directivesOf(b.text))
 		return b, true
 	}
 	b.codeLines, b.codeChars = nodeSpan(firstStatement(parent.NamedChild(next)), lines)
