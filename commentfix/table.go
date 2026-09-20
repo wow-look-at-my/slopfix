@@ -7,10 +7,6 @@ package commentfix
 import (
 	"strings"
 
-<<<<<<< HEAD
-	"github.com/wow-look-at-my/slopfix/rules"
-=======
->>>>>>> origin/master
 	"github.com/wow-look-at-my/slopfix/table"
 )
 

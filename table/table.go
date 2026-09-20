@@ -5,15 +5,6 @@
 // `for` value adds up to, with every pattern compiled.
 package table
 
-<<<<<<< HEAD
-import "regexp"
-
-// Drop is a word that survives its own deletion.
-type Drop struct {
-	Word  string `xml:"word,attr"`
-	Where string `xml:"where,attr"`
-	Test  string `xml:"test,attr"`
-=======
 import (
 	"strings"
 	"sync"
@@ -33,55 +24,32 @@ type Drop struct {
 	Word  string
 	Where string
 	Tests []Test
->>>>>>> origin/master
 }
 
 // Rewrite swaps a whole phrase for another.
 type Rewrite struct {
-<<<<<<< HEAD
-	From   string `xml:"from,attr"`
-	To     string `xml:"to,attr"`
-	Where  string `xml:"where,attr"`
-	Test   string `xml:"test,attr"`
-	Expect string `xml:"expect,attr"`
-=======
 	ID    string
 	From  string
 	To    string
 	Where string
 	Tests []Test
->>>>>>> origin/master
 }
 
 // Flag names prose a rule refuses to rewrite, and what to write instead.
 type Flag struct {
-<<<<<<< HEAD
-	Phrase string `xml:"phrase,attr"`
-	Say    string `xml:"say,attr"`
-	Test   string `xml:"test,attr"`
-=======
 	ID     string
 	Phrase string
 	Say    string
 	Tests  []Test
->>>>>>> origin/master
 }
 
 // Pattern is a rewrite with captures.
 type Pattern struct {
-<<<<<<< HEAD
-	Match  string `xml:"match,attr"`
-	To     string `xml:"to,attr"`
-	Where  string `xml:"where,attr"`
-	Test   string `xml:"test,attr"`
-	Expect string `xml:"expect,attr"`
-=======
 	ID    string
 	Match string
 	To    string
 	Where string
 	Tests []Test
->>>>>>> origin/master
 
 	// re is Match, compiled when the folder is loaded.
 	re *regexp.Regexp
@@ -98,14 +66,6 @@ type Case struct {
 // Table is what a single `for` value in rules/ adds up to. It is also the shape
 // of a single rules file, so the folder loads into it a file at a time.
 type Table struct {
-<<<<<<< HEAD
-	For      string    `xml:"for,attr"`
-	Drops    []Drop    `xml:"drop"`
-	Rewrites []Rewrite `xml:"rewrite"`
-	Patterns []Pattern `xml:"pattern"`
-	Flags    []Flag    `xml:"flag"`
-	Cases    []Case    `xml:"case"`
-=======
 	Drops       []Drop
 	Rewrites    []Rewrite
 	Patterns    []Pattern
@@ -123,7 +83,6 @@ type Table struct {
 func (t *Table) Lexicon() *Lexicon {
 	t.once.Do(func() { t.lexicon = NewLexicon(t.Classes) })
 	return t.lexicon
->>>>>>> origin/master
 }
 
 // AppliesTo reports whether an entry's where= covers a surface, and an empty
