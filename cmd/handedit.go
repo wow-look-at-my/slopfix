@@ -91,17 +91,17 @@ func applyEdits(src string, edits []edit) (string, bool) {
 func findingIDs(src, path string, rules []slopfix.Rule, ids []string) []string {
 	var out []string
 	for _, f := range slopfix.CheckContent(path, src) {
-		if selected(f.ID, rules, ids) {
+		if ruleSelected(f.ID, rules, ids) {
 			out = append(out, f.ID)
 		}
 	}
 	return out
 }
 
-// selected applies the caller's choice to a rule ID, the way Fix applies it:
-// naming an ID turns the others off, and naming a category keeps that whole
+// ruleSelected applies the caller's choice to a rule ID, the way Fix applies
+// it: naming an ID turns the others off, and naming a category keeps that whole
 // category. Naming neither keeps every rule.
-func selected(id string, rules []slopfix.Rule, ids []string) bool {
+func ruleSelected(id string, rules []slopfix.Rule, ids []string) bool {
 	if len(ids) > 0 && !slices.Contains(ids, id) {
 		return false
 	}
