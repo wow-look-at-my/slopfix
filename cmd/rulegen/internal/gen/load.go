@@ -46,6 +46,14 @@ type Flag struct {
 	Test   string `xml:"test,attr"`
 }
 
+// Case is a phrase and what the consumer writes for it, driving the consumer
+// as a whole rather than a single entry.
+type Case struct {
+	Name   string `xml:"name,attr"`
+	Text   string `xml:"text,attr"`
+	Expect string `xml:"expect,attr"`
+}
+
 // file mirrors a rules XML document.
 type file struct {
 	For      string    `xml:"for,attr"`
@@ -53,6 +61,7 @@ type file struct {
 	Rewrites []Rewrite `xml:"rewrite"`
 	Patterns []Pattern `xml:"pattern"`
 	Flags    []Flag    `xml:"flag"`
+	Cases    []Case    `xml:"case"`
 }
 
 // Loaded is the folder's entries for a single target, in order.
@@ -61,10 +70,11 @@ type Loaded struct {
 	Rewrites []Rewrite
 	Patterns []Pattern
 	Flags    []Flag
+	Cases    []Case
 }
 
 func (l *Loaded) empty() bool {
-	return len(l.Drops)+len(l.Rewrites)+len(l.Patterns)+len(l.Flags) == 0
+	return len(l.Drops)+len(l.Rewrites)+len(l.Patterns)+len(l.Flags)+len(l.Cases) == 0
 }
 
 // Load reads every XML in dir and keeps the entries declaring this target.
@@ -96,6 +106,7 @@ func Load(dir, target string) (*Loaded, error) {
 		out.Rewrites = append(out.Rewrites, parsed.Rewrites...)
 		out.Patterns = append(out.Patterns, parsed.Patterns...)
 		out.Flags = append(out.Flags, parsed.Flags...)
+		out.Cases = append(out.Cases, parsed.Cases...)
 	}
 	return out, nil
 }
@@ -116,6 +127,11 @@ func validate(path string, f file) error {
 	for _, p := range f.Patterns {
 		if p.Match == "" || p.Test == "" || p.Expect == "" {
 			return fmt.Errorf("%s: a <pattern> is missing match, test or expect", path)
+		}
+	}
+	for _, c := range f.Cases {
+		if c.Name == "" || c.Text == "" || c.Expect == "" {
+			return fmt.Errorf("%s: a <case> is missing name, text or expect", path)
 		}
 	}
 	for _, fl := range f.Flags {
