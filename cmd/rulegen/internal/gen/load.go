@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/wow-look-at-my/slopfix/table"
-	"github.com/wow-look-at-my/xml-validator/reader"
 )
 
 // Test drives an entry. Out is what the repair must produce, and an entry that
@@ -126,8 +125,8 @@ func Load(dir, target string) (*Loaded, error) {
 		if err != nil {
 			return nil, err
 		}
-		var parsed file
-		if err := reader.Unmarshal(raw, &parsed); err != nil {
+		parsed, err := decodeFile(raw)
+		if err != nil {
 			return nil, fmt.Errorf("%s does not parse: %w", path, err)
 		}
 		if parsed.For == "" {
