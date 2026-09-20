@@ -99,6 +99,15 @@ func commentFindings(path, content string) []ste.Finding {
 			Fix:    fix,
 		})
 	}
+	for _, hit := range commentfix.CheckTails(path, content) {
+		out = append(out, ste.Finding{
+			Line:   hit.Line,
+			ID:     hit.ID,
+			Rule:   hit.Tell,
+			Detail: hit.Sentence,
+			Fix:    "Finish the sentence, or let the repair close it. `slopfix comments --fix` does this.",
+		})
+	}
 	return out
 }
 
@@ -125,7 +134,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs)
-	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID)
+	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	return ids
 }
 

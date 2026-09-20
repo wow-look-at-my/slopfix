@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// What a cut comment reads as once it is closed is stated in
-// rules/comment-tails.xml, where somebody adding a case edits no Go.
+// What a cut comment reads as a single time it is closed is stated
+// in rules/comment-tails.xml, where somebody adding a case edits no Go.
 func TestEveryCommentTailTestHolds(t *testing.T) {
 	require.NotEmpty(t, tailsTable.Tests)
 

@@ -11,6 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/table"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // tailsTable is what rules/ says for="comment-tails".
@@ -24,6 +25,33 @@ func danglingWords() []string {
 		}
 	}
 	panic("commentfix: rules/ names no class dangling")
+}
+
+// IDTail names the rule, the way a compiler names a warning.
+const IDTail = "comments/tail"
+
+// CheckTails reports every comment paragraph that stops mid-thought. Fix closes
+// each one, so a finding here is a finding --fix answers.
+func CheckTails(filename, src string) []LengthHit {
+	runs := treecomments.Runs(filename, src)
+	if len(runs) == 0 {
+		return nil
+	}
+	var hits []LengthHit
+	lines := strings.Split(src, "\n")
+	for _, para := range paragraphsOf(lines, runs) {
+		if CloseProse(para.prose) == para.prose {
+			continue
+		}
+		hits = append(hits, LengthHit{
+			ID:         IDTail,
+			Tell:       "the comment stops on a word that opens what is no longer there",
+			Sentence:   para.prose,
+			Line:       para.lines[0] + 1,
+			Repairable: true,
+		})
+	}
+	return hits
 }
 
 // CloseProse closes a comment that stops on an opening word.

@@ -16,7 +16,7 @@ type fakeResolver struct {
 	base     string
 	branches []string
 	commits  []string
-	// states is what each pull request is doing. An absent reference is one this fake knows nothing about.
+	// states is what each pull request is doing.
 	states map[string]PullState
 }
 
@@ -190,8 +190,7 @@ func TestOnlyTheNamedReferenceGetsItsDot(t *testing.T) {
 		got)
 }
 
-// A reference that is not a pull request is never asked about, and is linked the
-// way it always was.
+// A reference that is not a pull request is never asked about.
 func TestANonPullRequestReferenceGetsNoDot(t *testing.T) {
 	res := withState("o/r#376", StateMerged)
 	for _, text := range []string{
@@ -268,8 +267,7 @@ func TestQuotedAndFencedLinesAreLeftAlone(t *testing.T) {
 	assert.False(t, changed, "expected no rewrite, got %q", out)
 }
 
-// A flush cannot see the ``` that opened earlier, so the state has to be
-// carried in.
+// A flush cannot see the ``` that opened earlier.
 func TestFenceStateCarriesAcrossFlushes(t *testing.T) {
 	out, changed := RewriteDelta("PR #376 inside the fence\n", true, live())
 	assert.False(t, changed, "expected no rewrite inside a carried fence, got %q", out)

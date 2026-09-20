@@ -55,7 +55,7 @@ func git(t *testing.T, dir string, args ...string) {
 }
 
 // writeAt puts a file in a fixture repository. Named for its shape rather than
-// the verb, because `write` is the type the provenance half is built on.
+// the verb.
 func writeAt(t *testing.T, dir, name, content string) {
 	t.Helper()
 	p := filepath.Join(dir, name)
@@ -422,7 +422,6 @@ func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	denied(t, dir, "git rebase master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited twice\n")
 	preserved(t, dir, "git merge feature")
-	// Each preservation commits the edit, so every later verb needs a fresh one to have anything standing in the tree.
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 	preserved(t, dir, "git pull origin master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited once more\n")

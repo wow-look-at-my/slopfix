@@ -80,7 +80,7 @@ type xmlStringList struct {
 	Values []string `xml:"value"`
 }
 
-// xmlRefuseArgs denies a command whose argument text carries one of the
+// xmlRefuseArgs denies a command whose argument text carries any of the
 // substrings. denyArgSubstrings above only unmatches the rule.
 type xmlRefuseArgs struct {
 	Message string   `xml:"message,attr"`

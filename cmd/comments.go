@@ -73,11 +73,15 @@ func numbersOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 		return false, err
 	}
 	hits := commentfix.Check(path, string(src))
-	if len(hits) == 0 {
+	// Fix answers a number and a cut tail in one pass, so either finding earns
+	// the pass. Asking for a number alone left an unfinished comment standing.
+	tails := commentfix.CheckTails(path, string(src))
+	if len(hits)+len(tails) == 0 {
 		return false, nil
 	}
 	if !repair {
 		printHits(cmd, path, hits)
+		printTails(cmd, path, tails)
 		return true, nil
 	}
 	fixed := commentfix.Fix(path, string(src))
@@ -93,6 +97,11 @@ func numbersOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 	}
 	left := commentfix.Check(path, fixed.Text)
 	printHits(cmd, path, left)
+	leftTails := commentfix.CheckTails(path, fixed.Text)
+	printTails(cmd, path, leftTails)
+	if len(leftTails) > 0 {
+		return true, nil
+	}
 	return len(left) > 0, nil
 }
 
@@ -125,6 +134,13 @@ func lengthOf(cmd *cobra.Command, path string, repair bool) (bool, error) {
 		fmt.Fprintf(cmd.OutOrStdout(), "%s:%d: %s: %s\n", path, hit.Line, hit.Tell, hit.Sentence)
 	}
 	return true, nil
+}
+
+// printTails prints a comment that stops mid-thought, quoting what it says now.
+func printTails(cmd *cobra.Command, path string, hits []commentfix.LengthHit) {
+	for _, hit := range hits {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s:%d: %s: %s\n", path, hit.Line, hit.Tell, hit.Sentence)
+	}
 }
 
 // printHits prints a finding per line, the way a compiler names a warning.
