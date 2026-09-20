@@ -302,14 +302,66 @@ func hardFit(b block) ([]string, bool) {
 	// Sentences, never words. Cutting between words leaves a fragment that
 	// reads as a typo, and reflowing it welds a full stop onto half a clause.
 	// A comment nothing here can shorten is left whole and still reported.
-	sentences := splitSentences(strings.Join(body, " "))
+	prose := strings.Join(body, " ")
+	width := max(floorChars, b.codeChars)
+	fits := func(text string) ([]string, bool) {
+		out := reflow(text, indent, marker, width)
+		_, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars})
+		return out, !over
+	}
+	sentences := splitSentences(prose)
 	for n := len(sentences); n > 0; n-- {
-		out := reflow(strings.Join(sentences[:n], " "), indent, marker, max(floorChars, b.codeChars))
-		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+		if out, ok := fits(strings.Join(sentences[:n], " ")); ok {
 			return out, true
 		}
 	}
+	// One sentence longer than the budget on its own. A clause boundary is the
+	// next break a reader recognises, and a whole word the last; both keep the
+	// opening, which is the part worth keeping. The cut is closed with a
+	// terminator so what survives still reads as a sentence.
+	for _, parts := range [][]string{splitClauses(prose), strings.Fields(prose)} {
+		for n := len(parts) - 1; n > 0; n-- {
+			if out, ok := fits(closeAsSentence(strings.Join(parts[:n], " "))); ok {
+				return out, true
+			}
+		}
+	}
 	return nil, false
+}
+
+// splitClauses cuts prose after each word that closes a clause, keeping the
+// punctuation on the part it ends.
+func splitClauses(text string) []string {
+	words := strings.Fields(text)
+	var out []string
+	start := 0
+	for i, word := range words {
+		if !english.Lexicon().Is(strings.TrimRight(word, closers()), "clause") {
+			continue
+		}
+		out = append(out, strings.Join(words[start:i+1], " "))
+		start = i + 1
+	}
+	if start < len(words) {
+		out = append(out, strings.Join(words[start:], " "))
+	}
+	return out
+}
+
+// closeAsSentence ends a cut on a terminator, dropping the clause punctuation
+// the cut left dangling. A fragment that ends on a comma reads as a truncation.
+func closeAsSentence(text string) string {
+	t := strings.TrimSpace(text)
+	if t == "" {
+		return t
+	}
+	for len(t) > 0 && english.Lexicon().Is(t[len(t)-1:], "clause") {
+		t = strings.TrimSpace(t[:len(t)-1])
+	}
+	if t == "" || endsSentence(t) {
+		return t
+	}
+	return t + "."
 }
 
 // splitSentences cuts prose after each terminator that closes a thought,
