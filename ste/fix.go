@@ -87,13 +87,10 @@ func fixWords(prose string, keep func(id string) bool) string {
 	})
 }
 
-// fixSemicolons writes the period the semicolon stands in for.
 func fixSemicolons(prose string) string {
 	return breakAt(prose, semicolonRun.FindAllStringIndex(prose, -1))
 }
 
-// fixSplices writes the period each spliced comma stands in for.
-//
 // The comma is found the way checkSplices finds it, guard included, so the
 // repair covers exactly what the check reports. Only the comma is rewritten:
 // a conjunction after it survives and opens the new sentence.
@@ -155,11 +152,9 @@ func carriesItsOwnSubject(clause string) bool {
 	return opensASubject.Contains(strings.ToLower(word))
 }
 
-// fixSentenceCap divides every over-cap sentence, repeating while a half is
-// still over.
+// fixSentenceCap divides every over-cap sentence.
 func fixSentenceCap(prose string) string {
-	// A division always shortens the sentence it cuts, so a pass per word is
-	// more than any text can ask for.
+	// A division always shortens the sentence it cuts.
 	for range len(strings.Fields(prose)) + 1 {
 		joiner, found := nextDivision(prose)
 		if !found {
@@ -285,8 +280,7 @@ func abs(n int) int {
 	return n
 }
 
-// breakAt rewrites each joiner span as a sentence break, and gives the word
-// after it the capital a sentence opens with.
+// breakAt rewrites each joiner span as a sentence break.
 func breakAt(prose string, joiners [][]int) string {
 	var out strings.Builder
 	last := 0

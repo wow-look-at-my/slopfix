@@ -48,7 +48,7 @@ type Hit struct {
 	ID     string `json:"id"`     // the rule that fired, and the name that selects it
 	Tell   string `json:"tell"`   // what that rule says in words
 	Phrase string `json:"phrase"` // the matched words
-	Line   string `json:"line"`   // the line they sit on
+	Line   string `json:"line"`
 
 	Strippable bool `json:"strippable"`
 	LineNo     int  `json:"lineNo"`

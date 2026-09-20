@@ -90,7 +90,7 @@ type walker struct {
 	unsafeVars   map[string]bool
 	multiVars    map[string]bool
 	varsDisabled bool
-	// scopeOK marks a scope whose whole program text this walk has read, which
+	// scopeOK marks a scope whose whole program text this walk has read.
 	scopeOK bool
 }
 
@@ -464,7 +464,7 @@ func (w *walker) scriptFile(f word, cwd string, fresh bool) {
 	if fresh {
 		self = path
 	}
-	// Only a NEW shell counts as a program of its own. A sourced file's text is
+	// Only a NEW shell counts as a program of its own.
 	w.script(string(src), cwd, "the script "+f.text, self)
 }
 

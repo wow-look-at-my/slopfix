@@ -1,5 +1,3 @@
-// load.go reads the rules folder into the table a consumer runs on.
-//
 // A file declares its consumer with the `for` attribute on its root, and the
 // folder is read in file name order and then document order: a longer phrase
 // that must beat a shorter phrase sits above it. What an entry must carry to be
@@ -54,7 +52,7 @@ type xmlPhrase struct {
 }
 
 // xmlShape is a pattern and a rephrase alike: both name a match and what to
-// write for it, and differ in the language the match is spelled in.
+// write for it.
 type xmlShape struct {
 	ID    string    `xml:"id,attr"`
 	Match string    `xml:"match,attr"`

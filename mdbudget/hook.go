@@ -216,7 +216,6 @@ func encode(v map[string]any) string {
 	return string(data) + "\n"
 }
 
-// Result is what the CLI prints and exits with.
 type Result struct {
 	Stdout string
 	Stderr string

@@ -54,7 +54,6 @@ type Pattern struct {
 	re *regexp.Regexp
 }
 
-// Table is what a single `for` value in rules/ adds up to.
 type Table struct {
 	Drops       []Drop
 	Rewrites    []Rewrite

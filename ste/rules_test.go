@@ -46,8 +46,7 @@ func TestSentencesSplitBeforeALowerCaseFileName(t *testing.T) {
 }
 
 func TestALongSentenceIsReportedOnceTheSplitterIsHonest(t *testing.T) {
-	// A single sentence, well over the cap, carrying the file reference and the
-	// abbreviation that a naive splitter breaks on.
+	// A single sentence, well over the cap.
 	long := "The scanner walks the input once and hands the parser every token it " +
 		"needs, e.g. the span and the depth, so that lexer.md and the analyzer " +
 		"never disagree about what a word is."

@@ -35,8 +35,7 @@ rm -rf pkg/bootstrap pkg/obj
 	allowed(t, dir, cmd)
 }
 
-// The control: the same statements typed into the command line are the
-// ambiguity this plugin refuses rather than guesses at.
+// The control.
 func TestAnUnresolvableWorkingDirectoryStillDeniesInTheCommandText(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)

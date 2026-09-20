@@ -25,7 +25,7 @@ var checks = []struct {
 	name string
 	// only is the check list --only selects, or none.
 	only []string
-	// payload is stdin: a hook envelope the check must act on.
+	// payload is stdin.
 	payload string
 	// want is a fragment the answer has to carry.
 	want string

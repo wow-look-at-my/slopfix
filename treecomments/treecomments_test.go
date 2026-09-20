@@ -148,8 +148,7 @@ func TestMissingNamesTheGrammarsWithoutTables(t *testing.T) {
 	}
 }
 
-// Every grammar the extension map routes to must have a readiness answer, or
-// Missing reports on a subset of what a parse can fail on.
+// Every grammar the extension map routes to must have a readiness answer.
 func TestEveryGrammarIsNamed(t *testing.T) {
 	assert.Len(t, ready, len(grammarNames))
 }

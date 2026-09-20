@@ -51,7 +51,7 @@ func TestPurgeKeepsTheRootPair(t *testing.T) {
 }
 
 func TestPurgeDeletesAReadmeThatIsNotAtTheRoot(t *testing.T) {
-	// The pair is kept by name AND position. A README in a subdirectory is
+	// The pair is kept by name AND position.
 	root := repo(t, map[string]string{"README.md": "keep", "sub/README.md": "go"})
 	result, err := Purge(root, false)
 	require.NoError(t, err)

@@ -24,7 +24,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/noworkloss"
 )
 
-// hookResult is what every hook package answers with.
 type hookResult struct {
 	Stdout string
 	Stderr string

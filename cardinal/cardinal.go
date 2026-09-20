@@ -30,7 +30,6 @@ type Token struct {
 	Text   string
 }
 
-// Shape is what a substrate looks for.
 type Shape int
 
 const (

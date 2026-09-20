@@ -15,7 +15,7 @@ import (
 var numbersTable = table.MustLoad(rules.FS, "numbers")
 
 // Say rewrites a line of comment prose, applying every table entry. It says
-// nothing about what is left: the caller checks that.
+// nothing about what is left.
 //
 // The order is rewrites, then shapes, then patterns. A phrase swap settles the
 // idioms earliest.

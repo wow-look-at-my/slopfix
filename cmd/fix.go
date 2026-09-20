@@ -17,7 +17,6 @@ var (
 	asJSON bool
 	// fixOnly restricts the run to the rules a caller names.
 	fixOnly []string
-	// fixPath names the file the text is headed for.
 	fixPath string
 	// fixMaxLines caps a comment block.
 	fixMaxLines int
@@ -131,7 +130,7 @@ func runFix(cmd *cobra.Command, args []string) error {
 }
 
 // fixFiles repairs each named file in place. It names the ones it rewrote on
-// stdout, and reports what is left on stderr against the file it belongs to.
+// stdout.
 func fixFiles(cmd *cobra.Command, paths []string, rules []slopfix.Rule, ids []string) error {
 	found := false
 	for _, path := range paths {

@@ -549,8 +549,7 @@ func TestAUserPromptReopensTheSubject(t *testing.T) {
 }
 
 func TestReadingALogIsNotReadingAState(t *testing.T) {
-	// A log is new information, and refusing it leaves the session unable to
-	// diagnose the failure it was woken for.
+	// A log is new information.
 	tr := stageTranscript(t,
 		bashCall("gh wait-ci --sha 9b348b7"),
 		toolResult(`{"sha":"9b348b7","conclusion":"failure"}`),

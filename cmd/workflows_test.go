@@ -96,7 +96,7 @@ func TestTheWalkSkipsForeignAndBuildDirectories(t *testing.T) {
 // A submodule carries its own CI, so the walk leaves its files to it. The
 // control beside it is the caller's own workflow, which is still read: a skip
 // that swallowed the whole walk would be indistinguishable from a rule turned
-// off, and this is the only skip there is.
+// off.
 func TestASubmoduleIsNotRead(t *testing.T) {
 	dir := gitmodtest.RepoWithSubmodule(t, "vendored")
 	writeAt(t, dir, "vendored/.github/workflows/ci.yml", wall)

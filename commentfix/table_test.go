@@ -44,8 +44,7 @@ func fires(t *testing.T, kind, id string, cases []table.Test) {
 }
 
 // Every class a match names is declared. A typo in a class name matches
-// nothing and costs no error, so the entry silently stops covering the prose
-// it was written for.
+// nothing and costs no error.
 func TestEveryClassAMatchNamesIsDeclared(t *testing.T) {
 	require.NotEmpty(t, numbersTable.Classes)
 	declared := set.Of[string]("open")

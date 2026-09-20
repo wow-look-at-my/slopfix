@@ -1,8 +1,7 @@
 // paths.go is the location half of the table. A command rule asks what a call
 // RUNS. A path rule asks where it reaches, whichever tool asks.
 //
-// It is a setting rather than a rule of its own: the tree to refuse is named in
-// rules.xml beside everything else this hook decides from.
+// It is a setting rather than a rule of its own.
 package autoallow
 
 import (
