@@ -139,6 +139,26 @@ func TestPreservesAndPushesToOrigin(t *testing.T) {
 	assert.Equal(t, local, onRemote, "the commit pushed to the bare remote must match the local ref")
 }
 
+// A pre-push hook that fails must not stop the preservation push: the push is
+// --no-verify, so git runs it but the exit status does not matter.
+func TestPreservesAndPushesPastAFailingPrePushHook(t *testing.T) {
+	dir := remoteRepo(t)
+	hooks := filepath.Join(dir, ".git", "hooks")
+	require.NoError(t, os.WriteFile(filepath.Join(hooks, "pre-push"), []byte("#!/bin/sh\nexit 1\n"), 0o755))
+	untrack(t, dir, "scratch.txt")
+
+	notice := preserved(t, dir, "rm scratch.txt")
+	assert.Contains(t, notice, "and pushed")
+
+	refs := listPreservationRefs(t, dir)
+	require.Len(t, refs, 1)
+
+	remoteURL := gitOutput(t, dir, "config", "--get", "remote.origin.url")
+	onRemote := gitOutput(t, remoteURL, "rev-parse", refs[0])
+	local := gitOutput(t, dir, "rev-parse", refs[0])
+	assert.Equal(t, local, onRemote, "the preservation push must reach the remote despite the failing pre-push hook")
+}
+
 // No remote at all: the local ref still holds the content, so the notice says
 // where it is and that the push did not happen.
 func TestPreservesLocallyWhenPushFails(t *testing.T) {

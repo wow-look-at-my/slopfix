@@ -103,7 +103,7 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	runGit(root, resetArgs...)
 
 	res = &preserveResult{ref: branchName(root), commit: commit}
-	if _, stderr, err := runGitEnvTimeout(root, preservePushTimeout, nil, "push", "origin", "HEAD"); err != nil {
+	if _, stderr, err := runGitEnvTimeout(root, preservePushTimeout, nil, "push", "--no-verify", "origin", "HEAD"); err != nil {
 		res.pushErr = strings.TrimSpace(stderr)
 		if res.pushErr == "" {
 			res.pushErr = err.Error()
