@@ -125,7 +125,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs)
-	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID)
+	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	return ids
 }
 

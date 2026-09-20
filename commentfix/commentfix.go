@@ -90,7 +90,7 @@ func lineAndColumn(src string, at int) (line, col int) {
 
 // IsGenerated reports whether the file carries the generated-code marker in its header.
 //
-// The header is where the marker counts: the same words further down are prose somebody wrote. It is read off the tree, so what counts as a comment is the grammar's answer rather than a guess at a line's opening bytes, and the header ends at the first comment the file separates from the top with code.
+// The header is where the marker counts: the same words further down are prose somebody wrote. It is read off the tree, so what counts as a comment is the grammar's answer rather than a guess at a line's opening bytes, and the header ends at the earliest comment the file separates from the top with code.
 func IsGenerated(filename, src string) bool {
 	end := 0
 	for _, comment := range treecomments.Extract(filename, src) {

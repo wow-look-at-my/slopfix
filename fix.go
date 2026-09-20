@@ -47,7 +47,7 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleSTE:
 		return ste.AllIDs
 	case RuleComments:
-		return set.Of(commentfix.IDLength, commentfix.ID)
+		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	case RuleWorkflow:
 		return workflow.AllIDs
 	}
@@ -143,8 +143,7 @@ func Fix(req Request) Repair {
 		}
 	}
 
-	// The length repair reads source rather than prose, so it runs ahead of the
-	// document gate below.
+	// The length repair reads source rather than prose, so it runs ahead of the document gate below.
 	cutComments()
 
 	// The number repair reads source too, and runs after the length cut: a

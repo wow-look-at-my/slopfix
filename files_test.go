@@ -41,7 +41,7 @@ func TestFormatFileJoinsAWrappedParagraphInPlace(t *testing.T) {
 
 	after, err := os.ReadFile(path)
 	require.NoError(t, err)
-	// The join moves newlines and nothing else: the same words, on one line.
+	// The join moves newlines and nothing else: the same words, on a single line.
 	assert.Equal(t, strings.Fields(wrapped), strings.Fields(string(after)))
 	assert.Equal(t, 1, strings.Count(string(after), "\n"))
 }

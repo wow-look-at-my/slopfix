@@ -19,7 +19,7 @@ func prose(content string) slopfix.Repair {
 }
 
 // The join is structure, so it is held here: a wrapped paragraph comes back as
-// one line. What the count rule writes is held in rules/.
+// a single line. What the count rule writes is held in rules/.
 func TestFixJoinsAWrapAndCutsACount(t *testing.T) {
 	repair := prose("There are three sections in the payload,\nand each one is read.\n")
 	assert.True(t, repair.Changed)
@@ -153,7 +153,7 @@ func TestANamedIDRepairsThatRuleAlone(t *testing.T) {
 		IDs:     []string{"ste/contraction"},
 	})
 
-	// Each named ID repairs the document, and the two answers differ: neither rule reached what the other was named for.
+	// Each named ID repairs the document, and both answers differ.
 	assert.NotEqual(t, doc, semicolon.Text)
 	assert.NotEqual(t, doc, contraction.Text)
 	assert.NotEqual(t, semicolon.Text, contraction.Text)

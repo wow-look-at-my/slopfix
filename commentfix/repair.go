@@ -8,8 +8,7 @@
 //
 // The repair is total. A number the table and the cut both miss is deleted at
 // the position the check reports it, in residual.go. So Check answers nothing
-// about a file this has repaired, and the caller never carries a finding it has
-// no remedy for.
+// about a file this has repaired.
 package commentfix
 
 import (
@@ -72,7 +71,7 @@ func dropDanglingMarkers(filename, src string) string {
 }
 
 // commentRowsOf names every line the grammar reads as comment, counting from
-// zero the way a line slice does.
+// empty the way a line slice does.
 func commentRowsOf(filename, src string) set.Set[int] {
 	rows := set.New[int]()
 	for _, c := range treecomments.Extract(filename, src) {
@@ -117,7 +116,7 @@ func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, rem
 		if len(wrapped) == 0 && para.trailer != "" {
 			wrapped = []string{strings.TrimRight(para.marker, " ")}
 		}
-		// The closer goes on last, once the juggling below has settled which line is last.
+		// The closer goes on last, a single time the juggling below has settled which line is last.
 		closeAt := -1
 		for i, at := range para.lines {
 			if i < len(wrapped) {
@@ -266,7 +265,6 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 	return b, b.prose != "" && b.trailer != ""
 }
 
-// indentOf reports the column a line's leading non-blank byte sits at.
 func indentOf(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
 }

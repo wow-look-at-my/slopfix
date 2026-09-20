@@ -41,8 +41,7 @@ type Finding struct {
 	// EndLine is the last line covered, unset when the finding sits on Line alone.
 	EndLine int
 	// ID names the rule, and selects it on the command line.
-	ID string
-	// Rule says in words what the ID stands for.
+	ID   string
 	Rule string
 	// Detail quotes the offending text.
 	Detail string
@@ -64,7 +63,7 @@ const SentenceWordCap = 25
 // steTable is what rules/ says for="ste": the banned forms, their replacements, and the word classes the clause shapes
 var steTable = table.MustLoad(rules.FS, "ste")
 
-// irregulars maps a contraction whose ending does not spell its expansion, and modals maps each banned modal to the
+// irregulars maps a contraction whose ending does not spell its expansion.
 var irregulars, modals = swaps()
 
 func swaps() (map[string]string, map[string]string) {
@@ -79,8 +78,6 @@ func swaps() (map[string]string, map[string]string) {
 	return odd, hedges
 }
 
-// Expand answers the words a contraction stands for, and false for a word that
-// is not one.
 func Expand(word string) (string, bool) {
 	if full, odd := irregulars[strings.ToLower(word)]; odd {
 		return full, true
