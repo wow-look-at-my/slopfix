@@ -99,6 +99,15 @@ func commentFindings(path, content string) []ste.Finding {
 			Fix:    fix,
 		})
 	}
+	for _, hit := range commentfix.CheckTails(path, content) {
+		out = append(out, ste.Finding{
+			Line:   hit.Line,
+			ID:     hit.ID,
+			Rule:   hit.Tell,
+			Detail: hit.Sentence,
+			Fix:    "Finish the sentence, or let the repair close it. `slopfix comments --fix` does this.",
+		})
+	}
 	return out
 }
 

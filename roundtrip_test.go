@@ -64,10 +64,12 @@ func roundTripFixtures() []fixture {
 				"// above, and it holds the one top directory the walk was handed, and it\n" +
 				"// keeps every entry it saw on the way down so a later caller can ask again.\n" +
 				"func Wait() {}\n\n" +
-				"// A trailing note nobody attached to any code at all, documenting nothing.\n",
+				"// A trailing note nobody attached to any code at all, documenting nothing.\n\n" +
+				"// Close answers the gate, and the caller it answers for is the\nfunc Close() {}\n",
 			wants: []string{
 				slopfix.IDCommentNumber,
 				"comments/length",
+				"comments/tail",
 			},
 		},
 		{
