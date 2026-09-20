@@ -216,8 +216,8 @@
            where="comment" test="The gate holds run before trusting it"
            expect="The gate holds"/>
 
-  <pattern match="\s+([,.;:!?])" replace="$1" test="A clause , and a stop ."
-           expect="A clause, and a stop."/>
+  <pattern match="\s+([,.;:!?])(\s|$)" replace="${1}${2}"
+           test="A clause , and a stop ." expect="A clause, and a stop."/>
 
   <pattern match="  +" replace=" " test="Two  spaces" expect="Two spaces"/>
 

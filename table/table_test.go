@@ -108,7 +108,7 @@ func TestLoadRefusesWhatCannotFire(t *testing.T) {
 	}
 }
 
-// An id names an entry across the whole folder, so a second file may not take
+// An id names an entry across the whole folder, so another file may not take
 // an id an earlier file used: a failure would otherwise name an entry the
 // reader cannot find.
 func TestLoadRefusesADuplicateIDAcrossFiles(t *testing.T) {

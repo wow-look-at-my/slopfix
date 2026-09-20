@@ -30,4 +30,19 @@
 
   <test in="It reserves a slot and publishes it" out="It reserves a slot and publishes it"/>
 
+  <!-- Taken out of repositories the number repair had already been run over.
+       Each in is a comment as its author wrote it, and each out is what the
+       repair has to write instead of the wreckage it shipped. -->
+  <test in="Batch GET two of them." out="Batch GET some of them."/>
+  <test in="It fails when this one does not carry it."
+        out="It fails when this does not carry it."/>
+  <test in="The walk is dropping the one top directory."
+        out="The walk is dropping the single top directory."/>
+  <test in="Two goroutines contend for it." out="Goroutines contend for it."/>
+  <test in="One good entry and one relic."
+        out="A single good entry and a single relic."/>
+  <test in="It is a no-op once." out="It is a no-op a single time."/>
+  <test in="It reads from the first .gitmodules parser above."
+        out="It reads from the earliest .gitmodules parser above."/>
+
 </rules>

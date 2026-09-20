@@ -9,67 +9,6 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// The strings here were taken out of repositories the number repair had already
-// been run over. Each input is a comment as its author wrote it, and each want
-// is what the repair has to write instead of the wreckage it shipped.
-//
-// A repair nobody reviews is a repair that has to be right, so these are driven
-// rather than described.
-func TestTheRepairWritesEnglishOverTheNumber(t *testing.T) {
-	for _, c := range []struct {
-		name, in, want string
-	}{
-		// It deleted the cardinal and trusted "of" to carry the meaning, which
-		// left a sentence with no object in it: "Batch GET of them."
-		{
-			name: "a cardinal governing no noun",
-			in:   "Batch GET two of them.",
-			want: "Batch GET some of them.",
-		},
-		{
-			name: "one standing in for a noun",
-			in:   "It fails when this one does not carry it.",
-			want: "It fails when this does not carry it.",
-		},
-		// A determiner is already there, so another a single wrote "the a single".
-		{
-			name: "one behind a determiner",
-			in:   "The walk is dropping the one top directory.",
-			want: "The walk is dropping the top directory.",
-		},
-		// The tally still applies where the cardinal governs a plural noun.
-		{
-			name: "a cardinal governing a plural noun",
-			in:   "Two goroutines contend for it.",
-			want: "Goroutines contend for it.",
-		},
-		// A single counting a thing is a count, and "a single" says it in
-		// words. The reading is awkward and every word survives it.
-		{
-			name: "one counting a thing",
-			in:   "One good entry and one relic.",
-			want: "A single good entry and a single relic.",
-		},
-		// A repeat count. The same awkward reading, and nothing lost.
-		{
-			name: "a repeat count",
-			in:   "It is a no-op once.",
-			want: "It is a no-op a single time.",
-		},
-		// An ordinal naming a position. A file name beside it keeps its dot
-		// AND the space in front of the dot.
-		{
-			name: "an ordinal beside a file name",
-			in:   "It reads from the first .gitmodules parser above.",
-			want: "It reads from the earliest .gitmodules parser above.",
-		},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			assert.Equal(t, c.want, Reword(c.in))
-		})
-	}
-}
-
 // Whatever the repair writes, it writes words. A rewrite that runs of the
 // author's words into a single says something the author did not, and nobody
 // reads the diff a hook applied.
