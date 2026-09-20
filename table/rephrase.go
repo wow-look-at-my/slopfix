@@ -96,7 +96,7 @@ func normalize(norms []Normalize, tokens []string) []string {
 // It does NOT touch punctuation. The caller settles a dangling space before a
 // full stop, and it reads what follows the stop before closing anything: a
 // leading dot opens a name -- .github, .dats, .gitignore -- and a plain swap of
-// " ." for "." ate the space in front of every one of them.
+// " ." for "." ate the space in front of each of them.
 func closeGaps(prose string) string {
 	for strings.Contains(prose, "  ") {
 		prose = strings.ReplaceAll(prose, "  ", " ")
