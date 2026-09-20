@@ -84,9 +84,34 @@ func AppliesTo(where, surface string) bool {
 }
 
 // Replace rewrites every match of the pattern in s, and returns s untouched
-// when there is none.
+// when there is none. The replacement takes the case of the text it stands in
+// for, so a match that opens a sentence still opens one.
 func (p Pattern) Replace(s string) string {
-	return p.re.ReplaceAllString(s, p.To)
+	return p.re.ReplaceAllStringFunc(s, func(matched string) string {
+		at := p.re.FindStringSubmatchIndex(matched)
+		if at == nil {
+			return matched
+		}
+		return MatchCase(matched, string(p.re.ExpandString(nil, p.To, matched, at)))
+	})
+}
+
+// MatchCase gives a replacement the opening case of the text it replaces.
+//
+// A table matches without regard to case, so a rule that writes its
+// replacement as it stands lowercases the word that opens a sentence. A reader
+// then finds a sentence starting in the middle of a line.
+func MatchCase(matched, replacement string) string {
+	if matched == "" || replacement == "" {
+		return replacement
+	}
+	if head := matched[0]; head < 'A' || head > 'Z' {
+		return replacement
+	}
+	if first := replacement[0]; first >= 'a' && first <= 'z' {
+		return string(first-'a'+'A') + replacement[1:]
+	}
+	return replacement
 }
 
 // Matches reports whether the pattern finds anything in s.

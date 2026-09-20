@@ -45,4 +45,18 @@
   <test in="It reads from the first .gitmodules parser above."
         out="It reads from the earliest .gitmodules parser above."/>
 
+  <!-- A rewrite inside a line keeps the case of what it replaced, so a
+       sentence that opens mid-line still opens with a capital. -->
+  <test in="It drains uploads. The first process owns the cache."
+        out="It drains uploads. The earliest process owns the cache."/>
+  <test in="They offer it. The first offer is stored once."
+        out="They offer it. The earliest offer is stored a single time."/>
+
+  <!-- The cardinal stands in for a noun the sentence already named, so the
+       phrase is reported rather than rewritten into "a single that exits". -->
+  <test in="It runs, and only one that exits holds the lock."
+        out="It runs, and only one that exits holds the lock."/>
+  <test in="It matters when only one is configured."
+        out="It matters when only one is configured."/>
+
 </rules>
