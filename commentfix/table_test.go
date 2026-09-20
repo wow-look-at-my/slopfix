@@ -35,51 +35,14 @@ func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
 	}
 }
 
-// A qualified name is a single word, so no marker inside it opens a rewrite.
-// The rule reads its own package's comments, and sync.a single time is what it found there.
-func TestAQualifiedNameIsLeftWhole(t *testing.T) {
-	for _, prose := range []string{
-		"sync.Once guards it",
-		"net/http serves it",
-		"it calls Do.Once here",
-	} {
-		assert.Equal(t, prose, Say(prose))
+// What the table writes for a whole line is stated in rules/numbers-cases.xml,
+// where somebody adding a case edits no Go.
+func TestEveryCaseHolds(t *testing.T) {
+	require.NotEmpty(t, numbersTable.Cases)
+
+	for _, c := range numbersTable.Cases {
+		t.Run(c.Test, func(t *testing.T) {
+			assert.Equal(t, c.Expect, Say(c.Test))
+		})
 	}
-	// The control: the same word standing alone still rewrites.
-	assert.Equal(t, "the a single time flag", Say("the once flag"))
-}
-
-func TestProseTheTableDoesNotCoverIsUntouched(t *testing.T) {
-	assert.Equal(t, "It reserves a slot and publishes it", Say("It reserves a slot and publishes it"))
-}
-
-// A comment line often continues a wrapped sentence rather than opening it, so
-// the repair keeps the opening case the author wrote.
-func TestTheOpeningCaseIsTheOneTheAuthorWrote(t *testing.T) {
-	assert.Equal(t, "a single side of s or other.", Say("exactly one of s or other."))
-	assert.Equal(t, "Goroutines contend", Say("Two goroutines contend"))
-}
-
-// A word that merely contains a number word is a name, so the table's own
-// matching leaves it alone.
-func TestTheTableLeavesAWordContainingANumberWordAlone(t *testing.T) {
-	assert.Equal(t, "The oneShot flag and someone else", Say("The oneShot flag and someone else"))
-}
-
-// A dot against the word after it opens a name. Closing the space before it
-// wrote "Tests for.github/scripts" across a repository of dotfile references.
-func TestTheTableKeepsTheSpaceBeforeALeadingDot(t *testing.T) {
-	for _, prose := range []string{
-		"Tests for .github/scripts/register.sh, the step it runs",
-		"The suite lives in .dats files",
-		"Ignored by .gitignore already",
-	} {
-		assert.Equal(t, prose, Say(prose))
-	}
-}
-
-// The gap a deleted word leaves before closing punctuation still closes.
-func TestTheTableClosesTheGapBeforeClosingPunctuation(t *testing.T) {
-	assert.Equal(t, "It reserves a single slot.", Say("It reserves one slot ."))
-	assert.Equal(t, "It locks, then writes.", Say("It locks , then writes ."))
 }

@@ -19,7 +19,7 @@ A directory is a rule. Where a package holds several, they are members of one fa
 
 A directory here can hold no rule at all. [markdown](markdown/README.md) is the document model every prose rule sits on. It carries the hard-wrap rule as well. [source](source/README.md) is the substrate adapter that answers where the prose is in a source file.
 
-[rules](rules/README.md) holds the prose tables as XML, split by purpose. Nothing reads them at run time. `cmd/rulegen` parses the folder during the build and writes Go. It compiles each pattern with [go-regex-compiler](https://github.com/wow-look-at-my/go-regex-compiler). [table](table/table.go) is what that generated Go is made of.
+[rules](rules/README.md) holds the prose tables as XML, split by purpose. The folder is embedded and [table](table/table.go) loads it, collecting the entries a single consumer declares and compiling every pattern.
 
 [cardinal](cardinal/README.md) holds no rule ID either. It decides whether a number is a stated count. `counts`, `ste` and `commentfix` are the three substrates that ask it. Each brings its own policy: how much framing a number needs, which words spell one, and what carries a number without counting anything.
 

@@ -1,86 +1,100 @@
 package table_test
 
 import (
-	"regexp"
-	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
-// compiled wires an entry the way rulegen does, with regexp standing in for the
-// generated automaton. Under test is the driver: the scan, the boundary check
-// and the group expansion.
-func compiled(bare, to string, lead, tail bool) table.Pattern {
-	has := regexp.MustCompile(bare)
-	at := regexp.MustCompile(`^(?s)(` + bare + `)(?s:.*)$`)
-	return table.Pattern{
-		Match: bare, To: to,
-		Has:      has.MatchString,
-		At:       at.MatchString,
-		Find:     at.FindStringSubmatchIndex,
-		LeadWord: lead, TailWord: tail,
+// folder is a rules folder standing in for rules/, so a case states the file
+// it is about rather than depending on what the repository's own tables say.
+func folder(files map[string]string) fstest.MapFS {
+	out := fstest.MapFS{}
+	for name, body := range files {
+		out[name] = &fstest.MapFile{Data: []byte(body)}
 	}
+	return out
 }
 
-func TestATextWithNoMatchIsReturnedAsItIs(t *testing.T) {
-	p := compiled(`one`, "a single", false, false)
-	assert.Equal(t, "nothing here", p.Replace("nothing here"))
+const oneRule = `<?xml version="1.0" encoding="UTF-8"?>
+<rules for="numbers">
+  <rewrite from="once" to="a single time" test="It hashes once" expect="It hashes a single time"/>
+  <pattern match="(?i)\bone\s+([a-z])" to="a single ${1}" test="It reserves one slot" expect="It reserves a single slot"/>
+  <case test="It reserves one slot" expect="It reserves a single slot"/>
+</rules>
+`
+
+// A file declares its consumer, and Load keeps that consumer's entries alone.
+func TestLoadKeepsTheTargetsEntries(t *testing.T) {
+	other := `<?xml version="1.0" encoding="UTF-8"?>
+<rules for="english">
+  <drop word="basically" test="It basically fails"/>
+</rules>
+`
+	loaded, err := table.Load(folder(map[string]string{"a.xml": oneRule, "b.xml": other}), "numbers")
+	require.NoError(t, err)
+
+	assert.Len(t, loaded.Rewrites, 1)
+	assert.Len(t, loaded.Patterns, 1)
+	assert.Len(t, loaded.Cases, 1)
+	assert.Empty(t, loaded.Drops, "another consumer's entries stay with it")
 }
 
-func TestEveryMatchIsRewritten(t *testing.T) {
-	p := compiled(`one`, "a single", false, false)
-	assert.Equal(t, "a single and a single", p.Replace("one and one"))
+// The folder is read in file name order, which is what lets a longer phrase in
+// an earlier file beat a shorter phrase in a later one.
+func TestTheFolderIsReadInFileNameOrder(t *testing.T) {
+	first := `<?xml version="1.0" encoding="UTF-8"?>
+<rules for="numbers"><rewrite from="one or more" to="any number of" test="one or more" expect="any number of"/></rules>
+`
+	second := `<?xml version="1.0" encoding="UTF-8"?>
+<rules for="numbers"><rewrite from="one" to="a single" test="one" expect="a single"/></rules>
+`
+	loaded, err := table.Load(folder(map[string]string{"b-later.xml": second, "a-first.xml": first}), "numbers")
+	require.NoError(t, err)
+
+	require.Len(t, loaded.Rewrites, 2)
+	assert.Equal(t, "one or more", loaded.Rewrites[0].From)
 }
 
-// The group expansion, in both spellings a table writes.
-func TestAGroupIsWrittenIntoTheReplacement(t *testing.T) {
-	assert.Equal(t, "a single slot", compiled(`one\s+([a-z])`, "a single ${1}", false, false).
-		Replace("one slot"))
-	assert.Equal(t, "slot", compiled(`two\s+([a-z])`, "$1", false, false).
-		Replace("two slot"))
+// A pattern is compiled as the folder loads, so its match is a regexp the
+// entry's own replacement expands against.
+func TestALoadedPatternRewritesItsMatch(t *testing.T) {
+	loaded, err := table.Load(folder(map[string]string{"a.xml": oneRule}), "numbers")
+	require.NoError(t, err)
+
+	require.Len(t, loaded.Patterns, 1)
+	assert.Equal(t, "It reserves a single slot", loaded.Patterns[0].Replace("It reserves one slot"))
+	assert.Equal(t, "nothing here", loaded.Patterns[0].Replace("nothing here"))
 }
 
-// A boundary the compiled matcher could not carry is the driver's to apply.
-func TestALeadingBoundaryRejectsAMatchInsideAWord(t *testing.T) {
-	p := compiled(`one`, "a single", true, false)
-	assert.Equal(t, "someone", p.Replace("someone"))
-	assert.Equal(t, "a single", p.Replace("one"))
+// A match that does not compile is a broken table, and it says which entry.
+func TestLoadRefusesAPatternThatDoesNotCompile(t *testing.T) {
+	broken := `<?xml version="1.0" encoding="UTF-8"?>
+<rules for="numbers"><pattern match="one(" to="x" test="one(" expect="x"/></rules>
+`
+	_, err := table.Load(folder(map[string]string{"a.xml": broken}), "numbers")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "one(")
 }
 
-func TestATrailingBoundaryRejectsAMatchInsideAWord(t *testing.T) {
-	p := compiled(`one`, "a single", false, true)
-	assert.Equal(t, "oneshot", p.Replace("oneshot"))
-	assert.Equal(t, "a single call", p.Replace("one call"))
+// A root with no for= names no consumer, so nothing can tell whose entry it is.
+func TestLoadRefusesAFileNamingNoConsumer(t *testing.T) {
+	_, err := table.Load(folder(map[string]string{
+		"a.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rules><drop word=\"just\" test=\"It just fails\"/></rules>\n",
+	}), "numbers")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "for=")
 }
 
-// The driver must answer as the regexp engine answers. The entries in rules/
-// were written against that behaviour.
-func TestTheDriverAgreesWithRegexp(t *testing.T) {
-	for _, c := range []struct{ bare, to, in string }{
-		{`one\s+([a-z])`, "a single ${1}", "It reserves one slot and one lock."},
-		{`\s+([,.;:!?])`, "$1", "A clause , and a stop ."},
-		{`  +`, " ", "Two  spaces  here"},
-		{`([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]+)`, "[$1#$2](x/$1/$2)", "a/b#14 and c/d#9"},
-		{`(?i)the second`, "the next", "The second call, the second time"},
-	} {
-		want := regexp.MustCompile(c.bare).ReplaceAllString(c.in, c.to)
-		assert.Equal(t, want, compiled(c.bare, c.to, false, false).Replace(c.in),
-			"the driver and regexp disagree on %q", c.bare)
-	}
-}
-
-// A replacement carrying no dollar is written as it stands.
-func TestAPlainReplacementIsWrittenWhole(t *testing.T) {
-	p := compiled(`first,\s+`, "", false, false)
-	assert.Equal(t, "it locks", p.Replace("first, it locks"))
-}
-
-// An entry with no compiled matcher rewrites nothing rather than panicking. A
-// table built by hand in a test is the case that reaches this.
-func TestAnEntryWithNoMatcherIsInert(t *testing.T) {
-	assert.Equal(t, "text", table.Pattern{To: "x"}.Replace("text"))
+// A consumer nothing declares is a wiring mistake rather than an empty table,
+// and a caller reading an empty table would silently repair nothing.
+func TestLoadRefusesATargetNothingDeclares(t *testing.T) {
+	_, err := table.Load(folder(map[string]string{"a.xml": oneRule}), "ste")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ste")
 }
 
 func TestAppliesToReadsTheSurface(t *testing.T) {
@@ -88,11 +102,4 @@ func TestAppliesToReadsTheSurface(t *testing.T) {
 	assert.True(t, table.AppliesTo("both", "message"))
 	assert.True(t, table.AppliesTo("message", "message"))
 	assert.False(t, table.AppliesTo("message", "comment"))
-}
-
-// The prefilter is what keeps a run over ordinary prose free of allocation.
-func TestAMissAllocatesNothing(t *testing.T) {
-	p := compiled(`one\s+([a-z])`, "a single ${1}", false, false)
-	line := strings.Repeat("the loader reads the file and waits for it. ", 8)
-	assert.Equal(t, line, p.Replace(line))
 }
