@@ -9,6 +9,7 @@ package cmd
 
 import (
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix"
@@ -83,17 +84,34 @@ func applyEdits(src string, edits []edit) (string, bool) {
 
 // findingIDs runs the same rules the caller selected over the file as it stands,
 // and answers what they report.
+//
+// It asks Check rather than Fix. Fix repairs a source file's comments before it
+// answers, and reports only what its own repair could not reach, so a file the
+// rules do report reads as clean there.
 func findingIDs(src, path string, rules []slopfix.Rule, ids []string) []string {
-	repair := slopfix.Fix(slopfix.Request{
-		Content:         src,
-		Path:            path,
-		Rules:           rules,
-		IDs:             ids,
-		MaxCommentLines: hookMaxLines,
-	})
-	out := make([]string, 0, len(repair.Findings))
-	for _, f := range repair.Findings {
-		out = append(out, f.ID)
+	var out []string
+	for _, f := range slopfix.CheckContent(path, src) {
+		if selected(f.ID, rules, ids) {
+			out = append(out, f.ID)
+		}
 	}
 	return out
+}
+
+// selected applies the caller's choice to a rule ID, the way Fix applies it:
+// naming an ID turns the others off, and naming a category keeps that whole
+// category. Naming neither keeps every rule.
+func selected(id string, rules []slopfix.Rule, ids []string) bool {
+	if len(ids) > 0 && !slices.Contains(ids, id) {
+		return false
+	}
+	if len(rules) == 0 {
+		return true
+	}
+	for _, rule := range rules {
+		if slopfix.IDsFor(rule).Contains(id) {
+			return true
+		}
+	}
+	return false
 }
