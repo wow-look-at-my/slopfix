@@ -299,15 +299,37 @@ func hardFit(b block) ([]string, bool) {
 	for _, line := range prose(b.text) {
 		body = append(body, stripMarker(line))
 	}
-	words := strings.Fields(strings.Join(body, " "))
-	for len(words) > 0 {
-		out := reflow(strings.Join(words, " "), indent, marker, max(floorChars, b.codeChars))
+	// Sentences, never words. Cutting between two words leaves a fragment that
+	// reads as a typo, and reflowing it welds a full stop onto half a clause.
+	// A comment nothing here can shorten is left whole and still reported.
+	sentences := splitSentences(strings.Join(body, " "))
+	for n := len(sentences); n > 0; n-- {
+		out := reflow(strings.Join(sentences[:n], " "), indent, marker, max(floorChars, b.codeChars))
 		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return out, true
 		}
-		words = words[:len(words)-1]
 	}
 	return nil, false
+}
+
+// splitSentences cuts prose after each terminator that closes a thought,
+// keeping the terminator on the sentence it ends. Text with no terminator is
+// one sentence, which is what makes hardFit decline rather than truncate it.
+func splitSentences(text string) []string {
+	words := strings.Fields(text)
+	var out []string
+	start := 0
+	for i, word := range words {
+		if !endsSentence(word) {
+			continue
+		}
+		out = append(out, strings.Join(words[start:i+1], " "))
+		start = i + 1
+	}
+	if start < len(words) {
+		out = append(out, strings.Join(words[start:], " "))
+	}
+	return out
 }
 
 // cutLastThought drops the last thought out of a block, and reports false when
