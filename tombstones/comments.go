@@ -12,7 +12,10 @@ package tombstones
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
 // Block is a comment run or a paragraph. LineNos and Pure place each line and
@@ -79,7 +82,7 @@ func AddedBlocks(path, added string) []Block {
 	if !ok {
 		return nil
 	}
-	return commentBlocks(added, st)
+	return commentBlocks(path, added, st)
 }
 
 func styleFor(path string) (style, bool) {
@@ -109,9 +112,75 @@ type piece struct {
 	lastPure  bool
 }
 
-// commentBlocks walks src and collects each comment. It merges a run of
-// adjacent line comments, so the volume cap sees the essay.
-func commentBlocks(src string, st style) []Block {
+// commentBlocks collects each comment in src. It merges a run of adjacent line
+// comments, so the volume cap sees the essay.
+//
+// A grammar answers where the comments are wherever one reads the language. The
+// scan below is what is left: it reads markers out of the raw text, and a
+// marker inside a string literal spanning several lines reads as prose there.
+func commentBlocks(path, src string, st style) []Block {
+	pieces, ok := treePieces(path, src, st)
+	if !ok {
+		pieces = scanPieces(src, st)
+	}
+	return groupPieces(pieces)
+}
+
+// treePieces answers the comments a grammar found, and whether it read the
+// language at all. A comment node carries its own span, so nothing quoted can
+// be mistaken for prose.
+func treePieces(path, src string, st style) ([]piece, bool) {
+	if !commentfix.Parsed(path) {
+		return nil, false
+	}
+	starts := lineStarts(src)
+	lines := strings.Split(src, "\n")
+	var out []piece
+	for _, c := range commentfix.Comments(path, src) {
+		first := lineIndex(starts, c.Offset)
+		last := lineIndex(starts, c.Offset+len(c.Text))
+		if first >= len(lines) || last >= len(lines) {
+			continue
+		}
+		// A block comment's piece is what the delimiters enclose, which is
+		// what the scan records and what the grouping below counts lines of.
+		text := c.Text
+		if st.blockOpen != "" && strings.HasPrefix(text, st.blockOpen) {
+			text = strings.TrimSuffix(strings.TrimPrefix(text, st.blockOpen), st.blockClose)
+		}
+		out = append(out, piece{
+			line:      first,
+			text:      text,
+			firstPure: strings.TrimSpace(lines[first][:c.Offset-starts[first]]) == "",
+			lastPure:  strings.TrimSpace(lines[last][c.Offset+len(c.Text)-starts[last]:]) == "",
+		})
+	}
+	return out, true
+}
+
+// lineStarts answers the byte offset each line of src begins at.
+func lineStarts(src string) []int {
+	starts := []int{0}
+	for i := 0; i < len(src); i++ {
+		if src[i] == '\n' {
+			starts = append(starts, i+1)
+		}
+	}
+	return starts
+}
+
+// lineIndex answers which line an offset falls on, counting from zero.
+func lineIndex(starts []int, offset int) int {
+	n := sort.SearchInts(starts, offset+1) - 1
+	if n < 0 {
+		return 0
+	}
+	return n
+}
+
+// scanPieces reads comment markers out of the raw text, for a language no
+// grammar here parses.
+func scanPieces(src string, st style) []piece {
 	var pieces []piece
 
 	lines := strings.Split(src, "\n")
@@ -184,6 +253,11 @@ func commentBlocks(src string, st style) []Block {
 		})
 	}
 
+	return pieces
+}
+
+// groupPieces merges a run of adjacent comments into one block.
+func groupPieces(pieces []piece) []Block {
 	var out []Block
 	for i := 0; i < len(pieces); {
 		j := i
