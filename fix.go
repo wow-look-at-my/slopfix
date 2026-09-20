@@ -10,6 +10,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -85,6 +86,7 @@ type Repair struct {
 // Fix repairs what a rewrite can repair and reports the rest. The repairs run
 // in an order that keeps every span valid. The join only moves newlines.
 func Fix(req Request) Repair {
+	defer trace.Phase("fix/all")()
 	rules := req.Rules
 	if len(rules) == 0 {
 		rules = AllRules
@@ -103,6 +105,7 @@ func Fix(req Request) Repair {
 	// the prose ones.
 	if req.Path != "" && isWorkflow(req.Path, text) {
 		if wants(RuleWorkflow) {
+			defer trace.Phase("fix/workflow")()
 			cut := workflow.Fix(text, keeps)
 			text = cut.Text
 			repair.Removed = append(repair.Removed, cut.Removed...)
@@ -121,7 +124,9 @@ func Fix(req Request) Repair {
 	// lines: without this guard, `--only comments/number` cuts a line the
 	// tombstone rule judged, which is another rule's repair applied unasked.
 	if wants(RuleTombstones) && req.Path != "" && anyKept(tombstones.AllIDs(), keeps) {
+		done := trace.Phase("fix/tombstones")
 		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
+		done()
 		text = cut.Text
 		repair.Removed = append(repair.Removed, cut.Removed...)
 		repair.Rewrites += cut.Rewrites
@@ -138,6 +143,7 @@ func Fix(req Request) Repair {
 		if !lengths {
 			return
 		}
+		defer trace.Phase("fix/comment-length")()
 		if cut, changed := commentfix.FixLength(req.Path, text); changed {
 			text, cutLong = cut, true
 		}
@@ -149,7 +155,9 @@ func Fix(req Request) Repair {
 	// The number repair reads source too, and runs after the length cut: a
 	// sentence the cut already took needs no rewrite here.
 	if wants(RuleComments) && keeps(commentfix.ID) && req.Path != "" {
+		done := trace.Phase("fix/comment-numbers")
 		said := commentfix.Fix(req.Path, text)
+		done()
 		if said.Changed {
 			text = said.Text
 			repair.Removed = append(repair.Removed, said.Removed...)
@@ -181,6 +189,7 @@ func Fix(req Request) Repair {
 	}
 
 	if wants(RuleCounts) && keeps(counts.ID) {
+		defer trace.Phase("fix/counts")()
 		stripped, hits := counts.Strip(text)
 		text = stripped
 		for _, hit := range hits {
@@ -191,6 +200,7 @@ func Fix(req Request) Repair {
 	joins := wants(RuleWrap) && keeps(IDHardWrap)
 	prose := wants(RuleSTE)
 	if joins || prose {
+		defer trace.Phase("fix/wrap-and-ste")()
 		word := func(text string) string { return text }
 		if prose {
 			word = func(text string) string { return ste.FixSelected(text, keeps) }
