@@ -25,9 +25,22 @@ type TreeRepair struct {
 	// Removed quotes what a repair deleted, and is the only record of it.
 	Removed []commentfix.Removal
 	// Findings carry what no repair covered.
-	Findings []ste.Finding
+	Findings []TreeFinding
 	// Kept carries the tombstones no whole-line deletion resolves.
-	Kept []tombstones.Hit
+	Kept []TreeTombstone
+}
+
+// TreeFinding is an ste finding and the file it was found in. A finding knows
+// its line and not its file, because a single call reads a single file.
+type TreeFinding struct {
+	Path string
+	ste.Finding
+}
+
+// TreeTombstone is a tombstone a repair could not strip, and its file.
+type TreeTombstone struct {
+	Path string
+	tombstones.Hit
 }
 
 // Reads reports whether any rule reads a file of that name. It is the same
@@ -57,8 +70,12 @@ func FixTree(root string) TreeRepair {
 		for _, text := range repair.Removed {
 			out.Removed = append(out.Removed, commentfix.Removal{Path: path, Text: text})
 		}
-		out.Findings = append(out.Findings, repair.Findings...)
-		out.Kept = append(out.Kept, repair.Kept...)
+		for _, finding := range repair.Findings {
+			out.Findings = append(out.Findings, TreeFinding{Path: path, Finding: finding})
+		}
+		for _, kept := range repair.Kept {
+			out.Kept = append(out.Kept, TreeTombstone{Path: path, Hit: kept})
+		}
 	}
 	return out
 }
