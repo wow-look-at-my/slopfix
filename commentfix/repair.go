@@ -48,11 +48,6 @@ func Fix(filename, src string) Repair {
 	// A number can sit where no paragraph forms, so the position has the last word.
 	out, left := clearResidual(filename, out)
 	removed = append(removed, left...)
-	// The span rule is measured last, because the repairs above rewrite the
-	// lines it counts.
-	if fitted, cut := FixLength(filename, out); cut {
-		out = fitted
-	}
 	if out != src {
 		out = dropDanglingMarkers(filename, out)
 	}
@@ -397,3 +392,10 @@ func dropEmptied(src string, emptied map[int]bool) string {
 }
 
 // bareMarker reports whether the line carries a comment marker and nothing else.
+func bareMarker(line string) bool {
+	switch strings.TrimSpace(line) {
+	case "//", "///", "#", "*":
+		return true
+	}
+	return false
+}

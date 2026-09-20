@@ -59,8 +59,9 @@ func TestShellCommentsInABlockScalarAreNotAYamlCommentBlock(t *testing.T) {
 }
 
 func TestRepairingLeavesAScriptsCommentsAlone(t *testing.T) {
-	fixed, _ := workflow.Repair(scriptWithComments)
-	assert.Equal(t, scriptWithComments, fixed)
+	repair := workflow.Fix(scriptWithComments, func(string) bool { return true })
+	assert.False(t, repair.Changed)
+	assert.Equal(t, scriptWithComments, repair.Text)
 }
 
 // The scalar ends where the indentation does, so the comments after it are

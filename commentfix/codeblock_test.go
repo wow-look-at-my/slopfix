@@ -11,9 +11,9 @@ import (
 )
 
 // An indented run inside a doc comment is a code block: godoc renders it
-// verbatim and a reader reads it as a table. Reflowing one welds its rows
-// together, and cutting one drops rows that carry the only description of a
-// record.
+// verbatim and a reader reads it as a table. Reflowing a single welds its
+// rows together, and cutting a single drops rows that carry the only
+// description of a record.
 func indentedBlock(t *testing.T) string {
 	t.Helper()
 	src, err := os.ReadFile(filepath.Join("testdata", "indented_block.golden"))

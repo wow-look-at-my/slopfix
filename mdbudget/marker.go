@@ -131,8 +131,8 @@ func candidates(m *marker, cwd string) ([]string, bool) {
 	return allCandidatePaths(cwd), true
 }
 
-// snapshotOf reads a signature per path, keyed absolute so two spellings of one
-// file count once.
+// snapshotOf reads a signature per path, keyed absolute so spellings of a
+// single file count a single time.
 func snapshotOf(paths []string) map[string]string {
 	seen := map[string]string{}
 	for _, path := range paths {

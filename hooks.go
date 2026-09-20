@@ -12,7 +12,7 @@ import (
 const IDInventoryCount = counts.ID
 
 // IDCommentNumber names the stale-count rule over a comment.
-const IDCommentNumber = commentfix.IDNumber
+const IDCommentNumber = commentfix.ID
 
 // IDPunt names the rule over a closing message.
 const IDPunt = laziness.ID

@@ -71,7 +71,7 @@ var scalarHeader = regexp.MustCompile(`(^|\s)[|>][0-9]*[+-]?(\s+#.*)?\s*$`)
 
 // blockScalarBody reports, per row, whether it sits inside a block scalar. The
 // body is every row indented past the header's own indentation, which is what
-// ends it: YAML reads the rest of the document from the first row that is not.
+// ends it: YAML reads the rest of the document from the earliest row that is not.
 func blockScalarBody(rows []string) []bool {
 	inside := make([]bool, len(rows))
 	for i := range rows {
@@ -91,11 +91,6 @@ func blockScalarBody(rows []string) []bool {
 		}
 	}
 	return inside
-}
-
-// indentOf measures the whitespace a row opens with.
-func indentOf(row string) int {
-	return len(row) - len(strings.TrimLeft(row, " \t"))
 }
 
 // span names the lines a block covers, for a report that prints plain text.
