@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The numbers spelled in letters. Four readers ask different questions of this
+  vocabulary, so each gets a class rather than a list of its own in Go.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
+
+  <!-- The cardinals a quantity frame opens with. One is absent on purpose: it
+       reads as an article far more often than as a count. -->
+  <class name="prose" words="two three four five six seven eight nine ten
+    eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen
+    nineteen twenty thirty forty fifty sixty seventy eighty ninety dozen"/>
+
+  <!-- What the merge gate's stale-count rule reads. It stops at twelve: past
+       that a spelled number in a gate message is a version, not a count. -->
+  <class name="gate" words="two three four five six seven eight nine ten
+    eleven twelve"/>
+
+  <!-- Every number a comment spells: the cardinals, the scales, the repeat
+       counts and the ordinals that index a list. A word joined to other
+       letters is a name (oneShot, someone), so only a whole word counts. -->
+  <class name="comment" words="zero one two three four five six seven eight
+    nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen
+    eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety
+    hundred thousand million billion trillion dozen
+    once twice thrice
+    first second third fourth fifth sixth seventh eighth ninth tenth
+    eleventh twelfth thirteenth fourteenth fifteenth sixteenth seventeenth
+    eighteenth nineteenth twentieth thirtieth fortieth fiftieth sixtieth
+    seventieth eightieth ninetieth hundredth thousandth"/>
+
+</rules>

@@ -121,6 +121,7 @@ func TestCommandCheckIgnoresAnotherTool(t *testing.T) {
 
 // A guard that fires is named, so a refusal points at the package that owes it.
 func TestAFiredGuardIsNamedOnStderr(t *testing.T) {
+	t.Serial()
 	fired := guard{"pretend", func(io.Reader) hookResult {
 		return hookResult{Stderr: "refused\n", Code: 2}
 	}}
@@ -136,6 +137,7 @@ func TestAFiredGuardIsNamedOnStderr(t *testing.T) {
 
 // The order is the rule: a rewrite or a refusal answers ahead of an approval.
 func TestTheFirstGuardWithAResponseAnswers(t *testing.T) {
+	t.Serial()
 	restore := guards
 	guards = []guard{
 		{"silent", func(io.Reader) hookResult { return hookResult{} }},

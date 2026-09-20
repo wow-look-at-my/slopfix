@@ -42,6 +42,7 @@ func TestRepeatedPhasesCarryTheirCount(t *testing.T) {
 
 // The slowest phase leads, which is the only ordering a reader wants.
 func TestTheSlowestPhaseIsReportedFirst(t *testing.T) {
+	t.Serial()
 	buf := capture(t)
 
 	mu.Lock()
@@ -57,6 +58,7 @@ func TestTheSlowestPhaseIsReportedFirst(t *testing.T) {
 
 // Off is the default, and a phase then costs nothing and says nothing.
 func TestTracingOffReportsNothing(t *testing.T) {
+	t.Serial()
 	t.Setenv(EnvVar, "")
 	var buf bytes.Buffer
 	mu.Lock()

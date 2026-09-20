@@ -72,6 +72,7 @@ func TestACleanFileIsNoFinding(t *testing.T) {
 }
 
 func TestCheckAnswersAsJSON(t *testing.T) {
+	t.Serial()
 	path := put(t, ".github/workflows/ci.yml", "name: CI\n# one\n# two\non: push\n")
 	fileJSON = true
 
@@ -108,6 +109,7 @@ func TestADirectoryIsWalked(t *testing.T) {
 
 // Text that is not on disk yet is what a language server holds.
 func TestStdinIsJudgedAgainstTheNamedPath(t *testing.T) {
+	t.Serial()
 	fileJSON = true
 	filePath = ".github/workflows/ci.yml"
 
@@ -127,6 +129,7 @@ func TestStdinWithNoPathIsAnError(t *testing.T) {
 }
 
 func TestOnlyNarrowsTheReport(t *testing.T) {
+	t.Serial()
 	path := put(t, ".github/workflows/ci.yml", "name: CI\n# one\n# two\non: push\n")
 	fileOnly = []string{"yaml/all-builds-job"}
 
@@ -137,6 +140,7 @@ func TestOnlyNarrowsTheReport(t *testing.T) {
 
 // A typo that quietly selects nothing reads exactly like a clean file.
 func TestATypoInOnlyIsAnError(t *testing.T) {
+	t.Serial()
 	path := put(t, "doc.md", "fine\n")
 	fileOnly = []string{"yaml/nosuch"}
 
