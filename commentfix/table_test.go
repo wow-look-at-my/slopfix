@@ -66,6 +66,8 @@ func TestTheCardinalStaysBannedWhereTheTableRepairsNothing(t *testing.T) {
 	for _, prose := range []string{
 		"The count is one",
 		"It holds one",
+		"It takes the wrong one",
+		"It owns the one below",
 	} {
 		assert.Equal(t, prose, Reword(prose), "the table repaired prose this case needs it to leave")
 		assert.NotEmpty(t, cardinal.Find(prose, cardinal.Comment), "the rule stopped reporting %q", prose)

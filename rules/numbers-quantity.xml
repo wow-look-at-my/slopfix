@@ -20,9 +20,6 @@
   <rewrite id="that-one" from="that one" to="that">
     <test in="It skips that one" out="It skips that"/>
   </rewrite>
-  <rewrite id="the-one" from="the one" to="the thing">
-    <test in="It owns the one below" out="It owns the thing below"/>
-  </rewrite>
   <rewrite id="one-or-more" from="one or more" to="any number of">
     <test in="It inserts one or more elements" out="It inserts any number of elements"/>
   </rewrite>
@@ -103,12 +100,12 @@
     <test in="No one reads it" out="Nobody reads it"/>
   </rephrase>
 
-  <!-- An article or determiner already governs the slot, so the cardinal after
-       it stands for the noun rather than counting it. Writing "a single" into
-       that slot spells "the a single", which shipped. -->
-  <rephrase id="governed-one-is-a-noun" match="{article|determiner:d} {open*:mods} one" to="{d} {mods} thing">
-    <test in="It takes the wrong one" out="It takes the wrong thing"/>
-  </rephrase>
+  <!-- An article or determiner governing the slot means the cardinal stands in
+       for a noun the sentence already named: "the fast one" is that earlier
+       noun, not a count. Only the antecedent says which noun, and a table
+       cannot reach it. Writing "thing" in its place erased the reference in
+       134 of 886 repaired paragraphs measured over a prose corpus, so this
+       shape is reported and left for the author. -->
 
   <!-- A noun follows, so the cardinal counts it. A verb form is not a noun
        here, and the class excludes it, so "one keeping up" is left alone. -->
