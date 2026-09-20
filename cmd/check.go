@@ -2,23 +2,54 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/slopfix"
 )
 
+// writeRepaired puts a repair back, keeping the mode the file already had.
+func writeRepaired(path, text string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(text), info.Mode().Perm())
+}
+
+// checkFix asks check to repair what it can rather than only report it.
+var checkFix bool
+
 func init() {
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "check <file>...",
-		Short: "Report what the prose rules reject, and exit 1 when anything does",
+	check := &cobra.Command{
+		Use:   "check [--fix] <file>...",
+		Short: "Report what every rule rejects, and with --fix repair what it can",
 		Args:  cobra.MinimumNArgs(1),
 		RunE:  runCheck,
-	})
+	}
+	check.Flags().BoolVar(&checkFix, "fix", false, "write the repair back to each file")
+	rootCmd.AddCommand(check)
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
 	found := false
 	for _, path := range args {
+		if checkFix {
+			repair, err := slopfix.FixFile(path)
+			if err != nil {
+				return err
+			}
+			if repair.Changed {
+				if err := writeRepaired(path, repair.Text); err != nil {
+					return err
+				}
+			}
+			for _, finding := range repair.Findings {
+				found = true
+				fmt.Fprintf(cmd.OutOrStdout(), "%s:%s\n", path, finding)
+			}
+			continue
+		}
 		findings, err := slopfix.CheckFile(path)
 		if err != nil {
 			return err
