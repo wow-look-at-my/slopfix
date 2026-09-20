@@ -50,7 +50,7 @@ func place(tool string, in writeInput, rules []slopfix.Rule, ids []string) place
 func introduced(before, after, path string, rules []slopfix.Rule, ids []string) []ste.Finding {
 	had := map[string]int{}
 	for _, f := range findingsOver(before, path, rules, ids) {
-		had[f.ID+"\x00"+f.Message]++
+		had[f.ID+"\x00"+f.Detail]++
 	}
 	var out []ste.Finding
 	for _, f := range findingsOver(after, path, rules, ids) {

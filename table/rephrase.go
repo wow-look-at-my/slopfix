@@ -99,6 +99,11 @@ func closeGaps(prose string) string {
 	return prose
 }
 
+// isWordByte reports the character class a word boundary reads.
+func isWordByte(b byte) bool {
+	return b == '_' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+}
+
 // span is a word's place in the prose.
 type span struct{ at, end int }
 

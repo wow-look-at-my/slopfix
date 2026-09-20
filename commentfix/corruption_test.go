@@ -64,7 +64,7 @@ func TestTheRepairWritesEnglishOverTheNumber(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			assert.Equal(t, c.want, Say(c.in))
+			assert.Equal(t, c.want, Reword(c.in))
 		})
 	}
 }
@@ -83,7 +83,7 @@ func TestTheRepairNeverWeldsTwoWordsTogether(t *testing.T) {
 		"It holds one of the two .gitmodules files.",
 	} {
 		t.Run(in, func(t *testing.T) {
-			assert.Empty(t, welded(in, Say(in)))
+			assert.Empty(t, welded(in, Reword(in)))
 		})
 	}
 }
