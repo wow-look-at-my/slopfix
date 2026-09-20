@@ -61,7 +61,8 @@ func isSpaceByte(b byte) bool {
 }
 
 // replaceWord swaps a whole word or phrase, case-insensitively, leaving a
-// longer word that merely contains it alone.
+// longer word that merely contains it alone. The replacement takes the case of
+// what it stands in for.
 func replaceWord(s, word, with string) string {
 	lower := strings.ToLower(s)
 	target := strings.ToLower(word)
@@ -80,7 +81,7 @@ func replaceWord(s, word, with string) string {
 			continue
 		}
 		b.WriteString(s[i:at])
-		b.WriteString(with)
+		b.WriteString(table.MatchCase(s[at:end], with))
 		i = end
 	}
 	return b.String()
