@@ -32,7 +32,8 @@
   <!-- A preposition heads no noun phrase on its own. -->
   <class name="preposition" words="of in on at to for with from by into onto
     under over per as than through against between among about after before
-    during without within across"/>
+    during without within across below above behind beside beyond near upon
+    until toward towards along around via despite versus off out up down"/>
 
   <!-- An auxiliary carries the verb, so a word after a cardinal that is one of
        these makes the cardinal the subject. -->

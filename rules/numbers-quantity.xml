@@ -105,7 +105,14 @@
        noun, not a count. Only the antecedent says which noun, and a table
        cannot reach it. Writing "thing" in its place erased the reference in
        134 of 886 repaired paragraphs measured over a prose corpus, so this
-       shape is reported and left for the author. -->
+       shape is reported and left for the author.
+
+       A noun DOES follow in "the one key", and there the cardinal counts it
+       after all. This shape goes before the bare count below, which would
+       otherwise write the article a second time and spell "the a single". -->
+  <rephrase id="a-governed-one-counts-its-noun" match="{article|determiner:d} one {noun:n}" to="{d} single {n}">
+    <test in="It holds the one key" out="It holds the single key"/>
+  </rephrase>
 
   <!-- A noun follows, so the cardinal counts it. A verb form is not a noun
        here, and the class excludes it, so "one keeping up" is left alone. -->
