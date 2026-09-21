@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/xml-validator/validator"
 )
 
@@ -17,7 +18,7 @@ import (
 var schemaLocation = regexp.MustCompile(`noNamespaceSchemaLocation="([^"]+)"`)
 
 // borrowedTrees hold XML this repository did not write.
-var borrowedTrees = []string{".claude", "testdata", "node_modules"}
+var borrowedTrees = set.Of(".claude", "testdata", "node_modules")
 
 // TestEveryXMLNamesASchemaAndMeetsIt walks the repository, because a rule file
 // that names no schema is one nothing checks, and a schema the document has
@@ -29,10 +30,8 @@ func TestEveryXMLNamesASchemaAndMeetsIt(t *testing.T) {
 			return err
 		}
 		if entry.IsDir() {
-			for _, borrowed := range borrowedTrees {
-				if entry.Name() == borrowed {
-					return fs.SkipDir
-				}
+			if borrowedTrees.Contains(entry.Name()) {
+				return fs.SkipDir
 			}
 			return nil
 		}
