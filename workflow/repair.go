@@ -9,6 +9,7 @@ package workflow
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
@@ -77,9 +78,9 @@ func gateRows(content string, findings []ste.Finding) map[int]bool {
 	if jobs == nil {
 		return nil
 	}
-	named := make(map[int]bool, len(findings))
+	named := set.New[int]()
 	for _, f := range findings {
-		named[f.Line] = true
+		named.Add(f.Line)
 	}
 	drop := make(map[int]bool)
 	for i := 0; i+1 < len(jobs.Content); i += 2 {
@@ -88,7 +89,7 @@ func gateRows(content string, findings []ste.Finding) map[int]bool {
 			continue
 		}
 		for _, step := range steps.Content {
-			if !named[step.Line] {
+			if !named.Contains(step.Line) {
 				continue
 			}
 			if key := mappingKey(step, allowedToFailKey); key != nil {
