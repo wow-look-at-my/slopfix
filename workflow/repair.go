@@ -7,8 +7,9 @@
 package workflow
 
 import (
-	"regexp"
 	"strings"
+
+	yaml "go.yaml.in/yaml/v3"
 )
 
 // Repair is a workflow as this binary would write it.
@@ -119,31 +120,91 @@ func joinCommentBlocks(content string) (string, []string) {
 	return without(rows, drop, content)
 }
 
-// guardedKey matches the job key the org's gate reserves.
-var guardedKey = regexp.MustCompile(`^(\s*)` + regexp.QuoteMeta(GuardedName) + `\s*:`)
-
 // renameGuardedJob renames a job that shadows the required status, and the
 // needs entries that point at it. The name is the whole finding, so renaming it
 // is the whole repair.
 func renameGuardedJob(content string) string {
+	sites := guardedSites(content)
+	if len(sites) == 0 {
+		return content
+	}
 	rows := lines(content)
 	renamed := false
-	for i, row := range rows {
-		if guardedKey.MatchString(row) {
-			rows[i] = strings.Replace(row, GuardedName, replacementName, 1)
-			renamed = true
+	for _, at := range sites {
+		row := at.Line - 1
+		if row < 0 || row >= len(rows) {
+			continue
 		}
+		swapped, ok := renameAt(rows[row], at.Column-1)
+		if !ok {
+			continue
+		}
+		rows[row] = swapped
+		renamed = true
 	}
 	if !renamed {
 		return content
 	}
-	for i, row := range rows {
-		trimmed := strings.TrimSpace(row)
-		if strings.HasPrefix(trimmed, "needs:") || strings.HasPrefix(trimmed, "- ") {
-			rows[i] = strings.ReplaceAll(row, GuardedName, replacementName)
+	return strings.Join(rows, "\n") + tail(content)
+}
+
+// guardedSites answers every token naming the guarded job: the job's own key,
+// and each needs entry pointing at it.
+func guardedSites(content string) []*yaml.Node {
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+		return nil
+	}
+	jobs := mappingValue(rootOf(&doc), "jobs")
+	if jobs == nil {
+		return nil
+	}
+	var out []*yaml.Node
+	for i := 0; i+1 < len(jobs.Content); i += 2 {
+		key, job := jobs.Content[i], jobs.Content[i+1]
+		if key.Value == GuardedName {
+			out = append(out, key)
+		}
+		out = append(out, guardedNeeds(job)...)
+	}
+	return out
+}
+
+// guardedNeeds answers the needs entries of a single job that name the
+// guarded job. A single dependency is a scalar, and several are a sequence.
+func guardedNeeds(job *yaml.Node) []*yaml.Node {
+	needs := mappingValue(job, "needs")
+	if needs == nil {
+		return nil
+	}
+	if needs.Kind == yaml.ScalarNode {
+		if needs.Value == GuardedName {
+			return []*yaml.Node{needs}
+		}
+		return nil
+	}
+	var out []*yaml.Node
+	for _, entry := range needs.Content {
+		if entry.Kind == yaml.ScalarNode && entry.Value == GuardedName {
+			out = append(out, entry)
 		}
 	}
-	return strings.Join(rows, "\n") + tail(content)
+	return out
+}
+
+// renameAt swaps the guarded name for its replacement at a column the parser
+// gave, and reports whether the name was there.
+func renameAt(row string, col int) (string, bool) {
+	for _, at := range []int{col, col + 1} {
+		if at < 0 || at+len(GuardedName) > len(row) {
+			continue
+		}
+		if row[at:at+len(GuardedName)] != GuardedName {
+			continue
+		}
+		return row[:at] + replacementName + row[at+len(GuardedName):], true
+	}
+	return row, false
 }
 
 // replacementName is a job name the gate does not reserve.

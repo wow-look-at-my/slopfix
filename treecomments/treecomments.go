@@ -22,6 +22,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/grammars/rust"
 	"github.com/wow-look-at-my/slopfix/grammars/tsx"
 	"github.com/wow-look-at-my/slopfix/grammars/typescript"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // grammars maps a file extension to the grammar that parses it.
@@ -122,6 +123,7 @@ type Run []Comment
 // A run breaks where the comments stop adjoining, where the left edge moves,
 // and where a comment follows code.
 func Runs(filename, src string) []Run {
+	defer trace.Phase("treecomments/runs")()
 	var out []Run
 	for _, c := range Extract(filename, src) {
 		if n := len(out); n > 0 {
@@ -147,6 +149,7 @@ func indentOf(src string, c Comment) int {
 // A syntax error yields comments anyway: tree-sitter recovers around it, so a
 // rule still answers on a file mid-edit.
 func Extract(filename, src string) []Comment {
+	defer trace.Phase("treecomments/extract")()
 	language := languageFor(filename)
 	if language == nil {
 		return nil
@@ -155,26 +158,38 @@ func Extract(filename, src string) []Comment {
 	if !parser.SetLanguage(language) {
 		return nil
 	}
-	tree := parser.ParseString(nil, []byte(src))
-	if tree == nil {
+	root, parsed := parse(parser, src)
+	if !parsed {
 		return nil
 	}
-	root := tree.RootNode()
-	if root.IsNull() {
-		return nil
-	}
+	defer trace.Phase("treecomments/walk")()
 	var out []Comment
 	collect(root, src, &out)
 	return dropCgoPreamble(root, src, dropShebang(out))
 }
 
+// parse runs the grammar over the source and answers the root to walk, or
+// reports that there is none.
+//
+// It carries a phase name of its own because a comment rule that reads slowly
+// is usually paying for the parse under it rather than for the rule.
+func parse(parser *ts.Parser, src string) (root ts.Node, parsed bool) {
+	defer trace.Phase("treecomments/parse")()
+	tree := parser.ParseString(nil, []byte(src))
+	if tree == nil {
+		return ts.Node{}, false
+	}
+	root = tree.RootNode()
+	if root.IsNull() {
+		return ts.Node{}, false
+	}
+	return root, true
+}
+
 // dropShebang removes the interpreter line a script opens on. Every grammar
 // reads it as a comment, because it opens on the marker a single does, and a
 // repair that reflows the run beneath it welds the earliest sentence onto the
-// interpreter. The kernel then reads that whole line as the program to start,
-// and the script stops running.
-//
-// Only the top line, and only at the left edge: a `#!` anywhere else is prose.
+// interpreter.
 func dropShebang(comments []Comment) []Comment {
 	if len(comments) == 0 {
 		return comments

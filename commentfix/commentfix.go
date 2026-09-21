@@ -26,6 +26,7 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
@@ -61,6 +62,7 @@ var generatedLine = regexp.MustCompile(`^\s*(?://+|#+|/\*)?\s*Code generated .* 
 // a file that does not compile: nothing here parses the language, which is why
 // the rule answers on a tree mid-edit, before any compiler will look at it.
 func Check(filename, src string) []Hit {
+	defer trace.Phase("rule/comments-number")()
 	if IsGenerated(filename, src) {
 		return nil
 	}
@@ -92,6 +94,7 @@ func lineAndColumn(src string, at int) (line, col int) {
 //
 // The header is where the marker counts: the same words further down are prose somebody wrote. It is read off the tree, so what counts as a comment is the grammar's answer rather than a guess at a line's opening bytes, and the header ends at the earliest comment the file separates from the top with code.
 func IsGenerated(filename, src string) bool {
+	defer trace.Phase("rule/generated-marker")()
 	end := 0
 	for _, comment := range treecomments.Extract(filename, src) {
 		if strings.TrimSpace(src[end:comment.Offset]) != "" {
