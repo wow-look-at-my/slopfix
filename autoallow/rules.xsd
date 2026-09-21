@@ -37,6 +37,15 @@
     </xs:sequence>
   </xs:complexType>
 
+  <!-- Substrings that refuse the command outright, where denyArgSubstrings
+       only unmatches the rule. message= is what the caller is told instead. -->
+  <xs:complexType name="refuseArgs">
+    <xs:sequence>
+      <xs:element name="value" type="xs:string" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="message" type="xs:string" use="required"/>
+  </xs:complexType>
+
   <!-- A flag whose VALUE decides the verdict, with the value assumed when the
        flag is absent. -->
   <xs:complexType name="requireFlagValue">
@@ -60,6 +69,7 @@
       <xs:element name="requiredFlags" type="flagList"/>
       <xs:element name="flagsWithValue" type="flagList"/>
       <xs:element name="denyArgSubstrings" type="stringList"/>
+      <xs:element name="refuseArgSubstrings" type="refuseArgs"/>
       <xs:element name="allowedArgPrefixes" type="stringList"/>
       <xs:element name="requireFlagValue" type="requireFlagValue"/>
       <xs:element name="rule" type="rule"/>
@@ -95,6 +105,18 @@
         <xs:element name="allow" type="section"/>
         <xs:element name="ask" type="section"/>
         <xs:element name="deny" type="section"/>
+        <!-- A tree refused to every tool that reaches it. The text is what
+             the caller is told, and prefix= is where the refusal starts. -->
+        <xs:element name="denyPath">
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="xs:string">
+                <xs:attribute name="prefix" type="xs:string" use="required"/>
+              </xs:extension>
+            </xs:simpleContent>
+          </xs:complexType>
+        </xs:element>
+
         <xs:element name="mcpServer">
           <xs:complexType>
             <xs:sequence>

@@ -52,7 +52,21 @@ func Reads(path string) bool {
 
 // FixTree repairs every file under root with every rule and reports what it
 // did. A file is written only when a repair changed it.
-func FixTree(root string) TreeRepair {
+func FixTree(root string) TreeRepair { return FixTreeWith(root, Request{}) }
+
+// CheckTree reports what every rule makes of every file under root and writes
+// nothing, so the report a build prints names what --fix would have done.
+func CheckTree(root string) TreeRepair { return treeRun(root, Request{}, false) }
+
+// FixTreeWith is FixTree under the caller's own rule selection.
+func FixTreeWith(root string, req Request) TreeRepair { return treeRun(root, req, true) }
+
+// CheckTreeWith is CheckTree under the caller's own rule selection.
+func CheckTreeWith(root string, req Request) TreeRepair { return treeRun(root, req, false) }
+
+// treeRun walks root and answers what every rule made of each file, writing
+// each repair back when writing is asked for.
+func treeRun(root string, req Request, writing bool) TreeRepair {
 	defer trace.Phase("slopfix/fixtree")()
 
 	var out TreeRepair
@@ -63,8 +77,9 @@ func FixTree(root string) TreeRepair {
 		}
 		out.Read++
 
-		repair := Fix(Request{Path: path, Content: string(src)})
-		if repair.Changed && os.WriteFile(path, []byte(repair.Text), 0o644) == nil {
+		req.Path, req.Content = path, string(src)
+		repair := Fix(req)
+		if writing && repair.Changed && os.WriteFile(path, []byte(repair.Text), 0o644) == nil {
 			out.Repaired = append(out.Repaired, path)
 		}
 		for _, text := range repair.Removed {

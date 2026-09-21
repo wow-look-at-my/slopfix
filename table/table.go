@@ -17,6 +17,15 @@ type Test struct {
 	Out string
 }
 
+// A Detect states what one substrate reports for a line. An empty Found says
+// it reports nothing.
+type Detect struct {
+	In        string
+	Substrate string
+	Why       string
+	Found     []string
+}
+
 // Drop is a word that survives its own deletion.
 type Drop struct {
 	ID    string
@@ -65,6 +74,9 @@ type Table struct {
 
 	// Tests are the worked examples the folder states for the consumer rather than for a single entry: a line of prose,
 	Tests []Test
+
+	// Detects are what each substrate reports, for the reader rather than the repair.
+	Detects []Detect
 
 	once    sync.Once
 	lexicon *Lexicon
