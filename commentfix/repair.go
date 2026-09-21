@@ -16,7 +16,11 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
+<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/trace"
+=======
+	"github.com/wow-look-at-my/slopfix/timing"
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
@@ -35,7 +39,11 @@ type Repair struct {
 // A generated file is left alone, and so is a language the extractor has no
 // syntax for: both report no findings, so both have nothing to repair.
 func Fix(filename, src string) Repair {
+<<<<<<< HEAD
 	defer trace.Phase("repair/comments-number")()
+=======
+	defer timing.Track("repair/comments-number")()
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	if IsGenerated(filename, src) {
 		return Repair{Text: src}
 	}

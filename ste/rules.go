@@ -16,7 +16,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
+<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/trace"
+=======
+	"github.com/wow-look-at-my/slopfix/timing"
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 )
 
 // The rule IDs. A report prints the ID that found the text, and the same ID
@@ -156,7 +160,11 @@ func Check(text string, line int) []Finding {
 	return out
 }
 
+<<<<<<< HEAD
 // proseRule is a single rule under the phase name a timing run prints for it.
+=======
+// proseRule is one rule under the phase name a timing run prints for it.
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 type proseRule struct {
 	phase string
 	check func(prose string, line int) []Finding
@@ -164,12 +172,20 @@ type proseRule struct {
 
 // run reads the prose under this rule, inside the rule's own timing phase.
 func (r proseRule) run(prose string, line int) []Finding {
+<<<<<<< HEAD
 	defer trace.Phase(r.phase)()
+=======
+	defer timing.Track(r.phase)()
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	return r.check(prose, line)
 }
 
 // proseRules are the prose rules in the order a report prints them. A phase
+<<<<<<< HEAD
 // name rather than a rule ID, because the word rule reports IDs.
+=======
+// name rather than a rule ID, because the word rule reports two IDs.
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 var proseRules = []proseRule{
 	{"rule/ste-words", checkWords},
 	{"rule/ste-semicolon", checkSemicolons},
@@ -182,7 +198,11 @@ var proseRules = []proseRule{
 // link's target, and an HTML entity. A semicolon inside any of them is not a
 // sentence joiner.
 func strip(text string) string {
+<<<<<<< HEAD
 	defer trace.Phase("rule/ste-strip")()
+=======
+	defer timing.Track("rule/ste-strip")()
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	text = codeSpan.ReplaceAllString(text, " CODE ")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
 	return entity.ReplaceAllString(text, " ENTITY ")

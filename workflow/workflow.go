@@ -12,7 +12,11 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
+<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/trace"
+=======
+	"github.com/wow-look-at-my/slopfix/timing"
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 )
 
 // The rule IDs. A report prints the ID that found the text.
@@ -50,7 +54,11 @@ func Sniff(content string) bool {
 
 // Check reports every finding in a workflow or action file, in source order.
 func Check(content string) []ste.Finding {
+<<<<<<< HEAD
 	defer trace.Phase("rule/workflow")()
+=======
+	defer timing.Track("rule/workflow")()
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	out := commentBlocks(content)
 	out = append(out, allBuildsJobs(content)...)
 	out = append(out, testsInYAML(content)...)

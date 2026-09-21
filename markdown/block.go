@@ -6,7 +6,11 @@ package markdown
 import (
 	"strings"
 
+<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/trace"
+=======
+	"github.com/wow-look-at-my/slopfix/timing"
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 )
 
 // Kind names what a block is, which decides whether prose rules reach it.
@@ -50,7 +54,11 @@ func (b Block) Text() string {
 
 // Split walks the document and returns its blocks in order.
 func Split(content string) []Block {
+<<<<<<< HEAD
 	defer trace.Phase("markdown/split")()
+=======
+	defer timing.Track("markdown/split")()
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	lines := strings.Split(content, "\n")
 	var blocks []Block
 	for i := 0; i < len(lines); {

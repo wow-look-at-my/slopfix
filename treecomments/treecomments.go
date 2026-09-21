@@ -22,7 +22,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/grammars/rust"
 	"github.com/wow-look-at-my/slopfix/grammars/tsx"
 	"github.com/wow-look-at-my/slopfix/grammars/typescript"
+<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/trace"
+=======
+	"github.com/wow-look-at-my/slopfix/timing"
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 )
 
 // grammars maps a file extension to the grammar that parses it.
@@ -123,7 +127,11 @@ type Run []Comment
 // A run breaks where the comments stop adjoining, where the left edge moves,
 // and where a comment follows code.
 func Runs(filename, src string) []Run {
+<<<<<<< HEAD
 	defer trace.Phase("treecomments/runs")()
+=======
+	defer timing.Track("treecomments/runs")()
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	var out []Run
 	for _, c := range Extract(filename, src) {
 		if n := len(out); n > 0 {
@@ -149,7 +157,11 @@ func indentOf(src string, c Comment) int {
 // A syntax error yields comments anyway: tree-sitter recovers around it, so a
 // rule still answers on a file mid-edit.
 func Extract(filename, src string) []Comment {
+<<<<<<< HEAD
 	defer trace.Phase("treecomments/extract")()
+=======
+	defer timing.Track("treecomments/extract")()
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	language := languageFor(filename)
 	if language == nil {
 		return nil
@@ -162,7 +174,11 @@ func Extract(filename, src string) []Comment {
 	if !parsed {
 		return nil
 	}
+<<<<<<< HEAD
 	defer trace.Phase("treecomments/walk")()
+=======
+	defer timing.Track("treecomments/walk")()
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	var out []Comment
 	collect(root, src, &out)
 	return dropCgoPreamble(root, src, dropShebang(out))
@@ -174,7 +190,11 @@ func Extract(filename, src string) []Comment {
 // It carries a phase name of its own because a comment rule that reads slowly
 // is usually paying for the parse under it rather than for the rule.
 func parse(parser *ts.Parser, src string) (root ts.Node, parsed bool) {
+<<<<<<< HEAD
 	defer trace.Phase("treecomments/parse")()
+=======
+	defer timing.Track("treecomments/parse")()
+>>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	tree := parser.ParseString(nil, []byte(src))
 	if tree == nil {
 		return ts.Node{}, false
