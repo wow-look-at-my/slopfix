@@ -11,11 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/table"
-<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/trace"
-=======
-	"github.com/wow-look-at-my/slopfix/timing"
->>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
@@ -38,11 +34,7 @@ const IDTail = "comments/tail"
 // CheckTails reports every comment paragraph that stops mid-thought. Fix closes
 // each, so a finding here is a finding --fix answers.
 func CheckTails(filename, src string) []LengthHit {
-<<<<<<< HEAD
 	defer trace.Phase("rule/comments-tail")()
-=======
-	defer timing.Track("rule/comments-tail")()
->>>>>>> 621ca5c6b033fb5794616ec2d8f97519570cf67d
 	runs := treecomments.Runs(filename, src)
 	if len(runs) == 0 {
 		return nil
