@@ -27,6 +27,11 @@
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
 
+        <!-- A case for the file rather than for one entry, which is what a
+             rule spelled as classes rather than as entries has to assert
+             against: the repair is the whole file's, so the case is too. -->
+        <xs:element name="test" type="test"/>
+
         <!-- A word the sentence still reads without. -->
         <xs:element name="drop">
           <xs:complexType>

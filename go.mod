@@ -7,6 +7,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/wow-look-at-my/go-containers v0.0.0 // go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-tree-sitter v0.0.0 // go-toolchain:auto-branch; go-toolchain:generate=a0022f830ef0
+	github.com/wow-look-at-my/xml-validator/validator v0.0.0 // go-toolchain:auto-branch
 )
 
 require (
