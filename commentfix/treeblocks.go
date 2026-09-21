@@ -119,7 +119,7 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 	// A grammar can end a comment node on the construct it documents. Tree-sitter
 	// gives a Rust `///` run an end row of the declaration below it. Such a span
 	// carries code, and a shortened block written back over it emptied the file.
-	for end > start && !commentLine(lines[end-1]) {
+	for end > start && !opensWithMarker(lines[end-1]) {
 		end--
 	}
 	if start >= end {
@@ -135,9 +135,9 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 	return b, true
 }
 
-// commentLine reports a line that opens with a comment marker, which is what
-// bounds a span a grammar ran past the comment it was given.
-func commentLine(line string) bool {
+// opensWithMarker reports a line that starts with a comment marker, which is
+// what bounds a span a grammar ran past the comment it was given.
+func opensWithMarker(line string) bool {
 	t := strings.TrimSpace(line)
 	if t == "" {
 		return false

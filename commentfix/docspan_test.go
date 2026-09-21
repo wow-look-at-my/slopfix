@@ -18,7 +18,7 @@ func TestADocCommentSpanStopsAtTheComment(t *testing.T) {
 	} {
 		for _, b := range blocks("x.rs", src) {
 			for _, line := range b.text {
-				assert.True(t, commentLine(line) || strings.TrimSpace(line) == "",
+				assert.True(t, opensWithMarker(line) || strings.TrimSpace(line) == "",
 					"%s: the block span carries code: %q", name, line)
 			}
 		}
