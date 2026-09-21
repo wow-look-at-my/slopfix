@@ -21,6 +21,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // IDLength names this rule, on a report and on the command line alike.
@@ -57,6 +58,7 @@ type block struct {
 
 // Check reports every comment block in src that outweighs its code.
 func CheckLength(filename, src string) []LengthHit {
+	defer trace.Phase("rule/comments-length")()
 	var hits []LengthHit
 	for _, b := range blocks(filename, src) {
 		tell, over := judge(b)
@@ -77,6 +79,7 @@ func CheckLength(filename, src string) []LengthHit {
 // Fix cuts every over-long comment block back inside its budget, from the end,
 // stopping before the opening sentence.
 func FixLength(filename, src string) (string, bool) {
+	defer trace.Phase("repair/comments-length")()
 	bs := blocks(filename, src)
 	if len(bs) == 0 {
 		return src, false
