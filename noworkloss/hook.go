@@ -9,10 +9,9 @@
 //     or NotebookEdit. Bash runs things -- git, builds, tests, validation,
 //     search -- and does not author files.
 //
-// Both questions are asked of the same parsed command, which is why they live in
-// a single plugin: the shell walk, the wrapper stripping and the path
-// resolution are the same machinery, and separate copies of it would drift.
-// see docs/decision-model.md and docs/write-routes.md
+// Both are asked of the same parsed command, which is why they share a plugin:
+// the shell walk, the wrapper stripping and the path resolution are the same
+// machinery. See docs/decision-model.md and docs/write-routes.md
 package noworkloss
 
 import (

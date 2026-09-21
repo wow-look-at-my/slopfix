@@ -2,20 +2,16 @@
 // count: a number that is true today and wrong after the next commit.
 //
 // A single rule, over several substrates. A document's prose and a source
-// comment go stale the same way, and each used to carry a private copy of the
-// walk that says so. What differs is not the rule. It is how much a substrate
-// has to say before a number counts as a claim about what is here.
+// comment go stale the same way. What differs is how much a substrate has to
+// say before a number counts as a claim about what is here.
 //
 // Prose REQUIRES A FRAME. A document legitimately carries numbers that count
 // nothing -- a version, a port, an example -- so the sentence has to claim the
-// things belong here before the number is a tally. A comment REQUIRES NONE: a
-// number written beside code is nearly always a count of what the code holds,
-// so the cardinal alone is the finding, and the exemptions carry the cases that
-// are something else. The merge gate reads a document with no frame either, and
-// counts a stated value whatever noun it governs.
-//
-// Those differences are the whole reason they looked like separate rules. They
-// are fields of Substrate now, and the values sit beside each other below.
+// things belong here first. A comment REQUIRES NONE: a number written beside
+// code is nearly always a count of what the code holds, so the cardinal alone
+// is the finding and the exemptions carry the rest. The merge gate reads a
+// document with no frame either. Those differences are fields of Substrate,
+// and the values sit beside each other below.
 package cardinal
 
 import (

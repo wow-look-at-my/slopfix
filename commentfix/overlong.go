@@ -1,18 +1,15 @@
 // overlong.go finds a comment longer than the code it documents.
 //
-// A comment earns its place by stopping the next mistake. A comment that runs
-// longer than the code becomes an essay, and the reader pays for it on every
-// pass through the file. The rule is a proxy rather than a judgement of
-// content: length is what a machine can measure.
+// A comment earns its place by stopping the next mistake. One longer than the
+// code it documents becomes an essay the reader pays for on every pass. The
+// rule is a proxy rather than a judgement of content: length is measurable.
 //
-// It reads a real syntax tree, so a span is exact rather than guessed, and the
-// same code serves every grammar in treeblocks.go. Nothing here names a
-// language.
+// It reads a real syntax tree, so a span is exact rather than guessed, and
+// treeblocks.go serves every grammar. Nothing here names a language.
 //
-// The repair is to cut, from the end. A comment leads with its point and
-// elaborates afterwards, so the trailing paragraph is what a reader loses least
-// by losing. The opening sentence is never cut: a block trimmed to nothing is a
-// worse edit than a block left long.
+// The repair cuts from the end, because a comment leads with its point. The
+// opening sentence is never cut: a block trimmed to nothing is a worse edit
+// than a block left long.
 package commentfix
 
 import (

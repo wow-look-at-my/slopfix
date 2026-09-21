@@ -1,23 +1,17 @@
 // Package commentfix finds a number stated in a comment.
 //
-// A number in a comment is a count of what exists today, and the edit that adds
-// an item leaves it wrong. Nothing recompiles a comment, so the stale sentence
-// survives every build. Describing what the code does, and letting the reader
-// count, is the repair.
+// A number in a comment counts what exists today, and the edit that adds an
+// item leaves it wrong. Nothing recompiles a comment, so describing what the
+// code does and letting the reader count is the repair.
 //
-// The rule reads the comments and nothing else. The source package finds them
-// by walking the bytes rather than by parsing the language, which is what lets
-// the check answer before a compiler starts, on a tree that does not compile at
-// all.
+// The rule reads the comments and nothing else, which is what lets it answer
+// before a compiler starts, on a tree that does not compile at all. The
+// generated-file marker and the directive form are the Go-specific parts.
 //
-// The generated-file marker and the directive form are the Go-specific parts.
-// Everything else applies to every language the adapter knows.
-//
-// This package is the comment substrate of a rule the document substrate
-// shares. Which numbers count lives in cardinal, beside the prose policy, which
-// demands a frame before it reads a number as a tally. What is here is the
-// comment: where it sits, which of its lines a reader was written for, and
-// where a finding lands on the screen.
+// This is the comment substrate of a rule the document substrate shares. Which
+// numbers count lives in cardinal, beside the prose policy that demands a frame
+// first. What is here is the comment: where it sits, which of its lines a
+// reader was written for, and where a finding lands on the screen.
 package commentfix
 
 import (

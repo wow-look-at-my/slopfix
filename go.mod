@@ -7,6 +7,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/wow-look-at-my/go-containers v0.0.0 // go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-tree-sitter v0.0.0 // go-toolchain:auto-branch; go-toolchain:generate=a0022f830ef0
+	github.com/wow-look-at-my/xml-validator/validator v0.0.0 // go-toolchain:auto-branch
 )
 
 require (
@@ -19,6 +20,7 @@ require (
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.20.0 // indirect
+	github.com/wow-look-at-my/xml-validator/reader v0.0.0 // indirect
 )
 
 replace mvdan.cc/sh/v3 v3.14.1 => github.com/mvdan/sh/v3 v3.14.1

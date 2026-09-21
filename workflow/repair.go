@@ -9,6 +9,8 @@ package workflow
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
 
@@ -56,21 +58,63 @@ func ungate(content string) (string, []string) {
 	if len(findings) == 0 {
 		return content, nil
 	}
-	rows := lines(content)
-	drop := make(map[int]bool)
+	drop := gateRows(content, findings)
+	if drop.IsEmpty() {
+		return content, nil
+	}
+	return without(lines(content), drop, content)
+}
+
+// gateRows answers the row each named step's continue-on-error sits on, read
+// off the parser's own positions. Walking the text for the step's extent
+// instead asks an indent to say where a step ends, and a block scalar holding
+// a deeper line then ends it early.
+func gateRows(content string, findings []ste.Finding) set.Set[int] {
+	drop := set.New[int]()
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+		return drop
+	}
+	jobs := mappingValue(rootOf(&doc), "jobs")
+	if jobs == nil {
+		return drop
+	}
+	named := set.New[int]()
 	for _, f := range findings {
-		open := stepOpen.FindStringSubmatch(rows[f.Line-1])
-		indent := len(open[1])
-		for j := f.Line - 1; j < len(rows); j++ {
-			if next := listItem.FindStringSubmatch(rows[j]); j > f.Line-1 && next != nil && len(next[1]) <= indent {
-				break
+		named.Add(f.Line)
+	}
+	for i := 0; i+1 < len(jobs.Content); i += 2 {
+		steps := mappingValue(jobs.Content[i+1], "steps")
+		if steps == nil || steps.Kind != yaml.SequenceNode {
+			continue
+		}
+		for _, step := range steps.Content {
+			if !named.Contains(step.Line) {
+				continue
 			}
-			if allowedToFail.MatchString(rows[j]) {
-				drop[j] = true
+			if key := mappingKey(step, allowedToFailKey); key != nil {
+				drop.Add(key.Line - 1)
 			}
 		}
 	}
-	return without(rows, drop, content)
+	return drop
+}
+
+// allowedToFailKey is the key a gate hides behind.
+const allowedToFailKey = "continue-on-error"
+
+// mappingKey answers the key node itself, where mappingValue answers what it
+// carries. A repair needs the key's own line, because the key is the line.
+func mappingKey(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i]
+		}
+	}
+	return nil
 }
 
 // untest deletes the assertion lines a run: script carries, and the caller
@@ -82,10 +126,10 @@ func untest(content string) (string, []string) {
 		return content, nil
 	}
 	rows := lines(content)
-	drop := make(map[int]bool)
+	drop := set.New[int]()
 	for _, f := range findings {
 		if f.Line-1 < len(rows) {
-			drop[f.Line-1] = true
+			drop.Add(f.Line - 1)
 		}
 	}
 	return without(rows, drop, content)
@@ -99,7 +143,7 @@ func joinCommentBlocks(content string) (string, []string) {
 		return content, nil
 	}
 	rows := lines(content)
-	drop := make(map[int]bool)
+	drop := set.New[int]()
 	for _, f := range findings {
 		var said []string
 		for j := f.Line - 1; j < f.EndLine && j < len(rows); j++ {
@@ -111,7 +155,7 @@ func joinCommentBlocks(content string) (string, []string) {
 				said = append(said, rest)
 			}
 			if j > f.Line-1 {
-				drop[j] = true
+				drop.Add(j)
 			}
 		}
 		indent := rows[f.Line-1][:len(rows[f.Line-1])-len(strings.TrimLeft(rows[f.Line-1], " \t"))]
@@ -211,10 +255,10 @@ func renameAt(row string, col int) (string, bool) {
 const replacementName = "builds"
 
 // without drops the marked lines and reports what went.
-func without(rows []string, drop map[int]bool, content string) (string, []string) {
+func without(rows []string, drop set.Set[int], content string) (string, []string) {
 	var kept, removed []string
 	for i, row := range rows {
-		if drop[i] {
+		if drop.Contains(i) {
 			removed = append(removed, strings.TrimSpace(row))
 			continue
 		}
