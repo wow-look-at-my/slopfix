@@ -1,6 +1,7 @@
 package commentfix
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,8 @@ const innerDoc = "//! An explanation that runs well past the declaration below i
 
 func TestAnInnerDocMarkerIsNotProse(t *testing.T) {
 	for _, hit := range CheckLength("x.rs", innerDoc) {
-		assert.NotContains(t, hit.Message, "! ", "the marker reached the prose: %s", hit.Message)
+		assert.False(t, strings.HasPrefix(hit.Sentence, "!"),
+			"the marker reached the prose: %s", hit.Sentence)
 	}
 }
 
