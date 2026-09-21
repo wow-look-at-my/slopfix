@@ -15,6 +15,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -53,7 +54,9 @@ func Format(content string) (string, bool) {
 // A workflow and an action manifest are judged by the workflow rules, and every
 // other file by the prose rules.
 func CheckFile(path string) ([]ste.Finding, error) {
+	read := trace.Phase("io/read")
 	content, err := os.ReadFile(path)
+	read()
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +66,7 @@ func CheckFile(path string) ([]ste.Finding, error) {
 // CheckContent reports the findings in text headed for path. The PATH decides:
 // a Go file's lines are not paragraphs, so the prose rules skip it.
 func CheckContent(path, content string) []ste.Finding {
+	defer trace.Phase("check/file")()
 	if isWorkflow(path, content) {
 		return workflow.Check(content)
 	}

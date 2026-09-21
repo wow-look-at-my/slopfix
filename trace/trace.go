@@ -12,6 +12,7 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -23,12 +24,18 @@ var (
 	totals = map[string]time.Duration{}
 	counts = map[string]int{}
 
+	// asked records a caller that turned tracing on without the environment.
+	asked atomic.Bool
+
 	// out is stderr, and a test points it elsewhere.
 	out io.Writer = os.Stderr
 )
 
 // On reports whether tracing is enabled.
-func On() bool { return os.Getenv(EnvVar) != "" }
+func On() bool { return asked.Load() || os.Getenv(EnvVar) != "" }
+
+// Enable turns tracing on for the rest of the process, for a caller.
+func Enable() { asked.Store(true) }
 
 // Phase times a span of work.
 func Phase(name string) func() {
