@@ -21,8 +21,8 @@ var schemaLocation = regexp.MustCompile(`noNamespaceSchemaLocation="([^"]+)"`)
 var borrowedTrees = set.Of(".claude", "testdata", "node_modules")
 
 // TestEveryXMLNamesASchemaAndMeetsIt walks the repository, because a rule file
-// that names no schema is one nothing checks, and a schema the document has
-// outgrown says a document is wrong when the schema is.
+// that names no schema goes unchecked, and a schema the document has outgrown
+// says a document is wrong when the schema is.
 func TestEveryXMLNamesASchemaAndMeetsIt(t *testing.T) {
 	found := 0
 	err := filepath.WalkDir(".", func(path string, entry fs.DirEntry, err error) error {

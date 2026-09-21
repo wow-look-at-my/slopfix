@@ -75,11 +75,12 @@ var Gate = Substrate{
 	quantity: gateQuantity,
 }
 
-// Comment is a comment in a source file. It asks for no frame either, so every
-// exemption a number can earn has to be named here.
+// Comment is a comment in a source file. It reads digits as well as words, and
+// asks for the same frame a document does: a comment saying what the code does
+// states arithmetic, and `adds three numbers` is not a count that goes stale.
 var Comment = Substrate{
 	Shape:       Number,
-	Frame:       false,
+	Frame:       true,
 	Words:       commentWords,
 	ExemptToken: []TokenExemption{HTTPStatus, ExitStatus, Literal, SectionRef, Money, Quoted},
 }
@@ -88,7 +89,17 @@ var Comment = Substrate{
 func Find(text string, s Substrate) []Token {
 	switch {
 	case s.Shape == Number:
-		return walk(text, s)
+		found := walk(text, s)
+		if !s.Frame {
+			return found
+		}
+		var governed []Token
+		for _, token := range found {
+			if Governs(text, token.Offset, token.Offset+len(token.Text)) {
+				governed = append(governed, token)
+			}
+		}
+		return governed
 	case s.Frame:
 		return framed(text, s)
 	}

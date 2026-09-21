@@ -127,6 +127,17 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 	found := false
 	for _, path := range args {
+		info, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+		// A directory is the whole tree under it, which is what a build names.
+		if info.IsDir() {
+			if treeFindings(cmd, path, request, repairing) {
+				found = true
+			}
+			continue
+		}
 		repair, err := repairOf(path, request, repairing)
 		if err != nil {
 			return err
@@ -140,6 +151,25 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		return errFindings
 	}
 	return nil
+}
+
+// Repairing, each file that changed is named as it is written.
+func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repairing bool) bool {
+	walk := slopfix.CheckTreeWith
+	if repairing {
+		walk = slopfix.FixTreeWith
+	}
+	out := walk(root, request)
+	for _, path := range out.Repaired {
+		fmt.Fprintln(cmd.OutOrStdout(), path)
+	}
+	for _, finding := range out.Findings {
+		fmt.Fprintf(cmd.OutOrStdout(), "%s:%s\n", finding.Path, finding.Finding)
+	}
+	for _, kept := range out.Kept {
+		fmt.Fprintf(cmd.ErrOrStderr(), "%s:%d: [%s] %s: %q\n", kept.Path, kept.LineNo, kept.ID, kept.Tell, kept.Phrase)
+	}
+	return len(out.Findings) > 0 || len(out.Kept) > 0
 }
 
 // checkStdin answers for a document on stdin rather than a named file.

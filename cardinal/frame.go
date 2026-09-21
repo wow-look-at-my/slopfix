@@ -47,6 +47,34 @@ var deicticFrame = regexp.MustCompile(
 
 var frames = []*regexp.Regexp{possessiveFrame, havingFrame, deicticFrame}
 
+// frameLead is a frame with the quantity taken off the end, so it can be asked
+// of the text before a number the walk already found. The alternation is the
+// alternation the frames spell, and the trailing anchor is what makes a match
+// mean the quantity came next.
+var frameLead = regexp.MustCompile(
+	`(?i)(?:(?:this|these|our|the)\s+(?:[a-z][a-z-]*\s+){0,2}?[a-z][a-z-]*'s` +
+		`|` + words("framing") +
+		`|(?:` + words("durative") + `)\s+(?:` + words("duration") + `)` +
+		`|(?:` + words("existential") + `)\s+(?:` + words("existence") + `)` +
+		`)\s+(?:(?:` + words("hedge") + `)\s+)?$`)
+
+// deicticTail points inside the document from after the quantity, as in
+// `the three rules below`.
+var deicticTail = regexp.MustCompile(`(?i)^\s+(?:\S+\s+){0,2}?(?:` + words("deictic") + `)\b`)
+
+// deicticHead is the determiner a deictic frame opens with.
+var deicticHead = regexp.MustCompile(`(?i)\b(?:the|these|those)\s+$`)
+
+// Governs reports whether a frame claims the things counted at text[at:end]
+// are here. A number nothing frames counts nothing, so it stays.
+func Governs(text string, at, end int) bool {
+	before, after := text[:at], text[end:]
+	if frameLead.MatchString(before) {
+		return true
+	}
+	return deicticHead.MatchString(before) && deicticTail.MatchString(after)
+}
+
 // framed returns every quantity a frame governs, without repeating a phrase.
 //
 // The frames are read in turn, so the same phrase can match several of them. A
