@@ -1,4 +1,4 @@
-module github.com/wow-look-at-my/slopfix
+module github.com/wow-look-at-my/slopfix // go-toolchain:generate=165003bec91c
 
 go 1.26.0
 
