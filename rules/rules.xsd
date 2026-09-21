@@ -32,6 +32,24 @@
              against: the repair is the whole file's, so the case is too. -->
         <xs:element name="test" type="test"/>
 
+        <!-- What one substrate reports for a line, before any repair runs.
+             Each <found> names a phrase the reader must report, in the order
+             they appear; no children says it reports nothing. -->
+        <xs:element name="detect">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="found" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:attribute name="text" type="xs:string" use="required"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="in" type="xs:string" use="required"/>
+            <xs:attribute name="substrate" type="xs:string" use="required"/>
+            <xs:attribute name="why" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+
         <!-- A word the sentence still reads without. -->
         <xs:element name="drop">
           <xs:complexType>
