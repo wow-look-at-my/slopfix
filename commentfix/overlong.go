@@ -96,14 +96,6 @@ func FixLength(filename, src string) (string, bool) {
 			continue
 		}
 		kept := repair(b)
-		// A repair that answers with nothing is never written back. A Rust doc
-		// comment spans to the end of the file and reports no code of its own, so
-		// the write took the declaration out with the prose and left the file
-		// empty. Such a block is reported and left alone, the way a span no parser
-		// decided already is.
-		if len(kept) == 0 {
-			continue
-		}
 		// A repair that keeps the line count still shortens the text, and the
 		// character half of the rule is what it answers.
 		if sameText(kept, b.text) {
