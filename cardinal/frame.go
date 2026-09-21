@@ -12,11 +12,17 @@ import (
 )
 
 // quantity is the shape a frame governs. quantity.go spells it.
-const quantity = proseQuantity
+var quantity = proseQuantity
 
-// words alternates a class of english-frames.xml, for a pattern built at load.
+// words alternates a named class, for a pattern built at load. An empty class
+// would alternate nothing and match everywhere, so a name no rules file
+// carries stops the program where the typo is.
 func words(class string) string {
-	return strings.Join(numbersTable.WordsOf(class), "|")
+	listed := numbersTable.WordsOf(class)
+	if len(listed) == 0 {
+		panic("cardinal: no rules file carries the class " + class)
+	}
+	return strings.Join(listed, "|")
 }
 
 // possessiveFrame is a determiner claiming the things belong here, as in "this

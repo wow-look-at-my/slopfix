@@ -16,7 +16,7 @@ import (
 )
 
 // proseQuantity is the inventory-count spelling: a plural cardinal, up
-const proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
+var proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
 	`\s+(?:[a-z][a-z-]*\s+){0,3}?[a-z][a-z-]{2,}s\b`
 
 // gateQuantity is the merge gate's spelling. It reads a shorter list of words,
