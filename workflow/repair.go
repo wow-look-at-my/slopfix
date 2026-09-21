@@ -59,7 +59,7 @@ func ungate(content string) (string, []string) {
 		return content, nil
 	}
 	drop := gateRows(content, findings)
-	if len(drop) == 0 {
+	if drop.IsEmpty() {
 		return content, nil
 	}
 	return without(lines(content), drop, content)
@@ -69,20 +69,20 @@ func ungate(content string) (string, []string) {
 // off the parser's own positions. Walking the text for the step's extent
 // instead asks an indent to say where a step ends, and a block scalar holding
 // a deeper line then ends it early.
-func gateRows(content string, findings []ste.Finding) map[int]bool {
+func gateRows(content string, findings []ste.Finding) set.Set[int] {
+	drop := set.New[int]()
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
-		return nil
+		return drop
 	}
 	jobs := mappingValue(rootOf(&doc), "jobs")
 	if jobs == nil {
-		return nil
+		return drop
 	}
 	named := set.New[int]()
 	for _, f := range findings {
 		named.Add(f.Line)
 	}
-	drop := make(map[int]bool)
 	for i := 0; i+1 < len(jobs.Content); i += 2 {
 		steps := mappingValue(jobs.Content[i+1], "steps")
 		if steps == nil || steps.Kind != yaml.SequenceNode {
@@ -93,7 +93,7 @@ func gateRows(content string, findings []ste.Finding) map[int]bool {
 				continue
 			}
 			if key := mappingKey(step, allowedToFailKey); key != nil {
-				drop[key.Line-1] = true
+				drop.Add(key.Line - 1)
 			}
 		}
 	}
@@ -126,10 +126,10 @@ func untest(content string) (string, []string) {
 		return content, nil
 	}
 	rows := lines(content)
-	drop := make(map[int]bool)
+	drop := set.New[int]()
 	for _, f := range findings {
 		if f.Line-1 < len(rows) {
-			drop[f.Line-1] = true
+			drop.Add(f.Line - 1)
 		}
 	}
 	return without(rows, drop, content)
@@ -143,7 +143,7 @@ func joinCommentBlocks(content string) (string, []string) {
 		return content, nil
 	}
 	rows := lines(content)
-	drop := make(map[int]bool)
+	drop := set.New[int]()
 	for _, f := range findings {
 		var said []string
 		for j := f.Line - 1; j < f.EndLine && j < len(rows); j++ {
@@ -155,7 +155,7 @@ func joinCommentBlocks(content string) (string, []string) {
 				said = append(said, rest)
 			}
 			if j > f.Line-1 {
-				drop[j] = true
+				drop.Add(j)
 			}
 		}
 		indent := rows[f.Line-1][:len(rows[f.Line-1])-len(strings.TrimLeft(rows[f.Line-1], " \t"))]
@@ -255,10 +255,10 @@ func renameAt(row string, col int) (string, bool) {
 const replacementName = "builds"
 
 // without drops the marked lines and reports what went.
-func without(rows []string, drop map[int]bool, content string) (string, []string) {
+func without(rows []string, drop set.Set[int], content string) (string, []string) {
 	var kept, removed []string
 	for i, row := range rows {
-		if drop[i] {
+		if drop.Contains(i) {
 			removed = append(removed, strings.TrimSpace(row))
 			continue
 		}
