@@ -9,6 +9,7 @@ package workflow
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
 
@@ -56,21 +57,63 @@ func ungate(content string) (string, []string) {
 	if len(findings) == 0 {
 		return content, nil
 	}
-	rows := lines(content)
-	drop := make(map[int]bool)
+	drop := gateRows(content, findings)
+	if len(drop) == 0 {
+		return content, nil
+	}
+	return without(lines(content), drop, content)
+}
+
+// gateRows answers the row each named step's continue-on-error sits on, read
+// off the parser's own positions. Walking the text for the step's extent
+// instead asks an indent to say where a step ends, and a block scalar holding
+// a deeper line then ends it early.
+func gateRows(content string, findings []ste.Finding) map[int]bool {
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+		return nil
+	}
+	jobs := mappingValue(rootOf(&doc), "jobs")
+	if jobs == nil {
+		return nil
+	}
+	named := make(map[int]bool, len(findings))
 	for _, f := range findings {
-		open := stepOpen.FindStringSubmatch(rows[f.Line-1])
-		indent := len(open[1])
-		for j := f.Line - 1; j < len(rows); j++ {
-			if next := listItem.FindStringSubmatch(rows[j]); j > f.Line-1 && next != nil && len(next[1]) <= indent {
-				break
+		named[f.Line] = true
+	}
+	drop := make(map[int]bool)
+	for i := 0; i+1 < len(jobs.Content); i += 2 {
+		steps := mappingValue(jobs.Content[i+1], "steps")
+		if steps == nil || steps.Kind != yaml.SequenceNode {
+			continue
+		}
+		for _, step := range steps.Content {
+			if !named[step.Line] {
+				continue
 			}
-			if allowedToFail.MatchString(rows[j]) {
-				drop[j] = true
+			if key := mappingKey(step, allowedToFailKey); key != nil {
+				drop[key.Line-1] = true
 			}
 		}
 	}
-	return without(rows, drop, content)
+	return drop
+}
+
+// allowedToFailKey is the key a gate hides behind.
+const allowedToFailKey = "continue-on-error"
+
+// mappingKey answers the key node itself, where mappingValue answers what it
+// carries. A repair needs the key's own line, because the key is the line.
+func mappingKey(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i]
+		}
+	}
+	return nil
 }
 
 // untest deletes the assertion lines a run: script carries, and the caller
