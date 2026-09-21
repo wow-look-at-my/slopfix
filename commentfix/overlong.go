@@ -96,6 +96,12 @@ func FixLength(filename, src string) (string, bool) {
 			continue
 		}
 		kept := repair(b)
+		// The repair answered this block with nothing while the block documents
+		// code. Writing that back takes the declaration out with the prose, so
+		// the block is reported and left alone instead.
+		if len(kept) == 0 && b.codeLines > 0 {
+			continue
+		}
 		// A repair that keeps the line count still shortens the text, and the
 		// character half of the rule is what it answers.
 		if sameText(kept, b.text) {
