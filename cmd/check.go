@@ -24,17 +24,22 @@ func init() {
 	check := &cobra.Command{
 		Use:   "check [--fix] <file>...",
 		Short: "Report what every rule rejects, and with --fix repair what it can",
-		Args:  cobra.MinimumNArgs(1),
-		RunE:  runCheck,
+		// The names the rules answered to one at a time. A file decides which
+		// rules read it, so asking by name selected nothing this does not.
+		Aliases: []string{"comments", "workflows", "fix"},
+		Args:    cobra.MinimumNArgs(1),
+		RunE:    runCheck,
 	}
 	check.Flags().BoolVar(&checkFix, "fix", false, "write the repair back to each file")
 	rootCmd.AddCommand(check)
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
+	// Invoked as "fix", the repair is what was asked for, flag or no flag.
+	repairing := checkFix || cmd.CalledAs() == "fix"
 	found := false
 	for _, path := range args {
-		if checkFix {
+		if repairing {
 			repair, err := slopfix.FixFile(path)
 			if err != nil {
 				return err

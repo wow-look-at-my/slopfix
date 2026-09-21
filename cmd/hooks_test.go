@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -21,7 +22,8 @@ var cmdMu sync.Mutex
 func find(t *testing.T, name string) *cobra.Command {
 	t.Helper()
 	for _, c := range rootCmd.Commands() {
-		if c.Name() == name {
+		// An alias is a name a launcher may still exec, so it answers here too.
+		if c.Name() == name || slices.Contains(c.Aliases, name) {
 			return c
 		}
 	}
