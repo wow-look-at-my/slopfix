@@ -6,6 +6,7 @@ package cardinal
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
 )
@@ -13,29 +14,30 @@ import (
 // quantity is the shape a frame governs. quantity.go spells it.
 const quantity = proseQuantity
 
+// words alternates a class of english-frames.xml, for a pattern built at load.
+func words(class string) string {
+	return strings.Join(numbersTable.WordsOf(class), "|")
+}
+
 // possessiveFrame is a determiner claiming the things belong here, as in "this
 // repo's plugins" or "the payload's steps".
 var possessiveFrame = regexp.MustCompile(
 	`(?i)\b(?:this|these|our|the)\s+(?:[a-z][a-z-]*\s+){0,2}?[a-z][a-z-]*'s\s+(` + quantity + `)`)
 
 // havingFrame is a verb asserting possession or extent, as in "it ships hooks"
-// or "there are sections". A reporting verb belongs here too: a document that
-// says what something MEASURES, TAKES or COSTS has written a reading down, and
-// the reading moves. A measurement inside a frame is a count like any other: a
-// budget gets raised and a suite gets slower, and it reads with more authority
-// than a tally because an instrument looks to have produced it.
+// or "there are sections". A measurement inside a frame is a count like any
+// other: a budget gets raised and a suite gets slower, and it reads with more
+// authority than a tally because an instrument looks to have produced it.
 var havingFrame = regexp.MustCompile(
-	`(?i)\b(?:has|have|had|holds?|ships?|carries|carry|contains?|covers?|` +
-		`includes?|lists?|defines?|registers?|installs?|answers?|serves?|` +
-		`provides?|exposes?|declares?|embeds?|bundles?|comprises?|spans?|` +
-		`measures?|measured|takes?|took|costs?|needs?|uses?|used|` +
-		`runs?\s+(?:in|for)|completes?\s+in|finishes(?:\s+in)?|` +
-		`there\s+(?:are|were))\s+(?:only\s+|just\s+|exactly\s+|all\s+|about\s+|roughly\s+|around\s+|under\s+|over\s+)?(` + quantity + `)`)
+	`(?i)\b(?:` + words("framing") +
+		`|(?:` + words("durative") + `)\s+(?:` + words("duration") + `)` +
+		`|(?:` + words("existential") + `)\s+(?:` + words("existence") + `)` +
+		`)\s+(?:(?:` + words("hedge") + `)\s+)?(` + quantity + `)`)
 
 // deicticFrame points inside the document, as in "the rules below". The count
 // is of what this page shows, so editing the page breaks it.
 var deicticFrame = regexp.MustCompile(
-	`(?i)\b(?:the|these|those)\s+(` + quantity + `)\s+(?:\S+\s+){0,2}?(?:below|above|here)\b`)
+	`(?i)\b(?:the|these|those)\s+(` + quantity + `)\s+(?:\S+\s+){0,2}?(?:` + words("deictic") + `)\b`)
 
 var frames = []*regexp.Regexp{possessiveFrame, havingFrame, deicticFrame}
 
