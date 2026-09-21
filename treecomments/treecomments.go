@@ -169,8 +169,8 @@ func Extract(filename, src string) []Comment {
 }
 
 // dropShebang removes the interpreter line a script opens on. Every grammar
-// reads it as a comment, because it opens on the marker one does, and a repair
-// that reflows the run beneath it welds the first sentence onto the
+// reads it as a comment, because it opens on the marker a single does, and a
+// repair that reflows the run beneath it welds the earliest sentence onto the
 // interpreter. The kernel then reads that whole line as the program to start,
 // and the script stops running.
 //

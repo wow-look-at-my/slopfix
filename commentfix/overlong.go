@@ -162,7 +162,7 @@ func measure(text []string) (lines, chars int) {
 // bareMarkerLine reports a comment line holding a marker and nothing else.
 func bareMarkerLine(line string) bool {
 	switch strings.TrimSpace(line) {
-	case "//", "///", "#", "*", "/*", "*/":
+	case "//", "///", "//!", "#", "*", "/*", "*/":
 		return true
 	}
 	return false
@@ -475,7 +475,7 @@ func dropParagraph(text []string) ([]string, bool) {
 // comment block spells a paragraph break.
 func isBlankComment(line string) bool {
 	t := strings.TrimSpace(line)
-	for _, marker := range []string{"//", "#", "*"} {
+	for _, marker := range []string{"//!", "//", "#", "*"} {
 		if t == marker {
 			return true
 		}

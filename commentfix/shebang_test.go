@@ -10,7 +10,7 @@ import (
 
 // A shebang is the kernel's line, not prose. A grammar reads it as a comment
 // because it opens on the marker, so a repair that reflows the run beneath it
-// welds the first sentence onto the interpreter and the file stops running.
+// welds the earliest sentence onto the interpreter and the file stops running.
 func TestTheRepairLeavesAShebangAlone(t *testing.T) {
 	src := "#!/usr/bin/env bash\n" +
 		"# Provisions bubblewrap on a Linux runner. Two phases need it. The dats phase\n" +

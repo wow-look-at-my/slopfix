@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+// docMarkers is longest-earliest: `//!` must be tried before `//`, or Rust's inner
+// doc marker matches `//` and leaves its `!` in the prose.
+var docMarkers = []string{"///", "//!", "//", "#"}
+
 // paragraph is a run of comment lines, or the blank marker between runs.
 type paragraph struct {
 	lines    []string
@@ -18,7 +22,7 @@ type paragraph struct {
 // opens with a tab, which is how a doc comment spells a code block.
 func codeRow(line string) bool {
 	t := strings.TrimLeft(line, " \t")
-	for _, m := range []string{"///", "//", "#"} {
+	for _, m := range docMarkers {
 		if rest, found := strings.CutPrefix(t, m); found {
 			return strings.HasPrefix(rest, "\t")
 		}
@@ -36,7 +40,7 @@ func commentShape(text []string) (marker, indent string, ok bool) {
 	first := text[0]
 	trimmed := strings.TrimLeft(first, " \t")
 	indent = first[:len(first)-len(trimmed)]
-	for _, m := range []string{"///", "//", "#"} {
+	for _, m := range docMarkers {
 		if strings.HasPrefix(trimmed, m) {
 			marker = m
 			break
@@ -95,7 +99,7 @@ func paragraphs(text []string) []paragraph {
 // stripMarker removes the indent and comment marker, leaving the prose.
 func stripMarker(line string) string {
 	t := strings.TrimSpace(line)
-	for _, m := range []string{"///", "//", "#"} {
+	for _, m := range docMarkers {
 		if rest, found := strings.CutPrefix(t, m); found {
 			return strings.TrimSpace(rest)
 		}

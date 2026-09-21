@@ -369,7 +369,7 @@ func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	if rest, closed := strings.CutPrefix(trimmed, "*/"); closed && strings.TrimSpace(rest) == "" {
 		return indent, "", "*/", true
 	}
-	for _, m := range []string{"///", "//", "/*", "#", "*"} {
+	for _, m := range []string{"///", "//!", "//", "/*", "#", "*"} {
 		rest, found := strings.CutPrefix(trimmed, m)
 		if !found {
 			continue
@@ -405,7 +405,7 @@ func dropEmptied(src string, emptied map[int]bool) string {
 // bareMarker reports whether the line carries a comment marker and nothing else.
 func bareMarker(line string) bool {
 	switch strings.TrimSpace(line) {
-	case "//", "///", "#", "*":
+	case "//", "///", "//!", "#", "*":
 		return true
 	}
 	return false
