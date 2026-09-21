@@ -81,7 +81,7 @@ var Comment = Substrate{
 	Shape:       Number,
 	Frame:       false,
 	Words:       commentWords,
-	ExemptToken: []TokenExemption{HTTPStatus, ExitStatus, Literal, SectionRef, Money},
+	ExemptToken: []TokenExemption{HTTPStatus, ExitStatus, Literal, SectionRef, Money, Quoted},
 }
 
 // Find returns every stated count the text carries, under that substrate.

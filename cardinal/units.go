@@ -1,7 +1,7 @@
 // units.go answers whether a word names a unit of measure.
 //
 // A measurement is still a stated count and still reported. What separates it
-// is the repair: the tally rule rewrites "goroutines" to "goroutines", and
+// is the repair: the tally rule rewrites "two goroutines" to "goroutines", and
 // doing that to "30 seconds" leaves a sentence with no magnitude in it. A word
 // added there needs no Go.
 package cardinal
