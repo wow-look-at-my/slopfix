@@ -17,8 +17,10 @@
   <test in="The gate is shut; the write fails." out="The gate is shut. The write fails."/>
   <test in="The gate is shut;" out="The gate is shut."/>
 
-  <test in="The gate is shut, so the write fails." out="The gate is shut. So the write fails."/>
-  <test in="A caller waits, and it might fail." out="A caller waits. And it can fail."/>
+  <test in="The gate is shut, so the write fails." out="The gate is shut. As a result, the write fails."/>
+  <test in="A caller waits, and it might fail." out="A caller waits. It can fail."/>
+  <test in="The gate is shut, but the write still lands." out="The gate is shut. However, the write still lands."/>
+  <test in="The gate is shut, then the write fails." out="The gate is shut. Then the write fails."/>
   <test in="Under the gate, the write fails." out="Under the gate, the write fails."/>
   <test in="The rules cover a semicolon, a modal, and a splice."
         out="The rules cover a semicolon, a modal, and a splice."/>
@@ -29,11 +31,35 @@
         out="The [it is](https://x/it's) page is not prose."/>
 
   <test in="The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."
-        out="The gate reads every file in the session. And refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."/>
+        out="The gate reads every file in the session. The gate refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."/>
   <test in="The loader opens the file and reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs."
-        out="The loader opens the file and reads every row it holds into memory. Which is the whole reason a caller waits on it before the header check runs."/>
+        out="The loader opens the file and reads every row it holds into memory. This is the whole reason a caller waits on it before the header check runs."/>
   <test in="The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own."
         out="The gate reads every file in the session. The write fails when any one of them carries a finding that a rewrite cannot repair on its own."/>
+
+  <test in="The build fails on every runner in the fleet whenever the cache holds a stale tree because the key names the lockfile and nothing else in the checkout."
+        out="The build fails on every runner in the fleet whenever the cache holds a stale tree. This is because the key names the lockfile and nothing else in the checkout."/>
+  <test in="Write a period in place of the comma that joins the clauses and start the next sentence with a capital so the reader sees where each thought ends."
+        out="Write a period in place of the comma that joins the clauses. Start the next sentence with a capital so the reader sees where each thought ends."/>
+  <test in="The long list of every cached artifact in the store reads the index from disk and writes a fresh copy of it back whenever an entry changes its hash."
+        out="The long list of every cached artifact in the store reads the index from disk. It writes a fresh copy of it back whenever an entry changes its hash."/>
+
+  <!-- No clause boundary: the sentence stays whole, and Check reports it. -->
+  <test in="A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
+        out="A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."/>
+
+  <!-- A numeral between a determiner and its noun restates a count. -->
+  <test in="The three rules run on every file." out="The rules run on every file."/>
+  <test in="Its four fields hold the header." out="Its fields hold the header."/>
+  <test in="The repository's two branches build." out="The repository's branches build."/>
+  <test in="These 12 checks gate the merge." out="These checks gate the merge."/>
+  <test in="The one file that matters is the lockfile." out="The file that matters is the lockfile."/>
+  <test in="The first two steps run in parallel." out="The first two steps run in parallel."/>
+  <test in="Any two nodes share an edge." out="Any two nodes share an edge."/>
+  <test in="The 30 seconds pass before the retry." out="The 30 seconds pass before the retry."/>
+  <test in="The 2026 release ships the parser." out="The 2026 release ships the parser."/>
+  <test in="The two are equal." out="The two are equal."/>
+  <test in="The `x` flag takes the three values below." out="The `x` flag takes the values below."/>
 
   <test in="A short sentence that breaks no rule." out="A short sentence that breaks no rule."/>
 

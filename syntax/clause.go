@@ -1,5 +1,7 @@
 package syntax
 
+import "github.com/wow-look-at-my/go-containers/set"
+
 // clauseParser walks a chunked sentence and cuts it into clauses.
 type clauseParser struct {
 	s  *Sentence
@@ -176,7 +178,7 @@ func (p *clauseParser) chainEnd(ph *Phrase) int {
 }
 
 // ambiguous are subordinators that are also prepositions: "after the build".
-var ambiguous = map[string]bool{"before": true, "after": true, "since": true, "until": true, "once": true}
+var ambiguous = set.Of[string]("before", "after", "since", "until", "once")
 
 func (p *clauseParser) subordinator(i int) bool {
 	w := p.s.Words[i]
@@ -193,7 +195,7 @@ func (p *clauseParser) subordinator(i int) bool {
 	if i+1 < len(p.s.Words) && p.s.Words[i+1].Lower() == "of" {
 		return false
 	}
-	if ambiguous[lower] {
+	if ambiguous.Contains(lower) {
 		return p.subjectVerbAt(i + 1)
 	}
 	return true

@@ -34,6 +34,7 @@ const (
 // asks whether a name is in it rather than reading it in order.
 var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
+	IDPostdeterminer,
 )
 
 // Finding is a rule the line breaks, and how to repair it.
@@ -176,6 +177,7 @@ var proseRules = []proseRule{
 	{"rule/ste-sentence-length", checkSentences},
 	{"rule/ste-comma-splice", checkSplices},
 	{"rule/ste-count", checkCounts},
+	{"rule/ste-postdeterminer", checkPostdeterminers},
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
