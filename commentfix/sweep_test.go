@@ -75,6 +75,25 @@ func TestTheWalkKeepsTheModulesUnderANonModuleRoot(t *testing.T) {
 	assert.ElementsMatch(t, []string{"a/a.go"}, names(t, root))
 }
 
+// The write goes through a rename, so a run killed part way cannot leave half
+// a file. The mode survives, and the temp file does not.
+func TestWriteFileReplacesWholeAndKeepsTheMode(t *testing.T) {
+	root := tree(t, map[string]string{"run.sh": "old\n"})
+	path := filepath.Join(root, "run.sh")
+	require.NoError(t, os.Chmod(path, 0o755))
+
+	require.NoError(t, commentfix.WriteFile(path, "new\n"))
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "new\n", string(got))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o755), info.Mode().Perm())
+	entries, err := os.ReadDir(root)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1, "no temp file is left beside it")
+}
+
 func TestTheWalkSkipsABlob(t *testing.T) {
 	root := tree(t, map[string]string{"go.mod": "module example.com/m\n"})
 	big := make([]byte, commentfix.MaxFileBytes+1)
@@ -92,14 +111,14 @@ func TestTheWalkReadsEveryLanguageTheExtractorKnows(t *testing.T) {
 	root := tree(t, map[string]string{
 		"go.mod": "module example.com/m\n",
 		"a.go":   "package p\n\n// the walk has 3 phases\n",
-		"run.sh": "#!/bin/sh\n# the sweep runs twice\n",
+		"run.sh": "#!/bin/sh\n# the sweep reads two trees\n",
 		"ci.yml": "# holds 4 jobs\njobs: {}\n",
 	})
 	found := map[string]string{}
 	for _, finding := range commentfix.CheckTree(root).Findings {
 		found[filepath.Base(finding.Path)] = finding.Number
 	}
-	assert.Equal(t, map[string]string{"a.go": "3", "run.sh": "twice", "ci.yml": "4"}, found)
+	assert.Equal(t, map[string]string{"a.go": "3", "run.sh": "two", "ci.yml": "4"}, found)
 }
 
 // A sentence naming several numbers costs a single finding. The repair is a

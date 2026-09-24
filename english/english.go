@@ -26,6 +26,7 @@ type Table struct {
 	Drops    []Drop    `xml:"drop"`
 	Rewrites []Rewrite `xml:"rewrite"`
 	Patterns []Pattern `xml:"pattern"`
+	Shapes   []Shape   `xml:"shape"`
 	Flags    []Flag    `xml:"flag"`
 	Whole    []Case    `xml:"test"`
 }
@@ -168,6 +169,36 @@ func PatternIDs() []string {
 	return out
 }
 
+// Shape is a rewrite over word classes, in table's match language, for a word that is filler only in some slots.
+type Shape struct {
+	Match   string `xml:"match,attr"`
+	Replace string `xml:"replace,attr"`
+	Where   string `xml:"where,attr"`
+	Test    string `xml:"test,attr"`
+	Expect  string `xml:"expect,attr"`
+	ID      string `xml:"id,attr"`
+	Cases   []Case `xml:"test"`
+
+	terms table.Match
+}
+
+// Tests is every worked example a shape declares.
+func (s Shape) Tests() []Case { return cases(s.Test, s.Expect, s.Cases) }
+
+// ApplyN rewrites every place the shape fits in a single pass. The count is
+// whether it changed anything, as the scan does not number its matches.
+func (s Shape) ApplyN(text string) (string, int) {
+	entry := []table.Rephrase{{ID: s.ID, Match: s.Match, Terms: s.terms, To: s.Replace}}
+	next := table.Rephrasings(classes, nil, entry, text)
+	if next == text {
+		return text, 0
+	}
+	return next, 1
+}
+
+// Shapes is every class-aware rewrite the table carries.
+func Shapes() []Shape { return loaded.Shapes }
+
 // Drops is every word a repair deletes.
 func Drops() []Drop { return loaded.Drops }
 
@@ -223,6 +254,17 @@ func mustLoad() Table {
 		if f.Phrase == "" || f.Say == "" || len(f.Tests()) == 0 {
 			panic("english: a <flag> is missing phrase, say or test")
 		}
+	}
+	for i := range e.Shapes {
+		s := &e.Shapes[i]
+		if s.Match == "" || len(s.Tests()) == 0 {
+			panic("english: a <shape> is missing match or test")
+		}
+		terms, err := table.ParseMatch(s.Match)
+		if err != nil {
+			panic(fmt.Sprintf("english: <shape match=%q> does not parse: %v", s.Match, err))
+		}
+		s.terms = terms
 	}
 	for i := range e.Patterns {
 		p := &e.Patterns[i]
