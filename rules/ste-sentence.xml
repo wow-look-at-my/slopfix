@@ -46,8 +46,8 @@
 
   <test in="`sandbox: false` and `enabled:` were both removed from the parser in the release and are now parse errors that name the key the file still carries today."
         out="`sandbox: false` and `enabled:` were both removed from the parser in the release. They are now parse errors that name the key the file still carries today."/>
-  <test in="A user who cannot dismiss a message reads it as contempt and reads nothing else that the surface shows after a few minutes of use."
-        out="A user who cannot dismiss a message reads it as contempt. The user reads nothing else that the surface shows after a few minutes of use."/>
+  <test in="A user who cannot dismiss a message reads it as contempt and reads nothing else that the whole surface shows after a few minutes of use."
+        out="A user who cannot dismiss a message reads it as contempt. The user reads nothing else that the whole surface shows after a few minutes of use."/>
 
   <!-- The end of a list, a quotation and a status code are not what they look like. -->
   <test in="The report names the cache, the lockfile, the tree that the build reads from the disk, and the runner that holds the job for every run in the fleet."
