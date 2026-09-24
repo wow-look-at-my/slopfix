@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   An ordinal names a position, and a position moves when somebody inserts an
   item above it. These say the relation instead, which survives the insert.
@@ -6,7 +6,7 @@
   The enumeration openers go before the position entries: "First, it locks"
   opens a list, where "the first writer" names a thing.
 -->
-<rules for="numbers">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
 
   <pattern id="i-bfirst-s" match="(?i)\bfirst,\s+" to="">
     <test in="First, it locks" out="It locks"/>

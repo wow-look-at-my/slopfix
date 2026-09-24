@@ -68,7 +68,7 @@ type RequireFlagRule struct {
 }
 
 // The events this binary answers. They are NOT interchangeable; the deny half
-// rides PreToolUse. see docs/two-event-registration.md
+// rides PreToolUse. see docs/event-registration.md
 const (
 	eventPermissionRequest = "PermissionRequest"
 	eventPreToolUse        = "PreToolUse"

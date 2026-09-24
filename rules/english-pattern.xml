@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   A shape no whole-word swap can express.
 
@@ -12,7 +12,7 @@
   linkrefs in here would trade a verified link for a plausible one. Keep both:
   this is for a reference already known good.
 -->
-<rules for="english">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="english">
 
   <pattern id="b-a-za-z0-9" match="\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]+)\b"
            to="[$1#$2](https://github.com/$1/issues/$2)"

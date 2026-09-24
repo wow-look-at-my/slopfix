@@ -12,14 +12,17 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // marker is the session's accumulated view. Fired records the signature the
 // Stop gate blocked on PER FILE, which is the no-wedge property.
 type marker struct {
-	Paths []string          `json:"paths"`
-	Fired map[string]string `json:"fired"`
-	Seen  map[string]string `json:"seen"`
+	Paths      []string          `json:"paths"`
+	Fired      map[string]string `json:"fired"`
+	Seen       map[string]string `json:"seen"`
+	Candidates []string          `json:"candidates"`
+	WalkedAt   int64             `json:"walked_at"`
 }
 
 func newMarker() *marker {
@@ -89,13 +92,29 @@ func seedSnapshot(sessionID, cwd string) {
 	if m == nil {
 		m = newMarker()
 	}
-	m.Seen = snapshot(cwd)
+	m.Candidates = allCandidatePaths(cwd)
+	m.WalkedAt = time.Now().Unix()
+	m.Seen = snapshotOf(m.Candidates)
 	writeMarker(sessionID, m)
 }
 
-func snapshot(cwd string) map[string]string {
+// walkTTL is how long a candidate list stands before the tree is walked.
+const walkTTL = 120
+
+// candidates answers the marker's list while it is fresh, and walks otherwise.
+// It reports whether it walked, so the caller can persist what it found.
+func candidates(m *marker, cwd string) ([]string, bool) {
+	if len(m.Candidates) > 0 && time.Now().Unix()-m.WalkedAt < walkTTL {
+		return m.Candidates, false
+	}
+	return allCandidatePaths(cwd), true
+}
+
+// snapshotOf reads a signature per path, keyed absolute so spellings of a
+// single file count a single time.
+func snapshotOf(paths []string) map[string]string {
 	seen := map[string]string{}
-	for _, path := range allCandidatePaths(cwd) {
+	for _, path := range paths {
 		key, err := filepath.Abs(path)
 		if err != nil {
 			continue
@@ -121,7 +140,12 @@ func changedFiles(sessionID, cwd string) []string {
 		m = newMarker()
 	}
 	first := len(m.Seen) == 0
-	seen := snapshot(cwd)
+	paths, walked := candidates(m, cwd)
+	if walked {
+		m.Candidates = paths
+		m.WalkedAt = time.Now().Unix()
+	}
+	seen := snapshotOf(paths)
 
 	var changed []string
 	if !first {

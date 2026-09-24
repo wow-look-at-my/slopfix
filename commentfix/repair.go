@@ -16,6 +16,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
@@ -34,6 +35,7 @@ type Repair struct {
 // A generated file is left alone, and so is a language the extractor has no
 // syntax for: both report no findings, so both have nothing to repair.
 func Fix(filename, src string) Repair {
+	defer trace.Phase("repair/comments-number")()
 	if IsGenerated(filename, src) {
 		return Repair{Text: src}
 	}
@@ -100,6 +102,9 @@ func carriesProse(lines []string, rows set.Set[int], i int) bool {
 func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, removed []string, blanked map[int]bool) {
 	blanked = make(map[int]bool)
 	for _, para := range paragraphsOf(lines, runs) {
+		if para.verbatim {
+			continue
+		}
 		said := CloseProse(Reword(para.prose))
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
@@ -157,6 +162,8 @@ type para struct {
 	cont string
 	// trailer closes a block comment, and rides the last line a rewrite emits.
 	trailer string
+	// verbatim marks a godoc code block, which the rewrite leaves as written.
+	verbatim bool
 }
 
 // paragraphsOf turns the parser's runs into the paragraphs a rewrite acts on. A
@@ -188,6 +195,12 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 				marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
 				marker = line[:min(col, len(line))] + marker
 				if !ok || (prose == "" && trailer == "") || isDirective(c.Text) {
+					current = nil
+					continue
+				}
+				if codeRow(line) {
+					// A tab after the marker is how a doc comment spells a code block.
+					out = append(out, para{lines: []int{i}, verbatim: true})
 					current = nil
 					continue
 				}
@@ -358,7 +371,7 @@ func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	if rest, closed := strings.CutPrefix(trimmed, "*/"); closed && strings.TrimSpace(rest) == "" {
 		return indent, "", "*/", true
 	}
-	for _, m := range []string{"///", "//", "/*", "#", "*"} {
+	for _, m := range []string{"///", "//!", "//", "/*", "#", "*"} {
 		rest, found := strings.CutPrefix(trimmed, m)
 		if !found {
 			continue
@@ -394,7 +407,7 @@ func dropEmptied(src string, emptied map[int]bool) string {
 // bareMarker reports whether the line carries a comment marker and nothing else.
 func bareMarker(line string) bool {
 	switch strings.TrimSpace(line) {
-	case "//", "///", "#", "*":
+	case "//", "///", "//!", "#", "*":
 		return true
 	}
 	return false

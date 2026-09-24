@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   What the document rules write for a sentence. The repairs are sentence
   surgery rather than a phrase swap, so this file carries no entries: every
@@ -8,7 +8,7 @@
   each repair inside its own rule, and dropping one lets a wider match through
   unnoticed.
 -->
-<rules for="ste">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="ste">
 
   <test in="It doesn't run." out="It does not run."/>
   <test in="Don't run it. It's late." out="Do not run it. It is late."/>

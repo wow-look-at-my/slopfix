@@ -3,6 +3,8 @@ package autoallow
 import (
 	"encoding/xml"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // XML parsing types
@@ -95,7 +97,7 @@ type xmlRequireFlag struct {
 
 func loadXMLRules(data []byte) (Rules, error) {
 	var xr xmlRules
-	if err := xml.Unmarshal(data, &xr); err != nil {
+	if err := xml.Unmarshal(table.Readable(data), &xr); err != nil {
 		return Rules{}, err
 	}
 	var r Rules

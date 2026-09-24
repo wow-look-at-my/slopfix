@@ -48,8 +48,9 @@ func FixN(s, surface string) (string, int) {
 	// see the text a word swap has already settled.
 	for _, p := range Patterns() {
 		if AppliesTo(p.Where, surface) {
-			n += len(p.re.FindAllString(s, -1))
-			s = p.Apply(s)
+			var took int
+			s, took = p.ApplyN(s)
+			n += took
 		}
 	}
 	s = strings.Join(strings.Fields(s), " ")

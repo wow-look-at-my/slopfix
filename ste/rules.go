@@ -16,6 +16,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // The rule IDs. A report prints the ID that found the text, and the same ID
@@ -149,18 +150,39 @@ func wordsOf(name string) []string {
 func Check(text string, line int) []Finding {
 	prose := strip(text)
 	var out []Finding
-	out = append(out, checkWords(prose, line)...)
-	out = append(out, checkSemicolons(prose, line)...)
-	out = append(out, checkSentences(prose, line)...)
-	out = append(out, checkSplices(prose, line)...)
-	out = append(out, checkCounts(prose, line)...)
+	for _, rule := range proseRules {
+		out = append(out, rule.run(prose, line)...)
+	}
 	return out
+}
+
+// proseRule is a single rule under the phase name a timing run prints for it.
+type proseRule struct {
+	phase string
+	check func(prose string, line int) []Finding
+}
+
+// run reads the prose under this rule, inside the rule's own timing phase.
+func (r proseRule) run(prose string, line int) []Finding {
+	defer trace.Phase(r.phase)()
+	return r.check(prose, line)
+}
+
+// proseRules are the prose rules in the order a report prints them. A phase
+// name rather than a rule ID, because the word rule reports IDs.
+var proseRules = []proseRule{
+	{"rule/ste-words", checkWords},
+	{"rule/ste-semicolon", checkSemicolons},
+	{"rule/ste-sentence-length", checkSentences},
+	{"rule/ste-comma-splice", checkSplices},
+	{"rule/ste-count", checkCounts},
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
 // link's target, and an HTML entity. A semicolon inside any of them is not a
 // sentence joiner.
 func strip(text string) string {
+	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
 	return entity.ReplaceAllString(text, " ENTITY ")

@@ -1,11 +1,11 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   Entries that are only wrong on one surface, which is what where= is for.
 
   An em dash joining two clauses is a chat habit. In a comment the prose rules
   already catch it as a comma splice, and rewriting it here would fight them.
 -->
-<rules for="english">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="english">
 
   <rewrite id="and" from="— and" to="," where="message">
     <test in="Yes — and there is precedent"/>

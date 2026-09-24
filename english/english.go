@@ -11,7 +11,10 @@ import (
 	"encoding/xml"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 //go:embed english.xml
@@ -19,11 +22,39 @@ var englishXML []byte
 
 // Table mirrors english.xml.
 type Table struct {
+	Classes  []Class   `xml:"class"`
 	Drops    []Drop    `xml:"drop"`
 	Rewrites []Rewrite `xml:"rewrite"`
 	Patterns []Pattern `xml:"pattern"`
 	Flags    []Flag    `xml:"flag"`
 	Whole    []Case    `xml:"test"`
+}
+
+// Class is a set of words that fill the same slot, stated in a single
+// attribute and read as the lexicon a shape asks about each word.
+type Class struct {
+	Name   string `xml:"name,attr"`
+	Words  string `xml:"words,attr"`
+	Suffix string `xml:"suffix,attr"`
+	Open   bool   `xml:"open,attr"`
+	Except string `xml:"except,attr"`
+}
+
+// classes indexes the declared word classes.
+var classes = table.NewLexicon(lexicalClasses(loaded.Classes))
+
+func lexicalClasses(declared []Class) []table.Class {
+	out := make([]table.Class, 0, len(declared))
+	for _, c := range declared {
+		out = append(out, table.Class{
+			Name:   c.Name,
+			Words:  strings.Fields(c.Words),
+			Suffix: strings.Fields(c.Suffix),
+			Open:   c.Open,
+			Except: strings.Fields(c.Except),
+		})
+	}
+	return out
 }
 
 // Cases is every worked example the table states for itself rather than for a single entry: a line of prose, and what
@@ -68,6 +99,9 @@ type Pattern struct {
 	ID      string `xml:"id,attr"`
 	Cases   []Case `xml:"test"`
 
+	// Subject names where the clause's subject stands, and empty asks nothing.
+	Subject string `xml:"subject,attr"`
+
 	re *regexp.Regexp
 }
 
@@ -93,7 +127,35 @@ func cases(in, out string, extra []Case) []Case {
 }
 
 // Apply rewrites every occurrence the pattern matches.
-func (p Pattern) Apply(s string) string { return p.re.ReplaceAllString(s, p.Replace) }
+func (p Pattern) Apply(s string) string {
+	out, _ := p.ApplyN(s)
+	return out
+}
+
+// ApplyN is Apply, and the count of what it changed.
+//
+// A pattern naming a subject position rewrites only the matches whose clause
+// states the sentence's own assertion. The rest are left whole: the words fit
+// the shape, and the sentence around them says they report the data rather than
+// the tree.
+func (p Pattern) ApplyN(s string) (string, int) {
+	if p.Subject == "" {
+		return p.re.ReplaceAllString(s, p.Replace), len(p.re.FindAllString(s, -1))
+	}
+	var out strings.Builder
+	last, took := 0, 0
+	for _, loc := range p.re.FindAllStringIndex(s, -1) {
+		if !asserts(p.Subject, s, loc[0]) {
+			continue
+		}
+		out.WriteString(s[last:loc[0]])
+		out.WriteString(p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace))
+		last = loc[1]
+		took++
+	}
+	out.WriteString(s[last:])
+	return out.String(), took
+}
 
 // PatternIDs names every rule the table carries, in the order it carries them.
 func PatternIDs() []string {
@@ -141,7 +203,7 @@ var loaded = mustLoad()
 
 func mustLoad() Table {
 	var e Table
-	if err := xml.Unmarshal(englishXML, &e); err != nil {
+	if err := xml.Unmarshal(table.Readable(englishXML), &e); err != nil {
 		panic(fmt.Sprintf("english: english.xml does not parse: %v", err))
 	}
 	if len(e.Drops) == 0 || len(e.Rewrites) == 0 {
@@ -171,6 +233,10 @@ func mustLoad() Table {
 			if c.Out == "" {
 				panic(fmt.Sprintf("english: <pattern match=%q> has a test with no expected output", p.Match))
 			}
+		}
+		if p.Subject != "" && !slices.Contains(SubjectPositions(), p.Subject) {
+			panic(fmt.Sprintf("english: <pattern match=%q> names the subject position %q, which is not one of %v",
+				p.Match, p.Subject, SubjectPositions()))
 		}
 		re, err := regexp.Compile(p.Match)
 		if err != nil {

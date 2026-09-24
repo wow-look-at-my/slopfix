@@ -1,0 +1,35 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  Where one sentence ends and the next begins. The comment repair cuts on those
+  boundaries, so a cut that lands anywhere else leaves a fragment.
+
+  This was punctuation literals and a pair of hardcoded abbreviations in Go. A
+  reader who wanted to add one had to edit a switch statement. It is data here,
+  like every other English fact this folder holds.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="english">
+
+  <!-- The punctuation that closes a thought. A word ending in one of these
+       ends a sentence unless a class below takes it back. -->
+  <class name="terminator" words=". ! ?"/>
+
+  <!-- A closing bracket or quote sits AFTER the terminator, so the reader
+       looks past these before asking what the last character is. -->
+  <class name="closer" words=") ] } &quot; ' `"/>
+
+  <!-- An abbreviation ends in a full stop and closes nothing. Every one here
+       is a word a comment actually uses; a name that never appears in prose
+       costs a false boundary and buys nothing. -->
+  <class name="abbreviation" words="e.g. i.e. etc. cf. vs. approx. Dr. Mr. Mrs.
+    Ms. Inc. Ltd. Co. St. No. Fig. Ref. al. ca. viz. resp."/>
+
+  <!-- An ellipsis trails off rather than stopping, so it opens no new
+       sentence and a cut after one reads as a truncation. -->
+  <class name="ellipsis" suffix=".. ..."/>
+
+  <!-- Punctuation that joins one clause to the next. A sentence with no
+       terminator anywhere still breaks here, which is the last boundary a
+       reader recognises before the cut lands between two words. -->
+  <class name="clause" suffix=", ; :"/>
+
+</rules>

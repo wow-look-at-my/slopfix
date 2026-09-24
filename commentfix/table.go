@@ -7,6 +7,7 @@ package commentfix
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
 )
@@ -14,12 +15,42 @@ import (
 // numbersTable is what rules/ says for="numbers", in file name order.
 var numbersTable = table.MustLoad(rules.FS, "numbers")
 
-// Say rewrites a line of comment prose, applying every table entry. It says
-// nothing about what is left.
+// Reword rewrites a line of comment prose, applying every table entry to the
+// runs outside its quotations. It says nothing about what is left.
+func Reword(prose string) string {
+	spans := cardinal.QuotedSpans(prose)
+	if len(spans) == 0 {
+		return rewordRun(prose)
+	}
+	var out strings.Builder
+	at := 0
+	for _, span := range spans {
+		out.WriteString(rewordOutside(prose[at:span.Start]))
+		out.WriteString(prose[span.Start:span.End])
+		at = span.End
+	}
+	out.WriteString(rewordOutside(prose[at:]))
+	return out.String()
+}
+
+// rewordOutside rewrites a run between quotations, keeping the blank that
+// borders it. The table collapses runs of whitespace, and the space beside a
+// quotation is what holds it apart from the words either side.
+func rewordOutside(run string) string {
+	body := strings.TrimLeft(run, " \t")
+	lead := run[:len(run)-len(body)]
+	core := strings.TrimRight(body, " \t")
+	if core == "" {
+		return run
+	}
+	return lead + rewordRun(core) + body[len(core):]
+}
+
+// rewordRun applies every table entry to a run of prose carrying no quotation.
 //
 // The order is rewrites, then shapes, then patterns. A phrase swap settles the
 // idioms earliest.
-func Reword(prose string) string {
+func rewordRun(prose string) string {
 	original := prose
 	for _, r := range numbersTable.Rewrites {
 		prose = replaceWord(prose, r.From, r.To)
@@ -61,7 +92,8 @@ func isSpaceByte(b byte) bool {
 }
 
 // replaceWord swaps a whole word or phrase, case-insensitively, leaving a
-// longer word that merely contains it alone.
+// longer word that merely contains it alone. The replacement takes the case of
+// what it stands in for.
 func replaceWord(s, word, with string) string {
 	lower := strings.ToLower(s)
 	target := strings.ToLower(word)
@@ -80,7 +112,7 @@ func replaceWord(s, word, with string) string {
 			continue
 		}
 		b.WriteString(s[i:at])
-		b.WriteString(with)
+		b.WriteString(table.MatchCase(s[at:end], with))
 		i = end
 	}
 	return b.String()
