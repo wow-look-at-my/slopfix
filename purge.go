@@ -10,7 +10,7 @@ import (
 )
 
 // The root files a repository keeps. Every other .md is deleted on sight.
-var kept = set.Of[string]("README.md", "CLAUDE.md")
+var kept = set.Of[string]("README.md", AgentsFile, ClaudeFile)
 
 // CharBudget caps each kept file, because every request pays for the whole file.
 const CharBudget = 40_000
@@ -24,20 +24,28 @@ type PurgeResult struct {
 	Deleted []string
 	// OverBudget names each kept file past CharBudget, with its size.
 	OverBudget map[string]int
+	// Agents is what the move of CLAUDE.md into AGENTS.md did.
+	Agents Migration
 }
 
-// Purge deletes every markdown file under root except the kept files at its own
-// top level. A dry run reports the same list and removes nothing.
+// Purge moves CLAUDE.md into AGENTS.md. It then deletes every markdown file under root except
+// the kept files at its own top level. A dry run reports the same work and changes nothing.
 //
 // A spec repository opts out with a .slopfix-spec marker at its root, which is
 // the only exemption. Deciding by marker rather than by a list in this repo
 // keeps the answer with the repository it describes.
 func Purge(root string, dryRun bool) (*PurgeResult, error) {
 	result := &PurgeResult{OverBudget: map[string]int{}}
+	// The move deletes no prose, so a spec repository gets it too.
+	agents, err := MigrateAgents(root, dryRun)
+	if err != nil {
+		return result, err
+	}
+	result.Agents = agents
 	if spec, err := isSpecRepo(root); err != nil || spec {
 		return result, err
 	}
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
