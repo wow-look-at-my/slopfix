@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func editPayload(path, old, replacement string) map[string]any {
+func inPlaceEdit(path, old, replacement string) map[string]any {
 	return map[string]any{
 		"hook_event_name": "PreToolUse",
 		"tool_name":       "Edit",
@@ -28,7 +28,7 @@ func onDisk(t *testing.T, name, content string) string {
 // the repair collapses its alignment and the space before the dot.
 func TestAnEditInsideAFenceIsJudgedWhereItLands(t *testing.T) {
 	path := onDisk(t, "doc.md", "# Use\n\n```sh\nslopfix fmt docs/*.md     # join\n```\n")
-	got := ask(t, editPayload(path, "slopfix fmt docs/*.md     # join", "slopfix purge .           # move"))
+	got := ask(t, inPlaceEdit(path, "slopfix fmt docs/*.md     # join", "slopfix purge .           # move"))
 	if got.out != nil {
 		assert.Nil(t, got.out["updatedInput"], "an edit inside a fence was rewritten")
 	}
@@ -37,7 +37,7 @@ func TestAnEditInsideAFenceIsJudgedWhereItLands(t *testing.T) {
 // Prose an edit brings in is still repaired, with the file around it.
 func TestAnEditToProseIsRepairedWhereItLands(t *testing.T) {
 	path := onDisk(t, "doc.md", "# Use\n\nThe gate is open.\n")
-	got := ask(t, editPayload(path, "The gate is open.", "The gate is shut; the write fails."))
+	got := ask(t, inPlaceEdit(path, "The gate is open.", "The gate is shut; the write fails."))
 	require.NotNil(t, got.out)
 	updated, _ := got.out["updatedInput"].(map[string]any)
 	require.NotNil(t, updated)
@@ -48,7 +48,7 @@ func TestAnEditToProseIsRepairedWhereItLands(t *testing.T) {
 // touched, so none of it is applied.
 func TestARepairThatReachesPastTheEditIsNotApplied(t *testing.T) {
 	path := onDisk(t, "doc.md", "# Use\n\nIt doesn't hold.\n\nThe gate is open.\n")
-	got := ask(t, editPayload(path, "The gate is open.", "The gate is shut; the write fails."))
+	got := ask(t, inPlaceEdit(path, "The gate is open.", "The gate is shut; the write fails."))
 	if got.out != nil {
 		assert.Nil(t, got.out["updatedInput"])
 	}
