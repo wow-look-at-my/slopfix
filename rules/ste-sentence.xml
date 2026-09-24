@@ -54,6 +54,12 @@
         out="The report names the cache, the lockfile, the tree that the build reads from the disk, and the runner that holds the job for every run in the fleet."/>
   <test in="The owner wrote &quot;the three rules run&quot; in the log." out="The owner wrote &quot;the three rules run&quot; in the log."/>
   <test in="This 403 happens on every push." out="This 403 happens on every push."/>
+  <test in="If the change makes a screen emptier, you have removed a feature." out="If the change makes a screen emptier, you have removed a feature."/>
+  <test in="On a hosted runner, where each run gets its own machine, a concurrency group is optional."
+        out="On a hosted runner, where each run gets its own machine, a concurrency group is optional."/>
+  <test in="The deletion can return a 403 in a session. In that case, a maintainer deletes the branch."
+        out="The deletion can return a 403 in a session. In that case, a maintainer deletes the branch."/>
+  <test in="`''`, `0`, and an empty list are each a lie." out="`''`, `0`, and an empty list are each a lie."/>
 
   <!-- No clause boundary: the sentence stays whole, and Check reports it. -->
   <test in="A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."

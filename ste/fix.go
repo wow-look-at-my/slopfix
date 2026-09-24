@@ -24,11 +24,11 @@ func FixSelected(text string, keep func(id string) bool) string {
 		if keep(IDSemicolon) {
 			prose = fixSemicolons(prose)
 		}
-		if keep(IDCommaSplice) {
-			prose = fixSplices(prose)
-		}
 		return prose
 	})
+	if keep(IDCommaSplice) {
+		text = fixSplices(text)
+	}
 	if keep(IDPostdeterminer) {
 		text = fixPostdeterminers(text)
 	}
@@ -95,12 +95,14 @@ func fixSemicolons(prose string) string {
 // The comma is found the way checkSplices finds it, guard included, so the
 // repair covers exactly what the check reports. A conjunction the connectors
 // know gives way to its opener. Any other conjunction opens the new sentence.
+// It reads a mask of the whole text, so a code span neither hides a splice nor
+// cuts a sentence the parser needs whole.
 func fixSplices(prose string) string {
+	masked := mask(prose)
 	var joiners [][]int
 	var openers []string
-	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
-		bare := loc[2] < 0
-		if bare && !isClause(clauseBefore(prose, loc[0])) || !bare && !joinsClauses(prose, loc[2]) {
+	for _, loc := range commaSplice.FindAllStringSubmatchIndex(masked, -1) {
+		if !spliced(masked, loc) {
 			continue
 		}
 		end := loc[0] + len(spliceComma.FindString(prose[loc[0]:]))

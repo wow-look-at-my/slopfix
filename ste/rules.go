@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
@@ -240,8 +241,7 @@ func checkSentences(prose string, line int) []Finding {
 func checkSplices(prose string, line int) []Finding {
 	var out []Finding
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
-		bare := loc[2] < 0
-		if bare && !isClause(clauseBefore(prose, loc[0])) || !bare && !joinsClauses(prose, loc[2]) {
+		if !spliced(prose, loc) {
 			continue
 		}
 		out = append(out, Finding{
@@ -277,8 +277,9 @@ func checkCounts(prose string, line int) []Finding {
 // the comma at idx.
 func clauseBefore(prose string, idx int) string {
 	before := prose[:idx]
-	if cut := strings.LastIndexAny(before, ".!?"); cut >= 0 {
-		before = before[cut+1:]
+	if cut := strings.LastIndexAny(before, ".!?:;—"); cut >= 0 {
+		_, width := utf8.DecodeRuneInString(before[cut:])
+		before = before[cut+width:]
 	}
 	return before
 }

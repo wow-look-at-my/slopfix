@@ -274,8 +274,41 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	return "it", true
 }
 
+// spliced reports whether a comma the splice pattern matched joins main clauses.
+func spliced(prose string, loc []int) bool {
+	if loc[2] >= 0 {
+		return joinsClauses(prose, loc[2])
+	}
+	return isClause(clauseBefore(prose, loc[0])) && endsMainClause(prose, loc[0])
+}
+
+// endsMainClause reports whether a main clause runs up to the comma at byte
+// at. "If the cache is cold," and "where each run gets a machine," do not.
+func endsMainClause(prose string, at int) bool {
+	for _, span := range sentenceSpans(prose) {
+		if at < span[0] || at >= span[1] {
+			continue
+		}
+		text := prose[span[0]:span[1]]
+		s := syntax.Parse(text, opaque(text, text))
+		last := -1
+		for i, w := range s.Words {
+			if w.End <= at-span[0] {
+				last = i
+			}
+		}
+		for _, c := range s.Clauses {
+			if c.First <= last && last <= c.Last {
+				return c.Depth == 0 && c.Verb != nil
+			}
+		}
+		return false
+	}
+	return false
+}
+
 // joinsClauses reports whether the conjunction at byte at joins a main clause
-// to another that names its own subject. The end of a list does not: "the
+// to another that names its own subject. The end of a list does not.
 // cache, the tree, and the runner that holds the job".
 func joinsClauses(prose string, at int) bool {
 	word, _, _ := strings.Cut(prose[at:], " ")
