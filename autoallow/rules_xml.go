@@ -3,6 +3,8 @@ package autoallow
 import (
 	"encoding/xml"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // XML parsing types
@@ -80,9 +82,14 @@ type xmlStringList struct {
 	Values []string `xml:"value"`
 }
 
+<<<<<<< HEAD
 // xmlRefuseArgs denies a command whose argument text carries one of the
 // substrings. denyArgSubstrings above only unmatches the rule, which leaves the
 // command to be asked about; this refuses it.
+=======
+// xmlRefuseArgs denies a command whose argument text carries any of the
+// substrings. denyArgSubstrings above only unmatches the rule.
+>>>>>>> origin/master
 type xmlRefuseArgs struct {
 	Message string   `xml:"message,attr"`
 	Values  []string `xml:"value"`
@@ -96,7 +103,7 @@ type xmlRequireFlag struct {
 
 func loadXMLRules(data []byte) (Rules, error) {
 	var xr xmlRules
-	if err := xml.Unmarshal(data, &xr); err != nil {
+	if err := xml.Unmarshal(table.Readable(data), &xr); err != nil {
 		return Rules{}, err
 	}
 	var r Rules
