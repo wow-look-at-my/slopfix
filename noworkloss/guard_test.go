@@ -425,12 +425,7 @@ func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	writeAt(t, dir, "tracked.go", "package a\n// edited again\n")
 	preserved(t, dir, "git pull origin master")
 	writeAt(t, dir, "tracked.go", "package a\n// edited once more\n")
-<<<<<<< HEAD
-	// cherry-pick replays a commit, so it names no provenance route. The edit
-	// standing in the tree is still preserved before it runs.
-=======
 	// cherry-pick replays a commit, so it names no provenance route.
->>>>>>> origin/master
 	preserved(t, dir, "git cherry-pick abc123")
 	allowed(t, dir, "git cherry-pick abc123")
 	allowed(t, dir, "git rebase --abort")

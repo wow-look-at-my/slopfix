@@ -11,14 +11,6 @@ import (
 // creating or switching a branch all leave file content to the edit tools.
 
 // worktreeVerbs put content into the tree that no commit holds.
-<<<<<<< HEAD
-//
-// merge, pull and cherry-pick are deliberately absent: each replays a commit,
-// so every byte it writes is already in one, and git refuses all three on a
-// dirty tree rather than writing over the work standing there. am and apply
-// land a patch that exists nowhere else, so they stay.
-=======
->>>>>>> origin/master
 var worktreeVerbs = map[string]string{
 	"restore":  "git restore",
 	"stash":    "git stash pop",
