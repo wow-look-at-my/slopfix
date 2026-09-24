@@ -18,50 +18,80 @@ var numbersTable = table.MustLoad(rules.FS, "numbers")
 // Reword rewrites a line of comment prose, applying every table entry to the
 // runs outside its quotations. It says nothing about what is left.
 func Reword(prose string) string {
+	out, _ := rewordChecked(prose)
+	return out
+}
+
+// rewordChecked is Reword, and it also answers each rewrite the guard threw
+// away. Path and Line of a rejection are the caller's to fill.
+func rewordChecked(prose string) (string, []Rejection) {
 	spans := cardinal.QuotedSpans(prose)
 	if len(spans) == 0 {
 		return rewordRun(prose)
 	}
 	var out strings.Builder
+	var rejected []Rejection
+	outside := func(run string) {
+		said, r := rewordOutside(run)
+		out.WriteString(said)
+		rejected = append(rejected, r...)
+	}
 	at := 0
 	for _, span := range spans {
-		out.WriteString(rewordOutside(prose[at:span.Start]))
+		outside(prose[at:span.Start])
 		out.WriteString(prose[span.Start:span.End])
 		at = span.End
 	}
-	out.WriteString(rewordOutside(prose[at:]))
-	return out.String()
+	outside(prose[at:])
+	return out.String(), rejected
 }
 
 // rewordOutside rewrites a run between quotations, keeping the blank that
 // borders it. The table collapses runs of whitespace, and the space beside a
 // quotation is what holds it apart from the words either side.
-func rewordOutside(run string) string {
+func rewordOutside(run string) (string, []Rejection) {
 	body := strings.TrimLeft(run, " \t")
 	lead := run[:len(run)-len(body)]
 	core := strings.TrimRight(body, " \t")
 	if core == "" {
-		return run
+		return run, nil
 	}
-	return lead + rewordRun(core) + body[len(core):]
+	said, rejected := rewordRun(core)
+	return lead + said + body[len(core):], rejected
 }
 
 // rewordRun applies every table entry to a run of prose carrying no quotation.
 //
 // The order is rewrites, then shapes, then patterns. A phrase swap settles the
-// idioms earliest.
-func rewordRun(prose string) string {
+// idioms earliest. Each entry is a step, and a step the guard refuses leaves
+// the prose as the step found it.
+func rewordRun(prose string) (string, []Rejection) {
 	original := prose
+	settle := func(s string) string {
+		return capitalise(original, closeDanglingSpace(strings.Join(strings.Fields(s), " ")))
+	}
+	var rejected []Rejection
+	step := func(rule, next string) {
+		if next == prose {
+			return
+		}
+		if defect := defectOf(settle(prose), settle(next)); defect != "" {
+			rejected = append(rejected, Rejection{Rule: rule, Defect: defect, Wrote: settle(next)})
+			return
+		}
+		prose = next
+	}
 	for _, r := range numbersTable.Rewrites {
-		prose = replaceWord(prose, r.From, r.To)
+		step(r.ID, replaceWord(prose, r.From, r.To))
 	}
-	prose = table.Rephrasings(numbersTable.Lexicon(), numbersTable.Normals, numbersTable.Rephrasings, prose)
+	lex := numbersTable.Lexicon()
+	for _, e := range numbersTable.Rephrasings {
+		step(e.ID, table.Rephrasings(lex, numbersTable.Normals, []table.Rephrase{e}, prose))
+	}
 	for _, p := range numbersTable.Patterns {
-		prose = p.Replace(prose)
+		step(p.ID, p.Replace(prose))
 	}
-	prose = strings.Join(strings.Fields(prose), " ")
-	prose = closeDanglingSpace(prose)
-	return capitalise(original, prose)
+	return settle(prose), rejected
 }
 
 // closeDanglingSpace removes the space a deletion leaves before punctuation

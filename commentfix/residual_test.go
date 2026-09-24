@@ -24,7 +24,7 @@ func TestFixLeavesNothingForCheckToFind(t *testing.T) {
 		"a block the rewrite declines": unreachable,
 		"a number beside code":         "package p\n\nvar x = 1 // 3 slots\n",
 		"a plain sentence":             "package p\n\n// It holds 4 keys.\nfunc f() {}\n",
-		"a number the table says":      "package p\n\n// It reserves one slot.\nfunc f() {}\n",
+		"a number the table says":      "package p\n\n// It reserves two slots.\nfunc f() {}\n",
 		"a directive and a number":     "package p\n\n//go:generate tool -n 3\n// It holds 7 keys.\nfunc f() {}\n",
 	} {
 		t.Run(name, func(t *testing.T) {

@@ -44,6 +44,13 @@ func FixN(s, surface string) (string, int) {
 			n += took
 		}
 	}
+	for _, sh := range Shapes() {
+		if AppliesTo(sh.Where, surface) {
+			var took int
+			s, took = sh.ApplyN(s)
+			n += took
+		}
+	}
 	// Patterns last: they carry a shape rather than a phrase, and a shape must
 	// see the text a word swap has already settled.
 	for _, p := range Patterns() {

@@ -264,12 +264,5 @@ func FixFileWith(path string, req Request) (Repair, error) {
 	if !repair.Changed {
 		return repair, nil
 	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return repair, err
-	}
-	if err := os.WriteFile(path, []byte(repair.Text), info.Mode().Perm()); err != nil {
-		return repair, err
-	}
-	return repair, nil
+	return repair, commentfix.WriteFile(path, repair.Text)
 }
