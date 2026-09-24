@@ -319,7 +319,7 @@ func (p *clauseParser) adjacentNouns(from, to int) bool {
 	}
 	return false
 }
- a finite verb group at i opens when it follows a
+
 // subordinate clause that already has its verb, as the main verb does in "A user
 // who reads the message leaves" and "If the cache is cold the build fails".
 func (p *clauseParser) resume(i int, cur Clause, out []Clause) (Clause, bool) {

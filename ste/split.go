@@ -183,7 +183,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return connector, opensWithCapital(s, c.Link+1)
 		}
 		if main.Verb.Imperative {
-			return connector, opensSentence(s, main)
+			return connector, startsTheSentence(s, main)
 		}
 		if main.Subject == nil {
 			return "", false
@@ -278,7 +278,8 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 // the end of a list rather than a join between clauses.
 func listBefore(s *syntax.Sentence, c syntax.Clause) bool {
 	for i := c.Link - 2; i >= 0 && i >= clauseStart(s, c.Link); i-- {
-		if s.Words[i].Text == "," {
+		// A comma inside a quotation reads as a name, and lists nothing.
+		if s.Words[i].Text == "," && s.Words[i].Tag == "," {
 			return true
 		}
 	}
@@ -296,9 +297,9 @@ func clauseStart(s *syntax.Sentence, i int) int {
 	return start
 }
 
-// opensSentence reports whether a clause starts at the sentence's earliest
+// startsTheSentence reports whether a clause starts at the sentence's earliest
 // word, which an imperative has to: "Write the file".
-func opensSentence(s *syntax.Sentence, c syntax.Clause) bool {
+func startsTheSentence(s *syntax.Sentence, c syntax.Clause) bool {
 	for i := 0; i < c.Verb.First; i++ {
 		if s.Words[i].Tag != "RB" && s.Words[i].Tag != "``" {
 			return false

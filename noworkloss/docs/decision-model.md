@@ -109,7 +109,7 @@ Two redirect shapes cannot empty a file holding content no git object has. A dev
 
 ## Fail-safety, stated honestly
 
-Inside the process, failure denies for destructive verbs. A panic is recovered and converted to a denial, a git subprocess that errors or exceeds the 3-second timeout produces "cannot tell whether ... would lose uncommitted work". An unreadable repository is never assumed clean. Everything non-destructive fails open. A bug here cannot brick a session.
+Inside the process, failure denies for destructive verbs. A panic is recovered and converted to a denial. A git subprocess that errors or exceeds the 3-second timeout produces "cannot tell whether ... would lose uncommitted work". An unreadable repository is never assumed clean. Everything non-destructive fails open. A bug here cannot brick a session.
 
 So if the binary itself is killed or hangs past the harness timeout, the command proceeds. The internal 3-second git timeout exists to keep the process well inside that window so the deny path is reached rather than the harness's. A hook cannot make itself mandatory. This is a property of the platform, not something the plugin declines to handle.
 
