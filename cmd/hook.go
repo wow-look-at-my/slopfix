@@ -151,14 +151,18 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	var findings []string
 	rewrites := 0
 	changed := false
+	inPlace, placed := repairInPlace(in.ToolName, write, rules, ids)
 	for _, u := range writeUnits(in.ToolName, write, raw) {
-		repair := slopfix.Fix(slopfix.Request{
-			Content:         u.text,
-			Path:            write.FilePath,
-			Rules:           rules,
-			IDs:             ids,
-			MaxCommentLines: hookMaxLines,
-		})
+		repair := inPlace
+		if !placed {
+			repair = slopfix.Fix(slopfix.Request{
+				Content:         u.text,
+				Path:            write.FilePath,
+				Rules:           rules,
+				IDs:             ids,
+				MaxCommentLines: hookMaxLines,
+			})
+		}
 		removed = append(removed, repair.Removed...)
 		rewrites += repair.Rewrites
 		kept = append(kept, repair.Kept...)
