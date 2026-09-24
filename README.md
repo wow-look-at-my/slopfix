@@ -51,6 +51,8 @@ slopfix workflows .       # read every workflow and action manifest in the tree
 
 `fix` also reads a document on stdin and writes the repaired one on stdout. With `--json` the whole answer is one object, which is what a hook reads.
 
+`hook` repairs an Edit where it lands in the file, the way Vale lints a whole file. A line inside a fence therefore stays code. A repair that changes text outside the edit is not applied. The hook reports the findings instead.
+
 ## In CI
 
 The action at the root of this repository downloads the published binary from buildhost and runs it. A consumer needs no install step:
