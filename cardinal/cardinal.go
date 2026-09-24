@@ -7,10 +7,10 @@
 //
 // Prose REQUIRES A FRAME. A document legitimately carries numbers that count
 // nothing -- a version, a port, an example -- so the sentence has to claim the
-// things belong here first. A comment REQUIRES NONE: a number written beside
-// code is nearly always a count of what the code holds, so the cardinal alone
-// is the finding and the exemptions carry the rest. The merge gate reads a
-// document with no frame either. Those differences are fields of Substrate,
+// things belong here earliest. A comment REQUIRES NONE: a number written
+// beside code is nearly always a count of what the code holds, so the cardinal
+// alone is the finding and the exemptions carry the rest. The merge gate reads
+// a document with no frame either. Those differences are fields of Substrate,
 // and the values sit beside each other below.
 package cardinal
 
