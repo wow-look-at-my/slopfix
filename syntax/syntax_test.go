@@ -156,6 +156,18 @@ func TestACompoundAfterANounPhraseOpensAClause(t *testing.T) {
 	assert.Equal(t, "VBZ", s.Words[len(s.Words)-2].Tag)
 }
 
+func TestTheMainVerbAfterARelativeClauseResumesTheMainClause(t *testing.T) {
+	s := parse(t, "A user who cannot dismiss a message reads it as contempt and reads nothing else.")
+	require.Len(t, s.Clauses, 4)
+	assert.Equal(t, syntax.Relative, s.Clauses[1].Kind)
+	resumed := s.Clauses[2]
+	assert.Zero(t, resumed.Depth)
+	assert.Equal(t, "A user", subject(s, resumed))
+	assert.Equal(t, "reads", verb(s, resumed))
+	assert.Equal(t, syntax.Coordinate, s.Clauses[3].Kind)
+	assert.Zero(t, s.Clauses[3].Depth)
+}
+
 func TestPersonNounsTakeThey(t *testing.T) {
 	s := parse(t, "The caller waits.")
 	np := s.NounPhrases()[0]
