@@ -18,13 +18,13 @@ The reader is the surface this rule is about. So the annotation goes there and t
 
 ## The message is judged whole
 
-A banned phrase can span a line wrap. One flush carries only the lines that completed since the last one. Judging a flush alone therefore misses every phrase that straddles a boundary, and marks the same message repeatedly. The launcher accumulates into a per-message state file keyed by `message_id`, the way `linkrefs` carries its fence state, and drops it on the final flush. Losing that file costs the phrases in the earlier flushes, never a wrong annotation.
+A banned phrase can span a line wrap. One flush carries only the lines that completed since the last one. Judging a flush alone therefore misses every phrase that straddles a boundary, and marks the same message repeatedly. The launcher accumulates into a per-message state file keyed by `message_id`, the way `linkrefs` carries its fence state. It drops the file on the final flush. Losing that file costs the phrases in the earlier flushes, never a wrong annotation.
 
 The non-streaming path calls the hook once, with `index` 0, `final` true, and the whole message as the delta. It is the same case with no accumulation in front of it.
 
 ## `displayContent` is display-only
 
-Read out of the shipped bundle rather than assumed. The event's schema calls it "Text displayed in place of the delta", and states that the hook "replaces the delta on screen without changing the stored message". It is the only field the output schema carries.
+Read out of the shipped bundle rather than assumed. The event's schema calls it "Text displayed in place of the delta". It states that the hook "replaces the delta on screen without changing the stored message". It is the only field the output schema carries.
 
 ## The phrase table is data
 
@@ -40,7 +40,7 @@ The exemption logic is ported from `linkrefs`, not reinvented. Fenced code, inde
 
 ## What is not banned
 
-Naming a real blocker plainly is never marked: "this needs your call on A vs B, so I pushed the branch with A and left the test red" carries none of the phrases. The rule is about deflection, not about admitting a limit.
+Naming a real blocker plainly is never marked. The sentence "this needs your call on A vs B, so I pushed the branch with A and left the test red" carries no phrase. The rule is about deflection, not about admitting a limit.
 
 ## Files
 
