@@ -81,23 +81,23 @@ func defaultBranch(root string) (string, error) {
 func changedFiles(root string) (set.Set[string], error) {
 	top, err := git(root, "rev-parse", "--show-toplevel")
 	if err != nil {
-		return nil, errNoGit
+		return set.New[string](),errNoGit
 	}
 	branch, err := defaultBranch(root)
 	if err != nil {
-		return nil, err
+		return set.New[string](),err
 	}
 	base, err := git(root, "merge-base", "HEAD", branch)
 	if err != nil {
-		return nil, fmt.Errorf("no merge base with %s: %w", branch, err)
+		return set.New[string](),fmt.Errorf("no merge base with %s: %w", branch, err)
 	}
 	diffed, err := git(top, "diff", "--name-only", "--no-renames", base, "--")
 	if err != nil {
-		return nil, err
+		return set.New[string](),err
 	}
 	untracked, err := git(top, "ls-files", "--others", "--exclude-standard")
 	if err != nil {
-		return nil, err
+		return set.New[string](),err
 	}
 	out := set.New[string]()
 	for _, name := range append(strings.Split(diffed, "\n"), strings.Split(untracked, "\n")...) {

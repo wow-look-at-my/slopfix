@@ -21,7 +21,6 @@ func TestADigitCountIsReported(t *testing.T) {
 	assert.Equal(t, []string{"3"}, numbersFound(t, "// the walk has 3 phases"))
 }
 
-
 // A digit against a letter is a name, which is how a reference survives.
 func TestANameCarryingDigitsIsLeftAlone(t *testing.T) {
 	assert.Empty(t, numbersFound(t, "// sha256 over the amd64 payload, capped at 10ms"))

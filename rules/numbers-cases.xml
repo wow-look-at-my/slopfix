@@ -33,6 +33,8 @@
        Each in is a comment as its author wrote it, and each out is what the
        repair has to write instead of the wreckage it shipped. -->
   <test in="Batch GET two of them." out="Batch GET some of them."/>
+  <!-- "one" here is a prop-word and a pleonastic postdeterminer, not a tally.
+       english.xml drops it, and this table leaves it. -->
   <test in="It fails when this one does not carry it."
         out="It fails when this one does not carry it."/>
   <test in="The walk is dropping the one top directory."

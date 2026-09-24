@@ -76,15 +76,13 @@ func FixTree(root string) TreeResult {
 		return out
 	}
 	writable, err := changedFiles(root)
-	switch {
-	case errors.Is(err, errNoGit):
-		writable = nil
-	case err != nil:
+	scoped := err == nil
+	if err != nil && !errors.Is(err, errNoGit) {
 		out.Skipped = "the sweep wrote nothing: " + err.Error()
 		return out
 	}
 	for _, path := range TreeFiles(root) {
-		if writable != nil && !writable.Contains(realPath(path)) {
+		if scoped && !writable.Contains(realPath(path)) {
 			continue
 		}
 		src, err := os.ReadFile(path)

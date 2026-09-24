@@ -75,9 +75,9 @@ func lineOps(a, b []string) []lineOp {
 
 // hunk is a run of ops to print, and the lines it spans on each side.
 type hunk struct {
-	from, to       int
-	aStart, aLen   int
-	bStart, bLen   int
+	from, to     int
+	aStart, aLen int
+	bStart, bLen int
 }
 
 // hunks groups the changed ops with their context, merging groups whose

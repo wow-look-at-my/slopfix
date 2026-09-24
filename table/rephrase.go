@@ -52,7 +52,7 @@ func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose stri
 	last, i := 0, 0
 	for i < len(tokens) {
 		entry, end, caught, ok := firstMatch(lex, entries, tokens, i, written)
-		if !ok {
+		if !ok || !spaced(prose, spans[i:end]) {
 			i++
 			continue
 		}
@@ -64,6 +64,16 @@ func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose stri
 	}
 	out.WriteString(prose[last:])
 	return closeGaps(out.String())
+}
+
+// spaced reports whether whitespace alone joins the words, so a hyphenated compound stays whole.
+func spaced(prose string, words []span) bool {
+	for i := 1; i < len(words); i++ {
+		if strings.TrimSpace(prose[words[i-1].end:words[i].at]) != "" {
+			return false
+		}
+	}
+	return true
 }
 
 // firstMatch answers the earliest entry that fits at i.
