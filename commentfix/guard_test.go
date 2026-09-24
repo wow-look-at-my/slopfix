@@ -50,6 +50,6 @@ func TestARefusedStepIsReportedWhereItHappened(t *testing.T) {
 		assert.Equal(t, 3, r.Line)
 		assert.Equal(t, "the-two", r.Rule)
 		assert.Equal(t, "the same word twice in a row", r.Defect)
-		assert.Equal(t, `x.go:3: [comments/number/the-two] discarded a rewrite with the same word twice in a row: "Both both agree"`, r.String())
+		assert.Equal(t, `x.go:3: [comments/number/the-two] discarded a rewrite with the same word twice in a row: "Both both agree."`, r.String())
 	}
 }

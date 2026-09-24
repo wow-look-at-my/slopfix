@@ -57,6 +57,8 @@
   <class name="plural" suffix="s"/>
   <!-- A word ending like a plural after a singular determiner is the verb. -->
   <class name="singular" open="true" except="verbform plural"/>
+  <!-- Nouns the "ing" ending would read as a verb form. -->
+  <class name="ingnoun" words="thing string ring spring wing king ceiling"/>
 
   <!-- Words that survive their own deletion. -->
   <drop word="actually" test="It actually fails"/>
@@ -106,7 +108,7 @@
   <!-- A pleonastic postdeterminer: the determiner and the singular noun already
        say "exactly this one", so the word between them says it again. A
        hyphen binds the word into a compound, which a shape never reads across. -->
-  <shape id="pleonastic-postdeterminer" match="{central:d} {pleonastic} {singular:n}" replace="{d} {n}"
+  <shape id="pleonastic-postdeterminer" match="{central:d} {pleonastic} {singular|ingnoun:n}" replace="{d} {n}"
          test="The walk is dropping the one top directory" expect="The walk is dropping the top directory">
     <test in="The one thing that matters most" out="The thing that matters most"/>
     <test in="It reads each individual file" out="It reads each file"/>
