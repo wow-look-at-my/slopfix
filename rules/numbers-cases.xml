@@ -59,4 +59,20 @@
   <test in="It matters when only one is configured."
         out="It matters when only one is configured."/>
 
+  <!-- Taken from a run over gh-wait-ci. Each out is a grammatical sentence
+       that means what the in means. -->
+  <test in="It fails if exactly one is found." out="It fails if exactly one is found."/>
+  <test in="It picks the flag, otherwise the one the current directory names."
+        out="It picks the flag, otherwise the repository the current directory names."/>
+  <test in="The one thing that matters most" out="The thing that matters most"/>
+  <test in="A workflow job is one of these, but so is a status."
+        out="A workflow job is a check run, but so is a status."/>
+  <test in="The all-builds merge gate is one of these"
+        out="The all-builds merge gate is a commit status"/>
+  <test in="It names the three shapes GitHub uses" out="It names each shape GitHub uses"/>
+  <test in="It lists them, so the two are kept apart" out="It lists them, so they are kept apart"/>
+  <test in="Splits once, before any subcommand runs" out="Splits before any subcommand runs"/>
+  <test in="It lists workflow runs, newest first" out="It lists workflow runs, newest first"/>
+  <test in="A zero deadline never expires" out="A zero deadline never expires"/>
+
 </rules>
