@@ -54,7 +54,8 @@ func LanguageFor(filename string) *ts.Language {
 // Parsed reports whether a grammar reads this file rather than skipping it.
 func Parsed(filename string) bool { return LanguageFor(filename) != nil }
 
-// Extensions is every extension a grammar claims, for a caller asserting that
+// Extensions is every extension a grammar claims, for a caller asking whether
+// a file can be parsed at all.
 func Extensions() []string {
 	out := make([]string, 0, len(grammars))
 	for ext := range grammars {

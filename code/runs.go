@@ -36,7 +36,6 @@ func Runs(filename, src string) (runs []Run, ok bool) {
 	return merge(nodes, Lines(src)), true
 }
 
-// gatherComments walks the whole tree, so a comment inside a function body is
 func gatherComments(node ts.Node, out *[]ts.Node) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
@@ -114,7 +113,6 @@ func blankTo(lines []string, row, col int) bool {
 	return strings.TrimSpace(lines[row][:col]) == ""
 }
 
-// blankFrom reports whether the line holds only whitespace from a column on.
 func blankFrom(lines []string, row, col int) bool {
 	if row < 0 || row >= len(lines) {
 		return false
@@ -125,8 +123,7 @@ func blankFrom(lines []string, row, col int) bool {
 	return strings.TrimSpace(lines[row][col:]) == ""
 }
 
-// byStartRow puts the comments in file order, which is the order a caller
-// splices them back in.
+// byStartRow puts the comments in file order.
 func byStartRow(nodes []ts.Node) {
 	for i := 1; i < len(nodes); i++ {
 		for j := i; j > 0 && nodes[j].StartPoint().Row < nodes[j-1].StartPoint().Row; j-- {

@@ -26,8 +26,7 @@ type Repair struct {
 // rewriteComments applies the english table to every comment block and reflows
 // what it leaves. It answers the new text and how many rewrites that took.
 //
-// Every block goes through it, not only the ones over the cap: a tombstone is a
-// so an earlier splice never moves a later block's line numbers.
+// Every block goes through it, not only the ones over the cap.
 func rewriteComments(added string, blocks []Block) (string, int) {
 	lines := strings.Split(added, "\n")
 	rewrites := 0
@@ -130,7 +129,7 @@ func blocksLosing(blocks []Block, drop set.Set[int]) set.Set[int] {
 // reflowStripped rewraps each block a strip took a line out of, so the prose
 // that survives reads as a paragraph rather than as a sentence with a hole.
 //
-// moves every index after it. That case is left alone rather than guessed at.
+// moves every index after it.
 func reflowStripped(path, text string, losing set.Set[int], was int) string {
 	if losing.IsEmpty() {
 		return text

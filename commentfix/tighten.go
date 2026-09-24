@@ -27,7 +27,7 @@ func tighten(text []string) ([]string, int, bool) {
 		return text, 0, false
 	}
 
-	// A paragraph break is structure, so reflow each paragraph on its own and
+	// A paragraph break is structure, so reflow each paragraph on its own and put the breaks back between them.
 	var out []string
 	rewrites := 0
 	changed := false
@@ -36,14 +36,18 @@ func tighten(text []string) ([]string, int, bool) {
 			out = append(out, indent+marker)
 			continue
 		}
+		if para.verbatim {
+			// A code block is a table.
+			out = append(out, para.raw...)
+			continue
+		}
 		body := strings.Join(para.lines, " ")
 		short, took := english.FixN(body, english.Comment)
 		rewrites += took
 		if short != body {
 			changed = true
 		}
-		// A paragraph the table emptied is gone: what is left is punctuation
-		// standing where a sentence was.
+		// A paragraph the table emptied is gone.
 		if !hasWord(short) {
 			continue
 		}

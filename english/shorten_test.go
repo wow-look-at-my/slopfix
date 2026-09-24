@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// surfaceOf picks the surface an entry's own test must run on.
 func surfaceOf(where string) string {
 	if where == "message" {
 		return "message"

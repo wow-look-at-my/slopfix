@@ -1,0 +1,110 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  The shape of english.xml. This vocabulary is not rules.xsd's: an entry here
+  carries its own test on the entry (test= and expect=) and a pattern writes
+  replace= rather than to=, because the repair reads the two tables through
+  different code. A reader adding an entry gets told which attribute is missing
+  instead of finding out from a rule that silently never fires.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <xs:element name="english">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="class"/>
+        <xs:element ref="drop"/>
+        <xs:element ref="rewrite"/>
+        <xs:element ref="pattern"/>
+        <xs:element ref="flag"/>
+        <xs:element ref="test"/>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- A set of words that fill the same slot, which a shape reads to tell one
+       sentence structure from another. A class names its members, or claims
+       them by ending, or claims every word no other class holds. -->
+  <xs:element name="class">
+    <xs:complexType>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:attribute name="words" type="xs:string"/>
+      <xs:attribute name="suffix" type="xs:string"/>
+      <xs:attribute name="open" type="xs:boolean"/>
+      <xs:attribute name="except" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- A word that survives its own deletion. -->
+  <xs:element name="drop">
+    <xs:complexType>
+      <xs:attribute name="word" type="xs:string" use="required"/>
+      <xs:attribute name="test" type="xs:string" use="required"/>
+      <xs:attribute name="expect" type="xs:string"/>
+      <xs:attribute name="where" type="surface"/>
+      <xs:attribute name="id" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- A whole phrase swapped for a shorter one. -->
+  <xs:element name="rewrite">
+    <xs:complexType>
+      <xs:attribute name="from" type="xs:string" use="required"/>
+      <xs:attribute name="to" type="xs:string" use="required"/>
+      <xs:attribute name="test" type="xs:string" use="required"/>
+      <xs:attribute name="expect" type="xs:string"/>
+      <xs:attribute name="where" type="surface"/>
+      <xs:attribute name="id" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- A rewrite with captures, for a shape no whole-word swap can express. -->
+  <xs:element name="pattern">
+    <xs:complexType>
+      <xs:attribute name="match" type="xs:string" use="required"/>
+      <xs:attribute name="replace" type="xs:string" use="required"/>
+      <xs:attribute name="test" type="xs:string" use="required"/>
+      <xs:attribute name="expect" type="xs:string" use="required"/>
+      <xs:attribute name="where" type="surface"/>
+      <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="subject" type="position"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Where the subject of the clause a pattern matches stands. A pattern with
+       no subject= asks nothing of the sentence around its match. -->
+  <xs:simpleType name="position">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="matched"/>
+      <xs:enumeration value="preceding"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- A phrase named rather than rewritten, where no one replacement is right. -->
+  <xs:element name="flag">
+    <xs:complexType>
+      <xs:attribute name="phrase" type="xs:string" use="required"/>
+      <xs:attribute name="say" type="xs:string" use="required"/>
+      <xs:attribute name="test" type="xs:string" use="required"/>
+      <xs:attribute name="where" type="surface"/>
+      <xs:attribute name="id" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- A line of prose and what the repair as a whole writes for it. -->
+  <xs:element name="test">
+    <xs:complexType>
+      <xs:attribute name="in" type="xs:string" use="required"/>
+      <xs:attribute name="out" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- Which text a rule reads. An entry with no where= reads every surface. -->
+  <xs:simpleType name="surface">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="comment"/>
+      <xs:enumeration value="document"/>
+      <xs:enumeration value="message"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

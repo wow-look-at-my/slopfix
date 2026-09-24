@@ -116,6 +116,15 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 	if int(run[0].StartPoint().Column) > indentWidth(lines[start]) {
 		return block{}, false
 	}
+	// A grammar can end a comment node on the construct it documents. Tree-sitter
+	// gives a Rust `///` run an end row of the declaration below it. Such a span
+	// carries code, and a shortened block written back over it emptied the file.
+	for end > start && !opensWithMarker(lines[end-1]) {
+		end--
+	}
+	if start >= end {
+		return block{}, false
+	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
 	// Nothing after it.
 	if next >= count {
@@ -124,6 +133,21 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 	}
 	b.codeLines, b.codeChars = nodeSpan(firstStatement(parent.NamedChild(next)), lines, rows)
 	return b, true
+}
+
+// opensWithMarker reports a line that starts with a comment marker, which is
+// what bounds a span a grammar ran past the comment it was given.
+func opensWithMarker(line string) bool {
+	t := strings.TrimSpace(line)
+	if t == "" {
+		return false
+	}
+	for _, m := range []string{"///", "//!", "//", "/*", "*/", "*", "#"} {
+		if strings.HasPrefix(t, m) {
+			return true
+		}
+	}
+	return false
 }
 
 // indentWidth is how many bytes of blank open a line, which is the column a
@@ -168,8 +192,6 @@ func afterComments(node ts.Node, next, count uint32) uint32 {
 	return next
 }
 
-// documentsThePackage reports whether the construct after a file's opening
-// comment run declares the package the file belongs to.
 func documentsThePackage(node ts.Node, next, count uint32) bool {
 	if next >= count {
 		return false

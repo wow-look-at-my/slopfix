@@ -8,7 +8,7 @@ package code
 
 import ts "github.com/wow-look-at-my/go-tree-sitter"
 
-// Comment is a comment node, with the byte offset a caller counts from.
+// Comment is a comment node.
 type Comment struct {
 	// Text is the comment as written, markers included.
 	Text string
@@ -44,8 +44,7 @@ func Comments(filename, src string) []Comment {
 	return out
 }
 
-// collectComments walks every named node and keeps the comments. A comment
-// inside a function body is found the way a comment above a declaration is.
+// collectComments walks every named node and keeps the comments.
 func collectComments(node ts.Node, src string, out *[]Comment) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {

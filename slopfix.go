@@ -15,6 +15,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -53,7 +54,9 @@ func Format(content string) (string, bool) {
 // A workflow and an action manifest are judged by the workflow rules, and every
 // other file by the prose rules.
 func CheckFile(path string) ([]ste.Finding, error) {
+	read := trace.Phase("io/read")
 	content, err := os.ReadFile(path)
+	read()
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +66,7 @@ func CheckFile(path string) ([]ste.Finding, error) {
 // CheckContent reports the findings in text headed for path. The PATH decides:
 // a Go file's lines are not paragraphs, so the prose rules skip it.
 func CheckContent(path, content string) []ste.Finding {
+	defer trace.Phase("check/file")()
 	if isWorkflow(path, content) {
 		return workflow.Check(content)
 	}
@@ -74,7 +78,7 @@ func CheckContent(path, content string) []ste.Finding {
 }
 
 // commentFindings are the source rules: what the comments in a source file
-// break, reported on the line they sit on.
+// break.
 func commentFindings(path, content string) []ste.Finding {
 	var out []ste.Finding
 	for _, hit := range commentfix.Check(path, content) {
@@ -97,6 +101,15 @@ func commentFindings(path, content string) []ste.Finding {
 			Rule:   hit.Tell,
 			Detail: hit.Sentence,
 			Fix:    fix,
+		})
+	}
+	for _, hit := range commentfix.CheckTails(path, content) {
+		out = append(out, ste.Finding{
+			Line:   hit.Line,
+			ID:     hit.ID,
+			Rule:   hit.Tell,
+			Detail: hit.Sentence,
+			Fix:    "Finish the sentence, or let the repair close it. `slopfix comments --fix` does this.",
 		})
 	}
 	return out
@@ -125,7 +138,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs)
-	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID)
+	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	return ids
 }
 

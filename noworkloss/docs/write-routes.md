@@ -70,13 +70,13 @@ Stated plainly rather than carved out, because a carve-out nobody sees is how a 
 
 - **`echo x > new-file` is refused**, even though nothing is lost. Creating a file with content in it is exactly what Write is for. The rule is consistent. It is also the refusal a session meets most often.
 
-## `git merge` and `git pull` integrate. They do not author
+## `git merge`, `git pull` and `git cherry-pick` integrate. They do not author
 
-Neither is in `worktreeVerbs`, so neither is refused. Refusing them made the base-branch merge the PR rules require impossible. This half has no opt-out, and no edit tool performs a merge.
+None is in `worktreeVerbs`, so none is refused. Each lands a commit git already holds, and refusing them made the base-branch merge the PR rules require impossible. This half has no opt-out, and no edit tool replays a commit.
 
-`rebase`, `cherry-pick`, `am` and `apply` are not the same act and stay refused. The first two replay commits onto a different base. The last two take a patch from outside git. What those land is not a tree anything already holds.
+`rebase`, `revert`, `am` and `apply` stay refused. The first two rewrite or undo history in the tree. The last two take a patch from outside git, so what they land is a tree nothing already holds.
 
-Integrating into a dirty tree is a separate question. The destruction half answers it: both verbs reach `hazTracked` there and are refused with the `git stash push -u` rewrite.
+Integrating into a dirty tree is a separate question. The destruction half answers it: each verb reaches `hazTracked` there and is refused with the `git stash push -u` rewrite.
 
 `integrate_test.go` pins all three halves of that: allowed on a clean tree, denied on a dirty one, and a patch still refused either way.
 

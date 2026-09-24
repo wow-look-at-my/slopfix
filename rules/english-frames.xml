@@ -1,0 +1,45 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  The word classes that say a sentence claims the things it counts are HERE.
+  The inventory-count rule asks for one of these around a quantity, because a
+  number with no such claim counts nothing a reader can check.
+
+  A class is data. Adding a verb is an edit to this file and needs no Go.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
+
+  <!-- A verb asserting possession or extent, which frames the quantity after
+       it on its own. A reporting verb belongs here too: a document saying what
+       something MEASURES, TAKES or COSTS has written a reading down, and the
+       reading moves. -->
+  <class name="framing" words="has have had hold holds ship ships carries carry
+    contain contains cover covers include includes list lists define defines
+    register registers install installs answer answers serve serves
+    provide provides expose exposes declare declares embed embeds
+    bundle bundles comprise comprises span spans
+    measure measures measured take takes took cost costs need needs
+    use uses used finish finishes"/>
+
+  <!-- A verb that frames a quantity only with a preposition after it: "runs in
+       30 seconds" states a reading, where "runs tests" states nothing. -->
+  <class name="durative" words="run runs complete completes finish finishes"/>
+
+  <!-- The preposition a durative verb takes before its reading. -->
+  <class name="duration" words="in for"/>
+
+  <!-- "there are" claims the things exist here, with no subject naming them. -->
+  <class name="existential" words="there"/>
+
+  <!-- The verb an existential takes. -->
+  <class name="existence" words="are were"/>
+
+  <!-- A hedge stands between the verb and the quantity without changing what
+       is claimed, so a frame reads through it. -->
+  <class name="hedge" words="only just exactly all about roughly around
+    under over"/>
+
+  <!-- A word pointing inside the document, as in "the rules below". The count
+       is of what this page shows, so editing the page breaks it. -->
+  <class name="deictic" words="below above here"/>
+
+</rules>

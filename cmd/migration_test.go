@@ -54,8 +54,7 @@ func TestEveryRetiredPluginHasAHome(t *testing.T) {
 	}
 }
 
-// example-plugin was deleted on purpose. It carried no rule: it was the
-// template a new plugin got copied from.
+// example-plugin was deleted on purpose. It carried no rule.
 func TestTheExamplePluginIsNotMigrated(t *testing.T) {
 	for _, h := range migrated {
 		assert.NotEqual(t, "example-plugin", h.plugin)

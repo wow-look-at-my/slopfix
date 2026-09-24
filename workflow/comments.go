@@ -31,8 +31,18 @@ func commentBlocks(content string) []ste.Finding {
 		count = 0
 	}
 
-	for index, line := range lines(content) {
+	rows := lines(content)
+	body := blockScalarRows(content)
+	for index, line := range rows {
 		trimmed := strings.TrimSpace(line)
+		// A # inside a block scalar opens a shell comment in a script, which
+		// this rule has nothing to say about and the repair must not fold.
+		if body[index] {
+			if count > 0 {
+				flush()
+			}
+			continue
+		}
 		if strings.HasPrefix(trimmed, "#") {
 			if count == 0 {
 				start = index + 1

@@ -9,10 +9,9 @@
 //     or NotebookEdit. Bash runs things -- git, builds, tests, validation,
 //     search -- and does not author files.
 //
-// Both questions are asked of the same parsed command, which is why they live in
-// a single plugin: the shell walk, the wrapper stripping and the path
-// resolution are the same machinery, and separate copies of it would drift.
-// see docs/decision-model.md and docs/write-routes.md
+// Both are asked of the same parsed command, which is why they share a plugin:
+// the shell walk, the wrapper stripping and the path resolution are the same
+// machinery. See docs/decision-model.md and docs/write-routes.md
 package noworkloss
 
 import (
@@ -69,7 +68,7 @@ type preToolUseNotice struct {
 func Run(r io.Reader) Result {
 	raw, err := io.ReadAll(r)
 	if err != nil {
-		// Reading the payload failed, so nothing is known about the call and
+		// Reading the payload failed, so nothing is known about the call. A hook that knows nothing stays out of the way.
 		return Result{}
 	}
 	reason, notices := decide(raw)
@@ -85,8 +84,8 @@ func Run(r io.Reader) Result {
 
 // evaluateLoss runs the destruction analysis under a recover, failing OPEN on a panic.
 func evaluateLoss(command, cwd string) (reason string, notices []string) {
-	// A cheap byte scan leads: the overwhelming majority of Bash calls name no verb
-	// that can delete anything, and those must not pay for a parse or a
+	// A cheap byte scan leads: the overwhelming majority of Bash calls name no
+	// verb that can delete anything, and those must not pay for a parse.
 	if command == "" || !mayDestroy(command) {
 		return "", nil
 	}

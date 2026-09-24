@@ -86,8 +86,7 @@ func TestAllowsDeletingANonexistentBranch(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// push --force
-// ---------------------------------------------------------------------------
+// push --force.
 
 func TestAllowsForcePushThatIsAFastForward(t *testing.T) {
 	dir := remoteRepo(t)
@@ -156,8 +155,7 @@ func TestForceRefspecIsTreatedAsAForcePush(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// push --delete
-// ---------------------------------------------------------------------------
+// push --delete.
 
 func TestAllowsDeletingARemoteBranchAlreadyMerged(t *testing.T) {
 	dir := remoteRepo(t)

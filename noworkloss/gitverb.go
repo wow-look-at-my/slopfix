@@ -204,7 +204,7 @@ func classifyGit(seg segment) *finding {
 		if g.has("-n", "--dry-run", "-i", "--interactive") {
 			return nil
 		}
-		// Deliberately not gated on -f: clean.requireForce is configurable, so
+		// Deliberately not gated on -f: clean.requireForce is configurable.
 		haz := hazUntracked
 		rewrite := `git stash push -u -m "pre-clean"`
 		if g.has("-x", "-X") {
@@ -397,8 +397,7 @@ func classifyGit(seg segment) *finding {
 	return nil
 }
 
-// lastOperand returns the final statically-known operand, which for the
-// ref-taking verbs is the ref being acted on.
+// lastOperand returns the final statically-known operand.
 func lastOperand(operands []word) string {
 	for i := len(operands) - 1; i >= 0; i-- {
 		if operands[i].static && operands[i].text != "" {

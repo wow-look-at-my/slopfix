@@ -1,5 +1,3 @@
-// load.go reads the rules folder into the table a consumer runs on.
-//
 // A file declares its consumer with the `for` attribute on its root, and the
 // folder is read in file name order and then document order: a longer phrase
 // that must beat a shorter phrase sits above it. What an entry must carry to be
@@ -29,11 +27,25 @@ type document struct {
 	Rephrases []xmlShape  `xml:"rephrase"`
 	Normals   []xmlPhrase `xml:"normalize"`
 	Tests     []xmlTest   `xml:"test"`
+	Detects   []xmlDetect `xml:"detect"`
 }
 
 type xmlTest struct {
 	In  string `xml:"in,attr"`
 	Out string `xml:"out,attr"`
+}
+
+// xmlDetect states what a single substrate reports for a line. The
+// phrases are children rather than an attribute, because a phrase carries spaces.
+type xmlDetect struct {
+	In        string     `xml:"in,attr"`
+	Substrate string     `xml:"substrate,attr"`
+	Why       string     `xml:"why,attr"`
+	Found     []xmlFound `xml:"found"`
+}
+
+type xmlFound struct {
+	Text string `xml:"text,attr"`
 }
 
 type xmlDrop struct {
@@ -54,7 +66,7 @@ type xmlPhrase struct {
 }
 
 // xmlShape is a pattern and a rephrase alike: both name a match and what to
-// write for it, and differ in the language the match is spelled in.
+// write for it.
 type xmlShape struct {
 	ID    string    `xml:"id,attr"`
 	Match string    `xml:"match,attr"`
@@ -95,7 +107,7 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 			return nil, err
 		}
 		var doc document
-		if err := xml.Unmarshal(raw, &doc); err != nil {
+		if err := xml.Unmarshal(Readable(raw), &doc); err != nil {
 			return nil, fmt.Errorf("%s does not parse: %w", path, err)
 		}
 		if doc.For == "" {
@@ -214,6 +226,19 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 		}
 	}
 	t.Tests = append(t.Tests, tests(doc.Tests)...)
+	for _, d := range doc.Detects {
+		if d.In == "" || d.Substrate == "" {
+			return fmt.Errorf("%s: a <detect> needs both an in and a substrate", path)
+		}
+		found := make([]string, 0, len(d.Found))
+		for _, f := range d.Found {
+			if f.Text == "" {
+				return fmt.Errorf("%s: <detect in=%q> has a <found> with no text", path, d.In)
+			}
+			found = append(found, f.Text)
+		}
+		t.Detects = append(t.Detects, Detect{In: d.In, Substrate: d.Substrate, Why: d.Why, Found: found})
+	}
 	return nil
 }
 
@@ -227,5 +252,5 @@ func tests(in []xmlTest) []Test {
 
 func (t *Table) empty() bool {
 	return len(t.Drops)+len(t.Rewrites)+len(t.Patterns)+len(t.Flags)+
-		len(t.Classes)+len(t.Rephrasings)+len(t.Normals)+len(t.Tests) == 0
+		len(t.Classes)+len(t.Rephrasings)+len(t.Normals)+len(t.Tests)+len(t.Detects) == 0
 }

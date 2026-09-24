@@ -8,65 +8,13 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// runBlock is a run: script, and the line its content starts on.
-type runBlock struct {
-	start int
-	lines []string
-}
+// runBlock is a run: script.
+type runBlock = scriptRows
 
-var runKey = regexp.MustCompile(`^(\s*)(-\s+)?run:\s*(.*)$`)
-
-// blockScalar matches the | and > forms, with their chomping and indent digits.
-var blockScalar = regexp.MustCompile(`^[|>][+-]?\d*$`)
-
-// runBlocks reads every run: script. A regex walk rather than a parse, since a
-// file this rule rejects may also be a file a parser rejects.
+// runBlocks reads every run: script off the parser. A document the parser
+// rejects carries no script this rule can name, and GitHub rejects it too.
 func runBlocks(content string) []runBlock {
-	all := lines(content)
-	var blocks []runBlock
-
-	for index := 0; index < len(all); index++ {
-		match := runKey.FindStringSubmatch(all[index])
-		if match == nil {
-			continue
-		}
-		// A sequence item carries its key past the dash, so the KEY sets the end.
-		indent := len(match[1]) + len(match[2])
-		rest := strings.TrimSpace(match[3])
-		if !blockScalar.MatchString(rest) {
-			if rest != "" {
-				blocks = append(blocks, runBlock{start: index + 1, lines: []string{rest}})
-			}
-			continue
-		}
-
-		var body []string
-		cursor := index + 1
-		for ; cursor < len(all); cursor++ {
-			line := all[cursor]
-			if strings.TrimSpace(line) == "" {
-				body = append(body, "")
-				continue
-			}
-			if indentOf(line) <= indent {
-				break
-			}
-			body = append(body, line)
-		}
-		// A trailing run of blank lines belongs to the document, not the script.
-		for len(body) > 0 && body[len(body)-1] == "" {
-			body = body[:len(body)-1]
-		}
-		if len(body) > 0 {
-			blocks = append(blocks, runBlock{start: index + 2, lines: body})
-		}
-		index = cursor - 1
-	}
-	return blocks
-}
-
-func indentOf(line string) int {
-	return len(line) - len(strings.TrimLeft(line, " \t"))
+	return scripts(content)
 }
 
 // testFileNames match a name only a test suite gives a file.
