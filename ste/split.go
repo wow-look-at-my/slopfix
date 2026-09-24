@@ -200,7 +200,8 @@ func closesTheSentence(s *syntax.Sentence, c syntax.Clause) bool {
 	}
 	return true
 }
- whether the word at i reads right with a capital.
+
+// opensWithCapital reports whether the word at i reads right with a capital.
 // A name written in lower case, such as a command, does not.
 func opensWithCapital(s *syntax.Sentence, i int) bool {
 	w := s.Words[i]
