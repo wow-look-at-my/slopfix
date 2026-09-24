@@ -29,6 +29,9 @@
     ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen
     nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred"/>
 
+  <!-- An object pronoun follows a verb or a preposition, never a noun. -->
+  <class name="object" words="it them him her us me"/>
+
   <!-- A noun that names a person takes they rather than it. -->
   <class name="person" words="user users person people caller callers author
     authors owner owners reader readers writer writers reviewer reviewers

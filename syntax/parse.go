@@ -57,6 +57,12 @@ func restoreVerbs(words []Word, phrases []Phrase) bool {
 		}
 		start = i + 1
 	}
+	for n := 1; n < len(phrases); n++ {
+		// A compound right after another noun phrase opens a clause of its own: "the reason a caller waits".
+		if prev := phrases[n-1]; prev.Kind == NounPhrase && prev.Last+1 == phrases[n].First {
+			changed = restoreOne(words, phrases[n:n+1], phrases[n].First, phrases[n].Last+1) || changed
+		}
+	}
 	return changed
 }
 
@@ -125,8 +131,18 @@ func retag(words []Word) {
 			w.Tag = "NNP"
 		case Is(lower, "coordinator") && w.Tag != "CC" && lower != "so" && lower != "yet":
 			w.Tag = "CC"
+		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "CC" && opensNounPhrase(words[i+1]):
+			// "and reads every row": a plural noun cannot take a determiner after it.
+			w.Tag = "VBZ"
+		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "NN" && Is(words[i+1].Text, "object"):
+			// "a message reads it": a noun takes no object pronoun.
+			w.Tag = "VBZ"
 		}
 	}
+}
+
+func opensNounPhrase(w Word) bool {
+	return w.Tag == "DT" || w.Tag == "PRP$" || w.Tag == "CD" || w.Tag == "PDT"
 }
 
 func isNoun(tag string) bool {

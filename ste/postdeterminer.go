@@ -21,17 +21,12 @@ type postdeterminer struct {
 }
 
 // postdeterminers answers every redundant numeral in the prose.
-func postdeterminers(prose string, opaque [][]int) []postdeterminer {
+func postdeterminers(source, masked string, off [][]int) []postdeterminer {
 	var out []postdeterminer
-	at := 0
-	for _, sentence := range Sentences(prose) {
-		start := strings.Index(prose[at:], sentence)
-		if start < 0 {
-			break
-		}
-		start += at
-		at = start + len(sentence)
-		s := syntax.Parse(sentence, shift(opaque, -start))
+	for _, span := range sentenceSpans(source) {
+		start := span[0]
+		sentence := masked[start:span[1]]
+		s := syntax.Parse(sentence, shift(off, -start))
 		for _, np := range s.NounPhrases() {
 			if !redundantNumeral(s, np) {
 				continue
@@ -88,20 +83,23 @@ func redundantNumeral(s *syntax.Sentence, np syntax.Phrase) bool {
 	return single == (head.Tag == "NN")
 }
 
-// spelledCount reports whether a numeral is a plain count: a whole number in
-// digits, or a number word. A version, a decimal and a time are not.
+// spelledCount reports whether a numeral is a plain count: a number word, or
+// a small whole number. A version, a decimal, a year and a status code are not.
 func spelledCount(numeral string) bool {
 	for _, r := range numeral {
 		if !unicode.IsDigit(r) {
 			return syntax.Is(numeral, "number-word")
 		}
 	}
-	return len(numeral) < 4
+	return len(numeral) <= maxCountDigits
 }
+
+// maxCountDigits keeps "this 403" and "the 2026 release" out of the rule.
+const maxCountDigits = 2
 
 func checkPostdeterminers(prose string, line int) []Finding {
 	var out []Finding
-	for _, hit := range postdeterminers(prose, nil) {
+	for _, hit := range postdeterminers(prose, prose, opaque(prose, prose)) {
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDPostdeterminer,
@@ -116,7 +114,7 @@ func checkPostdeterminers(prose string, line int) []Finding {
 // fixPostdeterminers cuts every redundant numeral from the prose.
 func fixPostdeterminers(prose string) string {
 	masked := mask(prose)
-	hits := postdeterminers(masked, offLimits(prose, masked))
+	hits := postdeterminers(prose, masked, opaque(prose, masked))
 	for i := len(hits) - 1; i >= 0; i-- {
 		prose = prose[:hits[i].Start] + prose[hits[i].End:]
 	}

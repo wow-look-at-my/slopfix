@@ -145,6 +145,17 @@ func TestAnOpaqueSpanReadsAsAName(t *testing.T) {
 	assert.Equal(t, "stops", verb(s, s.Clauses[0]))
 }
 
+func TestAPluralFormBeforeADeterminerIsAVerb(t *testing.T) {
+	s := parse(t, "The loader opens the file and reads every row.")
+	require.Len(t, s.Clauses, 2)
+	assert.Equal(t, "reads", verb(s, s.Clauses[1]))
+}
+
+func TestACompoundAfterANounPhraseOpensAClause(t *testing.T) {
+	s := parse(t, "This is the reason a caller waits.")
+	assert.Equal(t, "VBZ", s.Words[len(s.Words)-2].Tag)
+}
+
 func TestPersonNounsTakeThey(t *testing.T) {
 	s := parse(t, "The caller waits.")
 	np := s.NounPhrases()[0]

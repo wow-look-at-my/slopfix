@@ -1,10 +1,12 @@
 package ste
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -40,26 +42,51 @@ func fixSentenceCap(prose string) string {
 // divideNext divides the earliest over-cap sentence that a clause boundary can divide.
 func divideNext(prose string) (string, bool) {
 	masked := mask(prose)
-	off := offLimits(prose, masked)
-	at := 0
-	for _, sentence := range Sentences(masked) {
-		start := strings.Index(masked[at:], sentence)
-		if start < 0 {
-			break
-		}
-		start += at
-		end := start + len(sentence)
-		at = end
-		if WordCount(sentence) <= SentenceWordCap {
+	off := opaque(prose, masked)
+	for _, span := range sentenceSpans(prose) {
+		start, end := span[0], span[1]
+		if WordCount(masked[start:end]) <= SentenceWordCap {
 			continue
 		}
-		s := syntax.Parse(sentence, shift(off, -start))
+		s := syntax.Parse(masked[start:end], shift(off, -start))
 		if rewritten, ok := bestDivision(s, prose[start:end]); ok {
 			return prose[:start] + rewritten + prose[end:], true
 		}
 	}
 	return prose, false
 }
+
+// sentenceSpans answers the byte range of each sentence. It reads the source
+// rather than a mask, because a masked code span opens a sentence.
+func sentenceSpans(prose string) [][2]int {
+	var out [][2]int
+	at := 0
+	for _, sentence := range Sentences(prose) {
+		start := strings.Index(prose[at:], sentence)
+		if start < 0 {
+			break
+		}
+		start += at
+		at = start + len(sentence)
+		out = append(out, [2]int{start, at})
+	}
+	return out
+}
+
+// opaque are the spans the parser reads as names: the data Check hides, a
+// parenthetical, and a quotation, whose words belong to somebody else.
+func opaque(prose, masked string) [][]int {
+	off := offLimits(prose, masked)
+	for _, span := range cardinal.QuotedSpans(prose) {
+		off = append(off, []int{span.Start, span.End})
+	}
+	for _, loc := range curlyQuote.FindAllStringIndex(prose, -1) {
+		off = append(off, loc)
+	}
+	return off
+}
+
+var curlyQuote = regexp.MustCompile(`“[^”]*”`)
 
 // bestDivision picks the division that leaves the longer half shortest.
 func bestDivision(s *syntax.Sentence, source string) (string, bool) {
@@ -149,19 +176,20 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "", false
 		}
 		connector, ok := connectors[link]
-		if !ok {
+		if !ok || c.Comma && listBefore(s, c) {
 			return "", false
 		}
 		if c.Subject != nil {
 			return connector, opensWithCapital(s, c.Link+1)
 		}
 		if main.Verb.Imperative {
-			return connector, true
+			return connector, opensSentence(s, main)
 		}
 		if main.Subject == nil {
 			return "", false
 		}
-		return strings.TrimSpace(connector + " " + restated(s, main, source)), true
+		subject, ok := restated(s, main, c, source)
+		return strings.TrimSpace(connector + " " + subject), ok
 	case syntax.Relative:
 		if link != "which" || !c.Comma || c.Subject != nil || !closesTheSentence(s, c) {
 			return "", false
@@ -209,17 +237,18 @@ func opensWithCapital(s *syntax.Sentence, i int) bool {
 	return !(unicode.IsLower(first) && (w.Tag == "NNP" || w.Tag == "NNPS"))
 }
 
-// restated names the main clause's subject again, for a verb group that shared
-// it. A short subject repeats, and an indefinite article becomes the. A long
-// subject, a subject that carries a prepositional phrase, or a name in lower
-// case becomes a pronoun.
-func restated(s *syntax.Sentence, main syntax.Clause, source string) string {
+// restated names the main clause's subject again, for the verb group of c that
+// shared it. A short subject repeats, and an indefinite article becomes the.
+// Otherwise a pronoun stands in, chosen to agree with c's verb. It answers false
+// when no pronoun agrees, as for a single person and a verb in -s.
+func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string, bool) {
 	subject := *main.Subject
 	head := s.Words[subject.Head]
 	if head.Tag == "PRP" {
-		return head.Text
+		return head.Text, true
 	}
-	short := subject.Last-subject.First < restateLimit && !carriesPhrase(s, subject, *main.Verb)
+	short := subject.Last-subject.First < restateLimit && !subject.Coordinated &&
+		s.Words[subject.Last+1].Tag != "IN"
 	if short && opensWithCapital(s, subject.First) {
 		text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 		if subject.Det == subject.First {
@@ -227,23 +256,55 @@ func restated(s *syntax.Sentence, main syntax.Clause, source string) string {
 				text = "the" + text[len(det):]
 			}
 		}
-		return text
+		return text, true
 	}
-	if s.Plural(subject) || s.Person(subject) {
-		return "they"
+	plural := s.Plural(subject)
+	switch s.Words[c.Verb.Head].Tag {
+	case "VBZ":
+		plural = false
+	case "VBP":
+		plural = true
 	}
-	return "it"
+	switch {
+	case plural:
+		return "they", true
+	case s.Person(subject):
+		return "", false
+	}
+	return "it", true
 }
 
-// carriesPhrase reports whether words other than adverbs sit between the
-// subject and its verb, as "of every cached artifact" does.
-func carriesPhrase(s *syntax.Sentence, subject, verb syntax.Phrase) bool {
-	for i := subject.Last + 1; i < verb.First; i++ {
-		if s.Words[i].Tag != "RB" {
+// listBefore reports a comma inside the clause before c, which makes ", and"
+// the end of a list rather than a join between clauses.
+func listBefore(s *syntax.Sentence, c syntax.Clause) bool {
+	for i := c.Link - 2; i >= 0 && i >= clauseStart(s, c.Link); i-- {
+		if s.Words[i].Text == "," {
 			return true
 		}
 	}
 	return false
+}
+
+// clauseStart answers the earliest word of the clause that ends before word i.
+func clauseStart(s *syntax.Sentence, i int) int {
+	start := 0
+	for _, c := range s.Clauses {
+		if c.First < i && c.First > start && c.Link != i {
+			start = c.First
+		}
+	}
+	return start
+}
+
+// opensSentence reports whether a clause starts at the sentence's earliest
+// word, which an imperative has to: "Write the file".
+func opensSentence(s *syntax.Sentence, c syntax.Clause) bool {
+	for i := 0; i < c.Verb.First; i++ {
+		if s.Words[i].Tag != "RB" && s.Words[i].Tag != "``" {
+			return false
+		}
+	}
+	return true
 }
 
 const restateLimit = 4

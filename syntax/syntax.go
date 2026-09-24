@@ -49,6 +49,8 @@ type Phrase struct {
 	Finite bool
 	// Imperative reports a bare verb that opens its clause, as in "Write the file".
 	Imperative bool
+	// Coordinated reports noun phrases joined by a conjunction: "the file and the tree".
+	Coordinated bool
 }
 
 // LinkKind is how a clause attaches to the clause before it.
@@ -122,6 +124,9 @@ func (s *Sentence) NounPhrases() []Phrase {
 
 // Plural reports whether a noun phrase names several things.
 func (s *Sentence) Plural(p Phrase) bool {
+	if p.Coordinated {
+		return true
+	}
 	switch s.Words[p.Head].Tag {
 	case "NNS", "NNPS":
 		return true

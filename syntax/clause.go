@@ -56,6 +56,17 @@ func (p *clauseParser) run() []Clause {
 			}
 		}
 		comma = false
+		if !opens {
+			if next, ok := p.resume(i, cur, out); ok {
+				cur.Last = p.lastWord(cur.First, next.First-1)
+				out = append(out, cur)
+				cur = next
+				if cur.Depth == 0 {
+					p.main = cur
+				}
+				continue
+			}
+		}
 		if ph, ok := p.phrase(i); ok && ph.Kind == VerbGroup && ph.First == i && cur.Verb == nil {
 			p.attach(&cur, ph)
 			if cur.Depth == 0 && cur.Verb != nil {
@@ -285,5 +296,60 @@ func (p *clauseParser) subjectBefore(k, start int) *Phrase {
 		}
 		ph = prev
 	}
+	if ph.First-2 >= start && p.s.Words[ph.First-1].Tag == "CC" {
+		if prev, ok := p.phrase(ph.First - 2); ok && prev.Kind == NounPhrase {
+			joined := *prev
+			joined.Last, joined.Head, joined.Coordinated = ph.Last, ph.Head, true
+			return &joined
+		}
+	}
 	return ph
+}
+
+// adjacentNouns reports a noun phrase directly followed by another in [from, to).
+func (p *clauseParser) adjacentNouns(from, to int) bool {
+	for i := from; i < to; i++ {
+		ph, ok := p.phrase(i)
+		if !ok || ph.Kind != NounPhrase || ph.First != i {
+			continue
+		}
+		if next, ok := p.phrase(ph.Last + 1); ok && next.Kind == NounPhrase && ph.Last+1 < to {
+			return true
+		}
+	}
+	return false
+}
+ a finite verb group at i opens when it follows a
+// subordinate clause that already has its verb, as the main verb does in "A user
+// who reads the message leaves" and "If the cache is cold the build fails".
+func (p *clauseParser) resume(i int, cur Clause, out []Clause) (Clause, bool) {
+	vg, ok := p.phrase(i)
+	if !ok || vg.Kind != VerbGroup || vg.First != i || !vg.Finite || cur.Verb == nil || cur.Depth == 0 {
+		return Clause{}, false
+	}
+	if p.adjacentNouns(cur.Verb.Last+1, i) {
+		// "which reads the file the loader holds": the verb belongs to a reduced relative.
+		return Clause{}, false
+	}
+	switch {
+	case cur.Kind == Relative && cur.Link > 0:
+		for n := len(out) - 1; n >= 0; n-- {
+			parent := out[n]
+			if parent.Depth != cur.Depth-1 {
+				continue
+			}
+			subject := parent.Subject
+			if subject == nil {
+				subject = p.subjectBefore(cur.Link-1, parent.First)
+			}
+			return Clause{First: i, Link: -1, Kind: Opens, Depth: parent.Depth, Subject: subject, Verb: vg}, subject != nil
+		}
+	case cur.Kind == Subordinate && cur.First == 0 && cur.Depth == 1:
+		subject := p.subjectBefore(i-1, cur.Verb.Last+1)
+		if subject == nil {
+			return Clause{}, false
+		}
+		return Clause{First: subject.First, Link: -1, Kind: Opens, Subject: subject, Verb: vg}, true
+	}
+	return Clause{}, false
 }
