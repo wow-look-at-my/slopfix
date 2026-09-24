@@ -60,6 +60,8 @@ func applyEdits(src string, edits []edit) (string, bool) {
 type placed struct {
 	// findings are the rules the write's own text broke.
 	findings []ste.Finding
+	// repair is the whole-file repair, cut back to the edit.
+	repair *slopfix.Repair
 	// ok is false when the edit could not be pinned to the file, and the caller then judges the fragment as it always did.
 	ok bool
 }
@@ -79,17 +81,46 @@ func place(tool string, in writeInput, rules []slopfix.Rule, ids []string) place
 	if !ok {
 		return placed{}
 	}
-	return placed{findings: introduced(before, after, in.FilePath, rules, ids), ok: true}
+	fixed := fixOver(after, in.FilePath, rules, ids)
+	p := placed{findings: introduced(fixOver(before, in.FilePath, rules, ids).Findings, fixed.Findings), ok: true}
+	// A MultiEdit's spans cannot be told apart a single time the repair has moved them.
+	if len(edits) == 1 {
+		p.repair = spliceBack(before, edits[0], fixed)
+	}
+	return p
+}
+
+// spliceBack cuts a whole-file repair back to the text the edit replaces. It
+// answers nil when the repair changed anything outside the edit, because that
+// text belongs to whoever wrote it.
+func spliceBack(before string, e edit, fixed slopfix.Repair) *slopfix.Repair {
+	at := strings.Index(before, e.old)
+	prefix, suffix := before[:at], before[at+len(e.old):]
+	text := fixed.Text
+	if !strings.HasPrefix(text, prefix) || !strings.HasSuffix(text, suffix) ||
+		len(text) < len(prefix)+len(suffix) {
+		return nil
+	}
+	out := fixed
+	out.Text = text[len(prefix) : len(text)-len(suffix)]
+	out.Changed = out.Text != e.new
+	out.Kept = nil
+	for _, hit := range fixed.Kept {
+		if strings.Contains(out.Text, hit.Phrase) {
+			out.Kept = append(out.Kept, hit)
+		}
+	}
+	return &out
 }
 
 // introduced subtracts what the file already carried.
-func introduced(before, after, path string, rules []slopfix.Rule, ids []string) []ste.Finding {
+func introduced(before, after []ste.Finding) []ste.Finding {
 	had := map[string]int{}
-	for _, f := range findingsOver(before, path, rules, ids) {
+	for _, f := range before {
 		had[f.ID+"\x00"+f.Detail]++
 	}
 	var out []ste.Finding
-	for _, f := range findingsOver(after, path, rules, ids) {
+	for _, f := range after {
 		key := f.ID + "\x00" + f.Detail
 		if had[key] > 0 {
 			had[key]--
@@ -100,13 +131,13 @@ func introduced(before, after, path string, rules []slopfix.Rule, ids []string) 
 	return out
 }
 
-// findingsOver runs the caller's own rule selection over a whole document.
-func findingsOver(src, path string, rules []slopfix.Rule, ids []string) []ste.Finding {
+// fixOver runs the caller's own rule selection over a whole document.
+func fixOver(src, path string, rules []slopfix.Rule, ids []string) slopfix.Repair {
 	return slopfix.Fix(slopfix.Request{
 		Content:         src,
 		Path:            path,
 		Rules:           rules,
 		IDs:             ids,
 		MaxCommentLines: hookMaxLines,
-	}).Findings
+	})
 }
