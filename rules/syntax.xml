@@ -29,6 +29,10 @@
     ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen
     nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred"/>
 
+  <!-- A pronoun the tagger reads as a noun. Like a determiner, it cannot follow a plural noun. -->
+  <class name="indefinite" words="nothing everything something anything nobody
+    everybody somebody anybody everyone someone anyone"/>
+
   <!-- An object pronoun follows a verb or a preposition, never a noun. -->
   <class name="object" words="it them him her us me"/>
 

@@ -101,6 +101,8 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 			head.Tag = "VBZ"
 		case head.Tag == "NN" && before.Tag == "NNS":
 			head.Tag = "VBP"
+		case head.Tag == "NN" && before.Tag == "NN" && verbEnding(head.Text):
+			head.Tag = "VBZ"
 		default:
 			continue
 		}
@@ -141,8 +143,15 @@ func retag(words []Word) {
 	}
 }
 
+// verbEnding reports an -s ending a verb takes, and not "status" or "access".
+func verbEnding(word string) bool {
+	lower := strings.ToLower(word)
+	return strings.HasSuffix(lower, "s") && !strings.HasSuffix(lower, "ss") &&
+		!strings.HasSuffix(lower, "us") && !strings.HasSuffix(lower, "is")
+}
+
 func opensNounPhrase(w Word) bool {
-	return w.Tag == "DT" || w.Tag == "PRP$" || w.Tag == "CD" || w.Tag == "PDT"
+	return w.Tag == "DT" || w.Tag == "PRP$" || w.Tag == "CD" || w.Tag == "PDT" || Is(w.Text, "indefinite")
 }
 
 func isNoun(tag string) bool {

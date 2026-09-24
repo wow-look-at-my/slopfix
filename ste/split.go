@@ -274,7 +274,30 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	return "it", true
 }
 
-// listBefore reports a comma inside the clause before c, which makes ", and"
+// joinsClauses reports whether the conjunction at byte at joins a main clause
+// to another that names its own subject. The end of a list does not: "the
+// cache, the tree, and the runner that holds the job".
+func joinsClauses(prose string, at int) bool {
+	word, _, _ := strings.Cut(prose[at:], " ")
+	if !syntax.Is(word, "coordinator") {
+		// "then" is an adverb to the parser, and the splice pattern alone judges it.
+		return true
+	}
+	for _, span := range sentenceSpans(prose) {
+		if at < span[0] || at >= span[1] {
+			continue
+		}
+		s := syntax.Parse(prose[span[0]:span[1]], opaque(prose[span[0]:span[1]], prose[span[0]:span[1]]))
+		for _, c := range s.Clauses {
+			if c.Link >= 0 && s.Words[c.Link].Start == at-span[0] {
+				return c.Kind == syntax.Coordinate && c.Depth == 0 && c.Subject != nil && !listBefore(s, c)
+			}
+		}
+		return false
+	}
+	return false
+}
+ a comma inside the clause before c, which makes ", and"
 // the end of a list rather than a join between clauses.
 func listBefore(s *syntax.Sentence, c syntax.Clause) bool {
 	for i := c.Link - 2; i >= 0 && i >= clauseStart(s, c.Link); i-- {

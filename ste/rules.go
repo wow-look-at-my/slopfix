@@ -241,7 +241,7 @@ func checkSplices(prose string, line int) []Finding {
 	var out []Finding
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
 		bare := loc[2] < 0
-		if bare && !isClause(clauseBefore(prose, loc[0])) {
+		if bare && !isClause(clauseBefore(prose, loc[0])) || !bare && !joinsClauses(prose, loc[2]) {
 			continue
 		}
 		out = append(out, Finding{

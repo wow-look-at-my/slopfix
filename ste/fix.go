@@ -99,7 +99,8 @@ func fixSplices(prose string) string {
 	var joiners [][]int
 	var openers []string
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
-		if bare := loc[2] < 0; bare && !isClause(clauseBefore(prose, loc[0])) {
+		bare := loc[2] < 0
+		if bare && !isClause(clauseBefore(prose, loc[0])) || !bare && !joinsClauses(prose, loc[2]) {
 			continue
 		}
 		end := loc[0] + len(spliceComma.FindString(prose[loc[0]:]))
