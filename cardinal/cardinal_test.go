@@ -26,11 +26,15 @@ func TestAProseFindingOpensWithTheCardinal(t *testing.T) {
 }
 
 // The vocabularies differ, and the difference is deliberate. A comment reads
-// the singular and the ordinals; prose reads neither, because there they are
-// overwhelmingly ordinary English.
+// the scales; prose does not, because there they are ordinary English.
 func TestTheVocabulariesDifferByDesign(t *testing.T) {
-	for _, word := range []string{"one", "first", "hundred", "once"} {
+	for _, word := range []string{"hundred", "thousand", "million"} {
 		assert.True(t, commentWords.Contains(word), word)
+		assert.False(t, proseWords.Contains(word), word)
+	}
+	// No substrate reads a word that tallies nothing.
+	for _, word := range []string{"zero", "one", "once", "twice", "first", "second"} {
+		assert.False(t, commentWords.Contains(word), word)
 		assert.False(t, proseWords.Contains(word), word)
 	}
 	for _, word := range []string{"three", "twenty", "dozen"} {

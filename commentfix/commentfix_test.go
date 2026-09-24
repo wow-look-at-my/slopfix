@@ -22,7 +22,25 @@ func TestADigitCountIsReported(t *testing.T) {
 }
 
 func TestAWordCountIsReported(t *testing.T) {
-	assert.Equal(t, []string{"once"}, numbersFound(t, "// the sweep runs once"))
+	assert.Equal(t, []string{"three"}, numbersFound(t, "// the sweep runs three passes"))
+}
+
+// Only a tally is reported: a count of a set that can grow or shrink while the
+// sentence stays true. A pronoun, a condition, a repeat count, an order and a
+// value tally nothing.
+func TestANumberThatTalliesNothingIsLeftAlone(t *testing.T) {
+	for _, body := range []string{
+		"// if exactly one is found",
+		"// otherwise the one the current directory names",
+		"// The one thing that matters most",
+		"// A workflow job is one of these, but so is a status.",
+		"// Splits once, before any subcommand runs",
+		"// It hashes the key twice.",
+		"// lists workflow runs, newest first",
+		"// A zero deadline never expires",
+	} {
+		assert.Empty(t, numbersFound(t, body), body)
+	}
 }
 
 // A digit against a letter is a name, which is how a reference survives.

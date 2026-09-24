@@ -14,18 +14,17 @@
   <test in="sync.Once guards it" out="sync.Once guards it"/>
   <test in="net/http serves it" out="net/http serves it"/>
   <test in="it calls Do.Once here" out="it calls Do.Once here"/>
-  <test in="the once flag" out="the a single time flag"/>
-  <test in="The oneShot flag and someone else" out="The oneShot flag and someone else"/>
+  <test in="it calls pkg.Two here" out="it calls pkg.Two here"/>
+  <test in="The twoPhase flag and someone else" out="The twoPhase flag and someone else"/>
 
   <test in="Tests for .github/scripts/register.sh, the step it runs"
         out="Tests for .github/scripts/register.sh, the step it runs"/>
   <test in="The suite lives in .dats files" out="The suite lives in .dats files"/>
   <test in="Ignored by .gitignore already" out="Ignored by .gitignore already"/>
 
-  <test in="exactly one of s or other." out="a single side of s or other."/>
   <test in="Two goroutines contend" out="Goroutines contend"/>
 
-  <test in="It reserves one slot ." out="It reserves a single slot."/>
+  <test in="It reserves two slots ." out="It reserves slots."/>
   <test in="It locks , then writes ." out="It locks, then writes."/>
 
   <test in="It reserves a slot and publishes it" out="It reserves a slot and publishes it"/>
@@ -35,44 +34,50 @@
        repair has to write instead of the wreckage it shipped. -->
   <test in="Batch GET two of them." out="Batch GET some of them."/>
   <test in="It fails when this one does not carry it."
-        out="It fails when this does not carry it."/>
+        out="It fails when this one does not carry it."/>
   <test in="The walk is dropping the one top directory."
-        out="The walk is dropping the single top directory."/>
+        out="The walk is dropping the one top directory."/>
   <test in="Two goroutines contend for it." out="Goroutines contend for it."/>
   <test in="One good entry and one relic."
-        out="A single good entry and a single relic."/>
-  <test in="It is a no-op once." out="It is a no-op a single time."/>
+        out="One good entry and one relic."/>
+  <test in="It is a no-op once." out="It is a no-op once."/>
   <test in="It reads from the first .gitmodules parser above."
-        out="It reads from the earliest .gitmodules parser above."/>
+        out="It reads from the first .gitmodules parser above."/>
 
   <!-- A rewrite inside a line keeps the case of what it replaced, so a
        sentence that opens mid-line still opens with a capital. -->
-  <test in="It drains uploads. The first process owns the cache."
-        out="It drains uploads. The earliest process owns the cache."/>
-  <test in="They offer it. The first offer is stored once."
-        out="They offer it. The earliest offer is stored a single time."/>
+  <test in="It drains uploads. Two workers own the cache."
+        out="It drains uploads. Workers own the cache."/>
+  <test in="They offer it. The two agree."
+        out="They offer it. Both agree."/>
 
-  <!-- The cardinal stands in for a noun the sentence already named, so the
-       phrase is reported rather than rewritten into "a single that exits". -->
   <test in="It runs, and only one that exits holds the lock."
         out="It runs, and only one that exits holds the lock."/>
   <test in="It matters when only one is configured."
         out="It matters when only one is configured."/>
 
-  <!-- Taken from a run over gh-wait-ci. Each out is a grammatical sentence
-       that means what the in means. -->
+  <!-- Taken from a run over gh-wait-ci. Only a tally is banned: a count of a
+       set that can grow or shrink while the sentence stays true. A pronoun, a
+       condition, a repeat count, an order and a value are none of those, so
+       the table leaves them as the author wrote them. -->
   <test in="It fails if exactly one is found." out="It fails if exactly one is found."/>
   <test in="It picks the flag, otherwise the one the current directory names."
-        out="It picks the flag, otherwise the repository the current directory names."/>
-  <test in="The one thing that matters most" out="The thing that matters most"/>
+        out="It picks the flag, otherwise the one the current directory names."/>
+  <test in="The one thing that matters most" out="The one thing that matters most"/>
   <test in="A workflow job is one of these, but so is a status."
-        out="A workflow job is a check run, but so is a status."/>
+        out="A workflow job is one of these, but so is a status."/>
   <test in="The all-builds merge gate is one of these"
-        out="The all-builds merge gate is a commit status"/>
-  <test in="It names the three shapes GitHub uses" out="It names each shape GitHub uses"/>
-  <test in="It lists them, so the two are kept apart" out="It lists them, so they are kept apart"/>
-  <test in="Splits once, before any subcommand runs" out="Splits before any subcommand runs"/>
+        out="The all-builds merge gate is one of these"/>
+  <test in="Splits once, before any subcommand runs" out="Splits once, before any subcommand runs"/>
   <test in="It lists workflow runs, newest first" out="It lists workflow runs, newest first"/>
   <test in="A zero deadline never expires" out="A zero deadline never expires"/>
+
+  <!-- A tally, which the table does rewrite. -->
+  <test in="It names the three shapes GitHub uses" out="It names the shapes GitHub uses"/>
+  <test in="It lists them, so the two are kept apart" out="It lists them, so both are kept apart"/>
+  <test in="The other two files run a loop" out="The other files run a loop"/>
+  <test in="All three files agree" out="All files agree"/>
+  <test in="All three agree" out="All of them agree"/>
+  <test in="It reads the three" out="It reads all of them"/>
 
 </rules>

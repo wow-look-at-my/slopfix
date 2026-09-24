@@ -48,7 +48,7 @@ func welded(in, out string) string {
 // The repair leaves a number behind for the sentence cut, and the cut is what
 // clears the finding. Neither may leave the line saying nothing at all.
 func TestTheRepairLeavesNoNumberStanding(t *testing.T) {
-	src := "package p\n\n// It holds the one .gitmodules file.\nvar x int\n"
+	src := "package p\n\n// It holds the two .gitmodules files.\nvar x int\n"
 	out := Fix("x.go", src)
 	require.True(t, out.Changed)
 	assert.Empty(t, Check("x.go", out.Text))

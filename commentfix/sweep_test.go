@@ -92,14 +92,14 @@ func TestTheWalkReadsEveryLanguageTheExtractorKnows(t *testing.T) {
 	root := tree(t, map[string]string{
 		"go.mod": "module example.com/m\n",
 		"a.go":   "package p\n\n// the walk has 3 phases\n",
-		"run.sh": "#!/bin/sh\n# the sweep runs twice\n",
+		"run.sh": "#!/bin/sh\n# the sweep reads two trees\n",
 		"ci.yml": "# holds 4 jobs\njobs: {}\n",
 	})
 	found := map[string]string{}
 	for _, finding := range commentfix.CheckTree(root).Findings {
 		found[filepath.Base(finding.Path)] = finding.Number
 	}
-	assert.Equal(t, map[string]string{"a.go": "3", "run.sh": "twice", "ci.yml": "4"}, found)
+	assert.Equal(t, map[string]string{"a.go": "3", "run.sh": "two", "ci.yml": "4"}, found)
 }
 
 // A sentence naming several numbers costs a single finding. The repair is a
