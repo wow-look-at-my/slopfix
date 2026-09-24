@@ -32,11 +32,6 @@ func TestTheVocabulariesDifferByDesign(t *testing.T) {
 		assert.True(t, commentWords.Contains(word), word)
 		assert.False(t, proseWords.Contains(word), word)
 	}
-	// No substrate reads a word that tallies nothing.
-	for _, word := range []string{"zero", "one", "once", "twice", "first", "second"} {
-		assert.False(t, commentWords.Contains(word), word)
-		assert.False(t, proseWords.Contains(word), word)
-	}
 	for _, word := range []string{"three", "twenty", "dozen"} {
 		assert.True(t, commentWords.Contains(word), word)
 		assert.True(t, proseWords.Contains(word), word)

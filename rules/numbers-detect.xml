@@ -114,6 +114,27 @@
     <found text="2"/>
   </detect>
 
+  <!-- Only a tally is a finding: a count of a set that can grow or shrink while
+       the sentence stays true. A pronoun, a condition, a repeat count, an order
+       and a value tally nothing. Each of these was rewritten into a wrong
+       sentence by a run over gh-wait-ci. -->
+  <detect in="if exactly one is found" substrate="comment" why="a condition"/>
+  <detect in="otherwise the one the current directory names" substrate="comment" why="a pronoun"/>
+  <detect in="The one thing that matters most" substrate="comment" why="emphasis"/>
+  <detect in="A workflow job is one of these, but so is a status." substrate="comment" why="membership"/>
+  <detect in="Splits once, before any subcommand runs" substrate="comment" why="a repeat count"/>
+  <detect in="It hashes the key twice." substrate="comment" why="a repeat count"/>
+  <detect in="lists workflow runs, newest first" substrate="comment" why="an order"/>
+  <detect in="the second call wins" substrate="comment" why="an order"/>
+  <detect in="A zero deadline never expires" substrate="comment" why="a value"/>
+  <detect in="the sweep runs three passes" substrate="comment">
+    <found text="three"/>
+  </detect>
+  <detect in="it holds a hundred keys" substrate="comment" why="prose reads no scale word">
+    <found text="hundred"/>
+  </detect>
+  <detect in="It holds a hundred keys." substrate="prose"/>
+
   <!-- A quantity reached through a function word counts nothing, and a number
        that continues a longer number is a version rather than a tally. -->
   <detect in="it has 2 of the format drops" substrate="prose"/>

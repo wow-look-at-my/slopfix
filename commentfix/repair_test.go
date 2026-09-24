@@ -45,40 +45,6 @@ func TestATableEntryKeepsTheSentence(t *testing.T) {
 	assert.Empty(t, repair.Removed, "a rewritten sentence is not a cut one")
 }
 
-// The whole repair, cut and residual pass included, over the comments a run
-// over gh-wait-ci wrecked. Only the tallies change, and no sentence is cut.
-func TestTheWholeRepairChangesOnlyTheTallies(t *testing.T) {
-	src := "// It fails if exactly one is found.\n" +
-		"// It picks the flag, otherwise the one the current directory names.\n" +
-		"// The one thing that matters most.\n" +
-		"// A workflow job is one of these, but so is a status.\n" +
-		"// Splits once, before any subcommand runs.\n" +
-		"// It lists workflow runs, newest first.\n" +
-		"// A zero deadline never expires.\n" +
-		"//\n" +
-		"// It names the three shapes GitHub uses.\n" +
-		"// It lists them, so the two are kept apart.\nfunc f() {}\n"
-	want := strings.Replace(src, "the three shapes", "the shapes", 1)
-	want = strings.Replace(want, "so the two are", "so both are", 1)
-
-	repair := fix(t, src)
-	assert.Empty(t, repair.Removed, "no sentence is cut")
-	assert.Empty(t, commentfix.Check("x.go", header+repair.Text))
-	// A paragraph rewrite rewraps, so the words are compared rather than the lines.
-	assert.Equal(t, prose(want), prose(repair.Text))
-}
-
-// prose answers the words of a fixture without its comment markers.
-func prose(src string) []string {
-	var out []string
-	for _, word := range strings.Fields(src) {
-		if word != "//" {
-			out = append(out, word)
-		}
-	}
-	return out
-}
-
 // A tally no entry covers is not guessed at. The sentence goes, and the
 // caller is told which sentence went.
 func TestANumberNoEntryCoversCutsItsSentence(t *testing.T) {
