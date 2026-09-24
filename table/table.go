@@ -17,8 +17,8 @@ type Test struct {
 	Out string
 }
 
-// A Detect states what one substrate reports for a line. An empty Found says
-// it reports nothing.
+// A Detect states what a single substrate reports for a line. An empty Found
+// says it reports nothing.
 type Detect struct {
 	In        string
 	Substrate string

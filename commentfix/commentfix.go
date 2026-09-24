@@ -10,7 +10,7 @@
 //
 // This is the comment substrate of a rule the document substrate shares. Which
 // numbers count lives in cardinal, beside the prose policy that demands a frame
-// first. What is here is the comment: where it sits, which of its lines a
+// earliest. What is here is the comment: where it sits, which of its lines a
 // reader was written for, and where a finding lands on the screen.
 package commentfix
 

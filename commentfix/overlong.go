@@ -1,8 +1,8 @@
 // overlong.go finds a comment longer than the code it documents.
 //
-// A comment earns its place by stopping the next mistake. One longer than the
-// code it documents becomes an essay the reader pays for on every pass. The
-// rule is a proxy rather than a judgement of content: length is measurable.
+// A comment earns its place by stopping the next mistake. A single longer
+// than the code it documents becomes an essay the reader pays for on every
+// pass. The rule is a proxy rather than a judgement of content: length is measurable.
 //
 // It reads a real syntax tree, so a span is exact rather than guessed, and
 // treeblocks.go serves every grammar. Nothing here names a language.
