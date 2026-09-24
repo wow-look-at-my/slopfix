@@ -3,6 +3,7 @@ module github.com/wow-look-at-my/slopfix
 go 1.26.0
 
 require (
+	github.com/jdkato/prose/v3 v3.2.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/wow-look-at-my/go-containers v0.0.0 // go-toolchain:auto-branch

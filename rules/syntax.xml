@@ -23,6 +23,12 @@
   <class name="definite" words="the these those this that its their our your
     his her my"/>
 
+  <!-- A count spelled as a word. The tagger marks "first" and "dozens" as
+       numbers too, and neither is a count a reader can drop. -->
+  <class name="number-word" words="one two three four five six seven eight nine
+    ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen
+    nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred"/>
+
   <!-- A noun that names a person takes they rather than it. -->
   <class name="person" words="user users person people caller callers author
     authors owner owners reader readers writer writers reviewer reviewers
