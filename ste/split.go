@@ -297,7 +297,8 @@ func joinsClauses(prose string, at int) bool {
 	}
 	return false
 }
- a comma inside the clause before c, which makes ", and"
+
+// listBefore reports a comma inside the clause before c, which makes ", and"
 // the end of a list rather than a join between clauses.
 func listBefore(s *syntax.Sentence, c syntax.Clause) bool {
 	for i := c.Link - 2; i >= 0 && i >= clauseStart(s, c.Link); i-- {
