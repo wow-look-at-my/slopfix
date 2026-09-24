@@ -65,10 +65,6 @@ type writeInput struct {
 // hookResponse covers a refusal, which sets the permission fields, and a
 // repair, which sets the input and the notice. Allowing an untouched write
 // prints nothing at all.
-//
-// Prose sets the repair fields and never the permission ones: a comment is
-// repaired where it stands and reported afterwards, so a write carrying one is
-// never stopped.
 type hookResponse struct {
 	HookSpecificOutput struct {
 		HookEventName            string         `json:"hookEventName"`

@@ -12,12 +12,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 func loadEmbeddedTests(t *testing.T) []struct{ Command, Expected string } {
 	t.Helper()
 	var xr xmlRules
-	require.NoError(t, xml.Unmarshal(rulesXML, &xr))
+	require.NoError(t, xml.Unmarshal(table.Readable(rulesXML), &xr))
 
 	type testCase = struct{ Command, Expected string }
 	var cases []testCase

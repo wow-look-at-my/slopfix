@@ -44,7 +44,6 @@ func TestFixLeavesCodeAlone(t *testing.T) {
 	assert.NotContains(t, fixed.Text, "3 columns")
 }
 
-// A file the repair cannot improve is left exactly as it is.
 func TestFixWritesNothingWithoutAFinding(t *testing.T) {
 	src := "package p\n\n// It holds the keys.\nfunc f() {}\n"
 	fixed := commentfix.Fix("f.go", src)

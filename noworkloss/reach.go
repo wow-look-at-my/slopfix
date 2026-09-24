@@ -15,14 +15,13 @@ const (
 	reachPushed
 	// reachOrphans: the reflog is destroyed. Safe when no commit needs it to stay findable.
 	reachOrphans
-	// reachWorktree: another worktree is being force-removed. Safe when that
+	// reachWorktree: another worktree is being force-removed, which is safe only when it holds nothing git does not.
 	reachWorktree
 )
 
 type reachCheck struct {
 	kind reachKind
 
-	// reachRef
 	ref    string   // resolved directly, e.g. refs/heads/feature
 	remote string   // for a push: "" means resolve from upstream
 	dst    string   // for a push: "" means HEAD's branch
@@ -46,7 +45,7 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 		return n == 0, "every commit on HEAD is already on a remote", nil
 
 	case reachOrphans:
-		// --no-reflogs is the whole point: without it fsck treats a commit the
+		// --no-reflogs is the whole point: without it fsck calls a commit reachable when only the reflog still mentions it.
 		out, _, e := runGit(st.root, "fsck", "--unreachable", "--no-reflogs", "--no-progress")
 		if out == "" && e != nil {
 			return false, "", e
@@ -75,7 +74,7 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 	}
 
 	ref := r.ref
-	// A push names its target indirectly, via the remote-tracking ref that
+	// A push names its target through the remote-tracking ref.
 	viaPush := ref == ""
 	if viaPush {
 		ref, err = c.pushRef(st, r)
@@ -91,10 +90,10 @@ func (c *repoCache) evaluate(st *repoState, r *reachCheck) (safe bool, where str
 	sha = strings.TrimSpace(sha)
 	if e != nil || sha == "" {
 		if viaPush {
-			// No local mirror means no record of what the push overwrites, and
+			// No local mirror means no record of what the push overwrites.
 			return false, "", errNoRemoteRef
 		}
-		// A local ref that does not exist has nothing to destroy; git will
+		// A local ref that does not exist has nothing to destroy.
 		return true, "no such ref", nil
 	}
 

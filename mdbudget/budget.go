@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // The CLI's own floor, pinned rather than scaled per model: a wider budget keeps files loadable, not skimmable.
@@ -183,6 +185,7 @@ func claudeMdFiles(root string) []string {
 // allCandidatePaths is every instruction file a session could have loaded:
 // ~/.claude's files, plus every CLAUDE.md under cwd.
 func allCandidatePaths(cwd string) []string {
+	defer trace.Phase("mdbudget/walk")()
 	out := homeCandidates()
 	return append(out, claudeMdFiles(cwd)...)
 }

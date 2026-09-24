@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   The word classes a shape matches against. Every class here is CLOSED: the
   language admits no new article and no new preposition, so the list is the
@@ -10,7 +10,7 @@
   This file sorts ahead of every other, so its classes are indexed before the
   shapes that read them.
 -->
-<rules for="numbers">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
 
   <!-- An article fills the slot "a single" needs. A shape that writes an
        article where one of these already stands spells "the a single". -->
@@ -24,6 +24,19 @@
   <!-- A relative pronoun opens a clause. A cardinal before one stands for a
        noun rather than counting it. -->
   <class name="relative" words="that which who whom whose when where while"/>
+
+  <!-- A unit of measure. The cardinal before one is the measurement itself
+       rather than a tally of items, so cutting it destroys the fact: "every 30
+       seconds" becomes "every seconds". No set changes underneath it, which is
+       the whole reason the count rule exists, so a unit is never stale. -->
+  <class name="unit" words="nanosecond nanoseconds microsecond microseconds
+    millisecond milliseconds second seconds minute minutes hour hours day days
+    week weeks month months year years
+    bit bits byte bytes kib mib gib tib kb mb gb tb kilobyte kilobytes
+    megabyte megabytes gigabyte gigabytes terabyte terabytes
+    character characters line lines column columns row rows word words
+    percent degree degrees pixel pixels em rem
+    time times level levels version versions"/>
 
   <!-- A conjunction joins, and heads no noun phrase. -->
   <class name="conjunction" words="and or but so because though although if
@@ -54,10 +67,24 @@
        reads this as "do not decide", never as "this is a verb". -->
   <class name="verbform" suffix="ing ed"/>
 
+  <!-- A past tense that no ending marks. The suffix class reaches the regular
+       forms; these spell the same thing with a vowel change and would pass for
+       nouns, which makes the cardinal before them count a verb: "what each one
+       got" became "what each a single got". Every word here is a verb form
+       only. A spelling that also names a thing ("set", "run", "read", "left",
+       "thought") belongs in the open class, because there the cardinal really
+       may be counting it. -->
+  <class name="irregular" words="got gotten went gone took taken came kept
+    held made gave given knew known told said wrote written chose chosen
+    began begun sent meant built brought bought caught taught sought
+    lost met paid sat spent stood understood wore worn won became become
+    grew grown drew drawn threw thrown spoke spoken broke broken
+    froze frozen rose risen"/>
+
   <!-- A noun is what no closed class claims and no ending marks as a verb. It
        is the open class, less the verb forms, so a term can ask for a noun
        without asking a parser. -->
-  <class name="noun" open="true" except="verbform"/>
+  <class name="noun" open="true" except="verbform irregular"/>
 
   <!-- The cardinals the rule is about. A shape names the word it governs, so
        this class is what a shape reads to find any of them at once. -->

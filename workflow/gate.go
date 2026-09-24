@@ -25,12 +25,10 @@ var (
 //
 // A rule is only as strong as the step that runs it. A step allowed to fail is
 // not a gate, and a gate that says nothing about being switched off is
-// decoration. Nothing in the rule's own output shows this, which is what makes
-// it worth reaching for.
+// decoration. Nothing in the rule's own output shows this.
 //
 // The step's own indentation bounds it. A YAML walk answers the same question,
-// and this rule must report the LINE the step opens on, which is what a reader
-// puts a cursor on.
+// and this rule must report the LINE the step opens on.
 func neuteredGates(content string) []ste.Finding {
 	rows := lines(content)
 	var out []ste.Finding

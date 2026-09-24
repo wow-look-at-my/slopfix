@@ -6,10 +6,28 @@ import (
 	"strings"
 )
 
+// docMarkers is longest-earliest: `//!` must be tried before `//`, or Rust's inner
+// doc marker matches `//` and leaves its `!` in the prose.
+var docMarkers = []string{"///", "//!", "//", "#"}
+
 // paragraph is a run of comment lines, or the blank marker between runs.
 type paragraph struct {
-	lines []string
-	blank bool
+	lines    []string
+	blank    bool
+	verbatim bool
+	raw      []string
+}
+
+// codeRow reports a line godoc renders verbatim: the prose after its marker
+// opens with a tab, which is how a doc comment spells a code block.
+func codeRow(line string) bool {
+	t := strings.TrimLeft(line, " \t")
+	for _, m := range docMarkers {
+		if rest, found := strings.CutPrefix(t, m); found {
+			return strings.HasPrefix(rest, "\t")
+		}
+	}
+	return false
 }
 
 // commentShape reads the indent and marker a block uses, from its opening line.
@@ -22,7 +40,7 @@ func commentShape(text []string) (marker, indent string, ok bool) {
 	first := text[0]
 	trimmed := strings.TrimLeft(first, " \t")
 	indent = first[:len(first)-len(trimmed)]
-	for _, m := range []string{"///", "//", "#"} {
+	for _, m := range docMarkers {
 		if strings.HasPrefix(trimmed, m) {
 			marker = m
 			break
@@ -51,16 +69,29 @@ func paragraphs(text []string) []paragraph {
 			run = nil
 		}
 	}
+	var block []string
+	flushBlock := func() {
+		if len(block) > 0 {
+			out = append(out, paragraph{verbatim: true, raw: block})
+			block = nil
+		}
+	}
 	for _, line := range text {
 		if isBlankComment(line) {
 			flush()
+			flushBlock()
 			out = append(out, paragraph{blank: true})
 			continue
 		}
-		out = append(out, paragraph{})
-		out = out[:len(out)-1]
+		if codeRow(line) {
+			flush()
+			block = append(block, line)
+			continue
+		}
+		flushBlock()
 		run = append(run, stripMarker(line))
 	}
+	flushBlock()
 	flush()
 	return out
 }
@@ -68,7 +99,7 @@ func paragraphs(text []string) []paragraph {
 // stripMarker removes the indent and comment marker, leaving the prose.
 func stripMarker(line string) string {
 	t := strings.TrimSpace(line)
-	for _, m := range []string{"///", "//", "#"} {
+	for _, m := range docMarkers {
 		if rest, found := strings.CutPrefix(t, m); found {
 			return strings.TrimSpace(rest)
 		}
@@ -115,6 +146,10 @@ func widen(text []string, width int) ([]string, bool) {
 	for _, para := range paragraphs(text) {
 		if para.blank {
 			out = append(out, indent+marker)
+			continue
+		}
+		if para.verbatim {
+			out = append(out, para.raw...)
 			continue
 		}
 		out = append(out, reflow(strings.Join(para.lines, " "), indent, marker, width)...)

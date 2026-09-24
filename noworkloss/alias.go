@@ -82,8 +82,7 @@ func (a *aliasResolver) expand(seg segment, depth int) []segment {
 
 const maxAliasDepth = 3
 
-// argsAfterVerb returns the words following the subcommand, so an alias keeps
-// the arguments it was called with.
+// argsAfterVerb returns the words following the subcommand.
 func argsAfterVerb(argv []word, verb string) []word {
 	for i, a := range argv {
 		if a.text == verb {

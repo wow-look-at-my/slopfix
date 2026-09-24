@@ -5,7 +5,7 @@
 // rest. Neither reaches a number the extractor finds on a line no paragraph
 // covers, such as an indented example inside a block comment. This pass reads
 // the finding's own position and deletes those bytes. The result is a comment
-// the rule reports nothing about, which is what the caller asked for.
+// the rule reports nothing about.
 package commentfix
 
 import (

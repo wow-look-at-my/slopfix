@@ -86,7 +86,6 @@ func TestASentenceIsNotCutAtAFileName(t *testing.T) {
 	assert.Contains(t, hits[0].Sentence, "CLAUDE.md")
 }
 
-// The reported line is the line the sentence really sits on.
 func TestTheFindingNamesItsLine(t *testing.T) {
 	hits := laziness.Check("All done.\nThe tests pass.\nThat is out of scope.")
 	require.NotEmpty(t, hits)

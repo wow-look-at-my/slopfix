@@ -1,11 +1,13 @@
-// Package markdown splits a document into the blocks the prose rules apply to.
-//
 // Only prose is rewritten or checked. A fenced code block is data, a table is a
 // grid whose rows are not sentences, and a heading is a label. Each reaches the
 // caller marked verbatim, so no rule can reflow it.
 package markdown
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/wow-look-at-my/slopfix/trace"
+)
 
 // Kind names what a block is, which decides whether prose rules reach it.
 type Kind int
@@ -48,6 +50,7 @@ func (b Block) Text() string {
 
 // Split walks the document and returns its blocks in order.
 func Split(content string) []Block {
+	defer trace.Phase("markdown/split")()
 	lines := strings.Split(content, "\n")
 	var blocks []Block
 	for i := 0; i < len(lines); {

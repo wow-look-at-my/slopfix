@@ -82,8 +82,7 @@ func compile(list []string) []matcher {
 // at its earliest occurrence.
 //
 // Whitespace collapses beforehand, so a phrase a markdown line wrap split still
-// matches. The offset table is what lets a match found in the collapsed text
-// still name the line it came from.
+// matches.
 func Check(message string) []Hit {
 	text, lines := assertedText(message)
 	norm, offsets := normalizeWhitespace(text)
@@ -196,7 +195,6 @@ func fenceMarker(trimmed string) string {
 	return ""
 }
 
-// lineOf answers which source line a byte offset in the asserted text came from.
 func lineOf(lines []int, at int) int {
 	if at < len(lines) {
 		return lines[at]

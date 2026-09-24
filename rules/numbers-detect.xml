@@ -1,0 +1,122 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  What each substrate reports for a line, before any repair runs. A case here
+  states the reader rather than the rewrite: which phrases come back, and in
+  what order. Somebody adding one edits no Go.
+
+  A case with no <found> says the substrate reports nothing, which is how an
+  exemption is stated. The three substrates disagree on purpose, so the same
+  line appears under more than one of them.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
+
+  <!-- The frame is the whole difference between the substrates: the same
+       sentence is a finding in a comment and nothing in prose. -->
+  <detect in="split it into three parts if that reads better" substrate="prose"/>
+  <detect in="split it into three parts if that reads better" substrate="comment">
+    <found text="three"/>
+  </detect>
+  <detect in="split it into three parts if that reads better" substrate="gate"
+          why="no frame, so the gate reports what the inventory rule leaves alone">
+    <found text="three parts"/>
+  </detect>
+  <detect in="It ships three hooks." substrate="prose">
+    <found text="three hooks"/>
+  </detect>
+
+  <!-- A number is a stated value whatever noun follows it, so a duration and a
+       size go stale exactly as a tally of items does. -->
+  <detect in="The read has 20 seconds." substrate="prose">
+    <found text="20 seconds"/>
+  </detect>
+  <detect in="The read has 20 seconds." substrate="gate">
+    <found text="20 seconds"/>
+  </detect>
+  <detect in="The read has 20 plugins." substrate="prose">
+    <found text="20 plugins"/>
+  </detect>
+  <detect in="The read has 20 plugins." substrate="gate">
+    <found text="20 plugins"/>
+  </detect>
+
+  <!-- No noun buys a number an exemption. A document saying how long a job
+       takes, or how large an artifact is, states what is true today and
+       nothing corrects it when either moves. -->
+  <detect in="the js leg takes about 9 minutes" substrate="gate">
+    <found text="9 minutes"/>
+  </detect>
+  <detect in="the cap is 6 hours" substrate="gate">
+    <found text="6 hours"/>
+  </detect>
+  <detect in="the blob is 356 megabytes" substrate="gate">
+    <found text="356 megabytes"/>
+  </detect>
+  <detect in="the rule holds for two lines" substrate="gate">
+    <found text="two lines"/>
+  </detect>
+
+  <!-- The gate's word list stops short of the prose list, and it reads any run
+       of digits. Neither is derived from the other. -->
+  <detect in="it has twenty hooks" substrate="gate"/>
+  <detect in="It has twenty hooks." substrate="prose">
+    <found text="twenty hooks"/>
+  </detect>
+  <detect in="it has twelve hooks" substrate="gate">
+    <found text="twelve hooks"/>
+  </detect>
+  <detect in="it has 20000 hooks" substrate="gate">
+    <found text="20000 hooks"/>
+  </detect>
+  <detect in="It has 20000 hooks." substrate="prose" why="the prose rule caps the digits"/>
+
+  <!-- Arithmetic is not a tally, and that guard is the gate's own. -->
+  <detect in="a range of 3-4 items" substrate="gate"/>
+  <detect in="it holds 4 items" substrate="gate">
+    <found text="4 items"/>
+  </detect>
+
+  <!-- Prose reports the quantity because the repair cuts the cardinal off the
+       front of it. A comment reports the number, because there is nothing
+       there to cut. -->
+  <detect in="This repo's 15 plugins ride along." substrate="prose">
+    <found text="15 plugins"/>
+  </detect>
+  <detect in="the walk has 15 phases" substrate="comment">
+    <found text="15"/>
+  </detect>
+
+  <!-- The shapes a comment exempts, because each counts nothing. -->
+  <detect in="the proxy answers HTTP 403 here" substrate="comment" why="status code"/>
+  <detect in="the loader exits 121 from a read-only path" substrate="comment" why="exit status"/>
+  <detect in="it fails with status 2 and says why" substrate="comment" why="exit word"/>
+  <detect in="CLAUDECODE=1 guarantees the guard fires" substrate="comment" why="assigned"/>
+  <detect in="the parser treats &quot;&quot; and &quot;0&quot; as unset" substrate="comment" why="quoted value"/>
+  <detect in="the rule in &#xA7;7.3 governs this" substrate="comment" why="section"/>
+  <detect in="the run costs $1.43 of budget" substrate="comment" why="money"/>
+  <detect in="sync.Once guards it, and net/http serves it" substrate="comment" why="qualified"/>
+  <detect in="see https://example.com/v2/spec" substrate="comment" why="url"/>
+  <detect in="sha256 over the amd64 payload, capped at 10ms" substrate="comment" why="name digits"/>
+  <detect in="KERN_PROCARGS2 opens with a 4-byte argc" substrate="comment" why="bound by dash"/>
+
+  <!-- The controls, so the cases above prove an exemption rather than a rule. -->
+  <detect in="the proxy answers 403 here" substrate="comment">
+    <found text="403"/>
+  </detect>
+  <detect in="the walk has 4 - phases" substrate="comment">
+    <found text="4"/>
+  </detect>
+  <detect in="the exit path has 3 callers" substrate="comment"
+          why="an exit word exempts the status it names, never a tally beside it">
+    <found text="3"/>
+  </detect>
+  <detect in="the env carries 2 markers" substrate="comment"
+          why="a literal marker exempts the digits against it, never a bare count">
+    <found text="2"/>
+  </detect>
+
+  <!-- A quantity reached through a function word counts nothing, and a number
+       that continues a longer number is a version rather than a tally. -->
+  <detect in="it has 2 of the format drops" substrate="prose"/>
+  <detect in="Version 2.1.205 clients keep the builtin." substrate="prose"/>
+
+</rules>

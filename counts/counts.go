@@ -65,8 +65,6 @@ func find(content string, substrate cardinal.Substrate) []Hit {
 	return hits
 }
 
-// Strip removes the cardinal from every inventory count and returns the
-// repaired text with the hits it acted on.
 func Strip(content string) (string, []Hit) {
 	return strip(content, Check(content))
 }

@@ -7,8 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// numbersFound runs Check over a file body and returns just the numbers, which
-// is what every case here asserts on.
+// numbersFound runs Check over a file body and returns just the numbers.
 func numbersFound(t *testing.T, body string) []string {
 	t.Helper()
 	var out []string

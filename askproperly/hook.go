@@ -1,29 +1,17 @@
-// Package askproperly is a Claude Code MessageDisplay hook. It marks a closing
-// message that hands the user a decision in prose, by appending a line to
-// what the reader sees. It sends NOTHING back to the model.
+// Package askproperly is a MessageDisplay hook. It marks a closing message
+// that hands the user a decision in prose, by appending a line to what the
+// reader sees. It sends NOTHING back to the model.
 //
-// A question typed into a closing message is a decision handed back. The user
-// has to read it, work out which options were meant, and type an answer -- and
-// a model that can do this can offload any hard call it was asked to make.
-// AskUserQuestion exists for exactly this: it renders the choices, so the user
-// picks instead of composing a reply, and the model has to have thought the
-// options through well enough to write them down.
+// A question typed into a closing message is a decision handed back: the user
+// works out which options were meant and types an answer. AskUserQuestion
+// renders the choices instead, so the model has to have thought them through.
 //
-// It was a Stop hook, and that was wrong the same way the sibling
-// link-all-refs plugin's Stop hook was wrong. A Stop hook runs AFTER the
-// message has streamed, so refusing cannot unsend anything: the user reads the
-// prose question, then reads a near-identical retype of the same message. The
-// retype explains itself, which puts the decision back into prose, so the guard
-// fires again. That loop has no bound. The annotation goes to the reader
-// instead, who is the person the question was aimed at.
+// A Stop hook cannot do this job. It runs AFTER the message streams, so
+// refusing unsends nothing: the retype puts the decision back into prose and
+// fires the guard again, with no bound.
 //
-// displayContent is display-only, read out of the shipped bundle rather than
-// assumed: it "replaces the delta on screen without changing the stored
-// message", and it is the only field the event's output schema carries.
-//
-// Every failure path prints nothing, which leaves the CLI showing the original
-// text. This runs in the render path, and a guard that can eat output is worse
-// than no guard.
+// displayContent is display-only: it replaces the delta on screen without
+// changing the stored message. Every failure path prints nothing.
 package askproperly
 
 import (

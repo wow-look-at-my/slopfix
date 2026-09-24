@@ -17,6 +17,15 @@ type Test struct {
 	Out string
 }
 
+// A Detect states what a single substrate reports for a line. An empty Found
+// says it reports nothing.
+type Detect struct {
+	In        string
+	Substrate string
+	Why       string
+	Found     []string
+}
+
 // Drop is a word that survives its own deletion.
 type Drop struct {
 	ID    string
@@ -54,7 +63,6 @@ type Pattern struct {
 	re *regexp.Regexp
 }
 
-// Table is what a single `for` value in rules/ adds up to.
 type Table struct {
 	Drops       []Drop
 	Rewrites    []Rewrite
@@ -67,6 +75,9 @@ type Table struct {
 	// Tests are the worked examples the folder states for the consumer rather than for a single entry: a line of prose,
 	Tests []Test
 
+	// Detects are what each substrate reports, for the reader rather than the repair.
+	Detects []Detect
+
 	once    sync.Once
 	lexicon *Lexicon
 }
@@ -78,6 +89,17 @@ func (t *Table) Lexicon() *Lexicon {
 	return t.lexicon
 }
 
+// WordsOf answers the words a named class lists, so a caller that needs the
+// members themselves rather than a membership test reads them.
+func (t *Table) WordsOf(class string) []string {
+	for _, c := range t.Classes {
+		if c.Name == class {
+			return c.Words
+		}
+	}
+	return nil
+}
+
 // AppliesTo reports whether an entry's where= covers a surface, and an empty
 // value means both.
 func AppliesTo(where, surface string) bool {
@@ -87,7 +109,31 @@ func AppliesTo(where, surface string) bool {
 // Replace rewrites every match of the pattern in s, and returns s untouched
 // when there is none.
 func (p Pattern) Replace(s string) string {
-	return p.re.ReplaceAllString(s, p.To)
+	return p.re.ReplaceAllStringFunc(s, func(matched string) string {
+		at := p.re.FindStringSubmatchIndex(matched)
+		if at == nil {
+			return matched
+		}
+		return MatchCase(matched, string(p.re.ExpandString(nil, p.To, matched, at)))
+	})
+}
+
+// MatchCase gives a replacement the opening case of the text it replaces.
+//
+// A table matches without regard to case, so a rule that writes its
+// replacement as it stands lowercases the word that opens a sentence. A reader
+// then finds a sentence starting in the middle of a line.
+func MatchCase(matched, replacement string) string {
+	if matched == "" || replacement == "" {
+		return replacement
+	}
+	if head := matched[0]; head < 'A' || head > 'Z' {
+		return replacement
+	}
+	if first := replacement[0]; first >= 'a' && first <= 'z' {
+		return string(first-'a'+'A') + replacement[1:]
+	}
+	return replacement
 }
 
 // Matches reports whether the pattern finds anything in s.

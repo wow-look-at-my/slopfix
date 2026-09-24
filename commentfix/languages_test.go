@@ -11,7 +11,7 @@ import (
 
 // Every grammar gets the same walk, the same measure and the same repair. A
 // language that only REPORTS is the failure this pins: the old path repaired Go
-// alone, and every other language got a finding nothing could act on.
+// alone.
 var languageFixtures = map[string]string{
 	"x.go":  "package p\n\n" + essay("//") + "const p = 1\n",
 	"x.c":   essay("//") + "int p = 1;\n",
@@ -61,8 +61,7 @@ func TestTheRepairKeepsTheOpeningInEveryGrammar(t *testing.T) {
 	}
 }
 
-// Every extension the rule claims is covered above. A grammar added without a
-// fixture is a language nobody proved the repair works on.
+// Every extension the rule claims is covered above.
 func TestEveryClaimedExtensionHasAFixture(t *testing.T) {
 	covered := map[string]bool{}
 	for name := range languageFixtures {

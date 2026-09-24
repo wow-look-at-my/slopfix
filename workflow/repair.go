@@ -7,8 +7,11 @@
 package workflow
 
 import (
-	"regexp"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/ste"
+	yaml "go.yaml.in/yaml/v3"
 )
 
 // Repair is a workflow as this binary would write it.
@@ -49,27 +52,69 @@ func Fix(content string, keeps func(string) bool) Repair {
 }
 
 // ungate deletes the continue-on-error a gate step hides behind. The step stays
-// and starts failing, which is what a gate is for.
+// and starts failing.
 func ungate(content string) (string, []string) {
 	findings := neuteredGates(content)
 	if len(findings) == 0 {
 		return content, nil
 	}
-	rows := lines(content)
-	drop := make(map[int]bool)
+	drop := gateRows(content, findings)
+	if drop.IsEmpty() {
+		return content, nil
+	}
+	return without(lines(content), drop, content)
+}
+
+// gateRows answers the row each named step's continue-on-error sits on, read
+// off the parser's own positions. Walking the text for the step's extent
+// instead asks an indent to say where a step ends, and a block scalar holding
+// a deeper line then ends it early.
+func gateRows(content string, findings []ste.Finding) set.Set[int] {
+	drop := set.New[int]()
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+		return drop
+	}
+	jobs := mappingValue(rootOf(&doc), "jobs")
+	if jobs == nil {
+		return drop
+	}
+	named := set.New[int]()
 	for _, f := range findings {
-		open := stepOpen.FindStringSubmatch(rows[f.Line-1])
-		indent := len(open[1])
-		for j := f.Line - 1; j < len(rows); j++ {
-			if next := listItem.FindStringSubmatch(rows[j]); j > f.Line-1 && next != nil && len(next[1]) <= indent {
-				break
+		named.Add(f.Line)
+	}
+	for i := 0; i+1 < len(jobs.Content); i += 2 {
+		steps := mappingValue(jobs.Content[i+1], "steps")
+		if steps == nil || steps.Kind != yaml.SequenceNode {
+			continue
+		}
+		for _, step := range steps.Content {
+			if !named.Contains(step.Line) {
+				continue
 			}
-			if allowedToFail.MatchString(rows[j]) {
-				drop[j] = true
+			if key := mappingKey(step, allowedToFailKey); key != nil {
+				drop.Add(key.Line - 1)
 			}
 		}
 	}
-	return without(rows, drop, content)
+	return drop
+}
+
+// allowedToFailKey is the key a gate hides behind.
+const allowedToFailKey = "continue-on-error"
+
+// mappingKey answers the key node itself, where mappingValue answers what it
+// carries. A repair needs the key's own line, because the key is the line.
+func mappingKey(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i]
+		}
+	}
+	return nil
 }
 
 // untest deletes the assertion lines a run: script carries, and the caller
@@ -81,10 +126,10 @@ func untest(content string) (string, []string) {
 		return content, nil
 	}
 	rows := lines(content)
-	drop := make(map[int]bool)
+	drop := set.New[int]()
 	for _, f := range findings {
 		if f.Line-1 < len(rows) {
-			drop[f.Line-1] = true
+			drop.Add(f.Line - 1)
 		}
 	}
 	return without(rows, drop, content)
@@ -98,7 +143,7 @@ func joinCommentBlocks(content string) (string, []string) {
 		return content, nil
 	}
 	rows := lines(content)
-	drop := make(map[int]bool)
+	drop := set.New[int]()
 	for _, f := range findings {
 		var said []string
 		for j := f.Line - 1; j < f.EndLine && j < len(rows); j++ {
@@ -110,7 +155,7 @@ func joinCommentBlocks(content string) (string, []string) {
 				said = append(said, rest)
 			}
 			if j > f.Line-1 {
-				drop[j] = true
+				drop.Add(j)
 			}
 		}
 		indent := rows[f.Line-1][:len(rows[f.Line-1])-len(strings.TrimLeft(rows[f.Line-1], " \t"))]
@@ -119,41 +164,101 @@ func joinCommentBlocks(content string) (string, []string) {
 	return without(rows, drop, content)
 }
 
-// guardedKey matches the job key the org's gate reserves.
-var guardedKey = regexp.MustCompile(`^(\s*)` + regexp.QuoteMeta(GuardedName) + `\s*:`)
-
 // renameGuardedJob renames a job that shadows the required status, and the
 // needs entries that point at it. The name is the whole finding, so renaming it
 // is the whole repair.
 func renameGuardedJob(content string) string {
+	sites := guardedSites(content)
+	if len(sites) == 0 {
+		return content
+	}
 	rows := lines(content)
 	renamed := false
-	for i, row := range rows {
-		if guardedKey.MatchString(row) {
-			rows[i] = strings.Replace(row, GuardedName, replacementName, 1)
-			renamed = true
+	for _, at := range sites {
+		row := at.Line - 1
+		if row < 0 || row >= len(rows) {
+			continue
 		}
+		swapped, ok := renameAt(rows[row], at.Column-1)
+		if !ok {
+			continue
+		}
+		rows[row] = swapped
+		renamed = true
 	}
 	if !renamed {
 		return content
 	}
-	for i, row := range rows {
-		trimmed := strings.TrimSpace(row)
-		if strings.HasPrefix(trimmed, "needs:") || strings.HasPrefix(trimmed, "- ") {
-			rows[i] = strings.ReplaceAll(row, GuardedName, replacementName)
+	return strings.Join(rows, "\n") + tail(content)
+}
+
+// guardedSites answers every token naming the guarded job: the job's own key,
+// and each needs entry pointing at it.
+func guardedSites(content string) []*yaml.Node {
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+		return nil
+	}
+	jobs := mappingValue(rootOf(&doc), "jobs")
+	if jobs == nil {
+		return nil
+	}
+	var out []*yaml.Node
+	for i := 0; i+1 < len(jobs.Content); i += 2 {
+		key, job := jobs.Content[i], jobs.Content[i+1]
+		if key.Value == GuardedName {
+			out = append(out, key)
+		}
+		out = append(out, guardedNeeds(job)...)
+	}
+	return out
+}
+
+// guardedNeeds answers the needs entries of a single job that name the
+// guarded job. A single dependency is a scalar, and several are a sequence.
+func guardedNeeds(job *yaml.Node) []*yaml.Node {
+	needs := mappingValue(job, "needs")
+	if needs == nil {
+		return nil
+	}
+	if needs.Kind == yaml.ScalarNode {
+		if needs.Value == GuardedName {
+			return []*yaml.Node{needs}
+		}
+		return nil
+	}
+	var out []*yaml.Node
+	for _, entry := range needs.Content {
+		if entry.Kind == yaml.ScalarNode && entry.Value == GuardedName {
+			out = append(out, entry)
 		}
 	}
-	return strings.Join(rows, "\n") + tail(content)
+	return out
+}
+
+// renameAt swaps the guarded name for its replacement at a column the parser
+// gave, and reports whether the name was there.
+func renameAt(row string, col int) (string, bool) {
+	for _, at := range []int{col, col + 1} {
+		if at < 0 || at+len(GuardedName) > len(row) {
+			continue
+		}
+		if row[at:at+len(GuardedName)] != GuardedName {
+			continue
+		}
+		return row[:at] + replacementName + row[at+len(GuardedName):], true
+	}
+	return row, false
 }
 
 // replacementName is a job name the gate does not reserve.
 const replacementName = "builds"
 
 // without drops the marked lines and reports what went.
-func without(rows []string, drop map[int]bool, content string) (string, []string) {
+func without(rows []string, drop set.Set[int], content string) (string, []string) {
 	var kept, removed []string
 	for i, row := range rows {
-		if drop[i] {
+		if drop.Contains(i) {
 			removed = append(removed, strings.TrimSpace(row))
 			continue
 		}

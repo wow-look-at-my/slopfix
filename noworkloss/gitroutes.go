@@ -11,11 +11,6 @@ import (
 // creating or switching a branch all leave file content to the edit tools.
 
 // worktreeVerbs put content into the tree that no commit holds.
-//
-// merge, pull and cherry-pick are deliberately absent: each replays a commit,
-// so every byte it writes is already in one, and git refuses all three on a
-// dirty tree rather than writing over the work standing there. am and apply
-// land a patch that exists nowhere else, so they stay.
 var worktreeVerbs = map[string]string{
 	"restore":  "git restore",
 	"stash":    "git stash pop",
@@ -129,7 +124,7 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 		}
 		return dashDash || len(operands) > 1 || namesExistingPath(dir, operands)
 	case "restore":
-		// --staged alone moves the index back to HEAD and leaves the file on
+		// --staged alone moves the index back to HEAD and leaves the file on disk.
 		return !has("--staged") || has("--worktree", "-W")
 	case "stash":
 		return len(operands) > 0 && (operands[0].text == "pop" || operands[0].text == "apply")
@@ -146,9 +141,9 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 	return true
 }
 
-// namesExistingPath separates `git checkout master` from `git checkout src/` by
-// asking the filesystem rather than guessing from the spelling -- a tag called
-// a release tag looks exactly like a path and is not a path.
+// namesExistingPath separates `git checkout master` from `git checkout src/`
+// by asking the filesystem rather than guessing from the spelling -- a tag
+// called a release tag looks exactly like a path.
 func namesExistingPath(dir string, operands []word) bool {
 	for _, o := range operands {
 		if !o.static {

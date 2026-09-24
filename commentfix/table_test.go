@@ -44,8 +44,7 @@ func fires(t *testing.T, kind, id string, cases []table.Test) {
 }
 
 // Every class a match names is declared. A typo in a class name matches
-// nothing and costs no error, so the entry silently stops covering the prose
-// it was written for.
+// nothing and costs no error.
 func TestEveryClassAMatchNamesIsDeclared(t *testing.T) {
 	require.NotEmpty(t, numbersTable.Classes)
 	declared := set.Of[string]("open")
@@ -75,10 +74,16 @@ func TestTheCardinalStaysBannedWhereTheTableRepairsNothing(t *testing.T) {
 
 // What the table says leaves no number behind. An entry whose replacement
 // carried another number would send the repair straight to a cut.
+//
+// A case the entry declines is not a replacement, so it is not held to this.
 func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
 	leaves := func(kind, id string, cases []table.Test) {
 		for _, c := range cases {
-			assert.Empty(t, cardinal.Find(Reword(c.In), cardinal.Comment),
+			got := Reword(c.In)
+			if got == c.In {
+				continue
+			}
+			assert.Empty(t, cardinal.Find(got, cardinal.Comment),
 				"<%s id=%q> leaves a number", kind, id)
 		}
 	}
@@ -92,6 +97,3 @@ func TestWhatTheTableSaysCarriesNoNumber(t *testing.T) {
 		leaves("rephrase", e.ID, e.Tests)
 	}
 }
-
-// What the table writes for a whole line lives in the rules folder, driven by
-// the cases test beside this file.

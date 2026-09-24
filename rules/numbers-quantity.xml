@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   A cardinal counting something. The count is true until somebody changes the
   set, so the repair says what is there and lets the reader count.
@@ -6,7 +6,7 @@
   The phrase entries go before the two shapes at the foot of the file. A bare
   cardinal rule reads "one or more" as an article and writes "an or more".
 -->
-<rules for="numbers">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
 
   <rewrite id="either-one" from="either one" to="either">
     <test in="It cannot fix either one" out="It cannot fix either"/>
@@ -83,17 +83,22 @@
 
        The phrases come first: each is a fixed idiom the corpus shows by the
        hundred, and a general shape below would read it wrongly. -->
-  <rephrase id="at-least-one" match="at least one" to="any">
+  <!-- Each names the noun it counts. Without one the cardinal IS the noun
+       phrase: "only one that exits" and "when only one is configured" both
+       name a thing the sentence already introduced, and swapping the phrase
+       there spells "a single that exits". Only the antecedent says which noun,
+       so that shape is reported and left for the author. -->
+  <rephrase id="at-least-one" match="at least one {noun:n}" to="any {n}">
     <test in="It holds at least one key" out="It holds any key"/>
   </rephrase>
-  <rephrase id="at-most-one" match="at most one" to="no more than a single">
+  <rephrase id="at-most-one" match="at most one {noun:n}" to="no more than a single {n}">
     <test in="It holds at most one key" out="It holds no more than a single key"/>
   </rephrase>
   <!-- "more than one" keeps its noun SINGULAR: "more than one key". Every
        replacement that means the same thing wants a plural, so swapping the
        phrase alone writes "several key". Pluralizing the noun is not something
        a table can do, so this one is left for the author and reported. -->
-  <rephrase id="only-one" match="only one" to="a single">
+  <rephrase id="only-one" match="only one {noun:n}" to="a single {n}">
     <test in="It holds only one key" out="It holds a single key"/>
   </rephrase>
   <rephrase id="no-one-is-nobody" match="no one" to="nobody">
@@ -127,11 +132,20 @@
        here, and the class excludes it, so "one keeping up" is left alone. -->
   <rephrase id="one-counts-a-noun" match="one {noun:n}" to="a single {n}">
     <test in="It reserves one slot" out="It reserves a single slot"/>
+    <!-- "got" is irregular, so the open noun class never claims it and this entry stands down. What rewrites the line is each-one. -->
+    <test in="It reports what each one got" out="It reports what each got"/>
   </rephrase>
 
-  <!-- A plural tally: the noun carries the meaning and the number goes. -->
-  <pattern id="plural-tally-drops-its-count" match="(?i)\b(?:two|three|four|five|six|seven|eight|nine|ten|dozen)\s+([a-z])" to="${1}">
+  <!-- A plural tally: the noun carries the meaning and the number goes.
+
+       A unit is not a tally. "every 30 seconds" says how long, and dropping the
+       cardinal leaves "every seconds", which states nothing. The unit class
+       claims those words, so the noun term below never matches one. -->
+  <rephrase id="plural-tally-drops-its-count" match="{cardinal:c} {noun:n}" to="{n}">
     <test in="Two goroutines contend" out="Goroutines contend"/>
-  </pattern>
+    <test in="It polls every 30 seconds" out="It polls every 30 seconds"/>
+    <test in="It waits two minutes" out="It waits two minutes"/>
+    <test in="It reads 260 characters" out="It reads 260 characters"/>
+  </rephrase>
 
 </rules>

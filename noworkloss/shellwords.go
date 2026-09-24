@@ -9,7 +9,7 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// The vocabulary the walk is built on: what a word says, which program a
+// The vocabulary the walk is built on: what a word says.
 
 func wordText(wd *syntax.Word) word {
 	w := shellwalk.WordText(wd)

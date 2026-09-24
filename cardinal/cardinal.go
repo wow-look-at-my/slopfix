@@ -2,20 +2,16 @@
 // count: a number that is true today and wrong after the next commit.
 //
 // A single rule, over several substrates. A document's prose and a source
-// comment go stale the same way, and each used to carry a private copy of the
-// walk that says so. What differs is not the rule. It is how much a substrate
-// has to say before a number counts as a claim about what is here.
+// comment go stale the same way. What differs is how much a substrate has to
+// say before a number counts as a claim about what is here.
 //
 // Prose REQUIRES A FRAME. A document legitimately carries numbers that count
 // nothing -- a version, a port, an example -- so the sentence has to claim the
-// things belong here before the number is a tally. A comment REQUIRES NONE: a
-// number written beside code is nearly always a count of what the code holds,
-// so the cardinal alone is the finding, and the exemptions carry the cases that
-// are something else. The merge gate reads a document with no frame either, and
-// counts a stated value whatever noun it governs.
-//
-// Those differences are the whole reason they looked like separate rules. They
-// are fields of Substrate now, and the values sit beside each other below.
+// things belong here earliest. A comment REQUIRES NONE: a number written
+// beside code is nearly always a count of what the code holds, so the cardinal
+// alone is the finding and the exemptions carry the rest. The merge gate reads
+// a document with no frame either. Those differences are fields of Substrate,
+// and the values sit beside each other below.
 package cardinal
 
 import (
@@ -30,7 +26,6 @@ type Token struct {
 	Text   string
 }
 
-// Shape is what a substrate looks for.
 type Shape int
 
 const (
@@ -50,14 +45,15 @@ type Substrate struct {
 	Words set.Set[string]
 	// Exempt judges a matched quantity, and Shape Quantity reads it.
 	Exempt []Exemption
-	// ExemptToken judges the text around a token, and Shape Number reads it. A
+	// ExemptToken judges the text around a token, and Shape Number reads it.
 	ExemptToken []TokenExemption
 
-	// quantity matches a cardinal governing a plural noun, spelled as this
+	// quantity matches a cardinal governing a plural noun. A substrate that leaves it nil gets the finder's own pattern.
 	quantity *regexp.Regexp
 }
 
-// Prose is a document's own voice, as the inventory-count rule reads it. The
+// Prose is a document's own voice, as the inventory-count rule reads it. It
+// asks for a frame, so a bare number in a sentence is left alone.
 var Prose = Substrate{
 	Shape:  Quantity,
 	Frame:  true,
@@ -65,12 +61,13 @@ var Prose = Substrate{
 	Exempt: []Exemption{ContinuesANumber, FunctionWordGap},
 }
 
-// Gate is the same document, as the merge gate's stale-count rule reads it. It
+// Gate is the same document, as the merge gate's stale-count rule reads it.
+// It asks for no frame and carries its own quantity pattern.
 var Gate = Substrate{
 	Shape:    Quantity,
 	Frame:    false,
 	Words:    gateWords,
-	Exempt:   []Exemption{InExpression},
+	Exempt:   []Exemption{InExpression, FunctionWordGap},
 	quantity: gateQuantity,
 }
 
@@ -80,7 +77,7 @@ var Comment = Substrate{
 	Shape:       Number,
 	Frame:       false,
 	Words:       commentWords,
-	ExemptToken: []TokenExemption{HTTPStatus, ExitStatus, Literal, SectionRef, Money},
+	ExemptToken: []TokenExemption{HTTPStatus, ExitStatus, Literal, SectionRef, Money, Quoted},
 }
 
 // Find returns every stated count the text carries, under that substrate.

@@ -9,7 +9,7 @@ import (
 // go-toolchain's whole output has to reach the transcript. Every spelling below
 // moves it somewhere a grep reads instead, and the rewrite puts the run back on
 // the terminal rather than blocking the command. The command that caused this
-// rule was:
+// rule was.
 //
 //	go-toolchain --generate <hash> > log; grep -nE "FAIL|Error:" log
 func TestADivertedGoToolchainIsUndiverted(t *testing.T) {

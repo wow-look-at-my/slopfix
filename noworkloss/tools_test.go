@@ -24,8 +24,7 @@ func TestTheEditToolsThemselvesAreLeftAlone(t *testing.T) {
 		"Write is how a new file is created")
 }
 
-// Write authors a whole file, so aiming it at a path that already exists replaces
-// content nobody reviewed the loss of.
+// Write authors a whole file.
 func TestWriteOverAnExistingFileIsRefused(t *testing.T) {
 	root := newTree(t)
 	reason := askTool(t, "Write", root, map[string]any{"file_path": filepath.Join(root, "src.txt")})

@@ -15,12 +15,10 @@ type Class struct {
 	// Suffix claims a word by its ending rather than by a list.
 	Suffix []string
 	// Open claims every word no class with a word list claims.
-	Open bool
-	// Except narrows an open class by the classes it must not belong to.
+	Open   bool
 	Except []string
 }
 
-// Lexicon answers which classes a word belongs to.
 type Lexicon struct {
 	classOf  map[string][]string
 	suffixes []Class

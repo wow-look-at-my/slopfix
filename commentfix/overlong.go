@@ -1,18 +1,15 @@
-// commentlength.go finds a comment longer than the code it documents.
+// overlong.go finds a comment longer than the code it documents.
 //
-// A comment earns its place by stopping the next mistake. A comment that runs
-// longer than the code becomes an essay, and the reader pays for it on every
-// pass through the file. The rule is a proxy rather than a judgement of
-// content: length is what a machine can measure.
+// A comment earns its place by stopping the next mistake. A single longer
+// than the code it documents becomes an essay the reader pays for on every
+// pass. The rule is a proxy rather than a judgement of content: length is measurable.
 //
-// It reads a real syntax tree, so a span is exact rather than guessed, and the
-// same code serves every grammar in treeblocks.go. Nothing here names a
-// language.
+// It reads a real syntax tree, so a span is exact rather than guessed, and
+// treeblocks.go serves every grammar. Nothing here names a language.
 //
-// The repair is to cut, from the end. A comment leads with its point and
-// elaborates afterwards, so the trailing paragraph is what a reader loses least
-// by losing. The opening sentence is never cut: a block trimmed to nothing is a
-// worse edit than a block left long.
+// The repair cuts from the end, because a comment leads with its point. The
+// opening sentence is never cut: a block trimmed to nothing is a worse edit
+// than a block left long.
 package commentfix
 
 import (
@@ -21,6 +18,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // IDLength names this rule, on a report and on the command line alike.
@@ -57,6 +55,7 @@ type block struct {
 
 // Check reports every comment block in src that outweighs its code.
 func CheckLength(filename, src string) []LengthHit {
+	defer trace.Phase("rule/comments-length")()
 	var hits []LengthHit
 	for _, b := range blocks(filename, src) {
 		tell, over := judge(b)
@@ -77,6 +76,7 @@ func CheckLength(filename, src string) []LengthHit {
 // Fix cuts every over-long comment block back inside its budget, from the end,
 // stopping before the opening sentence.
 func FixLength(filename, src string) (string, bool) {
+	defer trace.Phase("repair/comments-length")()
 	bs := blocks(filename, src)
 	if len(bs) == 0 {
 		return src, false
@@ -162,7 +162,7 @@ func measure(text []string) (lines, chars int) {
 // bareMarkerLine reports a comment line holding a marker and nothing else.
 func bareMarkerLine(line string) bool {
 	switch strings.TrimSpace(line) {
-	case "//", "///", "#", "*", "/*", "*/":
+	case "//", "///", "//!", "#", "*", "/*", "*/":
 		return true
 	}
 	return false
@@ -194,8 +194,7 @@ func repair(b block) []string {
 }
 
 // splitDirectives separates a block's tool lines from its prose. A directive
-// binds to the declaration by position -- a build constraint leads, a go:embed
-// is last -- so each keeps the side of the prose it was written on.
+// binds to the declaration by position -- a build constraint leads.
 func splitDirectives(text []string) (lead, body, trail []string) {
 	seen := false
 	for _, line := range text {
@@ -275,7 +274,7 @@ func trim(b block) []string {
 	}
 
 	// The words can fit where the wrap does not. Laying them out at the budget's
-	// own width drops none, which is what the character floor is for.
+	// own width drops none.
 	if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
 		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return wider
@@ -318,8 +317,7 @@ func hardFit(b block) ([]string, bool) {
 		body = append(body, stripMarker(line))
 	}
 	words := strings.Fields(strings.Join(body, " "))
-	// The budget is a character count, not a column. Laying the words out at it
-	// wrote a 124-column line, which no editor shows beside the code it documents.
+	// The budget is a character count, and the layout takes a column.
 	width := min(max(floorChars, b.codeChars), wrapWidth)
 	for len(words) > 0 {
 		closed := closeTail(words)
@@ -335,12 +333,8 @@ func hardFit(b block) ([]string, bool) {
 	return nil, false
 }
 
-// dangling words open something the cut took away, so a forced cut that ends on
-// one reads as a sentence somebody abandoned.
-var dangling = set.Of("and", "or", "but", "so", "yet", "then", "the", "a", "an",
-	"to", "of", "in", "on", "at", "by", "for", "from", "with", "than", "rather",
-	"that", "which", "who", "when", "while", "where", "because", "if", "is",
-	"are", "was", "were", "as", "into", "over", "under", "per")
+// dangling words open something the cut took away, so a forced cut that ends.
+var dangling = set.Of(danglingWords()...)
 
 // closeTail makes a forced cut read as a sentence: it drops back past a word
 // that opens what the cut removed, and closes what is left with a period.
@@ -399,7 +393,8 @@ func dropTrailingSentence(text []string) ([]string, bool) {
 	paras := paragraphs(text)
 	last := -1
 	for i, para := range paras {
-		if !para.blank {
+		// A code block holds no sentence to drop, so the cut looks past it.
+		if !para.blank && !para.verbatim {
 			last = i
 		}
 	}
@@ -424,6 +419,8 @@ func dropTrailingSentence(text []string) ([]string, bool) {
 			// Nothing follows the last prose paragraph but blank markers.
 		case para.blank:
 			out = append(out, indent+marker)
+		case para.verbatim:
+			out = append(out, para.raw...)
 		case i == last:
 			out = append(out, reflow(kept, indent, marker, wrapWidth)...)
 		default:
@@ -478,7 +475,7 @@ func dropParagraph(text []string) ([]string, bool) {
 // comment block spells a paragraph break.
 func isBlankComment(line string) bool {
 	t := strings.TrimSpace(line)
-	for _, marker := range []string{"//", "#", "*"} {
+	for _, marker := range []string{"//!", "//", "#", "*"} {
 		if t == marker {
 			return true
 		}
