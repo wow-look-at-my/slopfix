@@ -41,8 +41,7 @@ type Phrase struct {
 	First, Last int
 	// Head is the word the phrase is about.
 	Head int
-	// Det is the determiner of a noun phrase, or the 's of a possessor. It is
-	// negative when the phrase has none.
+	// Det is the determiner or possessive 's, or negative.
 	Det int
 	// Numerals are the cardinals between the determiner and the modifiers.
 	Numerals []int
@@ -56,8 +55,7 @@ type Phrase struct {
 type LinkKind int
 
 const (
-	// Opens is the clause that starts the sentence, or the main clause after
-	// a subordinate clause and its comma.
+	// Opens starts the sentence, or resumes the main clause.
 	Opens LinkKind = iota
 	// Coordinate is a clause after and, but, or, so, yet or nor.
 	Coordinate
