@@ -22,9 +22,17 @@ The prose reaching `Check` is already a block joined to a single line. Finding t
 
 `ste/semicolon` rejects the semicolon. It repairs, writing the period the semicolon stands in for and capitalizing the next word.
 
-`ste/comma-splice` rejects a comma joining clauses that each stand alone. That is the semicolon spelled differently. It repairs the same way, and a conjunction after the comma survives to open the new sentence.
+`ste/comma-splice` rejects a comma joining clauses that each stand alone. That is the semicolon spelled differently. It repairs the same way. A connector takes the place of the conjunction: `and` goes, `but` becomes `However,`, and `so` becomes `As a result,`.
 
-`ste/sentence-length` rejects a sentence over the word cap, which is the STE cap for a description. It reports only. Splitting a sentence needs a writer who knows which half is the point.
+`ste/sentence-length` rejects a sentence over the word cap, which is the STE cap for a description. It repairs at a clause boundary the [syntax](../syntax/README.md) parser finds, and leaves every half a sentence of its own:
+
+- A clause after `and`, `but` or `so` that names its own subject starts the new sentence.
+- A verb group that shares the subject gets the subject again. A short subject repeats. A long one becomes a pronoun that agrees with the verb.
+- A closing `, which` clause becomes a sentence that opens with `This`. A closing `because` clause becomes `This is because`.
+
+A sentence with no such boundary stays whole. And the rule reports it for a person to rewrite. The repair never divides a list, a quotation or a subordinate clause.
+
+`ste/postdeterminer` rejects a numeral between a determiner and its noun, as in `the three rules`. The numeral restates a count the reader sees. It goes stale when the set changes. It repairs by cutting the numeral. A unit, a year, a status code, a quantifier such as `any` and an ordinal such as `first` keep theirs.
 
 `ste/count` rejects a stated count of items. The number is true until somebody changes the set, and nothing corrects it then. It reports only.
 
@@ -48,7 +56,9 @@ It should work. It does not. `a; b` stays.
 
 An inline code span, a markdown link target and an HTML entity are masked before any rule reads the text. An entity ends in a semicolon, and unmasked prose reports that as its own. A repair leaves each span exactly as it was.
 
-A comma splice needs a subject and a finite verb after the comma. That test leaves a list and an Oxford comma alone, because neither carries a verb. A participle and an infinitive do not mark a clause either. With no conjunction the words before the comma must carry a finite verb too. An introductory phrase is therefore left alone.
+A comma splice needs a subject and a finite verb after the comma. That test leaves a list and an Oxford comma alone, because neither carries a verb. A participle and an infinitive do not mark a clause either. With no conjunction the words before the comma must be a main clause with a finite verb. An introductory phrase and a subordinate clause are therefore left alone.
+
+A quotation is somebody else's words. No repair rewrites inside one.
 
 Text in parentheses counts as a single word toward the cap, which is what STE says. A citation therefore cannot inflate a sentence past the cap.
 
