@@ -19,7 +19,7 @@
 
   <test in="The gate is shut, so the write fails." out="The gate is shut. As a result, the write fails."/>
   <test in="A caller waits, and it might fail." out="A caller waits. It can fail."/>
-  <test in="The gate is shut, but the write still lands." out="The gate is shut. However, the write still lands."/>
+  <test in="The gate is shut, but the write still fails." out="The gate is shut. However, the write still fails."/>
   <test in="The gate is shut, then the write fails." out="The gate is shut. Then the write fails."/>
   <test in="Under the gate, the write fails." out="Under the gate, the write fails."/>
   <test in="The rules cover a semicolon, a modal, and a splice."

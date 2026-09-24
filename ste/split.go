@@ -161,9 +161,9 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		if main.Subject == nil {
 			return "", false
 		}
-		return strings.TrimSpace(connector + " " + restated(s, *main.Subject, source)), true
+		return strings.TrimSpace(connector + " " + restated(s, main, source)), true
 	case syntax.Relative:
-		if link != "which" || !c.Comma || c.Depth != 1 || c.Subject != nil {
+		if link != "which" || !c.Comma || c.Subject != nil || !closesTheSentence(s, c) {
 			return "", false
 		}
 		if s.Words[c.Verb.Head].Tag == "VBP" {
@@ -171,7 +171,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		}
 		return "This", true
 	case syntax.Subordinate:
-		if link != "because" || c.Depth != 1 {
+		if link != "because" || !closesTheSentence(s, c) {
 			return "", false
 		}
 		return "This is because", true
@@ -179,7 +179,28 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 	return "", false
 }
 
-// opensWithCapital reports whether the word at i reads right with a capital.
+// closesTheSentence reports whether the clause and the clauses under it run to
+// the end of the sentence. A clause the sentence returns from, as in "the file,
+// which fails, is gone", cannot stand alone.
+func closesTheSentence(s *syntax.Sentence, c syntax.Clause) bool {
+	after := false
+	for _, later := range s.Clauses {
+		if later.First == c.First {
+			after = true
+			continue
+		}
+		if after && later.Depth < c.Depth && later.Kind != syntax.Coordinate {
+			return false
+		}
+	}
+	for i := c.Link + 1; i+1 < len(s.Words); i++ {
+		if s.Words[i].Text == "," && strings.HasPrefix(s.Words[i+1].Tag, "VB") {
+			return false
+		}
+	}
+	return true
+}
+ whether the word at i reads right with a capital.
 // A name written in lower case, such as a command, does not.
 func opensWithCapital(s *syntax.Sentence, i int) bool {
 	w := s.Words[i]
@@ -187,15 +208,17 @@ func opensWithCapital(s *syntax.Sentence, i int) bool {
 	return !(unicode.IsLower(first) && (w.Tag == "NNP" || w.Tag == "NNPS"))
 }
 
-// restated names the subject again for a verb group that shared it. A short
-// subject repeats, and an indefinite article becomes the. A long subject, or a
-// name in lower case, becomes a pronoun.
-func restated(s *syntax.Sentence, subject syntax.Phrase, source string) string {
+// restated names the main clause's subject again, for a verb group that shared
+// it. A short subject repeats, and an indefinite article becomes the. A long
+// subject, a subject that carries a prepositional phrase, or a name in lower
+// case becomes a pronoun.
+func restated(s *syntax.Sentence, main syntax.Clause, source string) string {
+	subject := *main.Subject
 	head := s.Words[subject.Head]
 	if head.Tag == "PRP" {
 		return head.Text
 	}
-	short := subject.Last-subject.First < restateLimit
+	short := subject.Last-subject.First < restateLimit && !carriesPhrase(s, subject, *main.Verb)
 	if short && opensWithCapital(s, subject.First) {
 		text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 		if subject.Det == subject.First {
@@ -211,5 +234,15 @@ func restated(s *syntax.Sentence, subject syntax.Phrase, source string) string {
 	return "it"
 }
 
-// restateLimit is how many words a subject may carry and still repeat.
+// carriesPhrase reports whether words other than adverbs sit between the
+// subject and its verb, as "of every cached artifact" does.
+func carriesPhrase(s *syntax.Sentence, subject, verb syntax.Phrase) bool {
+	for i := subject.Last + 1; i < verb.First; i++ {
+		if s.Words[i].Tag != "RB" {
+			return true
+		}
+	}
+	return false
+}
+
 const restateLimit = 4

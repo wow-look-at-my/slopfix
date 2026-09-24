@@ -6,6 +6,8 @@ import "github.com/wow-look-at-my/go-containers/set"
 type clauseParser struct {
 	s  *Sentence
 	at []int // the phrase that covers each word, or a negative index
+	// main is the latest main clause with a verb, which a coordinated verb group can return to.
+	main Clause
 }
 
 func clauses(s *Sentence) []Clause {
@@ -46,12 +48,19 @@ func (p *clauseParser) run() []Clause {
 			} else {
 				cur.Last = p.lastWord(cur.First, i-1)
 				out = append(out, cur)
-				cur = Clause{First: i, Link: link, Kind: kind, Comma: comma, Depth: depthOf(kind, out[len(out)-1])}
+				depth := depthOf(kind, cur)
+				if kind == Coordinate && cur.Depth > 0 && p.returnsToMain(i, cur, comma) {
+					depth = 0
+				}
+				cur = Clause{First: i, Link: link, Kind: kind, Comma: comma, Depth: depth}
 			}
 		}
 		comma = false
 		if ph, ok := p.phrase(i); ok && ph.Kind == VerbGroup && ph.First == i && cur.Verb == nil {
 			p.attach(&cur, ph)
+			if cur.Depth == 0 && cur.Verb != nil {
+				p.main = cur
+			}
 		}
 	}
 	cur.Last = p.lastWord(cur.First, len(words)-1)
@@ -77,7 +86,6 @@ func (p *clauseParser) empty(c Clause, i int) bool {
 	return p.lastWord(c.First, i-1) < c.First
 }
 
-// lastWord answers the last word in [last] that is not punctuation.
 func (p *clauseParser) lastWord(first, last int) int {
 	for last >= first && punctuation(p.s.Words[last].Tag) {
 		last--
@@ -130,11 +138,34 @@ func (p *clauseParser) opensAfterConjunction(j int, cur Clause) bool {
 	}
 	if ph.Kind == VerbGroup {
 		if ph.Finite {
-			return cur.Verb != nil
+			return cur.Verb != nil || p.main.Verb != nil
 		}
-		return cur.Verb != nil && cur.Verb.Imperative && p.s.Words[p.lead(ph)].Tag == "VB"
+		return p.main.Verb != nil && p.main.Verb.Imperative && p.s.Words[p.lead(ph)].Tag == "VB"
 	}
 	return p.subjectVerbAt(j)
+}
+
+// returnsToMain reports whether a conjunction at i, inside a subordinate clause,
+// joins the main clause instead. A comma before it says so. So does a verb
+// that takes the main verb's form rather than the subordinate verb's, as in
+// "Write the text that joins them and start".
+func (p *clauseParser) returnsToMain(i int, cur Clause, comma bool) bool {
+	if comma {
+		return true
+	}
+	if p.main.Verb == nil || cur.Verb == nil {
+		return false
+	}
+	j := i + 1
+	for j < len(p.s.Words) && p.s.Words[j].Tag == "RB" {
+		j++
+	}
+	vg, ok := p.phrase(j)
+	if !ok || vg.Kind != VerbGroup {
+		return false
+	}
+	form := p.s.Words[p.lead(vg)].Tag
+	return form == p.s.Words[p.lead(p.main.Verb)].Tag && form != p.s.Words[p.lead(cur.Verb)].Tag
 }
 
 // lead answers the verb that decides a group's tense, after any adverb.

@@ -34,8 +34,73 @@ func Parse(text string, opaque [][]int) *Sentence {
 	}
 	retag(s.Words)
 	s.Phrases = chunk(s.Words)
+	if restoreVerbs(s.Words, s.Phrases) {
+		s.Phrases = chunk(s.Words)
+	}
 	s.Clauses = clauses(s)
 	return s
+}
+
+// restoreVerbs finds a stretch between clause boundaries that has no finite
+// verb, and rereads the last noun of a compound in it as the verb. The tagger
+// reads "the write fails" as a plural compound noun, because "fails" follows
+// "write" the way "names" follows "file".
+func restoreVerbs(words []Word, phrases []Phrase) bool {
+	changed := false
+	start := 0
+	for i := 0; i <= len(words); i++ {
+		if i < len(words) && !divides(words[i]) {
+			continue
+		}
+		if !hasFiniteVerb(words[start:i]) {
+			changed = restoreOne(words, phrases, start, i) || changed
+		}
+		start = i + 1
+	}
+	return changed
+}
+
+// divides reports a word that separates clauses: a comma, a conjunction, a
+// subordinator or a relative word.
+func divides(w Word) bool {
+	switch w.Tag {
+	case ",", ":", "CC", "WDT", "WP":
+		return true
+	case "IN", "WRB":
+		return Is(w.Text, "subordinator")
+	}
+	return false
+}
+
+func hasFiniteVerb(words []Word) bool {
+	for n, w := range words {
+		if isFinite(w.Tag) || n == 0 && w.Tag == "VB" {
+			return true
+		}
+	}
+	return false
+}
+
+// restoreOne retags the head of the earliest compound in [from, to) whose
+// number shows it is a verb. A singular noun followed by an -s form is a
+// subject and its verb. A plural noun followed by a bare form is too.
+func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
+	for _, p := range phrases {
+		if p.Kind != NounPhrase || p.First < from || p.Last >= to || p.Head <= p.First {
+			continue
+		}
+		head, before := &words[p.Head], words[p.Head-1]
+		switch {
+		case head.Tag == "NNS" && (before.Tag == "NN" || before.Tag == "NNP"):
+			head.Tag = "VBZ"
+		case head.Tag == "NN" && before.Tag == "NNS":
+			head.Tag = "VBP"
+		default:
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func inside(spans [][]int, start, end int) bool {
