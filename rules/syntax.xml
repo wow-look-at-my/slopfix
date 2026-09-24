@@ -1,0 +1,32 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  The closed word classes the sentence parser reads. The tagger names a part of
+  speech. These classes say what role a word plays in a clause, which a Penn
+  tag does not: IN is a preposition and a subordinator alike.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="syntax">
+
+  <!-- A subordinator opens a dependent clause. -->
+  <class name="subordinator" words="because although though unless whereas
+    while when whenever where wherever if once until before after since
+    whether"/>
+
+  <!-- A coordinator joins equals: two clauses, or two verb groups that share
+       a subject. -->
+  <class name="coordinator" words="and but or so yet nor"/>
+
+  <!-- A relative word opens a clause that describes the noun before it. -->
+  <class name="relative" words="which who whom whose that"/>
+
+  <!-- A determiner the parser accepts ahead of a numeral. A quantifier such as
+       each or any is left out, because "any two nodes" names a pair. -->
+  <class name="definite" words="the these those this that its their our your
+    his her my"/>
+
+  <!-- A noun that names a person takes they rather than it. -->
+  <class name="person" words="user users person people caller callers author
+    authors owner owners reader readers writer writers reviewer reviewers
+    maintainer maintainers operator operators developer developers contributor
+    contributors engineer engineers human humans agent agents"/>
+
+</rules>
