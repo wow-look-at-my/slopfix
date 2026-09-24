@@ -40,10 +40,12 @@ go-toolchain            # builds build/slopfix, and runs the tests
 slopfix check docs/*.md   # report what the rules reject, and exit 1 when anything does
 slopfix fix docs/*.md     # repair each file in place, and report what is left
 slopfix fmt docs/*.md     # join every wrapped paragraph back to a single line
-slopfix purge .           # delete the markdown a repository must not keep
+slopfix purge. # move CLAUDE.md into AGENTS.md, and delete the markdown a repository must not keep
 slopfix comments .        # report what a comment gets wrong, in any language
 slopfix workflows .       # read every workflow and action manifest in the tree
 ```
+
+`purge` renames a root `CLAUDE.md` to `AGENTS.md`, or appends it to an `AGENTS.md` that exists. `CLAUDE.md` then holds only `@AGENTS.md`. Claude Code reads that name alone.
 
 `fix` also reads a document on stdin and writes the repaired one on stdout. With `--json` the whole answer is one object, which is what a hook reads.
 

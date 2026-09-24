@@ -42,7 +42,7 @@ func TestPurgeKeepsTheRootPair(t *testing.T) {
 		filepath.FromSlash("pkg/NOTES.md"),
 	}, result.Deleted)
 
-	for _, kept := range []string{"README.md", "CLAUDE.md", "main.go", "docs/schema.json"} {
+	for _, kept := range []string{"README.md", "AGENTS.md", "CLAUDE.md", "main.go", "docs/schema.json"} {
 		_, err := os.Stat(filepath.Join(root, filepath.FromSlash(kept)))
 		assert.NoError(t, err, "%s must survive", kept)
 	}
@@ -96,8 +96,8 @@ func TestPurgeReportsAKeptFileOverBudget(t *testing.T) {
 	result, err := Purge(root, false)
 	require.NoError(t, err)
 	assert.Empty(t, result.Deleted)
-	require.Contains(t, result.OverBudget, "CLAUDE.md")
-	assert.Equal(t, CharBudget+1, result.OverBudget["CLAUDE.md"])
+	require.Contains(t, result.OverBudget, "AGENTS.md")
+	assert.Equal(t, CharBudget+2, result.OverBudget["AGENTS.md"], "the move adds a final newline")
 	assert.Contains(t, BudgetError(result.OverBudget), "over the 40000 budget")
 }
 
