@@ -8,6 +8,7 @@
 package commentfix
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -32,6 +33,19 @@ type TreeResult struct {
 	Removed []Removal
 	// Findings carry what no repair covered, and the repair covers everything.
 	Findings []Finding
+	// Rewrites carry each file the sweep wrote, as a diff under its rule.
+	Rewrites []Rewrite
+	// Rejected names each rewrite the guard threw away.
+	Rejected []Rejection
+	// Skipped says why the sweep wrote nothing at all. It is empty when it ran.
+	Skipped string
+}
+
+// Rewrite is what the sweep wrote to a file, and the rule that wrote it.
+type Rewrite struct {
+	Path string
+	Rule string
+	Diff string
 }
 
 // Removal is a piece of prose the repair deleted.
@@ -48,11 +62,29 @@ type Finding struct {
 	Number string
 }
 
-// FixTree rewrites every comment under root and reports what it did. A file is
+// FixTree rewrites the comments under root and reports what it did. A file is
 // written only when the repair changed it.
+//
+// A build calls this on the author's working copy. Inside git it writes only
+// the files the branch changed since its merge base with the default branch.
+// It writes nothing while a merge, rebase, cherry-pick or revert waits for the
+// user. A root outside git has no branch to scope by, so the whole tree goes.
 func FixTree(root string) TreeResult {
 	var out TreeResult
+	if stopped, err := operationInProgress(root); err == nil && stopped != "" {
+		out.Skipped = stopped + " is in progress, so the sweep wrote nothing"
+		return out
+	}
+	writable, err := changedFiles(root)
+	scoped := err == nil
+	if err != nil && !errors.Is(err, errNoGit) {
+		out.Skipped = "the sweep wrote nothing: " + err.Error()
+		return out
+	}
 	for _, path := range TreeFiles(root) {
+		if scoped && !writable.Contains(realPath(path)) {
+			continue
+		}
 		src, err := os.ReadFile(path)
 		if err != nil {
 			continue
@@ -61,13 +93,26 @@ func FixTree(root string) TreeResult {
 		fixed := Fix(path, string(src))
 		if fixed.Changed && write(path, fixed.Text) == nil {
 			out.Repaired = append(out.Repaired, path)
+			out.Rewrites = append(out.Rewrites, Rewrite{Path: path, Rule: ID, Diff: UnifiedDiff(path, string(src), fixed.Text)})
 		}
 		for _, text := range fixed.Removed {
 			out.Removed = append(out.Removed, Removal{Path: path, Text: text})
 		}
+		out.Rejected = append(out.Rejected, fixed.Rejected...)
 		out.Findings = append(out.Findings, findings(path, fixed.Text)...)
 	}
 	return out
+}
+
+// realPath answers path as git names it: absolute, with every link resolved.
+func realPath(path string) string {
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	}
+	return path
 }
 
 // CheckTree reads the same files and writes none, so a caller can ask what a
@@ -101,7 +146,11 @@ func findings(path, src string) []Finding {
 }
 
 // write renames a temp file over the target, so a concurrent reader never sees a torn file.
-func write(path, text string) error {
+func write(path, text string) error { return WriteFile(path, text) }
+
+// WriteFile replaces path with text through a rename. A run killed part way
+// leaves the file whole: either as it was or as the repair wrote it.
+func WriteFile(path, text string) error {
 	info, err := os.Stat(path)
 	mode := os.FileMode(0o644)
 	if err == nil {

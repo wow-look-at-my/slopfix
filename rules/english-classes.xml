@@ -86,9 +86,14 @@
        without asking a parser. -->
   <class name="noun" open="true" except="verbform irregular"/>
 
+  <!-- A word that ends like a plural. A tally governs a plural noun, and a verb
+       after a plural subject carries no "s": "the three shapes" is a tally,
+       "the three agree" is a subject and its verb. -->
+  <class name="plural" suffix="s"/>
+
   <!-- The cardinals the rule is about. A shape names the word it governs, so
        this class is what a shape reads to find any of them at once. -->
-  <class name="cardinal" words="zero one two three four five six seven eight
+  <class name="cardinal" words="two three four five six seven eight
     nine ten eleven twelve dozen hundred thousand million"/>
 
 </rules>

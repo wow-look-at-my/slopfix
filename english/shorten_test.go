@@ -57,6 +57,16 @@ func TestEveryPatternFires(t *testing.T) {
 	}
 }
 
+func TestEveryShapeFires(t *testing.T) {
+	require.NotEmpty(t, Shapes())
+	for _, s := range Shapes() {
+		for _, c := range s.Tests() {
+			assert.Equal(t, c.Out, Fix(c.In, surfaceOf(s.Where)),
+				"<shape id=%q> gave the wrong answer on %q", s.ID, c.In)
+		}
+	}
+}
+
 // A <test> under the table's root belongs to no entry: it states what the
 // repair writes for a whole line, which is where prose reaching several
 // entries, or reaching none, is said.

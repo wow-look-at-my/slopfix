@@ -1,139 +1,53 @@
 <?xml version="1.1" encoding="UTF-8"?>
 <!--
-  A cardinal counting something. The count is true until somebody changes the
-  set, so the repair says what is there and lets the reader count.
+  A cardinal tallying a set. The tally is true until somebody changes the set,
+  so the repair says what is there and lets the reader count.
 
-  The phrase entries go before the two shapes at the foot of the file. A bare
-  cardinal rule reads "one or more" as an article and writes "an or more".
+  Only a tally is here. "one", "once", "first" and "zero" count no set that can
+  grow, so the rule does not report them and nothing here rewrites them.
 -->
 <rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
 
-  <rewrite id="either-one" from="either one" to="either">
-    <test in="It cannot fix either one" out="It cannot fix either"/>
-  </rewrite>
-  <rewrite id="each-one" from="each one" to="each">
-    <test in="It reads each one" out="It reads each"/>
-  </rewrite>
-  <rewrite id="this-one" from="this one" to="this">
-    <test in="It skips this one" out="It skips this"/>
-  </rewrite>
-  <rewrite id="that-one" from="that one" to="that">
-    <test in="It skips that one" out="It skips that"/>
-  </rewrite>
-  <rewrite id="one-or-more" from="one or more" to="any number of">
-    <test in="It inserts one or more elements" out="It inserts any number of elements"/>
-  </rewrite>
-  <rewrite id="every-one-of" from="every one of" to="each of">
-    <test in="It holds every one of the keys" out="It holds each of the keys"/>
-  </rewrite>
-  <rewrite id="at-least-one-of" from="at least one of" to="any of">
-    <test in="It holds at least one of the keys" out="It holds any of the keys"/>
-  </rewrite>
-  <rewrite id="exactly-one-of" from="exactly one of" to="a single side of">
-    <test in="It is in exactly one of the sets" out="It is in a single side of the sets"/>
-  </rewrite>
-  <rewrite id="one-of" from="one of" to="any of">
-    <test in="It is one of the keys" out="It is any of the keys"/>
-  </rewrite>
-
-  <!-- A cardinal standing in for the noun. Cutting it leaves "the other run",
-       so these say the relation instead. -->
-  <rewrite id="the-other-two" from="the other two" to="the others">
-    <test in="The other two run a loop" out="The others run a loop"/>
-  </rewrite>
+  <!-- The cardinal stands in for the noun. "both" fits as a subject and as an
+       object, where "they" and "them" each fit only one. -->
   <rewrite id="the-two" from="the two" to="both">
     <test in="The two agree" out="Both agree"/>
-  </rewrite>
-  <rewrite id="all-three" from="all three" to="each of them">
-    <test in="All three agree" out="Each of them agree"/>
-  </rewrite>
-  <rewrite id="the-three" from="the three" to="each">
-    <test in="The three agree" out="Each agree"/>
-  </rewrite>
-
-  <!-- A repeat count, said without a number. -->
-  <rewrite id="exactly-once" from="exactly once" to="exactly a single time">
-    <test in="It runs exactly once" out="It runs exactly a single time"/>
-  </rewrite>
-  <rewrite id="only-once" from="only once" to="a single time">
-    <test in="It runs only once" out="It runs a single time"/>
-  </rewrite>
-  <rewrite id="once" from="once" to="a single time">
-    <test in="It hashes once" out="It hashes a single time"/>
-  </rewrite>
-  <rewrite id="twice" from="twice" to="again">
-    <test in="It hashes the key twice" out="It hashes the key again"/>
-  </rewrite>
-
-  <!-- The Go idiom. An unset value is what the reader is being told about. -->
-  <rewrite id="the-zero-value" from="the zero value" to="an unset value">
-    <test in="The zero value is ready" out="An unset value is ready"/>
-  </rewrite>
-  <rewrite id="zero-value" from="zero value" to="unset value">
-    <test in="Its zero value is ready" out="Its unset value is ready"/>
-  </rewrite>
-  <rewrite id="zero" from="zero" to="empty">
-    <test in="It returns zero and false" out="It returns empty and false"/>
+    <test in="It keeps the two apart" out="It keeps both apart"/>
   </rewrite>
 
   <!-- A term names a word CLASS, which a regexp has no way to say. The classes
        are in english-classes.xml, and {name} in the replacement writes back
-       what the term of that name matched. A replacement may be longer than
-       what it matched, shorter, or empty.
+       what the term of that name matched.
 
-       The phrases come first: each is a fixed idiom the corpus shows by the
-       hundred, and a general shape below would read it wrongly. -->
-  <!-- Each names the noun it counts. Without one the cardinal IS the noun
-       phrase: "only one that exits" and "when only one is configured" both
-       name a thing the sentence already introduced, and swapping the phrase
-       there spells "a single that exits". Only the antecedent says which noun,
-       so that shape is reported and left for the author. -->
-  <rephrase id="at-least-one" match="at least one {noun:n}" to="any {n}">
-    <test in="It holds at least one key" out="It holds any key"/>
+       Each shape with a noun goes before the same shape without one. The scan
+       tries entries in order at each word, so the bare shape would otherwise
+       claim "the three shapes" and write "all of them shapes". The noun must
+       be plural: "agree" in "all three agree" is the verb. -->
+  <rephrase id="the-other-cardinal-noun" match="the other {cardinal:c} {noun+plural:n}" to="the other {n}">
+    <test in="The other two files run a loop" out="The other files run a loop"/>
   </rephrase>
-  <rephrase id="at-most-one" match="at most one {noun:n}" to="no more than a single {n}">
-    <test in="It holds at most one key" out="It holds no more than a single key"/>
+  <rephrase id="the-other-cardinal" match="the other {cardinal:c}" to="the others">
+    <test in="The other two run a loop" out="The others run a loop"/>
   </rephrase>
-  <!-- "more than one" keeps its noun SINGULAR: "more than one key". Every
-       replacement that means the same thing wants a plural, so swapping the
-       phrase alone writes "several key". Pluralizing the noun is not something
-       a table can do, so this one is left for the author and reported. -->
-  <rephrase id="only-one" match="only one {noun:n}" to="a single {n}">
-    <test in="It holds only one key" out="It holds a single key"/>
+  <rephrase id="all-cardinal-noun" match="all {cardinal:c} {noun+plural:n}" to="all {n}">
+    <test in="All three files agree" out="All files agree"/>
   </rephrase>
-  <rephrase id="no-one-is-nobody" match="no one" to="nobody">
-    <test in="No one reads it" out="Nobody reads it"/>
+  <rephrase id="all-cardinal" match="all {cardinal:c}" to="all of them">
+    <test in="All three agree" out="All of them agree"/>
+  </rephrase>
+  <rephrase id="the-cardinal-noun" match="the {cardinal:c} {noun+plural:n}" to="the {n}">
+    <test in="It names the three shapes GitHub uses" out="It names the shapes GitHub uses"/>
+  </rephrase>
+  <rephrase id="the-cardinal" match="the {cardinal:c}" to="all of them">
+    <test in="It reads the three" out="It reads all of them"/>
+    <test in="The three agree" out="All of them agree"/>
   </rephrase>
 
   <!-- A preposition after the cardinal means the cardinal is the noun phrase
-       itself, and the count governs nothing: "two of them" names a part of a
-       group. Cutting the cardinal leaves "GET of them", a sentence with no
-       object in it, so the part is said in words instead. The phrases above
-       claim "one of" and "exactly one of" before this shape sees them. -->
+       itself: "two of them" names a part of a group. Cutting the cardinal
+       leaves "GET of them", so the part is said in words instead. -->
   <rephrase id="a-cardinal-governing-no-noun" match="{cardinal:c} of" to="some of">
     <test in="Batch GET two of them" out="Batch GET some of them"/>
-  </rephrase>
-
-  <!-- An article or determiner governing the slot means the cardinal stands in
-       for a noun the sentence already named: "the fast one" is that earlier
-       noun, not a count. Only the antecedent says which noun, and a table
-       cannot reach it. Writing "thing" in its place erased the reference in
-       134 of 886 repaired paragraphs measured over a prose corpus, so this
-       shape is reported and left for the author.
-
-       A noun DOES follow in "the one key", and there the cardinal counts it
-       after all. This shape goes before the bare count below, which would
-       otherwise write the article a second time and spell "the a single". -->
-  <rephrase id="a-governed-one-counts-its-noun" match="{article|determiner:d} one {noun:n}" to="{d} single {n}">
-    <test in="It holds the one key" out="It holds the single key"/>
-  </rephrase>
-
-  <!-- A noun follows, so the cardinal counts it. A verb form is not a noun
-       here, and the class excludes it, so "one keeping up" is left alone. -->
-  <rephrase id="one-counts-a-noun" match="one {noun:n}" to="a single {n}">
-    <test in="It reserves one slot" out="It reserves a single slot"/>
-    <!-- "got" is irregular, so the open noun class never claims it and this entry stands down. What rewrites the line is each-one. -->
-    <test in="It reports what each one got" out="It reports what each got"/>
   </rephrase>
 
   <!-- A plural tally: the noun carries the meaning and the number goes.
