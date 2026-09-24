@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,13 +13,6 @@ func inPlaceEdit(path, old, replacement string) map[string]any {
 		"tool_name":       "Edit",
 		"tool_input":      map[string]any{"file_path": path, "old_string": old, "new_string": replacement},
 	}
-}
-
-func onDisk(t *testing.T, name, content string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), name)
-	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
-	return path
 }
 
 // A line inside a fence is code. Judged as a fragment it reads as prose, and
