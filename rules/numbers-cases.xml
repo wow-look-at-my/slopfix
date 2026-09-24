@@ -78,6 +78,7 @@
   <test in="The other two files run a loop" out="The other files run a loop"/>
   <test in="All three files agree" out="All files agree"/>
   <test in="All three agree" out="All of them agree"/>
+  <test in="The three agree" out="All of them agree"/>
   <test in="It reads the three" out="It reads all of them"/>
 
 </rules>

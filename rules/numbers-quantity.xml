@@ -21,24 +21,26 @@
 
        Each shape with a noun goes before the same shape without one. The scan
        tries entries in order at each word, so the bare shape would otherwise
-       claim "the three shapes" and write "all of them shapes". -->
-  <rephrase id="the-other-cardinal-noun" match="the other {cardinal:c} {noun:n}" to="the other {n}">
+       claim "the three shapes" and write "all of them shapes". The noun must
+       be plural: "agree" in "all three agree" is the verb. -->
+  <rephrase id="the-other-cardinal-noun" match="the other {cardinal:c} {noun+plural:n}" to="the other {n}">
     <test in="The other two files run a loop" out="The other files run a loop"/>
   </rephrase>
   <rephrase id="the-other-cardinal" match="the other {cardinal:c}" to="the others">
     <test in="The other two run a loop" out="The others run a loop"/>
   </rephrase>
-  <rephrase id="all-cardinal-noun" match="all {cardinal:c} {noun:n}" to="all {n}">
+  <rephrase id="all-cardinal-noun" match="all {cardinal:c} {noun+plural:n}" to="all {n}">
     <test in="All three files agree" out="All files agree"/>
   </rephrase>
   <rephrase id="all-cardinal" match="all {cardinal:c}" to="all of them">
     <test in="All three agree" out="All of them agree"/>
   </rephrase>
-  <rephrase id="the-cardinal-noun" match="the {cardinal:c} {noun:n}" to="the {n}">
+  <rephrase id="the-cardinal-noun" match="the {cardinal:c} {noun+plural:n}" to="the {n}">
     <test in="It names the three shapes GitHub uses" out="It names the shapes GitHub uses"/>
   </rephrase>
   <rephrase id="the-cardinal" match="the {cardinal:c}" to="all of them">
     <test in="It reads the three" out="It reads all of them"/>
+    <test in="The three agree" out="All of them agree"/>
   </rephrase>
 
   <!-- A preposition after the cardinal means the cardinal is the noun phrase

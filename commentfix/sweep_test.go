@@ -75,6 +75,25 @@ func TestTheWalkKeepsTheModulesUnderANonModuleRoot(t *testing.T) {
 	assert.ElementsMatch(t, []string{"a/a.go"}, names(t, root))
 }
 
+// The write goes through a rename, so a run killed part way cannot leave half
+// a file. The mode survives, and the temp file does not.
+func TestWriteFileReplacesWholeAndKeepsTheMode(t *testing.T) {
+	root := tree(t, map[string]string{"run.sh": "old\n"})
+	path := filepath.Join(root, "run.sh")
+	require.NoError(t, os.Chmod(path, 0o755))
+
+	require.NoError(t, commentfix.WriteFile(path, "new\n"))
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "new\n", string(got))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o755), info.Mode().Perm())
+	entries, err := os.ReadDir(root)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1, "no temp file is left beside it")
+}
+
 func TestTheWalkSkipsABlob(t *testing.T) {
 	root := tree(t, map[string]string{"go.mod": "module example.com/m\n"})
 	big := make([]byte, commentfix.MaxFileBytes+1)

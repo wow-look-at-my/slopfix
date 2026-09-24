@@ -65,7 +65,18 @@ func TestTheWholeRepairChangesOnlyTheTallies(t *testing.T) {
 	assert.Empty(t, repair.Removed, "no sentence is cut")
 	assert.Empty(t, commentfix.Check("x.go", header+repair.Text))
 	// A paragraph rewrite rewraps, so the words are compared rather than the lines.
-	assert.Equal(t, strings.Fields(want), strings.Fields(repair.Text))
+	assert.Equal(t, prose(want), prose(repair.Text))
+}
+
+// prose answers the words of a fixture without its comment markers.
+func prose(src string) []string {
+	var out []string
+	for _, word := range strings.Fields(src) {
+		if word != "//" {
+			out = append(out, word)
+		}
+	}
+	return out
 }
 
 // A tally no entry covers is not guessed at. The sentence goes, and the
@@ -210,7 +221,7 @@ func TestAnEmptiedBlockKeepsItsDelimiters(t *testing.T) {
 // A block opens a single time. Repeating its opener down the paragraph nests a
 // comment inside itself, which is a syntax error in C.
 func TestARewrittenBlockDoesNotRepeatItsOpener(t *testing.T) {
-	long := "/* Asked once. " + strings.Repeat("A clause that carries the paragraph well past a line. ", 4) + "*/\n"
+	long := "/* Asked by two callers. " + strings.Repeat("A clause that carries the paragraph well past a line. ", 4) + "*/\n"
 	src := "int a;\n\n" + long + "int b;\n"
 	got := commentfix.Fix("x.c", src)
 
