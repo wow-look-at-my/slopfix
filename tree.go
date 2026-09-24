@@ -79,7 +79,7 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 
 		req.Path, req.Content = path, string(src)
 		repair := Fix(req)
-		if writing && repair.Changed && os.WriteFile(path, []byte(repair.Text), 0o644) == nil {
+		if writing && repair.Changed && commentfix.WriteFile(path, repair.Text) == nil {
 			out.Repaired = append(out.Repaired, path)
 		}
 		for _, text := range repair.Removed {

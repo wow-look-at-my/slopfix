@@ -16,17 +16,14 @@
   <class name="gate" words="two three four five six seven eight nine ten
     eleven twelve"/>
 
-  <!-- Every number a comment spells: the cardinals, the scales, the repeat
-       counts and the ordinals that index a list. A word joined to other
-       letters is a name (oneShot, someone), so only a whole word counts. -->
-  <class name="comment" words="zero one two three four five six seven eight
+  <!-- The numbers a comment spells that can tally a set. "zero" and "one"
+       name a value, a pronoun or a condition, a repeat count is behavior, and
+       an ordinal is an order. None of them grows by an edit that leaves the
+       sentence true. A word joined to other letters is a name (twoPhase), so
+       only a whole word counts. -->
+  <class name="comment" words="two three four five six seven eight
     nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen
     eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety
-    hundred thousand million billion trillion dozen
-    once twice thrice
-    first second third fourth fifth sixth seventh eighth ninth tenth
-    eleventh twelfth thirteenth fourteenth fifteenth sixteenth seventeenth
-    eighteenth nineteenth twentieth thirtieth fortieth fiftieth sixtieth
-    seventieth eightieth ninetieth hundredth thousandth"/>
+    hundred thousand million billion trillion dozen"/>
 
 </rules>

@@ -46,6 +46,20 @@
   <class name="verbform" suffix="ing ed"/>
   <class name="noun" open="true" except="verbform"/>
 
+  <!-- A central determiner opens a noun phrase, and a postdeterminer can
+       follow it. "that" is left out: it is a conjunction as often. -->
+  <class name="central" words="the this these those each every either neither"/>
+  <!-- A postdeterminer that says nothing before a singular noun. The article
+       and the singular already say "exactly this one". -->
+  <class name="pleonastic" words="one single individual particular"/>
+  <!-- A determiner that "one" props up when no noun follows: "this one". -->
+  <class name="propped" words="this each either neither which whichever another"/>
+  <class name="plural" suffix="s"/>
+  <!-- A word ending like a plural after a singular determiner is the verb. -->
+  <class name="singular" open="true" except="verbform plural"/>
+  <!-- Nouns the "ing" ending would read as a verb form. -->
+  <class name="ingnoun" words="thing string ring spring wing king ceiling"/>
+
   <!-- Words that survive their own deletion. -->
   <drop word="actually" test="It actually fails"/>
   <drop word="basically" test="It basically fails"/>
@@ -90,6 +104,30 @@
   <rewrite from="in the near future" to="soon" test="Lands in the near future"/>
   <rewrite from="on a regular basis" to="regularly" test="Runs on a regular basis"/>
   <rewrite from="whether or not" to="whether" test="Asks whether or not it fits"/>
+
+  <!-- A pleonastic postdeterminer: the determiner and the singular noun already
+       say "exactly this one", so the word between them says it again. A
+       hyphen binds the word into a compound, which a shape never reads across. -->
+  <shape id="pleonastic-postdeterminer" match="{central:d} {pleonastic} {singular|ingnoun:n}" replace="{d} {n}"
+         test="The walk is dropping the one top directory" expect="The walk is dropping the top directory">
+    <test in="The one thing that matters most" out="The thing that matters most"/>
+    <test in="It reads each individual file" out="It reads each file"/>
+    <test in="This particular case fails" out="This case fails"/>
+    <test in="It retries every single time" out="It retries every time"/>
+    <test in="It arms the one-shot timer" out="It arms the one-shot timer"/>
+    <test in="It keeps the one below" out="It keeps the one below"/>
+    <test in="The one wins" out="The one wins"/>
+    <test in="It checks that one key exists" out="It checks that one key exists"/>
+    <test in="No one reads it" out="No one reads it"/>
+  </shape>
+  <!-- A prop-word: "one" holds the place of a noun the determiner can stand
+       for alone. -->
+  <shape id="prop-word-one" match="{propped:d} one" replace="{d}"
+         test="It fails when this one does not carry it" expect="It fails when this does not carry it">
+    <test in="It reads each one of them" out="It reads each of them"/>
+    <test in="It cannot fix either one" out="It cannot fix either"/>
+    <test in="It knows that one exists" out="It knows that one exists"/>
+  </shape>
 
   <!--
     where= picks the surface an entry applies to: "comment" for source only,

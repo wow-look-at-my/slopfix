@@ -28,6 +28,8 @@ type Repair struct {
 	Changed bool `json:"changed"`
 	// Removed quotes each sentence the repair cut, because no entry covered it.
 	Removed []string `json:"removed,omitempty"`
+	// Rejected names each rewrite the guard threw away, and the entry that wrote it.
+	Rejected []Rejection `json:"rejected,omitempty"`
 }
 
 // Fix rewrites every number a comment states and returns the repaired source.
@@ -45,7 +47,7 @@ func Fix(filename, src string) Repair {
 	}
 
 	lines := strings.Split(src, "\n")
-	repaired, removed, blanked := repairRuns(lines, runs)
+	repaired, removed, blanked, rejected := repairRuns(lines, runs)
 	out := dropEmptied(strings.Join(repaired, "\n"), blanked)
 	// A number can sit where no paragraph forms, so the position has the last word.
 	out, left := clearResidual(filename, out)
@@ -53,7 +55,10 @@ func Fix(filename, src string) Repair {
 	if out != src {
 		out = dropDanglingMarkers(filename, out)
 	}
-	return Repair{Text: out, Changed: out != src, Removed: removed}
+	for i := range rejected {
+		rejected[i].Path = filename
+	}
+	return Repair{Text: out, Changed: out != src, Removed: removed, Rejected: rejected}
 }
 
 // dropDanglingMarkers removes a bare comment line the repair left with nothing under it. The line was a paragraph break somebody wrote, and a break that separates a paragraph from the code below it separates nothing.
@@ -99,13 +104,18 @@ func carriesProse(lines []string, rows set.Set[int], i int) bool {
 //
 // A run rather than a line, because a sentence wraps: cutting the share a line
 // carries leaves the rest of that sentence dangling below it.
-func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, removed []string, blanked map[int]bool) {
+func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, removed []string, blanked map[int]bool, rejected []Rejection) {
 	blanked = make(map[int]bool)
 	for _, para := range paragraphsOf(lines, runs) {
 		if para.verbatim {
 			continue
 		}
-		said := CloseProse(Reword(para.prose))
+		reworded, refused := rewordChecked(para.prose)
+		for _, r := range refused {
+			r.Line = para.lines[0] + 1
+			rejected = append(rejected, r)
+		}
+		said := CloseProse(reworded)
 		said, cut := cutWhatIsLeft(said)
 		removed = append(removed, cut...)
 		if said == para.prose {
@@ -143,7 +153,7 @@ func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, rem
 			lines[closeAt] = strings.TrimRight(lines[closeAt], " ") + " " + para.trailer
 		}
 	}
-	return lines, removed, blanked
+	return lines, removed, blanked, rejected
 }
 
 // para is a run of comment lines carrying a single paragraph of prose.
