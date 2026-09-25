@@ -85,8 +85,8 @@ func TestStripHandlesSeveralCountsInOneDocument(t *testing.T) {
 func TestStripKeepsTheCapitalOfASentenceItOpens(t *testing.T) {
 	for in, want := range map[string]string{
 		"Default `.` becomes `root`. Two builds in one job therefore save distinct hand-offs and can no longer 409 on a shared key.": "Default `.` becomes `root`. Builds in one job therefore save distinct hand-offs and can no longer 409 on a shared key.",
-		"It came from the finished-test durations. Two attempts at intra-package parallelism failed and were reverted:":             "It came from the finished-test durations. Attempts at intra-package parallelism failed and were reverted:",
-		"It is built. Two inputs vary between runners and each flag closes one.":                                                    "It is built. Inputs vary between runners and each flag closes one.",
+		"It came from the finished-test durations. Two attempts at intra-package parallelism failed and were reverted:":              "It came from the finished-test durations. Attempts at intra-package parallelism failed and were reverted:",
+		"It is built. Two inputs vary between runners and each flag closes one.":                                                     "It is built. Inputs vary between runners and each flag closes one.",
 		"It ships two hooks.": "It ships hooks.",
 	} {
 		out, cut := StripGate(in)
