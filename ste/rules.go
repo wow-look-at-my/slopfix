@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
@@ -34,6 +35,7 @@ const (
 // asks whether a name is in it rather than reading it in order.
 var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
+	IDPostdeterminer,
 )
 
 // Finding is a rule the line breaks, and how to repair it.
@@ -176,6 +178,7 @@ var proseRules = []proseRule{
 	{"rule/ste-sentence-length", checkSentences},
 	{"rule/ste-comma-splice", checkSplices},
 	{"rule/ste-count", checkCounts},
+	{"rule/ste-postdeterminer", checkPostdeterminers},
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
@@ -238,8 +241,7 @@ func checkSentences(prose string, line int) []Finding {
 func checkSplices(prose string, line int) []Finding {
 	var out []Finding
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
-		bare := loc[2] < 0
-		if bare && !isClause(clauseBefore(prose, loc[0])) {
+		if !spliced(prose, loc) {
 			continue
 		}
 		out = append(out, Finding{
@@ -275,8 +277,9 @@ func checkCounts(prose string, line int) []Finding {
 // the comma at idx.
 func clauseBefore(prose string, idx int) string {
 	before := prose[:idx]
-	if cut := strings.LastIndexAny(before, ".!?"); cut >= 0 {
-		before = before[cut+1:]
+	if cut := strings.LastIndexAny(before, ".!?:;—"); cut >= 0 {
+		_, width := utf8.DecodeRuneInString(before[cut:])
+		before = before[cut+width:]
 	}
 	return before
 }

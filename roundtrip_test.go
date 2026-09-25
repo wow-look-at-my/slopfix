@@ -38,7 +38,8 @@ func roundTripFixtures() []fixture {
 				"The gate is shut, the write fails.\n\n" +
 				"The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
-				"A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion.\n\n" +
+				"The loader reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs.\n\n" +
+				"Its four fields hold the header.\n\n" +
 				"The set holds three rules.\n\n" +
 				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n",
 			wants: []string{
@@ -49,6 +50,7 @@ func roundTripFixtures() []fixture {
 				ste.IDCommaSplice,
 				ste.IDSentenceCap,
 				ste.IDStaleCount,
+				ste.IDPostdeterminer,
 			},
 		},
 		{

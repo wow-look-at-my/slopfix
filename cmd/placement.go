@@ -82,7 +82,38 @@ func place(tool string, in writeInput, rules []slopfix.Rule, ids []string) place
 	return placed{findings: introduced(before, after, in.FilePath, rules, ids), ok: true}
 }
 
-// introduced subtracts what the file already carried.
+// repairInPlace repairs an Edit where it lands, the way Vale lints a whole file
+// rather than a fragment. It answers the new_string the repaired file holds. A
+// repair that reaches past the edit is not applied at all, because the write
+// changes nothing but its own text. It answers placed=false when the edit
+// cannot be pinned to the file, and the caller repairs the fragment instead.
+func repairInPlace(tool string, in writeInput, rules []slopfix.Rule, ids []string) (repair slopfix.Repair, placed bool) {
+	if tool != "Edit" || in.FilePath == "" || in.OldString == "" {
+		return slopfix.Repair{}, false
+	}
+	data, err := os.ReadFile(in.FilePath)
+	if err != nil || strings.Count(string(data), in.OldString) != 1 {
+		return slopfix.Repair{}, false
+	}
+	before := string(data)
+	at := strings.Index(before, in.OldString)
+	prefix, suffix := before[:at], before[at+len(in.OldString):]
+	whole := slopfix.Fix(slopfix.Request{
+		Content:         prefix + in.NewString + suffix,
+		Path:            in.FilePath,
+		Rules:           rules,
+		IDs:             ids,
+		MaxCommentLines: hookMaxLines,
+	})
+	text := whole.Text
+	if len(text) < len(prefix)+len(suffix) || !strings.HasPrefix(text, prefix) || !strings.HasSuffix(text, suffix) {
+		return slopfix.Repair{Text: in.NewString, Findings: whole.Findings}, true
+	}
+	whole.Text = text[len(prefix) : len(text)-len(suffix)]
+	whole.Changed = whole.Text != in.NewString
+	return whole, true
+}
+
 func introduced(before, after, path string, rules []slopfix.Rule, ids []string) []ste.Finding {
 	had := map[string]int{}
 	for _, f := range findingsOver(before, path, rules, ids) {

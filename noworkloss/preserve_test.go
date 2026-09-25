@@ -333,7 +333,7 @@ func TestPreserveNeverAttemptedForAnUnresolvablePath(t *testing.T) {
 	assert.Empty(t, listPreservationRefs(t, dir))
 }
 
-// A stash entry is deliberately not preserved (see docs/decision-model.md),
+// A stash entry is deliberately not preserved (see AGENTS.md),
 // so dropping an entry still denies exactly as before.
 func TestPreserveNeverAttemptedForAStashEntry(t *testing.T) {
 	dir := newRepo(t)

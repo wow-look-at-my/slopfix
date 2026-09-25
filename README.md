@@ -1,121 +1,67 @@
 # slopfix
 
-One tool for the prose rules this org applies to a markdown file, and for the same rules a code comment must follow. It also reads a GitHub Actions workflow and an action manifest, where the org's gate rejects other things.
+slopfix checks and repairs text against the org's writing rules. It reads markdown prose, code comments, GitHub Actions workflows and the markdown layout of a repository.
 
-## The rules, and where each one is documented
+It also carries the Claude Code hook subcommands that the org's marketplace plugins run. A hook, a CI job and an editor all get the same verdict from the same binary.
 
-A directory is a rule. Where a package holds several, they are members of one family. The family shares the machinery that decides what text is read at all, and the README covers each member under its own heading.
+## The rules
 
-| Directory | Rule IDs | Repairs |
+| Category | Rule IDs | Repairs |
 |---|---|---|
-| [counts](counts/README.md) | `counts/inventory-count` | yes |
-| [tombstones](tombstones/README.md) | `tombstones/*` | what it can excise as a whole line |
-| [ste](ste/README.md) | `ste/*` | a contraction, a modal, a semicolon, a comma splice |
-| [markdown](markdown/README.md) | `wrap/hard-wrap` | yes |
-| [workflow](workflow/README.md) | `yaml/*` | no |
-| [commentfix](commentfix/README.md) | `comments/*` | yes, every finding a cut can answer |
-| [laziness](laziness/README.md) | `laziness/punt` | no |
+| `repo` | `repo/stray-markdown`, `repo/agents-file`, `repo/budget` | the first two |
+| `wrap` | `wrap/hard-wrap` | yes |
+| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
+| `counts` | `counts/inventory-count` | yes |
+| `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
+| `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate` | yes |
+| message | `laziness/punt`, `blame/deflection` | no |
 
-A directory here can hold no rule at all. [markdown](markdown/README.md) is the document model every prose rule sits on. It carries the hard-wrap rule as well. [source](source/README.md) is the substrate adapter that answers where the prose is in a source file.
+- `repo`: a repository keeps only `README.md`, `AGENTS.md` and `CLAUDE.md` at its root. `CLAUDE.md` holds only `@AGENTS.md`.
+- `wrap` and `ste`: a paragraph is one line, and its prose follows ASD-STE100 Simplified Technical English.
+- `counts`, `ste/count` and `comments/number`: a stated count goes stale when the set changes.
+- `tombstones`: a comment that narrates history or argues for the diff.
+- `comments`: a number in a comment, a comment longer than its code, and a comment cut off mid-thought.
+- `yaml`: a comment block, a job named `all-builds`, a test in a `run:` script, and a gate under `continue-on-error`.
 
-[rules](rules/README.md) holds the prose tables as XML, split by purpose. The folder is embedded and [table](table/table.go) loads it, collecting the entries a single consumer declares and compiling every pattern.
+A fenced code block, a table and a heading are data. No rule reads them.
 
-[cardinal](cardinal/README.md) holds no rule ID either. It decides whether a number is a stated count. `counts`, `ste` and `commentfix` are the substrates that ask it. Each brings its own policy: how much framing a number needs, which words spell one, and what carries a number without counting anything.
+## Install
 
-A hook is a named selection of rule IDs, and nothing else. That mapping lives in `hooks.go`, and `hooks_test.go` asserts that every rule has a home in it and that every entry names a rule that exists. A rule added with no home fails the build. So does an entry for a rule somebody deleted.
-
-Some rules for text the model produces still live outside this repository. The `no-blame-language`, `ask-properly` and `link-all-refs` plugins in `wow-look-at-my/cc-marketplace` each carry their own. The table names them anyway. The gap is then visible rather than assumed.
-
-## Build
+The CI action downloads the published binary from buildhost. For local use, build it from this repository:
 
 ```sh
 go-toolchain            # builds build/slopfix, and runs the tests
 ```
 
-`dats/` holds the CLI suites go-toolchain runs after that build. They exec the built binary under a sandbox, which is where a test that drives a foreign git hook belongs. Running one by hand needs the same environment: `GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats`, with bubblewrap installed.
-
 ## Use
 
 ```sh
-slopfix check docs/*.md   # report what the rules reject, and exit 1 when anything does
-slopfix fix docs/*.md     # repair each file in place, and report what is left
-slopfix fmt docs/*.md     # join every wrapped paragraph back to a single line
-slopfix purge. # move CLAUDE.md into AGENTS.md, and delete the markdown a repository must not keep
-slopfix comments .        # report what a comment gets wrong, in any language
-slopfix workflows .       # read every workflow and action manifest in the tree
+slopfix check .                       # report what the rules reject, exit 1 on any finding
+slopfix fix .                         # repair in place, then report what is left
+slopfix check --only ste docs/a.md    # narrow to a category
+slopfix fix --only ste/semicolon a.md # narrow to a rule ID
+slopfix parse "The gate reads every file."
 ```
 
-`purge` renames a root `CLAUDE.md` to `AGENTS.md`, or appends it to an `AGENTS.md` that exists. `CLAUDE.md` then holds only `@AGENTS.md`. Claude Code reads that name alone.
-
-`fix` also reads a document on stdin and writes the repaired one on stdout. With `--json` the whole answer is one object, which is what a hook reads.
+- `fix` is `check --fix`. A directory argument is walked.
+- `--only` takes categories and rule IDs, comma separated. An unknown name is an error.
+- An empty `.slopfix-spec` file at a repository root opts that repository out of `repo/stray-markdown`.
+- `slopfix report --path P` prints JSON findings for text on stdin. The editor plugin reads it.
+- `slopfix hook` repairs a Claude Code write. `slopfix message` judges a closing message.
 
 ## In CI
-
-The action at the root of this repository downloads the published binary from buildhost and runs it. A consumer needs no install step:
 
 ```yml
 - uses: actions/checkout@v4
 - uses: wow-look-at-my/slopfix@master
   with:
-    command: workflows
-    only: yaml/comment-block
+    paths: .                  # the default
+    only: yaml/comment-block  # optional
 ```
 
-`command` defaults to `workflows`. `paths` defaults to the whole workspace. The step therefore goes after the checkout. `only` is the flag of the same name. There is no `exclude`: an exemption a caller writes is one a caller sets to. Everything. `fix` and `fmt` are refused: a job that repairs its own checkout. And then reports a pass has enforced nothing.
+The action runs `check` on `paths`. It never repairs, because a job that repairs its own checkout proves nothing.
 
-`comments` reads source rather than prose. A number in a comment is a count of what exists today. The edit that adds an item leaves it wrong. It reads a comment by its delimiters rather than by a grammar. So it answers for every language it knows, and on a tree that does not compile. A directory is walked, skipping hidden directories, `vendor`, `node_modules`, `testdata` and `build`. A named file is read whatever its extension. go-toolchain runs this same check as its first phase.
+## More
 
-The length rule inside `comments` reads the same syntax tree. The span a comment is weighed against is exact rather than guessed. `--fix` cuts each over-long block back inside its budget, from the end. And never past the opening sentence. A repair the rule cannot make without losing the opening is reported instead, for a person to rewrite. The tail rule closes a comment left standing on a word that opens what a cut took away.
-
-## Naming the rules to run
-
-`--only` takes a comma-separated list. An entry is a category, or a rule ID inside a category. A rule ID is the name the report prints next to the finding, the way a compiler names a warning. What a message says and what a caller asks for are the same word.
-
-```sh
-slopfix fix --only counts            # every rule in the counts category
-slopfix fix --only ste/semicolon     # that rule alone, and no other in ste
-slopfix fix --only tombstones,wrap   # two categories
-slopfix fix --only ste/nosuch        # an error naming the rules ste holds
-```
-
-The categories are `tombstones`, `counts`, `wrap` and `ste`. A rule ID turns its category on, so naming a rule never needs the category named beside it. An unknown name is an error rather than a silent no-op, because a run that applies nothing reads as a clean file.
-
-A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream, and a hand wrap hides half of it. So naming a `ste` rule also joins the paragraph it repairs.
-
-## What fix repairs
-
-- A wrapped paragraph, joined back to a single line.
-- A contraction, written out. A banned modal, replaced by the approved word.
-- A semicolon and a comma splice, each replaced by the period it stands in for.
-- The cardinal in a stated count, cut out. The sentence then stays true.
-
-A sentence over the word cap is reported and left alone. To split one, the writer must know which half is the point.
-
-## What check reports
-
-- A paragraph split over several lines. The reader's window wraps a paragraph. An author's wrap freezes one window's width into the file.
-- A semicolon, a contraction, and a banned modal. STE approves none of them.
-- A comma joining clauses that each stand alone. The rule wants a subject and a finite verb after the comma.
-- A sentence over the word cap. Text in parentheses counts as a single word, which keeps a citation from inflating the count.
-- A stated count of items. The number is true until somebody changes the set, and nothing corrects it then.
-- A tombstone comment. It describes a state the code has left, or argues for the diff instead of telling the next editor what breaks.
-
-## What check reports in a workflow
-
-A workflow under `.github/workflows`, and an `action.yml` beside it, are read by rules of their own. The prose rules never run on either. `fmt` refuses one outright, because a newline there is syntax. Joining a two-line `concurrency:` block makes GitHub reject the file before a job starts.
-
-`workflows` walks a tree for them. The walk keeps `.github`, which the other walks skip as a hidden directory. It skips this repository's registered submodules, which carry their own CI. That skip is derived from `.gitmodules` and verified against the index. A declaration alone cannot exempt a directory holding real source, and no flag widens the skip. A walk that selects no file exits non-zero. A run that read nothing enforced nothing, and in CI that means the step ran ahead of the checkout.
-
-`--only` takes rule IDs from the list above. A caller that wants one of them does not adopt its siblings. Each rule has its own CI step in the org. An unknown name is an error.
-
-- A run of comment lines. The limit is one line. Say what a reader needs right there, and put the rest in the commit message.
-- A job named `all-builds`, by its key or by its name. The required gate is a commit status from the required-builds-manager app. A job wearing the name satisfies nothing, and shadows the real gate in the UI.
-- A test written into a `run:` script. That covers an assertion, a shell function whose name says it asserts, or a redirect naming a test file. A step that merely runs a command fails on its own exit code, and is left alone.
-
-## What no rule reads
-
-A fenced code block, a table and a heading are data. No rule reads them. The `fmt` command never reflows them.
-
-An HTML entity ends in a semicolon, and an inline code span holds whatever it holds. Both are masked before a rule sees the text, and `fix` leaves each of them as it is.
-
-`fmt` carries a guarantee `fix` keeps: it moves newlines and nothing else. A rewrite whose words differ from the source is refused rather than written.
+`AGENTS.md` holds the full reference: each rule, what it does not flag, the hook subcommands and the design decisions.

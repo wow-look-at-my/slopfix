@@ -35,7 +35,7 @@ func TestNothingElseIsRewritten(t *testing.T) {
 // Every rules file loads. A file the folder carries that no loader can read is
 // a rule that silently never fires.
 func TestEveryRulesTargetLoads(t *testing.T) {
-	for _, target := range []string{"numbers", "ste", "english", "comment-tails"} {
+	for _, target := range []string{"numbers", "ste", "english", "comment-tails", "syntax"} {
 		got, err := table.Load(rules.FS, target)
 		require.NoError(t, err, "target %s", target)
 		assert.NotNil(t, got)
