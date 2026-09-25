@@ -276,9 +276,7 @@ func mask(prose string) string {
 	return string(out)
 }
 
-// fill writes a single filler word over a span. It keeps a space at each end,
-// so the words on either side stay words of their own. The filler is a capital,
-// as strip writes CODE, so a span that opens a sentence still opens it here.
+// fill writes a single capital filler word over a span, as strip writes CODE.
 func fill(span []byte) {
 	for i := range span {
 		span[i] = 'X'
