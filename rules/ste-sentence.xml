@@ -37,4 +37,10 @@
 
   <test in="A short sentence that breaks no rule." out="A short sentence that breaks no rule."/>
 
+  <!-- go-toolchain docs. The commas inside the parentheses separate list items, and the code span opens its own sentence. -->
+  <test in="Only the target's own artifacts are touched: the bare name (`&lt;name&gt;.exe` and the fat APE), every `&lt;name&gt;_…` shape the toolchain writes (`&lt;name&gt;_&lt;goos&gt;_&lt;goarch&gt;`, the wasm names, the `&lt;name&gt;_host` symlink), and the APE's `&lt;name&gt;.…` sidecar ELFs. `checksums.txt`, `wasm_exec.js`, `profile.json` and anything else in `build/` are left alone."
+        out="Only the target's own artifacts are touched: the bare name (`&lt;name&gt;.exe` and the fat APE), every `&lt;name&gt;_…` shape the toolchain writes (`&lt;name&gt;_&lt;goos&gt;_&lt;goarch&gt;`, the wasm names, the `&lt;name&gt;_host` symlink), and the APE's `&lt;name&gt;.…` sidecar ELFs. `checksums.txt`, `wasm_exec.js`, `profile.json` and anything else in `build/` are left alone."/>
+  <test in="**Automatic GOMEMLIMIT** — the compiler's runtime caps every binary's Go heap at the container's cgroup limit instead of being OOM-killed. `GOMEMLIMIT=off` opts out at run time."
+        out="**Automatic GOMEMLIMIT** — the compiler's runtime caps every binary's Go heap at the container's cgroup limit instead of being OOM-killed. `GOMEMLIMIT=off` opts out at run time."/>
+
 </rules>

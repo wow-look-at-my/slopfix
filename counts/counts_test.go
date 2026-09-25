@@ -80,6 +80,21 @@ func TestStripHandlesSeveralCountsInOneDocument(t *testing.T) {
 	assert.Contains(t, out, "\n\n", "the paragraph break survived both cuts")
 }
 
+// A count that opens a sentence gives its capital to the next word. Each case
+// is a sentence from the go-toolchain docs.
+func TestStripKeepsTheCapitalOfASentenceItOpens(t *testing.T) {
+	for in, want := range map[string]string{
+		"Default `.` becomes `root`. Two builds in one job therefore save distinct hand-offs and can no longer 409 on a shared key.": "Default `.` becomes `root`. Builds in one job therefore save distinct hand-offs and can no longer 409 on a shared key.",
+		"It came from the finished-test durations. Two attempts at intra-package parallelism failed and were reverted:":             "It came from the finished-test durations. Attempts at intra-package parallelism failed and were reverted:",
+		"It is built. Two inputs vary between runners and each flag closes one.":                                                    "It is built. Inputs vary between runners and each flag closes one.",
+		"It ships two hooks.": "It ships hooks.",
+	} {
+		out, cut := StripGate(in)
+		assert.NotEmpty(t, cut, in)
+		assert.Equal(t, want, out)
+	}
+}
+
 func TestStripLeavesACleanDocumentUntouched(t *testing.T) {
 	doc := "Every plugin this repo installs rides in the payload.\n"
 	out, cut := Strip(doc)
