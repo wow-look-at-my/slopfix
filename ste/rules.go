@@ -376,7 +376,9 @@ func endsWithAbbreviation(sentence []rune) bool {
 	if len(fields) == 0 {
 		return false
 	}
-	return abbreviations.Contains(strings.ToLower(fields[len(fields)-1]))
+	// "(e.g." is the abbreviation behind an opening mark.
+	last := strings.TrimLeft(fields[len(fields)-1], "([\"'“‘*_")
+	return abbreviations.Contains(strings.ToLower(last))
 }
 
 // WordCount counts the words in a sentence. Text in parentheses counts as a
