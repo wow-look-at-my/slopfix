@@ -126,6 +126,8 @@ var (
 		`rather|instead|except)\s`)
 	// bareSeam matches the same conjunctions carrying no comma.
 	bareSeam = regexp.MustCompile(`(\s+)(?:and|but|so|or|yet|then|because|since|which|while)\s`)
+	// quoted matches a quoted phrase, which a division would halve.
+	quoted = regexp.MustCompile(`"[^"]*"|“[^”]*”`)
 	// colonSeam matches a colon, which is a seam only between clauses.
 	colonSeam = regexp.MustCompile(`(:\s+)`)
 	// dashSeam matches a spaced dash, which a writer puts where a sentence turns.
@@ -156,6 +158,9 @@ func carriesItsOwnSubject(clause string) bool {
 	}
 	if first, _ := utf8.DecodeRuneInString(word); unicode.IsUpper(first) {
 		return true
+	}
+	if strings.HasSuffix(word, "'s") {
+		return true // a possessive opens a noun phrase that names who acts
 	}
 	return opensASubject.Contains(strings.ToLower(word))
 }
@@ -305,6 +310,7 @@ func usable(masked string, off [][]int, cut []int, start, end int) bool {
 // parenthetical, which STE counts as a single word and a break would halve.
 func offLimits(prose, masked string) [][]int {
 	off := verbatimSpan.FindAllStringIndex(prose, -1)
+	off = append(off, quoted.FindAllStringIndex(masked, -1)...)
 	return append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 }
 
