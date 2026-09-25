@@ -88,14 +88,14 @@ func init() {
 		Short: "Report what every rule rejects, and with --fix repair what it can",
 		Long: "check reads each file it is named and reports every finding. With --fix\n" +
 			"it repairs each one in place first, and reports what a rewrite cannot\n" +
-			"repair.\n\n" +
+			"repair. A directory is walked. Walked from a repository root, the repo\n" +
+			"rules also judge which markdown files the repository keeps.\n\n" +
 			"With no file it reads a document on stdin. Named as fix, or given\n" +
 			"--fix, it writes the repaired document on stdout and its findings on\n" +
 			"stderr; --json writes the whole answer as one object instead, which is\n" +
 			"what a PreToolUse hook reads.",
-		// Each name a launcher may still exec reaches the same rules. A file
-		// decides which rules read it, so a name selects nothing this does not.
-		Aliases: []string{"comments", "workflows", "fix"},
+		// fix is check --fix. A file decides which rules read it, so no other name is needed.
+		Aliases: []string{"fix"},
 		Args:    cobra.ArbitraryArgs,
 		RunE:    runCheck,
 	}

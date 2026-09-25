@@ -57,9 +57,16 @@ var hooks = []Hook{
 	{
 		Name:    "go-toolchain comments phase",
 		Event:   "build",
-		Runs:    "slopfix comments .",
+		Runs:    "slopfix check .",
 		Summary: "what a comment gets wrong, in any language the adapter knows",
 		Only:    []string{IDCommentNumber, commentfix.IDTail, commentfix.IDLength},
+	},
+	{
+		Name:    "ci check",
+		Event:   "build",
+		Runs:    "slopfix check .",
+		Summary: "which markdown files a repository keeps, judged from its root",
+		Only:    []string{string(RuleRepo)},
 	},
 	{
 		Name:    "no-laziness",
