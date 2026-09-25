@@ -2,11 +2,13 @@ package slopfix
 
 import (
 	"fmt"
-	"github.com/wow-look-at-my/go-containers/set"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // The root files a repository keeps. Every other .md is deleted on sight.
@@ -15,8 +17,8 @@ var kept = set.Of[string]("README.md", AgentsFile, ClaudeFile)
 // CharBudget caps each kept file, because every request pays for the whole file.
 const CharBudget = 40_000
 
-// skipDirs are never walked: their contents belong to somebody else.
-var skipDirs = set.Of[string](".git", "node_modules", "vendor", "dist")
+// skipDirs are never walked: their contents belong to somebody else, or are fixtures.
+var skipDirs = set.Of[string](".git", "node_modules", "vendor", "dist", "testdata")
 
 // PurgeResult is what a purge did, or what it would do.
 type PurgeResult struct {
@@ -45,6 +47,10 @@ func Purge(root string, dryRun bool) (*PurgeResult, error) {
 	if spec, err := isSpecRepo(root); err != nil || spec {
 		return result, err
 	}
+	submodules, err := gitmod.Skip(root)
+	if err != nil {
+		return result, err
+	}
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -54,7 +60,7 @@ func Purge(root string, dryRun bool) (*PurgeResult, error) {
 			return relErr
 		}
 		if entry.IsDir() {
-			if rel != "." && skipDirs.Contains(entry.Name()) {
+			if rel != "." && (skipDirs.Contains(entry.Name()) || submodules.Contains(gitmod.Resolved(path))) {
 				return filepath.SkipDir
 			}
 			return nil
