@@ -62,6 +62,13 @@ var hooks = []Hook{
 		Only:    []string{IDCommentNumber, commentfix.IDTail, commentfix.IDLength},
 	},
 	{
+		Name:    "ci check",
+		Event:   "build",
+		Runs:    "slopfix check .",
+		Summary: "which markdown files a repository keeps, judged from its root",
+		Only:    []string{string(RuleRepo)},
+	},
+	{
 		Name:    "no-laziness",
 		Event:   "Stop",
 		Runs:    "slopfix message",

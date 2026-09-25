@@ -137,7 +137,7 @@ func isDocument(path string) bool {
 // AllIDs names every rule CheckContent reports, so a caller can reject a typo
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
-	ids := workflow.AllIDs.Union(ste.AllIDs).Union(RepoIDs)
+	ids := workflow.AllIDs.Union(ste.AllIDs)
 	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	return ids
 }
