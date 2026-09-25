@@ -126,6 +126,8 @@ var (
 		`rather|instead|except)\s`)
 	// bareSeam matches the same conjunctions carrying no comma.
 	bareSeam = regexp.MustCompile(`(\s+)(?:and|but|so|or|yet|then|because|since|which|while)\s`)
+	// colonSeam matches a colon, which is a seam only between clauses.
+	colonSeam = regexp.MustCompile(`(:\s+)`)
 	// anyComma divides at a comma whatever follows it.
 	anyComma = regexp.MustCompile(`(,\s+)`)
 	// anySpace is the last resort, and the reason no sentence escapes the cap.
@@ -207,13 +209,19 @@ func nextDivision(prose string) ([]int, bool) {
 // divide picks where to cut a sentence, taking the best seam kind that has a
 // usable place in it.
 func divide(masked string, off [][]int, start, end int) ([]int, bool) {
-	if cut, ok := nearestMiddle(masked, off, start, end, coordinator, opensAClause); ok {
-		return cut, true
-	}
-	for _, seam := range []*regexp.Regexp{clauseSeam, bareSeam, anyComma} {
-		if cut, ok := nearestMiddle(masked, off, start, end, seam, nil); ok {
+	for _, seam := range []*regexp.Regexp{coordinator, colonSeam} {
+		if cut, ok := nearestMiddle(masked, off, start, end, seam, opensAClause); ok {
 			return cut, true
 		}
+	}
+	if cut, ok := nearestMiddle(masked, off, start, end, clauseSeam, nil); ok {
+		return cut, true
+	}
+	if cut, ok := nearestMiddle(masked, off, start, end, bareSeam, followsAVerb); ok {
+		return cut, true
+	}
+	if cut, ok := nearestMiddle(masked, off, start, end, anyComma, nil); ok {
+		return cut, true
 	}
 	if cut, ok := nearestMiddle(masked, off, start, end, anySpace, endsOnAContentWord); ok {
 		return cut, true
@@ -227,8 +235,10 @@ var functionWords = set.Of("the", "a", "an", "of", "to", "in", "on", "at", "by",
 	"his", "her", "our", "your", "my", "and", "or", "but", "nor", "so", "if", "then",
 	"is", "are", "was", "were", "be", "been", "not", "no", "including", "into", "over", "under")
 
-// endsOnAContentWord reports whether the words before a gap end on a word a
-// sentence can end on.
+// followsAVerb reports whether the words before a seam carry a finite verb.
+func followsAVerb(before, _ string) bool { return finiteVerbRe.MatchString(before) }
+
+// endsOnAContentWord reports whether a sentence can end on the word before a gap.
 func endsOnAContentWord(before, _ string) bool {
 	fields := strings.Fields(before)
 	if len(fields) == 0 {
