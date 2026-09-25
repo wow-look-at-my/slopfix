@@ -316,11 +316,7 @@
   <pattern id="tombstones/hedged-time"
            match="(?i)\s*\bwill be\b[^.]*\b(?:later|soon|eventually|someday|in (?:a|the) future)\b[^.]*" replace=""
            where="comment" test="The retry count will be raised later"
-           expect="The retry count">
-    <!-- go-toolchain docs. A consequence names no time, and the sentence needs its predicate. -->
-    <test in="So a nameless self-discovering download will be ambiguous here"
-          out="So a nameless self-discovering download will be ambiguous here"/>
-  </pattern>
+           expect="The retry count"/>
   <pattern id="tombstones/unstated-value"
            match="(?i)\s*\bis (?:tbd|to be determined)\b" replace=" is not stated here"
            where="comment" test="The limit is TBD" expect="The limit is not stated here"/>
@@ -372,6 +368,9 @@
   <test in="This gate is deliberately not reduced. It previously ran the full pipeline against a native darwin/arm64 carve-out. The pipeline wedged."
         out="This gate is deliberately not reduced. The pipeline wedged."/>
   <test in="It waits... and then it reads." out="It waits... and then it reads."/>
+  <!-- go-toolchain docs. A consequence names no time, and the sentence needs its predicate. -->
+  <test in="So a nameless self-discovering download will be ambiguous here."
+        out="So a nameless self-discovering download will be ambiguous here."/>
 
   <!--
     A doc comment opens on the identifier it documents, and that identifier is
