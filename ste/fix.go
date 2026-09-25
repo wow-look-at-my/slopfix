@@ -96,7 +96,11 @@ func fixSemicolons(prose string) string {
 // a conjunction after it survives and opens the new sentence.
 func fixSplices(prose string) string {
 	var commas [][]int
+	parens := parenthetical.FindAllStringIndex(prose, -1)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
+		if insideAny(parens, loc[0]) {
+			continue
+		}
 		if bare := loc[2] < 0; bare && !isClause(clauseBefore(prose, loc[0])) {
 			continue
 		}
@@ -152,6 +156,16 @@ func carriesItsOwnSubject(clause string) bool {
 	return opensASubject.Contains(strings.ToLower(word))
 }
 
+// opensAClause reports whether the words after a coordinator stand as a
+// sentence: a subject, and a finite verb before the next comma.
+func opensAClause(clause string) bool {
+	if !carriesItsOwnSubject(clause) {
+		return false
+	}
+	head, _, _ := strings.Cut(clause, ",")
+	return finiteVerbRe.MatchString(head)
+}
+
 // fixSentenceCap divides every over-cap sentence.
 func fixSentenceCap(prose string) string {
 	// A division always shortens the sentence it cuts.
@@ -192,7 +206,7 @@ func nextDivision(prose string) ([]int, bool) {
 // divide picks where to cut a sentence, taking the best seam kind that has a
 // usable place in it.
 func divide(masked string, off [][]int, start, end int) ([]int, bool) {
-	if cut, ok := nearestMiddle(masked, off, start, end, coordinator, carriesItsOwnSubject); ok {
+	if cut, ok := nearestMiddle(masked, off, start, end, coordinator, opensAClause); ok {
 		return cut, true
 	}
 	for _, seam := range []*regexp.Regexp{clauseSeam, bareSeam, anyComma, anySpace} {
@@ -263,10 +277,11 @@ func mask(prose string) string {
 }
 
 // fill writes a single filler word over a span. It keeps a space at each end,
-// so the words on either side stay words of their own.
+// so the words on either side stay words of their own. The filler is a capital,
+// as strip writes CODE, so a span that opens a sentence still opens it here.
 func fill(span []byte) {
 	for i := range span {
-		span[i] = 'x'
+		span[i] = 'X'
 	}
 	if len(span) > 2 {
 		span[0], span[len(span)-1] = ' ', ' '

@@ -237,7 +237,11 @@ func checkSentences(prose string, line int) []Finding {
 // finite verb too. A conjunction joins equals, and says as much by itself.
 func checkSplices(prose string, line int) []Finding {
 	var out []Finding
+	parens := parenthetical.FindAllStringIndex(prose, -1)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
+		if insideAny(parens, loc[0]) {
+			continue
+		}
 		bare := loc[2] < 0
 		if bare && !isClause(clauseBefore(prose, loc[0])) {
 			continue
@@ -269,6 +273,16 @@ func checkCounts(prose string, line int) []Finding {
 		})
 	}
 	return out
+}
+
+// insideAny reports whether the byte at idx falls in any of the spans.
+func insideAny(spans [][]int, idx int) bool {
+	for _, span := range spans {
+		if span[0] <= idx && idx < span[1] {
+			return true
+		}
+	}
+	return false
 }
 
 // clauseBefore returns the words from the end of the previous sentence up to
