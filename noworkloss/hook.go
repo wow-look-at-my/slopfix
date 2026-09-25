@@ -11,7 +11,7 @@
 //
 // Both are asked of the same parsed command, which is why they share a plugin:
 // the shell walk, the wrapper stripping and the path resolution are the same
-// machinery. See docs/decision-model.md and docs/write-routes.md
+// machinery. See the no-work-loss section of AGENTS.md
 package noworkloss
 
 import (

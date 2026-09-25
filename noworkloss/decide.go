@@ -96,7 +96,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	// does: not "is there uncommitted work" but "does this content exist
 	// anywhere else". Already pushed, already merged, or sitting on another
 	// branch all mean nothing is lost. Preservation is not attempted here --
-	// see docs/decision-model.md.
+	// see the no-work-loss section of AGENTS.md.
 	if f.reach != nil {
 		st := cache.probe(f.dir)
 		if st.err != nil {
@@ -142,7 +142,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	}
 
 	// Preservation is not attempted for a stash entry -- see
-	// docs/decision-model.md.
+	// the no-work-loss section of AGENTS.md.
 	if f.haz&hazStash != 0 {
 		if st.stash == 0 {
 			return "", ""
