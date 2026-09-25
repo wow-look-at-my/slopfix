@@ -137,7 +137,9 @@ func Fix(req Request) Repair {
 		}
 	}
 
-	lengths := wants(RuleComments) && keeps(commentfix.IDLength) && req.Path != ""
+	// A document has no comments. A heading opens with the marker a shell comment uses, and a comment repair deletes it.
+	source := req.Path != "" && !IsDocument(req.Path)
+	lengths := wants(RuleComments) && keeps(commentfix.IDLength) && source
 	cutLong := false
 	cutComments := func() {
 		if !lengths {
@@ -154,7 +156,7 @@ func Fix(req Request) Repair {
 
 	// The number repair reads source too, and runs after the length cut: a
 	// sentence the cut already took needs no rewrite here.
-	if wants(RuleComments) && keeps(commentfix.ID) && req.Path != "" {
+	if wants(RuleComments) && keeps(commentfix.ID) && source {
 		done := trace.Phase("fix/comment-numbers")
 		said := commentfix.Fix(req.Path, text)
 		done()

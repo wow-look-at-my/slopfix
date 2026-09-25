@@ -158,7 +158,7 @@ func carriesItsOwnSubject(clause string) bool {
 
 // opensAClause reports whether the words after a coordinator stand as a
 // sentence: a subject, and a finite verb before the next comma.
-func opensAClause(clause string) bool {
+func opensAClause(_, clause string) bool {
 	if !carriesItsOwnSubject(clause) {
 		return false
 	}
@@ -209,25 +209,48 @@ func divide(masked string, off [][]int, start, end int) ([]int, bool) {
 	if cut, ok := nearestMiddle(masked, off, start, end, coordinator, opensAClause); ok {
 		return cut, true
 	}
-	for _, seam := range []*regexp.Regexp{clauseSeam, bareSeam, anyComma, anySpace} {
+	for _, seam := range []*regexp.Regexp{clauseSeam, bareSeam, anyComma} {
 		if cut, ok := nearestMiddle(masked, off, start, end, seam, nil); ok {
 			return cut, true
 		}
 	}
-	return nil, false
+	if cut, ok := nearestMiddle(masked, off, start, end, anySpace, endsOnAContentWord); ok {
+		return cut, true
+	}
+	return nearestMiddle(masked, off, start, end, anySpace, nil)
+}
+
+// functionWords cannot end a sentence. A gap after any of them writes "at the. Container".
+var functionWords = set.Of("the", "a", "an", "of", "to", "in", "on", "at", "by", "for",
+	"from", "with", "as", "than", "that", "this", "these", "those", "its", "their",
+	"his", "her", "our", "your", "my", "and", "or", "but", "nor", "so", "if", "then",
+	"is", "are", "was", "were", "be", "been", "not", "no", "including", "into", "over", "under")
+
+// endsOnAContentWord reports whether the words before a gap end on a word a
+// sentence can end on.
+func endsOnAContentWord(before, _ string) bool {
+	fields := strings.Fields(before)
+	if len(fields) == 0 {
+		return false
+	}
+	return !functionWords.Contains(strings.ToLower(fields[len(fields)-1]))
 }
 
 // nearestMiddle answers the usable seam closest to the sentence's middle, which
 // is where a division leaves both halves most alike.
-func nearestMiddle(masked string, off [][]int, start, end int, seam *regexp.Regexp, wants func(string) bool) ([]int, bool) {
+func nearestMiddle(masked string, off [][]int, start, end int, seam *regexp.Regexp, wants func(before, after string) bool) ([]int, bool) {
 	middle := (end - start) / 2
 	var pick []int
 	for _, at := range seam.FindAllStringSubmatchIndex(masked[start:end], -1) {
 		cut := []int{start + at[2], start + at[3]}
+		// The filler space at a span's closing edge stands for its backtick, so the seam starts after it.
+		for cut[0] < cut[1] && masked[cut[0]] == ' ' && insideAny(off, cut[0]) {
+			cut[0]++
+		}
 		if !usable(masked, off, cut, start, end) {
 			continue
 		}
-		if wants != nil && !wants(masked[cut[1]:end]) {
+		if wants != nil && !wants(masked[start:cut[0]], masked[cut[1]:end]) {
 			continue
 		}
 		if pick == nil || abs(at[2]-middle) < abs(pick[0]-start-middle) {
@@ -247,8 +270,12 @@ func usable(masked string, off [][]int, cut []int, start, end int) bool {
 			return false // inside a code span, a link, an entity or a parenthetical
 		}
 	}
-	if last, _ := utf8.DecodeLastRuneInString(masked[:cut[0]]); terminator(last) {
+	last, _ := utf8.DecodeLastRuneInString(masked[:cut[0]])
+	if terminator(last) {
 		return false // the sentence already ends here, and another period reads as an ellipsis
+	}
+	if strings.ContainsRune("—–-:([{/", last) {
+		return false // a period after a dash or an opener ends a sentence on punctuation
 	}
 	if WordCount(masked[start:cut[0]]) == 0 || WordCount(masked[cut[1]:end]) == 0 {
 		return false
