@@ -327,6 +327,11 @@ func Sentences(text string) []string {
 		for end+1 < len(runes) && terminator(runes[end+1]) {
 			end++
 		}
+		stop := end
+		// A mark that closes emphasis, a quote or a parenthetical belongs to the sentence it ends.
+		for end+1 < len(runes) && strings.ContainsRune("*_)\"'”’", runes[end+1]) {
+			end++
+		}
 		gap := end + 1
 		if gap >= len(runes) || !unicode.IsSpace(runes[gap]) {
 			i = end
@@ -336,7 +341,7 @@ func Sentences(text string) []string {
 		for next < len(runes) && unicode.IsSpace(runes[next]) {
 			next++
 		}
-		if next >= len(runes) || !opensSentence(runes[next:]) || endsWithAbbreviation(runes[start:end+1]) {
+		if next >= len(runes) || !opensSentence(runes[next:]) || endsWithAbbreviation(runes[start:stop+1]) {
 			i = end
 			continue
 		}

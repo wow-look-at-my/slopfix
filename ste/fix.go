@@ -157,9 +157,10 @@ func carriesItsOwnSubject(clause string) bool {
 }
 
 // opensAClause reports whether the words after a coordinator stand as a
-// sentence: a subject, and a finite verb before the next comma.
-func opensAClause(_, clause string) bool {
-	if !carriesItsOwnSubject(clause) {
+// sentence: a subject, and a finite verb before the next comma. The words
+// before it need a verb too, or the conjunction joins a compound subject.
+func opensAClause(before, clause string) bool {
+	if !finiteVerbRe.MatchString(before) || !carriesItsOwnSubject(clause) {
 		return false
 	}
 	head, _, _ := strings.Cut(clause, ",")
