@@ -5,8 +5,6 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // Fix applies the repair Check names, for every rule.
@@ -26,11 +24,14 @@ func FixSelected(text string, keep func(id string) bool) string {
 		if keep(IDSemicolon) {
 			prose = fixSemicolons(prose)
 		}
-		if keep(IDCommaSplice) {
-			prose = fixSplices(prose)
-		}
 		return prose
 	})
+	if keep(IDCommaSplice) {
+		text = fixSplices(text)
+	}
+	if keep(IDPostdeterminer) {
+		text = fixPostdeterminers(text)
+	}
 	if keep(IDSentenceCap) {
 		text = fixSentenceCap(text)
 	}
@@ -88,13 +89,16 @@ func fixWords(prose string, keep func(id string) bool) string {
 }
 
 func fixSemicolons(prose string) string {
-	return breakAt(prose, semicolonRun.FindAllStringIndex(prose, -1))
+	return breakWith(prose, semicolonRun.FindAllStringIndex(prose, -1), nil)
 }
 
 // The comma is found the way checkSplices finds it, guard included, so the
-// repair covers exactly what the check reports. Only the comma is rewritten:
-// a conjunction after it survives and opens the new sentence.
+// repair covers exactly what the check reports. A conjunction the connectors
+// know gives way to its opener. Any other conjunction opens the new sentence.
+// It reads a mask of the whole text, so a code span neither hides a splice nor
+// cuts a sentence the parser needs whole.
 func fixSplices(prose string) string {
+<<<<<<< HEAD
 	var commas [][]int
 	parens := parenthetical.FindAllStringIndex(prose, -1)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
@@ -183,9 +187,27 @@ func fixSentenceCap(prose string) string {
 		joiner, found := nextDivision(prose)
 		if !found {
 			return prose
+=======
+	masked := mask(prose)
+	var joiners [][]int
+	var openers []string
+	for _, loc := range commaSplice.FindAllStringSubmatchIndex(masked, -1) {
+		if !spliced(masked, loc) {
+			continue
 		}
-		prose = breakAt(prose, [][]int{joiner})
+		end := loc[0] + len(spliceComma.FindString(prose[loc[0]:]))
+		opener := ""
+		if loc[2] >= 0 {
+			conjunction := strings.ToLower(strings.TrimSpace(prose[loc[2]:loc[3]]))
+			if replaced, known := connectors[conjunction]; known {
+				end, opener = loc[3], replaced
+			}
+>>>>>>> origin/master
+		}
+		joiners = append(joiners, []int{loc[0], end})
+		openers = append(openers, opener)
 	}
+<<<<<<< HEAD
 	return prose
 }
 
@@ -304,6 +326,9 @@ func usable(masked string, off [][]int, cut []int, start, end int) bool {
 	// breakAt capitalizes what follows, so the new sentence has to open with something a capital applies to. Sentences
 	first, _ := utf8.DecodeRuneInString(masked[cut[1]:])
 	return unicode.IsLetter(first) || unicode.IsDigit(first)
+=======
+	return breakWith(prose, joiners, openers)
+>>>>>>> origin/master
 }
 
 // offLimits are the spans no break may land in: the data Check hides, and a
@@ -335,18 +360,12 @@ func fill(span []byte) {
 	}
 }
 
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
-}
-
-// breakAt rewrites each joiner span as a sentence break.
-func breakAt(prose string, joiners [][]int) string {
+// breakWith rewrites each joiner span as a sentence break. A joiner's opener starts the
+// new sentence when it has a single Otherwise the next word does, with a capital.
+func breakWith(prose string, joiners [][]int, openers []string) string {
 	var out strings.Builder
 	last := 0
-	for _, joiner := range joiners {
+	for n, joiner := range joiners {
 		if joiner[0] < last {
 			continue
 		}
@@ -357,8 +376,13 @@ func breakAt(prose string, joiners [][]int) string {
 			out.WriteString(".")
 			continue
 		}
+		out.WriteString(". ")
+		if n < len(openers) && openers[n] != "" {
+			out.WriteString(openers[n] + " ")
+			continue
+		}
 		next, width := utf8.DecodeRuneInString(prose[last:])
-		out.WriteString(". " + string(unicode.ToUpper(next)))
+		out.WriteRune(unicode.ToUpper(next))
 		last += width
 	}
 	out.WriteString(prose[last:])
