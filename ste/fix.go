@@ -128,6 +128,8 @@ var (
 	bareSeam = regexp.MustCompile(`(\s+)(?:and|but|so|or|yet|then|because|since|which|while)\s`)
 	// colonSeam matches a colon, which is a seam only between clauses.
 	colonSeam = regexp.MustCompile(`(:\s+)`)
+	// dashSeam matches a spaced dash, which a writer puts where a sentence turns.
+	dashSeam = regexp.MustCompile(`(\s+(?:—|–|--)\s+)`)
 	// anyComma divides at a comma whatever follows it.
 	anyComma = regexp.MustCompile(`(,\s+)`)
 	// anySpace is the last resort, and the reason no sentence escapes the cap.
@@ -218,6 +220,9 @@ func divide(masked string, off [][]int, start, end int) ([]int, bool) {
 		return cut, true
 	}
 	if cut, ok := nearestMiddle(masked, off, start, end, bareSeam, followsAVerb); ok {
+		return cut, true
+	}
+	if cut, ok := nearestMiddle(masked, off, start, end, dashSeam, followsAVerb); ok {
 		return cut, true
 	}
 	if cut, ok := nearestMiddle(masked, off, start, end, anyComma, nil); ok {

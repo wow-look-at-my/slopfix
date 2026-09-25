@@ -47,6 +47,9 @@
         out="**Writing the scan out by hand does not escape the check.** A loop over a candidate whose body is one `if` comparing the element to a value."/>
   <test in="**Reproducible across build hosts.** Every build passes `-trimpath` and `-ldflags=-buildid=`, so the same source compiles to the same bytes wherever it is built."
         out="**Reproducible across build hosts.** Every build passes `-trimpath` and `-ldflags=-buildid=`, so the same source compiles to the same bytes wherever it is built."/>
+  <!-- go-toolchain docs. A spaced dash after a clause is a seam, and the words after it keep their order. -->
+  <test in="That last check is the one that stays honest over time — a stray `&lt;name&gt;_&lt;os&gt;_&lt;arch&gt;` file will silently restore the N-downloads-of-one-binary shape without failing anything else."
+        out="That last check is the one that stays honest over time. A stray `&lt;name&gt;_&lt;os&gt;_&lt;arch&gt;` file will silently restore the N-downloads-of-one-binary shape without failing anything else."/>
   <test in="**Automatic GOMEMLIMIT** — the compiler's runtime caps every binary's Go heap at the container's cgroup limit instead of being OOM-killed. `GOMEMLIMIT=off` opts out at run time."
         out="**Automatic GOMEMLIMIT** — the compiler's runtime caps every binary's Go heap at the container's cgroup limit instead of being OOM-killed. `GOMEMLIMIT=off` opts out at run time."/>
 
