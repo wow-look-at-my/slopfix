@@ -74,7 +74,8 @@ func wantsRepo(req Request) bool {
 func keepsOf(req Request) func(string) bool {
 	return func(id string) bool { return len(req.IDs) == 0 || slices.Contains(req.IDs, id) }
 }
- what every rule made of each file, writing
+
+// treeRun walks root and answers what every rule made of each file, writing
 // each repair back when writing is asked for.
 func treeRun(root string, req Request, writing bool) TreeRepair {
 	defer trace.Phase("slopfix/fixtree")()
