@@ -55,13 +55,12 @@
 
   <!-- A repeat interval goes stale when someone tunes the knob. "few" keeps the
        unit, so the reader still knows the scale. -->
-  <pattern id="every-interval-goes-vague"
-           match="(?i)\b(every) (?:\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|sixty) (seconds|minutes|hours|days|weeks|months)\b"
-           to="${1} few ${2}">
+  <rephrase id="every-interval-goes-vague" match="every {number} {unit+plural:u}" to="every few {u}">
     <test in="It polls every 15 minutes" out="It polls every few minutes"/>
     <test in="Every 30 seconds it retries" out="Every few seconds it retries"/>
     <test in="It runs every two hours" out="It runs every few hours"/>
-  </pattern>
+    <test in="It runs every 1.5 hours" out="It runs every 1.5 hours"/>
+  </rephrase>
 
   <!-- A plural tally: the noun carries the meaning and the number goes.
 
