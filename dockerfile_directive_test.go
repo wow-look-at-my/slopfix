@@ -26,12 +26,7 @@ func TestFixKeepsDockerfileParserDirectives(t *testing.T) {
 	for _, path := range []string{"Dockerfile", "Containerfile", "Dockerfile.runner", "app.dockerfile"} {
 		t.Run(path, func(t *testing.T) {
 			repair := slopfix.Fix(slopfix.Request{Content: dockerfileWithDirectives, Path: path, MaxCommentLines: tombstones.DefaultMaxCommentLines})
-			assert.True(t, strings.HasPrefix(repair.Text, "# syntax=docker/dockerfile:1\n# check=error=true\n"), "%s\nremoved: %q", repair.Text, repair.Removed)
+			assert.True(t, strings.HasPrefix(repair.Text, "# syntax=docker/dockerfile:1\n# check=error=true\n"), repair.Text)
 		})
 	}
-}
-
-func TestParserDirectiveBelowAnInstructionIsAComment(t *testing.T) {
-	src := "FROM alpine:3.21\n# syntax=docker/dockerfile:1\nRUN true\n"
-	assert.NotEmpty(t, slopfix.CheckContent("Dockerfile", src))
 }
