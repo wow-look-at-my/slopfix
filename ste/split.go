@@ -157,10 +157,10 @@ func mainBefore(s *syntax.Sentence, k int) (syntax.Clause, bool) {
 	return syntax.Clause{}, false
 }
 
-// lastBefore answers the last word ahead of i that is not a comma.
+// lastBefore answers the last word ahead of i that is not a comma or a dash.
 func lastBefore(s *syntax.Sentence, i int) int {
 	i--
-	for i > 0 && s.Words[i].Text == "," {
+	for i > 0 && strings.Contains(",—–--", s.Words[i].Text) {
 		i--
 	}
 	return i
@@ -198,6 +198,12 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "These", true
 		}
 		return "This", true
+	case syntax.Punctuated:
+		// A colon or a dash before a clause that names its own subject ends a sentence.
+		if c.Depth != 0 || c.Subject == nil {
+			return "", false
+		}
+		return "", opensWithCapital(s, c.Link+1)
 	case syntax.Subordinate:
 		if link != "because" || !closesTheSentence(s, c) {
 			return "", false
