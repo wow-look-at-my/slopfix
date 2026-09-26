@@ -161,8 +161,6 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		}
 	}
 
-	// A fragment carries no file around it. A comment at its end documents
-	// nothing, so a repair of the fragment alone deletes it.
 	if p := place(in.ToolName, write, rules, ids); p.ok {
 		for _, f := range p.findings {
 			findings = append(findings, f.String())
