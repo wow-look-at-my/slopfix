@@ -146,4 +146,3 @@ func parseWith(language *ts.Language, src string) (ts.Node, bool) {
 	}
 	return parse(parser, src)
 }
-

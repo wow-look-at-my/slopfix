@@ -323,4 +323,3 @@ func renameAt(row string, col int) (string, bool) {
 
 // replacementName is a job name the gate does not reserve.
 const replacementName = "builds"
-
