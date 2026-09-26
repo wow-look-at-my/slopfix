@@ -172,7 +172,7 @@ func reflowStripped(path, text string, losing set.Set[int], was int) []edit.Edit
 }
 
 // stripEdits deletes the dropped rows, a run of adjoining rows as a single
-// edit so no two edits share a line end.
+// edit so no edits share a line end.
 func stripEdits(text string, drop set.Set[int]) []edit.Edit {
 	var edits []edit.Edit
 	total := strings.Count(text, "\n") + 1
