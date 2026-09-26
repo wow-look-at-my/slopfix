@@ -67,7 +67,7 @@ var Gate = Substrate{
 	Shape:    Quantity,
 	Frame:    false,
 	Words:    gateWords,
-	Exempt:   []Exemption{InExpression, FunctionWordGap},
+	Exempt:   []Exemption{InExpression, FunctionWordGap, MeasuresAUnit, ChoiceAmongASet, NotAPluralNoun},
 	quantity: gateQuantity,
 }
 

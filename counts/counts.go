@@ -15,6 +15,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/markdown"
@@ -91,11 +93,25 @@ func strip(content string, hits []Hit) (string, []Hit) {
 		if number == "" {
 			continue
 		}
-		out = out[:hit.Start] + out[hit.Start+len(number):]
+		rest := out[hit.Start+len(number):]
+		if first, size := utf8.DecodeRuneInString(number); unicode.IsUpper(first) && size > 0 {
+			rest = capitalize(rest)
+		}
+		out = out[:hit.Start] + rest
 		cut = append(cut, hit)
 	}
 	sort.SliceStable(cut, func(i, j int) bool { return cut[i].Start < cut[j].Start })
 	return out, cut
+}
+
+// capitalize upper-cases the first letter, so a cut that opened a sentence
+// leaves the next word to open it.
+func capitalize(s string) string {
+	r, size := utf8.DecodeRuneInString(s)
+	if size == 0 || !unicode.IsLower(r) {
+		return s
+	}
+	return string(unicode.ToUpper(r)) + s[size:]
 }
 
 // proseLine is a line of the document's own voice, with where it begins.
