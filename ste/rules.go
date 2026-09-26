@@ -361,6 +361,8 @@ func terminator(r rune) bool {
 
 // opensSentence reports whether the text starts a new sentence. A capital, a
 // digit and an opening delimiter each do, and so does a lower-case file name.
+var maskedSpan = regexp.MustCompile(`^x{4,}(?:\s|$)`)
+
 func opensSentence(rest []rune) bool {
 	switch first := rest[0]; {
 	case unicode.IsUpper(first), unicode.IsDigit(first):
@@ -368,7 +370,8 @@ func opensSentence(rest []rune) bool {
 	case strings.ContainsRune("(`'\"*_[§¶“‘", first):
 		return true
 	}
-	return fileOrSection.MatchString(string(rest))
+	// A masked code span is a run of x, and opens a sentence as its backtick does.
+	return maskedSpan.MatchString(string(rest)) || fileOrSection.MatchString(string(rest))
 }
 
 func endsWithAbbreviation(sentence []rune) bool {
