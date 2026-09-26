@@ -18,6 +18,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/markdown"
 )
@@ -90,7 +91,7 @@ func strip(content string, hits []Hit) (string, []Hit) {
 			continue
 		}
 		number := cardinal.Leading.FindString(out[hit.Start:hit.End])
-		if number == "" || measures(hit.Phrase) {
+		if number == "" || measuresARate(out[:hit.Start], hit.Phrase) {
 			continue
 		}
 		out = out[:hit.Start] + keepCapital(number, out[hit.Start+len(number):])
@@ -100,12 +101,19 @@ func strip(content string, hits []Hit) (string, []Hit) {
 	return out, cut
 }
 
-// measures reports whether a quantity is a measurement. It is still reported,
-// but cutting its number leaves "every minutes", which states nothing.
-func measures(phrase string) bool {
+// measuresARate reports whether a quantity is an interval such as "every 15
+// minutes". It is still reported, but cutting its number leaves "every
+// minutes", which is not English.
+func measuresARate(before, phrase string) bool {
 	fields := strings.Fields(phrase)
-	return len(fields) > 0 && cardinal.IsUnit(fields[len(fields)-1])
+	if len(fields) == 0 || !cardinal.IsUnit(fields[len(fields)-1]) {
+		return false
+	}
+	prev := strings.Fields(strings.ToLower(before))
+	return len(prev) > 0 && rateWords.Contains(prev[len(prev)-1])
 }
+
+var rateWords = set.Of[string]("every", "each", "per")
 
 // keepCapital moves the capital of a cut cardinal onto the word after it.
 func keepCapital(number, rest string) string {
