@@ -13,6 +13,8 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 `dats/` holds the CLI suites that go-toolchain runs after the build. They exec the built binary under a sandbox. A manual run therefore needs bubblewrap. A test that drives a foreign git hook belongs there.
 
+A green master build starts `release.yml` in `wow-look-at-my/cc-marketplace`, because that plugin ships a copy of this binary. The token is `CC_MARKETPLACE_DISPATCH_TOKEN` from secret-server. The job fails when the token is absent.
+
 `hooks.go` maps each hook to the rule IDs it runs. `hooks_test.go` fails the build on a rule with no hook entry. It also fails on an entry for a rule that does not exist.
 
 ## Commands

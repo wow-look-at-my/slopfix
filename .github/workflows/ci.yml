@@ -32,3 +32,19 @@ jobs:
           generate: 165003bec91c
 
       - run: ./build/slopfix check .
+
+  # The marketplace plugin ships a copy of this binary, so each master publish must rebuild that plugin.
+  republish-marketplace-plugin:
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: wow-look-at-my/actions@secret-server#latest
+      - name: Start the cc-marketplace release
+        uses: wow-look-at-my/actions@typescript#latest
+        with:
+          script: |
+            const token = process.env.CC_MARKETPLACE_DISPATCH_TOKEN ?? "";
+            if (token === "") throw new Error("secret-server vended no CC_MARKETPLACE_DISPATCH_TOKEN to this workflow. It needs a token with actions: write on wow-look-at-my/cc-marketplace, granted to wow-look-at-my/slopfix on refs/heads/master.");
+            await getOctokit(token).rest.actions.createWorkflowDispatch({ owner: "wow-look-at-my", repo: "cc-marketplace", workflow_id: "release.yml", ref: "master" });
+            core.info("started release.yml on wow-look-at-my/cc-marketplace master");
