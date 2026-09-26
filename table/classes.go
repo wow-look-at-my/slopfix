@@ -6,7 +6,10 @@
 // and a production names that with <open/>.
 package table
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // A Class is a set of words that fill the same slot.
 type Class struct {
@@ -14,6 +17,8 @@ type Class struct {
 	Words []string
 	// Suffix claims a word by its ending rather than by a list.
 	Suffix []string
+	// Digits claims a word made of ASCII digits alone.
+	Digits bool
 	// Open claims every word no class with a word list claims.
 	Open   bool
 	Except []string
@@ -22,6 +27,7 @@ type Class struct {
 type Lexicon struct {
 	classOf  map[string][]string
 	suffixes []Class
+	digits   []string
 	opens    []Class
 }
 
@@ -35,6 +41,9 @@ func NewLexicon(classes []Class) *Lexicon {
 		}
 		if len(c.Suffix) > 0 {
 			lex.suffixes = append(lex.suffixes, c)
+		}
+		if c.Digits {
+			lex.digits = append(lex.digits, c.Name)
 		}
 		if c.Open {
 			lex.opens = append(lex.opens, c)
@@ -54,6 +63,9 @@ func (l *Lexicon) Is(word, class string) bool {
 		if got == class {
 			return true
 		}
+	}
+	if isDigits(word) && slices.Contains(l.digits, class) {
+		return true
 	}
 	for _, c := range l.suffixes {
 		if c.Name != class {
@@ -80,4 +92,16 @@ func (l *Lexicon) Is(word, class string) bool {
 		}
 	}
 	return false
+}
+
+func isDigits(word string) bool {
+	if word == "" {
+		return false
+	}
+	for i := 0; i < len(word); i++ {
+		if word[i] < '0' || word[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
