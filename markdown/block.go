@@ -1,10 +1,14 @@
-// Only prose is rewritten or checked. A fenced code block is data, a table is a
-// grid whose rows are not sentences, and a heading is a label. Each reaches the
-// caller marked verbatim, so no rule can reflow it.
+// Package markdown finds prose with a CommonMark parser.
+// Fences, tables, headings and quotes stay verbatim.
 package markdown
 
 import (
 	"strings"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/text"
 
 	"github.com/wow-look-at-my/slopfix/trace"
 )
@@ -15,7 +19,7 @@ type Kind int
 const (
 	// Prose is a paragraph or a list item. It is rewritten and checked.
 	Prose Kind = iota
-	// Verbatim is a fence, a table, a heading or a blank run. It is left alone.
+	// Verbatim is anything else, such as a fence, a heading or a quotation.
 	Verbatim
 )
 
@@ -28,7 +32,7 @@ type Block struct {
 	Start int
 	// Marker is the list bullet the item opened with, empty for a paragraph.
 	Marker string
-	// Indent is the whitespace before Marker, preserved for a nested item.
+	// Indent is the whitespace before the block.
 	Indent string
 }
 
@@ -52,102 +56,98 @@ func (b Block) Text() string {
 func Split(content string) []Block {
 	defer trace.Phase("markdown/split")()
 	lines := strings.Split(content, "\n")
+	ends := paragraphs(content, lines)
 	var blocks []Block
 	for i := 0; i < len(lines); {
-		line := lines[i]
-		switch {
-		case fenceDelimiter(line) != "":
-			end := closingFence(lines, i)
-			blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : end+1], Start: i + 1})
-			i = end + 1
-		case isVerbatimLine(line):
+		end, prose := ends[i]
+		if !prose {
 			blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : i+1], Start: i + 1})
 			i++
-		default:
-			block, next := proseBlock(lines, i)
-			blocks = append(blocks, block)
-			i = next
+			continue
 		}
+		indent, marker := listMarker(lines[i])
+		if marker == "" {
+			indent = lines[i][:len(lines[i])-len(strings.TrimLeft(lines[i], " \t"))]
+		}
+		blocks = append(blocks, Block{Kind: Prose, Lines: lines[i : end+1], Start: i + 1, Marker: marker, Indent: indent})
+		i = end + 1
 	}
 	return blocks
 }
 
-// proseBlock consumes the paragraph or list item starting at lines[i].
-func proseBlock(lines []string, i int) (Block, int) {
-	indent, marker := listMarker(lines[i])
-	block := Block{Kind: Prose, Start: i + 1, Marker: marker, Indent: indent}
-	block.Lines = append(block.Lines, lines[i])
-	for j := i + 1; j < len(lines); j++ {
-		next := lines[j]
-		if endsProse(next) {
-			return block, j
+var parser = goldmark.New(goldmark.WithExtensions(extension.Table)).Parser()
+
+// paragraphs maps the line each paragraph opens on to the line it ends on. A
+// paragraph in a block quote quotes somebody, and stays as they wrote it.
+func paragraphs(content string, lines []string) map[int]int {
+	src := []byte(blankFrontMatter(content, lines))
+	starts := lineStarts(lines)
+	ends := map[int]int{}
+	_ = ast.Walk(parser.Parse(text.NewReader(src)), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
 		}
-		// A new list item ends its predecessor rather than continuing it.
-		if _, m := listMarker(next); m != "" {
-			return block, j
+		switch n.Kind() {
+		case ast.KindBlockquote:
+			return ast.WalkSkipChildren, nil
+		case ast.KindParagraph, ast.KindTextBlock:
+			if segments := n.Lines(); segments.Len() > 0 {
+				first := lineOf(starts, segments.At(0).Start)
+				ends[first] = lineOf(starts, segments.At(segments.Len()-1).Stop-1)
+			}
+			return ast.WalkSkipChildren, nil
 		}
-		block.Lines = append(block.Lines, next)
-	}
-	return block, len(lines)
+		return ast.WalkContinue, nil
+	})
+	return ends
 }
 
-// endsProse reports a line that closes the paragraph before it. Indentation is
-// absent from the test on purpose: inside a paragraph an indented line is the
-// author's wrap, not a code block.
-func endsProse(line string) bool {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" || fenceDelimiter(line) != "" {
-		return true
+// blankFrontMatter writes spaces over a YAML front matter block, byte for byte,
+// so the parser reads no paragraph there and every offset holds.
+func blankFrontMatter(content string, lines []string) string {
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return content
 	}
-	return strings.HasPrefix(trimmed, "#") ||
-		strings.HasPrefix(trimmed, "|") ||
-		strings.HasPrefix(trimmed, "<!--") ||
-		strings.HasPrefix(trimmed, "---")
+	end := len(lines[0]) + 1
+	for j := 1; j < len(lines); j++ {
+		end += len(lines[j]) + 1
+		if strings.TrimSpace(lines[j]) != "---" {
+			continue
+		}
+		out := []byte(content)
+		for k := range min(end, len(out)) {
+			if out[k] != '\n' {
+				out[k] = ' '
+			}
+		}
+		return string(out)
+	}
+	return content
 }
 
-// isVerbatimLine reports a line no prose rule may touch on its own.
-func isVerbatimLine(line string) bool {
-	trimmed := strings.TrimSpace(line)
-	switch {
-	case trimmed == "":
-		return true
-	case strings.HasPrefix(trimmed, "#"):
-		return true
-	case strings.HasPrefix(trimmed, "|"):
-		return true
-	case strings.HasPrefix(trimmed, "<!--"), strings.HasPrefix(trimmed, "---"):
-		return true
+// lineStarts answers the byte offset each line starts at.
+func lineStarts(lines []string) []int {
+	starts := make([]int, len(lines))
+	at := 0
+	for i, line := range lines {
+		starts[i] = at
+		at += len(line) + 1
 	}
-	// An indented code block, which carries no list marker.
-	if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
-		if _, marker := listMarker(line); marker == "" {
-			return true
-		}
-	}
-	return false
+	return starts
 }
 
-// fenceDelimiter returns the fence a line opens, empty when it opens none.
-func fenceDelimiter(line string) string {
-	trimmed := strings.TrimSpace(line)
-	for _, delim := range []string{"```", "~~~"} {
-		if strings.HasPrefix(trimmed, delim) {
-			return delim
+// lineOf answers the line that holds the byte at offset at.
+func lineOf(starts []int, at int) int {
+	lo, hi := 0, len(starts)-1
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if starts[mid] <= at {
+			lo = mid
+		} else {
+			hi = mid - 1
 		}
 	}
-	return ""
-}
-
-// closingFence returns the index of the line that closes the fence opened at
-// open, or the last line when the document never closes it.
-func closingFence(lines []string, open int) int {
-	delim := fenceDelimiter(lines[open])
-	for j := open + 1; j < len(lines); j++ {
-		if strings.HasPrefix(strings.TrimSpace(lines[j]), delim) {
-			return j
-		}
-	}
-	return len(lines) - 1
+	return lo
 }
 
 // listMarker splits a list line into its leading whitespace and its bullet or

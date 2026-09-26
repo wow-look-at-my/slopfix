@@ -35,7 +35,7 @@ var migrated = []home{
 	{plugin: "detect-permission-seeking", command: "message", rule: laziness.ID},
 	{plugin: "no-counts-in-docs", command: "hook", rule: slopfix.IDInventoryCount},
 	{plugin: "no-tombstones", command: "hook", rule: tombstones.IDVolume},
-	{plugin: "common-checks", command: "workflows"},
+	{plugin: "common-checks", command: "report"},
 }
 
 // Every retired plugin reaches a registered subcommand, and every rule it is
