@@ -99,6 +99,9 @@
   <!-- go-toolchain docs. A code span that opens a sentence opens it for the repair too, so the splice after it divides. -->
   <test in="Must exist, and must begin with the APE magic. `apeManifestEntries` checks both before writing, so a broken manifest is caught where the artifact names are still in hand."
         out="Must exist, and must begin with the APE magic. `apeManifestEntries` checks both before writing. As a result, a broken manifest is caught where the artifact names are still in hand."/>
+  <!-- go-toolchain docs. The clause after the colon resumes after its relative clause, and still names its own subject. -->
+  <test in="The check runs on every module go-toolchain builds, its own and every consumer's: a map that carries no information is wasteful wherever it is written."
+        out="The check runs on every module go-toolchain builds, its own and every consumer's. A map that carries no information is wasteful wherever it is written."/>
   <test in="**Automatic GOMEMLIMIT** — the compiler's runtime caps every binary's Go heap at the container's cgroup limit instead of being OOM-killed. `GOMEMLIMIT=off` opts out at run time."
         out="**Automatic GOMEMLIMIT** — the compiler's runtime caps every binary's Go heap at the container's cgroup limit instead of being OOM-killed. `GOMEMLIMIT=off` opts out at run time."/>
 

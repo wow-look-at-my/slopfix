@@ -131,7 +131,10 @@ func divisions(s *syntax.Sentence, source string) []division {
 	for k := 1; k < len(s.Clauses); k++ {
 		c := s.Clauses[k]
 		main, ok := mainBefore(s, k)
-		if !ok || c.Verb == nil || c.Link < 0 || c.Link+1 >= len(s.Words) {
+		if !ok || c.Link < 0 || c.Link+1 >= len(s.Words) {
+			continue
+		}
+		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {
 			continue
 		}
 		opener, ok := openerFor(s, c, main, source)
@@ -200,7 +203,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		return "This", true
 	case syntax.Punctuated:
 		// A colon or a dash before a clause that names its own subject ends a sentence.
-		if c.Depth != 0 || c.Subject == nil {
+		if c.Depth != 0 || c.Subject == nil && !resumesAfter(s, c.Link+1) {
 			return "", false
 		}
 		return "", opensWithCapital(s, c.Link+1)
@@ -211,6 +214,17 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		return "This is because", true
 	}
 	return "", false
+}
+
+// resumesAfter reports whether a main clause with a subject starting at word i
+// resumes after a relative clause, as in ": a map that carries nothing is wasteful".
+func resumesAfter(s *syntax.Sentence, i int) bool {
+	for _, c := range s.Clauses {
+		if c.Kind == syntax.Opens && c.Depth == 0 && c.Verb != nil && c.Subject != nil && c.Subject.First == i {
+			return true
+		}
+	}
+	return false
 }
 
 // closesTheSentence reports whether the clause and the clauses under it run to
