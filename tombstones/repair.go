@@ -313,4 +313,3 @@ func cutLines(lines []string, drop set.Set[int], e edit.Edit, text string) []str
 	}
 	return out
 }
-

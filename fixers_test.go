@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/fixer"
 )
@@ -13,15 +14,15 @@ import (
 // Every rule the binary claims to repair has a registered fixer behind it. A
 // repair that lives outside the registry writes outside the gates.
 func TestEveryRepairableRuleHasARegisteredFixer(t *testing.T) {
-	served := map[string]bool{}
+	served := set.New[string]()
 	for _, fx := range fixer.All() {
 		for _, id := range fx.IDs() {
-			served[id] = true
+			served.Add(id)
 		}
 	}
 	for id := range slopfix.AllIDs().All() {
 		if slopfix.Repairable(id) {
-			assert.True(t, served[id], "%s is repairable and no registered fixer serves it", id)
+			assert.True(t, served.Contains(id), "%s is repairable and no registered fixer serves it", id)
 		}
 	}
 }

@@ -54,8 +54,12 @@ func init() {
 // a File with.
 func Options(o fixer.Options) fixer.Options {
 	o.Kind = fixer.Workflow
-	o.Data = func(text string, edits []edit.Edit, scope edit.Scope) edit.Result { return apply(text, edits, scope, false) }
-	o.Comments = func(text string, edits []edit.Edit, scope edit.Scope) edit.Result { return apply(text, edits, scope, true) }
+	o.Data = func(text string, edits []edit.Edit, scope edit.Scope) edit.Result {
+		return apply(text, edits, scope, false)
+	}
+	o.Comments = func(text string, edits []edit.Edit, scope edit.Scope) edit.Result {
+		return apply(text, edits, scope, true)
+	}
 	return o
 }
 
