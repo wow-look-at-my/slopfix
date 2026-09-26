@@ -101,7 +101,7 @@ func strip(content string, hits []Hit) (string, []Hit) {
 	return out, cut
 }
 
-// measuresARate reports whether a quantity is an interval such as "every 15
+// measuresARate reports whether a quantity is an interval such as "every
 // minutes". It is still reported, but cutting its number leaves "every
 // minutes", which is not English.
 func measuresARate(before, phrase string) bool {
