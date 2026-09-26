@@ -403,4 +403,7 @@
         out="english is the parsed table"/>
   <test in="Obviously it fails" out="It fails"/>
 
+  <!-- A year in a copyright line goes stale. The holder stays. -->
+  <test in="Copyright 2026 The Go Authors." out="Copyright The Go Authors."/>
+
 </english>
