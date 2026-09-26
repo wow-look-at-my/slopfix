@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -165,7 +166,22 @@ func Extract(filename, src string) []Comment {
 	defer trace.Phase("treecomments/walk")()
 	var out []Comment
 	collect(root, src, &out)
-	return dropCgoPreamble(root, src, dropShebang(out))
+	return dropCgoPreamble(root, src, dropDockerDirectives(dropShebang(out)))
+}
+
+// A Dockerfile parser directive is a line the docker build reads, not prose.
+var dockerDirective = regexp.MustCompile(`(?i)^#[ \t]*(syntax|escape|check)[ \t]*=[ \t]*\S+[ \t]*$`)
+
+// dropDockerDirectives removes each Dockerfile parser directive from the comments.
+func dropDockerDirectives(comments []Comment) []Comment {
+	kept := comments[:0:0]
+	for _, c := range comments {
+		if c.Lines <= 1 && dockerDirective.MatchString(c.Text) {
+			continue
+		}
+		kept = append(kept, c)
+	}
+	return kept
 }
 
 // parse runs the grammar over the source and answers the root to walk, or
