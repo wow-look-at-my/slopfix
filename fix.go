@@ -1,12 +1,15 @@
 package slopfix
 
 import (
+	"fmt"
 	"os"
 	"slices"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -67,6 +70,8 @@ type Request struct {
 	IDs []string
 	// MaxCommentLines caps a comment block. A cap of nothing turns it off.
 	MaxCommentLines int
+	// Scope bounds where a repair may land. The zero Scope is the whole file.
+	Scope edit.Scope `json:"-"`
 }
 
 // Repair is the text as this binary would write it, plus what the rewrite flagged.
@@ -83,6 +88,17 @@ type Repair struct {
 	Kept []tombstones.Hit `json:"kept,omitempty"`
 	// Findings are what a reader must repair by hand.
 	Findings []ste.Finding `json:"findings"`
+	// Refused quotes each rewrite a parser would not let land, and why.
+	Refused []string `json:"refused,omitempty"`
+	// Scope bounds, in Text, what the Request's Scope bounded.
+	Scope edit.Scope `json:"-"`
+}
+
+// refuse records the edits a gate would not write.
+func (r *Repair) refuse(refused []edit.Refused) {
+	for _, x := range refused {
+		r.Refused = append(r.Refused, fmt.Sprintf("%s: %q", x.Reason, x.Edit.Text))
+	}
 }
 
 // Fix repairs what a rewrite can repair and reports the rest. The repairs run
@@ -100,148 +116,95 @@ func Fix(req Request) Repair {
 		return len(req.IDs) == 0 || slices.Contains(req.IDs, id)
 	}
 
-	text := req.Content
-	var repair Repair
+	// Every repair is a registered fixer, and every fixer writes through the
+	// gate the file's parser owns. The kind picks both the fixers and the gate.
+	kind := kindOf(req.Path, req.Content)
+	opts := fixer.Options{
+		Kind:            kind,
+		Scope:           req.Scope,
+		Wants:           func(c string) bool { return wants(Rule(c)) },
+		Keeps:           keeps,
+		MaxCommentLines: req.MaxCommentLines,
+	}
+	if kind == fixer.Workflow {
+		opts = workflow.Options(opts)
+	}
+	f := fixer.Open(req.Path, req.Content, opts)
+	fixer.Run(f, fixer.For(kind))
 
-	// A workflow's newlines are syntax, so it takes its own repairs and none of
-	// the prose ones.
-	if req.Path != "" && isWorkflow(req.Path, text) {
-		if wants(RuleWorkflow) {
-			defer trace.Phase("fix/workflow")()
-			cut := workflow.Fix(text, keeps)
-			text = cut.Text
-			repair.Removed = append(repair.Removed, cut.Removed...)
+	text := f.Text()
+	rep := f.Report()
+	repair := Repair{Text: text, Changed: text != req.Content, Removed: rep.Removed, Rewrites: rep.Rewrites, Scope: f.Scope()}
+	repair.refuse(rep.Refused)
+	for _, note := range rep.Notes {
+		if hit, ok := note.(tombstones.Hit); ok && keeps(hit.ID) {
+			repair.Kept = append(repair.Kept, hit)
 		}
+	}
+
+	switch kind {
+	case fixer.Workflow:
 		for _, finding := range workflow.Check(text) {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
 			}
 		}
-		repair.Text = text
-		repair.Changed = text != req.Content
-		return repair
-	}
-
-	// Naming an ID turns the other rules off, and the strip below deletes whole
-	// lines: without this guard, `--only comments/number` cuts a line the
-	// tombstone rule judged, which is another rule's repair applied unasked.
-	if wants(RuleTombstones) && req.Path != "" && anyKept(tombstones.AllIDs(), keeps) {
-		done := trace.Phase("fix/tombstones")
-		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
-		done()
-		text = cut.Text
-		repair.Removed = append(repair.Removed, cut.Removed...)
-		repair.Rewrites += cut.Rewrites
-		for _, hit := range cut.Kept {
-			if keeps(hit.ID) {
-				repair.Kept = append(repair.Kept, hit)
+	case fixer.Source:
+		// Source keeps its own text for the prose rules, because a comma splice
+		// inside a code line is not a sentence.
+		if wants(RuleComments) && keeps(commentfix.IDLength) {
+			for _, hit := range commentfix.CheckLength(req.Path, text) {
+				repair.Kept = append(repair.Kept, tombstones.Hit{
+					ID:     hit.ID,
+					Tell:   hit.Tell,
+					Phrase: hit.Sentence,
+					LineNo: hit.Line,
+				})
+			}
+		}
+	case fixer.Document:
+		if wants(RuleSTE) {
+			for _, finding := range Check(text) {
+				if keeps(finding.ID) {
+					repair.Findings = append(repair.Findings, finding)
+				}
 			}
 		}
 	}
-
-	// A document has no comments. A heading opens with the marker a shell comment uses, and a comment repair deletes it.
-	source := req.Path != "" && !IsDocument(req.Path)
-	lengths := wants(RuleComments) && keeps(commentfix.IDLength) && source
-	cutLong := false
-	cutComments := func() {
-		if !lengths {
-			return
-		}
-		defer trace.Phase("fix/comment-length")()
-		if cut, changed := commentfix.FixLength(req.Path, text); changed {
-			text, cutLong = cut, true
-		}
-	}
-
-	// The length repair reads source rather than prose, so it runs ahead of the document gate below.
-	cutComments()
-
-	// The number repair reads source too, and runs after the length cut: a
-	// sentence the cut already took needs no rewrite here.
-	if wants(RuleComments) && keeps(commentfix.ID) && source {
-		done := trace.Phase("fix/comment-numbers")
-		said := commentfix.Fix(req.Path, text)
-		done()
-		if said.Changed {
-			text = said.Text
-			repair.Removed = append(repair.Removed, said.Removed...)
-			// A number said in words is longer than the number, so the rewrite can put a block back over the budget the cut just
-			cutComments()
-		}
-	}
-
-	if cutLong {
-		repair.Removed = append(repair.Removed, "trailing comment prose")
-	}
-	if lengths {
-		for _, hit := range commentfix.CheckLength(req.Path, text) {
-			repair.Kept = append(repair.Kept, tombstones.Hit{
-				ID:     hit.ID,
-				Tell:   hit.Tell,
-				Phrase: hit.Sentence,
-				LineNo: hit.Line,
-			})
-		}
-	}
-
-	// The remaining rules read prose. Source keeps its own text, because a
-	// comma splice inside a code line is not a sentence.
-	if req.Path != "" && !IsDocument(req.Path) {
-		repair.Text = text
-		repair.Changed = text != req.Content
-		return repair
-	}
-
-	if wants(RuleCounts) && keeps(counts.ID) {
-		defer trace.Phase("fix/counts")()
-		stripped, hits := counts.Strip(text)
-		text = stripped
-		for _, hit := range hits {
-			repair.Removed = append(repair.Removed, hit.Phrase)
-		}
-	}
-	// The join and the word repair share a pass: the formatter rewrites each.
-	joins := wants(RuleWrap) && keeps(IDHardWrap)
-	prose := wants(RuleSTE)
-	if joins || prose {
-		defer trace.Phase("fix/wrap-and-ste")()
-		word := func(text string) string { return text }
-		if prose {
-			word = func(text string) string { return ste.FixSelected(text, keeps) }
-		}
-		if _, safe := Format(text); safe {
-			text = markdown.FormatFunc(text, word)
-		}
-	}
-	// The stale-count strip runs AFTER the join.
-	if wants(RuleSTE) && keeps(ste.IDStaleCount) {
-		stripped, hits := counts.StripGate(text)
-		text = stripped
-		for _, hit := range hits {
-			repair.Removed = append(repair.Removed, hit.Phrase)
-		}
-	}
-	if wants(RuleSTE) {
-		for _, finding := range Check(text) {
-			if keeps(finding.ID) {
-				repair.Findings = append(repair.Findings, finding)
-			}
-		}
-	}
-
-	repair.Text = text
-	repair.Changed = text != req.Content
 	return repair
 }
 
-// anyKept reports whether the caller's ID selection keeps any rule of a set.
-func anyKept(ids set.Set[string], keeps func(string) bool) bool {
-	for id := range ids.All() {
-		if keeps(id) {
-			return true
-		}
+// kindOf answers which parser owns a file. An empty path is prose: a caller
+// holding text and naming no file is asking about prose, not about a tree.
+func kindOf(path, content string) fixer.Kind {
+	switch {
+	case path != "" && isWorkflow(path, content):
+		return fixer.Workflow
+	case path != "" && !IsDocument(path):
+		return fixer.Source
 	}
-	return false
+	return fixer.Document
+}
+
+// The join and the word repair share a pass: the formatter rewrites each.
+func init() {
+	fixer.Register(fixer.Spec{
+		Label:    "wrap-and-ste",
+		Families: []string{string(RuleWrap), string(RuleSTE)},
+		Rules:    append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...),
+		Files:    []fixer.Kind{fixer.Document},
+		Place:    30,
+		Repair: func(f *fixer.File) {
+			defer trace.Phase("fix/wrap-and-ste")()
+			word := func(text string) string { return text }
+			if f.Wants(string(RuleSTE)) {
+				word = func(text string) string { return ste.FixSelected(text, f.Keeps) }
+			}
+			if _, safe := Format(f.Text()); safe {
+				f.Apply(markdown.FormatEdits(f.Text(), word))
+			}
+		},
+	})
 }
 
 // IsDocument reports whether path names prose rather than source.

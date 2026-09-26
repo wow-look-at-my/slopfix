@@ -66,6 +66,9 @@ func collect(node ts.Node, root bool, src string, lines []string, rows set.Set[i
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
 		child := node.NamedChild(i)
+		if code.IsInterpreter(child, src) {
+			continue
+		}
 		if code.IsComment(child) {
 			run, stop := commentRun(node, i, count)
 			next := afterComments(node, stop, count)
