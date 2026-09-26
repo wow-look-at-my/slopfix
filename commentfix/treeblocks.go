@@ -45,7 +45,7 @@ func commentRows(root ts.Node) set.Set[int] {
 	var walk func(node ts.Node)
 	walk = func(node ts.Node) {
 		if code.IsComment(node) {
-			for row := int(node.StartPoint().Row); row <= int(node.EndPoint().Row); row++ {
+			for row := int(node.StartPoint().Row); row <= int(lastRow(node)); row++ {
 				rows.Add(row)
 			}
 			return
