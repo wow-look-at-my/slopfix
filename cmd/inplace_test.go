@@ -35,11 +35,22 @@ func TestAnEditToProseIsRepairedWhereItLands(t *testing.T) {
 	assert.Equal(t, "The gate is shut. The write fails.", updated["new_string"])
 }
 
-// A repair that would reach past the edit changes text the write never
-// touched, so none of it is applied.
-func TestARepairThatReachesPastTheEditIsNotApplied(t *testing.T) {
+// A repair the file needs outside the edit is text the write never touched, so
+// it never lands. The edit's own text is still repaired.
+func TestARepairOutsideTheEditIsLeftForItsAuthor(t *testing.T) {
 	path := onDisk(t, "doc.md", "# Use\n\nIt doesn't hold.\n\nThe gate is open.\n")
 	got := ask(t, inPlaceEdit(path, "The gate is open.", "The gate is shut; the write fails."))
+	require.NotNil(t, got.out)
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	require.NotNil(t, updated)
+	assert.Equal(t, "The gate is shut. The write fails.", updated["new_string"])
+}
+
+// An edit that lands inside a paragraph cannot have the paragraph rejoined,
+// because the join rewrites words the write never touched.
+func TestAnEditInsideAParagraphLeavesTheParagraphAlone(t *testing.T) {
+	path := onDisk(t, "doc.md", "# Use\n\nThe gate is open\nand it doesn't close.\n")
+	got := ask(t, inPlaceEdit(path, "The gate is open", "The gate is shut"))
 	if got.out != nil {
 		assert.Nil(t, got.out["updatedInput"])
 	}

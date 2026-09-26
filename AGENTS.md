@@ -56,7 +56,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 - `slopfix parse [--tags]` prints noun phrases in `[ ]` and verb groups in `< >`. It then prints each clause with its kind, depth, subject and verb.
 - `slopfix report --path P [--only IDs]` reads a document on stdin and writes its findings as JSON. `--path` is required, because the path decides the rules. It always exits 0.
 - `slopfix hook` reads a PreToolUse payload for Write, Edit or MultiEdit. It repairs the text the write adds and lets the write through. It flags what the repair did not reach.
-- The hook repairs an Edit where it lands in the file. A line inside a fence therefore stays code. The hook applies nothing when the repair reaches past the edit. It reports the findings instead.
+- The hook repairs an Edit where it lands in the file. A line inside a fence therefore stays code. A `Scope` holds every rewrite inside the edit's own bytes, so a repair the file needs elsewhere never lands. The hook reports those findings instead.
 - The hook prints nothing and exits 0 for anything it does not judge. That covers a bad payload, another event, a tool that writes no file, and clean text.
 - `slopfix message [--only ID] [--json]` judges a closing message on stdin and exits 1 on a finding. `--only` also takes a family such as `blame`.
 - The hook subcommands are `auto-allow`, `busy-poll`, `no-work-loss`, `md-budget`, `link-refs`, `clean-bash`, `ask-properly`, `laziness` and `blame-language`. Each reads a hook payload on stdin and writes the hook's response on stdout. A refusal is an exit code that the launcher passes through.
@@ -104,6 +104,32 @@ The move runs even in a spec repository, because it deletes no prose. A body tha
 An empty `.slopfix-spec` file at the root opts a repository out of `repo/stray-markdown`. That marker is the only exemption. The answer thus lives with the repository it describes. The walk skips registered submodules, `testdata`, `.git`, `vendor`, `node_modules` and `dist`.
 
 The submodule skip comes from `.gitmodules`, verified against the index. A declaration alone cannot exempt real source. A path that escapes the repository is an error. Outside a repository nothing is skipped. A lost derivation thus makes the check stricter.
+
+## edit: the only way a repair writes
+
+A repair never returns a rewritten copy of a file. It returns `edit.Edit` values, byte ranges with replacement text. The parser that owns the file then writes them through a gate. A gate checks each edit before it lands. It parses the result again and keeps an edit only when the tree still holds. A batch that fails is retried an edit at a time. A refused edit is reported in `Repair.Refused`.
+
+| Gate | An edit may touch | After the splice |
+|---|---|---|
+| `treecomments.Apply` | bytes inside a comment node, and the blank around it | every node that is not a comment keeps its type, its text and its place in the tree |
+| `markdown.Apply` | bytes inside a single CommonMark prose block | every verbatim block comes back as written, in order |
+| workflow YAML | whole rows | the file parses, and a comment edit decodes to the same data |
+
+So a rewrite cannot escape its comment. A newline can end a line comment early. A closer can end a block early. An opener can swallow the code below. Each changes the code tree, and the gate refuses it. The interpreter line and a cgo preamble are code to the gate, because a tool reads them.
+
+Every repair is a `fixer.Fixer`, and each package registers its fixers from `init` with `fixer.Register`. A fixer gets a `fixer.File` and changes it only through `File.Apply` or `File.ApplyComments`. The file has no text setter. The gates are its only writers. `slopfix.Fix` opens the file for its kind and runs `fixer.For(kind)` in `Order`. `fixers_test.go` pins that order, and it fails on a repairable rule no registered fixer serves.
+
+| Kind | Fixers, in order |
+|---|---|
+| source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number` |
+| document | `tombstones`, `counts/inventory-count`, `wrap-and-ste`, `ste/count` |
+| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/untest` |
+
+The repository rules sit outside the registry. They delete or move whole files, and they edit no text inside one.
+
+`edit.Scope` bounds where an edit may land, and follows the text through each pass. The hook passes the span its edit writes. `edit.Nowhere()` admits nothing, for a run that wants findings alone.
+
+The one string match left is the hook replaying an Edit payload. `old_string` is a literal by the tool's own contract, so the hook finds it the way the tool will.
 
 ## markdown: the document model
 
