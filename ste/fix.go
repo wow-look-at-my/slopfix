@@ -101,8 +101,9 @@ func fixSplices(prose string) string {
 	masked := mask(prose)
 	var joiners [][]int
 	var openers []string
+	parens := parenthetical.FindAllStringIndex(masked, -1)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(masked, -1) {
-		if !spliced(masked, loc) {
+		if insideAny(parens, loc[0]) || !spliced(masked, loc) {
 			continue
 		}
 		end := loc[0] + len(spliceComma.FindString(prose[loc[0]:]))

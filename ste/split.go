@@ -131,7 +131,10 @@ func divisions(s *syntax.Sentence, source string) []division {
 	for k := 1; k < len(s.Clauses); k++ {
 		c := s.Clauses[k]
 		main, ok := mainBefore(s, k)
-		if !ok || c.Verb == nil || c.Link < 0 || c.Link+1 >= len(s.Words) {
+		if !ok || c.Link < 0 || c.Link+1 >= len(s.Words) {
+			continue
+		}
+		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {
 			continue
 		}
 		opener, ok := openerFor(s, c, main, source)
@@ -157,10 +160,10 @@ func mainBefore(s *syntax.Sentence, k int) (syntax.Clause, bool) {
 	return syntax.Clause{}, false
 }
 
-// lastBefore answers the last word ahead of i that is not a comma.
+// lastBefore answers the last word ahead of i that is not a comma or a dash.
 func lastBefore(s *syntax.Sentence, i int) int {
 	i--
-	for i > 0 && s.Words[i].Text == "," {
+	for i > 0 && strings.Contains(",—–--", s.Words[i].Text) {
 		i--
 	}
 	return i
@@ -198,6 +201,12 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "These", true
 		}
 		return "This", true
+	case syntax.Punctuated:
+		// A colon or a dash before a clause that names its own subject ends a sentence.
+		if c.Depth != 0 || c.Subject == nil && !resumesAfter(s, c.Link+1) {
+			return "", false
+		}
+		return "", opensWithCapital(s, c.Link+1)
 	case syntax.Subordinate:
 		if link != "because" || !closesTheSentence(s, c) {
 			return "", false
@@ -205,6 +214,17 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		return "This is because", true
 	}
 	return "", false
+}
+
+// resumesAfter reports whether a main clause with a subject starting at word i
+// resumes after a relative clause, as in ": a map that carries nothing is wasteful".
+func resumesAfter(s *syntax.Sentence, i int) bool {
+	for _, c := range s.Clauses {
+		if c.Kind == syntax.Opens && c.Depth == 0 && c.Verb != nil && c.Subject != nil && c.Subject.First == i {
+			return true
+		}
+	}
+	return false
 }
 
 // closesTheSentence reports whether the clause and the clauses under it run to
