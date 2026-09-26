@@ -112,8 +112,8 @@ func MeasuresAUnit(_ string, q Match) bool {
 }
 
 // NotAPluralNoun exempts a match whose last word the tagger reads as something
-// other than a plural noun. The pattern only asks for a trailing s, so "a 404
-// buries it" and "the other two confirms" match on a verb.
+// other than a plural noun. The pattern only asks for a trailing s, so "a
+// buries it" and "the other confirms" match on a verb.
 func NotAPluralNoun(text string, q Match) bool {
 	end := q.At + len(q.Text)
 	for _, w := range syntax.Parse(text, nil).Words {
@@ -126,7 +126,7 @@ func NotAPluralNoun(text string, q Match) bool {
 }
 
 // ChoiceAmongASet exempts the size of a set something is picked from. "one of
-// two things" loses its meaning without the count, and the cut leaves "one of
+// things" loses its meaning without the count, and the cut leaves "one of
 // things".
 func ChoiceAmongASet(text string, q Match) bool {
 	before := strings.Fields(strings.ToLower(text[:q.At]))
