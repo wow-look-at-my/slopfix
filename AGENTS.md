@@ -298,6 +298,8 @@ Each verb is checked against the classes it reaches. A single dirty bit gives fa
 | `stash drop` | spares | spares | spares | destroys |
 | `checkout <ref>` | destroys | spares | spares | spares |
 
+A submodule at a commit other than its gitlink is not a tracked edit. That commit stays in the history of the submodule. The probe reads `status --porcelain=v2` and drops a submodule entry that has no modified and no untracked content.
+
 A ref-destroying verb asks whether the content exists anywhere else:
 
 | Verb | What must survive | How it is answered |
