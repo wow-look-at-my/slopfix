@@ -92,7 +92,7 @@
         out="**Reproducible across build hosts.** Every build passes `-trimpath` and `-ldflags=-buildid=`, so the same source compiles to the same bytes wherever it is built."/>
   <!-- go-toolchain docs. A spaced dash after a clause is a seam, and the words after it keep their order. -->
   <test in="That last check is the one that stays honest over time — a stray `&lt;name&gt;_&lt;os&gt;_&lt;arch&gt;` file will silently restore the N-downloads-of-one-binary shape without failing anything else."
-        out="That last check is the one that stays honest over time. A stray `&lt;name&gt;_&lt;os&gt;_&lt;arch&gt;` file will silently restore the N-downloads-of-one-binary shape without failing anything else."/>
+        out="That last check is the one that stays honest over time — a stray `&lt;name&gt;_&lt;os&gt;_&lt;arch&gt;` file will silently restore the N-downloads-of-one-binary shape without failing anything else."/>
   <!-- go-toolchain docs. "(e.g." does not end a sentence, so the division lands on the dash rather than inside the quote. -->
   <test in="It is deliberately scoped to `go: ` lines rather than &quot;any duration under 1s anywhere in the log&quot;: go-toolchain's own named step/test timers (e.g. `vet: gofmt 0.17s`) are intentionally unconditional — a named operation's own time is always worth reporting — and must not be flagged."
         out="It is deliberately scoped to `go: ` lines rather than &quot;any duration under 1s anywhere in the log&quot;. Go-toolchain's own named step/test timers (e.g. `vet: gofmt 0.17s`) are intentionally unconditional — a named operation's own time is always worth reporting — and must not be flagged."/>
