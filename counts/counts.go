@@ -93,17 +93,22 @@ func strip(content string, hits []Hit) (string, []Hit) {
 		if number == "" {
 			continue
 		}
+<<<<<<< HEAD
 		rest := out[hit.Start+len(number):]
 		if first, size := utf8.DecodeRuneInString(number); unicode.IsUpper(first) && size > 0 {
 			rest = capitalize(rest)
 		}
 		out = out[:hit.Start] + rest
+=======
+		out = out[:hit.Start] + keepCapital(number, out[hit.Start+len(number):])
+>>>>>>> cf0cd64adbfa359c8ea15dbf5237291d3b611a57
 		cut = append(cut, hit)
 	}
 	sort.SliceStable(cut, func(i, j int) bool { return cut[i].Start < cut[j].Start })
 	return out, cut
 }
 
+<<<<<<< HEAD
 // capitalize upper-cases the first letter, so a cut that opened a sentence
 // leaves the next word to open it.
 func capitalize(s string) string {
@@ -112,6 +117,16 @@ func capitalize(s string) string {
 		return s
 	}
 	return string(unicode.ToUpper(r)) + s[size:]
+=======
+// keepCapital moves the capital of a cut cardinal onto the word after it.
+func keepCapital(number, rest string) string {
+	first, _ := utf8.DecodeRuneInString(number)
+	if !unicode.IsUpper(first) {
+		return rest
+	}
+	next, width := utf8.DecodeRuneInString(rest)
+	return string(unicode.ToUpper(next)) + rest[width:]
+>>>>>>> cf0cd64adbfa359c8ea15dbf5237291d3b611a57
 }
 
 // proseLine is a line of the document's own voice, with where it begins.
