@@ -9,10 +9,7 @@ import (
 // parserDirective is a line BuildKit reads as a parser directive when it heads a Dockerfile.
 var parserDirective = regexp.MustCompile(`(?i)^#\s*(syntax|escape|check)\s*=\s*\S`)
 
-// dropParserDirectives removes the parser directives a Dockerfile opens on. The
-// bash grammar reads them as comments, but BuildKit reads them as instructions
-// to the builder, and only while nothing else precedes them: the first line that
-// is not one, a blank line included, makes every later one a plain comment.
+// dropParserDirectives removes the parser directives a Dockerfile opens on.
 func dropParserDirectives(filename string, comments []Comment) []Comment {
 	if !isDockerfile(filename) {
 		return comments
