@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/code"
+	"github.com/wow-look-at-my/slopfix/markdown"
 )
 
 // Block is a comment run or a paragraph. LineNos and Pure place each line and
@@ -62,55 +63,23 @@ func IsDocument(path string) bool {
 	return false
 }
 
-// paragraphs splits a document into blank-line-separated blocks. It drops what
-// is not the document's own voice: code, HTML comments and frontmatter.
+// paragraphs answers the prose blocks the CommonMark parser finds. What is not
+// the document's own voice stays out: code, headings, quotations, HTML and
+// frontmatter.
 func paragraphs(doc string) []Block {
-	lines := strings.Split(doc, "\n")
-	start := 0
-	if len(lines) > 0 && strings.TrimSpace(lines[0]) == "---" {
-		for i := 1; i < len(lines); i++ {
-			if strings.TrimSpace(lines[i]) == "---" {
-				start = i + 1
-				break
-			}
-		}
-	}
-
 	var out []Block
-	var cur []string
-	var nos []int
-	flush := func() {
-		if len(cur) > 0 {
-			out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos})
-			cur, nos = nil, nil
-		}
-	}
-	inFence, inComment := false, false
-	for at, line := range lines[start:] {
-		trimmed := strings.TrimSpace(line)
-		switch {
-		case strings.HasPrefix(trimmed, "```"), strings.HasPrefix(trimmed, "~~~"):
-			inFence = !inFence
-			flush()
-			continue
-		case inFence:
-			continue
-		case strings.Contains(line, "<!--"):
-			inComment = !strings.Contains(line, "-->")
-			continue
-		case inComment:
-			inComment = !strings.Contains(line, "-->")
-			continue
-		case strings.HasPrefix(line, "    "), strings.HasPrefix(line, "\t"):
-			continue
-		case trimmed == "":
-			flush()
+	for _, b := range markdown.Split(doc) {
+		if b.Kind != markdown.Prose {
 			continue
 		}
-		cur = append(cur, blankInlineCode(line))
-		nos = append(nos, start+at)
+		cur := make([]string, 0, len(b.Lines))
+		nos := make([]int, 0, len(b.Lines))
+		for n, line := range b.Lines {
+			cur = append(cur, blankInlineCode(line))
+			nos = append(nos, b.Start-1+n)
+		}
+		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos})
 	}
-	flush()
 	return out
 }
 
