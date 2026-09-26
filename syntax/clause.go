@@ -117,7 +117,7 @@ func (p *clauseParser) boundary(i int, cur Clause, comma bool) (LinkKind, int, b
 	w := p.s.Words[i]
 	lower := w.Lower()
 	switch {
-	case w.Text == ";" || w.Text == ":":
+	case w.Text == ";" || w.Text == ":" || w.Text == "—" || w.Text == "–" || w.Text == "--":
 		return Punctuated, i, true
 	case w.Tag == "CC" || lower == "so" && comma:
 		if p.opensAfterConjunction(i+1, cur) {
