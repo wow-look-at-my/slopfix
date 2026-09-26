@@ -45,7 +45,7 @@ func commentRows(root ts.Node) set.Set[int] {
 	var walk func(node ts.Node)
 	walk = func(node ts.Node) {
 		if code.IsComment(node) {
-			for row := int(node.StartPoint().Row); row <= int(node.EndPoint().Row); row++ {
+			for row := int(node.StartPoint().Row); row <= int(lastRow(node)); row++ {
 				rows.Add(row)
 			}
 			return
@@ -98,8 +98,7 @@ func commentRun(node ts.Node, i, count uint32) ([]ts.Node, uint32) {
 		if !code.IsComment(next) {
 			break
 		}
-		last := run[len(run)-1]
-		if next.StartPoint().Row > last.EndPoint().Row+1 {
+		if next.StartPoint().Row > lastRow(run[len(run)-1])+1 {
 			break
 		}
 		run = append(run, next)
@@ -110,7 +109,7 @@ func commentRun(node ts.Node, i, count uint32) ([]ts.Node, uint32) {
 // blockFor measures a comment run against the construct it documents.
 func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string, rows set.Set[int]) (block, bool) {
 	start := int(run[0].StartPoint().Row)
-	end := int(run[len(run)-1].EndPoint().Row) + 1
+	end := int(lastRow(run[len(run)-1])) + 1
 	if start < 0 || end > len(lines) || start >= end {
 		return block{}, false
 	}
@@ -138,8 +137,16 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 	return b, true
 }
 
-// opensWithMarker reports a line that starts with a comment marker, which is
-// what bounds a span a grammar ran past the comment it was given.
+// lastRow is the last row a comment's text sits on. A Rust line comment ends at the start of the next row.
+func lastRow(n ts.Node) uint32 {
+	end := n.EndPoint()
+	if end.Column == 0 && end.Row > n.StartPoint().Row {
+		return end.Row - 1
+	}
+	return end.Row
+}
+
+// opensWithMarker reports a line that starts with a comment marker, which bounds a span a grammar ran past its comment.
 func opensWithMarker(line string) bool {
 	t := strings.TrimSpace(line)
 	if t == "" {
