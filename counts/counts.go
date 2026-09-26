@@ -18,6 +18,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
@@ -117,7 +118,7 @@ func Edits(content string, hits []Hit) []edit.Edit {
 			continue
 		}
 		number := cardinal.Leading.FindString(content[hit.Start:hit.End])
-		if number == "" {
+		if number == "" || measuresARate(content[:hit.Start], hit.Phrase) {
 			continue
 		}
 		e := edit.Edit{Start: hit.Start, End: hit.Start + len(number), Cut: []string{hit.Phrase}}
@@ -130,6 +131,20 @@ func Edits(content string, hits []Hit) []edit.Edit {
 	}
 	return out
 }
+
+// measuresARate reports whether a quantity is an interval such as "every
+// minutes". It is still reported, but cutting its number leaves "every
+// minutes", which is not English.
+func measuresARate(before, phrase string) bool {
+	fields := strings.Fields(phrase)
+	if len(fields) == 0 || !cardinal.IsUnit(fields[len(fields)-1]) {
+		return false
+	}
+	prev := strings.Fields(strings.ToLower(before))
+	return len(prev) > 0 && rateWords.Contains(prev[len(prev)-1])
+}
+
+var rateWords = set.Of[string]("every", "each", "per")
 
 // proseLine is a line of the document's own voice, with where it begins.
 type proseLine struct {
