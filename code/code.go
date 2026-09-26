@@ -95,5 +95,10 @@ func IsComment(node ts.Node) bool {
 	return !node.IsNull() && strings.Contains(node.Type(), "comment")
 }
 
+// IsInterpreter reports the line a script opens on.
+func IsInterpreter(node ts.Node, src string) bool {
+	return IsComment(node) && node.StartByte() == 0 && node.EndPoint().Row == 0 && strings.HasPrefix(src, "#!")
+}
+
 // Lines splits source the way every span here counts it.
 func Lines(src string) []string { return strings.Split(src, "\n") }

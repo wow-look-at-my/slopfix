@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -181,6 +183,52 @@ func TestARefusalNamesEveryReasonItCarries(t *testing.T) {
 func TestAnUnknownRuleIsRefusedBeforeAnyWriteIsJudged(t *testing.T) {
 	_, _, err := selectedRules([]string{"nosuch"})
 	require.Error(t, err)
+}
+
+// editOn writes src to a real file and returns an Edit payload against it.
+func editOn(t *testing.T, name, src, old, new string) map[string]any {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	require.NoError(t, os.WriteFile(path, []byte(src), 0o644))
+	return map[string]any{
+		"hook_event_name": "PreToolUse",
+		"tool_name":       "Edit",
+		"tool_input":      map[string]any{"file_path": path, "old_string": old, "new_string": new},
+	}
+}
+
+// An edit that ends on the comment it anchored on keeps that comment. Judged
+// alone, the comment documents nothing and the length repair deleted it.
+func TestACommentAtTheEndOfAnEditKeepsItsCode(t *testing.T) {
+	src := "package p\n\n// Load reads the record at the given path and returns it.\nfunc Load() {}\n"
+	anchor := "// Load reads the record at the given path and returns it."
+	got := ask(t, editOn(t, "a.go", src, anchor, "var x = 1\n\n"+anchor), "comments")
+
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	assert.Nil(t, updated, "nothing in the placed file needs a repair: %s", got.body)
+}
+
+// A comment the file already carried outside the edit belongs to whoever
+// wrote it. A repair that must touch it is not applied at all.
+func TestARepairOutsideTheEditIsNotApplied(t *testing.T) {
+	long := "// Limit caps the rate. It is well under what any endpoint reaches in health, so an\n" +
+		"// ordinary stream never approaches it and a collapsed engine is still caught by it.\n" +
+		"// A zero here ships the gate dead, which is the same as not having the gate at all.\n"
+	src := "package p\n\nvar a = 1\n\n" + long + "const Limit = 15\n"
+	got := ask(t, editOn(t, "a.go", src, "var a = 1", "var a = 2"), "comments")
+
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	assert.Nil(t, updated, "the only repair lies outside the edit: %s", got.body)
+}
+
+// A finding inside the edit is still repaired where the edit lands.
+func TestAFindingInsideAPlacedEditIsRepaired(t *testing.T) {
+	src := "package p\n\nfunc x() {}\n"
+	got := ask(t, editOn(t, "a.go", src, "func x() {}", "// This used to read the flag.\nfunc x() {}"), "tombstones")
+
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	require.NotNil(t, updated, got.body)
+	assert.Equal(t, "func x() {}", updated["new_string"])
 }
 
 var _ = slopfix.AllRules

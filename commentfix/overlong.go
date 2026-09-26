@@ -17,6 +17,8 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
@@ -76,17 +78,26 @@ func CheckLength(filename, src string) []LengthHit {
 // Fix cuts every over-long comment block back inside its budget, from the end,
 // stopping before the opening sentence.
 func FixLength(filename, src string) (string, bool) {
-	defer trace.Phase("repair/comments-length")()
-	bs := blocks(filename, src)
-	if len(bs) == 0 {
-		return src, false
-	}
-	lines := splitLines(src)
-	changed := false
+	f := fixer.Open(filename, src, fixer.Options{Kind: fixer.Source})
+	fixer.Run(f, fixer.Named(FixerLength))
+	return f.Text(), f.Text() != src
+}
 
-	// Back to front, so an earlier block's line numbers stay valid.
-	for i := len(bs) - 1; i >= 0; i-- {
-		b := bs[i]
+// cutNote is what the report carries a single time any length cut lands.
+const cutNote = "trailing comment prose"
+
+// repairLength cuts every over-long comment block in f back inside its budget.
+func repairLength(f *fixer.File) {
+	defer trace.Phase("repair/comments-length")()
+	if len(f.ApplyComments(lengthEdits(f.Path, f.Text())).Applied) > 0 {
+		f.RemovedOnce(cutNote)
+	}
+}
+
+// lengthEdits answers an edit per block that outweighs its code.
+func lengthEdits(filename, src string) []edit.Edit {
+	var edits []edit.Edit
+	for _, b := range blocks(filename, src) {
 		if _, over := judge(b); !over {
 			continue
 		}
@@ -101,13 +112,9 @@ func FixLength(filename, src string) (string, bool) {
 		if sameText(kept, b.text) {
 			continue
 		}
-		lines = append(lines[:b.start], append(kept, lines[b.end:]...)...)
-		changed = true
+		edits = append(edits, edit.Rows(src, b.start, b.end-1, 0, kept))
 	}
-	if !changed {
-		return src, false
-	}
-	return strings.Join(lines, "\n"), true
+	return edits
 }
 
 // judge measures a block against its code and names every measure it failed.
