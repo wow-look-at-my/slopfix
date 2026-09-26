@@ -45,6 +45,8 @@ type Hit struct {
 	Number string
 	Line   int
 	Col    int
+	// Offset is the byte the number starts at, inside the comment node that holds it.
+	Offset int
 }
 
 // generatedLine is the line marking a file as generated, in every spelling of a comment the rule reads.
@@ -66,7 +68,7 @@ func Check(filename, src string) []Hit {
 			for _, found := range cardinal.Find(line.text, cardinal.Comment) {
 				at := comment.Offset + line.offset + found.Offset
 				pos, col := lineAndColumn(src, at)
-				hits = append(hits, Hit{Number: found.Text, Line: pos, Col: col})
+				hits = append(hits, Hit{Number: found.Text, Line: pos, Col: col, Offset: at})
 			}
 		}
 	}
