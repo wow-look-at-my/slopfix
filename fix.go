@@ -1,12 +1,14 @@
 package slopfix
 
 import (
+	"fmt"
 	"os"
 	"slices"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
+	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -67,6 +69,8 @@ type Request struct {
 	IDs []string
 	// MaxCommentLines caps a comment block. A cap of nothing turns it off.
 	MaxCommentLines int
+	// Scope bounds where a repair may land. The zero Scope is the whole file.
+	Scope edit.Scope `json:"-"`
 }
 
 // Repair is the text as this binary would write it, plus what the rewrite flagged.
@@ -83,6 +87,17 @@ type Repair struct {
 	Kept []tombstones.Hit `json:"kept,omitempty"`
 	// Findings are what a reader must repair by hand.
 	Findings []ste.Finding `json:"findings"`
+	// Refused quotes each rewrite a parser would not let land, and why.
+	Refused []string `json:"refused,omitempty"`
+	// Scope bounds, in Text, what the Request's Scope bounded.
+	Scope edit.Scope `json:"-"`
+}
+
+// refuse records the edits a gate would not write.
+func (r *Repair) refuse(refused []edit.Refused) {
+	for _, x := range refused {
+		r.Refused = append(r.Refused, fmt.Sprintf("%s: %q", x.Reason, x.Edit.Text))
+	}
 }
 
 // Fix repairs what a rewrite can repair and reports the rest. The repairs run
@@ -101,6 +116,7 @@ func Fix(req Request) Repair {
 	}
 
 	text := req.Content
+	scope := req.Scope
 	var repair Repair
 
 	// A workflow's newlines are syntax, so it takes its own repairs and none of
@@ -108,16 +124,17 @@ func Fix(req Request) Repair {
 	if req.Path != "" && isWorkflow(req.Path, text) {
 		if wants(RuleWorkflow) {
 			defer trace.Phase("fix/workflow")()
-			cut := workflow.Fix(text, keeps)
-			text = cut.Text
-			repair.Removed = append(repair.Removed, cut.Removed...)
+			cut := workflow.FixIn(req.Path, text, keeps, scope)
+			text, scope = cut.Text, cut.Scope
+			repair.Removed = append(repair.Removed, cut.Cuts()...)
+			repair.refuse(cut.Refused)
 		}
 		for _, finding := range workflow.Check(text) {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
 			}
 		}
-		repair.Text = text
+		repair.Text, repair.Scope = text, scope
 		repair.Changed = text != req.Content
 		return repair
 	}
@@ -127,11 +144,12 @@ func Fix(req Request) Repair {
 	// tombstone rule judged, which is another rule's repair applied unasked.
 	if wants(RuleTombstones) && req.Path != "" && anyKept(tombstones.AllIDs(), keeps) {
 		done := trace.Phase("fix/tombstones")
-		cut := tombstones.Fix(req.Path, text, req.MaxCommentLines)
+		cut := tombstones.FixIn(req.Path, text, req.MaxCommentLines, scope)
 		done()
-		text = cut.Text
+		text, scope = cut.Text, cut.Scope
 		repair.Removed = append(repair.Removed, cut.Removed...)
 		repair.Rewrites += cut.Rewrites
+		repair.refuse(cut.Refused)
 		for _, hit := range cut.Kept {
 			if keeps(hit.ID) {
 				repair.Kept = append(repair.Kept, hit)
@@ -148,8 +166,10 @@ func Fix(req Request) Repair {
 			return
 		}
 		defer trace.Phase("fix/comment-length")()
-		if cut, changed := commentfix.FixLength(req.Path, text); changed {
-			text, cutLong = cut, true
+		cut := commentfix.FixLengthIn(req.Path, text, scope)
+		repair.refuse(cut.Refused)
+		if cut.Text != text {
+			text, scope, cutLong = cut.Text, cut.Scope, true
 		}
 	}
 
@@ -160,10 +180,11 @@ func Fix(req Request) Repair {
 	// sentence the cut already took needs no rewrite here.
 	if wants(RuleComments) && keeps(commentfix.ID) && source {
 		done := trace.Phase("fix/comment-numbers")
-		said := commentfix.Fix(req.Path, text)
+		said := commentfix.FixIn(req.Path, text, scope)
 		done()
+		repair.refuse(said.Refused)
 		if said.Changed {
-			text = said.Text
+			text, scope = said.Text, said.Scope
 			repair.Removed = append(repair.Removed, said.Removed...)
 			// A number said in words is longer than the number, so the rewrite can put a block back over the budget the cut just
 			cutComments()
@@ -187,18 +208,19 @@ func Fix(req Request) Repair {
 	// The remaining rules read prose. Source keeps its own text, because a
 	// comma splice inside a code line is not a sentence.
 	if req.Path != "" && !IsDocument(req.Path) {
-		repair.Text = text
+		repair.Text, repair.Scope = text, scope
 		repair.Changed = text != req.Content
 		return repair
 	}
 
+	take := func(res edit.Result) {
+		text, scope = res.Text, res.Scope
+		repair.Removed = append(repair.Removed, res.Cuts()...)
+		repair.refuse(res.Refused)
+	}
 	if wants(RuleCounts) && keeps(counts.ID) {
 		defer trace.Phase("fix/counts")()
-		stripped, hits := counts.Strip(text)
-		text = stripped
-		for _, hit := range hits {
-			repair.Removed = append(repair.Removed, hit.Phrase)
-		}
+		take(counts.StripIn(text, scope))
 	}
 	// The join and the word repair share a pass: the formatter rewrites each.
 	joins := wants(RuleWrap) && keeps(IDHardWrap)
@@ -210,16 +232,12 @@ func Fix(req Request) Repair {
 			word = func(text string) string { return ste.FixSelected(text, keeps) }
 		}
 		if _, safe := Format(text); safe {
-			text = markdown.FormatFunc(text, word)
+			take(markdown.Apply(text, markdown.FormatEdits(text, word), scope))
 		}
 	}
 	// The stale-count strip runs AFTER the join.
 	if wants(RuleSTE) && keeps(ste.IDStaleCount) {
-		stripped, hits := counts.StripGate(text)
-		text = stripped
-		for _, hit := range hits {
-			repair.Removed = append(repair.Removed, hit.Phrase)
-		}
+		take(counts.StripGateIn(text, scope))
 	}
 	if wants(RuleSTE) {
 		for _, finding := range Check(text) {
@@ -229,7 +247,7 @@ func Fix(req Request) Repair {
 		}
 	}
 
-	repair.Text = text
+	repair.Text, repair.Scope = text, scope
 	repair.Changed = text != req.Content
 	return repair
 }

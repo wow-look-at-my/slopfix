@@ -17,8 +17,10 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // IDLength names this rule, on a report and on the command line alike.
@@ -76,17 +78,15 @@ func CheckLength(filename, src string) []LengthHit {
 // Fix cuts every over-long comment block back inside its budget, from the end,
 // stopping before the opening sentence.
 func FixLength(filename, src string) (string, bool) {
-	defer trace.Phase("repair/comments-length")()
-	bs := blocks(filename, src)
-	if len(bs) == 0 {
-		return src, false
-	}
-	lines := splitLines(src)
-	changed := false
+	res := FixLengthIn(filename, src, edit.Scope{})
+	return res.Text, res.Text != src
+}
 
-	// Back to front, so an earlier block's line numbers stay valid.
-	for i := len(bs) - 1; i >= 0; i-- {
-		b := bs[i]
+// FixLengthIn is FixLength with every edit held inside scope.
+func FixLengthIn(filename, src string, scope edit.Scope) edit.Result {
+	defer trace.Phase("repair/comments-length")()
+	var edits []edit.Edit
+	for _, b := range blocks(filename, src) {
 		if _, over := judge(b); !over {
 			continue
 		}
@@ -101,13 +101,9 @@ func FixLength(filename, src string) (string, bool) {
 		if sameText(kept, b.text) {
 			continue
 		}
-		lines = append(lines[:b.start], append(kept, lines[b.end:]...)...)
-		changed = true
+		edits = append(edits, edit.Rows(src, b.start, b.end-1, 0, kept))
 	}
-	if !changed {
-		return src, false
-	}
-	return strings.Join(lines, "\n"), true
+	return treecomments.Apply(filename, src, edits, scope)
 }
 
 // judge measures a block against its code and names every measure it failed.

@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/markdown"
 )
 
@@ -76,38 +77,51 @@ func StripGate(content string) (string, []Hit) {
 	return strip(content, Gate(content))
 }
 
-func strip(content string, hits []Hit) (string, []Hit) {
-	if len(hits) == 0 {
-		return content, nil
-	}
-	ordered := append([]Hit(nil), hits...)
-	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Start > ordered[j].Start })
+// StripIn cuts every count Check finds, with every edit held inside scope.
+func StripIn(content string, scope edit.Scope) edit.Result {
+	return markdown.Apply(content, Edits(content, Check(content)), scope)
+}
 
-	out := content
+// StripGateIn is StripIn over what the merge gate's stale-count rule reports.
+func StripGateIn(content string, scope edit.Scope) edit.Result {
+	return markdown.Apply(content, Edits(content, Gate(content)), scope)
+}
+
+func strip(content string, hits []Hit) (string, []Hit) {
+	res := markdown.Apply(content, Edits(content, hits), edit.Scope{})
 	var cut []Hit
-	for _, hit := range ordered {
-		if hit.Start < 0 || hit.End > len(out) {
+	for _, e := range res.Applied {
+		for _, hit := range hits {
+			if hit.Start == e.Start {
+				cut = append(cut, hit)
+			}
+		}
+	}
+	return res.Text, cut
+}
+
+// Edits answers an edit per hit that cuts its cardinal. A cardinal that opened
+// its sentence hands its capital to the word after it, so that word's first
+// letter is part of the edit.
+func Edits(content string, hits []Hit) []edit.Edit {
+	var out []edit.Edit
+	for _, hit := range hits {
+		if hit.Start < 0 || hit.End > len(content) {
 			continue
 		}
-		number := cardinal.Leading.FindString(out[hit.Start:hit.End])
+		number := cardinal.Leading.FindString(content[hit.Start:hit.End])
 		if number == "" {
 			continue
 		}
-		out = out[:hit.Start] + keepCapital(number, out[hit.Start+len(number):])
-		cut = append(cut, hit)
+		e := edit.Edit{Start: hit.Start, End: hit.Start + len(number), Cut: []string{hit.Phrase}}
+		if first, _ := utf8.DecodeRuneInString(number); unicode.IsUpper(first) {
+			next, width := utf8.DecodeRuneInString(content[e.End:])
+			e.Text = string(unicode.ToUpper(next))
+			e.End += width
+		}
+		out = append(out, e)
 	}
-	sort.SliceStable(cut, func(i, j int) bool { return cut[i].Start < cut[j].Start })
-	return out, cut
-}
-
-// keepCapital moves the capital of a cut cardinal onto the word after it.
-func keepCapital(number, rest string) string {
-	first, _ := utf8.DecodeRuneInString(number)
-	if !unicode.IsUpper(first) {
-		return rest
-	}
-	next, width := utf8.DecodeRuneInString(rest)
-	return string(unicode.ToUpper(next)) + rest[width:]
+	return out
 }
 
 // proseLine is a line of the document's own voice, with where it begins.
