@@ -44,15 +44,14 @@ func TestFixKeepsAFencedBlockWhole(t *testing.T) {
 	assert.Equal(t, doc, repair.Text)
 }
 
-// A sentence whose halves share a subject divides anyway. the next half reads
-// as a fragment, which is the price of a rule every caller can clear: a finding
-// no repair answers leaves a reader hand-editing prose or deleting the file.
-func TestFixDividesASentenceWithNoWriterlySeam(t *testing.T) {
+// A sentence whose halves share a subject divides at the conjunction, and the
+// new sentence names the subject again. Neither half is a fragment.
+func TestFixRestatesTheSharedSubject(t *testing.T) {
 	long := "The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n"
 	repair := prose(long)
 	assert.True(t, repair.Changed)
 	assert.Equal(t,
-		"The gate reads every file in the session. And refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n",
+		"The gate reads every file in the session. The gate refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n",
 		repair.Text)
 	assert.Empty(t, repair.Findings)
 }

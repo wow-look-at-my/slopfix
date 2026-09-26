@@ -31,4 +31,4 @@ jobs:
           # Approves the //go:generate directives; editing a single fails the build with the new value.
           generate: 165003bec91c
 
-      - run: ./build/slopfix workflows .
+      - run: ./build/slopfix check .

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/wow-look-at-my/slopfix/ste"
 )
@@ -12,13 +13,15 @@ import (
 // examples in the rules folder. What is left here is what such an example
 // cannot say: an invariant the repair holds whatever it writes.
 
-// With no conjunction, no comma and no clause boundary anywhere, the division
-// falls to a bare gap between words. Awkward, and under the cap.
-func TestFixDividesASentenceCarryingNoSeamAtAll(t *testing.T) {
+// With no clause boundary, a division writes a fragment. The repair leaves the
+// sentence whole, and Check still reports it for a person to rewrite.
+func TestFixLeavesASentenceWithNoClauseBoundaryForAPerson(t *testing.T) {
 	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
 	fixed := ste.Fix(long)
-	assert.NotEqual(t, long, fixed)
-	assert.Empty(t, ste.Check(fixed, 1))
+	assert.Equal(t, long, fixed)
+	findings := ste.Check(fixed, 1)
+	require.Len(t, findings, 1)
+	assert.Equal(t, ste.IDSentenceCap, findings[0].ID)
 }
 
 // A division never lands inside an inline code span, so the span survives the

@@ -8,6 +8,7 @@ package slopfix
 
 import (
 	"os"
+	"slices"
 
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -64,12 +65,30 @@ func FixTreeWith(root string, req Request) TreeRepair { return treeRun(root, req
 // CheckTreeWith is CheckTree under the caller's own rule selection.
 func CheckTreeWith(root string, req Request) TreeRepair { return treeRun(root, req, false) }
 
+// wantsRepo reports whether the caller's selection reaches the repository rules.
+func wantsRepo(req Request) bool {
+	return len(req.Rules) == 0 || slices.Contains(req.Rules, RuleRepo)
+}
+
+// keepsOf answers the caller's ID selection as a test, where naming none keeps all.
+func keepsOf(req Request) func(string) bool {
+	return func(id string) bool { return len(req.IDs) == 0 || slices.Contains(req.IDs, id) }
+}
+
 // treeRun walks root and answers what every rule made of each file, writing
 // each repair back when writing is asked for.
 func treeRun(root string, req Request, writing bool) TreeRepair {
 	defer trace.Phase("slopfix/fixtree")()
 
 	var out TreeRepair
+	if wantsRepo(req) && isRepoRoot(root) {
+		findings, changed, err := repoRun(root, keepsOf(req), writing)
+		if err != nil {
+			findings = append(findings, repoFinding(root, IDStrayMarkdown, "the repository rules could not read the tree", err.Error()))
+		}
+		out.Findings = append(out.Findings, findings...)
+		out.Repaired = append(out.Repaired, changed...)
+	}
 	for _, path := range commentfix.TreeFilesMatching(root, Reads) {
 		src, err := os.ReadFile(path)
 		if err != nil {
