@@ -101,8 +101,9 @@ func fixSplices(prose string) string {
 	masked := mask(prose)
 	var joiners [][]int
 	var openers []string
+	parens := parenthetical.FindAllStringIndex(masked, -1)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(masked, -1) {
-		if !spliced(masked, loc) {
+		if insideAny(parens, loc[0]) || !spliced(masked, loc) {
 			continue
 		}
 		end := loc[0] + len(spliceComma.FindString(prose[loc[0]:]))
@@ -123,7 +124,6 @@ func fixSplices(prose string) string {
 // parenthetical, which STE counts as a single word and a break would halve.
 func offLimits(prose, masked string) [][]int {
 	off := verbatimSpan.FindAllStringIndex(prose, -1)
-	off = append(off, quoted.FindAllStringIndex(masked, -1)...)
 	return append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 }
 
@@ -138,10 +138,11 @@ func mask(prose string) string {
 	return string(out)
 }
 
-// fill writes a single capital filler word over a span, as strip writes CODE.
+// fill writes a single filler word over a span. It keeps a space at each end,
+// so the words on either side stay words of their own.
 func fill(span []byte) {
 	for i := range span {
-		span[i] = 'X'
+		span[i] = 'x'
 	}
 	if len(span) > 2 {
 		span[0], span[len(span)-1] = ' ', ' '

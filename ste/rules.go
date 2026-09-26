@@ -242,7 +242,7 @@ func checkSplices(prose string, line int) []Finding {
 	var out []Finding
 	parens := parenthetical.FindAllStringIndex(prose, -1)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
-		if !spliced(prose, loc) {
+		if insideAny(parens, loc[0]) || !spliced(prose, loc) {
 			continue
 		}
 		out = append(out, Finding{
