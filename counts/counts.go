@@ -15,6 +15,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/markdown"
@@ -91,11 +93,21 @@ func strip(content string, hits []Hit) (string, []Hit) {
 		if number == "" {
 			continue
 		}
-		out = out[:hit.Start] + out[hit.Start+len(number):]
+		out = out[:hit.Start] + keepCapital(number, out[hit.Start+len(number):])
 		cut = append(cut, hit)
 	}
 	sort.SliceStable(cut, func(i, j int) bool { return cut[i].Start < cut[j].Start })
 	return out, cut
+}
+
+// keepCapital moves the capital of a cut cardinal onto the word after it.
+func keepCapital(number, rest string) string {
+	first, _ := utf8.DecodeRuneInString(number)
+	if !unicode.IsUpper(first) {
+		return rest
+	}
+	next, width := utf8.DecodeRuneInString(rest)
+	return string(unicode.ToUpper(next)) + rest[width:]
 }
 
 // proseLine is a line of the document's own voice, with where it begins.
