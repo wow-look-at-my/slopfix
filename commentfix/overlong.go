@@ -18,9 +18,9 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/trace"
-	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // IDLength names this rule, on a report and on the command line alike.
@@ -78,13 +78,24 @@ func CheckLength(filename, src string) []LengthHit {
 // Fix cuts every over-long comment block back inside its budget, from the end,
 // stopping before the opening sentence.
 func FixLength(filename, src string) (string, bool) {
-	res := FixLengthIn(filename, src, edit.Scope{})
-	return res.Text, res.Text != src
+	f := fixer.Open(filename, src, fixer.Options{Kind: fixer.Source})
+	fixer.Run(f, fixer.Named(FixerLength))
+	return f.Text(), f.Text() != src
 }
 
-// FixLengthIn is FixLength with every edit held inside scope.
-func FixLengthIn(filename, src string, scope edit.Scope) edit.Result {
+// cutNote is what the report carries a single time any length cut lands.
+const cutNote = "trailing comment prose"
+
+// repairLength cuts every over-long comment block in f back inside its budget.
+func repairLength(f *fixer.File) {
 	defer trace.Phase("repair/comments-length")()
+	if len(f.ApplyComments(lengthEdits(f.Path, f.Text())).Applied) > 0 {
+		f.RemovedOnce(cutNote)
+	}
+}
+
+// lengthEdits answers an edit per block that outweighs its code.
+func lengthEdits(filename, src string) []edit.Edit {
 	var edits []edit.Edit
 	for _, b := range blocks(filename, src) {
 		if _, over := judge(b); !over {
@@ -103,7 +114,7 @@ func FixLengthIn(filename, src string, scope edit.Scope) edit.Result {
 		}
 		edits = append(edits, edit.Rows(src, b.start, b.end-1, 0, kept))
 	}
-	return treecomments.Apply(filename, src, edits, scope)
+	return edits
 }
 
 // judge measures a block against its code and names every measure it failed.

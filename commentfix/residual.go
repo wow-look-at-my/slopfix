@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/edit"
-	"github.com/wow-look-at-my/slopfix/treecomments"
+	"github.com/wow-look-at-my/slopfix/fixer"
 )
 
 // residualPasses guards the loop: a pass deletes bytes, so the text shrinks.
@@ -20,23 +20,17 @@ const residualPasses = 8
 
 // clearResidual deletes every number Check still finds, and reports what it
 // took. Each deletion is an edit inside the comment node the hit sits in.
-func clearResidual(filename, src string, scope edit.Scope) edit.Result {
-	out := edit.Result{Text: src, Scope: scope}
+func clearResidual(f *fixer.File) {
 	for range residualPasses {
-		hits := Check(filename, out.Text)
+		hits := Check(f.Path, f.Text())
 		if len(hits) == 0 {
-			return out
+			return
 		}
-		res := treecomments.Apply(filename, out.Text, deletions(out.Text, hits), out.Scope)
-		out.Text, out.Scope = res.Text, res.Scope
-		out.Applied = append(out.Applied, res.Applied...)
-		out.Refused = append(out.Refused, res.Refused...)
-		if len(res.Applied) == 0 {
+		if res := f.ApplyComments(deletions(f.Text(), hits)); len(res.Applied) == 0 {
 			// Nothing was deletable, so another pass finds the same text.
-			return out
+			return
 		}
 	}
-	return out
 }
 
 // deletions answers an edit per hit that removes the number and closes the

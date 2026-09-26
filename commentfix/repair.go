@@ -17,6 +17,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -37,35 +38,66 @@ type Repair struct {
 	Scope edit.Scope `json:"-"`
 }
 
+// The fixers this package registers.
+const (
+	FixerLength      = "comments/length"
+	FixerNumber      = "comments/number"
+	FixerLengthAgain = "comments/length-after-number"
+)
+
+func init() {
+	for _, fx := range []fixer.Spec{
+		{Label: FixerLength, Rules: []string{IDLength}, Place: 20, Repair: repairLength},
+		{Label: FixerNumber, Rules: []string{ID, IDTail}, Place: 30, Repair: repairNumbers},
+		{Label: FixerLengthAgain, Rules: []string{IDLength}, Place: 40, Repair: repairLength},
+	} {
+		fx.Families, fx.Files = []string{"comments"}, []fixer.Kind{fixer.Source}
+		fixer.Register(fx)
+	}
+}
+
 // Fix rewrites every number a comment states and returns the repaired source.
 func Fix(filename, src string) Repair { return FixIn(filename, src, edit.Scope{}) }
 
 // FixIn is Fix with every edit held inside scope.
 func FixIn(filename, src string, scope edit.Scope) Repair {
-	defer trace.Phase("repair/comments-number")()
-	if IsGenerated(filename, src) {
-		return Repair{Text: src, Scope: scope}
+	f := fixer.Open(filename, src, fixer.Options{Kind: fixer.Source, Scope: scope})
+	fixer.Run(f, fixer.Named(FixerNumber))
+	rep := f.Report()
+	repair := Repair{Text: f.Text(), Changed: f.Text() != src, Removed: rep.Removed, Refused: rep.Refused, Scope: f.Scope()}
+	for _, note := range rep.Notes {
+		if r, ok := note.(Rejection); ok {
+			repair.Rejected = append(repair.Rejected, r)
+		}
 	}
-	runs := treecomments.Runs(filename, src)
-	if len(runs) == 0 {
-		return Repair{Text: src, Scope: scope}
-	}
+	return repair
+}
 
+// repairNumbers rewrites every number the comments in f state.
+//
+// A generated file is left alone, and so is a language the extractor has no
+// syntax for: both report no findings, so both have nothing to repair.
+func repairNumbers(f *fixer.File) {
+	defer trace.Phase("repair/comments-number")()
+	src := f.Text()
+	if IsGenerated(f.Path, src) {
+		return
+	}
+	runs := treecomments.Runs(f.Path, src)
+	if len(runs) == 0 {
+		return
+	}
 	edits, rejected := repairRuns(src, strings.Split(src, "\n"), runs)
-	res := treecomments.Apply(filename, src, edits, scope)
-	out, removed, refused := res.Text, res.Cuts(), res.Refused
+	for _, r := range rejected {
+		r.Path = f.Path
+		f.Note(r)
+	}
+	f.ApplyComments(edits)
 	// A number can sit where no paragraph forms, so the position has the last word.
-	left := clearResidual(filename, out, res.Scope)
-	out, removed, refused = left.Text, append(removed, left.Cuts()...), append(refused, left.Refused...)
-	scope = left.Scope
-	if out != src {
-		dropped := treecomments.Apply(filename, out, danglingMarkers(filename, out), scope)
-		out, scope, refused = dropped.Text, dropped.Scope, append(refused, dropped.Refused...)
+	clearResidual(f)
+	if f.Text() != src {
+		f.ApplyComments(danglingMarkers(f.Path, f.Text()))
 	}
-	for i := range rejected {
-		rejected[i].Path = filename
-	}
-	return Repair{Text: out, Changed: out != src, Removed: removed, Rejected: rejected, Refused: refused, Scope: scope}
 }
 
 // danglingMarkers deletes each bare comment line the repair left with nothing under it. The line was a paragraph break somebody wrote, and a break that separates a paragraph from the code below it separates nothing.

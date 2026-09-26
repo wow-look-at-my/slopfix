@@ -1,6 +1,7 @@
 package tombstones
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
@@ -8,8 +9,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/english"
-	"github.com/wow-look-at-my/slopfix/markdown"
-	"github.com/wow-look-at-my/slopfix/treecomments"
+	"github.com/wow-look-at-my/slopfix/fixer"
 )
 
 // DefaultMaxCommentLines caps a comment block, the tier no rewording defeats.
@@ -196,50 +196,73 @@ func Fix(path, added string, maxLines int) Repair {
 	return FixIn(path, added, maxLines, edit.Scope{})
 }
 
-// FixIn is Fix with every edit held inside scope. Each edit goes through the
-// gate that owns the file: the syntax tree for source, the CommonMark tree for
-// a document.
+// Name is the fixer's name in the registry.
+const Name = "tombstones"
+
+func init() {
+	fixer.Register(fixer.Spec{
+		Label:    Name,
+		Families: []string{"tombstones"},
+		Rules:    slices.Sorted(AllIDs().All()),
+		Files:    []fixer.Kind{fixer.Source, fixer.Document},
+		Place:    10,
+		Repair:   repairFile,
+	})
+}
+
+// FixIn is Fix with every edit held inside scope.
 func FixIn(path, added string, maxLines int, scope edit.Scope) Repair {
-	doc := IsDocument(path)
+	kind := fixer.Source
+	if IsDocument(path) {
+		kind = fixer.Document
+	}
+	f := fixer.Open(path, added, fixer.Options{Kind: kind, Scope: scope, MaxCommentLines: maxLines})
+	fixer.Run(f, fixer.Named(Name))
+	rep := f.Report()
+	repair := Repair{Text: f.Text(), Changed: f.Text() != added, Removed: rep.Removed, Rewrites: rep.Rewrites, Refused: rep.Refused, Scope: f.Scope()}
+	for _, note := range rep.Notes {
+		if hit, ok := note.(Hit); ok {
+			repair.Kept = append(repair.Kept, hit)
+		}
+	}
+	return repair
+}
+
+// repairFile rewrites the tombstones in f, strips the lines a strip resolves,
+// and notes every Hit it leaves for the driver to report.
+func repairFile(f *fixer.File) {
+	if f.Path == "" {
+		return
+	}
+	path, doc := f.Path, f.Kind == fixer.Document
+	maxLines := f.MaxCommentLines
 	if doc {
 		maxLines = 0
 	}
-	apply := func(text string, edits []edit.Edit, scope edit.Scope) edit.Result {
-		if doc {
-			return markdown.Apply(text, edits, scope)
-		}
-		return treecomments.Apply(path, text, edits, scope)
-	}
-	blocks := AddedBlocks(path, added)
+	blocks := AddedBlocks(path, f.Text())
 	if len(blocks) == 0 {
-		return Repair{Text: added, Scope: scope}
+		return
 	}
 
 	// A block over the cap is rewritten before it is judged.
-	was := added
+	was := f.Text()
 	rewrite := rewriteComments
 	if doc {
 		rewrite = rewriteParagraphs
 	}
-	edits, took := rewrite(added, blocks)
-	res := apply(added, edits, scope)
+	edits, took := rewrite(was, blocks)
 	// The count follows the edits that landed. A refused rewrite took no words out.
-	rewrites := 0
-	for _, e := range res.Applied {
-		rewrites += took[e.Start]
+	for _, e := range f.ApplyComments(edits).Applied {
+		f.Rewrote(took[e.Start])
 	}
-	added = res.Text
+	added := f.Text()
 	if added != was {
 		blocks = AddedBlocks(path, added)
 	}
-	repair := Repair{Text: added, Changed: added != was, Rewrites: rewrites, Scope: res.Scope, Refused: res.Refused}
 
 	hits := Find(blocks, maxLines)
 	for _, name := range DeadReferents(path, added, blocks) {
 		hits = append(hits, HitForName(blocks, name))
-	}
-	if len(hits) == 0 {
-		return repair
 	}
 	if doc {
 		// A document line is a paragraph rather than a sentence, so
@@ -255,25 +278,26 @@ func FixIn(path, added string, maxLines int, scope edit.Scope) Repair {
 			drop.Add(h.LineNo)
 			continue
 		}
-		repair.Kept = append(repair.Kept, h)
+		f.Note(h)
 	}
 	if drop.Len() == 0 {
-		return repair
+		return
 	}
 
 	strips := stripEdits(added, drop)
 	lines := strings.Split(added, "\n")
+	seen := set.New[string]()
 	for i := range strips {
-		strips[i].Cut = cutLines(lines, drop, strips[i], added)
+		for _, quote := range cutLines(lines, drop, strips[i], added) {
+			if !seen.Contains(quote) {
+				seen.Add(quote)
+				strips[i].Cut = append(strips[i].Cut, quote)
+			}
+		}
 	}
-	stripped := apply(added, strips, repair.Scope)
-	repair.Removed = dedupe(stripped.Cuts())
+	stripped := f.ApplyComments(strips)
 	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished.
-	reflowed := apply(stripped.Text, reflowStripped(path, stripped.Text, blocksLosing(blocks, drop), len(blocks)), stripped.Scope)
-	repair.Text, repair.Scope = reflowed.Text, reflowed.Scope
-	repair.Refused = append(append(repair.Refused, stripped.Refused...), reflowed.Refused...)
-	repair.Changed = repair.Changed || repair.Text != added
-	return repair
+	f.ApplyComments(reflowStripped(path, stripped.Text, blocksLosing(blocks, drop), len(blocks)))
 }
 
 // cutLines quotes the dropped rows a strip edit covers.
@@ -290,16 +314,3 @@ func cutLines(lines []string, drop set.Set[int], e edit.Edit, text string) []str
 	return out
 }
 
-// dedupe keeps the first of each quote.
-func dedupe(quotes []string) []string {
-	seen := set.New[string]()
-	var out []string
-	for _, q := range quotes {
-		if seen.Contains(q) {
-			continue
-		}
-		seen.Add(q)
-		out = append(out, q)
-	}
-	return out
-}

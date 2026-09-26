@@ -12,6 +12,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
@@ -26,33 +27,44 @@ type Repair struct {
 	Removed []string
 }
 
+// Category is the rule family --only names these fixers by.
+const Category = "yaml"
+
+func init() {
+	register := func(name string, id string, order int, edits func(string) []edit.Edit, comment bool) {
+		fixer.Register(fixer.Spec{
+			Label: name, Families: []string{Category}, Rules: []string{id},
+			Files: []fixer.Kind{fixer.Workflow}, Place: order,
+			Repair: func(f *fixer.File) {
+				if comment {
+					f.ApplyComments(edits(f.Text()))
+					return
+				}
+				f.Apply(edits(f.Text()))
+			},
+		})
+	}
+	register("yaml/ungate", IDNeuteredGate, 10, ungate, false)
+	register("yaml/join-comments", IDCommentBlock, 20, joinCommentBlocks, true)
+	register("yaml/rename-guarded-job", IDAllBuildsJob, 30, renameGuardedJob, false)
+	register("yaml/untest", IDTestInYAML, 40, untest, false)
+}
+
+// Options are the gates a workflow is written through, for the driver to open
+// a File with.
+func Options(o fixer.Options) fixer.Options {
+	o.Kind = fixer.Workflow
+	o.Data = func(text string, edits []edit.Edit, scope edit.Scope) edit.Result { return apply(text, edits, scope, false) }
+	o.Comments = func(text string, edits []edit.Edit, scope edit.Scope) edit.Result { return apply(text, edits, scope, true) }
+	return o
+}
+
 // Fix applies every repair the caller keeps. keeps takes a rule ID, so a run
 // that named a rule gets that rule alone.
 func Fix(content string, keeps func(string) bool) Repair {
-	res := FixIn("", content, keeps, edit.Scope{})
-	return Repair{Text: res.Text, Changed: res.Text != content, Removed: res.Cuts()}
-}
-
-// FixIn is Fix with every edit held inside scope. Each pass goes through the
-// YAML gate, and a comment edit must leave the document's data as it was.
-func FixIn(path, content string, keeps func(string) bool, scope edit.Scope) edit.Result {
-	out := edit.Unchanged(content, scope)
-	pass := func(edits func(string) []edit.Edit, comment bool) {
-		out = out.Then(apply(out.Text, edits(out.Text), out.Scope, comment))
-	}
-	if keeps(IDNeuteredGate) {
-		pass(ungate, false)
-	}
-	if keeps(IDCommentBlock) {
-		pass(joinCommentBlocks, true)
-	}
-	if keeps(IDAllBuildsJob) {
-		pass(renameGuardedJob, false)
-	}
-	if keeps(IDTestInYAML) {
-		pass(untest, false)
-	}
-	return out
+	f := fixer.NewFile("", content, Options(fixer.Options{Keeps: keeps}))
+	fixer.Run(f, fixer.For(fixer.Workflow))
+	return Repair{Text: f.Text(), Changed: f.Text() != content, Removed: f.Report().Removed}
 }
 
 // apply writes edits into a workflow through the YAML gate. Every edit covers

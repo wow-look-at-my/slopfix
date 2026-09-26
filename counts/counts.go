@@ -20,7 +20,9 @@ import (
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -68,6 +70,21 @@ func find(content string, substrate cardinal.Substrate) []Hit {
 	return hits
 }
 
+func init() {
+	// The inventory count runs before the join. The stale-count cut runs after
+	// it, because a hand wrap hides the frame the gate reads.
+	fixer.Register(fixer.Spec{
+		Label: "counts/inventory-count", Families: []string{"counts"}, Rules: []string{ID},
+		Files: []fixer.Kind{fixer.Document}, Place: 20,
+		Repair: func(f *fixer.File) { f.Apply(Edits(f.Text(), Check(f.Text()))) },
+	})
+	fixer.Register(fixer.Spec{
+		Label: "ste/count", Families: []string{"ste"}, Rules: []string{ste.IDStaleCount},
+		Files: []fixer.Kind{fixer.Document}, Place: 40,
+		Repair: func(f *fixer.File) { f.Apply(Edits(f.Text(), Gate(f.Text()))) },
+	})
+}
+
 func Strip(content string) (string, []Hit) {
 	return strip(content, Check(content))
 }
@@ -75,16 +92,6 @@ func Strip(content string) (string, []Hit) {
 // StripGate is Strip over what the merge gate's stale-count rule reports.
 func StripGate(content string) (string, []Hit) {
 	return strip(content, Gate(content))
-}
-
-// StripIn cuts every count Check finds, with every edit held inside scope.
-func StripIn(content string, scope edit.Scope) edit.Result {
-	return markdown.Apply(content, Edits(content, Check(content)), scope)
-}
-
-// StripGateIn is StripIn over what the merge gate's stale-count rule reports.
-func StripGateIn(content string, scope edit.Scope) edit.Result {
-	return markdown.Apply(content, Edits(content, Gate(content)), scope)
 }
 
 func strip(content string, hits []Hit) (string, []Hit) {
