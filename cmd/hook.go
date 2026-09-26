@@ -151,36 +151,38 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	var findings []string
 	rewrites := 0
 	changed := false
-	inPlace, placed := repairInPlace(in.ToolName, write, rules, ids)
-	for _, u := range writeUnits(in.ToolName, write, raw) {
-		repair := inPlace
-		if !placed {
-			repair = slopfix.Fix(slopfix.Request{
+	take := func(repair slopfix.Repair, apply func(string)) {
+		removed = append(removed, repair.Removed...)
+		rewrites += repair.Rewrites
+		kept = append(kept, repair.Kept...)
+		if repair.Changed {
+			apply(repair.Text)
+			changed = true
+		}
+	}
+
+	// A fragment carries no file around it. A comment at its end documents
+	// nothing, so a repair of the fragment alone deletes it.
+	if p := place(in.ToolName, write, rules, ids); p.ok {
+		for _, f := range p.findings {
+			findings = append(findings, f.String())
+		}
+		if p.repair != nil {
+			take(*p.repair, func(s string) { raw["new_string"] = s })
+		}
+	} else {
+		for _, u := range writeUnits(in.ToolName, write, raw) {
+			repair := slopfix.Fix(slopfix.Request{
 				Content:         u.text,
 				Path:            write.FilePath,
 				Rules:           rules,
 				IDs:             ids,
 				MaxCommentLines: hookMaxLines,
 			})
-		}
-		removed = append(removed, repair.Removed...)
-		rewrites += repair.Rewrites
-		kept = append(kept, repair.Kept...)
-		for _, f := range repair.Findings {
-			findings = append(findings, f.String())
-		}
-		if repair.Changed {
-			u.apply(repair.Text)
-			changed = true
-		}
-	}
-
-	// The fragment carries no file around it, so a comment in it documents
-	// nothing and a fenced block's lines read as a wrapped paragraph.
-	if p := place(in.ToolName, write, rules, ids); p.ok {
-		findings = findings[:0]
-		for _, f := range p.findings {
-			findings = append(findings, f.String())
+			for _, f := range repair.Findings {
+				findings = append(findings, f.String())
+			}
+			take(repair, u.apply)
 		}
 	}
 
