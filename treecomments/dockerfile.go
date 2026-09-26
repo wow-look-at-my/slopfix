@@ -1,0 +1,40 @@
+package treecomments
+
+import (
+	"path/filepath"
+	"regexp"
+	"strings"
+)
+
+// parserDirective is a line BuildKit reads as a parser directive when it heads a Dockerfile.
+var parserDirective = regexp.MustCompile(`(?i)^#\s*(syntax|escape|check)\s*=\s*\S`)
+
+// dropParserDirectives removes the parser directives a Dockerfile opens on. The
+// bash grammar reads them as comments, but BuildKit reads them as instructions
+// to the builder, and only while nothing else precedes them: the first line that
+// is not one, a blank line included, makes every later one a plain comment.
+func dropParserDirectives(filename string, comments []Comment) []Comment {
+	if !isDockerfile(filename) {
+		return comments
+	}
+	next := 1
+	for i, c := range comments {
+		if c.Line != next || c.Col != 0 || c.Lines != 1 || !parserDirective.MatchString(c.Text) {
+			return comments[i:]
+		}
+		next++
+	}
+	return nil
+}
+
+// isDockerfile reports whether filename names a Dockerfile, in the spellings
+// docker build and podman build look for.
+func isDockerfile(filename string) bool {
+	base := strings.ToLower(filepath.Base(filename))
+	for _, name := range []string{"dockerfile", "containerfile"} {
+		if base == name || strings.HasPrefix(base, name+".") || strings.HasSuffix(base, "."+name) {
+			return true
+		}
+	}
+	return false
+}

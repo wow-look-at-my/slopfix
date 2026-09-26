@@ -165,7 +165,7 @@ func Extract(filename, src string) []Comment {
 	defer trace.Phase("treecomments/walk")()
 	var out []Comment
 	collect(root, src, &out)
-	return dropCgoPreamble(root, src, dropShebang(out))
+	return dropCgoPreamble(root, src, dropParserDirectives(filename, dropShebang(out)))
 }
 
 // parse runs the grammar over the source and answers the root to walk, or
