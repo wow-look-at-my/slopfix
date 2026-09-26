@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
 // proseQuantity is the inventory-count spelling: a plural cardinal, up
@@ -103,6 +104,44 @@ var gapStopWords = set.Of[string](
 	"was", "were", "that", "this", "with", "from", "by", "at", "as", "but",
 	"if", "so", "than", "then", "when", "while", "not", "no", "it", "its",
 )
+
+// AfterAnArticle exempts a number after "a" or "an". A tally takes no singular
+// article, so the number there is itself the noun: "a 404 buries it".
+func AfterAnArticle(text string, q Match) bool {
+	before := strings.Fields(strings.ToLower(text[:q.At]))
+	if len(before) == 0 {
+		return false
+	}
+	last := before[len(before)-1]
+	return last == "a" || last == "an"
+}
+
+// NotAPluralNoun exempts a match whose last word the tagger reads as something
+// other than a plural noun. The pattern only asks for a trailing s, so "a
+// buries it" and "the other confirms" match on a verb.
+func NotAPluralNoun(text string, q Match) bool {
+	end := q.At + len(q.Text)
+	for _, w := range syntax.Parse(text, nil).Words {
+		if w.End != end {
+			continue
+		}
+		return w.Tag != "NNS" && w.Tag != "NNPS"
+	}
+	return false
+}
+
+// ChoiceAmongASet exempts the size of a set something is picked from. "one of
+// things" loses its meaning without the count, and the cut leaves "one of
+// things".
+func ChoiceAmongASet(text string, q Match) bool {
+	before := strings.Fields(strings.ToLower(text[:q.At]))
+	if len(before) < 2 || before[len(before)-1] != "of" {
+		return false
+	}
+	return choosers.Contains(before[len(before)-2])
+}
+
+var choosers = set.Of[string]("one", "either", "neither", "any", "each", "none", "both", "all")
 
 // InExpression exempts a number that is arithmetic rather than a count. The
 // digits in an expression or a range name no set of items.
