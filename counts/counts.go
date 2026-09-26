@@ -90,7 +90,7 @@ func strip(content string, hits []Hit) (string, []Hit) {
 			continue
 		}
 		number := cardinal.Leading.FindString(out[hit.Start:hit.End])
-		if number == "" {
+		if number == "" || measures(hit.Phrase) {
 			continue
 		}
 		out = out[:hit.Start] + keepCapital(number, out[hit.Start+len(number):])
@@ -98,6 +98,13 @@ func strip(content string, hits []Hit) (string, []Hit) {
 	}
 	sort.SliceStable(cut, func(i, j int) bool { return cut[i].Start < cut[j].Start })
 	return out, cut
+}
+
+// measures reports whether a quantity is a measurement. It is still reported,
+// but cutting its number leaves "every minutes", which states nothing.
+func measures(phrase string) bool {
+	fields := strings.Fields(phrase)
+	return len(fields) > 0 && cardinal.IsUnit(fields[len(fields)-1])
 }
 
 // keepCapital moves the capital of a cut cardinal onto the word after it.

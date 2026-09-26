@@ -105,10 +105,15 @@ var gapStopWords = set.Of[string](
 	"if", "so", "than", "then", "when", "while", "not", "no", "it", "its",
 )
 
-// MeasuresAUnit exempts a measurement. "every 15 minutes" says how long, and
-// the cut leaves "every minutes", which says nothing.
-func MeasuresAUnit(_ string, q Match) bool {
-	return IsUnit(q.Noun)
+// AfterAnArticle exempts a number after "a" or "an". A tally takes no singular
+// article, so the number there is itself the noun: "a 404 buries it".
+func AfterAnArticle(text string, q Match) bool {
+	before := strings.Fields(strings.ToLower(text[:q.At]))
+	if len(before) == 0 {
+		return false
+	}
+	last := before[len(before)-1]
+	return last == "a" || last == "an"
 }
 
 // NotAPluralNoun exempts a match whose last word the tagger reads as something
