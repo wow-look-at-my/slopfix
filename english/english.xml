@@ -185,6 +185,11 @@
            match="(?i)\s*\(?\b(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\)?" replace=""
            where="comment" test="The cap 2026-01-02 still holds"
            expect="The cap still holds"/>
+  <!-- A copyright year goes stale. The holder stays. -->
+  <pattern id="tombstones/date"
+           match="(?i)\b(copyright(?:\s*(?:\(c\)|©))?)\s+(?:19|20)[0-9]{2}(?:\s*[-–,]\s*(?:19|20)[0-9]{2})*\b" replace="$1"
+           where="comment" test="Copyright 2019-2026 The Go Authors."
+           expect="Copyright The Go Authors."/>
   <pattern id="tombstones/change-reference"
            match="(?i)\s*\(?\b(?:see\s+)?(?:pr|pull request|issue|ticket|commit)\s+#?[0-9]+\)?" replace=""
            where="comment" test="The gate tightened see PR 14 and stayed"
@@ -402,5 +407,8 @@
   <test in="english is actually the parsed table"
         out="english is the parsed table"/>
   <test in="Obviously it fails" out="It fails"/>
+
+  <!-- A year in a copyright line goes stale. The holder stays. -->
+  <test in="Copyright 2026 The Go Authors." out="Copyright The Go Authors."/>
 
 </english>
