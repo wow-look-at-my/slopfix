@@ -83,4 +83,7 @@
   <test in="The three agree" out="All of them agree"/>
   <test in="It reads the three" out="It reads all of them"/>
 
+  <!-- A repeat interval keeps its unit. Only the number goes vague. -->
+  <test in="every 15 minutes" out="every few minutes"/>
+
 </rules>
