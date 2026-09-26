@@ -96,6 +96,9 @@
   <!-- go-toolchain docs. "(e.g." does not end a sentence, so the division lands on the dash rather than inside the quote. -->
   <test in="It is deliberately scoped to `go: ` lines rather than &quot;any duration under 1s anywhere in the log&quot;: go-toolchain's own named step/test timers (e.g. `vet: gofmt 0.17s`) are intentionally unconditional — a named operation's own time is always worth reporting — and must not be flagged."
         out="It is deliberately scoped to `go: ` lines rather than &quot;any duration under 1s anywhere in the log&quot;. Go-toolchain's own named step/test timers (e.g. `vet: gofmt 0.17s`) are intentionally unconditional — a named operation's own time is always worth reporting — and must not be flagged."/>
+  <!-- go-toolchain docs. A code span that opens a sentence opens it for the repair too, so the splice after it divides. -->
+  <test in="Must exist, and must begin with the APE magic. `apeManifestEntries` checks both before writing, so a broken manifest is caught where the artifact names are still in hand."
+        out="Must exist, and must begin with the APE magic. `apeManifestEntries` checks both before writing. As a result, a broken manifest is caught where the artifact names are still in hand."/>
   <test in="**Automatic GOMEMLIMIT** — the compiler's runtime caps every binary's Go heap at the container's cgroup limit instead of being OOM-killed. `GOMEMLIMIT=off` opts out at run time."
         out="**Automatic GOMEMLIMIT** — the compiler's runtime caps every binary's Go heap at the container's cgroup limit instead of being OOM-killed. `GOMEMLIMIT=off` opts out at run time."/>
 

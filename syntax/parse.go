@@ -131,7 +131,7 @@ func retag(words []Word) {
 		case w.Text == "—" || w.Text == "–" || w.Text == "--":
 			// A dash is punctuation, and the tagger can read it as a verb.
 			w.Tag = ":"
-		case strings.Trim(w.Text, "x") == "" && w.Tag != "NNP" && len(w.Text) > 3:
+		case strings.Trim(w.Text, "xX") == "" && w.Tag != "NNP" && len(w.Text) > 3:
 			// A masked span reads as a run of x, and names the data it hides.
 			w.Tag = "NNP"
 		case Is(lower, "coordinator") && w.Tag != "CC" && lower != "so" && lower != "yet":
