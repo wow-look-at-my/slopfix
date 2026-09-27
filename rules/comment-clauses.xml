@@ -31,4 +31,8 @@
   <test in="The step reads the file (the one named in go.mod, not the copy), and then it writes the answer back to the same place it came from, every time."
         out="The step reads the file (the one named in go.mod, not the copy)."/>
 
+  <!-- A preposition before the author's own comma ends the clause it belongs to, and a cut inside a quote leaves it open. -->
+  <test in="Gitlinks records the commit each submodule at Hash points at, one &quot;commit path&quot; line per submodule, paths relative to the repo root. It lives here rather than in the module zip, whose hash go.sum pins."
+        out="Gitlinks records the commit each submodule at Hash points at."/>
+
 </rules>
