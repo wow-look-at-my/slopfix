@@ -325,13 +325,12 @@ func steOpening(text []string) ([]string, bool) {
 		}
 		first := strings.TrimSpace(sentences[0])
 		if ste.WordCount(first) > ste.SentenceWordCap {
-			clause, ok := ste.Leading(first)
-			if !ok {
-				return nil, false
+			// With no clause boundary the sentence stays whole, as ste/sentence-length leaves it.
+			if clause, ok := ste.Leading(first); ok {
+				first = strings.TrimSpace(ste.Fix(clause))
 			}
-			first = strings.TrimSpace(ste.Fix(clause))
 		}
-		if !endsSentence(first) || ste.WordCount(first) > ste.SentenceWordCap {
+		if !endsSentence(first) {
 			return nil, false
 		}
 		return reflow(first, indent, marker, wrapWidth), true

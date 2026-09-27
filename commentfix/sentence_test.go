@@ -94,9 +94,15 @@ func assertWholeSTESentences(t *testing.T, src string) {
 	t.Helper()
 	prose := commentProse(src)
 	assert.True(t, endsSentence(prose), "the comment ends on a sentence end: %q", prose)
-	assert.Empty(t, ste.Check(prose, 1), "what stays is STE: %q", prose)
+	for _, f := range ste.Check(prose, 1) {
+		assert.Equal(t, ste.IDSentenceCap, f.ID, "what stays is STE apart from an undividable length: %q", prose)
+	}
 	for _, s := range ste.Sentences(prose) {
-		assert.LessOrEqual(t, ste.WordCount(s), ste.SentenceWordCap, "%q", s)
+		if ste.WordCount(s) <= ste.SentenceWordCap {
+			continue
+		}
+		_, divisible := ste.Leading(s)
+		assert.False(t, divisible, "over the cap only where the parser finds no clause boundary: %q", s)
 	}
 }
 
