@@ -29,6 +29,8 @@ type TreeRepair struct {
 	Findings []TreeFinding
 	// Kept carries the tombstones no whole-line deletion resolves.
 	Kept []TreeTombstone
+	// Unmet names each fixture whose slopfix-expect annotations did not hold.
+	Unmet []*UnmetError
 }
 
 // TreeFinding is an ste finding and the file it was found in. A finding knows
@@ -102,6 +104,9 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 			run = Fix
 		}
 		repair := run(req)
+		if len(repair.Unmet) > 0 {
+			out.Unmet = append(out.Unmet, &UnmetError{Path: path, Unmet: repair.Unmet})
+		}
 		if writing && repair.Changed && commentfix.WriteFile(path, repair.Text) == nil {
 			out.Repaired = append(out.Repaired, path)
 		}
