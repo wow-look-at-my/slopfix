@@ -226,7 +226,7 @@ type Rewrite struct {
 
 // AppliesTo says whether an entry covers a surface.
 func AppliesTo(where, surface string) bool {
-	return where == "" || where == "both" || where == surface
+	return where == "" || where == "both" || slices.Contains(strings.Fields(where), surface)
 }
 
 // loaded is the parsed table.
