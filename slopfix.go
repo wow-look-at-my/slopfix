@@ -14,6 +14,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -137,7 +138,7 @@ func isDocument(path string) bool {
 // AllIDs names every rule CheckContent reports, so a caller can reject a typo
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
-	ids := workflow.AllIDs.Union(ste.AllIDs)
+	ids := workflow.AllIDs.Union(ste.AllIDs).Union(pins.AllIDs)
 	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	return ids
 }

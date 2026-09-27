@@ -3,6 +3,7 @@ package slopfix
 import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
@@ -29,4 +30,6 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	workflow.IDCommentBlock,
 	workflow.IDAllBuildsJob,
 	workflow.IDTestInYAML,
+	// The v parameter comes out of a download URL.
+	pins.ID,
 ))

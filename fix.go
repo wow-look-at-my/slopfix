@@ -11,6 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -33,10 +34,12 @@ const (
 	RuleComments Rule = "comments"
 	// RuleWorkflow is what a workflow owes the gate it runs.
 	RuleWorkflow Rule = "yaml"
+	// RulePins is a download URL that names an exact release.
+	RulePins Rule = "pins"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -56,6 +59,8 @@ func IDsFor(rule Rule) set.Set[string] {
 		return workflow.AllIDs
 	case RuleRepo:
 		return RepoIDs
+	case RulePins:
+		return pins.AllIDs
 	}
 	return set.New[string]()
 }
@@ -136,6 +141,14 @@ func Fix(req Request) Repair {
 	rep := f.Report()
 	repair := Repair{Text: text, Changed: text != req.Content, Removed: rep.Removed, Rewrites: rep.Rewrites, Scope: f.Scope()}
 	repair.refuse(rep.Refused)
+	// A URL is text in every kind of file, so this rule reads the whole file.
+	if wants(RulePins) {
+		for _, finding := range pins.Check(text) {
+			if keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
+			}
+		}
+	}
 	for _, note := range rep.Notes {
 		if hit, ok := note.(tombstones.Hit); ok && keeps(hit.ID) {
 			repair.Kept = append(repair.Kept, hit)
