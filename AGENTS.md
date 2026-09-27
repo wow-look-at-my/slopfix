@@ -30,6 +30,7 @@ slopfix message < message.txt     # judge a closing message
 - A directory argument is walked. The walk skips hidden directories except `.github`. It also skips `vendor`, `node_modules`, `testdata`, `build`, registered submodules and nested Go modules.
 - A named file is read whatever its extension. The path decides the rules. A workflow or action manifest gets the `yaml` rules. A document gets the prose rules. Source gets the `comments` rules.
 - A document is `.md`, `.markdown`, `.mdown` or `.txt`. An empty `--path` also counts as a document.
+- A path with a `testdata` element is never a document, named or walked. It is test input, and a rewrite changes what the test checks.
 - With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr. `--json` writes the whole answer as one object, which is what a hook reads.
 - `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
 - `fmt`, `purge`, `comments` and `workflows` do not exist as commands. The wrap join is the `wrap/hard-wrap` rule. The purge is the `repo` category. The comment and workflow rules run inside `check` on each file they judge.
