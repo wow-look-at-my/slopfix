@@ -231,7 +231,7 @@ The languages are Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX. YAML. 
 - `comments/length`: a comment run weighed against the construct beneath it. Lines catch an essay. Characters catch a dense paragraph. The budget has a floor. A short comment is never a finding.
 - `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair closes the sentence.
 
-The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut. A block with no cut that fits is reported for a person to rewrite. The number repair runs after the length cut. The length cut then runs again if the words overflow.
+The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at its last comma inside the cap. A block with no such cut is reported for a person to rewrite. The number repair runs after the length cut. The length cut then runs again if the words overflow.
 
 It does not flag a comment above the package declaration, or a trailing comment on a code line. It skips a directive line, such as a build constraint, a shebang, a linter pragma or a cgo preamble. It skips a number inside a quotation.
 
