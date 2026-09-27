@@ -1,6 +1,7 @@
 package noworkloss
 
 import (
+	"github.com/wow-look-at-my/go-containers/set"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,12 +16,10 @@ import (
 
 // scriptExts are the files run as programs, where a copy becomes a second
 // place to fix every bug.
-var scriptExts = map[string]bool{
-	".js": true, ".mjs": true, ".cjs": true,
-	".ts": true, ".mts": true, ".cts": true,
-	".py": true, ".sh": true, ".bash": true, ".zsh": true,
-	".ps1": true, ".rb": true, ".pl": true,
-}
+var scriptExts = set.Of[string](".js", ".mjs", ".cjs",
+	".ts", ".mts", ".cts",
+	".py", ".sh", ".bash", ".zsh",
+	".ps1", ".rb", ".pl")
 
 // copiedLineFloor is how many substantial lines a new script may share with
 // one sibling.
@@ -37,7 +36,7 @@ const siblingSizeCap = 1 << 20
 // another language, so a port is left alone.
 func copiedScriptReason(path, content string) string {
 	ext := strings.ToLower(filepath.Ext(path))
-	if !scriptExts[ext] || content == "" {
+	if !scriptExts.Contains(ext) || content == "" {
 		return ""
 	}
 	added := substantialLines(content)
@@ -53,7 +52,7 @@ func copiedScriptReason(path, content string) string {
 	best, bestShared := "", []string(nil)
 	for _, e := range entries {
 		name := e.Name()
-		if !e.Type().IsRegular() || !scriptExts[strings.ToLower(filepath.Ext(name))] {
+		if !e.Type().IsRegular() || !scriptExts.Contains(strings.ToLower(filepath.Ext(name))) {
 			continue
 		}
 		if strings.TrimSuffix(name, filepath.Ext(name)) == stem {
