@@ -13,6 +13,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
 // Result is what the launcher prints and exits with.
@@ -51,7 +52,7 @@ func Run(r io.Reader) Result {
 		return Result{}
 	}
 	path := in.ToolInput.FilePath
-	if !writeTools.Contains(in.ToolName) || path == "" {
+	if !writeTools.Contains(in.ToolName) || path == "" || commentfix.Borrowed(path) {
 		return Result{}
 	}
 

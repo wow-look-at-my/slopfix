@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
@@ -139,6 +140,9 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	}
 	var write writeInput
 	if json.Unmarshal(in.ToolInput, &write) != nil {
+		return ""
+	}
+	if commentfix.Borrowed(write.FilePath) {
 		return ""
 	}
 	var raw map[string]any
