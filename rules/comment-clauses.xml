@@ -23,6 +23,10 @@
   <test in="The fork's go command starts each tool as itself -- the path of this executable would start the whole pipeline instead of the tool it named."
         out="The fork's go command starts each tool as itself."/>
 
+  <!-- A whole sentence that fits at the budget's width stays whole, whatever the wrap width. -->
+  <test in="forkBranchScript is the fork's own answer to which commit an org submodule stands at. The gitlink beside it is the fallback for a build that cannot reach the remote."
+        out="forkBranchScript is the fork's own answer to which commit an org submodule stands at."/>
+
   <!-- A boundary inside brackets or a code span is not a cut: it would leave the pair open. -->
   <test in="The step reads the file (the one named in go.mod, not the copy), and then it writes the answer back to the same place it came from, every time."
         out="The step reads the file (the one named in go.mod, not the copy)."/>

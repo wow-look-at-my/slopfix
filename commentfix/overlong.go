@@ -294,6 +294,11 @@ func trim(b block) []string {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
 		}
+		if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
+			if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return wider
+			}
+		}
 		next, ok := cutLastThought(kept)
 		if !ok {
 			break
