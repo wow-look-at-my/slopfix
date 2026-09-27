@@ -3,10 +3,10 @@ package noworkloss
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,11 +82,13 @@ func TestWriteOverAPathEmptiedToGetPastTheRefusalRestoresIt(t *testing.T) {
 }
 
 // fakeRecycler puts a `recycler` on PATH whose bin holds the given items. A
-// restore writes restored.txt's content to the item's path, or fails when
-// the item ID is "broken".
-func fakeRecycler(t *testing.T, items string) {
+// restore writes "kept" to the item's path and logs the ID in restored-ids. It
+// fails when the item ID is "broken". The result is the fake's directory.
+func fakeRecycler(t *testing.T, items []binItem) string {
 	bin := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(bin, "items.json"), []byte(items), 0o644))
+	listing, err := json.Marshal(items)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "items.json"), listing, 0o644))
 	script := `#!/bin/sh
 set -eu
 dir=$(dirname "$0")
@@ -101,6 +103,15 @@ esac
 `
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "recycler"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return bin
+}
+
+func binnedAt(id, path, deleted string) binItem {
+	at, err := time.Parse(time.RFC3339, deleted)
+	if err != nil {
+		panic(err)
+	}
+	return binItem{ID: id, OriginalPath: path, DeletedAt: at}
 }
 
 // A recycled file comes back before the Write is refused. Several Writes go
@@ -108,10 +119,10 @@ esac
 func TestWriteOverARecycledFileRestoresIt(t *testing.T) {
 	out := outsideTree(t)
 	path := filepath.Join(out, "bench.js")
-	fakeRecycler(t, `[
-		{"id":"old","original_path":"`+path+`","deleted_at":"2026-01-01T00:00:00Z"},
-		{"id":"new","original_path":"`+path+`","deleted_at":"2026-02-01T00:00:00Z"}
-	]`)
+	bin := fakeRecycler(t, []binItem{
+		binnedAt("old", path, "2026-01-01T00:00:00Z"),
+		binnedAt("new", path, "2026-02-01T00:00:00Z"),
+	})
 
 	reason := askTool(t, "Write", out, map[string]any{"file_path": path})
 	assert.Contains(t, reason, "put the file back")
@@ -120,7 +131,7 @@ func TestWriteOverARecycledFileRestoresIt(t *testing.T) {
 	require.NoError(t, err, "the hook must put the file back, not only refuse")
 	assert.Equal(t, "kept\n", string(restored))
 
-	ids, err := os.ReadFile(filepath.Join(filepath.Dir(firstOnPath(t, "recycler")), "restored-ids"))
+	ids, err := os.ReadFile(filepath.Join(bin, "restored-ids"))
 	require.NoError(t, err)
 	assert.Equal(t, "new\n", string(ids), "the newest item at the path is the one restored")
 
@@ -132,18 +143,12 @@ func TestWriteOverARecycledFileRestoresIt(t *testing.T) {
 func TestAFailedBinRestoreNamesTheCommand(t *testing.T) {
 	out := outsideTree(t)
 	path := filepath.Join(out, "bench.js")
-	fakeRecycler(t, `[{"id":"broken","original_path":"`+path+`","deleted_at":"2026-01-01T00:00:00Z"}]`)
+	fakeRecycler(t, []binItem{binnedAt("broken", path, "2026-01-01T00:00:00Z")})
 
 	reason := askTool(t, "Write", out, map[string]any{"file_path": path})
 	assert.Contains(t, reason, "restore failed")
 	assert.Contains(t, reason, "recycler restore broken")
 	assert.NoFileExists(t, path)
-}
-
-func firstOnPath(t *testing.T, name string) string {
-	p, err := exec.LookPath(name)
-	require.NoError(t, err)
-	return p
 }
 
 // The restore writes the working tree and nothing else. A `git rm` staged the
