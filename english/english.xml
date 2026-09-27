@@ -56,9 +56,7 @@
   <class name="propped" words="this each either neither which whichever another"/>
   <class name="plural" suffix="s"/>
   <!-- A word ending like a plural after a singular determiner is the verb. -->
-  <!-- A pronoun heads a clause of its own: "the one nobody updates". -->
-  <class name="pronoun" words="nobody somebody anybody everybody someone anyone everyone nothing something anything everything i you he she it we they"/>
-  <class name="singular" open="true" except="verbform plural pronoun"/>
+  <class name="singular" open="true" except="verbform plural"/>
   <!-- Nouns the "ing" ending would read as a verb form. -->
   <class name="ingnoun" words="thing string ring spring wing king ceiling"/>
 
