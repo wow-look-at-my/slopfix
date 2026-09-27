@@ -25,8 +25,8 @@ type fixture struct {
 	wants   []string
 }
 
-// pinnedScript reads from testdata, which this repository's own check skips.
-func pinnedScript() string {
+// pinnedFetch reads from testdata, which this repository's own check skips.
+func pinnedFetch() string {
 	body, err := os.ReadFile(filepath.Join("pins", "testdata", "fetch.sh"))
 	if err != nil {
 		panic(err)
@@ -111,7 +111,7 @@ func roundTripFixtures() []fixture {
 		{
 			name:    "script",
 			path:    "fetch.sh",
-			content: pinnedScript(),
+			content: pinnedFetch(),
 			wants:   []string{pins.ID},
 		},
 	}
