@@ -57,12 +57,12 @@ func TestProseBesideADirectiveIsWeighedAgainstIt(t *testing.T) {
 
 // A directive addresses a tool rather than a reader, and a lost //go:embed
 // leaves the variable it filled empty. So a run whose prose outweighs even its
-// directive keeps the directive and loses the prose.
+// directive keeps the directive and loses the trailing sentence.
 func TestADirectiveSurvivesTheCut(t *testing.T) {
 	src := "package p\n\nfunc f() {}\n\n//go:debug x=1\n" +
-		"// A trailing paragraph nobody attached to any code at all, sitting at the\n" +
-		"// end of the file, running several lines past anything it could be weighed\n" +
-		"// against, and documenting nothing whatsoever for the reader who finds it.\n"
+		"// A trailing paragraph sits at the end of the file.\n" +
+		"// It runs several lines past anything it could be weighed against, and it\n" +
+		"// documents nothing whatsoever for the reader who finds it.\n"
 
 	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
