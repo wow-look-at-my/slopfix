@@ -165,11 +165,13 @@ func TestServerPublishesOverTheProtocol(t *testing.T) {
 	require.NoError(t, c.conn.Call(ctx, "initialize", lsp.InitializeParams{}, &init))
 	var caps struct {
 		Capabilities struct {
-			TextDocumentSync int `json:"textDocumentSync"`
+			TextDocumentSync   int             `json:"textDocumentSync"`
+			DiagnosticProvider json.RawMessage `json:"diagnosticProvider"`
 		} `json:"capabilities"`
 	}
 	require.NoError(t, json.Unmarshal(init, &caps))
 	assert.Equal(t, 1, caps.Capabilities.TextDocumentSync)
+	assert.JSONEq(t, `{"interFileDependencies":false,"workspaceDiagnostics":false}`, string(caps.Capabilities.DiagnosticProvider))
 	require.NoError(t, c.conn.Notify(ctx, "initialized", struct{}{}))
 
 	uri := lsp.DocumentURI("file://" + filepath.ToSlash(filepath.Join(root, ".github", "workflows", "ci.yml")))
@@ -179,6 +181,15 @@ func TestServerPublishesOverTheProtocol(t *testing.T) {
 	opened := c.next(t)
 	assert.Equal(t, uri, opened.URI)
 	assert.Contains(t, codes(opened.Diagnostics), "yaml/comment-block")
+
+	var pulled struct {
+		Kind  string           `json:"kind"`
+		Items []lsp.Diagnostic `json:"items"`
+	}
+	require.NoError(t, c.conn.Call(ctx, "textDocument/diagnostic",
+		map[string]any{"textDocument": lsp.TextDocumentIdentifier{URI: uri}}, &pulled))
+	assert.Equal(t, "full", pulled.Kind)
+	assert.Equal(t, codes(opened.Diagnostics), codes(pulled.Items))
 
 	require.NoError(t, c.conn.Notify(ctx, "textDocument/didChange", lsp.DidChangeTextDocumentParams{
 		TextDocument:   lsp.VersionedTextDocumentIdentifier{TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uri}, Version: 2},

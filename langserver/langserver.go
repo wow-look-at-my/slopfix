@@ -72,9 +72,20 @@ func (s *Server) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.
 	case "initialize":
 		// Full sync: a finding is a property of the whole document.
 		kind := lsp.TDSKFull
-		return lsp.InitializeResult{Capabilities: lsp.ServerCapabilities{
-			TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{Kind: &kind},
+		return initializeResult{Capabilities: capabilities{
+			ServerCapabilities: lsp.ServerCapabilities{TextDocumentSync: &lsp.TextDocumentSyncOptionsOrKind{Kind: &kind}},
+			DiagnosticProvider: diagnosticOptions{},
 		}}, nil
+	case "textDocument/diagnostic":
+		var p documentDiagnosticParams
+		if err := params(req, &p); err != nil {
+			return nil, err
+		}
+		items := []lsp.Diagnostic{}
+		if content, ok := s.open[p.TextDocument.URI]; ok {
+			items = s.Diagnostics(PathOf(p.TextDocument.URI), content)
+		}
+		return fullDocumentDiagnosticReport{Kind: "full", Items: items}, nil
 	case "initialized", "shutdown":
 		return nil, nil
 	case "exit":
@@ -117,6 +128,27 @@ func (s *Server) handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.
 	}
 	return nil, &jsonrpc2.Error{Code: jsonrpc2.CodeMethodNotFound, Message: "unknown method: " + req.Method}
 }
+
+type (
+	diagnosticOptions struct {
+		InterFileDependencies bool `json:"interFileDependencies"`
+		WorkspaceDiagnostics  bool `json:"workspaceDiagnostics"`
+	}
+	capabilities struct {
+		lsp.ServerCapabilities
+		DiagnosticProvider diagnosticOptions `json:"diagnosticProvider"`
+	}
+	initializeResult struct {
+		Capabilities capabilities `json:"capabilities"`
+	}
+	documentDiagnosticParams struct {
+		TextDocument lsp.TextDocumentIdentifier `json:"textDocument"`
+	}
+	fullDocumentDiagnosticReport struct {
+		Kind  string           `json:"kind"`
+		Items []lsp.Diagnostic `json:"items"`
+	}
+)
 
 func params(req *jsonrpc2.Request, v any) error {
 	if req.Params == nil {
