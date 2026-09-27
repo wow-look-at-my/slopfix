@@ -56,7 +56,9 @@
   <class name="propped" words="this each either neither which whichever another"/>
   <class name="plural" suffix="s"/>
   <!-- A word ending like a plural after a singular determiner is the verb. -->
-  <class name="singular" open="true" except="verbform plural"/>
+  <!-- A pronoun heads a clause of its own: "the one nobody updates". -->
+  <class name="pronoun" words="nobody somebody anybody everybody someone anyone everyone nothing something anything everything i you he she it we they"/>
+  <class name="singular" open="true" except="verbform plural pronoun"/>
   <!-- Nouns the "ing" ending would read as a verb form. -->
   <class name="ingnoun" words="thing string ring spring wing king ceiling"/>
 
@@ -119,6 +121,8 @@
     <test in="The one wins" out="The one wins"/>
     <test in="It checks that one key exists" out="It checks that one key exists"/>
     <test in="No one reads it" out="No one reads it"/>
+    <test in="The second copy is the one nobody updates" out="The second copy is the one nobody updates"/>
+    <test in="It is the one we keep" out="It is the one we keep"/>
   </shape>
   <!-- A prop-word: "one" holds the place of a noun the determiner can stand
        for alone. -->
