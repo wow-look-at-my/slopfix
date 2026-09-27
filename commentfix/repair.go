@@ -18,6 +18,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -381,27 +382,8 @@ func cutWhatIsLeft(prose string) (string, []string) {
 	return strings.TrimSpace(strings.Join(kept, " ")), cut
 }
 
-// sentences splits prose on its sentence ends, keeping the punctuation with the
-// sentence it closes. A line ending mid-sentence counts as whole here, which is
-// why a cut can take a wrapped line's share of the sentence it carries.
-func sentences(prose string) []string {
-	var out []string
-	start := 0
-	for i := 0; i < len(prose); i++ {
-		if prose[i] != '.' && prose[i] != '!' && prose[i] != '?' {
-			continue
-		}
-		if i+1 < len(prose) && prose[i+1] != ' ' {
-			continue
-		}
-		out = append(out, prose[start:i+1])
-		start = i + 1
-	}
-	if rest := strings.TrimSpace(prose[start:]); rest != "" {
-		out = append(out, prose[start:])
-	}
-	return out
-}
+// sentences splits prose on its sentence ends with the STE splitter.
+func sentences(prose string) []string { return ste.Sentences(prose) }
 
 // split separates a comment line's marker and indent from its prose.
 func split(line string) (marker, prose string, ok bool) {

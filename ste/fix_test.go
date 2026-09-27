@@ -13,6 +13,20 @@ import (
 // examples in the rules folder. What is left here is what such an example
 // cannot say: an invariant the repair holds whatever it writes.
 
+// Leading closes a sentence at a clause boundary the parser finds, so the head it
+// keeps is a sentence under the cap and never a cut at a word.
+func TestLeadingClosesAtAClauseBoundary(t *testing.T) {
+	long := "The comment scan reads each file that the branch changed since its merge base, and it rewrites every number it finds in a comment into words that stay true."
+	head, ok := ste.Leading(long)
+	require.True(t, ok)
+	assert.Equal(t, "The comment scan reads each file that the branch changed since its merge base.", head)
+	assert.LessOrEqual(t, ste.WordCount(head), ste.SentenceWordCap)
+	assert.Empty(t, ste.Check(head, 1))
+
+	_, ok = ste.Leading("a very long run of words with no verb and no boundary of any kind at all anywhere in it whatsoever here")
+	assert.False(t, ok, "no clause boundary, so no head")
+}
+
 // With no clause boundary, a division writes a fragment. The repair leaves the
 // sentence whole, and Check still reports it for a person to rewrite.
 func TestFixLeavesASentenceWithNoClauseBoundaryForAPerson(t *testing.T) {

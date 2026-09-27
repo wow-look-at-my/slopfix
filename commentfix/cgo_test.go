@@ -88,7 +88,7 @@ func TestARepairKeepsTheEmbedDirective(t *testing.T) {
 
 	assert.True(t, changed)
 	assert.Contains(t, out, "//go:embed testdata/trivial.spvasm", "the directive survives")
-	assert.Empty(t, CheckLength("p.go", out))
+	assertWholeSTESentences(t, out)
 }
 
 // A build constraint leads the block, and stays there.
