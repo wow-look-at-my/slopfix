@@ -55,23 +55,21 @@ func TestAWrapOverTheLineCountIsLaidOutRatherThanCut(t *testing.T) {
 // than text discarded it, and the character half of the rule is what it answers,
 // so the block stayed a finding that no run could clear.
 func TestARepairThatKeepsItsLineCountIsStillApplied(t *testing.T) {
-	src := "// Run does the thing, and it says so at a length no single line holds inside the budget it must meet, because the words past the floor are what the character half of the rule counts. So the cut lands here.\nfunc Run() {}\n"
+	src := "// Run does the thing, and it says so at a length no single line holds. So the cut lands here, because the words past the floor are what the character half of the rule counts.\nfunc Run() {}\n"
 	out, changed := FixLength("p.go", src)
 	assert.True(t, changed, "one line in, one line out, and shorter")
 	assert.NotEqual(t, src, out)
 	assert.Empty(t, CheckLength("p.go", out))
 }
 
-// Laying a block out rescues only what the budget already holds. Prose past it
-// is cut mid-sentence rather than left: a run that no honest cut reaches would
-// otherwise stay a finding forever, which no automatic pass can clear.
-func TestProsePastTheBudgetIsForceFitted(t *testing.T) {
+// An opening sentence past the budget has no cut that keeps whole sentences.
+// The block stays as written, and a person rewrites it.
+func TestProsePastTheBudgetIsLeftForAPerson(t *testing.T) {
 	long := "// Foo names a thing, and then it says a great deal more about that thing, at such length that no width lays it out inside the budget it must meet.\n// A second sentence carries on well past the point.\nconst Foo = 1\n"
 	out, changed := FixLength("p.go", long)
-	assert.True(t, changed)
-	assert.NotEqual(t, long, out)
-	assert.Contains(t, out, "// Foo names a thing", "the opening survives")
-	assert.Empty(t, CheckLength("p.go", out))
+	assert.False(t, changed)
+	assert.Equal(t, long, out)
+	assert.NotEmpty(t, CheckLength("p.go", out))
 }
 
 // A directive is machine text bound to the declaration by position. Every

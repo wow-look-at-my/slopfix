@@ -58,17 +58,16 @@ func TestEndsSentenceReadsPastAClosingBracket(t *testing.T) {
 	}
 }
 
-// A run whose prose never closes has no cut that reads, so every sentence-aware
-// pass declines it and the force fit takes it instead: cut at a word, inside the
-// budget, with the clause left dangling. That is the trade the force fit makes.
-func TestARunThatNeverClosesIsForceFitted(t *testing.T) {
+// A run whose prose never closes has no cut that reads. It stays as written,
+// and the finding goes to a person.
+func TestARunThatNeverClosesIsLeftForAPerson(t *testing.T) {
 	body := strings.Repeat("// a clause that never closes and just keeps going onward\n", 8)
 	src := "package p\n\n" + body + "const p = 1\n"
 
-	require.NotEmpty(t, CheckLength("x.go", src))
+	hits := CheckLength("x.go", src)
+	require.Len(t, hits, 1)
+	assert.False(t, hits[0].Repairable)
 	out, changed := FixLength("x.go", src)
-	assert.True(t, changed)
-	assert.Empty(t, CheckLength("x.go", out), "the force fit always lands inside the budget")
-	assert.Contains(t, out, "// a clause that never closes")
-	assert.Contains(t, out, "const p = 1", "the code it documents is untouched")
+	assert.False(t, changed)
+	assert.Equal(t, src, out)
 }
