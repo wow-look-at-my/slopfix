@@ -298,6 +298,9 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
+	if clause, ok := clauseFit(b); ok {
+		return clause
+	}
 	if forced, ok := hardFit(b); ok {
 		return forced
 	}
@@ -309,6 +312,59 @@ func trim(b block) []string {
 // repair often keeps the count and still shortens the text.
 func sameText(a, b []string) bool {
 	return strings.Join(a, "\n") == strings.Join(b, "\n")
+}
+
+// clauseFit cuts the block back to the last clause boundary that fits, and
+// closes what it keeps with a period. A whole clause still reads as a sentence.
+func clauseFit(b block) ([]string, bool) {
+	marker, indent, ok := commentShape(b.text)
+	if !ok {
+		return nil, false
+	}
+	var body []string
+	for _, line := range prose(b.text) {
+		body = append(body, stripMarker(line))
+	}
+	text := strings.Join(strings.Fields(strings.Join(body, " ")), " ")
+	budget := max(floorChars, b.codeChars)
+	for _, cut := range clauseCuts(text) {
+		kept := strings.TrimRight(text[:cut], " ,;:-")
+		words := strings.Fields(kept)
+		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+			continue
+		}
+		if !endsSentence(kept) {
+			kept += "."
+		}
+		for _, width := range []int{min(budget, wrapWidth), budget} {
+			out := reflow(kept, indent, marker, width)
+			if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return out, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// clauseCuts answers every clause boundary in text, the last one first.
+func clauseCuts(text string) []int {
+	var cuts []int
+	for i := len(text) - 2; i > 0; i-- {
+		switch {
+		case strings.HasPrefix(text[i:], " -- "):
+			cuts = append(cuts, i)
+		case strings.ContainsRune(",;:", rune(text[i])) && text[i+1] == ' ':
+			cuts = append(cuts, i)
+		}
+	}
+	return cuts
+}
+
+// balanced reports text that closes every bracket, backtick and quote it opens.
+func balanced(text string) bool {
+	return strings.Count(text, "(") == strings.Count(text, ")") &&
+		strings.Count(text, "[") == strings.Count(text, "]") &&
+		strings.Count(text, "`")%2 == 0 && strings.Count(text, `"`)%2 == 0
 }
 
 // hardFit drops words off the end until the block fits, wherever the sentence

@@ -58,6 +58,22 @@ func TestEndsSentenceReadsPastAClosingBracket(t *testing.T) {
 	}
 }
 
+// A single sentence too long for its code is cut at a clause boundary, never
+// between words of the clause.
+func TestALongSentenceIsCutAtAClause(t *testing.T) {
+	for comment, want := range map[string]string{
+		"\t// The pipes are ours, not StdoutPipe's: exec closes those at Wait, and this\n\t// process must outlive that to bound a reader itself. See drainGrace.\n":                  "// The pipes are ours, not StdoutPipe's: exec closes those at Wait.",
+		"\t// Wait reports only once both spools have seen their end: reap closes the\n\t// relays after the grace, releasing a stream a grandchild still holds open.\n":                "// Wait reports only once both spools have seen their end: reap closes the relays after the grace.",
+		"\t// A linked worktree's .git is a file naming a gitdir under the parent's\n\t// .git/worktrees; its refs and config live in the commondir beside it.\n":                     "// A linked worktree's .git is a file naming a gitdir under the parent's .git/worktrees.",
+	} {
+		src := "package p\n\nfunc f() {\n" + comment + "\tx := 1\n\t_ = x\n}\n"
+		out, changed := FixLength("x.go", src)
+		require.True(t, changed, comment)
+		assert.Contains(t, out, want)
+		assert.Empty(t, CheckLength("x.go", out))
+	}
+}
+
 // A run whose prose never closes has no cut that reads, so every sentence-aware
 // pass declines it and the force fit takes it instead: cut at a word, inside the
 // budget, with the clause left dangling. That is the trade the force fit makes.
