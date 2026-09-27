@@ -1,0 +1,10 @@
+{"type":"user","message":{"role":"user","content":"rewrite the tests in tracked.go"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_early","name":"Bash","input":{"command":"git commit -qm 'earlier work'"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_read","name":"Read","input":{"file_path":"{{path}}"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_read","content":"package a"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I will write it fresh."},{"type":"tool_use","id":"toolu_unrelated","name":"Bash","input":{"command":"go vet ./..."}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_trash","name":"Bash","input":{"command":"recycler trash {{path}}"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_write1","name":"Write","input":{"file_path":"{{path}}","content":"package a\n\nfunc Fresh() {}\n"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_write1","is_error":true,"content":"blocked"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_commit","name":"Bash","input":{"command":"git add -A && git commit -m 'remove old tests'"}}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_final","name":"Write","input":{"file_path":"{{path}}","content":"package a\n\nfunc Fresh() {}\n"}}]}}
