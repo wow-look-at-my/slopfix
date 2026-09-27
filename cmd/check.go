@@ -66,7 +66,11 @@ func repairOf(path string, request slopfix.Request, repairing bool) (slopfix.Rep
 		return slopfix.Repair{}, err
 	}
 	request.Content, request.Path = string(content), path
-	return slopfix.Fix(request), nil
+	repair := slopfix.Fix(request)
+	if len(repair.Unmet) > 0 {
+		return repair, &slopfix.UnmetError{Path: path, Unmet: repair.Unmet}
+	}
+	return repair, nil
 }
 
 var (
@@ -169,7 +173,10 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	for _, kept := range out.Kept {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%s:%d: [%s] %s: %q\n", kept.Path, kept.LineNo, kept.ID, kept.Tell, kept.Phrase)
 	}
-	return len(out.Findings) > 0 || len(out.Kept) > 0
+	for _, unmet := range out.Unmet {
+		fmt.Fprintln(cmd.ErrOrStderr(), unmet.Error())
+	}
+	return len(out.Findings) > 0 || len(out.Kept) > 0 || len(out.Unmet) > 0
 }
 
 // checkStdin answers for a document on stdin rather than a named file.
@@ -182,7 +189,15 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing bool) err
 	repair := slopfix.Fix(request)
 
 	if checkJSON {
-		return json.NewEncoder(cmd.OutOrStdout()).Encode(repair)
+		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(repair); err != nil {
+			return err
+		}
+	}
+	if len(repair.Unmet) > 0 {
+		return &slopfix.UnmetError{Path: request.Path, Unmet: repair.Unmet}
+	}
+	if checkJSON {
+		return nil
 	}
 	if repairing {
 		fmt.Fprint(cmd.OutOrStdout(), repair.Text)
