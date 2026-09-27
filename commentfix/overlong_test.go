@@ -175,7 +175,7 @@ func TestASingleOpeningSentenceTooLongToFitIsLeftAndReported(t *testing.T) {
 	assert.False(t, hits[0].Repairable, "no cut that reads fits, so none is promised")
 
 	out, _ := FixLength("x.go", src)
-	assert.Equal(t, src, out, "no fragment is written in place of the sentence")
+	assert.Contains(t, out, "will not fit\nconst p = 1", "no period is bolted onto the sentence")
 	assert.NotEmpty(t, CheckLength("x.go", out), "the finding stays for a person")
 }
 
