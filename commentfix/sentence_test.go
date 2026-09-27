@@ -59,6 +59,30 @@ func TestEndsSentenceReadsPastAClosingBracket(t *testing.T) {
 	}
 }
 
+// The clause cuts are stated in rules/comment-clauses.xml. Each case is a
+// comment placed above one line of code.
+func TestEveryCommentClauseTestHolds(t *testing.T) {
+	require.NotEmpty(t, clausesTable.Tests)
+
+	for _, c := range clausesTable.Tests {
+		t.Run(c.In, func(t *testing.T) {
+			lines := reflow(c.In, "\t", "//", wrapWidth)
+			src := "package p\n\nfunc f() {\n" + strings.Join(lines, "\n") + "\n\tx := 1\n\t_ = x\n}\n"
+			out, changed := FixLength("x.go", src)
+			require.True(t, changed)
+			assert.Empty(t, CheckLength("x.go", out))
+
+			var kept []string
+			for _, line := range strings.Split(out, "\n") {
+				if strings.HasPrefix(strings.TrimSpace(line), "//") {
+					kept = append(kept, stripMarker(line))
+				}
+			}
+			assert.Equal(t, c.Out, strings.Join(kept, " "))
+		})
+	}
+}
+
 // A run whose prose never closes has no cut that reads. No period is bolted onto
 // a clause, and the check keeps reporting the block for a person to rewrite.
 func TestARunThatNeverClosesIsLeftForAPerson(t *testing.T) {
