@@ -15,6 +15,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
@@ -124,6 +125,9 @@ var documentExtensions = []string{".md", ".markdown", ".mdown", ".txt"}
 func isDocument(path string) bool {
 	if path == "" {
 		return true
+	}
+	if tombstones.InTestdata(path) {
+		return false
 	}
 	lower := strings.ToLower(path)
 	for _, ext := range documentExtensions {
