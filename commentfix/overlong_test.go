@@ -166,17 +166,17 @@ func TestFixLeavesACleanFileAlone(t *testing.T) {
 // A block whose opening sentence alone still exceeds the budget is left as it
 // is and still reported. A repair that deletes the only sentence worth keeping
 // is worse than the finding.
-func TestASingleOpeningSentenceTooLongToFitIsStillRepaired(t *testing.T) {
+func TestASingleOpeningSentenceTooLongToFitIsLeftAndReported(t *testing.T) {
 	long := "// " + strings.Repeat("a very long single opening sentence that will not fit ", 6)
 	src := "package p\n\n" + long + "\nconst p = 1\n"
 
 	hits := CheckLength("x.go", src)
 	require.Len(t, hits, 1)
-	assert.True(t, hits[0].Repairable, "the force fit reaches a block no sentence cut can")
+	assert.False(t, hits[0].Repairable, "no cut that reads fits, so none is promised")
 
-	out, changed := FixLength("x.go", src)
-	assert.True(t, changed)
-	assert.Empty(t, CheckLength("x.go", out))
+	out, _ := FixLength("x.go", src)
+	assert.Equal(t, src, out, "no fragment is written in place of the sentence")
+	assert.NotEmpty(t, CheckLength("x.go", out), "the finding stays for a person")
 }
 
 // A comment marker inside a string is data, and the adapter is what keeps it

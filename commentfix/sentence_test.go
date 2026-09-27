@@ -84,8 +84,15 @@ func TestWhatStaysIsWholeSTESentences(t *testing.T) {
 		"var head = 1\n"
 	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
-	prose := commentProse(out)
-	assert.NotContains(t, prose, "per-tab.", "no fragment closed with a bolted-on period")
+	assert.NotContains(t, commentProse(out), "per-tab.", "no fragment closed with a bolted-on period")
+	assertWholeSTESentences(t, out)
+}
+
+// assertWholeSTESentences checks what a length cut left: whole sentences, STE
+// clean, each under the word cap.
+func assertWholeSTESentences(t *testing.T, src string) {
+	t.Helper()
+	prose := commentProse(src)
 	assert.True(t, endsSentence(prose), "the comment ends on a sentence end: %q", prose)
 	assert.Empty(t, ste.Check(prose, 1), "what stays is STE: %q", prose)
 	for _, s := range ste.Sentences(prose) {
@@ -93,12 +100,16 @@ func TestWhatStaysIsWholeSTESentences(t *testing.T) {
 	}
 }
 
-// commentProse joins the prose of every line comment in src.
+// commentProse joins the prose of every line comment in src, directives aside.
 func commentProse(src string) string {
 	var words []string
 	for _, line := range strings.Split(src, "\n") {
-		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "//"); ok {
-			words = append(words, strings.TrimSpace(rest))
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "//")
+		if !ok || strings.HasPrefix(rest, "go:") {
+			continue
+		}
+		if rest = strings.TrimSpace(rest); rest != "" {
+			words = append(words, rest)
 		}
 	}
 	return strings.Join(words, " ")
