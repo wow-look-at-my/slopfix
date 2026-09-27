@@ -66,7 +66,7 @@ func repairOf(path string, request slopfix.Request, repairing bool) (slopfix.Rep
 		return slopfix.Repair{}, err
 	}
 	request.Content, request.Path = string(content), path
-	return slopfix.Fix(request), nil
+	return slopfix.Report(request), nil
 }
 
 var (
@@ -179,7 +179,11 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing bool) err
 		return err
 	}
 	request.Content = string(content)
-	repair := slopfix.Fix(request)
+	run := slopfix.Report
+	if repairing {
+		run = slopfix.Fix
+	}
+	repair := run(request)
 
 	if checkJSON {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(repair)

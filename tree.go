@@ -97,7 +97,11 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		out.Read++
 
 		req.Path, req.Content = path, string(src)
-		repair := Fix(req)
+		run := Report
+		if writing {
+			run = Fix
+		}
+		repair := run(req)
 		if writing && repair.Changed && commentfix.WriteFile(path, repair.Text) == nil {
 			out.Repaired = append(out.Repaired, path)
 		}

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
@@ -97,6 +98,12 @@ func roundTripFixtures() []fixture {
 				"yaml/test-in-workflow",
 				"yaml/neutered-gate",
 			},
+		},
+		{
+			name:    "script",
+			path:    "fetch.sh",
+			content: "#!/bin/sh\ncurl -fsSL 'https://dl.pazer.build/ts0?v=10&os=linux&arch=amd64' -o ts0.cjs\n",
+			wants:   []string{pins.ID},
 		},
 	}
 }

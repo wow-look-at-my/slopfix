@@ -187,6 +187,29 @@ func Fix(req Request) Repair {
 	return repair
 }
 
+// Report is Fix for a caller that writes nothing. A pinned download URL is a
+// finding in the text as it stands, even where the repair would remove it.
+func Report(req Request) Repair {
+	repair := Fix(req)
+	if len(req.Rules) > 0 && !slices.Contains(req.Rules, RulePins) {
+		return repair
+	}
+	keeps := keepsOf(req)
+	var findings []ste.Finding
+	for _, finding := range repair.Findings {
+		if finding.ID != pins.ID {
+			findings = append(findings, finding)
+		}
+	}
+	for _, finding := range pins.Check(req.Content) {
+		if keeps(finding.ID) {
+			findings = append(findings, finding)
+		}
+	}
+	repair.Findings = findings
+	return repair
+}
+
 // kindOf answers which parser owns a file. An empty path is prose: a caller
 // holding text and naming no file is asking about prose, not about a tree.
 func kindOf(path, content string) fixer.Kind {

@@ -38,6 +38,16 @@ func TestFixUnpinsADownloadURLInEveryKindOfFile(t *testing.T) {
 	}
 }
 
+// Report is what a check runs: the pin is a finding, although Fix repairs it.
+func TestReportNamesThePinFixWouldRepair(t *testing.T) {
+	req := slopfix.Request{Path: "fetch.sh", Content: "#!/bin/sh\ncurl -fsSL 'https://dl.pazer.build/ts0?v=10&os=linux' -o ts0\n"}
+	var ids []string
+	for _, finding := range slopfix.Report(req).Findings {
+		ids = append(ids, finding.ID)
+	}
+	assert.Equal(t, []string{pins.ID}, ids)
+}
+
 // A check that writes nothing still reports the pin.
 func TestCheckReportsAPinnedURL(t *testing.T) {
 	path := writeFile(t, "fetch.sh", "#!/bin/sh\ncurl -fsSL 'https://dl.pazer.build/ts0?v=10&os=linux&arch=amd64' -o ts0\n")
