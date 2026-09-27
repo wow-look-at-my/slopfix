@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // The repair cuts at a sentence that ends, not at a line boundary. A comment is
@@ -58,17 +59,47 @@ func TestEndsSentenceReadsPastAClosingBracket(t *testing.T) {
 	}
 }
 
-// A run whose prose never closes has no cut that reads, so every sentence-aware
-// pass declines it and the force fit takes it instead: cut at a word, inside the
-// budget, with the clause left dangling. That is the trade the force fit makes.
-func TestARunThatNeverClosesIsForceFitted(t *testing.T) {
+// A run whose prose never closes has no cut that reads. No period is bolted onto
+// a clause, and the check keeps reporting the block for a person to rewrite.
+func TestARunThatNeverClosesIsLeftForAPerson(t *testing.T) {
 	body := strings.Repeat("// a clause that never closes and just keeps going onward\n", 8)
 	src := "package p\n\n" + body + "const p = 1\n"
 
 	require.NotEmpty(t, CheckLength("x.go", src))
+	out, _ := FixLength("x.go", src)
+	assert.Contains(t, out, "going onward\nconst p = 1", "no fragment closed with a bolted-on period")
+	hits := CheckLength("x.go", out)
+	require.NotEmpty(t, hits, "the finding stays for a person")
+	assert.False(t, hits[0].Repairable, "the report does not promise a repair that cannot fit")
+}
+
+// When no cut fits, what stays is whole sentences, repaired to STE and each
+// under its word cap. A sentence is never cut mid-clause.
+func TestWhatStaysIsWholeSTESentences(t *testing.T) {
+	src := "package p\n\n" +
+		"// The first row is title plus tabs, and the next row is the per-tab subtitle\n" +
+		"// (it is full-width in CSS, so it always wraps onto its own line). The\n" +
+		"// subtitle length varies wildly per tab. Keeping it off the tab row is what\n" +
+		"// pins the tab bar in place instead of letting it slide or wrap.\n" +
+		"var head = 1\n"
 	out, changed := FixLength("x.go", src)
-	assert.True(t, changed)
-	assert.Empty(t, CheckLength("x.go", out), "the force fit always lands inside the budget")
-	assert.Contains(t, out, "// a clause that never closes")
-	assert.Contains(t, out, "const p = 1", "the code it documents is untouched")
+	require.True(t, changed)
+	prose := commentProse(out)
+	assert.NotContains(t, prose, "per-tab.", "no fragment closed with a bolted-on period")
+	assert.True(t, endsSentence(prose), "the comment ends on a sentence end: %q", prose)
+	assert.Empty(t, ste.Check(prose, 1), "what stays is STE: %q", prose)
+	for _, s := range ste.Sentences(prose) {
+		assert.LessOrEqual(t, ste.WordCount(s), ste.SentenceWordCap, "%q", s)
+	}
+}
+
+// commentProse joins the prose of every line comment in src.
+func commentProse(src string) string {
+	var words []string
+	for _, line := range strings.Split(src, "\n") {
+		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "//"); ok {
+			words = append(words, strings.TrimSpace(rest))
+		}
+	}
+	return strings.Join(words, " ")
 }

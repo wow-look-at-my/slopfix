@@ -64,12 +64,14 @@ func CheckLength(filename, src string) []LengthHit {
 		if !over {
 			continue
 		}
+		fixed := repair(b)
+		_, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars})
 		hits = append(hits, LengthHit{
 			ID:         IDLength,
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && !sameText(repair(b), b.text),
+			Repairable: b.exact && !sameText(fixed, b.text) && !stillOver,
 		})
 	}
 	return hits
@@ -298,11 +300,36 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
-	if forced, ok := hardFit(b); ok {
-		return forced
+	// No cut that reads fits. The opening sentence stays, repaired to STE.
+	if opening, ok := steOpening(kept); ok {
+		return opening
 	}
-	// Nothing shorter both fits and reads.
-	return b.text
+	return kept
+}
+
+// steOpening answers a block's first sentence, repaired to STE and divided at a
+// clause boundary when it runs past the cap. It reports false when no boundary
+// brings the sentence under the cap.
+func steOpening(text []string) ([]string, bool) {
+	marker, indent, ok := commentShape(text)
+	if !ok {
+		return nil, false
+	}
+	for _, para := range paragraphs(text) {
+		if para.blank || para.verbatim {
+			continue
+		}
+		sentences := ste.Sentences(ste.Fix(strings.Join(para.lines, " ")))
+		if len(sentences) == 0 || ste.WordCount(sentences[0]) > ste.SentenceWordCap {
+			return nil, false
+		}
+		first := strings.TrimSpace(sentences[0])
+		if !endsSentence(first) {
+			return nil, false
+		}
+		return reflow(first, indent, marker, wrapWidth), true
+	}
+	return nil, false
 }
 
 // sameText compares runs of lines by what they say. A line count cannot: a
@@ -311,59 +338,8 @@ func sameText(a, b []string) bool {
 	return strings.Join(a, "\n") == strings.Join(b, "\n")
 }
 
-// hardFit drops words off the end until the block fits, wherever the sentence
-// ends. It mangles prose that no honest cut reaches, so it runs last, after
-// every cut that leaves a comment somebody can read.
-func hardFit(b block) ([]string, bool) {
-	marker, indent, ok := commentShape(b.text)
-	if !ok {
-		return nil, false
-	}
-	var body []string
-	for _, line := range prose(b.text) {
-		body = append(body, stripMarker(line))
-	}
-	words := strings.Fields(strings.Join(body, " "))
-	// The budget is a character count, and the layout takes a column.
-	width := min(max(floorChars, b.codeChars), wrapWidth)
-	for len(words) > 0 {
-		closed := closeTail(words)
-		if len(closed) == 0 {
-			return nil, false
-		}
-		out := reflow(strings.Join(closed, " "), indent, marker, width)
-		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
-			return out, true
-		}
-		words = words[:len(words)-1]
-	}
-	return nil, false
-}
-
-// dangling words open something the cut took away, so a forced cut that ends.
+// dangling words open something that must follow them, so a comment cannot end on one.
 var dangling = set.Of(danglingWords()...)
-
-// closeTail makes a forced cut read as a sentence: it drops back past a word
-// that opens what the cut removed, and closes what is left with a period.
-func closeTail(words []string) []string {
-	out := append([]string{}, words...)
-	for len(out) > 0 {
-		last := strings.TrimRight(out[len(out)-1], ",;:")
-		if last == "" || dangling.Contains(strings.ToLower(last)) {
-			out = out[:len(out)-1]
-			continue
-		}
-		out[len(out)-1] = last
-		break
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	if !endsSentence(out[len(out)-1]) {
-		out[len(out)-1] += "."
-	}
-	return out
-}
 
 // cutLastThought drops the last thought out of a block, and reports false when
 // nothing is left to drop.
