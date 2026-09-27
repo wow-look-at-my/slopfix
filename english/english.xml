@@ -55,8 +55,9 @@
   <!-- A determiner that "one" props up when no noun follows: "this one". -->
   <class name="propped" words="this each either neither which whichever another"/>
   <class name="plural" suffix="s"/>
-  <!-- A word ending like a plural after a singular determiner is the verb. -->
-  <class name="singular" open="true" except="verbform plural"/>
+  <!-- A word ending like a plural after a singular determiner is the verb. An
+       indefinite pronoun, from rules/syntax.xml, opens a clause of its own. -->
+  <class name="singular" open="true" except="verbform plural indefinite"/>
   <!-- Nouns the "ing" ending would read as a verb form. -->
   <class name="ingnoun" words="thing string ring spring wing king ceiling"/>
 

@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
@@ -41,11 +42,12 @@ type Class struct {
 	Except string `xml:"except,attr"`
 }
 
-// classes indexes the declared word classes.
+// classes indexes the declared word classes, and the indefinite pronouns rules/syntax.xml lists.
 var classes = table.NewLexicon(lexicalClasses(loaded.Classes))
 
 func lexicalClasses(declared []Class) []table.Class {
-	out := make([]table.Class, 0, len(declared))
+	out := make([]table.Class, 0, len(declared)+1)
+	out = append(out, table.Class{Name: "indefinite", Words: syntax.WordsOf("indefinite")})
 	for _, c := range declared {
 		out = append(out, table.Class{
 			Name:   c.Name,
