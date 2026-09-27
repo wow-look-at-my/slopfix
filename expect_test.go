@@ -28,7 +28,7 @@ func annotated(lines ...[2]string) string {
 }
 
 // gitlinks is a field comment the length cut once left as `one "commit.`, a
-// quote opened and never closed.
+// quote opened and never closed. It now cuts at the last clause that fits.
 func gitlinks(want string) string {
 	return annotated(
 		[2]string{"package codehost", "-"},
@@ -43,7 +43,7 @@ func gitlinks(want string) string {
 }
 
 func TestTheGitlinksCommentIsCutAtAClause(t *testing.T) {
-	src := gitlinks("\t// Gitlinks records the commit each submodule at Hash points at.")
+	src := gitlinks("\t// Gitlinks records the commit each submodule at Hash points at, one \"commit path\" line per submodule.")
 	repair := slopfix.Fix(slopfix.Request{Path: "codehost.go", Content: src})
 	assert.Empty(t, repair.Unmet)
 	assert.False(t, repair.Changed, "an annotated file is never rewritten")

@@ -123,6 +123,17 @@ func (a Annotations) Check(repaired string) []string {
 			} else {
 				got[line] = text + "\n" + added
 			}
+		case 'r':
+			if op.I2-op.I1 != op.J2-op.J1 {
+				got[op.I1] = strings.Join(after[op.J1:op.J2], "\n")
+				for i := op.I1 + 1; i < op.I2; i++ {
+					got[i] = ""
+				}
+				continue
+			}
+			for k := range op.I2 - op.I1 {
+				got[op.I1+k] = after[op.J1+k]
+			}
 		default:
 			got[op.I1] = strings.Join(after[op.J1:op.J2], "\n")
 			for i := op.I1 + 1; i < op.I2; i++ {
