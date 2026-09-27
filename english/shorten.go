@@ -16,8 +16,9 @@ var doubledStop = regexp.MustCompile(`([^.])\.\.(\s|$)`)
 // Surface names where prose is being read, which decides the entries that
 // apply to it.
 const (
-	Comment = "comment"
-	Message = "message"
+	Comment  = "comment"
+	Document = "document"
+	Message  = "message"
 )
 
 // Fix rewrites prose with every table entry that names the surface.

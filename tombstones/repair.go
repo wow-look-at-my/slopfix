@@ -88,7 +88,7 @@ func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) 
 		if strings.Contains(body, "`") {
 			continue
 		}
-		short, took := english.FixN(body, english.Comment)
+		short, took := english.FixN(body, english.Document)
 		if took == 0 {
 			continue
 		}
