@@ -6,8 +6,7 @@ import (
 	"strings"
 )
 
-// docMarkers is longest-earliest: `//!` must be tried before `//`, or Rust's inner
-// doc marker matches `//` and leaves its `!` in the prose.
+// docMarkers is longest-first, so Rust's `//!` never leaves its `!` in the prose.
 var docMarkers = []string{"///", "//!", "//", "#"}
 
 // paragraph is a run of comment lines, or the blank marker between runs.
