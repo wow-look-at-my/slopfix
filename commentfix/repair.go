@@ -13,6 +13,7 @@ package commentfix
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
@@ -394,6 +395,9 @@ func sentences(prose string) []string {
 		if i+1 < len(prose) && prose[i+1] != ' ' {
 			continue
 		}
+		if prose[i] == '.' && abbreviationEndsAt(prose, i) {
+			continue
+		}
 		out = append(out, prose[start:i+1])
 		start = i + 1
 	}
@@ -401,6 +405,29 @@ func sentences(prose string) []string {
 		out = append(out, prose[start:])
 	}
 	return out
+}
+
+// midSentence are abbreviations that never close a sentence.
+var midSentence = []string{"e.g.", "i.e.", "vs.", "cf.", "viz."}
+
+// abbreviationEndsAt reports whether the period at i closes an abbreviation
+// rather than a sentence. `etc.` closes a sentence only when a capital follows it.
+func abbreviationEndsAt(prose string, i int) bool {
+	word := prose[:i+1]
+	if j := strings.LastIndexAny(word, " \t(\"'"); j >= 0 {
+		word = word[j+1:]
+	}
+	word = strings.ToLower(word)
+	for _, a := range midSentence {
+		if word == a {
+			return true
+		}
+	}
+	if word != "etc." {
+		return false
+	}
+	next := strings.TrimLeft(prose[i+1:], " ")
+	return next != "" && !unicode.IsUpper(rune(next[0]))
 }
 
 // split separates a comment line's marker and indent from its prose.
