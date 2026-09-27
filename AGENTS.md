@@ -89,6 +89,10 @@ The action at the repository root downloads the published binary from buildhost 
 
 `paths` defaults to `.`. The step therefore goes after the checkout. `only` is the `--only` flag. The action has no `command` input. It never repairs. A job that repairs its own checkout and then passes has enforced nothing. On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
 
+## The marketplace follows each publish
+
+cc-marketplace ships this binary inside its `slopfix` plugin. A publish here therefore reaches nobody until that plugin is packaged again. The last step of `ci.yml` does that on each master build. It dispatches `release.yml` in cc-marketplace with `publish: true`. The token is `CC_MARKETPLACE_DISPATCH_TOKEN` from secret-server, with `actions: write` on cc-marketplace. A missing token fails the build, because a silent skip leaves the marketplace on an old binary.
+
 ## repo: the markdown a repository keeps
 
 These rules judge the tree. Only a walk whose root holds `.git` reaches them. `check` reports them. `fix` applies them.
@@ -231,7 +235,7 @@ The languages are Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX. YAML. 
 - `comments/length`: a comment run weighed against the construct beneath it. Lines catch an essay. Characters catch a dense paragraph. The budget has a floor. A short comment is never a finding.
 - `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair closes the sentence.
 
-The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut. A block with no cut that fits is reported for a person to rewrite. The number repair runs after the length cut. The length cut then runs again if the words overflow.
+The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at a clause boundary the `syntax` parser finds, the same boundaries `ste/sentence-length` divides at (`ste.Leading`). Sentence ends come from `ste.Sentences`. A sentence with no such boundary stays whole. The check reports that block for a person to rewrite. The number repair runs after the length cut. The length cut then runs again if the words overflow.
 
 It does not flag a comment above the package declaration, or a trailing comment on a code line. It skips a directive line, such as a build constraint, a shebang, a linter pragma or a cgo preamble. It skips a number inside a quotation.
 
@@ -374,7 +378,7 @@ Any change to file content in the working tree goes through Write, Edit or Noteb
 - A subagent spawn with a tool grant or a permissive `permissionMode` is refused. The live settings files are refused to every tool.
 - The session scratchpad is the one temporary directory that does not deny.
 
-A Write over a path that git holds and the disk does not is refused, however the path was emptied. The hook restores the file with `git restore --worktree` first. Commit the removal to free the path. `echo x > new-file` is refused too, because creating a file is what Write is for.
+A Write over a path that git holds and the disk does not is refused, however the path was emptied. A deletion committed on the branch, or in the last `10` commits, holds the path too. The hook restores the file with `git restore --worktree` first, from the index, HEAD or the parent of the deleting commit. No route lets Write replace a file that existed. The refusal names the Edit tool. It prices the evasion in Claude tokens from `transcript_path`. The price is every tool call that names the file since its last Read or Edit, plus this Write. The changed lines are subtracted. `echo x > new-file` is refused too, because creating a file is what Write is for.
 
 ## clean-bash
 

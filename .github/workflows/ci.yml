@@ -32,3 +32,18 @@ jobs:
           generate: 165003bec91c
 
       - run: ./build/slopfix check .
+
+      # The marketplace ships this binary inside its slopfix plugin, so each master publish asks cc-marketplace to package it.
+      - if: github.ref == 'refs/heads/master'
+        uses: wow-look-at-my/actions@secret-server#latest
+      - name: Ship this build in the marketplace
+        if: github.ref == 'refs/heads/master'
+        uses: wow-look-at-my/actions@typescript#latest
+        with:
+          script: |
+            const token = process.env.CC_MARKETPLACE_DISPATCH_TOKEN;
+            if (!token) throw new Error('secret-server vended no CC_MARKETPLACE_DISPATCH_TOKEN to this repository, so cc-marketplace never ships this build. Add a token with actions:write on wow-look-at-my/cc-marketplace, and entitle wow-look-at-my/slopfix on refs/heads/master.');
+            await getOctokit(token).rest.actions.createWorkflowDispatch({
+              owner: 'wow-look-at-my', repo: 'cc-marketplace', workflow_id: 'release.yml', ref: 'master', inputs: { publish: 'true' },
+            });
+            core.info('dispatched cc-marketplace release.yml to ship this slopfix build');

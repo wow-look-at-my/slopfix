@@ -31,10 +31,12 @@ const IDProvenance = "noworkloss/provenance"
 const IDWriteTool = "noworkloss/write-tool"
 
 type hookInput struct {
-	HookEventName string          `json:"hook_event_name"`
-	ToolName      string          `json:"tool_name"`
-	Cwd           string          `json:"cwd"`
-	ToolInput     json.RawMessage `json:"tool_input"`
+	HookEventName  string          `json:"hook_event_name"`
+	ToolName       string          `json:"tool_name"`
+	Cwd            string          `json:"cwd"`
+	ToolInput      json.RawMessage `json:"tool_input"`
+	ToolUseID      string          `json:"tool_use_id"`
+	TranscriptPath string          `json:"transcript_path"`
 }
 
 // Result is what an invocation emits. A refusal rides stdout as a deny
