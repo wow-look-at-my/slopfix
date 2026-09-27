@@ -21,9 +21,7 @@ var gateAlt = words("gate")
 // gateWords is that vocabulary as a set.
 var gateWords = set.Of(numbersTable.WordsOf("gate")...)
 
-// commentWords are the numbers spelled as words: the cardinals, the ordinals
-// that index a list, and the words for a repeat count. A word joined to other
-// letters is a name (oneShot, someone), so only a whole word counts.
+// commentWords are the numbers spelled as whole words. A word inside a name, as in oneShot, is not one.
 var commentWords = set.Of(numbersTable.WordsOf("comment")...)
 
 // Leading matches the cardinal at the front of a quantity, with the space after

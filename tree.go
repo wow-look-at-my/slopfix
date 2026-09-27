@@ -55,8 +55,7 @@ func Reads(path string) bool {
 // did. A file is written only when a repair changed it.
 func FixTree(root string) TreeRepair { return FixTreeWith(root, Request{}) }
 
-// CheckTree reports what every rule makes of every file under root and writes
-// nothing, so the report a build prints names what --fix would have done.
+// CheckTree reports what every rule finds under root, and writes nothing.
 func CheckTree(root string) TreeRepair { return treeRun(root, Request{}, false) }
 
 // FixTreeWith is FixTree under the caller's own rule selection.
