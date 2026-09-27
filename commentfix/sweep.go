@@ -20,17 +20,6 @@ import (
 // skipDirs hold text nobody in the tree authored.
 var skipDirs = set.Of("vendor", "node_modules", "testdata", "build")
 
-// Borrowed reports whether path sits under a directory the walk skips, so a
-// hook judging a single write leaves the same files alone the sweep does.
-func Borrowed(path string) bool {
-	for _, part := range strings.Split(filepath.ToSlash(filepath.Dir(path)), "/") {
-		if skipDirs.Contains(part) {
-			return true
-		}
-	}
-	return false
-}
-
 // MaxFileBytes is where a file stops being prose and becomes a blob.
 const MaxFileBytes = 1 << 20
 

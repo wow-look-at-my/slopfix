@@ -61,12 +61,6 @@ func TestAWriteIsRepairedAndLetThrough(t *testing.T) {
 	assert.NotContains(t, got.body, "permissionDecision")
 }
 
-// A fixture holds the defect its test is about, so a repair on the way in
-// would erase the case.
-func TestAWriteUnderTestdataIsLeftAlone(t *testing.T) {
-	assert.Empty(t, ask(t, write("pkg/testdata/a.md", "It has three plugins.\n"), "counts").body)
-}
-
 // Every key the payload carried survives, so a field this does not read is not
 // dropped from the write.
 func TestAKeyThisDoesNotReadSurvives(t *testing.T) {

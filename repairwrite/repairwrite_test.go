@@ -83,19 +83,6 @@ func TestAFileWithNothingToRepairSaysNothing(t *testing.T) {
 	assert.Equal(t, before, read(t, path), "an untouched file is not rewritten")
 }
 
-// A fixture holds the defect its test is about, so the repair skips it the way
-// the tree walk does.
-func TestAFileUnderTestdataIsLeftAlone(t *testing.T) {
-	path, payload := wrote(t, "testdata/.github/workflows/ci.yml",
-		"name: CI\n# one line about a thing\n# a second line about it\non: push\n")
-	before := read(t, path)
-
-	res := fire(t, payload)
-
-	assert.Empty(t, res.Stdout)
-	assert.Equal(t, before, read(t, path))
-}
-
 func TestAnotherEventIsLeftAlone(t *testing.T) {
 	_, payload := wrote(t, ".github/workflows/ci.yml",
 		"name: CI\n# one line about a thing\n# a second line about it\non: push\n")
