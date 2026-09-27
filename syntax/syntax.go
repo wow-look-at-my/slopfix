@@ -149,3 +149,6 @@ var classes = syntaxTable.Lexicon()
 
 // Is reports whether a word belongs to a named class in rules/syntax.xml.
 func Is(word, class string) bool { return classes.Is(strings.ToLower(word), class) }
+
+// WordsOf answers the words a class in rules/syntax.xml lists.
+func WordsOf(class string) []string { return syntaxTable.WordsOf(class) }

@@ -41,7 +41,7 @@
       <xs:attribute name="word" type="xs:string" use="required"/>
       <xs:attribute name="test" type="xs:string" use="required"/>
       <xs:attribute name="expect" type="xs:string"/>
-      <xs:attribute name="where" type="surface"/>
+      <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string"/>
     </xs:complexType>
   </xs:element>
@@ -53,7 +53,7 @@
       <xs:attribute name="to" type="xs:string" use="required"/>
       <xs:attribute name="test" type="xs:string" use="required"/>
       <xs:attribute name="expect" type="xs:string"/>
-      <xs:attribute name="where" type="surface"/>
+      <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string"/>
     </xs:complexType>
   </xs:element>
@@ -65,7 +65,7 @@
       <xs:attribute name="replace" type="xs:string" use="required"/>
       <xs:attribute name="test" type="xs:string" use="required"/>
       <xs:attribute name="expect" type="xs:string" use="required"/>
-      <xs:attribute name="where" type="surface"/>
+      <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string"/>
       <xs:attribute name="subject" type="position"/>
     </xs:complexType>
@@ -82,7 +82,7 @@
       <xs:attribute name="replace" type="xs:string" use="required"/>
       <xs:attribute name="test" type="xs:string" use="required"/>
       <xs:attribute name="expect" type="xs:string" use="required"/>
-      <xs:attribute name="where" type="surface"/>
+      <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string" use="required"/>
     </xs:complexType>
   </xs:element>
@@ -102,7 +102,7 @@
       <xs:attribute name="phrase" type="xs:string" use="required"/>
       <xs:attribute name="say" type="xs:string" use="required"/>
       <xs:attribute name="test" type="xs:string" use="required"/>
-      <xs:attribute name="where" type="surface"/>
+      <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string"/>
     </xs:complexType>
   </xs:element>
@@ -122,6 +122,11 @@
       <xs:enumeration value="document"/>
       <xs:enumeration value="message"/>
     </xs:restriction>
+  </xs:simpleType>
+
+  <!-- where= names one surface or several, space-separated. -->
+  <xs:simpleType name="surfaces">
+    <xs:list itemType="surface"/>
   </xs:simpleType>
 
 </xs:schema>
