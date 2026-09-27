@@ -19,7 +19,9 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -346,15 +348,34 @@ func clauseFit(b block) ([]string, bool) {
 	return nil, false
 }
 
-// clauseCuts answers every clause boundary in text, the last one first.
+// clausesTable is what rules/ says for="comment-clauses".
+var clausesTable = table.MustLoad(rules.FS, "comment-clauses")
+
+// boundaryMarks answers the marks that end a clause.
+func boundaryMarks() []string {
+	for _, c := range clausesTable.Classes {
+		if c.Name == "boundary" {
+			return c.Words
+		}
+	}
+	panic("commentfix: rules/ names no class boundary")
+}
+
+// clauseCuts answers every clause boundary in text, the last one first. A mark
+// ends a clause when a space follows it. A word-length mark needs a space before it too.
 func clauseCuts(text string) []int {
+	marks := boundaryMarks()
 	var cuts []int
-	for i := len(text) - 2; i > 0; i-- {
-		switch {
-		case strings.HasPrefix(text[i:], " -- "):
+	for i := len(text) - 1; i > 0; i-- {
+		for _, m := range marks {
+			if !strings.HasPrefix(text[i:], m+" ") {
+				continue
+			}
+			if len(m) > 1 && text[i-1] != ' ' {
+				continue
+			}
 			cuts = append(cuts, i)
-		case strings.ContainsRune(",;:", rune(text[i])) && text[i+1] == ' ':
-			cuts = append(cuts, i)
+			break
 		}
 	}
 	return cuts

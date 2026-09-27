@@ -58,19 +58,27 @@ func TestEndsSentenceReadsPastAClosingBracket(t *testing.T) {
 	}
 }
 
-// A single sentence too long for its code is cut at a clause boundary, never
-// between words of the clause.
-func TestALongSentenceIsCutAtAClause(t *testing.T) {
-	for comment, want := range map[string]string{
-		"\t// The pipes are ours, not StdoutPipe's: exec closes those at Wait, and this\n\t// process must outlive that to bound a reader itself. See drainGrace.\n":                  "// The pipes are ours, not StdoutPipe's: exec closes those at Wait.",
-		"\t// Wait reports only once both spools have seen their end: reap closes the\n\t// relays after the grace, releasing a stream a grandchild still holds open.\n":                "// Wait reports only once both spools have seen their end: reap closes the relays after the grace.",
-		"\t// A linked worktree's .git is a file naming a gitdir under the parent's\n\t// .git/worktrees; its refs and config live in the commondir beside it.\n":                     "// A linked worktree's .git is a file naming a gitdir under the parent's .git/worktrees.",
-	} {
-		src := "package p\n\nfunc f() {\n" + comment + "\tx := 1\n\t_ = x\n}\n"
-		out, changed := FixLength("x.go", src)
-		require.True(t, changed, comment)
-		assert.Contains(t, out, want)
-		assert.Empty(t, CheckLength("x.go", out))
+// The clause cuts are stated in rules/comment-clauses.xml. Each case is a
+// comment placed above one line of code.
+func TestEveryCommentClauseTestHolds(t *testing.T) {
+	require.NotEmpty(t, clausesTable.Tests)
+
+	for _, c := range clausesTable.Tests {
+		t.Run(c.In, func(t *testing.T) {
+			lines := reflow(c.In, "\t", "//", wrapWidth)
+			src := "package p\n\nfunc f() {\n" + strings.Join(lines, "\n") + "\n\tx := 1\n\t_ = x\n}\n"
+			out, changed := FixLength("x.go", src)
+			require.True(t, changed)
+			assert.Empty(t, CheckLength("x.go", out))
+
+			var kept []string
+			for _, line := range strings.Split(out, "\n") {
+				if strings.HasPrefix(strings.TrimSpace(line), "//") {
+					kept = append(kept, stripMarker(line))
+				}
+			}
+			assert.Equal(t, c.Out, strings.Join(kept, " "))
+		})
 	}
 }
 
