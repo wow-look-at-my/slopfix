@@ -58,17 +58,30 @@ func TestEndsSentenceReadsPastAClosingBracket(t *testing.T) {
 	}
 }
 
-// A run whose prose never closes has no cut that reads, so every sentence-aware
-// pass declines it and the force fit takes it instead: cut at a word, inside the
-// budget, with the clause left dangling. That is the trade the force fit makes.
-func TestARunThatNeverClosesIsForceFitted(t *testing.T) {
+// A run whose prose never closes has no cut that reads. The repair leaves it as
+// written and the check keeps reporting it, because a cut at a word would put a
+// fragment in the author's mouth.
+func TestARunThatNeverClosesIsLeftForAPerson(t *testing.T) {
 	body := strings.Repeat("// a clause that never closes and just keeps going onward\n", 8)
 	src := "package p\n\n" + body + "const p = 1\n"
 
 	require.NotEmpty(t, CheckLength("x.go", src))
-	out, changed := FixLength("x.go", src)
-	assert.True(t, changed)
-	assert.Empty(t, CheckLength("x.go", out), "the force fit always lands inside the budget")
-	assert.Contains(t, out, "// a clause that never closes")
-	assert.Contains(t, out, "const p = 1", "the code it documents is untouched")
+	out, _ := FixLength("x.go", src)
+	assert.Equal(t, src, out, "no cut reads, so nothing is cut")
+	assert.NotEmpty(t, CheckLength("x.go", out), "the finding stays for a person to rewrite")
+}
+
+// The opening sentence is never cut, even when it alone runs past the budget.
+// The cut stops at its end, and the check reports what is still over.
+func TestTheOpeningSentenceSurvivesWhole(t *testing.T) {
+	src := "package p\n\n" +
+		"// The first row is title plus tabs, and the next row is the per-tab subtitle\n" +
+		"// (it is full-width in CSS, so it always wraps onto its own line). The\n" +
+		"// subtitle length varies wildly per tab. Keeping it off the tab row is what\n" +
+		"// pins the tab bar in place instead of letting it slide or wrap.\n" +
+		"var head = 1\n"
+	out, _ := FixLength("x.go", src)
+	assert.Contains(t, out, "per-tab subtitle")
+	assert.Contains(t, out, "wraps onto its own line).", "the opening sentence is whole")
+	assert.NotContains(t, out, "per-tab.", "no fragment closed with a bolted-on period")
 }
