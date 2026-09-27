@@ -325,7 +325,7 @@ func steOpening(text []string) ([]string, bool) {
 		}
 		first := strings.TrimSpace(sentences[0])
 		if ste.WordCount(first) > ste.SentenceWordCap {
-			clause, ok := leadingClause(first)
+			clause, ok := ste.Leading(first)
 			if !ok {
 				return nil, false
 			}
@@ -344,34 +344,6 @@ func steOpening(text []string) ([]string, bool) {
 func sameText(a, b []string) bool {
 	return strings.Join(a, "\n") == strings.Join(b, "\n")
 }
-
-// leadingClause closes a sentence at its last comma inside the word cap. A clause
-// that ends on a word opening what follows is not a clause, so it goes too.
-func leadingClause(sentence string) (string, bool) {
-	best := ""
-	for i := strings.Index(sentence, ","); i >= 0; {
-		head := strings.TrimSpace(sentence[:i])
-		if ste.WordCount(head) > ste.SentenceWordCap {
-			break
-		}
-		fields := strings.Fields(head)
-		if len(fields) >= minClauseWords && !dangling.Contains(strings.ToLower(fields[len(fields)-1])) {
-			best = head
-		}
-		next := strings.Index(sentence[i+1:], ",")
-		if next < 0 {
-			break
-		}
-		i += next + 1
-	}
-	if best == "" {
-		return "", false
-	}
-	return best + ".", true
-}
-
-// minClauseWords is the shortest head a comma cut keeps. Fewer words rarely carry a subject and a verb.
-const minClauseWords = 4
 
 // dangling words open something that must follow them, so a comment cannot end on one.
 var dangling = set.Of(danglingWords()...)

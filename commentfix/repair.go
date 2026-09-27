@@ -13,12 +13,12 @@ package commentfix
 
 import (
 	"strings"
-	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -382,51 +382,8 @@ func cutWhatIsLeft(prose string) (string, []string) {
 	return strings.TrimSpace(strings.Join(kept, " ")), cut
 }
 
-// sentences splits prose on its sentence ends, keeping the punctuation with the
-// sentence it closes. A line ending mid-sentence counts as whole here, which is
-// why a cut can take a wrapped line's share of the sentence it carries.
-func sentences(prose string) []string {
-	var out []string
-	start := 0
-	for i := 0; i < len(prose); i++ {
-		if prose[i] != '.' && prose[i] != '!' && prose[i] != '?' {
-			continue
-		}
-		if i+1 < len(prose) && prose[i+1] != ' ' {
-			continue
-		}
-		if prose[i] == '.' && abbreviationEndsAt(prose, i) {
-			continue
-		}
-		out = append(out, prose[start:i+1])
-		start = i + 1
-	}
-	if rest := strings.TrimSpace(prose[start:]); rest != "" {
-		out = append(out, prose[start:])
-	}
-	return out
-}
-
-// midSentence are abbreviations that never close a sentence.
-var midSentence = set.Of[string]("e.g.", "i.e.", "vs.", "cf.", "viz.")
-
-// abbreviationEndsAt reports whether the period at i closes an abbreviation
-// rather than a sentence. `etc.` closes a sentence only when a capital follows it.
-func abbreviationEndsAt(prose string, i int) bool {
-	word := prose[:i+1]
-	if j := strings.LastIndexAny(word, " \t(\"'"); j >= 0 {
-		word = word[j+1:]
-	}
-	word = strings.ToLower(word)
-	if midSentence.Contains(word) {
-		return true
-	}
-	if word != "etc." {
-		return false
-	}
-	next := strings.TrimLeft(prose[i+1:], " ")
-	return next != "" && !unicode.IsUpper(rune(next[0]))
-}
+// sentences splits prose on its sentence ends with the STE splitter.
+func sentences(prose string) []string { return ste.Sentences(prose) }
 
 // split separates a comment line's marker and indent from its prose.
 func split(line string) (marker, prose string, ok bool) {
