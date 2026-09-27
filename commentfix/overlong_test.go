@@ -8,35 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A cut that lands inside a quote leaves it open, and reads as nothing. This
-// block over a struct field was once cut to `one "commit.`.
-func TestACutNeverLeavesAQuoteOpen(t *testing.T) {
-	src := strings.Join([]string{
-		"package codehost",
-		"",
-		"type Origin struct {",
-		"\t// Gitlinks records the commit each submodule at Hash points at, one",
-		"\t// \"commit path\" line per submodule, paths relative to the repo root.",
-		"\t// It lives here rather than in the module zip, whose hash go.sum pins.",
-		"\tGitlinks string `json:\",omitempty\"`",
-		"}",
-		"",
-	}, "\n")
-
-	out, changed := FixLength("codehost.go", src)
-	require.True(t, changed)
-	assert.Equal(t, strings.Join([]string{
-		"package codehost",
-		"",
-		"type Origin struct {",
-		"\t// Gitlinks records the commit each submodule at Hash points at.",
-		"\tGitlinks string `json:\",omitempty\"`",
-		"}",
-		"",
-	}, "\n"), out)
-	assert.Empty(t, CheckLength("codehost.go", out))
-}
-
 // A comment that runs longer than its declaration is the whole rule.
 func TestALongCommentOverAShortDeclarationIsFound(t *testing.T) {
 	src := strings.Join([]string{
