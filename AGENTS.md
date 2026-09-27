@@ -23,7 +23,8 @@ slopfix check --fix [path...]     # repair in place first, then report what is l
 slopfix fix [path...]             # the same as check --fix
 slopfix check --path doc.md < doc.md   # judge stdin as text headed for doc.md
 slopfix parse "The gate reads every file."
-slopfix report --path doc.md < doc.md  # JSON findings, for the editor plugin
+slopfix report --path doc.md < doc.md  # JSON findings for text on stdin
+slopfix lsp                       # a language server on stdio, for the editor plugin
 slopfix message < message.txt     # judge a closing message
 ```
 
@@ -54,6 +55,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 
 - `slopfix parse [--tags]` prints noun phrases in `[ ]` and verb groups in `< >`. It then prints each clause with its kind, depth, subject and verb.
 - `slopfix report --path P [--only IDs]` reads a document on stdin and writes its findings as JSON. `--path` is required, because the path decides the rules. It always exits 0.
+- `slopfix lsp [--max-per-file N]` speaks the Language Server Protocol on stdio with full document sync. It publishes the `report` findings for each open file that a build reads: a file in a work tree that a rule reads, outside `~/.claude`. Every diagnostic is an error. The `yaml` and `ste` families rank first and `wrap` ranks last. Past the cap, the last diagnostic sent counts the rest.
 - `slopfix hook` reads a PreToolUse payload for Write, Edit or MultiEdit. It repairs the text the write adds and lets the write through. It flags what the repair did not reach.
 - The hook repairs an Edit where it lands in the file. A line inside a fence therefore stays code. A `Scope` holds every rewrite inside the edit's own bytes, so a repair the file needs elsewhere never lands. The hook reports those findings instead.
 - The hook prints nothing and exits 0 for anything it does not judge. That covers a bad payload, another event, a tool that writes no file, and clean text.
