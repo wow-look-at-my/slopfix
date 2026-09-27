@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/jdkato/prose/v3 v3.2.1
+	github.com/pmezard/go-difflib v1.0.0
 	github.com/sourcegraph/go-lsp v0.0.0-20240223163137-f80c5dd31dfd
 	github.com/sourcegraph/jsonrpc2 v0.2.3
 	github.com/spf13/cobra v1.10.2
