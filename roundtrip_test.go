@@ -25,6 +25,15 @@ type fixture struct {
 	wants   []string
 }
 
+// pinnedScript reads from testdata, which this repository's own check skips.
+func pinnedScript() string {
+	body, err := os.ReadFile(filepath.Join("pins", "testdata", "fetch.sh"))
+	if err != nil {
+		panic(err)
+	}
+	return string(body)
+}
+
 // roundTripFixtures carry at least a single instance of every rule
 // CheckContent reports.
 func roundTripFixtures() []fixture {
@@ -102,7 +111,7 @@ func roundTripFixtures() []fixture {
 		{
 			name:    "script",
 			path:    "fetch.sh",
-			content: "#!/bin/sh\ncurl -fsSL 'https://dl.pazer.build/ts0?v=10&os=linux&arch=amd64' -o ts0.cjs\n",
+			content: pinnedScript(),
 			wants:   []string{pins.ID},
 		},
 	}

@@ -1,1 +1,0 @@
-curl -fsSL 'https://dl.pazer.build/ts0?v=10&os=linux&arch=amd64' -o ts0.cjs curl -fsSL https://dl.pazer.build/ts0?os=linux&arch=amd64&v=10 [download](https://dl.pazer.build/dats?os=linux&v=3&arch=amd64) <a href="https://dl.pazer.build/dats?os=linux&amp;v=3">dats</a> curl https://dl.pazer.build/tool?os=${OS}&v=${VERSION}&arch=${ARCH} dl.pazer.build/tool?v

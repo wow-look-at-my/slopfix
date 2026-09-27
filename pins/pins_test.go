@@ -29,7 +29,7 @@ func repaired(text string) string {
 }
 
 func TestVersionParameterIsAFinding(t *testing.T) {
-	for _, line := range lines(t, "detect.txt") {
+	for _, line := range lines(t, "detect.urls") {
 		findings := Check(line)
 		require.Len(t, findings, 1, line)
 		assert.Equal(t, ID, findings[0].ID)
@@ -59,11 +59,11 @@ func TestFindingNamesTheLineAndTheURL(t *testing.T) {
 }
 
 func TestEveryPinnedURLOnALineIsReported(t *testing.T) {
-	assert.Len(t, Check(fixture(t, "twice.txt")), 2)
+	assert.Len(t, Check(fixture(t, "twice.urls")), 2)
 }
 
 func TestRepairDropsTheParameter(t *testing.T) {
-	for _, pair := range lines(t, "repair.txt") {
+	for _, pair := range lines(t, "repair.urls") {
 		in, want, found := strings.Cut(pair, "\t")
 		require.True(t, found, pair)
 		assert.Equal(t, want, repaired(in), in)
@@ -74,7 +74,7 @@ func TestRepairDropsTheParameter(t *testing.T) {
 // Encode would escape a template and rewrite an HTML-escaped separator, so
 // such a URL is reported and left for a person.
 func TestRepairLeavesAURLEncodeWouldMangle(t *testing.T) {
-	for _, in := range lines(t, "mangle.txt") {
+	for _, in := range lines(t, "mangle.urls") {
 		assert.Equal(t, in, repaired(in), in)
 		assert.Len(t, Check(in), 1, in)
 	}
