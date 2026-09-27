@@ -30,7 +30,10 @@ func writeToolReason(path string, w writeAttempt) string {
 		return "blocked: " + path + " is not missing -- it is in the recycle bin, and Write would author a fresh file over the top of it.\n" +
 			"run: recycler restore " + original + "   # then use Edit"
 	}
-	return vacatedReason(path, w)
+	if reason := vacatedReason(path, w); reason != "" {
+		return reason
+	}
+	return copiedScriptReason(path, w.content)
 }
 
 // vacatedReason answers the way around the checks above: the refusal names a
