@@ -3,6 +3,7 @@
 package cardinal
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -126,6 +127,15 @@ func Money(text string, toks []Token, i int) bool {
 		return false
 	}
 	return unicode.IsDigit(rune(tok.Text[0]))
+}
+
+// versionLiteral matches a release number such as v0.0.0, vN.0.0 or 1.2.3.
+var versionLiteral = regexp.MustCompile(`^(?:[vV][0-9A-Z][0-9A-Za-z]*(?:\.[0-9A-Za-z*]+)+|[0-9]+(?:\.[0-9A-Za-z*]+){2,})(?:[-+][0-9A-Za-z.-]+)?$`)
+
+// Version exempts a version literal. It names a release, and no edit to the
+// code makes it wrong.
+func Version(_ string, toks []Token, i int) bool {
+	return versionLiteral.MatchString(strings.TrimRight(toks[i].Text, ".:"))
 }
 
 // tokensIn splits a line into runs of name characters, so a URL, an import path
