@@ -91,16 +91,24 @@ func allDigits(text string) bool {
 // literalMarkers stand against the digits of a literal value.
 const literalMarkers = `="'`
 
+// comparisonMarkers close an operator that takes a value: `=`, `<`, `>`, and every operator built from them.
+const comparisonMarkers = `=<>`
+
 // Literal exempts the digits of a value the code is written against: an env
-// marker an assignment sets, or the quoted string a parser reads as unset. An
-// added item leaves a count wrong, and leaves a value alone.
+// marker an assignment sets, the quoted string a parser reads as unset, or the
+// operand of a comparison such as `used > 0`. An added item leaves a count
+// wrong, and leaves a value alone.
 func Literal(text string, toks []Token, i int) bool {
 	tok := toks[i]
 	if !allDigits(strings.Trim(tok.Text, `"'`)) {
 		return false
 	}
 	last, size := utf8.DecodeLastRuneInString(text[:tok.Offset])
-	return size > 0 && strings.ContainsRune(literalMarkers, last)
+	if size > 0 && strings.ContainsRune(literalMarkers, last) {
+		return true
+	}
+	last, size = utf8.DecodeLastRuneInString(strings.TrimRight(text[:tok.Offset], " \t"))
+	return size > 0 && strings.ContainsRune(comparisonMarkers, last)
 }
 
 // sectionSign marks the number after it as a citation of a section.
