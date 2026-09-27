@@ -408,7 +408,7 @@ func sentences(prose string) []string {
 }
 
 // midSentence are abbreviations that never close a sentence.
-var midSentence = []string{"e.g.", "i.e.", "vs.", "cf.", "viz."}
+var midSentence = set.Of[string]("e.g.", "i.e.", "vs.", "cf.", "viz.")
 
 // abbreviationEndsAt reports whether the period at i closes an abbreviation
 // rather than a sentence. `etc.` closes a sentence only when a capital follows it.
@@ -418,10 +418,8 @@ func abbreviationEndsAt(prose string, i int) bool {
 		word = word[j+1:]
 	}
 	word = strings.ToLower(word)
-	for _, a := range midSentence {
-		if word == a {
-			return true
-		}
+	if midSentence.Contains(word) {
+		return true
 	}
 	if word != "etc." {
 		return false
