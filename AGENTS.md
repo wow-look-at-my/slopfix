@@ -198,7 +198,7 @@ Prose requires a frame, because a document carries numbers that count nothing: a
 
 `counts/inventory-count` cuts the cardinal out of a sentence that counts what is here. `there are three sections` becomes `there are sections`, which stays true. The org rules that a count in markdown is not worth maintaining. The cut is thus the whole repair.
 
-A count the sentence depends on is reported and never cut. It opens its sentence, follows a definite determiner (`the two payloads`), or sits on a line that ends with a colon and introduces a list. The same holds for `ste/count`.
+A count the sentence depends on is reported and never cut. It opens its sentence, or sits on a line that ends with a colon and introduces a list. A count after a determiner is cut: `the two payloads` becomes `the payloads`. The same holds for `ste/count`.
 
 A count needs a frame and a quantity on the same line. The quantity is a cardinal that governs a plural noun. The frame is a possessive (`this repo's plugins`), a having verb (`it ships hooks`) or a deictic (`the rules below`). A quantity with no frame is ordinary technical prose.
 

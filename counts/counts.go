@@ -124,7 +124,7 @@ func Edits(content string, hits []Hit) []edit.Edit {
 }
 
 // loadBearing reports a count whose cut changes what the sentence says. The
-// count opens its sentence, follows a definite determiner, or introduces a list.
+// count opens its sentence or introduces a list.
 func loadBearing(content string, start, end int) bool {
 	lineStart := strings.LastIndexByte(content[:start], '\n') + 1
 	lineEnd := len(content)
@@ -135,18 +135,11 @@ func loadBearing(content string, start, end int) bool {
 	if before == "" || listMarker.MatchString(before) || strings.ContainsAny(before[len(before)-1:], ".!?") {
 		return true
 	}
-	fields := strings.Fields(strings.ToLower(before))
-	if definite.Contains(strings.Trim(fields[len(fields)-1], "*_")) {
-		return true
-	}
 	return strings.HasSuffix(strings.TrimSpace(content[end:lineEnd]), ":")
 }
 
 // listMarker matches the marker of a list item, with nothing after it.
 var listMarker = regexp.MustCompile(`^\s*(?:[-*+]|[0-9]+[.)])$`)
-
-// definite are the determiners that point at a set the reader already knows.
-var definite = set.Of("the", "these", "those", "its", "their", "our", "your", "my", "his", "her")
 
 // measuresARate reports whether a quantity is an interval such as "every
 // minutes". It is still reported, but cutting its number leaves "every
