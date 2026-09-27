@@ -89,6 +89,10 @@ The action at the repository root downloads the published binary from buildhost 
 
 `paths` defaults to `.`. The step therefore goes after the checkout. `only` is the `--only` flag. The action has no `command` input. It never repairs. A job that repairs its own checkout and then passes has enforced nothing. On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
 
+## The marketplace follows each publish
+
+cc-marketplace ships this binary inside its `slopfix` plugin. A publish here therefore reaches nobody until that plugin is packaged again. The last step of `ci.yml` does that on each master build. It dispatches `release.yml` in cc-marketplace with `publish: true`. The token is `CC_MARKETPLACE_DISPATCH_TOKEN` from secret-server, with `actions: write` on cc-marketplace. A missing token fails the build, because a silent skip leaves the marketplace on an old binary.
+
 ## repo: the markdown a repository keeps
 
 These rules judge the tree. Only a walk whose root holds `.git` reaches them. `check` reports them. `fix` applies them.
