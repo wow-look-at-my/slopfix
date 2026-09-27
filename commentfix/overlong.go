@@ -19,7 +19,9 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -304,7 +306,12 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
-	// No whole-sentence cut fits. A person rewrites the block.
+	// No whole-sentence cut fits. A clause cut still reads as a sentence, so it
+	// tries before the block goes to a person.
+	if clause, ok := clauseFit(b); ok {
+		return clause
+	}
+	// No cut that reads fits. A person rewrites the block.
 	return b.text
 }
 
@@ -312,6 +319,78 @@ func trim(b block) []string {
 // repair often keeps the count and still shortens the text.
 func sameText(a, b []string) bool {
 	return strings.Join(a, "\n") == strings.Join(b, "\n")
+}
+
+// clauseFit cuts the block back to the last clause boundary that fits, and
+// closes what it keeps with a period. A whole clause still reads as a sentence.
+func clauseFit(b block) ([]string, bool) {
+	marker, indent, ok := commentShape(b.text)
+	if !ok {
+		return nil, false
+	}
+	var body []string
+	for _, line := range prose(b.text) {
+		body = append(body, stripMarker(line))
+	}
+	text := strings.Join(strings.Fields(strings.Join(body, " ")), " ")
+	budget := max(floorChars, b.codeChars)
+	for _, cut := range clauseCuts(text) {
+		kept := strings.TrimRight(text[:cut], " ,;:-")
+		words := strings.Fields(kept)
+		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+			continue
+		}
+		if !endsSentence(kept) {
+			kept += "."
+		}
+		for _, width := range []int{min(budget, wrapWidth), budget} {
+			out := reflow(kept, indent, marker, width)
+			if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return out, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// clausesTable is what rules/ says for="comment-clauses".
+var clausesTable = table.MustLoad(rules.FS, "comment-clauses")
+
+// boundaryMarks answers the marks that end a clause.
+func boundaryMarks() []string {
+	for _, c := range clausesTable.Classes {
+		if c.Name == "boundary" {
+			return c.Words
+		}
+	}
+	panic("commentfix: rules/ names no class boundary")
+}
+
+// clauseCuts answers every clause boundary in text, the last one first. A mark
+// ends a clause when a space follows it. A word-length mark needs a space before it too.
+func clauseCuts(text string) []int {
+	marks := boundaryMarks()
+	var cuts []int
+	for i := len(text) - 1; i > 0; i-- {
+		for _, m := range marks {
+			if !strings.HasPrefix(text[i:], m+" ") {
+				continue
+			}
+			if len(m) > 1 && text[i-1] != ' ' {
+				continue
+			}
+			cuts = append(cuts, i)
+			break
+		}
+	}
+	return cuts
+}
+
+// balanced reports text that closes every bracket, backtick and quote it opens.
+func balanced(text string) bool {
+	return strings.Count(text, "(") == strings.Count(text, ")") &&
+		strings.Count(text, "[") == strings.Count(text, "]") &&
+		strings.Count(text, "`")%2 == 0 && strings.Count(text, `"`)%2 == 0
 }
 
 // dangling words open something that is not there.
