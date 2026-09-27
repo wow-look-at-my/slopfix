@@ -381,7 +381,7 @@ Any change to file content in the working tree goes through Write, Edit or Noteb
 - A subagent spawn with a tool grant or a permissive `permissionMode` is refused. The live settings files are refused to every tool.
 - The session scratchpad is the one temporary directory that does not deny.
 
-A Write over a path that git holds and the disk does not is refused, however the path was emptied. The hook restores the file with `git restore --worktree` first. Commit the removal to free the path. `echo x > new-file` is refused too, because creating a file is what Write is for.
+A Write over a path that git holds and the disk does not is refused, however the path was emptied. A deletion committed on the branch, or in the last `10` commits, holds the path too. The hook restores the file with `git restore --worktree` first, from the index, HEAD or the parent of the deleting commit. No route lets Write replace a file that existed. The refusal names the Edit tool. It prices the evasion in Claude tokens from `transcript_path`. The price is every tool call that names the file since its last Read or Edit, plus this Write. The changed lines are subtracted. `echo x > new-file` is refused too, because creating a file is what Write is for.
 
 ## clean-bash
 
