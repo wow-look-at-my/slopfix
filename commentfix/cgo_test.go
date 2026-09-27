@@ -63,15 +63,15 @@ func TestARepairThatKeepsItsLineCountIsStillApplied(t *testing.T) {
 }
 
 // Laying a block out rescues only what the budget already holds. Prose past it
-// is cut back to the opening sentence and no further. A mid-sentence cut would
-// leave a fragment, so a finding that remains is left for a person.
-func TestProsePastTheBudgetKeepsItsOpeningSentence(t *testing.T) {
+// is cut mid-sentence rather than left: a run that no honest cut reaches would
+// otherwise stay a finding forever, which no automatic pass can clear.
+func TestProsePastTheBudgetIsForceFitted(t *testing.T) {
 	long := "// Foo names a thing, and then it says a great deal more about that thing, at such length that no width lays it out inside the budget it must meet.\n// A second sentence carries on well past the point.\nconst Foo = 1\n"
 	out, changed := FixLength("p.go", long)
 	assert.True(t, changed)
-	assert.Contains(t, out, "inside the budget it must meet.", "the opening sentence survives whole")
-	assert.NotContains(t, out, "A second sentence", "the cut takes what follows it")
-	assert.NotEmpty(t, CheckLength("p.go", out), "what is still over is reported, not mangled")
+	assert.NotEqual(t, long, out)
+	assert.Contains(t, out, "// Foo names a thing", "the opening survives")
+	assert.Empty(t, CheckLength("p.go", out))
 }
 
 // A directive is machine text bound to the declaration by position. Every
