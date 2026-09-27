@@ -56,9 +56,23 @@ func AddedBlocks(path, added string) []Block {
 
 // IsDocument reports whether path names prose rather than source.
 func IsDocument(path string) bool {
+	if InTestdata(path) {
+		return false
+	}
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".md", ".markdown", ".rst", ".txt", ".adoc":
 		return true
+	}
+	return false
+}
+
+// InTestdata reports whether path sits under a testdata directory. A file there
+// is test input, and a rewrite of it changes what the test checks.
+func InTestdata(path string) bool {
+	for _, part := range strings.FieldsFunc(path, func(r rune) bool { return r == '/' || r == '\\' }) {
+		if part == "testdata" {
+			return true
+		}
 	}
 	return false
 }
