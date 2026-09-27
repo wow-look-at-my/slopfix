@@ -6,8 +6,7 @@ import (
 	"strings"
 )
 
-// docMarkers is longest-earliest: `//!` must be tried before `//`, or Rust's inner
-// doc marker matches `//` and leaves its `!` in the prose.
+// docMarkers is longest-first, so Rust's `//!` never leaves its `!` in the prose.
 var docMarkers = []string{"///", "//!", "//", "#"}
 
 // paragraph is a run of comment lines, or the blank marker between runs.
@@ -18,13 +17,15 @@ type paragraph struct {
 	raw      []string
 }
 
-// codeRow reports a line godoc renders verbatim: the prose after its marker
-// opens with a tab, which is how a doc comment spells a code block.
+// codeRow reports a line laid out by hand: the prose after its marker opens
+// with a tab, or with more than the space a marker takes. Godoc renders such
+// a line verbatim, and an aligned list in any language means the same.
 func codeRow(line string) bool {
 	t := strings.TrimLeft(line, " \t")
 	for _, m := range docMarkers {
 		if rest, found := strings.CutPrefix(t, m); found {
-			return strings.HasPrefix(rest, "\t")
+			return strings.HasPrefix(rest, "\t") || strings.HasPrefix(rest, " \t") ||
+				(strings.HasPrefix(rest, "  ") && strings.TrimSpace(rest) != "")
 		}
 	}
 	return false
