@@ -62,7 +62,9 @@ func Split(root, rel string, dryRun bool) ([]string, error) {
 	size := len([]rune(string(raw)))
 
 	secs := sections(lines)
-	sort.SliceStable(secs, func(a, b int) bool { return runes(lines[secs[a].start:secs[a].end]) > runes(lines[secs[b].start:secs[b].end]) })
+	sort.SliceStable(secs, func(a, b int) bool {
+		return runes(lines[secs[a].start:secs[a].end]) > runes(lines[secs[b].start:secs[b].end])
+	})
 
 	taken := map[string]bool{}
 	type move struct {

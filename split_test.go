@@ -53,7 +53,7 @@ func TestSplitReadsNoHeadingInsideAFence(t *testing.T) {
 
 func TestSplitNeverOverwritesAnExistingDoc(t *testing.T) {
 	root := repo(t, map[string]string{
-		"AGENTS.md":    "## Topic\n\n" + para("x", CharBudget) + "\n",
+		"AGENTS.md":     "## Topic\n\n" + para("x", CharBudget) + "\n",
 		"docs/topic.md": "somebody's notes\n",
 	})
 	written, err := Split(root, "AGENTS.md", false)
