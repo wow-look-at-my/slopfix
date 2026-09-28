@@ -149,9 +149,11 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	var removed []string
 	var kept []tombstones.Hit
 	var findings []string
+	var unmet []string
 	rewrites := 0
 	changed := false
 	take := func(repair slopfix.Repair, apply func(string)) {
+		unmet = append(unmet, repair.Unmet...)
 		removed = append(removed, repair.Removed...)
 		rewrites += repair.Rewrites
 		kept = append(kept, repair.Kept...)
@@ -189,6 +191,8 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	flags := hitLines(kept)
 	flags = append(flags, findings...)
 	switch {
+	case len(unmet) > 0:
+		return deny(append([]string{"slopfix-expect does not hold in " + write.FilePath + ":"}, unmet...))
 	case changed:
 		return respond(func(r *hookResponse) {
 			r.HookSpecificOutput.UpdatedInput = raw

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pmezard/go-difflib/difflib"
 	tokenizer "github.com/wow-look-at-my/go-tokenizer"
 )
 
@@ -164,48 +165,17 @@ func gitStep(command string) bool {
 	return false
 }
 
-// lcsLimit caps the line table of changedLines.
-const lcsLimit = 1 << 22
-
 // changedLines answers the lines an Edit would carry: the removed ones and the
-// added ones, each joined, by longest common subsequence.
+// added ones, each joined.
 func changedLines(before, after string) (removed, added string) {
 	a, b := strings.SplitAfter(before, "\n"), strings.SplitAfter(after, "\n")
-	for len(a) > 0 && len(b) > 0 && a[0] == b[0] {
-		a, b = a[1:], b[1:]
-	}
-	for len(a) > 0 && len(b) > 0 && a[len(a)-1] == b[len(b)-1] {
-		a, b = a[:len(a)-1], b[:len(b)-1]
-	}
-	if len(a)*len(b) > lcsLimit {
-		return strings.Join(a, ""), strings.Join(b, "")
-	}
-	lcs := make([][]int32, len(a)+1)
-	for i := range lcs {
-		lcs[i] = make([]int32, len(b)+1)
-	}
-	for i := len(a) - 1; i >= 0; i-- {
-		for j := len(b) - 1; j >= 0; j-- {
-			if a[i] == b[j] {
-				lcs[i][j] = lcs[i+1][j+1] + 1
-			} else {
-				lcs[i][j] = max(lcs[i+1][j], lcs[i][j+1])
-			}
-		}
-	}
 	var rm, add strings.Builder
-	i, j := 0, 0
-	for i < len(a) || j < len(b) {
-		switch {
-		case i < len(a) && j < len(b) && a[i] == b[j]:
-			i, j = i+1, j+1
-		case i < len(a) && (j == len(b) || lcs[i+1][j] >= lcs[i][j+1]):
-			rm.WriteString(a[i])
-			i++
-		default:
-			add.WriteString(b[j])
-			j++
+	for _, op := range difflib.NewMatcherWithJunk(a, b, false, nil).GetOpCodes() {
+		if op.Tag == 'e' {
+			continue
 		}
+		rm.WriteString(strings.Join(a[op.I1:op.I2], ""))
+		add.WriteString(strings.Join(b[op.J1:op.J2], ""))
 	}
 	return rm.String(), add.String()
 }
