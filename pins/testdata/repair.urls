@@ -1,0 +1,5 @@
+curl 'https://dl.pazer.build/ts0?v=10&os=linux&arch=amd64' -o x	curl 'https://dl.pazer.build/ts0?arch=amd64&os=linux' -o x
+https://dl.pazer.build/ts0?os=linux&v=10	https://dl.pazer.build/ts0?os=linux
+https://dl.pazer.build/ts0?v=10	https://dl.pazer.build/ts0
+https://dl.pazer.build/a?v=1#top	https://dl.pazer.build/a#top
+https://dl.pazer.build/a?v=1&v=2&os=linux	https://dl.pazer.build/a?os=linux

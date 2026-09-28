@@ -36,9 +36,9 @@ func TestTheRegistryRunsEachKindInOrder(t *testing.T) {
 		}
 		return out
 	}
-	assert.Equal(t, []string{"tombstones", "comments/length", "comments/number", "comments/length-after-number"}, names(fixer.Source))
-	assert.Equal(t, []string{"tombstones", "counts/inventory-count", "wrap-and-ste", "ste/count"}, names(fixer.Document))
-	assert.Equal(t, []string{"yaml/ungate", "yaml/join-comments", "yaml/rename-guarded-job", "yaml/untest"}, names(fixer.Workflow))
+	assert.Equal(t, []string{"tombstones", "comments/length", "comments/number", "comments/length-after-number", "pins/download-version"}, names(fixer.Source))
+	assert.Equal(t, []string{"tombstones", "counts/inventory-count", "wrap-and-ste", "ste/count", "pins/download-version"}, names(fixer.Document))
+	assert.Equal(t, []string{"yaml/ungate", "yaml/join-comments", "yaml/rename-guarded-job", "yaml/untest", "pins/download-version"}, names(fixer.Workflow))
 }
 
 // Every family a fixer answers to is one --only accepts.
