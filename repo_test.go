@@ -3,6 +3,7 @@ package slopfix_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,28 @@ func TestFixKeepsMarkdownOutsideTheRoot(t *testing.T) {
 	for _, f := range out.Findings {
 		assert.False(t, slopfix.RepoIDs.Contains(f.ID), "no repo rule judges docs/x.md: %s", f.ID)
 	}
+}
+
+func TestCheckReportsAnOverBudgetFileAndChangesNothing(t *testing.T) {
+	agents := "## Topic\n\n" + strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"
+	root := gitRoot(t, map[string]string{"AGENTS.md": agents})
+	assert.Contains(t, ids(slopfix.CheckTree(root).Findings), slopfix.IDBudget)
+	got, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	require.NoError(t, err)
+	assert.Equal(t, agents, string(got))
+}
+
+func TestFixSplitsAnOverBudgetFileIntoDocs(t *testing.T) {
+	agents := "# Guide\n\n## Topic\n\n" + strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"
+	root := gitRoot(t, map[string]string{"AGENTS.md": agents})
+	out := slopfix.FixTree(root)
+	assert.NotContains(t, ids(out.Findings), slopfix.IDBudget)
+	assert.FileExists(t, filepath.Join(root, "docs", "topic.md"))
+}
+
+func TestFixStillReportsAFileItCannotSplit(t *testing.T) {
+	root := gitRoot(t, map[string]string{"AGENTS.md": strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"})
+	assert.Contains(t, ids(slopfix.FixTree(root).Findings), slopfix.IDBudget)
 }
 
 func TestFixMovesClaudeIntoAgents(t *testing.T) {

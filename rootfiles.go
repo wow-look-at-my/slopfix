@@ -55,6 +55,12 @@ func budgetOf(path, rel string, result *RootResult) error {
 	return nil
 }
 
+// charCount is the size of a file in characters.
+func charCount(path string) (int, error) {
+	content, err := os.ReadFile(path)
+	return len([]rune(string(content))), err
+}
+
 // BudgetError renders the over-budget files as a single message.
 func BudgetError(over map[string]int) string {
 	var b strings.Builder

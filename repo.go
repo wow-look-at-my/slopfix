@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -48,12 +49,41 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 			changed = append(changed, filepath.Join(root, ClaudeFile))
 		}
 	}
-	for rel, size := range plan.OverBudget {
-		if keeps(IDBudget) {
-			findings = append(findings, repoFinding(rel, IDBudget,
-				fmt.Sprintf("%d characters, over the %d budget every request pays for", size, CharBudget),
-				"Cut it down."))
+	if !keeps(IDBudget) {
+		return findings, changed, nil
+	}
+	// The move above can grow AGENTS.md, so the sizes are measured again.
+	if plan, err = SurveyRoot(root, true); err != nil {
+		return nil, nil, err
+	}
+	over := make([]string, 0, len(plan.OverBudget))
+	for rel := range plan.OverBudget {
+		over = append(over, rel)
+	}
+	sort.Strings(over)
+	for _, rel := range over {
+		size := plan.OverBudget[rel]
+		if writing {
+			written, err := Split(root, rel, false)
+			if err != nil {
+				return nil, nil, err
+			}
+			if len(written) > 0 {
+				changed = append(changed, filepath.Join(root, rel))
+				for _, name := range written {
+					changed = append(changed, filepath.Join(root, filepath.FromSlash(name)))
+				}
+			}
+			if size, err = charCount(filepath.Join(root, rel)); err != nil {
+				return nil, nil, err
+			}
+			if size <= CharBudget {
+				continue
+			}
 		}
+		findings = append(findings, repoFinding(rel, IDBudget,
+			fmt.Sprintf("%d characters, over the %d budget every request pays for", size, CharBudget),
+			"`slopfix fix` moves its largest `##` sections into docs/. A file with no such section needs a cut by hand."))
 	}
 	return findings, changed, nil
 }
