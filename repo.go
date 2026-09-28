@@ -12,11 +12,9 @@ import (
 // The repository rules. They judge the tree rather than a file, so only a walk
 // from the repository root reaches them.
 const (
-	// IDStrayMarkdown is a markdown file other than the kept root files.
-	IDStrayMarkdown = "repo/stray-markdown"
 	// IDAgentsFile is a root CLAUDE.md that holds more than the AGENTS.md import.
 	IDAgentsFile = "repo/agents-file"
-	// IDBudget is a kept file past CharBudget.
+	// IDBudget is a root file past CharBudget.
 	IDBudget = "repo/budget"
 )
 
@@ -24,7 +22,7 @@ const (
 const RuleRepo Rule = "repo"
 
 // RepoIDs names every repository rule.
-var RepoIDs = set.Of(IDStrayMarkdown, IDAgentsFile, IDBudget)
+var RepoIDs = set.Of(IDAgentsFile, IDBudget)
 
 // isRepoRoot reports whether dir is the top of a repository.
 func isRepoRoot(dir string) bool {
@@ -35,7 +33,7 @@ func isRepoRoot(dir string) bool {
 // repoRun reports what the repository rules find under root. When writing, it
 // also applies the repairs the caller keeps, and names each file it changed.
 func repoRun(root string, keeps func(string) bool, writing bool) (findings []TreeFinding, changed []string, err error) {
-	plan, err := Purge(root, true)
+	plan, err := SurveyRoot(root, true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -49,21 +47,6 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 		} else {
 			changed = append(changed, filepath.Join(root, ClaudeFile))
 		}
-	}
-	for _, rel := range plan.Deleted {
-		if !keeps(IDStrayMarkdown) {
-			break
-		}
-		if !writing {
-			findings = append(findings, repoFinding(rel, IDStrayMarkdown,
-				"a repository keeps no markdown but README.md, AGENTS.md and CLAUDE.md at its root",
-				"Move what it says into AGENTS.md or README.md. `slopfix fix` deletes it."))
-			continue
-		}
-		if err := os.Remove(filepath.Join(root, rel)); err != nil {
-			return nil, nil, err
-		}
-		changed = append(changed, filepath.Join(root, rel))
 	}
 	for rel, size := range plan.OverBudget {
 		if keeps(IDBudget) {

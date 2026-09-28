@@ -99,11 +99,11 @@ func TestMigrateDryRunWritesNothing(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
-func TestPurgeMigratesAndKeepsTheAgentsFile(t *testing.T) {
-	root := repo(t, map[string]string{"CLAUDE.md": "rules\n", "docs/x.md": "gone"})
-	result, err := Purge(root, false)
+func TestSurveyRootMigratesAndKeepsTheAgentsFile(t *testing.T) {
+	root := repo(t, map[string]string{"CLAUDE.md": "rules\n", "docs/x.md": "kept"})
+	result, err := SurveyRoot(root, false)
 	require.NoError(t, err)
 	assert.True(t, result.Agents.Renamed)
-	assert.Equal(t, []string{filepath.FromSlash("docs/x.md")}, result.Deleted)
+	assert.Equal(t, "kept", readFile(t, root, filepath.FromSlash("docs/x.md")))
 	assert.Equal(t, "rules\n", readFile(t, root, "AGENTS.md"))
 }

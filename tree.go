@@ -86,7 +86,7 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 	if wantsRepo(req) && isRepoRoot(root) {
 		findings, changed, err := repoRun(root, keepsOf(req), writing)
 		if err != nil {
-			findings = append(findings, repoFinding(root, IDStrayMarkdown, "the repository rules could not read the tree", err.Error()))
+			findings = append(findings, repoFinding(root, IDBudget, "the repository rules could not read the tree", err.Error()))
 		}
 		out.Findings = append(out.Findings, findings...)
 		out.Repaired = append(out.Repaired, changed...)

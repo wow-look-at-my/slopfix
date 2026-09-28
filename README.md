@@ -8,7 +8,7 @@ It also carries the Claude Code hook subcommands that the org's marketplace plug
 
 | Category | Rule IDs | Repairs |
 |---|---|---|
-| `repo` | `repo/stray-markdown`, `repo/agents-file`, `repo/budget` | the first two |
+| `repo` | `repo/agents-file`, `repo/budget` | the first |
 | `wrap` | `wrap/hard-wrap` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
 | `counts` | `counts/inventory-count` | yes |
@@ -17,7 +17,7 @@ It also carries the Claude Code hook subcommands that the org's marketplace plug
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate` | yes |
 | message | `laziness/punt`, `blame/deflection` | no |
 
-- `repo`: a repository keeps only `README.md`, `AGENTS.md` and `CLAUDE.md` at its root. `CLAUDE.md` holds only `@AGENTS.md`.
+- `repo`: `CLAUDE.md` holds only `@AGENTS.md`, and each root file stays under `40000` characters.
 - `wrap` and `ste`: a paragraph is one line, and its prose follows ASD-STE100 Simplified Technical English.
 - `counts`, `ste/count` and `comments/number`: a stated count goes stale when the set changes.
 - `tombstones`: a comment that narrates history or argues for the diff.
@@ -46,7 +46,6 @@ slopfix parse "The gate reads every file."
 
 - `fix` is `check --fix`. A directory argument is walked.
 - `--only` takes categories and rule IDs, comma separated. An unknown name is an error.
-- An empty `.slopfix-spec` file at a repository root opts that repository out of `repo/stray-markdown`.
 - `slopfix report --path P` prints JSON findings for text on stdin.
 - `slopfix lsp` is a language server on stdio. It publishes those findings for each open file that a build reads. The editor plugin runs it.
 - `slopfix hook` repairs a Claude Code write. `slopfix message` judges a closing message.
@@ -65,4 +64,4 @@ The action runs `check` on `paths`. It never repairs, because a job that repairs
 
 ## More
 
-`AGENTS.md` holds the full reference: each rule, what it does not flag, the hook subcommands and the design decisions.
+`AGENTS.md` holds the full reference: each rule, what it does not flag, the hook subcommands and the design decisions. `docs/` holds the depth of single subsystems.
