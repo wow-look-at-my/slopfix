@@ -17,14 +17,15 @@ import (
 
 // The rule IDs. A report prints the ID that found the text.
 const (
-	IDCommentBlock = "yaml/comment-block"
-	IDAllBuildsJob = "yaml/all-builds-job"
-	IDTestInYAML   = "yaml/test-in-workflow"
-	IDNeuteredGate = "yaml/neutered-gate"
+	IDCommentBlock     = "yaml/comment-block"
+	IDAllBuildsJob     = "yaml/all-builds-job"
+	IDTestInYAML       = "yaml/test-in-workflow"
+	IDNeuteredGate     = "yaml/neutered-gate"
+	IDDuplicateStepKey = "yaml/duplicate-step-key"
 )
 
 // AllIDs names every rule this package reports, as a membership test.
-var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate)
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDDuplicateStepKey)
 
 // Judges reports whether these rules read the file at this path. A backslash is
 // separated here rather than through filepath, which ignores it off Windows.
@@ -55,6 +56,7 @@ func Check(content string) []ste.Finding {
 	out = append(out, allBuildsJobs(content)...)
 	out = append(out, testsInYAML(content)...)
 	out = append(out, neuteredGates(content)...)
+	out = append(out, duplicateStepKeys(content)...)
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
 }
