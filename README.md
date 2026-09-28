@@ -46,6 +46,7 @@ slopfix parse "The gate reads every file."
 
 - `fix` is `check --fix`. A directory argument is walked.
 - `--only` takes categories and rule IDs, comma separated. An unknown name is an error.
+
 - `slopfix report --path P` prints JSON findings for text on stdin.
 - `slopfix lsp` is a language server on stdio. It publishes those findings for each open file that a build reads. The editor plugin runs it.
 - `slopfix hook` repairs a Claude Code write. `slopfix message` judges a closing message.
