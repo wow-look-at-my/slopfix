@@ -99,7 +99,11 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		out.Read++
 
 		req.Path, req.Content = path, string(src)
-		repair := Fix(req)
+		run := Report
+		if writing {
+			run = Fix
+		}
+		repair := run(req)
 		if len(repair.Unmet) > 0 {
 			out.Unmet = append(out.Unmet, &UnmetError{Path: path, Unmet: repair.Unmet})
 		}
