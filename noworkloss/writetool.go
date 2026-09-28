@@ -29,7 +29,10 @@ func writeToolReason(path string, w writeAttempt) string {
 	if item, ok := inRecycleBin(path); ok {
 		return binnedReason(path, item)
 	}
-	return vacatedReason(path, w)
+	if reason := vacatedReason(path, w); reason != "" {
+		return reason
+	}
+	return copiedScriptReason(path, w.content)
 }
 
 // binnedReason puts a recycled file back before it answers, as vacatedReason
