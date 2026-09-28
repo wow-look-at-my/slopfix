@@ -3,6 +3,7 @@ package slopfix_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,19 +33,35 @@ func ids(findings []slopfix.TreeFinding) []string {
 	return out
 }
 
-func TestCheckReportsAStrayMarkdownFileAndDeletesNothing(t *testing.T) {
-	root := gitRoot(t, map[string]string{"README.md": "Front page.\n", "docs/x.md": "Notes.\n"})
-	out := slopfix.CheckTree(root)
-	assert.Contains(t, ids(out.Findings), slopfix.IDStrayMarkdown)
-	assert.FileExists(t, filepath.Join(root, "docs", "x.md"))
-}
-
-func TestFixDeletesAStrayMarkdownFile(t *testing.T) {
+func TestFixKeepsMarkdownOutsideTheRoot(t *testing.T) {
 	root := gitRoot(t, map[string]string{"README.md": "Front page.\n", "docs/x.md": "Notes.\n"})
 	out := slopfix.FixTree(root)
-	assert.NoFileExists(t, filepath.Join(root, "docs", "x.md"))
-	assert.NotContains(t, ids(out.Findings), slopfix.IDStrayMarkdown)
-	assert.FileExists(t, filepath.Join(root, "README.md"))
+	assert.FileExists(t, filepath.Join(root, "docs", "x.md"))
+	for _, f := range out.Findings {
+		assert.False(t, slopfix.RepoIDs.Contains(f.ID), "no repo rule judges docs/x.md: %s", f.ID)
+	}
+}
+
+func TestCheckReportsAnOverBudgetFileAndChangesNothing(t *testing.T) {
+	agents := "## Topic\n\n" + strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"
+	root := gitRoot(t, map[string]string{"AGENTS.md": agents})
+	assert.Contains(t, ids(slopfix.CheckTree(root).Findings), slopfix.IDBudget)
+	got, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	require.NoError(t, err)
+	assert.Equal(t, agents, string(got))
+}
+
+func TestFixSplitsAnOverBudgetFileIntoDocs(t *testing.T) {
+	agents := "# Guide\n\n## Topic\n\n" + strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"
+	root := gitRoot(t, map[string]string{"AGENTS.md": agents})
+	out := slopfix.FixTree(root)
+	assert.NotContains(t, ids(out.Findings), slopfix.IDBudget)
+	assert.FileExists(t, filepath.Join(root, "docs", "topic.md"))
+}
+
+func TestFixStillReportsAFileItCannotSplit(t *testing.T) {
+	root := gitRoot(t, map[string]string{"AGENTS.md": strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"})
+	assert.Contains(t, ids(slopfix.FixTree(root).Findings), slopfix.IDBudget)
 }
 
 func TestFixMovesClaudeIntoAgents(t *testing.T) {
@@ -59,18 +76,13 @@ func TestFixMovesClaudeIntoAgents(t *testing.T) {
 }
 
 func TestAWalkBelowTheRootLeavesTheRepoRulesOut(t *testing.T) {
-	root := gitRoot(t, map[string]string{"sub/notes.md": "Notes.\n"})
+	root := gitRoot(t, map[string]string{"CLAUDE.md": "Run the tests.\n", "sub/notes.md": "Notes.\n"})
 	out := slopfix.CheckTree(filepath.Join(root, "sub"))
-	assert.NotContains(t, ids(out.Findings), slopfix.IDStrayMarkdown)
-}
-
-func TestTestdataIsNotJudged(t *testing.T) {
-	root := gitRoot(t, map[string]string{"pkg/testdata/case.md": "A fixture.\n"})
-	assert.NotContains(t, ids(slopfix.CheckTree(root).Findings), slopfix.IDStrayMarkdown)
+	assert.NotContains(t, ids(out.Findings), slopfix.IDAgentsFile)
 }
 
 func TestNamingAnotherRuleLeavesTheRepoRulesOut(t *testing.T) {
-	root := gitRoot(t, map[string]string{"docs/x.md": "Notes.\n"})
+	root := gitRoot(t, map[string]string{"CLAUDE.md": "Run the tests.\n"})
 	out := slopfix.CheckTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleSTE}})
-	assert.NotContains(t, ids(out.Findings), slopfix.IDStrayMarkdown)
+	assert.NotContains(t, ids(out.Findings), slopfix.IDAgentsFile)
 }

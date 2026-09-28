@@ -2,7 +2,7 @@
 
 slopfix is one binary for the org's prose rules. It also judges code comments, GitHub Actions workflows and the markdown files a repository keeps. It carries the Claude Code hook subcommands that the marketplace plugins exec. A hook, a CI job and an editor integration all call this binary. Each gets the same verdict.
 
-A repository keeps only `README.md` (for a person), `AGENTS.md` (this file) and `CLAUDE.md` (the line `@AGENTS.md`). Put depth here, not in a new markdown file. The `repo/stray-markdown` rule deletes any other markdown file.
+`README.md` is for a person, `AGENTS.md` (this file) for an agent, and `CLAUDE.md` is the line `@AGENTS.md`. Depth that only one subsystem needs goes in `docs/<topic>.md`, with a pointer here.
 
 ## Build and test
 
@@ -67,7 +67,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 
 | Category | Rule IDs | Repairs |
 |---|---|---|
-| `repo` | `repo/stray-markdown`, `repo/agents-file`, `repo/budget` | the first two, on a walk |
+| `repo` | `repo/agents-file`, `repo/budget` | yes, on a walk, except a file with no `##` section |
 | `wrap` | `wrap/hard-wrap` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
 | `counts` | `counts/inventory-count` | yes |
@@ -101,15 +101,12 @@ cc-marketplace ships this binary inside its `slopfix` plugin. A publish here the
 
 These rules judge the tree. Only a walk whose root holds `.git` reaches them. `check` reports them. `fix` applies them.
 
-- `repo/stray-markdown`: a `.md` file other than the root `README.md`, `AGENTS.md` and `CLAUDE.md`. A `README.md` in a subdirectory is stray too. `fix` deletes it. Move its content first.
 - `repo/agents-file`: a root `CLAUDE.md` that holds more than the `@AGENTS.md` import. `fix` moves its body into `AGENTS.md` and leaves `CLAUDE.md` as `@AGENTS.md` and a newline. Claude Code reads `CLAUDE.md`. Every other agent reads `AGENTS.md`.
-- `repo/budget`: a kept file over `40000` characters. It reports only. The count is characters, because a byte count inflates a file with an em dash.
+- `repo/budget`: a root `README.md`, `AGENTS.md` or `CLAUDE.md` over `40000` characters. The count is characters, because a byte count inflates a file with an em dash. `fix` moves the largest `##` sections into `docs/<heading>.md` until the file is at `32000` or less. The gap leaves room for the next edit. The text moves word for word, and each heading under it rises one level. The heading stays, with a link to the new file. A name that exists gets a `-2` suffix.
 
-The move runs even in a spec repository, because it deletes no prose. A body that `AGENTS.md` already holds is not appended again. The import line is never copied into the file it imports. A `CLAUDE.md` that is a symlink stays.
+A body that `AGENTS.md` already holds is not appended again. The import line is never copied into the file it imports. A `CLAUDE.md` that is a symlink stays.
 
-An empty `.slopfix-spec` file at the root opts a repository out of `repo/stray-markdown`. That marker is the only exemption. The answer thus lives with the repository it describes. The walk skips registered submodules, `testdata`, `.git`, `vendor`, `node_modules` and `dist`.
-
-The submodule skip comes from `.gitmodules`, verified against the index. A declaration alone cannot exempt real source. A path that escapes the repository is an error. Outside a repository nothing is skipped. A lost derivation thus makes the check stricter.
+Every other markdown file is left alone. The budget covers only the root files, because only they load on every request.
 
 ## edit: the only way a repair writes
 
@@ -312,83 +309,7 @@ Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` 
 
 `no-work-loss` asks questions of one parsed command. Destruction: does it destroy content that exists only in the working tree? Provenance: does it change file content without Write, Edit or NotebookEdit?
 
-### Destruction
-
-The invariant: content that exists only in the working tree must never be lost by a command the agent runs. Committed work stays in the reflog. A history rewrite is thus out of scope.
-
-The hook preserves, then allows. It commits the at-risk paths onto the CURRENT BRANCH, where the log and the next push already look. A hidden ref is one nobody reviews.
-
-- Every step uses a throwaway `GIT_INDEX_FILE`, seeded by `git read-tree HEAD`. The real index and the working tree never move.
-- `stagedTree` commits the index entries first. `git add --force` then commits the disk content. A tree equal to its parent is dropped. No commit is therefore empty.
-- `git update-ref HEAD` advances the branch. `git reset -q <commit> -- <paths>` refreshes the real index for those paths. Git hooks are off during preservation.
-- A best-effort `git push --no-verify origin HEAD` follows. A push failure still allows. The report names where the content sits.
-- A failed `add`, `write-tree`, `commit-tree` or `update-ref` denies. Preservation that did not happen must never read as success.
-
-A stash entry and a ref-destroying command still deny outright. A ref under `refs/no-work-loss/` is the only copy of its content. Deleting or force-pushing it is always refused.
-
-The incident: `git checkout master` carries a dirty tree across. `git reset --hard origin/master` then destroys it with no reflog entry. A guard on `reset --hard` alone misses the setup step.
-
-Each verb is checked against the classes it reaches. A single dirty bit gives false positives that get a guard uninstalled.
-
-| Command | tracked edits | untracked | ignored | stash |
-|---|---|---|---|---|
-| `reset --hard` | destroys | spares | spares | spares |
-| `clean -fd` | spares | destroys | spares | spares |
-| `clean -fdx` | spares | destroys | destroys | spares |
-| `stash drop` | spares | spares | spares | destroys |
-| `checkout <ref>` | destroys | spares | spares | spares |
-
-A submodule at a commit other than its gitlink is not a tracked edit. That commit stays in the history of the submodule. The probe reads `status --porcelain=v2` and drops a submodule entry that has no modified and no untracked content.
-
-A ref-destroying verb asks whether the content exists anywhere else:
-
-| Verb | What must survive | How it is answered |
-|---|---|---|
-| `branch -D` / `-M`, `update-ref -d`, `push --delete` | the tip | another ref contains it |
-| `push --force` / `+refspec` | the remote-tracking tip | an ancestor of the push, or in another ref |
-| `filter-branch` | all of HEAD | `rev-list --count HEAD --not --remotes` is `0` |
-| `reflog expire` / `delete` | nothing reflog-only | `fsck --unreachable --no-reflogs` finds no commit |
-| `worktree remove --force` | its edits | its `status --porcelain` is empty |
-
-- Containment uses `for-each-ref --contains`. The `--exclude` flag with `--branches` takes the name without `refs/heads/`. A full refname thus excludes nothing.
-- `refs/remotes/<remote>/HEAD` aliases the overwritten branch. The check filters it out.
-- `push --mirror` is always refused. A push with no local remote-tracking ref denies and names `git fetch`.
-
-Allowed on purpose: unpushed commits on a clean tree, `checkout -b`, `switch -c`, `stash push`, `commit`, `add`, `restore --staged`, unknown verbs, appends, and anything outside a repository.
-
-### Detection
-
-- Chains, pipes, subshells, bodies and command substitutions are each evaluated.
-- A `cd` carries forward across `&&`, `||`, `;` and brace blocks. A pipe stage, a subshell and a conditional body get a copy. `git -C` and `--work-tree` apply too.
-- Wrappers resolve to their program, with value-taking flags understood: `env`, `sudo`, `doas`, `command`, `builtin`, `exec`, `nohup`, `nice`, `ionice`, `setsid`, `stdbuf`, `timeout`, `xargs`. A leading `\` and an absolute path.
-- Short flags unbundle. A `--flag=value` registers as `--flag`.
-- Git aliases resolve from `git config`, including `!shell` aliases. Self-reference stops at depth `3`.
-
-Ambiguity denies. That covers an unparseable command with a destructive verb, an operand that is not static (`rm $TARGET`, `cd -`), and a relocated `GIT_DIR`. A script FILE that the walk follows is judged on its static paths only.
-
-A device target such as `/dev/null`, and a descriptor other than stdout, cannot empty a file. The provenance half still judges every descriptor. It thus refuses `echo x 2> tracked.go`.
-
-A destructive verb fails closed on a panic, a git error or the `3`-second git timeout. Everything else fails open. A killed binary lets the command run, because a hook cannot make itself mandatory. `clean-bash` rewrites `rm`. This hook sees the original command. Where both fire, the deny wins.
-
-### Provenance
-
-Any change to file content in the working tree goes through Write, Edit or NotebookEdit. The verdict follows from the shape of the write:
-
-| Shape | Example | Denies when |
-|---|---|---|
-| named path | `sed -i x.go`, `> x.go`, `cp a x.go` | the path is in a guarded root and not under a build directory |
-| whole directory | `patch`, `tar -x`, `git apply` | the directory holds or sits in a guarded root |
-| opaque | `node -e`, an `xargs`-fed `sed -i`, a GitHub API commit | always |
-
-- Routes include editors, `busybox` applets, every file redirect, `tee`, `dd of=`, `truncate -s`, `sponge`, `xxd -r`, `sort -o`, `split`, compressors without `-c`, `zip`, `docker cp`, `yq -i` and `ln`.
-- `cp`, `mv`, `install`, `rsync` and `scp` test the source side. A plain `mv old.go new.go` thus passes.
-- `git apply`, `git am`, `rebase` and `revert` are refused. `git merge`, `git pull` and `git cherry-pick` pass, because git already holds what they land.
-- Indirection is followed: `sh -c`, aliases, script files, `find -exec`, functions and wrappers.
-- A long in-place flag (`--in-place`, `--write`) counts for any program. `allowedFormatter` lists. The tools that rewrite by design. `jq` has an empty flag set on purpose.
-- A subagent spawn with a tool grant or a permissive `permissionMode` is refused. The live settings files are refused to every tool.
-- The session scratchpad is the one temporary directory that does not deny.
-
-A Write over a path that git holds and the disk does not is refused, however the path was emptied. A deletion committed on the branch, or in the last `10` commits, holds the path too. The hook restores the file with `git restore --worktree` first, from the index, HEAD or the parent of the deleting commit. A file in the recycle bin comes back the same way, through `recycler restore` with the newest item's ID. No route lets Write replace a file that existed. The refusal names the Edit tool. It prices the evasion in Claude tokens from `transcript_path`. The price is every tool call that names the file since its last Read or Edit, plus this Write. The changed lines are subtracted. `echo x > new-file` is refused too, because creating a file is what Write is for.
+`docs/no-work-loss.md` holds the detail: what each verb destroys, how a command is parsed and wrapped, and which write shapes are refused.
 
 ## clean-bash
 
