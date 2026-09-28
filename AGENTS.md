@@ -67,7 +67,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 
 | Category | Rule IDs | Repairs |
 |---|---|---|
-| `repo` | `repo/agents-file`, `repo/budget` | the first, on a walk |
+| `repo` | `repo/agents-file`, `repo/budget` | yes, on a walk, except a file with no `##` section |
 | `wrap` | `wrap/hard-wrap` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
 | `counts` | `counts/inventory-count` | yes |
@@ -102,7 +102,7 @@ cc-marketplace ships this binary inside its `slopfix` plugin. A publish here the
 These rules judge the tree. Only a walk whose root holds `.git` reaches them. `check` reports them. `fix` applies them.
 
 - `repo/agents-file`: a root `CLAUDE.md` that holds more than the `@AGENTS.md` import. `fix` moves its body into `AGENTS.md` and leaves `CLAUDE.md` as `@AGENTS.md` and a newline. Claude Code reads `CLAUDE.md`. Every other agent reads `AGENTS.md`.
-- `repo/budget`: a root `README.md`, `AGENTS.md` or `CLAUDE.md` over `40000` characters. It reports only. The count is characters, because a byte count inflates a file with an em dash.
+- `repo/budget`: a root `README.md`, `AGENTS.md` or `CLAUDE.md` over `40000` characters. The count is characters, because a byte count inflates a file with an em dash. `fix` moves the largest `##` sections into `docs/<heading>.md` until the file is at `32000` or less. The gap leaves room for the next edit. The text moves word for word, and each heading under it rises one level. The heading stays, with a link to the new file. A name that exists gets a `-2` suffix.
 
 A body that `AGENTS.md` already holds is not appended again. The import line is never copied into the file it imports. A `CLAUDE.md` that is a symlink stays.
 

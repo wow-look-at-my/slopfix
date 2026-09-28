@@ -8,7 +8,7 @@ It also carries the Claude Code hook subcommands that the org's marketplace plug
 
 | Category | Rule IDs | Repairs |
 |---|---|---|
-| `repo` | `repo/agents-file`, `repo/budget` | the first |
+| `repo` | `repo/agents-file`, `repo/budget` | yes, except a file with no `##` section |
 | `wrap` | `wrap/hard-wrap` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
 | `counts` | `counts/inventory-count` | yes |
@@ -17,7 +17,7 @@ It also carries the Claude Code hook subcommands that the org's marketplace plug
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate` | yes |
 | message | `laziness/punt`, `blame/deflection` | no |
 
-- `repo`: `CLAUDE.md` holds only `@AGENTS.md`, and each root file stays under `40000` characters.
+- `repo`: `CLAUDE.md` holds only `@AGENTS.md`, and each root file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`.
 - `wrap` and `ste`: a paragraph is one line, and its prose follows ASD-STE100 Simplified Technical English.
 - `counts`, `ste/count` and `comments/number`: a stated count goes stale when the set changes.
 - `tombstones`: a comment that narrates history or argues for the diff.
