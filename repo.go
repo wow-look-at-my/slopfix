@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -12,11 +13,9 @@ import (
 // The repository rules. They judge the tree rather than a file, so only a walk
 // from the repository root reaches them.
 const (
-	// IDStrayMarkdown is a markdown file other than the kept root files.
-	IDStrayMarkdown = "repo/stray-markdown"
 	// IDAgentsFile is a root CLAUDE.md that holds more than the AGENTS.md import.
 	IDAgentsFile = "repo/agents-file"
-	// IDBudget is a kept file past CharBudget.
+	// IDBudget is a root file past CharBudget.
 	IDBudget = "repo/budget"
 )
 
@@ -24,7 +23,7 @@ const (
 const RuleRepo Rule = "repo"
 
 // RepoIDs names every repository rule.
-var RepoIDs = set.Of(IDStrayMarkdown, IDAgentsFile, IDBudget)
+var RepoIDs = set.Of(IDAgentsFile, IDBudget)
 
 // isRepoRoot reports whether dir is the top of a repository.
 func isRepoRoot(dir string) bool {
@@ -35,7 +34,7 @@ func isRepoRoot(dir string) bool {
 // repoRun reports what the repository rules find under root. When writing, it
 // also applies the repairs the caller keeps, and names each file it changed.
 func repoRun(root string, keeps func(string) bool, writing bool) (findings []TreeFinding, changed []string, err error) {
-	plan, err := Purge(root, true)
+	plan, err := SurveyRoot(root, true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -50,27 +49,41 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 			changed = append(changed, filepath.Join(root, ClaudeFile))
 		}
 	}
-	for _, rel := range plan.Deleted {
-		if !keeps(IDStrayMarkdown) {
-			break
-		}
-		if !writing {
-			findings = append(findings, repoFinding(rel, IDStrayMarkdown,
-				"a repository keeps no markdown but README.md, AGENTS.md and CLAUDE.md at its root",
-				"Move what it says into AGENTS.md or README.md. `slopfix fix` deletes it."))
-			continue
-		}
-		if err := os.Remove(filepath.Join(root, rel)); err != nil {
-			return nil, nil, err
-		}
-		changed = append(changed, filepath.Join(root, rel))
+	if !keeps(IDBudget) {
+		return findings, changed, nil
 	}
-	for rel, size := range plan.OverBudget {
-		if keeps(IDBudget) {
-			findings = append(findings, repoFinding(rel, IDBudget,
-				fmt.Sprintf("%d characters, over the %d budget every request pays for", size, CharBudget),
-				"Cut it down."))
+	// The move above can grow AGENTS.md, so the sizes are measured again.
+	if plan, err = SurveyRoot(root, true); err != nil {
+		return nil, nil, err
+	}
+	over := make([]string, 0, len(plan.OverBudget))
+	for rel := range plan.OverBudget {
+		over = append(over, rel)
+	}
+	sort.Strings(over)
+	for _, rel := range over {
+		size := plan.OverBudget[rel]
+		if writing {
+			written, err := Split(root, rel, false)
+			if err != nil {
+				return nil, nil, err
+			}
+			if len(written) > 0 {
+				changed = append(changed, filepath.Join(root, rel))
+				for _, name := range written {
+					changed = append(changed, filepath.Join(root, filepath.FromSlash(name)))
+				}
+			}
+			if size, err = charCount(filepath.Join(root, rel)); err != nil {
+				return nil, nil, err
+			}
+			if size <= CharBudget {
+				continue
+			}
 		}
+		findings = append(findings, repoFinding(rel, IDBudget,
+			fmt.Sprintf("%d characters, over the %d budget every request pays for", size, CharBudget),
+			"`slopfix fix` moves its largest `##` sections into docs/. A file with no such section needs a cut by hand."))
 	}
 	return findings, changed, nil
 }
