@@ -46,7 +46,7 @@ slopfix fix --only tombstones,wrap   # two categories
 slopfix fix --only ste/nosuch        # an error that names the rules ste holds
 ```
 
-The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml` and `repo`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
+The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml`, `repo` and `pins`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
 
 A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream. A hand wrap hides half of it. So an `ste` rule also joins the paragraph it repairs.
 
@@ -72,6 +72,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | all but the volume cap |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate` | yes |
+| `pins` | `pins/download-version` | yes, except a templated or HTML-escaped URL |
 | message | `laziness/punt`, `blame/deflection` | no |
 
 `hooks.go` also lists `ask-properly` and `link-all-refs` as pending. Their detection lives in the `ask-properly` and `link-refs` subcommands, not in a rule ID.
@@ -124,9 +125,9 @@ Every repair is a `fixer.Fixer`, and each package registers its fixers from `ini
 
 | Kind | Fixers, in order |
 |---|---|
-| source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number` |
-| document | `tombstones`, `counts/inventory-count`, `wrap-and-ste`, `ste/count` |
-| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/untest` |
+| source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number`, `pins/download-version` |
+| document | `tombstones`, `counts/inventory-count`, `wrap-and-ste`, `ste/count`, `pins/download-version` |
+| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/untest`, `pins/download-version` |
 
 The repository rules sit outside the registry. They delete or move whole files, and they edit no text inside one.
 
@@ -252,6 +253,12 @@ These rules judge the format. The prose rules never run on these files. A file i
 The all-builds wording is the operator's own. It must not be softened. A job that wears the required status's name is a known deception attempt.
 
 Unparseable YAML yields no all-builds finding, because the runner fails on it anyway. A job name that holds an expression is skipped. A matrix suffix and a reusable workflow's path parts are stripped. A segment must then match exactly. A step that only runs a command is not a test. An error annotation alone is a report. Every repair works on whole lines and never reflows.
+
+## pins: a download URL that names a release
+
+`pins/download-version` rejects a `dl.pazer.build` URL with a `v` query parameter. It reads every file `check` reads, code strings included. A URL with no `v` serves the newest published build on the default branch. A pinned one breaks when that release is gone.
+
+`net/url` reads the query. The repair deletes `v` and writes the query back with `Encode`. `pins.Gate` admits only that rewrite, because the source gate lets an edit touch comments alone. `Encode` escapes `${OS}` and writes `&` for `&amp;`. A URL that holds either is reported and left for a person.
 
 ## laziness: a turn that ends with the work undone
 
@@ -379,7 +386,7 @@ Any change to file content in the working tree goes through Write, Edit or Noteb
 - A subagent spawn with a tool grant or a permissive `permissionMode` is refused. The live settings files are refused to every tool.
 - The session scratchpad is the one temporary directory that does not deny.
 
-A Write over a path that git holds and the disk does not is refused, however the path was emptied. A deletion committed on the branch, or in the last `10` commits, holds the path too. The hook restores the file with `git restore --worktree` first, from the index, HEAD or the parent of the deleting commit. No route lets Write replace a file that existed. The refusal names the Edit tool. It prices the evasion in Claude tokens from `transcript_path`. The price is every tool call that names the file since its last Read or Edit, plus this Write. The changed lines are subtracted. `echo x > new-file` is refused too, because creating a file is what Write is for.
+A Write over a path that git holds and the disk does not is refused, however the path was emptied. A deletion committed on the branch, or in the last `10` commits, holds the path too. The hook restores the file with `git restore --worktree` first, from the index, HEAD or the parent of the deleting commit. A file in the recycle bin comes back the same way, through `recycler restore` with the newest item's ID. No route lets Write replace a file that existed. The refusal names the Edit tool. It prices the evasion in Claude tokens from `transcript_path`. The price is every tool call that names the file since its last Read or Edit, plus this Write. The changed lines are subtracted. `echo x > new-file` is refused too, because creating a file is what Write is for.
 
 ## clean-bash
 
