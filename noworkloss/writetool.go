@@ -26,11 +26,26 @@ func writeToolReason(path string, w writeAttempt) string {
 	if _, err := os.Lstat(path); err == nil {
 		return "blocked: " + path + " already exists, and Write replaces the whole file. Use Edit to change it."
 	}
-	if original, ok := inRecycleBin(path); ok {
-		return "blocked: " + path + " is not missing -- it is in the recycle bin, and Write would author a fresh file over the top of it.\n" +
-			"run: recycler restore " + original + "   # then use Edit"
+	if item, ok := inRecycleBin(path); ok {
+		return binnedReason(path, item)
 	}
-	return vacatedReason(path, w)
+	if reason := vacatedReason(path, w); reason != "" {
+		return reason
+	}
+	return copiedScriptReason(path, w.content)
+}
+
+// binnedReason puts a recycled file back before it answers, as vacatedReason
+// does for git. Several Writes go out in one batch. A refusal that only names
+// the restore then reaches each of them, and none of them can act on it.
+func binnedReason(path string, item binItem) string {
+	if err := item.restore(); err != nil {
+		return "blocked: " + path + " is not missing -- it is in the recycle bin, and Write would author a fresh file over the top of it.\n" +
+			"Putting it back failed (" + err.Error() + ").\n" +
+			"run: recycler restore " + item.ID + "   # then use the Edit tool"
+	}
+	return "blocked: " + path + " was in the recycle bin. This hook put the file back.\n" +
+		"No. Write does not replace a file that existed, however it was removed. Read it, then use the Edit tool."
 }
 
 // vacatedReason answers the way around the checks above: the refusal names a
@@ -196,41 +211,62 @@ func physicalPath(path string) string {
 	return filepath.Join(parent, filepath.Base(path))
 }
 
+// binItem is one entry of `recycler list --json`.
+type binItem struct {
+	ID           string    `json:"id"`
+	OriginalPath string    `json:"original_path"`
+	DeletedAt    time.Time `json:"deleted_at"`
+}
+
+// restore names the item by its ID. A path that was recycled more than once
+// matches several items, and recycler refuses an ambiguous path.
+func (b binItem) restore() error {
+	_, err := runRecycler("restore", b.ID)
+	return err
+}
+
 // inRecycleBin asks recycler, which already tracks each item's original
-// location. Every failure falls through to allow.
-func inRecycleBin(path string) (string, bool) {
-	out, err := recyclerList()
+// location. It answers the newest item at the path. Every failure falls
+// through to allow.
+func inRecycleBin(path string) (binItem, bool) {
+	out, err := runRecycler("list", "--json")
 	if err != nil {
-		return "", false
+		return binItem{}, false
 	}
-	var items []struct {
-		OriginalPath string `json:"original_path"`
-	}
-	if json.Unmarshal(out, &items) != nil {
-		return "", false
+	var items []binItem
+	if json.Unmarshal([]byte(out), &items) != nil {
+		return binItem{}, false
 	}
 	// recycler records the physically resolved path, so on macOS /tmp/x arrives
 	physical := physicalPath(path)
+	var newest binItem
+	found := false
 	for _, item := range items {
-		if item.OriginalPath == path || item.OriginalPath == physical {
-			return item.OriginalPath, true
+		if item.OriginalPath != path && item.OriginalPath != physical {
+			continue
+		}
+		if !found || item.DeletedAt.After(newest.DeletedAt) {
+			newest, found = item, true
 		}
 	}
-	return "", false
+	return newest, found
 }
 
-func recyclerList() ([]byte, error) {
+func runRecycler(args ...string) (string, error) {
 	if _, err := exec.LookPath("recycler"); err != nil {
-		return nil, err
+		return "", err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), recyclerTimeout)
 	defer cancel()
 	var out, errb strings.Builder
-	cmd := exec.CommandContext(ctx, "recycler", "list", "--json")
+	cmd := exec.CommandContext(ctx, "recycler", args...)
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
 	if err := cmd.Run(); err != nil {
-		return nil, err
+		if msg := strings.TrimSpace(errb.String()); msg != "" {
+			return "", errors.New(firstLine(msg))
+		}
+		return "", err
 	}
-	return []byte(out.String()), nil
+	return out.String(), nil
 }

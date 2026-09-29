@@ -72,6 +72,7 @@
   <test in="These 12 checks gate the merge." out="These checks gate the merge."/>
   <test in="The one file that matters is the lockfile." out="The file that matters is the lockfile."/>
   <test in="The first two steps run in parallel." out="The first two steps run in parallel."/>
+  <test in="The second copy is the one nobody updates." out="The second copy is the one nobody updates."/>
   <test in="Any two nodes share an edge." out="Any two nodes share an edge."/>
   <test in="The 30 seconds pass before the retry." out="The 30 seconds pass before the retry."/>
   <test in="The 2026 release ships the parser." out="The 2026 release ships the parser."/>

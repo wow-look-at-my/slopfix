@@ -70,6 +70,10 @@ func redundantNumeral(s *syntax.Sentence, np syntax.Phrase) bool {
 	if head.Tag != "NN" && head.Tag != "NNS" {
 		return false
 	}
+	// "the nobody updates": the pronoun opens a clause, and "one" is the noun.
+	if syntax.Is(head.Text, "indefinite") {
+		return false
+	}
 	for _, i := range np.Numerals {
 		if !spelledCount(s.Words[i].Text) {
 			return false

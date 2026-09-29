@@ -29,6 +29,8 @@ type TreeRepair struct {
 	Findings []TreeFinding
 	// Kept carries the tombstones no whole-line deletion resolves.
 	Kept []TreeTombstone
+	// Unmet names each fixture whose slopfix-expect annotations did not hold.
+	Unmet []*UnmetError
 }
 
 // TreeFinding is an ste finding and the file it was found in. A finding knows
@@ -84,7 +86,7 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 	if wantsRepo(req) && isRepoRoot(root) {
 		findings, changed, err := repoRun(root, keepsOf(req), writing)
 		if err != nil {
-			findings = append(findings, repoFinding(root, IDStrayMarkdown, "the repository rules could not read the tree", err.Error()))
+			findings = append(findings, repoFinding(root, IDBudget, "the repository rules could not read the tree", err.Error()))
 		}
 		out.Findings = append(out.Findings, findings...)
 		out.Repaired = append(out.Repaired, changed...)
@@ -97,7 +99,14 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		out.Read++
 
 		req.Path, req.Content = path, string(src)
-		repair := Fix(req)
+		run := Report
+		if writing {
+			run = Fix
+		}
+		repair := run(req)
+		if len(repair.Unmet) > 0 {
+			out.Unmet = append(out.Unmet, &UnmetError{Path: path, Unmet: repair.Unmet})
+		}
 		if writing && repair.Changed && commentfix.WriteFile(path, repair.Text) == nil {
 			out.Repaired = append(out.Repaired, path)
 		}

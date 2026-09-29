@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,6 +79,76 @@ func TestWriteOverAPathEmptiedToGetPastTheRefusalRestoresIt(t *testing.T) {
 			assert.Empty(t, askTool(t, "Write", dir, map[string]any{"file_path": filepath.Join(dir, "fresh.go")}))
 		})
 	}
+}
+
+// fakeRecycler puts a `recycler` on PATH whose bin holds the given items. A
+// restore writes "kept" to the item's path and logs the ID in restored-ids. It
+// fails when the item ID is "broken". The result is the fake's directory.
+func fakeRecycler(t *testing.T, items []binItem) string {
+	bin := t.TempDir()
+	listing, err := json.Marshal(items)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "items.json"), listing, 0o644))
+	script := `#!/bin/sh
+set -eu
+dir=$(dirname "$0")
+case "$1" in
+list) cat "$dir/items.json" ;;
+restore)
+	[ "$2" = broken ] && { echo "recycler: restore failed" >&2; exit 1; }
+	echo "$2" >> "$dir/restored-ids"
+	printf 'kept\n' > "$(jq -r --arg id "$2" '.[] | select(.id == $id) | .original_path' "$dir/items.json")"
+	;;
+esac
+`
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "recycler"), []byte(script), 0o755))
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return bin
+}
+
+func binnedAt(id, path, deleted string) binItem {
+	at, err := time.Parse(time.RFC3339, deleted)
+	if err != nil {
+		panic(err)
+	}
+	return binItem{ID: id, OriginalPath: path, DeletedAt: at}
+}
+
+// A recycled file comes back before the Write is refused. Several Writes go
+// out in one batch, and only a restore the hook makes itself reaches them all.
+func TestWriteOverARecycledFileRestoresIt(t *testing.T) {
+	out := outsideTree(t)
+	path := filepath.Join(out, "bench.js")
+	bin := fakeRecycler(t, []binItem{
+		binnedAt("old", path, "2026-01-01T00:00:00Z"),
+		binnedAt("new", path, "2026-02-01T00:00:00Z"),
+	})
+
+	reason := askTool(t, "Write", out, map[string]any{"file_path": path})
+	assert.Contains(t, reason, "put the file back")
+	assert.Contains(t, reason, "Edit tool")
+	restored, err := os.ReadFile(path)
+	require.NoError(t, err, "the hook must put the file back, not only refuse")
+	assert.Equal(t, "kept\n", string(restored))
+
+	ids, err := os.ReadFile(filepath.Join(bin, "restored-ids"))
+	require.NoError(t, err)
+	assert.Equal(t, "new\n", string(ids), "the newest item at the path is the one restored")
+
+	// The control: a path the bin never held is an ordinary new file.
+	assert.Empty(t, askTool(t, "Write", out, map[string]any{"file_path": filepath.Join(out, "fresh.js")}))
+}
+
+// A restore that fails still refuses, and names the command by item ID.
+func TestAFailedBinRestoreNamesTheCommand(t *testing.T) {
+	out := outsideTree(t)
+	path := filepath.Join(out, "bench.js")
+	fakeRecycler(t, []binItem{binnedAt("broken", path, "2026-01-01T00:00:00Z")})
+
+	reason := askTool(t, "Write", out, map[string]any{"file_path": path})
+	assert.Contains(t, reason, "restore failed")
+	assert.Contains(t, reason, "recycler restore broken")
+	assert.NoFileExists(t, path)
 }
 
 // The restore writes the working tree and nothing else. A `git rm` staged the

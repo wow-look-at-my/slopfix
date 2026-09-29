@@ -94,6 +94,9 @@ func (f *File) Apply(edits []edit.Edit) edit.Result { return f.through(f.data, e
 // ApplyComments writes edits through the gate that proves they changed nothing but comment.
 func (f *File) ApplyComments(edits []edit.Edit) edit.Result { return f.through(f.comments, edits) }
 
+// ApplyThrough writes edits through a gate the fixer's own rule owns.
+func (f *File) ApplyThrough(gate Gate, edits []edit.Edit) edit.Result { return f.through(gate, edits) }
+
 func (f *File) through(gate Gate, edits []edit.Edit) edit.Result {
 	if len(edits) == 0 || gate == nil {
 		return edit.Unchanged(f.text, f.scope)
