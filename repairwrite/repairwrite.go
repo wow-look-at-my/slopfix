@@ -7,6 +7,7 @@ package repairwrite
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -56,6 +57,11 @@ func Run(r io.Reader) Result {
 	}
 
 	repair, err := slopfix.FixFile(path)
+	var unmet *slopfix.UnmetError
+	if errors.As(err, &unmet) {
+		// Exit 2 is how a PostToolUse hook puts stderr in front of the model.
+		return Result{Stderr: unmet.Error() + "\n", Code: 2}
+	}
 	if err != nil {
 		// Said on stderr rather than swallowed: a repair that never ran, and never.
 		return Result{Stderr: fmt.Sprintf("slopfix: did not repair %s: %v\n", path, err)}

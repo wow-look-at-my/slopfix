@@ -1,6 +1,5 @@
 // Package slopfix is the library behind the binary. It reports what the org's
-// prose rules reject, rewrites what a rewrite can repair, and purges the
-// markdown files a repository must not keep.
+// prose rules reject, and rewrites what a rewrite can repair.
 //
 // The binary is a thin wrapper, so a hook, a CI job and an editor integration
 // all get identical answers instead of separate implementations that drift.
@@ -14,6 +13,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -68,6 +68,12 @@ func CheckFile(path string) ([]ste.Finding, error) {
 // a Go file's lines are not paragraphs, so the prose rules skip it.
 func CheckContent(path, content string) []ste.Finding {
 	defer trace.Phase("check/file")()
+	// A URL is text in every kind of file.
+	return append(kindFindings(path, content), pins.Check(content)...)
+}
+
+// kindFindings are the rules the file's kind selects.
+func kindFindings(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
 		return workflow.Check(content)
 	}
@@ -141,7 +147,7 @@ func isDocument(path string) bool {
 // AllIDs names every rule CheckContent reports, so a caller can reject a typo
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
-	ids := workflow.AllIDs.Union(ste.AllIDs)
+	ids := workflow.AllIDs.Union(ste.AllIDs).Union(pins.AllIDs)
 	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	return ids
 }
