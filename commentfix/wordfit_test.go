@@ -14,6 +14,19 @@ const unboundedSentence = "package p\n\n" +
 	"// set index plus binding slot plus array element offset plus sampler identity hash value.\n" +
 	"func cacheKeyFor() int { return 0 }\n"
 
+// A word cut ends a phrase. Cut mid-phrase, this read "... hardware cap) and names."
+func TestAWordCutEndsAPhrase(t *testing.T) {
+	src := "package p\n\ntype T struct {\n" +
+		"\t// OccupancyBounds breaks Occupancy into its per-resource wave/SIMD bounds\n" +
+		"\t// (VGPR, SGPR, LDS, hardware cap) and names the constraint that binds.\n" +
+		"\tOccupancyBounds *OccupancyBounds\n}\n"
+	require.NotEmpty(t, CheckLength("p.go", src))
+	out, changed := FixLength("p.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("p.go", out))
+	assert.Contains(t, out, "(VGPR, SGPR, LDS, hardware cap).\n", "the cut lands before the phrase the budget cannot hold:\n%s", out)
+}
+
 func TestFixRepairsASentenceNoClauseCutFits(t *testing.T) {
 	require.NotEmpty(t, CheckLength("p.go", unboundedSentence), "the fixture must be a finding")
 	out, changed := FixLength("p.go", unboundedSentence)

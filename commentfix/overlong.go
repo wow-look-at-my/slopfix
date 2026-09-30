@@ -191,6 +191,9 @@ func repair(b block) []string {
 	if b.codeLines == 0 {
 		return append(append([]string{}, lead...), trail...)
 	}
+	if out, ok := repairBlockComment(b); ok {
+		return out
+	}
 	if len(lead) == 0 && len(trail) == 0 {
 		return trim(b)
 	}
@@ -409,7 +412,30 @@ func wordFit(b block) ([]string, bool) {
 	}
 	words := strings.Fields(strings.Join(body, " "))
 	budget := max(floorChars, b.codeChars)
+	for _, atPhrase := range []bool{true, false} {
+		if out, ok := wordCut(words, atPhrase, budget, marker, indent, b); ok {
+			return out, true
+		}
+	}
+	return nil, false
+}
+
+// phraseEnds reports a cut after words[n-1] that ends a phrase: a closing mark
+// ends it, or the next word opens a new one.
+func phraseEnds(words []string, n int) bool {
+	if strings.ContainsAny(words[n-1][len(words[n-1])-1:], ",;:)") {
+		return true
+	}
+	return dangling.Contains(strings.ToLower(strings.Trim(words[n], "(\"'`")))
+}
+
+// wordCut keeps the longest leading run of words that fits the budget. With
+// atPhrase it cuts only where a phrase ends.
+func wordCut(words []string, atPhrase bool, budget int, marker, indent string, b block) ([]string, bool) {
 	for n := len(words) - 1; n > 0; n-- {
+		if atPhrase && !phraseEnds(words, n) {
+			continue
+		}
 		last := strings.TrimRight(words[n-1], ",;:-")
 		if last == "" || dangling.Contains(strings.ToLower(last)) {
 			continue

@@ -121,7 +121,10 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 	// A grammar can end a comment node on the construct it documents. Tree-sitter
 	// gives a Rust `///` run an end row of the declaration below it. Such a span
 	// carries code, and a shortened block written back over it emptied the file.
-	for end > start && !opensWithMarker(lines[end-1]) {
+	// A block comment ends on the row of its close, so its span needs no trim.
+	lastNode := run[len(run)-1]
+	closes := strings.HasPrefix(lines[lastNode.StartPoint().Row][min(int(lastNode.StartPoint().Column), len(lines[lastNode.StartPoint().Row])):], "/*")
+	for !closes && end > start && !opensWithMarker(lines[end-1]) {
 		end--
 	}
 	if start >= end {
