@@ -170,7 +170,7 @@ func Extract(filename, src string) []Comment {
 }
 
 // licenseNotice matches a line that states a copyright or a license identifier.
-var licenseNotice = regexp.MustCompile(`(?i)SPDX-License-Identifier:|\bcopyright\b.*(\(c\)|©|\b(19|20)\d\d\b)`)
+var licenseNotice = regexp.MustCompile(`(?i)SPDX-License-Identifier:|\bcopyright\b.*(\(c\)|©|\b(19|20)\d\d\b)|governed by an? .*\blicen[cs]e\b|\blicensed under\b`)
 
 // dropLicenseNotices removes each comment that carries a copyright or license
 // notice. A license can require the notice verbatim, so no rule may cut it.

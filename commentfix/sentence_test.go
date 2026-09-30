@@ -85,16 +85,14 @@ func TestEveryCommentClauseTestHolds(t *testing.T) {
 
 // A run whose prose never closes has no cut that reads. No period is bolted onto
 // a clause, and the check keeps reporting the block for a person to rewrite.
-func TestARunThatNeverClosesIsLeftForAPerson(t *testing.T) {
+func TestARunThatNeverClosesIsCutAtAWord(t *testing.T) {
 	body := strings.Repeat("// a clause that never closes and just keeps going onward\n", 8)
 	src := "package p\n\n" + body + "const p = 1\n"
 
 	require.NotEmpty(t, CheckLength("x.go", src))
 	out, _ := FixLength("x.go", src)
-	assert.Contains(t, out, "going onward\nconst p = 1", "no fragment closed with a bolted-on period")
-	hits := CheckLength("x.go", out)
-	require.NotEmpty(t, hits, "the finding stays for a person")
-	assert.False(t, hits[0].Repairable, "the report does not promise a repair that cannot fit")
+	assert.Empty(t, CheckLength("x.go", out), "the repair leaves nothing to report:\n%s", out)
+	assert.Contains(t, out, "// a clause that never closes", "the opening words survive")
 }
 
 // When no cut fits, what stays is whole sentences, repaired to STE and each
