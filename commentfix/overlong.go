@@ -447,9 +447,12 @@ func unwrapAside(text string) string {
 }
 
 // phraseEnds reports a cut after words[n-1] that ends a phrase: a closing mark
-// ends it, or the next word opens a new one.
+// ends it, a dash or an aside follows it, or the next word opens a new phrase.
 func phraseEnds(words []string, n int) bool {
 	if strings.ContainsAny(words[n-1][len(words[n-1])-1:], ",;:)") {
+		return true
+	}
+	if next := words[n]; next == "—" || next == "--" || next == "-" || strings.HasPrefix(next, "(") {
 		return true
 	}
 	return phraseOpeners.Contains(strings.ToLower(strings.Trim(words[n], "(\"'`")))

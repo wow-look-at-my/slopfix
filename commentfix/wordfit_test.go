@@ -27,6 +27,18 @@ func TestAWordCutEndsAPhrase(t *testing.T) {
 	assert.Contains(t, out, "(VGPR, SGPR, LDS, hardware cap).\n", "the cut lands before the phrase the budget cannot hold:\n%s", out)
 }
 
+// A cut before an aside keeps the claim the aside only explains.
+func TestAWordCutLandsBeforeAnAside(t *testing.T) {
+	src := "package p\n\nfunc f() {\n" +
+		"\t// The same stream with a >wave workgroup is NOT the lane-index idiom (the\n" +
+		"\t// forward compiler will have gone through tg_size instead).\n" +
+		"\tcheck()\n}\n"
+	out, changed := FixLength("p.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("p.go", out))
+	assert.Contains(t, out, "is NOT the lane-index idiom.\n", "the claim survives:\n%s", out)
+}
+
 func TestFixRepairsASentenceNoClauseCutFits(t *testing.T) {
 	require.NotEmpty(t, CheckLength("p.go", unboundedSentence), "the fixture must be a finding")
 	out, changed := FixLength("p.go", unboundedSentence)
