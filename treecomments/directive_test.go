@@ -11,21 +11,21 @@ import (
 
 func TestIsDirective(t *testing.T) {
 	for line, want := range map[string]bool{
-		"//go:nosplit":            true,
-		"\t//go:build cosmo":      true,
-		"//go:linkname a b":       true,
-		"// +build linux":         true,
-		"//line x.go:12":          true,
-		"//export Answer":         true,
-		"//extern answer":         true,
+		"//go:nosplit":                   true,
+		"\t//go:build cosmo":             true,
+		"//go:linkname a b":              true,
+		"// +build linux":                true,
+		"//line x.go:12":                 true,
+		"//export Answer":                true,
+		"//extern answer":                true,
 		"//sys\tFoo(fd int) (err error)": true,
-		"//sysnb\tBar() (pid int)": true,
-		"//nolint:errcheck":       true,
-		"// go:nosplit":           false,
-		"// The line is prose.":   false,
-		"//":                      false,
-		"//lines of prose":        false,
-		"//TODO(x): prose":        false,
+		"//sysnb\tBar() (pid int)":       true,
+		"//nolint:errcheck":              true,
+		"// go:nosplit":                  false,
+		"// The line is prose.":          false,
+		"//":                             false,
+		"//lines of prose":               false,
+		"//TODO(x): prose":               false,
 	} {
 		assert.Equal(t, want, IsDirective(line), line)
 	}
@@ -72,8 +72,8 @@ func TestTheGateLetsAnEditKeepADirective(t *testing.T) {
 // A license header is a legal notice: its year and its line breaks stay.
 func TestTheGateRefusesAnEditToTheLicenseHeader(t *testing.T) {
 	for name, text := range map[string]string{
-		"the year":       "// Copyright The Go Authors. All rights reserved.",
-		"a reflow":       "// Copyright 2026 The Go Authors. All rights reserved. Use of this",
+		"the year": "// Copyright The Go Authors. All rights reserved.",
+		"a reflow": "// Copyright 2026 The Go Authors. All rights reserved. Use of this",
 	} {
 		e := commentEdit(t, "p.go", headerSrc, "Copyright", text)
 		res := Apply("p.go", headerSrc, []edit.Edit{e}, edit.Scope{})
