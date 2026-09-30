@@ -72,7 +72,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | all but the volume cap |
-| `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
+| `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate` | yes |
 | `pins` | `pins/download-version` | yes, except a templated or HTML-escaped URL |
 | message | `laziness/punt`, `blame/deflection` | no |
@@ -236,7 +236,7 @@ The languages are Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX. YAML. 
 - `comments/length`: a comment run weighed against the construct beneath it. Lines catch an essay. Characters catch a dense paragraph. The budget has a floor. A short comment is never a finding.
 - `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair closes the sentence.
 
-The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at a clause boundary the `syntax` parser finds, the same boundaries `ste/sentence-length` divides at (`ste.Leading`). Sentence ends come from `ste.Sentences`. A sentence with no such boundary stays whole. The check reports that block for a person to rewrite. The number repair runs after the length cut. The length cut then runs again if the words overflow.
+The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at a clause boundary the `syntax` parser finds, the same boundaries `ste/sentence-length` divides at (`ste.Leading`). Sentence ends come from `ste.Sentences`. When no clause boundary fits either, `wordFit` keeps the longest run of leading words that fits. The run never ends on a dangling word or inside a parenthesis, quotation or code span, and it closes as a sentence. Every finding therefore has a repair. The number repair runs after the length cut. The length cut then runs again if the words overflow.
 
 It does not flag a comment above the package declaration, or a trailing comment on a code line. It skips a directive line, such as a build constraint, a shebang, a linter pragma or a cgo preamble. It skips a number inside a quotation.
 
