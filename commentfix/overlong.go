@@ -317,6 +317,9 @@ func trim(b block) []string {
 	if clause, ok := clauseFit(b); ok {
 		return clause
 	}
+	if words, ok := wordFit(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); ok {
+		return words
+	}
 	if whole {
 		return opening
 	}
@@ -377,6 +380,42 @@ func clauseFit(b block) ([]string, bool) {
 		kept := strings.TrimRight(text[:cut], " ,;:-")
 		words := strings.Fields(kept)
 		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+			continue
+		}
+		if !endsSentence(kept) {
+			kept += "."
+		}
+		for _, width := range []int{min(budget, wrapWidth), budget} {
+			out := reflow(kept, indent, marker, width)
+			if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return out, true
+			}
+		}
+	}
+	return nil, false
+}
+
+// wordFit keeps the longest run of leading words that fits the budget, when
+// no sentence or clause cut does. The run never ends on a dangling word and
+// never splits a parenthesis, a quotation or a code span.
+func wordFit(b block) ([]string, bool) {
+	marker, indent, ok := commentShape(b.text)
+	if !ok {
+		return nil, false
+	}
+	var body []string
+	for _, line := range prose(b.text) {
+		body = append(body, stripMarker(line))
+	}
+	words := strings.Fields(strings.Join(body, " "))
+	budget := max(floorChars, b.codeChars)
+	for n := len(words) - 1; n > 0; n-- {
+		last := strings.TrimRight(words[n-1], ",;:-")
+		if last == "" || dangling.Contains(strings.ToLower(last)) {
+			continue
+		}
+		kept := strings.Join(append(append([]string{}, words[:n-1]...), last), " ")
+		if !balanced(kept) {
 			continue
 		}
 		if !endsSentence(kept) {
