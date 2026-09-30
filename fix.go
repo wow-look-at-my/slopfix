@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -33,10 +36,12 @@ const (
 	RuleComments Rule = "comments"
 	// RuleWorkflow is what a workflow owes the gate it runs.
 	RuleWorkflow Rule = "yaml"
+	// RulePins is a download URL that names an exact release.
+	RulePins Rule = "pins"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -56,6 +61,8 @@ func IDsFor(rule Rule) set.Set[string] {
 		return workflow.AllIDs
 	case RuleRepo:
 		return RepoIDs
+	case RulePins:
+		return pins.AllIDs
 	}
 	return set.New[string]()
 }
@@ -92,6 +99,36 @@ type Repair struct {
 	Refused []string `json:"refused,omitempty"`
 	// Scope bounds, in Text, what the Request's Scope bounded.
 	Scope edit.Scope `json:"-"`
+	// Unmet names each slopfix-expect annotation the repair disagrees with.
+	Unmet []string `json:"unmet,omitempty"`
+}
+
+// Fix repairs req, unless it carries slopfix-expect annotations. Such text is a
+// fixture: it is checked against them and comes back unchanged.
+func Fix(req Request) Repair {
+	notes := expect.Parse(req.Content)
+	if !notes.Any() {
+		return fixText(req)
+	}
+	original, scope := req.Content, req.Scope
+	req.Content = notes.Stripped
+	if scope.Bounded {
+		req.Scope = edit.Within(notes.Shift(scope.Start), notes.Shift(scope.End))
+	}
+	repair := fixText(req)
+	repair.Unmet = notes.Check(repair.Text)
+	repair.Text, repair.Changed, repair.Scope = original, false, scope
+	return repair
+}
+
+// UnmetError is a fixture whose slopfix-expect annotations the repair broke.
+type UnmetError struct {
+	Path  string
+	Unmet []string
+}
+
+func (e *UnmetError) Error() string {
+	return fmt.Sprintf("%s: slopfix-expect does not hold:\n  %s", e.Path, strings.Join(e.Unmet, "\n  "))
 }
 
 // refuse records the edits a gate would not write.
@@ -101,9 +138,9 @@ func (r *Repair) refuse(refused []edit.Refused) {
 	}
 }
 
-// Fix repairs what a rewrite can repair and reports the rest. The repairs run
-// in an order that keeps every span valid. The join only moves newlines.
-func Fix(req Request) Repair {
+// fixText repairs what a rewrite can repair and reports the rest. The repairs
+// run in an order that keeps every span valid. The join only moves newlines.
+func fixText(req Request) Repair {
 	defer trace.Phase("fix/all")()
 	rules := req.Rules
 	if len(rules) == 0 {
@@ -136,6 +173,14 @@ func Fix(req Request) Repair {
 	rep := f.Report()
 	repair := Repair{Text: text, Changed: text != req.Content, Removed: rep.Removed, Rewrites: rep.Rewrites, Scope: f.Scope()}
 	repair.refuse(rep.Refused)
+	// A URL is text in every kind of file, so this rule reads the whole file.
+	if wants(RulePins) {
+		for _, finding := range pins.Check(text) {
+			if keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
+			}
+		}
+	}
 	for _, note := range rep.Notes {
 		if hit, ok := note.(tombstones.Hit); ok && keeps(hit.ID) {
 			repair.Kept = append(repair.Kept, hit)
@@ -171,6 +216,29 @@ func Fix(req Request) Repair {
 			}
 		}
 	}
+	return repair
+}
+
+// Report is Fix for a caller that writes nothing. A pinned download URL is a
+// finding in the text as it stands, even where the repair would remove it.
+func Report(req Request) Repair {
+	repair := Fix(req)
+	if len(req.Rules) > 0 && !slices.Contains(req.Rules, RulePins) {
+		return repair
+	}
+	keeps := keepsOf(req)
+	var findings []ste.Finding
+	for _, finding := range repair.Findings {
+		if finding.ID != pins.ID {
+			findings = append(findings, finding)
+		}
+	}
+	for _, finding := range pins.Check(req.Content) {
+		if keeps(finding.ID) {
+			findings = append(findings, finding)
+		}
+	}
+	repair.Findings = findings
 	return repair
 }
 
@@ -228,6 +296,9 @@ func FixFileWith(path string, req Request) (Repair, error) {
 	}
 	req.Content, req.Path = string(content), path
 	repair := Fix(req)
+	if len(repair.Unmet) > 0 {
+		return repair, &UnmetError{Path: path, Unmet: repair.Unmet}
+	}
 	if !repair.Changed {
 		return repair, nil
 	}

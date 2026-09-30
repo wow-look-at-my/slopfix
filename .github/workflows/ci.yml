@@ -32,3 +32,10 @@ jobs:
           generate: 165003bec91c
 
       - run: ./build/slopfix check .
+
+      # The marketplace ships this binary inside its slopfix plugin, so each master publish asks cc-marketplace to package it.
+      - name: Ship this build in the marketplace
+        if: github.ref == 'refs/heads/master'
+        uses: wow-look-at-my/cc-marketplace/.github/actions/ship@master
+        with:
+          plugins: slopfix

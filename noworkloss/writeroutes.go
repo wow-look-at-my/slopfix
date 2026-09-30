@@ -11,6 +11,7 @@ type toolInput struct {
 	FilePath       string          `json:"file_path"`
 	NotebookPath   string          `json:"notebook_path"`
 	Path           string          `json:"path"`
+	Content        string          `json:"content"`
 	Skill          string          `json:"skill"`
 	PermissionMode string          `json:"permissionMode"`
 	PermissionMod2 string          `json:"permission_mode"`
@@ -51,7 +52,7 @@ func decide(raw []byte) (reason string, notices []string) {
 		}
 		return "", notices
 	case isEditTool(in.ToolName):
-		return editToolReason(in.ToolName, ti, in.Cwd), nil
+		return editToolReason(in, ti), nil
 	case isAgentTool(in.ToolName):
 		return agentReason(in.ToolName, ti), nil
 	case in.ToolName == "Skill":
@@ -168,20 +169,20 @@ func isEditTool(name string) bool {
 // The edit tools are the sanctioned route and are left alone -- except where
 // their target is the live settings, which is how a session would re-grant what
 // every rule above denies.
-func editToolReason(tool string, ti toolInput, cwd string) string {
+func editToolReason(in hookInput, ti toolInput) string {
 	for _, p := range []string{ti.FilePath, ti.NotebookPath, ti.Path} {
 		if p == "" {
 			continue
 		}
-		a := abs(cwd, p)
+		a := abs(in.Cwd, p)
 		if a == "" {
 			continue
 		}
 		if isProtectedConfig(a) {
-			return settingsReason(tool + " targets " + a)
+			return settingsReason(in.ToolName + " targets " + a)
 		}
-		if tool == "Write" {
-			if reason := writeToolReason(a); reason != "" {
+		if in.ToolName == "Write" {
+			if reason := writeToolReason(a, writeAttempt{input: in.ToolInput, content: ti.Content, id: in.ToolUseID, transcript: in.TranscriptPath}); reason != "" {
 				return reason
 			}
 		}

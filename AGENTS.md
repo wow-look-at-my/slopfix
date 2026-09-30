@@ -2,7 +2,7 @@
 
 slopfix is one binary for the org's prose rules. It also judges code comments, GitHub Actions workflows and the markdown files a repository keeps. It carries the Claude Code hook subcommands that the marketplace plugins exec. A hook, a CI job and an editor integration all call this binary. Each gets the same verdict.
 
-A repository keeps only `README.md` (for a person), `AGENTS.md` (this file) and `CLAUDE.md` (the line `@AGENTS.md`). Put depth here, not in a new markdown file. The `repo/stray-markdown` rule deletes any other markdown file.
+`README.md` is for a person, `AGENTS.md` (this file) for an agent, and `CLAUDE.md` is the line `@AGENTS.md`. Depth that only one subsystem needs goes in `docs/<topic>.md`, with a pointer here.
 
 ## Build and test
 
@@ -23,7 +23,8 @@ slopfix check --fix [path...]     # repair in place first, then report what is l
 slopfix fix [path...]             # the same as check --fix
 slopfix check --path doc.md < doc.md   # judge stdin as text headed for doc.md
 slopfix parse "The gate reads every file."
-slopfix report --path doc.md < doc.md  # JSON findings, for the editor plugin
+slopfix report --path doc.md < doc.md  # JSON findings for text on stdin
+slopfix lsp                       # a language server on stdio, for the editor plugin
 slopfix message < message.txt     # judge a closing message
 ```
 
@@ -31,6 +32,7 @@ slopfix message < message.txt     # judge a closing message
 - A named file is read whatever its extension. The path decides the rules. A workflow or action manifest gets the `yaml` rules. A document gets the prose rules. Source gets the `comments` rules.
 - A document is `.md`, `.markdown`, `.mdown` or `.txt`. An empty `--path` also counts as a document.
 - A script test is code: a `.txtar` file, or a `.txt` under `testdata/script`. Only its `#` lines are prose, and the comment rules read them.
+- A path with a `testdata` element is never a document, named or walked. It is test input, and a rewrite changes what the test checks.
 - With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr. `--json` writes the whole answer as one object, which is what a hook reads.
 - `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
 - `fmt`, `purge`, `comments` and `workflows` do not exist as commands. The wrap join is the `wrap/hard-wrap` rule. The purge is the `repo` category. The comment and workflow rules run inside `check` on each file they judge.
@@ -46,7 +48,7 @@ slopfix fix --only tombstones,wrap   # two categories
 slopfix fix --only ste/nosuch        # an error that names the rules ste holds
 ```
 
-The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml` and `repo`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
+The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml`, `repo` and `pins`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
 
 A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream. A hand wrap hides half of it. So an `ste` rule also joins the paragraph it repairs.
 
@@ -54,6 +56,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 
 - `slopfix parse [--tags]` prints noun phrases in `[ ]` and verb groups in `< >`. It then prints each clause with its kind, depth, subject and verb.
 - `slopfix report --path P [--only IDs]` reads a document on stdin and writes its findings as JSON. `--path` is required, because the path decides the rules. It always exits 0.
+- `slopfix lsp [--max-per-file N]` speaks the Language Server Protocol on stdio with full document sync. It publishes the `report` findings for each open file that a build reads: a file in a work tree that a rule reads, outside `~/.claude`. Every diagnostic is an error. The `yaml` and `ste` families rank first and `wrap` ranks last. Past the cap, the last diagnostic sent counts the rest.
 - `slopfix hook` reads a PreToolUse payload for Write, Edit or MultiEdit. It repairs the text the write adds and lets the write through. It flags what the repair did not reach.
 - The hook repairs an Edit where it lands in the file. A line inside a fence therefore stays code. A `Scope` holds every rewrite inside the edit's own bytes, so a repair the file needs elsewhere never lands. The hook reports those findings instead.
 - The hook prints nothing and exits 0 for anything it does not judge. That covers a bad payload, another event, a tool that writes no file, and clean text.
@@ -65,13 +68,14 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 
 | Category | Rule IDs | Repairs |
 |---|---|---|
-| `repo` | `repo/stray-markdown`, `repo/agents-file`, `repo/budget` | the first two, on a walk |
+| `repo` | `repo/agents-file`, `repo/budget` | yes, on a walk, except a file with no `##` section |
 | `wrap` | `wrap/hard-wrap` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | all but the volume cap |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate` | yes |
+| `pins` | `pins/download-version` | yes, except a templated or HTML-escaped URL |
 | message | `laziness/punt`, `blame/deflection` | no |
 
 `hooks.go` also lists `ask-properly` and `link-all-refs` as pending. Their detection lives in the `ask-properly` and `link-refs` subcommands, not in a rule ID.
@@ -90,19 +94,20 @@ The action at the repository root downloads the published binary from buildhost 
 
 `paths` defaults to `.`. The step therefore goes after the checkout. `only` is the `--only` flag. The action has no `command` input. It never repairs. A job that repairs its own checkout and then passes has enforced nothing. On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
 
+## The marketplace follows each publish
+
+cc-marketplace ships this binary inside its `slopfix` plugin. A publish here therefore reaches nobody until that plugin is packaged again. The last step of `ci.yml` does that on each master build. It dispatches `release.yml` in cc-marketplace with `publish: true`. The token is `CC_MARKETPLACE_DISPATCH_TOKEN` from secret-server, with `actions: write` on cc-marketplace. A missing token fails the build, because a silent skip leaves the marketplace on an old binary.
+
 ## repo: the markdown a repository keeps
 
 These rules judge the tree. Only a walk whose root holds `.git` reaches them. `check` reports them. `fix` applies them.
 
-- `repo/stray-markdown`: a `.md` file other than the root `README.md`, `AGENTS.md` and `CLAUDE.md`. A `README.md` in a subdirectory is stray too. `fix` deletes it. Move its content first.
 - `repo/agents-file`: a root `CLAUDE.md` that holds more than the `@AGENTS.md` import. `fix` moves its body into `AGENTS.md` and leaves `CLAUDE.md` as `@AGENTS.md` and a newline. Claude Code reads `CLAUDE.md`. Every other agent reads `AGENTS.md`.
-- `repo/budget`: a kept file over `40000` characters. It reports only. The count is characters, because a byte count inflates a file with an em dash.
+- `repo/budget`: a root `README.md`, `AGENTS.md` or `CLAUDE.md` over `40000` characters. The count is characters, because a byte count inflates a file with an em dash. `fix` moves the largest `##` sections into `docs/<heading>.md` until the file is at `32000` or less. The gap leaves room for the next edit. The text moves word for word, and each heading under it rises one level. The heading stays, with a link to the new file. A name that exists gets a `-2` suffix.
 
-The move runs even in a spec repository, because it deletes no prose. A body that `AGENTS.md` already holds is not appended again. The import line is never copied into the file it imports. A `CLAUDE.md` that is a symlink stays.
+A body that `AGENTS.md` already holds is not appended again. The import line is never copied into the file it imports. A `CLAUDE.md` that is a symlink stays.
 
-An empty `.slopfix-spec` file at the root opts a repository out of `repo/stray-markdown`. That marker is the only exemption. The answer thus lives with the repository it describes. The walk skips registered submodules, `testdata`, `.git`, `vendor`, `node_modules` and `dist`.
-
-The submodule skip comes from `.gitmodules`, verified against the index. A declaration alone cannot exempt real source. A path that escapes the repository is an error. Outside a repository nothing is skipped. A lost derivation thus makes the check stricter.
+Every other markdown file is left alone. The budget covers only the root files, because only they load on every request.
 
 ## edit: the only way a repair writes
 
@@ -120,9 +125,9 @@ Every repair is a `fixer.Fixer`, and each package registers its fixers from `ini
 
 | Kind | Fixers, in order |
 |---|---|
-| source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number` |
-| document | `tombstones`, `counts/inventory-count`, `wrap-and-ste`, `ste/count` |
-| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/untest` |
+| source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number`, `pins/download-version` |
+| document | `tombstones`, `counts/inventory-count`, `wrap-and-ste`, `ste/count`, `pins/download-version` |
+| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/untest`, `pins/download-version` |
 
 The repository rules sit outside the registry. They delete or move whole files, and they edit no text inside one.
 
@@ -234,7 +239,7 @@ The languages are Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX. YAML. 
 - `comments/length`: a comment run weighed against the construct beneath it. Lines catch an essay. Characters catch a dense paragraph. The budget has a floor. A short comment is never a finding.
 - `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair closes the sentence.
 
-The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut. A block with no cut that fits is reported for a person to rewrite. The number repair runs after the length cut. The length cut then runs again if the words overflow.
+The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at a clause boundary the `syntax` parser finds, the same boundaries `ste/sentence-length` divides at (`ste.Leading`). Sentence ends come from `ste.Sentences`. A sentence with no such boundary stays whole. The check reports that block for a person to rewrite. The number repair runs after the length cut. The length cut then runs again if the words overflow.
 
 It does not flag a comment above the package declaration, or a trailing comment on a code line. It skips a directive line, such as a build constraint, a shebang, a linter pragma or a cgo preamble. It skips a number inside a quotation.
 
@@ -250,6 +255,12 @@ These rules judge the format. The prose rules never run on these files. A file i
 The all-builds wording is the operator's own. It must not be softened. A job that wears the required status's name is a known deception attempt.
 
 Unparseable YAML yields no all-builds finding, because the runner fails on it anyway. A job name that holds an expression is skipped. A matrix suffix and a reusable workflow's path parts are stripped. A segment must then match exactly. A step that only runs a command is not a test. An error annotation alone is a report. Every repair works on whole lines and never reflows.
+
+## pins: a download URL that names a release
+
+`pins/download-version` rejects a `dl.pazer.build` URL with a `v` query parameter. It reads every file `check` reads, code strings included. A URL with no `v` serves the newest published build on the default branch. A pinned one breaks when that release is gone.
+
+`net/url` reads the query. The repair deletes `v` and writes the query back with `Encode`. `pins.Gate` admits only that rewrite, because the source gate lets an edit touch comments alone. `Encode` escapes `${OS}` and writes `&` for `&amp;`. A URL that holds either is reported and left for a person.
 
 ## laziness: a turn that ends with the work undone
 
@@ -301,83 +312,7 @@ Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` 
 
 `no-work-loss` asks questions of one parsed command. Destruction: does it destroy content that exists only in the working tree? Provenance: does it change file content without Write, Edit or NotebookEdit?
 
-### Destruction
-
-The invariant: content that exists only in the working tree must never be lost by a command the agent runs. Committed work stays in the reflog. A history rewrite is thus out of scope.
-
-The hook preserves, then allows. It commits the at-risk paths onto the CURRENT BRANCH, where the log and the next push already look. A hidden ref is one nobody reviews.
-
-- Every step uses a throwaway `GIT_INDEX_FILE`, seeded by `git read-tree HEAD`. The real index and the working tree never move.
-- `stagedTree` commits the index entries first. `git add --force` then commits the disk content. A tree equal to its parent is dropped. No commit is therefore empty.
-- `git update-ref HEAD` advances the branch. `git reset -q <commit> -- <paths>` refreshes the real index for those paths. Git hooks are off during preservation.
-- A best-effort `git push --no-verify origin HEAD` follows. A push failure still allows. The report names where the content sits.
-- A failed `add`, `write-tree`, `commit-tree` or `update-ref` denies. Preservation that did not happen must never read as success.
-
-A stash entry and a ref-destroying command still deny outright. A ref under `refs/no-work-loss/` is the only copy of its content. Deleting or force-pushing it is always refused.
-
-The incident: `git checkout master` carries a dirty tree across. `git reset --hard origin/master` then destroys it with no reflog entry. A guard on `reset --hard` alone misses the setup step.
-
-Each verb is checked against the classes it reaches. A single dirty bit gives false positives that get a guard uninstalled.
-
-| Command | tracked edits | untracked | ignored | stash |
-|---|---|---|---|---|
-| `reset --hard` | destroys | spares | spares | spares |
-| `clean -fd` | spares | destroys | spares | spares |
-| `clean -fdx` | spares | destroys | destroys | spares |
-| `stash drop` | spares | spares | spares | destroys |
-| `checkout <ref>` | destroys | spares | spares | spares |
-
-A submodule at a commit other than its gitlink is not a tracked edit. That commit stays in the history of the submodule. The probe reads `status --porcelain=v2` and drops a submodule entry that has no modified and no untracked content.
-
-A ref-destroying verb asks whether the content exists anywhere else:
-
-| Verb | What must survive | How it is answered |
-|---|---|---|
-| `branch -D` / `-M`, `update-ref -d`, `push --delete` | the tip | another ref contains it |
-| `push --force` / `+refspec` | the remote-tracking tip | an ancestor of the push, or in another ref |
-| `filter-branch` | all of HEAD | `rev-list --count HEAD --not --remotes` is `0` |
-| `reflog expire` / `delete` | nothing reflog-only | `fsck --unreachable --no-reflogs` finds no commit |
-| `worktree remove --force` | its edits | its `status --porcelain` is empty |
-
-- Containment uses `for-each-ref --contains`. The `--exclude` flag with `--branches` takes the name without `refs/heads/`. A full refname thus excludes nothing.
-- `refs/remotes/<remote>/HEAD` aliases the overwritten branch. The check filters it out.
-- `push --mirror` is always refused. A push with no local remote-tracking ref denies and names `git fetch`.
-
-Allowed on purpose: unpushed commits on a clean tree, `checkout -b`, `switch -c`, `stash push`, `commit`, `add`, `restore --staged`, unknown verbs, appends, and anything outside a repository.
-
-### Detection
-
-- Chains, pipes, subshells, bodies and command substitutions are each evaluated.
-- A `cd` carries forward across `&&`, `||`, `;` and brace blocks. A pipe stage, a subshell and a conditional body get a copy. `git -C` and `--work-tree` apply too.
-- Wrappers resolve to their program, with value-taking flags understood: `env`, `sudo`, `doas`, `command`, `builtin`, `exec`, `nohup`, `nice`, `ionice`, `setsid`, `stdbuf`, `timeout`, `xargs`. A leading `\` and an absolute path.
-- Short flags unbundle. A `--flag=value` registers as `--flag`.
-- Git aliases resolve from `git config`, including `!shell` aliases. Self-reference stops at depth `3`.
-
-Ambiguity denies. That covers an unparseable command with a destructive verb, an operand that is not static (`rm $TARGET`, `cd -`), and a relocated `GIT_DIR`. A script FILE that the walk follows is judged on its static paths only.
-
-A device target such as `/dev/null`, and a descriptor other than stdout, cannot empty a file. The provenance half still judges every descriptor. It thus refuses `echo x 2> tracked.go`.
-
-A destructive verb fails closed on a panic, a git error or the `3`-second git timeout. Everything else fails open. A killed binary lets the command run, because a hook cannot make itself mandatory. `clean-bash` rewrites `rm`. This hook sees the original command. Where both fire, the deny wins.
-
-### Provenance
-
-Any change to file content in the working tree goes through Write, Edit or NotebookEdit. The verdict follows from the shape of the write:
-
-| Shape | Example | Denies when |
-|---|---|---|
-| named path | `sed -i x.go`, `> x.go`, `cp a x.go` | the path is in a guarded root and not under a build directory |
-| whole directory | `patch`, `tar -x`, `git apply` | the directory holds or sits in a guarded root |
-| opaque | `node -e`, an `xargs`-fed `sed -i`, a GitHub API commit | always |
-
-- Routes include editors, `busybox` applets, every file redirect, `tee`, `dd of=`, `truncate -s`, `sponge`, `xxd -r`, `sort -o`, `split`, compressors without `-c`, `zip`, `docker cp`, `yq -i` and `ln`.
-- `cp`, `mv`, `install`, `rsync` and `scp` test the source side. A plain `mv old.go new.go` thus passes.
-- `git apply`, `git am`, `rebase` and `revert` are refused. `git merge`, `git pull` and `git cherry-pick` pass, because git already holds what they land.
-- Indirection is followed: `sh -c`, aliases, script files, `find -exec`, functions and wrappers.
-- A long in-place flag (`--in-place`, `--write`) counts for any program. `allowedFormatter` lists. The tools that rewrite by design. `jq` has an empty flag set on purpose.
-- A subagent spawn with a tool grant or a permissive `permissionMode` is refused. The live settings files are refused to every tool.
-- The session scratchpad is the one temporary directory that does not deny.
-
-A Write over a path that git holds and the disk does not is refused, however the path was emptied. The hook restores the file with `git restore --worktree` first. Commit the removal to free the path. `echo x > new-file` is refused too, because creating a file is what Write is for.
+`docs/no-work-loss.md` holds the detail: what each verb destroys, how a command is parsed and wrapped, and which write shapes are refused.
 
 ## clean-bash
 

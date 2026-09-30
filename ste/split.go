@@ -122,6 +122,22 @@ func outsideSpans(d division, spans [][]int) division {
 	return d
 }
 
+// Leading closes a sentence at a clause boundary the parser finds. It keeps the
+// longest head that stands as a sentence under the cap, and reports false when
+// no boundary gives one.
+func Leading(sentence string) (string, bool) {
+	masked := mask(sentence)
+	s := syntax.Parse(masked, opaque(sentence, masked))
+	best := ""
+	for _, d := range divisions(s, sentence) {
+		head := strings.TrimRight(sentence[:d.leftEnd], " ,") + "."
+		if n := WordCount(head); n >= minimumHalf && n <= SentenceWordCap && len(head) > len(best) {
+			best = head
+		}
+	}
+	return best, best != ""
+}
+
 // minimumHalf keeps a division from writing a sentence too short to stand alone.
 const minimumHalf = 3
 

@@ -66,12 +66,14 @@ func CheckLength(filename, src string) []LengthHit {
 		if !over {
 			continue
 		}
+		fixed := repair(b)
+		_, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars})
 		hits = append(hits, LengthHit{
 			ID:         IDLength,
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && !sameText(repair(b), b.text),
+			Repairable: b.exact && !sameText(fixed, b.text) && !stillOver,
 		})
 	}
 	return hits
@@ -306,13 +308,51 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
-	// No whole-sentence cut fits. A clause cut still reads as a sentence, so it
-	// tries before the block goes to a person.
+	// Try the STE opening sentence, then a clause mark, never a cut between words.
+	opening, whole := steOpening(kept)
+	if whole {
+		if _, over := judge(block{text: opening, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return opening
+		}
+	}
 	if clause, ok := clauseFit(b); ok {
 		return clause
 	}
-	// No cut that reads fits. A person rewrites the block.
-	return b.text
+	if whole {
+		return opening
+	}
+	return kept
+}
+
+// steOpening answers a block's first sentence, repaired to STE and divided at a
+// clause boundary when it runs past the cap. It reports false when no boundary
+// brings the sentence under the cap.
+func steOpening(text []string) ([]string, bool) {
+	marker, indent, ok := commentShape(text)
+	if !ok {
+		return nil, false
+	}
+	for _, para := range paragraphs(text) {
+		if para.blank || para.verbatim {
+			continue
+		}
+		sentences := ste.Sentences(ste.Fix(strings.Join(para.lines, " ")))
+		if len(sentences) == 0 {
+			return nil, false
+		}
+		first := strings.TrimSpace(sentences[0])
+		if ste.WordCount(first) > ste.SentenceWordCap {
+			// With no clause boundary the sentence stays whole, as ste/sentence-length leaves it.
+			if clause, ok := ste.Leading(first); ok {
+				first = strings.TrimSpace(ste.Fix(clause))
+			}
+		}
+		if !endsSentence(first) {
+			return nil, false
+		}
+		return reflow(first, indent, marker, wrapWidth), true
+	}
+	return nil, false
 }
 
 // sameText compares runs of lines by what they say. A line count cannot: a
@@ -393,7 +433,7 @@ func balanced(text string) bool {
 		strings.Count(text, "`")%2 == 0 && strings.Count(text, `"`)%2 == 0
 }
 
-// dangling words open something that is not there.
+// dangling words open something that must follow them, so a comment cannot end on one.
 var dangling = set.Of(danglingWords()...)
 
 // cutLastThought drops the last thought out of a block, and reports false when

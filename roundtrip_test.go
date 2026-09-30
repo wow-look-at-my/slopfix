@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
@@ -22,6 +23,15 @@ type fixture struct {
 	path    string
 	content string
 	wants   []string
+}
+
+// pinnedFetch reads from testdata, which this repository's own check skips.
+func pinnedFetch() string {
+	body, err := os.ReadFile(filepath.Join("pins", "testdata", "fetch.sh"))
+	if err != nil {
+		panic(err)
+	}
+	return string(body)
 }
 
 // roundTripFixtures carry at least a single instance of every rule
@@ -97,6 +107,12 @@ func roundTripFixtures() []fixture {
 				"yaml/test-in-workflow",
 				"yaml/neutered-gate",
 			},
+		},
+		{
+			name:    "script",
+			path:    "fetch.sh",
+			content: pinnedFetch(),
+			wants:   []string{pins.ID},
 		},
 	}
 }
