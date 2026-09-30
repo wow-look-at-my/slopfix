@@ -176,7 +176,7 @@ func TestASingleOpeningSentenceTooLongToFitIsCutAtAWord(t *testing.T) {
 
 	out, _ := FixLength("x.go", src)
 	assert.Empty(t, CheckLength("x.go", out), "the repair leaves nothing to report:\n%s", out)
-	assert.Contains(t, out, "// a very long single opening sentence", "the opening words survive")
+	assert.Contains(t, out, "// a long single opening sentence", "the opening words survive, less the filler")
 }
 
 // A comment marker inside a string is data, and the adapter is what keeps it

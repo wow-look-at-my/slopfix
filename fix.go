@@ -142,31 +142,12 @@ func (r *Repair) refuse(refused []edit.Refused) {
 // run in an order that keeps every span valid. The join only moves newlines.
 func fixText(req Request) Repair {
 	defer trace.Phase("fix/all")()
-	rules := req.Rules
-	if len(rules) == 0 {
-		rules = AllRules
-	}
-	wants := func(r Rule) bool { return slices.Contains(rules, r) }
-	// An ID names a rule inside a category, the way a compiler names a
-	// warning. Naming any turns the others off, and naming none keeps them all.
-	keeps := func(id string) bool {
-		return len(req.IDs) == 0 || slices.Contains(req.IDs, id)
-	}
+	wants := wantsOf(req)
+	keeps := keepsOf(req)
 
-	// Every repair is a registered fixer, and every fixer writes through the
-	// gate the file's parser owns. The kind picks both the fixers and the gate.
+	// Every repair is a registered fixer, and every fixer writes through the gate the file's parser owns.
 	kind := kindOf(req.Path, req.Content)
-	opts := fixer.Options{
-		Kind:            kind,
-		Scope:           req.Scope,
-		Wants:           func(c string) bool { return wants(Rule(c)) },
-		Keeps:           keeps,
-		MaxCommentLines: req.MaxCommentLines,
-	}
-	if kind == fixer.Workflow {
-		opts = workflow.Options(opts)
-	}
-	f := fixer.Open(req.Path, req.Content, opts)
+	f := openFile(req, kind)
 	fixer.Run(f, fixer.For(kind))
 
 	text := f.Text()
@@ -219,10 +200,39 @@ func fixText(req Request) Repair {
 	return repair
 }
 
-// Report is Fix for a caller that writes nothing. A pinned download URL is a
-// finding in the text as it stands, even where the repair would remove it.
+// wantsOf answers the caller's category selection as a test. An empty Rules
+// means AllRules.
+func wantsOf(req Request) func(Rule) bool {
+	rules := req.Rules
+	if len(rules) == 0 {
+		rules = AllRules
+	}
+	return func(r Rule) bool { return slices.Contains(rules, r) }
+}
+
+// openFile opens req for repair under the caller's selection, through the
+// gate the kind's parser owns.
+func openFile(req Request, kind fixer.Kind) *fixer.File {
+	wants := wantsOf(req)
+	opts := fixer.Options{
+		Kind:            kind,
+		Scope:           req.Scope,
+		Wants:           func(c string) bool { return wants(Rule(c)) },
+		Keeps:           keepsOf(req),
+		MaxCommentLines: req.MaxCommentLines,
+	}
+	if kind == fixer.Workflow {
+		opts = workflow.Options(opts)
+	}
+	return fixer.Open(req.Path, req.Content, opts)
+}
+
+// Report is Fix for a caller that writes nothing. It judges the text as it
+// stands: each change a repair would make is a finding, beside what no repair
+// reaches.
 func Report(req Request) Repair {
 	repair := Fix(req)
+	repair.Findings = append(repair.Findings, pending(req)...)
 	if len(req.Rules) > 0 && !slices.Contains(req.Rules, RulePins) {
 		return repair
 	}

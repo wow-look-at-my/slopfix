@@ -150,6 +150,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			found = true
 			fmt.Fprintf(cmd.OutOrStdout(), "%s:%s\n", path, finding)
 		}
+		for _, kept := range repair.Kept {
+			found = true
+			fmt.Fprintf(cmd.OutOrStdout(), "%s:%d: [%s] %s: %q\n", path, kept.LineNo, kept.ID, kept.Tell, kept.Phrase)
+		}
 	}
 	if found {
 		return errFindings

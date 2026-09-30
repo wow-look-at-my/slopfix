@@ -34,6 +34,21 @@ func TestCheckFixRepairsInPlace(t *testing.T) {
 	assert.Contains(t, string(fixed), "# Title")
 }
 
+// A comment finding on a named file fails the check. The report carries it as a
+// kept hit, and a check that read only the other list passed an essay.
+func TestCheckReportsAKeptHitOnANamedFile(t *testing.T) {
+	t.Serial()
+	path := filepath.Join(t.TempDir(), "a.go")
+	body := "package p\n\n" +
+		"// FullMipChain marks a TextureBinding as carrying its complete mip pyramid\n" +
+		"// when the exact level count is not supplied (--tex ...:mips).\n" +
+		"const FullMipChain = -1\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+
+	checkFix = false
+	assert.ErrorIs(t, runCheck(rootCmd, []string{path}), errFindings)
+}
+
 // A build names a directory rather than every file under it, so a directory is
 // the tree beneath it. Reading the directory as a file is what a build sees as
 // "read .: is a directory".
