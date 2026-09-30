@@ -114,7 +114,7 @@ A repair never returns a rewritten copy of a file. It returns `edit.Edit` values
 
 | Gate | An edit may touch | After the splice |
 |---|---|---|
-| `treecomments.Apply` | bytes inside a comment node, and the blank around it | every node that is not a comment keeps its type, its text and its place in the tree. Every directive line and the license header come back byte for byte |
+| `treecomments.Apply` | bytes inside a comment node, and the blank around it | every node that is not a comment keeps its type, its text and its place in the tree. Every directive line comes back byte for byte |
 | `markdown.Apply` | bytes inside a single CommonMark prose block | every verbatim block comes back as written, in order |
 | workflow YAML | whole rows | the file parses, and a comment edit decodes to the same data |
 
@@ -213,7 +213,7 @@ A tombstone describes a state the code has left, or argues for the diff instead 
 - The wording tells are `pattern` entries with an `id` in `english/english.xml`. Each cuts the PHRASE, not the line. The rest of the sentence thus survives. A pattern with no `id` still rewrites.
 - `tombstones/name-nothing-in-the-repository-defines` reads no wording. A comment that names a symbol found nowhere in the repository describes a tree that is gone. The probe runs ripgrep on the working tree.
 - A pattern cut never removes a negation while the words it negates stay. `no longer` is therefore a flag, not a cut.
-- A license header is a legal notice. No rule reads the comment run that opens a file with a copyright or SPDX line.
+- A copyright year is cut on purpose. A yearly bump only pads a commit.
 - `tombstones/comment-volume` counts the lines of a merged comment run against the cap, which defaults to `14` lines. No rewording defeats it. It never strips, because it judges a whole block.
 
 A referent candidate must look like a symbol: an underscore, an internal case change, or a capital beside a digit. A name in capitals and a short name never qualify. The probe answers nothing when it cannot answer: no repository, no ripgrep, a timeout or an error. An absent answer must never read as a missing symbol. A comment that names too many candidates is skipped.

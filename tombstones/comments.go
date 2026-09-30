@@ -16,7 +16,6 @@ import (
 
 	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/markdown"
-	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // Block is a comment run or a paragraph. LineNos and Pure place each line and
@@ -40,15 +39,7 @@ func AddedBlocks(path, added string) []Block {
 	}
 	lines := strings.Split(added, "\n")
 	out := make([]Block, 0, len(runs))
-	first, last := -1, -1
-	if start, end, found := treecomments.LicenseHeader(path, added); found {
-		first, last = strings.Count(added[:start], "\n"), strings.Count(added[:end], "\n")
-	}
 	for _, run := range runs {
-		// A license header is a legal notice, not prose, so no rule reads it.
-		if run.Start <= last && run.End-1 >= first {
-			continue
-		}
 		lineNos := make([]int, 0, run.End-run.Start)
 		for no := run.Start; no < run.End; no++ {
 			lineNos = append(lineNos, no)

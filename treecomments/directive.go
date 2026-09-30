@@ -1,7 +1,6 @@
 package treecomments
 
 import (
-	"regexp"
 	"strings"
 	"unicode"
 )
@@ -35,39 +34,6 @@ func IsDirective(line string) bool {
 		return after == "" || after[0] == ' ' || after[0] == '\t'
 	}
 	return false
-}
-
-// licenseMark is the notice that makes a comment run a license header.
-var licenseMark = regexp.MustCompile(`(?i)\bcopyright\b|SPDX-License-Identifier:`)
-
-// LicenseHeader answers where the comment run that opens the file sits, when
-// that run carries a license notice. A legal notice stays byte for byte.
-func LicenseHeader(filename, src string) (start, end int, ok bool) {
-	runs := Runs(filename, src)
-	if len(runs) == 0 {
-		return 0, 0, false
-	}
-	head := runs[0]
-	start = head[0].Offset
-	before := strings.TrimSpace(src[:start])
-	if before != "" && (!strings.HasPrefix(before, "#!") || strings.Contains(before, "\n")) {
-		return 0, 0, false
-	}
-	last := head[len(head)-1]
-	end = last.Offset + len(last.Text)
-	if !licenseMark.MatchString(src[start:end]) {
-		return 0, 0, false
-	}
-	return start, end, true
-}
-
-// licenseText answers the license header of src, or "" when it has none.
-func licenseText(filename, src string) string {
-	start, end, ok := LicenseHeader(filename, src)
-	if !ok {
-		return ""
-	}
-	return src[start:end]
 }
 
 // directiveLines answers every directive line in the comments of src, in order.
