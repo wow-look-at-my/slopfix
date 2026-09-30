@@ -17,7 +17,6 @@ package commentfix
 import (
 	"regexp"
 	"strings"
-	"unicode"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -130,19 +129,5 @@ func commentLines(lit string) []commentLine {
 // isDirective reports whether the line is a compiler or tool directive, such as
 // //go:build. The colon form carries no prose to go stale.
 func isDirective(text string) bool {
-	text = strings.TrimSpace(text)
-	rest, found := strings.CutPrefix(text, "//")
-	if !found || rest == "" || strings.HasPrefix(rest, " ") {
-		return false
-	}
-	name, _, found := strings.Cut(rest, ":")
-	if !found || name == "" {
-		return false
-	}
-	for _, r := range name {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' && r != '_' {
-			return false
-		}
-	}
-	return true
+	return treecomments.IsDirective(text)
 }
