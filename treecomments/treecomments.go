@@ -166,7 +166,23 @@ func Extract(filename, src string) []Comment {
 	defer trace.Phase("treecomments/walk")()
 	var out []Comment
 	collect(root, src, &out)
-	return dropCgoPreamble(root, src, dropDockerDirectives(dropShebang(out)))
+	return dropLicenseNotices(dropCgoPreamble(root, src, dropDockerDirectives(dropShebang(out))))
+}
+
+// licenseNotice matches a line that states a copyright or a license identifier.
+var licenseNotice = regexp.MustCompile(`(?i)SPDX-License-Identifier:|\bcopyright\b.*(\(c\)|©|\b(19|20)\d\d\b)`)
+
+// dropLicenseNotices removes each comment that carries a copyright or license
+// notice. A license can require the notice verbatim, so no rule may cut it.
+func dropLicenseNotices(comments []Comment) []Comment {
+	kept := comments[:0:0]
+	for _, c := range comments {
+		if licenseNotice.MatchString(c.Text) {
+			continue
+		}
+		kept = append(kept, c)
+	}
+	return kept
 }
 
 // A Dockerfile parser directive is a line the docker build reads, not prose.
