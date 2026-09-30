@@ -426,8 +426,11 @@ func phraseEnds(words []string, n int) bool {
 	if strings.ContainsAny(words[n-1][len(words[n-1])-1:], ",;:)") {
 		return true
 	}
-	return dangling.Contains(strings.ToLower(strings.Trim(words[n], "(\"'`")))
+	return phraseOpeners.Contains(strings.ToLower(strings.Trim(words[n], "(\"'`")))
 }
+
+// phraseOpeners open a phrase the words before them can end without.
+var phraseOpeners = set.Of(tailsClass("phrase-opener")...)
 
 // wordCut keeps the longest leading run of words that fits the budget. With
 // atPhrase it cuts only where a phrase ends.
