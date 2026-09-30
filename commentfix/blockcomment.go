@@ -121,36 +121,11 @@ func repairBlockComment(b block) ([]string, bool) {
 	if !ok {
 		return nil, false
 	}
-	fits := func(out []string) bool {
-		_, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars})
-		return !over
-	}
 	lines := asLines(shape.indent, prose)
 	kept := fromLines(trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: lines, exact: b.exact}))
-	if out := shape.render(kept); fits(out) {
+	if out := shape.render(kept); fitsCode(out, b) {
 		return out, true
 	}
-	words := strings.Fields(strings.Join(kept, " "))
-	for _, atPhrase := range []bool{true, false} {
-		for n := len(words) - 1; n > 0; n-- {
-			if atPhrase && !phraseEnds(words, n) {
-				continue
-			}
-			last := strings.TrimRight(words[n-1], ",;:-")
-			if last == "" || dangling.Contains(strings.ToLower(last)) {
-				continue
-			}
-			text := strings.Join(append(append([]string{}, words[:n-1]...), last), " ")
-			if !balanced(text) {
-				continue
-			}
-			if !endsSentence(text) {
-				text += "."
-			}
-			if out := shape.render(fromLines(reflow(text, "", "//", wrapWidth))); fits(out) {
-				return out, true
-			}
-		}
-	}
-	return nil, false
+	render := func(text string) []string { return shape.render(fromLines(reflow(text, "", "//", wrapWidth))) }
+	return wordCut(strings.Join(kept, " "), render, b)
 }

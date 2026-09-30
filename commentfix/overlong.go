@@ -410,14 +410,40 @@ func wordFit(b block) ([]string, bool) {
 	for _, line := range prose(b.text) {
 		body = append(body, stripMarker(line))
 	}
-	words := strings.Fields(strings.Join(body, " "))
 	budget := max(floorChars, b.codeChars)
-	for _, atPhrase := range []bool{true, false} {
-		if out, ok := wordCut(words, atPhrase, budget, marker, indent, b); ok {
-			return out, true
+	render := func(text string) []string {
+		out := reflow(text, indent, marker, min(budget, wrapWidth))
+		if fitsCode(out, b) {
+			return out
+		}
+		return reflow(text, indent, marker, budget)
+	}
+	return wordCut(strings.Join(body, " "), render, b)
+}
+
+// fitsCode reports whether text fits the budget of the code under b.
+func fitsCode(text []string, b block) bool {
+	_, over := judge(block{text: text, codeLines: b.codeLines, codeChars: b.codeChars})
+	return !over
+}
+
+// unwrapAside drops a parenthesis that encloses the whole of text, because no
+// cut inside it closes.
+func unwrapAside(text string) string {
+	text = strings.TrimSpace(text)
+	inner, ok := strings.CutPrefix(text, "(")
+	if !ok {
+		return text
+	}
+	for _, close := range []string{".)", ")."} {
+		if rest, found := strings.CutSuffix(inner, close); found && balanced(rest) {
+			return rest + "."
 		}
 	}
-	return nil, false
+	if rest, found := strings.CutSuffix(inner, ")"); found && balanced(rest) {
+		return rest
+	}
+	return text
 }
 
 // phraseEnds reports a cut after words[n-1] that ends a phrase: a closing mark
@@ -432,27 +458,27 @@ func phraseEnds(words []string, n int) bool {
 // phraseOpeners open a phrase the words before them can end without.
 var phraseOpeners = set.Of(tailsClass("phrase-opener")...)
 
-// wordCut keeps the longest leading run of words that fits the budget. With
-// atPhrase it cuts only where a phrase ends.
-func wordCut(words []string, atPhrase bool, budget int, marker, indent string, b block) ([]string, bool) {
-	for n := len(words) - 1; n > 0; n-- {
-		if atPhrase && !phraseEnds(words, n) {
-			continue
-		}
-		last := strings.TrimRight(words[n-1], ",;:-")
-		if last == "" || dangling.Contains(strings.ToLower(last)) {
-			continue
-		}
-		kept := strings.Join(append(append([]string{}, words[:n-1]...), last), " ")
-		if !balanced(kept) {
-			continue
-		}
-		if !endsSentence(kept) {
-			kept += "."
-		}
-		for _, width := range []int{min(budget, wrapWidth), budget} {
-			out := reflow(kept, indent, marker, width)
-			if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+// wordCut keeps the longest leading run of words that render fits under b.
+// A cut where a phrase ends is tried before a cut at any word.
+func wordCut(prose string, render func(string) []string, b block) ([]string, bool) {
+	words := strings.Fields(unwrapAside(prose))
+	for _, atPhrase := range []bool{true, false} {
+		for n := len(words) - 1; n > 0; n-- {
+			if atPhrase && !phraseEnds(words, n) {
+				continue
+			}
+			last := strings.TrimRight(words[n-1], ",;:-")
+			if last == "" || dangling.Contains(strings.ToLower(last)) {
+				continue
+			}
+			kept := strings.Join(append(append([]string{}, words[:n-1]...), last), " ")
+			if !balanced(kept) {
+				continue
+			}
+			if !endsSentence(kept) {
+				kept += "."
+			}
+			if out := render(kept); fitsCode(out, b) {
 				return out, true
 			}
 		}

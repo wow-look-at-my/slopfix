@@ -8,6 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// A comment that is one parenthetical aside has no cut inside it that closes,
+// so the cut drops the enclosing parenthesis.
+func TestACommentThatIsOneAsideRepairs(t *testing.T) {
+	src := "void f(void)\n{\n" +
+		"   /* (ACO's isel setup re-runs the flag pass with after_lowering = true, which\n" +
+		"    * is why unvectorized corpus entries matched RADV even before this ran here.) */\n" +
+		"   nir_divergence_analysis(nir);\n}\n"
+	require.NotEmpty(t, CheckLength("x.c", src))
+	out, changed := FixLength("x.c", src)
+	require.True(t, changed, "fix must repair every block it detects")
+	assert.Empty(t, CheckLength("x.c", out), "nothing is left to report:\n%s", out)
+	assert.Contains(t, out, "/* ACO's isel setup re-runs the flag pass", "the opening survives, unwrapped:\n%s", out)
+}
+
 // A /* */ comment over a short statement repairs like a line comment, and stays a block.
 func TestABlockCommentRepairs(t *testing.T) {
 	for name, src := range map[string]string{
