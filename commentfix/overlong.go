@@ -124,7 +124,7 @@ func lengthEdits(filename, src string) []edit.Edit {
 // judge measures a block against its code and names every measure it failed.
 // Lines catch an essay; characters catch a dense paragraph.
 func judge(b block) (string, bool) {
-	lines, chars := measure(prose(b.text))
+	lines, chars := measure(weighed(b.text))
 	// Nothing to weigh against.
 	if b.codeLines == 0 {
 		if lines == 0 {
@@ -165,7 +165,6 @@ func measure(text []string) (lines, chars int) {
 	}
 	return lines, chars
 }
-
 
 // repair rewrites a block's prose and puts its directive lines back verbatim.
 //
@@ -238,6 +237,19 @@ func prose(text []string) []string {
 	return kept
 }
 
+// weighed is the prose a block is measured by. A bare marker line right before
+// a directive is gofmt's separator, which no edit can remove, so it is not weighed.
+func weighed(text []string) []string {
+	kept := make([]string, 0, len(text))
+	for i, line := range text {
+		if isBlankComment(line) && i+1 < len(text) && isDirectiveLine(text[i+1]) {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return prose(kept)
+}
+
 // isDirectiveLine reports a line a tool reads rather than a reader. The C family
 // spells it with no space after the marker, and the hash family carries the
 // interpreter line and the linter pragma.
@@ -305,11 +317,11 @@ func trim(b block) []string {
 			return opening
 		}
 	}
-	// The cut that keeps more words wins: a clause mark near the opening loses more than a word cut.
+	// A clause cut reads best, unless it keeps under half what a word cut keeps.
 	clause, clauseOK := clauseFit(b)
 	words, wordsOK := wordFit(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars})
 	switch {
-	case clauseOK && (!wordsOK || wordCount(clause) >= wordCount(words)):
+	case clauseOK && (!wordsOK || 2*wordCount(clause) >= wordCount(words)):
 		return clause
 	case wordsOK:
 		return words

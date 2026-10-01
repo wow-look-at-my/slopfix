@@ -179,8 +179,7 @@ func TestADocBelowATrailingCommentIsMeasured(t *testing.T) {
 
 // A line that holds only its marker is a comment line, as commentspan counts it.
 func TestABareMarkerLineCounts(t *testing.T) {
-	src := "package p\n\n// The point.\n//\n//go:generate stringer -type=Kind\nconst p = 1\n"
-	assert.NotEmpty(t, CheckLength("x.go", src))
+	assert.NotEmpty(t, CheckLength("x.sh", "# The point.\n#\nn=1\n"))
 }
 
 // The control. A comment proportionate to its statement is not a finding, or
