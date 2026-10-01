@@ -15,8 +15,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
@@ -108,9 +106,8 @@ func strip(content string, hits []Hit) (string, []Hit) {
 	return res.Text, cut
 }
 
-// Edits answers an edit per hit that cuts its cardinal. A cardinal that opened
-// its sentence hands its capital to the word after it, so that word's first
-// letter is part of the edit.
+// Edits answers an edit per hit that cuts its cardinal. A count the sentence
+// depends on gets no edit, and stays a finding.
 func Edits(content string, hits []Hit) []edit.Edit {
 	var out []edit.Edit
 	for _, hit := range hits {
@@ -118,19 +115,31 @@ func Edits(content string, hits []Hit) []edit.Edit {
 			continue
 		}
 		number := cardinal.Leading.FindString(content[hit.Start:hit.End])
-		if number == "" || measuresARate(content[:hit.Start], hit.Phrase) {
+		if number == "" || measuresARate(content[:hit.Start], hit.Phrase) || loadBearing(content, hit.Start, hit.End) {
 			continue
 		}
-		e := edit.Edit{Start: hit.Start, End: hit.Start + len(number), Cut: []string{hit.Phrase}}
-		if first, _ := utf8.DecodeRuneInString(number); unicode.IsUpper(first) {
-			next, width := utf8.DecodeRuneInString(content[e.End:])
-			e.Text = string(unicode.ToUpper(next))
-			e.End += width
-		}
-		out = append(out, e)
+		out = append(out, edit.Edit{Start: hit.Start, End: hit.Start + len(number), Cut: []string{hit.Phrase}})
 	}
 	return out
 }
+
+// loadBearing reports a count whose cut changes what the sentence says. The
+// count opens its sentence or introduces a list.
+func loadBearing(content string, start, end int) bool {
+	lineStart := strings.LastIndexByte(content[:start], '\n') + 1
+	lineEnd := len(content)
+	if n := strings.IndexByte(content[end:], '\n'); n >= 0 {
+		lineEnd = end + n
+	}
+	before := strings.TrimRight(content[lineStart:start], " \t*_(\"'")
+	if before == "" || listMarker.MatchString(before) || strings.ContainsAny(before[len(before)-1:], ".!?") {
+		return true
+	}
+	return strings.HasSuffix(strings.TrimSpace(content[end:lineEnd]), ":")
+}
+
+// listMarker matches the marker of a list item, with nothing after it.
+var listMarker = regexp.MustCompile(`^\s*(?:[-*+]|[0-9]+[.)])$`)
 
 // measuresARate reports whether a quantity is an interval such as "every
 // minutes". It is still reported, but cutting its number leaves "every

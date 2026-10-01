@@ -56,12 +56,29 @@ func AddedBlocks(path, added string) []Block {
 
 // IsDocument reports whether path names prose rather than source.
 func IsDocument(path string) bool {
+	if IsScript(path) {
+		return false
+	}
 	if InTestdata(path) {
 		return false
 	}
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".md", ".markdown", ".rst", ".txt", ".adoc":
 		return true
+	}
+	return false
+}
+
+// IsScript reports a script test: a txtar archive, or a .txt file under a
+// testdata/script directory. Its lines are commands, and only its hash lines
+// are prose.
+func IsScript(path string) bool {
+	slashed := "/" + filepath.ToSlash(strings.ToLower(path))
+	switch filepath.Ext(slashed) {
+	case ".txtar":
+		return true
+	case ".txt":
+		return strings.Contains(slashed, "/testdata/script/") || strings.Contains(slashed, "/testdata/scripts/")
 	}
 	return false
 }

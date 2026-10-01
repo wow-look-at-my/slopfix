@@ -132,6 +132,9 @@ func isDocument(path string) bool {
 	if path == "" {
 		return true
 	}
+	if tombstones.IsScript(path) {
+		return false
+	}
 	if tombstones.InTestdata(path) {
 		return false
 	}

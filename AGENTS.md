@@ -31,6 +31,7 @@ slopfix message < message.txt     # judge a closing message
 - A directory argument is walked. The walk skips hidden directories except `.github`. It also skips `vendor`, `node_modules`, `testdata`, `build`, registered submodules and nested Go modules.
 - A named file is read whatever its extension. The path decides the rules. A workflow or action manifest gets the `yaml` rules. A document gets the prose rules. Source gets the `comments` rules.
 - A document is `.md`, `.markdown`, `.mdown` or `.txt`. An empty `--path` also counts as a document.
+- A script test is code: a `.txtar` file, or a `.txt` under `testdata/script`. Only its `#` lines are prose, and the comment rules read them.
 - A path with a `testdata` element is never a document, named or walked. It is test input, and a rewrite changes what the test checks.
 - With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr. `--json` writes the whole answer as one object, which is what a hook reads.
 - `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
@@ -194,13 +195,15 @@ coordinate/0 subject="-" verb="refuses": and refuses the write
 | Shape | quantity | quantity | number |
 | Frame required | yes | no | no |
 | Vocabulary | two upward, plus a dozen | two to twelve | cardinals, ordinals, scales, repeat counts |
-| Exemptions | function-word gap, a longer number | arithmetic, function-word gap | status code, exit status, literal, section sign, currency, quotation |
+| Exemptions | function-word gap, a longer number | arithmetic, function-word gap | status code, exit status, literal, section sign, currency, quotation, version |
 
 Prose requires a frame, because a document carries numbers that count nothing: a version, a port, an example. The gate needs no frame. That is the whole difference between the document substrates. A number beside code is nearly always a count. A comment therefore needs no frame either. The vocabularies stay separate, because widening one changes the verdict on text nobody edited. `Find` returns the whole quantity for prose. That `cardinal.Leading` can cut its number. For a comment it returns the number alone.
 
 ## counts: a count in a document
 
 `counts/inventory-count` cuts the cardinal out of a sentence that counts what is here. `there are three sections` becomes `there are sections`, which stays true. The org rules that a count in markdown is not worth maintaining. The cut is thus the whole repair.
+
+A count the sentence depends on is reported and never cut. It opens its sentence, or sits on a line that ends with a colon and introduces a list. A count after a determiner is cut: `the two payloads` becomes `the payloads`. The same holds for `ste/count`.
 
 A count needs a frame and a quantity on the same line. The quantity is a cardinal that governs a plural noun. The frame is a possessive (`this repo's plugins`), a having verb (`it ships hooks`) or a deictic (`the rules below`). A quantity with no frame is ordinary technical prose.
 

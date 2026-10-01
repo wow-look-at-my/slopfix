@@ -167,7 +167,7 @@ func TestALengthenedNumberIsCutBackInTheSamePass(t *testing.T) {
 	// The comment fits its budget as written and does not a single time every
 	// number in it is said in words, which is the whole of the interaction.
 	src := "package demo\n\n" +
-		"// Reserve takes one slot out of the arena, hands the caller back one handle to it and then publishes the newest entry it has just made now.\n" +
+		"// Reserve takes one slot out of the arena and hands the caller one handle to it. It then publishes the newest entry it has just made now.\n" +
 		"func Reserve() {}\n"
 	require.NotContains(t, findingIDs(slopfix.CheckContent("demo.go", src)), "comments/length",
 		"the fixture has to start inside the budget, or it proves nothing about the rewrite")
