@@ -177,6 +177,18 @@ func TestADocBelowATrailingCommentIsMeasured(t *testing.T) {
 	assert.NotEmpty(t, CheckLength("x.go", src), "commentspan reports two comment lines over one code line")
 }
 
+// A trailing comment later in the body leaves the opening statement the thing
+// a comment documents. It broke the row order, and the whole body was weighed.
+func TestATrailingCommentInTheBodyKeepsTheStatement(t *testing.T) {
+	src := "package p\n\nfunc f() {\n" +
+		"\t// Copies share the value: resolving an argument in place must be seen\n" +
+		"\t// through every copy (the save-before-clobber idiom).\n" +
+		"\tm := machine()\n" +
+		"\tm.write(0, got) // s_mov_b32 s0, s3\n" +
+		"\tm.write(3, nil)\n}\n"
+	assert.NotEmpty(t, CheckLength("x.go", src))
+}
+
 // A line that holds only its marker is a comment line, as commentspan counts it.
 func TestABareMarkerLineCounts(t *testing.T) {
 	assert.NotEmpty(t, CheckLength("x.sh", "# The point.\n#\nn=1\n"))

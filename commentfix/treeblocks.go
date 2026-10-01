@@ -199,6 +199,10 @@ func isSequence(node ts.Node) bool {
 	}
 	seen := node.NamedChild(0).StartPoint().Row
 	for i := uint32(1); i < count; i++ {
+		// A trailing comment shares its statement's row and orders nothing.
+		if code.IsComment(node.NamedChild(i)) {
+			continue
+		}
 		row := node.NamedChild(i).StartPoint().Row
 		if row <= seen {
 			return false
