@@ -71,6 +71,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 | `repo` | `repo/agents-file`, `repo/budget` | yes, on a walk, except a file with no `##` section |
 | `wrap` | `wrap/hard-wrap` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
+| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | all but the volume cap |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
@@ -139,7 +140,7 @@ The one string match left is the hook replaying an Edit payload. `old_string` is
 
 `Split` breaks a document into prose blocks and verbatim blocks with a CommonMark parser. A fence, a table, a heading and a blank run are verbatim. No rule reads or reflows them. Every prose rule gets its fence, code and list exemptions from this split. A block keeps its list marker and indentation. A nested item thus survives a rewrite.
 
-`wrap/hard-wrap` rejects a paragraph split over several source lines. The reader's window wraps a paragraph. An author's wrap freezes one window's width into the file. Each later edit then re-flows untouched lines.
+`wrap/hard-wrap` rejects a paragraph split over several source lines. It reports each continuation line. The reader's window wraps a paragraph. An author's wrap freezes one window's width into the file. Each later edit then re-flows untouched lines.
 
 `fix` writes each prose block back as a single line. `WordsOnly` proves the join moved only newlines. A rewrite whose words differ from the source is refused. The caller keeps the original. A workflow is never joined, because a newline in YAML is syntax.
 
@@ -156,6 +157,15 @@ The members share the sentence splitter, the masks and the repair pass. They the
 - `ste/sentence-length`: a sentence over `25` words, the STE cap for a description. The repair divides it at a clause boundary that the `syntax` parser finds.
 - `ste/postdeterminer`: a numeral between a determiner and its noun, as in `the three rules`. The repair cuts the numeral. A unit, a percent, a year, a status code, `any` and `first` keep theirs.
 - `ste/count`: a stated count anywhere in the line, read with the `Gate` substrate. The repair cuts the number after the join.
+
+The warning rules read patterns that need a person to repair. A warning never fails `check`. `report` gives each finding a `severity` of `error` or `warning`. The language server sends a warning at warning level.
+
+- `ste/instruction-length`: a sentence of `21` to `25` words, over the STE cap for an instruction.
+- `ste/passive`: a form of `be` and a past participle, as the parser tags them.
+- `ste/noun-cluster`: a run of nouns longer than `NounClusterCap`, which is `3`.
+- `ste/tense`: a perfect or a progressive tense. The approved `-ing` words, such as `missing` and `during`, do not count.
+- `ste/dictionary`: a word the STE dictionary does not approve, with its approved replacements. The table is `ste/dictionary.txt`. It holds only words with no approved sense, because a match by spelling cannot tell senses apart.
+- `ste/paragraph-length`: a paragraph with more sentences than `ParagraphSentenceCap`, which is `6`. A list item never counts.
 
 How a long sentence divides:
 

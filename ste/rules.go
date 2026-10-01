@@ -188,7 +188,6 @@ var proseRules = []proseRule{
 	{"rule/ste-comma-splice", checkSplices},
 	{"rule/ste-count", checkCounts},
 	{"rule/ste-postdeterminer", checkPostdeterminers},
-	{"rule/ste-warnings", checkWarnings},
 }
 
 // strip removes the spans that are data rather than prose: inline code, a

@@ -389,7 +389,6 @@ func endsMainClause(prose string, at int) bool {
 
 // joinsClauses reports whether the conjunction at byte at joins a main clause
 // to another that names its own subject. The end of a list does not.
-// cache, the tree, and the runner that holds the job".
 func joinsClauses(prose string, at int) bool {
 	word, _, _ := strings.Cut(prose[at:], " ")
 	if !syntax.Is(word, "coordinator") {

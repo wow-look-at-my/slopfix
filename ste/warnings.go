@@ -3,11 +3,11 @@ package ste
 import (
 	_ "embed"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // The warning rules. Each reads a pattern that needs a person's judgment to
@@ -57,10 +57,16 @@ var (
 	haveForms = set.Of("has", "have", "had")
 	// approvedIng are the -ing words the STE dictionary approves as an adjective, a pronoun or a preposition.
 	approvedIng = set.Of("mating", "missing", "remaining", "something", "during")
-	listItem    = regexp.MustCompile(`^\s*(?:[-*+]|\d+[.)])\s`)
+	// masks are the words strip writes over data.
+	masks = set.Of("CODE", "URL", "ENTITY", "QUOTE")
 )
 
-func checkWarnings(prose string, line int) []Finding {
+// Warn reports every warning rule the text breaks. Check never answers these,
+// because a caller of Check reads any finding as a failure. A list item never
+// counts as a long paragraph.
+func Warn(text string, line int, listItem bool) []Finding {
+	defer trace.Phase("rule/ste-warnings")()
+	prose := strip(text)
 	var out []Finding
 	sentences := 0
 	for _, span := range sentenceSpans(prose) {
@@ -71,15 +77,20 @@ func checkWarnings(prose string, line int) []Finding {
 				fmt.Sprintf("over the %d-word cap for an instruction at %d words", InstructionWordCap, n),
 				truncate(strings.TrimSpace(text)), "Split it if it tells the reader to do something."))
 		}
-		out = append(out, verbWarnings(syntax.Parse(text, opaque(text, text)), line)...)
+		off := opaque(text, text)
+		out = append(out, verbWarnings(syntax.Parse(text, off), off, line)...)
 	}
 	for _, word := range wordPattern.FindAllString(prose, -1) {
+		// A word in capitals is a name or a mask, and never a dictionary word.
+		if word == strings.ToUpper(word) {
+			continue
+		}
 		if alts, banned := dictionary[strings.ToLower(word)]; banned {
 			out = append(out, warn(line, IDDictionary, "the STE dictionary does not approve this word", word,
 				"Write "+strings.Join(alts, " or ")+"."))
 		}
 	}
-	if sentences > ParagraphSentenceCap && !listItem.MatchString(prose) {
+	if sentences > ParagraphSentenceCap && !listItem {
 		out = append(out, warn(line, IDParagraphLength,
 			fmt.Sprintf("over the %d-sentence cap for a paragraph at %d sentences", ParagraphSentenceCap, sentences),
 			"", "Divide the paragraph where its topic changes."))
@@ -89,12 +100,14 @@ func checkWarnings(prose string, line int) []Finding {
 
 // verbWarnings reads the tagged words for the passive voice, a complex tense
 // and a noun cluster.
-func verbWarnings(s *syntax.Sentence, line int) []Finding {
+func verbWarnings(s *syntax.Sentence, off [][]int, line int) []Finding {
 	var out []Finding
 	words := s.Words
 	nouns := 0
 	for i, w := range words {
-		if strings.HasPrefix(w.Tag, "NN") {
+		// Code, a quotation and a parenthetical are data, so each one ends a cluster.
+		data := insideAny(off, w.Start) || masks.Contains(w.Text)
+		if strings.HasPrefix(w.Tag, "NN") && !data {
 			nouns++
 		} else {
 			nouns = 0

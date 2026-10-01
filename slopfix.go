@@ -24,7 +24,7 @@ import (
 // IDHardWrap names the wrap rule: the document's shape is this package's to judge.
 const IDHardWrap = "wrap/hard-wrap"
 
-// Check reports every finding in a document, in source order.
+// Check reports every finding in a document that fails a check, in source order.
 func Check(content string) []ste.Finding {
 	var out []ste.Finding
 	for _, block := range markdown.Split(content) {
@@ -40,6 +40,18 @@ func Check(content string) []ste.Finding {
 				Detail: "this line continues the paragraph on line " + strconv.Itoa(block.Start),
 				Fix:    "Join it back up and let the reader's window wrap it. `slopfix fix` does this.",
 			})
+		}
+	}
+	return out
+}
+
+// Warnings reports every warning in a document. A repair never answers one, so
+// Fix never reports one.
+func Warnings(content string) []ste.Finding {
+	var out []ste.Finding
+	for _, block := range markdown.Split(content) {
+		if block.Kind == markdown.Prose {
+			out = append(out, ste.Warn(block.Text(), block.Start, block.Marker != "")...)
 		}
 	}
 	return out
@@ -80,7 +92,7 @@ func kindFindings(path, content string) []ste.Finding {
 		return workflow.Check(content)
 	}
 	if isDocument(path) {
-		return Check(content)
+		return append(Check(content), Warnings(content)...)
 	}
 	// A source file's lines are not paragraphs, so the prose rules stop here.
 	return commentFindings(path, content)

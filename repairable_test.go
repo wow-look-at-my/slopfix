@@ -20,7 +20,8 @@ import (
 func TestEveryRuleCarriesARepair(t *testing.T) {
 	var missing []string
 	for id := range slopfix.AllIDs().All() {
-		if !slopfix.Repairable(id) {
+		// A warning asks for a person's judgment and fails nothing, so no repair answers it.
+		if !slopfix.Repairable(id) && !ste.WarningIDs.Contains(id) {
 			missing = append(missing, id)
 		}
 	}

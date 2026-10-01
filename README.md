@@ -11,6 +11,7 @@ It also carries the Claude Code hook subcommands that the org's marketplace plug
 | `repo` | `repo/agents-file`, `repo/budget` | yes, except a file with no `##` section |
 | `wrap` | `wrap/hard-wrap` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
+| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no, and a warning never fails `check` |
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
