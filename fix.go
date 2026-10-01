@@ -233,9 +233,12 @@ func openFile(req Request, kind fixer.Kind) *fixer.File {
 	return fixer.Open(req.Path, req.Content, opts)
 }
 
-// Report is Fix for a caller that writes nothing. A comment the repair would fit
-// is still a finding in the text as it stands.
+// Report is Fix for a caller that writes nothing. No repair lands, so every
+// finding is reported on the text as it stands, the repairable ones too.
 func Report(req Request) Repair {
+	if !req.Scope.Bounded {
+		req.Scope = edit.Nowhere()
+	}
 	repair := Fix(req)
 	repair.Kept = append(repair.Kept, pending(req, repair.Kept)...)
 	if len(req.Rules) > 0 && !slices.Contains(req.Rules, RulePins) {

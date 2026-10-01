@@ -59,6 +59,29 @@ func TestFixSplitsAnOverBudgetFileIntoDocs(t *testing.T) {
 	assert.FileExists(t, filepath.Join(root, "docs", "topic.md"))
 }
 
+// Every request loads a nested CLAUDE.md and an imported snippet whole too, so
+// the budget reads them. Another long markdown file is the control.
+func TestTheBudgetReadsEveryInstructionFile(t *testing.T) {
+	long := "# Guide\n\n## Topic\n\n" + strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"
+	root := gitRoot(t, map[string]string{
+		"pkg/CLAUDE.md":             long,
+		"claude_snippets/a-rule.md": long,
+		"pkg/notes.md":              long,
+	})
+	var over []string
+	for _, f := range slopfix.CheckTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}}).Findings {
+		if f.ID == slopfix.IDBudget {
+			over = append(over, filepath.ToSlash(f.Path))
+		}
+	}
+	assert.ElementsMatch(t, []string{"pkg/CLAUDE.md", "claude_snippets/a-rule.md"}, over)
+
+	out := slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}})
+	assert.NotContains(t, ids(out.Findings), slopfix.IDBudget)
+	assert.FileExists(t, filepath.Join(root, "pkg", "docs", "topic.md"))
+	assert.FileExists(t, filepath.Join(root, "claude_snippets", "docs", "topic.md"))
+}
+
 func TestFixStillReportsAFileItCannotSplit(t *testing.T) {
 	root := gitRoot(t, map[string]string{"AGENTS.md": strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"})
 	assert.Contains(t, ids(slopfix.FixTree(root).Findings), slopfix.IDBudget)

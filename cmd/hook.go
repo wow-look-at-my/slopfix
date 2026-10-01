@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -12,7 +13,7 @@ import (
 )
 
 var (
-	// hookOnly restricts the run to the rules a caller names.
+	// hookOnly restricts the run to the guards and the rules a caller names.
 	hookOnly []string
 	// hookMaxLines caps a comment block.
 	hookMaxLines int
@@ -21,23 +22,31 @@ var (
 func init() {
 	hook := &cobra.Command{
 		Use:   "hook",
-		Short: "Repair a Claude Code write, reading its PreToolUse payload on stdin",
-		Long: "hook reads a PreToolUse payload on stdin and writes the hook's own\n" +
-			"response on stdout. It repairs the text a write adds, lets the write\n" +
-			"through, and flags what the repair did not reach.\n\n" +
-			"Every plugin that guards a write is then its manifest and nothing else.\n" +
-			"Each carried its own copy of this: the same payload parse, the same three\n" +
-			"write shapes, the same splice back. A write shape added to one and not\n" +
-			"the other is a guard that silently stops seeing half the writes.\n\n" +
+		Short: "Answer a Claude Code hook event, reading its payload on stdin",
+		Long: "hook reads any Claude Code hook payload on stdin and writes the hook's\n" +
+			"response on stdout. The event on the payload decides which guards run.\n" +
+			"Every guard that serves the event runs, unless --only names a subset.\n\n" +
+			"  PreToolUse         clean-bash, write, no-work-loss, auto-allow, busy-poll\n" +
+			"  PermissionRequest  auto-allow\n" +
+			"  PostToolUse        md-budget\n" +
+			"  SessionStart       md-budget\n" +
+			"  Stop               busy-poll, md-budget, laziness\n" +
+			"  MessageDisplay     link-refs, blame-language, ask-properly\n\n" +
+			"On PreToolUse the guards run in that order. The first refusal is the\n" +
+			"answer, and a Bash rewrite reaches every guard after it. On Stop, every\n" +
+			"refusal is joined into one. On MessageDisplay, the rewrite and the notes\n" +
+			"are joined into what the reader sees.\n\n" +
+			"The write guard repairs the text a write adds, lets the write through,\n" +
+			"and flags what the repair did not reach.\n\n" +
 			"It prints nothing, and exits 0, for anything it does not judge. That\n" +
-			"covers an unreadable payload, another event, a tool that writes no file,\n" +
-			"and a path whose rules leave the text alone.",
+			"covers an unreadable payload, an event no guard serves, and a call that\n" +
+			"every guard leaves alone.",
 		Args: cobra.NoArgs,
 		RunE: runHook,
 	}
 	hook.Flags().StringSliceVar(&hookOnly, "only", nil,
-		"run only these, as a comma-separated list. An entry is a category ("+
-			strings.Join(ruleNames(), ", ")+") or a single rule ID, which is the name the report prints")
+		"run only these, as a comma-separated list. An entry is a guard ("+strings.Join(guardNames(), ", ")+
+			"), or a rule category ("+strings.Join(ruleNames(), ", ")+") or rule ID for the write guard")
 	hook.Flags().IntVar(&hookMaxLines, "max-comment-lines", tombstones.DefaultMaxCommentLines, "cap a comment block, 0 to turn the cap off")
 	rootCmd.AddCommand(hook)
 }
@@ -111,7 +120,7 @@ func writeUnits(tool string, in writeInput, raw map[string]any) []unit {
 }
 
 func runHook(cmd *cobra.Command, _ []string) error {
-	rules, ids, err := selectedRules(hookOnly)
+	running, write, err := hookSelection(hookOnly)
 	if err != nil {
 		return err
 	}
@@ -119,9 +128,16 @@ func runHook(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return nil
 	}
-	out := judge(data, rules, ids)
-	if out != "" {
-		fmt.Fprint(cmd.OutOrStdout(), out)
+	res := dispatch(data, running, write)
+	if res.Stdout != "" {
+		fmt.Fprint(cmd.OutOrStdout(), res.Stdout)
+	}
+	if res.Stderr != "" {
+		fmt.Fprint(cmd.ErrOrStderr(), res.Stderr)
+	}
+	if res.Code != 0 {
+		// A refusal is an exit code that Claude Code reads, never an error to print.
+		os.Exit(res.Code)
 	}
 	return nil
 }
