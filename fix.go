@@ -13,7 +13,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
-	"github.com/wow-look-at-my/slopfix/mdbudget"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -39,12 +38,10 @@ const (
 	RuleWorkflow Rule = "yaml"
 	// RulePins is a download URL that names an exact release.
 	RulePins Rule = "pins"
-	// RuleBudget is an instruction file past the character budget.
-	RuleBudget Rule = "budget"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins, RuleBudget}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -66,8 +63,6 @@ func IDsFor(rule Rule) set.Set[string] {
 		return RepoIDs
 	case RulePins:
 		return pins.AllIDs
-	case RuleBudget:
-		return set.Of(mdbudget.ID)
 	}
 	return set.New[string]()
 }
@@ -207,13 +202,6 @@ func fixText(req Request) Repair {
 				}
 			}
 		}
-		if wants(RuleBudget) {
-			for _, finding := range mdbudget.Check(req.Path, text) {
-				if keeps(finding.ID) {
-					repair.Findings = append(repair.Findings, finding)
-				}
-			}
-		}
 	}
 	return repair
 }
@@ -245,9 +233,12 @@ func openFile(req Request, kind fixer.Kind) *fixer.File {
 	return fixer.Open(req.Path, req.Content, opts)
 }
 
-// Report is Fix for a caller that writes nothing. A comment the repair would fit
-// is still a finding in the text as it stands.
+// Report is Fix for a caller that writes nothing. No repair lands, so every
+// finding is reported on the text as it stands, the repairable ones too.
 func Report(req Request) Repair {
+	if !req.Scope.Bounded {
+		req.Scope = edit.Nowhere()
+	}
 	repair := Fix(req)
 	repair.Kept = append(repair.Kept, pending(req, repair.Kept)...)
 	if len(req.Rules) > 0 && !slices.Contains(req.Rules, RulePins) {

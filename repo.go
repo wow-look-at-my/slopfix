@@ -15,7 +15,7 @@ import (
 const (
 	// IDAgentsFile is a root CLAUDE.md that holds more than the AGENTS.md import.
 	IDAgentsFile = "repo/agents-file"
-	// IDBudget is a root file past CharBudget.
+	// IDBudget is a root file, a CLAUDE.md or an imported snippet past CharBudget.
 	IDBudget = "repo/budget"
 )
 
@@ -64,14 +64,16 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 	for _, rel := range over {
 		size := plan.OverBudget[rel]
 		if writing {
-			written, err := Split(root, rel, false)
+			// The sections move into a docs/ beside the file, so its links stay relative.
+			dir := filepath.Join(root, filepath.Dir(rel))
+			written, err := Split(dir, filepath.Base(rel), false)
 			if err != nil {
 				return nil, nil, err
 			}
 			if len(written) > 0 {
 				changed = append(changed, filepath.Join(root, rel))
 				for _, name := range written {
-					changed = append(changed, filepath.Join(root, filepath.FromSlash(name)))
+					changed = append(changed, filepath.Join(dir, filepath.FromSlash(name)))
 				}
 			}
 			if size, err = charCount(filepath.Join(root, rel)); err != nil {

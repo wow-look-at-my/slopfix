@@ -4,18 +4,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
 // The root files every request loads. CharBudget caps each.
 var rootFiles = []string{"README.md", AgentsFile, ClaudeFile}
 
-// CharBudget caps each root file, because every request pays for the whole file.
+// CharBudget caps each root file and each instruction file, because every request pays for the whole file.
 const CharBudget = 40_000
 
 // RootResult is what the repository rules found, or did, at the root.
 type RootResult struct {
-	// OverBudget names each root file past CharBudget, with its size.
+	// OverBudget names each root file or instruction file past CharBudget, with its size.
 	OverBudget map[string]int
 	// Agents is what the move of CLAUDE.md into AGENTS.md did.
 	Agents Migration
@@ -35,7 +38,25 @@ func SurveyRoot(root string, dryRun bool) (*RootResult, error) {
 			return result, err
 		}
 	}
+	for _, path := range commentfix.TreeFilesMatching(root, isInstructionFile) {
+		rel, err := filepath.Rel(root, path)
+		if err != nil || slices.Contains(rootFiles, rel) {
+			continue
+		}
+		if err := budgetOf(path, rel, result); err != nil {
+			return result, err
+		}
+	}
 	return result, nil
+}
+
+// isInstructionFile reports whether every request loads the file whole: a
+// CLAUDE.md anywhere, or a snippet that a CLAUDE.md imports.
+func isInstructionFile(path string) bool {
+	if filepath.Base(path) == ClaudeFile {
+		return true
+	}
+	return strings.HasSuffix(path, ".md") && filepath.Base(filepath.Dir(path)) == "claude_snippets"
 }
 
 // budgetOf records a root file that is past the budget. The count is characters,

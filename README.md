@@ -17,16 +17,14 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/env-indirection` | yes |
 | `pins` | `pins/download-version` | yes, except a templated URL |
-| `budget` | `budget/instruction-file` | no |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
 
-- `repo`: `CLAUDE.md` holds only `@AGENTS.md`, and each root file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`.
+- `repo`: `CLAUDE.md` holds only `@AGENTS.md`. Each root file, each `CLAUDE.md` and each `claude_snippets/` file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`.
 - `wrap` and `ste`: a paragraph is one line, and its prose follows ASD-STE100 Simplified Technical English.
 - `counts`, `ste/count` and `comments/number`: a stated count goes stale when the set changes.
 - `tombstones`: a comment that narrates history or argues for the diff.
 - `comments`: a number in a comment, a comment longer than its code, and a comment cut off mid-thought.
 - `yaml`: a comment block, a job named `all-builds`, a test in a `run:` script, and a gate under `continue-on-error`.
-- `budget`: a `CLAUDE.md`, or a snippet in `claude_snippets/`, over the `40000` characters every request re-sends.
 - message: a closing message that leaves the work undone, deflects blame, or hands the reader a decision.
 
 A fenced code block, a table and a heading are data. No rule reads them.

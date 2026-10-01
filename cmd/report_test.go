@@ -109,22 +109,6 @@ func TestAnUnknownRuleIsAnError(t *testing.T) {
 	assert.Contains(t, err.Error(), "ste/semicolon")
 }
 
-// An instruction file past its budget is a finding of its own. A file under
-// the budget is the control that proves the case can fail.
-func TestAnInstructionFileOverItsBudgetIsReported(t *testing.T) {
-	over, _, err := report(t, "pkg/CLAUDE.md", []string{"budget"}, strings.Repeat("Read the docs.\n\n", 3000))
-	require.NoError(t, err)
-	assert.Equal(t, []string{"budget/instruction-file"}, idsOf(over))
-
-	under, _, err := report(t, "pkg/CLAUDE.md", []string{"budget"}, "Read the docs.\n")
-	require.NoError(t, err)
-	assert.Empty(t, under.Findings)
-
-	other, _, err := report(t, "pkg/notes.md", []string{"budget"}, strings.Repeat("Read the docs.\n\n", 3000))
-	require.NoError(t, err)
-	assert.Empty(t, other.Findings, "a file nothing loads into every request has no budget")
-}
-
 // A finding is the answer rather than a failure. The caller decides what it
 // means, which is why --json never fails over a finding.
 func TestAFindingIsNotAnError(t *testing.T) {

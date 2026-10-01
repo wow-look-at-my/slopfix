@@ -52,7 +52,7 @@ slopfix fix --only tombstones,wrap   # two categories
 slopfix fix --only ste/nosuch        # an error that names the rules ste holds
 ```
 
-The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml`, `repo`, `pins` and `budget`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
+The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml`, `repo` and `pins`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
 
 A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream. A hand wrap hides half of it. So an `ste` rule also joins the paragraph it repairs.
 
@@ -94,10 +94,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/env-indirection` | yes |
 | `pins` | `pins/download-version` | yes, except a templated or HTML-escaped URL |
-| `budget` | `budget/instruction-file` | no |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
-
-`budget/instruction-file` reads a `CLAUDE.md` anywhere and each `.md` under `claude_snippets/`. Over `40000` characters it is an error. Within 2.5% of the budget it is a warning. `CC_CLAUDE_MD_BUDGET` sets the budget, and `0` turns the rule off.
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
@@ -124,11 +121,11 @@ cc-marketplace ships this binary inside its `slopfix` plugin. A publish here the
 These rules judge the tree. Only a walk whose root holds `.git` reaches them. `check` reports them. `fix` applies them.
 
 - `repo/agents-file`: a root `CLAUDE.md` that holds more than the `@AGENTS.md` import. `fix` moves its body into `AGENTS.md` and leaves `CLAUDE.md` as `@AGENTS.md` and a newline. Claude Code reads `CLAUDE.md`. Every other agent reads `AGENTS.md`.
-- `repo/budget`: a root `README.md`, `AGENTS.md` or `CLAUDE.md` over `40000` characters. The count is characters, because a byte count inflates a file with an em dash. `fix` moves the largest `##` sections into `docs/<heading>.md` until the file is at `32000` or less. The gap leaves room for the next edit. The text moves word for word, and each heading under it rises one level. The heading stays, with a link to the new file. A name that exists gets a `-2` suffix.
+- `repo/budget`: a root `README.md` or `AGENTS.md`, a `CLAUDE.md` anywhere, or a `.md` in a `claude_snippets/` directory, over `40000` characters. The repair writes `docs/` beside the file. The count is characters, because a byte count inflates a file with an em dash. `fix` moves the largest `##` sections into `docs/<heading>.md` until the file is at `32000` or less. The gap leaves room for the next edit. The text moves word for word, and each heading under it rises one level. The heading stays, with a link to the new file. A name that exists gets a `-2` suffix.
 
 A body that `AGENTS.md` already holds is not appended again. The import line is never copied into the file it imports. A `CLAUDE.md` that is a symlink stays.
 
-Every other markdown file is left alone. The budget covers only the root files, because only they load on every request.
+Every other markdown file is left alone. The budget covers only the files that every request loads.
 
 ## edit: the only way a repair writes
 
@@ -320,7 +317,7 @@ The message is judged whole. A per-message state file keyed by `message_id` accu
 
 ## ask-properly, link-refs, busy-poll, md-budget
 
-These are hook guards. `ask/prose-decision` and `budget/instruction-file` also run under `check`.
+These are hook guards. `check --message` also runs `ask/prose-decision`, and `repo/budget` covers the files `md-budget` measures.
 
 - `ask-properly` appends a line when a message puts a decision to the reader in prose. `AskUserQuestion` renders the choices instead. It refuses nothing and judges the message whole.
 - `link-refs` renders a pull request, a commit or a branch as a markdown link as the message streams. A target it cannot show to exist stays plain text. A state file carries the fence state across flushes.
