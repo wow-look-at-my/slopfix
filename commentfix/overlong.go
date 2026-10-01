@@ -21,6 +21,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
@@ -313,16 +314,8 @@ func trim(b block) []string {
 	// The STE opening sentence reads best, then a clause cut, then a word cut.
 	opening, whole := steOpening(kept)
 	var fits [][]string
-	if whole {
-		if marker, indent, ok := commentShape(opening); ok {
-			var body []string
-			for _, line := range opening {
-				body = append(body, stripMarker(line))
-			}
-			if out, fit := fitReflow(strings.Join(body, " "), indent, marker, b); fit {
-				fits = append(fits, out)
-			}
-		}
+	if whole && fitsCode(opening, b) {
+		fits = append(fits, opening)
 	}
 	if clause, ok := clauseFit(b); ok {
 		fits = append(fits, clause)
@@ -391,7 +384,7 @@ func clauseFit(b block) ([]string, bool) {
 	for _, cut := range clauseCuts(text) {
 		kept := strings.TrimRight(text[:cut], " ,;:-")
 		words := strings.Fields(kept)
-		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) || !hasVerb(kept) {
 			continue
 		}
 		if !endsSentence(kept) {
@@ -402,6 +395,16 @@ func clauseFit(b block) ([]string, bool) {
 		}
 	}
 	return nil, false
+}
+
+// hasVerb reports text the sentence parser finds a finite verb in.
+func hasVerb(text string) bool {
+	for _, c := range syntax.Parse(text, nil).Clauses {
+		if c.Verb != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // oneLine is a reflow width no comment reaches, so the prose stays on one line.
