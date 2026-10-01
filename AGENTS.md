@@ -139,7 +139,7 @@ A repair never returns a rewritten copy of a file. It returns `edit.Edit` values
 
 So a rewrite cannot escape its comment. A newline can end a line comment early. A closer can end a block early. An opener can swallow the code below. Each changes the code tree, and the gate refuses it. The interpreter line and a cgo preamble are code to the gate, because a tool reads them.
 
-Every repair is a `fixer.Fixer`, and each package registers its fixers from `init` with `fixer.Register`. A fixer gets a `fixer.File` and changes it only through `File.Apply` or `File.ApplyComments`. The file has no text setter. The gates are its only writers. `slopfix.Fix` opens the file for its kind and runs `fixer.For(kind)` in `Order`. `fixers_test.go` pins that order, and it fails on a repairable rule no registered fixer serves.
+Every repair is a `fixer.Fixer`, and each package registers its fixers from `init` with `fixer.Register`. A fixer gets a `fixer.File` and changes it only through `File.Apply` or `File.ApplyComments`. The file has no text setter. The gates are its only writers. `slopfix.Fix` opens the file for its kind and runs `fixer.For(kind)` in `Order`. `fixers_test.go` pins that order. It fails on a repairable rule no registered fixer serves.
 
 | Kind | Fixers, in order |
 |---|---|
@@ -151,7 +151,7 @@ The repository rules sit outside the registry. They delete or move whole files, 
 
 `edit.Scope` bounds where an edit may land, and follows the text through each pass. The hook passes the span its edit writes. `edit.Nowhere()` admits nothing, for a run that wants findings alone.
 
-The one string match left is the hook replaying an Edit payload. `old_string` is a literal by the tool's own contract, so the hook finds it the way the tool will.
+The string match left is the hook replaying an Edit payload. `old_string` is a literal by the tool's own contract, so the hook finds it the way the tool will.
 
 ## markdown: the document model
 
@@ -297,8 +297,8 @@ Unparseable YAML yields no all-builds finding, because the runner fails on it an
 The shapes are: disowning a defect you found, handing a repair back, leaving a defect in place. Excusing yourself from a repair, announcing an attribution hunt, offering authorship in place of a fix. And asking permission in place of acting.
 
 ```
-$ printf 'Want me to fix it?\n' | slopfix message --json
-{"findings":[{"id":"laziness/punt","tell":"asking permission in place of acting","sentence":"Want me to fix it?","line":1}]}
+$ printf 'Want me to fix it?\n' | slopfix check --message --only laziness --json
+{"path":"","findings":[{"id":"laziness/punt","line":1,"endLine":1,"rule":"asking permission in place of acting","detail":"Want me to fix it?","fix":"Do the work the sentence hands back, then say what you did.","repairable":false,"severity":"error"}]}
 ```
 
 A sentence that carries a shape AND says the repair happened is not a punt. A fix claimed in another sentence pardons nothing. A bare diagnosis is legitimate. The word `pre-existing` is thus absent from the table. What fires is the diagnosis given as the reason to stop. An honest deferral that names a real blocker is clean. Fences, indented code and blockquotes are exempt. Inline backticks are not. A sentence reports a single shape.
