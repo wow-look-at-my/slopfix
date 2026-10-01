@@ -48,6 +48,7 @@ func init() {
 	register("yaml/join-comments", IDCommentBlock, 20, joinCommentBlocks, true)
 	register("yaml/rename-guarded-job", IDAllBuildsJob, 30, renameGuardedJob, false)
 	register("yaml/untest", IDTestInYAML, 40, untest, false)
+	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
 }
 
 // Options are the gates a workflow is written through, for the driver to open
