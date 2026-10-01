@@ -1,6 +1,6 @@
 # slopfix: the agent reference
 
-slopfix is one binary for the org's prose rules. It also judges code comments, GitHub Actions workflows and the markdown files a repository keeps. It carries the Claude Code hook subcommands that the marketplace plugins exec. A hook, a CI job and an editor integration all call this binary. Each gets the same verdict.
+slopfix is one binary for the org's prose rules. It also judges code comments, GitHub Actions workflows and the markdown files a repository keeps. It answers every Claude Code hook event that the marketplace plugin sends it. A hook, a CI job and an editor integration all call this binary. Each gets the same verdict.
 
 `README.md` is for a person, `AGENTS.md` (this file) for an agent, and `CLAUDE.md` is the line `@AGENTS.md`. Depth that only one subsystem needs goes in `docs/<topic>.md`, with a pointer here.
 
@@ -17,15 +17,17 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 ## Commands
 
+The commands are `check`, `hook`, `lsp`, `completion` and `help`. A kind of check is a rule category or a hook guard, never a command of its own.
+
 ```sh
 slopfix check [path...]           # report what the rules reject, exit 1 on any finding
 slopfix check --fix [path...]     # repair in place first, then report what is left
 slopfix fix [path...]             # the same as check --fix
-slopfix check --path doc.md < doc.md   # judge stdin as text headed for doc.md
-slopfix parse "The gate reads every file."
-slopfix report --path doc.md < doc.md  # JSON findings for text on stdin
+slopfix check --path doc.md < doc.md          # judge stdin as text headed for doc.md
+slopfix check --json --path doc.md < doc.md   # JSON findings for text on stdin
+slopfix check --message < message.txt         # judge a closing message
+slopfix hook < payload.json       # answer a Claude Code hook event
 slopfix lsp                       # a language server on stdio, for the editor plugin
-slopfix message < message.txt     # judge a closing message
 ```
 
 - A directory argument is walked. The walk skips hidden directories except `.github`. It also skips `vendor`, `node_modules`, `testdata`, `build`, registered submodules and nested Go modules.
@@ -33,7 +35,9 @@ slopfix message < message.txt     # judge a closing message
 - A document is `.md`, `.markdown`, `.mdown` or `.txt`. An empty `--path` also counts as a document.
 - A path with a `testdata` element is never a document, named or walked. It is test input, and a rewrite changes what the test checks.
 - A path with a `vendor` or `node_modules` element is never judged, named or walked, the hook included. Another project wrote it.
-- With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr. `--json` writes the whole answer as one object, which is what a hook reads.
+- With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr.
+- `--json` on stdin writes one object: `path`, `findings`, and with `--fix` the repaired `text`. Each finding carries `id`, `line`, `endLine`, `rule`, `detail`, `fix`, `repairable` and `severity`. It exits 0 on a finding, because the caller decides what a finding means.
+- `--message` reads stdin as a closing message and runs the message rules. `--only` then takes a message rule or a family such as `blame`.
 - `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
 - `fmt`, `purge`, `comments` and `workflows` do not exist as commands. The wrap join is the `wrap/hard-wrap` rule. The purge is the `repo` category. The comment and workflow rules run inside `check` on each file they judge.
 
@@ -48,21 +52,34 @@ slopfix fix --only tombstones,wrap   # two categories
 slopfix fix --only ste/nosuch        # an error that names the rules ste holds
 ```
 
-The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml`, `repo` and `pins`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
+The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml`, `repo`, `pins` and `budget`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
 
 A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream. A hand wrap hides half of it. So an `ste` rule also joins the paragraph it repairs.
 
-### Other commands
+### lsp
 
-- `slopfix parse [--tags]` prints noun phrases in `[ ]` and verb groups in `< >`. It then prints each clause with its kind, depth, subject and verb.
-- `slopfix report --path P [--only IDs]` reads a document on stdin and writes its findings as JSON. `--path` is required, because the path decides the rules. It always exits 0.
-- `slopfix lsp [--max-per-file N]` speaks the Language Server Protocol on stdio with full document sync. It publishes the `report` findings for each open file that a build reads: a file in a work tree that a rule reads, outside `~/.claude`. Every diagnostic is an error. The `yaml` and `ste` families rank first and `wrap` ranks last. Past the cap, the last diagnostic sent counts the rest.
-- `slopfix hook` reads a PreToolUse payload for Write, Edit or MultiEdit. It repairs the text the write adds and lets the write through. It flags what the repair did not reach.
-- The hook repairs an Edit where it lands in the file. A line inside a fence therefore stays code. A `Scope` holds every rewrite inside the edit's own bytes, so a repair the file needs elsewhere never lands. The hook reports those findings instead.
-- The hook prints nothing and exits 0 for anything it does not judge. That covers a bad payload, another event, a tool that writes no file, and clean text.
-- `slopfix message [--only ID] [--json]` judges a closing message on stdin and exits 1 on a finding. `--only` also takes a family such as `blame`.
-- The hook subcommands are `auto-allow`, `busy-poll`, `no-work-loss`, `md-budget`, `link-refs`, `clean-bash`, `ask-properly`, `laziness` and `blame-language`. Each reads a hook payload on stdin and writes the hook's response on stdout. A refusal is an exit code that the launcher passes through.
-- `--trace` on any command prints a timing breakdown by phase.
+`slopfix lsp [--max-per-file N]` speaks the Language Server Protocol on stdio with full document sync. It publishes the `check` findings for each open file that a build reads: a file in a work tree that a rule reads, outside `~/.claude`. Every diagnostic is an error. The `yaml` and `ste` families rank first and `wrap` ranks last. Past the cap, the last diagnostic sent counts the rest.
+
+`--trace` on any command prints a timing breakdown by phase.
+
+### hook
+
+`slopfix hook` reads any hook payload on stdin. The event on the payload picks the guards, and every guard that serves it runs. `--only` names guards, or rule categories and IDs for the write guard. `cmd/guards.go` holds the table, in run order.
+
+| Event | Guards |
+|---|---|
+| PreToolUse | `clean-bash`, `write`, `no-work-loss`, `auto-allow`, `busy-poll` |
+| PermissionRequest | `auto-allow` |
+| PostToolUse, SessionStart | `md-budget` |
+| Stop | `busy-poll`, `md-budget`, `laziness` |
+| MessageDisplay | `link-refs`, `blame-language`, `ask-properly` |
+
+- On PreToolUse the first refusal is the answer. A rewrite of the tool input reaches every guard after it, so no guard judges a command that will not run.
+- On Stop, every refusal joins into one exit 2 with every reason. On MessageDisplay, the `link-refs` rewrite is the base and each note follows it.
+- A refusal is an exit code. The process exits with it.
+- The `write` guard repairs the text a Write, Edit or MultiEdit adds and lets the write through. It flags what the repair did not reach.
+- The write guard repairs an Edit where it lands in the file. A line inside a fence therefore stays code. A `Scope` holds every rewrite inside the edit's own bytes, so a repair the file needs elsewhere never lands. The hook reports those findings instead.
+- The hook prints nothing and exits 0 for anything it does not judge. That covers a bad payload, an event no guard serves, and clean text.
 
 ## Rule table
 
@@ -77,9 +94,12 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/env-indirection` | yes |
 | `pins` | `pins/download-version` | yes, except a templated or HTML-escaped URL |
-| message | `laziness/punt`, `blame/deflection` | no |
+| `budget` | `budget/instruction-file` | no |
+| message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
 
-`hooks.go` also lists `ask-properly` and `link-all-refs` as pending. Their detection lives in the `ask-properly` and `link-refs` subcommands, not in a rule ID.
+`budget/instruction-file` reads a `CLAUDE.md` anywhere and each `.md` under `claude_snippets/`. Over `40000` characters it is an error. Within 2.5% of the budget it is a warning. `CC_CLAUDE_MD_BUDGET` sets the budget, and `0` turns the rule off.
+
+`hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
 ## CI action
 
@@ -158,7 +178,7 @@ The members share the sentence splitter, the masks and the repair pass. They the
 - `ste/postdeterminer`: a numeral between a determiner and its noun, as in `the three rules`. The repair cuts the numeral. A unit, a percent, a year, a status code, `any` and `first` keep theirs.
 - `ste/count`: a stated count anywhere in the line, read with the `Gate` substrate. The repair cuts the number after the join.
 
-The warning rules read patterns that need a person to repair. A warning never fails `check`. `report` gives each finding a `severity` of `error` or `warning`. The language server sends a warning at warning level.
+The warning rules read patterns that need a person to repair. A warning never fails `check`. `check --json` gives each finding a `severity` of `error` or `warning`. The language server sends a warning at warning level.
 
 - `ste/instruction-length`: a sentence of `21` to `25` words, over the STE cap for an instruction.
 - `ste/passive`: a form of `be` and a past participle, as the parser tags them.
@@ -286,13 +306,13 @@ $ printf 'Want me to fix it?\n' | slopfix message --json
 
 A sentence that carries a shape AND says the repair happened is not a punt. A fix claimed in another sentence pardons nothing. A bare diagnosis is legitimate. The word `pre-existing` is thus absent from the table. What fires is the diagnosis given as the reason to stop. An honest deferral that names a real blocker is clean. Fences, indented code and blockquotes are exempt. Inline backticks are not. A sentence reports a single shape.
 
-It reports only, because the repair is work. The `no-laziness` plugin runs it at Stop, because only a Stop hook can stop the model stopping. The hook answers with the single word the reader types back. It gives nothing to argue with. The `laziness` subcommand reads the transcript when the payload carries no message.
+It reports only, because the repair is work. The `laziness` hook guard runs it at Stop, because only a Stop hook can stop the model stopping. The hook answers with the single word the reader types back. It gives nothing to argue with. The guard reads the transcript when the payload carries no message.
 
 ## blamelanguage: a message that deflects blame
 
 `blame/deflection` marks a message that deflects the work onto another author or an earlier time. It never refuses. A Stop refusal runs after the message streams. It unsends nothing. The retype then loops without a bound. The standing rule for a guard here is to mitigate rather than refuse.
 
-The launcher execs `slopfix message --only blame` on MessageDisplay and appends one line for the reader. Nothing goes to the model. `displayContent` changes the screen and not the stored message. `CC_NO_BLAME_LANGUAGE=0` disables it. Every failure prints nothing, because a guard that eats output is worse than none.
+The `blame-language` hook guard runs it on MessageDisplay and appends one line for the reader. Nothing goes to the model. `displayContent` changes the screen and not the stored message. `CC_NO_BLAME_LANGUAGE=0` disables it. Every failure prints nothing, because a guard that eats output is worse than none.
 
 The message is judged whole. A per-message state file keyed by `message_id` accumulates the flushes. The final flush drops it. A lost file costs earlier phrases, never a wrong mark.
 
@@ -300,12 +320,14 @@ The message is judged whole. A per-message state file keyed by `message_id` accu
 
 ## ask-properly, link-refs, busy-poll, md-budget
 
+These are hook guards. `ask/prose-decision` and `budget/instruction-file` also run under `check`.
+
 - `ask-properly` appends a line when a message puts a decision to the reader in prose. `AskUserQuestion` renders the choices instead. It refuses nothing and judges the message whole.
 - `link-refs` renders a pull request, a commit or a branch as a markdown link as the message streams. A target it cannot show to exist stays plain text. A state file carries the fence state across flushes.
 - `busy-poll` serves Stop and PreToolUse. On Stop it refuses a turn that repeats the same call seconds apart. On PreToolUse it refuses a status read of a subject this session saw settle. It runs in a remote session only, because waiting for an event needs events. Evidence ages out. Every failure allows.
 - `md-budget` keeps each `CLAUDE.md` and each `claude_snippets/` file under `40000` characters, because every request re-sends them. It reports at session start and on a write. It blocks a Stop that leaves one broken. `CC_CLAUDE_MD_BUDGET` sets the budget. `CC_CLAUDE_MD_WIDTH` turns on the wrap check.
 
-`english/english.xml` also links an `owner/repo#N` reference in a message. That pattern cannot check existence. The `link-refs` subcommand thus stays the verified path.
+`english/english.xml` also links an `owner/repo#N` reference in a message. That pattern cannot check existence. The `link-refs` guard thus stays the verified path.
 
 ## auto-allow
 

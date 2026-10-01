@@ -111,7 +111,7 @@ func hookSelection(only []string) (set.Set[string], writeSelection, error) {
 	if len(ruleNames) > 0 {
 		rules, ids, err := selectedRules(ruleNames)
 		if err != nil {
-			return nil, writeSelection{}, fmt.Errorf("%w. A guard is one of %s", err, strings.Join(guardNames(), ", "))
+			return set.New[string](), writeSelection{}, fmt.Errorf("%w. A guard is one of %s", err, strings.Join(guardNames(), ", "))
 		}
 		write = writeSelection{rules: rules, ids: ids}
 		running.Add(writeGuard)
