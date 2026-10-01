@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
@@ -34,6 +35,7 @@ const (
 // asks whether a name is in it rather than reading it in order.
 var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
+	IDPostdeterminer,
 )
 
 // Finding is a rule the line breaks, and how to repair it.
@@ -176,6 +178,7 @@ var proseRules = []proseRule{
 	{"rule/ste-sentence-length", checkSentences},
 	{"rule/ste-comma-splice", checkSplices},
 	{"rule/ste-count", checkCounts},
+	{"rule/ste-postdeterminer", checkPostdeterminers},
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
@@ -237,9 +240,9 @@ func checkSentences(prose string, line int) []Finding {
 // finite verb too. A conjunction joins equals, and says as much by itself.
 func checkSplices(prose string, line int) []Finding {
 	var out []Finding
+	parens := parenthetical.FindAllStringIndex(prose, -1)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
-		bare := loc[2] < 0
-		if bare && !isClause(clauseBefore(prose, loc[0])) {
+		if insideAny(parens, loc[0]) || !spliced(prose, loc) {
 			continue
 		}
 		out = append(out, Finding{
@@ -271,12 +274,23 @@ func checkCounts(prose string, line int) []Finding {
 	return out
 }
 
+// insideAny reports whether the byte at idx falls in any of the spans.
+func insideAny(spans [][]int, idx int) bool {
+	for _, span := range spans {
+		if span[0] <= idx && idx < span[1] {
+			return true
+		}
+	}
+	return false
+}
+
 // clauseBefore returns the words from the end of the previous sentence up to
 // the comma at idx.
 func clauseBefore(prose string, idx int) string {
 	before := prose[:idx]
-	if cut := strings.LastIndexAny(before, ".!?"); cut >= 0 {
-		before = before[cut+1:]
+	if cut := strings.LastIndexAny(before, ".!?:;—"); cut >= 0 {
+		_, width := utf8.DecodeRuneInString(before[cut:])
+		before = before[cut+width:]
 	}
 	return before
 }
@@ -313,6 +327,11 @@ func Sentences(text string) []string {
 		for end+1 < len(runes) && terminator(runes[end+1]) {
 			end++
 		}
+		stop := end
+		// A mark that closes emphasis, a quote or a parenthetical belongs to the sentence it ends.
+		for end+1 < len(runes) && strings.ContainsRune("*_)\"'”’", runes[end+1]) {
+			end++
+		}
 		gap := end + 1
 		if gap >= len(runes) || !unicode.IsSpace(runes[gap]) {
 			i = end
@@ -322,7 +341,7 @@ func Sentences(text string) []string {
 		for next < len(runes) && unicode.IsSpace(runes[next]) {
 			next++
 		}
-		if next >= len(runes) || !opensSentence(runes[next:]) || endsWithAbbreviation(runes[start:end+1]) {
+		if next >= len(runes) || !opensSentence(runes[next:]) || endsWithAbbreviation(runes[start:stop+1]) {
 			i = end
 			continue
 		}
@@ -342,6 +361,8 @@ func terminator(r rune) bool {
 
 // opensSentence reports whether the text starts a new sentence. A capital, a
 // digit and an opening delimiter each do, and so does a lower-case file name.
+var maskedSpan = regexp.MustCompile(`^x{4,}(?:\s|$)`)
+
 func opensSentence(rest []rune) bool {
 	switch first := rest[0]; {
 	case unicode.IsUpper(first), unicode.IsDigit(first):
@@ -349,7 +370,8 @@ func opensSentence(rest []rune) bool {
 	case strings.ContainsRune("(`'\"*_[§¶“‘", first):
 		return true
 	}
-	return fileOrSection.MatchString(string(rest))
+	// A masked code span is a run of x, and opens a sentence as its backtick does.
+	return maskedSpan.MatchString(string(rest)) || fileOrSection.MatchString(string(rest))
 }
 
 func endsWithAbbreviation(sentence []rune) bool {
@@ -357,7 +379,9 @@ func endsWithAbbreviation(sentence []rune) bool {
 	if len(fields) == 0 {
 		return false
 	}
-	return abbreviations.Contains(strings.ToLower(fields[len(fields)-1]))
+	// "(e.g." is the abbreviation behind an opening mark.
+	last := strings.TrimLeft(fields[len(fields)-1], "([\"'“‘*_")
+	return abbreviations.Contains(strings.ToLower(last))
 }
 
 // WordCount counts the words in a sentence. Text in parentheses counts as a

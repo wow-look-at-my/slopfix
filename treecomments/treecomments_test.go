@@ -41,11 +41,26 @@ func TestANamedGrammarWithoutTablesReadsNoFile(t *testing.T) {
 		"Extract must read nothing rather than panic")
 }
 
-// The bash fallback is for an extension the table does not name. Sending a
-// named-but-tableless file there would read Go with a shell grammar.
-func TestAnUnknownExtensionStillFallsBackToBash(t *testing.T) {
-	require.NotNil(t, languageFor("Makefile.unknownext"),
-		"an unnamed extension takes the bash fallback")
+// The bash fallback is for a hash-comment file the table does not name.
+// Sending a named-but-tableless file there would read Go with a shell grammar.
+func TestAHashCommentFileFallsBackToBash(t *testing.T) {
+	for _, name := range []string{"Makefile", "Dockerfile", "rules.mk", "suite.dats", "app.ini"} {
+		require.NotNil(t, languageFor(name), "%s takes the bash fallback", name)
+	}
+	assert.Len(t, Extract("Makefile", "# build everything\nall:\n\tgo build\n"), 1)
+}
+
+// A file of unknown syntax is not read at all. Read as shell, a GLSL
+// `#version` directive and a CSS `#id` selector are comments, and a repair
+// then cuts code the compiler needs.
+func TestAnUnknownExtensionIsNotRead(t *testing.T) {
+	glsl := "#version 450\n// a comment\nvoid main() {}\n"
+	css := "#bar { color: red; }\n#title { font-weight: 600; }\n"
+	for name, src := range map[string]string{"shader.frag": glsl, "shader.comp": glsl, "app.css": css, "x.unknownext": "# text\n"} {
+		assert.Nil(t, languageFor(name), "%s has no grammar", name)
+		assert.Empty(t, Extract(name, src), "%s yields no comment", name)
+		assert.Empty(t, Runs(name, src), "%s yields no run", name)
+	}
 }
 
 func TestAnAbsentGrammarIsNamedOnceForEachExtension(t *testing.T) {

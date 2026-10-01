@@ -1,0 +1,2 @@
+curl https://dl.pazer.build/t?os=${OS}&v=${V}&arch=${ARCH}
+<a href="https://dl.pazer.build/a?os=linux&amp;v=3">a</a>

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -60,8 +61,9 @@ func Supported(filename string) bool {
 	return ok
 }
 
-// grammarFor answers the grammar an extension names. An unmatched extension
-// falls back to bash; a named grammar missing its tables must not.
+// grammarFor answers the grammar an extension names. A hash-comment file the
+// table does not name falls back to bash; a named grammar missing its tables
+// must not.
 func grammarFor(filename string) (language *ts.Language, named bool) {
 	load, ok := grammars[strings.ToLower(filepath.Ext(filename))]
 	if !ok {
@@ -70,9 +72,10 @@ func grammarFor(filename string) (language *ts.Language, named bool) {
 	return load(), true
 }
 
-// languageFor answers the grammar to read a file with, or nil when it has no
-// parse tables. It reports that case, because a rule then goes quiet rather
-// than passing.
+// languageFor answers the grammar to read a file with. It is nil when the
+// grammar has no parse tables, which it reports, and nil for a file of unknown
+// syntax, which it does not: a `#` opens a directive in GLSL and a selector in
+// CSS, so reading such a file as shell would cut code.
 func languageFor(filename string) *ts.Language {
 	language, named := grammarFor(filename)
 	if named {
@@ -80,6 +83,9 @@ func languageFor(filename string) *ts.Language {
 			reportMissingGrammar(filename)
 		}
 		return language
+	}
+	if !HashComments(filename) {
+		return nil
 	}
 	if language := bash.Language(); language != nil {
 		return language
@@ -165,7 +171,22 @@ func Extract(filename, src string) []Comment {
 	defer trace.Phase("treecomments/walk")()
 	var out []Comment
 	collect(root, src, &out)
-	return dropCgoPreamble(root, src, dropShebang(out))
+	return dropCgoPreamble(root, src, dropDockerDirectives(dropShebang(out)))
+}
+
+// A Dockerfile parser directive is a line the docker build reads, not prose.
+var dockerDirective = regexp.MustCompile(`(?i)^#[ \t]*(syntax|escape|check)[ \t]*=[ \t]*\S+[ \t]*$`)
+
+// dropDockerDirectives removes each Dockerfile parser directive from the comments.
+func dropDockerDirectives(comments []Comment) []Comment {
+	kept := comments[:0:0]
+	for _, c := range comments {
+		if c.Lines <= 1 && dockerDirective.MatchString(c.Text) {
+			continue
+		}
+		kept = append(kept, c)
+	}
+	return kept
 }
 
 // parse runs the grammar over the source and answers the root to walk, or

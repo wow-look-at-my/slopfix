@@ -100,12 +100,14 @@
 
         <!-- A set of words filling the same slot, named by a <rephrase> match.
              open= lets a word outside the list fill the slot; suffix= admits a
-             word by its ending; except= takes one back out. -->
+             word by its ending; digits= admits a word of digits alone;
+             except= takes one back out. -->
         <xs:element name="class">
           <xs:complexType>
             <xs:attribute name="name" type="xs:string" use="required"/>
             <xs:attribute name="words" type="xs:string"/>
             <xs:attribute name="suffix" type="xs:string"/>
+            <xs:attribute name="digits" type="xs:boolean"/>
             <xs:attribute name="open" type="xs:boolean"/>
             <xs:attribute name="except" type="xs:string"/>
           </xs:complexType>

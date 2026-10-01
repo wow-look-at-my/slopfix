@@ -11,7 +11,7 @@
 //
 // Both are asked of the same parsed command, which is why they share a plugin:
 // the shell walk, the wrapper stripping and the path resolution are the same
-// machinery. See docs/decision-model.md and docs/write-routes.md
+// machinery. See the no-work-loss section of AGENTS.md
 package noworkloss
 
 import (
@@ -31,10 +31,12 @@ const IDProvenance = "noworkloss/provenance"
 const IDWriteTool = "noworkloss/write-tool"
 
 type hookInput struct {
-	HookEventName string          `json:"hook_event_name"`
-	ToolName      string          `json:"tool_name"`
-	Cwd           string          `json:"cwd"`
-	ToolInput     json.RawMessage `json:"tool_input"`
+	HookEventName  string          `json:"hook_event_name"`
+	ToolName       string          `json:"tool_name"`
+	Cwd            string          `json:"cwd"`
+	ToolInput      json.RawMessage `json:"tool_input"`
+	ToolUseID      string          `json:"tool_use_id"`
+	TranscriptPath string          `json:"transcript_path"`
 }
 
 // Result is what an invocation emits. A refusal rides stdout as a deny

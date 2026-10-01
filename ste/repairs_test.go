@@ -19,7 +19,8 @@ var samples = map[string]string{
 	// case the repair divides. A shared subject is the case it declines.
 	ste.IDSentenceCap: "The loader reads the file and the caller waits for it and the header " +
 		"check runs first and the count goes to the log and the handle closes at the end now.",
-	ste.IDStaleCount: "There are three sections.",
+	ste.IDStaleCount:     "There are three sections.",
+	ste.IDPostdeterminer: "Its four fields hold the header.",
 }
 
 // The assertion that keeps Repairs honest. A rule Fix rewrites must be in the

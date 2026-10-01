@@ -10,11 +10,15 @@ import (
 // danglingSpace matches the space a deletion leaves before punctuation that CLOSES something. A period with a word
 var danglingSpace = regexp.MustCompile(`\s+([.,])(\s|$)`)
 
+// doubledStop matches the period a deleted sentence leaves beside the period before it. An ellipsis does not match.
+var doubledStop = regexp.MustCompile(`([^.])\.\.(\s|$)`)
+
 // Surface names where prose is being read, which decides the entries that
 // apply to it.
 const (
-	Comment = "comment"
-	Message = "message"
+	Comment  = "comment"
+	Document = "document"
+	Message  = "message"
 )
 
 // Fix rewrites prose with every table entry that names the surface.
@@ -62,6 +66,7 @@ func FixN(s, surface string) (string, int) {
 	}
 	s = strings.Join(strings.Fields(s), " ")
 	s = danglingSpace.ReplaceAllString(s, "${1}${2}")
+	s = doubledStop.ReplaceAllString(s, "${1}.${2}")
 	return capitalise(original, s), n
 }
 

@@ -9,74 +9,75 @@
 package commentfix
 
 import (
-	"sort"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 )
 
 // residualPasses guards the loop: a pass deletes bytes, so the text shrinks.
 const residualPasses = 8
 
 // clearResidual deletes every number Check still finds, and reports what it
-// took. Check reads comments alone, so a deletion never reaches code.
-func clearResidual(filename, src string) (string, []string) {
-	var removed []string
+// took. Each deletion is an edit inside the comment node the hit sits in.
+func clearResidual(f *fixer.File) {
 	for range residualPasses {
-		hits := Check(filename, src)
+		hits := Check(f.Path, f.Text())
 		if len(hits) == 0 {
-			return src, removed
+			return
 		}
-		var cut []string
-		src, cut = deleteHits(src, hits)
-		removed = append(removed, cut...)
-		if len(cut) == 0 {
+		if res := f.ApplyComments(deletions(f.Text(), hits)); len(res.Applied) == 0 {
 			// Nothing was deletable, so another pass finds the same text.
-			return src, removed
+			return
 		}
 	}
-	return src, removed
 }
 
-// deleteHits removes each hit's bytes from the line it sits on. It works back
-// to front within a line, so an earlier hit's column stays valid.
-func deleteHits(src string, hits []Hit) (string, []string) {
-	lines := strings.Split(src, "\n")
-	byLine := map[int][]Hit{}
+// deletions answers an edit per hit that removes the number and closes the
+// gap it leaves. An edit that would overlap the one before it waits for the
+// next pass.
+func deletions(src string, hits []Hit) []edit.Edit {
+	var out []edit.Edit
+	end := -1
 	for _, hit := range hits {
-		byLine[hit.Line] = append(byLine[hit.Line], hit)
-	}
-	var removed []string
-	for no, onLine := range byLine {
-		i := no - 1
-		if i < 0 || i >= len(lines) {
+		at := hit.Offset
+		stop := at + len(hit.Number)
+		if at < 0 || stop > len(src) {
 			continue
 		}
-		sort.SliceStable(onLine, func(a, b int) bool { return onLine[a].Col > onLine[b].Col })
-		line := lines[i]
-		for _, hit := range onLine {
-			at := hit.Col - 1
-			end := at + len(hit.Number)
-			if at < 0 || end > len(line) || line[at:end] != hit.Number {
-				continue
-			}
-			line = closeGap(line[:at], line[end:])
-			removed = append(removed, hit.Number)
+		e := closeGap(src, at, stop)
+		if e.Start < end {
+			continue
 		}
-		lines[i] = strings.TrimRight(line, " \t")
+		e.Cut = []string{hit.Number}
+		out = append(out, e)
+		end = e.End
 	}
-	return strings.Join(lines, "\n"), removed
+	return out
 }
 
-// closeGap joins the sides of a deletion, leaving the single space a
-// reader expects between words and none at all before punctuation.
-func closeGap(before, after string) string {
-	trimmed := strings.TrimLeft(after, " \t")
-	switch {
-	case trimmed == "":
-		return strings.TrimRight(before, " \t")
-	case strings.ContainsRune(".,;:)!?", rune(trimmed[0])):
-		return strings.TrimRight(before, " \t") + trimmed
-	case before == "" || strings.HasSuffix(before, " ") || strings.HasSuffix(before, "\t"):
-		return before + trimmed
+// closeGap answers the edit that deletes the bytes from at up to stop,
+// leaving the space a reader expects between words and none at all before
+// punctuation or at the end of a line.
+func closeGap(src string, at, stop int) edit.Edit {
+	lineStart := strings.LastIndexByte(src[:at], '\n') + 1
+	lineEnd := len(src)
+	if i := strings.IndexByte(src[stop:], '\n'); i >= 0 {
+		lineEnd = stop + i
 	}
-	return before + " " + trimmed
+	before := at
+	for before > lineStart && (src[before-1] == ' ' || src[before-1] == '\t') {
+		before--
+	}
+	after := stop
+	for after < lineEnd && (src[after] == ' ' || src[after] == '\t') {
+		after++
+	}
+	switch {
+	case after == lineEnd, strings.ContainsRune(".,;:)!?", rune(src[after])):
+		return edit.Edit{Start: before, End: after}
+	case before < at || at == lineStart:
+		return edit.Edit{Start: at, End: after}
+	}
+	return edit.Edit{Start: at, End: after, Text: " "}
 }

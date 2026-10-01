@@ -17,8 +17,13 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // IDLength names this rule, on a report and on the command line alike.
@@ -62,12 +67,14 @@ func CheckLength(filename, src string) []LengthHit {
 		if !over {
 			continue
 		}
+		fixed := repair(b)
+		_, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars})
 		hits = append(hits, LengthHit{
 			ID:         IDLength,
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && !sameText(repair(b), b.text),
+			Repairable: b.exact && !sameText(fixed, b.text) && !stillOver,
 		})
 	}
 	return hits
@@ -76,17 +83,26 @@ func CheckLength(filename, src string) []LengthHit {
 // Fix cuts every over-long comment block back inside its budget, from the end,
 // stopping before the opening sentence.
 func FixLength(filename, src string) (string, bool) {
-	defer trace.Phase("repair/comments-length")()
-	bs := blocks(filename, src)
-	if len(bs) == 0 {
-		return src, false
-	}
-	lines := splitLines(src)
-	changed := false
+	f := fixer.Open(filename, src, fixer.Options{Kind: fixer.Source})
+	fixer.Run(f, fixer.Named(FixerLength))
+	return f.Text(), f.Text() != src
+}
 
-	// Back to front, so an earlier block's line numbers stay valid.
-	for i := len(bs) - 1; i >= 0; i-- {
-		b := bs[i]
+// cutNote is what the report carries a single time any length cut lands.
+const cutNote = "trailing comment prose"
+
+// repairLength cuts every over-long comment block in f back inside its budget.
+func repairLength(f *fixer.File) {
+	defer trace.Phase("repair/comments-length")()
+	if len(f.ApplyComments(lengthEdits(f.Path, f.Text())).Applied) > 0 {
+		f.RemovedOnce(cutNote)
+	}
+}
+
+// lengthEdits answers an edit per block that outweighs its code.
+func lengthEdits(filename, src string) []edit.Edit {
+	var edits []edit.Edit
+	for _, b := range blocks(filename, src) {
 		if _, over := judge(b); !over {
 			continue
 		}
@@ -101,13 +117,9 @@ func FixLength(filename, src string) (string, bool) {
 		if sameText(kept, b.text) {
 			continue
 		}
-		lines = append(lines[:b.start], append(kept, lines[b.end:]...)...)
-		changed = true
+		edits = append(edits, edit.Rows(src, b.start, b.end-1, 0, kept))
 	}
-	if !changed {
-		return src, false
-	}
-	return strings.Join(lines, "\n"), true
+	return edits
 }
 
 // judge measures a block against its code and names every measure it failed.
@@ -240,6 +252,9 @@ func prose(text []string) []string {
 // spells it with no space after the marker, and the hash family carries the
 // interpreter line and the linter pragma.
 func isDirectiveLine(line string) bool {
+	if treecomments.IsDirective(line) {
+		return true
+	}
 	t := strings.TrimSpace(line)
 	for _, marker := range []string{"//", "#"} {
 		rest, found := strings.CutPrefix(t, marker)
@@ -285,17 +300,62 @@ func trim(b block) []string {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
 		}
+		if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
+			if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return wider
+			}
+		}
 		next, ok := cutLastThought(kept)
 		if !ok {
 			break
 		}
 		kept = next
 	}
-	if forced, ok := hardFit(b); ok {
-		return forced
+	// Try the STE opening sentence, then a clause mark, never a cut between words.
+	opening, whole := steOpening(kept)
+	if whole {
+		if _, over := judge(block{text: opening, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return opening
+		}
 	}
-	// Nothing shorter both fits and reads.
-	return b.text
+	if clause, ok := clauseFit(b); ok {
+		return clause
+	}
+	if whole {
+		return opening
+	}
+	return kept
+}
+
+// steOpening answers a block's first sentence, repaired to STE and divided at a
+// clause boundary when it runs past the cap. It reports false when no boundary
+// brings the sentence under the cap.
+func steOpening(text []string) ([]string, bool) {
+	marker, indent, ok := commentShape(text)
+	if !ok {
+		return nil, false
+	}
+	for _, para := range paragraphs(text) {
+		if para.blank || para.verbatim {
+			continue
+		}
+		sentences := ste.Sentences(ste.Fix(strings.Join(para.lines, " ")))
+		if len(sentences) == 0 {
+			return nil, false
+		}
+		first := strings.TrimSpace(sentences[0])
+		if ste.WordCount(first) > ste.SentenceWordCap {
+			// With no clause boundary the sentence stays whole, as ste/sentence-length leaves it.
+			if clause, ok := ste.Leading(first); ok {
+				first = strings.TrimSpace(ste.Fix(clause))
+			}
+		}
+		if !endsSentence(first) {
+			return nil, false
+		}
+		return reflow(first, indent, marker, wrapWidth), true
+	}
+	return nil, false
 }
 
 // sameText compares runs of lines by what they say. A line count cannot: a
@@ -304,10 +364,9 @@ func sameText(a, b []string) bool {
 	return strings.Join(a, "\n") == strings.Join(b, "\n")
 }
 
-// hardFit drops words off the end until the block fits, wherever the sentence
-// ends. It mangles prose that no honest cut reaches, so it runs last, after
-// every cut that leaves a comment somebody can read.
-func hardFit(b block) ([]string, bool) {
+// clauseFit cuts the block back to the last clause boundary that fits, and
+// closes what it keeps with a period. A whole clause still reads as a sentence.
+func clauseFit(b block) ([]string, bool) {
 	marker, indent, ok := commentShape(b.text)
 	if !ok {
 		return nil, false
@@ -316,47 +375,69 @@ func hardFit(b block) ([]string, bool) {
 	for _, line := range prose(b.text) {
 		body = append(body, stripMarker(line))
 	}
-	words := strings.Fields(strings.Join(body, " "))
-	// The budget is a character count, and the layout takes a column.
-	width := min(max(floorChars, b.codeChars), wrapWidth)
-	for len(words) > 0 {
-		closed := closeTail(words)
-		if len(closed) == 0 {
-			return nil, false
+	text := strings.Join(strings.Fields(strings.Join(body, " ")), " ")
+	budget := max(floorChars, b.codeChars)
+	for _, cut := range clauseCuts(text) {
+		kept := strings.TrimRight(text[:cut], " ,;:-")
+		words := strings.Fields(kept)
+		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+			continue
 		}
-		out := reflow(strings.Join(closed, " "), indent, marker, width)
-		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
-			return out, true
+		if !endsSentence(kept) {
+			kept += "."
 		}
-		words = words[:len(words)-1]
+		for _, width := range []int{min(budget, wrapWidth), budget} {
+			out := reflow(kept, indent, marker, width)
+			if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return out, true
+			}
+		}
 	}
 	return nil, false
 }
 
-// dangling words open something the cut took away, so a forced cut that ends.
-var dangling = set.Of(danglingWords()...)
+// clausesTable is what rules/ says for="comment-clauses".
+var clausesTable = table.MustLoad(rules.FS, "comment-clauses")
 
-// closeTail makes a forced cut read as a sentence: it drops back past a word
-// that opens what the cut removed, and closes what is left with a period.
-func closeTail(words []string) []string {
-	out := append([]string{}, words...)
-	for len(out) > 0 {
-		last := strings.TrimRight(out[len(out)-1], ",;:")
-		if last == "" || dangling.Contains(strings.ToLower(last)) {
-			out = out[:len(out)-1]
-			continue
+// boundaryMarks answers the marks that end a clause.
+func boundaryMarks() []string {
+	for _, c := range clausesTable.Classes {
+		if c.Name == "boundary" {
+			return c.Words
 		}
-		out[len(out)-1] = last
-		break
 	}
-	if len(out) == 0 {
-		return nil
-	}
-	if !endsSentence(out[len(out)-1]) {
-		out[len(out)-1] += "."
-	}
-	return out
+	panic("commentfix: rules/ names no class boundary")
 }
+
+// clauseCuts answers every clause boundary in text, the last one first. A mark
+// ends a clause when a space follows it. A word-length mark needs a space before it too.
+func clauseCuts(text string) []int {
+	marks := boundaryMarks()
+	var cuts []int
+	for i := len(text) - 1; i > 0; i-- {
+		for _, m := range marks {
+			if !strings.HasPrefix(text[i:], m+" ") {
+				continue
+			}
+			if len(m) > 1 && text[i-1] != ' ' {
+				continue
+			}
+			cuts = append(cuts, i)
+			break
+		}
+	}
+	return cuts
+}
+
+// balanced reports text that closes every bracket, backtick and quote it opens.
+func balanced(text string) bool {
+	return strings.Count(text, "(") == strings.Count(text, ")") &&
+		strings.Count(text, "[") == strings.Count(text, "]") &&
+		strings.Count(text, "`")%2 == 0 && strings.Count(text, `"`)%2 == 0
+}
+
+// dangling words open something that must follow them, so a comment cannot end on one.
+var dangling = set.Of(danglingWords()...)
 
 // cutLastThought drops the last thought out of a block, and reports false when
 // nothing is left to drop.

@@ -7,9 +7,12 @@
 package workflow
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
@@ -24,45 +27,127 @@ type Repair struct {
 	Removed []string
 }
 
+// Category is the rule family --only names these fixers by.
+const Category = "yaml"
+
+func init() {
+	register := func(name string, id string, order int, edits func(string) []edit.Edit, comment bool) {
+		fixer.Register(fixer.Spec{
+			Label: name, Families: []string{Category}, Rules: []string{id},
+			Files: []fixer.Kind{fixer.Workflow}, Place: order,
+			Repair: func(f *fixer.File) {
+				if comment {
+					f.ApplyComments(edits(f.Text()))
+					return
+				}
+				f.Apply(edits(f.Text()))
+			},
+		})
+	}
+	register("yaml/ungate", IDNeuteredGate, 10, ungate, false)
+	register("yaml/join-comments", IDCommentBlock, 20, joinCommentBlocks, true)
+	register("yaml/rename-guarded-job", IDAllBuildsJob, 30, renameGuardedJob, false)
+	register("yaml/untest", IDTestInYAML, 40, untest, false)
+}
+
+// Options are the gates a workflow is written through, for the driver to open
+// a File with.
+func Options(o fixer.Options) fixer.Options {
+	o.Kind = fixer.Workflow
+	o.Data = func(text string, edits []edit.Edit, scope edit.Scope) edit.Result {
+		return apply(text, edits, scope, false)
+	}
+	o.Comments = func(text string, edits []edit.Edit, scope edit.Scope) edit.Result {
+		return apply(text, edits, scope, true)
+	}
+	return o
+}
+
 // Fix applies every repair the caller keeps. keeps takes a rule ID, so a run
 // that named a rule gets that rule alone.
 func Fix(content string, keeps func(string) bool) Repair {
-	text := content
-	var removed []string
+	f := fixer.NewFile("", content, Options(fixer.Options{Keeps: keeps}))
+	fixer.Run(f, fixer.For(fixer.Workflow))
+	return Repair{Text: f.Text(), Changed: f.Text() != content, Removed: f.Report().Removed}
+}
 
-	if keeps(IDNeuteredGate) {
-		var cut []string
-		text, cut = ungate(text)
-		removed = append(removed, cut...)
+// apply writes edits into a workflow through the YAML gate. Every edit covers
+// whole rows, because a newline is syntax here. The result must parse, and a
+// comment edit must decode to the same data.
+func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) edit.Result {
+	if len(edits) == 0 {
+		return edit.Unchanged(content, scope)
 	}
-	if keeps(IDCommentBlock) {
-		var cut []string
-		text, cut = joinCommentBlocks(text)
-		removed = append(removed, cut...)
+	var want any
+	if yaml.Unmarshal([]byte(content), &want) != nil {
+		out := edit.Unchanged(content, scope)
+		for _, e := range edits {
+			out.Refused = append(out.Refused, edit.Refused{Edit: e, Reason: "the workflow does not parse"})
+		}
+		return out
 	}
-	if keeps(IDAllBuildsJob) {
-		text = renameGuardedJob(text)
+	return edit.Gate(content, edits, scope,
+		func(e edit.Edit) string {
+			if !rowEdge(content, e.Start) || !rowEdge(content, e.End) {
+				return "it covers part of a row"
+			}
+			return ""
+		},
+		func(text string) bool {
+			var got any
+			if yaml.Unmarshal([]byte(text), &got) != nil {
+				return false
+			}
+			return !comment || reflect.DeepEqual(got, want)
+		})
+}
+
+// rowEdge reports whether a byte sits where a row starts or ends.
+func rowEdge(content string, at int) bool {
+	return at == 0 || at == len(content) || content[at] == '\n' || content[at-1] == '\n'
+}
+
+// rewrite replaces rows from..to with lines, keeping a carriage return the
+// last row carried, because lines reads rows without it.
+func rewrite(content string, from, to int, lines []string) edit.Edit {
+	e := edit.Rows(content, from, to, 0, lines)
+	if e.End > 0 && content[e.End-1] == '\r' {
+		e.Text += "\r"
 	}
-	if keeps(IDTestInYAML) {
-		var cut []string
-		text, cut = untest(text)
-		removed = append(removed, cut...)
+	return e
+}
+
+// dropRows deletes the marked rows, a run of adjoining rows as a single edit,
+// each quoting what it takes.
+func dropRows(content string, drop set.Set[int]) []edit.Edit {
+	rows := lines(content)
+	var out []edit.Edit
+	for row := 0; row < len(rows); row++ {
+		if !drop.Contains(row) {
+			continue
+		}
+		end := row
+		for end+1 < len(rows) && drop.Contains(end+1) {
+			end++
+		}
+		e := edit.Rows(content, row, end, 0, nil)
+		for r := row; r <= end; r++ {
+			e.Cut = append(e.Cut, strings.TrimSpace(rows[r]))
+		}
+		out = append(out, e)
+		row = end
 	}
-	return Repair{Text: text, Changed: text != content, Removed: removed}
+	return out
 }
 
 // ungate deletes the continue-on-error a gate step hides behind. The step stays
 // and starts failing.
-func ungate(content string) (string, []string) {
+func ungate(content string) []edit.Edit {
 	findings := neuteredGates(content)
 	if len(findings) == 0 {
-		return content, nil
+		return nil
 	}
-	drop := gateRows(content, findings)
-	if drop.IsEmpty() {
-		return content, nil
-	}
-	return without(lines(content), drop, content)
+	return dropRows(content, gateRows(content, findings))
 }
 
 // gateRows answers the row each named step's continue-on-error sits on, read
@@ -120,10 +205,10 @@ func mappingKey(node *yaml.Node, key string) *yaml.Node {
 // untest deletes the assertion lines a run: script carries, and the caller
 // prints each: the suite is where a case belongs and this file is not it. A
 // step emptied of them keeps its shape, because removing it is the author's call.
-func untest(content string) (string, []string) {
+func untest(content string) []edit.Edit {
 	findings := testsInYAML(content)
 	if len(findings) == 0 {
-		return content, nil
+		return nil
 	}
 	rows := lines(content)
 	drop := set.New[int]()
@@ -132,49 +217,54 @@ func untest(content string) (string, []string) {
 			drop.Add(f.Line - 1)
 		}
 	}
-	return without(rows, drop, content)
+	return dropRows(content, drop)
 }
 
-// joinCommentBlocks folds a run of comment lines into the single line the rule
-// allows, keeping every word.
-func joinCommentBlocks(content string) (string, []string) {
+// joinCommentBlocks folds a run of comment lines into the line the rule
+// allows, keeping every word. The gate proves the fold changed no data.
+func joinCommentBlocks(content string) []edit.Edit {
 	findings := commentBlocks(content)
 	if len(findings) == 0 {
-		return content, nil
+		return nil
 	}
 	rows := lines(content)
-	drop := set.New[int]()
+	var out []edit.Edit
 	for _, f := range findings {
-		var said []string
-		for j := f.Line - 1; j < f.EndLine && j < len(rows); j++ {
+		first, last := f.Line-1, min(f.EndLine, len(rows))-1
+		if first < 0 || last < first {
+			continue
+		}
+		var said, cut, rest []string
+		for j := first; j <= last; j++ {
 			trimmed := strings.TrimSpace(rows[j])
 			if !strings.HasPrefix(trimmed, "#") {
+				// A blank row inside the run is no comment, and it stays.
+				rest = append(rest, rows[j])
 				continue
 			}
-			if rest := strings.TrimSpace(strings.TrimPrefix(trimmed, "#")); rest != "" {
-				said = append(said, rest)
+			if words := strings.TrimSpace(strings.TrimPrefix(trimmed, "#")); words != "" {
+				said = append(said, words)
 			}
-			if j > f.Line-1 {
-				drop.Add(j)
+			if j > first {
+				cut = append(cut, trimmed)
 			}
 		}
-		indent := rows[f.Line-1][:len(rows[f.Line-1])-len(strings.TrimLeft(rows[f.Line-1], " \t"))]
-		rows[f.Line-1] = strings.TrimRight(indent+"# "+strings.Join(said, " "), " ")
+		indent := rows[first][:len(rows[first])-len(strings.TrimLeft(rows[first], " \t"))]
+		joined := strings.TrimRight(indent+"# "+strings.Join(said, " "), " ")
+		e := rewrite(content, first, last, append([]string{joined}, rest...))
+		e.Cut = cut
+		out = append(out, e)
 	}
-	return without(rows, drop, content)
+	return out
 }
 
 // renameGuardedJob renames a job that shadows the required status, and the
 // needs entries that point at it. The name is the whole finding, so renaming it
 // is the whole repair.
-func renameGuardedJob(content string) string {
-	sites := guardedSites(content)
-	if len(sites) == 0 {
-		return content
-	}
+func renameGuardedJob(content string) []edit.Edit {
 	rows := lines(content)
-	renamed := false
-	for _, at := range sites {
+	var out []edit.Edit
+	for _, at := range guardedSites(content) {
 		row := at.Line - 1
 		if row < 0 || row >= len(rows) {
 			continue
@@ -183,13 +273,9 @@ func renameGuardedJob(content string) string {
 		if !ok {
 			continue
 		}
-		rows[row] = swapped
-		renamed = true
+		out = append(out, rewrite(content, row, row, []string{swapped}))
 	}
-	if !renamed {
-		return content
-	}
-	return strings.Join(rows, "\n") + tail(content)
+	return out
 }
 
 // guardedSites answers every token naming the guarded job: the job's own key,
@@ -253,25 +339,3 @@ func renameAt(row string, col int) (string, bool) {
 
 // replacementName is a job name the gate does not reserve.
 const replacementName = "builds"
-
-// without drops the marked lines and reports what went.
-func without(rows []string, drop set.Set[int], content string) (string, []string) {
-	var kept, removed []string
-	for i, row := range rows {
-		if drop.Contains(i) {
-			removed = append(removed, strings.TrimSpace(row))
-			continue
-		}
-		kept = append(kept, row)
-	}
-	return strings.Join(kept, "\n") + tail(content), removed
-}
-
-// tail keeps the trailing newline the split dropped, so a repair does not
-// rewrite the last byte of every file it touches.
-func tail(content string) string {
-	if strings.HasSuffix(content, "\n") {
-		return "\n"
-	}
-	return ""
-}

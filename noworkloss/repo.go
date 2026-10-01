@@ -70,7 +70,7 @@ func probeDir(dir string) *repoState {
 	}
 
 	// -uall matters: the default collapses an untracked directory to its name,
-	out, _, err := runGit(st.root, "status", "--porcelain", "-z", "--untracked-files=all")
+	out, _, err := runGit(st.root, "status", "--porcelain=v2", "-z", "--untracked-files=all")
 	if err != nil {
 		st.err = err
 		return st
@@ -86,7 +86,7 @@ func (c *repoCache) ensureIgnored(st *repoState) {
 		return
 	}
 	st.ignoredLoaded = true
-	out, _, err := runGit(st.root, "status", "--porcelain", "-z", "--ignored=matching")
+	out, _, err := runGit(st.root, "status", "--porcelain=v2", "-z", "--ignored=matching")
 	if err != nil {
 		st.err = err
 		return
@@ -111,31 +111,48 @@ func (c *repoCache) ensureStash(st *repoState) {
 	}
 }
 
-// parseStatusZ splits `status --porcelain -z`. NUL-separated records mean paths
-// arrive raw rather than quoted, and a rename record is followed by another
-// field holding the original path -- consuming it is what keeps the entries
-// after a rename from being read as status codes.
+// parseStatusZ splits `status --porcelain=v2 -z`. NUL-separated records mean
+// paths arrive raw, so a path with a space stays whole. A rename record is
+// followed by a field that holds the path. The parser consumes it, so it
+// never reads that path as a record.
 func parseStatusZ(out string) (tracked, untracked, ignored []string) {
 	fields := strings.Split(out, "\x00")
 	for i := 0; i < len(fields); i++ {
 		rec := fields[i]
-		if len(rec) < 4 {
+		if len(rec) < 3 {
 			continue
 		}
-		code, path := rec[:2], rec[3:]
-		if code[0] == 'R' || code[0] == 'C' {
-			i++ // the original path rides in its own field
+		// The record type sets the count of space-separated fields before the path.
+		before := map[byte]int{'1': 8, '2': 9, 'u': 10, '?': 1, '!': 1}[rec[0]]
+		if before == 0 {
+			continue
 		}
-		switch code {
-		case "??":
+		parts := strings.SplitN(rec, " ", before+1)
+		if len(parts) != before+1 {
+			continue
+		}
+		path := parts[before]
+		switch rec[0] {
+		case '?':
 			untracked = append(untracked, path)
-		case "!!":
+		case '!':
 			ignored = append(ignored, path)
+		case '2':
+			i++
+			fallthrough
 		default:
+			if rec[0] != 'u' && submoduleCommitOnly(parts[2]) {
+				continue
+			}
 			tracked = append(tracked, path)
 		}
 	}
 	return tracked, untracked, ignored
+}
+
+// submoduleCommitOnly reads the v2 submodule field "S<c><m><u>".
+func submoduleCommitOnly(field string) bool {
+	return len(field) == 4 && field[0] == 'S' && field[2] == '.' && field[3] == '.'
 }
 
 func runGit(dir string, args ...string) (stdout, stderr string, err error) {

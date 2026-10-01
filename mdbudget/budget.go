@@ -2,7 +2,7 @@
 // character budget. Nothing truncates them, so every excess character is re-sent
 // on every request for the life of the session.
 //
-// see README.md
+// See the md-budget section of AGENTS.md
 package mdbudget
 
 import (

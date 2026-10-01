@@ -66,7 +66,11 @@ func repairOf(path string, request slopfix.Request, repairing bool) (slopfix.Rep
 		return slopfix.Repair{}, err
 	}
 	request.Content, request.Path = string(content), path
-	return slopfix.Fix(request), nil
+	repair := slopfix.Report(request)
+	if len(repair.Unmet) > 0 {
+		return repair, &slopfix.UnmetError{Path: path, Unmet: repair.Unmet}
+	}
+	return repair, nil
 }
 
 var (
@@ -88,14 +92,14 @@ func init() {
 		Short: "Report what every rule rejects, and with --fix repair what it can",
 		Long: "check reads each file it is named and reports every finding. With --fix\n" +
 			"it repairs each one in place first, and reports what a rewrite cannot\n" +
-			"repair.\n\n" +
+			"repair. A directory is walked. Walked from a repository root, the repo\n" +
+			"rules also judge which markdown files the repository keeps.\n\n" +
 			"With no file it reads a document on stdin. Named as fix, or given\n" +
 			"--fix, it writes the repaired document on stdout and its findings on\n" +
 			"stderr; --json writes the whole answer as one object instead, which is\n" +
 			"what a PreToolUse hook reads.",
-		// Each name a launcher may still exec reaches the same rules. A file
-		// decides which rules read it, so a name selects nothing this does not.
-		Aliases: []string{"comments", "workflows", "fix"},
+		// fix is check --fix. A file decides which rules read it, so no other name is needed.
+		Aliases: []string{"fix"},
 		Args:    cobra.ArbitraryArgs,
 		RunE:    runCheck,
 	}
@@ -169,7 +173,10 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	for _, kept := range out.Kept {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%s:%d: [%s] %s: %q\n", kept.Path, kept.LineNo, kept.ID, kept.Tell, kept.Phrase)
 	}
-	return len(out.Findings) > 0 || len(out.Kept) > 0
+	for _, unmet := range out.Unmet {
+		fmt.Fprintln(cmd.ErrOrStderr(), unmet.Error())
+	}
+	return len(out.Findings) > 0 || len(out.Kept) > 0 || len(out.Unmet) > 0
 }
 
 // checkStdin answers for a document on stdin rather than a named file.
@@ -179,10 +186,22 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing bool) err
 		return err
 	}
 	request.Content = string(content)
-	repair := slopfix.Fix(request)
+	run := slopfix.Report
+	if repairing {
+		run = slopfix.Fix
+	}
+	repair := run(request)
 
 	if checkJSON {
-		return json.NewEncoder(cmd.OutOrStdout()).Encode(repair)
+		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(repair); err != nil {
+			return err
+		}
+	}
+	if len(repair.Unmet) > 0 {
+		return &slopfix.UnmetError{Path: request.Path, Unmet: repair.Unmet}
+	}
+	if checkJSON {
+		return nil
 	}
 	if repairing {
 		fmt.Fprint(cmd.OutOrStdout(), repair.Text)

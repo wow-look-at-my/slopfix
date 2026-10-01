@@ -38,9 +38,12 @@
   <rephrase id="the-cardinal-noun" match="the {cardinal:c} {noun+plural:n}" to="the {n}">
     <test in="It names the three shapes GitHub uses" out="It names the shapes GitHub uses"/>
   </rephrase>
-  <rephrase id="the-cardinal" match="the {cardinal:c}" to="all of them">
-    <test in="It reads the three" out="It reads all of them"/>
-    <test in="The three agree" out="All of them agree"/>
+  <!-- "the three" points back at a set, and nothing on the line says the set
+       holds only three. "those" keeps the reference and claims no "all". -->
+  <rephrase id="the-cardinal" match="the {cardinal:c}" to="those">
+    <test in="It reads the three" out="It reads those"/>
+    <test in="The three agree" out="Those agree"/>
+    <test in="The three that fail stop the run" out="Those that fail stop the run"/>
   </rephrase>
 
   <!-- A preposition after the cardinal means the cardinal is the noun phrase
@@ -50,14 +53,22 @@
     <test in="Batch GET two of them" out="Batch GET some of them"/>
   </rephrase>
 
+  <!-- A repeat interval goes stale when someone tunes the knob. "few" keeps the
+       unit, so the reader still knows the scale. -->
+  <rephrase id="every-interval-goes-vague" match="every {number} {unit+plural:u}" to="every few {u}">
+    <test in="It polls every 15 minutes" out="It polls every few minutes"/>
+    <test in="Every 30 seconds it retries" out="Every few seconds it retries"/>
+    <test in="It runs every two hours" out="It runs every few hours"/>
+    <test in="It runs every 1.5 hours" out="It runs every 1.5 hours"/>
+  </rephrase>
+
   <!-- A plural tally: the noun carries the meaning and the number goes.
 
-       A unit is not a tally. "every 30 seconds" says how long, and dropping the
-       cardinal leaves "every seconds", which states nothing. The unit class
+       A unit is not a tally. "waits two minutes" says how long, and dropping
+       the cardinal leaves "waits minutes", which states nothing. The unit class
        claims those words, so the noun term below never matches one. -->
   <rephrase id="plural-tally-drops-its-count" match="{cardinal:c} {noun:n}" to="{n}">
     <test in="Two goroutines contend" out="Goroutines contend"/>
-    <test in="It polls every 30 seconds" out="It polls every 30 seconds"/>
     <test in="It waits two minutes" out="It waits two minutes"/>
     <test in="It reads 260 characters" out="It reads 260 characters"/>
   </rephrase>

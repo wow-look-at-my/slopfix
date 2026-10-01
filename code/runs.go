@@ -32,6 +32,9 @@ func Runs(filename, src string) (runs []Run, ok bool) {
 	}
 	var nodes []ts.Node
 	gatherComments(root, &nodes)
+	if len(nodes) > 0 && IsInterpreter(nodes[0], src) {
+		nodes = nodes[1:]
+	}
 	byStartRow(nodes)
 	return merge(nodes, Lines(src)), true
 }

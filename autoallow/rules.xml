@@ -1060,7 +1060,7 @@
 	     Leaving this empty makes the hook return nothing for this server, the
 	     dialog stands, and a click actually authorises the call.
 	     Do NOT "fix" send_later by adding it back; that is the regression.
-	     see docs/ccr-approval-card.md -->
+	     See the auto-allow section of AGENTS.md. -->
 
 	<!-- This marketplace's own grep/glob servers: the same builtin read-only
 	     tools the hook already allows by bare name. -->

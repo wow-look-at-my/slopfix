@@ -2,14 +2,6 @@ name: slopfix
 description: Run slopfix against this repository, and fail the job when a rule rejects something
 
 inputs:
-  command:
-    description: >-
-      The slopfix subcommand to run: check, workflows, comments or purge.
-      `fix` and `fmt` rewrite files, so they are refused here. A job that
-      repairs a checkout and reports a pass has enforced nothing.
-    required: false
-    default: workflows
-
   paths:
     description: 'Paths to read, space separated. A directory is walked.'
     required: false
@@ -17,22 +9,15 @@ inputs:
 
   only:
     description: >-
-      Restrict the run to these rules, comma separated. `check` takes a
-      category or a category/rule, and `workflows` takes a rule ID.
+      Restrict the run to these rules, comma separated. An entry is a
+      category or a category/rule.
     required: false
     default: ''
 
 runs:
   using: composite
   steps:
-    # fix and fmt rewrite the checkout. A job that repairs its own input and then reports a pass is a green run over an unfixed repository.
-    - name: Refuse a command that rewrites files
-      if: inputs.command == 'fix' || inputs.command == 'fmt'
-      shell: bash
-      run: |
-        echo "::error::slopfix ${{ inputs.command }} rewrites files, so it cannot gate CI. Run check or workflows, and repair the tree locally."
-        exit 1
-
+    # The action runs check and never fix. A job that repairs its own checkout and then reports a pass enforces nothing.
     - name: Download slopfix
       id: download
       uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master
@@ -45,9 +30,9 @@ runs:
       with:
         # The paths are a list, so they are deliberately unquoted.
         unix: >-
-          sh "${{ steps.download.outputs.path }}" ${{ inputs.command }}
+          sh "${{ steps.download.outputs.path }}" check
           ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} ${{ inputs.paths }}
         # Windows registers no handler and boots the APE through its PE header, and sh there reads the shell bootstrap and looks for a loader built for another host.
         windows: >-
-          & "${{ steps.download.outputs.path }}" ${{ inputs.command }}
+          & "${{ steps.download.outputs.path }}" check
           ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} ${{ inputs.paths }}

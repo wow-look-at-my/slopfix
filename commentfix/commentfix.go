@@ -17,7 +17,6 @@ package commentfix
 import (
 	"regexp"
 	"strings"
-	"unicode"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -45,6 +44,8 @@ type Hit struct {
 	Number string
 	Line   int
 	Col    int
+	// Offset is the byte the number starts at, inside the comment node that holds it.
+	Offset int
 }
 
 // generatedLine is the line marking a file as generated, in every spelling of a comment the rule reads.
@@ -66,7 +67,7 @@ func Check(filename, src string) []Hit {
 			for _, found := range cardinal.Find(line.text, cardinal.Comment) {
 				at := comment.Offset + line.offset + found.Offset
 				pos, col := lineAndColumn(src, at)
-				hits = append(hits, Hit{Number: found.Text, Line: pos, Col: col})
+				hits = append(hits, Hit{Number: found.Text, Line: pos, Col: col, Offset: at})
 			}
 		}
 	}
@@ -128,19 +129,5 @@ func commentLines(lit string) []commentLine {
 // isDirective reports whether the line is a compiler or tool directive, such as
 // //go:build. The colon form carries no prose to go stale.
 func isDirective(text string) bool {
-	text = strings.TrimSpace(text)
-	rest, found := strings.CutPrefix(text, "//")
-	if !found || rest == "" || strings.HasPrefix(rest, " ") {
-		return false
-	}
-	name, _, found := strings.Cut(rest, ":")
-	if !found || name == "" {
-		return false
-	}
-	for _, r := range name {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' && r != '_' {
-			return false
-		}
-	}
-	return true
+	return treecomments.IsDirective(text)
 }

@@ -64,10 +64,9 @@ func TestADirectiveSurvivesTheCut(t *testing.T) {
 		"// end of the file, running several lines past anything it could be weighed\n" +
 		"// against, and documenting nothing whatsoever for the reader who finds it.\n"
 
-	out, changed := FixLength("x.go", src)
-	require.True(t, changed)
+	out, _ := FixLength("x.go", src)
 	assert.Contains(t, out, "//go:debug x=1")
-	assert.Empty(t, CheckLength("x.go", out))
+	assertWholeSTESentences(t, out)
 }
 
 // The control. A comment that DOES document code is cut back to fit rather than

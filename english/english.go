@@ -13,7 +13,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
+	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
@@ -41,11 +43,12 @@ type Class struct {
 	Except string `xml:"except,attr"`
 }
 
-// classes indexes the declared word classes.
+// classes indexes the declared word classes, and the indefinite pronouns rules/syntax.xml lists.
 var classes = table.NewLexicon(lexicalClasses(loaded.Classes))
 
 func lexicalClasses(declared []Class) []table.Class {
-	out := make([]table.Class, 0, len(declared))
+	out := make([]table.Class, 0, len(declared)+1)
+	out = append(out, table.Class{Name: "indefinite", Words: syntax.WordsOf("indefinite")})
 	for _, c := range declared {
 		out = append(out, table.Class{
 			Name:   c.Name,
@@ -140,22 +143,46 @@ func (p Pattern) Apply(s string) string {
 // the shape, and the sentence around them says they report the data rather than
 // the tree.
 func (p Pattern) ApplyN(s string) (string, int) {
-	if p.Subject == "" {
-		return p.re.ReplaceAllString(s, p.Replace), len(p.re.FindAllString(s, -1))
-	}
 	var out strings.Builder
 	last, took := 0, 0
 	for _, loc := range p.re.FindAllStringIndex(s, -1) {
-		if !asserts(p.Subject, s, loc[0]) {
+		if p.Subject != "" && !asserts(p.Subject, s, loc[0]) {
+			continue
+		}
+		with := p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace)
+		if !keepsNegation(s, loc[0], loc[1], with) {
 			continue
 		}
 		out.WriteString(s[last:loc[0]])
-		out.WriteString(p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace))
+		out.WriteString(with)
 		last = loc[1]
 		took++
 	}
 	out.WriteString(s[last:])
 	return out.String(), took
+}
+
+// negation finds a word that turns a clause into its opposite.
+var negation = regexp.MustCompile(`(?i)\b(?:no longer|not|no|never|none|cannot|nobody|nothing|neither|nor|without)\b|n't\b`)
+
+// keepsNegation reports whether the rewrite of s[from:to] to with keeps what
+// each negation says. A cut can take a negation only with all the words it
+// negates, up to the end of the sentence.
+func keepsNegation(s string, from, to int, with string) bool {
+	cut := s[from:to]
+	found := negation.FindAllStringIndex(cut, -1)
+	if len(found) <= len(negation.FindAllString(with, -1)) {
+		return true
+	}
+	rest := s[to:]
+	if end := strings.IndexAny(rest, ".!?"); end >= 0 {
+		rest = rest[:end]
+	}
+	if strings.IndexFunc(rest, unicode.IsLetter) >= 0 {
+		return false
+	}
+	final := found[len(found)-1]
+	return strings.IndexFunc(cut[final[1]:], unicode.IsLetter) >= 0
 }
 
 // PatternIDs names every rule the table carries, in the order it carries them.
@@ -226,7 +253,7 @@ type Rewrite struct {
 
 // AppliesTo says whether an entry covers a surface.
 func AppliesTo(where, surface string) bool {
-	return where == "" || where == "both" || where == surface
+	return where == "" || where == "both" || slices.Contains(strings.Fields(where), surface)
 }
 
 // loaded is the parsed table.

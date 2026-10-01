@@ -44,15 +44,14 @@ func TestFixKeepsAFencedBlockWhole(t *testing.T) {
 	assert.Equal(t, doc, repair.Text)
 }
 
-// A sentence whose halves share a subject divides anyway. the next half reads
-// as a fragment, which is the price of a rule every caller can clear: a finding
-// no repair answers leaves a reader hand-editing prose or deleting the file.
-func TestFixDividesASentenceWithNoWriterlySeam(t *testing.T) {
+// A sentence whose halves share a subject divides at the conjunction, and the
+// new sentence names the subject again. Neither half is a fragment.
+func TestFixRestatesTheSharedSubject(t *testing.T) {
 	long := "The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n"
 	repair := prose(long)
 	assert.True(t, repair.Changed)
 	assert.Equal(t,
-		"The gate reads every file in the session. And refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n",
+		"The gate reads every file in the session. The gate refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n",
 		repair.Text)
 	assert.Empty(t, repair.Findings)
 }
@@ -189,6 +188,41 @@ func TestANamedIDKeepsTheWholeLineStripOff(t *testing.T) {
 		IDs:     []string{"comments/number"},
 	})
 	assert.Equal(t, src, repair.Text, "no number is stated here, so nothing changes")
+}
+
+// Sentences from a real document, each of which a count cut once left saying
+// something false or ungrammatical. A duration, a status code, a partitive and
+// a sentence-initial cut each keep what the reader needs.
+func TestACountCutLeavesTheSentenceTrue(t *testing.T) {
+	for _, c := range []struct {
+		in        string
+		forbidden string
+	}{
+		{"So readiness is its own statement, re-checked every 15 minutes, and logged at startup.\n", "every minutes"},
+		{"No caller can fix that, and a 404 buries it.\n", "a buries"},
+		{"Inside those namespaces a caller needs one of two things.\n", "one of things"},
+		{"Either of the other two confirms the module exists.\n", "the other confirms"},
+	} {
+		t.Run(c.in, func(t *testing.T) {
+			repair := prose(c.in)
+			assert.NotContains(t, repair.Text, c.forbidden)
+		})
+	}
+}
+
+// A cut at the front of a sentence leaves the next word to start it.
+func TestACountCutAtTheStartCapitalizesWhatFollows(t *testing.T) {
+	for _, in := range []string{
+		"Two defects compounded, and the reader saw neither.\n",
+		"Two ambiguities are resolved deliberately here.\n",
+	} {
+		t.Run(in, func(t *testing.T) {
+			repair := prose(in)
+			require.NotEmpty(t, repair.Text)
+			first := []rune(repair.Text)[0]
+			assert.False(t, first >= 'a' && first <= 'z', "sentence starts lowercase: %q", repair.Text)
+		})
+	}
 }
 
 func TestEveryCategoryNamesItsRules(t *testing.T) {

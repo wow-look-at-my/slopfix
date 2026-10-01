@@ -86,6 +86,7 @@ type xmlClass struct {
 	Name   string `xml:"name,attr"`
 	Words  string `xml:"words,attr"`
 	Suffix string `xml:"suffix,attr"`
+	Digits bool   `xml:"digits,attr"`
 	Open   bool   `xml:"open,attr"`
 	Except string `xml:"except,attr"`
 }
@@ -198,6 +199,7 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 			Name:   c.Name,
 			Words:  strings.Fields(c.Words),
 			Suffix: strings.Fields(c.Suffix),
+			Digits: c.Digits,
 			Open:   c.Open,
 			Except: strings.Fields(c.Except),
 		})
