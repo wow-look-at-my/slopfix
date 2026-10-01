@@ -172,6 +172,14 @@ func TestAPluralFormBeforeADeterminerIsAVerb(t *testing.T) {
 	assert.Equal(t, "reads", verb(s, s.Clauses[1]))
 }
 
+func TestAnSFormBeforeANameIsAVerb(t *testing.T) {
+	text := "It ships, and a downloaded vkbench needs xxxxxxxxxx here."
+	s := syntax.Parse(text, [][]int{{41, 51}})
+	require.Len(t, s.Clauses, 2)
+	assert.Equal(t, "needs", verb(s, s.Clauses[1]))
+	assert.Equal(t, "a downloaded vkbench", subject(s, s.Clauses[1]))
+}
+
 func TestACompoundAfterANounPhraseOpensAClause(t *testing.T) {
 	s := parse(t, "This is the reason a caller waits.")
 	assert.Equal(t, "VBZ", s.Words[len(s.Words)-2].Tag)

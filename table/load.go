@@ -28,6 +28,7 @@ type document struct {
 	Normals   []xmlPhrase `xml:"normalize"`
 	Tests     []xmlTest   `xml:"test"`
 	Detects   []xmlDetect `xml:"detect"`
+	Lists     []xmlList   `xml:"list"`
 }
 
 type xmlTest struct {
@@ -80,6 +81,12 @@ type xmlFlag struct {
 	Phrase string    `xml:"phrase,attr"`
 	Say    string    `xml:"say,attr"`
 	Tests  []xmlTest `xml:"test"`
+}
+
+// xmlList holds one string on each line of its text.
+type xmlList struct {
+	Name string `xml:"name,attr"`
+	Body string `xml:",chardata"`
 }
 
 type xmlClass struct {
@@ -241,6 +248,37 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 		}
 		t.Detects = append(t.Detects, Detect{In: d.In, Substrate: d.Substrate, Why: d.Why, Found: found})
 	}
+	for _, l := range doc.Lists {
+		if err := t.addList(path, l); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// addList reads a list's text as one item on each line. A blank line holds no
+// item. An empty list and a reused name are errors, because a rule that reads
+// either reads nothing.
+func (t *Table) addList(path string, l xmlList) error {
+	if l.Name == "" {
+		return fmt.Errorf("%s: a <list> carries no name", path)
+	}
+	if _, taken := t.Lists[l.Name]; taken {
+		return fmt.Errorf("%s: the list %q is already defined", path, l.Name)
+	}
+	var items []string
+	for _, line := range strings.Split(l.Body, "\n") {
+		if item := strings.TrimSpace(line); item != "" {
+			items = append(items, item)
+		}
+	}
+	if len(items) == 0 {
+		return fmt.Errorf("%s: <list name=%q> holds no item", path, l.Name)
+	}
+	if t.Lists == nil {
+		t.Lists = map[string][]string{}
+	}
+	t.Lists[l.Name] = items
 	return nil
 }
 
@@ -254,5 +292,5 @@ func tests(in []xmlTest) []Test {
 
 func (t *Table) empty() bool {
 	return len(t.Drops)+len(t.Rewrites)+len(t.Patterns)+len(t.Flags)+
-		len(t.Classes)+len(t.Rephrasings)+len(t.Normals)+len(t.Tests)+len(t.Detects) == 0
+		len(t.Classes)+len(t.Rephrasings)+len(t.Normals)+len(t.Tests)+len(t.Detects)+len(t.Lists) == 0
 }

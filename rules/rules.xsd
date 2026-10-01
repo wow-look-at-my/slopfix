@@ -113,6 +113,19 @@
           </xs:complexType>
         </xs:element>
 
+        <!-- A named collection of strings, one on each line of the text. A
+             consumer reads each line as it chooses. It carries no <test>,
+             because each item is data and states no match that can drift. -->
+        <xs:element name="list">
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="xs:string">
+                <xs:attribute name="name" type="xs:string" use="required"/>
+              </xs:extension>
+            </xs:simpleContent>
+          </xs:complexType>
+        </xs:element>
+
         <!-- A match over word classes rather than literal text. -->
         <xs:element name="rephrase">
           <xs:complexType>

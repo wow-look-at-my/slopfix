@@ -96,6 +96,10 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 		if p.Kind != NounPhrase || p.First < from || p.Last >= to || p.Head <= p.First {
 			continue
 		}
+		if inner := innerVerb(words, p); inner >= 0 {
+			words[inner].Tag = "VBZ"
+			return true
+		}
 		head, before := &words[p.Head], words[p.Head-1]
 		switch {
 		case head.Tag == "NNS" && (before.Tag == "NN" || before.Tag == "NNP"):
@@ -110,6 +114,18 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 		return true
 	}
 	return false
+}
+
+// innerVerb answers an -s form inside a compound that sits between a singular
+// noun and a name, as in "the vkbench needs `vkb-engine`". A name after it is
+// the verb's object, so the compound holds a clause.
+func innerVerb(words []Word, p Phrase) int {
+	for k := p.First + 1; k < p.Head; k++ {
+		if words[k].Tag == "NNS" && words[k-1].Tag == "NN" && words[k+1].Tag == "NNP" && verbEnding(words[k].Text) {
+			return k
+		}
+	}
+	return -1
 }
 
 func inside(spans [][]int, start, end int) bool {

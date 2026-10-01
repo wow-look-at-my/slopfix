@@ -1,7 +1,6 @@
 package ste
 
 import (
-	_ "embed"
 	"fmt"
 	"strings"
 
@@ -36,15 +35,11 @@ const ParagraphSentenceCap = 6
 // NounClusterCap is the most nouns STE lets stand together.
 const NounClusterCap = 3
 
-//go:embed dictionary.txt
-var dictionaryText string
-
 // dictionary maps a word STE does not approve to the approved words for it.
-// A word that is approved in any sense is absent, because a match by spelling
-// cannot tell the senses apart.
+// rules/ste-dictionary.xml holds it, a word and its replacements on each line.
 var dictionary = func() map[string][]string {
 	out := map[string][]string{}
-	for _, line := range strings.Split(strings.TrimSpace(dictionaryText), "\n") {
+	for _, line := range steTable.List("dictionary") {
 		fields := strings.Fields(line)
 		out[fields[0]] = fields[1:]
 	}

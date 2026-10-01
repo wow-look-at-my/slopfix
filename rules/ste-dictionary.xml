@@ -1,0 +1,1049 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  The words the ASD-STE100 dictionary does not approve, from Issue 9, Part 2.
+
+  Each line is a word, then the approved words STE gives for it. A word with
+  any approved sense is absent, because a match by spelling cannot tell the
+  senses apart. ste/dictionary reads this list and warns on each match.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="ste">
+
+  <list name="dictionary">
+    abandon go stop
+    abate decrease
+    ability can
+    able can
+    abnormal incorrect unusual
+    abnormality defect
+    abrupt sudden suddenly
+    absence no none not
+    absent missing no
+    absolutely fully
+    absorption absorb
+    abundant large
+    abut touch
+    accelerate faster increase
+    acceptable permitted satisfactory serviceable
+    acceptance accept
+    accessible access
+    accommodate let
+    accomplish complete do
+    accumulate collect
+    accumulation collect quantity
+    accuracy precision
+    achieve get
+    acquire get
+    acrid dangerous
+    action procedure step task
+    activity procedure task work
+    actuate operate push start
+    actuation operation
+    addition add
+    additional more
+    adequate sufficient
+    adhere bond obey
+    adhesion bond
+    adjoining adjacent
+    admit let
+    adopt use
+    advance forward set
+    adverse bad
+    advisable recommend
+    advise recommend tell
+    affect effect
+    aggravate increase
+    agitate shake
+    agitation shake
+    ahead forward
+    aim point
+    air-dry dry
+    alert tell
+    alignment align
+    allocate give
+    allow let
+    allowable approved permitted
+    alter change
+    alteration change
+    alternate alternative then
+    alternatively alternative
+    amend change
+    amendment change
+    among in
+    amount quantity
+    analyze analysis
+    anchor attach
+    ancillary auxiliary secondary
+    annotation record write
+    annunciate show
+    another again different one
+    any one
+    anytime when
+    aperture opening
+    apparent find see
+    appear possible show think view
+    application apply
+    appoint tell
+    appropriate applicable
+    approve approval
+    arise cause occur
+    arrange put
+    arrangement configuration prepare
+    arrest hold stop
+    arrive get
+    article object
+    ask speak tell
+    assess calculate estimate
+    assessment calculate estimate
+    assign give
+    assist help
+    assistance aid help
+    associated correct its related their
+    assume think
+    attachment attach
+    attain be get show
+    attempt try
+    attention aid careful monitor
+    audible hear listen
+    augment increase
+    aurally hear listen
+    authentic accurate
+    authorized approved
+    avert prevent
+    avoid prevent
+    aware know tell
+    backup auxiliary emergency
+    backward rearward
+    badly decrease incorrectly
+    bank bank
+    bared bare
+    base bottom use
+    begin start
+    beginning source start
+    beneath below
+    beware careful
+    big large
+    bind freely
+    blank cap cover seal
+    blend mix
+    blot dry
+    blunted blunt
+    bolt attach
+    bounds limit
+    brace hold strong
+    branch divide
+    breadth width
+    breakdown stop
+    brilliance bright intensity
+    bring move put
+    briskly quickly
+    broadcast transmit
+    brush brush
+    build assemble structure
+    bump hit
+    burst break
+    butt touch
+    calculation calculate
+    call tell
+    cap cap cover seal
+    capability can function
+    capable approved can
+    care careful carefully precaution
+    carry measure transmit transport
+    case condition
+    categorize category
+    caution tell
+    cautiously carefully
+    cavity hole space
+    cease stop
+    center center
+    centralize center
+    certain some specified sure
+    certify approval write
+    chafe rub
+    chafed accidentally worn
+    channel channel
+    characteristic property quality
+    chip damaged particle
+    chock chock
+    choice alternative selection
+    choose alternative select
+    circa approximately
+    circle around
+    circulate supply
+    clamp attach put
+    classification category class
+    cleanliness clean
+    clip attach cut
+    closely carefully
+    coat layer
+    coating layer
+    cock set
+    coincide align
+    coincident align synchronized
+    collapse close fall
+    colored color
+    combine mix
+    combustible flammable
+    commence start
+    common same
+    communicate communication contact hear speak
+    comparison compare
+    compile collect record
+    completely fully
+    completion complete end
+    comply obey
+    comprise contain have
+    compulsory mandatory
+    compute calculate
+    concentrate all
+    concern applicable
+    conclusion end result
+    conduct do
+    conflict agree different
+    conform agree
+    conformance agree
+    conformity agree
+    consecutive one sequence
+    consider think
+    considerable dangerous important large
+    consistent agree
+    construct assemble
+    consult refer
+    contaminant contamination
+    contaminated contamination dirty
+    contiguous adjacent
+    conventional standard
+    converse opposite
+    convert change
+    convey move tell
+    coordinate synchronized
+    correctness correct correctly
+    correspond agree different same
+    corrode corrosion
+    corrosive corrosion
+    couple attach connect
+    cover cover have include
+    crack crack open
+    create cause make
+    critical careful
+    cross across correctly
+    curvature bend curve radius
+    damp moist
+    dampen decrease
+    danger dangerous risk
+    dangerously dangerous
+    de-ice ice
+    deadly kill
+    deaerate air bleed
+    dearm disarm remove
+    decay decrease
+    decelerate decrease slower
+    decide decision select
+    decrement increment
+    define calculate give specified
+    deflect move
+    deflection movement position travel
+    deformed damaged deformation
+    defueling defuel
+    degrease grease
+    delay after immediately interval
+    delete erase remove
+    deliver supply
+    delivery supply
+    demand necessary
+    denote show
+    dent dent
+    depend if
+    deplete decrease
+    deposit contamination particle
+    depress push
+    depressurize pressure
+    describe give
+    deselect cancel
+    design have
+    desired correct necessary
+    destroy break
+    detach disconnect disengage remove
+    detail give instruction refer specified
+    detect find sense
+    determine calculate find give select
+    detrimental damage dangerous
+    develop cause start
+    deviate obey
+    devise find make
+    diagnose find
+    diametrically opposite
+    differ different
+    differentiate identify
+    dilute add mix
+    diminish decrease
+    dip momentarily
+    direct point
+    disappear view
+    discharge go release
+    discontinue stop
+    discover find
+    discrepancy difference
+    disinfect disinfectant
+    dismantle disassemble
+    dispatch send
+    disperse remove
+    displace move
+    disposition location position
+    disregard ignore
+    distinct clear
+    distinctly clearly
+    distort twist
+    distribute apply supply
+    distribution supply
+    disturb change move
+    don use
+    doubt think
+    downward down
+    drag pull
+    draw make pull
+    dress use
+    drift move remove
+    drive move operate remove
+    droop move
+    dull dim matt
+    duration during
+    dust apply
+    early short
+    earth ground
+    ease easily easy
+    effective good
+    efficacious good
+    efficient satisfactory
+    efficiently satisfactorily
+    efflux exhaust
+    effort force try
+    either one or
+    ejection eject
+    elapse after interval time
+    eliminate prevent remove stop
+    emit from
+    employ have use
+    enable let
+    encircle around
+    enclosed closed
+    encounter be find
+    enforce obey
+    engagement engage
+    enlarge increase large
+    enough sufficient
+    ensue cause
+    enter entry record
+    entire all full
+    entirely fully
+    equip install
+    equipped have
+    erect assemble
+    erratic irregular
+    escape deflate release
+    evaluate analysis examine
+    evaluation analysis examine
+    evaporate dry
+    even flat flush level same smooth
+    evenly equally gradually
+    event if
+    every all each interval
+    evidence find indication show sign
+    evident find
+    exact accurate correct
+    exactly accurately correct fully
+    examination examine find
+    exceptional unusual
+    exceptionally unusually
+    excess unwanted
+    exchange interchange replace
+    excluding without
+    execute do
+    exempt no
+    exercise careful
+    exert apply put
+    exhale breathe
+    exhaustive all full
+    exist be
+    expect possible
+    expel bleed release remove
+    explain tell
+    expose get
+    extent depth length width
+    exterior external
+    extra more
+    extract remove
+    extremely very
+    fabricate make
+    facilitate help
+    factor cause
+    fail failure
+    failed defective unserviceable
+    faint bright dim intensity
+    false incorrect
+    falter constant smoothly
+    familiar know
+    fashion procedure
+    fasten attach connect
+    fatal kill
+    faulty defective incorrect unserviceable
+    fear think
+    feasible possible
+    feature have
+    feed put supply
+    file remove
+    filing particle
+    film layer
+    filter filter
+    final last
+    finding result
+    fine small
+    firmly tightly
+    fix attach install repair set
+    flatness flat
+    flatten flat
+    flaw damage defective
+    flex bend
+    fluctuate constant
+    focus focus
+    following follow these
+    force force push
+    forecast possible
+    foreign unwanted
+    foremost front
+    form be shape
+    fortify strong
+    foul catch clearance hit touch
+    fouled catch clogged dirty
+    fresh clean new
+    fuel refuel
+    fulfill obey
+    fundamental important
+    further more
+    gain get increase
+    gall galling
+    gap clearance distance space
+    garbled clear clearly
+    garner collect
+    gaseous gas
+    gash damaged
+    gather collect
+    gauge measure
+    generally usually
+    generate be give supply
+    generous large thick
+    generously large thick
+    gentle carefully lightly
+    gently carefully lightly
+    genuine correct
+    gleam shiny
+    glitch error failure unserviceable
+    gloss shiny
+    glow be
+    glue attach bond
+    gouge gouge
+    govern control
+    grab hold use
+    gradient slope
+    gradual gradually
+    graph graph
+    grasp hold
+    grave dangerous
+    grease grease lubricate
+    great large very
+    grip hold
+    grow become
+    guard guard
+    guide move put
+    gush flow
+    halt stop
+    halve half
+    hamper prevent
+    handle careful move touch use
+    happen occur
+    harden hard
+    harm injury irritation
+    harmful dangerous injury
+    harmonize agree align
+    haul move tow
+    hazard dangerous
+    hazardous dangerous
+    hazy haze
+    heighten increase
+    helpful help
+    hesitation correctly immediately smoothly
+    highly very
+    hinder blockage clogged decrease prevent
+    hinge turn
+    hitch connect
+    hoist lift
+    hook put
+    house contain
+    however but
+    huge large
+    hum hum
+    hurt injury
+    identical same
+    idle idle
+    ignite ignition
+    immediate immediately
+    immerse soak
+    immobilize lock
+    impact effect hit
+    impair decrease
+    implement do
+    implementation do
+    impossible cannot
+    impregnate soak
+    impression think
+    improper incorrect
+    improperly incorrectly
+    improve better
+    impurity contamination
+    inadvertent accidental
+    inadvertently accidentally
+    incline slope
+    including thru with
+    incomplete all
+    incorporate have include
+    incorporation include
+    incur cause
+    independent independently
+    indicate identify show specified
+    induce cause
+    ineffective unserviceable
+    inflammable flammable
+    inform tell
+    ingest swallow
+    inhale breathe
+    inhibit prevent
+    initiate start
+    inject put
+    injection put
+    injure injury
+    inoperative off
+    insert engage put
+    inside in inner into
+    inspect examine inspection
+    instead alternative
+    integral part
+    interconnect connect
+    interfere catch hit interference touch
+    interference catch hit touch
+    interior internal internally
+    intermediate between middle
+    interrupt stop
+    intersect intersection
+    investigate investigation
+    inward in inner
+    irregularity damage defect irregular unusual
+    isolation isolate
+    jack jack
+    jam freely
+    job task work
+    join attach bond connect
+    just immediately
+    key key refer
+    kind type
+    kink kink
+    knock hit
+    label identify label
+    land landing
+    later after subsequent subsequently then when
+    lay put
+    lead put
+    least minimum
+    leave go keep
+    left-hand left
+    legible read
+    lengthen increase
+    lethal kill
+    liberal large thick
+    liberally large thick
+    lie be
+    limitation limit
+    limited small
+    link attach connect
+    list list record show
+    little short small
+    load install load
+    locate engage find put
+    log record
+    lose decrease
+    lost decrease
+    lowermost bottom
+    lukewarm warm
+    main primary
+    maintain hold keep maintenance
+    major primary
+    manipulate adjust move
+    manufacture make
+    mask apply
+    match agree align
+    mate connect engage together
+    matter material
+    medium moderate
+    meet engage touch
+    mention give
+    mesh engage
+    mid middle
+    mild weak
+    minimize minimum
+    minor small
+    modify change modification
+    moisten moist
+    momentary momentarily
+    motion movement
+    motor motoring
+    mount attach install put
+    nearly almost
+    need necessary
+    neither two
+    neutralize neutral
+    noisy noise
+    nor not
+    normal correct usual
+    normally correctly usually
+    note record
+    notify contact tell write
+    observe monitor obey see
+    obstruct blockage catch prevent
+    obstructed blocked clogged
+    obstruction blockage
+    obtain get
+    often frequently
+    oil lubricate oil
+    oil-free oil
+    old expired remaining used
+    omit ignore
+    once one when
+    operable operate
+    operational operate serviceable
+    option alternative can possible
+    order order sequence tell
+    orient point
+    origin source
+    original initial
+    originate source
+    otherwise differently
+    outline give
+    outside external near outdoors outer
+    outwards out
+    over above along on
+    overhaul overhaul
+    pack fill put
+    particular very
+    particularly very
+    pass give go through
+    passage flow hole opening
+    past around through
+    people person personnel
+    per refer
+    perforated hole
+    perform do measure
+    periodically interval
+    permissible permitted
+    permit let
+    persist continue
+    persistent continuous
+    pertinent applicable
+    picket moor
+    pierced hole
+    placard put
+    place area position put
+    plot make
+    plug connect seal
+    poor defective unserviceable
+    pop open out protrude
+    port left
+    portion part piece
+    potential possible
+    pour put
+    power supply
+    precede before
+    precise accurate
+    precisely accurately
+    preferable recommend
+    preheat heat
+    preload load
+    premature before
+    prematurely before
+    preparation prepare
+    prescribed specified
+    presence be
+    present be give show
+    preserve preservation
+    preset set
+    press push
+    preventive prevent
+    primarily primary
+    prime fill put
+    principal primary
+    priority before first important
+    probability risk
+    probable risk
+    probe find
+    proceed continue while
+    process do procedure
+    produce cause give make supply
+    profile contour
+    program sequence
+    progress continue
+    progressive gradually
+    progressively gradually
+    prohibit prevent
+    prolonged long
+    prompt immediately
+    propagation increase
+    proper correct
+    properly correctly
+    proportional proportion relation
+    protect prevent protection
+    provide give supply
+    proximity near
+    pump move remove
+    puncture hole
+    purge remove
+    purify clean
+    qualified approved
+    quarterly interval
+    quick quickly
+    quit go stop
+    quote give
+    raise increase lift retract
+    rapid fast
+    rapidly quickly
+    reach be get touch
+    reactivate activate
+    reading indication
+    readjust adjust
+    ready prepare
+    real agree
+    rearmost rear
+    reason cause
+    reassemble assemble
+    rebuild assemble
+    recharge charge fill pressurize
+    recheck check examine measure
+    reclaim repair
+    recleat attach
+    reclose close
+    recoil recoil wind
+    recondition overhaul repair
+    reconstruction repair
+    recover collect
+    rectify correct
+    recur occur
+    reduce decrease
+    reference refer
+    referenced show
+    refill fill
+    refit install repair
+    reflect reflection
+    register show
+    regrease apply more
+    regulate adjust control
+    regulation adjustment control
+    reinflate inflate
+    reinstall install
+    reinstallation installation
+    rejection reject
+    relate related
+    relay send
+    relevant its related their
+    relieve release
+    remain stay
+    remnant remaining
+    removable remove
+    render make
+    renew new
+    renovate new repair
+    repack fill put
+    repaint paint
+    repairable repair
+    repeat again
+    replenish add fill refuel
+    reposition move put set
+    represent show
+    repressurize pressurize
+    request tell write
+    require necessary
+    reseal seal
+    reset set
+    residual remaining
+    residue remaining
+    respective correct related
+    respectively related
+    respond result
+    rest be put remaining
+    restart start
+    restore put repair
+    restrain hold limit prevent stop
+    restrict decrease limit only prevent
+    resume continue start
+    retain keep
+    retorque torque
+    retouch apply paint
+    retractable retract
+    return go
+    reusable use
+    reuse use
+    reveal show
+    reverse opposite
+    review examine inspection
+    rewind wind
+    rig adjust
+    right-hand right
+    rinse clean flush remove
+    ripped damaged
+    rise increase
+    rotary turn
+    rotate turn
+    rotation turn
+    rotational turn
+    roughen rough
+    roughness rough
+    round circular
+    route put routing
+    routine usual
+    run operate
+    running flush
+    safety-clip lock safety
+    safety-wire lock safety
+    saturate soak
+    save keep
+    scan examine scan
+    scored score
+    scrap discard
+    scrape remove
+    scratched scratch
+    screw attach turn
+    scrub clean
+    search examine
+    seat against install
+    secure attach correctly safe safety tight
+    securely correctly safely tight
+    security correctly
+    seek get
+    seepage leakage
+    seized catch move turn
+    separable disassemble disconnect
+    separate different disconnect divide isolated
+    separately independently
+    serious dangerous important
+    serrated serration
+    service servicing
+    serviceability serviceable
+    setting adjustment position set
+    settle collect stable
+    sever cut
+    several some
+    severe dangerous
+    sharply quickly suddenly
+    shear break cut
+    shield prevent protection
+    shift move
+    shorten decrease
+    sideways side
+    sight look view
+    significant important
+    silence stop
+    similar equivalent
+    situated be install
+    situation condition
+    size dimension
+    skid skid
+    slack tension
+    slacken tension
+    slackness tension
+    slave control
+    slide move
+    slight light small
+    slightly small
+    slip move remove
+    sluggish slow
+    smear apply
+    snag catch
+    snap break click
+    soapy soap
+    soiled dirty
+    solidify solid
+    solve solution
+    soon time
+    spacing distance
+    spanwise span
+    sparingly quantity
+    specific approved specified
+    specifically specially
+    speck particle
+    speech voice
+    spillage contamination spill
+    splash get
+    splined spline
+    split break damaged divide
+    spot find mark stain
+    spread apply
+    spring move
+    spurious unwanted
+    stability stable
+    stabilization stable
+    stabilize stable
+    stage step
+    stained dirty stain
+    stamp identify put
+    stand stay
+    starboard right
+    state condition tell
+    station put
+    stationary stable stop
+    steadily continuously
+    steady stable
+    stick attach catch freely
+    sticky tacky
+    stiff move
+    still continue stay
+    stimulate increase
+    stir mix
+    store contain keep storage
+    straighten straight
+    strain filter strain
+    strap attach
+    stress force
+    strictly fully
+    strike hit
+    striped stripe
+    stroke travel
+    submerge put
+    submit send
+    substance material
+    substitute alternative equivalent replace
+    successful correct satisfactory
+    suck remove
+    suitable applicable correct
+    suitably sufficiently
+    support hold support
+    surplus unwanted
+    surrounding adjacent around
+    survey examine inspection
+    suspect think
+    suspend hang stop
+    swap interchange
+    sweep scan
+    swing calibrate move
+    switch de-energize energize set start stop
+    synchronize adjust
+    take careful get necessary obey read remove
+    talk speak
+    tape tape
+    taut tension
+    tear damage
+    technique method
+    tension tension
+    terminate stop
+    therefore thus
+    thorough full
+    thoroughly fully
+    thread put turn
+    threaded thread
+    throughout during
+    tie attach
+    till until
+    tip point tilt
+    toward direction to
+    toxic poisonous
+    trace find sign
+    track monitor
+    trained approved
+    transfer install move movement supply
+    transition change
+    transport send
+    trapped caught
+    treat apply touch
+    trigger cause start
+    trim cut
+    trip open release
+    true agree correct
+    tuck put
+    twice two
+    unable cannot
+    uncap remove
+    unclip remove
+    uncoil contamination unwind
+    uncouple disconnect
+    uncovered cover
+    under below in
+    underneath below
+    underside bottom
+    undertake do start
+    undo loosen
+    undue unwanted
+    uneven equal rough
+    uniform constant equal
+    uniformly equally
+    unintentional accidental
+    unlatch open release
+    unload load release
+    unobstructed clear clogged
+    unpack remove
+    unpainted bare
+    unplug disconnect plug
+    unprotected protection
+    unreel unwind
+    unrestricted free
+    unsafe dangerous
+    unscrew loosen remove turn
+    unused new
+    upon on when
+    upper maximum top
+    uppermost up
+    upward up
+    urgently immediately
+    usage use
+    utilization use
+    utilize use
+    valid applicable correct
+    validity applicable correct
+    variable change
+    various different
+    vary change
+    vent flow open release
+    ventilate airflow
+    ventilation airflow
+    via through
+    vibrate vibration
+    vicinity adjacent near
+    vigorous force
+    vigorously force
+    visible see view
+    vital mandatory
+    warn tell warning
+    wash clean
+    watch look monitor
+    watertight seal
+    way procedure
+    weakness weak
+    weep leakage
+    well correctly fully good
+    whenever when
+    whether if
+    whichever that
+    whilst while
+    whoever who
+    whole all full
+    wholly fully
+    windy wind
+    wipe clean
+    wire attach
+    wire-lock lock safety
+    withdraw remove
+    within in
+    withstand resistant
+    wrap put wind
+    wrong incorrect
+    wrongly incorrectly
+    yet but
+    yourself you
+    zero zero
+  </list>
+
+</rules>
