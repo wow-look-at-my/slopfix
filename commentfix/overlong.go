@@ -21,6 +21,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
@@ -152,10 +153,6 @@ func judge(b block) (string, bool) {
 // run of text, so indentation costs nothing and both counts compare directly.
 func measure(text []string) (lines, chars int) {
 	for _, line := range text {
-		// A line carrying only its marker holds no words.
-		if bareMarkerLine(line) {
-			continue
-		}
 		content := false
 		for _, r := range line {
 			if unicode.IsSpace(r) {
@@ -171,15 +168,6 @@ func measure(text []string) (lines, chars int) {
 	return lines, chars
 }
 
-// bareMarkerLine reports a comment line holding a marker and nothing else.
-func bareMarkerLine(line string) bool {
-	switch strings.TrimSpace(line) {
-	case "//", "///", "//!", "#", "*", "/*", "*/":
-		return true
-	}
-	return false
-}
-
 // repair rewrites a block's prose and puts its directive lines back verbatim.
 //
 // Every repair path rebuilds the block out of prose() alone, which drops the
@@ -192,13 +180,26 @@ func repair(b block) []string {
 	if b.codeLines == 0 {
 		return append(append([]string{}, lead...), trail...)
 	}
+	if out, ok := repairBlockComment(b); ok {
+		return out
+	}
 	if len(lead) == 0 && len(trail) == 0 {
 		return trim(b)
+	}
+	for len(body) > 0 && isBlankComment(body[len(body)-1]) {
+		body = body[:len(body)-1]
 	}
 	if len(body) == 0 {
 		return b.text
 	}
 	kept := trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact})
+	if len(trail) > 0 {
+		kept = withSeparator(kept, trail)
+		// Doc and separator cannot fit, so the doc goes and the directive stays.
+		if !fitsCode(kept, b) {
+			kept = nil
+		}
+	}
 	out := make([]string, 0, len(lead)+len(kept)+len(trail))
 	out = append(out, lead...)
 	out = append(out, kept...)
@@ -246,6 +247,13 @@ func prose(text []string) []string {
 		kept = append(kept, line)
 	}
 	return kept
+}
+
+// withSeparator adds the bare marker line gofmt puts between a doc and the
+// directive after it, so the repair is measured as gofmt will leave it.
+func withSeparator(kept, trail []string) []string {
+	indent := trail[0][:len(trail[0])-len(strings.TrimLeft(trail[0], " \t"))]
+	return append(append([]string{}, kept...), indent+"//")
 }
 
 // isDirectiveLine reports a line a tool reads rather than a reader. The C family
@@ -311,15 +319,20 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
-	// Try the STE opening sentence, then a clause mark, never a cut between words.
+	// The STE opening sentence reads best, then a clause cut, then a word cut.
 	opening, whole := steOpening(kept)
-	if whole {
-		if _, over := judge(block{text: opening, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
-			return opening
-		}
+	var fits [][]string
+	if whole && fitsCode(opening, b) {
+		fits = append(fits, opening)
 	}
 	if clause, ok := clauseFit(b); ok {
-		return clause
+		fits = append(fits, clause)
+	}
+	if words, ok := wordFit(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); ok {
+		fits = append(fits, words)
+	}
+	if out, ok := preferred(fits); ok {
+		return out
 	}
 	if whole {
 		return opening
@@ -376,21 +389,165 @@ func clauseFit(b block) ([]string, bool) {
 		body = append(body, stripMarker(line))
 	}
 	text := strings.Join(strings.Fields(strings.Join(body, " ")), " ")
-	budget := max(floorChars, b.codeChars)
 	for _, cut := range clauseCuts(text) {
 		kept := strings.TrimRight(text[:cut], " ,;:-")
 		words := strings.Fields(kept)
-		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) || !hasVerb(kept) {
 			continue
 		}
 		if !endsSentence(kept) {
 			kept += "."
 		}
-		for _, width := range []int{min(budget, wrapWidth), budget} {
-			out := reflow(kept, indent, marker, width)
-			if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
-				return out, true
-			}
+		if out, ok := fitReflow(kept, indent, marker, b); ok {
+			return out, true
+		}
+	}
+	return nil, false
+}
+
+// hasVerb reports text the sentence parser finds a finite verb in.
+func hasVerb(text string) bool {
+	for _, c := range syntax.Parse(text, nil).Clauses {
+		if c.Verb != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// oneLine is a reflow width no comment reaches, so the prose stays on one line.
+const oneLine = 1 << 20
+
+// fitReflow lays text out at the narrowest width that fits the budget of b.
+// The budget counts characters, not columns, so a single line is the last try.
+func fitReflow(text, indent, marker string, b block) ([]string, bool) {
+	budget := max(floorChars, b.codeChars)
+	var out []string
+	for _, width := range []int{min(budget, wrapWidth), budget, oneLine} {
+		out = reflow(text, indent, marker, width)
+		if fitsCode(out, b) {
+			return out, true
+		}
+	}
+	return out, false
+}
+
+// wordFit keeps the longest run of leading words that fits the budget, when
+// no sentence or clause cut does. The run never ends on a dangling word and
+// never splits a parenthesis, a quotation or a code span.
+func wordFit(b block) ([]string, bool) {
+	marker, indent, ok := commentShape(b.text)
+	if !ok {
+		return nil, false
+	}
+	var body []string
+	for _, line := range prose(b.text) {
+		body = append(body, stripMarker(line))
+	}
+	render := func(text string) []string {
+		out, _ := fitReflow(text, indent, marker, b)
+		return out
+	}
+	return wordCut(strings.Join(body, " "), render, b)
+}
+
+// preferred answers the earliest cut that keeps at least a third of the words
+// the longest cut keeps. A cut that reads well and keeps almost nothing loses.
+func preferred(cuts [][]string) ([]string, bool) {
+	most := 0
+	for _, cut := range cuts {
+		most = max(most, wordCount(cut))
+	}
+	for _, cut := range cuts {
+		if 3*wordCount(cut) >= most {
+			return cut, true
+		}
+	}
+	return nil, false
+}
+
+// wordCount counts the words of a block's prose.
+func wordCount(text []string) int {
+	n := 0
+	for _, line := range prose(text) {
+		n += len(strings.Fields(stripMarker(line)))
+	}
+	return n
+}
+
+// fitsCode reports whether text fits the budget of the code under b.
+func fitsCode(text []string, b block) bool {
+	_, over := judge(block{text: text, codeLines: b.codeLines, codeChars: b.codeChars})
+	return !over
+}
+
+// unwrapAside drops a parenthesis that encloses the whole of text, because no
+// cut inside it closes.
+func unwrapAside(text string) string {
+	text = strings.TrimSpace(text)
+	inner, ok := strings.CutPrefix(text, "(")
+	if !ok {
+		return text
+	}
+	for _, close := range []string{".)", ")."} {
+		if rest, found := strings.CutSuffix(inner, close); found && balanced(rest) {
+			return rest + "."
+		}
+	}
+	if rest, found := strings.CutSuffix(inner, ")"); found && balanced(rest) {
+		return rest
+	}
+	return text
+}
+
+// phraseEnds reports a cut after words[n-1] that ends a phrase: a closing mark
+// ends it, a dash or an aside follows it, or the next word opens a new phrase.
+func phraseEnds(words []string, n int) bool {
+	if strings.ContainsAny(words[n-1][len(words[n-1])-1:], ",;:)") {
+		return true
+	}
+	if next := words[n]; next == "—" || next == "--" || next == "-" || strings.HasPrefix(next, "(") {
+		return true
+	}
+	return phraseOpeners.Contains(strings.ToLower(strings.Trim(words[n], "(\"'`")))
+}
+
+// phraseOpeners open a phrase the words before them can end without.
+var phraseOpeners = set.Of(tailsClass("phrase-opener")...)
+
+// wordCut keeps the longest leading run of words that render fits under b.
+// A cut where a phrase ends is tried before a cut at any word.
+func wordCut(prose string, render func(string) []string, b block) ([]string, bool) {
+	words := strings.Fields(unwrapAside(prose))
+	var cuts [][]string
+	for _, atPhrase := range []bool{true, false} {
+		if out, ok := longestCut(words, atPhrase, render, b); ok {
+			cuts = append(cuts, out)
+		}
+	}
+	return preferred(cuts)
+}
+
+// longestCut keeps the longest leading run of words that render fits under b.
+// With atPhrase it cuts only where a phrase ends.
+func longestCut(words []string, atPhrase bool, render func(string) []string, b block) ([]string, bool) {
+	for n := len(words) - 1; n > 0; n-- {
+		if atPhrase && !phraseEnds(words, n) {
+			continue
+		}
+		last := strings.TrimRight(words[n-1], ",;:-")
+		if last == "" || dangling.Contains(strings.ToLower(last)) {
+			continue
+		}
+		kept := strings.Join(append(append([]string{}, words[:n-1]...), last), " ")
+		if !balanced(kept) {
+			continue
+		}
+		if !endsSentence(kept) {
+			kept += "."
+		}
+		if out := render(kept); fitsCode(out, b) {
+			return out, true
 		}
 	}
 	return nil, false

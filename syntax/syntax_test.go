@@ -57,6 +57,27 @@ func TestAClauseAfterAndCarriesItsOwnSubject(t *testing.T) {
 	assert.Equal(t, "fails", verb(s, s.Clauses[1]))
 }
 
+// An emphasis marker is markup. Read as a word, "*as*" became a verb and opened a false clause.
+func TestEmphasisMarkersAreNotWords(t *testing.T) {
+	s := parse(t, "The tarball is rooted at the top and unpacks *as* the build directory.")
+	for _, c := range s.Clauses {
+		assert.NotEqual(t, "*as*", verb(s, c))
+		assert.NotEqual(t, "unpacks", subject(s, c))
+	}
+}
+
+func TestAsLongAsOpensASubordinateClause(t *testing.T) {
+	s := parse(t, "The gate ran it, and for as long as the gate ran, its violations were invisible.")
+	var kinds []syntax.LinkKind
+	for _, c := range s.Clauses {
+		kinds = append(kinds, c.Kind)
+	}
+	assert.Contains(t, kinds, syntax.Subordinate)
+	last := s.Clauses[len(s.Clauses)-1]
+	assert.Equal(t, "its violations", subject(s, last))
+	assert.Zero(t, last.Depth)
+}
+
 func TestNounsJoinedByAndAreOneClause(t *testing.T) {
 	s := parse(t, "The gate reads files and directories.")
 	assert.Len(t, s.Clauses, 1)
@@ -149,6 +170,14 @@ func TestAPluralFormBeforeADeterminerIsAVerb(t *testing.T) {
 	s := parse(t, "The loader opens the file and reads every row.")
 	require.Len(t, s.Clauses, 2)
 	assert.Equal(t, "reads", verb(s, s.Clauses[1]))
+}
+
+func TestAnSFormBeforeANameIsAVerb(t *testing.T) {
+	text := "It ships, and a downloaded vkbench needs xxxxxxxxxx here."
+	s := syntax.Parse(text, [][]int{{41, 51}})
+	require.Len(t, s.Clauses, 2)
+	assert.Equal(t, "needs", verb(s, s.Clauses[1]))
+	assert.Equal(t, "a downloaded vkbench", subject(s, s.Clauses[1]))
 }
 
 func TestACompoundAfterANounPhraseOpensAClause(t *testing.T) {

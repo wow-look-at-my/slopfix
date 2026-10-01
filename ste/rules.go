@@ -36,7 +36,7 @@ const (
 var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
 	IDPostdeterminer,
-)
+).Union(WarningIDs)
 
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
@@ -50,14 +50,23 @@ type Finding struct {
 	Detail string
 	// Fix names the repair, in the imperative.
 	Fix string
+	// Severity is SeverityWarning for a finding that must not fail a check, and empty for an error.
+	Severity string
 }
+
+// Warning reports whether the finding informs rather than fails.
+func (f Finding) Warning() bool { return f.Severity == SeverityWarning }
 
 func (f Finding) String() string {
 	detail := ""
 	if f.Detail != "" {
 		detail = fmt.Sprintf(" %q", f.Detail)
 	}
-	return fmt.Sprintf("%d: [%s] %s%s. %s", f.Line, f.ID, f.Rule, detail, f.Fix)
+	level := ""
+	if f.Warning() {
+		level = "warning "
+	}
+	return fmt.Sprintf("%d: %s[%s] %s%s. %s", f.Line, level, f.ID, f.Rule, detail, f.Fix)
 }
 
 // SentenceWordCap is STE's cap for a descriptive sentence.
@@ -188,8 +197,12 @@ func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
-	return entity.ReplaceAllString(text, " ENTITY ")
+	text = entity.ReplaceAllString(text, " ENTITY ")
+	// A quotation is another voice, so no rule judges the words inside it.
+	return quotation.ReplaceAllString(text, " QUOTE ")
 }
+
+var quotation = regexp.MustCompile(`"[^"\n]*"|“[^”\n]*”`)
 
 func checkWords(prose string, line int) []Finding {
 	var out []Finding
@@ -359,8 +372,7 @@ func terminator(r rune) bool {
 	return r == '.' || r == '!' || r == '?'
 }
 
-// opensSentence reports whether the text starts a new sentence. A capital, a
-// digit and an opening delimiter each do, and so does a lower-case file name.
+// opensSentence reports whether the text starts a new sentence.
 var maskedSpan = regexp.MustCompile(`^x{4,}(?:\s|$)`)
 
 func opensSentence(rest []rune) bool {

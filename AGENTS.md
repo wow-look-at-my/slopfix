@@ -32,6 +32,7 @@ slopfix message < message.txt     # judge a closing message
 - A named file is read whatever its extension. The path decides the rules. A workflow or action manifest gets the `yaml` rules. A document gets the prose rules. Source gets the `comments` rules.
 - A document is `.md`, `.markdown`, `.mdown` or `.txt`. An empty `--path` also counts as a document.
 - A path with a `testdata` element is never a document, named or walked. It is test input, and a rewrite changes what the test checks.
+- A path with a `vendor` or `node_modules` element is never judged, named or walked, the hook included. Another project wrote it.
 - With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr. `--json` writes the whole answer as one object, which is what a hook reads.
 - `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
 - `fmt`, `purge`, `comments` and `workflows` do not exist as commands. The wrap join is the `wrap/hard-wrap` rule. The purge is the `repo` category. The comment and workflow rules run inside `check` on each file they judge.
@@ -70,9 +71,10 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 | `repo` | `repo/agents-file`, `repo/budget` | yes, on a walk, except a file with no `##` section |
 | `wrap` | `wrap/hard-wrap` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
+| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | all but the volume cap |
-| `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
+| `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate` | yes |
 | `pins` | `pins/download-version` | yes, except a templated or HTML-escaped URL |
 | message | `laziness/punt`, `blame/deflection` | no |
@@ -138,7 +140,7 @@ The one string match left is the hook replaying an Edit payload. `old_string` is
 
 `Split` breaks a document into prose blocks and verbatim blocks with a CommonMark parser. A fence, a table, a heading and a blank run are verbatim. No rule reads or reflows them. Every prose rule gets its fence, code and list exemptions from this split. A block keeps its list marker and indentation. A nested item thus survives a rewrite.
 
-`wrap/hard-wrap` rejects a paragraph split over several source lines. The reader's window wraps a paragraph. An author's wrap freezes one window's width into the file. Each later edit then re-flows untouched lines.
+`wrap/hard-wrap` rejects a paragraph split over several source lines. It reports each continuation line. The reader's window wraps a paragraph. An author's wrap freezes one window's width into the file. Each later edit then re-flows untouched lines.
 
 `fix` writes each prose block back as a single line. `WordsOnly` proves the join moved only newlines. A rewrite whose words differ from the source is refused. The caller keeps the original. A workflow is never joined, because a newline in YAML is syntax.
 
@@ -155,6 +157,15 @@ The members share the sentence splitter, the masks and the repair pass. They the
 - `ste/sentence-length`: a sentence over `25` words, the STE cap for a description. The repair divides it at a clause boundary that the `syntax` parser finds.
 - `ste/postdeterminer`: a numeral between a determiner and its noun, as in `the three rules`. The repair cuts the numeral. A unit, a percent, a year, a status code, `any` and `first` keep theirs.
 - `ste/count`: a stated count anywhere in the line, read with the `Gate` substrate. The repair cuts the number after the join.
+
+The warning rules read patterns that need a person to repair. A warning never fails `check`. `report` gives each finding a `severity` of `error` or `warning`. The language server sends a warning at warning level.
+
+- `ste/instruction-length`: a sentence of `21` to `25` words, over the STE cap for an instruction.
+- `ste/passive`: a form of `be` and a past participle, as the parser tags them.
+- `ste/noun-cluster`: a run of nouns longer than `NounClusterCap`, which is `3`.
+- `ste/tense`: a perfect or a progressive tense. The approved `-ing` words, such as `missing` and `during`, do not count.
+- `ste/dictionary`: a word the STE dictionary does not approve, with its approved replacements. The table is the `dictionary` list in `rules/ste-dictionary.xml`. A `<list>` holds a string on each line of its text and needs no `<test>`. It holds only words with no approved sense, because a match by spelling cannot tell senses apart.
+- `ste/paragraph-length`: a paragraph with more sentences than `ParagraphSentenceCap`, which is `6`. A list item never counts.
 
 How a long sentence divides:
 
@@ -238,7 +249,7 @@ The languages are Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX. YAML. 
 - `comments/length`: a comment run weighed against the construct beneath it. Lines catch an essay. Characters catch a dense paragraph. The budget has a floor. A short comment is never a finding.
 - `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair closes the sentence.
 
-The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at a clause boundary the `syntax` parser finds, the same boundaries `ste/sentence-length` divides at (`ste.Leading`). Sentence ends come from `ste.Sentences`. A sentence with no such boundary stays whole. The check reports that block for a person to rewrite. The number repair runs after the length cut. The length cut then runs again if the words overflow.
+The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at a clause boundary the `syntax` parser finds, the same boundaries `ste/sentence-length` divides at (`ste.Leading`). Sentence ends come from `ste.Sentences`. When no clause boundary fits either, `wordFit` keeps the longest run of leading words that fits. The run never ends on a dangling word or inside a parenthesis, quotation or code span, and it closes as a sentence. Every finding therefore has a repair. The number repair runs after the length cut. The length cut then runs again if the words overflow.
 
 It does not flag a comment above the package declaration, or a trailing comment on a code line. It skips a directive line, such as a build constraint, a shebang, a linter pragma or a cgo preamble. It skips a number inside a quotation.
 

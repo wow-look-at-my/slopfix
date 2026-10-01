@@ -8,8 +8,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// proseAlt is the prose vocabulary as a regular expression alternation, which
-// is the form the frames need.
+// proseAlt is the prose vocabulary as a regular expression alternation, which is the form the frames need.
 var proseAlt = words("prose")
 
 // proseWords is the same vocabulary as a set, for a caller asking about a word.

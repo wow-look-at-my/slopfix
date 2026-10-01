@@ -53,8 +53,10 @@ type reportFinding struct {
 	Rule   string `json:"rule"`
 	Detail string `json:"detail,omitempty"`
 	Fix    string `json:"fix,omitempty"`
-	// Repairable reports whether slopfix repairs this defect. A reporting
+	// Repairable reports whether slopfix repairs this defect.
 	Repairable bool `json:"repairable"`
+	// Severity is "error", which fails a check, or "warning", which does not.
+	Severity string `json:"severity"`
 }
 
 type reportOutput struct {
@@ -106,7 +108,15 @@ func wireFinding(finding ste.Finding) reportFinding {
 		Detail:     finding.Detail,
 		Fix:        finding.Fix,
 		Repairable: slopfix.Repairable(finding.ID),
+		Severity:   severity(finding),
 	}
+}
+
+func severity(finding ste.Finding) string {
+	if finding.Warning() {
+		return ste.SeverityWarning
+	}
+	return "error"
 }
 
 // reportFilter turns --only into a predicate over a rule ID. An empty list

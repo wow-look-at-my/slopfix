@@ -169,6 +169,9 @@ func tokenNumber(tok Token, words set.Set[string]) (Token, bool) {
 	if strings.Contains(tok.Text, "://") {
 		return Token{}, false // the digits of a URL are part of it
 	}
+	if isQualifiedName(tok.Text) && strings.IndexFunc(tok.Text, unicode.IsLetter) >= 0 {
+		return Token{}, false
+	}
 	if hit, ok := digitNumber(tok); ok {
 		return hit, true
 	}

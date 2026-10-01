@@ -47,6 +47,39 @@ func TestFixDividesALongSentenceAroundACodeSpan(t *testing.T) {
 	assert.Empty(t, ste.Check(fixed, 1))
 }
 
+// The parser reads a masked code span, whose filler word ends before the closing
+// backtick. A division after the span must still keep the whole span.
+func TestFixKeepsTheCodeSpanThatEndsTheLeftSentence(t *testing.T) {
+	long := "The tarball is rooted at `./` and unpacks *as* the build directory — extracting it without `-C dir` sprays `src/`, `include/` and a foreign `.gitignore` over the repo root and chowns it."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "rooted at `./`")
+	assert.Contains(t, fixed, "*as*")
+	assert.NotContains(t, fixed, "Unpacks")
+}
+
+// ", and" before a subordinate clause and its main clause is a sentence boundary.
+func TestFixDividesBeforeASubordinateClauseAfterAnd(t *testing.T) {
+	long := "This closed a real hole: `a_test.go` is `//go:build x`, and for as long as the gate ran default tags only, its violations were invisible and its tests compiled nowhere."
+	fixed := ste.Fix(long)
+	assert.Equal(t, "This closed a real hole: `a_test.go` is `//go:build x`. For as long as the gate ran default tags only, its violations were invisible and its tests compiled nowhere.", fixed)
+	assert.Empty(t, ste.Check(fixed, 1))
+
+	long = "The gate reads every file that the session wrote, but if the cache is cold at the start of the run, the build waits for the whole tree."
+	assert.Equal(t, "The gate reads every file that the session wrote. However, if the cache is cold at the start of the run, the build waits for the whole tree.", ste.Fix(long))
+}
+
+// A quotation is another voice, so a rule never judges the words inside it.
+func TestCheckSkipsQuotedText(t *testing.T) {
+	assert.Empty(t, ste.Check(`The owner said "it is fine; ship it" and moved on.`, 1))
+	assert.Empty(t, ste.Check("The owner said “it is fine; ship it” and moved on.", 1))
+	assert.NotEmpty(t, ste.Check("The owner said it is fine; ship it.", 1))
+}
+
+// A semicolon that ends the prose before a code span keeps its space.
+func TestFixKeepsTheSpaceBeforeACodeSpan(t *testing.T) {
+	assert.Equal(t, "Docker is unavailable. `MESA_DIR` still overrides it.", ste.Fix("Docker is unavailable; `MESA_DIR` still overrides it."))
+}
+
 // A parenthetical counts as a single word, so a division inside it would halve
 // something STE says is indivisible.
 func TestFixDividesALongSentenceAroundAParenthetical(t *testing.T) {

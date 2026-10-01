@@ -158,12 +158,56 @@ func divisions(s *syntax.Sentence, source string) []division {
 			continue
 		}
 		out = append(out, division{
-			leftEnd:    s.Words[lastBefore(s, c.Link)].End,
-			rightStart: s.Words[c.Link+1].Start,
+			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
+			rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
 			opener:     opener,
 		})
 	}
+	return append(out, beforeSubordinate(s, source)...)
+}
+
+// beforeSubordinate divides at ", and" when a subordinate clause and then a main
+// clause follow it, as in ", and if the cache is cold, the build waits".
+func beforeSubordinate(s *syntax.Sentence, source string) []division {
+	var out []division
+	for k := 1; k+1 < len(s.Clauses); k++ {
+		c, next := s.Clauses[k], s.Clauses[k+1]
+		if c.Kind != syntax.Subordinate || next.Kind != syntax.Opens || next.Depth != 0 || next.Subject == nil || next.Verb == nil {
+			continue
+		}
+		conj := c.Link - 1
+		if conj > 0 && s.Words[conj].Tag == "IN" {
+			// "for as long as": the preposition goes with the subordinate clause.
+			conj--
+		}
+		if conj < 1 || s.Words[conj].Tag != "CC" || s.Words[conj-1].Text != "," {
+			continue
+		}
+		connector, known := connectors[s.Words[conj].Lower()]
+		if _, hasMain := mainBefore(s, k); !known || !hasMain {
+			continue
+		}
+		out = append(out, division{
+			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, conj)].End, true),
+			rightStart: outsideSpans(source, s.Words[conj+1].Start, false),
+			opener:     connector,
+		})
+	}
 	return out
+}
+
+// outsideSpans moves an offset out of a verbatim span, to its end or to its start.
+// The parser reads a masked span, whose filler word stops short of the closing backtick.
+func outsideSpans(source string, at int, toEnd bool) int {
+	for _, span := range verbatimSpan.FindAllStringIndex(source, -1) {
+		if span[0] < at && at < span[1] {
+			if toEnd {
+				return span[1]
+			}
+			return span[0]
+		}
+	}
+	return at
 }
 
 // mainBefore answers the main clause that clause k attaches to.
@@ -345,7 +389,6 @@ func endsMainClause(prose string, at int) bool {
 
 // joinsClauses reports whether the conjunction at byte at joins a main clause
 // to another that names its own subject. The end of a list does not.
-// cache, the tree, and the runner that holds the job".
 func joinsClauses(prose string, at int) bool {
 	word, _, _ := strings.Cut(prose[at:], " ")
 	if !syntax.Is(word, "coordinator") {

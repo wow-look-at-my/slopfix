@@ -31,6 +31,10 @@ var familyOrder = []string{"yaml", "ste"}
 const lastFamily = "wrap"
 
 func rank(id string) int {
+	// A warning never crowds out a finding that fails the gate.
+	if ste.WarningIDs.Contains(id) {
+		return len(familyOrder) + 2
+	}
 	family, _, _ := strings.Cut(id, "/")
 	if family == lastFamily {
 		return len(familyOrder) + 1
@@ -237,9 +241,13 @@ func (s *Server) Diagnostics(path, content string) []lsp.Diagnostic {
 	return out
 }
 
-// diagnostic places a finding on whole lines. Every finding fails the gate, so
-// every one is an error.
+// diagnostic places a finding on whole lines. A finding that fails the gate is
+// an error, and a warning stays a warning.
 func diagnostic(f ste.Finding, lines []string) lsp.Diagnostic {
+	level := lsp.Error
+	if f.Warning() {
+		level = lsp.Warning
+	}
 	start := max(0, f.Line-1)
 	end := max(start, f.EndLine-1)
 	width := 0
@@ -260,7 +268,7 @@ func diagnostic(f ste.Finding, lines []string) lsp.Diagnostic {
 			Start: lsp.Position{Line: start},
 			End:   lsp.Position{Line: end, Character: width},
 		},
-		Severity: lsp.Error,
+		Severity: level,
 		Code:     f.ID,
 		Source:   Source,
 		Message:  message,

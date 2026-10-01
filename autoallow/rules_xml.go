@@ -83,8 +83,7 @@ type xmlStringList struct {
 }
 
 // xmlRefuseArgs denies a command whose argument text carries any of the
-// substrings. denyArgSubstrings above only unmatches the rule, which leaves the
-// command to be asked about; this refuses it.
+// substrings. denyArgSubstrings above only unmatches the rule.
 type xmlRefuseArgs struct {
 	Message string   `xml:"message,attr"`
 	Values  []string `xml:"value"`

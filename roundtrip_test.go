@@ -198,7 +198,9 @@ func TestEveryRuleAppearsInAFixture(t *testing.T) {
 	}
 	var missing []string
 	for id := range slopfix.AllIDs().All() {
-		if !covered.Contains(id) {
+		// A warning outlives the repair by design. TestEachWarningRuleFires covers
+		// each.
+		if !covered.Contains(id) && !ste.WarningIDs.Contains(id) {
 			missing = append(missing, id)
 		}
 	}
@@ -214,12 +216,14 @@ func findingIDs(findings []ste.Finding) []string {
 	return out
 }
 
-// quoted renders findings for a failure message, so a break names what is left
-// rather than a count.
+// quoted renders the findings that fail a check, so a break names what is left
+// rather than a count. A warning fails nothing, so it is not left over.
 func quoted(findings []ste.Finding) []string {
 	out := make([]string, 0, len(findings))
 	for _, f := range findings {
-		out = append(out, f.String())
+		if !f.Warning() {
+			out = append(out, f.String())
+		}
 	}
 	return out
 }

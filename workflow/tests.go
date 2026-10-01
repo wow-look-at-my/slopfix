@@ -11,8 +11,7 @@ import (
 // runBlock is a run: script.
 type runBlock = scriptRows
 
-// runBlocks reads every run: script off the parser. A document the parser
-// rejects carries no script this rule can name, and GitHub rejects it too.
+// runBlocks reads every run: script off the parser.
 func runBlocks(content string) []runBlock {
 	return scripts(content)
 }
