@@ -500,25 +500,35 @@ var phraseOpeners = set.Of(tailsClass("phrase-opener")...)
 // A cut where a phrase ends is tried before a cut at any word.
 func wordCut(prose string, render func(string) []string, b block) ([]string, bool) {
 	words := strings.Fields(unwrapAside(prose))
+	var cuts [][]string
 	for _, atPhrase := range []bool{true, false} {
-		for n := len(words) - 1; n > 0; n-- {
-			if atPhrase && !phraseEnds(words, n) {
-				continue
-			}
-			last := strings.TrimRight(words[n-1], ",;:-")
-			if last == "" || dangling.Contains(strings.ToLower(last)) {
-				continue
-			}
-			kept := strings.Join(append(append([]string{}, words[:n-1]...), last), " ")
-			if !balanced(kept) {
-				continue
-			}
-			if !endsSentence(kept) {
-				kept += "."
-			}
-			if out := render(kept); fitsCode(out, b) {
-				return out, true
-			}
+		if out, ok := longestCut(words, atPhrase, render, b); ok {
+			cuts = append(cuts, out)
+		}
+	}
+	return preferred(cuts)
+}
+
+// longestCut keeps the longest leading run of words that render fits under b.
+// With atPhrase it cuts only where a phrase ends.
+func longestCut(words []string, atPhrase bool, render func(string) []string, b block) ([]string, bool) {
+	for n := len(words) - 1; n > 0; n-- {
+		if atPhrase && !phraseEnds(words, n) {
+			continue
+		}
+		last := strings.TrimRight(words[n-1], ",;:-")
+		if last == "" || dangling.Contains(strings.ToLower(last)) {
+			continue
+		}
+		kept := strings.Join(append(append([]string{}, words[:n-1]...), last), " ")
+		if !balanced(kept) {
+			continue
+		}
+		if !endsSentence(kept) {
+			kept += "."
+		}
+		if out := render(kept); fitsCode(out, b) {
+			return out, true
 		}
 	}
 	return nil, false
