@@ -6,11 +6,12 @@
 // with the same type and the same text, in the same place in the tree. Text
 // that closes a comment early, a newline that ends a line comment, or a
 // marker that opens a new one changes that tree, so the edit that wrote it
-// never lands.
+// never lands. Every directive line must also come back as it was.
 package treecomments
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -42,9 +43,13 @@ func Apply(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Resul
 	}
 	spans := commentSpans(filename, src)
 	want := shape(root, src)
+	directives := directiveLines(filename, src)
 	return edit.Gate(src, edits, scope,
 		func(e edit.Edit) string { return reach(src, spans, e) },
-		func(text string) bool { return sameShape(language, text, want) })
+		func(text string) bool {
+			return sameShape(language, text, want) &&
+				slices.Equal(directiveLines(filename, text), directives)
+		})
 }
 
 // span is where a comment node sits.

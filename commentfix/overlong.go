@@ -24,6 +24,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // IDLength names this rule, on a report and on the command line alike.
@@ -259,6 +260,9 @@ func withSeparator(kept, trail []string) []string {
 // spells it with no space after the marker, and the hash family carries the
 // interpreter line and the linter pragma.
 func isDirectiveLine(line string) bool {
+	if treecomments.IsDirective(line) {
+		return true
+	}
 	t := strings.TrimSpace(line)
 	for _, marker := range []string{"//", "#"} {
 		rest, found := strings.CutPrefix(t, marker)
