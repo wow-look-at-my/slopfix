@@ -172,7 +172,7 @@ func beforeSubordinate(s *syntax.Sentence, source string) []division {
 	var out []division
 	for k := 1; k+1 < len(s.Clauses); k++ {
 		c, next := s.Clauses[k], s.Clauses[k+1]
-		if c.Kind != syntax.Subordinate || c.Depth != 1 || next.Kind != syntax.Opens || next.Depth != 0 || next.Subject == nil || next.Verb == nil {
+		if c.Kind != syntax.Subordinate || next.Kind != syntax.Opens || next.Depth != 0 || next.Subject == nil || next.Verb == nil {
 			continue
 		}
 		conj := c.Link - 1
