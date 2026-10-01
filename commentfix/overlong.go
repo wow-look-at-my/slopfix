@@ -125,7 +125,7 @@ func lengthEdits(filename, src string) []edit.Edit {
 // judge measures a block against its code and names every measure it failed.
 // Lines catch an essay; characters catch a dense paragraph.
 func judge(b block) (string, bool) {
-	lines, chars := measure(weighed(b.text))
+	lines, chars := measure(prose(b.text))
 	// Nothing to weigh against.
 	if b.codeLines == 0 {
 		if lines == 0 {
@@ -185,10 +185,20 @@ func repair(b block) []string {
 	if len(lead) == 0 && len(trail) == 0 {
 		return trim(b)
 	}
+	for len(body) > 0 && isBlankComment(body[len(body)-1]) {
+		body = body[:len(body)-1]
+	}
 	if len(body) == 0 {
 		return b.text
 	}
 	kept := trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact})
+	if len(trail) > 0 {
+		kept = withSeparator(kept, trail)
+		// Doc and separator cannot fit, so the doc goes and the directive stays.
+		if !fitsCode(kept, b) {
+			kept = nil
+		}
+	}
 	out := make([]string, 0, len(lead)+len(kept)+len(trail))
 	out = append(out, lead...)
 	out = append(out, kept...)
@@ -238,17 +248,11 @@ func prose(text []string) []string {
 	return kept
 }
 
-// weighed is the prose a block is measured by. A bare marker line right before
-// a directive is gofmt's separator, which no edit can remove, so it is not weighed.
-func weighed(text []string) []string {
-	kept := make([]string, 0, len(text))
-	for i, line := range text {
-		if isBlankComment(line) && i+1 < len(text) && isDirectiveLine(text[i+1]) {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	return prose(kept)
+// withSeparator adds the bare marker line gofmt puts between a doc and the
+// directive after it, so the repair is measured as gofmt will leave it.
+func withSeparator(kept, trail []string) []string {
+	indent := trail[0][:len(trail[0])-len(strings.TrimLeft(trail[0], " \t"))]
+	return append(append([]string{}, kept...), indent+"//")
 }
 
 // isDirectiveLine reports a line a tool reads rather than a reader. The C family
