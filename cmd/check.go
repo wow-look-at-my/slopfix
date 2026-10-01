@@ -147,7 +147,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		for _, finding := range repair.Findings {
-			found = true
+			found = found || !finding.Warning()
 			fmt.Fprintf(cmd.OutOrStdout(), "%s:%s\n", path, finding)
 		}
 		for _, kept := range repair.Kept {
@@ -171,7 +171,9 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	for _, path := range out.Repaired {
 		fmt.Fprintln(cmd.OutOrStdout(), path)
 	}
+	failed := false
 	for _, finding := range out.Findings {
+		failed = failed || !finding.Finding.Warning()
 		fmt.Fprintf(cmd.OutOrStdout(), "%s:%s\n", finding.Path, finding.Finding)
 	}
 	for _, kept := range out.Kept {
@@ -180,7 +182,7 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	for _, unmet := range out.Unmet {
 		fmt.Fprintln(cmd.ErrOrStderr(), unmet.Error())
 	}
-	return len(out.Findings) > 0 || len(out.Kept) > 0 || len(out.Unmet) > 0
+	return failed || len(out.Kept) > 0 || len(out.Unmet) > 0
 }
 
 // checkStdin answers for a document on stdin rather than a named file.
@@ -216,10 +218,12 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing bool) err
 	for _, hit := range repair.Kept {
 		fmt.Fprintf(cmd.ErrOrStderr(), "[%s] %s: %q\n    %s\n", hit.ID, hit.Tell, hit.Phrase, hit.Line)
 	}
+	failed := false
 	for _, finding := range repair.Findings {
+		failed = failed || !finding.Warning()
 		fmt.Fprintln(cmd.ErrOrStderr(), finding)
 	}
-	if len(repair.Findings) > 0 || len(repair.Kept) > 0 {
+	if failed || len(repair.Kept) > 0 {
 		return errFindings
 	}
 	return nil

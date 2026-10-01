@@ -36,7 +36,7 @@ const (
 var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
 	IDPostdeterminer,
-)
+).Union(WarningIDs)
 
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
@@ -50,14 +50,23 @@ type Finding struct {
 	Detail string
 	// Fix names the repair, in the imperative.
 	Fix string
+	// Severity is SeverityWarning for a finding that must not fail a check, and empty for an error.
+	Severity string
 }
+
+// Warning reports whether the finding informs rather than fails.
+func (f Finding) Warning() bool { return f.Severity == SeverityWarning }
 
 func (f Finding) String() string {
 	detail := ""
 	if f.Detail != "" {
 		detail = fmt.Sprintf(" %q", f.Detail)
 	}
-	return fmt.Sprintf("%d: [%s] %s%s. %s", f.Line, f.ID, f.Rule, detail, f.Fix)
+	level := ""
+	if f.Warning() {
+		level = "warning "
+	}
+	return fmt.Sprintf("%d: %s[%s] %s%s. %s", f.Line, level, f.ID, f.Rule, detail, f.Fix)
 }
 
 // SentenceWordCap is STE's cap for a descriptive sentence.
@@ -179,6 +188,7 @@ var proseRules = []proseRule{
 	{"rule/ste-comma-splice", checkSplices},
 	{"rule/ste-count", checkCounts},
 	{"rule/ste-postdeterminer", checkPostdeterminers},
+	{"rule/ste-warnings", checkWarnings},
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
