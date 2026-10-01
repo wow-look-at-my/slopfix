@@ -170,6 +170,9 @@ func fixText(req Request) Repair {
 
 	switch kind {
 	case fixer.Workflow:
+		if !wants(RuleWorkflow) {
+			break
+		}
 		for _, finding := range workflow.Check(text) {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
