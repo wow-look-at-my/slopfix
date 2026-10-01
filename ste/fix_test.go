@@ -68,6 +68,13 @@ func TestFixDividesBeforeASubordinateClauseAfterAnd(t *testing.T) {
 	assert.Equal(t, "The gate reads every file that the session wrote. However, if the cache is cold at the start of the run, the build waits for the whole tree.", ste.Fix(long))
 }
 
+// A quotation is another voice, so a rule never judges the words inside it.
+func TestCheckSkipsQuotedText(t *testing.T) {
+	assert.Empty(t, ste.Check(`The owner said "it is fine; ship it" and moved on.`, 1))
+	assert.Empty(t, ste.Check("The owner said “it is fine; ship it” and moved on.", 1))
+	assert.NotEmpty(t, ste.Check("The owner said it is fine; ship it.", 1))
+}
+
 // A semicolon that ends the prose before a code span keeps its space.
 func TestFixKeepsTheSpaceBeforeACodeSpan(t *testing.T) {
 	assert.Equal(t, "Docker is unavailable. `MESA_DIR` still overrides it.", ste.Fix("Docker is unavailable; `MESA_DIR` still overrides it."))

@@ -188,8 +188,12 @@ func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
-	return entity.ReplaceAllString(text, " ENTITY ")
+	text = entity.ReplaceAllString(text, " ENTITY ")
+	// A quotation is another voice, so no rule judges the words inside it.
+	return quotation.ReplaceAllString(text, " QUOTE ")
 }
+
+var quotation = regexp.MustCompile(`"[^"\n]*"|“[^”\n]*”`)
 
 func checkWords(prose string, line int) []Finding {
 	var out []Finding
