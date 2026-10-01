@@ -381,7 +381,6 @@ func clauseFit(b block) ([]string, bool) {
 		body = append(body, stripMarker(line))
 	}
 	text := strings.Join(strings.Fields(strings.Join(body, " ")), " ")
-	budget := max(floorChars, b.codeChars)
 	for _, cut := range clauseCuts(text) {
 		kept := strings.TrimRight(text[:cut], " ,;:-")
 		words := strings.Fields(kept)
@@ -391,14 +390,28 @@ func clauseFit(b block) ([]string, bool) {
 		if !endsSentence(kept) {
 			kept += "."
 		}
-		for _, width := range []int{min(budget, wrapWidth), budget} {
-			out := reflow(kept, indent, marker, width)
-			if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
-				return out, true
-			}
+		if out, ok := fitReflow(kept, indent, marker, b); ok {
+			return out, true
 		}
 	}
 	return nil, false
+}
+
+// oneLine is a reflow width no comment reaches, so the prose stays on one line.
+const oneLine = 1 << 20
+
+// fitReflow lays text out at the narrowest width that fits the budget of b.
+// The budget counts characters, not columns, so a single line is the last try.
+func fitReflow(text, indent, marker string, b block) ([]string, bool) {
+	budget := max(floorChars, b.codeChars)
+	var out []string
+	for _, width := range []int{min(budget, wrapWidth), budget, oneLine} {
+		out = reflow(text, indent, marker, width)
+		if fitsCode(out, b) {
+			return out, true
+		}
+	}
+	return out, false
 }
 
 // wordFit keeps the longest run of leading words that fits the budget, when
@@ -413,13 +426,9 @@ func wordFit(b block) ([]string, bool) {
 	for _, line := range prose(b.text) {
 		body = append(body, stripMarker(line))
 	}
-	budget := max(floorChars, b.codeChars)
 	render := func(text string) []string {
-		out := reflow(text, indent, marker, min(budget, wrapWidth))
-		if fitsCode(out, b) {
-			return out
-		}
-		return reflow(text, indent, marker, budget)
+		out, _ := fitReflow(text, indent, marker, b)
+		return out
 	}
 	return wordCut(strings.Join(body, " "), render, b)
 }

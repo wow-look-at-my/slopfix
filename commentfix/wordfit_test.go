@@ -39,6 +39,21 @@ func TestAWordCutLandsBeforeAnAside(t *testing.T) {
 	assert.Contains(t, out, "is NOT the lane-index idiom.\n", "the claim survives:\n%s", out)
 }
 
+// The budget counts characters, so a cut that fits on one long line is kept.
+// Wrapped at the column cap, this kept only "RegistersFromCompiler is true."
+func TestACutMayUseOneLongLine(t *testing.T) {
+	src := "package p\n\ntype R struct {\n" +
+		"\t// RegistersFromCompiler is true when MaxSGPR/MaxVGPR/SpilledSGPRs/\n" +
+		"\t// SpilledVGPRs/Occupancy are the compiler-authoritative figures ACO reported\n" +
+		"\t// for a real compile (via SetCompiledRegisters), and false when they are\n" +
+		"\t// re-derived from the disassembly.\n" +
+		"\tRegistersFromCompiler bool\n}\n"
+	out, changed := FixLength("p.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("p.go", out))
+	assert.Contains(t, out, "are the compiler-authoritative figures", "the cut keeps the claim:\n%s", out)
+}
+
 // A clause mark near the opening keeps less than a word cut near the budget.
 func TestTheCutThatKeepsMoreWins(t *testing.T) {
 	src := "package p\n\ntype C struct {\n" +
