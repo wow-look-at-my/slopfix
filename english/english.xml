@@ -192,8 +192,8 @@
            expect="macOS ARM64 status: file I/O works"/>
   <pattern id="tombstones/date"
            match="(?i)\(\s*(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\s*[,;:]\s*" replace="("
-           where="comment document">
-    <test in="Windows status (2026-07-20, NT bring-up wave 3 COMPLETE) holds" out="Windows status (NT bring-up wave 3 COMPLETE) holds"/>
+           where="comment document" test="Windows status (2026-07-20, NT bring-up wave 3 COMPLETE) holds"
+           expect="Windows status (NT bring-up wave 3 COMPLETE) holds">
     <test in="File metadata followed (2026-09-02, the metadata wave): utimensat" out="File metadata followed (the metadata wave): utimensat"/>
   </pattern>
   <pattern id="tombstones/date"
