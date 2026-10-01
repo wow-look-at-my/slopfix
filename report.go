@@ -1,6 +1,7 @@
 package slopfix
 
 import (
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
@@ -17,15 +18,15 @@ func pending(req Request, already []tombstones.Hit) []tombstones.Hit {
 	if kindOf(req.Path, req.Content) != fixer.Source || !wantsOf(req)(RuleComments) || !keepsOf(req)(commentfix.IDLength) {
 		return nil
 	}
-	seen := map[int]bool{}
+	seen := set.New[int]()
 	for _, hit := range already {
 		if hit.ID == commentfix.IDLength {
-			seen[hit.LineNo] = true
+			seen.Add(hit.LineNo)
 		}
 	}
 	var out []tombstones.Hit
 	for _, hit := range commentfix.CheckLength(req.Path, req.Content) {
-		if !seen[hit.Line] {
+		if !seen.Contains(hit.Line) {
 			out = append(out, tombstones.Hit{ID: hit.ID, Tell: hit.Tell, Phrase: hit.Sentence, LineNo: hit.Line})
 		}
 	}
