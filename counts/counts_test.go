@@ -95,6 +95,17 @@ func TestStripKeepsTheCapitalOfASentenceItOpens(t *testing.T) {
 	}
 }
 
+func TestACountAfterANounIsReportedAndNotCut(t *testing.T) {
+	in := "The Linux syscall takes no flags, and one APE must not answer one call two ways."
+	assert.NotEmpty(t, Gate(in), "the count is still reported")
+	out, cut := StripGate(in)
+	assert.Equal(t, in, out, "a cut leaves \"one call ways\"")
+	assert.Empty(t, cut)
+
+	out, _ = StripGate("against binaries built on all three platforms.")
+	assert.Equal(t, "against binaries built on all platforms.", out, "a determiner before the count still lets it go")
+}
+
 func TestStripLeavesACleanDocumentUntouched(t *testing.T) {
 	doc := "Every plugin this repo installs rides in the payload.\n"
 	out, cut := Strip(doc)

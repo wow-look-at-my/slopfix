@@ -24,6 +24,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -118,7 +119,7 @@ func Edits(content string, hits []Hit) []edit.Edit {
 			continue
 		}
 		number := cardinal.Leading.FindString(content[hit.Start:hit.End])
-		if number == "" || measuresARate(content[:hit.Start], hit.Phrase) {
+		if number == "" || measuresARate(content[:hit.Start], hit.Phrase) || followsANoun(content, hit.Start) {
 			continue
 		}
 		e := edit.Edit{Start: hit.Start, End: hit.Start + len(number), Cut: []string{hit.Phrase}}
@@ -145,6 +146,30 @@ func measuresARate(before, phrase string) bool {
 }
 
 var rateWords = set.Of[string]("every", "each", "per")
+
+// followsANoun reports whether the cardinal at start comes straight after a
+// noun or a personal pronoun, as in "answer one call two ways". The quantity is
+// then a second noun phrase. A cut joins its bare plural to the noun before it
+// and leaves "one call ways", so the count is reported and not cut.
+func followsANoun(content string, start int) bool {
+	from := strings.LastIndexByte(content[:start], '\n') + 1
+	to := len(content)
+	if end := strings.IndexByte(content[start:], '\n'); end >= 0 {
+		to = start + end
+	}
+	words := syntax.Parse(content[from:to], nil).Words
+	for idx, word := range words {
+		if from+word.Start != start {
+			continue
+		}
+		if idx == 0 {
+			return false
+		}
+		tag := words[idx-1].Tag
+		return strings.HasPrefix(tag, "NN") || tag == "PRP"
+	}
+	return false
+}
 
 // proseLine is a line of the document's own voice, with where it begins.
 type proseLine struct {
