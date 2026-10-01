@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
 // The root files every request loads. CharBudget caps each.
-var rootFiles = []string{"README.md", AgentsFile, ClaudeFile}
+var rootFiles = set.Of[string]("README.md", AgentsFile, ClaudeFile)
 
 // CharBudget caps each root file and each instruction file, because every request pays for the whole file.
 const CharBudget = 40_000
@@ -33,14 +33,14 @@ func SurveyRoot(root string, dryRun bool) (*RootResult, error) {
 		return result, err
 	}
 	result.Agents = agents
-	for _, name := range rootFiles {
+	for name := range rootFiles.All() {
 		if err := budgetOf(filepath.Join(root, name), name, result); err != nil {
 			return result, err
 		}
 	}
 	for _, path := range commentfix.TreeFilesMatching(root, isInstructionFile) {
 		rel, err := filepath.Rel(root, path)
-		if err != nil || slices.Contains(rootFiles, rel) {
+		if err != nil || rootFiles.Contains(rel) {
 			continue
 		}
 		if err := budgetOf(path, rel, result); err != nil {
