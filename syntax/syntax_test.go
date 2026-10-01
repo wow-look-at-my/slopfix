@@ -66,6 +66,18 @@ func TestEmphasisMarkersAreNotWords(t *testing.T) {
 	}
 }
 
+func TestAsLongAsOpensASubordinateClause(t *testing.T) {
+	s := parse(t, "The gate ran it, and for as long as the gate ran, its violations were invisible.")
+	var kinds []syntax.LinkKind
+	for _, c := range s.Clauses {
+		kinds = append(kinds, c.Kind)
+	}
+	assert.Contains(t, kinds, syntax.Subordinate)
+	last := s.Clauses[len(s.Clauses)-1]
+	assert.Equal(t, "its violations", subject(s, last))
+	assert.Zero(t, last.Depth)
+}
+
 func TestNounsJoinedByAndAreOneClause(t *testing.T) {
 	s := parse(t, "The gate reads files and directories.")
 	assert.Len(t, s.Clauses, 1)

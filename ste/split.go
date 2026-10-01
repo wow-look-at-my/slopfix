@@ -163,6 +163,36 @@ func divisions(s *syntax.Sentence, source string) []division {
 			opener:     opener,
 		})
 	}
+	return append(out, beforeSubordinate(s, source)...)
+}
+
+// beforeSubordinate divides at ", and" when a subordinate clause and then a main
+// clause follow it, as in ", and if the cache is cold, the build waits".
+func beforeSubordinate(s *syntax.Sentence, source string) []division {
+	var out []division
+	for k := 1; k+1 < len(s.Clauses); k++ {
+		c, next := s.Clauses[k], s.Clauses[k+1]
+		if c.Kind != syntax.Subordinate || c.Depth != 1 || next.Kind != syntax.Opens || next.Depth != 0 || next.Subject == nil || next.Verb == nil {
+			continue
+		}
+		conj := c.Link - 1
+		if conj > 0 && s.Words[conj].Tag == "IN" {
+			// "for as long as": the preposition goes with the subordinate clause.
+			conj--
+		}
+		if conj < 1 || s.Words[conj].Tag != "CC" || s.Words[conj-1].Text != "," {
+			continue
+		}
+		connector, known := connectors[s.Words[conj].Lower()]
+		if _, hasMain := mainBefore(s, k); !known || !hasMain {
+			continue
+		}
+		out = append(out, division{
+			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, conj)].End, true),
+			rightStart: outsideSpans(source, s.Words[conj+1].Start, false),
+			opener:     connector,
+		})
+	}
 	return out
 }
 

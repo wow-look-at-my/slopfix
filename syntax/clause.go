@@ -222,6 +222,9 @@ func (p *clauseParser) chainEnd(ph *Phrase) int {
 // ambiguous are subordinators that are also prepositions: "after the build".
 var ambiguous = set.Of[string]("before", "after", "since", "until", "once")
 
+// asPhrase holds the middle word of the subordinators "as long as" and "as soon as".
+var asPhrase = set.Of[string]("long", "soon")
+
 func (p *clauseParser) subordinator(i int) bool {
 	w := p.s.Words[i]
 	lower := w.Lower()
@@ -229,6 +232,9 @@ func (p *clauseParser) subordinator(i int) bool {
 		return true
 	}
 	if lower == "that" && w.Tag == "IN" {
+		return true
+	}
+	if lower == "as" && i+2 < len(p.s.Words) && asPhrase.Contains(p.s.Words[i+1].Lower()) && p.s.Words[i+2].Lower() == "as" {
 		return true
 	}
 	if !Is(lower, "subordinator") {

@@ -57,6 +57,17 @@ func TestFixKeepsTheCodeSpanThatEndsTheLeftSentence(t *testing.T) {
 	assert.NotContains(t, fixed, "Unpacks")
 }
 
+// ", and" before a subordinate clause and its main clause is a sentence boundary.
+func TestFixDividesBeforeASubordinateClauseAfterAnd(t *testing.T) {
+	long := "This closed a real hole: `a_test.go` is `//go:build x`, and for as long as the gate ran default tags only, its violations were invisible and its tests compiled nowhere."
+	fixed := ste.Fix(long)
+	assert.Equal(t, "This closed a real hole: `a_test.go` is `//go:build x`. For as long as the gate ran default tags only, its violations were invisible and its tests compiled nowhere.", fixed)
+	assert.Empty(t, ste.Check(fixed, 1))
+
+	long = "The gate reads every file that the session wrote, but if the cache is cold at the start of the run, the build waits for the whole tree."
+	assert.Equal(t, "The gate reads every file that the session wrote. However, if the cache is cold at the start of the run, the build waits for the whole tree.", ste.Fix(long))
+}
+
 // A semicolon that ends the prose before a code span keeps its space.
 func TestFixKeepsTheSpaceBeforeACodeSpan(t *testing.T) {
 	assert.Equal(t, "Docker is unavailable. `MESA_DIR` still overrides it.", ste.Fix("Docker is unavailable; `MESA_DIR` still overrides it."))
