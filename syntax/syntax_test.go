@@ -57,6 +57,15 @@ func TestAClauseAfterAndCarriesItsOwnSubject(t *testing.T) {
 	assert.Equal(t, "fails", verb(s, s.Clauses[1]))
 }
 
+// An emphasis marker is markup. Read as a word, "*as*" became a verb and opened a false clause.
+func TestEmphasisMarkersAreNotWords(t *testing.T) {
+	s := parse(t, "The tarball is rooted at the top and unpacks *as* the build directory.")
+	for _, c := range s.Clauses {
+		assert.NotEqual(t, "*as*", verb(s, c))
+		assert.NotEqual(t, "unpacks", subject(s, c))
+	}
+}
+
 func TestNounsJoinedByAndAreOneClause(t *testing.T) {
 	s := parse(t, "The gate reads files and directories.")
 	assert.Len(t, s.Clauses, 1)

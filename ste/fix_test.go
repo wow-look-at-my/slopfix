@@ -47,6 +47,21 @@ func TestFixDividesALongSentenceAroundACodeSpan(t *testing.T) {
 	assert.Empty(t, ste.Check(fixed, 1))
 }
 
+// The parser reads a masked code span, whose filler word ends before the closing
+// backtick. A division after the span must still keep the whole span.
+func TestFixKeepsTheCodeSpanThatEndsTheLeftSentence(t *testing.T) {
+	long := "The tarball is rooted at `./` and unpacks *as* the build directory — extracting it without `-C dir` sprays `src/`, `include/` and a foreign `.gitignore` over the repo root and chowns it."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "rooted at `./`")
+	assert.Contains(t, fixed, "*as*")
+	assert.NotContains(t, fixed, "Unpacks")
+}
+
+// A semicolon that ends the prose before a code span keeps its space.
+func TestFixKeepsTheSpaceBeforeACodeSpan(t *testing.T) {
+	assert.Equal(t, "Docker is unavailable. `MESA_DIR` still overrides it.", ste.Fix("Docker is unavailable; `MESA_DIR` still overrides it."))
+}
+
 // A parenthetical counts as a single word, so a division inside it would halve
 // something STE says is indivisible.
 func TestFixDividesALongSentenceAroundAParenthetical(t *testing.T) {

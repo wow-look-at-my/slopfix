@@ -161,8 +161,9 @@ func breakWith(prose string, joiners [][]int, openers []string) string {
 		out.WriteString(prose[last:joiner[0]])
 		last = joiner[1]
 		if last == len(prose) {
-			// The joiner ends the text, so no word follows to open a sentence.
-			out.WriteString(".")
+			// No word follows to capitalize. A code span can still follow the text, so the space stays.
+			joined := prose[joiner[0]:last]
+			out.WriteString("." + joined[len(strings.TrimRight(joined, " \t")):])
 			continue
 		}
 		out.WriteString(". ")

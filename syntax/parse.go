@@ -22,7 +22,8 @@ var tokenizer = sync.OnceValue(func() *tokenize.Tokenizer { return tokenize.New(
 // Parse tags and parses a sentence. A word inside an opaque span, such as a
 // code span, is data rather than English, so it is read as a name.
 func Parse(text string, opaque [][]int) *Sentence {
-	tokens := tokenizer().Tokenize(text)
+	// An emphasis marker is markup, not a word. A blank keeps every offset into text.
+	tokens := tokenizer().Tokenize(strings.ReplaceAll(text, "*", " "))
 	tagger().TagTokens(tokens)
 	s := &Sentence{Text: text}
 	for _, t := range tokens {
