@@ -84,7 +84,8 @@ func paragraphs(text []string) []paragraph {
 			out = append(out, paragraph{blank: true})
 			continue
 		}
-		if codeRow(line) {
+		// A directive is read by a tool, so it keeps its bytes and its own line.
+		if codeRow(line) || isDirectiveLine(line) {
 			flush()
 			block = append(block, line)
 			continue

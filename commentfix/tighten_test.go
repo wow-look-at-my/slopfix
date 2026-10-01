@@ -59,6 +59,24 @@ func TestReflowKeepsParagraphBreaks(t *testing.T) {
 	assert.Contains(t, strings.Join(out, "\n"), "//\n", "the blank marker is still there")
 }
 
+// A directive under a blank marker is a line a tool reads. The reflow keeps it
+// on its own line, with no space after the marker.
+func TestReflowKeepsADirectiveVerbatim(t *testing.T) {
+	text := []string{
+		"// darwinEpollSyscall serves an epoll syscall on a macOS host. The pointer",
+		"// arguments may point into the caller's stack, and the emulation can grow",
+		"// that stack, so they are turned into pointers here, in a nosplit",
+		"// function, before anything can move them. A timeout in milliseconds stays",
+		"// an integer: a small integer in a pointer is an invalid pointer to the",
+		"// stack copier.",
+		"//",
+		"//go:nosplit",
+	}
+	out, _, changed := tighten(text)
+	require.True(t, changed)
+	assert.Equal(t, "//\n//go:nosplit", strings.Join(out[len(out)-2:], "\n"))
+}
+
 // A block whose lines disagree about the marker is left alone: rewriting it would
 // change more than the prose.
 func TestAMixedBlockIsNotTightened(t *testing.T) {
