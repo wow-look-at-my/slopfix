@@ -313,8 +313,16 @@ func trim(b block) []string {
 	// The STE opening sentence reads best, then a clause cut, then a word cut.
 	opening, whole := steOpening(kept)
 	var fits [][]string
-	if whole && fitsCode(opening, b) {
-		fits = append(fits, opening)
+	if whole {
+		if marker, indent, ok := commentShape(opening); ok {
+			var body []string
+			for _, line := range opening {
+				body = append(body, stripMarker(line))
+			}
+			if out, fit := fitReflow(strings.Join(body, " "), indent, marker, b); fit {
+				fits = append(fits, out)
+			}
+		}
 	}
 	if clause, ok := clauseFit(b); ok {
 		fits = append(fits, clause)

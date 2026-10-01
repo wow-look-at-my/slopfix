@@ -39,6 +39,18 @@ func TestAWordCutLandsBeforeAnAside(t *testing.T) {
 	assert.Contains(t, out, "is NOT the lane-index idiom.\n", "the claim survives:\n%s", out)
 }
 
+// A whole opening sentence that fits on one line beats a clause cut inside it.
+func TestAWholeSentenceOnOneLineBeatsAClauseCut(t *testing.T) {
+	src := "package p\n\nfunc f() {\n" +
+		"\t// A label-only line, plus a same-line label, both attach to the following\n" +
+		"\t// instruction so a branch target resolves to an instruction index.\n" +
+		"\tinsts, err := parse(src)\n\tuse(insts, err)\n}\n"
+	out, changed := FixLength("p.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("p.go", out))
+	assert.Contains(t, out, "both attach to the following instruction", "the sentence stays whole:\n%s", out)
+}
+
 // The budget counts characters, so a cut that fits on one long line is kept.
 // Wrapped at the column cap, this kept only "RegistersFromCompiler is true."
 func TestACutMayUseOneLongLine(t *testing.T) {
