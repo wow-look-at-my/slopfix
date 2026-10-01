@@ -216,7 +216,8 @@
   <pattern match="(?i)\s*\b(?:previously|formerly|originally|hitherto)\b[,]?" replace=""
            where="comment document" test="Originally, the cap was read from a flag"
            expect="The cap was read from a flag"/>
-  <pattern match="(?i)\s*\b(?:no longer|anymore|nowadays|these days)\b" replace=""
+  <!-- "no longer" is absent: it is a negation, and a cut inverts the sentence. -->
+  <pattern match="(?i)\s*\b(?:anymore|nowadays|these days)\b" replace=""
            where="comment document" test="The walk does not recurse anymore"
            expect="The walk does not recurse"/>
   <pattern match="(?i)\bthe (?:former|old|previous|legacy|original) (\S+)" replace="the $1"
@@ -355,6 +356,8 @@
         say="say what is wrong and what it should be"/>
   <flag phrase="somehow" test="It somehow retries twice"
         say="find the mechanism or say you could not: a shrug helps nobody"/>
+  <flag phrase="no longer" test="It no longer retries"
+        say="say what it does; git holds what it did"/>
 
   <!--
     A <test> out here belongs to no entry. It is a line of prose and what the
@@ -414,5 +417,10 @@
 
   <!-- A year in a copyright line goes stale. The holder stays. -->
   <test in="Copyright 2026 The Go Authors." out="Copyright The Go Authors."/>
+
+  <!-- A cut never removes a negation, because the sentence then says the opposite. -->
+  <test in="prune drops every registration whose descriptor no longer refers to the file registered"
+        out="prune drops every registration whose descriptor no longer refers to the file registered"/>
+  <test in="The cache is valid no longer." out="The cache is valid no longer."/>
 
 </english>
