@@ -18,9 +18,6 @@ func TestReportNamesWhatTheRepairWouldChange(t *testing.T) {
 		"const FullMipChain = -1\n"
 	repair := slopfix.Report(slopfix.Request{Path: "p.go", Content: src, Rules: []slopfix.Rule{slopfix.RuleComments}})
 	var ids []string
-	for _, f := range repair.Findings {
-		ids = append(ids, f.ID)
-	}
 	for _, k := range repair.Kept {
 		ids = append(ids, k.ID)
 	}
