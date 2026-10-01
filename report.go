@@ -7,13 +7,14 @@ import (
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
 // pending answers a finding for each run of lines a fixer would change in the
 // text as written. A report of the residue alone passes a file the repair rewrites.
 func pending(req Request) []ste.Finding {
 	// A fixture is judged against its annotations, not against the repair.
-	if expect.Parse(req.Content).Any() {
+	if expect.Parse(req.Content).Any() || tombstones.Borrowed(req.Path) {
 		return nil
 	}
 	kind := kindOf(req.Path, req.Content)

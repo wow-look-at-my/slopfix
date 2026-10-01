@@ -12,6 +12,7 @@ package tombstones
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/code"
@@ -66,11 +67,16 @@ func IsDocument(path string) bool {
 	return false
 }
 
-// InTestdata reports whether path sits under a testdata directory. A file there
-// is test input, and a rewrite of it changes what the test checks.
-func InTestdata(path string) bool {
+// InTestdata reports whether path sits under a testdata directory.
+func InTestdata(path string) bool { return under(path, "testdata") }
+
+// Borrowed reports whether path sits under a vendor or node_modules directory.
+func Borrowed(path string) bool { return under(path, "vendor", "node_modules") }
+
+// under reports whether a directory element of path is one of dirs.
+func under(path string, dirs ...string) bool {
 	for _, part := range strings.FieldsFunc(path, func(r rune) bool { return r == '/' || r == '\\' }) {
-		if part == "testdata" {
+		if slices.Contains(dirs, part) {
 			return true
 		}
 	}
