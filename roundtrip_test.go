@@ -98,6 +98,9 @@ func roundTripFixtures() []fixture {
 				"      # It reads the tree.\n" +
 				"      - uses: wow-look-at-my/slopfix@v1\n" +
 				"        continue-on-error: true\n" +
+				"      - env:\n" +
+				"          OUT: ${{ steps.x.outputs.path }}\n" +
+				"        run: cat \"$OUT\"\n" +
 				"      - name: assert\n" +
 				"        run: |\n" +
 				"          grep -q ok out.txt || { echo \"::error::missing\"; exit 1; }\n",
@@ -106,6 +109,7 @@ func roundTripFixtures() []fixture {
 				"yaml/all-builds-job",
 				"yaml/test-in-workflow",
 				"yaml/neutered-gate",
+				"yaml/env-indirection",
 			},
 		},
 		{

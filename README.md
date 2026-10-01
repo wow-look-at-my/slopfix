@@ -15,7 +15,7 @@ It also carries the Claude Code hook subcommands that the org's marketplace plug
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate` | yes |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/env-indirection` | yes |
 | message | `laziness/punt`, `blame/deflection` | no |
 
 - `repo`: `CLAUDE.md` holds only `@AGENTS.md`, and each root file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`.
