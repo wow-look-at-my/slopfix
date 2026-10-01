@@ -359,8 +359,7 @@ func terminator(r rune) bool {
 	return r == '.' || r == '!' || r == '?'
 }
 
-// opensSentence reports whether the text starts a new sentence. A capital, a
-// digit and an opening delimiter each do, and so does a lower-case file name.
+// opensSentence reports whether the text starts a new sentence.
 var maskedSpan = regexp.MustCompile(`^x{4,}(?:\s|$)`)
 
 func opensSentence(rest []rune) bool {

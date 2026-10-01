@@ -30,10 +30,8 @@ func words(class string) string {
 var possessiveFrame = regexp.MustCompile(
 	`(?i)\b(?:this|these|our|the)\s+(?:[a-z][a-z-]*\s+){0,2}?[a-z][a-z-]*'s\s+(` + quantity + `)`)
 
-// havingFrame is a verb asserting possession or extent, as in "it ships hooks"
-// or "there are sections". A measurement inside a frame is a count like any
-// other: a budget gets raised and a suite gets slower, and it reads with more
-// authority than a tally because an instrument looks to have produced it.
+// havingFrame is a verb asserting possession or extent, as in "it ships
+// hooks" or "there are sections".
 var havingFrame = regexp.MustCompile(
 	`(?i)\b(?:` + words("framing") +
 		`|(?:` + words("durative") + `)\s+(?:` + words("duration") + `)` +

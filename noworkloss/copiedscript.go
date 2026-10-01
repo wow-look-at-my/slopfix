@@ -10,9 +10,7 @@ import (
 )
 
 // A new script that repeats another script's lines is a variant of that
-// script. The variant belongs in it as an option or a subcommand, reached with
-// Edit. A folder of set-x, set-y and set-z files, each carrying the same fetch
-// and the same PUT, is what this refuses.
+// script.
 
 // scriptExts are the files run as programs, where a copy becomes a second
 // place to fix every bug.
@@ -21,8 +19,7 @@ var scriptExts = set.Of[string](".js", ".mjs", ".cjs",
 	".py", ".sh", ".bash", ".zsh",
 	".ps1", ".rb", ".pl")
 
-// copiedLineFloor is how many substantial lines a new script may share with
-// one sibling.
+// copiedLineFloor is how many substantial lines a new script may share with one sibling.
 const copiedLineFloor = 4
 
 // substantialLen keeps braces, `}`, `return;` and blank lines out of the count.
