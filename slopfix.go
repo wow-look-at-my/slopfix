@@ -8,6 +8,7 @@ package slopfix
 import (
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -30,15 +31,16 @@ func Check(content string) []ste.Finding {
 		if block.Kind != markdown.Prose {
 			continue
 		}
-		if len(block.Lines) > 1 {
+		out = append(out, ste.Check(block.Text(), block.Start)...)
+		for i := 1; i < len(block.Lines); i++ {
 			out = append(out, ste.Finding{
-				Line: block.Start,
-				ID:   IDHardWrap,
-				Rule: "a paragraph is one line",
-				Fix:  "Join it back up and let the reader's window wrap it. `slopfix fix` does this.",
+				Line:   block.Start + i,
+				ID:     IDHardWrap,
+				Rule:   "a paragraph is one line",
+				Detail: "this line continues the paragraph on line " + strconv.Itoa(block.Start),
+				Fix:    "Join it back up and let the reader's window wrap it. `slopfix fix` does this.",
 			})
 		}
-		out = append(out, ste.Check(block.Text(), block.Start)...)
 	}
 	return out
 }
