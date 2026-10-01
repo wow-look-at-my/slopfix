@@ -73,7 +73,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | all but the volume cap |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate` | yes |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/duplicate-step-key` | all but the duplicate key |
 | `pins` | `pins/download-version` | yes, except a templated or HTML-escaped URL |
 | message | `laziness/punt`, `blame/deflection` | no |
 
@@ -250,6 +250,7 @@ These rules judge the format. The prose rules never run on these files. A file i
 - `yaml/all-builds-job`: a job named `all-builds`, by key or rendered name. The required gate is a commit status from the required-builds-manager app. A job with that name shadows it. The repair renames the job to `builds` and fixes each `needs` entry.
 - `yaml/test-in-workflow`: a test inside a `run:` script. That is an assertion with a nonzero exit, a function whose name says it asserts, or a redirect to a test file. The repair deletes the assertion lines, because a test belongs in the suite.
 - `yaml/neutered-gate`: a gate step under `continue-on-error`. A step allowed to fail is not a gate. The repair deletes that line, found by parser positions.
+- `yaml/duplicate-step-key`: a key a step names twice. GitHub rejects the whole file for one, before it makes any job, so the run that would have reported it never starts, and every other workflow in the repository goes with it. Only a key at the step's own indentation counts: one level in belongs to `with:`, `env:` or another mapping, where the name is free to appear again. It reports only. Which value the author meant is not in the file.
 
 The all-builds wording is the operator's own. It must not be softened. A job that wears the required status's name is a known deception attempt.
 
