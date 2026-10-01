@@ -24,7 +24,7 @@ func TestAWordCutEndsAPhrase(t *testing.T) {
 	out, changed := FixLength("p.go", src)
 	require.True(t, changed)
 	assert.Empty(t, CheckLength("p.go", out))
-	assert.Contains(t, out, "(VGPR, SGPR, LDS, hardware cap).\n", "the cut lands before the phrase the budget cannot hold:\n%s", out)
+	assert.Contains(t, out, "(VGPR, SGPR, LDS, hardware cap) and names the constraint.\n", "the cut lands before the phrase the budget cannot hold:\n%s", out)
 }
 
 // A cut before an aside keeps the claim the aside only explains.

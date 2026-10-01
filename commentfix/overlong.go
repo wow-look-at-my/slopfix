@@ -310,21 +310,20 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
-	// Try the STE opening sentence, then a clause mark, never a cut between words.
+	// The STE opening sentence reads best, then a clause cut, then a word cut.
 	opening, whole := steOpening(kept)
-	if whole {
-		if _, over := judge(block{text: opening, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
-			return opening
-		}
+	var fits [][]string
+	if whole && fitsCode(opening, b) {
+		fits = append(fits, opening)
 	}
-	// A clause cut reads best, unless it keeps under half what a word cut keeps.
-	clause, clauseOK := clauseFit(b)
-	words, wordsOK := wordFit(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars})
-	switch {
-	case clauseOK && (!wordsOK || 2*wordCount(clause) >= wordCount(words)):
-		return clause
-	case wordsOK:
-		return words
+	if clause, ok := clauseFit(b); ok {
+		fits = append(fits, clause)
+	}
+	if words, ok := wordFit(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); ok {
+		fits = append(fits, words)
+	}
+	if out, ok := preferred(fits); ok {
+		return out
 	}
 	if whole {
 		return opening
@@ -431,6 +430,21 @@ func wordFit(b block) ([]string, bool) {
 		return out
 	}
 	return wordCut(strings.Join(body, " "), render, b)
+}
+
+// preferred answers the earliest cut that keeps at least a third of the words
+// the longest cut keeps. A cut that reads well and keeps almost nothing loses.
+func preferred(cuts [][]string) ([]string, bool) {
+	most := 0
+	for _, cut := range cuts {
+		most = max(most, wordCount(cut))
+	}
+	for _, cut := range cuts {
+		if 3*wordCount(cut) >= most {
+			return cut, true
+		}
+	}
+	return nil, false
 }
 
 // wordCount counts the words of a block's prose.
