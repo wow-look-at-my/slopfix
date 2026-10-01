@@ -16,6 +16,7 @@ import (
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 	"github.com/wow-look-at-my/slopfix/code"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // languageFor answers the grammar for a filename, and nil when none parses it.
@@ -87,7 +88,7 @@ func collect(node ts.Node, root bool, src string, lines []string, rows map[int]i
 			i = stop - 1
 			// A comment above the package declaration introduces the package
 			// rather than a construct, so there is nothing of a comparable size
-			if header || documentsTheCgoImport(node, src, next, count) {
+			if header || documentsTheCgoImport(node, src, next, count) || holdsNotice(run, src) {
 				continue
 			}
 			if b, ok := blockFor(run, node, next, count, lines, rows); ok {
@@ -97,6 +98,18 @@ func collect(node ts.Node, root bool, src string, lines []string, rows map[int]i
 		}
 		collect(child, false, src, lines, rows, out)
 	}
+}
+
+// holdsNotice reports a run with a copyright or license notice. The edit gate
+// never writes into a notice, so no rule weighs one.
+func holdsNotice(run []ts.Node, src string) bool {
+	for _, n := range run {
+		start, end := int(n.StartByte()), int(n.EndByte())
+		if start >= 0 && end <= len(src) && start < end && treecomments.IsLicenseNotice(src[start:end]) {
+			return true
+		}
+	}
+	return false
 }
 
 // commentRun gathers the comments starting at index i that sit on adjoining

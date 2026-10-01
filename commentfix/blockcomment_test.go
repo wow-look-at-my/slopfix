@@ -8,6 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// A license notice is never weighed: the edit gate refuses to cut one, so a
+// finding on it could never be repaired.
+func TestALicenseNoticeIsNotWeighed(t *testing.T) {
+	src := "/*\n** Copyright 2015-2024 The Khronos Group Inc.\n**\n** SPDX-License-Identifier: Apache-2.0\n*/\nint x;\n"
+	assert.Empty(t, CheckLength("x.h", src))
+}
+
 // A comment that is one parenthetical aside has no cut inside it that closes,
 // so the cut drops the enclosing parenthesis.
 func TestACommentThatIsOneAsideRepairs(t *testing.T) {
