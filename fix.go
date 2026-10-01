@@ -13,6 +13,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/mdbudget"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -38,10 +39,12 @@ const (
 	RuleWorkflow Rule = "yaml"
 	// RulePins is a download URL that names an exact release.
 	RulePins Rule = "pins"
+	// RuleBudget is an instruction file past the character budget.
+	RuleBudget Rule = "budget"
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins, RuleBudget}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -63,6 +66,8 @@ func IDsFor(rule Rule) set.Set[string] {
 		return RepoIDs
 	case RulePins:
 		return pins.AllIDs
+	case RuleBudget:
+		return set.Of(mdbudget.ID)
 	}
 	return set.New[string]()
 }
@@ -197,6 +202,13 @@ func fixText(req Request) Repair {
 	case fixer.Document:
 		if wants(RuleSTE) {
 			for _, finding := range Check(text) {
+				if keeps(finding.ID) {
+					repair.Findings = append(repair.Findings, finding)
+				}
+			}
+		}
+		if wants(RuleBudget) {
+			for _, finding := range mdbudget.Check(req.Path, text) {
 				if keeps(finding.ID) {
 					repair.Findings = append(repair.Findings, finding)
 				}

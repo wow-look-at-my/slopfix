@@ -2,6 +2,7 @@ package slopfix
 
 import (
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/askproperly"
 	"github.com/wow-look-at-my/slopfix/blamelanguage"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
@@ -19,6 +20,9 @@ const IDPunt = laziness.ID
 
 // IDBlame names the deflection rule over a closing message.
 const IDBlame = blamelanguage.ID
+
+// IDAsk names the rule over a decision handed to the reader in prose.
+const IDAsk = askproperly.ID
 
 // Hook is a named selection of rule IDs. Only holds a category or a rule ID,
 // and empty means the default set.
@@ -51,7 +55,7 @@ var hooks = []Hook{
 	{
 		Name:    "common-checks",
 		Event:   "PreToolUse",
-		Runs:    "slopfix report --path <file>",
+		Runs:    "slopfix check --json --path <file>",
 		Summary: "the default check set, which is what this gate means",
 	},
 	{
@@ -71,22 +75,23 @@ var hooks = []Hook{
 	{
 		Name:    "no-laziness",
 		Event:   "Stop",
-		Runs:    "slopfix message",
+		Runs:    "slopfix hook --only laziness",
 		Summary: "a turn ending with the work undone",
 		Only:    []string{IDPunt},
 	},
 	{
 		Name:    "no-blame-language",
 		Event:   "MessageDisplay",
-		Runs:    "slopfix message --only blame",
+		Runs:    "slopfix hook --only blame-language",
 		Summary: "deflecting phrasing in a closing message",
 		Only:    []string{IDBlame},
 	},
 	{
 		Name:    "ask-properly",
 		Event:   "MessageDisplay",
+		Runs:    "slopfix hook --only ask-properly",
 		Summary: "a decision handed to the reader in prose",
-		Pending: true,
+		Only:    []string{IDAsk},
 	},
 	{
 		Name:    "link-all-refs",
@@ -140,6 +145,6 @@ func EveryRuleID() set.Set[string] {
 	for _, rule := range AllRules {
 		every = every.Union(IDsFor(rule))
 	}
-	every.AddRange(IDCommentNumber, IDPunt, IDBlame)
+	every.AddRange(IDCommentNumber, IDPunt, IDBlame, IDAsk)
 	return every
 }

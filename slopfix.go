@@ -14,6 +14,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/mdbudget"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -92,7 +93,7 @@ func kindFindings(path, content string) []ste.Finding {
 		return workflow.Check(content)
 	}
 	if isDocument(path) {
-		return append(Check(content), Warnings(content)...)
+		return slices.Concat(Check(content), Warnings(content), mdbudget.Check(path, content))
 	}
 	// A source file's lines are not paragraphs, so the prose rules stop here.
 	return commentFindings(path, content)
@@ -162,7 +163,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs).Union(pins.AllIDs)
-	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
+	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail, mdbudget.ID)
 	return ids
 }
 

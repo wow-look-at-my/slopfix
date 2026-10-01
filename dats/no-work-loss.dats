@@ -38,7 +38,7 @@ tests:
 		done
 		echo scratch > scratch.txt
 		printf '{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"%s","tool_input":{"command":"rm scratch.txt"}}' "$repo" |
-			"$slopfix" no-work-loss
+			"$slopfix" hook --only no-work-loss
 		printf '\n'
 		git log -1 --pretty=%s
 		git show HEAD:scratch.txt
@@ -69,7 +69,7 @@ tests:
 		chmod +x .git/hooks/pre-push
 		echo scratch > scratch.txt
 		printf '{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"%s","tool_input":{"command":"rm scratch.txt"}}' "$repo" |
-			"$slopfix" no-work-loss
+			"$slopfix" hook --only no-work-loss
 		printf '\n'
 		echo "distinct-revs=$(git rev-parse HEAD origin/master | sort -u | wc -l)"
 	  outputs:
