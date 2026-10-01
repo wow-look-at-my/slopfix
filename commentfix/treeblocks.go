@@ -69,6 +69,10 @@ func collect(node ts.Node, root bool, src string, lines []string, rows set.Set[i
 		if code.IsInterpreter(child, src) {
 			continue
 		}
+		// A comment after code on its line documents that code, so it opens no run.
+		if code.IsComment(child) && int(child.StartPoint().Column) > indentWidth(lines[child.StartPoint().Row]) {
+			continue
+		}
 		if code.IsComment(child) {
 			run, stop := commentRun(node, i, count)
 			next := afterComments(node, stop, count)

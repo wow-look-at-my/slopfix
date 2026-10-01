@@ -166,6 +166,23 @@ func TestARunWithNothingAfterItIsAFinding(t *testing.T) {
 	assert.NotEmpty(t, CheckLength("x.go", src))
 }
 
+// A trailing comment on the field above is not part of the next field's doc.
+// Read as one run, the doc was dropped as a trailing comment and never measured.
+func TestADocBelowATrailingCommentIsMeasured(t *testing.T) {
+	src := "package p\n\ntype T struct {\n" +
+		"\tfirstSeen int // instruction index of the first tap (ordering)\n" +
+		"\t// synthetic marks the no-descriptor pool (flat/global loads addressed\n" +
+		"\t// straight from VGPRs).\n" +
+		"\tsynthetic bool\n}\n"
+	assert.NotEmpty(t, CheckLength("x.go", src), "commentspan reports two comment lines over one code line")
+}
+
+// A line that holds only its marker is a comment line, as commentspan counts it.
+func TestABareMarkerLineCounts(t *testing.T) {
+	src := "package p\n\n// The point.\n//\n//go:generate stringer -type=Kind\nconst p = 1\n"
+	assert.NotEmpty(t, CheckLength("x.go", src))
+}
+
 // The control. A comment proportionate to its statement is not a finding, or
 // every block comment in the tree becomes a finding.
 func TestAProportionateCommentInsideABlockIsNotAFinding(t *testing.T) {
