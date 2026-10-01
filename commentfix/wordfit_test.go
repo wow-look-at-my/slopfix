@@ -39,6 +39,32 @@ func TestAWordCutLandsBeforeAnAside(t *testing.T) {
 	assert.Contains(t, out, "is NOT the lane-index idiom.\n", "the claim survives:\n%s", out)
 }
 
+// A clause mark near the opening keeps less than a word cut near the budget.
+func TestTheCutThatKeepsMoreWins(t *testing.T) {
+	src := "package p\n\ntype C struct {\n" +
+		"\t// Progress, when set, is called by the sampler every progressTick with the\n" +
+		"\t// current series' sample count and confidence interval. RunAll installs a\n" +
+		"\t// live-line printer; tests leave it nil.\n" +
+		"\tProgress func(samples int, rmePct, targetRMEPct float64)\n}\n"
+	out, changed := FixLength("p.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("p.go", out))
+	assert.Contains(t, out, "is called by the sampler every progressTick", "the longer cut wins:\n%s", out)
+}
+
+// A comment over a literal element with a trailing comment is weighed against
+// the element. Read as a comment row, the element measured as no code at all.
+func TestAnElementWithATrailingCommentIsCode(t *testing.T) {
+	src := "package p\n\nvar m = map[string]int{\n" +
+		"\t\"a\": 1, // first\n" +
+		"\t// 8-bit.\n" +
+		"\t\"b\": 2, // second\n" +
+		"}\n"
+	assert.Empty(t, CheckLength("p.go", src), "a short heading over an element is in proportion")
+	out, _ := FixLength("p.go", src)
+	assert.Contains(t, out, "// 8-bit.", "nothing deletes it")
+}
+
 func TestFixRepairsASentenceNoClauseCutFits(t *testing.T) {
 	require.NotEmpty(t, CheckLength("p.go", unboundedSentence), "the fixture must be a finding")
 	out, changed := FixLength("p.go", unboundedSentence)

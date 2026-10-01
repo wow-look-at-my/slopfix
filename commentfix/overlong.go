@@ -305,10 +305,13 @@ func trim(b block) []string {
 			return opening
 		}
 	}
-	if clause, ok := clauseFit(b); ok {
+	// The cut that keeps more words wins: a clause mark near the opening loses more than a word cut.
+	clause, clauseOK := clauseFit(b)
+	words, wordsOK := wordFit(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars})
+	switch {
+	case clauseOK && (!wordsOK || wordCount(clause) >= wordCount(words)):
 		return clause
-	}
-	if words, ok := wordFit(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); ok {
+	case wordsOK:
 		return words
 	}
 	if whole {
@@ -407,6 +410,15 @@ func wordFit(b block) ([]string, bool) {
 		return reflow(text, indent, marker, budget)
 	}
 	return wordCut(strings.Join(body, " "), render, b)
+}
+
+// wordCount counts the words of a block's prose.
+func wordCount(text []string) int {
+	n := 0
+	for _, line := range prose(text) {
+		n += len(strings.Fields(stripMarker(line)))
+	}
+	return n
 }
 
 // fitsCode reports whether text fits the budget of the code under b.

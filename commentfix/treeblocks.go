@@ -14,7 +14,6 @@ package commentfix
 import (
 	"strings"
 
-	"github.com/wow-look-at-my/go-containers/set"
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 	"github.com/wow-look-at-my/slopfix/code"
 )
@@ -38,15 +37,23 @@ func treeBlocks(language *ts.Language, src string) (out []block, ok bool) {
 	return out, true
 }
 
-// commentRows names every line a comment node covers. A measure of code skips
-// those rows, so what a comment is weighed against is code the tree calls code.
-func commentRows(root ts.Node) set.Set[int] {
-	rows := set.New[int]()
+// commentRows maps every line a comment node covers to the column the comment
+// starts at there. A measure of code stops at that column, so what a comment
+// is weighed against is code the tree calls code.
+func commentRows(root ts.Node) map[int]int {
+	rows := map[int]int{}
 	var walk func(node ts.Node)
 	walk = func(node ts.Node) {
 		if code.IsComment(node) {
-			for row := int(node.StartPoint().Row); row <= int(lastRow(node)); row++ {
-				rows.Add(row)
+			first := int(node.StartPoint().Row)
+			for row := first; row <= int(lastRow(node)); row++ {
+				col := 0
+				if row == first {
+					col = int(node.StartPoint().Column)
+				}
+				if have, ok := rows[row]; !ok || col < have {
+					rows[row] = col
+				}
 			}
 			return
 		}
@@ -62,7 +69,7 @@ func commentRows(root ts.Node) set.Set[int] {
 // collect walks a node's children, gathering each run of comments with the
 // construct that follows it, then recurses. A comment inside a function body
 // is found the same way as a comment above a declaration.
-func collect(node ts.Node, root bool, src string, lines []string, rows set.Set[int], out *[]block) {
+func collect(node ts.Node, root bool, src string, lines []string, rows map[int]int, out *[]block) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
 		child := node.NamedChild(i)
@@ -111,7 +118,7 @@ func commentRun(node ts.Node, i, count uint32) ([]ts.Node, uint32) {
 }
 
 // blockFor measures a comment run against the construct it documents.
-func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string, rows set.Set[int]) (block, bool) {
+func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string, rows map[int]int) (block, bool) {
 	start := int(run[0].StartPoint().Row)
 	end := int(lastRow(run[len(run)-1])) + 1
 	if start < 0 || end > len(lines) || start >= end {
@@ -239,7 +246,7 @@ func documentsTheCgoImport(node ts.Node, src string, next, count uint32) bool {
 // The span follows the node however far it runs. A cap here reported a long
 // function's proportionate comment as an essay, because the code it was weighed
 // against stopped short.
-func nodeSpan(node ts.Node, lines []string, rows set.Set[int]) (int, int) {
+func nodeSpan(node ts.Node, lines []string, rows map[int]int) (int, int) {
 	if node.IsNull() {
 		return 0, 0
 	}
@@ -253,10 +260,15 @@ func nodeSpan(node ts.Node, lines []string, rows set.Set[int]) (int, int) {
 	}
 	body := make([]string, 0, to-from)
 	for row := from; row < to; row++ {
-		if strings.TrimSpace(lines[row]) == "" || rows.Contains(row) {
+		line := lines[row]
+		// A trailing comment is cut off, so the code before it still counts.
+		if col, ok := rows[row]; ok {
+			line = line[:min(col, len(line))]
+		}
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		body = append(body, lines[row])
+		body = append(body, line)
 	}
 	// The same measure the comment gets, so both counts compare directly.
 	return measure(body)
