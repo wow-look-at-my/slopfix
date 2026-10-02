@@ -83,7 +83,7 @@ func collect(node ts.Node, root bool, src string, lines []string, rows map[int]i
 		if code.IsComment(child) {
 			run, stop := commentRun(node, i, count)
 			next := afterComments(node, stop, count)
-			header := root && i == 0 && documentsThePackage(node, next, count)
+			header := root && documentsThePackage(node, next, count)
 			i = stop - 1
 			if documentsTheCgoImport(node, src, next, count) {
 				continue
