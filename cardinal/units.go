@@ -18,5 +18,10 @@ var numbersTable = table.MustLoad(rules.FS, "numbers")
 
 // IsUnit reports whether a word names a unit of measure.
 func IsUnit(word string) bool {
-	return numbersTable.Lexicon().Is(strings.Trim(strings.ToLower(word), ".,;:()"), "unit")
+	return InClass(word, "unit")
+}
+
+// InClass reports whether a word belongs to a class the numbers table names.
+func InClass(word, class string) bool {
+	return numbersTable.Lexicon().Is(strings.Trim(strings.ToLower(word), ".,;:()"), class)
 }
