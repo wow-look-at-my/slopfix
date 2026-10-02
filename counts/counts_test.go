@@ -95,6 +95,58 @@ func TestStripKeepsTheCapitalOfASentenceItOpens(t *testing.T) {
 	}
 }
 
+func TestACountAfterANounBecomesMultiple(t *testing.T) {
+	out, cut := StripGate("The Linux syscall takes no flags, and one APE must not answer one call two ways.")
+	assert.Equal(t, "The Linux syscall takes no flags, and one APE must not answer one call multiple ways.", out, "a bare cut leaves \"one call ways\"")
+	assert.NotEmpty(t, cut)
+
+	out, _ = StripGate("against binaries built on all three platforms.")
+	assert.Equal(t, "against binaries built on all platforms.", out, "a determiner before the count still lets it go")
+}
+
+// Every count the rules report gets a repair. A bare cut is not English in
+// each of these, so the number gives way to words that claim no figure.
+func TestEveryCountIsReworded(t *testing.T) {
+	for in, want := range map[string]string{
+		"It polls every 15 minutes.":            "It polls every few minutes.",
+		"Each 3 builds it prunes the cache.":    "Every few builds it prunes the cache.",
+		"It sends one request per 10 seconds.":  "It sends one request every few seconds.",
+		"The step takes about 90 seconds.":      "The step takes many seconds.",
+		"The read has 20 seconds.":              "The read has several seconds.",
+		"It retries two times.":                 "It retries a couple of times.",
+		"It keeps at most 500 lines.":           "It keeps a bounded number of lines.",
+		"It keeps up to 10 entries.":            "It keeps a bounded number of entries.",
+		"It needs at least 3 reviewers.":        "It needs a few reviewers.",
+		"It carries over 500 lines.":            "It carries many lines.",
+		"It runs in two passes.":                "It runs in multiple passes.",
+		"It ships two hooks.":                   "It ships hooks.",
+		"It ships exactly two hooks.":           "It ships hooks.",
+		"There are only three sections.":        "There are sections.",
+		"It holds 12345 files.":                 "It holds files.",
+		"Done. 15 plugins ride in the payload.": "Done. Plugins ride in the payload.",
+		"Done. 30 seconds pass first.":          "Done. Many seconds pass first.",
+		"It came from ~40 sources.":             "It came from multiple sources.",
+		"Every 30 seconds it retries.":          "Every few seconds it retries.",
+	} {
+		out, cut := StripGate(in)
+		assert.NotEmpty(t, cut, in)
+		assert.Equal(t, want, out, in)
+	}
+}
+
+// No count the rules report is left for a person.
+func TestNoReportedCountGoesUnrepaired(t *testing.T) {
+	for _, doc := range []string{
+		"The Linux syscall takes no flags, and one APE must not answer one call two ways.",
+		"It polls every 15 minutes, and the step takes about 90 seconds.",
+		"The read has 20 seconds. It carries 500 lines.",
+		"It has fewer than 4 rules, and it keeps at least 3 reviewers.",
+	} {
+		assert.Len(t, Edits(doc, Gate(doc)), len(Gate(doc)), doc)
+		assert.Len(t, Edits(doc, Check(doc)), len(Check(doc)), doc)
+	}
+}
+
 func TestStripLeavesACleanDocumentUntouched(t *testing.T) {
 	doc := "Every plugin this repo installs rides in the payload.\n"
 	out, cut := Strip(doc)
