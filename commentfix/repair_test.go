@@ -49,10 +49,10 @@ func TestATableEntryKeepsTheSentence(t *testing.T) {
 // the sentence stays and only the figure goes.
 func TestANumberNoEntryCoversIsReworded(t *testing.T) {
 	for in, want := range map[string]string{
-		"// It is padded. Each shard is padded to 128 bytes.\nvar x int\n":    "// It is padded. Each shard is padded to many bytes.\nvar x int\n",
-		"// Run waits 2 minutes before it starts.\nfunc Run() {}\n":           "// Run waits a couple of minutes before it starts.\nfunc Run() {}\n",
-		"// Run keeps at most 500 lines in the buffer.\nfunc Run() {}\n":      "// Run keeps a bounded number of lines in the buffer.\nfunc Run() {}\n",
-		"// Run answers one call 3 ways and ships 4 hooks.\nfunc Run() {}\n":  "// Run answers one call multiple ways and ships hooks.\nfunc Run() {}\n",
+		"// It is padded. Each shard is padded to 128 bytes.\nvar x int\n":   "// It is padded. Each shard is padded to many bytes.\nvar x int\n",
+		"// Run waits 2 minutes before it starts.\nfunc Run() {}\n":          "// Run waits a couple of minutes before it starts.\nfunc Run() {}\n",
+		"// Run keeps at most 500 lines in the buffer.\nfunc Run() {}\n":     "// Run keeps a bounded number of lines in the buffer.\nfunc Run() {}\n",
+		"// Run answers one call 3 ways and ships 4 hooks.\nfunc Run() {}\n": "// Run answers one call multiple ways and ships hooks.\nfunc Run() {}\n",
 	} {
 		repair := fix(t, in)
 		assert.Equal(t, want, repair.Text, in)
