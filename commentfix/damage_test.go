@@ -10,12 +10,12 @@ import (
 // An abbreviation's period is not a sentence end. A cut that split there left
 // half a sentence behind, ending on "e.g.".
 func TestACutDoesNotSplitAtAnAbbreviation(t *testing.T) {
-	src := "// It keeps the slot. A reading (nothing consumed, e.g. only 42 hits) is hidden.\nvar x int\n"
+	src := "// It keeps the slot. A reading (nothing consumed, e.g. 42 in total) is hidden.\nvar x int\n"
 	repair := fix(t, src)
 	assert.Equal(t, "// It keeps the slot.\nvar x int\n", repair.Text)
-	assert.Equal(t, []string{"A reading (nothing consumed, e.g. only 42 hits) is hidden."}, repair.Removed)
+	assert.Equal(t, []string{"A reading (nothing consumed, e.g. 42 in total) is hidden."}, repair.Removed)
 
-	src = "// It keeps the slot, i.e. the one it reserved. Each shard is 128 bytes.\nvar x int\n"
+	src = "// It keeps the slot, i.e. the one it reserved. Each shard holds 128.\nvar x int\n"
 	repair = fix(t, src)
 	assert.Equal(t, "// It keeps the slot, i.e. the one it reserved.\nvar x int\n", repair.Text)
 }
