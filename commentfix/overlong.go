@@ -144,6 +144,9 @@ func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 // Lines catch an essay; characters catch a dense paragraph.
 func judge(b block) (string, bool) {
 	lines, chars := measure(prose(b.text))
+	// The free text after a lint pragma is prose, so its characters count.
+	_, pragmaChars := measure(pragmaProse(b.text))
+	chars += pragmaChars
 	// Nothing to weigh against.
 	if b.codeLines == 0 {
 		if lines == 0 {
@@ -185,12 +188,26 @@ func measure(text []string) (lines, chars int) {
 	return lines, chars
 }
 
-// repair rewrites a block's prose and puts its directive lines back verbatim.
+// repair fits a block to its budget, and cuts pragma free text only when the prose cut is not enough.
+func repair(b block) []string {
+	out := repairProse(b)
+	if fitsCode(out, b) {
+		return out
+	}
+	// The pragma stays. Its free text is the prose left to cut.
+	if bare := withoutPragmaProse(b.text); !sameText(bare, b.text) {
+		b.text = bare
+		return repairProse(b)
+	}
+	return out
+}
+
+// repairProse rewrites a block's prose and puts its directive lines back verbatim.
 //
 // Every repair path rebuilds the block out of prose() alone, which drops the
 // directives: the rewrite then REPLACED them. A lost //go:embed leaves the
 // variable it filled empty, and the tests reading it pass on nothing.
-func repair(b block) []string {
+func repairProse(b block) []string {
 	lead, body, trail := splitDirectives(b.text)
 	// A comment with no code under it has nothing to be measured against, so no
 	// amount of cutting brings it inside a budget.
