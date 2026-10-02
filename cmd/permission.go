@@ -13,10 +13,40 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// permissionRequest is check --permission: does a workflow job hold a permission.
+// permissionRequest asks whether a workflow job holds a permission.
 type permissionRequest struct {
 	workflow, job, permission, level string
 	asJSON                           bool
+}
+
+var permissionFlags permissionRequest
+
+// check.go sorts before this file, so its init has set checkCmd.
+func init() {
+	command := &cobra.Command{
+		Use:   "workflow-permission [workflow] --permission NAME",
+		Short: "Report whether a workflow job holds a permission",
+		Long: "workflow-permission reads the job's permissions block, then the workflow's,\n" +
+			"then the repository default, which reads as none. A missing grant is a\n" +
+			"finding. In a GitHub Actions step the workflow file and --job default to\n" +
+			"the running ones. --json writes the answer and exits 0, because the\n" +
+			"caller decides what a missing grant means.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			req := permissionFlags
+			if len(args) == 1 {
+				req.workflow = args[0]
+			}
+			return checkPermission(cmd, req, os.Getenv)
+		},
+	}
+	f := command.Flags()
+	f.StringVar(&permissionFlags.permission, "permission", "", "the permission scope, such as id-token, contents or packages")
+	f.StringVar(&permissionFlags.level, "level", "write", "the level the job needs: none, read or write. write covers read")
+	f.StringVar(&permissionFlags.job, "job", "", "the job key. Defaults to GITHUB_JOB")
+	f.BoolVar(&permissionFlags.asJSON, "json", false, "write the answer as one JSON object on stdout")
+	_ = command.MarkFlagRequired("permission")
+	checkCmd.AddCommand(command)
 }
 
 // permissionAnswer is the --json wire contract.

@@ -86,8 +86,8 @@ var (
 	checkMaxLines int
 	// checkMessage reads stdin as a closing message rather than as a file.
 	checkMessage bool
-	// checkGrant is --permission, --level and --job: whether a workflow job holds a permission.
-	checkGrant permissionRequest
+	// checkCmd is check, which the kinds of check that read no rule register under.
+	checkCmd *cobra.Command
 )
 
 func init() {
@@ -104,11 +104,7 @@ func init() {
 			"stderr. --json writes the whole answer as one object instead, and exits 0\n" +
 			"on a finding, because the caller decides what a finding means.\n\n" +
 			"--message reads stdin as a closing message, which is never on disk, and\n" +
-			"judges it with the message rules (" + slopfix.Listed(messageIDs()) + ").\n\n" +
-			"--permission asks whether a workflow job holds a permission, at --level.\n" +
-			"The job's permissions block wins, then the workflow's, then the repository\n" +
-			"default, which reads as none. A missing grant is a finding. In a GitHub\n" +
-			"Actions step the workflow file and --job default to the running ones.",
+			"judges it with the message rules (" + slopfix.Listed(messageIDs()) + ").",
 		// fix is check --fix. A file decides which rules read it, so no other name is needed.
 		Aliases: []string{"fix"},
 		Args:    cobra.ArbitraryArgs,
@@ -122,24 +118,11 @@ func init() {
 	check.Flags().StringVar(&checkPath, "path", "", "the file the text on stdin is headed for")
 	check.Flags().IntVar(&checkMaxLines, "max-comment-lines", tombstones.DefaultMaxCommentLines, "cap a comment block, 0 to turn the cap off")
 	check.Flags().BoolVar(&checkMessage, "message", false, "judge stdin as a closing message, with the message rules")
-	check.Flags().StringVar(&checkGrant.permission, "permission", "", "ask whether a workflow job holds this permission, such as id-token")
-	check.Flags().StringVar(&checkGrant.level, "level", "write", "with --permission, the level the job needs: none, read or write")
-	check.Flags().StringVar(&checkGrant.job, "job", "", "with --permission, the job key. Defaults to GITHUB_JOB")
 	rootCmd.AddCommand(check)
+	checkCmd = check
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
-	if checkGrant.permission != "" {
-		if len(args) > 1 || checkFix || checkMessage || cmd.CalledAs() == "fix" {
-			return fmt.Errorf("--permission reads one workflow file and repairs nothing, so it takes no --fix and no --message")
-		}
-		req := checkGrant
-		req.asJSON = checkJSON
-		if len(args) == 1 {
-			req.workflow = args[0]
-		}
-		return checkPermission(cmd, req, os.Getenv)
-	}
 	if checkMessage {
 		if len(args) > 0 || checkFix || cmd.CalledAs() == "fix" {
 			return fmt.Errorf("--message judges stdin and repairs nothing, so it takes no file and no --fix")

@@ -56,6 +56,18 @@ func TestAMissingGrantIsAFinding(t *testing.T) {
 	assert.False(t, answer.Granted)
 }
 
+// check routes the name to the subcommand, and a file argument to check itself.
+func TestWorkflowPermissionIsACheckSubcommand(t *testing.T) {
+	found, rest, err := checkCmd.Find([]string{"workflow-permission", ".github/workflows/ci.yml"})
+	require.NoError(t, err)
+	assert.Equal(t, "workflow-permission", found.Name())
+	assert.Equal(t, []string{".github/workflows/ci.yml"}, rest)
+
+	found, _, err = checkCmd.Find([]string{"docs/a.md"})
+	require.NoError(t, err)
+	assert.Equal(t, "check", found.Name())
+}
+
 func TestABadLevelIsAnError(t *testing.T) {
 	_, _, err := askPermission(t, permissionRequest{permission: "id-token", level: "admin"})
 	assert.ErrorContains(t, err, "not none, read or write")
