@@ -12,7 +12,7 @@ const interleaved = "cmd | head -5 | grep x | tail -2"
 
 func TestTheChainedRulesConverge(t *testing.T) {
 	var warn strings.Builder
-	got := transform(interleaved, maxPasses, &warn)
+	got := transform(interleaved, "", maxPasses, &warn)
 	assert.Equal(t, "set -o pipefail\ncmd\n", got.Command)
 	assert.Empty(t, warn.String(), "a converged rewrite says nothing")
 }
@@ -21,7 +21,7 @@ func TestTheChainedRulesConverge(t *testing.T) {
 // either endpoint, and the caller is otherwise told it succeeded.
 func TestExhaustingTheBoundSaysSo(t *testing.T) {
 	var warn strings.Builder
-	got := transform(interleaved, 1, &warn)
+	got := transform(interleaved, "", 1, &warn)
 
 	assert.Contains(t, warn.String(), "did not reach a fixed point")
 	assert.Contains(t, warn.String(), "undoing each other")
