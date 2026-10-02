@@ -21,11 +21,11 @@ func pushTagFindings(content string) []ste.Finding {
 
 func TestAnUnfilteredPushIsReported(t *testing.T) {
 	cases := map[string]int{
-		"on: push\njobs: {}\n":                                   1,
-		"on: [pull_request, push]\njobs: {}\n":                   1,
-		"on:\n  push:\n  workflow_dispatch:\njobs: {}\n":         2,
-		"on:\n  push:\n    paths: ['src/**']\njobs: {}\n":        2,
-		"'on':\n  push: {}\njobs: {}\n":                          2,
+		"on: push\njobs: {}\n":                                     1,
+		"on: [pull_request, push]\njobs: {}\n":                     1,
+		"on:\n  push:\n  workflow_dispatch:\njobs: {}\n":           2,
+		"on:\n  push:\n    paths: ['src/**']\njobs: {}\n":          2,
+		"'on':\n  push: {}\njobs: {}\n":                            2,
 		"name: ci\non:\n  workflow_dispatch:\n  push:\njobs: {}\n": 4,
 	}
 	for content, line := range cases {

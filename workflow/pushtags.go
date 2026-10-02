@@ -57,16 +57,3 @@ func pushFinding(line int) ste.Finding {
 		Fix:  "Add `branches: ['**']` under `push:`, or `tags-ignore: ['**']`, to keep the workflow on branch pushes.",
 	}
 }
-
-// mappingKey answers the key node itself, so a finding can point at it.
-func mappingKey(node *yaml.Node, key string) *yaml.Node {
-	if node == nil || node.Kind != yaml.MappingNode {
-		return nil
-	}
-	for i := 0; i+1 < len(node.Content); i += 2 {
-		if node.Content[i].Value == key {
-			return node.Content[i]
-		}
-	}
-	return nil
-}
