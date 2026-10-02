@@ -15,7 +15,19 @@ const (
 	notJSON jsonKind = iota
 	jsonDoc
 	jsonLines
+	jsonOneLine // a single value on a single line, which reads as either kind
 )
+
+// merge joins the kinds of files, and reports false when they differ.
+func merge(a, b jsonKind) (jsonKind, bool) {
+	switch {
+	case a == notJSON || a == jsonOneLine || a == b:
+		return b, true
+	case b == jsonOneLine:
+		return a, true
+	}
+	return notJSON, false
+}
 
 // The sniff reads a fixed head and a fixed tail, so its cost does not grow with
 // the file size.
@@ -101,6 +113,9 @@ func classify(head []byte, whole bool) jsonKind {
 	}
 	if values > 1 {
 		return jsonLines
+	}
+	if whole && !bytes.Contains(bytes.TrimSpace(trimmed), []byte("\n")) {
+		return jsonOneLine
 	}
 	return jsonDoc
 }
