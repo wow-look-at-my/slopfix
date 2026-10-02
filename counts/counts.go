@@ -2,8 +2,8 @@
 // the repository, the project or the page itself holds.
 //
 // Such a count is true until somebody adds or removes an item, and nothing
-// corrects it when they do. Deleting the cardinal is the whole repair, and it
-// needs no judgement. The sentence stays true through the next commit.
+// corrects it when they do. The repair takes the cardinal out, and reword.go
+// writes words with no figure where a bare cut breaks the sentence.
 //
 // This package is the document substrate of a rule the comment substrate
 // shares. Which numbers count, and how much a sentence has to claim before a
@@ -15,10 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
-	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
@@ -109,48 +106,25 @@ func strip(content string, hits []Hit) (string, []Hit) {
 	return res.Text, cut
 }
 
-// Edits answers an edit per hit that cuts its cardinal. A cardinal that opened
-// its sentence hands its capital to the word after it, so that word's first
-// letter is part of the edit.
+// Edits answers an edit per hit that takes its cardinal out. Every hit gets
+// one: reword says what replaces the number when a bare cut leaves broken
+// English.
 func Edits(content string, hits []Hit) []edit.Edit {
 	var out []edit.Edit
 	for _, hit := range hits {
 		if hit.Start < 0 || hit.End > len(content) {
 			continue
 		}
-		number := cardinal.Leading.FindString(content[hit.Start:hit.End])
-		if number == "" || measuresARate(content[:hit.Start], hit.Phrase) || followsANoun(content, hit.Start) {
-			continue
+		if e, ok := reword(content, hit); ok {
+			out = append(out, e)
 		}
-		e := edit.Edit{Start: hit.Start, End: hit.Start + len(number), Cut: []string{hit.Phrase}}
-		if first, _ := utf8.DecodeRuneInString(number); unicode.IsUpper(first) {
-			next, width := utf8.DecodeRuneInString(content[e.End:])
-			e.Text = string(unicode.ToUpper(next))
-			e.End += width
-		}
-		out = append(out, e)
 	}
 	return out
 }
 
-// measuresARate reports whether a quantity is an interval such as "every
-// minutes". It is still reported, but cutting its number leaves "every
-// minutes", which is not English.
-func measuresARate(before, phrase string) bool {
-	fields := strings.Fields(phrase)
-	if len(fields) == 0 || !cardinal.IsUnit(fields[len(fields)-1]) {
-		return false
-	}
-	prev := strings.Fields(strings.ToLower(before))
-	return len(prev) > 0 && rateWords.Contains(prev[len(prev)-1])
-}
-
-var rateWords = set.Of[string]("every", "each", "per")
-
 // followsANoun reports whether the cardinal at start comes straight after a
 // noun or a personal pronoun, as in "answer one call two ways". The quantity is
-// then a second noun phrase. A cut joins its bare plural to the noun before it
-// and leaves "one call ways", so the count is reported and not cut.
+// then a second noun phrase, and a bare cut leaves "one call ways".
 func followsANoun(content string, start int) bool {
 	from := strings.LastIndexByte(content[:start], '\n') + 1
 	to := len(content)
