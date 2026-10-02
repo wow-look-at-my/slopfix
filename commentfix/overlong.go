@@ -196,7 +196,12 @@ func repair(b block) []string {
 	if len(body) == 0 {
 		return b.text
 	}
-	kept := trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact})
+	bodyBlock := block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact}
+	// A /* */ body is cut as a block, so its closer survives the cut.
+	if out, ok := repairBlockComment(bodyBlock); ok {
+		return append(append(append([]string{}, lead...), out...), trail...)
+	}
+	kept := trim(bodyBlock)
 	if len(trail) > 0 {
 		kept = withSeparator(kept, trail)
 		// Doc and separator cannot fit, so the doc goes and the directive stays.
@@ -264,7 +269,7 @@ func withSeparator(kept, trail []string) []string {
 // spells it with no space after the marker, and the hash family carries the
 // interpreter line and the linter pragma.
 func isDirectiveLine(line string) bool {
-	if treecomments.IsDirective(line) {
+	if treecomments.IsDirective(line) || isLintPragma(line) {
 		return true
 	}
 	t := strings.TrimSpace(line)
@@ -282,6 +287,27 @@ func isDirectiveLine(line string) bool {
 		}
 		// `//go:build` and `# shellcheck:` carry no space before the colon.
 		return true
+	}
+	return false
+}
+
+// lintPragmas open a comment that a linter or a type checker reads, after the marker and a space. A cut that drops one turns a suppressed warning back on.
+var lintPragmas = []string{"eslint-disable", "eslint-enable", "@ts-ignore", "@ts-expect-error", "@ts-nocheck", "prettier-ignore", "shellcheck ", "istanbul ignore", "c8 ignore"}
+
+// isLintPragma reports a line comment that a linter reads.
+func isLintPragma(line string) bool {
+	t := strings.TrimSpace(line)
+	for _, marker := range []string{"//", "#"} {
+		rest, found := strings.CutPrefix(t, marker)
+		if !found {
+			continue
+		}
+		rest = strings.TrimLeft(rest, " \t")
+		for _, pragma := range lintPragmas {
+			if strings.HasPrefix(rest, pragma) {
+				return true
+			}
+		}
 	}
 	return false
 }
