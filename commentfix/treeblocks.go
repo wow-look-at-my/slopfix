@@ -85,12 +85,11 @@ func collect(node ts.Node, root bool, src string, lines []string, rows map[int]i
 			next := afterComments(node, stop, count)
 			header := root && i == 0 && documentsThePackage(node, next, count)
 			i = stop - 1
-			// A comment above the package declaration introduces the package
-			// rather than a construct, so there is nothing of a comparable size
-			if header || documentsTheCgoImport(node, src, next, count) {
+			if documentsTheCgoImport(node, src, next, count) {
 				continue
 			}
 			if b, ok := blockFor(run, node, next, count, lines, rows); ok {
+				b.header = header
 				*out = append(*out, b)
 			}
 			continue

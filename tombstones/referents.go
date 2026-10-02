@@ -11,13 +11,17 @@
 package tombstones
 
 import (
+	"bufio"
 	"context"
-	"github.com/wow-look-at-my/go-containers/set"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // identifierWords splits text into the runs the shape test judges, by cutting
@@ -63,6 +67,66 @@ const probeTimeout = 2 * time.Second
 // maxNames bounds what a comment may put to the repository.
 const maxNames = 40
 
+// probeBudget is how many files a process probes name by name before it reads the tree once.
+const probeBudget = 50
+
+// indexTimeout bounds the read of the tree.
+const indexTimeout = 5 * time.Minute
+
+// symbolIndex holds every identifier-shaped word a tree contains.
+type symbolIndex struct {
+	once  sync.Once
+	names set.Set[string]
+	ok    bool
+}
+
+var (
+	indexes sync.Map
+	probed  atomic.Int64
+)
+
+// indexFor answers the index of root, built on the first call past the budget.
+func indexFor(root, rg string) *symbolIndex {
+	v, _ := indexes.LoadOrStore(root, &symbolIndex{})
+	ix := v.(*symbolIndex)
+	if probed.Add(1) <= probeBudget {
+		return ix
+	}
+	ix.once.Do(func() { ix.build(root, rg) })
+	return ix
+}
+
+// build reads every candidate word in the tree with one ripgrep run.
+func (ix *symbolIndex) build(root, rg string) {
+	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, rg, "--no-messages", "--only-matching", "--no-filename", "--no-line-number", "-e", "[A-Za-z0-9_]{8,}", root)
+	out, err := cmd.StdoutPipe()
+	if err != nil || cmd.Start() != nil {
+		return
+	}
+	names := set.New[string]()
+	scanner := bufio.NewScanner(out)
+	for scanner.Scan() {
+		if word := scanner.Text(); isCandidate(word) {
+			names.Add(word)
+		}
+	}
+	err = cmd.Wait()
+	if ctx.Err() != nil || scanner.Err() != nil {
+		return
+	}
+	if err != nil && cmd.ProcessState != nil && cmd.ProcessState.ExitCode() > 1 {
+		return
+	}
+	ix.names, ix.ok = names, true
+}
+
+// holds reports a name the index saw.
+func (ix *symbolIndex) holds(name string) bool {
+	return ix.ok && ix.names.Contains(name)
+}
+
 // DeadReferents returns the identifiers the blocks name that appear neither in
 // the text nor in the repository. It returns nothing when it cannot answer.
 func DeadReferents(path, added string, blocks []Block) []string {
@@ -98,11 +162,15 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		return nil
 	}
 
+	ix := indexFor(root, rg)
 	args := []string{"--no-messages", "--fixed-strings", "--files-with-matches", "--max-count", "1"}
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 	for _, name := range ordered {
+		if ix.holds(name) {
+			continue
+		}
 		cmd := exec.CommandContext(ctx, rg, append(append([]string{}, args...), "-e", name, root)...)
 		out, err := cmd.Output()
 		if ctx.Err() != nil {

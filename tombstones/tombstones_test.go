@@ -79,6 +79,19 @@ func TestTheVolumeCapReportsRatherThanStrips(t *testing.T) {
 	assert.NotContains(t, repair.Text, "\n\n", "no line was deleted")
 }
 
+// A note at the end of each code line is read with that line, not as a block.
+func TestTrailingCommentsAreNotAVolume(t *testing.T) {
+	src := "func f() {\n\t// the flags the sequence must hold\n"
+	for range 6 {
+		src += "\tcheck(sequence, flag) // one flag the sequence holds\n"
+	}
+	src += "}\n"
+	repair := Fix("a.go", src, 3)
+
+	assert.Empty(t, repair.Kept)
+	assert.Equal(t, src, repair.Text)
+}
+
 func TestAnUnjudgedPathIsLeftAlone(t *testing.T) {
 	src := "this used to work\n"
 	repair := Fix("a.bin", src, DefaultMaxCommentLines)

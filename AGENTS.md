@@ -252,7 +252,7 @@ It does not flag the singular, which is overwhelmingly a pronoun in English. Tha
 A tombstone describes a state the code has left, or argues for the diff instead of telling the next editor what breaks. The wording tier is the weakest. A paraphrasing machine writes the judged text. It eventually writes around a phrase rule.
 
 - The wording tells are `pattern` entries with an `id` in `english/english.xml`. Each cuts the PHRASE, not the line. The rest of the sentence thus survives. A pattern with no `id` still rewrites.
-- `tombstones/name-nothing-in-the-repository-defines` reads no wording. A comment that names a symbol found nowhere in the repository describes a tree that is gone. The probe runs ripgrep on the working tree.
+- `tombstones/name-nothing-in-the-repository-defines` reads no wording. A comment that names a symbol found nowhere in the repository describes a tree that is gone. The probe runs ripgrep on the working tree. A walk past `50` files reads the tree's identifiers once and probes only a name that read did not see.
 - A pattern cut never removes a negation while the words it negates stay. `no longer` is therefore a flag, not a cut.
 - A copyright year is cut on purpose. A yearly bump only pads a commit.
 - `tombstones/comment-volume` counts the lines of a merged comment run against the cap, which defaults to `14` lines. No rewording defeats it. It never strips, because it judges a whole block.
@@ -291,7 +291,7 @@ These rules judge the format. The prose rules never run on these files. A file i
 - `yaml/all-builds-job`: a job named `all-builds`, by key or rendered name. The required gate is a commit status from the required-builds-manager app. A job with that name shadows it. The repair renames the job to `builds` and fixes each `needs` entry.
 - `yaml/test-in-workflow`: a test inside a `run:` script. That is an assertion with a nonzero exit, a function whose name says it asserts, or a redirect to a test file. The repair deletes the assertion lines, because a test belongs in the suite.
 - `yaml/neutered-gate`: a gate step under `continue-on-error`. A step allowed to fail is not a gate. The repair deletes that line, found by parser positions.
-- `yaml/env-indirection`: a step `env:` entry with no job to do. Its value is a single `${{ }}` expression that the script reads only as `$NAME` or `${NAME}`. Or the script sets the variable before it reads it. A runner variable such as `$RUNNER_TEMP` is also reported, because a context names it. The repair writes the expression into the script, deletes the entry, and deletes an `env:` key with nothing left under it.
+- `yaml/env-indirection`: a step `env:` entry with no job to do. Its value is a single `${{ }}` expression that the script reads only as `$NAME` or `${NAME}`. Or the script sets the variable before it reads it. A runner variable such as `$RUNNER_TEMP` is also reported, because a context names it. A container job and a composite action keep the variable, because the context names the host path there. The repair writes the expression into the script, deletes the entry, and deletes an `env:` key with nothing left under it.
 - `yaml/push-tags`: a `push` trigger with no `branches`, `branches-ignore`, `tags` or `tags-ignore` filter. Every tag push then starts the workflow again. The repair writes `branches: ['**']` under `push:`. It leaves a flow-style mapping such as `push: {}` to the author.
 
 The all-builds wording is the operator's own. It must not be softened. A job that wears the required status's name is a known deception attempt.
