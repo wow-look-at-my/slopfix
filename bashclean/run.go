@@ -20,6 +20,7 @@ type Input struct {
 	HookEventName string          `json:"hook_event_name"`
 	ToolName      string          `json:"tool_name"`
 	ToolInput     json.RawMessage `json:"tool_input"`
+	Cwd           string          `json:"cwd"`
 }
 
 type HookResult struct {
@@ -54,7 +55,7 @@ func Run(r io.Reader) HookResult {
 		return HookResult{}
 	}
 
-	res := Transform(command)
+	res := TransformIn(command, in.Cwd)
 	switch {
 	case res.Denied:
 		logLine("DENY\toriginal=%q\treason=%q\n", command, res.Reason)
