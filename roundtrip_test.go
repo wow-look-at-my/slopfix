@@ -110,6 +110,7 @@ func roundTripFixtures() []fixture {
 				"yaml/test-in-workflow",
 				"yaml/neutered-gate",
 				"yaml/env-indirection",
+				"yaml/push-tags",
 			},
 		},
 		{

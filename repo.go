@@ -23,7 +23,7 @@ const (
 const RuleRepo Rule = "repo"
 
 // RepoIDs names every repository rule.
-var RepoIDs = set.Of(IDAgentsFile, IDBudget)
+var RepoIDs = set.Of(IDAgentsFile, IDBudget, IDPackageScripts)
 
 // isRepoRoot reports whether dir is the top of a repository.
 func isRepoRoot(dir string) bool {
@@ -48,6 +48,13 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 		} else {
 			changed = append(changed, filepath.Join(root, ClaudeFile))
 		}
+	}
+	if keeps(IDPackageScripts) {
+		scripts, err := packageScripts(root)
+		if err != nil {
+			return nil, nil, err
+		}
+		findings = append(findings, scripts...)
 	}
 	if !keeps(IDBudget) {
 		return findings, changed, nil

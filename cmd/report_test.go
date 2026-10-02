@@ -59,14 +59,14 @@ func TestAWorkflowIsReadByTheWorkflowRules(t *testing.T) {
 // The negative control for the case above. A comment line inside the limit
 // reports nothing, which is what proves the case can fail.
 func TestASingleCommentLineIsNotAWall(t *testing.T) {
-	out, _, err := report(t, workflowPath, nil, "name: CI\n# one\non:\n  push:\n")
+	out, _, err := report(t, workflowPath, nil, "name: CI\n# one\non:\n  push:\n    branches: ['**']\n")
 	require.NoError(t, err)
 	assert.Empty(t, out.Findings)
 }
 
 // A null crashes a caller that reads the length of what came back.
 func TestACleanFileAnswersWithAnEmptyList(t *testing.T) {
-	_, raw, err := report(t, workflowPath, nil, "name: CI\non:\n  push:\n")
+	_, raw, err := report(t, workflowPath, nil, "name: CI\non:\n  push:\n    branches: ['**']\n")
 	require.NoError(t, err)
 	assert.Contains(t, raw, `"findings":[]`)
 }
@@ -112,6 +112,6 @@ func TestAnUnknownRuleIsAnError(t *testing.T) {
 // A finding is the answer rather than a failure. The caller decides what it
 // means, which is why --json never fails over a finding.
 func TestAFindingIsNotAnError(t *testing.T) {
-	_, _, err := report(t, workflowPath, nil, "# one\n# two\non: push\n")
+	_, _, err := report(t, workflowPath, nil, "# one\n# two\non: {push: {branches: ['**']}}\n")
 	require.NoError(t, err)
 }

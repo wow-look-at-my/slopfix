@@ -26,32 +26,32 @@ func TestOneCommentLineIsAllowed(t *testing.T) {
 
 // A blank line does not end a block. A reader sees a single paragraph.
 func TestABlankLineDoesNotSplitACommentBlock(t *testing.T) {
-	findings := workflow.Check("# first\n\n# second\non: push\n")
+	findings := workflow.Check("# first\n\n# second\non: {push: {branches: ['**']}}\n")
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, "lines 1-3", findings[0].Detail)
 }
 
 func TestCodeBetweenCommentsStartsANewBlock(t *testing.T) {
-	assert.Empty(t, workflow.Check("# first\non: push\n# second\njobs: {}\n"))
+	assert.Empty(t, workflow.Check("# first\non: {push: {branches: ['**']}}\n# second\njobs: {}\n"))
 }
 
 func TestACarriageReturnDoesNotHideAComment(t *testing.T) {
-	findings := workflow.Check("# one\r\n# two\r\non: push\r\n")
+	findings := workflow.Check("# one\r\n# two\r\non: {push: {branches: ['**']}}\r\n")
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, workflow.IDCommentBlock, findings[0].ID)
 }
 
 func TestACommentBlockAtTheEndOfTheFileIsReported(t *testing.T) {
-	findings := workflow.Check("on: push\n# one\n# two\n")
+	findings := workflow.Check("on: {push: {branches: ['**']}}\n# one\n# two\n")
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, 2, findings[0].Line)
 }
 
 // A # inside a block scalar opens a shell comment.
-const scriptWithComments = "on: push\njobs:\n  build:\n    steps:\n      - run: |\n          # install the backend\n          # the suites need it\n          apt-get install -y bubblewrap\n          apt-get clean\n"
+const scriptWithComments = "on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n          # install the backend\n          # the suites need it\n          apt-get install -y bubblewrap\n          apt-get clean\n"
 
 func TestShellCommentsInABlockScalarAreNotAYamlCommentBlock(t *testing.T) {
 	assert.Empty(t, workflow.Check(scriptWithComments))
@@ -66,7 +66,7 @@ func TestRepairingLeavesAScriptsCommentsAlone(t *testing.T) {
 // The scalar ends where the indentation does, so the comments after it are
 // judged as the YAML comments they are.
 func TestACommentBlockAfterABlockScalarIsStillReported(t *testing.T) {
-	findings := workflow.Check("on: push\njobs:\n  build:\n    steps:\n      - run: |\n          # a shell comment\n          make\n\n# one\n# two\n")
+	findings := workflow.Check("on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n          # a shell comment\n          make\n\n# one\n# two\n")
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, "lines 9-10", findings[0].Detail)
@@ -75,6 +75,6 @@ func TestACommentBlockAfterABlockScalarIsStillReported(t *testing.T) {
 // A folded scalar and the chomping and indentation indicators open a body too.
 func TestEveryBlockScalarHeaderOpensABody(t *testing.T) {
 	for _, header := range []string{"|", "|-", "|+", ">", ">-", ">+", "|2", "|2-"} {
-		assert.Empty(t, workflow.Check("on: push\nscript: "+header+"\n  # one\n  # two\n"), "header %s", header)
+		assert.Empty(t, workflow.Check("on: {push: {branches: ['**']}}\nscript: "+header+"\n  # one\n  # two\n"), "header %s", header)
 	}
 }

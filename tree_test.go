@@ -34,7 +34,7 @@ func read(t *testing.T, path string) string {
 // a workflow and a document in the same pass, which is the whole point.
 func TestFixTreeRepairsEveryRuleFamily(t *testing.T) {
 	root := tree(t, map[string]string{
-		".github/workflows/ci.yml": "name: CI\n# one\n# two\non: push\n",
+		".github/workflows/ci.yml": "name: CI\n# one\n# two\non: {push: {branches: ['**']}}\n",
 		"notes.md":                 "It has three plugins.\n",
 	})
 
@@ -58,7 +58,7 @@ func TestFixTreeLeavesAFileNoRuleReads(t *testing.T) {
 // A clean tree is rewritten nowhere, which is what makes the sweep safe to run
 // on every build.
 func TestFixTreeWritesNothingWhenThereIsNothingToRepair(t *testing.T) {
-	root := tree(t, map[string]string{".github/workflows/ci.yml": "name: CI\n# one\non: push\n"})
+	root := tree(t, map[string]string{".github/workflows/ci.yml": "name: CI\n# one\non: {push: {branches: ['**']}}\n"})
 	path := filepath.Join(root, ".github/workflows/ci.yml")
 	before, err := os.Stat(path)
 	require.NoError(t, err)
