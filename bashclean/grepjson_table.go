@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/table"
 	"mvdan.cc/sh/v3/syntax"
 )
@@ -81,12 +82,10 @@ type grepProgramSpec struct {
 	syntax regexSyntax
 }
 
-var grepEffects = map[string]bool{
-	"pattern": true, "ignore-case": true, "case-sensitive": true, "smart-case": true,
-	"invert": true, "basic": true, "extended": true, "fixed": true, "perl": true,
-	"word": true, "line": true, "with-filename": true, "no-filename": true,
-	"line-number": true, "no-line-number": true, "count": true, "none": true,
-}
+var grepEffects = set.Of[string]("pattern", "ignore-case", "case-sensitive", "smart-case",
+	"invert", "basic", "extended", "fixed", "perl",
+	"word", "line", "with-filename", "no-filename",
+	"line-number", "no-line-number", "count", "none")
 
 var grepPrograms = mustLoadGrepPrograms(grepJSONXML)
 
@@ -115,7 +114,7 @@ func loadGrepPrograms(raw []byte) (map[string]grepProgramSpec, error) {
 	for _, fs := range doc.Flags {
 		set := grepFlagSet{short: map[byte]grepFlag{}, long: map[string]grepFlag{}}
 		for _, f := range fs.Flags {
-			if !grepEffects[f.Effect] {
+			if !grepEffects.Contains(f.Effect) {
 				return nil, fmt.Errorf("flag set %q: unknown effect %q", fs.Name, f.Effect)
 			}
 			flag := grepFlag{effect: f.Effect, anyValue: f.Value == "optional"}
