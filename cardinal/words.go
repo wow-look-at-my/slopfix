@@ -24,4 +24,4 @@ var gateWords = set.Of(numbersTable.WordsOf("gate")...)
 var commentWords = set.Of(numbersTable.WordsOf("comment")...)
 
 // Leading matches the cardinal at the front of a quantity, with the space after
-var Leading = regexp.MustCompile(`(?i)^(?:\d{1,4}|` + proseAlt + `)\s+`)
+var Leading = regexp.MustCompile(`(?i)^(?:\d[\d,]*|` + proseAlt + `)\s+`)
