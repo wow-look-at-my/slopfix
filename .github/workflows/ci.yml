@@ -33,17 +33,10 @@ jobs:
 
       - run: ./build/slopfix check .
 
-<<<<<<< HEAD
       # Runs the action at the root, so a break in the action fails its own repository first.
       - uses: ./
         with:
           permission: contents
-=======
-      # Runs the action at the root with args, so a break in the action fails its own repository first.
-      - uses: ./
-        with:
-          args: check workflow-permission --permission contents
->>>>>>> origin/master
 
       # The marketplace ships this binary inside its slopfix plugin, so each master publish asks cc-marketplace to package it.
       - name: Ship this build in the marketplace
