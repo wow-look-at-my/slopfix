@@ -34,7 +34,7 @@ func TestJudgesLeavesEveryOtherFileAlone(t *testing.T) {
 // A path says which file this is most of the time. It does not when the caller
 // names a file from inside the workflows directory.
 func TestSniffFindsAWorkflowThePathDoesNotName(t *testing.T) {
-	assert.True(t, workflow.Sniff("on: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n"))
+	assert.True(t, workflow.Sniff("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n"))
 	assert.True(t, workflow.Sniff("name: Thing\nruns:\n  using: composite\n"))
 }
 

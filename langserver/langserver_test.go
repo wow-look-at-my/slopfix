@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const workflowWithCommentBlock = "name: CI\n# one\n# two\n# three\non: push\n"
+const workflowWithCommentBlock = "name: CI\n# one\n# two\n# three\non: {push: {branches: ['**']}}\n"
 
 // repo makes a work tree and answers its root.
 func repo(t *testing.T) string {
@@ -193,7 +193,7 @@ func TestServerPublishesOverTheProtocol(t *testing.T) {
 
 	require.NoError(t, c.conn.Notify(ctx, "textDocument/didChange", lsp.DidChangeTextDocumentParams{
 		TextDocument:   lsp.VersionedTextDocumentIdentifier{TextDocumentIdentifier: lsp.TextDocumentIdentifier{URI: uri}, Version: 2},
-		ContentChanges: []lsp.TextDocumentContentChangeEvent{{Text: "name: CI\non: push\n"}},
+		ContentChanges: []lsp.TextDocumentContentChangeEvent{{Text: "name: CI\non: {push: {branches: ['**']}}\n"}},
 	}))
 	changed := c.next(t)
 	assert.NotContains(t, codes(changed.Diagnostics), "yaml/comment-block")
