@@ -95,15 +95,19 @@ const cutNote = "trailing comment prose"
 // repairLength cuts every over-long comment block in f back inside its budget.
 func repairLength(f *fixer.File) {
 	defer trace.Phase("repair/comments-length")()
-	if len(f.ApplyComments(lengthEdits(f.Path, f.Text())).Applied) > 0 {
+	if len(f.ApplyComments(lengthEdits(f.Path, f.Text(), f.MaxCommentLines)).Applied) > 0 {
 		f.RemovedOnce(cutNote)
 	}
 }
 
-// lengthEdits answers an edit per block that outweighs its code.
-func lengthEdits(filename, src string) []edit.Edit {
+// lengthEdits answers an edit per block that outweighs its code, or that runs
+// past maxLines. The volume cap has no repair of its own, so this cut serves it.
+func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 	var edits []edit.Edit
 	for _, b := range blocks(filename, src) {
+		if maxLines > 0 && b.codeLines > maxLines {
+			b.codeLines = maxLines
+		}
 		if _, over := judge(b); !over {
 			continue
 		}
