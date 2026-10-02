@@ -66,7 +66,7 @@ The commands are `check`, `hook`, `lsp`, `completion` and `help`.
     only: yaml/comment-block  # optional
 ```
 
-The action runs `check` on `paths`. It never repairs, because a job that repairs its own checkout proves nothing.
+The action runs `check` on `paths`. It never repairs, because a job that repairs its own checkout proves nothing. `args` runs any other slopfix command instead. The `stdout` output carries what it printed.
 
 ## More
 
