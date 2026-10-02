@@ -112,7 +112,16 @@ The action at the repository root downloads the published binary from buildhost 
     only: yaml/comment-block
 ```
 
-`paths` defaults to `.`. The step therefore goes after the checkout. `only` is the `--only` flag. The action has no `command` input. It never repairs. A job that repairs its own checkout and then passes has enforced nothing. On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
+`paths` defaults to `.`. The step therefore goes after the checkout. `only` is the `--only` flag. `args` replaces the whole command line, so another action runs any slopfix command through this one rather than downloading the binary itself. The `stdout` output holds what slopfix wrote, such as a `--json` answer.
+
+```yml
+- uses: wow-look-at-my/slopfix@master
+  id: grant
+  with:
+    args: check workflow-permission --json --permission id-token
+```
+
+The action never repairs. It fails on `fix` or `--fix` in `args`. A job that repairs its own checkout and then passes has enforced nothing. On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
 
 ## The marketplace follows each publish
 
