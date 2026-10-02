@@ -56,7 +56,8 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        $argv = -split '${{ inputs.args != '' && inputs.args || format('check {0} {1}', inputs.only != '' && format('--only {0}', inputs.only) || '', inputs.paths) }}'        $out = & "${{ steps.download.outputs.path }}" @argv
+        $slopfixArgs = -split '${{ inputs.args != '' && inputs.args || format('check {0} {1}', inputs.only != '' && format('--only {0}', inputs.only) || '', inputs.paths) }}'
+        $out = & "${{ steps.download.outputs.path }}" @slopfixArgs
         $rc = $LASTEXITCODE
         $out
         "stdout<<SLOPFIX_STDOUT_END" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
