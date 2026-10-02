@@ -22,13 +22,6 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		return edit.Edit{}, false
 	}
 	from, to := hit.Start, hit.Start+loc[1]
-	// The quantity pattern opens "1,000 files" after its comma.
-	for from > 1 && content[from-1] == ',' && isDigit(content[from-2]) {
-		from--
-		for from > 0 && isDigit(content[from-1]) {
-			from--
-		}
-	}
 	number := strings.TrimSpace(content[from:to])
 	if from > 0 && content[from-1] == '~' {
 		from--
@@ -53,10 +46,6 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		before = before[:len(before)-k]
 	}
 
-	if strings.EqualFold(number, "dozen") && (last(1) == "a" || last(1) == "an") {
-		drop(1)
-		n = 12
-	}
 	for len(before) > 0 && approximations.Contains(last(1)) {
 		drop(1)
 	}
@@ -218,8 +207,6 @@ func value(number string) int {
 	}
 	return n
 }
-
-func isDigit(b byte) bool { return b >= '0' && b <= '9' }
 
 func lastField(s string) string {
 	fields := strings.Fields(s)

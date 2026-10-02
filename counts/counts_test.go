@@ -122,7 +122,6 @@ func TestEveryCountIsReworded(t *testing.T) {
 		"It ships two hooks.":                   "It ships hooks.",
 		"It ships exactly two hooks.":           "It ships hooks.",
 		"There are only three sections.":        "There are sections.",
-		"It holds 1,000 files.":                 "It holds files.",
 		"It holds 12345 files.":                 "It holds files.",
 		"Done. 15 plugins ride in the payload.": "Done. Plugins ride in the payload.",
 		"Done. 30 seconds pass first.":          "Done. Many seconds pass first.",
@@ -135,19 +134,13 @@ func TestEveryCountIsReworded(t *testing.T) {
 	}
 }
 
-func TestADozenGoesWithItsArticle(t *testing.T) {
-	out, cut := Strip("It ships a dozen hooks.")
-	require.NotEmpty(t, cut)
-	assert.Equal(t, "It ships hooks.", out)
-}
-
 // No count the rules report is left for a person.
 func TestNoReportedCountGoesUnrepaired(t *testing.T) {
 	for _, doc := range []string{
 		"The Linux syscall takes no flags, and one APE must not answer one call two ways.",
 		"It polls every 15 minutes, and the step takes about 90 seconds.",
 		"The read has 20 seconds. It carries 500 lines.",
-		"It ships a dozen hooks and has fewer than 4 rules.",
+		"It has fewer than 4 rules, and it keeps at least 3 reviewers.",
 	} {
 		assert.Len(t, Edits(doc, Gate(doc)), len(Gate(doc)), doc)
 		assert.Len(t, Edits(doc, Check(doc)), len(Check(doc)), doc)

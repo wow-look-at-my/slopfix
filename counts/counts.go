@@ -98,7 +98,7 @@ func strip(content string, hits []Hit) (string, []Hit) {
 	var cut []Hit
 	for _, e := range res.Applied {
 		for _, hit := range hits {
-			if hit.Start == e.Start {
+			if e.Start <= hit.Start && hit.Start < e.End {
 				cut = append(cut, hit)
 			}
 		}
