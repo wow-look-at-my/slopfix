@@ -31,6 +31,7 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	workflow.IDAllBuildsJob,
 	workflow.IDTestInYAML,
 	workflow.IDEnvIndirection,
+	workflow.IDPushTags,
 	// The v parameter comes out of a download URL.
 	pins.ID,
 ))
