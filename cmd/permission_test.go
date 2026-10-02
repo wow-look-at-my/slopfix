@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// askPermission runs the command in a work tree that holds one workflow, as a
-// GitHub Actions step sees it.
-func askPermission(t *testing.T, req permissionRequest) (permissionAnswer, error) {
+// askPermission runs check --permission in a work tree that holds one workflow,
+// as a GitHub Actions step sees it.
+func askPermission(t *testing.T, req permissionRequest) (permissionAnswer, string, error) {
 	t.Helper()
 	root := t.TempDir()
 	dir := filepath.Join(root, ".github", "workflows")
@@ -26,35 +26,37 @@ func askPermission(t *testing.T, req permissionRequest) (permissionAnswer, error
 		"GITHUB_WORKSPACE":    root,
 		"GITHUB_JOB":          "build",
 	}
-	var out bytes.Buffer
+	var out, errOut bytes.Buffer
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
-	err := hasPermission(cmd, req, func(k string) string { return env[k] })
+	cmd.SetErr(&errOut)
+	err := checkPermission(cmd, req, func(k string) string { return env[k] })
 	var answer permissionAnswer
 	if out.Len() > 0 {
 		require.NoError(t, json.Unmarshal(out.Bytes(), &answer))
 	}
-	return answer, err
+	return answer, errOut.String(), err
 }
 
 func TestTheRunningJobIsReadFromTheEnvironment(t *testing.T) {
-	answer, err := askPermission(t, permissionRequest{permission: "id-token", level: "write"})
+	answer, _, err := askPermission(t, permissionRequest{permission: "id-token", level: "write", asJSON: true})
 	require.NoError(t, err)
 	assert.True(t, answer.Granted)
 	assert.Equal(t, "workflow", answer.Source)
 }
 
-func TestAssertFailsOnAMissingGrant(t *testing.T) {
-	answer, err := askPermission(t, permissionRequest{permission: "id-token", level: "write", job: "tight"})
-	require.NoError(t, err, "without --assert a missing grant is an answer, not a failure")
-	assert.False(t, answer.Granted)
+// A missing grant is a finding: exit 1 as check, an answer under --json.
+func TestAMissingGrantIsAFinding(t *testing.T) {
+	_, said, err := askPermission(t, permissionRequest{permission: "id-token", level: "write", job: "tight"})
+	assert.ErrorIs(t, err, errFindings)
+	assert.Contains(t, said, "is NOT granted")
 
-	answer, err = askPermission(t, permissionRequest{permission: "id-token", level: "write", job: "tight", assert: true})
-	assert.ErrorContains(t, err, "is NOT granted")
-	assert.False(t, answer.Granted, "the answer still reaches stdout")
+	answer, _, err := askPermission(t, permissionRequest{permission: "id-token", level: "write", job: "tight", asJSON: true})
+	require.NoError(t, err, "under --json the caller decides what a finding means")
+	assert.False(t, answer.Granted)
 }
 
 func TestABadLevelIsAnError(t *testing.T) {
-	_, err := askPermission(t, permissionRequest{permission: "id-token", level: "admin"})
+	_, _, err := askPermission(t, permissionRequest{permission: "id-token", level: "admin"})
 	assert.ErrorContains(t, err, "not none, read or write")
 }

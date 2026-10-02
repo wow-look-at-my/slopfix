@@ -84,20 +84,31 @@ var (
 	checkPath string
 	// checkMaxLines caps a comment block.
 	checkMaxLines int
+	// checkMessage reads stdin as a closing message rather than as a file.
+	checkMessage bool
+	// checkGrant is --permission, --level and --job: whether a workflow job holds a permission.
+	checkGrant permissionRequest
 )
 
 func init() {
 	check := &cobra.Command{
 		Use:   "check [--fix] [file]...",
 		Short: "Report what every rule rejects, and with --fix repair what it can",
-		Long: "check reads each file it is named and reports every finding. With --fix\n" +
-			"it repairs each one in place first, and reports what a rewrite cannot\n" +
-			"repair. A directory is walked. Walked from a repository root, the repo\n" +
-			"rules also judge which markdown files the repository keeps.\n\n" +
-			"With no file it reads a document on stdin. Named as fix, or given\n" +
-			"--fix, it writes the repaired document on stdout and its findings on\n" +
-			"stderr; --json writes the whole answer as one object instead, which is\n" +
-			"what a PreToolUse hook reads.",
+		Long: "check reads each file it is named and reports every finding. Every rule\n" +
+			"runs unless --only names a subset. The path decides which rules read a\n" +
+			"file. With --fix it repairs each file in place first, and reports what a\n" +
+			"rewrite cannot repair. A directory is walked. Walked from a repository\n" +
+			"root, the repo rules also judge which markdown files the repository keeps.\n\n" +
+			"With no file it reads text on stdin, headed for --path. Named as fix, or\n" +
+			"given --fix, it writes the repaired text on stdout and its findings on\n" +
+			"stderr. --json writes the whole answer as one object instead, and exits 0\n" +
+			"on a finding, because the caller decides what a finding means.\n\n" +
+			"--message reads stdin as a closing message, which is never on disk, and\n" +
+			"judges it with the message rules (" + slopfix.Listed(messageIDs()) + ").\n\n" +
+			"--permission asks whether a workflow job holds a permission, at --level.\n" +
+			"The job's permissions block wins, then the workflow's, then the repository\n" +
+			"default, which reads as none. A missing grant is a finding. In a GitHub\n" +
+			"Actions step the workflow file and --job default to the running ones.",
 		// fix is check --fix. A file decides which rules read it, so no other name is needed.
 		Aliases: []string{"fix"},
 		Args:    cobra.ArbitraryArgs,
@@ -110,10 +121,31 @@ func init() {
 			strings.Join(ruleNames(), ", ")+") or a single rule ID, which is the name the report prints")
 	check.Flags().StringVar(&checkPath, "path", "", "the file the text on stdin is headed for")
 	check.Flags().IntVar(&checkMaxLines, "max-comment-lines", tombstones.DefaultMaxCommentLines, "cap a comment block, 0 to turn the cap off")
+	check.Flags().BoolVar(&checkMessage, "message", false, "judge stdin as a closing message, with the message rules")
+	check.Flags().StringVar(&checkGrant.permission, "permission", "", "ask whether a workflow job holds this permission, such as id-token")
+	check.Flags().StringVar(&checkGrant.level, "level", "write", "with --permission, the level the job needs: none, read or write")
+	check.Flags().StringVar(&checkGrant.job, "job", "", "with --permission, the job key. Defaults to GITHUB_JOB")
 	rootCmd.AddCommand(check)
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
+	if checkGrant.permission != "" {
+		if len(args) > 1 || checkFix || checkMessage || cmd.CalledAs() == "fix" {
+			return fmt.Errorf("--permission reads one workflow file and repairs nothing, so it takes no --fix and no --message")
+		}
+		req := checkGrant
+		req.asJSON = checkJSON
+		if len(args) == 1 {
+			req.workflow = args[0]
+		}
+		return checkPermission(cmd, req, os.Getenv)
+	}
+	if checkMessage {
+		if len(args) > 0 || checkFix || cmd.CalledAs() == "fix" {
+			return fmt.Errorf("--message judges stdin and repairs nothing, so it takes no file and no --fix")
+		}
+		return checkMessageStdin(cmd, checkOnly, checkJSON)
+	}
 	// Invoked as "fix", the repair is what was asked for, flag or no flag.
 	repairing := checkFix || cmd.CalledAs() == "fix"
 	rules, ids, err := selectedRules(checkOnly)
@@ -127,7 +159,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		MaxCommentLines: checkMaxLines,
 	}
 	if len(args) == 0 {
-		return checkStdin(cmd, request, repairing)
+		return checkStdin(cmd, request, repairing, checkJSON)
 	}
 	found := false
 	for _, path := range args {
@@ -185,8 +217,9 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	return failed || len(out.Kept) > 0 || len(out.Unmet) > 0
 }
 
-// checkStdin answers for a document on stdin rather than a named file.
-func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing bool) error {
+// checkStdin answers for text on stdin rather than a named file. It takes the
+// JSON choice as an argument, so a test never swaps a parallel sibling's state.
+func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing, asJSON bool) error {
 	content, err := io.ReadAll(cmd.InOrStdin())
 	if err != nil {
 		return err
@@ -198,16 +231,15 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing bool) err
 	}
 	repair := run(request)
 
-	if checkJSON {
-		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(repair); err != nil {
-			return err
-		}
-	}
 	if len(repair.Unmet) > 0 {
 		return &slopfix.UnmetError{Path: request.Path, Unmet: repair.Unmet}
 	}
-	if checkJSON {
-		return nil
+	if asJSON {
+		out := reportOutput{Path: request.Path, Findings: wireFindings(repair.Findings, repair.Kept)}
+		if repairing {
+			out.Text, out.Removed = &repair.Text, repair.Removed
+		}
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(out)
 	}
 	if repairing {
 		fmt.Fprint(cmd.OutOrStdout(), repair.Text)
@@ -224,6 +256,30 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing bool) err
 		fmt.Fprintln(cmd.ErrOrStderr(), finding)
 	}
 	if failed || len(repair.Kept) > 0 {
+		return errFindings
+	}
+	return nil
+}
+
+// checkMessageStdin judges a closing message on stdin. It takes its selection
+// as arguments, so a test never swaps state that a parallel sibling reads.
+func checkMessageStdin(cmd *cobra.Command, only []string, asJSON bool) error {
+	runs, err := messageSelection(only)
+	if err != nil {
+		return err
+	}
+	text, err := io.ReadAll(cmd.InOrStdin())
+	if err != nil {
+		return err
+	}
+	findings := messageFindings(string(text), runs)
+	if asJSON {
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(reportOutput{Findings: wireFindings(findings, nil)})
+	}
+	for _, finding := range findings {
+		fmt.Fprintln(cmd.OutOrStdout(), finding)
+	}
+	if len(findings) > 0 {
 		return errFindings
 	}
 	return nil

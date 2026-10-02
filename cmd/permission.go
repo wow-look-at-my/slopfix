@@ -13,33 +13,13 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
+// permissionRequest is check --permission: does a workflow job hold a permission.
 type permissionRequest struct {
 	workflow, job, permission, level string
-	assert                           bool
+	asJSON                           bool
 }
 
-var permissionFlags permissionRequest
-
-func init() {
-	command := &cobra.Command{
-		Use:   "has-permission --permission NAME",
-		Short: "Report whether a workflow job holds a permission",
-		Long: "Report the level a job's permissions block, or else its workflow's, gives one permission. " +
-			"In a GitHub Actions step the workflow file and the job default to the running ones. " +
-			"The answer is one JSON object on stdout.",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error { return hasPermission(cmd, permissionFlags, os.Getenv) },
-	}
-	f := command.Flags()
-	f.StringVar(&permissionFlags.permission, "permission", "", "the permission scope, such as id-token, contents or packages")
-	f.StringVar(&permissionFlags.level, "level", "write", "the level the caller needs: none, read or write. write covers read")
-	f.StringVar(&permissionFlags.workflow, "workflow", "", "the workflow file. Defaults to the one GITHUB_WORKFLOW_REF names")
-	f.StringVar(&permissionFlags.job, "job", "", "the job key. Defaults to GITHUB_JOB")
-	f.BoolVar(&permissionFlags.assert, "assert", false, "exit 1 when the job does not hold the level")
-	rootCmd.AddCommand(command)
-}
-
-// permissionAnswer is this command's wire contract.
+// permissionAnswer is the --json wire contract.
 type permissionAnswer struct {
 	Granted bool   `json:"granted"`
 	Level   string `json:"level"`
@@ -48,11 +28,8 @@ type permissionAnswer struct {
 	Message string `json:"message"`
 }
 
-// hasPermission takes its environment as a function, so a test never sets the process environment.
-func hasPermission(cmd *cobra.Command, req permissionRequest, getenv func(string) string) error {
-	if req.permission == "" {
-		return errors.New("--permission is required")
-	}
+// checkPermission takes its environment as a function, so a test never sets the process environment.
+func checkPermission(cmd *cobra.Command, req permissionRequest, getenv func(string) string) error {
 	if !slices.Contains(workflow.Levels, req.level) {
 		return fmt.Errorf("--level is %q, not none, read or write", req.level)
 	}
@@ -86,11 +63,12 @@ func hasPermission(cmd *cobra.Command, req permissionRequest, getenv func(string
 	default:
 		answer.Message = fmt.Sprintf("%s: %s is NOT granted to %s. Its %s permissions block gives %s.", req.permission, req.level, where, grant.Source, grant.Level)
 	}
-	if err := json.NewEncoder(cmd.OutOrStdout()).Encode(answer); err != nil {
-		return err
+	if req.asJSON {
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(answer)
 	}
-	if req.assert && !answer.Granted {
-		return errors.New(answer.Message)
+	fmt.Fprintln(cmd.ErrOrStderr(), answer.Message)
+	if !answer.Granted {
+		return errFindings
 	}
 	return nil
 }
@@ -103,7 +81,7 @@ func workflowFile(named string, getenv func(string) string) (string, error) {
 	}
 	ref := getenv("GITHUB_WORKFLOW_REF")
 	if ref == "" {
-		return "", errors.New("--workflow is required outside a GitHub Actions step")
+		return "", errors.New("name the workflow file outside a GitHub Actions step")
 	}
 	path, _, _ := strings.Cut(ref, "@")
 	parts := strings.SplitN(path, "/", 3)
