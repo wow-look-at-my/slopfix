@@ -1,6 +1,7 @@
 package bashclean
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,18 +66,20 @@ func TestAGrepOverJSONLinesPrintsTheMatchingRecords(t *testing.T) {
 	dir := fixtureDir(t)
 	rec2 := `{"level":"error","msg":"say \"hi\" failed","n":2}`
 	rec3 := `{"level":"ERROR","msg":"disk full","n":3}`
+	rec1 := `{"level":"info","msg":"started","n":1}`
+	more := `{"level":"error","msg":"second file"}`
 	for command, want := range map[string]string{
 		"grep error logs.jsonl":               rec2,
 		"grep -i error logs.jsonl":            rec2 + "\n" + rec3,
 		"grep --ignore-case error logs.jsonl": rec2 + "\n" + rec3,
 		"grep -n ERROR logs.jsonl":            "3:" + rec3,
 		"grep -ci error logs.jsonl":           "2",
-		"grep -vi error logs.jsonl":           `{"level":"info","msg":"started","n":1}`,
+		"grep -vi error logs.jsonl":           rec1,
 		`grep 'say "hi"' logs.jsonl`:          rec2,
-		"grep -e full -e started logs.jsonl":  `{"level":"info","msg":"started","n":1}` + "\n" + rec3,
-		"grep -h error logs.jsonl more.jsonl": rec2 + "\n" + `{"level":"error","msg":"second file"}`,
-		"grep error logs.jsonl more.jsonl":    "logs.jsonl:" + rec2 + "\nmore.jsonl:" + `{"level":"error","msg":"second file"}`,
-		"grep error *.jsonl":                  "logs.jsonl:" + rec2 + "\nmore.jsonl:" + `{"level":"error","msg":"second file"}`,
+		"grep -e full -e started logs.jsonl":  rec1 + "\n" + rec3,
+		"grep -h error logs.jsonl more.jsonl": rec2 + "\n" + more,
+		"grep error logs.jsonl more.jsonl":    "logs.jsonl:" + rec2 + "\nmore.jsonl:" + more,
+		"grep error *.jsonl":                  "logs.jsonl:" + rec2 + "\nmore.jsonl:" + more,
 		"grep -x 3 logs.jsonl":                rec3,
 		"grep -w dis logs.jsonl":              "",
 		"rg -i error logs.jsonl":              rec2 + "\n" + rec3,
@@ -152,8 +155,12 @@ func TestAWrapperBeforeGrepSurvivesTheRewrite(t *testing.T) {
 
 func TestTheHookResolvesARelativePathAgainstThePayloadCwd(t *testing.T) {
 	dir := fixtureDir(t)
-	payload := `{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"` + dir + `","tool_input":{"command":"grep version data.json"}}`
-	out := Run(strings.NewReader(payload))
+	payload, err := json.Marshal(map[string]any{
+		"hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": dir,
+		"tool_input": map[string]string{"command": "grep version data.json"},
+	})
+	require.NoError(t, err)
+	out := Run(strings.NewReader(string(payload)))
 	assert.Contains(t, out.Stdout, `jq -n -r --arg re`)
 	assert.Contains(t, out.Stdout, `data.json`)
 }
@@ -229,9 +236,11 @@ func TestTheSnifferTakesUnderFiftyMillisecondsAtAnySize(t *testing.T) {
 	huge := filepath.Join(dir, "huge.json")
 	f, err := os.Create(huge)
 	require.NoError(t, err)
-	_, err = f.WriteString(`{"items": [` + strings.Repeat(`{"id": 1, "name": "item"}, `, 4000))
+	_, err = f.WriteString(`{"items": [`)
 	require.NoError(t, err)
-	_, err = f.WriteAt([]byte(`{"id": 2}]}`+"\n"), 8<<30)
+	_, err = f.WriteString(strings.Repeat(`{"id": 1, "name": "item"}, `, 4000))
+	require.NoError(t, err)
+	_, err = f.WriteAt([]byte("{\"id\": 2}]}\n"), 8<<30)
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
