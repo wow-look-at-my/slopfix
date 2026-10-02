@@ -7,8 +7,7 @@ import (
 )
 
 // git is a legitimate thing for Bash to run, and most of it stays out of this
-// hook's way: status, log, diff, add, commit, push, fetch, branch, tag, and
-// creating or switching a branch all leave file content to the edit tools.
+// hook's way.
 
 // worktreeVerbs put content into the tree that no commit holds. `git stash pop`
 // is absent: it puts back work this session stashed, which no edit tool can do.
