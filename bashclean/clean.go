@@ -75,9 +75,9 @@ func transform(command, dir string, passes int, warn io.Writer) Result {
 			rules = appendUnique(rules, name)
 		}
 	}
+	j := &grepJSON{dir: dir, cache: map[string]jsonKind{}}
 	// Runs to a fixed point: a rule's output is another rule's input, and a
 	// single pass leaves the later rewrite undone.
-	j := &grepJSON{dir: dir, cache: map[string]jsonKind{}}
 	if !runToFixedPoint(f, func() { onePass(apply, j) }, passes) {
 		reportNonConvergence(warn, command, printFile(f), passes)
 	}
