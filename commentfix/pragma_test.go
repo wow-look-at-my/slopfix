@@ -8,6 +8,25 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
+// Only the pragma syntax is a pragma. A line that opens with the word and then
+// says something is prose the rule reads.
+func TestProseAfterAPragmaWordIsStillProse(t *testing.T) {
+	src := "# shellcheck is a linter we run, and this line explains at great length why the script below is written the way it is today.\n" +
+		"run\n"
+	assert.NotEmpty(t, commentfix.CheckLength("a.sh", src))
+}
+
+// The free text a pragma carries counts, so an essay cannot hide behind it.
+// The cut takes the free text and keeps the pragma.
+func TestAPragmaDescriptionCountsAndIsCut(t *testing.T) {
+	src := "// eslint-disable-next-line no-console -- this description goes on and on about the history of the call below and why it was written, well past the code\n" +
+		"console.log(x);\n"
+	assert.NotEmpty(t, commentfix.CheckLength("a.ts", src))
+	fixed, changed := commentfix.FixLength("a.ts", src)
+	assert.True(t, changed)
+	assert.Equal(t, "// eslint-disable-next-line no-console\nconsole.log(x);\n", fixed)
+}
+
 // A lint pragma between a doc block and its code is for the linter. The cut
 // keeps it, and keeps the doc block closed.
 func TestALintPragmaUnderADocBlockSurvivesTheCut(t *testing.T) {
