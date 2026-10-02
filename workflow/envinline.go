@@ -21,6 +21,9 @@ var wholeExpression = regexp.MustCompile(`^\$\{\{\s*([^}]*?)\s*\}\}$`)
 // untrusted names the contexts an attacker can write.
 var untrusted = regexp.MustCompile(`github\.event\b|github\.head_ref\b`)
 
+// opaque names the contexts whose text the shell must not parse.
+var opaque = regexp.MustCompile(`\b(steps|needs|jobs)\.[^.\s]+\.outputs\b|\bsecrets\.`)
+
 // runnerContext maps a runner variable to the context that carries the same
 // value. A path in this map differs inside a container job, so a container job
 // keeps the variable.
@@ -323,7 +326,7 @@ func (es envStep) judgeEntry(name string, key, value *yaml.Node, refs []paramRef
 		return true, false
 	}
 	match := wholeExpression.FindStringSubmatch(strings.TrimSpace(value.Value))
-	if match == nil || untrusted.MatchString(match[1]) {
+	if match == nil || untrusted.MatchString(match[1]) || opaque.MatchString(match[1]) {
 		return false, false
 	}
 	for _, r := range refs {

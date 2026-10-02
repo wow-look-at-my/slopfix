@@ -80,6 +80,21 @@ func TestAnUntrustedExpressionStaysInEnv(t *testing.T) {
 	assert.Empty(t, envIndirections(content))
 }
 
+// A JSON result holds quotes, so written into "..." it ends the string early.
+// A secret written into the script lands in the script file on disk.
+func TestARunTimeOutputOrASecretStaysInEnv(t *testing.T) {
+	for _, expr := range []string{"steps.ts.outputs.result", "needs.build.outputs.version", "secrets.TOKEN"} {
+		content := "jobs:\n" +
+			"  a:\n" +
+			"    runs-on: ubuntu-latest\n" +
+			"    steps:\n" +
+			"      - env:\n" +
+			"          VALUE: ${{ " + expr + " }}\n" +
+			"        run: echo \"$VALUE\"\n"
+		assert.Empty(t, envIndirections(content), expr)
+	}
+}
+
 func TestAnEntryWithExtraTextOrAnOperatorStays(t *testing.T) {
 	content := "jobs:\n" +
 		"  a:\n" +
