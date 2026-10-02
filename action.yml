@@ -1,30 +1,23 @@
 name: slopfix
-description: Download slopfix and run it. By default it checks this repository, and fails the job when a rule rejects something
+description: Download slopfix and check the whole checkout with every rule, or answer whether this job holds a permission
 
+# No input narrows the check: action_test.go fails the build on any input but these.
 inputs:
-  paths:
-    description: 'Paths to read, space separated. A directory is walked. Ignored when args is set.'
-    required: false
-    default: '.'
-
-  only:
+  permission:
     description: >-
-      Restrict the run to these rules, comma separated. An entry is a
-      category or a category/rule. Ignored when args is set.
+      A permission scope, such as id-token. When set, the action answers
+      check workflow-permission for the running job instead of the check.
     required: false
     default: ''
 
-  args:
-    description: >-
-      The whole slopfix command line, such as
-      "check workflow-permission --json --permission id-token". Empty runs
-      check on paths.
+  level:
+    description: The level the permission must reach - none, read or write
     required: false
-    default: ''
+    default: write
 
 outputs:
   stdout:
-    description: What slopfix wrote on stdout, such as the JSON of a --json run
+    description: What slopfix wrote on stdout, which is the JSON answer when permission is set
     value: ${{ steps.unix.outputs.stdout || steps.windows.outputs.stdout }}
 
 runs:
@@ -42,8 +35,10 @@ runs:
       if: runner.os != 'Windows'
       shell: bash
       run: |
-        # The arguments are a list, so they are deliberately unquoted.
-        set -- ${{ inputs.args != '' && inputs.args || format('check {0} {1}', inputs.only != '' && format('--only {0}', inputs.only) || '', inputs.paths) }}
+        set -- check .
+        if [ -n "${{ inputs.permission }}" ]; then
+          set -- check workflow-permission --json --permission "${{ inputs.permission }}" --level "${{ inputs.level }}"
+        fi
         rc=0
         out=$(sh "${{ steps.download.outputs.path }}" "$@") || rc=$?
         printf '%s\n' "$out"
@@ -56,7 +51,10 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        $slopfixArgs = -split '${{ inputs.args != '' && inputs.args || format('check {0} {1}', inputs.only != '' && format('--only {0}', inputs.only) || '', inputs.paths) }}'
+        $slopfixArgs = @('check', '.')
+        if ('${{ inputs.permission }}' -ne '') {
+          $slopfixArgs = @('check', 'workflow-permission', '--json', '--permission', '${{ inputs.permission }}', '--level', '${{ inputs.level }}')
+        }
         $out = & "${{ steps.download.outputs.path }}" @slopfixArgs
         $rc = $LASTEXITCODE
         $out
