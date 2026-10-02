@@ -66,13 +66,14 @@ var rgLong = map[string]byte{
 	"--pcre2": 'P', "--word-regexp": 'w', "--line-regexp": 'x',
 	"--no-filename": 'I', "--with-filename": 'H', "--line-number": 'n',
 	"--no-line-number": 'N', "--count": 'c', "--case-sensitive": 's',
-	"--smart-case": 'S', "--no-messages": 'q',
+	"--smart-case": 'S', "--no-messages": 0,
 }
 
 // applyShort sets the flag a letter names. False means the letter is outside
 // the table, and the rewrite stops.
 func (g *grepCall) applyShort(d grepDialect, c byte) bool {
 	switch c {
+	case 0:
 	case 'i':
 		g.icase, g.smart = true, false
 	case 'v':
@@ -108,7 +109,6 @@ func (g *grepCall) applyDialect(d grepDialect, c byte) bool {
 			g.icase, g.smart = false, false
 		case 'S':
 			g.icase, g.smart = false, true
-		case 'q':
 		default:
 			return false
 		}
@@ -319,10 +319,8 @@ func posixToOnig(p string, basic bool) (string, bool) {
 			b.WriteString(`\$`)
 		default:
 			b.WriteByte(c)
-			if !basic && (c == '(' || c == '|') {
-				continue
-			}
-			if c == '^' && atStart {
+			if (!basic && (c == '(' || c == '|')) || (c == '^' && atStart) {
+				atStart = true
 				continue
 			}
 		}
@@ -396,30 +394,30 @@ func (g grepCall) jqProgram(kind jsonKind, multi bool) string {
 	if g.invert {
 		not = " | not"
 	}
-	prog := fmt.Sprintf(`def hit: test($re; %q); `, g.caseFlag())
+	defs := fmt.Sprintf(`def hit: test($re; %q); `, g.caseFlag())
 	showName := g.names == 1 || (g.names == 0 && multi)
-	var prefix string
+	var body, line string
 	if kind == jsonLines {
-		prog += fmt.Sprintf(jqRecords, not)
+		body = fmt.Sprintf(jqRecords, not)
 		if showName {
-			prefix += `\(.file):`
+			line += `\(.file):`
 		}
 		if g.numbers {
-			prefix += `\(.n):`
+			line += `\(.n):`
 		}
-		if g.count {
-			return "[" + prog + "] | length"
+		line += `\(.r | tojson)`
+	} else {
+		defs = jqPath + defs
+		body = fmt.Sprintf(jqLeaves, not)
+		if showName {
+			line = `\($file):`
 		}
-		return prog + ` | "` + prefix + `\(.r | tojson)"`
+		line += `\($p | pstr) = \($v | tojson)`
 	}
-	prog = jqPath + prog + fmt.Sprintf(jqLeaves, not)
 	if g.count {
-		return "[" + prog + "] | length"
+		return defs + "[" + body + "] | length"
 	}
-	if showName {
-		prefix = `\($file):`
-	}
-	return prog + ` | "` + prefix + `\($p | pstr) = \($v | tojson)"`
+	return defs + body + ` | "` + line + `"`
 }
 
 // shellWord quotes s for the printer. A single quote cannot sit inside single
