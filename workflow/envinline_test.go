@@ -80,6 +80,38 @@ func TestAnUntrustedExpressionStaysInEnv(t *testing.T) {
 	assert.Empty(t, envIndirections(content))
 }
 
+// A script action's result is JSON, and its quotes end a quoted script word
+// early. A secret written into the script lands in the script file on disk.
+func TestAScriptResultOrASecretStaysInEnv(t *testing.T) {
+	for _, uses := range []string{"./typescript", "wow-look-at-my/actions@typescript#latest", "actions/github-script@v7"} {
+		content := "jobs:\n" +
+			"  a:\n" +
+			"    runs-on: ubuntu-latest\n" +
+			"    steps:\n" +
+			"      - id: ts\n" +
+			"        uses: " + uses + "\n" +
+			"      - env:\n" +
+			"          VALUE: ${{ steps.ts.outputs.result }}\n" +
+			"          TOKEN: ${{ secrets.TOKEN }}\n" +
+			"        run: echo \"$VALUE $TOKEN\"\n"
+		assert.Empty(t, envIndirections(content), uses)
+	}
+}
+
+// Another action's result output is no JSON the rule knows of, so it goes inline.
+func TestAnotherActionsResultIsInlined(t *testing.T) {
+	content := "jobs:\n" +
+		"  a:\n" +
+		"    runs-on: ubuntu-latest\n" +
+		"    steps:\n" +
+		"      - id: x\n" +
+		"        uses: some/action@v1\n" +
+		"      - env:\n" +
+		"          VALUE: ${{ steps.x.outputs.result }}\n" +
+		"        run: echo \"$VALUE\"\n"
+	assert.Len(t, envIndirections(content), 1)
+}
+
 func TestAnEntryWithExtraTextOrAnOperatorStays(t *testing.T) {
 	content := "jobs:\n" +
 		"  a:\n" +

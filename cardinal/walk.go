@@ -136,6 +136,43 @@ func Money(text string, toks []Token, i int) bool {
 	return unicode.IsDigit(rune(tok.Text[0]))
 }
 
+// listLead is what may stand before a list marker: indentation and comment markers.
+const listLead = " \t/#*;"
+
+// ListMarker exempts the digits that open a numbered list item, such as "1." or
+// "2)". The marker orders the items and counts nothing.
+func ListMarker(text string, toks []Token, i int) bool {
+	tok := toks[i]
+	if strings.Trim(text[:tok.Offset], listLead) != "" {
+		return false
+	}
+	digits := strings.TrimSuffix(tok.Text, ".")
+	if !allDigits(digits) {
+		return false
+	}
+	rest := text[tok.Offset+len(digits):]
+	return strings.HasPrefix(rest, ". ") || strings.HasPrefix(rest, ") ")
+}
+
+// Operand exempts a number written as code: the argument of a call, or an operand
+// of a star or a plus. Its value is a size the format fixes.
+func Operand(text string, toks []Token, i int) bool {
+	tok := toks[i]
+	if !allDigits(tok.Text) {
+		return false
+	}
+	before, _ := utf8.DecodeLastRuneInString(text[:tok.Offset])
+	after, _ := utf8.DecodeRuneInString(text[tok.Offset+len(tok.Text):])
+	if before == '*' || before == '+' || after == '*' {
+		return true
+	}
+	if before != '(' || after != ')' {
+		return false
+	}
+	call, size := utf8.DecodeLastRuneInString(text[:tok.Offset-1])
+	return size > 0 && isNameRune(call)
+}
+
 // tokensIn splits a line into runs of name characters, so a URL, an import path
 // and a version each stay whole.
 func tokensIn(text string) []Token {

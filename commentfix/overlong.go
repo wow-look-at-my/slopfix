@@ -24,7 +24,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
-	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // IDLength names this rule, on a report and on the command line alike.
@@ -95,15 +94,19 @@ const cutNote = "trailing comment prose"
 // repairLength cuts every over-long comment block in f back inside its budget.
 func repairLength(f *fixer.File) {
 	defer trace.Phase("repair/comments-length")()
-	if len(f.ApplyComments(lengthEdits(f.Path, f.Text())).Applied) > 0 {
+	if len(f.ApplyComments(lengthEdits(f.Path, f.Text(), f.MaxCommentLines)).Applied) > 0 {
 		f.RemovedOnce(cutNote)
 	}
 }
 
-// lengthEdits answers an edit per block that outweighs its code.
-func lengthEdits(filename, src string) []edit.Edit {
+// lengthEdits answers an edit per block that outweighs its code, or that runs
+// past maxLines. The volume cap has no repair of its own, so this cut serves it.
+func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 	var edits []edit.Edit
 	for _, b := range blocks(filename, src) {
+		if maxLines > 0 && b.codeLines > maxLines {
+			b.codeLines = maxLines
+		}
 		if _, over := judge(b); !over {
 			continue
 		}
@@ -192,7 +195,12 @@ func repair(b block) []string {
 	if len(body) == 0 {
 		return b.text
 	}
-	kept := trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact})
+	bodyBlock := block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact}
+	// A /* */ body is cut as a block, so its closer survives the cut.
+	if out, ok := repairBlockComment(bodyBlock); ok {
+		return append(append(append([]string{}, lead...), out...), trail...)
+	}
+	kept := trim(bodyBlock)
 	if len(trail) > 0 {
 		kept = withSeparator(kept, trail)
 		// Doc and separator cannot fit, so the doc goes and the directive stays.
@@ -254,32 +262,6 @@ func prose(text []string) []string {
 func withSeparator(kept, trail []string) []string {
 	indent := trail[0][:len(trail[0])-len(strings.TrimLeft(trail[0], " \t"))]
 	return append(append([]string{}, kept...), indent+"//")
-}
-
-// isDirectiveLine reports a line a tool reads rather than a reader. The C family
-// spells it with no space after the marker, and the hash family carries the
-// interpreter line and the linter pragma.
-func isDirectiveLine(line string) bool {
-	if treecomments.IsDirective(line) {
-		return true
-	}
-	t := strings.TrimSpace(line)
-	for _, marker := range []string{"//", "#"} {
-		rest, found := strings.CutPrefix(t, marker)
-		if !found {
-			continue
-		}
-		if marker == "#" && strings.HasPrefix(rest, "!") {
-			return true // an interpreter line
-		}
-		name, _, hasColon := strings.Cut(rest, ":")
-		if !hasColon || name == "" || strings.ContainsAny(name, " \t") {
-			continue
-		}
-		// `//go:build` and `# shellcheck:` carry no space before the colon.
-		return true
-	}
-	return false
 }
 
 // trim cuts the block's trailing prose until it fits, keeping the opening.

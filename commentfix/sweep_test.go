@@ -2,6 +2,7 @@ package commentfix_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -63,6 +64,24 @@ func TestTheWalkSkipsASubmodule(t *testing.T) {
 		"kept/.git/HEAD": "ref: refs/heads/master\n",
 	})
 	assert.ElementsMatch(t, []string{"kept/k.go"}, names(t, root))
+}
+
+// Built output that git ignores is not prose anybody here wrote. A tracked file
+// stays even when an ignore pattern matches it.
+func TestTheWalkSkipsWhatGitIgnores(t *testing.T) {
+	root := tree(t, map[string]string{
+		"go.mod":      "module example.com/m\n",
+		".gitignore":  "dist/\ntracked.js\n",
+		"main.go":     "package main\n",
+		"dist/out.js": "const x = 1\n",
+		"tracked.js":  "const y = 1\n",
+	})
+	for _, args := range [][]string{{"init", "-q"}, {"add", "-f", "tracked.js"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		require.NoError(t, cmd.Run())
+	}
+	assert.ElementsMatch(t, []string{"main.go", "tracked.js"}, names(t, root))
 }
 
 // Where the root declares no module of its own, the modules below it are the

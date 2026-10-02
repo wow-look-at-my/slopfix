@@ -21,6 +21,15 @@ var wholeExpression = regexp.MustCompile(`^\$\{\{\s*([^}]*?)\s*\}\}$`)
 // untrusted names the contexts an attacker can write.
 var untrusted = regexp.MustCompile(`github\.event\b|github\.head_ref\b`)
 
+// secret matches a secret, which must not land in the script file on disk.
+var secret = regexp.MustCompile(`\bsecrets\.`)
+
+// stepResult matches the result output of a step, and captures the step id.
+var stepResult = regexp.MustCompile(`^steps\.([A-Za-z0-9_-]+)\.outputs\.result$`)
+
+// scriptAction matches an action whose result output is JSON.
+var scriptAction = regexp.MustCompile(`(^|[/@])typescript([@#]|$)|github-script@`)
+
 // runnerContext maps a runner variable to the context that carries the same
 // value. A path in this map differs inside a container job, so a container job
 // keeps the variable.
@@ -46,6 +55,8 @@ type envStep struct {
 	// prefix is the bytes on each row before the script line starts.
 	prefix []string
 	parsed *syntax.File
+	// uses maps each step id in the same steps list to the action it uses.
+	uses map[string]string
 }
 
 // envPlan is what the rule finds in one step, and the edits that repair it.
@@ -86,6 +97,7 @@ func envPlans(content string) []envPlan {
 		if !ok {
 			continue
 		}
+		es.uses = s.uses
 		if p := es.plan(content, rows); len(p.findings) > 0 {
 			out = append(out, p)
 		}
@@ -98,6 +110,18 @@ type stepRef struct {
 	step      *yaml.Node
 	container bool
 	windows   bool
+	uses      map[string]string
+}
+
+// usesByID maps each step id in a steps list to the action that step uses.
+func usesByID(steps *yaml.Node) map[string]string {
+	out := map[string]string{}
+	for _, step := range steps.Content {
+		if id, uses := mappingValue(step, "id"), mappingValue(step, "uses"); id != nil && uses != nil {
+			out[id.Value] = uses.Value
+		}
+	}
+	return out
 }
 
 // runSteps answers every step of every job, and every step of a composite action.
@@ -121,14 +145,16 @@ func runSteps(root *yaml.Node) []stepRef {
 				walk(on, func(n *yaml.Node) { text.WriteString(n.Value) })
 				windows = strings.Contains(strings.ToLower(text.String()), "windows")
 			}
+			uses := usesByID(steps)
 			for _, step := range steps.Content {
-				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell)})
+				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), uses: uses})
 			}
 		}
 	}
 	if steps := mappingValue(mappingValue(root, "runs"), "steps"); steps != nil && steps.Kind == yaml.SequenceNode {
+		uses := usesByID(steps)
 		for _, step := range steps.Content {
-			out = append(out, stepRef{step: step})
+			out = append(out, stepRef{step: step, uses: uses})
 		}
 	}
 	return out
@@ -323,7 +349,10 @@ func (es envStep) judgeEntry(name string, key, value *yaml.Node, refs []paramRef
 		return true, false
 	}
 	match := wholeExpression.FindStringSubmatch(strings.TrimSpace(value.Value))
-	if match == nil || untrusted.MatchString(match[1]) {
+	if match == nil || untrusted.MatchString(match[1]) || secret.MatchString(match[1]) {
+		return false, false
+	}
+	if id := stepResult.FindStringSubmatch(match[1]); id != nil && scriptAction.MatchString(es.uses[id[1]]) {
 		return false, false
 	}
 	for _, r := range refs {
