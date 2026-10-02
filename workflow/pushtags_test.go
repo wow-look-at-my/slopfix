@@ -38,10 +38,10 @@ func TestAnUnfilteredPushIsReported(t *testing.T) {
 
 func TestTheRepairWritesABranchFilter(t *testing.T) {
 	cases := map[string]string{
-		"on: push\njobs: {}\n":                       "on:\n  push:\n    branches: ['**']\njobs: {}\n",
-		"on: push # ci\njobs: {}\n":                  "on: # ci\n  push:\n    branches: ['**']\njobs: {}\n",
-		"on: [pull_request, push]\njobs: {}\n":       "on:\n  pull_request:\n  push:\n    branches: ['**']\njobs: {}\n",
-		"on:\n  push:\n  workflow_dispatch:\njobs: {}\n": "on:\n  push:\n    branches: ['**']\n  workflow_dispatch:\njobs: {}\n",
+		"on: push\njobs: {}\n":                                  "on:\n  push:\n    branches: ['**']\njobs: {}\n",
+		"on: push # ci\njobs: {}\n":                             "on: # ci\n  push:\n    branches: ['**']\njobs: {}\n",
+		"on: [pull_request, push]\njobs: {}\n":                  "on:\n  pull_request:\n  push:\n    branches: ['**']\njobs: {}\n",
+		"on:\n  push:\n  workflow_dispatch:\njobs: {}\n":        "on:\n  push:\n    branches: ['**']\n  workflow_dispatch:\njobs: {}\n",
 		"on:\n    push:\n        paths: ['src/**']\njobs: {}\n": "on:\n    push:\n        branches: ['**']\n        paths: ['src/**']\njobs: {}\n",
 	}
 	for content, want := range cases {
