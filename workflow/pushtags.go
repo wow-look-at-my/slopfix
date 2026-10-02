@@ -1,6 +1,9 @@
 package workflow
 
 import (
+	"strings"
+
+	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
@@ -54,6 +57,66 @@ func pushFinding(line int) ste.Finding {
 		Line: line,
 		ID:   IDPushTags,
 		Rule: "a push trigger with no ref filter also runs on every tag push",
-		Fix:  "Add `branches: ['**']` under `push:`, or `tags-ignore: ['**']`, to keep the workflow on branch pushes.",
+		Fix:  "Add `branches: ['**']` under `push:`, or `tags-ignore: ['**']`, to keep the workflow on branch pushes. `slopfix fix` does this.",
 	}
+}
+
+// branchFilter is the filter the repair writes. It matches every branch and no tag.
+const branchFilter = "branches: ['**']"
+
+// filterPush writes branchFilter under an unfiltered push trigger. A flow-style
+// mapping is left to the author, because its rewrite is not one whole row.
+func filterPush(content string) []edit.Edit {
+	if len(pushTags(content)) == 0 {
+		return nil
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+		return nil
+	}
+	root := rootOf(&doc)
+	key, trigger := mappingKey(root, "on"), mappingValue(root, "on")
+	rows := lines(content)
+	row := key.Line - 1
+	indent := rows[row][:key.Column-1]
+	switch trigger.Kind {
+	case yaml.ScalarNode:
+		if trigger.Line != key.Line {
+			return nil
+		}
+		head := strings.TrimRight(rows[row][:trigger.Column-1], " ")
+		tail := rows[row][trigger.Column-1+len(trigger.Value):]
+		return []edit.Edit{edit.Rows(content, row, row, 0, []string{
+			head + tail, indent + "  push:", indent + "    " + branchFilter,
+		})}
+	case yaml.SequenceNode:
+		if trigger.Style&yaml.FlowStyle == 0 || trigger.Line != key.Line {
+			return nil
+		}
+		out := []string{strings.TrimRight(rows[row][:trigger.Column-1], " ")}
+		for _, item := range trigger.Content {
+			if item.Kind != yaml.ScalarNode || item.Line != key.Line {
+				return nil
+			}
+			out = append(out, indent+"  "+item.Value+":")
+			if item.Value == "push" {
+				out = append(out, indent+"    "+branchFilter)
+			}
+		}
+		return []edit.Edit{edit.Rows(content, row, row, 0, out)}
+	case yaml.MappingNode:
+		pushKey, push := mappingKey(trigger, "push"), mappingValue(trigger, "push")
+		pushRow := pushKey.Line - 1
+		child := rows[pushRow][:pushKey.Column-1] + "  "
+		switch {
+		case push.Kind == yaml.ScalarNode && push.Value == "" && push.Line == pushKey.Line:
+		case push.Kind == yaml.MappingNode && push.Style&yaml.FlowStyle == 0 && len(push.Content) > 0:
+			first := push.Content[0]
+			child = rows[first.Line-1][:first.Column-1]
+		default:
+			return nil
+		}
+		return []edit.Edit{edit.Rows(content, pushRow, pushRow, 0, []string{rows[pushRow], child + branchFilter})}
+	}
+	return nil
 }

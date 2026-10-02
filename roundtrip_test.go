@@ -90,7 +90,6 @@ func roundTripFixtures() []fixture {
 			content: "name: CI\n" +
 				"on:\n" +
 				"  push:\n" +
-				"    branches: ['**']\n" +
 				"jobs:\n" +
 				"  all-builds:\n" +
 				"    runs-on: ubuntu-latest\n" +
@@ -111,6 +110,7 @@ func roundTripFixtures() []fixture {
 				"yaml/test-in-workflow",
 				"yaml/neutered-gate",
 				"yaml/env-indirection",
+				"yaml/push-tags",
 			},
 		},
 		{

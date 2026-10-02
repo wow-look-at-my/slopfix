@@ -36,6 +36,27 @@ func TestAnUnfilteredPushIsReported(t *testing.T) {
 	}
 }
 
+func TestTheRepairWritesABranchFilter(t *testing.T) {
+	cases := map[string]string{
+		"on: push\njobs: {}\n":                       "on:\n  push:\n    branches: ['**']\njobs: {}\n",
+		"on: push # ci\njobs: {}\n":                  "on: # ci\n  push:\n    branches: ['**']\njobs: {}\n",
+		"on: [pull_request, push]\njobs: {}\n":       "on:\n  pull_request:\n  push:\n    branches: ['**']\njobs: {}\n",
+		"on:\n  push:\n  workflow_dispatch:\njobs: {}\n": "on:\n  push:\n    branches: ['**']\n  workflow_dispatch:\njobs: {}\n",
+		"on:\n    push:\n        paths: ['src/**']\njobs: {}\n": "on:\n    push:\n        branches: ['**']\n        paths: ['src/**']\njobs: {}\n",
+	}
+	for content, want := range cases {
+		out := repaired(t, content)
+		assert.Equal(t, want, out, content)
+		assert.Empty(t, pushTagFindings(out), content)
+	}
+}
+
+// A flow mapping does not rewrite as whole rows, so the finding stays for the author.
+func TestAFlowStylePushIsLeftToTheAuthor(t *testing.T) {
+	const content = "'on':\n  push: {}\njobs: {}\n"
+	assert.Equal(t, content, repaired(t, content))
+}
+
 func TestAFilteredPushPasses(t *testing.T) {
 	for _, content := range []string{
 		"on:\n  push:\n    branches: ['**']\njobs: {}\n",
