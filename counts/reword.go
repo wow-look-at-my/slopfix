@@ -12,6 +12,12 @@ import (
 	"github.com/wow-look-at-my/slopfix/edit"
 )
 
+// RewordAt is reword for a caller that holds the phrase but no Hit: the
+// cardinal at start, and the words it governs.
+func RewordAt(content string, start int, phrase string) (edit.Edit, bool) {
+	return reword(content, Hit{Phrase: phrase, Start: start, End: start + len(phrase)})
+}
+
 // reword answers the edit that takes the cardinal out of a hit. The words in
 // front of the number decide what goes in its place. A rate reads "every few",
 // a cap reads "a bounded number of", and a unit takes a vague amount. After a

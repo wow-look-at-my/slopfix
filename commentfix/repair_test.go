@@ -45,18 +45,34 @@ func TestATableEntryKeepsTheSentence(t *testing.T) {
 	assert.Empty(t, repair.Removed, "a rewritten sentence is not a cut one")
 }
 
-// A tally no entry covers is not guessed at. The sentence goes, and the
-// caller is told which sentence went.
-func TestANumberNoEntryCoversCutsItsSentence(t *testing.T) {
-	repair := fix(t, "// It is padded. Each shard is padded to 128 bytes.\nvar x int\n")
+// A count no entry covers is reworded the way the document rule does it, so
+// the sentence stays and only the figure goes.
+func TestANumberNoEntryCoversIsReworded(t *testing.T) {
+	for in, want := range map[string]string{
+		"// It is padded. Each shard is padded to 128 bytes.\nvar x int\n":    "// It is padded. Each shard is padded to many bytes.\nvar x int\n",
+		"// Run waits 2 minutes before it starts.\nfunc Run() {}\n":           "// Run waits a couple of minutes before it starts.\nfunc Run() {}\n",
+		"// Run keeps at most 500 lines in the buffer.\nfunc Run() {}\n":      "// Run keeps a bounded number of lines in the buffer.\nfunc Run() {}\n",
+		"// Run answers one call 3 ways and ships 4 hooks.\nfunc Run() {}\n":  "// Run answers one call multiple ways and ships hooks.\nfunc Run() {}\n",
+	} {
+		repair := fix(t, in)
+		assert.Equal(t, want, repair.Text, in)
+		assert.Empty(t, repair.Removed, in)
+		assert.Empty(t, commentfix.Check("x.go", header+repair.Text), in)
+	}
+}
+
+// A number that governs no plural noun has nothing to reword around. The
+// sentence goes, and the caller is told which sentence went.
+func TestANumberWithNoPluralNounCutsItsSentence(t *testing.T) {
+	repair := fix(t, "// It is padded. Each take pays for 1 add.\nvar x int\n")
 	assert.Equal(t, "// It is padded.\nvar x int\n", repair.Text)
-	assert.Equal(t, []string{"Each shard is padded to 128 bytes."}, repair.Removed)
+	assert.Equal(t, []string{"Each take pays for 1 add."}, repair.Removed)
 }
 
 // A comment left with nothing to say loses its line rather than sitting there
 // as a bare marker.
 func TestACommentLeftWithNothingToSayLosesItsLine(t *testing.T) {
-	repair := fix(t, "// Each shard is padded to 128 bytes.\nvar x int\n")
+	repair := fix(t, "// Each take pays for 1 add.\nvar x int\n")
 	assert.Equal(t, "var x int\n", repair.Text)
 }
 
