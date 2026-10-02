@@ -109,18 +109,29 @@ The action at the repository root downloads the published binary from buildhost 
 - uses: wow-look-at-my/slopfix@master
 ```
 
+<<<<<<< HEAD
 No input narrows the check. A path list, a rule list or a raw command line lets a caller set the gate to nothing. `action_test.go` fails the build on any input but `permission` and `level`. The action never repairs. A job that repairs its own checkout and then passes has enforced nothing.
 
 `permission` runs `check workflow-permission --json` for the running job instead. `level` defaults to `write`. The `stdout` output holds the JSON answer. The values are quoted, so a value cannot add a flag.
+=======
+`paths` defaults to `.`. The step therefore goes after the checkout. `only` is the `--only` flag. `args` replaces the whole command line, so another action runs any slopfix command through this one rather than downloading the binary itself. The `stdout` output holds what slopfix wrote, such as a `--json` answer.
+>>>>>>> origin/master
 
 ```yml
 - uses: wow-look-at-my/slopfix@master
   id: grant
   with:
+<<<<<<< HEAD
     permission: id-token
 ```
 
 On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
+=======
+    args: check workflow-permission --json --permission id-token
+```
+
+With no `args` the action never repairs. A job that repairs its own checkout and then passes has enforced nothing. A job that repairs its own checkout and then passes has enforced nothing. On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
+>>>>>>> origin/master
 
 ## The marketplace follows each publish
 
