@@ -86,6 +86,8 @@ var (
 	checkMaxLines int
 	// checkMessage reads stdin as a closing message rather than as a file.
 	checkMessage bool
+	// checkCmd is check, which the kinds of check that read no rule register under.
+	checkCmd *cobra.Command
 )
 
 func init() {
@@ -117,6 +119,7 @@ func init() {
 	check.Flags().IntVar(&checkMaxLines, "max-comment-lines", tombstones.DefaultMaxCommentLines, "cap a comment block, 0 to turn the cap off")
 	check.Flags().BoolVar(&checkMessage, "message", false, "judge stdin as a closing message, with the message rules")
 	rootCmd.AddCommand(check)
+	checkCmd = check
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {

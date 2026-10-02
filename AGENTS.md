@@ -26,6 +26,7 @@ slopfix fix [path...]             # the same as check --fix
 slopfix check --path doc.md < doc.md          # judge stdin as text headed for doc.md
 slopfix check --json --path doc.md < doc.md   # JSON findings for text on stdin
 slopfix check --message < message.txt         # judge a closing message
+slopfix check workflow-permission --permission id-token --json   # does the running job hold it
 slopfix hook < payload.json       # answer a Claude Code hook event
 slopfix lsp                       # a language server on stdio, for the editor plugin
 ```
@@ -38,6 +39,7 @@ slopfix lsp                       # a language server on stdio, for the editor p
 - With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr.
 - `--json` on stdin writes one object: `path`, `findings`, and with `--fix` the repaired `text`. Each finding carries `id`, `line`, `endLine`, `rule`, `detail`, `fix`, `repairable` and `severity`. It exits 0 on a finding, because the caller decides what a finding means.
 - `--message` reads stdin as a closing message and runs the message rules. `--only` then takes a message rule or a family such as `blame`.
+- `check workflow-permission [workflow] --permission NAME [--level write] [--job JOB] [--json]` asks whether a job holds a permission. The job block wins, then the workflow block, then the repository default, which reads as `none`. A missing grant is a finding. In a step, the workflow file comes from `GITHUB_WORKFLOW_REF` and the job from `GITHUB_JOB`. `--json` writes `granted`, `level`, `source` and `message`. The `has-permission` action in `wow-look-at-my/actions` wraps it.
 - `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
 - `fmt`, `purge`, `comments` and `workflows` do not exist as commands. The wrap join is the `wrap/hard-wrap` rule. The purge is the `repo` category. The comment and workflow rules run inside `check` on each file they judge.
 
