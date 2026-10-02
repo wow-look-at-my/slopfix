@@ -11,7 +11,7 @@
 package tombstones
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -73,7 +73,10 @@ const probeBudget = 50
 // indexTimeout bounds the read of the tree.
 const indexTimeout = 5 * time.Minute
 
-// symbolIndex holds every identifier-shaped word a tree contains.
+// indexFileCap is the largest tracked file the index reads. A larger one is data.
+const indexFileCap = 4 << 20
+
+// symbolIndex holds every identifier-shaped word the tracked files contain.
 type symbolIndex struct {
 	once  sync.Once
 	names set.Set[string]
@@ -86,40 +89,64 @@ var (
 )
 
 // indexFor answers the index of root, built on the first call past the budget.
-func indexFor(root, rg string) *symbolIndex {
+func indexFor(root string) *symbolIndex {
 	v, _ := indexes.LoadOrStore(root, &symbolIndex{})
 	ix := v.(*symbolIndex)
 	if probed.Add(1) <= probeBudget {
 		return ix
 	}
-	ix.once.Do(func() { ix.build(root, rg) })
+	ix.once.Do(func() { ix.build(root) })
 	return ix
 }
 
-// build reads every candidate word in the tree with one ripgrep run.
-func (ix *symbolIndex) build(root, rg string) {
+// build reads every candidate word in the files git tracks under root. The
+// tracked set leaves out a nested checkout and built output, as the walk does.
+func (ix *symbolIndex) build(root string) {
 	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, rg, "--no-messages", "--only-matching", "--no-filename", "--no-line-number", "-e", "[A-Za-z0-9_]{8,}", root)
-	out, err := cmd.StdoutPipe()
-	if err != nil || cmd.Start() != nil {
+	listed, err := exec.CommandContext(ctx, "git", "-C", root, "ls-files", "-z").Output()
+	if err != nil {
 		return
 	}
 	names := set.New[string]()
-	scanner := bufio.NewScanner(out)
-	for scanner.Scan() {
-		if word := scanner.Text(); isCandidate(word) {
+	for _, rel := range strings.Split(string(listed), "\x00") {
+		if rel == "" {
+			continue
+		}
+		if ctx.Err() != nil {
+			return
+		}
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil || len(data) > indexFileCap || bytes.IndexByte(data[:min(len(data), 8000)], 0) >= 0 {
+			continue
+		}
+		addWords(names, data)
+	}
+	ix.names, ix.ok = names, true
+}
+
+// addWords adds every candidate identifier in data to names.
+func addWords(names set.Set[string], data []byte) {
+	start := -1
+	for i, c := range data {
+		if c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' {
+			if start < 0 {
+				start = i
+			}
+			continue
+		}
+		if start >= 0 && i-start >= minCandidate {
+			if word := string(data[start:i]); isCandidate(word) {
+				names.Add(word)
+			}
+		}
+		start = -1
+	}
+	if start >= 0 && len(data)-start >= minCandidate {
+		if word := string(data[start:]); isCandidate(word) {
 			names.Add(word)
 		}
 	}
-	err = cmd.Wait()
-	if ctx.Err() != nil || scanner.Err() != nil {
-		return
-	}
-	if err != nil && cmd.ProcessState != nil && cmd.ProcessState.ExitCode() > 1 {
-		return
-	}
-	ix.names, ix.ok = names, true
 }
 
 // holds reports a name the index saw.
@@ -162,7 +189,7 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		return nil
 	}
 
-	ix := indexFor(root, rg)
+	ix := indexFor(root)
 	args := []string{"--no-messages", "--fixed-strings", "--files-with-matches", "--max-count", "1"}
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
