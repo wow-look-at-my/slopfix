@@ -121,7 +121,7 @@ The action at the repository root downloads the published binary from buildhost 
     args: check workflow-permission --json --permission id-token
 ```
 
-The action never repairs. It fails on `fix` or `--fix` in `args`. A job that repairs its own checkout and then passes has enforced nothing. On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
+With no `args` the action never repairs. A job that repairs its own checkout and then passes has enforced nothing. A job that repairs its own checkout and then passes has enforced nothing. On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
 
 ## The marketplace follows each publish
 

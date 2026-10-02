@@ -44,10 +44,6 @@ runs:
       run: |
         # The arguments are a list, so they are deliberately unquoted.
         set -- ${{ inputs.args != '' && inputs.args || format('check {0} {1}', inputs.only != '' && format('--only {0}', inputs.only) || '', inputs.paths) }}
-        # A job that repairs its own checkout and then passes enforces nothing.
-        for arg in "$@"; do
-          case "$arg" in fix|--fix) echo "::error::the slopfix action never repairs, and args names $arg"; exit 1 ;; esac
-        done
         rc=0
         out=$(sh "${{ steps.download.outputs.path }}" "$@") || rc=$?
         printf '%s\n' "$out"
@@ -60,9 +56,7 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        $argv = -split '${{ inputs.args != '' && inputs.args || format('check {0} {1}', inputs.only != '' && format('--only {0}', inputs.only) || '', inputs.paths) }}'
-        if ($argv -contains 'fix' -or $argv -contains '--fix') { Write-Output "::error::the slopfix action never repairs"; exit 1 }
-        $out = & "${{ steps.download.outputs.path }}" @argv
+        $argv = -split '${{ inputs.args != '' && inputs.args || format('check {0} {1}', inputs.only != '' && format('--only {0}', inputs.only) || '', inputs.paths) }}'        $out = & "${{ steps.download.outputs.path }}" @argv
         $rc = $LASTEXITCODE
         $out
         "stdout<<SLOPFIX_STDOUT_END" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
