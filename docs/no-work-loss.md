@@ -44,7 +44,7 @@ A ref-destroying verb asks whether the content exists anywhere else:
 - `refs/remotes/<remote>/HEAD` aliases the overwritten branch. The check filters it out.
 - `push --mirror` is always refused. A push with no local remote-tracking ref denies and names `git fetch`.
 
-Allowed on purpose: unpushed commits on a clean tree, `checkout -b`, `switch -c`, `stash push`, `commit`, `add`, `restore --staged`, unknown verbs, appends, and anything outside a repository.
+Allowed on purpose: unpushed commits on a clean tree, `checkout -b`, `switch -c`, `stash push`, `stash pop`, `stash apply`, `commit`, `add`, `restore --staged`, unknown verbs, appends, and anything outside a repository.
 
 ## Detection
 
