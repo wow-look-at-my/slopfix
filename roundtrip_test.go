@@ -90,6 +90,7 @@ func roundTripFixtures() []fixture {
 			content: "name: CI\n" +
 				"on:\n" +
 				"  push:\n" +
+				"    branches: ['**']\n" +
 				"jobs:\n" +
 				"  all-builds:\n" +
 				"    runs-on: ubuntu-latest\n" +

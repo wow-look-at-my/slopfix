@@ -20,7 +20,7 @@ func writeFile(t *testing.T, name, content string) string {
 	return path
 }
 
-const workflowWithFindings = "on: push\n\n# one\n# two\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n"
+const workflowWithFindings = "on: {push: {branches: ['**']}}\n\n# one\n# two\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n"
 
 func TestCheckFileSendsAWorkflowToTheWorkflowRules(t *testing.T) {
 	path := writeFile(t, ".github/workflows/ci.yml", workflowWithFindings)
@@ -57,7 +57,7 @@ func TestCheckFileStillReadsADocumentWithTheProseRules(t *testing.T) {
 // A newline in YAML is syntax. Joining a wrapped concurrency: block makes
 // GitHub reject the whole workflow before a job starts.
 func TestFixFileNeverJoinsAWorkflow(t *testing.T) {
-	content := "on: push\nconcurrency:\n  group: release\n"
+	content := "on: {push: {branches: ['**']}}\nconcurrency:\n  group: release\n"
 	path := writeFile(t, ".github/workflows/ci.yml", content)
 
 	_, err := slopfix.FixFile(path)
