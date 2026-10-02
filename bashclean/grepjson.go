@@ -7,7 +7,7 @@
 //	JSON Lines: each matching record, whole and compact, as grep prints a line
 //	document:   each matching leaf as `.path.to[0].key = value`
 //
-// A grep with a flag outside the table below, a pattern that is not literal, or
+// A grep with a flag outside grepjson.xml, a pattern that is not literal, or
 // an operand that is not JSON stays as written.
 package bashclean
 
@@ -19,22 +19,6 @@ import (
 	"unicode"
 
 	"mvdan.cc/sh/v3/syntax"
-)
-
-type grepDialect int
-
-const (
-	dialectGrep grepDialect = iota
-	dialectRg
-)
-
-type regexSyntax int
-
-const (
-	reBasic regexSyntax = iota
-	reExtended
-	rePerl
-	reFixed
 )
 
 // grepCall is a grep this rule can translate.
@@ -52,197 +36,29 @@ type grepCall struct {
 	files    []*syntax.Word
 }
 
-// A long flag maps to its short letter, so one switch handles both.
-var grepLong = map[string]byte{
-	"--ignore-case": 'i', "--invert-match": 'v', "--extended-regexp": 'E',
-	"--fixed-strings": 'F', "--basic-regexp": 'G', "--perl-regexp": 'P',
-	"--word-regexp": 'w', "--line-regexp": 'x', "--no-filename": 'h',
-	"--with-filename": 'H', "--line-number": 'n', "--no-messages": 's',
-	"--count": 'c',
-}
-
-var rgLong = map[string]byte{
-	"--ignore-case": 'i', "--invert-match": 'v', "--fixed-strings": 'F',
-	"--pcre2": 'P', "--word-regexp": 'w', "--line-regexp": 'x',
-	"--no-filename": 'I', "--with-filename": 'H', "--line-number": 'n',
-	"--no-line-number": 'N', "--count": 'c', "--case-sensitive": 's',
-	"--smart-case": 'S', "--no-messages": 0,
-}
-
-// applyShort sets the flag a letter names. False means the letter is outside
-// the table, and the rewrite stops.
-func (g *grepCall) applyShort(d grepDialect, c byte) bool {
-	switch c {
-	case 0:
-	case 'i':
-		g.icase, g.smart = true, false
-	case 'v':
-		g.invert = true
-	case 'F':
-		g.syntax = reFixed
-	case 'P':
-		g.syntax = rePerl
-	case 'w':
-		g.word = true
-	case 'x':
-		g.whole = true
-	case 'H':
-		g.names = 1
-	case 'n':
-		g.numbers = true
-	case 'c':
-		g.count = true
-	default:
-		return g.applyDialect(d, c)
-	}
-	return true
-}
-
-func (g *grepCall) applyDialect(d grepDialect, c byte) bool {
-	if d == dialectRg {
-		switch c {
-		case 'I':
-			g.names = -1
-		case 'N':
-			g.numbers = false
-		case 's':
-			g.icase, g.smart = false, false
-		case 'S':
-			g.icase, g.smart = false, true
-		default:
-			return false
-		}
-		return true
-	}
-	switch c {
-	case 'E':
-		g.syntax = reExtended
-	case 'G':
-		g.syntax = reBasic
-	case 'y':
-		g.icase = true
-	case 'h':
-		g.names = -1
-	case 's':
-	default:
-		return false
-	}
-	return true
-}
-
-func isColorFlag(s string) bool {
-	return s == "--color" || s == "--colour" || strings.HasPrefix(s, "--color=") || strings.HasPrefix(s, "--colour=")
-}
-
-// parseGrep reads the arguments after the program word. Every word it keeps
-// must be literal, because the pattern becomes part of the jq regex.
-func parseGrep(d grepDialect, start regexSyntax, args []*syntax.Word) (grepCall, bool) {
-	g := grepCall{syntax: start}
-	long := grepLong
-	if d == dialectRg {
-		long = rgLong
-	}
-	var positional []*syntax.Word
-	explicit, done := false, false
-	for i := 0; i < len(args); i++ {
-		w := args[i]
-		s, ok := literal(w)
-		if done || !ok || s == "-" || !strings.HasPrefix(s, "-") {
-			positional = append(positional, w)
-			continue
-		}
-		switch {
-		case s == "--":
-			done = true
-		case s == "-e" || s == "--regexp":
-			if i+1 >= len(args) {
-				return g, false
-			}
-			p, ok := literal(args[i+1])
-			if !ok {
-				return g, false
-			}
-			g.patterns = append(g.patterns, p)
-			explicit = true
-			i++
-		case strings.HasPrefix(s, "--regexp="):
-			g.patterns = append(g.patterns, strings.TrimPrefix(s, "--regexp="))
-			explicit = true
-		case isColorFlag(s):
-		case strings.HasPrefix(s, "--"):
-			c, known := long[s]
-			if !known || !g.applyShort(d, c) {
-				return g, false
-			}
-		default:
-			if !g.shortCluster(d, s[1:], args, &i, &explicit) {
-				return g, false
-			}
-		}
-	}
-	if !explicit {
-		if len(positional) == 0 {
-			return g, false
-		}
-		p, ok := literal(positional[0])
-		if !ok {
-			return g, false
-		}
-		g.patterns = []string{p}
-		positional = positional[1:]
-	}
-	g.files = positional
-	return g, true
-}
-
-// shortCluster reads a cluster such as `-inE`. An `e` takes the rest of the
-// cluster as its pattern, or the next word when the rest is empty.
-func (g *grepCall) shortCluster(d grepDialect, cluster string, args []*syntax.Word, i *int, explicit *bool) bool {
-	for j := 0; j < len(cluster); j++ {
-		if cluster[j] != 'e' {
-			if !g.applyShort(d, cluster[j]) {
-				return false
-			}
-			continue
-		}
-		p := cluster[j+1:]
-		if p == "" {
-			if *i+1 >= len(args) {
-				return false
-			}
-			v, ok := literal(args[*i+1])
-			if !ok {
-				return false
-			}
-			p = v
-			*i++
-		}
-		g.patterns = append(g.patterns, p)
-		*explicit = true
-		return true
-	}
-	return true
-}
-
 var reMeta = regexp.MustCompile(`[\\^$.|?*+()\[\]{}]`)
 
-// onigRegex builds the regex jq's `test` reads. jq links Oniguruma with its
-// Perl syntax, so a POSIX pattern needs translation.
+// translatePattern writes a pattern as Oniguruma reads it. jq links Oniguruma
+// with its Perl syntax, so a POSIX pattern needs translation.
+func translatePattern(syn regexSyntax, p string) (string, bool) {
+	switch syn {
+	case reFixed:
+		return reMeta.ReplaceAllString(p, `\$0`), true
+	case rePerl:
+		return p, true
+	}
+	return posixToOnig(p, syn == reBasic)
+}
+
+// onigRegex builds the regex jq's `test` reads. A newline in a pattern
+// separates alternatives, as it does for grep.
 func (g grepCall) onigRegex() (string, bool) {
 	var alts []string
 	for _, p := range g.patterns {
 		for _, line := range strings.Split(p, "\n") {
-			var re string
-			switch g.syntax {
-			case reFixed:
-				re = reMeta.ReplaceAllString(line, `\$0`)
-			case rePerl:
-				re = line
-			default:
-				var ok bool
-				if re, ok = posixToOnig(line, g.syntax == reBasic); !ok {
-					return "", false
-				}
+			re, ok := translatePattern(g.syntax, line)
+			if !ok {
+				return "", false
 			}
 			alts = append(alts, "(?:"+re+")")
 		}
@@ -403,20 +219,6 @@ func stdinFile(s *syntax.Stmt) (*syntax.Word, bool) {
 	return found, found != nil
 }
 
-func grepProgram(name string) (grepDialect, regexSyntax, bool) {
-	switch name {
-	case "grep":
-		return dialectGrep, reBasic, true
-	case "egrep":
-		return dialectGrep, reExtended, true
-	case "fgrep":
-		return dialectGrep, reFixed, true
-	case "rg":
-		return dialectRg, rePerl, true
-	}
-	return 0, 0, false
-}
-
 func (j *grepJSON) rewrite(s *syntax.Stmt) {
 	c, ok := s.Cmd.(*syntax.CallExpr)
 	if !ok {
@@ -426,11 +228,11 @@ func (j *grepJSON) rewrite(s *syntax.Stmt) {
 	if !ok {
 		return
 	}
-	d, start, ok := grepProgram(e.name)
+	spec, ok := grepPrograms[e.name]
 	if !ok || wrappedByXargs(c.Args[:e.index]) {
 		return
 	}
-	g, ok := parseGrep(d, start, c.Args[e.index+1:])
+	g, ok := parseGrep(spec, c.Args[e.index+1:])
 	if !ok {
 		return
 	}
