@@ -61,12 +61,9 @@ The commands are `check`, `hook`, `lsp`, `completion` and `help`.
 ```yml
 - uses: actions/checkout@v4
 - uses: wow-look-at-my/slopfix@master
-  with:
-    paths: .                  # the default
-    only: yaml/comment-block  # optional
 ```
 
-The action runs `check` on `paths`. It never repairs, because a job that repairs its own checkout proves nothing. `args` runs any other slopfix command instead. The `stdout` output carries what it printed.
+The action runs `check .` with every rule. No input narrows it to some paths or some rules, and it never repairs. `permission` asks `check workflow-permission` instead. The `stdout` output carries the JSON answer.
 
 ## More
 
