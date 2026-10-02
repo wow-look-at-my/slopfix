@@ -265,32 +265,6 @@ func withSeparator(kept, trail []string) []string {
 	return append(append([]string{}, kept...), indent+"//")
 }
 
-// isDirectiveLine reports a line a tool reads rather than a reader. The C family
-// spells it with no space after the marker, and the hash family carries the
-// interpreter line and the linter pragma.
-func isDirectiveLine(line string) bool {
-	if treecomments.IsDirective(line) || isLintPragma(line) {
-		return true
-	}
-	t := strings.TrimSpace(line)
-	for _, marker := range []string{"//", "#"} {
-		rest, found := strings.CutPrefix(t, marker)
-		if !found {
-			continue
-		}
-		if marker == "#" && strings.HasPrefix(rest, "!") {
-			return true // an interpreter line
-		}
-		name, _, hasColon := strings.Cut(rest, ":")
-		if !hasColon || name == "" || strings.ContainsAny(name, " \t") {
-			continue
-		}
-		// `//go:build` and `# shellcheck:` carry no space before the colon.
-		return true
-	}
-	return false
-}
-
 // trim cuts the block's trailing prose until it fits, keeping the opening.
 // A paragraph goes before a line does, and the opening paragraph always survives.
 func trim(b block) []string {
