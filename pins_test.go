@@ -53,3 +53,19 @@ func TestCheckReportsAPinnedURL(t *testing.T) {
 	}
 	assert.Contains(t, ids, pins.ID)
 }
+
+// A test asserts the exact URL the code under test produces, and a storage
+// record links the version its digest covers. That pin is the point of the
+// assertion, so neither the check nor the repair reaches it.
+func TestAPinnedURLInATestIsAnExpectedValue(t *testing.T) {
+	src := "assert.equal(record.url, 'https://dl." + "pazer.build/ue553?v=v7&os=linux&arch=amd64&debug=1');\n"
+	for _, path := range []string{"test/actions/storage-record.test.ts", "web/app.spec.js", "pkg/url_test.go", "test_url.py", "src/__tests__/url.js"} {
+		repair := slopfix.Fix(slopfix.Request{Path: path, Content: src, Rules: []slopfix.Rule{slopfix.RulePins}})
+		assert.Equal(t, src, repair.Text, path)
+		assert.Empty(t, slopfix.Report(slopfix.Request{Path: path, Content: src}).Findings, path)
+		assert.Empty(t, slopfix.CheckContent(path, src), path)
+	}
+
+	repair := slopfix.Fix(slopfix.Request{Path: "lib/storage-record.ts", Content: src, Rules: []slopfix.Rule{slopfix.RulePins}})
+	assert.NotContains(t, repair.Text, "v=v7", "the code that consumes a download still gets the repair")
+}
