@@ -158,6 +158,46 @@ func InExpression(text string, q Match) bool {
 	return unicode.IsDigit(prev) || inEquation(text, q.At)
 }
 
+// NamesAThing exempts a number that labels the singular noun in front of it,
+// as in "gate 5" or a number after a hash sign. The plural word after it is
+// then a verb. A label is written in digits, so a number word never qualifies.
+func NamesAThing(text string, q Match) bool {
+	if q.At == 0 || q.Text[0] < '0' || q.Text[0] > '9' {
+		return false
+	}
+	if text[q.At-1] == '#' {
+		return true
+	}
+	before := strings.Fields(strings.ToLower(text[:q.At]))
+	return len(before) > 0 && labelNouns.Contains(before[len(before)-1])
+}
+
+// labelNouns take a number as their name. The tagger reads several of them as
+// verbs, so a list decides.
+var labelNouns = set.Of[string](
+	"rule", "gate", "issue", "row", "column", "phase", "step", "mode", "item",
+	"section", "case", "line", "level", "stage", "rung", "arm", "slot", "bank",
+	"lane", "set", "group", "table", "figure", "chapter", "page", "pass",
+)
+
+// MeasuresAUnit exempts a number in front of a unit that a plural noun
+// follows. In "64 B lines" the number sizes each line and counts nothing.
+func MeasuresAUnit(_ string, q Match) bool {
+	words := strings.Fields(q.Text)
+	for _, w := range words[1 : len(words)-1] {
+		if unitSymbols.Contains(w) || IsUnit(w) {
+			return true
+		}
+	}
+	return false
+}
+
+// unitSymbols are case-sensitive, because a lower-case "b" or "s" is a word.
+var unitSymbols = set.Of[string](
+	"B", "KB", "KiB", "MB", "MiB", "GB", "GiB", "TB", "bit", "bits",
+	"ns", "us", "µs", "ms", "Hz", "kHz", "MHz", "GHz", "px",
+)
+
 // inEquation reports a number in a clause that holds an equals sign. An
 // equation states an identity, such as a unit conversion, and no tally.
 func inEquation(text string, at int) bool {

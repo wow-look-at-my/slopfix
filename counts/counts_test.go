@@ -134,6 +134,38 @@ func TestEveryCountIsReworded(t *testing.T) {
 	}
 }
 
+// Each of these is the cut a document reader caught. The repair either keeps
+// the sentence English, or leaves a number that counts nothing alone.
+func TestARewordKeepsTheSentenceEnglish(t *testing.T) {
+	for in, want := range map[string]string{
+		"Vega10 has 16 RBs over 4 shader engines.":              "Vega10 has 16 RBs over multiple shader engines.",
+		"It drives 35 fixtures over six seeded inputs.":         "It drives fixtures over multiple seeded inputs.",
+		"It describes an engine carrying FOUR render backends.": "It describes an engine carrying render backends.",
+		"It is a pass over the same 262144 covered pixels.":     "It is a pass over the same covered pixels.",
+		"It runs on the other three platforms.":                 "It runs on the other platforms.",
+	} {
+		out, cut := StripGate(in)
+		assert.NotEmpty(t, cut, in)
+		assert.Equal(t, want, out, in)
+	}
+}
+
+// A number after a singular noun names that thing, and a number in front of a
+// unit measures the unit. Neither counts the plural noun the pattern ends on.
+func TestALabelOrAMeasureIsNoCount(t *testing.T) {
+	for _, in := range []string{
+		"It is the loop that gate 5 asserts.",
+		"The fix lands where rule 6 requires a wait.",
+		"The corpus that issue #54 targets compiles.",
+		"A wave covers whole 64 B lines.",
+		"The footprint (1760 workgroups x 64 KiB = 110 MiB) fits.",
+	} {
+		out, cut := StripGate(in)
+		assert.Empty(t, cut, in)
+		assert.Equal(t, in, out, in)
+	}
+}
+
 // No count the rules report is left for a person.
 func TestNoReportedCountGoesUnrepaired(t *testing.T) {
 	for _, doc := range []string{
