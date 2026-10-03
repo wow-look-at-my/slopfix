@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -107,19 +106,13 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "There are rules below.", edits[2].(map[string]any)["new_string"])
 }
 
-// A finding no rewrite resolves is flagged and the write still goes through.
+// Every error has a repair, so only a gate that refuses one leaves a finding.
+// Such a finding is flagged, and the notice still lets the write through.
 func TestAFindingNoRewriteResolvesIsFlaggedNotRefused(t *testing.T) {
-	src := "package p\n"
-	for i := range 40 {
-		src += fmt.Sprintf("// The loader reads step %d of the file and returns the record it names.\n", i)
-	}
-	src += "func x() {}\n"
-	got := ask(t, write("a.go", src), "tombstones")
-
-	require.NotNil(t, got.out)
-	assert.NotContains(t, got.body, "permissionDecision")
-	assert.Contains(t, got.out["additionalContext"], "flagged")
-	assert.Contains(t, got.out["additionalContext"], "comment block of")
+	got := notice("a.go", nil, 0, []string{"3: [comments/length] the comment runs longer than the code it documents"})
+	assert.Contains(t, got, "let this write to a.go through and flagged")
+	assert.Contains(t, got, "flagged 3: [comments/length]")
+	assert.Contains(t, got, "The write went through as it stands.")
 }
 
 // A tombstone alone on its own comment line is cut, and the write proceeds.
