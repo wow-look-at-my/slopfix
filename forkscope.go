@@ -400,11 +400,23 @@ func binaryDiffPath(pair string) (string, error) {
 	if strings.HasSuffix(pair, " and /dev/null") {
 		return "", nil
 	}
+	refused := fmt.Errorf("fork scope: the binary diff %q does not name one path on each side", pair)
 	half := (len(pair) - len(" and ")) / 2
 	if half <= 0 || pair[half:half+len(" and ")] != " and " {
-		return "", fmt.Errorf("fork scope: the binary diff %q does not name one path on each side", pair)
+		return "", refused
 	}
-	return diffPath(pair[half+len(" and "):])
+	oldSide, err := diffPath(strings.Replace(pair[:half], "a/", "b/", 1))
+	if err != nil {
+		return "", err
+	}
+	newSide, err := diffPath(pair[half+len(" and "):])
+	if err != nil {
+		return "", err
+	}
+	if oldSide != newSide {
+		return "", refused
+	}
+	return newSide, nil
 }
 
 // hunkRange reads "start[,count]" after the sign of a hunk header side.
