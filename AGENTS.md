@@ -271,10 +271,11 @@ Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` 
 
 `clean-bash` rewrites a Bash command rather than refusing it, wherever a rewrite exists. The rules run on the parse tree to a fixed point. An unparseable command passes through. A rewrite is silent: it emits only the new input and `suppressOutput: true`. A visible message gives the model something to blame. A denial carries a reason. Without one, the model retries forever. `CLEANUP_BASH_CMDS_LOG=/path` logs each rewrite and each deny.
 
-Denials: `heredoc`, `perl` (`^perl[0-9.]*$` as the effective command), `file_read` (`cat`, `head`, `tail` or a line-selecting `sed` on a file), `shred`, `git_rm` without `--cached`, `truncate_zero` with an unknown flag, `rm_flag` for an `rm` flag it cannot drop. And `toolchain_capture` for `go-toolchain` inside a substitution.
+Denials: `heredoc`, `perl` (`^perl[0-9.]*$` as the effective command), `file_read` (`cat`, `head`, `tail` or a line-selecting `sed` on a file), `shred`, `git_rm` with `--pathspec-from-file`, `truncate_zero` with an unknown flag, `rm_flag` for an `rm` flag it cannot drop. And `toolchain_capture` for `go-toolchain` inside a substitution.
 
 - `devnull` removes `2>/dev/null` in any spelling. It matches a parsed redirect. A `12>/dev/null` thus stays.
 - `rm_recycle`, `truncate_recycle` and `find_delete_recycle` turn deletion into `recycler trash`. Delete-then-Write is the loophole around the Write refusal.
+- `git_rm_recycle` writes `git rm` as `git rm --cached` and then `recycler trash` on the same paths, inside each `-C` directory. A dry run passes through.
 - `head_tail`, `grep`, `or_true` and `stderr_merge` drop a trailing `| head`, `| tail`, `| grep`, `|| true` or `2>&1` from the final statement.
 - `tee` turns a trailing stdout redirect on the final statement into `| tee file`.
 - `toolchain_output` strips every pipe stage or stdout redirect from `go-toolchain`.

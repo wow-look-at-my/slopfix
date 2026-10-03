@@ -77,7 +77,7 @@ func TestRunDenyCarriesTheAlternative(t *testing.T) {
 		"perl -e 'print 1'":          "perl is banned",
 		"head -60 src/usage.test.ts": "offset and limit",
 		"shred secret.txt":           "recycler trash",
-		"git rm f":                   "git add -A",
+		"git rm --pathspec-from-file=l": "Name the paths",
 		"truncate -s 0 -r ref f":     "recycler trash",
 		"rm --one-file-system x":     "cannot be translated",
 	} {
