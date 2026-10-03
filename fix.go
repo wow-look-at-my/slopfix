@@ -54,7 +54,7 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleCounts:
 		return set.Of(counts.ID)
 	case RuleWrap:
-		return set.Of(IDHardWrap)
+		return set.Of(IDHardWrap, IDLongBlock)
 	case RuleSTE:
 		return ste.AllIDs
 	case RuleComments:

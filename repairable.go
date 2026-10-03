@@ -28,8 +28,9 @@ func Repairable(id string) bool {
 
 // repairable is derived: each entry names a repair a test drives.
 var repairable = ste.Repairs.Clone().Union(set.Of(
-	// The wrap join.
+	// The wrap join, and the division of a long block.
 	IDHardWrap,
+	IDLongBlock,
 	// The counts rule cuts the cardinal out of the same sentence the prose
 	ste.IDStaleCount,
 	IDInventoryCount,
