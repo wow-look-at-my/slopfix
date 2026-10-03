@@ -51,6 +51,8 @@ func hardCorpus(t *testing.T) map[string]string {
 	}
 	// The instruction file has no heading at all, so the budget repair has no section to move.
 	files["AGENTS.md"] = strings.Join(agents, "\n\n") + "\n"
+	// A list item over the block cap, with a parenthesis that runs past the division target.
+	files["README.md"] += "\n- **Admin port**: (" + strings.Repeat("The gate reads the file. ", 50) + ") " + strings.Repeat("The tool writes the result to the store. ", 30) + "\n"
 	// A block over the volume cap above code longer than the cap, so the length cut alone leaves it over.
 	files["main.go"] = "package main\n\n" + strings.Join(comment, "\n") + "\nfunc sum() int {\n\ttotal := 0\n" + strings.Join(body, "\n") + "\n\treturn total\n}\n\nfunc main() { sum() }\n"
 	return files
@@ -86,7 +88,7 @@ func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 		before.Add(k.ID)
 	}
 	for _, id := range []string{
-		"ste/sentence-length", "ste/semicolon", "ste/contraction", "ste/modal", "wrap/hard-wrap",
+		"ste/sentence-length", "ste/semicolon", "ste/contraction", "ste/modal", "wrap/hard-wrap", slopfix.IDLongBlock,
 		slopfix.IDBudget, slopfix.IDPackageScripts, slopfix.IDAgentsFile,
 		"yaml/push-tags", "yaml/all-builds-job", "yaml/neutered-gate", "yaml/comment-block",
 		"pins/download-version", tombstones.IDVolume, "comments/length",

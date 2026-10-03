@@ -44,7 +44,7 @@ func Check(content string) []ste.Finding {
 			})
 		}
 	}
-	return out
+	return append(out, longBlocks(content)...)
 }
 
 // Warnings reports every warning in a document. A repair never answers one, so
@@ -167,7 +167,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs).Union(pins.AllIDs)
-	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
+	ids.AddRange(IDHardWrap, IDLongBlock, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	ids.AddRange(english.AllIDs...)
 	return ids
 }
