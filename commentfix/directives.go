@@ -33,17 +33,30 @@ func CapLines(text []string, maxLines int) []string {
 	if len(body) <= maxLines {
 		return out
 	}
-	body = append([]string{}, body[:maxLines]...)
-	for len(body) > 0 && isBlankComment(body[len(body)-1]) {
+	closer := body[len(body)-1]
+	ends := strings.HasSuffix(strings.TrimSpace(closer), "*/")
+	keep := maxLines
+	if ends && strings.TrimSpace(closer) == "*/" {
+		keep--
+	}
+	body = append([]string{}, body[:max(keep, 1)]...)
+	for len(body) > 1 && isBlankComment(body[len(body)-1]) {
 		body = body[:len(body)-1]
 	}
-	for len(body) > 0 {
-		last := body[len(body)-1]
-		if closed, ok := closeLine(last); ok {
+	for len(body) > 1 {
+		if closed, ok := closeLine(body[len(body)-1]); ok {
 			body[len(body)-1] = closed
 			break
 		}
 		body = body[:len(body)-1]
+	}
+	// A block comment keeps its closer, or the code under it reads as comment.
+	switch {
+	case !ends || strings.HasSuffix(strings.TrimSpace(body[len(body)-1]), "*/"):
+	case strings.TrimSpace(closer) == "*/":
+		body = append(body, closer)
+	default:
+		body[len(body)-1] += " */"
 	}
 	return append(append(append([]string{}, lead...), body...), trail...)
 }

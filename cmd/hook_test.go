@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -108,21 +106,14 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "There are rules below.", edits[2].(map[string]any)["new_string"])
 }
 
-// A finding whose repair lies past the edit's own bytes is flagged, and the
-// write still goes through.
+// A warning has no rewrite. It is flagged, and the write still goes through.
 func TestAFindingNoRewriteResolvesIsFlaggedNotRefused(t *testing.T) {
-	src := "package p\n"
-	for i := range 40 {
-		src += fmt.Sprintf("// The loader reads step %d of the file and returns the record it names.\n", i)
-	}
-	src += "func x() {}\n"
-	old := "// The loader reads step 7 of the file and returns the record it names."
-	got := ask(t, editOn(t, "a.go", src, old, strings.Replace(old, "7", "seven", 1)), "tombstones")
+	got := ask(t, write("a.md", "The file is read by the tool.\n"), "ste")
 
-	require.NotNil(t, got.out)
+	require.NotNil(t, got.out, got.body)
 	assert.NotContains(t, got.body, "permissionDecision")
 	assert.Contains(t, got.out["additionalContext"], "flagged")
-	assert.Contains(t, got.out["additionalContext"], "comment block of")
+	assert.Contains(t, got.out["additionalContext"], "ste/passive")
 }
 
 // A tombstone alone on its own comment line is cut, and the write proceeds.

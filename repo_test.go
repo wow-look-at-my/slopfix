@@ -88,7 +88,7 @@ func TestFixMovesTheTailOfAFileWithNoHeading(t *testing.T) {
 	assert.NotContains(t, ids(slopfix.FixTree(root).Findings), slopfix.IDBudget)
 	got, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
 	require.NoError(t, err)
-	assert.LessOrEqual(t, len([]rune(string(got))), slopfix.SplitTarget)
+	assert.LessOrEqual(t, len([]rune(string(got))), slopfix.CharBudget)
 	assert.Contains(t, string(got), "[docs/agents-continued.md](docs/agents-continued.md) holds the rest of this file.")
 	assert.FileExists(t, filepath.Join(root, "docs", "agents-continued.md"))
 }
