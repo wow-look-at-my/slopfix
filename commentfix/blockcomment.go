@@ -98,6 +98,9 @@ func fromLines(text []string) []string {
 
 // render writes prose as a /* */ comment in the given shape.
 func (s blockShape) render(prose []string) []string {
+	if len(prose) == 0 {
+		return nil
+	}
 	if len(prose) == 1 {
 		return []string{s.indent + s.opener + " " + prose[0] + " */"}
 	}
@@ -123,7 +126,8 @@ func repairBlockComment(b block) ([]string, bool) {
 	}
 	lines := asLines(shape.indent, prose)
 	kept := fromLines(trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: lines, exact: b.exact}))
-	if out := shape.render(kept); fitsCode(out, b) {
+	// A trim that keeps no line leaves nothing to render, so the word cut decides.
+	if out := shape.render(kept); len(out) > 0 && fitsCode(out, b) {
 		return out, true
 	}
 	render := func(text string) []string { return shape.render(fromLines(reflow(text, "", "//", wrapWidth))) }
