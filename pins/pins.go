@@ -53,10 +53,7 @@ func scan(text string) []found {
 }
 
 // pinned reports whether the URL's query names the parameter v.
-func (f found) pinned() bool {
-	query := f.parsed.Query()
-	return query.Has("v") && query.Get("debug") != "1"
-}
+func (f found) pinned() bool { return f.parsed.Query().Has("v") }
 
 // unpinned answers the URL with v deleted. Encode escapes a template such as
 // `${OS}`, and writes `&` where the text held `&amp;`, so such a URL loses v
