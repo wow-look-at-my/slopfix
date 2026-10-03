@@ -205,7 +205,7 @@ func TreeFilesMatching(root string, reads func(string) bool) []string {
 		out = append(out, path)
 		return nil
 	})
-	return withoutIgnored(root, out)
+	return withoutVendored(root, withoutIgnored(root, out))
 }
 
 // skipDir reports whether the walk stops here. A nested module's prose belongs
