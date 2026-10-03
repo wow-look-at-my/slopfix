@@ -137,10 +137,17 @@ func NotAPluralNoun(text string, q Match) bool {
 // nominalTags are the tags a modifier between a cardinal and its noun carries.
 var nominalTags = set.Of("CD", "NN", "NNP", "JJ")
 
+// auxiliaries are verbs whose -s form is never a plural noun.
+var auxiliaries = set.Of("is", "has", "does", "was")
+
 // countsANominal reports a cardinal at start followed only by modifiers up to
-// the word at last. The tagger reads "four PATCH requests" as a subject and a
-// verb, and a cardinal ahead of the modifiers is what counts the noun instead.
+// the word at last, in a sentence whose verb came before it. The tagger reads
+// "sends four PATCH requests" as a subject and a verb, and the earlier verb
+// is what leaves the last word a noun. "128 KiB is" has no such verb.
 func countsANominal(words []syntax.Word, start, last int) bool {
+	if auxiliaries.Contains(words[last].Lower()) {
+		return false
+	}
 	first := -1
 	for i, w := range words[:last] {
 		if w.Start == start {
@@ -156,7 +163,17 @@ func countsANominal(words []syntax.Word, start, last int) bool {
 			return false
 		}
 	}
-	return true
+	return verbBefore(words, first)
+}
+
+// verbBefore reports a verb earlier in the sentence than the word at i.
+func verbBefore(words []syntax.Word, i int) bool {
+	for j := i - 1; j >= 0 && words[j].Tag != "."; j-- {
+		if strings.HasPrefix(words[j].Tag, "VB") || words[j].Tag == "MD" {
+			return true
+		}
+	}
+	return false
 }
 
 // ChoiceAmongASet exempts the size of a set something is picked from. "one of

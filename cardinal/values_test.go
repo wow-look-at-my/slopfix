@@ -20,6 +20,8 @@ var notCounts = []string{
 	"It answers HTTP 404 pages for every miss.",
 	"Migration 015 defines it: artifact_id, fmt, the client.",
 	"Migration 014 pins that id on the project.",
+	// A measure followed by its verb, not by a noun.
+	"The 128 KiB is a pair of the reader's buffer fills.",
 }
 
 func TestAValueOrALabelIsNotAStaleCount(t *testing.T) {
