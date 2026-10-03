@@ -180,10 +180,12 @@ func inBold(source string, p int) bool {
 const phraseReach = 8
 
 // phraseSpans answers the inside of each noun phrase and verb group the parser
-// finds where a cut can land. A cut there leaves "a detached." behind.
-func phraseSpans(masked string, ends []int) [][]int {
+// finds where a cut can land, and where each finite verb starts. A cut inside
+// a phrase leaves "a detached." behind.
+func phraseSpans(masked string, ends []int) ([][]int, set.Set[int]) {
+	finite := set.New[int]()
 	if len(ends) == 0 {
-		return nil
+		return nil, finite
 	}
 	head := masked[:ends[min(SentenceWordCap+phraseReach, len(ends)-1)]]
 	s := syntax.Parse(head, nil)
@@ -194,7 +196,12 @@ func phraseSpans(masked string, ends []int) [][]int {
 			out = append(out, []int{s.Words[ph.First].Start + 1, s.Words[ph.Last].Start})
 		}
 	}
-	return out
+	for _, w := range s.Words {
+		if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
+			finite.Add(w.Start)
+		}
+	}
+	return out, finite
 }
 
 // isWordByte reports a byte that can open bold text's first word: a letter,
@@ -228,8 +235,10 @@ func candidates(source, masked string, strict bool) []forceCut {
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
+	verbs := set.New[int]()
 	if strict {
-		off = append(off, phraseSpans(masked, ends)...)
+		spans, finite := phraseSpans(masked, ends)
+		off, verbs = append(off, spans...), finite
 	}
 	var out []forceCut
 	counted := 0
@@ -254,7 +263,8 @@ func candidates(source, masked string, strict bool) []forceCut {
 		next := strings.ToLower(strings.Trim(firstToken.FindString(source[q:]), ".,;:!?*_\"'`()[]“”‘’"))
 		// A possessive governs the word after it, so a part never ends on one.
 		possessive := strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s")
-		if strict && (leftWords < minimumHalf || rightWords < minimumHalf || possessive || forceDangling.Contains(last) || forceBound.Contains(next)) {
+		// A finite verb after the cut leaves its subject in the part before.
+		if strict && (leftWords < minimumHalf || rightWords < minimumHalf || possessive || verbs.Contains(q) || forceDangling.Contains(last) || forceBound.Contains(next)) {
 			continue
 		}
 		penalty := 8
