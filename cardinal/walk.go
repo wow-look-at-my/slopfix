@@ -40,26 +40,13 @@ func exemptToken(text string, toks []Token, i int, rules []TokenExemption) bool 
 	return false
 }
 
-// httpStatusPrefix is the word that names the digits after it as a status code.
-const httpStatusPrefix = "HTTP"
-
-// statusCodeDigits is the width of an HTTP status code.
-const statusCodeDigits = len("500")
-
-// HTTPStatus exempts a status code. The prefix is what separates the digits of
-// a protocol answer from a count wearing the same shape.
-func HTTPStatus(_ string, toks []Token, i int) bool {
-	if i == 0 {
+// LabeledToken exempts digits after a label word, as in "HTTP 403" or
+// "migration 014". The word names one item, and the digits identify it.
+func LabeledToken(_ string, toks []Token, i int) bool {
+	if i == 0 || !allDigits(strings.Trim(toks[i].Text, nameMarkers)) {
 		return false
 	}
-	prefix := strings.Trim(toks[i-1].Text, nameMarkers)
-	return strings.EqualFold(prefix, httpStatusPrefix) && isStatusCode(toks[i].Text)
-}
-
-// isStatusCode reports whether text is the bare digits of a status code.
-func isStatusCode(text string) bool {
-	text = strings.Trim(text, nameMarkers)
-	return len(text) == statusCodeDigits && allDigits(text)
+	return InClass(strings.Trim(toks[i-1].Text, nameMarkers), "label")
 }
 
 // exitStatusPrefixes name the digits after them as a status.
