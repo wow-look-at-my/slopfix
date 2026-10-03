@@ -1,0 +1,27 @@
+name: Fork CI
+
+# CI for forks of sgl-project/sglang, on GitHub-hosted runners only. Upstream
+# workflows build on self-hosted pools (x64-kernel-build-node, x64-docker-build-node,
+# GPU runners) and publish with Docker Hub / PyPI secrets that a fork does not
+# have.
+#
+#   every push      : CPU unit suite (base-a-test-cpu) + sglang wheel
+#                     + model gateway (fmt, clippy, cargo test, sglang-router wheel,
+#                       Go bindings build + go test)
+#   default branch  : kernel wheels as release sglang-kernel-v<version>, and the
+#                     serving image (docker/Dockerfile, framework_final) on ghcr.io
+#
+# Optional repository variables (Settings > Variables) for bigger machines:
+#   FORK_KERNEL_RUNNER_X64                              runner label
+#   FORK_KERNEL_CUDA_ARCHS                              GPU archs, e.g. "90a;120a"
+#   FORK_KERNEL_BUILD_JOBS / FORK_KERNEL_NVCC_THREADS   build parallelism
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: make
