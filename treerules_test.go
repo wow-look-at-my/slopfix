@@ -58,28 +58,21 @@ func TestATrackedExecutableIsReportedAndFixDeletesIt(t *testing.T) {
 	assert.Empty(t, checkOnly(root, slopfix.IDBinary))
 }
 
-// A build reads these executables and never makes them. Fix must keep them.
-func TestAnExecutableTheBuildReadsIsKept(t *testing.T) {
+// Git LFS stores a pointer in the index and writes the binary into the
+// checkout. Git itself holds no executable, so fix must keep the file.
+func TestAGitLFSExecutableIsKept(t *testing.T) {
+	pointer := "version https://git-lfs.github.com/spec/v1\noid sha256:4d7a214614ab2935c943f9e0ff69d22eadbb8f32b1258daaa5e2ca24d17e2393\nsize 31\n"
 	root := gitRepo(t, map[string]string{
-		"debug/elf/testdata/gcc-amd64-linux-exec": elf,
-		"runtime/race/race_linux_amd64.syso":      elf,
-		"link/loader.go":                          "package link\n\nimport _ \"embed\"\n\n//go:embed bin/loader-linux \"bin/with space\"\nvar loader []byte\n\n\t//go:embed all:assets\nvar assets []byte\n",
-		"link/bin/loader-linux":                   elf,
-		"link/bin/with space":                     elf,
-		"link/assets/deep/tool":                   elf,
-		"link/bin/stray":                          elf,
-		"stray":                                   elf,
+		".gitattributes":      "bin/tool filter=lfs diff=lfs merge=lfs -text\n",
+		"bin/tool":            pointer,
+		"testdata/fixture.so": elf,
 	})
-	assert.ElementsMatch(t, []string{"link/bin/stray repo/binary", "stray repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "bin", "tool"), []byte(elf), 0o755))
+	assert.Equal(t, []string{"testdata/fixture.so repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
 
 	slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDBinary}})
-	assert.FileExists(t, filepath.Join(root, "debug", "elf", "testdata", "gcc-amd64-linux-exec"))
-	assert.FileExists(t, filepath.Join(root, "runtime", "race", "race_linux_amd64.syso"))
-	assert.FileExists(t, filepath.Join(root, "link", "bin", "loader-linux"))
-	assert.FileExists(t, filepath.Join(root, "link", "bin", "with space"))
-	assert.FileExists(t, filepath.Join(root, "link", "assets", "deep", "tool"))
-	assert.NoFileExists(t, filepath.Join(root, "link", "bin", "stray"))
-	assert.NoFileExists(t, filepath.Join(root, "stray"))
+	assert.FileExists(t, filepath.Join(root, "bin", "tool"))
+	assert.NoFileExists(t, filepath.Join(root, "testdata", "fixture.so"))
 }
 
 func TestAnUntrackedExecutableIsNotTheRepositorys(t *testing.T) {
