@@ -147,6 +147,7 @@ A repair never returns a rewritten copy of a file. It returns `edit.Edit` values
 | `treecomments.Apply` | bytes inside a comment node, and the blank around it | every node that is not a comment keeps its type, its text and its place in the tree. Every directive line comes back byte for byte |
 | `markdown.Apply` | bytes inside a single CommonMark prose block | every verbatim block comes back as written, in order |
 | workflow YAML | whole rows | the file parses, and a comment edit decodes to the same data |
+| `goformat.Gate` | blank bytes, and it writes only blanks | the Go scanner reads every token as it was. A comment may lose the blanks that end its lines |
 
 So a rewrite cannot escape its comment. A newline can end a line comment early. A closer can end a block early. An opener can swallow the code below. Each changes the code tree, and the gate refuses it. The interpreter line and a cgo preamble are code to the gate, because a tool reads them.
 
@@ -154,9 +155,11 @@ Every repair is a `fixer.Fixer`, and each package registers its fixers from `ini
 
 | Kind | Fixers, in order |
 |---|---|
-| source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number`, `pins/download-version` |
+| source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number`, `pins/download-version`, `gofmt` |
 | document | `tombstones`, `counts/inventory-count`, `wrap-and-ste`, `ste/count`, `pins/download-version` |
-| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/untest`, `pins/download-version` |
+| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/untest`, `yaml/inline-env`, `yaml/filter-push`, `pins/download-version` |
+
+`gofmt` runs on a `.go` file that a fixer before it changed. A cut comment can leave a blank line too many, or bring together fields that gofmt aligns. The pass writes the gofmt layout through `goformat.Gate`. It answers to the selection of the fixers before it. A fragment with no package clause keeps its layout. So does a file no fixer changed, and a file whose gofmt layout changes more than whitespace.
 
 The repository rules sit outside the registry. They delete or move whole files, and they edit no text inside one.
 

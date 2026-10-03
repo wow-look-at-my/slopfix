@@ -22,6 +22,7 @@ type File struct {
 	MaxCommentLines int
 
 	text     string
+	opened   string
 	scope    edit.Scope
 	data     Gate
 	comments Gate
@@ -70,6 +71,7 @@ func NewFile(path, text string, o Options) *File {
 		Kind:            o.Kind,
 		MaxCommentLines: o.MaxCommentLines,
 		text:            text,
+		opened:          text,
 		scope:           o.Scope,
 		data:            o.Data,
 		comments:        o.Comments,
@@ -87,6 +89,9 @@ func (f *File) Text() string { return f.text }
 
 // Scope bounds, in Text, what the driver's scope bounded.
 func (f *File) Scope() edit.Scope { return f.scope }
+
+// Changed reports whether a gate wrote to the file since it opened.
+func (f *File) Changed() bool { return f.text != f.opened }
 
 // Apply writes edits through the file's data gate.
 func (f *File) Apply(edits []edit.Edit) edit.Result { return f.through(f.data, edits) }
