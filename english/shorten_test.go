@@ -92,3 +92,15 @@ func TestEveryFlagFires(t *testing.T) {
 		}
 	}
 }
+
+// A pattern replacement keeps the capital of the sentence it rewrites, in the middle of a paragraph as at its start.
+func TestAPatternKeepsTheCapitalOfAMidParagraphSentence(t *testing.T) {
+	got := Fix("A replacement that fails is removed. The previous image comes back.", Document)
+	assert.Equal(t, "A replacement that fails is removed. The image comes back.", got)
+}
+
+// A hyphenated compound is one word. A cut of its first half leaves a fragment such as "the-recorded".
+func TestAPatternNeverCutsHalfOfAHyphenatedWord(t *testing.T) {
+	in := "oldBase is the previously-recorded base identity for reporting."
+	assert.Equal(t, in, Fix(in, Comment))
+}
