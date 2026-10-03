@@ -71,13 +71,11 @@ func routeCases() []routeCase {
 		// git used as an editor.
 		{route: "git checkout with a pathspec", deny: "git checkout master -- src", allow: "cd {{out}} && git checkout master -- src", names: "git checkout"},
 		{route: "git restore", deny: "git restore src.txt", allow: "cd {{out}} && git restore src.txt", names: "git restore"},
-		{route: "git revert", deny: "git revert HEAD", allow: "cd {{out}} && git revert HEAD", names: "git revert"},
 		{route: "git reset --hard", deny: "git reset --hard origin/master", allow: "cd {{out}} && git reset --hard origin/master", names: "git reset"},
 
 		// The plumbing route, which never touches the worktree at all.
 		{route: "git hash-object -w", deny: "git hash-object -w {{out}}/blob.txt", allow: "cd {{out}} && git hash-object -w blob.txt", names: "git hash-object"},
 		{route: "git update-index --cacheinfo", deny: "git update-index --cacheinfo 100644,abc123,src.txt", allow: "cd {{out}} && git update-index --cacheinfo 100644,abc123,src.txt", names: "git update-index"},
-		{route: "git commit-tree", deny: "git commit-tree abc123 -m x", allow: "cd {{out}} && git commit-tree abc123 -m x", names: "git commit-tree"},
 		{route: "git update-ref", deny: "git update-ref refs/heads/x abc123", allow: "cd {{out}} && git update-ref refs/heads/x abc123", names: "git update-ref"},
 
 		// Extraction and download into the tree.

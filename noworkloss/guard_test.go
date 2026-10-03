@@ -450,6 +450,17 @@ func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	allowed(t, dir, "git cherry-pick --continue")
 }
 
+// revert replays a commit git holds, as cherry-pick does. commit-tree wraps a
+// tree the store already holds and touches no file.
+func TestRevertAndCommitTreeAreNotProvenanceRoutes(t *testing.T) {
+	dir := newRepo(t)
+	allowed(t, dir, "git revert --no-edit HEAD")
+	allowed(t, dir, "git commit-tree HEAD^{tree} -p HEAD -m reland")
+	allowed(t, dir, `reland=$(git commit-tree "HEAD^{tree}" -p HEAD -m reland) && git checkout -q -B reland "$reland"`)
+	modify(t, dir)
+	preserved(t, dir, "git revert --no-edit HEAD")
+}
+
 func TestGitRmCachedLeavesTheFileAlone(t *testing.T) {
 	dir := newRepo(t)
 	untrack(t, dir, "scratch.txt")
