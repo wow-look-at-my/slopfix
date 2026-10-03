@@ -11,12 +11,15 @@
 package tombstones
 
 import (
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // Block is a comment run or a paragraph. LineNos and Pure place each line and
@@ -45,10 +48,10 @@ func AddedBlocks(path, added string) []Block {
 		for no := run.Start; no < run.End; no++ {
 			lineNos = append(lineNos, no)
 		}
-		// A line shared with code is a note on that code. The volume cap weighs the lines a reader meets as a block of prose.
+		// A line shared with code is a note on that code, and a directive is an instruction to a tool.
 		pure := 0
-		for _, p := range run.Pure {
-			if p {
+		for idx, p := range run.Pure {
+			if p && !treecomments.IsDirective(lines[run.Start+idx]) {
 				pure++
 			}
 		}
@@ -77,8 +80,42 @@ func IsDocument(path string) bool {
 // InTestdata reports whether path sits under a testdata directory.
 func InTestdata(path string) bool { return under(path, "testdata") }
 
-// Borrowed reports whether path sits under a vendor or node_modules directory.
-func Borrowed(path string) bool { return under(path, "vendor", "node_modules") }
+// Borrowed reports a path another author wrote: one under a vendor or node_modules directory.
+func Borrowed(path string) bool { return under(path, "vendor", "node_modules") || vendoredAttr(path) }
+
+// vendoredCache holds each path's answer, because a hook asks per write.
+var vendoredCache sync.Map
+
+// vendoredAttr asks git whether .gitattributes marks path linguist-vendored.
+// A path outside a work tree, or one git cannot answer for, is not vendored.
+func vendoredAttr(path string) bool {
+	if path == "" {
+		return false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	if v, ok := vendoredCache.Load(abs); ok {
+		return v.(bool)
+	}
+	cmd := exec.Command("git", "check-attr", "-z", "linguist-vendored", "--", filepath.Base(abs))
+	cmd.Dir = filepath.Dir(abs)
+	out, err := cmd.Output()
+	vendored := false
+	if err == nil {
+		fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
+		if len(fields) >= 3 {
+			switch fields[2] {
+			case "unspecified", "unset", "false":
+			default:
+				vendored = true
+			}
+		}
+	}
+	vendoredCache.Store(abs, vendored)
+	return vendored
+}
 
 // under reports whether a directory element of path is one of dirs.
 func under(path string, dirs ...string) bool {

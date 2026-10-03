@@ -10,6 +10,28 @@ type blockShape struct {
 	opener string
 	// starred is true when each continuation line opens with a star.
 	starred bool
+	// stars is the run of stars each continuation line opens with, "*" or "**".
+	stars string
+}
+
+// starRun answers the run of stars every continuation line opens with, and
+// false when a line opens with none.
+func starRun(text []string) (string, bool) {
+	run := ""
+	for _, line := range text {
+		body := strings.TrimLeft(line, " \t")
+		stars := body[:len(body)-len(strings.TrimLeft(body, "*"))]
+		if body == "*/" {
+			continue
+		}
+		if stars == "" {
+			return "", false
+		}
+		if run == "" || len(stars) < len(run) {
+			run = stars
+		}
+	}
+	return run, run != ""
 }
 
 // readBlock reports a run that is a single /* */ comment, closed on its last
@@ -28,11 +50,8 @@ func readBlock(text []string) (blockShape, []string, bool) {
 	if strings.HasPrefix(first, "/**") && !strings.HasPrefix(first, "/**/") {
 		shape.opener = "/**"
 	}
-	shape.starred = len(text) > 1
-	for _, line := range text[1:] {
-		if !strings.HasPrefix(strings.TrimSpace(line), "*") {
-			shape.starred = false
-		}
+	if len(text) > 1 {
+		shape.stars, shape.starred = starRun(text[1:])
 	}
 	// A continuation row past this column is laid out by hand.
 	column := len(shape.indent) + len(shape.opener) + 1
@@ -49,7 +68,7 @@ func readBlock(text []string) (blockShape, []string, bool) {
 				line = strings.TrimSpace(strings.TrimSuffix(line, "*/"))
 			}
 		case shape.starred:
-			rest := strings.TrimPrefix(strings.TrimLeft(line, " \t"), "*")
+			rest := strings.TrimPrefix(strings.TrimLeft(line, " \t"), shape.stars)
 			line = strings.TrimPrefix(rest, " ")
 		default:
 			body := strings.TrimLeft(line, " \t")
@@ -108,6 +127,9 @@ func (s blockShape) render(prose []string) []string {
 	lead := s.indent + strings.Repeat(" ", len(s.opener)+1)
 	if s.starred {
 		lead = s.indent + " * "
+		if len(s.stars) > 1 {
+			lead = s.indent + s.stars + " "
+		}
 	}
 	out := []string{s.indent + s.opener + " " + prose[0]}
 	for _, line := range prose[1:] {
@@ -127,7 +149,8 @@ func repairBlockComment(b block) ([]string, bool) {
 	}
 	lines := asLines(shape.indent, prose)
 	kept := fromLines(trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: lines, exact: b.exact}))
-	if out := shape.render(kept); fitsCode(out, b) {
+	// A trim that keeps no line leaves nothing to render, so the word cut decides.
+	if out := shape.render(kept); len(out) > 0 && fitsCode(out, b) {
 		return out, true
 	}
 	render := func(text string) []string { return shape.render(fromLines(reflow(text, "", "//", wrapWidth))) }

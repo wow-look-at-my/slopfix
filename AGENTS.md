@@ -35,7 +35,7 @@ slopfix lsp                       # a language server on stdio, for the editor p
 - A named file is read whatever its extension. The path decides the rules. A workflow or action manifest gets the `yaml` rules. A document gets the prose rules. Source gets the `comments` rules.
 - A document is `.md`, `.markdown`, `.mdown` or `.txt`. An empty `--path` also counts as a document.
 - A path with a `testdata` element is never a document, named or walked. It is test input, and a rewrite changes what the test checks.
-- A path with a `vendor` or `node_modules` element is never judged, named or walked, the hook included. Another project wrote it.
+- A path with a `vendor` or `node_modules` element is never judged, named or walked, the hook included. Another project wrote it. The same holds for a path the repository's `.gitattributes` marks `linguist-vendored`, such as a reference manual kept as text. Mark external documentation that way, and no rule reads or rewrites a byte of it.
 - With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr.
 - `--json` on stdin writes one object: `path`, `findings`, and with `--fix` the repaired `text`. Each finding carries `id`, `line`, `endLine`, `rule`, `detail`, `fix`, `repairable` and `severity`. It exits 0 on a finding, because the caller decides what a finding means.
 - `--message` reads stdin as a closing message and runs the message rules. `--only` then takes a message rule or a family such as `blame`.
