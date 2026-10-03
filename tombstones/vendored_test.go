@@ -31,3 +31,19 @@ func TestAPathMarkedVendoredIsBorrowed(t *testing.T) {
 	assert.Equal(t, doc, repair.Text)
 	assert.Empty(t, repair.Kept)
 }
+
+// A file .gitattributes marks linguist-generated is a generator's output, and
+// is borrowed the same way.
+func TestAPathMarkedGeneratedIsBorrowed(t *testing.T) {
+	root := t.TempDir()
+	out, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput()
+	require.NoError(t, err, string(out))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".gitattributes"), []byte("routes.txt linguist-generated\nown.txt -linguist-generated\n"), 0o644))
+	routes := filepath.Join(root, "routes.txt")
+	own := filepath.Join(root, "own.txt")
+	require.NoError(t, os.WriteFile(routes, []byte("/ {GET}\n"), 0o644))
+	require.NoError(t, os.WriteFile(own, []byte("A note.\n"), 0o644))
+
+	assert.True(t, Borrowed(routes))
+	assert.False(t, Borrowed(own))
+}
