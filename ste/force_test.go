@@ -108,6 +108,15 @@ func TestAPostdeterminerInALongParagraphIsCut(t *testing.T) {
 	assert.Contains(t, got, "relay the browser-blocked `github.com` login endpoints")
 }
 
+// A forced division never lands inside a noun phrase, so "a detached fetch" stays whole.
+func TestAForcedDivisionKeepsANounPhraseWhole(t *testing.T) {
+	in := "- **A periodic sweep**, a **passthrough debounce** that shares one upstream call between identical concurrent reads (never across credentials), and **liveness paths** that hold while a detached fetch is in flight."
+	got := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+	assert.NotContains(t, got, "detached.", got)
+	assert.Contains(t, got, "a detached fetch", got)
+}
+
 // A verb that opens the rest gets the subject again.
 func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 	in := "The cache keeps every answer the upstream sent for the whole day across the restart of the process and the reload of the spec and holds the rows."

@@ -118,13 +118,12 @@ type forceCut struct {
 // part under the cap. It never divides inside a code span, a link, a quotation,
 // a parenthesis or bold text.
 func forceDivision(source, masked string) (string, bool) {
-	total := WordCount(masked)
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict) {
 			left := closeHead(source[:c.left])
 			right, opened := openRest(source, masked, c)
-			if right == "" || longestSentence(left+" "+right) >= total {
+			if right == "" || !divides(left, right) {
 				continue
 			}
 			// A rest that opens a clause of its own reads best, and filler reads worst.
@@ -149,14 +148,15 @@ func closeHead(head string) string {
 	return head + "."
 }
 
-// longestSentence answers the word count of the longest sentence Check reads in
-// text. A division that does not lower it divides nothing.
-func longestSentence(text string) int {
-	most := 0
-	for _, sentence := range Sentences(checkMask(text)) {
-		most = max(most, WordCount(sentence))
+// divides reports whether Check reads left as a sentence of its own under the
+// cap. It reads only the start of right, because the rest of it is unchanged.
+func divides(left, right string) bool {
+	sentences := Sentences(checkMask(left + " " + opening(right)))
+	if len(sentences) < 2 {
+		return false
 	}
-	return most
+	words := WordCount(sentences[0])
+	return words <= SentenceWordCap && words == WordCount(checkMask(left))
 }
 
 // inBold reports whether byte p of a sentence sits inside bold text. A bold
@@ -174,6 +174,27 @@ func inBold(source string, p int) bool {
 		at += 2 + next
 	}
 	return bold
+}
+
+// phraseReach is how many words past the cap the phrase parse reads.
+const phraseReach = 8
+
+// phraseSpans answers the inside of each noun phrase and verb group the parser
+// finds where a cut can land. A cut there leaves "a detached." behind.
+func phraseSpans(masked string, ends []int) [][]int {
+	if len(ends) == 0 {
+		return nil
+	}
+	head := masked[:ends[min(SentenceWordCap+phraseReach, len(ends)-1)]]
+	s := syntax.Parse(head, nil)
+	var out [][]int
+	for _, ph := range s.Phrases {
+		if ph.First < ph.Last {
+			// The span starts after the phrase's first byte, so the gap in front of it stays open.
+			out = append(out, []int{s.Words[ph.First].Start + 1, s.Words[ph.Last].Start})
+		}
+	}
+	return out
 }
 
 // isWordByte reports a byte that can open bold text's first word: a letter,
@@ -207,6 +228,9 @@ func candidates(source, masked string, strict bool) []forceCut {
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
+	if strict {
+		off = append(off, phraseSpans(masked, ends)...)
+	}
 	var out []forceCut
 	counted := 0
 	for _, gap := range gapRun.FindAllStringIndex(source, -1) {
@@ -270,7 +294,11 @@ func openRest(source, masked string, c forceCut) (string, int) {
 			if trimmed == "" {
 				return "", 0
 			}
-			rest, restMasked = trimmed, restMasked[len(restMasked)-len(trimmed):]
+			rest = strings.TrimLeft(trimmed, " —–-,;:")
+			if rest == "" {
+				return "", 0
+			}
+			restMasked = restMasked[len(restMasked)-len(rest):]
 			opener = connector
 		}
 	}
