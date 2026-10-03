@@ -104,3 +104,16 @@ func TestAPatternNeverCutsHalfOfAHyphenatedWord(t *testing.T) {
 	in := "oldBase is the previously-recorded base identity for reporting."
 	assert.Equal(t, in, Fix(in, Comment))
 }
+
+// A quotation names a phrase. A cut inside it leaves an unbalanced quote mark.
+func TestAPatternLeavesAQuotationWhole(t *testing.T) {
+	in := `Comments state the invariant. No changelogs, no dates, no "this used to".`
+	assert.Equal(t, in, Fix(in, Document))
+}
+
+// A cut to the end of a sentence must not leave it on a word that opens what the cut took.
+func TestAPatternCutNeverEndsASentenceOnAnOpener(t *testing.T) {
+	in := "An operator sees a consumer that stopped being told rather than that silently never was."
+	assert.Equal(t, in, Fix(in, Comment))
+	assert.Equal(t, "The cap holds.", Fix("The cap holds stopped being read at start.", Comment))
+}
