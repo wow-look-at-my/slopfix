@@ -69,7 +69,7 @@ func PlanRead(command, dir string) *ReadPlan {
 	args := []string{}
 	for _, w := range c.Args[e.index+1:] {
 		v, ok := literal(w)
-		if !ok {
+		if !ok || strings.ContainsAny(v, "*?[") {
 			return nil
 		}
 		args = append(args, v)

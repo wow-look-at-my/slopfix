@@ -1,4 +1,4 @@
-# read-plan is the contract the marketplace plugin's tool.call module reads.
+# check read-plan is the contract the marketplace plugin's tool.call module reads.
 # The module sends one Bash call as JSON and runs the Read calls it gets back.
 #
 # Commands exec the freshly built binary as
@@ -12,7 +12,7 @@ tests:
 	  cmd: |
 		set -eu
 		slopfix="${GO_TOOLCHAIN_DATS_BUILD_DIR:-$PWD/build}/slopfix"
-		printf '%s' '{"command":"sed -n 2,3p a.txt","cwd":"/work"}' | "$slopfix" read-plan
+		printf '%s' '{"command":"sed -n 2,3p a.txt","cwd":"/work"}' | "$slopfix" check read-plan
 	  outputs:
 		stdout:
 			- '"reads":[{"file_path":"/work/a.txt","offset":2,"limit":2}]'
@@ -24,7 +24,7 @@ tests:
 		slopfix="${GO_TOOLCHAIN_DATS_BUILD_DIR:-$PWD/build}/slopfix"
 		dir="$(mktemp -d)"
 		printf 'a\nb\nc\nd\ne\n' > "$dir/f.txt"
-		printf '{"command":"tail -n 2 f.txt","cwd":"%s"}' "$dir" | "$slopfix" read-plan
+		printf '{"command":"tail -n 2 f.txt","cwd":"%s"}' "$dir" | "$slopfix" check read-plan
 	  outputs:
 		stdout:
 			- '"offset":4,"limit":2'
@@ -33,7 +33,7 @@ tests:
 	  cmd: |
 		set -eu
 		slopfix="${GO_TOOLCHAIN_DATS_BUILD_DIR:-$PWD/build}/slopfix"
-		printf '%s' '{"command":"cat a.txt | jq .x","cwd":"/work"}' | "$slopfix" read-plan
+		printf '%s' '{"command":"cat a.txt | jq .x","cwd":"/work"}' | "$slopfix" check read-plan
 	  outputs:
 		stdout:
 			- '{"reads":null,"note":""}'
@@ -42,7 +42,7 @@ tests:
 	  exit: 1
 	  cmd: |
 		slopfix="${GO_TOOLCHAIN_DATS_BUILD_DIR:-$PWD/build}/slopfix"
-		printf 'garbage' | "$slopfix" read-plan
+		printf 'garbage' | "$slopfix" check read-plan
 	  outputs:
 		stderr:
 			- 'read-plan: stdin is not a {command, cwd} object'

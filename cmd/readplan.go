@@ -14,8 +14,9 @@ type readPlanInput struct {
 	Cwd     string `json:"cwd"`
 }
 
+// check.go sorts before this file, so its init has set checkCmd.
 func init() {
-	rootCmd.AddCommand(&cobra.Command{
+	checkCmd.AddCommand(&cobra.Command{
 		Use:   "read-plan",
 		Short: "Map a Bash file read onto Read tool calls",
 		Long: "read-plan reads {\"command\", \"cwd\"} as JSON on stdin. A plain cat, head,\n" +
