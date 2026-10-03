@@ -328,6 +328,14 @@ func (o *OwnLines) readDiff(diff string) error {
 			if file != "" && created {
 				o.whole.Add(file)
 			}
+		case strings.HasPrefix(line, "Binary files ") && strings.HasSuffix(line, " differ"):
+			name, err := binaryDiffPath(strings.TrimSuffix(strings.TrimPrefix(line, "Binary files "), " differ"))
+			if err != nil {
+				return err
+			}
+			if name != "" {
+				o.whole.Add(name)
+			}
 		case strings.HasPrefix(line, "@@ "):
 			start, count, err := hunkNew(line)
 			if err != nil {
@@ -380,6 +388,35 @@ func diffPath(field string) (string, error) {
 		field = unquoted
 	}
 	return strings.TrimPrefix(field, "b/"), nil
+}
+
+// binaryDiffPath answers the new path of a binary diff's "A and B" pair, or ""
+// for a deleted file. The diff runs with --no-renames, so A and B name one path
+// unless a side is /dev/null. The halves therefore split at the middle " and ".
+func binaryDiffPath(pair string) (string, error) {
+	if newSide, ok := strings.CutPrefix(pair, "/dev/null and "); ok {
+		return diffPath(newSide)
+	}
+	if strings.HasSuffix(pair, " and /dev/null") {
+		return "", nil
+	}
+	refused := fmt.Errorf("fork scope: the binary diff %q does not name one path on each side", pair)
+	half := (len(pair) - len(" and ")) / 2
+	if half <= 0 || pair[half:half+len(" and ")] != " and " {
+		return "", refused
+	}
+	oldSide, err := diffPath(strings.Replace(pair[:half], "a/", "b/", 1))
+	if err != nil {
+		return "", err
+	}
+	newSide, err := diffPath(pair[half+len(" and "):])
+	if err != nil {
+		return "", err
+	}
+	if oldSide != newSide {
+		return "", refused
+	}
+	return newSide, nil
 }
 
 // hunkRange reads "start[,count]" after the sign of a hunk header side.
