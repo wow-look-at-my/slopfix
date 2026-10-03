@@ -158,6 +158,39 @@ func InExpression(text string, q Match) bool {
 	return unicode.IsDigit(prev) || inEquation(text, q.At)
 }
 
+// NamesAThing exempts a number that labels the singular noun in front of it,
+// as in "gate 5" or a number after a hash sign. The plural word after it is
+// then a verb.
+func NamesAThing(text string, q Match) bool {
+	if q.At > 0 && text[q.At-1] == '#' {
+		return true
+	}
+	words := syntax.Parse(text, nil).Words
+	for i, w := range words {
+		if w.Start != q.At {
+			continue
+		}
+		if i == 0 {
+			return false
+		}
+		prev := words[i-1]
+		return prev.End == q.At-1 && (prev.Tag == "NN" || prev.Tag == "NNP")
+	}
+	return false
+}
+
+// MeasuresAUnit exempts a number in front of a unit that a plural noun
+// follows. In "64 B lines" the number sizes each line and counts nothing.
+func MeasuresAUnit(_ string, q Match) bool {
+	words := strings.Fields(q.Text)
+	for _, w := range words[1 : len(words)-1] {
+		if IsUnit(w) {
+			return true
+		}
+	}
+	return false
+}
+
 // inEquation reports a number in a clause that holds an equals sign. An
 // equation states an identity, such as a unit conversion, and no tally.
 func inEquation(text string, at int) bool {
