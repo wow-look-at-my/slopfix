@@ -25,8 +25,8 @@ func concurrencyFindings(content string) []ste.Finding {
 
 func TestAWorkflowWithoutTheOrgBlockIsReported(t *testing.T) {
 	cases := map[string]int{
-		"on: push\njobs: {}\n":                                                        1,
-		"name: ci\non:\n  push:\n    branches: ['**']\njobs: {}\n":                     2,
+		"on: push\njobs: {}\n": 1,
+		"name: ci\non:\n  push:\n    branches: ['**']\njobs: {}\n":                    2,
 		"on: push\nconcurrency: ci\njobs: {}\n":                                       2,
 		"on: push\nconcurrency:\n  group: ci\n  cancel-in-progress: true\njobs: {}\n": 2,
 		"on: push\n" + orgBlock + "  extra: x\njobs: {}\n":                            2,
@@ -54,10 +54,10 @@ func TestTheOrgBlockPasses(t *testing.T) {
 
 func TestTheRepairWritesTheOrgBlock(t *testing.T) {
 	cases := map[string]string{
-		"on: workflow_dispatch\njobs: {}\n":                                         "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
-		"on: workflow_dispatch\n\njobs: {}\n":                                       "on: workflow_dispatch\n\n" + orgBlock + "\njobs: {}\n",
-		"on:\n  pull_request:\n# the jobs\njobs: {}\n":                              "on:\n  pull_request:\n" + orgBlock + "# the jobs\njobs: {}\n",
-		"on: workflow_dispatch\nconcurrency: ci\njobs: {}\n":                       "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
+		"on: workflow_dispatch\njobs: {}\n":                                                        "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
+		"on: workflow_dispatch\n\njobs: {}\n":                                                      "on: workflow_dispatch\n\n" + orgBlock + "\njobs: {}\n",
+		"on:\n  pull_request:\n# the jobs\njobs: {}\n":                                             "on:\n  pull_request:\n" + orgBlock + "# the jobs\njobs: {}\n",
+		"on: workflow_dispatch\nconcurrency: ci\njobs: {}\n":                                       "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
 		"on: workflow_dispatch\nconcurrency:\n  group: ci\n  cancel-in-progress: true\njobs: {}\n": "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
 	}
 	for content, want := range cases {
