@@ -159,7 +159,14 @@ func fixText(req Request) Repair {
 	// Every repair is a registered fixer, and every fixer writes through the gate the file's parser owns.
 	kind := kindOf(req.Path, req.Content)
 	f := openFile(req, kind)
-	fixer.Run(f, fixer.For(kind))
+	// A repair can hand a later rule new text, such as a division that leaves a count, so the passes run until the text holds.
+	for range fixRounds {
+		before := f.Text()
+		fixer.Run(f, fixer.For(kind))
+		if f.Text() == before {
+			break
+		}
+	}
 
 	text := f.Text()
 	rep := f.Report()
@@ -213,6 +220,9 @@ func fixText(req Request) Repair {
 	}
 	return repair
 }
+
+// fixRounds bounds the passes Fix runs, so repairs that undo each other stop.
+const fixRounds = 4
 
 // wantsOf answers the caller's category selection as a test. An empty Rules
 // means AllRules.

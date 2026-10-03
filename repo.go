@@ -50,11 +50,12 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 		}
 	}
 	if keeps(IDPackageScripts) {
-		scripts, err := packageScripts(root)
+		scripts, moved, err := packageScripts(root, writing)
 		if err != nil {
 			return nil, nil, err
 		}
 		findings = append(findings, scripts...)
+		changed = append(changed, moved...)
 	}
 	if !keeps(IDBudget) {
 		return findings, changed, nil
@@ -92,7 +93,7 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 		}
 		findings = append(findings, repoFinding(rel, IDBudget,
 			fmt.Sprintf("%d characters, over the %d budget every request pays for", size, CharBudget),
-			"`slopfix fix` moves its largest `##` sections into docs/. A file with no such section needs a cut by hand."))
+			"`slopfix fix` moves its largest sections into docs/, or its tail when it has no heading."))
 	}
 	return findings, changed, nil
 }

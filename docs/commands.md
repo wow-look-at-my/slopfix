@@ -1,0 +1,68 @@
+# Commands
+
+The commands are `check`, `hook`, `lsp`, `completion` and `help`. A kind of check is a rule category or a hook guard, never a command of its own.
+
+```sh
+slopfix check [path...]           # report what the rules reject, exit 1 on any finding
+slopfix check --fix [path...]     # repair in place first, then report what is left
+slopfix fix [path...]             # the same as check --fix
+slopfix check --path doc.md < doc.md          # judge stdin as text headed for doc.md
+slopfix check --json --path doc.md < doc.md   # JSON findings for text on stdin
+slopfix check --message < message.txt         # judge a closing message
+slopfix check workflow-permission --permission id-token --json   # does the running job hold it
+slopfix hook < payload.json       # answer a Claude Code hook event
+slopfix lsp                       # a language server on stdio, for the editor plugin
+```
+
+- A directory argument is walked. The walk skips hidden directories except `.github`. It also skips `vendor`, `node_modules`, `testdata`, `build`, `dist`, registered submodules (by the gitlink in the index, so an uninitialized one that a build copied files into stays skipped), nested Go modules and every untracked file git ignores, such as built output.
+- A named file is read whatever its extension. The path decides the rules. A workflow or action manifest gets the `yaml` rules. A document gets the prose rules. Source gets the `comments` rules.
+- A document is `.md`, `.markdown`, `.mdown` or `.txt`. An empty `--path` also counts as a document.
+- A path with a `testdata` element is never a document, named or walked. It is test input, and a rewrite changes what the test checks.
+- A path with a `vendor` or `node_modules` element is never judged, named or walked, the hook included. Another project wrote it. The same holds for a path the repository's `.gitattributes` marks `linguist-vendored`, such as a reference manual kept as text. Mark external documentation that way, and no rule reads or rewrites a byte of it.
+- A source file whose header carries the `Code generated ... DO NOT EDIT.` marker is never judged either. The generator writes it again on its next run.
+- With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr.
+- `--json` on stdin writes one object: `path`, `findings`, and with `--fix` the repaired `text`. Each finding carries `id`, `line`, `endLine`, `rule`, `detail`, `fix`, `repairable` and `severity`. It exits 0 on a finding, because the caller decides what a finding means.
+- `--message` reads stdin as a closing message and runs the message rules. `--only` then takes a message rule or a family such as `blame`.
+- `check workflow-permission [workflow] --permission NAME [--level write] [--job JOB] [--json]` asks whether a job holds a permission. The job block wins, then the workflow block, then the repository default, which reads as `none`. A missing grant is a finding. In a step, the workflow file comes from `GITHUB_WORKFLOW_REF` and the job from `GITHUB_JOB`. `--json` writes `granted`, `level`, `source` and `message`. The `has-permission` action in `wow-look-at-my/actions` wraps it.
+- `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
+- `fmt`, `purge`, `comments` and `workflows` do not exist as commands. The wrap join is the `wrap/hard-wrap` rule. The purge is the `repo` category. The comment and workflow rules run inside `check` on each file they judge.
+
+## Selecting rules with --only
+
+`--only` takes a comma-separated list. An entry is a category, or a rule ID inside a category. A rule ID is the name the report prints beside a finding, the way a compiler names a warning.
+
+```sh
+slopfix fix --only counts            # every rule in the counts category
+slopfix fix --only ste/semicolon     # that rule alone
+slopfix fix --only tombstones,wrap   # two categories
+slopfix fix --only ste/nosuch        # an error that names the rules ste holds
+```
+
+The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml`, `repo` and `pins`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
+
+A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream. A hand wrap hides half of it. So an `ste` rule also joins the paragraph it repairs.
+
+## lsp
+
+`slopfix lsp [--max-per-file N]` speaks the Language Server Protocol on stdio with full document sync. It publishes the `check` findings for each open file that a build reads: a file in a work tree that a rule reads, outside `~/.claude`. Every diagnostic is an error. The `yaml` and `ste` families rank first and `wrap` ranks last. Past the cap, the last diagnostic sent counts the rest.
+
+`--trace` on any command prints a timing breakdown by phase.
+
+## hook
+
+`slopfix hook` reads any hook payload on stdin. The event on the payload picks the guards, and every guard that serves it runs. `--only` names guards, or rule categories and IDs for the write guard. `cmd/guards.go` holds the table, in run order.
+
+| Event | Guards |
+|---|---|
+| PreToolUse | `clean-bash`, `write`, `no-work-loss`, `auto-allow`, `busy-poll` |
+| PermissionRequest | `auto-allow` |
+| PostToolUse, SessionStart | `md-budget` |
+| Stop | `busy-poll`, `md-budget`, `laziness` |
+| MessageDisplay | `link-refs`, `blame-language`, `ask-properly` |
+
+- On PreToolUse the first refusal is the answer. A rewrite of the tool input reaches every guard after it, so no guard judges a command that will not run.
+- On Stop, every refusal joins into one exit 2 with every reason. On MessageDisplay, the `link-refs` rewrite is the base and each note follows it.
+- A refusal is an exit code. The process exits with it.
+- The `write` guard repairs the text a Write, Edit or MultiEdit adds and lets the write through. It flags what the repair did not reach.
+- The write guard repairs an Edit where it lands in the file. A line inside a fence therefore stays code. A `Scope` holds every rewrite inside the edit's own bytes, so a repair the file needs elsewhere never lands. The hook reports those findings instead.
+- The hook prints nothing and exits 0 for anything it does not judge. That covers a bad payload, an event no guard serves, and clean text.

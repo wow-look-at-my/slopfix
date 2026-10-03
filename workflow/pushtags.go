@@ -64,12 +64,21 @@ func pushFinding(line int) ste.Finding {
 // branchFilter is the filter the repair writes. It matches every branch and no tag.
 const branchFilter = "branches: ['**']"
 
-// filterPush writes branchFilter under an unfiltered push trigger. A flow-style
-// mapping is left to the author, because its rewrite is not one whole row.
+// filterPush writes branchFilter under an unfiltered push trigger. A shape no
+// single row edit reaches gets its whole on: value written again in block style.
 func filterPush(content string) []edit.Edit {
 	if len(pushTags(content)) == 0 {
 		return nil
 	}
+	if edits := filterPushRow(content); edits != nil {
+		return edits
+	}
+	return reblock(content)
+}
+
+// filterPushRow writes branchFilter with an edit of the rows the trigger
+// already holds.
+func filterPushRow(content string) []edit.Edit {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
 		return nil
