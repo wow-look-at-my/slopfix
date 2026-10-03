@@ -1,6 +1,9 @@
 package slopfix_test
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -167,15 +170,44 @@ func TestJSONIsHeldToTheSchemaItNames(t *testing.T) {
 	}
 }
 
-// A remote schema is never fetched, so a document that names one gets the parse check alone.
-func TestARemoteSchemaIsNotFetched(t *testing.T) {
+func schemaServer(t *testing.T) string {
+	t.Helper()
+	files := map[string]string{"/thing.schema.json": objectSchema, "/rule.xsd": xsd}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, ok := files[r.URL.Path]
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+	return server.URL
+}
+
+func jsonDoc(t *testing.T, fields map[string]string) string {
+	t.Helper()
+	data, err := json.Marshal(fields)
+	require.NoError(t, err)
+	return string(data)
+}
+
+// A remote schema is fetched and enforced. One that does not load is a finding.
+func TestARemoteSchemaIsFetched(t *testing.T) {
+	base := schemaServer(t)
+	located := func(file string) string {
+		return `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="` + base + file + `"`
+	}
 	root := gitRepo(t, map[string]string{
-		"thing.json":  `{"$schema": "https://schemas.invalid/thing.schema.json", "anything": true}`,
-		"broken.json": `{"$schema": "https://schemas.invalid/thing.schema.json",}}`,
-		"thing.xml":   xmlDoc(`<rule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://schemas.invalid/rule.xsd"/>`),
+		"good.json": jsonDoc(t, map[string]string{"$schema": base + "/thing.schema.json", "name": "x"}),
+		"bad.json":  jsonDoc(t, map[string]string{"$schema": base + "/thing.schema.json", "nmae": "x"}),
+		"lost.json": jsonDoc(t, map[string]string{"$schema": base + "/missing.schema.json", "name": "x"}),
+		"good.xml":  xmlDoc(`<rule ` + located("/rule.xsd") + ` id="a"/>`),
+		"bad.xml":   xmlDoc(`<rule ` + located("/rule.xsd") + `/>`),
+		"lost.xml":  xmlDoc(`<rule ` + located("/missing.xsd") + ` id="a"/>`),
 	})
-	assert.Equal(t, []string{"broken.json repo/json"}, pathsOf(checkOnly(root, slopfix.IDJSON)))
-	assert.Empty(t, checkOnly(root, slopfix.IDXML))
+	assert.ElementsMatch(t, []string{"bad.json repo/json", "lost.json repo/json"}, pathsOf(checkOnly(root, slopfix.IDJSON)))
+	assert.ElementsMatch(t, []string{"bad.xml repo/xml", "lost.xml repo/xml"}, pathsOf(checkOnly(root, slopfix.IDXML)))
 }
 
 func TestASchemaIsHeldToTheMetaSchema(t *testing.T) {
@@ -204,7 +236,9 @@ func TestXMLIsHeldToTheSchemaItNames(t *testing.T) {
 		"good.xml":      xmlDoc(`<rule ` + located + ` id="a"/>`),
 		"bad.xml":       xmlDoc(`<rule ` + located + `/>`),
 		"unnamed.xml":   xmlDoc(`<rule id="a"/>`),
-		"version.xml":   `<?xml version="1.0"?><rule ` + located + ` id="a"/>`,
+		"v10.xml":       `<?xml version="1.0"?><rule ` + located + ` id="a"/>`,
+		"nodecl.xml":    `<rule ` + located + ` id="a"/>`,
+		"version.xml":   `<?xml version="2.0"?><rule ` + located + ` id="a"/>`,
 		"malformed.xml": xmlDoc(`<rule ` + located + ` id="a">`),
 	})
 	assert.ElementsMatch(t, []string{
