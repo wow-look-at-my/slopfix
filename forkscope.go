@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -30,7 +29,6 @@ const DefaultGitHubAPI = "https://api.github.com"
 
 // ForkListPath is the file in the org's .github repository that names each fork GitHub does not record as one.
 const ForkListPath = "fork-of"
-
 
 // OwnLines is the part of a fork's work tree that the fork wrote.
 type OwnLines struct {
