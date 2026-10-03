@@ -65,7 +65,7 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleComments:
 		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	case RuleWorkflow:
-		return workflow.AllIDs
+		return workflow.AllIDs.Union(workflow.NetworkIDs)
 	case RuleRepo:
 		return RepoIDs
 	case RulePins:

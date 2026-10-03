@@ -7,6 +7,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/laziness"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // IDInventoryCount names the stale-count rule over a document.
@@ -69,8 +70,8 @@ var hooks = []Hook{
 		Name:    "ci check",
 		Event:   "build",
 		Runs:    "slopfix check .",
-		Summary: "what a repository keeps, judged from its root",
-		Only:    []string{string(RuleRepo)},
+		Summary: "what a repository keeps, judged from its root, and each uses: ref on a feature branch",
+		Only:    []string{string(RuleRepo), workflow.IDBranchPin},
 	},
 	{
 		Name:    "no-laziness",

@@ -23,8 +23,11 @@ const (
 	IDNeuteredGate = "yaml/neutered-gate"
 )
 
-// AllIDs names every rule this package reports, as a membership test.
-var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDBranchPin)
+// AllIDs names every rule Check reports, as a membership test.
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags)
+
+// NetworkIDs names the rules that ask the network, which Check never does.
+var NetworkIDs = set.Of(IDBranchPin)
 
 // Judges reports whether these rules read the file at this path. A backslash is
 // separated here rather than through filepath, which ignores it off Windows.
