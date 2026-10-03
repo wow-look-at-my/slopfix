@@ -92,6 +92,19 @@ func TestTrailingCommentsAreNotAVolume(t *testing.T) {
 	assert.Equal(t, src, repair.Text)
 }
 
+// A run of //sys directives is a generator's input, not prose, so it never
+// reaches the volume cap however long it runs.
+func TestDirectiveRunsAreNotAVolume(t *testing.T) {
+	src := "package syscall\n\n"
+	for range 6 {
+		src += "//sys\tGetpid() (pid int)\n"
+	}
+	repair := Fix("syscall_cosmo.go", src, 3)
+
+	assert.Empty(t, repair.Kept)
+	assert.Equal(t, src, repair.Text)
+}
+
 func TestAnUnjudgedPathIsLeftAlone(t *testing.T) {
 	src := "this used to work\n"
 	repair := Fix("a.bin", src, DefaultMaxCommentLines)

@@ -42,3 +42,50 @@ func withoutIgnored(root string, paths []string) []string {
 	}
 	return kept
 }
+
+// withoutVendored drops each path the repository marks linguist-vendored in
+// .gitattributes. Such text has another author, and no rule reads or rewrites
+// it. Outside a work tree git fails, and then every path stays.
+func withoutVendored(root string, paths []string) []string {
+	if len(paths) == 0 {
+		return paths
+	}
+	abs := make([]string, len(paths))
+	for i, path := range paths {
+		a, err := filepath.Abs(path)
+		if err != nil {
+			return paths
+		}
+		abs[i] = a
+	}
+	cmd := exec.Command("git", "check-attr", "--stdin", "-z", "linguist-vendored")
+	cmd.Dir = root
+	cmd.Stdin = strings.NewReader(strings.Join(abs, "\x00") + "\x00")
+	out, err := cmd.Output()
+	if err != nil {
+		return paths
+	}
+	vendored := set.New[string]()
+	fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
+	for i := 0; i+2 < len(fields); i += 3 {
+		if VendoredValue(fields[i+2]) {
+			vendored.Add(fields[i])
+		}
+	}
+	var kept []string
+	for i, path := range paths {
+		if !vendored.Contains(abs[i]) {
+			kept = append(kept, path)
+		}
+	}
+	return kept
+}
+
+// VendoredValue reports a git attribute value that marks a path vendored.
+func VendoredValue(value string) bool {
+	switch value {
+	case "unspecified", "unset", "false":
+		return false
+	}
+	return true
+}

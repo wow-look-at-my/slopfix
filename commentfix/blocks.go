@@ -19,5 +19,5 @@ func blocks(filename, src string) []block {
 	if !ok {
 		return nil
 	}
-	return parsed
+	return withoutLicenseNotices(parsed)
 }
