@@ -14,6 +14,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // fixture is a file the rule set has something to say about, and the rules it
@@ -100,14 +101,10 @@ func roundTripFixtures() []fixture {
 				"        continue-on-error: true\n" +
 				"      - env:\n" +
 				"          OUT: ${{ steps.x.outputs.path }}\n" +
-				"        run: cat \"$OUT\"\n" +
-				"      - name: assert\n" +
-				"        run: |\n" +
-				"          grep -q ok out.txt || { echo \"::error::missing\"; exit 1; }\n",
+				"        run: cat \"$OUT\"\n",
 			wants: []string{
 				"yaml/comment-block",
 				"yaml/all-builds-job",
-				"yaml/test-in-workflow",
 				"yaml/neutered-gate",
 				"yaml/env-indirection",
 				"yaml/push-tags",
@@ -205,7 +202,7 @@ func TestEveryRuleAppearsInAFixture(t *testing.T) {
 	for id := range slopfix.AllIDs().All() {
 		// A warning outlives the repair by design. TestEachWarningRuleFires covers
 		// each.
-		if !covered.Contains(id) && !ste.WarningIDs.Contains(id) {
+		if !covered.Contains(id) && !ste.WarningIDs.Contains(id) && !workflow.ReportOnly.Contains(id) {
 			missing = append(missing, id)
 		}
 	}

@@ -26,6 +26,9 @@ const (
 // AllIDs names every rule this package reports, as a membership test.
 var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags)
 
+// ReportOnly names the error rules whose finding is code in a run script.
+var ReportOnly = set.Of(IDTestInYAML)
+
 // Judges reports whether these rules read the file at this path. A backslash is
 // separated here rather than through filepath, which ignores it off Windows.
 func Judges(name string) bool {
