@@ -53,9 +53,11 @@ func roundTripFixtures() []fixture {
 				"The loader reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs.\n\n" +
 				"Its four fields hold the header.\n\n" +
 				"The set holds three rules.\n\n" +
-				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n",
+				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n\n" +
+				"- **Admin port**: " + strings.Repeat("The runner reads each event from the stream and writes the result to the store. ", 25) + "\n",
 			wants: []string{
 				slopfix.IDHardWrap,
+				slopfix.IDLongBlock,
 				ste.IDContraction,
 				ste.IDModal,
 				ste.IDSemicolon,
