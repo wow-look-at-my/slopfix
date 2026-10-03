@@ -40,9 +40,8 @@
     created accepted conflict forbidden unauthorized gone found"/>
 
   <!-- A word that names the item a number after it identifies, as in
-       "Migration 014" or "Section 4". The number is a label, not a tally. -->
-  <class name="label" words="section sections migration migrations step
-    phase chapter figure fig table rfc pr issue version release port page
-    item rule part appendix stage revision"/>
+       "Migration 014" or "HTTP 404". No edit renumbers what it names. -->
+  <class name="label" words="http migration migrations rfc pr issue version
+    release port revision"/>
 
 </rules>

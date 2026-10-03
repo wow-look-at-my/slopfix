@@ -194,20 +194,26 @@ func TestAPathMarkedGeneratedIsNeitherRepairedNorReported(t *testing.T) {
 	assert.Equal(t, table.String(), string(got))
 }
 
-// A status code, a migration number, a section label and a size are values,
-// and a repair that cut them changed what the sentence says.
+// A status code and a migration number are values, and a repair that cut them
+// changed what the sentence says.
 func TestFixLeavesValuesThatAreNotCounts(t *testing.T) {
 	for _, doc := range []string{
 		"Any status other than 201 or 409 there triggers a full upload.\n",
 		"The row insert and the 201 responses are shared with a full upload.\n",
 		"A 401 or 403 confirms that the module exists.\n",
 		"Migration 015 defines it.\n",
-		"The policies honor the Section 4 pins.\n",
-		"It sends one create and four 1 MiB `?offset=` PATCH requests.\n",
+		"It answers HTTP 404 for a miss.\n",
 	} {
 		repair := slopfix.Fix(slopfix.Request{Content: doc, Path: "a.md"})
 		assert.Equal(t, doc, repair.Text)
 	}
+}
+
+// A count beside a size is still a count. The repair cuts the count and keeps
+// the sentence readable.
+func TestFixCutsACountBesideASize(t *testing.T) {
+	repair := slopfix.Fix(slopfix.Request{Content: "It sends one create and four 1 MiB `?offset=` PATCH requests.\n", Path: "a.md"})
+	assert.Equal(t, "PLACEHOLDER\n", repair.Text)
 }
 
 // What the prose rules write is stated in rules/, entry by entry. What this

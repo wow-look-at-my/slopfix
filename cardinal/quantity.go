@@ -20,10 +20,10 @@ import (
 var proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
 	`\s+(?:[a-z][a-z-]*\s+){0,3}?[a-z][a-z-]{2,}s\b`
 
-// gateQuantity is the merge gate's spelling. It reads a shorter list of words,
-// any run of digits, and a shorter adjective gap.
+// gateQuantity is the merge gate's spelling. It reads a shorter list of
+// words, any run of digits, and a shorter adjective gap.
 var gateQuantity = regexp.MustCompile(`(?i)\b(?:` + gateAlt + `|[0-9]+)` +
-	`\s+(?:[a-z-]+\s+){0,2}?[a-z]+s\b`)
+	`\s+(?:(?:[a-z-]+|[0-9]+(?:\.[0-9]+)?\s+[a-z]+)\s+){0,2}?[a-z]+s\b`)
 
 // Match is a quantity the pattern found, and the parts an exemption asks about.
 type Match struct {
@@ -161,9 +161,9 @@ func bare(word string) string {
 var joiners = set.Of("or", "and", "nor")
 
 // StatusCode exempts an HTTP status code: one that heads a reply noun ("the
-// responses"), follows the word HTTP or status, or sits in a list beside
-// another code ("201 or 409", "200 and 404"). A status is a value, so no edit
-// that adds an item moves it.
+// responses"), follows the word status, or sits in a list beside another code
+// ("201 or 409", "200 and 404"). A status is a value, so no edit that adds an
+// item moves it.
 func StatusCode(text string, q Match) bool {
 	if !InClass(leadingNumber(q), "status-code") {
 		return false
@@ -174,7 +174,7 @@ func StatusCode(text string, q Match) bool {
 	before := strings.Fields(text[:q.At])
 	if n := len(before); n > 0 {
 		last := bare(before[n-1])
-		if last == "http" || last == "status" || InClass(last, "status-code") {
+		if last == "status" || InClass(last, "status-code") {
 			return true
 		}
 		if n > 1 && joiners.Contains(last) && InClass(bare(before[n-2]), "status-code") {
@@ -186,22 +186,10 @@ func StatusCode(text string, q Match) bool {
 }
 
 // Labeled exempts a number that names an item rather than counting a set: one
-// after a label word ("Migration 014", "Section 4"), or one written with a
-// leading zero, which no tally carries.
+// after a label word, as in "Migration 014" or "HTTP 404".
 func Labeled(text string, q Match) bool {
-	number := leadingNumber(q)
-	if len(number) > 1 && number[0] == '0' && allDigits(number) {
-		return true
-	}
 	before := strings.Fields(text[:q.At])
 	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
-}
-
-// MeasuresAUnit exempts a number whose next word is a unit, ahead of the noun
-// it describes: "four 1 MiB requests" counts requests.
-func MeasuresAUnit(_ string, q Match) bool {
-	fields := strings.Fields(q.Text)
-	return len(fields) > 2 && IsUnit(fields[1])
 }
 
 // InExpression exempts a number that is arithmetic rather than a count. The
