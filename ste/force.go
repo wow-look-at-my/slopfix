@@ -149,6 +149,23 @@ func longestSentence(text string) int {
 	return most
 }
 
+// inBold reports whether byte p of a sentence sits inside bold text. A bold
+// run can open in an earlier sentence, so a first marker that closes a word
+// means the sentence opens in bold.
+func inBold(source string, p int) bool {
+	at := strings.Index(source, "**")
+	bold := at > 0 && !unicode.IsSpace(rune(source[at-1])) && (at+2 == len(source) || !unicode.IsLetter(rune(source[at+2])))
+	for at >= 0 && at < p {
+		bold = !bold
+		next := strings.Index(source[at+2:], "**")
+		if next < 0 {
+			break
+		}
+		at += 2 + next
+	}
+	return bold
+}
+
 // wordEnds answers where each word WordCount counts ends, in order. A
 // parenthetical is a single word that ends where it closes.
 func wordEnds(masked string) []int {
@@ -188,7 +205,7 @@ func candidates(source, masked string, strict bool) []forceCut {
 		if p == 0 || q == len(source) || insideAny(off, p) || leftWords < 1 || rightWords < 1 {
 			continue
 		}
-		if strings.Count(source[:p], "**")%2 != 0 {
+		if inBold(source, p) {
 			continue
 		}
 		head := strings.TrimRight(source[:p], " ")

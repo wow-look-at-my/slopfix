@@ -62,6 +62,17 @@ func TestAQuoteMarkInsideCodeOpensNoQuotation(t *testing.T) {
 	assert.Contains(t, got, "\"a quoted phrase\"")
 }
 
+// A division never drops half of a bold pair, and every sentence keeps its pairs.
+func TestADivisionKeepsBoldPaired(t *testing.T) {
+	in := "Its **`mergeable` is KNOWN** (MERGEABLE/CONFLICTING) **AND its `mergeable_state` is known and current** (non-empty, not `unknown`) — the state is part of the gate rather than a field that rides along with the rest of the row."
+	got := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+	assert.Equal(t, 4, strings.Count(got, "**"), got)
+	for _, sentence := range ste.Sentences(got) {
+		assert.Equal(t, 0, strings.Count(sentence, "**")%2, "%q leaves a bold pair open", sentence)
+	}
+}
+
 // A verb that opens the rest gets the subject again.
 func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 	in := "The cache keeps every answer the upstream sent for the whole day across the restart of the process and the reload of the spec and holds the rows."

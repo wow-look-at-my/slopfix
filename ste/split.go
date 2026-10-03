@@ -96,6 +96,10 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if strings.Count(source[:d.leftEnd], "**")%2 != 0 {
 			continue
 		}
+		// The words a division drops never carry a bold marker, or the rest keeps half a pair.
+		if strings.Contains(source[d.leftEnd:d.rightStart], "**") {
+			continue
+		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,") + "."
 		right := joinOpener(d.opener, source[d.rightStart:])
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
