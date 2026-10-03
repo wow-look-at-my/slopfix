@@ -29,6 +29,20 @@ tests:
 		stdout:
 			- '"offset":4,"limit":2'
 
+	- desc: hook module writes the module that calls check read-plan
+	  cmd: |
+		set -eu
+		slopfix="${GO_TOOLCHAIN_DATS_BUILD_DIR:-$PWD/build}/slopfix"
+		dir="$(mktemp -d)/hooks"
+		"$slopfix" hook module "$dir" >/dev/null
+		ls "$dir"
+		grep -c "'check', 'read-plan'" "$dir/register.ts"
+	  outputs:
+		stdout:
+			- register.test.ts
+			- register.ts
+			- '1'
+
 	- desc: a pipe runs as written
 	  cmd: |
 		set -eu

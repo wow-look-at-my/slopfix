@@ -25,6 +25,7 @@ slopfix lsp                       # a language server on stdio, for the editor p
 - `--json` on stdin writes one object: `path`, `findings`, and with `--fix` the repaired `text`. Each finding carries `id`, `line`, `endLine`, `rule`, `detail`, `fix`, `repairable` and `severity`. It exits 0 on a finding, because the caller decides what a finding means.
 - `--message` reads stdin as a closing message and runs the message rules. `--only` then takes a message rule or a family such as `blame`.
 - `check workflow-permission [workflow] --permission NAME [--level write] [--job JOB] [--json]` asks whether a job holds a permission. The job block wins, then the workflow block, then the repository default, which reads as `none`. A missing grant is a finding. In a step, the workflow file comes from `GITHUB_WORKFLOW_REF` and the job from `GITHUB_JOB`. `--json` writes `granted`, `level`, `source` and `message`. The `has-permission` action in `wow-look-at-my/actions` wraps it.
+- `check read-plan` reads `{"command", "cwd"}` on stdin. A plain `cat`, `head`, `tail` or `sed -n` read prints one Read input for each file and a note for the model. Any other command prints `{"reads": null}`. `bashclean/readplan.go` holds the mapping. The hooks module below is its caller.
 - `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
 - `fmt`, `purge`, `comments` and `workflows` do not exist as commands. The wrap join is the `wrap/hard-wrap` rule. The purge is the `repo` category. The comment and workflow rules run inside `check` on each file they judge.
 
@@ -60,6 +61,10 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 | PostToolUse, SessionStart | `md-budget` |
 | Stop | `busy-poll`, `md-budget`, `laziness` |
 | MessageDisplay | `link-refs`, `blame-language`, `ask-properly` |
+
+### hook module
+
+`slopfix hook module DIR` writes the marketplace plugin's hooks module into DIR: `register.ts` and `register.test.ts`, from `pluginmodule/`. A command hook can rewrite a Bash call but cannot change the tool. A module's `tool.call` hook can answer the call itself. The module asks `check read-plan` how a Bash read maps, runs those Read calls, and returns their text as the Bash result with the note. A command that does not map, or a Read that fails, runs as Bash. The module ships inside the binary, so it and the command it calls come from one build. The plugin build writes it out beside the binary, and runs its tests with `claude plugin test`.
 
 - On PreToolUse the first refusal is the answer. A rewrite of the tool input reaches every guard after it, so no guard judges a command that will not run.
 - On Stop, every refusal joins into one exit 2 with every reason. On MessageDisplay, the `link-refs` rewrite is the base and each note follows it.
