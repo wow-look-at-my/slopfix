@@ -12,7 +12,7 @@ import (
 func init() {
 	hookCmd.AddCommand(&cobra.Command{
 		Use:   "module DIR",
-		Short: "Write the marketplace plugin's hooks module into DIR",
+		Short: "Write the hooks module of cc-marketplace's plugins/slopfix into DIR",
 		Long: "module writes register.ts and register.test.ts into DIR, which it creates.\n" +
 			"The plugin's hooks.json names register.ts. The module answers a Bash file\n" +
 			"read with Read calls, and asks `check read-plan` which calls those are. It\n" +

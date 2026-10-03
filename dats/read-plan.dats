@@ -1,4 +1,4 @@
-# check read-plan is the contract the marketplace plugin's tool.call module reads.
+# check read-plan is the contract the tool.call module of cc-marketplace's plugins/slopfix reads.
 # The module sends one Bash call as JSON and runs the Read calls it gets back.
 #
 # Commands exec the freshly built binary as
