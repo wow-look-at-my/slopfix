@@ -128,8 +128,15 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 	if int(run[0].StartPoint().Column) > indentWidth(lines[start]) {
 		return block{}, false
 	}
-	// A grammar can end a comment node on the construct it documents.
+	// A comment that leads code on its own line is a note on that code, as a trailing comment is.
 	lastNode := run[len(run)-1]
+	if endRow := int(lastNode.EndPoint().Row); endRow < len(lines) && endRow == int(lastNode.StartPoint().Row) {
+		after := lines[endRow][min(int(lastNode.EndPoint().Column), len(lines[endRow])):]
+		if strings.TrimSpace(after) != "" {
+			return block{}, false
+		}
+	}
+	// A grammar can end a comment node on the construct it documents.
 	closes := strings.HasPrefix(lines[lastNode.StartPoint().Row][min(int(lastNode.StartPoint().Column), len(lines[lastNode.StartPoint().Row])):], "/*")
 	for !closes && end > start && !opensWithMarker(lines[end-1]) {
 		end--
