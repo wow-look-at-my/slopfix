@@ -1,5 +1,5 @@
-# check read-plan is the contract the marketplace plugin's tool.call module reads.
-# The module sends one Bash call as JSON and runs the Read calls it gets back.
+# check read-plan prints how a Bash read maps onto Read calls. The hook's
+# read-output guard uses the same mapping to show a mapped read as Read shows it.
 #
 # Commands exec the freshly built binary as
 # "${GO_TOOLCHAIN_DATS_BUILD_DIR:-build}/slopfix", the same as no-work-loss.dats.
@@ -16,7 +16,7 @@ tests:
 	  outputs:
 		stdout:
 			- '"reads":[{"file_path":"/work/a.txt","offset":2,"limit":2}]'
-			- 'Your Bash command `sed -n 2,3p a.txt` read a file, so it did not run.'
+			- 'Your Bash command `sed -n 2,3p a.txt` read a file, so its output is shown as the Read tool shows it.'
 
 	- desc: a tail count from the end reads the line total of the file
 	  cmd: |
