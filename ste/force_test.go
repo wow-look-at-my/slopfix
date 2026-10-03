@@ -42,6 +42,16 @@ func TestAForcedDivisionKeepsEachSpanWhole(t *testing.T) {
 	}
 }
 
+// A sentence that opens on a code span keeps the span's first backtick. Without
+// it the spans pair up wrong, and the division ends a part on "a".
+func TestAForcedDivisionKeepsAnOpeningCodeSpan(t *testing.T) {
+	in := "`<field>` declares a stored column: a name, a SQL-ish `type`, and a body that is a path into the absorbed document (`owner.login`) or a template. `store=\"document\"` on the resource stores the body."
+	got := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+	assert.True(t, strings.HasPrefix(got, "`<field>` declares"), got)
+	assert.NotContains(t, got, " or a.", got)
+}
+
 // A verb that opens the rest gets the subject again.
 func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 	in := "The cache keeps every answer the upstream sent for the whole day across the restart of the process and the reload of the spec and holds the rows."

@@ -46,6 +46,13 @@ func forceNext(prose string) (string, bool) {
 	masked := checkMask(prose)
 	for _, span := range sentenceSpans(masked) {
 		start, end := span[0], span[1]
+		// A filled span ends in a blank where the prose has its mark, so the sentence takes the mark back.
+		for start > 0 && masked[start-1] == ' ' && prose[start-1] != ' ' {
+			start--
+		}
+		for end < len(prose) && masked[end] == ' ' && prose[end] != ' ' {
+			end++
+		}
 		if WordCount(masked[start:end]) <= SentenceWordCap {
 			continue
 		}
@@ -95,13 +102,20 @@ type forceCut struct {
 func forceDivision(source, masked string) (string, bool) {
 	total := WordCount(masked)
 	for _, strict := range []bool{true, false} {
+		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict) {
 			left := strings.TrimRight(source[:c.left], " ,;:—–-") + "."
-			right := openRest(source, masked, c)
+			right, opened := openRest(source, masked, c)
 			if right == "" || longestSentence(left+" "+right) >= total {
 				continue
 			}
-			return left + " " + right, true
+			// A rest that opens a clause of its own reads best, and filler reads worst.
+			if score := c.score + opened; best == "" || score > bestScore {
+				best, bestScore = left+" "+right, score
+			}
+		}
+		if best != "" {
+			return best, true
 		}
 	}
 	return source, false
@@ -178,10 +192,17 @@ func candidates(source, masked string, strict bool) []forceCut {
 	return out
 }
 
-// openRest writes the words after a cut as a sentence of their own. A clause
-// that names its own subject opens as it is. A verb gets the subject again,
-// and anything else opens with "This is".
-func openRest(source, masked string, c forceCut) string {
+// How well each way of opening the rest reads, added to a cut's score.
+const (
+	opensOwnClause = 6
+	opensWithVerb  = 3
+	opensWithFill  = 0
+)
+
+// openRest writes the words after a cut as a sentence of their own, and says
+// how well it reads. A clause that names its own subject opens as it is. A
+// verb gets the subject again, and anything else opens with "This is".
+func openRest(source, masked string, c forceCut) (string, int) {
 	rest, restMasked := source[c.right:], masked[c.right:]
 	opener := ""
 	if word := strings.ToLower(firstToken.FindString(rest)); word != "" {
@@ -189,26 +210,26 @@ func openRest(source, masked string, c forceCut) string {
 			cut := len(firstToken.FindString(rest))
 			trimmed := strings.TrimLeft(rest[cut:], " ")
 			if trimmed == "" {
-				return ""
+				return "", 0
 			}
 			rest, restMasked = trimmed, restMasked[len(restMasked)-len(trimmed):]
 			opener = connector
 		}
 	}
 	if strings.EqualFold(firstToken.FindString(rest), "which") {
-		return joinOpener(opener, "this"+rest[len("which"):])
+		return joinOpener(opener, "this"+rest[len("which"):]), opensWithVerb
 	}
 	s := syntax.Parse(opening(restMasked), nil)
 	if len(s.Words) == 0 {
-		return ""
+		return "", 0
 	}
 	if opensClause(s) {
-		return joinOpener(opener, rest)
+		return joinOpener(opener, rest), opensOwnClause
 	}
 	if tag := s.Words[0].Tag; tag == "VBZ" || tag == "VBP" || tag == "VBD" || tag == "MD" {
-		return joinOpener(opener, subjectFor(source, masked, c, tag)+" "+rest)
+		return joinOpener(opener, subjectFor(source, masked, c, tag)+" "+rest), opensWithVerb
 	}
-	return joinOpener(opener, "this is "+rest)
+	return joinOpener(opener, "this is "+rest), opensWithFill
 }
 
 // openingBytes bounds how much of the rest the parser reads. Only its first clause decides how the rest opens.
