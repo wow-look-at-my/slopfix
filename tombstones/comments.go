@@ -11,13 +11,13 @@
 package tombstones
 
 import (
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 
 	"github.com/wow-look-at-my/slopfix/code"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
