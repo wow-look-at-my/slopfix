@@ -19,7 +19,7 @@ import (
 )
 
 // skipDirs hold text nobody in the tree authored.
-var skipDirs = set.Of("vendor", "node_modules", "testdata", "build")
+var skipDirs = set.Of("vendor", "node_modules", "testdata", "build", "dist")
 
 // MaxFileBytes is where a file stops being prose and becomes a blob.
 const MaxFileBytes = 1 << 20
