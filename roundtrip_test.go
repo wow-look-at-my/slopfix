@@ -46,6 +46,7 @@ func roundTripFixtures() []fixture {
 				"It doesn't run, and a caller should wait.\n\n" +
 				"The gate is shut; the write fails.\n\n" +
 				"The gate is shut, the write fails.\n\n" +
+				"The list names the fork, never its own tree.\n\n" +
 				"The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"The loader reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs.\n\n" +
@@ -57,6 +58,7 @@ func roundTripFixtures() []fixture {
 				ste.IDContraction,
 				ste.IDModal,
 				ste.IDSemicolon,
+				ste.IDCommaNever,
 				ste.IDCommaSplice,
 				ste.IDSentenceCap,
 				ste.IDStaleCount,
