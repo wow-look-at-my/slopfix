@@ -99,9 +99,7 @@ func vendoredAttr(path string) bool {
 	if v, ok := vendoredCache.Load(abs); ok {
 		return v.(bool)
 	}
-	cmd := exec.Command("git", "check-attr", "-z", "linguist-vendored", "--", filepath.Base(abs))
-	cmd.Dir = filepath.Dir(abs)
-	out, err := cmd.Output()
+	out, err := gitmod.Command(filepath.Dir(abs), "check-attr", "-z", "linguist-vendored", "--", filepath.Base(abs)).Output()
 	vendored := false
 	if err == nil {
 		fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
