@@ -15,10 +15,10 @@ import (
 // load is set by the parser.gen.go the generate step writes, so this package compiles without the tables.
 var load func() *ts.Language
 
-var grammar = lazy.New(&load)
+var loader = lazy.New(&load)
 
 // Language returns the grammar, or nil when the generate step has not run.
-func Language() *ts.Language { return grammar.Language() }
+func Language() *ts.Language { return loader.Language() }
 
 // Ready reports whether the generate step has run for this grammar.
-func Ready() bool { return grammar.Ready() }
+func Ready() bool { return loader.Ready() }
