@@ -45,9 +45,16 @@ func AddedBlocks(path, added string) []Block {
 		for no := run.Start; no < run.End; no++ {
 			lineNos = append(lineNos, no)
 		}
+		// A line shared with code is a note on that code. The volume cap weighs the lines a reader meets as a block of prose.
+		pure := 0
+		for _, p := range run.Pure {
+			if p {
+				pure++
+			}
+		}
 		out = append(out, Block{
 			Text:    strings.Join(lines[run.Start:run.End], "\n"),
-			Lines:   run.End - run.Start,
+			Lines:   pure,
 			LineNos: lineNos,
 			Pure:    run.Pure,
 		})

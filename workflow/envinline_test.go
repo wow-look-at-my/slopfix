@@ -34,15 +34,15 @@ const envActionFixed = "name: x\n" +
 	"      shell: bash\n" +
 	"      run: |\n" +
 	"        set -euo pipefail\n" +
-	"        BIN_DIR=\"${{ runner.temp }}/go-toolchain-bin\"\n" +
+	"        BIN_DIR=\"$RUNNER_TEMP/go-toolchain-bin\"\n" +
 	"        mkdir -p \"${BIN_DIR}\"\n" +
 	"        mv \"${{ steps.download.outputs.path }}\" \"${BIN_DIR}/go-toolchain\"\n"
 
 func TestAnEnvEntryThatOnlyCarriesAnExpressionIsInlined(t *testing.T) {
 	found := envIndirections(envAction)
-	require.Len(t, found, 3)
-	lines := []int{found[0].Line, found[1].Line, found[2].Line}
-	assert.ElementsMatch(t, []int{10, 11, 14}, lines)
+	require.Len(t, found, 2)
+	lines := []int{found[0].Line, found[1].Line}
+	assert.ElementsMatch(t, []int{10, 11}, lines)
 	for _, f := range found {
 		assert.Equal(t, IDEnvIndirection, f.ID)
 	}
@@ -154,6 +154,27 @@ func TestAContainerJobKeepsTheRunnerVariable(t *testing.T) {
 		"    steps:\n" +
 		"      - run: ls \"$RUNNER_TEMP\"\n"
 	assert.Empty(t, envIndirections(content))
+}
+
+// A composite action can run in a container job, where the expression names the
+// host path and the variable names the mount.
+func TestACompositeActionKeepsTheRunnerVariable(t *testing.T) {
+	content := "name: x\n" +
+		"runs:\n" +
+		"  using: composite\n" +
+		"  steps:\n" +
+		"    - shell: bash\n" +
+		"      run: ls \"$RUNNER_TEMP\"\n"
+	assert.Empty(t, envIndirections(content))
+}
+
+func TestAPlainJobStillNamesTheRunnerContext(t *testing.T) {
+	content := "jobs:\n" +
+		"  a:\n" +
+		"    runs-on: ubuntu-latest\n" +
+		"    steps:\n" +
+		"      - run: ls \"$RUNNER_TEMP\"\n"
+	assert.Len(t, envIndirections(content), 1)
 }
 
 func TestAWindowsJobWithNoShellIsNotRead(t *testing.T) {

@@ -35,3 +35,28 @@ func TestFixCutsABlockBackUnderTheVolumeCap(t *testing.T) {
 	assert.LessOrEqual(t, comments, tombstones.DefaultMaxCommentLines, repair.Text)
 	assert.Contains(t, repair.Text, "func Run() {\n\tstep(theFirstArgumentOfTheCall", "the code is untouched")
 }
+
+// A package doc has no construct to weigh against, so only the cap judges it.
+// The fix cuts it the same way and keeps the package clause.
+func TestFixCutsAPackageDocBackUnderTheVolumeCap(t *testing.T) {
+	var src strings.Builder
+	src.WriteString("//go:build linux\n\n")
+	for range 10 {
+		src.WriteString("// Package p reads the queue and writes each entry out. It waits for the next one.\n")
+		src.WriteString("//\n")
+	}
+	src.WriteString("package p\n\nfunc Run() {}\n")
+	assert.Empty(t, commentfix.CheckLength("a.go", src.String()), "the length rule never judges a package doc")
+
+	repair := slopfix.Fix(slopfix.Request{Content: src.String(), Path: "a.go", MaxCommentLines: tombstones.DefaultMaxCommentLines})
+	comments := 0
+	for _, line := range strings.Split(repair.Text, "\n") {
+		if strings.HasPrefix(line, "//") && !strings.HasPrefix(line, "//go:") {
+			comments++
+		}
+	}
+	assert.LessOrEqual(t, comments, tombstones.DefaultMaxCommentLines, repair.Text)
+	assert.Contains(t, repair.Text, "//go:build linux\n", "the constraint stays")
+	assert.Contains(t, repair.Text, "\npackage p\n\nfunc Run() {}\n", "the code is untouched")
+	assert.Empty(t, slopfix.Fix(slopfix.Request{Content: repair.Text, Path: "a.go", MaxCommentLines: tombstones.DefaultMaxCommentLines}).Kept, "nothing is left to report")
+}
