@@ -5,8 +5,20 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
+
+// EveryID names every rule a category holds, the repository rules included.
+func EveryID() set.Set[string] {
+	ids := set.New[string]()
+	for _, rule := range AllRules {
+		for id := range IDsFor(rule).All() {
+			ids.Add(id)
+		}
+	}
+	return ids
+}
 
 // Repairable reports whether slopfix repairs the DEFECT a finding names,
 // rather than the rule that found it.
@@ -34,4 +46,4 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	workflow.IDPushTags,
 	// The v parameter comes out of a download URL.
 	pins.ID,
-))
+)).Union(tombstones.AllIDs()).Union(RepoIDs)

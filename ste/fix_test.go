@@ -27,15 +27,14 @@ func TestLeadingClosesAtAClauseBoundary(t *testing.T) {
 	assert.False(t, ok, "no clause boundary, so no head")
 }
 
-// With no clause boundary, a division writes a fragment. The repair leaves the
-// sentence whole, and Check still reports it for a person to rewrite.
-func TestFixLeavesASentenceWithNoClauseBoundaryForAPerson(t *testing.T) {
+// With no clause boundary, the repair divides between words, and Check then
+// reports nothing.
+func TestFixDividesASentenceWithNoClauseBoundary(t *testing.T) {
 	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
+	require.Len(t, ste.Check(long, 1), 1, "the control: the sentence is over the cap")
 	fixed := ste.Fix(long)
-	assert.Equal(t, long, fixed)
-	findings := ste.Check(fixed, 1)
-	require.Len(t, findings, 1)
-	assert.Equal(t, ste.IDSentenceCap, findings[0].ID)
+	assert.NotEqual(t, long, fixed)
+	assert.Empty(t, ste.Check(fixed, 1), fixed)
 }
 
 // A division never lands inside an inline code span, so the span survives the

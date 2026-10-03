@@ -27,16 +27,16 @@ var connectors = map[string]string{
 }
 
 // fixSentenceCap divides every over-cap sentence where its grammar allows. A
-// sentence with no clause boundary to divide at stays whole, and Check reports it.
+// sentence with no clause boundary to divide at then divides between words.
 func fixSentenceCap(prose string) string {
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := divideNext(prose)
 		if !divided {
-			return prose
+			break
 		}
 		prose = next
 	}
-	return prose
+	return forceSentenceCap(prose)
 }
 
 // divideNext divides the earliest over-cap sentence that a clause boundary can divide.

@@ -82,9 +82,15 @@ func TestTheBudgetReadsEveryInstructionFile(t *testing.T) {
 	assert.FileExists(t, filepath.Join(root, "claude_snippets", "docs", "topic.md"))
 }
 
-func TestFixStillReportsAFileItCannotSplit(t *testing.T) {
+// A file with no heading loses its tail to a file of its own, and keeps a link.
+func TestFixMovesTheTailOfAFileWithNoHeading(t *testing.T) {
 	root := gitRoot(t, map[string]string{"AGENTS.md": strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"})
-	assert.Contains(t, ids(slopfix.FixTree(root).Findings), slopfix.IDBudget)
+	assert.NotContains(t, ids(slopfix.FixTree(root).Findings), slopfix.IDBudget)
+	got, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	require.NoError(t, err)
+	assert.LessOrEqual(t, len([]rune(string(got))), slopfix.SplitTarget)
+	assert.Contains(t, string(got), "[docs/agents-continued.md](docs/agents-continued.md) holds the rest of this file.")
+	assert.FileExists(t, filepath.Join(root, "docs", "agents-continued.md"))
 }
 
 func TestFixMovesClaudeIntoAgents(t *testing.T) {

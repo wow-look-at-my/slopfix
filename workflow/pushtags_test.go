@@ -51,10 +51,19 @@ func TestTheRepairWritesABranchFilter(t *testing.T) {
 	}
 }
 
-// A flow mapping does not rewrite as whole rows, so the finding stays for the author.
-func TestAFlowStylePushIsLeftToTheAuthor(t *testing.T) {
-	const content = "'on':\n  push: {}\njobs: {}\n"
-	assert.Equal(t, content, repaired(t, content))
+// A shape no row edit reaches gets the whole on: value again, in block style.
+func TestAFlowStylePushIsWrittenAgainInBlockStyle(t *testing.T) {
+	cases := map[string]string{
+		"'on':\n  push: {}\njobs: {}\n":                "'on':\n  push:\n    branches: ['**']\njobs: {}\n",
+		"on: {push: {paths: [a]}}\njobs: {}\n":         "on:\n  push:\n    paths: [a]\n    branches: ['**']\njobs: {}\n",
+		"on:\n  - push\n  - pull_request\njobs: {}\n":  "on:\n  push:\n    branches: ['**']\n  pull_request: null\njobs: {}\n",
+		"on:\n  push: {}\n\n# the jobs\njobs: {}\n":     "on:\n  push:\n    branches: ['**']\n\n# the jobs\njobs: {}\n",
+	}
+	for content, want := range cases {
+		out := repaired(t, content)
+		assert.Equal(t, want, out, content)
+		assert.Empty(t, pushTagFindings(out), content)
+	}
 }
 
 func TestAFilteredPushPasses(t *testing.T) {
