@@ -1,6 +1,8 @@
 package bashclean
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,9 +81,14 @@ func TestReadCallsNeedAnAbsolutePath(t *testing.T) {
 
 func TestRunNamesTheReadCall(t *testing.T) {
 	dir := t.TempDir()
-	payload := `{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":` + `"` + dir + `"` +
-		`,"tool_input":{"command":"sed -n '2,3p' notes.md"}}`
-	out := Run(strings.NewReader(payload))
+	payload, err := json.Marshal(map[string]any{
+		"hook_event_name": "PreToolUse",
+		"tool_name":       "Bash",
+		"cwd":             dir,
+		"tool_input":      map[string]any{"command": "sed -n '2,3p' notes.md"},
+	})
+	require.NoError(t, err)
+	out := Run(bytes.NewReader(payload))
 	assert.Contains(t, out.Stdout, `"permissionDecision":"deny"`)
 	assert.Contains(t, out.Stdout, `Read(file_path=\"`+filepath.Join(dir, "notes.md")+`\", offset=2, limit=2)`)
 }
