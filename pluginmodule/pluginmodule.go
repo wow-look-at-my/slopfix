@@ -1,4 +1,4 @@
-// Package pluginmodule carries the marketplace plugin's hooks module. The
+// Package pluginmodule carries the hooks module of cc-marketplace's plugins/slopfix. The
 // module calls this binary, so both ship from one build and cannot drift.
 package pluginmodule
 
