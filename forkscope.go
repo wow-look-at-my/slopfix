@@ -27,8 +27,8 @@ import (
 // DefaultGitHubAPI is the API root when GITHUB_API_URL is unset.
 const DefaultGitHubAPI = "https://api.github.com"
 
-// ForkListPath is the file in the org's .github repository that names each fork GitHub does not record as one.
-const ForkListPath = "fork-of"
+// ForkListURL serves the fork list that the org's .github repository publishes to buildhost.
+const ForkListURL = "https://sites.pazer.build/github/fork-of"
 
 // OwnLines is the part of a fork's work tree that the fork wrote.
 type OwnLines struct {
@@ -49,16 +49,20 @@ type forkRepo struct {
 	} `json:"parent"`
 }
 
-// ForkLines answers the lines a fork wrote, for the work tree that holds root.
-// It answers nil when getenv names no GitHub repository, or names one that is
-// neither in the org's fork list nor a fork. A fork whose base it cannot
-// establish is an error.
+// ForkLines answers the lines a fork wrote, for the work tree that holds
+// root.
 func ForkLines(root string, getenv func(string) string) (*OwnLines, error) {
+	return forkLines(root, getenv, ForkListURL)
+}
+
+// forkLines is ForkLines with the fork list read from listURL. No variable sets the URL, because a workflow sets its own.
+// It answers nil when getenv names no repository, or one that is neither listed nor a fork. A fork with no base is an error.
+func forkLines(root string, getenv func(string) string, listURL string) (*OwnLines, error) {
 	repo := getenv("GITHUB_REPOSITORY")
 	if repo == "" {
 		return nil, nil
 	}
-	upstream, err := listedUpstream(repo, getenv)
+	upstream, err := listedUpstream(repo, listURL)
 	if err != nil {
 		return nil, err
 	}
@@ -183,29 +187,16 @@ func deepen(top string) error {
 	return nil
 }
 
-// listedUpstream answers the upstream URL that the org's fork list gives repo,
-// an OWNER/NAME pair. An org with no such list, and a repository the list does
-// not name, answer an empty URL.
-func listedUpstream(repo string, getenv func(string) string) (string, error) {
+// listedUpstream answers the upstream URL that the fork list at url gives repo,
+// an OWNER/NAME pair. A missing list, and a repository the list does not name,
+// answer an empty URL.
+func listedUpstream(repo, url string) (string, error) {
 	owner, name, ok := strings.Cut(repo, "/")
 	if !ok || owner == "" || name == "" {
 		return "", fmt.Errorf("fork scope: GITHUB_REPOSITORY is %q, which is not OWNER/NAME", repo)
 	}
-	api := strings.TrimRight(getenv("GITHUB_API_URL"), "/")
-	if api == "" {
-		api = DefaultGitHubAPI
-	}
-	url := api + "/repos/" + owner + "/.github/contents/" + ForkListPath
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return "", fmt.Errorf("fork scope: GET %s: %w", url, err)
-	}
-	req.Header.Set("Accept", "application/vnd.github.raw")
-	if token := getenv("GITHUB_TOKEN"); token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
 	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := client.Get(url)
 	if err != nil {
 		return "", fmt.Errorf("fork scope: GET %s: %w", url, err)
 	}
@@ -220,22 +211,22 @@ func listedUpstream(repo string, getenv func(string) string) (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("fork scope: GET %s: %s", url, resp.Status)
 	}
-	return upstreamFor(string(body), name, url)
+	return upstreamFor(string(body), repo, url)
 }
 
-// upstreamFor reads a fork list: a "name upstream-URL" line for each fork,
+// upstreamFor reads a fork list: an "OWNER/NAME upstream-URL" line for each fork,
 // with blank lines and # comments ignored. A line it cannot read is an error.
-func upstreamFor(list, name, source string) (string, error) {
+func upstreamFor(list, repo, source string) (string, error) {
 	for num, line := range strings.Split(list, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) != 2 {
-			return "", fmt.Errorf("fork scope: %s line %d is not a repository name and an upstream URL: %q", source, num+1, line)
+		if len(fields) != 2 || strings.Count(fields[0], "/") != 1 {
+			return "", fmt.Errorf("fork scope: %s line %d is not an OWNER/NAME and an upstream URL: %q", source, num+1, line)
 		}
-		if fields[0] == name {
+		if strings.EqualFold(fields[0], repo) {
 			return fields[1], nil
 		}
 	}
