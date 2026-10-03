@@ -87,18 +87,32 @@ var metaSchemas = set.Of(
 
 func remote(ref string) bool { return strings.Contains(ref, "://") }
 
+// anyJSON accepts every document, so json-validator alone decides whether a file parses.
+var anyJSON = func() *jsonvalidator.Validator {
+	v, err := jsonvalidator.NewFromBytes("embedded:any.schema.json", []byte(`{}`), jsonvalidator.Options{})
+	if err != nil {
+		panic(err)
+	}
+	return v
+}()
+
 // checkJSON parses a JSON file, then holds it to the schema its $schema names.
 // A relative $schema is a path from the file's directory. A remote schema is
 // never fetched: a check must not depend on the network, and a published copy
 // can lag the code that reads the file. A meta-schema needs no fetch.
 func checkJSON(path, rel string, content []byte, compiled schemas) *TreeFinding {
+	if result := anyJSON.ValidateBytes(content, rel); result.Err != nil {
+		f := repoFinding(rel, IDJSON, "this JSON does not parse", result.Err.Error())
+		var syntax *json.SyntaxError
+		if errors.As(result.Err, &syntax) {
+			f.Line = lineAt(content, syntax.Offset)
+		}
+		return &f
+	}
+	// The validator above said the file parses. This reads its $schema the same way.
 	var doc any
 	if err := json.Unmarshal(jsonc.ToJSON(content), &doc); err != nil {
 		f := repoFinding(rel, IDJSON, "this JSON does not parse", err.Error())
-		var syntax *json.SyntaxError
-		if errors.As(err, &syntax) {
-			f.Line = lineAt(content, syntax.Offset)
-		}
 		return &f
 	}
 	object, ok := doc.(map[string]any)
