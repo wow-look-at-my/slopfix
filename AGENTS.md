@@ -31,7 +31,7 @@ slopfix hook < payload.json       # answer a Claude Code hook event
 slopfix lsp                       # a language server on stdio, for the editor plugin
 ```
 
-- A directory argument is walked. The walk skips hidden directories except `.github`. It also skips `vendor`, `node_modules`, `testdata`, `build`, registered submodules, nested Go modules and every untracked file git ignores, such as built output.
+- A directory argument is walked. The walk skips hidden directories except `.github`. It also skips `vendor`, `node_modules`, `testdata`, `build`, registered submodules (by the gitlink in the index, so an uninitialized one that a build copied files into stays skipped), nested Go modules and every untracked file git ignores, such as built output.
 - A named file is read whatever its extension. The path decides the rules. A workflow or action manifest gets the `yaml` rules. A document gets the prose rules. Source gets the `comments` rules.
 - A document is `.md`, `.markdown`, `.mdown` or `.txt`. An empty `--path` also counts as a document.
 - A path with a `testdata` element is never a document, named or walked. It is test input, and a rewrite changes what the test checks.
