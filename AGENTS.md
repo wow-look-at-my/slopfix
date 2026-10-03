@@ -77,10 +77,10 @@ These rules judge the tree. Only a walk whose root holds `.git` reaches them. `c
 
 - `repo/binary`: a file git tracks that opens with an ELF, Mach-O or PE/COFF magic number. `fix` deletes it, because a build makes it from source. Git still holds it. A tree that git cannot list is read from disk.
 - `repo/near-duplicate`: a file whose lines match another file of its base name at `NearDuplicateShare` or above. The score is the Dice coefficient over non-blank trimmed lines, so a copy that differs in comments alone still trips. The later path of the pair is reported. A file each directory needs, such as `package.json` or `Dockerfile`, is never compared. A copy that a contract requires carries the `slopfix-copy` gitattribute.
-- `repo/json`: a `.json` or `.jsonc` file that does not parse, comments allowed, or that breaks the schema its `$schema` names. `wow-look-at-my/json-validator` does the check, the same library webhook-runner loads manifests with. A relative `$schema` is a path from the file. A local schema that does not load is a finding, never a pass.
+- `repo/json`: a `.json` or `.jsonc` file that does not parse, comments allowed, or that breaks the schema its `$schema` names. `wow-look-at-my/json-validator` does the check, the same library webhook-runner loads manifests with. A relative `$schema` is a path from the file.
 - `repo/xml`: an `.xml` file that `wow-look-at-my/xml-validator` refuses, that names no schema, or that breaks the schema it names. The schema is the `xsi:noNamespaceSchemaLocation` or the first `xsi:schemaLocation` pair.
 
-Neither rule fetches a schema. A check must not depend on the network. A published copy can lag the code that reads the file. A remote schema therefore gets the parse check alone. The JSON Schema meta-schemas are the exception, because the validator carries them. The program that reads a file holds it to the remote contract, as `webhook-runner validate` does for a manifest.
+Both rules fetch a remote schema, once for each walk, and an XSD's imports with it. A schema that does not load, by a network error or any status but OK, is a finding. It is never a pass. The JSON Schema meta-schemas need no fetch, because the validator carries them.
 
 The document rules walk what the other repository rules walk, so `testdata`, `node_modules` and a submodule stay out. `repo/binary` reads every tracked file, the large ones included.
 
