@@ -89,6 +89,8 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		out.Repaired = append(out.Repaired, changed...)
 	}
 	paths := commentfix.TreeFilesMatching(root, Reads)
+	// A walk asks the referent check about far more names than a probe for each can answer quickly.
+	tombstones.PrimeIndex(root)
 	repairs := make([]*Repair, len(paths))
 	// Each file is independent, so workers judge them at once and the merge below keeps the walk's order.
 	work := make(chan int)
