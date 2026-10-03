@@ -81,6 +81,8 @@ func replaceWordN(s, word, with string) (string, int) {
 	lower := strings.ToLower(s)
 	target := strings.ToLower(word)
 	took := 0
+	spans := codeSpan.FindAllStringIndex(s, -1)
+	quotes := quotation.FindAllStringIndex(s, -1)
 	var b strings.Builder
 	for i := 0; i < len(s); {
 		j := strings.Index(lower[i:], target)
@@ -90,7 +92,7 @@ func replaceWordN(s, word, with string) (string, int) {
 		}
 		at := i + j
 		end := at + len(target)
-		if !WordBoundary(s, at, end) || inProperName(s, at, end) {
+		if !WordBoundary(s, at, end) || inProperName(s, at, end) || insideAny(spans, at, end) || insideAny(quotes, at, end) {
 			b.WriteString(s[i : at+1])
 			i = at + 1
 			continue
