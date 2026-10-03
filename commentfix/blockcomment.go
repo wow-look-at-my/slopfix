@@ -96,8 +96,12 @@ func fromLines(text []string) []string {
 	return out
 }
 
-// render writes prose as a /* */ comment in the given shape.
+// render writes prose as a /* */ comment in the given shape. No prose renders
+// no comment.
 func (s blockShape) render(prose []string) []string {
+	if len(prose) == 0 {
+		return nil
+	}
 	if len(prose) == 1 {
 		return []string{s.indent + s.opener + " " + prose[0] + " */"}
 	}
