@@ -90,7 +90,7 @@ func replaceWordN(s, word, with string) (string, int) {
 		}
 		at := i + j
 		end := at + len(target)
-		if !WordBoundary(s, at, end) {
+		if !WordBoundary(s, at, end) || inProperName(s, at, end) {
 			b.WriteString(s[i : at+1])
 			i = at + 1
 			continue
@@ -102,6 +102,23 @@ func replaceWordN(s, word, with string) (string, int) {
 	}
 	return b.String(), took
 }
+
+// inProperName reports a capitalized match inside a sentence with a
+// capitalized word after it. Such a match is part of a name, and a name loses
+// meaning when one of its words goes.
+func inProperName(s string, at, end int) bool {
+	if !isUpper(s[at]) {
+		return false
+	}
+	before := strings.TrimRight(s[:at], " \t")
+	if before == "" || strings.ContainsAny(before[len(before)-1:], ".!?:\n") {
+		return false
+	}
+	after := strings.TrimLeft(s[end:], " \t")
+	return after != "" && isUpper(after[0])
+}
+
+func isUpper(b byte) bool { return b >= 'A' && b <= 'Z' }
 
 // ContainsWord reports a whole-word occurrence, so `hack` never matches
 // `hackney` and `for now` never matches `for nowhere`.

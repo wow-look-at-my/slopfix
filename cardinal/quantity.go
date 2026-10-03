@@ -143,6 +143,67 @@ func ChoiceAmongASet(text string, q Match) bool {
 
 var choosers = set.Of[string]("one", "either", "neither", "any", "each", "none", "both", "all")
 
+// leadingNumber is the cardinal a quantity opens with.
+func leadingNumber(q Match) string {
+	fields := strings.Fields(q.Text)
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
+}
+
+// bare strips the punctuation that sits against a word in a sentence.
+func bare(word string) string {
+	return strings.Trim(strings.ToLower(word), ".,;:()\"'`")
+}
+
+// joiners link values the way a list of status codes does.
+var joiners = set.Of("or", "and", "nor")
+
+// StatusCode exempts an HTTP status code: one that heads a reply noun ("the
+// responses"), follows the word HTTP or status, or sits in a list beside
+// another code ("201 or 409", "200 and 404"). A status is a value, so no edit
+// that adds an item moves it.
+func StatusCode(text string, q Match) bool {
+	if !InClass(leadingNumber(q), "status-code") {
+		return false
+	}
+	if fields := strings.Fields(q.Text); len(fields) > 1 && InClass(fields[1], "status-noun") {
+		return true
+	}
+	before := strings.Fields(text[:q.At])
+	if n := len(before); n > 0 {
+		last := bare(before[n-1])
+		if last == "http" || last == "status" || InClass(last, "status-code") {
+			return true
+		}
+		if n > 1 && joiners.Contains(last) && InClass(bare(before[n-2]), "status-code") {
+			return true
+		}
+	}
+	after := strings.Fields(text[q.At+len(leadingNumber(q)):])
+	return len(after) > 1 && joiners.Contains(bare(after[0])) && InClass(bare(after[1]), "status-code")
+}
+
+// Labeled exempts a number that names an item rather than counting a set: one
+// after a label word ("Migration 014", "Section 4"), or one written with a
+// leading zero, which no tally carries.
+func Labeled(text string, q Match) bool {
+	number := leadingNumber(q)
+	if len(number) > 1 && number[0] == '0' && allDigits(number) {
+		return true
+	}
+	before := strings.Fields(text[:q.At])
+	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
+}
+
+// MeasuresAUnit exempts a number whose next word is a unit, ahead of the noun
+// it describes: "four 1 MiB requests" counts requests.
+func MeasuresAUnit(_ string, q Match) bool {
+	fields := strings.Fields(q.Text)
+	return len(fields) > 2 && IsUnit(fields[1])
+}
+
 // InExpression exempts a number that is arithmetic rather than a count. The
 // digits in an expression or a range name no set of items.
 func InExpression(text string, q Match) bool {
