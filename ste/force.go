@@ -31,14 +31,25 @@ var (
 
 // forceSentenceCap divides each sentence still over the cap at a word boundary.
 func forceSentenceCap(prose string) string {
+	over := overCap(prose)
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := forceNext(prose)
-		if !divided {
+		// A division that leaves as many words past the cap moves nothing, so the loop stops on it.
+		if !divided || overCap(next) >= over {
 			return prose
 		}
-		prose = next
+		prose, over = next, overCap(next)
 	}
 	return prose
+}
+
+// overCap counts the words past the cap in every sentence Check reads in prose.
+func overCap(prose string) int {
+	n := 0
+	for _, sentence := range Sentences(checkMask(prose)) {
+		n += max(0, WordCount(sentence)-SentenceWordCap)
+	}
+	return n
 }
 
 // forceNext divides the earliest over-cap sentence, as Check reads it.
@@ -71,12 +82,19 @@ func Masked(prose string) string { return checkMask(prose) }
 // mask is an offset into the prose.
 func checkMask(prose string) string {
 	out := []byte(prose)
-	spans := verbatimSpan.FindAllStringIndex(prose, -1)
-	spans = append(spans, quotation.FindAllStringIndex(prose, -1)...)
-	for _, span := range spans {
+	for _, span := range verbatimSpan.FindAllStringIndex(prose, -1) {
+		fillWord(out[span[0]:span[1]])
+	}
+	// Check finds a quotation after it strips code, so a quote mark inside a code span pairs with nothing.
+	for _, span := range quotation.FindAllIndex(out, -1) {
 		fillWord(out[span[0]:span[1]])
 	}
 	return string(out)
+}
+
+// quotedSpans answers the quotations Check reads in prose, after code is masked.
+func quotedSpans(prose string) [][]int {
+	return quotation.FindAllStringIndex(mask(prose), -1)
 }
 
 // fillWord writes a capitalized filler word over a span, as Check writes CODE
@@ -152,7 +170,7 @@ func wordEnds(masked string) []int {
 // each part off a word that leaves it hanging.
 func candidates(source, masked string, strict bool) []forceCut {
 	off := verbatimSpan.FindAllStringIndex(source, -1)
-	off = append(off, quotation.FindAllStringIndex(source, -1)...)
+	off = append(off, quotedSpans(source)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
