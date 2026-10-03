@@ -107,6 +107,7 @@ func TestCountsLeaveArithmeticAlone(t *testing.T) {
 	cases := map[string]string{
 		"range":      "The exit code range is 0-255 and nothing outside it.",
 		"expression": "A chain of N commands carries N-1 operators.",
+		"equation":   "It defaults to RGBA8 (32 bits per pixel = 4 bytes), the default target.",
 	}
 	for name, text := range cases {
 		t.Run(name, func(t *testing.T) {

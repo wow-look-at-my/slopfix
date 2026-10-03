@@ -57,6 +57,13 @@ func TestFixKeepsTheCodeSpanThatEndsTheLeftSentence(t *testing.T) {
 	assert.NotContains(t, fixed, "Unpacks")
 }
 
+// A division never lands inside bold text, so each marker keeps its partner.
+func TestFixNeverDividesInsideBoldText(t *testing.T) {
+	long := "With no trip count given, each loop is modeled as one iteration **and the estimate is flagged** with a section in the report and a note in the output so it is never read as the exact cost."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "**and the estimate is flagged**")
+}
+
 // ", and" before a subordinate clause and its main clause is a sentence boundary.
 func TestFixDividesBeforeASubordinateClauseAfterAnd(t *testing.T) {
 	long := "This closed a real hole: `a_test.go` is `//go:build x`, and for as long as the gate ran default tags only, its violations were invisible and its tests compiled nowhere."
