@@ -1,10 +1,10 @@
 package tombstones
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // A comment that is nothing but a tombstone loses its whole sentence, so the
@@ -86,17 +86,30 @@ func TestAFencedBlockInADocumentIsNotProse(t *testing.T) {
 	assert.Empty(t, repair.Kept)
 }
 
-func TestTheVolumeCapReportsRatherThanStrips(t *testing.T) {
+// A block over the cap with no sentence end to cut at loses whole lines, and
+// the last line it keeps closes as a sentence.
+func TestTheVolumeCapCutsTheBlockFromItsEnd(t *testing.T) {
 	src := ""
 	for range 6 {
 		src += "// the loader reads the flag and returns what it names\n"
 	}
 	repair := Fix("a.go", src, 3)
+	assert.Empty(t, repair.Kept)
+	lines := strings.Split(strings.TrimRight(repair.Text, "\n"), "\n")
+	assert.LessOrEqual(t, len(lines), 3, repair.Text)
+	assert.True(t, strings.HasSuffix(lines[len(lines)-1], "."), repair.Text)
+}
 
-	// The reflow shortens it and the cap still names what survives, because a block over the cap is over it by a thought
-	require.Len(t, repair.Kept, 1)
-	assert.Contains(t, repair.Kept[0].Tell, "comment block of 5 lines")
-	assert.NotContains(t, repair.Text, "\n\n", "no line was deleted")
+// A block over the cap that ends its sentences loses its last thoughts.
+func TestTheVolumeCapCutsWholeSentences(t *testing.T) {
+	src := ""
+	for i := range 6 {
+		src += "// The loader reads flag " + strings.Repeat("x", i+1) + " and returns what it names.\n"
+	}
+	repair := Fix("a.go", src, 3)
+	assert.Empty(t, repair.Kept)
+	assert.Contains(t, repair.Text, "// The loader reads flag x and returns what it names.")
+	assert.NotContains(t, repair.Text, "xxxxxx")
 }
 
 // A note at the end of each code line is read with that line, not as a block.

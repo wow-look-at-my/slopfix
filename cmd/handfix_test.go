@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -45,15 +44,10 @@ func TestAnInsertBesideAnAutoFixableLineIsAllowed(t *testing.T) {
 	assert.NotContains(t, got.body, "deny")
 }
 
-// A long comment block is flagged, and no rewrite of it lands.
+// A warning has no repair, so fix leaves its line, and a hand edit of it goes through.
 func TestAnEditToAFindingFixDoesNotChangeIsAllowed(t *testing.T) {
-	src := "package p\n"
-	for i := range 40 {
-		src += fmt.Sprintf("// The loader reads step %d of the file and returns the record it names.\n", i)
-	}
-	src += "func x() {}\n"
-	path := onDisk(t, "a.go", src)
-	got := ask(t, editOf(path, "step 7 of", "stage 7 of"), "tombstones")
+	path := onDisk(t, "a.md", "The file is read by the tool.\n\nThe tool writes the log.\n")
+	got := ask(t, editOf(path, "read by", "parsed by"), "ste")
 
 	assert.NotContains(t, got.body, "deny")
 }
