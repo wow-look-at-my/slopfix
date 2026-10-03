@@ -172,6 +172,7 @@ func Extract(filename, src string) []Comment {
 	if strings.HasSuffix(filename, "_test.go") {
 		out = withoutExampleOutput(out)
 	}
+<<<<<<< HEAD
 	if HashComments(filename) {
 		out = withoutGluedHashes(src, out)
 	}
@@ -192,6 +193,11 @@ func withoutGluedHashes(src string, comments []Comment) []Comment {
 	return kept
 }
 
+=======
+	return out
+}
+
+>>>>>>> origin/master
 // exampleOutput opens the comment that go test compares an example's output to.
 var exampleOutput = regexp.MustCompile(`(?i)^//\s*(unordered )?output:`)
 
