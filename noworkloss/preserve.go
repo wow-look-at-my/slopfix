@@ -77,8 +77,14 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	if hasHead {
 		parent = "HEAD"
 	}
+	// commit-tree ignores commit.gpgsign, so it signs only when told, the way git commit would.
+	signOut, _, _ := runGit(root, "config", "--type=bool", "commit.gpgsign")
+	sign := strings.TrimSpace(signOut) == "true"
 	for i, t := range trees {
 		commitArgs := []string{"commit-tree", t, "-m", preserveMessage(paths, i == len(trees)-1)}
+		if sign {
+			commitArgs = append(commitArgs, "-S")
+		}
 		if parent != "" {
 			commitArgs = append(commitArgs, "-p", parent)
 		}
