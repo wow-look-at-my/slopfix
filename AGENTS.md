@@ -60,7 +60,7 @@ No input narrows the check. A path list, a rule list or a raw command line lets 
 
 On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
 
-In a fork, only the lines the fork wrote can fail the check. `docs/fork-scope.md` holds the detail.
+In a fork, only the lines the fork wrote can fail the check. The org's `.github` repository lists, in `fork-of`, each fork GitHub does not record. `docs/fork-scope.md` holds the detail.
 
 ## The marketplace follows each publish
 
