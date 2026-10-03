@@ -64,7 +64,7 @@ func TestADocumentParagraphIsRewritten(t *testing.T) {
 func TestADocumentRewriteKeepsTheListStructure(t *testing.T) {
 	doc := "  2. **Cached.** The loader previously read the flag.\n\n" +
 		"     - the `access_tokens` mint\n" +
-		"     - the open-PR list that previously held the rows\n" +
+		"     - the loader previously read the rows\n" +
 		"     - `branches`\n\n" +
 		"     The tail previously read the flag.\n"
 	repair := Fix("notes.md", doc, DefaultMaxCommentLines)
@@ -73,7 +73,7 @@ func TestADocumentRewriteKeepsTheListStructure(t *testing.T) {
 	assert.NotContains(t, repair.Text, "previously")
 	assert.Equal(t, "  2. **Cached.** The loader read the flag.\n\n"+
 		"     - the `access_tokens` mint\n"+
-		"     - the open-PR list that held the rows\n"+
+		"     - the loader read the rows\n"+
 		"     - `branches`\n\n"+
 		"     The tail read the flag.\n", repair.Text)
 }
