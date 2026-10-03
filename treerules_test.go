@@ -58,6 +58,18 @@ func TestATrackedExecutableIsReportedAndFixDeletesIt(t *testing.T) {
 	assert.Empty(t, checkOnly(root, slopfix.IDBinary))
 }
 
+// A binary that a //go:embed directive names is the program's input, so no build makes it.
+func TestAnEmbeddedExecutableIsAnInput(t *testing.T) {
+	root := gitRepo(t, map[string]string{
+		"ld/loader.go":           "package ld\n\nimport _ \"embed\"\n\n//go:embed bin/loader-amd64\nvar loader []byte\n\n//go:embed payloads\nvar payloads embed.FS\n",
+		"ld/bin/loader-amd64":    elf,
+		"ld/payloads/one":        elf,
+		"ld/bin/loader-arm64":    elf,
+		"stray/bin/loader-amd64": elf,
+	})
+	assert.ElementsMatch(t, []string{"ld/bin/loader-arm64 repo/binary", "stray/bin/loader-amd64 repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
+}
+
 func TestAnUntrackedExecutableIsNotTheRepositorys(t *testing.T) {
 	root := gitRepo(t, map[string]string{".gitignore": "build/\n"})
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "build"), 0o755))

@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // IDBinary is a tracked file that starts with the magic number of an executable.
@@ -78,12 +80,13 @@ func committedBinaries(root string, writing bool) ([]TreeFinding, []string, erro
 	if err != nil {
 		return nil, nil, err
 	}
+	embedded := embeddedFiles(root, files)
 	var out []TreeFinding
 	var removed []string
 	for _, rel := range files {
 		path := filepath.Join(root, rel)
 		kind := fileKind(path)
-		if kind == "" {
+		if kind == "" || embedded.Contains(filepath.ToSlash(rel)) {
 			continue
 		}
 		if writing {
@@ -97,6 +100,48 @@ func committedBinaries(root string, writing bool) ([]TreeFinding, []string, erro
 			"Delete it and ignore it in .gitignore. A build makes it from source. `slopfix fix` deletes it."))
 	}
 	return out, removed, nil
+}
+
+// embeddedFiles names, in slash form relative to root, each file that a //go:embed directive in a tracked Go file names.
+// The program carries such a file as an input, so no build makes it.
+func embeddedFiles(root string, files []string) set.Set[string] {
+	out := set.New[string]()
+	for _, rel := range files {
+		if !strings.HasSuffix(rel, ".go") {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			continue
+		}
+		dir := filepath.Join(root, filepath.Dir(rel))
+		for line := range strings.SplitSeq(string(body), "\n") {
+			patterns, ok := strings.CutPrefix(strings.TrimSpace(line), "//go:embed ")
+			if !ok {
+				continue
+			}
+			for _, pattern := range strings.Fields(patterns) {
+				matches, _ := filepath.Glob(filepath.Join(dir, filepath.FromSlash(strings.Trim(pattern, "\"`"))))
+				for _, match := range matches {
+					addEmbedded(out, root, match)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// addEmbedded adds path, or every file under it when it is a directory.
+func addEmbedded(out set.Set[string], root, path string) {
+	_ = filepath.WalkDir(path, func(file string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if rel, err := filepath.Rel(root, file); err == nil {
+			out.Add(filepath.ToSlash(rel))
+		}
+		return nil
+	})
 }
 
 // fileKind reads the first bytes of a regular file. A symlink, a gitlink and a
