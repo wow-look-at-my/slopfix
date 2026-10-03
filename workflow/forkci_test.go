@@ -116,33 +116,15 @@ func rowOf(t *testing.T, content, prefix string) int {
 	return -1
 }
 
-// The header lays out tables in columns. The prose either side joins, and
-// every aligned row stays as written.
-func TestAnAlignedCommentTableIsNotJoined(t *testing.T) {
+// A header of prose and column-aligned rows is a comment block like any
+// other: every row counts toward the limit, and the run is a single finding.
+func TestACommentTableIsACommentBlock(t *testing.T) {
 	content := fixture(t, "fork-ci-header.yml.in")
 
-	repair := workflow.Fix(content, everyRule)
-
-	for _, row := range strings.Split(content, "\n") {
-		if strings.HasPrefix(row, "#   ") {
-			assert.Contains(t, repair.Text, row+"\n", "an aligned row lost its layout")
-		}
-	}
-	assert.Contains(t, repair.Text, "# CI for forks of sgl-project/sglang, on GitHub-hosted runners only. Upstream workflows build on self-hosted pools (x64-kernel-build-node, x64-docker-build-node, GPU runners) and publish with Docker Hub / PyPI secrets that a fork does not have.\n")
-	assert.Contains(t, repair.Text, "# Optional repository variables (Settings > Variables) for bigger machines:\n#   FORK_KERNEL_RUNNER_X64")
-	assert.Empty(t, workflow.Check(repair.Text))
-}
-
-// An aligned row splits the runs it sits between, so prose after a table
-// never moves above it.
-func TestAnAlignedRowEndsACommentRun(t *testing.T) {
-	assert.Empty(t, workflow.Check("# first\n#   key    value\n# second\non: {push: {branches: ['**']}}\n"))
-}
-
-// Blanks after a sentence end are spacing, not columns.
-func TestTwoBlanksAfterAFullStopAreProse(t *testing.T) {
-	findings := workflow.Check("# One sentence.  Another one.\n# A third.\non: {push: {branches: ['**']}}\n")
+	findings := workflow.Check(content)
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, workflow.IDCommentBlock, findings[0].ID)
+	assert.Equal(t, "lines 3-17", findings[0].Detail)
+	assert.Empty(t, workflow.Check(workflow.Fix(content, everyRule).Text))
 }

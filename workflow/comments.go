@@ -43,14 +43,6 @@ func commentBlocks(content string) []ste.Finding {
 			}
 			continue
 		}
-		// An aligned row is a table or an example, so it is data: it neither
-		// counts nor joins, and the prose either side of it are separate runs.
-		if aligned(trimmed) {
-			if count > 0 {
-				flush()
-			}
-			continue
-		}
 		if strings.HasPrefix(trimmed, "#") {
 			if count == 0 {
 				start = index + 1
@@ -70,29 +62,6 @@ func commentBlocks(content string) []ste.Finding {
 		flush()
 	}
 	return out
-}
-
-// aligned reports whether a comment row lays its words out in columns: its
-// text is indented past the blank after the marker, or a run of blanks that
-// no sentence end explains sits between its words. Joining such a row into
-// prose destroys what the layout says.
-func aligned(trimmed string) bool {
-	if !strings.HasPrefix(trimmed, "#") {
-		return false
-	}
-	text := strings.TrimPrefix(strings.TrimPrefix(trimmed, "#"), " ")
-	if strings.TrimSpace(text) == "" {
-		return false
-	}
-	if text[0] == ' ' || text[0] == '\t' || strings.Contains(text, "\t") {
-		return true
-	}
-	for i := 1; i+1 < len(text); i++ {
-		if text[i] == ' ' && text[i+1] == ' ' && !strings.ContainsRune(".!?:", rune(text[i-1])) {
-			return true
-		}
-	}
-	return false
 }
 
 // span names the lines a block covers, for a report that prints plain text.

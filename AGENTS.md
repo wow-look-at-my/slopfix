@@ -196,7 +196,7 @@ It does not flag a comment above the package declaration, or a trailing comment 
 
 These rules judge the format. The prose rules never run on these files. A file is read when its base name is `action.yml` or `action.yaml`, or when it is YAML under a `workflows` directory. Other YAML with a left-margin `jobs:` or `runs:` key qualifies too.
 
-- `yaml/comment-block`: a run of comment lines past the single-line limit. A blank line neither counts nor ends a run. The repair joins the run into the allowed line and keeps every word. An aligned row is data, like a table in a document: it neither counts nor joins. It ends a run. Its text is indented past the blank after `#`, or holds a run of blanks between words that no sentence end explains.
+- `yaml/comment-block`: a run of comment lines past the single-line limit. A blank line neither counts nor ends a run. The repair joins the run into the allowed line and keeps every word.
 - `yaml/all-builds-job`: a job named `all-builds`, by key or rendered name. The required gate is a commit status from the required-builds-manager app. A job with that name shadows it. The repair renames the job to `builds` and fixes each `needs` entry.
 - `yaml/test-in-workflow`: a test inside a `run:` script. That is an assertion with a nonzero exit, a function whose name says it asserts, or a redirect to a test file. The rule has no repair. A script line is code. The author moves the test into the suite.
 - `yaml/neutered-gate`: a gate step under `continue-on-error`. A step allowed to fail is not a gate. The repair deletes that line, found by parser positions.
