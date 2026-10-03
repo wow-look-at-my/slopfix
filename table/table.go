@@ -150,6 +150,3 @@ func MatchCase(matched, replacement string) string {
 
 // Matches reports whether the pattern finds anything in s.
 func (p Pattern) Matches(s string) bool { return p.re.MatchString(s) }
-
-// FindAll answers every match of the pattern in s, in order.
-func (p Pattern) FindAll(s string) []string { return p.re.FindAllString(s, -1) }

@@ -74,12 +74,6 @@
     <test in="There's a file open"/>
   </pattern>
 
-  <!-- ", never" tacks a contrast on as an afterthought. Plain English writes
-       ", not", so the repair does too. -->
-  <pattern id="ste-comma-never" match="(?i),(\s+)never\b" to=",${1}not" where="comma-never">
-    <test in="The list names a fork, never its own tree."/>
-  </pattern>
-
   <!-- A modal that hedges. STE keeps one word per sense, so the reader never
        weighs "should" against "must" and guesses which one binds. -->
   <rewrite id="ste-should" from="should" to="must" where="modal">

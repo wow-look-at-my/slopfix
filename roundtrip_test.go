@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -58,7 +59,7 @@ func roundTripFixtures() []fixture {
 				ste.IDContraction,
 				ste.IDModal,
 				ste.IDSemicolon,
-				ste.IDCommaNever,
+				english.IDCommaNever,
 				ste.IDCommaSplice,
 				ste.IDSentenceCap,
 				ste.IDStaleCount,
