@@ -58,6 +58,23 @@ func TestATrackedExecutableIsReportedAndFixDeletesIt(t *testing.T) {
 	assert.Empty(t, checkOnly(root, slopfix.IDBinary))
 }
 
+// Git LFS stores a pointer in the index and writes the binary into the
+// checkout. Git itself holds no executable, so fix must keep the file.
+func TestAGitLFSExecutableIsKept(t *testing.T) {
+	pointer := "version https://git-lfs.github.com/spec/v1\noid sha256:4d7a214614ab2935c943f9e0ff69d22eadbb8f32b1258daaa5e2ca24d17e2393\nsize 31\n"
+	root := gitRepo(t, map[string]string{
+		".gitattributes":      "bin/tool filter=lfs diff=lfs merge=lfs -text\n",
+		"bin/tool":            pointer,
+		"testdata/fixture.so": elf,
+	})
+	require.NoError(t, os.WriteFile(filepath.Join(root, "bin", "tool"), []byte(elf), 0o755))
+	assert.Equal(t, []string{"testdata/fixture.so repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
+
+	slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDBinary}})
+	assert.FileExists(t, filepath.Join(root, "bin", "tool"))
+	assert.NoFileExists(t, filepath.Join(root, "testdata", "fixture.so"))
+}
+
 func TestAnUntrackedExecutableIsNotTheRepositorys(t *testing.T) {
 	root := gitRepo(t, map[string]string{".gitignore": "build/\n"})
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "build"), 0o755))
