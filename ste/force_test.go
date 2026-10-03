@@ -52,6 +52,16 @@ func TestAForcedDivisionKeepsAnOpeningCodeSpan(t *testing.T) {
 	assert.NotContains(t, got, " or a.", got)
 }
 
+// A quote mark inside a code span pairs with nothing, as Check reads it. Paired
+// with a later mark, it hid a whole paragraph from the division.
+func TestAQuoteMarkInsideCodeOpensNoQuotation(t *testing.T) {
+	in := "The tool reads `a\"b` and then the long list of the old and new things near the shed behind the barn across the field and the river for the team over the year with \"a quoted phrase\" here."
+	got := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+	assert.Contains(t, got, "`a\"b`")
+	assert.Contains(t, got, "\"a quoted phrase\"")
+}
+
 // A verb that opens the rest gets the subject again.
 func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 	in := "The cache keeps every answer the upstream sent for the whole day across the restart of the process and the reload of the spec and holds the rows."
