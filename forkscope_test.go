@@ -184,6 +184,22 @@ func TestAForkReportsOnlyTheBinariesItWrote(t *testing.T) {
 		"a binary the fork added or changed is the fork's; one it inherited unchanged is not")
 }
 
+func TestBinaryDiffPath(t *testing.T) {
+	for pair, want := range map[string]string{
+		"/dev/null and b/new.bin":         "new.bin",
+		"a/x.bin and b/x.bin":             "x.bin",
+		"a/this and that and b/this and that": "this and that",
+		`"a/t\303\251.bin" and "b/t\303\251.bin"`: "té.bin",
+		"a/gone.bin and /dev/null":        "",
+	} {
+		got, err := binaryDiffPath(pair)
+		require.NoError(t, err, pair)
+		assert.Equal(t, want, got, pair)
+	}
+	_, err := binaryDiffPath("a/x and b/yy")
+	assert.Error(t, err, "sides that name different paths are refused")
+}
+
 func TestARepositoryThatIsNoForkKeepsEveryFinding(t *testing.T) {
 	fx := newForkFixture(t)
 	own, err := forkLines(fx.fork, forkEnv(forkAPI(t, `{"fork":false}`)), noList(t))
