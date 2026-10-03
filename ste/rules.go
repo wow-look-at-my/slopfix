@@ -383,8 +383,12 @@ func opensSentence(rest []rune) bool {
 		return true
 	}
 	// A masked code span is a run of x, and opens a sentence as its backtick does.
-	return maskedSpan.MatchString(string(rest)) || fileOrSection.MatchString(string(rest))
+	head := string(rest[:min(len(rest), openerReach)])
+	return maskedSpan.MatchString(head) || fileOrSection.MatchString(head)
 }
+
+// openerReach bounds how far opensSentence reads.
+const openerReach = 512
 
 func endsWithAbbreviation(sentence []rune) bool {
 	fields := strings.Fields(string(sentence))

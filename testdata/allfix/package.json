@@ -1,0 +1,8 @@
+{
+	"scripts": {
+		"prebuild": "tsc --noEmit",
+		"build": "tsc",
+		"test:unit": "npm run build && node --test"
+	},
+	"name": "tool"
+}

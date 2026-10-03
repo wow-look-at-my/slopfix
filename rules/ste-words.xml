@@ -122,4 +122,22 @@
   <!-- And in front of a subordinator, where "or" joins and "then" does not. -->
   <class name="subordinator-conjunction" words="and but so or yet"/>
 
+  <!-- A forced division of a long sentence never ends the first part on one
+       of these words, because each opens what the part then leaves out. -->
+  <class name="force-dangling" words="and or but nor so yet then the a an to of
+    in on at by for from with than rather that which who whom whose when while
+    where because if is are was were be been as into onto over under per via
+    its their his her our your my this these those each every no not any some
+    unless until after before since whether also both either neither"/>
+
+  <!-- A forced division never opens the second part on one of these words. Each
+       binds to the words in front of it. -->
+  <class name="force-bound" words="that who whom whose of than or nor"/>
+
+  <!-- A word that opens a phrase. A forced division in front of one reads
+       better than a division between any two words. -->
+  <class name="force-opener" words="and but so yet which because when while
+    where if unless until after before since with without for from by via in
+    on at into through during to as"/>
+
 </rules>

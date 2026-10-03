@@ -42,19 +42,18 @@ var inlineCode = regexp.MustCompile("`[^`]*`")
 
 // Check returns every inventory count stated in a document's own voice.
 func Check(content string) []Hit {
-	return find(content, cardinal.Prose)
+	return find(content, cardinal.Prose, blankInlineCode)
 }
 
-// Gate returns every count the merge gate's stale-count rule reports, which is the same walk over a substrate that asks
-// for no frame around
+// Gate returns every count the merge gate's stale-count rule reports.
 func Gate(content string) []Hit {
-	return find(content, cardinal.Gate)
+	return find(content, cardinal.Gate, ste.Masked)
 }
 
-func find(content string, substrate cardinal.Substrate) []Hit {
+func find(content string, substrate cardinal.Substrate, mask func(string) string) []Hit {
 	var hits []Hit
 	for _, line := range proseLines(content) {
-		text := blankInlineCode(line.text)
+		text := mask(line.text)
 		for _, found := range cardinal.Find(text, substrate) {
 			hits = append(hits, Hit{
 				Phrase: found.Text,
@@ -117,9 +116,55 @@ func Edits(content string, hits []Hit) []edit.Edit {
 		}
 		if e, ok := reword(content, hit); ok {
 			out = append(out, e)
+			if more, ok := elided(content, hit, hits); ok {
+				out = append(out, more)
+			}
 		}
 	}
 	return out
+}
+
+// elidedNumber is a bare number after a preposition or a conjunction, which ends its phrase.
+var elidedNumber = regexp.MustCompile(`(?i)\b(?:at|to|from|of|by|over|under|than|with|in|and|or)\s+(~?\d[\d,]*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred)(?:[,;:.!?)]|\s+(?:and|or|but|then|in|on|at|for|before|after|if|when)\b|\s*$)`)
+
+// clauseCoordinator joins the hit's phrase to a parallel one.
+var clauseCoordinator = regexp.MustCompile(`(?i)\b(?:and|or|but)\b`)
+
+// elided answers an edit for a bare number later in the clause that stands for
+// the same quantity as the hit. It says how that number compares, so no number
+// stays half converted.
+func elided(content string, hit Hit, hits []Hit) (edit.Edit, bool) {
+	end := len(content)
+	if i := strings.IndexByte(content[hit.End:], '\n'); i >= 0 {
+		end = hit.End + i
+	}
+	clause := blankInlineCode(content[hit.End:end])
+	if i := strings.IndexAny(clause, ";:!?"); i >= 0 {
+		clause = clause[:i]
+	}
+	if i := strings.Index(clause, ". "); i >= 0 {
+		clause = clause[:i+1]
+	}
+	loc := elidedNumber.FindStringSubmatchIndex(clause)
+	if loc == nil || !clauseCoordinator.MatchString(clause[:loc[2]]) {
+		return edit.Edit{}, false
+	}
+	start := hit.End + loc[2]
+	for _, other := range hits {
+		if other.Start <= start && start < other.End {
+			return edit.Edit{}, false
+		}
+	}
+	first := cardinal.Leading.FindString(content[hit.Start:hit.End])
+	was, now := value(strings.TrimSpace(first)), value(strings.TrimLeft(clause[loc[2]:loc[3]], "~"))
+	text := "the same count"
+	switch {
+	case now > was:
+		text = "a higher count"
+	case now < was:
+		text = "a lower count"
+	}
+	return edit.Edit{Start: start, End: hit.End + loc[3], Text: text, Cut: []string{clause[loc[2]:loc[3]]}}, true
 }
 
 // followsANoun reports whether the cardinal at start comes straight after a
