@@ -63,6 +63,22 @@ func TestRepairingLeavesAScriptsCommentsAlone(t *testing.T) {
 	assert.Equal(t, scriptWithComments, repair.Text)
 }
 
+// Comment lines whose first never closed its sentence join into sentences, not
+// one run-on. A line that wraps mid-sentence still joins as one.
+func TestJoiningCommentLinesKeepsTheirSentencesApart(t *testing.T) {
+	keep := func(string) bool { return true }
+	for in, want := range map[string]string{
+		"jobs:\n  build:\n    steps:\n      # No fetch-cacerts step: the CA bundle is a generate directive\n      # The org module proxy is gone, so modules come direct with sumdb off.\n      - run: make\n": "      # No fetch-cacerts step: the CA bundle is a generate directive. The org module proxy is gone, so modules come direct with sumdb off.\n",
+		"jobs:\n  build:\n    steps:\n      # Stock Go cannot resolve the placeholder. Some are private, so\n      # the checksum database skips them.\n      - run: make\n":                                   "      # Stock Go cannot resolve the placeholder. Some are private, so the checksum database skips them.\n",
+		"jobs:\n  build:\n    steps:\n      # The token is minted by\n      # GitHub for each run.\n      - run: make\n":                                                                                       "      # The token is minted by GitHub for each run.\n",
+	} {
+		repair := workflow.Fix(in, keep)
+		require.True(t, repair.Changed, in)
+		assert.Contains(t, repair.Text, want)
+		assert.Empty(t, workflow.Check(repair.Text))
+	}
+}
+
 // The scalar ends where the indentation does, so the comments after it are
 // judged as the YAML comments they are.
 func TestACommentBlockAfterABlockScalarIsStillReported(t *testing.T) {

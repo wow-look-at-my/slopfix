@@ -13,6 +13,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -32,6 +33,7 @@ func Check(content string) []ste.Finding {
 			continue
 		}
 		out = append(out, ste.Check(block.Text(), block.Start)...)
+		out = append(out, english.CheckCommaNever(block.Text(), block.Start)...)
 		for i := 1; i < len(block.Lines); i++ {
 			out = append(out, ste.Finding{
 				Line:   block.Start + i,
@@ -42,7 +44,7 @@ func Check(content string) []ste.Finding {
 			})
 		}
 	}
-	return out
+	return append(out, longBlocks(content)...)
 }
 
 // Warnings reports every warning in a document. A repair never answers one, so
@@ -82,8 +84,11 @@ func CheckFile(path string) ([]ste.Finding, error) {
 // a Go file's lines are not paragraphs, so the prose rules skip it.
 func CheckContent(path, content string) []ste.Finding {
 	defer trace.Phase("check/file")()
+	if exempt(path, content) {
+		return nil
+	}
 	// A URL is text in every kind of file.
-	return append(kindFindings(path, content), pins.Check(content)...)
+	return append(kindFindings(path, content), pins.CheckPath(path, content)...)
 }
 
 // kindFindings are the rules the file's kind selects.
@@ -162,7 +167,8 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs).Union(pins.AllIDs)
-	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
+	ids.AddRange(IDHardWrap, IDLongBlock, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
+	ids.AddRange(english.AllIDs...)
 	return ids
 }
 

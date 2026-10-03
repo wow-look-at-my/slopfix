@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -47,17 +48,21 @@ func roundTripFixtures() []fixture {
 				"It doesn't run, and a caller should wait.\n\n" +
 				"The gate is shut; the write fails.\n\n" +
 				"The gate is shut, the write fails.\n\n" +
+				"The list names the fork, never its own tree.\n\n" +
 				"The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"The loader reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs.\n\n" +
 				"Its four fields hold the header.\n\n" +
 				"The set holds three rules.\n\n" +
-				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n",
+				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n\n" +
+				"- **Admin port**: " + strings.Repeat("The runner reads each event from the stream and writes the result to the store. ", 25) + "\n",
 			wants: []string{
 				slopfix.IDHardWrap,
+				slopfix.IDLongBlock,
 				ste.IDContraction,
 				ste.IDModal,
 				ste.IDSemicolon,
+				english.IDCommaNever,
 				ste.IDCommaSplice,
 				ste.IDSentenceCap,
 				ste.IDStaleCount,

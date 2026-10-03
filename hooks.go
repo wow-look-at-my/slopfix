@@ -69,7 +69,7 @@ var hooks = []Hook{
 		Name:    "ci check",
 		Event:   "build",
 		Runs:    "slopfix check .",
-		Summary: "which markdown files a repository keeps, judged from its root",
+		Summary: "what a repository keeps, judged from its root",
 		Only:    []string{string(RuleRepo)},
 	},
 	{

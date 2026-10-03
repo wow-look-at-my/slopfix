@@ -3,6 +3,7 @@ package slopfix
 import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -28,8 +29,9 @@ func Repairable(id string) bool {
 
 // repairable is derived: each entry names a repair a test drives.
 var repairable = ste.Repairs.Clone().Union(set.Of(
-	// The wrap join.
+	// The wrap join, and the division of a long block.
 	IDHardWrap,
+	IDLongBlock,
 	// The counts rule cuts the cardinal out of the same sentence the prose
 	ste.IDStaleCount,
 	IDInventoryCount,
@@ -45,4 +47,6 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	workflow.IDPushTags,
 	// The v parameter comes out of a download URL.
 	pins.ID,
-)).Union(tombstones.AllIDs()).Union(RepoIDs)
+	// ", never" becomes ", not".
+	english.IDCommaNever,
+)).Union(tombstones.AllIDs()).Union(RepoIDs.Difference(ReportOnly))

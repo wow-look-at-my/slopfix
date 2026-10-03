@@ -11,6 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/goformat"
@@ -34,6 +35,8 @@ const (
 	RuleWrap Rule = "wrap"
 	// RuleSTE reports what fails the merge gate and repairs nothing.
 	RuleSTE Rule = "ste"
+	// RuleEnglish is plain English usage that STE does not cover.
+	RuleEnglish Rule = "english"
 	// RuleComments is a block that fits its code, and a number said in words.
 	RuleComments Rule = "comments"
 	// RuleWorkflow is what a workflow owes the gate it runs.
@@ -43,7 +46,7 @@ const (
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleEnglish, RuleComments, RuleWorkflow, RuleRepo, RulePins}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -54,9 +57,11 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleCounts:
 		return set.Of(counts.ID)
 	case RuleWrap:
-		return set.Of(IDHardWrap)
+		return set.Of(IDHardWrap, IDLongBlock)
 	case RuleSTE:
 		return ste.AllIDs
+	case RuleEnglish:
+		return set.Of(english.AllIDs...)
 	case RuleComments:
 		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	case RuleWorkflow:
@@ -108,8 +113,7 @@ type Repair struct {
 // Fix repairs req, unless it carries slopfix-expect annotations. Such text is a
 // fixture: it is checked against them and comes back unchanged.
 func Fix(req Request) Repair {
-	// A generator owns its output. The next run writes back every repair, and a joined marker line stops tools from seeing the file as generated.
-	if tombstones.Borrowed(req.Path) || commentfix.IsGenerated(req.Path, req.Content) {
+	if exempt(req.Path, req.Content) {
 		return Repair{Text: req.Content, Scope: req.Scope}
 	}
 	notes := expect.Parse(req.Content)
@@ -125,6 +129,12 @@ func Fix(req Request) Repair {
 	repair.Unmet = notes.Check(repair.Text)
 	repair.Text, repair.Changed, repair.Scope = original, false, scope
 	return repair
+}
+
+// exempt reports a file no rule reads or rewrites: another project's, or a
+// generator's.
+func exempt(path, content string) bool {
+	return tombstones.Borrowed(path) || commentfix.IsGenerated(path, content)
 }
 
 // UnmetError is a fixture whose slopfix-expect annotations the repair broke.
@@ -169,7 +179,7 @@ func fixText(req Request) Repair {
 	repair.refuse(rep.Refused)
 	// A URL is text in every kind of file, so this rule reads the whole file.
 	if wants(RulePins) {
-		for _, finding := range pins.Check(text) {
+		for _, finding := range pins.CheckPath(req.Path, text) {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
 			}
@@ -205,7 +215,7 @@ func fixText(req Request) Repair {
 			}
 		}
 	case fixer.Document:
-		if wants(RuleSTE) {
+		if wants(RuleSTE) || wants(RuleEnglish) {
 			for _, finding := range Check(text) {
 				if keeps(finding.ID) {
 					repair.Findings = append(repair.Findings, finding)
@@ -253,6 +263,9 @@ func Report(req Request) Repair {
 		req.Scope = edit.Nowhere()
 	}
 	repair := Fix(req)
+	if exempt(req.Path, req.Content) {
+		return repair
+	}
 	repair.Kept = append(repair.Kept, pending(req, repair.Kept)...)
 	if len(req.Rules) > 0 && !slices.Contains(req.Rules, RulePins) {
 		return repair
@@ -264,7 +277,7 @@ func Report(req Request) Repair {
 			findings = append(findings, finding)
 		}
 	}
-	for _, finding := range pins.Check(req.Content) {
+	for _, finding := range pins.CheckPath(req.Path, req.Content) {
 		if keeps(finding.ID) {
 			findings = append(findings, finding)
 		}
@@ -289,15 +302,22 @@ func kindOf(path, content string) fixer.Kind {
 func init() {
 	fixer.Register(fixer.Spec{
 		Label:    "wrap-and-ste",
-		Families: []string{string(RuleWrap), string(RuleSTE)},
-		Rules:    append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...),
+		Families: []string{string(RuleWrap), string(RuleSTE), string(RuleEnglish)},
+		Rules:    append(append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...), english.AllIDs...),
 		Files:    []fixer.Kind{fixer.Document},
 		Place:    30,
 		Repair: func(f *fixer.File) {
 			defer trace.Phase("fix/wrap-and-ste")()
-			word := func(text string) string { return text }
-			if f.Wants(string(RuleSTE)) {
-				word = func(text string) string { return ste.FixSelected(text, f.Keeps) }
+			stePass := f.Wants(string(RuleSTE))
+			englishPass := f.Wants(string(RuleEnglish)) && f.Keeps(english.IDCommaNever)
+			word := func(text string) string {
+				if englishPass {
+					text = english.FixCommaNever(text)
+				}
+				if stePass {
+					text = ste.FixSelected(text, f.Keeps)
+				}
+				return text
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))

@@ -8,9 +8,10 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 
 | Category | Rule IDs | Repairs |
 |---|---|---|
-| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts` | yes, except a file with no `##` section and `repo/package-scripts` |
-| `wrap` | `wrap/hard-wrap` | yes |
+| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary`, `repo/near-duplicate`, `repo/json`, `repo/xml` | all but `repo/near-duplicate`, `repo/json` and `repo/xml` |
+| `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
+| `english` | `english/comma-never` | yes |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no, and a warning never fails `check` |
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
@@ -19,7 +20,7 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 | `pins` | `pins/download-version` | yes, except a templated URL |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
 
-- `repo`: `CLAUDE.md` holds only `@AGENTS.md`. Each root file, each `CLAUDE.md` and each `claude_snippets/` file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`.
+- `repo`: `CLAUDE.md` holds only `@AGENTS.md`. Each root file, each `CLAUDE.md` and each `claude_snippets/` file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`. No executable is committed. No file is a near copy of another file of its name. Each JSON and XML file parses and meets the schema it names.
 - `wrap` and `ste`: a paragraph is one line, and its prose follows ASD-STE100 Simplified Technical English.
 - `counts`, `ste/count` and `comments/number`: a stated count goes stale when the set changes.
 - `tombstones`: a comment that narrates history or argues for the diff.

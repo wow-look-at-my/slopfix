@@ -23,7 +23,7 @@ func TestEveryRuleCarriesARepair(t *testing.T) {
 	var missing []string
 	for id := range slopfix.EveryID().All() {
 		// A warning asks for a person's judgment and fails nothing, so no repair answers it.
-		if !slopfix.Repairable(id) && !ste.WarningIDs.Contains(id) && !workflow.ReportOnly.Contains(id) {
+		if !slopfix.Repairable(id) && !ste.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) && !workflow.ReportOnly.Contains(id) {
 			missing = append(missing, id)
 		}
 	}
@@ -34,13 +34,13 @@ func TestEveryRuleCarriesARepair(t *testing.T) {
 // Every error rule has a path that writes its repair: a registered fixer, or the
 // repository pass. A claim of repairable with nothing behind it is a lie.
 func TestEveryErrorRuleHasARepairPath(t *testing.T) {
-	served := slopfix.RepoIDs.Clone()
+	served := slopfix.RepoIDs.Difference(slopfix.ReportOnly)
 	for _, fx := range fixer.All() {
 		served.AddRange(fx.IDs()...)
 	}
 	var missing []string
 	for id := range slopfix.EveryID().All() {
-		if !ste.WarningIDs.Contains(id) && !served.Contains(id) && !workflow.ReportOnly.Contains(id) {
+		if !ste.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) && !served.Contains(id) && !workflow.ReportOnly.Contains(id) {
 			missing = append(missing, id)
 		}
 	}
@@ -48,6 +48,15 @@ func TestEveryErrorRuleHasARepairPath(t *testing.T) {
 	assert.Empty(t, missing, "these error rules have no repair path: %s", strings.Join(missing, ", "))
 	assert.True(t, slopfix.EveryID().Contains(slopfix.IDPackageScripts), "the walk reaches the repository rules")
 	assert.True(t, slopfix.EveryID().Contains(tombstones.IDVolume), "the walk reaches the tombstone rules")
+}
+
+// The rules with no repair are named one by one, so a new rule cannot join them
+// in passing.
+func TestOnlyTheseRulesReportWithoutARepair(t *testing.T) {
+	assert.ElementsMatch(t, []string{slopfix.IDNearDuplicate, slopfix.IDJSON, slopfix.IDXML}, slopfix.ReportOnly.Values())
+	for id := range slopfix.ReportOnly.All() {
+		assert.False(t, slopfix.Repairable(id), "%s claims a repair it does not have", id)
+	}
 }
 
 // The. An unknown name is not repairable, so the case above passes on the
