@@ -213,6 +213,8 @@ What `ste` does not flag:
 - Text in parentheses counts as a single word. A citation thus cannot inflate a sentence.
 - A period ends a sentence only when what follows opens the next. That rules out `e.g.` and `$(...)`. A file name or a section mark can open a sentence in lower case.
 - `ste/count` exempts arithmetic, such as a range or an expression. It exempts no noun, because a duration or a size goes stale too.
+- A number in digits after a label noun or a hash sign names a thing, as in `gate 5 asserts`. A number before a unit symbol sizes the noun, as in `64 B lines`. Neither is a count.
+- A cut keeps the sentence English. `over` after a noun stays as a preposition. A capital moves only at the start of a sentence.
 
 ## syntax: the sentence parser
 
@@ -236,7 +238,7 @@ coordinate/0 subject="-" verb="refuses": and refuses the write
 | Shape | quantity | quantity | number |
 | Frame required | yes | no | no |
 | Vocabulary | two upward, plus a dozen | two to twelve | cardinals, ordinals, scales, repeat counts |
-| Exemptions | function-word gap, a longer number | arithmetic, function-word gap | status code, exit status, literal, section sign, currency, quotation |
+| Exemptions | function-word gap, a longer number, arithmetic, a label, a unit | arithmetic, function-word gap, a label, a unit | status code, exit status, literal, section sign, currency, quotation |
 
 Prose requires a frame, because a document carries numbers that count nothing: a version, a port, an example. The gate needs no frame. That is the whole difference between the document substrates. A number beside code is nearly always a count. A comment therefore needs no frame either. The vocabularies stay separate, because widening one changes the verdict on text nobody edited. `Find` returns the whole quantity for prose. That `cardinal.Leading` can cut its number. For a comment it returns the number alone.
 
