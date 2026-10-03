@@ -23,7 +23,10 @@ const (
 const RuleRepo Rule = "repo"
 
 // RepoIDs names every repository rule.
-var RepoIDs = set.Of(IDAgentsFile, IDBudget, IDPackageScripts)
+var RepoIDs = set.Of(IDAgentsFile, IDBudget, IDPackageScripts, IDBinary, IDNearDuplicate, IDJSON, IDXML)
+
+// ReportOnly names the rules no rewrite can repair.
+var ReportOnly = set.Of(IDNearDuplicate, IDJSON, IDXML)
 
 // isRepoRoot reports whether dir is the top of a repository.
 func isRepoRoot(dir string) bool {
@@ -56,6 +59,28 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 		}
 		findings = append(findings, scripts...)
 		changed = append(changed, moved...)
+	}
+	if keeps(IDBinary) {
+		binaries, removed, err := committedBinaries(root, writing)
+		if err != nil {
+			return nil, nil, err
+		}
+		findings = append(findings, binaries...)
+		changed = append(changed, removed...)
+	}
+	if keeps(IDNearDuplicate) {
+		copies, err := nearDuplicates(root)
+		if err != nil {
+			return nil, nil, err
+		}
+		findings = append(findings, copies...)
+	}
+	if keeps(IDJSON) || keeps(IDXML) {
+		broken, err := documents(root, keeps)
+		if err != nil {
+			return nil, nil, err
+		}
+		findings = append(findings, broken...)
 	}
 	if !keeps(IDBudget) {
 		return findings, changed, nil

@@ -23,7 +23,8 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 | Category | Rule IDs | Repairs |
 |---|---|---|
-| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts` | yes, on a walk, except a `package.json` that does not parse |
+| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary` | yes, on a walk, except a `package.json` that does not parse |
+| `repo`, report only | `repo/near-duplicate`, `repo/json`, `repo/xml` | no |
 | `wrap` | `wrap/hard-wrap` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
@@ -36,7 +37,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
-Every error rule has a repair, even a crude one, so `slopfix fix` on any tree leaves no error. A `package.json` that does not parse is the single exception, because no rewrite can read it. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+Every error rule has a repair, even a crude one, so `slopfix fix` on any tree leaves no error. The exceptions are a `package.json` that does not parse and the `ReportOnly` rules, because no rewrite knows what the author meant. `repairable_test.go` names each of them. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 
@@ -66,13 +67,22 @@ In a fork, only the lines the fork wrote can fail the check. The org's `.github`
 
 cc-marketplace ships this binary inside its `slopfix` plugin. A publish here therefore reaches nobody until that plugin is packaged again. The last step of `ci.yml` does that on each master build. It dispatches `release.yml` in cc-marketplace with `publish: true`. The token is `CC_MARKETPLACE_DISPATCH_TOKEN` from secret-server, with `actions: write` on cc-marketplace. A missing token fails the build, because a silent skip leaves the marketplace on an old binary.
 
-## repo: the markdown a repository keeps
+## repo: what a repository keeps
 
 These rules judge the tree. Only a walk whose root holds `.git` reaches them. `check` reports them. `fix` applies them.
 
 - `repo/agents-file`: a root `CLAUDE.md` that holds more than the `@AGENTS.md` import. `fix` moves its body into `AGENTS.md` and leaves `CLAUDE.md` as `@AGENTS.md` and a newline. Claude Code reads `CLAUDE.md`. Every other agent reads `AGENTS.md`.
 - `repo/budget`: a root `README.md` or `AGENTS.md`, a `CLAUDE.md` anywhere, or a `.md` in a `claude_snippets/` directory, over `40000` characters. The repair writes `docs/` beside the file. The count is characters, because a byte count inflates a file with an em dash. `fix` moves the largest `##` sections into `docs/<heading>.md` until the file is at `32000` or less. The gap leaves room for the next edit. The text moves word for word, and each heading under it rises one level. The heading stays, with a link to the new file. A name that exists gets a `-2` suffix. With no `##` section left to move, the sections of the other heading levels move. A file with no heading at all moves its tail into `docs/<name>-continued.md` and keeps a link. A cut inside a fence closes the fence. The moved part opens it again.
 - `repo/package-scripts`: a `package.json` with a `scripts` key. A `justfile` holds the commands instead. `fix` writes each script as a recipe in a `justfile` beside the manifest, and deletes the key. The recipe runs the command as written, with `node_modules/.bin` first on `PATH`. A `pre` or `post` script runs around its own, and `npm run x` becomes `just x`. A `package.json` that does not parse is also a finding, because no rule can read it. That finding has no repair.
+
+- `repo/binary`: a file git tracks that opens with an ELF, Mach-O or PE/COFF magic number. `fix` deletes it, because a build makes it from source. Git still holds it. A tree that git cannot list is read from disk.
+- `repo/near-duplicate`: a file whose lines match another file of its base name at `NearDuplicateShare` or above. The score is the Dice coefficient over non-blank trimmed lines, so a copy that differs in comments alone still trips. The later path of the pair is reported. A file each directory needs, such as `package.json` or `Dockerfile`, is never compared. A copy that a contract requires carries the `slopfix-copy` gitattribute.
+- `repo/json`: a `.json` or `.jsonc` file that does not parse, comments allowed, or that breaks the schema its `$schema` names. `wow-look-at-my/json-validator` does the check, the same library webhook-runner loads manifests with. A relative `$schema` is a path from the file. A local schema that does not load is a finding, never a pass.
+- `repo/xml`: an `.xml` file that `wow-look-at-my/xml-validator` refuses, that names no schema, or that breaks the schema it names. The schema is the `xsi:noNamespaceSchemaLocation` or the first `xsi:schemaLocation` pair.
+
+Neither rule fetches a schema. A check must not depend on the network. A published copy can lag the code that reads the file. A remote schema therefore gets the parse check alone. The JSON Schema meta-schemas are the exception, because the validator carries them. The program that reads a file holds it to the remote contract, as `webhook-runner validate` does for a manifest.
+
+The document rules walk what the other repository rules walk, so `testdata`, `node_modules` and a submodule stay out. `repo/binary` reads every tracked file, the large ones included.
 
 A body that `AGENTS.md` already holds is not appended again. The import line is never copied into the file it imports. A `CLAUDE.md` that is a symlink stays.
 
