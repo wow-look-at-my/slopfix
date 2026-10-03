@@ -52,6 +52,7 @@ func init() {
 	register("yaml/untest", IDTestInYAML, 40, untest, false)
 	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
+	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
 }
 
 // Options are the gates a workflow is written through, for the driver to open
