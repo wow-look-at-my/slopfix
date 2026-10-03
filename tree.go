@@ -8,7 +8,9 @@ package slopfix
 
 import (
 	"os"
+	"runtime"
 	"slices"
+	"sync"
 
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -86,19 +88,32 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		out.Findings = append(out.Findings, findings...)
 		out.Repaired = append(out.Repaired, changed...)
 	}
-	for _, path := range commentfix.TreeFilesMatching(root, Reads) {
-		src, err := os.ReadFile(path)
-		if err != nil {
+	paths := commentfix.TreeFilesMatching(root, Reads)
+	repairs := make([]*Repair, len(paths))
+	// Each file is independent, so workers judge them at once and the merge below keeps the walk's order.
+	work := make(chan int)
+	var wg sync.WaitGroup
+	for range runtime.GOMAXPROCS(0) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range work {
+				repairs[i] = judgeFile(paths[i], req, writing)
+			}
+		}()
+	}
+	for i := range paths {
+		work <- i
+	}
+	close(work)
+	wg.Wait()
+
+	for i, path := range paths {
+		repair := repairs[i]
+		if repair == nil {
 			continue
 		}
 		out.Read++
-
-		req.Path, req.Content = path, string(src)
-		run := Report
-		if writing {
-			run = Fix
-		}
-		repair := run(req)
 		if len(repair.Unmet) > 0 {
 			out.Unmet = append(out.Unmet, &UnmetError{Path: path, Unmet: repair.Unmet})
 		}
@@ -116,4 +131,19 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		}
 	}
 	return out
+}
+
+// judgeFile runs every selected rule on one file. It answers nil for a file it cannot read.
+func judgeFile(path string, req Request, writing bool) *Repair {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	req.Path, req.Content = path, string(src)
+	run := Report
+	if writing {
+		run = Fix
+	}
+	repair := run(req)
+	return &repair
 }
