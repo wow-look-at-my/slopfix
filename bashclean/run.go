@@ -59,7 +59,7 @@ func Run(r io.Reader) HookResult {
 	switch {
 	case res.Denied:
 		logLine("DENY\toriginal=%q\treason=%q\n", command, res.Reason)
-		return HookResult{Stdout: denyPayload(denyReason(res.Reason))}
+		return HookResult{Stdout: denyPayload(fullDenyReason(res))}
 	case res.Changed:
 		logLine("REWRITE\toriginal=%q\tcleaned=%q\trules=%q\n", command, res.Command, strings.Join(res.Rules, ","))
 		raw["command"] = res.Command
@@ -104,6 +104,16 @@ func denyReason(rule string) string {
 		return "go-toolchain's full output has to land in the transcript: a grep over a captured run shows only what you already expected to find and hides the rest. A pipe or a redirect is stripped for you, but a $(...) or <(...) capture feeds a value to the rest of the script and cannot be. Run `go-toolchain` bare and read the output."
 	}
 	return "Heredocs are banned in this environment. Write file content with the Write/Edit tools; for command stdin use printf '%s' ... | cmd or a temp file."
+}
+
+// fullDenyReason adds the exact Read calls to a file-read deny, so the next
+// turn makes the call and does not guess the offset.
+func fullDenyReason(res Result) string {
+	reason := denyReason(res.Reason)
+	if len(res.ReadCalls) == 0 {
+		return reason
+	}
+	return reason + " Make this call instead: " + strings.Join(res.ReadCalls, "; ")
 }
 
 func denyPayload(reason string) string {
