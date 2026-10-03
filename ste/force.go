@@ -122,7 +122,7 @@ func forceDivision(source, masked string) (string, bool) {
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict) {
-			left := strings.TrimRight(source[:c.left], " ,;:—–-") + "."
+			left := closeHead(source[:c.left])
 			right, opened := openRest(source, masked, c)
 			if right == "" || longestSentence(left+" "+right) >= total {
 				continue
@@ -137,6 +137,16 @@ func forceDivision(source, masked string) (string, bool) {
 		}
 	}
 	return source, false
+}
+
+// closeHead ends the first part of a division as a sentence. A part that
+// already ends on a stop keeps it.
+func closeHead(head string) string {
+	head = strings.TrimRight(head, " ,;:—–-")
+	if strings.HasSuffix(head, ".") || strings.HasSuffix(head, "!") || strings.HasSuffix(head, "?") {
+		return head
+	}
+	return head + "."
 }
 
 // longestSentence answers the word count of the longest sentence Check reads in
@@ -212,7 +222,9 @@ func candidates(source, masked string, strict bool) []forceCut {
 		// The part ends on the word the trim leaves, so a dash after "and" still ends it on "and".
 		last := strings.ToLower(strings.Trim(lastField(strings.TrimRight(head, " ,;:—–-")), ".,;:!?*_\"'`()[]“”‘’"))
 		next := strings.ToLower(strings.Trim(firstToken.FindString(source[q:]), ".,;:!?*_\"'`()[]“”‘’"))
-		if strict && (leftWords < minimumHalf || rightWords < minimumHalf || forceDangling.Contains(last) || forceBound.Contains(next)) {
+		// A possessive governs the word after it, so a part never ends on one.
+		possessive := strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s")
+		if strict && (leftWords < minimumHalf || rightWords < minimumHalf || possessive || forceDangling.Contains(last) || forceBound.Contains(next)) {
 			continue
 		}
 		penalty := 8
@@ -259,6 +271,10 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if strings.EqualFold(firstToken.FindString(rest), "which") {
 		return joinOpener(opener, "this"+rest[len("which"):]), opensWithVerb
 	}
+	// A capital would rename an identifier written in lower case, so it opens after filler.
+	if lowerIdentifier(firstToken.FindString(rest)) {
+		return joinOpener(opener, "this is "+rest), opensWithFill
+	}
 	s := syntax.Parse(opening(restMasked), nil)
 	if len(s.Words) == 0 {
 		return "", 0
@@ -284,6 +300,18 @@ func opening(text string) string {
 		return text[:at]
 	}
 	return text
+}
+
+// lowerIdentifier reports a word that opens in lower case and reads as a name
+// in code: it carries a capital, a digit, an underscore or a dot inside it.
+func lowerIdentifier(word string) bool {
+	first, width := utf8.DecodeRuneInString(word)
+	if !unicode.IsLower(first) {
+		return false
+	}
+	return strings.IndexFunc(strings.TrimRight(word[width:], ".,;:!?)"), func(r rune) bool {
+		return unicode.IsUpper(r) || unicode.IsDigit(r) || r == '_' || r == '.'
+	}) >= 0
 }
 
 // opensClause reports a parse whose first clause starts with its own subject

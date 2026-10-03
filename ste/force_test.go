@@ -73,6 +73,22 @@ func TestADivisionKeepsBoldPaired(t *testing.T) {
 	}
 }
 
+// A part never ends on a possessive, a stop is never doubled, and a name in
+// lower case keeps its spelling.
+func TestAForcedDivisionKeepsNamesAndStops(t *testing.T) {
+	in := "The meter reads the headers of every upstream answer on the hot path of the proxy for the team and the fleet on the farm today because of requests. requireAuth then reads the bearer and the identity of the caller from the header of the request for the whole fleet."
+	got := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+	assert.NotContains(t, got, "..", got)
+	assert.Contains(t, got, "requireAuth", got)
+	assert.NotContains(t, got, "RequireAuth", got)
+
+	in = "The tool keeps every answer the hot path of the proxy reads for the whole team and the fleet across the farm in the mirror's cache of rows on the disk."
+	got = ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+	assert.NotContains(t, got, "mirror's.", got)
+}
+
 // A verb that opens the rest gets the subject again.
 func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 	in := "The cache keeps every answer the upstream sent for the whole day across the restart of the process and the reload of the spec and holds the rows."
