@@ -31,8 +31,8 @@ var stepResult = regexp.MustCompile(`^steps\.([A-Za-z0-9_-]+)\.outputs\.result$`
 var scriptAction = regexp.MustCompile(`(^|[/@])typescript([@#]|$)|github-script@`)
 
 // runnerContext maps a runner variable to the context that carries the same
-// value. A path in this map differs inside a container job, so a container job
-// keeps the variable.
+// value. A path in this map names the host inside a job container, where the
+// variable names the mount. A step that can run in a container keeps the variable.
 var runnerContext = map[string]string{
 	"RUNNER_TEMP":        "runner.temp",
 	"RUNNER_TOOL_CACHE":  "runner.tool_cache",
@@ -154,7 +154,8 @@ func runSteps(root *yaml.Node) []stepRef {
 	if steps := mappingValue(mappingValue(root, "runs"), "steps"); steps != nil && steps.Kind == yaml.SequenceNode {
 		uses := usesByID(steps)
 		for _, step := range steps.Content {
-			out = append(out, stepRef{step: step, uses: uses})
+			// A composite action does not know the job that calls it. That job can run in a container.
+			out = append(out, stepRef{step: step, container: true, uses: uses})
 		}
 	}
 	return out

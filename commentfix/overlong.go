@@ -56,6 +56,8 @@ type block struct {
 	text []string
 	// exact is true when a parser decided this span rather than a line walk. It gates the REPAIR and nothing else.
 	exact bool
+	// header is true for the comment above the package declaration.
+	header bool
 }
 
 // Check reports every comment block in src that outweighs its code.
@@ -63,6 +65,9 @@ func CheckLength(filename, src string) []LengthHit {
 	defer trace.Phase("rule/comments-length")()
 	var hits []LengthHit
 	for _, b := range blocks(filename, src) {
+		if b.header {
+			continue
+		}
 		tell, over := judge(b)
 		if !over {
 			continue
@@ -104,6 +109,15 @@ func repairLength(f *fixer.File) {
 func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 	var edits []edit.Edit
 	for _, b := range blocks(filename, src) {
+		if b.header {
+			if maxLines <= 0 || len(prose(b.text)) <= maxLines {
+				continue
+			}
+			if kept := capLines(b, maxLines); !sameText(kept, b.text) {
+				edits = append(edits, edit.Rows(src, b.start, b.end-1, 0, kept))
+			}
+			continue
+		}
 		if maxLines > 0 && b.codeLines > maxLines {
 			b.codeLines = maxLines
 		}
@@ -229,49 +243,6 @@ func repairProse(b block) []string {
 	out = append(out, lead...)
 	out = append(out, kept...)
 	return append(out, trail...)
-}
-
-// splitDirectives separates a block's tool lines from its prose. A directive
-// binds to the declaration by position -- a build constraint leads.
-func splitDirectives(text []string) (lead, body, trail []string) {
-	seen := false
-	for _, line := range text {
-		switch {
-		case !isDirectiveLine(line):
-			seen = true
-			body = append(body, line)
-		case seen:
-			trail = append(trail, line)
-		default:
-			lead = append(lead, line)
-		}
-	}
-	return lead, body, trail
-}
-
-// directivesOf keeps only the directive lines of a block, which is the half
-// prose drops.
-func directivesOf(text []string) []string {
-	kept := make([]string, 0, len(text))
-	for _, line := range text {
-		if isDirectiveLine(line) {
-			kept = append(kept, line)
-		}
-	}
-	return kept
-}
-
-// prose drops the directive lines from a block. A build constraint is an
-// instruction to a tool, so measuring it reports an essay nobody wrote.
-func prose(text []string) []string {
-	kept := make([]string, 0, len(text))
-	for _, line := range text {
-		if isDirectiveLine(line) {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	return kept
 }
 
 // withSeparator adds the bare marker line gofmt puts between a doc and the
