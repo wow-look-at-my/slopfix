@@ -32,6 +32,14 @@ func TestTheEditsGiveTheGofmtLayout(t *testing.T) {
 	}
 }
 
+// Only the org's Go fork parses a parameter default. This test fails when the build links upstream go/format.
+func TestTheLayoutComesFromTheOrgGoFork(t *testing.T) {
+	src := "package p\n\n\nfunc f(n int = 3) int { return n }\n"
+	res := goformat.Gate(src, goformat.Edits(src), edit.Scope{})
+	assert.Empty(t, res.Refused)
+	assert.Equal(t, "package p\n\nfunc f(n int = 3) int { return n }\n", res.Text)
+}
+
 func TestNothingToDoAnswersNoEdit(t *testing.T) {
 	for name, src := range map[string]string{
 		"the gofmt layout already":   "package p\n\nvar x = 1\n",
