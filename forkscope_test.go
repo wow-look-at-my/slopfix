@@ -149,6 +149,41 @@ func TestAShallowForkIsDeepenedBeforeTheMergeBase(t *testing.T) {
 	assert.Equal(t, "false", gitT(t, shallow, "rev-parse", "--is-shallow-repository"))
 }
 
+// binaryFindings answers the paths, in order, of each repo/binary finding.
+func binaryFindings(out TreeRepair) []string {
+	var paths []string
+	for _, f := range out.Findings {
+		if f.ID == IDBinary {
+			paths = append(paths, filepath.ToSlash(f.Path))
+		}
+	}
+	slices.Sort(paths)
+	return paths
+}
+
+func TestAForkReportsOnlyTheBinariesItWrote(t *testing.T) {
+	const elf = "\x7fELF\x02\x01\x01\x00"
+	work := t.TempDir()
+	gitT(t, work, "init", "-q", "-b", "main")
+	writeT(t, work, "inherited.bin", elf+"parent")
+	writeT(t, work, "edited.bin", elf+"parent")
+	gitT(t, work, "add", "-A")
+	gitT(t, work, "commit", "-q", "-m", "base")
+	parent := filepath.Join(t.TempDir(), "parent.git")
+	gitT(t, work, "clone", "-q", "--bare", work, parent)
+
+	fork := filepath.Join(t.TempDir(), "fork")
+	gitT(t, work, "clone", "-q", parent, fork)
+	writeT(t, fork, "edited.bin", elf+"fork")
+	writeT(t, fork, "added.bin", elf+"fork")
+	gitT(t, fork, "add", "-A")
+	gitT(t, fork, "commit", "-q", "-m", "fork work")
+
+	out := scopedCheck(t, fork, forkEnv(forkAPI(t, forkBody(parent))), noList(t))
+	assert.Equal(t, []string{"added.bin", "edited.bin"}, binaryFindings(out),
+		"a binary the fork added or changed is the fork's; one it inherited unchanged is not")
+}
+
 func TestARepositoryThatIsNoForkKeepsEveryFinding(t *testing.T) {
 	fx := newForkFixture(t)
 	own, err := forkLines(fx.fork, forkEnv(forkAPI(t, `{"fork":false}`)), noList(t))
