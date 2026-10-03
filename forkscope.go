@@ -49,15 +49,14 @@ type forkRepo struct {
 	} `json:"parent"`
 }
 
-// ForkLines answers the lines a fork wrote, for the work tree that holds root.
-// It answers nil when getenv names no GitHub repository, or names one that is
-// neither in the org's fork list nor a fork. A fork whose base it cannot
-// establish is an error.
+// ForkLines answers the lines a fork wrote, for the work tree that holds
+// root.
 func ForkLines(root string, getenv func(string) string) (*OwnLines, error) {
 	return forkLines(root, getenv, ForkListURL)
 }
 
 // forkLines is ForkLines with the fork list read from listURL. No variable sets the URL, because a workflow sets its own.
+// It answers nil when getenv names no repository, or one that is neither listed nor a fork. A fork with no base is an error.
 func forkLines(root string, getenv func(string) string, listURL string) (*OwnLines, error) {
 	repo := getenv("GITHUB_REPOSITORY")
 	if repo == "" {
