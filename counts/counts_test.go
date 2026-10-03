@@ -138,11 +138,11 @@ func TestEveryCountIsReworded(t *testing.T) {
 // the sentence English, or leaves a number that counts nothing alone.
 func TestARewordKeepsTheSentenceEnglish(t *testing.T) {
 	for in, want := range map[string]string{
-		"Vega10 has 16 RBs over 4 shader engines.":           "Vega10 has 16 RBs over multiple shader engines.",
-		"It drives 35 fixtures over six seeded inputs.":      "It drives 35 fixtures over multiple seeded inputs.",
+		"Vega10 has 16 RBs over 4 shader engines.":              "Vega10 has 16 RBs over multiple shader engines.",
+		"It drives 35 fixtures over six seeded inputs.":         "It drives fixtures over multiple seeded inputs.",
 		"It describes an engine carrying FOUR render backends.": "It describes an engine carrying render backends.",
-		"It is a pass over the same 262144 covered pixels.":  "It is a pass over the same covered pixels.",
-		"It runs on the other three platforms.":              "It runs on the other platforms.",
+		"It is a pass over the same 262144 covered pixels.":     "It is a pass over the same covered pixels.",
+		"It runs on the other three platforms.":                 "It runs on the other platforms.",
 	} {
 		out, cut := StripGate(in)
 		assert.NotEmpty(t, cut, in)
