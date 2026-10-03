@@ -1,10 +1,11 @@
 // forkscope.go keeps a fork's check to the lines the fork wrote itself.
 //
-// A GitHub fork carries its parent's whole tree, and the parent never agreed
-// to these rules. In a GitHub Actions run, ForkLines asks the API whether the
-// repository is a fork. When it is, only a line added or changed since the
-// merge base with the parent's default branch, or a line of a new file, can
-// fail the check.
+// A fork carries its parent's whole tree, and the parent never agreed to these
+// rules. In a GitHub Actions run, a repository that the org's fork list names
+// is checked against the newest upstream tag that HEAD contains. Otherwise
+// ForkLines asks the API whether the repository is a fork, and uses the merge
+// base with the parent's default branch. Only a line added or changed since
+// that base, or a line of a new file, can fail the check.
 package slopfix
 
 import (
@@ -25,6 +26,9 @@ import (
 
 // DefaultGitHubAPI is the API root when GITHUB_API_URL is unset.
 const DefaultGitHubAPI = "https://api.github.com"
+
+// ForkListPath is the file in the org's .github repository that names each fork GitHub does not record as one.
+const ForkListPath = "fork-of"
 
 // OwnLines is the part of a fork's work tree that the fork wrote.
 type OwnLines struct {
@@ -47,11 +51,28 @@ type forkRepo struct {
 
 // ForkLines answers the lines a fork wrote, for the work tree that holds root.
 // It answers nil when getenv names no GitHub repository, or names one that is
-// not a fork. A fork whose base it cannot establish is an error.
+// neither in the org's fork list nor a fork. A fork whose base it cannot
+// establish is an error.
 func ForkLines(root string, getenv func(string) string) (*OwnLines, error) {
 	repo := getenv("GITHUB_REPOSITORY")
 	if repo == "" {
 		return nil, nil
+	}
+	upstream, err := listedUpstream(repo, getenv)
+	if err != nil {
+		return nil, err
+	}
+	if upstream != "" {
+		out, err := gitIn(root, "rev-parse", "--show-toplevel")
+		if err != nil {
+			return nil, fmt.Errorf("fork scope: %w", err)
+		}
+		top := strings.TrimSpace(out)
+		base, err := tagBase(top, upstream)
+		if err != nil {
+			return nil, err
+		}
+		return linesSince(top, base)
 	}
 	info, err := fetchRepo(repo, getenv)
 	if err != nil {
@@ -137,20 +158,133 @@ func forkBase(root, parentURL, branch string) (base, top string, err error) {
 		return "", "", fmt.Errorf("fork scope: resolve the parent's %s: %w", branch, err)
 	}
 	parent := strings.TrimSpace(out)
-	shallow, err := gitIn(top, "rev-parse", "--is-shallow-repository")
-	if err != nil {
-		return "", "", fmt.Errorf("fork scope: %w", err)
-	}
-	if strings.TrimSpace(shallow) == "true" {
-		if _, err := gitIn(top, "fetch", "--quiet", "--unshallow", "--filter=blob:none", "--no-tags", "origin"); err != nil {
-			return "", "", fmt.Errorf("fork scope: deepen the shallow clone from origin: %w", err)
-		}
+	if err := deepen(top); err != nil {
+		return "", "", err
 	}
 	out, err = gitIn(top, "merge-base", "HEAD", parent)
 	if err != nil {
 		return "", "", fmt.Errorf("fork scope: no merge base between HEAD and the parent's %s (%s) from %s: %w", branch, parent, parentURL, err)
 	}
 	return strings.TrimSpace(out), top, nil
+}
+
+// deepen fetches the whole history of a shallow clone from origin, without blobs.
+func deepen(top string) error {
+	shallow, err := gitIn(top, "rev-parse", "--is-shallow-repository")
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	if strings.TrimSpace(shallow) != "true" {
+		return nil
+	}
+	if _, err := gitIn(top, "fetch", "--quiet", "--unshallow", "--filter=blob:none", "--no-tags", "origin"); err != nil {
+		return fmt.Errorf("fork scope: deepen the shallow clone from origin: %w", err)
+	}
+	return nil
+}
+
+// listedUpstream answers the upstream URL that the org's fork list gives repo,
+// an OWNER/NAME pair. An org with no such list, and a repository the list does
+// not name, answer an empty URL.
+func listedUpstream(repo string, getenv func(string) string) (string, error) {
+	owner, name, ok := strings.Cut(repo, "/")
+	if !ok || owner == "" || name == "" {
+		return "", fmt.Errorf("fork scope: GITHUB_REPOSITORY is %q, which is not OWNER/NAME", repo)
+	}
+	api := strings.TrimRight(getenv("GITHUB_API_URL"), "/")
+	if api == "" {
+		api = DefaultGitHubAPI
+	}
+	url := api + "/repos/" + owner + "/.github/contents/" + ForkListPath
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return "", fmt.Errorf("fork scope: GET %s: %w", url, err)
+	}
+	req.Header.Set("Accept", "application/vnd.github.raw")
+	if token := getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("fork scope: GET %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return "", fmt.Errorf("fork scope: GET %s: %w", url, err)
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return "", nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("fork scope: GET %s: %s", url, resp.Status)
+	}
+	return upstreamFor(string(body), name, url)
+}
+
+// upstreamFor reads a fork list: a "name upstream-URL" line for each fork,
+// with blank lines and # comments ignored. A line it cannot read is an error.
+func upstreamFor(list, name, source string) (string, error) {
+	for num, line := range strings.Split(list, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			return "", fmt.Errorf("fork scope: %s line %d is not a repository name and an upstream URL: %q", source, num+1, line)
+		}
+		if fields[0] == name {
+			return fields[1], nil
+		}
+	}
+	return "", nil
+}
+
+// tagBase answers the newest commit of HEAD's history that an upstream tag
+// names. A fork merges upstream releases, so that tag is the upstream it carries.
+func tagBase(top, upstream string) (string, error) {
+	if err := deepen(top); err != nil {
+		return "", err
+	}
+	out, err := gitIn(top, "ls-remote", "--tags", upstream)
+	if err != nil {
+		return "", fmt.Errorf("fork scope: list the tags of %s: %w", upstream, err)
+	}
+	direct := map[string]string{}
+	peeled := map[string]string{}
+	for line := range strings.SplitSeq(out, "\n") {
+		sha, ref, ok := strings.Cut(strings.TrimSpace(line), "\t")
+		if !ok {
+			continue
+		}
+		if name, isPeel := strings.CutSuffix(ref, "^{}"); isPeel {
+			peeled[name] = sha
+		} else {
+			direct[ref] = sha
+		}
+	}
+	commits := set.New[string]()
+	for ref, sha := range direct {
+		if commit, ok := peeled[ref]; ok {
+			sha = commit
+		}
+		commits.Add(sha)
+	}
+	if commits.Len() == 0 {
+		return "", fmt.Errorf("fork scope: %s has no tags", upstream)
+	}
+	revs, err := gitIn(top, "rev-list", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("fork scope: %w", err)
+	}
+	for rev := range strings.SplitSeq(revs, "\n") {
+		if commits.Contains(rev) {
+			return rev, nil
+		}
+	}
+	return "", fmt.Errorf("fork scope: HEAD contains none of the tags of %s", upstream)
 }
 
 // linesSince answers the lines of the work tree at top that differ from base.
