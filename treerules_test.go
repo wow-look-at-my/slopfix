@@ -70,7 +70,14 @@ func TestATreeGitCannotListIsReadFromDisk(t *testing.T) {
 	assert.Equal(t, []string{"tool repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
 }
 
-const script = "import { run } from './run';\n\nconst limit = 3;\nfor (let i = 0; i < limit; i++) {\n  run(i);\n}\nexport default limit;\n"
+// script is long enough that a single added comment line keeps it over the share.
+var script = func() string {
+	lines := []string{"import { run } from './run';"}
+	for _, step := range []string{"read", "parse", "check", "build", "write", "send", "log", "close", "sync", "wait"} {
+		lines = append(lines, "export function "+step+"(n: number) {", "  return run('"+step+"', n);", "}")
+	}
+	return strings.Join(lines, "\n") + "\n"
+}()
 
 func TestTwoFilesOfOneNameThatMatchAreReported(t *testing.T) {
 	root := gitRepo(t, map[string]string{
@@ -134,6 +141,17 @@ func TestJSONIsHeldToTheSchemaItNames(t *testing.T) {
 			assert.Contains(t, f.Fix, "name")
 		}
 	}
+}
+
+// A remote schema is never fetched, so a document that names one gets the parse check alone.
+func TestARemoteSchemaIsNotFetched(t *testing.T) {
+	root := gitRepo(t, map[string]string{
+		"thing.json":  `{"$schema": "https://schemas.invalid/thing.schema.json", "anything": true}`,
+		"broken.json": `{"$schema": "https://schemas.invalid/thing.schema.json",}}`,
+		"thing.xml":   xmlDoc(`<rule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://schemas.invalid/rule.xsd"/>`),
+	})
+	assert.Equal(t, []string{"broken.json repo/json"}, pathsOf(checkOnly(root, slopfix.IDJSON)))
+	assert.Empty(t, checkOnly(root, slopfix.IDXML))
 }
 
 func TestASchemaIsHeldToTheMetaSchema(t *testing.T) {

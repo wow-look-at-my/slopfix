@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/tidwall/jsonc"
+	"github.com/wow-look-at-my/go-containers/set"
 	jsonvalidator "github.com/wow-look-at-my/json-validator/validator"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	xmlvalidator "github.com/wow-look-at-my/xml-validator/validator"
@@ -78,8 +76,21 @@ func documents(root string, keeps func(string) bool) ([]TreeFinding, error) {
 	return out, nil
 }
 
+// metaSchemas are the JSON Schema meta-schemas the validator carries, so no fetch loads them.
+var metaSchemas = set.Of(
+	"https://json-schema.org/draft/2020-12/schema",
+	"https://json-schema.org/draft/2019-09/schema",
+	"http://json-schema.org/draft-07/schema",
+	"http://json-schema.org/draft-06/schema",
+	"http://json-schema.org/draft-04/schema",
+)
+
+func remote(ref string) bool { return strings.Contains(ref, "://") }
+
 // checkJSON parses a JSON file, then holds it to the schema its $schema names.
-// A relative $schema is a path from the file's directory.
+// A relative $schema is a path from the file's directory. A remote schema is
+// never fetched: a check must not depend on the network, and a published copy
+// can lag the code that reads the file. A meta-schema needs no fetch.
 func checkJSON(path, rel string, content []byte, compiled schemas) *TreeFinding {
 	var doc any
 	if err := json.Unmarshal(jsonc.ToJSON(content), &doc); err != nil {
@@ -98,7 +109,11 @@ func checkJSON(path, rel string, content []byte, compiled schemas) *TreeFinding 
 	if !ok {
 		return nil
 	}
-	if !strings.HasPrefix(ref, "http://") && !strings.HasPrefix(ref, "https://") {
+	if remote(ref) {
+		if !metaSchemas.Contains(strings.TrimSuffix(ref, "#")) {
+			return nil
+		}
+	} else {
 		ref = filepath.Join(filepath.Dir(path), filepath.FromSlash(ref))
 	}
 	v, err := compiled.get(ref)
@@ -125,7 +140,7 @@ var (
 
 // checkXML holds an XML file to the strict org validator and to the schema it
 // names. A document that names no schema is a finding, because only its syntax
-// gets a check.
+// gets a check. A remote schema is never fetched, as for JSON.
 func checkXML(path, rel string, content []byte) *TreeFinding {
 	if err := xmlvalidator.Validate(bytes.NewReader(content)); err != nil {
 		return xmlFinding(rel, "this XML is not well-formed XML 1.1", err)
@@ -140,24 +155,12 @@ func checkXML(path, rel string, content []byte) *TreeFinding {
 		return &f
 	}
 	location := string(match[1])
-	var schema []byte
-	var err error
-	if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
-		schema, err = fetch(location)
-	} else {
-		location = filepath.Join(filepath.Dir(path), filepath.FromSlash(location))
-		schema, err = os.ReadFile(location)
+	if remote(location) {
+		return nil
 	}
-	if err != nil {
-		f := repoFinding(rel, IDXML, "the schema this XML names does not load", err.Error())
-		return &f
-	}
-	resolver := xmlvalidator.SchemaResolver(nil)
-	if !strings.Contains(location, "://") {
-		resolver = xmlvalidator.FileSchemaResolver(filepath.Dir(location))
-	}
-	if err := xmlvalidator.ValidateWithSchemaResolver(content, schema, resolver); err != nil {
-		return xmlFinding(rel, "this XML breaks the schema it names", err)
+	location = filepath.Join(filepath.Dir(path), filepath.FromSlash(location))
+	if err := xmlvalidator.ValidateWithSchemaFile(path, location); err != nil {
+		return xmlFinding(rel, "this XML breaks the schema it names, or the schema does not load", err)
 	}
 	return nil
 }
@@ -169,18 +172,6 @@ func xmlFinding(rel, rule string, err error) *TreeFinding {
 		f.Line = located.Line
 	}
 	return &f
-}
-
-func fetch(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, url)
-	}
-	return io.ReadAll(resp.Body)
 }
 
 // lineAt is the line that holds a byte offset.
