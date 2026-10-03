@@ -38,7 +38,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
-Every error rule has a repair, even a crude one, so `slopfix fix` on any tree leaves no error. The exceptions are a `package.json` that does not parse, because no rewrite can read it, and the `ReportOnly` rules, because no rewrite knows what the author meant. `yaml/test-in-workflow` is report-only too, because its finding is code in a `run:` script, and no repair deletes code. `workflow.ReportOnly` names it. `repairable_test.go` names each of them. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+Every error rule has a repair, even a crude one, so `slopfix fix` on any tree leaves no error. The exceptions are a `package.json` that does not parse, because no rewrite can read it. The `ReportOnly` rules, because no rewrite knows what the author meant. `yaml/test-in-workflow` is report-only too, because its finding is code in a `run:` script, and no repair deletes code. `workflow.ReportOnly` names it. `repairable_test.go` names each of them. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 
