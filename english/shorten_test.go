@@ -92,3 +92,28 @@ func TestEveryFlagFires(t *testing.T) {
 		}
 	}
 }
+
+// A pattern replacement keeps the capital of the sentence it rewrites, in the middle of a paragraph as at its start.
+func TestAPatternKeepsTheCapitalOfAMidParagraphSentence(t *testing.T) {
+	got := Fix("A replacement that fails is removed. The previous image comes back.", Document)
+	assert.Equal(t, "A replacement that fails is removed. The image comes back.", got)
+}
+
+// A hyphenated compound is one word. A cut of its first half leaves a fragment such as "the-recorded".
+func TestAPatternNeverCutsHalfOfAHyphenatedWord(t *testing.T) {
+	in := "oldBase is the previously-recorded base identity for reporting."
+	assert.Equal(t, in, Fix(in, Comment))
+}
+
+// A quotation names a phrase. A cut inside it leaves an unbalanced quote mark.
+func TestAPatternLeavesAQuotationWhole(t *testing.T) {
+	in := `Comments state the invariant. No changelogs, no dates, no "this used to".`
+	assert.Equal(t, in, Fix(in, Document))
+}
+
+// A cut to the end of a sentence must not leave it on a word that opens what the cut took.
+func TestAPatternCutNeverEndsASentenceOnAnOpener(t *testing.T) {
+	in := "An operator sees a consumer that stopped being told rather than that silently never was."
+	assert.Equal(t, in, Fix(in, Comment))
+	assert.Equal(t, "The cap holds.", Fix("The cap holds stopped being read at start.", Comment))
+}

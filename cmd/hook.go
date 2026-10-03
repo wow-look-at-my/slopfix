@@ -37,7 +37,8 @@ func init() {
 			"refusal is joined into one. On MessageDisplay, the rewrite and the notes\n" +
 			"are joined into what the reader sees.\n\n" +
 			"The write guard repairs the text a write adds, lets the write through,\n" +
-			"and flags what the repair did not reach.\n\n" +
+			"and flags what the repair did not reach. It refuses a write that changes\n" +
+			"a line of an existing file that `slopfix fix` would repair.\n\n" +
 			"It prints nothing, and exits 0, for anything it does not judge. That\n" +
 			"covers an unreadable payload, an event no guard serves, and a call that\n" +
 			"every guard leaves alone.",
@@ -160,6 +161,9 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	var raw map[string]any
 	if json.Unmarshal(in.ToolInput, &raw) != nil {
 		return ""
+	}
+	if refused := handFix(in.ToolName, in.ToolInput, write.FilePath, write.Content, rules, ids); refused != nil {
+		return deny(refused)
 	}
 
 	var removed []string

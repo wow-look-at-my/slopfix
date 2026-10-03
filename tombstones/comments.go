@@ -29,6 +29,8 @@ type Block struct {
 	Lines   int
 	LineNos []int
 	Pure    []bool
+	// Prefix is the indentation and list marker that open a document paragraph. A rewrite writes it back, or the paragraph leaves its list.
+	Prefix string
 }
 
 // AddedBlocks returns the prose that added contributes to path. It returns nil
@@ -140,7 +142,11 @@ func paragraphs(doc string) []Block {
 			cur = append(cur, blankInlineCode(line))
 			nos = append(nos, b.Start-1+n)
 		}
-		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos})
+		prefix := b.Indent
+		if b.Marker != "" {
+			prefix += b.Marker + " "
+		}
+		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos, Prefix: prefix})
 	}
 	return out
 }

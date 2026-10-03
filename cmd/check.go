@@ -152,9 +152,11 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		}
 		// A directory is the whole tree under it, which is what a build names.
 		if info.IsDir() {
-			if treeFindings(cmd, path, request, repairing) {
-				found = true
+			failed, err := treeFindings(cmd, path, request, repairing, os.Getenv)
+			if err != nil {
+				return err
 			}
+			found = found || failed
 			continue
 		}
 		repair, err := repairOf(path, request, repairing)
@@ -176,13 +178,19 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Repairing, each file that changed is named as it is written.
-func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repairing bool) bool {
+// Repairing, each file that changed is named as it is written. In a fork, only
+// the lines the fork wrote can fail. The environment comes in as a function,
+// so a test never sets the process environment.
+func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repairing bool, getenv func(string) string) (bool, error) {
+	own, err := slopfix.ForkLines(root, getenv)
+	if err != nil {
+		return false, err
+	}
 	walk := slopfix.CheckTreeWith
 	if repairing {
 		walk = slopfix.FixTreeWith
 	}
-	out := walk(root, request)
+	out := walk(root, request).Within(own, root)
 	for _, path := range out.Repaired {
 		fmt.Fprintln(cmd.OutOrStdout(), path)
 	}
@@ -197,7 +205,7 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	for _, unmet := range out.Unmet {
 		fmt.Fprintln(cmd.ErrOrStderr(), unmet.Error())
 	}
-	return failed || len(out.Kept) > 0 || len(out.Unmet) > 0
+	return failed || len(out.Kept) > 0 || len(out.Unmet) > 0, nil
 }
 
 // checkStdin answers for text on stdin rather than a named file. It takes the

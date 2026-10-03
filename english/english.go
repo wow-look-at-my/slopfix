@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
@@ -146,15 +147,16 @@ func (p Pattern) ApplyN(s string) (string, int) {
 	var out strings.Builder
 	last, took := 0, 0
 	labels := linkLabel.FindAllStringIndex(s, -1)
+	quotes := quotation.FindAllStringIndex(s, -1)
 	for _, loc := range p.re.FindAllStringIndex(s, -1) {
 		if p.Subject != "" && !asserts(p.Subject, s, loc[0]) {
 			continue
 		}
-		if insideAny(labels, loc[0], loc[1]) {
+		if insideAny(labels, loc[0], loc[1]) || insideAny(quotes, loc[0], loc[1]) || splitsCompound(s, loc[0], loc[1]) {
 			continue
 		}
-		with := p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace)
-		if !keepsNegation(s, loc[0], loc[1], with) {
+		with := keepCapital(s[loc[0]:loc[1]], p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace))
+		if !keepsNegation(s, loc[0], loc[1], with) || strandsOpener(s, loc[0], loc[1], with) {
 			continue
 		}
 		out.WriteString(s[last:loc[0]])
@@ -166,8 +168,54 @@ func (p Pattern) ApplyN(s string) (string, int) {
 	return out.String(), took
 }
 
+// splitsCompound reports whether s[from:to] ends or starts at the hyphen of a compound word. The regexp \b sees a word end there, but the reader sees one word.
+func splitsCompound(s string, from, to int) bool {
+	if to > from && to < len(s) && s[to] == '-' && isWordByte(s[to-1]) {
+		return true
+	}
+	return from > 0 && from < to && s[from-1] == '-' && isWordByte(s[from])
+}
+
+// keepCapital gives the replacement the capital that the cut text opened with. A template such as "the $1" otherwise writes a sentence in lower case.
+func keepCapital(cut, with string) string {
+	c := strings.IndexFunc(cut, unicode.IsLetter)
+	w := strings.IndexFunc(with, unicode.IsLetter)
+	if c < 0 || w < 0 {
+		return with
+	}
+	upper, _ := utf8.DecodeRuneInString(cut[c:])
+	lower, size := utf8.DecodeRuneInString(with[w:])
+	if !unicode.IsUpper(upper) || unicode.ToUpper(lower) != upper || lower == upper {
+		return with
+	}
+	return with[:w] + string(upper) + with[w+size:]
+}
+
 // linkLabel finds the label of a markdown link. The label names its target, so a cut there leaves a link with no text.
 var linkLabel = regexp.MustCompile(`\[[^\[\]]*\]\(`)
+
+// quotation finds a quoted phrase. A quotation names its words rather than uses them, so a cut there changes what it names.
+var quotation = regexp.MustCompile(`"[^"\n]*"|“[^”\n]*”`)
+
+// strandsOpener reports whether a cut to the end of the sentence leaves the sentence on an article, a relative or a conjunction. Each opens words the cut took away.
+func strandsOpener(s string, from, to int, with string) bool {
+	if strings.TrimSpace(with) != "" {
+		return false
+	}
+	rest := s[to:]
+	if end := strings.IndexAny(rest, ".!?"); end >= 0 {
+		rest = rest[:end]
+	}
+	if strings.IndexFunc(rest, unicode.IsLetter) >= 0 {
+		return false
+	}
+	words := strings.Fields(s[:from])
+	if len(words) == 0 {
+		return false
+	}
+	last := words[len(words)-1]
+	return is(last, "article") || is(last, "relative") || is(last, "conjunction")
+}
 
 // insideAny reports whether from..to overlaps any of the spans.
 func insideAny(spans [][]int, from, to int) bool {
