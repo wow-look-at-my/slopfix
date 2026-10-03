@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
 // withoutIgnored drops each path git ignores, such as built output. Git never
@@ -43,9 +44,9 @@ func withoutIgnored(root string, paths []string) []string {
 	return kept
 }
 
-// withoutVendored drops each path the repository marks linguist-vendored in
-// .gitattributes. Such text has another author, and no rule reads or rewrites
-// it. Outside a work tree git fails, and then every path stays.
+// withoutVendored drops each path .gitattributes marks with any of
+// tombstones.BorrowedAttributes. Such text has another author, and no rule
+// reads or rewrites it. Outside a work tree git fails, and then every path stays.
 func withoutVendored(root string, paths []string) []string {
 	if len(paths) == 0 {
 		return paths
@@ -58,7 +59,7 @@ func withoutVendored(root string, paths []string) []string {
 		}
 		abs[i] = a
 	}
-	cmd := exec.Command("git", "check-attr", "--stdin", "-z", "linguist-vendored")
+	cmd := exec.Command("git", append([]string{"check-attr", "--stdin", "-z"}, tombstones.BorrowedAttributes...)...)
 	cmd.Dir = root
 	cmd.Stdin = strings.NewReader(strings.Join(abs, "\x00") + "\x00")
 	out, err := cmd.Output()
@@ -68,7 +69,7 @@ func withoutVendored(root string, paths []string) []string {
 	vendored := set.New[string]()
 	fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
 	for i := 0; i+2 < len(fields); i += 3 {
-		if VendoredValue(fields[i+2]) {
+		if tombstones.AttributeSet(fields[i+2]) {
 			vendored.Add(fields[i])
 		}
 	}
@@ -79,13 +80,4 @@ func withoutVendored(root string, paths []string) []string {
 		}
 	}
 	return kept
-}
-
-// VendoredValue reports a git attribute value that marks a path vendored.
-func VendoredValue(value string) bool {
-	switch value {
-	case "unspecified", "unset", "false":
-		return false
-	}
-	return true
 }

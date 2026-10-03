@@ -49,7 +49,7 @@ type Hit struct {
 }
 
 // generatedLine is the line marking a file as generated, in every spelling of a comment the rule reads.
-var generatedLine = regexp.MustCompile(`^\s*(?://+|#+|/\*)?\s*Code generated .* DO NOT EDIT\.\s*(?:\*/)?$`)
+var generatedLine = regexp.MustCompile(`^\s*(?://+|#+|/\*|<!--)?\s*Code generated .* DO NOT EDIT\.\s*(?:\*/|-->)?$`)
 
 // Check returns every number stated in a comment of a source file.
 //
@@ -90,6 +90,9 @@ func lineAndColumn(src string, at int) (line, col int) {
 // The header is where the marker counts: the same words further down are prose somebody wrote. It is read off the tree, so what counts as a comment is the grammar's answer rather than a guess at a line's opening bytes, and the header ends at the earliest comment the file separates from the top with code.
 func IsGenerated(filename, src string) bool {
 	defer trace.Phase("rule/generated-marker")()
+	if !Supported(filename) {
+		return generatedHeader(src)
+	}
 	end := 0
 	for _, comment := range treecomments.Extract(filename, src) {
 		if strings.TrimSpace(src[end:comment.Offset]) != "" {
@@ -101,6 +104,19 @@ func IsGenerated(filename, src string) bool {
 			}
 		}
 		end = comment.Offset + len(comment.Text)
+	}
+	return false
+}
+
+// generatedHeader reports whether the first line holding text is the marker. A
+// document has no comment grammar to read a header from, so the marker heads
+// the file on its own line, as an HTML comment in markdown.
+func generatedHeader(src string) bool {
+	for line := range strings.Lines(src) {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		return generatedLine.MatchString(strings.TrimRight(line, "\r\n"))
 	}
 	return false
 }

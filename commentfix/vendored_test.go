@@ -34,10 +34,18 @@ func TestTheWalkSkipsAPathMarkedVendored(t *testing.T) {
 	assert.NotContains(t, files, filepath.Join(root, "isa", "ch01.go"))
 }
 
-func TestVendoredValueReadsTheAttributeStates(t *testing.T) {
-	assert.True(t, VendoredValue("set"))
-	assert.True(t, VendoredValue("true"))
-	assert.False(t, VendoredValue("unspecified"))
-	assert.False(t, VendoredValue("unset"))
-	assert.False(t, VendoredValue("false"))
+// A path .gitattributes marks linguist-generated is a generator's output. The
+// next run writes it again, so the walk leaves it out too.
+func TestTheWalkSkipsAPathMarkedGenerated(t *testing.T) {
+	root := t.TempDir()
+	out, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput()
+	require.NoError(t, err, string(out))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".gitattributes"), []byte("docs/routes.txt linguist-generated\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "routes.txt"), []byte("/ {GET}\n/llms.txt {GET}\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "own.txt"), []byte("A note.\n"), 0o644))
+
+	files := TreeFilesMatching(root, func(string) bool { return true })
+	assert.Contains(t, files, filepath.Join(root, "docs", "own.txt"))
+	assert.NotContains(t, files, filepath.Join(root, "docs", "routes.txt"))
 }

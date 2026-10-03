@@ -85,11 +85,14 @@ func InTestdata(path string) bool { return under(path, "testdata") }
 // Borrowed reports a path another author wrote: one under a vendor or node_modules directory.
 func Borrowed(path string) bool { return under(path, "vendor", "node_modules") || vendoredAttr(path) }
 
+// BorrowedAttributes are the .gitattributes a path carries when another author wrote it: another project.
+var BorrowedAttributes = []string{"linguist-vendored", "linguist-generated"}
+
 // vendoredCache holds each path's answer, because a hook asks per write.
 var vendoredCache sync.Map
 
-// vendoredAttr asks git whether .gitattributes marks path linguist-vendored.
-// A path outside a work tree, or one git cannot answer for, is not vendored.
+// vendoredAttr asks git whether .gitattributes sets any BorrowedAttributes on
+// path. A path outside a work tree, or one git cannot answer for, is not borrowed.
 func vendoredAttr(path string) bool {
 	if path == "" {
 		return false
@@ -101,22 +104,31 @@ func vendoredAttr(path string) bool {
 	if v, ok := vendoredCache.Load(abs); ok {
 		return v.(bool)
 	}
-	cmd := exec.Command("git", "check-attr", "-z", "linguist-vendored", "--", filepath.Base(abs))
+	args := append(append([]string{"check-attr", "-z"}, BorrowedAttributes...), "--", filepath.Base(abs))
+	cmd := exec.Command("git", args...)
 	cmd.Dir = filepath.Dir(abs)
 	out, err := cmd.Output()
 	vendored := false
 	if err == nil {
+		// git answers a path, attribute, value triple per attribute.
 		fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
-		if len(fields) >= 3 {
-			switch fields[2] {
-			case "unspecified", "unset", "false":
-			default:
+		for i := 0; i+2 < len(fields); i += 3 {
+			if AttributeSet(fields[i+2]) {
 				vendored = true
 			}
 		}
 	}
 	vendoredCache.Store(abs, vendored)
 	return vendored
+}
+
+// AttributeSet reports a git attribute value that turns the attribute on.
+func AttributeSet(value string) bool {
+	switch value {
+	case "unspecified", "unset", "false":
+		return false
+	}
+	return true
 }
 
 // under reports whether a directory element of path is one of dirs.

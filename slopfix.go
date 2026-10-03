@@ -82,8 +82,11 @@ func CheckFile(path string) ([]ste.Finding, error) {
 // a Go file's lines are not paragraphs, so the prose rules skip it.
 func CheckContent(path, content string) []ste.Finding {
 	defer trace.Phase("check/file")()
+	if exempt(path, content) {
+		return nil
+	}
 	// A URL is text in every kind of file.
-	return append(kindFindings(path, content), pins.Check(content)...)
+	return append(kindFindings(path, content), pins.CheckPath(path, content)...)
 }
 
 // kindFindings are the rules the file's kind selects.

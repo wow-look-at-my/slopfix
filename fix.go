@@ -108,8 +108,7 @@ type Repair struct {
 // Fix repairs req, unless it carries slopfix-expect annotations. Such text is a
 // fixture: it is checked against them and comes back unchanged.
 func Fix(req Request) Repair {
-	// A generator owns its output. The next run writes back every repair, and a joined marker line stops tools from seeing the file as generated.
-	if tombstones.Borrowed(req.Path) || commentfix.IsGenerated(req.Path, req.Content) {
+	if exempt(req.Path, req.Content) {
 		return Repair{Text: req.Content, Scope: req.Scope}
 	}
 	notes := expect.Parse(req.Content)
@@ -125,6 +124,12 @@ func Fix(req Request) Repair {
 	repair.Unmet = notes.Check(repair.Text)
 	repair.Text, repair.Changed, repair.Scope = original, false, scope
 	return repair
+}
+
+// exempt reports a file no rule reads or rewrites: another project's, or a
+// generator's.
+func exempt(path, content string) bool {
+	return tombstones.Borrowed(path) || commentfix.IsGenerated(path, content)
 }
 
 // UnmetError is a fixture whose slopfix-expect annotations the repair broke.
@@ -162,7 +167,7 @@ func fixText(req Request) Repair {
 	repair.refuse(rep.Refused)
 	// A URL is text in every kind of file, so this rule reads the whole file.
 	if wants(RulePins) {
-		for _, finding := range pins.Check(text) {
+		for _, finding := range pins.CheckPath(req.Path, text) {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
 			}
@@ -243,6 +248,9 @@ func Report(req Request) Repair {
 		req.Scope = edit.Nowhere()
 	}
 	repair := Fix(req)
+	if exempt(req.Path, req.Content) {
+		return repair
+	}
 	repair.Kept = append(repair.Kept, pending(req, repair.Kept)...)
 	if len(req.Rules) > 0 && !slices.Contains(req.Rules, RulePins) {
 		return repair
@@ -254,7 +262,7 @@ func Report(req Request) Repair {
 			findings = append(findings, finding)
 		}
 	}
-	for _, finding := range pins.Check(req.Content) {
+	for _, finding := range pins.CheckPath(req.Path, req.Content) {
 		if keeps(finding.ID) {
 			findings = append(findings, finding)
 		}

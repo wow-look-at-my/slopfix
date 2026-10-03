@@ -7,6 +7,7 @@ package pins
 import (
 	"html"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -86,6 +87,31 @@ func Check(text string) []ste.Finding {
 	return findings
 }
 
+// CheckPath is Check for text headed for path.
+func CheckPath(path, text string) []ste.Finding {
+	if IsTest(path) {
+		return nil
+	}
+	return Check(text)
+}
+
+var testName = regexp.MustCompile(`(?:_test\.[^./]+|\.(?:test|spec)\.[^/]+|^test_[^/]+\.py)$`)
+
+// IsTest reports whether path names a test file, or sits in a directory only
+// tests read.
+func IsTest(path string) bool {
+	if path == "" {
+		return false
+	}
+	slashed := filepath.ToSlash(path)
+	for _, dir := range strings.Split(slashed, "/") {
+		if dir == "__tests__" || dir == "testdata" {
+			return true
+		}
+	}
+	return testName.MatchString(slashed[strings.LastIndexByte(slashed, '/')+1:])
+}
+
 // Edits answers the edit that rewrites each pinned URL without its v parameter.
 func Edits(text string) []edit.Edit {
 	var out []edit.Edit
@@ -127,6 +153,9 @@ func init() {
 		Files:    []fixer.Kind{fixer.Source, fixer.Document, fixer.Workflow},
 		Place:    1000,
 		Repair: func(f *fixer.File) {
+			if IsTest(f.Path) {
+				return
+			}
 			f.ApplyThrough(Gate, Edits(f.Text()))
 		},
 	})
