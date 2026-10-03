@@ -40,7 +40,7 @@ func TestARepairKeepsEveryLineOfARunScript(t *testing.T) {
 // The rule still reports what it reads as a test. The author answers it,
 // because what a repair would cut is code.
 func TestATestInAWorkflowIsReportedAndLeftInPlace(t *testing.T) {
-	content := fixture(t, "fork-ci-guards.yml.in")
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          grep -q ready out.txt || { echo '::error::missing'; exit 1; }\n"
 	require.NotEmpty(t, testFindings(t, content))
 
 	repair := workflow.Fix(content, func(id string) bool { return id == workflow.IDTestInYAML })
@@ -84,6 +84,25 @@ func TestTheGateAdmitsARewriteThatKeepsTheScript(t *testing.T) {
 	f.Apply([]edit.Edit{edit.Rows(content, row, row, 0, []string{`          TAG="sglang-kernel-v${{ needs.fork-plan.outputs.kernel_version }}"`})})
 
 	assert.Contains(t, f.Text(), `TAG="sglang-kernel-v${{ needs.fork-plan.outputs.kernel_version }}"`)
+}
+
+// An if body that annotates and exits is a guard on the step's own work,
+// not a test.
+func TestAnIfGuardThatAnnotatesAndExitsIsNoTest(t *testing.T) {
+	assert.Empty(t, testFindings(t, fixture(t, "fork-ci-guards.yml.in")))
+}
+
+// A case arm annotates and exits with no comparison word. Its pattern is the
+// comparison, so it is still a test.
+func TestACaseArmThatAnnotatesAndExitsIsATest(t *testing.T) {
+	for _, arm := range []string{
+		`*) echo "::error::unexpected $STATE"; exit 1 ;;`,
+		`failed|cancelled) echo "::error::run $STATE"; exit 2 ;;`,
+		`(skipped) echo '::error::skipped'; exit 1 ;;`,
+	} {
+		content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          case \"$STATE\" in\n            ok) ;;\n            " + arm + "\n          esac\n"
+		assert.Len(t, testFindings(t, content), 1, arm)
+	}
 }
 
 func rowOf(t *testing.T, content, prefix string) int {
