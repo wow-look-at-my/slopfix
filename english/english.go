@@ -145,8 +145,12 @@ func (p Pattern) Apply(s string) string {
 func (p Pattern) ApplyN(s string) (string, int) {
 	var out strings.Builder
 	last, took := 0, 0
+	labels := linkLabel.FindAllStringIndex(s, -1)
 	for _, loc := range p.re.FindAllStringIndex(s, -1) {
 		if p.Subject != "" && !asserts(p.Subject, s, loc[0]) {
+			continue
+		}
+		if insideAny(labels, loc[0], loc[1]) {
 			continue
 		}
 		with := p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace)
@@ -160,6 +164,19 @@ func (p Pattern) ApplyN(s string) (string, int) {
 	}
 	out.WriteString(s[last:])
 	return out.String(), took
+}
+
+// linkLabel finds the label of a markdown link. The label names its target, so a cut there leaves a link with no text.
+var linkLabel = regexp.MustCompile(`\[[^\[\]]*\]\(`)
+
+// insideAny reports whether from..to overlaps any of the spans.
+func insideAny(spans [][]int, from, to int) bool {
+	for _, sp := range spans {
+		if from < sp[1] && to > sp[0] {
+			return true
+		}
+	}
+	return false
 }
 
 // negation finds a word that turns a clause into its opposite.

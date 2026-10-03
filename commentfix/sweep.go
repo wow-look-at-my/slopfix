@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // skipDirs hold text nobody in the tree authored.
@@ -185,13 +186,15 @@ func TreeFilesMatching(root string, reads func(string) bool) []string {
 	// Where the root is not a module, the modules below it are the whole tree.
 	_, err := os.Stat(filepath.Join(root, "go.mod"))
 	rootIsModule := err == nil
+	// A gitlink stays a submodule when nobody ran init and a build copied files into it.
+	gitlinks, _ := gitmod.Skip(root)
 	var out []string
 	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
-			if skipDir(root, path, d.Name(), rootIsModule) {
+			if skipDir(root, path, d.Name(), rootIsModule) || gitlinks.Contains(gitmod.Resolved(path)) {
 				return filepath.SkipDir
 			}
 			return nil

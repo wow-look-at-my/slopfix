@@ -8,6 +8,7 @@
 package markdown
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/edit"
@@ -24,10 +25,10 @@ func Apply(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 	want := verbatim(content)
 	return edit.Gate(content, edits, scope,
 		func(e edit.Edit) string {
-			for _, s := range spans {
-				if e.Start >= s[0] && e.End <= s[1] {
-					return ""
-				}
+			// The spans run in source order, so the only candidate is the last one that opens at or before the edit.
+			i := sort.Search(len(spans), func(i int) bool { return spans[i][0] > e.Start }) - 1
+			if i >= 0 && e.End <= spans[i][1] {
+				return ""
 			}
 			return "it reaches past its prose block"
 		},

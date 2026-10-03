@@ -348,7 +348,7 @@
            match="(?i)\s*\bfor some reason\b[,]?" replace=""
            where="comment document" test="For some reason it races" expect="It races"/>
   <pattern id="tombstones/shrug"
-           match="(?i)\s*\bdo not ask\b[^.]*" replace=""
+           match="(?i)\s*\bdo not ask (?:why|how)\b[^.]*" replace=""
            where="comment document" test="The cap holds do not ask why"
            expect="The cap holds"/>
   <pattern id="tombstones/shrug"

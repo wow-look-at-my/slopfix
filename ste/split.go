@@ -92,6 +92,10 @@ var curlyQuote = regexp.MustCompile(`“[^”]*”`)
 func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 	best, bestScore := "", -1
 	for _, d := range divisions(s, source) {
+		// A division inside bold text leaves each half with an unclosed marker.
+		if strings.Count(source[:d.leftEnd], "**")%2 != 0 {
+			continue
+		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,") + "."
 		right := joinOpener(d.opener, source[d.rightStart:])
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {

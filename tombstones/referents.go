@@ -99,12 +99,26 @@ func indexFor(root string) *symbolIndex {
 	return ix
 }
 
-// build reads every candidate word in the files git tracks under root. The
-// tracked set leaves out a nested checkout and built output, as the walk does.
+// PrimeIndex builds the index of the working tree that holds path now. A tree
+// walk calls it first, because it probes far past the budget.
+func PrimeIndex(path string) {
+	root := RepoRoot(path)
+	if root == "" {
+		return
+	}
+	v, _ := indexes.LoadOrStore(root, &symbolIndex{})
+	ix := v.(*symbolIndex)
+	ix.once.Do(func() { ix.build(root) })
+	probed.Add(probeBudget)
+}
+
+// build reads every candidate word in the files git lists under root: tracked,
+// and untracked unless git ignores them. That is what ripgrep reads, without a
+// submodule's checkout, which the walk skips too.
 func (ix *symbolIndex) build(root string) {
 	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 	defer cancel()
-	listed, err := exec.CommandContext(ctx, "git", "-C", root, "ls-files", "-z").Output()
+	listed, err := exec.CommandContext(ctx, "git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
 	if err != nil {
 		return
 	}
@@ -161,11 +175,6 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	if root == "" {
 		return nil
 	}
-	rg, err := exec.LookPath("rg")
-	if err != nil {
-		return nil
-	}
-
 	names := set.New[string]()
 	for _, b := range blocks {
 		for _, m := range identifierWords(b.Text) {
@@ -190,12 +199,25 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	}
 
 	ix := indexFor(root)
+	rg := ""
+	if !ix.ok {
+		found, err := exec.LookPath("rg")
+		if err != nil {
+			return nil
+		}
+		rg = found
+	}
 	args := []string{"--no-messages", "--fixed-strings", "--files-with-matches", "--max-count", "1"}
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 	for _, name := range ordered {
 		if ix.holds(name) {
+			continue
+		}
+		// A built index read every file a probe reads, so a name it never saw is dead.
+		if ix.ok {
+			dead = append(dead, name)
 			continue
 		}
 		cmd := exec.CommandContext(ctx, rg, append(append([]string{}, args...), "-e", name, root)...)

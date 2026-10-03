@@ -11,9 +11,9 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// The index reads the tracked files only. An untracked file and a nested
-// checkout stay out, as they do in the walk.
-func TestTheIndexHoldsTheTrackedIdentifiers(t *testing.T) {
+// The index reads what ripgrep reads: tracked files, and untracked files git
+// does not ignore. An ignored file stays out.
+func TestTheIndexHoldsWhatAProbeReads(t *testing.T) {
 	root := t.TempDir()
 	run := func(args ...string) {
 		cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
@@ -23,14 +23,32 @@ func TestTheIndexHoldsTheTrackedIdentifiers(t *testing.T) {
 	run("init", "-q")
 	require.NoError(t, os.WriteFile(filepath.Join(root, "a.go"), []byte("package p\n\nfunc TrackedSymbolName() {}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "b.go"), []byte("package p\n\nfunc UntrackedSymbolName() {}\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".gitignore"), []byte("out.go\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "out.go"), []byte("package p\n\nfunc IgnoredSymbolName() {}\n"), 0o644))
 	run("add", "a.go")
 
 	ix := &symbolIndex{}
 	ix.build(root)
 	require.True(t, ix.ok)
 	assert.True(t, ix.holds("TrackedSymbolName"))
-	assert.False(t, ix.holds("UntrackedSymbolName"))
+	assert.True(t, ix.holds("UntrackedSymbolName"))
+	assert.False(t, ix.holds("IgnoredSymbolName"))
 	assert.False(t, ix.holds("NothingDefinesThisName"))
+}
+
+// Once a walk primes the index, it answers every name without a probe: a name
+// it never saw is dead, and a name it holds is alive.
+func TestAPrimedIndexAnswersWithoutAProbe(t *testing.T) {
+	root := t.TempDir()
+	cmd := exec.Command("git", "-C", root, "init", "-q")
+	require.NoError(t, cmd.Run())
+	require.NoError(t, os.WriteFile(filepath.Join(root, "a.go"), []byte("package p\n\nfunc LivingSymbolName() {}\n"), 0o644))
+	path := filepath.Join(root, "b.go")
+	PrimeIndex(path)
+	t.Setenv("PATH", "")
+
+	blocks := []Block{{Text: "// LivingSymbolName and GoneSymbolName", LineNos: []int{0}}}
+	assert.Equal(t, []string{"GoneSymbolName"}, DeadReferents(path, "", blocks))
 }
 
 func TestAddWordsKeepsOnlyCandidates(t *testing.T) {

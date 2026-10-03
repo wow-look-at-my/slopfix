@@ -115,7 +115,8 @@ func fromLines(text []string) []string {
 	return out
 }
 
-// render writes prose as a /* */ comment in the given shape.
+// render writes prose as a /* */ comment in the given shape. No prose renders
+// no comment.
 func (s blockShape) render(prose []string) []string {
 	if len(prose) == 0 {
 		return nil
@@ -153,5 +154,12 @@ func repairBlockComment(b block) ([]string, bool) {
 		return out, true
 	}
 	render := func(text string) []string { return shape.render(fromLines(reflow(text, "", "//", wrapWidth))) }
-	return wordCut(strings.Join(kept, " "), render, b)
+	if out, ok := wordCut(strings.Join(kept, " "), render, b); ok {
+		return out, true
+	}
+	// No prose survives and no word cut fits: the comment is a banner, and it goes.
+	if len(kept) == 0 {
+		return nil, true
+	}
+	return nil, false
 }

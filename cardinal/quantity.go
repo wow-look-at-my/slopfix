@@ -155,5 +155,16 @@ func InExpression(text string, q Match) bool {
 	case '-', '−', '+', '/', '*', '=', '.', ',', '_':
 		return true
 	}
-	return unicode.IsDigit(prev)
+	return unicode.IsDigit(prev) || inEquation(text, q.At)
+}
+
+// inEquation reports a number in a clause that holds an equals sign. An
+// equation states an identity, such as a unit conversion, and no tally.
+func inEquation(text string, at int) bool {
+	start := strings.LastIndexAny(text[:at], "(;,") + 1
+	end := len(text)
+	if i := strings.IndexAny(text[at:], ");,"); i >= 0 {
+		end = at + i
+	}
+	return strings.Contains(text[start:end], " = ")
 }

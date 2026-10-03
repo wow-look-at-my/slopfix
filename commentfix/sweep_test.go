@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/gitmod/gitmodtest"
 )
 
 // tree writes a repository the walk reads, and returns its root.
@@ -64,6 +65,20 @@ func TestTheWalkSkipsASubmodule(t *testing.T) {
 		"kept/.git/HEAD": "ref: refs/heads/master\n",
 	})
 	assert.ElementsMatch(t, []string{"kept/k.go"}, names(t, root))
+}
+
+// A build can copy a source tree into a submodule path that nobody initialized.
+// The index still holds the gitlink, so the walk still skips it.
+func TestTheWalkSkipsAnUninitializedSubmoduleWithCopiedFiles(t *testing.T) {
+	root := gitmodtest.RepoWithSubmodule(t, "mesa")
+	deinit := exec.Command("git", "submodule", "deinit", "-f", "mesa")
+	deinit.Dir = root
+	require.NoError(t, deinit.Run())
+	require.NoError(t, os.WriteFile(filepath.Join(root, "mesa", "copied.c"), []byte("/** copied */\nint x;\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "main.c"), []byte("int y;\n"), 0o644))
+	_, err := os.Stat(filepath.Join(root, "mesa", ".git"))
+	require.True(t, os.IsNotExist(err), "the copied tree must carry no .git, or IsSubmodule alone covers it")
+	assert.ElementsMatch(t, []string{"main.c"}, names(t, root))
 }
 
 // Built output that git ignores is not prose anybody here wrote. A tracked file
