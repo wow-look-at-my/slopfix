@@ -172,32 +172,9 @@ func Extract(filename, src string) []Comment {
 	if strings.HasSuffix(filename, "_test.go") {
 		out = withoutExampleOutput(out)
 	}
-<<<<<<< HEAD
-	if HashComments(filename) {
-		out = withoutGluedHashes(src, out)
-	}
 	return out
 }
 
-// withoutGluedHashes drops a `#` the bash grammar reads as a comment although no
-// blank comes before it, as in `&#0;`. These formats open an inline comment only
-// after a blank, so the text is data and no repair may cut it.
-func withoutGluedHashes(src string, comments []Comment) []Comment {
-	kept := comments[:0]
-	for _, comment := range comments {
-		if comment.Offset > 0 && !strings.ContainsRune(" \t\n", rune(src[comment.Offset-1])) {
-			continue
-		}
-		kept = append(kept, comment)
-	}
-	return kept
-}
-
-=======
-	return out
-}
-
->>>>>>> origin/master
 // exampleOutput opens the comment that go test compares an example's output to.
 var exampleOutput = regexp.MustCompile(`(?i)^//\s*(unordered )?output:`)
 
