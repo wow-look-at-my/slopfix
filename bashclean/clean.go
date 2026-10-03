@@ -19,8 +19,6 @@ type Result struct {
 	Reason  string
 	Changed bool
 	Rules   []string
-	// ReadCalls holds the Read calls that print what a denied file read prints.
-	ReadCalls []string
 }
 
 var perlName = regexp.MustCompile(`^perl[0-9.]*$`)
@@ -48,9 +46,7 @@ func transform(command, dir string, passes int, warn io.Writer) Result {
 		return deny(command, "perl")
 	}
 	if hasFileRead(f) {
-		r := deny(command, "file_read")
-		r.ReadCalls = readCalls(f, dir)
-		return r
+		return deny(command, "file_read")
 	}
 	if hasStatementCall(f, func(c *syntax.CallExpr) bool {
 		e, ok := effectiveCommand(c)
