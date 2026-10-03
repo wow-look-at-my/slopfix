@@ -172,11 +172,8 @@ func tagParent(t *testing.T, fx forkFixture) {
 func orgList(t *testing.T, status int, list string) func(string) string {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/o/.github/contents/"+ForkListPath {
-			t.Errorf("asked %s about a fork the org lists", r.URL.Path)
-			http.NotFound(w, r)
-			return
-		}
+		assert.Equal(t, "/repos/o/.github/contents/"+ForkListPath, r.URL.Path)
+
 		if r.Header.Get("Accept") != "application/vnd.github.raw" {
 			http.Error(w, "the list is read raw", http.StatusBadRequest)
 			return
