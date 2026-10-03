@@ -3,6 +3,7 @@ package slopfix
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/goformat"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -288,6 +290,31 @@ func init() {
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))
+			}
+		},
+	})
+}
+
+// The layout pass runs last, on a Go file another fixer changed. It answers to
+// the selection of the fixers before it.
+func init() {
+	var families, rules []string
+	for _, fx := range fixer.For(fixer.Source) {
+		families = append(families, fx.Categories()...)
+		rules = append(rules, fx.IDs()...)
+	}
+	slices.Sort(families)
+	slices.Sort(rules)
+	fixer.Register(fixer.Spec{
+		Label:    goformat.Name,
+		Families: slices.Compact(families),
+		Rules:    slices.Compact(rules),
+		Files:    []fixer.Kind{fixer.Source},
+		Place:    2000,
+		Repair: func(f *fixer.File) {
+			if f.Changed() && filepath.Ext(f.Path) == ".go" {
+				defer trace.Phase("fix/gofmt")()
+				f.ApplyThrough(goformat.Gate, goformat.Edits(f.Text()))
 			}
 		},
 	})
