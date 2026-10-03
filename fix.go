@@ -11,6 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/goformat"
@@ -34,6 +35,8 @@ const (
 	RuleWrap Rule = "wrap"
 	// RuleSTE reports what fails the merge gate and repairs nothing.
 	RuleSTE Rule = "ste"
+	// RuleEnglish is plain English usage that STE does not cover.
+	RuleEnglish Rule = "english"
 	// RuleComments is a block that fits its code, and a number said in words.
 	RuleComments Rule = "comments"
 	// RuleWorkflow is what a workflow owes the gate it runs.
@@ -43,7 +46,7 @@ const (
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleEnglish, RuleComments, RuleWorkflow, RuleRepo, RulePins}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -57,6 +60,8 @@ func IDsFor(rule Rule) set.Set[string] {
 		return set.Of(IDHardWrap, IDLongBlock)
 	case RuleSTE:
 		return ste.AllIDs
+	case RuleEnglish:
+		return set.Of(english.AllIDs...)
 	case RuleComments:
 		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	case RuleWorkflow:
@@ -210,7 +215,7 @@ func fixText(req Request) Repair {
 			}
 		}
 	case fixer.Document:
-		if wants(RuleSTE) {
+		if wants(RuleSTE) || wants(RuleEnglish) {
 			for _, finding := range Check(text) {
 				if keeps(finding.ID) {
 					repair.Findings = append(repair.Findings, finding)
@@ -297,15 +302,22 @@ func kindOf(path, content string) fixer.Kind {
 func init() {
 	fixer.Register(fixer.Spec{
 		Label:    "wrap-and-ste",
-		Families: []string{string(RuleWrap), string(RuleSTE)},
-		Rules:    append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...),
+		Families: []string{string(RuleWrap), string(RuleSTE), string(RuleEnglish)},
+		Rules:    append(append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...), english.AllIDs...),
 		Files:    []fixer.Kind{fixer.Document},
 		Place:    30,
 		Repair: func(f *fixer.File) {
 			defer trace.Phase("fix/wrap-and-ste")()
-			word := func(text string) string { return text }
-			if f.Wants(string(RuleSTE)) {
-				word = func(text string) string { return ste.FixSelected(text, f.Keeps) }
+			stePass := f.Wants(string(RuleSTE))
+			englishPass := f.Wants(string(RuleEnglish)) && f.Keeps(english.IDCommaNever)
+			word := func(text string) string {
+				if englishPass {
+					text = english.FixCommaNever(text)
+				}
+				if stePass {
+					text = ste.FixSelected(text, f.Keeps)
+				}
+				return text
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))

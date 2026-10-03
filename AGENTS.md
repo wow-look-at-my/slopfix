@@ -27,6 +27,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `repo`, report only | `repo/near-duplicate`, `repo/json`, `repo/xml` | no |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
+| `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
@@ -77,7 +78,7 @@ These rules judge the tree. Only a walk whose root holds `.git` reaches them. `c
 
 - `repo/binary`: a file git tracks that opens with an ELF, Mach-O or PE/COFF magic number. `fix` deletes it, because a build makes it from source. Git still holds it. A tree that git cannot list is read from disk. The rule reads the blob git stores. A Git LFS file is never reported, because git holds its pointer and only the checkout holds the binary.
 - `repo/near-duplicate`: a file whose lines match another file of its base name at `NearDuplicateShare` or above. The score is the Dice coefficient over non-blank trimmed lines, so a copy that differs in comments alone still trips. The later path of the pair is reported. A file each directory needs, such as `package.json` or `Dockerfile`, is never compared. No attribute or list exempts a copy. The answer is one file that both places use.The repair is one file that both places use.
-- `repo/json`: a `.json` or `.jsonc` file that does not parse, comments allowed, or that breaks the schema its `$schema` names. `wow-look-at-my/json-validator` does the check, the same library webhook-runner loads manifests with. A relative `$schema` is a path from the file. A local schema that does not load is a finding, never a pass.
+- `repo/json`: a `.json` or `.jsonc` file that does not parse, comments allowed, or that breaks the schema its `$schema` names. `wow-look-at-my/json-validator` does the check, the same library webhook-runner loads manifests with. A relative `$schema` is a path from the file. A local schema that does not load is a finding, not a pass.
 - `repo/xml`: an `.xml` file that `wow-look-at-my/xml-validator` refuses, that names no schema, or that breaks the schema it names. The schema is the `xsi:noNamespaceSchemaLocation` or the first `xsi:schemaLocation` pair.
 
 Neither rule fetches a schema. A check must not depend on the network. A published copy can lag the code that reads the file. A remote schema therefore gets the parse check alone. The JSON Schema meta-schemas are the exception, because the validator carries them. The program that reads a file holds it to the remote contract, as `webhook-runner validate` does for a manifest.
@@ -196,7 +197,7 @@ The `commentfix` package reads a real syntax tree through `go-tree-sitter`. A co
 
 The languages are Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX. YAML. TOML, `.conf` and `.zsh` files read with the Bash grammar. `languages_test.go` refuses a grammar that no fixture proves. `selfrepair_test.go` runs the rules over this tree. The go-toolchain vet phase runs them on every build.
 
-- `comments/number`: a number in a comment, read with the `Comment` substrate. The repair says it in words. A count of a plural noun that no table entry covers gets the `counts` rewording. Only a sentence that still holds a number after that is cut. To point at a section, cite its slug or heading, never its position.
+- `comments/number`: a number in a comment, read with the `Comment` substrate. The repair says it in words. A count of a plural noun that no table entry covers gets the `counts` rewording. Only a sentence that still holds a number after that is cut. To point at a section, cite its slug or heading, not its position.
 - `comments/length`: a comment run weighed against the construct beneath it. Lines catch an essay. Characters catch a dense paragraph. The budget has a floor. A short comment is never a finding.
 - `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair closes the sentence.
 
@@ -246,7 +247,7 @@ It reports only, because the repair is work. The `laziness` hook guard runs it a
 
 The `blame-language` hook guard runs it on MessageDisplay and appends one line for the reader. Nothing goes to the model. `displayContent` changes the screen and not the stored message. `CC_NO_BLAME_LANGUAGE=0` disables it. Every failure prints nothing, because a guard that eats output is worse than none.
 
-The message is judged whole. A per-message state file keyed by `message_id` accumulates the flushes. The final flush drops it. A lost file costs earlier phrases, never a wrong mark.
+The message is judged whole. A per-message state file keyed by `message_id` accumulates the flushes. The final flush drops it. A lost file costs earlier phrases, not a wrong mark.
 
 `bannedPhrases` is a plain slice. It holds provenance openers such as `that predates this session` and `git blame shows`. It also holds `pre-existing` and narrow synonyms such as `not related to my change`. Matching is case-insensitive over whitespace-normalized text, with source offsets kept. Fences, indented code and blockquotes are exempt. Inline backticks are not. A real blocker named plainly is never marked.
 
@@ -263,7 +264,7 @@ These are hook guards. `check --message` also runs `ask/prose-decision`, and `re
 
 ## auto-allow
 
-`auto-allow` approves read-only work and refuses a program this environment does not run. The table is `autoallow/rules.xml`, embedded and checked by `rules.xsd`. MCP trust is per SERVER, never per tool-name pattern.
+`auto-allow` approves read-only work and refuses a program this environment does not run. The table is `autoallow/rules.xml`, embedded and checked by `rules.xsd`. MCP trust is per SERVER, not per tool-name pattern.
 
 The binary is registered on PermissionRequest and PreToolUse. In `cli.js` (checked at `2.1.220`), `createCanUseTool` evaluates the rules first. PermissionRequest hooks run only on the "ask" path. `defaultMode: "auto"` answers first. A deny that rides PermissionRequest thus never fires in auto mode.
 
@@ -294,7 +295,7 @@ A hook cannot swap Bash for Read. As a result, a `file_read` deny names the Read
 - `tee` turns a trailing stdout redirect on the final statement into `| tee file`.
 - `toolchain_output` strips every pipe stage or stdout redirect from `go-toolchain`.
 - `docker_compose_restart` writes `docker compose up -d --force-recreate`.
-- `grep_json` turns a `grep`, `egrep`, `fgrep` or `rg` over JSON files into `jq`. A fixed head and tail of each file decide, never the extension. JSON Lines prints each matching record. A document prints `.path = value` for each matching leaf. An unknown flag or a non-JSON operand leaves the grep alone. `bashclean/grepjson.xml` holds the programs, their flags, the fixtures and the tests beside each entry.
+- `grep_json` turns a `grep`, `egrep`, `fgrep` or `rg` over JSON files into `jq`. A fixed head and tail of each file decide, not the extension. JSON Lines prints each matching record. A document prints `.path = value` for each matching leaf. An unknown flag or a non-JSON operand leaves the grep alone. `bashclean/grepjson.xml` holds the programs, their flags, the fixtures and the tests beside each entry.
 - `gh_wait_ci` maps `gh run view`, `watch`, `rerun`, `list` and `gh pr checks` to `gh wait-ci`.
 - `sleep_cap` writes `sleep 3` for any sleep past `3` seconds or not literal.
 - `narration_remove` turns an `echo` that reaches the terminal into `:`.
