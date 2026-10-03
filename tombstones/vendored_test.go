@@ -47,4 +47,3 @@ func TestAPathMarkedGeneratedIsBorrowed(t *testing.T) {
 	assert.True(t, Borrowed(routes))
 	assert.False(t, Borrowed(own))
 }
-
