@@ -124,8 +124,8 @@ func Edits(content string, hits []Hit) []edit.Edit {
 	return out
 }
 
-// elidedNumber is a bare number that ends its phrase.
-var elidedNumber = regexp.MustCompile(`(?i)(?:^|\s)(~?\d[\d,]*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred)(?:[,;:.!?)]|\s+(?:and|or|but|then|in|on|at|for|before|after|if|when)\b|\s*$)`)
+// elidedNumber is a bare number after a preposition or a conjunction, which ends its phrase.
+var elidedNumber = regexp.MustCompile(`(?i)\b(?:at|to|from|of|by|over|under|than|with|in|and|or)\s+(~?\d[\d,]*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred)(?:[,;:.!?)]|\s+(?:and|or|but|then|in|on|at|for|before|after|if|when)\b|\s*$)`)
 
 // clauseCoordinator joins the hit's phrase to a parallel one.
 var clauseCoordinator = regexp.MustCompile(`(?i)\b(?:and|or|but)\b`)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,14 +108,16 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "There are rules below.", edits[2].(map[string]any)["new_string"])
 }
 
-// A finding no rewrite resolves is flagged and the write still goes through.
+// A finding whose repair lies past the edit's own bytes is flagged, and the
+// write still goes through.
 func TestAFindingNoRewriteResolvesIsFlaggedNotRefused(t *testing.T) {
 	src := "package p\n"
 	for i := range 40 {
 		src += fmt.Sprintf("// The loader reads step %d of the file and returns the record it names.\n", i)
 	}
 	src += "func x() {}\n"
-	got := ask(t, write("a.go", src), "tombstones")
+	old := "// The loader reads step 7 of the file and returns the record it names."
+	got := ask(t, editOn(t, "a.go", src, old, strings.Replace(old, "7", "seven", 1)), "tombstones")
 
 	require.NotNil(t, got.out)
 	assert.NotContains(t, got.body, "permissionDecision")

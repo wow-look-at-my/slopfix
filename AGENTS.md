@@ -88,18 +88,20 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 
 | Category | Rule IDs | Repairs |
 |---|---|---|
-| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts` | yes, on a walk, except a file with no `##` section and `repo/package-scripts` |
+| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts` | yes, on a walk, except a `package.json` that does not parse |
 | `wrap` | `wrap/hard-wrap` | yes |
-| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
+| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
 | `counts` | `counts/inventory-count` | yes |
-| `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | all but the volume cap |
+| `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags` | yes, except a flow-style `push` mapping |
-| `pins` | `pins/download-version` | yes, except a templated or HTML-escaped URL |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags` | yes |
+| `pins` | `pins/download-version` | yes |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
+
+Every error rule has a repair, even a crude one, so `slopfix fix` on any tree leaves no error. A `package.json` that does not parse is the single exception, because no rewrite can read it. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 
@@ -134,8 +136,8 @@ cc-marketplace ships this binary inside its `slopfix` plugin. A publish here the
 These rules judge the tree. Only a walk whose root holds `.git` reaches them. `check` reports them. `fix` applies them.
 
 - `repo/agents-file`: a root `CLAUDE.md` that holds more than the `@AGENTS.md` import. `fix` moves its body into `AGENTS.md` and leaves `CLAUDE.md` as `@AGENTS.md` and a newline. Claude Code reads `CLAUDE.md`. Every other agent reads `AGENTS.md`.
-- `repo/budget`: a root `README.md` or `AGENTS.md`, a `CLAUDE.md` anywhere, or a `.md` in a `claude_snippets/` directory, over `40000` characters. The repair writes `docs/` beside the file. The count is characters, because a byte count inflates a file with an em dash. `fix` moves the largest `##` sections into `docs/<heading>.md` until the file is at `32000` or less. The gap leaves room for the next edit. The text moves word for word, and each heading under it rises one level. The heading stays, with a link to the new file. A name that exists gets a `-2` suffix.
-- `repo/package-scripts`: a `package.json` with a `scripts` key. A `justfile` holds the commands instead. A `package.json` that does not parse is also a finding, because no rule can read it. There is no repair.
+- `repo/budget`: a root `README.md` or `AGENTS.md`, a `CLAUDE.md` anywhere, or a `.md` in a `claude_snippets/` directory, over `40000` characters. The repair writes `docs/` beside the file. The count is characters, because a byte count inflates a file with an em dash. `fix` moves the largest `##` sections into `docs/<heading>.md` until the file is at `32000` or less. The gap leaves room for the next edit. The text moves word for word, and each heading under it rises one level. The heading stays, with a link to the new file. A name that exists gets a `-2` suffix. With no `##` section left to move, the sections of the other heading levels move. A file with no heading at all moves its tail into `docs/<name>-continued.md` and keeps a link. A cut inside a fence closes the fence. The moved part opens it again.
+- `repo/package-scripts`: a `package.json` with a `scripts` key. A `justfile` holds the commands instead. `fix` writes each script as a recipe in a `justfile` beside the manifest, and deletes the key. The recipe runs the command as written, with `node_modules/.bin` first on `PATH`. A `pre` or `post` script runs around its own, and `npm run x` becomes `just x`. A `package.json` that does not parse is also a finding, because no rule can read it. That finding has no repair.
 
 A body that `AGENTS.md` already holds is not appended again. The import line is never copied into the file it imports. A `CLAUDE.md` that is a symlink stays.
 
@@ -188,7 +190,7 @@ The members share the sentence splitter, the masks and the repair pass. They the
 - `ste/modal`: `should`, `shall`, `could`, `might` and `would`. The repair writes `must` for obligation and `can` for possibility.
 - `ste/semicolon`: the semicolon. The repair writes a period and capitalizes the next word.
 - `ste/comma-splice`: a comma that joins clauses that each stand alone. The repair writes a period. A connector replaces the conjunction: `However,` for `but` and `As a result,` for `so`. It drops `and`.
-- `ste/sentence-length`: a sentence over `25` words, the STE cap for a description. The repair divides it at a clause boundary that the `syntax` parser finds.
+- `ste/sentence-length`: a sentence over `25` words, the STE cap for a description. The repair divides it at a clause boundary that the `syntax` parser finds. With no such boundary, it divides between words near the cap.
 - `ste/postdeterminer`: a numeral between a determiner and its noun, as in `the three rules`. The repair cuts the numeral. A unit, a percent, a year, a status code, `any` and `first` keep theirs.
 - `ste/count`: a stated count anywhere in the line, read with the `Gate` substrate. The repair takes the number out after the join, with the `counts` rewording.
 
@@ -206,7 +208,9 @@ How a long sentence divides:
 - A clause after `and`, `but` or `so` that names its own subject starts the new sentence.
 - A verb group that shares the subject gets it again. A long subject becomes an agreeing pronoun.
 - A closing `, which` clause opens with `This`. A closing `because` clause opens with `This is because`.
-- A list, a quotation and a subordinate clause never divide. A sentence with no boundary is reported whole. The repair never writes a fragment.
+- A list, a quotation and a subordinate clause never divide at a clause boundary.
+- A sentence with no boundary divides between words, as close to the cap as a good place allows. A comma. Then a word that opens a phrase, rank first. The first part never ends on a word that opens what it leaves out.
+- The forced division never lands inside a code span, a link, a quotation, a parenthesis or bold text. The rest opens as it stands when it names its own subject. A verb gets the subject again, `which` becomes `This`, and anything else opens with `This is`.
 
 What `ste` does not flag:
 
@@ -247,7 +251,7 @@ Prose requires a frame, because a document carries numbers that count nothing: a
 
 `counts/inventory-count` cuts the cardinal out of a sentence that counts what is here. `there are three sections` becomes `there are sections`, which stays true. The org rules that a count in markdown is not worth maintaining.
 
-Every reported count gets a repair. Where a bare cut breaks the sentence, `counts/reword.go` writes words that state no figure. A rate becomes `every few`. A cap becomes `a bounded number of`. A unit takes `a couple of`, `a few`, `several` or `many`, by size. After a preposition or a noun the number becomes `multiple`. A hedge such as `about` or `exactly` goes with the number.
+Every reported count gets a repair. Where a bare cut breaks the sentence, `counts/reword.go` writes words that state no figure. A rate becomes `every few`. A cap becomes `a bounded number of`. A unit takes `a couple of`, `a few`, `several` or `many`, by size. After a preposition or a noun the number becomes `multiple`. A hedge such as `about` or `exactly` goes with the number. A bare number that the same clause sets beside it, as in `warns at 500 lines and errors at 750`, says how it compares: `a higher count`, `a lower count` or `the same count`. No clause stays half converted.
 
 A count needs a frame and a quantity on the same line. The quantity is a cardinal that governs a plural noun. The frame is a possessive (`this repo's plugins`), a having verb (`it ships hooks`) or a deictic (`the rules below`). A quantity with no frame is ordinary technical prose.
 
@@ -261,7 +265,8 @@ A tombstone describes a state the code has left, or argues for the diff instead 
 - `tombstones/name-nothing-in-the-repository-defines` reads no wording. A comment that names a symbol found nowhere in the repository describes a tree that is gone. The probe runs ripgrep on the working tree. A tree walk, and any run past `50` files, first reads the identifiers of every file git lists. That list holds tracked files and untracked files git does not ignore. The index then answers every name with no probe.
 - A pattern cut never removes a negation while the words it negates stay. `no longer` is therefore a flag, not a cut.
 - A copyright year is cut on purpose. A yearly bump only pads a commit.
-- `tombstones/comment-volume` counts the lines of a merged comment run against the cap, which defaults to `14` lines. No rewording defeats it. It never strips, because it judges a whole block.
+- `tombstones/comment-volume` counts the lines of a merged comment run against the cap, which defaults to `14` lines. No rewording defeats it. The repair cuts the run from its end down to the cap, the way `comments/length` cuts. With no sentence left to cut, it drops whole lines and closes the last sentence it keeps.
+- A dead name that no whole-line strip resolves loses the sentence that holds it. On a line shared with code, the cut stops at the comment marker.
 
 A referent candidate must look like a symbol: an underscore, an internal case change, or a capital beside a digit. A name in capitals and a short name never qualify. The probe answers nothing when it cannot answer: no repository, no ripgrep, a timeout or an error. An absent answer must never read as a missing symbol. A comment that names too many candidates is skipped.
 
@@ -298,7 +303,7 @@ These rules judge the format. The prose rules never run on these files. A file i
 - `yaml/test-in-workflow`: a test inside a `run:` script. That is an assertion with a nonzero exit, a function whose name says it asserts, or a redirect to a test file. The repair deletes the assertion lines, because a test belongs in the suite.
 - `yaml/neutered-gate`: a gate step under `continue-on-error`. A step allowed to fail is not a gate. The repair deletes that line, found by parser positions.
 - `yaml/env-indirection`: a step `env:` entry with no job to do. Its value is a single `${{ }}` expression that the script reads only as `$NAME` or `${NAME}`. Or the script sets the variable before it reads it. A runner variable such as `$RUNNER_TEMP` is also reported, because a context names it. A container job and a composite action keep the variable, because the context names the host path there. The repair writes the expression into the script, deletes the entry, and deletes an `env:` key with nothing left under it.
-- `yaml/push-tags`: a `push` trigger with no `branches`, `branches-ignore`, `tags` or `tags-ignore` filter. Every tag push then starts the workflow again. The repair writes `branches: ['**']` under `push:`. It leaves a flow-style mapping such as `push: {}` to the author.
+- `yaml/push-tags`: a `push` trigger with no `branches`, `branches-ignore`, `tags` or `tags-ignore` filter. Every tag push then starts the workflow again. The repair writes `branches: ['**']` under `push:`. A shape no row edit reaches, such as `push: {}`, gets its whole `on:` value written again in block style.
 
 The all-builds wording is the operator's own. It must not be softened. A job that wears the required status's name is a known deception attempt.
 
@@ -308,7 +313,7 @@ Unparseable YAML yields no all-builds finding, because the runner fails on it an
 
 `pins/download-version` rejects a `dl.pazer.build` URL with a `v` query parameter. It reads every file `check` reads, code strings included. A URL with no `v` serves the newest published build on the default branch. A pinned one breaks when that release is gone.
 
-`net/url` reads the query. The repair deletes `v` and writes the query back with `Encode`. `pins.Gate` admits only that rewrite, because the source gate lets an edit touch comments alone. `Encode` escapes `${OS}` and writes `&` for `&amp;`. A URL that holds either is reported and left for a person.
+`net/url` reads the query. The repair deletes `v` and writes the query back with `Encode`. `pins.Gate` admits only that rewrite, because the source gate lets an edit touch comments alone. `Encode` escapes `${OS}` and writes `&` for `&amp;`. A URL that holds either loses `v` as text instead, and keeps every other byte. A `${{ }}` expression is part of the URL, blanks included.
 
 ## laziness: a turn that ends with the work undone
 

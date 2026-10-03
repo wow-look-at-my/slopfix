@@ -98,13 +98,40 @@ func forceDivision(source, masked string) (string, bool) {
 		for _, c := range candidates(source, masked, strict) {
 			left := strings.TrimRight(source[:c.left], " ,;:—–-") + "."
 			right := openRest(source, masked, c)
-			if right == "" || WordCount(checkMask(right)) >= total {
+			if right == "" || longestSentence(left+" "+right) >= total {
 				continue
 			}
 			return left + " " + right, true
 		}
 	}
 	return source, false
+}
+
+// longestSentence answers the word count of the longest sentence Check reads in
+// text. A division that does not lower it divides nothing.
+func longestSentence(text string) int {
+	most := 0
+	for _, sentence := range Sentences(checkMask(text)) {
+		most = max(most, WordCount(sentence))
+	}
+	return most
+}
+
+// wordEnds answers where each word WordCount counts ends, in order. A
+// parenthetical is a single word that ends where it closes.
+func wordEnds(masked string) []int {
+	parens := parenthetical.FindAllStringIndex(masked, -1)
+	var ends []int
+	for _, span := range parens {
+		ends = append(ends, span[1])
+	}
+	for _, loc := range wordPattern.FindAllStringIndex(masked, -1) {
+		if !insideAny(parens, loc[0]) {
+			ends = append(ends, loc[1])
+		}
+	}
+	sort.Ints(ends)
+	return ends
 }
 
 // candidates answers every admissible cut, best first. A strict pass also keeps
@@ -114,17 +141,22 @@ func candidates(source, masked string, strict bool) []forceCut {
 	off = append(off, quotation.FindAllStringIndex(source, -1)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
+	ends := wordEnds(masked)
 	var out []forceCut
+	counted := 0
 	for _, gap := range gapRun.FindAllStringIndex(source, -1) {
 		p, q := gap[0], gap[1]
-		if p == 0 || q == len(source) || insideAny(off, p) {
+		for counted < len(ends) && ends[counted] <= p {
+			counted++
+		}
+		leftWords, rightWords := counted, len(ends)-counted
+		if leftWords > SentenceWordCap {
+			break
+		}
+		if p == 0 || q == len(source) || insideAny(off, p) || leftWords < 1 || rightWords < 1 {
 			continue
 		}
 		if strings.Count(source[:p], "**")%2 != 0 {
-			continue
-		}
-		leftWords, rightWords := WordCount(masked[:p]), WordCount(masked[q:])
-		if leftWords < 1 || leftWords > SentenceWordCap || rightWords < 1 {
 			continue
 		}
 		head := strings.TrimRight(source[:p], " ")
@@ -166,7 +198,7 @@ func openRest(source, masked string, c forceCut) string {
 	if strings.EqualFold(firstToken.FindString(rest), "which") {
 		return joinOpener(opener, "this"+rest[len("which"):])
 	}
-	s := syntax.Parse(restMasked, nil)
+	s := syntax.Parse(opening(restMasked), nil)
 	if len(s.Words) == 0 {
 		return ""
 	}
@@ -177,6 +209,20 @@ func openRest(source, masked string, c forceCut) string {
 		return joinOpener(opener, subjectFor(source, masked, c, tag)+" "+rest)
 	}
 	return joinOpener(opener, "this is "+rest)
+}
+
+// openingBytes bounds how much of the rest the parser reads. Only its first clause decides how the rest opens.
+const openingBytes = 240
+
+// opening answers the start of text, cut back to a blank.
+func opening(text string) string {
+	if len(text) <= openingBytes {
+		return text
+	}
+	if at := strings.LastIndexByte(text[:openingBytes], ' '); at > 0 {
+		return text[:at]
+	}
+	return text
 }
 
 // opensClause reports a parse whose first clause starts with its own subject
