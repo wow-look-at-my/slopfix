@@ -108,7 +108,8 @@ type Repair struct {
 // Fix repairs req, unless it carries slopfix-expect annotations. Such text is a
 // fixture: it is checked against them and comes back unchanged.
 func Fix(req Request) Repair {
-	if tombstones.Borrowed(req.Path) {
+	// A generator owns its output. The next run writes back every repair, and a joined marker line stops tools from seeing the file as generated.
+	if tombstones.Borrowed(req.Path) || commentfix.IsGenerated(req.Path, req.Content) {
 		return Repair{Text: req.Content, Scope: req.Scope}
 	}
 	notes := expect.Parse(req.Content)

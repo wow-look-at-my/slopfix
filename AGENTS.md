@@ -31,11 +31,12 @@ slopfix hook < payload.json       # answer a Claude Code hook event
 slopfix lsp                       # a language server on stdio, for the editor plugin
 ```
 
-- A directory argument is walked. The walk skips hidden directories except `.github`. It also skips `vendor`, `node_modules`, `testdata`, `build`, registered submodules (by the gitlink in the index, so an uninitialized one that a build copied files into stays skipped), nested Go modules and every untracked file git ignores, such as built output.
+- A directory argument is walked. The walk skips hidden directories except `.github`. It also skips `vendor`, `node_modules`, `testdata`, `build`, `dist`, registered submodules (by the gitlink in the index, so an uninitialized one that a build copied files into stays skipped), nested Go modules and every untracked file git ignores, such as built output.
 - A named file is read whatever its extension. The path decides the rules. A workflow or action manifest gets the `yaml` rules. A document gets the prose rules. Source gets the `comments` rules.
 - A document is `.md`, `.markdown`, `.mdown` or `.txt`. An empty `--path` also counts as a document.
 - A path with a `testdata` element is never a document, named or walked. It is test input, and a rewrite changes what the test checks.
 - A path with a `vendor` or `node_modules` element is never judged, named or walked, the hook included. Another project wrote it. The same holds for a path the repository's `.gitattributes` marks `linguist-vendored`, such as a reference manual kept as text. Mark external documentation that way, and no rule reads or rewrites a byte of it.
+- A source file whose header carries the `Code generated ... DO NOT EDIT.` marker is never judged either. The generator writes it again on its next run.
 - With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr.
 - `--json` on stdin writes one object: `path`, `findings`, and with `--fix` the repaired `text`. Each finding carries `id`, `line`, `endLine`, `rule`, `detail`, `fix`, `repairable` and `severity`. It exits 0 on a finding, because the caller decides what a finding means.
 - `--message` reads stdin as a closing message and runs the message rules. `--only` then takes a message rule or a family such as `blame`.
@@ -121,6 +122,8 @@ No input narrows the check. A path list, a rule list or a raw command line lets 
 ```
 
 On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
+
+In a fork, only the lines the fork wrote can fail the check. `docs/fork-scope.md` holds the detail.
 
 ## The marketplace follows each publish
 

@@ -230,6 +230,10 @@ func coversPath(root, cwd string, operand word, entry string) bool {
 	}
 	rel, err := filepath.Rel(root, filepath.Clean(abs))
 	if err != nil || strings.HasPrefix(rel, "..") {
+		// git names root by its physical path, and a cwd under a symlink such as macOS /var spells it another way.
+		rel, err = filepath.Rel(root, physicalPath(filepath.Clean(abs)))
+	}
+	if err != nil || strings.HasPrefix(rel, "..") {
 		return false // outside this repository
 	}
 	entry = strings.TrimSuffix(entry, "/")

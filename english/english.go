@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
@@ -150,10 +151,10 @@ func (p Pattern) ApplyN(s string) (string, int) {
 		if p.Subject != "" && !asserts(p.Subject, s, loc[0]) {
 			continue
 		}
-		if insideAny(labels, loc[0], loc[1]) {
+		if insideAny(labels, loc[0], loc[1]) || splitsCompound(s, loc[0], loc[1]) {
 			continue
 		}
-		with := p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace)
+		with := keepCapital(s[loc[0]:loc[1]], p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace))
 		if !keepsNegation(s, loc[0], loc[1], with) {
 			continue
 		}
@@ -164,6 +165,29 @@ func (p Pattern) ApplyN(s string) (string, int) {
 	}
 	out.WriteString(s[last:])
 	return out.String(), took
+}
+
+// splitsCompound reports whether s[from:to] ends or starts at the hyphen of a compound word. The regexp \b sees a word end there, but the reader sees one word.
+func splitsCompound(s string, from, to int) bool {
+	if to > from && to < len(s) && s[to] == '-' && isWordByte(s[to-1]) {
+		return true
+	}
+	return from > 0 && from < to && s[from-1] == '-' && isWordByte(s[from])
+}
+
+// keepCapital gives the replacement the capital that the cut text opened with. A template such as "the $1" otherwise writes a sentence in lower case.
+func keepCapital(cut, with string) string {
+	c := strings.IndexFunc(cut, unicode.IsLetter)
+	w := strings.IndexFunc(with, unicode.IsLetter)
+	if c < 0 || w < 0 {
+		return with
+	}
+	upper, _ := utf8.DecodeRuneInString(cut[c:])
+	lower, size := utf8.DecodeRuneInString(with[w:])
+	if !unicode.IsUpper(upper) || unicode.ToUpper(lower) != upper || lower == upper {
+		return with
+	}
+	return with[:w] + string(upper) + with[w+size:]
 }
 
 // linkLabel finds the label of a markdown link. The label names its target, so a cut there leaves a link with no text.
