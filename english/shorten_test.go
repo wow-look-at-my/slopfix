@@ -115,8 +115,8 @@ func TestAPatternLeavesAQuotationWhole(t *testing.T) {
 func TestAPatternLeavesACodeSpanWhole(t *testing.T) {
 	in := "Compiled by `just build` (tsc) to the asset."
 	assert.Equal(t, in, Fix(in, Comment))
-	wrapped := "Compiled by `just\nbuild` (tsc) to the asset."
-	assert.Equal(t, wrapped, Fix(wrapped, Comment))
+	// Fix joins whitespace, so a wrapped span comes back on one line with its words whole.
+	assert.Equal(t, in, Fix("Compiled by `just\nbuild` (tsc) to the asset.", Comment))
 }
 
 // A cut to the end of a sentence must not leave it on a word that opens what the cut took.
