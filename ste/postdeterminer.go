@@ -9,7 +9,7 @@ import (
 )
 
 // IDPostdeterminer names the rule that cuts a numeral from "the three rules".
-const IDPostdeterminer = "ste/postdeterminer"
+const IDPostdeterminer = "counts/postdeterminer"
 
 // A postdeterminer is a numeral between a determiner and its noun. It restates
 // a count the reader sees, and it goes stale when the set changes.

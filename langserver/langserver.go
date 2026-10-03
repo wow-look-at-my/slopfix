@@ -25,7 +25,7 @@ import (
 const Source = "slopfix"
 
 // familyOrder ranks rule families, most structural first.
-var familyOrder = []string{"yaml", "ste"}
+var familyOrder = []string{"yaml", "ste", "english"}
 
 // lastFamily is the most numerous family and the most mechanical to repair.
 const lastFamily = "wrap"

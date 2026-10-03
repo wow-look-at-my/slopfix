@@ -106,11 +106,11 @@ func forkEnv(srv *httptest.Server) func(string) string {
 	return envOf(map[string]string{"GITHUB_REPOSITORY": "o/fork", "GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"})
 }
 
-// semicolons answers the lines of name that hold a ste/semicolon finding.
+// semicolons answers the lines of name that hold an english/semicolon finding.
 func semicolons(out TreeRepair, name string) []int {
 	var lines []int
 	for _, f := range out.Findings {
-		if filepath.Base(f.Path) == name && f.ID == "ste/semicolon" {
+		if filepath.Base(f.Path) == name && f.ID == "english/semicolon" {
 			lines = append(lines, f.Line)
 		}
 	}

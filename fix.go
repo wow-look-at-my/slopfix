@@ -54,14 +54,10 @@ func IDsFor(rule Rule) set.Set[string] {
 	switch rule {
 	case RuleTombstones:
 		return tombstones.AllIDs()
-	case RuleCounts:
-		return set.Of(counts.ID)
+	case RuleCounts, RuleSTE, RuleEnglish:
+		return proseIDsIn(rule)
 	case RuleWrap:
 		return set.Of(IDHardWrap, IDLongBlock)
-	case RuleSTE:
-		return ste.AllIDs
-	case RuleEnglish:
-		return set.Of(english.AllIDs...)
 	case RuleComments:
 		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	case RuleWorkflow:
@@ -72,6 +68,25 @@ func IDsFor(rule Rule) set.Set[string] {
 		return pins.AllIDs
 	}
 	return set.New[string]()
+}
+
+// proseIDsIn answers the prose rules whose ID prefix names the category. The
+// ste package runs rules of the counts and english categories too.
+func proseIDsIn(rule Rule) set.Set[string] {
+	ids := set.New[string]()
+	all := ste.AllIDs.Union(set.Of(english.AllIDs...)).Union(set.Of(counts.ID))
+	for id := range all.All() {
+		if categoryOf(id) == rule {
+			ids.Add(id)
+		}
+	}
+	return ids
+}
+
+// categoryOf answers the category an ID names before its slash.
+func categoryOf(id string) Rule {
+	category, _, _ := strings.Cut(id, "/")
+	return Rule(category)
 }
 
 // Request is a piece of text put to Fix. Path decides the comment syntax, and
@@ -215,11 +230,9 @@ func fixText(req Request) Repair {
 			}
 		}
 	case fixer.Document:
-		if wants(RuleSTE) || wants(RuleEnglish) {
-			for _, finding := range Check(text) {
-				if keeps(finding.ID) {
-					repair.Findings = append(repair.Findings, finding)
-				}
+		for _, finding := range Check(text) {
+			if wants(categoryOf(finding.ID)) && keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
 			}
 		}
 	}
@@ -302,22 +315,19 @@ func kindOf(path, content string) fixer.Kind {
 func init() {
 	fixer.Register(fixer.Spec{
 		Label:    "wrap-and-ste",
-		Families: []string{string(RuleWrap), string(RuleSTE), string(RuleEnglish)},
+		Families: []string{string(RuleWrap), string(RuleSTE), string(RuleEnglish), string(RuleCounts)},
 		Rules:    append(append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...), english.AllIDs...),
 		Files:    []fixer.Kind{fixer.Document},
 		Place:    30,
 		Repair: func(f *fixer.File) {
 			defer trace.Phase("fix/wrap-and-ste")()
-			stePass := f.Wants(string(RuleSTE))
-			englishPass := f.Wants(string(RuleEnglish)) && f.Keeps(english.IDCommaNever)
+			// A rule runs when the caller wants its category and keeps its ID.
+			selected := func(id string) bool { return f.Wants(string(categoryOf(id))) && f.Keeps(id) }
 			word := func(text string) string {
-				if englishPass {
+				if selected(english.IDCommaNever) {
 					text = english.FixCommaNever(text)
 				}
-				if stePass {
-					text = ste.FixSelected(text, f.Keeps)
-				}
-				return text
+				return ste.FixSelected(text, selected)
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))

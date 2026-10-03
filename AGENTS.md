@@ -26,10 +26,10 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary` | yes, on a walk, except a `package.json` that does not parse |
 | `repo`, report only | `repo/near-duplicate`, `repo/json`, `repo/xml` | no |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
-| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
-| `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second |
+| `ste` | `ste/contraction`, `ste/modal`, `ste/sentence-length` | yes |
+| `english` | `english/comma-never`, `english/semicolon`, `english/comma-splice` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
-| `counts` | `counts/inventory-count` | yes |
+| `counts` | `counts/inventory-count`, `counts/stated-count`, `counts/postdeterminer` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags` | yes |
@@ -107,7 +107,7 @@ Every repair is a `fixer.Fixer`, and each package registers its fixers from `ini
 | Kind | Fixers, in order |
 |---|---|
 | source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number`, `pins/download-version`, `gofmt` |
-| document | `tombstones`, `counts/inventory-count`, `wrap-and-ste`, `ste/count`, `pins/download-version` |
+| document | `tombstones`, `counts/inventory-count`, `wrap-and-ste`, `counts/stated-count`, `pins/download-version` |
 | workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/untest`, `yaml/inline-env`, `yaml/filter-push`, `pins/download-version` |
 
 `gofmt` runs on a `.go` file that a fixer before it changed. A cut comment can leave a blank line too many, or bring together fields that gofmt aligns. The pass writes the gofmt layout through `goformat.Gate`. It answers to the selection of the fixers before it. A fragment with no package clause keeps its layout. So does a file no fixer changed, and a file whose gofmt layout changes more than whitespace.
@@ -150,7 +150,7 @@ coordinate/0 subject="-" verb="refuses": and refuses the write
 
 | | `Prose` | `Gate` | `Comment` |
 | --- | --- | --- | --- |
-| Rule | `counts/inventory-count` | `ste/count` | `comments/number` |
+| Rule | `counts/inventory-count` | `counts/stated-count` | `comments/number` |
 | Shape | quantity | quantity | number |
 | Frame required | yes | no | no |
 | Vocabulary | two upward, plus a dozen | two to twelve | cardinals, ordinals, scales, repeat counts |

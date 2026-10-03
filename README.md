@@ -10,10 +10,10 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 |---|---|---|
 | `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary`, `repo/near-duplicate`, `repo/json`, `repo/xml` | all but `repo/near-duplicate`, `repo/json` and `repo/xml` |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
-| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence with no clause boundary |
-| `english` | `english/comma-never` | yes |
+| `ste` | `ste/contraction`, `ste/modal`, `ste/sentence-length` | yes, except a long sentence with no clause boundary |
+| `english` | `english/comma-never`, `english/semicolon`, `english/comma-splice` | yes |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no, and a warning never fails `check` |
-| `counts` | `counts/inventory-count` | yes |
+| `counts` | `counts/inventory-count`, `counts/stated-count`, `counts/postdeterminer` | yes |
 | `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags` | yes, except a flow-style `push` mapping |
@@ -22,7 +22,8 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 
 - `repo`: `CLAUDE.md` holds only `@AGENTS.md`. Each root file, each `CLAUDE.md` and each `claude_snippets/` file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`. No executable is committed. No file is a near copy of another file of its name. Each JSON and XML file parses and meets the schema it names.
 - `wrap` and `ste`: a paragraph is one line, and its prose follows ASD-STE100 Simplified Technical English.
-- `counts`, `ste/count` and `comments/number`: a stated count goes stale when the set changes.
+- `english`: plain English usage that STE does not cover, such as a semicolon or a comma splice.
+- `counts` and `comments/number`: a stated count goes stale when the set changes.
 - `tombstones`: a comment that narrates history or argues for the diff.
 - `comments`: a number in a comment, a comment longer than its code, and a comment cut off mid-thought.
 - `yaml`: a comment block, a job named `all-builds`, a test in a `run:` script, and a gate under `continue-on-error`.
@@ -44,7 +45,7 @@ go-toolchain            # builds build/slopfix, and runs the tests
 slopfix check .                       # report what the rules reject, exit 1 on any finding
 slopfix fix .                         # repair in place, then report what is left
 slopfix check --only ste docs/a.md    # narrow to a category
-slopfix fix --only ste/semicolon a.md # narrow to a rule ID
+slopfix fix --only english/semicolon a.md # narrow to a rule ID
 slopfix check --json --path a.md < a.md      # JSON findings for text on stdin
 slopfix check --message < message.txt        # judge a closing message
 slopfix hook < payload.json                  # answer a Claude Code hook event
