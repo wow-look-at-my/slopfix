@@ -2,6 +2,7 @@ package slopfix
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -267,10 +268,10 @@ func TestAListedForkWithNoUsableTagFailsLoudly(t *testing.T) {
 		"a list that is no object": {http.StatusOK, `["o/fork"]`, "is not a fork list"},
 		"a null list":              {http.StatusOK, "null", "is not a fork list"},
 		"a list that is no JSON":   {http.StatusOK, "o/fork " + untagged + "\n", "is not a fork list"},
-		"a list error":           {http.StatusInternalServerError, "boom", "500"},
-		"missing upstream":       {http.StatusOK, forkList("o/fork", filepath.Join(t.TempDir(), "gone.git")), "list the tags of"},
-		"no tags":                {http.StatusOK, forkList("o/fork", untagged), "has no tags"},
-		"unrelated tags":         {http.StatusOK, forkList("o/fork", unrelated), "HEAD contains none of the tags"},
+		"a list error":             {http.StatusInternalServerError, "boom", "500"},
+		"missing upstream":         {http.StatusOK, forkList("o/fork", filepath.Join(t.TempDir(), "gone.git")), "list the tags of"},
+		"no tags":                  {http.StatusOK, forkList("o/fork", untagged), "has no tags"},
+		"unrelated tags":           {http.StatusOK, forkList("o/fork", unrelated), "HEAD contains none of the tags"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
