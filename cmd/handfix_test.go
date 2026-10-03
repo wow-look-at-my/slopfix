@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -14,14 +13,6 @@ import (
 
 const countsDoc = "Intro line.\nIt has three plugins.\nOutro line.\n"
 
-// onDisk writes src to a real file and answers its path.
-func onDisk(t *testing.T, name, src string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), name)
-	require.NoError(t, os.WriteFile(path, []byte(src), 0o644))
-	return path
-}
-
 func denial(t *testing.T, got answer) string {
 	t.Helper()
 	require.NotNil(t, got.out, "expected a refusal")
@@ -32,7 +23,7 @@ func denial(t *testing.T, got answer) string {
 
 func TestAnEditToAnAutoFixableLineIsDenied(t *testing.T) {
 	path := onDisk(t, "a.md", countsDoc)
-	got := ask(t, editPayload(path, "It has three plugins.", "It has three good plugins."), "counts")
+	got := ask(t, editOf(path, "It has three plugins.", "It has three good plugins."), "counts")
 
 	reason := denial(t, got)
 	assert.Contains(t, reason, "run `slopfix fix "+path+"`, then make your change; hand-edits to lines slopfix auto-fixes are refused")
@@ -42,14 +33,14 @@ func TestAnEditToAnAutoFixableLineIsDenied(t *testing.T) {
 
 func TestAnEditBesideAnAutoFixableLineIsAllowed(t *testing.T) {
 	path := onDisk(t, "a.md", countsDoc)
-	got := ask(t, editPayload(path, "Outro line.", "Closing line."), "counts")
+	got := ask(t, editOf(path, "Outro line.", "Closing line."), "counts")
 
 	assert.NotContains(t, got.body, "deny")
 }
 
 func TestAnInsertBesideAnAutoFixableLineIsAllowed(t *testing.T) {
 	path := onDisk(t, "a.md", countsDoc)
-	got := ask(t, editPayload(path, "Outro line.\n", "Middle line.\nOutro line.\n"), "counts")
+	got := ask(t, editOf(path, "Outro line.\n", "Middle line.\nOutro line.\n"), "counts")
 
 	assert.NotContains(t, got.body, "deny")
 }
@@ -62,7 +53,7 @@ func TestAnEditToAFindingFixDoesNotChangeIsAllowed(t *testing.T) {
 	}
 	src += "func x() {}\n"
 	path := onDisk(t, "a.go", src)
-	got := ask(t, editPayload(path, "step 7 of", "stage 7 of"), "tombstones")
+	got := ask(t, editOf(path, "step 7 of", "stage 7 of"), "tombstones")
 
 	assert.NotContains(t, got.body, "deny")
 }
@@ -103,14 +94,14 @@ func TestAMultiEditTouchingAnAutoFixableLineIsDenied(t *testing.T) {
 
 func TestAnEditTheToolCannotPlaceIsLeftToTheTool(t *testing.T) {
 	path := onDisk(t, "a.md", countsDoc)
-	got := ask(t, editPayload(path, "line.", "row."), "counts")
+	got := ask(t, editOf(path, "line.", "row."), "counts")
 
 	assert.NotContains(t, got.body, "deny")
 }
 
 func TestAnErrorComputingTheFixIsDenied(t *testing.T) {
 	dir := t.TempDir()
-	got := ask(t, editPayload(dir, "a", "b"), "counts")
+	got := ask(t, editOf(dir, "a", "b"), "counts")
 
 	reason := denial(t, got)
 	assert.Contains(t, reason, "slopfix cannot compute what `slopfix fix "+dir+"` changes")
@@ -150,7 +141,7 @@ func TestChangedLinesIgnoresAnInsertion(t *testing.T) {
 	assert.Equal(t, []int{1}, changedLines("a\nb\n", "b\n"))
 }
 
-func editPayload(path, old, new string) map[string]any {
+func editOf(path, old, new string) map[string]any {
 	return map[string]any{
 		"hook_event_name": "PreToolUse",
 		"tool_name":       "Edit",
