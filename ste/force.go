@@ -164,7 +164,7 @@ func longestSentence(text string) int {
 // means the sentence opens in bold.
 func inBold(source string, p int) bool {
 	at := strings.Index(source, "**")
-	bold := at > 0 && !unicode.IsSpace(rune(source[at-1])) && (at+2 == len(source) || !unicode.IsLetter(rune(source[at+2])))
+	bold := at > 0 && !unicode.IsSpace(rune(source[at-1])) && (at+2 == len(source) || !isWordByte(source[at+2]))
 	for at >= 0 && at < p {
 		bold = !bold
 		next := strings.Index(source[at+2:], "**")
@@ -174,6 +174,12 @@ func inBold(source string, p int) bool {
 		at += 2 + next
 	}
 	return bold
+}
+
+// isWordByte reports a byte that can open bold text's first word: a letter,
+// a digit or a code span.
+func isWordByte(b byte) bool {
+	return b == '`' || b >= '0' && b <= '9' || b >= 'A' && b <= 'Z' || b >= 'a' && b <= 'z' || b >= 0x80
 }
 
 // wordEnds answers where each word WordCount counts ends, in order. A

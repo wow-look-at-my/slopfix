@@ -89,6 +89,25 @@ func TestAForcedDivisionKeepsNamesAndStops(t *testing.T) {
 	assert.NotContains(t, got, "mirror's.", got)
 }
 
+// Bold that opens on a digit after a stop is an opener, not a closer.
+func TestBoldOpeningOnADigitIsPaired(t *testing.T) {
+	in := "Shape guard: `per_page` (1..100, default 30) and `page` (1..**40**, default 1 — the files API stops at 3000 files = 30 pages at the consumers' `per_page=100`, plus margin for the trailing empty page and smaller per_page shapes. Raised from 10."
+	got := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+	assert.Contains(t, got, "**40**")
+}
+
+// The numeral repair reads the paragraph as Check does, so a long paragraph
+// with code spans loses every numeral Check reports.
+func TestAPostdeterminerInALongParagraphIsCut(t *testing.T) {
+	in := "- **OAuth relay (github.com login endpoints)** — `POST /login/oauth/access_token` and `POST /login/device/code` relay the two browser-blocked `github.com` login endpoints, which are not on `api.github.com`. They share one core, `relayGitHubLogin` in `internal/api/oauth.go`. The pair covers the OAuth code-for-token exchange and the device-authorization start. Its body is opaque bytes to the relay."
+	got := ste.Fix(in)
+	for _, f := range ste.Check(got, 1) {
+		assert.NotEqual(t, ste.IDPostdeterminer, f.ID, got)
+	}
+	assert.Contains(t, got, "relay the browser-blocked `github.com` login endpoints")
+}
+
 // A verb that opens the rest gets the subject again.
 func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 	in := "The cache keeps every answer the upstream sent for the whole day across the restart of the process and the reload of the spec and holds the rows."

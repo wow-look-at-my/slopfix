@@ -115,10 +115,11 @@ func checkPostdeterminers(prose string, line int) []Finding {
 	return out
 }
 
-// fixPostdeterminers cuts every redundant numeral from the prose.
+// fixPostdeterminers cuts every redundant numeral from the prose. It divides
+// and parses the text as Check reads it, so it finds every numeral Check reports.
 func fixPostdeterminers(prose string) string {
-	masked := mask(prose)
-	hits := postdeterminers(prose, masked, opaque(prose, masked))
+	masked := checkMask(prose)
+	hits := postdeterminers(masked, masked, opaque(prose, masked))
 	for i := len(hits) - 1; i >= 0; i-- {
 		prose = prose[:hits[i].Start] + prose[hits[i].End:]
 	}
