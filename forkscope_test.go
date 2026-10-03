@@ -158,6 +158,91 @@ func TestARepositoryThatIsNoForkKeepsEveryFinding(t *testing.T) {
 	assert.Equal(t, []int{3, 5, 7}, semicolons(out, "doc.md"))
 }
 
+// declare tags the parent and writes ForkOfFile into the fork. The fork carries
+// the parent's base commit, tagged annotated as v1. The parent's later commit,
+// tagged v2, is one the fork never merged.
+func declare(t *testing.T, fx forkFixture, body string) {
+	t.Helper()
+	base := gitT(t, fx.fork, "rev-parse", "HEAD~1")
+	gitT(t, fx.parent, "tag", "-a", "-m", "v1", "v1", base)
+	gitT(t, fx.parent, "tag", "v2", "main")
+	require.NoError(t, os.MkdirAll(filepath.Join(fx.fork, ".github"), 0o755))
+	writeT(t, fx.fork, filepath.FromSlash(ForkOfFile), body)
+}
+
+// noAPI fails the test if the API is asked, for a fork that declares its upstream.
+func noAPI(t *testing.T) func(string) string {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("the API was asked about a fork that names its upstream")
+	}))
+	t.Cleanup(srv.Close)
+	return forkEnv(srv)
+}
+
+func TestADeclaredForkReportsOnlyTheLinesItWrote(t *testing.T) {
+	fx := newForkFixture(t)
+	declare(t, fx, "# The upstream this fork follows.\n\n"+fx.parent+"\n")
+	out := scopedCheck(t, fx.fork, noAPI(t))
+
+	assert.Equal(t, []int{5, 7}, semicolons(out, "doc.md"), "line 3 is upstream's, line 5 is edited, line 7 is added")
+	assert.Equal(t, []int{3}, semicolons(out, "new.md"))
+	assert.Equal(t, []int{3}, semicolons(out, "loose.md"))
+}
+
+func TestADeclaredForkNeedsNoGitHub(t *testing.T) {
+	fx := newForkFixture(t)
+	declare(t, fx, fx.parent+"\n")
+	out := scopedCheck(t, fx.fork, envOf(nil))
+	assert.Equal(t, []int{5, 7}, semicolons(out, "doc.md"))
+}
+
+func TestAShallowDeclaredForkIsDeepenedFirst(t *testing.T) {
+	fx := newForkFixture(t)
+	declare(t, fx, fx.parent+"\n")
+	gitT(t, fx.fork, "add", "-A")
+	gitT(t, fx.fork, "commit", "-q", "-m", "declare")
+	shallow := filepath.Join(t.TempDir(), "shallow")
+	gitT(t, fx.fork, "clone", "-q", "--depth", "1", "file://"+fx.fork, shallow)
+
+	out := scopedCheck(t, shallow, envOf(nil))
+
+	assert.Equal(t, []int{5, 7}, semicolons(out, "doc.md"))
+	assert.Equal(t, "false", gitT(t, shallow, "rev-parse", "--is-shallow-repository"))
+}
+
+func TestADeclaredForkWithNoUsableTagFailsLoudly(t *testing.T) {
+	untagged := t.TempDir()
+	gitT(t, untagged, "init", "-q", "-b", "main")
+	writeT(t, untagged, "other.md", "# Other\n")
+	gitT(t, untagged, "add", "-A")
+	gitT(t, untagged, "commit", "-q", "-m", "other")
+	unrelated := filepath.Join(t.TempDir(), "unrelated.git")
+	gitT(t, untagged, "clone", "-q", "--bare", untagged, unrelated)
+	gitT(t, unrelated, "tag", "v1", "main")
+
+	cases := map[string]struct {
+		body string
+		want string
+	}{
+		"no URL":         {"# only a comment\n\n", "names no upstream URL"},
+		"missing":        {filepath.Join(t.TempDir(), "gone.git") + "\n", "list the tags of"},
+		"no tags":        {untagged + "\n", "has no tags"},
+		"unrelated tags": {unrelated + "\n", "HEAD contains none of the tags"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			fx := newForkFixture(t)
+			require.NoError(t, os.MkdirAll(filepath.Join(fx.fork, ".github"), 0o755))
+			writeT(t, fx.fork, filepath.FromSlash(ForkOfFile), c.body)
+			own, err := ForkLines(fx.fork, noAPI(t))
+			require.Error(t, err)
+			assert.Nil(t, own)
+			assert.Contains(t, err.Error(), c.want)
+		})
+	}
+}
+
 func TestOutsideActionsNoRequestIsMade(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Error("the API was asked with no GITHUB_REPOSITORY set")
