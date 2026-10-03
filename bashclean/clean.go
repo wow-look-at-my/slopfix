@@ -54,7 +54,7 @@ func transform(command, dir string, passes int, warn io.Writer) Result {
 	}) {
 		return deny(command, "shred")
 	}
-	if hasGitRM(f) {
+	if hasUnrewritableGitRM(f) {
 		return deny(command, "git_rm")
 	}
 	if hasBadTruncate(f) {
@@ -120,6 +120,7 @@ func onePass(apply func(string, func(*syntax.File)), j *grepJSON) {
 	apply("toolchain_output", undivertToolchain)
 	apply("docker_compose_restart", func(f *syntax.File) { walkCalls(f, dockerCompose) })
 	apply("gh_wait_ci", func(f *syntax.File) { walkCalls(f, ghWaitCI) })
+	apply("git_rm_recycle", rewriteGitRM)
 	apply("rm_recycle", func(f *syntax.File) { walkCalls(f, rewriteRM) })
 	apply("truncate_recycle", func(f *syntax.File) { walkCalls(f, rewriteTruncate) })
 	apply("find_delete_recycle", func(f *syntax.File) { walkCalls(f, rewriteFind) })
