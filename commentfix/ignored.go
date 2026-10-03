@@ -81,8 +81,7 @@ func withoutVendored(root string, paths []string) []string {
 	return kept
 }
 
-// BorrowedAttributes are the .gitattributes that mark a path as another
-// author's: a vendored project, or a generator that writes it again.
+// BorrowedAttributes are the .gitattributes that mark a path as another author's: a vendored project.
 var BorrowedAttributes = []string{"linguist-vendored", "linguist-generated"}
 
 // AttributeSet reports a git attribute value that turns the attribute on.
