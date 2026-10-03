@@ -15,9 +15,6 @@ func TestCommaNever(t *testing.T) {
 		{"Write `a, never b` for it.", "Write `a, never b` for it."},
 		{`The owner wrote "a, never b" in the log.`, `The owner wrote "a, never b" in the log.`},
 		{"A set, nevertheless, holds.", "A set, nevertheless, holds."},
-		{"Never retry, never re-run, never widen a timeout.", "Never retry, never re-run, never widen a timeout."},
-		{"It runs. A failure is fixed, never concealed.", "It runs. A failure is fixed, not concealed."},
-		{"It never fails. A failure is fixed, never concealed.", "It never fails. A failure is fixed, not concealed."},
 	}
 	for _, c := range cases {
 		t.Run(c.in, func(t *testing.T) {

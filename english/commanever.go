@@ -45,29 +45,13 @@ func FixCommaNever(prose string) string {
 }
 
 // unmasked answers each match that no code span or quotation holds, because their words are data.
-// A match that continues a list of "never" in its own sentence is not a contrast, so it is skipped too.
 func unmasked(prose string) [][]int {
 	masks := append(codeSpan.FindAllStringIndex(prose, -1), quotation.FindAllStringIndex(prose, -1)...)
 	var out [][]int
 	for _, at := range commaNever.FindAllStringIndex(prose, -1) {
-		if !insideAny(masks, at[0], at[1]) && !continuesList(prose, at[0]) {
+		if !insideAny(masks, at[0], at[1]) {
 			out = append(out, at)
 		}
 	}
 	return out
-}
-
-// sentenceEnd finds the end of each sentence before a match.
-var sentenceEnd = regexp.MustCompile(`[.!?]\s`)
-
-// neverWord finds the word "never" in any case.
-var neverWord = regexp.MustCompile(`(?i)\bnever\b`)
-
-// continuesList reports whether the sentence that holds offset says "never" before it.
-func continuesList(prose string, offset int) bool {
-	start := 0
-	for _, end := range sentenceEnd.FindAllStringIndex(prose[:offset], -1) {
-		start = end[1]
-	}
-	return neverWord.MatchString(prose[start:offset])
 }
