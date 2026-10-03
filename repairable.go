@@ -3,6 +3,7 @@ package slopfix
 import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -45,4 +46,6 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	workflow.IDPushTags,
 	// The v parameter comes out of a download URL.
 	pins.ID,
+	// ", never" becomes ", not".
+	english.IDCommaNever,
 )).Union(tombstones.AllIDs()).Union(RepoIDs.Difference(ReportOnly))
