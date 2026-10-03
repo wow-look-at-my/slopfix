@@ -122,6 +122,11 @@ No input narrows the check. A path list, a rule list or a raw command line lets 
 
 On Unix the action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
 
+### A fork is checked on its own lines
+
+A fork carries its parent's tree, and the parent never agreed to these rules. When `GITHUB_REPOSITORY` is set, `check` on a directory reads `GET /repos/{repo}` from `GITHUB_API_URL`. It sends `GITHUB_TOKEN` as the bearer when that is set. The action passes the job token. When the answer says `fork`, `check` fetches the parent's default branch and finds the merge base with `HEAD`. Only a finding on a line added or changed since that merge base fails the check. A new file and an untracked file count whole. Both fetches skip blobs. A shallow clone is deepened first.
+A fork whose base cannot be read fails the check with the reason: an API error, a failed fetch, or no merge base. A repository that is not a fork is checked whole. `forkscope.go` holds this.
+
 ## The marketplace follows each publish
 
 cc-marketplace ships this binary inside its `slopfix` plugin. A publish here therefore reaches nobody until that plugin is packaged again. The last step of `ci.yml` does that on each master build. It dispatches `release.yml` in cc-marketplace with `publish: true`. The token is `CC_MARKETPLACE_DISPATCH_TOKEN` from secret-server, with `actions: write` on cc-marketplace. A missing token fails the build, because a silent skip leaves the marketplace on an old binary.

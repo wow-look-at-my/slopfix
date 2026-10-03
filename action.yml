@@ -34,6 +34,9 @@ runs:
       id: unix
       if: runner.os != 'Windows'
       shell: bash
+      # check reads the repository from the API to tell whether it is a fork, and a private one needs the token.
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -- check .
         if [ -n "${{ inputs.permission }}" ]; then
@@ -50,6 +53,8 @@ runs:
       id: windows
       if: runner.os == 'Windows'
       shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         $slopfixArgs = @('check', '.')
         if ('${{ inputs.permission }}' -ne '') {
