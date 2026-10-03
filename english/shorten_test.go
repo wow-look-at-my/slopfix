@@ -111,6 +111,14 @@ func TestAPatternLeavesAQuotationWhole(t *testing.T) {
 	assert.Equal(t, in, Fix(in, Document))
 }
 
+// A code span is a command. A filler-word drop inside it breaks the command.
+func TestAPatternLeavesACodeSpanWhole(t *testing.T) {
+	in := "Compiled by `just build` (tsc) to the asset."
+	assert.Equal(t, in, Fix(in, Comment))
+	// Fix joins whitespace, so a wrapped span comes back on one line with its words whole.
+	assert.Equal(t, in, Fix("Compiled by `just\nbuild` (tsc) to the asset.", Comment))
+}
+
 // A cut to the end of a sentence must not leave it on a word that opens what the cut took.
 func TestAPatternCutNeverEndsASentenceOnAnOpener(t *testing.T) {
 	in := "An operator sees a consumer that stopped being told rather than that silently never was."
