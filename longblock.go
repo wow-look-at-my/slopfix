@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
@@ -87,14 +88,14 @@ var blockOpener = regexp.MustCompile("^(?:[-*+]\\s|\\d{1,9}[.)]\\s|#{1,6}\\s|>|`
 // cuts answers each place text may divide, in order. A code span, a link,
 // bold text and a quotation never divide.
 func cuts(text string) []cut {
-	sentenceStarts := map[int]bool{}
+	sentenceStarts := set.New[int]()
 	from := 0
 	for _, s := range ste.Sentences(text) {
 		at := strings.Index(text[from:], s)
 		if at < 0 {
 			continue
 		}
-		sentenceStarts[from+at] = true
+		sentenceStarts.Add(from + at)
 		from += at + len(s)
 	}
 	var out []cut
@@ -126,7 +127,7 @@ func cuts(text string) []cut {
 				continue
 			}
 			class := cutWord
-			if sentenceStarts[at] {
+			if sentenceStarts.Contains(at) {
 				class = cutInnerSentence
 				if paren == 0 {
 					class = cutSentence
