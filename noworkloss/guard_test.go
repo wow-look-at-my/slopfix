@@ -389,11 +389,10 @@ func TestAllowsStashSubcommandsThatPreserveContent(t *testing.T) {
 	allowed(t, dir, "git stash show")
 	allowed(t, dir, "git stash branch recovered")
 
-	// pop and apply destroy nothing, but they put a stash's content back into
-	// the worktree, which no edit tool did.
+	// pop and apply put back work that a stash holds, and no edit tool can.
 	for _, c := range []string{"git stash apply", "git stash pop"} {
 		assert.Empty(t, lossOnly(t, dir, c), "%s discards nothing", c)
-		denied(t, dir, c)
+		allowed(t, dir, c)
 	}
 }
 

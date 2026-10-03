@@ -7,13 +7,12 @@ import (
 )
 
 // git is a legitimate thing for Bash to run, and most of it stays out of this
-// hook's way: status, log, diff, add, commit, push, fetch, branch, tag, and
-// creating or switching a branch all leave file content to the edit tools.
+// hook's way.
 
-// worktreeVerbs put content into the tree that no commit holds.
+// worktreeVerbs put content into the tree that no commit holds. `git stash pop`
+// is absent: it puts back work this session stashed, which no edit tool can do.
 var worktreeVerbs = map[string]string{
 	"restore":  "git restore",
-	"stash":    "git stash pop",
 	"revert":   "git revert",
 	"rebase":   "git rebase",
 	"am":       "git am",
@@ -126,8 +125,6 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 	case "restore":
 		// --staged alone moves the index back to HEAD and leaves the file on disk.
 		return !has("--staged") || has("--worktree", "-W")
-	case "stash":
-		return len(operands) > 0 && (operands[0].text == "pop" || operands[0].text == "apply")
 	case "reset":
 		// A soft or mixed reset moves refs and the index; only the flags below
 		return has("--hard", "--merge", "--keep")
