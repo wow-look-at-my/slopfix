@@ -66,6 +66,22 @@ func TestPreservesUntrackedFileContentBeforeRm(t *testing.T) {
 	assert.Equal(t, "scratch", content)
 }
 
+// commit-tree ignores commit.gpgsign. A repository that signs must get a signed
+// preservation commit, or GitHub shows it as Unverified.
+func TestPreservationSignsWhenTheRepositorySigns(t *testing.T) {
+	dir := newRepo(t)
+	key := filepath.Join(t.TempDir(), "signing")
+	out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key).CombinedOutput()
+	require.NoError(t, err, string(out))
+	git(t, dir, "config", "gpg.format", "ssh")
+	git(t, dir, "config", "user.signingkey", key+".pub")
+	git(t, dir, "config", "commit.gpgsign", "true")
+	untrack(t, dir, "scratch.txt")
+
+	preserved(t, dir, "rm scratch.txt")
+	assert.Contains(t, gitOutput(t, dir, "cat-file", "-p", "HEAD"), "gpgsig ")
+}
+
 // A tracked edit is preserved on top of HEAD, without writing the working tree.
 func TestPreservesModifiedTrackedFileOnTopOfHead(t *testing.T) {
 	dir := newRepo(t)
