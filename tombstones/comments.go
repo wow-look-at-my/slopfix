@@ -19,6 +19,7 @@ import (
 
 	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // Block is a comment run or a paragraph. LineNos and Pure place each line and
@@ -47,10 +48,10 @@ func AddedBlocks(path, added string) []Block {
 		for no := run.Start; no < run.End; no++ {
 			lineNos = append(lineNos, no)
 		}
-		// A line shared with code is a note on that code. The volume cap weighs the lines a reader meets as a block of prose.
+		// A line shared with code is a note on that code, and a directive is an instruction to a tool.
 		pure := 0
-		for _, p := range run.Pure {
-			if p {
+		for idx, p := range run.Pure {
+			if p && !treecomments.IsDirective(lines[run.Start+idx]) {
 				pure++
 			}
 		}
