@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -18,9 +17,6 @@ const IDNearDuplicate = "repo/near-duplicate"
 
 // NearDuplicateShare is the share of lines at which files of one name are the same file.
 const NearDuplicateShare = 0.95
-
-// CopyAttribute is the gitattribute that marks a file as a copy a contract requires.
-const CopyAttribute = "slopfix-copy"
 
 // perDirectoryNames are files a tool wants in each directory it reads, so some of them alike is normal.
 var perDirectoryNames = set.Of(
@@ -40,21 +36,14 @@ func nearDuplicates(root string) ([]TreeFinding, error) {
 		name := filepath.Base(path)
 		byName[name] = append(byName[name], path)
 	}
-	var candidates []string
-	for _, paths := range byName {
-		if len(paths) > 1 {
-			candidates = append(candidates, paths...)
-		}
-	}
-	copies := withAttribute(root, candidates, CopyAttribute)
 	var out []TreeFinding
 	for _, paths := range byName {
+		if len(paths) < 2 {
+			continue
+		}
 		sort.Strings(paths)
 		lines := map[string][]string{}
 		for _, path := range paths {
-			if copies.Contains(path) {
-				continue
-			}
 			content, err := os.ReadFile(path)
 			if err != nil {
 				return out, err
@@ -80,8 +69,7 @@ func nearDuplicates(root string) ([]TreeFinding, error) {
 				relB, _ := filepath.Rel(root, b)
 				out = append(out, repoFinding(relB, IDNearDuplicate,
 					fmt.Sprintf("%.1f%% of its lines match %s", share*100, filepath.ToSlash(relA)),
-					"Keep one copy and use it from both places. Mark a copy with the "+CopyAttribute+
-						" gitattribute only when a contract requires the copy."))
+					"Keep one copy and use it from both places."))
 				break
 			}
 		}
@@ -116,39 +104,4 @@ func lineShare(a, b []string) float64 {
 		}
 	}
 	return float64(2*shared) / float64(len(a)+len(b))
-}
-
-// withAttribute names each path that git marks with attr. A tree git cannot
-// read marks nothing.
-func withAttribute(root string, paths []string, attr string) set.Set[string] {
-	marked := set.New[string]()
-	if len(paths) == 0 {
-		return marked
-	}
-	abs := make([]string, len(paths))
-	byAbs := map[string]string{}
-	for i, path := range paths {
-		a, err := filepath.Abs(path)
-		if err != nil {
-			return marked
-		}
-		abs[i] = a
-		byAbs[a] = path
-	}
-	cmd := exec.Command("git", "check-attr", "--stdin", "-z", attr)
-	cmd.Dir = root
-	cmd.Stdin = strings.NewReader(strings.Join(abs, "\x00") + "\x00")
-	out, err := cmd.Output()
-	if err != nil {
-		return marked
-	}
-	fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
-	for i := 0; i+2 < len(fields); i += 3 {
-		if value := fields[i+2]; value != "unspecified" && value != "unset" {
-			if path, ok := byAbs[fields[i]]; ok {
-				marked.Add(path)
-			}
-		}
-	}
-	return marked
 }
