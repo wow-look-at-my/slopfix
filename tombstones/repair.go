@@ -83,7 +83,7 @@ func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) 
 		if !ok {
 			continue
 		}
-		body := strings.Join(lines[from:to+1], " ")
+		body := paragraphBody(lines[from:to+1], b.Prefix)
 		// A backtick span is a literal rather than a claim, and the table reads
 		if strings.Contains(body, "`") {
 			continue
@@ -94,13 +94,28 @@ func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) 
 		}
 		var kept []string
 		if hasWord(short) {
-			kept = []string{short}
+			kept = []string{b.Prefix + short}
 		}
 		e := edit.Rows(added, from, to, 0, kept)
 		edits = append(edits, e)
 		rewrites[e.Start] = took
 	}
 	return edits, rewrites
+}
+
+// paragraphBody joins a paragraph's lines without the prefix that opens it or
+// the indentation each line carries.
+func paragraphBody(lines []string, prefix string) string {
+	parts := make([]string, 0, len(lines))
+	for i, line := range lines {
+		if i == 0 {
+			line = strings.TrimPrefix(line, prefix)
+		}
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 // hasWord reports whether any letter or digit survives, so a paragraph the
