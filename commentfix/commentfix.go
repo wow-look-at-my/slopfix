@@ -91,7 +91,7 @@ func lineAndColumn(src string, at int) (line, col int) {
 func IsGenerated(filename, src string) bool {
 	defer trace.Phase("rule/generated-marker")()
 	if !Supported(filename) {
-		return generatedHeader(src)
+		return markedGenerated(src)
 	}
 	end := 0
 	for _, comment := range treecomments.Extract(filename, src) {
@@ -108,10 +108,10 @@ func IsGenerated(filename, src string) bool {
 	return false
 }
 
-// generatedHeader reports whether the first line holding text is the marker. A
+// markedGenerated reports whether the first line holding text is the marker. A
 // document has no comment grammar to read a header from, so the marker heads
 // the file on its own line, as an HTML comment in markdown.
-func generatedHeader(src string) bool {
+func markedGenerated(src string) bool {
 	for line := range strings.Lines(src) {
 		if strings.TrimSpace(line) == "" {
 			continue

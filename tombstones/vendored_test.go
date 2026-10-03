@@ -48,10 +48,3 @@ func TestAPathMarkedGeneratedIsBorrowed(t *testing.T) {
 	assert.False(t, Borrowed(own))
 }
 
-func TestAttributeSetReadsTheAttributeStates(t *testing.T) {
-	assert.True(t, AttributeSet("set"))
-	assert.True(t, AttributeSet("true"))
-	assert.False(t, AttributeSet("unspecified"))
-	assert.False(t, AttributeSet("unset"))
-	assert.False(t, AttributeSet("false"))
-}

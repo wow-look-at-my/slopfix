@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/wow-look-at-my/slopfix/code"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -85,13 +86,10 @@ func InTestdata(path string) bool { return under(path, "testdata") }
 // Borrowed reports a path another author wrote: one under a vendor or node_modules directory.
 func Borrowed(path string) bool { return under(path, "vendor", "node_modules") || vendoredAttr(path) }
 
-// BorrowedAttributes are the .gitattributes a path carries when another author wrote it: another project.
-var BorrowedAttributes = []string{"linguist-vendored", "linguist-generated"}
-
 // vendoredCache holds each path's answer, because a hook asks per write.
 var vendoredCache sync.Map
 
-// vendoredAttr asks git whether .gitattributes sets any BorrowedAttributes on
+// vendoredAttr asks git whether .gitattributes sets any commentfix.BorrowedAttributes on
 // path. A path outside a work tree, or one git cannot answer for, is not borrowed.
 func vendoredAttr(path string) bool {
 	if path == "" {
@@ -104,7 +102,7 @@ func vendoredAttr(path string) bool {
 	if v, ok := vendoredCache.Load(abs); ok {
 		return v.(bool)
 	}
-	args := append(append([]string{"check-attr", "-z"}, BorrowedAttributes...), "--", filepath.Base(abs))
+	args := append(append([]string{"check-attr", "-z"}, commentfix.BorrowedAttributes...), "--", filepath.Base(abs))
 	cmd := exec.Command("git", args...)
 	cmd.Dir = filepath.Dir(abs)
 	out, err := cmd.Output()
@@ -113,22 +111,13 @@ func vendoredAttr(path string) bool {
 		// git answers a path, attribute, value triple per attribute.
 		fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
 		for i := 0; i+2 < len(fields); i += 3 {
-			if AttributeSet(fields[i+2]) {
+			if commentfix.AttributeSet(fields[i+2]) {
 				vendored = true
 			}
 		}
 	}
 	vendoredCache.Store(abs, vendored)
 	return vendored
-}
-
-// AttributeSet reports a git attribute value that turns the attribute on.
-func AttributeSet(value string) bool {
-	switch value {
-	case "unspecified", "unset", "false":
-		return false
-	}
-	return true
 }
 
 // under reports whether a directory element of path is one of dirs.

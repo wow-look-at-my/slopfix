@@ -49,3 +49,11 @@ func TestTheWalkSkipsAPathMarkedGenerated(t *testing.T) {
 	assert.Contains(t, files, filepath.Join(root, "docs", "own.txt"))
 	assert.NotContains(t, files, filepath.Join(root, "docs", "routes.txt"))
 }
+
+func TestAttributeSetReadsTheAttributeStates(t *testing.T) {
+	assert.True(t, AttributeSet("set"))
+	assert.True(t, AttributeSet("true"))
+	assert.False(t, AttributeSet("unspecified"))
+	assert.False(t, AttributeSet("unset"))
+	assert.False(t, AttributeSet("false"))
+}
