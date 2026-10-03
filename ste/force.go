@@ -192,7 +192,8 @@ func candidates(source, masked string, strict bool) []forceCut {
 			continue
 		}
 		head := strings.TrimRight(source[:p], " ")
-		last := strings.ToLower(strings.Trim(lastField(head), ".,;:!?*_\"'`()[]“”‘’"))
+		// The part ends on the word the trim leaves, so a dash after "and" still ends it on "and".
+		last := strings.ToLower(strings.Trim(lastField(strings.TrimRight(head, " ,;:—–-")), ".,;:!?*_\"'`()[]“”‘’"))
 		next := strings.ToLower(strings.Trim(firstToken.FindString(source[q:]), ".,;:!?*_\"'`()[]“”‘’"))
 		if strict && (leftWords < minimumHalf || rightWords < minimumHalf || forceDangling.Contains(last) || forceBound.Contains(next)) {
 			continue
@@ -221,7 +222,11 @@ const (
 // how well it reads. A clause that names its own subject opens as it is. A
 // verb gets the subject again, and anything else opens with "This is".
 func openRest(source, masked string, c forceCut) (string, int) {
-	rest, restMasked := source[c.right:], masked[c.right:]
+	rest := strings.TrimLeft(source[c.right:], " —–-,;:")
+	restMasked := masked[len(masked)-len(rest):]
+	if rest == "" {
+		return "", 0
+	}
 	opener := ""
 	if word := strings.ToLower(firstToken.FindString(rest)); word != "" {
 		if connector, ok := connectors[word]; ok {
