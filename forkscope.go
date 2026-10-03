@@ -100,14 +100,25 @@ func forkLines(root string, getenv func(string) string, listURL string) (*OwnLin
 
 // fetchRepo reads GET /repos/{repo}, with GITHUB_TOKEN as the bearer when it is set.
 func fetchRepo(repo string, getenv func(string) string) (forkRepo, error) {
+	var info forkRepo
+	if err := githubGetJSON(getenv, "/repos/"+repo, &info); err != nil {
+		return forkRepo{}, fmt.Errorf("fork scope: %w", err)
+	}
+	return info, nil
+}
+
+// githubGet reads path from GITHUB_API_URL, with GITHUB_TOKEN as the bearer
+// when it is set. It answers the status and the body. A transport failure is
+// the error.
+func githubGet(getenv func(string) string, path string) (int, []byte, error) {
 	api := strings.TrimRight(getenv("GITHUB_API_URL"), "/")
 	if api == "" {
 		api = DefaultGitHubAPI
 	}
-	url := api + "/repos/" + repo
+	url := api + path
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %w", url, err)
+		return 0, nil, fmt.Errorf("GET %s: %w", url, err)
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	if token := getenv("GITHUB_TOKEN"); token != "" {
@@ -116,21 +127,29 @@ func fetchRepo(repo string, getenv func(string) string) (forkRepo, error) {
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %w", url, err)
+		return 0, nil, fmt.Errorf("GET %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %w", url, err)
+		return 0, nil, fmt.Errorf("GET %s: %w", url, err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %s: %s", url, resp.Status, strings.TrimSpace(string(body)))
+	return resp.StatusCode, body, nil
+}
+
+// githubGetJSON decodes path into out.
+func githubGetJSON(getenv func(string) string, path string, out any) error {
+	status, body, err := githubGet(getenv, path)
+	if err != nil {
+		return err
 	}
-	var info forkRepo
-	if err := json.Unmarshal(body, &info); err != nil {
-		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %w", url, err)
+	if status != http.StatusOK {
+		return fmt.Errorf("GET %s: %d %s: %s", path, status, http.StatusText(status), strings.TrimSpace(string(body)))
 	}
-	return info, nil
+	if err := json.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("GET %s: %w", path, err)
+	}
+	return nil
 }
 
 // gitIn runs git in dir and answers its output, or an error that quotes git's stderr.
