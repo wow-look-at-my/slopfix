@@ -92,6 +92,12 @@ func TestTwoFilesOfOneNameThatMatchAreReported(t *testing.T) {
 	assert.Contains(t, findings[0].Rule, "a/run.ts")
 }
 
+// Each copy is reported once, so the report grows with the copies and not with the pairs.
+func TestEachCopyIsReportedOnce(t *testing.T) {
+	root := gitRepo(t, map[string]string{"a/run.ts": script, "b/run.ts": script, "c/run.ts": script})
+	assert.Equal(t, []string{"b/run.ts repo/near-duplicate", "c/run.ts repo/near-duplicate"}, pathsOf(checkOnly(root, slopfix.IDNearDuplicate)))
+}
+
 func TestACopyTheAttributeMarksIsNotReported(t *testing.T) {
 	root := gitRepo(t, map[string]string{
 		".gitattributes":  "copies/** " + slopfix.CopyAttribute + "\n",

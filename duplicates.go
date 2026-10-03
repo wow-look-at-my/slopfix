@@ -66,8 +66,9 @@ func nearDuplicates(root string) ([]TreeFinding, error) {
 				lines[path] = l
 			}
 		}
-		for i, a := range paths {
-			for _, b := range paths[i+1:] {
+		// Each copy is reported once, against the first path it matches.
+		for i, b := range paths {
+			for _, a := range paths[:i] {
 				if lines[a] == nil || lines[b] == nil {
 					continue
 				}
@@ -81,6 +82,7 @@ func nearDuplicates(root string) ([]TreeFinding, error) {
 					fmt.Sprintf("%.1f%% of its lines match %s", share*100, filepath.ToSlash(relA)),
 					"Keep one copy and use it from both places. Mark a copy with the "+CopyAttribute+
 						" gitattribute only when a contract requires the copy."))
+				break
 			}
 		}
 	}
