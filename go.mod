@@ -9,9 +9,11 @@ require (
 	github.com/sourcegraph/jsonrpc2 v0.2.3
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
+	github.com/tidwall/jsonc v0.3.3
 	github.com/wow-look-at-my/go-containers v0.0.0 // go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-tokenizer v0.0.0 // go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-tree-sitter v0.0.0 // go-toolchain:auto-branch; go-toolchain:generate=a0022f830ef0
+	github.com/wow-look-at-my/json-validator v0.0.0 // go-toolchain:auto-branch
 	github.com/wow-look-at-my/xml-validator/validator v0.0.0 // go-toolchain:auto-branch
 	github.com/yuin/goldmark v1.8.6
 )
