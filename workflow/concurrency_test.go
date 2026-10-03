@@ -61,7 +61,7 @@ func TestTheRepairWritesTheOrgBlock(t *testing.T) {
 		"on: workflow_dispatch\nconcurrency:\n  group: ci\n  cancel-in-progress: true\njobs: {}\n": "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
 	}
 	for content, want := range cases {
-		out := repaired(t, content)
+		out := workflow.Fix(content, func(string) bool { return true }).Text
 		assert.Equal(t, want, out, content)
 		assert.Empty(t, concurrencyFindings(out), content)
 	}
@@ -69,7 +69,7 @@ func TestTheRepairWritesTheOrgBlock(t *testing.T) {
 
 func TestTheRepairKeepsTheFileIndent(t *testing.T) {
 	content := "on:\n    workflow_dispatch:\njobs:\n    a:\n        runs-on: x\n"
-	out := repaired(t, content)
+	out := workflow.Fix(content, func(string) bool { return true }).Text
 	assert.Contains(t, out, "concurrency:\n    group: gha_")
 	assert.Contains(t, out, "\n    cancel-in-progress: ${{")
 	assert.Empty(t, concurrencyFindings(out))
