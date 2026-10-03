@@ -1,6 +1,7 @@
 package treecomments
 
 import (
+	"crypto/sha256"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,6 +114,31 @@ import (
 `
 	got := texts(Extract("p.go", src))
 	assert.Equal(t, []string{"// This sentence is prose, because a grouped import has no preamble."}, got)
+}
+
+// Every rule on a file asks for the same comments, so a second Extract reuses
+// the parse. A caller that changes its copy cannot change the next caller's.
+func TestExtractParsesTheSameSourceOnce(t *testing.T) {
+	src := "package p\n\n// Cached explains the cache test.\nfunc Cached() {}\n"
+	first := Extract("cache.go", src)
+	require.Len(t, first, 1)
+	key := extractKey{language: languageFor("cache.go"), sum: sha256.Sum256([]byte(src))}
+	_, ok := extracted.get(key)
+	require.True(t, ok, "the first Extract must remember its parse")
+
+	first[0].Text = "changed by the caller"
+	assert.Equal(t, []string{"// Cached explains the cache test."}, texts(Extract("cache.go", src)))
+	assert.Empty(t, Extract("cache.go", "package p\n"), "a different source is a different parse")
+}
+
+func TestTheExtractCacheDropsItsOldestEntry(t *testing.T) {
+	c := &extractCache{byKey: map[extractKey][]Comment{}}
+	for i := range extractCacheSize + 1 {
+		c.put(extractKey{sum: [sha256.Size]byte{byte(i), byte(i >> 8)}}, nil)
+	}
+	assert.Len(t, c.byKey, extractCacheSize)
+	_, ok := c.get(extractKey{})
+	assert.False(t, ok, "the oldest entry goes first")
 }
 
 func TestAFileWithoutCgoKeepsEveryComment(t *testing.T) {

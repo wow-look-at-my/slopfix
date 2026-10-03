@@ -7,10 +7,12 @@
 package treecomments
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -160,6 +162,56 @@ func Extract(filename, src string) []Comment {
 	if language == nil {
 		return nil
 	}
+	key := extractKey{language: language, sum: sha256.Sum256([]byte(src))}
+	if cached, ok := extracted.get(key); ok {
+		return slices.Clone(cached)
+	}
+	out := extract(language, src)
+	extracted.put(key, out)
+	return slices.Clone(out)
+}
+
+// extractKey names a parse by its grammar and the exact bytes it read.
+type extractKey struct {
+	language *ts.Language
+	sum      [sha256.Size]byte
+}
+
+// extractCacheSize bounds the remembered parses. Every rule on a file asks for the same parse.
+const extractCacheSize = 256
+
+// extractCache remembers recent parses. The oldest entry goes first when it is full.
+type extractCache struct {
+	mu    sync.Mutex
+	order []extractKey
+	byKey map[extractKey][]Comment
+}
+
+var extracted = &extractCache{byKey: map[extractKey][]Comment{}}
+
+func (c *extractCache) get(key extractKey) ([]Comment, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out, ok := c.byKey[key]
+	return out, ok
+}
+
+func (c *extractCache) put(key extractKey, comments []Comment) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, ok := c.byKey[key]; ok {
+		return
+	}
+	if len(c.order) == extractCacheSize {
+		delete(c.byKey, c.order[0])
+		c.order = c.order[1:]
+	}
+	c.order = append(c.order, key)
+	c.byKey[key] = comments
+}
+
+// extract parses src and collects its comments.
+func extract(language *ts.Language, src string) []Comment {
 	parser := ts.NewParser()
 	if !parser.SetLanguage(language) {
 		return nil
