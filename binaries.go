@@ -6,7 +6,9 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -78,12 +80,19 @@ func committedBinaries(root string, writing bool) ([]TreeFinding, []string, erro
 	if err != nil {
 		return nil, nil, err
 	}
+	var embedded func(string) bool
 	var out []TreeFinding
 	var removed []string
 	for _, rel := range files {
 		path := filepath.Join(root, rel)
 		kind := fileKind(path)
-		if kind == "" {
+		if kind == "" || readByBuild(rel) {
+			continue
+		}
+		if embedded == nil {
+			embedded = embeddedFiles(root, files)
+		}
+		if embedded(filepath.ToSlash(rel)) {
 			continue
 		}
 		if writing {
@@ -97,6 +106,90 @@ func committedBinaries(root string, writing bool) ([]TreeFinding, []string, erro
 			"Delete it and ignore it in .gitignore. A build makes it from source. `slopfix fix` deletes it."))
 	}
 	return out, removed, nil
+}
+
+// readByBuild reports an executable that a build reads and never makes.
+func readByBuild(rel string) bool {
+	return strings.HasSuffix(rel, ".syso") || underDir(rel, "testdata")
+}
+
+func underDir(rel, dir string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
+		if part == dir {
+			return true
+		}
+	}
+	return false
+}
+
+// embeddedFiles answers whether a //go:embed directive in a tracked Go file
+// names a path. The compiler reads such a file into the package.
+func embeddedFiles(root string, files []string) func(string) bool {
+	type directive struct{ dir, pattern string }
+	var directives []directive
+	for _, rel := range files {
+		if !strings.HasSuffix(rel, ".go") {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil || !bytes.Contains(body, []byte("//go:embed")) {
+			continue
+		}
+		dir := path.Dir(filepath.ToSlash(rel))
+		for _, line := range strings.Split(string(body), "\n") {
+			rest, ok := strings.CutPrefix(strings.TrimSpace(line), "//go:embed")
+			if !ok {
+				continue
+			}
+			for _, pattern := range embedPatterns(rest) {
+				directives = append(directives, directive{dir, strings.TrimPrefix(pattern, "all:")})
+			}
+		}
+	}
+	return func(name string) bool {
+		for _, d := range directives {
+			rel := name
+			if d.dir != "." {
+				var ok bool
+				if rel, ok = strings.CutPrefix(name, d.dir+"/"); !ok {
+					continue
+				}
+			}
+			parts := strings.Split(rel, "/")
+			for end := 1; end <= len(parts); end++ {
+				if matched, _ := path.Match(d.pattern, strings.Join(parts[:end], "/")); matched {
+					return true
+				}
+			}
+		}
+		return false
+	}
+}
+
+// embedPatterns splits the arguments of a //go:embed line. A pattern may be
+// quoted in Go syntax, which is how it holds a space.
+func embedPatterns(args string) []string {
+	var out []string
+	for args = strings.TrimSpace(args); args != ""; args = strings.TrimSpace(args) {
+		if args[0] == '"' || args[0] == '`' {
+			quoted, err := strconv.QuotedPrefix(args)
+			if err != nil {
+				return out
+			}
+			if pattern, err := strconv.Unquote(quoted); err == nil {
+				out = append(out, pattern)
+			}
+			args = args[len(quoted):]
+			continue
+		}
+		end := strings.IndexAny(args, " \t")
+		if end < 0 {
+			end = len(args)
+		}
+		out = append(out, args[:end])
+		args = args[end:]
+	}
+	return out
 }
 
 // fileKind reads the first bytes of a regular file. A symlink, a gitlink and a

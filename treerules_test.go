@@ -58,6 +58,30 @@ func TestATrackedExecutableIsReportedAndFixDeletesIt(t *testing.T) {
 	assert.Empty(t, checkOnly(root, slopfix.IDBinary))
 }
 
+// A build reads these executables and never makes them. Fix must keep them.
+func TestAnExecutableTheBuildReadsIsKept(t *testing.T) {
+	root := gitRepo(t, map[string]string{
+		"debug/elf/testdata/gcc-amd64-linux-exec": elf,
+		"runtime/race/race_linux_amd64.syso":      elf,
+		"link/loader.go":                          "package link\n\nimport _ \"embed\"\n\n//go:embed bin/loader-linux \"bin/with space\"\nvar loader []byte\n\n\t//go:embed all:assets\nvar assets []byte\n",
+		"link/bin/loader-linux":                   elf,
+		"link/bin/with space":                     elf,
+		"link/assets/deep/tool":                   elf,
+		"link/bin/stray":                          elf,
+		"stray":                                   elf,
+	})
+	assert.ElementsMatch(t, []string{"link/bin/stray repo/binary", "stray repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
+
+	slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDBinary}})
+	assert.FileExists(t, filepath.Join(root, "debug", "elf", "testdata", "gcc-amd64-linux-exec"))
+	assert.FileExists(t, filepath.Join(root, "runtime", "race", "race_linux_amd64.syso"))
+	assert.FileExists(t, filepath.Join(root, "link", "bin", "loader-linux"))
+	assert.FileExists(t, filepath.Join(root, "link", "bin", "with space"))
+	assert.FileExists(t, filepath.Join(root, "link", "assets", "deep", "tool"))
+	assert.NoFileExists(t, filepath.Join(root, "link", "bin", "stray"))
+	assert.NoFileExists(t, filepath.Join(root, "stray"))
+}
+
 func TestAnUntrackedExecutableIsNotTheRepositorys(t *testing.T) {
 	root := gitRepo(t, map[string]string{".gitignore": "build/\n"})
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "build"), 0o755))
