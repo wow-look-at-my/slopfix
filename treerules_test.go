@@ -58,16 +58,21 @@ func TestATrackedExecutableIsReportedAndFixDeletesIt(t *testing.T) {
 	assert.Empty(t, checkOnly(root, slopfix.IDBinary))
 }
 
-// A binary that a //go:embed directive names is the program's input, so no build makes it.
-func TestAnEmbeddedExecutableIsAnInput(t *testing.T) {
+// Git LFS stores a pointer in the index and writes the binary into the
+// checkout. Git itself holds no executable, so fix must keep the file.
+func TestAGitLFSExecutableIsKept(t *testing.T) {
+	pointer := "version https://git-lfs.github.com/spec/v1\noid sha256:4d7a214614ab2935c943f9e0ff69d22eadbb8f32b1258daaa5e2ca24d17e2393\nsize 31\n"
 	root := gitRepo(t, map[string]string{
-		"ld/loader.go":           "package ld\n\nimport _ \"embed\"\n\n//go:embed bin/loader-amd64\nvar loader []byte\n\n//go:embed payloads\nvar payloads embed.FS\n",
-		"ld/bin/loader-amd64":    elf,
-		"ld/payloads/one":        elf,
-		"ld/bin/loader-arm64":    elf,
-		"stray/bin/loader-amd64": elf,
+		".gitattributes":      "bin/tool filter=lfs diff=lfs merge=lfs -text\n",
+		"bin/tool":            pointer,
+		"testdata/fixture.so": elf,
 	})
-	assert.ElementsMatch(t, []string{"ld/bin/loader-arm64 repo/binary", "stray/bin/loader-amd64 repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "bin", "tool"), []byte(elf), 0o755))
+	assert.Equal(t, []string{"testdata/fixture.so repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
+
+	slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDBinary}})
+	assert.FileExists(t, filepath.Join(root, "bin", "tool"))
+	assert.NoFileExists(t, filepath.Join(root, "testdata", "fixture.so"))
 }
 
 func TestAnUntrackedExecutableIsNotTheRepositorys(t *testing.T) {
