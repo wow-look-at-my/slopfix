@@ -10,6 +10,7 @@ package slopfix
 
 import (
 	"bufio"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,14 +22,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tidwall/jsonc"
 	"github.com/wow-look-at-my/go-containers/set"
+	jsonvalidator "github.com/wow-look-at-my/json-validator/validator"
 )
 
 // DefaultGitHubAPI is the API root when GITHUB_API_URL is unset.
 const DefaultGitHubAPI = "https://api.github.com"
 
 // ForkListURL serves the fork list that the org's .github repository publishes to buildhost.
-const ForkListURL = "https://sites.pazer.build/github/fork-of"
+const ForkListURL = "https://sites.pazer.build/github/fork-of.json"
 
 // OwnLines is the part of a fork's work tree that the fork wrote.
 type OwnLines struct {
@@ -214,20 +217,32 @@ func listedUpstream(repo, url string) (string, error) {
 	return upstreamFor(string(body), repo, url)
 }
 
-// upstreamFor reads a fork list: an "OWNER/NAME upstream-URL" line for each fork,
-// with blank lines and # comments ignored. A line it cannot read is an error.
+//go:embed forklist.schema.json
+var forkListSchema []byte
+
+// forkListValidator holds forklist.schema.json, compiled once.
+var forkListValidator = func() *jsonvalidator.Validator {
+	v, err := jsonvalidator.NewFromBytes("embedded:forklist.schema.json", forkListSchema, jsonvalidator.Options{})
+	if err != nil {
+		panic(err)
+	}
+	return v
+}()
+
+// upstreamFor reads a fork list: a JSON object, comments allowed, that maps each
+// fork's OWNER/NAME to its upstream URL. A list that breaks forklist.schema.json is an error.
 func upstreamFor(list, repo, source string) (string, error) {
-	for num, line := range strings.Split(list, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) != 2 || strings.Count(fields[0], "/") != 1 {
-			return "", fmt.Errorf("fork scope: %s line %d is not an OWNER/NAME and an upstream URL: %q", source, num+1, line)
-		}
-		if strings.EqualFold(fields[0], repo) {
-			return fields[1], nil
+	if err := forkListValidator.ValidateBytes([]byte(list), source).AsError(); err != nil {
+		return "", fmt.Errorf("fork scope: %s is not a fork list: %w", source, err)
+	}
+	// The validator above accepted the list. This decodes it the same way.
+	var forks map[string]string
+	if err := json.Unmarshal(jsonc.ToJSON([]byte(list)), &forks); err != nil {
+		return "", fmt.Errorf("fork scope: %s is not a fork list: %w", source, err)
+	}
+	for name, url := range forks {
+		if strings.EqualFold(name, repo) {
+			return url, nil
 		}
 	}
 	return "", nil
@@ -328,6 +343,14 @@ func (o *OwnLines) readDiff(diff string) error {
 			if file != "" && created {
 				o.whole.Add(file)
 			}
+		case strings.HasPrefix(line, "Binary files ") && strings.HasSuffix(line, " differ"):
+			name, err := binaryDiffPath(strings.TrimSuffix(strings.TrimPrefix(line, "Binary files "), " differ"))
+			if err != nil {
+				return err
+			}
+			if name != "" {
+				o.whole.Add(name)
+			}
 		case strings.HasPrefix(line, "@@ "):
 			start, count, err := hunkNew(line)
 			if err != nil {
@@ -380,6 +403,35 @@ func diffPath(field string) (string, error) {
 		field = unquoted
 	}
 	return strings.TrimPrefix(field, "b/"), nil
+}
+
+// binaryDiffPath answers the new path of a binary diff's "A and B" pair, or ""
+// for a deleted file. The diff runs with --no-renames, so A and B name one path
+// unless a side is /dev/null. The halves therefore split at the middle " and ".
+func binaryDiffPath(pair string) (string, error) {
+	if newSide, ok := strings.CutPrefix(pair, "/dev/null and "); ok {
+		return diffPath(newSide)
+	}
+	if strings.HasSuffix(pair, " and /dev/null") {
+		return "", nil
+	}
+	refused := fmt.Errorf("fork scope: the binary diff %q does not name one path on each side", pair)
+	half := (len(pair) - len(" and ")) / 2
+	if half <= 0 || pair[half:half+len(" and ")] != " and " {
+		return "", refused
+	}
+	oldSide, err := diffPath(strings.Replace(pair[:half], "a/", "b/", 1))
+	if err != nil {
+		return "", err
+	}
+	newSide, err := diffPath(pair[half+len(" and "):])
+	if err != nil {
+		return "", err
+	}
+	if oldSide != newSide {
+		return "", refused
+	}
+	return newSide, nil
 }
 
 // hunkRange reads "start[,count]" after the sign of a hunk header side.

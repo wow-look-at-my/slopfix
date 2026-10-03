@@ -2,6 +2,7 @@ package slopfix
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -149,6 +150,57 @@ func TestAShallowForkIsDeepenedBeforeTheMergeBase(t *testing.T) {
 	assert.Equal(t, "false", gitT(t, shallow, "rev-parse", "--is-shallow-repository"))
 }
 
+// binaryFindings answers the paths, in order, of each repo/binary finding.
+func binaryFindings(out TreeRepair) []string {
+	var paths []string
+	for _, f := range out.Findings {
+		if f.ID == IDBinary {
+			paths = append(paths, filepath.ToSlash(f.Path))
+		}
+	}
+	slices.Sort(paths)
+	return paths
+}
+
+func TestAForkReportsOnlyTheBinariesItWrote(t *testing.T) {
+	const elf = "\x7fELF\x02\x01\x01\x00"
+	work := t.TempDir()
+	gitT(t, work, "init", "-q", "-b", "main")
+	writeT(t, work, "inherited.bin", elf+"parent")
+	writeT(t, work, "edited.bin", elf+"parent")
+	gitT(t, work, "add", "-A")
+	gitT(t, work, "commit", "-q", "-m", "base")
+	parent := filepath.Join(t.TempDir(), "parent.git")
+	gitT(t, work, "clone", "-q", "--bare", work, parent)
+
+	fork := filepath.Join(t.TempDir(), "fork")
+	gitT(t, work, "clone", "-q", parent, fork)
+	writeT(t, fork, "edited.bin", elf+"fork")
+	writeT(t, fork, "added.bin", elf+"fork")
+	gitT(t, fork, "add", "-A")
+	gitT(t, fork, "commit", "-q", "-m", "fork work")
+
+	out := scopedCheck(t, fork, forkEnv(forkAPI(t, forkBody(parent))), noList(t))
+	assert.Equal(t, []string{"added.bin", "edited.bin"}, binaryFindings(out),
+		"a binary the fork added or changed is the fork's; one it inherited unchanged is not")
+}
+
+func TestBinaryDiffPath(t *testing.T) {
+	for pair, want := range map[string]string{
+		"/dev/null and b/new.bin":                 "new.bin",
+		"a/x.bin and b/x.bin":                     "x.bin",
+		"a/this and that and b/this and that":     "this and that",
+		`"a/t\303\251.bin" and "b/t\303\251.bin"`: "té.bin",
+		"a/gone.bin and /dev/null":                "",
+	} {
+		got, err := binaryDiffPath(pair)
+		require.NoError(t, err, pair)
+		assert.Equal(t, want, got, pair)
+	}
+	_, err := binaryDiffPath("a/x and b/yy")
+	assert.Error(t, err, "sides that name different paths are refused")
+}
+
 func TestARepositoryThatIsNoForkKeepsEveryFinding(t *testing.T) {
 	fx := newForkFixture(t)
 	own, err := forkLines(fx.fork, forkEnv(forkAPI(t, `{"fork":false}`)), noList(t))
@@ -171,13 +223,18 @@ func tagParent(t *testing.T, fx forkFixture) {
 func listAt(t *testing.T, status int, list string) string {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/fork-of", r.URL.Path)
+		assert.Equal(t, "/fork-of.json", r.URL.Path)
 		assert.Empty(t, r.Header.Get("Authorization"), "the list is public, so no token goes to it")
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(list))
 	}))
 	t.Cleanup(srv.Close)
-	return srv.URL + "/fork-of"
+	return srv.URL + "/fork-of.json"
+}
+
+// forkList answers a fork list with one entry, name to upstream.
+func forkList(name, upstream string) string {
+	return fmt.Sprintf("{%q: %q}\n", name, upstream)
 }
 
 // noList answers the URL of a fork list that does not exist.
@@ -199,7 +256,7 @@ func listedEnv(t *testing.T) func(string) string {
 func TestAListedForkReportsOnlyTheLinesItWrote(t *testing.T) {
 	fx := newForkFixture(t)
 	tagParent(t, fx)
-	list := "# Forks GitHub does not record.\n\nx/other https://example.invalid/other\nO/Fork " + fx.parent + "\n"
+	list := fmt.Sprintf("// Forks GitHub does not record.\n{\n\t\"x/other\": \"https://example.invalid/other\", /* a fork of another */\n\t\"O/Fork\": %q,\n}\n", fx.parent)
 	out := scopedCheck(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, list))
 
 	assert.Equal(t, []int{5, 7}, semicolons(out, "doc.md"), "line 3 is upstream's, line 5 is edited, line 7 is added")
@@ -212,7 +269,7 @@ func TestAForkFileInTheRepositoryIsIgnored(t *testing.T) {
 	fx := newForkFixture(t)
 	tagParent(t, fx)
 	require.NoError(t, os.MkdirAll(filepath.Join(fx.fork, ".github"), 0o755))
-	writeT(t, fx.fork, filepath.Join(".github", "fork-of"), "o/fork "+fx.parent+"\n")
+	writeT(t, fx.fork, filepath.Join(".github", "fork-of.json"), forkList("o/fork", fx.parent))
 	own, err := forkLines(fx.fork, forkEnv(forkAPI(t, `{"fork":false}`)), noList(t))
 	require.NoError(t, err)
 	assert.Nil(t, own, "only the org's list names a fork")
@@ -222,7 +279,7 @@ func TestAForkFileInTheRepositoryIsIgnored(t *testing.T) {
 func TestAListEntryOfAnotherOwnerIsNoFork(t *testing.T) {
 	fx := newForkFixture(t)
 	tagParent(t, fx)
-	own, err := forkLines(fx.fork, forkEnv(forkAPI(t, `{"fork":false}`)), listAt(t, http.StatusOK, "other/fork "+fx.parent+"\n"))
+	own, err := forkLines(fx.fork, forkEnv(forkAPI(t, `{"fork":false}`)), listAt(t, http.StatusOK, forkList("other/fork", fx.parent)))
 	require.NoError(t, err)
 	assert.Nil(t, own)
 }
@@ -235,7 +292,7 @@ func TestAShallowListedForkIsDeepenedFirst(t *testing.T) {
 	shallow := filepath.Join(t.TempDir(), "shallow")
 	gitT(t, fx.fork, "clone", "-q", "--depth", "1", "file://"+fx.fork, shallow)
 
-	out := scopedCheck(t, shallow, listedEnv(t), listAt(t, http.StatusOK, "o/fork "+fx.parent+"\n"))
+	out := scopedCheck(t, shallow, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))
 
 	assert.Equal(t, []int{5, 7}, semicolons(out, "doc.md"))
 	assert.Equal(t, "false", gitT(t, shallow, "rev-parse", "--is-shallow-repository"))
@@ -256,12 +313,16 @@ func TestAListedForkWithNoUsableTagFailsLoudly(t *testing.T) {
 		list   string
 		want   string
 	}{
-		"a line without a URL": {http.StatusOK, "o/fork\n", "line 1 is not an OWNER/NAME and an upstream URL"},
-		"a name with no owner": {http.StatusOK, "fork " + untagged + "\n", "line 1 is not an OWNER/NAME and an upstream URL"},
-		"a list error":         {http.StatusInternalServerError, "boom", "500"},
-		"missing upstream":     {http.StatusOK, "o/fork " + filepath.Join(t.TempDir(), "gone.git") + "\n", "list the tags of"},
-		"no tags":              {http.StatusOK, "o/fork " + untagged + "\n", "has no tags"},
-		"unrelated tags":       {http.StatusOK, "o/fork " + unrelated + "\n", "HEAD contains none of the tags"},
+		"an entry without a URL":   {http.StatusOK, forkList("o/fork", ""), "is not a fork list"},
+		"a name with no owner":     {http.StatusOK, forkList("fork", untagged), "is not a fork list"},
+		"a URL that is no string":  {http.StatusOK, `{"o/fork": 1}`, "is not a fork list"},
+		"a list that is no object": {http.StatusOK, `["o/fork"]`, "is not a fork list"},
+		"a null list":              {http.StatusOK, "null", "is not a fork list"},
+		"a list that is no JSON":   {http.StatusOK, "o/fork " + untagged + "\n", "is not a fork list"},
+		"a list error":             {http.StatusInternalServerError, "boom", "500"},
+		"missing upstream":         {http.StatusOK, forkList("o/fork", filepath.Join(t.TempDir(), "gone.git")), "list the tags of"},
+		"no tags":                  {http.StatusOK, forkList("o/fork", untagged), "has no tags"},
+		"unrelated tags":           {http.StatusOK, forkList("o/fork", unrelated), "HEAD contains none of the tags"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -287,7 +348,7 @@ func TestOutsideActionsNoRequestIsMade(t *testing.T) {
 		t.Error("a request was made with no GITHUB_REPOSITORY set")
 	}))
 	t.Cleanup(srv.Close)
-	own, err := forkLines(t.TempDir(), envOf(map[string]string{"GITHUB_API_URL": srv.URL}), srv.URL+"/fork-of")
+	own, err := forkLines(t.TempDir(), envOf(map[string]string{"GITHUB_API_URL": srv.URL}), srv.URL+"/fork-of.json")
 	require.NoError(t, err)
 	assert.Nil(t, own)
 }
@@ -326,10 +387,10 @@ func TestAnAPIErrorFailsLoudly(t *testing.T) {
 	assert.Nil(t, own)
 	assert.Contains(t, err.Error(), "401")
 
-	own, err = forkLines(t.TempDir(), forkEnv(srv), "http://127.0.0.1:1/fork-of")
+	own, err = forkLines(t.TempDir(), forkEnv(srv), "http://127.0.0.1:1/fork-of.json")
 	require.Error(t, err)
 	assert.Nil(t, own)
-	assert.Contains(t, err.Error(), "fork scope: GET http://127.0.0.1:1/fork-of", "the fork list is asked for first")
+	assert.Contains(t, err.Error(), "fork scope: GET http://127.0.0.1:1/fork-of.json", "the fork list is asked for first")
 }
 
 func TestAForkOutsideAWorkTreeFailsLoudly(t *testing.T) {

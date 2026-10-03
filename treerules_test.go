@@ -61,6 +61,23 @@ func TestATrackedExecutableIsReportedAndFixDeletesIt(t *testing.T) {
 	assert.Empty(t, checkOnly(root, slopfix.IDBinary))
 }
 
+// Git LFS stores a pointer in the index and writes the binary into the
+// checkout. Git itself holds no executable, so fix must keep the file.
+func TestAGitLFSExecutableIsKept(t *testing.T) {
+	pointer := "version https://git-lfs.github.com/spec/v1\noid sha256:4d7a214614ab2935c943f9e0ff69d22eadbb8f32b1258daaa5e2ca24d17e2393\nsize 31\n"
+	root := gitRepo(t, map[string]string{
+		".gitattributes":      "bin/tool filter=lfs diff=lfs merge=lfs -text\n",
+		"bin/tool":            pointer,
+		"testdata/fixture.so": elf,
+	})
+	require.NoError(t, os.WriteFile(filepath.Join(root, "bin", "tool"), []byte(elf), 0o755))
+	assert.Equal(t, []string{"testdata/fixture.so repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
+
+	slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDBinary}})
+	assert.FileExists(t, filepath.Join(root, "bin", "tool"))
+	assert.NoFileExists(t, filepath.Join(root, "testdata", "fixture.so"))
+}
+
 func TestAnUntrackedExecutableIsNotTheRepositorys(t *testing.T) {
 	root := gitRepo(t, map[string]string{".gitignore": "build/\n"})
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "build"), 0o755))
@@ -101,13 +118,14 @@ func TestEachCopyIsReportedOnce(t *testing.T) {
 	assert.Equal(t, []string{"b/run.ts repo/near-duplicate", "c/run.ts repo/near-duplicate"}, pathsOf(checkOnly(root, slopfix.IDNearDuplicate)))
 }
 
-func TestACopyTheAttributeMarksIsNotReported(t *testing.T) {
+// No attribute exempts a copy. The only answer to a copy is one file.
+func TestNoAttributeExemptsACopy(t *testing.T) {
 	root := gitRepo(t, map[string]string{
-		".gitattributes":  "copies/** " + slopfix.CopyAttribute + "\n",
+		".gitattributes":  "copies/** slopfix-copy\n",
 		"copies/a/run.ts": script,
 		"copies/b/run.ts": script,
 	})
-	assert.Empty(t, checkOnly(root, slopfix.IDNearDuplicate))
+	assert.Equal(t, []string{"copies/b/run.ts repo/near-duplicate"}, pathsOf(checkOnly(root, slopfix.IDNearDuplicate)))
 }
 
 func TestFilesEachDirectoryNeedsAreNotCopies(t *testing.T) {
