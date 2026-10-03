@@ -1,6 +1,7 @@
 package slopfix_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -166,6 +167,13 @@ func schemaServer(t *testing.T) string {
 	return server.URL
 }
 
+func jsonDoc(t *testing.T, fields map[string]string) string {
+	t.Helper()
+	data, err := json.Marshal(fields)
+	require.NoError(t, err)
+	return string(data)
+}
+
 // A remote schema is fetched and enforced. One that does not load is a finding.
 func TestARemoteSchemaIsFetched(t *testing.T) {
 	base := schemaServer(t)
@@ -173,9 +181,9 @@ func TestARemoteSchemaIsFetched(t *testing.T) {
 		return `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="` + base + file + `"`
 	}
 	root := gitRepo(t, map[string]string{
-		"good.json": `{"$schema": "` + base + `/thing.schema.json", "name": "x"}`,
-		"bad.json":  `{"$schema": "` + base + `/thing.schema.json", "nmae": "x"}`,
-		"lost.json": `{"$schema": "` + base + `/missing.schema.json", "name": "x"}`,
+		"good.json": jsonDoc(t, map[string]string{"$schema": base + "/thing.schema.json", "name": "x"}),
+		"bad.json":  jsonDoc(t, map[string]string{"$schema": base + "/thing.schema.json", "nmae": "x"}),
+		"lost.json": jsonDoc(t, map[string]string{"$schema": base + "/missing.schema.json", "name": "x"}),
 		"good.xml":  xmlDoc(`<rule ` + located("/rule.xsd") + ` id="a"/>`),
 		"bad.xml":   xmlDoc(`<rule ` + located("/rule.xsd") + `/>`),
 		"lost.xml":  xmlDoc(`<rule ` + located("/missing.xsd") + ` id="a"/>`),
