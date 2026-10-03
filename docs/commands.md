@@ -1,6 +1,6 @@
 # Commands
 
-The commands are `check`, `hook`, `lsp`, `completion` and `help`. A kind of check is a rule category or a hook guard, never a command of its own.
+The commands are `check`, `hook`, `lsp`, `completion` and `help`. A kind of check is a rule category or a hook guard, not a command of its own.
 
 ```sh
 slopfix check [path...]           # report what the rules reject, exit 1 on any finding
