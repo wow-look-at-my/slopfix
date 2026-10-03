@@ -24,6 +24,11 @@ func FixSelected(text string, keep func(id string) bool) string {
 		if keep(IDSemicolon) {
 			prose = fixSemicolons(prose)
 		}
+		if keep(IDCommaNever) {
+			for _, p := range commaNever {
+				prose = p.Replace(prose)
+			}
+		}
 		return prose
 	})
 	if keep(IDCommaSplice) {

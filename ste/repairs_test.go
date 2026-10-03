@@ -15,6 +15,7 @@ var samples = map[string]string{
 	ste.IDModal:       "It should hold.",
 	ste.IDSemicolon:   "It holds; it does not break.",
 	ste.IDCommaSplice: "The loader reads the file, it returns the rows.",
+	ste.IDCommaNever:  "The list names the fork, never its tree.",
 	// Every coordinator here joins clauses that each name who acts, which is the
 	// case the repair divides. A shared subject is the case it declines.
 	ste.IDSentenceCap: "The loader reads the file and the caller waits for it and the header " +

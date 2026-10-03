@@ -7,6 +7,7 @@ The members share the sentence splitter, the masks and the repair pass. They the
 - `ste/contraction`: a contraction. The repair writes the expansion and keeps the capitalization.
 - `ste/modal`: `should`, `shall`, `could`, `might` and `would`. The repair writes `must` for obligation and `can` for possibility.
 - `ste/semicolon`: the semicolon. The repair writes a period and capitalizes the next word.
+- `ste/comma-never`: a contrast added with `, never`, as in `named in the list, never in its tree`. Normal English uses this form rarely and writes `, not`. The regex is the `comma-never` pattern in `rules/ste-words.xml`. The repair writes `, not`.
 - `ste/comma-splice`: a comma that joins clauses that each stand alone. The repair writes a period. A connector replaces the conjunction: `However,` for `but` and `As a result,` for `so`. It drops `and`.
 - `ste/sentence-length`: a sentence over `25` words, the STE cap for a description. The repair divides it at a clause boundary that the `syntax` parser finds. With no such boundary, it divides between words near the cap.
 - `ste/postdeterminer`: a numeral between a determiner and its noun, as in `the three rules`. The repair cuts the numeral. A unit, a percent, a year, a status code, `any` and `first` keep theirs.

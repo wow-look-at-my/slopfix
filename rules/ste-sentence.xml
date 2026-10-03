@@ -25,6 +25,11 @@
   <test in="The rules cover a semicolon, a modal, and a splice."
         out="The rules cover a semicolon, a modal, and a splice."/>
 
+  <test in="The org list names the fork, never its own tree." out="The org list names the fork, not its own tree."/>
+  <test in="Never run it. It is a finding, Never a pass." out="Never run it. It is a finding, not a pass."/>
+  <test in="It never fails, and it never waits." out="It never fails, and it never waits."/>
+  <test in="Write `a, never b` for it." out="Write `a, never b` for it."/>
+
   <test in="Write &amp;amp; for it. It's data." out="Write &amp;amp; for it. It is data."/>
   <test in="Write `a; b` for it. It doesn't run." out="Write `a; b` for it. It does not run."/>
   <test in="The [it's](https://x/it's) page is not prose."

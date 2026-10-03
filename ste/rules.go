@@ -29,12 +29,13 @@ const (
 	IDSentenceCap = "ste/sentence-length"
 	IDCommaSplice = "ste/comma-splice"
 	IDStaleCount  = "ste/count"
+	IDCommaNever  = "ste/comma-never"
 )
 
 // AllIDs names every rule this package reports. A set, because every consumer
 // asks whether a name is in it rather than reading it in order.
 var AllIDs = set.Of(
-	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
+	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount, IDCommaNever,
 	IDPostdeterminer,
 ).Union(WarningIDs)
 
@@ -184,6 +185,7 @@ func (r proseRule) run(prose string, line int) []Finding {
 var proseRules = []proseRule{
 	{"rule/ste-words", checkWords},
 	{"rule/ste-semicolon", checkSemicolons},
+	{"rule/ste-comma-never", checkCommaNever},
 	{"rule/ste-sentence-length", checkSentences},
 	{"rule/ste-comma-splice", checkSplices},
 	{"rule/ste-count", checkCounts},
@@ -223,6 +225,32 @@ func checkSemicolons(prose string, line int) []Finding {
 		return nil
 	}
 	return []Finding{{Line: line, ID: IDSemicolon, Rule: "STE bans the semicolon", Detail: ";", Fix: "Write a period and start a new sentence."}}
+}
+
+// commaNever is the table's regex for ", never". Normal English uses ", not" for an afterthought contrast.
+var commaNever = patternsWhere("comma-never")
+
+func patternsWhere(where string) []table.Pattern {
+	var out []table.Pattern
+	for _, p := range steTable.Patterns {
+		if p.Where == where {
+			out = append(out, p)
+		}
+	}
+	if len(out) == 0 {
+		panic("ste: rules/ has no pattern where=" + where)
+	}
+	return out
+}
+
+func checkCommaNever(prose string, line int) []Finding {
+	var out []Finding
+	for _, p := range commaNever {
+		for _, hit := range p.FindAll(prose) {
+			out = append(out, Finding{Line: line, ID: IDCommaNever, Rule: "a contrast tacked on with \", never\"", Detail: hit, Fix: "Write \", not\", or state the contrast as its own sentence."})
+		}
+	}
+	return out
 }
 
 func checkSentences(prose string, line int) []Finding {
