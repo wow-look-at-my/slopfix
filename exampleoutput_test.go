@@ -7,6 +7,7 @@ import (
 
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // The examples a repair once broke in xml-validator. go test compares each
@@ -40,8 +41,18 @@ func TestARepairKeepsExampleOutput(t *testing.T) {
 	assert.Equal(t, exampleSource, slopfix.Fix(req).Text)
 }
 
-// The same comment outside a test file is prose, and the rules still read it.
-func TestOutputOutsideATestFileIsProse(t *testing.T) {
-	req := slopfix.Request{Path: "example.go", Content: exampleSource, MaxCommentLines: tombstones.DefaultMaxCommentLines}
-	assert.NotEmpty(t, slopfix.Report(req).Findings)
+// Only a test file holds examples. The same comments elsewhere are prose, and every rule reads them.
+func TestOnlyATestFileDropsExampleOutput(t *testing.T) {
+	texts := func(path string) []string {
+		var out []string
+		for _, c := range treecomments.Extract(path, exampleSource) {
+			out = append(out, c.Text)
+		}
+		return out
+	}
+	assert.Empty(t, texts("example_test.go"))
+	assert.Equal(t, []string{
+		"// Output: r 1 1", "// Output:", "// 2", "// 3",
+		"// Unordered output: validation failed at line 1, column 1",
+	}, texts("example.go"))
 }
