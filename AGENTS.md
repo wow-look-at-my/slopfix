@@ -209,7 +209,7 @@ Unparseable YAML yields no all-builds finding, because the runner fails on it an
 
 ## pins: a download URL that names a release
 
-`pins/download-version` rejects a `dl.pazer.build` URL with a `v` query parameter. It reads every file `check` reads, code strings included. A URL with no `v` serves the newest published build on the default branch. A pinned one breaks when that release is gone.
+`pins/download-version` rejects a `dl.pazer.build` URL with a `v` query parameter. It reads every file `check` reads, code strings included. A URL with no `v` serves the newest published build on the default branch. A pinned one breaks when that release is gone. A `debug=1` URL keeps its `v`, because it returns one release's uploaded bytes.
 
 `net/url` reads the query. The repair deletes `v` and writes the query back with `Encode`. `pins.Gate` admits only that rewrite, because the source gate lets an edit touch comments alone. `Encode` escapes `${OS}` and writes `&` for `&amp;`. A URL that holds either loses `v` as text instead, and keeps every other byte. A `${{ }}` expression is part of the URL, blanks included.
 

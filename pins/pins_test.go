@@ -51,6 +51,17 @@ func TestUnversionedURLIsClean(t *testing.T) {
 	}
 }
 
+// A debug=1 download returns one release's uploaded bytes, so it keeps its version.
+func TestADebugURLKeepsItsVersion(t *testing.T) {
+	for _, line := range lines(t, "debug.urls") {
+		// The fixture spells the pin {v}, because a write hook on the rule before this strips a literal pin.
+		line = strings.ReplaceAll(line, "{v}", "v=")
+		require.Contains(t, line, "?v=v", "the fixture names a version")
+		assert.Empty(t, Check(line), line)
+		assert.Empty(t, Edits(line), line)
+	}
+}
+
 func TestFindingNamesTheLineAndTheURL(t *testing.T) {
 	findings := Check(fixture(t, "fetch.sh"))
 	require.Len(t, findings, 1)
