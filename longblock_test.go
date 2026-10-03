@@ -23,7 +23,7 @@ func longText() string {
 	return strings.TrimSpace(b.String())
 }
 
-func ids(content string) []string {
+func docIDs(content string) []string {
 	var out []string
 	for _, f := range slopfix.Check(content) {
 		out = append(out, f.ID)
@@ -33,12 +33,12 @@ func ids(content string) []string {
 
 func TestLongBlockDividesAListItem(t *testing.T) {
 	doc := "# Title\n\n- **Admin port**: " + longText() + "\n- The next item.\n\nAfter the list.\n"
-	require.Contains(t, ids(doc), slopfix.IDLongBlock, "the control: the item is over the cap")
+	require.Contains(t, docIDs(doc), slopfix.IDLongBlock, "the control: the item is over the cap")
 
 	got := slopfix.Fix(slopfix.Request{Content: doc, Path: "docs/x.md", Rules: []slopfix.Rule{slopfix.RuleWrap}})
 	require.True(t, got.Changed)
 	assert.Empty(t, got.Refused)
-	assert.NotContains(t, ids(got.Text), slopfix.IDLongBlock, got.Text)
+	assert.NotContains(t, docIDs(got.Text), slopfix.IDLongBlock, got.Text)
 	assert.True(t, markdown.WordsOnly(doc, got.Text), "a division moves only newlines and blanks")
 	assert.Contains(t, got.Text, "\n\n  The ", "a later part is indented to the item's content")
 	assert.Contains(t, got.Text, "`a. B. c`", "a code span stays whole")
@@ -52,16 +52,16 @@ func TestLongBlockDividesAListItem(t *testing.T) {
 
 func TestLongBlockDividesAParagraph(t *testing.T) {
 	doc := longText() + "\n"
-	require.Contains(t, ids(doc), slopfix.IDLongBlock)
+	require.Contains(t, docIDs(doc), slopfix.IDLongBlock)
 	got := slopfix.Fix(slopfix.Request{Content: doc, Path: "x.md", Rules: []slopfix.Rule{slopfix.RuleWrap}})
-	assert.NotContains(t, ids(got.Text), slopfix.IDLongBlock)
+	assert.NotContains(t, docIDs(got.Text), slopfix.IDLongBlock)
 	assert.True(t, markdown.WordsOnly(doc, got.Text))
 	assert.Contains(t, got.Text, "store.\n\nThe ")
 }
 
 // A short block is never a finding, however many sentences it holds.
 func TestLongBlockLeavesAShortBlock(t *testing.T) {
-	assert.NotContains(t, ids("- A short item. It reads fine.\n"), slopfix.IDLongBlock)
+	assert.NotContains(t, docIDs("- A short item. It reads fine.\n"), slopfix.IDLongBlock)
 }
 
 // A part never opens with text that a line start reads as a new block.
@@ -69,7 +69,7 @@ func TestLongBlockNeverOpensABlock(t *testing.T) {
 	text := strings.Repeat("The step runs. 2. Then it stops. # A mark here. ", 60)
 	got := slopfix.Fix(slopfix.Request{Content: "- " + text + "\n", Path: "x.md", Rules: []slopfix.Rule{slopfix.RuleWrap}})
 	assert.Empty(t, got.Refused)
-	assert.NotContains(t, ids(got.Text), slopfix.IDLongBlock)
+	assert.NotContains(t, docIDs(got.Text), slopfix.IDLongBlock)
 	for _, line := range strings.Split(got.Text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		assert.False(t, strings.HasPrefix(trimmed, "2.") || strings.HasPrefix(trimmed, "#"), line)
