@@ -46,4 +46,4 @@ var repairable = ste.Repairs.Clone().Union(set.Of(
 	workflow.IDPushTags,
 	// The v parameter comes out of a download URL.
 	pins.ID,
-)).Union(tombstones.AllIDs()).Union(RepoIDs)
+)).Union(tombstones.AllIDs()).Union(RepoIDs.Difference(ReportOnly))

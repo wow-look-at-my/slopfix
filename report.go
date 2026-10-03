@@ -12,7 +12,7 @@ import (
 // fits such a block, so a report of the residue alone passed every essay.
 func pending(req Request, already []tombstones.Hit) []tombstones.Hit {
 	// A fixture is judged against its annotations, not against the repair.
-	if expect.Parse(req.Content).Any() || tombstones.Borrowed(req.Path) {
+	if expect.Parse(req.Content).Any() || exempt(req.Path, req.Content) {
 		return nil
 	}
 	if kindOf(req.Path, req.Content) != fixer.Source || !wantsOf(req)(RuleComments) || !keepsOf(req)(commentfix.IDLength) {
