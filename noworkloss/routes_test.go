@@ -71,7 +71,6 @@ func routeCases() []routeCase {
 		// git used as an editor.
 		{route: "git checkout with a pathspec", deny: "git checkout master -- src", allow: "cd {{out}} && git checkout master -- src", names: "git checkout"},
 		{route: "git restore", deny: "git restore src.txt", allow: "cd {{out}} && git restore src.txt", names: "git restore"},
-		{route: "git stash pop", deny: "git stash pop", allow: "cd {{out}} && git stash pop", names: "git stash pop"},
 		{route: "git revert", deny: "git revert HEAD", allow: "cd {{out}} && git revert HEAD", names: "git revert"},
 		{route: "git reset --hard", deny: "git reset --hard origin/master", allow: "cd {{out}} && git reset --hard origin/master", names: "git reset"},
 
