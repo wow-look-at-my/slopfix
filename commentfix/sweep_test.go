@@ -48,7 +48,7 @@ func TestTheWalkSkipsTextNobodyHereAuthored(t *testing.T) {
 		"testdata/t.go":       "package t\n",
 		"build/b.go":          "package b\n",
 		"dist/assets/app.js":  "// compiled\nconst a = 1\n",
-		"nested/go.mod":      "module example.com/n\n",
+		"nested/go.mod":       "module example.com/n\n",
 		"nested/n.go":         "package n\n",
 		"README.md":           "# m\n",
 	})
