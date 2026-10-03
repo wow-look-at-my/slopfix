@@ -58,6 +58,26 @@ func TestADocumentParagraphIsRewritten(t *testing.T) {
 	assert.Contains(t, repair.Text, "reads the file")
 }
 
+// A rewrite keeps the indentation and marker that place a paragraph in its
+// list. Without them a nested item leaves the list, and a paragraph under a
+// numbered item ends that item.
+func TestADocumentRewriteKeepsTheListStructure(t *testing.T) {
+	doc := "  2. **Cached.** The loader previously read the flag.\n\n" +
+		"     - the `access_tokens` mint\n" +
+		"     - the loader previously read the rows\n" +
+		"     - `branches`\n\n" +
+		"     The tail previously read the flag.\n"
+	repair := Fix("notes.md", doc, DefaultMaxCommentLines)
+
+	assert.True(t, repair.Changed)
+	assert.NotContains(t, repair.Text, "previously")
+	assert.Equal(t, "  2. **Cached.** The loader read the flag.\n\n"+
+		"     - the `access_tokens` mint\n"+
+		"     - the loader read the rows\n"+
+		"     - `branches`\n\n"+
+		"     The tail read the flag.\n", repair.Text)
+}
+
 func TestAFencedBlockInADocumentIsNotProse(t *testing.T) {
 	doc := "Read the flag.\n\n```\n// this used to read the flag\n```\n"
 	repair := Fix("notes.md", doc, DefaultMaxCommentLines)
