@@ -255,7 +255,7 @@ It does not flag the singular, which is overwhelmingly a pronoun in English. Tha
 A tombstone describes a state the code has left, or argues for the diff instead of telling the next editor what breaks. The wording tier is the weakest. A paraphrasing machine writes the judged text. It eventually writes around a phrase rule.
 
 - The wording tells are `pattern` entries with an `id` in `english/english.xml`. Each cuts the PHRASE, not the line. The rest of the sentence thus survives. A pattern with no `id` still rewrites.
-- `tombstones/name-nothing-in-the-repository-defines` reads no wording. A comment that names a symbol found nowhere in the repository describes a tree that is gone. The probe runs ripgrep on the working tree. A tree walk, and any run past `50` files, first reads the identifiers of every file git lists, tracked or untracked and not ignored, and that index then answers every name with no probe.
+- `tombstones/name-nothing-in-the-repository-defines` reads no wording. A comment that names a symbol found nowhere in the repository describes a tree that is gone. The probe runs ripgrep on the working tree. A tree walk, and any run past `50` files, first reads the identifiers of every file git lists. That list holds tracked files and untracked files git does not ignore. The index then answers every name with no probe.
 - A pattern cut never removes a negation while the words it negates stay. `no longer` is therefore a flag, not a cut.
 - A copyright year is cut on purpose. A yearly bump only pads a commit.
 - `tombstones/comment-volume` counts the lines of a merged comment run against the cap, which defaults to `14` lines. No rewording defeats it. It never strips, because it judges a whole block.
