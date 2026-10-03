@@ -106,14 +106,13 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "There are rules below.", edits[2].(map[string]any)["new_string"])
 }
 
-// A warning has no rewrite. It is flagged, and the write still goes through.
+// Every error has a repair, so only a gate that refuses one leaves a finding.
+// Such a finding is flagged, and the notice still lets the write through.
 func TestAFindingNoRewriteResolvesIsFlaggedNotRefused(t *testing.T) {
-	got := ask(t, write("a.md", "The file is read by the tool.\n"), "ste")
-
-	require.NotNil(t, got.out, got.body)
-	assert.NotContains(t, got.body, "permissionDecision")
-	assert.Contains(t, got.out["additionalContext"], "flagged")
-	assert.Contains(t, got.out["additionalContext"], "ste/passive")
+	got := notice("a.go", nil, 0, []string{"3: [comments/length] the comment runs longer than the code it documents"})
+	assert.Contains(t, got, "let this write to a.go through and flagged")
+	assert.Contains(t, got, "flagged 3: [comments/length]")
+	assert.Contains(t, got, "The write went through as it stands.")
 }
 
 // A tombstone alone on its own comment line is cut, and the write proceeds.
