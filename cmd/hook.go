@@ -50,7 +50,11 @@ func init() {
 			"), or a rule category ("+strings.Join(ruleNames(), ", ")+") or rule ID for the write guard")
 	hook.Flags().IntVar(&hookMaxLines, "max-comment-lines", tombstones.DefaultMaxCommentLines, "cap a comment block, 0 to turn the cap off")
 	rootCmd.AddCommand(hook)
+	hookCmd = hook
 }
+
+// hookCmd is the hook command, so a file sorted after this can nest under it.
+var hookCmd *cobra.Command
 
 // hookInput is the part of the PreToolUse payload this reads.
 type hookInput struct {
