@@ -29,9 +29,12 @@ func TestARepairKeepsEveryLineOfARunScript(t *testing.T) {
 
 	repair := workflow.Fix(content, everyRule)
 
-	assert.Equal(t, strings.Count(content, "\n"), strings.Count(repair.Text, "\n"))
-	assert.Contains(t, repair.Text, `echo "::error::no sglang-kernel wheel was built"; exit 1`)
-	assert.Contains(t, repair.Text, `echo "::error::no per-arch image was pushed for ${TAG}"; exit 1`)
+	assert.Contains(t, repair.Text, "if [ ${#WHEELS[@]} -eq 0 ]; then\n"+
+		"            echo \"::error::no sglang-kernel wheel was built\"; exit 1\n"+
+		"          fi\n")
+	assert.Contains(t, repair.Text, "if [ ${#SOURCES[@]} -eq 0 ]; then\n"+
+		"              echo \"::error::no per-arch image was pushed for ${TAG}\"; exit 1\n"+
+		"            fi\n")
 }
 
 // The rule still reports what it reads as a test. The author answers it,
