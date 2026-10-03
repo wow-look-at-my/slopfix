@@ -23,7 +23,7 @@ func CheckCommaNever(prose string, line int) []ste.Finding {
 		out = append(out, ste.Finding{
 			Line:   line,
 			ID:     IDCommaNever,
-			Rule:   `a contrast added with ", never"`,
+			Rule:   "a contrast added as an afterthought",
 			Detail: prose[at[0]:at[1]],
 			Fix:    `Write ", not", or state the contrast as a sentence of its own. ` + "`slopfix fix` writes \", not\".",
 		})
