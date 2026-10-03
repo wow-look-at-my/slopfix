@@ -216,6 +216,13 @@ func TestFixCutsACountBesideASize(t *testing.T) {
 	assert.Equal(t, "It sends one create and 1 MiB `?offset=` PATCH requests.\n", repair.Text)
 }
 
+// A size ahead of its noun goes whole, number and unit, so no vague word
+// stands in front of the unit.
+func TestFixCutsASizeAheadOfItsNoun(t *testing.T) {
+	repair := slopfix.Fix(slopfix.Request{Content: "It assembles a larger file in 64 MiB chunks by default.\n", Path: "a.md"})
+	assert.Equal(t, "It assembles a larger file in chunks by default.\n", repair.Text)
+}
+
 // What the prose rules write is stated in rules/, entry by entry. What this
 // holds is the routing: a document path reaches them at all.
 func TestADocumentPathStillGetsTheProseRules(t *testing.T) {
