@@ -308,7 +308,7 @@ func TestAnAPIErrorFailsLoudly(t *testing.T) {
 	own, err = ForkLines(t.TempDir(), envOf(map[string]string{"GITHUB_REPOSITORY": "o/fork", "GITHUB_API_URL": "http://127.0.0.1:1"}))
 	require.Error(t, err)
 	assert.Nil(t, own)
-	assert.Contains(t, err.Error(), "fork scope: GET http://127.0.0.1:1/repos/o/fork")
+	assert.Contains(t, err.Error(), "fork scope: GET http://127.0.0.1:1/repos/o/.github/contents/fork-of", "the org's fork list is asked for first")
 }
 
 func TestAForkOutsideAWorkTreeFailsLoudly(t *testing.T) {
