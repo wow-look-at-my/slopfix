@@ -23,7 +23,7 @@ var proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
 // gateQuantity is the merge gate's spelling. It reads a shorter list of
 // words, any run of digits, and a shorter adjective gap.
 var gateQuantity = regexp.MustCompile(`(?i)\b(?:` + gateAlt + `|[0-9]+)` +
-	`\s+(?:(?:[a-z-]+|[0-9]+(?:\.[0-9]+)?\s+[a-z]+)\s+){0,2}?[a-z]+s\b`)
+	`\s+(?:[0-9]+(?:\.[0-9]+)?\s+[a-z]+\s+)?(?:[a-z-]+\s+){0,2}?[a-z]+s\b`)
 
 // Match is a quantity the pattern found, and the parts an exemption asks about.
 type Match struct {
@@ -121,13 +121,42 @@ func AfterAnArticle(text string, q Match) bool {
 // buries it" and "the other confirms" match on a verb.
 func NotAPluralNoun(text string, q Match) bool {
 	end := q.At + len(q.Text)
-	for _, w := range syntax.Parse(text, nil).Words {
+	words := syntax.Parse(text, nil).Words
+	for i, w := range words {
 		if w.End != end {
 			continue
+		}
+		if w.Tag == "VBZ" && countsANominal(words, q.At, i) {
+			return false
 		}
 		return w.Tag != "NNS" && w.Tag != "NNPS"
 	}
 	return false
+}
+
+// nominalTags are the tags a modifier between a cardinal and its noun carries.
+var nominalTags = set.Of("CD", "NN", "NNP", "JJ")
+
+// countsANominal reports a cardinal at start followed only by modifiers up to
+// the word at last. The tagger reads "four PATCH requests" as a subject and a
+// verb, and a cardinal ahead of the modifiers is what counts the noun instead.
+func countsANominal(words []syntax.Word, start, last int) bool {
+	first := -1
+	for i, w := range words[:last] {
+		if w.Start == start {
+			first = i
+			break
+		}
+	}
+	if first < 0 || last-first < 2 || words[first].Tag != "CD" {
+		return false
+	}
+	for _, w := range words[first+1 : last] {
+		if !nominalTags.Contains(w.Tag) {
+			return false
+		}
+	}
+	return true
 }
 
 // ChoiceAmongASet exempts the size of a set something is picked from. "one of

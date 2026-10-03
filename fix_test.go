@@ -213,7 +213,7 @@ func TestFixLeavesValuesThatAreNotCounts(t *testing.T) {
 // the sentence readable.
 func TestFixCutsACountBesideASize(t *testing.T) {
 	repair := slopfix.Fix(slopfix.Request{Content: "It sends one create and four 1 MiB `?offset=` PATCH requests.\n", Path: "a.md"})
-	assert.Equal(t, "PLACEHOLDER\n", repair.Text)
+	assert.Equal(t, "It sends one create and 1 MiB `?offset=` PATCH requests.\n", repair.Text)
 }
 
 // What the prose rules write is stated in rules/, entry by entry. What this
