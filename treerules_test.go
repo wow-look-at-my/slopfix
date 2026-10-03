@@ -98,13 +98,14 @@ func TestEachCopyIsReportedOnce(t *testing.T) {
 	assert.Equal(t, []string{"b/run.ts repo/near-duplicate", "c/run.ts repo/near-duplicate"}, pathsOf(checkOnly(root, slopfix.IDNearDuplicate)))
 }
 
-func TestACopyTheAttributeMarksIsNotReported(t *testing.T) {
+// No attribute exempts a copy. The only answer to a copy is one file.
+func TestNoAttributeExemptsACopy(t *testing.T) {
 	root := gitRepo(t, map[string]string{
-		".gitattributes":  "copies/** " + slopfix.CopyAttribute + "\n",
+		".gitattributes":  "copies/** slopfix-copy\n",
 		"copies/a/run.ts": script,
 		"copies/b/run.ts": script,
 	})
-	assert.Empty(t, checkOnly(root, slopfix.IDNearDuplicate))
+	assert.Equal(t, []string{"copies/b/run.ts repo/near-duplicate"}, pathsOf(checkOnly(root, slopfix.IDNearDuplicate)))
 }
 
 func TestFilesEachDirectoryNeedsAreNotCopies(t *testing.T) {
