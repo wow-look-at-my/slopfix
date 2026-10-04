@@ -43,4 +43,8 @@ func TestFixLeavesEveryBlockClosed(t *testing.T) {
 	assert.Equal(t, strings.Count(repair.Text, "/*"), strings.Count(repair.Text, "*/"), "a block lost its closer:\n%s", repair.Text)
 	assert.Contains(t, repair.Text, "import { SHEET } from './styles.ts';\n\nexport const widget = SHEET;\n", "the code is untouched")
 	assert.Contains(t, repair.Text, "/* <scratch-widget> is the first widget of the kit.", "the opening survives:\n%s", repair.Text)
+	assert.Empty(t, commentfix.CheckLength("widget.ts", repair.Text), "a cut fits, so none is left:\n%s", repair.Text)
+	for _, hit := range repair.Kept {
+		assert.NotContains(t, []string{commentfix.IDLength, tombstones.IDVolume}, hit.ID, "%s is left:\n%s", hit.ID, repair.Text)
+	}
 }
