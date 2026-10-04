@@ -53,7 +53,7 @@ func TestEveryErrorRuleHasARepairPath(t *testing.T) {
 // The rules with no repair are named one by one, so a new rule cannot join them
 // in passing.
 func TestOnlyTheseRulesReportWithoutARepair(t *testing.T) {
-	assert.ElementsMatch(t, []string{slopfix.IDNearDuplicate, slopfix.IDJSON, slopfix.IDXML}, slopfix.ReportOnly.Values())
+	assert.ElementsMatch(t, []string{slopfix.IDNearDuplicate, slopfix.IDJSON, slopfix.IDXML, workflow.IDRunScriptSyntax}, slopfix.ReportOnly.Values())
 	for id := range slopfix.ReportOnly.All() {
 		assert.False(t, slopfix.Repairable(id), "%s claims a repair it does not have", id)
 	}

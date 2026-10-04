@@ -26,6 +26,7 @@ type File struct {
 	scope    edit.Scope
 	data     Gate
 	comments Gate
+	guard    func(Gate) Gate
 	wants    func(category string) bool
 	keeps    func(id string) bool
 
@@ -46,6 +47,8 @@ type Options struct {
 	Keeps func(id string) bool
 	// MaxCommentLines caps a comment block.
 	MaxCommentLines int
+	// Guard wraps every gate the file writes through, a gate a fixer brings included.
+	Guard func(Gate) Gate
 }
 
 // Open is NewFile with the gate the kind's parser owns. A source file is
@@ -75,6 +78,7 @@ func NewFile(path, text string, o Options) *File {
 		scope:           o.Scope,
 		data:            o.Data,
 		comments:        o.Comments,
+		guard:           o.Guard,
 		wants:           o.Wants,
 		keeps:           o.Keeps,
 	}
@@ -105,6 +109,9 @@ func (f *File) ApplyThrough(gate Gate, edits []edit.Edit) edit.Result { return f
 func (f *File) through(gate Gate, edits []edit.Edit) edit.Result {
 	if len(edits) == 0 || gate == nil {
 		return edit.Unchanged(f.text, f.scope)
+	}
+	if f.guard != nil {
+		gate = f.guard(gate)
 	}
 	res := gate(f.text, edits, f.scope)
 	f.text, f.scope = res.Text, res.Scope
