@@ -13,6 +13,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/bashclean"
 	"github.com/wow-look-at-my/slopfix/blamelanguage"
 	"github.com/wow-look-at-my/slopfix/busypoll"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/linkrefs"
 	"github.com/wow-look-at-my/slopfix/mdbudget"
@@ -44,10 +45,12 @@ type guard struct {
 	run    func(payload []byte, write writeSelection) hookResult
 }
 
-// writeSelection is what the write guard reads from the flags.
+// writeSelection is what the write guard reads from the flags, and how it
+// finds a fork's base.
 type writeSelection struct {
 	rules []slopfix.Rule
 	ids   []string
+	forks forkscope.Resolver
 }
 
 // writeGuard is the name of the guard that repairs the text a write adds.
@@ -59,7 +62,7 @@ const writeGuard = "write"
 var guards = []guard{
 	{name: "clean-bash", events: []string{eventPreToolUse}, run: reader(func(r *strings.Reader) hookResult { return hookResult(bashclean.Run(r)) })},
 	{name: writeGuard, events: []string{eventPreToolUse}, run: func(payload []byte, write writeSelection) hookResult {
-		return hookResult{Stdout: judge(payload, write.rules, write.ids)}
+		return hookResult{Stdout: judge(payload, write.rules, write.ids, write.forks)}
 	}},
 	{name: "no-work-loss", events: []string{eventPreToolUse}, run: reader(func(r *strings.Reader) hookResult { return hookResult(noworkloss.Run(r)) })},
 	{name: "auto-allow", events: []string{eventPreToolUse, eventPermissionRequest}, run: reader(func(r *strings.Reader) hookResult { return hookResult(autoallow.Run(r)) })},
