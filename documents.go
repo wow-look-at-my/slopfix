@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -171,10 +170,34 @@ func checkJSON(path, rel string, content []byte, compiled schemas) *TreeFinding 
 	return nil
 }
 
-var (
-	noNamespaceLocation = regexp.MustCompile(`noNamespaceSchemaLocation\s*=\s*["']([^"']+)["']`)
-	namespacedLocation  = regexp.MustCompile(`schemaLocation\s*=\s*["']\s*[^\s"']+\s+([^\s"']+)[^"']*["']`)
-)
+const xsiNamespace = "http://www.w3.org/2001/XMLSchema-instance"
+
+// schemaHint reads the schema the root element names from the parsed tree. A
+// root with no namespace names it in xsi:noNamespaceSchemaLocation. A root in a
+// namespace names it in the xsi:schemaLocation pair for that namespace.
+func schemaHint(root *xmlvalidator.Element) (string, error) {
+	for _, a := range root.Attrs {
+		if a.Namespace != xsiNamespace {
+			continue
+		}
+		if root.Namespace == "" && a.Local == "noNamespaceSchemaLocation" {
+			return strings.TrimSpace(a.Value), nil
+		}
+		if root.Namespace == "" || a.Local != "schemaLocation" {
+			continue
+		}
+		pairs := strings.Fields(a.Value)
+		if len(pairs)%2 != 0 {
+			return "", fmt.Errorf("xsi:schemaLocation holds %d values, and it must hold namespace and location pairs", len(pairs))
+		}
+		for i := 0; i < len(pairs); i += 2 {
+			if pairs[i] == root.Namespace {
+				return pairs[i+1], nil
+			}
+		}
+	}
+	return "", nil
+}
 
 // checkXML holds an XML file to the strict org validator and to the schema it
 // names. A document that names no schema is a finding, because only its syntax
@@ -183,16 +206,20 @@ func checkXML(path, rel string, content []byte, downloads fetched) *TreeFinding 
 	if err := xmlvalidator.Validate(bytes.NewReader(content)); err != nil {
 		return xmlFinding(rel, "this XML is not well-formed", err)
 	}
-	match := noNamespaceLocation.FindSubmatch(content)
-	if match == nil {
-		match = namespacedLocation.FindSubmatch(content)
+	doc, err := xmlvalidator.ParseTree(bytes.NewReader(content))
+	if err != nil {
+		return xmlFinding(rel, "this XML is not well-formed", err)
 	}
-	if match == nil {
-		f := repoFinding(rel, IDXML, "this XML names no schema, so nothing checks its structure",
-			"Name its XSD with xsi:noNamespaceSchemaLocation.")
+	location, err := schemaHint(doc.Root)
+	if err != nil {
+		f := repoFinding(rel, IDXML, "the schema hint on this XML does not parse", err.Error())
 		return &f
 	}
-	location := string(match[1])
+	if location == "" {
+		f := repoFinding(rel, IDXML, "this XML names no schema, so nothing checks its structure",
+			"Name its XSD with xsi:noNamespaceSchemaLocation, or with an xsi:schemaLocation pair for the root's namespace.")
+		return &f
+	}
 	if remote(location) {
 		base, err := url.Parse(location)
 		if err != nil {
