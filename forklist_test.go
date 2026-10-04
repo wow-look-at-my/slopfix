@@ -20,16 +20,16 @@ func TestTheForkListReaderAgreesWithTheSchema(t *testing.T) {
 	require.NoError(t, err)
 
 	for name, list := range map[string]string{
-		"a fork":                  `{"o/fork": "https://example.invalid/up"}`,
-		"comments":                "// forks\n{\"o/fork\": \"https://example.invalid/up\", /* x */}\n",
-		"no forks":                `{}`,
-		"an entry without a URL":  `{"o/fork": ""}`,
-		"a name with no owner":    `{"fork": "https://example.invalid/up"}`,
-		"a name with a space":     `{"o/my fork": "https://example.invalid/up"}`,
-		"a name with three parts": `{"o/fork/x": "https://example.invalid/up"}`,
-		"a URL that is no string": `{"o/fork": 1}`,
+		"a fork":                   `{"o/fork": "https://example.invalid/up"}`,
+		"comments":                 "// forks\n{\"o/fork\": \"https://example.invalid/up\", /* x */}\n",
+		"no forks":                 `{}`,
+		"an entry without a URL":   `{"o/fork": ""}`,
+		"a name with no owner":     `{"fork": "https://example.invalid/up"}`,
+		"a name with a space":      `{"o/my fork": "https://example.invalid/up"}`,
+		"a name with three parts":  `{"o/fork/x": "https://example.invalid/up"}`,
+		"a URL that is no string":  `{"o/fork": 1}`,
 		"a list that is no object": `["o/fork"]`,
-		"a null list":             `null`,
+		"a null list":              `null`,
 	} {
 		_, readErr := forkscope.UpstreamFor(list, "o/fork", name)
 		schemaErr := v.ValidateBytes([]byte(list), name).AsError()

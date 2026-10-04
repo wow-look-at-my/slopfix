@@ -148,7 +148,7 @@ func readT(t *testing.T, path string) string {
 	return string(data)
 }
 
-func lineOf(text string, n int) string {
+func nthLine(text string, n int) string {
 	return strings.Split(text, "\n")[n-1]
 }
 
@@ -170,8 +170,8 @@ func TestFixOfAForkTreeKeepsToTheForksLines(t *testing.T) {
 
 	assert.Equal(t, upstreamDoc, readT(t, filepath.Join(fx.dir, "upstream.md")), "a file the fork never touched stays byte for byte")
 	doc := readT(t, filepath.Join(fx.dir, "doc.md"))
-	assert.Equal(t, "It doesn't hold the lock.", lineOf(doc, 3), "an inherited line stays")
-	assert.NotContains(t, lineOf(doc, 5), "doesn't", "the line the fork wrote is repaired")
+	assert.Equal(t, "It doesn't hold the lock.", nthLine(doc, 3), "an inherited line stays")
+	assert.NotContains(t, nthLine(doc, 5), "doesn't", "the line the fork wrote is repaired")
 	assert.NotContains(t, readT(t, filepath.Join(fx.dir, "mine.md")), "doesn't", "a file the fork added is repaired whole")
 	assert.NotContains(t, out.String(), "upstream.md")
 }
@@ -221,8 +221,8 @@ func TestFixOfANamedFileInAForkKeepsToTheForksLines(t *testing.T) {
 	_, err = repairOf(fx.forks, filepath.Join(fx.dir, "doc.md"), slopfix.Request{}, true)
 	require.NoError(t, err)
 	doc := readT(t, filepath.Join(fx.dir, "doc.md"))
-	assert.Equal(t, "It doesn't hold the lock.", lineOf(doc, 3))
-	assert.NotContains(t, lineOf(doc, 5), "doesn't")
+	assert.Equal(t, "It doesn't hold the lock.", nthLine(doc, 3))
+	assert.NotContains(t, nthLine(doc, 5), "doesn't")
 }
 
 // forkAsk is ask through the fork's own resolver.

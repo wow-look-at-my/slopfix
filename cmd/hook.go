@@ -213,12 +213,12 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 		}
 	}
 
-	// A fragment carries no file around it. A comment at its end documents
-	// nothing, so a repair of the fragment alone deletes it.
 	p, err := place(in.ToolName, write, rules, ids, owned)
 	if err != nil {
 		return deny([]string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", write.FilePath, err)})
 	}
+	// A fragment carries no file around it. A comment at its end documents
+	// nothing, so a repair of the fragment alone deletes it.
 	if p.ok {
 		for _, f := range p.findings {
 			findings = append(findings, f.String())
