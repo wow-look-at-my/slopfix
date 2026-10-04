@@ -77,19 +77,36 @@ func forceNext(prose string) (string, bool) {
 // Masked is the prose as Check reads it, with every offset kept.
 func Masked(prose string) string { return checkMask(prose) }
 
-// checkMask writes a filler word over each span Check strips, byte for byte.
-// The sentences and the word counts then match Check, and an offset into the
-// mask is an offset into the prose.
+// checkMask writes the word Check's strip writes over each span it strips,
+// byte for byte. The sentences, the word counts and the tags then match Check,
+// and an offset into the mask is an offset into the prose.
 func checkMask(prose string) string {
 	out := []byte(prose)
 	for _, span := range verbatimSpan.FindAllStringIndex(prose, -1) {
-		fillWord(out[span[0]:span[1]])
+		switch prose[span[0]] {
+		case '`':
+			fillCheckWord(out[span[0]:span[1]], "CODE")
+		case '&':
+			fillCheckWord(out[span[0]:span[1]], "ENTITY")
+		default:
+			fillWord(out[span[0]:span[1]])
+		}
 	}
 	// Check finds a quotation after it strips code, so a quote mark inside a code span pairs with nothing.
 	for _, span := range quotation.FindAllIndex(out, -1) {
-		fillWord(out[span[0]:span[1]])
+		fillCheckWord(out[span[0]:span[1]], "QUOTE")
 	}
 	return string(out)
+}
+
+// fillCheckWord writes word over a span as fillWith does. A span too short to
+// hold it gets the capitalized filler.
+func fillCheckWord(span []byte, word string) {
+	if len(span) < len(word)+2 {
+		fillWord(span)
+		return
+	}
+	fillWith(span, word)
 }
 
 // quotedSpans answers the quotations Check reads in prose, after code is masked.
