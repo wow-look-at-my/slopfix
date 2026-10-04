@@ -9,6 +9,7 @@ package ste
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -257,7 +258,7 @@ func checkSentences(prose string, line int) []Finding {
 // finite verb too. A conjunction joins equals, and says as much by itself.
 func checkSplices(prose string, line int) []Finding {
 	var out []Finding
-	parens := parenthetical.FindAllStringIndex(prose, -1)
+	parens := asides(prose)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
 		if insideAny(parens, loc[0]) || !spliced(prose, loc) {
 			continue
@@ -411,8 +412,45 @@ func endsWithAbbreviation(sentence []rune) bool {
 // WordCount counts the words in a sentence. Text in parentheses counts as a
 // single word, whatever it holds, which is what STE says.
 func WordCount(sentence string) int {
-	collapsed := parenthetical.ReplaceAllString(sentence, " x ")
-	return len(wordPattern.FindAllString(collapsed, -1))
+	var collapsed strings.Builder
+	last := 0
+	for _, span := range asides(sentence) {
+		collapsed.WriteString(sentence[last:span[0]])
+		collapsed.WriteString(" x ")
+		last = span[1]
+	}
+	collapsed.WriteString(sentence[last:])
+	return len(wordPattern.FindAllString(collapsed.String(), -1))
+}
+
+// asides answers each outermost parenthetical in text, in order. An aside that
+// holds a pair of its own, as a link target does, is a single aside too.
+func asides(text string) [][]int {
+	b := []byte(text)
+	var found [][]int
+	for {
+		locs := parenthetical.FindAllIndex(b, -1)
+		if len(locs) == 0 {
+			break
+		}
+		for _, loc := range locs {
+			found = append(found, loc)
+			for k := loc[0]; k < loc[1]; k++ {
+				b[k] = 'x'
+			}
+		}
+	}
+	sort.Slice(found, func(i, j int) bool {
+		return found[i][0] < found[j][0] || found[i][0] == found[j][0] && found[i][1] > found[j][1]
+	})
+	var out [][]int
+	for _, span := range found {
+		if len(out) > 0 && span[0] < out[len(out)-1][1] {
+			continue
+		}
+		out = append(out, span)
+	}
+	return out
 }
 
 func truncate(s string) string {

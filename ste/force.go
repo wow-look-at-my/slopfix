@@ -239,7 +239,7 @@ func isWordByte(b byte) bool {
 // wordEnds answers where each word WordCount counts ends, in order. A
 // parenthetical is a single word that ends where it closes.
 func wordEnds(masked string) []int {
-	parens := parenthetical.FindAllStringIndex(masked, -1)
+	parens := asides(masked)
 	var ends []int
 	for _, span := range parens {
 		ends = append(ends, span[1])
@@ -258,7 +258,7 @@ func wordEnds(masked string) []int {
 func candidates(source, masked string, strict bool) []forceCut {
 	off := verbatimSpan.FindAllStringIndex(source, -1)
 	off = append(off, quotedSpans(source)...)
-	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
+	off = append(off, asides(masked)...)
 	off = append(off, outerParens(masked)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
@@ -414,8 +414,8 @@ func opensNounPhrase(s *syntax.Sentence) bool {
 	return len(s.Words) > 0 && nounPhraseOpeners.Contains(s.Words[0].Tag)
 }
 
-// subordinators open a clause, not a phrase, so "This is if" is no sentence.
-var subordinators = set.Of("because", "if", "unless", "until", "after", "before", "since", "when", "while", "where", "whether", "although", "though", "as", "so", "than", "that")
+// clauseOpeners open a clause, not a phrase, so "This is if" is no sentence.
+var clauseOpeners = set.Of("because", "if", "unless", "until", "after", "before", "since", "when", "while", "where", "whether", "although", "though", "as", "so", "than", "that")
 
 // opensPrepositionalPhrase reports a rest that opens on a preposition whose
 // object opens a noun phrase, as in "for every run". "This is" stands in front
@@ -425,7 +425,7 @@ func opensPrepositionalPhrase(s *syntax.Sentence) bool {
 		return false
 	}
 	first := s.Words[0]
-	if first.Tag != "IN" && first.Tag != "TO" || subordinators.Contains(strings.ToLower(first.Text)) {
+	if first.Tag != "IN" && first.Tag != "TO" || clauseOpeners.Contains(strings.ToLower(first.Text)) {
 		return false
 	}
 	return nounPhraseOpeners.Contains(s.Words[1].Tag)

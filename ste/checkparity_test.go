@@ -41,6 +41,13 @@ func TestAForcedDivisionOpensAnImperativeOnItsVerb(t *testing.T) {
 	assert.Contains(t, out, " Use the copy key", out)
 }
 
+// An aside that holds a link target is a single word, as any aside is.
+func TestAnAsideWithALinkCountsAsAWord(t *testing.T) {
+	assert.Equal(t, 3, ste.WordCount("a (see [Leak gates](URL)) b"))
+	assert.Equal(t, 3, ste.WordCount("a (see b) c"))
+	assert.Equal(t, 4, ste.WordCount("a (b c"))
+}
+
 // findings answers what Check reports under id.
 func findings(text, id string) []ste.Finding {
 	var out []ste.Finding

@@ -62,6 +62,25 @@ func TestAGeneratedRegionIsLeftToItsProgram(t *testing.T) {
 	assert.NotEmpty(t, slopfix.CheckContent("README.md", open), "the control: the same text outside a region has findings")
 }
 
+var unrepairedParagraphs = map[string]string{
+	"namescrub splice": "## Regex selection\n\n" +
+		"`--regex` / `--regex-file` patterns use Go RE2 syntax. Anchoring is forced. Casing is the pattern's own:\n\n" +
+		"- **Patterns compile as written** (every pattern is compiled as `\\A(?:pattern)\\z`): matching is case-sensitive unless the pattern opts in with an inline `(?i)`. Short names are sometimes best distinguished by their case. That is the pattern author's call. The caveat: FName equality IS case-insensitive, and different packages can legitimately store different casings of the same name. A case-sensitive pattern that matches only one casing rewrites some packages and misses others, so the \"same\" name stops matching itself across the build. When that happens by accident, the run-wide **casing-drift advisory** (below) flags it. When casings really are different parameters, nothing fires. (`--prefix` and `--names-file` remain case-insensitive: they name FNames, not text patterns.)\n",
+	"namescrub length": "**Relationship to `check-binary`** (see [Leak gates](#leak-gates-check-source-and-check-binary)): the self-check is the *automatic, post-rewrite* gate proving the names *this run rewrote* are gone from the files. *this run processed*. `check-binary` is the *standalone* end-of-build gate you point at ANY artifact (the shipped executable, third-party data) and judge against the *full selector* (every pattern, matched or not). Use both: self-check guards the rewrite itself, `check-binary` guards everything the rewrite never saw.\n",
+	"ffs length": "# ffs.impl.wasm\n\n" +
+		"The Go frontend ([ffs.impl.ir](https://github.com/wow-look-at-my/ffs.impl.ir), vendored as the `.ir/` git submodule) lexes, parses, type-checks, and lowers FFS source to a fully-resolved IR. This repo translates that IR into a WebAssembly module.\n",
+}
+
+// What check reports in these paragraphs, fix repairs.
+func TestFixRepairsWhatCheckReportsInAReadme(t *testing.T) {
+	for name, doc := range unrepairedParagraphs {
+		out := slopfix.Fix(slopfix.Request{Content: doc, Path: "README.md", MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+		for _, f := range slopfix.CheckContent("README.md", out) {
+			assert.NotContains(t, []string{"ste/comma-splice", "ste/sentence-length"}, f.ID, "%s: %s\n%s", name, f, out)
+		}
+	}
+}
+
 // hardlinkSource is basicopy's handleMultiLink doc comment. Its second
 // paragraph names what the code did before, inside an aside.
 const hardlinkSource = "package engine\n\n" +
