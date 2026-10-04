@@ -16,7 +16,8 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 | `counts` | `counts/inventory-count`, `counts/stated-count`, `counts/postdeterminer` | yes |
 | `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/test-in-workflow`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes, except a flow-style `push` mapping |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes, except a flow-style `push` mapping |
+| `yaml`, warnings | `yaml/test-in-workflow` | no, because a `run:` script line is shell, and a warning never fails `check` |
 | `pins` | `pins/download-version` | yes, except a templated URL |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
 

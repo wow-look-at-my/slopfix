@@ -21,6 +21,50 @@ var wholeExpression = regexp.MustCompile(`^\$\{\{\s*([^}]*?)\s*\}\}$`)
 // untrusted names the contexts an attacker can write.
 var untrusted = regexp.MustCompile(`github\.event\b|github\.head_ref\b`)
 
+// inputRef matches a read of an input, and captures its name when a dot names it.
+var inputRef = regexp.MustCompile(`\binputs\s*(?:\.\s*([A-Za-z_][A-Za-z0-9_-]*)|\[)`)
+
+// typedInputs are the input types whose value cannot carry shell text.
+var typedInputs = set.Of("boolean", "number")
+
+// safeInputs names the inputs every trigger of a workflow types as a boolean or
+// a number. A string input, a choice, an untyped input and every input of a
+// composite action carry text the caller writes.
+func safeInputs(root *yaml.Node) set.Set[string] {
+	safe := set.New[string]()
+	unsafe := set.New[string]()
+	if mappingValue(root, "jobs") == nil {
+		return safe
+	}
+	on := mappingValue(root, "on")
+	for _, trigger := range []string{"workflow_dispatch", "workflow_call"} {
+		inputs := mappingValue(mappingValue(on, trigger), "inputs")
+		if inputs == nil || inputs.Kind != yaml.MappingNode {
+			continue
+		}
+		for i := 0; i+1 < len(inputs.Content); i += 2 {
+			name := inputs.Content[i].Value
+			kind := mappingValue(inputs.Content[i+1], "type")
+			if kind != nil && typedInputs.Contains(kind.Value) {
+				safe.Add(name)
+				continue
+			}
+			unsafe.Add(name)
+		}
+	}
+	return safe.Difference(unsafe)
+}
+
+// readsTextInput reports whether an expression reads an input that is not in safe.
+func readsTextInput(expr string, safe set.Set[string]) bool {
+	for _, m := range inputRef.FindAllStringSubmatch(expr, -1) {
+		if m[1] == "" || !safe.Contains(m[1]) {
+			return true
+		}
+	}
+	return false
+}
+
 // secret matches a secret, which must not land in the script file on disk.
 var secret = regexp.MustCompile(`\bsecrets\.`)
 
@@ -57,6 +101,8 @@ type envStep struct {
 	parsed *syntax.File
 	// uses maps each step id in the same steps list to the action it uses.
 	uses map[string]string
+	// safe names the inputs whose value cannot carry shell text.
+	safe set.Set[string]
 }
 
 // envPlan is what the rule finds in one step, and the edits that repair it.
@@ -92,12 +138,15 @@ func envPlans(content string) []envPlan {
 	rows := lines(content)
 	spans := blockScalars(content)
 	var out []envPlan
-	for _, s := range runSteps(rootOf(&doc)) {
+	root := rootOf(&doc)
+	safe := safeInputs(root)
+	for _, s := range runSteps(root) {
 		es, ok := readEnvStep(s.step, s.container, s.windows, rows, spans)
 		if !ok {
 			continue
 		}
 		es.uses = s.uses
+		es.safe = safe
 		if p := es.plan(content, rows); len(p.findings) > 0 {
 			out = append(out, p)
 		}
@@ -350,7 +399,7 @@ func (es envStep) judgeEntry(name string, key, value *yaml.Node, refs []paramRef
 		return true, false
 	}
 	match := wholeExpression.FindStringSubmatch(strings.TrimSpace(value.Value))
-	if match == nil || untrusted.MatchString(match[1]) || secret.MatchString(match[1]) {
+	if match == nil || untrusted.MatchString(match[1]) || readsTextInput(match[1], es.safe) || secret.MatchString(match[1]) {
 		return false, false
 	}
 	if id := stepResult.FindStringSubmatch(match[1]); id != nil && scriptAction.MatchString(es.uses[id[1]]) {
