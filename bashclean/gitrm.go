@@ -9,14 +9,14 @@ import (
 // gitRM is a `git rm` call that deletes working-tree files.
 type gitRM struct {
 	head     []*syntax.Word // wrappers, `git`, its global options and `rm`
-	dirs     []*syntax.Word // each `-C` operand, in order
+	inDir    bool           // a `-C` names another directory; rewriteGitC turns it into a `cd` first
 	opts     []*syntax.Word
 	paths    []*syntax.Word
 	fromFile bool
 }
 
 // parseGitRM: the SUBCOMMAND is the leading non-flag word after `git`, so
-// `git -C dir rm f` counts while `git commit -m rm` does not. `--cached` and a
+// `git -c k=v rm f` counts while `git commit -m rm` does not. `--cached` and a
 // dry run delete nothing, so they do not count.
 func parseGitRM(c *syntax.CallExpr) (gitRM, bool) {
 	e, ok := effectiveCommand(c)
@@ -35,9 +35,7 @@ func parseGitRM(c *syntax.CallExpr) (gitRM, bool) {
 			if i+1 >= len(args) {
 				return gitRM{}, false
 			}
-			if s == "-C" {
-				g.dirs = append(g.dirs, args[i+1])
-			}
+			g.inDir = g.inDir || s == "-C"
 			i++
 			continue
 		}
@@ -101,7 +99,7 @@ func rewriteGitRM(f *syntax.File) {
 			return true
 		}
 		g, ok := parseGitRM(c)
-		if !ok || g.fromFile {
+		if !ok || g.fromFile || g.inDir {
 			return true
 		}
 		repl, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(g.replacement()), "")
@@ -127,15 +125,7 @@ func (g gitRM) replacement() string {
 	if needsSeparator(g.paths) {
 		trash = append([]*syntax.Word{word("recycler"), word("trash"), word("--")}, g.paths...)
 	}
-	out := printWords(git) + " && "
-	if len(g.dirs) == 0 {
-		return out + printWords(trash)
-	}
-	out += "("
-	for _, d := range g.dirs {
-		out += "cd " + printWords([]*syntax.Word{d}) + " && "
-	}
-	return out + printWords(trash) + ")"
+	return printWords(git) + " && " + printWords(trash)
 }
 
 func printWords(ws []*syntax.Word) string {

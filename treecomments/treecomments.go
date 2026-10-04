@@ -193,6 +193,11 @@ func wholeLineOnly(src string, comments []Comment) []Comment {
 // exampleOutput opens the comment that go test compares an example's output to.
 var exampleOutput = regexp.MustCompile(`(?i)^//\s*(unordered )?output:`)
 
+// IsExampleOutput reports a comment line that opens an example's output block in a Go test file.
+func IsExampleOutput(line string) bool {
+	return exampleOutput.MatchString(strings.TrimSpace(line))
+}
+
 // withoutExampleOutput drops each example's output block: the opening line and
 // every comment line under it. go test reads it as data, so no rule may judge it.
 func withoutExampleOutput(comments []Comment) []Comment {

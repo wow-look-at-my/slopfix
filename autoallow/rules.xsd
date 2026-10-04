@@ -37,11 +37,30 @@
     </xs:sequence>
   </xs:complexType>
 
-  <!-- Substrings that refuse the command outright, where denyArgSubstrings
-       only unmatches the rule. message= is what the caller is told instead. -->
-  <xs:complexType name="refuseArgs">
+  <!-- Refuses the command outright, where denyArgSubstrings only unmatches
+       the rule. Every kind of child given must match, and any one of a kind is
+       enough. message= is what the caller is told instead. -->
+  <xs:complexType name="refuse">
     <xs:sequence>
-      <xs:element name="value" type="xs:string" maxOccurs="unbounded"/>
+      <xs:element name="flag" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="name" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="flagValue" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="flag" maxOccurs="unbounded">
+              <xs:complexType>
+                <xs:attribute name="name" type="xs:string" use="required"/>
+              </xs:complexType>
+            </xs:element>
+            <xs:element name="value" type="xs:string" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="argPrefix" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="argSubstring" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
     <xs:attribute name="message" type="xs:string" use="required"/>
   </xs:complexType>
@@ -69,7 +88,7 @@
       <xs:element name="requiredFlags" type="flagList"/>
       <xs:element name="flagsWithValue" type="flagList"/>
       <xs:element name="denyArgSubstrings" type="stringList"/>
-      <xs:element name="refuseArgSubstrings" type="refuseArgs"/>
+      <xs:element name="refuse" type="refuse"/>
       <xs:element name="allowedArgPrefixes" type="stringList"/>
       <xs:element name="requireFlagValue" type="requireFlagValue"/>
       <xs:element name="rule" type="rule"/>
