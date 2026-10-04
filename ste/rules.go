@@ -301,8 +301,8 @@ func insideAny(spans [][]int, idx int) bool {
 	return false
 }
 
-// clauseBefore returns the words from the end of the previous sentence up to
-// the comma at idx.
+// clauseBefore returns the words from the end of the sentence up to the comma
+// at idx.
 func clauseBefore(prose string, idx int) string {
 	before := prose[:idx]
 	if cut := strings.LastIndexAny(before, ".!?:;—"); cut >= 0 {
@@ -323,16 +323,20 @@ func isClause(before string) bool {
 }
 
 // Sentences splits prose into sentences.
-//
-// A period ends a sentence only when what follows opens the next. That rules
-// out "e.g. the lexer" and the "$(...)" of a shell example, which a plain
-// period-and-space split cuts apart. An oversized sentence then reads as short
-// pieces and escapes the cap.
+func Sentences(text string) []string { return SentencesOpenedBy(text, opensSentence) }
+
+// OpensSentence reports whether rest starts a sentence by the rule Sentences uses.
+func OpensSentence(rest []rune) bool { return opensSentence(rest) }
+
+// SentencesOpenedBy ends a sentence at a period only when opens accepts what
+// follows. That rules out "e.g. the lexer" and the "$(...)" of a shell example,
+// which a plain period-and-space split cuts apart. An oversized sentence then
+// reads as short pieces and escapes the cap.
 //
 // A lower-case opener still starts a sentence when it is a file name or a
 // section mark. Demanding a capital there is the mirror defect, and it hides
 // the length of everything it welds together.
-func Sentences(text string) []string {
+func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 	var out []string
 	runes := []rune(text)
 	start := 0
@@ -358,7 +362,7 @@ func Sentences(text string) []string {
 		for next < len(runes) && unicode.IsSpace(runes[next]) {
 			next++
 		}
-		if next >= len(runes) || !opensSentence(runes[next:]) || endsWithAbbreviation(runes[start:stop+1]) {
+		if next >= len(runes) || !opens(runes[next:]) || endsWithAbbreviation(runes[start:stop+1]) {
 			i = end
 			continue
 		}
