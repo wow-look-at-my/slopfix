@@ -272,6 +272,28 @@ func TestXMLIsHeldToTheSchemaItNames(t *testing.T) {
 	}, pathsOf(checkOnly(root, slopfix.IDXML)))
 }
 
+const namespacedXSD = `<?xml version="1.1" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:t" elementFormDefault="qualified">
+  <xs:element name="rule">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+`
+
+// The schema of an xsi:schemaLocation pair ends at its closing quote, with
+// another attribute after it on the next line.
+func TestXMLNamesItsSchemaByANamespacePair(t *testing.T) {
+	located := `xmlns="urn:t" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:t ns.xsd"`
+	root := gitRepo(t, map[string]string{
+		"ns.xsd":  namespacedXSD,
+		"good.xml": xmlDoc(`<rule ` + located + "\n      " + `id="a"/>`),
+		"bad.xml":  xmlDoc(`<rule ` + located + "\n      " + `other="a"/>`),
+	})
+	assert.Equal(t, []string{"bad.xml repo/xml"}, pathsOf(checkOnly(root, slopfix.IDXML)))
+}
+
 // The rule fails a document on its own: naming another rule leaves it out.
 func TestNamingAnotherRuleLeavesTheDocumentRulesOut(t *testing.T) {
 	root := gitRepo(t, map[string]string{"broken.json": "{", "tool": elf})

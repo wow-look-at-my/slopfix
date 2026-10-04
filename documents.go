@@ -173,7 +173,7 @@ func checkJSON(path, rel string, content []byte, compiled schemas) *TreeFinding 
 
 var (
 	noNamespaceLocation = regexp.MustCompile(`noNamespaceSchemaLocation\s*=\s*["']([^"']+)["']`)
-	namespacedLocation  = regexp.MustCompile(`schemaLocation\s*=\s*["']\s*\S+\s+(\S+)[^"']*["']`)
+	namespacedLocation  = regexp.MustCompile(`schemaLocation\s*=\s*["']\s*[^\s"']+\s+([^\s"']+)[^"']*["']`)
 )
 
 // checkXML holds an XML file to the strict org validator and to the schema it
