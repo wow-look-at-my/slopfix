@@ -163,6 +163,10 @@ func divisions(s *syntax.Sentence, source string) []division {
 		if insideAny(dashed, s.Words[c.Link].Start) {
 			continue
 		}
+		// The part before a division needs a verb with tense: "so newly created files." has none.
+		if !main.Verb.Finite && !main.Verb.Imperative {
+			continue
+		}
 		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {
 			continue
 		}

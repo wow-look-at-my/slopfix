@@ -177,10 +177,15 @@ func forceDivision(source, masked string) (string, bool) {
 	return source, false
 }
 
-// finiteStarts answers where each finite verb in masked starts, in order.
+// finiteStarts answers where each finite verb in masked starts, in order. A
+// fragment whose main clause has no finite verb answers none.
 func finiteStarts(masked string) []int {
+	s := syntax.Parse(masked, nil)
+	if !hasMainVerb(s) {
+		return nil
+	}
 	var out []int
-	for _, w := range syntax.Parse(masked, nil).Words {
+	for _, w := range s.Words {
 		if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
 			out = append(out, w.Start)
 		}
@@ -405,7 +410,7 @@ func openRest(source, masked string, c forceCut, hasVerb bool) (string, int) {
 	if lowerIdentifier(firstToken.FindString(rest)) {
 		return joinOpener(opener, "this is "+rest), opensWithFill
 	}
-	s := syntax.Parse(opening(restMasked), nil)
+	s := syntax.Parse(firstSentence(opening(restMasked)), nil)
 	if len(s.Words) == 0 {
 		return "", 0
 	}
@@ -480,6 +485,14 @@ func hasMainVerb(s *syntax.Sentence) bool {
 
 // openingBytes bounds how much of the rest the parser reads. Only its first clause decides how the rest opens.
 const openingBytes = 240
+
+// firstSentence answers text up to its first stop and blank.
+func firstSentence(text string) string {
+	if at := strings.Index(text, ". "); at >= 0 {
+		return text[:at+1]
+	}
+	return text
+}
 
 // opening answers the start of text, cut back to a blank.
 func opening(text string) string {
