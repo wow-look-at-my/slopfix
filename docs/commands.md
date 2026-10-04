@@ -57,7 +57,8 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 |---|---|
 | PreToolUse | `clean-bash`, `write`, `no-work-loss`, `auto-allow`, `busy-poll` |
 | PermissionRequest | `auto-allow` |
-| PostToolUse, SessionStart | `md-budget` |
+| PostToolUse | `md-budget`, `read-output` |
+| SessionStart | `md-budget` |
 | Stop | `busy-poll`, `md-budget`, `laziness` |
 | MessageDisplay | `link-refs`, `blame-language`, `ask-properly` |
 

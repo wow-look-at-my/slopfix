@@ -288,7 +288,7 @@ Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` 
 
 Denials: `heredoc`, `perl` (`^perl[0-9.]*$` as the effective command), `file_read` (`cat`, `head`, `tail` or a line-selecting `sed` on a file), `shred`, `git_rm` with `--pathspec-from-file`, `truncate_zero` with an unknown flag, `rm_flag` for an `rm` flag it cannot drop. And `toolchain_capture` for `go-toolchain` inside a substitution.
 
-A hook cannot swap Bash for Read. As a result, a `file_read` deny names the Read call instead. `readcall.go` maps one plain call with no pipe or redirect: `cat`, `head -n N`, `tail -n N`, `tail -n +K`, or `sed -n 'A,Bp'`. The path is made absolute against the payload `cwd`. A `tail` count from the end reads the line total of the file. A command with no exact Read equivalent gets the general text alone.
+A command hook cannot swap Bash for Read. A read that `readplan.go` maps onto Read is therefore not denied: it runs. The `read-output` guard then rewrites its output on PostToolUse as the Read tool prints those lines, with a note that names the Read calls. `readplan.go` maps one plain call with no pipe or redirect: `cat`, `head -n N`, `tail -n N`, `tail -n +K`, or `sed -n 'A,Bp'`. The path is made absolute against the payload `cwd`. A `tail` count from the end reads the line total of the file. A read it does not map keeps the `file_read` deny. `check read-plan` prints the mapping for one command.
 
 - `devnull` removes `2>/dev/null` in any spelling. It matches a parsed redirect. A `12>/dev/null` thus stays.
 - `rm_recycle`, `truncate_recycle` and `find_delete_recycle` turn deletion into `recycler trash`. Delete-then-Write is the loophole around the Write refusal.
