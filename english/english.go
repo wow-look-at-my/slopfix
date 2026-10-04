@@ -164,10 +164,12 @@ func (p Pattern) ApplyN(s string) (string, int) {
 		if strings.TrimSpace(with) == "" {
 			// A cut: the parse says which punctuation attaches the phrase.
 			var ok bool
-			if from, to, ok = cutSpan(s, loc[0], loc[1]); !ok || from < last {
+			if from, to, ok = cutSpan(s, loc[0], loc[1]); !ok {
 				continue
 			}
-			with = " "
+			if from, to, with = join(s, from, to); from < last {
+				continue
+			}
 		}
 		out.WriteString(s[last:from])
 		out.WriteString(with)

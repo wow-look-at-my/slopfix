@@ -37,19 +37,36 @@ func cutSpan(s string, from, to int) (int, int, bool) {
 	closes := next >= len(sent.Words) || closer(sent.Words[next].Text)
 	opens := prev < 0 || opener(sent.Words[prev].Text)
 
-	start, end := sent.Words[first].Start, sent.Words[last].End
+	// The match is the least the cut takes: a pattern can name the brackets round an aside.
+	start := from + len(s[from:to]) - len(strings.TrimLeft(s[from:to], " \t\n"))
+	end := from + len(strings.TrimRight(s[from:to], " \t\n"))
 	switch {
 	case before && after:
 		// A phrase between a pair of commas takes both.
 		start, end = sent.Words[prev].Start, sent.Words[next].End
 	case before && closes:
 		// A phrase that ends its clause takes the comma that opened it.
-		start = sent.Words[prev].Start
+		start = min(start, sent.Words[prev].Start)
 	case opens && after:
 		// A phrase that opens its clause takes the comma that closed it.
-		end = sent.Words[next].End
+		end = max(end, sent.Words[next].End)
 	}
 	return start, end, true
+}
+
+// join is the text that replaces a cut, so the words on either side meet with
+// one space, or with none before punctuation that closes something.
+func join(s string, start, end int) (int, int, string) {
+	for start > 0 && (s[start-1] == ' ' || s[start-1] == '\t') {
+		start--
+	}
+	for end < len(s) && (s[end] == ' ' || s[end] == '\t') {
+		end++
+	}
+	if start == 0 || end == len(s) || strings.ContainsRune(".,;:!?)]", rune(s[end])) || strings.ContainsRune("([", rune(s[start-1])) {
+		return start, end, ""
+	}
+	return start, end, " "
 }
 
 // splitsNounPhrase reports a cut that takes some words of a noun phrase and
