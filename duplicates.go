@@ -33,6 +33,10 @@ func nearDuplicates(root string) ([]TreeFinding, error) {
 	for _, path := range commentfix.TreeFilesMatching(root, func(path string) bool {
 		return !perDirectoryNames.Contains(filepath.Base(path))
 	}) {
+		// A symlink is the other file, not a copy of it.
+		if info, err := os.Lstat(path); err != nil || !info.Mode().IsRegular() {
+			continue
+		}
 		name := filepath.Base(path)
 		byName[name] = append(byName[name], path)
 	}
