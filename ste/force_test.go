@@ -147,6 +147,15 @@ func TestAForcedDivisionNeverWritesThisIsInFrontOfAClauseOrAPhrase(t *testing.T)
 	}
 }
 
+// The opening of unreal-tools namescrub/README.md, which a division wrote as
+// "between cook. This is staging". A list item opens no sentence of its own.
+func TestAForcedDivisionNeverOpensOnAListItem(t *testing.T) {
+	in := "Redacts sensitive names (material parameter names, asset/package names, and the paths built from them) in Unreal Engine cooked output by **same-byte-length hash replacement** -- either on the loose cooked files between cook and staging, or directly **inside an existing classic `.pak`** (see Pak mode below)."
+	got := ste.Fix(in)
+	assert.NotContains(t, got, "This is staging", got)
+	assert.NotContains(t, got, "between cook.", got)
+}
+
 // A division never ends a part on a verb and opens the rest on its object.
 func TestAForcedDivisionKeepsAVerbWithItsObject(t *testing.T) {
 	in := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a careful repair rather than a quiet deletion."

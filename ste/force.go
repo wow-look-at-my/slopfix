@@ -349,7 +349,10 @@ func openRest(source, masked string, c forceCut) (string, int) {
 		return "", 0
 	}
 	opener := ""
+	// A noun phrase after "and" or a comma is the next item of a list.
+	listItem := strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",")
 	if word := strings.ToLower(firstToken.FindString(rest)); word != "" {
+		listItem = listItem || word == "and"
 		if connector, ok := connectors[word]; ok {
 			cut := len(firstToken.FindString(rest))
 			trimmed := strings.TrimLeft(rest[cut:], " ")
@@ -394,6 +397,10 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if hasMainVerb(s) {
 		// The rest already has its verb, and "This is" in front would give it a second one.
 		return joinOpener(opener, rest), opensOwnClause
+	}
+	if listItem {
+		// "This is staging" names the item, where the list only counted it.
+		return "", 0
 	}
 	return joinOpener(opener, "this is "+rest), opensWithFill
 }
