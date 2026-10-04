@@ -60,6 +60,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	switch {
 	case measures(hit.Phrase):
 		to = hit.Start + loc[1] + len(unitAfter(content[hit.Start+loc[1]:]))
+	case len(before) > 0 && floorsAbove.Contains(last(1)) && followsANoun(content, before[len(before)-1].start):
+		// "RBs over 4 engines" spans the engines. The word stays a preposition.
+		text = "multiple "
 	case len(before) > 0 && rates.Contains(last(1)):
 		drop(1)
 		text = "every few "
@@ -94,7 +97,8 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 
 	e := edit.Edit{Start: from, End: to, Text: text, Cut: []string{hit.Phrase}}
 	first, _ := utf8.DecodeRuneInString(content[from:])
-	capital := unicode.IsUpper(first) || (!unicode.IsLetter(first) && opensSentence(content, from))
+	// An emphatic "FOUR" mid-sentence passes no capital to what follows it.
+	capital := opensSentence(content, from) && (unicode.IsUpper(first) || !unicode.IsLetter(first))
 	switch {
 	case !capital:
 	case text != "":
@@ -160,9 +164,15 @@ func determined(before []word) bool {
 		return false
 	}
 	w := before[len(before)-1].lower
+	if comparatives.Contains(w) && len(before) > 1 {
+		w = before[len(before)-2].lower
+	}
 	return strings.HasSuffix(w, "'s") || strings.HasSuffix(w, "’s") ||
 		cardinal.InClass(w, "article") || cardinal.InClass(w, "determiner")
 }
+
+// comparatives sit between a determiner and its number: "the same three rules".
+var comparatives = set.Of[string]("same", "other")
 
 // word is a blank-separated word in front of the number, on its own line.
 type word struct {
