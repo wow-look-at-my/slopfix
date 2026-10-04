@@ -240,11 +240,11 @@ func TestARemoteSchemaIsFetched(t *testing.T) {
 func TestANegativeFixtureMustBreakItsSchema(t *testing.T) {
 	located := `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rule.xsd"`
 	root := gitRepo(t, map[string]string{
-		"rule.xsd":              xsd,
+		"rule.xsd":               xsd,
 		"missing-id.invalid.xml": xmlDoc(`<rule ` + located + `/>`),
-		"passes.invalid.xml":    xmlDoc(`<rule ` + located + ` id="a"/>`),
-		"unnamed.invalid.xml":   xmlDoc(`<rule/>`),
-		"lost.invalid.xml":      xmlDoc(`<rule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="missing.xsd"/>`),
+		"passes.invalid.xml":     xmlDoc(`<rule ` + located + ` id="a"/>`),
+		"unnamed.invalid.xml":    xmlDoc(`<rule/>`),
+		"lost.invalid.xml":       xmlDoc(`<rule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="missing.xsd"/>`),
 	})
 	findings := checkOnly(root, slopfix.IDXML)
 	assert.ElementsMatch(t, []string{"passes.invalid.xml repo/xml", "unnamed.invalid.xml repo/xml", "lost.invalid.xml repo/xml"}, pathsOf(findings))
