@@ -90,6 +90,14 @@ func TestAHandRepairEndsAsTheRepairFixWrites(t *testing.T) {
 	assert.NotContains(t, applied(t, countsDoc, got), "three")
 }
 
+// A hand rewording that clears the finding is put back as fix writes the line.
+func TestAHandRewordingEndsAsTheRepairFixWrites(t *testing.T) {
+	path := onDisk(t, "a.md", countsDoc)
+	got := ask(t, editOf(path, "It has three plugins.", "It has some plugins."), "counts")
+
+	assert.Equal(t, fixed(t, path, countsDoc, "counts"), applied(t, countsDoc, got))
+}
+
 // A rewrite keeps every line the edit did not write as it stands on disk.
 func TestARewriteLeavesLinesTheEditDidNotWrite(t *testing.T) {
 	doc := "It has three plugins.\n\nIt has three tools.\n"
@@ -177,7 +185,12 @@ func TestAMultiEditTouchingAnAutoFixableLineIsRewritten(t *testing.T) {
 	}
 	got := ask(t, payload, "counts")
 	hand := "Opening row.\nIt has 3 plugins.\nOutro row.\n"
-	assert.Equal(t, fixed(t, path, hand, "counts"), applied(t, countsDoc, got))
+	want := fixed(t, path, hand, "counts")
+	if want == hand {
+		// fix leaves the hand version alone, so the line is put back as fix repairs the original.
+		want = "Opening row.\n" + strings.SplitAfter(fixed(t, path, countsDoc, "counts"), "\n")[1] + "Outro row.\n"
+	}
+	assert.Equal(t, want, applied(t, countsDoc, got))
 	updated, _ := got.out["updatedInput"].(map[string]any)
 	assert.Len(t, updated["edits"], 1)
 	assert.Contains(t, got.out["additionalContext"], path+":2: [")

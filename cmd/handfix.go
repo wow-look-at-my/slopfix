@@ -167,24 +167,41 @@ func handFix(tool string, toolInput []byte, path string, rules []slopfix.Rule, i
 	if len(touched) == 0 {
 		return nil, nil
 	}
-	return rewriteHand(req, after, touched, owned)
+	return rewriteHand(req, fixed.Text, after, touched, owned)
 }
 
-// rewriteHand repairs the file the edit leaves, keeps that repair on every
-// line the edit wrote, and answers the edit that writes the result.
-func rewriteHand(req slopfix.Request, after string, touched []int, owned forkLines) (*handRepair, []string) {
-	before, path := req.Content, req.Path
+// fixAfter answers what `slopfix fix` makes of the file the edit leaves.
+func fixAfter(req slopfix.Request, after string, owned forkLines) (string, []string) {
 	scope, err := owned(after)
 	if err != nil {
-		return nil, cannotScope(path, err)
+		return "", cannotScope(req.Path, err)
 	}
 	whole := req
 	whole.Content, whole.Owned = after, scope
 	repaired, err := fixOf(whole)
 	if err != nil {
-		return nil, cannotFix(path, err)
+		return "", cannotFix(req.Path, err)
 	}
-	result := keepWritten(after, repaired.Text, writtenLines(before, after))
+	return repaired.Text, nil
+}
+
+// rewriteHand repairs the file the edit leaves, keeps that repair on every
+// line the edit wrote, and answers the edit that writes the result. A line
+// the hand repaired, so that fix no longer changes it, is put back as fix
+// writes it.
+func rewriteHand(req slopfix.Request, fixedBefore, after string, touched []int, owned forkLines) (*handRepair, []string) {
+	before, path := req.Content, req.Path
+	repaired, refused := fixAfter(req, after, owned)
+	if refused != nil {
+		return nil, refused
+	}
+	landed := restoreRepairs(before, fixedBefore, after, set.Of(changedLines(after, repaired)...))
+	if landed != after {
+		if repaired, refused = fixAfter(req, landed, owned); refused != nil {
+			return nil, refused
+		}
+	}
+	result := keepWritten(landed, repaired, writtenLines(before, landed))
 	if result == after {
 		return nil, nil
 	}
@@ -201,6 +218,43 @@ func rewriteHand(req slopfix.Request, after string, touched []int, owned forkLin
 		h.notes = append(h.notes, fmt.Sprintf(handFixNote, path, line, strings.Join(names[line], ", ")))
 	}
 	return h, nil
+}
+
+// restoreRepairs answers after with each line put back as fix writes it where
+// the edit changed a line fix repairs and fix leaves the edited line alone,
+// because the edit performed the repair by hand. stillFixed holds the 1-based
+// lines of after that fix changes. Only a line each diff pairs one to one is
+// put back.
+func restoreRepairs(before, fixedBefore, after string, stillFixed set.Set[int]) string {
+	edited := pairs(before, after)
+	repaired := pairs(before, fixedBefore)
+	fixedLines := strings.SplitAfter(fixedBefore, "\n")
+	out := strings.SplitAfter(after, "\n")
+	for i, j := range edited {
+		k, ok := repaired[i]
+		if !ok || stillFixed.Contains(j+1) {
+			continue
+		}
+		out[j] = fixedLines[k]
+	}
+	return strings.Join(out, "")
+}
+
+// pairs maps each 0-based line of x that y replaces one for one to the line
+// of y that replaces it.
+func pairs(x, y string) map[int]int {
+	a := strings.SplitAfter(x, "\n")
+	b := strings.SplitAfter(y, "\n")
+	out := map[int]int{}
+	for _, op := range difflib.NewMatcherWithJunk(a, b, false, nil).GetOpCodes() {
+		if op.Tag != 'r' || op.I2-op.I1 != op.J2-op.J1 {
+			continue
+		}
+		for k := 0; k < op.I2-op.I1; k++ {
+			out[op.I1+k] = op.J1 + k
+		}
+	}
+	return out
 }
 
 // writtenLines answers the 0-based lines of after that the edit wrote.
