@@ -145,23 +145,29 @@ func cuts(text string) []cut {
 	return out
 }
 
-// divide breaks text into parts of LongBlockTarget characters or less where it
-// can. Each part ends at the best cut that fits: a sentence end first, then a
-// sentence end inside a parenthesis, then a blank between words. A part also
-// stops at the STE cap on the sentences in a paragraph.
+// fits answers whether chunk holds no more than chars characters and words words.
+func fits(chunk string, chars, words int) bool {
+	return utf8.RuneCountInString(chunk) <= chars && len(strings.Fields(chunk)) <= words
+}
+
+// divide breaks text into parts of LongBlockTarget characters and
+// LongBlockWordTarget words or less where it can. Each part ends at the best
+// cut that fits: a sentence end first, then a sentence end inside a
+// parenthesis, then a blank between words. A part also stops at the STE cap on
+// the sentences in a paragraph.
 func divide(text string) []string {
 	defer trace.Phase("rule/long-block")()
 	all := cuts(text)
 	var parts []string
 	start := 0
-	for utf8.RuneCountInString(text[start:]) > LongBlockTarget {
+	for !fits(text[start:], LongBlockTarget, LongBlockWordTarget) {
 		best := -1
 		for i, c := range all {
 			if c.at <= start {
 				continue
 			}
 			chunk := text[start:c.at]
-			if utf8.RuneCountInString(chunk) > LongBlockTarget || len(ste.Sentences(chunk)) > ste.ParagraphSentenceCap {
+			if !fits(chunk, LongBlockTarget, LongBlockWordTarget) || len(ste.Sentences(chunk)) > ste.ParagraphSentenceCap {
 				break
 			}
 			if best < 0 || c.class <= all[best].class {
@@ -171,7 +177,7 @@ func divide(text string) []string {
 		if best < 0 || all[best].class == cutWord {
 			// A sentence end past the target, but under the cap, reads better than a cut between words.
 			for i, c := range all {
-				if c.at > start && c.class < cutWord && utf8.RuneCountInString(text[start:c.at]) <= LongBlockCap {
+				if c.at > start && c.class < cutWord && fits(text[start:c.at], LongBlockCap, LongBlockWordCap) {
 					best = i
 					break
 				}
