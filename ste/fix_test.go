@@ -56,6 +56,17 @@ func TestFixKeepsTheCodeSpanThatEndsTheLeftSentence(t *testing.T) {
 	assert.NotContains(t, fixed, "Unpacks")
 }
 
+// A splice whose subject is a code span gets the same repair as a word subject.
+func TestFixRepairsASpliceBeforeACodeSpanSubject(t *testing.T) {
+	text := "The path decides the dialect by its tail: `/responses` is `DialectResponses`, `/messages` is `DialectAnthropic`, `/chat/completions` is `DialectOpenAI`. The version segment is matched but not read, so a `v2/responses` still answers."
+	require.NotEmpty(t, ste.Check(text, 1), "the control: the splice is reported")
+	fixed := ste.FixSelected(text, func(id string) bool { return id == ste.IDCommaSplice })
+	assert.Contains(t, fixed, "`v2/responses`")
+	for _, f := range ste.Check(fixed, 1) {
+		assert.NotEqual(t, ste.IDCommaSplice, f.ID, "%s\n%s", fixed, f.Detail)
+	}
+}
+
 // A division never lands inside bold text, so each marker keeps its partner.
 func TestFixNeverDividesInsideBoldText(t *testing.T) {
 	long := "With no trip count given, each loop is modeled as one iteration **and the estimate is flagged** with a section in the report and a note in the output so it is never read as the exact cost."
