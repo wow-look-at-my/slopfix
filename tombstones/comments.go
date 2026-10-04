@@ -11,7 +11,6 @@
 package tombstones
 
 import (
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -104,9 +104,7 @@ func vendoredAttr(path string) bool {
 		return v.(bool)
 	}
 	args := append(append([]string{"check-attr", "-z"}, commentfix.BorrowedAttributes...), "--", filepath.Base(abs))
-	cmd := exec.Command("git", args...)
-	cmd.Dir = filepath.Dir(abs)
-	out, err := cmd.Output()
+	out, err := gitmod.Command(filepath.Dir(abs), args...).Output()
 	vendored := false
 	if err == nil {
 		// git answers a path, attribute, value triple per attribute.

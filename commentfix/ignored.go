@@ -2,11 +2,14 @@ package commentfix
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // withoutIgnored drops each path git ignores, such as built output. Git never
@@ -24,13 +27,13 @@ func withoutIgnored(root string, paths []string) []string {
 		}
 		abs[i] = a
 	}
-	cmd := exec.Command("git", "check-ignore", "--stdin", "-z")
-	cmd.Dir = root
+	cmd := gitmod.Command(root, "check-ignore", "--stdin", "-z")
 	cmd.Stdin = strings.NewReader(strings.Join(abs, "\x00") + "\x00")
 	out, err := cmd.Output()
 	// Exit status 1 means git ignores none of the paths.
 	var exit *exec.ExitError
 	if err != nil && !(errors.As(err, &exit) && exit.ExitCode() == 1) {
+		lostRead("ignored", err)
 		return paths
 	}
 	ignored := set.Of(strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")...)
@@ -58,11 +61,11 @@ func withoutVendored(root string, paths []string) []string {
 		}
 		abs[i] = a
 	}
-	cmd := exec.Command("git", append([]string{"check-attr", "--stdin", "-z"}, BorrowedAttributes...)...)
-	cmd.Dir = root
+	cmd := gitmod.Command(root, append([]string{"check-attr", "--stdin", "-z"}, BorrowedAttributes...)...)
 	cmd.Stdin = strings.NewReader(strings.Join(abs, "\x00") + "\x00")
 	out, err := cmd.Output()
 	if err != nil {
+		lostRead("vendored", err)
 		return paths
 	}
 	vendored := set.New[string]()
@@ -79,6 +82,14 @@ func withoutVendored(root string, paths []string) []string {
 		}
 	}
 	return kept
+}
+
+// lostRead reports a git read that failed inside a work tree. The walk then
+// judges the paths that read would skip, and the reader must see why.
+func lostRead(skip string, err error) {
+	if reason := gitmod.Unexpected(err); reason != "" {
+		fmt.Fprintf(os.Stderr, "slopfix: git cannot list the %s paths, so the walk judges them: %s\n", skip, reason)
+	}
 }
 
 // BorrowedAttributes are the .gitattributes that mark a path as another author's: a vendored project.
