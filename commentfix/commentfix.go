@@ -62,16 +62,75 @@ func Check(filename, src string) []Hit {
 		return nil
 	}
 	var hits []Hit
-	for _, comment := range treecomments.Extract(filename, src) {
-		for _, line := range commentLines(comment.Text) {
-			for _, found := range cardinal.Find(line.text, cardinal.Comment) {
-				at := comment.Offset + line.offset + found.Offset
-				pos, col := lineAndColumn(src, at)
-				hits = append(hits, Hit{Number: found.Text, Line: pos, Col: col, Offset: at})
+	for _, run := range treecomments.Runs(filename, src) {
+		var lines []commentLine
+		for _, comment := range run {
+			for _, line := range commentLines(comment.Text) {
+				lines = append(lines, commentLine{text: line.text, offset: comment.Offset + line.offset})
 			}
+		}
+		for _, stanza := range stanzasOf(lines) {
+			hits = append(hits, stanzaHits(src, stanza)...)
 		}
 	}
 	return hits
+}
+
+// stanzasOf breaks a run's lines on a line with nothing after its marker. That
+// is where the repair breaks a paragraph, so a quotation closes no later than it.
+func stanzasOf(lines []commentLine) [][]commentLine {
+	var out [][]commentLine
+	var current []commentLine
+	for _, line := range lines {
+		if _, prose, ok := split(line.text); ok && prose == "" {
+			if len(current) > 0 {
+				out = append(out, current)
+			}
+			current = nil
+			continue
+		}
+		current = append(current, line)
+	}
+	if len(current) > 0 {
+		out = append(out, current)
+	}
+	return out
+}
+
+// stanzaHits finds the numbers each line states, leaving out a number inside a
+// quotation that opens on one line and closes on a later one. The repair reads
+// the paragraph whole, so that number is quoted to it as well.
+func stanzaHits(src string, stanza []commentLine) []Hit {
+	var joined strings.Builder
+	starts := make([]int, len(stanza))
+	for i, line := range stanza {
+		starts[i] = joined.Len()
+		joined.WriteString(line.text)
+		joined.WriteByte('\n')
+	}
+	quoted := cardinal.QuotedSpans(joined.String())
+	var hits []Hit
+	for i, line := range stanza {
+		for _, found := range cardinal.Find(line.text, cardinal.Comment) {
+			if inSpans(quoted, starts[i]+found.Offset) {
+				continue
+			}
+			at := line.offset + found.Offset
+			pos, col := lineAndColumn(src, at)
+			hits = append(hits, Hit{Number: found.Text, Line: pos, Col: col, Offset: at})
+		}
+	}
+	return hits
+}
+
+// inSpans reports whether offset sits inside one of spans.
+func inSpans(spans []cardinal.Span, offset int) bool {
+	for _, span := range spans {
+		if offset >= span.Start && offset < span.End {
+			return true
+		}
+	}
+	return false
 }
 
 // lineAndColumn answers where a byte offset sits, counting from the top and the

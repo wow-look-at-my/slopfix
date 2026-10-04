@@ -175,6 +175,9 @@ func Extract(filename, src string) []Comment {
 	if _, named := grammars[strings.ToLower(filepath.Ext(filename))]; !named {
 		out = wholeLineOnly(src, out)
 	}
+	if IsCMake(filename) {
+		out = cmakeLineComments(src, out)
+	}
 	return out
 }
 
