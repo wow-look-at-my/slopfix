@@ -4,10 +4,11 @@
 // rules. The repository is the one the work tree's origin names on the GitHub
 // server. With no such origin, it is GITHUB_REPOSITORY, for a root inside
 // GITHUB_WORKSPACE. A repository that the org's fork list names is measured
-// from the newest upstream tag that HEAD contains. Otherwise the API says
-// whether the repository is a fork, and the base is the merge base with the
-// parent's default branch. Only a line added or changed since that base, or a
-// line of a new or untracked file, is the fork's.
+// from the newest upstream tag that HEAD contains, or, when that upstream
+// carries no tags, from the merge base with its default branch. Otherwise the
+// API says whether the repository is a fork, and the base is the merge base
+// with the parent's default branch. Only a line added or changed since that
+// base, or a line of a new or untracked file, is the fork's.
 package forkscope
 
 import (
@@ -282,6 +283,19 @@ func (r Resolver) record(top string, topErr error, repo string) (record, error) 
 		rec.Upstream = id.upstream
 		if rec.Tags, err = upstreamTags(id.upstream); err != nil {
 			return record{}, err
+		}
+		// An upstream that carries no tags names no release to measure from, so
+		// the base is the merge base with its default branch, which is where a
+		// fork that syncs a branch meets it.
+		if len(rec.Tags) == 0 {
+			branch, branchErr := upstreamBranch(id.upstream)
+			if branchErr != nil {
+				return record{}, branchErr
+			}
+			rec.Kind, rec.ParentURL, rec.Branch = kindParent, id.upstream, branch
+			if rec.Parent, err = fetchParent(top, id.upstream, branch); err != nil {
+				return record{}, err
+			}
 		}
 	case kindParent:
 		if topErr != nil {
@@ -659,6 +673,25 @@ func UpstreamFor(list, repo, source string) (string, error) {
 		}
 	}
 	return found, nil
+}
+
+// upstreamBranch answers the default branch of upstream.
+func upstreamBranch(upstream string) (string, error) {
+	out, err := gitIn(".", "ls-remote", "--symref", upstream, "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("fork scope: read the default branch of %s: %w", upstream, err)
+	}
+	for line := range strings.SplitSeq(out, "\n") {
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "ref:")
+		if !ok {
+			continue
+		}
+		ref, _, _ := strings.Cut(rest, "\t")
+		if branch, ok := strings.CutPrefix(strings.TrimSpace(ref), "refs/heads/"); ok && branch != "" {
+			return branch, nil
+		}
+	}
+	return "", fmt.Errorf("fork scope: %s names no default branch", upstream)
 }
 
 // upstreamTags answers the commit each tag of upstream names.
