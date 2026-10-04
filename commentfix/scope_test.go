@@ -1,6 +1,9 @@
 package commentfix_test
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 )
 
 // run runs git in dir with no user or system config, so a signing key or a
@@ -89,6 +93,64 @@ func TestTheSweepWritesNothingWhileGitWaitsForTheUser(t *testing.T) {
 			assert.Contains(t, read(t, root, "new.go"), "4 keys", "nothing is written")
 		})
 	}
+}
+
+// forked is a fork of a parent that carries up.go and both.go. The fork adds
+// a line to both.go. Its origin names o/fork on GitHub, and the resolver it
+// answers finds the parent through an API that says so.
+func forked(t *testing.T, status int) (string, forkscope.Resolver) {
+	t.Helper()
+	work := tree(t, map[string]string{
+		"go.mod":  "module example.com/m\n",
+		"up.go":   "package m\n\n// It holds 3 keys.\nvar a int\n",
+		"both.go": "package m\n\n// It holds 3 keys.\nvar b int\n",
+	})
+	run(t, work, "init", "-q", "-b", "master")
+	run(t, work, "add", "-A")
+	run(t, work, "commit", "-q", "-m", "base")
+	parent := filepath.Join(t.TempDir(), "parent.git")
+	run(t, work, "clone", "-q", "--bare", work, parent)
+
+	fork := filepath.Join(t.TempDir(), "fork")
+	run(t, work, "clone", "-q", parent, fork)
+	require.NoError(t, os.WriteFile(filepath.Join(fork, "both.go"), []byte("package m\n\n// It holds 3 keys.\nvar b int\n\n// It holds 6 locks.\nvar c int\n"), 0o644))
+	run(t, fork, "add", "-A")
+	run(t, fork, "commit", "-q", "-m", "fork work")
+	run(t, fork, "remote", "set-url", "origin", "https://github.com/o/fork.git")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/o/fork" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(status)
+		_ = json.NewEncoder(w).Encode(map[string]any{"fork": true, "parent": map[string]any{"clone_url": parent, "default_branch": "master"}})
+	}))
+	t.Cleanup(srv.Close)
+	env := map[string]string{"GITHUB_API_URL": srv.URL}
+	return fork, forkscope.Resolver{Getenv: func(k string) string { return env[k] }, ListURL: srv.URL + "/fork-of.json"}
+}
+
+// In a fork, the sweep repairs only the lines the fork wrote, and leaves every
+// file and every line it inherited as it was.
+func TestTheSweepInAForkKeepsToTheForksLines(t *testing.T) {
+	root, forks := forked(t, http.StatusOK)
+	result := commentfix.FixTreeIn(forks, root)
+
+	assert.Empty(t, result.Skipped)
+	assert.Equal(t, "package m\n\n// It holds 3 keys.\nvar a int\n", read(t, root, "up.go"))
+	both := read(t, root, "both.go")
+	assert.Contains(t, both, "// It holds 3 keys.\nvar b int\n", "an inherited line stays")
+	assert.NotContains(t, both, "6 locks", "the line the fork wrote is repaired")
+}
+
+// A fork whose base cannot be read writes nothing and says why.
+func TestTheSweepInAForkWithNoBaseWritesNothing(t *testing.T) {
+	root, forks := forked(t, http.StatusInternalServerError)
+	result := commentfix.FixTreeIn(forks, root)
+
+	assert.Contains(t, result.Skipped, "500")
+	assert.Contains(t, read(t, root, "both.go"), "6 locks")
 }
 
 // A repository with no default branch to measure against gives the sweep no

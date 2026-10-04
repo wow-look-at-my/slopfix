@@ -18,6 +18,7 @@ import (
 
 	"github.com/wow-look-at-my/slopfix"
 	splice "github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
@@ -69,33 +70,60 @@ type placed struct {
 }
 
 // place replays the edits onto the file and answers what the write introduced.
-func place(tool string, in writeInput, rules []slopfix.Rule, ids []string) placed {
+// In a fork, the repair and the findings keep to the lines the fork wrote once
+// the edits land.
+func place(tool string, in writeInput, rules []slopfix.Rule, ids []string, owned forkLines) (placed, error) {
 	edits := editsOf(tool, in)
 	if len(edits) == 0 || in.FilePath == "" {
-		return placed{}
+		return placed{}, nil
 	}
 	data, err := os.ReadFile(in.FilePath)
 	if err != nil {
-		return placed{}
+		return placed{}, nil
 	}
 	before := string(data)
 	after, ok := applyEdits(before, edits)
 	if !ok {
-		return placed{}
+		return placed{}, nil
 	}
-	had := fixOver(before, in.FilePath, rules, ids, splice.Nowhere())
+	lines, err := owned(after)
+	if err != nil {
+		return placed{}, err
+	}
+	had := fixOver(before, in.FilePath, rules, ids, splice.Nowhere(), nil)
 	// A MultiEdit's spans cannot be told apart a single time the repair has moved them.
 	scope := splice.Nowhere()
 	if len(edits) == 1 {
 		at := strings.Index(before, edits[0].old)
 		scope = splice.Within(at, at+len(edits[0].new))
 	}
-	fixed := fixOver(after, in.FilePath, rules, ids, scope)
+	fixed := fixOver(after, in.FilePath, rules, ids, scope, lines)
 	p := placed{findings: introduced(had.Findings, fixed.Findings), ok: true}
 	if len(edits) == 1 {
 		p.repair = cutBack(fixed, edits[0], had.Kept)
 	}
-	return p
+	return p, nil
+}
+
+// fragmentScope bounds the repair of an edit's own text when place could not
+// pin it to the file. In a fork, no line of such an edit to a file the fork did
+// not write whole can be told to be the fork's, so the repair lands nowhere.
+func fragmentScope(tool string, in writeInput, owned forkLines) (splice.Scope, error) {
+	if tool == "Write" {
+		return splice.Scope{}, nil
+	}
+	data, err := os.ReadFile(in.FilePath)
+	if err != nil {
+		data = nil
+	}
+	lines, err := owned(string(data))
+	if err != nil {
+		return splice.Scope{}, err
+	}
+	if lines == nil || lines.All() {
+		return splice.Scope{}, nil
+	}
+	return splice.Nowhere(), nil
 }
 
 // cutBack answers the repair of the edit's own text. Every rewrite was held
@@ -143,8 +171,8 @@ func introduced(before, after []ste.Finding) []ste.Finding {
 }
 
 // fixOver runs the caller's own rule selection over a whole document, with
-// every repair held inside scope.
-func fixOver(src, path string, rules []slopfix.Rule, ids []string, scope splice.Scope) slopfix.Repair {
+// every repair held inside scope and on the lines owned names.
+func fixOver(src, path string, rules []slopfix.Rule, ids []string, scope splice.Scope, owned *forkscope.Scope) slopfix.Repair {
 	return slopfix.Fix(slopfix.Request{
 		Content:         src,
 		Path:            path,
@@ -152,5 +180,6 @@ func fixOver(src, path string, rules []slopfix.Rule, ids []string, scope splice.
 		IDs:             ids,
 		MaxCommentLines: hookMaxLines,
 		Scope:           scope,
+		Owned:           owned,
 	})
 }

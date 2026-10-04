@@ -84,8 +84,9 @@ func executableKind(head []byte) string {
 
 // committedBinaries reports each executable that git itself stores under root.
 // Writing, it deletes them, because an image builds from source. Git still
-// holds each. A Git LFS file stores a pointer in git, so it never matches.
-func committedBinaries(root string, writing bool) ([]TreeFinding, []string, error) {
+// holds each. A Git LFS file stores a pointer in git, so it never matches. A
+// binary writable refuses stays a finding.
+func committedBinaries(root string, writing bool, writable func(string) bool) ([]TreeFinding, []string, error) {
 	files, err := trackedFiles(root)
 	if err != nil {
 		return nil, nil, err
@@ -99,7 +100,7 @@ func committedBinaries(root string, writing bool) ([]TreeFinding, []string, erro
 		if kind == "" || (file.blob != "" && blobKind(root, file.blob) == "") {
 			continue
 		}
-		if writing {
+		if writing && writable(path) {
 			if err := os.Remove(path); err != nil {
 				return out, removed, err
 			}
