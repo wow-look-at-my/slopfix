@@ -117,7 +117,7 @@ func TestEveryCountIsReworded(t *testing.T) {
 		"It keeps at most 500 lines.":           "It keeps a bounded number of lines.",
 		"It keeps up to 10 entries.":            "It keeps a bounded number of entries.",
 		"It needs at least 3 reviewers.":        "It needs a few reviewers.",
-		"It carries over 500 lines.":            "It carries many lines.",
+		"It carries over 500 lines.":            "It carries over many lines.",
 		"It runs in two passes.":                "It runs in multiple passes.",
 		"It ships two hooks.":                   "It ships hooks.",
 		"It ships exactly two hooks.":           "It ships hooks.",
@@ -138,8 +138,11 @@ func TestEveryCountIsReworded(t *testing.T) {
 // the sentence English, or leaves a number that counts nothing alone.
 func TestARewordKeepsTheSentenceEnglish(t *testing.T) {
 	for in, want := range map[string]string{
-		"Vega10 has 16 RBs over 4 shader engines.":              "Vega10 has 16 RBs over multiple shader engines.",
-		"It drives 35 fixtures over six seeded inputs.":         "It drives fixtures over multiple seeded inputs.",
+		"Vega10 has 16 RBs over 4 shader engines.":              "Vega10 has 16 RBs over a few shader engines.",
+		"It drives 35 fixtures over six seeded inputs.":         "It drives fixtures over several seeded inputs.",
+		"The integer form spreads over 32 banks.":               "The integer form spreads over many banks.",
+		"One round trip amortized over 40 resident waves hides.": "One round trip amortized over many resident waves hides.",
+		"glslang can emit a ternary over two samples.":          "glslang can emit a ternary over a couple of samples.",
 		"It describes an engine carrying FOUR render backends.": "It describes an engine carrying render backends.",
 		"It is a pass over the same 262144 covered pixels.":     "It is a pass over the same covered pixels.",
 		"It runs on the other three platforms.":                 "It runs on the other platforms.",
@@ -150,11 +153,16 @@ func TestARewordKeepsTheSentenceEnglish(t *testing.T) {
 	}
 }
 
-// An issue number never changes, and a number in an equation states an
-// identity. Neither counts the plural noun after it.
-func TestAnIssueOrAnEquationIsNoCount(t *testing.T) {
+// An issue number, a Vega model, a word size and an equation each name a fixed
+// value. None counts the plural noun after it.
+func TestAFixedValueIsNoCount(t *testing.T) {
 	for _, in := range []string{
 		"The corpus that issue #54 targets compiles.",
+		"It reports verdicts for the analyzer Vega 11 constants.",
+		"It widens the table pointer to 64 bits.",
+		"The field holds 32 bits.",
+		"The lane carries 16 bits.",
+		"The mask keeps 8 bits.",
 		"The footprint (1760 workgroups x 64 KiB = 110 MiB) fits.",
 	} {
 		out, cut := StripGate(in)
@@ -171,6 +179,7 @@ func TestOnlyAnIssueNumberIsALabel(t *testing.T) {
 		"It merges pr #12 files.",
 		"It is the loop that gate 5 asserts.",
 		"It reads rule 6 inputs.",
+		"The field holds 24 bits.",
 	} {
 		_, cut := StripGate(in)
 		assert.NotEmpty(t, cut, in)
