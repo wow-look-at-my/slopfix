@@ -255,6 +255,29 @@ func xmlDoc(body string) string {
 	return `<?xml version="1.1" encoding="UTF-8"?>` + "\n" + body + "\n"
 }
 
+const namespacedXSD = `<?xml version="1.1" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:rule" elementFormDefault="qualified">
+  <xs:element name="rule">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+`
+
+// The schema path ends at its quote, so an attribute after it does not join the path.
+func TestANamespacedSchemaLocationEndsAtItsQuote(t *testing.T) {
+	located := `xmlns="urn:rule" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:rule rule.xsd"`
+	root := gitRepo(t, map[string]string{
+		"rule.xsd":  namespacedXSD,
+		"good.xml":  xmlDoc(`<rule ` + located + ` id="a"/>`),
+		"split.xml": xmlDoc("<rule xmlns=\"urn:rule\"\n      xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n      xsi:schemaLocation=\"urn:rule rule.xsd\"\n      id=\"a\">\n</rule>"),
+		"last.xml":  xmlDoc(`<rule id="a" ` + located + `/>`),
+		"bad.xml":   xmlDoc(`<rule ` + located + `/>`),
+	})
+	assert.Equal(t, []string{"bad.xml repo/xml"}, pathsOf(checkOnly(root, slopfix.IDXML)))
+}
+
 func TestXMLIsHeldToTheSchemaItNames(t *testing.T) {
 	located := `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rule.xsd"`
 	root := gitRepo(t, map[string]string{
