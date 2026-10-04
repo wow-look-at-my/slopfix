@@ -8,12 +8,15 @@ package slopfix
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // FileScope answers the lines of content that the fork wrote, for content
@@ -94,10 +97,111 @@ func within(req Request, repair Repair) Repair {
 			repair.Rewrites = 0
 		}
 	}
-	owned := forkscope.Carry(req.Content, repair.Text, scope)
+	repair = alone(req, repair)
+	repair, owned := giveBack(req, repair)
+	if owned == nil {
+		owned = forkscope.Carry(req.Content, repair.Text, scope)
+	}
 	repair.Findings = ownedFindings(repair.Findings, owned)
 	repair.Kept = ownedHits(repair.Kept, owned)
 	return repair
+}
+
+// blockRules judge a run of lines whole.
+var blockRules = set.Of(workflow.IDCommentBlock, tombstones.IDVolume)
+
+// alone runs each block rule still reporting on a fork line by itself, and
+// keeps what lands on the fork's lines. Run with every rule, a repair of an
+// upstream line beside the run joins the run's change in one diff hunk, and
+// the whole hunk goes back.
+func alone(req Request, repair Repair) Repair {
+	owned := forkscope.Carry(req.Content, repair.Text, req.Owned)
+	ids := set.New[string]()
+	for _, f := range repair.Findings {
+		if blockRules.Contains(f.ID) && owned.Holds(f.Line, max(f.Line, f.EndLine)) {
+			ids.Add(f.ID)
+		}
+	}
+	for _, h := range repair.Kept {
+		if blockRules.Contains(h.ID) && h.LineNo > 0 && owned.Holds(h.LineNo, max(h.LineNo, h.EndLineNo)) {
+			ids.Add(h.ID)
+		}
+	}
+	for _, id := range slices.Sorted(ids.All()) {
+		one := req
+		one.Content, one.Scope, one.Owned, one.IDs = repair.Text, repair.Scope, nil, []string{id}
+		fixed := fixAll(one)
+		owned = forkscope.Carry(req.Content, repair.Text, req.Owned)
+		text := forkscope.Keep(repair.Text, fixed.Text, owned)
+		if text == repair.Text {
+			continue
+		}
+		again := req
+		again.Content, again.Owned, again.Scope = text, nil, edit.Nowhere()
+		landed := Fix(again)
+		repair.Findings, repair.Kept = landed.Findings, landed.Kept
+		repair.Removed = append(repair.Removed, landedRemovals(repair.Text, text, fixed.Removed)...)
+		if repair.Scope.Bounded && repair.Scope.Start <= repair.Scope.End {
+			repair.Scope.End = len(text) - (len(repair.Text) - repair.Scope.End)
+		}
+		repair.Text, repair.Changed = text, text != req.Content
+	}
+	return repair
+}
+
+// giveBack repairs each run a block rule still reports on a line the fork
+// wrote. Each change the fork made inside that run goes back to what the base
+// has, through the gate that proves it changed only comment. The run is then
+// the base's own, and the fork wrote none of it. It answers the lines the fork
+// wrote of the text it gave back, measured from the base, or nil when it gave
+// nothing back.
+func giveBack(req Request, repair Repair) (Repair, *forkscope.Scope) {
+	owned := forkscope.Carry(req.Content, repair.Text, req.Owned)
+	type run struct{ first, last int }
+	var runs []run
+	for _, f := range repair.Findings {
+		if blockRules.Contains(f.ID) && owned.Holds(f.Line, max(f.Line, f.EndLine)) {
+			runs = append(runs, run{f.Line, max(f.Line, f.EndLine)})
+		}
+	}
+	for _, h := range repair.Kept {
+		if blockRules.Contains(h.ID) && h.LineNo > 0 && owned.Holds(h.LineNo, max(h.LineNo, h.EndLineNo)) {
+			runs = append(runs, run{h.LineNo, max(h.LineNo, h.EndLineNo)})
+		}
+	}
+	if len(runs) == 0 {
+		return repair, nil
+	}
+	// With no base to write back, the finding stays and the report names it.
+	base, err := req.Owned.Base()
+	if err != nil {
+		return repair, nil
+	}
+	var edits []edit.Edit
+	seen := set.New[int]()
+	for _, r := range runs {
+		for _, e := range forkscope.GiveBack(base, repair.Text, r.first, r.last) {
+			if !seen.Contains(e.Start) {
+				seen.Add(e.Start)
+				edits = append(edits, e)
+			}
+		}
+	}
+	at := req
+	at.Content, at.Scope, at.Owned = repair.Text, repair.Scope, nil
+	f := openFile(at, kindOf(req.Path, repair.Text))
+	res := f.ApplyComments(edits)
+	repair.refuse(res.Refused)
+	if len(res.Applied) == 0 {
+		return repair, nil
+	}
+	again := at
+	again.Content, again.Scope = f.Text(), edit.Nowhere()
+	landed := Fix(again)
+	repair.Findings, repair.Kept = landed.Findings, landed.Kept
+	repair.Removed = append(repair.Removed, res.Cuts()...)
+	repair.Text, repair.Changed, repair.Scope = f.Text(), f.Text() != req.Content, f.Scope()
+	return repair, forkscope.Changed(base, repair.Text)
 }
 
 // landedRemovals keeps each removal that text, the repair as it lands, made.
@@ -125,7 +229,7 @@ func ownedFindings(findings []ste.Finding, owned *forkscope.Scope) []ste.Finding
 func ownedHits(hits []tombstones.Hit, owned *forkscope.Scope) []tombstones.Hit {
 	var out []tombstones.Hit
 	for _, h := range hits {
-		if owned.Holds(h.LineNo, h.LineNo) {
+		if owned.Holds(h.LineNo, max(h.LineNo, h.EndLineNo)) {
 			out = append(out, h)
 		}
 	}
@@ -151,7 +255,7 @@ func (t TreeRepair) Within(own *forkscope.Lines, root string) TreeRepair {
 	}
 	kept := t.Kept[:0:0]
 	for _, k := range t.Kept {
-		if own.Holds(k.Path, k.LineNo, k.LineNo) {
+		if own.Holds(k.Path, k.LineNo, max(k.LineNo, k.EndLineNo)) {
 			kept = append(kept, k)
 		}
 	}
