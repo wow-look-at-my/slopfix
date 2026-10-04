@@ -150,8 +150,8 @@ func TestARewordKeepsTheSentenceEnglish(t *testing.T) {
 	}
 }
 
-// A label word with a hash sign names an issue, and a number in an equation
-// states an identity. Neither counts the plural noun after it.
+// An issue number never changes, and a number in an equation states an
+// identity. Neither counts the plural noun after it.
 func TestAnIssueOrAnEquationIsNoCount(t *testing.T) {
 	for _, in := range []string{
 		"The corpus that issue #54 targets compiles.",
@@ -163,8 +163,8 @@ func TestAnIssueOrAnEquationIsNoCount(t *testing.T) {
 	}
 }
 
-// A hash sign labels an issue and nothing else. A list position goes stale when
-// the list is renumbered, so it is a count.
+// Only "issue #<digits>" is exempt. A list position goes stale when the list is
+// renumbered, so it is a count.
 func TestOnlyAnIssueNumberIsALabel(t *testing.T) {
 	for _, in := range []string{
 		"The parser keeps #12 rows.",

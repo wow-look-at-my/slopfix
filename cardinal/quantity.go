@@ -232,17 +232,19 @@ func StatusCode(text string, q Match) bool {
 }
 
 // Labeled exempts a number that names an item rather than counting a set: one
-// after a label word, as in "Migration 014" or "HTTP 404". A hash sign labels
-// only an issue, as in "issue #54": an issue number never changes.
+// after a label word, as in "Migration 014" or "HTTP 404".
 func Labeled(text string, q Match) bool {
-	head := text[:q.At]
-	if hashed := strings.TrimSuffix(head, "#"); hashed != head {
-		before := strings.Fields(hashed)
-		return len(before) > 0 && bare(before[len(before)-1]) == "issue"
-	}
-	before := strings.Fields(head)
+	before := strings.Fields(text[:q.At])
 	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
 }
+
+// IssueNumber exempts the digits of the literal shape "issue #<digits>". An
+// issue number never changes.
+func IssueNumber(text string, q Match) bool {
+	return issueRef.MatchString(text[:q.At])
+}
+
+var issueRef = regexp.MustCompile(`(?i)\bissue #$`)
 
 // InExpression exempts a number that is arithmetic rather than a count. The
 // digits in an expression or a range name no set of items.
