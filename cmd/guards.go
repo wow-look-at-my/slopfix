@@ -68,6 +68,7 @@ var guards = []guard{
 	{name: "auto-allow", events: []string{eventPreToolUse, eventPermissionRequest}, run: reader(func(r *strings.Reader) hookResult { return hookResult(autoallow.Run(r)) })},
 	{name: "busy-poll", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(busypoll.Run(r)) })},
 	{name: "md-budget", events: []string{eventSessionStart, eventPostToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(mdbudget.Run(r)) })},
+	{name: "read-output", events: []string{eventPostToolUse}, run: reader(func(r *strings.Reader) hookResult { return hookResult(bashclean.RunPost(r)) })},
 	{name: "laziness", events: []string{eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(laziness.Run(r)) })},
 	{name: "link-refs", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(linkrefs.Run(r)) })},
 	{name: "blame-language", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(blamelanguage.Run(r)) })},
