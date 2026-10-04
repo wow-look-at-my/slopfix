@@ -378,7 +378,7 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if len(s.Words) == 0 {
 		return "", 0
 	}
-	if opensClause(s) {
+	if opensClause(s) && (!listItem || s.Clauses[0].Verb.Finite) {
 		return joinOpener(opener, rest), opensOwnClause
 	}
 	if tag := s.Words[0].Tag; tag == "VBZ" || tag == "VBP" || tag == "VBD" || tag == "MD" {

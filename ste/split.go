@@ -251,6 +251,10 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "", false
 		}
 		if c.Subject != nil {
+			// "and staging, or" has no tense, so it is the next item of a list.
+			if c.Verb == nil || !c.Verb.Finite {
+				return "", false
+			}
 			return connector, opensWithCapital(s, c.Link+1, source)
 		}
 		if main.Verb.Imperative {
