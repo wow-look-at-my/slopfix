@@ -120,8 +120,7 @@ func fixSplices(prose string) string {
 	return breakWith(prose, joiners, openers)
 }
 
-// offLimits are the spans no break may land in: the data Check hides, and a
-// parenthetical, which STE counts as a single word and a break would halve.
+// offLimits are the spans no break may land in.
 func offLimits(prose, masked string) [][]int {
 	off := verbatimSpan.FindAllStringIndex(prose, -1)
 	return append(off, asides(masked)...)
