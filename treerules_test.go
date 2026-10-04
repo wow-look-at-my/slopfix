@@ -265,17 +265,29 @@ const namespacedXSD = `<?xml version="1.1" encoding="UTF-8"?>
 </xs:schema>
 `
 
-// The schema path ends at its quote, so an attribute after it does not join the path.
-func TestANamespacedSchemaLocationEndsAtItsQuote(t *testing.T) {
-	located := `xmlns="urn:rule" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:rule rule.xsd"`
+// The hint is read from the parsed root, as XSD defines it: the
+// xsi:schemaLocation pair for the root's own namespace, with xsi matched by
+// URI. Text that only looks like a hint is not one.
+func TestANamespacedSchemaHintIsReadFromTheParsedRoot(t *testing.T) {
+	const xsi = `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"`
+	located := `xmlns="urn:rule" ` + xsi + ` xsi:schemaLocation="urn:rule rule.xsd"`
 	root := gitRepo(t, map[string]string{
-		"rule.xsd":  namespacedXSD,
-		"good.xml":  xmlDoc(`<rule ` + located + ` id="a"/>`),
-		"split.xml": xmlDoc("<rule xmlns=\"urn:rule\"\n      xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n      xsi:schemaLocation=\"urn:rule rule.xsd\"\n      id=\"a\">\n</rule>"),
-		"last.xml":  xmlDoc(`<rule id="a" ` + located + `/>`),
-		"bad.xml":   xmlDoc(`<rule ` + located + `/>`),
+		"rule.xsd":   namespacedXSD,
+		"good.xml":   xmlDoc(`<rule ` + located + ` id="a"/>`),
+		"split.xml":  xmlDoc("<rule xmlns=\"urn:rule\"\n      " + xsi + "\n      xsi:schemaLocation=\"urn:rule rule.xsd\"\n      id=\"a\">\n</rule>"),
+		"last.xml":   xmlDoc(`<rule id="a" ` + located + `/>`),
+		"second.xml": xmlDoc(`<rule xmlns="urn:rule" ` + xsi + ` xsi:schemaLocation="urn:other missing.xsd  urn:rule rule.xsd" id="a"/>`),
+		"prefix.xml": xmlDoc(`<rule xmlns="urn:rule" xmlns:i="http://www.w3.org/2001/XMLSchema-instance" i:schemaLocation="urn:rule rule.xsd" id="a"/>`),
+		"bad.xml":    xmlDoc(`<rule ` + located + `/>`),
+		"comment.xml": xmlDoc(`<!-- xsi:schemaLocation="urn:rule rule.xsd" -->` +
+			`<rule xmlns="urn:rule" id="a"/>`),
+		"foreign.xml": xmlDoc(`<rule xmlns="urn:rule" xmlns:o="urn:other" o:schemaLocation="urn:rule rule.xsd" id="a"/>`),
+		"odd.xml":     xmlDoc(`<rule xmlns="urn:rule" ` + xsi + ` xsi:schemaLocation="urn:rule" id="a"/>`),
+		"elsewhere.xml": xmlDoc(`<rule xmlns="urn:rule" ` + xsi + ` xsi:schemaLocation="urn:other rule.xsd" id="a"/>`),
 	})
-	assert.Equal(t, []string{"bad.xml repo/xml"}, pathsOf(checkOnly(root, slopfix.IDXML)))
+	assert.ElementsMatch(t, []string{
+		"bad.xml repo/xml", "comment.xml repo/xml", "foreign.xml repo/xml", "odd.xml repo/xml", "elsewhere.xml repo/xml",
+	}, pathsOf(checkOnly(root, slopfix.IDXML)))
 }
 
 func TestXMLIsHeldToTheSchemaItNames(t *testing.T) {
