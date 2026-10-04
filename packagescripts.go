@@ -15,8 +15,8 @@ const IDPackageScripts = "repo/package-scripts"
 // packageScripts reports each package.json under root that carries a scripts
 // key. Writing, it moves the scripts into a justfile first, and names each file
 // it changed. A package.json that does not parse stays a finding, because no
-// rewrite can read it.
-func packageScripts(root string, writing bool) ([]TreeFinding, []string, error) {
+// rewrite can read it. So does one whose move writable refuses.
+func packageScripts(root string, writing bool, writable func(string) bool) ([]TreeFinding, []string, error) {
 	var out []TreeFinding
 	var changed []string
 	isManifest := func(path string) bool { return filepath.Base(path) == "package.json" }
@@ -37,7 +37,7 @@ func packageScripts(root string, writing bool) ([]TreeFinding, []string, error) 
 		if _, ok := manifest["scripts"]; !ok {
 			continue
 		}
-		if writing {
+		if writing && writable(path) && writable(filepath.Join(filepath.Dir(path), "justfile")) {
 			wrote, err := moveScripts(path, content)
 			if err != nil {
 				return out, changed, err
