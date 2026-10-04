@@ -164,7 +164,7 @@ func TestAVolumeFindingNamesItsBlock(t *testing.T) {
 			assert.Greater(t, k.EndLineNo, k.LineNo)
 		}
 	}
-	assert.Equal(t, []int{5, 29}, lines)
+	assert.Equal(t, []int{5, 25}, lines)
 }
 
 // GiveBack writes back only the changes inside the run it is given.

@@ -8,6 +8,7 @@ package slopfix
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -96,6 +97,7 @@ func within(req Request, repair Repair) Repair {
 			repair.Rewrites = 0
 		}
 	}
+	repair = alone(req, repair)
 	repair, owned := giveBack(req, repair)
 	if owned == nil {
 		owned = forkscope.Carry(req.Content, repair.Text, scope)
@@ -107,6 +109,45 @@ func within(req Request, repair Repair) Repair {
 
 // blockRules judge a run of lines whole.
 var blockRules = set.Of(workflow.IDCommentBlock, tombstones.IDVolume)
+
+// alone runs each block rule still reporting on a fork line by itself, and
+// keeps what lands on the fork's lines. Run with every rule, a repair of an
+// upstream line beside the run joins the run's change in one diff hunk, and
+// the whole hunk goes back.
+func alone(req Request, repair Repair) Repair {
+	owned := forkscope.Carry(req.Content, repair.Text, req.Owned)
+	ids := set.New[string]()
+	for _, f := range repair.Findings {
+		if blockRules.Contains(f.ID) && owned.Holds(f.Line, max(f.Line, f.EndLine)) {
+			ids.Add(f.ID)
+		}
+	}
+	for _, h := range repair.Kept {
+		if blockRules.Contains(h.ID) && h.LineNo > 0 && owned.Holds(h.LineNo, max(h.LineNo, h.EndLineNo)) {
+			ids.Add(h.ID)
+		}
+	}
+	for _, id := range slices.Sorted(ids.All()) {
+		one := req
+		one.Content, one.Scope, one.Owned, one.IDs = repair.Text, repair.Scope, nil, []string{id}
+		fixed := fixAll(one)
+		owned = forkscope.Carry(req.Content, repair.Text, req.Owned)
+		text := forkscope.Keep(repair.Text, fixed.Text, owned)
+		if text == repair.Text {
+			continue
+		}
+		again := req
+		again.Content, again.Owned, again.Scope = text, nil, edit.Nowhere()
+		landed := Fix(again)
+		repair.Findings, repair.Kept = landed.Findings, landed.Kept
+		repair.Removed = append(repair.Removed, landedRemovals(repair.Text, text, fixed.Removed)...)
+		if repair.Scope.Bounded && repair.Scope.Start <= repair.Scope.End {
+			repair.Scope.End = len(text) - (len(repair.Text) - repair.Scope.End)
+		}
+		repair.Text, repair.Changed = text, text != req.Content
+	}
+	return repair
+}
 
 // giveBack repairs each run a block rule still reports on a line the fork
 // wrote. Each change the fork made inside that run goes back to what the base
