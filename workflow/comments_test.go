@@ -33,7 +33,7 @@ func TestABlankLineDoesNotSplitACommentBlock(t *testing.T) {
 }
 
 func TestCodeBetweenCommentsStartsANewBlock(t *testing.T) {
-	assert.Empty(t, workflow.Check("# first\non: {push: {branches: ['**']}}\n# second\njobs: {}\n"))
+	assert.Empty(t, checkOthers("# first\non: {push: {branches: ['**']}}\n# second\njobs: {}\n"))
 }
 
 func TestACarriageReturnDoesNotHideAComment(t *testing.T) {
@@ -54,11 +54,11 @@ func TestACommentBlockAtTheEndOfTheFileIsReported(t *testing.T) {
 const scriptWithComments = "on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n          # install the backend\n          # the suites need it\n          apt-get install -y bubblewrap\n          apt-get clean\n"
 
 func TestShellCommentsInABlockScalarAreNotAYamlCommentBlock(t *testing.T) {
-	assert.Empty(t, workflow.Check(scriptWithComments))
+	assert.Empty(t, checkOthers(scriptWithComments))
 }
 
 func TestRepairingLeavesAScriptsCommentsAlone(t *testing.T) {
-	repair := workflow.Fix(scriptWithComments, func(string) bool { return true })
+	repair := workflow.Fix(scriptWithComments, othersThanConcurrency)
 	assert.False(t, repair.Changed)
 	assert.Equal(t, scriptWithComments, repair.Text)
 }
@@ -82,7 +82,7 @@ func TestJoiningCommentLinesKeepsTheirSentencesApart(t *testing.T) {
 // The scalar ends where the indentation does, so the comments after it are
 // judged as the YAML comments they are.
 func TestACommentBlockAfterABlockScalarIsStillReported(t *testing.T) {
-	findings := workflow.Check("on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n          # a shell comment\n          make\n\n# one\n# two\n")
+	findings := checkOthers("on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n          # a shell comment\n          make\n\n# one\n# two\n")
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, "lines 9-10", findings[0].Detail)

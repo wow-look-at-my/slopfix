@@ -117,6 +117,7 @@ func roundTripFixtures() []fixture {
 				"yaml/env-indirection",
 				"yaml/push-tags",
 				"yaml/org-action-ref",
+				"yaml/concurrency",
 			},
 		},
 		{
