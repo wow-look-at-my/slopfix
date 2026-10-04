@@ -366,7 +366,7 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if len(s.Words) == 0 {
 		return "", 0
 	}
-	if opensClause(s) {
+	if opensClause(s) || opensImperative(s) {
 		return joinOpener(opener, rest), opensOwnClause
 	}
 	if tag := s.Words[0].Tag; tag == "VBZ" || tag == "VBP" || tag == "VBD" || tag == "MD" {
@@ -409,6 +409,16 @@ func opensClause(s *syntax.Sentence) bool {
 	}
 	c := s.Clauses[0]
 	return c.Subject != nil && c.Verb != nil && c.Subject.First == 0
+}
+
+// opensImperative reports a parse that opens on a bare verb, as in "use the
+// copy key". An imperative stands as a sentence with a capital and no subject.
+func opensImperative(s *syntax.Sentence) bool {
+	if len(s.Clauses) == 0 {
+		return false
+	}
+	c := s.Clauses[0]
+	return c.Verb != nil && c.Verb.Imperative && c.Verb.First == 0
 }
 
 // subjectFor names the subject of the words before the cut again, for a verb
