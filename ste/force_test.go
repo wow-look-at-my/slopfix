@@ -108,6 +108,17 @@ func TestAPostdeterminerInALongParagraphIsCut(t *testing.T) {
 	assert.Contains(t, got, "relay the browser-blocked `github.com` login endpoints")
 }
 
+// The numeral repair finds what Check reports after a code span with a
+// possessive and before a quotation.
+func TestAPostdeterminerAfterCodeAndAQuotationIsCut(t *testing.T) {
+	in := "A sweep that reached **no** repository at all is returned as an **error**, not as an empty result. Zero hits out of zero repositories says nothing about the pattern. And `grep`'s whole contract is that no matches means the text is not there. Letting this one case answer \"no matches\" will break exactly the guarantee the rest of the tool is built to keep."
+	got := ste.Fix(in)
+	for _, f := range ste.Check(got, 1) {
+		assert.NotEqual(t, ste.IDPostdeterminer, f.ID, got)
+	}
+	assert.Contains(t, got, "this case", got)
+}
+
 // A forced division never lands inside a noun phrase, so "a detached fetch" stays whole.
 func TestAForcedDivisionKeepsANounPhraseWhole(t *testing.T) {
 	in := "- **A periodic sweep**, a **passthrough debounce** that shares one upstream call between identical concurrent reads (never across credentials), and **liveness paths** that hold while a detached fetch is in flight."
