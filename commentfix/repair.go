@@ -311,6 +311,9 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 		}
 		line := lines[i]
 		marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
+		if !ok && n > 0 {
+			marker, prose, trailer, ok = alignedLine(line, len(b.marker))
+		}
 		if !ok {
 			// A line inside the block carrying no marker at all: an indented example.
 			return b, false
@@ -336,6 +339,20 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 	}
 	// A block with no closer is not a block this can safely rewrite.
 	return b, b.prose != "" && b.trailer != ""
+}
+
+// alignedLine reads a block's continuation line that carries no marker and
+// starts at the column the opener's prose starts at. That is prose laid out
+// under the opener. A line indented past it is an example.
+func alignedLine(line string, column int) (marker, prose, trailer string, ok bool) {
+	if column == 0 || indentOf(line) != column || strings.ContainsRune(line[:column], '\t') {
+		return "", "", "", false
+	}
+	body := strings.TrimSpace(line)
+	if cut, held := strings.CutSuffix(body, "*/"); held {
+		return line[:column], strings.TrimSpace(cut), "*/", true
+	}
+	return line[:column], body, "", true
 }
 
 func indentOf(line string) int {
