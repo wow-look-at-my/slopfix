@@ -155,7 +155,7 @@ coordinate/0 subject="-" verb="refuses": and refuses the write
 | Shape | quantity | quantity | number |
 | Frame required | yes | no | no |
 | Vocabulary | two upward, plus a dozen | two to twelve | cardinals, ordinals, scales, repeat counts |
-| Exemptions | function-word gap, a longer number, status code, label, unit before the noun | arithmetic, function-word gap, status code, label, unit before the noun | status code, exit status, literal, section sign, currency, quotation |
+| Exemptions | function-word gap, a longer number, arithmetic, status code, label, unit before the noun | arithmetic, function-word gap, status code, label, unit before the noun | status code, exit status, literal, section sign, currency, quotation |
 
 Prose requires a frame, because a document carries numbers that count nothing: a version, a port, an example. The gate needs no frame. That is the whole difference between the document substrates. A number beside code is nearly always a count. A comment therefore needs no frame either. The vocabularies stay separate, because widening one changes the verdict on text nobody edited. `Find` returns the whole quantity for prose. That `cardinal.Leading` can cut its number. For a comment it returns the number alone.
 
