@@ -29,7 +29,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
 | `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
-| `counts` | `counts/inventory-count` | yes |
+| `counts` | `counts/inventory-count`, `counts/section-number` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes |
@@ -108,7 +108,7 @@ Every repair is a `fixer.Fixer`, and each package registers its fixers from `ini
 | Kind | Fixers, in order |
 |---|---|
 | source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number`, `pins/download-version`, `gofmt` |
-| document | `tombstones`, `counts/inventory-count`, `wrap-and-ste`, `ste/count`, `pins/download-version` |
+| document | `tombstones`, `counts/inventory-count`, `counts/section-number`, `wrap-and-ste`, `wrap/long-block`, `ste/count`, `pins/download-version` |
 | workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/inline-env`, `yaml/filter-push`, `yaml/retarget-org-action`, `yaml/set-concurrency`, `pins/download-version` |
 
 `gofmt` runs on a `.go` file that a fixer before it changed. A cut comment can leave a blank line too many, or bring together fields that gofmt aligns. The pass writes the gofmt layout through `goformat.Gate`. It answers to the selection of the fixers before it. A fragment with no package clause keeps its layout. So does a file no fixer changed, and a file whose gofmt layout changes more than whitespace.
@@ -168,6 +168,8 @@ Every reported count gets a repair. Where a bare cut breaks the sentence, `count
 A count needs a frame and a quantity on the same line. The quantity is a cardinal that governs a plural noun. The frame is a possessive (`this repo's plugins`), a having verb (`it ships hooks`) or a deictic (`the rules below`). A quantity with no frame is ordinary technical prose.
 
 It does not flag the singular, which is overwhelmingly a pronoun in English. That gap is stated rather than closed. It drops a quantity reached through a function word, as in `2 of the format drops`. It drops a match that continues a longer number, such as a version. Fences, tables, headings and backtick spans never reach it. A measurement inside a frame IS reported, because the number belongs where it is enforced.
+
+A number behind a section sign cites a section, so neither count rule reads it. `counts/section-number` repairs it instead. A section number goes stale when a section is inserted above it. The repair writes a link named by a slug of the heading's title: `§9` becomes `[§owning-the-renderer](#9-owning-the-renderer)`. A repeated title gets `-2` on its slug, and the anchor follows GitHub. A file named right before the citation, or after it with `of`, resolves beside the document. A citation that no numbered heading answers keeps its number.
 
 ## tombstones: a comment about a state the code has left
 
