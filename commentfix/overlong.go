@@ -152,7 +152,7 @@ func judge(b block) (string, bool) {
 		return "the comment documents nothing", true
 	}
 	// One sentence is never an essay, so the repair always has a cut that fits.
-	if len(sentences(b.text)) <= 1 {
+	if len(proseSentences(b.text)) <= 1 {
 		return "", false
 	}
 	limit := max(floorChars, b.codeChars)
@@ -317,8 +317,8 @@ func openingSentence(text []string) ([]string, bool) {
 	return nil, false
 }
 
-// sentences answers the sentences of a block's prose, its directives aside.
-func sentences(text []string) []string {
+// proseSentences answers the sentences of a block's prose, its directives aside.
+func proseSentences(text []string) []string {
 	body := prose(text)
 	if _, inner, ok := readBlock(text); ok {
 		body = inner

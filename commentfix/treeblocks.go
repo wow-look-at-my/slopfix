@@ -215,14 +215,6 @@ func indentWidth(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
 
-// firstStatement descends through a bare sequence to the construct a comment
-// documents.
-func firstStatement(node ts.Node) ts.Node {
-	for !node.IsNull() && isSequence(node) {
-		node = node.NamedChild(0)
-	}
-	return node
-}
 
 func isSequence(node ts.Node) bool {
 	count := node.NamedChildCount()
