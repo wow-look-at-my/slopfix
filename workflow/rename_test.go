@@ -6,14 +6,32 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// repaired runs every workflow repair over a document.
+// repaired runs every workflow repair but yaml/concurrency over a document.
 func repaired(t *testing.T, content string) string {
 	t.Helper()
-	repair := workflow.Fix(content, func(string) bool { return true })
+	repair := workflow.Fix(content, othersThanConcurrency)
 	return repair.Text
+}
+
+// othersThanConcurrency keeps every rule but yaml/concurrency, so a case for
+// another rule needs no concurrency block in its fixture.
+func othersThanConcurrency(id string) bool {
+	return id != workflow.IDConcurrency
+}
+
+// checkOthers reports every finding but yaml/concurrency.
+func checkOthers(content string) []ste.Finding {
+	var out []ste.Finding
+	for _, f := range workflow.Check(content) {
+		if f.ID != workflow.IDConcurrency {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 func TestTheGuardedJobKeyIsRenamed(t *testing.T) {
@@ -60,7 +78,7 @@ func TestAStepNameCarryingTheWordsIsLeftAlone(t *testing.T) {
 func TestAWorkflowWithoutTheGuardedNameIsUntouched(t *testing.T) {
 	const clean = "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n"
 
-	repair := workflow.Fix(clean, func(string) bool { return true })
+	repair := workflow.Fix(clean, othersThanConcurrency)
 
 	require.False(t, repair.Changed)
 	assert.Equal(t, clean, repair.Text)
