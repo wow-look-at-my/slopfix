@@ -26,6 +26,8 @@ var (
 	// numberedTitle is a heading that opens with its number: "9. Triggers", "3.2 The cap", "§4 Grants".
 	numberedTitle = regexp.MustCompile(`^§?(\d+(?:\.\d+)*[a-z]?)\.?\s+(.+)$`)
 	sectionRef    = regexp.MustCompile(`§(\d+(?:\.\d+)*[a-z]?)`)
+	// sectionLinkRef is a citation this rule wrote: [§slug](file#anchor).
+	sectionLinkRef = regexp.MustCompile(`\[§([^\]\s]*)\]\(([^)#\s]*)#([^)\s]*)\)`)
 	// fileBefore is a markdown file named right before a citation: "`core.md` §4" or "[x](core.md) §4".
 	fileBefore = regexp.MustCompile("(?:`([^`]+\\.md)`|\\]\\(([^)#]+\\.md)\\))\\s*$")
 	// fileAfter is a file named right after one: "§0 of `02-contracts.md`".
@@ -58,7 +60,7 @@ func Sections(content string) map[string]section {
 		if _, seen := out[n[1]]; seen {
 			continue
 		}
-		out[n[1]] = section{slug: uniqueSlug(githubAnchor(n[2]), slugs), anchor: anchor}
+		out[n[1]] = section{slug: uniqueSlug(shortSlug(n[2]), slugs), anchor: anchor}
 	}
 	return out
 }
@@ -81,6 +83,35 @@ func uniqueSlug(name string, used map[string]int) string {
 		return name
 	}
 	return fmt.Sprintf("%s-%d", name, n+1)
+}
+
+// slugWords is how many words of a title a slug keeps.
+const slugWords = 3
+
+// slugSkip are words a slug drops, because they name no section.
+var slugSkip = map[string]bool{
+	"a": true, "an": true, "the": true, "of": true, "and": true, "or": true,
+	"to": true, "in": true, "on": true, "for": true, "is": true, "are": true,
+	"by": true, "with": true, "what": true, "how": true, "why": true, "we": true,
+	"it": true, "its": true, "this": true, "that": true, "not": true,
+}
+
+// shortSlug keeps the first words of a title that say what the section is.
+func shortSlug(title string) string {
+	var kept []string
+	for _, word := range strings.Split(githubAnchor(title), "-") {
+		if word == "" || slugSkip[word] {
+			continue
+		}
+		kept = append(kept, word)
+		if len(kept) == slugWords {
+			break
+		}
+	}
+	if len(kept) == 0 {
+		return githubAnchor(title)
+	}
+	return strings.Join(kept, "-")
 }
 
 // githubAnchor is the id GitHub gives a heading: lowercase, punctuation out,
@@ -130,6 +161,22 @@ func CheckSections(path, content string) []SectionHit {
 	var hits []SectionHit
 	for _, line := range proseLines(content) {
 		masked := blankInlineCode(line.text)
+		// A link written earlier keeps its anchor, and takes the slug its heading has now.
+		for _, loc := range sectionLinkRef.FindAllStringSubmatchIndex(masked, -1) {
+			slug, file, anchor := masked[loc[2]:loc[3]], masked[loc[4]:loc[5]], masked[loc[6]:loc[7]]
+			for _, sec := range lookup(file) {
+				if sec.anchor != anchor || sec.slug == slug {
+					continue
+				}
+				hits = append(hits, SectionHit{
+					LineNo: line.no,
+					Start:  line.offset + loc[0],
+					End:    line.offset + loc[1],
+					Number: masked[loc[0]:loc[1]],
+					Link:   "[§" + sec.slug + "](" + file + "#" + anchor + ")",
+				})
+			}
+		}
 		for _, loc := range sectionRef.FindAllStringSubmatchIndex(masked, -1) {
 			start, end := loc[0], loc[1]
 			if start > 0 && line.text[start-1] == '[' {
