@@ -228,6 +228,14 @@ func fixText(req Request) Repair {
 	case fixer.Source:
 		// Source keeps its own text for the prose rules, because a comma splice
 		// inside a code line is not a sentence.
+		// The number and tail rules report what their repair leaves, so check names what fix rewrites.
+		if wants(RuleComments) {
+			for _, finding := range commentFindings(req.Path, text) {
+				if finding.ID != commentfix.IDLength && keeps(finding.ID) {
+					repair.Findings = append(repair.Findings, finding)
+				}
+			}
+		}
 		if wants(RuleComments) && keeps(commentfix.IDLength) {
 			for _, hit := range commentfix.CheckLength(req.Path, text) {
 				repair.Kept = append(repair.Kept, tombstones.Hit{
