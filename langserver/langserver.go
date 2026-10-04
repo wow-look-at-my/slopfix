@@ -32,7 +32,7 @@ const lastFamily = "wrap"
 
 func rank(id string) int {
 	// A warning never crowds out a finding that fails the gate.
-	if ste.WarningIDs.Contains(id) {
+	if slopfix.WarningIDs.Contains(id) {
 		return len(familyOrder) + 2
 	}
 	family, _, _ := strings.Cut(id, "/")
