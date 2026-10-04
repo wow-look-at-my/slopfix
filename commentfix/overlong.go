@@ -13,6 +13,7 @@
 package commentfix
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -668,7 +669,12 @@ func dropSentence(text []string) ([]string, bool) {
 // endsSentence reports a comment line whose prose closes. It reads past a
 // closing bracket or quote, so a line ending `... (see above).` counts.
 func endsSentence(line string) bool {
-	t := strings.TrimRight(strings.TrimSpace(line), `)]}"'`+"`")
+	if bannerTitle(line) {
+		return true
+	}
+	t := strings.TrimSpace(line)
+	t = strings.TrimSpace(strings.TrimSuffix(t, "*/"))
+	t = strings.TrimRight(t, `)]}"'`+"`")
 	if t == "" {
 		return false
 	}
@@ -678,6 +684,14 @@ func endsSentence(line string) bool {
 		return !strings.HasSuffix(t, "..") && !strings.HasSuffix(t, "e.g.") && !strings.HasSuffix(t, "i.e.")
 	}
 	return false
+}
+
+// bannerRule is a section title between runs of rule marks, as in "// ---- dataset loading ----".
+var bannerRule = regexp.MustCompile(`^\s*(?://+|#+)\s*[-=~*]{3,}\s+.*[A-Za-z].*\s[-=~*]{3,}\s*$`)
+
+// bannerTitle reports a comment line that is a section title.
+func bannerTitle(line string) bool {
+	return bannerRule.MatchString(line)
 }
 
 // dropParagraph removes the last blank-separated paragraph, and reports false when no break remains.
