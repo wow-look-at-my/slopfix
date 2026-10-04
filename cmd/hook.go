@@ -38,8 +38,9 @@ func init() {
 			"refusal is joined into one. On MessageDisplay, the rewrite and the notes\n" +
 			"are joined into what the reader sees.\n\n" +
 			"The write guard repairs the text a write adds, lets the write through,\n" +
-			"and flags what the repair did not reach. It refuses a write that changes\n" +
-			"a line of an existing file that `slopfix fix` would repair.\n\n" +
+			"and flags what the repair did not reach. An edit that changes a line of an\n" +
+			"existing file that `slopfix fix` would repair goes through with that line\n" +
+			"as `slopfix fix` writes it.\n\n" +
 			"It prints nothing, and exits 0, for anything it does not judge. That\n" +
 			"covers an unreadable payload, an event no guard serves, and a call that\n" +
 			"every guard leaves alone.",
@@ -63,14 +64,11 @@ type hookInput struct {
 // writeInput carries the shapes of Write, Edit and MultiEdit together. Each
 // tool fills the fields it has and leaves the rest empty.
 type writeInput struct {
-	FilePath  string `json:"file_path"`
-	Content   string `json:"content"`
-	OldString string `json:"old_string"`
-	NewString string `json:"new_string"`
-	Edits     []struct {
-		OldString string `json:"old_string"`
-		NewString string `json:"new_string"`
-	} `json:"edits"`
+	FilePath  string        `json:"file_path"`
+	Content   string        `json:"content"`
+	OldString string        `json:"old_string"`
+	NewString string        `json:"new_string"`
+	Edits     []replacement `json:"edits"`
 }
 
 // hookResponse covers a refusal, which sets the permission fields, and a
@@ -192,7 +190,8 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 	if err != nil {
 		return deny([]string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", write.FilePath, err)})
 	}
-	if refused := handFix(in.ToolName, in.ToolInput, write.FilePath, write.Content, rules, ids, owned); refused != nil {
+	hand, refused := handFix(in.ToolName, in.ToolInput, write.FilePath, rules, ids, owned)
+	if refused != nil {
 		return deny(refused)
 	}
 
@@ -202,6 +201,11 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 	var unmet []string
 	rewrites := 0
 	changed := false
+	if hand != nil {
+		hand.apply(in.ToolName, &write, raw)
+		findings = append(findings, hand.notes...)
+		changed = true
+	}
 	take := func(repair slopfix.Repair, apply func(string)) {
 		unmet = append(unmet, repair.Unmet...)
 		removed = append(removed, repair.Removed...)
