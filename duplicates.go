@@ -20,7 +20,7 @@ const NearDuplicateShare = 0.95
 
 // perDirectoryNames are files a tool wants in each directory it reads, so some of them alike is normal.
 var perDirectoryNames = set.Of(
-	"package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "tsconfig.json",
+	"package.json", "package-lock.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "yarn.lock", "tsconfig.json", "ts0.json", "justfile",
 	"go.mod", "go.sum", "Cargo.toml", "Cargo.lock", "pyproject.toml",
 	"Dockerfile", ".gitignore", ".gitattributes", ".dockerignore", ".editorconfig",
 	"LICENSE", ClaudeFile, AgentsFile,
