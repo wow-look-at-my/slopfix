@@ -56,7 +56,7 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleTombstones:
 		return tombstones.AllIDs()
 	case RuleCounts:
-		return set.Of(counts.ID)
+		return set.Of(counts.ID, counts.IDSection)
 	case RuleWrap:
 		return set.Of(IDHardWrap, IDLongBlock)
 	case RuleSTE:
@@ -232,6 +232,9 @@ func fixText(req Request) Repair {
 			}
 		}
 	case fixer.Document:
+		if wants(RuleCounts) && keeps(counts.IDSection) {
+			repair.Findings = append(repair.Findings, counts.SectionFindings(req.Path, text)...)
+		}
 		if wants(RuleSTE) || wants(RuleEnglish) {
 			for _, finding := range Check(text) {
 				if keeps(finding.ID) {
