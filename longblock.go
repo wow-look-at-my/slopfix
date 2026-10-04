@@ -23,6 +23,12 @@ const LongBlockCap = 1500
 // LongBlockTarget is the size a division brings each part down to. The gap under LongBlockCap leaves room for the next edit.
 const LongBlockTarget = LongBlockCap * 2 / 3
 
+// LongBlockWordCap is the most words a part of a division may hold. It is the org's paragraph cap in words.
+const LongBlockWordCap = 120
+
+// LongBlockWordTarget is the word count a division brings each part down to.
+const LongBlockWordTarget = LongBlockWordCap * 2 / 3
+
 // longBlocks reports each prose block over LongBlockCap that a division can repair.
 func longBlocks(content string) []ste.Finding {
 	var out []ste.Finding
