@@ -199,8 +199,7 @@ func firstGroup(re *regexp.Regexp, text string) string {
 	return ""
 }
 
-// prSubjects filters to pull-request subjects, which are the only ones a
-// merge verdict can be attributed to.
+// prSubjects filters to pull-request subjects.
 func prSubjects(subs []string) []string {
 	var out []string
 	for _, s := range subs {

@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,7 +28,7 @@ func ask(t *testing.T, payload map[string]any, only ...string) answer {
 	rules, ids, err := selectedRules(only)
 	require.NoError(t, err)
 
-	body := judge(data, rules, ids)
+	body := judge(data, rules, ids, noForks)
 	if body == "" {
 		return answer{}
 	}
@@ -51,7 +53,8 @@ func TestAWriteIsRepairedAndLetThrough(t *testing.T) {
 	assert.Equal(t, "PreToolUse", got.out["hookEventName"])
 	updated, _ := got.out["updatedInput"].(map[string]any)
 	require.NotNil(t, updated)
-	assert.Equal(t, "It has plugins.\n", updated["content"])
+	// What the count rule writes is stated in rules/.
+	assert.NotEqual(t, "It has three plugins.\n", updated["content"])
 	assert.Contains(t, got.out["additionalContext"], "three plugins")
 	// A repair is not a refusal: the write goes through.
 	assert.NotContains(t, got.body, "permissionDecision")
@@ -103,16 +106,13 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "There are rules below.", edits[2].(map[string]any)["new_string"])
 }
 
-// A finding no rewrite resolves refuses the write. A trailing comment shares
-// its line with code, so deleting the line takes the code too.
-func TestAFindingNoRewriteResolvesRefusesTheWrite(t *testing.T) {
-	src := "func x() {} // The owner said to keep this.\n"
-	got := ask(t, write("a.go", src), "tombstones")
-
-	require.NotNil(t, got.out)
-	assert.Equal(t, "deny", got.out["permissionDecision"])
-	assert.Contains(t, got.out["permissionDecisionReason"], "quoted instruction")
-	assert.NotContains(t, got.body, "updatedInput")
+// Every error has a repair, so only a gate that refuses one leaves a finding.
+// Such a finding is flagged, and the notice still lets the write through.
+func TestAFindingNoRewriteResolvesIsFlaggedNotRefused(t *testing.T) {
+	got := notice("a.go", nil, 0, []string{"3: [comments/length] the comment runs longer than the code it documents"})
+	assert.Contains(t, got, "let this write to a.go through and flagged")
+	assert.Contains(t, got, "flagged 3: [comments/length]")
+	assert.Contains(t, got, "The write went through as it stands.")
 }
 
 // A tombstone alone on its own comment line is cut, and the write proceeds.
@@ -124,6 +124,7 @@ func TestAStrippableTombstoneIsCutRatherThanRefused(t *testing.T) {
 	require.NotNil(t, updated)
 	assert.Equal(t, "func x() {}\n", updated["content"])
 	assert.NotContains(t, got.body, "permissionDecision")
+	assert.Contains(t, got.out["additionalContext"], "rewrites")
 }
 
 // The rule selection reaches the payload, so a plugin naming a category is not
@@ -142,10 +143,10 @@ func TestAnUnreadablePayloadLetsTheWriteThrough(t *testing.T) {
 	rules, ids, err := selectedRules([]string{"counts"})
 	require.NoError(t, err)
 
-	assert.Empty(t, judge([]byte("{"), rules, ids))
-	assert.Empty(t, judge([]byte(`{"hook_event_name":"Stop"}`), rules, ids))
-	assert.Empty(t, judge([]byte(`{"tool_name":"Bash","tool_input":{"command":"ls"}}`), rules, ids))
-	assert.Empty(t, judge([]byte(`{"tool_name":"Write","tool_input":"not an object"}`), rules, ids))
+	assert.Empty(t, judge([]byte("{"), rules, ids, noForks))
+	assert.Empty(t, judge([]byte(`{"hook_event_name":"Stop"}`), rules, ids, noForks))
+	assert.Empty(t, judge([]byte(`{"tool_name":"Bash","tool_input":{"command":"ls"}}`), rules, ids, noForks))
+	assert.Empty(t, judge([]byte(`{"tool_name":"Write","tool_input":"not an object"}`), rules, ids, noForks))
 	assert.Empty(t, ask(t, write("a.bin", "It has three plugins.\n"), "counts").body)
 }
 
@@ -160,9 +161,67 @@ func TestALongReportSaysItTrimmed(t *testing.T) {
 	assert.Equal(t, "g", lines[reportCap])
 }
 
+// The refusal a hook prints when it denies a write. Prose never takes this
+// path, and the machinery stays: a guard with something worth stopping needs it.
+func TestARefusalNamesEveryReasonItCarries(t *testing.T) {
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal([]byte(deny([]string{"a reason"})), &raw))
+	out, _ := raw["hookSpecificOutput"].(map[string]any)
+
+	require.NotNil(t, out)
+	assert.Equal(t, "deny", out["permissionDecision"])
+	assert.Contains(t, out["permissionDecisionReason"], "a reason")
+}
+
 func TestAnUnknownRuleIsRefusedBeforeAnyWriteIsJudged(t *testing.T) {
 	_, _, err := selectedRules([]string{"nosuch"})
 	require.Error(t, err)
+}
+
+// editOn writes src to a real file and returns an Edit payload against it.
+func editOn(t *testing.T, name, src, old, new string) map[string]any {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	require.NoError(t, os.WriteFile(path, []byte(src), 0o644))
+	return map[string]any{
+		"hook_event_name": "PreToolUse",
+		"tool_name":       "Edit",
+		"tool_input":      map[string]any{"file_path": path, "old_string": old, "new_string": new},
+	}
+}
+
+// An edit that ends on the comment it anchored on keeps that comment. Judged
+// alone, the comment documents nothing and the length repair deleted it.
+func TestACommentAtTheEndOfAnEditKeepsItsCode(t *testing.T) {
+	src := "package p\n\n// Load reads the record at the given path and returns it.\nfunc Load() {}\n"
+	anchor := "// Load reads the record at the given path and returns it."
+	got := ask(t, editOn(t, "a.go", src, anchor, "var x = 1\n\n"+anchor), "comments")
+
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	assert.Nil(t, updated, "nothing in the placed file needs a repair: %s", got.body)
+}
+
+// A comment the file already carried outside the edit belongs to whoever
+// wrote it. A repair that must touch it is not applied at all.
+func TestARepairOutsideTheEditIsNotApplied(t *testing.T) {
+	long := "// Limit caps the rate. It is well under what any endpoint reaches in health, so an\n" +
+		"// ordinary stream never approaches it and a collapsed engine is still caught by it.\n" +
+		"// A zero here ships the gate dead, which is the same as not having the gate at all.\n"
+	src := "package p\n\nvar a = 1\n\n" + long + "const Limit = 15\n"
+	got := ask(t, editOn(t, "a.go", src, "var a = 1", "var a = 2"), "comments")
+
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	assert.Nil(t, updated, "the only repair lies outside the edit: %s", got.body)
+}
+
+// A finding inside the edit is still repaired where the edit lands.
+func TestAFindingInsideAPlacedEditIsRepaired(t *testing.T) {
+	src := "package p\n\nfunc x() {}\n"
+	got := ask(t, editOn(t, "a.go", src, "func x() {}", "// This used to read the flag.\nfunc x() {}"), "tombstones")
+
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	require.NotNil(t, updated, got.body)
+	assert.Equal(t, "func x() {}", updated["new_string"])
 }
 
 var _ = slopfix.AllRules

@@ -10,7 +10,7 @@ import (
 // The step this rule protects, written both ways. They differ by a single key,
 // which is the point: nothing in the gate's own output shows it.
 const (
-	neuteredStep = "on: push\n" +
+	neuteredStep = "on: {push: {branches: ['**']}}\n" +
 		"jobs:\n" +
 		"  lint:\n" +
 		"    steps:\n" +
@@ -18,7 +18,7 @@ const (
 		"      - uses: wow-look-at-my/slopfix@master\n" +
 		"        continue-on-error: true\n"
 
-	honestStep = "on: push\n" +
+	honestStep = "on: {push: {branches: ['**']}}\n" +
 		"jobs:\n" +
 		"  lint:\n" +
 		"    steps:\n" +
@@ -43,7 +43,7 @@ func TestTheSameStepWithoutTheKeyIsNotReported(t *testing.T) {
 
 // continue-on-error on some other step says nothing about the gate.
 func TestAnUnrelatedStepAllowedToFailIsNotReported(t *testing.T) {
-	content := "on: push\n" +
+	content := "on: {push: {branches: ['**']}}\n" +
 		"jobs:\n" +
 		"  lint:\n" +
 		"    steps:\n" +

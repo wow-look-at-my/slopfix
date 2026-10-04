@@ -12,6 +12,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // The rule IDs. A report prints the ID that found the text.
@@ -23,7 +24,10 @@ const (
 )
 
 // AllIDs names every rule this package reports, as a membership test.
-var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate)
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency)
+
+// WarningIDs names the rules here whose findings are warnings.
+var WarningIDs = set.Of(IDTestInYAML)
 
 // Judges reports whether these rules read the file at this path. A backslash is
 // separated here rather than through filepath, which ignores it off Windows.
@@ -49,10 +53,15 @@ func Sniff(content string) bool {
 
 // Check reports every finding in a workflow or action file, in source order.
 func Check(content string) []ste.Finding {
+	defer trace.Phase("rule/workflow")()
 	out := commentBlocks(content)
 	out = append(out, allBuildsJobs(content)...)
 	out = append(out, testsInYAML(content)...)
 	out = append(out, neuteredGates(content)...)
+	out = append(out, envIndirections(content)...)
+	out = append(out, pushTags(content)...)
+	out = append(out, orgActionRefs(content)...)
+	out = append(out, concurrency(content)...)
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
 }

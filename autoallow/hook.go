@@ -11,11 +11,18 @@ import (
 type HookInput struct {
 	HookEventName string    `json:"hook_event_name"`
 	ToolName      string    `json:"tool_name"`
+	Cwd           string    `json:"cwd"`
 	ToolInput     ToolInput `json:"tool_input"`
 }
 
+// Every tool fills the keys its own shape has and leaves the rest empty, so
+// this reads the location out of whichever tool is asking.
 type ToolInput struct {
-	Command string `json:"command"`
+	Command      string `json:"command"`
+	FilePath     string `json:"file_path"`
+	NotebookPath string `json:"notebook_path"`
+	Path         string `json:"path"`
+	Pattern      string `json:"pattern"`
 }
 
 // Sections evaluated deny > ask > allow. A rule matches argv as written
@@ -30,6 +37,9 @@ type Rules struct {
 	DenyCommands  []CommandRule `json:"denyCommands"`
 
 	MCPServers map[string][]string `json:"mcpServers"`
+
+	// DenyPaths refuses by location, whichever tool is asking.
+	DenyPaths []PathRule `json:"denyPaths"`
 }
 
 type CommandNode struct {
@@ -45,6 +55,7 @@ type CommandNode struct {
 	HelpAlwaysAllowed  bool             `json:"helpAlwaysAllowed,omitempty"`
 	BareOnly           bool             `json:"bareOnly,omitempty"`
 	DenyArgSubstrings  []string         `json:"denyArgSubstrings,omitempty"`
+	Refusals           []Refusal        `json:"refusals,omitempty"`
 	AllowedArgPrefixes []string         `json:"allowedArgPrefixes,omitempty"`
 	Subcommands        []CommandNode    `json:"subcommands,omitempty"`
 }
@@ -56,7 +67,7 @@ type RequireFlagRule struct {
 }
 
 // The events this binary answers. They are NOT interchangeable; the deny half
-// rides PreToolUse. see docs/two-event-registration.md
+// rides PreToolUse. See the auto-allow section of AGENTS.md
 const (
 	eventPermissionRequest = "PermissionRequest"
 	eventPreToolUse        = "PreToolUse"
@@ -192,6 +203,14 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 
 	if node.DenyWithMessage != "" {
 		return "deny", node.DenyWithMessage
+	}
+
+	// A refusal is a verdict of its own: the command is ordinary, and what its
+	// arguments carry decides it.
+	for _, r := range node.Refusals {
+		if r.matches(args) {
+			return "deny", r.Message
+		}
 	}
 
 	// A denied substring unmatches the node: in a script argument (awk, sed)

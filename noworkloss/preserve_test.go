@@ -61,9 +61,25 @@ func TestPreservesUntrackedFileContentBeforeRm(t *testing.T) {
 	refs := listPreservationRefs(t, dir)
 	require.Len(t, refs, 1)
 
-	// The hook only analyses the command; it never runs it. The file is
+	// The hook analyses the command and never runs it, so the copy holds what stood in the tree.
 	content := gitOutput(t, dir, "show", refs[0]+":scratch.txt")
 	assert.Equal(t, "scratch", content)
+}
+
+// commit-tree ignores commit.gpgsign. A repository that signs must get a signed
+// preservation commit, or GitHub shows it as Unverified.
+func TestPreservationSignsWhenTheRepositorySigns(t *testing.T) {
+	dir := newRepo(t)
+	key := filepath.Join(t.TempDir(), "signing")
+	out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key).CombinedOutput()
+	require.NoError(t, err, string(out))
+	git(t, dir, "config", "gpg.format", "ssh")
+	git(t, dir, "config", "user.signingkey", key+".pub")
+	git(t, dir, "config", "commit.gpgsign", "true")
+	untrack(t, dir, "scratch.txt")
+
+	preserved(t, dir, "rm scratch.txt")
+	assert.Contains(t, gitOutput(t, dir, "cat-file", "-p", "HEAD"), "gpgsig ")
 }
 
 // A tracked edit is preserved on top of HEAD, without writing the working tree.
@@ -84,18 +100,18 @@ func TestPreservesModifiedTrackedFileOnTopOfHead(t *testing.T) {
 	content := gitOutput(t, dir, "show", refs[0]+":tracked.go")
 	assert.Equal(t, "package a\n// edited", content)
 
-	// The working tree still holds the edit byte for byte -- the hook analyses
+	// The working tree still holds the edit byte for byte.
 	onDisk, err := os.ReadFile(filepath.Join(dir, "tracked.go"))
 	require.NoError(t, err)
 	assert.Equal(t, "package a\n// edited\n", string(onDisk))
 
-	// The edit is committed now, so the tree reads clean rather than showing a
+	// The edit is committed, so the tree reads clean.
 	assert.Empty(t, gitOutput(t, dir, "status", "--porcelain"))
 	assert.Empty(t, gitOutput(t, dir, "diff", "--cached", "--name-only"))
 }
 
 // A repository with no commits yet has no HEAD to seed the preservation
-// commit from, or to parent it on.
+// commit from.
 func TestPreservesInARepositoryWithNoCommitsYet(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -105,7 +121,7 @@ func TestPreservesInARepositoryWithNoCommitsYet(t *testing.T) {
 	dir := t.TempDir()
 	dir, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
-	git(t, dir, "init", "-q")
+	git(t, dir, "init", "-q", "-b", fixtureBranch)
 	git(t, dir, "config", "user.email", "guard@example.com")
 	git(t, dir, "config", "user.name", "Guard")
 	writeAt(t, dir, "new.go", "package a\n")
@@ -122,8 +138,7 @@ func TestPreservesInARepositoryWithNoCommitsYet(t *testing.T) {
 	assert.Equal(t, "package a", content)
 }
 
-// A real bare remote: the preservation ref must actually land there, not
-// merely be claimed to.
+// A real bare remote: the preservation ref must actually land there.
 func TestPreservesAndPushesToOrigin(t *testing.T) {
 	dir := remoteRepo(t)
 	untrack(t, dir, "scratch.txt")
@@ -138,6 +153,26 @@ func TestPreservesAndPushesToOrigin(t *testing.T) {
 	onRemote := gitOutput(t, remoteURL, "rev-parse", refs[0])
 	local := gitOutput(t, dir, "rev-parse", refs[0])
 	assert.Equal(t, local, onRemote, "the commit pushed to the bare remote must match the local ref")
+}
+
+// A pre-push hook that fails must not stop the preservation push: the push is
+// --no-verify, so git runs it but the exit status does not matter.
+func TestPreservesAndPushesPastAFailingPrePushHook(t *testing.T) {
+	dir := remoteRepo(t)
+	hooks := filepath.Join(dir, ".git", "hooks")
+	require.NoError(t, os.WriteFile(filepath.Join(hooks, "pre-push"), []byte("#!/bin/sh\nexit 1\n"), 0o755))
+	untrack(t, dir, "scratch.txt")
+
+	notice := preserved(t, dir, "rm scratch.txt")
+	assert.Contains(t, notice, "and pushed")
+
+	refs := listPreservationRefs(t, dir)
+	require.Len(t, refs, 1)
+
+	remoteURL := gitOutput(t, dir, "config", "--get", "remote.origin.url")
+	onRemote := gitOutput(t, remoteURL, "rev-parse", refs[0])
+	local := gitOutput(t, dir, "rev-parse", refs[0])
+	assert.Equal(t, local, onRemote, "the preservation push must reach the remote despite the failing pre-push hook")
 }
 
 // No remote at all: the local ref still holds the content, so the notice says
@@ -248,8 +283,8 @@ func TestPreservationClearsOnlyTheAtRiskPathsFromStatus(t *testing.T) {
 
 	preserved(t, dir, "rm unstaged.go new.txt")
 
-	// Both preserved paths are committed now, so they read clean. The
-	// staged file nothing threatened is still staged, and still names the
+	// The preserved paths are committed, so only the untouched staged file
+	// is left standing in the index.
 	assert.Equal(t, []string{"M  staged.go"},
 		splitLines(gitOutput(t, dir, "status", "--porcelain")))
 	assert.Equal(t, []string{"staged.go"},
@@ -314,7 +349,7 @@ func TestPreserveNeverAttemptedForAnUnresolvablePath(t *testing.T) {
 	assert.Empty(t, listPreservationRefs(t, dir))
 }
 
-// A stash entry is deliberately not preserved (see docs/decision-model.md),
+// A stash entry is deliberately not preserved (see AGENTS.md),
 // so dropping an entry still denies exactly as before.
 func TestPreserveNeverAttemptedForAStashEntry(t *testing.T) {
 	dir := newRepo(t)

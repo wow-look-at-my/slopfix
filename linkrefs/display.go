@@ -2,18 +2,15 @@
 // open arrives clickable.
 //
 // This is the whole enforcement. There is no Stop hook and nothing is sent back
-// to the model, because a missing link is not work only the model can do: the
-// token plus the checkout determine the URL, so the hook writes it. Asking the
-// model to re-emit the same message with a link in it costs a round trip, and
-// the message it writes to comply names the reference again while explaining
-// itself, which trips the guard again. What the user reads at the end of
-// that is a reply carrying nothing but links.
+// to the model, because the token plus the checkout determine the URL, so the
+// hook writes it. Asking the model to re-emit the message costs a round trip,
+// and the reply explaining itself names the reference again and trips the
+// guard again.
 //
 // displayContent is display-only, verified against the shipped bundle: the
-// transcript and the model's next request are both fed from an array that is
-// populated BEFORE this hook runs and never updated from its result. So this
-// changes what the reader sees and nothing else, which is exactly the surface
-// the rule is about.
+// transcript and the model's next request are both fed from an array populated
+// BEFORE this hook runs and never updated from its result. So this changes what
+// the reader sees and nothing else.
 package linkrefs
 
 import (

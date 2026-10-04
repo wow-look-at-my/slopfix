@@ -26,7 +26,6 @@ type Input struct {
 	Delta         string `json:"delta"`
 }
 
-// Result is what the CLI prints and exits with.
 type Result struct {
 	Stdout string
 	Stderr string

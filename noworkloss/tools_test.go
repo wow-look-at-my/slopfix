@@ -1,9 +1,12 @@
 package noworkloss
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,8 +27,7 @@ func TestTheEditToolsThemselvesAreLeftAlone(t *testing.T) {
 		"Write is how a new file is created")
 }
 
-// Write authors a whole file, so aiming it at a path that already exists replaces
-// content nobody reviewed the loss of.
+// Write authors a whole file.
 func TestWriteOverAnExistingFileIsRefused(t *testing.T) {
 	root := newTree(t)
 	reason := askTool(t, "Write", root, map[string]any{"file_path": filepath.Join(root, "src.txt")})
@@ -66,7 +68,7 @@ func TestWriteOverAPathEmptiedToGetPastTheRefusalRestoresIt(t *testing.T) {
 			reason := askTool(t, "Write", dir, map[string]any{"file_path": path})
 			require.NotEmpty(t, reason, "%s must not open a route Write was refused", tc.name)
 			assert.Contains(t, reason, "put the file back")
-			assert.Contains(t, reason, "Use Edit")
+			assert.Contains(t, reason, "Use the Edit tool")
 
 			// The repair is the point: the file is on disk with its content.
 			restored, err := os.ReadFile(path)
@@ -77,6 +79,76 @@ func TestWriteOverAPathEmptiedToGetPastTheRefusalRestoresIt(t *testing.T) {
 			assert.Empty(t, askTool(t, "Write", dir, map[string]any{"file_path": filepath.Join(dir, "fresh.go")}))
 		})
 	}
+}
+
+// fakeRecycler puts a `recycler` on PATH whose bin holds the given items. A
+// restore writes "kept" to the item's path and logs the ID in restored-ids. It
+// fails when the item ID is "broken". The result is the fake's directory.
+func fakeRecycler(t *testing.T, items []binItem) string {
+	bin := t.TempDir()
+	listing, err := json.Marshal(items)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "items.json"), listing, 0o644))
+	script := `#!/bin/sh
+set -eu
+dir=$(dirname "$0")
+case "$1" in
+list) cat "$dir/items.json" ;;
+restore)
+	[ "$2" = broken ] && { echo "recycler: restore failed" >&2; exit 1; }
+	echo "$2" >> "$dir/restored-ids"
+	printf 'kept\n' > "$(jq -r --arg id "$2" '.[] | select(.id == $id) | .original_path' "$dir/items.json")"
+	;;
+esac
+`
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "recycler"), []byte(script), 0o755))
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return bin
+}
+
+func binnedAt(id, path, deleted string) binItem {
+	at, err := time.Parse(time.RFC3339, deleted)
+	if err != nil {
+		panic(err)
+	}
+	return binItem{ID: id, OriginalPath: path, DeletedAt: at}
+}
+
+// A recycled file comes back before the Write is refused. Several Writes go
+// out in one batch, and only a restore the hook makes itself reaches them all.
+func TestWriteOverARecycledFileRestoresIt(t *testing.T) {
+	out := outsideTree(t)
+	path := filepath.Join(out, "bench.js")
+	bin := fakeRecycler(t, []binItem{
+		binnedAt("old", path, "2026-01-01T00:00:00Z"),
+		binnedAt("new", path, "2026-02-01T00:00:00Z"),
+	})
+
+	reason := askTool(t, "Write", out, map[string]any{"file_path": path})
+	assert.Contains(t, reason, "put the file back")
+	assert.Contains(t, reason, "Edit tool")
+	restored, err := os.ReadFile(path)
+	require.NoError(t, err, "the hook must put the file back, not only refuse")
+	assert.Equal(t, "kept\n", string(restored))
+
+	ids, err := os.ReadFile(filepath.Join(bin, "restored-ids"))
+	require.NoError(t, err)
+	assert.Equal(t, "new\n", string(ids), "the newest item at the path is the one restored")
+
+	// The control: a path the bin never held is an ordinary new file.
+	assert.Empty(t, askTool(t, "Write", out, map[string]any{"file_path": filepath.Join(out, "fresh.js")}))
+}
+
+// A restore that fails still refuses, and names the command by item ID.
+func TestAFailedBinRestoreNamesTheCommand(t *testing.T) {
+	out := outsideTree(t)
+	path := filepath.Join(out, "bench.js")
+	fakeRecycler(t, []binItem{binnedAt("broken", path, "2026-01-01T00:00:00Z")})
+
+	reason := askTool(t, "Write", out, map[string]any{"file_path": path})
+	assert.Contains(t, reason, "restore failed")
+	assert.Contains(t, reason, "recycler restore broken")
+	assert.NoFileExists(t, path)
 }
 
 // The restore writes the working tree and nothing else. A `git rm` staged the
@@ -91,13 +163,117 @@ func TestTheRestoreLeavesTheIndexAlone(t *testing.T) {
 		"the index must read exactly as it did")
 }
 
-// Committing the removal is the way out. The content is then in history, where
-// a reader finds it, and the path is free.
-func TestWriteIsAllowedOnceTheRemovalIsCommitted(t *testing.T) {
+// Committing the removal frees nothing. A deletion committed only to get past
+// the refusal is the same evasion one step later, so the file comes back from
+// the commit before the deletion and the Write is refused with its price.
+func TestACommittedDeletionDoesNotFreeThePathForWrite(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		remove func(t *testing.T, dir string)
+	}{
+		{"git rm", func(t *testing.T, dir string) { git(t, dir, "rm", "-q", "tracked.go") }},
+		{"trashed then add -A", func(t *testing.T, dir string) {
+			require.NoError(t, os.Remove(filepath.Join(dir, "tracked.go")))
+			git(t, dir, "add", "-A")
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := newRepo(t)
+			path := filepath.Join(dir, "tracked.go")
+			tc.remove(t, dir)
+			git(t, dir, "commit", "-qm", "remove old tests")
+			require.NoFileExists(t, path)
+
+			reason := askWrite(t, dir, path, "package a\n\nfunc Fresh() {}\n", transcriptFixture(t, path))
+			require.NotEmpty(t, reason, "a committed deletion must not open a route Write was refused")
+			assert.Contains(t, reason, "Use the Edit tool")
+			assert.NotContains(t, reason, "Commit the removal")
+			assert.Regexp(t, `Tokens wasted on this evasion compared to one Edit: -?\d+ \(method: `, reason)
+
+			restored, err := os.ReadFile(path)
+			require.NoError(t, err, "the hook must put the file back from the commit before the deletion")
+			assert.Equal(t, "package a\n", string(restored))
+
+			// The control: a path git never held is an ordinary new file.
+			assert.Empty(t, askWrite(t, dir, filepath.Join(dir, "fresh.go"), "package a\n", transcriptFixture(t, path)))
+		})
+	}
+}
+
+// The counter is extra. A transcript that cannot be read leaves the refusal
+// and the restore in place, and says the count is unavailable.
+func TestTheRefusalStandsWithoutATranscript(t *testing.T) {
+	dir := newRepo(t)
+	path := filepath.Join(dir, "tracked.go")
+	git(t, dir, "rm", "-q", "tracked.go")
+	git(t, dir, "commit", "-qm", "drop it")
+
+	reason := askWrite(t, dir, path, "package a\n", filepath.Join(t.TempDir(), "missing.jsonl"))
+	require.NotEmpty(t, reason)
+	assert.Contains(t, reason, "Use the Edit tool")
+	assert.Contains(t, reason, "unavailable")
+	assert.FileExists(t, path)
+}
+
+// Recent is bounded. A file deleted further back than the window, on a branch
+// the default branch already holds, is created afresh like any new file.
+func TestAnOldDeletionDoesNotHoldThePath(t *testing.T) {
 	dir := newRepo(t)
 	git(t, dir, "rm", "-q", "tracked.go")
 	git(t, dir, "commit", "-qm", "drop it")
-	assert.Empty(t, askTool(t, "Write", dir, map[string]any{"file_path": filepath.Join(dir, "tracked.go")}))
+	for i := 0; i <= recentDepth; i++ {
+		git(t, dir, "commit", "-q", "--allow-empty", "-m", "later")
+	}
+	assert.Empty(t, askWrite(t, dir, filepath.Join(dir, "tracked.go"), "package a\n", ""))
+}
+
+// The evasion is the run of calls after the last Read of the file: the trash,
+// the refused Write and the commit. The earlier commit, the unrelated vet and
+// the call being decided are not in it.
+func TestTheEvasionIsTheRunSinceTheFileWasIntact(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tracked.go")
+	calls, err := readToolCalls(transcriptFixture(t, path))
+	require.NoError(t, err)
+	var ids []string
+	for _, c := range evasion(calls, path, "toolu_final") {
+		ids = append(ids, c.id)
+	}
+	assert.Equal(t, []string{"toolu_trash", "toolu_write1", "toolu_commit"}, ids)
+}
+
+func TestChangedLinesAreWhatAnEditCarries(t *testing.T) {
+	removed, added := changedLines("a\nb\nc\nd\n", "a\nB\nc\nd\ne\n")
+	assert.Equal(t, "b\n", removed)
+	assert.Equal(t, "B\ne\n", added)
+}
+
+// askWrite is askTool for a Write, with the transcript and tool_use_id the
+// counter reads.
+func askWrite(t *testing.T, cwd, path, content, transcript string) string {
+	t.Helper()
+	raw, err := json.Marshal(map[string]any{
+		"hook_event_name": "PreToolUse",
+		"tool_name":       "Write",
+		"tool_use_id":     "toolu_final",
+		"cwd":             cwd,
+		"transcript_path": transcript,
+		"tool_input":      map[string]any{"file_path": path, "content": content},
+	})
+	require.NoError(t, err)
+	reason, _ := decide(raw)
+	return reason
+}
+
+// transcriptFixture writes testdata/evasion.jsonl with {{path}} naming path.
+func transcriptFixture(t *testing.T, path string) string {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join("testdata", "evasion.jsonl"))
+	require.NoError(t, err)
+	quoted, err := json.Marshal(path)
+	require.NoError(t, err)
+	out := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeFile(t, out, strings.ReplaceAll(string(body), "{{path}}", strings.Trim(string(quoted), `"`)))
+	return out
 }
 
 func TestEditingTheLiveSettingsIsRefused(t *testing.T) {

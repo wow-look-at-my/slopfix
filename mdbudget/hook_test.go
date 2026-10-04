@@ -160,8 +160,7 @@ func TestPostToolUseCatchesANamedEdit(t *testing.T) {
 	require.Contains(t, ctx, "OVER the 40,000-character budget")
 }
 
-// Off by default: an unwrapped file that is nowhere near the budget is not a
-// finding at all unless the width check is switched on.
+// Off by default.
 func TestWidthIsOffByDefault(t *testing.T) {
 	repo := isolate(t)
 	claude := filepath.Join(repo, "CLAUDE.md")

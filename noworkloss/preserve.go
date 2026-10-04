@@ -9,8 +9,6 @@ import (
 // protectedRefPrefix names a ref that holds content nothing else does.
 const protectedRefPrefix = "refs/no-work-loss/"
 
-// preserveResult is what a successful commit produced. ref names the branch
-// the commit landed on.
 type preserveResult struct {
 	ref     string
 	commit  string
@@ -36,7 +34,7 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	defer os.Remove(tmpIndex)
 	env := []string{"GIT_INDEX_FILE=" + tmpIndex}
 
-	// read-tree HEAD seeds the temp index with the last committed tree. A
+	// read-tree HEAD seeds the temp index with the last committed tree.
 	hasHead := true
 	if _, _, err := runGitEnvTimeout(root, gitTimeout, env, "read-tree", "HEAD"); err != nil {
 		hasHead = false
@@ -79,8 +77,14 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	if hasHead {
 		parent = "HEAD"
 	}
+	// commit-tree ignores commit.gpgsign, so it signs only when told, the way git commit would.
+	signOut, _, _ := runGit(root, "config", "--type=bool", "commit.gpgsign")
+	sign := strings.TrimSpace(signOut) == "true"
 	for i, t := range trees {
 		commitArgs := []string{"commit-tree", t, "-m", preserveMessage(paths, i == len(trees)-1)}
+		if sign {
+			commitArgs = append(commitArgs, "-S")
+		}
 		if parent != "" {
 			commitArgs = append(commitArgs, "-p", parent)
 		}
@@ -105,7 +109,7 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	runGit(root, resetArgs...)
 
 	res = &preserveResult{ref: branchName(root), commit: commit}
-	if _, stderr, err := runGitEnvTimeout(root, preservePushTimeout, nil, "push", "origin", "HEAD"); err != nil {
+	if _, stderr, err := runGitEnvTimeout(root, preservePushTimeout, nil, "push", "--no-verify", "origin", "HEAD"); err != nil {
 		res.pushErr = strings.TrimSpace(stderr)
 		if res.pushErr == "" {
 			res.pushErr = err.Error()

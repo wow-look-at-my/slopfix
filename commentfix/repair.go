@@ -1,21 +1,28 @@
 // repair.go is the repair half of the rule: what a comment says instead of the
 // number it states.
 //
-// The table says it in words wherever a swap keeps the meaning. What no entry
-// covers is not guessed at, because nobody reviews what a repair applied: the
-// sentence carrying the number is cut, and the caller is told what went. A
-// comment left with nothing to say loses its line.
+// The table says it in words wherever a swap keeps the meaning. A number no
+// entry covers is reworded the way the document count rule does it. Only a
+// sentence that still holds a number after that is cut, and the caller is told
+// what went. A comment left with nothing to say loses its line.
 //
 // The repair is total. A number the table and the cut both miss is deleted at
 // the position the check reports it, in residual.go. So Check answers nothing
-// about a file this has repaired, and the caller never carries a finding it has
-// no remedy for.
+// about a file this has repaired.
 package commentfix
 
 import (
+	"regexp"
 	"strings"
+	"unicode"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/counts"
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
@@ -27,105 +34,176 @@ type Repair struct {
 	Changed bool `json:"changed"`
 	// Removed quotes each sentence the repair cut, because no entry covered it.
 	Removed []string `json:"removed,omitempty"`
+	// Rejected names each rewrite the guard threw away, and the entry that wrote it.
+	Rejected []Rejection `json:"rejected,omitempty"`
+	// Refused names each edit the gate would not write into the source.
+	Refused []edit.Refused `json:"-"`
+	// Scope bounds, in Text, what the caller's Scope bounded.
+	Scope edit.Scope `json:"-"`
+}
+
+// The fixers this package registers.
+const (
+	FixerLength      = "comments/length"
+	FixerNumber      = "comments/number"
+	FixerLengthAgain = "comments/length-after-number"
+)
+
+func init() {
+	for _, fx := range []fixer.Spec{
+		{Label: FixerLength, Rules: []string{IDLength}, Place: 20, Repair: repairLength},
+		{Label: FixerNumber, Rules: []string{ID, IDTail}, Place: 30, Repair: repairNumbers},
+		{Label: FixerLengthAgain, Rules: []string{IDLength}, Place: 40, Repair: repairLength},
+	} {
+		fx.Families, fx.Files = []string{"comments"}, []fixer.Kind{fixer.Source}
+		fixer.Register(fx)
+	}
 }
 
 // Fix rewrites every number a comment states and returns the repaired source.
+func Fix(filename, src string) Repair { return FixIn(filename, src, edit.Scope{}) }
+
+// FixIn is Fix with every edit held inside scope.
+func FixIn(filename, src string, scope edit.Scope) Repair {
+	f := fixer.Open(filename, src, fixer.Options{Kind: fixer.Source, Scope: scope})
+	fixer.Run(f, fixer.Named(FixerNumber))
+	rep := f.Report()
+	repair := Repair{Text: f.Text(), Changed: f.Text() != src, Removed: rep.Removed, Refused: rep.Refused, Scope: f.Scope()}
+	for _, note := range rep.Notes {
+		if r, ok := note.(Rejection); ok {
+			repair.Rejected = append(repair.Rejected, r)
+		}
+	}
+	return repair
+}
+
+// repairNumbers rewrites every number the comments in f state.
 //
 // A generated file is left alone, and so is a language the extractor has no
 // syntax for: both report no findings, so both have nothing to repair.
-func Fix(filename, src string) Repair {
-	if IsGenerated(src) {
-		return Repair{Text: src}
+func repairNumbers(f *fixer.File) {
+	defer trace.Phase("repair/comments-number")()
+	src := f.Text()
+	if IsGenerated(f.Path, src) {
+		return
 	}
-	runs := treecomments.Runs(filename, src)
+	runs := treecomments.Runs(f.Path, src)
 	if len(runs) == 0 {
-		return Repair{Text: src}
+		return
 	}
-
-	lines := strings.Split(src, "\n")
-	repaired, removed, blanked := repairRuns(lines, runs)
-	out := dropEmptied(strings.Join(repaired, "\n"), blanked)
+	edits, rejected := repairRuns(src, strings.Split(src, "\n"), runs)
+	for _, r := range rejected {
+		r.Path = f.Path
+		f.Note(r)
+	}
+	f.ApplyComments(edits)
 	// A number can sit where no paragraph forms, so the position has the last word.
-	out, left := clearResidual(filename, out)
-	removed = append(removed, left...)
-	if out != src {
-		out = dropDanglingMarkers(out)
+	clearResidual(f)
+	if f.Text() != src {
+		f.ApplyComments(danglingMarkers(f.Path, f.Text()))
 	}
-	return Repair{Text: out, Changed: out != src, Removed: removed}
 }
 
-// dropDanglingMarkers removes a bare comment line the repair left with nothing
-// under it. The line was a paragraph break somebody wrote, and a break that
-// separates a paragraph from the code below it separates nothing.
-func dropDanglingMarkers(src string) string {
+// danglingMarkers deletes each bare comment line the repair left with nothing under it. The line was a paragraph break somebody wrote, and a break that separates a paragraph from the code below it separates nothing.
+//
+// The tree names the lines to weigh, so a line of code that merely opens with a marker's characters is never mistaken for an empty comment.
+func danglingMarkers(filename, src string) []edit.Edit {
+	rows := commentRowsOf(filename, src)
 	lines := strings.Split(src, "\n")
-	kept := make([]string, 0, len(lines))
-	for i, line := range lines {
-		if bareMarker(line) && !carriesProse(lines, i+1) {
+	var edits []edit.Edit
+	for i := 0; i < len(lines); i++ {
+		if !rows.Contains(i) || !bareMarker(lines[i]) || carriesProse(lines, rows, i+1) {
 			continue
 		}
-		kept = append(kept, line)
+		// A run of bare lines goes as a single edit, so no edits share a line end.
+		j := i
+		for j+1 < len(lines) && rows.Contains(j+1) && bareMarker(lines[j+1]) && !carriesProse(lines, rows, j+2) {
+			j++
+		}
+		edits = append(edits, edit.Rows(src, i, j, 0, nil))
+		i = j
 	}
-	return strings.Join(kept, "\n")
+	return edits
+}
+
+// commentRowsOf names every line the grammar reads as comment, counting from
+// empty the way a line slice does.
+func commentRowsOf(filename, src string) set.Set[int] {
+	rows := set.New[int]()
+	for _, c := range treecomments.Extract(filename, src) {
+		for row := c.Line - 1; row < c.Line-1+c.Lines; row++ {
+			rows.Add(row)
+		}
+	}
+	return rows
 }
 
 // carriesProse reports whether the line at i is a comment line saying something.
-func carriesProse(lines []string, i int) bool {
-	if i < 0 || i >= len(lines) {
+func carriesProse(lines []string, rows set.Set[int], i int) bool {
+	if i < 0 || i >= len(lines) || !rows.Contains(i) {
 		return false
 	}
 	_, prose, _, ok := splitBlock(lines[i])
 	return ok && prose != ""
 }
 
-// repairRuns rewrites a file's comments a run at a time. It returns the
-// repaired lines, the sentences it cut, and the lines it left with nothing to
-// say.
+// repairRuns rewrites a file's comments a run at a time. It answers an edit per
+// paragraph it rewrote, each carrying the sentences it cut.
 //
 // A run rather than a line, because a sentence wraps: cutting the share a line
 // carries leaves the rest of that sentence dangling below it.
-func repairRuns(lines []string, runs []treecomments.Run) (repaired []string, removed []string, blanked map[int]bool) {
-	blanked = make(map[int]bool)
+func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []edit.Edit, rejected []Rejection) {
 	for _, para := range paragraphsOf(lines, runs) {
-		said := Reword(para.prose)
+		if para.verbatim {
+			continue
+		}
+		reworded, refused := rewordChecked(para.prose)
+		for _, r := range refused {
+			r.Line = para.lines[0] + 1
+			rejected = append(rejected, r)
+		}
+		said := CloseProse(reworded)
 		said, cut := cutWhatIsLeft(said)
-		removed = append(removed, cut...)
 		if said == para.prose {
 			continue
 		}
+		first, last := para.lines[0], para.lines[len(para.lines)-1]
 		if said == "" && para.code != "" && para.trailer == "" {
 			// A comment following code loses the comment, and the code stays.
-			lines[para.lines[0]] = strings.TrimRight(para.code, " \t")
+			e := edit.Rows(src, first, last, len(strings.TrimRight(para.code, " \t")), []string{""})
+			e.Cut = cut
+			edits = append(edits, e)
+			continue
+		}
+		if said == "" && para.code == "" {
+			// A comment with nothing left to say loses its lines, delimiters and all.
+			e := edit.Rows(src, first, last, 0, nil)
+			e.Cut = cut
+			edits = append(edits, e)
 			continue
 		}
 		wrapped := wrap(said, para.marker, para.cont, para.width)
-		// An emptied block keeps its delimiters on a line of their own.
+		// An emptied block after code keeps its delimiters, because the code holds the line.
 		if len(wrapped) == 0 && para.trailer != "" {
 			wrapped = []string{strings.TrimRight(para.marker, " ")}
 		}
-		// The closer goes on last, after the line juggling below has settled which line IS last. Carried inside wrapped it
-		closeAt := -1
-		for i, at := range para.lines {
-			if i < len(wrapped) {
-				lines[at] = wrapped[i]
-				closeAt = at
-				continue
-			}
-			// Fewer lines than before: the rest go bare, and the caller drops them.
-			blanked[at+1] = true
-			lines[at] = strings.TrimRight(para.cont, " ")
+		if n := len(para.lines); len(wrapped) > n {
+			// It does not fit: the tail joins the last line, so no line is added.
+			wrapped = append(wrapped[:n-1:n-1], strings.Join(append([]string{wrapped[n-1]}, proseOf(wrapped[n:])...), " "))
 		}
-		if len(wrapped) > len(para.lines) {
-			// It does not fit: the tail joins the last line, so no offset moves.
-			last := para.lines[len(para.lines)-1]
-			lines[last] = strings.Join(append([]string{lines[last]}, proseOf(wrapped[len(para.lines):])...), " ")
-			closeAt = last
+		if para.trailer != "" && len(wrapped) > 0 {
+			wrapped[len(wrapped)-1] = strings.TrimRight(wrapped[len(wrapped)-1], " ") + " " + para.trailer
 		}
-		if para.trailer != "" && closeAt >= 0 {
-			lines[closeAt] = strings.TrimRight(lines[closeAt], " ") + " " + para.trailer
+		// The code before a trailing comment stays as written. The marker opens with it, so the edit starts past it.
+		col := len(para.code)
+		if len(wrapped) > 0 {
+			wrapped[0] = wrapped[0][col:]
 		}
+		e := edit.Rows(src, first, last, col, wrapped)
+		e.Cut = cut
+		edits = append(edits, e)
 	}
-	return lines, removed, blanked
+	return edits, rejected
 }
 
 // para is a run of comment lines carrying a single paragraph of prose.
@@ -144,6 +222,8 @@ type para struct {
 	cont string
 	// trailer closes a block comment, and rides the last line a rewrite emits.
 	trailer string
+	// verbatim marks a godoc code block, which the rewrite leaves as written.
+	verbatim bool
 }
 
 // paragraphsOf turns the parser's runs into the paragraphs a rewrite acts on. A
@@ -175,6 +255,12 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 				marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
 				marker = line[:min(col, len(line))] + marker
 				if !ok || (prose == "" && trailer == "") || isDirective(c.Text) {
+					current = nil
+					continue
+				}
+				if codeRow(line) {
+					// A tab after the marker is how a doc comment spells a code block.
+					out = append(out, para{lines: []int{i}, verbatim: true})
 					current = nil
 					continue
 				}
@@ -226,7 +312,7 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 		line := lines[i]
 		marker, prose, trailer, ok := splitBlock(line[min(col, len(line)):])
 		if !ok {
-			// A line inside the block carrying no marker at all: an indented example, or a table. A rewrap would destroy it, so
+			// A line inside the block carrying no marker at all: an indented example.
 			return b, false
 		}
 		marker = line[:min(col, len(line))] + marker
@@ -252,7 +338,6 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 	return b, b.prose != "" && b.trailer != ""
 }
 
-// indentOf reports the column a line's leading non-blank byte sits at.
 func indentOf(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
@@ -290,9 +375,11 @@ func proseOf(lines []string) []string {
 	return out
 }
 
-// cutWhatIsLeft removes the sentence around any number the table did not
-// rewrite, and reports what it cut.
+// cutWhatIsLeft rewords each number the table did not rewrite, as the document
+// count rule does. It removes the sentence around a number that is still left,
+// and reports what it cut.
 func cutWhatIsLeft(prose string) (string, []string) {
+	prose = rewordCounts(prose)
 	if len(cardinal.Find(prose, cardinal.Comment)) == 0 {
 		return prose, nil
 	}
@@ -307,26 +394,32 @@ func cutWhatIsLeft(prose string) (string, []string) {
 	return strings.TrimSpace(strings.Join(kept, " ")), cut
 }
 
-// sentences splits prose on its sentence ends, keeping the punctuation with the
-// sentence it closes. A line ending mid-sentence counts as whole here, which is
-// why a cut can take a wrapped line's share of the sentence it carries.
+// governed is a number and the word after it, which is the noun it counts.
+var governed = regexp.MustCompile(`^\S+\s+[A-Za-z][A-Za-z-]*`)
+
+// rewordCounts takes each number out of the prose with counts.RewordAt, from
+// the back, so an earlier offset stays valid.
+func rewordCounts(prose string) string {
+	tokens := cardinal.Find(prose, cardinal.Comment)
+	for i := len(tokens) - 1; i >= 0; i-- {
+		t := tokens[i]
+		phrase := governed.FindString(prose[t.Offset:])
+		if phrase == "" || cardinal.NotAPluralNoun(prose, cardinal.Match{At: t.Offset, Text: phrase}) {
+			continue
+		}
+		if e, ok := counts.RewordAt(prose, t.Offset, phrase); ok {
+			prose = prose[:e.Start] + e.Text + prose[e.End:]
+		}
+	}
+	return prose
+}
+
+// sentences splits comment prose on its sentence ends. A comment sentence
+// often opens on a lower-case identifier, such as a parameter name.
 func sentences(prose string) []string {
-	var out []string
-	start := 0
-	for i := 0; i < len(prose); i++ {
-		if prose[i] != '.' && prose[i] != '!' && prose[i] != '?' {
-			continue
-		}
-		if i+1 < len(prose) && prose[i+1] != ' ' {
-			continue
-		}
-		out = append(out, prose[start:i+1])
-		start = i + 1
-	}
-	if rest := strings.TrimSpace(prose[start:]); rest != "" {
-		out = append(out, prose[start:])
-	}
-	return out
+	return ste.SentencesOpenedBy(prose, func(rest []rune) bool {
+		return unicode.IsLower(rest[0]) || ste.OpensSentence(rest)
+	})
 }
 
 // split separates a comment line's marker and indent from its prose.
@@ -346,9 +439,11 @@ func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	if rest, closed := strings.CutPrefix(trimmed, "*/"); closed && strings.TrimSpace(rest) == "" {
 		return indent, "", "*/", true
 	}
-	for _, m := range []string{"///", "//", "/*", "#", "*"} {
+	// A doc comment opens with /**. Read as /*, its second star goes into the prose.
+	for _, m := range []string{"///", "//!", "//", "/**", "/*", "#", "*"} {
 		rest, found := strings.CutPrefix(trimmed, m)
-		if !found {
+		// "/**/" is an empty block: its opener is /* and its closer */.
+		if !found || (m == "/**" && strings.HasPrefix(rest, "/")) {
 			continue
 		}
 		space := rest[:len(rest)-len(strings.TrimLeft(rest, " \t"))]
@@ -361,28 +456,10 @@ func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	return "", "", "", false
 }
 
-// dropEmptied removes the lines the repair left carrying a bare marker. A line
-// the source already carried that way is left alone: a blank comment line is a
-// paragraph break somebody wrote on purpose.
-func dropEmptied(src string, emptied map[int]bool) string {
-	if len(emptied) == 0 {
-		return src
-	}
-	lines := strings.Split(src, "\n")
-	kept := lines[:0]
-	for i, line := range lines {
-		if emptied[i+1] && bareMarker(line) {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	return strings.Join(kept, "\n")
-}
-
 // bareMarker reports whether the line carries a comment marker and nothing else.
 func bareMarker(line string) bool {
 	switch strings.TrimSpace(line) {
-	case "//", "///", "#", "*":
+	case "//", "///", "//!", "#", "*":
 		return true
 	}
 	return false

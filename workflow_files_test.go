@@ -20,7 +20,7 @@ func writeFile(t *testing.T, name, content string) string {
 	return path
 }
 
-const workflowWithFindings = "on: push\n\n# one\n# two\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n"
+const workflowWithFindings = "on: {push: {branches: ['**']}}\n\n# one\n# two\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n"
 
 func TestCheckFileSendsAWorkflowToTheWorkflowRules(t *testing.T) {
 	path := writeFile(t, ".github/workflows/ci.yml", workflowWithFindings)
@@ -46,7 +46,7 @@ func TestCheckFileSniffsAWorkflowThePathDoesNotName(t *testing.T) {
 }
 
 func TestCheckFileStillReadsADocumentWithTheProseRules(t *testing.T) {
-	path := writeFile(t, "notes.md", "# Title\n\nA paragraph the author wrapped\nacross two lines by hand.\n")
+	path := writeFile(t, "notes.md", "# Title\n\nA paragraph the author wrapped\nin the middle by hand.\n")
 
 	findings, err := slopfix.CheckFile(path)
 	require.NoError(t, err)
@@ -56,13 +56,12 @@ func TestCheckFileStillReadsADocumentWithTheProseRules(t *testing.T) {
 
 // A newline in YAML is syntax. Joining a wrapped concurrency: block makes
 // GitHub reject the whole workflow before a job starts.
-func TestFormatFileRefusesAWorkflow(t *testing.T) {
-	content := "on: push\nconcurrency:\n  group: release\n"
+func TestFixFileNeverJoinsAWorkflow(t *testing.T) {
+	content := "on: {push: {branches: ['**']}}\nconcurrency:\n  group: release\n"
 	path := writeFile(t, ".github/workflows/ci.yml", content)
 
-	_, err := slopfix.FormatFile(path)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "newlines are syntax")
+	_, err := slopfix.FixFile(path)
+	require.NoError(t, err)
 
 	after, readErr := os.ReadFile(path)
 	require.NoError(t, readErr)

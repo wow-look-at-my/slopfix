@@ -376,7 +376,7 @@ func simpleVar(x *syntax.ParamExp, vars varTable) (word, bool) {
 		return word{}, false
 	}
 	// The leading BASH_SOURCE element names the file the running script was
-	// read from, which is the path the walk already knows when it follows a
+	// read from.
 	if x.Param.Value == "BASH_SOURCE" && isIndexZero(x.Index) &&
 		!x.Excl && !x.Length && !x.Width && x.Slice == nil && x.Repl == nil && x.Names == 0 && x.Exp == nil {
 		v, ok := vars["0"]

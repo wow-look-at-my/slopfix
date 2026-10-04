@@ -2,10 +2,9 @@
 // the wasted call costs nothing rather than costing a round trip and then
 // earning a note about it at Stop.
 //
-// The rules here answer the same question -- can this call learn
-// anything? A subject that has already reached a terminal state cannot teach
-// it anything ever again. A subject read earlier with no event and no change
-// of the world since cannot teach it anything YET.
+// The rules here answer the same question -- can this call learn anything? A
+// subject that has already reached a terminal state cannot teach it anything
+// ever again.
 package busypoll
 
 import (
@@ -164,8 +163,7 @@ func describe(subject string) string {
 
 // preToolOutput is the deny payload. PreToolUse carries its decision in
 // hookSpecificOutput rather than in an exit code, and a call this hook does
-// not refuse must emit nothing at all, so the normal permission flow is
-// left exactly as it was.
+// not refuse must emit nothing at all.
 type preToolOutput struct {
 	HookSpecificOutput struct {
 		HookEventName            string `json:"hookEventName"`

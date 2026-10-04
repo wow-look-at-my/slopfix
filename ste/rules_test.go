@@ -46,8 +46,7 @@ func TestSentencesSplitBeforeALowerCaseFileName(t *testing.T) {
 }
 
 func TestALongSentenceIsReportedOnceTheSplitterIsHonest(t *testing.T) {
-	// A single sentence, well over the cap, carrying the file reference and the
-	// abbreviation that a naive splitter breaks on.
+	// A single sentence, well over the cap.
 	long := "The scanner walks the input once and hands the parser every token it " +
 		"needs, e.g. the span and the depth, so that lexer.md and the analyzer " +
 		"never disagree about what a word is."
@@ -61,6 +60,8 @@ func TestALongSentenceIsReportedOnceTheSplitterIsHonest(t *testing.T) {
 // full of citations is otherwise reported as too long when it is not.
 func TestParenthesesCountAsOneWord(t *testing.T) {
 	assert.Equal(t, 5, WordCount("The lexer (see lexer.md §3.3.4) runs first."))
+	// A section link holds no word, as the number it replaced held none.
+	assert.Equal(t, WordCount(strip("The §9 trigger fires.")), WordCount(strip("The [§owning-renderer](#9-owning-the-renderer) trigger fires.")))
 }
 
 func TestSplicesTheReferenceRuleReports(t *testing.T) {
@@ -102,21 +103,35 @@ func TestCountsAreReported(t *testing.T) {
 	assert.Equal(t, "a stated count goes stale when the set changes", findings[0].Rule)
 }
 
-// Arithmetic and measurement are not counts of items. Neither goes stale when
-// somebody adds a field.
-func TestCountsLeaveArithmeticAndUnitsAlone(t *testing.T) {
+// Arithmetic is not a count of items. A range and an expression name no set,
+// so neither goes stale when somebody adds a field.
+func TestCountsLeaveArithmeticAlone(t *testing.T) {
 	cases := map[string]string{
-		"range":       "The exit code range is 0-255 and nothing outside it.",
-		"expression":  "A chain of N commands carries N-1 operators.",
-		"a size":      "The budget is 40000 characters per file.",
-		"a duration":  "The wait ends after 30 seconds.",
-		"the word so": "The rule holds for one line, and for two lines as well.",
+		"range":      "The exit code range is 0-255 and nothing outside it.",
+		"expression": "A chain of N commands carries N-1 operators.",
+		"equation":   "It defaults to RGBA8 (32 bits per pixel = 4 bytes), the default target.",
 	}
 	for name, text := range cases {
 		t.Run(name, func(t *testing.T) {
 			for _, finding := range Check(text, 1) {
 				assert.NotContains(t, finding.Rule, "stated count", text)
 			}
+		})
+	}
+}
+
+// A measurement is a stated value the same as a tally is. A size and a duration
+// are true today and nothing corrects either when the code around them moves.
+func TestCountsReadAMeasurement(t *testing.T) {
+	cases := map[string]string{
+		"a size":     "The budget is 40000 characters per file.",
+		"a duration": "The wait ends after 30 seconds.",
+	}
+	for name, text := range cases {
+		t.Run(name, func(t *testing.T) {
+			findings := Check(text, 1)
+			require.NotEmpty(t, findings, text)
+			assert.Equal(t, "a stated count goes stale when the set changes", findings[0].Rule)
 		})
 	}
 }

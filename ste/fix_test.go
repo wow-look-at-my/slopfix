@@ -4,86 +4,106 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-func TestFixExpandsAContraction(t *testing.T) {
-	assert.Equal(t, "It does not run.", ste.Fix("It doesn't run."))
+// The sentences the repair rewrites, and the sentences it declines, are worked
+// examples in the rules folder. What is left here is what such an example
+// cannot say: an invariant the repair holds whatever it writes.
+
+// Leading closes a sentence at a clause boundary the parser finds, so the head it
+// keeps is a sentence under the cap and never a cut at a word.
+func TestLeadingClosesAtAClauseBoundary(t *testing.T) {
+	long := "The comment scan reads each file that the branch changed since its merge base, and it rewrites every number it finds in a comment into words that stay true."
+	head, ok := ste.Leading(long)
+	require.True(t, ok)
+	assert.Equal(t, "The comment scan reads each file that the branch changed since its merge base.", head)
+	assert.LessOrEqual(t, ste.WordCount(head), ste.SentenceWordCap)
+	assert.Empty(t, ste.Check(head, 1))
+
+	_, ok = ste.Leading("a very long run of words with no verb and no boundary of any kind at all anywhere in it whatsoever here")
+	assert.False(t, ok, "no clause boundary, so no head")
 }
 
-func TestFixKeepsTheCapitalTheSourceUsed(t *testing.T) {
-	assert.Equal(t, "Do not run it. It is late.", ste.Fix("Don't run it. It's late."))
+// With no clause boundary, the repair divides between words, and Check then
+// reports nothing.
+func TestFixDividesASentenceWithNoClauseBoundary(t *testing.T) {
+	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
+	require.Len(t, ste.Check(long, 1), 1, "the control: the sentence is over the cap")
+	fixed := ste.Fix(long)
+	assert.NotEqual(t, long, fixed)
+	assert.Empty(t, ste.Check(fixed, 1), fixed)
 }
 
-func TestFixWritesTheApprovedModal(t *testing.T) {
-	assert.Equal(t, "A caller must wait. It can fail.", ste.Fix("A caller should wait. It might fail."))
+// A division never lands inside an inline code span, so the span survives the
+// repair exactly as the source wrote it.
+func TestFixDividesALongSentenceAroundACodeSpan(t *testing.T) {
+	long := "The gate reads `a; b` out of every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "`a; b`")
+	assert.Empty(t, ste.Check(fixed, 1))
 }
 
-func TestFixWritesAPeriodForASemicolon(t *testing.T) {
-	assert.Equal(t, "The gate is shut. The write fails.", ste.Fix("The gate is shut; the write fails."))
+// The parser reads a masked code span, whose filler word ends before the closing
+// backtick. A division after the span must still keep the whole span.
+func TestFixKeepsTheCodeSpanThatEndsTheLeftSentence(t *testing.T) {
+	long := "The tarball is rooted at `./` and unpacks *as* the build directory — extracting it without `-C dir` sprays `src/`, `include/` and a foreign `.gitignore` over the repo root and chowns it."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "rooted at `./`")
+	assert.Contains(t, fixed, "*as*")
+	assert.NotContains(t, fixed, "Unpacks")
 }
 
-func TestFixWritesAPeriodForATrailingSemicolon(t *testing.T) {
-	assert.Equal(t, "The gate is shut.", ste.Fix("The gate is shut;"))
+// A splice whose subject is a code span gets the same repair as a word subject.
+func TestFixRepairsASpliceBeforeACodeSpanSubject(t *testing.T) {
+	text := "The path decides the dialect by its tail: `/responses` is `DialectResponses`, `/messages` is `DialectAnthropic`, `/chat/completions` is `DialectOpenAI`. The version segment is matched but not read, so a `v2/responses` still answers."
+	require.NotEmpty(t, ste.Check(text, 1), "the control: the splice is reported")
+	fixed := ste.FixSelected(text, func(id string) bool { return id == ste.IDCommaSplice })
+	assert.Contains(t, fixed, "`v2/responses`")
+	for _, f := range ste.Check(fixed, 1) {
+		assert.NotEqual(t, ste.IDCommaSplice, f.ID, "%s\n%s", fixed, f.Detail)
+	}
 }
 
-func TestFixWritesAPeriodForACommaSplice(t *testing.T) {
-	assert.Equal(t, "The gate is shut. So the write fails.", ste.Fix("The gate is shut, so the write fails."))
+// A division never lands inside bold text, so each marker keeps its partner.
+func TestFixNeverDividesInsideBoldText(t *testing.T) {
+	long := "With no trip count given, each loop is modeled as one iteration **and the estimate is flagged** with a section in the report and a note in the output so it is never read as the exact cost."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "**and the estimate is flagged**")
 }
 
-// A conjunction after the comma joins equals, so that comma splices whatever
-// follows it. checkSplices reports it, and the repair covers what it reports.
-func TestFixBreaksASpliceThatCarriesAConjunction(t *testing.T) {
-	assert.Equal(t, "A caller waits. And it can fail.", ste.Fix("A caller waits, and it might fail."))
+// ", and" before a subordinate clause and its main clause is a sentence boundary.
+func TestFixDividesBeforeASubordinateClauseAfterAnd(t *testing.T) {
+	long := "This closed a real hole: `a_test.go` is `//go:build x`, and for as long as the gate ran default tags only, its violations were invisible and its tests compiled nowhere."
+	fixed := ste.Fix(long)
+	assert.Equal(t, "This closed a real hole: `a_test.go` is `//go:build x`. For as long as the gate ran default tags only, its violations were invisible and its tests compiled nowhere.", fixed)
+	assert.Empty(t, ste.Check(fixed, 1))
+
+	long = "The gate reads every file that the session wrote, but if the cache is cold at the start of the run, the build waits for the whole tree."
+	assert.Equal(t, "The gate reads every file that the session wrote. However, if the cache is cold at the start of the run, the build waits for the whole tree.", ste.Fix(long))
 }
 
-// A bare comma splices only when what precedes it already stands alone.
-// checkSplices makes that test, and the repair makes the same test.
-func TestFixLeavesAnIntroductoryCommaAlone(t *testing.T) {
-	phrase := "Under the gate, the write fails."
-	assert.Equal(t, phrase, ste.Fix(phrase))
+// A quotation is another voice, so a rule never judges the words inside it.
+func TestCheckSkipsQuotedText(t *testing.T) {
+	assert.Empty(t, ste.Check(`The owner said "it is fine; ship it" and moved on.`, 1))
+	assert.Empty(t, ste.Check("The owner said “it is fine; ship it” and moved on.", 1))
+	assert.NotEmpty(t, ste.Check("The owner said it is fine; ship it.", 1))
 }
 
-// A list carries no verb after a comma, so a comma in it is not a splice.
-func TestFixLeavesAListAlone(t *testing.T) {
-	list := "The rules cover a semicolon, a modal, and a splice."
-	assert.Equal(t, list, ste.Fix(list))
+// A semicolon that ends the prose before a code span keeps its space.
+func TestFixKeepsTheSpaceBeforeACodeSpan(t *testing.T) {
+	assert.Equal(t, "Docker is unavailable. `MESA_DIR` still overrides it.", ste.Fix("Docker is unavailable; `MESA_DIR` still overrides it."))
 }
 
-// An HTML entity ends in a semicolon that belongs to the entity.
-func TestFixLeavesAnEntityAlone(t *testing.T) {
-	assert.Equal(t, "Write &amp; for it. It is data.", ste.Fix("Write &amp; for it. It's data."))
-}
-
-// A semicolon inside an inline code span is what the sentence documents.
-func TestFixLeavesAnInlineCodeSpanAlone(t *testing.T) {
-	assert.Equal(t, "Write `a; b` for it. It does not run.", ste.Fix("Write `a; b` for it. It doesn't run."))
-}
-
-// A link's target is a URL. A word inside it is not prose.
-func TestFixLeavesALinkTargetAlone(t *testing.T) {
-	assert.Equal(t, "The [it is](https://x/it's) page is not prose.", ste.Fix("The [it's](https://x/it's) page is not prose."))
-}
-
-// A coordinator joining verbs that share a subject is not a seam. A division
-// there writes a sentence with nobody in it.
-func TestFixLeavesALongSentenceAlone(t *testing.T) {
-	long := "The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own."
-	assert.Equal(t, long, ste.Fix(long))
-}
-
-// A coordinator joining clauses that each name who acts IS a seam.
-func TestFixDividesAtAClauseThatNamesWhoActs(t *testing.T) {
-	long := "The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own."
-	assert.Equal(t,
-		"The gate reads every file in the session. The write fails when any one of them carries a finding that a rewrite cannot repair on its own.",
-		ste.Fix(long))
-}
-
-func TestFixLeavesCleanProseAlone(t *testing.T) {
-	clean := "A short sentence that breaks no rule."
-	assert.Equal(t, clean, ste.Fix(clean))
+// A parenthetical counts as a single word, so a division inside it would halve
+// something STE says is indivisible.
+func TestFixDividesALongSentenceAroundAParenthetical(t *testing.T) {
+	long := "The gate reads every file in the session (the header, the body and the trailer alike) and refuses the write when any one of them carries a finding nothing repairs."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "(the header, the body and the trailer alike)")
+	assert.Empty(t, ste.Check(fixed, 1))
 }
 
 // A repair that leaves its own finding standing loops the caller forever.

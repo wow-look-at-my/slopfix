@@ -5,78 +5,135 @@
 // rest. Neither reaches a number the extractor finds on a line no paragraph
 // covers, such as an indented example inside a block comment. This pass reads
 // the finding's own position and deletes those bytes. The result is a comment
-// the rule reports nothing about, which is what the caller asked for.
+// the rule reports nothing about.
 package commentfix
 
 import (
-	"sort"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 )
 
 // residualPasses guards the loop: a pass deletes bytes, so the text shrinks.
 const residualPasses = 8
 
 // clearResidual deletes every number Check still finds, and reports what it
-// took. Check reads comments alone, so a deletion never reaches code.
-func clearResidual(filename, src string) (string, []string) {
-	var removed []string
+// took. Each deletion is an edit inside the comment node the hit sits in.
+func clearResidual(f *fixer.File) {
 	for range residualPasses {
-		hits := Check(filename, src)
+		hits := Check(f.Path, f.Text())
 		if len(hits) == 0 {
-			return src, removed
+			return
 		}
-		var cut []string
-		src, cut = deleteHits(src, hits)
-		removed = append(removed, cut...)
-		if len(cut) == 0 {
+		if res := f.ApplyComments(deletions(f.Text(), hits)); len(res.Applied) == 0 {
 			// Nothing was deletable, so another pass finds the same text.
-			return src, removed
+			return
 		}
 	}
-	return src, removed
 }
 
-// deleteHits removes each hit's bytes from the line it sits on. It works back
-// to front within a line, so an earlier hit's column stays valid.
-func deleteHits(src string, hits []Hit) (string, []string) {
-	lines := strings.Split(src, "\n")
-	byLine := map[int][]Hit{}
+// deletions answers an edit per hit that removes the number and closes the
+// gap it leaves. An edit that would overlap the one before it waits for the
+// next pass.
+func deletions(src string, hits []Hit) []edit.Edit {
+	var out []edit.Edit
+	end := -1
 	for _, hit := range hits {
-		byLine[hit.Line] = append(byLine[hit.Line], hit)
-	}
-	var removed []string
-	for no, onLine := range byLine {
-		i := no - 1
-		if i < 0 || i >= len(lines) {
+		at := hit.Offset
+		stop := at + len(hit.Number)
+		if at < 0 || stop > len(src) {
 			continue
 		}
-		sort.SliceStable(onLine, func(a, b int) bool { return onLine[a].Col > onLine[b].Col })
-		line := lines[i]
-		for _, hit := range onLine {
-			at := hit.Col - 1
-			end := at + len(hit.Number)
-			if at < 0 || end > len(line) || line[at:end] != hit.Number {
-				continue
-			}
-			line = closeGap(line[:at], line[end:])
-			removed = append(removed, hit.Number)
+		at, stop = literalAround(src, at, stop)
+		e := closeGap(src, at, stop)
+		if e.Start < end {
+			continue
 		}
-		lines[i] = strings.TrimRight(line, " \t")
+		e.Cut = []string{src[at:stop]}
+		out = append(out, e)
+		end = e.End
 	}
-	return strings.Join(lines, "\n"), removed
+	return out
 }
 
-// closeGap joins the sides of a deletion, leaving the single space a
-// reader expects between words and none at all before punctuation.
-func closeGap(before, after string) string {
-	trimmed := strings.TrimLeft(after, " \t")
-	switch {
-	case trimmed == "":
-		return strings.TrimRight(before, " \t")
-	case strings.ContainsRune(".,;:)!?", rune(trimmed[0])):
-		return strings.TrimRight(before, " \t") + trimmed
-	case before == "" || strings.HasSuffix(before, " ") || strings.HasSuffix(before, "\t"):
-		return before + trimmed
+// literalAround widens the digits from at up to stop to the whole numeric
+// literal they belong to: the fraction after a decimal point, the groups after
+// a thousands separator, an exponent, and a sign or power mark in front.
+// Deleting only the digits a finding names leaves the rest standing as
+// fragments such as ".874".
+func literalAround(src string, at, stop int) (int, int) {
+	for at > 0 {
+		switch {
+		case isDigit(src[at-1]):
+			at--
+		case at > 1 && strings.IndexByte(".,_", src[at-1]) >= 0 && isDigit(src[at-2]):
+			at--
+		case strings.IndexByte(".^", src[at-1]) >= 0:
+			at--
+		case strings.IndexByte("+-", src[at-1]) >= 0 && (at == 1 || isSpace(src[at-2])):
+			at--
+		default:
+			return at, extendLiteral(src, stop)
+		}
 	}
-	return before + " " + trimmed
+	return at, extendLiteral(src, stop)
+}
+
+// extendLiteral moves stop past the rest of the numeric literal it is inside.
+func extendLiteral(src string, stop int) int {
+	for stop < len(src) {
+		switch {
+		case isDigit(src[stop]):
+			stop++
+		case strings.IndexByte(".,_", src[stop]) >= 0 && stop+1 < len(src) && isDigit(src[stop+1]):
+			stop += 2
+		case (src[stop] == 'e' || src[stop] == 'E') && exponentAt(src, stop+1):
+			stop++
+			if src[stop] == '+' || src[stop] == '-' {
+				stop++
+			}
+		default:
+			return stop
+		}
+	}
+	return stop
+}
+
+// exponentAt reports whether an exponent's optional sign and digits start at i.
+func exponentAt(src string, i int) bool {
+	if i < len(src) && (src[i] == '+' || src[i] == '-') {
+		i++
+	}
+	return i < len(src) && isDigit(src[i])
+}
+
+func isDigit(b byte) bool { return b >= '0' && b <= '9' }
+
+func isSpace(b byte) bool { return b == ' ' || b == '\t' }
+
+// closeGap answers the edit that deletes the bytes from at up to stop,
+// leaving the space a reader expects between words and none at all before
+// punctuation or at the end of a line.
+func closeGap(src string, at, stop int) edit.Edit {
+	lineStart := strings.LastIndexByte(src[:at], '\n') + 1
+	lineEnd := len(src)
+	if i := strings.IndexByte(src[stop:], '\n'); i >= 0 {
+		lineEnd = stop + i
+	}
+	before := at
+	for before > lineStart && (src[before-1] == ' ' || src[before-1] == '\t') {
+		before--
+	}
+	after := stop
+	for after < lineEnd && (src[after] == ' ' || src[after] == '\t') {
+		after++
+	}
+	switch {
+	case after == lineEnd, strings.ContainsRune(".,;:)!?", rune(src[after])):
+		return edit.Edit{Start: before, End: after}
+	case before < at || at == lineStart:
+		return edit.Edit{Start: at, End: after}
+	}
+	return edit.Edit{Start: at, End: after, Text: " "}
 }

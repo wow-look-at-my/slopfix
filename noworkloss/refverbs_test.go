@@ -25,8 +25,7 @@ func remoteRepo(t *testing.T) string {
 	bare := filepath.Join(base, "remote.git")
 	dir := filepath.Join(base, "work")
 
-	// The tests name the branch master; git's built-in default varies.
-	git(t, base, "init", "-q", "--bare", "-b", "master", bare)
+	git(t, base, "init", "-q", "-b", fixtureBranch, "--bare", bare)
 	git(t, base, "clone", "-q", bare, dir)
 	git(t, dir, "symbolic-ref", "HEAD", "refs/heads/master")
 	git(t, dir, "config", "user.email", "guard@example.com")
@@ -88,8 +87,7 @@ func TestAllowsDeletingANonexistentBranch(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// push --force
-// ---------------------------------------------------------------------------
+// push --force.
 
 func TestAllowsForcePushThatIsAFastForward(t *testing.T) {
 	dir := remoteRepo(t)
@@ -158,8 +156,7 @@ func TestForceRefspecIsTreatedAsAForcePush(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// push --delete
-// ---------------------------------------------------------------------------
+// push --delete.
 
 // A remote branch whose commits survive elsewhere is still not deleted from
 // here: the branch is what its pull request, its CI run and any consumer
@@ -230,6 +227,15 @@ func TestUpdateRefDeleteFollowsReachability(t *testing.T) {
 	git(t, dir, "commit", "-qm", "solo")
 	git(t, dir, "checkout", "-q", base)
 	denied(t, dir, "git update-ref -d refs/heads/solo")
+}
+
+func TestSymbolicRefReadsAreAllowedAndWritesAreNot(t *testing.T) {
+	dir := newRepo(t)
+	allowed(t, dir, "git symbolic-ref HEAD")
+	allowed(t, dir, "git symbolic-ref -q HEAD")
+	allowed(t, dir, "git symbolic-ref --short HEAD")
+	denied(t, dir, "git symbolic-ref HEAD refs/heads/other")
+	denied(t, dir, "git symbolic-ref -m reason HEAD refs/heads/other")
 }
 
 func TestWorktreeRemoveForceChecksThatWorktree(t *testing.T) {

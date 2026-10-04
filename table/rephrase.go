@@ -11,8 +11,7 @@ import "strings"
 // A Rephrase is a match over word classes and what to write instead.
 type Rephrase struct {
 	ID string
-	// Match is the source text, kept for the error a malformed entry reports
-	// and for the name a test prints.
+	// Match is the source text, kept for the error a malformed entry reports and for the name a test prints.
 	Match string
 	Terms Match
 	To    string
@@ -35,21 +34,31 @@ func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose stri
 		return prose
 	}
 	tokens := make([]string, len(spans))
+	written := make([]string, len(spans))
 	for i, s := range spans {
-		tokens[i] = strings.ToLower(prose[s.at:s.end])
+		written[i] = prose[s.at:s.end]
+		tokens[i] = strings.ToLower(written[i])
 	}
 	tokens = normalize(norms, tokens)
+	// A capture writes a word back, so it writes back the author's spelling.
+	// A token the normalizer settled is that spelling now.
+	for i, tok := range tokens {
+		if tok != strings.ToLower(written[i]) {
+			written[i] = tok
+		}
+	}
 
 	var out strings.Builder
 	last, i := 0, 0
 	for i < len(tokens) {
-		entry, end, caught, ok := firstMatch(lex, entries, tokens, i)
-		if !ok {
+		entry, end, caught, ok := firstMatch(lex, entries, tokens, i, written)
+		if !ok || !spaced(prose, spans[i:end]) {
 			i++
 			continue
 		}
 		out.WriteString(prose[last:spans[i].at])
-		out.WriteString(Expand(entry.To, caught))
+		matched := prose[spans[i].at:spans[end-1].end]
+		out.WriteString(MatchCase(matched, Expand(entry.To, caught)))
 		last = spans[end-1].end
 		i = end
 	}
@@ -57,10 +66,20 @@ func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose stri
 	return closeGaps(out.String())
 }
 
+// spaced reports whether whitespace alone joins the words, so a hyphenated compound stays whole.
+func spaced(prose string, words []span) bool {
+	for i := 1; i < len(words); i++ {
+		if strings.TrimSpace(prose[words[i-1].end:words[i].at]) != "" {
+			return false
+		}
+	}
+	return true
+}
+
 // firstMatch answers the earliest entry that fits at i.
-func firstMatch(lex *Lexicon, entries []Rephrase, tokens []string, i int) (Rephrase, int, map[string]string, bool) {
+func firstMatch(lex *Lexicon, entries []Rephrase, tokens []string, i int, written []string) (Rephrase, int, map[string]string, bool) {
 	for _, entry := range entries {
-		end, caught, ok := entry.Terms.find(lex, tokens, i)
+		end, caught, ok := entry.Terms.find(lex, tokens, written, i)
 		if ok && end > i {
 			return entry, end, caught, true
 		}
@@ -90,13 +109,17 @@ func normalize(norms []Normalize, tokens []string) []string {
 	return out
 }
 
-// closeGaps closes the doubled space a deletion leaves. Punctuation is the
-// caller's: a leading dot opens a name, so " ." must not close blindly.
+// closeGaps closes the doubled space a deletion leaves.
 func closeGaps(prose string) string {
 	for strings.Contains(prose, "  ") {
 		prose = strings.ReplaceAll(prose, "  ", " ")
 	}
 	return prose
+}
+
+// isWordByte reports the character class a word boundary reads.
+func isWordByte(b byte) bool {
+	return b == '_' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
 }
 
 // span is a word's place in the prose.

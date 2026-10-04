@@ -1,19 +1,17 @@
 // ghwaitci.go spells an Actions read the way the shim accepts.
 //
 // The shim refuses `gh run`, `gh workflow` and `gh pr checks` at run time, so
-// each of those spellings is a guaranteed failure that costs a whole tool call.
-// Only the forms carrying the same meaning on both sides are rewritten:
+// each costs a tool call to fail. Only these forms are rewritten:
 //
 //	gh run view <id> --log-failed -> gh wait-ci log <id> --failed
-//	gh run view <id> --log -> gh wait-ci log <id> gh run view <id>
-//	-> gh wait-ci view <id> gh run watch <id> -> gh wait-ci <id> gh
-//	run rerun <id> -> gh wait-ci rerun <id> gh run list [flags] ->
-//	gh wait-ci runs [flags] gh pr checks [flags] -> gh wait-ci
-//	checks [flags]
+//	gh run view <id> --log        -> gh wait-ci log <id>
+//	gh run view <id>              -> gh wait-ci view <id>
+//	gh run watch <id>             -> gh wait-ci <id>
+//	gh run rerun <id>             -> gh wait-ci rerun <id>
+//	gh run list [flags]           -> gh wait-ci runs [flags]
+//	gh pr checks [flags]          -> gh wait-ci checks [flags]
 //
-// A form outside that table is left alone rather than guessed at: the shim
-// already refuses it with the full mapping, and a wrong guess replaces a
-// precise message with a command that asks a different question.
+// A form outside the table is left alone: a guess asks a different question.
 package bashclean
 
 import (

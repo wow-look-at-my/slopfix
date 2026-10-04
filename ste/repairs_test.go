@@ -19,13 +19,18 @@ var samples = map[string]string{
 	// case the repair divides. A shared subject is the case it declines.
 	ste.IDSentenceCap: "The loader reads the file and the caller waits for it and the header " +
 		"check runs first and the count goes to the log and the handle closes at the end now.",
-	ste.IDStaleCount: "There are three sections.",
+	ste.IDStaleCount:     "There are three sections.",
+	ste.IDPostdeterminer: "Its four fields hold the header.",
 }
 
 // The assertion that keeps Repairs honest. A rule Fix rewrites must be in the
 // set, and a rule it leaves alone must not be.
 func TestRepairsNamesExactlyWhatFixRewrites(t *testing.T) {
 	for id := range ste.AllIDs.All() {
+		// Check never reports a warning, so Fix has nothing of it to rewrite.
+		if ste.WarningIDs.Contains(id) {
+			continue
+		}
 		sample, ok := samples[id]
 		require.True(t, ok, "no sample for %s", id)
 		require.NotEmpty(t, ste.Check(sample, 1), "the sample for %s breaks no rule", id)

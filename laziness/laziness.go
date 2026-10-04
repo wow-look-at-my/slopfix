@@ -7,7 +7,7 @@
 // is left holding it.
 //
 // The consumer is a Stop hook. It answers a finding with the single word the
-// user would have typed back. There is nothing in that answer to argue with.
+// user would have typed back.
 package laziness
 
 import (
@@ -89,8 +89,7 @@ var pardons = []*regexp.Regexp{
 
 // Check reports every punt the message carries.
 //
-// A sentence is reported for a single tell, whichever found it. A message
-// repeating itself must not read as a worse offence than it is.
+// A sentence is reported for a single tell, whichever found it.
 func Check(message string) []Hit {
 	text, kept := assertedText(message)
 	var hits []Hit
@@ -163,7 +162,6 @@ func isAlnum(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
 }
 
-// lineOf answers which source line a byte offset in the asserted text came from.
 func lineOf(kept []int, at int) int {
 	if at < len(kept) {
 		return kept[at]

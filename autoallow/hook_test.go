@@ -12,12 +12,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 func loadEmbeddedTests(t *testing.T) []struct{ Command, Expected string } {
 	t.Helper()
 	var xr xmlRules
-	require.NoError(t, xml.Unmarshal(rulesXML, &xr))
+	require.NoError(t, xml.Unmarshal(table.Readable(rulesXML), &xr))
 
 	type testCase = struct{ Command, Expected string }
 	var cases []testCase
@@ -142,7 +143,7 @@ func TestEndToEndGhRepoView(t *testing.T) {
 		{"gh repo view --json", "gh repo view wow-look-at-my/go-toolchain --json name,description", "allow"},
 		{"gh release list", "gh release list", "allow"},
 		{"gh release list -R", "gh release list -R owner/repo", "allow"},
-		{"gh pr list (known good)", "gh pr list", "allow"},
+		{"gh pr view (known good)", "gh pr view 123", "allow"},
 	}
 
 	for _, tt := range tests {
@@ -154,7 +155,7 @@ func TestEndToEndGhRepoView(t *testing.T) {
 			}
 			inputBytes, _ := json.Marshal(input)
 
-			cmd := exec.Command(binaryPath, "auto-allow")
+			cmd := exec.Command(binaryPath, "hook", "--only", "auto-allow")
 			cmd.Stdin = bytes.NewReader(inputBytes)
 			output, err := cmd.Output()
 			require.Nil(t, err, "binary exited with error: %v, output: %s", err, output)
@@ -219,8 +220,7 @@ func TestPreToolUseDeniesButNeverAllows(t *testing.T) {
 func TestCCRToolsAreNeverAnsweredByThisHook(t *testing.T) {
 	binaryPath := buildTestBinary(t)
 
-	// The set that used to be auto-allowed, plus the account-wide Routine
-	// mutators that never were. All are treated identically now.
+	// The set. All are treated identically now.
 	for _, toolName := range []string{
 		"mcp__Claude_Code_Remote__send_later",
 		"mcp__Claude_Code_Remote__add_repo",
@@ -281,7 +281,7 @@ func TestPermissionRequestKeepsItsOwnShape(t *testing.T) {
 }
 
 // buildTestBinary builds the slopfix CLI into a per-test path, so overlapping
-// runs cannot delete each other's copy. The hook rides `slopfix auto-allow`.
+// runs cannot delete each other's copy. The hook rides `slopfix hook --only auto-allow`.
 func buildTestBinary(t *testing.T) string {
 	t.Helper()
 	name := "slopfix-test-" + strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
@@ -299,7 +299,7 @@ func runHookBinary(t *testing.T, binaryPath string, input HookInput) []byte {
 	inputBytes, err := json.Marshal(input)
 	require.NoError(t, err)
 
-	cmd := exec.Command(binaryPath, "auto-allow")
+	cmd := exec.Command(binaryPath, "hook", "--only", "auto-allow")
 	cmd.Stdin = bytes.NewReader(inputBytes)
 	out, err := cmd.Output()
 	require.NoError(t, err, "binary exited with error: %v, output: %s", err, out)

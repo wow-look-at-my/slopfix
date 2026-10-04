@@ -313,7 +313,7 @@ func (g *GitResolver) PullState(repo Repo, number string) PullState {
 //
 // Order is severity: a merged or closed pull request is finished whatever its
 // checks say, a failing check is a defect, a conflict is a merge-time chore,
-// and a run still going is not yet news. Green is what is left over.
+// and a run still going is not yet news.
 func classify(v pullView) PullState {
 	switch v.State {
 	case "MERGED":

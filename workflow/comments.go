@@ -25,14 +25,24 @@ func commentBlocks(content string) []ste.Finding {
 				ID:      IDCommentBlock,
 				Rule:    fmt.Sprintf("%d comment lines in a row, where the limit is %d", count, MaxCommentLines),
 				Detail:  span(start, end),
-				Fix:     "Shorten this to one line. Say only what a reader needs right here, and put the rest in the commit message.",
+				Fix:     "Shorten this to one line. Say only what a reader needs right here, and put the rest in the commit message. `slopfix fix` joins the run.",
 			})
 		}
 		count = 0
 	}
 
-	for index, line := range lines(content) {
+	rows := lines(content)
+	body := blockScalarRows(content)
+	for index, line := range rows {
 		trimmed := strings.TrimSpace(line)
+		// A # inside a block scalar opens a shell comment in a script, which
+		// this rule has nothing to say about and the repair must not fold.
+		if body[index] {
+			if count > 0 {
+				flush()
+			}
+			continue
+		}
 		if strings.HasPrefix(trimmed, "#") {
 			if count == 0 {
 				start = index + 1

@@ -5,32 +5,37 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// Fix applies the repair Check names. A long sentence is left alone,
-// because splitting it needs a writer who knows the point.
+// Fix applies the repair Check names, for every rule.
 func Fix(text string) string {
 	return FixSelected(text, func(string) bool { return true })
 }
 
 // FixSelected applies the repairs whose ID keep accepts, so a caller that names
 // a rule gets that rule's repair and no other.
+//
+// The cap repair runs over the whole text rather than inside fixProse. It
+// measures a sentence the way Check measures it, and Check counts a code span
+// as a single word rather than as a gap between shorter sentences.
 func FixSelected(text string, keep func(id string) bool) string {
-	return fixProse(text, func(prose string) string {
+	text = fixProse(text, func(prose string) string {
 		prose = fixWords(prose, keep)
 		if keep(IDSemicolon) {
 			prose = fixSemicolons(prose)
 		}
-		if keep(IDCommaSplice) {
-			prose = fixSplices(prose)
-		}
-		if keep(IDSentenceCap) {
-			prose = fixSentenceCap(prose)
-		}
 		return prose
 	})
+	if keep(IDCommaSplice) {
+		text = fixSplices(text)
+	}
+	if keep(IDPostdeterminer) {
+		text = fixPostdeterminers(text)
+	}
+	if keep(IDSentenceCap) {
+		text = fixSentenceCap(text)
+	}
+	return text
 }
 
 var (
@@ -63,7 +68,7 @@ func fixProse(text string, repair func(string) string) string {
 func fixWords(prose string, keep func(id string) bool) string {
 	return wordPattern.ReplaceAllStringFunc(prose, func(word string) string {
 		lower := strings.ToLower(word)
-		replacement, banned := contractions[lower]
+		replacement, banned := Expand(word)
 		if banned && !keep(IDContraction) {
 			banned = false
 		}
@@ -83,132 +88,112 @@ func fixWords(prose string, keep func(id string) bool) string {
 	})
 }
 
-// fixSemicolons writes the period the semicolon stands in for.
 func fixSemicolons(prose string) string {
-	return breakAt(prose, semicolonRun.FindAllStringIndex(prose, -1))
+	return breakWith(prose, semicolonRun.FindAllStringIndex(prose, -1), nil)
 }
 
-// fixSplices writes the period each spliced comma stands in for.
-//
 // The comma is found the way checkSplices finds it, guard included, so the
-// repair covers exactly what the check reports. Only the comma is rewritten:
-// a conjunction after it survives and opens the new sentence.
+// repair covers exactly what the check reports. A conjunction the connectors
+// know gives way to its opener. Any other conjunction opens the new sentence.
+// It reads a mask of the whole text, so a code span neither hides a splice nor
+// cuts a sentence the parser needs whole.
 func fixSplices(prose string) string {
-	var commas [][]int
-	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
-		if bare := loc[2] < 0; bare && !isClause(clauseBefore(prose, loc[0])) {
+	masked := mask(prose)
+	var joiners [][]int
+	var openers []string
+	parens := parenthetical.FindAllStringIndex(masked, -1)
+	for _, loc := range commaSplice.FindAllStringSubmatchIndex(masked, -1) {
+		if insideAny(parens, loc[0]) || !spliced(masked, loc) {
 			continue
 		}
 		end := loc[0] + len(spliceComma.FindString(prose[loc[0]:]))
-		commas = append(commas, []int{loc[0], end})
-	}
-	return breakAt(prose, commas)
-}
-
-// coordinator matches a conjunction joining clauses: a candidate seam.
-var coordinator = regexp.MustCompile(`,?\s+(?:and|but|so|then|because)\s+`)
-
-// opensASubject holds the words an independent clause starts its subject with.
-// A coordinator followed by any of them joins clauses that each name who acts.
-// A coordinator followed by anything else joins verbs that SHARE a subject,
-// where a division writes a sentence with nobody in it.
-var opensASubject = set.Of("i", "we", "you", "he", "she", "it", "they", "one",
-	"this", "that", "these", "those", "there", "here",
-	"the", "a", "an", "every", "each", "any", "no", "some", "all", "both",
-	"either", "neither", "another", "such",
-	"its", "their", "his", "her", "our", "your", "my")
-
-// carriesItsOwnSubject reports whether the clause after a seam names who acts.
-// A capital opens a name, which is a subject of its own.
-func carriesItsOwnSubject(clause string) bool {
-	word, _, _ := strings.Cut(strings.TrimSpace(clause), " ")
-	word = strings.Trim(word, `"'`+"`([")
-	if word == "" {
-		return false
-	}
-	if first, _ := utf8.DecodeRuneInString(word); unicode.IsUpper(first) {
-		return true
-	}
-	return opensASubject.Contains(strings.ToLower(word))
-}
-
-// fixSentenceCap divides an over-cap sentence at the usable coordinator nearest
-// its middle, repeating while a half is over. With none it is left for a writer.
-func fixSentenceCap(prose string) string {
-	for range maxDivisions {
-		joiner, found := widestSeam(prose)
-		if !found {
-			return prose
-		}
-		prose = breakAt(prose, [][]int{joiner})
-	}
-	return prose
-}
-
-// maxDivisions bounds the repair: past this, no seam saves the sentence.
-const maxDivisions = 8
-
-// widestSeam answers the coordinator to divide at, inside the earliest sentence
-// over the cap.
-func widestSeam(prose string) ([]int, bool) {
-	at := 0
-	for _, sentence := range Sentences(prose) {
-		start := strings.Index(prose[at:], strings.TrimSpace(sentence))
-		if start < 0 {
-			break
-		}
-		start += at
-		end := start + len(strings.TrimSpace(sentence))
-		at = end
-		if WordCount(sentence) <= SentenceWordCap {
-			continue
-		}
-		var seams [][]int
-		for _, seam := range coordinator.FindAllStringIndex(prose[start:end], -1) {
-			if carriesItsOwnSubject(prose[start+seam[1] : end]) {
-				seams = append(seams, seam)
+		opener := ""
+		if loc[2] >= 0 {
+			conjunction := strings.ToLower(strings.TrimSpace(prose[loc[2]:loc[3]]))
+			if replaced, known := connectors[conjunction]; known {
+				end, opener = loc[3], replaced
 			}
 		}
-		if len(seams) == 0 {
-			continue
-		}
-		middle := (end - start) / 2
-		best := seams[0]
-		for _, seam := range seams {
-			if abs(seam[0]-middle) < abs(best[0]-middle) {
-				best = seam
-			}
-		}
-		return []int{start + best[0], start + best[1]}, true
+		joiners = append(joiners, []int{loc[0], end})
+		openers = append(openers, opener)
 	}
-	return nil, false
+	return breakWith(prose, joiners, openers)
 }
 
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
+// offLimits are the spans no break may land in: the data Check hides, and a
+// parenthetical, which STE counts as a single word and a break would halve.
+func offLimits(prose, masked string) [][]int {
+	off := verbatimSpan.FindAllStringIndex(prose, -1)
+	return append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 }
 
-// breakAt rewrites each joiner span as a sentence break, and gives the word
-// after it the capital a sentence opens with.
-func breakAt(prose string, joiners [][]int) string {
+// mask writes filler over every span strip hides from Check, byte for byte,
+// so an offset into the mask is an offset into the prose and both count the
+// same words. A code span and an entity get the word strip writes.
+func mask(prose string) string {
+	out := []byte(prose)
+	for _, span := range verbatimSpan.FindAllStringIndex(prose, -1) {
+		switch prose[span[0]] {
+		case '`':
+			fillWith(out[span[0]:span[1]], "CODE")
+		case '&':
+			fillWith(out[span[0]:span[1]], "ENTITY")
+		default:
+			fill(out[span[0]:span[1]])
+		}
+	}
+	return string(out)
+}
+
+// fillWith writes word over a span, with a space before it and blanks after it.
+// A span too short to hold the word and its spaces gets the plain filler.
+func fillWith(span []byte, word string) {
+	if len(span) < len(word)+2 {
+		fill(span)
+		return
+	}
+	span[0] = ' '
+	copy(span[1:], word)
+	for i := 1 + len(word); i < len(span); i++ {
+		span[i] = ' '
+	}
+}
+
+// fill writes a single filler word over a span. It keeps a space at each end,
+// so the words on either side stay words of their own.
+func fill(span []byte) {
+	for i := range span {
+		span[i] = 'x'
+	}
+	if len(span) > 2 {
+		span[0], span[len(span)-1] = ' ', ' '
+	}
+}
+
+// breakWith rewrites each joiner span as a sentence break. A joiner's opener starts the
+// new sentence when it has a single Otherwise the next word does, with a capital.
+func breakWith(prose string, joiners [][]int, openers []string) string {
 	var out strings.Builder
 	last := 0
-	for _, joiner := range joiners {
+	for n, joiner := range joiners {
 		if joiner[0] < last {
 			continue
 		}
 		out.WriteString(prose[last:joiner[0]])
 		last = joiner[1]
 		if last == len(prose) {
-			// The joiner ends the text, so no word follows to open a sentence.
-			out.WriteString(".")
+			// No word follows to capitalize. A code span can still follow the text, so the space stays.
+			joined := prose[joiner[0]:last]
+			out.WriteString("." + joined[len(strings.TrimRight(joined, " \t")):])
+			continue
+		}
+		out.WriteString(". ")
+		if n < len(openers) && openers[n] != "" {
+			out.WriteString(openers[n] + " ")
 			continue
 		}
 		next, width := utf8.DecodeRuneInString(prose[last:])
-		out.WriteString(". " + string(unicode.ToUpper(next)))
+		out.WriteRune(unicode.ToUpper(next))
 		last += width
 	}
 	out.WriteString(prose[last:])

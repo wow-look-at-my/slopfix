@@ -12,9 +12,7 @@ import (
 // noFlags is scanArgs' "this command has no value-taking flags" argument.
 var noFlags = set.Of[string]()
 
-// A write is a file mutation a segment would perform. The shapes cover every
-// route: a named target, a directory the write lands somewhere under, and a
-// target that cannot be resolved at all.
+// A write is a file mutation a segment would perform.
 type write struct {
 	route string // how the message names the command
 	paths []word // named targets, resolved against dir
@@ -60,7 +58,7 @@ func classifyRoutes(seg segment, roots []string, aliases *aliasResolver, depth i
 			return append(out, w...)
 		}
 		// A verb with no write route of its own may still be an alias for a
-		// write, so provenance must see through the same aliases. expand is a
+		// write, so provenance sees through the same aliases.
 		for _, expanded := range aliases.expand(seg, depth) {
 			out = append(out, classify(expanded, roots, aliases, depth+1)...)
 		}
@@ -165,7 +163,7 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 		return copyWrites(seg, name, rest, roots)
 
 	case "ln":
-		// A symlink replaces the path it is created at, so the link name is the
+		// A symlink replaces the path it is created at, so the link is written.
 		flags, operands := scanArgs(rest, set.Of[string]("-t", "--target-directory"))
 		if v, ok := flags["-t"]; ok {
 			return under("ln -t", abs(seg.cwd, v.text))
@@ -179,6 +177,9 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 		case 1:
 			return one("ln", word{text: filepath.Base(operands[0].text), static: operands[0].static})
 		case 2:
+			if inTreeSymlink(seg.cwd, flags, operands[0], operands[1], roots) {
+				return nil
+			}
 			return one("ln", operands[1])
 		default:
 			return under("ln", abs(seg.cwd, operands[len(operands)-1].text))
@@ -431,7 +432,7 @@ func looksLikePath(cwd string, o word) bool {
 	if !o.static {
 		return true // unknowable, and unknowable denies
 	}
-	// An expression is not a filename. `yq -i '.a = .b' config.yaml` hands the
+	// An expression is not a filename, and it carries a space.
 	if strings.ContainsAny(o.text, " \t") {
 		return false
 	}
@@ -455,6 +456,42 @@ func hasFileExtension(s string) bool {
 		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') {
 			return false
 		}
+	}
+	return true
+}
+
+// inTreeSymlink reports a symbolic link whose target is a relative path to a
+// file the same working tree guards. No edit tool can make a symlink, and its
+// only content is a pointer to authored text. A target outside the tree, or in
+// build output, stays a write, because it brings in text no edit tool wrote.
+func inTreeSymlink(cwd string, flags map[string]word, target, link word, roots []string) bool {
+	_, short := flags["-s"]
+	_, long := flags["--symbolic"]
+	if !short && !long || !target.static || !link.static || filepath.IsAbs(target.text) {
+		return false
+	}
+	linkPath := abs(cwd, link.text)
+	if linkPath == "" {
+		return false
+	}
+	if st, err := os.Stat(linkPath); err == nil && st.IsDir() {
+		linkPath = filepath.Join(linkPath, filepath.Base(target.text))
+	}
+	targetPath := filepath.Join(filepath.Dir(linkPath), target.text)
+	linkRoot, linkIn := insideGuarded(roots, linkPath)
+	targetRoot, targetIn := insideGuarded(roots, targetPath)
+	if !linkIn || !targetIn || linkRoot != targetRoot {
+		return false
+	}
+	// A target that is itself a link must also end in the tree.
+	if st, err := os.Lstat(targetPath); err == nil && st.Mode()&os.ModeSymlink != 0 {
+		real, err := filepath.EvalSymlinks(targetPath)
+		realRoot, rootErr := filepath.EvalSymlinks(linkRoot)
+		if err != nil || rootErr != nil {
+			return false
+		}
+		rel, err := filepath.Rel(realRoot, real)
+		return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 	}
 	return true
 }

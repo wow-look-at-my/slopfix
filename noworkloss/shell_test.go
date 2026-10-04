@@ -2,6 +2,7 @@ package noworkloss
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,23 @@ func TestSyntaxCheckDoesNotRunTheScript(t *testing.T) {
 	require.NotEmpty(t, ask(t, dir, "bash deploy.sh"), "the same script without -n must still deny")
 }
 
+// A shell runs an APE binary as a program, so the walk judges the call and never
+// parses the machine code. A large script that is not an APE still blocks.
+func TestShellRunsAnAPEAsAProgram(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	body := strings.Repeat("\x00\x01binary", maxScriptBytes/8+1)
+	for _, magic := range []string{"MZqFpD='\n", "jartsr='\n", "APEDBG='\n"} {
+		writeAt(t, dir, "build/tool", magic+body)
+		for _, c := range []string{"sh build/tool check .", "bash build/tool", "sh -e ./build/tool fix"} {
+			assert.Empty(t, ask(t, dir, c), "expected ALLOW for %q with %q", c, magic)
+		}
+		require.NotEmpty(t, ask(t, dir, "sh build/tool reset --hard; git reset --hard"), "a later call is still judged")
+	}
+	writeAt(t, dir, "build/big.sh", "#!/bin/sh\n"+strings.Repeat("echo hi\n", maxScriptBytes/8+1))
+	require.NotEmpty(t, ask(t, dir, "sh build/big.sh"), "a large script that is not an APE still blocks")
+}
+
 func TestDeniesThroughMoreWrappers(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -80,7 +98,7 @@ func TestCdScopeFollowsTheShell(t *testing.T) {
 	assert.Empty(t, lossOnly(t, clean, "(cd "+dir+" && git status) && git reset --hard"),
 		"the cd was contained in the subshell, so the reset ran in the clean repo")
 
-	// A cd in a sequence does: the reset ran against the dirty repo, so the
+	// A cd in a sequence does: the reset ran against the dirty repo.
 	_, notices := lossOnlyNotices(t, clean, "cd "+dir+" && git reset --hard")
 	assert.NotEmpty(t, notices)
 }
@@ -95,8 +113,7 @@ func TestRelativeAndAbsoluteCdBothResolve(t *testing.T) {
 	assert.NotEmpty(t, ask(t, parent, "cd "+dir+" && git reset --hard"), "absolute cd")
 }
 
-// `cd -` goes wherever the shell was last, which this hook cannot know, so a
-// destructive command behind it is refused rather than guessed at.
+// `cd -` goes wherever the shell was last, which this hook cannot know.
 func TestCdDashIsUnknowable(t *testing.T) {
 	dir := newRepo(t)
 	r := ask(t, dir, "cd - && git reset --hard")
@@ -111,7 +128,7 @@ func newRepoAt(t *testing.T) string {
 	dir := t.TempDir()
 	dir, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
-	git(t, dir, "init", "-q")
+	git(t, dir, "init", "-q", "-b", fixtureBranch)
 	git(t, dir, "config", "user.email", "guard@example.com")
 	git(t, dir, "config", "user.name", "Guard")
 	writeAt(t, dir, "tracked.go", "package a\n")

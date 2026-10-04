@@ -124,8 +124,7 @@ func TestProseThatMustNotBeAnnotated(t *testing.T) {
 	}
 }
 
-// The line sits under the message, so it stays a single line however many
-// findings there are.
+// The line sits under the message.
 func TestTheAnnotationNamesAtMostThreeFindings(t *testing.T) {
 	got := Annotate("Your call. Let me know. Up to you. Shall I? Want me to?")
 	require.NotEmpty(t, got)

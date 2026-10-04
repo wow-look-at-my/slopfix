@@ -44,7 +44,6 @@ func TestTheFinalFlushSweeps(t *testing.T) {
 	assert.NoFileExists(t, stale)
 }
 
-// A file the sweep does not own is left where it is.
 func TestTheSweepTouchesNothingElse(t *testing.T) {
 	t.Setenv("TMPDIR", t.TempDir())
 

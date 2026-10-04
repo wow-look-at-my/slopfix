@@ -2,8 +2,8 @@
 // the repository, the project or the page itself holds.
 //
 // Such a count is true until somebody adds or removes an item, and nothing
-// corrects it when they do. Deleting the cardinal is the whole repair, and it
-// needs no judgement. The sentence stays true through the next commit.
+// corrects it when they do. The repair takes the cardinal out, and reword.go
+// writes words with no figure where a bare cut breaks the sentence.
 //
 // This package is the document substrate of a rule the comment substrate
 // shares. Which numbers count, and how much a sentence has to claim before a
@@ -17,7 +17,11 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -37,16 +41,20 @@ type Hit struct {
 var inlineCode = regexp.MustCompile("`[^`]*`")
 
 // Check returns every inventory count stated in a document's own voice.
-//
-// The exemptions come from markdown.Split, the same splitter the wrap repair
-// and the STE rules read. A backtick span is blanked within its line: a
-// cardinal inside verbatim machinery is a literal, not the page's own claim,
-// and quoting the shape is how this rule gets documented.
 func Check(content string) []Hit {
+	return find(content, cardinal.Prose, blankInlineCode)
+}
+
+// Gate returns every count the merge gate's stale-count rule reports.
+func Gate(content string) []Hit {
+	return find(content, cardinal.Gate, ste.Masked)
+}
+
+func find(content string, substrate cardinal.Substrate, mask func(string) string) []Hit {
 	var hits []Hit
 	for _, line := range proseLines(content) {
-		text := blankInlineCode(line.text)
-		for _, found := range cardinal.Find(text, cardinal.Prose) {
+		text := mask(line.text)
+		for _, found := range cardinal.Find(text, substrate) {
 			hits = append(hits, Hit{
 				Phrase: found.Text,
 				Line:   strings.TrimSpace(line.text),
@@ -60,32 +68,126 @@ func Check(content string) []Hit {
 	return hits
 }
 
-// Strip removes the cardinal from every inventory count and returns the
-// repaired text with the hits it acted on. Cutting runs back to front, so an
-// earlier span's offsets stay valid.
-func Strip(content string) (string, []Hit) {
-	hits := Check(content)
-	if len(hits) == 0 {
-		return content, nil
-	}
-	ordered := append([]Hit(nil), hits...)
-	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Start > ordered[j].Start })
+func init() {
+	// The inventory count runs before the join. The stale-count cut runs after
+	// it, because a hand wrap hides the frame the gate reads.
+	fixer.Register(fixer.Spec{
+		Label: "counts/inventory-count", Families: []string{"counts"}, Rules: []string{ID},
+		Files: []fixer.Kind{fixer.Document}, Place: 20,
+		Repair: func(f *fixer.File) { f.Apply(Edits(f.Text(), Check(f.Text()))) },
+	})
+	fixer.Register(fixer.Spec{
+		Label: "ste/count", Families: []string{"ste"}, Rules: []string{ste.IDStaleCount},
+		Files: []fixer.Kind{fixer.Document}, Place: 40,
+		Repair: func(f *fixer.File) { f.Apply(Edits(f.Text(), Gate(f.Text()))) },
+	})
+}
 
-	out := content
+func Strip(content string) (string, []Hit) {
+	return strip(content, Check(content))
+}
+
+// StripGate is Strip over what the merge gate's stale-count rule reports.
+func StripGate(content string) (string, []Hit) {
+	return strip(content, Gate(content))
+}
+
+func strip(content string, hits []Hit) (string, []Hit) {
+	res := markdown.Apply(content, Edits(content, hits), edit.Scope{})
 	var cut []Hit
-	for _, hit := range ordered {
-		if hit.Start < 0 || hit.End > len(out) {
-			continue
+	for _, e := range res.Applied {
+		for _, hit := range hits {
+			if e.Start <= hit.Start && hit.Start < e.End {
+				cut = append(cut, hit)
+			}
 		}
-		number := cardinal.Leading.FindString(out[hit.Start:hit.End])
-		if number == "" {
-			continue
-		}
-		out = out[:hit.Start] + out[hit.Start+len(number):]
-		cut = append(cut, hit)
 	}
-	sort.SliceStable(cut, func(i, j int) bool { return cut[i].Start < cut[j].Start })
-	return out, cut
+	return res.Text, cut
+}
+
+// Edits answers an edit per hit that takes its cardinal out. Every hit gets
+// one: reword says what replaces the number when a bare cut leaves broken
+// English.
+func Edits(content string, hits []Hit) []edit.Edit {
+	var out []edit.Edit
+	for _, hit := range hits {
+		if hit.Start < 0 || hit.End > len(content) {
+			continue
+		}
+		if e, ok := reword(content, hit); ok {
+			out = append(out, e)
+			if more, ok := elided(content, hit, hits); ok {
+				out = append(out, more)
+			}
+		}
+	}
+	return out
+}
+
+// elidedNumber is a bare number after a preposition or a conjunction, which ends its phrase.
+var elidedNumber = regexp.MustCompile(`(?i)\b(?:at|to|from|of|by|over|under|than|with|in|and|or)\s+(~?\d[\d,]*|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred)(?:[,;:.!?)]|\s+(?:and|or|but|then|in|on|at|for|before|after|if|when)\b|\s*$)`)
+
+// clauseCoordinator joins the hit's phrase to a parallel one.
+var clauseCoordinator = regexp.MustCompile(`(?i)\b(?:and|or|but)\b`)
+
+// elided answers an edit for a bare number later in the clause that stands for
+// the same quantity as the hit. It says how that number compares, so no number
+// stays half converted.
+func elided(content string, hit Hit, hits []Hit) (edit.Edit, bool) {
+	end := len(content)
+	if i := strings.IndexByte(content[hit.End:], '\n'); i >= 0 {
+		end = hit.End + i
+	}
+	clause := blankInlineCode(content[hit.End:end])
+	if i := strings.IndexAny(clause, ";:!?"); i >= 0 {
+		clause = clause[:i]
+	}
+	if i := strings.Index(clause, ". "); i >= 0 {
+		clause = clause[:i+1]
+	}
+	loc := elidedNumber.FindStringSubmatchIndex(clause)
+	if loc == nil || !clauseCoordinator.MatchString(clause[:loc[2]]) {
+		return edit.Edit{}, false
+	}
+	start := hit.End + loc[2]
+	for _, other := range hits {
+		if other.Start <= start && start < other.End {
+			return edit.Edit{}, false
+		}
+	}
+	first := cardinal.Leading.FindString(content[hit.Start:hit.End])
+	was, now := value(strings.TrimSpace(first)), value(strings.TrimLeft(clause[loc[2]:loc[3]], "~"))
+	text := "the same count"
+	switch {
+	case now > was:
+		text = "a higher count"
+	case now < was:
+		text = "a lower count"
+	}
+	return edit.Edit{Start: start, End: hit.End + loc[3], Text: text, Cut: []string{clause[loc[2]:loc[3]]}}, true
+}
+
+// followsANoun reports whether the cardinal at start comes straight after a
+// noun or a personal pronoun, as in "answer one call two ways". The quantity is
+// then a second noun phrase, and a bare cut leaves "one call ways".
+func followsANoun(content string, start int) bool {
+	from := strings.LastIndexByte(content[:start], '\n') + 1
+	to := len(content)
+	if end := strings.IndexByte(content[start:], '\n'); end >= 0 {
+		to = start + end
+	}
+	words := syntax.Parse(content[from:to], nil).Words
+	for idx, word := range words {
+		if from+word.Start != start {
+			continue
+		}
+		if idx == 0 {
+			return false
+		}
+		tag := words[idx-1].Tag
+		return strings.HasPrefix(tag, "NN") || tag == "PRP"
+	}
+	return false
 }
 
 // proseLine is a line of the document's own voice, with where it begins.

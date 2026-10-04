@@ -1,19 +1,15 @@
 // match.go is the matcher language the prose rules are written in. A term
-// names a word CLASS, which is the thing a regexp has no way to say:
-//
-// A term is {class}, or {class:name} to capture it, or {class*:name} for any
-// number including none. A bare word matches itself. The replacement is plain
-// text with {name} where a capture goes, so a rule can swap a word, delete it,
-// or rewrite the phrase around it.
+// names a word CLASS, which is the thing a regexp has no way to say.
 package table
 
 import "strings"
 
 // A Term is a single element of a match.
 type Term struct {
-	// Classes are the word classes the term matches, and any of them fits. A
-	// literal leaves it empty.
+	// Classes are the word classes the term matches, and any of them fits. A literal leaves it empty.
 	Classes []string
+	// Also are classes the word must belong to as well, whichever of Classes fits.
+	Also []string
 	// Word is the literal a term matches, lowercased.
 	Word string
 	// Name is what the replacement calls this term's text.
@@ -44,6 +40,8 @@ func ParseMatch(s string) (Match, error) {
 	return m, nil
 }
 
+// parseTerm reads {class}, {class:name} or {class*:name}. {a|b} fits either
+// class and {a+b} fits both. A bare word matches itself.
 func parseTerm(field string) (Term, error) {
 	body, braced := strings.CutPrefix(field, "{")
 	if !braced {
@@ -58,7 +56,12 @@ func parseTerm(field string) (Term, error) {
 	if class == "" {
 		return Term{}, errBadTerm(field)
 	}
-	return Term{Classes: strings.Split(class, "|"), Name: name, Many: many}, nil
+	anyOf, also, _ := strings.Cut(class, "+")
+	term := Term{Classes: strings.Split(anyOf, "|"), Name: name, Many: many}
+	if also != "" {
+		term.Also = strings.Split(also, "+")
+	}
+	return term, nil
 }
 
 // Classes answers every class a match names, which is what checks each is
@@ -67,13 +70,18 @@ func (m Match) Classes() []string {
 	var out []string
 	for _, t := range m.Terms {
 		out = append(out, t.Classes...)
+		out = append(out, t.Also...)
 	}
 	return out
 }
 
 // find answers the words a match covers from i, with each capture, or reports
 // that it does not fit here.
-func (m Match) find(lex *Lexicon, tokens []string, i int) (end int, caught map[string]string, ok bool) {
+//
+// A term matches the lowercased tokens and captures from written, which holds
+// the words as their author spelled them. A capture writes a word back, and a
+// name it lowercases is a name that does not exist.
+func (m Match) find(lex *Lexicon, tokens, written []string, i int) (end int, caught map[string]string, ok bool) {
 	caught = map[string]string{}
 	at := i
 	for _, term := range m.Terms {
@@ -83,7 +91,7 @@ func (m Match) find(lex *Lexicon, tokens []string, i int) (end int, caught map[s
 				at++
 			}
 			if term.Name != "" {
-				caught[term.Name] = strings.Join(tokens[start:at], " ")
+				caught[term.Name] = strings.Join(written[start:at], " ")
 			}
 			continue
 		}
@@ -91,7 +99,7 @@ func (m Match) find(lex *Lexicon, tokens []string, i int) (end int, caught map[s
 			return 0, nil, false
 		}
 		if term.Name != "" {
-			caught[term.Name] = tokens[at]
+			caught[term.Name] = written[at]
 		}
 		at++
 	}
@@ -102,6 +110,11 @@ func (m Match) find(lex *Lexicon, tokens []string, i int) (end int, caught map[s
 func (t Term) fits(lex *Lexicon, word string) bool {
 	if len(t.Classes) == 0 {
 		return strings.EqualFold(t.Word, word)
+	}
+	for _, class := range t.Also {
+		if !lex.Is(word, class) {
+			return false
+		}
 	}
 	for _, class := range t.Classes {
 		if lex.Is(word, class) {

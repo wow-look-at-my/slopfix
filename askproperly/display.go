@@ -70,7 +70,7 @@ const findingCap = 80
 
 // finding renders a hit for the annotation. A question hit's text is the
 // sentence WITHOUT the "?" that closed it, because that is where the detector
-// cut it, so the mark goes back on.
+// cut it.
 func finding(hit Hit) string {
 	text := strings.TrimSpace(hit.Text)
 	if hit.Kind == "question" {

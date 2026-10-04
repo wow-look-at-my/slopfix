@@ -5,6 +5,10 @@ on:
     branches: ['**']
   workflow_dispatch:
 
+concurrency:
+  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 permissions:
   id-token: write
   contents: write
@@ -28,8 +32,22 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - uses: wow-look-at-my/go-toolchain@master
         with:
-          # Approves the //go:generate directives; editing one fails the build with the new value.
-          generate: 8015b34dab00
+          # Approves the //go:generate directives; editing a single fails the build with the new value.
+          generate: 165003bec91c
 
-      # The binary this run built, not the last one released, so a new rule gates this repository before it ships.
-      - run: ./build/slopfix workflows .
+      # The fork check reads the repository from the API, and an anonymous call shares the runner IP's rate limit.
+      - run: ./build/slopfix check .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # Runs the action at the root, so a break in the action fails its own repository first.
+      - uses: ./
+        with:
+          permission: contents
+
+      # The marketplace ships this binary inside its slopfix plugin, so each master publish asks cc-marketplace to package it.
+      - name: Ship this build in the marketplace
+        if: github.ref == 'refs/heads/master'
+        uses: wow-look-at-my/cc-marketplace/.github/actions/ship@master
+        with:
+          plugins: slopfix

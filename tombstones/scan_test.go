@@ -9,20 +9,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestABlockCommentIsOneFinding(t *testing.T) {
+// than a line at a time.
+func TestABlockCommentIsOneUnit(t *testing.T) {
 	src := "/*\nThe loader previously read the flag.\n*/\nfunc f() {}\n"
 	blocks := AddedBlocks("a.go", src)
-	require.NotEmpty(t, blocks)
+	require.Len(t, blocks, 1)
 
-	hits := Find(blocks, 0)
-	require.Len(t, hits, 1)
-	assert.Equal(t, "a former state", hits[0].Tell)
+	repair := Fix("a.go", src, DefaultMaxCommentLines)
+	assert.True(t, repair.Changed)
+	assert.NotContains(t, repair.Text, "previously")
+	assert.Contains(t, repair.Text, "func f() {}")
 }
 
-func TestAHashCommentIsScannedToo(t *testing.T) {
-	hits := Find(AddedBlocks("run.sh", "# this used to call the other one\nrun\n"), 0)
-	require.Len(t, hits, 1)
-	assert.True(t, hits[0].Strippable)
+func TestAHashCommentIsRewrittenToo(t *testing.T) {
+	repair := Fix("run.sh", "# this used to call the other one\nrun\n", DefaultMaxCommentLines)
+
+	assert.True(t, repair.Changed)
+	assert.Equal(t, "run\n", repair.Text)
 }
 
 func TestAMarkerInsideAStringIsNotAComment(t *testing.T) {

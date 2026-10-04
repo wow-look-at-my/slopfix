@@ -127,39 +127,6 @@ func hasFileRead(f *syntax.File) bool {
 	})
 }
 
-// hasGitRM: the SUBCOMMAND is the leading non-flag word after `git`, so
-// `git -C dir rm f` counts while `git commit -m rm` does not. `--cached`
-// anywhere only unstages, and passes through.
-func hasGitRM(f *syntax.File) bool {
-	return hasStatementCall(f, func(c *syntax.CallExpr) bool {
-		e, ok := effectiveCommand(c)
-		if !ok || e.name != "git" {
-			return false
-		}
-		sub, skip := "", false
-		for _, w := range c.Args[e.index+1:] {
-			s, st := literal(w)
-			if st && s == "--cached" {
-				return false
-			}
-			if sub != "" || skip {
-				skip = false
-				continue
-			}
-			switch {
-			case !st:
-				sub = "?"
-			case s == "-C" || s == "-c":
-				skip = true
-			case strings.HasPrefix(s, "-"):
-			default:
-				sub = s
-			}
-		}
-		return sub == "rm"
-	})
-}
-
 var (
 	sizeZeroFlag = regexp.MustCompile(`^(-s|--size=)0+$`)
 	allZeros     = regexp.MustCompile(`^0+$`)

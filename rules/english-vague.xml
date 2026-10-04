@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <!--
   Prose the rule knows is bad and must not rewrite. A <flag> has no single
   correct replacement, so guessing one would put a wrong sentence in a comment
@@ -8,7 +8,7 @@
   `say` is addressed to whoever reads the finding, so it names the repair
   rather than restating the rule.
 -->
-<rules for="english">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="english">
 
   <flag id="as-mentioned-above" phrase="as mentioned above"
         say="name the thing, not its position: an edit above this moves it">

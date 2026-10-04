@@ -8,65 +8,12 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// runBlock is a run: script, and the line its content starts on.
-type runBlock struct {
-	start int
-	lines []string
-}
+// runBlock is a run: script.
+type runBlock = scriptRows
 
-var runKey = regexp.MustCompile(`^(\s*)(-\s+)?run:\s*(.*)$`)
-
-// blockScalar matches the | and > forms, with their chomping and indent digits.
-var blockScalar = regexp.MustCompile(`^[|>][+-]?\d*$`)
-
-// runBlocks reads every run: script. A regex walk rather than a parse, since a
-// file this rule rejects may also be a file a parser rejects.
+// runBlocks reads every run: script off the parser.
 func runBlocks(content string) []runBlock {
-	all := lines(content)
-	var blocks []runBlock
-
-	for index := 0; index < len(all); index++ {
-		match := runKey.FindStringSubmatch(all[index])
-		if match == nil {
-			continue
-		}
-		// A sequence item carries its key past the dash, so the KEY sets the end.
-		indent := len(match[1]) + len(match[2])
-		rest := strings.TrimSpace(match[3])
-		if !blockScalar.MatchString(rest) {
-			if rest != "" {
-				blocks = append(blocks, runBlock{start: index + 1, lines: []string{rest}})
-			}
-			continue
-		}
-
-		var body []string
-		cursor := index + 1
-		for ; cursor < len(all); cursor++ {
-			line := all[cursor]
-			if strings.TrimSpace(line) == "" {
-				body = append(body, "")
-				continue
-			}
-			if indentOf(line) <= indent {
-				break
-			}
-			body = append(body, line)
-		}
-		// A trailing run of blank lines belongs to the document, not the script.
-		for len(body) > 0 && body[len(body)-1] == "" {
-			body = body[:len(body)-1]
-		}
-		if len(body) > 0 {
-			blocks = append(blocks, runBlock{start: index + 2, lines: body})
-		}
-		index = cursor - 1
-	}
-	return blocks
-}
-
-func indentOf(line string) int {
-	return len(line) - len(strings.TrimLeft(line, " \t"))
+	return scripts(content)
 }
 
 // testFileNames match a name only a test suite gives a file.
@@ -111,11 +58,16 @@ var redirectTarget = regexp.MustCompile(`(?:^|[^>\d])>>?\s*(?:"([^"]+)"|'([^']+)
 
 var exitWord = regexp.MustCompile(`\bexit\b`)
 
-// testsInYAML reports every test written into a run: script.
+// testsInYAML reports every test written into a run: script. Each finding is
+// a warning: a line of a run: script is shell, so no rewrite deletes it, and
+// moving a case into the suite is the author's call.
 func testsInYAML(content string) []ste.Finding {
 	var out []ste.Finding
 	for _, block := range runBlocks(content) {
-		out = append(out, block.findings()...)
+		for _, f := range block.findings() {
+			f.Severity = ste.SeverityWarning
+			out = append(out, f)
+		}
 	}
 	return out
 }

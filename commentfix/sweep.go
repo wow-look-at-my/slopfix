@@ -8,16 +8,19 @@
 package commentfix
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/forkscope"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // skipDirs hold text nobody in the tree authored.
-var skipDirs = set.Of("vendor", "node_modules", "testdata", "build")
+var skipDirs = set.Of("vendor", "node_modules", "testdata", "build", "dist")
 
 // MaxFileBytes is where a file stops being prose and becomes a blob.
 const MaxFileBytes = 1 << 20
@@ -32,6 +35,19 @@ type TreeResult struct {
 	Removed []Removal
 	// Findings carry what no repair covered, and the repair covers everything.
 	Findings []Finding
+	// Rewrites carry each file the sweep wrote, as a diff under its rule.
+	Rewrites []Rewrite
+	// Rejected names each rewrite the guard threw away.
+	Rejected []Rejection
+	// Skipped says why the sweep wrote nothing at all. It is empty when it ran.
+	Skipped string
+}
+
+// Rewrite is what the sweep wrote to a file, and the rule that wrote it.
+type Rewrite struct {
+	Path string
+	Rule string
+	Diff string
 }
 
 // Removal is a piece of prose the repair deleted.
@@ -48,26 +64,85 @@ type Finding struct {
 	Number string
 }
 
-// FixTree rewrites every comment under root and reports what it did. A file is
-// written only when the repair changed it.
+// FixTree is FixTreeIn with the fork found from the process environment.
 func FixTree(root string) TreeResult {
+	return FixTreeIn(forkscope.Resolver{}, root)
+}
+
+// FixTreeIn rewrites the comments under root and reports what it did. A file
+// is written only when the repair changed it.
+//
+// A build calls this on the author's working copy. Inside git it writes only
+// the files the branch changed since its merge base with the default branch.
+// It writes nothing while a merge, rebase, cherry-pick or revert waits for the
+// user. A root outside git has no branch to scope by, so the whole tree goes.
+// In a fork that forks finds, a file the fork never touched is neither read
+// nor written, and a repair lands only on the lines the fork wrote. A fork
+// whose base cannot be read writes nothing.
+func FixTreeIn(forks forkscope.Resolver, root string) TreeResult {
 	var out TreeResult
+	if stopped, err := operationInProgress(root); err == nil && stopped != "" {
+		out.Skipped = stopped + " is in progress, so the sweep wrote nothing"
+		return out
+	}
+	writable, err := changedFiles(root)
+	scoped := err == nil
+	if err != nil && !errors.Is(err, errNoGit) {
+		out.Skipped = "the sweep wrote nothing: " + err.Error()
+		return out
+	}
+	own, err := forks.Lines(root)
+	if err != nil {
+		out.Skipped = "the sweep wrote nothing: " + err.Error()
+		return out
+	}
 	for _, path := range TreeFiles(root) {
+		if scoped && !writable.Contains(realPath(path)) {
+			continue
+		}
+		scope := forkscope.Whole()
+		if own != nil {
+			if scope = own.Scope(path); scope.Empty() {
+				continue
+			}
+		}
 		src, err := os.ReadFile(path)
 		if err != nil {
 			continue
 		}
 		out.Read++
 		fixed := Fix(path, string(src))
-		if fixed.Changed && write(path, fixed.Text) == nil {
+		text := forkscope.Keep(string(src), fixed.Text, scope)
+		if text != string(src) && write(path, text) == nil {
 			out.Repaired = append(out.Repaired, path)
+			out.Rewrites = append(out.Rewrites, Rewrite{Path: path, Rule: ID, Diff: UnifiedDiff(path, string(src), text)})
 		}
-		for _, text := range fixed.Removed {
-			out.Removed = append(out.Removed, Removal{Path: path, Text: text})
+		cut := forkscope.Removed(string(src), text)
+		for _, removed := range fixed.Removed {
+			if strings.Contains(cut, strings.TrimSpace(removed)) {
+				out.Removed = append(out.Removed, Removal{Path: path, Text: removed})
+			}
 		}
-		out.Findings = append(out.Findings, findings(path, fixed.Text)...)
+		out.Rejected = append(out.Rejected, fixed.Rejected...)
+		owned := forkscope.Carry(string(src), text, scope)
+		for _, finding := range findings(path, text) {
+			if owned.Owns(finding.Line) {
+				out.Findings = append(out.Findings, finding)
+			}
+		}
 	}
 	return out
+}
+
+// realPath answers path as git names it: absolute, with every link resolved.
+func realPath(path string) string {
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	}
+	return path
 }
 
 // CheckTree reads the same files and writes none, so a caller can ask what a
@@ -101,7 +176,11 @@ func findings(path, src string) []Finding {
 }
 
 // write renames a temp file over the target, so a concurrent reader never sees a torn file.
-func write(path, text string) error {
+func write(path, text string) error { return WriteFile(path, text) }
+
+// WriteFile replaces path with text through a rename. A run killed part way
+// leaves the file whole: either as it was or as the repair wrote it.
+func WriteFile(path, text string) error {
 	info, err := os.Stat(path)
 	mode := os.FileMode(0o644)
 	if err == nil {
@@ -136,13 +215,15 @@ func TreeFilesMatching(root string, reads func(string) bool) []string {
 	// Where the root is not a module, the modules below it are the whole tree.
 	_, err := os.Stat(filepath.Join(root, "go.mod"))
 	rootIsModule := err == nil
+	// A gitlink stays a submodule when nobody ran init and a build copied files into it.
+	gitlinks, _ := gitmod.Skip(root)
 	var out []string
 	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
-			if skipDir(root, path, d.Name(), rootIsModule) {
+			if skipDir(root, path, d.Name(), rootIsModule) || gitlinks.Contains(gitmod.Resolved(path)) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -156,7 +237,7 @@ func TreeFilesMatching(root string, reads func(string) bool) []string {
 		out = append(out, path)
 		return nil
 	})
-	return out
+	return withoutVendored(root, withoutIgnored(root, out))
 }
 
 // skipDir reports whether the walk stops here. A nested module's prose belongs
@@ -166,13 +247,25 @@ func skipDir(root, path, name string, rootIsModule bool) bool {
 	if path == root {
 		return false
 	}
+	if name == ".github" {
+		// The workflows the gate reads live under a dotted directory, so the rule.
+		return false
+	}
 	if strings.HasPrefix(name, ".") || skipDirs.Contains(name) {
 		return true
 	}
-	if IsSubmodule(path) {
+	if IsSubmodule(path) || isNestedClone(path) {
 		return true
 	}
 	return rootIsModule && isNestedModule(path)
+}
+
+// isNestedClone reports whether dir holds a repository of its own, as a second
+// checkout in a CI workspace does. Its prose belongs to that repository.
+func isNestedClone(dir string) bool {
+	head, headErr := os.Stat(filepath.Join(dir, ".git", "HEAD"))
+	objects, objectsErr := os.Stat(filepath.Join(dir, ".git", "objects"))
+	return headErr == nil && head.Mode().IsRegular() && objectsErr == nil && objects.IsDir()
 }
 
 // IsSubmodule reports whether dir is a git submodule's working tree. Git marks

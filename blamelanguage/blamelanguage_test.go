@@ -32,8 +32,7 @@ func TestMatchingIgnoresCase(t *testing.T) {
 	assert.NotEmpty(t, Check("Not My Problem."))
 }
 
-// A markdown line wrap splits a phrase. The collapsed text still matches, and
-// the hit still names the line it started on.
+// A markdown line wrap splits a phrase. The collapsed text still matches.
 func TestAPhraseSplitAcrossALineWrapIsFound(t *testing.T) {
 	hits := Check("The suite is green.\nIt is worth your\nattention though.")
 	require.NotEmpty(t, hits)
