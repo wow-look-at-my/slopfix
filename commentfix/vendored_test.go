@@ -34,6 +34,35 @@ func TestTheWalkSkipsAPathMarkedVendored(t *testing.T) {
 	assert.NotContains(t, files, filepath.Join(root, "isa", "ch01.go"))
 }
 
+// A CI container checks the tree out as another user, and git refuses to read
+// it. Every skip that asks git must still hold there.
+func TestTheSkipsHoldInATreeAnotherUserOwns(t *testing.T) {
+	root := t.TempDir()
+	run := func(args ...string) {
+		out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput()
+		require.NoError(t, err, string(out))
+	}
+	run("init", "-q")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "isa"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".gitattributes"), []byte("isa/** linguist-vendored\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".gitignore"), []byte("out.go\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "isa", "ch01.go"), []byte("package p\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "out.go"), []byte("package p\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "own.go"), []byte("package p\n"), 0o644))
+
+	t.Setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+	// A CI runner trusts every directory in its global config.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	refused := exec.Command("git", "-C", root, "status")
+	require.Error(t, refused.Run(), "git must refuse the tree, or this test proves nothing")
+
+	files := TreeFiles(root)
+	assert.Contains(t, files, filepath.Join(root, "own.go"))
+	assert.NotContains(t, files, filepath.Join(root, "isa", "ch01.go"), "the vendored skip turned off")
+	assert.NotContains(t, files, filepath.Join(root, "out.go"), "the ignored skip turned off")
+}
+
 // A path .gitattributes marks linguist-generated is a generator's output. The
 // next run writes it again, so the walk leaves it out too.
 func TestTheWalkSkipsAPathMarkedGenerated(t *testing.T) {

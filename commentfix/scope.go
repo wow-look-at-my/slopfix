@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // inProgressMarkers are the paths git writes while an operation stops for the
@@ -32,9 +33,7 @@ var errNoGit = errors.New("not inside a git work tree")
 
 // git runs a git command in dir and answers its trimmed output.
 func git(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	out, err := cmd.Output()
+	out, err := gitmod.Command(dir, args...).Output()
 	if err != nil {
 		var exit *exec.ExitError
 		if errors.As(err, &exit) {
