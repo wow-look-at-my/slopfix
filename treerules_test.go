@@ -287,7 +287,7 @@ const namespacedXSD = `<?xml version="1.1" encoding="UTF-8"?>
 func TestXMLNamesItsSchemaByANamespacePair(t *testing.T) {
 	located := `xmlns="urn:t" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:t ns.xsd"`
 	root := gitRepo(t, map[string]string{
-		"ns.xsd":  namespacedXSD,
+		"ns.xsd":   namespacedXSD,
 		"good.xml": xmlDoc(`<rule ` + located + "\n      " + `id="a"/>`),
 		"bad.xml":  xmlDoc(`<rule ` + located + "\n      " + `other="a"/>`),
 	})
