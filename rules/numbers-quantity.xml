@@ -45,6 +45,12 @@
     <test in="The three agree" out="Those agree"/>
     <test in="The three that fail stop the run" out="Those that fail stop the run"/>
   </rephrase>
+  <!-- "those" already points back at the set, so the cardinal after it only
+       claims a size. -->
+  <rephrase id="those-cardinal" match="those {cardinal:c}" to="those">
+    <test in="It would miss those two" out="It would miss those"/>
+    <test in="Those three agree" out="Those agree"/>
+  </rephrase>
 
   <!-- A preposition after the cardinal means the cardinal is the noun phrase
        itself: "two of them" names a part of a group. Cutting the cardinal
