@@ -384,6 +384,10 @@ func (w *walker) shellCall(eff []word, cwd string) bool {
 		if strings.HasPrefix(t, "-") {
 			continue
 		}
+		if eff[i].static && isAPE(abs(cwd, t)) {
+			w.emit(eff[i:], cwd)
+			return true
+		}
 		w.scriptFile(eff[i], cwd, true)
 		return true
 	}
