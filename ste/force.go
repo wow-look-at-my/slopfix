@@ -375,7 +375,35 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if opensImperative(restMasked) {
 		return joinOpener(opener, rest), opensOwnClause
 	}
+	if !opensNounPhrase(s) {
+		// "This is from there" and "This is not /var" are no sentences, so the cut is not made here.
+		return "", 0
+	}
+	if hasMainVerb(s) {
+		// The rest already has its verb, and "This is" in front would give it a second one.
+		return joinOpener(opener, rest), opensOwnClause
+	}
 	return joinOpener(opener, "this is "+rest), opensWithFill
+}
+
+// nounPhraseOpeners are the tags a noun phrase opens with.
+var nounPhraseOpeners = set.Of("DT", "PDT", "PRP$", "CD", "JJ", "JJR", "JJS", "NN", "NNS", "NNP", "NNPS")
+
+// opensNounPhrase reports a rest whose first word opens a noun phrase, the
+// only rest "This is" can stand in front of.
+func opensNounPhrase(s *syntax.Sentence) bool {
+	return len(s.Words) > 0 && nounPhraseOpeners.Contains(s.Words[0].Tag)
+}
+
+// hasMainVerb reports a finite verb outside every subordinate and relative
+// clause, as in "a command that needs the host is not sandboxed".
+func hasMainVerb(s *syntax.Sentence) bool {
+	for _, c := range s.Clauses {
+		if c.Depth == 0 && c.Verb != nil && c.Verb.Finite && c.Kind != syntax.Relative {
+			return true
+		}
+	}
+	return false
 }
 
 // openingBytes bounds how much of the rest the parser reads. Only its first clause decides how the rest opens.

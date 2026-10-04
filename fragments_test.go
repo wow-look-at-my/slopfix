@@ -41,6 +41,7 @@ func TestFixLeavesNoFragmentOfASentenceItCuts(t *testing.T) {
 	assert.NotContains(t, out, "used to")
 	assert.NotContains(t, out, "bookkeeping, as")
 	assert.NotContains(t, out, "Adopting")
-	assert.Contains(t, out, "(nothing to do).\nfunc (r *runner) handleMultiLink", "the break before the cut paragraph goes too")
+	assert.Contains(t, out, ".\nfunc (r *runner) handleMultiLink", "the comment ends on a whole sentence")
+	assert.NotContains(t, out, "//\nfunc", "the break before the cut paragraph goes too")
 	assert.Equal(t, strings.Count(out, "("), strings.Count(out, ")"), "every aside closes")
 }

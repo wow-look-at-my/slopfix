@@ -128,6 +128,25 @@ func TestAForcedDivisionKeepsANounPhraseWhole(t *testing.T) {
 	assert.Contains(t, got, "a detached fetch", got)
 }
 
+// dash is the em dash dats writes between an aside and its sentence.
+var dash = string(rune(0x2014))
+
+// The paragraphs of dats docs/cli.md that the forced division wrote as "This
+// is a command that genuinely needs the host is not a sandboxed command.",
+// "This is from there", "This is use `inputs.copy`" and "This is not `/var`".
+// "This is" goes only in front of a noun phrase with no verb of its own.
+func TestAForcedDivisionNeverWritesThisIsInFrontOfAClauseOrAPhrase(t *testing.T) {
+	for _, in := range []string{
+		"**Writes** are confined to the file's temp directory (plus `--coverdir`, whose data has to outlive the run). There is deliberately no way to declare additional writable HOST paths: something to write is the temp directory " + dash + " a real filesystem inside every backend " + dash + " and a command that genuinely needs the host is not a sandboxed command, so it belongs to a `--no-sandbox` run. That includes a binary that rewrites itself on first run, such as an APE: copy it into the temp directory and run it from there, or run the file unsandboxed. To pull an *existing* host file into the temp directory so a command can modify a copy of it, use `inputs.copy` or `shared.copy` (see [file-format.md](file-format.md#copy-fixtures-inputscopy-and-sharedcopy)) " + dash + " the read-write counterpart of the working directory's read-only bind mount, resolved and copied before the sandbox starts.",
+		"**Reads are confined under bwrap and docker**: a command sees the OS tool tree, the working directory, and the paths the file declared " + dash + " not `$HOME`, not `/var`, not another checkout on the machine. bwrap used to bind `/` read-only, which made every suite a reader of the whole host and made the two backends expose entirely different filesystems.",
+	} {
+		got := ste.Fix(in)
+		for _, bad := range []string{"This is a command", "This is from", "This is use", "This is not", "This is or"} {
+			assert.NotContains(t, got, bad, got)
+		}
+	}
+}
+
 // A verb that opens the rest gets the subject again.
 func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 	in := "The cache keeps every answer the upstream sent for the whole day across the restart of the process and the reload of the spec and holds the rows."

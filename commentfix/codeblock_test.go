@@ -126,8 +126,9 @@ const displayShapeSource = "package codegen\n\n" +
 // Joined, the row read "map. anything else Struct interiors are NOT encoded
 // here.", which is no sentence.
 func TestACutNeverJoinsACodeRowIntoProse(t *testing.T) {
-	require.NotEmpty(t, Check("alloc.go", displayShapeSource), "the comment runs longer than its code")
-	out := Fix("alloc.go", displayShapeSource).Text
+	require.NotEmpty(t, CheckLength("alloc.go", displayShapeSource), "the comment runs longer than its code")
+	out, changed := FixLength("alloc.go", displayShapeSource)
+	require.True(t, changed)
 
 	assert.NotContains(t, out, "map. anything else")
 	assert.NotContains(t, out, "e<Name>; enum")
@@ -137,7 +138,7 @@ func TestACutNeverJoinsACodeRowIntoProse(t *testing.T) {
 		}
 	}
 	assert.Contains(t, out, "// displayShape encodes where enums sit inside a type")
-	assert.Empty(t, Check("alloc.go", out))
+	assert.Empty(t, CheckLength("alloc.go", out))
 }
 
 // FixLengthText runs the length repair and answers what it wrote.
