@@ -80,6 +80,94 @@ func TestAnUntrustedExpressionStaysInEnv(t *testing.T) {
 	assert.Empty(t, envIndirections(content))
 }
 
+// dispatched is a workflow whose dispatch takes a free-text tag and a boolean,
+// with one step reading the env entry the caller names.
+func dispatched(entry string) string {
+	return "on:\n" +
+		"  workflow_dispatch:\n" +
+		"    inputs:\n" +
+		"      image_tag:\n" +
+		"        type: string\n" +
+		"      untyped:\n" +
+		"        description: no type\n" +
+		"      build_docker:\n" +
+		"        type: boolean\n" +
+		"      flavor:\n" +
+		"        type: choice\n" +
+		"        options: [a, b]\n" +
+		"  workflow_call:\n" +
+		"    inputs:\n" +
+		"      called:\n" +
+		"        type: string\n" +
+		"      count:\n" +
+		"        type: number\n" +
+		"jobs:\n" +
+		"  a:\n" +
+		"    runs-on: ubuntu-latest\n" +
+		"    steps:\n" +
+		"      - env:\n" +
+		"          VALUE: " + entry + "\n" +
+		"        run: |\n" +
+		"          if [ -n \"$VALUE\" ]; then\n" +
+		"            IMAGE_TAGS=\"${VALUE}\"\n" +
+		"          fi\n"
+}
+
+// An expression an outside party writes is shell injection once it is
+// expanded inside run:, so the entry stays where it is, unreported.
+func TestAnExpressionAnOutsiderWritesStaysInEnv(t *testing.T) {
+	for _, expr := range []string{
+		"${{ inputs.image_tag }}",
+		"${{ inputs.untyped }}",
+		"${{ inputs.flavor }}",
+		"${{ inputs.called }}",
+		"${{ inputs['build_docker'] }}",
+		"${{ inputs.undeclared }}",
+		"${{ inputs.build_docker && inputs.image_tag }}",
+		"${{ github.event.inputs.image_tag }}",
+		"${{ github.event.head_commit.message }}",
+		"${{ github.event.pull_request.body }}",
+		"${{ github.head_ref }}",
+	} {
+		content := dispatched(expr)
+		assert.Empty(t, envIndirections(content), expr)
+		got := Fix(content, func(string) bool { return true })
+		assert.Equal(t, content, got.Text, expr)
+	}
+}
+
+// An expression whose value cannot carry shell text still goes inline.
+func TestAnExpressionWithNoOutsideTextIsInlined(t *testing.T) {
+	for _, expr := range []string{
+		"${{ inputs.build_docker }}",
+		"${{ inputs.count }}",
+		"${{ github.event_name }}",
+		"${{ runner.temp }}",
+	} {
+		content := dispatched(expr)
+		require.Len(t, envIndirections(content), 1, expr)
+		got := Fix(content, func(id string) bool { return id == IDEnvIndirection })
+		assert.Contains(t, got.Text, "IMAGE_TAGS=\""+expr+"\"", expr)
+		assert.NotContains(t, got.Text, "VALUE:", expr)
+	}
+}
+
+// Every input of a composite action is text its caller writes.
+func TestACompositeActionInputStaysInEnv(t *testing.T) {
+	content := "name: x\n" +
+		"inputs:\n" +
+		"  flag:\n" +
+		"    default: 'false'\n" +
+		"runs:\n" +
+		"  using: composite\n" +
+		"  steps:\n" +
+		"    - shell: bash\n" +
+		"      env:\n" +
+		"        FLAG: ${{ inputs.flag }}\n" +
+		"      run: echo \"$FLAG\"\n"
+	assert.Empty(t, envIndirections(content))
+}
+
 // A script action's result is JSON, and its quotes end a quoted script word
 // early. A secret written into the script lands in the script file on disk.
 func TestAScriptResultOrASecretStaysInEnv(t *testing.T) {

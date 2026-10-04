@@ -29,6 +29,9 @@ var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate
 // NetworkIDs names the rules that ask the network, which Check never does.
 var NetworkIDs = set.Of(IDBranchPin)
 
+// WarningIDs names the rules here whose findings are warnings.
+var WarningIDs = set.Of(IDTestInYAML)
+
 // Judges reports whether these rules read the file at this path. A backslash is
 // separated here rather than through filepath, which ignores it off Windows.
 func Judges(name string) bool {

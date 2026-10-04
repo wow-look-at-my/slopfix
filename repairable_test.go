@@ -23,7 +23,7 @@ func TestEveryRuleCarriesARepair(t *testing.T) {
 	var missing []string
 	for id := range slopfix.EveryID().All() {
 		// A warning asks for a person's judgment and fails nothing, so no repair answers it.
-		if !slopfix.Repairable(id) && !ste.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) {
+		if !slopfix.Repairable(id) && !slopfix.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) {
 			missing = append(missing, id)
 		}
 	}
@@ -40,7 +40,7 @@ func TestEveryErrorRuleHasARepairPath(t *testing.T) {
 	}
 	var missing []string
 	for id := range slopfix.EveryID().All() {
-		if !ste.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) && !served.Contains(id) {
+		if !slopfix.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) && !served.Contains(id) {
 			missing = append(missing, id)
 		}
 	}
