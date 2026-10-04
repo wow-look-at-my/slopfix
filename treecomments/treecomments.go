@@ -172,7 +172,22 @@ func Extract(filename, src string) []Comment {
 	if strings.HasSuffix(filename, "_test.go") {
 		out = withoutExampleOutput(out)
 	}
+	if _, named := grammars[strings.ToLower(filepath.Ext(filename))]; !named {
+		out = wholeLineOnly(src, out)
+	}
 	return out
+}
+
+// wholeLineOnly keeps the comments that open their line. A file the bash
+// grammar reads only as a fallback is not shell.
+func wholeLineOnly(src string, comments []Comment) []Comment {
+	kept := comments[:0]
+	for _, c := range comments {
+		if c.Col == indentOf(src, c) {
+			kept = append(kept, c)
+		}
+	}
+	return kept
 }
 
 // exampleOutput opens the comment that go test compares an example's output to.
