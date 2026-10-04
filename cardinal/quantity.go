@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -236,6 +237,14 @@ func StatusCode(text string, q Match) bool {
 func Labeled(text string, q Match) bool {
 	before := strings.Fields(text[:q.At])
 	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
+}
+
+// SectionCite exempts a number behind a section sign, as in "§9 trigger". It
+// cites a section, so it counts nothing.
+func SectionCite(text string, q Match) bool {
+	before := strings.TrimRight(strings.TrimRight(text[:q.At], " \t"), "0123456789.")
+	last, size := utf8.DecodeLastRuneInString(before)
+	return size > 0 && last == sectionSign
 }
 
 // IssueNumber exempts the digits of the literal shape "issue #<digits>". An

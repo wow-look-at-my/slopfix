@@ -123,6 +123,8 @@ var (
 	wordPattern = regexp.MustCompile(`[A-Za-z]+(?:'[A-Za-z]+)?`)
 	// codeSpan matches an inline code span, whose contents are data.
 	codeSpan = regexp.MustCompile("`[^`]*`")
+	// sectionLink matches a link that cites a section by its slug.
+	sectionLink = regexp.MustCompile(`\[§[^\]\s]*\]\([^)\s]*\)`)
 	// linkTarget matches a markdown link's URL, which is not prose.
 	linkTarget = regexp.MustCompile(`\]\([^)]*\)`)
 	// entity ENDS IN A SEMICOLON, which unmasked prose reports as its own.
@@ -197,6 +199,8 @@ var proseRules = []proseRule{
 func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
+	// A section link reads as the citation it replaced, which holds no word.
+	text = sectionLink.ReplaceAllString(text, "§")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
 	text = entity.ReplaceAllString(text, " ENTITY ")
 	// A quotation is another voice, so no rule judges the words inside it.

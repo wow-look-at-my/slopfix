@@ -72,10 +72,11 @@ func IDsFor(rule Rule) set.Set[string] {
 }
 
 // proseIDsIn answers the prose rules whose ID prefix names the category. The
-// ste package runs rules of the counts and english categories too.
+// ste package runs rules of the counts and english categories too, and the
+// counts package runs the section rule.
 func proseIDsIn(rule Rule) set.Set[string] {
 	ids := set.New[string]()
-	all := ste.AllIDs.Union(set.Of(english.AllIDs...)).Union(set.Of(counts.ID))
+	all := ste.AllIDs.Union(set.Of(english.AllIDs...)).Union(set.Of(counts.ID, counts.IDSection))
 	for id := range all.All() {
 		if categoryOf(id) == rule {
 			ids.Add(id)
@@ -247,6 +248,9 @@ func fixText(req Request) Repair {
 			}
 		}
 	case fixer.Document:
+		if wants(RuleCounts) && keeps(counts.IDSection) {
+			repair.Findings = append(repair.Findings, counts.SectionFindings(req.Path, text)...)
+		}
 		for _, finding := range Check(text) {
 			if wants(categoryOf(finding.ID)) && keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
