@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
@@ -63,14 +64,22 @@ type Finding struct {
 	Number string
 }
 
-// FixTree rewrites the comments under root and reports what it did. A file is
-// written only when the repair changed it.
+// FixTree is FixTreeIn with the fork found from the process environment.
+func FixTree(root string) TreeResult {
+	return FixTreeIn(forkscope.Resolver{}, root)
+}
+
+// FixTreeIn rewrites the comments under root and reports what it did. A file
+// is written only when the repair changed it.
 //
 // A build calls this on the author's working copy. Inside git it writes only
 // the files the branch changed since its merge base with the default branch.
 // It writes nothing while a merge, rebase, cherry-pick or revert waits for the
 // user. A root outside git has no branch to scope by, so the whole tree goes.
-func FixTree(root string) TreeResult {
+// In a fork that forks finds, a file the fork never touched is neither read
+// nor written, and a repair lands only on the lines the fork wrote. A fork
+// whose base cannot be read writes nothing.
+func FixTreeIn(forks forkscope.Resolver, root string) TreeResult {
 	var out TreeResult
 	if stopped, err := operationInProgress(root); err == nil && stopped != "" {
 		out.Skipped = stopped + " is in progress, so the sweep wrote nothing"
@@ -82,9 +91,20 @@ func FixTree(root string) TreeResult {
 		out.Skipped = "the sweep wrote nothing: " + err.Error()
 		return out
 	}
+	own, err := forks.Lines(root)
+	if err != nil {
+		out.Skipped = "the sweep wrote nothing: " + err.Error()
+		return out
+	}
 	for _, path := range TreeFiles(root) {
 		if scoped && !writable.Contains(realPath(path)) {
 			continue
+		}
+		scope := forkscope.Whole()
+		if own != nil {
+			if scope = own.Scope(path); scope.Empty() {
+				continue
+			}
 		}
 		src, err := os.ReadFile(path)
 		if err != nil {
@@ -92,15 +112,24 @@ func FixTree(root string) TreeResult {
 		}
 		out.Read++
 		fixed := Fix(path, string(src))
-		if fixed.Changed && write(path, fixed.Text) == nil {
+		text := forkscope.Keep(string(src), fixed.Text, scope)
+		if text != string(src) && write(path, text) == nil {
 			out.Repaired = append(out.Repaired, path)
-			out.Rewrites = append(out.Rewrites, Rewrite{Path: path, Rule: ID, Diff: UnifiedDiff(path, string(src), fixed.Text)})
+			out.Rewrites = append(out.Rewrites, Rewrite{Path: path, Rule: ID, Diff: UnifiedDiff(path, string(src), text)})
 		}
-		for _, text := range fixed.Removed {
-			out.Removed = append(out.Removed, Removal{Path: path, Text: text})
+		cut := forkscope.Removed(string(src), text)
+		for _, removed := range fixed.Removed {
+			if strings.Contains(cut, strings.TrimSpace(removed)) {
+				out.Removed = append(out.Removed, Removal{Path: path, Text: removed})
+			}
 		}
 		out.Rejected = append(out.Rejected, fixed.Rejected...)
-		out.Findings = append(out.Findings, findings(path, fixed.Text)...)
+		owned := forkscope.Carry(string(src), text, scope)
+		for _, finding := range findings(path, text) {
+			if owned.Owns(finding.Line) {
+				out.Findings = append(out.Findings, finding)
+			}
+		}
 	}
 	return out
 }

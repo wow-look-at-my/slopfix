@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
@@ -56,16 +57,24 @@ func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
 
 // repairOf answers what every rule makes of a file. Repairing, it writes the
 // repair back; reporting, it runs the same rules and leaves the file alone, so
-// a rule selection means the same thing either way.
-func repairOf(path string, request slopfix.Request, repairing bool) (slopfix.Repair, error) {
+// a rule selection means the same thing either way. In a fork, a file the fork
+// never touched answers nothing, and only the fork's lines change or count.
+func repairOf(forks forkscope.Resolver, path string, request slopfix.Request, repairing bool) (slopfix.Repair, error) {
 	if repairing {
-		return slopfix.FixFileWith(path, request)
+		return slopfix.FixFileIn(forks, path, request)
 	}
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return slopfix.Repair{}, err
 	}
-	request.Content, request.Path = string(content), path
+	scope, err := slopfix.FileScope(forks, path, string(content))
+	if err != nil {
+		return slopfix.Repair{}, err
+	}
+	if scope != nil && scope.Empty() {
+		return slopfix.Repair{Text: string(content)}, nil
+	}
+	request.Content, request.Path, request.Owned = string(content), path, scope
 	repair := slopfix.Report(request)
 	if len(repair.Unmet) > 0 {
 		return repair, &slopfix.UnmetError{Path: path, Unmet: repair.Unmet}
@@ -152,14 +161,14 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		}
 		// A directory is the whole tree under it, which is what a build names.
 		if info.IsDir() {
-			failed, err := treeFindings(cmd, path, request, repairing, os.Getenv)
+			failed, err := treeFindings(cmd, path, request, repairing, forkscope.Resolver{})
 			if err != nil {
 				return err
 			}
 			found = found || failed
 			continue
 		}
-		repair, err := repairOf(path, request, repairing)
+		repair, err := repairOf(forkscope.Resolver{}, path, request, repairing)
 		if err != nil {
 			return err
 		}
@@ -185,14 +194,16 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Repairing, each file that changed is named as it is written. In a fork, only
-// the lines the fork wrote can fail. The environment comes in as a function,
-// so a test never sets the process environment.
-func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repairing bool, getenv func(string) string) (bool, error) {
-	own, err := slopfix.ForkLines(root, getenv)
+// Repairing, each file that changed is named as it is written. In a fork, a
+// file the fork never touched is neither read nor written, and only the lines
+// the fork wrote can change or fail. The resolver comes in as an argument, so
+// a test never sets the process environment.
+func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repairing bool, forks forkscope.Resolver) (bool, error) {
+	own, err := forks.Lines(root)
 	if err != nil {
 		return false, err
 	}
+	request.Fork = own
 	walk := slopfix.CheckTreeWith
 	if repairing {
 		walk = slopfix.FixTreeWith

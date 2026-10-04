@@ -1,12 +1,15 @@
 package slopfix
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
@@ -35,15 +38,29 @@ func isRepoRoot(dir string) bool {
 	return err == nil
 }
 
+// writableIn answers which files a repository repair may rewrite. In a fork,
+// that is a file the fork wrote all of, or one that does not exist yet.
+func writableIn(fork *forkscope.Lines) func(path string) bool {
+	return func(path string) bool {
+		if fork == nil || fork.Whole(path) {
+			return true
+		}
+		_, err := os.Lstat(path)
+		return errors.Is(err, fs.ErrNotExist)
+	}
+}
+
 // repoRun reports what the repository rules find under root. When writing, it
-// also applies the repairs the caller keeps, and names each file it changed.
-func repoRun(root string, keeps func(string) bool, writing bool) (findings []TreeFinding, changed []string, err error) {
+// also applies the repairs the caller keeps, and names each file it changed. A
+// repair that would rewrite a file writable refuses stays a finding.
+func repoRun(root string, keeps func(string) bool, writing bool, writable func(string) bool) (findings []TreeFinding, changed []string, err error) {
 	plan, err := SurveyRoot(root, true)
 	if err != nil {
 		return nil, nil, err
 	}
 	if plan.Agents.Changed() && keeps(IDAgentsFile) {
-		if !writing {
+		migrating := writing && writable(filepath.Join(root, ClaudeFile)) && writable(filepath.Join(root, AgentsFile))
+		if !migrating {
 			findings = append(findings, repoFinding(ClaudeFile, IDAgentsFile,
 				"CLAUDE.md holds instructions, and every agent but Claude Code reads AGENTS.md",
 				"Move them into AGENTS.md. `slopfix fix` does this."))
@@ -54,7 +71,7 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 		}
 	}
 	if keeps(IDPackageScripts) {
-		scripts, moved, err := packageScripts(root, writing)
+		scripts, moved, err := packageScripts(root, writing, writable)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -62,7 +79,7 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 		changed = append(changed, moved...)
 	}
 	if keeps(IDBinary) {
-		binaries, removed, err := committedBinaries(root, writing)
+		binaries, removed, err := committedBinaries(root, writing, writable)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -97,7 +114,7 @@ func repoRun(root string, keeps func(string) bool, writing bool) (findings []Tre
 	sort.Strings(over)
 	for _, rel := range over {
 		size := plan.OverBudget[rel]
-		if writing {
+		if writing && writable(filepath.Join(root, rel)) {
 			// The sections move into a docs/ beside the file, so its links stay relative.
 			dir := filepath.Join(root, filepath.Dir(rel))
 			written, err := Split(dir, filepath.Base(rel), false)

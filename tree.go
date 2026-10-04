@@ -81,7 +81,7 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 
 	var out TreeRepair
 	if wantsRepo(req) && isRepoRoot(root) {
-		findings, changed, err := repoRun(root, keepsOf(req), writing)
+		findings, changed, err := repoRun(root, keepsOf(req), writing, writableIn(req.Fork))
 		if err != nil {
 			findings = append(findings, repoFinding(root, IDBudget, "the repository rules could not read the tree", err.Error()))
 		}
@@ -135,8 +135,16 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 	return out
 }
 
-// judgeFile runs every selected rule on one file. It answers nil for a file it cannot read.
+// judgeFile runs every selected rule on one file. It answers nil for a file it
+// cannot read, and for a file of a fork that the fork never touched.
 func judgeFile(path string, req Request, writing bool) *Repair {
+	if req.Fork != nil {
+		scope := req.Fork.Scope(path)
+		if scope.Empty() {
+			return nil
+		}
+		req.Owned = scope
+	}
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return nil

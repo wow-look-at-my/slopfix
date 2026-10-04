@@ -104,7 +104,7 @@ func TestAnErrorComputingTheFixIsDenied(t *testing.T) {
 
 func TestAnUnreadableEditIsDenied(t *testing.T) {
 	path := onDisk(t, "a.md", countsDoc)
-	got := handFix("Edit", []byte(`{"replace_all":"yes"}`), path, "", nil, nil)
+	got := handFix("Edit", []byte(`{"replace_all":"yes"}`), path, "", nil, nil, noForkLines)
 
 	require.NotEmpty(t, got)
 	assert.Contains(t, got[0], "cannot read the edits to "+path)
