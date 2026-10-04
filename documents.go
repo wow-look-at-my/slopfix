@@ -220,6 +220,7 @@ func checkXML(path, rel string, content []byte, downloads fetched) *TreeFinding 
 			"Name its XSD with xsi:noNamespaceSchemaLocation, or with an xsi:schemaLocation pair for the root's namespace.")
 		return &f
 	}
+<<<<<<< HEAD
 	if remote(location) {
 		base, err := url.Parse(location)
 		if err != nil {
@@ -266,8 +267,68 @@ func schemaVerdict(rel string, err error, rule string) *TreeFinding {
 	}
 	if err != nil {
 		return xmlFinding(rel, rule, err)
+=======
+	schema, err := loadSchema(path, location, downloads)
+	if err != nil {
+		f := repoFinding(rel, IDXML, "the schema this XML names does not load", err.Error())
+		return &f
+	}
+	verr := xmlvalidator.ValidateSchema(doc, schema)
+	if !negativeFixture(rel) {
+		if verr != nil {
+			return xmlFinding(rel, "this XML breaks the schema it names", verr)
+		}
+		return nil
+	}
+	if verr == nil {
+		f := repoFinding(rel, IDXML, "this negative fixture passes the schema it names, so it tests nothing",
+			"A file named *.invalid.xml must break its schema. Break it on the constraint it exists to test, or rename it.")
+		return &f
+>>>>>>> origin/master
 	}
 	return nil
+}
+
+// negativeFixture reports a document named to fail its schema. Such a file is
+// held to the opposite test: the schema must reject it.
+func negativeFixture(rel string) bool {
+	return strings.HasSuffix(filepath.Base(rel), ".invalid.xml")
+}
+
+// loadSchema parses the schema a document names, with each import it names. A
+// remote location is fetched. A local one is a path from the document.
+func loadSchema(path, location string, downloads fetched) (*xmlvalidator.Schema, error) {
+	if !remote(location) {
+		location = filepath.Join(filepath.Dir(path), filepath.FromSlash(location))
+		body, err := os.ReadFile(location)
+		if err != nil {
+			return nil, err
+		}
+		return parseSchema(body, xmlvalidator.FileSchemaResolver(filepath.Dir(location)))
+	}
+	base, err := url.Parse(location)
+	if err != nil {
+		return nil, fmt.Errorf("the location is not a URL: %w", err)
+	}
+	body, err := downloads.get(location)
+	if err != nil {
+		return nil, err
+	}
+	return parseSchema(body, func(_, hint string) ([]byte, error) {
+		next, err := base.Parse(hint)
+		if err != nil {
+			return nil, err
+		}
+		return downloads.get(next.String())
+	})
+}
+
+func parseSchema(body []byte, imports xmlvalidator.SchemaResolver) (*xmlvalidator.Schema, error) {
+	doc, err := xmlvalidator.ParseTree(bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	return xmlvalidator.ParseSchemaWithResolver(doc, imports)
 }
 
 func xmlFinding(rel, rule string, err error) *TreeFinding {
