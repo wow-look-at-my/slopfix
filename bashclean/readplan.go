@@ -32,6 +32,9 @@ var (
 	attachedN    = regexp.MustCompile(`^-n(\+?[0-9]+)$`)
 	oldStyleN    = regexp.MustCompile(`^-([0-9]+)$`)
 	longLinesArg = regexp.MustCompile(`^--lines=(\+?[0-9]+)$`)
+	// awkProgram is a line-number pattern with no action or a plain print, after the blanks are taken out.
+	awkProgram = regexp.MustCompile(`^(F?NR(?:==|>=|<=|>|<)[0-9]+(?:&&F?NR(?:==|>=|<=|>|<)[0-9]+)*)(?:\{print(?:\$0)?;?\})?$`)
+	awkTerm    = regexp.MustCompile(`(F?NR)(==|>=|<=|>|<)([0-9]+)`)
 )
 
 // defaultLines is the count head and tail print with no count flag.
@@ -48,7 +51,7 @@ type readSpec struct {
 	fromEnd       int
 }
 
-// PlanRead maps one plain `cat`, `head`, `tail` or `sed -n` call onto one Read
+// PlanRead maps one plain `cat`, `head`, `tail`, `sed -n` or line-number `awk` call onto one Read
 // for each file. dir is the directory the command runs in, because Read takes
 // an absolute path. A command with no exact Read equivalent returns nil, and
 // the caller runs it as written.
@@ -82,6 +85,8 @@ func PlanRead(command, dir string) *ReadPlan {
 		specs = headTailSpecs(e.name == "tail", args)
 	case "sed":
 		specs = sedSpecs(args)
+	case "awk", "gawk", "mawk":
+		specs = awkSpecs(args)
 	}
 	if specs == nil {
 		return nil
@@ -196,6 +201,72 @@ func sedSpecs(args []string) []readSpec {
 	return []readSpec{{path: rest[1], offset: a, limit: b - a + 1}}
 }
 
+// awkSpecs maps an awk program that selects a range of line numbers, such as
+// `awk 'NR>=10 && NR<=20' f`. NR counts across every file, so NR maps only
+// on one file. FNR restarts on each file, so FNR maps on several.
+func awkSpecs(args []string) []readSpec {
+	if len(args) < 2 || strings.HasPrefix(args[0], "-") {
+		return nil
+	}
+	files := args[1:]
+	for _, f := range files {
+		if strings.HasPrefix(f, "-") || strings.Contains(f, "=") {
+			return nil
+		}
+	}
+	prog := strings.Join(strings.Fields(args[0]), "")
+	m := awkProgram.FindStringSubmatch(prog)
+	if m == nil {
+		return nil
+	}
+	lo, hi := 1, 0
+	for _, t := range awkTerm.FindAllStringSubmatch(m[1], -1) {
+		if t[1] == "NR" && len(files) > 1 {
+			return nil
+		}
+		n, err := strconv.Atoi(t[3])
+		if err != nil {
+			return nil
+		}
+		switch t[2] {
+		case "==":
+			lo, hi = max(lo, n), minBound(hi, n)
+		case ">=":
+			lo = max(lo, n)
+		case ">":
+			lo = max(lo, n+1)
+		case "<=":
+			hi = minBound(hi, n)
+		case "<":
+			hi = minBound(hi, n-1)
+		}
+	}
+	if hi < 0 || (hi > 0 && hi < lo) {
+		return nil
+	}
+	limit := 0
+	if hi > 0 {
+		limit = hi - lo + 1
+	}
+	out := []readSpec{}
+	for _, f := range files {
+		out = append(out, readSpec{path: f, offset: lo, limit: limit})
+	}
+	return out
+}
+
+// minBound lowers an upper bound. A zero hi means no bound yet. A negative
+// result means the range selects no line.
+func minBound(hi, n int) int {
+	if n < 1 {
+		return -1
+	}
+	if hi == 0 {
+		return n
+	}
+	return min(hi, n)
+}
+
 // resolve makes the path absolute and turns a tail count into an offset.
 func resolve(sp readSpec, dir string) (ReadArgs, bool) {
 	p, ok := readPath(sp.path, dir)
@@ -275,6 +346,6 @@ func readNote(command string, reads []ReadArgs) string {
 		}
 		b.WriteString(")\n")
 	}
-	b.WriteString("Use the Read tool to read files. Its offset and limit parameters select lines, which is what head, tail and sed -n were for.")
+	b.WriteString("Use the Read tool to read files. Its offset and limit parameters select lines, which is what head, tail, sed -n and awk were for.")
 	return b.String()
 }
