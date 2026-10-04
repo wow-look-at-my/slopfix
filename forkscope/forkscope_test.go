@@ -378,8 +378,7 @@ func TestAListedForkReportsOnlyTheLinesItWrote(t *testing.T) {
 // is scoped exactly as the parent-merge-base path scopes it.
 func TestAListedForkWhoseUpstreamHasNoTagsIsMeasuredFromItsBranch(t *testing.T) {
 	fx := newForkFixture(t)
-	list := fmt.Sprintf("{\n\t\"O/Fork\": %q,\n}\n", fx.parent)
-	own := scoped(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, list))
+	own := scoped(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))
 
 	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...), "line 3 is upstream's, line 5 is edited, line 7 is added")
 	assert.Equal(t, []int{3}, held(own, fx.fork, "new.md", 3))
