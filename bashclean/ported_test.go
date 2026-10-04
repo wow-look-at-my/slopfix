@@ -376,7 +376,7 @@ var denyCases = []cleanCase{
 	{"command cat wrapper denied", "command cat f", "Use the Read tool"},
 	{"backslash head denied", "\\head -5 f", "Use the Read tool"},
 	{"deny beats rewrite (2>/dev/null not scrubbed)", "cat file.txt 2>/dev/null", "Use the Read tool"},
-	{"dev lookalike path is not magic", "cat /development/f", "Use the Read tool"},
+	{"dev lookalike path is not magic", "cat /development/f | wc -l", "Use the Read tool"},
 	{"rm --nonsense denied", "rm --nonsense a", "cannot be translated to recycler trash"},
 	{"rm -d (remove empty dirs) denied", "rm -d empty", "cannot be translated to recycler trash"},
 	{"rm --one-file-system denied", "rm -rf --one-file-system /mnt/x", "cannot be translated to recycler trash"},

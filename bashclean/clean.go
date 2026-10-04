@@ -45,6 +45,11 @@ func transform(command, dir string, passes int, warn io.Writer) Result {
 	}) {
 		return deny(command, "perl")
 	}
+	// A read PlanRead maps runs as written, and RunPost shows its output as Read
+	// shows it.
+	if PlanRead(command, dir) != nil {
+		return Result{Command: command}
+	}
 	if hasFileRead(f) {
 		return deny(command, "file_read")
 	}

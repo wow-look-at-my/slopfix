@@ -260,11 +260,11 @@ func countLines(p string) (int, bool) {
 	return n, true
 }
 
-// readNote tells the model what ran in place of its command, and which tool
-// to reach for next time.
+// readNote names the Read calls that print what the command printed, so the
+// next read uses the Read tool.
 func readNote(command string, reads []ReadArgs) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Your Bash command `%s` read a file, so it did not run. The Read tool answered it with:\n", command)
+	fmt.Fprintf(&b, "Your Bash command `%s` read a file, so its output is shown as the Read tool shows it. These Read calls give the same lines:\n", command)
 	for _, r := range reads {
 		fmt.Fprintf(&b, "- Read(file_path: %s", strconv.Quote(r.FilePath))
 		if r.Offset > 0 {
