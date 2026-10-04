@@ -11,6 +11,10 @@ func capLines(b block, maxLines int) []string {
 	if tightened, _, did := tighten(body); did {
 		body = tightened
 	}
+	closer := ""
+	if len(body) > 0 {
+		closer = body[len(body)-1]
+	}
 	for len(body) > maxLines {
 		next, ok := cutLastThought(body)
 		if !ok {
@@ -18,10 +22,30 @@ func capLines(b block, maxLines int) []string {
 		}
 		body = next
 	}
+	body = reclosed(body, closer)
 	out := make([]string, 0, len(lead)+len(body)+len(trail))
 	out = append(out, lead...)
 	out = append(out, body...)
 	return append(out, trail...)
+}
+
+// reclosed puts back the */ a cut took with the last thought, so the code
+// under the block does not read as comment. closer is the body's last line
+// before the cut.
+func reclosed(body []string, closer string) []string {
+	end := strings.TrimSpace(closer)
+	if !strings.HasSuffix(end, "*/") || len(body) == 0 || strings.HasSuffix(strings.TrimSpace(body[len(body)-1]), "*/") {
+		return body
+	}
+	body = append([]string{}, body...)
+	for len(body) > 1 && isBlankComment(body[len(body)-1]) {
+		body = body[:len(body)-1]
+	}
+	if end == "*/" {
+		return append(body, closer)
+	}
+	body[len(body)-1] += " */"
+	return body
 }
 
 // CapLines cuts a comment run from its end until no more than maxLines of its
