@@ -85,13 +85,8 @@ func forkAPI(t *testing.T, body string) *httptest.Server {
 }
 
 func forkBody(cloneURL string) string {
-	var info forkRepo
-	info.Fork = true
-	info.Parent = &struct {
-		CloneURL      string `json:"clone_url"`
-		DefaultBranch string `json:"default_branch"`
-	}{CloneURL: cloneURL, DefaultBranch: "main"}
-	body, err := json.Marshal(info)
+	fork := true
+	body, err := json.Marshal(forkRepo{Fork: &fork, Parent: &forkParent{CloneURL: cloneURL, DefaultBranch: "main"}})
 	if err != nil {
 		panic(err)
 	}
@@ -505,6 +500,91 @@ func TestAnAPIErrorFailsLoudly(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, own)
 	assert.Contains(t, err.Error(), "fork scope: GET http://127.0.0.1:1/fork-of.json", "the fork list is asked for first")
+}
+
+// ghAnswering stands in for gh, recording the arguments of each call.
+func ghAnswering(out string, err error, calls *[][]string) func(...string) ([]byte, error) {
+	return func(args ...string) ([]byte, error) {
+		*calls = append(*calls, args)
+		return []byte(out), err
+	}
+}
+
+// The parent's clone URL is built on GITHUB_SERVER_URL when an answer names
+// the parent by full_name alone.
+func TestWithNoTokenGHNamesTheParent(t *testing.T) {
+	fx := newForkFixture(t)
+	server := filepath.Dir(filepath.Dir(fx.parent))
+	fullName := filepath.Base(filepath.Dir(fx.parent)) + "/parent"
+	body, err := json.Marshal(map[string]any{"fork": true, "parent": map[string]any{"full_name": fullName, "default_branch": "main"}})
+	require.NoError(t, err)
+	var calls [][]string
+	r := Resolver{
+		Getenv:  envOf(map[string]string{"GITHUB_REPOSITORY": "o/fork", "GITHUB_SERVER_URL": "file://" + server}),
+		ListURL: noList(t),
+		GH:      ghAnswering(string(body), nil, &calls),
+	}
+	own, err := r.Lines(fx.fork)
+	require.NoError(t, err)
+	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...))
+	assert.Equal(t, [][]string{{"api", "graphql", "-f", "query=" + ghRepoQuery, "-F", "owner=o", "-F", "name=fork", "--jq", ghRepoShape}}, calls)
+}
+
+func TestWithNoTokenGHAnswersANonFork(t *testing.T) {
+	var calls [][]string
+	r := Resolver{
+		Getenv:  envOf(map[string]string{"GITHUB_REPOSITORY": "o/plain"}),
+		ListURL: noList(t),
+		GH:      ghAnswering(`{"fork":false}`, nil, &calls),
+	}
+	own, err := r.Lines(t.TempDir())
+	require.NoError(t, err)
+	assert.Nil(t, own)
+	assert.Len(t, calls, 1)
+}
+
+func TestATokenOrAnAPIURLSkipsGH(t *testing.T) {
+	for name, env := range map[string]map[string]string{
+		"token":   {"GITHUB_TOKEN": "tok"},
+		"API URL": {},
+	} {
+		t.Run(name, func(t *testing.T) {
+			env["GITHUB_REPOSITORY"] = "o/fork"
+			env["GITHUB_API_URL"] = forkAPI(t, `{"fork":false}`).URL
+			var calls [][]string
+			r := Resolver{Getenv: envOf(env), ListURL: noList(t), GH: ghAnswering(`{}`, nil, &calls)}
+			_, _ = r.Lines(t.TempDir())
+			assert.Empty(t, calls)
+		})
+	}
+}
+
+func TestGHThatCannotAnswerFailsLoudly(t *testing.T) {
+	cases := map[string]struct {
+		out  string
+		err  error
+		want string
+	}{
+		"gh fails":          {err: fmt.Errorf("exit status 1: not logged in"), want: "gh api graphql for o/fork: exit status 1: not logged in"},
+		"not JSON":          {out: "nope", want: "gh api graphql for o/fork: invalid character"},
+		"no fork flag":      {out: `{"full_name":"o/fork"}`, want: "no fork flag"},
+		"no parent":         {out: `{"fork":true}`, want: "names no parent"},
+		"a parent unnamed":  {out: `{"fork":true,"parent":{"default_branch":"main"}}`, want: "names no parent"},
+		"a parent unbranch": {out: `{"fork":true,"parent":{"full_name":"u/p"}}`, want: "names no parent"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			var calls [][]string
+			r := Resolver{
+				Getenv:  envOf(map[string]string{"GITHUB_REPOSITORY": "o/fork"}),
+				ListURL: noList(t),
+				GH:      ghAnswering(c.out, c.err, &calls),
+			}
+			_, err := r.Lines(t.TempDir())
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), c.want)
+		})
+	}
 }
 
 func TestAForkOutsideAWorkTreeFailsLoudly(t *testing.T) {
