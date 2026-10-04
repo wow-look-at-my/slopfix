@@ -185,6 +185,9 @@ func rewriteHand(req slopfix.Request, after string, touched []int, owned forkLin
 		return nil, cannotFix(path, err)
 	}
 	result := keepWritten(after, repaired.Text, writtenLines(before, after))
+	if result == after {
+		return nil, nil
+	}
 	if result == before {
 		return nil, []string{fmt.Sprintf("the edit to %s changes only lines `slopfix fix` writes back as they stand, so it leaves the file unchanged", path)}
 	}
@@ -216,34 +219,47 @@ func writtenLines(before, after string) set.Set[int] {
 	return out
 }
 
-// keepWritten takes from fixed every change that lands on a line of after the
-// edit wrote, and leaves after as it stands everywhere else.
+// keepWritten takes from fixed every change that lands on lines of after the
+// edit wrote, and leaves after as it stands everywhere else. A change that
+// also rewrites a line the edit never wrote, such as a paragraph join, is
+// left out, so no word the write did not touch is changed.
 func keepWritten(after, fixed string, written set.Set[int]) string {
 	a := strings.SplitAfter(after, "\n")
 	b := strings.SplitAfter(fixed, "\n")
 	var out strings.Builder
 	for _, op := range difflib.NewMatcherWithJunk(a, b, false, nil).GetOpCodes() {
-		from := a[op.I1:op.I2]
-		if op.Tag != 'e' && touches(written, op.I1, op.I2) {
-			from = b[op.J1:op.J2]
+		switch {
+		case op.Tag == 'e':
+			out.WriteString(strings.Join(a[op.I1:op.I2], ""))
+		case op.I2-op.I1 == op.J2-op.J1:
+			for k := 0; k < op.I2-op.I1; k++ {
+				line := a[op.I1+k]
+				if written.Contains(op.I1 + k) {
+					line = b[op.J1+k]
+				}
+				out.WriteString(line)
+			}
+		case within(written, op.I1, op.I2):
+			out.WriteString(strings.Join(b[op.J1:op.J2], ""))
+		default:
+			out.WriteString(strings.Join(a[op.I1:op.I2], ""))
 		}
-		out.WriteString(strings.Join(from, ""))
 	}
 	return out.String()
 }
 
-// touches reports whether the lines from i1 up to i2 hold a written line. A
-// change that only inserts touches the lines on either side of it.
-func touches(written set.Set[int], i1, i2 int) bool {
+// within reports whether every line from i1 up to i2 is a written line. A
+// change that only inserts is within when a line beside it is written.
+func within(written set.Set[int], i1, i2 int) bool {
 	if i1 == i2 {
 		return written.Contains(i1-1) || written.Contains(i1)
 	}
 	for i := i1; i < i2; i++ {
-		if written.Contains(i) {
-			return true
+		if !written.Contains(i) {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // lineSpan answers the whole lines of before that result replaces, and what

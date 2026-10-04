@@ -104,6 +104,10 @@ func TestARewriteLeavesLinesTheEditDidNotWrite(t *testing.T) {
 func TestKeepWrittenTakesOnlyTheWrittenLines(t *testing.T) {
 	written := writtenLines("a\nb\nc\n", "a\nB\nc\n")
 	assert.Equal(t, "a\nX\nc\n", keepWritten("a\nB\nc\n", "Y\nX\nc\n", written))
+
+	// A join that rewrites a line the edit never wrote is left out.
+	written = writtenLines("a\nb\n", "a\nB\n")
+	assert.Equal(t, "a\nB\n", keepWritten("a\nB\n", "a B\n", written))
 }
 
 func TestLineSpanGrowsUntilItIsUnique(t *testing.T) {
