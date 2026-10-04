@@ -60,9 +60,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	switch {
 	case measures(hit.Phrase):
 		to = hit.Start + loc[1] + len(unitAfter(content[hit.Start+loc[1]:]))
-	case len(before) > 0 && floorsAbove.Contains(last(1)) && followsANoun(content, before[len(before)-1].start):
-		// "RBs over 4 engines" spans the engines. The word stays a preposition.
-		text = "multiple "
+	case len(before) > 0 && prepositionFloors.Contains(last(1)):
+		// "over" stays: "spreads over 32 banks" spans the banks.
+		text = vague(n)
 	case len(before) > 0 && rates.Contains(last(1)):
 		drop(1)
 		text = "every few "
@@ -84,9 +84,6 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	case floors.Contains(last(2)):
 		drop(2)
 		text = vague(n)
-	case len(before) > 0 && floorsAbove.Contains(last(1)):
-		drop(1)
-		text = vague(n + 1)
 	case determined(before):
 		text = ""
 	case unit:
@@ -154,7 +151,10 @@ var ceilings = set.Of[string]("at most", "up to", "no more than", "fewer than",
 var floors = set.Of[string]("at least", "no fewer than", "no less than", "not less than")
 
 // floorsAbove exclude the number itself, so the vague word reads one higher.
-var floorsAbove = set.Of[string]("more than", "over", "above")
+var floorsAbove = set.Of[string]("more than")
+
+// prepositionFloors stay in the sentence, because each also names a span.
+var prepositionFloors = set.Of[string]("over", "above")
 
 // determined reports whether a determiner or a possessive governs the noun
 // already, as in "the three rules" or "this repo's plugins". The number then
