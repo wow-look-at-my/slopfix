@@ -51,6 +51,9 @@ func TestTheSkipsHoldInATreeAnotherUserOwns(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "own.go"), []byte("package p\n"), 0o644))
 
 	t.Setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+	// A CI runner trusts every directory in its global config.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	refused := exec.Command("git", "-C", root, "status")
 	require.Error(t, refused.Run(), "git must refuse the tree, or this test proves nothing")
 
