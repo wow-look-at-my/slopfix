@@ -131,6 +131,8 @@ type forceCut struct {
 	score       int
 	// afterVerb is a cut right after a verb, which the rest may complete.
 	afterVerb bool
+	// afterNoun is a cut right after a noun, and bare a cut with no mark and no opener word.
+	afterNoun, bare bool
 }
 
 // forceDivision divides source at the best word boundary that leaves the first
@@ -147,6 +149,10 @@ func forceDivision(source, masked string) (string, bool) {
 			}
 			// A noun phrase after a verb is its object, so "deserves. This is a repair" loses it.
 			if opened == opensWithFill && c.afterVerb {
+				continue
+			}
+			// A clause right after a noun, with no mark between, describes it: "the paths the file declared".
+			if opened == opensOwnClause && c.afterNoun && c.bare {
 				continue
 			}
 			// A rest that opens a clause of its own reads best, and filler reads worst.
@@ -205,10 +211,10 @@ const phraseReach = 8
 // phraseSpans answers the inside of each noun phrase and verb group the parser
 // finds where a cut can land, and where each finite verb starts. A cut inside
 // a phrase leaves "a detached." behind.
-func phraseSpans(masked string, ends []int) ([][]int, set.Set[int], set.Set[int]) {
-	finite, verbEnds := set.New[int](), set.New[int]()
+func phraseSpans(masked string, ends []int) ([][]int, set.Set[int], set.Set[int], set.Set[int]) {
+	finite, verbEnds, nounEnds := set.New[int](), set.New[int](), set.New[int]()
 	if len(ends) == 0 {
-		return nil, finite, verbEnds
+		return nil, finite, verbEnds, nounEnds
 	}
 	head := masked[:ends[min(SentenceWordCap+phraseReach, len(ends)-1)]]
 	s := syntax.Parse(head, nil)
@@ -226,8 +232,11 @@ func phraseSpans(masked string, ends []int) ([][]int, set.Set[int], set.Set[int]
 		if strings.HasPrefix(w.Tag, "VB") {
 			verbEnds.Add(w.End)
 		}
+		if strings.HasPrefix(w.Tag, "NN") {
+			nounEnds.Add(w.End)
+		}
 	}
-	return out, finite, verbEnds
+	return out, finite, verbEnds, nounEnds
 }
 
 // isWordByte reports a byte that can open bold text's first word: a letter,
@@ -259,10 +268,11 @@ func candidates(source, masked string, strict bool) []forceCut {
 	off := verbatimSpan.FindAllStringIndex(source, -1)
 	off = append(off, quotedSpans(source)...)
 	off = append(off, asides(masked)...)
+	off = append(off, dashAsides(source)...)
 	off = append(off, outerParens(masked)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
-	spans, finite, verbEnds := phraseSpans(masked, ends)
+	spans, finite, verbEnds, nounEnds := phraseSpans(masked, ends)
 	verbs := set.New[int]()
 	if strict {
 		off, verbs = append(off, spans...), finite
@@ -301,7 +311,7 @@ func candidates(source, masked string, strict bool) []forceCut {
 		case forceOpener.Contains(next):
 			penalty = 3
 		}
-		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty, afterVerb: verbEnds.Contains(p)})
+		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty, afterVerb: verbEnds.Contains(p), afterNoun: nounEnds.Contains(p), bare: penalty == 8})
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].score > out[b].score })
 	return out

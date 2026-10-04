@@ -152,10 +152,15 @@ func capitalizeOpening(s string) string {
 // divisions answers each clause boundary where both sides stand as sentences.
 func divisions(s *syntax.Sentence, source string) []division {
 	var out []division
+	dashed := dashAsides(source)
 	for k := 1; k < len(s.Clauses); k++ {
 		c := s.Clauses[k]
 		main, ok := mainBefore(s, k)
 		if !ok || c.Link < 0 || c.Link+1 >= len(s.Words) {
+			continue
+		}
+		// A division inside a pair of dashes, or at either dash, halves the aside.
+		if insideAny(dashed, s.Words[c.Link].Start) {
 			continue
 		}
 		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {
@@ -172,6 +177,21 @@ func divisions(s *syntax.Sentence, source string) []division {
 		})
 	}
 	return append(out, beforeSubordinate(s, source)...)
+}
+
+// spacedDash is a dash with a blank on each side, which opens or closes an aside.
+var spacedDash = regexp.MustCompile(`\s(?:—|–|--)\s`)
+
+// dashAsides answers each aside between a pair of spaced dashes, from the
+// blank before the first dash to the blank after the second. A lone dash pairs
+// with nothing and stays a seam.
+func dashAsides(source string) [][]int {
+	dashes := spacedDash.FindAllStringIndex(source, -1)
+	var out [][]int
+	for i := 0; i+1 < len(dashes); i += 2 {
+		out = append(out, []int{dashes[i][0], dashes[i+1][1]})
+	}
+	return out
 }
 
 // beforeSubordinate divides at ", and" when a subordinate clause and then a main

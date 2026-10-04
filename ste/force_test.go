@@ -147,6 +147,24 @@ func TestAForcedDivisionNeverWritesThisIsInFrontOfAClauseOrAPhrase(t *testing.T)
 	}
 }
 
+// A division never halves an aside between a pair of dashes, and never cuts a
+// noun from the clause that describes it. These are dats docs/cli.md paragraphs
+// a division wrote as "the temp directory. A real filesystem", "hooks. Runs at
+// low OS priority" and "the paths. The file declared".
+func TestADivisionKeepsADashAsideAndAReducedRelative(t *testing.T) {
+	writes := "There is deliberately no way to declare additional writable HOST paths: something to write is the temp directory " + dash + " a real filesystem inside every backend " + dash + " and a command that genuinely needs the host is not a sandboxed command, so it belongs to a `--no-sandbox` run."
+	nice := "Every spawned workload command " + dash + " test instances and setup/teardown hooks " + dash + " runs at low OS priority (nice 19 applied to the command's process group) so a heavily parallel run does not starve the machine."
+	reads := "**Reads are confined under bwrap and docker**: a command sees the OS tool tree, the working directory, and the paths the file declared " + dash + " not `$HOME`, not `/var`, not another checkout on the machine."
+	for in, bad := range map[string]string{
+		writes: "directory. A real filesystem",
+		nice:   "hooks. Runs",
+		reads:  "the paths. The file declared",
+	} {
+		got := ste.Fix(in)
+		assert.NotContains(t, got, bad, got)
+	}
+}
+
 // The opening of unreal-tools namescrub/README.md, which a division wrote as
 // "between cook. This is staging". A list item opens no sentence of its own.
 func TestAForcedDivisionNeverOpensOnAListItem(t *testing.T) {
