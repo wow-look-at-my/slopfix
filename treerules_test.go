@@ -236,6 +236,25 @@ func TestARemoteSchemaIsFetched(t *testing.T) {
 	assert.ElementsMatch(t, []string{"bad.xml repo/xml", "lost.xml repo/xml"}, pathsOf(checkOnly(root, slopfix.IDXML)))
 }
 
+// A file named *.invalid.xml is a negative fixture. Its schema must reject it.
+func TestANegativeFixtureMustBreakItsSchema(t *testing.T) {
+	located := `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rule.xsd"`
+	root := gitRepo(t, map[string]string{
+		"rule.xsd":              xsd,
+		"missing-id.invalid.xml": xmlDoc(`<rule ` + located + `/>`),
+		"passes.invalid.xml":    xmlDoc(`<rule ` + located + ` id="a"/>`),
+		"unnamed.invalid.xml":   xmlDoc(`<rule/>`),
+		"lost.invalid.xml":      xmlDoc(`<rule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="missing.xsd"/>`),
+	})
+	findings := checkOnly(root, slopfix.IDXML)
+	assert.ElementsMatch(t, []string{"passes.invalid.xml repo/xml", "unnamed.invalid.xml repo/xml", "lost.invalid.xml repo/xml"}, pathsOf(findings))
+	for _, f := range findings {
+		if f.Path == "passes.invalid.xml" {
+			assert.Contains(t, f.Rule, "passes the schema it names")
+		}
+	}
+}
+
 func TestASchemaIsHeldToTheMetaSchema(t *testing.T) {
 	root := gitRepo(t, map[string]string{"broken.schema.json": `{"$schema": "https://json-schema.org/draft/2020-12/schema", "type": 7}`})
 	assert.Equal(t, []string{"broken.schema.json repo/json"}, pathsOf(checkOnly(root, slopfix.IDJSON)))
