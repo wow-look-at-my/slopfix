@@ -1,9 +1,12 @@
-// handfix.go refuses a write that changes a line `slopfix fix` would repair.
+// handfix.go writes the repair of `slopfix fix` over a line a hand edit changes.
 //
 // The repair of the file as it stands on disk is F. A line F changes carries
-// an auto-fixable finding, and only `slopfix fix` may change it. An edit that
-// changes such a line is denied, and names the lines and the rules. A line
-// the edit only inserts beside is not a line it changes.
+// an auto-fixable finding, and only `slopfix fix` may write it. An Edit or
+// MultiEdit that changes such a line goes through as `slopfix fix` writes it:
+// the edit is replayed, the result is repaired, and the repair is kept on
+// every line the edit wrote. The edit then replaces those lines whole. A
+// Write is repaired whole by the write guard. A line the edit only inserts
+// beside is not a line it changes.
 package cmd
 
 import (
@@ -20,8 +23,8 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 )
 
-// handFixAdvice is what a refusal tells the writer to do instead.
-const handFixAdvice = "run `slopfix fix %s`, then make your change; hand-edits to lines slopfix auto-fixes are refused"
+// handFixNote tells the writer which line the repair wrote in place of the edit.
+const handFixNote = "%s:%d: [%s] the edit changed a line `slopfix fix` repairs, so the line is as slopfix fix writes it"
 
 // replacement is an edit as the tool applies it, with replace_all honored.
 type replacement struct {
@@ -86,45 +89,73 @@ func fixOf(req slopfix.Request) (repair slopfix.Repair, err error) {
 	return slopfix.Fix(req), nil
 }
 
-// handFix answers the refusal for a write that changes a line F changes, or
-// nil when the write may go on to the repair. A path with no file yet is a new
+// handRepair is an edit rewritten so the lines it changes are as `slopfix
+// fix` writes them.
+type handRepair struct {
+	old   string
+	new   string
+	notes []string
+}
+
+// apply puts the rewritten edit into the payload as the tool reads it. A
+// MultiEdit becomes a single edit, since every edit it carried is in it.
+func (h *handRepair) apply(tool string, in *writeInput, raw map[string]any) {
+	delete(raw, "replace_all")
+	if tool == "Edit" {
+		in.OldString, in.NewString = h.old, h.new
+		raw["old_string"], raw["new_string"] = h.old, h.new
+		return
+	}
+	in.Edits = []replacement{{OldString: h.old, NewString: h.new}}
+	raw["edits"] = []any{map[string]any{"old_string": h.old, "new_string": h.new}}
+}
+
+// cannotFix is the refusal for a repair that could not be computed.
+func cannotFix(path string, err error) []string {
+	return []string{fmt.Sprintf("slopfix cannot compute what `slopfix fix %s` changes: %v", path, err)}
+}
+
+// cannotScope is the refusal for a fork whose lines could not be read.
+func cannotScope(path string, err error) []string {
+	return []string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", path, err)}
+}
+
+// handFix answers the rewrite of an edit that changes a line F changes, or nil
+// when the edit may go on to the repair as it stands. It answers a refusal
+// only when it cannot compute the rewrite. A path with no file yet is a new
 // file, and only the repair judges it. In a fork, F changes only the lines the
-// fork wrote, so a file the fork never touched refuses nothing.
-func handFix(tool string, toolInput []byte, path string, content string, rules []slopfix.Rule, ids []string, owned forkLines) []string {
-	if path == "" || (tool != "Write" && tool != "Edit" && tool != "MultiEdit") {
-		return nil
+// fork wrote, so a file the fork never touched is left to the repair.
+func handFix(tool string, toolInput []byte, path string, rules []slopfix.Rule, ids []string, owned forkLines) (*handRepair, []string) {
+	if path == "" || (tool != "Edit" && tool != "MultiEdit") {
+		return nil, nil
 	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil
+		return nil, nil
 	}
 	if err != nil {
-		return []string{fmt.Sprintf("slopfix cannot compute what `slopfix fix %s` changes: %v", path, err)}
+		return nil, cannotFix(path, err)
 	}
 	before := string(data)
-	after := content
-	if tool != "Write" {
-		in, err := decodeEdits(toolInput)
-		if err != nil {
-			return []string{fmt.Sprintf("slopfix cannot read the edits to %s: %v", path, err)}
-		}
-		var ok bool
-		// The tool refuses an edit it cannot place, so nothing reaches the file.
-		if after, ok = replay(before, replacementsOf(tool, in)); !ok {
-			return nil
-		}
+	in, err := decodeEdits(toolInput)
+	if err != nil {
+		return nil, []string{fmt.Sprintf("slopfix cannot read the edits to %s: %v", path, err)}
+	}
+	after, ok := replay(before, replacementsOf(tool, in))
+	if !ok {
+		return nil, nil // the tool refuses an edit it cannot place
 	}
 	scope, err := owned(before)
 	if err != nil {
-		return []string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", path, err)}
+		return nil, cannotScope(path, err)
 	}
 	if scope != nil && scope.Empty() {
-		return nil
+		return nil, nil
 	}
 	req := slopfix.Request{Content: before, Path: path, Rules: rules, IDs: ids, MaxCommentLines: hookMaxLines, Owned: scope}
 	fixed, err := fixOf(req)
 	if err != nil {
-		return []string{fmt.Sprintf("slopfix cannot compute what `slopfix fix %s` changes: %v", path, err)}
+		return nil, cannotFix(path, err)
 	}
 	fixable := set.Of(changedLines(before, fixed.Text)...)
 	var touched []int
@@ -134,17 +165,110 @@ func handFix(tool string, toolInput []byte, path string, content string, rules [
 		}
 	}
 	if len(touched) == 0 {
-		return nil
+		return nil, nil
+	}
+	return rewriteHand(req, after, touched, owned)
+}
+
+// rewriteHand repairs the file the edit leaves, keeps that repair on every
+// line the edit wrote, and answers the edit that writes the result.
+func rewriteHand(req slopfix.Request, after string, touched []int, owned forkLines) (*handRepair, []string) {
+	before, path := req.Content, req.Path
+	scope, err := owned(after)
+	if err != nil {
+		return nil, cannotScope(path, err)
+	}
+	whole := req
+	whole.Content, whole.Owned = after, scope
+	repaired, err := fixOf(whole)
+	if err != nil {
+		return nil, cannotFix(path, err)
+	}
+	result := keepWritten(after, repaired.Text, writtenLines(before, after))
+	if result == before {
+		return nil, []string{fmt.Sprintf("the edit to %s changes only lines `slopfix fix` writes back as they stand, so it leaves the file unchanged", path)}
 	}
 	names, err := ruleIDsOn(req, touched)
 	if err != nil {
-		return []string{fmt.Sprintf("slopfix cannot compute what `slopfix fix %s` changes: %v", path, err)}
+		return nil, cannotFix(path, err)
 	}
-	out := []string{fmt.Sprintf(handFixAdvice, path)}
+	span, text := lineSpan(before, result)
+	h := &handRepair{old: span, new: text}
 	for _, line := range touched {
-		out = append(out, fmt.Sprintf("%s:%d: [%s]", path, line, strings.Join(names[line], ", ")))
+		h.notes = append(h.notes, fmt.Sprintf(handFixNote, path, line, strings.Join(names[line], ", ")))
+	}
+	return h, nil
+}
+
+// writtenLines answers the 0-based lines of after that the edit wrote.
+func writtenLines(before, after string) set.Set[int] {
+	a := strings.SplitAfter(before, "\n")
+	b := strings.SplitAfter(after, "\n")
+	out := set.New[int]()
+	for _, op := range difflib.NewMatcherWithJunk(a, b, false, nil).GetOpCodes() {
+		if op.Tag == 'e' {
+			continue
+		}
+		for j := op.J1; j < op.J2; j++ {
+			out.Add(j)
+		}
 	}
 	return out
+}
+
+// keepWritten takes from fixed every change that lands on a line of after the
+// edit wrote, and leaves after as it stands everywhere else.
+func keepWritten(after, fixed string, written set.Set[int]) string {
+	a := strings.SplitAfter(after, "\n")
+	b := strings.SplitAfter(fixed, "\n")
+	var out strings.Builder
+	for _, op := range difflib.NewMatcherWithJunk(a, b, false, nil).GetOpCodes() {
+		from := a[op.I1:op.I2]
+		if op.Tag != 'e' && touches(written, op.I1, op.I2) {
+			from = b[op.J1:op.J2]
+		}
+		out.WriteString(strings.Join(from, ""))
+	}
+	return out.String()
+}
+
+// touches reports whether the lines from i1 up to i2 hold a written line. A
+// change that only inserts touches the lines on either side of it.
+func touches(written set.Set[int], i1, i2 int) bool {
+	if i1 == i2 {
+		return written.Contains(i1-1) || written.Contains(i1)
+	}
+	for i := i1; i < i2; i++ {
+		if written.Contains(i) {
+			return true
+		}
+	}
+	return false
+}
+
+// lineSpan answers the whole lines of before that result replaces, and what
+// replaces them. The span grows a line each way until it appears in before a
+// single time, so the edit tool can place it.
+func lineSpan(before, result string) (span, text string) {
+	a := strings.SplitAfter(before, "\n")
+	b := strings.SplitAfter(result, "\n")
+	p := 0
+	for p < len(a) && p < len(b) && a[p] == b[p] {
+		p++
+	}
+	s := 0
+	for s < len(a)-p && s < len(b)-p && a[len(a)-1-s] == b[len(b)-1-s] {
+		s++
+	}
+	for {
+		span = strings.Join(a[p:len(a)-s], "")
+		text = strings.Join(b[p:len(b)-s], "")
+		if (span != "" && strings.Count(before, span) == 1) || (p == 0 && s == 0) {
+			return span, text
+		}
+		p = max(p-1, 0)
+		s = max(s-1, 0)
+	}
 }
 
 // decodeEdits reads the Edit and MultiEdit fields of a tool input.
