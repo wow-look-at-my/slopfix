@@ -134,6 +134,21 @@ func TestFilesEachDirectoryNeedsAreNotCopies(t *testing.T) {
 	assert.Empty(t, checkOnly(root, slopfix.IDNearDuplicate))
 }
 
+// ts0, pnpm and each read the file in the directory they build. The
+// repository-scripts repair writes a justfile beside each manifest.
+func TestBuildToolFilesInEachActionAreNotCopies(t *testing.T) {
+	ts0 := "{\n\t\"entry\": \"src/index.ts\",\n\t\"outfile\": \"dist/index.js\",\n\t\"target\": \"node\",\n\t\"format\": \"cjs\"\n}\n"
+	workspace := "allowBuilds:\n  esbuild: true\n"
+	recipes := "[private]\nhelp:\n\t@just --list\n\nbuild:\n\tpnpm install\n\tts0 build\n"
+	files := map[string]string{}
+	for _, dir := range []string{"cache-cleanup", "cache-upload"} {
+		files[dir+"/ts0.json"] = ts0
+		files[dir+"/pnpm-workspace.yaml"] = workspace
+		files[dir+"/justfile"] = recipes
+	}
+	assert.Empty(t, checkOnly(gitRepo(t, files), slopfix.IDNearDuplicate))
+}
+
 func TestJSONThatDoesNotParseIsReportedAtItsLine(t *testing.T) {
 	root := gitRepo(t, map[string]string{
 		"ok.json":     "{\n  // A comment is allowed.\n  \"a\": 1,\n}\n",
