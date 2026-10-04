@@ -238,6 +238,14 @@ func Labeled(text string, q Match) bool {
 	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
 }
 
+// IssueNumber exempts the digits of the literal shape "issue #<digits>". An
+// issue number never changes.
+func IssueNumber(text string, q Match) bool {
+	return issueRef.MatchString(text[:q.At])
+}
+
+var issueRef = regexp.MustCompile(`(?i)\bissue #$`)
+
 // InExpression exempts a number that is arithmetic rather than a count. The
 // digits in an expression or a range name no set of items.
 func InExpression(text string, q Match) bool {
