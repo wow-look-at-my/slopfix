@@ -15,7 +15,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
-	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // fixture is a file the rule set has something to say about, and the rules it
@@ -209,7 +208,7 @@ func TestEveryRuleAppearsInAFixture(t *testing.T) {
 	for id := range slopfix.AllIDs().All() {
 		// A warning outlives the repair by design. TestEachWarningRuleFires covers
 		// each.
-		if !covered.Contains(id) && !ste.WarningIDs.Contains(id) && !workflow.ReportOnly.Contains(id) {
+		if !covered.Contains(id) && !slopfix.WarningIDs.Contains(id) {
 			missing = append(missing, id)
 		}
 	}

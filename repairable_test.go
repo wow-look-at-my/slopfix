@@ -23,7 +23,7 @@ func TestEveryRuleCarriesARepair(t *testing.T) {
 	var missing []string
 	for id := range slopfix.EveryID().All() {
 		// A warning asks for a person's judgment and fails nothing, so no repair answers it.
-		if !slopfix.Repairable(id) && !ste.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) && !workflow.ReportOnly.Contains(id) {
+		if !slopfix.Repairable(id) && !slopfix.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) {
 			missing = append(missing, id)
 		}
 	}
@@ -40,7 +40,7 @@ func TestEveryErrorRuleHasARepairPath(t *testing.T) {
 	}
 	var missing []string
 	for id := range slopfix.EveryID().All() {
-		if !ste.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) && !served.Contains(id) && !workflow.ReportOnly.Contains(id) {
+		if !slopfix.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) && !served.Contains(id) {
 			missing = append(missing, id)
 		}
 	}
@@ -67,18 +67,6 @@ func TestARepairIsClaimedRuleByRule(t *testing.T) {
 	assert.True(t, slopfix.Repairable(workflow.IDCommentBlock))
 	assert.True(t, slopfix.Repairable(workflow.IDNeuteredGate))
 	assert.False(t, slopfix.Repairable(workflow.IDTestInYAML))
-}
-
-// A report-only rule is an error rule that no fixer serves, so the exemption
-// above names a rule that exists and that nothing repairs behind its back.
-func TestAReportOnlyRuleIsAnErrorRuleNoFixerServes(t *testing.T) {
-	for id := range workflow.ReportOnly.All() {
-		assert.True(t, slopfix.EveryID().Contains(id), id)
-		assert.False(t, ste.WarningIDs.Contains(id), id)
-		for _, fx := range fixer.All() {
-			assert.NotContains(t, fx.IDs(), id, fx.Name())
-		}
-	}
 }
 
 // The defect this property exists for. A stale count is reported under the
