@@ -39,6 +39,12 @@ func TestPlanRead(t *testing.T) {
 		{"sed -n '10,20p' f.txt", []ReadArgs{{FilePath: f, Offset: 10, Limit: 11}}},
 		{"sed -n 4p f.txt", []ReadArgs{{FilePath: f, Offset: 4, Limit: 1}}},
 		{"sed --quiet 2,3p ./sub/../f.txt", []ReadArgs{{FilePath: f, Offset: 2, Limit: 2}}},
+		{"awk 'NR>=10 && NR<=20' f.txt", []ReadArgs{{FilePath: f, Offset: 10, Limit: 11}}},
+		{"awk 'NR==4' f.txt", []ReadArgs{{FilePath: f, Offset: 4, Limit: 1}}},
+		{"awk 'NR>3&&NR<6{print}' f.txt", []ReadArgs{{FilePath: f, Offset: 4, Limit: 2}}},
+		{"awk 'NR<=5 { print $0 }' f.txt", []ReadArgs{{FilePath: f, Offset: 1, Limit: 5}}},
+		{"awk 'NR >= 12' f.txt", []ReadArgs{{FilePath: f, Offset: 12}}},
+		{"gawk 'FNR<=2' f.txt g.txt", []ReadArgs{{FilePath: f, Offset: 1, Limit: 2}, {FilePath: g, Offset: 1, Limit: 2}}},
 	}
 	for _, tc := range cases {
 		got := PlanRead(tc.cmd, dir)
@@ -55,7 +61,7 @@ func TestPlanReadNote(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, "Your Bash command `sed -n '2,3p' a.txt` read a file, so its output is shown as the Read tool shows it. These Read calls give the same lines:\n"+
 		"- Read(file_path: \"/work/a.txt\", offset: 2, limit: 2)\n"+
-		"Use the Read tool to read files. Its offset and limit parameters select lines, which is what head, tail and sed -n were for.",
+		"Use the Read tool to read files. Its offset and limit parameters select lines, which is what head, tail, sed -n and awk were for.",
 		got.Note)
 }
 
@@ -90,6 +96,15 @@ func TestPlanReadLeavesTheRestToBash(t *testing.T) {
 		"sed -n 2p f.txt g.txt",
 		"sed 3p f.txt",
 		"sed 's/a/b/' f.txt",
+		"awk 'NR<=2' f.txt g.txt",
+		"awk 'NR==0' f.txt",
+		"awk 'NR>5 && NR<3' f.txt",
+		"awk '{print $1}' f.txt",
+		"awk 'NR<=2 {print $1}' f.txt",
+		"awk -F: 'NR==1' f.txt",
+		"awk 'NR==1' x=1 f.txt",
+		"awk '/re/' f.txt",
+		"awk 'NR==1'",
 		"ls -la",
 		"if true; then",
 	} {
