@@ -152,6 +152,19 @@ func TestTheExtractCacheDropsItsOldestEntry(t *testing.T) {
 	assert.False(t, ok, "the oldest entry goes first")
 }
 
+// Each Rust line comment holds its own line alone, so the lines of a doc
+// paragraph are one run with no line read twice.
+func TestARustDocLineHoldsItsOwnLine(t *testing.T) {
+	src := "/// Frees the handle that\n/// `create` returned.\nfn free() {}\n"
+	runs := Runs("x.rs", src)
+	require.Len(t, runs, 1)
+	assert.Equal(t, []string{"/// Frees the handle that", "/// `create` returned."}, texts(runs[0]))
+	for i, c := range runs[0] {
+		assert.Equal(t, i+1, c.Line)
+		assert.Equal(t, 1, c.Lines)
+	}
+}
+
 func TestAFileWithoutCgoKeepsEveryComment(t *testing.T) {
 	src := `// Package p does no cgo.
 package p
