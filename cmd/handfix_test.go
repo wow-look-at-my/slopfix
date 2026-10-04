@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,14 +21,111 @@ func denial(t *testing.T, got answer) string {
 	return reason
 }
 
-func TestAnEditToAnAutoFixableLineIsDenied(t *testing.T) {
+// applied answers the file the tool writes from the payload the hook answered.
+func applied(t *testing.T, before string, got answer) string {
+	t.Helper()
+	require.NotNil(t, got.out, "expected a rewrite")
+	assert.NotContains(t, got.body, "permissionDecision")
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	require.NotNil(t, updated, got.body)
+	edits, _ := updated["edits"].([]any)
+	if edits == nil {
+		edits = []any{updated}
+	}
+	out := before
+	for _, e := range edits {
+		m, _ := e.(map[string]any)
+		old, _ := m["old_string"].(string)
+		text, _ := m["new_string"].(string)
+		require.Equal(t, 1, strings.Count(out, old), "the tool places %q a single time", old)
+		out = strings.Replace(out, old, text, 1)
+	}
+	return out
+}
+
+// fixed answers what `slopfix fix` writes for src under the named rule categories.
+func fixed(t *testing.T, path, src string, only ...string) string {
+	t.Helper()
+	rules, ids, err := selectedRules(only)
+	require.NoError(t, err)
+	return slopfix.Fix(slopfix.Request{Content: src, Path: path, Rules: rules, IDs: ids, MaxCommentLines: hookMaxLines}).Text
+}
+
+func TestAnEditToAnAutoFixableLineIsRewritten(t *testing.T) {
 	path := onDisk(t, "a.md", countsDoc)
 	got := ask(t, editOf(path, "It has three plugins.", "It has three good plugins."), "counts")
 
-	reason := denial(t, got)
-	assert.Contains(t, reason, "run `slopfix fix "+path+"`, then make your change; hand-edits to lines slopfix auto-fixes are refused")
-	assert.Contains(t, reason, path+":2: [")
-	assert.Contains(t, reason, "counts")
+	hand := "Intro line.\nIt has three good plugins.\nOutro line.\n"
+	want := fixed(t, path, hand, "counts")
+	require.NotEqual(t, hand, want, "the edited line carries a finding fix repairs")
+	assert.Equal(t, want, applied(t, countsDoc, got))
+	assert.Contains(t, got.out["additionalContext"], path+":2: [")
+	assert.Contains(t, got.out["additionalContext"], "counts")
+}
+
+// The case that was refused: a line holding a finding fix repairs, and an Edit
+// that appends a sentence to it. The write goes through as fix writes it.
+func TestAnEditAppendingToAFlaggedLineIsRewrittenNotRefused(t *testing.T) {
+	line := "- Every report ends with the list of open PRs in merge order. Every PR on it is checked with `gh pr view --json state` in the same turn, right before the list goes out. A merged or closed PR is dropped from the list and from the whole report: no link, no \"has merged\" note. I linked gh-wait-ci PR 25 in a report to say it had merged, and the user read the link as a stale PR and stopped reading. I twice listed PRs the user had already merged, then overcorrected by writing a rule to stop listing PRs at all. The user: \"you ALWAYS give me a list of PRs for the merge order, YOU JUST NEED TO FUCKING CHECK THEM BEFORE GIVING THEM TO ME\".\n"
+	doc := "# Miscellaneous Guidelines\n\n## General Development Rules\n" + line
+	path := onDisk(t, "CLAUDE.misc.md", doc)
+	require.NotEqual(t, doc, fixed(t, path, doc), "the edited line carries a finding fix repairs")
+
+	old := "and the user read the link as a stale PR and stopped reading."
+	text := old + " The user will now revert any merged PR I send."
+	got := ask(t, editOf(path, old, text))
+
+	hand := strings.Replace(doc, old, text, 1)
+	assert.Equal(t, fixed(t, path, hand), applied(t, doc, got))
+	assert.Contains(t, got.out["additionalContext"], path+":4: [")
+}
+
+// An edit that performs a repair by hand ends as the repair fix writes.
+func TestAHandRepairEndsAsTheRepairFixWrites(t *testing.T) {
+	path := onDisk(t, "a.md", countsDoc)
+	got := ask(t, editOf(path, "It has three plugins.", "It now has three plugins."), "counts")
+
+	hand := "Intro line.\nIt now has three plugins.\nOutro line.\n"
+	assert.Equal(t, fixed(t, path, hand, "counts"), applied(t, countsDoc, got))
+	assert.NotContains(t, applied(t, countsDoc, got), "three")
+}
+
+// A hand rewording that clears the finding is put back as fix writes the line.
+func TestAHandRewordingEndsAsTheRepairFixWrites(t *testing.T) {
+	path := onDisk(t, "a.md", countsDoc)
+	got := ask(t, editOf(path, "It has three plugins.", "It has some plugins."), "counts")
+
+	assert.Equal(t, fixed(t, path, countsDoc, "counts"), applied(t, countsDoc, got))
+}
+
+// A rewrite keeps every line the edit did not write as it stands on disk.
+func TestARewriteLeavesLinesTheEditDidNotWrite(t *testing.T) {
+	doc := "It has three plugins.\n\nIt has three tools.\n"
+	path := onDisk(t, "a.md", doc)
+	got := ask(t, editOf(path, "three tools.", "three good tools."), "counts")
+
+	out := applied(t, doc, got)
+	assert.True(t, strings.HasPrefix(out, "It has three plugins.\n\n"), out)
+	assert.NotContains(t, strings.TrimPrefix(out, "It has three plugins.\n\n"), "three")
+}
+
+func TestKeepWrittenTakesOnlyTheWrittenLines(t *testing.T) {
+	written := writtenLines("a\nb\nc\n", "a\nB\nc\n")
+	assert.Equal(t, "a\nX\nc\n", keepWritten("a\nB\nc\n", "Y\nX\nc\n", written))
+
+	// A join that rewrites a line the edit never wrote is left out.
+	written = writtenLines("a\nb\n", "a\nB\n")
+	assert.Equal(t, "a\nB\n", keepWritten("a\nB\n", "a B\n", written))
+}
+
+func TestLineSpanGrowsUntilItIsUnique(t *testing.T) {
+	span, text := lineSpan("x\ny\nx\n", "x\ny\nx\nz\n")
+	assert.Equal(t, 1, strings.Count("x\ny\nx\n", span))
+	assert.Equal(t, "x\ny\nx\nz\n", strings.Replace("x\ny\nx\n", span, text, 1))
+
+	span, text = lineSpan("a\nb\nc\n", "a\nB\nc\n")
+	assert.Equal(t, "b\n", span)
+	assert.Equal(t, "B\n", text)
 }
 
 func TestAnEditBesideAnAutoFixableLineIsAllowed(t *testing.T) {
@@ -52,12 +150,16 @@ func TestAnEditToAFindingFixDoesNotChangeIsAllowed(t *testing.T) {
 	assert.NotContains(t, got.body, "deny")
 }
 
-func TestAWriteReplacingAFlaggedLineIsDenied(t *testing.T) {
+func TestAWriteReplacingAFlaggedLineIsRepaired(t *testing.T) {
 	path := onDisk(t, "a.md", countsDoc)
-	got := ask(t, write(path, "Intro line.\nIt has plugins.\nOutro line.\n"), "counts")
+	hand := "Intro line.\nIt has three good plugins.\nOutro line.\n"
+	got := ask(t, write(path, hand), "counts")
 
-	reason := denial(t, got)
-	assert.Contains(t, reason, path+":2: [")
+	require.NotNil(t, got.out)
+	assert.NotContains(t, got.body, "permissionDecision")
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	require.NotNil(t, updated, got.body)
+	assert.Equal(t, fixed(t, path, hand, "counts"), updated["content"])
 }
 
 func TestAWriteKeepingAFlaggedLineIsAllowed(t *testing.T) {
@@ -67,7 +169,7 @@ func TestAWriteKeepingAFlaggedLineIsAllowed(t *testing.T) {
 	assert.NotContains(t, got.body, "deny")
 }
 
-func TestAMultiEditTouchingAnAutoFixableLineIsDenied(t *testing.T) {
+func TestAMultiEditTouchingAnAutoFixableLineIsRewritten(t *testing.T) {
 	path := onDisk(t, "a.md", countsDoc)
 	payload := map[string]any{
 		"hook_event_name": "PreToolUse",
@@ -81,9 +183,18 @@ func TestAMultiEditTouchingAnAutoFixableLineIsDenied(t *testing.T) {
 			},
 		},
 	}
-	reason := denial(t, ask(t, payload, "counts"))
-	assert.Contains(t, reason, path+":2: [")
-	assert.NotContains(t, reason, path+":1: [")
+	got := ask(t, payload, "counts")
+	hand := "Opening row.\nIt has 3 plugins.\nOutro row.\n"
+	want := fixed(t, path, hand, "counts")
+	if want == hand {
+		// fix leaves the hand version alone, so the line is put back as fix repairs the original.
+		want = "Opening row.\n" + strings.SplitAfter(fixed(t, path, countsDoc, "counts"), "\n")[1] + "Outro row.\n"
+	}
+	assert.Equal(t, want, applied(t, countsDoc, got))
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	assert.Len(t, updated["edits"], 1)
+	assert.Contains(t, got.out["additionalContext"], path+":2: [")
+	assert.NotContains(t, got.out["additionalContext"], path+":1: [")
 }
 
 func TestAnEditTheToolCannotPlaceIsLeftToTheTool(t *testing.T) {
@@ -104,8 +215,9 @@ func TestAnErrorComputingTheFixIsDenied(t *testing.T) {
 
 func TestAnUnreadableEditIsDenied(t *testing.T) {
 	path := onDisk(t, "a.md", countsDoc)
-	got := handFix("Edit", []byte(`{"replace_all":"yes"}`), path, "", nil, nil, noForkLines)
+	hand, got := handFix("Edit", []byte(`{"replace_all":"yes"}`), path, nil, nil, noForkLines)
 
+	assert.Nil(t, hand)
 	require.NotEmpty(t, got)
 	assert.Contains(t, got[0], "cannot read the edits to "+path)
 }
