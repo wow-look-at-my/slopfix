@@ -14,6 +14,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/goformat"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/pins"
@@ -86,6 +87,10 @@ type Request struct {
 	MaxCommentLines int
 	// Scope bounds where a repair may land. The zero Scope is the whole file.
 	Scope edit.Scope `json:"-"`
+	// Owned names the lines of Content a fork wrote. A repair lands only on them, and a finding counts only on them.
+	Owned *forkscope.Scope `json:"-"`
+	// Fork names the lines a fork wrote across a tree run. A file it holds no line of is neither read nor written.
+	Fork *forkscope.Lines `json:"-"`
 }
 
 // Repair is the text as this binary would write it, plus what the rewrite flagged.
@@ -110,9 +115,13 @@ type Repair struct {
 	Unmet []string `json:"unmet,omitempty"`
 }
 
-// Fix repairs req, unless it carries slopfix-expect annotations. Such text is a
-// fixture: it is checked against them and comes back unchanged.
+// Fix repairs req, unless it carries slopfix-expect annotations.
 func Fix(req Request) Repair {
+	return within(req, fixAll(req))
+}
+
+// fixAll is Fix with no regard to the lines a fork wrote.
+func fixAll(req Request) Repair {
 	if exempt(req.Path, req.Content) {
 		return Repair{Text: req.Content, Scope: req.Scope}
 	}
@@ -257,8 +266,21 @@ func openFile(req Request, kind fixer.Kind) *fixer.File {
 }
 
 // Report is Fix for a caller that writes nothing. No repair lands, so every
-// finding is reported on the text as it stands, the repairable ones too.
+// finding is reported on the text as it stands, the repairable ones too. With
+// req.Owned set, only a finding on an owned line is reported.
 func Report(req Request) Repair {
+	repair := reportAll(req)
+	if req.Owned == nil {
+		return repair
+	}
+	repair.Findings = ownedFindings(repair.Findings, req.Owned)
+	repair.Kept = ownedHits(repair.Kept, req.Owned)
+	return repair
+}
+
+// reportAll is Report with no regard to the lines a fork wrote.
+func reportAll(req Request) Repair {
+	req.Owned = nil
 	if !req.Scope.Bounded {
 		req.Scope = edit.Nowhere()
 	}

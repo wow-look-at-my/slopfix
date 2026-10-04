@@ -88,8 +88,9 @@ func fixOf(req slopfix.Request) (repair slopfix.Repair, err error) {
 
 // handFix answers the refusal for a write that changes a line F changes, or
 // nil when the write may go on to the repair. A path with no file yet is a new
-// file, and only the repair judges it.
-func handFix(tool string, toolInput []byte, path string, content string, rules []slopfix.Rule, ids []string) []string {
+// file, and only the repair judges it. In a fork, F changes only the lines the
+// fork wrote, so a file the fork never touched refuses nothing.
+func handFix(tool string, toolInput []byte, path string, content string, rules []slopfix.Rule, ids []string, owned forkLines) []string {
 	if path == "" || (tool != "Write" && tool != "Edit" && tool != "MultiEdit") {
 		return nil
 	}
@@ -113,7 +114,14 @@ func handFix(tool string, toolInput []byte, path string, content string, rules [
 			return nil
 		}
 	}
-	req := slopfix.Request{Content: before, Path: path, Rules: rules, IDs: ids, MaxCommentLines: hookMaxLines}
+	scope, err := owned(before)
+	if err != nil {
+		return []string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", path, err)}
+	}
+	if scope != nil && scope.Empty() {
+		return nil
+	}
+	req := slopfix.Request{Content: before, Path: path, Rules: rules, IDs: ids, MaxCommentLines: hookMaxLines, Owned: scope}
 	fixed, err := fixOf(req)
 	if err != nil {
 		return []string{fmt.Sprintf("slopfix cannot compute what `slopfix fix %s` changes: %v", path, err)}
