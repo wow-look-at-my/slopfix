@@ -37,10 +37,12 @@ runs:
       # check reads the repository from the API to tell whether it is a fork, and a private one needs the token.
       env:
         GITHUB_TOKEN: ${{ github.token }}
+        SLOPFIX_PERMISSION: ${{ inputs.permission }}
+        SLOPFIX_LEVEL: ${{ inputs.level }}
       run: |
         set -- check .
-        if [ -n "${{ inputs.permission }}" ]; then
-          set -- check workflow-permission --json --permission "${{ inputs.permission }}" --level "${{ inputs.level }}"
+        if [ -n "$SLOPFIX_PERMISSION" ]; then
+          set -- check workflow-permission --json --permission "$SLOPFIX_PERMISSION" --level "$SLOPFIX_LEVEL"
         fi
         rc=0
         out=$(sh "${{ steps.download.outputs.path }}" "$@") || rc=$?
@@ -55,10 +57,12 @@ runs:
       shell: pwsh
       env:
         GITHUB_TOKEN: ${{ github.token }}
+        SLOPFIX_PERMISSION: ${{ inputs.permission }}
+        SLOPFIX_LEVEL: ${{ inputs.level }}
       run: |
         $slopfixArgs = @('check', '.')
-        if ('${{ inputs.permission }}' -ne '') {
-          $slopfixArgs = @('check', 'workflow-permission', '--json', '--permission', '${{ inputs.permission }}', '--level', '${{ inputs.level }}')
+        if (-not [string]::IsNullOrEmpty($env:SLOPFIX_PERMISSION)) {
+          $slopfixArgs = @('check', 'workflow-permission', '--json', '--permission', $env:SLOPFIX_PERMISSION, '--level', $env:SLOPFIX_LEVEL)
         }
         $out = & "${{ steps.download.outputs.path }}" @slopfixArgs
         $rc = $LASTEXITCODE
