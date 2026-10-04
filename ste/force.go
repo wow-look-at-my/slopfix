@@ -89,7 +89,7 @@ func checkMask(prose string) string {
 		case '&':
 			fillCheckWord(out[span[0]:span[1]], "ENTITY")
 		default:
-			fillWord(out[span[0]:span[1]])
+			fillLink(out[span[0]:span[1]], func(inner []byte) { fillCheckWord(inner, "URL") })
 		}
 	}
 	// Check finds a quotation after it strips code, so a quote mark inside a code span pairs with nothing.
@@ -250,6 +250,7 @@ func candidates(source, masked string, strict bool) []forceCut {
 	off := verbatimSpan.FindAllStringIndex(source, -1)
 	off = append(off, quotedSpans(source)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
+	off = append(off, outerParens(masked)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
 	verbs := set.New[int]()
@@ -294,6 +295,31 @@ func candidates(source, masked string, strict bool) []forceCut {
 		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty})
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].score > out[b].score })
+	return out
+}
+
+// outerParens answers each outermost balanced parenthesis, nested ones too. A
+// link inside an aside nests a pair the parenthetical pattern cannot match.
+func outerParens(text string) [][]int {
+	var out [][]int
+	depth, open := 0, 0
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '(':
+			if depth == 0 {
+				open = i
+			}
+			depth++
+		case ')':
+			if depth == 0 {
+				continue
+			}
+			depth--
+			if depth == 0 {
+				out = append(out, []int{open, i + 1})
+			}
+		}
+	}
 	return out
 }
 
@@ -346,6 +372,9 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if tag := s.Words[0].Tag; tag == "VBZ" || tag == "VBP" || tag == "VBD" || tag == "MD" {
 		return joinOpener(opener, subjectFor(source, masked, c, tag)+" "+rest), opensWithVerb
 	}
+	if opensImperative(restMasked) {
+		return joinOpener(opener, rest), opensOwnClause
+	}
 	return joinOpener(opener, "this is "+rest), opensWithFill
 }
 
@@ -383,6 +412,23 @@ func opensClause(s *syntax.Sentence) bool {
 	}
 	c := s.Clauses[0]
 	return c.Subject != nil && c.Verb != nil && c.Subject.First == 0
+}
+
+// opensImperative reports a rest that opens on a bare verb, as in "use the
+// copy key". An imperative stands as a sentence with a capital and no subject.
+// The tagger reads a lower-case bare verb at the start as a noun, so the rest
+// is read with the subject an imperative leaves out.
+func opensImperative(restMasked string) bool {
+	s := syntax.Parse("You "+opening(restMasked), nil)
+	if len(s.Words) < 2 || len(s.Clauses) == 0 {
+		return false
+	}
+	c := s.Clauses[0]
+	if c.Subject == nil || c.Subject.First != 0 || c.Verb == nil || c.Verb.First != 1 {
+		return false
+	}
+	tag := s.Words[1].Tag
+	return tag == "VB" || tag == "VBP"
 }
 
 // subjectFor names the subject of the words before the cut again, for a verb
