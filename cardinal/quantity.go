@@ -246,6 +246,22 @@ func IssueNumber(text string, q Match) bool {
 
 var issueRef = regexp.MustCompile(`(?i)\bissue #$`)
 
+// GPUName exempts the digits of the literal shape "Vega <digits>". The digits
+// are part of a product name.
+func GPUName(text string, q Match) bool {
+	return gpuRef.MatchString(text[:q.At])
+}
+
+var gpuRef = regexp.MustCompile(`(?i)\bvega $`)
+
+// WordSize exempts the literal shapes "8 bits", "16 bits", "32 bits" and
+// "64 bits". A word size is a fixed width.
+func WordSize(_ string, q Match) bool {
+	return wordSizeRef.MatchString(q.Text)
+}
+
+var wordSizeRef = regexp.MustCompile(`(?i)^(?:8|16|32|64) bits$`)
+
 // InExpression exempts a number that is arithmetic rather than a count. The
 // digits in an expression or a range name no set of items.
 func InExpression(text string, q Match) bool {
