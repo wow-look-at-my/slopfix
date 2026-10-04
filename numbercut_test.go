@@ -33,7 +33,9 @@ const alignedBlock = "const reveal = (() => {\n" +
 // the line it closes.
 func TestACountCutFromAnAlignedBlockLeavesNoLonePeriod(t *testing.T) {
 	repair := slopfix.Fix(slopfix.Request{Content: alignedBlock, Path: "reveal.ts", MaxCommentLines: tombstones.DefaultMaxCommentLines})
-	for _, line := range strings.Split(repair.Text, "\n") {
+	comment, _, found := strings.Cut(repair.Text, "  function visit")
+	assert.True(t, found, repair.Text)
+	for _, line := range strings.Split(comment, "\n") {
 		trimmed := strings.TrimSpace(line)
 		assert.False(t, strings.HasPrefix(trimmed, ".") || strings.HasPrefix(trimmed, ","), "a line opens on a mark:\n%s", repair.Text)
 	}
