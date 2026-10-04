@@ -30,6 +30,21 @@ func TestIsDirective(t *testing.T) {
 	}
 }
 
+// A userscript metadata block is read by Tampermonkey, every line of it.
+func TestAUserscriptMetadataLineIsADirective(t *testing.T) {
+	for line, want := range map[string]bool{
+		"// ==UserScript==":                         true,
+		"// ==/UserScript==":                        true,
+		"// @name         GitHub Actions Colorizer": true,
+		"// @run-at       document-end":             true,
+		"// @noframes":                              true,
+		"// The @name key names the script.":        false,
+		"// email me@example.com":                   false,
+	} {
+		assert.Equal(t, want, IsDirective(line), line)
+	}
+}
+
 const headerSrc = "// Copyright 2026 The Go Authors. All rights reserved.\n" +
 	"// Use of this source code is governed by a BSD-style\n" +
 	"// license that can be found in the LICENSE file.\n\n" +

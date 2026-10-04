@@ -33,6 +33,30 @@ const hardlinkSource = "package engine\n\n" +
 	"\tr.enqueueFile(root, srcPath, dstPath)\n" +
 	"}\n"
 
+// userscriptHeader is the metadata block of tampermonkey's
+// actions-step-colorizer.user.ts. Tampermonkey parses it, so it is no prose.
+const userscriptHeader = "// ==UserScript==\n" +
+	"// @name         GitHub Actions Step Status Colorizer\n" +
+	"// @version      1.0\n" +
+	"// @description  Colorize the step status icons in GitHub Actions workflow runs\n" +
+	"// @author       mhaynie\n" +
+	"// @match        https://github.com/*/actions/runs/*\n" +
+	"// @grant        GM_addStyle\n" +
+	"// @run-at       document-end\n" +
+	"// ==/UserScript==\n"
+
+// Every rule leaves a userscript metadata block as written, every line of it.
+func TestFixKeepsAUserscriptMetadataBlock(t *testing.T) {
+	src := userscriptHeader + "\nGM_addStyle(`\n\t.CheckStep .octicon-skip {\n\t\tcolor: #d29922 !important;\n\t}\n`);\n"
+	for _, path := range []string{"src/GitHub/actions-step-colorizer.user.ts", "src/GitHub/actions-step-colorizer.user.js"} {
+		out := slopfix.Fix(slopfix.Request{Content: src, Path: path, MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+		assert.Equal(t, src, out, path)
+		for _, f := range slopfix.CheckContent(path, src) {
+			assert.Greater(t, f.Line, strings.Count(userscriptHeader, "\n"), "%s: %s", path, f)
+		}
+	}
+}
+
 // The tombstone sits inside an aside, so its sentence goes whole, and the
 // paragraph break it leaves goes with it. No fragment of the sentence stays.
 func TestFixLeavesNoFragmentOfASentenceItCuts(t *testing.T) {
