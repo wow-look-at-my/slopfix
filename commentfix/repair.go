@@ -174,8 +174,15 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 			edits = append(edits, e)
 			continue
 		}
+		if said == "" && para.code == "" {
+			// A comment with nothing left to say loses its lines, delimiters and all.
+			e := edit.Rows(src, first, last, 0, nil)
+			e.Cut = cut
+			edits = append(edits, e)
+			continue
+		}
 		wrapped := wrap(said, para.marker, para.cont, para.width)
-		// An emptied block keeps its delimiters on a line of their own.
+		// An emptied block after code keeps its delimiters, because the code holds the line.
 		if len(wrapped) == 0 && para.trailer != "" {
 			wrapped = []string{strings.TrimRight(para.marker, " ")}
 		}
@@ -406,8 +413,8 @@ func rewordCounts(prose string) string {
 	return prose
 }
 
-// sentences splits prose on its sentence ends with the STE splitter.
-func sentences(prose string) []string { return ste.Sentences(prose) }
+// sentences splits comment prose on its sentence ends.
+func sentences(prose string) []string { return ste.CommentSentences(prose) }
 
 // split separates a comment line's marker and indent from its prose.
 func split(line string) (marker, prose string, ok bool) {
@@ -426,9 +433,11 @@ func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	if rest, closed := strings.CutPrefix(trimmed, "*/"); closed && strings.TrimSpace(rest) == "" {
 		return indent, "", "*/", true
 	}
-	for _, m := range []string{"///", "//!", "//", "/*", "#", "*"} {
+	// A doc comment opens with /**. Read as /*, its second star goes into the prose.
+	for _, m := range []string{"///", "//!", "//", "/**", "/*", "#", "*"} {
 		rest, found := strings.CutPrefix(trimmed, m)
-		if !found {
+		// "/**/" is an empty block: its opener is /* and its closer */.
+		if !found || (m == "/**" && strings.HasPrefix(rest, "/")) {
 			continue
 		}
 		space := rest[:len(rest)-len(strings.TrimLeft(rest, " \t"))]
