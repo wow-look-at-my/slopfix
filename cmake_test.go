@@ -77,6 +77,13 @@ func TestACMakeListfileIsSourceNotProse(t *testing.T) {
 		repair := slopfix.Fix(slopfix.Request{Path: path, Content: cmakeSnippet})
 		assert.Equal(t, codeLines(cmakeSnippet), codeLines(repair.Text), "%s: a repair changed a code line", path)
 		assert.Empty(t, slopfix.CheckContent(path, repair.Text), "%s: fix left a finding check reports", path)
+
+		// check reads a file through Report. It names what fix rewrites, and nothing once fix has run.
+		before := slopfix.Report(slopfix.Request{Path: path, Content: cmakeSnippet})
+		assert.NotEmpty(t, before.Findings, "%s: fix rewrites comments check never reported", path)
+		after := slopfix.Report(slopfix.Request{Path: path, Content: repair.Text})
+		assert.Empty(t, after.Findings, "%s", path)
+		assert.Empty(t, after.Kept, "%s", path)
 	}
 }
 
