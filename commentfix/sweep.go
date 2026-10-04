@@ -225,18 +225,10 @@ func skipDir(root, path, name string, rootIsModule bool) bool {
 	if strings.HasPrefix(name, ".") || skipDirs.Contains(name) {
 		return true
 	}
-	if IsSubmodule(path) || isNestedClone(path) {
+	if IsSubmodule(path) {
 		return true
 	}
 	return rootIsModule && isNestedModule(path)
-}
-
-// isNestedClone reports whether dir holds a repository of its own, as a second
-// checkout in a CI workspace does. Its prose belongs to that repository.
-func isNestedClone(dir string) bool {
-	head, headErr := os.Stat(filepath.Join(dir, ".git", "HEAD"))
-	objects, objectsErr := os.Stat(filepath.Join(dir, ".git", "objects"))
-	return headErr == nil && head.Mode().IsRegular() && objectsErr == nil && objects.IsDir()
 }
 
 // IsSubmodule reports whether dir is a git submodule's working tree. Git marks

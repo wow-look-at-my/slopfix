@@ -68,18 +68,6 @@ func TestTheWalkSkipsASubmodule(t *testing.T) {
 	assert.ElementsMatch(t, []string{"kept/k.go"}, names(t, root))
 }
 
-// A clone inside the tree, such as a second checkout a CI job makes, is another
-// repository. Its prose is fixed there.
-func TestTheWalkSkipsANestedClone(t *testing.T) {
-	root := tree(t, map[string]string{
-		"main.go":                 "package main\n",
-		"_runner/doc.go":          "package runner\n",
-		"_runner/.git/HEAD":       "ref: refs/heads/master\n",
-		"_runner/.git/objects/.k": "",
-	})
-	assert.ElementsMatch(t, []string{"main.go"}, names(t, root))
-}
-
 // A build can copy a source tree into a submodule path that nobody initialized.
 // The index still holds the gitlink, so the walk still skips it.
 func TestTheWalkSkipsAnUninitializedSubmoduleWithCopiedFiles(t *testing.T) {
