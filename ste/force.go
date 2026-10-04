@@ -384,7 +384,7 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if tag := s.Words[0].Tag; tag == "VBZ" || tag == "VBP" || tag == "VBD" || tag == "MD" {
 		return joinOpener(opener, subjectFor(source, masked, c, tag)+" "+rest), opensWithVerb
 	}
-	if opensImperative(restMasked) {
+	if opensImperative(restMasked) && !listItem {
 		return joinOpener(opener, rest), opensOwnClause
 	}
 	if opensPrepositionalPhrase(s) && !hasMainVerb(s) {
