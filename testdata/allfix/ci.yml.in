@@ -8,4 +8,5 @@ jobs:
       # The second comment line.
       - uses: wow-look-at-my/slopfix@master
         continue-on-error: true
+      - uses: wow-look-at-my/go-toolchain@drop-common-checks
       - run: curl -fL "https://dl.pazer.build/tool?os=linux&v=${{ inputs.v }}" -o tool
