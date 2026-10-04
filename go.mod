@@ -19,7 +19,6 @@ require (
 )
 
 require (
-	github.com/wow-look-at-my/go-regex-compiler v0.0.0
 	go.yaml.in/yaml/v3 v3.0.5
 	mvdan.cc/sh/v3 v3.14.1
 )
