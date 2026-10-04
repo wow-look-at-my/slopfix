@@ -14,6 +14,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 )
 
 // Result is what the launcher prints and exits with.
@@ -56,7 +57,7 @@ func Run(r io.Reader) Result {
 		return Result{}
 	}
 
-	repair, err := slopfix.FixFile(path)
+	repair, err := slopfix.FixFileIn(forkscope.Resolver{}, path, slopfix.Request{})
 	var unmet *slopfix.UnmetError
 	if errors.As(err, &unmet) {
 		// Exit 2 is how a PostToolUse hook puts stderr in front of the model.

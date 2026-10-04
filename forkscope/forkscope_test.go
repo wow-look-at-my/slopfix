@@ -1,4 +1,4 @@
-package slopfix
+package forkscope
 
 import (
 	"encoding/json"
@@ -8,8 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,33 +106,160 @@ func forkEnv(srv *httptest.Server) func(string) string {
 	return envOf(map[string]string{"GITHUB_REPOSITORY": "o/fork", "GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"})
 }
 
-// semicolons answers the lines of name that hold an english/semicolon finding.
-func semicolons(out TreeRepair, name string) []int {
-	var lines []int
-	for _, f := range out.Findings {
-		if filepath.Base(f.Path) == name && f.ID == "english/semicolon" {
-			lines = append(lines, f.Line)
-		}
-	}
-	slices.Sort(lines)
-	return lines
+func forkLines(root string, getenv func(string) string, listURL string) (*Lines, error) {
+	return Resolver{Getenv: getenv, ListURL: listURL}.Lines(root)
 }
 
-func scopedCheck(t *testing.T, root string, getenv func(string) string, listURL string) TreeRepair {
+// prose names the lines of the fixture's documents that hold a sentence.
+var prose = []int{3, 5, 7}
+
+// held answers which of lines the fork wrote in the file name under root.
+func held(own *Lines, root, name string, lines ...int) []int {
+	out := []int{}
+	for _, n := range lines {
+		if own.Holds(filepath.Join(root, name), n, n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func scoped(t *testing.T, root string, getenv func(string) string, listURL string) *Lines {
 	t.Helper()
 	own, err := forkLines(root, getenv, listURL)
 	require.NoError(t, err)
 	require.NotNil(t, own)
-	return CheckTreeWith(root, Request{}).Within(own, root)
+	return own
 }
 
-func TestAForkReportsOnlyTheLinesItWrote(t *testing.T) {
+func TestAForkOwnsOnlyTheLinesItWrote(t *testing.T) {
 	fx := newForkFixture(t)
-	out := scopedCheck(t, fx.fork, forkEnv(forkAPI(t, forkBody(fx.parent))), noList(t))
+	own := scoped(t, fx.fork, forkEnv(forkAPI(t, forkBody(fx.parent))), noList(t))
 
-	assert.Equal(t, []int{5, 7}, semicolons(out, "doc.md"), "line 3 is inherited, line 5 is edited, line 7 is added")
-	assert.Equal(t, []int{3}, semicolons(out, "new.md"), "a file the fork committed is the fork's")
-	assert.Equal(t, []int{3}, semicolons(out, "loose.md"), "an untracked file is the fork's")
+	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...), "line 3 is inherited, line 5 is edited, line 7 is added")
+	assert.Equal(t, []int{3}, held(own, fx.fork, "new.md", 3), "a file the fork committed is the fork's")
+	assert.Equal(t, []int{3}, held(own, fx.fork, "loose.md", 3), "an untracked file is the fork's")
+	assert.True(t, own.Scope(filepath.Join(fx.fork, "later.md")).Empty(), "a file the fork never had is not the fork's")
+}
+
+// A fork's origin on GitHub names the repository, with no GITHUB_REPOSITORY.
+// What the network said is kept in the git directory, so a second run asks nothing.
+func TestTheOriginNamesTheForkAndTheAnswerIsKept(t *testing.T) {
+	fx := newForkFixture(t)
+	gitT(t, fx.fork, "remote", "set-url", "origin", "git@github.com:o/fork.git")
+	var asked atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked.Add(1)
+		if r.URL.Path != "/repos/o/fork" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(forkBody(fx.parent)))
+	}))
+	t.Cleanup(srv.Close)
+	env := envOf(map[string]string{"GITHUB_API_URL": srv.URL})
+
+	own := scoped(t, fx.fork, env, srv.URL+"/fork-of.json")
+	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...))
+	asked.Store(0)
+	identities.Lock()
+	clear(identities.byKey)
+	identities.Unlock()
+
+	own = scoped(t, fx.fork, env, srv.URL+"/fork-of.json")
+	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...))
+	assert.Zero(t, asked.Load(), "the second run reads the record the first one kept")
+}
+
+func TestARepoOfURL(t *testing.T) {
+	for raw, want := range map[string]string{
+		"https://github.com/o/fork.git":       "o/fork",
+		"https://github.com/o/fork":           "o/fork",
+		"git@github.com:o/fork.git":           "o/fork",
+		"ssh://git@github.com/o/fork.git":     "o/fork",
+		"https://GitHub.com/o/fork/":          "o/fork",
+		"https://gitlab.com/o/fork.git":       "",
+		"/srv/git/parent.git":                 "",
+		"https://github.com/o/fork/extra.git": "",
+	} {
+		assert.Equal(t, want, repoOfURL(raw, "github.com"), raw)
+	}
+}
+
+// Inside an Actions run, GITHUB_REPOSITORY names the checkout. A root outside
+// GITHUB_WORKSPACE is not that checkout, and nothing is asked about it.
+func TestARootOutsideTheWorkspaceIsNotTheNamedRepository(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("a request was made for a root outside GITHUB_WORKSPACE")
+	}))
+	t.Cleanup(srv.Close)
+	env := envOf(map[string]string{"GITHUB_REPOSITORY": "o/fork", "GITHUB_API_URL": srv.URL, "GITHUB_WORKSPACE": t.TempDir()})
+	own, err := forkLines(t.TempDir(), env, srv.URL+"/fork-of.json")
+	require.NoError(t, err)
+	assert.Nil(t, own)
+}
+
+// The event payload of an Actions run says whether the repository is a fork,
+// so a repository that is not asks the API nothing.
+func TestTheEventPayloadSparesTheAPI(t *testing.T) {
+	fx := newForkFixture(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/fork-of.json" {
+			http.NotFound(w, r)
+			return
+		}
+		t.Error("the API was asked about a repository the event describes")
+	}))
+	t.Cleanup(srv.Close)
+	event := filepath.Join(t.TempDir(), "event.json")
+	writeT(t, filepath.Dir(event), "event.json", `{"repository":{"full_name":"O/Fork","fork":false}}`)
+	env := envOf(map[string]string{"GITHUB_REPOSITORY": "o/fork", "GITHUB_API_URL": srv.URL, "GITHUB_EVENT_PATH": event})
+	own, err := forkLines(fx.fork, env, srv.URL+"/fork-of.json")
+	require.NoError(t, err)
+	assert.Nil(t, own)
+}
+
+// A file's own lines come from a diff of its text against the base.
+func TestBaseFileScopesAText(t *testing.T) {
+	fx := newForkFixture(t)
+	base, err := Resolver{Getenv: forkEnv(forkAPI(t, forkBody(fx.parent))), ListURL: noList(t)}.Base(fx.fork)
+	require.NoError(t, err)
+	require.NotNil(t, base)
+
+	scope, err := base.File(filepath.Join(fx.fork, "doc.md"), inherited)
+	require.NoError(t, err)
+	assert.True(t, scope.Empty(), "the parent's text is none of the fork's")
+
+	scope, err = base.File(filepath.Join(fx.fork, "doc.md"), inherited+"\nAdded.\n")
+	require.NoError(t, err)
+	assert.True(t, scope.Owns(6))
+	assert.True(t, scope.Owns(7))
+	assert.False(t, scope.Owns(3))
+
+	scope, err = base.File(filepath.Join(fx.fork, "brand", "new.md"), "# New\n")
+	require.NoError(t, err)
+	assert.True(t, scope.All(), "a path the base does not hold is the fork's whole")
+}
+
+// Keep lands a change only where the fork wrote every line it replaces, and an
+// insertion only beside a line the fork wrote.
+func TestKeepPutsBackEveryChangeToAnInheritedLine(t *testing.T) {
+	before := "a\nb\nc\nd\n"
+	after := "A\nb\nC\nd\nE\n"
+	assert.Equal(t, "a\nb\nC\nd\n", Keep(before, after, OfLines(3)))
+	assert.Equal(t, "a\nb\nC\nd\nE\n", Keep(before, after, OfLines(3, 4)))
+	assert.Equal(t, after, Keep(before, after, Whole()))
+	assert.Equal(t, before, Keep(before, after, OfLines()))
+	assert.Equal(t, "a\nb\nc", Keep("a\nb\nc", "a\nB\nc\n", OfLines(1)), "a line end is a change to its line")
+}
+
+func TestCarryFollowsTheLinesThroughARepair(t *testing.T) {
+	carried := Carry("a\nb\nc\n", "a\nx\ny\nc\n", OfLines(2))
+	assert.False(t, carried.Owns(1))
+	assert.True(t, carried.Owns(2))
+	assert.True(t, carried.Owns(3))
+	assert.False(t, carried.Owns(4))
+	assert.Equal(t, "b\n", Removed("a\nb\nc\n", "a\nx\ny\nc\n"))
 }
 
 func TestAShallowForkIsDeepenedBeforeTheMergeBase(t *testing.T) {
@@ -143,26 +270,14 @@ func TestAShallowForkIsDeepenedBeforeTheMergeBase(t *testing.T) {
 	gitT(t, fx.fork, "clone", "-q", "--depth", "1", "file://"+fx.fork, shallow)
 	require.Equal(t, "true", gitT(t, shallow, "rev-parse", "--is-shallow-repository"))
 
-	out := scopedCheck(t, shallow, forkEnv(forkAPI(t, forkBody(fx.parent))), noList(t))
+	own := scoped(t, shallow, forkEnv(forkAPI(t, forkBody(fx.parent))), noList(t))
 
-	assert.Equal(t, []int{5, 7}, semicolons(out, "doc.md"))
-	assert.Equal(t, []int{3}, semicolons(out, "loose.md"))
+	assert.Equal(t, []int{5, 7}, held(own, shallow, "doc.md", prose...))
+	assert.Equal(t, []int{3}, held(own, shallow, "loose.md", 3))
 	assert.Equal(t, "false", gitT(t, shallow, "rev-parse", "--is-shallow-repository"))
 }
 
-// binaryFindings answers the paths, in order, of each repo/binary finding.
-func binaryFindings(out TreeRepair) []string {
-	var paths []string
-	for _, f := range out.Findings {
-		if f.ID == IDBinary {
-			paths = append(paths, filepath.ToSlash(f.Path))
-		}
-	}
-	slices.Sort(paths)
-	return paths
-}
-
-func TestAForkReportsOnlyTheBinariesItWrote(t *testing.T) {
+func TestAForkOwnsOnlyTheBinariesItWrote(t *testing.T) {
 	const elf = "\x7fELF\x02\x01\x01\x00"
 	work := t.TempDir()
 	gitT(t, work, "init", "-q", "-b", "main")
@@ -180,9 +295,10 @@ func TestAForkReportsOnlyTheBinariesItWrote(t *testing.T) {
 	gitT(t, fork, "add", "-A")
 	gitT(t, fork, "commit", "-q", "-m", "fork work")
 
-	out := scopedCheck(t, fork, forkEnv(forkAPI(t, forkBody(parent))), noList(t))
-	assert.Equal(t, []string{"added.bin", "edited.bin"}, binaryFindings(out),
-		"a binary the fork added or changed is the fork's; one it inherited unchanged is not")
+	own := scoped(t, fork, forkEnv(forkAPI(t, forkBody(parent))), noList(t))
+	assert.True(t, own.Whole(filepath.Join(fork, "added.bin")), "a binary the fork added is the fork's")
+	assert.True(t, own.Whole(filepath.Join(fork, "edited.bin")), "a binary the fork changed is the fork's")
+	assert.False(t, own.Holds(filepath.Join(fork, "inherited.bin"), 0, 0), "a binary it inherited unchanged is not")
 }
 
 func TestBinaryDiffPath(t *testing.T) {
@@ -201,13 +317,11 @@ func TestBinaryDiffPath(t *testing.T) {
 	assert.Error(t, err, "sides that name different paths are refused")
 }
 
-func TestARepositoryThatIsNoForkKeepsEveryFinding(t *testing.T) {
+func TestARepositoryThatIsNoForkHasNoScope(t *testing.T) {
 	fx := newForkFixture(t)
 	own, err := forkLines(fx.fork, forkEnv(forkAPI(t, `{"fork":false}`)), noList(t))
 	require.NoError(t, err)
 	assert.Nil(t, own)
-	out := CheckTreeWith(fx.fork, Request{}).Within(own, fx.fork)
-	assert.Equal(t, []int{3, 5, 7}, semicolons(out, "doc.md"))
 }
 
 // tagParent tags the parent. The fork carries the parent's base commit, tagged
@@ -257,11 +371,11 @@ func TestAListedForkReportsOnlyTheLinesItWrote(t *testing.T) {
 	fx := newForkFixture(t)
 	tagParent(t, fx)
 	list := fmt.Sprintf("// Forks GitHub does not record.\n{\n\t\"x/other\": \"https://example.invalid/other\", /* a fork of another */\n\t\"O/Fork\": %q,\n}\n", fx.parent)
-	out := scopedCheck(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, list))
+	own := scoped(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, list))
 
-	assert.Equal(t, []int{5, 7}, semicolons(out, "doc.md"), "line 3 is upstream's, line 5 is edited, line 7 is added")
-	assert.Equal(t, []int{3}, semicolons(out, "new.md"))
-	assert.Equal(t, []int{3}, semicolons(out, "loose.md"))
+	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...), "line 3 is upstream's, line 5 is edited, line 7 is added")
+	assert.Equal(t, []int{3}, held(own, fx.fork, "new.md", 3))
+	assert.Equal(t, []int{3}, held(own, fx.fork, "loose.md", 3))
 }
 
 // A repository cannot declare itself a fork: a file in its own tree is no list.
@@ -292,9 +406,9 @@ func TestAShallowListedForkIsDeepenedFirst(t *testing.T) {
 	shallow := filepath.Join(t.TempDir(), "shallow")
 	gitT(t, fx.fork, "clone", "-q", "--depth", "1", "file://"+fx.fork, shallow)
 
-	out := scopedCheck(t, shallow, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))
+	own := scoped(t, shallow, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))
 
-	assert.Equal(t, []int{5, 7}, semicolons(out, "doc.md"))
+	assert.Equal(t, []int{5, 7}, held(own, shallow, "doc.md", prose...))
 	assert.Equal(t, "false", gitT(t, shallow, "rev-parse", "--is-shallow-repository"))
 }
 
@@ -423,7 +537,7 @@ func TestTheDiffReaderCountsHunkBodies(t *testing.T) {
 		`-gone`,
 		``,
 	}, "\n")
-	own := &OwnLines{top: "/", whole: set.New[string](), lines: map[string]set.Set[int]{}}
+	own := &Lines{top: "/", whole: set.New[string](), lines: map[string]set.Set[int]{}}
 	require.NoError(t, own.readDiff(diff))
 
 	assert.True(t, own.Holds("/x.md", 2, 0))
@@ -444,7 +558,7 @@ func TestTheDiffReaderRefusesWhatItCannotRead(t *testing.T) {
 		"cut off hunk": "+++ b/x\n@@ -1 +1 @@\n-a\n",
 	} {
 		t.Run(name, func(t *testing.T) {
-			own := &OwnLines{top: "/", whole: set.New[string](), lines: map[string]set.Set[int]{}}
+			own := &Lines{top: "/", whole: set.New[string](), lines: map[string]set.Set[int]{}}
 			assert.Error(t, own.readDiff(diff))
 		})
 	}
