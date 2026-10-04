@@ -49,7 +49,6 @@ func init() {
 	register("yaml/ungate", IDNeuteredGate, 10, ungate, false)
 	register("yaml/join-comments", IDCommentBlock, 20, joinCommentBlocks, true)
 	register("yaml/rename-guarded-job", IDAllBuildsJob, 30, renameGuardedJob, false)
-	register("yaml/untest", IDTestInYAML, 40, untest, false)
 	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
 	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
@@ -206,24 +205,6 @@ func mappingKey(node *yaml.Node, key string) *yaml.Node {
 		}
 	}
 	return nil
-}
-
-// untest deletes the assertion lines a run: script carries, and the caller
-// prints each: the suite is where a case belongs and this file is not it. A
-// step emptied of them keeps its shape, because removing it is the author's call.
-func untest(content string) []edit.Edit {
-	findings := testsInYAML(content)
-	if len(findings) == 0 {
-		return nil
-	}
-	rows := lines(content)
-	drop := set.New[int]()
-	for _, f := range findings {
-		if f.Line-1 < len(rows) {
-			drop.Add(f.Line - 1)
-		}
-	}
-	return dropRows(content, drop)
 }
 
 // joinCommentBlocks folds a run of comment lines into the line the rule
