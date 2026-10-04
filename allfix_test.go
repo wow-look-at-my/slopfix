@@ -90,7 +90,7 @@ func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 	for _, id := range []string{
 		"ste/sentence-length", "ste/semicolon", "ste/contraction", "ste/modal", "wrap/hard-wrap", slopfix.IDLongBlock,
 		slopfix.IDBudget, slopfix.IDPackageScripts, slopfix.IDAgentsFile,
-		"yaml/push-tags", "yaml/all-builds-job", "yaml/neutered-gate", "yaml/comment-block",
+		"yaml/push-tags", "yaml/concurrency", "yaml/all-builds-job", "yaml/neutered-gate", "yaml/comment-block",
 		"pins/download-version", tombstones.IDVolume, "comments/length",
 	} {
 		assert.True(t, before.Contains(id), "the corpus holds no case of %s", id)
