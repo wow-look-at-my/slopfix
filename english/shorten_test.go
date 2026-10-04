@@ -15,6 +15,15 @@ func surfaceOf(where string) string {
 	return "comment"
 }
 
+// A cut at the end of a clause takes the comma before it too. Otherwise the
+// comma sits against the closing punctuation.
+func TestACutLeavesNoCommaAgainstTheStop(t *testing.T) {
+	assert.Equal(t, "It uses the blessed *endpoint*.", Fix("It uses the blessed *endpoint*, for now.", Document))
+	assert.Equal(t, "It retries once; then it stops.", Fix("It retries once, for now; then it stops.", Document))
+	assert.Equal(t, "Run it (once).", Fix("Run it (once, for now).", Document))
+	assert.Equal(t, "Keep 1,.5 as written.", Fix("Keep 1,.5 as written.", Document), "a comma inside a token is not a stranded one")
+}
+
 // Every entry declares its own worked examples, and each has to fire. Without
 // this an entry that stopped matching -- a typo, a phrase the boundary rule
 // rejects, a rewrite shadowed by a drop -- would sit in the table looking
