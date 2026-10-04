@@ -323,17 +323,12 @@ func isClause(before string) bool {
 }
 
 // Sentences splits prose into sentences.
-func Sentences(text string) []string { return splitSentences(text, opensSentence) }
+func Sentences(text string) []string { return SentencesOpenedBy(text, opensSentence) }
 
-// CommentSentences is Sentences for a code comment, where a sentence often
-// opens on a lower-case identifier such as a parameter name.
-func CommentSentences(text string) []string {
-	return splitSentences(text, func(rest []rune) bool {
-		return unicode.IsLower(rest[0]) || opensSentence(rest)
-	})
-}
+// OpensSentence reports whether rest starts a sentence by the rule Sentences uses.
+func OpensSentence(rest []rune) bool { return opensSentence(rest) }
 
-// splitSentences ends a sentence at a period only when opens accepts what
+// SentencesOpenedBy ends a sentence at a period only when opens accepts what
 // follows. That rules out "e.g. the lexer" and the "$(...)" of a shell example,
 // which a plain period-and-space split cuts apart. An oversized sentence then
 // reads as short pieces and escapes the cap.
@@ -341,7 +336,7 @@ func CommentSentences(text string) []string {
 // A lower-case opener still starts a sentence when it is a file name or a
 // section mark. Demanding a capital there is the mirror defect, and it hides
 // the length of everything it welds together.
-func splitSentences(text string, opens func([]rune) bool) []string {
+func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 	var out []string
 	runes := []rune(text)
 	start := 0

@@ -14,6 +14,7 @@ package commentfix
 import (
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
@@ -413,8 +414,13 @@ func rewordCounts(prose string) string {
 	return prose
 }
 
-// sentences splits comment prose on its sentence ends.
-func sentences(prose string) []string { return ste.CommentSentences(prose) }
+// sentences splits comment prose on its sentence ends. A comment sentence
+// often opens on a lower-case identifier, such as a parameter name.
+func sentences(prose string) []string {
+	return ste.SentencesOpenedBy(prose, func(rest []rune) bool {
+		return unicode.IsLower(rest[0]) || ste.OpensSentence(rest)
+	})
+}
 
 // split separates a comment line's marker and indent from its prose.
 func split(line string) (marker, prose string, ok bool) {
