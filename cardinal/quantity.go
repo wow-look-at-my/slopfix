@@ -232,9 +232,15 @@ func StatusCode(text string, q Match) bool {
 }
 
 // Labeled exempts a number that names an item rather than counting a set: one
-// after a label word, as in "Migration 014", "HTTP 404" or "issue #54".
+// after a label word, as in "Migration 014" or "HTTP 404". A hash sign labels
+// only an issue, as in "issue #54": an issue number never changes.
 func Labeled(text string, q Match) bool {
-	before := strings.Fields(strings.TrimSuffix(text[:q.At], "#"))
+	head := text[:q.At]
+	if hashed := strings.TrimSuffix(head, "#"); hashed != head {
+		before := strings.Fields(hashed)
+		return len(before) > 0 && bare(before[len(before)-1]) == "issue"
+	}
+	before := strings.Fields(head)
 	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
 }
 

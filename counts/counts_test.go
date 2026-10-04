@@ -163,10 +163,18 @@ func TestAnIssueOrAnEquationIsNoCount(t *testing.T) {
 	}
 }
 
-// A hash sign with no label word in front of it names nothing.
-func TestABareHashSignIsStillACount(t *testing.T) {
-	_, cut := StripGate("The parser keeps #12 rows.")
-	assert.NotEmpty(t, cut)
+// A hash sign labels an issue and nothing else. A list position goes stale when
+// the list is renumbered, so it is a count.
+func TestOnlyAnIssueNumberIsALabel(t *testing.T) {
+	for _, in := range []string{
+		"The parser keeps #12 rows.",
+		"It merges pr #12 files.",
+		"It is the loop that gate 5 asserts.",
+		"It reads rule 6 inputs.",
+	} {
+		_, cut := StripGate(in)
+		assert.NotEmpty(t, cut, in)
+	}
 }
 
 // No count the rules report is left for a person.
