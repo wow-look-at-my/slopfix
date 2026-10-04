@@ -281,8 +281,8 @@ func TestANamespacedSchemaHintIsReadFromTheParsedRoot(t *testing.T) {
 		"bad.xml":    xmlDoc(`<rule ` + located + `/>`),
 		"comment.xml": xmlDoc(`<!-- xsi:schemaLocation="urn:rule rule.xsd" -->` +
 			`<rule xmlns="urn:rule" id="a"/>`),
-		"foreign.xml": xmlDoc(`<rule xmlns="urn:rule" xmlns:o="urn:other" o:schemaLocation="urn:rule rule.xsd" id="a"/>`),
-		"odd.xml":     xmlDoc(`<rule xmlns="urn:rule" ` + xsi + ` xsi:schemaLocation="urn:rule" id="a"/>`),
+		"foreign.xml":   xmlDoc(`<rule xmlns="urn:rule" xmlns:o="urn:other" o:schemaLocation="urn:rule rule.xsd" id="a"/>`),
+		"odd.xml":       xmlDoc(`<rule xmlns="urn:rule" ` + xsi + ` xsi:schemaLocation="urn:rule" id="a"/>`),
 		"elsewhere.xml": xmlDoc(`<rule xmlns="urn:rule" ` + xsi + ` xsi:schemaLocation="urn:other rule.xsd" id="a"/>`),
 	})
 	assert.ElementsMatch(t, []string{
