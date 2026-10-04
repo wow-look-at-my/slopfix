@@ -35,6 +35,7 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	n := value(number)
 	noun := strings.ToLower(lastField(hit.Phrase))
 	unit := cardinal.IsUnit(noun)
+	sign, signAt := boundSign(content, from)
 
 	before := wordsBefore(content, from)
 	last := func(k int) string {
@@ -60,6 +61,13 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	switch {
 	case measures(hit.Phrase):
 		to = hit.Start + loc[1] + len(unitAfter(content[hit.Start+loc[1]:]))
+		if sign.text != "" {
+			from = signAt
+		}
+	case sign.text != "":
+		// "<=750 lines" caps the lines, so it reads as the words "at most" do.
+		from = signAt
+		text = sign.reword(n)
 	case len(before) > 0 && prepositionFloors.Contains(last(1)):
 		// "over" stays: "spreads over 32 banks" spans the banks.
 		text = vague(n)
@@ -145,7 +153,63 @@ var rates = set.Of[string]("every", "each", "per")
 
 // ceilings cap the number. The cap is the fact, so the repair keeps that much.
 var ceilings = set.Of[string]("at most", "up to", "no more than", "fewer than",
-	"less than", "not more than", "under", "below", "within")
+	"less than", "not more than", "under", "below", "within", "max", "maximum")
+
+// bound is a comparison sign written against a number, as in "<=750 lines".
+type bound struct {
+	text string
+	// floor marks a sign that sets a minimum, and strict one that excludes the number itself.
+	floor, strict bool
+}
+
+// reword says what a bound on n reads as once the number is gone. A cap
+// keeps the cap, and a floor keeps the scale the way "at least" does.
+func (b bound) reword(n int) string {
+	switch {
+	case !b.floor:
+		return "a bounded number of "
+	case b.strict:
+		return vague(n + 1)
+	}
+	return vague(n)
+}
+
+var (
+	lessOrEqual    = string(rune(0x2264))
+	greaterOrEqual = string(rune(0x2265))
+)
+
+// boundSigns are the signs a bound writes, the longer spelling first so "<="
+// is never read as "<".
+var boundSigns = []bound{
+	{text: "<="}, {text: lessOrEqual}, {text: "<", strict: true},
+	{text: ">=", floor: true}, {text: greaterOrEqual, floor: true}, {text: ">", floor: true, strict: true},
+}
+
+// boundSign answers the sign that stands in front of the number at, with the
+// blanks between them, and where the sign starts. A lone "<" or ">" is a bound
+// only against the number and after no word, because a blockquote marker and
+// the end of a tag spell it too.
+func boundSign(content string, at int) (bound, int) {
+	head := strings.TrimRight(content[:at], " \t")
+	for _, b := range boundSigns {
+		if !strings.HasSuffix(head, b.text) {
+			continue
+		}
+		start := len(head) - len(b.text)
+		if len(b.text) == 1 && (len(head) != at || (start > 0 && joinsASign(content[start-1]))) {
+			continue
+		}
+		return b, start
+	}
+	return bound{}, at
+}
+
+// joinsASign reports a byte that makes a lone "<" or ">" part of something
+// else: a word, as the end of a tag, or an arrow.
+func joinsASign(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || strings.IndexByte("-=<>", c) >= 0
+}
 
 // floors set a minimum the vague word meets.
 var floors = set.Of[string]("at least", "no fewer than", "no less than", "not less than")
