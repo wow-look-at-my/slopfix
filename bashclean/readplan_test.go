@@ -46,14 +46,14 @@ func TestPlanRead(t *testing.T) {
 			continue
 		}
 		assert.Equal(t, tc.want, got.Reads, "%q", tc.cmd)
-		assert.Contains(t, got.Note, "Your Bash command `"+tc.cmd+"` read a file, so it did not run.", "%q", tc.cmd)
+		assert.Contains(t, got.Note, "Your Bash command `"+tc.cmd+"` read a file, so its output is shown as the Read tool shows it.", "%q", tc.cmd)
 	}
 }
 
 func TestPlanReadNote(t *testing.T) {
 	got := PlanRead("sed -n '2,3p' a.txt", "/work")
 	require.NotNil(t, got)
-	assert.Equal(t, "Your Bash command `sed -n '2,3p' a.txt` read a file, so it did not run. The Read tool answered it with:\n"+
+	assert.Equal(t, "Your Bash command `sed -n '2,3p' a.txt` read a file, so its output is shown as the Read tool shows it. These Read calls give the same lines:\n"+
 		"- Read(file_path: \"/work/a.txt\", offset: 2, limit: 2)\n"+
 		"Use the Read tool to read files. Its offset and limit parameters select lines, which is what head, tail and sed -n were for.",
 		got.Note)
