@@ -53,6 +53,7 @@ func init() {
 	register("yaml/rename-guarded-job", IDAllBuildsJob, 30, renameGuardedJob, false)
 	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
+	register("yaml/set-concurrency", IDConcurrency, 70, setConcurrency, false)
 }
 
 // Options are the gates a workflow is written through, for the driver to open

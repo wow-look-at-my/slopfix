@@ -24,7 +24,7 @@ const (
 )
 
 // AllIDs names every rule this package reports, as a membership test.
-var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags)
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDConcurrency)
 
 // ReportOnly names the error rules whose finding is code in a run script.
 var ReportOnly = set.Of(IDTestInYAML)
@@ -60,6 +60,7 @@ func Check(content string) []ste.Finding {
 	out = append(out, neuteredGates(content)...)
 	out = append(out, envIndirections(content)...)
 	out = append(out, pushTags(content)...)
+	out = append(out, concurrency(content)...)
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
 }
