@@ -290,31 +290,8 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
-	// The opening sentence always fits, because judge never weighs a lone sentence.
-	if opening, ok := openingSentence(kept); ok {
-		return opening
-	}
-	return kept
-}
-
-// openingSentence answers a block's first sentence, word for word. It reports
-// false for a block whose shape it cannot read.
-func openingSentence(text []string) ([]string, bool) {
-	marker, indent, ok := commentShape(text)
-	if !ok {
-		return nil, false
-	}
-	for _, para := range paragraphs(text) {
-		if para.blank || para.verbatim {
-			continue
-		}
-		found := ste.Sentences(strings.Join(para.lines, " "))
-		if len(found) == 0 {
-			return nil, false
-		}
-		return reflow(strings.TrimSpace(found[0]), indent, marker, wrapWidth), true
-	}
-	return nil, false
+	// No run of whole sentences fits.
+	return b.text
 }
 
 // proseSentences answers the sentences of a block's prose, its directives aside.
