@@ -49,6 +49,8 @@ const cacheFile = "slopfix-fork.json"
 type Resolver struct {
 	Getenv  func(string) string
 	ListURL string
+	// GH runs the gh CLI; nil runs the one on PATH.
+	GH func(args ...string) ([]byte, error)
 }
 
 func (r Resolver) getenv(key string) string {
@@ -320,11 +322,11 @@ func (r Resolver) identify(repo string) (identity, error) {
 			return identity{}, err
 		}
 		id = identity{kind: kindPlain}
-		if info.Fork {
-			if info.Parent == nil || info.Parent.CloneURL == "" || info.Parent.DefaultBranch == "" {
-				return identity{}, fmt.Errorf("fork scope: %s is a fork, but the API names no parent clone URL and default branch", repo)
+		if *info.Fork {
+			if info.Parent == nil || r.parentURL(info.Parent) == "" || info.Parent.DefaultBranch == "" {
+				return identity{}, fmt.Errorf("fork scope: %s is a fork, but the API names no parent repository and default branch", repo)
 			}
-			id = identity{kind: kindParent, parentURL: info.Parent.CloneURL, branch: info.Parent.DefaultBranch}
+			id = identity{kind: kindParent, parentURL: r.parentURL(info.Parent), branch: info.Parent.DefaultBranch}
 		}
 	}
 	identities.Lock()
@@ -432,17 +434,42 @@ func store(top string, rec record) error {
 	return nil
 }
 
-// forkRepo is the part of GET /repos/{repo} that names a parent.
-type forkRepo struct {
-	Fork   bool `json:"fork"`
-	Parent *struct {
-		CloneURL      string `json:"clone_url"`
-		DefaultBranch string `json:"default_branch"`
-	} `json:"parent"`
+// forkParent is a fork's parent as GET /repos/{repo} names it. GitHub gives
+// clone_url; a mirror that drops URL fields gives only full_name.
+type forkParent struct {
+	CloneURL      string `json:"clone_url"`
+	FullName      string `json:"full_name"`
+	DefaultBranch string `json:"default_branch"`
 }
 
-// fetchRepo reads GET /repos/{repo}, with GITHUB_TOKEN as the bearer when it is set.
+// forkRepo is the part of GET /repos/{repo} that names a parent.
+type forkRepo struct {
+	Fork   *bool       `json:"fork"`
+	Parent *forkParent `json:"parent"`
+}
+
+// parentURL answers the URL a fork's parent clones from.
+func (r Resolver) parentURL(p *forkParent) string {
+	if p.CloneURL != "" {
+		return p.CloneURL
+	}
+	if p.FullName == "" {
+		return ""
+	}
+	server := strings.TrimRight(r.getenv("GITHUB_SERVER_URL"), "/")
+	if server == "" {
+		server = DefaultServer
+	}
+	return server + "/" + p.FullName + ".git"
+}
+
+// fetchRepo reads GET /repos/{repo}. With no GITHUB_TOKEN and the default API,
+// the gh CLI asks with the user's own credentials, which see a private
+// repository and are not held to the anonymous rate limit.
 func (r Resolver) fetchRepo(repo string) (forkRepo, error) {
+	if r.getenv("GITHUB_TOKEN") == "" && r.getenv("GITHUB_API_URL") == "" {
+		return r.ghRepo(repo)
+	}
 	url := r.api() + "/repos/" + repo
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -465,11 +492,46 @@ func (r Resolver) fetchRepo(repo string) (forkRepo, error) {
 	if resp.StatusCode != http.StatusOK {
 		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %s: %s", url, resp.Status, strings.TrimSpace(string(body)))
 	}
+	return decodeRepo(body, "GET "+url)
+}
+
+// ghRepo reads GET /repos/{repo} through the gh CLI.
+func (r Resolver) ghRepo(repo string) (forkRepo, error) {
+	run := r.GH
+	if run == nil {
+		run = runGH
+	}
+	out, err := run("api", "repos/"+repo)
+	if err != nil {
+		return forkRepo{}, fmt.Errorf("fork scope: gh api repos/%s: %w", repo, err)
+	}
+	return decodeRepo(out, "gh api repos/"+repo)
+}
+
+// decodeRepo reads a repository object. An answer with no fork flag is an
+// error: read as false, it would call every fork no fork.
+func decodeRepo(body []byte, from string) (forkRepo, error) {
 	var info forkRepo
 	if err := json.Unmarshal(body, &info); err != nil {
-		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %w", url, err)
+		return forkRepo{}, fmt.Errorf("fork scope: %s: %w", from, err)
+	}
+	if info.Fork == nil {
+		return forkRepo{}, fmt.Errorf("fork scope: %s answered a repository with no fork flag", from)
 	}
 	return info, nil
+}
+
+// runGH runs the gh CLI and answers its output, or an error that quotes its stderr.
+func runGH(args ...string) ([]byte, error) {
+	out, err := exec.Command("gh", args...).Output()
+	if err == nil {
+		return out, nil
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exit.Stderr)))
+	}
+	return nil, err
 }
 
 // gitIn runs git in dir and answers its output, or an error that quotes git's stderr.
