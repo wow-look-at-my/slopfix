@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // identifierWords splits text into the runs the shape test judges, by cutting
@@ -118,7 +119,7 @@ func PrimeIndex(path string) {
 func (ix *symbolIndex) build(root string) {
 	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 	defer cancel()
-	listed, err := exec.CommandContext(ctx, "git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
 	if err != nil {
 		return
 	}
