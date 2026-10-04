@@ -75,6 +75,7 @@ Any change to file content in the working tree goes through Write, Edit or Noteb
 - `cp`, `mv`, `install`, `rsync` and `scp` test the source side. A plain `mv old.go new.go` thus passes.
 - `git apply`, `git am` and `rebase` are refused. `git merge`, `git pull`, `git cherry-pick` and `git revert` pass, because git already holds what they land. `git commit-tree` passes too: it wraps a tree the store already holds and changes no file.
 - Indirection is followed: `sh -c`, aliases, script files, `find -exec`, functions and wrappers.
+- `sh tool` on an APE binary is a call of `tool`, not a script. The walk judges its arguments and never parses the machine code.
 - A long in-place flag (`--in-place`, `--write`) counts for any program. `allowedFormatter` lists. The tools that rewrite by design. `jq` has an empty flag set on purpose.
 - A subagent spawn with a tool grant or a permissive `permissionMode` is refused. The live settings files are refused to every tool.
 - The session scratchpad is the temporary directory that does not deny.

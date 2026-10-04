@@ -2,6 +2,7 @@ package noworkloss
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,6 +44,23 @@ func TestSyntaxCheckDoesNotRunTheScript(t *testing.T) {
 		assert.Empty(t, ask(t, dir, c), "expected ALLOW for %q", c)
 	}
 	require.NotEmpty(t, ask(t, dir, "bash deploy.sh"), "the same script without -n must still deny")
+}
+
+// A shell runs an APE binary as a program, so the walk judges the call and never
+// parses the machine code. A large script that is not an APE still blocks.
+func TestShellRunsAnAPEAsAProgram(t *testing.T) {
+	dir := newRepo(t)
+	modify(t, dir)
+	body := strings.Repeat("\x00\x01binary", maxScriptBytes/8+1)
+	for _, magic := range []string{"MZqFpD='\n", "jartsr='\n", "APEDBG='\n"} {
+		writeAt(t, dir, "build/tool", magic+body)
+		for _, c := range []string{"sh build/tool check .", "bash build/tool", "sh -e ./build/tool fix"} {
+			assert.Empty(t, ask(t, dir, c), "expected ALLOW for %q with %q", c, magic)
+		}
+		require.NotEmpty(t, ask(t, dir, "sh build/tool reset --hard; git reset --hard"), "a later call is still judged")
+	}
+	writeAt(t, dir, "build/big.sh", "#!/bin/sh\n"+strings.Repeat("echo hi\n", maxScriptBytes/8+1))
+	require.NotEmpty(t, ask(t, dir, "sh build/big.sh"), "a large script that is not an APE still blocks")
 }
 
 func TestDeniesThroughMoreWrappers(t *testing.T) {
