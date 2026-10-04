@@ -11,7 +11,8 @@ import (
 var hashNames = set.Of[string]("dockerfile",
 	"containerfile",
 	"makefile",
-	"justfile")
+	"justfile",
+	"cmakelists.txt")
 
 // hashExts are the extensions whose comments open on `#` and that no grammar
 // in the table names. The bash grammar recovers their comments.
@@ -19,7 +20,8 @@ var hashExts = set.Of[string](".ini",
 	".cfg",
 	".dockerfile",
 	".mk",
-	".dats")
+	".dats",
+	".cmake")
 
 // HashComments answers whether this file's comments open on a `#`.
 func HashComments(filename string) bool {

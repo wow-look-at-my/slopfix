@@ -14,6 +14,8 @@ import (
 type Lines struct {
 	// top is the work tree root, with every symlink resolved.
 	top string
+	// commit is the base the lines are measured from.
+	commit string
 	// whole holds each file new since the base, or untracked.
 	whole set.Set[string]
 	// lines holds, for each file the diff touched, the line numbers it added or changed.
@@ -26,7 +28,7 @@ func (b *Base) Lines() (*Lines, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fork scope: %w", err)
 	}
-	own := &Lines{top: resolved, whole: set.New[string](), lines: map[string]set.Set[int]{}}
+	own := &Lines{top: resolved, commit: b.commit, whole: set.New[string](), lines: map[string]set.Set[int]{}}
 	diff, err := gitIn(b.top, "-c", "core.quotePath=false", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff",
 		"--src-prefix=a/", "--dst-prefix=b/", b.commit, "--")
 	if err != nil {
@@ -98,7 +100,7 @@ func relTo(top, path string) (string, error) {
 
 // Changed answers the lines of after that differ from before.
 func Changed(before, after string) *Scope {
-	s := &Scope{}
+	s := &Scope{base: func() (string, error) { return before, nil }}
 	for _, op := range opcodes(before, after) {
 		if op.Tag != 'r' && op.Tag != 'i' {
 			continue
@@ -279,7 +281,13 @@ func (o *Lines) Scope(path string) *Scope {
 	if o.whole.Contains(name) {
 		return Whole()
 	}
-	return &Scope{lines: o.lines[name]}
+	return &Scope{lines: o.lines[name], base: func() (string, error) {
+		text, err := gitIn(o.top, "cat-file", "blob", o.commit+":"+name)
+		if err != nil {
+			return "", fmt.Errorf("fork scope: read %s at the base: %w", name, err)
+		}
+		return text, nil
+	}}
 }
 
 // Whole reports whether the fork wrote all of path: it is new since the base, or untracked.

@@ -1,16 +1,31 @@
 package forkscope
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/pmezard/go-difflib/difflib"
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/edit"
 )
 
 // Scope is the lines of one file that the fork wrote, counted from one.
 type Scope struct {
 	whole bool
 	lines set.Set[int]
+	// base reads the file as the fork's base has it, the text the lines are measured against.
+	base func() (string, error)
+}
+
+// errNoBase answers Base for a Scope built from line numbers alone.
+var errNoBase = errors.New("fork scope: no base text is known for this file")
+
+// Base answers the file as the fork's base has it.
+func (s *Scope) Base() (string, error) {
+	if s.base == nil {
+		return "", errNoBase
+	}
+	return s.base()
 }
 
 // Whole is the Scope of a file the fork wrote all of.
@@ -94,6 +109,31 @@ func Carry(before, after string, s *Scope) *Scope {
 				out.lines.Add(j + 1)
 			}
 		}
+	}
+	return out
+}
+
+// GiveBack answers an edit for each change after makes to base that reaches
+// into rows first to last of after, counted from one. Each edit writes the
+// base's lines back. A change that only drops base lines is left as it is,
+// because writing them back grows the run.
+func GiveBack(base, after string, first, last int) []edit.Edit {
+	a, b := splitLines(base), splitLines(after)
+	var out []edit.Edit
+	for _, op := range opcodes(base, after) {
+		if op.Tag == 'e' || op.J1 == op.J2 || op.J2 < first || op.J1 >= last {
+			continue
+		}
+		var lines, cut []string
+		for _, line := range a[op.I1:op.I2] {
+			lines = append(lines, strings.TrimSuffix(line, "\n"))
+		}
+		for _, line := range b[op.J1:op.J2] {
+			cut = append(cut, strings.TrimSpace(line))
+		}
+		e := edit.Rows(after, op.J1, op.J2-1, 0, lines)
+		e.Cut = cut
+		out = append(out, e)
 	}
 	return out
 }
