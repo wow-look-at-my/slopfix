@@ -140,6 +140,7 @@ type forceCut struct {
 // a parenthesis or bold text.
 func forceDivision(source, masked string) (string, bool) {
 	finite := finiteStarts(masked)
+	tensed := tensedStarts(syntax.Parse(masked, nil))
 	passes := []bool{true, false}
 	if len(finite) > 0 {
 		// A sentence with a verb divides only where the strict pass allows. A looser cut halves a phrase.
@@ -159,6 +160,10 @@ func forceDivision(source, masked string) (string, bool) {
 			}
 			// The words after a verb complete it, so "deserves. This is a repair" and "needs. The host" lose them.
 			if c.afterVerb && (opened == opensWithFill || c.bare) {
+				continue
+			}
+			// A clause after a part with no tensed verb leaves that part a fragment: "so newly created files."
+			if opened == opensOwnClause && (len(tensed) == 0 || tensed[0] >= c.left) {
 				continue
 			}
 			// A clause right after a noun, with no mark between, describes it: "the paths the file declared".
@@ -184,6 +189,11 @@ func finiteStarts(masked string) []int {
 	if !hasMainVerb(s) {
 		return nil
 	}
+	return tensedStarts(s)
+}
+
+// tensedStarts answers where each finite verb in s starts, in order.
+func tensedStarts(s *syntax.Sentence) []int {
 	var out []int
 	for _, w := range s.Words {
 		if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
