@@ -527,7 +527,7 @@ func TestWithNoTokenGHNamesTheParent(t *testing.T) {
 	own, err := r.Lines(fx.fork)
 	require.NoError(t, err)
 	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...))
-	assert.Equal(t, [][]string{{"api", "repos/o/fork"}}, calls)
+	assert.Equal(t, [][]string{{"api", "graphql", "-f", "query=" + ghRepoQuery, "-F", "owner=o", "-F", "name=fork", "--jq", ghRepoShape}}, calls)
 }
 
 func TestWithNoTokenGHAnswersANonFork(t *testing.T) {
@@ -565,8 +565,8 @@ func TestGHThatCannotAnswerFailsLoudly(t *testing.T) {
 		err  error
 		want string
 	}{
-		"gh fails":          {err: fmt.Errorf("exit status 1: not logged in"), want: "gh api repos/o/fork: exit status 1: not logged in"},
-		"not JSON":          {out: "nope", want: "gh api repos/o/fork: invalid character"},
+		"gh fails":          {err: fmt.Errorf("exit status 1: not logged in"), want: "gh api graphql for o/fork: exit status 1: not logged in"},
+		"not JSON":          {out: "nope", want: "gh api graphql for o/fork: invalid character"},
 		"no fork flag":      {out: `{"full_name":"o/fork"}`, want: "no fork flag"},
 		"no parent":         {out: `{"fork":true}`, want: "names no parent"},
 		"a parent unnamed":  {out: `{"fork":true,"parent":{"default_branch":"main"}}`, want: "names no parent"},

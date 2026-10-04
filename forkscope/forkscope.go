@@ -495,17 +495,25 @@ func (r Resolver) fetchRepo(repo string) (forkRepo, error) {
 	return decodeRepo(body, "GET "+url)
 }
 
-// ghRepo reads GET /repos/{repo} through the gh CLI.
+// ghRepoQuery asks GraphQL whether a repository is a fork, and of what.
+const ghRepoQuery = `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { isFork parent { nameWithOwner defaultBranchRef { name } } } }`
+
+// ghRepoShape reshapes the GraphQL answer into the REST repository object's fork fields.
+const ghRepoShape = `.data.repository | {fork: .isFork, parent: (if .parent then {full_name: .parent.nameWithOwner, default_branch: .parent.defaultBranchRef.name} else null end)}`
+
+// ghRepo asks GraphQL through the gh CLI. GraphQL states isFork on every
+// server gh may point at, a mirror's trimmed REST rebuild included.
 func (r Resolver) ghRepo(repo string) (forkRepo, error) {
 	run := r.GH
 	if run == nil {
 		run = runGH
 	}
-	out, err := run("api", "repos/"+repo)
+	owner, name, _ := strings.Cut(repo, "/")
+	out, err := run("api", "graphql", "-f", "query="+ghRepoQuery, "-F", "owner="+owner, "-F", "name="+name, "--jq", ghRepoShape)
 	if err != nil {
-		return forkRepo{}, fmt.Errorf("fork scope: gh api repos/%s: %w", repo, err)
+		return forkRepo{}, fmt.Errorf("fork scope: gh api graphql for %s: %w", repo, err)
 	}
-	return decodeRepo(out, "gh api repos/"+repo)
+	return decodeRepo(out, "gh api graphql for "+repo)
 }
 
 // decodeRepo reads a repository object. An answer with no fork flag is an
