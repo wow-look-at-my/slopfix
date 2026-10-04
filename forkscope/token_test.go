@@ -29,7 +29,8 @@ func TestTheAPICallSendsGHToken(t *testing.T) {
 	r := Resolver{Getenv: envOf(map[string]string{"GITHUB_API_URL": srv.URL, "GH_TOKEN": "gh-tok"})}
 	info, err := r.fetchRepo("o/fork")
 	require.NoError(t, err)
-	assert.False(t, info.Fork)
+	require.NotNil(t, info.Fork)
+	assert.False(t, *info.Fork)
 }
 
 // GITHUB_TOKEN, the one Actions sets, wins over GH_TOKEN.
