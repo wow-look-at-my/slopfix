@@ -392,12 +392,17 @@ func collect(node ts.Node, src string, out *[]Comment) {
 		if strings.Contains(child.Type(), "comment") {
 			start, end := int(child.StartByte()), int(child.EndByte())
 			if start >= 0 && end <= len(src) && start < end {
+				// A Rust line comment node ends after its newline, and that newline is the next line's start.
+				text := strings.TrimRight(src[start:end], "\r\n")
+				if text == "" {
+					text = src[start:end]
+				}
 				*out = append(*out, Comment{
-					Text:   src[start:end],
+					Text:   text,
 					Offset: start,
 					Line:   int(child.StartPoint().Row) + 1,
 					Col:    int(child.StartPoint().Column),
-					Lines:  int(child.EndPoint().Row-child.StartPoint().Row) + 1,
+					Lines:  strings.Count(text, "\n") + 1,
 				})
 			}
 			continue

@@ -150,8 +150,21 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 		b.codeLines, b.codeChars = measure(directivesOf(b.text))
 		return b, true
 	}
-	b.codeLines, b.codeChars = nodeSpan(firstStatement(parent.NamedChild(next)), lines, rows)
+	b.codeLines, b.codeChars = nodeSpan(firstStatement(parent.NamedChild(pastAttributes(parent, next, count))), lines, rows)
 	return b, true
+}
+
+// pastAttributes answers the sibling an attribute run at next decorates. The
+// comment above the attributes documents that item, not the attribute line.
+func pastAttributes(parent ts.Node, next, count uint32) uint32 {
+	at := next
+	for at+1 < count && strings.Contains(parent.NamedChild(at).Type(), "attribute") {
+		at++
+	}
+	if code.IsComment(parent.NamedChild(at)) {
+		return next
+	}
+	return at
 }
 
 // lastRow is the last row a comment's text sits on. A Rust line comment ends at the start of the next row.
