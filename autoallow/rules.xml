@@ -136,6 +136,88 @@
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
 		<rule command="osascript" inlineScript="true" evalFlags="-e"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
+
+		<!-- Deleting a branch is the user's call, local or remote, in every
+		     spelling: a delete flag, an empty source refspec, a prune, a ref
+		     update, and the REST and GraphQL calls behind them. -->
+		<rule name="git">
+			<test cmd="git push origin --delete feature" expect="deny"/>
+			<test cmd="git push --delete origin feature" expect="deny"/>
+			<test cmd="git push -d origin feature" expect="deny"/>
+			<test cmd="git push -fd origin feature" expect="deny"/>
+			<test cmd="git push origin :feature" expect="deny"/>
+			<test cmd="git push origin +:refs/heads/feature" expect="deny"/>
+			<test cmd="git push --prune origin" expect="deny"/>
+			<test cmd="git push --mirror origin" expect="deny"/>
+			<test cmd="git -C /repo push origin --delete feature" expect="deny"/>
+			<test cmd="git -c push.default=current -C /repo push origin --delete feature" expect="deny"/>
+			<test cmd="cd /repo &amp;&amp; git push origin --delete feature" expect="deny"/>
+			<test cmd="git push origin bf92470:refs/heads/feature" expect=""/>
+			<test cmd="git push -u origin feature" expect=""/>
+			<test cmd="git push --force-with-lease origin feature" expect=""/>
+			<test cmd="git push --dry-run origin main" expect="allow"/>
+			<test cmd="git branch -d feature" expect="deny"/>
+			<test cmd="git branch -D feature" expect="deny"/>
+			<test cmd="git branch --delete feature" expect="deny"/>
+			<test cmd="git branch -m old new" expect=""/>
+			<test cmd="git branch -a" expect="allow"/>
+			<test cmd="git update-ref -d refs/heads/feature" expect="deny"/>
+			<test cmd="git update-ref --delete refs/heads/feature" expect="deny"/>
+			<flagsWithValue>
+				<flag name="-C" />
+				<flag name="-c" />
+				<flag name="--git-dir" />
+				<flag name="--work-tree" />
+				<flag name="--namespace" />
+			</flagsWithValue>
+			<rule name="push">
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<flag name="--delete" />
+					<flag name="-d" />
+					<flag name="--prune" />
+					<flag name="--mirror" />
+				</refuse>
+				<refuse message="An empty source deletes the remote branch. Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<argPrefix>:</argPrefix>
+					<argPrefix>+:</argPrefix>
+				</refuse>
+			</rule>
+			<rule name="branch">
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<flag name="--delete" />
+					<flag name="-d" />
+					<flag name="-D" />
+				</refuse>
+			</rule>
+			<rule name="update-ref">
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<flag name="--delete" />
+					<flag name="-d" />
+				</refuse>
+			</rule>
+		</rule>
+		<rule name="gh">
+			<test cmd="gh api -X DELETE repos/o/r/git/refs/heads/feature" expect="deny"/>
+			<test cmd="gh api --method DELETE /repos/o/r/git/refs/heads/feature" expect="deny"/>
+			<test cmd="gh api --method=delete repos/o/r/git/refs/heads/feature" expect="deny"/>
+			<test cmd="gh api -XDELETE repos/o/r/git/refs/heads/feature" expect="deny"/>
+			<test cmd="gh api repos/o/r/git/refs/heads/feature" expect="allow"/>
+			<test cmd="gh api -X DELETE repos/o/r/issues/comments/9" expect=""/>
+			<test cmd="gh api graphql -f query='mutation { deleteRef(input: {refId: &quot;R&quot;}) { clientMutationId } }'" expect="deny"/>
+			<rule name="api">
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<flagValue>
+						<flag name="-X" />
+						<flag name="--method" />
+						<value>DELETE</value>
+					</flagValue>
+					<argSubstring>/git/refs/</argSubstring>
+				</refuse>
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<argSubstring>deleteRef</argSubstring>
+				</refuse>
+			</rule>
+		</rule>
 	</deny>
 
 	<!-- Rules that prompt rather than decide. Empty on purpose: everything not
@@ -408,7 +490,7 @@
 		<rule name="merge-base" allowedFlags="*"/>
 		<rule name="branch">
 			<test cmd="git branch -a" expect="allow"/>
-			<test cmd="git branch -d feature" expect=""/>
+			<test cmd="git branch -d feature" expect="deny"/>
 			<allowedFlags>
 				<flag name="-a" />
 				<flag name="-r" />
@@ -562,11 +644,11 @@
 			     leaves a PATCH to be asked about; this says no outright. -->
 			<test cmd="gh api -X PATCH /repos/o/r/pulls/45 -f state=closed" expect="deny"/>
 			<test cmd="gh api /repos/o/r/pulls/45" expect="allow"/>
-			<refuseArgSubstrings message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
-				<value>state=closed</value>
-				<value>"state":"closed"</value>
-				<value>"state": "closed"</value>
-			</refuseArgSubstrings>
+			<refuse message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
+				<argSubstring>state=closed</argSubstring>
+				<argSubstring>"state":"closed"</argSubstring>
+				<argSubstring>"state": "closed"</argSubstring>
+			</refuse>
 			<requireFlagValue default="GET">
 				<flag name="-X" />
 				<flag name="--method" />
@@ -960,11 +1042,11 @@
 		<test cmd="curl http://evil.com/" expect=""/>
 		<test cmd="curl" expect=""/>
 		<test cmd="curl -X PATCH https://api.github.com/repos/o/r/pulls/45 -d '{&quot;state&quot;:&quot;closed&quot;}'" expect="deny"/>
-		<refuseArgSubstrings message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
-			<value>"state":"closed"</value>
-			<value>"state": "closed"</value>
-			<value>state=closed</value>
-		</refuseArgSubstrings>
+		<refuse message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
+			<argSubstring>"state":"closed"</argSubstring>
+			<argSubstring>"state": "closed"</argSubstring>
+			<argSubstring>state=closed</argSubstring>
+		</refuse>
 		<flagsWithValue>
 			<flag name="-H" />
 			<flag name="--header" />
