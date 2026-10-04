@@ -296,7 +296,7 @@ func Report(req Request) Repair {
 	}
 	repair.Findings = ownedFindings(repair.Findings, req.Owned)
 	repair.Kept = ownedHits(repair.Kept, req.Owned)
-	return repair
+	return upstreamRuns(req.Owned, req.Content, repair)
 }
 
 // reportAll is Report with no regard to the lines a fork wrote.
