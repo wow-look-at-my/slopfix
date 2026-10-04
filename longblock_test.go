@@ -1,6 +1,7 @@
 package slopfix_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -57,6 +58,25 @@ func TestLongBlockDividesAParagraph(t *testing.T) {
 	assert.NotContains(t, docIDs(got.Text), slopfix.IDLongBlock)
 	assert.True(t, markdown.WordsOnly(doc, got.Text))
 	assert.Contains(t, got.Text, "store.\n\nThe ")
+}
+
+// The division must not leave a part that a paragraph word cap refuses. Under the character target alone, this item left a 126-word paragraph.
+func TestLongBlockPartsStayUnderTheWordCap(t *testing.T) {
+	raw, err := os.ReadFile("testdata/wasm-dispatch.md.in")
+	require.NoError(t, err)
+	doc := string(raw)
+	require.Contains(t, docIDs(doc), slopfix.IDLongBlock)
+	got := slopfix.Fix(slopfix.Request{Content: doc, Path: "x.md", Rules: []slopfix.Rule{slopfix.RuleWrap}})
+	assert.Empty(t, got.Refused)
+	assert.True(t, markdown.WordsOnly(doc, got.Text))
+	parts := 0
+	for _, block := range markdown.Split(got.Text) {
+		if block.Kind == markdown.Prose {
+			parts++
+			assert.LessOrEqual(t, len(strings.Fields(block.Text())), slopfix.LongBlockWordCap, block.Text())
+		}
+	}
+	assert.Greater(t, parts, 1)
 }
 
 // A short block is never a finding, however many sentences it holds.
