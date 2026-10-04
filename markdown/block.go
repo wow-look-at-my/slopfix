@@ -3,6 +3,7 @@
 package markdown
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -93,13 +94,38 @@ func paragraphs(content string, lines []string) map[int]int {
 		case ast.KindParagraph, ast.KindTextBlock:
 			if segments := n.Lines(); segments.Len() > 0 {
 				first := lineOf(starts, segments.At(0).Start)
-				ends[first] = lineOf(starts, segments.At(segments.Len()-1).Stop-1)
+				last := lineOf(starts, segments.At(segments.Len()-1).Stop-1)
+				if !trailerBlock(lines[first : last+1]) {
+					ends[first] = last
+					return ast.WalkSkipChildren, nil
+				}
+				// A trailer block is a line per trailer, and git reads each line alone.
+				for line := first; line <= last; line++ {
+					ends[line] = line
+				}
 			}
 			return ast.WalkSkipChildren, nil
 		}
 		return ast.WalkContinue, nil
 	})
 	return ends
+}
+
+// trailerLine is a git trailer: a token of letters, digits and hyphens, a colon, and a value.
+var trailerLine = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]*: \S`)
+
+// trailerBlock reports a paragraph of more than a single line in which every
+// line is a git trailer.
+func trailerBlock(lines []string) bool {
+	if len(lines) < 2 {
+		return false
+	}
+	for _, line := range lines {
+		if !trailerLine.MatchString(line) {
+			return false
+		}
+	}
+	return true
 }
 
 // blankFrontMatter writes spaces over a YAML front matter block, byte for byte,
