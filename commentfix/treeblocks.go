@@ -150,8 +150,21 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 		b.codeLines, b.codeChars = measure(directivesOf(b.text))
 		return b, true
 	}
-	b.codeLines, b.codeChars = paragraphSpan(parent, next, lines, rows)
+	b.codeLines, b.codeChars = paragraphSpan(parent, pastAttributes(parent, next, count), lines, rows)
 	return b, true
+}
+
+// pastAttributes answers the sibling an attribute run at next decorates. The
+// comment above the attributes documents that item, not the attribute line.
+func pastAttributes(parent ts.Node, next, count uint32) uint32 {
+	at := next
+	for at+1 < count && strings.Contains(parent.NamedChild(at).Type(), "attribute") {
+		at++
+	}
+	if code.IsComment(parent.NamedChild(at)) {
+		return next
+	}
+	return at
 }
 
 // paragraphSpan measures the code a comment heads: the construct after it, and
