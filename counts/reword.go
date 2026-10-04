@@ -58,6 +58,8 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 
 	var text string
 	switch {
+	case measures(hit.Phrase):
+		to = hit.Start + loc[1] + len(unitAfter(content[hit.Start+loc[1]:]))
 	case len(before) > 0 && floorsAbove.Contains(last(1)) && followsANoun(content, before[len(before)-1].start):
 		// "RBs over 4 engines" spans the engines. The word stays a preposition.
 		text = "multiple "
@@ -107,6 +109,20 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		e.End += width
 	}
 	return e, true
+}
+
+// measures reports a number whose next word is a unit ahead of the noun, as
+// in "64 MiB chunks".
+func measures(phrase string) bool {
+	fields := strings.Fields(phrase)
+	return len(fields) > 2 && cardinal.IsUnit(fields[1])
+}
+
+var leadingWord = regexp.MustCompile(`^[ \t]*\S+[ \t]+`)
+
+// unitAfter is the unit word at the start of rest, with the blanks around it.
+func unitAfter(rest string) string {
+	return leadingWord.FindString(rest)
 }
 
 // vague says how many without a number. It keeps the scale, so "90 seconds"

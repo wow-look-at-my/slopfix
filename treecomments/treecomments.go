@@ -163,12 +163,58 @@ func Extract(filename, src string) []Comment {
 		return nil
 	}
 	key := extractKey{language: language, sum: sha256.Sum256([]byte(src))}
-	if cached, ok := extracted.get(key); ok {
-		return slices.Clone(cached)
+	cached, ok := extracted.get(key)
+	if !ok {
+		cached = extract(language, src)
+		extracted.put(key, cached)
 	}
-	out := extract(language, src)
-	extracted.put(key, out)
-	return slices.Clone(out)
+	out := slices.Clone(cached)
+	if strings.HasSuffix(filename, "_test.go") {
+		out = withoutExampleOutput(out)
+	}
+	if _, named := grammars[strings.ToLower(filepath.Ext(filename))]; !named {
+		out = wholeLineOnly(src, out)
+	}
+	return out
+}
+
+// wholeLineOnly keeps the comments that open their line. A file the bash
+// grammar reads only as a fallback is not shell.
+func wholeLineOnly(src string, comments []Comment) []Comment {
+	kept := comments[:0]
+	for _, c := range comments {
+		if c.Col == indentOf(src, c) {
+			kept = append(kept, c)
+		}
+	}
+	return kept
+}
+
+// exampleOutput opens the comment that go test compares an example's output to.
+var exampleOutput = regexp.MustCompile(`(?i)^//\s*(unordered )?output:`)
+
+// IsExampleOutput reports a comment line that opens an example's output block in a Go test file.
+func IsExampleOutput(line string) bool {
+	return exampleOutput.MatchString(strings.TrimSpace(line))
+}
+
+// withoutExampleOutput drops each example's output block: the opening line and
+// every comment line under it. go test reads it as data, so no rule may judge it.
+func withoutExampleOutput(comments []Comment) []Comment {
+	kept := comments[:0]
+	inBlock, col, next := false, 0, 0
+	for _, comment := range comments {
+		switch {
+		case exampleOutput.MatchString(comment.Text):
+			inBlock, col = true, comment.Col
+		case inBlock && comment.Line == next && comment.Col == col:
+		default:
+			inBlock = false
+			kept = append(kept, comment)
+		}
+		next = comment.Line + comment.Lines
+	}
+	return kept
 }
 
 // extractKey names a parse by its grammar and the exact bytes it read.

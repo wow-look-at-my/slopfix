@@ -9,6 +9,8 @@ package workflow
 import (
 	"reflect"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
@@ -50,6 +52,8 @@ func init() {
 	register("yaml/untest", IDTestInYAML, 40, untest, false)
 	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
+	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
+	register("yaml/set-concurrency", IDConcurrency, 70, setConcurrency, false)
 }
 
 // Options are the gates a workflow is written through, for the driver to open
@@ -252,13 +256,57 @@ func joinCommentBlocks(content string) []edit.Edit {
 			}
 		}
 		indent := rows[first][:len(rows[first])-len(strings.TrimLeft(rows[first], " \t"))]
-		joined := strings.TrimRight(indent+"# "+strings.Join(said, " "), " ")
+		joined := strings.TrimRight(indent+"# "+joinSentences(said), " ")
 		e := rewrite(content, first, last, append([]string{joined}, rest...))
 		e.Cut = cut
 		out = append(out, e)
 	}
 	return out
 }
+
+// joinSentences joins comment lines into one. A line that ends with no
+// punctuation, followed by one that opens with a capital, ended a sentence
+// the author never closed, so the join closes it with a period.
+func joinSentences(lines []string) string {
+	var b strings.Builder
+	for i, line := range lines {
+		if i > 0 {
+			if endsUnclosed(lines[i-1]) && opensSentence(line) {
+				b.WriteString(".")
+			}
+			b.WriteString(" ")
+		}
+		b.WriteString(line)
+	}
+	return b.String()
+}
+
+// endsUnclosed reports a line whose last word ends with no punctuation and can
+// close a clause.
+func endsUnclosed(line string) bool {
+	words := strings.Fields(line)
+	if len(words) == 0 {
+		return false
+	}
+	last := words[len(words)-1]
+	r, _ := utf8.DecodeLastRuneInString(last)
+	if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+		return false
+	}
+	return !continuations.Contains(strings.ToLower(last))
+}
+
+// opensSentence reports a line whose first character is a capital letter.
+func opensSentence(line string) bool {
+	r, _ := utf8.DecodeRuneInString(line)
+	return unicode.IsUpper(r)
+}
+
+// continuations are words a clause cannot end on: an article, a preposition, a
+// conjunction or a determiner always has the next word to come.
+var continuations = set.Of("a", "an", "the", "of", "in", "on", "at", "to", "for", "with", "from", "by",
+	"into", "onto", "via", "as", "than", "and", "or", "but", "nor", "so", "if", "when", "while",
+	"because", "that", "which", "this", "these", "those", "its", "their", "our", "your", "is", "are", "be")
 
 // renameGuardedJob renames a job that shadows the required status, and the
 // needs entries that point at it. The name is the whole finding, so renaming it

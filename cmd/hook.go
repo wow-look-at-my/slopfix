@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
@@ -28,7 +29,7 @@ func init() {
 			"Every guard that serves the event runs, unless --only names a subset.\n\n" +
 			"  PreToolUse         clean-bash, write, no-work-loss, auto-allow, busy-poll\n" +
 			"  PermissionRequest  auto-allow\n" +
-			"  PostToolUse        md-budget\n" +
+			"  PostToolUse        md-budget, read-output\n" +
 			"  SessionStart       md-budget\n" +
 			"  Stop               busy-poll, md-budget, laziness\n" +
 			"  MessageDisplay     link-refs, blame-language, ask-properly\n\n" +
@@ -37,7 +38,8 @@ func init() {
 			"refusal is joined into one. On MessageDisplay, the rewrite and the notes\n" +
 			"are joined into what the reader sees.\n\n" +
 			"The write guard repairs the text a write adds, lets the write through,\n" +
-			"and flags what the repair did not reach.\n\n" +
+			"and flags what the repair did not reach. It refuses a write that changes\n" +
+			"a line of an existing file that `slopfix fix` would repair.\n\n" +
 			"It prints nothing, and exits 0, for anything it does not judge. That\n" +
 			"covers an unreadable payload, an event no guard serves, and a call that\n" +
 			"every guard leaves alone.",
@@ -142,10 +144,32 @@ func runHook(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
+// forkLines answers, for a text headed for path, the lines of it a fork wrote.
+type forkLines func(text string) (*forkscope.Scope, error)
+
+// forkLinesOf reads the fork base of path once, for every text judge asks about.
+func forkLinesOf(forks forkscope.Resolver, path string) (forkLines, error) {
+	if path == "" {
+		return func(string) (*forkscope.Scope, error) { return nil, nil }, nil
+	}
+	base, err := slopfix.BaseOf(forks, path)
+	if err != nil {
+		return nil, err
+	}
+	return func(text string) (*forkscope.Scope, error) {
+		if base == nil {
+			return nil, nil
+		}
+		return base.File(path, text)
+	}, nil
+}
+
 // judge answers a payload with the response to print, or "" to let the write
 // through. Every unreadable input answers "": a guard that refuses a write it
-// could not parse is worse than no guard.
-func judge(data []byte, rules []slopfix.Rule, ids []string) string {
+// could not parse is worse than no guard. In a fork, a repair lands only on
+// the lines the fork wrote once the write lands, and a fork whose base cannot
+// be read refuses the write.
+func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Resolver) string {
 	var in hookInput
 	if json.Unmarshal(data, &in) != nil {
 		return ""
@@ -160,6 +184,16 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 	var raw map[string]any
 	if json.Unmarshal(in.ToolInput, &raw) != nil {
 		return ""
+	}
+	if in.ToolName != "Write" && in.ToolName != "Edit" && in.ToolName != "MultiEdit" {
+		return ""
+	}
+	owned, err := forkLinesOf(forks, write.FilePath)
+	if err != nil {
+		return deny([]string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", write.FilePath, err)})
+	}
+	if refused := handFix(in.ToolName, in.ToolInput, write.FilePath, write.Content, rules, ids, owned); refused != nil {
+		return deny(refused)
 	}
 
 	var removed []string
@@ -179,9 +213,13 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 		}
 	}
 
+	p, err := place(in.ToolName, write, rules, ids, owned)
+	if err != nil {
+		return deny([]string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", write.FilePath, err)})
+	}
 	// A fragment carries no file around it. A comment at its end documents
 	// nothing, so a repair of the fragment alone deletes it.
-	if p := place(in.ToolName, write, rules, ids); p.ok {
+	if p.ok {
 		for _, f := range p.findings {
 			findings = append(findings, f.String())
 		}
@@ -189,14 +227,26 @@ func judge(data []byte, rules []slopfix.Rule, ids []string) string {
 			take(*p.repair, func(s string) { raw["new_string"] = s })
 		}
 	} else {
+		scope, err := fragmentScope(in.ToolName, write, owned)
+		if err != nil {
+			return deny([]string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", write.FilePath, err)})
+		}
 		for _, u := range writeUnits(in.ToolName, write, raw) {
-			repair := slopfix.Fix(slopfix.Request{
+			req := slopfix.Request{
 				Content:         u.text,
 				Path:            write.FilePath,
 				Rules:           rules,
 				IDs:             ids,
 				MaxCommentLines: hookMaxLines,
-			})
+			}
+			if in.ToolName == "Write" {
+				if req.Owned, err = owned(u.text); err != nil {
+					return deny([]string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", write.FilePath, err)})
+				}
+			} else {
+				req.Scope = scope
+			}
+			repair := slopfix.Fix(req)
 			for _, f := range repair.Findings {
 				findings = append(findings, f.String())
 			}

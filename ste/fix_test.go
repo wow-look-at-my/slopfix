@@ -27,15 +27,14 @@ func TestLeadingClosesAtAClauseBoundary(t *testing.T) {
 	assert.False(t, ok, "no clause boundary, so no head")
 }
 
-// With no clause boundary, a division writes a fragment. The repair leaves the
-// sentence whole, and Check still reports it for a person to rewrite.
-func TestFixLeavesASentenceWithNoClauseBoundaryForAPerson(t *testing.T) {
+// With no clause boundary, the repair divides between words, and Check then
+// reports nothing.
+func TestFixDividesASentenceWithNoClauseBoundary(t *testing.T) {
 	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
+	require.Len(t, ste.Check(long, 1), 1, "the control: the sentence is over the cap")
 	fixed := ste.Fix(long)
-	assert.Equal(t, long, fixed)
-	findings := ste.Check(fixed, 1)
-	require.Len(t, findings, 1)
-	assert.Equal(t, ste.IDSentenceCap, findings[0].ID)
+	assert.NotEqual(t, long, fixed)
+	assert.Empty(t, ste.Check(fixed, 1), fixed)
 }
 
 // A division never lands inside an inline code span, so the span survives the
@@ -55,6 +54,17 @@ func TestFixKeepsTheCodeSpanThatEndsTheLeftSentence(t *testing.T) {
 	assert.Contains(t, fixed, "rooted at `./`")
 	assert.Contains(t, fixed, "*as*")
 	assert.NotContains(t, fixed, "Unpacks")
+}
+
+// A splice whose subject is a code span gets the same repair as a word subject.
+func TestFixRepairsASpliceBeforeACodeSpanSubject(t *testing.T) {
+	text := "The path decides the dialect by its tail: `/responses` is `DialectResponses`, `/messages` is `DialectAnthropic`, `/chat/completions` is `DialectOpenAI`. The version segment is matched but not read, so a `v2/responses` still answers."
+	require.NotEmpty(t, ste.Check(text, 1), "the control: the splice is reported")
+	fixed := ste.FixSelected(text, func(id string) bool { return id == ste.IDCommaSplice })
+	assert.Contains(t, fixed, "`v2/responses`")
+	for _, f := range ste.Check(fixed, 1) {
+		assert.NotEqual(t, ste.IDCommaSplice, f.ID, "%s\n%s", fixed, f.Detail)
+	}
 }
 
 // A division never lands inside bold text, so each marker keeps its partner.

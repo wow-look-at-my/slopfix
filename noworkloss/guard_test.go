@@ -173,6 +173,24 @@ func TestPreservesAndAllowsRmOfUntrackedFile(t *testing.T) {
 	assert.Contains(t, notice, "internal/config/env.go")
 }
 
+// git reports the physical root, and on macOS a temp dir is reached through
+// the /var symlink, so the cwd a session reports is spelled another way.
+func TestPreservesAnUntrackedFileReachedThroughASymlinkedCwd(t *testing.T) {
+	for name, operand := range map[string]func(link string) string{
+		"relative": func(string) string { return "scratch.txt" },
+		"absolute": func(link string) string { return filepath.Join(link, "scratch.txt") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := newRepo(t)
+			untrack(t, dir, "scratch.txt")
+			link := filepath.Join(t.TempDir(), "link")
+			require.NoError(t, os.Symlink(dir, link))
+			notice := preserved(t, link, "rm "+operand(link))
+			assert.Contains(t, notice, "scratch.txt")
+		})
+	}
+}
+
 func TestDeniesCheckoutDashDashDot(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -430,6 +448,17 @@ func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	allowed(t, dir, "git rebase --abort")
 	allowed(t, dir, "git merge --abort")
 	allowed(t, dir, "git cherry-pick --continue")
+}
+
+// revert replays a commit git holds, as cherry-pick does. commit-tree wraps a
+// tree the store already holds and touches no file.
+func TestRevertAndCommitTreeAreNotProvenanceRoutes(t *testing.T) {
+	dir := newRepo(t)
+	allowed(t, dir, "git revert --no-edit HEAD")
+	allowed(t, dir, "git commit-tree HEAD^{tree} -p HEAD -m reland")
+	allowed(t, dir, `reland=$(git commit-tree "HEAD^{tree}" -p HEAD -m reland) && git checkout -q -B reland "$reland"`)
+	modify(t, dir)
+	preserved(t, dir, "git revert --no-edit HEAD")
 }
 
 func TestGitRmCachedLeavesTheFileAlone(t *testing.T) {

@@ -71,8 +71,9 @@ Any change to file content in the working tree goes through Write, Edit or Noteb
 | opaque | `node -e`, an `xargs`-fed `sed -i`, a GitHub API commit | always |
 
 - Routes include editors, `busybox` applets, every file redirect, `tee`, `dd of=`, `truncate -s`, `sponge`, `xxd -r`, `sort -o`, `split`, compressors without `-c`, `zip`, `docker cp`, `yq -i` and `ln`.
+- `ln -s` passes when its target is a relative path to a file in the same tree, outside a build directory. No edit tool makes a symlink, and that link adds no text. A target that leaves the tree, or a link through a link that leaves it, is still a write. `ln -f` over a file with an edit keeps the edit first, like `mv`.
 - `cp`, `mv`, `install`, `rsync` and `scp` test the source side. A plain `mv old.go new.go` thus passes.
-- `git apply`, `git am`, `rebase` and `revert` are refused. `git merge`, `git pull` and `git cherry-pick` pass, because git already holds what they land.
+- `git apply`, `git am` and `rebase` are refused. `git merge`, `git pull`, `git cherry-pick` and `git revert` pass, because git already holds what they land. `git commit-tree` passes too: it wraps a tree the store already holds and changes no file.
 - Indirection is followed: `sh -c`, aliases, script files, `find -exec`, functions and wrappers.
 - A long in-place flag (`--in-place`, `--write`) counts for any program. `allowedFormatter` lists. The tools that rewrite by design. `jq` has an empty flag set on purpose.
 - A subagent spawn with a tool grant or a permissive `permissionMode` is refused. The live settings files are refused to every tool.

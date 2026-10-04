@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	"github.com/wow-look-at-my/slopfix/code"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/treecomments"
@@ -29,6 +30,8 @@ type Block struct {
 	Lines   int
 	LineNos []int
 	Pure    []bool
+	// Prefix is the indentation and list marker that open a document paragraph. A rewrite writes it back, or the paragraph leaves its list.
+	Prefix string
 }
 
 // AddedBlocks returns the prose that added contributes to path. It returns nil
@@ -86,8 +89,8 @@ func Borrowed(path string) bool { return under(path, "vendor", "node_modules") |
 // vendoredCache holds each path's answer, because a hook asks per write.
 var vendoredCache sync.Map
 
-// vendoredAttr asks git whether .gitattributes marks path linguist-vendored.
-// A path outside a work tree, or one git cannot answer for, is not vendored.
+// vendoredAttr asks git whether .gitattributes sets any commentfix.BorrowedAttributes on
+// path. A path outside a work tree, or one git cannot answer for, is not borrowed.
 func vendoredAttr(path string) bool {
 	if path == "" {
 		return false
@@ -99,14 +102,14 @@ func vendoredAttr(path string) bool {
 	if v, ok := vendoredCache.Load(abs); ok {
 		return v.(bool)
 	}
-	out, err := gitmod.Command(filepath.Dir(abs), "check-attr", "-z", "linguist-vendored", "--", filepath.Base(abs)).Output()
+	args := append(append([]string{"check-attr", "-z"}, commentfix.BorrowedAttributes...), "--", filepath.Base(abs))
+	out, err := gitmod.Command(filepath.Dir(abs), args...).Output()
 	vendored := false
 	if err == nil {
+		// git answers a path, attribute, value triple per attribute.
 		fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
-		if len(fields) >= 3 {
-			switch fields[2] {
-			case "unspecified", "unset", "false":
-			default:
+		for i := 0; i+2 < len(fields); i += 3 {
+			if commentfix.AttributeSet(fields[i+2]) {
 				vendored = true
 			}
 		}
@@ -140,7 +143,11 @@ func paragraphs(doc string) []Block {
 			cur = append(cur, blankInlineCode(line))
 			nos = append(nos, b.Start-1+n)
 		}
-		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos})
+		prefix := b.Indent
+		if b.Marker != "" {
+			prefix += b.Marker + " "
+		}
+		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos, Prefix: prefix})
 	}
 	return out
 }

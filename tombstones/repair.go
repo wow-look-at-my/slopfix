@@ -10,6 +10,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // DefaultMaxCommentLines caps a comment block, the tier no rewording defeats.
@@ -83,7 +84,7 @@ func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) 
 		if !ok {
 			continue
 		}
-		body := strings.Join(lines[from:to+1], " ")
+		body := paragraphBody(lines[from:to+1], b.Prefix)
 		// A backtick span is a literal rather than a claim, and the table reads
 		if strings.Contains(body, "`") {
 			continue
@@ -94,13 +95,28 @@ func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) 
 		}
 		var kept []string
 		if hasWord(short) {
-			kept = []string{short}
+			kept = []string{b.Prefix + short}
 		}
 		e := edit.Rows(added, from, to, 0, kept)
 		edits = append(edits, e)
 		rewrites[e.Start] = took
 	}
 	return edits, rewrites
+}
+
+// paragraphBody joins a paragraph's lines without the prefix that opens it or
+// the indentation each line carries.
+func paragraphBody(lines []string, prefix string) string {
+	parts := make([]string, 0, len(lines))
+	for i, line := range lines {
+		if i == 0 {
+			line = strings.TrimPrefix(line, prefix)
+		}
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 // hasWord reports whether any letter or digit survives, so a paragraph the
@@ -259,6 +275,12 @@ func repairFile(f *fixer.File) {
 	if added != was {
 		blocks = AddedBlocks(path, added)
 	}
+	// A block still over the cap is cut from its end, the way comments/length cuts.
+	if capped := f.ApplyComments(capEdits(added, blocks, maxLines)); len(capped.Applied) > 0 {
+		f.RemovedOnce("comment prose past the volume cap")
+		added = f.Text()
+		blocks = AddedBlocks(path, added)
+	}
 
 	hits := Find(blocks, maxLines)
 	for _, name := range DeadReferents(path, added, blocks) {
@@ -273,12 +295,20 @@ func repairFile(f *fixer.File) {
 	}
 
 	drop := set.New[int]()
+	cut := false
 	for _, h := range hits {
-		if h.Strippable {
+		switch {
+		case h.Strippable:
 			drop.Add(h.LineNo)
-			continue
+		case h.ID != IDVolume:
+			// A name no whole-line strip resolves loses its sentence below.
+			cut = true
+		default:
+			f.Note(h)
 		}
-		f.Note(h)
+	}
+	if cut {
+		defer cutReferents(f, path)
 	}
 	if drop.Len() == 0 {
 		return
@@ -298,6 +328,120 @@ func repairFile(f *fixer.File) {
 	stripped := f.ApplyComments(strips)
 	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished.
 	f.ApplyComments(reflowStripped(path, stripped.Text, blocksLosing(blocks, drop), len(blocks)))
+}
+
+// cutReferents cuts the sentence around each dead name a whole-line strip left,
+// and notes every name it could not cut.
+func cutReferents(f *fixer.File, path string) {
+	text := f.Text()
+	blocks := AddedBlocks(path, text)
+	lines := strings.Split(text, "\n")
+	starts := make([]int, len(lines))
+	for i, at := 1, 0; i < len(lines); i++ {
+		at += len(lines[i-1]) + 1
+		starts[i] = at
+	}
+	var edits []edit.Edit
+	for _, name := range DeadReferents(path, text, blocks) {
+		h := HitForName(blocks, name)
+		if h.LineNo < 0 || h.LineNo >= len(lines) {
+			continue
+		}
+		openers := commentOpeners
+		if IsDocument(path) {
+			openers = nil
+		}
+		if from, to, ok := sentenceAround(lines[h.LineNo], name, openers); ok {
+			at := starts[h.LineNo]
+			edits = append(edits, edit.Edit{Start: at + from, End: at + to, Cut: []string{strings.TrimSpace(lines[h.LineNo][from:to])}})
+		}
+	}
+	f.ApplyComments(edits)
+	after := AddedBlocks(path, f.Text())
+	for _, name := range DeadReferents(path, f.Text(), after) {
+		f.Note(HitForName(after, name))
+	}
+}
+
+// commentOpeners start the prose of a line. A sentence never reaches back past one.
+var commentOpeners = []string{"//", "/*", "#", "--", "* "}
+
+// sentenceAround answers the byte span of the sentence in line that holds
+// name, with the blank in front of it. The span never reaches back past a
+// comment marker, so the code on the line stays.
+func sentenceAround(line, name string, openers []string) (int, int, bool) {
+	at := strings.LastIndex(line, name)
+	if at < 0 {
+		return 0, 0, false
+	}
+	floor, marker := 0, 0
+	for _, opener := range openers {
+		if i := strings.LastIndex(line[:at], opener); i >= 0 && i+len(opener) > floor {
+			floor, marker = i+len(opener), i
+		}
+	}
+	from := floor
+	if i := strings.LastIndex(line[floor:at], ". "); i >= 0 {
+		from = floor + i + 1
+	}
+	to := len(line)
+	if i := strings.Index(line[at:], ". "); i >= 0 {
+		to = at + i + 1
+	} else if i := strings.Index(line[at:], "*/"); i >= 0 {
+		to = at + i
+	}
+	for to < len(line) && line[to] == '.' {
+		to++
+	}
+	rest := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line[to:]), "*/"))
+	switch {
+	case from > floor:
+		// The period that ends the sentence before stays, and the blank after it goes.
+		for from < at && line[from] == ' ' {
+			from++
+		}
+		from--
+	case rest == "" && floor > 0:
+		// The sentence is the whole comment, so the comment goes, marker and all.
+		from, to = len(strings.TrimRight(line[:marker], " \t")), len(line)
+	default:
+		for to < len(line) && line[to] == ' ' {
+			to++
+		}
+	}
+	return from, to, from < to
+}
+
+// capEdits answers an edit per block over maxLines. A block of comment lines
+// alone is cut at its thoughts. A block that shares a line with code loses its
+// last prose rows instead, because a row edit there would carry the code.
+func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
+	if maxLines <= 0 {
+		return nil
+	}
+	lines := strings.Split(text, "\n")
+	var edits []edit.Edit
+	for _, b := range blocks {
+		if b.Lines <= maxLines {
+			continue
+		}
+		if from, to, ok := pureSpan(b, len(lines)); ok {
+			kept := commentfix.CapLines(lines[from:to+1], maxLines)
+			edits = append(edits, edit.Rows(text, from, to, 0, kept))
+			continue
+		}
+		drop := set.New[int]()
+		over := b.Lines - maxLines
+		for i := len(b.LineNos) - 1; i >= 0 && over > 0; i-- {
+			no, pure := linePurity(b, i)
+			if pure && no >= 0 && no < len(lines) && !treecomments.IsDirective(lines[no]) {
+				drop.Add(no)
+				over--
+			}
+		}
+		edits = append(edits, stripEdits(text, drop)...)
+	}
+	return edits
 }
 
 // cutLines quotes the dropped rows a strip edit covers.

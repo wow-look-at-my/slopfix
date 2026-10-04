@@ -109,7 +109,7 @@ func (h heldPath) restoreArgs() []string {
 }
 
 func (h heldPath) restoreCommand() string {
-	return "git -C " + h.root + " " + strings.Join(h.restoreArgs(), " ") + " -- " + h.rel
+	return "cd " + h.root + " && git " + strings.Join(h.restoreArgs(), " ") + " -- " + h.rel
 }
 
 func firstLine(s string) string {

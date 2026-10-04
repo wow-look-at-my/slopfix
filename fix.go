@@ -11,8 +11,10 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/goformat"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/pins"
@@ -34,6 +36,8 @@ const (
 	RuleWrap Rule = "wrap"
 	// RuleSTE reports what fails the merge gate and repairs nothing.
 	RuleSTE Rule = "ste"
+	// RuleEnglish is plain English usage that STE does not cover.
+	RuleEnglish Rule = "english"
 	// RuleComments is a block that fits its code, and a number said in words.
 	RuleComments Rule = "comments"
 	// RuleWorkflow is what a workflow owes the gate it runs.
@@ -43,7 +47,7 @@ const (
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleEnglish, RuleComments, RuleWorkflow, RuleRepo, RulePins}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -54,9 +58,11 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleCounts:
 		return set.Of(counts.ID)
 	case RuleWrap:
-		return set.Of(IDHardWrap)
+		return set.Of(IDHardWrap, IDLongBlock)
 	case RuleSTE:
 		return ste.AllIDs
+	case RuleEnglish:
+		return set.Of(english.AllIDs...)
 	case RuleComments:
 		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	case RuleWorkflow:
@@ -81,6 +87,10 @@ type Request struct {
 	MaxCommentLines int
 	// Scope bounds where a repair may land. The zero Scope is the whole file.
 	Scope edit.Scope `json:"-"`
+	// Owned names the lines of Content a fork wrote. A repair lands only on them, and a finding counts only on them.
+	Owned *forkscope.Scope `json:"-"`
+	// Fork names the lines a fork wrote across a tree run. A file it holds no line of is neither read nor written.
+	Fork *forkscope.Lines `json:"-"`
 }
 
 // Repair is the text as this binary would write it, plus what the rewrite flagged.
@@ -105,10 +115,14 @@ type Repair struct {
 	Unmet []string `json:"unmet,omitempty"`
 }
 
-// Fix repairs req, unless it carries slopfix-expect annotations. Such text is a
-// fixture: it is checked against them and comes back unchanged.
+// Fix repairs req, unless it carries slopfix-expect annotations.
 func Fix(req Request) Repair {
-	if tombstones.Borrowed(req.Path) {
+	return within(req, fixAll(req))
+}
+
+// fixAll is Fix with no regard to the lines a fork wrote.
+func fixAll(req Request) Repair {
+	if exempt(req.Path, req.Content) {
 		return Repair{Text: req.Content, Scope: req.Scope}
 	}
 	notes := expect.Parse(req.Content)
@@ -124,6 +138,12 @@ func Fix(req Request) Repair {
 	repair.Unmet = notes.Check(repair.Text)
 	repair.Text, repair.Changed, repair.Scope = original, false, scope
 	return repair
+}
+
+// exempt reports a file no rule reads or rewrites: another project's, or a
+// generator's.
+func exempt(path, content string) bool {
+	return tombstones.Borrowed(path) || commentfix.IsGenerated(path, content)
 }
 
 // UnmetError is a fixture whose slopfix-expect annotations the repair broke.
@@ -153,7 +173,14 @@ func fixText(req Request) Repair {
 	// Every repair is a registered fixer, and every fixer writes through the gate the file's parser owns.
 	kind := kindOf(req.Path, req.Content)
 	f := openFile(req, kind)
-	fixer.Run(f, fixer.For(kind))
+	// A repair can hand a later rule new text, such as a division that leaves a count, so the passes run until the text holds.
+	for range fixRounds {
+		before := f.Text()
+		fixer.Run(f, fixer.For(kind))
+		if f.Text() == before {
+			break
+		}
+	}
 
 	text := f.Text()
 	rep := f.Report()
@@ -161,7 +188,7 @@ func fixText(req Request) Repair {
 	repair.refuse(rep.Refused)
 	// A URL is text in every kind of file, so this rule reads the whole file.
 	if wants(RulePins) {
-		for _, finding := range pins.Check(text) {
+		for _, finding := range pins.CheckPath(req.Path, text) {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
 			}
@@ -197,7 +224,7 @@ func fixText(req Request) Repair {
 			}
 		}
 	case fixer.Document:
-		if wants(RuleSTE) {
+		if wants(RuleSTE) || wants(RuleEnglish) {
 			for _, finding := range Check(text) {
 				if keeps(finding.ID) {
 					repair.Findings = append(repair.Findings, finding)
@@ -207,6 +234,9 @@ func fixText(req Request) Repair {
 	}
 	return repair
 }
+
+// fixRounds bounds the passes Fix runs, so repairs that undo each other stop.
+const fixRounds = 4
 
 // wantsOf answers the caller's category selection as a test. An empty Rules
 // means AllRules.
@@ -236,12 +266,28 @@ func openFile(req Request, kind fixer.Kind) *fixer.File {
 }
 
 // Report is Fix for a caller that writes nothing. No repair lands, so every
-// finding is reported on the text as it stands, the repairable ones too.
+// finding is reported on the text as it stands, the repairable ones too. With
+// req.Owned set, only a finding on an owned line is reported.
 func Report(req Request) Repair {
+	repair := reportAll(req)
+	if req.Owned == nil {
+		return repair
+	}
+	repair.Findings = ownedFindings(repair.Findings, req.Owned)
+	repair.Kept = ownedHits(repair.Kept, req.Owned)
+	return repair
+}
+
+// reportAll is Report with no regard to the lines a fork wrote.
+func reportAll(req Request) Repair {
+	req.Owned = nil
 	if !req.Scope.Bounded {
 		req.Scope = edit.Nowhere()
 	}
 	repair := Fix(req)
+	if exempt(req.Path, req.Content) {
+		return repair
+	}
 	repair.Kept = append(repair.Kept, pending(req, repair.Kept)...)
 	if len(req.Rules) > 0 && !slices.Contains(req.Rules, RulePins) {
 		return repair
@@ -253,7 +299,7 @@ func Report(req Request) Repair {
 			findings = append(findings, finding)
 		}
 	}
-	for _, finding := range pins.Check(req.Content) {
+	for _, finding := range pins.CheckPath(req.Path, req.Content) {
 		if keeps(finding.ID) {
 			findings = append(findings, finding)
 		}
@@ -278,15 +324,22 @@ func kindOf(path, content string) fixer.Kind {
 func init() {
 	fixer.Register(fixer.Spec{
 		Label:    "wrap-and-ste",
-		Families: []string{string(RuleWrap), string(RuleSTE)},
-		Rules:    append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...),
+		Families: []string{string(RuleWrap), string(RuleSTE), string(RuleEnglish)},
+		Rules:    append(append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...), english.AllIDs...),
 		Files:    []fixer.Kind{fixer.Document},
 		Place:    30,
 		Repair: func(f *fixer.File) {
 			defer trace.Phase("fix/wrap-and-ste")()
-			word := func(text string) string { return text }
-			if f.Wants(string(RuleSTE)) {
-				word = func(text string) string { return ste.FixSelected(text, f.Keeps) }
+			stePass := f.Wants(string(RuleSTE))
+			englishPass := f.Wants(string(RuleEnglish)) && f.Keeps(english.IDCommaNever)
+			word := func(text string) string {
+				if englishPass {
+					text = english.FixCommaNever(text)
+				}
+				if stePass {
+					text = ste.FixSelected(text, f.Keeps)
+				}
+				return text
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))

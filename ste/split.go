@@ -27,16 +27,16 @@ var connectors = map[string]string{
 }
 
 // fixSentenceCap divides every over-cap sentence where its grammar allows. A
-// sentence with no clause boundary to divide at stays whole, and Check reports it.
+// sentence with no clause boundary to divide at then divides between words.
 func fixSentenceCap(prose string) string {
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := divideNext(prose)
 		if !divided {
-			return prose
+			break
 		}
 		prose = next
 	}
-	return prose
+	return forceSentenceCap(prose)
 }
 
 // divideNext divides the earliest over-cap sentence that a clause boundary can divide.
@@ -94,6 +94,10 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 	for _, d := range divisions(s, source) {
 		// A division inside bold text leaves each half with an unclosed marker.
 		if strings.Count(source[:d.leftEnd], "**")%2 != 0 {
+			continue
+		}
+		// The words a division drops never carry a bold marker, or the rest keeps half a pair.
+		if strings.Contains(source[d.leftEnd:d.rightStart], "**") {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,") + "."
@@ -247,7 +251,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "", false
 		}
 		if c.Subject != nil {
-			return connector, opensWithCapital(s, c.Link+1)
+			return connector, opensWithCapital(s, c.Link+1, source)
 		}
 		if main.Verb.Imperative {
 			return connector, startsTheSentence(s, main)
@@ -270,7 +274,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		if c.Depth != 0 || c.Subject == nil && !resumesAfter(s, c.Link+1) {
 			return "", false
 		}
-		return "", opensWithCapital(s, c.Link+1)
+		return "", opensWithCapital(s, c.Link+1, source)
 	case syntax.Subordinate:
 		if link != "because" || !closesTheSentence(s, c) {
 			return "", false
@@ -314,9 +318,13 @@ func closesTheSentence(s *syntax.Sentence, c syntax.Clause) bool {
 }
 
 // opensWithCapital reports whether the word at i reads right with a capital.
-// A name written in lower case, such as a command, does not.
-func opensWithCapital(s *syntax.Sentence, i int) bool {
+// A name written in lower case, such as a command, does not. A code span does
+// not either, whatever word the mask wrote over it.
+func opensWithCapital(s *syntax.Sentence, i int, source string) bool {
 	w := s.Words[i]
+	if outsideSpans(source, w.Start+1, false) != w.Start+1 {
+		return false
+	}
 	first, _ := utf8.DecodeRuneInString(w.Text)
 	return !(unicode.IsLower(first) && (w.Tag == "NNP" || w.Tag == "NNPS"))
 }
@@ -333,7 +341,7 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	}
 	short := subject.Last-subject.First < restateLimit && !subject.Coordinated &&
 		s.Words[subject.Last+1].Tag != "IN"
-	if short && opensWithCapital(s, subject.First) {
+	if short && opensWithCapital(s, subject.First, source) {
 		text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 		if subject.Det == subject.First {
 			if det := s.Words[subject.Det].Lower(); det == "a" || det == "an" {

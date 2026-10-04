@@ -71,12 +71,15 @@ func TestRepairDropsTheParameter(t *testing.T) {
 	}
 }
 
-// Encode would escape a template and rewrite an HTML-escaped separator, so
-// such a URL is reported and left for a person.
-func TestRepairLeavesAURLEncodeWouldMangle(t *testing.T) {
-	for _, in := range lines(t, "mangle.urls") {
-		assert.Equal(t, in, repaired(in), in)
+// Encode would escape a template and rewrite an HTML-escaped separator, so such
+// a URL loses v as text and keeps every other byte.
+func TestRepairKeepsATemplateAndAnEscapedSeparator(t *testing.T) {
+	for _, pair := range lines(t, "mangle.urls") {
+		in, want, found := strings.Cut(pair, "\t")
+		require.True(t, found, pair)
 		assert.Len(t, Check(in), 1, in)
+		assert.Equal(t, want, repaired(in), in)
+		assert.Empty(t, Check(repaired(in)), in)
 	}
 }
 
