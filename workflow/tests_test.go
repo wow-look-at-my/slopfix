@@ -21,7 +21,7 @@ func testFindings(t *testing.T, content string) []string {
 }
 
 func TestAnAssertionInARunBlockIsReported(t *testing.T) {
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: |\n          grep -q ready out.txt || { echo '::error::missing'; exit 1; }\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          grep -q ready out.txt || { echo '::error::missing'; exit 1; }\n"
 
 	findings := testFindings(t, content)
 	require.Len(t, findings, 1)
@@ -29,7 +29,7 @@ func TestAnAssertionInARunBlockIsReported(t *testing.T) {
 }
 
 func TestABracketComparisonIsReported(t *testing.T) {
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: |\n          [ \"$count\" = 3 ] || exit 1\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          [ \"$count\" = 3 ] || exit 1\n"
 
 	assert.Len(t, testFindings(t, content), 1)
 }
@@ -37,20 +37,20 @@ func TestABracketComparisonIsReported(t *testing.T) {
 // A step that merely runs a command fails on its own exit code. That is not an
 // assertion, and reporting it makes every workflow unwritable.
 func TestAnOrdinaryCommandIsAllowed(t *testing.T) {
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: |\n          npm ci\n          npm test\n          go-toolchain\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          npm ci\n          npm test\n          go-toolchain\n"
 
 	assert.Empty(t, testFindings(t, content))
 }
 
 // An error annotation on its own is a report, not an expectation.
 func TestAnErrorAnnotationAloneIsAllowed(t *testing.T) {
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: |\n          echo '::error::the cache was cold'\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          echo '::error::the cache was cold'\n"
 
 	assert.Empty(t, testFindings(t, content))
 }
 
 func TestAWorkflowThatWritesATestFileIsReported(t *testing.T) {
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: |\n          echo 'package main' > cache_test.go\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          echo 'package main' > cache_test.go\n"
 
 	findings := testFindings(t, content)
 	require.Len(t, findings, 1)
@@ -58,13 +58,13 @@ func TestAWorkflowThatWritesATestFileIsReported(t *testing.T) {
 }
 
 func TestWritingAnOrdinaryFileIsAllowed(t *testing.T) {
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: |\n          echo hello > out.txt\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          echo hello > out.txt\n"
 
 	assert.Empty(t, testFindings(t, content))
 }
 
 func TestAnAssertionHelperIsReported(t *testing.T) {
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: |\n          assert_equal() {\n            [ \"$1\" = \"$2\" ]\n          }\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          assert_equal() {\n            [ \"$1\" = \"$2\" ]\n          }\n"
 
 	findings := testFindings(t, content)
 	require.NotEmpty(t, findings)
@@ -73,20 +73,20 @@ func TestAnAssertionHelperIsReported(t *testing.T) {
 
 // A run: block ends at anything indented no further than its own key.
 func TestABlockEndsAtTheNextKey(t *testing.T) {
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: |\n          npm ci\n        env:\n          GREP: grep -q x || exit 1\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          npm ci\n        env:\n          GREP: grep -q x || exit 1\n"
 
 	assert.Empty(t, testFindings(t, content))
 }
 
 func TestAOneLineRunIsRead(t *testing.T) {
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: test -f out.txt || exit 1\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: test -f out.txt || exit 1\n"
 
 	assert.Len(t, testFindings(t, content), 1)
 }
 
 func TestALongLineIsTruncatedInTheEvidence(t *testing.T) {
 	long := "grep -q ready " + strings.Repeat("x", 200) + " || exit 1"
-	content := "on: push\njobs:\n  x:\n    steps:\n      - run: |\n          " + long + "\n"
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          " + long + "\n"
 
 	findings := testFindings(t, content)
 	require.Len(t, findings, 1)

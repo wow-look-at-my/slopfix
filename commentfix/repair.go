@@ -1,10 +1,10 @@
 // repair.go is the repair half of the rule: what a comment says instead of the
 // number it states.
 //
-// The table says it in words wherever a swap keeps the meaning. What no entry
-// covers is not guessed at, because nobody reviews what a repair applied: the
-// sentence carrying the number is cut, and the caller is told what went. A
-// comment left with nothing to say loses its line.
+// The table says it in words wherever a swap keeps the meaning. A number no
+// entry covers is reworded the way the document count rule does it. Only a
+// sentence that still holds a number after that is cut, and the caller is told
+// what went. A comment left with nothing to say loses its line.
 //
 // The repair is total. A number the table and the cut both miss is deleted at
 // the position the check reports it, in residual.go. So Check answers nothing
@@ -12,10 +12,13 @@
 package commentfix
 
 import (
+	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -172,8 +175,15 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 			edits = append(edits, e)
 			continue
 		}
+		if said == "" && para.code == "" {
+			// A comment with nothing left to say loses its lines, delimiters and all.
+			e := edit.Rows(src, first, last, 0, nil)
+			e.Cut = cut
+			edits = append(edits, e)
+			continue
+		}
 		wrapped := wrap(said, para.marker, para.cont, para.width)
-		// An emptied block keeps its delimiters on a line of their own.
+		// An emptied block after code keeps its delimiters, because the code holds the line.
 		if len(wrapped) == 0 && para.trailer != "" {
 			wrapped = []string{strings.TrimRight(para.marker, " ")}
 		}
@@ -365,9 +375,11 @@ func proseOf(lines []string) []string {
 	return out
 }
 
-// cutWhatIsLeft removes the sentence around any number the table did not
-// rewrite, and reports what it cut.
+// cutWhatIsLeft rewords each number the table did not rewrite, as the document
+// count rule does. It removes the sentence around a number that is still left,
+// and reports what it cut.
 func cutWhatIsLeft(prose string) (string, []string) {
+	prose = rewordCounts(prose)
 	if len(cardinal.Find(prose, cardinal.Comment)) == 0 {
 		return prose, nil
 	}
@@ -382,8 +394,33 @@ func cutWhatIsLeft(prose string) (string, []string) {
 	return strings.TrimSpace(strings.Join(kept, " ")), cut
 }
 
-// sentences splits prose on its sentence ends with the STE splitter.
-func sentences(prose string) []string { return ste.Sentences(prose) }
+// governed is a number and the word after it, which is the noun it counts.
+var governed = regexp.MustCompile(`^\S+\s+[A-Za-z][A-Za-z-]*`)
+
+// rewordCounts takes each number out of the prose with counts.RewordAt, from
+// the back, so an earlier offset stays valid.
+func rewordCounts(prose string) string {
+	tokens := cardinal.Find(prose, cardinal.Comment)
+	for i := len(tokens) - 1; i >= 0; i-- {
+		t := tokens[i]
+		phrase := governed.FindString(prose[t.Offset:])
+		if phrase == "" || cardinal.NotAPluralNoun(prose, cardinal.Match{At: t.Offset, Text: phrase}) {
+			continue
+		}
+		if e, ok := counts.RewordAt(prose, t.Offset, phrase); ok {
+			prose = prose[:e.Start] + e.Text + prose[e.End:]
+		}
+	}
+	return prose
+}
+
+// sentences splits comment prose on its sentence ends. A comment sentence
+// often opens on a lower-case identifier, such as a parameter name.
+func sentences(prose string) []string {
+	return ste.SentencesOpenedBy(prose, func(rest []rune) bool {
+		return unicode.IsLower(rest[0]) || ste.OpensSentence(rest)
+	})
+}
 
 // split separates a comment line's marker and indent from its prose.
 func split(line string) (marker, prose string, ok bool) {
@@ -402,9 +439,11 @@ func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	if rest, closed := strings.CutPrefix(trimmed, "*/"); closed && strings.TrimSpace(rest) == "" {
 		return indent, "", "*/", true
 	}
-	for _, m := range []string{"///", "//!", "//", "/*", "#", "*"} {
+	// A doc comment opens with /**. Read as /*, its second star goes into the prose.
+	for _, m := range []string{"///", "//!", "//", "/**", "/*", "#", "*"} {
 		rest, found := strings.CutPrefix(trimmed, m)
-		if !found {
+		// "/**/" is an empty block: its opener is /* and its closer */.
+		if !found || (m == "/**" && strings.HasPrefix(rest, "/")) {
 			continue
 		}
 		space := rest[:len(rest)-len(strings.TrimLeft(rest, " \t"))]

@@ -11,13 +11,18 @@
 package tombstones
 
 import (
+	"bytes"
 	"context"
-	"github.com/wow-look-at-my/go-containers/set"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // identifierWords splits text into the runs the shape test judges, by cutting
@@ -63,6 +68,107 @@ const probeTimeout = 2 * time.Second
 // maxNames bounds what a comment may put to the repository.
 const maxNames = 40
 
+// probeBudget is how many files a process probes name by name before it reads the tree once.
+const probeBudget = 50
+
+// indexTimeout bounds the read of the tree.
+const indexTimeout = 5 * time.Minute
+
+// indexFileCap is the largest tracked file the index reads. A larger one is data.
+const indexFileCap = 4 << 20
+
+// symbolIndex holds every identifier-shaped word the tracked files contain.
+type symbolIndex struct {
+	once  sync.Once
+	names set.Set[string]
+	ok    bool
+}
+
+var (
+	indexes sync.Map
+	probed  atomic.Int64
+)
+
+// indexFor answers the index of root, built on the first call past the budget.
+func indexFor(root string) *symbolIndex {
+	v, _ := indexes.LoadOrStore(root, &symbolIndex{})
+	ix := v.(*symbolIndex)
+	if probed.Add(1) <= probeBudget {
+		return ix
+	}
+	ix.once.Do(func() { ix.build(root) })
+	return ix
+}
+
+// PrimeIndex builds the index of the working tree that holds path now. A tree
+// walk calls it first, because it probes far past the budget.
+func PrimeIndex(path string) {
+	root := RepoRoot(path)
+	if root == "" {
+		return
+	}
+	v, _ := indexes.LoadOrStore(root, &symbolIndex{})
+	ix := v.(*symbolIndex)
+	ix.once.Do(func() { ix.build(root) })
+	probed.Add(probeBudget)
+}
+
+// build reads every candidate word in the files git lists under root: tracked,
+// and untracked unless git ignores them. That is what ripgrep reads, without a
+// submodule's checkout, which the walk skips too.
+func (ix *symbolIndex) build(root string) {
+	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
+	defer cancel()
+	listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	if err != nil {
+		return
+	}
+	names := set.New[string]()
+	for _, rel := range strings.Split(string(listed), "\x00") {
+		if rel == "" {
+			continue
+		}
+		if ctx.Err() != nil {
+			return
+		}
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil || len(data) > indexFileCap || bytes.IndexByte(data[:min(len(data), 8000)], 0) >= 0 {
+			continue
+		}
+		addWords(names, data)
+	}
+	ix.names, ix.ok = names, true
+}
+
+// addWords adds every candidate identifier in data to names.
+func addWords(names set.Set[string], data []byte) {
+	start := -1
+	for i, c := range data {
+		if c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' {
+			if start < 0 {
+				start = i
+			}
+			continue
+		}
+		if start >= 0 && i-start >= minCandidate {
+			if word := string(data[start:i]); isCandidate(word) {
+				names.Add(word)
+			}
+		}
+		start = -1
+	}
+	if start >= 0 && len(data)-start >= minCandidate {
+		if word := string(data[start:]); isCandidate(word) {
+			names.Add(word)
+		}
+	}
+}
+
+// holds reports a name the index saw.
+func (ix *symbolIndex) holds(name string) bool {
+	return ix.ok && ix.names.Contains(name)
+}
+
 // DeadReferents returns the identifiers the blocks name that appear neither in
 // the text nor in the repository. It returns nothing when it cannot answer.
 func DeadReferents(path, added string, blocks []Block) []string {
@@ -70,11 +176,6 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	if root == "" {
 		return nil
 	}
-	rg, err := exec.LookPath("rg")
-	if err != nil {
-		return nil
-	}
-
 	names := set.New[string]()
 	for _, b := range blocks {
 		for _, m := range identifierWords(b.Text) {
@@ -98,11 +199,28 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		return nil
 	}
 
+	ix := indexFor(root)
+	rg := ""
+	if !ix.ok {
+		found, err := exec.LookPath("rg")
+		if err != nil {
+			return nil
+		}
+		rg = found
+	}
 	args := []string{"--no-messages", "--fixed-strings", "--files-with-matches", "--max-count", "1"}
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 	for _, name := range ordered {
+		if ix.holds(name) {
+			continue
+		}
+		// A built index read every file a probe reads, so a name it never saw is dead.
+		if ix.ok {
+			dead = append(dead, name)
+			continue
+		}
 		cmd := exec.CommandContext(ctx, rg, append(append([]string{}, args...), "-e", name, root)...)
 		out, err := cmd.Output()
 		if ctx.Err() != nil {

@@ -177,6 +177,9 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 		case 1:
 			return one("ln", word{text: filepath.Base(operands[0].text), static: operands[0].static})
 		case 2:
+			if inTreeSymlink(seg.cwd, flags, operands[0], operands[1], roots) {
+				return nil
+			}
 			return one("ln", operands[1])
 		default:
 			return under("ln", abs(seg.cwd, operands[len(operands)-1].text))
@@ -453,6 +456,42 @@ func hasFileExtension(s string) bool {
 		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') {
 			return false
 		}
+	}
+	return true
+}
+
+// inTreeSymlink reports a symbolic link whose target is a relative path to a
+// file the same working tree guards. No edit tool can make a symlink, and its
+// only content is a pointer to authored text. A target outside the tree, or in
+// build output, stays a write, because it brings in text no edit tool wrote.
+func inTreeSymlink(cwd string, flags map[string]word, target, link word, roots []string) bool {
+	_, short := flags["-s"]
+	_, long := flags["--symbolic"]
+	if !short && !long || !target.static || !link.static || filepath.IsAbs(target.text) {
+		return false
+	}
+	linkPath := abs(cwd, link.text)
+	if linkPath == "" {
+		return false
+	}
+	if st, err := os.Stat(linkPath); err == nil && st.IsDir() {
+		linkPath = filepath.Join(linkPath, filepath.Base(target.text))
+	}
+	targetPath := filepath.Join(filepath.Dir(linkPath), target.text)
+	linkRoot, linkIn := insideGuarded(roots, linkPath)
+	targetRoot, targetIn := insideGuarded(roots, targetPath)
+	if !linkIn || !targetIn || linkRoot != targetRoot {
+		return false
+	}
+	// A target that is itself a link must also end in the tree.
+	if st, err := os.Lstat(targetPath); err == nil && st.Mode()&os.ModeSymlink != 0 {
+		real, err := filepath.EvalSymlinks(targetPath)
+		realRoot, rootErr := filepath.EvalSymlinks(linkRoot)
+		if err != nil || rootErr != nil {
+			return false
+		}
+		rel, err := filepath.Rel(realRoot, real)
+		return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 	}
 	return true
 }

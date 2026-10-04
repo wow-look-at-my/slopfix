@@ -8,7 +8,9 @@ package slopfix
 
 import (
 	"os"
+	"runtime"
 	"slices"
+	"sync"
 
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -33,8 +35,7 @@ type TreeRepair struct {
 	Unmet []*UnmetError
 }
 
-// TreeFinding is an ste finding and the file it was found in. A finding knows
-// its line and not its file, because a single call reads a single file.
+// TreeFinding is an ste finding and the file it was found in.
 type TreeFinding struct {
 	Path string
 	ste.Finding
@@ -46,19 +47,15 @@ type TreeTombstone struct {
 	tombstones.Hit
 }
 
-// Reads reports whether any rule reads a file of that name. It is the same
-// question `slopfix file` asks of a directory argument, so a build and the
-// command line select the same files.
+// Reads reports whether any rule reads a file of that name.
 func Reads(path string) bool {
 	return IsDocument(path) || commentfix.Supported(path) || workflow.Judges(path)
 }
 
-// FixTree repairs every file under root with every rule and reports what it
-// did. A file is written only when a repair changed it.
+// FixTree repairs every file under root with every rule and reports what it did.
 func FixTree(root string) TreeRepair { return FixTreeWith(root, Request{}) }
 
-// CheckTree reports what every rule makes of every file under root and writes
-// nothing, so the report a build prints names what --fix would have done.
+// CheckTree reports what every rule makes of every file under root.
 func CheckTree(root string) TreeRepair { return treeRun(root, Request{}, false) }
 
 // FixTreeWith is FixTree under the caller's own rule selection.
@@ -84,26 +81,41 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 
 	var out TreeRepair
 	if wantsRepo(req) && isRepoRoot(root) {
-		findings, changed, err := repoRun(root, keepsOf(req), writing)
+		findings, changed, err := repoRun(root, keepsOf(req), writing, writableIn(req.Fork))
 		if err != nil {
 			findings = append(findings, repoFinding(root, IDBudget, "the repository rules could not read the tree", err.Error()))
 		}
 		out.Findings = append(out.Findings, findings...)
 		out.Repaired = append(out.Repaired, changed...)
 	}
-	for _, path := range commentfix.TreeFilesMatching(root, Reads) {
-		src, err := os.ReadFile(path)
-		if err != nil {
+	paths := commentfix.TreeFilesMatching(root, Reads)
+	// A walk asks the referent check about far more names than a probe for each can answer quickly.
+	tombstones.PrimeIndex(root)
+	repairs := make([]*Repair, len(paths))
+	// Each file is independent, so workers judge them at once and the merge below keeps the walk's order.
+	work := make(chan int)
+	var wg sync.WaitGroup
+	for range runtime.GOMAXPROCS(0) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range work {
+				repairs[i] = judgeFile(paths[i], req, writing)
+			}
+		}()
+	}
+	for i := range paths {
+		work <- i
+	}
+	close(work)
+	wg.Wait()
+
+	for i, path := range paths {
+		repair := repairs[i]
+		if repair == nil {
 			continue
 		}
 		out.Read++
-
-		req.Path, req.Content = path, string(src)
-		run := Report
-		if writing {
-			run = Fix
-		}
-		repair := run(req)
 		if len(repair.Unmet) > 0 {
 			out.Unmet = append(out.Unmet, &UnmetError{Path: path, Unmet: repair.Unmet})
 		}
@@ -121,4 +133,27 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		}
 	}
 	return out
+}
+
+// judgeFile runs every selected rule on one file. It answers nil for a file it
+// cannot read, and for a file of a fork that the fork never touched.
+func judgeFile(path string, req Request, writing bool) *Repair {
+	if req.Fork != nil {
+		scope := req.Fork.Scope(path)
+		if scope.Empty() {
+			return nil
+		}
+		req.Owned = scope
+	}
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	req.Path, req.Content = path, string(src)
+	run := Report
+	if writing {
+		run = Fix
+	}
+	repair := run(req)
+	return &repair
 }

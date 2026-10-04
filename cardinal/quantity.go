@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -20,10 +21,10 @@ import (
 var proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
 	`\s+(?:[a-z][a-z-]*\s+){0,3}?[a-z][a-z-]{2,}s\b`
 
-// gateQuantity is the merge gate's spelling. It reads a shorter list of words,
-// any run of digits, and a shorter adjective gap.
+// gateQuantity is the merge gate's spelling. It reads a shorter list of
+// words, any run of digits, and a shorter adjective gap.
 var gateQuantity = regexp.MustCompile(`(?i)\b(?:` + gateAlt + `|[0-9]+)` +
-	`\s+(?:[a-z-]+\s+){0,2}?[a-z]+s\b`)
+	`\s+(?:[0-9]+(?:\.[0-9]+)?\s+[a-z]+\s+)?(?:[a-z-]+\s+){0,2}?[a-z]+s\b`)
 
 // Match is a quantity the pattern found, and the parts an exemption asks about.
 type Match struct {
@@ -121,11 +122,57 @@ func AfterAnArticle(text string, q Match) bool {
 // buries it" and "the other confirms" match on a verb.
 func NotAPluralNoun(text string, q Match) bool {
 	end := q.At + len(q.Text)
-	for _, w := range syntax.Parse(text, nil).Words {
+	words := syntax.Parse(text, nil).Words
+	for i, w := range words {
 		if w.End != end {
 			continue
 		}
+		if w.Tag == "VBZ" && countsANominal(words, q.At, i) {
+			return false
+		}
 		return w.Tag != "NNS" && w.Tag != "NNPS"
+	}
+	return false
+}
+
+// nominalTags are the tags a modifier between a cardinal and its noun carries.
+var nominalTags = set.Of("CD", "NN", "NNP", "JJ")
+
+// auxiliaries are verbs whose -s form is never a plural noun.
+var auxiliaries = set.Of("is", "has", "does", "was")
+
+// countsANominal reports a cardinal at start followed only by modifiers up to
+// the word at last, in a sentence whose verb came before it. The tagger reads
+// "sends four PATCH requests" as a subject and a verb, and the earlier verb
+// is what leaves the last word a noun. "128 KiB is" has no such verb.
+func countsANominal(words []syntax.Word, start, last int) bool {
+	if auxiliaries.Contains(words[last].Lower()) {
+		return false
+	}
+	first := -1
+	for i, w := range words[:last] {
+		if w.Start == start {
+			first = i
+			break
+		}
+	}
+	if first < 0 || last-first < 2 || words[first].Tag != "CD" {
+		return false
+	}
+	for _, w := range words[first+1 : last] {
+		if !nominalTags.Contains(w.Tag) {
+			return false
+		}
+	}
+	return verbBefore(words, first)
+}
+
+// verbBefore reports a verb earlier in the sentence than the word at i.
+func verbBefore(words []syntax.Word, i int) bool {
+	for j := i - 1; j >= 0 && words[j].Tag != "."; j-- {
+		if strings.HasPrefix(words[j].Tag, "VB") || words[j].Tag == "MD" {
+			return true
+		}
 	}
 	return false
 }
@@ -143,6 +190,87 @@ func ChoiceAmongASet(text string, q Match) bool {
 
 var choosers = set.Of[string]("one", "either", "neither", "any", "each", "none", "both", "all")
 
+// leadingNumber is the cardinal a quantity opens with.
+func leadingNumber(q Match) string {
+	fields := strings.Fields(q.Text)
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
+}
+
+// bare strips the punctuation that sits against a word in a sentence.
+func bare(word string) string {
+	return strings.Trim(strings.ToLower(word), ".,;:()\"'`")
+}
+
+// joiners link values the way a list of status codes does.
+var joiners = set.Of("or", "and", "nor")
+
+// StatusCode exempts an HTTP status code: one that heads a reply noun ("the
+// responses"), follows the word status, or sits in a list beside another code
+// ("201 or 409", "200 and 404"). A status is a value, so no edit that adds an
+// item moves it.
+func StatusCode(text string, q Match) bool {
+	if !InClass(leadingNumber(q), "status-code") {
+		return false
+	}
+	if fields := strings.Fields(q.Text); len(fields) > 1 && InClass(fields[1], "status-noun") {
+		return true
+	}
+	before := strings.Fields(text[:q.At])
+	if n := len(before); n > 0 {
+		last := bare(before[n-1])
+		if last == "status" || InClass(last, "status-code") {
+			return true
+		}
+		if n > 1 && joiners.Contains(last) && InClass(bare(before[n-2]), "status-code") {
+			return true
+		}
+	}
+	after := strings.Fields(text[q.At+len(leadingNumber(q)):])
+	return len(after) > 1 && joiners.Contains(bare(after[0])) && InClass(bare(after[1]), "status-code")
+}
+
+// Labeled exempts a number that names an item rather than counting a set: one
+// after a label word, as in "Migration 014" or "HTTP 404".
+func Labeled(text string, q Match) bool {
+	before := strings.Fields(text[:q.At])
+	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
+}
+
+// SectionCite exempts a number behind a section sign, as in "§9 trigger". It
+// cites a section, so it counts nothing.
+func SectionCite(text string, q Match) bool {
+	before := strings.TrimRight(strings.TrimRight(text[:q.At], " \t"), "0123456789.")
+	last, size := utf8.DecodeLastRuneInString(before)
+	return size > 0 && last == sectionSign
+}
+
+// IssueNumber exempts the digits of the literal shape "issue #<digits>". An
+// issue number never changes.
+func IssueNumber(text string, q Match) bool {
+	return issueRef.MatchString(text[:q.At])
+}
+
+var issueRef = regexp.MustCompile(`(?i)\bissue #$`)
+
+// GPUName exempts the digits of the literal shape "Vega <digits>". The digits
+// are part of a product name.
+func GPUName(text string, q Match) bool {
+	return gpuRef.MatchString(text[:q.At])
+}
+
+var gpuRef = regexp.MustCompile(`(?i)\bvega $`)
+
+// WordSize exempts the literal shapes "8 bits", "16 bits", "32 bits" and
+// "64 bits". A word size is a fixed width.
+func WordSize(_ string, q Match) bool {
+	return wordSizeRef.MatchString(q.Text)
+}
+
+var wordSizeRef = regexp.MustCompile(`(?i)^(?:8|16|32|64) bits$`)
+
 // InExpression exempts a number that is arithmetic rather than a count. The
 // digits in an expression or a range name no set of items.
 func InExpression(text string, q Match) bool {
@@ -155,5 +283,16 @@ func InExpression(text string, q Match) bool {
 	case '-', '−', '+', '/', '*', '=', '.', ',', '_':
 		return true
 	}
-	return unicode.IsDigit(prev)
+	return unicode.IsDigit(prev) || inEquation(text, q.At)
+}
+
+// inEquation reports a number in a clause that holds an equals sign. An
+// equation states an identity, such as a unit conversion, and no tally.
+func inEquation(text string, at int) bool {
+	start := strings.LastIndexAny(text[:at], "(;,") + 1
+	end := len(text)
+	if i := strings.IndexAny(text[at:], ");,"); i >= 0 {
+		end = at + i
+	}
+	return strings.Contains(text[start:end], " = ")
 }

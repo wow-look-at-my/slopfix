@@ -1,6 +1,7 @@
 package treecomments
 
 import (
+	"crypto/sha256"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,6 +49,17 @@ func TestAHashCommentFileFallsBackToBash(t *testing.T) {
 		require.NotNil(t, languageFor(name), "%s takes the bash fallback", name)
 	}
 	assert.Len(t, Extract("Makefile", "# build everything\nall:\n\tgo build\n"), 1)
+}
+
+// Bash reads `a&#0;b` as `a &` and then a comment. In a dats fixture that text
+// is XML, and a repair that cut it broke the suite. A fallback file keeps only
+// the comments that open their line.
+func TestAFallbackFileKeepsOnlyWholeLineComments(t *testing.T) {
+	src := "tests:\n\t# the suite\n\t- desc: x\n\t  inputs:\n\t\tfiles:\n\t\t\tnul.xml: |\n\t\t\t\t<r>a&#0;b</r>\n"
+	got := Extract("suite.dats", src)
+	require.Len(t, got, 1)
+	assert.Equal(t, "# the suite", got[0].Text)
+	assert.Len(t, Extract("run.sh", "echo a&#0;b\n"), 1, "a shell script keeps its trailing comment")
 }
 
 // A file of unknown syntax is not read at all. Read as shell, a GLSL
@@ -113,6 +125,44 @@ import (
 `
 	got := texts(Extract("p.go", src))
 	assert.Equal(t, []string{"// This sentence is prose, because a grouped import has no preamble."}, got)
+}
+
+// Every rule on a file asks for the same comments, so a second Extract reuses
+// the parse. A caller that changes its copy cannot change the next caller's.
+func TestExtractParsesTheSameSourceOnce(t *testing.T) {
+	src := "package p\n\n// Cached explains the cache test.\nfunc Cached() {}\n"
+	first := Extract("cache.go", src)
+	require.Len(t, first, 1)
+	key := extractKey{language: languageFor("cache.go"), sum: sha256.Sum256([]byte(src))}
+	_, ok := extracted.get(key)
+	require.True(t, ok, "the first Extract must remember its parse")
+
+	first[0].Text = "changed by the caller"
+	assert.Equal(t, []string{"// Cached explains the cache test."}, texts(Extract("cache.go", src)))
+	assert.Empty(t, Extract("cache.go", "package p\n"), "a different source is a different parse")
+}
+
+func TestTheExtractCacheDropsItsOldestEntry(t *testing.T) {
+	c := &extractCache{byKey: map[extractKey][]Comment{}}
+	for i := range extractCacheSize + 1 {
+		c.put(extractKey{sum: [sha256.Size]byte{byte(i), byte(i >> 8)}}, nil)
+	}
+	assert.Len(t, c.byKey, extractCacheSize)
+	_, ok := c.get(extractKey{})
+	assert.False(t, ok, "the oldest entry goes first")
+}
+
+// Each Rust line comment holds its own line alone, so the lines of a doc
+// paragraph are one run with no line read twice.
+func TestARustDocLineHoldsItsOwnLine(t *testing.T) {
+	src := "/// Frees the handle that\n/// `create` returned.\nfn free() {}\n"
+	runs := Runs("x.rs", src)
+	require.Len(t, runs, 1)
+	assert.Equal(t, []string{"/// Frees the handle that", "/// `create` returned."}, texts(runs[0]))
+	for i, c := range runs[0] {
+		assert.Equal(t, i+1, c.Line)
+		assert.Equal(t, 1, c.Lines)
+	}
 }
 
 func TestAFileWithoutCgoKeepsEveryComment(t *testing.T) {

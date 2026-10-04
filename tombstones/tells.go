@@ -52,6 +52,8 @@ type Hit struct {
 
 	Strippable bool `json:"strippable"`
 	LineNo     int  `json:"lineNo"`
+	// EndLineNo is the last line of a hit that judges a whole block, counted from one, and zero for any other hit.
+	EndLineNo int `json:"endLineNo,omitempty"`
 }
 
 // Find returns the blocks over the cap. A non-positive maxLines turns it off.
@@ -64,14 +66,18 @@ func Find(blocks []Block, maxLines int) []Hit {
 	for _, b := range blocks {
 		if maxLines > 0 && b.Lines > maxLines {
 			// A judgement about the whole block, not a span to excise, so
-			// Strippable stays false.
-			hits = append(hits, Hit{
+			// Strippable stays false. The hit names the lines the block covers.
+			hit := Hit{
 				ID:     IDVolume,
 				Tell:   "a comment block of " + strconv.Itoa(b.Lines) + " lines",
 				Phrase: firstLine(b.Text),
 				Line:   firstLine(b.Text),
 				LineNo: -1,
-			})
+			}
+			if len(b.LineNos) > 0 {
+				hit.LineNo, hit.EndLineNo = b.LineNos[0]+1, b.LineNos[len(b.LineNos)-1]+1
+			}
+			hits = append(hits, hit)
 		}
 	}
 	return hits

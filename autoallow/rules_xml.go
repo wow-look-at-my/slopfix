@@ -64,7 +64,7 @@ type xmlCommand struct {
 	RequiredFlags      *xmlFlagList    `xml:"requiredFlags"`
 	FlagsWithValue     *xmlFlagList    `xml:"flagsWithValue"`
 	DenyArgSubstrings  *xmlStringList  `xml:"denyArgSubstrings"`
-	RefuseArgs         *xmlRefuseArgs  `xml:"refuseArgSubstrings"`
+	Refusals           []xmlRefuse     `xml:"refuse"`
 	AllowedArgPrefixes *xmlStringList  `xml:"allowedArgPrefixes"`
 	RequireFlagValue   *xmlRequireFlag `xml:"requireFlagValue"`
 	Subcommands        []xmlCommand    `xml:"rule"`
@@ -82,12 +82,19 @@ type xmlStringList struct {
 	Values []string `xml:"value"`
 }
 
-// xmlRefuseArgs denies a command whose argument text carries any of the
-// substrings. denyArgSubstrings above only unmatches the rule, which leaves the
-// command to be asked about; this refuses it.
-type xmlRefuseArgs struct {
-	Message string   `xml:"message,attr"`
-	Values  []string `xml:"value"`
+// xmlRefuse denies a command outright. denyArgSubstrings above only unmatches
+// the rule.
+type xmlRefuse struct {
+	Message       string        `xml:"message,attr"`
+	Flags         []xmlFlag     `xml:"flag"`
+	FlagValue     *xmlFlagValue `xml:"flagValue"`
+	ArgPrefixes   []string      `xml:"argPrefix"`
+	ArgSubstrings []string      `xml:"argSubstring"`
+}
+
+type xmlFlagValue struct {
+	Flags  []xmlFlag `xml:"flag"`
+	Values []string  `xml:"value"`
 }
 
 type xmlRequireFlag struct {
@@ -197,9 +204,17 @@ func convertXMLCommand(xc xmlCommand) CommandNode {
 		node.DenyArgSubstrings = xc.DenyArgSubstrings.Values
 	}
 
-	if xc.RefuseArgs != nil {
-		node.RefuseArgSubstrings = xc.RefuseArgs.Values
-		node.RefuseArgMessage = xc.RefuseArgs.Message
+	for _, xr := range xc.Refusals {
+		r := Refusal{
+			Message:       xr.Message,
+			Flags:         flagNames(xr.Flags),
+			ArgPrefixes:   xr.ArgPrefixes,
+			ArgSubstrings: xr.ArgSubstrings,
+		}
+		if xr.FlagValue != nil {
+			r.FlagValue = &FlagValue{Flags: flagNames(xr.FlagValue.Flags), Values: xr.FlagValue.Values}
+		}
+		node.Refusals = append(node.Refusals, r)
 	}
 
 	if xc.AllowedArgPrefixes != nil {
@@ -228,8 +243,12 @@ func xmlFlagNames(fl *xmlFlagList) []string {
 	if fl == nil {
 		return nil
 	}
-	names := make([]string, len(fl.Flags))
-	for i, f := range fl.Flags {
+	return flagNames(fl.Flags)
+}
+
+func flagNames(flags []xmlFlag) []string {
+	names := make([]string, len(flags))
+	for i, f := range flags {
 		names[i] = f.Name
 	}
 	return names

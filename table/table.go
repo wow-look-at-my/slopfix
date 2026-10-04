@@ -78,6 +78,9 @@ type Table struct {
 	// Detects are what each substrate reports, for the reader rather than the repair.
 	Detects []Detect
 
+	// Lists are the <list> items by list name, in file order.
+	Lists map[string][]string
+
 	once    sync.Once
 	lexicon *Lexicon
 }
@@ -98,6 +101,15 @@ func (t *Table) WordsOf(class string) []string {
 		}
 	}
 	return nil
+}
+
+// List answers a named list's items. It panics on a missing name, because an empty list reads as clean.
+func (t *Table) List(name string) []string {
+	items, ok := t.Lists[name]
+	if !ok {
+		panic("table: rules/ defines no list " + name)
+	}
+	return items
 }
 
 // AppliesTo reports whether an entry's where= covers a surface, and an empty

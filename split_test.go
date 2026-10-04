@@ -45,10 +45,42 @@ func TestSplitLeavesAFileUnderTheTargetAlone(t *testing.T) {
 
 func TestSplitReadsNoHeadingInsideAFence(t *testing.T) {
 	lines := strings.Split("## Real\n\n```md\n## Not a heading\n```\n\n## Next\n", "\n")
-	secs := sections(lines)
+	secs := sections(lines, 2)
 	require.Len(t, secs, 2)
 	assert.Equal(t, "Real", secs[0].title)
 	assert.Equal(t, "Next", secs[1].title)
+}
+
+// A file with no level-2 heading splits at the headings it has.
+func TestSplitMovesASectionOfAnyLevel(t *testing.T) {
+	agents := "# Title\n\n### Deep\n\n" + para("deep", CharBudget) + "\n\n### Short\n\nkept\n"
+	root := repo(t, map[string]string{"AGENTS.md": agents})
+	written, err := Split(root, "AGENTS.md", false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"docs/deep.md"}, written)
+	got := readFile(t, root, "AGENTS.md")
+	assert.LessOrEqual(t, len([]rune(got)), SplitTarget)
+	assert.Contains(t, got, "### Deep\n\n[docs/deep.md](docs/deep.md) holds this section.\n\n### Short\n\nkept\n")
+}
+
+// A cut inside a fence closes it, and the moved part opens it again.
+func TestSplitClosesAFenceItCutsThrough(t *testing.T) {
+	var code []string
+	for range CharBudget / 20 {
+		code = append(code, "echo line of code")
+	}
+	agents := "Intro.\n\n```sh\n" + strings.Join(code, "\n") + "\n```\n"
+	root := repo(t, map[string]string{"AGENTS.md": agents})
+	written, err := Split(root, "AGENTS.md", false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"docs/agents-continued.md"}, written)
+	got := readFile(t, root, "AGENTS.md")
+	assert.LessOrEqual(t, len([]rune(got)), SplitTarget)
+	assert.Equal(t, 2, strings.Count(got, "```"), "the kept part closes its fence")
+	assert.True(t, strings.HasSuffix(got, "```\n\n[docs/agents-continued.md](docs/agents-continued.md) holds the rest of this file.\n"), got[len(got)-200:])
+	doc := readFile(t, root, filepath.FromSlash("docs/agents-continued.md"))
+	assert.True(t, strings.HasPrefix(doc, "# AGENTS, continued\n\n```sh\necho line of code\n"), doc[:80])
+	assert.Equal(t, len(code), strings.Count(got+doc, "echo line of code"), "no line is lost")
 }
 
 func TestSplitNeverOverwritesAnExistingDoc(t *testing.T) {

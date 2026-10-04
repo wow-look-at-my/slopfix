@@ -184,8 +184,22 @@
            match="(?i)\s*\b(?:on|as of|since)\s+(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\b" replace=""
            where="comment document" test="Verified on 2026-01-02 by hand"
            expect="Verified by hand"/>
+  <!-- A date in parentheses goes with them. A date that shares them with other
+       words goes alone, and the parentheses stay balanced. -->
   <pattern id="tombstones/date"
-           match="(?i)\s*\(?\b(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\)?" replace=""
+           match="(?i)\s*\(\s*(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\s*\)" replace=""
+           where="comment document" test="macOS ARM64 status (2026-07-21): file I/O works"
+           expect="macOS ARM64 status: file I/O works"/>
+  <pattern id="tombstones/date"
+           match="(?i)\(\s*(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\s*[,;:]\s*" replace="("
+           where="comment document" test="Windows status (2026-07-20, NT bring-up wave 3 COMPLETE) holds"
+           expect="Windows status (NT bring-up wave 3 COMPLETE) holds"/>
+  <pattern id="tombstones/date"
+           match="(?i)\s*[,;]?\s*\b(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\s*\)" replace=")"
+           where="comment document" test="The wave (metadata, 2026-09-02) closed"
+           expect="The wave (metadata) closed"/>
+  <pattern id="tombstones/date"
+           match="(?i)\s*\b(?:19|20)[0-9]{2}-[0-9]{2}-[0-9]{2}\b" replace=""
            where="comment document" test="The cap 2026-01-02 still holds"
            expect="The cap still holds"/>
   <!-- A copyright year goes stale. The holder stays. -->
@@ -334,7 +348,7 @@
            match="(?i)\s*\bfor some reason\b[,]?" replace=""
            where="comment document" test="For some reason it races" expect="It races"/>
   <pattern id="tombstones/shrug"
-           match="(?i)\s*\bdo not ask\b[^.]*" replace=""
+           match="(?i)\s*\bdo not ask (?:why|how)\b[^.]*" replace=""
            where="comment document" test="The cap holds do not ask why"
            expect="The cap holds"/>
   <pattern id="tombstones/shrug"
