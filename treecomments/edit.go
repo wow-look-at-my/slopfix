@@ -48,7 +48,8 @@ func Apply(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Resul
 		func(e edit.Edit) string { return reach(src, spans, e) },
 		func(text string) bool {
 			return sameShape(language, text, want) &&
-				slices.Equal(directiveLines(filename, text), directives)
+				slices.Equal(directiveLines(filename, text), directives) &&
+				(!IsCMake(filename) || sameCMake(src, text))
 		})
 }
 

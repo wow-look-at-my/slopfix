@@ -463,11 +463,25 @@ func (r Resolver) parentURL(p *forkParent) string {
 	return server + "/" + p.FullName + ".git"
 }
 
-// fetchRepo reads GET /repos/{repo}. With no GITHUB_TOKEN and the default API,
-// the gh CLI asks with the user's own credentials, which see a private
-// repository and are not held to the anonymous rate limit.
+// tokenVars are the variables a GitHub token comes from, in the order they win: the one Actions sets.
+var tokenVars = []string{"GITHUB_TOKEN", "GH_TOKEN"}
+
+// token answers the bearer for the API, or empty when no variable carries one.
+func (r Resolver) token() string {
+	for _, name := range tokenVars {
+		if token := r.getenv(name); token != "" {
+			return token
+		}
+	}
+	return ""
+}
+
+// fetchRepo reads GET /repos/{repo}. With no token and the default API, the gh
+// CLI asks with the user's own credentials, which see a private repository and
+// are not held to the anonymous rate limit. Otherwise the API is asked
+// directly, with the token as the bearer when one is set.
 func (r Resolver) fetchRepo(repo string) (forkRepo, error) {
-	if r.getenv("GITHUB_TOKEN") == "" && r.getenv("GITHUB_API_URL") == "" {
+	if r.token() == "" && r.getenv("GITHUB_API_URL") == "" {
 		return r.ghRepo(repo)
 	}
 	url := r.api() + "/repos/" + repo
@@ -476,7 +490,8 @@ func (r Resolver) fetchRepo(repo string) (forkRepo, error) {
 		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %w", url, err)
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	if token := r.getenv("GITHUB_TOKEN"); token != "" {
+	token := r.token()
+	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -488,6 +503,9 @@ func (r Resolver) fetchRepo(repo string) (forkRepo, error) {
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %w", url, err)
+	}
+	if resp.StatusCode != http.StatusOK && token == "" {
+		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %s: %s (sent anonymously: set %s to authenticate)", url, resp.Status, strings.TrimSpace(string(body)), strings.Join(tokenVars, " or "))
 	}
 	if resp.StatusCode != http.StatusOK {
 		return forkRepo{}, fmt.Errorf("fork scope: GET %s: %s: %s", url, resp.Status, strings.TrimSpace(string(body)))

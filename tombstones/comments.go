@@ -11,7 +11,6 @@
 package tombstones
 
 import (
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -70,7 +70,8 @@ func AddedBlocks(path, added string) []Block {
 
 // IsDocument reports whether path names prose rather than source.
 func IsDocument(path string) bool {
-	if InTestdata(path) {
+	// A CMakeLists.txt is code that ends in .txt.
+	if InTestdata(path) || treecomments.HashComments(path) {
 		return false
 	}
 	switch strings.ToLower(filepath.Ext(path)) {
@@ -103,9 +104,7 @@ func vendoredAttr(path string) bool {
 		return v.(bool)
 	}
 	args := append(append([]string{"check-attr", "-z"}, commentfix.BorrowedAttributes...), "--", filepath.Base(abs))
-	cmd := exec.Command("git", args...)
-	cmd.Dir = filepath.Dir(abs)
-	out, err := cmd.Output()
+	out, err := gitmod.Command(filepath.Dir(abs), args...).Output()
 	vendored := false
 	if err == nil {
 		// git answers a path, attribute, value triple per attribute.
