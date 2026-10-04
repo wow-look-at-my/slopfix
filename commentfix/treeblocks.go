@@ -215,7 +215,6 @@ func indentWidth(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
 
-
 func isSequence(node ts.Node) bool {
 	count := node.NamedChildCount()
 	if count == 0 || node.StartByte() != node.NamedChild(0).StartByte() {
