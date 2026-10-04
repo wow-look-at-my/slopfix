@@ -45,16 +45,72 @@ func deletions(src string, hits []Hit) []edit.Edit {
 		if at < 0 || stop > len(src) {
 			continue
 		}
+		at, stop = literalAround(src, at, stop)
 		e := closeGap(src, at, stop)
 		if e.Start < end {
 			continue
 		}
-		e.Cut = []string{hit.Number}
+		e.Cut = []string{src[at:stop]}
 		out = append(out, e)
 		end = e.End
 	}
 	return out
 }
+
+// literalAround widens the digits from at up to stop to the whole numeric
+// literal they belong to: the fraction after a decimal point, the groups after
+// a thousands separator, an exponent, and a sign or power mark in front.
+// Deleting only the digits a finding names leaves the rest standing as
+// fragments such as ".874".
+func literalAround(src string, at, stop int) (int, int) {
+	for at > 0 {
+		switch {
+		case isDigit(src[at-1]):
+			at--
+		case at > 1 && strings.IndexByte(".,_", src[at-1]) >= 0 && isDigit(src[at-2]):
+			at--
+		case strings.IndexByte(".^", src[at-1]) >= 0:
+			at--
+		case strings.IndexByte("+-", src[at-1]) >= 0 && (at == 1 || isSpace(src[at-2])):
+			at--
+		default:
+			return at, extendLiteral(src, stop)
+		}
+	}
+	return at, extendLiteral(src, stop)
+}
+
+// extendLiteral moves stop past the rest of the numeric literal it is inside.
+func extendLiteral(src string, stop int) int {
+	for stop < len(src) {
+		switch {
+		case isDigit(src[stop]):
+			stop++
+		case strings.IndexByte(".,_", src[stop]) >= 0 && stop+1 < len(src) && isDigit(src[stop+1]):
+			stop += 2
+		case (src[stop] == 'e' || src[stop] == 'E') && exponentAt(src, stop+1):
+			stop++
+			if src[stop] == '+' || src[stop] == '-' {
+				stop++
+			}
+		default:
+			return stop
+		}
+	}
+	return stop
+}
+
+// exponentAt reports whether an exponent's optional sign and digits start at i.
+func exponentAt(src string, i int) bool {
+	if i < len(src) && (src[i] == '+' || src[i] == '-') {
+		i++
+	}
+	return i < len(src) && isDigit(src[i])
+}
+
+func isDigit(b byte) bool { return b >= '0' && b <= '9' }
+
+func isSpace(b byte) bool { return b == ' ' || b == '\t' }
 
 // closeGap answers the edit that deletes the bytes from at up to stop,
 // leaving the space a reader expects between words and none at all before

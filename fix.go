@@ -3,6 +3,7 @@ package slopfix
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -10,8 +11,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/forkscope"
+	"github.com/wow-look-at-my/slopfix/goformat"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -32,6 +36,8 @@ const (
 	RuleWrap Rule = "wrap"
 	// RuleSTE reports what fails the merge gate and repairs nothing.
 	RuleSTE Rule = "ste"
+	// RuleEnglish is plain English usage that STE does not cover.
+	RuleEnglish Rule = "english"
 	// RuleComments is a block that fits its code, and a number said in words.
 	RuleComments Rule = "comments"
 	// RuleWorkflow is what a workflow owes the gate it runs.
@@ -41,7 +47,7 @@ const (
 )
 
 // AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleComments, RuleWorkflow, RuleRepo, RulePins}
+var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleEnglish, RuleComments, RuleWorkflow, RuleRepo, RulePins}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
@@ -50,11 +56,13 @@ func IDsFor(rule Rule) set.Set[string] {
 	case RuleTombstones:
 		return tombstones.AllIDs()
 	case RuleCounts:
-		return set.Of(counts.ID)
+		return set.Of(counts.ID, counts.IDSection)
 	case RuleWrap:
-		return set.Of(IDHardWrap)
+		return set.Of(IDHardWrap, IDLongBlock)
 	case RuleSTE:
 		return ste.AllIDs
+	case RuleEnglish:
+		return set.Of(english.AllIDs...)
 	case RuleComments:
 		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	case RuleWorkflow:
@@ -79,6 +87,10 @@ type Request struct {
 	MaxCommentLines int
 	// Scope bounds where a repair may land. The zero Scope is the whole file.
 	Scope edit.Scope `json:"-"`
+	// Owned names the lines of Content a fork wrote. A repair lands only on them, and a finding counts only on them.
+	Owned *forkscope.Scope `json:"-"`
+	// Fork names the lines a fork wrote across a tree run. A file it holds no line of is neither read nor written.
+	Fork *forkscope.Lines `json:"-"`
 }
 
 // Repair is the text as this binary would write it, plus what the rewrite flagged.
@@ -103,9 +115,16 @@ type Repair struct {
 	Unmet []string `json:"unmet,omitempty"`
 }
 
-// Fix repairs req, unless it carries slopfix-expect annotations. Such text is a
-// fixture: it is checked against them and comes back unchanged.
+// Fix repairs req, unless it carries slopfix-expect annotations.
 func Fix(req Request) Repair {
+	return within(req, fixAll(req))
+}
+
+// fixAll is Fix with no regard to the lines a fork wrote.
+func fixAll(req Request) Repair {
+	if exempt(req.Path, req.Content) {
+		return Repair{Text: req.Content, Scope: req.Scope}
+	}
 	notes := expect.Parse(req.Content)
 	if !notes.Any() {
 		return fixText(req)
@@ -119,6 +138,12 @@ func Fix(req Request) Repair {
 	repair.Unmet = notes.Check(repair.Text)
 	repair.Text, repair.Changed, repair.Scope = original, false, scope
 	return repair
+}
+
+// exempt reports a file no rule reads or rewrites: another project's, or a
+// generator's.
+func exempt(path, content string) bool {
+	return tombstones.Borrowed(path) || commentfix.IsGenerated(path, content)
 }
 
 // UnmetError is a fixture whose slopfix-expect annotations the repair broke.
@@ -142,32 +167,20 @@ func (r *Repair) refuse(refused []edit.Refused) {
 // run in an order that keeps every span valid. The join only moves newlines.
 func fixText(req Request) Repair {
 	defer trace.Phase("fix/all")()
-	rules := req.Rules
-	if len(rules) == 0 {
-		rules = AllRules
-	}
-	wants := func(r Rule) bool { return slices.Contains(rules, r) }
-	// An ID names a rule inside a category, the way a compiler names a
-	// warning. Naming any turns the others off, and naming none keeps them all.
-	keeps := func(id string) bool {
-		return len(req.IDs) == 0 || slices.Contains(req.IDs, id)
-	}
+	wants := wantsOf(req)
+	keeps := keepsOf(req)
 
-	// Every repair is a registered fixer, and every fixer writes through the
-	// gate the file's parser owns. The kind picks both the fixers and the gate.
+	// Every repair is a registered fixer, and every fixer writes through the gate the file's parser owns.
 	kind := kindOf(req.Path, req.Content)
-	opts := fixer.Options{
-		Kind:            kind,
-		Scope:           req.Scope,
-		Wants:           func(c string) bool { return wants(Rule(c)) },
-		Keeps:           keeps,
-		MaxCommentLines: req.MaxCommentLines,
+	f := openFile(req, kind)
+	// A repair can hand a later rule new text, such as a division that leaves a count, so the passes run until the text holds.
+	for range fixRounds {
+		before := f.Text()
+		fixer.Run(f, fixer.For(kind))
+		if f.Text() == before {
+			break
+		}
 	}
-	if kind == fixer.Workflow {
-		opts = workflow.Options(opts)
-	}
-	f := fixer.Open(req.Path, req.Content, opts)
-	fixer.Run(f, fixer.For(kind))
 
 	text := f.Text()
 	rep := f.Report()
@@ -175,7 +188,7 @@ func fixText(req Request) Repair {
 	repair.refuse(rep.Refused)
 	// A URL is text in every kind of file, so this rule reads the whole file.
 	if wants(RulePins) {
-		for _, finding := range pins.Check(text) {
+		for _, finding := range pins.CheckPath(req.Path, text) {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
 			}
@@ -189,6 +202,9 @@ func fixText(req Request) Repair {
 
 	switch kind {
 	case fixer.Workflow:
+		if !wants(RuleWorkflow) {
+			break
+		}
 		for _, finding := range workflow.Check(text) {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
@@ -197,6 +213,14 @@ func fixText(req Request) Repair {
 	case fixer.Source:
 		// Source keeps its own text for the prose rules, because a comma splice
 		// inside a code line is not a sentence.
+		// The number and tail rules report what their repair leaves, so check names what fix rewrites.
+		if wants(RuleComments) {
+			for _, finding := range commentFindings(req.Path, text) {
+				if finding.ID != commentfix.IDLength && keeps(finding.ID) {
+					repair.Findings = append(repair.Findings, finding)
+				}
+			}
+		}
 		if wants(RuleComments) && keeps(commentfix.IDLength) {
 			for _, hit := range commentfix.CheckLength(req.Path, text) {
 				repair.Kept = append(repair.Kept, tombstones.Hit{
@@ -208,7 +232,10 @@ func fixText(req Request) Repair {
 			}
 		}
 	case fixer.Document:
-		if wants(RuleSTE) {
+		if wants(RuleCounts) && keeps(counts.IDSection) {
+			repair.Findings = append(repair.Findings, counts.SectionFindings(req.Path, text)...)
+		}
+		if wants(RuleSTE) || wants(RuleEnglish) {
 			for _, finding := range Check(text) {
 				if keeps(finding.ID) {
 					repair.Findings = append(repair.Findings, finding)
@@ -219,10 +246,60 @@ func fixText(req Request) Repair {
 	return repair
 }
 
-// Report is Fix for a caller that writes nothing. A pinned download URL is a
-// finding in the text as it stands, even where the repair would remove it.
+// fixRounds bounds the passes Fix runs, so repairs that undo each other stop.
+const fixRounds = 4
+
+// wantsOf answers the caller's category selection as a test. An empty Rules
+// means AllRules.
+func wantsOf(req Request) func(Rule) bool {
+	rules := req.Rules
+	if len(rules) == 0 {
+		rules = AllRules
+	}
+	return func(r Rule) bool { return slices.Contains(rules, r) }
+}
+
+// openFile opens req for repair under the caller's selection, through the
+// gate the kind's parser owns.
+func openFile(req Request, kind fixer.Kind) *fixer.File {
+	wants := wantsOf(req)
+	opts := fixer.Options{
+		Kind:            kind,
+		Scope:           req.Scope,
+		Wants:           func(c string) bool { return wants(Rule(c)) },
+		Keeps:           keepsOf(req),
+		MaxCommentLines: req.MaxCommentLines,
+	}
+	if kind == fixer.Workflow {
+		opts = workflow.Options(opts)
+	}
+	return fixer.Open(req.Path, req.Content, opts)
+}
+
+// Report is Fix for a caller that writes nothing. No repair lands, so every
+// finding is reported on the text as it stands, the repairable ones too. With
+// req.Owned set, only a finding on an owned line is reported.
 func Report(req Request) Repair {
+	repair := reportAll(req)
+	if req.Owned == nil {
+		return repair
+	}
+	repair.Findings = ownedFindings(repair.Findings, req.Owned)
+	repair.Kept = ownedHits(repair.Kept, req.Owned)
+	return upstreamRuns(req.Owned, req.Content, repair)
+}
+
+// reportAll is Report with no regard to the lines a fork wrote.
+func reportAll(req Request) Repair {
+	req.Owned = nil
+	if !req.Scope.Bounded {
+		req.Scope = edit.Nowhere()
+	}
 	repair := Fix(req)
+	if exempt(req.Path, req.Content) {
+		return repair
+	}
+	repair.Kept = append(repair.Kept, pending(req, repair.Kept)...)
 	if len(req.Rules) > 0 && !slices.Contains(req.Rules, RulePins) {
 		return repair
 	}
@@ -233,7 +310,7 @@ func Report(req Request) Repair {
 			findings = append(findings, finding)
 		}
 	}
-	for _, finding := range pins.Check(req.Content) {
+	for _, finding := range pins.CheckPath(req.Path, req.Content) {
 		if keeps(finding.ID) {
 			findings = append(findings, finding)
 		}
@@ -258,18 +335,50 @@ func kindOf(path, content string) fixer.Kind {
 func init() {
 	fixer.Register(fixer.Spec{
 		Label:    "wrap-and-ste",
-		Families: []string{string(RuleWrap), string(RuleSTE)},
-		Rules:    append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...),
+		Families: []string{string(RuleWrap), string(RuleSTE), string(RuleEnglish)},
+		Rules:    append(append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...), english.AllIDs...),
 		Files:    []fixer.Kind{fixer.Document},
 		Place:    30,
 		Repair: func(f *fixer.File) {
 			defer trace.Phase("fix/wrap-and-ste")()
-			word := func(text string) string { return text }
-			if f.Wants(string(RuleSTE)) {
-				word = func(text string) string { return ste.FixSelected(text, f.Keeps) }
+			stePass := f.Wants(string(RuleSTE))
+			englishPass := f.Wants(string(RuleEnglish)) && f.Keeps(english.IDCommaNever)
+			word := func(text string) string {
+				if englishPass {
+					text = english.FixCommaNever(text)
+				}
+				if stePass {
+					text = ste.FixSelected(text, f.Keeps)
+				}
+				return text
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))
+			}
+		},
+	})
+}
+
+// The layout pass runs last, on a Go file another fixer changed. It answers to
+// the selection of the fixers before it.
+func init() {
+	var families, rules []string
+	for _, fx := range fixer.For(fixer.Source) {
+		families = append(families, fx.Categories()...)
+		rules = append(rules, fx.IDs()...)
+	}
+	slices.Sort(families)
+	slices.Sort(rules)
+	fixer.Register(fixer.Spec{
+		Label:    goformat.Name,
+		Families: slices.Compact(families),
+		Rules:    slices.Compact(rules),
+		Files:    []fixer.Kind{fixer.Source},
+		Place:    2000,
+		Repair: func(f *fixer.File) {
+			if f.Changed() && filepath.Ext(f.Path) == ".go" {
+				defer trace.Phase("fix/gofmt")()
+				f.ApplyThrough(goformat.Gate, goformat.Edits(f.Text()))
 			}
 		},
 	})

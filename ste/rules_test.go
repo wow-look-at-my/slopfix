@@ -60,6 +60,8 @@ func TestALongSentenceIsReportedOnceTheSplitterIsHonest(t *testing.T) {
 // full of citations is otherwise reported as too long when it is not.
 func TestParenthesesCountAsOneWord(t *testing.T) {
 	assert.Equal(t, 5, WordCount("The lexer (see lexer.md §3.3.4) runs first."))
+	// A section link holds no word, as the number it replaced held none.
+	assert.Equal(t, WordCount(strip("The §9 trigger fires.")), WordCount(strip("The [§owning-renderer](#9-owning-the-renderer) trigger fires.")))
 }
 
 func TestSplicesTheReferenceRuleReports(t *testing.T) {
@@ -107,6 +109,7 @@ func TestCountsLeaveArithmeticAlone(t *testing.T) {
 	cases := map[string]string{
 		"range":      "The exit code range is 0-255 and nothing outside it.",
 		"expression": "A chain of N commands carries N-1 operators.",
+		"equation":   "It defaults to RGBA8 (32 bits per pixel = 4 bytes), the default target.",
 	}
 	for name, text := range cases {
 		t.Run(name, func(t *testing.T) {

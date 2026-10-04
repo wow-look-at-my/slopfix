@@ -9,18 +9,24 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
-// report drives the command and decodes what it wrote. The command is built per
-// call, because tests run in parallel and rootCmd's writer is shared.
+// report drives `check --json` on stdin and decodes what it wrote. The command
+// is built per call, because tests run in parallel and rootCmd's writer is shared.
 func report(t *testing.T, path string, only []string, content string) (reportOutput, string, error) {
 	t.Helper()
 	var out bytes.Buffer
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
 	cmd.SetIn(strings.NewReader(content))
-	err := reportContent(cmd, path, only)
+	rules, ids, err := selectedRules(only)
 	if err != nil {
+		return reportOutput{}, "", err
+	}
+	request := slopfix.Request{Path: path, Rules: rules, IDs: ids, MaxCommentLines: tombstones.DefaultMaxCommentLines}
+	if err := checkStdin(cmd, request, false, true); err != nil {
 		return reportOutput{}, out.String(), err
 	}
 	var decoded reportOutput
@@ -53,14 +59,14 @@ func TestAWorkflowIsReadByTheWorkflowRules(t *testing.T) {
 // The negative control for the case above. A comment line inside the limit
 // reports nothing, which is what proves the case can fail.
 func TestASingleCommentLineIsNotAWall(t *testing.T) {
-	out, _, err := report(t, workflowPath, nil, "name: CI\n# one\non:\n  push:\n")
+	out, _, err := report(t, workflowPath, nil, "name: CI\n# one\non:\n  push:\n    branches: ['**']\n")
 	require.NoError(t, err)
 	assert.Empty(t, out.Findings)
 }
 
 // A null crashes a caller that reads the length of what came back.
 func TestACleanFileAnswersWithAnEmptyList(t *testing.T) {
-	_, raw, err := report(t, workflowPath, nil, "name: CI\non:\n  push:\n")
+	_, raw, err := report(t, workflowPath, nil, "name: CI\non:\n  push:\n    branches: ['**']\n")
 	require.NoError(t, err)
 	assert.Contains(t, raw, `"findings":[]`)
 }
@@ -103,16 +109,9 @@ func TestAnUnknownRuleIsAnError(t *testing.T) {
 	assert.Contains(t, err.Error(), "ste/semicolon")
 }
 
-// The path decides which rules read the text, so there is no default for it.
-func TestReportWithNoPathIsAnError(t *testing.T) {
-	_, _, err := report(t, "", nil, "text\n")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--path is required")
-}
-
 // A finding is the answer rather than a failure. The caller decides what it
-// means, which is why this command never fails over a finding.
+// means, which is why --json never fails over a finding.
 func TestAFindingIsNotAnError(t *testing.T) {
-	_, _, err := report(t, workflowPath, nil, "# one\n# two\non: push\n")
+	_, _, err := report(t, workflowPath, nil, "# one\n# two\non: {push: {branches: ['**']}}\n")
 	require.NoError(t, err)
 }

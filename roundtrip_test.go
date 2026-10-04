@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -46,17 +47,21 @@ func roundTripFixtures() []fixture {
 				"It doesn't run, and a caller should wait.\n\n" +
 				"The gate is shut; the write fails.\n\n" +
 				"The gate is shut, the write fails.\n\n" +
+				"The list names the fork, never its own tree.\n\n" +
 				"The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"The loader reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs.\n\n" +
 				"Its four fields hold the header.\n\n" +
 				"The set holds three rules.\n\n" +
-				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n",
+				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n\n" +
+				"- **Admin port**: " + strings.Repeat("The runner reads each event from the stream and writes the result to the store. ", 25) + "\n",
 			wants: []string{
 				slopfix.IDHardWrap,
+				slopfix.IDLongBlock,
 				ste.IDContraction,
 				ste.IDModal,
 				ste.IDSemicolon,
+				english.IDCommaNever,
 				ste.IDCommaSplice,
 				ste.IDSentenceCap,
 				ste.IDStaleCount,
@@ -98,14 +103,17 @@ func roundTripFixtures() []fixture {
 				"      # It reads the tree.\n" +
 				"      - uses: wow-look-at-my/slopfix@v1\n" +
 				"        continue-on-error: true\n" +
-				"      - name: assert\n" +
-				"        run: |\n" +
-				"          grep -q ok out.txt || { echo \"::error::missing\"; exit 1; }\n",
+				"      - env:\n" +
+				"          OUT: ${{ steps.x.outputs.path }}\n" +
+				"        run: cat \"$OUT\"\n",
 			wants: []string{
 				"yaml/comment-block",
 				"yaml/all-builds-job",
-				"yaml/test-in-workflow",
 				"yaml/neutered-gate",
+				"yaml/env-indirection",
+				"yaml/push-tags",
+				"yaml/org-action-ref",
+				"yaml/concurrency",
 			},
 		},
 		{
@@ -198,7 +206,9 @@ func TestEveryRuleAppearsInAFixture(t *testing.T) {
 	}
 	var missing []string
 	for id := range slopfix.AllIDs().All() {
-		if !covered.Contains(id) {
+		// A warning outlives the repair by design. TestEachWarningRuleFires covers
+		// each.
+		if !covered.Contains(id) && !slopfix.WarningIDs.Contains(id) {
 			missing = append(missing, id)
 		}
 	}
@@ -214,12 +224,14 @@ func findingIDs(findings []ste.Finding) []string {
 	return out
 }
 
-// quoted renders findings for a failure message, so a break names what is left
-// rather than a count.
+// quoted renders the findings that fail a check, so a break names what is left
+// rather than a count. A warning fails nothing, so it is not left over.
 func quoted(findings []ste.Finding) []string {
 	out := make([]string, 0, len(findings))
 	for _, f := range findings {
-		out = append(out, f.String())
+		if !f.Warning() {
+			out = append(out, f.String())
+		}
 	}
 	return out
 }

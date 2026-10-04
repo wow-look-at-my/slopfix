@@ -73,13 +73,13 @@ func TestRunRewriteIsSilent(t *testing.T) {
 // the command that does the job instead, or the model retries the same thing.
 func TestRunDenyCarriesTheAlternative(t *testing.T) {
 	for command, want := range map[string]string{
-		"cat <<EOF\nx\nEOF\n":        "Write/Edit",
-		"perl -e 'print 1'":          "perl is banned",
-		"head -60 src/usage.test.ts": "offset and limit",
-		"shred secret.txt":           "recycler trash",
-		"git rm f":                   "git add -A",
-		"truncate -s 0 -r ref f":     "recycler trash",
-		"rm --one-file-system x":     "cannot be translated",
+		"cat <<EOF\nx\nEOF\n":           "Write/Edit",
+		"perl -e 'print 1'":             "perl is banned",
+		"head -60 src/usage.test.ts":    "offset and limit",
+		"shred secret.txt":              "recycler trash",
+		"git rm --pathspec-from-file=l": "Name the paths",
+		"truncate -s 0 -r ref f":        "recycler trash",
+		"rm --one-file-system x":        "cannot be translated",
 	} {
 		res := Run(strings.NewReader(payload(t, "Bash", command)))
 		require.NotEmpty(t, res.Stdout, command)

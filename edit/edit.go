@@ -9,6 +9,8 @@ package edit
 import (
 	"sort"
 	"strings"
+	"sync"
+	"unsafe"
 )
 
 // Edit replaces the bytes from Start up to End with Text. The offsets count
@@ -128,15 +130,27 @@ func Gate(src string, edits []Edit, scope Scope, reach func(Edit) string, holds 
 		out.Text, out.Scope, out.Applied = text, scope.Shift(candidates), candidates
 		return out
 	}
+	// Halve the batch until each part holds or is one refused edit.
 	var landed []Edit
-	for _, e := range candidates {
-		trial := append(append([]Edit{}, landed...), e)
+	var settle func(group []Edit)
+	settle = func(group []Edit) {
+		if len(group) == 0 {
+			return
+		}
+		trial := append(append([]Edit{}, landed...), group...)
 		if holds(Splice(src, trial)) {
 			landed = trial
-			continue
+			return
 		}
-		out.Refused = append(out.Refused, Refused{Edit: e, Reason: "the rewrite changes what the parser reads outside it"})
+		if len(group) == 1 {
+			out.Refused = append(out.Refused, Refused{Edit: group[0], Reason: "the rewrite changes what the parser reads outside it"})
+			return
+		}
+		settle(group[:len(group)/2])
+		settle(group[len(group)/2:])
 	}
+	settle(candidates[:len(candidates)/2])
+	settle(candidates[len(candidates)/2:])
 	out.Text, out.Scope, out.Applied = Splice(src, landed), scope.Shift(landed), landed
 	return out
 }
@@ -184,8 +198,53 @@ func Rows(src string, from, to, col int, lines []string) Edit {
 	return Edit{Start: start, End: end, Text: strings.Join(lines, "\n")}
 }
 
-// rowStarts answers the byte each row opens at.
+// rowStarts answers the byte each row opens at. A repair asks it once for each
+// edit on the same text, so it remembers recent texts. Callers must not change the slice.
 func rowStarts(src string) []int {
+	key := rowKey{data: unsafe.StringData(src), n: len(src)}
+	rowCache.mu.Lock()
+	entry, ok := rowCache.byKey[key]
+	rowCache.mu.Unlock()
+	if ok {
+		return entry.starts
+	}
+	starts := scanRows(src)
+	rowCache.mu.Lock()
+	defer rowCache.mu.Unlock()
+	if _, ok := rowCache.byKey[key]; !ok {
+		if len(rowCache.order) == rowCacheSize {
+			delete(rowCache.byKey, rowCache.order[0])
+			rowCache.order = rowCache.order[1:]
+		}
+		rowCache.order = append(rowCache.order, key)
+		// The entry holds src, so its bytes stay put and no other text takes the key.
+		rowCache.byKey[key] = rowEntry{src: src, starts: starts}
+	}
+	return starts
+}
+
+// rowKey names a text by where its bytes sit. A string never changes in place.
+type rowKey struct {
+	data *byte
+	n    int
+}
+
+type rowEntry struct {
+	src    string
+	starts []int
+}
+
+// rowCacheSize bounds the remembered texts: a few for each worker of a tree walk.
+const rowCacheSize = 64
+
+var rowCache = struct {
+	mu    sync.Mutex
+	order []rowKey
+	byKey map[rowKey]rowEntry
+}{byKey: map[rowKey]rowEntry{}}
+
+// scanRows finds the byte each row opens at.
+func scanRows(src string) []int {
 	starts := []int{0}
 	for i := 0; i < len(src); i++ {
 		if src[i] == '\n' {

@@ -12,10 +12,15 @@ package tombstones
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 
 	"github.com/wow-look-at-my/slopfix/code"
+	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // Block is a comment run or a paragraph. LineNos and Pure place each line and
@@ -25,6 +30,8 @@ type Block struct {
 	Lines   int
 	LineNos []int
 	Pure    []bool
+	// Prefix is the indentation and list marker that open a document paragraph. A rewrite writes it back, or the paragraph leaves its list.
+	Prefix string
 }
 
 // AddedBlocks returns the prose that added contributes to path. It returns nil
@@ -44,9 +51,16 @@ func AddedBlocks(path, added string) []Block {
 		for no := run.Start; no < run.End; no++ {
 			lineNos = append(lineNos, no)
 		}
+		// A line shared with code is a note on that code, and a directive is an instruction to a tool.
+		pure := 0
+		for idx, p := range run.Pure {
+			if p && !treecomments.IsDirective(lines[run.Start+idx]) {
+				pure++
+			}
+		}
 		out = append(out, Block{
 			Text:    strings.Join(lines[run.Start:run.End], "\n"),
-			Lines:   run.End - run.Start,
+			Lines:   pure,
 			LineNos: lineNos,
 			Pure:    run.Pure,
 		})
@@ -59,7 +73,8 @@ func IsDocument(path string) bool {
 	if IsScript(path) {
 		return false
 	}
-	if InTestdata(path) {
+	// A CMakeLists.txt is code that ends in .txt.
+	if InTestdata(path) || treecomments.HashComments(path) {
 		return false
 	}
 	switch strings.ToLower(filepath.Ext(path)) {
@@ -83,11 +98,48 @@ func IsScript(path string) bool {
 	return false
 }
 
-// InTestdata reports whether path sits under a testdata directory. A file there
-// is test input, and a rewrite of it changes what the test checks.
-func InTestdata(path string) bool {
+// InTestdata reports whether path sits under a testdata directory.
+func InTestdata(path string) bool { return under(path, "testdata") }
+
+// Borrowed reports a path another author wrote: one under a vendor or node_modules directory.
+func Borrowed(path string) bool { return under(path, "vendor", "node_modules") || vendoredAttr(path) }
+
+// vendoredCache holds each path's answer, because a hook asks per write.
+var vendoredCache sync.Map
+
+// vendoredAttr asks git whether .gitattributes sets any commentfix.BorrowedAttributes on
+// path. A path outside a work tree, or one git cannot answer for, is not borrowed.
+func vendoredAttr(path string) bool {
+	if path == "" {
+		return false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	if v, ok := vendoredCache.Load(abs); ok {
+		return v.(bool)
+	}
+	args := append(append([]string{"check-attr", "-z"}, commentfix.BorrowedAttributes...), "--", filepath.Base(abs))
+	out, err := gitmod.Command(filepath.Dir(abs), args...).Output()
+	vendored := false
+	if err == nil {
+		// git answers a path, attribute, value triple per attribute.
+		fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
+		for i := 0; i+2 < len(fields); i += 3 {
+			if commentfix.AttributeSet(fields[i+2]) {
+				vendored = true
+			}
+		}
+	}
+	vendoredCache.Store(abs, vendored)
+	return vendored
+}
+
+// under reports whether a directory element of path is one of dirs.
+func under(path string, dirs ...string) bool {
 	for _, part := range strings.FieldsFunc(path, func(r rune) bool { return r == '/' || r == '\\' }) {
-		if part == "testdata" {
+		if slices.Contains(dirs, part) {
 			return true
 		}
 	}
@@ -109,7 +161,11 @@ func paragraphs(doc string) []Block {
 			cur = append(cur, blankInlineCode(line))
 			nos = append(nos, b.Start-1+n)
 		}
-		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos})
+		prefix := b.Indent
+		if b.Marker != "" {
+			prefix += b.Marker + " "
+		}
+		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos, Prefix: prefix})
 	}
 	return out
 }

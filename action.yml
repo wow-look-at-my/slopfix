@@ -1,38 +1,73 @@
 name: slopfix
-description: Run slopfix against this repository, and fail the job when a rule rejects something
+description: Download slopfix and check the whole checkout with every rule, or answer whether this job holds a permission
 
+# No input narrows the check: action_test.go fails the build on any input but these.
 inputs:
-  paths:
-    description: 'Paths to read, space separated. A directory is walked.'
-    required: false
-    default: '.'
-
-  only:
+  permission:
     description: >-
-      Restrict the run to these rules, comma separated. An entry is a
-      category or a category/rule.
+      A permission scope, such as id-token. When set, the action answers
+      check workflow-permission for the running job instead of the check.
     required: false
     default: ''
+
+  level:
+    description: The level the permission must reach - none, read or write
+    required: false
+    default: write
+
+outputs:
+  stdout:
+    description: What slopfix wrote on stdout, which is the JSON answer when permission is set
+    value: ${{ steps.unix.outputs.stdout || steps.windows.outputs.stdout }}
 
 runs:
   using: composite
   steps:
-    # The action runs check and never fix. A job that repairs its own checkout and then reports a pass enforces nothing.
     - name: Download slopfix
       id: download
       uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master
       with:
         project: slopfix
 
-    # slopfix fails when a walk selects no file, so a step placed ahead of the checkout fails rather than passing on an empty workspace.
-    - name: Run slopfix, through sh where a binfmt_misc handler on the MZ magic refuses a direct exec of the APE
-      uses: wow-look-at-my/actions@multicmd#latest
-      with:
-        # The paths are a list, so they are deliberately unquoted.
-        unix: >-
-          sh "${{ steps.download.outputs.path }}" check
-          ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} ${{ inputs.paths }}
-        # Windows registers no handler and boots the APE through its PE header, and sh there reads the shell bootstrap and looks for a loader built for another host.
-        windows: >-
-          & "${{ steps.download.outputs.path }}" check
-          ${{ inputs.only != '' && format('--only {0}', inputs.only) || '' }} ${{ inputs.paths }}
+    # A binfmt_misc handler on the MZ magic can refuse a direct exec of the APE, so Unix runs it through sh.
+    - name: Run slopfix
+      id: unix
+      if: runner.os != 'Windows'
+      shell: bash
+      # check reads the repository from the API to tell whether it is a fork, and a private one needs the token.
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        SLOPFIX_PERMISSION: ${{ inputs.permission }}
+        SLOPFIX_LEVEL: ${{ inputs.level }}
+      run: |
+        set -- check .
+        if [ -n "$SLOPFIX_PERMISSION" ]; then
+          set -- check workflow-permission --json --permission "$SLOPFIX_PERMISSION" --level "$SLOPFIX_LEVEL"
+        fi
+        rc=0
+        out=$(sh "${{ steps.download.outputs.path }}" "$@") || rc=$?
+        printf '%s\n' "$out"
+        { echo 'stdout<<SLOPFIX_STDOUT_END'; printf '%s\n' "$out"; echo 'SLOPFIX_STDOUT_END'; } >> "$GITHUB_OUTPUT"
+        exit "$rc"
+
+    # Windows has no binfmt handler and boots the APE through its PE header. sh there looks for a loader built for another host.
+    - name: Run slopfix
+      id: windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        SLOPFIX_PERMISSION: ${{ inputs.permission }}
+        SLOPFIX_LEVEL: ${{ inputs.level }}
+      run: |
+        $slopfixArgs = @('check', '.')
+        if (-not [string]::IsNullOrEmpty($env:SLOPFIX_PERMISSION)) {
+          $slopfixArgs = @('check', 'workflow-permission', '--json', '--permission', $env:SLOPFIX_PERMISSION, '--level', $env:SLOPFIX_LEVEL)
+        }
+        $out = & "${{ steps.download.outputs.path }}" @slopfixArgs
+        $rc = $LASTEXITCODE
+        $out
+        "stdout<<SLOPFIX_STDOUT_END" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+        $out | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+        "SLOPFIX_STDOUT_END" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+        exit $rc

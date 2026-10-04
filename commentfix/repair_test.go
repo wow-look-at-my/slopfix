@@ -45,18 +45,34 @@ func TestATableEntryKeepsTheSentence(t *testing.T) {
 	assert.Empty(t, repair.Removed, "a rewritten sentence is not a cut one")
 }
 
-// A tally no entry covers is not guessed at. The sentence goes, and the
-// caller is told which sentence went.
-func TestANumberNoEntryCoversCutsItsSentence(t *testing.T) {
-	repair := fix(t, "// It is padded. Each shard is padded to 128 bytes.\nvar x int\n")
+// A count no entry covers is reworded the way the document rule does it, so
+// the sentence stays and only the figure goes.
+func TestANumberNoEntryCoversIsReworded(t *testing.T) {
+	for in, want := range map[string]string{
+		"// It is padded. Each shard is padded to 128 bytes.\nvar x int\n":   "// It is padded. Each shard is padded to many bytes.\nvar x int\n",
+		"// Run waits 2 minutes before it starts.\nfunc Run() {}\n":          "// Run waits a couple of minutes before it starts.\nfunc Run() {}\n",
+		"// Run keeps at most 500 lines in the buffer.\nfunc Run() {}\n":     "// Run keeps a bounded number of lines in the buffer.\nfunc Run() {}\n",
+		"// Run answers one call 3 ways and ships 4 hooks.\nfunc Run() {}\n": "// Run answers one call multiple ways and ships hooks.\nfunc Run() {}\n",
+	} {
+		repair := fix(t, in)
+		assert.Equal(t, want, repair.Text, in)
+		assert.Empty(t, repair.Removed, in)
+		assert.Empty(t, commentfix.Check("x.go", header+repair.Text), in)
+	}
+}
+
+// A number that governs no plural noun has nothing to reword around. The
+// sentence goes, and the caller is told which sentence went.
+func TestANumberWithNoPluralNounCutsItsSentence(t *testing.T) {
+	repair := fix(t, "// It is padded. Each take pays for 1 add.\nvar x int\n")
 	assert.Equal(t, "// It is padded.\nvar x int\n", repair.Text)
-	assert.Equal(t, []string{"Each shard is padded to 128 bytes."}, repair.Removed)
+	assert.Equal(t, []string{"Each take pays for 1 add."}, repair.Removed)
 }
 
 // A comment left with nothing to say loses its line rather than sitting there
 // as a bare marker.
 func TestACommentLeftWithNothingToSayLosesItsLine(t *testing.T) {
-	repair := fix(t, "// Each shard is padded to 128 bytes.\nvar x int\n")
+	repair := fix(t, "// Each take pays for 1 add.\nvar x int\n")
 	assert.Equal(t, "var x int\n", repair.Text)
 }
 
@@ -169,19 +185,37 @@ func TestABlockCommentIsRepairedBelowItsOpener(t *testing.T) {
 	assert.Empty(t, commentfix.Check("x.c", got.Text), "nothing is left to report")
 }
 
-// The closer is not prose. Dropped, the comment stays open and every
-// declaration below it is swallowed by it, so an emptied block keeps its
-// delimiters and the file still parses.
-func TestAnEmptiedBlockKeepsItsDelimiters(t *testing.T) {
-	src := "int a;\n\n/* The tables run to 12 sections. */\nint b;\n"
+// A block left with nothing to say loses its lines, as a line comment does. An
+// empty /* */ is noise, and a closer dropped alone swallows the code below.
+func TestAnEmptiedBlockLosesItsLines(t *testing.T) {
+	src := "int a;\n\n/* Each take pays for 1 add. */\nint b;\n"
 	got := commentfix.Fix("x.c", src)
 
-	assert.True(t, got.Changed)
-	assert.Contains(t, got.Text, "*/", "the block is closed")
-	assert.Contains(t, got.Text, "int b;")
-	assert.Equal(t, strings.Count(src, "/*"), strings.Count(got.Text, "/*"), "openers are balanced")
-	assert.Equal(t, strings.Count(src, "*/"), strings.Count(got.Text, "*/"), "closers are balanced")
+	assert.Equal(t, "int a;\n\nint b;\n", got.Text)
 	assert.Empty(t, commentfix.Check("x.c", got.Text))
+}
+
+// A doc comment opens with /**. Read as /* with prose that starts with a star,
+// the star went into the prose and the opener came back as /*.
+func TestADocBlockKeepsItsOpener(t *testing.T) {
+	src := "/** Keeps the ring.\n * Each take pays for 1 add. */\nfunction f() {}\n"
+	got := commentfix.Fix("x.ts", src)
+
+	assert.Equal(t, "/** Keeps the ring. */\nfunction f() {}\n", got.Text)
+	assert.Equal(t, []string{"Each take pays for 1 add."}, got.Removed)
+
+	emptied := commentfix.Fix("x.ts", "/** Each take pays for 1 add. */\nfunction f() {}\n")
+	assert.Equal(t, "function f() {}\n", emptied.Text)
+}
+
+// A sentence in a comment often opens on a lowercase identifier. Read as one
+// sentence with the sentence before it, the cut of a number took both.
+func TestACutKeepsTheSentenceBeforeALowercaseOne(t *testing.T) {
+	src := "/** It names the commit. sha is empty when it is absent. number is -1 when none is. */\nfunction f() {}\n"
+	got := commentfix.Fix("x.ts", src)
+
+	assert.Equal(t, "/** It names the commit. sha is empty when it is absent. */\nfunction f() {}\n", got.Text)
+	assert.Equal(t, []string{"number is -1 when none is."}, got.Removed)
 }
 
 // A block opens a single time. Repeating its opener down the paragraph nests a

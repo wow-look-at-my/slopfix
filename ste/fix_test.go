@@ -27,15 +27,14 @@ func TestLeadingClosesAtAClauseBoundary(t *testing.T) {
 	assert.False(t, ok, "no clause boundary, so no head")
 }
 
-// With no clause boundary, a division writes a fragment. The repair leaves the
-// sentence whole, and Check still reports it for a person to rewrite.
-func TestFixLeavesASentenceWithNoClauseBoundaryForAPerson(t *testing.T) {
+// With no clause boundary, the repair divides between words, and Check then
+// reports nothing.
+func TestFixDividesASentenceWithNoClauseBoundary(t *testing.T) {
 	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
+	require.Len(t, ste.Check(long, 1), 1, "the control: the sentence is over the cap")
 	fixed := ste.Fix(long)
-	assert.Equal(t, long, fixed)
-	findings := ste.Check(fixed, 1)
-	require.Len(t, findings, 1)
-	assert.Equal(t, ste.IDSentenceCap, findings[0].ID)
+	assert.NotEqual(t, long, fixed)
+	assert.Empty(t, ste.Check(fixed, 1), fixed)
 }
 
 // A division never lands inside an inline code span, so the span survives the
@@ -45,6 +44,57 @@ func TestFixDividesALongSentenceAroundACodeSpan(t *testing.T) {
 	fixed := ste.Fix(long)
 	assert.Contains(t, fixed, "`a; b`")
 	assert.Empty(t, ste.Check(fixed, 1))
+}
+
+// The parser reads a masked code span, whose filler word ends before the closing
+// backtick. A division after the span must still keep the whole span.
+func TestFixKeepsTheCodeSpanThatEndsTheLeftSentence(t *testing.T) {
+	long := "The tarball is rooted at `./` and unpacks *as* the build directory — extracting it without `-C dir` sprays `src/`, `include/` and a foreign `.gitignore` over the repo root and chowns it."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "rooted at `./`")
+	assert.Contains(t, fixed, "*as*")
+	assert.NotContains(t, fixed, "Unpacks")
+}
+
+// A splice whose subject is a code span gets the same repair as a word subject.
+func TestFixRepairsASpliceBeforeACodeSpanSubject(t *testing.T) {
+	text := "The path decides the dialect by its tail: `/responses` is `DialectResponses`, `/messages` is `DialectAnthropic`, `/chat/completions` is `DialectOpenAI`. The version segment is matched but not read, so a `v2/responses` still answers."
+	require.NotEmpty(t, ste.Check(text, 1), "the control: the splice is reported")
+	fixed := ste.FixSelected(text, func(id string) bool { return id == ste.IDCommaSplice })
+	assert.Contains(t, fixed, "`v2/responses`")
+	for _, f := range ste.Check(fixed, 1) {
+		assert.NotEqual(t, ste.IDCommaSplice, f.ID, "%s\n%s", fixed, f.Detail)
+	}
+}
+
+// A division never lands inside bold text, so each marker keeps its partner.
+func TestFixNeverDividesInsideBoldText(t *testing.T) {
+	long := "With no trip count given, each loop is modeled as one iteration **and the estimate is flagged** with a section in the report and a note in the output so it is never read as the exact cost."
+	fixed := ste.Fix(long)
+	assert.Contains(t, fixed, "**and the estimate is flagged**")
+}
+
+// ", and" before a subordinate clause and its main clause is a sentence boundary.
+func TestFixDividesBeforeASubordinateClauseAfterAnd(t *testing.T) {
+	long := "This closed a real hole: `a_test.go` is `//go:build x`, and for as long as the gate ran default tags only, its violations were invisible and its tests compiled nowhere."
+	fixed := ste.Fix(long)
+	assert.Equal(t, "This closed a real hole: `a_test.go` is `//go:build x`. For as long as the gate ran default tags only, its violations were invisible and its tests compiled nowhere.", fixed)
+	assert.Empty(t, ste.Check(fixed, 1))
+
+	long = "The gate reads every file that the session wrote, but if the cache is cold at the start of the run, the build waits for the whole tree."
+	assert.Equal(t, "The gate reads every file that the session wrote. However, if the cache is cold at the start of the run, the build waits for the whole tree.", ste.Fix(long))
+}
+
+// A quotation is another voice, so a rule never judges the words inside it.
+func TestCheckSkipsQuotedText(t *testing.T) {
+	assert.Empty(t, ste.Check(`The owner said "it is fine; ship it" and moved on.`, 1))
+	assert.Empty(t, ste.Check("The owner said “it is fine; ship it” and moved on.", 1))
+	assert.NotEmpty(t, ste.Check("The owner said it is fine; ship it.", 1))
+}
+
+// A semicolon that ends the prose before a code span keeps its space.
+func TestFixKeepsTheSpaceBeforeACodeSpan(t *testing.T) {
+	assert.Equal(t, "Docker is unavailable. `MESA_DIR` still overrides it.", ste.Fix("Docker is unavailable; `MESA_DIR` still overrides it."))
 }
 
 // A parenthetical counts as a single word, so a division inside it would halve

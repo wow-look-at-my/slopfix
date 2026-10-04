@@ -36,7 +36,7 @@ const (
 var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
 	IDPostdeterminer,
-)
+).Union(WarningIDs)
 
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
@@ -50,14 +50,23 @@ type Finding struct {
 	Detail string
 	// Fix names the repair, in the imperative.
 	Fix string
+	// Severity is SeverityWarning for a finding that must not fail a check, and empty for an error.
+	Severity string
 }
+
+// Warning reports whether the finding informs rather than fails.
+func (f Finding) Warning() bool { return f.Severity == SeverityWarning }
 
 func (f Finding) String() string {
 	detail := ""
 	if f.Detail != "" {
 		detail = fmt.Sprintf(" %q", f.Detail)
 	}
-	return fmt.Sprintf("%d: [%s] %s%s. %s", f.Line, f.ID, f.Rule, detail, f.Fix)
+	level := ""
+	if f.Warning() {
+		level = "warning "
+	}
+	return fmt.Sprintf("%d: %s[%s] %s%s. %s", f.Line, level, f.ID, f.Rule, detail, f.Fix)
 }
 
 // SentenceWordCap is STE's cap for a descriptive sentence.
@@ -113,6 +122,8 @@ var (
 	wordPattern = regexp.MustCompile(`[A-Za-z]+(?:'[A-Za-z]+)?`)
 	// codeSpan matches an inline code span, whose contents are data.
 	codeSpan = regexp.MustCompile("`[^`]*`")
+	// sectionLink matches a link that cites a section by its slug.
+	sectionLink = regexp.MustCompile(`\[§[^\]\s]*\]\([^)\s]*\)`)
 	// linkTarget matches a markdown link's URL, which is not prose.
 	linkTarget = regexp.MustCompile(`\]\([^)]*\)`)
 	// entity ENDS IN A SEMICOLON, which unmasked prose reports as its own.
@@ -187,9 +198,15 @@ var proseRules = []proseRule{
 func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
+	// A section link reads as the citation it replaced, which holds no word.
+	text = sectionLink.ReplaceAllString(text, "§")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
-	return entity.ReplaceAllString(text, " ENTITY ")
+	text = entity.ReplaceAllString(text, " ENTITY ")
+	// A quotation is another voice, so no rule judges the words inside it.
+	return quotation.ReplaceAllString(text, " QUOTE ")
 }
+
+var quotation = regexp.MustCompile(`"[^"\n]*"|“[^”\n]*”`)
 
 func checkWords(prose string, line int) []Finding {
 	var out []Finding
@@ -284,8 +301,8 @@ func insideAny(spans [][]int, idx int) bool {
 	return false
 }
 
-// clauseBefore returns the words from the end of the previous sentence up to
-// the comma at idx.
+// clauseBefore returns the words from the end of the sentence up to the comma
+// at idx.
 func clauseBefore(prose string, idx int) string {
 	before := prose[:idx]
 	if cut := strings.LastIndexAny(before, ".!?:;—"); cut >= 0 {
@@ -306,16 +323,20 @@ func isClause(before string) bool {
 }
 
 // Sentences splits prose into sentences.
-//
-// A period ends a sentence only when what follows opens the next. That rules
-// out "e.g. the lexer" and the "$(...)" of a shell example, which a plain
-// period-and-space split cuts apart. An oversized sentence then reads as short
-// pieces and escapes the cap.
+func Sentences(text string) []string { return SentencesOpenedBy(text, opensSentence) }
+
+// OpensSentence reports whether rest starts a sentence by the rule Sentences uses.
+func OpensSentence(rest []rune) bool { return opensSentence(rest) }
+
+// SentencesOpenedBy ends a sentence at a period only when opens accepts what
+// follows. That rules out "e.g. the lexer" and the "$(...)" of a shell example,
+// which a plain period-and-space split cuts apart. An oversized sentence then
+// reads as short pieces and escapes the cap.
 //
 // A lower-case opener still starts a sentence when it is a file name or a
 // section mark. Demanding a capital there is the mirror defect, and it hides
 // the length of everything it welds together.
-func Sentences(text string) []string {
+func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 	var out []string
 	runes := []rune(text)
 	start := 0
@@ -341,7 +362,7 @@ func Sentences(text string) []string {
 		for next < len(runes) && unicode.IsSpace(runes[next]) {
 			next++
 		}
-		if next >= len(runes) || !opensSentence(runes[next:]) || endsWithAbbreviation(runes[start:stop+1]) {
+		if next >= len(runes) || !opens(runes[next:]) || endsWithAbbreviation(runes[start:stop+1]) {
 			i = end
 			continue
 		}
@@ -359,8 +380,7 @@ func terminator(r rune) bool {
 	return r == '.' || r == '!' || r == '?'
 }
 
-// opensSentence reports whether the text starts a new sentence. A capital, a
-// digit and an opening delimiter each do, and so does a lower-case file name.
+// opensSentence reports whether the text starts a new sentence.
 var maskedSpan = regexp.MustCompile(`^x{4,}(?:\s|$)`)
 
 func opensSentence(rest []rune) bool {
@@ -371,8 +391,12 @@ func opensSentence(rest []rune) bool {
 		return true
 	}
 	// A masked code span is a run of x, and opens a sentence as its backtick does.
-	return maskedSpan.MatchString(string(rest)) || fileOrSection.MatchString(string(rest))
+	head := string(rest[:min(len(rest), openerReach)])
+	return maskedSpan.MatchString(head) || fileOrSection.MatchString(head)
 }
+
+// openerReach bounds how far opensSentence reads.
+const openerReach = 512
 
 func endsWithAbbreviation(sentence []rune) bool {
 	fields := strings.Fields(string(sentence))

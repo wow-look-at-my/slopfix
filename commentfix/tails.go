@@ -19,13 +19,16 @@ import (
 var tailsTable = table.MustLoad(rules.FS, "comment-tails")
 
 // danglingWords answers the class that decides whether a comment finished.
-func danglingWords() []string {
+func danglingWords() []string { return tailsClass("dangling") }
+
+// tailsClass answers a named word class of rules/comment-tails.xml.
+func tailsClass(name string) []string {
 	for _, c := range tailsTable.Classes {
-		if c.Name == "dangling" {
+		if c.Name == name {
 			return c.Words
 		}
 	}
-	panic("commentfix: rules/ names no class dangling")
+	panic("commentfix: rules/ names no class " + name)
 }
 
 // IDTail names the rule, the way a compiler names a warning.

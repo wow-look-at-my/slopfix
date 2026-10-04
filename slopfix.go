@@ -8,37 +8,54 @@ package slopfix
 import (
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // IDHardWrap names the wrap rule: the document's shape is this package's to judge.
 const IDHardWrap = "wrap/hard-wrap"
 
-// Check reports every finding in a document, in source order.
+// Check reports every finding in a document that fails a check, in source order.
 func Check(content string) []ste.Finding {
 	var out []ste.Finding
 	for _, block := range markdown.Split(content) {
 		if block.Kind != markdown.Prose {
 			continue
 		}
-		if len(block.Lines) > 1 {
+		out = append(out, ste.Check(block.Text(), block.Start)...)
+		out = append(out, english.CheckCommaNever(block.Text(), block.Start)...)
+		for i := 1; i < len(block.Lines); i++ {
 			out = append(out, ste.Finding{
-				Line: block.Start,
-				ID:   IDHardWrap,
-				Rule: "a paragraph is one line",
-				Fix:  "Join it back up and let the reader's window wrap it. `slopfix fix` does this.",
+				Line:   block.Start + i,
+				ID:     IDHardWrap,
+				Rule:   "a paragraph is one line",
+				Detail: "this line continues the paragraph on line " + strconv.Itoa(block.Start),
+				Fix:    "Join it back up and let the reader's window wrap it. `slopfix fix` does this.",
 			})
 		}
-		out = append(out, ste.Check(block.Text(), block.Start)...)
+	}
+	return append(out, longBlocks(content)...)
+}
+
+// Warnings reports every warning in a document. A repair never answers one, so
+// Fix never reports one.
+func Warnings(content string) []ste.Finding {
+	var out []ste.Finding
+	for _, block := range markdown.Split(content) {
+		if block.Kind == markdown.Prose {
+			out = append(out, ste.Warn(block.Text(), block.Start, block.Marker != "")...)
+		}
 	}
 	return out
 }
@@ -68,8 +85,11 @@ func CheckFile(path string) ([]ste.Finding, error) {
 // a Go file's lines are not paragraphs, so the prose rules skip it.
 func CheckContent(path, content string) []ste.Finding {
 	defer trace.Phase("check/file")()
+	if exempt(path, content) {
+		return nil
+	}
 	// A URL is text in every kind of file.
-	return append(kindFindings(path, content), pins.Check(content)...)
+	return append(kindFindings(path, content), pins.CheckPath(path, content)...)
 }
 
 // kindFindings are the rules the file's kind selects.
@@ -78,7 +98,7 @@ func kindFindings(path, content string) []ste.Finding {
 		return workflow.Check(content)
 	}
 	if isDocument(path) {
-		return Check(content)
+		return append(Check(content), Warnings(content)...)
 	}
 	// A source file's lines are not paragraphs, so the prose rules stop here.
 	return commentFindings(path, content)
@@ -135,7 +155,7 @@ func isDocument(path string) bool {
 	if tombstones.IsScript(path) {
 		return false
 	}
-	if tombstones.InTestdata(path) {
+	if tombstones.InTestdata(path) || treecomments.HashComments(path) {
 		return false
 	}
 	lower := strings.ToLower(path)
@@ -151,7 +171,8 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs).Union(pins.AllIDs)
-	ids.AddRange(IDHardWrap, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
+	ids.AddRange(IDHardWrap, IDLongBlock, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
+	ids.AddRange(english.AllIDs...)
 	return ids
 }
 

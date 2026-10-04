@@ -12,6 +12,8 @@ import (
 	"slices"
 	"sort"
 	"sync"
+
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // Kind names the parser that owns a file, and so the gate its edits go through.
@@ -116,7 +118,9 @@ func (s Spec) Fix(f *File)          { s.Repair(f) }
 func Run(f *File, fixers []Fixer) {
 	for _, fx := range fixers {
 		if f.selects(fx) {
+			done := trace.Phase("fixer/" + fx.Name())
 			fx.Fix(f)
+			done()
 		}
 	}
 }

@@ -127,15 +127,36 @@ func offLimits(prose, masked string) [][]int {
 	return append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 }
 
-// mask writes filler over every span strip hides from Check, byte for byte, so
-// an offset into the mask is an offset into the prose and both count the same
-// words.
+// mask writes filler over every span strip hides from Check, byte for byte,
+// so an offset into the mask is an offset into the prose and both count the
+// same words. A code span and an entity get the word strip writes.
 func mask(prose string) string {
 	out := []byte(prose)
 	for _, span := range verbatimSpan.FindAllStringIndex(prose, -1) {
-		fill(out[span[0]:span[1]])
+		switch prose[span[0]] {
+		case '`':
+			fillWith(out[span[0]:span[1]], "CODE")
+		case '&':
+			fillWith(out[span[0]:span[1]], "ENTITY")
+		default:
+			fill(out[span[0]:span[1]])
+		}
 	}
 	return string(out)
+}
+
+// fillWith writes word over a span, with a space before it and blanks after it.
+// A span too short to hold the word and its spaces gets the plain filler.
+func fillWith(span []byte, word string) {
+	if len(span) < len(word)+2 {
+		fill(span)
+		return
+	}
+	span[0] = ' '
+	copy(span[1:], word)
+	for i := 1 + len(word); i < len(span); i++ {
+		span[i] = ' '
+	}
 }
 
 // fill writes a single filler word over a span. It keeps a space at each end,
@@ -161,8 +182,9 @@ func breakWith(prose string, joiners [][]int, openers []string) string {
 		out.WriteString(prose[last:joiner[0]])
 		last = joiner[1]
 		if last == len(prose) {
-			// The joiner ends the text, so no word follows to open a sentence.
-			out.WriteString(".")
+			// No word follows to capitalize. A code span can still follow the text, so the space stays.
+			joined := prose[joiner[0]:last]
+			out.WriteString("." + joined[len(strings.TrimRight(joined, " \t")):])
 			continue
 		}
 		out.WriteString(". ")

@@ -96,6 +96,113 @@ func TestACountThatOpensASentenceIsKept(t *testing.T) {
 	}
 }
 
+func TestACountAfterANounBecomesMultiple(t *testing.T) {
+	out, cut := StripGate("The Linux syscall takes no flags, and one APE must not answer one call two ways.")
+	assert.Equal(t, "The Linux syscall takes no flags, and one APE must not answer one call multiple ways.", out, "a bare cut leaves \"one call ways\"")
+	assert.NotEmpty(t, cut)
+
+	out, _ = StripGate("against binaries built on all three platforms.")
+	assert.Equal(t, "against binaries built on all platforms.", out, "a determiner before the count still lets it go")
+}
+
+// Every count the rules report gets a repair. A bare cut is not English in
+// each of these, so the number gives way to words that claim no figure.
+func TestEveryCountIsReworded(t *testing.T) {
+	for in, want := range map[string]string{
+		"It polls every 15 minutes.":            "It polls every few minutes.",
+		"Each 3 builds it prunes the cache.":    "Every few builds it prunes the cache.",
+		"It sends one request per 10 seconds.":  "It sends one request every few seconds.",
+		"The step takes about 90 seconds.":      "The step takes many seconds.",
+		"The read has 20 seconds.":              "The read has several seconds.",
+		"It retries two times.":                 "It retries a couple of times.",
+		"It keeps at most 500 lines.":           "It keeps a bounded number of lines.",
+		"It keeps up to 10 entries.":            "It keeps a bounded number of entries.",
+		"It needs at least 3 reviewers.":        "It needs a few reviewers.",
+		"It carries over 500 lines.":            "It carries over many lines.",
+		"It runs in two passes.":                "It runs in multiple passes.",
+		"It ships two hooks.":                   "It ships hooks.",
+		"It ships exactly two hooks.":           "It ships hooks.",
+		"There are only three sections.":        "There are sections.",
+		"It holds 12345 files.":                 "It holds files.",
+		"Done. 15 plugins ride in the payload.": "Done. Plugins ride in the payload.",
+		"Done. 30 seconds pass first.":          "Done. Many seconds pass first.",
+		"It came from ~40 sources.":             "It came from multiple sources.",
+		"Every 30 seconds it retries.":          "Every few seconds it retries.",
+	} {
+		out, cut := StripGate(in)
+		assert.NotEmpty(t, cut, in)
+		assert.Equal(t, want, out, in)
+	}
+}
+
+// Each of these is the cut a document reader caught. The repair either keeps
+// the sentence English, or leaves a number that counts nothing alone.
+func TestARewordKeepsTheSentenceEnglish(t *testing.T) {
+	for in, want := range map[string]string{
+		"Vega10 has 16 RBs over 4 shader engines.":               "Vega10 has 16 RBs over a few shader engines.",
+		"It drives 35 fixtures over six seeded inputs.":          "It drives fixtures over several seeded inputs.",
+		"The integer form spreads over 32 banks.":                "The integer form spreads over many banks.",
+		"One round trip amortized over 40 resident waves hides.": "One round trip amortized over many resident waves hides.",
+		"glslang can emit a ternary over two samples.":           "glslang can emit a ternary over a couple of samples.",
+		"It describes an engine carrying FOUR render backends.":  "It describes an engine carrying render backends.",
+		"It is a pass over the same 262144 covered pixels.":      "It is a pass over the same covered pixels.",
+		"It runs on the other three platforms.":                  "It runs on the other platforms.",
+	} {
+		out, cut := StripGate(in)
+		assert.NotEmpty(t, cut, in)
+		assert.Equal(t, want, out, in)
+	}
+}
+
+// An issue number, a Vega model, a word size and an equation each name a fixed
+// value. None counts the plural noun after it.
+func TestAFixedValueIsNoCount(t *testing.T) {
+	for _, in := range []string{
+		"The corpus that issue #54 targets compiles.",
+		"It reports verdicts for the analyzer Vega 11 constants.",
+		"It widens the table pointer to 64 bits.",
+		"The field holds 32 bits.",
+		"The lane carries 16 bits.",
+		"The mask keeps 8 bits.",
+		"The footprint (1760 workgroups x 64 KiB = 110 MiB) fits.",
+		"The §9 trigger fires.",
+		"Is a fork as cheap to create as §2.4 claims?",
+		"It inherits §3 rules without re-arguing them.",
+	} {
+		out, cut := StripGate(in)
+		assert.Empty(t, cut, in)
+		assert.Equal(t, in, out, in)
+	}
+}
+
+// Only "issue #<digits>" is exempt. A list position goes stale when the list is
+// renumbered, so it is a count.
+func TestOnlyAnIssueNumberIsALabel(t *testing.T) {
+	for _, in := range []string{
+		"The parser keeps #12 rows.",
+		"It merges pr #12 files.",
+		"It is the loop that gate 5 asserts.",
+		"It reads rule 6 inputs.",
+		"The field holds 24 bits.",
+	} {
+		_, cut := StripGate(in)
+		assert.NotEmpty(t, cut, in)
+	}
+}
+
+// No count the rules report is left for a person.
+func TestNoReportedCountGoesUnrepaired(t *testing.T) {
+	for _, doc := range []string{
+		"The Linux syscall takes no flags, and one APE must not answer one call two ways.",
+		"It polls every 15 minutes, and the step takes about 90 seconds.",
+		"The read has 20 seconds. It carries 500 lines.",
+		"It has fewer than 4 rules, and it keeps at least 3 reviewers.",
+	} {
+		assert.Len(t, Edits(doc, Gate(doc)), len(Gate(doc)), doc)
+		assert.Len(t, Edits(doc, Check(doc)), len(Check(doc)), doc)
+	}
+}
+
 func TestStripLeavesACleanDocumentUntouched(t *testing.T) {
 	doc := "Every plugin this repo installs rides in the payload.\n"
 	out, cut := Strip(doc)

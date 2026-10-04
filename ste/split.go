@@ -27,16 +27,16 @@ var connectors = map[string]string{
 }
 
 // fixSentenceCap divides every over-cap sentence where its grammar allows. A
-// sentence with no clause boundary to divide at stays whole, and Check reports it.
+// sentence with no clause boundary to divide at then divides between words.
 func fixSentenceCap(prose string) string {
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := divideNext(prose)
 		if !divided {
-			return prose
+			break
 		}
 		prose = next
 	}
-	return prose
+	return forceSentenceCap(prose)
 }
 
 // divideNext divides the earliest over-cap sentence that a clause boundary can divide.
@@ -93,7 +93,15 @@ var curlyQuote = regexp.MustCompile(`“[^”]*”`)
 func bestDivision(s *syntax.Sentence, source string, hidden [][]int) (string, bool) {
 	best, bestScore := "", -1
 	for _, d := range divisions(s, source) {
-		d = outsideSpans(d, hidden)
+		d = outsideOpaque(d, hidden)
+		// A division inside bold text leaves each half with an unclosed marker.
+		if strings.Count(source[:d.leftEnd], "**")%2 != 0 {
+			continue
+		}
+		// The words a division drops never carry a bold marker, or the rest keeps half a pair.
+		if strings.Contains(source[d.leftEnd:d.rightStart], "**") {
+			continue
+		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,") + "."
 		right := joinOpener(d.opener, source[d.rightStart:])
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
@@ -107,10 +115,10 @@ func bestDivision(s *syntax.Sentence, source string, hidden [][]int) (string, bo
 	return best, bestScore >= 0
 }
 
-// outsideSpans moves each end of a division out of any opaque span it falls in.
-// A masked code span reads as a word without its backticks, so its word ends
-// inside the span.
-func outsideSpans(d division, spans [][]int) division {
+// outsideOpaque moves each end of a division out of any opaque span it falls
+// in. A masked code span reads as a word without its backticks, so its word
+// ends inside the span.
+func outsideOpaque(d division, spans [][]int) division {
 	for _, span := range spans {
 		if span[0] < d.leftEnd && d.leftEnd < span[1] {
 			d.leftEnd = span[1]
@@ -175,12 +183,56 @@ func divisions(s *syntax.Sentence, source string) []division {
 			continue
 		}
 		out = append(out, division{
-			leftEnd:    s.Words[lastBefore(s, c.Link)].End,
-			rightStart: s.Words[c.Link+1].Start,
+			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
+			rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
 			opener:     opener,
 		})
 	}
+	return append(out, beforeSubordinate(s, source)...)
+}
+
+// beforeSubordinate divides at ", and" when a subordinate clause and then a main
+// clause follow it, as in ", and if the cache is cold, the build waits".
+func beforeSubordinate(s *syntax.Sentence, source string) []division {
+	var out []division
+	for k := 1; k+1 < len(s.Clauses); k++ {
+		c, next := s.Clauses[k], s.Clauses[k+1]
+		if c.Kind != syntax.Subordinate || next.Kind != syntax.Opens || next.Depth != 0 || next.Subject == nil || next.Verb == nil {
+			continue
+		}
+		conj := c.Link - 1
+		if conj > 0 && s.Words[conj].Tag == "IN" {
+			// "for as long as": the preposition goes with the subordinate clause.
+			conj--
+		}
+		if conj < 1 || s.Words[conj].Tag != "CC" || s.Words[conj-1].Text != "," {
+			continue
+		}
+		connector, known := connectors[s.Words[conj].Lower()]
+		if _, hasMain := mainBefore(s, k); !known || !hasMain {
+			continue
+		}
+		out = append(out, division{
+			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, conj)].End, true),
+			rightStart: outsideSpans(source, s.Words[conj+1].Start, false),
+			opener:     connector,
+		})
+	}
 	return out
+}
+
+// outsideSpans moves an offset out of a verbatim span, to its end or to its start.
+// The parser reads a masked span, whose filler word stops short of the closing backtick.
+func outsideSpans(source string, at int, toEnd bool) int {
+	for _, span := range verbatimSpan.FindAllStringIndex(source, -1) {
+		if span[0] < at && at < span[1] {
+			if toEnd {
+				return span[1]
+			}
+			return span[0]
+		}
+	}
+	return at
 }
 
 // mainBefore answers the main clause that clause k attaches to.
@@ -216,7 +268,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "", false
 		}
 		if c.Subject != nil {
-			return connector, opensWithCapital(s, c.Link+1)
+			return connector, opensWithCapital(s, c.Link+1, source)
 		}
 		if main.Verb.Imperative {
 			return connector, startsTheSentence(s, main)
@@ -239,7 +291,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		if c.Depth != 0 || c.Subject == nil && !resumesAfter(s, c.Link+1) {
 			return "", false
 		}
-		return "", opensWithCapital(s, c.Link+1)
+		return "", opensWithCapital(s, c.Link+1, source)
 	case syntax.Subordinate:
 		if link != "because" || !closesTheSentence(s, c) {
 			return "", false
@@ -283,9 +335,13 @@ func closesTheSentence(s *syntax.Sentence, c syntax.Clause) bool {
 }
 
 // opensWithCapital reports whether the word at i reads right with a capital.
-// A name written in lower case, such as a command, does not.
-func opensWithCapital(s *syntax.Sentence, i int) bool {
+// A name written in lower case, such as a command, does not. A code span does
+// not either, whatever word the mask wrote over it.
+func opensWithCapital(s *syntax.Sentence, i int, source string) bool {
 	w := s.Words[i]
+	if outsideSpans(source, w.Start+1, false) != w.Start+1 {
+		return false
+	}
 	first, _ := utf8.DecodeRuneInString(w.Text)
 	return !(unicode.IsLower(first) && (w.Tag == "NNP" || w.Tag == "NNPS"))
 }
@@ -302,7 +358,7 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	}
 	short := subject.Last-subject.First < restateLimit && !subject.Coordinated &&
 		s.Words[subject.Last+1].Tag != "IN"
-	if short && opensWithCapital(s, subject.First) {
+	if short && opensWithCapital(s, subject.First, source) {
 		text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 		if subject.Det == subject.First {
 			if det := s.Words[subject.Det].Lower(); det == "a" || det == "an" {
@@ -362,7 +418,6 @@ func endsMainClause(prose string, at int) bool {
 
 // joinsClauses reports whether the conjunction at byte at joins a main clause
 // to another that names its own subject. The end of a list does not.
-// cache, the tree, and the runner that holds the job".
 func joinsClauses(prose string, at int) bool {
 	word, _, _ := strings.Cut(prose[at:], " ")
 	if !syntax.Is(word, "coordinator") {

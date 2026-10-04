@@ -7,10 +7,12 @@
 package treecomments
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -160,6 +162,105 @@ func Extract(filename, src string) []Comment {
 	if language == nil {
 		return nil
 	}
+	key := extractKey{language: language, sum: sha256.Sum256([]byte(src))}
+	cached, ok := extracted.get(key)
+	if !ok {
+		cached = extract(language, src)
+		extracted.put(key, cached)
+	}
+	out := slices.Clone(cached)
+	if strings.HasSuffix(filename, "_test.go") {
+		out = withoutExampleOutput(out)
+	}
+	if _, named := grammars[strings.ToLower(filepath.Ext(filename))]; !named {
+		out = wholeLineOnly(src, out)
+	}
+	if IsCMake(filename) {
+		out = cmakeLineComments(src, out)
+	}
+	return out
+}
+
+// wholeLineOnly keeps the comments that open their line. A file the bash
+// grammar reads only as a fallback is not shell.
+func wholeLineOnly(src string, comments []Comment) []Comment {
+	kept := comments[:0]
+	for _, c := range comments {
+		if c.Col == indentOf(src, c) {
+			kept = append(kept, c)
+		}
+	}
+	return kept
+}
+
+// exampleOutput opens the comment that go test compares an example's output to.
+var exampleOutput = regexp.MustCompile(`(?i)^//\s*(unordered )?output:`)
+
+// IsExampleOutput reports a comment line that opens an example's output block in a Go test file.
+func IsExampleOutput(line string) bool {
+	return exampleOutput.MatchString(strings.TrimSpace(line))
+}
+
+// withoutExampleOutput drops each example's output block: the opening line and
+// every comment line under it. go test reads it as data, so no rule may judge it.
+func withoutExampleOutput(comments []Comment) []Comment {
+	kept := comments[:0]
+	inBlock, col, next := false, 0, 0
+	for _, comment := range comments {
+		switch {
+		case exampleOutput.MatchString(comment.Text):
+			inBlock, col = true, comment.Col
+		case inBlock && comment.Line == next && comment.Col == col:
+		default:
+			inBlock = false
+			kept = append(kept, comment)
+		}
+		next = comment.Line + comment.Lines
+	}
+	return kept
+}
+
+// extractKey names a parse by its grammar and the exact bytes it read.
+type extractKey struct {
+	language *ts.Language
+	sum      [sha256.Size]byte
+}
+
+// extractCacheSize bounds the remembered parses. Every rule on a file asks for the same parse.
+const extractCacheSize = 256
+
+// extractCache remembers recent parses. The oldest entry goes first when it is full.
+type extractCache struct {
+	mu    sync.Mutex
+	order []extractKey
+	byKey map[extractKey][]Comment
+}
+
+var extracted = &extractCache{byKey: map[extractKey][]Comment{}}
+
+func (c *extractCache) get(key extractKey) ([]Comment, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out, ok := c.byKey[key]
+	return out, ok
+}
+
+func (c *extractCache) put(key extractKey, comments []Comment) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, ok := c.byKey[key]; ok {
+		return
+	}
+	if len(c.order) == extractCacheSize {
+		delete(c.byKey, c.order[0])
+		c.order = c.order[1:]
+	}
+	c.order = append(c.order, key)
+	c.byKey[key] = comments
+}
+
+// extract parses src and collects its comments.
+func extract(language *ts.Language, src string) []Comment {
 	parser := ts.NewParser()
 	if !parser.SetLanguage(language) {
 		return nil
@@ -291,12 +392,17 @@ func collect(node ts.Node, src string, out *[]Comment) {
 		if strings.Contains(child.Type(), "comment") {
 			start, end := int(child.StartByte()), int(child.EndByte())
 			if start >= 0 && end <= len(src) && start < end {
+				// A Rust line comment node ends after its newline, and that newline is the next line's start.
+				text := strings.TrimRight(src[start:end], "\r\n")
+				if text == "" {
+					text = src[start:end]
+				}
 				*out = append(*out, Comment{
-					Text:   src[start:end],
+					Text:   text,
 					Offset: start,
 					Line:   int(child.StartPoint().Row) + 1,
 					Col:    int(child.StartPoint().Column),
-					Lines:  int(child.EndPoint().Row-child.StartPoint().Row) + 1,
+					Lines:  strings.Count(text, "\n") + 1,
 				})
 			}
 			continue

@@ -27,6 +27,10 @@ var samples = map[string]string{
 // set, and a rule it leaves alone must not be.
 func TestRepairsNamesExactlyWhatFixRewrites(t *testing.T) {
 	for id := range ste.AllIDs.All() {
+		// Check never reports a warning, so Fix has nothing of it to rewrite.
+		if ste.WarningIDs.Contains(id) {
+			continue
+		}
 		sample, ok := samples[id]
 		require.True(t, ok, "no sample for %s", id)
 		require.NotEmpty(t, ste.Check(sample, 1), "the sample for %s breaks no rule", id)

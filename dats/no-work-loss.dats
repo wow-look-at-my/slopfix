@@ -4,9 +4,10 @@
 # commit decides whether the content the session is about to destroy survives.
 #
 # The suite runs the built binary against a real repository with a hook on
-# every name the preservation path reaches. dats runs each command under
-# bubblewrap, so a suite that drives a foreign hook is isolated from the
-# machine that runs it.
+# every name the preservation path reaches. dats runs each command in its
+# sandbox (bubblewrap on Linux, seatbelt on macOS), so a suite that drives a
+# foreign hook is isolated from the machine that runs it. On macOS mktemp
+# answers a path under the /var symlink while git reports /private/var.
 #
 # Commands exec the freshly built binary as
 # "${GO_TOOLCHAIN_DATS_BUILD_DIR:-build}/slopfix": go-toolchain's dats phase
@@ -38,7 +39,7 @@ tests:
 		done
 		echo scratch > scratch.txt
 		printf '{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"%s","tool_input":{"command":"rm scratch.txt"}}' "$repo" |
-			"$slopfix" no-work-loss
+			"$slopfix" hook --only no-work-loss
 		printf '\n'
 		git log -1 --pretty=%s
 		git show HEAD:scratch.txt
@@ -69,9 +70,9 @@ tests:
 		chmod +x .git/hooks/pre-push
 		echo scratch > scratch.txt
 		printf '{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"%s","tool_input":{"command":"rm scratch.txt"}}' "$repo" |
-			"$slopfix" no-work-loss
+			"$slopfix" hook --only no-work-loss
 		printf '\n'
-		echo "distinct-revs=$(git rev-parse HEAD origin/master | sort -u | wc -l)"
+		echo "distinct-revs=$(git rev-parse HEAD origin/master | sort -u | wc -l | tr -d ' ')"
 	  outputs:
 		stdout:
 			- and pushed before being allowed to proceed

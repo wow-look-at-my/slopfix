@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // A cgo preamble is C source, so the rule must not measure or cut it.
@@ -86,7 +87,7 @@ func TestARepairKeepsTheEmbedDirective(t *testing.T) {
 
 	assert.True(t, changed)
 	assert.Contains(t, out, "//go:embed testdata/trivial.spvasm", "the directive survives")
-	assertWholeSTESentences(t, out)
+	assert.Empty(t, CheckLength("p.go", out))
 }
 
 // A build constraint leads the block, and stays there.
@@ -101,13 +102,15 @@ func TestARepairKeepsALeadingBuildConstraint(t *testing.T) {
 	assert.True(t, strings.HasPrefix(out, "//go:build cgo"), "it stays first")
 }
 
-// Go writes a bare marker line to separate a directive from the prose above it.
-// It holds no words, and counting it as a line left such a block over its budget
-// with no repair able to bring it back inside: the prose was already a line long.
-func TestASeparatorBeforeADirectiveIsNotProse(t *testing.T) {
+// gofmt puts a bare marker line between a doc and a directive, and commentspan
+// counts it. A one-line var has no room for both, so the doc goes.
+func TestADocOverAOneLineEmbedIsDropped(t *testing.T) {
 	src := "// trivialASM holds the fixture.\n" +
 		"//\n" +
 		"//go:embed testdata/trivial.spvasm\n" +
 		"var trivialASM []byte\n"
-	assert.Empty(t, CheckLength("p.go", src), "the prose is a line, and so is the code")
+	require.NotEmpty(t, CheckLength("p.go", src), "commentspan counts the separator")
+	out, changed := FixLength("p.go", src)
+	require.True(t, changed)
+	assert.Equal(t, "//go:embed testdata/trivial.spvasm\nvar trivialASM []byte\n", out)
 }
