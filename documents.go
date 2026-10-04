@@ -220,54 +220,6 @@ func checkXML(path, rel string, content []byte, downloads fetched) *TreeFinding 
 			"Name its XSD with xsi:noNamespaceSchemaLocation, or with an xsi:schemaLocation pair for the root's namespace.")
 		return &f
 	}
-<<<<<<< HEAD
-	if remote(location) {
-		base, err := url.Parse(location)
-		if err != nil {
-			f := repoFinding(rel, IDXML, "the schema this XML names is not a URL", err.Error())
-			return &f
-		}
-		schema, err := downloads.get(location)
-		if err != nil {
-			f := repoFinding(rel, IDXML, "the schema this XML names does not load", err.Error())
-			return &f
-		}
-		imports := func(_, hint string) ([]byte, error) {
-			next, err := base.Parse(hint)
-			if err != nil {
-				return nil, err
-			}
-			return downloads.get(next.String())
-		}
-		return schemaVerdict(rel, xmlvalidator.ValidateWithSchemaResolver(content, schema, imports),
-			"this XML breaks the schema it names")
-	}
-	location = filepath.Join(filepath.Dir(path), filepath.FromSlash(location))
-	if _, err := os.Stat(location); err != nil {
-		f := repoFinding(rel, IDXML, "the schema this XML names does not load", err.Error())
-		return &f
-	}
-	return schemaVerdict(rel, xmlvalidator.ValidateWithSchemaFile(path, location),
-		"this XML breaks the schema it names, or the schema does not load")
-}
-
-// negativeSuffix names a negative fixture: a document kept to prove that its schema rejects it.
-const negativeSuffix = ".invalid.xml"
-
-// schemaVerdict reads a schema check. A negative fixture inverts it: the
-// fixture is a finding when the schema accepts it.
-func schemaVerdict(rel string, err error, rule string) *TreeFinding {
-	if strings.HasSuffix(filepath.Base(rel), negativeSuffix) {
-		if err != nil {
-			return nil
-		}
-		f := repoFinding(rel, IDXML, "this negative fixture passes the schema it names, so it proves nothing",
-			"Make it break the schema, or drop "+negativeSuffix+" from its name.")
-		return &f
-	}
-	if err != nil {
-		return xmlFinding(rel, rule, err)
-=======
 	schema, err := loadSchema(path, location, downloads)
 	if err != nil {
 		f := repoFinding(rel, IDXML, "the schema this XML names does not load", err.Error())
@@ -284,7 +236,6 @@ func schemaVerdict(rel string, err error, rule string) *TreeFinding {
 		f := repoFinding(rel, IDXML, "this negative fixture passes the schema it names, so it tests nothing",
 			"A file named *.invalid.xml must break its schema. Break it on the constraint it exists to test, or rename it.")
 		return &f
->>>>>>> origin/master
 	}
 	return nil
 }

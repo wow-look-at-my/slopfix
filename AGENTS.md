@@ -84,7 +84,6 @@ These rules judge the tree. Only a walk whose root holds `.git` reaches them. `c
 - `repo/xml`: an `.xml` file that `wow-look-at-my/xml-validator` refuses, that names no schema, or that breaks the schema it names. The hint is read from the parsed root. No pattern over the raw text reads it. A root with no namespace names its schema in `xsi:noNamespaceSchemaLocation`. A root in a namespace names it in the `xsi:schemaLocation` pair for that namespace. A file named `*.invalid.xml` is a negative fixture. It names its schema too, and the verdict inverts: it is a finding when that schema accepts it, or when the schema is missing.
 =======
 - `repo/xml`: an `.xml` file that `wow-look-at-my/xml-validator` refuses, that names no schema, or that breaks the schema it names. The hint is read from the parsed root. No pattern over the raw text reads it. A root with no namespace names its schema in `xsi:noNamespaceSchemaLocation`. A root in a namespace names it in the `xsi:schemaLocation` pair for that namespace. A file named `*.invalid.xml` is a negative fixture. It still names its schema. The finding is that the schema accepts it.
->>>>>>> origin/master
 
 Both rules fetch a remote schema, once for each walk, and an XSD's imports with it. A schema that does not load, by a network error or any status but OK, is a finding. It is never a pass. The JSON Schema meta-schemas need no fetch, because the validator carries them.
 
