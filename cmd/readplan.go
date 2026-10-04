@@ -20,7 +20,7 @@ func init() {
 		Use:   "read-plan",
 		Short: "Map a Bash file read onto Read tool calls",
 		Long: "read-plan reads {\"command\", \"cwd\"} as JSON on stdin. A plain cat, head,\n" +
-			"tail or sed -n line read prints {\"reads\": [...], \"note\": \"...\"}: one Read\n" +
+			"tail, sed -n or line-number awk read prints {\"reads\": [...], \"note\": \"...\"}: one Read\n" +
 			"input for each file, and the note the model gets after the result. Any\n" +
 			"other command prints {\"reads\": null}, and the caller runs it as written.",
 		Args: cobra.NoArgs,
