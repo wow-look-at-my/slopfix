@@ -51,6 +51,17 @@ func TestAHashCommentFileFallsBackToBash(t *testing.T) {
 	assert.Len(t, Extract("Makefile", "# build everything\nall:\n\tgo build\n"), 1)
 }
 
+// Bash reads `a&#0;b` as `a &` and then a comment. In a dats fixture that text
+// is XML, and a repair that cut it broke the suite. A fallback file keeps only
+// the comments that open their line.
+func TestAFallbackFileKeepsOnlyWholeLineComments(t *testing.T) {
+	src := "tests:\n\t# the suite\n\t- desc: x\n\t  inputs:\n\t\tfiles:\n\t\t\tnul.xml: |\n\t\t\t\t<r>a&#0;b</r>\n"
+	got := Extract("suite.dats", src)
+	require.Len(t, got, 1)
+	assert.Equal(t, "# the suite", got[0].Text)
+	assert.Len(t, Extract("run.sh", "echo a&#0;b\n"), 1, "a shell script keeps its trailing comment")
+}
+
 // A file of unknown syntax is not read at all. Read as shell, a GLSL
 // `#version` directive and a CSS `#id` selector are comments, and a repair
 // then cuts code the compiler needs.
