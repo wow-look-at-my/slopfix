@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
@@ -89,18 +90,16 @@ func uniqueSlug(name string, used map[string]int) string {
 const slugWords = 3
 
 // slugSkip are words a slug drops, because they name no section.
-var slugSkip = map[string]bool{
-	"a": true, "an": true, "the": true, "of": true, "and": true, "or": true,
-	"to": true, "in": true, "on": true, "for": true, "is": true, "are": true,
-	"by": true, "with": true, "what": true, "how": true, "why": true, "we": true,
-	"it": true, "its": true, "this": true, "that": true, "not": true,
-}
+var slugSkip = set.Of[string]("a", "an", "the", "of", "and", "or",
+	"to", "in", "on", "for", "is", "are",
+	"by", "with", "what", "how", "why", "we",
+	"it", "its", "this", "that", "not")
 
 // shortSlug keeps the first words of a title that say what the section is.
 func shortSlug(title string) string {
 	var kept []string
 	for _, word := range strings.Split(githubAnchor(title), "-") {
-		if word == "" || slugSkip[word] {
+		if word == "" || slugSkip.Contains(word) {
 			continue
 		}
 		kept = append(kept, word)

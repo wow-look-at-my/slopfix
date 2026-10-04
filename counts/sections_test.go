@@ -33,7 +33,7 @@ func TestASectionNumberBecomesALinkNamedByItsTitle(t *testing.T) {
 func TestACitationWithNoHeadingIsLeftAlone(t *testing.T) {
 	assert.Empty(t, links(t, "", numbered+"\nSee §7 for that.\n"))
 	assert.Empty(t, links(t, "", numbered+"\nThe span `§9` is code.\n"))
-	assert.Empty(t, links(t, "", numbered+"\nIt is [§9](#9-owning-the-renderer) already.\n"))
+	assert.Empty(t, links(t, "", numbered+"\nIt is [§owning-renderer](#9-owning-the-renderer) already.\n"))
 }
 
 // Sections with one title get distinct slugs, and their anchors follow GitHub.
@@ -65,6 +65,9 @@ func TestALongTitleGetsAShortSlug(t *testing.T) {
 func TestALinkTakesTheSlugItsHeadingHasNow(t *testing.T) {
 	doc := numbered + "\nSee [§old-name](#9-owning-the-renderer) and [§cap](#92-the-cap).\n"
 	assert.Equal(t, []string{"[§old-name](#9-owning-the-renderer) [§owning-renderer](#9-owning-the-renderer)"}, links(t, "", doc))
+	// A link whose text is the number takes the slug too.
+	assert.Equal(t, []string{"[§9](#9-owning-the-renderer) [§owning-renderer](#9-owning-the-renderer)"},
+		links(t, "", numbered+"\nIt is [§9](#9-owning-the-renderer) already.\n"))
 }
 
 func TestASectionCitationIsNoCount(t *testing.T) {
