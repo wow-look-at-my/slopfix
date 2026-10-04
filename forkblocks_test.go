@@ -56,19 +56,51 @@ func repairIDs(r slopfix.Repair) []string {
 	return out
 }
 
-func TestAForkCommentRunTheForkWroteInPartIsRepaired(t *testing.T) {
+// A fork that rewords a line inside a run the base already had at that length
+// did not make the run long. The finding is the base's, and the fork's words stay.
+func TestAForkEditInsideAnUpstreamCommentRunKeepsItsWords(t *testing.T) {
 	path := ".github/workflows/pr-test.yml"
 	owned := forkscope.Changed(upstreamWorkflow, forkWorkflow)
 
 	before := slopfix.Report(slopfix.Request{Path: path, Content: forkWorkflow, Owned: owned})
-	require.Equal(t, 1, ofID(repairIDs(before), workflow.IDCommentBlock), "the run holds a line the fork wrote, so it is the fork's finding")
+	assert.Zero(t, ofID(repairIDs(before), workflow.IDCommentBlock), "the base had the run at this length")
 
 	repair := slopfix.Fix(slopfix.Request{Path: path, Content: forkWorkflow, Owned: owned})
-	assert.Empty(t, repair.Findings, "fix left a finding the fork's check reports")
-	assert.Equal(t, upstreamWorkflow, repair.Text, "the fork's line in the run goes back to the base, and nothing else moves")
+	assert.Empty(t, repair.Findings)
+	assert.Equal(t, forkWorkflow, repair.Text, "the fork's line stays as the fork wrote it")
+}
 
-	after := slopfix.Report(slopfix.Request{Path: path, Content: repair.Text, Owned: forkscope.Changed(upstreamWorkflow, repair.Text)})
-	assert.Empty(t, after.Findings)
+const upstreamStage = `name: PR Test Stage (CPU)
+on:
+  workflow_call:
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # This stage compiled the workspace too - 7+ minutes per partition on
+      # billable hosted minutes. rust-ext-build's modules need an older glibc than
+      # this runner has, which is the safe direction, and both pin Python 3.10.
+      - uses: ./.github/actions/download-rust-ext
+`
+
+var forkStage = strings.ReplaceAll(upstreamStage, "3.10", "3.12")
+
+// A repair never writes the base's fact over the fork's: the fork's Python
+// version stays in the comment, and fix reports nothing on the run.
+func TestAForkFactInAnUpstreamCommentRunIsNeverReverted(t *testing.T) {
+	path := ".github/workflows/_pr-test-stage-cpu.yml"
+	owned := forkscope.Changed(upstreamStage, forkStage)
+	repair := slopfix.Fix(slopfix.Request{Path: path, Content: forkStage, Owned: owned})
+	assert.Contains(t, repair.Text, "and both pin Python 3.12.")
+	assert.NotContains(t, repair.Text, "3.10")
+	assert.Zero(t, ofID(repairIDs(repair), workflow.IDCommentBlock))
+	report := slopfix.Report(slopfix.Request{Path: path, Content: forkStage, Owned: owned})
+	assert.Zero(t, ofID(repairIDs(report), workflow.IDCommentBlock))
 }
 
 // A run the fork wrote whole is the fork's to join, every word kept.
@@ -151,7 +183,9 @@ func TestAForkVolumeFindingNamesItsBlockAndIsRepaired(t *testing.T) {
 
 	repair := slopfix.Fix(req)
 	assert.Zero(t, ofID(repairIDs(repair), tombstones.IDVolume), "fix left a volume finding the fork's check reports")
-	assert.Equal(t, upstreamSnippet, repair.Text, "the fork's lines in the block go back to the base, and nothing else moves")
+	assert.Equal(t, strings.Count(upstreamSnippet, "\n"), strings.Count(repair.Text, "\n"), "the fork's change takes no more lines than it replaced")
+	assert.Contains(t, repair.Text, "The scheduler caps --max-running-requests to what the mamba pool admits.", "the fork's words stay")
+	assert.NotContains(t, repair.Text, "silently", "the base's wording never comes back")
 }
 
 // Outside a fork, every volume finding names the line its block starts on.
@@ -167,10 +201,12 @@ func TestAVolumeFindingNamesItsBlock(t *testing.T) {
 	assert.Equal(t, []int{5, 25}, lines)
 }
 
-// GiveBack writes back only the changes inside the run it is given.
-func TestGiveBackWritesTheBaseLinesInsideTheRun(t *testing.T) {
-	edits := forkscope.GiveBack(upstreamWorkflow, forkWorkflow, 5, 8)
-	require.Len(t, edits, 1)
-	assert.Equal(t, "  #   so two forks using the same name would share one group and cancel each other", edits[0].Text)
-	assert.Empty(t, forkscope.GiveBack(upstreamWorkflow, forkWorkflow, 1, 4), "a run that holds no change of the fork's gives nothing back")
+// Grown names a change inside the run only when it added lines.
+func TestGrownNamesOnlyAChangeThatAddedLines(t *testing.T) {
+	assert.Empty(t, forkscope.Grown(upstreamWorkflow, forkWorkflow, 5, 8), "a reworded line adds none")
+	hunks := forkscope.Grown(upstreamSnippet, forkSnippet, 5, 20)
+	require.Len(t, hunks, 1)
+	assert.Equal(t, 2, hunks[0].Had)
+	assert.Equal(t, 3, hunks[0].J2-hunks[0].J1)
+	assert.Empty(t, forkscope.Grown(upstreamSnippet, forkSnippet, 25, 40), "a run that holds no change of the fork's grew by none")
 }

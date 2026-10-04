@@ -6,7 +6,6 @@ import (
 
 	"github.com/pmezard/go-difflib/difflib"
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/edit"
 )
 
 // Scope is the lines of one file that the fork wrote, counted from one.
@@ -113,27 +112,18 @@ func Carry(before, after string, s *Scope) *Scope {
 	return out
 }
 
-// GiveBack answers an edit for each change after makes to base that reaches
-// into rows first to last of after, counted from one. Each edit writes the
-// base's lines back. A change that only drops base lines is left as it is,
-// because writing them back grows the run.
-func GiveBack(base, after string, first, last int) []edit.Edit {
-	a, b := splitLines(base), splitLines(after)
-	var out []edit.Edit
+// Hunk is a change after makes to base that leaves more lines than.
+type Hunk struct{ J1, J2, Had int }
+
+// Grown answers each change after makes to base that reaches into rows first
+// to last of after, counted from one, and leaves more lines than.
+func Grown(base, after string, first, last int) []Hunk {
+	var out []Hunk
 	for _, op := range opcodes(base, after) {
-		if op.Tag == 'e' || op.J1 == op.J2 || op.J2 < first || op.J1 >= last {
+		if op.Tag == 'e' || op.J2-op.J1 <= op.I2-op.I1 || op.J2 < first || op.J1 >= last {
 			continue
 		}
-		var lines, cut []string
-		for _, line := range a[op.I1:op.I2] {
-			lines = append(lines, strings.TrimSuffix(line, "\n"))
-		}
-		for _, line := range b[op.J1:op.J2] {
-			cut = append(cut, strings.TrimSpace(line))
-		}
-		e := edit.Rows(after, op.J1, op.J2-1, 0, lines)
-		e.Cut = cut
-		out = append(out, e)
+		out = append(out, Hunk{J1: op.J1, J2: op.J2, Had: op.I2 - op.I1})
 	}
 	return out
 }
