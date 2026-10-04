@@ -115,8 +115,7 @@ type Repair struct {
 	Unmet []string `json:"unmet,omitempty"`
 }
 
-// Fix repairs req, unless it carries slopfix-expect annotations. Such text is a
-// fixture: it is checked against them and comes back unchanged.
+// Fix repairs req, unless it carries slopfix-expect annotations.
 func Fix(req Request) Repair {
 	return within(req, fixAll(req))
 }
