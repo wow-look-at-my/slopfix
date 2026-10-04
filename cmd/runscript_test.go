@@ -37,9 +37,9 @@ const runScriptHead = "name: CI\n" +
 	"    steps:\n" +
 	"      - run: |\n"
 
-// workflowFile writes content under a workflows directory, where the yaml
+// runScriptFile writes content under a workflows directory, where the yaml
 // rules read it, and answers its path.
-func workflowFile(t *testing.T, content string) string {
+func runScriptFile(t *testing.T, content string) string {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
@@ -54,7 +54,7 @@ func workflowFile(t *testing.T, content string) string {
 func TestTheHookKeepsALineAnEditAddsToARunScript(t *testing.T) {
 	for _, g := range runScriptGuards {
 		t.Run(g.body, func(t *testing.T) {
-			path := workflowFile(t, runScriptHead+g.open+g.close)
+			path := runScriptFile(t, runScriptHead+g.open+g.close)
 			payload := map[string]any{
 				"hook_event_name": "PreToolUse",
 				"tool_name":       "Edit",
