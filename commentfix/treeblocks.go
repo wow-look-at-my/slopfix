@@ -150,8 +150,40 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 		b.codeLines, b.codeChars = measure(directivesOf(b.text))
 		return b, true
 	}
-	b.codeLines, b.codeChars = nodeSpan(firstStatement(parent.NamedChild(next)), lines, rows)
+	b.codeLines, b.codeChars = paragraphSpan(parent, next, lines, rows)
 	return b, true
+}
+
+// paragraphSpan measures the code a comment heads: the construct after it, and
+// each sibling that follows on the next line, up to a blank line or a comment
+// on its own line.
+func paragraphSpan(parent ts.Node, next uint32, lines []string, rows map[int]int) (int, int) {
+	node := parent.NamedChild(next)
+	for !node.IsNull() && isSequence(node) {
+		parent, next, node = node, 0, node.NamedChild(0)
+	}
+	codeLines, codeChars := nodeSpan(node, lines, rows)
+	if node.IsNull() {
+		return codeLines, codeChars
+	}
+	end := node.EndPoint().Row
+	for i := next + 1; i < parent.NamedChildCount(); i++ {
+		sibling := parent.NamedChild(i)
+		start := sibling.StartPoint().Row
+		// A sibling on a row already measured adds nothing, and a trailing comment belongs to its code.
+		if start <= end {
+			end = max(end, sibling.EndPoint().Row)
+			continue
+		}
+		if start != end+1 || code.IsComment(sibling) {
+			break
+		}
+		l, c := nodeSpan(sibling, lines, rows)
+		codeLines += l
+		codeChars += c
+		end = sibling.EndPoint().Row
+	}
+	return codeLines, codeChars
 }
 
 // lastRow is the last row a comment's text sits on. A Rust line comment ends at the start of the next row.

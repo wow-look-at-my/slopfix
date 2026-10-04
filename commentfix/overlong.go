@@ -19,10 +19,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
-	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
-	"github.com/wow-look-at-my/slopfix/syntax"
-	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -153,6 +150,10 @@ func judge(b block) (string, bool) {
 			return "", false
 		}
 		return "the comment documents nothing", true
+	}
+	// One sentence is never an essay, so the repair always has a cut that fits.
+	if len(sentences(b.text)) <= 1 {
+		return "", false
 	}
 	limit := max(floorChars, b.codeChars)
 
@@ -289,31 +290,16 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
-	// The STE opening sentence reads best, then a clause cut, then a word cut.
-	opening, whole := steOpening(kept)
-	var fits [][]string
-	if whole && fitsCode(opening, b) {
-		fits = append(fits, opening)
-	}
-	if clause, ok := clauseFit(b); ok {
-		fits = append(fits, clause)
-	}
-	if words, ok := wordFit(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); ok {
-		fits = append(fits, words)
-	}
-	if out, ok := preferred(fits); ok {
-		return out
-	}
-	if whole {
+	// The opening sentence always fits, because judge never weighs a lone sentence.
+	if opening, ok := openingSentence(kept); ok {
 		return opening
 	}
 	return kept
 }
 
-// steOpening answers a block's first sentence, repaired to STE and divided at a
-// clause boundary when it runs past the cap. It reports false when no boundary
-// brings the sentence under the cap.
-func steOpening(text []string) ([]string, bool) {
+// openingSentence answers a block's first sentence, word for word. It reports
+// false for a block whose shape it cannot read.
+func openingSentence(text []string) ([]string, bool) {
 	marker, indent, ok := commentShape(text)
 	if !ok {
 		return nil, false
@@ -322,23 +308,32 @@ func steOpening(text []string) ([]string, bool) {
 		if para.blank || para.verbatim {
 			continue
 		}
-		sentences := ste.Sentences(ste.Fix(strings.Join(para.lines, " ")))
-		if len(sentences) == 0 {
+		found := ste.Sentences(strings.Join(para.lines, " "))
+		if len(found) == 0 {
 			return nil, false
 		}
-		first := strings.TrimSpace(sentences[0])
-		if ste.WordCount(first) > ste.SentenceWordCap {
-			// With no clause boundary the sentence stays whole, as ste/sentence-length leaves it.
-			if clause, ok := ste.Leading(first); ok {
-				first = strings.TrimSpace(ste.Fix(clause))
-			}
-		}
-		if !endsSentence(first) {
-			return nil, false
-		}
-		return reflow(first, indent, marker, wrapWidth), true
+		return reflow(strings.TrimSpace(found[0]), indent, marker, wrapWidth), true
 	}
 	return nil, false
+}
+
+// sentences answers the sentences of a block's prose, its directives aside.
+func sentences(text []string) []string {
+	body := prose(text)
+	if _, inner, ok := readBlock(text); ok {
+		body = inner
+	}
+	words := make([]string, 0, len(body))
+	for _, line := range body {
+		words = append(words, stripMarker(line))
+	}
+	var out []string
+	for _, s := range ste.Sentences(strings.Join(strings.Fields(strings.Join(words, " ")), " ")) {
+		if strings.TrimSpace(s) != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // sameText compares runs of lines by what they say. A line count cannot: a
@@ -347,220 +342,10 @@ func sameText(a, b []string) bool {
 	return strings.Join(a, "\n") == strings.Join(b, "\n")
 }
 
-// clauseFit cuts the block back to the last clause boundary that fits, and
-// closes what it keeps with a period. A whole clause still reads as a sentence.
-func clauseFit(b block) ([]string, bool) {
-	marker, indent, ok := commentShape(b.text)
-	if !ok {
-		return nil, false
-	}
-	var body []string
-	for _, line := range prose(b.text) {
-		body = append(body, stripMarker(line))
-	}
-	text := strings.Join(strings.Fields(strings.Join(body, " ")), " ")
-	for _, cut := range clauseCuts(text) {
-		kept := strings.TrimRight(text[:cut], " ,;:-")
-		words := strings.Fields(kept)
-		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) || !hasVerb(kept) {
-			continue
-		}
-		if !endsSentence(kept) {
-			kept += "."
-		}
-		if out, ok := fitReflow(kept, indent, marker, b); ok {
-			return out, true
-		}
-	}
-	return nil, false
-}
-
-// hasVerb reports text the sentence parser finds a finite verb in.
-func hasVerb(text string) bool {
-	for _, c := range syntax.Parse(text, nil).Clauses {
-		if c.Verb != nil {
-			return true
-		}
-	}
-	return false
-}
-
-// oneLine is a reflow width no comment reaches, so the prose stays on one line.
-const oneLine = 1 << 20
-
-// fitReflow lays text out at the narrowest width that fits the budget of b.
-// The budget counts characters, not columns, so a single line is the last try.
-func fitReflow(text, indent, marker string, b block) ([]string, bool) {
-	budget := max(floorChars, b.codeChars)
-	var out []string
-	for _, width := range []int{min(budget, wrapWidth), budget, oneLine} {
-		out = reflow(text, indent, marker, width)
-		if fitsCode(out, b) {
-			return out, true
-		}
-	}
-	return out, false
-}
-
-// wordFit keeps the longest run of leading words that fits the budget, when
-// no sentence or clause cut does. The run never ends on a dangling word and
-// never splits a parenthesis, a quotation or a code span.
-func wordFit(b block) ([]string, bool) {
-	marker, indent, ok := commentShape(b.text)
-	if !ok {
-		return nil, false
-	}
-	var body []string
-	for _, line := range prose(b.text) {
-		body = append(body, stripMarker(line))
-	}
-	render := func(text string) []string {
-		out, _ := fitReflow(text, indent, marker, b)
-		return out
-	}
-	return wordCut(strings.Join(body, " "), render, b)
-}
-
-// preferred answers the earliest cut that keeps at least a third of the words
-// the longest cut keeps. A cut that reads well and keeps almost nothing loses.
-func preferred(cuts [][]string) ([]string, bool) {
-	most := 0
-	for _, cut := range cuts {
-		most = max(most, wordCount(cut))
-	}
-	for _, cut := range cuts {
-		if 3*wordCount(cut) >= most {
-			return cut, true
-		}
-	}
-	return nil, false
-}
-
-// wordCount counts the words of a block's prose.
-func wordCount(text []string) int {
-	n := 0
-	for _, line := range prose(text) {
-		n += len(strings.Fields(stripMarker(line)))
-	}
-	return n
-}
-
 // fitsCode reports whether text fits the budget of the code under b.
 func fitsCode(text []string, b block) bool {
 	_, over := judge(block{text: text, codeLines: b.codeLines, codeChars: b.codeChars})
 	return !over
-}
-
-// unwrapAside drops a parenthesis that encloses the whole of text, because no
-// cut inside it closes.
-func unwrapAside(text string) string {
-	text = strings.TrimSpace(text)
-	inner, ok := strings.CutPrefix(text, "(")
-	if !ok {
-		return text
-	}
-	for _, close := range []string{".)", ")."} {
-		if rest, found := strings.CutSuffix(inner, close); found && balanced(rest) {
-			return rest + "."
-		}
-	}
-	if rest, found := strings.CutSuffix(inner, ")"); found && balanced(rest) {
-		return rest
-	}
-	return text
-}
-
-// phraseEnds reports a cut after words[n-1] that ends a phrase: a closing mark
-// ends it, a dash or an aside follows it, or the next word opens a new phrase.
-func phraseEnds(words []string, n int) bool {
-	if strings.ContainsAny(words[n-1][len(words[n-1])-1:], ",;:)") {
-		return true
-	}
-	if next := words[n]; next == "—" || next == "--" || next == "-" || strings.HasPrefix(next, "(") {
-		return true
-	}
-	return phraseOpeners.Contains(strings.ToLower(strings.Trim(words[n], "(\"'`")))
-}
-
-// phraseOpeners open a phrase the words before them can end without.
-var phraseOpeners = set.Of(tailsClass("phrase-opener")...)
-
-// wordCut keeps the longest leading run of words that render fits under b.
-// A cut where a phrase ends is tried before a cut at any word.
-func wordCut(prose string, render func(string) []string, b block) ([]string, bool) {
-	words := strings.Fields(unwrapAside(prose))
-	var cuts [][]string
-	for _, atPhrase := range []bool{true, false} {
-		if out, ok := longestCut(words, atPhrase, render, b); ok {
-			cuts = append(cuts, out)
-		}
-	}
-	return preferred(cuts)
-}
-
-// longestCut keeps the longest leading run of words that render fits under b.
-// With atPhrase it cuts only where a phrase ends.
-func longestCut(words []string, atPhrase bool, render func(string) []string, b block) ([]string, bool) {
-	for n := len(words) - 1; n > 0; n-- {
-		if atPhrase && !phraseEnds(words, n) {
-			continue
-		}
-		last := strings.TrimRight(words[n-1], ",;:-")
-		if last == "" || dangling.Contains(strings.ToLower(last)) {
-			continue
-		}
-		kept := strings.Join(append(append([]string{}, words[:n-1]...), last), " ")
-		if !balanced(kept) {
-			continue
-		}
-		if !endsSentence(kept) {
-			kept += "."
-		}
-		if out := render(kept); fitsCode(out, b) {
-			return out, true
-		}
-	}
-	return nil, false
-}
-
-// clausesTable is what rules/ says for="comment-clauses".
-var clausesTable = table.MustLoad(rules.FS, "comment-clauses")
-
-// boundaryMarks answers the marks that end a clause.
-func boundaryMarks() []string {
-	for _, c := range clausesTable.Classes {
-		if c.Name == "boundary" {
-			return c.Words
-		}
-	}
-	panic("commentfix: rules/ names no class boundary")
-}
-
-// clauseCuts answers every clause boundary in text, the last one first. A mark
-// ends a clause when a space follows it. A word-length mark needs a space before it too.
-func clauseCuts(text string) []int {
-	marks := boundaryMarks()
-	var cuts []int
-	for i := len(text) - 1; i > 0; i-- {
-		for _, m := range marks {
-			if !strings.HasPrefix(text[i:], m+" ") {
-				continue
-			}
-			if len(m) > 1 && text[i-1] != ' ' {
-				continue
-			}
-			cuts = append(cuts, i)
-			break
-		}
-	}
-	return cuts
-}
-
-// balanced reports text that closes every bracket, backtick and quote it opens.
-func balanced(text string) bool {
-	return strings.Count(text, "(") == strings.Count(text, ")") &&
-		strings.Count(text, "[") == strings.Count(text, "]") &&
-		strings.Count(text, "`")%2 == 0 && strings.Count(text, `"`)%2 == 0
 }
 
 // dangling words open something that must follow them, so a comment cannot end on one.

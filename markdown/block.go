@@ -10,6 +10,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/text"
 
+	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -57,9 +58,17 @@ func Split(content string) []Block {
 	defer trace.Phase("markdown/split")()
 	lines := strings.Split(content, "\n")
 	ends := paragraphs(content, lines)
+	// Source text is code however its file is named, and so is a paragraph of it.
+	whole := code.Is(content)
 	var blocks []Block
 	for i := 0; i < len(lines); {
 		end, prose := ends[i]
+		if prose && (whole || code.Is(strings.Join(lines[i:end+1], "\n"))) {
+			for ; i <= end; i++ {
+				blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : i+1], Start: i + 1})
+			}
+			continue
+		}
 		if !prose {
 			blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : i+1], Start: i + 1})
 			i++

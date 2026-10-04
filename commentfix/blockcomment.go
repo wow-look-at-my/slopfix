@@ -140,8 +140,7 @@ func (s blockShape) render(prose []string) []string {
 }
 
 // repairBlockComment fits a /* */ comment to its budget. The trim runs on the
-// comment as line comments, and a word cut closes what the render still lets
-// run over.
+// comment as line comments.
 func repairBlockComment(b block) ([]string, bool) {
 	shape, prose, ok := readBlock(b.text)
 	if !ok {
@@ -149,15 +148,10 @@ func repairBlockComment(b block) ([]string, bool) {
 	}
 	lines := asLines(shape.indent, prose)
 	kept := fromLines(trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: lines, exact: b.exact}))
-	// A trim that keeps no line leaves nothing to render, so the word cut decides.
 	if out := shape.render(kept); len(out) > 0 && fitsCode(out, b) {
 		return out, true
 	}
-	render := func(text string) []string { return shape.render(fromLines(reflow(text, "", "//", wrapWidth))) }
-	if out, ok := wordCut(strings.Join(kept, " "), render, b); ok {
-		return out, true
-	}
-	// No prose survives and no word cut fits: the comment is a banner, and it goes.
+	// No prose survives: the comment is a banner, and it goes.
 	if len(kept) == 0 {
 		return nil, true
 	}
