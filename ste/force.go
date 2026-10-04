@@ -139,16 +139,26 @@ type forceCut struct {
 // part under the cap. It never divides inside a code span, a link, a quotation,
 // a parenthesis or bold text.
 func forceDivision(source, masked string) (string, bool) {
-	for _, strict := range []bool{true, false} {
+	finite := finiteStarts(masked)
+	passes := []bool{true, false}
+	if len(finite) > 0 {
+		// A sentence with a verb divides only where the strict pass allows. A looser cut halves a phrase.
+		passes = passes[:1]
+	}
+	for _, strict := range passes {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict) {
+			// The first part of a sentence with a verb keeps a verb: "As a result." is no sentence.
+			if len(finite) > 0 && finite[0] >= c.left {
+				continue
+			}
 			left := closeHead(source[:c.left])
-			right, opened := openRest(source, masked, c)
+			right, opened := openRest(source, masked, c, len(finite) > 0)
 			if right == "" || !divides(left, right) {
 				continue
 			}
-			// A noun phrase after a verb is its object, so "deserves. This is a repair" loses it.
-			if opened == opensWithFill && c.afterVerb {
+			// The words after a verb complete it, so "deserves. This is a repair" and "needs. The host" lose them.
+			if c.afterVerb && (opened == opensWithFill || c.bare) {
 				continue
 			}
 			// A clause right after a noun, with no mark between, describes it: "the paths the file declared".
@@ -165,6 +175,17 @@ func forceDivision(source, masked string) (string, bool) {
 		}
 	}
 	return source, false
+}
+
+// finiteStarts answers where each finite verb in masked starts, in order.
+func finiteStarts(masked string) []int {
+	var out []int
+	for _, w := range syntax.Parse(masked, nil).Words {
+		if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
+			out = append(out, w.Start)
+		}
+	}
+	return out
 }
 
 // closeHead ends the first part of a division as a sentence. A part that
@@ -352,7 +373,7 @@ const (
 // openRest writes the words after a cut as a sentence of their own, and says
 // how well it reads. A clause that names its own subject opens as it is. A
 // verb gets the subject again, and anything else opens with "This is".
-func openRest(source, masked string, c forceCut) (string, int) {
+func openRest(source, masked string, c forceCut, hasVerb bool) (string, int) {
 	rest := strings.TrimLeft(source[c.right:], " —–-,;:")
 	restMasked := masked[len(masked)-len(rest):]
 	if rest == "" {
@@ -398,7 +419,8 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if opensImperative(restMasked) && !afterAnd {
 		return joinOpener(opener, rest), opensOwnClause
 	}
-	if opensPrepositionalPhrase(s) && !hasMainVerb(s) {
+	// "This is on the machine" says where "this" is. Only a purpose or a source reads after a sentence with a verb.
+	if opensPrepositionalPhrase(s) && !hasMainVerb(s) && (!hasVerb || purposeOrSource.Contains(s.Words[0].Lower())) {
 		return joinOpener(opener, "this is "+rest), opensWithFill
 	}
 	if !opensNounPhrase(s) {
@@ -424,6 +446,9 @@ var nounPhraseOpeners = set.Of("DT", "PDT", "PRP$", "CD", "JJ", "JJR", "JJS", "N
 func opensNounPhrase(s *syntax.Sentence) bool {
 	return len(s.Words) > 0 && nounPhraseOpeners.Contains(s.Words[0].Tag)
 }
+
+// purposeOrSource are the prepositions "This is" stands in front of: "This is for every run".
+var purposeOrSource = set.Of("for", "from")
 
 // clauseOpeners open a clause, not a phrase, so "This is if" is no sentence.
 var clauseOpeners = set.Of("because", "if", "unless", "until", "after", "before", "since", "when", "while", "where", "whether", "although", "though", "as", "so", "than", "that")
