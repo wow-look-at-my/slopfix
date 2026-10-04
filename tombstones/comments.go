@@ -70,7 +70,8 @@ func AddedBlocks(path, added string) []Block {
 
 // IsDocument reports whether path names prose rather than source.
 func IsDocument(path string) bool {
-	if InTestdata(path) {
+	// A CMakeLists.txt is code that ends in .txt.
+	if InTestdata(path) || treecomments.HashComments(path) {
 		return false
 	}
 	switch strings.ToLower(filepath.Ext(path)) {
