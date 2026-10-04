@@ -19,6 +19,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -151,7 +152,7 @@ func isDocument(path string) bool {
 	if path == "" {
 		return true
 	}
-	if tombstones.InTestdata(path) {
+	if tombstones.InTestdata(path) || treecomments.HashComments(path) {
 		return false
 	}
 	lower := strings.ToLower(path)
