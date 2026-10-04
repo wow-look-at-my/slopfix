@@ -129,6 +129,8 @@ func fillWord(span []byte) {
 type forceCut struct {
 	left, right int
 	score       int
+	// afterVerb is a cut right after a verb, which the rest may complete.
+	afterVerb bool
 }
 
 // forceDivision divides source at the best word boundary that leaves the first
@@ -141,6 +143,10 @@ func forceDivision(source, masked string) (string, bool) {
 			left := closeHead(source[:c.left])
 			right, opened := openRest(source, masked, c)
 			if right == "" || !divides(left, right) {
+				continue
+			}
+			// A noun phrase after a verb is its object, so "deserves. This is a repair" loses it.
+			if opened == opensWithFill && c.afterVerb {
 				continue
 			}
 			// A rest that opens a clause of its own reads best, and filler reads worst.
@@ -199,10 +205,10 @@ const phraseReach = 8
 // phraseSpans answers the inside of each noun phrase and verb group the parser
 // finds where a cut can land, and where each finite verb starts. A cut inside
 // a phrase leaves "a detached." behind.
-func phraseSpans(masked string, ends []int) ([][]int, set.Set[int]) {
-	finite := set.New[int]()
+func phraseSpans(masked string, ends []int) ([][]int, set.Set[int], set.Set[int]) {
+	finite, verbEnds := set.New[int](), set.New[int]()
 	if len(ends) == 0 {
-		return nil, finite
+		return nil, finite, verbEnds
 	}
 	head := masked[:ends[min(SentenceWordCap+phraseReach, len(ends)-1)]]
 	s := syntax.Parse(head, nil)
@@ -217,8 +223,11 @@ func phraseSpans(masked string, ends []int) ([][]int, set.Set[int]) {
 		if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
 			finite.Add(w.Start)
 		}
+		if strings.HasPrefix(w.Tag, "VB") {
+			verbEnds.Add(w.End)
+		}
 	}
-	return out, finite
+	return out, finite, verbEnds
 }
 
 // isWordByte reports a byte that can open bold text's first word: a letter,
@@ -253,9 +262,9 @@ func candidates(source, masked string, strict bool) []forceCut {
 	off = append(off, outerParens(masked)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
+	spans, finite, verbEnds := phraseSpans(masked, ends)
 	verbs := set.New[int]()
 	if strict {
-		spans, finite := phraseSpans(masked, ends)
 		off, verbs = append(off, spans...), finite
 	}
 	var out []forceCut
@@ -292,7 +301,7 @@ func candidates(source, masked string, strict bool) []forceCut {
 		case forceOpener.Contains(next):
 			penalty = 3
 		}
-		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty})
+		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty, afterVerb: verbEnds.Contains(p)})
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].score > out[b].score })
 	return out
@@ -375,6 +384,9 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if opensImperative(restMasked) {
 		return joinOpener(opener, rest), opensOwnClause
 	}
+	if opensPrepositionalPhrase(s) && !hasMainVerb(s) {
+		return joinOpener(opener, "this is "+rest), opensWithFill
+	}
 	if !opensNounPhrase(s) {
 		// "This is from there" and "This is not /var" are no sentences, so the cut is not made here.
 		return "", 0
@@ -393,6 +405,23 @@ var nounPhraseOpeners = set.Of("DT", "PDT", "PRP$", "CD", "JJ", "JJR", "JJS", "N
 // only rest "This is" can stand in front of.
 func opensNounPhrase(s *syntax.Sentence) bool {
 	return len(s.Words) > 0 && nounPhraseOpeners.Contains(s.Words[0].Tag)
+}
+
+// subordinators open a clause, not a phrase, so "This is if" is no sentence.
+var subordinators = set.Of("because", "if", "unless", "until", "after", "before", "since", "when", "while", "where", "whether", "although", "though", "as", "so", "than", "that")
+
+// opensPrepositionalPhrase reports a rest that opens on a preposition whose
+// object opens a noun phrase, as in "for every run". "This is" stands in front
+// of one, and not in front of "from there".
+func opensPrepositionalPhrase(s *syntax.Sentence) bool {
+	if len(s.Words) < 2 {
+		return false
+	}
+	first := s.Words[0]
+	if first.Tag != "IN" && first.Tag != "TO" || subordinators.Contains(strings.ToLower(first.Text)) {
+		return false
+	}
+	return nounPhraseOpeners.Contains(s.Words[1].Tag)
 }
 
 // hasMainVerb reports a finite verb outside every subordinate and relative
