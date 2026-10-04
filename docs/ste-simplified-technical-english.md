@@ -38,5 +38,5 @@ What `ste` does not flag:
 - Text in parentheses counts as a single word. A citation thus cannot inflate a sentence.
 - A period ends a sentence only when what follows opens the next. That rules out `e.g.` and `$(...)`. A file name or a section mark can open a sentence in lower case.
 - `ste/count` exempts arithmetic, such as a range or an expression. It exempts no noun, because a duration or a size goes stale too.
-- A number after a hash sign names an issue, as in `issue #54`. It is not a count. A number that picks an item from a list, as in `gate 5`, is a count.
+- A label word may carry a hash sign, as in `issue #54`. A bare hash sign labels nothing. A number that picks an item from a list, as in `gate 5`, is a count.
 - A cut keeps the sentence English. `over` after a noun stays as a preposition. A capital moves only at the start of a sentence.

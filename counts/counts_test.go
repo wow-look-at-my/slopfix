@@ -150,8 +150,8 @@ func TestARewordKeepsTheSentenceEnglish(t *testing.T) {
 	}
 }
 
-// A number after a hash sign names an issue, and a number in an equation states
-// an identity. Neither counts the plural noun after it.
+// A label word with a hash sign names an issue, and a number in an equation
+// states an identity. Neither counts the plural noun after it.
 func TestAnIssueOrAnEquationIsNoCount(t *testing.T) {
 	for _, in := range []string{
 		"The corpus that issue #54 targets compiles.",
@@ -161,6 +161,12 @@ func TestAnIssueOrAnEquationIsNoCount(t *testing.T) {
 		assert.Empty(t, cut, in)
 		assert.Equal(t, in, out, in)
 	}
+}
+
+// A hash sign with no label word in front of it names nothing.
+func TestABareHashSignIsStillACount(t *testing.T) {
+	_, cut := StripGate("The parser keeps #12 rows.")
+	assert.NotEmpty(t, cut)
 }
 
 // No count the rules report is left for a person.
