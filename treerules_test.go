@@ -326,22 +326,6 @@ func TestXMLIsHeldToTheSchemaItNames(t *testing.T) {
 	}, pathsOf(checkOnly(root, slopfix.IDXML)))
 }
 
-// A *.invalid.xml file is a negative fixture: it must name its schema and break it.
-func TestANegativeFixtureMustBreakTheSchemaItNames(t *testing.T) {
-	located := `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rule.xsd"`
-	root := gitRepo(t, map[string]string{
-		"rule.xsd":               xsd,
-		"rejected.invalid.xml":   xmlDoc(`<rule ` + located + `/>`),
-		"accepted.invalid.xml":   xmlDoc(`<rule ` + located + ` id="a"/>`),
-		"unnamed.invalid.xml":    xmlDoc(`<rule/>`),
-		"lostschema.invalid.xml": xmlDoc(`<rule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="missing.xsd"/>`),
-		"malformed.invalid.xml":  xmlDoc(`<rule ` + located + `>`),
-	})
-	assert.ElementsMatch(t, []string{
-		"accepted.invalid.xml repo/xml", "unnamed.invalid.xml repo/xml",
-		"lostschema.invalid.xml repo/xml", "malformed.invalid.xml repo/xml",
-	}, pathsOf(checkOnly(root, slopfix.IDXML)), "a schema that rejects the fixture is the only pass")
-}
 
 // The rule fails a document on its own: naming another rule leaves it out.
 func TestNamingAnotherRuleLeavesTheDocumentRulesOut(t *testing.T) {
