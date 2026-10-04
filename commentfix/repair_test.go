@@ -185,19 +185,37 @@ func TestABlockCommentIsRepairedBelowItsOpener(t *testing.T) {
 	assert.Empty(t, commentfix.Check("x.c", got.Text), "nothing is left to report")
 }
 
-// The closer is not prose. Dropped, the comment stays open and every
-// declaration below it is swallowed by it, so an emptied block keeps its
-// delimiters and the file still parses.
-func TestAnEmptiedBlockKeepsItsDelimiters(t *testing.T) {
-	src := "int a;\n\n/* The tables run to 12 sections. */\nint b;\n"
+// A block left with nothing to say loses its lines, as a line comment does. An
+// empty /* */ is noise, and a closer dropped alone swallows the code below.
+func TestAnEmptiedBlockLosesItsLines(t *testing.T) {
+	src := "int a;\n\n/* Each take pays for 1 add. */\nint b;\n"
 	got := commentfix.Fix("x.c", src)
 
-	assert.True(t, got.Changed)
-	assert.Contains(t, got.Text, "*/", "the block is closed")
-	assert.Contains(t, got.Text, "int b;")
-	assert.Equal(t, strings.Count(src, "/*"), strings.Count(got.Text, "/*"), "openers are balanced")
-	assert.Equal(t, strings.Count(src, "*/"), strings.Count(got.Text, "*/"), "closers are balanced")
+	assert.Equal(t, "int a;\n\nint b;\n", got.Text)
 	assert.Empty(t, commentfix.Check("x.c", got.Text))
+}
+
+// A doc comment opens with /**. Read as /* with prose that starts with a star,
+// the star went into the prose and the opener came back as /*.
+func TestADocBlockKeepsItsOpener(t *testing.T) {
+	src := "/** Keeps the ring.\n * Each take pays for 1 add. */\nfunction f() {}\n"
+	got := commentfix.Fix("x.ts", src)
+
+	assert.Equal(t, "/** Keeps the ring. */\nfunction f() {}\n", got.Text)
+	assert.Equal(t, []string{"Each take pays for 1 add."}, got.Removed)
+
+	emptied := commentfix.Fix("x.ts", "/** Each take pays for 1 add. */\nfunction f() {}\n")
+	assert.Equal(t, "function f() {}\n", emptied.Text)
+}
+
+// A sentence in a comment often opens on a lowercase identifier. Read as one
+// sentence with the sentence before it, the cut of a number took both.
+func TestACutKeepsTheSentenceBeforeALowercaseOne(t *testing.T) {
+	src := "/** It names the commit. sha is empty when it is absent. number is -1 when none is. */\nfunction f() {}\n"
+	got := commentfix.Fix("x.ts", src)
+
+	assert.Equal(t, "/** It names the commit. sha is empty when it is absent. */\nfunction f() {}\n", got.Text)
+	assert.Equal(t, []string{"number is -1 when none is."}, got.Removed)
 }
 
 // A block opens a single time. Repeating its opener down the paragraph nests a
