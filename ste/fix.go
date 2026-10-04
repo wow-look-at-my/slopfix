@@ -98,7 +98,7 @@ func fixSemicolons(prose string) string {
 // It reads a mask of the whole text, so a code span neither hides a splice nor
 // cuts a sentence the parser needs whole.
 func fixSplices(prose string) string {
-	masked := mask(prose)
+	masked := checkMask(prose)
 	var joiners [][]int
 	var openers []string
 	parens := parenthetical.FindAllStringIndex(masked, -1)
@@ -139,10 +139,20 @@ func mask(prose string) string {
 		case '&':
 			fillWith(out[span[0]:span[1]], "ENTITY")
 		default:
-			fill(out[span[0]:span[1]])
+			fillLink(out[span[0]:span[1]], fill)
 		}
 	}
 	return string(out)
+}
+
+// fillLink fills a link target inside its brackets. Check reads "](URL)", so
+// the parentheses stay and pair as Check pairs them.
+func fillLink(span []byte, filler func([]byte)) {
+	if len(span) < 3 || span[0] != ']' || span[1] != '(' || span[len(span)-1] != ')' {
+		filler(span)
+		return
+	}
+	filler(span[2 : len(span)-1])
 }
 
 // fillWith writes word over a span, with a space before it and blanks after it.
