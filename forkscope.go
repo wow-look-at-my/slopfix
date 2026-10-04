@@ -98,13 +98,31 @@ func within(req Request, repair Repair) Repair {
 		}
 	}
 	repair = alone(req, repair)
-	repair, owned := giveBack(req, repair)
-	if owned == nil {
-		owned = forkscope.Carry(req.Content, repair.Text, scope)
-	}
+	repair = fold(req, repair)
+	owned := forkscope.Carry(req.Content, repair.Text, scope)
 	repair.Findings = ownedFindings(repair.Findings, owned)
 	repair.Kept = ownedHits(repair.Kept, owned)
-	return repair
+	return upstreamRuns(req.Owned, repair.Text, repair)
+}
+
+// blockRun is the rows, counted from one, that a block finding judges.
+type blockRun struct{ first, last int }
+
+// ownedRuns answers each run a block rule reports on a line the fork wrote.
+func ownedRuns(req Request, repair Repair) []blockRun {
+	owned := forkscope.Carry(req.Content, repair.Text, req.Owned)
+	var runs []blockRun
+	for _, f := range repair.Findings {
+		if blockRules.Contains(f.ID) && owned.Holds(f.Line, max(f.Line, f.EndLine)) {
+			runs = append(runs, blockRun{f.Line, max(f.Line, f.EndLine)})
+		}
+	}
+	for _, h := range repair.Kept {
+		if blockRules.Contains(h.ID) && h.LineNo > 0 && owned.Holds(h.LineNo, max(h.LineNo, h.EndLineNo)) {
+			runs = append(runs, blockRun{h.LineNo, max(h.LineNo, h.EndLineNo)})
+		}
+	}
+	return runs
 }
 
 // blockRules judge a run of lines whole.
@@ -149,43 +167,33 @@ func alone(req Request, repair Repair) Repair {
 	return repair
 }
 
-// giveBack repairs each run a block rule still reports on a line the fork
-// wrote. Each change the fork made inside that run goes back to what the base
-// has, through the gate that proves it changed only comment. The run is then
-// the base's own, and the fork wrote none of it. It answers the lines the fork
-// wrote of the text it gave back, measured from the base, or nil when it gave
-// nothing back.
-func giveBack(req Request, repair Repair) (Repair, *forkscope.Scope) {
-	owned := forkscope.Carry(req.Content, repair.Text, req.Owned)
-	type run struct{ first, last int }
-	var runs []run
-	for _, f := range repair.Findings {
-		if blockRules.Contains(f.ID) && owned.Holds(f.Line, max(f.Line, f.EndLine)) {
-			runs = append(runs, run{f.Line, max(f.Line, f.EndLine)})
-		}
-	}
-	for _, h := range repair.Kept {
-		if blockRules.Contains(h.ID) && h.LineNo > 0 && owned.Holds(h.LineNo, max(h.LineNo, h.EndLineNo)) {
-			runs = append(runs, run{h.LineNo, max(h.LineNo, h.EndLineNo)})
-		}
-	}
+// fold repairs each run a block rule still reports on a line the fork wrote,
+// where the fork's changes made the run longer than the base had it. The
+// lines each such change added join the last line it kept, so the change
+// takes no more lines than. The edits pass the gate that proves they changed
+// only comment.
+func fold(req Request, repair Repair) Repair {
+	runs := ownedRuns(req, repair)
 	if len(runs) == 0 {
-		return repair, nil
+		return repair
 	}
-	// With no base to write back, the finding stays and the report names it.
+	// With no base to measure from, the finding stays and the report names it.
 	base, err := req.Owned.Base()
 	if err != nil {
-		return repair, nil
+		return repair
 	}
 	var edits []edit.Edit
 	seen := set.New[int]()
 	for _, r := range runs {
-		for _, e := range forkscope.GiveBack(base, repair.Text, r.first, r.last) {
-			if !seen.Contains(e.Start) {
-				seen.Add(e.Start)
-				edits = append(edits, e)
+		for _, h := range forkscope.Grown(base, repair.Text, r.first, r.last) {
+			if !seen.Contains(h.J1) {
+				seen.Add(h.J1)
+				edits = append(edits, foldHunk(repair.Text, h))
 			}
 		}
+	}
+	if len(edits) == 0 {
+		return repair
 	}
 	at := req
 	at.Content, at.Scope, at.Owned = repair.Text, repair.Scope, nil
@@ -193,15 +201,67 @@ func giveBack(req Request, repair Repair) (Repair, *forkscope.Scope) {
 	res := f.ApplyComments(edits)
 	repair.refuse(res.Refused)
 	if len(res.Applied) == 0 {
-		return repair, nil
+		return repair
 	}
 	again := at
 	again.Content, again.Scope = f.Text(), edit.Nowhere()
 	landed := Fix(again)
 	repair.Findings, repair.Kept = landed.Findings, landed.Kept
-	repair.Removed = append(repair.Removed, res.Cuts()...)
 	repair.Text, repair.Changed, repair.Scope = f.Text(), f.Text() != req.Content, f.Scope()
-	return repair, forkscope.Changed(base, repair.Text)
+	return repair
+}
+
+// foldHunk answers the edit that joins the lines h added onto the last line it
+// keeps, with the comment marker of each joined line dropped.
+func foldHunk(text string, h forkscope.Hunk) edit.Edit {
+	rows := strings.Split(text, "\n")[h.J1:h.J2]
+	keep := max(h.Had, 1)
+	lines := slices.Clone(rows[:keep])
+	for _, row := range rows[keep:] {
+		if prose := commentProse(row); prose != "" {
+			lines[keep-1] = strings.TrimRight(lines[keep-1], " \t") + " " + prose
+		}
+	}
+	return edit.Rows(text, h.J1, h.J2-1, 0, lines)
+}
+
+// commentProse answers what a comment line says, without its indent and marker.
+func commentProse(row string) string {
+	text := strings.TrimSpace(row)
+	for _, marker := range []string{"//", "#", "*"} {
+		if rest, ok := strings.CutPrefix(text, marker); ok {
+			return strings.TrimSpace(rest)
+		}
+	}
+	return text
+}
+
+// upstreamRuns drops each block finding on a run of text the fork did not make
+// longer. The base already had that run at that length, so it is the base's
+// finding, and the fork's edit inside it stays as the fork wrote it.
+func upstreamRuns(owned *forkscope.Scope, text string, repair Repair) Repair {
+	if owned == nil || owned.All() {
+		return repair
+	}
+	base, err := owned.Base()
+	if err != nil {
+		return repair
+	}
+	grew := func(first, last int) bool { return len(forkscope.Grown(base, text, first, last)) > 0 }
+	findings := repair.Findings[:0:0]
+	for _, f := range repair.Findings {
+		if !blockRules.Contains(f.ID) || grew(f.Line, max(f.Line, f.EndLine)) {
+			findings = append(findings, f)
+		}
+	}
+	kept := repair.Kept[:0:0]
+	for _, h := range repair.Kept {
+		if !blockRules.Contains(h.ID) || h.LineNo < 1 || grew(h.LineNo, max(h.LineNo, h.EndLineNo)) {
+			kept = append(kept, h)
+		}
+	}
+	repair.Findings, repair.Kept = findings, kept
+	return repair
 }
 
 // landedRemovals keeps each removal that text, the repair as it lands, made.
