@@ -238,14 +238,34 @@ func checkXML(path, rel string, content []byte, downloads fetched) *TreeFinding 
 			}
 			return downloads.get(next.String())
 		}
-		if err := xmlvalidator.ValidateWithSchemaResolver(content, schema, imports); err != nil {
-			return xmlFinding(rel, "this XML breaks the schema it names", err)
-		}
-		return nil
+		return schemaVerdict(rel, xmlvalidator.ValidateWithSchemaResolver(content, schema, imports),
+			"this XML breaks the schema it names")
 	}
 	location = filepath.Join(filepath.Dir(path), filepath.FromSlash(location))
-	if err := xmlvalidator.ValidateWithSchemaFile(path, location); err != nil {
-		return xmlFinding(rel, "this XML breaks the schema it names, or the schema does not load", err)
+	if _, err := os.Stat(location); err != nil {
+		f := repoFinding(rel, IDXML, "the schema this XML names does not load", err.Error())
+		return &f
+	}
+	return schemaVerdict(rel, xmlvalidator.ValidateWithSchemaFile(path, location),
+		"this XML breaks the schema it names, or the schema does not load")
+}
+
+// negativeSuffix names a negative fixture: a document kept to prove that its schema rejects it.
+const negativeSuffix = ".invalid.xml"
+
+// schemaVerdict reads a schema check. A negative fixture inverts it: the
+// fixture is a finding when the schema accepts it.
+func schemaVerdict(rel string, err error, rule string) *TreeFinding {
+	if strings.HasSuffix(filepath.Base(rel), negativeSuffix) {
+		if err != nil {
+			return nil
+		}
+		f := repoFinding(rel, IDXML, "this negative fixture passes the schema it names, so it proves nothing",
+			"Make it break the schema, or drop "+negativeSuffix+" from its name.")
+		return &f
+	}
+	if err != nil {
+		return xmlFinding(rel, rule, err)
 	}
 	return nil
 }
