@@ -171,18 +171,16 @@ func TestADivisionKeepsADashAsideAndAReducedRelative(t *testing.T) {
 // test filtering", "another checkout. This is on the machine" and "`.dats`
 // files. New subdirectories".
 func TestADivisionLeavesEachPartASentence(t *testing.T) {
-	cases := map[string][]string{
-		"There is deliberately no way to declare additional writable HOST paths: something to write is the temp directory " + dash + " a real filesystem inside every backend " + dash + " and a command that genuinely needs the host is not a sandboxed command, so it belongs to a `--no-sandbox` run.": {"needs. The host"},
-		"Output is buffered and printed in canonical order " + dash + " files in the order given on the command line (or discovered), instances in expansion order within each file " + dash + " regardless of completion order.": {"canonical. This is order"},
-		"Each re-run executes the **complete original argument scope**, never a subset. dats has no test filtering or selection by design " + dash + " every instance always runs " + dash + " and `watch` adds no narrowing flags.": {"dats has. No test"},
-		"**Reads are confined under bwrap and docker**: a command sees the OS tool tree, the working directory, and the paths the file declared " + dash + " not `$HOME`, not `/var`, not another checkout on the machine.": {"This is on the machine"},
-		"- Every **directory argument** (and the current directory in no-arg mode), recursively " + dash + " with the same hidden-directory skip rules as discovery " + dash + " so newly created `.dats` files and new subdirectories are picked up and join the scope.": {"files. New subdirectories"},
+	cases := [][2]string{
+		{"There is deliberately no way to declare additional writable HOST paths: something to write is the temp directory " + dash + " a real filesystem inside every backend " + dash + " and a command that genuinely needs the host is not a sandboxed command, so it belongs to a `--no-sandbox` run.", "needs. The host"},
+		{"Output is buffered and printed in canonical order " + dash + " files in the order given on the command line (or discovered), instances in expansion order within each file " + dash + " regardless of completion order.", "canonical. This is order"},
+		{"Each re-run executes the **complete original argument scope**, never a subset. dats has no test filtering or selection by design " + dash + " every instance always runs " + dash + " and `watch` adds no narrowing flags.", "dats has. No test"},
+		{"**Reads are confined under bwrap and docker**: a command sees the OS tool tree, the working directory, and the paths the file declared " + dash + " not `$HOME`, not `/var`, not another checkout on the machine.", "This is on the machine"},
+		{"- Every **directory argument** (and the current directory in no-arg mode), recursively " + dash + " with the same hidden-directory skip rules as discovery " + dash + " so newly created `.dats` files and new subdirectories are picked up and join the scope.", "files. New subdirectories"},
 	}
-	for in, bads := range cases {
-		got := ste.Fix(in)
-		for _, bad := range bads {
-			assert.NotContains(t, got, bad, got)
-		}
+	for _, c := range cases {
+		got := ste.Fix(c[0])
+		assert.NotContains(t, got, c[1], got)
 	}
 }
 
