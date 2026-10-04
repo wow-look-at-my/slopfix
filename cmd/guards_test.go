@@ -48,6 +48,7 @@ func guarded(t *testing.T, payload string, only ...string) hookResult {
 	t.Helper()
 	running, write, err := hookSelection(only)
 	require.NoError(t, err)
+	write.forks = noForks
 	return dispatch([]byte(payload), running, write)
 }
 

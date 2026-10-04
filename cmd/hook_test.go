@@ -28,7 +28,7 @@ func ask(t *testing.T, payload map[string]any, only ...string) answer {
 	rules, ids, err := selectedRules(only)
 	require.NoError(t, err)
 
-	body := judge(data, rules, ids)
+	body := judge(data, rules, ids, noForks)
 	if body == "" {
 		return answer{}
 	}
@@ -143,10 +143,10 @@ func TestAnUnreadablePayloadLetsTheWriteThrough(t *testing.T) {
 	rules, ids, err := selectedRules([]string{"counts"})
 	require.NoError(t, err)
 
-	assert.Empty(t, judge([]byte("{"), rules, ids))
-	assert.Empty(t, judge([]byte(`{"hook_event_name":"Stop"}`), rules, ids))
-	assert.Empty(t, judge([]byte(`{"tool_name":"Bash","tool_input":{"command":"ls"}}`), rules, ids))
-	assert.Empty(t, judge([]byte(`{"tool_name":"Write","tool_input":"not an object"}`), rules, ids))
+	assert.Empty(t, judge([]byte("{"), rules, ids, noForks))
+	assert.Empty(t, judge([]byte(`{"hook_event_name":"Stop"}`), rules, ids, noForks))
+	assert.Empty(t, judge([]byte(`{"tool_name":"Bash","tool_input":{"command":"ls"}}`), rules, ids, noForks))
+	assert.Empty(t, judge([]byte(`{"tool_name":"Write","tool_input":"not an object"}`), rules, ids, noForks))
 	assert.Empty(t, ask(t, write("a.bin", "It has three plugins.\n"), "counts").body)
 }
 
