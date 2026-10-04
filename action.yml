@@ -17,7 +17,7 @@ inputs:
 
 outputs:
   stdout:
-    description: What slopfix wrote on stdout, which is the JSON answer when permission is set
+    description: The JSON answer slopfix wrote on stdout when permission is set, and empty for the check
     value: ${{ steps.unix.outputs.stdout || steps.windows.outputs.stdout }}
 
 runs:
@@ -47,7 +47,9 @@ runs:
         rc=0
         out=$(sh "${{ steps.download.outputs.path }}" "$@") || rc=$?
         printf '%s\n' "$out"
-        { echo 'stdout<<SLOPFIX_STDOUT_END'; printf '%s\n' "$out"; echo 'SLOPFIX_STDOUT_END'; } >> "$GITHUB_OUTPUT"
+        if [ -n "$SLOPFIX_PERMISSION" ]; then
+          { echo 'stdout<<SLOPFIX_STDOUT_END'; printf '%s\n' "$out"; echo 'SLOPFIX_STDOUT_END'; } >> "$GITHUB_OUTPUT"
+        fi
         exit "$rc"
 
     # Windows has no binfmt handler and boots the APE through its PE header. sh there looks for a loader built for another host.
@@ -67,7 +69,9 @@ runs:
         $out = & "${{ steps.download.outputs.path }}" @slopfixArgs
         $rc = $LASTEXITCODE
         $out
-        "stdout<<SLOPFIX_STDOUT_END" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
-        $out | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
-        "SLOPFIX_STDOUT_END" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+        if (-not [string]::IsNullOrEmpty($env:SLOPFIX_PERMISSION)) {
+          "stdout<<SLOPFIX_STDOUT_END" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+          $out | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+          "SLOPFIX_STDOUT_END" | Out-File -Append -Encoding utf8 $env:GITHUB_OUTPUT
+        }
         exit $rc
