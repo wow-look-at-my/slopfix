@@ -349,10 +349,10 @@ func openRest(source, masked string, c forceCut) (string, int) {
 		return "", 0
 	}
 	opener := ""
-	// A noun phrase after "and" or a comma is the next item of a list.
-	listItem := strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",")
+	// Words after "and" continue what came before. A noun phrase after a comma is the next item of a list.
+	afterAnd := false
 	if word := strings.ToLower(firstToken.FindString(rest)); word != "" {
-		listItem = listItem || word == "and"
+		afterAnd = word == "and"
 		if connector, ok := connectors[word]; ok {
 			cut := len(firstToken.FindString(rest))
 			trimmed := strings.TrimLeft(rest[cut:], " ")
@@ -378,13 +378,14 @@ func openRest(source, masked string, c forceCut) (string, int) {
 	if len(s.Words) == 0 {
 		return "", 0
 	}
-	if opensClause(s) && (!listItem || s.Clauses[0].Verb.Finite) {
+	listItem := afterAnd || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",")
+	if opensClause(s) && (!afterAnd || s.Clauses[0].Verb.Finite) {
 		return joinOpener(opener, rest), opensOwnClause
 	}
 	if tag := s.Words[0].Tag; tag == "VBZ" || tag == "VBP" || tag == "VBD" || tag == "MD" {
 		return joinOpener(opener, subjectFor(source, masked, c, tag)+" "+rest), opensWithVerb
 	}
-	if opensImperative(restMasked) && !listItem {
+	if opensImperative(restMasked) && !afterAnd {
 		return joinOpener(opener, rest), opensOwnClause
 	}
 	if opensPrepositionalPhrase(s) && !hasMainVerb(s) {
