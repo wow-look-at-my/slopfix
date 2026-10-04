@@ -256,24 +256,6 @@ func InExpression(text string, q Match) bool {
 	return unicode.IsDigit(prev) || inEquation(text, q.At)
 }
 
-// MeasuresAUnit exempts a number in front of a unit that a plural noun
-// follows. In "64 B lines" the number sizes each line and counts nothing.
-func MeasuresAUnit(_ string, q Match) bool {
-	words := strings.Fields(q.Text)
-	for _, w := range words[1 : len(words)-1] {
-		if unitSymbols.Contains(w) || IsUnit(w) {
-			return true
-		}
-	}
-	return false
-}
-
-// unitSymbols are case-sensitive, because a lower-case "b" or "s" is a word.
-var unitSymbols = set.Of[string](
-	"B", "KB", "KiB", "MB", "MiB", "GB", "GiB", "TB", "bit", "bits",
-	"ns", "us", "µs", "ms", "Hz", "kHz", "MHz", "GHz", "px",
-)
-
 // inEquation reports a number in a clause that holds an equals sign. An
 // equation states an identity, such as a unit conversion, and no tally.
 func inEquation(text string, at int) bool {

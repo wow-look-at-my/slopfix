@@ -150,14 +150,13 @@ func TestARewordKeepsTheSentenceEnglish(t *testing.T) {
 	}
 }
 
-// A number after a singular noun names that thing, and a number in front of a
-// unit measures the unit. Neither counts the plural noun the pattern ends on.
-func TestALabelOrAMeasureIsNoCount(t *testing.T) {
+// A number after a label word or a hash sign names that thing, and a number in
+// an equation states an identity. Neither counts the plural noun after it.
+func TestALabelOrAnEquationIsNoCount(t *testing.T) {
 	for _, in := range []string{
 		"It is the loop that gate 5 asserts.",
 		"The fix lands where rule 6 requires a wait.",
 		"The corpus that issue #54 targets compiles.",
-		"A wave covers whole 64 B lines.",
 		"The footprint (1760 workgroups x 64 KiB = 110 MiB) fits.",
 	} {
 		out, cut := StripGate(in)
