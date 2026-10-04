@@ -394,13 +394,13 @@ func openRest(source, masked string, c forceCut) (string, int) {
 		// "This is from there" and "This is not /var" are no sentences, so the cut is not made here.
 		return "", 0
 	}
+	if listItem {
+		// A clause after "and" opened above. This rest is the next item, and "This is staging" names it.
+		return "", 0
+	}
 	if hasMainVerb(s) {
 		// The rest already has its verb, and "This is" in front would give it a second one.
 		return joinOpener(opener, rest), opensOwnClause
-	}
-	if listItem {
-		// "This is staging" names the item, where the list only counted it.
-		return "", 0
 	}
 	return joinOpener(opener, "this is "+rest), opensWithFill
 }

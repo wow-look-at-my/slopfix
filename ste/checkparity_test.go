@@ -17,10 +17,10 @@ func TestFixRepairsASpliceCheckReadsThroughAQuotation(t *testing.T) {
 	assert.Contains(t, out, `"the native sandbox for this OS, else docker"`, "the quotation stays as written")
 }
 
-// Fix divides a sentence Check counts over the cap when an aside holds a link.
-// Check reads the link target as (URL), a word of its own, so the aside counts its words.
+// Fix divides a sentence Check counts over the cap when an aside holds a link,
+// and no division lands inside the aside.
 func TestFixDividesASentenceWhoseAsideHoldsALink(t *testing.T) {
-	text := "To pull an *existing* host file into the temp directory so a command can modify a copy of it, " +
+	text := "To pull an *existing* host file into the temp directory so a command can modify a private copy of it for the whole run, " +
 		"use `inputs.copy` or `shared.copy` (see [file-format.md](file-format.md#copy-fixtures-inputscopy-and-sharedcopy))."
 	require.NotEmpty(t, findings(text, ste.IDSentenceCap), "the fixture must be a finding")
 	out := ste.Fix(text)
@@ -45,7 +45,7 @@ func TestAForcedDivisionOpensAnImperativeOnItsVerb(t *testing.T) {
 func TestAnAsideWithALinkCountsAsAWord(t *testing.T) {
 	assert.Equal(t, 3, ste.WordCount("a (see [Leak gates](URL)) b"))
 	assert.Equal(t, 3, ste.WordCount("a (see b) c"))
-	assert.Equal(t, 4, ste.WordCount("a (b c"))
+	assert.Equal(t, 3, ste.WordCount("a (b c"))
 }
 
 // findings answers what Check reports under id.
