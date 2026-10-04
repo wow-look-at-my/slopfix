@@ -128,6 +128,17 @@ func TestNoAttributeExemptsACopy(t *testing.T) {
 	assert.Equal(t, []string{"copies/b/run.ts repo/near-duplicate"}, pathsOf(checkOnly(root, slopfix.IDNearDuplicate)))
 }
 
+// A symlink is the file it names, so it is the answer to a copy and never a copy itself.
+func TestASymlinkIsNotACopy(t *testing.T) {
+	root := gitRepo(t, map[string]string{"a/run.ts": script, "b/.keep": ""})
+	require.NoError(t, os.Symlink("../a/run.ts", filepath.Join(root, "b", "run.ts")))
+	cmd := exec.Command("git", "add", "-A")
+	cmd.Dir = root
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+	assert.Empty(t, checkOnly(root, slopfix.IDNearDuplicate))
+}
+
 func TestFilesEachDirectoryNeedsAreNotCopies(t *testing.T) {
 	manifest := "{\n  \"name\": \"x\",\n  \"private\": true\n}\n"
 	root := gitRepo(t, map[string]string{"a/package.json": manifest, "b/package.json": manifest, "a/.keep": "", "b/.keep": ""})
