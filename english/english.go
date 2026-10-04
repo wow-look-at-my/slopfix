@@ -160,9 +160,18 @@ func (p Pattern) ApplyN(s string) (string, int) {
 		if !keepsNegation(s, loc[0], loc[1], with) || strandsOpener(s, loc[0], loc[1], with) {
 			continue
 		}
-		out.WriteString(s[last:loc[0]])
+		from, to := loc[0], loc[1]
+		if strings.TrimSpace(with) == "" {
+			// A cut: the parse says which punctuation attaches the phrase.
+			var ok bool
+			if from, to, ok = cutSpan(s, loc[0], loc[1]); !ok || from < last {
+				continue
+			}
+			with = " "
+		}
+		out.WriteString(s[last:from])
 		out.WriteString(with)
-		last = loc[1]
+		last = to
 		took++
 	}
 	out.WriteString(s[last:])

@@ -13,9 +13,6 @@ var danglingSpace = regexp.MustCompile(`\s+([.,])(\s|$)`)
 // doubledStop matches the period a deleted sentence leaves beside the period before it. An ellipsis does not match.
 var doubledStop = regexp.MustCompile(`([^.])\.\.(\s|$)`)
 
-// strandedComma matches the comma a cut at a clause end leaves against the punctuation that closes the clause.
-var strandedComma = regexp.MustCompile(`,(\)|[.;:!?](?:\s|$))`)
-
 // Surface names where prose is being read, which decides the entries that
 // apply to it.
 const (
@@ -69,9 +66,6 @@ func FixN(s, surface string) (string, int) {
 	}
 	s = strings.Join(strings.Fields(s), " ")
 	s = danglingSpace.ReplaceAllString(s, "${1}${2}")
-	if s != original {
-		s = strandedComma.ReplaceAllString(s, "${1}")
-	}
 	s = doubledStop.ReplaceAllString(s, "${1}.${2}")
 	return capitalise(original, s), n
 }
