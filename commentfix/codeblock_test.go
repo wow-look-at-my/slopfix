@@ -82,6 +82,64 @@ func TestNumbersInAHashCommentCodeBlockAreLeftAlone(t *testing.T) {
 	assert.Equal(t, src, Fix("x.py", src).Text)
 }
 
+// displayShapeRow is the code row of ffs.impl.bash's displayShape comment.
+const displayShapeRow = "//\te<Name>;  enum   l<shape>  list of shape   m<key><val>  map   .  anything else"
+
+// displayShapeSource is that comment over its function. The comment runs
+// longer than the code, so the length repair cuts it.
+const displayShapeSource = "package codegen\n\n" +
+	"// displayShape encodes where enums sit inside a type, for the runtime's\n" +
+	"// display walk. Empty means the type holds no enum, and the ordinary\n" +
+	"// rendering applies. Encoding (prefix form, parses left to right):\n" +
+	"//\n" +
+	displayShapeRow + "\n" +
+	"//\n" +
+	"// Struct interiors are NOT encoded here: a struct renders through its own\n" +
+	"// generated field-shape metadata, so a recursive type cannot run away.\n" +
+	"func displayShape(t ir.TypeRef) string {\n" +
+	"\tif t == nil {\n" +
+	"\t\treturn \"\"\n" +
+	"\t}\n" +
+	"\tswitch t.Kind {\n" +
+	"\tcase ir.TEnum:\n" +
+	"\t\treturn \"e\" + bashSym(t.Name) + \";\"\n" +
+	"\tcase ir.TList:\n" +
+	"\t\tif inner := displayShape(t.Elem); inner != \"\" {\n" +
+	"\t\t\treturn \"l\" + inner\n" +
+	"\t\t}\n" +
+	"\tcase ir.TMap:\n" +
+	"\t\tk, v := displayShape(t.KeyType), displayShape(t.ValType)\n" +
+	"\t\tif k != \"\" || v != \"\" {\n" +
+	"\t\t\tif k == \"\" {\n" +
+	"\t\t\t\tk = \".\"\n" +
+	"\t\t\t}\n" +
+	"\t\t\tif v == \"\" {\n" +
+	"\t\t\t\tv = \".\"\n" +
+	"\t\t\t}\n" +
+	"\t\t\treturn \"m\" + k + v\n" +
+	"\t\t}\n" +
+	"\t}\n" +
+	"\treturn \"\"\n" +
+	"}\n"
+
+// A cut keeps the opening of the block and never joins a code row into prose.
+// Joined, the row read "map. anything else Struct interiors are NOT encoded
+// here.", which is no sentence.
+func TestACutNeverJoinsACodeRowIntoProse(t *testing.T) {
+	require.NotEmpty(t, Check("alloc.go", displayShapeSource), "the comment runs longer than its code")
+	out := Fix("alloc.go", displayShapeSource).Text
+
+	assert.NotContains(t, out, "map. anything else")
+	assert.NotContains(t, out, "e<Name>; enum")
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "e<Name>") {
+			assert.Equal(t, displayShapeRow, line, "a code row survives whole or not at all")
+		}
+	}
+	assert.Contains(t, out, "// displayShape encodes where enums sit inside a type")
+	assert.Empty(t, Check("alloc.go", out))
+}
+
 // FixLengthText runs the length repair and answers what it wrote.
 func FixLengthText(t *testing.T, src string) string {
 	t.Helper()

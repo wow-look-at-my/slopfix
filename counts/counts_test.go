@@ -138,9 +138,9 @@ func TestEveryCountIsReworded(t *testing.T) {
 // repair keeps the bound. The first case is a line of shader-simulator's
 // AGENTS.md.
 func TestABoundSignIsRewordedWithTheBound(t *testing.T) {
-	le, ge := lessOrEqual, greaterOrEqual
+	le, ge, dash := lessOrEqual, greaterOrEqual, string(rune(0x2014))
 	for in, want := range map[string]string{
-		"- **" + le + "750 lines per file** -- this is why codegen is split into `codegen.go` + `glsl_extinst.go`": "- **a bounded number of lines per file** -- this is why codegen is split into `codegen.go` + `glsl_extinst.go`",
+		"- **" + le + "750 lines per file** " + dash + " this is why codegen is split into `codegen.go` + `glsl_extinst.go`": "- **a bounded number of lines per file** " + dash + " this is why codegen is split into `codegen.go` + `glsl_extinst.go`",
 		"It keeps " + le + "500 lines.":   "It keeps a bounded number of lines.",
 		"It keeps " + le + " 500 lines.":  "It keeps a bounded number of lines.",
 		"It keeps <= 500 lines.":          "It keeps a bounded number of lines.",

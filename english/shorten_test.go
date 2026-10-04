@@ -27,6 +27,16 @@ func TestACutTakesThePunctuationThatAttachesThePhrase(t *testing.T) {
 	assert.Equal(t, "Keep 1,.5 as written.", Fix("Keep 1,.5 as written.", Document), "no cut, no change")
 }
 
+// A cut to the end of the sentence that takes the bracket closing an aside
+// takes the whole sentence. A cut of the clause alone leaves "(rather than
+// skipping it before the hardlink bookkeeping, as." of the first sentence,
+// which is basicopy's hardlink.go comment.
+func TestACutThatClosesAnAsideTakesItsSentence(t *testing.T) {
+	in := "Adopting an unchanged primary (rather than skipping it before the hardlink bookkeeping, as this used to) matters for incremental runs: without a recorded primary, a secondary missing from the destination was recopied as an independent duplicate, silently losing the hardlink structure and doubling the stored data. The links stay."
+	assert.Equal(t, "The links stay.", Fix(in, Comment))
+	assert.Equal(t, "It reads the flag. The links stay.", Fix("It reads the flag. The walk (as this used to) skips it. The links stay.", Comment))
+}
+
 // Every entry declares its own worked examples, and each has to fire. Without
 // this an entry that stopped matching -- a typo, a phrase the boundary rule
 // rejects, a rewrite shadowed by a drop -- would sit in the table looking

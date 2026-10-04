@@ -355,7 +355,7 @@ func clauseFit(b block) ([]string, bool) {
 		return nil, false
 	}
 	var body []string
-	for _, line := range prose(b.text) {
+	for _, line := range leadingProse(b.text) {
 		body = append(body, stripMarker(line))
 	}
 	text := strings.Join(strings.Fields(strings.Join(body, " ")), " ")
@@ -373,6 +373,17 @@ func clauseFit(b block) ([]string, bool) {
 		}
 	}
 	return nil, false
+}
+
+// leadingProse answers the prose lines of a block up to its first code row.
+func leadingProse(text []string) []string {
+	lines := prose(text)
+	for i, line := range lines {
+		if codeRow(line) {
+			return lines[:i]
+		}
+	}
+	return lines
 }
 
 // hasVerb reports text the sentence parser finds a finite verb in.
@@ -411,7 +422,7 @@ func wordFit(b block) ([]string, bool) {
 		return nil, false
 	}
 	var body []string
-	for _, line := range prose(b.text) {
+	for _, line := range leadingProse(b.text) {
 		body = append(body, stripMarker(line))
 	}
 	render := func(text string) []string {
