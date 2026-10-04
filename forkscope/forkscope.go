@@ -694,7 +694,9 @@ func upstreamBranch(upstream string) (string, error) {
 	return "", fmt.Errorf("fork scope: %s names no default branch", upstream)
 }
 
-// upstreamTags answers the commit each tag of upstream names.
+// upstreamTags answers the commit each tag of upstream names. An upstream
+// that carries no tags answers none, which leaves the caller to measure from
+// its default branch instead.
 func upstreamTags(upstream string) ([]string, error) {
 	out, err := gitIn(".", "ls-remote", "--tags", upstream)
 	if err != nil {
@@ -721,7 +723,7 @@ func upstreamTags(upstream string) ([]string, error) {
 		commits.Add(sha)
 	}
 	if commits.Len() == 0 {
-		return nil, fmt.Errorf("fork scope: %s has no tags", upstream)
+		return nil, nil
 	}
 	return commits.Values(), nil
 }

@@ -435,16 +435,16 @@ func TestAListedForkWithNoUsableTagFailsLoudly(t *testing.T) {
 		list   string
 		want   string
 	}{
-		"an entry without a URL":   {http.StatusOK, forkList("o/fork", ""), "is not a fork list"},
-		"a name with no owner":     {http.StatusOK, forkList("fork", untagged), "is not a fork list"},
-		"a URL that is no string":  {http.StatusOK, `{"o/fork": 1}`, "is not a fork list"},
-		"a list that is no object": {http.StatusOK, `["o/fork"]`, "is not a fork list"},
-		"a null list":              {http.StatusOK, "null", "is not a fork list"},
-		"a list that is no JSON":   {http.StatusOK, "o/fork " + untagged + "\n", "is not a fork list"},
-		"a list error":             {http.StatusInternalServerError, "boom", "500"},
-		"missing upstream":         {http.StatusOK, forkList("o/fork", filepath.Join(t.TempDir(), "gone.git")), "list the tags of"},
-		"no tags":                  {http.StatusOK, forkList("o/fork", untagged), "has no tags"},
-		"unrelated tags":           {http.StatusOK, forkList("o/fork", unrelated), "HEAD contains none of the tags"},
+		"an entry without a URL":     {http.StatusOK, forkList("o/fork", ""), "is not a fork list"},
+		"a name with no owner":       {http.StatusOK, forkList("fork", untagged), "is not a fork list"},
+		"a URL that is no string":    {http.StatusOK, `{"o/fork": 1}`, "is not a fork list"},
+		"a list that is no object":   {http.StatusOK, `["o/fork"]`, "is not a fork list"},
+		"a null list":                {http.StatusOK, "null", "is not a fork list"},
+		"a list that is no JSON":     {http.StatusOK, "o/fork " + untagged + "\n", "is not a fork list"},
+		"a list error":               {http.StatusInternalServerError, "boom", "500"},
+		"missing upstream":           {http.StatusOK, forkList("o/fork", filepath.Join(t.TempDir(), "gone.git")), "list the tags of"},
+		"no tags, no common history": {http.StatusOK, forkList("o/fork", untagged), "no merge base"},
+		"unrelated tags":             {http.StatusOK, forkList("o/fork", unrelated), "HEAD contains none of the tags"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
