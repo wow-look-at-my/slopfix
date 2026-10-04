@@ -164,6 +164,9 @@ func TestAFixedValueIsNoCount(t *testing.T) {
 		"The lane carries 16 bits.",
 		"The mask keeps 8 bits.",
 		"The footprint (1760 workgroups x 64 KiB = 110 MiB) fits.",
+		"The §9 trigger fires.",
+		"Is a fork as cheap to create as §2.4 claims?",
+		"It inherits §3 rules without re-arguing them.",
 	} {
 		out, cut := StripGate(in)
 		assert.Empty(t, cut, in)
