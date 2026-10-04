@@ -18,12 +18,6 @@ const IDEnvIndirection = "yaml/env-indirection"
 // wholeExpression matches a value that is one ${{ }} expression and nothing else.
 var wholeExpression = regexp.MustCompile(`^\$\{\{\s*([^}]*?)\s*\}\}$`)
 
-// untrusted names the contexts an attacker can write.
-var untrusted = regexp.MustCompile(`github\.event\b|github\.head_ref\b`)
-
-// inputRef matches a read of an input, and captures its name when a dot names it.
-var inputRef = regexp.MustCompile(`\binputs\s*(?:\.\s*([A-Za-z_][A-Za-z0-9_-]*)|\[)`)
-
 // typedInputs are the input types whose value cannot carry shell text.
 var typedInputs = set.Of("boolean", "number")
 
@@ -55,24 +49,23 @@ func safeInputs(root *yaml.Node) set.Set[string] {
 	return safe.Difference(unsafe)
 }
 
-// readsTextInput reports whether an expression reads an input that is not in safe.
-func readsTextInput(expr string, safe set.Set[string]) bool {
-	for _, m := range inputRef.FindAllStringSubmatch(expr, -1) {
-		if m[1] == "" || !safe.Contains(m[1]) {
-			return true
-		}
+// plainContext matches a context whose value holds no quote, space or other
+// shell text: a runner fact, a number, a hash or a name GitHub restricts.
+var plainContext = regexp.MustCompile(`^(?:runner\.(?:temp|tool_cache|os|arch|name|environment|debug)|` +
+	`github\.(?:event_name|sha|workflow_sha|run_id|run_number|run_attempt|ref_type|repository|repository_owner|repository_id|repository_owner_id|actor_id|server_url|api_url|graphql_url|retention_days|job)|` +
+	`strategy\.(?:job-index|job-total|fail-fast|max-parallel)|job\.status)$`)
+
+// typedInput matches a read of a single input by its name.
+var typedInput = regexp.MustCompile(`^inputs\.([A-Za-z_][A-Za-z0-9_-]*)$`)
+
+// plainValue reports an expression whose value cannot carry shell text.
+func plainValue(expr string, safe set.Set[string]) bool {
+	expr = strings.TrimSpace(expr)
+	if m := typedInput.FindStringSubmatch(expr); m != nil {
+		return safe.Contains(m[1])
 	}
-	return false
+	return plainContext.MatchString(expr)
 }
-
-// secret matches a secret, which must not land in the script file on disk.
-var secret = regexp.MustCompile(`\bsecrets\.`)
-
-// stepResult matches the result output of a step, and captures the step id.
-var stepResult = regexp.MustCompile(`^steps\.([A-Za-z0-9_-]+)\.outputs\.result$`)
-
-// scriptAction matches an action whose result output is JSON.
-var scriptAction = regexp.MustCompile(`(^|[/@])typescript([@#]|$)|github-script@`)
 
 // runnerContext maps a runner variable to the context that carries the same
 // value. A path in this map names the host inside a job container, where the
@@ -99,8 +92,6 @@ type envStep struct {
 	// prefix is the bytes on each row before the script line starts.
 	prefix []string
 	parsed *syntax.File
-	// uses maps each step id in the same steps list to the action it uses.
-	uses map[string]string
 	// safe names the inputs whose value cannot carry shell text.
 	safe set.Set[string]
 }
@@ -145,7 +136,6 @@ func envPlans(content string) []envPlan {
 		if !ok {
 			continue
 		}
-		es.uses = s.uses
 		es.safe = safe
 		if p := es.plan(content, rows); len(p.findings) > 0 {
 			out = append(out, p)
@@ -159,18 +149,6 @@ type stepRef struct {
 	step      *yaml.Node
 	container bool
 	windows   bool
-	uses      map[string]string
-}
-
-// usesByID maps each step id in a steps list to the action that step uses.
-func usesByID(steps *yaml.Node) map[string]string {
-	out := map[string]string{}
-	for _, step := range steps.Content {
-		if id, uses := mappingValue(step, "id"), mappingValue(step, "uses"); id != nil && uses != nil {
-			out[id.Value] = uses.Value
-		}
-	}
-	return out
 }
 
 // runSteps answers every step of every job, and every step of a composite action.
@@ -194,17 +172,15 @@ func runSteps(root *yaml.Node) []stepRef {
 				walk(on, func(n *yaml.Node) { text.WriteString(n.Value) })
 				windows = strings.Contains(strings.ToLower(text.String()), "windows")
 			}
-			uses := usesByID(steps)
 			for _, step := range steps.Content {
-				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), uses: uses})
+				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell)})
 			}
 		}
 	}
 	if steps := mappingValue(mappingValue(root, "runs"), "steps"); steps != nil && steps.Kind == yaml.SequenceNode {
-		uses := usesByID(steps)
 		for _, step := range steps.Content {
 			// A composite action does not know the job that calls it. That job can run in a container.
-			out = append(out, stepRef{step: step, container: true, uses: uses})
+			out = append(out, stepRef{step: step, container: true})
 		}
 	}
 	return out
@@ -399,10 +375,7 @@ func (es envStep) judgeEntry(name string, key, value *yaml.Node, refs []paramRef
 		return true, false
 	}
 	match := wholeExpression.FindStringSubmatch(strings.TrimSpace(value.Value))
-	if match == nil || untrusted.MatchString(match[1]) || readsTextInput(match[1], es.safe) || secret.MatchString(match[1]) {
-		return false, false
-	}
-	if id := stepResult.FindStringSubmatch(match[1]); id != nil && scriptAction.MatchString(es.uses[id[1]]) {
+	if match == nil || !plainValue(match[1], es.safe) {
 		return false, false
 	}
 	for _, r := range refs {

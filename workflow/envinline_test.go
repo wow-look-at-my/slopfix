@@ -32,20 +32,21 @@ const envActionFixed = "name: x\n" +
 	"      uses: some/download@v1\n" +
 	"    - name: install\n" +
 	"      shell: bash\n" +
+	"      env:\n" +
+	"        DOWNLOADED: ${{ steps.download.outputs.path }}\n" +
 	"      run: |\n" +
 	"        set -euo pipefail\n" +
 	"        BIN_DIR=\"$RUNNER_TEMP/go-toolchain-bin\"\n" +
 	"        mkdir -p \"${BIN_DIR}\"\n" +
-	"        mv \"${{ steps.download.outputs.path }}\" \"${BIN_DIR}/go-toolchain\"\n"
+	"        mv \"${DOWNLOADED}\" \"${BIN_DIR}/go-toolchain\"\n"
 
-func TestAnEnvEntryThatOnlyCarriesAnExpressionIsInlined(t *testing.T) {
+// The script sets BIN_DIR before it reads it, so the entry goes. A step output
+// is text another program wrote, so DOWNLOADED stays in env.
+func TestAnEnvEntryTheScriptOverwritesGoes(t *testing.T) {
 	found := envIndirections(envAction)
-	require.Len(t, found, 2)
-	lines := []int{found[0].Line, found[1].Line}
-	assert.ElementsMatch(t, []int{10, 11}, lines)
-	for _, f := range found {
-		assert.Equal(t, IDEnvIndirection, f.ID)
-	}
+	require.Len(t, found, 1)
+	assert.Equal(t, 10, found[0].Line)
+	assert.Equal(t, IDEnvIndirection, found[0].ID)
 
 	got := Fix(envAction, func(id string) bool { return id == IDEnvIndirection })
 	assert.Equal(t, envActionFixed, got.Text)
@@ -186,18 +187,27 @@ func TestAScriptResultOrASecretStaysInEnv(t *testing.T) {
 	}
 }
 
-// Another action's result output is no JSON the rule knows of, so it goes inline.
-func TestAnotherActionsResultIsInlined(t *testing.T) {
-	content := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - id: x\n" +
-		"        uses: some/action@v1\n" +
-		"      - env:\n" +
-		"          VALUE: ${{ steps.x.outputs.result }}\n" +
-		"        run: echo \"$VALUE\"\n"
-	assert.Len(t, envIndirections(content), 1)
+// A step output or a matrix value can hold quotes, as secret-server's JSON
+// secrets output does. Inlined, its quotes end the script's quoted word early,
+// so the entry stays in env, unreported.
+func TestAStepOutputOrAMatrixValueStaysInEnv(t *testing.T) {
+	for _, expr := range []string{"${{ steps.fetch.outputs.secrets }}", "${{ steps.x.outputs.result }}", "${{ matrix.os }}", "${{ github.ref_name }}", "${{ env.OTHER }}"} {
+		content := "jobs:\n" +
+			"  a:\n" +
+			"    runs-on: ubuntu-latest\n" +
+			"    steps:\n" +
+			"      - id: fetch\n" +
+			"        uses: some/action@v1\n" +
+			"      - env:\n" +
+			"          SECRETS_JSON: " + expr + "\n" +
+			"        run: |\n" +
+			"          if [ -z \"$SECRETS_JSON\" ]; then\n" +
+			"            exit 1\n" +
+			"          fi\n" +
+			"          echo \"$SECRETS_JSON\" | jq empty\n"
+		assert.Empty(t, envIndirections(content), expr)
+		assert.Equal(t, content, Fix(content, func(string) bool { return true }).Text, expr)
+	}
 }
 
 func TestAnEntryWithExtraTextOrAnOperatorStays(t *testing.T) {
@@ -220,15 +230,15 @@ func TestASingleLineRunIsInlinedAndKeepsTheOtherEntries(t *testing.T) {
 		"    steps:\n" +
 		"      - env:\n" +
 		"          KEEP: ${{ inputs.keep }}\n" +
-		"          OUT: ${{ steps.x.outputs.path }}\n" +
-		"        run: cat \"$OUT\"\n"
+		"          OUT: ${{ github.sha }}\n" +
+		"        run: git show \"$OUT\"\n"
 	want := "jobs:\n" +
 		"  a:\n" +
 		"    runs-on: ubuntu-latest\n" +
 		"    steps:\n" +
 		"      - env:\n" +
 		"          KEEP: ${{ inputs.keep }}\n" +
-		"        run: cat \"${{ steps.x.outputs.path }}\"\n"
+		"        run: git show \"${{ github.sha }}\"\n"
 	got := Fix(content, func(id string) bool { return id == IDEnvIndirection })
 	assert.Equal(t, want, got.Text)
 }
