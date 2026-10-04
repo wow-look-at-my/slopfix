@@ -89,7 +89,7 @@ func checkMask(prose string) string {
 		case '&':
 			fillCheckWord(out[span[0]:span[1]], "ENTITY")
 		default:
-			fillWord(out[span[0]:span[1]])
+			fillLink(out[span[0]:span[1]], func(inner []byte) { fillCheckWord(inner, "URL") })
 		}
 	}
 	// Check finds a quotation after it strips code, so a quote mark inside a code span pairs with nothing.
@@ -250,6 +250,7 @@ func candidates(source, masked string, strict bool) []forceCut {
 	off := verbatimSpan.FindAllStringIndex(source, -1)
 	off = append(off, quotedSpans(source)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
+	off = append(off, outerParens(masked)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
 	verbs := set.New[int]()
@@ -294,6 +295,31 @@ func candidates(source, masked string, strict bool) []forceCut {
 		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty})
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].score > out[b].score })
+	return out
+}
+
+// outerParens answers each outermost balanced parenthesis, nested ones too. A
+// link inside an aside nests a pair the parenthetical pattern cannot match.
+func outerParens(text string) [][]int {
+	var out [][]int
+	depth, open := 0, 0
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '(':
+			if depth == 0 {
+				open = i
+			}
+			depth++
+		case ')':
+			if depth == 0 {
+				continue
+			}
+			depth--
+			if depth == 0 {
+				out = append(out, []int{open, i + 1})
+			}
+		}
+	}
 	return out
 }
 
