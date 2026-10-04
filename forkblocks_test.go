@@ -45,7 +45,7 @@ func ofID(findings []string, id string) int {
 	return n
 }
 
-func findingIDs(r slopfix.Repair) []string {
+func repairIDs(r slopfix.Repair) []string {
 	var out []string
 	for _, f := range r.Findings {
 		out = append(out, f.ID)
@@ -61,7 +61,7 @@ func TestAForkCommentRunTheForkWroteInPartIsRepaired(t *testing.T) {
 	owned := forkscope.Changed(upstreamWorkflow, forkWorkflow)
 
 	before := slopfix.Report(slopfix.Request{Path: path, Content: forkWorkflow, Owned: owned})
-	require.Equal(t, 1, ofID(findingIDs(before), workflow.IDCommentBlock), "the run holds a line the fork wrote, so it is the fork's finding")
+	require.Equal(t, 1, ofID(repairIDs(before), workflow.IDCommentBlock), "the run holds a line the fork wrote, so it is the fork's finding")
 
 	repair := slopfix.Fix(slopfix.Request{Path: path, Content: forkWorkflow, Owned: owned})
 	assert.Empty(t, repair.Findings, "fix left a finding the fork's check reports")
@@ -150,7 +150,7 @@ func TestAForkVolumeFindingNamesItsBlockAndIsRepaired(t *testing.T) {
 	assert.Equal(t, []int{5}, volume, "only the block the fork wrote a line of is the fork's finding, and it names where that block starts")
 
 	repair := slopfix.Fix(req)
-	assert.Zero(t, ofID(findingIDs(repair), tombstones.IDVolume), "fix left a volume finding the fork's check reports")
+	assert.Zero(t, ofID(repairIDs(repair), tombstones.IDVolume), "fix left a volume finding the fork's check reports")
 	assert.Equal(t, upstreamSnippet, repair.Text, "the fork's lines in the block go back to the base, and nothing else moves")
 }
 
