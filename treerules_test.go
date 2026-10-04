@@ -326,7 +326,6 @@ func TestXMLIsHeldToTheSchemaItNames(t *testing.T) {
 	}, pathsOf(checkOnly(root, slopfix.IDXML)))
 }
 
-
 // The rule fails a document on its own: naming another rule leaves it out.
 func TestNamingAnotherRuleLeavesTheDocumentRulesOut(t *testing.T) {
 	root := gitRepo(t, map[string]string{"broken.json": "{", "tool": elf})
