@@ -16,7 +16,8 @@ var (
 	// carrierAdverbial words open an adverbial that a carrier can take.
 	carrierAdverbial = set.Of(wordsOf("carrier-adverbial")...)
 	// focusing adverbs bind to the phrase after them: "lands only on the lines".
-	focusing = set.Of("only", "just", "even", "also", "still", "exactly", "directly", "right", "mostly", "mainly", "solely")
+	focusing = set.Of("only", "just", "even", "also", "still", "exactly", "directly", "right", "mostly", "mainly", "solely",
+		"immediately", "shortly", "soon", "long", "well", "far", "straight")
 	// carrierBound words move behind a carrier only before "every" or "each".
 	carrierBound = set.Of(wordsOf("carrier-bound")...)
 	// carrierPlace words open a phrase of place, which describes the noun before it.
@@ -266,10 +267,6 @@ func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool)
 	// ", where the fork's changes made": after a comma a clause opener starts its own clause, whatever the verb before it.
 	opensClause := first > 0 && s.Words[first-1].Text == "," && clauseOpeners.Contains(s.Words[first].Lower()) && finiteBefore(s, first+1, ",")
 	if !opensClause && strings.HasPrefix(prev.Tag, "VB") || prev.Tag == "RP" || focusing.Contains(prev.Lower()) || phraseEndParticle.Contains(prev.Lower()) {
-		return false
-	}
-	// "calls this immediately before X": an adverb binds to the phrase right after it.
-	if prev.Tag == "RB" {
 		return false
 	}
 	// "which is immediately before each request": a phrase after "be" and its adverbs completes "be".
