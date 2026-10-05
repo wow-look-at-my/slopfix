@@ -36,6 +36,23 @@ func TestFixCutsABlockBackUnderTheVolumeCap(t *testing.T) {
 	assert.Contains(t, repair.Text, "func Run() {\n\tstep(theFirstArgumentOfTheCall", "the code is untouched")
 }
 
+// Each field doc of a Rust struct is its own block, so short docs on many fields never add up to a volume finding.
+func TestRustFieldDocsAreSeparateBlocks(t *testing.T) {
+	var src strings.Builder
+	src.WriteString("pub struct Tracker {\n")
+	for i := range 10 {
+		src.WriteString("    /// Entry that receives the deltas of this stream.\n")
+		src.WriteString("    /// None between turns, and before the first chunk.\n")
+		src.WriteString("    field_" + string(rune('a'+i)) + ": Option<u64>,\n")
+	}
+	src.WriteString("}\n")
+
+	repair := slopfix.Report(slopfix.Request{Path: "tracker.rs", Content: src.String(), MaxCommentLines: tombstones.DefaultMaxCommentLines})
+	for _, k := range repair.Kept {
+		assert.NotEqual(t, tombstones.IDVolume, k.ID, "line %d: %s", k.LineNo, k.Tell)
+	}
+}
+
 // A package doc has no construct to weigh against, so only the cap judges it.
 // The fix cuts it the same way and keeps the package clause.
 func TestFixCutsAPackageDocBackUnderTheVolumeCap(t *testing.T) {
