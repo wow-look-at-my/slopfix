@@ -381,9 +381,9 @@ func TestAListedForkReportsOnlyTheLinesItWrote(t *testing.T) {
 	assert.Equal(t, []int{3}, held(own, fx.fork, "loose.md", 3))
 }
 
-// An upstream that carries no tags names no release to measure from, so a
-// listed fork is measured against that upstream's default branch instead, and
-// is scoped exactly as the parent-merge-base path scopes it.
+// An upstream that carries no tags names no release to measure from. A listed
+// fork is measured against that upstream's default branch instead, and is
+// scoped exactly as the parent-merge-base path scopes it.
 func TestAListedForkWhoseUpstreamHasNoTagsIsMeasuredFromItsBranch(t *testing.T) {
 	fx := newForkFixture(t)
 	own := scoped(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))

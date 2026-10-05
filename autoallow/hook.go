@@ -104,8 +104,8 @@ func evaluateCommand(command string) (string, string) {
 // evaluateCommandWith takes the rule set as a value, so a test never swaps the package-level `rules`.
 func evaluateCommandWith(command string, rules Rules) (string, string) {
 	// Process rules outrank command rules, and are answered by walking the parse
-	// tree, so they still see a command the allow path below refuses to read --
-	// a `$(...)`, a subshell, anything with a redirect.
+	// tree. They still see a command the allow path below refuses to read -- a
+	// `$(...)`, a subshell, anything with a redirect.
 	for _, section := range []struct {
 		rules    []CommandRule
 		behavior string

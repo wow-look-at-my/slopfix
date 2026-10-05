@@ -75,7 +75,7 @@ func TestTheSweepWritesAnUncommittedFile(t *testing.T) {
 }
 
 // A rewrite in the middle of a merge or a rebase mixes into the resolution the
-// user is making, so the sweep writes nothing and says why.
+// user is making, so the sweep writes nothing. The sweep says why.
 func TestTheSweepWritesNothingWhileGitWaitsForTheUser(t *testing.T) {
 	for marker, name := range map[string]string{
 		"MERGE_HEAD":       "a merge",

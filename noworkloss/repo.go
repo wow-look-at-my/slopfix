@@ -160,7 +160,7 @@ func runGit(dir string, args ...string) (stdout, stderr string, err error) {
 }
 
 // runGitEnvTimeout is runGit with the extras a preservation commit needs and
-// an ordinary status probe never does: a bounded set of extra environment
+// an ordinary status probe never does. A bounded set of extra environment
 // variables (GIT_INDEX_FILE, to build a commit through a throwaway index
 // instead of the user's own), and a timeout of the caller's choosing (a push
 // reaches the network, so it gets more than the status budget).
@@ -184,8 +184,7 @@ func runGitEnvTimeout(dir string, timeout time.Duration, extraEnv []string, args
 }
 
 // atRisk returns the entries of each requested class that the finding's paths
-// actually cover. A nil path list means the command operates on the whole
-// repository.
+// cover. A nil path list means the command operates on the whole repository.
 func (st *repoState) atRisk(f *finding, cwd string) (tracked, untracked, ignored []string) {
 	sel := func(entries []string) []string {
 		if f.paths == nil {

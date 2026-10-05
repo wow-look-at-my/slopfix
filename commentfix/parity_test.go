@@ -97,8 +97,12 @@ func TestTheCharacterFloorHolds(t *testing.T) {
 	src := "package p\n\n" + note + "\nconst p = 1\n"
 	assert.Empty(t, CheckLength("x.go", src), "a comment inside the floor is allowed")
 
-	over := "// " + strings.Repeat("a", floorChars+40)
+	over := "// " + strings.Repeat("The gate reads the file. ", floorChars/25+2)
 	assert.NotEmpty(t, CheckLength("x.go", "package p\n\n"+over+"\nconst p = 1\n"))
+
+	// One sentence under the sentence cap has no cut to make, so the floor of characters does not weigh it.
+	one := "// " + strings.Repeat("a", floorChars+40)
+	assert.Empty(t, CheckLength("x.go", "package p\n\n"+one+"\nconst p = 1\n"))
 }
 
 // A comment inside a switch case documents the statement under it, not the rest

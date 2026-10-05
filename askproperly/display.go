@@ -1,13 +1,12 @@
-// display.go turns the findings into the line appended to a finished
-// message.
+// display.go turns the findings into the line appended to a finished message.
 //
-// This is the whole enforcement. Nothing is refused and nothing is sent back to
-// the model, because the reader is the person the question was aimed at: a
-// prose question the reader can see marked as an offloaded decision has already
-// cost the writer what it was meant to cost. Asking the model to re-emit the
-// message instead costs a round trip, and the message it writes to comply puts
-// the decision back into prose while explaining itself, which trips the guard
-// again.
+// This is the whole enforcement. Nothing is refused and nothing is sent back
+// to the model, because the reader is the person the question was aimed at. A
+// prose question the reader can see marked as an offloaded decision has
+// already cost the writer what it was meant to cost. Asking the model to
+// re-emit the message instead costs a round trip. The message it writes to
+// comply puts the decision back into prose while explaining itself, which
+// trips the guard again.
 package askproperly
 
 import (
