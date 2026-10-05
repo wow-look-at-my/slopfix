@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
@@ -57,11 +56,9 @@ func capReport(in, out string) string {
 }
 
 func TestEveryExtractedSentenceDividesUnderTheCap(t *testing.T) {
-	data, err := os.ReadFile("testdata/sglang-sentence-cap.txt")
-	require.NoError(t, err)
 	var report strings.Builder
 	failed := 0
-	for _, in := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+	for _, in := range capSentences {
 		in = strings.TrimSpace(in)
 		if in == "" {
 			continue
@@ -72,7 +69,8 @@ func TestEveryExtractedSentenceDividesUnderTheCap(t *testing.T) {
 			report.WriteString(r)
 		}
 	}
-	require.NoError(t, os.WriteFile("../.scratch/cap-report.txt", []byte(report.String()), 0o644))
+	require := os.WriteFile("../.scratch/cap-report.txt", []byte(report.String()), 0o644)
+	assert.NoError(t, require)
 	t.Logf("sentences the repair got wrong: %d of the fixture", failed)
 	assert.Zero(t, failed, "see .scratch/cap-report.txt")
 }
