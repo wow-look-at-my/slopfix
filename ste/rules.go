@@ -184,7 +184,7 @@ func markByHand(text string, findings []Finding) []Finding {
 			if left == nil {
 				left = map[string]bool{}
 				// Only a sentence still over the cap is left. A divided first half opens with the same words as the whole.
-				for _, sentence := range Sentences(strip(fixSentenceCap(text, true))) {
+				for _, sentence := range Sentences(strip(fixSentenceCap(text, division{reorder: true, cap: SentenceWordCap}))) {
 					if WordCount(sentence) > SentenceWordCap {
 						left[truncate(strings.TrimSpace(sentence))] = true
 					}

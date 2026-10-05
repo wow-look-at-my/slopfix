@@ -489,7 +489,7 @@ func pointsBack(s *syntax.Sentence) bool {
 // subjectDivision writes a long subject as a sentence of its own: "A reader
 // arriving at X still deserves Y." becomes "Consider a reader arriving at X.
 // That reader still deserves Y." The noun the subject names carries the rest.
-func subjectDivision(source string, whole *syntax.Sentence) (string, bool) {
+func subjectDivision(source string, whole *syntax.Sentence, limit int) (string, bool) {
 	// The subject runs from the opening determiner to the first finite verb. The parser often names a later noun as the subject of a long one.
 	if len(whole.Words) == 0 || whole.Words[0].Tag != "DT" {
 		return source, false
@@ -525,7 +525,7 @@ func subjectDivision(source string, whole *syntax.Sentence) (string, bool) {
 	}
 	end := whole.Words[first].Start
 	subject := strings.TrimRight(source[:end], " ")
-	if WordCount(checkMask(subject))+1 > SentenceWordCap {
+	if WordCount(checkMask(subject))+1 > limit {
 		return source, false
 	}
 	det := "That"

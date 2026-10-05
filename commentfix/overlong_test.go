@@ -163,19 +163,34 @@ func TestFixLeavesACleanFileAlone(t *testing.T) {
 	assert.Equal(t, src, out)
 }
 
-// A block whose opening sentence alone still exceeds the budget is left as it
-// is and still reported. A repair that deletes the only sentence worth keeping
-// is worse than the finding.
-func TestASingleOpeningSentenceTooLongToFitStays(t *testing.T) {
+// A block whose opening sentence alone exceeds the budget divides that sentence
+// until its first sentence fits. The repair keeps whole sentences.
+func TestASingleOpeningSentenceTooLongToFitDivides(t *testing.T) {
 	long := "// " + strings.Repeat("a very long single opening sentence that will not fit ", 6)
 	src := "package p\n\n" + long + "\nconst p = 1\n"
 
 	hits := CheckLength("x.go", src)
 	require.Len(t, hits, 1)
-	assert.False(t, hits[0].Repairable, "no cut leaves a whole sentence")
+	assert.True(t, hits[0].Repairable, "a division leaves a whole sentence that fits")
 
-	out, _ := FixLength("x.go", src)
-	assert.NotContains(t, out, ".", "no period closes a cut between words:\n%s", out)
+	out, changed := FixLength("x.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("x.go", out), "the repaired file is clean:\n%s", out)
+	comment := strings.TrimSpace(strings.TrimPrefix(strings.Split(out, "\n")[2], "//"))
+	assert.True(t, strings.HasSuffix(comment, "."), "the kept text ends a sentence: %q", comment)
+	assert.Contains(t, comment, " ", "the kept text is a sentence, not one word: %q", comment)
+}
+
+// A long opening sentence with clauses keeps its own leading clause when it
+// divides to fit, so the comment still opens with its point.
+func TestALongOpeningDividesAtAClause(t *testing.T) {
+	long := "// The cache writes every entry to disk before it answers the caller, because a crash between the answer and the write loses the entry, and the caller then reads a value that the next process cannot find again."
+	src := "package p\n\n" + long + "\nconst p = 1\n"
+
+	out, changed := FixLength("x.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("x.go", out), "the repaired file is clean:\n%s", out)
+	assert.Contains(t, out, "// The cache writes every entry to disk before it answers the caller.", out)
 }
 
 // A comment marker inside a string is data, and the adapter is what keeps it

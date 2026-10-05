@@ -349,7 +349,9 @@ func trim(b block) []string {
 		kept = next
 	}
 	// The STE opening sentence reads best, then a clause cut.
-	opening, whole := steOpening(kept)
+	opening, whole := steOpening(kept, func(sentence, indent, marker string) ([]string, bool) {
+		return fitReflow(sentence, indent, marker, b)
+	})
 	var fits [][]string
 	if whole && fitsCode(opening, b) {
 		fits = append(fits, opening)
@@ -366,10 +368,14 @@ func trim(b block) []string {
 	return kept
 }
 
+// layout lays a sentence out as comment lines, and reports whether they fit.
+type layout func(sentence, indent, marker string) ([]string, bool)
+
 // steOpening answers a block's first sentence, repaired to STE and divided at a
-// clause boundary when it runs past the cap. It reports false when no boundary
-// brings the sentence under the cap.
-func steOpening(text []string) ([]string, bool) {
+// clause boundary when it runs past the cap. A first sentence that fit does not
+// accept divides again at a lower cap each time, and its own first sentence
+// replaces it. It reports false when no division gives a whole sentence.
+func steOpening(text []string, fit layout) ([]string, bool) {
 	marker, indent, ok := commentShape(text)
 	if !ok {
 		return nil, false
@@ -392,10 +398,27 @@ func steOpening(text []string) ([]string, bool) {
 		if !endsSentence(first) {
 			return nil, false
 		}
-		return reflow(first, indent, marker, wrapWidth), true
+		out, fits := fit(first, indent, marker)
+		for limit := ste.WordCount(first) - 1; !fits && limit >= minimumOpening; limit-- {
+			divided := ste.Sentences(ste.DivideTo(first, limit))
+			if len(divided) < 2 {
+				continue
+			}
+			head := strings.TrimSpace(divided[0])
+			if !endsSentence(head) {
+				continue
+			}
+			if shorter, ok := fit(head, indent, marker); ok {
+				return shorter, true
+			}
+		}
+		return out, true
 	}
 	return nil, false
 }
+
+// minimumOpening is the fewest words a divided opening sentence keeps.
+const minimumOpening = 3
 
 // closeThoughts joins prose lines, and writes a period where a line ends a
 // thought with no stop of its own (lineEndsThought).

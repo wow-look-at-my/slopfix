@@ -32,7 +32,11 @@ func capLines(b block, maxLines int) []string {
 	}
 	// With no sentence end to cut at, the opening sentence stays, divided where it runs past the STE cap.
 	if len(body) > limit {
-		if opening, whole := steOpening(body); whole && len(opening) <= limit {
+		opening, whole := steOpening(body, func(sentence, indent, marker string) ([]string, bool) {
+			out := reflow(sentence, indent, marker, wrapWidth)
+			return out, len(out) <= limit
+		})
+		if whole && len(opening) <= limit {
 			body = opening
 		}
 	}

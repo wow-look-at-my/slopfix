@@ -30,30 +30,30 @@ var (
 )
 
 // forceSentenceCap divides each sentence still over the cap at a word boundary.
-func forceSentenceCap(prose string, reorder bool) string {
-	over := overCap(prose)
+func forceSentenceCap(prose string, d division) string {
+	over := overCap(prose, d.cap)
 	for range len(strings.Fields(prose)) + 1 {
-		next, divided := forceNext(prose, reorder)
+		next, divided := forceNext(prose, d)
 		// A division that leaves as many words past the cap moves nothing, so the loop stops on it.
-		if !divided || overCap(next) >= over {
+		if !divided || overCap(next, d.cap) >= over {
 			return prose
 		}
-		prose, over = next, overCap(next)
+		prose, over = next, overCap(next, d.cap)
 	}
 	return prose
 }
 
-// overCap counts the words past the cap in every sentence Check reads in prose.
-func overCap(prose string) int {
+// overCap counts the words past limit in every sentence Check reads in prose.
+func overCap(prose string, limit int) int {
 	n := 0
 	for _, sentence := range Sentences(checkMask(prose)) {
-		n += max(0, WordCount(sentence)-SentenceWordCap)
+		n += max(0, WordCount(sentence)-limit)
 	}
 	return n
 }
 
 // forceNext divides the earliest over-cap sentence, as Check reads it.
-func forceNext(prose string, reorder bool) (string, bool) {
+func forceNext(prose string, d division) (string, bool) {
 	masked := checkMask(prose)
 	for _, span := range sentenceSpans(masked) {
 		start, end := span[0], span[1]
@@ -64,10 +64,10 @@ func forceNext(prose string, reorder bool) (string, bool) {
 		for end < len(prose) && masked[end] == ' ' && prose[end] != ' ' {
 			end++
 		}
-		if WordCount(masked[start:end]) <= SentenceWordCap {
+		if WordCount(masked[start:end]) <= d.cap {
 			continue
 		}
-		if rewritten, ok := forceDivision(prose[start:end], masked[start:end], reorder); ok {
+		if rewritten, ok := forceDivision(prose[start:end], masked[start:end], d); ok {
 			return prose[:start] + rewritten + prose[end:], true
 		}
 	}
@@ -134,12 +134,12 @@ type forceCut struct {
 // forceDivision divides source at the best word boundary that leaves the first
 // part under the cap. It never divides inside a code span, a link, a quotation,
 // a parenthesis or bold text.
-func forceDivision(source, masked string, reorder bool) (string, bool) {
+func forceDivision(source, masked string, d division) (string, bool) {
 	// The tags come from the whole sentence, because a fragment parsed alone reads "a faithful" as a noun.
 	whole := syntax.Parse(masked, nil)
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
-		for _, c := range candidates(source, masked, strict) {
+		for _, c := range candidates(source, masked, strict, d.cap) {
 			if cutsAside(masked, c.left, c.right) {
 				continue
 			}
@@ -154,7 +154,7 @@ func forceDivision(source, masked string, reorder bool) (string, bool) {
 			if seam == "," && strings.HasPrefix(strings.ToLower(strings.TrimLeft(source[c.right:], " ")), "so ") {
 				seam = "so"
 			}
-			if right == "" || !divides(left, right) || !closesWhole(source[:c.left], seam, whole) && !closesPhrase(source[:c.left], whole) {
+			if right == "" || !divides(left, right, d.cap) || !closesWhole(source[:c.left], seam, whole) && !closesPhrase(source[:c.left], whole) {
 				continue
 			}
 			// A rest that opens a clause of its own reads best.
@@ -166,13 +166,13 @@ func forceDivision(source, masked string, reorder bool) (string, bool) {
 			return best, true
 		}
 	}
-	if !reorder {
+	if !d.reorder {
 		return source, false
 	}
 	if out, ok := reorderDependent(source, whole); ok {
 		return out, true
 	}
-	return subjectDivision(source, whole)
+	return subjectDivision(source, whole, d.cap)
 }
 
 // closeHead ends the first part of a division as a sentence. A part that
@@ -185,15 +185,15 @@ func closeHead(head string) string {
 	return head + "."
 }
 
-// divides reports whether Check reads left as a sentence of its own under the
-// cap. It reads only the start of right, because the rest of it is unchanged.
-func divides(left, right string) bool {
+// divides reports whether Check reads left as a sentence of its own under
+// limit. It reads only the start of right, because the rest of it is unchanged.
+func divides(left, right string, limit int) bool {
 	sentences := Sentences(checkMask(left + " " + opening(right)))
 	if len(sentences) < 2 {
 		return false
 	}
 	words := WordCount(sentences[0])
-	return words <= SentenceWordCap && words == WordCount(checkMask(left))
+	return words <= limit && words == WordCount(checkMask(left))
 }
 
 // inBold reports whether byte p of a sentence sits inside bold text. A bold
@@ -219,12 +219,12 @@ const phraseReach = 8
 // phraseSpans answers the inside of each noun phrase and verb group the parser
 // finds where a cut can land, and where each finite verb starts. A cut inside
 // a phrase leaves "a detached." behind.
-func phraseSpans(masked string, ends []int) ([][]int, set.Set[int]) {
+func phraseSpans(masked string, ends []int, limit int) ([][]int, set.Set[int]) {
 	finite := set.New[int]()
 	if len(ends) == 0 {
 		return nil, finite
 	}
-	head := masked[:ends[min(SentenceWordCap+phraseReach, len(ends)-1)]]
+	head := masked[:ends[min(limit+phraseReach, len(ends)-1)]]
 	s := syntax.Parse(head, nil)
 	var out [][]int
 	for _, ph := range s.Phrases {
@@ -266,7 +266,7 @@ func wordEnds(masked string) []int {
 
 // candidates answers every admissible cut, best first. A strict pass also keeps
 // each part off a word that leaves it hanging.
-func candidates(source, masked string, strict bool) []forceCut {
+func candidates(source, masked string, strict bool, limit int) []forceCut {
 	off := verbatimSpan.FindAllStringIndex(source, -1)
 	off = append(off, quotedSpans(source)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
@@ -275,7 +275,7 @@ func candidates(source, masked string, strict bool) []forceCut {
 	ends := wordEnds(masked)
 	verbs := set.New[int]()
 	if strict {
-		spans, finite := phraseSpans(masked, ends)
+		spans, finite := phraseSpans(masked, ends, limit)
 		off, verbs = append(off, spans...), finite
 	}
 	var out []forceCut
@@ -286,7 +286,7 @@ func candidates(source, masked string, strict bool) []forceCut {
 			counted++
 		}
 		leftWords, rightWords := counted, len(ends)-counted
-		if leftWords > SentenceWordCap {
+		if leftWords > limit {
 			break
 		}
 		if p == 0 || q == len(source) || insideAny(off, p) || leftWords < 1 || rightWords < 1 {
