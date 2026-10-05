@@ -448,11 +448,61 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
-	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(rest):
+	case (conjunction == "and" || conjunction == "so") && seam == "," && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+		// The parse cuts its clauses at commas, so a subject that is a list or
+		// carries a participle opens no clause of its own.
+		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) ||
+			conjunction == "and" && seriesBefore(masked[:c.left]) {
+			return "", 0
+		}
+		return joinOpener(opener, rest), opensOwnClause - 1
+	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)):
 		// A dash or a colon before words that hold a main clause of their own: "— on first launch Grok runs your binary".
-		return capitalizeOpening(rest), opensOwnClause - 1
+		out := capitalizeOpening(rest)
+		if StandsAlone(out) {
+			return out, opensOwnClause - 1
+		}
+		if out, ok := commaAfterFrontedPhrase(out); ok && StandsAlone(out) {
+			return out, opensOwnClause - 1
+		}
 	}
 	return "", 0
+}
+
+// seriesBefore reports a comma after the first verb of head. A ", and" after it adds the last item of a series: "give the full path, why it matters, and the relevant code".
+func seriesBefore(head string) bool {
+	s := syntax.Parse(strings.TrimRight(head, " ,"), nil)
+	for i, w := range s.Words {
+		if !strings.HasPrefix(w.Tag, "VB") {
+			continue
+		}
+		for _, later := range s.Words[i+1:] {
+			if later.Text == "," {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
+// commaAfterFrontedPhrase writes the comma that ends a participle phrase in front of its clause: "Left in the text a rewrite wraps it" becomes "Left in the text, a rewrite wraps it".
+func commaAfterFrontedPhrase(text string) (string, bool) {
+	s := syntax.Parse(opening(text), nil)
+	if len(s.Words) < 4 || s.Words[0].Tag != "VBN" {
+		return text, false
+	}
+	for i := 2; i < len(s.Words); i++ {
+		w := s.Words[i]
+		if w.Text == "," {
+			return text, false
+		}
+		if (w.Tag == "DT" || w.Tag == "PRP$") && strings.HasPrefix(s.Words[i-1].Tag, "NN") {
+			at := s.Words[i-1].End
+			return text[:at] + "," + text[at:], true
+		}
+	}
+	return text, false
 }
 
 // openingBytes bounds how much of the rest the parser reads. Only its first clause decides how the rest opens.
