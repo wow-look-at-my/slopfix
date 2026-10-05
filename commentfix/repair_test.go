@@ -112,8 +112,8 @@ func TestACommentLeftWithNothingToSayLosesItsLine(t *testing.T) {
 }
 
 // A sentence wraps across comment lines, and a cut takes the whole sentence.
-// Cutting only the share a line carries leaves the rest dangling below it,
-// which is what the repair did before it read a paragraph at a time.
+// A cut of only the share a line carries leaves the rest of the sentence
+// below it. The repair reads a paragraph at a time to prevent that.
 func TestACutTakesAWrappedSentenceWhole(t *testing.T) {
 	src := "// A take that finds it empty puts refillBatch values back. Every\n" +
 		"// measured take therefore also pays for 1 add. Subtract the add\n" +

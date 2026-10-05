@@ -154,7 +154,9 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			if seam == "," && strings.HasPrefix(strings.ToLower(strings.TrimLeft(source[c.right:], " ")), "so ") {
 				seam = "so"
 			}
-			if right == "" || !divides(left, right, d.cap) || !closesWhole(source[:c.left], seam, whole) && !closesPhrase(source[:c.left], whole) {
+			// A fragment head behind "This is" closes as a sentence of its own.
+			fragment := head == fragmentHead(source[:c.left])
+			if right == "" || !divides(left, right, d.cap) || !fragment && !closesWhole(source[:c.left], seam, whole) && !closesPhrase(source[:c.left], whole) {
 				continue
 			}
 			// A rest that opens a clause of its own reads best.

@@ -128,7 +128,7 @@ func fileWrites(seg segment, name string, rest []word, roots []string) []write {
 
 	switch name {
 	case "sed":
-		return sedWrites(seg, rest)
+		return nil
 	case "awk", "gawk", "mawk", "nawk":
 		return awkWrites(seg, rest)
 

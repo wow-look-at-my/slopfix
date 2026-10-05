@@ -3,10 +3,9 @@
 //
 // A merged pull request does not un-merge, and a commit that went green does
 // not go red. The sha is fixed, so a later push produces a DIFFERENT sha and
-// therefore a different subject. Re-reading either is the purest form of the
-// waste this rule exists to stop -- not a loop that eventually learns
-// something, but a question whose answer is already in the transcript and
-// cannot change.
+// therefore a different subject. A second read of either is the purest form
+// of the waste this rule stops. It is not a loop that learns something later.
+// It is a question whose answer is already in the transcript and cannot change.
 package busypoll
 
 import (

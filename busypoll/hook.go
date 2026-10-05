@@ -1,5 +1,5 @@
-// Package busypoll refuses a turn that is the latest in a run of turns making
-// the same tool call, closely spaced, with nothing else different in between.
+// Package busypoll refuses the latest turn in a run of turns that make the
+// same tool call. The turns are close together, and nothing else differs.
 // It also refuses the status read itself when nothing it returns has changed.
 //
 // That shape is a manual polling loop: the same check re-run every turn
