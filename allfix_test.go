@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
-	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
@@ -59,13 +58,11 @@ func hardCorpus(t *testing.T) map[string]string {
 	return files
 }
 
-// errorLines answers every error a tree run reports, one line each. A long
-// sentence or a semicolon that no division keeps grammatical is left for a
-// rewrite by hand.
+// errorLines answers every error a tree run reports, one line each.
 func errorLines(out slopfix.TreeRepair) []string {
 	var lines []string
 	for _, f := range out.Findings {
-		if !f.Warning() && !ste.ByHand(f.Fix) {
+		if !f.Warning() {
 			lines = append(lines, f.Path+": "+f.Finding.String())
 		}
 	}
@@ -76,9 +73,8 @@ func errorLines(out slopfix.TreeRepair) []string {
 	return lines
 }
 
-// A fix over a tree of every rule's hardest case leaves no error. The errors
-// left are a long sentence and a semicolon that no division keeps grammatical,
-// because a broken repair is worse than none.
+// A fix over a tree of every rule's hardest case leaves no error, and no
+// finding asks for a rewrite by hand.
 func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 	root := gitRoot(t, hardCorpus(t))
 	req := slopfix.Request{MaxCommentLines: tombstones.DefaultMaxCommentLines}
@@ -108,9 +104,9 @@ func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(readme), "warns at many lines and errors at a higher count", "every count in the clause reads the same way")
 	assert.Contains(t, string(readme), "for the team. The cache in the main store holds", "a long sentence divides where both halves are sentences")
-	assert.Contains(t, string(readme), "the tall green hills of the northern valley beside the cold river under the grey winter sky.", "a sentence with no verb stays for a rewrite by hand")
+	assert.Contains(t, string(readme), "near the wooden barn. That barn is behind the tall green hills", "a sentence with no verb restates the noun a phrase of place describes")
 	assert.NotContains(t, string(readme), "This is", "no repair writes filler")
-	assert.Contains(t, string(readme), "for the build, the cache; for the test, the tree.", "a semicolon between phrases stays for a rewrite by hand")
+	assert.Contains(t, string(readme), "for the build (the cache) and for the test (the tree).", "a semicolon between pairs becomes a list of pairs")
 	assert.Contains(t, string(readme), "`code span here`", "a code span stays whole")
 	assert.Contains(t, string(readme), "\"a long quoted phrase with many words\"", "a quotation stays whole")
 	assert.FileExists(t, filepath.Join(root, "justfile"))

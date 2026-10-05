@@ -382,7 +382,7 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		return "", 0
 	}
 	switch tag := whole.Words[first].Tag; {
-	case (tag == "VB" || tag == "VBP") && conjunction == "so" && seam == "," && !opensImperativeMain(masked[:c.left]) && !instructs(whole) && opensImperative(restMasked):
+	case conjunction == "so" && seam == "," && !opensImperativeMain(masked[:c.left]) && !instructs(whole) && opensImperative(restMasked):
 		// A statement, then ", so" and an instruction: the instruction follows from the statement, as a sentence of its own.
 		return joinOpener(opener, rest), opensOwnClause
 	case (tag == "VB" || tag == "VBP") && opensImperativeMain(masked[:c.left]) && opensImperative(restMasked):

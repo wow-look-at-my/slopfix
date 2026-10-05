@@ -29,15 +29,16 @@ func TestFixDividesASentenceWhoseAsideHoldsALink(t *testing.T) {
 	assert.Contains(t, out, " It uses `inputs.copy` or `shared.copy`", "the clause opens the rest as it is:\n%s", out)
 }
 
-// A "to" infinitive that opens a sentence is no sentence alone, so the
-// imperative after its comma stays with it. The sentence stays as written.
-func TestAnInfinitiveOpenerStaysWithItsMainClause(t *testing.T) {
+// A "to" infinitive that opens a sentence is no sentence alone. The
+// instruction goes first, and the infinitive follows it behind "Do this".
+func TestAnInfinitiveOpenerFollowsItsMainClause(t *testing.T) {
 	text := "To pull an existing host file into the temp directory so a command can modify a copy of it, " +
 		"use the copy key or the shared copy key in the file for the run."
 	got := findings(text, ste.IDSentenceCap)
 	require.NotEmpty(t, got, "the fixture must be a finding")
-	assert.Equal(t, ste.FixByHand, got[0].Fix)
-	assert.Equal(t, text, ste.Fix(text))
+	assert.False(t, ste.ByHand(got[0].Fix), got[0].Fix)
+	assert.Equal(t, "Use the copy key or the shared copy key in the file for the run. "+
+		"Do this to pull an existing host file into the temp directory so a command can modify a copy of it.", ste.Fix(text))
 }
 
 // findings answers what Check reports under id.

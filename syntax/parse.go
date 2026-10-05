@@ -299,14 +299,20 @@ func verbGroup(words []Word, i int) (Phrase, bool) {
 	p := Phrase{Kind: VerbGroup, First: i, Det: -1}
 	lead := j
 	p.Finite = isFinite(words[lead].Tag)
+	finite := false
 	for j < len(words) {
 		tag := words[j].Tag
+		// A second finite verb opens a group of its own: "that blocks instead pays".
+		if isFinite(tag) && finite {
+			break
+		}
 		if isVerb(tag) || tag == "TO" || tag == "RP" {
+			finite = finite || isFinite(tag)
 			p.Head = j
 			j++
 			continue
 		}
-		if (tag == "RB" || tag == "RBR") && j+1 < len(words) && isVerb(words[j+1].Tag) {
+		if (tag == "RB" || tag == "RBR") && j+1 < len(words) && isVerb(words[j+1].Tag) && !(finite && isFinite(words[j+1].Tag)) {
 			j++
 			continue
 		}

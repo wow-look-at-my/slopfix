@@ -68,7 +68,8 @@ func itemEdit(content string, from int, line string, at int, digits string) (edi
 		name = genericItem(noun, value(digits))
 	}
 	text := name
-	if i+1 < len(words) && (words[i+1].Tag == "NNS" || words[i+1].Tag == "NNPS") {
+	// The word after the label is a noun it describes only where the clause has its verb before the label: "It reads rule 6 inputs", not "branch 3 sees".
+	if i+1 < len(words) && (words[i+1].Tag == "NNS" || words[i+1].Tag == "NNPS") && verbBefore(words, i-1) {
 		end = from + words[i+1].End
 		text = "the " + words[i+1].Text + " of " + name
 	}
@@ -76,6 +77,19 @@ func itemEdit(content string, from int, line string, at int, digits string) (edi
 		text = upperFirst(text)
 	}
 	return edit.Edit{Start: start, End: end, Text: text, Cut: []string{content[start:end]}}, true
+}
+
+// verbBefore reports a finite verb in the clause ahead of word i.
+func verbBefore(words []syntax.Word, i int) bool {
+	for j := i - 1; j >= 0; j-- {
+		switch t := words[j].Tag; {
+		case t == "." || t == "," || t == ":" || t == "(":
+			return false
+		case finiteVerbTags.Contains(t):
+			return true
+		}
+	}
+	return false
 }
 
 // genericItem names an item with no words of its own: "one id", "a later branch".

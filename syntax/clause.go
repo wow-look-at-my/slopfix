@@ -127,10 +127,31 @@ func (p *clauseParser) boundary(i int, cur Clause, comma bool) (LinkKind, int, b
 		return Subordinate, i, true
 	case p.relative(i):
 		return Relative, i, true
-	case comma && cur.Depth > 0 && cur.Verb != nil && p.subjectVerbAt(i):
+	case comma && cur.Depth > 0 && (cur.Verb != nil || p.opensSentence(cur)) && p.subjectVerbAt(i):
+		// "When using the flag, you need": an opening clause with no finite verb ends at its comma too.
+		return Opens, -1, true
+	case comma && cur.Kind == Subordinate && cur.Depth == 1 && p.opensSentence(cur) && p.imperativeAt(i):
+		// "If the cache is cold, run the build": the instruction after the comma is the main clause.
 		return Opens, -1, true
 	}
 	return 0, 0, false
+}
+
+// opensSentence reports a clause that the sentence opens on, after at most a
+// label and its colon: "CRITICAL: If the cache is cold".
+func (p *clauseParser) opensSentence(c Clause) bool {
+	for i := 0; i < c.First; i++ {
+		if t := p.s.Words[i].Tag; !punctuation(t) && !(i == 0 && len(p.s.Words) > 1 && p.s.Words[1].Text == ":") {
+			return false
+		}
+	}
+	return c.Kind == Subordinate || c.First == 0
+}
+
+// imperativeAt reports a bare verb group at word i, after any adverb.
+func (p *clauseParser) imperativeAt(i int) bool {
+	vg, ok := p.phrase(i)
+	return ok && vg.Kind == VerbGroup && vg.First == i && p.s.Words[p.lead(vg)].Tag == "VB"
 }
 
 // opensAfterConjunction reports whether the words from j form a clause, or a

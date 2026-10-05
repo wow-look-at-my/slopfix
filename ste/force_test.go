@@ -20,15 +20,13 @@ func sentenceLengths(text string) []ste.Finding {
 	return out
 }
 
-// A sentence with no verb has no division that leaves sentences, so it
-// stays as written and its finding asks for a rewrite by hand.
-func TestALongSentenceWithNoVerbStaysAsWritten(t *testing.T) {
+// A sentence with no verb is a noun phrase. A phrase of place that describes a
+// noun in it moves into a sentence of its own, behind that noun.
+func TestALongSentenceWithNoVerbRestatesANoun(t *testing.T) {
 	in := "The quick brown fox with the long red tail and the tiny black paws near the old wooden barn behind the tall green hills of the northern valley beside the cold river under the grey winter sky."
 	require.NotEmpty(t, sentenceLengths(in), "the control: the sentence is over the cap")
-	assert.Equal(t, in, ste.Fix(in))
-	for _, f := range sentenceLengths(in) {
-		assert.Equal(t, ste.FixByHand, f.Fix)
-	}
+	assert.Equal(t, "The quick brown fox with the long red tail and the tiny black paws near the old wooden barn. That barn is behind the tall green hills of the northern valley beside the cold river under the grey winter sky.", ste.Fix(in))
+	assert.Empty(t, sentenceLengths(ste.Fix(in)))
 }
 
 // A division never lands inside a code span, a quotation, a parenthesis or bold text.

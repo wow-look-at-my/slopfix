@@ -276,8 +276,11 @@ func APoint(text string, at int) (string, bool) {
 // NamesAnItem reports digits at offset at right after a singular noun, as in
 // "branch 3 sees" or "the Section 4 pins". The digits name one item. A noun
 // that a number or "each" governs starts a second phrase: "one call 3 ways".
-// The first word of a sentence names an item only before a finite verb,
-// because the tagger reads an imperative there as a noun: "Run 3 tests".
+// The tagger reads a bare noun before digits as a verb or an adjective, as in
+// "branch/VBZ" and "id/JJ". So a word that ends in no "s" and is no function
+// word or quantity word reads as the noun too. The first word of a sentence
+// names an item only in lower case or before a finite verb, because a capital
+// there opens an instruction: "Run 3 tests".
 func NamesAnItem(text string, at int) bool {
 	words := syntax.Parse(text, nil).Words
 	for i, w := range words {
@@ -287,23 +290,40 @@ func NamesAnItem(text string, at int) bool {
 		if !allDigits(w.Text) || i < 1 || words[i-1].End == at {
 			return false
 		}
-		if i < 2 || words[i-2].Tag == "." && words[i-2].Text != "(" {
-			return i+1 < len(words) && finiteTags.Contains(words[i+1].Tag) && strings.HasPrefix(words[i-1].Tag, "NN")
-		}
-		prev, before := words[i-1], words[i-2]
+		prev := words[i-1]
 		name, opened := strings.CutPrefix(prev.Text, "(")
-		opened = opened || before.Text == "(" || (prev.Start > 0 && text[prev.Start-1] == '(')
-		if strings.IndexFunc(name, unicode.IsLetter) != 0 || before.Tag == "CD" || singleItem.Contains(before.Lower()) {
+		lower := strings.ToLower(name)
+		if strings.IndexFunc(name, unicode.IsLetter) != 0 || strings.IndexFunc(name, func(r rune) bool { return !unicode.IsLetter(r) && r != '-' }) >= 0 {
 			return false
 		}
-		if prev.Tag == "NN" || prev.Tag == "NNP" {
+		if functionTags.Contains(prev.Tag) && prev.Tag != "NNS" || notNames.Contains(lower) || InClass(lower, "preposition") {
+			return false
+		}
+		plural := strings.HasSuffix(lower, "s") && !strings.HasSuffix(lower, "ss")
+		noun := prev.Tag == "NN" || prev.Tag == "NNP" || !plural && (prev.Tag == "VBZ" || prev.Tag == "JJ")
+		if i < 2 || words[i-2].Tag == "." && words[i-2].Text != "(" {
+			next := i+1 < len(words) && finiteTags.Contains(words[i+1].Tag)
+			return noun && !plural && (next || unicode.IsLower([]rune(name)[0]))
+		}
+		before := words[i-2]
+		opened = opened || before.Text == "(" || (prev.Start > 0 && text[prev.Start-1] == '(')
+		if before.Tag == "CD" || singleItem.Contains(before.Lower()) {
+			return false
+		}
+		if noun {
 			return true
 		}
 		// The tagger reads a noun that opens a parenthesis as a verb: "(branch 1 rejects".
-		return opened && !functionTags.Contains(prev.Tag)
+		return opened && !plural && !functionTags.Contains(prev.Tag)
 	}
 	return false
 }
+
+// notNames are the words before digits that count or order them, and never
+// name an item: "the last 3 runs", "top 10".
+var notNames = set.Of("first", "last", "next", "top", "bottom", "previous", "other", "only", "past", "final", "initial",
+	"remaining", "additional", "extra", "another", "all", "some", "any", "most", "few", "many", "several", "every",
+	"each", "is", "are", "was", "were", "be", "been", "has", "have", "had", "than", "and", "or", "of", "to", "in", "at", "by")
 
 // finiteTags mark a finite verb.
 var finiteTags = set.Of("VBZ", "VBD", "VBP", "MD")

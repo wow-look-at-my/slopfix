@@ -382,8 +382,25 @@ func opensImperativeMain(head string) bool {
 	s := syntax.Parse(head, nil)
 	for _, c := range s.Clauses {
 		if c.Depth == 0 && c.Verb != nil {
-			return c.Verb.Imperative
+			if c.Verb.Imperative {
+				return true
+			}
+			break
 		}
+	}
+	// The tagger reads a bare verb that opens a sentence as a noun: "Capture what is needed".
+	if opensImperative(head) {
+		return true
+	}
+	// An opening phrase with no verb, then its comma: "For each, give the path".
+	if comma := strings.IndexByte(head, ','); comma > 0 && !strings.ContainsAny(head[:comma], "()") {
+		opener := syntax.Parse(head[:comma], nil)
+		for _, w := range opener.Words {
+			if finiteVerbTag(w.Tag) || w.Tag == "MD" || strings.HasPrefix(w.Tag, "VB") {
+				return false
+			}
+		}
+		return opensImperative(strings.TrimSpace(head[comma+1:]))
 	}
 	return false
 }
