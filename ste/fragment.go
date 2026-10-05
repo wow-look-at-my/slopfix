@@ -75,8 +75,19 @@ func endsPhrase(w syntax.Word) bool {
 		return false
 	}
 	tag := w.Tag
-	return strings.HasPrefix(tag, "NN") || strings.HasPrefix(tag, "RB") || tag == "CD" || phraseEndParticle.Contains(w.Lower())
+	return strings.HasPrefix(tag, "NN") || strings.HasPrefix(tag, "RB") && trueAdverb(w) || tag == "CD" || phraseEndParticle.Contains(w.Lower())
 }
+
+// trueAdverb reports a word the tagger read as an adverb that reads as one:
+// it ends in "ly" or is a known adverb.
+func trueAdverb(w syntax.Word) bool {
+	lower := w.Lower()
+	return strings.HasSuffix(lower, "ly") || plainAdverbs.Contains(lower)
+}
+
+// plainAdverbs end a phrase though they carry no "ly".
+var plainAdverbs = set.Of("here", "there", "now", "then", "too", "today", "later", "first", "last",
+	"once", "twice", "ever", "yet", "already", "alone", "else", "instead", "anyway", "soon", "again")
 
 // endsBefore reports a cut before word n that leaves a whole noun phrase. A
 // verb ends one only when the words after it open a phrase with a relative
