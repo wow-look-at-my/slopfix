@@ -60,12 +60,13 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	main, hasMain := mainVerb(whole, c.left)
 	// A phrase after a noun that a verb then follows is the subject's own: "the case above passes".
 	predicateFollows := finiteBefore(whole, first+1, ",")
+	placeless := predicateFollows || !opensObject(whole, first+1)
 	// A phrase that describes the noun before it ends the sentence: no comma, conjunction or clause follows it.
 	describes := seam == "" && noun && plainPhrase(whole, first)
 	switch {
 	case !hasMain && !finiteBetween(whole, 0, len(whole.Words)):
 		// A sentence with no verb at all is a noun phrase, and only a phrase that describes a noun in it can move.
-		if describes && !predicateFollows && (carrierPlace.Contains(lower) || word.Tag == "VBN" || word.Tag == "VBG") {
+		if describes && (carrierPlace.Contains(lower) && !placeless || !predicateFollows && (word.Tag == "VBN" || word.Tag == "VBG")) {
 			return head, restate(source, prev, rest), opensWithCarrier
 		}
 		return head, "", 0
@@ -74,21 +75,21 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	case lower == "so" && (seam == "," || seam == "") && (main.Imperative || instructs(whole)):
 		// A so after an instruction states its purpose, and the purpose goes behind "Do this".
 		return head, "Do this " + rest, opensWithCarrier
-	case describes && !predicateFollows && carrierPlace.Contains(lower) && !strings.HasPrefix(strings.ToLower(rest), "in order"):
+	case describes && !placeless && carrierPlace.Contains(lower) && !strings.HasPrefix(strings.ToLower(rest), "in order"):
 		return head, restate(source, prev, rest), opensWithCarrier
 	case describes && !predicateFollows && (word.Tag == "VBN" || word.Tag == "VBG") && first+1 < len(whole.Words) && !strings.HasPrefix(whole.Words[first+1].Tag, "NN"):
 		return head, restate(source, prev, rest), opensWithCarrier
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
 	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
-		!inRelative(whole, first-1) && !coordinatedVerb(whole, first):
+		(!inRelative(whole, first-1) || everyNext(whole, first)) && !coordinatedVerb(whole, first):
 		// A reason reads behind "This is", whatever the verb: "This is because X".
 		if lower == "because" {
 			return head, "This is " + rest, opensWithCarrier
 		}
 		return head, carrierFor(whole, main) + " " + rest, opensWithCarrier
 	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && unicode.IsLower(rune(word.Text[0])) &&
-		listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first) && !subordinatorBetween(whole, main.Last+1, first):
+		listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first) && !subordinatorBetween(whole, main.Last+1, first+1):
 		// The rest of a list of verb groups keeps its verbs behind the subject: "It also collapses X, and hides Y".
 		subject := mainSubject(source, whole, main, word.Tag)
 		if subject == "" {
@@ -97,7 +98,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return listHead(head, "and", false, whole, main), capitalizeOpening(subject) + " also " + rest, opensWithCarrier
 	case seam == "," || seam == ":":
 		// A list that opens after "so" or a subordinator belongs to that clause: "is a thin wrapper, so a hook, a CI job and an editor integration all get".
-		if carried, conj, ok := listRest(source, whole, main, c, rest, seam); ok && !subordinatorBetween(whole, main.Last+1, first) {
+		if carried, conj, ok := listRest(source, whole, main, c, rest, seam); ok && !subordinatorBetween(whole, main.Last+1, first+1) {
 			return listHead(head, conj, oxford(rest), whole, main), carried, opensWithCarrier
 		}
 		if seam != ":" || lowerIdentifier(firstToken.FindString(rest)) {
@@ -141,6 +142,26 @@ func headOpen(s *syntax.Sentence, end int) bool {
 		}
 	}
 	return open >= 0
+}
+
+// everyNext reports "every" or "each" after the preposition at word i: an
+// adverbial of frequency, which belongs to the sentence however deep it sits.
+func everyNext(s *syntax.Sentence, i int) bool {
+	return i+1 < len(s.Words) && (s.Words[i+1].Lower() == "every" || s.Words[i+1].Lower() == "each")
+}
+
+// opensObject reports word i opening a noun phrase a preposition can take: a
+// determiner, a possessive, a number, an adjective, a name or a singular noun.
+// A plural ending in "s" is too often a verb the tagger missed.
+func opensObject(s *syntax.Sentence, i int) bool {
+	if i >= len(s.Words) {
+		return false
+	}
+	switch s.Words[i].Tag {
+	case "DT", "PRP$", "CD", "JJ", "NN", "NNP", "NNPS", "PRP":
+		return true
+	}
+	return s.Words[i].Text[0] == '`'
 }
 
 // inRelative reports word i inside a clause a relative word opens, whose

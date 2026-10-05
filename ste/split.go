@@ -324,7 +324,8 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		}
 		return "", opensWithCapital(s, c.Link+1, source)
 	case syntax.Subordinate:
-		if link != "because" || !closesTheSentence(s, c) {
+		// ", and returns Y" after the reason is the main clause again, so the reason does not close the sentence.
+		if link != "because" || !closesTheSentence(s, c) || coordinatedVerb(s, c.Link) {
 			return "", false
 		}
 		return "This is because", true
