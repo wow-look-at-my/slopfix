@@ -31,7 +31,24 @@ type actionStep struct {
 	ID   string            `yaml:"id"`
 	If   string            `yaml:"if"`
 	Uses string            `yaml:"uses"`
+	Run  string            `yaml:"run"`
 	With map[string]string `yaml:"with"`
+}
+
+// An ubuntu runner answers a direct exec of the APE with "unable to find an
+// interpreter", so the check on Unix goes through sh.
+func TestActionRunsTheBinaryThroughShOnUnix(t *testing.T) {
+	content, err := os.ReadFile("action.yml")
+	require.NoError(t, err)
+	var action struct {
+		Runs struct {
+			Steps []actionStep `yaml:"steps"`
+		} `yaml:"runs"`
+	}
+	require.NoError(t, yaml.Unmarshal(content, &action))
+	idx := slices.IndexFunc(action.Runs.Steps, func(s actionStep) bool { return s.ID == "check" })
+	require.GreaterOrEqual(t, idx, 0)
+	assert.Contains(t, action.Runs.Steps[idx].Run, `sh "${{ steps.download.outputs.path }}" check .`)
 }
 
 // Several org actions call this in the same run. The claim keeps the check to
