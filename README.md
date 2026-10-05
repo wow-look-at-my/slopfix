@@ -65,8 +65,7 @@ The commands are `check`, `hook`, `lsp`, `completion` and `help`.
 - uses: wow-look-at-my/slopfix@master
 ```
 
-The action runs `check .` with every rule. No input narrows it to some paths or some rules, and it never repairs. `permission` asks `check workflow-permission` instead. The `stdout` output carries the JSON answer.
-
+The action runs `check .` with every rule. No input narrows it to some paths or some rules, and it never repairs.
 ## More
 
 `AGENTS.md` holds the full reference: each rule, what it does not flag, the hook guards and the design decisions. `docs/` holds the depth of single subsystems.
