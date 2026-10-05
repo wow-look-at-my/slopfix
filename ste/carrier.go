@@ -72,6 +72,12 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 			return head, subject + " " + rest, opensWithCarrier
 		}
 	}
+	// "close enough together that no event explains it": the that-clause after "enough" is a result, and it stands as a sentence of its own.
+	if seam == "" && lower == "that" && enoughBefore(whole, first) {
+		if result := capitalizeOpening(strings.TrimLeft(rest[len(word.Text):], " ")); StandsAlone(result) {
+			return head, result, opensWithCarrier
+		}
+	}
 	main, hasMain := mainVerb(whole, c.left)
 	// A phrase after a noun that a verb then follows is the subject's own: "the case above passes".
 	predicateFollows := finiteBefore(whole, first+1, ",")
@@ -696,6 +702,16 @@ func subjectDivision(source string, whole *syntax.Sentence, limit int) (string, 
 		det = "Those"
 	}
 	return "Consider " + lowerFirst(subject) + ". " + det + " " + nounText(source, head) + " " + source[end:], true
+}
+
+// enoughBefore reports "enough" among the couple of words before word i, which makes a that-clause at i a result.
+func enoughBefore(s *syntax.Sentence, i int) bool {
+	for k := max(i-2, 0); k < i; k++ {
+		if s.Words[k].Lower() == "enough" {
+			return true
+		}
+	}
+	return false
 }
 
 // lowerFirst writes the first letter in lower case, unless the word is a name in capitals.

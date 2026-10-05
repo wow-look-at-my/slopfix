@@ -446,7 +446,7 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
-	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(rest):
+	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
 		// A dash or a colon before words that hold a main clause of their own: "— on first launch Grok runs your binary".
 		return capitalizeOpening(rest), opensOwnClause - 1
 	}

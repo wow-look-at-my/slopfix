@@ -311,7 +311,8 @@ var danglingTags = set.Of[string]("DT", "JJ", "JJR", "JJS", "PRP$", "IN", "CC",
 // inside a subordinate clause joins the items of a list.
 func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 	w, ok := lastWordBefore(whole, len(head))
-	if !ok || danglingTags.Contains(w.Tag) || !standsAlone(whole, 0, wordsBefore(whole, len(head))) || !segmentStands(whole, wordsBefore(whole, len(head))) {
+	n := wordsBefore(whole, len(head))
+	if !ok || danglingTags.Contains(w.Tag) && !predicateAdjective(whole, n-1) || !standsAlone(whole, 0, n) || !segmentStands(whole, n) {
 		return false
 	}
 	if seam != "," {
@@ -324,6 +325,21 @@ func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 	}
 	return false
 }
+
+// predicateAdjective reports an adjective at i after a form of be, as in "the closer is not prose". It completes its clause, where an adjective before a noun waits for the noun.
+func predicateAdjective(s *syntax.Sentence, i int) bool {
+	if i < 1 || i >= len(s.Words) || !strings.HasPrefix(s.Words[i].Tag, "JJ") {
+		return false
+	}
+	k := i - 1
+	for k > 0 && s.Words[k].Tag == "RB" {
+		k--
+	}
+	return copulas.Contains(s.Words[k].Lower())
+}
+
+// copulas are the forms of be that link a subject to an adjective.
+var copulas = set.Of("is", "are", "was", "were", "be", "been", "being", "am")
 
 // opensSubject reports whether word i of s can open a subject: a determiner, a
 // pronoun, a name, a number or a possessive. A bare adjective or noun more
