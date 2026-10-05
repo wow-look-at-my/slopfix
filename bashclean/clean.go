@@ -29,7 +29,7 @@ func Transform(command string) Result { return TransformIn(command, "") }
 // TransformIn resolves a relative path against dir, the directory the command runs in.
 func TransformIn(command, dir string) Result { return transform(command, dir, maxPasses, os.Stderr) }
 
-// transform takes the pass bound and the warning sink as arguments, so a test
+// transform takes the pass bound and the warning sink as arguments. A test
 // drives the exhaustion path without a global a parallel sibling can see.
 func transform(command, dir string, passes int, warn io.Writer) Result {
 	f, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(command), "")
@@ -109,8 +109,8 @@ func runToFixedPoint(f *syntax.File, onePass func(), passes int) bool {
 
 // reportNonConvergence says what the bound dropped. The rewrite it emits is
 // half-applied, so it can be worse than either endpoint. It goes to stderr
-// rather than the debug log, because it reports a defect in the rules and must
-// be visible without a log path set.
+// rather than the debug log. This is because it reports a defect in the rules
+// and must be visible without a log path set.
 func reportNonConvergence(warn io.Writer, original, partial string, passes int) {
 	fmt.Fprintf(warn,
 		"cleanup-bash-cmds: the rewrite did not reach a fixed point in %d passes, "+
@@ -315,7 +315,7 @@ func capSleep(c *syntax.CallExpr) {
 }
 
 // rmTargets returns the real targets of an `rm` call. `--` ends flag parsing
-// and is RE-EMITTED in front of a dash-leading name, so the filename is not
+// and is RE-EMITTED in front of a dash-leading name. The filename is not
 // re-read as a recycler flag.
 func rmTargets(args []*syntax.Word) []*syntax.Word {
 	ops := []*syntax.Word{}

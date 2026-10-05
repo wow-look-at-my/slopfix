@@ -73,8 +73,8 @@ func errorLines(out slopfix.TreeRepair) []string {
 	return lines
 }
 
-// The owner's rule: slopfix must be able to repair everything, even if not
-// well. A fix over a tree of every rule's hardest case leaves no error.
+// A fix over a tree of every rule's hardest case leaves no error, and no
+// finding asks for a rewrite by hand.
 func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 	root := gitRoot(t, hardCorpus(t))
 	req := slopfix.Request{MaxCommentLines: tombstones.DefaultMaxCommentLines}
@@ -103,6 +103,10 @@ func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
 	require.NoError(t, err)
 	assert.Contains(t, string(readme), "warns at many lines and errors at a higher count", "every count in the clause reads the same way")
+	assert.Contains(t, string(readme), "for the team. The cache in the main store holds", "a long sentence divides where both halves are sentences")
+	assert.Contains(t, string(readme), "near the wooden barn. That barn is behind the tall green hills", "a sentence with no verb restates the noun a phrase of place describes")
+	assert.NotContains(t, string(readme), "This is", "no repair writes filler")
+	assert.Contains(t, string(readme), "for the build (the cache) and for the test (the tree).", "a semicolon between pairs becomes a list of pairs")
 	assert.Contains(t, string(readme), "`code span here`", "a code span stays whole")
 	assert.Contains(t, string(readme), "\"a long quoted phrase with many words\"", "a quotation stays whole")
 	assert.FileExists(t, filepath.Join(root, "justfile"))

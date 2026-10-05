@@ -9,8 +9,8 @@
 //     or NotebookEdit. Bash runs things -- git, builds, tests, validation,
 //     search -- and does not author files.
 //
-// Both are asked of the same parsed command, which is why they share a plugin:
-// the shell walk, the wrapper stripping and the path resolution are the same
+// Both are asked of the same parsed command, which is why they share a plugin.
+// The shell walk, the wrapper stripping and the path resolution are the same
 // machinery. See the no-work-loss section of AGENTS.md
 package noworkloss
 
@@ -87,7 +87,7 @@ func Run(r io.Reader) Result {
 // evaluateLoss runs the destruction analysis under a recover, failing OPEN on a panic.
 func evaluateLoss(command, cwd string) (reason string, notices []string) {
 	// A cheap byte scan leads: the overwhelming majority of Bash calls name no
-	// verb that can delete anything, and those must not pay for a parse.
+	// verb that can delete anything. Those must not pay for a parse.
 	if command == "" || !mayDestroy(command) {
 		return "", nil
 	}

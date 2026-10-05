@@ -37,7 +37,7 @@ func TestTheIndexHoldsWhatAProbeReads(t *testing.T) {
 }
 
 // Once a walk primes the index, it answers every name without a probe: a name
-// it never saw is dead, and a name it holds is alive.
+// it never saw is dead. A name it holds is alive.
 func TestAPrimedIndexAnswersWithoutAProbe(t *testing.T) {
 	root := t.TempDir()
 	cmd := exec.Command("git", "-C", root, "init", "-q")

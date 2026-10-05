@@ -2,7 +2,7 @@
 // state they cannot leave.
 //
 // A merged pull request does not un-merge, and a commit that went green does
-// not go red: the sha is fixed, so a later push produces a DIFFERENT sha and
+// not go red. The sha is fixed, so a later push produces a DIFFERENT sha and
 // therefore a different subject. Re-reading either is the purest form of the
 // waste this rule exists to stop -- not a loop that eventually learns
 // something, but a question whose answer is already in the transcript and
@@ -15,7 +15,7 @@ import (
 )
 
 // mergeVerdicts mark a pull request as finished. Each is a phrase a result
-// really carries, taken from the payloads this environment delivers.
+// carries, taken from the payloads this environment delivers.
 var mergeVerdicts = []string{
 	`"outcome":"merged"`,
 	`"merged":true`,
