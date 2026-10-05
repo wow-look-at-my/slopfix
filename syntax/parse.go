@@ -165,7 +165,17 @@ func retag(words []Word) {
 		if participleAdjective(words, i) {
 			words[i].Tag = "JJ"
 		}
+		// "`deny` rules, hooks": a name and an -s form before a comma or a relative word are a noun phrase.
+		if w := words[i]; w.Tag == "VBZ" && i > 0 && i+1 < len(words) && filler(words[i-1].Text) &&
+			(words[i+1].Tag == "," || words[i+1].Tag == "WDT" || words[i+1].Lower() == "that") {
+			words[i].Tag = "NNS"
+		}
 	}
+}
+
+// filler reports the word a mask writes over a code span or a quotation.
+func filler(text string) bool {
+	return text == "CODE" || text == "QUOTE" || len(text) > 1 && strings.Trim(text, "X") == ""
 }
 
 // participleAdjective reports a past form that opens a noun phrase whose own

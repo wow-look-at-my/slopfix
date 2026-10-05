@@ -322,7 +322,7 @@ func NamesAnItem(text string, at int) bool {
 // notNames are the words before digits that count or order them, and never
 // name an item: "the last 3 runs", "top 10".
 var notNames = set.Of("first", "last", "next", "top", "bottom", "previous", "other", "only", "past", "final", "initial",
-	"remaining", "additional", "extra", "another", "all", "some", "any", "most", "few", "many", "several", "every",
+	"remaining", "additional", "extra", "another", "same", "different", "both", "these", "those", "total", "about", "all", "some", "any", "most", "few", "many", "several", "every",
 	"each", "is", "are", "was", "were", "be", "been", "has", "have", "had", "than", "and", "or", "of", "to", "in", "at", "by")
 
 // finiteTags mark a finite verb.

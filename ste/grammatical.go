@@ -389,7 +389,7 @@ func opensImperativeMain(head string) bool {
 		}
 	}
 	// The tagger reads a bare verb that opens a sentence as a noun: "Capture what is needed".
-	if opensImperative(head) {
+	if opensImperative(lowerFirst(head)) {
 		return true
 	}
 	// An opening phrase with no verb, then its comma: "For each, give the path".

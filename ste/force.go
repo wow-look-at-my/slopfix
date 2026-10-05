@@ -149,7 +149,12 @@ func forceDivision(source, masked string) (string, bool) {
 				head, right, opened = carrierDivision(source, whole, c)
 			}
 			left := closeHead(head)
-			if right == "" || !divides(left, right) || !closesWhole(source[:c.left], seamBefore(source, c.left), whole) && !closesPhrase(source[:c.left], whole) {
+			seam := seamBefore(source, c.left)
+			// ", so" joins whole clauses, so the comma before it ends one wherever it sits.
+			if seam == "," && strings.HasPrefix(strings.ToLower(strings.TrimLeft(source[c.right:], " ")), "so ") {
+				seam = "so"
+			}
+			if right == "" || !divides(left, right) || !closesWhole(source[:c.left], seam, whole) && !closesPhrase(source[:c.left], whole) {
 				continue
 			}
 			// A rest that opens a clause of its own reads best.

@@ -72,7 +72,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
 	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest):
 		return head, carrierFor(whole, main) + " " + rest, opensWithCarrier
-	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && listsVerbs(source[:c.left]):
+	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first):
 		// The rest of a list of verb groups keeps its verbs behind the subject: "It also collapses X, and hides Y".
 		subject := mainSubject(source, whole, main, word.Tag)
 		if subject == "" {
@@ -212,6 +212,17 @@ func closesPhrase(head string, whole *syntax.Sentence) bool {
 	}
 	w, ok := lastWordBefore(whole, len(head))
 	return ok && strings.HasPrefix(w.Tag, "NN")
+}
+
+// conjunctionBetween reports a conjunction or a relative word among words from
+// up to end. A list of verb groups holds neither before its last item.
+func conjunctionBetween(s *syntax.Sentence, from, end int) bool {
+	for i := max(from, 0); i < end && i < len(s.Words); i++ {
+		if t := s.Words[i].Tag; t == "CC" || t == "WDT" || t == "WP" || t == "IN" && syntax.Is(s.Words[i].Lower(), "subordinator") {
+			return true
+		}
+	}
+	return false
 }
 
 // finiteVerbTag reports the tag of a finite verb.
@@ -376,29 +387,42 @@ func reorderDependent(source string, whole *syntax.Sentence) (string, bool) {
 	if !opensDependent(whole) {
 		return source, false
 	}
-	comma := firstComma(whole)
-	if comma < 1 || comma+1 >= len(whole.Words) {
-		return source, false
+	// The main clause opens after the earliest comma outside a parenthesis that leaves a sentence: "To do X, or to do Y, see Z".
+	depth := 0
+	for comma, w := range whole.Words {
+		switch w.Text {
+		case "(":
+			depth++
+		case ")":
+			depth = max(depth-1, 0)
+		}
+		if w.Text != "," || depth > 0 || comma < 1 || comma+1 >= len(whole.Words) {
+			continue
+		}
+		sub := strings.TrimSpace(source[:w.Start])
+		main := strings.TrimSpace(source[w.End:])
+		imperative := opensImperative(checkMask(main))
+		if !StandsAlone(main) && !imperative {
+			continue
+		}
+		stop := "."
+		if n := len(main); n > 0 && strings.ContainsAny(main[n-1:], ".!?") {
+			stop, main = main[n-1:], main[:n-1]
+		}
+		ms := syntax.Parse(checkMask(main), nil)
+		carrier := "Do this"
+		if verb, ok := mainVerb(ms, len(main)); ok && !(imperative && !verb.Imperative) {
+			carrier = carrierFor(ms, verb)
+		} else if !imperative {
+			continue
+		}
+		link := strings.ToLower(firstToken.FindString(sub))
+		if (link == "if" || link == "when" || link == "whenever") && pointsBack(ms) {
+			return "Suppose " + strings.TrimSpace(sub[len(link):]) + ". Then " + lowerFirst(main) + stop, true
+		}
+		return capitalizeOpening(main) + stop + " " + carrier + " " + lowerFirst(sub) + ".", true
 	}
-	sub := strings.TrimSpace(source[:whole.Words[comma].Start])
-	main := strings.TrimSpace(source[whole.Words[comma].End:])
-	if !StandsAlone(main) {
-		return source, false
-	}
-	stop := "."
-	if n := len(main); n > 0 && strings.ContainsAny(main[n-1:], ".!?") {
-		stop, main = main[n-1:], main[:n-1]
-	}
-	ms := syntax.Parse(checkMask(main), nil)
-	verb, ok := mainVerb(ms, len(main))
-	if !ok {
-		return source, false
-	}
-	link := strings.ToLower(firstToken.FindString(sub))
-	if (link == "if" || link == "when" || link == "whenever") && pointsBack(ms) {
-		return "Suppose " + strings.TrimSpace(sub[len(link):]) + ". Then " + lowerFirst(main) + stop, true
-	}
-	return capitalizeOpening(main) + stop + " " + carrierFor(ms, verb) + " " + lowerFirst(sub) + ".", true
+	return source, false
 }
 
 // backReferences are the words that point back to a noun said before them.
@@ -424,7 +448,8 @@ func subjectDivision(source string, whole *syntax.Sentence) (string, bool) {
 	}
 	verb := -1
 	for i, w := range whole.Words {
-		if w.Text == "," || w.Text == ":" || w.Text == ";" || w.Text == "(" {
+		// A relative word ahead of the verb makes the verb the relative clause's own: "a sentence that will not fit".
+		if w.Text == "," || w.Text == ":" || w.Text == ";" || w.Text == "(" || w.Tag == "WDT" || w.Tag == "WP" || w.Lower() == "that" {
 			return source, false
 		}
 		if finiteVerbTag(w.Tag) || w.Tag == "MD" {
