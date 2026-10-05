@@ -330,13 +330,95 @@ func (o *Lines) Scope(path string) *Scope {
 	if o.whole.Contains(name) {
 		return Whole()
 	}
-	return &Scope{lines: o.lines[name], base: func() (string, error) {
-		text, err := gitIn(o.top, "cat-file", "blob", o.commit+":"+name)
-		if err != nil {
-			return "", fmt.Errorf("fork scope: read %s at the base: %w", name, err)
+	out := &Scope{lines: o.lines[name]}
+	// A selector measures from no base commit, so it reads no base text.
+	if o.commit != "" {
+		out.base = func() (string, error) {
+			text, err := gitIn(o.top, "cat-file", "blob", o.commit+":"+name)
+			if err != nil {
+				return "", fmt.Errorf("fork scope: read %s at the base: %w", name, err)
+			}
+			return text, nil
 		}
-		return text, nil
-	}}
+	}
+	return out
+}
+
+// DiffLines answers the lines a selector changed in the work tree that holds
+// dir. With staged it is the index against HEAD, and otherwise the work tree
+// against rev. A path the diff created counts whole.
+func DiffLines(dir, rev string, staged bool) (*Lines, error) {
+	top, err := gitIn(dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return nil, fmt.Errorf("diff scope: %w", err)
+	}
+	top = strings.TrimSpace(top)
+	resolved, err := filepath.EvalSymlinks(top)
+	if err != nil {
+		return nil, fmt.Errorf("diff scope: %w", err)
+	}
+	args := []string{"-c", "core.quotePath=false", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"}
+	if staged {
+		args = append(args, "--cached")
+	} else {
+		args = append(args, rev)
+	}
+	args = append(args, "--")
+	diff, err := gitIn(top, args...)
+	if err != nil {
+		return nil, fmt.Errorf("diff scope: %w", err)
+	}
+	own := &Lines{top: resolved, whole: set.New[string](), lines: map[string]set.Set[int]{}}
+	if err := own.readDiff(diff); err != nil {
+		return nil, err
+	}
+	return own, nil
+}
+
+// IntersectLines answers the lines both a and b hold. A file both hold whole
+// stays whole, and a file one holds whole takes the other's lines.
+func IntersectLines(a, b *Lines) *Lines {
+	switch {
+	case a == nil:
+		return b
+	case b == nil:
+		return a
+	}
+	out := &Lines{top: a.top, commit: a.commit, whole: set.New[string](), lines: map[string]set.Set[int]{}}
+	names := set.New[string]()
+	for name := range a.whole.All() {
+		names.Add(name)
+	}
+	for name := range b.whole.All() {
+		names.Add(name)
+	}
+	for name := range a.lines {
+		names.Add(name)
+	}
+	for name := range b.lines {
+		names.Add(name)
+	}
+	for name := range names.All() {
+		aWhole, bWhole := a.whole.Contains(name), b.whole.Contains(name)
+		switch {
+		case aWhole && bWhole:
+			out.whole.Add(name)
+		case aWhole:
+			copyLines(out, name, b.lines[name])
+		case bWhole:
+			copyLines(out, name, a.lines[name])
+		default:
+			copyLines(out, name, a.lines[name].Intersection(b.lines[name]))
+		}
+	}
+	return out
+}
+
+// copyLines records the lines of name when it holds any.
+func copyLines(o *Lines, name string, lines set.Set[int]) {
+	if lines.Len() > 0 {
+		o.lines[name] = lines
+	}
 }
 
 // Whole reports whether the fork wrote all of path: it is new since the base, or untracked.

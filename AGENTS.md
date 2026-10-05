@@ -56,6 +56,8 @@ No input narrows the check. A path list, a rule list or a raw command line lets 
 
 In a fork, only the lines the fork wrote can fail the check. The org's `dot_github` repository lists, in `fork-list/fork-of.json`, each fork GitHub does not record, and publishes it to buildhost. `docs/fork-scope.md` holds the detail.
 
+`check` and `fix` also take `--staged` and `--diff REV` to scope a run to the lines a change introduced, which is how a repair stays off the upstream lines. [docs/commands.md](docs/commands.md) holds the detail.
+
 ## The marketplace follows each publish
 
 cc-marketplace ships this binary inside its `slopfix` plugin. A publish here therefore reaches nobody until that plugin is packaged again. The last step of `ci.yml` does that on each master build. It dispatches `release.yml` in cc-marketplace with `publish: true`. The token is `CC_MARKETPLACE_DISPATCH_TOKEN` from secret-server, with `actions: write` on cc-marketplace. A missing token fails the build, because a silent skip leaves the marketplace on an old binary.
