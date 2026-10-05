@@ -11,10 +11,10 @@ import (
 type layout func(sentence, indent, marker string) ([]string, bool)
 
 // steOpening answers a block's first sentence, repaired to STE and divided at a
-// clause boundary when it runs past the cap. A first sentence that fit does not
-// accept divides again at a lower cap each time, and its own first sentence
-// replaces it. It reports false when no division gives a whole sentence.
-func steOpening(text []string, fit layout) ([]string, bool) {
+// clause boundary when it runs past the cap. With shrink, a first sentence that
+// fit does not accept divides again at a lower cap each time, and its own first
+// sentence replaces it. It reports false when no division gives a whole sentence.
+func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 	marker, indent, ok := commentShape(text)
 	if !ok {
 		return nil, false
@@ -23,8 +23,12 @@ func steOpening(text []string, fit layout) ([]string, bool) {
 		if para.blank || para.verbatim {
 			continue
 		}
-		// The opening sentence is the comment's own words.
-		sentences := ste.Sentences(ste.FixKeepingOpening(closeThoughts(para.lines)))
+		// The opening sentence is the comment's own words. A last thought with no stop gets one, so the division can close it.
+		joined := closeThoughts(para.lines)
+		if !endsSentence(joined) {
+			joined += "."
+		}
+		sentences := ste.Sentences(ste.FixKeepingOpening(joined))
 		if len(sentences) == 0 {
 			return nil, false
 		}
@@ -38,7 +42,7 @@ func steOpening(text []string, fit layout) ([]string, bool) {
 			return nil, false
 		}
 		out, fits := fit(first, indent, marker)
-		for limit := ste.WordCount(first) - 1; !fits && limit >= minimumOpening; limit-- {
+		for limit := ste.WordCount(first) - 1; shrink && !fits && limit >= minimumOpening; limit-- {
 			divided := ste.Sentences(ste.DivideTo(first, limit))
 			if len(divided) < 2 {
 				continue

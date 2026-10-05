@@ -35,7 +35,7 @@ func capLines(b block, maxLines int) []string {
 		opening, whole := steOpening(body, func(sentence, indent, marker string) ([]string, bool) {
 			out := reflow(sentence, indent, marker, wrapWidth)
 			return out, len(out) <= limit
-		})
+		}, true)
 		if whole && len(opening) <= limit {
 			body = opening
 		}
