@@ -58,11 +58,11 @@ func merge(nodes []ts.Node, lines []string) []Run {
 	var runs []Run
 	for i := 0; i < len(nodes); {
 		start := int(nodes[i].StartPoint().Row)
-		end := int(nodes[i].EndPoint().Row)
+		end := lastRow(nodes[i])
 		j := i
-		for j+1 < len(nodes) && int(nodes[j+1].StartPoint().Row) <= end+1 {
+		for j+1 < len(nodes) && int(nodes[j+1].StartPoint().Row) <= end+1 && followsCode(nodes[j+1], lines) == followsCode(nodes[j], lines) {
 			j++
-			if row := int(nodes[j].EndPoint().Row); row > end {
+			if row := lastRow(nodes[j]); row > end {
 				end = row
 			}
 		}
@@ -86,18 +86,18 @@ func purity(nodes []ts.Node, start, end int, lines []string) []bool {
 		pure[i] = true
 	}
 	for _, n := range nodes {
-		from, to := int(n.StartPoint().Row), int(n.EndPoint().Row)
+		from, to := int(n.StartPoint().Row), lastRow(n)
 		if before := int(n.StartPoint().Column); before > 0 && !blankTo(lines, from, before) {
 			pure[from-start] = false
 		}
-		if after := int(n.EndPoint().Column); !blankFrom(lines, to, after) {
+		if to == int(n.EndPoint().Row) && !blankFrom(lines, to, int(n.EndPoint().Column)) {
 			pure[to-start] = false
 		}
 	}
 	// A line inside the run that no comment covers holds something else.
 	covered := make([]bool, len(pure))
 	for _, n := range nodes {
-		for row := int(n.StartPoint().Row); row <= int(n.EndPoint().Row); row++ {
+		for row := int(n.StartPoint().Row); row <= lastRow(n); row++ {
 			covered[row-start] = true
 		}
 	}
@@ -107,6 +107,21 @@ func purity(nodes []ts.Node, start, end int, lines []string) []bool {
 		}
 	}
 	return pure
+}
+
+// lastRow is the last row that holds part of a comment.
+func lastRow(n ts.Node) int {
+	end := n.EndPoint()
+	if end.Column == 0 && end.Row > n.StartPoint().Row {
+		return int(end.Row) - 1
+	}
+	return int(end.Row)
+}
+
+// followsCode reports a comment that shares its first line with code before it. A note on a line of code is not part of the block above or below it.
+func followsCode(n ts.Node, lines []string) bool {
+	col := int(n.StartPoint().Column)
+	return col > 0 && !blankTo(lines, int(n.StartPoint().Row), col)
 }
 
 // blankTo reports whether the line holds only whitespace before a column.
