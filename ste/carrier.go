@@ -72,7 +72,8 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
 	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest):
 		return head, carrierFor(whole, main) + " " + rest, opensWithCarrier
-	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first):
+	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && unicode.IsLower(rune(word.Text[0])) &&
+		listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first):
 		// The rest of a list of verb groups keeps its verbs behind the subject: "It also collapses X, and hides Y".
 		subject := mainSubject(source, whole, main, word.Tag)
 		if subject == "" {
@@ -218,7 +219,7 @@ func closesPhrase(head string, whole *syntax.Sentence) bool {
 // up to end. A list of verb groups holds neither before its last item.
 func conjunctionBetween(s *syntax.Sentence, from, end int) bool {
 	for i := max(from, 0); i < end && i < len(s.Words); i++ {
-		if t := s.Words[i].Tag; t == "CC" || t == "WDT" || t == "WP" || t == "IN" && syntax.Is(s.Words[i].Lower(), "subordinator") {
+		if t := s.Words[i].Tag; t == "CC" && joinsVerb(s, i+1) || t == "WDT" || t == "WP" || t == "IN" && syntax.Is(s.Words[i].Lower(), "subordinator") {
 			return true
 		}
 	}

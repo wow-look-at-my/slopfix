@@ -253,7 +253,7 @@ func (p *clauseParser) subordinator(i int) bool {
 		return true
 	}
 	if lower == "that" && w.Tag == "IN" {
-		return true
+		return !p.relativeThat(i)
 	}
 	if lower == "as" && i+2 < len(p.s.Words) && asPhrase.Contains(p.s.Words[i+1].Lower()) && p.s.Words[i+2].Lower() == "as" {
 		return true
@@ -270,8 +270,18 @@ func (p *clauseParser) subordinator(i int) bool {
 	return true
 }
 
+// relativeThat reports a "that" the tagger read as a subordinator between a
+// noun and a finite verb: "a summary that fits is useful". It opens a relative clause.
+func (p *clauseParser) relativeThat(i int) bool {
+	w := p.s.Words[i]
+	return w.Lower() == "that" && i > 0 && i+1 < len(p.s.Words) && isNoun(p.s.Words[i-1].Tag) && isFinite(p.s.Words[i+1].Tag)
+}
+
 func (p *clauseParser) relative(i int) bool {
 	w := p.s.Words[i]
+	if p.relativeThat(i) {
+		return true
+	}
 	switch w.Tag {
 	case "WDT", "WP", "WP$":
 		return Is(w.Lower(), "relative")

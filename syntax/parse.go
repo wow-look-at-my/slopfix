@@ -101,7 +101,11 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 			return true
 		}
 		head, before := &words[p.Head], words[p.Head-1]
+		listed := p.Head+1 < len(words) && (words[p.Head+1].Tag == "," || words[p.Head+1].Tag == "WDT" || words[p.Head+1].Lower() == "that")
 		switch {
+		case head.Tag == "NNS" && filler(before.Text) && listed:
+			// "`deny` rules, hooks": a name and a plural before a comma or a relative word are a noun phrase.
+			continue
 		case head.Tag == "NNS" && (before.Tag == "NN" || before.Tag == "NNP"):
 			head.Tag = "VBZ"
 		case head.Tag == "NN" && before.Tag == "NNS":

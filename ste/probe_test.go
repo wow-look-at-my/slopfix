@@ -47,6 +47,26 @@ func TestProbe(t *testing.T) {
 			fmt.Fprintf(&b, "  clause kind=%v depth=%d link=%d first=%d last=%d subj=%s verb=%s\n", c.Kind, c.Depth, c.Link, c.First, c.Last, subj, verb)
 		}
 		fmt.Fprintf(&b, "OUT:  %s\n", fixSentenceCap(in))
+		if !strings.HasPrefix(in, "Capture") && !strings.HasPrefix(in, "A focused") && !strings.HasPrefix(in, "[Always") && !strings.HasPrefix(in, "The agent") {
+			continue
+		}
+		masked := checkMask(in)
+		whole := syntax.Parse(masked, nil)
+		for _, strict := range []bool{true, false} {
+			for _, c := range candidates(in, masked, strict) {
+				right, opened := openRest(in, masked, whole, c)
+				head := in[:c.left]
+				if right == "" {
+					head, right, opened = carrierDivision(in, whole, c)
+				}
+				if right == "" {
+					continue
+				}
+				left := closeHead(head)
+				fmt.Fprintf(&b, "  cut strict=%v score=%d opened=%d aside=%v divides=%v closes=%v phrase=%v | %s || %s\n", strict, c.score, opened,
+					cutsAside(masked, c.left, c.right), divides(left, right), closesWhole(in[:c.left], seamBefore(in, c.left), whole), closesPhrase(in[:c.left], whole), left, right)
+			}
+		}
 	}
 	t.Error(b.String())
 }
