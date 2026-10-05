@@ -171,6 +171,11 @@ func retag(words []Word) {
 			w.Tag = "VBZ"
 		}
 	}
+	// "run runs git": a sentence that opens in lower case opens on a name, and the -s form after it is the verb.
+	if len(words) > 2 && lowerOpening(words[0].Text) && verbEnding(words[1].Text) &&
+		(words[1].Tag == "VBZ" || words[1].Tag == "NNS") && opensObjectAt(words[2]) {
+		words[0].Tag, words[1].Tag = "NNP", "VBZ"
+	}
 	for i := range words {
 		if participleAdjective(words, i) {
 			words[i].Tag = "JJ"
@@ -229,6 +234,11 @@ func identifier(word string) bool {
 		return false
 	}
 	return strings.ContainsAny(word[1:], "_ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+}
+
+// lowerOpening reports a word that opens on a lower-case letter.
+func lowerOpening(word string) bool {
+	return word != "" && word[0] >= 'a' && word[0] <= 'z'
 }
 
 // opensObjectAt reports a word that can open the object of a verb.
