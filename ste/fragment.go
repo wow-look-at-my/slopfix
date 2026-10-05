@@ -85,8 +85,12 @@ func trueAdverb(w syntax.Word) bool {
 	return strings.HasSuffix(lower, "ly") || plainAdverbs.Contains(lower)
 }
 
+// auxiliaryVerbs want the words after them, so none of them closes a phrase.
+var auxiliaryVerbs = set.Of("is", "are", "was", "were", "be", "been", "being", "am",
+	"has", "have", "had", "does", "do", "did")
+
 // plainAdverbs end a phrase though they carry no "ly".
-var plainAdverbs = set.Of("here", "there", "now", "then", "too", "today", "later", "first", "last",
+var plainAdverbs = set.Of("here", "there", "now", "too", "today", "later", "first", "last",
 	"once", "twice", "ever", "yet", "already", "alone", "else", "instead", "anyway", "soon", "again")
 
 // endsBefore reports a cut before word n that leaves a whole noun phrase. A
@@ -98,7 +102,18 @@ func endsBefore(s *syntax.Sentence, n int) bool {
 	if endsPhrase(s.Words[n-1]) {
 		return true
 	}
-	if !strings.HasPrefix(s.Words[n-1].Tag, "VB") {
+	if !strings.HasPrefix(s.Words[n-1].Tag, "VB") || auxiliaryVerbs.Contains(s.Words[n-1].Lower()) {
+		return false
+	}
+	// Only a verb inside a relative clause can close the phrase that holds it. A main verb wants its object.
+	relative := false
+	for _, w := range s.Words[:n-1] {
+		switch w.Lower() {
+		case "that", "which", "who":
+			relative = true
+		}
+	}
+	if !relative {
 		return false
 	}
 	for j := n + 1; j < len(s.Words); j++ {

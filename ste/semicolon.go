@@ -76,9 +76,9 @@ func segmentStart(s *syntax.Sentence, i int) int {
 	return 0
 }
 
-// semicolonDivides reports whether the semicolon at word i of s ends a sentence
-// that opens at word from, and the words after it open a sentence of their own.
-// A semicolon that ends the sentence always divides.
+// semicolonDivides reports whether the semicolon at word i of s ends. A
+// sentence that opens at word from, and the words after it open a sentence of
+// their own. A semicolon that ends the sentence always divides.
 func semicolonDivides(s *syntax.Sentence, from, i int) bool {
 	rest := i + 1
 	for rest < len(s.Words) && strings.IndexFunc(s.Words[rest].Text, unicode.IsLetter) < 0 {
@@ -90,9 +90,9 @@ func semicolonDivides(s *syntax.Sentence, from, i int) bool {
 	return standsAlone(s, from, i) && opensSentenceAt(s, i)
 }
 
-// opensSentenceAt reports whether the words after the mark at word i open with
-// their own subject and a verb that agrees with it, with an imperative, or with
-// a subordinate clause and then its main clause.
+// opensSentenceAt reports whether the words. This happens after the mark at
+// word i open with their own subject and a verb that agrees with it, with an
+// imperative, or with a subordinate clause and then its main clause.
 func opensSentenceAt(s *syntax.Sentence, i int) bool {
 	for k, c := range s.Clauses {
 		if c.Depth == 0 && c.Link == i {
@@ -181,6 +181,9 @@ func fixSemicolons(text string) string {
 				end += len(leadingConjunction.FindString(text[end:]))
 				joins, openers = append(joins, []int{p, end}), append(openers, "This also covers")
 			case end < span[1] && standsAsSentence(segmentAfter(text, end, span[1])):
+				joins, openers = append(joins, []int{p, end}), append(openers, "")
+			case end < span[1] && holdsFinite(segmentAfter(text, end, span[1])) && holdsFinite(masked[span[0]:p]):
+				// Words with a verb on each side are clauses the parser misread, as with a subject that a relative clause makes long.
 				joins, openers = append(joins, []int{p, end}), append(openers, "")
 			default:
 				commas = append(commas, p)
@@ -299,6 +302,11 @@ func prepositional(text string, marks []int, end int) (string, bool) {
 
 // pairPrepositions open the case of a pair such as "for a parser, round-trip".
 var pairPrepositions = set.Of("for", "in", "on", "at", "with", "by", "from", "to", "under", "within", "without", "via", "per", "inside")
+
+// holdsFinite reports text with a finite verb or a modal outside a parenthesis.
+func holdsFinite(text string) bool {
+	return finiteBefore(syntax.Parse(checkMask(text), nil), 0, "")
+}
 
 // standsAsSentence reports text that reads as a sentence: a clause, an
 // instruction, or a subordinate clause followed by either.

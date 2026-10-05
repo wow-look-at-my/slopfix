@@ -159,6 +159,41 @@ var brokenShapes = []struct {
 		"not. The",
 	},
 	{
+		"a copula keeps its complement",
+		"A block that holds an earlier ending is repaired at that ending, which is the control that proves the cut is not simply the last line going.",
+		"which is. The",
+	},
+	{
+		"a main verb keeps a noun phrase with a relative clause",
+		"semicolonDivides reports whether the semicolon at word i of s ends a sentence that opens at word from, and the words after it open a sentence of their own.",
+		"ends. A",
+	},
+	{
+		"a head never ends inside a whether clause",
+		"opensSentenceAt reports whether the words after the mark at word i open with their own subject and a verb that agrees with it, with an imperative, or with a subordinate clause and then its main clause.",
+		"words. This",
+	},
+	{
+		"a phrase a later verb follows stays with its subject",
+		"The edit tools are the sanctioned route and are left alone, except where their target is the live settings, which is how a session would re-grant what every rule above denies.",
+		"That rule is",
+	},
+	{
+		"an adverbial inside a relative clause stays there",
+		"sed and awk are the filters that can write a file without being told to on the argv: sed's `w` command and awk's `print >` both name their target inside the program text.",
+		"This holds without",
+	},
+	{
+		"a reason keeps the main clause's coordinated verb",
+		"preserved asserts a command was allowed because its at-risk content was committed into a preservation ref rather than lost, and returns the notice text for the caller to inspect further.",
+		"This holds for",
+	},
+	{
+		"a compound subject after so is no list",
+		"The binary is a thin wrapper, so a hook, a CI job and an editor integration all get identical answers instead of separate implementations that drift.",
+		"also is",
+	},
+	{
 		"a clause after a colon is no list",
 		"A word longer than the width goes on its own line rather than being broken: a URL or an identifier split across lines stops being either.",
 		"This covers",

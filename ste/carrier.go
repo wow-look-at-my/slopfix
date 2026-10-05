@@ -52,14 +52,20 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if !ok {
 		return head, "", 0
 	}
+	// A head that ends inside a clause still waiting for its verb is no sentence.
+	if headOpen(whole, first) {
+		return head, "", 0
+	}
 	noun := strings.HasPrefix(prev.Tag, "NN")
 	main, hasMain := mainVerb(whole, c.left)
+	// A phrase after a noun that a verb then follows is the subject's own: "the case above passes".
+	predicateFollows := finiteBefore(whole, first+1, ",")
 	// A phrase that describes the noun before it ends the sentence: no comma, conjunction or clause follows it.
 	describes := seam == "" && noun && plainPhrase(whole, first)
 	switch {
 	case !hasMain && !finiteBetween(whole, 0, len(whole.Words)):
 		// A sentence with no verb at all is a noun phrase, and only a phrase that describes a noun in it can move.
-		if describes && (carrierPlace.Contains(lower) || word.Tag == "VBN" || word.Tag == "VBG") {
+		if describes && !predicateFollows && (carrierPlace.Contains(lower) || word.Tag == "VBN" || word.Tag == "VBG") {
 			return head, restate(source, prev, rest), opensWithCarrier
 		}
 		return head, "", 0
@@ -68,20 +74,21 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	case lower == "so" && (seam == "," || seam == "") && (main.Imperative || instructs(whole)):
 		// A so after an instruction states its purpose, and the purpose goes behind "Do this".
 		return head, "Do this " + rest, opensWithCarrier
-	case describes && carrierPlace.Contains(lower) && !strings.HasPrefix(strings.ToLower(rest), "in order"):
+	case describes && !predicateFollows && carrierPlace.Contains(lower) && !strings.HasPrefix(strings.ToLower(rest), "in order"):
 		return head, restate(source, prev, rest), opensWithCarrier
-	case describes && (word.Tag == "VBN" || word.Tag == "VBG") && first+1 < len(whole.Words) && !strings.HasPrefix(whole.Words[first+1].Tag, "NN"):
+	case describes && !predicateFollows && (word.Tag == "VBN" || word.Tag == "VBG") && first+1 < len(whole.Words) && !strings.HasPrefix(whole.Words[first+1].Tag, "NN"):
 		return head, restate(source, prev, rest), opensWithCarrier
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
-	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds"):
+	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
+		!inRelative(whole, first-1) && !coordinatedVerb(whole, first):
 		// A reason reads behind "This is", whatever the verb: "This is because X".
 		if lower == "because" {
 			return head, "This is " + rest, opensWithCarrier
 		}
 		return head, carrierFor(whole, main) + " " + rest, opensWithCarrier
 	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && unicode.IsLower(rune(word.Text[0])) &&
-		listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first):
+		listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first) && !subordinatorBetween(whole, main.Last+1, first):
 		// The rest of a list of verb groups keeps its verbs behind the subject: "It also collapses X, and hides Y".
 		subject := mainSubject(source, whole, main, word.Tag)
 		if subject == "" {
@@ -89,7 +96,8 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		return listHead(head, "and", false, whole, main), capitalizeOpening(subject) + " also " + rest, opensWithCarrier
 	case seam == "," || seam == ":":
-		if carried, conj, ok := listRest(source, whole, main, c, rest, seam); ok {
+		// A list that opens after "so" or a subordinator belongs to that clause: "is a thin wrapper, so a hook, a CI job and an editor integration all get".
+		if carried, conj, ok := listRest(source, whole, main, c, rest, seam); ok && !subordinatorBetween(whole, main.Last+1, first) {
 			return listHead(head, conj, oxford(rest), whole, main), carried, opensWithCarrier
 		}
 		if seam != ":" || lowerIdentifier(firstToken.FindString(rest)) {
@@ -110,6 +118,62 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 	}
 	return head, "", 0
+}
+
+// clauseOpeners open a clause whose verb a head must hold before it can close.
+var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since", "unless", "although", "though", "whereas", "so")
+
+// headOpen reports words before word end that end inside an unfinished
+// clause: a subordinator with no finite verb after it, as in "reports whether
+// the words", or a noun followed by a new subject with no verb after it, as in
+// "answers the row the earliest node".
+func headOpen(s *syntax.Sentence, end int) bool {
+	open := -1
+	for i := 0; i < end && i < len(s.Words); i++ {
+		w := s.Words[i]
+		switch {
+		case finiteVerbTag(w.Tag) || w.Tag == "MD":
+			open = -1
+		case clauseOpeners.Contains(w.Lower()) && i > 0:
+			open = i
+		case i > 0 && strings.HasPrefix(s.Words[i-1].Tag, "NN") && (w.Tag == "DT" || w.Tag == "PRP"):
+			open = i
+		}
+	}
+	return open >= 0
+}
+
+// inRelative reports word i inside a clause a relative word opens, whose
+// verb the words after i complete: "the filters that can write a file".
+func inRelative(s *syntax.Sentence, i int) bool {
+	for _, c := range s.Clauses {
+		if c.Kind == syntax.Relative && c.First <= i && i <= c.Last {
+			return true
+		}
+	}
+	return false
+}
+
+// coordinatedVerb reports ", and" or ", or" before a finite verb from word i
+// on. That verb shares the main clause's subject, so the words before it are
+// no adverbial of their own: "because X was committed, and returns Y".
+func coordinatedVerb(s *syntax.Sentence, i int) bool {
+	for ; i+2 < len(s.Words); i++ {
+		if s.Words[i].Text == "," && (s.Words[i+1].Lower() == "and" || s.Words[i+1].Lower() == "or") && finiteVerbTag(s.Words[i+2].Tag) {
+			return true
+		}
+	}
+	return false
+}
+
+// subordinatorBetween reports "so" or a subordinator from word from up to end.
+func subordinatorBetween(s *syntax.Sentence, from, end int) bool {
+	for i := max(from, 0); i < end && i < len(s.Words); i++ {
+		if clauseOpeners.Contains(s.Words[i].Lower()) {
+			return true
+		}
+	}
+	return false
 }
 
 // hiddenVerb reports a verb the tagger read as something else, from word i on:
