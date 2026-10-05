@@ -61,15 +61,24 @@ func TestANumberNoEntryCoversIsReworded(t *testing.T) {
 	}
 }
 
-// A point on a scale, or an id, is a value, not a count. No edit to a set makes
-// it stale, so it is no finding: "at multiple cols" would be no English.
-func TestAValueAtAPointIsNoFinding(t *testing.T) {
-	for _, in := range []string{
-		"// It is wide. At 100 cols the row wraps.\nvar x int\n",
-		"// It is slow. The mock with id 1 completes after a short delay.\nvar x int\n",
-		"// It is slow. Then branch 3 sees the entry already cleared.\nvar x int\n",
+// A point on a scale, or an id, goes stale like a count, so each is a finding.
+// The repair names the constant with that value, or writes a generic phrase.
+// "at multiple cols" and "branch multiple sees" are no English, so no repair
+// writes them.
+func TestALabelOrAPointIsRepaired(t *testing.T) {
+	for in, want := range map[string]string{
+		"// It is wide. At 100 cols the row wraps.\nvar x int\n":                         "// It is wide. At a set number of cols the row wraps.\nvar x int\n",
+		"// id 1 completes after a short delay.\nvar x int\n":                            "// One id completes after a short delay.\nvar x int\n",
+		"// It is slow. The mock with id 1 completes after a short delay.\nvar x int\n":  "// It is slow. The mock with one id completes after a short delay.\nvar x int\n",
+		"// It is slow. Then branch 3 sees the entry already cleared.\nvar x int\n":      "// It is slow. Then a later branch sees the entry already cleared.\nvar x int\n",
+		"// Truncating to 15 cuts inside the second span.\nvar x int\n":                  "// Truncating to a set limit cuts inside the second span.\nvar x int\n",
+		"const narrowWidth = 1\nconst NARROW = 100\n\n// At 100 cols the row wraps.\nvar x int\n": "const narrowWidth = 1\nconst NARROW = 100\n\n// At `NARROW` cols the row wraps.\nvar x int\n",
 	} {
-		assert.Empty(t, commentfix.Check("x.go", header+in), in)
+		assert.NotEmpty(t, commentfix.Check("x.go", header+in), "check reports %q", in)
+		repair := fix(t, in)
+		assert.Equal(t, want, repair.Text, in)
+		assert.Empty(t, repair.Removed, in)
+		assert.Empty(t, commentfix.Check("x.go", header+repair.Text), in)
 	}
 }
 

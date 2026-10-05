@@ -1,6 +1,7 @@
 package ste
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 	"unicode"
@@ -157,12 +158,12 @@ func imperativeTag(s *syntax.Sentence, verb syntax.Phrase) bool {
 // its phrases with a comma. The blank after each is read from the text,
 // because the mask writes a blank over the backtick of a code span.
 func fixSemicolons(text string) string {
+	text = pairLists(text)
 	masked := checkMask(text)
 	periods := set.Of(semicolonJoins(masked)...)
 	var joins [][]int
 	var openers []string
 	var commas []int
-	var ands []int
 	for _, span := range sentenceSpans(masked) {
 		var marks []int
 		for p := span[0]; p < span[1]; p++ {
@@ -170,19 +171,14 @@ func fixSemicolons(text string) string {
 				marks = append(marks, p)
 			}
 		}
-		// Items that each open on a preposition pair a case with its answer: "for a
-		// parser, round-trip".
-		if prepositional(text, marks, span[1]) {
-			commas = append(commas, marks[:len(marks)-1]...)
-			ands = append(ands, marks[len(marks)-1])
-			continue
-		}
 		for _, p := range marks {
 			end := p + len(semicolonRun.FindString(text[p:]))
 			switch {
 			case periods.Contains(p):
 				joins, openers = append(joins, []int{p, end}), append(openers, "")
 			case strings.Contains(masked[span[0]:p], ":") && !strings.Contains(masked[p:span[1]], ":"):
+				// The list's conjunction goes with the semicolon: "This also covers or a subsystem" is no English.
+				end += len(leadingConjunction.FindString(text[end:]))
 				joins, openers = append(joins, []int{p, end}), append(openers, "This also covers")
 			case end < span[1] && standsAsSentence(segmentAfter(text, end, span[1])):
 				joins, openers = append(joins, []int{p, end}), append(openers, "")
@@ -191,16 +187,10 @@ func fixSemicolons(text string) string {
 			}
 		}
 	}
-	for _, p := range ands {
-		commas = append(commas, -p-1)
-	}
-	sort.Slice(commas, func(a, b int) bool { return abs(commas[a]) < abs(commas[b]) })
-	// The commas go first, from the back, so every offset a join holds stays valid. A negative entry writes ", and".
+	sort.Ints(commas)
+	// The commas go first, from the back, so every offset a join holds stays valid.
 	for i := len(commas) - 1; i >= 0; i-- {
 		p, join := commas[i], ", "
-		if p < 0 {
-			p, join = -p-1, ", and "
-		}
 		run := semicolonRun.FindString(text[p:])
 		text = text[:p] + join + text[p+len(run):]
 		shift := len(join) - len(run)
@@ -214,25 +204,97 @@ func fixSemicolons(text string) string {
 	return breakWith(text, joins, openers)
 }
 
-// abs answers the size of n.
-func abs(n int) int { return max(n, -n-1) }
+// leadingConjunction is the "and" or "or" that opens the last item of a list.
+var leadingConjunction = regexp.MustCompile(`^(?:and|or)[ \t]+`)
 
-// prepositional reports semicolons whose items after them each open on the
-// same preposition, and pair it with an answer after a comma.
-func prepositional(text string, marks []int, end int) bool {
+// pairLists rewrites each list whose items open on the same preposition and
+// pair a case with its answer after a comma: "for a parser, round-trip; for a
+// store, get-after-set" becomes "for a parser (round-trip) and for a store
+// (get-after-set)". The parenthesis keeps each answer with its case, where a
+// comma would run the pairs together.
+func pairLists(text string) string {
+	masked := checkMask(text)
+	spans := sentenceSpans(masked)
+	for k := len(spans) - 1; k >= 0; k-- {
+		span := spans[k]
+		var marks []int
+		for p := span[0]; p < span[1]; p++ {
+			if masked[p] == ';' {
+				marks = append(marks, p)
+			}
+		}
+		lead, ok := prepositional(text, marks, span[1])
+		if !ok {
+			continue
+		}
+		first := lastWord(strings.ToLower(text[span[0]:marks[0]]), lead)
+		if first < 0 || !strings.Contains(text[span[0]+first:marks[0]], ",") {
+			continue
+		}
+		bounds := []int{span[0] + first}
+		for _, p := range marks {
+			bounds = append(bounds, p, p+len(semicolonRun.FindString(text[p:])))
+		}
+		end := span[1]
+		for end > bounds[len(bounds)-1] && strings.ContainsAny(text[end-1:end], ".!? \t") {
+			end--
+		}
+		bounds = append(bounds, end)
+		var items []string
+		for i := 0; i+1 < len(bounds); i += 2 {
+			items = append(items, pairItem(strings.TrimSpace(text[bounds[i]:bounds[i+1]])))
+		}
+		joined := strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
+		if len(items) > 2 {
+			joined = strings.Join(items[:len(items)-1], ", ") + ", and " + items[len(items)-1]
+		}
+		text = text[:bounds[0]] + joined + text[end:]
+	}
+	return text
+}
+
+// pairItem writes "for X, Y" as "for X (Y)". An answer that holds a
+// parenthesis of its own keeps its comma.
+func pairItem(item string) string {
+	comma := strings.IndexByte(item, ',')
+	answer := strings.TrimSpace(item[comma+1:])
+	if comma < 0 || strings.ContainsAny(answer, "()") {
+		return item
+	}
+	return item[:comma] + " (" + answer + ")"
+}
+
+func lastWord(text, w string) int {
+	for at := len(text); at > 0; {
+		i := strings.LastIndex(text[:at], w)
+		if i < 0 {
+			return -1
+		}
+		end := i + len(w)
+		if (i == 0 || !unicode.IsLetter(rune(text[i-1]))) && (end == len(text) || !unicode.IsLetter(rune(text[end]))) {
+			return i
+		}
+		at = i
+	}
+	return -1
+}
+
+// prepositional answers the preposition that opens every item after the
+// semicolons, where each pairs it with an answer after a comma.
+func prepositional(text string, marks []int, end int) (string, bool) {
 	if len(marks) == 0 {
-		return false
+		return "", false
 	}
 	lead := ""
 	for _, p := range marks {
 		seg := segmentAfter(text, p+1, end)
 		word := strings.ToLower(firstToken.FindString(seg))
 		if !pairPrepositions.Contains(word) || !strings.Contains(seg, ",") || lead != "" && word != lead {
-			return false
+			return "", false
 		}
 		lead = word
 	}
-	return true
+	return lead, true
 }
 
 // pairPrepositions open the case of a pair such as "for a parser, round-trip".
@@ -241,6 +303,9 @@ var pairPrepositions = set.Of("for", "in", "on", "at", "with", "by", "from", "to
 // standsAsSentence reports text that reads as a sentence: a clause, an
 // instruction, or a subordinate clause followed by either.
 func standsAsSentence(text string) bool {
+	if bareNounPhrase(text) {
+		return false
+	}
 	if StandsAlone(text) || opensImperative(text) {
 		return true
 	}
@@ -254,6 +319,13 @@ func standsAsSentence(text string) bool {
 	}
 	rest := strings.TrimSpace(text[s.Words[comma].End:])
 	return StandsAlone(rest) || opensImperative(rest)
+}
+
+// bareNounPhrase reports text that opens on a comparison and a singular noun
+// with no determiner: "richest signal for the pattern". It is an appositive.
+func bareNounPhrase(text string) bool {
+	words := syntax.Parse(checkMask(text), nil).Words
+	return len(words) > 1 && (words[0].Tag == "JJS" || words[0].Tag == "JJR") && strings.HasPrefix(words[1].Tag, "NN")
 }
 
 // segmentAfter answers the text from byte from to the next semicolon or to end.

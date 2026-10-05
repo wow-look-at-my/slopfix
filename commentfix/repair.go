@@ -153,11 +153,12 @@ func carriesProse(lines []string, rows set.Set[int], i int) bool {
 // A run rather than a line, because a sentence wraps: cutting the share a line
 // carries leaves the rest of that sentence dangling below it.
 func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []edit.Edit, rejected []Rejection) {
+	consts := constantsIn(src)
 	for _, para := range paragraphsOf(lines, runs) {
 		if para.verbatim {
 			continue
 		}
-		reworded, refused := rewordChecked(para.prose)
+		reworded, refused := rewordChecked(nameLabels(para.prose, consts))
 		for _, r := range refused {
 			r.Line = para.lines[0] + 1
 			rejected = append(rejected, r)

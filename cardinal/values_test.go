@@ -20,8 +20,6 @@ var notCounts = []string{
 	"It answers HTTP 404 pages for every miss.",
 	"Migration 015 defines it: artifact_id, fmt, the client.",
 	"Migration 014 pins that id on the project.",
-	"They honor the Section 4 pins.",
-	"It reads rule 6 inputs.",
 	// A measure followed by its verb, not by a noun.
 	"The 128 KiB is a pair of the reader's buffer fills.",
 	"43 cols is less than MAX_LINES*WRAP_WIDTH, so it must not truncate.",
@@ -55,6 +53,28 @@ func TestATallyBesideAValueIsStillACount(t *testing.T) {
 		"It sends four PATCH requests.",
 		"It sends one create and four 1 MiB PATCH requests.",
 		"It retries with 30 second timeouts.",
+	} {
+		assert.NotEmpty(t, cardinal.Find(prose, cardinal.Gate), "gate: %s", prose)
+	}
+}
+
+// A number that names an item or sets a point goes stale like a count, so
+// each stays a finding. The repair names the item instead.
+func TestALabelOrAPointIsAFinding(t *testing.T) {
+	for _, prose := range []string{
+		"They honor the Section 4 pins.",
+		"It reads rule 6 inputs.",
+		"Then branch 3 sees the entry already cleared.",
+		"The mock with id 1 completes after a short delay.",
+		"At 100 cols the row wraps.",
+		"Truncating to 15 cuts inside the second span.",
+	} {
+		assert.NotEmpty(t, cardinal.Find(prose, cardinal.Comment), "comment: %s", prose)
+	}
+	for _, prose := range []string{
+		"They honor the Section 4 pins.",
+		"It reads rule 6 inputs.",
+		"Then branch 3 sees the entry already cleared.",
 	} {
 		assert.NotEmpty(t, cardinal.Find(prose, cardinal.Gate), "gate: %s", prose)
 	}

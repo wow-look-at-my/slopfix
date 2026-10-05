@@ -113,6 +113,10 @@ func Edits(content string, hits []Hit) []edit.Edit {
 		if hit.Start < 0 || hit.End > len(content) {
 			continue
 		}
+		if e, ok := LabelAt(content, hit.Start, nil); ok {
+			out = append(out, e)
+			continue
+		}
 		if e, ok := reword(content, hit); ok {
 			out = append(out, e)
 			if more, ok := elided(content, hit, hits); ok {

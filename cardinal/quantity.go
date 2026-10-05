@@ -135,6 +135,14 @@ func NotAPluralNoun(text string, q Match) bool {
 	return false
 }
 
+// NoPluralNounAfter is NotAPluralNoun for a number that counts.
+func NoPluralNounAfter(text string, q Match) bool {
+	if _, point := APoint(text, q.At); point || NamesAnItem(text, q.At) {
+		return false
+	}
+	return NotAPluralNoun(text, q)
+}
+
 // nominalTags are the tags a modifier between a cardinal and its noun carries.
 var nominalTags = set.Of("CD", "NN", "NNP", "JJ")
 
@@ -239,25 +247,14 @@ func Labeled(text string, q Match) bool {
 	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
 }
 
-// AValue exempts a number that names an item or a point rather than counting a set: "branch 3 sees", "at 100 cols".
-func AValue(text string, q Match) bool { return NoWordReplaces(text, q.At) }
-
-// AValueToken is AValue for the comment walk.
-func AValueToken(text string, toks []Token, i int) bool {
-	return allDigits(toks[i].Text) && NoWordReplaces(text, toks[i].Offset)
-}
-
-// NoWordReplaces reports a number at offset at that no repair word can take the
-// place of: one that names an item, or a point on a scale after "at", "by" or
-// "to". "At 100 cols" does not mean "at multiple cols". A
-// unit after the point still takes a vague amount: "warns at many lines".
-func NoWordReplaces(text string, at int) bool {
-	if NamesAnItem(text, at) {
-		return true
-	}
+// APoint answers the preposition before digits at offset at that set a point on
+// a scale, "at", "by" or "to", as in "at 100 cols" or "truncating to 15". A
+// point is no count, so "at multiple cols" is no repair. A unit after the point
+// still takes a vague amount: "warns at many lines".
+func APoint(text string, at int) (string, bool) {
 	words := strings.Fields(text[at:])
-	if len(words) == 0 {
-		return false
+	if len(words) == 0 || !allDigits(strings.TrimRight(words[0], ".,;:)")) {
+		return "", false
 	}
 	before := strings.Fields(strings.ToLower(text[:at]))
 	// A hedge goes with the number, so the word before the hedge decides: "at exactly 850 tokens".
@@ -265,30 +262,33 @@ func NoWordReplaces(text string, at int) bool {
 		before = before[:len(before)-1]
 	}
 	if len(before) == 0 || len(words) > 1 && IsUnit(bare(words[1])) {
-		return false
+		return "", false
 	}
-	switch bare(before[len(before)-1]) {
+	switch prep := bare(before[len(before)-1]); prep {
 	case "at", "by":
-		return true
+		return prep, true
 	case "to":
-		return len(before) < 2 || bare(before[len(before)-2]) != "up"
+		return prep, len(before) < 2 || bare(before[len(before)-2]) != "up"
 	}
-	return false
+	return "", false
 }
 
-// NamesAnItem reports digits at offset at right after a singular noun inside a
-// sentence, as in "branch 3 sees" or "the Section 4 pins". The digits name
-// one item, so no word can take their place. The first word of a sentence does
-// not count, because the tagger reads an imperative there as a noun. A noun
+// NamesAnItem reports digits at offset at right after a singular noun, as in
+// "branch 3 sees" or "the Section 4 pins". The digits name one item. A noun
 // that a number or "each" governs starts a second phrase: "one call 3 ways".
+// The first word of a sentence names an item only before a finite verb,
+// because the tagger reads an imperative there as a noun: "Run 3 tests".
 func NamesAnItem(text string, at int) bool {
 	words := syntax.Parse(text, nil).Words
 	for i, w := range words {
 		if w.Start != at {
 			continue
 		}
-		if !allDigits(w.Text) || i < 2 || words[i-1].End == at || (words[i-2].Tag == "." && words[i-2].Text != "(") {
+		if !allDigits(w.Text) || i < 1 || words[i-1].End == at {
 			return false
+		}
+		if i < 2 || words[i-2].Tag == "." && words[i-2].Text != "(" {
+			return i+1 < len(words) && finiteTags.Contains(words[i+1].Tag) && strings.HasPrefix(words[i-1].Tag, "NN")
 		}
 		prev, before := words[i-1], words[i-2]
 		name, opened := strings.CutPrefix(prev.Text, "(")
@@ -304,6 +304,9 @@ func NamesAnItem(text string, at int) bool {
 	}
 	return false
 }
+
+// finiteTags mark a finite verb.
+var finiteTags = set.Of("VBZ", "VBD", "VBP", "MD")
 
 // functionTags mark a word that is never a name an item carries.
 var functionTags = set.Of("IN", "DT", "CC", "PRP", "PRP$", "TO", "MD", "WDT", "RB", "NNS", "NNPS")

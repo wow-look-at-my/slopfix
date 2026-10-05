@@ -75,9 +75,9 @@ var realCommentSentences = []struct {
 		"",
 	},
 	{
-		"a so clause that states a purpose stays",
+		"a trailing adverbial after a so clause goes behind a carrier",
 		"// Your task is to produce a faithful, concise summary of the conversation so far so that a successor assistant can continue the work seamlessly after the earlier turns are discarded.",
-		"",
+		"Your task is to produce a faithful, concise summary of the conversation so far so that a successor assistant can continue the work seamlessly. This happens after the earlier turns are discarded.",
 	},
 	{
 		"a but clause divides with However",
@@ -120,7 +120,7 @@ func TestNoSentenceRuleReadsADirectiveOrALicense(t *testing.T) {
 	long := "The loader reads every cached manifest from the shared store of the plugin cache in the home directory of the user on each start of a session in the editor window."
 	for _, src := range []string{
 		"//go:generate go run ./gen -- " + long + "\npackage p\n",
-		"// Licensed under the Apache License, Version 2.0. " + long + "\npackage p\n",
+		"// Copyright the authors. Licensed under the Apache License, Version 2.0. " + long + "\npackage p\n",
 		"package p\n\n// Example:\n//\n//\t" + long + "\nfunc F() {}\n",
 	} {
 		assert.Empty(t, CheckSentences("p.go", src), src)

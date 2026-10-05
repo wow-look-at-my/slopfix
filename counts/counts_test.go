@@ -106,20 +106,41 @@ func TestACountAfterANounBecomesMultiple(t *testing.T) {
 	assert.Equal(t, "against binaries built on all platforms.", out, "a determiner before the count still lets it go")
 }
 
-// Digits after a singular noun name an item, and a point on a scale is a value.
-// Neither is a count, so neither is a finding: "branch multiple sees" is no English.
-func TestANumberThatNamesAnItemIsNoCount(t *testing.T) {
-	for _, in := range []string{
-		"- during a newer stream → dropped (branch 1 prompt-mismatch rejects, branch 3 sees `last_finished_agent_entry` already cleared).",
-		"They honor the Section 4 pins.",
-		"It reads rule 6 inputs.",
-		"At 100 cols the row wraps.",
-		"The preview contributes 0 lines when it is off.",
+// The lines of a real document that names its branches by number, and then
+// cites them by number alone.
+const attributionVerdict = "### 2. Keyless fallback (branch 3) ambiguity\n\n" +
+	"- branch (1) the still-streaming `current_agent_msg`, guarded by `streaming_matches`.\n" +
+	"- branch (2) the prompt→entry map `finished_prompt_costs` recorded by `finish_turn`.\n" +
+	"- branch (3) the keyless fallback `last_finished_agent_entry`.\n\n" +
+	"- during a newer stream → dropped (branch 1 prompt-mismatch rejects, branch 3 sees `last_finished_agent_entry` already cleared).\n"
+
+// Digits after a singular noun name an item, and a point on a scale is a
+// value. Each goes stale like a count, so each is a finding. The repair names
+// the item with the words the document gives it, and a generic phrase where it
+// gives none. "branch multiple sees" is no English, so no repair writes it.
+func TestANumberThatNamesAnItemIsRepaired(t *testing.T) {
+	out, cut := StripGate(attributionVerdict)
+	assert.NotEmpty(t, cut)
+	assert.Contains(t, out, "(the still-streaming `current_agent_msg` prompt-mismatch rejects, the keyless fallback sees `last_finished_agent_entry` already cleared).", out)
+	assert.Contains(t, out, "- branch (3) the keyless fallback", "the definition stays as written")
+
+	for in, want := range map[string]string{
+		"Then branch 3 sees the entry already cleared.":    "Then a later branch sees the entry already cleared.",
+		"They honor the Section 4 pins.":                   "They honor the pins of a later section.",
+		"It reads rule 6 inputs.":                          "It reads the inputs of a later rule.",
+		"The mock with id 1 completes after a short delay.": "The mock with one id completes after a short delay.",
+		"The row wraps at 100 cols in the modal.":          "The row wraps at a set number of cols in the modal.",
+		"The preview contributes 0 lines when it is off.":  "The preview contributes no lines when it is off.",
 	} {
-		out, cut := StripGate(in)
-		assert.Equal(t, in, out)
-		assert.Empty(t, cut)
+		var reported bool
 		for _, f := range ste.Check(in, 1) {
+			reported = reported || f.ID == ste.IDStaleCount
+		}
+		assert.True(t, reported, "check reports %q", in)
+		out, cut := StripGate(in)
+		assert.Equal(t, want, out)
+		assert.NotEmpty(t, cut)
+		for _, f := range ste.Check(out, 1) {
 			assert.NotEqual(t, ste.IDStaleCount, f.ID, f.Detail)
 		}
 	}

@@ -30,9 +30,10 @@
   <test in="gatherComments walks the whole tree, so a comment inside a body is"
         out="gatherComments walks the whole tree."/>
 
-  <!-- The clause before the comma is no sentence alone, and nothing finished comes before it, so the comment stays for a rewrite by hand. -->
+  <!-- The clause before the comma is no sentence alone. The main clause after it
+       closes where its verb ends, and the subordinate clause stays with it. -->
   <test in="If the cache is cold, the build waits for the"
-        out="If the cache is cold, the build waits for the"/>
+        out="If the cache is cold, the build waits."/>
 
   <!-- A finished comment is left exactly as it stands. -->
   <test in="A push names its target through the remote-tracking ref."

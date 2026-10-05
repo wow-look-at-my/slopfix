@@ -50,9 +50,9 @@
   <test in="A user who cannot dismiss a message reads it as contempt and reads nothing else that the whole surface shows after a few minutes of use."
         out="A user who cannot dismiss a message reads it as contempt. The user reads nothing else that the whole surface shows after a few minutes of use."/>
 
-  <!-- The end of a list, a quotation and a status code are not what they look like. -->
+  <!-- The end of a list, a quotation and a status code are not what they look like. The adverbial that ends the list goes behind a carrier. -->
   <test in="The report names the cache, the lockfile, the tree that the build reads from the disk, and the runner that holds the job for every run in the fleet."
-        out="The report names the cache, the lockfile, the tree that the build reads from the disk, and the runner that holds the job for every run in the fleet."/>
+        out="The report names the cache, the lockfile, the tree that the build reads from the disk, and the runner that holds the job. This happens for every run in the fleet."/>
   <test in="The owner wrote &quot;the three rules run&quot; in the log." out="The owner wrote &quot;the three rules run&quot; in the log."/>
   <test in="This 403 happens on every push." out="This 403 happens on every push."/>
   <test in="If the change makes a screen emptier, you have removed a feature." out="If the change makes a screen emptier, you have removed a feature."/>
@@ -62,9 +62,9 @@
         out="The deletion can return a 403 in a session. In that case, a maintainer deletes the branch."/>
   <test in="`''`, `0`, and an empty list are each a lie." out="`''`, `0`, and an empty list are each a lie."/>
 
-  <!-- No clause boundary: no division leaves a sentence on each side, so the sentence stays for a rewrite by hand. -->
+  <!-- No clause boundary. A long subject goes into a sentence of its own, and the noun it names carries the predicate. -->
   <test in="A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
-        out="A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."/>
+        out="Consider a reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause. That reader still deserves a repair from the tool rather than a deletion."/>
 
   <!-- A numeral between a determiner and its noun restates a count. -->
   <test in="The three rules run on every file." out="The rules run on every file."/>
