@@ -14,6 +14,7 @@
 package linkrefs
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -28,12 +29,26 @@ func RewriteDelta(delta string, insideFence bool, res Resolver) (string, bool) {
 	changed := false
 	lines := strings.Split(delta, "\n")
 
+	// Every line to rewrite, found first, so the pull requests they name are asked about together.
+	live := make([]bool, len(lines))
+	var pulls []PullRef
 	for i, line := range lines {
 		if fenceMarker(line) != "" {
 			fence = !fence
 			continue
 		}
 		if fence || isQuoted(line) {
+			continue
+		}
+		live[i] = true
+		pulls = append(pulls, linePulls(line)...)
+	}
+	if p, ok := res.(prefetcher); ok && len(pulls) > 0 {
+		p.Prefetch(pulls)
+	}
+
+	for i, line := range lines {
+		if !live[i] {
 			continue
 		}
 		rewritten, ok := rewriteLine(line, res)
@@ -50,25 +65,56 @@ func RewriteDelta(delta string, insideFence bool, res Resolver) (string, bool) {
 	return strings.Join(lines, "\n"), true
 }
 
-// rewriteLine splices a markdown link over every reference in a line that resolves to a page.
-func rewriteLine(line string, res Resolver) (string, bool) {
-	refs := FindUnlinkedInLine(line)
-	if len(refs) == 0 {
-		return "", false
+// splice is a replacement for the bytes [start,end) of a line.
+type splice struct {
+	start, end int
+	text       string
+}
+
+// linePulls names every pull request a line refers to, linked or not.
+func linePulls(line string) []PullRef {
+	var out []PullRef
+	for _, ref := range FindUnlinkedInLine(line) {
+		if p, ok := pullRefOf(ref.Ref); ok {
+			out = append(out, p)
+		}
 	}
-	out := line
-	changed := false
-	// Right to left, so an earlier offset stays valid after a later splice.
-	for i := len(refs) - 1; i >= 0; i-- {
-		ref := refs[i]
-		link, ok := Linkify(ref.Ref, res)
-		if !ok {
+	for _, l := range findLinks(line) {
+		if repo, n, ok := IssueRef(l.url); ok {
+			out = append(out, PullRef{repo, n})
+		}
+	}
+	return out
+}
+
+// rewriteLine links every bare reference that resolves to a page, and puts a
+// dot beside every link to a pull request, whoever wrote the link.
+func rewriteLine(line string, res Resolver) (string, bool) {
+	var edits []splice
+	for _, ref := range FindUnlinkedInLine(line) {
+		if link, ok := Linkify(ref.Ref, res); ok {
+			edits = append(edits, splice{ref.Start, ref.End, link})
+		}
+	}
+	for _, l := range findLinks(line) {
+		if endsWithDot(line[:l.start]) {
 			continue
 		}
-		out = out[:ref.Start] + link + out[ref.End:]
-		changed = true
+		if badged, ok := BadgeLink(line[l.start:l.end], l.text, l.url, res); ok {
+			edits = append(edits, splice{l.start, l.end, badged})
+		}
 	}
-	return out, changed
+	if len(edits) == 0 {
+		return "", false
+	}
+	slices.SortFunc(edits, func(a, b splice) int { return a.start - b.start })
+	out := line
+	// Right to left, so an earlier offset stays valid after a later splice.
+	for i := len(edits) - 1; i >= 0; i-- {
+		e := edits[i]
+		out = out[:e.start] + e.text + out[e.end:]
+	}
+	return out, true
 }
 
 // isQuoted reports the line shapes a message uses to quote rather than assert: a blockquote or indented code.

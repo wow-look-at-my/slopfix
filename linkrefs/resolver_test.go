@@ -1,6 +1,7 @@
 package linkrefs
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -229,6 +230,34 @@ func TestClassifyReadsWhatGHReports(t *testing.T) {
 			assert.Equal(t, tc.want, classify(tc.view))
 		})
 	}
+}
+
+// The checks come from `gh wait-ci checks --json`. The fixture is a real report's shape.
+func TestChecksReportReadsStatusesAndRuns(t *testing.T) {
+	var r checksReport
+	require.NoError(t, json.Unmarshal([]byte(`{"statuses":[{"state":"failure","context":"all-builds"}],
+		"check_runs":[{"status":"completed","conclusion":"skipped"},{"status":"in_progress","conclusion":""},
+		{"status":"completed","conclusion":"success"}]}`), &r))
+	assert.Equal(t, []string{"FAILURE", "SKIPPED", "PENDING", "SUCCESS"}, r.words())
+	assert.Equal(t, StateFailing, classify(pullView{State: "OPEN", Checks: r.words()}))
+}
+
+// Without the checks, mergeStateStatus still says red, green or not yet.
+func TestMergeStateStandsInForTheChecks(t *testing.T) {
+	at := func(ms string) PullState { return classify(pullView{State: "OPEN", MergeState: ms, Checks: mergeStateChecks(ms)}) }
+	assert.Equal(t, StateMergeable, at("CLEAN"))
+	assert.Equal(t, StateFailing, at("UNSTABLE"))
+	assert.Equal(t, StateConflicted, at("DIRTY"))
+	assert.Equal(t, StatePending, at("BLOCKED"))
+	assert.Equal(t, StatePending, at("UNKNOWN"))
+}
+
+// Prefetch fills the memo, so the rewrite that follows asks nothing more.
+func TestPrefetchSkipsWhatIsMemoized(t *testing.T) {
+	res := &GitResolver{Dir: t.TempDir()}
+	res.prSeen = map[string]PullState{"o/r#1": StatePending}
+	res.Prefetch([]PullRef{{Repo{Owner: "o", Name: "r"}, "1"}, {Repo{}, "2"}})
+	assert.Equal(t, map[string]PullState{"o/r#1": StatePending}, res.prSeen)
 }
 
 // A skipped job correctly did not need to run. Colouring it red would make
