@@ -440,15 +440,15 @@ func TestAListedForkWithNoTagCountsFromTheClosestUpstreamTree(t *testing.T) {
 	assert.True(t, own.Scope(filepath.Join(fx.fork, "later.md")).Empty())
 }
 
-// squashFixture is an upstream with commits, and a fork that brought the
-// second one in as one squashed commit. With shared, the fork began as a clone
-// of the first commit, so the merge base is that commit. Without it, the fork
-// shares no history with the upstream.
+const oldFirst = "# Old\n\nThe first upstream commit adds this.\n"
+
+// squashFixture is an upstream with commits, and a fork that brought the second one in as one squashed commit.
 func squashFixture(t *testing.T, shared bool) forkFixture {
 	t.Helper()
 	work := t.TempDir()
 	gitT(t, work, "init", "-q", "-b", "main")
 	writeT(t, work, "doc.md", inherited)
+	writeT(t, work, "old.md", oldFirst)
 	gitT(t, work, "add", "-A")
 	gitT(t, work, "commit", "-q", "-m", "first")
 	parent := filepath.Join(t.TempDir(), "parent.git")
@@ -466,6 +466,7 @@ func squashFixture(t *testing.T, shared bool) forkFixture {
 	synced := "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the file; it writes nothing.\n"
 	writeT(t, work, "doc.md", synced)
 	writeT(t, work, "sync.md", "# Sync\n\nThe second upstream commit adds this; it writes nothing.\n")
+	writeT(t, work, "old.md", "# Old\n\nThe second upstream commit rewrites this.\n")
 	gitT(t, work, "add", "-A")
 	gitT(t, work, "commit", "-q", "-m", "second")
 	writeT(t, work, "later.md", "# Later\n\nThe parent adds this afterwards.\n")
@@ -475,6 +476,7 @@ func squashFixture(t *testing.T, shared bool) forkFixture {
 
 	writeT(t, fork, "doc.md", synced)
 	writeT(t, fork, "sync.md", "# Sync\n\nThe second upstream commit adds this; it writes nothing.\n")
+	writeT(t, fork, "old.md", oldFirst)
 	gitT(t, fork, "add", "-A")
 	gitT(t, fork, "commit", "-q", "-m", "squashed sync of the second upstream commit")
 	writeT(t, fork, "doc.md", "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the tree; it writes nothing.\n\nThe fork adds this line; it writes nothing.\n")
@@ -494,6 +496,7 @@ func TestASquashSyncedForkCountsFromTheSnapshotItSynced(t *testing.T) {
 
 			assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...), "line 3 came in with the sync, line 5 is edited, line 7 is added")
 			assert.True(t, own.Scope(filepath.Join(fx.fork, "sync.md")).Empty(), "a file the sync brought in is upstream's")
+			assert.True(t, own.Scope(filepath.Join(fx.fork, "old.md")).Empty(), "a file synced at an older upstream version is upstream's")
 			assert.Equal(t, []int{3}, held(own, fx.fork, "new.md", 3))
 		})
 	}
