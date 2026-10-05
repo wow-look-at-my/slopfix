@@ -24,21 +24,43 @@ func semicolonJoins(masked string) []int {
 			continue
 		}
 		s := syntax.Parse(text, nil)
-		from := 0
+		from, colon := 0, -1
+		var found []int
+		listed := true
 		for i, w := range s.Words {
+			if w.Text == ":" && colon < 0 {
+				colon = i
+			}
 			if w.Text != ";" {
 				continue
 			}
 			// The words since the last colon or semicolon are what a period closes,
 			// and a list item there is no sentence: "it runs: building, testing.
 			if !semicolonDivides(s, max(from, segmentStart(s, i)), i) {
+				listed = listed && colon < 0
 				continue
 			}
-			joins = append(joins, span[0]+w.Start)
+			found = append(found, span[0]+w.Start)
 			from = i + 1
 		}
+		// The semicolons of a list after a colon divide all items or none.
+		if colon >= 0 && !listed {
+			found = beforeWord(found, span[0]+s.Words[colon].Start)
+		}
+		joins = append(joins, found...)
 	}
 	return joins
+}
+
+// beforeWord keeps the offsets less than at.
+func beforeWord(offsets []int, at int) []int {
+	var kept []int
+	for _, o := range offsets {
+		if o < at {
+			kept = append(kept, o)
+		}
+	}
+	return kept
 }
 
 // segmentStart answers the first word after the last colon or semicolon ahead of word i.

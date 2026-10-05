@@ -13,7 +13,18 @@ import (
 // admissible reports whether the left half of a clause division stands as a
 // sentence. openerFor already judged the right half.
 func admissible(s *syntax.Sentence, source string, d division) bool {
-	return !cutsAside(mask(source), d.leftEnd, d.rightStart) && standsAlone(s, 0, wordsBefore(s, d.leftEnd))
+	n := wordsBefore(s, d.leftEnd)
+	return !cutsAside(mask(source), d.leftEnd, d.rightStart) && standsAlone(s, 0, n) && segmentStands(s, n)
+}
+
+// segmentStands reports whether the words since the last colon or semicolon
+// before word end hold a main clause.
+func segmentStands(s *syntax.Sentence, end int) bool {
+	for end > 0 && strings.Contains(":;,", s.Words[end-1].Text) && s.Words[end-1].Text != "" {
+		end--
+	}
+	from := segmentStart(s, end)
+	return from == 0 || standsAlone(s, from, end)
 }
 
 // StandsAlone reports whether text holds a main clause, as a sentence must.
@@ -269,7 +280,7 @@ var danglingTags = set.Of[string]("DT", "JJ", "JJR", "JJS", "PRP$", "IN", "CC",
 // inside a subordinate clause joins the items of a list.
 func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 	w, ok := lastWordBefore(whole, len(head))
-	if !ok || danglingTags.Contains(w.Tag) || !standsAlone(whole, 0, wordsBefore(whole, len(head))) {
+	if !ok || danglingTags.Contains(w.Tag) || !standsAlone(whole, 0, wordsBefore(whole, len(head))) || !segmentStands(whole, wordsBefore(whole, len(head))) {
 		return false
 	}
 	if seam != "," {

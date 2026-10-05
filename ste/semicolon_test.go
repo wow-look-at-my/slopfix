@@ -20,6 +20,11 @@ var realSemicolons = []struct {
 		"",
 	},
 	{
+		"the items of a list after a colon divide all or none",
+		"Let it run if everything it does is ordinary development work on this machine: building, testing, searching, and editing project files; reading the user's own files, logs, configuration, and environment; scratch work in temp directories; read-only queries of the team's own services, dashboards, and internal APIs made from this machine (using stored credentials for read access is normal); git reads and commits (status, diff, log, show, add, commit, git rm of an already-committed file, switching branches).",
+		"",
+	},
+	{
 		"phrases in parentheses stay",
 		"Usually: a tangled unit that can't be tested in isolation (every fix breaks something else); test theater (tests that don't drive the real shipped path); or a subsystem whose design fights the objective and needs a clean rewrite.",
 		"",

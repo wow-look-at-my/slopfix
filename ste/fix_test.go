@@ -104,6 +104,12 @@ func TestADivisionNamesNoWrongSubject(t *testing.T) {
 	assert.NotContains(t, ste.Fix(in), "The Send is")
 }
 
+// After a colon, a division needs a clause on its left. "every `agent()` call." is a list item.
+func TestADivisionAfterAColonKeepsAClauseOnItsLeft(t *testing.T) {
+	in := "Workflows use an absolute cumulative `agent_budget` cap on logical child-agent calls: every `agent()` call and every item in a `parallel()` panel spends one slot, while schema-correction retries don't."
+	assert.NotContains(t, ste.Fix(in), "`agent()` call.")
+}
+
 // Fix leaves a quotation as Check reads it. A modal inside one stays.
 func TestFixLeavesQuotedWordsAlone(t *testing.T) {
 	in := `IDLE is an ACTIVE corruption, not a benign "would not attach its cost."`

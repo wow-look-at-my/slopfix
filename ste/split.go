@@ -293,7 +293,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return connector, startsTheSentence(s, main)
 		}
 		// The subject to name again belongs to the clause right before the link.
-		if main.Subject == nil || s.Clauses[indexOf(s, c)-1].First != main.First {
+		if main.Subject == nil || s.Clauses[indexOf(s, c)-1].First != main.First || finiteBetween(s, main.Verb.Last+1, c.Link) {
 			return "", false
 		}
 		subject, ok := restated(s, main, c, source)
@@ -322,6 +322,16 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		return "This is because", true
 	}
 	return "", false
+}
+
+// finiteBetween reports a finite verb among words from up to end.
+func finiteBetween(s *syntax.Sentence, from, end int) bool {
+	for i := max(from, 0); i < end && i < len(s.Words); i++ {
+		if finiteAt(s, i) {
+			return true
+		}
+	}
+	return false
 }
 
 // resumesAfter reports whether a main clause with a subject starting at word i
