@@ -194,7 +194,7 @@ func TestFixOfAForkRepairsTheDocsItsBudgetMoveCreates(t *testing.T) {
 	gitRun(t, fx.dir, "commit", "-q", "-m", "a large AGENTS.md")
 
 	cmd, out := quietCmd()
-	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks)
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks, nil)
 	require.NoError(t, err)
 	docs, err := filepath.Glob(filepath.Join(fx.dir, "docs", "*.md"))
 	require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestFixOfAForkRepairsTheDocsItsBudgetMoveCreates(t *testing.T) {
 	}
 
 	cmd, out = quietCmd()
-	failed, err := treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks)
+	failed, err := treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks, nil)
 	require.NoError(t, err)
 	assert.False(t, failed, "the check after the fix still fails:\n%s", out.String())
 }
