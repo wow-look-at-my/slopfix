@@ -13,11 +13,6 @@ runs:
       with:
         name: slopfix-check
 
-    - name: Report the check another job holds
-      if: steps.claim.outputs.first == 'false'
-      shell: bash
-      run: echo "slopfix check already runs in another job of this run (claim ${{ steps.claim.outputs.key }}); this job skips it."
-
     - name: Download slopfix
       id: download
       if: steps.claim.outputs.first != 'false'
