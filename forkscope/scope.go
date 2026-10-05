@@ -60,6 +60,85 @@ func (s *Scope) Holds(first, last int) bool {
 	return false
 }
 
+// Widen answers s with every line of each paragraph or list item of the
+// document text that holds a line s names. A prose rule judges a paragraph
+// whole, so the fork owns all of a paragraph it wrote into.
+func (s *Scope) Widen(text string) *Scope {
+	if s.whole {
+		return s
+	}
+	blocks := blocksOf(text)
+	reach := set.New[int]()
+	for n := range s.lines.All() {
+		if n >= 1 && n <= len(blocks) && blocks[n-1] >= 0 {
+			reach.Add(blocks[n-1])
+		}
+	}
+	out := &Scope{lines: set.New[int](), base: s.base}
+	for n := range s.lines.All() {
+		out.lines.Add(n)
+	}
+	for i, b := range blocks {
+		if b >= 0 && reach.Contains(b) {
+			out.lines.Add(i + 1)
+		}
+	}
+	return out
+}
+
+// Blocks answers the first and last line, counted from one, of each
+// paragraph or list item of the document text that holds a line s names.
+func Blocks(text string, s *Scope) [][2]int {
+	var out [][2]int
+	blocks := blocksOf(text)
+	for i := 0; i < len(blocks); {
+		j := i
+		for j+1 < len(blocks) && blocks[j+1] == blocks[i] {
+			j++
+		}
+		if blocks[i] >= 0 && s.Holds(i+1, j+1) {
+			out = append(out, [2]int{i + 1, j + 1})
+		}
+		i = j + 1
+	}
+	return out
+}
+
+// blocksOf answers the block of each line of text, counted from zero.
+func blocksOf(text string) []int {
+	rows := strings.Split(text, "\n")
+	out := make([]int, len(rows))
+	block, open, fenced := -1, false, false
+	for i, row := range rows {
+		trimmed := strings.TrimSpace(row)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			fenced = !fenced
+		}
+		if fenced || trimmed == "" || strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") || strings.HasPrefix(trimmed, "|") {
+			out[i], open = -1, false
+			continue
+		}
+		heading := strings.HasPrefix(trimmed, "#")
+		if !open || heading || opensItem(trimmed) {
+			block++
+		}
+		out[i], open = block, !heading
+	}
+	return out
+}
+
+// opensItem reports whether a trimmed markdown line opens a list item.
+func opensItem(trimmed string) bool {
+	for _, marker := range []string{"- ", "* ", "+ "} {
+		if strings.HasPrefix(trimmed, marker) {
+			return true
+		}
+	}
+	digits := len(trimmed) - len(strings.TrimLeft(trimmed, "0123456789"))
+	rest := trimmed[digits:]
+	return digits > 0 && (strings.HasPrefix(rest, ". ") || strings.HasPrefix(rest, ") "))
+}
+
 // Keep answers after with every change to a line the fork did not write put
 // back as before had it. A change is a run of lines a line diff pairs up. It
 // lands when the fork wrote every line it replaces. A run of new lines between
@@ -71,11 +150,23 @@ func Keep(before, after string, s *Scope) string {
 	a, b := splitLines(before), splitLines(after)
 	var out strings.Builder
 	for _, op := range opcodes(before, after) {
-		if op.Tag == 'e' || !s.mayChange(op.I1, op.I2) {
+		switch {
+		case op.Tag == 'e':
 			out.WriteString(strings.Join(a[op.I1:op.I2], ""))
-			continue
+		case s.mayChange(op.I1, op.I2):
+			out.WriteString(strings.Join(b[op.J1:op.J2], ""))
+		case op.Tag == 'r' && op.I2-op.I1 == op.J2-op.J1:
+			// Lines pair one to one, so each lands or goes back alone.
+			for k := range op.I2 - op.I1 {
+				if s.Owns(op.I1 + k + 1) {
+					out.WriteString(b[op.J1+k])
+				} else {
+					out.WriteString(a[op.I1+k])
+				}
+			}
+		default:
+			out.WriteString(strings.Join(a[op.I1:op.I2], ""))
 		}
-		out.WriteString(strings.Join(b[op.J1:op.J2], ""))
 	}
 	return out.String()
 }
