@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
 // layout lays a sentence out as comment lines, and reports whether they fit.
@@ -55,9 +56,58 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 				return shorter, true
 			}
 		}
+		if shrink && !fits {
+			if shorter, ok := phraseLines(para.lines, fit, indent, marker); ok {
+				return shorter, true
+			}
+		}
 		return out, true
 	}
 	return nil, false
+}
+
+// phraseLines keeps the longest run of leading lines that ends a noun phrase
+// where the next line opens one. It serves prose that never closes, which no
+// division reads as a sentence.
+func phraseLines(lines []string, fit layout, indent, marker string) ([]string, bool) {
+	for k := len(lines) - 1; k > 0; k-- {
+		if !phraseBreak(lines[k-1], lines[k]) {
+			continue
+		}
+		head := closeThoughts(lines[:k])
+		if ste.WordCount(head) > ste.SentenceWordCap {
+			continue
+		}
+		if !endsSentence(head) {
+			head += "."
+		}
+		if out, ok := fit(head, indent, marker); ok {
+			return out, true
+		}
+	}
+	return nil, false
+}
+
+// phraseBreak reports a line that ends on a noun, an adverb or a number, before
+// a line that opens a new noun phrase on its determiner.
+func phraseBreak(prev, next string) bool {
+	next = strings.TrimSpace(next)
+	first, _, _ := strings.Cut(next, " ")
+	switch first {
+	case "a", "an", "the", "every", "each", "any", "some", "no":
+	default:
+		return false
+	}
+	s := syntax.Parse(strings.TrimSpace(prev), nil)
+	if len(s.Words) == 0 {
+		return false
+	}
+	last := s.Words[len(s.Words)-1]
+	if dangling.Contains(last.Lower()) {
+		return false
+	}
+	tag := last.Tag
+	return strings.HasPrefix(tag, "NN") || strings.HasPrefix(tag, "RB") || tag == "CD"
 }
 
 // minimumOpening is the fewest words a divided opening sentence keeps.
