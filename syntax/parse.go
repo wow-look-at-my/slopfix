@@ -192,6 +192,16 @@ func retag(words []Word) {
 		words[0].Tag, words[1].Tag = "NNP", "VBZ"
 	}
 	for i := range words {
+		if w := words[i]; w.Tag == "VBD" && i > 1 && i+2 < len(words) {
+			// "and dropped it leaves": a past form before a pronoun and its verb opens a participle phrase.
+			if (words[i-1].Tag == "CC" || words[i-1].Tag == ",") && words[i+1].Tag == "PRP" && (words[i+2].Tag == "VBZ" || words[i+2].Tag == "VBD") {
+				words[i].Tag = "VBN"
+			}
+			// "the same call, spaced close enough": a past form after a noun and a comma, with no object, describes the noun.
+			if words[i-1].Tag == "," && isNoun(words[i-2].Tag) && (words[i+1].Tag == "JJ" || words[i+1].Tag == "RB") {
+				words[i].Tag = "VBN"
+			}
+		}
 		if participleAdjective(words, i) {
 			words[i].Tag = "JJ"
 		}
