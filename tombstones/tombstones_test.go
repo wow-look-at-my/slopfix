@@ -87,15 +87,9 @@ func TestAFencedBlockInADocumentIsNotProse(t *testing.T) {
 	assert.Empty(t, repair.Kept)
 }
 
-<<<<<<< HEAD
-// A block over the cap with no sentence end to cut at keeps its opening
-// sentence. The block is divided where it runs past the STE cap, and
-// nothing after it.
-=======
 // This is a block over the cap with no sentence end to cut at keeps its
 // opening sentence. The block is divided where it runs past the STE cap,
 // and nothing after it.
->>>>>>> origin/master
 func TestAVolumeCapWithNoSentenceEndKeepsItsOpening(t *testing.T) {
 	src := ""
 	for range 6 {

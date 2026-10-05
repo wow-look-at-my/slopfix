@@ -11,13 +11,8 @@ import (
 )
 
 // Consider this repository's own source. That source is the rule's earliest
-<<<<<<< HEAD
-// real corpus. Running the rule over it is the only evidence that the
-// repair works on prose somebody wrote for its own sake rather than for a
-=======
 // real corpus. A run of the rule over it is the only evidence that the repair
 // works on real prose. Somebody wrote that prose for its own sake, not for a
->>>>>>> origin/master
 // fixture.
 //
 // It reports by default and never writes. Setting SLOPFIX_SELF_REPAIR applies

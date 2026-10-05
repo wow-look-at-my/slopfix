@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-// sweep.go is the whole-tree face of the rule. Which files carry prose a rule
-// reads, which directories hold text nobody here authored, and how a repaired
-// file is written back. A caller names the root and reads the result.
-=======
 // sweep.go is the whole-tree face of the rule. It knows which files carry
 // prose a rule reads, and which directories hold text nobody here authored.
 // It also writes a repaired file back. A caller names the root and reads the result.
->>>>>>> origin/master
 //
 // The walk lives here rather than in each caller. A caller that owns its own
 // walk owns its own skip list too, and skip lists drift. Any of them ends up

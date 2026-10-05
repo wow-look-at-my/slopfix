@@ -12,16 +12,9 @@ import (
 // program can never be complete. This resolves instead.
 //
 // A wrapper that takes its own VALUE flag has that flag's value dropped with
-<<<<<<< HEAD
-// it. Without that, a `nice` prefix leaves its priority. This happens where
-// the program should be and the sed behind it is never seen at all -- the
-// same hole a `timeout` prefix opens, with an operand instead of a flag
-// value.
-=======
 // it. Without that, a `nice` prefix leaves its priority where the program
 // should be. The sed behind it is then never seen at all. A `timeout` prefix
 // opens the same hole, with an operand instead of a flag value.
->>>>>>> origin/master
 func StripWrappers(argv []Word) []Word {
 	for len(argv) > 0 {
 		switch CommandName(argv[0].Text) {
