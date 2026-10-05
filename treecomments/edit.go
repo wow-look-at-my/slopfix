@@ -3,10 +3,10 @@
 // An edit names bytes the tree calls comment. The gate refuses any byte it
 // covers that is neither comment nor the blank around it. After the splice
 // the source is parsed again. Every node that is not a comment must come back
-// with the same type and the same text, in the same place in the tree. Some
-// text changes that tree: text that closes a comment early, a newline that
-// ends a line comment, or a marker that opens a new one. The edit that wrote
-// such text never lands. Every directive line must also come back as it was.
+// with the same type and the same text, in the same place in the tree. Text
+// that closes a comment early, a newline that ends a line comment, or a
+// marker that opens a new one changes that tree, so the edit that wrote it
+// never lands. Every directive line must also come back as it was.
 package treecomments
 
 import (

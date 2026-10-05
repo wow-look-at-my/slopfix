@@ -90,9 +90,9 @@ func semicolonDivides(s *syntax.Sentence, from, i int) bool {
 	return standsAlone(s, from, i) && opensSentenceAt(s, i)
 }
 
-// opensSentenceAt reports whether the words after the mark at word i open a
-// sentence. They open with their own subject and a verb that agrees with it,
-// with an imperative, or with a subordinate clause and then its main clause.
+// opensSentenceAt reports whether the words. This happens after the mark at
+// word i open with their own subject and a verb that agrees with it, with an
+// imperative, or with a subordinate clause and then its main clause.
 func opensSentenceAt(s *syntax.Sentence, i int) bool {
 	for k, c := range s.Clauses {
 		if c.Depth == 0 && c.Link == i {

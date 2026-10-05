@@ -75,9 +75,9 @@ func TestStderrIntoATrackedFileIsRefusedAsAWriteRatherThanALoss(t *testing.T) {
 	assert.Contains(t, r, useTheTools)
 }
 
-// Both halves, asked separately, on stdout and on stderr. The whole change
-// turns on this pair. This hook must save stdout into a dirty tracked file
-// beforehand. Stderr into the same file needs no save.
+// Both halves, asked separately, on stdout and on stderr. This is the pair
+// the whole change turns on: stdout into a dirty tracked file is content this
+// hook must save beforehand, and stderr into the same file is not.
 func TestOnlyAStdoutRedirectIsAWorkLossFinding(t *testing.T) {
 	stdoutRepo := newRepo(t)
 	modify(t, stdoutRepo)

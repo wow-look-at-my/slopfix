@@ -44,8 +44,8 @@ func TestRepairsNamesExactlyWhatFixRewrites(t *testing.T) {
 	}
 }
 
-// The negative control. A name that is not a rule is not in the set. The case
-// above then passes on the answer, not on a set that says yes to anything.
+// The negative control. A name that is not a rule is not in the set, so the
+// case above passes on the answer rather than on a set saying yes to anything.
 func TestANameThatIsNotARuleIsNotNamed(t *testing.T) {
 	assert.False(t, ste.Repairs.Contains("ste/not-a-real-rule"))
 	assert.True(t, ste.Repairs.Contains(ste.IDSemicolon))

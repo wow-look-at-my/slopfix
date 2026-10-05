@@ -303,8 +303,8 @@ func (es envStep) refs() map[string][]paramRef {
 }
 
 // overwrites reports whether the script assigns name before anything can read
-// it. Every statement before the assignment is then a set builtin or an
-// assignment that does not read name.
+// it: every statement before the assignment is a set builtin or an assignment
+// that does not read name.
 func (es envStep) overwrites(name string, refs []paramRef) bool {
 	for _, stmt := range es.parsed.Stmts {
 		call, ok := stmt.Cmd.(*syntax.CallExpr)

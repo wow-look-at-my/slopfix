@@ -88,8 +88,7 @@ func TestAFencedBlockInADocumentIsNotProse(t *testing.T) {
 }
 
 // A block over the cap with no sentence end to cut at keeps its opening
-// sentence and nothing after it. That sentence divides where it runs past the
-// STE cap.
+// sentence, divided where it runs past the STE cap, and nothing after it.
 func TestAVolumeCapWithNoSentenceEndKeepsItsOpening(t *testing.T) {
 	src := ""
 	for range 6 {

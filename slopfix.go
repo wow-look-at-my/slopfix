@@ -1,7 +1,7 @@
 // Package slopfix is the library behind the binary. It reports what the org's
 // prose rules reject, and rewrites what a rewrite can repair.
 //
-// The binary is a thin wrapper. A hook, a CI job and an editor integration
+// The binary is a thin wrapper, so a hook, a CI job and an editor integration
 // all get identical answers instead of separate implementations that drift.
 package slopfix
 
@@ -61,7 +61,7 @@ func Warnings(content string) []ste.Finding {
 }
 
 // Format joins every prose block to a single line, and reports whether the
-// rewrite is safe. A result whose words differ from the source is a bug.
+// rewrite is safe: a result whose words differ from the source is a bug.
 func Format(content string) (string, bool) {
 	formatted := markdown.Format(content)
 	return formatted, markdown.WordsOnly(content, formatted)
