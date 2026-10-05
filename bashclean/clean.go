@@ -50,9 +50,6 @@ func transform(command, dir string, passes int, warn io.Writer) Result {
 	if PlanRead(command, dir) != nil {
 		return Result{Command: command}
 	}
-	if hasFileRead(f) {
-		return deny(command, "file_read")
-	}
 	if hasStatementCall(f, func(c *syntax.CallExpr) bool {
 		e, ok := effectiveCommand(c)
 		return ok && (e.name == "shred" || e.name == "srm")
