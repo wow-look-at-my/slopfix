@@ -386,7 +386,11 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 	if len(s.Words) == 0 || first < 0 {
 		return "", 0
 	}
+	strong := seam == "—" || seam == "–" || seam == "--" || seam == ":"
 	switch tag := whole.Words[first].Tag; {
+	case strong && conjunction != "so" && !lowerIdentifier(firstToken.FindString(rest)) && opensImperative(restMasked):
+		// A dash or a colon before an instruction ends the sentence before it: "— but be economical".
+		return joinOpener(opener, rest), opensOwnClause - 1
 	case conjunction == "so" && seam == "," && !opensImperativeMain(masked[:c.left]) && !instructs(whole) && opensImperative(restMasked):
 		// A statement, then ", so" and an instruction: the instruction follows from the statement, as a sentence of its own.
 		return joinOpener(opener, rest), opensOwnClause

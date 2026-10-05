@@ -107,6 +107,10 @@ func listHead(head, conj string, serial bool, s *syntax.Sentence, verb syntax.Ph
 		return head
 	}
 	at := commas[len(commas)-1]
+	// The last item already has its conjunction: "hooks, and `ask` rules".
+	if leadingConjunction.MatchString(strings.ToLower(strings.TrimLeft(head[at+1:], " "))) {
+		return head
+	}
 	join := " " + conj + " "
 	if serial && len(commas) > 1 {
 		join = ", " + conj + " "
@@ -341,7 +345,8 @@ func restateBare(source string, noun syntax.Word, rest string) string {
 // conjunction, which listRest writes into the head through c's left offset.
 func listRest(source string, s *syntax.Sentence, verb syntax.Phrase, c forceCut, rest, seam string) (string, string, bool) {
 	conj, ok := listEnd(rest)
-	if !ok || len(topCommas(source[:c.left], s.Words[verb.Last].End)) == 0 {
+	// A rest that opens on a conjunction is a clause the list never reached: "but remembered grants are".
+	if !ok || len(topCommas(source[:c.left], s.Words[verb.Last].End)) == 0 || leadingConjunction.MatchString(strings.ToLower(rest)) || strings.HasPrefix(strings.ToLower(rest), "but ") {
 		return "", "", false
 	}
 	// A negation and its auxiliary go with the verb, or "Do not run" comes back as "Also run".

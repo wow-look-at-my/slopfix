@@ -27,7 +27,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `repo`, report only | `repo/near-duplicate`, `repo/json`, `repo/xml` | no |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
-| `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second. Before a verb it stays, for a rewrite by hand |
+| `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second. Before a verb it becomes `, and never`, or `, do not` before an instruction |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
 | `counts` | `counts/inventory-count`, `counts/section-number` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
@@ -39,7 +39,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
-Every error rule has a repair, so `slopfix fix` on any tree leaves no error but these. A `package.json` that does not parse and the `ReportOnly` rules have no repair, because no rewrite knows what the author meant. `repairable_test.go` names each of them. `ste/sentence-length` and `ste/semicolon` divide only where each half stays a grammatical sentence. Any other long sentence or semicolon stays as written. Its finding asks for a rewrite by hand (`ste.ByHand`), because a broken repair is worse than none. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it, apart from those findings. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+Every error rule has a repair, so `slopfix fix` on any tree leaves no error but these. A `package.json` that does not parse and the `ReportOnly` rules have no repair, because no rewrite knows what the author meant. `repairable_test.go` names each of them. No finding asks for a rewrite by hand. `ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 
@@ -107,9 +107,9 @@ Every repair is a `fixer.Fixer`, and each package registers its fixers from `ini
 
 | Kind | Fixers, in order |
 |---|---|
-| source | `tombstones`, `comments/length`, `comments/number`, `comments/length-after-number`, `pins/download-version`, `gofmt` |
+| source | `tombstones`, `comments/length`, `comments/number`, `comments/sentence-length`, `comments/length-after-number`, `pins/download-version`, `gofmt` |
 | document | `tombstones`, `counts/inventory-count`, `counts/section-number`, `wrap-and-ste`, `wrap/long-block`, `ste/count`, `pins/download-version` |
-| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `yaml/inline-env`, `yaml/filter-push`, `yaml/retarget-org-action`, `yaml/set-concurrency`, `pins/download-version` |
+| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `comments/sentence-length`, `yaml/inline-env`, `yaml/filter-push`, `yaml/retarget-org-action`, `yaml/set-concurrency`, `pins/download-version` |
 
 `gofmt` runs on a `.go` file that a fixer before it changed. A cut comment can leave a blank line too many, or bring together fields that gofmt aligns. The pass writes the gofmt layout through `goformat.Gate`. It answers to the selection of the fixers before it. A fragment with no package clause keeps its layout. So does a file no fixer changed, and a file whose gofmt layout changes more than whitespace.
 
@@ -202,7 +202,8 @@ The languages are Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX. YAML. 
 
 - `comments/number`: a number in a comment, read with the `Comment` substrate. The repair says it in words. A count of a plural noun that no table entry covers gets the `counts` rewording. Only a sentence that still holds a number after that is cut. To point at a section, cite its slug or heading, not its position.
 - `comments/length`: a comment run weighed against the construct beneath it. Lines catch an essay. Characters catch a dense paragraph. The budget has a floor. A short comment is never a finding.
-- `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair drops the open clause when the clause before it stands alone. Otherwise the finding asks for a rewrite by hand.
+- `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair closes the sentence where its last clause that stands alone ends.
+- `ste/sentence-length`: a sentence over the cap in a comment's prose, in every language above and in a workflow. It is a check of its own beside `comments/length`, which weighs the comment against its code. Directives, license notices, verbatim paragraphs, code spans and quotations stay out. `comments/sentence-length` divides the sentence as `ste` does in a document. It writes the result back through the comment gate, with the comment's marker, indent and wrap. `sentencecap_test.go` proves that both repairs settle in one fix.
 
 The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at a clause boundary the `syntax` parser finds, the same boundaries `ste/sentence-length` divides at (`ste.Leading`). Sentence ends come from `ste.Sentences`. A cut keeps text only when its last sentence stands alone (`ste.StandsAlone`). A cut may also land before a tail opener of `rules/comment-clauses.xml`, such as `so`, `because` or an open parenthesis. A cut before `when`, `if` or `that` changes the claim, so none lands there. When no clause boundary fits either, the comment stays as written, and the finding asks for a rewrite by hand. A cut between words leaves a fragment, so no repair makes one. The number repair runs after the length cut. The length cut then runs again if the words overflow.
 
