@@ -1,6 +1,7 @@
 package ste_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

@@ -161,6 +161,39 @@ func retag(words []Word) {
 			w.Tag = "VBZ"
 		}
 	}
+	for i := range words {
+		if participleAdjective(words, i) {
+			words[i].Tag = "JJ"
+		}
+	}
+}
+
+// participleAdjective reports a past form that opens a noun phrase whose own
+// verb follows it: "but remembered grants are not consulted". The tagger reads
+// the participle as the verb, and the real verb then has no subject.
+func participleAdjective(words []Word, i int) bool {
+	w := words[i]
+	if (w.Tag != "VBD" && w.Tag != "VBN") || i+1 >= len(words) || !isNoun(words[i+1].Tag) {
+		return false
+	}
+	if i > 0 && words[i-1].Tag != "CC" && words[i-1].Tag != "," && words[i-1].Tag != "DT" {
+		return false
+	}
+	depth := 0
+	for j := i + 2; j < len(words); j++ {
+		switch t := words[j].Tag; {
+		case words[j].Text == "(":
+			depth++
+		case words[j].Text == ")":
+			depth = max(depth-1, 0)
+		case depth > 0:
+		case isFinite(t):
+			return true
+		case t == "," || t == "CC" || t == ":" || t == "." || t == "WDT" || t == "WP" || t == "WRB" || t == "TO" || isVerb(t):
+			return false
+		}
+	}
+	return false
 }
 
 // verbEnding reports an -s ending a verb takes, and not "status" or "access".
