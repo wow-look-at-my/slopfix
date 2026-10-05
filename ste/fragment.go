@@ -13,7 +13,10 @@ import (
 // that never empties a cache that never fills" becomes "a cache that never
 // empties. A cache that never fills".
 func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) (string, bool) {
-	if len(whole.Words) == 0 || standsAlone(whole, 0, len(whole.Words)) {
+	if len(whole.Words) == 0 {
+		return source, false
+	}
+	if standsAlone(whole, 0, len(whole.Words)) && WordCount(checkMask(source)) <= limit {
 		return source, false
 	}
 	// Only a noun phrase is a fragment of its own. A sentence that opens on "to" or "if" leads into a clause the parser missed.
@@ -22,15 +25,28 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 	default:
 		return source, false
 	}
+	// A list of noun phrases joined by commas has no clause to divide at, so each comma ends one item and opens the next.
+	list := !holdsFinite(checkMask(source))
 	for _, c := range candidates(source, masked, false, limit) {
-		if seam := seamBefore(source, c.left); cutsAside(masked, c.left, c.right) || seam != "" && seam != "," {
+		seam := seamBefore(source, c.left)
+		if cutsAside(masked, c.left, c.right) {
+			continue
+		}
+		if list {
+			if seam != "," {
+				continue
+			}
+		} else if seam != "" && seam != "," {
 			continue
 		}
 		n := wordsBefore(whole, c.left)
 		if n < minimumHalf || len(whole.Words)-n < minimumHalf {
 			continue
 		}
-		if !endsBefore(whole, n) || !opensFragment(whole.Words[n]) || opensMainClause(whole, n) {
+		if !list && (!endsBefore(whole, n) || !opensFragment(whole.Words[n])) {
+			continue
+		}
+		if opensMainClause(whole, n) {
 			continue
 		}
 		left := closeHead(source[:c.left])
