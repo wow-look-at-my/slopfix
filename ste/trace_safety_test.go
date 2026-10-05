@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -44,9 +45,8 @@ func TestTraceTheSafetyCut(t *testing.T) {
 	fmt.Fprintf(&b, "standsAsSentence(no other.)=%v\n", standsAsSentence("The caller must ensure that the pointer stays valid for reads of n bytes for the whole call, and that no other."))
 	tags := syntax.Parse(masked, nil)
 	fmt.Fprintf(&b, "tags: %s\noutline: %s\n", tags.Tags(), tags.Outline())
-	if err := os.WriteFile("../.scratch/trace.txt", []byte(b.String()), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile("../.scratch/trace.txt", []byte(b.String()), 0o644))
+
 }
 
 func hasSoPrefix(s string) bool {

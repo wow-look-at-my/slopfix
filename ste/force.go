@@ -193,6 +193,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 // a code span, a link, a quotation or a parenthesis. candidates answers only
 // the gaps outside those spans, so the cut lands between whole words.
 func hardDivision(source, masked string, limit int) (string, bool) {
+	whole := syntax.Parse(masked, nil)
 	ends := wordEnds(masked)
 	if len(ends) <= limit || len(ends) < 2*minimumHalf {
 		return source, false
@@ -203,6 +204,10 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 			continue
 		}
 		if len(ends)-c.words < minimumHalf {
+			continue
+		}
+		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {
+			// A cut inside a noun phrase strands its noun: "no other | thread".
 			continue
 		}
 		head := strings.TrimRight(source[:c.left], " ,;:—–-")
