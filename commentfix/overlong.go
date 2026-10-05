@@ -350,7 +350,8 @@ func trim(b block) []string {
 	}
 	// The STE opening sentence reads best, then a clause cut.
 	opening, whole := steOpening(kept, func(sentence, indent, marker string) ([]string, bool) {
-		return fitReflow(sentence, indent, marker, b)
+		out := reflow(sentence, indent, marker, wrapWidth)
+		return out, fitsCode(out, b)
 	})
 	var fits [][]string
 	if whole && fitsCode(opening, b) {
