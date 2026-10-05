@@ -185,10 +185,11 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 }
 
 // hardDivision divides a sentence that no grammatical division reads. It keeps
-// the longest run of leading words under the cap, closes it as a sentence, and
-// opens the rest with a capital, so the cap rule leaves no finding standing.
+// the longest run of leading words under the cap. It closes that run as a
+// sentence and opens the rest with a capital. The cap rule then leaves no
+// finding standing.
 //
-// It never ends a half on a word that needs the next one, and never cuts inside
+// It never ends a half on a word that needs the next one. It never cuts inside
 // a code span, a link, a quotation or a parenthesis. candidates answers only
 // the gaps outside those spans, so the cut lands between whole words.
 func hardDivision(source, masked string, limit int) (string, bool) {

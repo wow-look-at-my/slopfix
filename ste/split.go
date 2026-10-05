@@ -57,9 +57,9 @@ var connectors = map[string]string{
 	"or":  "Otherwise,",
 }
 
-// fixSentenceCap divides every over-cap sentence. It first tries the clause
-// boundaries, then the word boundaries, and a sentence no division reads is cut
-// between words so that no finding is left standing.
+// fixSentenceCap divides every over-cap sentence. It tries the clause
+// boundaries first and then the word boundaries. A sentence that no division
+// reads is cut between words. That leaves no finding standing.
 func fixSentenceCap(prose string, d capSpec) string {
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := divideNext(prose, d.cap)
