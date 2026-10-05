@@ -37,7 +37,7 @@ const DefaultGitHubAPI = "https://api.github.com"
 // DefaultServer is the GitHub server when GITHUB_SERVER_URL is unset.
 const DefaultServer = "https://github.com"
 
-// ListURL serves the fork list that the org's .github repository publishes to buildhost.
+// ListURL serves the fork list that the org's dot_github repository publishes to buildhost.
 const ListURL = "https://sites.pazer.build/dot_github/fork-of.json"
 
 // CacheTTL is how long a work tree keeps what the network said about its fork.
