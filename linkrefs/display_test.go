@@ -254,6 +254,49 @@ func TestTextThatIsAlreadyLinkedIsNotRewrittenAgain(t *testing.T) {
 	}
 }
 
+// A link the message already wrote to a pull request still gets its dot. Most
+// pull request mentions arrive this way, so skipping them left most without one.
+func TestAnExistingPullRequestLinkGetsItsDot(t *testing.T) {
+	cases := []struct {
+		name, text string
+		state      PullState
+		want       string
+	}{
+		{"slug text", "[o/r#376](https://github.com/o/r/pull/376) is up.", StateMergeable,
+			"🟢 [o/r#376](https://github.com/o/r/pull/376) is up."},
+		{"url text", "see [https://github.com/o/r/pull/376](https://github.com/o/r/pull/376)", StatePending,
+			"see 🟡 [https://github.com/o/r/pull/376](https://github.com/o/r/pull/376)"},
+		{"in a list", "1. [o/r#376](https://github.com/o/r/pull/376): first", StateFailing,
+			"1. 🔴 [o/r#376](https://github.com/o/r/pull/376): first"},
+		{"merged moves the link", "[o/r#376](https://github.com/o/r/pull/376) landed.", StateMerged,
+			"[🟣](https://github.com/o/r/pull/376) o/r#376 landed."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, rewrite(t, tc.text, withState("o/r#376", tc.state)))
+		})
+	}
+}
+
+// A link that already carries a dot, from this hook or from the writer, gets no second one.
+func TestALinkWithADotIsLeftAlone(t *testing.T) {
+	res := withState("o/r#376", StateMergeable)
+	for _, text := range []string{
+		"🟢 [o/r#376](https://github.com/o/r/pull/376) is up.",
+		"[🟣](https://github.com/o/r/pull/376) o/r#376 landed.",
+		"`[o/r#376](https://github.com/o/r/pull/376)` is code.",
+	} {
+		out, changed := RewriteDelta(text, false, res)
+		assert.False(t, changed, "expected no rewrite of %q, got %q", text, out)
+	}
+}
+
+// A bare URL at the end of a clause keeps its comma outside the link, so the URL resolves.
+func TestABareURLLeavesTrailingPunctuationOut(t *testing.T) {
+	got := rewrite(t, "re-run https://github.com/o/r/pull/376, then wait.", withState("o/r#376", StatePending))
+	assert.Equal(t, "re-run 🟡 [https://github.com/o/r/pull/376](https://github.com/o/r/pull/376), then wait.", got)
+}
+
 // A URL contains a slug that the branch matcher also matches. Rewriting each
 // would nest a link inside another link.
 func TestAURLIsRewrittenOnceNotTwice(t *testing.T) {
