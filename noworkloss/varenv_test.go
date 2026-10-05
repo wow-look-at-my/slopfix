@@ -141,7 +141,7 @@ rm -f "$OUT.tmp"
 }
 
 // The half of that which must NOT relax: a script naming a path statically
-// still writes where it says, so following the file still closes the
+// still writes where it says. Following the file still closes the
 // write-elsewhere-then-run bypass.
 func TestAScriptsStaticTargetIsStillJudged(t *testing.T) {
 	dir := newRepo(t)

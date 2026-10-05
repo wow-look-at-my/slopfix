@@ -17,7 +17,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// gitT runs git in dir with no user or system config, so a signing key or a
+// gitT runs git in dir with no user or system config. A signing key or a
 // hook on the machine cannot change what the test sees.
 func gitT(t *testing.T, dir string, args ...string) string {
 	t.Helper()

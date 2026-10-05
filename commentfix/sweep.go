@@ -1,4 +1,4 @@
-// sweep.go is the whole-tree face of the rule: which files carry prose a rule
+// sweep.go is the whole-tree face of the rule. Which files carry prose a rule
 // reads, which directories hold text nobody here authored, and how a repaired
 // file is written back. A caller names the root and reads the result.
 //

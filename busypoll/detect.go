@@ -1,5 +1,5 @@
 // detect.go finds a busy-poll. A trailing run of turns that each made the
-// exact same tool call, spaced close enough together that no real event or
+// exact same tool call, spaced close enough together. No real event or
 // scheduled wakeup could plausibly explain the repeat.
 //
 // Spacing is what separates this from a legitimate watch loop. A session

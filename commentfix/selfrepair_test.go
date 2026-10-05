@@ -11,7 +11,7 @@ import (
 )
 
 // Consider this repository's own source. That source is the rule's earliest
-// real corpus, and running the rule over it is the only evidence that the
+// real corpus. Running the rule over it is the only evidence that the
 // repair works on prose somebody wrote for its own sake rather than for a
 // fixture.
 //
