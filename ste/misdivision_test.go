@@ -56,7 +56,7 @@ var hardCuts = []struct {
 	{"The span the current window covers at `now`: the whole window once the response has run that long, and the time since its first chunk before then.", "first. Chunk"},
 }
 
-// A sentence whose only cut that fits lands on the dash that opens an aside.
+// A sentence whose best cut lands right before the dash that opens an aside.
 const asideOnly = "Inside the real Seatbelt jail, holding only the fd number the jail handed it, reaches the real host worker — the shipped worker loop running as a real unsandboxed child — and gets a framed answer back."
 
 func TestALastResortCutLandsOnTheDashThatOpensAnAside(t *testing.T) {
