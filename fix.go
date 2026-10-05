@@ -154,7 +154,8 @@ func widened(req Request) *forkscope.Scope {
 	return req.Owned.Widen(req.Content, kindOf(req.Path, req.Content) == fixer.Document)
 }
 
-// blockFree answers the rule IDs req selects, less the block rules.
+// blockFree answers the rule IDs req selects, less each rule that judges a
+// whole comment run.
 func blockFree(req Request) []string {
 	ids := req.IDs
 	if len(ids) == 0 {
@@ -162,7 +163,7 @@ func blockFree(req Request) []string {
 	}
 	var out []string
 	for _, id := range ids {
-		if !blockRules.Contains(id) {
+		if !blockRules.Contains(id) && id != commentfix.IDLength {
 			out = append(out, id)
 		}
 	}
