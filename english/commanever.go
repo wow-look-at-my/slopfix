@@ -49,7 +49,7 @@ func FixCommaNever(prose string) string {
 		b.WriteString(prose[last:at[0]])
 		to := ",${1}not"
 		switch {
-		case beforeVerb(prose, at[1]) && !finiteBefore(prose, at[0]):
+		case beforeVerb(prose, at[1]) && !finiteBefore(prose, at[0]) && !thirdPerson(prose[at[1]:]):
 			to = ",${1}do not"
 		case beforeVerb(prose, at[1]):
 			to = ",${1}and never"
@@ -95,6 +95,18 @@ func finiteBefore(prose string, at int) bool {
 		case "VBZ", "VBP", "VBD", "MD":
 			return true
 		}
+	}
+	return false
+}
+
+// thirdPerson reports a verb in "-s" after an adverb run, which agrees with a subject and is no instruction: "never gates".
+func thirdPerson(rest string) bool {
+	for _, w := range strings.Fields(rest) {
+		w = strings.ToLower(strings.Trim(w, ".,;:!?"))
+		if strings.HasSuffix(w, "ly") {
+			continue
+		}
+		return strings.HasSuffix(w, "s") && !strings.HasSuffix(w, "ss")
 	}
 	return false
 }

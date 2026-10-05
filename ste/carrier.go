@@ -50,16 +50,20 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	}
 	noun := strings.HasPrefix(prev.Tag, "NN")
 	main, hasMain := mainVerb(whole, c.left)
+	// A phrase that describes the noun before it ends the sentence: no comma, conjunction or clause follows it.
+	describes := seam == "" && noun && plainPhrase(whole, first)
 	switch {
-	case seam == "" && noun && carrierPlace.Contains(lower) && !strings.HasPrefix(strings.ToLower(rest), "in order"):
+	case !hasMain || splitsCoordination(whole, main, first):
+		return head, "", 0
+	case describes && carrierPlace.Contains(lower) && !strings.HasPrefix(strings.ToLower(rest), "in order"):
 		return head, restate(source, prev, rest), opensWithCarrier
-	case seam == "" && noun && (word.Tag == "VBN" || word.Tag == "VBG") && first+1 < len(whole.Words) && !strings.HasPrefix(whole.Words[first+1].Tag, "NN"):
+	case describes && (word.Tag == "VBN" || word.Tag == "VBG") && first+1 < len(whole.Words) && !strings.HasPrefix(whole.Words[first+1].Tag, "NN"):
 		return head, restate(source, prev, rest), opensWithCarrier
-	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1):
+	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
-	case seam != ":" && carrierAdverbial.Contains(lower) && hasMain && !StandsAlone(rest):
+	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest):
 		return head, carrierFor(whole, main) + " " + rest, opensWithCarrier
-	case (seam == "," || seam == ":") && hasMain:
+	case seam == "," || seam == ":":
 		if carried, conj, ok := listRest(source, whole, main, c, rest, seam); ok {
 			return listHead(head, conj, oxford(rest), whole, main), carried, opensWithCarrier
 		}
@@ -113,6 +117,50 @@ func topCommas(text string, from int) []int {
 		}
 	}
 	return out
+}
+
+// plainPhrase reports words from i to the end of the sentence that hold no
+// comma, no conjunction, no subordinator and no finite verb outside a
+// parenthesis. Only such a phrase moves behind a restated noun whole.
+func plainPhrase(s *syntax.Sentence, i int) bool {
+	depth := 0
+	for _, w := range s.Words[min(i, len(s.Words)):] {
+		switch w.Text {
+		case "(":
+			depth++
+			continue
+		case ")":
+			depth = max(depth-1, 0)
+			continue
+		}
+		if depth > 0 {
+			continue
+		}
+		switch w.Tag {
+		case ",", ":", "CC", "VBZ", "VBP", "VBD", "MD", "WDT", "WP", "WRB":
+			return false
+		}
+		if l := w.Lower(); l == "so" || l == "because" || l == "while" || l == "when" || l == "if" || l == ";" {
+			return false
+		}
+	}
+	return true
+}
+
+// splitsCoordination reports a cut at word first inside the last conjunct of
+// a coordination that holds no verb of its own: "and once more after X". The
+// conjunct then ends without its adverbial, and reads as no sentence.
+func splitsCoordination(s *syntax.Sentence, verb syntax.Phrase, first int) bool {
+	for i := first - 1; i > verb.Last; i-- {
+		w := s.Words[i]
+		if strings.HasPrefix(w.Tag, "VB") || w.Tag == "MD" {
+			return false
+		}
+		if w.Tag == "CC" {
+			return true
+		}
+	}
+	return false
 }
 
 // mainVerb answers the verb group of the main clause that holds the words

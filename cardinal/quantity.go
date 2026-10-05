@@ -248,8 +248,8 @@ func AValueToken(text string, toks []Token, i int) bool {
 }
 
 // NoWordReplaces reports a number at offset at that no repair word can take the
-// place of: one that names an item, a zero or a one, or a point on a scale
-// after "at", "by" or "to". "At 100 cols" does not mean "at multiple cols". A
+// place of: one that names an item, or a point on a scale after "at", "by" or
+// "to". "At 100 cols" does not mean "at multiple cols". A
 // unit after the point still takes a vague amount: "warns at many lines".
 func NoWordReplaces(text string, at int) bool {
 	if NamesAnItem(text, at) {
@@ -258,13 +258,6 @@ func NoWordReplaces(text string, at int) bool {
 	words := strings.Fields(text[at:])
 	if len(words) == 0 {
 		return false
-	}
-	number := strings.TrimLeft(words[0], "~(")
-	if end := strings.IndexFunc(number, func(r rune) bool { return !unicode.IsDigit(r) }); end > 0 {
-		number = number[:end]
-	}
-	if number == "0" || number == "1" {
-		return true
 	}
 	before := strings.Fields(strings.ToLower(text[:at]))
 	// A hedge goes with the number, so the word before the hedge decides: "at exactly 850 tokens".

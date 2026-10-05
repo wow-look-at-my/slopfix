@@ -58,6 +58,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 
 	var text string
 	switch {
+	case n == 0 && !measures(hit.Phrase):
+		// Zero of a thing is none of it, and "a couple of" would claim some.
+		text = "no "
 	case measures(hit.Phrase):
 		to = hit.Start + loc[1] + len(unitAfter(content[hit.Start+loc[1]:]))
 	case len(before) > 0 && prepositionFloors.Contains(last(1)):

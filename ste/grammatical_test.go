@@ -11,8 +11,8 @@ import (
 
 // Sentences from a real repository on which the repair once wrote broken
 // English: "As a result,", "This is" in front of a phrase, a fragment cut off
-// a dash or an "If" clause. Each now comes out as grammatical sentences, or as
-// written.
+// a dash or an "If" clause. Each now comes out as grammatical sentences under
+// the cap. An empty want is a sentence under the cap as written.
 var realSentences = []struct {
 	name, in, want string
 }{
@@ -121,9 +121,7 @@ func TestARealSentenceComesOutGrammaticalOrAsWritten(t *testing.T) {
 			assert.NotContains(t, got, "As a result")
 			assert.Equal(t, strings.Count(c.in, "This is"), strings.Count(got, "This is"), "the repair writes no filler")
 			for _, f := range ste.Check(got, 1) {
-				if f.ID == ste.IDSentenceCap && got == c.in {
-					assert.Equal(t, ste.FixByHand, f.Fix, "a sentence the repair leaves asks for a rewrite by hand")
-				}
+				assert.NotEqual(t, ste.IDSentenceCap, f.ID, "every sentence comes out under the cap: %s", f.Detail)
 			}
 		})
 	}

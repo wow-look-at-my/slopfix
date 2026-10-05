@@ -157,16 +157,12 @@ func judge(b block) (string, bool) {
 		return "the comment documents nothing", true
 	}
 	limit := max(floorChars, b.codeChars)
-	// A single sentence under the STE cap is the least a comment can say, so it is never an essay.
-	if oneSentence(b.text) {
-		return "", false
-	}
-
 	var tells []string
 	if lines > b.codeLines {
 		tells = append(tells, "the comment runs more lines than the code it documents")
 	}
-	if chars > limit {
+	// A single sentence under the STE cap is the least a comment can say, so its characters are never an essay.
+	if chars > limit && !oneSentence(b.text) {
 		tells = append(tells, "the comment runs longer than the code it documents")
 	}
 	if len(tells) == 0 {
