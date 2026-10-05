@@ -312,7 +312,7 @@ var danglingTags = set.Of[string]("DT", "JJ", "JJR", "JJS", "PRP$", "IN", "CC",
 func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 	w, ok := lastWordBefore(whole, len(head))
 	n := wordsBefore(whole, len(head))
-	if !ok || danglingTags.Contains(w.Tag) && !predicateAdjective(whole, n-1) || !standsAlone(whole, 0, n) || !segmentStands(whole, n) {
+	if !ok || danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) || !standsAlone(whole, 0, n) || !segmentStands(whole, n) {
 		return false
 	}
 	if seam != "," {
