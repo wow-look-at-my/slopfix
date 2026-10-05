@@ -349,8 +349,7 @@ func openFile(req Request, kind fixer.Kind) *fixer.File {
 }
 
 // Report is Fix for a caller that writes nothing. No repair lands, so every
-// finding is reported on the text as it stands, the repairable ones too. With
-// req.Owned set, only a finding on an owned line is reported.
+// finding is reported on the text as it stands, the repairable ones too.
 func Report(req Request) Repair {
 	repair := reportAll(req)
 	if req.Owned == nil {
