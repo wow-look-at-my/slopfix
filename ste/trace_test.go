@@ -16,6 +16,11 @@ var clauseBoundaries = []string{
 	"run runs git in dir with no user or system config, so a signing key or a hook on the machine cannot change what the test sees.",
 	"The same record written by an encoder that escapes HTML must read the same, or the guard is blind on half the transcripts it may be handed.",
 	"A replacement that is absent, or that appears more than a single time, leaves the result unknown, and the caller then judges the fragment as it always did.",
+	"A file the rule reports nothing in is written back byte for byte, so the cases above pass on a repair rather than on any edit.",
+	"The binary is a thin wrapper, so a hook, a CI job and an editor integration all get identical answers instead of separate implementations that drift.",
+	"A comment that DOES document code is cut back to fit rather than deleted, so the case above is about the measure and not about comments.",
+	"The table is XML rather than Go, the same way autoallow carries its rules, so adding a rule is a single-line edit somebody can make without reading Go.",
+	"It names the repeated call, states the count, and gives the ways out, because a refusal that does not say what to do instead gets repeated with a different excuse.",
 }
 
 // TestAClauseBoundaryDivides names the gate that refuses each candidate, so a

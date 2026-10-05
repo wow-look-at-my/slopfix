@@ -125,6 +125,9 @@ func (p *clauseParser) boundary(i int, cur Clause, comma bool) (LinkKind, int, b
 		if p.opensAfterConjunction(i+1, cur) {
 			return Coordinate, i, true
 		}
+	case lower == "that" && i > 0 && p.s.Words[i-1].Tag == "CC" && cur.Kind == Relative:
+		// "that is absent, or that appears": the second relative clause describes the same noun.
+		return Relative, i, true
 	case p.subordinator(i):
 		return Subordinate, i, true
 	case p.relative(i):
@@ -460,7 +463,7 @@ func (p *clauseParser) resume(i int, cur Clause, out []Clause) (Clause, bool) {
 			}
 			subject := parent.Subject
 			if subject == nil {
-				subject = p.subjectBefore(p.lastWord(parent.First, cur.Link-1), parent.First+max(parent.Link+1-parent.First, 0))
+				subject = p.subjectBefore(p.lastWord(parent.First, min(cur.Link-1, parent.Last)), parent.First+max(parent.Link+1-parent.First, 0))
 			}
 			// ", so the spelling, which sends X, is left": the verb after the relative clause is the verb of the clause it interrupts.
 			if parent.Verb == nil && subject != nil {

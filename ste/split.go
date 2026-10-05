@@ -24,6 +24,7 @@ var connectors = map[string]string{
 	"but": "However,",
 	"yet": "However,",
 	"so":  "",
+	"or":  "Otherwise,",
 }
 
 // FixByHand is the Fix text of a long sentence that no division can repair.
