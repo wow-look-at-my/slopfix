@@ -182,7 +182,12 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 func splitsObject(s *syntax.Sentence, c forceCut) bool {
 	next := wordFrom(s, c.right)
 	// A mark between the verb and the words after it ends the verb's phrase.
-	if next < 1 || !finiteVerbTag(s.Words[next-1].Tag) {
+	if next < 1 {
+		return false
+	}
+	// The tagger reads "names" or "reads" as a plural noun. It is the verb when the words before it hold no other.
+	prev := s.Words[next-1].Tag
+	if !finiteVerbTag(prev) && !(prev == "NNS" && !finiteBetween(s, 0, next-1)) {
 		return false
 	}
 	switch tag := s.Words[next].Tag; {
