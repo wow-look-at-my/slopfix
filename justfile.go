@@ -12,75 +12,128 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// script is a scripts entry, in the order the manifest lists it.
+// script is a scripts entry, in the order the manifest lists it. value is its JSON text.
 type script struct {
-	name, command string
+	name, command, value string
+}
+
+// scriptsMember is where the scripts member sits in a manifest.
+type scriptsMember struct {
+	// start and end cover the member, with the comma that joins it to a neighbour.
+	start, end int
+	// valueStart and valueEnd cover the scripts object alone.
+	valueStart, valueEnd int
+	scripts              []script
 }
 
 // moveScripts writes each scripts entry of the manifest at path as a recipe in
-// the justfile beside it, and deletes the scripts key. It answers the files it wrote.
+// the justfile beside it. A lifecycle script stays in the manifest, and the
+// scripts key goes when nothing stays. It answers the files it wrote.
 func moveScripts(path string, content []byte) ([]string, error) {
-	start, end, scripts, err := scriptsSpan(content)
+	member, err := scriptsSpan(content)
 	if err != nil {
 		return nil, err
+	}
+	var kept, moved []script
+	for _, s := range member.scripts {
+		if npmLifecycle.Contains(s.name) {
+			kept = append(kept, s)
+		} else {
+			moved = append(moved, s)
+		}
 	}
 	justfile := filepath.Join(filepath.Dir(path), "justfile")
 	existing, err := os.ReadFile(justfile)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	if err := os.WriteFile(justfile, []byte(justRecipes(string(existing), scripts)), 0o644); err != nil {
+	if err := os.WriteFile(justfile, []byte(justRecipes(string(existing), moved)), 0o644); err != nil {
 		return nil, err
 	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
 	}
-	manifest := append(append([]byte{}, content[:start]...), content[end:]...)
+	start, end, replacement := member.start, member.end, ""
+	if len(kept) > 0 {
+		start, end = member.valueStart, member.valueEnd
+		replacement = scriptsObject(kept, indentOf(content, member.valueStart))
+	}
+	manifest := append(append(append([]byte{}, content[:start]...), replacement...), content[end:]...)
 	if err := os.WriteFile(path, manifest, info.Mode().Perm()); err != nil {
 		return nil, err
 	}
 	return []string{path, justfile}, nil
 }
 
-// scriptsSpan answers the bytes the scripts member covers, with the comma that
-// joins it to a neighbour, and the scripts it holds.
-func scriptsSpan(content []byte) (start, end int, scripts []script, err error) {
+// indentOf answers the blanks that open the line holding offset.
+func indentOf(content []byte, offset int) string {
+	lineStart := bytes.LastIndexByte(content[:offset], '\n') + 1
+	line := content[lineStart:offset]
+	return string(line[:len(line)-len(bytes.TrimLeft(line, " \t"))])
+}
+
+// scriptsObject writes the scripts as a JSON object whose members sit one
+// level deeper than indent. The unit of one level is indent itself, or
+// spaces at the top level.
+func scriptsObject(scripts []script, indent string) string {
+	unit := indent
+	if unit == "" {
+		unit = "  "
+	}
+	var b strings.Builder
+	b.WriteString("{\n")
+	for i, s := range scripts {
+		name, _ := json.Marshal(s.name)
+		fmt.Fprintf(&b, "%s%s%s: %s", indent, unit, name, s.value)
+		if i < len(scripts)-1 {
+			b.WriteString(",")
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString(indent + "}")
+	return b.String()
+}
+
+// scriptsSpan answers where the scripts member sits, and the scripts it holds.
+func scriptsSpan(content []byte) (scriptsMember, error) {
 	dec := json.NewDecoder(bytes.NewReader(content))
 	if _, err := dec.Token(); err != nil {
-		return 0, 0, nil, err
+		return scriptsMember{}, err
 	}
 	first := true
 	for dec.More() {
 		before := int(dec.InputOffset())
 		key, err := dec.Token()
 		if err != nil {
-			return 0, 0, nil, err
+			return scriptsMember{}, err
 		}
 		var raw json.RawMessage
 		if err := dec.Decode(&raw); err != nil {
-			return 0, 0, nil, err
+			return scriptsMember{}, err
 		}
 		after := int(dec.InputOffset())
 		if key != "scripts" {
 			first = false
 			continue
 		}
-		if scripts, err = scriptsOf(raw); err != nil {
-			return 0, 0, nil, err
+		member := scriptsMember{start: before, end: after, valueStart: after - len(raw), valueEnd: after}
+		if member.scripts, err = scriptsOf(raw); err != nil {
+			return scriptsMember{}, err
 		}
 		if !first || !dec.More() {
 			// The comma before the member goes with it. A sole member has none.
-			return before, after, scripts, nil
+			return member, nil
 		}
 		comma := bytes.IndexByte(content[after:], ',')
 		if comma < 0 {
-			return 0, 0, nil, fmt.Errorf("package.json: no comma after the scripts member")
+			return scriptsMember{}, fmt.Errorf("package.json: no comma after the scripts member")
 		}
 		// The first member takes the comma after it instead.
-		return before, after + comma + 1, scripts, nil
+		member.end = after + comma + 1
+		return member, nil
 	}
-	return 0, 0, nil, fmt.Errorf("package.json: no scripts member")
+	return scriptsMember{}, fmt.Errorf("package.json: no scripts member")
 }
 
 // scriptsOf reads the scripts object in order. A value that is not a string
@@ -105,7 +158,7 @@ func scriptsOf(raw json.RawMessage) ([]script, error) {
 		if json.Unmarshal(value, &text) == nil {
 			command = text
 		}
-		out = append(out, script{name: fmt.Sprint(key), command: command})
+		out = append(out, script{name: fmt.Sprint(key), command: command, value: string(value)})
 	}
 	return out, nil
 }
