@@ -13,6 +13,7 @@ package linkrefs
 import (
 	"context"
 	"encoding/json"
+	"github.com/wow-look-at-my/go-containers/set"
 	"os/exec"
 	"regexp"
 	"slices"
@@ -343,16 +344,16 @@ func (g *GitResolver) PullState(repo Repo, number string) PullState {
 // Prefetch asks about every pull request at once, so a flush that names several waits for the slowest one alone.
 func (g *GitResolver) Prefetch(refs []PullRef) {
 	var wg sync.WaitGroup
-	asked := map[string]bool{}
+	asked := set.New[string]()
 	for _, r := range refs {
 		key := pullKey(r.Repo, r.Number)
-		if !r.Repo.valid() || r.Number == "" || asked[key] {
+		if !r.Repo.valid() || r.Number == "" || asked.Contains(key) {
 			continue
 		}
 		if _, ok := g.seen(key); ok {
 			continue
 		}
-		asked[key] = true
+		asked.Add(key)
 		wg.Add(1)
 		go func(r PullRef, key string) {
 			defer wg.Done()

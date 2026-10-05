@@ -244,7 +244,9 @@ func TestChecksReportReadsStatusesAndRuns(t *testing.T) {
 
 // Without the checks, mergeStateStatus still says red, green or not yet.
 func TestMergeStateStandsInForTheChecks(t *testing.T) {
-	at := func(ms string) PullState { return classify(pullView{State: "OPEN", MergeState: ms, Checks: mergeStateChecks(ms)}) }
+	at := func(ms string) PullState {
+		return classify(pullView{State: "OPEN", MergeState: ms, Checks: mergeStateChecks(ms)})
+	}
 	assert.Equal(t, StateMergeable, at("CLEAN"))
 	assert.Equal(t, StateFailing, at("UNSTABLE"))
 	assert.Equal(t, StateConflicted, at("DIRTY"))

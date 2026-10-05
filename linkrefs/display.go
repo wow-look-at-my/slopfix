@@ -91,7 +91,17 @@ func linePulls(line string) []PullRef {
 // dot beside every link to a pull request, whoever wrote the link.
 func rewriteLine(line string, res Resolver) (string, bool) {
 	var edits []splice
+	// The words after a finished dot belong to it, so they are not linked again.
+	dotted := map[int]bool{}
+	for _, l := range findLinks(line) {
+		if isDot(strings.TrimSpace(l.text)) {
+			dotted[l.end+1] = true
+		}
+	}
 	for _, ref := range FindUnlinkedInLine(line) {
+		if dotted[ref.Start] {
+			continue
+		}
 		if link, ok := Linkify(ref.Ref, res); ok {
 			edits = append(edits, splice{ref.Start, ref.End, link})
 		}
