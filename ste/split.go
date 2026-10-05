@@ -17,6 +17,34 @@ type division struct {
 	opener              string
 	// closer is the object a division writes back at the end of the rest: ", which a list does not show" becomes "A list does not show that."
 	closer string
+	// comma is the byte offset where the rest takes a comma after an opening participle phrase: "Dropped, it leaves". Zero means none.
+	comma int
+}
+
+func participleComma(s *syntax.Sentence, c syntax.Clause) int {
+	p := c.Link + 1
+	if p+2 >= len(s.Words) || s.Words[p].Tag != "VBN" && s.Words[p].Tag != "VBD" {
+		return -1
+	}
+	if c.Subject == nil {
+		// "and dropped it leaves": the pronoun after the participle is the subject.
+		if s.Words[p+1].Tag == "PRP" && finiteAt(s, p+2) {
+			return p + 1
+		}
+		return -1
+	}
+	if c.Subject.First > p+1 {
+		return c.Subject.First
+	}
+	return -1
+}
+
+// restOf answers the rest of the source a division writes, with its comma.
+func restOf(source string, d division) string {
+	if d.comma <= d.rightStart {
+		return source[d.rightStart:]
+	}
+	return source[d.rightStart:d.comma] + "," + source[d.comma:]
 }
 
 // connectors map a conjunction to the words that open the sentence after it.
@@ -115,7 +143,7 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := bold + withCloser(joinOpener(d.opener, source[d.rightStart:]), d.closer)
+		right := bold + withCloser(joinOpener(d.opener, restOf(source, d)), d.closer)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
@@ -236,11 +264,17 @@ func divisions(s *syntax.Sentence, source string) []division {
 			}
 			continue
 		}
-		out = append(out, division{
+		d := division{
 			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
 			rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
 			opener:     opener,
-		})
+		}
+		if c.Kind != syntax.Relative && c.Kind != syntax.Subordinate {
+			if i := participleComma(s, c); i > 0 && s.Words[i-1].Text != "," {
+				d.comma = s.Words[i-1].End
+			}
+		}
+		out = append(out, d)
 	}
 	return append(out, beforeSubordinate(s, source)...)
 }
