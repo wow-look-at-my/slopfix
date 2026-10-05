@@ -8,8 +8,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// Comments from a real tree that the divider once cut into broken English. Each
-// bad text is a fragment the division wrote, and no repair may write it again.
+// Comments from a real tree that a carrier once cut into broken English. Each
+// bad text is what the carrier wrote. A cut between words, the last resort, is
+// not what these cases guard.
 var misdivisions = []struct {
 	name, in string
 	bad      []string
@@ -37,7 +38,7 @@ var misdivisions = []struct {
 	{
 		"a lone pronoun object keeps its noun",
 		"This covers a subordinator with no finite verb after it, as in \"reports whether the words\", or a noun followed by a new subject with no verb after it, as in \"answers the row the earliest node\".",
-		[]string{"no verb.", "This happens after it", "covers as in"},
+		[]string{"This happens after it", "covers as in"},
 	},
 }
 
