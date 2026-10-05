@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 )
 
@@ -34,7 +35,11 @@ func packageScripts(root string, writing bool, writable func(string) bool) ([]Tr
 			out = append(out, repoFinding(rel, IDPackageScripts, "this package.json does not parse, so no rule can read it", err.Error()))
 			continue
 		}
-		if _, ok := manifest["scripts"]; !ok {
+		raw, ok := manifest["scripts"]
+		if !ok {
+			continue
+		}
+		if onlyLifecycle(raw) {
 			continue
 		}
 		if writing && writable(path) && writable(filepath.Join(filepath.Dir(path), "justfile")) {
@@ -51,6 +56,30 @@ func packageScripts(root string, writing bool, writable func(string) bool) ([]Tr
 		out = append(out, finding)
 	}
 	return out, changed, nil
+}
+
+// npmLifecycle names the scripts npm runs by itself at install, pack, publish
+// or version time. npm reads them only from package.json, so they stay there.
+var npmLifecycle = set.Of(
+	"preinstall", "install", "postinstall",
+	"preuninstall", "uninstall", "postuninstall",
+	"prepublish", "preprepare", "prepare", "postprepare",
+	"prepack", "postpack", "prepublishOnly", "publish", "postpublish",
+	"preversion", "version", "postversion", "dependencies",
+)
+
+// onlyLifecycle reports a scripts object that holds lifecycle scripts and nothing else.
+func onlyLifecycle(raw json.RawMessage) bool {
+	scripts, err := scriptsOf(raw)
+	if err != nil || len(scripts) == 0 {
+		return false
+	}
+	for _, s := range scripts {
+		if !npmLifecycle.Contains(s.name) {
+			return false
+		}
+	}
+	return true
 }
 
 func scriptsLine(content []byte) int {
