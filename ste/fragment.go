@@ -3,6 +3,7 @@ package ste
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -42,6 +43,9 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 	return source, false
 }
 
+// phraseEndParticle words end a phrase, though the tagger can read one as a preposition.
+var phraseEndParticle = set.Of(wordsOf("phrase-end-particle")...)
+
 // PhraseHead answers the longest leading run of text, at most maxWords long,
 // that ends a noun phrase where the next word opens one. It closes the run
 // with a stop. It serves prose that never closes, which no division reads.
@@ -50,7 +54,7 @@ func PhraseHead(text string, maxWords int) (string, bool) {
 	s := syntax.Parse(masked, nil)
 	for n := min(maxWords, len(s.Words)-1); n >= minimumHalf; n-- {
 		// A verb before the cut wants the object the cut takes away.
-		if tag := s.Words[n-1].Tag; !strings.HasPrefix(tag, "NN") && !strings.HasPrefix(tag, "RB") && tag != "CD" {
+		if tag := s.Words[n-1].Tag; !strings.HasPrefix(tag, "NN") && !strings.HasPrefix(tag, "RB") && tag != "CD" && !phraseEndParticle.Contains(s.Words[n-1].Lower()) {
 			continue
 		}
 		if !opensFragment(s.Words[n]) {

@@ -134,6 +134,11 @@
        binds to the words in front of it. -->
   <class name="force-bound" words="whom whose of than or nor"/>
 
+  <!-- A particle that ends a phrase, though the tagger reads it as a preposition
+       when a noun phrase follows: "keeps going onward a clause". -->
+  <class name="phrase-end-particle" words="onward onwards forward back away
+    out off along around aside apart again ahead behind"/>
+
   <!-- A preposition that opens an adverbial of time, frequency, condition or
        manner. A division in front of one moves the adverbial into a sentence of
        its own, behind a carrier such as "This happens". "of", "from", "to" and
