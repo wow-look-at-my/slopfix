@@ -446,11 +446,36 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
-	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)):
 		// A dash or a colon before words that hold a main clause of their own: "— on first launch Grok runs your binary".
-		return capitalizeOpening(rest), opensOwnClause - 1
+		out := capitalizeOpening(rest)
+		if StandsAlone(out) {
+			return out, opensOwnClause - 1
+		}
+		if out, ok := commaAfterFrontedPhrase(out); ok && StandsAlone(out) {
+			return out, opensOwnClause - 1
+		}
 	}
 	return "", 0
+}
+
+// commaAfterFrontedPhrase writes the comma that ends a participle phrase in front of its clause: "Left in the text a rewrite wraps it" becomes "Left in the text, a rewrite wraps it".
+func commaAfterFrontedPhrase(text string) (string, bool) {
+	s := syntax.Parse(opening(text), nil)
+	if len(s.Words) < 4 || s.Words[0].Tag != "VBN" {
+		return text, false
+	}
+	for i := 2; i < len(s.Words); i++ {
+		w := s.Words[i]
+		if w.Text == "," {
+			return text, false
+		}
+		if (w.Tag == "DT" || w.Tag == "PRP$") && strings.HasPrefix(s.Words[i-1].Tag, "NN") {
+			at := s.Words[i-1].End
+			return text[:at] + "," + text[at:], true
+		}
+	}
+	return text, false
 }
 
 // openingBytes bounds how much of the rest the parser reads. Only its first clause decides how the rest opens.
