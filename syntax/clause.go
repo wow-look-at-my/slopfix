@@ -454,6 +454,10 @@ func (p *clauseParser) resume(i int, cur Clause, out []Clause) (Clause, bool) {
 			if subject == nil {
 				subject = p.subjectBefore(p.lastWord(parent.First, cur.Link-1), parent.First+max(parent.Link+1-parent.First, 0))
 			}
+			// ", so the spelling, which sends X, is left": the verb after the relative clause is the verb of the clause it interrupts.
+			if parent.Verb == nil && subject != nil {
+				out[n].Verb, out[n].Subject = vg, subject
+			}
 			return Clause{First: i, Link: -1, Kind: Opens, Depth: parent.Depth, Subject: subject, Verb: vg}, subject != nil
 		}
 	case cur.Kind == Subordinate && cur.First == 0 && cur.Depth == 1:
