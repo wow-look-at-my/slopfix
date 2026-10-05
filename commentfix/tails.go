@@ -1,8 +1,8 @@
 // tails.go closes a comment that stops mid-thought.
 //
-// The words that open something live in rules/comment-tails.xml as a class.
-// The English sentence parser finds the sentence the repair drops. Neither the
-// vocabulary nor the boundary is spelled here.
+// The words that open something live in rules/comment-tails.xml as a class, and
+// the sentence the repair drops is found by the English sentence parser, so
+// neither the vocabulary nor the boundary is spelled here.
 package commentfix
 
 import (

@@ -2,9 +2,9 @@
 // tense verb reads the sentence rather than the words alone.
 //
 // A change stated as the sentence's own assertion says the source tree stands
-// somewhere else now, and that is a tombstone. Take a subordinator ahead of
-// the same verb, or a noun the clause hangs off. Either makes the clause a
-// condition on a value the running code already handled. This is the code the reader has.
+// somewhere else now, and that is a tombstone. A subordinator ahead of the same
+// verb, or a noun the clause hangs off, makes it a condition on a value the
+// running code already handled. This is the code the reader has.
 //
 // The reading is the word classes english.xml declares.
 package english

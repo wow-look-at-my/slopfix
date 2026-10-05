@@ -201,7 +201,7 @@ type proseLine struct {
 }
 
 // proseLines returns the lines markdown.Split marks as prose, each with its
-// byte offset. A phrase found there can then be cut out of the document.
+// byte offset, so a phrase found there can be cut out of the document.
 func proseLines(content string) []proseLine {
 	lines := strings.Split(content, "\n")
 	offsets := make([]int, len(lines))
