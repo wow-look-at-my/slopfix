@@ -359,7 +359,7 @@ func trim(b block) []string {
 		fits = append(fits, opening)
 	}
 	// A clause cut serves a block whose opening sentence is not the thing being
-	// cut. A one-sentence comment cut to its first clause loses its claim.
+	// cut.
 	if severalSentences(b.text) {
 		if clause, ok := clauseFit(b); ok {
 			fits = append(fits, clause)
