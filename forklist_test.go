@@ -10,7 +10,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/forkscope"
 )
 
-// forklist.schema.json is the shape the org's .github repository checks its
+// forklist.schema.json is the shape the org's dot_github repository checks its
 // fork list against. forkscope reads the list, and refuses exactly the lists
 // the schema refuses.
 func TestTheForkListReaderAgreesWithTheSchema(t *testing.T) {
