@@ -28,6 +28,9 @@ import (
 // IDLength names this rule, on a report and on the command line alike.
 const IDLength = "comments/length"
 
+// FixLengthByHand is the Fix of a block that no cut fits on a whole sentence.
+const FixLengthByHand = "Rewrite it by hand: shorten the opening sentence, or say less. No cut leaves a whole sentence."
+
 // floorChars is the size a comment may always be, whatever it documents.
 const floorChars = 120
 
@@ -354,7 +357,7 @@ func clauseFit(b block) ([]string, bool) {
 	for _, line := range prose(b.text) {
 		body = append(body, stripMarker(line))
 	}
-	text := strings.Join(strings.Fields(strings.Join(body, " ")), " ")
+	text := unwrapAside(strings.Join(strings.Fields(strings.Join(body, " ")), " "))
 	for _, cut := range clauseCuts(text) {
 		kept := strings.TrimRight(text[:cut], " ,;:-—–")
 		words := strings.Fields(kept)
@@ -371,11 +374,26 @@ func clauseFit(b block) ([]string, bool) {
 	return nil, false
 }
 
+// unwrapAside drops the parentheses around a comment that is one aside, so a
+// cut inside it leaves the pair balanced.
+func unwrapAside(text string) string {
+	inner, ok := strings.CutPrefix(text, "(")
+	if !ok {
+		return text
+	}
+	end := strings.TrimSuffix(inner, ".")
+	inner, ok = strings.CutSuffix(end, ")")
+	if !ok || strings.ContainsAny(inner, "()") {
+		return text
+	}
+	return strings.TrimSuffix(inner, ".") + "."
+}
+
 // closesWhole reports whether the last sentence of text holds a main clause, so
 // a cut there leaves a sentence: "If the cache is cold" does not.
 func closesWhole(text string) bool {
 	sentences := ste.Sentences(text)
-	return len(sentences) > 0 && ste.StandsAlone(sentences[len(sentences)-1])
+	return len(sentences) > 0 && standsAlone(sentences[len(sentences)-1])
 }
 
 // oneLine is a reflow width no comment reaches, so the prose stays on one line.
@@ -440,8 +458,10 @@ func boundaryMarks() []string {
 
 // clauseCuts answers every clause boundary in text, the last one first. A mark
 // ends a clause when a space follows it. A word-length mark needs a space before it too.
+// A tail opener, such as "so" or an open parenthesis, starts a part the cut can drop.
 func clauseCuts(text string) []int {
 	marks := boundaryMarks()
+	tails := tailOpeners()
 	var cuts []int
 	for i := len(text) - 1; i > 0; i-- {
 		for _, m := range marks {
@@ -454,8 +474,27 @@ func clauseCuts(text string) []int {
 			cuts = append(cuts, i)
 			break
 		}
+		if text[i-1] != ' ' {
+			continue
+		}
+		for _, m := range tails {
+			if strings.HasPrefix(text[i:], m) && (m == "(" || strings.HasPrefix(text[i+len(m):], " ")) {
+				cuts = append(cuts, i)
+				break
+			}
+		}
 	}
 	return cuts
+}
+
+// tailOpeners answers the words that open a part a cut can drop and leave the claim before it true.
+func tailOpeners() []string {
+	for _, c := range clausesTable.Classes {
+		if c.Name == "tail" {
+			return c.Words
+		}
+	}
+	panic("commentfix: rules/ names no class tail")
 }
 
 // balanced reports text that closes every bracket, backtick and quote it opens.

@@ -112,6 +112,7 @@ func TestANumberThatNamesAnItemStays(t *testing.T) {
 	for _, in := range []string{
 		"- during a newer stream → dropped (branch 1 prompt-mismatch rejects, branch 3 sees `last_finished_agent_entry` already cleared).",
 		"They honor the Section 4 pins.",
+		"It reads rule 6 inputs.",
 	} {
 		out, cut := StripGate(in)
 		assert.Equal(t, in, out)
@@ -201,7 +202,6 @@ func TestOnlyAnIssueNumberIsALabel(t *testing.T) {
 		"The parser keeps #12 rows.",
 		"It merges pr #12 files.",
 		"It is the loop that gate 5 asserts.",
-		"It reads rule 6 inputs.",
 		"The field holds 24 bits.",
 	} {
 		_, cut := StripGate(in)

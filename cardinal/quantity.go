@@ -242,7 +242,8 @@ func Labeled(text string, q Match) bool {
 // NamesAnItem reports digits at offset at right after a singular noun inside a
 // sentence, as in "branch 3 sees" or "the Section 4 pins". The digits name
 // one item, so no word can take their place. The first word of a sentence does
-// not count, because the tagger reads an imperative there as a noun.
+// not count, because the tagger reads an imperative there as a noun. A noun
+// that a number or "each" governs starts a second phrase: "one call 3 ways".
 func NamesAnItem(text string, at int) bool {
 	words := syntax.Parse(text, nil).Words
 	for i, w := range words {
@@ -252,11 +253,18 @@ func NamesAnItem(text string, at int) bool {
 		if !allDigits(w.Text) || i < 2 || words[i-1].End == at || words[i-2].Tag == "." {
 			return false
 		}
-		prev := words[i-1]
-		return (prev.Tag == "NN" || prev.Tag == "NNP") && strings.IndexFunc(prev.Text, unicode.IsLetter) == 0
+		prev, before := words[i-1], words[i-2]
+		if strings.IndexFunc(prev.Text, unicode.IsLetter) != 0 || before.Tag == "CD" || singleItem.Contains(before.Lower()) {
+			return false
+		}
+		// The tagger reads a noun that opens a parenthesis as an imperative.
+		return prev.Tag == "NN" || prev.Tag == "NNP" || (before.Text == "(" && (prev.Tag == "VB" || prev.Tag == "VBP"))
 	}
 	return false
 }
+
+// singleItem are the words that make the noun after them one counted item.
+var singleItem = set.Of("a", "an", "each", "every", "one", "per")
 
 // SectionCite exempts a number behind a section sign, as in "§9 trigger". It
 // cites a section, so it counts nothing.

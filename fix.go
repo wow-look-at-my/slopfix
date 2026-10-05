@@ -223,12 +223,16 @@ func fixText(req Request) Repair {
 		}
 		if wants(RuleComments) && keeps(commentfix.IDLength) {
 			for _, hit := range commentfix.CheckLength(req.Path, text) {
-				repair.Kept = append(repair.Kept, tombstones.Hit{
+				kept := tombstones.Hit{
 					ID:     hit.ID,
 					Tell:   hit.Tell,
 					Phrase: hit.Sentence,
 					LineNo: hit.Line,
-				})
+				}
+				if !hit.Repairable {
+					kept.Fix = commentfix.FixLengthByHand
+				}
+				repair.Kept = append(repair.Kept, kept)
 			}
 		}
 	case fixer.Document:

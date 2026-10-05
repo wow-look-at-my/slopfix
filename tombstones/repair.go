@@ -304,6 +304,8 @@ func repairFile(f *fixer.File) {
 			// A name no whole-line strip resolves loses its sentence below.
 			cut = true
 		default:
+			// The cap cut ran above, so a block still over the cap has no whole-sentence cut.
+			h.Fix = FixVolumeByHand
 			f.Note(h)
 		}
 	}

@@ -22,11 +22,28 @@ func capLines(b block, maxLines int) []string {
 		}
 		body = next
 	}
+	if len(body) > maxLines {
+		body = dropToSentenceEnd(body, maxLines)
+	}
 	body = reclosed(body, closer)
 	out := make([]string, 0, len(lead)+len(body)+len(trail))
 	out = append(out, lead...)
 	out = append(out, body...)
 	return append(out, trail...)
+}
+
+// dropToSentenceEnd drops whole lines from the end of body until no more than
+// maxLines are left and the last line ends a sentence. With no such line, body
+// stays as it is, for a rewrite by hand.
+func dropToSentenceEnd(body []string, maxLines int) []string {
+	for n := min(maxLines, len(body)); n > 0; n-- {
+		last := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(stripMarker(body[n-1])), "*/"))
+		if isBlankComment(body[n-1]) || !endsSentence(last) {
+			continue
+		}
+		return body[:n]
+	}
+	return body
 }
 
 // reclosed puts back the */ a cut took with the last thought, so the code

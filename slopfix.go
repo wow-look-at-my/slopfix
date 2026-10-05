@@ -120,7 +120,7 @@ func commentFindings(path, content string) []ste.Finding {
 	for _, hit := range commentfix.CheckLength(path, content) {
 		fix := "Cut the comment back inside the code it documents. Drop the trailing paragraph first."
 		if !hit.Repairable {
-			fix = "Rewrite it by hand: shorten the opening sentence, or say less. No cut leaves a whole sentence."
+			fix = commentfix.FixLengthByHand
 		}
 		out = append(out, ste.Finding{
 			Line:   hit.Line,

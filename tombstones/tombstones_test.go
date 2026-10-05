@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // A comment that is nothing but a tombstone loses its whole sentence, so the
@@ -86,18 +87,32 @@ func TestAFencedBlockInADocumentIsNotProse(t *testing.T) {
 	assert.Empty(t, repair.Kept)
 }
 
-// A block over the cap with no sentence end to cut at loses whole lines, and
-// the last line it keeps closes as a sentence.
-func TestTheVolumeCapCutsTheBlockFromItsEnd(t *testing.T) {
+// A block over the cap with no sentence end to cut at has no cut that reads.
+// No period closes a fragment, and the hit asks for a rewrite by hand.
+func TestAVolumeCapWithNoSentenceEndStays(t *testing.T) {
 	src := ""
 	for range 6 {
 		src += "// the loader reads the flag and returns what it names\n"
 	}
 	repair := Fix("a.go", src, 3)
-	assert.Empty(t, repair.Kept)
-	lines := strings.Split(strings.TrimRight(repair.Text, "\n"), "\n")
-	assert.LessOrEqual(t, len(lines), 3, repair.Text)
-	assert.True(t, strings.HasSuffix(lines[len(lines)-1], "."), repair.Text)
+	require.Len(t, repair.Kept, 1)
+	assert.Equal(t, IDVolume, repair.Kept[0].ID)
+	assert.Equal(t, FixVolumeByHand, repair.Kept[0].Fix)
+	assert.NotContains(t, repair.Text, ".", repair.Text)
+}
+
+// A block over the cap whose lines end sentences loses whole lines from its end.
+func TestTheVolumeCapDropsLinesToASentenceEnd(t *testing.T) {
+	src := "/* The loader reads the flag.\n *\n"
+	for range 4 {
+		src += " *   <x-widget>save</x-widget>\n"
+	}
+	src += " */\nint x;\n"
+	repair := Fix("a.c", src, 3)
+	assert.Empty(t, repair.Kept, repair.Text)
+	assert.Contains(t, repair.Text, "The loader reads the flag.", repair.Text)
+	assert.NotContains(t, repair.Text, "x-widget", repair.Text)
+	assert.Equal(t, strings.Count(repair.Text, "/*"), strings.Count(repair.Text, "*/"), repair.Text)
 }
 
 // A block over the cap that ends its sentences loses its last thoughts.

@@ -7,7 +7,9 @@ package commentfix
 
 import (
 	"strings"
+	"unicode"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/table"
@@ -77,7 +79,7 @@ func CloseProse(prose string) string {
 	kept := append([]string{}, sentences[:len(sentences)-1]...)
 	// The clause that opened what is missing goes with it, so the sentence ends
 	// where it last said something whole.
-	if clause := lastClause(words); clause != "" && ste.StandsAlone(clause) {
+	if clause := lastClause(words); clause != "" && standsAlone(clause) {
 		kept = append(kept, clause)
 	}
 	// With nothing whole left, no cut reads, and the comment stays for a rewrite by hand.
@@ -116,6 +118,26 @@ func lastClause(words []string) string {
 	}
 	return ""
 }
+
+// standsAlone reports a clause that reads as a sentence. A doc comment opens on
+// the name it documents, and the tagger can read that name as a verb, so the
+// name is also read as the pronoun that takes its place: "Close answers the gate".
+func standsAlone(clause string) bool {
+	if ste.StandsAlone(clause) {
+		return true
+	}
+	first, rest, ok := strings.Cut(strings.TrimSpace(clause), " ")
+	if !ok || first == "" || !unicode.IsUpper(rune(first[0])) || strings.ContainsAny(first, ",;:()") || openers.Contains(strings.ToLower(first)) {
+		return false
+	}
+	return ste.StandsAlone("It " + rest)
+}
+
+// openers are the words that open a clause or a phrase, never a name.
+var openers = set.Of("if", "when", "because", "since", "while", "unless", "until", "although", "though",
+	"after", "before", "so", "and", "but", "or", "as", "where", "whether", "once", "the", "a", "an",
+	"this", "that", "these", "those", "each", "every", "all", "some", "no", "for", "with", "to", "in",
+	"on", "at", "by", "from", "of", "then", "only", "also")
 
 // trimWord drops the punctuation a word carries, leaving the word itself.
 func trimWord(w string) string {
