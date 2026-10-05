@@ -27,3 +27,38 @@ func TestActionHasNoInputThatNarrowsTheCheck(t *testing.T) {
 	assert.Equal(t, []string{"level", "permission"}, names,
 		"the action takes only the workflow-permission query; a new input must not scope or weaken the check")
 }
+
+type actionStep struct {
+	ID   string            `yaml:"id"`
+	If   string            `yaml:"if"`
+	Uses string            `yaml:"uses"`
+	With map[string]string `yaml:"with"`
+}
+
+// Several org actions call this in the same run. The claim keeps the check to
+// one job of the run.
+func TestActionClaimsTheCheckOncePerRun(t *testing.T) {
+	content, err := os.ReadFile("action.yml")
+	require.NoError(t, err)
+	var action struct {
+		Runs struct {
+			Steps []actionStep `yaml:"steps"`
+		} `yaml:"runs"`
+	}
+	require.NoError(t, yaml.Unmarshal(content, &action))
+	steps := action.Runs.Steps
+	require.NotEmpty(t, steps)
+
+	claim := steps[0]
+	assert.Equal(t, "claim", claim.ID, "the claim must come before the download")
+	assert.Equal(t, "wow-look-at-my/actions@run-once#latest", claim.Uses)
+	assert.Equal(t, "slopfix-check", claim.With["name"])
+	assert.Equal(t, "inputs.permission == ''", claim.If, "the permission answer is per job and must never be claimed")
+
+	for _, id := range []string{"download", "unix", "windows"} {
+		idx := slices.IndexFunc(steps, func(s actionStep) bool { return s.ID == id })
+		require.GreaterOrEqual(t, idx, 0, "step %s is missing", id)
+		assert.Contains(t, steps[idx].If, "steps.claim.outputs.first != 'false'",
+			"step %s must skip in a job that lost the claim", id)
+	}
+}

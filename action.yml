@@ -23,8 +23,22 @@ outputs:
 runs:
   using: composite
   steps:
+    # The check reads the same tree in every job, so one job of the run does it. The permission answer differs per job, so it never claims.
+    - name: Claim the slopfix check for this run
+      id: claim
+      if: inputs.permission == ''
+      uses: wow-look-at-my/actions@run-once#latest
+      with:
+        name: slopfix-check
+
+    - name: Report the check another job holds
+      if: steps.claim.outputs.first == 'false'
+      shell: bash
+      run: echo "slopfix check already runs in another job of this run (claim ${{ steps.claim.outputs.key }}); this job skips it."
+
     - name: Download slopfix
       id: download
+      if: steps.claim.outputs.first != 'false'
       uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master
       with:
         project: slopfix
@@ -32,7 +46,7 @@ runs:
     # A binfmt_misc handler on the MZ magic can refuse a direct exec of the APE, so Unix runs it through sh.
     - name: Run slopfix
       id: unix
-      if: runner.os != 'Windows'
+      if: runner.os != 'Windows' && steps.claim.outputs.first != 'false'
       shell: bash
       # check reads the repository from the API to tell whether it is a fork, and a private one needs the token.
       env:
@@ -53,7 +67,7 @@ runs:
     # Windows has no binfmt handler and boots the APE through its PE header. sh there looks for a loader built for another host.
     - name: Run slopfix
       id: windows
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && steps.claim.outputs.first != 'false'
       shell: pwsh
       env:
         GITHUB_TOKEN: ${{ github.token }}

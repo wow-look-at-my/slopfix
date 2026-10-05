@@ -50,6 +50,8 @@ The action at the repository root downloads the published binary from buildhost 
 - uses: wow-look-at-my/slopfix@master
 ```
 
+Several org actions call this action, so one workflow run can reach it from many jobs. The check claims the run through `wow-look-at-my/actions@run-once#latest` with the name `slopfix-check`. One job runs it. Each other job logs the skip. The `permission` query never claims, because each job holds its own token.
+
 No input narrows the check. A path list, a rule list or a raw command line lets a caller set the gate to nothing. `action_test.go` fails the build on any input but `permission` and `level`. The action never repairs. A job that repairs its own checkout and then passes has enforced nothing.
 
 `permission` runs `check workflow-permission --json` for the running job instead. `level` defaults to `write`. The `stdout` output holds the JSON answer. The values are quoted, so a value cannot add a flag.
