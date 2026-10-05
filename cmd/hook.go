@@ -29,7 +29,7 @@ func init() {
 			"Every guard that serves the event runs, unless --only names a subset.\n\n" +
 			"  PreToolUse         clean-bash, write, no-work-loss, auto-allow, busy-poll\n" +
 			"  PermissionRequest  auto-allow\n" +
-			"  PostToolUse        md-budget, read-output\n" +
+			"  PostToolUse        md-budget\n" +
 			"  SessionStart       md-budget\n" +
 			"  Stop               busy-poll, md-budget, laziness\n" +
 			"  MessageDisplay     link-refs, blame-language, ask-properly\n\n" +
@@ -165,8 +165,8 @@ func forkLinesOf(forks forkscope.Resolver, path string) (forkLines, error) {
 // judge answers a payload with the response to print, or "" to let the write
 // through. Every unreadable input answers "": a guard that refuses a write it
 // could not parse is worse than no guard. In a fork, a repair lands only on
-// the lines the fork wrote once the write lands, and a fork whose base cannot
-// be read refuses the write.
+// the lines the fork wrote once the write lands. A fork whose base cannot be
+// read refuses the write.
 func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Resolver) string {
 	var in hookInput
 	if json.Unmarshal(data, &in) != nil {

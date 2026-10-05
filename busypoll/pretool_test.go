@@ -508,9 +508,9 @@ func TestAWakeEnvelopeIsRecognisedInAToolResult(t *testing.T) {
 	assert.True(t, recs[0].wake, "the envelope arrives escaped inside the result's content")
 
 	// The same record written by an encoder that escapes HTML must read the
-	// same, or the guard is blind on half the transcripts it may be handed.
-	// json.Marshal escapes HTML by default, so marshaling the whole record IS
-	// the escaped spelling.
+	// same. Otherwise, the guard is blind on half the transcripts it may be
+	// handed. json.Marshal escapes HTML by default, so marshaling the whole
+	// record IS the escaped spelling.
 	escaped, err := json.Marshal(map[string]any{
 		"type": "user",
 		"message": map[string]any{"role": "user", "content": []any{
