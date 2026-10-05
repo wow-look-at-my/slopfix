@@ -215,6 +215,12 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if forceDangling.Contains(last) || forceBound.Contains(next) {
 			continue
 		}
+		// Both parts must read as sentences, or the cut strands a fragment such
+		// as "writes. Through it while this function runs.".
+		if !standsAsSentence(closeHead(source[:c.left])) ||
+			!standsAsSentence(capitalizeOpening(strings.TrimLeft(source[c.right:], " "))) {
+			continue
+		}
 		// The longest leading run that fits reads best, and the first cut of it is deterministic.
 		if c.words > bestWords {
 			best, bestWords = c, c.words

@@ -94,7 +94,18 @@ func fixProse(text string, repair func(string) string) string {
 // fixWords writes the approved word for each banned word, and keeps the
 // capitalization the source used.
 func fixWords(prose string, keep func(id string) bool) string {
-	return wordPattern.ReplaceAllStringFunc(prose, func(word string) string {
+	locs := wordPattern.FindAllStringIndex(prose, -1)
+	var out strings.Builder
+	last := 0
+	for _, loc := range locs {
+		out.WriteString(prose[last:loc[0]])
+		last = loc[1]
+		word := prose[loc[0]:loc[1]]
+		// A name such as should_hold contains a modal but is not one.
+		if from, to := loc[0], loc[1]; from > 0 && isIdentByte(prose[from-1]) || to < len(prose) && isIdentByte(prose[to]) {
+			out.WriteString(word)
+			continue
+		}
 		lower := strings.ToLower(word)
 		replacement, banned := Expand(word)
 		if banned && !keep(IDContraction) {
@@ -107,14 +118,19 @@ func fixWords(prose string, keep func(id string) bool) string {
 			}
 		}
 		if !banned {
-			return word
+			out.WriteString(word)
+			continue
 		}
 		if isCapitalized(word) {
-			return capitalize(replacement)
+			replacement = capitalize(replacement)
 		}
-		return replacement
-	})
+		out.WriteString(replacement)
+	}
+	out.WriteString(prose[last:])
+	return out.String()
 }
+
+func isIdentByte(b byte) bool { return b == '_' || b >= '0' && b <= '9' }
 
 // The comma is found the way checkSplices finds it, guard included, so the
 // repair covers exactly what the check reports. A conjunction the connectors

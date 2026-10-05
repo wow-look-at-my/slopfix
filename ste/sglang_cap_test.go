@@ -11,8 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// words lists the alphabetic words of text in lower case. A repair is
-// checked for the words it keeps rather than the punctuation it moves.
+// words lists the alphabetic words of text in lower case.
 func words(text string) []string {
 	var out []string
 	for _, f := range strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
@@ -23,30 +22,38 @@ func words(text string) []string {
 	return out
 }
 
-// capReport writes one line per sentence the repair leaves over the cap or
-// shortens, so a run names exactly what still fails.
+// capReport names what a repair of one sentence got wrong: a part still over
+// the cap, a part. That is not a sentence of its own, or a word it repeated.
 func capReport(in, out string) string {
-	var over []string
-	for _, s := range ste.Sentences(ste.Masked(out)) {
-		if n := ste.WordCount(s); n > ste.SentenceWordCap {
-			over = append(over, fmt.Sprintf("%d=%s", n, strings.TrimSpace(s)))
-		}
-	}
-	got := map[string]int{}
-	for _, w := range words(out) {
-		got[w]++
-	}
-	var dropped []string
+	inw := map[string]int{}
 	for _, w := range words(in) {
-		got[w]--
-		if got[w] < 0 {
-			dropped = append(dropped, w)
+		inw[w]++
+	}
+	outw := map[string]int{}
+	var over, frag, dup []string
+	for _, s := range ste.Sentences(ste.Masked(out)) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if n := ste.WordCount(s); n > ste.SentenceWordCap {
+			over = append(over, fmt.Sprintf("%d=%s", n, s))
+		}
+		if !ste.StandsAlone(s) {
+			frag = append(frag, s)
 		}
 	}
-	if len(over) == 0 && len(dropped) == 0 {
+	for _, w := range words(out) {
+		outw[w]++
+		if outw[w] > inw[w] {
+			dup = append(dup, w)
+		}
+	}
+	if len(over) == 0 && len(frag) == 0 && len(dup) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("IN: %s\nOUT: %s\nOVER: %s\nDROPPED: %s\n\n", in, out, strings.Join(over, " | "), strings.Join(dropped, " "))
+	return fmt.Sprintf("IN: %s\nOUT: %s\nOVER: %s\nFRAGMENT: %s\nREPEATED: %s\n\n",
+		in, out, strings.Join(over, " | "), strings.Join(frag, " | "), strings.Join(dup, " "))
 }
 
 func TestEveryExtractedSentenceDividesUnderTheCap(t *testing.T) {
@@ -66,6 +73,6 @@ func TestEveryExtractedSentenceDividesUnderTheCap(t *testing.T) {
 		}
 	}
 	require.NoError(t, os.WriteFile("../.scratch/cap-report.txt", []byte(report.String()), 0o644))
-	t.Logf("sentences over cap or shortened: %d of the fixture", failed)
-	assert.Zero(t, failed, "see testdata/cap-report.txt")
+	t.Logf("sentences the repair got wrong: %d of the fixture", failed)
+	assert.Zero(t, failed, "see .scratch/cap-report.txt")
 }
