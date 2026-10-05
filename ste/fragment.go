@@ -26,24 +26,19 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 		return source, false
 	}
 	// A list of noun phrases joined by commas has no clause to divide at, so each comma ends one item and opens the next.
-	list := !holdsFinite(checkMask(source))
 	for _, c := range candidates(source, masked, false, limit) {
 		seam := seamBefore(source, c.left)
 		if cutsAside(masked, c.left, c.right) {
-			continue
-		}
-		if list {
-			if seam != "," {
-				continue
-			}
-		} else if seam != "" && seam != "," {
 			continue
 		}
 		n := wordsBefore(whole, c.left)
 		if n < minimumHalf || len(whole.Words)-n < minimumHalf {
 			continue
 		}
-		if !list && (!endsBefore(whole, n) || !opensFragment(whole.Words[n])) {
+		if seam != "," && (!endsBefore(whole, n) || !opensFragment(whole.Words[n])) {
+			continue
+		}
+		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {
 			continue
 		}
 		if opensMainClause(whole, n) {
