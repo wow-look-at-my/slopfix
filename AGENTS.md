@@ -56,7 +56,7 @@ No input narrows the check. A path list, a rule list or a raw command line lets 
 
 In a fork, only the lines the fork wrote can fail the check. The org's `dot_github` repository lists, in `fork-list/fork-of.json`, each fork GitHub does not record, and publishes it to buildhost. `docs/fork-scope.md` holds the detail.
 
-`check` and `fix` also take `--staged` and `--diff REV` to scope a run to the lines a change introduced, which is how a repair stays off the upstream lines. [docs/commands.md](docs/commands.md) holds the detail.
+`check` and `fix` also take `--staged` and `--diff REV`. Each scopes a run to the lines a change introduced. A repair then stays off the upstream lines. [docs/commands.md](docs/commands.md) holds the detail.
 
 ## The marketplace follows each publish
 
