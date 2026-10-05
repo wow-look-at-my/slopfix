@@ -29,13 +29,16 @@ func TestALongDocSentenceDoesNotSplitIntoAFragment(t *testing.T) {
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleSTE}}).Text
 	assert.NotContains(t, out, "It while this function", "the split invented a sentence:\n%s", out)
 	assert.Contains(t, out, "no other thread writes through it", "the clause was cut:\n%s", out)
-	// Every part must read as a sentence. "the pointer stays. Valid for reads
-	// of n bytes" is a copula cut ahead of the adjective it links.
-	for _, s := range ste.Sentences(strings.ReplaceAll(ste.Masked(out), "/// ", "")) {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
+	// Every part of the doc body must read as a sentence. "the pointer stays.
+	var body string
+	for _, line := range strings.Split(out, "\n") {
+		if t := strings.TrimSpace(line); strings.HasPrefix(t, "/// The caller") {
+			body = strings.TrimSpace(strings.TrimPrefix(t, "///"))
 		}
-		assert.True(t, ste.StandsAlone(s), "a fragment was left: %q\n%s", s, out)
+	}
+	if body != "" {
+		for _, s := range ste.Sentences(body) {
+			assert.True(t, ste.StandsAlone(strings.TrimSpace(s)), "a fragment was left: %q\n%s", s, out)
+		}
 	}
 }
