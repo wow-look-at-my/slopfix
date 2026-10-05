@@ -18,7 +18,7 @@ inputs:
 outputs:
   stdout:
     description: What slopfix wrote on stdout, which is the JSON answer when permission is set
-    value: ${{ steps.run.outputs.stdout }}
+    value: ${{ steps.permission.outputs.stdout }}
 
 runs:
   using: composite
@@ -43,28 +43,23 @@ runs:
       with:
         project: slopfix
 
+    # check reads the repository from the API to tell whether it is a fork, and a private one needs the token.
     - name: Run slopfix
-      id: run
-      if: steps.claim.outputs.first != 'false'
+      id: check
+      if: inputs.permission == '' && steps.claim.outputs.first != 'false'
       shell: bash
-      # check reads the repository from the API to tell whether it is a fork, and a private one needs the token.
       env:
         GITHUB_TOKEN: ${{ github.token }}
+      run: sh "${{ steps.download.outputs.path }}" check .
+
+    - name: Ask slopfix for the job permission
+      id: permission
+      if: inputs.permission != ''
+      shell: bash
+      env:
         SLOPFIX_PERMISSION: ${{ inputs.permission }}
         SLOPFIX_LEVEL: ${{ inputs.level }}
       run: |
-        set -- check .
-        if [ -n "$SLOPFIX_PERMISSION" ]; then
-          set -- check workflow-permission --json --permission "$SLOPFIX_PERMISSION" --level "$SLOPFIX_LEVEL"
-        fi
-        # A binfmt_misc handler on the MZ magic can refuse a direct exec of the APE, so Unix runs it through sh.
-        # Windows boots the APE through its PE header, and sh there looks for a loader built for another host.
-        launch=(sh)
-        if [ "$RUNNER_OS" = Windows ]; then
-          launch=()
-        fi
-        rc=0
-        out=$("${launch[@]}" "${{ steps.download.outputs.path }}" "$@") || rc=$?
-        printf '%s\n' "$out"
-        { echo 'stdout<<SLOPFIX_STDOUT_END'; printf '%s\n' "$out"; echo 'SLOPFIX_STDOUT_END'; } >> "$GITHUB_OUTPUT"
-        exit "$rc"
+        out=$(sh "${{ steps.download.outputs.path }}" check workflow-permission --json --permission "$SLOPFIX_PERMISSION" --level "$SLOPFIX_LEVEL")
+        echo "$out"
+        echo "stdout=$out" >> "$GITHUB_OUTPUT"

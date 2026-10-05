@@ -55,7 +55,7 @@ func TestActionClaimsTheCheckOncePerRun(t *testing.T) {
 	assert.Equal(t, "slopfix-check", claim.With["name"])
 	assert.Equal(t, "inputs.permission == ''", claim.If, "the permission answer is per job and must never be claimed")
 
-	for _, id := range []string{"download", "run"} {
+	for _, id := range []string{"download", "check"} {
 		idx := slices.IndexFunc(steps, func(s actionStep) bool { return s.ID == id })
 		require.GreaterOrEqual(t, idx, 0, "step %s is missing", id)
 		assert.Contains(t, steps[idx].If, "steps.claim.outputs.first != 'false'",
