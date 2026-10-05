@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
@@ -86,20 +87,20 @@ func TestEveryCategoryRuleIsRegistered(t *testing.T) {
 // The report-only and warning rules are enumerated one by one, so a new rule
 // cannot join their ranks in passing.
 func TestOnlyTheseRulesReportWithoutAnAutofix(t *testing.T) {
-	exempt := map[string]bool{}
+	exempt := set.New[string]()
 	for _, rule := range slopfix.AllRuleSpecs() {
 		if rule.Autofix == nil {
-			exempt[rule.ID] = true
+			exempt.Add(rule.ID)
 			assert.NotEmpty(t, rule.ReportOnly, "%s: an exemption states no reason", rule.ID)
 			continue
 		}
 		assert.Empty(t, rule.ReportOnly, "%s repairs, so it cannot claim an exemption", rule.ID)
 	}
 	for id := range slopfix.WarningIDs.All() {
-		assert.True(t, exempt[id], "warning %s is not declared report-only", id)
+		assert.True(t, exempt.Contains(id), "warning %s is not declared report-only", id)
 	}
 	for _, id := range []string{"laziness/punt", "blame/deflection", "ask/prose-decision", "yaml/test-in-workflow"} {
-		assert.True(t, exempt[id], "%s is not declared report-only", id)
+		assert.True(t, exempt.Contains(id), "%s is not declared report-only", id)
 	}
 	assert.False(t, slopfix.Repairable("laziness/punt"))
 }

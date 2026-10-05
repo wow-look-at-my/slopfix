@@ -3,7 +3,6 @@ package slopfix
 import (
 	"fmt"
 	"slices"
-	"sort"
 	"sync"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -106,30 +105,6 @@ func RuleSpecByID(id string) (RuleSpec, bool) {
 	defer ruleMu.Unlock()
 	r, ok := ruleIndex[id]
 	return r, ok
-}
-
-// ruleCategoryOrder is the order the categories are listed in, so --only prints
-// a stable help.
-var ruleCategoryOrder = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleEnglish, RuleComments, RuleWorkflow, RuleRepo, RulePins}
-
-// ruleCategories answers the categories the registry carries, in listing order.
-func ruleCategories() []Rule {
-	present := set.New[Rule]()
-	for _, r := range AllRuleSpecs() {
-		present.Add(r.Category)
-	}
-	var out []Rule
-	for _, c := range ruleCategoryOrder {
-		if present.Contains(c) {
-			out = append(out, c)
-		}
-	}
-	for _, c := range present.Values() {
-		if !slices.Contains(out, c) {
-			out = append(out, c)
-		}
-	}
-	return out
 }
 
 // ruleIDsIn answers the IDs a category holds, as a set.
@@ -275,16 +250,4 @@ func patternCases(patterns []english.Pattern, id string) []RuleCase {
 	return out
 }
 
-// patternIDs answers every identified pattern ID the table carries, sorted, so
-// the registry is built in a stable order.
-func patternIDs() []string {
-	ids := set.New[string]()
-	for _, p := range english.Patterns() {
-		if p.ID != "" {
-			ids.Add(p.ID)
-		}
-	}
-	out := slices.Sorted(ids.All())
-	sort.Strings(out)
-	return out
-}
+
