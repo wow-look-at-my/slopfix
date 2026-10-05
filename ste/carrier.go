@@ -122,11 +122,34 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		if opensNoun && hiddenVerb(whole, first) {
 			return head, capitalizeOpening(rest), opensWithCarrier
 		}
-		if opensNoun && !finiteBetween(whole, first, len(whole.Words)) {
+		if opensNoun && !finiteOutsideReduced(whole, first, len(whole.Words)) {
 			return head, "This covers " + rest, opensWithCarrier
 		}
 	}
 	return head, "", 0
+}
+
+// finiteOutsideReduced reports a finite verb from word from up to end that no
+// reduced relative clause holds.
+func finiteOutsideReduced(s *syntax.Sentence, from, end int) bool {
+	for i := max(from, 1); i < end && i < len(s.Words); i++ {
+		if finiteAt(s, i) && !inReducedRelative(s, i) {
+			return true
+		}
+	}
+	return false
+}
+
+// inReducedRelative reports a finite verb at i whose subject follows a noun:
+// "a fork the owner reserved".
+func inReducedRelative(s *syntax.Sentence, i int) bool {
+	k := i - 1
+	if ph, ok := s.PhraseAt(k); ok && ph.Kind == syntax.NounPhrase {
+		k = ph.First
+	} else if s.Words[k].Tag != "PRP" {
+		return false
+	}
+	return k > 0 && strings.HasPrefix(s.Words[k-1].Tag, "NN")
 }
 
 // clauseOpeners open a clause whose verb a head must hold before it can close.

@@ -177,6 +177,9 @@ func (p *clauseParser) opensAfterConjunction(j int, cur Clause) bool {
 	if !ok {
 		return false
 	}
+	if _, gerund := p.gerundSubject(j); gerund {
+		return true
+	}
 	if ph.Kind == VerbGroup {
 		if ph.Finite {
 			return cur.Verb != nil || p.main.Verb != nil
@@ -526,6 +529,10 @@ func (p *clauseParser) resume(i int, cur Clause, out []Clause) (Clause, bool) {
 			}
 			return Clause{First: i, Link: -1, Kind: Opens, Depth: parent.Depth, Subject: subject, Verb: vg}, subject != nil
 		}
+	case cur.Kind == Subordinate && cur.Depth == 1 && len(out) == 1 && out[0].First == 0 && out[0].Last == 0 && p.s.Words[0].Tag == "VBG":
+		// "Deciding whether X can learn anything needs Y": the gerund and its clause are the subject.
+		subject := Phrase{Kind: NounPhrase, First: 0, Last: i - 1, Head: 0, Det: -1}
+		return Clause{First: i, Link: -1, Kind: Opens, Subject: &subject, Verb: vg}, true
 	case cur.Kind == Subordinate && cur.First == 0 && cur.Depth == 1:
 		subject := p.subjectBefore(i-1, cur.Verb.Last+1)
 		if subject == nil {
