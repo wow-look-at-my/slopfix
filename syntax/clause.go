@@ -52,6 +52,10 @@ func (p *clauseParser) run() []Clause {
 				if kind == Coordinate && cur.Depth > 0 && p.returnsToMain(i, cur, comma) {
 					depth = 0
 				}
+				if kind == Relative && cur.Kind == Relative && link > 0 && words[link-1].Tag == "CC" {
+					// "that is absent, or that appears": both clauses describe the same noun, at the same depth.
+					depth = cur.Depth
+				}
 				cur = Clause{First: i, Link: link, Kind: kind, Comma: comma, Depth: depth}
 			}
 		}
@@ -222,10 +226,13 @@ func (p *clauseParser) subjectVerbAt(j int) bool {
 		return false
 	}
 	k := p.chainEnd(ph) + 1
-	// "a signing key or a hook on the machine cannot": a coordinated subject.
-	for k+1 < len(p.s.Words) && p.s.Words[k].Tag == "CC" && p.isNounPhraseAt(k+1) {
+	// "a signing key or a hook on the machine cannot", "a hook, a CI job and an editor integration all get": a coordinated subject.
+	for k+1 < len(p.s.Words) && (p.s.Words[k].Tag == "CC" || p.s.Words[k].Text == ",") && p.isNounPhraseAt(k+1) {
 		next, _ := p.phrase(k + 1)
 		k = p.chainEnd(next) + 1
+	}
+	if k < len(p.s.Words) && quantifiers.Contains(p.s.Words[k].Lower()) {
+		k++
 	}
 	k = p.skipModifier(k)
 	for k < len(p.s.Words) && p.s.Words[k].Tag == "RB" {
@@ -288,6 +295,14 @@ func (p *clauseParser) reducedRelative(k int) (int, bool) {
 		}
 	}
 	return k, false
+}
+
+// quantifiers float after a plural subject: "the jobs all run".
+var quantifiers = set.Of[string]("all", "both", "each")
+
+func (p *clauseParser) isNounPhraseEnd(k int) bool {
+	ph, ok := p.phrase(k)
+	return ok && ph.Kind == NounPhrase && ph.Last == k
 }
 
 func (p *clauseParser) isNounPhraseAt(k int) bool {
@@ -408,6 +423,10 @@ func (p *clauseParser) subjectBefore(k, start int) *Phrase {
 	for k >= start && p.s.Words[k].Tag == "RB" {
 		k--
 	}
+	// "an editor integration all get": a quantifier after the subject floats off it.
+	if k > start && quantifiers.Contains(p.s.Words[k].Lower()) && p.isNounPhraseEnd(k-1) {
+		k--
+	}
 	ph, ok := p.phrase(k)
 	if k < start || !ok || ph.Kind != NounPhrase {
 		return nil
@@ -423,6 +442,14 @@ func (p *clauseParser) subjectBefore(k, start int) *Phrase {
 		if prev, ok := p.phrase(ph.First - 2); ok && prev.Kind == NounPhrase {
 			joined := *prev
 			joined.Last, joined.Head, joined.Coordinated = ph.Last, ph.Head, true
+			// "a hook, a CI job and an editor integration": the list runs back through its commas.
+			for joined.First-2 >= start && p.s.Words[joined.First-1].Text == "," {
+				item, ok := p.phrase(joined.First - 2)
+				if !ok || item.Kind != NounPhrase {
+					break
+				}
+				joined.First = item.First
+			}
 			return &joined
 		}
 	}

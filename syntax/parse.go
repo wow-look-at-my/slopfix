@@ -149,6 +149,9 @@ func retag(words []Word) {
 		switch {
 		case lower == "n't" || lower == "not":
 			w.Tag = "RB"
+		case len(w.Text) > 1 && w.Text == strings.ToUpper(w.Text) && emphasized[lower] != "":
+			// "a comment that DOES document code": capitals stress a verb, and the tagger reads them as a name.
+			w.Tag = emphasized[lower]
 		case lower == "cannot":
 			// The tagger reads "cannot" as a noun.
 			w.Tag = "MD"
@@ -243,6 +246,14 @@ func identifier(word string) bool {
 		return false
 	}
 	return strings.ContainsAny(word[1:], "_ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+}
+
+// emphasized maps a verb that a writer puts in capitals for stress to its tag.
+var emphasized = map[string]string{
+	"does": "VBZ", "is": "VBZ", "has": "VBZ",
+	"do": "VBP", "are": "VBP", "have": "VBP",
+	"did": "VBD", "was": "VBD", "were": "VBD",
+	"must": "MD", "can": "MD", "will": "MD", "should": "MD", "cannot": "MD",
 }
 
 // lowerOpening reports a word that opens on a lower-case letter.
@@ -384,20 +395,20 @@ func verbGroup(words []Word, i int) (Phrase, bool) {
 	p := Phrase{Kind: VerbGroup, First: i, Det: -1}
 	lead := j
 	p.Finite = isFinite(words[lead].Tag)
-	finite := false
+	// seen is set once the group holds a verb.
+	seen := false
 	for j < len(words) {
 		tag := words[j].Tag
-		// A second finite verb opens a group of its own: "that blocks instead pays".
-		if isFinite(tag) && finite {
+		if isFinite(tag) && seen {
 			break
 		}
 		if isVerb(tag) || tag == "TO" || tag == "RP" {
-			finite = finite || isFinite(tag)
+			seen = seen || isVerb(tag)
 			p.Head = j
 			j++
 			continue
 		}
-		if (tag == "RB" || tag == "RBR") && j+1 < len(words) && isVerb(words[j+1].Tag) && !(finite && isFinite(words[j+1].Tag)) {
+		if (tag == "RB" || tag == "RBR") && j+1 < len(words) && isVerb(words[j+1].Tag) && !(seen && isFinite(words[j+1].Tag)) {
 			j++
 			continue
 		}
