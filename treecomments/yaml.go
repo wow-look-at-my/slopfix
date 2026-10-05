@@ -13,8 +13,8 @@ func isYAML(filename string) bool {
 }
 
 // yamlLineComments starts each comment on a line that opens on `#` at that
-// mark. An apostrophe in a YAML value opens a quote for the bash grammar,
-// so a comment can start at a `#` in a code span: "every `#[cfg(test)]`".
+// mark. An apostrophe in a YAML value opens a quote for the bash grammar.
+// A comment can then start at a `#` in a code span: "every `#[cfg(test)]`".
 func yamlLineComments(src string, comments []Comment) []Comment {
 	lines := strings.Split(src, "\n")
 	starts := make([]int, len(lines))
