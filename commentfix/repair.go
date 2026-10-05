@@ -106,7 +106,7 @@ func repairNumbers(f *fixer.File) {
 
 // danglingMarkers deletes each bare comment line the repair left with nothing under it. The line was a paragraph break somebody wrote, and a break that separates a paragraph from the code below it separates nothing.
 //
-// The tree names the lines to weigh, so a line of code that merely opens with a marker's characters is never mistaken for an empty comment.
+// The tree names the lines to weigh. A line of code that only opens with a marker's characters is then never an empty comment.
 func danglingMarkers(filename, src string) []edit.Edit {
 	rows := commentRowsOf(filename, src)
 	lines := strings.Split(src, "\n")
@@ -449,8 +449,8 @@ func split(line string) (marker, prose string, ok bool) {
 
 // splitBlock is split, also reporting the delimiter that closes a block. The C
 // family opens with a slash-star and closes with a star-slash. The closer is not
-// prose: left in the text a rewrite wraps it into the middle of the comment, and
-// dropped it leaves the block open and the file unparseable.
+// prose. Left in the text, a rewrite wraps it into the middle of the comment.
+// Dropped, it leaves the block open and the file unparseable.
 func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	trimmed := strings.TrimLeft(line, " \t")
 	indent := line[:len(line)-len(trimmed)]
