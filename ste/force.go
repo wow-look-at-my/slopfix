@@ -200,7 +200,8 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 	whole := syntax.Parse(masked, nil)
 	best, bestWords, bestRank := forceCut{}, -1, -1
 	for _, c := range candidates(source, masked, false, limit) {
-		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < minimumHalf {
+		// The dash that opens an aside is a seam of its own, so a cut there is no cut inside the aside.
+		if cutsAside(masked, c.left, c.right) && !opensAside(masked, c) || c.words > limit || c.words < minimumHalf {
 			continue
 		}
 		if len(ends)-c.words < minimumHalf {
@@ -231,6 +232,16 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// opensAside reports a cut whose gap holds the dash that opens an aside.
+func opensAside(masked string, c forceCut) bool {
+	for _, a := range asides(masked) {
+		if a[0] >= c.left && a[0] < c.right {
+			return true
+		}
+	}
+	return false
 }
 
 // hardSeamRank grades a cut for hardDivision. A cut that parts a subject from
