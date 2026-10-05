@@ -158,6 +158,13 @@
   <class name="carrier-place" words="in inside under within beneath beside near
     outside behind above below"/>
 
+  <!-- An -ing word that is a noun after a noun modifier: "the ste finding",
+       "the color setting". A division in front of one splits the noun. -->
+  <class name="nominal-ing" words="finding setting warning mapping heading
+    ending building listing binding padding spacing encoding meaning string
+    thing ring ruling wording rating ranking reading writing timing pairing
+    logging routing scoping tracking billing pricing caching"/>
+
   <!-- A verb that states a fact rather than an action. Its adverbial goes
        behind "This holds", where "This happens" says an event took place. -->
   <class name="state-verb" words="is are was were be been being has have had

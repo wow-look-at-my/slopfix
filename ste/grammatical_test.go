@@ -198,6 +198,11 @@ var brokenShapes = []struct {
 		"A word longer than the width goes on its own line rather than being broken: a URL or an identifier split across lines stops being either.",
 		"This covers",
 	},
+	{
+		"an -ing noun stays in its compound noun",
+		"The fix pass repaired a comment's length in the source file and left the ste finding beside it for a reviewer to hit on the next pass through the tree.",
+		"That ste is",
+	},
 }
 
 func TestABrokenShapeComesOutWhole(t *testing.T) {

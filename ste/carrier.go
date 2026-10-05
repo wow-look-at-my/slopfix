@@ -23,6 +23,8 @@ var (
 	carrierPlace = set.Of(wordsOf("carrier-place")...)
 	// stateVerbs state a fact rather than an action.
 	stateVerbs = set.Of(wordsOf("state-verb")...)
+	// nominalIng words end a compound noun after a singular noun: "the ste finding".
+	nominalIng = set.Of(wordsOf("nominal-ing")...)
 	// negations turn a verb group around.
 	negations = set.Of("not", "never", "n't", "no")
 	// auxiliaries come before the verb they carry.
@@ -57,6 +59,10 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, "", 0
 	}
 	noun := strings.HasPrefix(prev.Tag, "NN")
+	// An -ing noun after a singular noun is one compound noun with it, and no division lands inside it.
+	if prev.Tag == "NN" && nominalIng.Contains(lower) {
+		return head, "", 0
+	}
 	main, hasMain := mainVerb(whole, c.left)
 	// A phrase after a noun that a verb then follows is the subject's own: "the case above passes".
 	predicateFollows := finiteBefore(whole, first+1, ",")
