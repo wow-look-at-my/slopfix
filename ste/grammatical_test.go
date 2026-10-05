@@ -17,39 +17,39 @@ var realSentences = []struct {
 	name, in, want string
 }{
 	{
-		"a so that states a purpose stays",
+		"a trailing adverbial after a so that clause goes behind a carrier",
 		"Your task is to produce a faithful, concise summary of the conversation so far so that a successor assistant can continue the work seamlessly after the earlier turns are discarded.",
-		"",
+		"Your task is to produce a faithful, concise summary of the conversation so far so that a successor assistant can continue the work seamlessly. This happens after the earlier turns are discarded.",
 	},
 	{
 		"a dash aside keeps its list whole",
 		"Capture what is needed to continue — the user's explicit requests, your most recent actions, key technical details, file paths, commands, configuration, and architectural decisions — but be economical: prefer tight prose and short references over long verbatim dumps, and do not pad.",
-		"",
+		"Capture what is needed to continue — the user's explicit requests, your most recent actions, key technical details, file paths, commands, configuration, and architectural decisions. However, be economical: prefer tight prose and short references over long verbatim dumps, and do not pad.",
 	},
 	{
-		"a so before an imperative stays",
+		"a so before an instruction drops",
 		"A focused summary that fits is far more useful than an exhaustive one that gets cut off, so aim for at most a few thousand words.",
-		"",
+		"A focused summary that fits is far more useful than an exhaustive one that gets cut off. Aim for at most a few thousand words.",
 	},
 	{
 		"an If clause keeps its main clause",
 		"CRITICAL: If earlier turns include a prior compaction summary (marked with <conversation_summary> tags or a \"This session is being continued\" preamble), treat it as authoritative for the early history and carry its still-relevant information forward into your new summary so nothing important is lost across successive compactions.",
-		"",
+		"CRITICAL: If earlier turns include a prior compaction summary (marked with <conversation_summary> tags or a \"This session is being continued\" preamble), treat it as authoritative for the early history. Carry its still-relevant information forward into your new summary so nothing important is lost across successive compactions.",
 	},
 	{
-		"a parenthesis is no sentence",
+		"an instruction after a dash opens a sentence",
 		"For each, give the full path, why it matters, and the relevant code — include full snippets of any code you wrote or changed (with the most recent edits in full), not just descriptions.",
-		"",
+		"For each, give the full path, why it matters, and the relevant code. Include full snippets of any code you wrote or changed (with the most recent edits in full), not just descriptions.",
 	},
 	{
-		"a so inside an instruction states its purpose",
+		"a so inside an instruction goes behind Do this",
 		"When a next step exists, include a direct verbatim quote from the most recent messages showing exactly what you were doing and where you left off, so the task is interpreted without drift.",
-		"",
+		"Include a direct verbatim quote from the most recent messages showing exactly what you were doing and where you left off. Do this so the task is interpreted without drift. Do this when a next step exists.",
 	},
 	{
-		"an If clause before a comma is no sentence",
+		"a main clause that points back keeps the If clause first",
 		"If the prior conversation contains a note about files at /tmp/compaction/segment_*.md or /tmp/compaction/INDEX.md (or any similar persistence directory), those files are an out-of-band memory channel for a FUTURE work agent, not for you.",
-		"",
+		"Suppose the prior conversation contains a note about files at /tmp/compaction/segment_*.md or /tmp/compaction/INDEX.md (or any similar persistence directory). Then those files are an out-of-band memory channel for a FUTURE work agent, not for you.",
 	},
 	{
 		"a so of result after a statement drops",
@@ -57,14 +57,14 @@ var realSentences = []struct {
 		"The file watcher reindexes the change on the next memory search. The new entry is searchable within the current session.",
 	},
 	{
-		"then and a verb is no sentence",
+		"a clause after a dash opens a sentence",
 		"When using `auth_provider_command`, you do not need to run `grok login` before starting — on first launch Grok runs your binary on the real terminal (URL and progress on stderr), then opens the UI already signed in.",
-		"",
+		"When using `auth_provider_command`, you do not need to run `grok login` before starting. On first launch Grok runs your binary on the real terminal (URL and progress on stderr), then opens the UI already signed in.",
 	},
 	{
-		"a prepositional phrase is no sentence",
+		"an infinitive of purpose goes behind Do this",
 		"To distribute MCP servers to a team, or to restrict which servers users can run (`allowedMcpServers` / `deniedMcpServers` in `requirements.toml` / `managed_config.toml`, with Claude `managed-settings.json` advisory for foreign-defined servers), see [Distribute across an organization](09-plugins.md#distribute-across-an-organization) in the Plugins guide.",
-		"",
+		"See [Distribute across an organization](09-plugins.md#distribute-across-an-organization) in the Plugins guide. Do this to distribute MCP servers to a team, or to restrict which servers users can run (`allowedMcpServers` / `deniedMcpServers` in `requirements.toml` / `managed_config.toml`, with Claude `managed-settings.json` advisory for foreign-defined servers).",
 	},
 	{
 		"an adverb phrase is no sentence",
@@ -72,39 +72,44 @@ var realSentences = []struct {
 		"`[model_providers.ollama]` and `[model_providers.lmstudio]` with nothing in them are complete configurations. `apply_builtin_preset` fills the base URL, the dialect and the pricing switch from the id, and only where the user left them unset.",
 	},
 	{
-		"once more is no sentence",
+		"once more after a when clause goes behind a carrier",
 		"Grok runs the command before a chat turn when the token is missing or within about a minute of expiring, and once more after the server rejects a token.",
-		"",
+		"Grok runs the command before a chat turn. This happens when the token is missing or within about a minute of expiring, and once more after the server rejects a token.",
 	},
 	{
 		"a colon before a relative clause on the subject",
 		"Exiting promptly on `GROK_AUTH_EXPIRED=1` is what makes the handover to the sign-in screen fast: a binary that blocks instead pays the whole refresh timeout on every start with an expired token.",
-		"",
+		"Exiting promptly on `GROK_AUTH_EXPIRED=1` is what makes the handover to the sign-in screen fast. A binary that blocks instead pays the whole refresh timeout on every start with an expired token.",
 	},
 	{
-		"a pronoun between a noun and a verb opens another clause",
+		"a bold clause after and opens a sentence in bold",
 		"With no trip count given, each loop is modeled as one iteration **and the estimate is flagged** with a section in the report and a note in the output so it is never read as the exact cost.",
-		"",
+		"With no trip count given, each loop is modeled as one iteration. **The estimate is flagged** with a section in the report and a note in the output so it is never read as the exact cost.",
 	},
 	{
 		"a participle before a noun is no verb",
 		"[Always-approve](#always-approve) short-circuits this pipeline after step 2: `deny` rules, hooks, and `ask` rules that match a shell command's segments still apply, but remembered grants (including remembered \"never allow\" entries) are not consulted, and `ask` rules on non-shell tools do not prompt.",
-		"",
+		"[Always-approve](#always-approve) short-circuits this pipeline after step 2. `deny` rules, hooks, and `ask` rules that match a shell command's segments still apply. However, remembered grants (including remembered \"never allow\" entries) are not consulted, and `ask` rules on non-shell tools do not prompt.",
 	},
 	{
-		"a list of verbs keeps its items",
+		"a list of verbs keeps its verbs behind the subject",
 		"The agent dashboard now shows each agent's model and mode in the peek panel, lets you cycle modes with Shift+Tab, collapses the Inactive section by default, and hides older idle agents behind a \"N more\" row.",
-		"",
+		"The agent dashboard now shows each agent's model and mode in the peek panel and lets you cycle modes with Shift+Tab. The agent dashboard also collapses the Inactive section by default, and hides older idle agents behind a \"N more\" row.",
 	},
 	{
 		"a compound subject stays whole",
 		"Never ask it to show, extract, quote or summarize a run or its transcript: RUN_LOG and your own investigation are the evidence, and gathering it is your job alone.",
-		"",
+		"Never ask it to show, extract, quote or summarize a run or its transcript. RUN_LOG and your own investigation are the evidence, and gathering it is your job alone.",
 	},
 	{
 		"a verb after a closing dash returns past the aside",
 		"It is deliberately scoped to `go: ` lines rather than \"any duration under 1s anywhere in the log\": go-toolchain's own named step/test timers (e.g. `vet: gofmt 0.17s`) are intentionally unconditional — a named operation's own time is always worth reporting — and must not be flagged.",
 		"It is deliberately scoped to `go: ` lines rather than \"any duration under 1s anywhere in the log\". Go-toolchain's own named step/test timers (e.g. `vet: gofmt 0.17s`) are intentionally unconditional — a named operation's own time is always worth reporting — and must not be flagged.",
+	},
+	{
+		"a phrase of place after a noun in a sentence with no verb restates the noun",
+		"The quick brown fox with the long red tail and the tiny black paws near the wooden barn behind the tall green hills of the northern valley beside the cold river under the grey winter sky.",
+		"The quick brown fox with the long red tail and the tiny black paws near the wooden barn. That barn is behind the tall green hills of the northern valley beside the cold river under the grey winter sky.",
 	},
 }
 

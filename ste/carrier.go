@@ -53,8 +53,17 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	// A phrase that describes the noun before it ends the sentence: no comma, conjunction or clause follows it.
 	describes := seam == "" && noun && plainPhrase(whole, first)
 	switch {
+	case !hasMain && !finiteBetween(whole, 0, len(whole.Words)):
+		// A sentence with no verb at all is a noun phrase, and only a phrase that describes a noun in it can move.
+		if describes && (carrierPlace.Contains(lower) || word.Tag == "VBN" || word.Tag == "VBG") {
+			return head, restate(source, prev, rest), opensWithCarrier
+		}
+		return head, "", 0
 	case !hasMain || splitsCoordination(whole, main, first):
 		return head, "", 0
+	case lower == "so" && (seam == "," || seam == "") && (main.Imperative || instructs(whole)):
+		// A so after an instruction states its purpose, and the purpose goes behind "Do this".
+		return head, "Do this " + rest, opensWithCarrier
 	case describes && carrierPlace.Contains(lower) && !strings.HasPrefix(strings.ToLower(rest), "in order"):
 		return head, restate(source, prev, rest), opensWithCarrier
 	case describes && (word.Tag == "VBN" || word.Tag == "VBG") && first+1 < len(whole.Words) && !strings.HasPrefix(whole.Words[first+1].Tag, "NN"):
@@ -63,6 +72,13 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
 	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest):
 		return head, carrierFor(whole, main) + " " + rest, opensWithCarrier
+	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && listsVerbs(source[:c.left]):
+		// The rest of a list of verb groups keeps its verbs behind the subject: "It also collapses X, and hides Y".
+		subject := mainSubject(source, whole, main, word.Tag)
+		if subject == "" {
+			return head, "", 0
+		}
+		return listHead(head, "and", false, whole, main), capitalizeOpening(subject) + " also " + rest, opensWithCarrier
 	case seam == "," || seam == ":":
 		if carried, conj, ok := listRest(source, whole, main, c, rest, seam); ok {
 			return listHead(head, conj, oxford(rest), whole, main), carried, opensWithCarrier
@@ -124,7 +140,7 @@ func topCommas(text string, from int) []int {
 // parenthesis. Only such a phrase moves behind a restated noun whole.
 func plainPhrase(s *syntax.Sentence, i int) bool {
 	depth := 0
-	for _, w := range s.Words[min(i, len(s.Words)):] {
+	for k, w := range s.Words[min(i, len(s.Words)):] {
 		switch w.Text {
 		case "(":
 			depth++
@@ -137,7 +153,13 @@ func plainPhrase(s *syntax.Sentence, i int) bool {
 			continue
 		}
 		switch w.Tag {
-		case ",", ":", "CC", "VBZ", "VBP", "VBD", "MD", "WDT", "WP", "WRB":
+		case "CC":
+			// A conjunction between nouns keeps the phrase whole. One before a verb opens a clause.
+			if joinsVerb(s, i+k+1) {
+				return false
+			}
+			continue
+		case ",", ":", "VBZ", "VBP", "VBD", "MD", "WDT", "WP", "WRB":
 			return false
 		}
 		if l := w.Lower(); l == "so" || l == "because" || l == "while" || l == "when" || l == "if" || l == ";" {
@@ -145,6 +167,57 @@ func plainPhrase(s *syntax.Sentence, i int) bool {
 		}
 	}
 	return true
+}
+
+// mainSubject names the subject of the main clause whose verb group is verb
+// again. A short subject repeats with "the" for "a". A long one becomes a
+// pronoun that agrees with tag. A person in the singular has no pronoun here.
+func mainSubject(source string, s *syntax.Sentence, verb syntax.Phrase, tag string) string {
+	for _, c := range s.Clauses {
+		if c.Verb == nil || c.Verb.First != verb.First || c.Subject == nil {
+			continue
+		}
+		subject := *c.Subject
+		if subject.Last >= verb.First || !opensSubject(s, subject.First) {
+			return ""
+		}
+		head := s.Words[subject.Head]
+		if head.Tag == "PRP" {
+			return lowerOpening(head.Text)
+		}
+		if subject.Last-subject.First < restateLimit && !subject.Coordinated {
+			text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
+			if det := s.Words[subject.First].Lower(); det == "a" || det == "an" {
+				text = "the" + text[len(det):]
+			}
+			return text
+		}
+		switch {
+		case tag == "VBP" || tag != "VBZ" && s.Plural(subject):
+			return "they"
+		case s.Person(subject):
+			return ""
+		}
+		return "it"
+	}
+	return ""
+}
+
+// finiteVerbTag reports the tag of a finite verb.
+func finiteVerbTag(tag string) bool { return tag == "VBZ" || tag == "VBP" || tag == "VBD" }
+
+// joinsVerb reports a verb at word i, after any determiner, adjective or adverb.
+func joinsVerb(s *syntax.Sentence, i int) bool {
+	for ; i < len(s.Words); i++ {
+		switch t := s.Words[i].Tag; {
+		case t == "DT" || t == "JJ" || t == "RB" || t == "PRP$":
+			continue
+		case strings.HasPrefix(t, "VB") || t == "MD" || t == "PRP":
+			return true
+		}
+		return false
+	}
+	return false
 }
 
 // splitsCoordination reports a cut at word first inside the last conjunct of
@@ -285,7 +358,9 @@ func listEnd(rest string) (string, bool) {
 }
 
 // reorderDependent moves an opening subordinate clause behind its main clause,
-// into a sentence of its own: "If X, Y." becomes "Y. This happens if X."
+// into a sentence of its own: "If X, Y." becomes "Y. This happens if X." A main
+// clause that points back into the subordinate clause, as "those files" does,
+// keeps the order: "If X, Y." becomes "Suppose X. Then Y."
 func reorderDependent(source string, whole *syntax.Sentence) (string, bool) {
 	if !opensDependent(whole) {
 		return source, false
@@ -308,7 +383,55 @@ func reorderDependent(source string, whole *syntax.Sentence) (string, bool) {
 	if !ok {
 		return source, false
 	}
+	link := strings.ToLower(firstToken.FindString(sub))
+	if (link == "if" || link == "when" || link == "whenever") && pointsBack(ms) {
+		return "Suppose " + strings.TrimSpace(sub[len(link):]) + ". Then " + lowerFirst(main) + stop, true
+	}
 	return capitalizeOpening(main) + stop + " " + carrierFor(ms, verb) + " " + lowerFirst(sub) + ".", true
+}
+
+// backReferences are the words that point back to a noun said before them.
+var backReferences = set.Of("those", "these", "this", "that", "it", "its", "they", "them", "their", "such")
+
+// pointsBack reports a clause whose first words point back to a noun said before them.
+func pointsBack(s *syntax.Sentence) bool {
+	for _, w := range s.Words[:min(3, len(s.Words))] {
+		if backReferences.Contains(w.Lower()) {
+			return true
+		}
+	}
+	return false
+}
+
+// subjectDivision writes a long subject as a sentence of its own: "A reader
+// arriving at X still deserves Y." becomes "Consider a reader arriving at X.
+// That reader still deserves Y." The noun the subject names carries the rest.
+func subjectDivision(source string, whole *syntax.Sentence) (string, bool) {
+	for _, c := range whole.Clauses {
+		if c.Depth != 0 || c.Subject == nil || c.Verb == nil {
+			continue
+		}
+		subj := *c.Subject
+		head := whole.Words[subj.Head]
+		if subj.First != 0 || subj.Last-subj.First < restateLimit || !strings.HasPrefix(head.Tag, "NN") || head.Tag == "NNP" {
+			return source, false
+		}
+		end := whole.Words[c.Verb.First].Start
+		// An adverb right before the verb goes with the verb: "still deserves".
+		for i := c.Verb.First - 1; i > subj.Last && whole.Words[i].Tag == "RB"; i-- {
+			end = whole.Words[i].Start
+		}
+		subject := strings.TrimRight(source[:end], " ,")
+		if WordCount(checkMask(subject))+1 > SentenceWordCap {
+			return source, false
+		}
+		det := "That"
+		if head.Tag == "NNS" || head.Tag == "NNPS" {
+			det = "Those"
+		}
+		return "Consider " + lowerFirst(subject) + ". " + det + " " + nounText(source, head) + " " + source[end:], true
+	}
+	return source, false
 }
 
 // lowerFirst writes the first letter in lower case, unless the word is a name in capitals.

@@ -125,12 +125,12 @@ func TestANumberThatNamesAnItemIsRepaired(t *testing.T) {
 	assert.Contains(t, out, "- branch (3) the keyless fallback", "the definition stays as written")
 
 	for in, want := range map[string]string{
-		"Then branch 3 sees the entry already cleared.":    "Then a later branch sees the entry already cleared.",
-		"They honor the Section 4 pins.":                   "They honor the pins of a later section.",
-		"It reads rule 6 inputs.":                          "It reads the inputs of a later rule.",
+		"Then branch 3 sees the entry already cleared.":     "Then a later branch sees the entry already cleared.",
+		"They honor the Section 4 pins.":                    "They honor the pins of a later section.",
+		"It reads rule 6 inputs.":                           "It reads the inputs of a later rule.",
 		"The mock with id 1 completes after a short delay.": "The mock with one id completes after a short delay.",
-		"The row wraps at 100 cols in the modal.":          "The row wraps at a set number of cols in the modal.",
-		"The preview contributes 0 lines when it is off.":  "The preview contributes no lines when it is off.",
+		"The row wraps at 100 cols in the modal.":           "The row wraps at a set number of cols in the modal.",
+		"The preview contributes 0 lines when it is off.":   "The preview contributes no lines when it is off.",
 	} {
 		var reported bool
 		for _, f := range ste.Check(in, 1) {

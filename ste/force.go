@@ -161,7 +161,10 @@ func forceDivision(source, masked string) (string, bool) {
 			return best, true
 		}
 	}
-	return reorderDependent(source, whole)
+	if out, ok := reorderDependent(source, whole); ok {
+		return out, true
+	}
+	return subjectDivision(source, whole)
 }
 
 // closeHead ends the first part of a division as a sentence. A part that
@@ -379,6 +382,9 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		return "", 0
 	}
 	switch tag := whole.Words[first].Tag; {
+	case (tag == "VB" || tag == "VBP") && conjunction == "so" && seam == "," && !opensImperativeMain(masked[:c.left]) && !instructs(whole) && opensImperative(restMasked):
+		// A statement, then ", so" and an instruction: the instruction follows from the statement, as a sentence of its own.
+		return joinOpener(opener, rest), opensOwnClause
 	case (tag == "VB" || tag == "VBP") && opensImperativeMain(masked[:c.left]) && opensImperative(restMasked):
 		// An imperative joins only another imperative, and never after a bare comma, where it is an item of a list.
 		if seam == "," && conjunction == "" || conjunction == "so" {
@@ -406,6 +412,9 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
+	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(rest):
+		// A dash or a colon before words that hold a main clause of their own: "— on first launch Grok runs your binary".
+		return capitalizeOpening(rest), opensOwnClause - 1
 	}
 	return "", 0
 }

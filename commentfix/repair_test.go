@@ -67,11 +67,11 @@ func TestANumberNoEntryCoversIsReworded(t *testing.T) {
 // writes them.
 func TestALabelOrAPointIsRepaired(t *testing.T) {
 	for in, want := range map[string]string{
-		"// It is wide. At 100 cols the row wraps.\nvar x int\n":                         "// It is wide. At a set number of cols the row wraps.\nvar x int\n",
-		"// id 1 completes after a short delay.\nvar x int\n":                            "// One id completes after a short delay.\nvar x int\n",
-		"// It is slow. The mock with id 1 completes after a short delay.\nvar x int\n":  "// It is slow. The mock with one id completes after a short delay.\nvar x int\n",
-		"// It is slow. Then branch 3 sees the entry already cleared.\nvar x int\n":      "// It is slow. Then a later branch sees the entry already cleared.\nvar x int\n",
-		"// Truncating to 15 cuts inside the second span.\nvar x int\n":                  "// Truncating to a set limit cuts inside the second span.\nvar x int\n",
+		"// It is wide. At 100 cols the row wraps.\nvar x int\n":                                  "// It is wide. At a set number of cols the row wraps.\nvar x int\n",
+		"// id 1 completes after a short delay.\nvar x int\n":                                     "// One id completes after a short delay.\nvar x int\n",
+		"// It is slow. The mock with id 1 completes after a short delay.\nvar x int\n":           "// It is slow. The mock with one id completes after a short delay.\nvar x int\n",
+		"// It is slow. Then branch 3 sees the entry already cleared.\nvar x int\n":               "// It is slow. Then a later branch sees the entry already cleared.\nvar x int\n",
+		"// Truncating to 15 cuts inside the second span.\nvar x int\n":                           "// Truncating to a set limit cuts inside the second span.\nvar x int\n",
 		"const narrowWidth = 1\nconst NARROW = 100\n\n// At 100 cols the row wraps.\nvar x int\n": "const narrowWidth = 1\nconst NARROW = 100\n\n// At `NARROW` cols the row wraps.\nvar x int\n",
 	} {
 		assert.NotEmpty(t, commentfix.Check("x.go", header+in), "check reports %q", in)

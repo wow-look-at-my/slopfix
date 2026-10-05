@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/counts"
 )
@@ -27,7 +28,7 @@ var constantDecl = regexp.MustCompile(`(?m)(?:\b(?:const|static)[ \t]+(?:mut[ \t
 // several names share names none of them, because the comment could mean any.
 func constantsIn(src string) counts.Constants {
 	names := map[string]string{}
-	shared := map[string]bool{}
+	shared := set.New[string]()
 	for _, m := range constantDecl.FindAllStringSubmatch(src, -1) {
 		for g := 1; g+1 < len(m); g += 2 {
 			if m[g] == "" {
@@ -35,14 +36,14 @@ func constantsIn(src string) counts.Constants {
 			}
 			value := strings.TrimLeft(strings.ReplaceAll(m[g+1], "_", ""), "0")
 			if prev, ok := names[value]; ok && prev != m[g] {
-				shared[value] = true
+				shared.Add(value)
 			}
 			names[value] = m[g]
 		}
 	}
 	return func(n string) string {
 		n = strings.TrimLeft(n, "0")
-		if shared[n] {
+		if shared.Contains(n) {
 			return ""
 		}
 		return names[n]

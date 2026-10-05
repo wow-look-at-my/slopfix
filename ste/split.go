@@ -100,15 +100,19 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if strings.Count(source[:d.leftEnd], "**")%2 != 0 {
 			continue
 		}
-		// The words a division drops never carry a bold marker, or the rest keeps half a pair.
-		if strings.Contains(source[d.leftEnd:d.rightStart], "**") {
-			continue
+		// A bold run that opens on the conjunction the division drops opens the rest instead: "X **and Y is flagged**" becomes "X. **Y is flagged**".
+		bold := ""
+		if dropped := strings.TrimSpace(source[d.leftEnd:d.rightStart]); strings.Contains(dropped, "**") {
+			if strings.Count(dropped, "**") != 1 || !strings.HasPrefix(dropped, "**") {
+				continue
+			}
+			bold = "**"
 		}
 		if !admissible(s, source, d) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := joinOpener(d.opener, source[d.rightStart:])
+		right := bold + joinOpener(d.opener, source[d.rightStart:])
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
