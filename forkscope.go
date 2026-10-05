@@ -221,11 +221,11 @@ func alone(req Request, repair Repair) Repair {
 	return repair
 }
 
-// fold repairs each run a block rule still reports on a line the fork wrote,
-// where the fork's changes made the run longer than the base had it. The
-// lines each such change added join the last line it kept, so the change
-// takes no more lines than. The edits pass the gate that proves they changed
-// only comment.
+// fold repairs each run a block rule still reports on a line the fork wrote.
+// This happens where the fork's changes made the run longer than the base
+// had it. The lines each such change added join the last line it kept, so
+// the change takes no more lines than. The edits pass the gate that proves
+// they changed only comment.
 func fold(req Request, repair Repair) Repair {
 	runs := ownedRuns(req, repair)
 	if len(runs) == 0 {

@@ -1,8 +1,9 @@
 // transcript.go turns the flat JSONL transcript into an ordered list of
-// turns, where a turn is everything the assistant did between a real user
-// prompt and the next. A tool_result record answers a call made earlier in
-// the SAME turn. It never starts a fresh turn. Only a genuine new prompt
-// does -- a real user message, or the text a Stop hook injects on refusal.
+// turns. This happens where a turn is everything the assistant did between
+// a real user prompt and the next. A tool_result record answers a call
+// made earlier in the SAME turn. It never starts a fresh turn. Only a
+// genuine new prompt does -- a real user message, or the text a Stop hook
+// injects on refusal.
 package busypoll
 
 import (

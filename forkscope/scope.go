@@ -86,8 +86,8 @@ func (s *Scope) Widen(text string) *Scope {
 	return out
 }
 
-// Blocks answers the first and last line, counted from one, of each
-// paragraph or list item of the document text that holds a line s names.
+// Blocks answers the first and last line of some paragraphs and list items.
+// Each holds a line s names. The count of lines starts from one.
 func Blocks(text string, s *Scope) [][2]int {
 	var out [][2]int
 	blocks := blocksOf(text)

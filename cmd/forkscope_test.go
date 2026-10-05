@@ -118,8 +118,8 @@ func put(t *testing.T, dir, name, body string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644))
 }
 
-// newForkRepo builds a parent with upstream.md and doc.md, and a fork of it
-// that rewrites a line of doc.md and adds mine.md. The fork's origin names
+// newForkRepo builds a parent with upstream.md and doc.md. It also builds a
+// fork that rewrites a line of doc.md and adds mine.md. The fork's origin names
 // o/fork on GitHub. The server api builds, from the parent's clone URL,
 // answers both the API and the fork list.
 func newForkRepo(t *testing.T, api func(parent string) http.HandlerFunc) forkRepo {
@@ -193,7 +193,7 @@ func quietCmd() (*cobra.Command, *bytes.Buffer) {
 }
 
 // `slopfix fix .` in a fork leaves every file the fork never touched as it
-// was, and in a file it touched repairs only the lines it wrote.
+// was. In a file the fork touched, it repairs only the lines the fork wrote.
 func TestFixOfAForkTreeKeepsToTheForksLines(t *testing.T) {
 	fx := newForkRepo(t, aFork)
 	cmd, out := quietCmd()
