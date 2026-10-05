@@ -50,9 +50,6 @@ func transform(command, dir string, passes int, warn io.Writer) Result {
 	if PlanRead(command, dir) != nil {
 		return Result{Command: command}
 	}
-	if hasFileRead(f) {
-		return deny(command, "file_read")
-	}
 	if hasStatementCall(f, func(c *syntax.CallExpr) bool {
 		e, ok := effectiveCommand(c)
 		return ok && (e.name == "shred" || e.name == "srm")
@@ -130,9 +127,6 @@ func onePass(apply func(string, func(*syntax.File)), j *grepJSON) {
 	apply("rm_recycle", func(f *syntax.File) { walkCalls(f, rewriteRM) })
 	apply("truncate_recycle", func(f *syntax.File) { walkCalls(f, rewriteTruncate) })
 	apply("find_delete_recycle", func(f *syntax.File) { walkCalls(f, rewriteFind) })
-	apply("head_tail", func(f *syntax.File) {
-		trailing(f, func(s *syntax.Stmt) { stripStages(spineLeaf(s), isHeadTailStage) })
-	})
 	apply("or_true", func(f *syntax.File) { trailing(f, stripOrTrue) })
 	apply("grep", func(f *syntax.File) {
 		trailing(f, func(s *syntax.Stmt) { stripStages(spineLeaf(s), isGrepStage) })

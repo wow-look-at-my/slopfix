@@ -174,7 +174,7 @@ func TestPreservesAndAllowsRmOfUntrackedFile(t *testing.T) {
 }
 
 // git reports the physical root, and on macOS a temp dir is reached through
-// the /var symlink, so the cwd a session reports is spelled another way.
+// the /var symlink. The cwd a session reports is spelled another way.
 func TestPreservesAnUntrackedFileReachedThroughASymlinkedCwd(t *testing.T) {
 	for name, operand := range map[string]func(link string) string{
 		"relative": func(string) string { return "scratch.txt" },
@@ -482,9 +482,9 @@ func TestDeniesTruncatingRedirectOntoDirtyFile(t *testing.T) {
 	assert.Contains(t, denied(t, dir, "echo x >> tracked.go"), "tracked.go")
 }
 
-// `mv` within the tree is not a provenance route either -- copyWrites treats
-// a source already inside the tree as ordinary refactoring -- so the
-// destination's current content.
+// `mv` within the tree is not a provenance route either. copyWrites treats a
+// source already inside the tree as ordinary refactoring. So the hook only
+// preserves the destination's current content.
 func TestPreservesAndAllowsMvOverDirtyDestination(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)

@@ -15,7 +15,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/forkscope"
 )
 
-// run runs git in dir with no user or system config, so a signing key or a
+// run runs git in dir with no user or system config. A signing key or a
 // hook on the machine cannot change what the test sees.
 func run(t *testing.T, dir string, args ...string) {
 	t.Helper()
