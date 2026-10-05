@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Where the halves disagree. Each case names both verdicts. This is because
-// the merged behaviour is not obvious from either rule alone and reading it
-// back later from a single rule would be reading half the answer.
+// Where the halves disagree. Each case names both verdicts. The merged
+// behaviour is not obvious from either rule alone. A reader of a single rule
+// reads half the answer.
 
 // The destruction half allows a command it cannot parse when nothing deletes;
 // the provenance half cannot, because unknown fails closed.

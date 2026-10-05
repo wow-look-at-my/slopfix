@@ -58,8 +58,8 @@ func (a *aliasResolver) expand(seg segment, depth int) []segment {
 	}
 	rest := argsAfterVerb(seg.argv, g.verb)
 
-	// A `!` alias is a shell command, not a git subcommand, so it gets parsed
-	// as shell -- which is also what lets `!git reset --hard` be seen at all.
+	// A `!` alias is a shell command, not a git subcommand, so it is parsed as
+	// shell. That parse is what lets `!git reset --hard` be seen at all.
 	if shell, isShell := strings.CutPrefix(value, "!"); isShell {
 		text := shell
 		if len(rest) > 0 {
