@@ -119,6 +119,8 @@ func (p *clauseParser) boundary(i int, cur Clause, comma bool) (LinkKind, int, b
 	switch {
 	case w.Text == ";" || w.Text == ":" || w.Text == "—" || w.Text == "–" || w.Text == "--":
 		return Punctuated, i, true
+	case w.Tag == "CC" && cur.Link >= 0 && cur.Verb == nil && !comma && p.subjectVerbAt(cur.Link+1) && p.isNounPhraseAt(cur.Link+1):
+		// "so a signing key or a hook cannot change": the conjunction joins the halves of the clause's subject.
 	case w.Tag == "CC" || lower == "so" && comma:
 		if p.opensAfterConjunction(i+1, cur) {
 			return Coordinate, i, true
@@ -216,7 +218,13 @@ func (p *clauseParser) subjectVerbAt(j int) bool {
 	if !ok || ph.Kind != NounPhrase || ph.First != j {
 		return false
 	}
-	k := p.skipModifier(p.chainEnd(ph) + 1)
+	k := p.chainEnd(ph) + 1
+	// "a signing key or a hook on the machine cannot": a coordinated subject.
+	for k+1 < len(p.s.Words) && p.s.Words[k].Tag == "CC" && p.isNounPhraseAt(k+1) {
+		next, _ := p.phrase(k + 1)
+		k = p.chainEnd(next) + 1
+	}
+	k = p.skipModifier(k)
 	for k < len(p.s.Words) && p.s.Words[k].Tag == "RB" {
 		if vg, ok := p.phrase(k); ok && vg.Kind == VerbGroup {
 			break

@@ -279,7 +279,8 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "", false
 		}
 		connector, ok := connectors[link]
-		if !ok || c.Comma && listBefore(s, c) {
+		// No list ends on "so", so a list before it does not swallow the clause.
+		if !ok || c.Comma && link != "so" && listBefore(s, c) {
 			return "", false
 		}
 		if link == "so" && (!c.Comma || c.Subject == nil || main.Verb.Imperative || instructs(s)) {
