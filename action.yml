@@ -20,11 +20,13 @@ runs:
       with:
         project: slopfix
 
-    # check reads the repository from the API to tell whether it is a fork, and a private one needs the token.
+    # check reads the repository from the API to tell whether it is a fork, and a private one needs the token. A binfmt handler on an ubuntu runner refuses a direct exec of the APE, so Unix runs it through sh.
     - name: Run slopfix
       id: check
       if: steps.claim.outputs.first != 'false'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
-      run: '"${{ steps.download.outputs.path }}" check .'
+      run: |
+        if [ "$RUNNER_OS" = Windows ]; then exec "${{ steps.download.outputs.path }}" check .; fi
+        exec sh "${{ steps.download.outputs.path }}" check .
