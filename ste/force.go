@@ -448,6 +448,13 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
+	case (conjunction == "and" || conjunction == "so") && seam == "," && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+		// The parse cuts its clauses at commas, so a subject that is a list or
+		// carries a participle opens no clause of its own.
+		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) {
+			return "", 0
+		}
+		return joinOpener(opener, rest), opensOwnClause - 1
 	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)):
 		// A dash or a colon before words that hold a main clause of their own: "— on first launch Grok runs your binary".
 		out := capitalizeOpening(rest)
