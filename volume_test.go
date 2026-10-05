@@ -36,6 +36,43 @@ func TestFixCutsABlockBackUnderTheVolumeCap(t *testing.T) {
 	assert.Contains(t, repair.Text, "func Run() {\n\tstep(theFirstArgumentOfTheCall", "the code is untouched")
 }
 
+// Each field doc of a Rust struct is its own block, so short docs on many fields never add up to a volume finding.
+func TestRustFieldDocsAreSeparateBlocks(t *testing.T) {
+	var src strings.Builder
+	src.WriteString("pub struct Tracker {\n")
+	for i := range 10 {
+		src.WriteString("    /// Entry that receives the deltas of this stream.\n")
+		src.WriteString("    /// None between turns, and before the first chunk.\n")
+		src.WriteString("    field_" + string(rune('a'+i)) + ": Option<u64>,\n")
+	}
+	src.WriteString("}\n")
+
+	repair := slopfix.Report(slopfix.Request{Path: "tracker.rs", Content: src.String(), MaxCommentLines: tombstones.DefaultMaxCommentLines})
+	for _, k := range repair.Kept {
+		assert.NotEqual(t, tombstones.IDVolume, k.ID, "line %d: %s", k.LineNo, k.Tell)
+	}
+}
+
+// A comment on a line of code is not part of the doc block below it, so the block starts at its own first line.
+func TestATrailingCommentIsNotPartOfTheBlockBelow(t *testing.T) {
+	var src strings.Builder
+	src.WriteString("#![allow(clippy::expect_used)] // Hits predate the gate\n")
+	src.WriteString("#![allow(clippy::unwrap_used)] // Hits predate the gate\n")
+	for range 20 {
+		src.WriteString("//! The crate reads the queue and writes each entry out.\n")
+	}
+	src.WriteString("\npub fn run() {}\n")
+
+	repair := slopfix.Report(slopfix.Request{Path: "lib.rs", Content: src.String(), MaxCommentLines: tombstones.DefaultMaxCommentLines})
+	var starts []int
+	for _, k := range repair.Kept {
+		if k.ID == tombstones.IDVolume {
+			starts = append(starts, k.LineNo)
+		}
+	}
+	assert.Equal(t, []int{3}, starts, "the block is the doc alone")
+}
+
 // A package doc has no construct to weigh against, so only the cap judges it.
 // The fix cuts it the same way and keeps the package clause.
 func TestFixCutsAPackageDocBackUnderTheVolumeCap(t *testing.T) {
