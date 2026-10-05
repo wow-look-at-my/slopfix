@@ -375,7 +375,7 @@ func ghWrites(seg segment, rest []word) []write {
 	return []write{{route: "gh release download", dir: dir, whole: true}}
 }
 
-// inPlaceRewrite is the rule for a program this catalog does not name: a long
+// inPlaceRewrite is the rule for a program this catalog does not name. A long
 // in-place flag says the program rewrites its files, whatever it is. Short
 // `-i` and `-w` are ambiguous, so they count only for the tools listed below.
 func inPlaceRewrite(seg segment, name string, rest []word) []write {

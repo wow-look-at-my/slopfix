@@ -153,7 +153,7 @@ func TestEmptyInput(t *testing.T) {
 }
 
 // A token inside a lone pair of backticks must have those backticks folded into
-// its range, so the rewrite can put them back INSIDE the link text.
+// its range. The rewrite can put them back INSIDE the link text.
 func TestBacktickWrappedTokenSwallowsItsBackticks(t *testing.T) {
 	refs := FindUnlinkedInLine("Resolved and pushed `c4f997e`.")
 	require.Len(t, refs, 1)

@@ -1,4 +1,4 @@
-# Preservation drives git itself, and a repository carries hooks somebody else
+# Preservation drives git itself. A repository carries hooks somebody else
 # wrote: a pre-commit that refuses, a pre-push that asks for a password, a
 # reference-transaction that hangs. A hook that can refuse the preservation
 # commit decides whether the content the session is about to destroy survives.
@@ -10,7 +10,7 @@
 # answers a path under the /var symlink while git reports /private/var.
 #
 # Commands exec the freshly built binary as
-# "${GO_TOOLCHAIN_DATS_BUILD_DIR:-build}/slopfix": go-toolchain's dats phase
+# "${GO_TOOLCHAIN_DATS_BUILD_DIR:-build}/slopfix". Go-toolchain's dats phase
 # stages throwaway copies under $GO_TOOLCHAIN_DATS_BUILD_DIR, while a bare
 # `dats dats` from the repository root falls back to build/.
 #

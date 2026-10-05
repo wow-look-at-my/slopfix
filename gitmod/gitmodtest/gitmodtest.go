@@ -3,7 +3,8 @@
 //
 // They are real repositories, made with git, because the rule reads the index.
 // A fake .gitmodules alone proves nothing: telling a real submodule from a
-// forged submodule IS the rule, and only git can put a gitlink in an index.
+// forged submodule IS the rule, and only git can put a gitlink. That gitlink
+// is in an index.
 package gitmodtest
 
 import (

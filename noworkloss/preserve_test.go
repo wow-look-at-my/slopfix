@@ -12,7 +12,7 @@ import (
 )
 
 // gitOutput runs git and returns its trimmed stdout, for the tests below that
-// must read back what preservation actually committed.
+// must read back what preservation committed.
 func gitOutput(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", args...)
@@ -138,7 +138,7 @@ func TestPreservesInARepositoryWithNoCommitsYet(t *testing.T) {
 	assert.Equal(t, "package a", content)
 }
 
-// A real bare remote: the preservation ref must actually land there.
+// A real bare remote: the preservation ref must land there.
 func TestPreservesAndPushesToOrigin(t *testing.T) {
 	dir := remoteRepo(t)
 	untrack(t, dir, "scratch.txt")
@@ -155,7 +155,7 @@ func TestPreservesAndPushesToOrigin(t *testing.T) {
 	assert.Equal(t, local, onRemote, "the commit pushed to the bare remote must match the local ref")
 }
 
-// A pre-push hook that fails must not stop the preservation push: the push is
+// A pre-push hook that fails must not stop the preservation push. The push is
 // --no-verify, so git runs it but the exit status does not matter.
 func TestPreservesAndPushesPastAFailingPrePushHook(t *testing.T) {
 	dir := remoteRepo(t)
@@ -193,7 +193,7 @@ func TestPreservesLocallyWhenPushFails(t *testing.T) {
 // What the preservation commit contains, and what it does to the index.
 // ---------------------------------------------------------------------------
 
-// dirtyThreeWays builds the tree every question below is asked about: a
+// dirtyThreeWays builds the tree every question below is asked about. A
 // tracked file staged, a tracked file modified and left unstaged, and a
 // file git has never seen.
 func dirtyThreeWays(t *testing.T, dir string) {
@@ -262,7 +262,7 @@ func TestPreservationMakesNoEmptyIndexCommit(t *testing.T) {
 }
 
 // The working tree is never written, and every at-risk path is still on disk
-// byte for byte: this hook analyses a command and never runs it.
+// byte for byte. This hook analyses a command and never runs it.
 func TestPreservationNeverWritesTheWorkingTree(t *testing.T) {
 	dir := newRepo(t)
 	dirtyThreeWays(t, dir)
@@ -386,7 +386,7 @@ func TestDeniesDeletingAPreservationRef(t *testing.T) {
 	r := denied(t, dir, "git update-ref -d "+ref)
 	assert.Contains(t, r, "the only copy")
 
-	// Still there: the denial actually stopped it.
+	// Still there: the denial stopped it.
 	assert.NotEmpty(t, gitOutput(t, dir, "rev-parse", ref))
 }
 

@@ -13,7 +13,7 @@ import (
 )
 
 // The routes that are not Bash at all. Each keeps the same pair as the shell
-// cases: the call that must be refused, and the neighbouring call that must
+// cases. The call that must be refused, and the neighbouring call that must
 // still work, so a rule that denied the whole tool would fail the control.
 
 func TestTheEditToolsThemselvesAreLeftAlone(t *testing.T) {
@@ -164,7 +164,7 @@ func TestTheRestoreLeavesTheIndexAlone(t *testing.T) {
 }
 
 // Committing the removal frees nothing. A deletion committed only to get past
-// the refusal is the same evasion one step later, so the file comes back from
+// the refusal is the same evasion one step later. The file comes back from
 // the commit before the deletion and the Write is refused with its price.
 func TestACommittedDeletionDoesNotFreeThePathForWrite(t *testing.T) {
 	for _, tc := range []struct {

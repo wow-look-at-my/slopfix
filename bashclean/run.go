@@ -3,7 +3,7 @@
 //
 // A rewrite carries updatedInput and nothing else. It sets no
 // permissionDecision, so the normal permission flow still judges the rewritten
-// command, and it says nothing to the model: a visible hook message lets the
+// command, and it says nothing to the model. A visible hook message lets the
 // model blame the hook for its own command mistakes.
 package bashclean
 
