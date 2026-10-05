@@ -51,7 +51,7 @@ func TestATreeCheckInAForkWithNoBaseFails(t *testing.T) {
 	cmd.SetErr(&out)
 
 	forks := forkscope.Resolver{Getenv: func(k string) string { return env[k] }, ListURL: srv.URL + "/fork-of.json"}
-	failed, err := treeFindings(cmd, t.TempDir(), slopfix.Request{}, false, forks)
+	failed, err := treeFindings(cmd, t.TempDir(), slopfix.Request{}, false, forks, nil)
 	require.Error(t, err)
 	assert.False(t, failed)
 	assert.Contains(t, err.Error(), "500")
@@ -166,7 +166,7 @@ func quietCmd() (*cobra.Command, *bytes.Buffer) {
 func TestFixOfAForkTreeKeepsToTheForksLines(t *testing.T) {
 	fx := newForkRepo(t, aFork)
 	cmd, out := quietCmd()
-	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks)
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, upstreamDoc, readT(t, filepath.Join(fx.dir, "upstream.md")), "a file the fork never touched stays byte for byte")
@@ -194,7 +194,7 @@ func TestFixOfAForkRepairsTheDocsItsBudgetMoveCreates(t *testing.T) {
 	gitRun(t, fx.dir, "commit", "-q", "-m", "a large AGENTS.md")
 
 	cmd, out := quietCmd()
-	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks)
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks, nil)
 	require.NoError(t, err)
 	docs, err := filepath.Glob(filepath.Join(fx.dir, "docs", "*.md"))
 	require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestFixOfAForkRepairsTheDocsItsBudgetMoveCreates(t *testing.T) {
 	}
 
 	cmd, out = quietCmd()
-	failed, err := treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks)
+	failed, err := treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks, nil)
 	require.NoError(t, err)
 	assert.False(t, failed, "the check after the fix still fails:\n%s", out.String())
 }
@@ -213,7 +213,7 @@ func TestFixOfAForkRepairsTheDocsItsBudgetMoveCreates(t *testing.T) {
 func TestFixOfATreeThatIsNoForkRepairsEveryFile(t *testing.T) {
 	fx := newForkRepo(t, noFork)
 	cmd, _ := quietCmd()
-	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks)
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks, nil)
 	require.NoError(t, err)
 
 	assert.NotContains(t, readT(t, filepath.Join(fx.dir, "upstream.md")), "doesn't")
@@ -224,13 +224,13 @@ func TestFixOfATreeThatIsNoForkRepairsEveryFile(t *testing.T) {
 func TestFixOfAForkWithNoBaseWritesNothing(t *testing.T) {
 	fx := newForkRepo(t, broken)
 	cmd, _ := quietCmd()
-	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks)
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 	assert.Equal(t, upstreamDoc, readT(t, filepath.Join(fx.dir, "upstream.md")))
 	assert.Equal(t, forkDoc, readT(t, filepath.Join(fx.dir, "doc.md")))
 
-	_, err = repairOf(fx.forks, filepath.Join(fx.dir, "doc.md"), slopfix.Request{}, true)
+	_, err = repairOf(fx.forks, nil, filepath.Join(fx.dir, "doc.md"), slopfix.Request{}, true)
 	require.Error(t, err)
 	assert.Equal(t, forkDoc, readT(t, filepath.Join(fx.dir, "doc.md")))
 }
@@ -240,18 +240,18 @@ func TestFixOfAForkWithNoBaseWritesNothing(t *testing.T) {
 func TestFixOfANamedFileInAForkKeepsToTheForksLines(t *testing.T) {
 	fx := newForkRepo(t, aFork)
 
-	repair, err := repairOf(fx.forks, filepath.Join(fx.dir, "upstream.md"), slopfix.Request{}, true)
+	repair, err := repairOf(fx.forks, nil, filepath.Join(fx.dir, "upstream.md"), slopfix.Request{}, true)
 	require.NoError(t, err)
 	assert.False(t, repair.Changed)
 	assert.Empty(t, repair.Findings)
 	assert.Equal(t, upstreamDoc, readT(t, filepath.Join(fx.dir, "upstream.md")))
 
-	repair, err = repairOf(fx.forks, filepath.Join(fx.dir, "upstream.md"), slopfix.Request{}, false)
+	repair, err = repairOf(fx.forks, nil, filepath.Join(fx.dir, "upstream.md"), slopfix.Request{}, false)
 	require.NoError(t, err)
 	assert.Empty(t, repair.Findings)
 	assert.Empty(t, repair.Kept, "a check of a file the fork never touched finds nothing")
 
-	_, err = repairOf(fx.forks, filepath.Join(fx.dir, "doc.md"), slopfix.Request{}, true)
+	_, err = repairOf(fx.forks, nil, filepath.Join(fx.dir, "doc.md"), slopfix.Request{}, true)
 	require.NoError(t, err)
 	doc := readT(t, filepath.Join(fx.dir, "doc.md"))
 	assert.Equal(t, "It doesn't hold the lock.", nthLine(doc, 3))
