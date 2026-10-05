@@ -140,7 +140,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict, d.cap) {
-			if cutsAside(masked, c.left, c.right) {
+			if cutsAside(masked, c.left, c.right) || splitsObject(whole, c) {
 				continue
 			}
 			head := source[:c.left]
@@ -175,6 +175,21 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 		}
 	}
 	return fragmentDivision(source, masked, whole, d.cap)
+}
+
+// splitsObject reports a cut between a finite verb and the noun phrase right
+// after it, which is the verb's object: "a sentence names | an item".
+func splitsObject(s *syntax.Sentence, c forceCut) bool {
+	next := wordFrom(s, c.right)
+	// A mark between the verb and the words after it ends the verb's phrase.
+	if next < 1 || !finiteVerbTag(s.Words[next-1].Tag) {
+		return false
+	}
+	switch tag := s.Words[next].Tag; {
+	case tag == "DT" || tag == "PRP$" || tag == "CD" || strings.HasPrefix(tag, "JJ") || strings.HasPrefix(tag, "NN"):
+		return true
+	}
+	return false
 }
 
 // closeHead ends the first part of a division as a sentence. A part that

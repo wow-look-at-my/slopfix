@@ -8,7 +8,7 @@ import (
 )
 
 // fragmentDivision divides a sentence that holds no main clause. Such a
-// sentence is a noun phrase as written, so each part stays a noun phrase: the
+// sentence is a noun phrase as written, so each part stays a noun phrase. The
 // cut lands where a phrase ends and the next opens on a determiner. "a cache
 // that never empties a cache that never fills" becomes "a cache that never
 // empties. A cache that never fills".
@@ -70,13 +70,17 @@ func PhraseHead(text string, maxWords int) (string, bool) {
 // endsPhrase reports a word a noun phrase can end on: a noun, an adverb, a
 // number or a particle. A verb wants the object a cut would take away.
 func endsPhrase(w syntax.Word) bool {
+	// A negation turns the words after it around, so it never ends a phrase.
+	if negations.Contains(w.Lower()) {
+		return false
+	}
 	tag := w.Tag
 	return strings.HasPrefix(tag, "NN") || strings.HasPrefix(tag, "RB") || tag == "CD" || phraseEndParticle.Contains(w.Lower())
 }
 
 // endsBefore reports a cut before word n that leaves a whole noun phrase. A
 // verb ends one only when the words after it open a phrase with a relative
-// clause of its own, so the verb closed the clause before it: "a cache that
+// clause of its own. The verb closed the clause before it: "a cache that
 // never empties | a cache that never fills". After "a session that asks", the
 // words name its object.
 func endsBefore(s *syntax.Sentence, n int) bool {

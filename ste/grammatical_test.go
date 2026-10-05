@@ -149,6 +149,16 @@ var brokenShapes = []struct {
 		"That file nothing",
 	},
 	{
+		"a finite verb keeps the object right after it",
+		"The first word of a sentence names an item only in lower case or before a finite verb, because a capital there opens an instruction: \"Run 3 tests\".",
+		"names. An",
+	},
+	{
+		"a negation never ends a phrase",
+		"A block that holds an earlier ending is repaired at that ending, which is the control that proves the cut is not the last line going.",
+		"not. The",
+	},
+	{
 		"a clause after a colon is no list",
 		"A word longer than the width goes on its own line rather than being broken: a URL or an identifier split across lines stops being either.",
 		"This covers",

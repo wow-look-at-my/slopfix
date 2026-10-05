@@ -8,9 +8,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// carrier.go divides a long sentence where the words after the cut are no
-// clause: a trailing adverbial, a phrase that describes a noun, or the rest
-// of a list.
+// carrier.go divides a long sentence where the words. This happens after
+// the cut are no clause: a trailing adverbial, a phrase that describes a
+// noun, or the rest of a list.
 
 var (
 	// carrierAdverbial words open an adverbial that a carrier can take.
@@ -75,6 +75,10 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
 	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds"):
+		// A reason reads behind "This is", whatever the verb: "This is because X".
+		if lower == "because" {
+			return head, "This is " + rest, opensWithCarrier
+		}
 		return head, carrierFor(whole, main) + " " + rest, opensWithCarrier
 	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && unicode.IsLower(rune(word.Text[0])) &&
 		listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first):
