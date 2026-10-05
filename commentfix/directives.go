@@ -23,7 +23,12 @@ func capLines(b block, maxLines int) []string {
 		body = next
 	}
 	if len(body) > maxLines {
-		body = dropToSentenceEnd(body, maxLines)
+		// A closer on its own line comes back after the cut, so it takes a line of the cap.
+		limit := maxLines
+		if strings.TrimSpace(closer) == "*/" {
+			limit--
+		}
+		body = dropToSentenceEnd(body, limit)
 	}
 	body = reclosed(body, closer)
 	out := make([]string, 0, len(lead)+len(body)+len(trail))

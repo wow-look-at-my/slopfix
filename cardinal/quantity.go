@@ -250,18 +250,26 @@ func NamesAnItem(text string, at int) bool {
 		if w.Start != at {
 			continue
 		}
-		if !allDigits(w.Text) || i < 2 || words[i-1].End == at || words[i-2].Tag == "." {
+		if !allDigits(w.Text) || i < 2 || words[i-1].End == at || (words[i-2].Tag == "." && words[i-2].Text != "(") {
 			return false
 		}
 		prev, before := words[i-1], words[i-2]
-		if strings.IndexFunc(prev.Text, unicode.IsLetter) != 0 || before.Tag == "CD" || singleItem.Contains(before.Lower()) {
+		name, opened := strings.CutPrefix(prev.Text, "(")
+		opened = opened || before.Text == "(" || (prev.Start > 0 && text[prev.Start-1] == '(')
+		if strings.IndexFunc(name, unicode.IsLetter) != 0 || before.Tag == "CD" || singleItem.Contains(before.Lower()) {
 			return false
 		}
-		// The tagger reads a noun that opens a parenthesis as an imperative.
-		return prev.Tag == "NN" || prev.Tag == "NNP" || (before.Text == "(" && (prev.Tag == "VB" || prev.Tag == "VBP"))
+		if prev.Tag == "NN" || prev.Tag == "NNP" {
+			return true
+		}
+		// The tagger reads a noun that opens a parenthesis as a verb: "(branch 1 rejects".
+		return opened && !functionTags.Contains(prev.Tag)
 	}
 	return false
 }
+
+// functionTags mark a word that is never a name an item carries.
+var functionTags = set.Of("IN", "DT", "CC", "PRP", "PRP$", "TO", "MD", "WDT", "RB", "NNS", "NNPS")
 
 // singleItem are the words that make the noun after them one counted item.
 var singleItem = set.Of("a", "an", "each", "every", "one", "per")
