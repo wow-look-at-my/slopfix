@@ -373,6 +373,19 @@ func TestAListedForkReportsOnlyTheLinesItWrote(t *testing.T) {
 	assert.Equal(t, []int{3}, held(own, fx.fork, "loose.md", 3))
 }
 
+// An upstream that carries no tags names no release to measure from, so a
+// listed fork is measured against that upstream's default branch instead, and
+// is scoped exactly as the parent-merge-base path scopes it.
+func TestAListedForkWhoseUpstreamHasNoTagsIsMeasuredFromItsBranch(t *testing.T) {
+	fx := newForkFixture(t)
+	own := scoped(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))
+
+	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...), "line 3 is upstream's, line 5 is edited, line 7 is added")
+	assert.Equal(t, []int{3}, held(own, fx.fork, "new.md", 3))
+	assert.Equal(t, []int{3}, held(own, fx.fork, "loose.md", 3))
+	assert.True(t, own.Scope(filepath.Join(fx.fork, "later.md")).Empty(), "a file the fork never had is not the fork's")
+}
+
 // A repository cannot declare itself a fork: a file in its own tree is no list.
 func TestAForkFileInTheRepositoryIsIgnored(t *testing.T) {
 	fx := newForkFixture(t)
