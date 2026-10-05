@@ -80,7 +80,7 @@ var parser = goldmark.New(goldmark.WithExtensions(extension.Table)).Parser()
 // paragraphs maps the line each paragraph opens on to the line it ends on. A
 // paragraph in a block quote quotes somebody, and stays as they wrote it.
 func paragraphs(content string, lines []string) map[int]int {
-	src := []byte(blankFrontMatter(content, lines))
+	src := blankTemplateTags([]byte(blankFrontMatter(content, lines)), lines)
 	starts := lineStarts(lines)
 	ends := map[int]int{}
 	_ = ast.Walk(parser.Parse(text.NewReader(src)), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -123,6 +123,28 @@ func blankFrontMatter(content string, lines []string) string {
 		return string(out)
 	}
 	return content
+}
+
+// blankTemplateTags writes spaces over each line that holds one template tag
+// and nothing else, such as `{% if x %}` or `${%- endif %}`. A tag is code
+// for the renderer, so the parser reads it as a break between paragraphs.
+func blankTemplateTags(src []byte, lines []string) []byte {
+	at := 0
+	for _, line := range lines {
+		if isTemplateTag(strings.TrimSpace(line)) {
+			for k := at; k < at+len(line) && k < len(src); k++ {
+				src[k] = ' '
+			}
+		}
+		at += len(line) + 1
+	}
+	return src
+}
+
+// isTemplateTag reports whether a trimmed line is one template tag.
+func isTemplateTag(trimmed string) bool {
+	body := strings.TrimPrefix(trimmed, "$")
+	return strings.HasPrefix(body, "{%") && strings.HasSuffix(body, "%}") && strings.Count(body, "%}") == 1
 }
 
 // lineStarts answers the byte offset each line starts at.
