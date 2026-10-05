@@ -7,8 +7,8 @@ import (
 )
 
 // StripWrappers peels the layers that stand between the words as written and
-// the program that actually runs, so a single rule for sed covers a `sudo -E
-// env` prefix, an `xargs` prefix and a `timeout` prefix alike. Enumerating
+// the program that runs, so a single rule for sed covers a `sudo -E env`
+// prefix, an `xargs` prefix and a `timeout` prefix alike. Enumerating
 // spellings of a program can never be finished; this resolves instead.
 //
 // A wrapper that takes its own VALUE flag has that flag's value dropped with

@@ -56,8 +56,8 @@ func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
 }
 
 // repairOf answers what every rule makes of a file. Repairing, it writes the
-// repair back; reporting, it runs the same rules and leaves the file alone, so
-// a rule selection means the same thing either way. In a fork, a file the fork
+// repair back. Reporting, it runs the same rules and leaves the file alone. A
+// rule selection means the same thing either way. In a fork, a file the fork
 // never touched answers nothing, and only the fork's lines change or count.
 func repairOf(forks forkscope.Resolver, path string, request slopfix.Request, repairing bool) (slopfix.Repair, error) {
 	if repairing {

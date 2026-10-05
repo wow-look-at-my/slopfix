@@ -132,8 +132,8 @@ func measure(path string) (chars int, wide []int, ok bool) {
 
 // homeCandidates lists the always-loaded files a tree walk from cwd cannot
 // find on its own: ~/.claude/CLAUDE.md and its @-imported snippets. Snippets
-// are measured too -- the CLI counts each import as its own entry, so an
-// oversized snippet is just as much a problem as an oversized CLAUDE.md.
+// are measured too -- the CLI counts each import as its own entry. An
+// oversized snippet is as much a problem as an oversized CLAUDE.md.
 func homeCandidates() []string {
 	var out []string
 	home := os.Getenv("HOME")

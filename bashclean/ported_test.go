@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Ported from the shell suite this package replaced, so no finding is lost.
 type cleanCase struct{ name, in, want string }
 
 var rewriteCases = []cleanCase{

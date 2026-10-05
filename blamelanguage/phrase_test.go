@@ -42,7 +42,7 @@ func TestEveryPhraseNamesItself(t *testing.T) {
 	}
 }
 
-// A phrase at the very end of the message has no offset after it, and the
+// A phrase at the end of the message has no offset after it, and the
 // original's tail is the answer there.
 func TestAPhraseAtTheEndIsNamed(t *testing.T) {
 	hits := Check("I am leaving this one: out of scope")

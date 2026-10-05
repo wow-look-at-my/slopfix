@@ -1,4 +1,4 @@
-// reflow.go is the shape half of tightening: what a comment's marker and indent
+// reflow.go is the shape half of tightening. What a comment's marker and indent
 // are, where its paragraphs break, and how prose wraps back onto lines.
 package commentfix
 
@@ -111,8 +111,8 @@ func stripMarker(line string) string {
 
 // reflow wraps prose back onto comment lines at the given width.
 //
-// A word longer than the width goes on its own line rather than being broken:
-// a URL or an identifier split across lines stops being either.
+// A word longer than the width goes on its own line rather than being broken.
+// A URL or an identifier split across lines stops being either.
 func reflow(body, indent, marker string, width int) []string {
 	words := strings.Fields(body)
 	if len(words) == 0 {

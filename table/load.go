@@ -1,8 +1,8 @@
-// A file declares its consumer with the `for` attribute on its root, and the
-// folder is read in file name order and then document order: a longer phrase
-// that must beat a shorter phrase sits above it. What an entry must carry to be
-// usable is decided here rather than in the consumer, so a malformed entry
-// stops the program at its earliest read instead of quietly matching nothing.
+// A file declares its consumer with the `for` attribute on its root. The folder
+// is read in file name order and then document order: a longer phrase that must
+// beat a shorter phrase sits above it. What an entry must carry to be usable is
+// decided here rather than in the consumer. A malformed entry stops the program
+// at its earliest read instead of quietly matching nothing.
 package table
 
 import (
@@ -15,8 +15,8 @@ import (
 )
 
 // document mirrors a rules file. The table types the consumer reads carry no
-// XML tags of their own: a class states its words in a single attribute and
-// holds them as a list, and a pattern holds a compiled matcher the file cannot spell.
+// XML tags of their own: a class states its words in a single attribute and holds
+// them as a list. A pattern holds a compiled matcher the file cannot spell.
 type document struct {
 	For       string      `xml:"for,attr"`
 	Drops     []xmlDrop   `xml:"drop"`

@@ -35,8 +35,8 @@ func TestAGateAllowedToFailIsReportedOnItsOwnLine(t *testing.T) {
 	assert.Contains(t, found[0].Fix, "continue-on-error")
 }
 
-// The negative control. Without it the case above passes whether or not the
-// rule can tell the steps apart.
+// The negative control. Without it the case above passes whether the rule can
+// tell the steps apart.
 func TestTheSameStepWithoutTheKeyIsNotReported(t *testing.T) {
 	assert.Empty(t, neuteredGates(honestStep))
 }
