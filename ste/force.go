@@ -451,7 +451,8 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 	case (conjunction == "and" || conjunction == "so") && seam == "," && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
 		// The parse cuts its clauses at commas, so a subject that is a list or
 		// carries a participle opens no clause of its own.
-		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) {
+		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) ||
+			conjunction == "and" && seriesBefore(masked[:c.left]) {
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause - 1
@@ -466,6 +467,23 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 	}
 	return "", 0
+}
+
+// seriesBefore reports a comma after the first verb of head. A ", and" after it adds the last item of a series: "give the full path, why it matters, and the relevant code".
+func seriesBefore(head string) bool {
+	s := syntax.Parse(strings.TrimRight(head, " ,"), nil)
+	for i, w := range s.Words {
+		if !strings.HasPrefix(w.Tag, "VB") {
+			continue
+		}
+		for _, later := range s.Words[i+1:] {
+			if later.Text == "," {
+				return true
+			}
+		}
+		return false
+	}
+	return false
 }
 
 // commaAfterFrontedPhrase writes the comma that ends a participle phrase in front of its clause: "Left in the text a rewrite wraps it" becomes "Left in the text, a rewrite wraps it".
