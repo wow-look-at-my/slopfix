@@ -219,6 +219,11 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 				continue
 			}
 		}
+		// A tail that opens on a finite verb leaves its subject behind:
+		// "the pointer. Stays valid for reads of n bytes".
+		if n := wordsBefore(whole, c.right); n < len(whole.Words) && finiteVerbTag(whole.Words[n].Tag) {
+			continue
+		}
 		head := strings.TrimRight(source[:c.left], " ,;:—–-")
 		// The head must hold a clause of its own, or the cut strands a subject
 		// without its verb: "the pointer. Stays valid for reads of n bytes".
