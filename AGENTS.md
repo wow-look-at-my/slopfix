@@ -27,7 +27,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `repo`, report only | `repo/near-duplicate`, `repo/json`, `repo/xml` | no |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
-| `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second |
+| `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second. Before a verb it stays, for a rewrite by hand |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
 | `counts` | `counts/inventory-count`, `counts/section-number` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
@@ -39,7 +39,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
-Every error rule has a repair, so `slopfix fix` on any tree leaves no error but these. A `package.json` that does not parse and the `ReportOnly` rules have no repair, because no rewrite knows what the author meant. `repairable_test.go` names each of them. `ste/sentence-length` divides a sentence only where each half stays a grammatical sentence. Any other long sentence stays as written, and its finding asks for a rewrite by hand, because a broken repair is worse than none. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it, apart from those long sentences. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+Every error rule has a repair, so `slopfix fix` on any tree leaves no error but these. A `package.json` that does not parse and the `ReportOnly` rules have no repair, because no rewrite knows what the author meant. `repairable_test.go` names each of them. `ste/sentence-length` and `ste/semicolon` divide only where each half stays a grammatical sentence. Any other long sentence or semicolon stays as written. Its finding asks for a rewrite by hand (`ste.ByHand`), because a broken repair is worse than none. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it, apart from those findings. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 

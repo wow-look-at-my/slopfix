@@ -59,7 +59,7 @@ func wireFinding(finding ste.Finding) reportFinding {
 		Rule:       finding.Rule,
 		Detail:     finding.Detail,
 		Fix:        finding.Fix,
-		Repairable: slopfix.Repairable(finding.ID) && finding.Fix != ste.FixByHand,
+		Repairable: slopfix.Repairable(finding.ID) && !ste.ByHand(finding.Fix),
 		Severity:   severity(finding),
 	}
 }

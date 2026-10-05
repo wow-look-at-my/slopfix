@@ -87,6 +87,11 @@ var realSentences = []struct {
 		"",
 	},
 	{
+		"a participle before a noun is no verb",
+		"[Always-approve](#always-approve) short-circuits this pipeline after step 2: `deny` rules, hooks, and `ask` rules that match a shell command's segments still apply, but remembered grants (including remembered \"never allow\" entries) are not consulted, and `ask` rules on non-shell tools do not prompt.",
+		"",
+	},
+	{
 		"a list of verbs keeps its items",
 		"The agent dashboard now shows each agent's model and mode in the peek panel, lets you cycle modes with Shift+Tab, collapses the Inactive section by default, and hides older idle agents behind a \"N more\" row.",
 		"",

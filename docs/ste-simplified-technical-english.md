@@ -6,8 +6,8 @@ The members share the sentence splitter, the masks and the repair pass. They the
 
 - `ste/contraction`: a contraction. The repair writes the expansion and keeps the capitalization.
 - `ste/modal`: `should`, `shall`, `could`, `might` and `would`. The repair writes `must` for obligation and `can` for possibility.
-- `ste/semicolon`: the semicolon. The repair writes a period and capitalizes the next word.
-- `ste/comma-splice`: a comma that joins clauses that each stand alone. The repair writes a period. `However,` replaces `but` and `yet`. The repair drops `and` and `so`.
+- `ste/semicolon`: the semicolon. The repair writes a period. The repair capitalizes the next word, where the words before it hold a main clause and the words after it open one. A semicolon between items or phrases stays, and its finding asks for a rewrite by hand (`ste.FixSemicolonByHand`).
+- `ste/comma-splice`: a comma that joins clauses that each stand alone. The repair writes a period. `However,` replaces `but` and `yet`. The repair drops `and` and `so`. The words before the comma must hold a main clause, and the subject after it must agree with its verb.
 - `ste/sentence-length`: a sentence over `25` words, the STE cap for a description. The repair divides it at a clause boundary that the `syntax` parser finds. With no such boundary, it divides between words near the cap. Each half must be a grammatical sentence. A sentence that no division keeps grammatical stays as written, and its finding asks for a rewrite by hand (`ste.FixByHand`). `check --json` reports that finding with `repairable` false.
 - `ste/postdeterminer`: a numeral between a determiner and its noun, as in `the three rules`. The repair cuts the numeral. A unit, a percent, a year, a status code, `any` and `first` keep theirs.
 - `ste/count`: a stated count anywhere in the line, read with the `Gate` substrate. The repair takes the number out after the join, with the `counts` rewording.

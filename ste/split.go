@@ -29,12 +29,6 @@ var connectors = map[string]string{
 // FixByHand is the Fix text of a long sentence that no division can repair.
 const FixByHand = "Rewrite it by hand as shorter sentences. No division keeps each half a grammatical sentence."
 
-// Divisible reports whether the repair divides at least one long sentence of
-// the prose.
-func Divisible(prose string) bool {
-	return fixSentenceCap(prose) != prose
-}
-
 // fixSentenceCap divides every over-cap sentence where both halves stay
 // grammatical sentences. It first tries the clause boundaries, then the word
 // boundaries.
@@ -278,7 +272,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return connector, subjectFollows(s, c) && agrees(s, *c.Subject, *c.Verb) && opensWithCapital(s, c.Link+1, source)
 		}
 		// A shared subject needs its verb right after the link, and no aside before the link.
-		if !verbFollows(s, c) || c.Link > 0 && strings.Contains("—–--", s.Words[c.Link-1].Text) {
+		if !verbFollows(s, c) || c.Link > 0 && strings.Contains("—–--", s.Words[c.Link-1].Text) || laterVerb(s, c) {
 			return "", false
 		}
 		if main.Verb.Imperative {
@@ -430,7 +424,7 @@ func endsMainClause(prose string, at int) bool {
 		}
 		for _, c := range s.Clauses {
 			if c.First <= last && last <= c.Last {
-				return c.Depth == 0 && c.Verb != nil
+				return c.Depth == 0 && c.Verb != nil && standsAlone(s, 0, last+1)
 			}
 		}
 		return false
@@ -454,6 +448,11 @@ func joinsClauses(prose string, at int) bool {
 		for k, c := range s.Clauses {
 			if c.Link >= 0 && s.Words[c.Link].Start == at-span[0] {
 				if c.Kind != syntax.Coordinate || c.Depth != 0 || c.Subject == nil || listBefore(s, c) {
+					return false
+				}
+				// Each half must be a sentence: a main clause before, and a subject that
+				// agrees with its verb after.
+				if k == 0 || s.Clauses[k-1].Verb == nil || !standsAlone(s, 0, c.Link) || !subjectFollows(s, c) || !agrees(s, *c.Subject, *c.Verb) {
 					return false
 				}
 				// A so after an instruction states its purpose, and joins nothing a period can take.

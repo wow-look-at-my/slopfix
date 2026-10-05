@@ -13,7 +13,7 @@ import (
 // admissible reports whether the left half of a clause division stands as a
 // sentence. openerFor already judged the right half.
 func admissible(s *syntax.Sentence, source string, d division) bool {
-	return !cutsAside(mask(source), d.leftEnd, d.rightStart) && standsAlone(s, wordsBefore(s, d.leftEnd))
+	return !cutsAside(mask(source), d.leftEnd, d.rightStart) && standsAlone(s, 0, wordsBefore(s, d.leftEnd))
 }
 
 // wordsBefore counts the words of s that start before byte at.
@@ -53,6 +53,25 @@ func verbOfSubject(s *syntax.Sentence, subject, verb syntax.Phrase) bool {
 		}
 	}
 	return true
+}
+
+// reducedRelative reports a clause whose subject follows a noun of the same
+// clause, as in "the files you expect to touch".
+func reducedRelative(s *syntax.Sentence, c syntax.Clause) bool {
+	i := c.Subject.First - 1
+	return i >= c.First && i > c.Link && strings.HasPrefix(s.Words[i].Tag, "NN")
+}
+
+// laterVerb reports a finite verb in clause c after the verb the parser gave
+// it. That first "verb" then modifies a noun, as in "and remembered grants are
+// not consulted", and the clause has a subject of its own.
+func laterVerb(s *syntax.Sentence, c syntax.Clause) bool {
+	for j := c.Verb.Last + 1; j <= c.Last && j < len(s.Words); j++ {
+		if tag := s.Words[j].Tag; tag == "VBZ" || tag == "VBP" || tag == "MD" {
+			return true
+		}
+	}
+	return false
 }
 
 // indexOf answers the place of clause c among the clauses of s.
@@ -120,28 +139,38 @@ func cutsAside(masked string, leftEnd, rightStart int) bool {
 	return false
 }
 
-// standsAlone reports whether the first end words of s hold a main clause: a
-// subject and a finite verb, or an imperative. Words that open on a subordinate
-// clause or on a "to" infinitive need that main clause after a comma, because
-// "If the cache is cold" alone is a fragment. It reads the parse of the whole
-// sentence, because a fragment parsed alone gets other tags.
-func standsAlone(s *syntax.Sentence, end int) bool {
-	after := -1
-	if opensDependent(s) {
-		after = firstComma(s)
+// standsAlone reports whether the words of s from from up to end hold a main
+// clause: a subject and a finite verb, or an imperative. Words that open on a
+// subordinate clause or on a "to" infinitive need that main clause after a
+// comma, because "If the cache is cold" alone is a fragment. It reads the parse
+// of the whole sentence, because a fragment parsed alone gets other tags.
+func standsAlone(s *syntax.Sentence, from, end int) bool {
+	after := from - 1
+	if opensDependentAt(s, from) {
+		after = firstCommaFrom(s, from)
 		if after < 0 || after >= end {
 			return false
 		}
 	}
+	// "Do NOT modify the workspace": the tagger reads a sentence-initial "Do" as a name.
+	if lead := skipAdverbs(s, from); lead+1 < end && s.Words[lead].Lower() == "do" {
+		if v := skipAdverbs(s, lead+1); v < end && s.Words[v].Tag == "VB" {
+			return true
+		}
+	}
 	for _, c := range s.Clauses {
-		if c.Depth != 0 || c.Verb == nil || c.Verb.Last >= end {
+		if c.Depth != 0 || c.Verb == nil || c.Verb.Last >= end || c.Verb.First < from {
 			continue
 		}
 		start := -1
 		switch {
+		case c.Subject != nil && reducedRelative(s, c):
 		case c.Subject != nil:
 			start = c.Subject.First
 		case c.Verb.Imperative:
+			start = c.Verb.First
+		case imperativeTag(s, *c.Verb) && skipAdverbs(s, max(c.First, c.Link+1)) == c.Verb.First:
+			// "Do NOT modify the workspace": the tagger reads a bare verb at the start as present tense.
 			start = c.Verb.First
 		case c.Kind == syntax.Opens && c.Verb.Finite && c.Verb.First > c.First:
 			// The words ahead of a finite verb are its subject, though the tagger missed it: "The comment scan reads".
@@ -172,10 +201,13 @@ func instructs(s *syntax.Sentence) bool {
 }
 
 // opensDependent reports a sentence that opens on a subordinate clause or a "to" infinitive.
-func opensDependent(s *syntax.Sentence) bool {
+func opensDependent(s *syntax.Sentence) bool { return opensDependentAt(s, 0) }
+
+// opensDependentAt reports whether the words from word from open on a subordinate clause or a "to" infinitive.
+func opensDependentAt(s *syntax.Sentence, from int) bool {
 	first := -1
-	for i, w := range s.Words {
-		if strings.IndexFunc(w.Text, unicode.IsLetter) >= 0 && w.Tag != "RB" {
+	for i := from; i < len(s.Words); i++ {
+		if w := s.Words[i]; strings.IndexFunc(w.Text, unicode.IsLetter) >= 0 && w.Tag != "RB" {
 			first = i
 			break
 		}
@@ -194,9 +226,12 @@ func opensDependent(s *syntax.Sentence) bool {
 	return false
 }
 
-func firstComma(s *syntax.Sentence) int {
-	for i, w := range s.Words {
-		if w.Text == "," {
+func firstComma(s *syntax.Sentence) int { return firstCommaFrom(s, 0) }
+
+// firstCommaFrom answers the index of the earliest comma at or after word from. With none it answers a negative index.
+func firstCommaFrom(s *syntax.Sentence, from int) int {
+	for i := from; i < len(s.Words); i++ {
+		if s.Words[i].Text == "," {
 			return i
 		}
 	}
@@ -226,7 +261,7 @@ var danglingTags = set.Of[string]("DT", "JJ", "JJR", "JJS", "PRP$", "IN", "CC",
 // inside a subordinate clause joins the items of a list.
 func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 	w, ok := lastWordBefore(whole, len(head))
-	if !ok || danglingTags.Contains(w.Tag) || !standsAlone(whole, wordsBefore(whole, len(head))) {
+	if !ok || danglingTags.Contains(w.Tag) || !standsAlone(whole, 0, wordsBefore(whole, len(head))) {
 		return false
 	}
 	if seam != "," {
@@ -258,7 +293,7 @@ func opensSubject(s *syntax.Sentence, i int) bool {
 // the cut then continues a list of verb groups, as in "it reads, writes and
 // holds".
 func listsVerbs(head string) bool {
-	s := syntax.Parse(head, nil)
+	s := syntax.Parse(strings.TrimRight(head, " ,"), nil)
 	for _, c := range s.Clauses {
 		if c.Depth != 0 || c.Verb == nil {
 			continue

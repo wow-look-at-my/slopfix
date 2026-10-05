@@ -397,6 +397,10 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		if conjunction == "so" && (seam != "," || opensImperativeMain(masked[:c.left]) || instructs(whole)) {
 			return "", 0
 		}
+		// After a list, ", and" adds the last item to it: "rules, hooks, and `ask` rules apply".
+		if seam == "," && listsVerbs(masked[:c.left]) {
+			return "", 0
+		}
 		return joinOpener(opener, rest), opensOwnClause
 	}
 	return "", 0

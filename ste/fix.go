@@ -19,13 +19,10 @@ func Fix(text string) string {
 // measures a sentence the way Check measures it, and Check counts a code span
 // as a single word rather than as a gap between shorter sentences.
 func FixSelected(text string, keep func(id string) bool) string {
-	text = fixProse(text, func(prose string) string {
-		prose = fixWords(prose, keep)
-		if keep(IDSemicolon) {
-			prose = fixSemicolons(prose)
-		}
-		return prose
-	})
+	text = fixProse(text, func(prose string) string { return fixWords(prose, keep) })
+	if keep(IDSemicolon) {
+		text = fixSemicolons(text)
+	}
 	if keep(IDCommaSplice) {
 		text = fixSplices(text)
 	}
@@ -86,10 +83,6 @@ func fixWords(prose string, keep func(id string) bool) string {
 		}
 		return replacement
 	})
-}
-
-func fixSemicolons(prose string) string {
-	return breakWith(prose, semicolonRun.FindAllStringIndex(prose, -1), nil)
 }
 
 // The comma is found the way checkSplices finds it, guard included, so the
