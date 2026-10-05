@@ -17,6 +17,19 @@ func TestZDebug(t *testing.T) {
 		masked := checkMask(src)
 		whole := syntax.Parse(masked, nil)
 		fmt.Fprintf(&b, "\n== %s\n%s\n", src, whole.Outline())
+		for k, c := range whole.Clauses {
+			if k == 0 {
+				continue
+			}
+			main, ok := mainBefore(whole, k)
+			op, ok2 := openerFor(whole, c, main, src)
+			fmt.Fprintf(&b, "clause %d main=%v opener=%q ok=%v list=%v\n", k, ok, op, ok2, listBefore(whole, c))
+		}
+		for _, d := range divisions(whole, src) {
+			r := joinOpener(d.opener, src[d.rightStart:])
+			fmt.Fprintf(&b, "div %q | %q stands=%v/%v\n", src[:d.leftEnd], r, StandsAlone(src[:d.leftEnd]+"."), StandsAlone(r))
+		}
+		fmt.Fprintf(&b, "FIX: %q\n", Fix(src))
 		for _, c := range candidates(src, masked, false, SentenceWordCap) {
 			head := src[:c.left]
 			right, opened := openRest(src, masked, whole, c)

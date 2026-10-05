@@ -69,7 +69,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if seam == "," && (word.Tag == "VBN" || word.Tag == "VBD") && first+1 < len(whole.Words) && !takesObject(whole, first+1) &&
 		!finiteOutsideRelative(syntax.Parse(checkMask(head), nil), 0) {
 		if subject, ok := fragmentSubject(source, whole); ok {
-			return head, subject + " " + rest, opensWithCarrier
+			return fragmentHead(head), subject + " " + rest, opensWithCarrier
 		}
 	}
 	main, hasMain := mainVerb(whole, c.left)
@@ -167,6 +167,11 @@ func headOpen(s *syntax.Sentence, end int) bool {
 // adverbial of frequency, which belongs to the sentence however deep it sits.
 func everyNext(s *syntax.Sentence, i int) bool {
 	return i+1 < len(s.Words) && (s.Words[i+1].Lower() == "every" || s.Words[i+1].Lower() == "each")
+}
+
+// fragmentHead turns a noun phrase that holds no main verb into a sentence.
+func fragmentHead(head string) string {
+	return "This is " + lowerOpening(head)
 }
 
 // takesObject reports an object after a participle. An adjective with no
