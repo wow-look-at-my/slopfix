@@ -101,7 +101,7 @@ func init() {
 	registerPatternRules()
 }
 
-// registerTombstoneRules registers the two tombstone rules the wording table
+// registerTombstoneRules registers both tombstone rules the wording table
 // does not carry: one names a volume, and one names a symbol nothing defines.
 func registerTombstoneRules() {
 	registerFile(tombstones.IDVolume, RuleTombstones, "main.go", volumeCase())
@@ -127,10 +127,11 @@ func referentID() string {
 
 // referentCase names a symbol no file in the tree defines. The name is built
 // here rather than written whole, so the index that answers the rule cannot
-// find the case's own text beside it.
+// find the case's own text beside it. The name sits on a code line, so the
+// rule reports it rather than stripping the whole comment.
 func referentCase() string {
 	name := "Old" + "Scanner" + "Two"
-	return "package main\n\n// The " + name + " reads each value from the input.\nfunc main() {}\n"
+	return "package main\n\nfunc main() {\n\tvalue := 1 // The " + name + " reads each value.\n\t_ = value\n}\n"
 }
 
 // volumeCase is a comment run longer than the default cap.
