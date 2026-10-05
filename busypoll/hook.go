@@ -1,5 +1,5 @@
-// Package busypoll refuses the latest turn in a run of turns that make the
-// same tool call. The turns are close together, and nothing else differs.
+// Package busypoll refuses a turn that is the latest in a run of turns making
+// the same tool call, closely spaced, with nothing else different in between.
 // It also refuses the status read itself when nothing it returns has changed.
 //
 // That shape is a manual polling loop: the same check re-run every turn
@@ -83,8 +83,8 @@ func runPreTool(in Input) Result {
 }
 
 // reason is what the model is told. It names the repeated call, states the
-// count, and gives the ways out. A refusal that does not say what to do
-// instead gets repeated with a different excuse.
+// count, and gives the ways out, because a refusal that does not say what to
+// do instead gets repeated with a different excuse.
 func reason(n int, calls []call, repeat bool) string {
 	shown := make([]string, 0, len(calls))
 	for _, c := range calls {
