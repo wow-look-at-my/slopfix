@@ -132,11 +132,23 @@ func Keep(before, after string, s *Scope) string {
 	a, b := splitLines(before), splitLines(after)
 	var out strings.Builder
 	for _, op := range opcodes(before, after) {
-		if op.Tag == 'e' || !s.mayChange(op.I1, op.I2) {
+		switch {
+		case op.Tag == 'e':
 			out.WriteString(strings.Join(a[op.I1:op.I2], ""))
-			continue
+		case s.mayChange(op.I1, op.I2):
+			out.WriteString(strings.Join(b[op.J1:op.J2], ""))
+		case op.Tag == 'r' && op.I2-op.I1 == op.J2-op.J1:
+			// Lines pair one to one, so each lands or goes back alone.
+			for k := range op.I2 - op.I1 {
+				if s.Owns(op.I1 + k + 1) {
+					out.WriteString(b[op.J1+k])
+				} else {
+					out.WriteString(a[op.I1+k])
+				}
+			}
+		default:
+			out.WriteString(strings.Join(a[op.I1:op.I2], ""))
 		}
-		out.WriteString(strings.Join(b[op.J1:op.J2], ""))
 	}
 	return out.String()
 }

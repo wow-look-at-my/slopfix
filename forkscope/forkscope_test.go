@@ -248,6 +248,14 @@ func TestKeepPutsBackEveryChangeToAnInheritedLine(t *testing.T) {
 	assert.Equal(t, "a\nb\nc", Keep("a\nb\nc", "a\nB\nc\n", OfLines(1)), "a line end is a change to its line")
 }
 
+// A change that replaces a couple of lines with a couple of lines pairs
+// them, so the fork's line lands although the inherited line beside it goes back.
+func TestKeepTakesEachPairedLineAlone(t *testing.T) {
+	before := "fork: 2 hits\nbase: Two jobs\nbase: rest\n"
+	after := "fork: Hits\nbase: Jobs\nbase: rest\n"
+	assert.Equal(t, "fork: Hits\nbase: Two jobs\nbase: rest\n", forkscope.Keep(before, after, forkscope.OfLines(1)))
+}
+
 func TestCarryFollowsTheLinesThroughARepair(t *testing.T) {
 	carried := Carry("a\nb\nc\n", "a\nx\ny\nc\n", OfLines(2))
 	assert.False(t, carried.Owns(1))
