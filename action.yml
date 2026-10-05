@@ -1,32 +1,14 @@
 name: slopfix
-description: Download slopfix and check the whole checkout with every rule, or answer whether this job holds a permission
+description: Download slopfix and check the whole checkout with every rule
 
-# No input narrows the check: action_test.go fails the build on any input but these.
-inputs:
-  permission:
-    description: >-
-      A permission scope, such as id-token. When set, the action answers
-      check workflow-permission for the running job instead of the check.
-    required: false
-    default: ''
-
-  level:
-    description: The level the permission must reach - none, read or write
-    required: false
-    default: write
-
-outputs:
-  stdout:
-    description: What slopfix wrote on stdout, which is the JSON answer when permission is set
-    value: ${{ steps.permission.outputs.stdout }}
+# No input narrows the check: action_test.go fails the build on any input.
 
 runs:
   using: composite
   steps:
-    # The check reads the same tree in every job, so one job of the run does it. The permission answer differs per job, so it never claims.
+    # The check reads the same tree in every job, so one job of the run does it.
     - name: Claim the slopfix check for this run
       id: claim
-      if: inputs.permission == ''
       uses: wow-look-at-my/actions@run-once#latest
       with:
         name: slopfix-check
@@ -46,20 +28,8 @@ runs:
     # check reads the repository from the API to tell whether it is a fork, and a private one needs the token.
     - name: Run slopfix
       id: check
-      if: inputs.permission == '' && steps.claim.outputs.first != 'false'
+      if: steps.claim.outputs.first != 'false'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: sh "${{ steps.download.outputs.path }}" check .
-
-    - name: Ask slopfix for the job permission
-      id: permission
-      if: inputs.permission != ''
-      shell: bash
-      env:
-        SLOPFIX_PERMISSION: ${{ inputs.permission }}
-        SLOPFIX_LEVEL: ${{ inputs.level }}
-      run: |
-        out=$(sh "${{ steps.download.outputs.path }}" check workflow-permission --json --permission "$SLOPFIX_PERMISSION" --level "$SLOPFIX_LEVEL")
-        echo "$out"
-        echo "stdout=$out" >> "$GITHUB_OUTPUT"

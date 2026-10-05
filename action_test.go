@@ -24,8 +24,7 @@ func TestActionHasNoInputThatNarrowsTheCheck(t *testing.T) {
 		names = append(names, name)
 	}
 	slices.Sort(names)
-	assert.Equal(t, []string{"level", "permission"}, names,
-		"the action takes only the workflow-permission query; a new input must not scope or weaken the check")
+	assert.Empty(t, names, "the action takes no input; an input must not scope or weaken the check")
 }
 
 type actionStep struct {
@@ -53,7 +52,6 @@ func TestActionClaimsTheCheckOncePerRun(t *testing.T) {
 	assert.Equal(t, "claim", claim.ID, "the claim must come before the download")
 	assert.Equal(t, "wow-look-at-my/actions@run-once#latest", claim.Uses)
 	assert.Equal(t, "slopfix-check", claim.With["name"])
-	assert.Equal(t, "inputs.permission == ''", claim.If, "the permission answer is per job and must never be claimed")
 
 	for _, id := range []string{"download", "check"} {
 		idx := slices.IndexFunc(steps, func(s actionStep) bool { return s.ID == id })
