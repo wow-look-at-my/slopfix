@@ -210,6 +210,13 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 			// A cut inside a noun phrase strands its noun: "no other | thread".
 			continue
 		}
+		// A verb does not close a sentence before the adjective it links to:
+		// "the pointer stays. Valid for reads of n bytes" is no sentence pair.
+		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && strings.HasPrefix(w.Tag, "VB") {
+			if n := wordsBefore(whole, c.right); n < len(whole.Words) && strings.HasPrefix(whole.Words[n].Tag, "JJ") {
+				continue
+			}
+		}
 		head := strings.TrimRight(source[:c.left], " ,;:—–-")
 		last := strings.ToLower(strings.Trim(lastField(head), ".,;:!?*_\"'`()[]“”‘’"))
 		next := strings.ToLower(strings.Trim(firstToken.FindString(source[c.right:]), ".,;:!?*_\"'`()[]“”‘’"))
