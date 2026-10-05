@@ -57,12 +57,9 @@ var connectors = map[string]string{
 	"or":  "Otherwise,",
 }
 
-// FixByHand is the Fix text of a long sentence that no division can repair.
-const FixByHand = "Rewrite it by hand as shorter sentences. No division keeps each half a grammatical sentence."
-
-// fixSentenceCap divides every over-cap sentence where both halves stay
-// grammatical sentences. It first tries the clause boundaries, then the word
-// boundaries.
+// fixSentenceCap divides every over-cap sentence. It first tries the clause
+// boundaries, then the word boundaries, and a sentence no division reads is cut
+// between words so that no finding is left standing.
 func fixSentenceCap(prose string, d capSpec) string {
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := divideNext(prose, d.cap)

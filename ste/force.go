@@ -129,6 +129,8 @@ func fillWord(span []byte) {
 type forceCut struct {
 	left, right int
 	score       int
+	// words is the count Check reads for the part before left.
+	words int
 }
 
 // forceDivision divides source at the best word boundary that leaves the first
@@ -176,7 +178,56 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			return out, true
 		}
 	}
-	return fragmentDivision(source, masked, whole, d.cap)
+	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok {
+		return out, true
+	}
+	return hardDivision(source, masked, d.cap)
+}
+
+// hardDivision divides a sentence that no grammatical division reads. It keeps
+// the longest run of leading words under the cap, closes it as a sentence, and
+// opens the rest with a capital, so the cap rule leaves no finding standing.
+//
+// It never ends a half on a word that needs the next one, and never cuts inside
+// a code span, a link, a quotation or a parenthesis. candidates answers only
+// the gaps outside those spans, so the cut lands between whole words.
+func hardDivision(source, masked string, limit int) (string, bool) {
+	ends := wordEnds(masked)
+	if len(ends) <= limit || len(ends) < 2*minimumHalf {
+		return source, false
+	}
+	best, bestWords := forceCut{}, -1
+	for _, c := range candidates(source, masked, false, limit) {
+		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < minimumHalf {
+			continue
+		}
+		if len(ends)-c.words < minimumHalf {
+			continue
+		}
+		head := strings.TrimRight(source[:c.left], " ,;:—–-")
+		last := strings.ToLower(strings.Trim(lastField(head), ".,;:!?*_\"'`()[]“”‘’"))
+		next := strings.ToLower(strings.Trim(firstToken.FindString(source[c.right:]), ".,;:!?*_\"'`()[]“”‘’"))
+		// A possessive governs the word after it, so a part never ends on one.
+		if strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s") {
+			continue
+		}
+		if forceDangling.Contains(last) || forceBound.Contains(next) {
+			continue
+		}
+		// The longest leading run that fits reads best, and the first cut of it is deterministic.
+		if c.words > bestWords {
+			best, bestWords = c, c.words
+		}
+	}
+	if bestWords < 0 {
+		return source, false
+	}
+	left := closeHead(source[:best.left])
+	right := capitalizeOpening(strings.TrimLeft(source[best.right:], " "))
+	if left == "" || right == "" {
+		return source, false
+	}
+	return left + " " + right, true
 }
 
 // splitsObject reports a cut between a finite verb and the noun phrase right
@@ -336,7 +387,7 @@ func candidates(source, masked string, strict bool, limit int) []forceCut {
 		case forceOpener.Contains(next):
 			penalty = 3
 		}
-		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty})
+		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty, words: leftWords})
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].score > out[b].score })
 	return out

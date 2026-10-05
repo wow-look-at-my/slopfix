@@ -10,7 +10,7 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 |---|---|---|
 | `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary`, `repo/near-duplicate`, `repo/json`, `repo/xml` | all but `repo/near-duplicate`, `repo/json` and `repo/xml` |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
-| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence or a semicolon that no division keeps grammatical |
+| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a semicolon that no period can replace |
 | `english` | `english/comma-never` | yes, except before a verb |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no, and a warning never fails `check` |
 | `counts` | `counts/inventory-count` | yes |
