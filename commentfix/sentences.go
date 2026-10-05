@@ -5,6 +5,7 @@ package commentfix
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
@@ -107,20 +108,39 @@ type segment struct {
 func segmentsOf(lines []string, p para) []segment {
 	var out []segment
 	var current *segment
+	prev := ""
 	for n, i := range p.lines {
 		prose := lineProse(lines[i], p, n)
 		if prose == "" {
 			current = nil
 			continue
 		}
-		if current == nil || strings.HasPrefix(prose, "@") {
+		if current == nil || strings.HasPrefix(prose, "@") || lineEndsThought(prev, prose) {
 			out = append(out, segment{})
 			current = &out[len(out)-1]
 		}
 		current.rows = append(current.rows, n)
 		current.prose = strings.TrimSpace(current.prose + " " + prose)
+		prev = prose
 	}
 	return out
+}
+
+// lineEndsThought reports a row break that ends a thought with no stop: the
+// row before ends on no mark and no word that opens a phrase, and the row
+// after opens on a capital or a list marker. A terse comment writes a sentence
+// a line, as in "the byte at the checkpoint" and then "This handles a list".
+func lineEndsThought(prev, next string) bool {
+	prev = strings.TrimSpace(prev)
+	if prev == "" || strings.ContainsAny(prev[len(prev)-1:], ".!?,;:-(—–/\\&|+=") {
+		return false
+	}
+	fields := strings.Fields(prev)
+	if dangling.Contains(strings.ToLower(trimWord(fields[len(fields)-1]))) {
+		return false
+	}
+	first := []rune(next)[0]
+	return unicode.IsUpper(first) || strings.HasPrefix(next, "- ") || strings.HasPrefix(next, "* ")
 }
 
 // judged reports a paragraph the rule reads: prose a person wrote for a reader.
@@ -184,7 +204,14 @@ func divideSentences(prose string) string {
 		}
 		start += at
 		out.WriteString(prose[at:start])
-		out.WriteString(ste.FixSelected(sentence, func(id string) bool { return id == ste.IDSentenceCap }))
+		if ste.WordCount(ste.Masked(sentence)) <= ste.SentenceWordCap {
+			out.WriteString(sentence)
+		} else {
+			// A semicolon and a splice are where a long sentence divides best, so the division repairs them too.
+			out.WriteString(ste.FixSelected(sentence, func(id string) bool {
+				return id == ste.IDSentenceCap || id == ste.IDSemicolon || id == ste.IDCommaSplice
+			}))
+		}
 		at = start + len(sentence)
 	}
 	out.WriteString(prose[at:])
