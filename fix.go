@@ -50,29 +50,10 @@ const (
 var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleEnglish, RuleComments, RuleWorkflow, RuleRepo, RulePins}
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
-// before it applies nothing and reads as a clean file.
+// before it applies nothing and reads as a clean file. The registry is the
+// source, so a category answers with the rules actually registered under it.
 func IDsFor(rule Rule) set.Set[string] {
-	switch rule {
-	case RuleTombstones:
-		return tombstones.AllIDs()
-	case RuleCounts:
-		return set.Of(counts.ID, counts.IDSection)
-	case RuleWrap:
-		return set.Of(IDHardWrap, IDLongBlock)
-	case RuleSTE:
-		return ste.AllIDs
-	case RuleEnglish:
-		return set.Of(english.AllIDs...)
-	case RuleComments:
-		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
-	case RuleWorkflow:
-		return workflow.AllIDs
-	case RuleRepo:
-		return RepoIDs
-	case RulePins:
-		return pins.AllIDs
-	}
-	return set.New[string]()
+	return ruleIDsIn(rule)
 }
 
 // Request is a piece of text put to Fix. Path decides the comment syntax, and
@@ -288,6 +269,11 @@ func fixText(req Request) Repair {
 
 	switch kind {
 	case fixer.Workflow:
+		// A sentence the STE cap catches in a workflow comment is an STE rule,
+		// so --only ste reaches it even when --only omits the yaml category.
+		if wants(RuleSTE) && keeps(ste.IDSentenceCap) {
+			repair.Findings = append(repair.Findings, sentenceFindings(req.Path, text)...)
+		}
 		if !wants(RuleWorkflow) {
 			break
 		}
@@ -295,9 +281,6 @@ func fixText(req Request) Repair {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
 			}
-		}
-		if wants(RuleSTE) && keeps(ste.IDSentenceCap) {
-			repair.Findings = append(repair.Findings, sentenceFindings(req.Path, text)...)
 		}
 	case fixer.Source:
 		// Source keeps its own text for the prose rules, because a comma splice

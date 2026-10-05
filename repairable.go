@@ -2,12 +2,7 @@ package slopfix
 
 import (
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/commentfix"
-	"github.com/wow-look-at-my/slopfix/counts"
-	"github.com/wow-look-at-my/slopfix/english"
-	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
-	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -26,35 +21,9 @@ func EveryID() set.Set[string] {
 var WarningIDs = ste.WarningIDs.Union(workflow.WarningIDs)
 
 // Repairable reports whether slopfix repairs the DEFECT a finding names,
-// rather than the rule that found it.
+// rather than the rule that found it. A rule repairs when it is registered
+// with an autofix. A rule that declares itself report-only does not.
 func Repairable(id string) bool {
-	return repairable.Contains(id)
+	spec, ok := RuleSpecByID(id)
+	return ok && spec.Autofix != nil
 }
-
-// repairable is derived: each entry names a repair a test drives.
-var repairable = ste.Repairs.Clone().Union(set.Of(
-	// The wrap join, and the division of a long block.
-	IDHardWrap,
-	IDLongBlock,
-	// The counts rule cuts the cardinal out of the same sentence the prose
-	ste.IDStaleCount,
-	IDInventoryCount,
-	// A section cited by number becomes a link named by its title.
-	counts.IDSection,
-	// The comment rules: a block fits its code, a number is said in words, and a comment says something whole.
-	commentfix.IDLength,
-	commentfix.ID,
-	commentfix.IDTail,
-	// The workflow rules: the gate, the comment block, the shadowing job name.
-	workflow.IDNeuteredGate,
-	workflow.IDCommentBlock,
-	workflow.IDAllBuildsJob,
-	workflow.IDEnvIndirection,
-	workflow.IDPushTags,
-	workflow.IDOrgActionRef,
-	workflow.IDConcurrency,
-	// The v parameter comes out of a download URL.
-	pins.ID,
-	// ", never" becomes ", not".
-	english.IDCommaNever,
-)).Union(tombstones.AllIDs()).Union(RepoIDs.Difference(ReportOnly))
