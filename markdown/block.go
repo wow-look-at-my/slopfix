@@ -4,6 +4,7 @@ package markdown
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -93,13 +94,27 @@ func paragraphs(content string, lines []string) map[int]int {
 		case ast.KindParagraph, ast.KindTextBlock:
 			if segments := n.Lines(); segments.Len() > 0 {
 				first := lineOf(starts, segments.At(0).Start)
-				ends[first] = lineOf(starts, segments.At(segments.Len()-1).Stop-1)
+				last := lineOf(starts, segments.At(segments.Len()-1).Stop-1)
+				if hasLetter(lines[first : last+1]) {
+					ends[first] = last
+				}
 			}
 			return ast.WalkSkipChildren, nil
 		}
 		return ast.WalkContinue, nil
 	})
 	return ends
+}
+
+// hasLetter reports whether any line holds a letter. A paragraph with none is
+// a picture, such as braille or box art. A join destroys its shape.
+func hasLetter(lines []string) bool {
+	for _, line := range lines {
+		if strings.IndexFunc(line, unicode.IsLetter) >= 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // blankFrontMatter writes spaces over a YAML front matter block, byte for byte,

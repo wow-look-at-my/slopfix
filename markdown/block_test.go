@@ -46,6 +46,13 @@ func TestFrontMatterIsNotProse(t *testing.T) {
 	assert.Equal(t, "The body.", blocks[0].Text())
 }
 
+// The logo a program prints holds no letter. A join puts it on one line.
+func TestAParagraphWithNoLetterIsAPicture(t *testing.T) {
+	doc := "⠀⠀⣠⣾⠿⠛⠛⢀⡴⠁\n⠀⣼⡟⠁⠀⢀⡴⠻⣿⡀\n⠀⢹⣷⠀⠀⢀⣴⡿⠀⠀\n"
+	assert.Empty(t, prose(doc))
+	assert.Equal(t, doc, markdown.Format(doc))
+}
+
 func TestATableIsAGrid(t *testing.T) {
 	assert.Empty(t, prose("a | b\n--|--\nc | d\n"))
 }
