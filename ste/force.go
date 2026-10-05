@@ -197,7 +197,8 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 	if len(ends) <= limit || len(ends) < 2*minimumHalf {
 		return source, false
 	}
-	best, bestWords := forceCut{}, -1
+	whole := syntax.Parse(masked, nil)
+	best, bestWords, bestRank := forceCut{}, -1, -1
 	for _, c := range candidates(source, masked, false, limit) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < minimumHalf {
 			continue
@@ -215,9 +216,10 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if forceDangling.Contains(last) || forceBound.Contains(next) {
 			continue
 		}
-		// The longest leading run that fits reads best, and the first cut of it is deterministic.
-		if c.words > bestWords {
-			best, bestWords = c, c.words
+		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
+		rank := hardSeamRank(source, whole, c)
+		if rank > bestRank || rank == bestRank && c.words > bestWords {
+			best, bestWords, bestRank = c, c.words, rank
 		}
 	}
 	if bestWords < 0 {
@@ -229,6 +231,25 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// hardSeamRank grades a cut for hardDivision. A cut that parts a subject from
+// its verb, or a verb from what follows it, ranks lowest: "it. Is carrying".
+// A cut at a mark, or before a conjunction or a preposition, ranks highest.
+func hardSeamRank(source string, whole *syntax.Sentence, c forceCut) int {
+	first := wordFrom(whole, c.right)
+	if first < 1 || first >= len(whole.Words) {
+		return 0
+	}
+	next, last := whole.Words[first].Tag, whole.Words[first-1].Tag
+	if strings.HasPrefix(next, "VB") || next == "MD" || next == "RP" || next == "POS" || strings.HasPrefix(last, "VB") || last == "MD" {
+		return 0
+	}
+	if strings.ContainsAny(source[c.left:c.right], ",;:—–") || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",") ||
+		next == "CC" || next == "IN" || next == "WDT" || next == "WRB" {
+		return 2
+	}
+	return 1
 }
 
 // splitsObject reports a cut between a finite verb and the noun phrase right

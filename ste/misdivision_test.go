@@ -42,6 +42,32 @@ var misdivisions = []struct {
 	},
 }
 
+// Sentences from a real tree that no grammatical division reads. The cut
+// between words once parted a subject from its verb or a verb from its
+// particle in each. The bad text is that seam.
+var hardCuts = []struct {
+	in  string
+	bad string
+}{
+	{"A crate that still carries hits names the lint in an inner attribute at the top of its crate root (`src/lib.rs`, `src/main.rs`, each `src/bin/*.rs`, `build.rs`, which are separate roots and inherit nothing), with the count it is carrying: `#![allow(clippy::string_slice)] // 4 hits predate the gate`.", "it. Is"},
+	{"Immediate-sending the new prompt onto the server queue while the one stayed local ran them AHEAD of it (the merge is server-rows-first), so `[2, 3]` showed up as `[3, 2]`.", "showed. Up"},
+	{"That snapshot must record every discovered skill name — including `paths:`-gated and preloaded skills that the listing baseline (`slash_skills`) holds back — so session-start telemetry can reuse it instead of re-walking the disk.", "telemetry. Can"},
+	{"The item list a `/todo` capture sends on its SECOND model call: the same prepared snapshot `/btw` sends, its instruction, then the first response echoed back verbatim (reasoning included) with the tool result that answered it.", "echoed. Back"},
+	{"The span the current window covers at `now`: the whole window once the response has run that long, and the time since its first chunk before then.", "first. Chunk"},
+}
+
+func TestALastResortCutKeepsAVerbWithItsNeighbours(t *testing.T) {
+	for _, c := range hardCuts {
+		t.Run(c.bad, func(t *testing.T) {
+			got := ste.Fix(c.in)
+			assert.NotContains(t, got, c.bad)
+			for _, f := range ste.Check(got, 1) {
+				assert.NotEqual(t, ste.IDSentenceCap, f.ID, "the cut still leaves every sentence under the cap: %s", f.Detail)
+			}
+		})
+	}
+}
+
 func TestADivisionNeverWritesABrokenFragment(t *testing.T) {
 	for _, c := range misdivisions {
 		t.Run(c.name, func(t *testing.T) {
