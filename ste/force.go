@@ -261,6 +261,14 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 	return left + " " + right, true
 }
 
+// alsoVerb writes the main verb group with "also" before its last verb, so
+// "must ensure" restates as "must also ensure".
+func alsoVerb(source string, s *syntax.Sentence, verb syntax.Phrase) string {
+	text := source[s.Words[verb.First].Start:s.Words[verb.Last].End]
+	at := s.Words[verb.Last].Start - s.Words[verb.First].Start
+	return text[:at] + "also " + text[at:]
+}
+
 // splitsObject reports a cut between a finite verb and the noun phrase right
 // after it, which is the verb's object: "a sentence names | an item".
 func splitsObject(s *syntax.Sentence, c forceCut) bool {

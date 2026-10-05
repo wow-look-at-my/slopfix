@@ -540,14 +540,6 @@ func passive(s *syntax.Sentence, verb syntax.Phrase) bool {
 	return false
 }
 
-// alsoVerb writes the main verb group with "also" before its last verb, so
-// "must ensure" restates as "must also ensure".
-func alsoVerb(source string, s *syntax.Sentence, verb syntax.Phrase) string {
-	text := source[s.Words[verb.First].Start:s.Words[verb.Last].End]
-	at := s.Words[verb.Last].Start - s.Words[verb.First].Start
-	return text[:at] + "also " + text[at:]
-}
-
 // nounText answers the source text of a word, a whole code span where the
 // word is the filler the mask wrote over one.
 func nounText(source string, w syntax.Word) string {
