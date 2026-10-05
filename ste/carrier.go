@@ -66,10 +66,10 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, "", 0
 	}
 	// "A trailing run of turns that each made a call, spaced close together": a participle after a fragment describes the fragment's head.
-	if seam == "," && (word.Tag == "VBN" || word.Tag == "VBD") && first+1 < len(whole.Words) && !takesObject(whole.Words[first+1].Tag) &&
+	if seam == "," && (word.Tag == "VBN" || word.Tag == "VBD") && first+1 < len(whole.Words) && !takesObject(whole, first+1) &&
 		!finiteOutsideRelative(syntax.Parse(checkMask(head), nil), 0) {
 		if subject, ok := fragmentSubject(source, whole); ok {
-			return head, subject + " " + rest, opensWithCarrier
+			return fragmentHead(head), subject + " " + rest, opensWithCarrier
 		}
 	}
 	main, hasMain := mainVerb(whole, c.left)
@@ -169,6 +169,20 @@ func everyNext(s *syntax.Sentence, i int) bool {
 	return i+1 < len(s.Words) && (s.Words[i+1].Lower() == "every" || s.Words[i+1].Lower() == "each")
 }
 
+// fragmentHead turns a noun phrase that holds no main verb into a sentence.
+func fragmentHead(head string) string {
+	return "This is " + lowerOpening(head)
+}
+
+// takesObject reports an object after a participle. An adjective with no
+// noun after it is a complement: "spaced close enough".
+func takesObject(s *syntax.Sentence, i int) bool {
+	if s.Words[i].Tag == "JJ" && !opensObject(s, i+1) {
+		return false
+	}
+	return opensObject(s, i)
+}
+
 // opensObject reports word i opening a noun phrase a preposition can take.
 // This covers a determiner, a possessive, a number, an adjective, a name or a
 // singular noun.
@@ -216,9 +230,9 @@ func subordinatorBetween(s *syntax.Sentence, from, end int) bool {
 	return false
 }
 
-// hiddenVerb reports a verb the tagger read as something else, from word i on:
-// a form of "be", or a plural noun right before a participle, as in "an
-// identifier split across lines stops being either".
+// hiddenVerb reports a verb the tagger read as something else, from word i on.
+// It finds a form of "be", or a plural noun right before a participle. An
+// example is "an identifier split across lines stops being either".
 func hiddenVerb(s *syntax.Sentence, i int) bool {
 	for ; i < len(s.Words); i++ {
 		w := s.Words[i]
@@ -329,9 +343,9 @@ func topCommas(text string, from int) []int {
 	return out
 }
 
-// plainPhrase reports words from i to the end of the sentence that hold no
-// comma, no conjunction, no subordinator and no finite verb outside a
-// parenthesis. Only such a phrase moves behind a restated noun whole.
+// plainPhrase reports the words from i to the end of the sentence when they
+// are plain. Outside a parenthesis, they hold no comma, no conjunction, no
+// subordinator and no finite verb. Only such a phrase moves behind a restated noun whole.
 func plainPhrase(s *syntax.Sentence, i int) bool {
 	depth := 0
 	for k, w := range s.Words[min(i, len(s.Words)):] {
@@ -405,7 +419,7 @@ func closesPhrase(head string, whole *syntax.Sentence) bool {
 	if n == 0 || finiteBetween(whole, 0, n) {
 		return false
 	}
-	// A head that opens on a preposition or a subordinator leads into the clause after it, so only a noun phrase stands as a fragment of its own.
+	// A head that opens on a preposition or a subordinator leads into the clause after it. Only a noun phrase stands as a fragment of its own.
 	switch t := whole.Words[0].Tag; {
 	case t == "DT" || t == "JJ" || t == "PRP$" || strings.HasPrefix(t, "NN"):
 	default:

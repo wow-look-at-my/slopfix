@@ -17,7 +17,7 @@ type paragraph struct {
 	raw      []string
 }
 
-// codeRow reports a line laid out by hand: the prose after its marker opens
+// codeRow reports a line laid out by hand. The prose after its marker opens
 // with a tab, or with more than the space a marker takes. Godoc renders such
 // a line verbatim, and an aligned list in any language means the same.
 func codeRow(line string) bool {

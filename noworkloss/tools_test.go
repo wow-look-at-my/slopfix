@@ -13,8 +13,8 @@ import (
 )
 
 // The routes that are not Bash at all. Each keeps the same pair as the shell
-// cases. The call that must be refused, and the neighbouring call that must
-// still work, so a rule that denied the whole tool would fail the control.
+// cases. One call must be refused, and the neighbouring call must still work.
+// A rule that denied the whole tool would fail the control.
 
 func TestTheEditToolsThemselvesAreLeftAlone(t *testing.T) {
 	root := newTree(t)
@@ -380,7 +380,7 @@ func TestNothingIsWrittenForAnAllowedCall(t *testing.T) {
 func TestOtherEventsAndToolsAreIgnored(t *testing.T) {
 	root := newTree(t)
 	for _, event := range []string{"PostToolUse", "Stop", "SessionStart", ""} {
-		assert.Empty(t, decideWithEvent(t, event, "Bash", root, "sed -i s/a/b/ src.txt"),
+		assert.Empty(t, decideWithEvent(t, event, "Bash", root, "truncate -s 0 src.txt"),
 			"%s is not this hook's event", event)
 	}
 	assert.Empty(t, ask(t, root, ""), "an empty command decides nothing")

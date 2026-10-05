@@ -58,8 +58,9 @@ func deletions(src string, hits []Hit) []edit.Edit {
 }
 
 // literalAround widens the digits from at up to stop to the whole numeric
-// literal they belong to: the fraction after a decimal point, the groups after
-// a thousands separator, an exponent, and a sign or power mark in front.
+// literal they belong to. The literal holds the fraction after a decimal
+// point and the groups after a thousands separator. It also holds an exponent,
+// and a sign or power mark in front.
 // Deleting only the digits a finding names leaves the rest standing as
 // fragments such as ".874".
 func literalAround(src string, at, stop int) (int, int) {
@@ -112,9 +113,9 @@ func isDigit(b byte) bool { return b >= '0' && b <= '9' }
 
 func isSpace(b byte) bool { return b == ' ' || b == '\t' }
 
-// closeGap answers the edit that deletes the bytes from at up to stop,
-// leaving the space a reader expects between words and none at all before
-// punctuation or at the end of a line.
+// closeGap answers the edit that deletes the bytes from at up to stop. The
+// edit leaves the space a reader expects between words. It leaves no space
+// before punctuation or at the end of a line.
 func closeGap(src string, at, stop int) edit.Edit {
 	lineStart := strings.LastIndexByte(src[:at], '\n') + 1
 	lineEnd := len(src)
