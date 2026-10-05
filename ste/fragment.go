@@ -41,13 +41,10 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 			if !opensFragment(whole.Words[n]) && !listAdverb.Contains(whole.Words[n].Lower()) {
 				continue
 			}
-		} else if !endsBefore(whole, n) || !opensFragment(whole.Words[n]) {
+		} else if !endsBefore(whole, n) || !opensFragment(whole.Words[n]) || opensMainClause(whole, n) {
 			continue
 		}
 		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {
-			continue
-		}
-		if opensMainClause(whole, n) {
 			continue
 		}
 		left := closeHead(source[:c.left])
