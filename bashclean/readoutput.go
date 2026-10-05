@@ -24,7 +24,7 @@ type postInput struct {
 
 // RunPost answers a PostToolUse payload. A Bash call that PlanRead maps gets
 // its output replaced with the text the Read tool shows for the same lines,
-// and a names the Read calls. Every other payload gets silence.
+// and a note names the Read calls. Every other payload gets silence.
 func RunPost(r io.Reader) HookResult {
 	data, err := io.ReadAll(r)
 	if err != nil {
