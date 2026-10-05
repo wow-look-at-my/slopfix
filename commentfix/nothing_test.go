@@ -43,7 +43,7 @@ func TestATrailingCommentInsideABodyLosesItsLines(t *testing.T) {
 // A directive in the run is an instruction the prose beside it explains, so it
 // is what the prose is weighed against. A gen.go carries nothing but a
 // //go:generate line and the paragraph saying why, and the deletion above
-// would have taken that paragraph on every run.
+// would have taken that paragraph. This happens on every run.
 func TestProseBesideADirectiveIsWeighedAgainstIt(t *testing.T) {
 	src := "package p\n\n// A module zip carries the gitlink and none of the submodule's files, so a\n" +
 		"// consumer has to fetch the sources before anything can translate them.\n" +

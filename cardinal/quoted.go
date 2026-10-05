@@ -2,7 +2,7 @@
 //
 // A quotation carries text the sentence is talking ABOUT rather than text the
 // sentence asserts. The clearest case is a comment documenting a rule by
-// quoting what the rule reads and what it writes: repairing inside the marks
+// quoting what the rule reads and what it writes. Repairing inside the marks
 // edits the example, and an example of a rewrite in which nothing differs says
 // nothing at all.
 //

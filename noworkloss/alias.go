@@ -41,9 +41,9 @@ func (a *aliasResolver) table(dir string) map[string]string {
 	return t
 }
 
-// expand turns `git <alias> args` into the segments it really runs. Returns
-// nil when the verb is a builtin (git resolves those ahead of aliases and
-// refuses to let an alias shadow a builtin) or when no such alias exists.
+// expand turns `git <alias> args` into the segments it runs. Returns nil when
+// the verb is a builtin (git resolves those ahead of aliases and refuses to
+// let an alias shadow a builtin) or when no such alias exists.
 func (a *aliasResolver) expand(seg segment, depth int) []segment {
 	if depth >= maxAliasDepth {
 		return nil

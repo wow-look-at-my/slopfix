@@ -315,7 +315,7 @@ func TestAReadThatErroredIsNotARead(t *testing.T) {
 
 // The result of a call is not on disk yet when the NEXT call's hook reads the
 // transcript. Counting an unanswered read refused the retry of a command that
-// had just died on an unknown flag.
+// had died on an unknown flag.
 func TestAReadWithNoResultYetIsNotARead(t *testing.T) {
 	const sha = "4f7cea8b1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f60"
 	tr := stageTranscript(t,

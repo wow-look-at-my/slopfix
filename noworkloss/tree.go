@@ -39,7 +39,7 @@ func guardedRoots(cwd string) []string {
 }
 
 // repoRoot walks up for a .git entry. A subprocess would answer the same
-// question, and this hook runs in front of every Bash call, so it reads the
+// question. This hook runs in front of every Bash call. It reads the
 // directory tree instead of paying for git.
 func repoRoot(dir string) string {
 	if dir == "" || !filepath.IsAbs(dir) {
@@ -99,8 +99,8 @@ func insideGuarded(roots []string, abs string) (string, bool) {
 
 // coversGuarded is insideGuarded's other direction: a write whose target is a
 // directory rather than a named file -- an extraction, a patch, a git verb --
-// lands somewhere under that directory, so a guarded root sitting inside it is
-// just as reachable as a root containing it.
+// lands somewhere under that directory, so a guarded root sitting inside it
+// is as reachable as a root containing it.
 func coversGuarded(roots []string, dir string) (string, bool) {
 	if root, ok := insideGuarded(roots, dir); ok {
 		return root, true
