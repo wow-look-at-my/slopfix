@@ -1,5 +1,5 @@
 // Package cardinal decides whether a number in a piece of text is a stated
-// count: a number that is true today and wrong after the next commit.
+// count. A stated count is true today and wrong after the next commit.
 //
 // A single rule, over several substrates. A document's prose and a source
 // comment go stale the same way. What differs is how much a substrate has to

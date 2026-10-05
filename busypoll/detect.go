@@ -1,6 +1,6 @@
-// detect.go finds a busy-poll. A trailing run of turns that each made the
-// exact same tool call, spaced close enough together that no real event or
-// scheduled wakeup could plausibly explain the repeat.
+// detect.go finds a busy-poll: a trailing run of turns that each made the
+// exact same tool call. The turns are so close together that no real event
+// or scheduled wakeup explains the repeat.
 //
 // Spacing is what separates this from a legitimate watch loop. A session
 // that re-checks a pull request on a scheduled trigger repeats the same

@@ -9,7 +9,7 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 )
 
-// cmakeSnippet is cut down from a CMakeLists.txt whose fix joined the set, if
+// cmakeSnippet is cut down from a CMakeLists.txt. Its fix joined the set, if
 // and endif lines into one paragraph and wrote prose into the code.
 const cmakeSnippet = `set(SGL_KERNEL_CUDA_FLAGS
     "-DNDEBUG"

@@ -44,8 +44,8 @@ func Annotate(message string) string {
 	}
 	// The repair is DECIDE, not "ask on a card instead". A card stalls the work
 	// and the owner answers a question he did not want. A card is right only
-	// where guessing is not: an action outside the branch, a destructive action,
-	// access this session lacks, or a fork the owner reserved.
+	// where a guess is wrong. That is an action outside the branch, a
+	// destructive action, access this session lacks, or a fork the owner reserved.
 	return fmt.Sprintf("\n\n> **ask-properly** -- %s%s. That is a decision handed over in prose. "+
 		"Make it yourself and say what you assumed. A card is for the narrow "+
 		"cases guessing cannot cover: reaching outside this branch, destroying "+

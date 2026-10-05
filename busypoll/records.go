@@ -1,7 +1,7 @@
 // records.go is the raw view of the transcript the PreToolUse half needs.
-// The Stop half works from turns, which keep only call signatures. Deciding
-// whether a status read can still learn anything needs the RESULT text too,
-// because that is where a merge or a green build is reported.
+// The Stop half works from turns, which keep only call signatures. To decide
+// whether a status read can still learn anything, this half also reads the
+// RESULT text. That text reports a merge or a green build.
 package busypoll
 
 import (

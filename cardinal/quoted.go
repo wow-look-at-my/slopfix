@@ -7,8 +7,8 @@
 // nothing at all.
 //
 // The apostrophe is not a quote mark here. It spells a contraction and a
-// possessive far more often than it opens a quotation, so reading it that way
-// would exempt the rest of any line carrying the word "doesn't".
+// possessive far more often than it opens a quotation. Read as a quote mark,
+// it exempts the rest of any line that holds the word "doesn't".
 package cardinal
 
 import "strings"
