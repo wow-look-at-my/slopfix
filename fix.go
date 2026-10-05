@@ -119,30 +119,40 @@ type Repair struct {
 func Fix(req Request) Repair {
 	repair := within(req, fixAll(req))
 	wide := widened(req)
-	if wide == nil || wide == req.Owned || wide.All() {
+	if wide == nil || wide == req.Owned || wide.All() || req.Scope.Bounded {
 		return repair
 	}
-	// A run rule keeps to the fork's own lines. Every other rule then reaches each whole block the fork wrote into.
-	owned := forkscope.Carry(req.Content, repair.Text, wide)
-	again := req
-	again.Content, again.Owned, again.Scope = repair.Text, nil, repair.Scope
-	again.IDs = blockFree(req)
-	fixed := fixAll(again)
-	text := forkscope.Keep(repair.Text, fixed.Text, owned)
-	if text != repair.Text {
-		repair.Removed = append(repair.Removed, landedRemovals(repair.Text, text, fixed.Removed)...)
-		if repair.Scope.Bounded && repair.Scope.Start <= repair.Scope.End {
-			repair.Scope.End = len(text) - (len(repair.Text) - repair.Scope.End)
-		}
-		repair.Text, repair.Changed = text, text != req.Content
-		owned = forkscope.Carry(req.Content, text, wide)
+	// Each paragraph the fork wrote into is repaired as a text of its own and put back.
+	text := repair.Text
+	ranges := forkscope.Blocks(text, forkscope.Carry(req.Content, text, req.Owned))
+	for i := len(ranges) - 1; i >= 0; i-- {
+		var removed []string
+		text, removed = fixBlock(req, text, ranges[i])
+		repair.Removed = append(repair.Removed, removed...)
 	}
+	repair.Text, repair.Changed = text, text != req.Content
+	owned := forkscope.Carry(req.Content, text, wide)
 	landed := req
 	landed.Content, landed.Owned, landed.Scope = text, nil, edit.Nowhere()
 	after := Fix(landed)
 	repair.Findings, repair.Kept = after.Findings, after.Kept
 	repair = scoped(repair, forkscope.Carry(req.Content, text, req.Owned), owned)
 	return upstreamRuns(req.Owned, repair.Text, repair)
+}
+
+// fixBlock repairs rows first to last of text with every rule but the run
+// rules, and puts the result back in place.
+func fixBlock(req Request, text string, rows [2]int) (string, []string) {
+	lines := strings.SplitAfter(text, "\n")
+	chunk := strings.Join(lines[rows[0]-1:rows[1]], "")
+	one := req
+	one.Content, one.Owned, one.Scope, one.IDs = chunk, nil, edit.Scope{}, blockFree(req)
+	fixed := fixAll(one)
+	out := fixed.Text
+	if strings.HasSuffix(chunk, "\n") && !strings.HasSuffix(out, "\n") {
+		out += "\n"
+	}
+	return strings.Join(lines[:rows[0]-1], "") + out + strings.Join(lines[rows[1]:], ""), fixed.Removed
 }
 
 // widened answers req.Owned grown to each whole block it reaches into.

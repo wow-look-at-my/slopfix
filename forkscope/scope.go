@@ -86,6 +86,24 @@ func (s *Scope) Widen(text string) *Scope {
 	return out
 }
 
+// Blocks answers the first and last line, counted from one, of each
+// paragraph or list item of the document text that holds a line s names.
+func Blocks(text string, s *Scope) [][2]int {
+	var out [][2]int
+	blocks := blocksOf(text)
+	for i := 0; i < len(blocks); {
+		j := i
+		for j+1 < len(blocks) && blocks[j+1] == blocks[i] {
+			j++
+		}
+		if blocks[i] >= 0 && s.Holds(i+1, j+1) {
+			out = append(out, [2]int{i + 1, j + 1})
+		}
+		i = j + 1
+	}
+	return out
+}
+
 // blocksOf answers the block of each line of text, counted from zero.
 func blocksOf(text string) []int {
 	rows := strings.Split(text, "\n")

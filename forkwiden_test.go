@@ -27,6 +27,22 @@ func TestTheVolumeCutNeedsTheVolumeRule(t *testing.T) {
 	assert.NotEqual(t, src, slopfix.Fix(req).Text, "the volume rule alone still cuts the block")
 }
 
+// upstreamList holds list items that are both hard-wrapped.
+const upstreamList = "# Rules\n\n- The first item reads the file\n  and its rules.\n- The second item writes the file\n  and its result.\n"
+
+// forkList edits the first line of the first item.
+const forkList = "# Rules\n\n- The first item reads the config\n  and its rules.\n- The second item writes the file\n  and its result.\n"
+
+// The fork's item is joined. The item under it is the base's, and stays as
+// the base wrapped it, although one diff hunk holds both joins.
+func TestAForkItemIsJoinedBesideAnUpstreamItem(t *testing.T) {
+	req := slopfix.Request{Path: "docs/rules.md", Content: forkList, Owned: forkscope.Changed(upstreamList, forkList)}
+	repair := slopfix.Fix(req)
+	assert.Empty(t, repair.Findings)
+	assert.Contains(t, repair.Text, "- The first item reads the config and its rules.\n")
+	assert.Contains(t, repair.Text, "- The second item writes the file\n  and its result.\n")
+}
+
 // upstreamLib opens with a crate doc longer than the code it documents.
 const upstreamLib = "//! The crate holds the transport.\n//! It owns the client.\n//! It owns the tool calls.\n//! It owns the error classes.\n//! It owns the refresh.\n\npub mod servers;\n"
 
