@@ -156,9 +156,9 @@ func ungate(content string) []edit.Edit {
 }
 
 // gateRows answers the row each named step's continue-on-error sits on, read
-// off the parser's own positions. Walking the text for the step's extent
-// instead asks an indent to say where a step ends, and a block scalar holding
-// a deeper line then ends it early.
+// off the parser's own positions. A walk of the text for the step's extent
+// asks an indent to say where a step ends. A block scalar with a deeper line
+// then ends the step early.
 func gateRows(content string, findings []ste.Finding) set.Set[int] {
 	drop := set.New[int]()
 	var doc yaml.Node

@@ -61,7 +61,7 @@ func Warnings(content string) []ste.Finding {
 }
 
 // Format joins every prose block to a single line, and reports whether the
-// rewrite is safe: a result whose words differ from the source is a bug.
+// rewrite is safe. A result whose words differ from the source is a bug.
 func Format(content string) (string, bool) {
 	formatted := markdown.Format(content)
 	return formatted, markdown.WordsOnly(content, formatted)

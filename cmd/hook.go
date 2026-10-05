@@ -165,8 +165,8 @@ func forkLinesOf(forks forkscope.Resolver, path string) (forkLines, error) {
 // judge answers a payload with the response to print, or "" to let the write
 // through. Every unreadable input answers "": a guard that refuses a write it
 // could not parse is worse than no guard. In a fork, a repair lands only on
-// the lines the fork wrote once the write lands, and a fork whose base cannot
-// be read refuses the write.
+// the lines the fork wrote once the write lands. A fork whose base cannot be
+// read refuses the write.
 func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Resolver) string {
 	var in hookInput
 	if json.Unmarshal(data, &in) != nil {
