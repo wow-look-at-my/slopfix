@@ -58,19 +58,11 @@ func merge(nodes []ts.Node, lines []string) []Run {
 	var runs []Run
 	for i := 0; i < len(nodes); {
 		start := int(nodes[i].StartPoint().Row)
-<<<<<<< HEAD
-		end, _ := lastRow(nodes[i])
-=======
 		end := lastRow(nodes[i])
->>>>>>> origin/master
 		j := i
 		for j+1 < len(nodes) && int(nodes[j+1].StartPoint().Row) <= end+1 && followsCode(nodes[j+1], lines) == followsCode(nodes[j], lines) {
 			j++
-<<<<<<< HEAD
-			if row, _ := lastRow(nodes[j]); row > end {
-=======
 			if row := lastRow(nodes[j]); row > end {
->>>>>>> origin/master
 				end = row
 			}
 		}
@@ -94,32 +86,18 @@ func purity(nodes []ts.Node, start, end int, lines []string) []bool {
 		pure[i] = true
 	}
 	for _, n := range nodes {
-<<<<<<< HEAD
-		from := int(n.StartPoint().Row)
-		to, newline := lastRow(n)
-		if before := int(n.StartPoint().Column); before > 0 && !blankTo(lines, from, before) {
-			pure[from-start] = false
-		}
-		if after := int(n.EndPoint().Column); !newline && !blankFrom(lines, to, after) {
-=======
 		from, to := int(n.StartPoint().Row), lastRow(n)
 		if before := int(n.StartPoint().Column); before > 0 && !blankTo(lines, from, before) {
 			pure[from-start] = false
 		}
 		if to == int(n.EndPoint().Row) && !blankFrom(lines, to, int(n.EndPoint().Column)) {
->>>>>>> origin/master
 			pure[to-start] = false
 		}
 	}
 	// A line inside the run that no comment covers holds something else.
 	covered := make([]bool, len(pure))
 	for _, n := range nodes {
-<<<<<<< HEAD
-		to, _ := lastRow(n)
-		for row := int(n.StartPoint().Row); row <= to; row++ {
-=======
 		for row := int(n.StartPoint().Row); row <= lastRow(n); row++ {
->>>>>>> origin/master
 			covered[row-start] = true
 		}
 	}
@@ -131,15 +109,6 @@ func purity(nodes []ts.Node, start, end int, lines []string) []bool {
 	return pure
 }
 
-<<<<<<< HEAD
-// lastRow answers the last row that holds text of the comment.
-func lastRow(n ts.Node) (row int, newline bool) {
-	row = int(n.EndPoint().Row)
-	if n.EndPoint().Column == 0 && row > int(n.StartPoint().Row) {
-		return row - 1, true
-	}
-	return row, false
-=======
 // lastRow is the last row that holds part of a comment.
 func lastRow(n ts.Node) int {
 	end := n.EndPoint()
@@ -153,7 +122,6 @@ func lastRow(n ts.Node) int {
 func followsCode(n ts.Node, lines []string) bool {
 	col := int(n.StartPoint().Column)
 	return col > 0 && !blankTo(lines, int(n.StartPoint().Row), col)
->>>>>>> origin/master
 }
 
 // blankTo reports whether the line holds only whitespace before a column.
