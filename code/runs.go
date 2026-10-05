@@ -59,7 +59,7 @@ func merge(nodes []ts.Node, lines []string) []Run {
 		start := int(nodes[i].StartPoint().Row)
 		end := lastRow(nodes[i])
 		j := i
-		for j+1 < len(nodes) && int(nodes[j+1].StartPoint().Row) <= end+1 {
+		for j+1 < len(nodes) && int(nodes[j+1].StartPoint().Row) <= end+1 && followsCode(nodes[j+1], lines) == followsCode(nodes[j], lines) {
 			j++
 			if row := lastRow(nodes[j]); row > end {
 				end = row
@@ -115,6 +115,12 @@ func lastRow(n ts.Node) int {
 		return int(end.Row) - 1
 	}
 	return int(end.Row)
+}
+
+// followsCode reports a comment that shares its first line with code before it. A note on a line of code is not part of the block above or below it.
+func followsCode(n ts.Node, lines []string) bool {
+	col := int(n.StartPoint().Column)
+	return col > 0 && !blankTo(lines, int(n.StartPoint().Row), col)
 }
 
 // blankTo reports whether the line holds only whitespace before a column.

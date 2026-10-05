@@ -53,6 +53,26 @@ func TestRustFieldDocsAreSeparateBlocks(t *testing.T) {
 	}
 }
 
+// A comment on a line of code is not part of the doc block below it, so the block starts at its own first line.
+func TestATrailingCommentIsNotPartOfTheBlockBelow(t *testing.T) {
+	var src strings.Builder
+	src.WriteString("#![allow(clippy::expect_used)] // Hits predate the gate\n")
+	src.WriteString("#![allow(clippy::unwrap_used)] // Hits predate the gate\n")
+	for range 20 {
+		src.WriteString("//! The crate reads the queue and writes each entry out.\n")
+	}
+	src.WriteString("\npub fn run() {}\n")
+
+	repair := slopfix.Report(slopfix.Request{Path: "lib.rs", Content: src.String(), MaxCommentLines: tombstones.DefaultMaxCommentLines})
+	var starts []int
+	for _, k := range repair.Kept {
+		if k.ID == tombstones.IDVolume {
+			starts = append(starts, k.LineNo)
+		}
+	}
+	assert.Equal(t, []int{3}, starts, "the block is the doc alone")
+}
+
 // A package doc has no construct to weigh against, so only the cap judges it.
 // The fix cuts it the same way and keeps the package clause.
 func TestFixCutsAPackageDocBackUnderTheVolumeCap(t *testing.T) {
