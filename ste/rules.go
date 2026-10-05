@@ -169,30 +169,12 @@ func Check(text string, line int) []Finding {
 	return markByHand(text, out)
 }
 
-// markByHand gives the hand-rewrite Fix text to each finding that the repair
-// leaves. It runs the repair on the text itself, so Check and Fix agree on
-// which semicolon and which sentence a period can divide.
+// markByHand gives the hand-rewrite Fix text to a finding the repair leaves.
+// Only the semicolon is ever left: every other rule divides its own text.
 func markByHand(text string, findings []Finding) []Finding {
-	var left map[string]bool
 	for n, f := range findings {
-		switch f.ID {
-		case IDSemicolon:
-			if fixSemicolons(text) == text {
-				findings[n].Fix = FixSemicolonByHand
-			}
-		case IDSentenceCap:
-			if left == nil {
-				left = map[string]bool{}
-				// Only a sentence still over the cap is left. A divided first half opens with the same words as the whole.
-				for _, sentence := range Sentences(strip(fixSentenceCap(text, capSpec{reorder: true, cap: SentenceWordCap}))) {
-					if WordCount(sentence) > SentenceWordCap {
-						left[truncate(strings.TrimSpace(sentence))] = true
-					}
-				}
-			}
-			if left[f.Detail] {
-				findings[n].Fix = FixByHand
-			}
+		if f.ID == IDSemicolon && fixSemicolons(text) == text {
+			findings[n].Fix = FixSemicolonByHand
 		}
 	}
 	return findings

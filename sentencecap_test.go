@@ -51,3 +51,28 @@ func TestCheckReportsALongSentenceInAComment(t *testing.T) {
 	assert.Contains(t, strings.ReplaceAll(out, "\n// ", " "), "This happens on each start of a session in the editor window.", out)
 	assert.Empty(t, quoted(slopfix.CheckContent("demo.go", out)), out)
 }
+
+// A shell comment inside a run: script is judged and repaired. The comment
+// gate compares data with a block scalar's # rows blanked, because a # inside
+// a scalar is part of the script's string.
+func TestALongSentenceInARunScriptCommentIsRepaired(t *testing.T) {
+	src := "name: CI\n" +
+		"on:\n" +
+		"  push:\n" +
+		"concurrency:\n" +
+		"  group: g\n" +
+		"  cancel-in-progress: true\n" +
+		"jobs:\n" +
+		"  build:\n" +
+		"    runs-on: ubuntu-latest\n" +
+		"    steps:\n" +
+		"      - run: |\n" +
+		"          # Building from a directory also asks the module cache for nothing, so the generator that lives in the module needing it never has to complete that module earliest.\n" +
+		"          make\n"
+	path := ".github/workflows/ci.yml"
+	require.Contains(t, findingIDs(slopfix.CheckContent(path, src)), ste.IDSentenceCap, "the control: the comment is over the cap")
+
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: path, MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+	assert.NotEqual(t, src, out)
+	assert.NotContains(t, findingIDs(slopfix.CheckContent(path, out)), ste.IDSentenceCap, out)
+}
