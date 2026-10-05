@@ -118,6 +118,10 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		// Noun phrases after a colon name what the head speaks of: "the words a repair drops, the phrasings it swaps".
 		opensNoun := word.Tag == "DT" || word.Tag == "PRP$" || word.Tag == "JJ" || strings.HasPrefix(word.Tag, "NN")
+		// One noun phrase after a colon, whose only verbs sit in its relative clauses, defines the head: "a stated count: a number that is true today".
+		if opensNoun && !strings.Contains(rest, ",") && finiteBetween(whole, first, len(whole.Words)) && !finiteOutsideRelative(whole, first) {
+			return head, "This is " + rest, opensWithCarrier
+		}
 		// A clause the tagger misread stands as a sentence of its own.
 		if opensNoun && hiddenVerb(whole, first) {
 			return head, capitalizeOpening(rest), opensWithCarrier
@@ -140,6 +144,31 @@ func finiteOutsideReduced(s *syntax.Sentence, from, end int) bool {
 	return false
 }
 
+// finiteOutsideRelative reports a finite verb from word from on that no
+// relative clause holds. A relative clause holds one finite verb group, and a
+// comma ends it. A later finite verb is the main verb: "the file that the
+// hook reads is".
+func finiteOutsideRelative(s *syntax.Sentence, from int) bool {
+	inside, held := false, false
+	for i := from; i < len(s.Words); i++ {
+		w := s.Words[i]
+		switch {
+		case w.Text == ",":
+			inside, held = false, false
+		case w.Tag == "WDT" || w.Tag == "WP" || w.Lower() == "that" && i > 0 && strings.HasPrefix(s.Words[i-1].Tag, "NN"):
+			inside, held = true, false
+		case !finiteAt(s, i):
+		case !inside:
+			return true
+		case held && !strings.HasPrefix(s.Words[i-1].Tag, "VB") && s.Words[i-1].Tag != "RB":
+			return true
+		default:
+			held = true
+		}
+	}
+	return false
+}
+
 // inReducedRelative reports a finite verb at i whose subject follows a noun:
 // "a fork the owner reserved".
 func inReducedRelative(s *syntax.Sentence, i int) bool {
@@ -153,7 +182,7 @@ func inReducedRelative(s *syntax.Sentence, i int) bool {
 }
 
 // clauseOpeners open a clause whose verb a head must hold before it can close.
-var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since", "unless", "although", "though", "whereas", "so")
+var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since", "unless", "although", "though", "whereas", "so", "where")
 
 // headOpen reports words before word end that end inside an unfinished clause.
 // This covers a subordinator with no finite verb after it, as in "reports
@@ -251,7 +280,9 @@ func hiddenVerb(s *syntax.Sentence, i int) bool {
 // preposition moves only before "every" or "each". A preposition with no object
 // after it ("aimed at: a prose question") belongs to the words before it.
 func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool) bool {
-	if strings.HasPrefix(prev.Tag, "VB") || prev.Tag == "RP" || focusing.Contains(prev.Lower()) || phraseEndParticle.Contains(prev.Lower()) {
+	// ", where the fork's changes made": after a comma a clause opener starts its own clause, whatever the verb before it.
+	opensClause := first > 0 && s.Words[first-1].Text == "," && clauseOpeners.Contains(s.Words[first].Lower()) && finiteBefore(s, first+1, ",")
+	if !opensClause && strings.HasPrefix(prev.Tag, "VB") || prev.Tag == "RP" || focusing.Contains(prev.Lower()) || phraseEndParticle.Contains(prev.Lower()) {
 		return false
 	}
 	if first+1 >= len(s.Words) {

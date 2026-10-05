@@ -15,6 +15,8 @@ import (
 type division struct {
 	leftEnd, rightStart int
 	opener              string
+	// closer is the object a division writes back at the end of the rest: ", which a list does not show" becomes "A list does not show that."
+	closer string
 }
 
 // connectors map a conjunction to the words that open the sentence after it.
@@ -113,12 +115,16 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := bold + joinOpener(d.opener, source[d.rightStart:])
+		right := bold + withCloser(joinOpener(d.opener, source[d.rightStart:]), d.closer)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
 		// The parse of the whole can hand a clause a verb that belongs elsewhere, so each half is read again on its own.
 		if d.opener == "" && !standsAsSentence(right) {
+			continue
+		}
+		// A noun phrase whose only verbs sit in relative clauses is a fragment: "A number that is true today".
+		if !finiteOutsideRelative(syntax.Parse(checkMask(right), nil), 0) {
 			continue
 		}
 		score := max(WordCount(left), WordCount(right))
@@ -165,6 +171,31 @@ func Cuts(sentence string) []int {
 // minimumHalf keeps a division from writing a sentence too short to stand alone.
 const minimumHalf = 3
 
+// withCloser writes closer in front of the stop that ends rest.
+func withCloser(rest, closer string) string {
+	if closer == "" {
+		return rest
+	}
+	body := strings.TrimRight(rest, ".!? ")
+	return body + " " + closer + rest[len(body):]
+}
+
+// objectRelative reports ", which X does not show" at the end of a sentence:
+// a relative clause with a subject of its own whose verb ends the sentence, so
+// the relative word is the verb's object.
+func objectRelative(s *syntax.Sentence, c syntax.Clause) bool {
+	if c.Kind != syntax.Relative || !c.Comma || c.Depth != 1 || s.Words[c.Link].Lower() != "which" || c.Subject == nil || c.Verb == nil {
+		return false
+	}
+	last := len(s.Words) - 1
+	for last > 0 && punctuationTag(s.Words[last].Tag) {
+		last--
+	}
+	return c.Verb.Last == last && c.Subject.First == c.Link+1 && !strings.HasPrefix(s.Words[last].Tag, "VBN")
+}
+
+func punctuationTag(tag string) bool { return tag == "." || tag == "," || tag == ":" }
+
 // joinOpener puts the opener in front of the rest, and capitalizes what opens the sentence.
 func joinOpener(opener, rest string) string {
 	if opener != "" {
@@ -196,6 +227,13 @@ func divisions(s *syntax.Sentence, source string) []division {
 		}
 		opener, ok := openerFor(s, c, main, source)
 		if !ok {
+			if objectRelative(s, c) {
+				out = append(out, division{
+					leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
+					rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
+					closer:     "that",
+				})
+			}
 			continue
 		}
 		out = append(out, division{
@@ -323,6 +361,10 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "", false
 		}
 		if c.Subject != nil && !subjectFollows(s, c) || !opensSubject(s, c.Link+1) {
+			// "not prose: left in the text a rewrite wraps it": a participle phrase opens a clause that names its own subject later.
+			if c.Subject != nil && s.Words[c.Link].Text == ":" && s.Words[c.Link+1].Tag == "VBN" {
+				return "", opensWithCapital(s, c.Link+1, source) && standsAsSentence(source[outsideSpans(source, s.Words[c.Link+1].Start, false):])
+			}
 			return "", false
 		}
 		return "", opensWithCapital(s, c.Link+1, source)
