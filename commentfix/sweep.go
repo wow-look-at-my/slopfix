@@ -1,6 +1,6 @@
-// sweep.go is the whole-tree face of the rule: which files carry prose a rule
-// reads, which directories hold text nobody here authored, and how a repaired
-// file is written back. A caller names the root and reads the result.
+// sweep.go is the whole-tree face of the rule. It knows which files carry
+// prose a rule reads, and which directories hold text nobody here authored.
+// It also writes a repaired file back. A caller names the root and reads the result.
 //
 // The walk lives here rather than in each caller. A caller that owns its own
 // walk owns its own skip list too, and skip lists drift. Any of them ends up
@@ -77,7 +77,7 @@ func FixTree(root string) TreeResult {
 // It writes nothing while a merge, rebase, cherry-pick or revert waits for the
 // user. A root outside git has no branch to scope by, so the whole tree goes.
 // In a fork that forks finds, a file the fork never touched is neither read
-// nor written, and a repair lands only on the lines the fork wrote. A fork
+// nor written. A repair lands only on the lines the fork wrote. A fork
 // whose base cannot be read writes nothing.
 func FixTreeIn(forks forkscope.Resolver, root string) TreeResult {
 	var out TreeResult

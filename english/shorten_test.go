@@ -40,10 +40,10 @@ func TestACutTakesThePunctuationThatAttachesThePhrase(t *testing.T) {
 	assert.Equal(t, "Keep 1,.5 as written.", Fix("Keep 1,.5 as written.", Document), "no cut, no change")
 }
 
-// Every entry declares its own worked examples, and each has to fire. Without
-// this an entry that stopped matching -- a typo, a phrase the boundary rule
-// rejects, a rewrite shadowed by a drop -- would sit in the table looking
-// enforced while doing nothing.
+// Every entry declares its own worked examples, and each has to fire. An entry
+// can stop matching through a typo, a phrase the boundary rule rejects, or a
+// rewrite a drop shadows. Without this test it sits in the table and looks
+// enforced while it does nothing.
 func TestEveryDropFires(t *testing.T) {
 	require.NotEmpty(t, Drops())
 	for _, d := range Drops() {
