@@ -20,7 +20,7 @@ const forkReadme = "# Tool\n\nThe tool reads the file.\nIt then checks the file\
 // A run that leaves the volume rule out never cuts a comment block to the cap.
 func TestTheVolumeCutNeedsTheVolumeRule(t *testing.T) {
 	src := "package p\n\n" + strings.Repeat("// The value is read once.\n", 20) + "var x = 1\n"
-	req := slopfix.Request{Path: "p.go", Content: src, IDs: []string{"tombstones/date"}, MaxCommentLines: tombstones.DefaultMaxCommentLines}
+	req := slopfix.Request{Path: "p.go", Content: src, IDs: []string{"comments/number"}, MaxCommentLines: tombstones.DefaultMaxCommentLines}
 	assert.Equal(t, src, slopfix.Fix(req).Text)
 
 	req.IDs = []string{tombstones.IDVolume}

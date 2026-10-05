@@ -122,7 +122,7 @@ func Fix(req Request) Repair {
 	if wide == nil || wide.All() {
 		return repair
 	}
-	// The block rules keep the fork's own lines. Every other rule then reaches each whole block the fork wrote into.
+	// A run rule keeps to the fork's own lines. Every other rule then reaches each whole block the fork wrote into.
 	owned := forkscope.Carry(req.Content, repair.Text, wide)
 	again := req
 	again.Content, again.Owned, again.Scope = repair.Text, nil, repair.Scope
@@ -141,8 +141,7 @@ func Fix(req Request) Repair {
 	landed.Content, landed.Owned, landed.Scope = text, nil, edit.Nowhere()
 	after := Fix(landed)
 	repair.Findings, repair.Kept = after.Findings, after.Kept
-	repair.Findings = ownedFindings(repair.Findings, owned)
-	repair.Kept = ownedHits(repair.Kept, owned)
+	repair = scoped(repair, forkscope.Carry(req.Content, text, req.Owned), owned)
 	return upstreamRuns(req.Owned, repair.Text, repair)
 }
 
@@ -154,8 +153,31 @@ func widened(req Request) *forkscope.Scope {
 	return req.Owned.Widen(req.Content, kindOf(req.Path, req.Content) == fixer.Document)
 }
 
-// blockFree answers the rule IDs req selects, less each rule that judges a
-// whole comment run.
+// runRule reports whether rule id rewrites a whole comment run. Such a rule
+// keeps to the lines the fork wrote, in a report and in a repair.
+func runRule(id string) bool {
+	return blockRules.Contains(id) || id == commentfix.IDLength || strings.HasPrefix(id, "tombstones/")
+}
+
+// scoped keeps each finding of repair on an owned line. A run rule reads
+// narrow, and every other rule reads wide.
+func scoped(repair Repair, narrow, wide *forkscope.Scope) Repair {
+	var findings []ste.Finding
+	for _, f := range repair.Findings {
+		owned := wide
+		if runRule(f.ID) {
+			owned = narrow
+		}
+		if owned.Holds(f.Line, f.EndLine) {
+			findings = append(findings, f)
+		}
+	}
+	repair.Findings = findings
+	repair.Kept = ownedHits(repair.Kept, narrow)
+	return repair
+}
+
+// blockFree answers the rule IDs req selects, less each run rule.
 func blockFree(req Request) []string {
 	ids := req.IDs
 	if len(ids) == 0 {
@@ -163,7 +185,7 @@ func blockFree(req Request) []string {
 	}
 	var out []string
 	for _, id := range ids {
-		if !blockRules.Contains(id) && id != commentfix.IDLength {
+		if !runRule(id) {
 			out = append(out, id)
 		}
 	}
@@ -334,9 +356,7 @@ func Report(req Request) Repair {
 	if req.Owned == nil {
 		return repair
 	}
-	req.Owned = widened(req)
-	repair.Findings = ownedFindings(repair.Findings, req.Owned)
-	repair.Kept = ownedHits(repair.Kept, req.Owned)
+	repair = scoped(repair, req.Owned, widened(req))
 	return upstreamRuns(req.Owned, req.Content, repair)
 }
 
