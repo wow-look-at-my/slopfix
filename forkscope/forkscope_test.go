@@ -440,11 +440,7 @@ func TestAListedForkWithNoTagCountsFromTheClosestUpstreamTree(t *testing.T) {
 	assert.True(t, own.Scope(filepath.Join(fx.fork, "later.md")).Empty())
 }
 
-// squashFixture is an upstream with commits, and a fork that brought the
-// second one in as one squashed commit. With shared, the fork began as a clone
-// of the first commit, so the merge base is that commit. Without it, the fork
-// shares no history with the upstream.
-// oldFirst is the first upstream version of old.md. The fork syncs it at this version.
+// squashFixture is an upstream with commits, and a fork that brought the second one in as one squashed commit.
 const oldFirst = "# Old\n\nThe first upstream commit adds this.\n"
 
 func squashFixture(t *testing.T, shared bool) forkFixture {
