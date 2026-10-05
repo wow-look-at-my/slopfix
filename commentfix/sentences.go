@@ -209,11 +209,15 @@ func divideSentences(prose string) string {
 			out.WriteString(sentence)
 			continue
 		}
+		// A semicolon and a splice are where a long sentence divides best, so the division repairs them too.
 		fixed := ste.FixSelected(sentence, func(id string) bool {
 			return id == ste.IDSentenceCap || id == ste.IDSemicolon || id == ste.IDCommaSplice
 		})
-		if inventedFragment(fixed) {
-			fixed = ste.FixKeepingOpening(sentence)
+		// A division that invents a fragment changes what the comment claims. The
+		// sentence then stays as written, for a rewrite by hand.
+		if !cleanDivision(fixed) {
+			out.WriteString(sentence)
+			continue
 		}
 		out.WriteString(fixed)
 	}
@@ -221,16 +225,22 @@ func divideSentences(prose string) string {
 	return out.String()
 }
 
-var inventedFragmentRe = regexp.MustCompile(`(?i)^(?:it|they|this|these|we|you|he|she)\s+(?:while|when|if|that|which|who|because|so|as|before|after|until|unless|since|though|although|whereas|whether)\b`)
+// inventedFragment matches a split that gives a subordinate clause a pronoun subject it never had: "writes through it while this function runs" becomes "It while this function runs."
+var inventedFragment = regexp.MustCompile(`(?i)^(?:it|they|this|these|we|you|he|she)\s+(?:while|when|if|that|which|who|because|so|as|before|after|until|unless|since|though|although|whereas|whether)\b`)
 
-// inventedFragment reports a division that gave a clause a pronoun subject the comment never wrote.
-func inventedFragment(divided string) bool {
+// cleanDivision reports a divided sentence whose every part stands as a
+// sentence of its own and none of them invents a subject for a clause.
+func cleanDivision(divided string) bool {
 	for _, s := range sentences(divided) {
-		if inventedFragmentRe.MatchString(strings.TrimSpace(s)) {
-			return true
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if inventedFragment.MatchString(s) || !ste.StandsAlone(s) {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // sentenceEdits answers an edit per comment paragraph whose long sentences

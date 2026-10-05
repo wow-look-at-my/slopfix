@@ -57,19 +57,6 @@ var connectors = map[string]string{
 	"or":  "Otherwise,",
 }
 
-// DivideAtClauses divides each over-cap sentence only where a clause boundary
-// leaves sentences that both read.
-func DivideAtClauses(text string, limit int) string {
-	for range len(strings.Fields(text)) + 1 {
-		next, divided := divideNext(text, limit)
-		if !divided {
-			break
-		}
-		text = next
-	}
-	return text
-}
-
 // fixSentenceCap divides every over-cap sentence. It tries the clause
 // boundaries first and then the word boundaries. A sentence that no division
 // reads is cut between words. That leaves no finding standing.
