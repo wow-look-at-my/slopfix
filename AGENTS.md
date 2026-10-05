@@ -71,53 +71,11 @@ cc-marketplace ships this binary inside its `slopfix` plugin. A publish here the
 
 ## repo: what a repository keeps
 
-These rules judge the tree. Only a walk whose root holds `.git` reaches them. `check` reports them. `fix` applies them.
-
-- `repo/agents-file`: a root `CLAUDE.md` that holds more than the `@AGENTS.md` import. `fix` moves its body into `AGENTS.md` and leaves `CLAUDE.md` as `@AGENTS.md` and a newline. Claude Code reads `CLAUDE.md`. Every other agent reads `AGENTS.md`.
-- `repo/budget`: a root `README.md` or `AGENTS.md`, a `CLAUDE.md` anywhere, or a `.md` in a `claude_snippets/` directory, over `40000` characters. The repair writes `docs/` beside the file. The count is characters, because a byte count inflates a file with an em dash. `fix` moves the largest `##` sections into `docs/<heading>.md` until the file is at `32000` or less. The gap leaves room for the next edit. The text moves word for word, and each heading under it rises one level. The heading stays, with a link to the new file. A name that exists gets a `-2` suffix. With no `##` section left to move, the sections of the other heading levels move. A file with no heading at all moves its tail into `docs/<name>-continued.md` and keeps a link. A cut inside a fence closes the fence. The moved part opens it again.
-- `repo/package-scripts`: a `package.json` with a `scripts` key. A `justfile` holds the commands instead. `fix` writes each script as a recipe in a `justfile` beside the manifest, and deletes the key. The recipe runs the command as written, with `node_modules/.bin` first on `PATH`. A `pre` or `post` script runs around its own, and `npm run x` becomes `just x`. A `package.json` that does not parse is also a finding, because no rule can read it. That finding has no repair.
-
-- `repo/binary`: a file git tracks that opens with an ELF, Mach-O or PE/COFF magic number. `fix` deletes it, because a build makes it from source. Git still holds it. A tree that git cannot list is read from disk. The rule reads the blob git stores. A Git LFS file is never reported, because git holds its pointer and only the checkout holds the binary.
-- `repo/near-duplicate`: a file whose lines match another file of its base name at `NearDuplicateShare` or above. The score is the Dice coefficient over non-blank trimmed lines, so a copy that differs in comments alone still trips. The later path of the pair is reported. A file each directory needs, such as `package.json`, `ts0.json`, a `justfile` or `Dockerfile`, is never compared. No attribute or list exempts a copy. The answer is one file that both places use. A symlink is that one file, and is never compared.
-- `repo/json`: a `.json` or `.jsonc` file that does not parse, comments allowed, or that breaks the schema its `$schema` names. `wow-look-at-my/json-validator` does the check, the same library webhook-runner loads manifests with. A relative `$schema` is a path from the file.
-- `repo/xml`: an `.xml` file that `wow-look-at-my/xml-validator` refuses, that names no schema, or that breaks the schema it names. The hint is read from the parsed root. No pattern over the raw text reads it. A root with no namespace names its schema in `xsi:noNamespaceSchemaLocation`. A root in a namespace names it in the `xsi:schemaLocation` pair for that namespace. A file named `*.invalid.xml` is a negative fixture. It still names its schema. The finding is that the schema accepts it.
-
-Both rules fetch a remote schema, once for each walk, and an XSD's imports with it. A schema that does not load, by a network error or any status but OK, is a finding. It is never a pass. The JSON Schema meta-schemas need no fetch, because the validator carries them.
-
-The document rules walk what the other repository rules walk, so `testdata`, `node_modules`, a submodule and a nested clone stay out. `repo/binary` reads every tracked file, the large ones included.
-
-A body that `AGENTS.md` already holds is not appended again. The import line is never copied into the file it imports. A `CLAUDE.md` that is a symlink stays.
-
-Every other markdown file is left alone. The budget covers only the files that every request loads.
+[docs/repo-what-a-repository-keeps.md](docs/repo-what-a-repository-keeps.md) holds this section.
 
 ## edit: the only way a repair writes
 
-A repair never returns a rewritten copy of a file. It returns `edit.Edit` values, byte ranges with replacement text. The parser that owns the file then writes them through a gate. A gate checks each edit before it lands. It parses the result again and keeps an edit only when the tree still holds. A batch that fails is retried an edit at a time. A refused edit is reported in `Repair.Refused`.
-
-| Gate | An edit may touch | After the splice |
-|---|---|---|
-| `treecomments.Apply` | bytes inside a comment node, and the blank around it | every node that is not a comment keeps its type, its text and its place in the tree. Every directive line comes back byte for byte |
-| `markdown.Apply` | bytes inside a single CommonMark prose block | every verbatim block comes back as written, in order |
-| workflow YAML | whole rows | the file parses, and a comment edit decodes to the same data |
-| `goformat.Gate` | blank bytes, and it writes only blanks | the Go scanner reads every token as it was. A comment may lose the blanks that end its lines |
-
-So a rewrite cannot escape its comment. A newline can end a line comment early. A closer can end a block early. An opener can swallow the code below. Each changes the code tree, and the gate refuses it. The interpreter line and a cgo preamble are code to the gate, because a tool reads them.
-
-Every repair is a `fixer.Fixer`, and each package registers its fixers from `init` with `fixer.Register`. A fixer gets a `fixer.File` and changes it only through `File.Apply` or `File.ApplyComments`. The file has no text setter. The gates are its only writers. `slopfix.Fix` opens the file for its kind and runs `fixer.For(kind)` in `Order`. `fixers_test.go` pins that order. It fails on a repairable rule no registered fixer serves.
-
-| Kind | Fixers, in order |
-|---|---|
-| source | `tombstones`, `comments/length`, `comments/number`, `comments/sentence-length`, `comments/length-after-number`, `pins/download-version`, `gofmt` |
-| document | `tombstones`, `counts/inventory-count`, `counts/section-number`, `wrap-and-ste`, `wrap/long-block`, `ste/count`, `pins/download-version` |
-| workflow | `yaml/ungate`, `yaml/join-comments`, `yaml/rename-guarded-job`, `comments/sentence-length`, `yaml/inline-env`, `yaml/filter-push`, `yaml/retarget-org-action`, `yaml/set-concurrency`, `pins/download-version` |
-
-`gofmt` runs on a `.go` file that a fixer before it changed. A cut comment can leave a blank line too many, or bring together fields that gofmt aligns. The pass writes the gofmt layout through `goformat.Gate`. It answers to the selection of the fixers before it. A fragment with no package clause keeps its layout. So does a file no fixer changed, and a file whose gofmt layout changes more than whitespace.
-
-The repository rules sit outside the registry. They delete or move whole files, and they edit no text inside one.
-
-`edit.Scope` bounds where an edit may land, and follows the text through each pass. The hook passes the span its edit writes. `edit.Nowhere()` admits nothing, for a run that wants findings alone.
-
-The string match left is the hook replaying an Edit payload. `old_string` is a literal by the tool's own contract, so the hook finds it the way the tool will.
+[docs/edit-the-only-way-a-repair-writes.md](docs/edit-the-only-way-a-repair-writes.md) holds this section.
 
 ## markdown: the document model
 
@@ -211,20 +169,7 @@ It does not flag a comment above the package declaration, or a trailing comment 
 
 ## yaml: workflow and action manifest rules
 
-These rules judge the format. The prose rules never run on these files. A file is read when its base name is `action.yml` or `action.yaml`, or when it is YAML under a `workflows` directory. Other YAML with a left-margin `jobs:` or `runs:` key qualifies too.
-
-- `yaml/comment-block`: a run of comment lines past the single-line limit. A blank line neither counts nor ends a run. The repair joins the run into the allowed line and keeps every word.
-- `yaml/all-builds-job`: a job named `all-builds`, by key or rendered name. The required gate is a commit status from the required-builds-manager app. A job with that name shadows it. The repair renames the job to `builds` and fixes each `needs` entry.
-- `yaml/test-in-workflow`: a test inside a `run:` script. That is an assertion with a nonzero exit, a function whose name says it asserts, or a redirect to a test file. It is a warning with no repair. A line of a `run:` script is shell, and slopfix does not delete it.
-- `yaml/neutered-gate`: a gate step under `continue-on-error`. A step allowed to fail is not a gate. The repair deletes that line, found by parser positions.
-- `yaml/env-indirection`: a step `env:` entry with no job to do. Its value is a single `${{ }}` expression that the script reads only as `$NAME` or `${NAME}`. Or the script sets the variable before it reads it. An expression an outside party writes stays in `env:` and is not reported, because expanded inside `run:` it is shell injection. That is a `github.event` field, `github.head_ref`, a secret, or an input that is not a `boolean` or a `number` on every trigger. This includes every input of a composite action. A runner variable such as `$RUNNER_TEMP` is also reported, because a context names it. A container job and a composite action keep the variable, because the context names the host path there. The repair writes the expression into the script, deletes the entry, and deletes an `env:` key with nothing left under it.
-- `yaml/push-tags`: a `push` trigger with no `branches`, `branches-ignore`, `tags` or `tags-ignore` filter. Every tag push then starts the workflow again. The repair writes `branches: ['**']` under `push:`. A shape no row edit reaches, such as `push: {}`, gets its whole `on:` value written again in block style.
-- `yaml/org-action-ref`: a `uses:` of a `wow-look-at-my` action or reusable workflow at a ref other than `master`. A `wow-look-at-my/actions` orphan tag `<directory>#latest` is published from master, and passes. A feature branch breaks the moment it merges, and an agent that pins one to dodge a check has bypassed the org's tooling. The repair writes `@master`. A numbered orphan tag becomes `#latest`, and a bare `actions@<directory>` becomes `<directory>#latest`.
-- `yaml/concurrency`: a workflow whose top-level `concurrency:` is not the org's block. Off master the group names the repository, the workflow and the ref, and `cancel-in-progress` is true. A push then cancels the run before it. On master the group holds the run ID, so every run completes. The workflow name is in the group because a group spans every workflow in the repository. The repair writes the block after `on:`, or writes the old block again. A reusable workflow is skipped, because it runs in the caller's context, and the same group then deadlocks. A job-level `concurrency:` stays the author's.
-
-The all-builds wording is the operator's own. It must not be softened. A job that wears the required status's name is a known deception attempt.
-
-Unparseable YAML yields no all-builds finding, because the runner fails on it anyway. A job name that holds an expression is skipped. A matrix suffix and a reusable workflow's path parts are stripped. A segment must then match exactly. A step that only runs a command is not a test. An error annotation alone is a report. Every repair works on whole lines and never reflows.
+[docs/yaml-workflow-and-action-manifest-rules.md](docs/yaml-workflow-and-action-manifest-rules.md) holds this section.
 
 ## pins: a download URL that names a release
 

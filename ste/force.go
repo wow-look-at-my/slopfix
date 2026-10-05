@@ -30,10 +30,10 @@ var (
 )
 
 // forceSentenceCap divides each sentence still over the cap at a word boundary.
-func forceSentenceCap(prose string) string {
+func forceSentenceCap(prose string, reorder bool) string {
 	over := overCap(prose)
 	for range len(strings.Fields(prose)) + 1 {
-		next, divided := forceNext(prose)
+		next, divided := forceNext(prose, reorder)
 		// A division that leaves as many words past the cap moves nothing, so the loop stops on it.
 		if !divided || overCap(next) >= over {
 			return prose
@@ -53,7 +53,7 @@ func overCap(prose string) int {
 }
 
 // forceNext divides the earliest over-cap sentence, as Check reads it.
-func forceNext(prose string) (string, bool) {
+func forceNext(prose string, reorder bool) (string, bool) {
 	masked := checkMask(prose)
 	for _, span := range sentenceSpans(masked) {
 		start, end := span[0], span[1]
@@ -67,7 +67,7 @@ func forceNext(prose string) (string, bool) {
 		if WordCount(masked[start:end]) <= SentenceWordCap {
 			continue
 		}
-		if rewritten, ok := forceDivision(prose[start:end], masked[start:end]); ok {
+		if rewritten, ok := forceDivision(prose[start:end], masked[start:end], reorder); ok {
 			return prose[:start] + rewritten + prose[end:], true
 		}
 	}
@@ -134,7 +134,7 @@ type forceCut struct {
 // forceDivision divides source at the best word boundary that leaves the first
 // part under the cap. It never divides inside a code span, a link, a quotation,
 // a parenthesis or bold text.
-func forceDivision(source, masked string) (string, bool) {
+func forceDivision(source, masked string, reorder bool) (string, bool) {
 	// The tags come from the whole sentence, because a fragment parsed alone reads "a faithful" as a noun.
 	whole := syntax.Parse(masked, nil)
 	for _, strict := range []bool{true, false} {
@@ -165,6 +165,9 @@ func forceDivision(source, masked string) (string, bool) {
 		if best != "" {
 			return best, true
 		}
+	}
+	if !reorder {
+		return source, false
 	}
 	if out, ok := reorderDependent(source, whole); ok {
 		return out, true

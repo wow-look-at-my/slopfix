@@ -378,15 +378,15 @@ func steOpening(text []string) ([]string, bool) {
 		if para.blank || para.verbatim {
 			continue
 		}
-		sentences := ste.Sentences(ste.Fix(strings.Join(para.lines, " ")))
+		// The opening sentence is the comment's own words.
+		sentences := ste.Sentences(ste.FixKeepingOpening(closeThoughts(para.lines)))
 		if len(sentences) == 0 {
 			return nil, false
 		}
 		first := strings.TrimSpace(sentences[0])
 		if ste.WordCount(first) > ste.SentenceWordCap {
-			// With no clause boundary the sentence stays whole, as ste/sentence-length leaves it.
 			if clause, ok := ste.Leading(first); ok {
-				first = strings.TrimSpace(ste.Fix(clause))
+				first = strings.TrimSpace(ste.FixKeepingOpening(clause))
 			}
 		}
 		if !endsSentence(first) {
@@ -395,6 +395,23 @@ func steOpening(text []string) ([]string, bool) {
 		return reflow(first, indent, marker, wrapWidth), true
 	}
 	return nil, false
+}
+
+// closeThoughts joins prose lines, and writes a period where a line ends a
+// thought with no stop of its own (lineEndsThought).
+func closeThoughts(lines []string) string {
+	var b strings.Builder
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if i > 0 {
+			if lineEndsThought(lines[i-1], line) {
+				b.WriteString(".")
+			}
+			b.WriteString(" ")
+		}
+		b.WriteString(line)
+	}
+	return b.String()
 }
 
 // sameText compares runs of lines by what they say. A line count cannot: a

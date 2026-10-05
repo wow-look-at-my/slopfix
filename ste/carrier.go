@@ -84,8 +84,39 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		if carried, conj, ok := listRest(source, whole, main, c, rest, seam); ok {
 			return listHead(head, conj, oxford(rest), whole, main), carried, opensWithCarrier
 		}
+		if seam != ":" || lowerIdentifier(firstToken.FindString(rest)) {
+			break
+		}
+		// After a colon, words with a verb of their own are a sentence the parser missed, as with a gerund subject: "keying on it let".
+		if (word.Tag == "VBG" || word.Tag == "PRP") && finiteBefore(whole, first, ",") {
+			return head, capitalizeOpening(rest), opensWithCarrier
+		}
+		// Noun phrases after a colon name what the head speaks of: "the words a repair drops, the phrasings it swaps".
+		opensNoun := word.Tag == "DT" || word.Tag == "PRP$" || word.Tag == "JJ" || strings.HasPrefix(word.Tag, "NN")
+		if opensNoun && (!finiteBetween(whole, first, len(whole.Words)) || len(topCommas(rest, 0)) >= 2) {
+			return head, "This covers " + rest, opensWithCarrier
+		}
 	}
 	return head, "", 0
+}
+
+// finiteBefore reports a finite verb from word i on, outside a parenthesis, ahead of the first stop mark.
+func finiteBefore(s *syntax.Sentence, i int, stop string) bool {
+	depth := 0
+	for ; i < len(s.Words); i++ {
+		switch w := s.Words[i]; {
+		case w.Text == "(":
+			depth++
+		case w.Text == ")":
+			depth = max(depth-1, 0)
+		case depth > 0:
+		case w.Text == stop:
+			return false
+		case finiteVerbTag(w.Tag) || w.Tag == "MD":
+			return true
+		}
+	}
+	return false
 }
 
 // oxford reports a list that puts a comma before its conjunction.
@@ -212,7 +243,14 @@ func mainSubject(source string, s *syntax.Sentence, verb syntax.Phrase, tag stri
 // word that completes its phrase. The sentence was a noun phrase as written,
 // and each part stays one.
 func closesPhrase(head string, whole *syntax.Sentence) bool {
-	if finiteBetween(whole, 0, len(whole.Words)) {
+	n := wordsBefore(whole, len(head))
+	if n == 0 || finiteBetween(whole, 0, n) {
+		return false
+	}
+	// A head that opens on a preposition or a subordinator leads into the clause after it, so only a noun phrase stands as a fragment of its own.
+	switch t := whole.Words[0].Tag; {
+	case t == "DT" || t == "JJ" || t == "PRP$" || strings.HasPrefix(t, "NN"):
+	default:
 		return false
 	}
 	w, ok := lastWordBefore(whole, len(head))

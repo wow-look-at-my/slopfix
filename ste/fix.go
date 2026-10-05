@@ -15,11 +15,19 @@ func Fix(text string) string {
 
 // FixSelected applies the repairs whose ID keep accepts, so a caller that names
 // a rule gets that rule's repair and no other.
-//
-// The cap repair runs over the whole text rather than inside fixProse. It
-// measures a sentence the way Check measures it, and Check counts a code span
-// as a single word rather than as a gap between shorter sentences.
 func FixSelected(text string, keep func(id string) bool) string {
+	return fixSelected(text, keep, true)
+}
+
+// FixKeepingOpening is Fix, with a division that keeps each sentence's
+// opening words as its first sentence.
+func FixKeepingOpening(text string) string {
+	return fixSelected(text, func(string) bool { return true }, false)
+}
+
+// fixSelected runs the cap repair over the whole text rather than inside
+// fixProse, because Check counts a code span as a single word.
+func fixSelected(text string, keep func(id string) bool, reorder bool) string {
 	text = fixProse(text, func(prose string) string { return fixWords(prose, keep) })
 	if keep(IDSemicolon) {
 		text = fixSemicolons(text)
@@ -31,7 +39,7 @@ func FixSelected(text string, keep func(id string) bool) string {
 		text = fixPostdeterminers(text)
 	}
 	if keep(IDSentenceCap) {
-		text = fixSentenceCap(text)
+		text = fixSentenceCap(text, reorder)
 	}
 	return text
 }
