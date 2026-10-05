@@ -55,7 +55,7 @@ func cwdOrDot() string {
 // full_scan uses (allCandidatePaths), reported size only. Width is judged on
 // what a session WRITES (see editReport) -- listing every pre-existing
 // unwrapped file at session start buries the file that matters under a crowd
-// that does not, which is how a guard teaches the model to skim past it.
+// that does not. This is how a guard teaches the model to skim past it.
 func findOffenders(cwd string, limit int) []offender {
 	floor := nearLimit(limit)
 	seen := set.New[string]()

@@ -53,8 +53,8 @@ func TestAWrapOverTheLineCountIsLaidOutRatherThanCut(t *testing.T) {
 }
 
 // A repair that keeps the line count is still a repair. Comparing counts rather
-// than text discarded it, and the character half of the rule is what it answers,
-// so the block stayed a finding that no run could clear.
+// than text discarded it, and the character half of the rule is what it answers.
+// The block stayed a finding that no run could clear.
 func TestARepairThatKeepsItsLineCountIsStillApplied(t *testing.T) {
 	src := "// Run does the thing, and it says so at a length no single line holds inside the budget it must meet, because the words past the floor are what the character half of the rule counts. So the cut lands here.\nfunc Run() {}\n"
 	out, changed := FixLength("p.go", src)
@@ -77,7 +77,7 @@ func TestProsePastTheBudgetIsForceFitted(t *testing.T) {
 
 // A directive is machine text bound to the declaration by position. Every
 // repair path rebuilds a block out of its prose alone, so the rewrite replaced
-// the directives: a lost go:embed leaves the variable empty and the tests
+// the directives. A lost go:embed leaves the variable empty and the tests
 // reading it pass on nothing.
 func TestARepairKeepsTheEmbedDirective(t *testing.T) {
 	src := "// trivialASM is a minimal compute shader in SPIR-V assembly text, the form\n" +

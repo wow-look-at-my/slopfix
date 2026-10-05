@@ -101,7 +101,11 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 			return true
 		}
 		head, before := &words[p.Head], words[p.Head-1]
+		listed := p.Head+1 < len(words) && (words[p.Head+1].Tag == "," || words[p.Head+1].Tag == "WDT" || words[p.Head+1].Lower() == "that")
 		switch {
+		case head.Tag == "NNS" && filler(before.Text) && listed:
+			// "`deny` rules, hooks": a name and a plural before a comma or a relative word are a noun phrase.
+			continue
 		case head.Tag == "NNS" && (before.Tag == "NN" || before.Tag == "NNP"):
 			head.Tag = "VBZ"
 		case head.Tag == "NN" && before.Tag == "NNS":
@@ -145,6 +149,21 @@ func retag(words []Word) {
 		switch {
 		case lower == "n't" || lower == "not":
 			w.Tag = "RB"
+		case len(w.Text) > 1 && w.Text == strings.ToUpper(w.Text) && emphasized[lower] != "":
+			// "a comment that DOES document code": capitals stress a verb, and the tagger reads them as a name.
+			w.Tag = emphasized[lower]
+		case (w.Tag == "NN" || w.Tag == "VB") && i > 1 && words[i-2].Tag == "NNS" && Is(words[i-1].Text, "postposed") && i+1 < len(words) && words[i+1].Tag == "IN":
+			// "the cases above pass on a repair": after a plural noun and its place word, the bare form is the verb.
+			w.Tag = "VBP"
+		case lower == "cannot":
+			// The tagger reads "cannot" as a noun.
+			w.Tag = "MD"
+		case w.Tag == "NNS" && i > 1 && verbEnding(w.Text) && words[i-1].Tag == "RB" && isNoun(words[i-2].Tag) && i+1 < len(words) && opensNounPhrase(words[i+1]):
+			// "the caller then judges the fragment": an adverb sits between the subject and its verb.
+			w.Tag = "VBZ"
+		case w.Tag == "NNS" && i == 2 && words[0].Text == "Package" && verbEnding(w.Text):
+			// "Package cardinal decides": a package comment names the package, then the verb.
+			words[1].Tag, w.Tag = "NNP", "VBZ"
 		case w.Text == "—" || w.Text == "–" || w.Text == "--":
 			// A dash is punctuation, and the tagger can read it as a verb.
 			w.Tag = ":"
@@ -159,8 +178,62 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "NN" && Is(words[i+1].Text, "object"):
 			// "a message reads it": a noun takes no object pronoun.
 			w.Tag = "VBZ"
+		case w.Tag == "NNS" && i == 1 && i+1 < len(words) && identifier(words[0].Text) && verbEnding(w.Text) && opensObjectAt(words[i+1]):
+			// "readText numbers the lines": a doc comment names its identifier, then the verb.
+			words[0].Tag, w.Tag = "NNP", "VBZ"
+		case w.Tag == "VB" && i > 0 && verbEnding(w.Text) && words[i-1].Tag != "TO" && words[i-1].Tag != "MD":
+			// "the message it writes to comply puts": a bare form takes no -s ending.
+			w.Tag = "VBZ"
 		}
 	}
+	// "run runs git": a sentence that opens in lower case opens on a name, and the -s form after it is the verb.
+	if len(words) > 2 && lowerOpening(words[0].Text) && verbEnding(words[1].Text) &&
+		(words[1].Tag == "VBZ" || words[1].Tag == "NNS") && opensObjectAt(words[2]) {
+		words[0].Tag, words[1].Tag = "NNP", "VBZ"
+	}
+	for i := range words {
+		if participleAdjective(words, i) {
+			words[i].Tag = "JJ"
+		}
+		// "`deny` rules, hooks": a name and an -s form before a comma or a relative word are a noun phrase.
+		if w := words[i]; w.Tag == "VBZ" && i > 0 && i+1 < len(words) && filler(words[i-1].Text) &&
+			(words[i+1].Tag == "," || words[i+1].Tag == "WDT" || words[i+1].Lower() == "that") {
+			words[i].Tag = "NNS"
+		}
+	}
+}
+
+// filler reports the word a mask writes over a code span or a quotation.
+func filler(text string) bool {
+	return text == "CODE" || text == "QUOTE" || len(text) > 1 && strings.Trim(text, "X") == ""
+}
+
+// participleAdjective reports a past form that opens a noun phrase whose own
+// verb follows it: "but remembered grants are not consulted". The tagger reads
+// the participle as the verb, and the real verb then has no subject.
+func participleAdjective(words []Word, i int) bool {
+	w := words[i]
+	if (w.Tag != "VBD" && w.Tag != "VBN") || i+1 >= len(words) || !isNoun(words[i+1].Tag) {
+		return false
+	}
+	if i > 0 && words[i-1].Tag != "CC" && words[i-1].Tag != "," && words[i-1].Tag != "DT" {
+		return false
+	}
+	depth := 0
+	for j := i + 2; j < len(words); j++ {
+		switch t := words[j].Tag; {
+		case words[j].Text == "(":
+			depth++
+		case words[j].Text == ")":
+			depth = max(depth-1, 0)
+		case depth > 0:
+		case isFinite(t):
+			return true
+		case t == "," || t == "CC" || t == ":" || t == "." || t == "WDT" || t == "WP" || t == "WRB" || t == "TO" || isVerb(t):
+			return false
+		}
+	}
+	return false
 }
 
 // verbEnding reports an -s ending a verb takes, and not "status" or "access".
@@ -168,6 +241,32 @@ func verbEnding(word string) bool {
 	lower := strings.ToLower(word)
 	return strings.HasSuffix(lower, "s") && !strings.HasSuffix(lower, "ss") &&
 		!strings.HasSuffix(lower, "us") && !strings.HasSuffix(lower, "is")
+}
+
+// identifier reports a name written as code.
+func identifier(word string) bool {
+	if word == "" || word[0] < 'a' || word[0] > 'z' {
+		return false
+	}
+	return strings.ContainsAny(word[1:], "_ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+}
+
+// emphasized maps a verb that a writer puts in capitals for stress to its tag.
+var emphasized = map[string]string{
+	"does": "VBZ", "is": "VBZ", "has": "VBZ",
+	"do": "VBP", "are": "VBP", "have": "VBP",
+	"did": "VBD", "was": "VBD", "were": "VBD",
+	"must": "MD", "can": "MD", "will": "MD", "should": "MD", "cannot": "MD",
+}
+
+// lowerOpening reports a word that opens on a lower-case letter.
+func lowerOpening(word string) bool {
+	return word != "" && word[0] >= 'a' && word[0] <= 'z'
+}
+
+// opensObjectAt reports a word that can open the object of a verb.
+func opensObjectAt(w Word) bool {
+	return opensNounPhrase(w) || isNoun(w.Tag) || isAdjective(w.Tag) || w.Tag == "PRP"
 }
 
 func opensNounPhrase(w Word) bool {
@@ -299,14 +398,20 @@ func verbGroup(words []Word, i int) (Phrase, bool) {
 	p := Phrase{Kind: VerbGroup, First: i, Det: -1}
 	lead := j
 	p.Finite = isFinite(words[lead].Tag)
+	// seen is set once the group holds a verb.
+	seen := false
 	for j < len(words) {
 		tag := words[j].Tag
+		if isFinite(tag) && seen {
+			break
+		}
 		if isVerb(tag) || tag == "TO" || tag == "RP" {
+			seen = seen || isVerb(tag)
 			p.Head = j
 			j++
 			continue
 		}
-		if (tag == "RB" || tag == "RBR") && j+1 < len(words) && isVerb(words[j+1].Tag) {
+		if (tag == "RB" || tag == "RBR") && j+1 < len(words) && isVerb(words[j+1].Tag) && !(seen && isFinite(words[j+1].Tag)) {
 			j++
 			continue
 		}

@@ -1,13 +1,13 @@
 // linkify.go turns a reference into the URL a reader can open.
 //
 // The rule it serves is not "put a link on everything". A link is a demand to
-// stop reading and move your hand, and the reader pays that cost before they
-// know whether it was worth paying. So a reference whose target cannot be shown
-// to exist is left as plain text. Silence is the correct answer there, never a
+// stop reading and move your hand. The reader pays that cost before they know
+// whether it was worth paying. So a reference whose target cannot be shown to
+// exist is left as plain text. Silence is the correct answer there, never a
 // guess at a URL.
 //
-// Everything here runs in the render path, so each git call is bounded and only
-// made when a token actually needs it.
+// Everything here runs in the render path, so each git call is bounded and
+// only made when a token needs it.
 package linkrefs
 
 import (
@@ -529,7 +529,7 @@ func mergeStateChecks(mergeState string) []string {
 // classify turns a pull request's fields into the dot it earns.
 //
 // Order is severity: a merged or closed pull request is finished whatever its
-// checks say, a failing check is a defect, a conflict is a merge-time chore,
+// checks say. A failing check is a defect. A conflict is a merge-time chore,
 // and a run still going is not yet news.
 func classify(v pullView) PullState {
 	switch v.State {

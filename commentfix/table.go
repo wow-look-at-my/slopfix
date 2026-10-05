@@ -7,6 +7,7 @@ package commentfix
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
@@ -136,7 +137,7 @@ func replaceWord(s, word, with string) string {
 		}
 		at := i + j
 		end := at + len(target)
-		if !wordBoundary(s, at, end) {
+		if !wordBoundary(s, at, end) || afterPartitive(lower, at, with) {
 			b.WriteString(s[i : at+1])
 			i = at + 1
 			continue
@@ -147,6 +148,22 @@ func replaceWord(s, word, with string) string {
 	}
 	return b.String()
 }
+
+// afterPartitive reports a "both" that would follow "of" or come before a
+// determiner: "one of both lists" and "both the main turn counts" are not English.
+func afterPartitive(lower string, at int, with string) bool {
+	if !strings.EqualFold(with, "both") {
+		return false
+	}
+	if strings.HasSuffix(" "+strings.TrimRight(lower[:at], " "), " of") {
+		return true
+	}
+	rest := strings.Fields(lower[at:])
+	return len(rest) > 2 && determiners.Contains(rest[2])
+}
+
+// determiners open a noun phrase, so "the two" before one is a pronoun with a clause after it.
+var determiners = set.Of[string]("the", "a", "an", "this", "that", "its", "their")
 
 // wordBoundary reports whether s[at:end] stands as its own word. A marker
 // joining it to a name spells a name that does not exist.

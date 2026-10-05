@@ -1,6 +1,6 @@
 // Package ste checks prose against ASD-STE100, Simplified Technical English.
 //
-// STE is a controlled language: each approved word carries a single meaning and
+// STE is a controlled language. Each approved word carries a single meaning and
 // a single part of speech, and its rules keep every sentence to a single
 // reading. It suits code prose for the reason it suits a maintenance manual. The
 // reader is about to change the thing described, and nobody is there to ask.
@@ -166,7 +166,36 @@ func Check(text string, line int) []Finding {
 	for _, rule := range proseRules {
 		out = append(out, rule.run(prose, line)...)
 	}
-	return out
+	return markByHand(text, out)
+}
+
+// markByHand gives the hand-rewrite Fix text to each finding that the repair
+// leaves. It runs the repair on the text itself, so Check and Fix agree on
+// which semicolon and which sentence a period can divide.
+func markByHand(text string, findings []Finding) []Finding {
+	var left map[string]bool
+	for n, f := range findings {
+		switch f.ID {
+		case IDSemicolon:
+			if fixSemicolons(text) == text {
+				findings[n].Fix = FixSemicolonByHand
+			}
+		case IDSentenceCap:
+			if left == nil {
+				left = map[string]bool{}
+				// Only a sentence still over the cap is left. A divided first half opens with the same words as the whole.
+				for _, sentence := range Sentences(strip(fixSentenceCap(text, capSpec{reorder: true, cap: SentenceWordCap}))) {
+					if WordCount(sentence) > SentenceWordCap {
+						left[truncate(strings.TrimSpace(sentence))] = true
+					}
+				}
+			}
+			if left[f.Detail] {
+				findings[n].Fix = FixByHand
+			}
+		}
+	}
+	return findings
 }
 
 // proseRule is a single rule under the phase name a timing run prints for it.

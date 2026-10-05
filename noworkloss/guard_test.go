@@ -144,7 +144,7 @@ func TestPreservesAndAllowsResetHardReachedByCdOutsideGuardedRoots(t *testing.T)
 	assert.Contains(t, notice, "git reset --hard")
 }
 
-// `clean` is not a provenance route (routes.go names no such verb), so it is
+// `clean` is not a provenance route (routes.go names no such verb). It is
 // the destruction half alone standing between the untracked file and the
 // command -- and that half now preserves the file rather than refusing.
 func TestPreservesAndAllowsCleanWithUntrackedFilesViaDashC(t *testing.T) {
@@ -164,7 +164,7 @@ func TestDeniesStashClearWithEntries(t *testing.T) {
 }
 
 // `rm` is not a provenance route either -- deletion is not authorship -- so
-// this is exactly the owner's own example: preserve the file, then allow
+// this is exactly the owner's own example. Preserve the file, then allow
 // the deletion.
 func TestPreservesAndAllowsRmOfUntrackedFile(t *testing.T) {
 	dir := newRepo(t)
@@ -363,7 +363,7 @@ func TestDeniesUnparseableCommandNamingADestructiveVerb(t *testing.T) {
 // Every spelling of the flag set is preserved and allowed, since `clean` names no provenance route.
 func TestFlagVariantsAllReachTheSamePreservedVerdict(t *testing.T) {
 	// Every spelling is judged from the same starting state, so each gets its
-	// own repository: preservation commits the scratch file, and a shared tree
+	// own repository: preservation commits the scratch file. A shared tree
 	// would leave the later spellings nothing to preserve.
 	for _, c := range []string{
 		"git clean -f -d -x", "git clean -fdx", "git clean -xdf",

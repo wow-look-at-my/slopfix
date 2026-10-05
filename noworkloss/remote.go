@@ -7,7 +7,7 @@ import (
 )
 
 // A commit can be made without any file ever existing locally: the GitHub
-// contents API takes the bytes in the request body, and the createCommitOnBranch
+// contents API takes the bytes in the request body. The createCommitOnBranch
 // mutation takes them in a GraphQL variable. Both are judged here.
 
 func remoteWrites(seg segment, name string, rest []word) ([]write, bool) {

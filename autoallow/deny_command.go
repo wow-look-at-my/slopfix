@@ -79,7 +79,7 @@ func isInlineScript(d CommandRule, args []shellwalk.Word, fedByStdin bool) bool 
 }
 
 // matchCommandRule walks EVERY statement, including the substitutions,
-// subshells and conditionals the allow path refuses to read -- a denied program
+// subshells and conditionals the allow path refuses to read. A denied program
 // must never be a `$(...)` away from running.
 func matchCommandRule(command string, denies []CommandRule) (string, string) {
 	if len(denies) == 0 {

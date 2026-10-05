@@ -38,8 +38,8 @@ pub unsafe extern "C" fn converter_free(handle: *mut Handle) {
 }
 `
 
-// A Rust doc paragraph reads to its last line, so a sentence that wraps onto a
-// line opening with inline code ends where its full stop is. Check and fix agree.
+// A Rust doc paragraph reads to its last line. A sentence that wraps onto a line
+// opening with inline code ends where its full stop is. Check and fix agree.
 func TestARustDocSentenceReadsToItsLastLine(t *testing.T) {
 	rules := []slopfix.Rule{slopfix.RuleComments}
 	req := slopfix.Request{Path: "src/converter.rs", Content: safetyDoc, Rules: rules}

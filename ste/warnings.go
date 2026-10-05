@@ -100,7 +100,7 @@ func verbWarnings(s *syntax.Sentence, off [][]int, line int) []Finding {
 	words := s.Words
 	nouns := 0
 	for i, w := range words {
-		// Code, a quotation and a parenthetical are data, so each one ends a cluster.
+		// Code, a quotation and a parenthetical are data, so each ends a cluster.
 		data := insideAny(off, w.Start) || masks.Contains(w.Text)
 		if strings.HasPrefix(w.Tag, "NN") && !data {
 			nouns++

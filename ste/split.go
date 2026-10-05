@@ -15,37 +15,44 @@ import (
 type division struct {
 	leftEnd, rightStart int
 	opener              string
+	// closer is the object a division writes back at the end of the rest: ", which a list does not show" becomes "A list does not show that."
+	closer string
 }
 
 // connectors map a conjunction to the words that open the sentence after it.
-// The and of a list of actions carries no meaning a period loses.
+// A period says what and and so say, so both drop.
 var connectors = map[string]string{
 	"and": "",
 	"but": "However,",
 	"yet": "However,",
-	"so":  "As a result,",
+	"so":  "",
+	"or":  "Otherwise,",
 }
 
-// fixSentenceCap divides every over-cap sentence where its grammar allows. A
-// sentence with no clause boundary to divide at then divides between words.
-func fixSentenceCap(prose string) string {
+// FixByHand is the Fix text of a long sentence that no division can repair.
+const FixByHand = "Rewrite it by hand as shorter sentences. No division keeps each half a grammatical sentence."
+
+// fixSentenceCap divides every over-cap sentence where both halves stay
+// grammatical sentences. It first tries the clause boundaries, then the word
+// boundaries.
+func fixSentenceCap(prose string, d capSpec) string {
 	for range len(strings.Fields(prose)) + 1 {
-		next, divided := divideNext(prose)
+		next, divided := divideNext(prose, d.cap)
 		if !divided {
 			break
 		}
 		prose = next
 	}
-	return forceSentenceCap(prose)
+	return forceSentenceCap(prose, d)
 }
 
 // divideNext divides the earliest over-cap sentence that a clause boundary can divide.
-func divideNext(prose string) (string, bool) {
+func divideNext(prose string, limit int) (string, bool) {
 	masked := mask(prose)
 	off := opaque(prose, masked)
 	for _, span := range sentenceSpans(prose) {
 		start, end := span[0], span[1]
-		if WordCount(masked[start:end]) <= SentenceWordCap {
+		if WordCount(masked[start:end]) <= limit {
 			continue
 		}
 		s := syntax.Parse(masked[start:end], shift(off, -start))
@@ -96,13 +103,28 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if strings.Count(source[:d.leftEnd], "**")%2 != 0 {
 			continue
 		}
-		// The words a division drops never carry a bold marker, or the rest keeps half a pair.
-		if strings.Contains(source[d.leftEnd:d.rightStart], "**") {
+		// A bold run that opens on the conjunction the division drops opens the rest instead: "X **and Y is flagged**" becomes "X. **Y is flagged**".
+		bold := ""
+		if dropped := strings.TrimSpace(source[d.leftEnd:d.rightStart]); strings.Contains(dropped, "**") {
+			if strings.Count(dropped, "**") != 1 || !strings.HasPrefix(dropped, "**") {
+				continue
+			}
+			bold = "**"
+		}
+		if !admissible(s, source, d) {
 			continue
 		}
-		left := strings.TrimRight(source[:d.leftEnd], " ,") + "."
-		right := joinOpener(d.opener, source[d.rightStart:])
+		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
+		right := bold + withCloser(joinOpener(d.opener, source[d.rightStart:]), d.closer)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
+			continue
+		}
+		// The parse of the whole can hand a clause a verb that belongs elsewhere, so each half is read again on its own.
+		if d.opener == "" && !standsAsSentence(right) {
+			continue
+		}
+		// A noun phrase whose only verbs sit in relative clauses is a fragment: "A number that is true today".
+		if !finiteOutsideRelative(syntax.Parse(checkMask(right), nil), 0) {
 			continue
 		}
 		score := max(WordCount(left), WordCount(right))
@@ -121,7 +143,10 @@ func Leading(sentence string) (string, bool) {
 	s := syntax.Parse(masked, opaque(sentence, masked))
 	best := ""
 	for _, d := range divisions(s, sentence) {
-		head := strings.TrimRight(sentence[:d.leftEnd], " ,") + "."
+		if !admissible(s, sentence, d) {
+			continue
+		}
+		head := strings.TrimRight(sentence[:d.leftEnd], " ,;:—–-") + "."
 		if n := WordCount(head); n >= minimumHalf && n <= SentenceWordCap && len(head) > len(best) {
 			best = head
 		}
@@ -129,8 +154,47 @@ func Leading(sentence string) (string, bool) {
 	return best, best != ""
 }
 
+// Cuts answers each byte offset where sentence can close at a clause boundary
+// and leave a sentence: the boundaries the division repair admits.
+func Cuts(sentence string) []int {
+	masked := mask(sentence)
+	s := syntax.Parse(masked, opaque(sentence, masked))
+	var out []int
+	for _, d := range divisions(s, sentence) {
+		if admissible(s, sentence, d) {
+			out = append(out, d.leftEnd)
+		}
+	}
+	return out
+}
+
 // minimumHalf keeps a division from writing a sentence too short to stand alone.
 const minimumHalf = 3
+
+// withCloser writes closer in front of the stop that ends rest.
+func withCloser(rest, closer string) string {
+	if closer == "" {
+		return rest
+	}
+	body := strings.TrimRight(rest, ".!? ")
+	return body + " " + closer + rest[len(body):]
+}
+
+// objectRelative reports ", which X does not show" at the end of a sentence:
+// a relative clause with a subject of its own whose verb ends the sentence, so
+// the relative word is the verb's object.
+func objectRelative(s *syntax.Sentence, c syntax.Clause) bool {
+	if c.Kind != syntax.Relative || !c.Comma || c.Depth != 1 || s.Words[c.Link].Lower() != "which" || c.Subject == nil || c.Verb == nil {
+		return false
+	}
+	last := len(s.Words) - 1
+	for last > 0 && punctuationTag(s.Words[last].Tag) {
+		last--
+	}
+	return c.Verb.Last == last && c.Subject.First == c.Link+1 && !strings.HasPrefix(s.Words[last].Tag, "VBN")
+}
+
+func punctuationTag(tag string) bool { return tag == "." || tag == "," || tag == ":" }
 
 // joinOpener puts the opener in front of the rest, and capitalizes what opens the sentence.
 func joinOpener(opener, rest string) string {
@@ -163,6 +227,13 @@ func divisions(s *syntax.Sentence, source string) []division {
 		}
 		opener, ok := openerFor(s, c, main, source)
 		if !ok {
+			if objectRelative(s, c) {
+				out = append(out, division{
+					leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
+					rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
+					closer:     "that",
+				})
+			}
 			continue
 		}
 		out = append(out, division{
@@ -247,16 +318,31 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "", false
 		}
 		connector, ok := connectors[link]
-		if !ok || c.Comma && listBefore(s, c) {
+		// No list ends on "so", so a list before it does not swallow the clause.
+		if !ok || c.Comma && link != "so" && listBefore(s, c) {
+			return "", false
+		}
+		if link == "so" && (!c.Comma || c.Subject == nil || main.Verb.Imperative || instructs(s)) {
+			// A so after an instruction, or with no comma, states a purpose. A so with no subject leaves no clause.
+			return "", false
+		}
+		// The clause before the link needs a verb, or the conjunction joins noun
+		// phrases.
+		if s.Clauses[indexOf(s, c)-1].Verb == nil && !(c.Comma && c.Subject != nil && subjectFollows(s, c)) {
 			return "", false
 		}
 		if c.Subject != nil {
-			return connector, opensWithCapital(s, c.Link+1, source)
+			return connector, subjectFollows(s, c) && agrees(s, *c.Subject, *c.Verb) && opensWithCapital(s, c.Link+1, source)
+		}
+		// A shared subject needs its verb right after the link, and no aside before the link.
+		if !verbFollows(s, c) || c.Link > 0 && strings.Contains("—–--", s.Words[c.Link-1].Text) || laterVerb(s, c) {
+			return "", false
 		}
 		if main.Verb.Imperative {
 			return connector, startsTheSentence(s, main)
 		}
-		if main.Subject == nil {
+		// The subject to name again belongs to the clause right before the link.
+		if main.Subject == nil || s.Clauses[indexOf(s, c)-1].First != main.First || finiteBetween(s, main.Verb.Last+1, c.Link) {
 			return "", false
 		}
 		subject, ok := restated(s, main, c, source)
@@ -274,14 +360,32 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		if c.Depth != 0 || c.Subject == nil && !resumesAfter(s, c.Link+1) {
 			return "", false
 		}
+		if c.Subject != nil && !subjectFollows(s, c) || !opensSubject(s, c.Link+1) {
+			// "not prose: left in the text a rewrite wraps it": a participle phrase opens a clause that names its own subject later.
+			if c.Subject != nil && s.Words[c.Link].Text == ":" && s.Words[c.Link+1].Tag == "VBN" {
+				return "", opensWithCapital(s, c.Link+1, source) && c.Verb != nil && c.Subject.First > c.Link+1 && c.Subject.Last < c.Verb.First && finiteAt(s, c.Verb.First)
+			}
+			return "", false
+		}
 		return "", opensWithCapital(s, c.Link+1, source)
 	case syntax.Subordinate:
-		if link != "because" || !closesTheSentence(s, c) {
+		// ", and returns Y" after the reason is the main clause again, so the reason does not close the sentence.
+		if link != "because" || !closesTheSentence(s, c) || coordinatedVerb(s, c.Link) {
 			return "", false
 		}
 		return "This is because", true
 	}
 	return "", false
+}
+
+// finiteBetween reports a finite verb among words from up to end.
+func finiteBetween(s *syntax.Sentence, from, end int) bool {
+	for i := max(from, 0); i < end && i < len(s.Words); i++ {
+		if finiteAt(s, i) {
+			return true
+		}
+	}
+	return false
 }
 
 // resumesAfter reports whether a main clause with a subject starting at word i
@@ -335,6 +439,14 @@ func opensWithCapital(s *syntax.Sentence, i int, source string) bool {
 // when no pronoun agrees, as for a single person and a verb in -s.
 func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string, bool) {
 	subject := *main.Subject
+	if subject.First > 0 && s.Words[subject.First-1].Tag == "VBG" {
+		// The noun phrase is the object of a gerund, and the gerund is the subject: "freezing the HOW pins it".
+		return "", false
+	}
+	// A subject the parser found after its verb, or one that opens on a bare noun, is a misreading.
+	if subject.Last >= main.Verb.First || !opensSubject(s, subject.First) {
+		return "", false
+	}
 	head := s.Words[subject.Head]
 	if head.Tag == "PRP" {
 		return head.Text, true
@@ -391,7 +503,7 @@ func endsMainClause(prose string, at int) bool {
 		}
 		for _, c := range s.Clauses {
 			if c.First <= last && last <= c.Last {
-				return c.Depth == 0 && c.Verb != nil
+				return c.Depth == 0 && c.Verb != nil && standsAlone(s, 0, last+1)
 			}
 		}
 		return false
@@ -412,9 +524,19 @@ func joinsClauses(prose string, at int) bool {
 			continue
 		}
 		s := syntax.Parse(prose[span[0]:span[1]], opaque(prose[span[0]:span[1]], prose[span[0]:span[1]]))
-		for _, c := range s.Clauses {
+		for k, c := range s.Clauses {
 			if c.Link >= 0 && s.Words[c.Link].Start == at-span[0] {
-				return c.Kind == syntax.Coordinate && c.Depth == 0 && c.Subject != nil && !listBefore(s, c)
+				if c.Kind != syntax.Coordinate || c.Depth != 0 || c.Subject == nil || listBefore(s, c) {
+					return false
+				}
+				// Each half must be a sentence: a main clause before, and a subject that
+				// agrees with its verb after.
+				if k == 0 || s.Clauses[k-1].Verb == nil || !standsAlone(s, 0, c.Link) || !subjectFollows(s, c) || !agrees(s, *c.Subject, *c.Verb) {
+					return false
+				}
+				// A so after an instruction states its purpose, and joins nothing a period can take.
+				main, ok := mainBefore(s, k)
+				return !strings.EqualFold(word, "so") || ok && !main.Verb.Imperative && !instructs(s)
 			}
 		}
 		return false
@@ -443,17 +565,6 @@ func clauseStart(s *syntax.Sentence, i int) int {
 		}
 	}
 	return start
-}
-
-// startsTheSentence reports whether a clause starts at the sentence's earliest
-// word, which an imperative has to: "Write the file".
-func startsTheSentence(s *syntax.Sentence, c syntax.Clause) bool {
-	for i := 0; i < c.Verb.First; i++ {
-		if s.Words[i].Tag != "RB" && s.Words[i].Tag != "``" {
-			return false
-		}
-	}
-	return true
 }
 
 const restateLimit = 4
