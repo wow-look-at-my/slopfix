@@ -35,7 +35,13 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 		if n < minimumHalf || len(whole.Words)-n < minimumHalf {
 			continue
 		}
-		if seam != "," && (!endsBefore(whole, n) || !opensFragment(whole.Words[n])) {
+		if seam == "," {
+			// A comma opens the next list item only when a determiner or a list
+			// adverb follows it. "Progress, when set, is called" is no list.
+			if !opensFragment(whole.Words[n]) && !listAdverb.Contains(whole.Words[n].Lower()) {
+				continue
+			}
+		} else if !endsBefore(whole, n) || !opensFragment(whole.Words[n]) {
 			continue
 		}
 		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {
@@ -56,6 +62,9 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 
 // phraseEndParticle words end a phrase, though the tagger can read one as a preposition.
 var phraseEndParticle = set.Of(wordsOf("phrase-end-particle")...)
+
+// listAdverb words continue a list without a determiner.
+var listAdverb = set.Of("then", "next", "finally", "lastly", "also", "plus")
 
 // PhraseHead answers the longest leading run of text, at most maxWords long,
 // that ends a noun phrase where the next word opens one. It closes the run
