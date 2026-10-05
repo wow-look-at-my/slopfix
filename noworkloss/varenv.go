@@ -113,7 +113,7 @@ func (c *varScan) stmt(st *syntax.Stmt, risky bool) {
 	c.command(st.Cmd, risky)
 }
 
-// command mirrors the dispatch in segment.go's walker.command: the same
+// command mirrors the dispatch in segment.go's walker.command. The same
 // node types, the same idea of which branch can run repeatedly or might
 // not run at all. It answers a narrower question, so it tracks risk rather
 // than cwd or destructive verbs.
@@ -230,10 +230,10 @@ var tempRoots = []string{"/tmp", "/var/tmp"}
 
 // mktempPath resolves `$(mktemp ...)` to a path in the temp directory. The
 // exact basename is chosen by mktemp at run time and nothing here can know
-// it, but the DIRECTORY is what decides whether a write lands in the working
-// tree, and mktemp with no template or a temp-rooted template cannot leave the
-// temp directory. A template naming any other directory resolves to nothing,
-// because `mktemp ./buildXXXX` really does write beside the source.
+// it. However, the DIRECTORY is what decides whether a write lands in the
+// working tree, and mktemp with no template or a temp-rooted template cannot
+// leave the temp directory. A template naming any other directory resolves
+// to nothing, because `mktemp ./buildXXXX` does write beside the source.
 func mktempPath(wd *syntax.Word) (word, bool) {
 	sub, ok := soleCmdSubst(wd)
 	if !ok || len(sub.Stmts) != 1 || sub.Stmts[0] == nil {
@@ -340,7 +340,7 @@ func resolveWord(wd *syntax.Word, vars varTable) word {
 
 // resolvePart appends a part's literal text into b, reporting whether the
 // text is fully known. It never writes partial text for a part it cannot
-// resolve, matching shellwalk.WordText: an unresolved word carries no text
+// resolve, matching shellwalk.WordText. An unresolved word carries no text
 // that could pass for a real path.
 func resolvePart(p syntax.WordPart, vars varTable, b *strings.Builder) bool {
 	switch x := p.(type) {

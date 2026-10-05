@@ -3,7 +3,7 @@
 // A build runs the sweep on every tree it touches, and a rewrite there lands
 // in the author's working copy. So the sweep writes only what the branch
 // already changed, and nothing while git is part way through a merge or a
-// rebase: a rewrite then mixes into the conflict resolution.
+// rebase. A rewrite then mixes into the conflict resolution.
 package commentfix
 
 import (

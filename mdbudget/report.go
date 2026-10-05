@@ -175,8 +175,8 @@ func editReportText(o offender, limit int, growth int, hasGrowth bool) string {
 		headline = "INSTRUCTION-FILE BUDGET: the file you just wrote is OVER the " +
 			comma(limit) + "-character budget."
 	case narrow:
-		// Say the true offense. The old headline claimed the budget wall for
-		// every width-only report, on files with thousands of characters spare.
+		// Say the true offense. The headline claimed the budget wall for every
+		// width-only report, on files with thousands of characters spare.
 		headline = "INSTRUCTION-FILE WIDTH: the file you just wrote has lines past " +
 			strconv.Itoa(widthLimit) + " columns. It is within budget."
 	}

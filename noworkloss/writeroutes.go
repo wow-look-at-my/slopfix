@@ -46,7 +46,7 @@ func decide(raw []byte) (reason string, notices []string) {
 			return reason, nil
 		}
 		// The provenance half can still deny a command the destruction half
-		// just preserved and allowed -- `> tracked.go` is both a truncation
+		// preserved and allowed -- `> tracked.go` is both a truncation
 		if writeReason := evaluateWrites(ti.Command, in.Cwd); writeReason != "" {
 			return writeReason, nil
 		}
@@ -104,12 +104,12 @@ func analyzeWrites(command, cwd string) string {
 }
 
 // judgeWrite turns a write into a verdict. Every branch that cannot resolve a
-// target denies: a path this hook cannot name is a path it cannot clear.
-// A write read out of a script FILE is the exception. There the unresolvable
-// target belongs to a program this hook runs rather than to the command text,
-// and it already declines to sandbox what it starts. Denying it made an
-// ordinary `./make.bash` unrunnable. A target the script names statically is
-// still judged, so following a script still closes the write-elsewhere-then-run
+// target denies: a path this hook cannot name is a path it cannot clear. A
+// write read out of a script FILE is the exception. There the unresolvable
+// target belongs to a program this hook runs rather than to the command text.
+// It already declines to sandbox what it starts. Denying it made an ordinary
+// `./make.bash` unrunnable. A target the script names statically is still
+// judged, so following a script still closes the write-elsewhere-then-run
 // bypass.
 func judgeWrite(w write, roots []string) string {
 	if w.opaque != "" {
@@ -166,9 +166,9 @@ func isEditTool(name string) bool {
 	return false
 }
 
-// The edit tools are the sanctioned route and are left alone -- except where
-// their target is the live settings, which is how a session would re-grant what
-// every rule above denies.
+// The edit tools are the sanctioned route. The edit tools are left alone --
+// except where their target is the live settings, which is how a session would
+// re-grant what every rule above denies.
 func editToolReason(in hookInput, ti toolInput) string {
 	for _, p := range []string{ti.FilePath, ti.NotebookPath, ti.Path} {
 		if p == "" {
@@ -195,11 +195,11 @@ func isAgentTool(name string) bool {
 		strings.HasSuffix(name, "__create_session")
 }
 
-// A subagent inherits the session's hooks, so its own Bash calls arrive here
-// like any other. What does not arrive here is a grant the spawn hands the
-// child: an explicit tool list or a permissive mode makes the child able to do
-// what the parent was refused, in a single call. A spawn that asks for neither is
-// ordinary delegation and passes.
+// A subagent inherits the session's hooks, so its own Bash calls arrive here like
+// any other. What does not arrive here is a grant the spawn hands the child. An
+// explicit tool list or a permissive mode makes the child able to do what the
+// parent was refused, in a single call. A spawn that asks for neither is ordinary
+// delegation and passes.
 func agentReason(tool string, ti toolInput) string {
 	mode := ti.PermissionMode
 	if mode == "" {

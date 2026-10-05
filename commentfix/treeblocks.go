@@ -1,14 +1,13 @@
 // treeblocks.go pairs a comment with the construct it documents, from a real
 // syntax tree.
 //
-// It replaced a line walk that guessed where a declaration ended, and a Go-only
-// path built on go/ast beside it. The walk could not be repaired from, because
-// a span wrong by a line deletes the wrong prose, so the fix ran for Go alone.
-// A tree gives every language an exact span, so the fix runs everywhere.
+// The walk could not be repaired from, because a span wrong by a line deletes
+// the wrong prose, so the fix ran for Go alone. A tree gives every language
+// an exact span, so the fix runs everywhere.
 //
 // Nothing here names a language. A comment is a node whose type carries
-// "comment", which is how every grammar spells it, and the documented construct
-// is the next named sibling. Both facts come from the tree.
+// "comment", which is how every grammar spells it, and the documented
+// construct is the next named sibling. Both facts come from the tree.
 package commentfix
 
 import (

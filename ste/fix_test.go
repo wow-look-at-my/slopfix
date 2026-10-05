@@ -1,6 +1,7 @@
 package ste_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,7 @@ import (
 // examples in the rules folder. What is left here is what such an example
 // cannot say: an invariant the repair holds whatever it writes.
 
-// Leading closes a sentence at a clause boundary the parser finds, so the head it
+// Leading closes a sentence at a clause boundary the parser finds. The head it
 // keeps is a sentence under the cap and never a cut at a word.
 func TestLeadingClosesAtAClauseBoundary(t *testing.T) {
 	long := "The comment scan reads each file that the branch changed since its merge base, and it rewrites every number it finds in a comment into words that stay true."
@@ -27,14 +28,14 @@ func TestLeadingClosesAtAClauseBoundary(t *testing.T) {
 	assert.False(t, ok, "no clause boundary, so no head")
 }
 
-// With no clause boundary, the repair divides between words, and Check then
-// reports nothing.
+// With no clause boundary, the long subject goes into a sentence of its own,
+// and the noun it names carries the predicate.
 func TestFixDividesASentenceWithNoClauseBoundary(t *testing.T) {
 	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
-	require.Len(t, ste.Check(long, 1), 1, "the control: the sentence is over the cap")
-	fixed := ste.Fix(long)
-	assert.NotEqual(t, long, fixed)
-	assert.Empty(t, ste.Check(fixed, 1), fixed)
+	findings := ste.Check(long, 1)
+	require.Len(t, findings, 1, "the control: the sentence is over the cap")
+	assert.False(t, ste.ByHand(findings[0].Fix), findings[0].Fix)
+	assert.Equal(t, "Consider a reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause. That reader still deserves a repair from the tool rather than a deletion.", ste.Fix(long))
 }
 
 // A division never lands inside an inline code span, so the span survives the
@@ -71,7 +72,8 @@ func TestFixRepairsASpliceBeforeACodeSpanSubject(t *testing.T) {
 func TestFixNeverDividesInsideBoldText(t *testing.T) {
 	long := "With no trip count given, each loop is modeled as one iteration **and the estimate is flagged** with a section in the report and a note in the output so it is never read as the exact cost."
 	fixed := ste.Fix(long)
-	assert.Contains(t, fixed, "**and the estimate is flagged**")
+	assert.Contains(t, fixed, "one iteration. **The estimate is flagged** with", "the bold run moves past the dropped conjunction, whole")
+	assert.Equal(t, 2, strings.Count(fixed, "**"))
 }
 
 // ", and" before a subordinate clause and its main clause is a sentence boundary.
@@ -90,6 +92,45 @@ func TestCheckSkipsQuotedText(t *testing.T) {
 	assert.Empty(t, ste.Check(`The owner said "it is fine; ship it" and moved on.`, 1))
 	assert.Empty(t, ste.Check("The owner said “it is fine; ship it” and moved on.", 1))
 	assert.NotEmpty(t, ste.Check("The owner said it is fine; ship it.", 1))
+}
+
+// A numeral that a verb follows is the noun of its phrase. A cut left "So the cannot disagree".
+func TestFixKeepsANumeralThatIsTheNoun(t *testing.T) {
+	for _, in := range []string{
+		"So the two cannot disagree about what red means.",
+		"Another repo's run must not animate this one.",
+	} {
+		assert.Equal(t, in, ste.Fix(in))
+	}
+}
+
+// A division restates only the subject of the clause right before the cut, never "The Send".
+func TestADivisionNamesNoWrongSubject(t *testing.T) {
+	in := "A Send Now delivers its text to the planner already running (`SubagentEvent::Interject`, routed by the coordinator id the spawn publishes on the goal tracker) instead of cancelling it, so an `Interrupted` reaching the loop is a bare cancel and is terminal — retrying one spawned four dead planners in 2.3 s before the attempt cap paused the goal."
+	assert.NotContains(t, ste.Fix(in), "The Send is")
+}
+
+// After a colon, a division needs a clause on its left. "every `agent()` call." is a list item.
+func TestADivisionAfterAColonKeepsAClauseOnItsLeft(t *testing.T) {
+	in := "Workflows use an absolute cumulative `agent_budget` cap on logical child-agent calls: every `agent()` call and every item in a `parallel()` panel spends one slot, while schema-correction retries don't."
+	assert.NotContains(t, ste.Fix(in), "`agent()` call.")
+}
+
+// A division whose first half opens with the same words as the whole is a
+// repair. Check does not ask for a rewrite by hand.
+func TestCheckAgreesWithADivisionThatKeepsTheOpening(t *testing.T) {
+	in := "The loader reads every cached manifest from the shared store and rebuilds the index of plugin hooks for each workspace the user opens in the editor during startup of the session."
+	require.NotEqual(t, in, ste.Fix(in))
+	for _, f := range ste.Check(in, 1) {
+		assert.False(t, ste.ByHand(f.Fix), f.Fix)
+	}
+}
+
+// Fix leaves a quotation as Check reads it. A modal inside one stays.
+func TestFixLeavesQuotedWordsAlone(t *testing.T) {
+	in := `IDLE is an ACTIVE corruption, not a benign "would not attach its cost."`
+	assert.Equal(t, in, ste.Fix(in))
+	assert.Equal(t, "It will not attach.", ste.Fix("It would not attach."))
 }
 
 // A semicolon that ends the prose before a code span keeps its space.

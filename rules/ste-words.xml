@@ -132,7 +132,50 @@
 
   <!-- A forced division never opens the second part on one of these words. Each
        binds to the words in front of it. -->
-  <class name="force-bound" words="that who whom whose of than or nor"/>
+  <class name="force-bound" words="whom whose of than or nor"/>
+
+  <!-- A particle that ends a phrase, though the tagger reads it as a preposition
+       when a noun phrase follows: "keeps going onward a clause". -->
+  <class name="phrase-end-particle" words="onward onwards forward back away
+    out off along around aside apart again ahead behind"/>
+
+  <!-- A preposition that opens an adverbial of time, frequency, condition or
+       manner. A division in front of one moves the adverbial into a sentence of
+       its own, behind a carrier such as "This happens". "of", "from", "to" and
+       "into" are missing: each opens an argument of the verb. -->
+  <class name="carrier-adverbial" words="on at during after before until within
+    for with without by through via across per upon throughout once whenever
+    when while if unless because since although though where"/>
+
+  <!-- A preposition of carrier-adverbial that just as often completes the verb
+       or the noun before it: "aimed at", "mistaken for", "meet with". It moves
+       behind a carrier only before "every" or "each", as in "on every run". -->
+  <class name="carrier-bound" words="on at for with without by through via
+    across per upon"/>
+
+  <!-- A preposition of place. After a noun it describes the noun, so a division
+       in front of one restates the noun: "That store is in the home directory". -->
+  <class name="carrier-place" words="in inside under within beneath beside near
+    outside behind above below"/>
+
+  <!-- A word that names a part of a group. It takes a plural verb when the
+       group is plural: "the rest are synonyms". -->
+  <class name="partitive" words="rest remainder majority most all both none
+    many few some others several half"/>
+
+  <!-- An -ing word that is a noun after a noun modifier: "the ste finding",
+       "the color setting". A division in front of one splits the noun. -->
+  <class name="nominal-ing" words="finding setting warning mapping heading
+    ending building listing binding padding spacing encoding meaning string
+    thing ring ruling wording rating ranking reading writing timing pairing
+    logging routing scoping tracking billing pricing caching"/>
+
+  <!-- A verb that states a fact rather than an action. Its adverbial goes
+       behind "This holds", where "This happens" says an event took place. -->
+  <class name="state-verb" words="is are was were be been being has have had
+    holds hold contains contain equals equal means mean stays stay remains
+    remain matches match needs need belongs belong exists exist lives live
+    depends depend applies apply"/>
 
   <!-- A word that opens a phrase. A forced division in front of one reads
        better than a division between any two words. -->

@@ -17,7 +17,7 @@ import (
 // EVERY rule carries a repair. A rule that only reports hands the reader a
 // finding and no way out of it, and the tool exists to write the repair.
 //
-// This is the check the gate runs: a rule added without a repair fails the
+// This is the check the gate runs. A rule added without a repair fails the
 // build that adds it, while its author still holds the context to write it.
 func TestEveryRuleCarriesARepair(t *testing.T) {
 	var missing []string

@@ -3,8 +3,8 @@
 //
 // The list is DERIVED, never declared. No flag, input or environment variable
 // adds a path to it. That is the point: an exclusion a caller writes is an
-// exclusion a caller can widen to everything, and a check somebody can switch
-// off enforces nothing.
+// exclusion a caller can widen to everything. A check somebody can switch off
+// enforces nothing.
 package gitmod
 
 import (

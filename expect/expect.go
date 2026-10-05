@@ -2,8 +2,8 @@
 //
 // A line carrying `slopfix-expect: "text"` states what slopfix turns that line
 // into, as a Go-quoted string; "" states that the repair deletes it. A file
-// carrying any annotation is a fixture: it is never rewritten, and every line
-// the repair would change has to be annotated with exactly what it would write.
+// carrying any annotation is a fixture: it is never rewritten. Every line the
+// repair would change has to be annotated with exactly what it would write.
 package expect
 
 import (

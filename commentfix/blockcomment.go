@@ -155,5 +155,6 @@ func repairBlockComment(b block) ([]string, bool) {
 	if len(kept) == 0 {
 		return nil, true
 	}
+	// A cut between words leaves a fragment, so the comment stays for a rewrite by hand.
 	return nil, false
 }
