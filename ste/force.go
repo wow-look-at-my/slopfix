@@ -147,9 +147,6 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			}
 			head := source[:c.left]
 			right, opened := openRest(source, masked, whole, c)
-			if right == "" {
-				head, right, opened = carrierDivision(source, whole, c)
-			}
 			left := closeHead(head)
 			seam := seamBefore(source, c.left)
 			// ", so" joins whole clauses, so the comma before it ends one wherever it sits.
@@ -157,9 +154,17 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 				seam = "so"
 			}
 			// A fragment head behind "This is" closes as a sentence of its own.
-			fragment := head == fragmentHead(source[:c.left])
-			if right == "" || !divides(left, right, d.cap) || !fragment && !closesWhole(source[:c.left], seam, whole) && !closesPhrase(source[:c.left], whole) {
-				continue
+			accept := func(h, r string) bool {
+				return r != "" && divides(closeHead(h), r, d.cap) &&
+					(h == fragmentHead(source[:c.left]) || closesWhole(source[:c.left], seam, whole) || closesPhrase(source[:c.left], whole))
+			}
+			if !accept(head, right) {
+				// The grammatical rest was refused, so the carrier division, which restates the main clause, gets its turn.
+				ch, cr, co := carrierDivision(source, whole, c)
+				if !accept(ch, cr) {
+					continue
+				}
+				head, right, opened, left = ch, cr, co, closeHead(ch)
 			}
 			// A rest that opens a clause of its own reads best.
 			if score := c.score + opened; best == "" || score > bestScore {
