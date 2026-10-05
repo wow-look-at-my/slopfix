@@ -563,7 +563,7 @@ func endsWell(text []string) bool {
 // reflows what is left, so a cut lands mid-line where the prose ends there.
 //
 // It reports false for a block whose shape it cannot read, and for a last
-// paragraph with no interior sentence end. dropParagraph and dropSentence own
+// paragraph with no interior sentence end: dropParagraph and dropSentence own
 // those.
 func dropTrailingSentence(text []string) ([]string, bool) {
 	marker, indent, ok := commentShape(text)

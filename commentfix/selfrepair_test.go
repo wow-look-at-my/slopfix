@@ -10,9 +10,10 @@ import (
 	"github.com/wow-look-at-my/slopfix/code"
 )
 
-// This repository's own source is the rule's earliest real corpus. A run over
-// it is the only evidence that the repair works on prose somebody wrote for
-// its own sake, not for a fixture.
+// Consider this repository's own source. That source is the rule's earliest
+// real corpus, and running the rule over it is the only evidence that the
+// repair works on prose somebody wrote for its own sake rather than for a
+// fixture.
 //
 // It reports by default and never writes. Setting SLOPFIX_SELF_REPAIR applies
 // the repair, which is how the tree gets cleaned. The binary that carries this
