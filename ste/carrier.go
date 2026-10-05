@@ -93,7 +93,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		// Noun phrases after a colon name what the head speaks of: "the words a repair drops, the phrasings it swaps".
 		opensNoun := word.Tag == "DT" || word.Tag == "PRP$" || word.Tag == "JJ" || strings.HasPrefix(word.Tag, "NN")
-		if opensNoun && (!finiteBetween(whole, first, len(whole.Words)) || len(topCommas(rest, 0)) >= 2) {
+		if opensNoun && !finiteBetween(whole, first, len(whole.Words)) {
 			return head, "This covers " + rest, opensWithCarrier
 		}
 	}
@@ -382,6 +382,10 @@ func restateBare(source string, noun syntax.Word, rest string) string {
 // covers D and E". The words before the cut end the list with its own
 // conjunction, which listRest writes into the head through c's left offset.
 func listRest(source string, s *syntax.Sentence, verb syntax.Phrase, c forceCut, rest, seam string) (string, string, bool) {
+	// A rest that opens on a verb continues a list of verbs, which the noun-list carrier cannot repeat: "may write delete it".
+	if r := syntax.Parse(checkMask(rest), nil); len(r.Words) > 0 && (strings.HasPrefix(r.Words[0].Tag, "VB") || r.Words[0].Tag == "MD") {
+		return "", "", false
+	}
 	conj, ok := listEnd(rest)
 	// A rest that opens on a conjunction is a clause the list never reached: "but remembered grants are".
 	if !ok || len(topCommas(source[:c.left], s.Words[verb.Last].End)) == 0 || leadingConjunction.MatchString(strings.ToLower(rest)) || strings.HasPrefix(strings.ToLower(rest), "but ") {
