@@ -176,21 +176,23 @@ func TestASingleOpeningSentenceTooLongToFitDivides(t *testing.T) {
 	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
 	assert.Empty(t, CheckLength("x.go", out), "the repaired file is clean:\n%s", out)
-	comment := strings.TrimSpace(strings.TrimPrefix(strings.Split(out, "\n")[2], "//"))
-	assert.True(t, strings.HasSuffix(comment, "."), "the kept text ends a sentence: %q", comment)
-	assert.Contains(t, comment, " ", "the kept text is a sentence, not one word: %q", comment)
+	comment := commentProse(out)
+	assert.True(t, strings.HasSuffix(comment, "will not fit."), "the kept text ends a phrase: %q", comment)
+	assert.True(t, strings.HasPrefix(comment, "a long single opening sentence"), "the kept text is the opening: %q", comment)
 }
 
-// A long opening sentence with clauses keeps its own leading clause when it
+// A long opening sentence with clauses keeps its leading clauses when it
 // divides to fit, so the comment still opens with its point.
-func TestALongOpeningDividesAtAClause(t *testing.T) {
+func TestALongOpeningKeepsItsLeadingClauses(t *testing.T) {
 	long := "// The cache writes every entry to disk before it answers the caller, because a crash between the answer and the write loses the entry, and the caller then reads a value that the next process cannot find again."
 	src := "package p\n\n" + long + "\nconst p = 1\n"
 
 	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
 	assert.Empty(t, CheckLength("x.go", out), "the repaired file is clean:\n%s", out)
-	assert.Contains(t, out, "// The cache writes every entry to disk before it answers the caller.", out)
+	comment := commentProse(out)
+	assert.True(t, strings.HasPrefix(comment, "The cache writes every entry to disk before it answers the caller"), out)
+	assert.True(t, strings.HasSuffix(comment, "."), out)
 }
 
 // A comment marker inside a string is data, and the adapter is what keeps it

@@ -166,6 +166,9 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			return best, true
 		}
 	}
+	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok {
+		return out, true
+	}
 	if !d.reorder {
 		return source, false
 	}
