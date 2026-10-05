@@ -71,7 +71,8 @@ func TestFixRepairsASpliceBeforeACodeSpanSubject(t *testing.T) {
 func TestFixNeverDividesInsideBoldText(t *testing.T) {
 	long := "With no trip count given, each loop is modeled as one iteration **and the estimate is flagged** with a section in the report and a note in the output so it is never read as the exact cost."
 	fixed := ste.Fix(long)
-	assert.Contains(t, fixed, "**and the estimate is flagged**")
+	assert.Contains(t, fixed, "one iteration. **The estimate is flagged** with", "the bold run moves past the dropped conjunction, whole")
+	assert.Equal(t, 2, strings.Count(fixed, "**"))
 }
 
 // ", and" before a subordinate clause and its main clause is a sentence boundary.

@@ -203,6 +203,17 @@ func mainSubject(source string, s *syntax.Sentence, verb syntax.Phrase, tag stri
 	return ""
 }
 
+// closesPhrase reports a head that ends a sentence with no verb at all on a
+// word that completes its phrase. The sentence was a noun phrase as written,
+// and each part stays one.
+func closesPhrase(head string, whole *syntax.Sentence) bool {
+	if finiteBetween(whole, 0, len(whole.Words)) {
+		return false
+	}
+	w, ok := lastWordBefore(whole, len(head))
+	return ok && strings.HasPrefix(w.Tag, "NN")
+}
+
 // finiteVerbTag reports the tag of a finite verb.
 func finiteVerbTag(tag string) bool { return tag == "VBZ" || tag == "VBP" || tag == "VBD" }
 
@@ -407,31 +418,48 @@ func pointsBack(s *syntax.Sentence) bool {
 // arriving at X still deserves Y." becomes "Consider a reader arriving at X.
 // That reader still deserves Y." The noun the subject names carries the rest.
 func subjectDivision(source string, whole *syntax.Sentence) (string, bool) {
-	for _, c := range whole.Clauses {
-		if c.Depth != 0 || c.Subject == nil || c.Verb == nil {
-			continue
-		}
-		subj := *c.Subject
-		head := whole.Words[subj.Head]
-		if subj.First != 0 || subj.Last-subj.First < restateLimit || !strings.HasPrefix(head.Tag, "NN") || head.Tag == "NNP" {
-			return source, false
-		}
-		end := whole.Words[c.Verb.First].Start
-		// An adverb right before the verb goes with the verb: "still deserves".
-		for i := c.Verb.First - 1; i > subj.Last && whole.Words[i].Tag == "RB"; i-- {
-			end = whole.Words[i].Start
-		}
-		subject := strings.TrimRight(source[:end], " ,")
-		if WordCount(checkMask(subject))+1 > SentenceWordCap {
-			return source, false
-		}
-		det := "That"
-		if head.Tag == "NNS" || head.Tag == "NNPS" {
-			det = "Those"
-		}
-		return "Consider " + lowerFirst(subject) + ". " + det + " " + nounText(source, head) + " " + source[end:], true
+	// The subject runs from the opening determiner to the first finite verb. The parser often names a later noun as the subject of a long one.
+	if len(whole.Words) == 0 || whole.Words[0].Tag != "DT" {
+		return source, false
 	}
-	return source, false
+	verb := -1
+	for i, w := range whole.Words {
+		if w.Text == "," || w.Text == ":" || w.Text == ";" || w.Text == "(" {
+			return source, false
+		}
+		if finiteVerbTag(w.Tag) || w.Tag == "MD" {
+			verb = i
+			break
+		}
+	}
+	if verb < restateLimit+1 {
+		return source, false
+	}
+	var head syntax.Word
+	found := false
+	for _, ph := range whole.Phrases {
+		if ph.Kind == syntax.NounPhrase && ph.First == 0 {
+			head, found = whole.Words[ph.Head], true
+		}
+	}
+	if !found || !strings.HasPrefix(head.Tag, "NN") || head.Tag == "NNP" {
+		return source, false
+	}
+	first := verb
+	// An adverb right before the verb goes with the verb: "still deserves".
+	for first > 1 && whole.Words[first-1].Tag == "RB" {
+		first--
+	}
+	end := whole.Words[first].Start
+	subject := strings.TrimRight(source[:end], " ")
+	if WordCount(checkMask(subject))+1 > SentenceWordCap {
+		return source, false
+	}
+	det := "That"
+	if head.Tag == "NNS" || head.Tag == "NNPS" {
+		det = "Those"
+	}
+	return "Consider " + lowerFirst(subject) + ". " + det + " " + nounText(source, head) + " " + source[end:], true
 }
 
 // lowerFirst writes the first letter in lower case, unless the word is a name in capitals.

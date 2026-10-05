@@ -149,7 +149,7 @@ func forceDivision(source, masked string) (string, bool) {
 				head, right, opened = carrierDivision(source, whole, c)
 			}
 			left := closeHead(head)
-			if right == "" || !divides(left, right) || !closesWhole(source[:c.left], seamBefore(source, c.left), whole) {
+			if right == "" || !divides(left, right) || !closesWhole(source[:c.left], seamBefore(source, c.left), whole) && !closesPhrase(source[:c.left], whole) {
 				continue
 			}
 			// A rest that opens a clause of its own reads best.

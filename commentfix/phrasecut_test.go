@@ -99,12 +99,14 @@ func TestAnElementWithATrailingCommentIsCode(t *testing.T) {
 	assert.Contains(t, out, "// 8-bit.", "nothing deletes it")
 }
 
-func TestASentenceNoCutFitsStaysForAHandRewrite(t *testing.T) {
+// A sentence with no clause boundary still has a cut: the phrase after the noun.
+func TestASentenceWithNoClauseBoundaryCutsAtAPhrase(t *testing.T) {
 	hits := CheckLength("p.go", unboundedSentence)
 	require.NotEmpty(t, hits, "the fixture must be a finding")
 	for _, hit := range hits {
-		assert.False(t, hit.Repairable)
+		assert.True(t, hit.Repairable)
 	}
 	out, _ := FixLength("p.go", unboundedSentence)
-	assert.Contains(t, out, "sampler identity hash value.", "a cut between words leaves a fragment:\n%s", out)
+	assert.Equal(t, "package p\n\n// cacheKeyFor returns the stable composite lookup key.\nfunc cacheKeyFor() int { return 0 }\n", out, "the participle phrase after the noun goes, and the clause before it stands")
+	assert.Empty(t, CheckLength("p.go", out))
 }
