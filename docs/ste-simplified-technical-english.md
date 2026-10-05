@@ -7,8 +7,8 @@ The members share the sentence splitter, the masks and the repair pass. They the
 - `ste/contraction`: a contraction. The repair writes the expansion and keeps the capitalization.
 - `ste/modal`: `should`, `shall`, `could`, `might` and `would`. The repair writes `must` for obligation and `can` for possibility.
 - `ste/semicolon`: the semicolon. The repair writes a period and capitalizes the next word.
-- `ste/comma-splice`: a comma that joins clauses that each stand alone. The repair writes a period. A connector replaces the conjunction: `However,` for `but` and `As a result,` for `so`. It drops `and`.
-- `ste/sentence-length`: a sentence over `25` words, the STE cap for a description. The repair divides it at a clause boundary that the `syntax` parser finds. With no such boundary, it divides between words near the cap.
+- `ste/comma-splice`: a comma that joins clauses that each stand alone. The repair writes a period. `However,` replaces `but` and `yet`. The repair drops `and` and `so`.
+- `ste/sentence-length`: a sentence over `25` words, the STE cap for a description. The repair divides it at a clause boundary that the `syntax` parser finds. With no such boundary, it divides between words near the cap. Each half must be a grammatical sentence. A sentence that no division keeps grammatical stays as written, and its finding asks for a rewrite by hand (`ste.FixByHand`). `check --json` reports that finding with `repairable` false.
 - `ste/postdeterminer`: a numeral between a determiner and its noun, as in `the three rules`. The repair cuts the numeral. A unit, a percent, a year, a status code, `any` and `first` keep theirs.
 - `ste/count`: a stated count anywhere in the line, read with the `Gate` substrate. The repair takes the number out after the join, with the `counts` rewording.
 
@@ -23,12 +23,15 @@ The warning rules read patterns that need a person to repair. A warning never fa
 
 How a long sentence divides:
 
-- A clause after `and`, `but` or `so` that names its own subject starts the new sentence.
+- A clause after `and` or `but` that names its own subject starts the new sentence. `but` and `yet` become `However,`.
+- A clause after `, so` divides only when it names its own subject, and `so` drops. A `so` with no comma states a purpose and never divides.
 - A verb group that shares the subject gets it again. A long subject becomes an agreeing pronoun.
 - A closing `, which` clause opens with `This`. A closing `because` clause opens with `This is because`.
 - A list, a quotation and a subordinate clause never divide at a clause boundary.
+- The first half must hold a main clause. A sentence that opens on `If`, `When` or a `to` infinitive keeps that clause with its main clause after the comma.
+- No division leaves part of a dash aside on each side. A division at the closing dash ends the aside with the sentence.
 - A sentence with no boundary divides between words, as close to the cap as a good place allows. A comma. Then a word that opens a phrase, rank first. The first part never ends on a word that opens what it leaves out.
-- The forced division never lands inside a code span, a link, a quotation, a parenthesis or bold text. The rest opens as it stands when it names its own subject. A verb gets the subject again, `which` becomes `This`, and anything else opens with `This is`.
+- The forced division never lands inside a code span, a link, a quotation, a parenthesis or bold text. The rest opens as it stands when it names its own subject or opens on an imperative. A finite verb gets the subject again. Any other rest is no sentence. The division does not happen.
 
 What `ste` does not flag:
 

@@ -18,16 +18,26 @@ type division struct {
 }
 
 // connectors map a conjunction to the words that open the sentence after it.
-// The and of a list of actions carries no meaning a period loses.
+// A period says what and and so say, so both drop.
 var connectors = map[string]string{
 	"and": "",
 	"but": "However,",
 	"yet": "However,",
-	"so":  "As a result,",
+	"so":  "",
 }
 
-// fixSentenceCap divides every over-cap sentence where its grammar allows. A
-// sentence with no clause boundary to divide at then divides between words.
+// FixByHand is the Fix text of a long sentence that no division can repair.
+const FixByHand = "Rewrite it by hand as shorter sentences. No division keeps each half a grammatical sentence."
+
+// Divisible reports whether the repair divides at least one long sentence of
+// the prose.
+func Divisible(prose string) bool {
+	return fixSentenceCap(prose) != prose
+}
+
+// fixSentenceCap divides every over-cap sentence where both halves stay
+// grammatical sentences. It first tries the clause boundaries, then the word
+// boundaries.
 func fixSentenceCap(prose string) string {
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := divideNext(prose)
@@ -100,7 +110,10 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if strings.Contains(source[d.leftEnd:d.rightStart], "**") {
 			continue
 		}
-		left := strings.TrimRight(source[:d.leftEnd], " ,") + "."
+		if !admissible(s, source, d) {
+			continue
+		}
+		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
 		right := joinOpener(d.opener, source[d.rightStart:])
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
@@ -121,7 +134,10 @@ func Leading(sentence string) (string, bool) {
 	s := syntax.Parse(masked, opaque(sentence, masked))
 	best := ""
 	for _, d := range divisions(s, sentence) {
-		head := strings.TrimRight(sentence[:d.leftEnd], " ,") + "."
+		if !admissible(s, sentence, d) {
+			continue
+		}
+		head := strings.TrimRight(sentence[:d.leftEnd], " ,;:—–-") + "."
 		if n := WordCount(head); n >= minimumHalf && n <= SentenceWordCap && len(head) > len(best) {
 			best = head
 		}
@@ -250,8 +266,20 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		if !ok || c.Comma && listBefore(s, c) {
 			return "", false
 		}
+		if link == "so" && (!c.Comma || c.Subject == nil || main.Verb.Imperative || instructs(s)) {
+			// A so after an instruction, or with no comma, states a purpose. A so with no subject leaves no clause.
+			return "", false
+		}
+		// The clause before the link needs a verb, or the conjunction joins noun phrases.
+		if s.Clauses[indexOf(s, c)-1].Verb == nil {
+			return "", false
+		}
 		if c.Subject != nil {
-			return connector, opensWithCapital(s, c.Link+1, source)
+			return connector, subjectFollows(s, c) && agrees(s, *c.Subject, *c.Verb) && opensWithCapital(s, c.Link+1, source)
+		}
+		// A shared subject needs its verb right after the link, and no aside before the link.
+		if !verbFollows(s, c) || c.Link > 0 && strings.Contains("—–--", s.Words[c.Link-1].Text) {
+			return "", false
 		}
 		if main.Verb.Imperative {
 			return connector, startsTheSentence(s, main)
@@ -272,6 +300,9 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 	case syntax.Punctuated:
 		// A colon or a dash before a clause that names its own subject ends a sentence.
 		if c.Depth != 0 || c.Subject == nil && !resumesAfter(s, c.Link+1) {
+			return "", false
+		}
+		if c.Subject != nil && !subjectFollows(s, c) || !opensSubject(s, c.Link+1) {
 			return "", false
 		}
 		return "", opensWithCapital(s, c.Link+1, source)
@@ -335,6 +366,14 @@ func opensWithCapital(s *syntax.Sentence, i int, source string) bool {
 // when no pronoun agrees, as for a single person and a verb in -s.
 func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string, bool) {
 	subject := *main.Subject
+	if subject.First > 0 && s.Words[subject.First-1].Tag == "VBG" {
+		// The noun phrase is the object of a gerund, and the gerund is the subject: "freezing the HOW pins it".
+		return "", false
+	}
+	// A subject the parser found after its verb, or one that opens on a bare noun, is a misreading.
+	if subject.Last >= main.Verb.First || !opensSubject(s, subject.First) {
+		return "", false
+	}
 	head := s.Words[subject.Head]
 	if head.Tag == "PRP" {
 		return head.Text, true
@@ -412,9 +451,14 @@ func joinsClauses(prose string, at int) bool {
 			continue
 		}
 		s := syntax.Parse(prose[span[0]:span[1]], opaque(prose[span[0]:span[1]], prose[span[0]:span[1]]))
-		for _, c := range s.Clauses {
+		for k, c := range s.Clauses {
 			if c.Link >= 0 && s.Words[c.Link].Start == at-span[0] {
-				return c.Kind == syntax.Coordinate && c.Depth == 0 && c.Subject != nil && !listBefore(s, c)
+				if c.Kind != syntax.Coordinate || c.Depth != 0 || c.Subject == nil || listBefore(s, c) {
+					return false
+				}
+				// A so after an instruction states its purpose, and joins nothing a period can take.
+				main, ok := mainBefore(s, k)
+				return !strings.EqualFold(word, "so") || ok && !main.Verb.Imperative && !instructs(s)
 			}
 		}
 		return false
@@ -443,17 +487,6 @@ func clauseStart(s *syntax.Sentence, i int) int {
 		}
 	}
 	return start
-}
-
-// startsTheSentence reports whether a clause starts at the sentence's earliest
-// word, which an imperative has to: "Write the file".
-func startsTheSentence(s *syntax.Sentence, c syntax.Clause) bool {
-	for i := 0; i < c.Verb.First; i++ {
-		if s.Words[i].Tag != "RB" && s.Words[i].Tag != "``" {
-			return false
-		}
-	}
-	return true
 }
 
 const restateLimit = 4

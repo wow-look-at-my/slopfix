@@ -236,12 +236,16 @@ func checkSentences(prose string, line int) []Finding {
 		if words <= SentenceWordCap {
 			continue
 		}
+		fix := "Split it into shorter sentences."
+		if !Divisible(sentence) {
+			fix = FixByHand
+		}
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDSentenceCap,
 			Rule:   fmt.Sprintf("over the %d-word sentence cap at %d words", SentenceWordCap, words),
 			Detail: truncate(strings.TrimSpace(sentence)),
-			Fix:    "Split it into shorter sentences.",
+			Fix:    fix,
 		})
 	}
 	return out

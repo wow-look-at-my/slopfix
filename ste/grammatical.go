@@ -1,0 +1,355 @@
+package ste
+
+import (
+	"regexp"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/syntax"
+)
+
+// admissible reports whether the left half of a clause division stands as a
+// sentence. openerFor already judged the right half.
+func admissible(s *syntax.Sentence, source string, d division) bool {
+	return !cutsAside(mask(source), d.leftEnd, d.rightStart) && standsAlone(s, wordsBefore(s, d.leftEnd))
+}
+
+// wordsBefore counts the words of s that start before byte at.
+func wordsBefore(s *syntax.Sentence, at int) int {
+	n := 0
+	for n < len(s.Words) && s.Words[n].Start < at {
+		n++
+	}
+	return n
+}
+
+// skipAdverbs answers the earliest word from i that is not an adverb.
+func skipAdverbs(s *syntax.Sentence, i int) int {
+	for i < len(s.Words) && s.Words[i].Tag == "RB" {
+		i++
+	}
+	return i
+}
+
+// subjectFollows reports whether clause c names its subject right after its
+// link, and the subject opens with a word that can open one.
+func subjectFollows(s *syntax.Sentence, c syntax.Clause) bool {
+	i := skipAdverbs(s, c.Link+1)
+	if c.Subject == nil || c.Verb == nil || c.Subject.First != i || !opensSubject(s, i) {
+		return false
+	}
+	return verbOfSubject(s, *c.Subject, *c.Verb)
+}
+
+// verbOfSubject reports whether verb is the verb of subject. A pronoun or a
+// verb between them opens another clause, as in "a note so it is read", and
+// the parser has paired the verb of that clause with the wrong subject.
+func verbOfSubject(s *syntax.Sentence, subject, verb syntax.Phrase) bool {
+	for j := subject.Last + 1; j < verb.First; j++ {
+		if tag := s.Words[j].Tag; tag == "PRP" || tag == "WDT" || tag == "WP" || tag == "MD" || strings.HasPrefix(tag, "VB") {
+			return false
+		}
+	}
+	return true
+}
+
+// indexOf answers the place of clause c among the clauses of s.
+func indexOf(s *syntax.Sentence, c syntax.Clause) int {
+	for k, other := range s.Clauses {
+		if other.First == c.First {
+			return k
+		}
+	}
+	return -1
+}
+
+// agrees reports whether a verb agrees in number with its subject. A clause
+// that does not agree, as in "your own investigation are", is half of a
+// compound subject that the parser cut apart.
+func agrees(s *syntax.Sentence, subject, verb syntax.Phrase) bool {
+	for i := verb.First; i <= verb.Last; i++ {
+		switch s.Words[i].Tag {
+		case "VBZ":
+			return !s.Plural(subject)
+		case "VBP":
+			lower := s.Words[subject.Head].Lower()
+			return s.Plural(subject) || lower == "i" || lower == "you"
+		case "MD", "VBD", "VB":
+			return true
+		}
+	}
+	return true
+}
+
+// verbFollows reports whether clause c opens on its verb right after its link.
+func verbFollows(s *syntax.Sentence, c syntax.Clause) bool {
+	if c.Verb == nil {
+		return false
+	}
+	i := c.Link + 1
+	for i < c.Verb.First && s.Words[i].Tag == "RB" {
+		i++
+	}
+	return c.Verb.First == i
+}
+
+// asideDash matches a dash that opens or closes an aside.
+var asideDash = regexp.MustCompile(`—|–| -- | - `)
+
+// asides answers each span from a dash to the dash after it. A last dash with
+// no partner closes nothing, so it is a seam rather than an aside.
+func asides(text string) [][]int {
+	dashes := asideDash.FindAllStringIndex(text, -1)
+	var out [][]int
+	for i := 0; i+1 < len(dashes); i += 2 {
+		out = append(out, []int{dashes[i][0], dashes[i+1][1]})
+	}
+	return out
+}
+
+// cutsAside reports whether a division leaves part of an aside on each side.
+// A division at the closing dash ends the aside with the sentence, which reads.
+func cutsAside(masked string, leftEnd, rightStart int) bool {
+	for _, a := range asides(masked) {
+		if a[0] < rightStart && leftEnd < a[1] && rightStart < a[1] {
+			return true
+		}
+	}
+	return false
+}
+
+// standsAlone reports whether the first end words of s hold a main clause: a
+// subject and a finite verb, or an imperative. Words that open on a subordinate
+// clause or on a "to" infinitive need that main clause after a comma, because
+// "If the cache is cold" alone is a fragment. It reads the parse of the whole
+// sentence, because a fragment parsed alone gets other tags.
+func standsAlone(s *syntax.Sentence, end int) bool {
+	after := -1
+	if opensDependent(s) {
+		after = firstComma(s)
+		if after < 0 || after >= end {
+			return false
+		}
+	}
+	for _, c := range s.Clauses {
+		if c.Depth != 0 || c.Verb == nil || c.Verb.Last >= end {
+			continue
+		}
+		start := -1
+		switch {
+		case c.Subject != nil:
+			start = c.Subject.First
+		case c.Verb.Imperative:
+			start = c.Verb.First
+		case c.Kind == syntax.Opens && c.Verb.Finite && c.Verb.First > c.First:
+			// The words ahead of a finite verb are its subject, though the tagger missed it: "The comment scan reads".
+			start = c.First
+		}
+		if start > after {
+			return true
+		}
+	}
+	return false
+}
+
+// instructs reports a sentence whose main clause is an imperative, after any
+// opening subordinate clause: "When a step exists, include a quote". A so in
+// an instruction states the purpose of the instruction.
+func instructs(s *syntax.Sentence) bool {
+	i := 0
+	if opensDependent(s) {
+		if i = firstComma(s) + 1; i == 0 {
+			return false
+		}
+	}
+	for i < len(s.Words) && (s.Words[i].Tag == "RB" || strings.IndexFunc(s.Words[i].Text, unicode.IsLetter) < 0) {
+		i++
+	}
+	// The tagger often reads a bare verb with no subject as present tense.
+	return i < len(s.Words) && (s.Words[i].Tag == "VB" || s.Words[i].Tag == "VBP")
+}
+
+// opensDependent reports a sentence that opens on a subordinate clause or a "to" infinitive.
+func opensDependent(s *syntax.Sentence) bool {
+	first := -1
+	for i, w := range s.Words {
+		if strings.IndexFunc(w.Text, unicode.IsLetter) >= 0 && w.Tag != "RB" {
+			first = i
+			break
+		}
+	}
+	if first < 0 {
+		return false
+	}
+	if s.Words[first].Lower() == "to" && first+1 < len(s.Words) && strings.HasPrefix(s.Words[first+1].Tag, "VB") {
+		return true
+	}
+	for _, c := range s.Clauses {
+		if c.Link == first && c.Kind == syntax.Subordinate {
+			return true
+		}
+	}
+	return false
+}
+
+func firstComma(s *syntax.Sentence) int {
+	for i, w := range s.Words {
+		if w.Text == "," {
+			return i
+		}
+	}
+	return -1
+}
+
+// seamBefore answers the mark that ends the words before byte at: a comma, a
+// stop or a dash. It answers "" when a word ends them.
+func seamBefore(source string, at int) string {
+	head := strings.TrimRight(source[:at], " ")
+	for _, mark := range []string{",", ";", ":", "—", "–", "--", " -"} {
+		if strings.HasSuffix(head, mark) {
+			return strings.TrimSpace(mark)
+		}
+	}
+	return ""
+}
+
+// danglingTags are the parts of speech that never end a sentence, because each
+// opens a phrase the division takes away.
+var danglingTags = set.Of[string]("DT", "JJ", "JJR", "JJS", "PRP$", "IN", "CC",
+	"TO", "POS", "MD", "WDT", "WP", "WP$", "WRB", "PDT")
+
+// closesWhole reports whether head, the words before a forced cut, closes as a
+// sentence. It must hold a main clause and end on a word that completes its
+// phrase. At a bare comma it must end in the main clause, because a comma
+// inside a subordinate clause joins the items of a list.
+func closesWhole(head, seam string, whole *syntax.Sentence) bool {
+	w, ok := lastWordBefore(whole, len(head))
+	if !ok || danglingTags.Contains(w.Tag) || !standsAlone(whole, wordsBefore(whole, len(head))) {
+		return false
+	}
+	if seam != "," {
+		return true
+	}
+	for _, c := range whole.Clauses {
+		if whole.Words[c.First].Start <= w.Start && w.Start <= whole.Words[c.Last].Start {
+			return c.Depth == 0 && c.Verb != nil
+		}
+	}
+	return false
+}
+
+// opensSubject reports whether word i of s can open a subject: a determiner, a
+// pronoun, a name, a number or a possessive. A bare adjective or noun more
+// often continues the phrase before it.
+func opensSubject(s *syntax.Sentence, i int) bool {
+	if i < 0 || i >= len(s.Words) {
+		return false
+	}
+	switch s.Words[i].Tag {
+	case "DT", "PRP", "PRP$", "NNP", "NNPS", "EX", "CD":
+		return true
+	}
+	return i+1 < len(s.Words) && s.Words[i+1].Tag == "POS"
+}
+
+// listsVerbs reports a comma after the main verb of head. A verb group after
+// the cut then continues a list of verb groups, as in "it reads, writes and
+// holds".
+func listsVerbs(head string) bool {
+	s := syntax.Parse(head, nil)
+	for _, c := range s.Clauses {
+		if c.Depth != 0 || c.Verb == nil {
+			continue
+		}
+		for i := c.Verb.Last + 1; i < len(s.Words); i++ {
+			if s.Words[i].Text == "," {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
+// lowerIdentifier reports a word that opens in lower case and reads as a name
+// in code: it carries a capital, a digit, an underscore or a dot inside it.
+func lowerIdentifier(word string) bool {
+	first, width := utf8.DecodeRuneInString(word)
+	if !unicode.IsLower(first) {
+		return false
+	}
+	return strings.IndexFunc(strings.TrimRight(word[width:], ".,;:!?)"), func(r rune) bool {
+		return unicode.IsUpper(r) || unicode.IsDigit(r) || r == '_' || r == '.'
+	}) >= 0
+}
+
+// opensClause reports a parse whose first clause starts with its own subject
+// and carries a finite verb.
+func opensClause(s *syntax.Sentence) bool {
+	if len(s.Clauses) == 0 {
+		return false
+	}
+	c := s.Clauses[0]
+	return c.Subject != nil && c.Verb != nil && c.Subject.First == 0
+}
+
+// opensImperative reports a rest that opens on a bare verb, as in "use the
+// copy key". An imperative stands as a sentence with a capital and no subject.
+// The tagger reads a lower-case bare verb at the start as a noun, so the rest
+// is read with the subject an imperative leaves out.
+func opensImperative(restMasked string) bool {
+	s := syntax.Parse("You "+opening(restMasked), nil)
+	if len(s.Words) < 2 || len(s.Clauses) == 0 {
+		return false
+	}
+	c := s.Clauses[0]
+	if c.Subject == nil || c.Subject.First != 0 || c.Verb == nil || c.Verb.First != 1 {
+		return false
+	}
+	tag := s.Words[1].Tag
+	return tag == "VB" || tag == "VBP"
+}
+
+// startsTheSentence reports whether a clause starts at the sentence's earliest
+// word, which an imperative has to: "Write the file".
+func startsTheSentence(s *syntax.Sentence, c syntax.Clause) bool {
+	for i := 0; i < c.Verb.First; i++ {
+		if s.Words[i].Tag != "RB" && s.Words[i].Tag != "``" {
+			return false
+		}
+	}
+	return true
+}
+
+// opensImperativeMain reports whether the main clause of head is an imperative.
+func opensImperativeMain(head string) bool {
+	s := syntax.Parse(head, nil)
+	for _, c := range s.Clauses {
+		if c.Depth == 0 && c.Verb != nil {
+			return c.Verb.Imperative
+		}
+	}
+	return false
+}
+
+// wordFrom answers the index of the word of s that starts at or after byte at. With no such word it answers a negative index.
+func wordFrom(s *syntax.Sentence, at int) int {
+	for i, w := range s.Words {
+		if w.Start >= at {
+			return i
+		}
+	}
+	return -1
+}
+
+// lastWordBefore answers the last word of s with a letter that ends at or before byte at, or false.
+func lastWordBefore(s *syntax.Sentence, at int) (syntax.Word, bool) {
+	for i := len(s.Words) - 1; i >= 0; i-- {
+		if w := s.Words[i]; w.End <= at && strings.IndexFunc(w.Text, unicode.IsLetter) >= 0 {
+			return w, true
+		}
+	}
+	return syntax.Word{}, false
+}
