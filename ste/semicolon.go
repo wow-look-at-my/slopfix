@@ -319,7 +319,7 @@ func standsAsSentence(text string) bool {
 	}
 	s := syntax.Parse(checkMask(text), nil)
 	// A gerund subject the parser missed: "deciding whether X can learn anything needs Y".
-	if len(s.Words) > 0 && s.Words[0].Tag == "VBG" && finiteBefore(s, 1, ",") {
+	if len(s.Words) > 0 && (s.Words[0].Tag == "VBG" || s.Words[0].Tag == "VBN" || s.Words[0].Tag == "VBD") && finiteBefore(s, 1, ",") {
 		return true
 	}
 	if !opensDependent(s) {
