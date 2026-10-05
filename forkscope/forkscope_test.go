@@ -440,9 +440,9 @@ func TestAListedForkWithNoTagCountsFromTheClosestUpstreamTree(t *testing.T) {
 	assert.True(t, own.Scope(filepath.Join(fx.fork, "later.md")).Empty())
 }
 
-// squashFixture is an upstream with commits, and a fork that brought the second one in as one squashed commit.
 const oldFirst = "# Old\n\nThe first upstream commit adds this.\n"
 
+// squashFixture is an upstream with commits, and a fork that brought the second one in as one squashed commit.
 func squashFixture(t *testing.T, shared bool) forkFixture {
 	t.Helper()
 	work := t.TempDir()
