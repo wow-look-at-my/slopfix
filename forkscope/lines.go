@@ -46,7 +46,56 @@ func (b *Base) Lines() (*Lines, error) {
 			own.whole.Add(filepath.ToSlash(name))
 		}
 	}
+	if b.upstream != "" {
+		if err := own.dropUpstreamVersions(b.top, b.upstream); err != nil {
+			return nil, err
+		}
+	}
 	return own, nil
+}
+
+// dropUpstreamVersions removes each clean file whose content a commit of
+// upstream gave that path. An upstream sync brings such a file in whole, so
+// the fork wrote none of it.
+func (o *Lines) dropUpstreamVersions(top, upstream string) error {
+	raw, err := gitIn(top, "log", upstream, "--format=", "--raw", "--no-abbrev", "--no-renames", "-z")
+	if err != nil {
+		return fmt.Errorf("fork scope: list the file versions of the upstream %s: %w", upstream, err)
+	}
+	known := set.New[string]()
+	fields := strings.Split(raw, "\x00")
+	for i := 0; i+1 < len(fields); i++ {
+		head := strings.TrimSpace(fields[i])
+		if !strings.HasPrefix(head, ":") {
+			continue
+		}
+		if meta := strings.Fields(head[1:]); len(meta) >= 4 {
+			known.Add(fields[i+1] + "\x00" + meta[3])
+		}
+		i++
+	}
+	dirty, err := gitIn(top, "diff", "--name-only", "-z", "HEAD", "--")
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	edited := set.New[string]()
+	for name := range strings.SplitSeq(dirty, "\x00") {
+		edited.Add(name)
+	}
+	staged, err := gitIn(top, "ls-files", "-s", "-z")
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	for entry := range strings.SplitSeq(staged, "\x00") {
+		meta, name, ok := strings.Cut(entry, "\t")
+		parts := strings.Fields(meta)
+		if !ok || len(parts) < 2 || edited.Contains(name) || !known.Contains(name+"\x00"+parts[1]) {
+			continue
+		}
+		delete(o.lines, name)
+		o.whole.Remove(name)
+	}
+	return nil
 }
 
 // File answers the lines of text that the fork wrote, for text headed for path
