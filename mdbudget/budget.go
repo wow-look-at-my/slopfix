@@ -76,7 +76,7 @@ func isInstructionFile(path string) bool {
 // wideLines returns the line numbers, counting from the top, that could have
 // been wrapped and were
 // not. Code fences, tables, indented blocks and headings cannot be rewrapped
-// without changing what they render as. A line whose leading widthLimit
+// without changing what they render as, and a line whose leading widthLimit
 // columns hold no space is a single unbreakable token (a URL).
 func wideLines(text string) []int {
 	var out []int
@@ -112,8 +112,8 @@ func wideLines(text string) []int {
 // measure reads a file and returns both measurements. Characters, the way
 // the CLI counts them -- not bytes, so a file with non-ASCII text measures
 // smaller than wc -c reports. wide is always empty while the width check is
-// off. This is a single choke point. No caller and no report can bring
-// wrapping back on its own.
+// off: a single choke point, so no caller and no report can bring wrapping
+// back on its own.
 func measure(path string) (chars int, wide []int, ok bool) {
 	st, err := os.Stat(path)
 	if err != nil || !st.Mode().IsRegular() {
@@ -153,9 +153,9 @@ func homeCandidates() []string {
 }
 
 // claudeMdFiles walks root recursively for every CLAUDE.md, skipping .git and
-// node_modules. This is the ONLY scan every caller uses. SessionStart's
-// census, PostToolUse/Stop's change tracking, and CI's full_scan all use it.
-// No caller can fall back to a shallow "guess the sibling directories" mode.
+// node_modules. This is the ONLY scan every caller uses -- SessionStart's
+// census, PostToolUse/Stop's change tracking, and CI's full_scan alike -- so
+// no caller can fall back to a shallow "guess the sibling directories" mode.
 // That guess let a real violation deep under the root through unseen.
 func claudeMdFiles(root string) []string {
 	var out []string
@@ -228,8 +228,8 @@ func signature(path string) (string, bool) {
 }
 
 // growthOverHead reports how much the working tree's copy grew over the last
-// committed copy. It answers false when there is no git, no commit, or
-// nothing to compare against.
+// committed copy, or false when there is no git, no commit, or nothing to
+// compare against.
 func growthOverHead(path string, chars int) (int, bool) {
 	abs, err := filepath.Abs(path)
 	if err != nil {

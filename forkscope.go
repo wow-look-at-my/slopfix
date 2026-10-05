@@ -168,8 +168,8 @@ func alone(req Request, repair Repair) Repair {
 	return repair
 }
 
-// fold repairs each run a block rule still reports on a line the fork wrote.
-// Such a run is one the fork's changes made longer than the base had it. The
+// fold repairs each run a block rule still reports on a line the fork wrote,
+// where the fork's changes made the run longer than the base had it. The
 // lines each such change added join the last line it kept, so the change
 // takes no more lines than. The edits pass the gate that proves they changed
 // only comment.

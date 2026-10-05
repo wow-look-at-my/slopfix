@@ -130,7 +130,7 @@ func TestSessionStartSeesSnippetsAndSiblingRepos(t *testing.T) {
 	require.Less(t, strings.Index(ctx, "sibling"), strings.Index(ctx, "huge.md"))
 }
 
-// This blind spot made the whole guard skippable. A CLAUDE.md rewritten by
+// The blind spot that made the whole guard skippable: a CLAUDE.md rewritten by
 // Bash names no file_path, so a check keyed on that field measures nothing.
 func TestPostToolUseCatchesAnEditThatNamesNoPath(t *testing.T) {
 	repo := isolate(t)
@@ -403,8 +403,8 @@ func TestNoSessionIDDoesNotWedge(t *testing.T) {
 	require.Empty(t, fire(t, map[string]any{"hook_event_name": "Stop", "cwd": repo}))
 }
 
-// A census that guesses the sibling directories of cwd never sees a deeply
-// nested file. A real violation got through unseen that way.
+// The case that let a real violation through unseen: the census used to guess
+// the sibling directories of cwd, so a deeply nested file never entered it.
 func TestSessionStartFindsNestedOffender(t *testing.T) {
 	repo := isolate(t)
 	nested := filepath.Join(repo, "src", "hooks", "pr-resolve", "CLAUDE.md")
@@ -466,8 +466,8 @@ func TestFullScanSkipsGitAndNodeModules(t *testing.T) {
 }
 
 // TestFullScanRespectsBudgetOverride: full_scan shares budget() with every
-// other path. A disabling CC_CLAUDE_MD_BUDGET turns it off too, as in a real
-// session.
+// other path, so a disabling CC_CLAUDE_MD_BUDGET turns it off too, exactly
+// like a real session.
 func TestFullScanRespectsBudgetOverride(t *testing.T) {
 	repo := isolate(t)
 	t.Setenv("CC_CLAUDE_MD_BUDGET", "0")
