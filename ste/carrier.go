@@ -74,7 +74,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restate(source, prev, rest), opensWithCarrier
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
-	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && adverbialMoves(whole, first, prev):
+	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds"):
 		return head, carrierFor(whole, main) + " " + rest, opensWithCarrier
 	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && unicode.IsLower(rune(word.Text[0])) &&
 		listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first):
@@ -130,7 +130,7 @@ func hiddenVerb(s *syntax.Sentence, i int) bool {
 // "the question was aimed at", "a repair lands only on the lines". A bound
 // preposition moves only before "every" or "each". A preposition with no object
 // after it ("aimed at: a prose question") belongs to the words before it.
-func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word) bool {
+func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool) bool {
 	if strings.HasPrefix(prev.Tag, "VB") || prev.Tag == "RP" || focusing.Contains(prev.Lower()) || phraseEndParticle.Contains(prev.Lower()) {
 		return false
 	}
@@ -141,7 +141,8 @@ func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word) bool {
 	if !unicode.IsLetter(rune(next.Text[0])) && next.Text[0] != '`' {
 		return false
 	}
-	if carrierBound.Contains(s.Words[first].Lower()) {
+	// A state verb's "This holds" reads with any preposition. An action's "This happens" needs "every" or "each".
+	if carrierBound.Contains(s.Words[first].Lower()) && !state {
 		return next.Lower() == "every" || next.Lower() == "each"
 	}
 	return true

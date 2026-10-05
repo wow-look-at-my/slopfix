@@ -93,7 +93,8 @@ func dropFragments(before, after string) string {
 	after = emptiedStop.ReplaceAllString(after, "${1}${2}")
 	was := sentenceRun.FindAllString(before, -1)
 	now := sentenceRun.FindAllString(after, -1)
-	if len(was) != len(now) {
+	// A single sentence is the table's own case, and dropping it would leave nothing.
+	if len(was) < 2 || len(was) != len(now) {
 		return after
 	}
 	var b strings.Builder
