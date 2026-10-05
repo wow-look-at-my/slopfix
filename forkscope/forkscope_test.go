@@ -420,31 +420,97 @@ func TestAShallowListedForkIsDeepenedFirst(t *testing.T) {
 	assert.Equal(t, "false", gitT(t, shallow, "rev-parse", "--is-shallow-repository"))
 }
 
-func TestAListedForkWithNoUsableTagFailsLoudly(t *testing.T) {
+// With no upstream tag in HEAD's history, the closest upstream tree is the base.
+// Here that is the merge base, so the lines match the tagged case.
+func TestAListedForkWithNoTagCountsFromTheClosestUpstreamTree(t *testing.T) {
+	fx := newForkFixture(t)
+	gitT(t, fx.parent, "tag", "v9", "main")
+	own := scoped(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))
+
+	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...), "line 3 is upstream's, line 5 is edited, line 7 is added")
+	assert.Equal(t, []int{3}, held(own, fx.fork, "new.md", 3))
+	assert.True(t, own.Scope(filepath.Join(fx.fork, "later.md")).Empty())
+}
+
+// squashFixture is an upstream with commits, and a fork that brought the
+// second one in as one squashed commit. With shared, the fork began as a clone
+// of the first commit, so the merge base is that commit. Without it, the fork
+// shares no history with the upstream.
+func squashFixture(t *testing.T, shared bool) forkFixture {
+	t.Helper()
+	work := t.TempDir()
+	gitT(t, work, "init", "-q", "-b", "main")
+	writeT(t, work, "doc.md", inherited)
+	gitT(t, work, "add", "-A")
+	gitT(t, work, "commit", "-q", "-m", "first")
+	parent := filepath.Join(t.TempDir(), "parent.git")
+	gitT(t, work, "clone", "-q", "--bare", work, parent)
+
+	fork := filepath.Join(t.TempDir(), "fork")
+	if shared {
+		gitT(t, work, "clone", "-q", parent, fork)
+	} else {
+		require.NoError(t, os.MkdirAll(fork, 0o755))
+		gitT(t, fork, "init", "-q", "-b", "main")
+		gitT(t, fork, "remote", "add", "origin", parent)
+	}
+
+	synced := "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the file; it writes nothing.\n"
+	writeT(t, work, "doc.md", synced)
+	writeT(t, work, "sync.md", "# Sync\n\nThe second upstream commit adds this; it writes nothing.\n")
+	gitT(t, work, "add", "-A")
+	gitT(t, work, "commit", "-q", "-m", "second")
+	writeT(t, work, "later.md", "# Later\n\nThe parent adds this afterwards.\n")
+	gitT(t, work, "add", "-A")
+	gitT(t, work, "commit", "-q", "-m", "third")
+	gitT(t, work, "push", "-q", parent, "main")
+
+	writeT(t, fork, "doc.md", synced)
+	writeT(t, fork, "sync.md", "# Sync\n\nThe second upstream commit adds this; it writes nothing.\n")
+	gitT(t, fork, "add", "-A")
+	gitT(t, fork, "commit", "-q", "-m", "squashed sync of the second upstream commit")
+	writeT(t, fork, "doc.md", "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the tree; it writes nothing.\n\nThe fork adds this line; it writes nothing.\n")
+	writeT(t, fork, "new.md", "# New\n\nThe fork adds this file; it writes nothing.\n")
+	gitT(t, fork, "add", "-A")
+	gitT(t, fork, "commit", "-q", "-m", "fork work")
+	return forkFixture{parent: parent, fork: fork}
+}
+
+// A fork that squashes its upstream syncs is measured from the snapshot it last
+// synced, not from a merge base that predates the sync.
+func TestASquashSyncedForkCountsFromTheSnapshotItSynced(t *testing.T) {
+	for name, shared := range map[string]bool{"shared history": true, "no shared history": false} {
+		t.Run(name, func(t *testing.T) {
+			fx := squashFixture(t, shared)
+			own := scoped(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))
+
+			assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...), "line 3 came in with the sync, line 5 is edited, line 7 is added")
+			assert.True(t, own.Scope(filepath.Join(fx.fork, "sync.md")).Empty(), "a file the sync brought in is upstream's")
+			assert.Equal(t, []int{3}, held(own, fx.fork, "new.md", 3))
+		})
+	}
+}
+
+func TestABrokenForkListOrUpstreamFailsLoudly(t *testing.T) {
 	untagged := t.TempDir()
 	gitT(t, untagged, "init", "-q", "-b", "main")
 	writeT(t, untagged, "other.md", "# Other\n")
 	gitT(t, untagged, "add", "-A")
 	gitT(t, untagged, "commit", "-q", "-m", "other")
-	unrelated := filepath.Join(t.TempDir(), "unrelated.git")
-	gitT(t, untagged, "clone", "-q", "--bare", untagged, unrelated)
-	gitT(t, unrelated, "tag", "v1", "main")
 
 	cases := map[string]struct {
 		status int
 		list   string
 		want   string
 	}{
-		"an entry without a URL":     {http.StatusOK, forkList("o/fork", ""), "is not a fork list"},
-		"a name with no owner":       {http.StatusOK, forkList("fork", untagged), "is not a fork list"},
-		"a URL that is no string":    {http.StatusOK, `{"o/fork": 1}`, "is not a fork list"},
-		"a list that is no object":   {http.StatusOK, `["o/fork"]`, "is not a fork list"},
-		"a null list":                {http.StatusOK, "null", "is not a fork list"},
-		"a list that is no JSON":     {http.StatusOK, "o/fork " + untagged + "\n", "is not a fork list"},
-		"a list error":               {http.StatusInternalServerError, "boom", "500"},
-		"missing upstream":           {http.StatusOK, forkList("o/fork", filepath.Join(t.TempDir(), "gone.git")), "list the tags of"},
-		"no tags, no common history": {http.StatusOK, forkList("o/fork", untagged), "no merge base"},
-		"unrelated tags":             {http.StatusOK, forkList("o/fork", unrelated), "HEAD contains none of the tags"},
+		"an entry without a URL":   {http.StatusOK, forkList("o/fork", ""), "is not a fork list"},
+		"a name with no owner":     {http.StatusOK, forkList("fork", untagged), "is not a fork list"},
+		"a URL that is no string":  {http.StatusOK, `{"o/fork": 1}`, "is not a fork list"},
+		"a list that is no object": {http.StatusOK, `["o/fork"]`, "is not a fork list"},
+		"a null list":              {http.StatusOK, "null", "is not a fork list"},
+		"a list that is no JSON":   {http.StatusOK, "o/fork " + untagged + "\n", "is not a fork list"},
+		"a list error":             {http.StatusInternalServerError, "boom", "500"},
+		"missing upstream":         {http.StatusOK, forkList("o/fork", filepath.Join(t.TempDir(), "gone.git")), "list the tags of"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

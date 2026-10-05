@@ -1,6 +1,8 @@
 package slopfix_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,6 +51,25 @@ func TestAnUnparseablePackageJSONIsReported(t *testing.T) {
 	found := scriptFindings(slopfix.CheckTree(root).Findings)
 	require.Len(t, found, 1)
 	assert.Contains(t, found[0].Rule, "does not parse")
+}
+
+// npm runs a lifecycle script only from package.json. A justfile recipe never runs at install time.
+func TestLifecycleScriptsAloneAreNotReported(t *testing.T) {
+	root := gitRoot(t, map[string]string{"package.json": "{\n    \"name\": \"a\",\n    \"scripts\": {\n        \"postinstall\": \"node bin/postinstall.js\"\n    }\n}\n"})
+	assert.Empty(t, scriptFindings(slopfix.CheckTree(root).Findings))
+}
+
+func TestFixMovesOtherScriptsAndKeepsLifecycleScripts(t *testing.T) {
+	root := gitRoot(t, map[string]string{"package.json": "{\n    \"name\": \"a\",\n    \"scripts\": {\n        \"build\": \"tsc\",\n        \"postinstall\": \"node bin/postinstall.js\"\n    }\n}\n"})
+	slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDPackageScripts}})
+	manifest, err := os.ReadFile(filepath.Join(root, "package.json"))
+	require.NoError(t, err)
+	assert.Equal(t, "{\n    \"name\": \"a\",\n    \"scripts\": {\n        \"postinstall\": \"node bin/postinstall.js\"\n    }\n}\n", string(manifest))
+	recipes, err := os.ReadFile(filepath.Join(root, "justfile"))
+	require.NoError(t, err)
+	assert.Contains(t, string(recipes), "build:\n\ttsc\n")
+	assert.NotContains(t, string(recipes), "postinstall")
+	assert.Empty(t, scriptFindings(slopfix.CheckTree(root).Findings))
 }
 
 func TestOnlyPackageScriptsSelectsTheRule(t *testing.T) {

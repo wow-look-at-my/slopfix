@@ -4,11 +4,12 @@
 // rules. The repository is the one the work tree's origin names on the GitHub
 // server. With no such origin, it is GITHUB_REPOSITORY, for a root inside
 // GITHUB_WORKSPACE. A repository that the org's fork list names is measured
-// from the newest upstream tag that HEAD contains, or, when that upstream
-// carries no tags, from the merge base with its default branch. Otherwise the
-// API says whether the repository is a fork, and the base is the merge base
-// with the parent's default branch. Only a line added or changed since that
-// base, or a line of a new or untracked file, is the fork's.
+// from the newest upstream tag that HEAD contains. With no such tag, it is
+// measured from the upstream commit whose tree is closest to HEAD's, which is
+// the snapshot a squashed sync brought in. Otherwise the API says
+// whether the repository is a fork, and the base is the merge base with the
+// parent's default branch. Only a line added or changed since that base, or a
+// line of a new or untracked file, is the fork's.
 package forkscope
 
 import (
@@ -97,6 +98,8 @@ type record struct {
 	// Upstream and Tags are a listed fork's upstream URL and the commit each tag names.
 	Upstream string   `json:"upstream,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
+	// Tip is the commit of the upstream's default branch, fetched when no tag is in HEAD's history.
+	Tip string `json:"tip,omitempty"`
 	// ParentURL, Branch and Parent are a GitHub fork's parent, its default branch and that branch's commit.
 	ParentURL string `json:"parent_url,omitempty"`
 	Branch    string `json:"branch,omitempty"`
@@ -147,9 +150,14 @@ func (r Resolver) Base(root string) (*Base, error) {
 	}
 	switch rec.Kind {
 	case kindListed:
-		commit, err := tagBase(top, rec.Upstream, rec.Tags)
+		commit, err := tagBase(top, rec.Tags)
 		if err != nil {
 			return nil, err
+		}
+		if commit == "" {
+			if commit, err = snapshotBase(top, &rec); err != nil {
+				return nil, err
+			}
 		}
 		return &Base{top: top, commit: commit}, nil
 	case kindParent:
@@ -284,19 +292,6 @@ func (r Resolver) record(top string, topErr error, repo string) (record, error) 
 		if rec.Tags, err = upstreamTags(id.upstream); err != nil {
 			return record{}, err
 		}
-		// An upstream that carries no tags names no release to measure from, so
-		// the base is the merge base with its default branch, which is where a
-		// fork that syncs a branch meets it.
-		if len(rec.Tags) == 0 {
-			branch, branchErr := upstreamBranch(id.upstream)
-			if branchErr != nil {
-				return record{}, branchErr
-			}
-			rec.Kind, rec.ParentURL, rec.Branch = kindParent, id.upstream, branch
-			if rec.Parent, err = fetchParent(top, id.upstream, branch); err != nil {
-				return record{}, err
-			}
-		}
 	case kindParent:
 		if topErr != nil {
 			return record{}, topErr
@@ -395,7 +390,7 @@ func (r Resolver) cached(top, repo string) (record, bool) {
 	case kindPlain:
 		return rec, true
 	case kindListed:
-		return rec, rec.Upstream != "" && len(rec.Tags) > 0
+		return rec, rec.Upstream != ""
 	case kindParent:
 		_, err := gitIn(top, "cat-file", "-e", rec.Parent+"^{commit}")
 		return rec, err == nil && rec.Parent != ""
@@ -675,28 +670,8 @@ func UpstreamFor(list, repo, source string) (string, error) {
 	return found, nil
 }
 
-// upstreamBranch answers the default branch of upstream.
-func upstreamBranch(upstream string) (string, error) {
-	out, err := gitIn(".", "ls-remote", "--symref", upstream, "HEAD")
-	if err != nil {
-		return "", fmt.Errorf("fork scope: read the default branch of %s: %w", upstream, err)
-	}
-	for line := range strings.SplitSeq(out, "\n") {
-		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "ref:")
-		if !ok {
-			continue
-		}
-		ref, _, _ := strings.Cut(rest, "\t")
-		if branch, ok := strings.CutPrefix(strings.TrimSpace(ref), "refs/heads/"); ok && branch != "" {
-			return branch, nil
-		}
-	}
-	return "", fmt.Errorf("fork scope: %s names no default branch", upstream)
-}
-
-// upstreamTags answers the commit each tag of upstream names. An upstream
-// that carries no tags answers none, which leaves the caller to measure from
-// its default branch instead.
+// upstreamTags answers the commit each tag of upstream names. An upstream with
+// no tags answers none.
 func upstreamTags(upstream string) ([]string, error) {
 	out, err := gitIn(".", "ls-remote", "--tags", upstream)
 	if err != nil {
@@ -722,27 +697,5 @@ func upstreamTags(upstream string) ([]string, error) {
 		}
 		commits.Add(sha)
 	}
-	if commits.Len() == 0 {
-		return nil, nil
-	}
 	return commits.Values(), nil
-}
-
-// tagBase answers the newest commit of HEAD's history that an upstream tag
-// names. A fork merges upstream releases, so that tag is the upstream it carries.
-func tagBase(top, upstream string, tags []string) (string, error) {
-	if err := deepen(top); err != nil {
-		return "", err
-	}
-	commits := set.Of(tags...)
-	revs, err := gitIn(top, "rev-list", "HEAD")
-	if err != nil {
-		return "", fmt.Errorf("fork scope: %w", err)
-	}
-	for rev := range strings.SplitSeq(revs, "\n") {
-		if commits.Contains(rev) {
-			return rev, nil
-		}
-	}
-	return "", fmt.Errorf("fork scope: HEAD contains none of the tags of %s", upstream)
 }
