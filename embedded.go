@@ -17,8 +17,8 @@ var includeMacro = regexp.MustCompile(`include_(?:str|bytes)!\(\s*"([^"]+)"\s*\)
 var embeddedByTop sync.Map
 
 // Embedded reports whether code in the repository of path embeds the file at
-// path byte for byte. Such a file is program input, not prose: a reworded
-// prompt template changes what the program does, and a copy the build checks
+// path byte for byte. Such a file is program input, not prose. A reworded
+// prompt template changes what the program does. A copy the build checks
 // against it goes stale. No rule reads it, and no repair writes it.
 func Embedded(path string) bool {
 	if path == "" {
