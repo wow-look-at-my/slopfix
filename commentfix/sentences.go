@@ -4,7 +4,6 @@
 package commentfix
 
 import (
-	"regexp"
 	"strings"
 	"unicode"
 
@@ -209,38 +208,18 @@ func divideSentences(prose string) string {
 			out.WriteString(sentence)
 			continue
 		}
-		// A semicolon and a splice are where a long sentence divides best, so the division repairs them too.
+		// A semicolon and a splice are repaired too. The cap divides only where a
+		// clause boundary leaves sentences that read, not into a fragment.
 		fixed := ste.FixSelected(sentence, func(id string) bool {
-			return id == ste.IDSentenceCap || id == ste.IDSemicolon || id == ste.IDCommaSplice
+			return id == ste.IDSemicolon || id == ste.IDCommaSplice
 		})
-		// A division that invents a fragment changes what the comment claims. The
-		// sentence then stays as written, for a rewrite by hand.
-		if !cleanDivision(fixed) {
-			out.WriteString(sentence)
-			continue
+		if ste.WordCount(ste.Masked(fixed)) > ste.SentenceWordCap {
+			fixed = ste.DivideAtClauses(fixed, ste.SentenceWordCap)
 		}
 		out.WriteString(fixed)
 	}
 	out.WriteString(prose[at:])
 	return out.String()
-}
-
-// inventedFragment matches a split that gives a subordinate clause a pronoun subject it never had: "writes through it while this function runs" becomes "It while this function runs."
-var inventedFragment = regexp.MustCompile(`(?i)^(?:it|they|this|these|we|you|he|she)\s+(?:while|when|if|that|which|who|because|so|as|before|after|until|unless|since|though|although|whereas|whether)\b`)
-
-// cleanDivision reports a divided sentence whose every part stands as a
-// sentence of its own and none of them invents a subject for a clause.
-func cleanDivision(divided string) bool {
-	for _, s := range sentences(divided) {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		if inventedFragment.MatchString(s) || !ste.StandsAlone(s) {
-			return false
-		}
-	}
-	return true
 }
 
 // sentenceEdits answers an edit per comment paragraph whose long sentences

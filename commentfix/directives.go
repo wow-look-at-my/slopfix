@@ -40,6 +40,10 @@ func capLines(b block, maxLines int) []string {
 			body = opening
 		}
 	}
+	// The cap is fatal, so a block no thought-cut reaches is condensed to it.
+	if len(body) > limit {
+		body = body[:limit]
+	}
 	body = reclosed(body, closer)
 	out := make([]string, 0, len(lead)+len(body)+len(trail))
 	out = append(out, lead...)
