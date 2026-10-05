@@ -183,8 +183,11 @@ func markByHand(text string, findings []Finding) []Finding {
 		case IDSentenceCap:
 			if left == nil {
 				left = map[string]bool{}
+				// Only a sentence still over the cap is left. A divided first half opens with the same words as the whole.
 				for _, sentence := range Sentences(strip(fixSentenceCap(text))) {
-					left[truncate(strings.TrimSpace(sentence))] = true
+					if WordCount(sentence) > SentenceWordCap {
+						left[truncate(strings.TrimSpace(sentence))] = true
+					}
 				}
 			}
 			if left[f.Detail] {
@@ -306,23 +309,16 @@ func checkSplices(prose string, line int) []Finding {
 func checkCounts(prose string, line int) []Finding {
 	var out []Finding
 	for _, found := range cardinal.Find(prose, cardinal.Gate) {
-		fix := "Describe what is there and let the reader count."
-		if cardinal.NoWordReplaces(prose, found.Offset) {
-			fix = FixCountByHand
-		}
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDStaleCount,
 			Rule:   "a stated count goes stale when the set changes",
 			Detail: strings.TrimSpace(found.Text),
-			Fix:    fix,
+			Fix:    "Describe what is there and let the reader count.",
 		})
 	}
 	return out
 }
-
-// FixCountByHand is the Fix text of a number that names an item, which no word can replace.
-const FixCountByHand = "Rewrite it by hand. The number names an item or a point, such as \"branch 3\" or \"at 100 cols\", and no word can take its place."
 
 // insideAny reports whether the byte at idx falls in any of the spans.
 func insideAny(spans [][]int, idx int) bool {

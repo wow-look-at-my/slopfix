@@ -239,6 +239,14 @@ func Labeled(text string, q Match) bool {
 	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
 }
 
+// AValue exempts a number that names an item or a point rather than counting a set: "branch 3 sees", "at 100 cols".
+func AValue(text string, q Match) bool { return NoWordReplaces(text, q.At) }
+
+// AValueToken is AValue for the comment walk.
+func AValueToken(text string, toks []Token, i int) bool {
+	return allDigits(toks[i].Text) && NoWordReplaces(text, toks[i].Offset)
+}
+
 // NoWordReplaces reports a number at offset at that no repair word can take the
 // place of: one that names an item, a zero or a one, or a point on a scale
 // after "at", "by" or "to". "At 100 cols" does not mean "at multiple cols". A

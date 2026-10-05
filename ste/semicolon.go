@@ -4,6 +4,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -148,14 +149,57 @@ func imperativeTag(s *syntax.Sentence, verb syntax.Phrase) bool {
 	return false
 }
 
-// fixSemicolons writes a period for each semicolon that semicolonJoins admits.
-// The blank after it is read from the text, because the mask writes a blank
-// over the backtick of a code span.
+// fixSemicolons repairs every semicolon. One between clauses becomes a period.
+// One between the items of a list after a colon opens a sentence of its own,
+// "This also covers <item>". One before a clause after a phrase becomes a
+// period too, because the phrase was a fragment as written. Any other joins
+// its phrases with a comma. The blank after each is read from the text,
+// because the mask writes a blank over the backtick of a code span.
 func fixSemicolons(text string) string {
-	starts := semicolonJoins(checkMask(text))
+	masked := checkMask(text)
+	periods := set.Of(semicolonJoins(masked)...)
 	var joins [][]int
-	for _, at := range starts {
-		joins = append(joins, []int{at, at + len(semicolonRun.FindString(text[at:]))})
+	var openers []string
+	var commas []int
+	for _, span := range sentenceSpans(masked) {
+		for p := span[0]; p < span[1]; p++ {
+			if masked[p] != ';' {
+				continue
+			}
+			end := p + len(semicolonRun.FindString(text[p:]))
+			switch {
+			case periods.Contains(p):
+				joins, openers = append(joins, []int{p, end}), append(openers, "")
+			case strings.Contains(masked[span[0]:p], ":") && !strings.Contains(masked[p:span[1]], ":"):
+				joins, openers = append(joins, []int{p, end}), append(openers, "This also covers")
+			case end < span[1] && StandsAlone(segmentAfter(text, end, span[1])):
+				joins, openers = append(joins, []int{p, end}), append(openers, "")
+			default:
+				commas = append(commas, p)
+			}
+		}
 	}
-	return breakWith(text, joins, nil)
+	// The commas go first, from the back, so every offset a join holds stays valid.
+	for i := len(commas) - 1; i >= 0; i-- {
+		p := commas[i]
+		run := semicolonRun.FindString(text[p:])
+		text = text[:p] + ", " + text[p+len(run):]
+		shift := len(", ") - len(run)
+		for j := range joins {
+			if joins[j][0] > p {
+				joins[j][0] += shift
+				joins[j][1] += shift
+			}
+		}
+	}
+	return breakWith(text, joins, openers)
+}
+
+// segmentAfter answers the text from byte from to the next semicolon or to end.
+func segmentAfter(text string, from, end int) string {
+	seg := text[from:end]
+	if i := strings.IndexByte(seg, ';'); i >= 0 {
+		seg = seg[:i]
+	}
+	return strings.TrimSpace(seg)
 }

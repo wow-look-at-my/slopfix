@@ -81,13 +81,35 @@ func CloseProse(prose string) string {
 	// where it last said something whole.
 	if clause := lastClause(words); clause != "" && standsAlone(clause) {
 		kept = append(kept, clause)
+	} else if head, ok := wholeHead(words); ok {
+		kept = append(kept, head)
 	}
-	// With nothing whole left, no cut reads, and the comment stays for a rewrite by hand.
-	if len(kept) == 0 {
-		return prose
-	}
+	// With nothing whole left, the fragment says nothing a reader can use, so it goes.
 	return strings.TrimSpace(strings.Join(kept, " "))
 }
+
+// wholeHead drops words from the end of a fragment until what is left stands
+// as a sentence, and closes it. It never ends on a word that opens a phrase.
+func wholeHead(words []string) (string, bool) {
+	for n := len(words) - 1; n >= minimumHead; n-- {
+		last := strings.ToLower(trimWord(words[n-1]))
+		if dangling.Contains(last) || auxiliary.Contains(last) {
+			continue
+		}
+		head := strings.TrimRight(strings.Join(words[:n], " "), " ,;:—–-")
+		if standsAlone(head + ".") {
+			return head + ".", true
+		}
+	}
+	return "", false
+}
+
+// minimumHead is the fewest words a head kept from a fragment holds.
+const minimumHead = 3
+
+// auxiliary words carry a verb that must follow them, so a head never ends on one.
+var auxiliary = set.Of("is", "are", "was", "were", "be", "been", "has", "have", "had", "do", "does", "did",
+	"can", "will", "must", "should", "may", "might", "would", "could", "it", "they", "which", "that")
 
 // stopsMidThought reports prose whose last sentence ends on a word that opens
 // what is missing.

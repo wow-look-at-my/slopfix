@@ -18,8 +18,8 @@ var AllIDs = []string{IDCommaNever}
 // commaNever is rare in edited English, which writes ", not" for the same contrast.
 var commaNever = regexp.MustCompile(`(?i),(\s+)never\b`)
 
-// FixNeverByHand is the Fix text of a ", never" before a verb, where ", not" is no English.
-const FixNeverByHand = `Rewrite it by hand. A verb follows "never", and ", not" before a verb leaves no sentence.`
+// fixNeverVerb is the Fix text of a ", never" before a verb, where ", not" is no English.
+const fixNeverVerb = `Write ", and never" before a verb. ` + "`slopfix fix` writes it."
 
 // CheckCommaNever reports each ", never" in a prose block outside a code span or a quotation.
 func CheckCommaNever(prose string, line int) []ste.Finding {
@@ -27,7 +27,7 @@ func CheckCommaNever(prose string, line int) []ste.Finding {
 	for _, at := range unmasked(prose) {
 		fix := `Write ", not", or state the contrast as a sentence of its own. ` + "`slopfix fix` writes \", not\"."
 		if beforeVerb(prose, at[1]) {
-			fix = FixNeverByHand
+			fix = fixNeverVerb
 		}
 		out = append(out, ste.Finding{
 			Line:   line,
@@ -40,17 +40,18 @@ func CheckCommaNever(prose string, line int) []ste.Finding {
 	return out
 }
 
-// FixCommaNever writes ", not" for each ", never" that CheckCommaNever reports,
-// except before a verb: "it prompts, never gates" has no repair with "not".
+// FixCommaNever writes ", not" for each ", never" that CheckCommaNever reports.
+// Before a verb it writes ", and never": "it prompts, and never gates".
 func FixCommaNever(prose string) string {
 	var b strings.Builder
 	last := 0
 	for _, at := range unmasked(prose) {
-		if beforeVerb(prose, at[1]) {
-			continue
-		}
 		b.WriteString(prose[last:at[0]])
-		b.WriteString(commaNever.ReplaceAllString(prose[at[0]:at[1]], ",${1}not"))
+		to := ",${1}not"
+		if beforeVerb(prose, at[1]) {
+			to = ",${1}and never"
+		}
+		b.WriteString(commaNever.ReplaceAllString(prose[at[0]:at[1]], to))
 		last = at[1]
 	}
 	b.WriteString(prose[last:])

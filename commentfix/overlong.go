@@ -157,6 +157,10 @@ func judge(b block) (string, bool) {
 		return "the comment documents nothing", true
 	}
 	limit := max(floorChars, b.codeChars)
+	// A single sentence under the STE cap is the least a comment can say, so it is never an essay.
+	if oneSentence(b.text) {
+		return "", false
+	}
 
 	var tells []string
 	if lines > b.codeLines {
@@ -169,6 +173,60 @@ func judge(b block) (string, bool) {
 		return "", false
 	}
 	return strings.Join(tells, ", and "), true
+}
+
+// oneSentence reports a block whose prose is a single sentence under the STE
+// word cap. A line with no letter is a banner, not prose.
+func oneSentence(text []string) bool {
+	var words []string
+	for _, line := range prose(text) {
+		body := stripMarker(line)
+		if strings.IndexFunc(body, unicode.IsLetter) < 0 {
+			continue
+		}
+		words = append(words, strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body), "*/")))
+	}
+	joined := strings.TrimSpace(strings.Join(words, " "))
+	if joined == "" {
+		return false
+	}
+	found := ste.Sentences(joined)
+	return len(found) == 1 && ste.WordCount(found[0]) <= ste.SentenceWordCap && !hasBanner(text)
+}
+
+// hasBanner reports a comment line whose prose holds no letter, such as a
+// rule of "=" signs. A banner has no reader, so a block that holds one is weighed whole.
+func hasBanner(text []string) bool {
+	for _, line := range prose(text) {
+		body := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(stripMarker(line)), "*/"))
+		if body != "" && strings.IndexFunc(body, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) < 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// withoutBanners drops each banner line of a block, and the blank comment lines
+// left at either end.
+func withoutBanners(text []string) []string {
+	if !hasBanner(text) {
+		return text
+	}
+	var out []string
+	for _, line := range text {
+		body := strings.TrimSpace(stripMarker(line))
+		if body != "" && strings.IndexFunc(body, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) < 0 && !isDirectiveLine(line) {
+			continue
+		}
+		out = append(out, line)
+	}
+	for len(out) > 0 && isBlankComment(out[0]) {
+		out = out[1:]
+	}
+	for len(out) > 0 && isBlankComment(out[len(out)-1]) {
+		out = out[:len(out)-1]
+	}
+	return out
 }
 
 // measure counts the non-blank lines and the non-whitespace characters of a
@@ -257,7 +315,10 @@ func withSeparator(kept, trail []string) []string {
 // trim cuts the block's trailing prose until it fits, keeping the opening.
 // A paragraph goes before a line does, and the opening paragraph always survives.
 func trim(b block) []string {
-	kept := b.text
+	kept := withoutBanners(b.text)
+	if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+		return kept
+	}
 
 	// Tighten before cutting. A padded comment fits after its filler is gone and
 	// it is reflowed, and keeping the whole thought beats losing the last of it.

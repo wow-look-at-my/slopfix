@@ -87,18 +87,19 @@ func TestAFencedBlockInADocumentIsNotProse(t *testing.T) {
 	assert.Empty(t, repair.Kept)
 }
 
-// A block over the cap with no sentence end to cut at has no cut that reads.
-// No period closes a fragment, and the hit asks for a rewrite by hand.
-func TestAVolumeCapWithNoSentenceEndStays(t *testing.T) {
+// A block over the cap with no sentence end to cut at keeps its opening
+// sentence, divided where it runs past the STE cap, and nothing after it.
+func TestAVolumeCapWithNoSentenceEndKeepsItsOpening(t *testing.T) {
 	src := ""
 	for range 6 {
 		src += "// the loader reads the flag and returns what it names\n"
 	}
 	repair := Fix("a.go", src, 3)
-	require.Len(t, repair.Kept, 1)
-	assert.Equal(t, IDVolume, repair.Kept[0].ID)
-	assert.Equal(t, FixVolumeByHand, repair.Kept[0].Fix)
-	assert.NotContains(t, repair.Text, ".", repair.Text)
+	assert.Empty(t, repair.Kept, repair.Text)
+	lines := strings.Split(strings.TrimRight(repair.Text, "\n"), "\n")
+	require.LessOrEqual(t, len(lines), 3, repair.Text)
+	assert.True(t, strings.HasSuffix(lines[len(lines)-1], "."), repair.Text)
+	assert.True(t, strings.HasPrefix(repair.Text, "// the loader reads the flag"), repair.Text)
 }
 
 // A block over the cap whose lines end sentences loses whole lines from its end.

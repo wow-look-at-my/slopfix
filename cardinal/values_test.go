@@ -20,6 +20,8 @@ var notCounts = []string{
 	"It answers HTTP 404 pages for every miss.",
 	"Migration 015 defines it: artifact_id, fmt, the client.",
 	"Migration 014 pins that id on the project.",
+	"They honor the Section 4 pins.",
+	"It reads rule 6 inputs.",
 	// A measure followed by its verb, not by a noun.
 	"The 128 KiB is a pair of the reader's buffer fills.",
 	"43 cols is less than MAX_LINES*WRAP_WIDTH, so it must not truncate.",
@@ -51,8 +53,6 @@ func TestATallyBesideAValueIsStillACount(t *testing.T) {
 		"It answers 404 for 12 projects.",
 		"It ships 200 plugins.",
 		"It sends four PATCH requests.",
-		// A section number and a size drift with the document they describe.
-		"They honor the Section 4 pins.",
 		"It sends one create and four 1 MiB PATCH requests.",
 		"It retries with 30 second timeouts.",
 	} {

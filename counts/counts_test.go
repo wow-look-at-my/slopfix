@@ -106,21 +106,21 @@ func TestACountAfterANounBecomesMultiple(t *testing.T) {
 	assert.Equal(t, "against binaries built on all platforms.", out, "a determiner before the count still lets it go")
 }
 
-// Digits after a singular noun name an item. "branch multiple sees" is not
-// English, so the text stays for a rewrite by hand.
-func TestANumberThatNamesAnItemStays(t *testing.T) {
+// Digits after a singular noun name an item, and a point on a scale is a value.
+// Neither is a count, so neither is a finding: "branch multiple sees" is no English.
+func TestANumberThatNamesAnItemIsNoCount(t *testing.T) {
 	for _, in := range []string{
 		"- during a newer stream → dropped (branch 1 prompt-mismatch rejects, branch 3 sees `last_finished_agent_entry` already cleared).",
 		"They honor the Section 4 pins.",
 		"It reads rule 6 inputs.",
+		"At 100 cols the row wraps.",
+		"The preview contributes 0 lines when it is off.",
 	} {
 		out, cut := StripGate(in)
 		assert.Equal(t, in, out)
 		assert.Empty(t, cut)
 		for _, f := range ste.Check(in, 1) {
-			if f.ID == ste.IDStaleCount {
-				assert.True(t, ste.ByHand(f.Fix), f.Detail)
-			}
+			assert.NotEqual(t, ste.IDStaleCount, f.ID, f.Detail)
 		}
 	}
 }

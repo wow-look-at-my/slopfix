@@ -140,11 +140,15 @@ func forceDivision(source, masked string) (string, bool) {
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict) {
-			left := closeHead(source[:c.left])
 			if cutsAside(masked, c.left, c.right) {
 				continue
 			}
+			head := source[:c.left]
 			right, opened := openRest(source, masked, whole, c)
+			if right == "" {
+				head, right, opened = carrierDivision(source, whole, c)
+			}
+			left := closeHead(head)
 			if right == "" || !divides(left, right) || !closesWhole(source[:c.left], seamBefore(source, c.left), whole) {
 				continue
 			}
@@ -157,7 +161,7 @@ func forceDivision(source, masked string) (string, bool) {
 			return best, true
 		}
 	}
-	return source, false
+	return reorderDependent(source, whole)
 }
 
 // closeHead ends the first part of a division as a sentence. A part that

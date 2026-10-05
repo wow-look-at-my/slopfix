@@ -114,6 +114,16 @@ func TestADivisionAfterAColonKeepsAClauseOnItsLeft(t *testing.T) {
 	assert.NotContains(t, ste.Fix(in), "`agent()` call.")
 }
 
+// A division whose first half opens with the same words as the whole is a
+// repair, so Check does not ask for a rewrite by hand.
+func TestCheckAgreesWithADivisionThatKeepsTheOpening(t *testing.T) {
+	in := "The loader reads every cached manifest from the shared store and rebuilds the index of plugin hooks for each workspace the user opens in the editor during startup of the session."
+	require.NotEqual(t, in, ste.Fix(in))
+	for _, f := range ste.Check(in, 1) {
+		assert.False(t, ste.ByHand(f.Fix), f.Fix)
+	}
+}
+
 // Fix leaves a quotation as Check reads it. A modal inside one stays.
 func TestFixLeavesQuotedWordsAlone(t *testing.T) {
 	in := `IDLE is an ACTIVE corruption, not a benign "would not attach its cost."`

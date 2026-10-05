@@ -30,6 +30,12 @@ func capLines(b block, maxLines int) []string {
 	if len(body) > limit {
 		body = dropToSentenceEnd(body, limit)
 	}
+	// With no sentence end to cut at, the opening sentence stays, divided where it runs past the STE cap.
+	if len(body) > limit {
+		if opening, whole := steOpening(body); whole && len(opening) <= limit {
+			body = opening
+		}
+	}
 	body = reclosed(body, closer)
 	out := make([]string, 0, len(lead)+len(body)+len(trail))
 	out = append(out, lead...)
