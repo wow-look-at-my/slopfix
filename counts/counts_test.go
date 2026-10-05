@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 func phrases(hits []Hit) []string {
@@ -102,6 +104,24 @@ func TestACountAfterANounBecomesMultiple(t *testing.T) {
 
 	out, _ = StripGate("against binaries built on all three platforms.")
 	assert.Equal(t, "against binaries built on all platforms.", out, "a determiner before the count still lets it go")
+}
+
+// Digits after a singular noun name an item. "branch multiple sees" is not
+// English, so the text stays for a rewrite by hand.
+func TestANumberThatNamesAnItemStays(t *testing.T) {
+	for _, in := range []string{
+		"- during a newer stream → dropped (branch 1 prompt-mismatch rejects, branch 3 sees `last_finished_agent_entry` already cleared).",
+		"They honor the Section 4 pins.",
+	} {
+		out, cut := StripGate(in)
+		assert.Equal(t, in, out)
+		assert.Empty(t, cut)
+		for _, f := range ste.Check(in, 1) {
+			if f.ID == ste.IDStaleCount {
+				assert.True(t, ste.ByHand(f.Fix), f.Detail)
+			}
+		}
+	}
 }
 
 // Every count the rules report gets a repair. A bare cut is not English in

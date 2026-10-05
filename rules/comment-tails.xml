@@ -17,13 +17,6 @@
     for from with than rather that which who when while where because if is are
     was were as into over under per"/>
 
-  <!-- A word cut lands before one of these, because each opens a phrase that
-       the words before it do not need. An article is absent: it opens the
-       object a verb before it still needs. -->
-  <class name="phrase-opener" words="and or but so yet rather than to of in on at
-    by for from with that which who when while where because if as into over
-    under per via unless until after before since"/>
-
   <!-- A fragment standing after a finished sentence is dropped whole. -->
   <test in="Prose is a document's own voice, as the rule reads it. The"
         out="Prose is a document's own voice, as the rule reads it."/>
@@ -36,6 +29,10 @@
         out="The budget is a character count."/>
   <test in="gatherComments walks the whole tree, so a comment inside a body is"
         out="gatherComments walks the whole tree."/>
+
+  <!-- The clause before the comma is no sentence alone, and nothing finished comes before it, so the comment stays for a rewrite by hand. -->
+  <test in="If the cache is cold, the build waits for the"
+        out="If the cache is cold, the build waits for the"/>
 
   <!-- A finished comment is left exactly as it stands. -->
   <test in="A push names its target through the remote-tracking ref."

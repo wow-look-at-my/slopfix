@@ -95,8 +95,20 @@ func paragraphs(content string, lines []string) map[int]int {
 			if segments := n.Lines(); segments.Len() > 0 {
 				first := lineOf(starts, segments.At(0).Start)
 				last := lineOf(starts, segments.At(segments.Len()-1).Stop-1)
-				if hasLetter(lines[first : last+1]) {
-					ends[first] = last
+				// A template directive line is not prose, so it divides the paragraph and stays as written.
+				for from := first; from <= last; {
+					if isDirective(lines[from]) {
+						from++
+						continue
+					}
+					to := from
+					for to < last && !isDirective(lines[to+1]) {
+						to++
+					}
+					if hasLetter(lines[from : to+1]) {
+						ends[from] = to
+					}
+					from = to + 1
 				}
 			}
 			return ast.WalkSkipChildren, nil
@@ -104,6 +116,20 @@ func paragraphs(content string, lines []string) map[int]int {
 		return ast.WalkContinue, nil
 	})
 	return ends
+}
+
+// templateDirectives open a template tag: a Jinja or Go template statement, an expression or a comment.
+var templateDirectives = []string{"{%", "{{", "{#"}
+
+// isDirective reports a line that holds a template tag. A template engine reads
+// the line, so a join or a rewrite changes what it renders.
+func isDirective(line string) bool {
+	for _, d := range templateDirectives {
+		if strings.Contains(line, d) {
+			return true
+		}
+	}
+	return false
 }
 
 // hasLetter reports whether any line holds a letter. A paragraph with none is

@@ -45,7 +45,7 @@ func CheckTails(filename, src string) []LengthHit {
 	var hits []LengthHit
 	lines := strings.Split(src, "\n")
 	for _, para := range paragraphsOf(lines, runs) {
-		if CloseProse(para.prose) == para.prose {
+		if !stopsMidThought(para.prose) {
 			continue
 		}
 		hits = append(hits, LengthHit{
@@ -53,7 +53,7 @@ func CheckTails(filename, src string) []LengthHit {
 			Tell:       "the comment stops on a word that opens what is no longer there",
 			Sentence:   para.prose,
 			Line:       para.lines[0] + 1,
-			Repairable: true,
+			Repairable: CloseProse(para.prose) != para.prose,
 		})
 	}
 	return hits
@@ -77,10 +77,29 @@ func CloseProse(prose string) string {
 	kept := append([]string{}, sentences[:len(sentences)-1]...)
 	// The clause that opened what is missing goes with it, so the sentence ends
 	// where it last said something whole.
-	if clause := lastClause(words); clause != "" {
+	if clause := lastClause(words); clause != "" && ste.StandsAlone(clause) {
 		kept = append(kept, clause)
 	}
+	// With nothing whole left, no cut reads, and the comment stays for a rewrite by hand.
+	if len(kept) == 0 {
+		return prose
+	}
 	return strings.TrimSpace(strings.Join(kept, " "))
+}
+
+// stopsMidThought reports prose whose last sentence ends on a word that opens
+// what is missing.
+func stopsMidThought(prose string) bool {
+	sentences := ste.Sentences(prose)
+	if len(sentences) == 0 {
+		return false
+	}
+	words := strings.Fields(sentences[len(sentences)-1])
+	if len(words) == 0 {
+		return false
+	}
+	last := words[len(words)-1]
+	return !endsSentence(last) && dangling.Contains(strings.ToLower(trimWord(last)))
 }
 
 // lastClause answers the sentence up to the punctuation that opened the clause

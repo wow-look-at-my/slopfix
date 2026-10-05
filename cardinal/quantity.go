@@ -239,6 +239,25 @@ func Labeled(text string, q Match) bool {
 	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
 }
 
+// NamesAnItem reports digits at offset at right after a singular noun inside a
+// sentence, as in "branch 3 sees" or "the Section 4 pins". The digits name
+// one item, so no word can take their place. The first word of a sentence does
+// not count, because the tagger reads an imperative there as a noun.
+func NamesAnItem(text string, at int) bool {
+	words := syntax.Parse(text, nil).Words
+	for i, w := range words {
+		if w.Start != at {
+			continue
+		}
+		if !allDigits(w.Text) || i < 2 || words[i-1].End == at || words[i-2].Tag == "." {
+			return false
+		}
+		prev := words[i-1]
+		return (prev.Tag == "NN" || prev.Tag == "NNP") && strings.IndexFunc(prev.Text, unicode.IsLetter) == 0
+	}
+	return false
+}
+
 // SectionCite exempts a number behind a section sign, as in "§9 trigger". It
 // cites a section, so it counts nothing.
 func SectionCite(text string, q Match) bool {

@@ -306,16 +306,23 @@ func checkSplices(prose string, line int) []Finding {
 func checkCounts(prose string, line int) []Finding {
 	var out []Finding
 	for _, found := range cardinal.Find(prose, cardinal.Gate) {
+		fix := "Describe what is there and let the reader count."
+		if cardinal.NamesAnItem(prose, found.Offset) {
+			fix = FixCountByHand
+		}
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDStaleCount,
 			Rule:   "a stated count goes stale when the set changes",
 			Detail: strings.TrimSpace(found.Text),
-			Fix:    "Describe what is there and let the reader count.",
+			Fix:    fix,
 		})
 	}
 	return out
 }
+
+// FixCountByHand is the Fix text of a number that names an item, which no word can replace.
+const FixCountByHand = "Rewrite it by hand. The number names an item, such as \"branch 3\", and no word can take its place."
 
 // insideAny reports whether the byte at idx falls in any of the spans.
 func insideAny(spans [][]int, idx int) bool {

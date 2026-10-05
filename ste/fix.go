@@ -2,6 +2,7 @@ package ste
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -47,11 +48,20 @@ var (
 )
 
 // fixProse applies repair to the prose of text, leaving each verbatim span
-// alone. A semicolon inside `a; b` is the thing the sentence documents.
+// alone. A semicolon inside `a; b` is the thing the sentence documents. A
+// quotation is another voice, so its words stay as Check reads them: unjudged.
 func fixProse(text string, repair func(string) string) string {
+	spans := append(verbatimSpan.FindAllStringIndex(text, -1), quotedSpans(text)...)
+	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
 	var out strings.Builder
 	last := 0
-	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
+	for _, span := range spans {
+		if span[1] <= last {
+			continue
+		}
+		if span[0] < last {
+			span = []int{last, span[1]}
+		}
 		out.WriteString(repair(text[last:span[0]]))
 		out.WriteString(text[span[0]:span[1]])
 		last = span[1]

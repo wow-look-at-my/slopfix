@@ -92,6 +92,13 @@ func TestCheckSkipsQuotedText(t *testing.T) {
 	assert.NotEmpty(t, ste.Check("The owner said it is fine; ship it.", 1))
 }
 
+// Fix leaves a quotation as Check reads it. A modal inside one stays.
+func TestFixLeavesQuotedWordsAlone(t *testing.T) {
+	in := `IDLE is an ACTIVE corruption, not a benign "would not attach its cost."`
+	assert.Equal(t, in, ste.Fix(in))
+	assert.Equal(t, "It will not attach.", ste.Fix("It would not attach."))
+}
+
 // A semicolon that ends the prose before a code span keeps its space.
 func TestFixKeepsTheSpaceBeforeACodeSpan(t *testing.T) {
 	assert.Equal(t, "Docker is unavailable. `MESA_DIR` still overrides it.", ste.Fix("Docker is unavailable; `MESA_DIR` still overrides it."))

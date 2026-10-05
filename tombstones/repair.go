@@ -412,6 +412,20 @@ func sentenceAround(line, name string, openers []string) (int, int, bool) {
 	return from, to, from < to
 }
 
+// endsOnSentence reports whether the last row of block b that a cut keeps ends
+// a sentence.
+func endsOnSentence(lines []string, b Block, drop set.Set[int]) bool {
+	for i := len(b.LineNos) - 1; i >= 0; i-- {
+		no := b.LineNos[i]
+		if drop.Contains(no) || no < 0 || no >= len(lines) {
+			continue
+		}
+		text := strings.TrimRight(strings.TrimSpace(lines[no]), " */")
+		return strings.HasSuffix(text, ".") || strings.HasSuffix(text, "!") || strings.HasSuffix(text, "?")
+	}
+	return false
+}
+
 // capEdits answers an edit per block over maxLines. A block of comment lines
 // alone is cut at its thoughts. A block that shares a line with code loses its
 // last prose rows instead, because a row edit there would carry the code.
@@ -438,6 +452,10 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 				drop.Add(no)
 				over--
 			}
+		}
+		// A row cut that does not land on a sentence end leaves a fragment, so the block stays for a rewrite by hand.
+		if !endsOnSentence(lines, b, drop) {
+			continue
 		}
 		edits = append(edits, stripEdits(text, drop)...)
 	}

@@ -425,7 +425,8 @@ func opening(text string) string {
 // that agrees with the verb. With no subject to name, it answers "".
 func subjectFor(source, masked string, c forceCut, tag string) string {
 	s := syntax.Parse(masked[:c.left], nil)
-	for _, clause := range s.Clauses {
+	// Only the clause right before the cut shares its subject with the verb after it.
+	for _, clause := range s.Clauses[max(len(s.Clauses)-1, 0):] {
 		if clause.Depth != 0 || clause.Subject == nil || clause.Verb == nil {
 			continue
 		}

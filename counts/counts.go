@@ -105,9 +105,9 @@ func strip(content string, hits []Hit) (string, []Hit) {
 	return res.Text, cut
 }
 
-// Edits answers an edit per hit that takes its cardinal out. Every hit gets
-// one: reword says what replaces the number when a bare cut leaves broken
-// English.
+// Edits answers an edit per hit that takes its cardinal out. reword says what
+// replaces the number when a bare cut leaves broken English. A number that
+// names an item gets no edit.
 func Edits(content string, hits []Hit) []edit.Edit {
 	var out []edit.Edit
 	for _, hit := range hits {
@@ -188,6 +188,17 @@ func followsANoun(content string, start int) bool {
 		return strings.HasPrefix(tag, "NN") || tag == "PRP"
 	}
 	return false
+}
+
+// namesAnItem reports digits at start that name one item, as in "branch 3".
+// No word can take their place, so the text stays for a rewrite by hand.
+func namesAnItem(content string, start int) bool {
+	from := strings.LastIndexByte(content[:start], '\n') + 1
+	to := len(content)
+	if end := strings.IndexByte(content[start:], '\n'); end >= 0 {
+		to = start + end
+	}
+	return cardinal.NamesAnItem(content[from:to], start-from)
 }
 
 // proseLine is a line of the document's own voice, with where it begins.

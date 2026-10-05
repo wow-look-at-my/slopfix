@@ -139,6 +139,20 @@ func Leading(sentence string) (string, bool) {
 	return best, best != ""
 }
 
+// Cuts answers each byte offset where sentence can close at a clause boundary
+// and leave a sentence: the boundaries the division repair admits.
+func Cuts(sentence string) []int {
+	masked := mask(sentence)
+	s := syntax.Parse(masked, opaque(sentence, masked))
+	var out []int
+	for _, d := range divisions(s, sentence) {
+		if admissible(s, sentence, d) {
+			out = append(out, d.leftEnd)
+		}
+	}
+	return out
+}
+
 // minimumHalf keeps a division from writing a sentence too short to stand alone.
 const minimumHalf = 3
 
@@ -278,7 +292,8 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		if main.Verb.Imperative {
 			return connector, startsTheSentence(s, main)
 		}
-		if main.Subject == nil {
+		// The subject to name again belongs to the clause right before the link.
+		if main.Subject == nil || s.Clauses[indexOf(s, c)-1].First != main.First {
 			return "", false
 		}
 		subject, ok := restated(s, main, c, source)

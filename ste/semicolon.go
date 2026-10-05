@@ -29,7 +29,9 @@ func semicolonJoins(masked string) []int {
 			if w.Text != ";" {
 				continue
 			}
-			if !semicolonDivides(s, from, i) {
+			// The words since the last colon or semicolon are what a period closes,
+			// and a list item there is no sentence: "it runs: building, testing.
+			if !semicolonDivides(s, max(from, segmentStart(s, i)), i) {
 				continue
 			}
 			joins = append(joins, span[0]+w.Start)
@@ -37,6 +39,16 @@ func semicolonJoins(masked string) []int {
 		}
 	}
 	return joins
+}
+
+// segmentStart answers the first word after the last colon or semicolon ahead of word i.
+func segmentStart(s *syntax.Sentence, i int) int {
+	for j := i - 1; j >= 0; j-- {
+		if t := s.Words[j].Text; t == ";" || t == ":" {
+			return j + 1
+		}
+	}
+	return 0
 }
 
 // semicolonDivides reports whether the semicolon at word i of s ends a sentence

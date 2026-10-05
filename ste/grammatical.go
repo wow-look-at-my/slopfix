@@ -16,6 +16,14 @@ func admissible(s *syntax.Sentence, source string, d division) bool {
 	return !cutsAside(mask(source), d.leftEnd, d.rightStart) && standsAlone(s, 0, wordsBefore(s, d.leftEnd))
 }
 
+// StandsAlone reports whether text holds a main clause, as a sentence must.
+// "If the cache is cold" and "the request builder that fits the budget" do not.
+func StandsAlone(text string) bool {
+	masked := mask(text)
+	s := syntax.Parse(masked, opaque(text, masked))
+	return standsAlone(s, 0, len(s.Words))
+}
+
 // wordsBefore counts the words of s that start before byte at.
 func wordsBefore(s *syntax.Sentence, at int) int {
 	n := 0

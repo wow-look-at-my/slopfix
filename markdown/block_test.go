@@ -53,6 +53,22 @@ func TestAParagraphWithNoLetterIsAPicture(t *testing.T) {
 	assert.Equal(t, doc, markdown.Format(doc))
 }
 
+// A template engine reads a directive line. A join changes what it renders.
+func TestATemplateDirectiveLineStaysAsWritten(t *testing.T) {
+	doc := "<agent_usage>\n${{ agent_usage_note }}\n</agent_usage>\n${%- endif %}\n"
+	for _, b := range prose(doc) {
+		assert.NotContains(t, b.Text(), "{")
+	}
+	assert.Equal(t, doc, markdown.Format(doc))
+}
+
+func TestADirectiveLineDividesTheParagraphAroundIt(t *testing.T) {
+	blocks := prose("The first line\nwraps here.\n{% if x %}\nThe last line\nwraps too.\n{# a note #}\n")
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "The first line wraps here.", blocks[0].Text())
+	assert.Equal(t, "The last line wraps too.", blocks[1].Text())
+}
+
 func TestATableIsAGrid(t *testing.T) {
 	assert.Empty(t, prose("a | b\n--|--\nc | d\n"))
 }
