@@ -65,6 +65,13 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if prev.Tag == "NN" && nominalIng.Contains(lower) {
 		return head, "", 0
 	}
+	// "A trailing run of turns that each made a call, spaced close together": a participle after a fragment describes the fragment's head.
+	if seam == "," && (word.Tag == "VBN" || word.Tag == "VBD") && first+1 < len(whole.Words) && !opensObject(whole, first+1) &&
+		!finiteOutsideRelative(syntax.Parse(checkMask(head), nil), 0) {
+		if subject, ok := fragmentSubject(source, whole); ok {
+			return head, subject + " " + rest, opensWithCarrier
+		}
+	}
 	main, hasMain := mainVerb(whole, c.left)
 	// A phrase after a noun that a verb then follows is the subject's own: "the case above passes".
 	predicateFollows := finiteBefore(whole, first+1, ",")
@@ -142,6 +149,20 @@ func finiteOutsideReduced(s *syntax.Sentence, from, end int) bool {
 		}
 	}
 	return false
+}
+
+// fragmentSubject names the noun phrase a sentence opens on again, with "the"
+// and the form of "be" that agrees with it: "The trailing run is".
+func fragmentSubject(source string, s *syntax.Sentence) (string, bool) {
+	ph, ok := s.PhraseAt(0)
+	if !ok || ph.Kind != syntax.NounPhrase || ph.First != 0 || s.Words[0].Tag != "DT" || ph.Last < 1 {
+		return "", false
+	}
+	verb := "is"
+	if s.Plural(*ph) {
+		verb = "are"
+	}
+	return "The " + source[s.Words[1].Start:s.Words[ph.Last].End] + " " + verb, true
 }
 
 // finiteOutsideRelative reports a finite verb from word from on that no

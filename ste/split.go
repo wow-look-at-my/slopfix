@@ -363,7 +363,7 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		if c.Subject != nil && !subjectFollows(s, c) || !opensSubject(s, c.Link+1) {
 			// "not prose: left in the text a rewrite wraps it": a participle phrase opens a clause that names its own subject later.
 			if c.Subject != nil && s.Words[c.Link].Text == ":" && s.Words[c.Link+1].Tag == "VBN" {
-				return "", opensWithCapital(s, c.Link+1, source) && standsAsSentence(source[outsideSpans(source, s.Words[c.Link+1].Start, false):])
+				return "", opensWithCapital(s, c.Link+1, source) && c.Verb != nil && c.Subject.First > c.Link+1 && c.Subject.Last < c.Verb.First && finiteAt(s, c.Verb.First)
 			}
 			return "", false
 		}
