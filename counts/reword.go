@@ -28,7 +28,7 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		return edit.Edit{}, false
 	}
 	from, to := hit.Start, hit.Start+loc[1]
-	if namesAnItem(content, hit.Start) {
+	if noWordReplaces(content, hit.Start) {
 		return edit.Edit{}, false
 	}
 	number := strings.TrimSpace(content[from:to])

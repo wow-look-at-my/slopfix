@@ -61,6 +61,19 @@ func TestANumberNoEntryCoversIsReworded(t *testing.T) {
 	}
 }
 
+// A point on a scale, or an id, is a value, and "at multiple cols" or "id
+// multiple completes" is not English. The sentence goes instead.
+func TestAValueAtAPointIsNotReworded(t *testing.T) {
+	for in, want := range map[string]string{
+		"// It is wide. At 100 cols the row wraps.\nvar x int\n":                        "// It is wide.\nvar x int\n",
+		"// It is slow. The mock with id 1 completes after a short delay.\nvar x int\n": "// It is slow.\nvar x int\n",
+	} {
+		repair := fix(t, in)
+		assert.Equal(t, want, repair.Text, in)
+		assert.NotEmpty(t, repair.Removed, in)
+	}
+}
+
 // A number that governs no plural noun has nothing to reword around. The
 // sentence goes, and the caller is told which sentence went.
 func TestANumberWithNoPluralNounCutsItsSentence(t *testing.T) {

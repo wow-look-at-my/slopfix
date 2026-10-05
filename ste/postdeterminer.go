@@ -4,6 +4,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
@@ -74,6 +75,10 @@ func redundantNumeral(s *syntax.Sentence, np syntax.Phrase) bool {
 	if syntax.Is(head.Text, "indefinite") {
 		return false
 	}
+	// "the two cannot disagree": the numeral is the noun, and a verb follows it.
+	if auxiliaryHeads.Contains(strings.ToLower(head.Text)) {
+		return false
+	}
 	for _, i := range np.Numerals {
 		if !spelledCount(s.Words[i].Text) {
 			return false
@@ -86,6 +91,10 @@ func redundantNumeral(s *syntax.Sentence, np syntax.Phrase) bool {
 	single := len(np.Numerals) == 1 && strings.EqualFold(s.Words[np.Numerals[0]].Text, "one")
 	return single == (head.Tag == "NN")
 }
+
+// auxiliaryHeads are verbs the tagger can read as the noun after a numeral.
+var auxiliaryHeads = set.Of("cannot", "can", "must", "will", "would", "shall", "should", "may", "might",
+	"do", "does", "did", "are", "were", "have", "has", "need", "needs", "is", "was")
 
 // spelledCount reports whether a numeral is a plain count: a number word, or
 // a small whole number. A version, a decimal, a year and a status code are not.

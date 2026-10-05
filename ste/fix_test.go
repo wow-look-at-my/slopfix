@@ -92,6 +92,18 @@ func TestCheckSkipsQuotedText(t *testing.T) {
 	assert.NotEmpty(t, ste.Check("The owner said it is fine; ship it.", 1))
 }
 
+// A numeral that a verb follows is the noun of its phrase. A cut left "So the cannot disagree".
+func TestFixKeepsANumeralThatIsTheNoun(t *testing.T) {
+	in := "So the two cannot disagree about what red means."
+	assert.Equal(t, in, ste.Fix(in))
+}
+
+// A division restates only the subject of the clause right before the cut, never "The Send".
+func TestADivisionNamesNoWrongSubject(t *testing.T) {
+	in := "A Send Now delivers its text to the planner already running (`SubagentEvent::Interject`, routed by the coordinator id the spawn publishes on the goal tracker) instead of cancelling it, so an `Interrupted` reaching the loop is a bare cancel and is terminal — retrying one spawned four dead planners in 2.3 s before the attempt cap paused the goal."
+	assert.NotContains(t, ste.Fix(in), "The Send is")
+}
+
 // Fix leaves a quotation as Check reads it. A modal inside one stays.
 func TestFixLeavesQuotedWordsAlone(t *testing.T) {
 	in := `IDLE is an ACTIVE corruption, not a benign "would not attach its cost."`

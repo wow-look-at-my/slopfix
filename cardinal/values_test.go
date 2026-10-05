@@ -22,6 +22,19 @@ var notCounts = []string{
 	"Migration 014 pins that id on the project.",
 	// A measure followed by its verb, not by a noun.
 	"The 128 KiB is a pair of the reader's buffer fills.",
+	"43 cols is less than MAX_LINES*WRAP_WIDTH, so it must not truncate.",
+}
+
+// A hyphen binds a number word into a compound, and a plural that takes a
+// singular verb is one amount. The cut left "those-line" and "Cols is".
+func TestACompoundOrAMeasureIsNotACommentCount(t *testing.T) {
+	for _, prose := range []string{
+		"Mirrors the two-line row hit-rects in Browse mode.",
+		"43 cols is less than MAX_LINES*WRAP_WIDTH, so it must not truncate; fully lossless.",
+	} {
+		assert.Empty(t, cardinal.Find(prose, cardinal.Comment), prose)
+	}
+	assert.NotEmpty(t, cardinal.Find("It keeps two lines.", cardinal.Comment))
 }
 
 func TestAValueOrALabelIsNotAStaleCount(t *testing.T) {

@@ -190,15 +190,15 @@ func followsANoun(content string, start int) bool {
 	return false
 }
 
-// namesAnItem reports digits at start that name one item, as in "branch 3".
-// No word can take their place, so the text stays for a rewrite by hand.
-func namesAnItem(content string, start int) bool {
+// noWordReplaces reports a number at start that no word can take the place
+// of, as in "branch 3" or "at 100 cols". The text stays for a rewrite by hand.
+func noWordReplaces(content string, start int) bool {
 	from := strings.LastIndexByte(content[:start], '\n') + 1
 	to := len(content)
 	if end := strings.IndexByte(content[start:], '\n'); end >= 0 {
 		to = start + end
 	}
-	return cardinal.NamesAnItem(content[from:to], start-from)
+	return cardinal.NoWordReplaces(content[from:to], start-from)
 }
 
 // proseLine is a line of the document's own voice, with where it begins.

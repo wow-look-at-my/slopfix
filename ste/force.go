@@ -434,6 +434,12 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 		if subject.Last >= clause.Verb.First || !opensSubject(s, subject.First) {
 			return ""
 		}
+		// A later finite verb has a subject of its own, which the parse did not name.
+		for _, w := range s.Words[clause.Verb.Last+1:] {
+			if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
+				return ""
+			}
+		}
 		head := s.Words[subject.Head]
 		if head.Tag == "PRP" {
 			return lowerOpening(head.Text)

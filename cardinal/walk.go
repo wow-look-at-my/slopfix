@@ -49,6 +49,19 @@ func LabeledToken(_ string, toks []Token, i int) bool {
 	return InClass(strings.Trim(toks[i-1].Text, nameMarkers), "label")
 }
 
+// MeasureToken exempts a number whose plural noun takes a singular verb: "43
+// cols is less than the cap". The phrase is one measured amount, a value of a
+// test or a format, and a cut leaves "cols is".
+func MeasureToken(_ string, toks []Token, i int) bool {
+	if i+2 >= len(toks) || !strings.HasSuffix(strings.ToLower(toks[i+1].Text), "s") {
+		return false
+	}
+	return singularVerbs.Contains(strings.ToLower(toks[i+2].Text))
+}
+
+// singularVerbs agree with one amount, never with a plural tally.
+var singularVerbs = set.Of("is", "was", "has", "does", "fits", "equals")
+
 // exitStatusPrefixes name the digits after them as a status.
 var exitStatusPrefixes = set.Of("exit", "exits", "exited", "status", "errno", "signal")
 
@@ -256,7 +269,8 @@ func wordNumber(tok Token, words set.Set[string]) (Token, bool) {
 			end++
 		}
 		word := string(runes[i:end])
-		if words.Contains(strings.ToLower(word)) {
+		// A hyphen binds a number word into a compound that names a shape: "two-line".
+		if words.Contains(strings.ToLower(word)) && !letterAt(runes, i-1, -1) && !letterAt(runes, end, 1) {
 			return Token{tok.Offset + offsets[i], word}, true
 		}
 		i = end

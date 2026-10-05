@@ -239,6 +239,38 @@ func Labeled(text string, q Match) bool {
 	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
 }
 
+// NoWordReplaces reports a number at offset at that no repair word can take the
+// place of: one that names an item, a zero or a one, or a point on a scale
+// after "at", "by" or "to". "At 100 cols" does not mean "at multiple cols". A
+// unit after the point still takes a vague amount: "warns at many lines".
+func NoWordReplaces(text string, at int) bool {
+	if NamesAnItem(text, at) {
+		return true
+	}
+	words := strings.Fields(text[at:])
+	if len(words) == 0 {
+		return false
+	}
+	number := strings.TrimLeft(words[0], "~(")
+	if end := strings.IndexFunc(number, func(r rune) bool { return !unicode.IsDigit(r) }); end > 0 {
+		number = number[:end]
+	}
+	if number == "0" || number == "1" {
+		return true
+	}
+	before := strings.Fields(strings.ToLower(text[:at]))
+	if len(before) == 0 || len(words) > 1 && IsUnit(bare(words[1])) {
+		return false
+	}
+	switch bare(before[len(before)-1]) {
+	case "at", "by":
+		return true
+	case "to":
+		return len(before) < 2 || bare(before[len(before)-2]) != "up"
+	}
+	return false
+}
+
 // NamesAnItem reports digits at offset at right after a singular noun inside a
 // sentence, as in "branch 3 sees" or "the Section 4 pins". The digits name
 // one item, so no word can take their place. The first word of a sentence does
@@ -273,6 +305,13 @@ var functionTags = set.Of("IN", "DT", "CC", "PRP", "PRP$", "TO", "MD", "WDT", "R
 
 // singleItem are the words that make the noun after them one counted item.
 var singleItem = set.Of("a", "an", "each", "every", "one", "per")
+
+// Measure exempts a quantity that takes a singular verb, as in "43 cols is
+// less than the cap". It is one measured amount, and a cut leaves "cols is".
+func Measure(text string, q Match) bool {
+	rest := strings.Fields(text[q.At+len(q.Text):])
+	return len(rest) > 0 && singularVerbs.Contains(bare(rest[0]))
+}
 
 // SectionCite exempts a number behind a section sign, as in "§9 trigger". It
 // cites a section, so it counts nothing.

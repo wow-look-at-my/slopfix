@@ -136,7 +136,7 @@ func replaceWord(s, word, with string) string {
 		}
 		at := i + j
 		end := at + len(target)
-		if !wordBoundary(s, at, end) {
+		if !wordBoundary(s, at, end) || afterPartitive(lower, at, with) {
 			b.WriteString(s[i : at+1])
 			i = at + 1
 			continue
@@ -146,6 +146,12 @@ func replaceWord(s, word, with string) string {
 		i = end
 	}
 	return b.String()
+}
+
+// afterPartitive reports a "both" that would follow "of": "one of the two lists"
+// reads "one of both lists", which is not English.
+func afterPartitive(lower string, at int, with string) bool {
+	return strings.EqualFold(with, "both") && strings.HasSuffix(strings.TrimRight(lower[:at], " "), " of")
 }
 
 // wordBoundary reports whether s[at:end] stands as its own word. A marker
