@@ -1,6 +1,7 @@
 package treecomments
 
 import (
+	"github.com/wow-look-at-my/go-containers/set"
 	"path/filepath"
 	"strings"
 )
@@ -22,7 +23,7 @@ func yamlLineComments(src string, comments []Comment) []Comment {
 		starts[i] = offset
 		offset += len(line) + 1
 	}
-	seen := map[int]bool{}
+	seen := set.New[int]()
 	out := comments[:0:0]
 	for _, c := range comments {
 		if c.Line < 1 || c.Line > len(lines) || c.Lines != 1 {
@@ -35,10 +36,10 @@ func yamlLineComments(src string, comments []Comment) []Comment {
 			out = append(out, c)
 			continue
 		}
-		if seen[c.Line] {
+		if seen.Contains(c.Line) {
 			continue
 		}
-		seen[c.Line] = true
+		seen.Add(c.Line)
 		c.Col, c.Offset, c.Text = indent, starts[c.Line-1]+indent, strings.TrimRight(line[indent:], "\r")
 		out = append(out, c)
 	}
