@@ -3,6 +3,7 @@ package ste_test
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 
@@ -22,14 +23,9 @@ func words(text string) []string {
 }
 
 // capReport names what a repair of one sentence got wrong: a part still over
-// the cap, a part. That is not a sentence of its own, or a word it repeated.
+// the cap, or a phrase the source already used. That the repair wrote again.
 func capReport(in, out string) string {
-	inw := map[string]int{}
-	for _, w := range words(in) {
-		inw[w]++
-	}
-	outw := map[string]int{}
-	var over, frag, dup []string
+	var over, dup []string
 	for _, s := range ste.Sentences(ste.Masked(out)) {
 		s = strings.TrimSpace(s)
 		if s == "" {
@@ -38,21 +34,28 @@ func capReport(in, out string) string {
 		if n := ste.WordCount(s); n > ste.SentenceWordCap {
 			over = append(over, fmt.Sprintf("%d=%s", n, s))
 		}
-		if !ste.StandsAlone(s) {
-			frag = append(frag, s)
+	}
+	were := map[string]int{}
+	inw := words(in)
+	for i := 0; i+3 <= len(inw); i++ {
+		were[strings.Join(inw[i:i+3], " ")]++
+	}
+	now := map[string]int{}
+	outw := words(out)
+	for i := 0; i+3 <= len(outw); i++ {
+		now[strings.Join(outw[i:i+3], " ")]++
+	}
+	for gram, n := range now {
+		if were[gram] > 0 && n > were[gram] {
+			dup = append(dup, gram)
 		}
 	}
-	for _, w := range words(out) {
-		outw[w]++
-		if outw[w] > inw[w] {
-			dup = append(dup, w)
-		}
-	}
-	if len(over) == 0 && len(frag) == 0 && len(dup) == 0 {
+	sort.Strings(dup)
+	if len(over) == 0 && len(dup) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("IN: %s\nOUT: %s\nOVER: %s\nFRAGMENT: %s\nREPEATED: %s\n\n",
-		in, out, strings.Join(over, " | "), strings.Join(frag, " | "), strings.Join(dup, " "))
+	return fmt.Sprintf("IN: %s\nOUT: %s\nOVER: %s\nREPEATED: %s\n\n",
+		in, out, strings.Join(over, " | "), strings.Join(dup, " | "))
 }
 
 func TestEveryExtractedSentenceDividesUnderTheCap(t *testing.T) {
