@@ -358,11 +358,25 @@ func trim(b block) []string {
 	if whole && fitsCode(opening, b) {
 		fits = append(fits, opening)
 	}
+	// A clause cut serves a block whose opening sentence is not the thing cut.
+	if severalSentences(b.text) {
+		if clause, ok := clauseFit(b); ok {
+			fits = append(fits, clause)
+		}
+	}
 	if out, ok := preferred(fits); ok {
 		return out
 	}
-	// No cut fits without dropping the point, so the comment stays as written.
 	return kept
+}
+
+// severalSentences reports a block whose prose holds more than one sentence.
+func severalSentences(text []string) bool {
+	var body []string
+	for _, line := range prose(text) {
+		body = append(body, stripMarker(line))
+	}
+	return len(ste.Sentences(strings.Join(strings.Fields(strings.Join(body, " ")), " "))) > 1
 }
 
 // sameText compares runs of lines by what they say. A line count cannot: a
