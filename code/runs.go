@@ -2,8 +2,8 @@
 // comment's words rather than its size.
 //
 // The parse is the only reader of syntax here. A scanner that looks for a
-// marker byte needs each language's spelling, its quotes that start a literal,
-// and which of those honour a backslash. A grammar already
+// marker byte has to be told which spelling each language uses, which quotes
+// start a literal, and which of those honour a backslash. A grammar already
 // knows, and a marker inside a string is not a comment node.
 package code
 

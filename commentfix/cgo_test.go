@@ -64,8 +64,8 @@ func TestARepairThatKeepsItsLineCountIsStillApplied(t *testing.T) {
 }
 
 // Laying a block out rescues only what the budget already holds. Prose past it
-// is cut mid-sentence rather than left. Otherwise a run that no honest cut
-// reaches stays a finding forever, and no automatic pass can clear it.
+// is cut mid-sentence rather than left: a run that no honest cut reaches would
+// otherwise stay a finding forever, which no automatic pass can clear.
 func TestProsePastTheBudgetIsForceFitted(t *testing.T) {
 	long := "// Foo names a thing, and then it says a great deal more about that thing, at such length that no width lays it out inside the budget it must meet.\n// A second sentence carries on well past the point.\nconst Foo = 1\n"
 	out, changed := FixLength("p.go", long)
