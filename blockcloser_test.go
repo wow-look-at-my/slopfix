@@ -32,6 +32,7 @@ func TestCapLinesKeepsABlockClosed(t *testing.T) {
 	require.Greater(t, len(text), tombstones.DefaultMaxCommentLines, "the fixture must be over the cap")
 	kept := commentfix.CapLines(text, tombstones.DefaultMaxCommentLines)
 	require.NotEmpty(t, kept)
+	assert.LessOrEqual(t, len(kept), tombstones.DefaultMaxCommentLines, "the closer line counts against the cap:\n%s", strings.Join(kept, "\n"))
 	assert.True(t, strings.HasSuffix(strings.TrimSpace(kept[len(kept)-1]), "*/"), "the block ends open:\n%s", strings.Join(kept, "\n"))
 	assert.Equal(t, 1, strings.Count(strings.Join(kept, "\n"), "*/"), strings.Join(kept, "\n"))
 }

@@ -15,19 +15,19 @@ func capLines(b block, maxLines int) []string {
 	if len(body) > 0 {
 		closer = body[len(body)-1]
 	}
-	for len(body) > maxLines {
+	// A closer on its own line comes back after a cut, so it takes a line of the cap.
+	limit := maxLines
+	if strings.TrimSpace(closer) == "*/" {
+		limit--
+	}
+	for len(body) > limit {
 		next, ok := cutLastThought(body)
 		if !ok {
 			break
 		}
 		body = next
 	}
-	if len(body) > maxLines {
-		// A closer on its own line comes back after the cut, so it takes a line of the cap.
-		limit := maxLines
-		if strings.TrimSpace(closer) == "*/" {
-			limit--
-		}
+	if len(body) > limit {
 		body = dropToSentenceEnd(body, limit)
 	}
 	body = reclosed(body, closer)
