@@ -23,6 +23,27 @@ type Ref struct {
 // A markdown link, with an optional title. Both halves go: what survives removal is by definition unlinked.
 var mdLinkRe = regexp.MustCompile(`\[[^\]\n]*\]\([^)\s]+(?:[ \t]+"[^"]*")?\)`)
 
+// mdLinkPartsRe is mdLinkRe with the text and the URL captured.
+var mdLinkPartsRe = regexp.MustCompile(`\[([^\]\n]*)\]\(([^)\s]+)(?:[ \t]+"[^"]*")?\)`)
+
+// link is a markdown link already in the text, with its byte range.
+type link struct {
+	start, end int
+	text, url  string
+}
+
+// findLinks returns every markdown link in a line. A link inside a code span is not a link, so it is left out.
+func findLinks(line string) []link {
+	var out []link
+	for _, m := range mdLinkPartsRe.FindAllStringSubmatchIndex(line, -1) {
+		if strings.Count(line[:m[0]], "`")%2 == 1 {
+			continue
+		}
+		out = append(out, link{m[0], m[1], line[m[2]:m[3]], line[m[4]:m[5]]})
+	}
+	return out
+}
+
 // An angle-bracket autolink, which every markdown renderer makes clickable.
 var autoLinkRe = regexp.MustCompile(`<https?://[^>\s]+>`)
 
@@ -81,6 +102,12 @@ func candidates(text string) []Located {
 	var out []Located
 	for _, m := range matchers {
 		for _, loc := range m.re.FindAllStringIndex(text, -1) {
+			if m.re == urlRe {
+				// Punctuation that ends a sentence is not part of the URL.
+				for loc[1] > loc[0] && strings.ContainsRune(".,;:!?", rune(text[loc[1]-1])) {
+					loc[1]--
+				}
+			}
 			token := text[loc[0]:loc[1]]
 			if !boundedToken(text, loc[0], loc[1]) {
 				continue

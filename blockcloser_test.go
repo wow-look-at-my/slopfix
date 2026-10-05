@@ -14,15 +14,11 @@ import (
 // blockOverTheCap is a /* */ block over the volume cap whose */ closes its own
 // last paragraph, above a second block and an import.
 func blockOverTheCap() string {
-	var src strings.Builder
-	src.WriteString("/* <scratch-widget> is the first widget of the kit.\n *\n")
-	for range 12 {
-		src.WriteString(" * The widget seals its structure and styles so nobody can assemble it wrong.\n")
-	}
-	src.WriteString(" *\n *   <scratch-widget>save</scratch-widget>\n *   <scratch-widget variant=\"accent\">add</scratch-widget>\n */\n\n")
-	src.WriteString("/* A single stylesheet is shared by every instance. */\n\n")
-	src.WriteString("import { SHEET } from './styles.ts';\n\nexport const widget = SHEET;\n")
-	return src.String()
+	return "/* <scratch-widget> is the first widget of the kit.\n *\n" +
+		strings.Repeat(" * The widget seals its structure and styles so nobody can assemble it wrong.\n", 12) +
+		" *\n *   <scratch-widget>save</scratch-widget>\n *   <scratch-widget variant=\"accent\">add</scratch-widget>\n */\n\n" +
+		"/* A single stylesheet is shared by every instance. */\n\n" +
+		"import { SHEET } from './styles.ts';\n\nexport const widget = SHEET;\n"
 }
 
 // The volume cut drops a /* */ block's last paragraph and keeps the block closed.
