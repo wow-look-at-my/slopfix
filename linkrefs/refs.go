@@ -1,5 +1,6 @@
 // refs.go finds the references a message hands the reader with nothing to
-// click: an issue or PR number, a commit SHA, a branch slug, a bare GitHub URL.
+// click. This covers an issue or PR number, a commit SHA, a branch slug, a bare
+// GitHub URL.
 //
 // Each match carries the byte range it occupies, because the caller rewrites
 // the reference in place rather than reporting it. Text that is already a link

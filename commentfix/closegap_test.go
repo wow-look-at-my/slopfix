@@ -8,7 +8,7 @@ import (
 )
 
 // A number that opens a continuation line takes the mark after it up to the
-// line above, so no line is left holding a lone period.
+// line above. No line is left holding a lone period.
 func TestDeletingANumberThatOpensALineKeepsItsMarkOnTheLineAbove(t *testing.T) {
 	for name, src := range map[string]string{
 		"aligned": "  /* the controls and miss those\n     two. */\n",

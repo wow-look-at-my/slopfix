@@ -12,7 +12,7 @@ import (
 )
 
 // force.go divides a long sentence that has no clause boundary. The division
-// lands between words, near the cap, and opens the rest so it still reads.
+// lands between words, near the cap, where each part is a sentence.
 
 var (
 	// forceDangling words never end the first part of a forced division.
@@ -30,30 +30,30 @@ var (
 )
 
 // forceSentenceCap divides each sentence still over the cap at a word boundary.
-func forceSentenceCap(prose string) string {
-	over := overCap(prose)
+func forceSentenceCap(prose string, d capSpec) string {
+	over := overCap(prose, d.cap)
 	for range len(strings.Fields(prose)) + 1 {
-		next, divided := forceNext(prose)
+		next, divided := forceNext(prose, d)
 		// A division that leaves as many words past the cap moves nothing, so the loop stops on it.
-		if !divided || overCap(next) >= over {
+		if !divided || overCap(next, d.cap) >= over {
 			return prose
 		}
-		prose, over = next, overCap(next)
+		prose, over = next, overCap(next, d.cap)
 	}
 	return prose
 }
 
-// overCap counts the words past the cap in every sentence Check reads in prose.
-func overCap(prose string) int {
+// overCap counts the words past limit in every sentence Check reads in prose.
+func overCap(prose string, limit int) int {
 	n := 0
 	for _, sentence := range Sentences(checkMask(prose)) {
-		n += max(0, WordCount(sentence)-SentenceWordCap)
+		n += max(0, WordCount(sentence)-limit)
 	}
 	return n
 }
 
 // forceNext divides the earliest over-cap sentence, as Check reads it.
-func forceNext(prose string) (string, bool) {
+func forceNext(prose string, d capSpec) (string, bool) {
 	masked := checkMask(prose)
 	for _, span := range sentenceSpans(masked) {
 		start, end := span[0], span[1]
@@ -64,10 +64,10 @@ func forceNext(prose string) (string, bool) {
 		for end < len(prose) && masked[end] == ' ' && prose[end] != ' ' {
 			end++
 		}
-		if WordCount(masked[start:end]) <= SentenceWordCap {
+		if WordCount(masked[start:end]) <= d.cap {
 			continue
 		}
-		if rewritten, ok := forceDivision(prose[start:end], masked[start:end]); ok {
+		if rewritten, ok := forceDivision(prose[start:end], masked[start:end], d); ok {
 			return prose[:start] + rewritten + prose[end:], true
 		}
 	}
@@ -134,16 +134,30 @@ type forceCut struct {
 // forceDivision divides source at the best word boundary that leaves the first
 // part under the cap. It never divides inside a code span, a link, a quotation,
 // a parenthesis or bold text.
-func forceDivision(source, masked string) (string, bool) {
+func forceDivision(source, masked string, d capSpec) (string, bool) {
+	// The tags come from the whole sentence, because a fragment parsed alone reads "a faithful" as a noun.
+	whole := syntax.Parse(masked, nil)
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
-		for _, c := range candidates(source, masked, strict) {
-			left := closeHead(source[:c.left])
-			right, opened := openRest(source, masked, c)
-			if right == "" || !divides(left, right) {
+		for _, c := range candidates(source, masked, strict, d.cap) {
+			if cutsAside(masked, c.left, c.right) || splitsObject(whole, c) {
 				continue
 			}
-			// A rest that opens a clause of its own reads best, and filler reads worst.
+			head := source[:c.left]
+			right, opened := openRest(source, masked, whole, c)
+			if right == "" {
+				head, right, opened = carrierDivision(source, whole, c)
+			}
+			left := closeHead(head)
+			seam := seamBefore(source, c.left)
+			// ", so" joins whole clauses, so the comma before it ends one wherever it sits.
+			if seam == "," && strings.HasPrefix(strings.ToLower(strings.TrimLeft(source[c.right:], " ")), "so ") {
+				seam = "so"
+			}
+			if right == "" || !divides(left, right, d.cap) || !closesWhole(source[:c.left], seam, whole) && !closesPhrase(source[:c.left], whole) {
+				continue
+			}
+			// A rest that opens a clause of its own reads best.
 			if score := c.score + opened; best == "" || score > bestScore {
 				best, bestScore = left+" "+right, score
 			}
@@ -152,7 +166,35 @@ func forceDivision(source, masked string) (string, bool) {
 			return best, true
 		}
 	}
-	return source, false
+	if d.reorder {
+		if out, ok := reorderDependent(source, whole); ok {
+			return out, true
+		}
+		if out, ok := subjectDivision(source, whole, d.cap); ok {
+			return out, true
+		}
+	}
+	return fragmentDivision(source, masked, whole, d.cap)
+}
+
+// splitsObject reports a cut between a finite verb and the noun phrase right
+// after it, which is the verb's object: "a sentence names | an item".
+func splitsObject(s *syntax.Sentence, c forceCut) bool {
+	next := wordFrom(s, c.right)
+	// A mark between the verb and the words after it ends the verb's phrase.
+	if next < 1 {
+		return false
+	}
+	// The tagger reads "names" or "reads" as a plural noun. It is the verb when the words before it hold no other.
+	prev := s.Words[next-1].Tag
+	if !finiteVerbTag(prev) && !(prev == "NNS" && !finiteBetween(s, 0, next-1)) {
+		return false
+	}
+	switch tag := s.Words[next].Tag; {
+	case tag == "DT" || tag == "PRP$" || tag == "CD" || strings.HasPrefix(tag, "JJ") || strings.HasPrefix(tag, "NN"):
+		return true
+	}
+	return false
 }
 
 // closeHead ends the first part of a division as a sentence. A part that
@@ -165,15 +207,15 @@ func closeHead(head string) string {
 	return head + "."
 }
 
-// divides reports whether Check reads left as a sentence of its own under the
-// cap. It reads only the start of right, because the rest of it is unchanged.
-func divides(left, right string) bool {
+// divides reports whether Check reads left as a sentence of its own under
+// limit. It reads only the start of right, because the rest of it is unchanged.
+func divides(left, right string, limit int) bool {
 	sentences := Sentences(checkMask(left + " " + opening(right)))
 	if len(sentences) < 2 {
 		return false
 	}
 	words := WordCount(sentences[0])
-	return words <= SentenceWordCap && words == WordCount(checkMask(left))
+	return words <= limit && words == WordCount(checkMask(left))
 }
 
 // inBold reports whether byte p of a sentence sits inside bold text. A bold
@@ -199,12 +241,12 @@ const phraseReach = 8
 // phraseSpans answers the inside of each noun phrase and verb group the parser
 // finds where a cut can land, and where each finite verb starts. A cut inside
 // a phrase leaves "a detached." behind.
-func phraseSpans(masked string, ends []int) ([][]int, set.Set[int]) {
+func phraseSpans(masked string, ends []int, limit int) ([][]int, set.Set[int]) {
 	finite := set.New[int]()
 	if len(ends) == 0 {
 		return nil, finite
 	}
-	head := masked[:ends[min(SentenceWordCap+phraseReach, len(ends)-1)]]
+	head := masked[:ends[min(limit+phraseReach, len(ends)-1)]]
 	s := syntax.Parse(head, nil)
 	var out [][]int
 	for _, ph := range s.Phrases {
@@ -246,7 +288,7 @@ func wordEnds(masked string) []int {
 
 // candidates answers every admissible cut, best first. A strict pass also keeps
 // each part off a word that leaves it hanging.
-func candidates(source, masked string, strict bool) []forceCut {
+func candidates(source, masked string, strict bool, limit int) []forceCut {
 	off := verbatimSpan.FindAllStringIndex(source, -1)
 	off = append(off, quotedSpans(source)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
@@ -255,7 +297,7 @@ func candidates(source, masked string, strict bool) []forceCut {
 	ends := wordEnds(masked)
 	verbs := set.New[int]()
 	if strict {
-		spans, finite := phraseSpans(masked, ends)
+		spans, finite := phraseSpans(masked, ends, limit)
 		off, verbs = append(off, spans...), finite
 	}
 	var out []forceCut
@@ -266,7 +308,7 @@ func candidates(source, masked string, strict bool) []forceCut {
 			counted++
 		}
 		leftWords, rightWords := counted, len(ends)-counted
-		if leftWords > SentenceWordCap {
+		if leftWords > limit {
 			break
 		}
 		if p == 0 || q == len(source) || insideAny(off, p) || leftWords < 1 || rightWords < 1 {
@@ -327,19 +369,20 @@ func outerParens(text string) [][]int {
 const (
 	opensOwnClause = 6
 	opensWithVerb  = 3
-	opensWithFill  = 0
 )
 
 // openRest writes the words after a cut as a sentence of their own, and says
-// how well it reads. A clause that names its own subject opens as it is. A
-// verb gets the subject again, and anything else opens with "This is".
-func openRest(source, masked string, c forceCut) (string, int) {
+// how well it reads. A clause that names its own subject opens as it is, and
+// so does an imperative after an imperative. A finite verb after a conjunction
+// gets the subject again. Any other rest is no sentence, and openRest answers "".
+func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string, int) {
 	rest := strings.TrimLeft(source[c.right:], " —–-,;:")
 	restMasked := masked[len(masked)-len(rest):]
 	if rest == "" {
 		return "", 0
 	}
-	opener := ""
+	seam := seamBefore(source, c.left)
+	opener, conjunction := "", ""
 	if word := strings.ToLower(firstToken.FindString(rest)); word != "" {
 		if connector, ok := connectors[word]; ok {
 			cut := len(firstToken.FindString(rest))
@@ -352,30 +395,62 @@ func openRest(source, masked string, c forceCut) (string, int) {
 				return "", 0
 			}
 			restMasked = restMasked[len(restMasked)-len(rest):]
-			opener = connector
+			opener, conjunction = connector, word
 		}
 	}
-	if strings.EqualFold(firstToken.FindString(rest), "which") {
-		return joinOpener(opener, "this"+rest[len("which"):]), opensWithVerb
-	}
-	// A capital would rename an identifier written in lower case, so it opens after filler.
-	if lowerIdentifier(firstToken.FindString(rest)) {
-		return joinOpener(opener, "this is "+rest), opensWithFill
-	}
-	s := syntax.Parse(opening(restMasked), nil)
-	if len(s.Words) == 0 {
+	// A cut between words with no mark and no conjunction lands inside a clause.
+	if seam == "" && conjunction == "" {
 		return "", 0
 	}
-	if opensClause(s) {
+	// A capital renames an identifier written in lower case, and Check reads no sentence start there.
+	if lowerIdentifier(firstToken.FindString(rest)) {
+		return "", 0
+	}
+	s := syntax.Parse(opening(restMasked), nil)
+	first := wordFrom(whole, len(source)-len(rest))
+	if len(s.Words) == 0 || first < 0 {
+		return "", 0
+	}
+	strong := seam == "—" || seam == "–" || seam == "--" || seam == ":"
+	switch tag := whole.Words[first].Tag; {
+	case strong && conjunction != "so" && !lowerIdentifier(firstToken.FindString(rest)) && opensImperative(restMasked):
+		// A dash or a colon before an instruction ends the sentence before it: "— but be economical".
+		return joinOpener(opener, rest), opensOwnClause - 1
+	case conjunction == "so" && seam == "," && !opensImperativeMain(masked[:c.left]) && !instructs(whole) && opensImperative(restMasked):
+		// A statement, then ", so" and an instruction: the instruction follows from the statement, as a sentence of its own.
 		return joinOpener(opener, rest), opensOwnClause
-	}
-	if tag := s.Words[0].Tag; tag == "VBZ" || tag == "VBP" || tag == "VBD" || tag == "MD" {
-		return joinOpener(opener, subjectFor(source, masked, c, tag)+" "+rest), opensWithVerb
-	}
-	if opensImperative(restMasked) {
+	case (tag == "VB" || tag == "VBP") && opensImperativeMain(masked[:c.left]) && opensImperative(restMasked):
+		// An imperative joins only another imperative, and never after a bare comma, where it is an item of a list.
+		if seam == "," && conjunction == "" || conjunction == "so" {
+			return "", 0
+		}
 		return joinOpener(opener, rest), opensOwnClause
+	case tag == "VBZ" || tag == "VBP" || tag == "VBD" || tag == "MD":
+		// Verb groups after a bare comma are a list, and a list never divides.
+		if conjunction == "" || conjunction == "so" || listsVerbs(masked[:c.left]) {
+			return "", 0
+		}
+		subject := subjectFor(source, masked, c, tag)
+		if subject == "" {
+			return "", 0
+		}
+		return joinOpener(opener, subject+" "+rest), opensWithVerb
+	case opensClause(s) && opensSubject(whole, first) && agrees(s, *s.Clauses[0].Subject, *s.Clauses[0].Verb) &&
+		verbOfSubject(s, *s.Clauses[0].Subject, *s.Clauses[0].Verb):
+		// A so with no comma before it, or after an instruction, states a purpose.
+		if conjunction == "so" && (seam != "," || opensImperativeMain(masked[:c.left]) || instructs(whole)) {
+			return "", 0
+		}
+		// After a list, ", and" adds the last item to it: "rules, hooks, and `ask` rules apply".
+		if seam == "," && listsVerbs(masked[:c.left]) {
+			return "", 0
+		}
+		return joinOpener(opener, rest), opensOwnClause
+	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(rest):
+		// A dash or a colon before words that hold a main clause of their own: "— on first launch Grok runs your binary".
+		return capitalizeOpening(rest), opensOwnClause - 1
 	}
-	return joinOpener(opener, "this is "+rest), opensWithFill
+	return "", 0
 }
 
 // openingBytes bounds how much of the rest the parser reads. Only its first clause decides how the rest opens.
@@ -392,55 +467,26 @@ func opening(text string) string {
 	return text
 }
 
-// lowerIdentifier reports a word that opens in lower case and reads as a name
-// in code: it carries a capital, a digit, an underscore or a dot inside it.
-func lowerIdentifier(word string) bool {
-	first, width := utf8.DecodeRuneInString(word)
-	if !unicode.IsLower(first) {
-		return false
-	}
-	return strings.IndexFunc(strings.TrimRight(word[width:], ".,;:!?)"), func(r rune) bool {
-		return unicode.IsUpper(r) || unicode.IsDigit(r) || r == '_' || r == '.'
-	}) >= 0
-}
-
-// opensClause reports a parse whose first clause starts with its own subject
-// and carries a finite verb.
-func opensClause(s *syntax.Sentence) bool {
-	if len(s.Clauses) == 0 {
-		return false
-	}
-	c := s.Clauses[0]
-	return c.Subject != nil && c.Verb != nil && c.Subject.First == 0
-}
-
-// opensImperative reports a rest that opens on a bare verb, as in "use the
-// copy key". An imperative stands as a sentence with a capital and no subject.
-// The tagger reads a lower-case bare verb at the start as a noun, so the rest
-// is read with the subject an imperative leaves out.
-func opensImperative(restMasked string) bool {
-	s := syntax.Parse("You "+opening(restMasked), nil)
-	if len(s.Words) < 2 || len(s.Clauses) == 0 {
-		return false
-	}
-	c := s.Clauses[0]
-	if c.Subject == nil || c.Subject.First != 0 || c.Verb == nil || c.Verb.First != 1 {
-		return false
-	}
-	tag := s.Words[1].Tag
-	return tag == "VB" || tag == "VBP"
-}
-
 // subjectFor names the subject of the words before the cut again, for a verb
 // that opens the rest. A short subject repeats. A long one becomes a pronoun
-// that agrees with the verb.
+// that agrees with the verb. With no subject to name, it answers "".
 func subjectFor(source, masked string, c forceCut, tag string) string {
 	s := syntax.Parse(masked[:c.left], nil)
-	for _, clause := range s.Clauses {
-		if clause.Depth != 0 || clause.Subject == nil {
+	// Only the clause right before the cut shares its subject with the verb after it.
+	for _, clause := range s.Clauses[max(len(s.Clauses)-1, 0):] {
+		if clause.Depth != 0 || clause.Subject == nil || clause.Verb == nil {
 			continue
 		}
 		subject := *clause.Subject
+		if subject.Last >= clause.Verb.First || !opensSubject(s, subject.First) {
+			return ""
+		}
+		// A later finite verb has a subject of its own, which the parse did not name.
+		for _, w := range s.Words[clause.Verb.Last+1:] {
+			if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
+				return ""
+			}
+		}
 		head := s.Words[subject.Head]
 		if head.Tag == "PRP" {
 			return lowerOpening(head.Text)
@@ -458,12 +504,12 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 		if tag == "VBP" || tag != "VBZ" && s.Plural(subject) {
 			return "they"
 		}
+		if s.Person(subject) {
+			return ""
+		}
 		return "it"
 	}
-	if tag == "VBP" {
-		return "they"
-	}
-	return "this"
+	return ""
 }
 
 // lowerOpening writes the first letter in lower case.

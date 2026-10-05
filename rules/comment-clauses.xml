@@ -13,6 +13,13 @@
   <!-- A mark ends a clause when a space follows it. A dash also needs a space before it. -->
   <class name="boundary" words=": ; , --"/>
 
+  <!--
+    A tail opener starts a part the cut can drop: a purpose, a reason or an aside.
+    The claim before it stays true. A condition such as "when" or "if" is not here:
+    a cut before it changes the claim.
+  -->
+  <class name="tail" words="so because ("/>
+
   <!-- The last boundary that fits wins, so the cut keeps as much as the budget allows. -->
   <test in="The pipes are ours, not StdoutPipe's: exec closes those at Wait, and this process must outlive that to bound a reader itself. See drainGrace."
         out="The pipes are ours, not StdoutPipe's: exec closes those at Wait."/>

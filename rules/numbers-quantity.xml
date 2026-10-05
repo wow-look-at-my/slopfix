@@ -44,6 +44,7 @@
     <test in="It reads the three" out="It reads those"/>
     <test in="The three agree" out="Those agree"/>
     <test in="The three that fail stop the run" out="Those that fail stop the run"/>
+    <test in="It mirrors the two-line row hit-rects" out="It mirrors the two-line row hit-rects"/>
   </rephrase>
   <!-- "those" already points back at the set, so the cardinal after it only
        claims a size. -->

@@ -76,8 +76,8 @@ func countRows(value string) int {
 	return strings.Count(strings.TrimSuffix(value, "\n"), "\n") + 1
 }
 
-// nextStart answers the row the earliest node after line starts on, or the end
-// of the document when the scalar is the last thing in it.
+// nextStart answers the row the earliest node after line starts on, or the
+// end of the document when the scalar is the last thing.
 func nextStart(starts []int, line, end int) int {
 	found := end
 	for _, at := range starts {
@@ -102,7 +102,7 @@ func walk(node *yaml.Node, visit func(*yaml.Node)) {
 }
 
 // scripts answers every step's run script, read off the parser rather than off
-// a search for a run: key, which a script quoting that text would answer too.
+// a search for a `run:` key, which a script quoting that text would answer too.
 func scripts(content string) []scriptRows {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {

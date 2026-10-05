@@ -4,7 +4,7 @@
 // A change stated as the sentence's own assertion says the source tree stands
 // somewhere else now, and that is a tombstone. A subordinator ahead of the same
 // verb, or a noun the clause hangs off, makes it a condition on a value the
-// running code already handled, which is the code the reader has.
+// running code already handled. This is the code the reader has.
 //
 // The reading is the word classes english.xml declares.
 package english

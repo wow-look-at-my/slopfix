@@ -43,9 +43,9 @@ func newRepo(t *testing.T) (dir string, head string) {
 	git(dir, "add", "f.txt")
 	git(dir, "commit", "-m", "one")
 
-	// A hash prefix sometimes carries no a-f letter, and the detector reads a
-	// token as a SHA only when it has a digit and such a letter. Amending until
-	// it qualifies makes the fixture state the property.
+	// A hash prefix sometimes carries no a-f letter. The detector reads a token
+	// as a SHA only when it has a digit and such a letter. Amending until it
+	// qualifies makes the fixture state the property.
 	for i := 0; !shaLike(shortHead(t, dir)); i++ {
 		require.Less(t, i, 200, "no commit hash with a digit and an a-f letter in 200 amends")
 		git(dir, "commit", "--amend", "-m", fmt.Sprintf("one %d", i))
@@ -137,7 +137,7 @@ func TestAnswersAreMemoized(t *testing.T) {
 }
 
 // A directory that is not a checkout answers "no" rather than failing, so the
-// original text renders.
+// text renders.
 func TestOutsideACheckoutNothingResolves(t *testing.T) {
 	res := &GitResolver{Dir: t.TempDir()}
 	_, ok := res.Repo()
@@ -191,7 +191,7 @@ func TestAPullStateIsMemoized(t *testing.T) {
 }
 
 // End to end through the real resolver: a merged pull request comes back with
-// the words bare and the dot linked, an open pull request with the words linked.
+// the words bare. The dot linked, an open pull request with the words linked.
 func TestARealResolverMovesTheLinkOnAMergedPullRequest(t *testing.T) {
 	dir, _ := newRepo(t)
 	res := &GitResolver{Dir: dir}

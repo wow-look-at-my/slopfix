@@ -18,7 +18,7 @@ var (
 // readOperands returns the file operands of a cat/head/tail call. Flags are
 // skipped, and so is the separated VALUE of a value-taking flag, so a count
 // is never mistaken for a file. A lone `-` is stdin. valued enables
-// head/tail's flag grammar; for cat every dash word is simply dropped.
+// head/tail's flag grammar; for cat every dash word is dropped.
 func readOperands(args []*syntax.Word, valued bool) []*syntax.Word {
 	ops := []*syntax.Word{}
 	skip, done := false, false

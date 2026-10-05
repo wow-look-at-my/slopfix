@@ -3,7 +3,7 @@
 // The repair of the file as it stands on disk is F. A line F changes carries
 // an auto-fixable finding, and only `slopfix fix` may write it. An Edit or
 // MultiEdit that changes such a line goes through as `slopfix fix` writes it:
-// the edit is replayed, the result is repaired, and the repair is kept on
+// the edit is replayed. The result is repaired, and the repair is kept on
 // every line the edit wrote. The edit then replaces those lines whole. A
 // Write is repaired whole by the write guard. A line the edit only inserts
 // beside is not a line it changes.
@@ -221,10 +221,10 @@ func rewriteHand(req slopfix.Request, fixedBefore, after string, touched []int, 
 }
 
 // restoreRepairs answers after with each line put back as fix writes it where
-// the edit changed a line fix repairs and fix leaves the edited line alone,
-// because the edit performed the repair by hand. stillFixed holds the 1-based
-// lines of after that fix changes. Only a line each diff pairs one to one is
-// put back.
+// the edit changed a line fix repairs and fix leaves the edited line alone.
+// This is because the edit performed the repair by hand. stillFixed holds the
+// 1-based lines of after that fix changes. Only a line each diff pairs one to
+// one is put back.
 func restoreRepairs(before, fixedBefore, after string, stillFixed set.Set[int]) string {
 	edited := pairs(before, after)
 	repaired := pairs(before, fixedBefore)

@@ -84,12 +84,12 @@ func TestTheRuleSpansLanguages(t *testing.T) {
 
 // Every parsed language repairs, not Go alone.
 //
-// This asserted the opposite while a line walk guessed where a construct ended:
-// a span wrong by a line deletes the wrong sentence, and nobody reviews what a
-// hook applied, so the fix ran for Go and the rest only reported. The tree
-// gives each language the same exact span Go had, which is what the whole
-// grammar apparatus buys. A test that still expected the refusal would be
-// pinning the defect.
+// This asserted the opposite while a line walk guessed where a construct ended.
+// A span wrong by a line deletes the wrong sentence, and nobody reviews what a
+// hook applied. The fix ran for Go. The rest only reported. The tree gives each
+// language the same exact span Go had, which is what the whole grammar
+// apparatus buys. A test that still expected the refusal would be pinning the
+// defect.
 func TestEveryParsedLanguageRepairs(t *testing.T) {
 	src := strings.Join([]string{
 		"# This helper exists because the caller cannot know the answer.",
@@ -163,20 +163,36 @@ func TestFixLeavesACleanFileAlone(t *testing.T) {
 	assert.Equal(t, src, out)
 }
 
-// A block whose opening sentence alone still exceeds the budget is left as it
-// is and still reported. A repair that deletes the only sentence worth keeping
-// is worse than the finding.
-func TestASingleOpeningSentenceTooLongToFitIsCutAtAWord(t *testing.T) {
+// A block whose opening sentence alone exceeds the budget divides that sentence
+// until its first sentence fits. The repair keeps whole sentences.
+func TestASingleOpeningSentenceTooLongToFitDivides(t *testing.T) {
 	long := "// " + strings.Repeat("a very long single opening sentence that will not fit ", 6)
 	src := "package p\n\n" + long + "\nconst p = 1\n"
 
 	hits := CheckLength("x.go", src)
 	require.Len(t, hits, 1)
-	assert.True(t, hits[0].Repairable, "every finding has a repair")
+	assert.True(t, hits[0].Repairable, "a division leaves a whole sentence that fits")
 
-	out, _ := FixLength("x.go", src)
-	assert.Empty(t, CheckLength("x.go", out), "the repair leaves nothing to report:\n%s", out)
-	assert.Contains(t, out, "// a long single opening sentence", "the opening words survive, less the filler")
+	out, changed := FixLength("x.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("x.go", out), "the repaired file is clean:\n%s", out)
+	comment := commentProse(out)
+	assert.True(t, strings.HasSuffix(comment, "will not fit."), "the kept text ends a phrase: %q", comment)
+	assert.True(t, strings.HasPrefix(comment, "a long single opening sentence"), "the kept text is the opening: %q", comment)
+}
+
+// A long opening sentence with clauses keeps its leading clauses when it
+// divides to fit, so the comment still opens with its point.
+func TestALongOpeningKeepsItsLeadingClauses(t *testing.T) {
+	long := "// The cache writes every entry to disk before it answers the caller, because a crash between the answer and the write loses the entry, and the caller then reads a value that the next process cannot find again."
+	src := "package p\n\n" + long + "\nconst p = 1\n"
+
+	out, changed := FixLength("x.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("x.go", out), "the repaired file is clean:\n%s", out)
+	comment := commentProse(out)
+	assert.True(t, strings.HasPrefix(comment, "The cache writes every entry to disk before it answers the caller"), out)
+	assert.True(t, strings.HasSuffix(comment, "."), out)
 }
 
 // A comment marker inside a string is data, and the adapter is what keeps it
