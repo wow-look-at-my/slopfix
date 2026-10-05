@@ -66,12 +66,40 @@ func subjectFollows(s *syntax.Sentence, c syntax.Clause) bool {
 // verb between them opens another clause, as in "a note so it is read", and
 // the parser has paired the verb of that clause with the wrong subject.
 func verbOfSubject(s *syntax.Sentence, subject, verb syntax.Phrase) bool {
-	for j := subject.Last + 1; j < verb.First; j++ {
+	for j := describedBy(s, subject.Last+1, verb.First); j < verb.First; j++ {
 		if tag := s.Words[j].Tag; tag == "PRP" || tag == "WDT" || tag == "WP" || tag == "MD" || strings.HasPrefix(tag, "VB") {
 			return false
 		}
 	}
 	return true
+}
+
+// describedBy answers the word after a clause that describes the subject and
+// sits between from and the verb at to, or from. One kind sits between commas:
+// ", which sends stderr to the terminal,". The other has no relative word and
+// a finite verb of its own: "the message it writes to comply puts".
+func describedBy(s *syntax.Sentence, from, to int) int {
+	w := s.Words
+	if from+1 < to && w[from].Text == "," && (w[from+1].Tag == "WDT" || w[from+1].Tag == "WP") {
+		for j := from + 2; j < to; j++ {
+			if w[j].Text == "," {
+				return j + 1
+			}
+		}
+		return from
+	}
+	if from >= to || w[from].Tag != "PRP" && w[from].Tag != "DT" && w[from].Tag != "PRP$" {
+		return from
+	}
+	for j := from + 1; j < to; j++ {
+		if t := w[j].Tag; t == "," || t == ":" || t == "." || t == "CC" || t == "WDT" || t == "WP" {
+			return from
+		}
+	}
+	if finiteBetween(s, from+1, to) {
+		return to
+	}
+	return from
 }
 
 // reducedRelative reports a clause whose subject follows a noun of the same
@@ -113,7 +141,7 @@ func agrees(s *syntax.Sentence, subject, verb syntax.Phrase) bool {
 			return !s.Plural(subject)
 		case "VBP":
 			lower := s.Words[subject.Head].Lower()
-			return s.Plural(subject) || lower == "i" || lower == "you"
+			return s.Plural(subject) || lower == "i" || lower == "you" || partitives.Contains(lower)
 		case "MD", "VBD", "VB":
 			return true
 		}

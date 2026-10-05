@@ -25,6 +25,8 @@ var (
 	stateVerbs = set.Of(wordsOf("state-verb")...)
 	// nominalIng words end a compound noun after a singular noun: "the ste finding".
 	nominalIng = set.Of(wordsOf("nominal-ing")...)
+	// partitives name a part of a group and take a plural verb: "the rest are".
+	partitives = set.Of(wordsOf("partitive")...)
 	// negations turn a verb group around.
 	negations = set.Of("not", "never", "n't", "no")
 	// auxiliaries come before the verb they carry.

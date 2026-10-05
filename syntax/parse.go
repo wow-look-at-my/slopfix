@@ -163,6 +163,12 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "NN" && Is(words[i+1].Text, "object"):
 			// "a message reads it": a noun takes no object pronoun.
 			w.Tag = "VBZ"
+		case w.Tag == "NNS" && i == 1 && i+1 < len(words) && identifier(words[0].Text) && verbEnding(w.Text) && opensObjectAt(words[i+1]):
+			// "readText numbers the lines": a doc comment names its identifier, then the verb.
+			words[0].Tag, w.Tag = "NNP", "VBZ"
+		case w.Tag == "VB" && i > 0 && verbEnding(w.Text) && words[i-1].Tag != "TO" && words[i-1].Tag != "MD":
+			// "the message it writes to comply puts": a bare form takes no -s ending.
+			w.Tag = "VBZ"
 		}
 	}
 	for i := range words {
@@ -215,6 +221,19 @@ func verbEnding(word string) bool {
 	lower := strings.ToLower(word)
 	return strings.HasSuffix(lower, "s") && !strings.HasSuffix(lower, "ss") &&
 		!strings.HasSuffix(lower, "us") && !strings.HasSuffix(lower, "is")
+}
+
+// identifier reports a name written as code.
+func identifier(word string) bool {
+	if word == "" || word[0] < 'a' || word[0] > 'z' {
+		return false
+	}
+	return strings.ContainsAny(word[1:], "_ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+}
+
+// opensObjectAt reports a word that can open the object of a verb.
+func opensObjectAt(w Word) bool {
+	return opensNounPhrase(w) || isNoun(w.Tag) || isAdjective(w.Tag) || w.Tag == "PRP"
 }
 
 func opensNounPhrase(w Word) bool {

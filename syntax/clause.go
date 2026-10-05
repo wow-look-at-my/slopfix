@@ -216,7 +216,7 @@ func (p *clauseParser) subjectVerbAt(j int) bool {
 	if !ok || ph.Kind != NounPhrase || ph.First != j {
 		return false
 	}
-	k := p.chainEnd(ph) + 1
+	k := p.skipModifier(p.chainEnd(ph) + 1)
 	for k < len(p.s.Words) && p.s.Words[k].Tag == "RB" {
 		if vg, ok := p.phrase(k); ok && vg.Kind == VerbGroup {
 			break
@@ -225,6 +225,63 @@ func (p *clauseParser) subjectVerbAt(j int) bool {
 	}
 	vg, ok := p.phrase(k)
 	return ok && vg.Kind == VerbGroup && vg.Finite
+}
+
+// skipModifier answers the word after a clause that describes the noun before
+// k, or k. One kind sits between commas: ", which sends stderr to the
+// terminal,". The other has no relative word: "the message it writes".
+func (p *clauseParser) skipModifier(k int) int {
+	words := p.s.Words
+	if k+1 < len(words) && words[k].Text == "," && p.relative(k+1) {
+		for j := k + 2; j < len(words); j++ {
+			switch {
+			case words[j].Text == ",":
+				return j + 1
+			case words[j].Tag == "." || words[j].Tag == ":" || words[j].Tag == "CC":
+				return k
+			}
+		}
+		return k
+	}
+	if end, ok := p.reducedRelative(k); ok {
+		return end
+	}
+	return k
+}
+
+// reducedRelative reports a subject and a finite verb at k that a later
+// finite verb follows, with no mark between: "it writes to comply puts". It
+// answers where that later verb starts.
+func (p *clauseParser) reducedRelative(k int) (int, bool) {
+	words := p.s.Words
+	if k >= len(words) || words[k].Tag != "PRP" && !p.isNounPhraseAt(k) {
+		return k, false
+	}
+	j := k
+	if ph, ok := p.phrase(k); ok && ph.Kind == NounPhrase {
+		j = ph.Last + 1
+	} else {
+		j++
+	}
+	inner, ok := p.phrase(j)
+	if !ok || inner.Kind != VerbGroup || inner.First != j || !inner.Finite {
+		return k, false
+	}
+	for i := inner.Last + 1; i < len(words); i++ {
+		t := words[i].Tag
+		if punctuation(t) || t == "CC" || t == "WDT" || t == "WP" || p.subordinator(i) {
+			return k, false
+		}
+		if vg, ok := p.phrase(i); ok && vg.Kind == VerbGroup && vg.First == i && vg.Finite {
+			return i, true
+		}
+	}
+	return k, false
+}
+
+func (p *clauseParser) isNounPhraseAt(k int) bool {
+	ph, ok := p.phrase(k)
+	return ok && ph.Kind == NounPhrase && ph.First == k
 }
 
 // chainEnd follows a noun phrase through "of the cache" and "in the tree".
@@ -304,6 +361,16 @@ func (p *clauseParser) attach(c *Clause, vg *Phrase) {
 		start = c.Link + 1
 	}
 	subject := p.subjectBefore(vg.First-1, start)
+	// "the message it writes to comply puts": the clause's own verb is the later one, and its subject opens the clause.
+	if head, ok := p.phrase(start); ok && head.Kind == NounPhrase && head.First == start && vg.Finite {
+		end, reduced := p.reducedRelative(p.chainEnd(head) + 1)
+		if reduced && end > vg.First {
+			return
+		}
+		if reduced && end == vg.First {
+			subject = head
+		}
+	}
 	switch {
 	case vg.Finite:
 	case subject == nil && p.s.Words[p.lead(vg)].Tag == "VB" && p.onlyAdverbs(start, vg.First):
@@ -385,7 +452,7 @@ func (p *clauseParser) resume(i int, cur Clause, out []Clause) (Clause, bool) {
 			}
 			subject := parent.Subject
 			if subject == nil {
-				subject = p.subjectBefore(cur.Link-1, parent.First)
+				subject = p.subjectBefore(p.lastWord(parent.First, cur.Link-1), parent.First+max(parent.Link+1-parent.First, 0))
 			}
 			return Clause{First: i, Link: -1, Kind: Opens, Depth: parent.Depth, Subject: subject, Verb: vg}, subject != nil
 		}

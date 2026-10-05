@@ -158,6 +158,11 @@
   <class name="carrier-place" words="in inside under within beneath beside near
     outside behind above below"/>
 
+  <!-- A word that names a part of a group. It takes a plural verb when the
+       group is plural: "the rest are synonyms". -->
+  <class name="partitive" words="rest remainder majority most all both none
+    many few some others several half"/>
+
   <!-- An -ing word that is a noun after a noun modifier: "the ste finding",
        "the color setting". A division in front of one splits the noun. -->
   <class name="nominal-ing" words="finding setting warning mapping heading
