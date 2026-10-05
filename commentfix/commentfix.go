@@ -10,8 +10,8 @@
 //
 // This is the comment substrate of a rule the document substrate shares.
 // Which numbers count lives in cardinal, beside the prose policy that demands
-// a frame earliest. What is here is the comment: where it sits, which of its
-// lines a reader was written for, and where a finding lands on the screen.
+// a frame earliest. What is here is the comment. That is where it sits, which
+// of its lines a reader was written for, and where a finding lands.
 package commentfix
 
 import (
@@ -146,7 +146,7 @@ func lineAndColumn(src string, at int) (line, col int) {
 
 // IsGenerated reports whether the file carries the generated-code marker in its header.
 //
-// The header is where the marker counts: the same words further down are prose somebody wrote. It is read off the tree, so what counts as a comment is the grammar's answer rather than a guess at a line's opening bytes, and the header ends at the earliest comment the file separates from the top with code.
+// The header is where the marker counts: the same words further down are prose somebody wrote. It is read off the tree, so what counts as a comment is the grammar's answer rather than a guess at a line's opening bytes. The header ends at the earliest comment that code separates from the top of the file.
 func IsGenerated(filename, src string) bool {
 	defer trace.Phase("rule/generated-marker")()
 	if !Supported(filename) {

@@ -120,8 +120,8 @@ func cannotScope(path string, err error) []string {
 	return []string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", path, err)}
 }
 
-// handFix answers the rewrite of an edit that changes a line F changes, or nil
-// when the edit may go on to the repair as it stands. It answers a refusal
+// handFix answers the rewrite of an edit that changes a line F changes. It
+// answers nil when the edit may go on to the repair as it stands. It answers a refusal
 // only when it cannot compute the rewrite. A path with no file yet is a new
 // file, and only the repair judges it. In a fork, F changes only the lines the
 // fork wrote, so a file the fork never touched is left to the repair.
@@ -220,8 +220,9 @@ func rewriteHand(req slopfix.Request, fixedBefore, after string, touched []int, 
 	return h, nil
 }
 
-// restoreRepairs answers after with each line put back as fix writes it where
-// the edit changed a line fix repairs and fix leaves the edited line alone.
+// restoreRepairs answers after with some lines put back as fix writes them.
+// Each is a line that fix repairs, that the edit changed, and that fix leaves
+// alone once edited.
 // This is because the edit performed the repair by hand. stillFixed holds the
 // 1-based lines of after that fix changes. Only a line each diff pairs one to
 // one is put back.
@@ -274,9 +275,9 @@ func writtenLines(before, after string) set.Set[int] {
 }
 
 // keepWritten takes from fixed every change that lands on lines of after the
-// edit wrote, and leaves after as it stands everywhere else. A change that
-// also rewrites a line the edit never wrote, such as a paragraph join, is
-// left out, so no word the write did not touch is changed.
+// edit wrote, and leaves after as it stands everywhere else. It leaves out a
+// change that also rewrites a line the edit never wrote, such as a paragraph
+// join. No word the write did not touch then changes.
 func keepWritten(after, fixed string, written set.Set[int]) string {
 	a := strings.SplitAfter(after, "\n")
 	b := strings.SplitAfter(fixed, "\n")
