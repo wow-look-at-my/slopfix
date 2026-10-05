@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -29,7 +30,6 @@ func TestTracePrefillCut(t *testing.T) {
 	fmt.Fprintf(&b, "fragmentDivision ok=%v out=%q\n", ok, fd)
 	f, fok := forceDivision(in, masked, capSpec{reorder: true, cap: SentenceWordCap})
 	fmt.Fprintf(&b, "forceDivision ok=%v out=%q\n", fok, f)
-	if err := os.WriteFile("../.scratch/trace2.txt", []byte(b.String()), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile("../.scratch/trace2.txt", []byte(b.String()), 0o644))
+
 }

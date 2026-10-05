@@ -1,10 +1,12 @@
 package slopfix_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // The doc comment the length repair deleted. Its heading carries the invariant
@@ -27,4 +29,13 @@ func TestALongDocSentenceDoesNotSplitIntoAFragment(t *testing.T) {
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleSTE}}).Text
 	assert.NotContains(t, out, "It while this function", "the split invented a sentence:\n%s", out)
 	assert.Contains(t, out, "no other thread writes through it", "the clause was cut:\n%s", out)
+	// Every part must read as a sentence. "the pointer stays. Valid for reads
+	// of n bytes" is a copula cut ahead of the adjective it links.
+	for _, s := range ste.Sentences(strings.ReplaceAll(ste.Masked(out), "/// ", "")) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		assert.True(t, ste.StandsAlone(s), "a fragment was left: %q\n%s", s, out)
+	}
 }

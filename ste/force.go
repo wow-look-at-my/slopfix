@@ -166,19 +166,21 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 				best, bestScore = left+" "+right, score
 			}
 		}
-		if best != "" {
+		// A division that leaves as many words over the cap moves nothing, and
+		// forceSentenceCap would revert it.
+		if best != "" && overCap(best, d.cap) < overCap(source, d.cap) {
 			return best, true
 		}
 	}
 	if d.reorder {
-		if out, ok := reorderDependent(source, whole); ok {
+		if out, ok := reorderDependent(source, whole); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 			return out, true
 		}
-		if out, ok := subjectDivision(source, whole, d.cap); ok {
+		if out, ok := subjectDivision(source, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 			return out, true
 		}
 	}
-	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok {
+	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
 	return hardDivision(source, masked, d.cap)
@@ -218,6 +220,11 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 			}
 		}
 		head := strings.TrimRight(source[:c.left], " ,;:—–-")
+		// The head must hold a clause of its own, or the cut strands a subject
+		// without its verb: "the pointer. Stays valid for reads of n bytes".
+		if !holdsFinite(checkMask(head)) && !opensImperative(checkMask(head)) {
+			continue
+		}
 		last := strings.ToLower(strings.Trim(lastField(head), ".,;:!?*_\"'`()[]“”‘’"))
 		next := strings.ToLower(strings.Trim(firstToken.FindString(source[c.right:]), ".,;:!?*_\"'`()[]“”‘’"))
 		// A possessive governs the word after it, so a part never ends on one.
