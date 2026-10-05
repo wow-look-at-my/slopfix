@@ -297,16 +297,24 @@ func ownedHits(hits []tombstones.Hit, owned *forkscope.Scope) []tombstones.Hit {
 }
 
 // Within keeps what a tree run from root found on lines the fork wrote. A
-// repository rule names its file relative to root. Every fixture expectation
-// stays, because a fixture is the repository's own test.
+// repository rule names its file relative to root, and only its finding needs
+// the line check here. The file run already kept each other finding to the
+// blocks the fork wrote into. Every fixture expectation stays, because a
+// fixture is the repository's own test.
 func (t TreeRepair) Within(own *forkscope.Lines, root string) TreeRepair {
 	if own == nil {
 		return t
 	}
 	findings := t.Findings[:0:0]
 	for _, f := range t.Findings {
+		if !RepoIDs.Contains(f.ID) {
+			if own.Holds(f.Path, 0, 0) {
+				findings = append(findings, f)
+			}
+			continue
+		}
 		path := f.Path
-		if RepoIDs.Contains(f.ID) && !filepath.IsAbs(path) {
+		if !filepath.IsAbs(path) {
 			path = filepath.Join(root, path)
 		}
 		if own.Holds(path, f.Line, f.EndLine) {
@@ -315,7 +323,7 @@ func (t TreeRepair) Within(own *forkscope.Lines, root string) TreeRepair {
 	}
 	kept := t.Kept[:0:0]
 	for _, k := range t.Kept {
-		if own.Holds(k.Path, k.LineNo, max(k.LineNo, k.EndLineNo)) {
+		if own.Holds(k.Path, 0, 0) {
 			kept = append(kept, k)
 		}
 	}

@@ -60,6 +60,84 @@ func (s *Scope) Holds(first, last int) bool {
 	return false
 }
 
+// Widen answers s with every line of each block of text that holds a line s
+// names. In a document, a block is a paragraph or a list item. In other text,
+// a block is a run of comment lines. A rule judges a block whole, so the fork
+// owns all of a block it wrote into.
+func (s *Scope) Widen(text string, document bool) *Scope {
+	if s.whole {
+		return s
+	}
+	blocks := blocksOf(text, document)
+	reach := set.New[int]()
+	for n := range s.lines.All() {
+		if n >= 1 && n <= len(blocks) && blocks[n-1] >= 0 {
+			reach.Add(blocks[n-1])
+		}
+	}
+	out := &Scope{lines: set.New[int](), base: s.base}
+	for n := range s.lines.All() {
+		out.lines.Add(n)
+	}
+	for i, b := range blocks {
+		if b >= 0 && reach.Contains(b) {
+			out.lines.Add(i + 1)
+		}
+	}
+	return out
+}
+
+// blocksOf answers the block of each line of text, counted from zero.
+func blocksOf(text string, document bool) []int {
+	rows := strings.Split(text, "\n")
+	out := make([]int, len(rows))
+	block, open, fenced := -1, false, false
+	for i, row := range rows {
+		trimmed := strings.TrimSpace(row)
+		inBlock, starts := false, false
+		switch {
+		case document && (strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~")):
+			fenced = !fenced
+		case document && !fenced:
+			inBlock = trimmed != "" && !strings.HasPrefix(trimmed, "|")
+			starts = strings.HasPrefix(trimmed, "#") || opensItem(trimmed)
+		case !document:
+			inBlock = isCommentRow(trimmed)
+		}
+		if !inBlock {
+			out[i], open = -1, false
+			continue
+		}
+		if !open || starts {
+			block++
+		}
+		out[i], open = block, !strings.HasPrefix(trimmed, "#") || !document
+	}
+	return out
+}
+
+// opensItem reports whether a trimmed markdown line opens a list item.
+func opensItem(trimmed string) bool {
+	for _, marker := range []string{"- ", "* ", "+ "} {
+		if strings.HasPrefix(trimmed, marker) {
+			return true
+		}
+	}
+	digits := len(trimmed) - len(strings.TrimLeft(trimmed, "0123456789"))
+	rest := trimmed[digits:]
+	return digits > 0 && (strings.HasPrefix(rest, ". ") || strings.HasPrefix(rest, ") "))
+}
+
+// isCommentRow reports whether a trimmed source line is a comment and nothing else.
+func isCommentRow(trimmed string) bool {
+	for _, marker := range []string{"//", "#", "/*", "*", "--", ";"} {
+		if strings.HasPrefix(trimmed, marker) {
+			return true
+		}
+	}
+	return false
+}
+
 // Keep answers after with every change to a line the fork did not write put
 // back as before had it. A change is a run of lines a line diff pairs up. It
 // lands when the fork wrote every line it replaces. A run of new lines between

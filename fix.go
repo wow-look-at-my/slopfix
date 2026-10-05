@@ -117,7 +117,16 @@ type Repair struct {
 
 // Fix repairs req, unless it carries slopfix-expect annotations.
 func Fix(req Request) Repair {
+	req.Owned = widened(req)
 	return within(req, fixAll(req))
+}
+
+// widened answers req.Owned grown to each whole block it reaches into.
+func widened(req Request) *forkscope.Scope {
+	if req.Owned == nil {
+		return nil
+	}
+	return req.Owned.Widen(req.Content, kindOf(req.Path, req.Content) == fixer.Document)
 }
 
 // fixAll is Fix with no regard to the lines a fork wrote.
@@ -284,6 +293,7 @@ func Report(req Request) Repair {
 	if req.Owned == nil {
 		return repair
 	}
+	req.Owned = widened(req)
 	repair.Findings = ownedFindings(repair.Findings, req.Owned)
 	repair.Kept = ownedHits(repair.Kept, req.Owned)
 	return upstreamRuns(req.Owned, req.Content, repair)
