@@ -49,7 +49,11 @@ func PhraseHead(text string, maxWords int) (string, bool) {
 	masked := checkMask(text)
 	s := syntax.Parse(masked, nil)
 	for n := min(maxWords, len(s.Words)-1); n >= minimumHalf; n-- {
-		if !endsFragment(s, n-1) || !opensFragment(s.Words[n]) {
+		// A verb before the cut wants the object the cut takes away.
+		if tag := s.Words[n-1].Tag; !strings.HasPrefix(tag, "NN") && !strings.HasPrefix(tag, "RB") && tag != "CD" {
+			continue
+		}
+		if !opensFragment(s.Words[n]) {
 			continue
 		}
 		if seamBefore(text, s.Words[n].Start) != "" {
