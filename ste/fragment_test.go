@@ -25,6 +25,19 @@ func TestAFragmentDividesIntoFragments(t *testing.T) {
 		"the division adds no word and drops none")
 }
 
+// A run that never closes keeps its leading noun phrase, closed with a stop.
+func TestPhraseHeadKeepsTheLeadingPhrase(t *testing.T) {
+	text := strings.TrimSpace(strings.Repeat("a clause that never closes and keeps going onward ", 8))
+	head, ok := ste.PhraseHead(text, ste.SentenceWordCap)
+	assert.True(t, ok)
+	assert.True(t, strings.HasPrefix(head, "a clause that never closes and keeps going onward"), "%q", head)
+	assert.True(t, strings.HasSuffix(head, "onward."), "%q", head)
+	assert.LessOrEqual(t, ste.WordCount(head), ste.SentenceWordCap, "%q", head)
+
+	_, ok = ste.PhraseHead("the cache reads the file and writes it back", ste.SentenceWordCap)
+	assert.False(t, ok, "a run with no second noun phrase opener has no phrase head")
+}
+
 // DivideTo divides at a cap lower than the STE cap, and the first part keeps
 // the opening words.
 func TestDivideToKeepsTheOpeningWords(t *testing.T) {

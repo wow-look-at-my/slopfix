@@ -42,6 +42,27 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 	return source, false
 }
 
+// PhraseHead answers the longest leading run of text, at most maxWords long,
+// that ends a noun phrase where the next word opens one. It closes the run
+// with a stop. It serves prose that never closes, which no division reads.
+func PhraseHead(text string, maxWords int) (string, bool) {
+	masked := checkMask(text)
+	s := syntax.Parse(masked, nil)
+	for n := min(maxWords, len(s.Words)-1); n >= minimumHalf; n-- {
+		if !endsFragment(s, n-1) || !opensFragment(s.Words[n]) {
+			continue
+		}
+		if seamBefore(text, s.Words[n].Start) != "" {
+			continue
+		}
+		head := closeHead(text[:s.Words[n-1].End])
+		if WordCount(checkMask(head)) <= maxWords {
+			return head, true
+		}
+	}
+	return "", false
+}
+
 // opensFragment reports a word that opens a new noun phrase.
 func opensFragment(w syntax.Word) bool {
 	switch w.Lower() {
