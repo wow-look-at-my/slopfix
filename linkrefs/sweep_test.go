@@ -20,7 +20,7 @@ func TestASweepCollectsAStrandedMarker(t *testing.T) {
 	old := time.Now().Add(-2 * time.Hour)
 	require.NoError(t, os.Chtimes(stale, old, old))
 
-	// A marker written just now belongs to a message still in flight.
+	// A marker written now belongs to a message still in flight.
 	live := filepath.Join(os.TempDir(), "slopfix-linkrefs-0123456789abcdef")
 	require.NoError(t, os.WriteFile(live, nil, 0o600))
 

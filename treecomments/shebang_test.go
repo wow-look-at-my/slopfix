@@ -9,7 +9,7 @@ import (
 
 // A grammar reads the interpreter line as a comment, because it opens on the
 // same marker. Nothing downstream may see it: a rule that reflows a run would
-// weld the prose under it onto the interpreter, and the kernel then has no
+// weld the prose under it onto the interpreter. The kernel then has no
 // program to start.
 func TestTheShebangIsNotAComment(t *testing.T) {
 	src := "#!/usr/bin/env bash\n# what this script does\nexit 0\n"

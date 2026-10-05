@@ -14,7 +14,7 @@ import (
 
 // cutSpan answers the bytes of s to delete for the phrase the match covers.
 // It is false when the parse forbids the cut: the match holds no word, or it
-// takes part of a noun phrase and leaves the rest without its head or its
+// takes part of a noun phrase. It leaves the rest without its head or its
 // determiner.
 func cutSpan(s string, from, to int) (int, int, bool) {
 	sent := syntax.Parse(s, codeSpan.FindAllStringIndex(s, -1))

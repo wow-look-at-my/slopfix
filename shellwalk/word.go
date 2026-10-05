@@ -1,11 +1,12 @@
 // Package shellwalk holds the shell-reading vocabulary that no-work-loss and
-// enhanced-auto-allow both need: what a word says, which program a spelling
-// actually names, and whether an invocation names a script of its own.
+// enhanced-auto-allow both need. What a word says, which program a spelling
+// names, and whether an invocation names a script of its own.
 //
-// Both plugins keep their own segmentation and their own verdicts -- no-work-loss
-// fails closed, enhanced-auto-allow fails open, deliberately. What they must NOT keep
-// separately is the answer to "which program does this run", because a wrapper
-// or a spelling either plugin misreads is a rule the other still enforces.
+// Both plugins keep their own segmentation and their own verdicts --
+// no-work-loss fails closed, enhanced-auto-allow fails open, deliberately.
+// What they must NOT keep separately is the answer to "which program does
+// this run". This is because a wrapper or a spelling either plugin misreads
+// is a rule the other still enforces.
 package shellwalk
 
 import (

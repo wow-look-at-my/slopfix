@@ -7,40 +7,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A single sentence with no clause boundary, over a one-line function: no
-// sentence cut and no clause cut fits, so only a word cut can repair it.
+// A single sentence with no clause boundary and no tail opener, over a
+// one-line function. No cut leaves a whole sentence.
 const unboundedSentence = "package p\n\n" +
 	"// cacheKeyFor returns the stable composite lookup key built from the resolved descriptor\n" +
 	"// set index plus binding slot plus array element offset plus sampler identity hash value.\n" +
 	"func cacheKeyFor() int { return 0 }\n"
 
-// A word cut ends a phrase. Cut mid-phrase, this read "... hardware cap) and names."
-func TestAWordCutEndsAPhrase(t *testing.T) {
+// fitsOrStays asserts both outcomes a length repair may have. The block fits
+// and keeps want, or the block stays as written and asks for a rewrite by hand.
+func fitsOrStays(t *testing.T, src, want string) {
+	t.Helper()
+	hits := CheckLength("p.go", src)
+	require.NotEmpty(t, hits)
+	out, _ := FixLength("p.go", src)
+	if !hits[0].Repairable {
+		assert.NotEmpty(t, CheckLength("p.go", out), "a block no cut fits stays for a rewrite by hand:\n%s", out)
+		return
+	}
+	assert.Empty(t, CheckLength("p.go", out))
+	assert.Contains(t, out, want, "the cut keeps the claim:\n%s", out)
+}
+
+// A cut before an aside keeps the claim the aside explains. A cut before
+// "that binds" changes which constraint the comment names, so it never lands there.
+func TestACutLandsBeforeAnAside(t *testing.T) {
 	src := "package p\n\ntype T struct {\n" +
 		"\t// OccupancyBounds breaks Occupancy into its per-resource wave/SIMD bounds\n" +
 		"\t// (VGPR, SGPR, LDS, hardware cap) and names the constraint that binds.\n" +
 		"\tOccupancyBounds *OccupancyBounds\n}\n"
-	require.NotEmpty(t, CheckLength("p.go", src))
 	out, changed := FixLength("p.go", src)
 	require.True(t, changed)
 	assert.Empty(t, CheckLength("p.go", out))
-	assert.Contains(t, out, "(VGPR, SGPR, LDS, hardware cap) and names the constraint.\n", "the cut lands before the phrase the budget cannot hold:\n%s", out)
-}
+	assert.Contains(t, out, "// OccupancyBounds breaks Occupancy into its per-resource wave/SIMD bounds.\n", out)
+	assert.NotContains(t, out, "names the constraint.", out)
 
-// A cut before an aside keeps the claim the aside only explains.
-func TestAWordCutLandsBeforeAnAside(t *testing.T) {
-	src := "package p\n\nfunc f() {\n" +
+	src = "package p\n\nfunc f() {\n" +
 		"\t// The same stream with a >wave workgroup is NOT the lane-index idiom (the\n" +
 		"\t// forward compiler will have gone through tg_size instead).\n" +
 		"\tcheck()\n}\n"
-	out, changed := FixLength("p.go", src)
+	out, changed = FixLength("p.go", src)
 	require.True(t, changed)
 	assert.Empty(t, CheckLength("p.go", out))
 	assert.Contains(t, out, "is NOT the lane-index idiom.\n", "the claim survives:\n%s", out)
 }
 
-// A clause cut keeps a finite verb. Without one it keeps a fragment.
-func TestAClauseCutKeepsAVerb(t *testing.T) {
+// A cut before "so" drops the purpose and keeps the claim with its verb.
+func TestACutBeforeSoKeepsTheClaim(t *testing.T) {
 	src := "package p\n\nfunc f() {\n" +
 		"\t// A label-only line, plus a same-line label, both attach to the following\n" +
 		"\t// instruction so a branch target resolves to an instruction index.\n" +
@@ -48,11 +61,10 @@ func TestAClauseCutKeepsAVerb(t *testing.T) {
 	out, changed := FixLength("p.go", src)
 	require.True(t, changed)
 	assert.Empty(t, CheckLength("p.go", out))
-	assert.Contains(t, out, "both attach to the following instruction", "the cut keeps the verb:\n%s", out)
+	assert.Contains(t, out, "both attach to the following instruction.\n", "the cut keeps the verb:\n%s", out)
 }
 
 // The budget counts characters, so a cut that fits on one long line is kept.
-// Wrapped at the column cap, this kept only "RegistersFromCompiler is true."
 func TestACutMayUseOneLongLine(t *testing.T) {
 	src := "package p\n\ntype R struct {\n" +
 		"\t// RegistersFromCompiler is true when MaxSGPR/MaxVGPR/SpilledSGPRs/\n" +
@@ -60,23 +72,18 @@ func TestACutMayUseOneLongLine(t *testing.T) {
 		"\t// for a real compile (via SetCompiledRegisters), and false when they are\n" +
 		"\t// re-derived from the disassembly.\n" +
 		"\tRegistersFromCompiler bool\n}\n"
-	out, changed := FixLength("p.go", src)
-	require.True(t, changed)
-	assert.Empty(t, CheckLength("p.go", out))
-	assert.Contains(t, out, "are the compiler-authoritative figures", "the cut keeps the claim:\n%s", out)
+	fitsOrStays(t, src, "are the compiler-authoritative figures")
 }
 
-// A clause mark near the opening keeps less than a word cut near the budget.
-func TestTheCutThatKeepsMoreWins(t *testing.T) {
+// The cut never stops between words, so a sentence no boundary divides either
+// fits or stays for a rewrite by hand.
+func TestNoCutStopsBetweenWords(t *testing.T) {
 	src := "package p\n\ntype C struct {\n" +
 		"\t// Progress, when set, is called by the sampler every progressTick with the\n" +
 		"\t// current series' sample count and confidence interval. RunAll installs a\n" +
 		"\t// live-line printer; tests leave it nil.\n" +
 		"\tProgress func(samples int, rmePct, targetRMEPct float64)\n}\n"
-	out, changed := FixLength("p.go", src)
-	require.True(t, changed)
-	assert.Empty(t, CheckLength("p.go", out))
-	assert.Contains(t, out, "is called by the sampler every progressTick", "the longer cut wins:\n%s", out)
+	fitsOrStays(t, src, "// Progress, when set, is called by the sampler")
 }
 
 // A comment over a literal element with a trailing comment is weighed against
@@ -92,11 +99,14 @@ func TestAnElementWithATrailingCommentIsCode(t *testing.T) {
 	assert.Contains(t, out, "// 8-bit.", "nothing deletes it")
 }
 
-func TestFixRepairsASentenceNoClauseCutFits(t *testing.T) {
-	require.NotEmpty(t, CheckLength("p.go", unboundedSentence), "the fixture must be a finding")
-	out, changed := FixLength("p.go", unboundedSentence)
-	require.True(t, changed, "fix must repair every block it detects")
-	assert.Empty(t, CheckLength("p.go", out), "the repair must leave nothing for the check to report:\n%s", out)
-	assert.Contains(t, out, "// cacheKeyFor returns the stable composite lookup key", "the opening words survive")
-	assert.Contains(t, out, "func cacheKeyFor() int { return 0 }", "the code is untouched")
+// A sentence with no clause boundary still has a cut: the phrase after the noun.
+func TestASentenceWithNoClauseBoundaryCutsAtAPhrase(t *testing.T) {
+	hits := CheckLength("p.go", unboundedSentence)
+	require.NotEmpty(t, hits, "the fixture must be a finding")
+	for _, hit := range hits {
+		assert.True(t, hit.Repairable)
+	}
+	out, _ := FixLength("p.go", unboundedSentence)
+	assert.Equal(t, "package p\n\n// cacheKeyFor returns the stable composite lookup key.\nfunc cacheKeyFor() int { return 0 }\n", out, "the participle phrase after the noun goes, and the clause before it stands")
+	assert.Empty(t, CheckLength("p.go", out))
 }

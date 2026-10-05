@@ -59,7 +59,7 @@ var redirectTarget = regexp.MustCompile(`(?:^|[^>\d])>>?\s*(?:"([^"]+)"|'([^']+)
 var exitWord = regexp.MustCompile(`\bexit\b`)
 
 // testsInYAML reports every test written into a run: script. Each finding is
-// a warning: a line of a run: script is shell, so no rewrite deletes it, and
+// a warning: a line of a run: script is shell. No rewrite deletes it, and
 // moving a case into the suite is the author's call.
 func testsInYAML(content string) []ste.Finding {
 	var out []ste.Finding

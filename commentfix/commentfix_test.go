@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// numbersFound runs Check over a file body and returns just the numbers.
+// numbersFound runs Check over a file body and returns the numbers.
 func numbersFound(t *testing.T, body string) []string {
 	t.Helper()
 	var out []string
@@ -52,7 +52,7 @@ func TestAHyphenatedFragmentSurvives(t *testing.T) {
 	assert.Empty(t, numbersFound(t, "// see https://example.com/spec#section-3"))
 }
 
-// A fragment naming a bare position has no hyphen to bind it, so it is the
+// A fragment naming a bare position has no hyphen to bind it. It is the
 // citation the remedy tells the author to spell as a slug.
 func TestABareFragmentPositionIsStillACount(t *testing.T) {
 	assert.Equal(t, []string{"3"}, numbersFound(t, "// see https://example.com/spec#3"))
