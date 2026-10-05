@@ -4,6 +4,7 @@
 package commentfix
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -208,18 +209,28 @@ func divideSentences(prose string) string {
 			out.WriteString(sentence)
 			continue
 		}
-		// A semicolon and a splice are repaired too. The cap divides only where a
-		// clause boundary leaves sentences that read, not into a fragment.
 		fixed := ste.FixSelected(sentence, func(id string) bool {
-			return id == ste.IDSemicolon || id == ste.IDCommaSplice
+			return id == ste.IDSentenceCap || id == ste.IDSemicolon || id == ste.IDCommaSplice
 		})
-		if ste.WordCount(ste.Masked(fixed)) > ste.SentenceWordCap {
-			fixed = ste.DivideAtClauses(fixed, ste.SentenceWordCap)
+		if inventedFragment(fixed) {
+			fixed = ste.FixKeepingOpening(sentence)
 		}
 		out.WriteString(fixed)
 	}
 	out.WriteString(prose[at:])
 	return out.String()
+}
+
+var inventedFragmentRe = regexp.MustCompile(`(?i)^(?:it|they|this|these|we|you|he|she)\s+(?:while|when|if|that|which|who|because|so|as|before|after|until|unless|since|though|although|whereas|whether)\b`)
+
+// inventedFragment reports a division that gave a clause a pronoun subject the comment never wrote.
+func inventedFragment(divided string) bool {
+	for _, s := range sentences(divided) {
+		if inventedFragmentRe.MatchString(strings.TrimSpace(s)) {
+			return true
+		}
+	}
+	return false
 }
 
 // sentenceEdits answers an edit per comment paragraph whose long sentences

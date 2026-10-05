@@ -38,9 +38,9 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 				first = strings.TrimSpace(ste.FixKeepingOpening(clause))
 			}
 		}
-		// A heading such as "# Safety" is a fragment, not a sentence. Keeping it
+		// A heading such as "# Safety" is not the comment's sentence. Keeping it
 		// as the opening would delete the claim under it.
-		if !endsSentence(first) || !ste.StandsAlone(first) {
+		if !endsSentence(first) || isHeading(first) {
 			return nil, false
 		}
 		out, fits := fit(first, indent, marker)
@@ -50,7 +50,7 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 				continue
 			}
 			head := strings.TrimSpace(divided[0])
-			if !endsSentence(head) || !ste.StandsAlone(head) {
+			if !endsSentence(head) || isHeading(head) {
 				continue
 			}
 			if shorter, ok := fit(head, indent, marker); ok {
@@ -87,6 +87,13 @@ func phraseLines(lines []string, fit layout, indent, marker string) ([]string, b
 
 // minimumOpening is the fewest words a divided opening sentence keeps.
 const minimumOpening = 3
+
+// isHeading reports a markdown section heading such as "# Safety", which is
+// structure rather than a sentence.
+func isHeading(s string) bool {
+	t := strings.TrimSpace(s)
+	return t == "#" || strings.HasPrefix(t, "# ")
+}
 
 // closeThoughts joins prose lines, and writes a period where a line ends a
 // thought with no stop of its own (lineEndsThought).
