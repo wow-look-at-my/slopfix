@@ -116,6 +116,10 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
+		// The parse of the whole can hand a clause a verb that belongs elsewhere, so each half is read again on its own.
+		if d.opener == "" && !standsAsSentence(right) {
+			continue
+		}
 		score := max(WordCount(left), WordCount(right))
 		if bestScore < 0 || score < bestScore {
 			best, bestScore = left+" "+right, score
