@@ -20,6 +20,13 @@ func capLines(b block, maxLines int) []string {
 	if strings.TrimSpace(closer) == "*/" {
 		limit--
 	}
+	// Rewrite the prose to its budget before any cut. A block the rewrite brings
+	// under the cap keeps every thought it had.
+	if len(body) > limit {
+		if fitted, ok := fitVolume(body, limit); ok {
+			body = fitted
+		}
+	}
 	for len(body) > limit {
 		next, ok := cutLastThought(body)
 		if !ok {

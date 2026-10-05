@@ -162,7 +162,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			}
 			if !accept(head, right) {
 				// The grammatical rest was refused, so the carrier division, which restates the main clause, gets its turn.
-				ch, cr, co := carrierDivision(source, whole, c)
+				ch, cr, co := carrierOrNone(source, whole, c)
 				cl := closeHead(ch)
 				if cr == "" || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
 					continue
@@ -267,6 +267,17 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// carrierOrNone is carrierDivision, except for a sentence that opens with an
+// infinitive of purpose ("To pull X, use Y"). That sentence reorders behind "Do
+// this", and a carrier would restate the purpose clause's verb in place of the
+// main one, so it stands down.
+func carrierOrNone(source string, whole *syntax.Sentence, c forceCut) (string, string, int) {
+	if len(whole.Words) > 1 && whole.Words[0].Lower() == "to" && strings.HasPrefix(whole.Words[1].Tag, "VB") {
+		return source[:c.left], "", 0
+	}
+	return carrierDivision(source, whole, c)
 }
 
 // alsoVerb writes the main verb group with "also" before its last verb, so

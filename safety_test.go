@@ -37,7 +37,9 @@ func TestALongDocSentenceDoesNotSplitIntoAFragment(t *testing.T) {
 		}
 	}
 	if body != "" {
-		for _, s := range ste.Sentences(body) {
+		sentences := ste.Sentences(body)
+		assert.GreaterOrEqual(t, len(sentences), 2, "the over-cap sentence was left whole:\n%s", out)
+		for _, s := range sentences {
 			assert.True(t, ste.StandsAlone(strings.TrimSpace(s)), "a fragment was left: %q\n%s", s, out)
 		}
 	}
