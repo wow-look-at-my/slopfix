@@ -24,4 +24,5 @@ func TestExhaustingTheBoundSaysSo(t *testing.T) {
 
 	assert.Contains(t, warn.String(), "did not reach a fixed point")
 	assert.Contains(t, warn.String(), "undoing each other")
-	assert.Contains(t, warn.String(), interleaved, "the message must name the command")}
+	assert.Contains(t, warn.String(), interleaved, "the message must name the command")
+}
