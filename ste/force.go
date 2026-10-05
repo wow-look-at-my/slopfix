@@ -448,7 +448,7 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
-	case (conjunction == "and" || conjunction == "so") && seam == "," && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+	case (conjunction == "and" || conjunction == "so") && seam == "," && opensNounPhrase(tag) && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
 		// The parse cuts its clauses at commas, so a subject that is a list or
 		// carries a participle opens no clause of its own.
 		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) ||
@@ -467,6 +467,11 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 	}
 	return "", 0
+}
+
+// opensNounPhrase reports a tag that starts a subject.
+func opensNounPhrase(tag string) bool {
+	return tag == "DT" || tag == "PRP" || tag == "PRP$" || tag == "JJ" || tag == "CD" || strings.HasPrefix(tag, "NN")
 }
 
 // seriesBefore reports a comma after the first verb of head. A ", and" after it adds the last item of a series: "give the full path, why it matters, and the relevant code".

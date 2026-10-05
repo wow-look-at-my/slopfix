@@ -8,9 +8,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// carrier.go divides a long sentence where the words. This happens after
-// the cut are no clause: a trailing adverbial, a phrase that describes a
-// noun, or the rest of a list.
+// carrier.go divides a long sentence where the words after the cut are no
+// clause: a trailing adverbial, a phrase that describes a noun, or the rest
+// of a list.
 
 var (
 	// carrierAdverbial words open an adverbial that a carrier can take.
@@ -27,6 +27,8 @@ var (
 	nominalIng = set.Of(wordsOf("nominal-ing")...)
 	// partitives name a part of a group and take a plural verb: "the rest are".
 	partitives = set.Of(wordsOf("partitive")...)
+	// indefinites are pronouns that take no restating determiner: "That nothing is" reads as nonsense.
+	indefinites = set.Of("nothing", "anything", "something", "everything", "none", "nobody", "anyone", "someone", "everyone")
 	// negations turn a verb group around.
 	negations = set.Of("not", "never", "n't", "no")
 	// auxiliaries come before the verb they carry.
@@ -83,7 +85,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	predicateFollows := finiteBefore(whole, first+1, ",")
 	placeless := predicateFollows || !opensObject(whole, first+1)
 	// A phrase that describes the noun before it ends the sentence: no comma, conjunction or clause follows it.
-	describes := seam == "" && noun && plainPhrase(whole, first)
+	describes := seam == "" && noun && !indefinites.Contains(prev.Lower()) && plainPhrase(whole, first)
 	switch {
 	case !hasMain && !finiteBetween(whole, 0, len(whole.Words)):
 		// A sentence with no verb at all is a noun phrase, and only a phrase that describes a noun in it can move.
@@ -102,7 +104,9 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restate(source, prev, rest), opensWithCarrier
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
-	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
+	// "the words after the cut are no clause": a verb after the phrase makes it part of the subject.
+	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows) &&
+		adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
 		(!inRelative(whole, first-1) || everyNext(whole, first)) && !coordinatedVerb(whole, first):
 		// A reason reads behind "This is", whatever the verb: "This is because X".
 		if lower == "because" {
@@ -150,9 +154,9 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since", "unless", "although", "though", "whereas", "so", "where")
 
 // headOpen reports words before word end that end inside an unfinished clause.
-// This covers a subordinator with no finite verb after it, as in "reports
-// whether the words", or a noun followed by a new subject with no verb. This
-// happens after it, as in "answers the row the earliest node".
+// One is a subordinator with no finite verb after it: "reports whether the
+// words". The other is a noun with a new subject and no verb after them:
+// "answers the row the earliest node".
 func headOpen(s *syntax.Sentence, end int) bool {
 	open := -1
 	for i := 0; i < end && i < len(s.Words); i++ {
@@ -264,10 +268,22 @@ func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool)
 	if !opensClause && strings.HasPrefix(prev.Tag, "VB") || prev.Tag == "RP" || focusing.Contains(prev.Lower()) || phraseEndParticle.Contains(prev.Lower()) {
 		return false
 	}
+	// "which is immediately before each request": a phrase after "be" and its adverbs completes "be".
+	k := first - 1
+	for k >= 0 && s.Words[k].Tag == "RB" {
+		k--
+	}
+	if k >= 0 && beForms.Contains(s.Words[k].Lower()) {
+		return false
+	}
 	if first+1 >= len(s.Words) {
 		return false
 	}
 	next := s.Words[first+1]
+	// "with no verb after it, as in": a lone pronoun object points back to the noun before it, and a carrier loses that noun.
+	if next.Tag == "PRP" && (first+2 >= len(s.Words) || s.Words[first+2].Tag == "," || s.Words[first+2].Tag == ".") {
+		return false
+	}
 	if !unicode.IsLetter(rune(next.Text[0])) && next.Text[0] != '`' {
 		return false
 	}
@@ -675,7 +691,7 @@ func subjectDivision(source string, whole *syntax.Sentence, limit int) (string, 
 	verb := -1
 	for i, w := range whole.Words {
 		// A relative word ahead of the verb makes the verb the relative clause's own: "a sentence that will not fit".
-		if w.Text == "," || w.Text == ":" || w.Text == ";" || w.Text == "(" || w.Tag == "WDT" || w.Tag == "WP" || w.Lower() == "that" {
+		if w.Text == "," || w.Text == ":" || w.Text == ";" || w.Text == "(" || w.Tag == "WDT" || w.Tag == "WP" || w.Tag == "WP$" || w.Tag == "WRB" || w.Lower() == "that" {
 			return source, false
 		}
 		if finiteVerbTag(w.Tag) || w.Tag == "MD" {
