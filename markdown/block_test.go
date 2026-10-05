@@ -46,6 +46,16 @@ func TestFrontMatterIsNotProse(t *testing.T) {
 	assert.Equal(t, "The body.", blocks[0].Text())
 }
 
+func TestATemplateTagIsNotProse(t *testing.T) {
+	doc := "- Read first.\n${%- if x %}\n- Write last.\n${%- endif %}\n{% if y %}\nThe body.\n{% endif %}\n"
+	blocks := prose(doc)
+	require.Len(t, blocks, 3)
+	assert.Equal(t, "Read first.", blocks[0].Text())
+	assert.Equal(t, "Write last.", blocks[1].Text())
+	assert.Equal(t, "The body.", blocks[2].Text())
+	assert.Equal(t, doc, markdown.Format(doc), "no tag joins a paragraph")
+}
+
 func TestATableIsAGrid(t *testing.T) {
 	assert.Empty(t, prose("a | b\n--|--\nc | d\n"))
 }

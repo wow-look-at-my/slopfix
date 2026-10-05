@@ -252,7 +252,7 @@ func repairFile(f *fixer.File) {
 	}
 	path, doc := f.Path, f.Kind == fixer.Document
 	maxLines := f.MaxCommentLines
-	if doc {
+	if doc || !f.Keeps(IDVolume) {
 		maxLines = 0
 	}
 	blocks := AddedBlocks(path, f.Text())
