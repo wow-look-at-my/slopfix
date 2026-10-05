@@ -2,6 +2,7 @@ package slopfix
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -13,6 +14,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -69,7 +71,7 @@ func init() {
 	registerFile(ste.IDContraction, RuleSTE, "x.md", "The tool doesn't write the result.\n")
 	registerFile(ste.IDModal, RuleSTE, "x.md", "The tool should write the result.\n")
 	registerFile(ste.IDSemicolon, RuleSTE, "x.md", "The gate reads the file; the tool writes the result.\n")
-	registerFile(ste.IDSentenceCap, RuleSTE, "x.md", "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap.\n")
+	registerFile(ste.IDSentenceCap, RuleSTE, "x.md", "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n")
 	registerFile(ste.IDCommaSplice, RuleSTE, "x.md", "The gate reads the file, the tool writes the result.\n")
 	registerFile(ste.IDStaleCount, RuleSTE, "x.md", "This project has three rules.\n")
 	registerFile(ste.IDPostdeterminer, RuleSTE, "x.md", "All the three rules apply here.\n")
@@ -92,10 +94,52 @@ func init() {
 	registerFile(pins.ID, RulePins, "fetch.sh", "curl https://dl.pazer.build/slopfix?v=1.2.3\n")
 
 	registerWorkflowRules()
+	registerTombstoneRules()
 	registerWarnings()
 	registerRepoRules()
 	registerMessageRules()
 	registerPatternRules()
+}
+
+// registerTombstoneRules registers the two tombstone rules the wording table
+// does not carry: one names a volume, and one names a symbol nothing defines.
+func registerTombstoneRules() {
+	registerFile(tombstones.IDVolume, RuleTombstones, "main.go", volumeCase())
+	registerFile(referentID(), RuleTombstones, "main.go", referentCase())
+}
+
+// referentID is the tombstone rule over a name no file in the repository
+// defines. The table carries its wording rules and one volume rule, so the
+// remaining name is the referent rule.
+func referentID() string {
+	patterns := patternGroups()
+	for id := range tombstones.AllIDs().All() {
+		if id == tombstones.IDVolume {
+			continue
+		}
+		if _, ok := patterns[id]; ok {
+			continue
+		}
+		return id
+	}
+	panic("tombstones: no referent rule")
+}
+
+// referentCase names a symbol no file in the tree defines. The name is built
+// here rather than written whole, so the index that answers the rule cannot
+// find the case's own text beside it.
+func referentCase() string {
+	name := "Old" + "Scanner" + "Two"
+	return "package main\n\n// The " + name + " reads each value from the input.\nfunc main() {}\n"
+}
+
+// volumeCase is a comment run longer than the default cap.
+func volumeCase() string {
+	out := "package main\n\n"
+	for i := range 16 {
+		out += "// The loop reads value " + strconv.Itoa(i) + " from the input and adds it to the running total.\n"
+	}
+	return out + "func main() {}\n"
 }
 
 // repeatPhrase writes phrase enough times to reach a length.
@@ -173,7 +217,7 @@ func neuteredGateWorkflow() string {
 }
 
 func envIndirectionWorkflow() string {
-	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n      cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n    env:\n      OUT: ${{ github.sha }}\n    steps:\n      - run: echo \"$OUT\"\n"
+	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n      cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n    steps:\n      - env:\n          OUT: ${{ github.sha }}\n        run: echo \"$OUT\"\n"
 }
 
 func orgActionRefWorkflow() string {
@@ -212,7 +256,7 @@ func warningCase(id string) string {
 	case ste.IDParagraphLength:
 		return "The gate reads. The gate writes. The gate waits. The gate stops. The gate starts. The gate ends. The gate fails.\n"
 	case ste.IDInstructionLength:
-		return "The gate reads the file and then it writes the result to the store for you.\n"
+		return "The gate reads the file and then it writes the result to the store for the caller before the next build starts.\n"
 	}
 	return "The gate reads the file.\n"
 }

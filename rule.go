@@ -249,5 +249,3 @@ func patternCases(patterns []english.Pattern, id string) []RuleCase {
 	}
 	return out
 }
-
-
