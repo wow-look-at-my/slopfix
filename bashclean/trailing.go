@@ -50,11 +50,6 @@ func promoteInto(outer, inner *syntax.Stmt) {
 	outer.Redirs = redirs
 }
 
-func isHeadTailStage(c *syntax.CallExpr) bool {
-	n := cmd(c)
-	return n == "head" || n == "tail" || callIsSedSuppressing(c)
-}
-
 func isGrepStage(c *syntax.CallExpr) bool { return cmd(c) == "grep" }
 
 // stripStages removes trailing pipeline stages matching pred, repeatedly.

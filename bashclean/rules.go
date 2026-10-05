@@ -121,12 +121,6 @@ func callReadsBannedFile(c *syntax.CallExpr) bool {
 	return namesRealFile(readOperands(c.Args[e.index+1:], e.name != "cat"))
 }
 
-func hasFileRead(f *syntax.File) bool {
-	return hasStatementCall(f, func(c *syntax.CallExpr) bool {
-		return callReadsBannedFile(c) || callIsSedLineRead(c)
-	})
-}
-
 var (
 	sizeZeroFlag = regexp.MustCompile(`^(-s|--size=)0+$`)
 	allZeros     = regexp.MustCompile(`^0+$`)

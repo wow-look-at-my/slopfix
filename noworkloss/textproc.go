@@ -12,55 +12,6 @@ import (
 // comparison writes nothing) from a writer, so neither is denied for its name
 // alone.
 
-func sedWrites(seg segment, rest []word) []write {
-	valueFlags := set.Of[string]("-e", "--expression", "-f", "--file", "-l", "--line-length")
-	flags, operands := scanArgs(rest, valueFlags)
-
-	inPlace := false
-	for _, a := range rest {
-		t := a.text
-		if t == "--in-place" || strings.HasPrefix(t, "--in-place=") {
-			inPlace = true
-			continue
-		}
-		if !strings.HasPrefix(t, "-") || strings.HasPrefix(t, "--") {
-			continue
-		}
-		// `-i`, `-i.bak` and a cluster like `-ri` all mean in-place. A cluster
-		// ends at the earliest letter that takes a value.
-		for _, c := range t[1:] {
-			if c == 'i' {
-				inPlace = true
-				break
-			}
-			if c == 'e' || c == 'f' || c == 'l' {
-				break
-			}
-		}
-	}
-
-	scripts, files := sedScriptAndFiles(flags, operands)
-	var out []write
-	switch {
-	case inPlace && len(files) > 0:
-		out = append(out, write{route: "sed -i", paths: files, dir: seg.cwd})
-	case inPlace:
-		// `ls | xargs sed -i s/a/b/` names no file at all.
-		out = append(out, write{route: "sed -i", opaque: "an in-place sed whose files are supplied at runtime rather than named in the command"})
-	}
-	for _, s := range scripts {
-		targets, unresolvable := sedScriptTargets(s.text)
-		if unresolvable || !s.static {
-			out = append(out, write{route: "sed", opaque: "a sed script whose w command names a file this hook cannot resolve"})
-			continue
-		}
-		for _, t := range targets {
-			out = append(out, write{route: "sed w", paths: []word{{text: t, static: true}}, dir: seg.cwd})
-		}
-	}
-	return out
-}
-
 // sedScriptAndFiles separates the program from the files. Without -e or -f the
 // leading operand is the program, which is what keeps `sed s/a/b/ f` from reading
 // its own script as a path.
