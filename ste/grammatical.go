@@ -88,7 +88,9 @@ func describedBy(s *syntax.Sentence, from, to int) int {
 		}
 		return from
 	}
-	if from >= to || w[from].Tag != "PRP" && w[from].Tag != "DT" && w[from].Tag != "PRP$" {
+	// "a map that carries no information is": a bare relative clause with its own verb.
+	relative := from < to && (w[from].Tag == "WDT" || w[from].Tag == "WP" || w[from].Lower() == "that")
+	if from >= to || !relative && w[from].Tag != "PRP" && w[from].Tag != "DT" && w[from].Tag != "PRP$" {
 		return from
 	}
 	for j := from + 1; j < to; j++ {
