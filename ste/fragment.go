@@ -15,6 +15,12 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 	if len(whole.Words) == 0 || standsAlone(whole, 0, len(whole.Words)) {
 		return source, false
 	}
+	// Only a noun phrase is a fragment of its own. A sentence that opens on "to" or "if" leads into a clause the parser missed.
+	switch t := whole.Words[0].Tag; {
+	case t == "DT" || t == "JJ" || t == "PRP$" || strings.HasPrefix(t, "NN"):
+	default:
+		return source, false
+	}
 	for _, c := range candidates(source, masked, false, limit) {
 		if seam := seamBefore(source, c.left); cutsAside(masked, c.left, c.right) || seam != "" && seam != "," {
 			continue
@@ -23,8 +29,7 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 		if n < minimumHalf || len(whole.Words)-n < minimumHalf {
 			continue
 		}
-		last, next := whole.Words[n-1], whole.Words[n]
-		if !endsFragment(last.Tag) || !opensFragment(next) {
+		if !endsFragment(whole, n-1) || !opensFragment(whole.Words[n]) {
 			continue
 		}
 		left := closeHead(source[:c.left])
@@ -46,8 +51,18 @@ func opensFragment(w syntax.Word) bool {
 	return w.Tag == "PRP$"
 }
 
-// endsFragment reports a tag that can close a noun phrase or the clause inside
-// one: a noun, an adverb, a verb or a number.
-func endsFragment(tag string) bool {
+// endsFragment reports a word i that can close a noun phrase or the clause
+// inside one: a noun, an adverb, a number or a finite verb. A bare verb closes
+// one only after a modal, as in "that will not fit". Otherwise it wants an object.
+func endsFragment(s *syntax.Sentence, i int) bool {
+	tag := s.Words[i].Tag
+	if tag == "VB" {
+		for j := i - 1; j >= max(0, i-2); j-- {
+			if s.Words[j].Tag == "MD" {
+				return true
+			}
+		}
+		return false
+	}
 	return strings.HasPrefix(tag, "NN") || strings.HasPrefix(tag, "RB") || strings.HasPrefix(tag, "VB") || tag == "CD"
 }

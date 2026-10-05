@@ -83,7 +83,7 @@ func TestNoCutStopsBetweenWords(t *testing.T) {
 		"\t// current series' sample count and confidence interval. RunAll installs a\n" +
 		"\t// live-line printer; tests leave it nil.\n" +
 		"\tProgress func(samples int, rmePct, targetRMEPct float64)\n}\n"
-	fitsOrStays(t, src, "sample count and confidence interval.")
+	fitsOrStays(t, src, "// Progress, when set, is called by the sampler")
 }
 
 // A comment over a literal element with a trailing comment is weighed against

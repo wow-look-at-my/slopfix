@@ -271,10 +271,18 @@ func (p *clauseParser) subordinator(i int) bool {
 }
 
 // relativeThat reports a "that" the tagger read as a subordinator between a
-// noun and a finite verb: "a summary that fits is useful". It opens a relative clause.
+// noun and a finite verb: "a summary that fits is useful". It opens a relative
+// clause. An adverb can stand before the verb: "a clause that never closes".
 func (p *clauseParser) relativeThat(i int) bool {
 	w := p.s.Words[i]
-	return w.Lower() == "that" && i > 0 && i+1 < len(p.s.Words) && isNoun(p.s.Words[i-1].Tag) && isFinite(p.s.Words[i+1].Tag)
+	if w.Lower() != "that" || i == 0 || !isNoun(p.s.Words[i-1].Tag) {
+		return false
+	}
+	j := i + 1
+	for j < len(p.s.Words) && p.s.Words[j].Tag == "RB" {
+		j++
+	}
+	return j < len(p.s.Words) && isFinite(p.s.Words[j].Tag)
 }
 
 func (p *clauseParser) relative(i int) bool {

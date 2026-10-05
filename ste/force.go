@@ -166,16 +166,15 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			return best, true
 		}
 	}
-	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok {
-		return out, true
+	if d.reorder {
+		if out, ok := reorderDependent(source, whole); ok {
+			return out, true
+		}
+		if out, ok := subjectDivision(source, whole, d.cap); ok {
+			return out, true
+		}
 	}
-	if !d.reorder {
-		return source, false
-	}
-	if out, ok := reorderDependent(source, whole); ok {
-		return out, true
-	}
-	return subjectDivision(source, whole, d.cap)
+	return fragmentDivision(source, masked, whole, d.cap)
 }
 
 // closeHead ends the first part of a division as a sentence. A part that
