@@ -81,6 +81,7 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 
 	var out TreeRepair
 	if wantsRepo(req) && isRepoRoot(root) {
+		SetPhase("repository rules", 0)
 		findings, changed, err := repoRun(root, keepsOf(req), writing, writableIn(req.Fork))
 		if err != nil {
 			findings = append(findings, repoFinding(root, IDBudget, "the repository rules could not read the tree", err.Error()))
@@ -88,9 +89,12 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		out.Findings = append(out.Findings, findings...)
 		out.Repaired = append(out.Repaired, changed...)
 	}
+	SetPhase("list the files", 0)
 	paths := commentfix.TreeFilesMatching(root, Reads)
+	SetPhase("index the names", 0)
 	// A walk asks the referent check about far more names than a probe for each can answer quickly.
 	tombstones.PrimeIndex(root)
+	SetPhase("judge the files", len(paths))
 	repairs := make([]*Repair, len(paths))
 	// Each file is independent, so workers judge them at once and the merge below keeps the walk's order.
 	work := make(chan int)
@@ -101,6 +105,7 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 			defer wg.Done()
 			for i := range work {
 				repairs[i] = judgeFile(paths[i], req, writing)
+				stepDone()
 			}
 		}()
 	}
