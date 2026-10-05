@@ -66,7 +66,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, "", 0
 	}
 	// "A trailing run of turns that each made a call, spaced close together": a participle after a fragment describes the fragment's head.
-	if seam == "," && (word.Tag == "VBN" || word.Tag == "VBD") && first+1 < len(whole.Words) && !opensObject(whole, first+1) &&
+	if seam == "," && (word.Tag == "VBN" || word.Tag == "VBD") && first+1 < len(whole.Words) && !takesObject(whole, first+1) &&
 		!finiteOutsideRelative(syntax.Parse(checkMask(head), nil), 0) {
 		if subject, ok := fragmentSubject(source, whole); ok {
 			return head, subject + " " + rest, opensWithCarrier
@@ -167,6 +167,15 @@ func headOpen(s *syntax.Sentence, end int) bool {
 // adverbial of frequency, which belongs to the sentence however deep it sits.
 func everyNext(s *syntax.Sentence, i int) bool {
 	return i+1 < len(s.Words) && (s.Words[i+1].Lower() == "every" || s.Words[i+1].Lower() == "each")
+}
+
+// takesObject reports an object after a participle. An adjective with no
+// noun after it is a complement: "spaced close enough".
+func takesObject(s *syntax.Sentence, i int) bool {
+	if s.Words[i].Tag == "JJ" && !opensObject(s, i+1) {
+		return false
+	}
+	return opensObject(s, i)
 }
 
 // opensObject reports word i opening a noun phrase a preposition can take.
