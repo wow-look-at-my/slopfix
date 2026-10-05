@@ -113,6 +113,57 @@ var realSentences = []struct {
 	},
 }
 
+// Sentences from this repository's own comments on which the repair wrote a
+// fragment. Each pair names words the output must not hold.
+var brokenShapes = []struct {
+	name, in, never string
+}{
+	{
+		"a preposition the verb ends on stays with it",
+		"Nothing is refused and nothing is sent back to the model, because the reader is the person the question was aimed at: a prose question the reader can see marked as an offloaded decision has already cost the writer what it was meant to cost.",
+		"aimed. This",
+	},
+	{
+		"a preposition with no object stays with its verb",
+		"questions.go finds the shapes a closing message must not end on: a question put to the user in prose, and a deferral that hands the user a decision without asking it through AskUserQuestion.",
+		"end. This",
+	},
+	{
+		"a verb keeps its object",
+		"A session that asks the same question several ways -- `gh wait-ci`, then `gh wait-ci checks`, then `pull_request_read` -- produces differing signatures and no streak.",
+		"asks. The",
+	},
+	{
+		"a verb keeps its complement",
+		"Package cardinal decides whether a number in a piece of text is a stated count: a number that is true today and wrong after the next commit.",
+		"is. A",
+	},
+	{
+		"a verb keeps its object phrase",
+		"The tree names the lines to weigh, so a line of code that merely opens with a marker's characters is never mistaken for an empty comment.",
+		"mistaken. This",
+	},
+	{
+		"a long subject keeps its relative clause",
+		"The negative control. A file the rule reports nothing in is written back byte for byte, so the cases above pass on a repair rather than on any edit.",
+		"That file nothing",
+	},
+	{
+		"a clause after a colon is no list",
+		"A word longer than the width goes on its own line rather than being broken: a URL or an identifier split across lines stops being either.",
+		"This covers",
+	},
+}
+
+func TestABrokenShapeComesOutWhole(t *testing.T) {
+	for _, c := range brokenShapes {
+		t.Run(c.name, func(t *testing.T) {
+			got := ste.Fix(c.in)
+			assert.NotContains(t, got, c.never, "%q", got)
+		})
+	}
+}
+
 func TestARealSentenceComesOutGrammaticalOrAsWritten(t *testing.T) {
 	only := func(id string) bool { return id == ste.IDSentenceCap || id == ste.IDCommaSplice }
 	for _, c := range realSentences {

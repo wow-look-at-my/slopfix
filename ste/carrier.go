@@ -15,6 +15,10 @@ import (
 var (
 	// carrierAdverbial words open an adverbial that a carrier can take.
 	carrierAdverbial = set.Of(wordsOf("carrier-adverbial")...)
+	// focusing adverbs bind to the phrase after them: "lands only on the lines".
+	focusing = set.Of("only", "just", "even", "also", "still", "exactly", "directly", "right", "mostly", "mainly", "solely")
+	// carrierBound words move behind a carrier only before "every" or "each".
+	carrierBound = set.Of(wordsOf("carrier-bound")...)
 	// carrierPlace words open a phrase of place, which describes the noun before it.
 	carrierPlace = set.Of(wordsOf("carrier-place")...)
 	// stateVerbs state a fact rather than an action.
@@ -70,7 +74,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restate(source, prev, rest), opensWithCarrier
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
-	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest):
+	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && adverbialMoves(whole, first, prev):
 		return head, carrierFor(whole, main) + " " + rest, opensWithCarrier
 	case seam == "," && word.Tag == whole.Words[main.Head].Tag && finiteVerbTag(word.Tag) && unicode.IsLower(rune(word.Text[0])) &&
 		listsVerbs(source[:c.left]) && !conjunctionBetween(whole, main.Last+1, first):
@@ -93,11 +97,54 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		// Noun phrases after a colon name what the head speaks of: "the words a repair drops, the phrasings it swaps".
 		opensNoun := word.Tag == "DT" || word.Tag == "PRP$" || word.Tag == "JJ" || strings.HasPrefix(word.Tag, "NN")
+		// A clause the tagger misread stands as a sentence of its own.
+		if opensNoun && hiddenVerb(whole, first) {
+			return head, capitalizeOpening(rest), opensWithCarrier
+		}
 		if opensNoun && !finiteBetween(whole, first, len(whole.Words)) {
 			return head, "This covers " + rest, opensWithCarrier
 		}
 	}
 	return head, "", 0
+}
+
+// hiddenVerb reports a verb the tagger read as something else, from word i on:
+// a form of "be", or a plural noun right before a participle, as in "an
+// identifier split across lines stops being either".
+func hiddenVerb(s *syntax.Sentence, i int) bool {
+	for ; i < len(s.Words); i++ {
+		w := s.Words[i]
+		switch w.Lower() {
+		case "be", "being", "been", "is", "are", "was", "were":
+			return true
+		}
+		if w.Tag == "NNS" && i+1 < len(s.Words) && (s.Words[i+1].Tag == "VBG" || s.Words[i+1].Tag == "VBN") {
+			return true
+		}
+	}
+	return false
+}
+
+// adverbialMoves reports an adverbial at word first that a carrier can take. It
+// never takes one right after a verb or a particle, which the adverbial completes:
+// "the question was aimed at", "a repair lands only on the lines". A bound
+// preposition moves only before "every" or "each". A preposition with no object
+// after it ("aimed at: a prose question") belongs to the words before it.
+func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word) bool {
+	if strings.HasPrefix(prev.Tag, "VB") || prev.Tag == "RP" || focusing.Contains(prev.Lower()) || phraseEndParticle.Contains(prev.Lower()) {
+		return false
+	}
+	if first+1 >= len(s.Words) {
+		return false
+	}
+	next := s.Words[first+1]
+	if !unicode.IsLetter(rune(next.Text[0])) && next.Text[0] != '`' {
+		return false
+	}
+	if carrierBound.Contains(s.Words[first].Lower()) {
+		return next.Lower() == "every" || next.Lower() == "each"
+	}
+	return true
 }
 
 // finiteBefore reports a finite verb from word i on, outside a parenthesis, ahead of the first stop mark.
@@ -503,6 +550,11 @@ func subjectDivision(source string, whole *syntax.Sentence, limit int) (string, 
 		if finiteVerbTag(w.Tag) || w.Tag == "MD" {
 			verb = i
 			break
+		}
+		// A noun followed by a new subject opens a relative clause with no relative
+		// word: "a file the rule reports nothing in".
+		if i > 0 && strings.HasPrefix(whole.Words[i-1].Tag, "NN") && (w.Tag == "DT" || w.Tag == "PRP" || w.Tag == "PRP$") {
+			return source, false
 		}
 	}
 	if verb < restateLimit+1 {

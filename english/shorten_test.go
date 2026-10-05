@@ -15,6 +15,19 @@ func surfaceOf(where string) string {
 	return "comment"
 }
 
+// A cut that takes a sentence's verb drops what is left of that sentence, and
+// a sentence the cut emptied leaves no stray stop.
+func TestACutNeverLeavesAFragment(t *testing.T) {
+	assert.Equal(t, "It carried no rule.", dropFragments(
+		"example-plugin was deleted on purpose. It carried no rule.",
+		"example-plugin. It carried no rule."))
+	assert.Equal(t, "The walk could not be repaired from.", dropFragments(
+		"It replaced a line walk. The walk could not be repaired from.",
+		". The walk could not be repaired from."))
+	assert.Equal(t, "The cache reads the file.", dropFragments(
+		"The cache reads the file.", "The cache reads the file."), "a sentence that keeps its verb stays")
+}
+
 // A cut takes the punctuation the parse says attaches the phrase: the comma
 // before a phrase that ends its clause, the comma after one that opens it, and
 // both commas round one in the middle.

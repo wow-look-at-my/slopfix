@@ -147,6 +147,12 @@
     for with without by through via across per upon throughout once whenever
     when while if unless because since although though"/>
 
+  <!-- A preposition of carrier-adverbial that just as often completes the verb
+       or the noun before it: "aimed at", "mistaken for", "meet with". It moves
+       behind a carrier only before "every" or "each", as in "on every run". -->
+  <class name="carrier-bound" words="on at for with without by through via
+    across per upon"/>
+
   <!-- A preposition of place. After a noun it describes the noun, so a division
        in front of one restates the noun: "That store is in the home directory". -->
   <class name="carrier-place" words="in inside under within beneath beside near

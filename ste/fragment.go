@@ -30,7 +30,7 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 		if n < minimumHalf || len(whole.Words)-n < minimumHalf {
 			continue
 		}
-		if !endsFragment(whole, n-1) || !opensFragment(whole.Words[n]) {
+		if !endsBefore(whole, n) || !opensFragment(whole.Words[n]) || opensMainClause(whole, n) {
 			continue
 		}
 		left := closeHead(source[:c.left])
@@ -53,11 +53,7 @@ func PhraseHead(text string, maxWords int) (string, bool) {
 	masked := checkMask(text)
 	s := syntax.Parse(masked, nil)
 	for n := min(maxWords, len(s.Words)-1); n >= minimumHalf; n-- {
-		// A verb before the cut wants the object the cut takes away.
-		if tag := s.Words[n-1].Tag; !strings.HasPrefix(tag, "NN") && !strings.HasPrefix(tag, "RB") && tag != "CD" && !phraseEndParticle.Contains(s.Words[n-1].Lower()) {
-			continue
-		}
-		if !opensFragment(s.Words[n]) {
+		if !endsBefore(s, n) || !opensFragment(s.Words[n]) || opensMainClause(s, n) {
 			continue
 		}
 		if seamBefore(text, s.Words[n].Start) != "" {
@@ -71,6 +67,57 @@ func PhraseHead(text string, maxWords int) (string, bool) {
 	return "", false
 }
 
+// endsPhrase reports a word a noun phrase can end on: a noun, an adverb, a
+// number or a particle. A verb wants the object a cut would take away.
+func endsPhrase(w syntax.Word) bool {
+	tag := w.Tag
+	return strings.HasPrefix(tag, "NN") || strings.HasPrefix(tag, "RB") || tag == "CD" || phraseEndParticle.Contains(w.Lower())
+}
+
+// endsBefore reports a cut before word n that leaves a whole noun phrase. A
+// verb ends one only when the words after it open a phrase with a relative
+// clause of its own, so the verb closed the clause before it: "a cache that
+// never empties | a cache that never fills". After "a session that asks", the
+// words name its object.
+func endsBefore(s *syntax.Sentence, n int) bool {
+	if endsPhrase(s.Words[n-1]) {
+		return true
+	}
+	if !strings.HasPrefix(s.Words[n-1].Tag, "VB") {
+		return false
+	}
+	for j := n + 1; j < len(s.Words); j++ {
+		switch w := s.Words[j]; {
+		case w.Lower() == "that" || w.Lower() == "which" || w.Lower() == "who":
+			return j > n+1
+		case strings.HasPrefix(w.Tag, "NN") || strings.HasPrefix(w.Tag, "JJ"):
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+// opensMainClause reports words from i on that hold a subject and its finite
+// verb before any stop mark. After a noun they finish that noun as a clause
+// with no relative word: "the way the Read tool does", "a word the write did
+// not touch".
+func opensMainClause(s *syntax.Sentence, i int) bool {
+	for j := i + 1; j < len(s.Words); j++ {
+		w := s.Words[j]
+		switch {
+		case strings.ContainsAny(w.Text, ",;:.!?()—–"):
+			return false
+		case w.Tag == "WDT" || w.Tag == "WP" || w.Lower() == "that":
+			// A relative word puts the verb after it inside the phrase.
+			return false
+		case finiteVerbTag(w.Tag) || w.Tag == "MD":
+			return true
+		}
+	}
+	return false
+}
+
 // opensFragment reports a word that opens a new noun phrase.
 func opensFragment(w syntax.Word) bool {
 	switch w.Lower() {
@@ -78,20 +125,4 @@ func opensFragment(w syntax.Word) bool {
 		return true
 	}
 	return w.Tag == "PRP$"
-}
-
-// endsFragment reports a word i that can close a noun phrase or the clause
-// inside one: a noun, an adverb, a number or a finite verb. A bare verb closes
-// one only after a modal, as in "that will not fit". Otherwise it wants an object.
-func endsFragment(s *syntax.Sentence, i int) bool {
-	tag := s.Words[i].Tag
-	if tag == "VB" {
-		for j := i - 1; j >= max(0, i-2); j-- {
-			if s.Words[j].Tag == "MD" {
-				return true
-			}
-		}
-		return false
-	}
-	return strings.HasPrefix(tag, "NN") || strings.HasPrefix(tag, "RB") || strings.HasPrefix(tag, "VB") || tag == "CD"
 }
