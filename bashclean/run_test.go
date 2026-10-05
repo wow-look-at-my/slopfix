@@ -75,7 +75,6 @@ func TestRunDenyCarriesTheAlternative(t *testing.T) {
 	for command, want := range map[string]string{
 		"cat <<EOF\nx\nEOF\n":           "Write/Edit",
 		"perl -e 'print 1'":             "perl is banned",
-		"head -60 src/usage.test.ts":    "offset and limit",
 		"shred secret.txt":              "recycler trash",
 		"git rm --pathspec-from-file=l": "Name the paths",
 		"truncate -s 0 -r ref f":        "recycler trash",

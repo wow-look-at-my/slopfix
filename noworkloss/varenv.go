@@ -231,9 +231,10 @@ var tempRoots = []string{"/tmp", "/var/tmp"}
 // mktempPath resolves `$(mktemp ...)` to a path in the temp directory. The
 // exact basename is chosen by mktemp at run time and nothing here can know
 // it. However, the DIRECTORY is what decides whether a write lands in the
-// working tree, and mktemp with no template or a temp-rooted template cannot
-// leave the temp directory. A template naming any other directory resolves
-// to nothing, because `mktemp ./buildXXXX` does write beside the source.
+// working tree, and mktemp with no template. Otherwise, a temp-rooted
+// template cannot leave the temp directory. A template naming any other
+// directory resolves to nothing, because `mktemp ./buildXXXX` does write
+// beside the source.
 func mktempPath(wd *syntax.Word) (word, bool) {
 	sub, ok := soleCmdSubst(wd)
 	if !ok || len(sub.Stmts) != 1 || sub.Stmts[0] == nil {

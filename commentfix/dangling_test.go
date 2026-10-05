@@ -31,7 +31,7 @@ func TestARepairCutsAtASentenceEndInsideALine(t *testing.T) {
 	assert.Empty(t, CheckLength("x.go", out))
 }
 
-// A block that holds an earlier ending is repaired at that ending, which is
+// A block that holds an earlier ending is repaired at that ending. This is
 // the control that proves the cut is not the last line going.
 func TestABlockWithAnEarlierEndingIsRepairedThere(t *testing.T) {
 	src := strings.Join([]string{

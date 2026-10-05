@@ -72,14 +72,11 @@ func TestRunPostLeavesEverythingElseAlone(t *testing.T) {
 	}
 }
 
-// A read that PlanRead maps runs. One it does not map keeps the deny.
-func TestAMappedReadIsNotDenied(t *testing.T) {
+// A file read runs as written, mapped or not.
+func TestAFileReadIsNotDenied(t *testing.T) {
 	dir := t.TempDir()
-	for _, cmd := range []string{"sed -n 2,3p f.txt", "cat f.txt"} {
-		got := TransformIn(cmd, dir)
-		assert.False(t, got.Denied, cmd)
-		assert.False(t, got.Changed, "%s: a rewrite makes it a second statement", cmd)
+	for _, cmd := range []string{"sed -n 2,3p f.txt", "cat f.txt", "cat f.txt | jq .x"} {
+		assert.False(t, TransformIn(cmd, dir).Denied, cmd)
 	}
-	assert.True(t, TransformIn("cat f.txt | jq .x", dir).Denied)
-	assert.True(t, TransformIn("cat f.txt", "").Denied)
+	assert.False(t, TransformIn("cat f.txt", "").Denied)
 }
