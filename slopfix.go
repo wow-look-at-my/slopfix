@@ -95,7 +95,7 @@ func CheckContent(path, content string) []ste.Finding {
 // kindFindings are the rules the file's kind selects.
 func kindFindings(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
-		return workflow.Check(content)
+		return append(workflow.Check(content), sentenceFindings(path, content)...)
 	}
 	if isDocument(path) {
 		return append(Check(content), Warnings(content)...)
@@ -141,6 +141,23 @@ func commentFindings(path, content string) []ste.Finding {
 			Rule:   hit.Tell,
 			Detail: hit.Sentence,
 			Fix:    fix,
+		})
+	}
+	return append(out, sentenceFindings(path, content)...)
+}
+
+// sentenceFindings are the sentences of a file's comments over the STE word
+// cap. It is its own check, apart from the comment's weight against its code.
+func sentenceFindings(path, content string) []ste.Finding {
+	var out []ste.Finding
+	for _, hit := range commentfix.CheckSentences(path, content) {
+		out = append(out, ste.Finding{
+			Line:    hit.Line,
+			EndLine: hit.EndLine,
+			ID:      ste.IDSentenceCap,
+			Rule:    hit.Tell,
+			Detail:  hit.Sentence,
+			Fix:     hit.Fix,
 		})
 	}
 	return out
