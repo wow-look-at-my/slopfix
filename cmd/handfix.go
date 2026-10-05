@@ -220,11 +220,11 @@ func rewriteHand(req slopfix.Request, fixedBefore, after string, touched []int, 
 	return h, nil
 }
 
-// restoreRepairs answers after with each line put back as fix writes it where
-// the edit changed a line fix repairs and fix leaves the edited line alone.
-// This is because the edit performed the repair by hand. stillFixed holds the
-// 1-based lines of after that fix changes. Only a line each diff pairs one to
-// one is put back.
+// restoreRepairs answers after with each line put back as fix writes it. This
+// happens where the edit changed a line fix repairs and fix leaves the edited
+// line alone. This is because the edit performed the repair by hand.
+// stillFixed holds the 1-based lines of after that fix changes. Only a line
+// each diff pairs one to one is put back.
 func restoreRepairs(before, fixedBefore, after string, stillFixed set.Set[int]) string {
 	edited := pairs(before, after)
 	repaired := pairs(before, fixedBefore)

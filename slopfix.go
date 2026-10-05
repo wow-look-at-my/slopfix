@@ -1,7 +1,7 @@
 // Package slopfix is the library behind the binary. It reports what the org's
 // prose rules reject, and rewrites what a rewrite can repair.
 //
-// The binary is a thin wrapper, so a hook, a CI job and an editor integration
+// The binary is a thin wrapper. A hook, a CI job and an editor integration
 // all get identical answers instead of separate implementations that drift.
 package slopfix
 

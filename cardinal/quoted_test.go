@@ -7,8 +7,8 @@ import (
 )
 
 // The shape the exemption exists for: a comment documenting a rewrite quotes
-// the text on each side of it, and reporting the number inside the marks is
-// what lets a repair leave the same words on each side of it.
+// the text on each side of it. Reporting the number inside the marks is what
+// lets a repair leave the same words on each side of it.
 func TestAQuotedNumberCountsNothingHere(t *testing.T) {
 	documented := `the tally rule rewrites "two goroutines" to "goroutines"`
 	assert.Empty(t, texts(documented, Comment))

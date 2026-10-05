@@ -245,9 +245,9 @@ func joinCommentBlocks(content string) []edit.Edit {
 	return out
 }
 
-// joinSentences joins comment lines into one. A line that ends with no
-// punctuation, followed by one that opens with a capital, ended a sentence
-// the author never closed, so the join closes it with a period.
+// joinSentences joins comment lines into one. This is a line that ends with
+// no punctuation. The line is followed by one that opens with a capital,
+// ended a sentence the author never closed. The join closes it with a period.
 func joinSentences(lines []string) string {
 	var b strings.Builder
 	for i, line := range lines {

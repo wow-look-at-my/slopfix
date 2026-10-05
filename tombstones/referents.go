@@ -6,7 +6,7 @@
 //
 // Precision comes entirely from which identifiers are eligible. Consider a
 // comment about low-level work. That comment is full of names the repository
-// does not define, and reporting those is how a guard earns the reputation that
+// does not define. Reporting those is how a guard earns the reputation that
 // gets it turned off. So a name that is all capitals is never a candidate, and
 // neither is a short name.
 package tombstones

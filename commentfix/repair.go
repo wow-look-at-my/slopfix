@@ -449,8 +449,8 @@ func split(line string) (marker, prose string, ok bool) {
 
 // splitBlock is split, also reporting the delimiter that closes a block. The C
 // family opens with a slash-star and closes with a star-slash. The closer is not
-// prose: left in the text a rewrite wraps it into the middle of the comment, and
-// dropped it leaves the block open and the file unparseable.
+// prose. Left in the text, a rewrite wraps it into the middle of the comment,
+// and dropped it leaves the block open and the file unparseable.
 func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	trimmed := strings.TrimLeft(line, " \t")
 	indent := line[:len(line)-len(trimmed)]

@@ -1,6 +1,6 @@
 // rephrase.go applies the matcher language to a line of prose.
 //
-// An entry may write more words than it matched, fewer, or none at all, so a
+// An entry may write more words than it matched, fewer, or none at all. A
 // rule can swap a word, delete it, or rewrite the phrase around it. Prose no
 // entry matches is left exactly as it is: the rule still reports the word. A
 // warning costs a reader less than a wrong repair.

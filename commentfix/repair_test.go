@@ -167,7 +167,7 @@ func TestABlankCommentLineTheSourceCarriedSurvives(t *testing.T) {
 }
 
 // The negative control. A file the rule reports nothing in is written back
-// byte for byte, so the cases above pass on a repair rather than on any edit.
+// byte for byte. The cases above pass on a repair rather than on any edit.
 func TestAFileWithNoFindingIsUntouched(t *testing.T) {
 	src := "// It reserves a slot and publishes it.\nfunc f() {}\n"
 	repair := fix(t, src)

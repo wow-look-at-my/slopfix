@@ -46,8 +46,8 @@ func editsOf(tool string, in writeInput) []edit {
 }
 
 // applyEdits replays the replacements onto the file. A replacement that is
-// absent, or that appears more than a single time, leaves the result unknown,
-// and the caller then judges the fragment as it always did.
+// absent, or that appears more than a single time, leaves the result unknown.
+// The caller then judges the fragment as it always did.
 func applyEdits(src string, edits []edit) (string, bool) {
 	out := src
 	for _, e := range edits {
