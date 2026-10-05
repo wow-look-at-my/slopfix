@@ -359,6 +359,10 @@ func opensImperative(restMasked string) bool {
 		return false
 	}
 	c := s.Clauses[0]
+	// "You be economical": a bare form after the subject is no finite verb, so the parser attaches none.
+	if c.Verb == nil && s.Words[1].Lower() == "be" {
+		return true
+	}
 	if c.Subject == nil || c.Subject.First != 0 || c.Verb == nil || c.Verb.First != 1 {
 		return false
 	}
