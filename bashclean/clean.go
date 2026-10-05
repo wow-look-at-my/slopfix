@@ -127,9 +127,6 @@ func onePass(apply func(string, func(*syntax.File)), j *grepJSON) {
 	apply("rm_recycle", func(f *syntax.File) { walkCalls(f, rewriteRM) })
 	apply("truncate_recycle", func(f *syntax.File) { walkCalls(f, rewriteTruncate) })
 	apply("find_delete_recycle", func(f *syntax.File) { walkCalls(f, rewriteFind) })
-	apply("head_tail", func(f *syntax.File) {
-		trailing(f, func(s *syntax.Stmt) { stripStages(spineLeaf(s), isHeadTailStage) })
-	})
 	apply("or_true", func(f *syntax.File) { trailing(f, stripOrTrue) })
 	apply("grep", func(f *syntax.File) {
 		trailing(f, func(s *syntax.Stmt) { stripStages(spineLeaf(s), isGrepStage) })
