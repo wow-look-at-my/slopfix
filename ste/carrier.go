@@ -8,9 +8,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// carrier.go divides a long sentence where the words after the cut are no
-// clause: a trailing adverbial, a phrase that describes a noun, or the rest
-// of a list.
+// carrier.go divides a long sentence where the words after the cut hold no
+// clause. Those words are a trailing adverbial, a phrase that describes a
+// noun, or the rest of a list.
 
 var (
 	// carrierAdverbial words open an adverbial that a carrier can take.
