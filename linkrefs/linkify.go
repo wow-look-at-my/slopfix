@@ -12,13 +12,20 @@ package linkrefs
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // gitTimeout bounds a git call, since this runs while a message streams.
@@ -81,30 +88,83 @@ func dot(s PullState) string {
 	return ""
 }
 
+// PullRef names a pull request a flush asks about.
+type PullRef struct {
+	Repo   Repo
+	Number string
+}
+
+// prefetcher is a Resolver that can ask about several pull requests at once.
+type prefetcher interface {
+	Prefetch(refs []PullRef)
+}
+
+// isDot reports whether s is one of the dots, so a link that already carries one is not given another.
+func isDot(s string) bool {
+	for st := StateMerged; st <= StateMergeable; st++ {
+		if s == dot(st) {
+			return true
+		}
+	}
+	return false
+}
+
+// endsWithDot reports whether the text before a link already ends in a dot and its space.
+func endsWithDot(before string) bool {
+	before = strings.TrimSuffix(before, " ")
+	for st := StateMerged; st <= StateMergeable; st++ {
+		if strings.HasSuffix(before, dot(st)) {
+			return true
+		}
+	}
+	return false
+}
+
+// BadgeLink gives a markdown link to a pull request the dot a bare reference
+// gets. The link text and URL stay as written, and an unknown state changes nothing.
+func BadgeLink(link, text, url string, res Resolver) (string, bool) {
+	if isDot(strings.TrimSpace(text)) {
+		return "", false
+	}
+	repo, number, ok := IssueRef(url)
+	if !ok {
+		return "", false
+	}
+	state := res.PullState(repo, number)
+	switch {
+	case state == StateUnknown:
+		return "", false
+	case finished(state):
+		return "[" + dot(state) + "](" + url + ") " + text, true
+	default:
+		return dot(state) + " " + link, true
+	}
+}
+
+// pullRefOf names the pull request behind a reference, when it has one.
+func pullRefOf(ref Ref) (PullRef, bool) {
+	switch ref.Kind {
+	case "an issue or pull request number":
+		owner, name, n := splitNumber(ref.Text)
+		r := PullRef{Repo{Owner: owner, Name: name}, n}
+		return r, r.Repo.valid() && n != ""
+	case "a bare GitHub URL":
+		repo, n, ok := IssueRef(ref.Text)
+		return PullRef{repo, n}, ok
+	}
+	return PullRef{}, false
+}
+
 // finished reports the states where the page has nothing left to do: the words stay plain and the dot carries the link.
 func finished(s PullState) bool { return s == StateMerged || s == StateClosed }
 
 // pullState asks about the reference behind a match, and answers StateUnknown for anything not a pull request.
 func pullState(ref Ref, res Resolver) PullState {
-	var repo Repo
-	var number string
-	switch ref.Kind {
-	case "an issue or pull request number":
-		owner, name, n := splitNumber(ref.Text)
-		repo, number = Repo{Owner: owner, Name: name}, n
-	case "a bare GitHub URL":
-		r, n, ok := IssueRef(ref.Text)
-		if !ok {
-			return StateUnknown
-		}
-		repo, number = r, n
-	default:
+	p, ok := pullRefOf(ref)
+	if !ok {
 		return StateUnknown
 	}
-	if !repo.valid() || number == "" {
-		return StateUnknown
-	}
-	return res.PullState(repo, number)
+	return res.PullState(p.Repo, p.Number)
 }
 
 // Linkify returns the markdown link for a reference, and false when it must be left as written.
@@ -261,18 +321,60 @@ func (g *GitResolver) CommitExists(sha string) bool {
 // ghTimeout bounds the call that leaves the machine, longer than gitTimeout because a remote answer is not local.
 const ghTimeout = 2 * time.Second
 
-// statusJQ flattens the rollup gh returns into the few words the decision needs.
-const statusJQ = `{state:.state,mergeable:.mergeable,mergeState:.mergeStateStatus,` +
-	`checks:[.statusCheckRollup[]?|if .__typename=="CheckRun" then ` +
-	`(if .status!="COMPLETED" then "PENDING" else (.conclusion//"") end) else (.state//"") end]}`
+// checksTimeout is longer than ghTimeout: `gh wait-ci checks` on a private repository takes several seconds.
+const checksTimeout = 12 * time.Second
 
-// pullView is statusJQ's output.
+// cacheTTL is how long an open pull request's state is reused across flushes. A finished one never changes.
+const cacheTTL = time.Minute
+
+// cachePath is the file that holds a pull request's state. The sweep in run.go collects it.
+func cachePath(key string) string {
+	sum := sha256.Sum256([]byte(key))
+	return filepath.Join(os.TempDir(), "slopfix-linkrefs-pr-"+hex.EncodeToString(sum[:])[:16])
+}
+
+func readCachedPull(key string) (PullState, bool) {
+	p := cachePath(key)
+	info, err := os.Stat(p)
+	if err != nil {
+		return StateUnknown, false
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		return StateUnknown, false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if err != nil {
+		return StateUnknown, false
+	}
+	s := PullState(n)
+	if s <= StateUnknown || s > StateMergeable {
+		return StateUnknown, false
+	}
+	if !finished(s) && time.Since(info.ModTime()) > cacheTTL {
+		return StateUnknown, false
+	}
+	return s, true
+}
+
+// writeCachedPull keeps an answer. An unknown is not an answer, so it is never kept.
+func writeCachedPull(key string, s PullState) {
+	if s == StateUnknown {
+		return
+	}
+	os.WriteFile(cachePath(key), []byte(strconv.Itoa(int(s))), 0o600)
+}
+
+// pullView is the fields of a pull request the decision reads.
 type pullView struct {
 	State      string   `json:"state"`
 	Mergeable  string   `json:"mergeable"`
-	MergeState string   `json:"mergeState"`
-	Checks     []string `json:"checks"`
+	MergeState string   `json:"mergeStateStatus"`
+	Checks     []string `json:"-"`
 }
+
+// pullKey is the memo key for a pull request.
+func pullKey(repo Repo, number string) string { return repo.Owner + "/" + repo.Name + "#" + number }
 
 // PullState asks GitHub what a pull request is doing, memoized per reference.
 // Every failure answers StateUnknown, so a lookup that could not answer never shows as green.
@@ -280,33 +382,148 @@ func (g *GitResolver) PullState(repo Repo, number string) PullState {
 	if !repo.valid() || number == "" {
 		return StateUnknown
 	}
-	key := repo.Owner + "/" + repo.Name + "#" + number
+	key := pullKey(repo, number)
+	if s, ok := g.seen(key); ok {
+		return s
+	}
+	s := lookupPull(repo, number)
+	g.store(key, s)
+	return s
+}
 
+// Prefetch asks about every pull request at once, so a flush that names several waits for the slowest one alone.
+func (g *GitResolver) Prefetch(refs []PullRef) {
+	var wg sync.WaitGroup
+	asked := set.New[string]()
+	for _, r := range refs {
+		key := pullKey(r.Repo, r.Number)
+		if !r.Repo.valid() || r.Number == "" || asked.Contains(key) {
+			continue
+		}
+		if _, ok := g.seen(key); ok {
+			continue
+		}
+		asked.Add(key)
+		wg.Add(1)
+		go func(r PullRef, key string) {
+			defer wg.Done()
+			g.store(key, lookupPull(r.Repo, r.Number))
+		}(r, key)
+	}
+	wg.Wait()
+}
+
+func (g *GitResolver) seen(key string) (PullState, bool) {
+	g.prMu.Lock()
+	defer g.prMu.Unlock()
+	s, ok := g.prSeen[key]
+	return s, ok
+}
+
+func (g *GitResolver) store(key string, s PullState) {
 	g.prMu.Lock()
 	defer g.prMu.Unlock()
 	if g.prSeen == nil {
 		g.prSeen = map[string]PullState{}
 	}
-	if s, ok := g.prSeen[key]; ok {
+	g.prSeen[key] = s
+}
+
+// gh runs one bounded gh call and returns its stdout.
+func gh(timeout time.Duration, args ...string) ([]byte, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "gh", args...).Output()
+	return out, err == nil
+}
+
+// lookupPull answers from the disk cache when it can, since every flush is a new process.
+func lookupPull(repo Repo, number string) PullState {
+	key := pullKey(repo, number)
+	if s, ok := readCachedPull(key); ok {
 		return s
 	}
+	s := askPull(repo, number)
+	writeCachedPull(key, s)
+	return s
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), ghTimeout)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, "gh", "pr", "view", number,
-		"-R", repo.Owner+"/"+repo.Name,
-		"--json", "state,mergeable,mergeStateStatus,statusCheckRollup",
-		"--jq", statusJQ).Output()
-
-	state := StateUnknown
-	if err == nil {
-		var v pullView
-		if json.Unmarshal(out, &v) == nil {
-			state = classify(v)
-		}
+// askPull reads the pull request's own fields, then the checks on its head.
+// It never asks for statusCheckRollup: a fine-grained token cannot read the
+// Checks API on a private repository, and that one field fails the whole query.
+func askPull(repo Repo, number string) PullState {
+	slug := repo.Owner + "/" + repo.Name
+	out, ok := gh(ghTimeout, "pr", "view", number, "-R", slug, "--json", "state,mergeable,mergeStateStatus,headRefOid")
+	if !ok {
+		return StateUnknown
 	}
-	g.prSeen[key] = state
-	return state
+	var v struct {
+		pullView
+		Head string `json:"headRefOid"`
+	}
+	if json.Unmarshal(out, &v) != nil || v.State == "" {
+		return StateUnknown
+	}
+	if v.State != "OPEN" || v.Head == "" {
+		return classify(v.pullView)
+	}
+	if checks, ok := headChecks(slug, v.Head); ok {
+		v.Checks = checks
+		return classify(v.pullView)
+	}
+	v.Checks = mergeStateChecks(v.MergeState)
+	return classify(v.pullView)
+}
+
+// checksReport is the part of `gh wait-ci checks --json` the decision reads.
+type checksReport struct {
+	Statuses []struct {
+		State string `json:"state"`
+	} `json:"statuses"`
+	CheckRuns []struct {
+		Status     string `json:"status"`
+		Conclusion string `json:"conclusion"`
+	} `json:"check_runs"`
+}
+
+// headChecks reads every check run and commit status on the head commit, in the words classify reads.
+func headChecks(slug, sha string) ([]string, bool) {
+	out, ok := gh(checksTimeout, "wait-ci", "checks", "-R", slug, "--sha", sha, "--json")
+	if !ok {
+		return nil, false
+	}
+	var r checksReport
+	if json.Unmarshal(out, &r) != nil {
+		return nil, false
+	}
+	return r.words(), true
+}
+
+func (r checksReport) words() []string {
+	var checks []string
+	for _, s := range r.Statuses {
+		checks = append(checks, strings.ToUpper(s.State))
+	}
+	for _, c := range r.CheckRuns {
+		if !strings.EqualFold(c.Status, "completed") {
+			checks = append(checks, "PENDING")
+			continue
+		}
+		checks = append(checks, strings.ToUpper(c.Conclusion))
+	}
+	return checks
+}
+
+// mergeStateChecks stands in for the checks when they cannot be read. GitHub
+// computes mergeStateStatus from the same checks, so it still says red or green.
+func mergeStateChecks(mergeState string) []string {
+	switch mergeState {
+	case "CLEAN":
+		return nil
+	case "UNSTABLE":
+		return []string{"FAILURE"}
+	}
+	return []string{"PENDING"}
 }
 
 // classify turns a pull request's fields into the dot it earns.
