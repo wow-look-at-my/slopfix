@@ -54,8 +54,6 @@ Several org actions call this action, so one workflow run can reach it from many
 
 No input narrows the check. A path list, a rule list or a raw command line lets a caller set the gate to nothing. `action_test.go` fails the build on any input. The action never repairs. A job that repairs its own checkout and then passes has enforced nothing.
 
-The action runs the APE binary through `sh`, because a `binfmt_misc` handler can refuse a direct exec.
-
 In a fork, only the lines the fork wrote can fail the check. The org's `dot_github` repository lists, in `fork-list/fork-of.json`, each fork GitHub does not record, and publishes it to buildhost. `docs/fork-scope.md` holds the detail.
 
 ## The marketplace follows each publish

@@ -32,4 +32,4 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
-      run: sh "${{ steps.download.outputs.path }}" check .
+      run: '"${{ steps.download.outputs.path }}" check .'
