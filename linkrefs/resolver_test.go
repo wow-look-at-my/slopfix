@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -252,6 +253,32 @@ func TestMergeStateStandsInForTheChecks(t *testing.T) {
 	assert.Equal(t, StateConflicted, at("DIRTY"))
 	assert.Equal(t, StatePending, at("BLOCKED"))
 	assert.Equal(t, StatePending, at("UNKNOWN"))
+}
+
+// The disk cache spares each later flush the slow lookup. An unknown is never kept,
+// an open state expires, and a finished one does not.
+func TestThePullStateCacheKeepsOnlyAnswers(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+
+	writeCachedPull("o/r#1", StateUnknown)
+	_, ok := readCachedPull("o/r#1")
+	assert.False(t, ok, "an unknown must not be cached")
+
+	writeCachedPull("o/r#2", StateFailing)
+	s, ok := readCachedPull("o/r#2")
+	require.True(t, ok)
+	assert.Equal(t, StateFailing, s)
+
+	old := time.Now().Add(-2 * cacheTTL)
+	require.NoError(t, os.Chtimes(cachePath("o/r#2"), old, old))
+	_, ok = readCachedPull("o/r#2")
+	assert.False(t, ok, "an open state older than the TTL must be asked again")
+
+	writeCachedPull("o/r#3", StateMerged)
+	require.NoError(t, os.Chtimes(cachePath("o/r#3"), old, old))
+	s, ok = readCachedPull("o/r#3")
+	require.True(t, ok, "a merged pull request does not change")
+	assert.Equal(t, StateMerged, s)
 }
 
 // Prefetch fills the memo, so the rewrite that follows asks nothing more.

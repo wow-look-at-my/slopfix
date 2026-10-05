@@ -12,14 +12,20 @@ package linkrefs
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
-	"github.com/wow-look-at-my/go-containers/set"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // gitTimeout bounds a git call, since this runs while a message streams.
@@ -315,6 +321,50 @@ func (g *GitResolver) CommitExists(sha string) bool {
 // ghTimeout bounds the call that leaves the machine, longer than gitTimeout because a remote answer is not local.
 const ghTimeout = 2 * time.Second
 
+// checksTimeout is longer than ghTimeout: `gh wait-ci checks` on a private repository takes several seconds.
+const checksTimeout = 12 * time.Second
+
+// cacheTTL is how long an open pull request's state is reused across flushes. A finished one never changes.
+const cacheTTL = time.Minute
+
+// cachePath is the file that holds a pull request's state. The sweep in run.go collects it.
+func cachePath(key string) string {
+	sum := sha256.Sum256([]byte(key))
+	return filepath.Join(os.TempDir(), "slopfix-linkrefs-pr-"+hex.EncodeToString(sum[:])[:16])
+}
+
+func readCachedPull(key string) (PullState, bool) {
+	p := cachePath(key)
+	info, err := os.Stat(p)
+	if err != nil {
+		return StateUnknown, false
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		return StateUnknown, false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if err != nil {
+		return StateUnknown, false
+	}
+	s := PullState(n)
+	if s <= StateUnknown || s > StateMergeable {
+		return StateUnknown, false
+	}
+	if !finished(s) && time.Since(info.ModTime()) > cacheTTL {
+		return StateUnknown, false
+	}
+	return s, true
+}
+
+// writeCachedPull keeps an answer. An unknown is not an answer, so it is never kept.
+func writeCachedPull(key string, s PullState) {
+	if s == StateUnknown {
+		return
+	}
+	os.WriteFile(cachePath(key), []byte(strconv.Itoa(int(s))), 0o600)
+}
+
 // pullView is the fields of a pull request the decision reads.
 type pullView struct {
 	State      string   `json:"state"`
@@ -380,19 +430,30 @@ func (g *GitResolver) store(key string, s PullState) {
 }
 
 // gh runs one bounded gh call and returns its stdout.
-func gh(args ...string) ([]byte, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), ghTimeout)
+func gh(timeout time.Duration, args ...string) ([]byte, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "gh", args...).Output()
 	return out, err == nil
 }
 
-// lookupPull reads the pull request's own fields, then the checks on its head.
-// It never asks for statusCheckRollup: a fine-grained token cannot read the
-// Checks API, and that one field fails the whole query.
+// lookupPull answers from the disk cache when it can, since every flush is a new process.
 func lookupPull(repo Repo, number string) PullState {
+	key := pullKey(repo, number)
+	if s, ok := readCachedPull(key); ok {
+		return s
+	}
+	s := askPull(repo, number)
+	writeCachedPull(key, s)
+	return s
+}
+
+// askPull reads the pull request's own fields, then the checks on its head.
+// It never asks for statusCheckRollup: a fine-grained token cannot read the
+// Checks API on a private repository, and that one field fails the whole query.
+func askPull(repo Repo, number string) PullState {
 	slug := repo.Owner + "/" + repo.Name
-	out, ok := gh("pr", "view", number, "-R", slug, "--json", "state,mergeable,mergeStateStatus,headRefOid")
+	out, ok := gh(ghTimeout, "pr", "view", number, "-R", slug, "--json", "state,mergeable,mergeStateStatus,headRefOid")
 	if !ok {
 		return StateUnknown
 	}
@@ -427,7 +488,7 @@ type checksReport struct {
 
 // headChecks reads every check run and commit status on the head commit, in the words classify reads.
 func headChecks(slug, sha string) ([]string, bool) {
-	out, ok := gh("wait-ci", "checks", "-R", slug, "--sha", sha, "--json")
+	out, ok := gh(checksTimeout, "wait-ci", "checks", "-R", slug, "--sha", sha, "--json")
 	if !ok {
 		return nil, false
 	}
