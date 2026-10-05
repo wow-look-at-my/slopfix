@@ -449,7 +449,7 @@ func lookupPull(repo Repo, number string) PullState {
 }
 
 // askPull reads the pull request's own fields, then the checks on its head.
-// It never asks for statusCheckRollup: a fine-grained token cannot read the
+// It never asks for statusCheckRollup. A fine-grained token cannot read the
 // Checks API on a private repository, and that one field fails the whole query.
 func askPull(repo Repo, number string) PullState {
 	slug := repo.Owner + "/" + repo.Name
