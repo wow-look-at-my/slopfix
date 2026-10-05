@@ -20,25 +20,25 @@ func TestFixRepairsASpliceCheckReadsThroughAQuotation(t *testing.T) {
 // Fix divides a sentence Check counts over the cap when an aside holds a link.
 // Check reads the link target as (URL), a word of its own, so the aside counts its words.
 func TestFixDividesASentenceWhoseAsideHoldsALink(t *testing.T) {
-	text := "To pull an *existing* host file into the temp directory so a command can modify a copy of it, " +
-		"use `inputs.copy` or `shared.copy` (see [file-format.md](file-format.md#copy-fixtures-inputscopy-and-sharedcopy))."
+	text := "The tool reads an *existing* host file into the temp directory so a command can modify a copy of it, " +
+		"and it uses `inputs.copy` or `shared.copy` (see [file-format.md](file-format.md#copy-fixtures-inputscopy-and-sharedcopy))."
 	require.NotEmpty(t, findings(text, ste.IDSentenceCap), "the fixture must be a finding")
 	out := ste.Fix(text)
 	assert.Empty(t, findings(out, ste.IDSentenceCap), "the sentence stays over the cap:\n%s", out)
 	assert.Contains(t, out, "(see [file-format.md](file-format.md#copy-fixtures-inputscopy-and-sharedcopy))", "no division lands inside the aside:\n%s", out)
-	assert.Contains(t, out, " Use `inputs.copy` or `shared.copy`", "the imperative opens the rest as it is:\n%s", out)
+	assert.Contains(t, out, " It uses `inputs.copy` or `shared.copy`", "the clause opens the rest as it is:\n%s", out)
 }
 
-// A division that leaves an imperative verb at the front of the rest opens
-// the rest on that verb. "This is use the key" is not a sentence.
-func TestAForcedDivisionOpensAnImperativeOnItsVerb(t *testing.T) {
+// A "to" infinitive that opens a sentence is no sentence alone. The
+// instruction goes first, and the infinitive follows it behind "Do this".
+func TestAnInfinitiveOpenerFollowsItsMainClause(t *testing.T) {
 	text := "To pull an existing host file into the temp directory so a command can modify a copy of it, " +
 		"use the copy key or the shared copy key in the file for the run."
-	require.NotEmpty(t, findings(text, ste.IDSentenceCap), "the fixture must be a finding")
-	out := ste.Fix(text)
-	assert.Empty(t, findings(out, ste.IDSentenceCap), out)
-	assert.NotContains(t, out, "This is use", out)
-	assert.Contains(t, out, " Use the copy key", out)
+	got := findings(text, ste.IDSentenceCap)
+	require.NotEmpty(t, got, "the fixture must be a finding")
+	assert.False(t, ste.ByHand(got[0].Fix), got[0].Fix)
+	assert.Equal(t, "Use the copy key or the shared copy key in the file for the run. "+
+		"Do this to pull an existing host file into the temp directory so a command can modify a copy of it.", ste.Fix(text))
 }
 
 // findings answers what Check reports under id.

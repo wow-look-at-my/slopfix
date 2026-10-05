@@ -17,8 +17,8 @@ func TestAQuotedNumberCountsNothingHere(t *testing.T) {
 	assert.Equal(t, []string{"two"}, texts("the tally rule rewrites two goroutines", Comment))
 }
 
-// An apostrophe spells a contraction far more often than it opens a quotation,
-// so it bounds nothing and the count after it is still a count.
+// An apostrophe spells a contraction far more often than it opens a quotation.
+// It bounds nothing and the count after it is still a count.
 func TestAnApostropheOpensNoQuotation(t *testing.T) {
 	assert.Equal(t, []string{"three"}, texts("it doesn't wait for three workers", Comment))
 }

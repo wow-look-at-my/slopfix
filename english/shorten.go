@@ -5,6 +5,8 @@ package english
 import (
 	"regexp"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
 // danglingSpace matches the space a deletion leaves before punctuation that CLOSES something. A period with a word
@@ -67,7 +69,63 @@ func FixN(s, surface string) (string, int) {
 	s = strings.Join(strings.Fields(s), " ")
 	s = danglingSpace.ReplaceAllString(s, "${1}${2}")
 	s = doubledStop.ReplaceAllString(s, "${1}.${2}")
+	if n > 0 {
+		s = dropFragments(strings.Join(strings.Fields(original), " "), s)
+	}
 	return capitalise(original, s), n
+}
+
+// emptiedStop matches the stop a deleted sentence leaves after the stop before it: "it. The".
+var emptiedStop = regexp.MustCompile(`([.!?])\s+\.(\s|$)`)
+
+// sentenceRun matches a sentence and the blank after it. A stop inside a code span does not end one.
+var sentenceRun = regexp.MustCompile("(?:`[^`]*`|[^.!?`])+[.!?]+(?:\\s+|$)|(?:`[^`]*`|[^.!?`])+$")
+
+// dropFragments removes each sentence a cut left with no verb, where the
+// sentence it came from had one: "example-plugin was deleted on purpose."
+// leaves "example-plugin.", which says nothing. A sentence the cut emptied goes
+// too. It compares the sentences pair by pair, so it does nothing when the cut
+// changed their count.
+func dropFragments(before, after string) string {
+	if !strings.HasPrefix(before, ".") {
+		after = strings.TrimLeft(after, " .")
+	}
+	after = emptiedStop.ReplaceAllString(after, "${1}${2}")
+	was := sentenceRun.FindAllString(before, -1)
+	now := sentenceRun.FindAllString(after, -1)
+	// A single sentence is the table's own case, and dropping it would leave nothing.
+	if len(was) < 2 || len(was) != len(now) {
+		return after
+	}
+	var b strings.Builder
+	dropped := false
+	for i, sentence := range now {
+		if !hasWordIn(sentence) || hasFiniteVerb(was[i]) && !hasFiniteVerb(sentence) {
+			dropped = true
+			continue
+		}
+		b.WriteString(sentence)
+	}
+	if !dropped {
+		return after
+	}
+	return strings.TrimSpace(b.String())
+}
+
+// hasWordIn reports text that holds a letter.
+func hasWordIn(text string) bool {
+	return strings.IndexFunc(text, func(r rune) bool { return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' }) >= 0
+}
+
+// hasFiniteVerb reports a sentence that holds a finite verb or a modal.
+func hasFiniteVerb(sentence string) bool {
+	for _, w := range syntax.Parse(sentence, nil).Words {
+		switch w.Tag {
+		case "VBZ", "VBP", "VBD", "MD":
+			return true
+		}
+	}
+	return false
 }
 
 // ReplaceWord swaps a whole word or phrase, case-insensitively, leaving a

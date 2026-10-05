@@ -1,8 +1,9 @@
 // Package table is the prose tables in rules/, as the binary holds them.
 //
 // The folder is embedded and read at start-up: Load hands back what a single
-// `for` value adds up to, with every pattern compiled and every word class
-// indexed. This package holds the entry types and the matchers that run them.
+// `for` value adds up to, with every pattern. That pattern is compiled and
+// every word class indexed. This package holds the entry types and the
+// matchers that run them.
 package table
 
 import (

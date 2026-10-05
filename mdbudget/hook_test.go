@@ -320,7 +320,7 @@ func TestStopHookActiveNeverWedges(t *testing.T) {
 }
 
 // A file the session never touched is reported at session start but must not
-// block the turn: the gate is about what THIS session left broken.
+// block the turn. The gate is about what THIS session left broken.
 func TestStopIgnoresAFileThisSessionDidNotWrite(t *testing.T) {
 	repo := isolate(t)
 	writeFile(t, filepath.Join(repo, "CLAUDE.md"), wrapped(60000))
@@ -441,8 +441,8 @@ func TestFullScanCleanTreeExitsZeroSilently(t *testing.T) {
 	require.Empty(t, out)
 }
 
-// A file AT the wall but not over is worth naming in the log, but it must not
-// flip CI red and fail builds that currently pass.
+// A file AT the wall but not over is worth naming in the log. However, it
+// must not flip CI red and fail builds that pass.
 func TestFullScanNearWallDoesNotFailTheBuild(t *testing.T) {
 	repo := isolate(t)
 	writeFile(t, filepath.Join(repo, "CLAUDE.md"), wrapped(39500)) // at the wall, under the budget

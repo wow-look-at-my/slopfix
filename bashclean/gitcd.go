@@ -62,7 +62,7 @@ func cdChain(dirs []*syntax.Word, call *syntax.CallExpr) *syntax.BinaryCmd {
 // rewriteGitC writes `git -C dir args` as `cd dir && git args`. The cd stays
 // bare only on the command's trailing leaf, where nothing runs after it. A
 // call anywhere else, or one with a redirect or a flag on its statement, gets
-// a subshell, so the directory change reaches the git call alone.
+// a subshell. The directory change reaches the git call alone.
 func rewriteGitC(f *syntax.File) {
 	var tail *syntax.Stmt
 	if len(f.Stmts) > 0 {

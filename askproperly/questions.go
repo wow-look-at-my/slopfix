@@ -130,7 +130,7 @@ func FindQuestions(message string) []Hit {
 }
 
 // sentenceEndingAt returns the sentence that the "?" at index i closes,
-// bounded by the previous sentence terminator or line break.
+// bounded by the sentence terminator or line break.
 func sentenceEndingAt(s string, i int) string {
 	start := 0
 	for j := i - 1; j >= 0; j-- {
@@ -232,9 +232,8 @@ func isASCIISpace(c byte) bool {
 }
 
 // assertedText drops what a message QUOTES rather than states: fenced code,
-// indented code, and blockquotes. A message documenting this very policy
-// needs somewhere to write a question out. Ported from the sibling
-// link-all-refs and no-blame-language plugins rather than reinvented.
+// indented code, and blockquotes. A message documenting this policy needs
+// somewhere to write a question out.
 //
 // Inline backticks are NOT exempt, matching both siblings.
 func assertedText(text string) string {

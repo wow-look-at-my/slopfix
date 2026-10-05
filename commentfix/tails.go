@@ -7,7 +7,9 @@ package commentfix
 
 import (
 	"strings"
+	"unicode"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/table"
@@ -45,7 +47,7 @@ func CheckTails(filename, src string) []LengthHit {
 	var hits []LengthHit
 	lines := strings.Split(src, "\n")
 	for _, para := range paragraphsOf(lines, runs) {
-		if CloseProse(para.prose) == para.prose {
+		if !stopsMidThought(para.prose) {
 			continue
 		}
 		hits = append(hits, LengthHit{
@@ -53,7 +55,7 @@ func CheckTails(filename, src string) []LengthHit {
 			Tell:       "the comment stops on a word that opens what is no longer there",
 			Sentence:   para.prose,
 			Line:       para.lines[0] + 1,
-			Repairable: true,
+			Repairable: CloseProse(para.prose) != para.prose,
 		})
 	}
 	return hits
@@ -77,10 +79,51 @@ func CloseProse(prose string) string {
 	kept := append([]string{}, sentences[:len(sentences)-1]...)
 	// The clause that opened what is missing goes with it, so the sentence ends
 	// where it last said something whole.
-	if clause := lastClause(words); clause != "" {
+	if clause := lastClause(words); clause != "" && standsAlone(clause) {
 		kept = append(kept, clause)
+	} else if head, ok := wholeHead(words); ok {
+		kept = append(kept, head)
 	}
+	// With nothing whole left, the fragment says nothing a reader can use, so it goes.
 	return strings.TrimSpace(strings.Join(kept, " "))
+}
+
+// wholeHead drops words from the end of a fragment until what is left stands
+// as a sentence, and closes it. It never ends on a word that opens a phrase.
+func wholeHead(words []string) (string, bool) {
+	for n := len(words) - 1; n >= minimumHead; n-- {
+		last := strings.ToLower(trimWord(words[n-1]))
+		if dangling.Contains(last) || auxiliary.Contains(last) {
+			continue
+		}
+		head := strings.TrimRight(strings.Join(words[:n], " "), " ,;:—–-")
+		if standsAlone(head + ".") {
+			return head + ".", true
+		}
+	}
+	return "", false
+}
+
+// minimumHead is the fewest words a head kept from a fragment holds.
+const minimumHead = 3
+
+// auxiliary words carry a verb that must follow them, so a head never ends on one.
+var auxiliary = set.Of("is", "are", "was", "were", "be", "been", "has", "have", "had", "do", "does", "did",
+	"can", "will", "must", "should", "may", "might", "would", "could", "it", "they", "which", "that")
+
+// stopsMidThought reports prose whose last sentence ends on a word that opens
+// what is missing.
+func stopsMidThought(prose string) bool {
+	sentences := ste.Sentences(prose)
+	if len(sentences) == 0 {
+		return false
+	}
+	words := strings.Fields(sentences[len(sentences)-1])
+	if len(words) == 0 {
+		return false
+	}
+	last := words[len(words)-1]
+	return !endsSentence(last) && dangling.Contains(strings.ToLower(trimWord(last)))
 }
 
 // lastClause answers the sentence up to the punctuation that opened the clause
@@ -97,6 +140,26 @@ func lastClause(words []string) string {
 	}
 	return ""
 }
+
+// standsAlone reports a clause that reads as a sentence. A doc comment opens on
+// the name it documents. The tagger can read that name as a verb. The name is also
+// read as the pronoun that takes its place: "Close answers the gate".
+func standsAlone(clause string) bool {
+	if ste.StandsAlone(clause) {
+		return true
+	}
+	first, rest, ok := strings.Cut(strings.TrimSpace(clause), " ")
+	if !ok || first == "" || !unicode.IsUpper(rune(first[0])) || strings.ContainsAny(first, ",;:()") || openers.Contains(strings.ToLower(first)) {
+		return false
+	}
+	return ste.StandsAlone("It " + rest)
+}
+
+// openers are the words that open a clause or a phrase, never a name.
+var openers = set.Of("if", "when", "because", "since", "while", "unless", "until", "although", "though",
+	"after", "before", "so", "and", "but", "or", "as", "where", "whether", "once", "the", "a", "an",
+	"this", "that", "these", "those", "each", "every", "all", "some", "no", "for", "with", "to", "in",
+	"on", "at", "by", "from", "of", "then", "only", "also")
 
 // trimWord drops the punctuation a word carries, leaving the word itself.
 func trimWord(w string) string {

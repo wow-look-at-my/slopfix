@@ -122,7 +122,7 @@ func readToolCalls(path string) ([]toolCall, error) {
 
 // evasion is the run of calls spent on the path since its content was last
 // intact. A Read or Edit of the file marks it intact. The run opens at the
-// first later call that names the file; a git add, rm or commit counts once
+// first later call that names the file. A git add, rm or commit counts once
 // it is open, because `git add -A` names no path. The call being decided is
 // priced from the payload, so its transcript copy is skipped.
 func evasion(calls []toolCall, path, skipID string) []toolCall {

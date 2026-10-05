@@ -299,25 +299,35 @@ func fixText(req Request) Repair {
 				repair.Findings = append(repair.Findings, finding)
 			}
 		}
+		if wants(RuleSTE) && keeps(ste.IDSentenceCap) {
+			repair.Findings = append(repair.Findings, sentenceFindings(req.Path, text)...)
+		}
 	case fixer.Source:
 		// Source keeps its own text for the prose rules, because a comma splice
 		// inside a code line is not a sentence.
 		// The number and tail rules report what their repair leaves, so check names what fix rewrites.
-		if wants(RuleComments) {
-			for _, finding := range commentFindings(req.Path, text) {
-				if finding.ID != commentfix.IDLength && keeps(finding.ID) {
-					repair.Findings = append(repair.Findings, finding)
-				}
+		for _, finding := range commentFindings(req.Path, text) {
+			// The sentence cap is an STE rule, so the STE selection reaches it in a comment too.
+			family := RuleComments
+			if finding.ID == ste.IDSentenceCap {
+				family = RuleSTE
+			}
+			if wants(family) && finding.ID != commentfix.IDLength && keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
 			}
 		}
 		if wants(RuleComments) && keeps(commentfix.IDLength) {
 			for _, hit := range commentfix.CheckLength(req.Path, text) {
-				repair.Kept = append(repair.Kept, tombstones.Hit{
+				kept := tombstones.Hit{
 					ID:     hit.ID,
 					Tell:   hit.Tell,
 					Phrase: hit.Sentence,
 					LineNo: hit.Line,
-				})
+				}
+				if !hit.Repairable {
+					kept.Fix = commentfix.FixLengthByHand
+				}
+				repair.Kept = append(repair.Kept, kept)
 			}
 		}
 	case fixer.Document:
@@ -486,7 +496,7 @@ func FixFile(path string) (Repair, error) {
 // reports what it did.
 //
 // The Content and Path of req are the file's, whatever the caller put there.
-// Everything else is the caller's: a run that names a rule on the command line
+// Everything else is the caller's. A run that names a rule on the command line
 // has to reach the repair, or the selection is silently ignored.
 func FixFileWith(path string, req Request) (Repair, error) {
 	content, err := os.ReadFile(path)

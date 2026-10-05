@@ -198,9 +198,9 @@ func TestEveryRouteIsAllowedOutsideTheTree(t *testing.T) {
 	}
 }
 
-// Removing this plugin makes every deny case allowed, so the assertion above is
-// the assertion that turns red. Asserting that here keeps the claim honest rather than
-// leaving it to be believed: nothing else in the suite would notice a hook that
+// Removing this plugin makes every deny case allowed, so the assertion above is the
+// assertion that turns red. Asserting that here keeps the claim honest rather than
+// leaving it to be believed: nothing else in the suite would notice a hook. That hook
 // stopped deciding.
 func TestDenyAssertionsFailWithNoHookInPlace(t *testing.T) {
 	noHook := func(string, string) string { return "" }
@@ -248,7 +248,7 @@ func TestOrdinaryCommandsAreUntouched(t *testing.T) {
 		"echo hi > build/app.js", "sed -i s/a/b/ node_modules/dep.js",
 		"tar -xzf {{out}}/a.tgz -C build", "echo hi > {{out}}/scratch.txt",
 
-		// Reads of the very things the write rules cover.
+		// Reads of the things the write rules cover.
 		"gh api /repos/o/r/contents/README.md", "gh pr view 1", "gh run list",
 	}
 	for _, cmd := range allowed {

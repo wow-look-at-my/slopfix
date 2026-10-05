@@ -9,8 +9,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
-// folder is a rules folder standing in for rules/, so a case states the file it
-// is about rather than depending on what the repository's own tables say.
+// folder is a rules folder standing in for rules/. A case states the file it is
+// about rather than depending on what the repository's own tables say.
 func folder(files map[string]string) fstest.MapFS {
 	out := fstest.MapFS{}
 	for name, body := range files {
@@ -141,7 +141,7 @@ func TestLoadRefusesWhatCannotFire(t *testing.T) {
 }
 
 // An id names an entry across the whole folder, so another file may not take
-// an id an earlier file used: a failure would otherwise name an entry the
+// an id an earlier file used. A failure would otherwise name an entry the
 // reader cannot find.
 func TestLoadRefusesADuplicateIDAcrossFiles(t *testing.T) {
 	again := `<?xml version="1.0" encoding="UTF-8"?>

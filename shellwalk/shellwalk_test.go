@@ -10,7 +10,7 @@ import (
 )
 
 // argv parses a command and renders its words, so a case reads as the command
-// a session would actually type.
+// a session would type.
 func argv(t *testing.T, command string) []Word {
 	t.Helper()
 	f, err := syntax.NewParser().Parse(strings.NewReader(command), "")

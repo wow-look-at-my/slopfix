@@ -9,7 +9,7 @@ import (
 )
 
 // Tightening runs before cutting, so a padded comment keeps every thought it
-// had and simply says them in fewer words.
+// had and says them in fewer words.
 func TestAPaddedCommentIsTightenedRatherThanCut(t *testing.T) {
 	src := strings.Join([]string{
 		"package p",
