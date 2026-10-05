@@ -222,8 +222,8 @@ func isProtectedRef(ref string) bool {
 
 // protectedRefFinding is the unconditional denial for a command that names a
 // preservation ref. It skips the reachability question entirely. A ref under
-// protectedRefPrefix is by definition the only place its content survives, so
-// asking "does it exist somewhere else" would always answer no in the way
+// protectedRefPrefix is by definition the only place its content survives.
+// Asking "does it exist somewhere else" would always answer no in the way
 // that matters and yes in the way that does not (the ref itself, trivially).
 func protectedRefFinding(dir, label string) *finding {
 	return &finding{

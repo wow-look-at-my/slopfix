@@ -126,9 +126,9 @@ func segmentsOf(lines []string, p para) []segment {
 	return out
 }
 
-// lineEndsThought reports a row break that ends a thought with no stop: the
-// row before ends on no mark and no word that opens a phrase, and the row
-// after opens on a capital or a list marker. A terse comment writes a sentence
+// lineEndsThought reports a row break that ends a thought with no stop. The
+// row before ends on no mark and no word that opens a phrase. The row after
+// opens on a capital or a list marker. A terse comment writes a sentence
 // a line, as in "the byte at the checkpoint" and then "This handles a list".
 func lineEndsThought(prev, next string) bool {
 	prev = strings.TrimSpace(prev)

@@ -133,8 +133,8 @@ func editorWrites(seg segment, name string, rest []word) []write {
 }
 
 // isSessionScratchpad recognises the directory the harness ITSELF tells a
-// session to use for temporary files, so denying the scripts written there
-// would refuse the documented workflow. It needs a "scratchpad" segment under
+// session to use for temporary files. A denial of the scripts there would
+// refuse the documented workflow. It needs a "scratchpad" segment under
 // an ancestor named claude, so an ordinary /tmp/scratchpad does not qualify.
 func isSessionScratchpad(p string) bool {
 	if p == "" || !isScratchPath(p) {

@@ -1,6 +1,6 @@
-// questions.go finds the shapes a closing message must not end on: a
-// question put to the user in prose, and a deferral that hands the user a
-// decision without asking it through AskUserQuestion.
+// questions.go finds the shapes a closing message must not end on. One shape
+// is a question put to the user in prose. The other is a deferral that hands
+// the user a decision without AskUserQuestion.
 //
 // Both tables are data on purpose. Extending either is editing a slice,
 // never touching the matcher.

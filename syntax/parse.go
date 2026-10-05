@@ -192,6 +192,10 @@ func retag(words []Word) {
 		words[0].Tag, words[1].Tag = "NNP", "VBZ"
 	}
 	for i := range words {
+		// "the same call, spaced close enough": a past form after a noun and a comma, with no object, describes the noun.
+		if w := words[i]; w.Tag == "VBD" && i > 1 && i+1 < len(words) && words[i-1].Tag == "," && isNoun(words[i-2].Tag) && (words[i+1].Tag == "JJ" || words[i+1].Tag == "RB") {
+			words[i].Tag = "VBN"
+		}
 		if participleAdjective(words, i) {
 			words[i].Tag = "JJ"
 		}
