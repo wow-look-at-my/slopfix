@@ -73,6 +73,8 @@ func (r Resolver) listURL() string {
 type Base struct {
 	top    string
 	commit string
+	// upstream is the tip of a listed fork's upstream. A file that matches a version of it is upstream's.
+	upstream string
 }
 
 // Commit answers the base commit.
@@ -159,7 +161,7 @@ func (r Resolver) Base(root string) (*Base, error) {
 				return nil, err
 			}
 		}
-		return &Base{top: top, commit: commit}, nil
+		return &Base{top: top, commit: commit, upstream: rec.Tip}, nil
 	case kindParent:
 		if err := deepen(top); err != nil {
 			return nil, err

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -179,7 +180,7 @@ func ownedRuns(req Request, repair Repair) []blockRun {
 }
 
 // blockRules judge a run of lines whole.
-var blockRules = set.Of(workflow.IDCommentBlock, tombstones.IDVolume)
+var blockRules = set.Of(workflow.IDCommentBlock, tombstones.IDVolume, commentfix.IDLength)
 
 // alone runs each rule still reporting on a fork line by itself, and
 // keeps what lands on the fork's lines. Run with every rule, a repair of an

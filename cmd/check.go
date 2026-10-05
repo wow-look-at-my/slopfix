@@ -199,6 +199,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 // the fork wrote can change or fail. The resolver comes in as an argument, so
 // a test never sets the process environment.
 func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repairing bool, forks forkscope.Resolver) (bool, error) {
+	stop := slopfix.ReportProgress(cmd.ErrOrStderr(), slopfix.ProgressEvery)
+	defer stop()
+	slopfix.SetPhase("read the fork scope", 0)
 	own, err := forks.Lines(root)
 	if err != nil {
 		return false, err

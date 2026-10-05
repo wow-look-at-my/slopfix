@@ -43,6 +43,22 @@ func TestAForkItemIsJoinedBesideAnUpstreamItem(t *testing.T) {
 	assert.Contains(t, repair.Text, "- The second item writes the file\n  and its result.\n")
 }
 
+// upstreamLong documents one line of code with a comment far longer than it.
+const upstreamLong = "// The flag turns the replay on.\n// The replay reads every record.\n// It sends each one again.\n// It stops at the first error.\n// It writes the count it sent.\nvar replay = true\n"
+
+// forkLong rewords one line of that comment and adds none.
+var forkLong = strings.Replace(upstreamLong, "It stops at the first error.", "It stops at the first refusal.", 1)
+
+// A fork that rewords a line of an over-long comment did not make it long.
+// The finding is the base's.
+func TestAForkEditInsideAnUpstreamLongCommentIsTheBasesFinding(t *testing.T) {
+	req := slopfix.Request{Path: "replay.go", Content: forkLong, Owned: forkscope.Changed(upstreamLong, forkLong)}
+	assert.Zero(t, ofID(repairIDs(slopfix.Report(req)), "comments/length"))
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), "comments/length"))
+	assert.Contains(t, repair.Text, "It stops at the first refusal.", "the fork's words stay")
+}
+
 // upstreamLib opens with a crate doc longer than the code it documents.
 const upstreamLib = "//! The crate holds the transport.\n//! It owns the client.\n//! It owns the tool calls.\n//! It owns the error classes.\n//! It owns the refresh.\n\npub mod servers;\n"
 
