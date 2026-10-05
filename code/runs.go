@@ -58,11 +58,11 @@ func merge(nodes []ts.Node, lines []string) []Run {
 	var runs []Run
 	for i := 0; i < len(nodes); {
 		start := int(nodes[i].StartPoint().Row)
-		end := int(nodes[i].EndPoint().Row)
+		end, _ := lastRow(nodes[i])
 		j := i
 		for j+1 < len(nodes) && int(nodes[j+1].StartPoint().Row) <= end+1 {
 			j++
-			if row := int(nodes[j].EndPoint().Row); row > end {
+			if row, _ := lastRow(nodes[j]); row > end {
 				end = row
 			}
 		}
@@ -86,18 +86,20 @@ func purity(nodes []ts.Node, start, end int, lines []string) []bool {
 		pure[i] = true
 	}
 	for _, n := range nodes {
-		from, to := int(n.StartPoint().Row), int(n.EndPoint().Row)
+		from := int(n.StartPoint().Row)
+		to, newline := lastRow(n)
 		if before := int(n.StartPoint().Column); before > 0 && !blankTo(lines, from, before) {
 			pure[from-start] = false
 		}
-		if after := int(n.EndPoint().Column); !blankFrom(lines, to, after) {
+		if after := int(n.EndPoint().Column); !newline && !blankFrom(lines, to, after) {
 			pure[to-start] = false
 		}
 	}
 	// A line inside the run that no comment covers holds something else.
 	covered := make([]bool, len(pure))
 	for _, n := range nodes {
-		for row := int(n.StartPoint().Row); row <= int(n.EndPoint().Row); row++ {
+		to, _ := lastRow(n)
+		for row := int(n.StartPoint().Row); row <= to; row++ {
 			covered[row-start] = true
 		}
 	}
@@ -107,6 +109,15 @@ func purity(nodes []ts.Node, start, end int, lines []string) []bool {
 		}
 	}
 	return pure
+}
+
+// lastRow answers the last row that holds text of the comment.
+func lastRow(n ts.Node) (row int, newline bool) {
+	row = int(n.EndPoint().Row)
+	if n.EndPoint().Column == 0 && row > int(n.StartPoint().Row) {
+		return row - 1, true
+	}
+	return row, false
 }
 
 // blankTo reports whether the line holds only whitespace before a column.
