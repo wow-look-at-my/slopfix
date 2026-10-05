@@ -7,6 +7,7 @@ package commentfix
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
@@ -158,11 +159,11 @@ func afterPartitive(lower string, at int, with string) bool {
 		return true
 	}
 	rest := strings.Fields(lower[at:])
-	return len(rest) > 2 && determiners[rest[2]]
+	return len(rest) > 2 && determiners.Contains(rest[2])
 }
 
 // determiners open a noun phrase, so "the two" before one is a pronoun with a clause after it.
-var determiners = map[string]bool{"the": true, "a": true, "an": true, "this": true, "that": true, "its": true, "their": true}
+var determiners = set.Of[string]("the", "a", "an", "this", "that", "its", "their")
 
 // wordBoundary reports whether s[at:end] stands as its own word. A marker
 // joining it to a name spells a name that does not exist.

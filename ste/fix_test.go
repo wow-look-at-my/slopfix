@@ -94,8 +94,12 @@ func TestCheckSkipsQuotedText(t *testing.T) {
 
 // A numeral that a verb follows is the noun of its phrase. A cut left "So the cannot disagree".
 func TestFixKeepsANumeralThatIsTheNoun(t *testing.T) {
-	in := "So the two cannot disagree about what red means."
-	assert.Equal(t, in, ste.Fix(in))
+	for _, in := range []string{
+		"So the two cannot disagree about what red means.",
+		"Another repo's run must not animate this one.",
+	} {
+		assert.Equal(t, in, ste.Fix(in))
+	}
 }
 
 // A division restates only the subject of the clause right before the cut, never "The Send".

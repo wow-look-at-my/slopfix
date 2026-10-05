@@ -67,6 +67,11 @@ func redundantNumeral(s *syntax.Sentence, np syntax.Phrase) bool {
 	if det.Tag != "POS" && !syntax.Is(det.Text, "definite") {
 		return false
 	}
+	// "this." and "another.": the numeral is the head, so nothing follows to
+	// carry the phrase.
+	if np.Head <= np.Numerals[len(np.Numerals)-1] {
+		return false
+	}
 	head := s.Words[np.Head]
 	if head.Tag != "NN" && head.Tag != "NNS" {
 		return false
