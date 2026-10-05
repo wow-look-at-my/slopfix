@@ -236,7 +236,8 @@ A command hook cannot swap Bash for Read. A read that `readplan.go` maps onto Re
 - `head_tail`, `grep`, `or_true` and `stderr_merge` drop a trailing `| head`, `| tail`, `| grep`, `|| true` or `2>&1` from the final statement.
 - `tee` turns a trailing stdout redirect on the final statement into `| tee file`.
 - `toolchain_output` strips every pipe stage or stdout redirect from `go-toolchain`.
-- `docker_compose_restart` writes `docker compose up -d --force-recreate`.- `grep_json` turns a `grep`, `egrep`, `fgrep` or `rg` over JSON files into `jq`. A fixed head and tail of each file decide, not the extension. JSON Lines prints each matching record. A document prints `.path = value` for each matching leaf. An unknown flag or a non-JSON operand leaves the grep alone. `bashclean/grepjson.xml` holds the programs, their flags, the fixtures and the tests beside each entry.
+- `docker_compose_restart` writes `docker compose up -d --force-recreate`.
+- `grep_json` turns a `grep`, `egrep`, `fgrep` or `rg` over JSON files into `jq`. A fixed head and tail of each file decide, not the extension. JSON Lines prints each matching record. A document prints `.path = value` for each matching leaf. An unknown flag or a non-JSON operand leaves the grep alone. `bashclean/grepjson.xml` holds the programs, their flags, the fixtures and the tests beside each entry.
 - `gh_wait_ci` maps `gh run view`, `watch`, `rerun`, `list` and `gh pr checks` to `gh wait-ci`.
 - `sleep_cap` writes `sleep 3` for any sleep past `3` seconds or not literal.
 - `narration_remove` turns an `echo` that reaches the terminal into `:`.
