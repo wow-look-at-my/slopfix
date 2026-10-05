@@ -27,17 +27,6 @@ func longFunction(name string) string {
 	return body.String() + "}\n"
 }
 
-// commentProse joins the prose of every line comment in src.
-func commentProse(src string) string {
-	var words []string
-	for _, line := range strings.Split(src, "\n") {
-		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "//"); ok {
-			words = append(words, strings.TrimSpace(rest))
-		}
-	}
-	return strings.Join(words, " ")
-}
-
 // A sentence of many words with no clause boundary. No division keeps both halves
 // whole, so it stays and asks for a rewrite by hand, whatever the comment weighs.
 func TestALongSentenceWithNoDivisionIsAHandRewrite(t *testing.T) {
