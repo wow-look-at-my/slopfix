@@ -17,7 +17,7 @@ var misdivisions = []struct {
 	{
 		"a phrase after be and its adverb stays with be",
 		"The turn loop calls this immediately before `drain_pending_interjections`, which is immediately before each model request — the earliest point the model can see the text without cancelling anything.",
-		[]string{"is immediately.", "This happens before each"},
+		[]string{"is immediately.", "this immediately.", "This happens before"},
 	},
 	{
 		"a rest that opens on a preposition has no subject",
@@ -36,8 +36,8 @@ var misdivisions = []struct {
 	},
 	{
 		"a lone pronoun object keeps its noun",
-		"This covers a subordinator with no finite verb after it, as in reports whether the words, or a noun followed by a new subject with no verb after it, as in answers the row the earliest node.",
-		[]string{"no verb.", "This happens after it"},
+		"This covers a subordinator with no finite verb after it, as in \"reports whether the words\", or a noun followed by a new subject with no verb after it, as in \"answers the row the earliest node\".",
+		[]string{"no verb.", "This happens after it", "covers as in"},
 	},
 }
 

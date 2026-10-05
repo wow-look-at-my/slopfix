@@ -105,7 +105,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
 	// "the words after the cut are no clause": a verb after the phrase makes it part of the subject.
-	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows) &&
+	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
 		adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
 		(!inRelative(whole, first-1) || everyNext(whole, first)) && !coordinatedVerb(whole, first):
 		// A reason reads behind "This is", whatever the verb: "This is because X".
@@ -266,6 +266,10 @@ func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool)
 	// ", where the fork's changes made": after a comma a clause opener starts its own clause, whatever the verb before it.
 	opensClause := first > 0 && s.Words[first-1].Text == "," && clauseOpeners.Contains(s.Words[first].Lower()) && finiteBefore(s, first+1, ",")
 	if !opensClause && strings.HasPrefix(prev.Tag, "VB") || prev.Tag == "RP" || focusing.Contains(prev.Lower()) || phraseEndParticle.Contains(prev.Lower()) {
+		return false
+	}
+	// "calls this immediately before X": an adverb binds to the phrase right after it.
+	if prev.Tag == "RB" {
 		return false
 	}
 	// "which is immediately before each request": a phrase after "be" and its adverbs completes "be".
@@ -576,8 +580,8 @@ func restateBare(source string, noun syntax.Word, rest string) string {
 // covers D and E". The words before the cut end the list with its own
 // conjunction, which listRest writes into the head through c's left offset.
 func listRest(source string, s *syntax.Sentence, verb syntax.Phrase, c forceCut, rest, seam string) (string, string, bool) {
-	// A rest that opens on a verb continues a list of verbs, which the noun-list carrier cannot repeat: "may write delete it".
-	if r := syntax.Parse(checkMask(rest), nil); len(r.Words) > 0 && (strings.HasPrefix(r.Words[0].Tag, "VB") || r.Words[0].Tag == "MD") {
+	// A rest that opens on a verb or a preposition is no noun-list item: "may write delete it", "as in reports whether".
+	if r := syntax.Parse(checkMask(rest), nil); len(r.Words) > 0 && (strings.HasPrefix(r.Words[0].Tag, "VB") || r.Words[0].Tag == "MD" || r.Words[0].Tag == "IN") {
 		return "", "", false
 	}
 	conj, ok := listEnd(rest)
