@@ -33,6 +33,29 @@ func Whole() *Scope { return &Scope{whole: true} }
 // OfLines is the Scope of the named lines.
 func OfLines(lines ...int) *Scope { return &Scope{lines: set.Of(lines...)} }
 
+// Intersect answers the lines both a and b name. A scope of the whole file
+// leaves the other, so a file one side wrote whole keeps the other's lines.
+// The base of the first scope that holds one answers Base.
+func Intersect(a, b *Scope) *Scope {
+	switch {
+	case a == nil:
+		return b
+	case b == nil:
+		return a
+	case a.whole:
+		return b
+	case b.whole:
+		return a
+	}
+	out := &Scope{lines: a.lines.Intersection(b.lines)}
+	if a.base != nil {
+		out.base = a.base
+	} else {
+		out.base = b.base
+	}
+	return out
+}
+
 // All reports whether the fork wrote every line.
 func (s *Scope) All() bool { return s.whole }
 
