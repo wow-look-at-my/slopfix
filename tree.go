@@ -1,8 +1,8 @@
 // tree.go sweeps a whole tree with every rule, which is what a build calls.
 //
-// commentfix.FixTree reaches the comment rules alone, so a build running it
-// repaired a comment's length and left the ste finding beside it for a reviewer
-// to hit. A caller that wants a single rule family still has the narrower
+// commentfix.FixTree reaches the comment rules alone. A build that runs it
+// repairs a comment's length and leaves the ste finding beside it for a
+// reviewer to hit. A caller that wants a single rule family still has the narrower
 // sweep; this is for the caller that wants what `slopfix file fix` would do.
 package slopfix
 

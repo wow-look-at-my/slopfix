@@ -175,9 +175,9 @@ func Free() {}
 	require.Len(t, Extract("p.go", src), 2)
 }
 
-// A support test asks the extension. Loading the grammar to answer meant a
-// caller that only wanted to skip a file it cannot read decoded a parse table,
-// and got a panic where the generate step had not run.
+// A support test asks the extension. A grammar load here makes a caller that
+// only skips a file it cannot read decode a parse table. Where the generate
+// step has not run, that caller gets a panic.
 func TestSupportedDoesNotLoadTheGrammar(t *testing.T) {
 	t.Serial()
 	loaded := false

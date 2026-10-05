@@ -6,15 +6,15 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// StripWrappers peels the layers that stand between the words as written and
-// the program that runs, so a single rule for sed covers a `sudo -E env`
-// prefix, an `xargs` prefix and a `timeout` prefix alike. Enumerating
+// StripWrappers peels the layers between the words as written and the program
+// that runs. A single rule for sed then covers a `sudo -E env` prefix, an
+// `xargs` prefix and a `timeout` prefix alike. Enumerating
 // spellings of a program can never be finished; this resolves instead.
 //
 // A wrapper that takes its own VALUE flag has that flag's value dropped with
 // it. Without that, a `nice` prefix leaves its priority where the program
-// should be and the sed behind it is never seen at all -- the same hole a
-// `timeout` prefix opens, with an operand instead of a flag value.
+// should be, and the sed behind it is never seen. A `timeout` prefix opens
+// the same hole, with an operand instead of a flag value.
 func StripWrappers(argv []Word) []Word {
 	for len(argv) > 0 {
 		switch CommandName(argv[0].Text) {

@@ -216,9 +216,9 @@ func subordinatorBetween(s *syntax.Sentence, from, end int) bool {
 	return false
 }
 
-// hiddenVerb reports a verb the tagger read as something else, from word i on:
-// a form of "be", or a plural noun right before a participle, as in "an
-// identifier split across lines stops being either".
+// hiddenVerb reports a verb the tagger read as something else, from word i on.
+// That is a form of "be", or a plural noun right before a participle, as in
+// "an identifier split across lines stops being either".
 func hiddenVerb(s *syntax.Sentence, i int) bool {
 	for ; i < len(s.Words); i++ {
 		w := s.Words[i]
@@ -329,8 +329,8 @@ func topCommas(text string, from int) []int {
 	return out
 }
 
-// plainPhrase reports words from i to the end of the sentence that hold no
-// comma, no conjunction, no subordinator and no finite verb outside a
+// plainPhrase reports words from i to the end of the sentence with no comma,
+// conjunction or subordinator. They also hold no finite verb outside a
 // parenthesis. Only such a phrase moves behind a restated noun whole.
 func plainPhrase(s *syntax.Sentence, i int) bool {
 	depth := 0
@@ -405,7 +405,7 @@ func closesPhrase(head string, whole *syntax.Sentence) bool {
 	if n == 0 || finiteBetween(whole, 0, n) {
 		return false
 	}
-	// A head that opens on a preposition or a subordinator leads into the clause after it, so only a noun phrase stands as a fragment of its own.
+	// A head that opens on a preposition or a subordinator leads into the clause after it. Only a noun phrase stands as a fragment of its own.
 	switch t := whole.Words[0].Tag; {
 	case t == "DT" || t == "JJ" || t == "PRP$" || strings.HasPrefix(t, "NN"):
 	default:

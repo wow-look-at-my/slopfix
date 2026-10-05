@@ -44,8 +44,7 @@ func fixSelected(text string, keep func(id string) bool, reorder bool) string {
 	return text
 }
 
-// capSpec is how a long sentence divides: the word cap each part must meet,
-// and whether a division may move a clause or name a subject apart.
+// capSpec is how a long sentence divides.
 type capSpec struct {
 	reorder bool
 	cap     int
