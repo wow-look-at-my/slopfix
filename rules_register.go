@@ -31,7 +31,7 @@ func registerFile(id string, category Rule, path, text string) {
 }
 
 // registerTree registers a repository rule the tree rules answer: its detection
-// and its repair both read a repository, and the case is the files under it.
+// and its repair both read a repository. The case is the files under it.
 func registerTree(id string, category Rule, repair bool, reason string, files map[string]string) {
 	rule := RuleSpec{
 		ID:       id,
@@ -91,7 +91,8 @@ func init() {
 		Cases:    []RuleCase{{Name: counts.ID, Path: "x.md", Text: "This project has three rules.\n"}},
 	})
 
-	registerFile(pins.ID, RulePins, "fetch.sh", "curl https://dl.pazer.build/slopfix?v=1.2.3\n")
+	// The URL is joined from parts.
+	registerFile(pins.ID, RulePins, "fetch.sh", "curl https://dl.pazer.build/slopfix?"+"v=1.2.3\n")
 
 	registerWorkflowRules()
 	registerTombstoneRules()
@@ -99,6 +100,35 @@ func init() {
 	registerRepoRules()
 	registerMessageRules()
 	registerPatternRules()
+	AllRules = ruleCategories()
+	ReportOnly = reportOnlyIDs()
+}
+
+// reportOnlyIDs answers every rule the registry declares report-only, so a
+// rule that reports alone is named by its own declaration and no second list.
+func reportOnlyIDs() set.Set[string] {
+	ids := set.New[string]()
+	for _, r := range AllRuleSpecs() {
+		if r.ReportOnly != "" {
+			ids.Add(r.ID)
+		}
+	}
+	return ids
+}
+
+// ruleCategories answers every category a registered rule declares, in the
+// order the first rule named it.
+func ruleCategories() []Rule {
+	var out []Rule
+	seen := set.New[Rule]()
+	for _, r := range AllRuleSpecs() {
+		if seen.Contains(r.Category) {
+			continue
+		}
+		seen.Add(r.Category)
+		out = append(out, r.Category)
+	}
+	return out
 }
 
 // registerTombstoneRules registers both tombstone rules the wording table
@@ -125,10 +155,7 @@ func referentID() string {
 	panic("tombstones: no referent rule")
 }
 
-// referentCase names a symbol no file in the tree defines. The name is built
-// here rather than written whole, so the index that answers the rule cannot
-// find the case's own text beside it. The name sits on a code line, so the
-// rule reports it rather than stripping the whole comment.
+// referentCase names a symbol no file in the tree defines.
 func referentCase() string {
 	name := "Old" + "Scanner" + "Two"
 	return "package main\n\nfunc main() {\n\tvalue := 1 // The " + name + " reads each value.\n\t_ = value\n}\n"

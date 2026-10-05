@@ -46,12 +46,11 @@ const (
 	RulePins Rule = "pins"
 )
 
-// AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleEnglish, RuleComments, RuleWorkflow, RuleRepo, RulePins}
+// AllRules is every category the registry uses, in the order a rule declared it.
+var AllRules []Rule
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
-// before it applies nothing and reads as a clean file. The registry is the
-// source, so a category answers with the rules actually registered under it.
+// before it applies nothing and reads as a clean file.
 func IDsFor(rule Rule) set.Set[string] {
 	return ruleIDsIn(rule)
 }
@@ -269,8 +268,8 @@ func fixText(req Request) Repair {
 
 	switch kind {
 	case fixer.Workflow:
-		// A sentence the STE cap catches in a workflow comment is an STE rule,
-		// so --only ste reaches it even when --only omits the yaml category.
+		// A long sentence in a workflow comment is an STE rule, so --only ste
+		// reaches it even when the run omits the yaml category.
 		if wants(RuleSTE) && keeps(ste.IDSentenceCap) {
 			repair.Findings = append(repair.Findings, sentenceFindings(req.Path, text)...)
 		}

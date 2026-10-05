@@ -48,8 +48,7 @@ func TestEveryRuleAutofixClearsItsOwnDetection(t *testing.T) {
 					assert.Equal(t, rule.ID, f.ID, "%s: case %q reported another rule", rule.ID, c.Name)
 				}
 				if rule.Autofix == nil {
-					// The declared exemption. No rewrite answers this rule, so
-					// the harness checks only that its detection is real.
+					// The declared exemption. No rewrite answers this rule, so the harness checks only that its detection is real.
 					assert.NotEmpty(t, rule.ReportOnly, "%s: no autofix and no declared exemption", rule.ID)
 					continue
 				}
@@ -101,6 +100,10 @@ func TestOnlyTheseRulesReportWithoutAnAutofix(t *testing.T) {
 	}
 	for _, id := range []string{"laziness/punt", "blame/deflection", "ask/prose-decision", "yaml/test-in-workflow"} {
 		assert.True(t, exempt.Contains(id), "%s is not declared report-only", id)
+		spec, ok := slopfix.RuleSpecByID(id)
+		require.True(t, ok, "%s is not registered", id)
+		assert.NotEmpty(t, spec.ReportOnly, "%s carries no declared exemption", id)
+		assert.True(t, spec.Autofix == nil, "%s declares an exemption and an autofix", id)
 	}
 	assert.False(t, slopfix.Repairable("laziness/punt"))
 }

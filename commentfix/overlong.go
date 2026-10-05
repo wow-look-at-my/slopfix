@@ -358,16 +358,10 @@ func trim(b block) []string {
 	if whole && fitsCode(opening, b) {
 		fits = append(fits, opening)
 	}
-	if clause, ok := clauseFit(b); ok {
-		fits = append(fits, clause)
-	}
 	if out, ok := preferred(fits); ok {
 		return out
 	}
-	// No cut fits, so the opening sentence divides until its first part does.
-	if shorter, ok := steOpening(kept, fit, true); ok {
-		return shorter
-	}
+	// No cut fits without dropping the point, so the comment stays as written.
 	return kept
 }
 

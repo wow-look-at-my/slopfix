@@ -12,14 +12,7 @@ import (
 )
 
 // RuleSpec is one rule: what it detects, the repair that answers that
-// detection, and the cases that prove both. A rule is registered as a whole,
-// so a detection cannot enter the registry without an autofix or a declared
-// report-only exemption.
-//
-// Detect answers the findings this rule reports for a case. Autofix rewrites
-// the case's substrate and is required unless ReportOnly names why the rule
-// reports without one. Cases are the rule's own worked examples, and the
-// harness runs each through Detect, Autofix and Detect again.
+// detection, and the cases that prove both.
 type RuleSpec struct {
 	// ID is the name a report prints and --only accepts.
 	ID string
@@ -27,13 +20,11 @@ type RuleSpec struct {
 	Category Rule
 	// Detect finds this rule's findings in a case.
 	Detect func(RuleCase) []ste.Finding
-	// Autofix rewrites the case so this rule no longer detects it. It is nil
-	// only for a rule whose ReportOnly says why.
+	// Autofix rewrites the case so this rule no longer detects it. It is nil only for a rule whose ReportOnly says why.
 	Autofix func(RuleCase) RuleCase
 	// Cases are the worked examples the harness drives.
 	Cases []RuleCase
-	// ReportOnly is the declared exemption for a rule no rewrite answers. It
-	// is a reason in words, and it is empty for every rule that repairs.
+	// ReportOnly is the declared exemption for a rule no rewrite answers.
 	ReportOnly string
 }
 
@@ -52,18 +43,15 @@ type RuleCase struct {
 	Files map[string]string
 }
 
-// A rule with a detection needs a repair or a declared exemption. The registry
-// refuses anything else at init, so the build fails where the rule is added.
+// A rule with a detection needs a repair or a declared exemption.
 var (
 	ruleMu       sync.Mutex
 	ruleRegistry []RuleSpec
 	ruleIndex    = map[string]RuleSpec{}
 )
 
-// RegisterRule adds a rule to the registry. It panics on a rule that carries a
-// detection and neither an autofix nor a declared report-only exemption, on a
-// rule with no case to prove it, and on a name taken twice. The panic fires at
-// init, so an unfixed detection never reaches a build.
+// RegisterRule adds a rule to the registry. The build panics at init when a
+// rule is malformed or when its name is taken twice.
 func RegisterRule(r RuleSpec) {
 	if r.ID == "" {
 		panic("rule: a rule carries an empty ID")
@@ -121,8 +109,8 @@ func ruleIDsIn(category Rule) set.Set[string] {
 // --- detection and autofix adapters -----------------------------------------
 
 // detectContent answers the findings this rule reports in one file's text. It
-// unions what check reads with what a report keeps, so a rule that surfaces as
-// a kept tombstone or a section finding is found too.
+// unions what check reads with what a report keeps, so a kept tombstone or a
+// section finding surfaces too.
 func detectContent(ids ...string) func(RuleCase) []ste.Finding {
 	want := set.Of(ids...)
 	return func(c RuleCase) []ste.Finding {
