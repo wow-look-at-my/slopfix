@@ -97,9 +97,9 @@ func insideGuarded(roots []string, abs string) (string, bool) {
 	return "", false
 }
 
-// coversGuarded is insideGuarded's other direction. Some writes target a
-// directory rather than a named file: an extraction, a patch, a git verb.
-// Such a write lands somewhere under that directory. A guarded root inside it
+// coversGuarded is insideGuarded's other direction: a write whose target is a
+// directory rather than a named file -- an extraction, a patch, a git verb --
+// lands somewhere under that directory, so a guarded root sitting inside it
 // is as reachable as a root containing it.
 func coversGuarded(roots []string, dir string) (string, bool) {
 	if root, ok := insideGuarded(roots, dir); ok {

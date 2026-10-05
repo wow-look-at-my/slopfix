@@ -164,9 +164,9 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 }
 
 // describeAtRisk names what a finding would destroy, split by class rather
-// than totalled. "modified" and "untracked" separate a command that spares
-// half of it from a command that does not. The denial and the preservation
-// notice share this text. They never drift apart.
+// than totalled -- "modified" and "untracked" is the difference between a
+// command that spares half of it and a command that does not -- and shared
+// between the denial and the preservation notice. They never drift apart.
 func describeAtRisk(tracked, untracked, ignored []string) (summary string, names []string) {
 	var parts []string
 	add := func(entries []string, label string) {

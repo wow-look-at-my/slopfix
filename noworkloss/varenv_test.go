@@ -140,8 +140,8 @@ rm -f "$OUT.tmp"
 	allowed(t, dir, "cd "+dir+" && ./make.bash")
 }
 
-// This half must NOT relax. A script that names a path statically still
-// writes where it says. Following the file still closes the
+// The half of that which must NOT relax: a script naming a path statically
+// still writes where it says, so following the file still closes the
 // write-elsewhere-then-run bypass.
 func TestAScriptsStaticTargetIsStillJudged(t *testing.T) {
 	dir := newRepo(t)
@@ -162,9 +162,9 @@ func TestASourcedFileGetsNoVariableResolution(t *testing.T) {
 	assert.Contains(t, r, "cannot resolve")
 }
 
-// A word that resolves to no literal text must not be quoted as an empty
-// string. That reads as a real, empty path. It is an expansion this hook
-// never evaluated.
+// A word that resolves to no literal text at all must not be quoted as an
+// empty string, which reads as a real, empty path rather than as what it is:
+// an expansion this hook never evaluated.
 func TestUnresolvedPathDenialNamesAnExpansionRatherThanAnEmptyString(t *testing.T) {
 	dir := newRepo(t)
 	r := denied(t, dir, "rm $TARGET")
