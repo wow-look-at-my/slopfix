@@ -221,6 +221,9 @@ func (p *clauseParser) lead(ph *Phrase) int {
 // subjectVerbAt reports whether a noun phrase, with any prepositional phrases
 // on it, opens at j and a finite verb group follows it.
 func (p *clauseParser) subjectVerbAt(j int) bool {
+	if _, ok := p.gerundSubject(j); ok {
+		return true
+	}
 	ph, ok := p.phrase(j)
 	if !ok || ph.Kind != NounPhrase || ph.First != j {
 		return false
@@ -231,7 +234,7 @@ func (p *clauseParser) subjectVerbAt(j int) bool {
 		next, _ := p.phrase(k + 1)
 		k = p.chainEnd(next) + 1
 	}
-	if k < len(p.s.Words) && quantifiers.Contains(p.s.Words[k].Lower()) {
+	if k < len(p.s.Words) && (quantifiers.Contains(p.s.Words[k].Lower()) || postposed.Contains(p.s.Words[k].Lower())) {
 		k++
 	}
 	k = p.skipModifier(k)
@@ -297,8 +300,29 @@ func (p *clauseParser) reducedRelative(k int) (int, bool) {
 	return k, false
 }
 
+// gerundSubject answers a gerund and its object at j that a finite verb
+// follows, as the subject of that verb: "adding a rule is".
+func (p *clauseParser) gerundSubject(j int) (Phrase, bool) {
+	words := p.s.Words
+	if j >= len(words) || words[j].Tag != "VBG" {
+		return Phrase{}, false
+	}
+	k := j + 1
+	if ph, ok := p.phrase(k); ok && ph.Kind == NounPhrase && ph.First == k {
+		k = p.chainEnd(ph) + 1
+	}
+	vg, ok := p.phrase(k)
+	if !ok || vg.Kind != VerbGroup || vg.First != k || !vg.Finite {
+		return Phrase{}, false
+	}
+	return Phrase{Kind: NounPhrase, First: j, Last: k - 1, Head: j, Det: -1}, true
+}
+
 // quantifiers float after a plural subject: "the jobs all run".
 var quantifiers = set.Of[string]("all", "both", "each")
+
+// postposed words follow the noun they place: "the case above is".
+var postposed = set.Of(WordsOf("postposed")...)
 
 func (p *clauseParser) isNounPhraseEnd(k int) bool {
 	ph, ok := p.phrase(k)
@@ -387,6 +411,10 @@ func (p *clauseParser) attach(c *Clause, vg *Phrase) {
 		start = c.Link + 1
 	}
 	subject := p.subjectBefore(vg.First-1, start)
+	// "so adding a rule is": the gerund and its object are the subject.
+	if gerund, ok := p.gerundSubject(start); ok && vg.Finite && gerund.Last+1 == vg.First {
+		subject = &gerund
+	}
 	// "the message it writes to comply puts": the clause's own verb is the later one, and its subject opens the clause.
 	if head, ok := p.phrase(start); ok && head.Kind == NounPhrase && head.First == start && vg.Finite {
 		end, reduced := p.reducedRelative(p.chainEnd(head) + 1)
@@ -423,8 +451,8 @@ func (p *clauseParser) subjectBefore(k, start int) *Phrase {
 	for k >= start && p.s.Words[k].Tag == "RB" {
 		k--
 	}
-	// "an editor integration all get": a quantifier after the subject floats off it.
-	if k > start && quantifiers.Contains(p.s.Words[k].Lower()) && p.isNounPhraseEnd(k-1) {
+	// "an editor integration all get", "the case above is": a quantifier or a place word after the subject floats off it.
+	if k > start && (quantifiers.Contains(p.s.Words[k].Lower()) || postposed.Contains(p.s.Words[k].Lower())) && p.isNounPhraseEnd(k-1) {
 		k--
 	}
 	ph, ok := p.phrase(k)

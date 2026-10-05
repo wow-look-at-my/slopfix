@@ -335,6 +335,9 @@ func opensSubject(s *syntax.Sentence, i int) bool {
 	switch s.Words[i].Tag {
 	case "DT", "PRP", "PRP$", "NNP", "NNPS", "EX", "CD":
 		return true
+	case "VBG":
+		// "adding a rule is": a gerund is a subject when a finite verb follows it.
+		return finiteBefore(s, i+1, ",")
 	}
 	return i+1 < len(s.Words) && s.Words[i+1].Tag == "POS"
 }

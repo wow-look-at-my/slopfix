@@ -152,6 +152,9 @@ func retag(words []Word) {
 		case len(w.Text) > 1 && w.Text == strings.ToUpper(w.Text) && emphasized[lower] != "":
 			// "a comment that DOES document code": capitals stress a verb, and the tagger reads them as a name.
 			w.Tag = emphasized[lower]
+		case (w.Tag == "NN" || w.Tag == "VB") && i > 1 && words[i-2].Tag == "NNS" && Is(words[i-1].Text, "postposed") && i+1 < len(words) && words[i+1].Tag == "IN":
+			// "the cases above pass on a repair": after a plural noun and its place word, the bare form is the verb.
+			w.Tag = "VBP"
 		case lower == "cannot":
 			// The tagger reads "cannot" as a noun.
 			w.Tag = "MD"
