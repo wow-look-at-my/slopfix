@@ -94,7 +94,7 @@ func TestAReferenceIsRenderedAsALink(t *testing.T) {
 	}
 }
 
-// The rule this serves bans a dead link outright: a link is a demand on the
+// The rule this serves bans a dead link outright. A link is a demand on the
 // reader's attention, paid before they know whether it was worth paying.
 func TestAReferenceWithNoPageIsLeftAlone(t *testing.T) {
 	cases := []struct {
@@ -114,8 +114,8 @@ func TestAReferenceWithNoPageIsLeftAlone(t *testing.T) {
 	}
 }
 
-// Each live state renders its dot beside a reference that is still linked, so
-// the reader can tell what the page is doing without opening it.
+// Each live state renders its dot beside a reference that is still linked.
+// The reader can tell what the page is doing without opening it.
 func TestEachLiveStateRendersItsDot(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -319,9 +319,9 @@ func TestFenceStateCarriesAcrossFlushes(t *testing.T) {
 	assert.False(t, EndsInsideFence("intro\n```\ncode\n```\nafter"))
 }
 
-// A reference wrapped in inline backticks must render with the backticks INSIDE
-// the link text. Splicing over just the bare token leaves them straddling it,
-// which markdown does not render as a link at all.
+// A reference wrapped in inline backticks must render with the backticks
+// INSIDE the link text. Splicing over the bare token leaves them straddling
+// it, which markdown does not render as a link at all.
 func TestABacktickWrappedReferenceKeepsTheBackticksInsideTheLink(t *testing.T) {
 	res := fakeResolver{repo: Repo{Owner: "wow-look-at-my", Name: "slopfmt"}, found: true, commits: []string{"c4f997e"}}
 	got := rewrite(t, "Resolved and pushed `c4f997e`.", res)
@@ -334,7 +334,7 @@ func TestEveryOccurrenceIsRewritten(t *testing.T) {
 }
 
 // A delta with nothing to link reports no change, which leaves the reader
-// looking at the original text.
+// looking at the text.
 func TestNothingToLinkReportsNoChange(t *testing.T) {
 	for _, text := range []string{"", "the suite is green."} {
 		_, changed := RewriteDelta(text, false, live())

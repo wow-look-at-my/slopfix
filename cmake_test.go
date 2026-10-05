@@ -87,7 +87,7 @@ func TestACMakeListfileIsSourceNotProse(t *testing.T) {
 	}
 }
 
-// A '#' inside a bracket argument or a quoted argument is data, and a bracket
+// A '#' inside a bracket argument or a quoted argument is data. A bracket
 // comment is a comment no line rule may cut a piece of.
 func TestCMakeBracketsAndQuotesAreNotLineComments(t *testing.T) {
 	src := "#[[ A bracket comment that names 3 widgets\n" +

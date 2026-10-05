@@ -62,9 +62,10 @@ func subjectFollows(s *syntax.Sentence, c syntax.Clause) bool {
 	return verbOfSubject(s, *c.Subject, *c.Verb)
 }
 
-// verbOfSubject reports whether verb is the verb of subject. A pronoun or a
-// verb between them opens another clause, as in "a note so it is read", and
-// the parser has paired the verb of that clause with the wrong subject.
+// verbOfSubject reports whether verb is the verb of subject. Consider a
+// pronoun or a verb between them. That pronoun opens another clause, as in
+// "a note so it is read", and the parser has paired the verb of that clause
+// with the wrong subject.
 func verbOfSubject(s *syntax.Sentence, subject, verb syntax.Phrase) bool {
 	for j := describedBy(s, subject.Last+1, verb.First); j < verb.First; j++ {
 		if tag := s.Words[j].Tag; tag == "PRP" || tag == "WDT" || tag == "WP" || tag == "MD" || strings.HasPrefix(tag, "VB") {
@@ -358,7 +359,7 @@ func listsVerbs(head string) bool {
 }
 
 // lowerIdentifier reports a word that opens in lower case and reads as a name
-// in code: it carries a capital, a digit, an underscore or a dot inside it.
+// in code. It carries a capital, a digit, an underscore or a dot inside it.
 func lowerIdentifier(word string) bool {
 	first, width := utf8.DecodeRuneInString(word)
 	if !unicode.IsLower(first) {
@@ -381,8 +382,8 @@ func opensClause(s *syntax.Sentence) bool {
 
 // opensImperative reports a rest that opens on a bare verb, as in "use the
 // copy key". An imperative stands as a sentence with a capital and no subject.
-// The tagger reads a lower-case bare verb at the start as a noun, so the rest
-// is read with the subject an imperative leaves out.
+// The tagger reads a lower-case bare verb at the start as a noun. The rest is
+// read with the subject an imperative leaves out.
 func opensImperative(restMasked string) bool {
 	s := syntax.Parse("You "+opening(restMasked), nil)
 	if len(s.Words) < 2 || len(s.Clauses) == 0 {

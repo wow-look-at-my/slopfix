@@ -74,7 +74,7 @@ func pureSpan(b Block, total int) (from, to int, ok bool) {
 
 // rewriteParagraphs is rewriteComments for a document, where a block is a
 // paragraph rather than a comment. A paragraph carries no marker and is never
-// hard-wrapped, so it goes back as the single line the table leaves.
+// hard-wrapped, so it goes back as the line the table leaves.
 func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) {
 	lines := strings.Split(added, "\n")
 	rewrites := map[int]int{}

@@ -3,8 +3,8 @@
 // file is written back. A caller names the root and reads the result.
 //
 // The walk lives here rather than in each caller. A caller that owns its own
-// walk owns its own skip list too, and skip lists drift: any of them ends up
-// rewriting a vendored tree or a submodule, which belongs to somebody else.
+// walk owns its own skip list too, and skip lists drift. Any of them ends up
+// rewriting a vendored tree or a submodule. This belongs to somebody else.
 package commentfix
 
 import (

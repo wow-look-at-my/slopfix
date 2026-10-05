@@ -89,7 +89,7 @@ func gitWrites(seg segment, name string, rest []word) ([]write, bool) {
 }
 
 // gitVerbWrites narrows the verbs that only sometimes put content in the tree.
-// Getting this wrong in either direction costs: denying `git checkout -b` breaks
+// Getting this wrong in either direction costs. Denying `git checkout -b` breaks
 // the branch every session is required to create, and allowing `git checkout
 // master -- src/` hands over a whole directory of content with no tool call.
 func gitVerbWrites(verb string, args []word, dir string) bool {
@@ -139,7 +139,7 @@ func gitVerbWrites(verb string, args []word, dir string) bool {
 }
 
 // namesExistingPath separates `git checkout master` from `git checkout src/`
-// by asking the filesystem rather than guessing from the spelling -- a tag
+// by asking the filesystem rather than guessing from the spelling. A tag
 // called a release tag looks exactly like a path.
 func namesExistingPath(dir string, operands []word) bool {
 	for _, o := range operands {

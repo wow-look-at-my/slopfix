@@ -281,7 +281,7 @@ func TestABlockCommentWithABlankLineStaysOneComment(t *testing.T) {
 
 // An indented example or a table inside a block carries no marker of its own,
 // and a rewrap would destroy it. The paragraph rewrite therefore declines the
-// block, and the number is deleted where it sits instead: the table keeps its
+// block. The number is deleted where it sits instead: the table keeps its
 // shape and the rule is left with nothing to report.
 func TestABlockHoldingUnmarkedLinesKeepsItsShape(t *testing.T) {
 	src := "int a;\n\n/* Layout, in 3 parts:\n\n     a | b\n\n */\nint b;\n"
@@ -294,7 +294,7 @@ func TestABlockHoldingUnmarkedLinesKeepsItsShape(t *testing.T) {
 
 // A block whose closer sits on a line of its own. The marker scan read that
 // line's star as a continuation and its slash as prose, so the delimiter was
-// lost, a stray byte entered the text, and the block was declined instead.
+// lost. A stray byte entered the text, and the block was declined instead.
 func TestABlockWhoseCloserHasItsOwnLineIsRepaired(t *testing.T) {
 	src := "int a;\n\n/* Keeps the ring.\n * The tables run to 12 sections.\n */\nint b;\n"
 	got := commentfix.Fix("x.c", src)

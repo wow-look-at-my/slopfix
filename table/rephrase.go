@@ -2,8 +2,8 @@
 //
 // An entry may write more words than it matched, fewer, or none at all, so a
 // rule can swap a word, delete it, or rewrite the phrase around it. Prose no
-// entry matches is left exactly as it is: the rule still reports the word, and
-// a warning costs a reader less than a wrong repair.
+// entry matches is left exactly as it is: the rule still reports the word. A
+// warning costs a reader less than a wrong repair.
 package table
 
 import "strings"

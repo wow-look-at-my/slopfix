@@ -132,10 +132,10 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 // clauseOpeners open a clause whose verb a head must hold before it can close.
 var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since", "unless", "although", "though", "whereas", "so")
 
-// headOpen reports words before word end that end inside an unfinished
-// clause: a subordinator with no finite verb after it, as in "reports whether
-// the words", or a noun followed by a new subject with no verb after it, as in
-// "answers the row the earliest node".
+// headOpen reports words before word end that end inside an unfinished clause.
+// This covers a subordinator with no finite verb after it, as in "reports
+// whether the words", or a noun followed by a new subject with no verb. This
+// happens after it, as in "answers the row the earliest node".
 func headOpen(s *syntax.Sentence, end int) bool {
 	open := -1
 	for i := 0; i < end && i < len(s.Words); i++ {
@@ -158,9 +158,9 @@ func everyNext(s *syntax.Sentence, i int) bool {
 	return i+1 < len(s.Words) && (s.Words[i+1].Lower() == "every" || s.Words[i+1].Lower() == "each")
 }
 
-// opensObject reports word i opening a noun phrase a preposition can take: a
-// determiner, a possessive, a number, an adjective, a name or a singular noun.
-// A plural ending in "s" is too often a verb the tagger missed.
+// opensObject reports word i opening a noun phrase a preposition can take.
+// This covers a determiner, a possessive, a number, an adjective, a name or a
+// singular noun.
 func opensObject(s *syntax.Sentence, i int) bool {
 	if i >= len(s.Words) {
 		return false

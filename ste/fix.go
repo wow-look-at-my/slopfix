@@ -144,7 +144,7 @@ func fixSplices(prose string) string {
 	return breakWith(prose, joiners, openers)
 }
 
-// offLimits are the spans no break may land in: the data Check hides, and a
+// offLimits are the spans no break may land in. The data Check hides, and a
 // parenthetical, which STE counts as a single word and a break would halve.
 func offLimits(prose, masked string) [][]int {
 	off := verbatimSpan.FindAllStringIndex(prose, -1)
@@ -152,7 +152,7 @@ func offLimits(prose, masked string) [][]int {
 }
 
 // mask writes filler over every span strip hides from Check, byte for byte,
-// so an offset into the mask is an offset into the prose and both count the
+// so an offset into the mask is an offset into the prose. Both count the
 // same words. A code span and an entity get the word strip writes.
 func mask(prose string) string {
 	out := []byte(prose)

@@ -215,7 +215,7 @@ func bare(word string) string {
 // joiners link values the way a list of status codes does.
 var joiners = set.Of("or", "and", "nor")
 
-// StatusCode exempts an HTTP status code: one that heads a reply noun ("the
+// StatusCode exempts an HTTP status code. One that heads a reply noun ("the
 // responses"), follows the word status, or sits in a list beside another code
 // ("201 or 409", "200 and 404"). A status is a value, so no edit that adds an
 // item moves it.

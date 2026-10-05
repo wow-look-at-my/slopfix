@@ -163,7 +163,7 @@ func sentenceFindings(path, content string) []ste.Finding {
 	return out
 }
 
-// documentExtensions are the files whose lines really are prose.
+// documentExtensions are the files whose lines are prose.
 var documentExtensions = []string{".md", ".markdown", ".mdown", ".txt"}
 
 // isDocument reports whether the prose rules own this file. An empty path is a

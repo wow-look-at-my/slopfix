@@ -11,7 +11,7 @@ import (
 
 // ~/Downloads is what these cover: an ordinary place to unpack an archive,
 // with no .git entry in any ancestor. Each case pairs an allowance with the
-// same command inside a real work tree, so a rule that stopped answering at
+// same command inside a real work tree. A rule that stopped answering at
 // all would fail the denial half.
 
 // plainDir has no .git entry above it and no project directory naming it.

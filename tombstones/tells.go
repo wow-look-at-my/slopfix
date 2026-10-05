@@ -1,7 +1,7 @@
 // tells.go holds what a tombstone looks like on the page.
 //
 // A property separates it from a comment worth keeping. Its referent is gone:
-// the flag, the test, the old spelling it names does not exist any more. Or its
+// the flag, the test, the spelling it names does not exist any more. Or its
 // audience is the reviewer: it argues for the change instead of telling the
 // next editor what breaks.
 //

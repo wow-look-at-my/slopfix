@@ -142,8 +142,8 @@ func lastClause(words []string) string {
 }
 
 // standsAlone reports a clause that reads as a sentence. A doc comment opens on
-// the name it documents, and the tagger can read that name as a verb, so the
-// name is also read as the pronoun that takes its place: "Close answers the gate".
+// the name it documents. The tagger can read that name as a verb. The name is also
+// read as the pronoun that takes its place: "Close answers the gate".
 func standsAlone(clause string) bool {
 	if ste.StandsAlone(clause) {
 		return true

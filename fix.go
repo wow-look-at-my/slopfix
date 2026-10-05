@@ -406,7 +406,7 @@ func FixFile(path string) (Repair, error) {
 // reports what it did.
 //
 // The Content and Path of req are the file's, whatever the caller put there.
-// Everything else is the caller's: a run that names a rule on the command line
+// Everything else is the caller's. A run that names a rule on the command line
 // has to reach the repair, or the selection is silently ignored.
 func FixFileWith(path string, req Request) (Repair, error) {
 	content, err := os.ReadFile(path)

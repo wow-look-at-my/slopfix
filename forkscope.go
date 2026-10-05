@@ -55,7 +55,7 @@ func existingDir(dir string) string {
 	}
 }
 
-// FixFileIn is FixFileWith in a fork: a file the fork never touched is neither
+// FixFileIn is FixFileWith in a fork. A file the fork never touched is neither
 // read nor written, and a repair lands only on the lines the fork wrote.
 func FixFileIn(r forkscope.Resolver, path string, req Request) (Repair, error) {
 	content, err := os.ReadFile(path)
@@ -130,8 +130,8 @@ var blockRules = set.Of(workflow.IDCommentBlock, tombstones.IDVolume)
 
 // alone runs each block rule still reporting on a fork line by itself, and
 // keeps what lands on the fork's lines. Run with every rule, a repair of an
-// upstream line beside the run joins the run's change in one diff hunk, and
-// the whole hunk goes back.
+// upstream line beside the run joins the run's change in one diff hunk. The
+// whole hunk goes back.
 func alone(req Request, repair Repair) Repair {
 	owned := forkscope.Carry(req.Content, repair.Text, req.Owned)
 	ids := set.New[string]()
@@ -237,7 +237,7 @@ func commentProse(row string) string {
 }
 
 // upstreamRuns drops each block finding on a run of text the fork did not make
-// longer. The base already had that run at that length, so it is the base's
+// longer. The base already had that run at that length. It is the base's
 // finding, and the fork's edit inside it stays as the fork wrote it.
 func upstreamRuns(owned *forkscope.Scope, text string, repair Repair) Repair {
 	if owned == nil || owned.All() {

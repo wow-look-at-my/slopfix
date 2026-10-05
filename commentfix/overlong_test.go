@@ -84,12 +84,12 @@ func TestTheRuleSpansLanguages(t *testing.T) {
 
 // Every parsed language repairs, not Go alone.
 //
-// This asserted the opposite while a line walk guessed where a construct ended:
-// a span wrong by a line deletes the wrong sentence, and nobody reviews what a
-// hook applied, so the fix ran for Go and the rest only reported. The tree
-// gives each language the same exact span Go had, which is what the whole
-// grammar apparatus buys. A test that still expected the refusal would be
-// pinning the defect.
+// This asserted the opposite while a line walk guessed where a construct ended.
+// A span wrong by a line deletes the wrong sentence, and nobody reviews what a
+// hook applied. The fix ran for Go. The rest only reported. The tree gives each
+// language the same exact span Go had, which is what the whole grammar
+// apparatus buys. A test that still expected the refusal would be pinning the
+// defect.
 func TestEveryParsedLanguageRepairs(t *testing.T) {
 	src := strings.Join([]string{
 		"# This helper exists because the caller cannot know the answer.",

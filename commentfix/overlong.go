@@ -302,7 +302,7 @@ func repairProse(b block) []string {
 }
 
 // withSeparator adds the bare marker line gofmt puts between a doc and the
-// directive after it, so the repair is measured as gofmt will leave it.
+// directive after it. The repair is measured as gofmt will leave it.
 func withSeparator(kept, trail []string) []string {
 	indent := trail[0][:len(trail[0])-len(strings.TrimLeft(trail[0], " \t"))]
 	return append(append([]string{}, kept...), indent+"//")

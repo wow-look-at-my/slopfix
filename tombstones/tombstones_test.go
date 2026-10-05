@@ -20,7 +20,7 @@ func TestAWordingTellIsRewrittenOutOfSource(t *testing.T) {
 	assert.Empty(t, repair.Kept)
 }
 
-// A comment sharing its line with code is left alone: the block is not prose
+// A comment sharing its line with code is left alone. The block is not prose
 // end to end, and rewriting it would move the code beside it.
 func TestACommentSharingACodeLineIsLeftAlone(t *testing.T) {
 	src := "call() // previously the other one\n"

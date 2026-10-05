@@ -5,13 +5,13 @@
 // code does and letting the reader count is the repair.
 //
 // The rule reads the comments and nothing else, which is what lets it answer
-// before a compiler starts, on a tree that does not compile at all. The
+// before a compiler starts, on a tree. That tree does not compile at all. The
 // generated-file marker and the directive form are the Go-specific parts.
 //
-// This is the comment substrate of a rule the document substrate shares. Which
-// numbers count lives in cardinal, beside the prose policy that demands a frame
-// earliest. What is here is the comment: where it sits, which of its lines a
-// reader was written for, and where a finding lands on the screen.
+// This is the comment substrate of a rule the document substrate shares.
+// Which numbers count lives in cardinal, beside the prose policy that demands
+// a frame earliest. What is here is the comment: where it sits, which of its
+// lines a reader was written for, and where a finding lands on the screen.
 package commentfix
 
 import (
@@ -32,8 +32,8 @@ func Supported(filename string) bool {
 }
 
 // Remedy is what every finding asks the author to do instead. A reference to a
-// numbered section is the case rewriting the sentence does not cover, so it
-// also names the slug that survives a renumbering edit.
+// numbered section is the case rewriting the sentence does not cover. It also
+// names the slug that survives a renumbering edit.
 const Remedy = "a number in a comment is a count of what exists today, " +
 	"and the edit that adds an item leaves it wrong: describe what the code does and let the reader count. " +
 	"To point at a section of a spec or a document, cite its unique slug or its heading text, never its position: " +
@@ -54,7 +54,7 @@ var generatedLine = regexp.MustCompile(`^\s*(?://+|#+|/\*|<!--)?\s*Code generate
 // Check returns every number stated in a comment of a source file.
 //
 // A file in a language the extractor has no syntax for yields no hits. So does
-// a file that does not compile: nothing here parses the language, which is why
+// a file that does not compile: nothing here parses the language. This is why
 // the rule answers on a tree mid-edit, before any compiler will look at it.
 func Check(filename, src string) []Hit {
 	defer trace.Phase("rule/comments-number")()
@@ -168,8 +168,8 @@ func IsGenerated(filename, src string) bool {
 }
 
 // markedGenerated reports whether the first line holding text is the marker. A
-// document has no comment grammar to read a header from, so the marker heads
-// the file on its own line, as an HTML comment in markdown.
+// document has no comment grammar to read a header from. The marker heads the
+// file on its own line, as an HTML comment in markdown.
 func markedGenerated(src string) bool {
 	for line := range strings.Lines(src) {
 		if strings.TrimSpace(line) == "" {

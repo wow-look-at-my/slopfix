@@ -14,7 +14,7 @@ const unboundedSentence = "package p\n\n" +
 	"// set index plus binding slot plus array element offset plus sampler identity hash value.\n" +
 	"func cacheKeyFor() int { return 0 }\n"
 
-// fitsOrStays asserts both outcomes a length repair may have: the block fits
+// fitsOrStays asserts both outcomes a length repair may have. The block fits
 // and keeps want, or the block stays as written and asks for a rewrite by hand.
 func fitsOrStays(t *testing.T, src, want string) {
 	t.Helper()

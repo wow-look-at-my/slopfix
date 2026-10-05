@@ -1,6 +1,6 @@
 // Package ste checks prose against ASD-STE100, Simplified Technical English.
 //
-// STE is a controlled language: each approved word carries a single meaning and
+// STE is a controlled language. Each approved word carries a single meaning and
 // a single part of speech, and its rules keep every sentence to a single
 // reading. It suits code prose for the reason it suits a maintenance manual. The
 // reader is about to change the thing described, and nobody is there to ask.

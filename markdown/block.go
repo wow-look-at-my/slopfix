@@ -37,8 +37,8 @@ type Block struct {
 	Indent string
 }
 
-// Text renders a prose block as the single line the rules read: the lines
-// joined by a space, with each continuation's own indentation dropped.
+// Text renders a prose block as the line the rules read: the lines joined by
+// a space, with each continuation's own indentation dropped.
 func (b Block) Text() string {
 	parts := make([]string, 0, len(b.Lines))
 	for i, line := range b.Lines {

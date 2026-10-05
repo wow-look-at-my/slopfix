@@ -80,7 +80,7 @@ func FixIn(filename, src string, scope edit.Scope) Repair {
 // repairNumbers rewrites every number the comments in f state.
 //
 // A generated file is left alone, and so is a language the extractor has no
-// syntax for: both report no findings, so both have nothing to repair.
+// syntax for. Both report no findings, so both have nothing to repair.
 func repairNumbers(f *fixer.File) {
 	defer trace.Phase("repair/comments-number")()
 	src := f.Text()
@@ -228,7 +228,7 @@ type para struct {
 }
 
 // paragraphsOf turns the parser's runs into the paragraphs a rewrite acts on. A
-// run breaks further on a directive and on a blank comment line: a directive
+// run breaks further on a directive and on a blank comment line. A directive
 // addresses a tool, and a blank line is a break somebody wrote.
 func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 	var out []para
@@ -297,8 +297,9 @@ func isBlock(text string) bool {
 }
 
 // blockPara reads a whole block comment as a single paragraph, delimiters and
-// all. A blank line inside it is a break in the prose, not a break in the
-// comment, so a rewrite that honored it left the block unclosed.
+// all. Consider a blank line inside it. That line is a break in the prose,
+// not a break in the comment, so a rewrite that honored it left the block
+// unclosed.
 func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 	b := para{}
 	for n := range max(c.Lines, 1) {
@@ -361,7 +362,7 @@ func indentOf(line string) int {
 }
 
 // wrap lays prose back onto comment lines at the width the paragraph had. A
-// word longer than the width goes on its own line rather than being broken: a
+// word longer than the width goes on its own line rather than being broken. A
 // URL or an identifier split across lines stops being either.
 func wrap(prose, marker, cont string, width int) []string {
 	words := strings.Fields(prose)
@@ -447,9 +448,9 @@ func split(line string) (marker, prose string, ok bool) {
 }
 
 // splitBlock is split, also reporting the delimiter that closes a block. The C
-// family opens with a slash-star and closes with a star-slash, and the closer is
-// not prose: left in the text a rewrite wraps it into the middle of the comment,
-// and dropped it leaves the block open and the file unparseable.
+// family opens with a slash-star and closes with a star-slash. The closer is not
+// prose: left in the text a rewrite wraps it into the middle of the comment, and
+// dropped it leaves the block open and the file unparseable.
 func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 	trimmed := strings.TrimLeft(line, " \t")
 	indent := line[:len(line)-len(trimmed)]

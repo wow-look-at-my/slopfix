@@ -39,7 +39,7 @@ func TestAQuantityWithoutAFrameIsLeftAlone(t *testing.T) {
 }
 
 // A limit and a size rot exactly as a tally does. A budget gets raised and a
-// suite gets slower, and the document keeps asserting the old value.
+// suite gets slower, and the document keeps asserting the value.
 func TestAMeasurementIsACount(t *testing.T) {
 	assert.NotEmpty(t, Check("The read has 20 seconds."))
 	assert.NotEmpty(t, Check("It carries 500 lines."))
