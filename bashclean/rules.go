@@ -105,6 +105,28 @@ func callIsSedSuppressing(c *syntax.CallExpr) bool {
 	return ok && e.name == "sed" && sedSuppressesOutput(c.Args[e.index+1:])
 }
 
+func callIsSedLineRead(c *syntax.CallExpr) bool {
+	if !callIsSedSuppressing(c) {
+		return false
+	}
+	e, _ := effectiveCommand(c)
+	return namesRealFile(sedFileOperands(c.Args[e.index+1:]))
+}
+
+func callReadsBannedFile(c *syntax.CallExpr) bool {
+	e, ok := effectiveCommand(c)
+	if !ok || (e.name != "cat" && e.name != "head" && e.name != "tail") {
+		return false
+	}
+	return namesRealFile(readOperands(c.Args[e.index+1:], e.name != "cat"))
+}
+
+func hasFileRead(f *syntax.File) bool {
+	return hasStatementCall(f, func(c *syntax.CallExpr) bool {
+		return callReadsBannedFile(c) || callIsSedLineRead(c)
+	})
+}
+
 var (
 	sizeZeroFlag = regexp.MustCompile(`^(-s|--size=)0+$`)
 	allZeros     = regexp.MustCompile(`^0+$`)

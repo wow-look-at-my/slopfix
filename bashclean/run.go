@@ -90,6 +90,8 @@ func denyReason(rule string) string {
 	switch rule {
 	case "perl":
 		return "perl is banned in this environment."
+	case "file_read":
+		return "Reading files with cat/head/tail, or with sed -n selecting lines, is banned in this environment. Use the Read tool instead: its offset and limit parameters read part of a file, which is what head/tail/sed -n were reached for. Only /proc, /sys, and /dev pseudo-files are exempt."
 	case "shred":
 		return "shred/srm destroy data unrecoverably by design and are banned in this environment. There is no safe equivalent; if the file must go, use recycler trash <path> and it can be restored."
 	case "git_rm":
