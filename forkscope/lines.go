@@ -426,6 +426,11 @@ func (o *Lines) Whole(path string) bool {
 	return o.whole.Contains(o.rel(path))
 }
 
+// Claim records path as a file the fork wrote all of.
+func (o *Lines) Claim(path string) {
+	o.whole.Add(o.rel(path))
+}
+
 // Holds reports whether the fork wrote any line from first to last of path.
 func (o *Lines) Holds(path string, first, last int) bool {
 	return o.Scope(path).Holds(first, last)

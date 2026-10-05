@@ -50,12 +50,13 @@ func writableIn(fork *forkscope.Lines) func(path string) bool {
 }
 
 // repoRun reports what the repository rules find under root. When writing, it
-// also applies the repairs the caller keeps, and names each file it changed. A
-// repair that would rewrite a file writable refuses stays a finding.
-func repoRun(root string, keeps func(string) bool, writing bool, writable func(string) bool) (findings []TreeFinding, changed []string, err error) {
+// also applies the repairs the caller keeps, and names each file it changed and
+// each file it created. A repair that would rewrite a file writable refuses
+// stays a finding.
+func repoRun(root string, keeps func(string) bool, writing bool, writable func(string) bool) (findings []TreeFinding, changed, created []string, err error) {
 	plan, err := SurveyRoot(root, true)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if plan.Agents.Changed() && keeps(IDAgentsFile) {
 		migrating := writing && writable(filepath.Join(root, ClaudeFile)) && writable(filepath.Join(root, AgentsFile))
@@ -64,7 +65,7 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 				"CLAUDE.md holds instructions, and every agent but Claude Code reads AGENTS.md",
 				"Move them into AGENTS.md. `slopfix fix` does this."))
 		} else if _, err := MigrateAgents(root, false); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		} else {
 			changed = append(changed, filepath.Join(root, ClaudeFile))
 		}
@@ -72,7 +73,7 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 	if keeps(IDPackageScripts) {
 		scripts, moved, err := packageScripts(root, writing, writable)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		findings = append(findings, scripts...)
 		changed = append(changed, moved...)
@@ -80,7 +81,7 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 	if keeps(IDBinary) {
 		binaries, removed, err := committedBinaries(root, writing, writable)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		findings = append(findings, binaries...)
 		changed = append(changed, removed...)
@@ -88,23 +89,23 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 	if keeps(IDNearDuplicate) {
 		copies, err := nearDuplicates(root)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		findings = append(findings, copies...)
 	}
 	if keeps(IDJSON) || keeps(IDXML) {
 		broken, err := documents(root, keeps)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		findings = append(findings, broken...)
 	}
 	if !keeps(IDBudget) {
-		return findings, changed, nil
+		return findings, changed, created, nil
 	}
 	// The move above can grow AGENTS.md, so the sizes are measured again.
 	if plan, err = SurveyRoot(root, true); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	over := make([]string, 0, len(plan.OverBudget))
 	for rel := range plan.OverBudget {
@@ -118,16 +119,17 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 			dir := filepath.Join(root, filepath.Dir(rel))
 			written, err := Split(dir, filepath.Base(rel), false)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			if len(written) > 0 {
 				changed = append(changed, filepath.Join(root, rel))
 				for _, name := range written {
 					changed = append(changed, filepath.Join(dir, filepath.FromSlash(name)))
+					created = append(created, filepath.Join(dir, filepath.FromSlash(name)))
 				}
 			}
 			if size, err = charCount(filepath.Join(root, rel)); err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			if size <= CharBudget {
 				continue
@@ -137,7 +139,7 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 			fmt.Sprintf("%d characters, over the %d budget every request pays for", size, CharBudget),
 			"`slopfix fix` moves its largest sections into docs/, or its tail when it has no heading."))
 	}
-	return findings, changed, nil
+	return findings, changed, created, nil
 }
 
 func repoFinding(path, id, rule, fix string) TreeFinding {

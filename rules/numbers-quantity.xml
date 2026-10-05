@@ -69,6 +69,14 @@
     <test in="It runs every 1.5 hours" out="It runs every 1.5 hours"/>
   </rephrase>
 
+  <!-- A word that qualifies the count goes with the count. Left behind, it
+       qualifies the noun instead and says something false. -->
+  <rephrase id="qualified-tally-drops-its-qualifier" match="{approximation:a} {cardinal:c} {noun+plural:n}" to="{n}">
+    <test in="It waits for exactly two requests" out="It waits for requests"/>
+    <test in="It sends only three probes" out="It sends probes"/>
+    <test in="It reads about two files" out="It reads files"/>
+  </rephrase>
+
   <!-- A plural tally: the noun carries the meaning and the number goes.
 
        A unit is not a tally. "waits two minutes" says how long, and dropping
