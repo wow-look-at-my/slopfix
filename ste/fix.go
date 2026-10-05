@@ -39,14 +39,14 @@ func fixSelected(text string, keep func(id string) bool, reorder bool) string {
 		text = fixPostdeterminers(text)
 	}
 	if keep(IDSentenceCap) {
-		text = fixSentenceCap(text, division{reorder: reorder, cap: SentenceWordCap})
+		text = fixSentenceCap(text, capSpec{reorder: reorder, cap: SentenceWordCap})
 	}
 	return text
 }
 
-// division is how a long sentence divides: the word cap each part must meet,
+// capSpec is how a long sentence divides: the word cap each part must meet,
 // and whether a division may move a clause or name a subject apart.
-type division struct {
+type capSpec struct {
 	reorder bool
 	cap     int
 }
@@ -54,7 +54,7 @@ type division struct {
 // DivideTo divides each sentence of text over maxWords, as the cap repair
 // does at its own cap, and keeps each sentence's opening words first.
 func DivideTo(text string, maxWords int) string {
-	return fixSentenceCap(text, division{cap: maxWords})
+	return fixSentenceCap(text, capSpec{cap: maxWords})
 }
 
 var (

@@ -30,7 +30,7 @@ var (
 )
 
 // forceSentenceCap divides each sentence still over the cap at a word boundary.
-func forceSentenceCap(prose string, d division) string {
+func forceSentenceCap(prose string, d capSpec) string {
 	over := overCap(prose, d.cap)
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := forceNext(prose, d)
@@ -53,7 +53,7 @@ func overCap(prose string, limit int) int {
 }
 
 // forceNext divides the earliest over-cap sentence, as Check reads it.
-func forceNext(prose string, d division) (string, bool) {
+func forceNext(prose string, d capSpec) (string, bool) {
 	masked := checkMask(prose)
 	for _, span := range sentenceSpans(masked) {
 		start, end := span[0], span[1]
@@ -134,7 +134,7 @@ type forceCut struct {
 // forceDivision divides source at the best word boundary that leaves the first
 // part under the cap. It never divides inside a code span, a link, a quotation,
 // a parenthesis or bold text.
-func forceDivision(source, masked string, d division) (string, bool) {
+func forceDivision(source, masked string, d capSpec) (string, bool) {
 	// The tags come from the whole sentence, because a fragment parsed alone reads "a faithful" as a noun.
 	whole := syntax.Parse(masked, nil)
 	for _, strict := range []bool{true, false} {

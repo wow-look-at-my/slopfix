@@ -32,7 +32,7 @@ const FixByHand = "Rewrite it by hand as shorter sentences. No division keeps ea
 // fixSentenceCap divides every over-cap sentence where both halves stay
 // grammatical sentences. It first tries the clause boundaries, then the word
 // boundaries.
-func fixSentenceCap(prose string, d division) string {
+func fixSentenceCap(prose string, d capSpec) string {
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := divideNext(prose, d.cap)
 		if !divided {
