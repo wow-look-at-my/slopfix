@@ -27,9 +27,9 @@ func longFunction(name string) string {
 	return body.String() + "}\n"
 }
 
-// A sentence of many words with no clause boundary. No division keeps both halves
-// whole, so it stays and asks for a rewrite by hand, whatever the comment weighs.
-func TestALongSentenceWithNoDivisionIsAHandRewrite(t *testing.T) {
+// A sentence with no clause boundary. Its trailing adverbial goes into a
+// sentence of its own behind "This happens", whatever the comment weighs.
+func TestALongSentenceWithNoClauseBoundaryDivides(t *testing.T) {
 	src := "package p\n\n" +
 		"// The loader reads every cached manifest from the shared store of the plugin cache in the home directory of the user on each start of a session in the editor window.\n" +
 		longFunction("Load")
@@ -37,9 +37,11 @@ func TestALongSentenceWithNoDivisionIsAHandRewrite(t *testing.T) {
 
 	hits := CheckSentences("p.go", src)
 	require.Len(t, hits, 1)
-	assert.True(t, ste.ByHand(hits[0].Fix), hits[0].Fix)
+	assert.False(t, ste.ByHand(hits[0].Fix), hits[0].Fix)
 	assert.Equal(t, 3, hits[0].Line)
-	assert.Equal(t, src, fixSentences("p.go", src))
+	out := fixSentences("p.go", src)
+	assert.Equal(t, "The loader reads every cached manifest from the shared store of the plugin cache in the home directory of the user. This happens on each start of a session in the editor window.", commentProse(out))
+	assert.Empty(t, CheckSentences("p.go", out))
 }
 
 // A sentence of many words that joins clauses with "and". The repair divides

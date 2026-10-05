@@ -28,9 +28,7 @@ func TestTheRatioAndTheSentenceCapSettleTogether(t *testing.T) {
 	once := slopfix.Fix(slopfix.Request{Content: src, Path: "demo.go", MaxCommentLines: tombstones.DefaultMaxCommentLines})
 	twice := slopfix.Fix(slopfix.Request{Content: once.Text, Path: "demo.go", MaxCommentLines: tombstones.DefaultMaxCommentLines})
 	assert.Equal(t, once.Text, twice.Text)
-	for _, f := range slopfix.CheckContent("demo.go", once.Text) {
-		assert.True(t, ste.ByHand(f.Fix) || f.Warning(), "%s is left:\n%s", f, once.Text)
-	}
+	assert.Empty(t, quoted(slopfix.CheckContent("demo.go", once.Text)), once.Text)
 	assert.Contains(t, once.Text, "// The loader reads every cached manifest from the shared store.", once.Text)
 }
 
@@ -47,6 +45,9 @@ func TestCheckReportsALongSentenceInAComment(t *testing.T) {
 		}
 	}
 	require.Len(t, found, 1)
-	assert.True(t, ste.ByHand(found[0].Fix))
-	assert.Equal(t, src, slopfix.Fix(slopfix.Request{Content: src, Path: "demo.go"}).Text)
+	assert.False(t, ste.ByHand(found[0].Fix))
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: "demo.go"}).Text
+	assert.Contains(t, out, "// The loader reads every cached manifest from the shared store of the plugin cache in the home directory of the user.", out)
+	assert.Contains(t, out, "This happens on each start of a session in the editor window.", out)
+	assert.Empty(t, quoted(slopfix.CheckContent("demo.go", out)), out)
 }

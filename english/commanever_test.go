@@ -30,21 +30,22 @@ func TestCommaNever(t *testing.T) {
 }
 
 // Real sentences where a verb follows "never". ", not" before a verb is no
-// English, so the text stays and the finding asks for a rewrite by hand.
-func TestCommaNeverBeforeAVerbStays(t *testing.T) {
-	for _, in := range []string{
-		"When true grok never prompts, never gates repo-local configs, and does no trust check.",
-		"With prepaid credits but the rule not yet known (None), never warn; it resolves on the next billing fetch.",
-		"An auto-allowed command must reach the user prompt, never silently auto-allow it.",
-		"Between the two they can only cause a redundant reload later, never leave the cache ahead of the loaded state.",
+// English, so the repair writes ", and never" after a clause. After an opening
+// phrase with no verb, "never" opens the instruction, and it becomes "do not".
+func TestCommaNeverBeforeAVerb(t *testing.T) {
+	for in, want := range map[string]string{
+		"When true grok never prompts, never gates repo-local configs, and does no trust check.":                       "When true grok never prompts, and never gates repo-local configs, and does no trust check.",
+		"With prepaid credits but the rule not yet known (None), never warn; it resolves on the next billing fetch.":     "With prepaid credits but the rule not yet known (None), do not warn; it resolves on the next billing fetch.",
+		"An auto-allowed command must reach the user prompt, never silently auto-allow it.":                              "An auto-allowed command must reach the user prompt, and never silently auto-allow it.",
+		"Between the two they can only cause a redundant reload later, never leave the cache ahead of the loaded state.": "Between the two they can only cause a redundant reload later, and never leave the cache ahead of the loaded state.",
 	} {
 		t.Run(in, func(t *testing.T) {
-			assert.Equal(t, in, english.FixCommaNever(in))
+			assert.Equal(t, want, english.FixCommaNever(in))
 			findings := english.CheckCommaNever(in, 1)
 			if assert.NotEmpty(t, findings) {
-				assert.Equal(t, english.FixNeverByHand, findings[0].Fix)
-				assert.True(t, ste.ByHand(findings[0].Fix))
+				assert.False(t, ste.ByHand(findings[0].Fix))
 			}
+			assert.Empty(t, english.CheckCommaNever(want, 1))
 		})
 	}
 }

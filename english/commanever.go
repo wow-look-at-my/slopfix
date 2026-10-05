@@ -48,7 +48,10 @@ func FixCommaNever(prose string) string {
 	for _, at := range unmasked(prose) {
 		b.WriteString(prose[last:at[0]])
 		to := ",${1}not"
-		if beforeVerb(prose, at[1]) {
+		switch {
+		case beforeVerb(prose, at[1]) && !finiteBefore(prose, at[0]):
+			to = ",${1}do not"
+		case beforeVerb(prose, at[1]):
 			to = ",${1}and never"
 		}
 		b.WriteString(commaNever.ReplaceAllString(prose[at[0]:at[1]], to))
@@ -79,6 +82,19 @@ func beforeVerb(prose string, at int) bool {
 		}
 		// A word with an object pronoun after it is a verb the tagger missed: "never auto-allow it".
 		return i+1 < len(s.Words) && objects.Contains(s.Words[i+1].Lower())
+	}
+	return false
+}
+
+// finiteBefore reports a finite verb in the sentence ahead of byte at. With
+// none, the words ahead are an opening phrase, and "never" opens the instruction.
+func finiteBefore(prose string, at int) bool {
+	start := strings.LastIndex(prose[:at], ". ") + 1
+	for _, w := range syntax.Parse(prose[start:at], nil).Words {
+		switch w.Tag {
+		case "VBZ", "VBP", "VBD", "MD":
+			return true
+		}
 	}
 	return false
 }
