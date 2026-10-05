@@ -14,6 +14,7 @@
 package linkrefs
 
 import (
+	"github.com/wow-look-at-my/go-containers/set"
 	"slices"
 	"strings"
 )
@@ -92,14 +93,14 @@ func linePulls(line string) []PullRef {
 func rewriteLine(line string, res Resolver) (string, bool) {
 	var edits []splice
 	// The words after a finished dot belong to it, so they are not linked again.
-	dotted := map[int]bool{}
+	dotted := set.New[int]()
 	for _, l := range findLinks(line) {
 		if isDot(strings.TrimSpace(l.text)) {
-			dotted[l.end+1] = true
+			dotted.Add(l.end + 1)
 		}
 	}
 	for _, ref := range FindUnlinkedInLine(line) {
-		if dotted[ref.Start] {
+		if dotted.Contains(ref.Start) {
 			continue
 		}
 		if link, ok := Linkify(ref.Ref, res); ok {
