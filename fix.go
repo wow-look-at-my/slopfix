@@ -117,8 +117,33 @@ type Repair struct {
 
 // Fix repairs req, unless it carries slopfix-expect annotations.
 func Fix(req Request) Repair {
-	req.Owned = widened(req)
-	return within(req, fixAll(req))
+	repair := within(req, fixAll(req))
+	wide := widened(req)
+	if wide == nil || wide.All() {
+		return repair
+	}
+	// The block rules keep the fork's own lines. Every other rule then reaches each whole block the fork wrote into.
+	owned := forkscope.Carry(req.Content, repair.Text, wide)
+	again := req
+	again.Content, again.Owned, again.Scope = repair.Text, nil, repair.Scope
+	again.IDs = blockFree(req)
+	fixed := fixAll(again)
+	text := forkscope.Keep(repair.Text, fixed.Text, owned)
+	if text != repair.Text {
+		repair.Removed = append(repair.Removed, landedRemovals(repair.Text, text, fixed.Removed)...)
+		if repair.Scope.Bounded && repair.Scope.Start <= repair.Scope.End {
+			repair.Scope.End = len(text) - (len(repair.Text) - repair.Scope.End)
+		}
+		repair.Text, repair.Changed = text, text != req.Content
+		owned = forkscope.Carry(req.Content, text, wide)
+	}
+	landed := req
+	landed.Content, landed.Owned, landed.Scope = text, nil, edit.Nowhere()
+	after := Fix(landed)
+	repair.Findings, repair.Kept = after.Findings, after.Kept
+	repair.Findings = ownedFindings(repair.Findings, owned)
+	repair.Kept = ownedHits(repair.Kept, owned)
+	return upstreamRuns(req.Owned, repair.Text, repair)
 }
 
 // widened answers req.Owned grown to each whole block it reaches into.
@@ -127,6 +152,21 @@ func widened(req Request) *forkscope.Scope {
 		return nil
 	}
 	return req.Owned.Widen(req.Content, kindOf(req.Path, req.Content) == fixer.Document)
+}
+
+// blockFree answers the rule IDs req selects, less the block rules.
+func blockFree(req Request) []string {
+	ids := req.IDs
+	if len(ids) == 0 {
+		ids = slices.Sorted(EveryRuleID().All())
+	}
+	var out []string
+	for _, id := range ids {
+		if !blockRules.Contains(id) {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // fixAll is Fix with no regard to the lines a fork wrote.
