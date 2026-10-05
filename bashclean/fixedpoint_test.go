@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// The grep rule exposes a head the head_tail rule has already run past.
-const interleaved = "cmd | head -5 | grep x | tail -2"
+// The stderr_merge rule exposes a grep the grep rule has already run past.
+const interleaved = "cmd | grep x 2>&1"
 
 func TestTheChainedRulesConverge(t *testing.T) {
 	var warn strings.Builder
@@ -26,5 +26,5 @@ func TestExhaustingTheBoundSaysSo(t *testing.T) {
 	assert.Contains(t, warn.String(), "did not reach a fixed point")
 	assert.Contains(t, warn.String(), "undoing each other")
 	assert.Contains(t, warn.String(), interleaved, "the message must name the command")
-	assert.Contains(t, got.Command, "head -5", "the partial rewrite the message warns about")
+	assert.Contains(t, got.Command, "grep x", "the partial rewrite the message warns about")
 }

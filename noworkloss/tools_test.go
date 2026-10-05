@@ -380,7 +380,7 @@ func TestNothingIsWrittenForAnAllowedCall(t *testing.T) {
 func TestOtherEventsAndToolsAreIgnored(t *testing.T) {
 	root := newTree(t)
 	for _, event := range []string{"PostToolUse", "Stop", "SessionStart", ""} {
-		assert.Empty(t, decideWithEvent(t, event, "Bash", root, "sed -i s/a/b/ src.txt"),
+		assert.Empty(t, decideWithEvent(t, event, "Bash", root, "truncate -s 0 src.txt"),
 			"%s is not this hook's event", event)
 	}
 	assert.Empty(t, ask(t, root, ""), "an empty command decides nothing")
