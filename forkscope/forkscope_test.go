@@ -253,7 +253,7 @@ func TestKeepPutsBackEveryChangeToAnInheritedLine(t *testing.T) {
 func TestKeepTakesEachPairedLineAlone(t *testing.T) {
 	before := "fork: 2 hits\nbase: Two jobs\nbase: rest\n"
 	after := "fork: Hits\nbase: Jobs\nbase: rest\n"
-	assert.Equal(t, "fork: Hits\nbase: Two jobs\nbase: rest\n", forkscope.Keep(before, after, forkscope.OfLines(1)))
+	assert.Equal(t, "fork: Hits\nbase: Two jobs\nbase: rest\n", Keep(before, after, OfLines(1)))
 }
 
 func TestCarryFollowsTheLinesThroughARepair(t *testing.T) {
