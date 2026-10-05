@@ -120,10 +120,11 @@ func FixFileIn(r forkscope.Resolver, path string, req Request) (Repair, error) {
 	if err != nil {
 		return Repair{}, err
 	}
-	if scope != nil && scope.Empty() {
+	// A caller's own line scope, a selector, narrows the fork's lines further.
+	req.Owned = forkscope.Intersect(scope, req.Owned)
+	if req.Owned != nil && req.Owned.Empty() {
 		return Repair{Text: string(content)}, nil
 	}
-	req.Owned = scope
 	return FixFileWith(path, req)
 }
 

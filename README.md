@@ -49,6 +49,8 @@ slopfix check --only ste docs/a.md    # narrow to a category
 slopfix fix --only ste/semicolon a.md # narrow to a rule ID
 slopfix check --json --path a.md < a.md      # JSON findings for text on stdin
 slopfix check --message < message.txt        # judge a closing message
+slopfix fix --staged                         # repair only the lines staged against HEAD
+slopfix fix --diff origin/master .           # repair only the lines this branch adds
 slopfix hook < payload.json                  # answer a Claude Code hook event
 ```
 
@@ -56,6 +58,7 @@ The commands are `check`, `hook`, `lsp`, `completion` and `help`.
 
 - `check` runs every rule by default. `fix` is `check --fix`. A directory argument is walked.
 - `--only` takes categories and rule IDs, comma separated. An unknown name is an error.
+- `--staged` and `--diff REV` scope the run to the lines a change introduced, so a fork's repair leaves the upstream lines alone.
 - `slopfix hook` reads the event off the payload and runs every guard that serves it.
 - `slopfix lsp` is a language server on stdio. It publishes the findings for each open file that a build reads.
 
