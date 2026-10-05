@@ -29,6 +29,23 @@ func TestAVolumeBlockGivesUpItsBlanksBeforeItsProse(t *testing.T) {
 	}
 }
 
+// A structured block keeps its list lines whole: the rewrite never welds a
+// list item to the prose around it.
+func TestAVolumeRewriteKeepsListLinesWhole(t *testing.T) {
+	text := []string{
+		"// Create the handle.",
+		"//",
+		"// # Arguments",
+		"// * `a` - the first thing",
+		"// * `b` - the second thing",
+	}
+	out, ok := fitVolume(text, 4)
+	require.True(t, ok, "the blank alone reaches the cap")
+	assert.Contains(t, out, "// # Arguments")
+	assert.Contains(t, out, "// * `a` - the first thing")
+	assert.Contains(t, out, "// * `b` - the second thing")
+}
+
 // A block the rewrite cannot bring under the cap is reported, so the caller
 // cuts rather than the budget silently dropping a thought.
 func TestAVolumeBlockThatCannotFitIsReported(t *testing.T) {
