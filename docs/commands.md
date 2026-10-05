@@ -48,7 +48,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 
 ## Scoping a repair to a changed line
 
-A repair usually runs over a whole file, which in a fork cuts the parent's comments too. `--staged` and `--diff REV` scope the run to the lines the change itself introduced, the way the per-edit write hook already scopes a repair to the span an edit writes.
+A repair usually runs over a whole file, which in a fork cuts the parent's comments too. `--staged` and `--diff REV` scope the run to the lines the change itself introduced. The way the per-edit write hook already scopes a repair to the span an edit writes.
 
 ```sh
 slopfix fix --staged                  # repair the lines this commit will add
@@ -56,9 +56,9 @@ slopfix fix --diff origin/master .    # repair the lines this branch adds
 slopfix check --staged .              # fail only on a finding this commit introduces
 ```
 
-The line set comes from `git diff -U0`. `--staged` runs it with `--cached`, so the set is the index against HEAD. `--diff REV` runs it against `REV`, so the set is the work tree against that revision. Each `-U0` hunk names the new-side range it added or changed, and those line numbers are the selected set for that file. A file the diff created counts whole. A finding whose line is not in the set is neither reported nor repaired.
+The line set comes from `git diff -U0`. `--staged` runs it with `--cached`. The set is the index against HEAD. `--diff REV` runs it against `REV`. The set is the work tree against that revision. Each `-U0` hunk names the new-side range it added or changed. Those line numbers are the selected set for that file. A file the diff created counts whole. A finding whose line is not in the set is neither reported nor repaired.
 
-With a selector, `check` exits nonzero when a selected finding remains and zero otherwise, which is what a pre-commit hook reads. A selector needs a file or a directory argument, and it cannot be combined with `--message`. A file outside the fork scope stays untouched, because the fork scope still applies on top of the selector.
+With a selector, `check` exits nonzero when a selected finding remains and zero otherwise, which is what a pre-commit hook reads. A selector needs a file or a directory argument. It cannot be combined with `--message`. A file outside the fork scope stays untouched, because the fork scope still applies on top of the selector.
 
 ## lsp
 
