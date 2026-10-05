@@ -119,7 +119,7 @@ type Repair struct {
 func Fix(req Request) Repair {
 	repair := within(req, fixAll(req))
 	wide := widened(req)
-	if wide == nil || wide.All() {
+	if wide == nil || wide == req.Owned || wide.All() {
 		return repair
 	}
 	// A run rule keeps to the fork's own lines. Every other rule then reaches each whole block the fork wrote into.
@@ -150,7 +150,11 @@ func widened(req Request) *forkscope.Scope {
 	if req.Owned == nil {
 		return nil
 	}
-	return req.Owned.Widen(req.Content, kindOf(req.Path, req.Content) == fixer.Document)
+	// A source comment rule rewrites a whole run, so a run keeps to the fork's lines.
+	if kindOf(req.Path, req.Content) != fixer.Document {
+		return req.Owned
+	}
+	return req.Owned.Widen(req.Content)
 }
 
 // runRule reports whether rule id rewrites a whole comment run. Such a rule
