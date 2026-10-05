@@ -148,11 +148,21 @@ func replaceWord(s, word, with string) string {
 	return b.String()
 }
 
-// afterPartitive reports a "both" that would follow "of": "one of the two lists"
-// reads "one of both lists", which is not English.
+// afterPartitive reports a "both" that would follow "of" or come before a
+// determiner: "one of both lists" and "both the main turn counts" are not English.
 func afterPartitive(lower string, at int, with string) bool {
-	return strings.EqualFold(with, "both") && strings.HasSuffix(strings.TrimRight(lower[:at], " "), " of")
+	if !strings.EqualFold(with, "both") {
+		return false
+	}
+	if strings.HasSuffix(" "+strings.TrimRight(lower[:at], " "), " of") {
+		return true
+	}
+	rest := strings.Fields(lower[at:])
+	return len(rest) > 2 && determiners[rest[2]]
 }
+
+// determiners open a noun phrase, so "the two" before one is a pronoun with a clause after it.
+var determiners = map[string]bool{"the": true, "a": true, "an": true, "this": true, "that": true, "its": true, "their": true}
 
 // wordBoundary reports whether s[at:end] stands as its own word. A marker
 // joining it to a name spells a name that does not exist.

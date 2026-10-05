@@ -74,6 +74,20 @@ func TestAValueAtAPointIsNotReworded(t *testing.T) {
 	}
 }
 
+// "both" never follows "of" and never comes before a determiner. A word size
+// and a hedged point on a scale are values.
+func TestARewordReadsAsEnglish(t *testing.T) {
+	for in, banned := range map[string]string{
+		"// Every plugin lands in exactly one of the two lists.\nvar x int\n":       "of both",
+		"// Mutations, and the two the main turn counts as read-only.\nvar x int\n": "both the main",
+		"// Only the low 32 bits are compared.\nvar x int\n":                        "many bits",
+		"// It is short. The cap trips at exactly 850 tokens.\nvar x int\n":         "multiple tokens",
+	} {
+		repair := fix(t, in)
+		assert.NotContains(t, repair.Text, banned, in)
+	}
+}
+
 // A number that governs no plural noun has nothing to reword around. The
 // sentence goes, and the caller is told which sentence went.
 func TestANumberWithNoPluralNounCutsItsSentence(t *testing.T) {

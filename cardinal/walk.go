@@ -59,6 +59,20 @@ func MeasureToken(_ string, toks []Token, i int) bool {
 	return singularVerbs.Contains(strings.ToLower(toks[i+2].Text))
 }
 
+// WordSizeToken exempts a word size, "32 bits" and its kin. The width is fixed
+// by the machine, so no edit to a set makes it stale.
+func WordSizeToken(_ string, toks []Token, i int) bool {
+	if i+1 >= len(toks) {
+		return false
+	}
+	switch toks[i].Text {
+	case "8", "16", "32", "64", "128":
+		noun := strings.ToLower(toks[i+1].Text)
+		return noun == "bits" || noun == "bit"
+	}
+	return false
+}
+
 // singularVerbs agree with one amount, never with a plural tally.
 var singularVerbs = set.Of("is", "was", "has", "does", "fits", "equals")
 

@@ -259,6 +259,10 @@ func NoWordReplaces(text string, at int) bool {
 		return true
 	}
 	before := strings.Fields(strings.ToLower(text[:at]))
+	// A hedge goes with the number, so the word before the hedge decides: "at exactly 850 tokens".
+	for len(before) > 0 && hedges.Contains(bare(before[len(before)-1])) {
+		before = before[:len(before)-1]
+	}
 	if len(before) == 0 || len(words) > 1 && IsUnit(bare(words[1])) {
 		return false
 	}
@@ -302,6 +306,9 @@ func NamesAnItem(text string, at int) bool {
 
 // functionTags mark a word that is never a name an item carries.
 var functionTags = set.Of("IN", "DT", "CC", "PRP", "PRP$", "TO", "MD", "WDT", "RB", "NNS", "NNPS")
+
+// hedges qualify the number after them.
+var hedges = set.Of("exactly", "about", "roughly", "around", "approximately", "nearly", "almost", "only", "just")
 
 // singleItem are the words that make the noun after them one counted item.
 var singleItem = set.Of("a", "an", "each", "every", "one", "per")
