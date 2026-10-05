@@ -117,6 +117,9 @@ type Repair struct {
 
 // Fix repairs req, unless it carries slopfix-expect annotations.
 func Fix(req Request) Repair {
+	if Embedded(req.Path) {
+		return Repair{Text: req.Content}
+	}
 	repair := within(req, fixAll(req))
 	wide := widened(req)
 	if wide == nil || wide == req.Owned || wide.All() || req.Scope.Bounded {
@@ -365,6 +368,9 @@ func openFile(req Request, kind fixer.Kind) *fixer.File {
 // Report is Fix for a caller that writes nothing. No repair lands, so every
 // finding is reported on the text as it stands, the repairable ones too.
 func Report(req Request) Repair {
+	if Embedded(req.Path) {
+		return Repair{Text: req.Content}
+	}
 	repair := reportAll(req)
 	if req.Owned == nil {
 		return repair
