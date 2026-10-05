@@ -149,6 +149,15 @@ func retag(words []Word) {
 		switch {
 		case lower == "n't" || lower == "not":
 			w.Tag = "RB"
+		case lower == "cannot":
+			// The tagger reads "cannot" as a noun.
+			w.Tag = "MD"
+		case w.Tag == "NNS" && i > 1 && verbEnding(w.Text) && words[i-1].Tag == "RB" && isNoun(words[i-2].Tag) && i+1 < len(words) && opensNounPhrase(words[i+1]):
+			// "the caller then judges the fragment": an adverb sits between the subject and its verb.
+			w.Tag = "VBZ"
+		case w.Tag == "NNS" && i == 2 && words[0].Text == "Package" && verbEnding(w.Text):
+			// "Package cardinal decides": a package comment names the package, then the verb.
+			words[1].Tag, w.Tag = "NNP", "VBZ"
 		case w.Text == "—" || w.Text == "–" || w.Text == "--":
 			// A dash is punctuation, and the tagger can read it as a verb.
 			w.Tag = ":"

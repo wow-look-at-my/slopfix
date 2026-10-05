@@ -286,8 +286,9 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			// A so after an instruction, or with no comma, states a purpose. A so with no subject leaves no clause.
 			return "", false
 		}
-		// The clause before the link needs a verb, or the conjunction joins noun phrases.
-		if s.Clauses[indexOf(s, c)-1].Verb == nil {
+		// The clause before the link needs a verb, or the conjunction joins noun
+		// phrases.
+		if s.Clauses[indexOf(s, c)-1].Verb == nil && !(c.Comma && c.Subject != nil && subjectFollows(s, c)) {
 			return "", false
 		}
 		if c.Subject != nil {
