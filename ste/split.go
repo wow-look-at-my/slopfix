@@ -331,9 +331,10 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		if s.Clauses[indexOf(s, c)-1].Verb == nil && !(c.Comma && c.Subject != nil && subjectFollows(s, c)) {
 			return "", false
 		}
-		if c.Subject != nil && s.Words[c.Link+1].Tag == "VBN" && c.Verb != nil && c.Subject.First > c.Link+1 && c.Subject.Last < c.Verb.First && finiteAt(s, c.Verb.First) {
-			// "and dropped it leaves": a participle phrase opens a clause that names its own subject later.
-			return connector, agrees(s, *c.Subject, *c.Verb) && opensWithCapital(s, c.Link+1, source)
+		if p := c.Link + 1; c.Subject == nil && c.Verb != nil && c.Verb.First == p && p+2 < len(s.Words) &&
+			(s.Words[p].Tag == "VBD" || s.Words[p].Tag == "VBN") && s.Words[p+1].Tag == "PRP" && finiteAt(s, p+2) {
+			// "and dropped it leaves": a participle and its object open a clause whose own subject follows.
+			return connector, opensWithCapital(s, p, source)
 		}
 		if c.Subject != nil {
 			return connector, subjectFollows(s, c) && agrees(s, *c.Subject, *c.Verb) && opensWithCapital(s, c.Link+1, source)
