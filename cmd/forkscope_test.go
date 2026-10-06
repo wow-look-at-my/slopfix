@@ -161,31 +161,6 @@ func quietCmd() (*cobra.Command, *bytes.Buffer) {
 	return cmd, &out
 }
 
-// poisonGit puts a git on PATH that records every spawn, then exits nonzero.
-// It answers the marker path, which the check must leave absent.
-func poisonGit(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	marker := filepath.Join(t.TempDir(), "spawned")
-	script := "#!/bin/sh\nprintf spawned >> \"$SLOPFIX_GIT_MARKER\"\nexit 1\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o755))
-	t.Setenv("SLOPFIX_GIT_MARKER", marker)
-	t.Setenv("PATH", dir)
-	return marker
-}
-
-// `slopfix check .` in a fork reads the repository itself, so the whole check
-// starts no git process.
-func TestATreeCheckInAForkStartsNoGitProcess(t *testing.T) {
-	fx := newForkRepo(t, aFork)
-	marker := poisonGit(t)
-
-	cmd, _ := quietCmd()
-	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks, nil)
-	require.NoError(t, err)
-	assert.NoFileExists(t, marker, "a git process was spawned on the check path")
-}
-
 // `slopfix fix .` in a fork leaves every file the fork never touched as it
 // was. In a file the fork touched, it repairs only the lines the fork wrote.
 func TestFixOfAForkTreeKeepsToTheForksLines(t *testing.T) {

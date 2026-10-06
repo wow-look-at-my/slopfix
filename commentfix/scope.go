@@ -10,10 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gitread"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // inProgressMarkers are the paths git writes while an operation stops for the
@@ -29,61 +31,79 @@ var inProgressMarkers = map[string]string{
 // errNoGit marks a root git does not track, where no branch scopes the sweep.
 var errNoGit = errors.New("not inside a git work tree")
 
+// git runs a git command in dir and answers its trimmed output.
+func git(dir string, args ...string) (string, error) {
+	out, err := gitmod.Command(dir, args...).Output()
+	if err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			return "", fmt.Errorf("git %s: %s", strings.Join(args, " "), strings.TrimSpace(string(exit.Stderr)))
+		}
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 // operationInProgress names the git operation stopped in the work tree at
 // root, or answers "".
 func operationInProgress(root string) (string, error) {
-	repo, err := gitread.OpenWorkTree(root)
-	if err != nil || repo == nil {
-		return "", errNoGit
-	}
 	for marker, name := range inProgressMarkers {
-		if _, err := os.Stat(filepath.Join(repo.GitDir(), marker)); err == nil {
+		path, err := git(root, "rev-parse", "--git-path", marker)
+		if err != nil {
+			return "", err
+		}
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(root, path)
+		}
+		if _, err := os.Stat(path); err == nil {
 			return name, nil
 		}
 	}
 	return "", nil
 }
 
-// defaultBranch answers the commit of the remote's default branch.
-func defaultBranch(repo *gitread.Repo) (gitread.OID, string, error) {
-	if oid, err := repo.Resolve("refs/remotes/origin/HEAD"); err == nil {
-		return oid, "refs/remotes/origin/HEAD", nil
+// defaultBranch answers the ref of the remote's default branch.
+func defaultBranch(root string) (string, error) {
+	if ref, err := git(root, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"); err == nil && ref != "" {
+		return ref, nil
 	}
 	for _, ref := range []string{"refs/remotes/origin/main", "refs/remotes/origin/master", "refs/heads/main", "refs/heads/master"} {
-		if oid, err := repo.Resolve(ref); err == nil {
-			return oid, ref, nil
+		if _, err := git(root, "rev-parse", "--verify", "--quiet", ref); err == nil {
+			return ref, nil
 		}
 	}
-	return gitread.OID{}, "", errors.New("no default branch: origin/HEAD, main and master are all missing")
+	return "", errors.New("no default branch: origin/HEAD, main and master are all missing")
 }
 
 // changedFiles answers every file under root that differs from the merge base
 // with the default branch: committed on the branch, staged, unstaged or new.
 func changedFiles(root string) (set.Set[string], error) {
-	repo, err := gitread.OpenWorkTree(root)
-	if err != nil || repo == nil {
+	top, err := git(root, "rev-parse", "--show-toplevel")
+	if err != nil {
 		return set.New[string](), errNoGit
 	}
-	top := repo.WorkTree()
-	branchOID, branch, err := defaultBranch(repo)
+	branch, err := defaultBranch(root)
 	if err != nil {
 		return set.New[string](), err
 	}
-	head, err := repo.Head()
+	base, err := git(root, "merge-base", "HEAD", branch)
 	if err != nil {
-		return set.New[string](), errNoGit
-	}
-	base, ok, err := repo.MergeBase(head, branchOID)
-	if err != nil || !ok {
 		return set.New[string](), fmt.Errorf("no merge base with %s: %w", branch, err)
 	}
-	names, err := repo.ChangedNames(base)
+	diffed, err := git(top, "diff", "--name-only", "--no-renames", base, "--")
+	if err != nil {
+		return set.New[string](), err
+	}
+	untracked, err := git(top, "ls-files", "--others", "--exclude-standard")
 	if err != nil {
 		return set.New[string](), err
 	}
 	out := set.New[string]()
-	for _, name := range names {
-		out.Add(filepath.Clean(filepath.Join(top, filepath.FromSlash(name))))
+	for _, name := range append(strings.Split(diffed, "\n"), strings.Split(untracked, "\n")...) {
+		if name == "" {
+			continue
+		}
+		out.Add(filepath.Clean(filepath.Join(top, name)))
 	}
 	return out, nil
 }
