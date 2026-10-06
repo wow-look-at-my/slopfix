@@ -178,6 +178,9 @@ func Extract(filename, src string) []Comment {
 	if IsCMake(filename) {
 		out = cmakeLineComments(src, out)
 	}
+	if isYAML(filename) {
+		out = yamlLineComments(src, out)
+	}
 	return out
 }
 
