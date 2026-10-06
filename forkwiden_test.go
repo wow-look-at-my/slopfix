@@ -121,3 +121,14 @@ func TestAForkAuthorshipOfAnOverLineDocIsRepaired(t *testing.T) {
 	repair := slopfix.Fix(req)
 	assert.Zero(t, ofID(repairIDs(repair), "comments/length"), repair.Text)
 }
+
+// A fork that grows a crate doc past the volume cap owns the added lines, and
+// the volume cut brings the block back under it.
+func TestAForkVolumeRunItGrewIsCapped(t *testing.T) {
+	base := "//! The crate.\n" + strings.Repeat("//! It reads the file.\n", 6) + "\npub fn a() {}\n"
+	fork := "//! The crate.\n" + strings.Repeat("//! It reads the file.\n", 14) + "\npub fn a() {}\n"
+	req := slopfix.Request{Path: "x.rs", Content: fork, Owned: forkscope.Changed(base, fork), MaxCommentLines: tombstones.DefaultMaxCommentLines}
+	assert.NotZero(t, ofID(repairIDs(slopfix.Report(req)), "tombstones/comment-volume"), "the block is over the cap")
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), "tombstones/comment-volume"), repair.Text)
+}
