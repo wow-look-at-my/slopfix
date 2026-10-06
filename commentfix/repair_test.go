@@ -179,11 +179,18 @@ func TestAFileWithNoFindingIsUntouched(t *testing.T) {
 // does not make the digits a label to name. "exit code 2" was rewritten into
 // "exit a later code", which says something the author did not.
 func TestAnExitCodeIsNotACount(t *testing.T) {
-	src := "// The stop runs so exit code 2 parses as a block.\nfunc f() {}\n"
-	repair := fix(t, src)
-	assert.False(t, repair.Changed, "the status is a value, not a count")
-	assert.Equal(t, src, repair.Text)
-	assert.Empty(t, commentfix.Check("x.go", header+src))
+	src := "/// Dispatch the observe-only session-end `Stop`: runs in stop-gate mode so\n" +
+		"/// exit code 2 parses as a block, but the decision is discarded (no turn\n" +
+		"/// left to continue).\n" +
+		"pub(crate) async fn dispatch_session_end_stop(&self, reason: &str) {\n" +
+		"    if self.startup_hints.is_subagent {\n" +
+		"        return;\n" +
+		"    }\n" +
+		"}\n"
+	got := commentfix.Fix("stop.rs", src)
+	assert.False(t, got.Changed, "the status is a value, not a count")
+	assert.Equal(t, src, got.Text, "the number repair leaves the phrase as written")
+	assert.Empty(t, commentfix.Check("stop.rs", got.Text))
 }
 
 // A generated file is left alone, the same way the check skips it.
