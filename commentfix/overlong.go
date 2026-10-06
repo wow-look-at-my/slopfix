@@ -365,8 +365,15 @@ func trim(b block) []string {
 		return out
 	}
 	// No cut fits, so the opening sentence divides until its first part does.
-	if shorter, ok := steOpening(kept, fit, true); ok {
+	if shorter, ok := steOpening(kept, fit, true); ok && fitsCode(shorter, b) {
 		return shorter
+	}
+	// Every cut is refused. The whole prose goes on one line: the line count is
+	// what the code beneath it weighs, and no word is dropped to reach one.
+	if wider, did := widen(kept, oneLine); did {
+		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return wider
+		}
 	}
 	return kept
 }
@@ -392,7 +399,11 @@ func clauseFit(b block) ([]string, bool) {
 	for _, cut := range clauseCuts(text) {
 		kept := strings.TrimRight(text[:cut], " ,;:-—–")
 		words := strings.Fields(kept)
-		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) || !closesWhole(kept) {
+		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+			continue
+		}
+		// A cut at a colon keeps the statement the colon elaborates.
+		if !closesWhole(kept) && !(cut < len(text) && text[cut] == ':') {
 			continue
 		}
 		if !endsSentence(kept) {

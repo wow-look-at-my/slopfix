@@ -146,4 +146,22 @@ var capSentences = []string{
 	"Compiled under `cfg(test)` off Linux as well, because the emitted argv IS the contract (the option order is what makes a later bind win, and what keeps the CI host-worker fd an option rather than a program argument) and an ordering only one host can assert is one that regresses quietly everywhere else.",
 	"The whole point of the fd contract, end to end on macOS: a process inside the real Seatbelt jail, holding only the fd number the jail handed it, reaches the real host worker — the shipped worker loop running as a real unsandboxed child — and gets a framed answer back.",
 	"Then `(deny file-read*)` and `(deny file-write*)` take every file access away, and the rules that follow give each kind of access back only for the paths the jail is supposed to expose: - `/dev` (a terminal, a PTY, `/dev/null`) — read and write. - a `--rw` mount — read and write. - a `--ro` mount — read only. - the read-only system base (including the macOS `/System`,",
+	"An idp that writes both the snake_case and the camelCase principal key — which is what a token relayed through a translating gateway looks like — must still be readable, not rejected as a duplicate field.",
+	"The local queue's rescue onto the shell's queue used to run only from a fresh `Action::SendPrompt`, so a row stuck locally before a never-idle turn (a goal) had no rescue until the user typed something new.",
+	"Painted on its OWN reserved row directly below the content (`cache_hit_reserved_rows`) rather than sharing the first line's already-narrowed gutter with the cost/timestamp, so wrapped content never loses more width to fit a second label.",
+	"Answers `false` when the request carries no reasoning, or is already at the last level, so the caller reports the rejection instead of resending the same body.",
+	"OpenRouter reports `usage.cost` on most but not all streaming chunks, so multi-call turns had `cost_missing_calls > 0`, which caused the scrub to drop ALL cost from the `TurnCompleted` notification, hiding it from the TUI.",
+	"Entries that carry a real (non-default) context window, treated as a per-slug `/v1/models` listing for backfilling entries that were left at the silent hardcoded default.",
+	"Drives the real request-path helper `resolve_byok_context_window_on_request_path` against a loopback OpenRouter-style `/v1/models` server and asserts the returned model's window is backfilled from the provider's `context_length`.",
+	"One `setup_goal` call — with no model turn of its own — leaves the session's LIVE todo list carrying the planner's items, each a fresh pending harness-minted item.",
+	"The same leniency over `Option<Vec<String>>`, for a shadow struct that must tell a key the sender omitted from a key it sent as `null` or `[]` before folding one field's spellings together.",
+	"The config sibling that was left at DEFAULT answers for its own window because a listing sibling with the same routing slug (`grok-4`) carries the real one, resolved per exact slug.",
+	"Dispatch the observe-only session-end `Stop`: runs in stop-gate mode so exit code 2 parses as a block, but the decision is discarded (no turn left to continue).",
+	"So if goal mode blocks ASAP delivery the gate must live in how often turn.rs's loop *calls* the harvest during a goal round, not in the harvest or the enqueue path.",
+	"A session whose task-list tool cannot address the item a capture adds is refused before any model call, rather than written through with semantics that cannot express the append.",
+	"A criterion whose code is present but whose integrated behavior is wrong, unreachable, or unusable is `refuted: true`, as is anything that fails to compile, fails its tests, or errors at runtime.",
+	"Parses through the bridge first, which reverse-maps client-facing parameter names to canonical ones — a harness may rename `todos` the same way it renames the tool — and yields the typed input the tool itself would see.",
 }
+
+// capPending names the sentence inputs the repair still leaves over the cap.
+var capPending []string
