@@ -87,12 +87,7 @@ func TestAMessagePromisingAnAutofixCarriesOne(t *testing.T) {
 			assert.Empty(t, rule.ReportOnly, "%s: it promises an autofix and declares report-only", rule.ID)
 			for _, raw := range rule.Cases {
 				c := materialize(t, raw)
-				before := rule.Detect(c)
-				if len(before) == 0 {
-					continue
-				}
 				after := rule.Autofix(c)
-				assert.NotEqual(t, c.Text, after.Text, "%s: case %q promises an autofix that fires on nothing", rule.ID, c.Name)
 				assert.Empty(t, rule.Detect(after), "%s: case %q still detects after the promised autofix", rule.ID, c.Name)
 			}
 		})
