@@ -74,6 +74,11 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		if subject, ok := fragmentSubject(source, whole); ok {
 			return fragmentHead(head), subject + " " + rest, opensWithCarrier
 		}
+		// The head is a noun phrase the sentence opened with, so the noun the
+		// participle describes is named again.
+		if strings.HasPrefix(prev.Tag, "NN") && !indefinites.Contains(prev.Lower()) {
+			return head, restate(source, prev, rest), opensWithCarrier
+		}
 	}
 	// "close enough together that no event explains it": the that-clause after "enough" is a result, and it stands as a sentence of its own.
 	if seam == "" && lower == "that" && enoughBefore(whole, first) {

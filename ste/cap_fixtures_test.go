@@ -151,6 +151,7 @@ var capSentences = []string{
 	"Painted on its OWN reserved row directly below the content (`cache_hit_reserved_rows`) rather than sharing the first line's already-narrowed gutter with the cost/timestamp, so wrapped content never loses more width to fit a second label.",
 	"Answers `false` when the request carries no reasoning, or is already at the last level, so the caller reports the rejection instead of resending the same body.",
 	"OpenRouter reports `usage.cost` on most but not all streaming chunks, so multi-call turns had `cost_missing_calls > 0`, which caused the scrub to drop ALL cost from the `TurnCompleted` notification, hiding it from the TUI.",
+	"Entries that carry a real (non-default) context window, treated as a per-slug `/v1/models` listing for backfilling entries that were left at the silent hardcoded default.",
 }
 
 // capPending are the sentence inputs the fork job still leaves standing: a
@@ -162,7 +163,6 @@ var capSentences = []string{
 // list is asserted whole, so the build reports the count of the gap instead of
 // a deletion hiding it.
 var capPending = []string{
-	"Entries that carry a real (non-default) context window, treated as a per-slug `/v1/models` listing for backfilling entries that were left at the silent hardcoded default.",
 	"Drives the real request-path helper `resolve_byok_context_window_on_request_path` against a loopback OpenRouter-style `/v1/models` server and asserts the returned model's window is backfilled from the provider's `context_length`.",
 	"The config sibling that was left at DEFAULT answers for its own window because a listing sibling with the same routing slug (`grok-4`) carries the real one, resolved per exact slug.",
 	"Parses through the bridge first, which reverse-maps client-facing parameter names to canonical ones — a harness may rename `todos` the same way it renames the tool — and yields the typed input the tool itself would see.",
