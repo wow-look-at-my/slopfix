@@ -44,3 +44,28 @@ func TestALongDocSentenceDoesNotSplitIntoAFragment(t *testing.T) {
 		}
 	}
 }
+
+// A long doc-comment sentence the fixer used to leave standing. It has no main
+// clause of its own, so the colon before its list is the boundary the division
+// takes. The head closes, and the list it introduces stays whole.
+func TestAColonEndsALongDocSentenceBeforeItsList(t *testing.T) {
+	src := "/// Every flag a request may carry. An allowlist rather than a deny-list\n" +
+		"/// because the flags that matter are the ones that turn a read into a write:\n" +
+		"/// `-X POST`, `--method`, `--field`, `--input`.\n" +
+		"const ALLOWED_FLAGS: &[&str] = &[\n" +
+		"    \"--json\",\n" +
+		"];\n"
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: "ci_host.rs", Rules: []slopfix.Rule{slopfix.RuleSTE}}).Text
+	assert.Contains(t, out, "into a write.\n", "the sentence was not divided at its colon:\n%s", out)
+	assert.Contains(t, out, "`-X POST`, `--method`, `--field`, `--input`", "the list was cut:\n%s", out)
+}
+
+// A long doc-comment sentence that opens on a participle and holds no main
+// clause. The comma before its reason is the boundary the division takes, so
+// neither half runs past the cap.
+func TestACommaEndsALongFragmentDocSentence(t *testing.T) {
+	src := "/// Compiled under `cfg(test)` off Linux as well, because the emitted argv IS the contract (the option order is what makes a later bind win, and what keeps the CI host-worker fd an option rather than a program argument) and an ordering only one host can assert is one that regresses quietly everywhere else.\n" +
+		"fn f() {}\n"
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: "jail.rs", Rules: []slopfix.Rule{slopfix.RuleSTE}}).Text
+	assert.Contains(t, out, "off Linux as well. Because the emitted argv IS the contract", "the sentence was not divided at its comma:\n%s", out)
+}
