@@ -56,8 +56,8 @@ var hardCuts = []struct {
 	{"The span the current window covers at `now`: the whole window once the response has run that long, and the time since its first chunk before then.", "first. Chunk"},
 }
 
-// A last-resort cut may leave a sentence whole when no cut reads, so these
-// cases assert only that the cut never lands on the seam it once took.
+// A last-resort cut may leave a sentence whole when no cut reads. These cases
+// assert only that the cut never lands on the seam it once took.
 func TestALastResortCutKeepsAVerbWithItsNeighbours(t *testing.T) {
 	for _, c := range hardCuts {
 		t.Run(c.bad, func(t *testing.T) {
