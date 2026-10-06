@@ -225,13 +225,30 @@ func fold(req Request, repair Repair) Repair {
 // keeps, with the comment marker of each joined line dropped.
 func foldHunk(text string, h forkscope.Hunk) edit.Edit {
 	rows := strings.Split(text, "\n")[h.J1:h.J2]
-	keep := max(h.Had, 1)
-	lines := slices.Clone(rows[:keep])
-	for _, row := range rows[keep:] {
-		if prose := commentProse(row); prose != "" {
-			lines[keep-1] = strings.TrimRight(lines[keep-1], " \t") + " " + prose
+	// A hunk can carry code rows beside the comment rows the fork grew.
+	var lines, run []string
+	flush := func() {
+		if len(run) == 0 {
+			return
 		}
+		joined := run[0]
+		for _, row := range run[1:] {
+			if prose := commentProse(row); prose != "" {
+				joined = strings.TrimRight(joined, " \t") + " " + prose
+			}
+		}
+		lines = append(lines, joined)
+		run = nil
 	}
+	for _, row := range rows {
+		if commentProse(row) == "" {
+			flush()
+			lines = append(lines, row)
+			continue
+		}
+		run = append(run, row)
+	}
+	flush()
 	return edit.Rows(text, h.J1, h.J2-1, 0, lines)
 }
 
