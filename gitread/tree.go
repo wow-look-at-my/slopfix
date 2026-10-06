@@ -3,6 +3,7 @@ package gitread
 import (
 	"bytes"
 	"fmt"
+	"github.com/wow-look-at-my/go-containers/set"
 	"sort"
 	"strings"
 )
@@ -235,20 +236,20 @@ func (r *Repo) ChangedPaths(from, to OID) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	seen := map[string]bool{}
+	seen := set.New[string]()
 	for path, entry := range a {
 		other, ok := b[path]
 		if !ok || other.OID != entry.OID || other.Mode != entry.Mode {
-			seen[path] = true
+			seen.Add(path)
 		}
 	}
 	for path, entry := range b {
 		if old, ok := a[path]; !ok || old.OID != entry.OID || old.Mode != entry.Mode {
-			seen[path] = true
+			seen.Add(path)
 		}
 	}
-	out := make([]string, 0, len(seen))
-	for path := range seen {
+	out := make([]string, 0, seen.Len())
+	for path := range seen.All() {
 		out = append(out, path)
 	}
 	sort.Strings(out)

@@ -47,8 +47,7 @@ func Open(dir string) (*Repo, error) {
 	return r, nil
 }
 
-// OpenWorkTree finds the repository whose work tree holds dir, or nil when the
-// path is outside every work tree (a bare repository answers nil too).
+// OpenWorkTree finds the repository whose work tree holds dir, or nil.
 func OpenWorkTree(dir string) (*Repo, error) {
 	r, err := Open(dir)
 	if err != nil || r == nil || r.workTree == "" {
@@ -153,11 +152,6 @@ func (r *Repo) IsShallow() bool {
 // Path answers a path inside the per-work-tree git directory.
 func (r *Repo) Path(parts ...string) string {
 	return filepath.Join(append([]string{r.gitDir}, parts...)...)
-}
-
-// commonPath answers a path inside the shared git directory.
-func (r *Repo) commonPath(parts ...string) string {
-	return filepath.Join(append([]string{r.commonDir}, parts...)...)
 }
 
 // config answers the parsed repository config, cached.

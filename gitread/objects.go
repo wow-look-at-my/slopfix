@@ -395,7 +395,6 @@ func (p *packIndex) find(oid OID) (uint64, bool) {
 	return 0, false
 }
 
-// readIndex reads a version 2 pack index.
 func readIndex(path string) (*packIndex, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

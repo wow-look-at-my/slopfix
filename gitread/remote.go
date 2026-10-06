@@ -1,13 +1,11 @@
 package gitread
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -170,31 +168,4 @@ func pktSize(header []byte) int {
 		value = value<<4 | int(n)
 	}
 	return value
-}
-
-// readRefFile answers a ref file's content, for a remote's own refs.
-func readRefFile(path string) (string, bool) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", false
-	}
-	return strings.TrimSpace(string(data)), true
-}
-
-// scanTags is a helper for a caller that wants tag names, not commits.
-func scanTags(r *Repo) []string {
-	var out []string
-	file, err := os.Open(filepath.Join(r.commonDir, "packed-refs"))
-	if err != nil {
-		return out
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if _, ref, ok := strings.Cut(line, " "); ok && strings.HasPrefix(ref, "refs/tags/") && !strings.HasSuffix(ref, "^{}") {
-			out = append(out, ref)
-		}
-	}
-	return out
 }

@@ -2,6 +2,7 @@ package gitread
 
 import (
 	"bytes"
+	"github.com/wow-look-at-my/go-containers/set"
 	"os"
 	"path/filepath"
 	"sort"
@@ -23,11 +24,11 @@ func (r *Repo) ChangedNames(base OID) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	seen := map[string]bool{}
+	seen := set.New[string]()
 	var out []string
 	add := func(path string) {
-		if !seen[path] {
-			seen[path] = true
+		if !seen.Contains(path) {
+			seen.Add(path)
 			out = append(out, path)
 		}
 	}
@@ -66,19 +67,19 @@ func (r *Repo) WorkFiles() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	seen := map[string]bool{}
+	seen := set.New[string]()
 	var out []string
 	tracked := idx.Tracked()
 	for path := range tracked {
-		if !seen[path] {
-			seen[path] = true
+		if !seen.Contains(path) {
+			seen.Add(path)
 			out = append(out, path)
 		}
 	}
 	if r.workTree != "" {
 		if err := r.walkUntracked(tracked, func(rel string) {
-			if !seen[rel] {
-				seen[rel] = true
+			if !seen.Contains(rel) {
+				seen.Add(rel)
 				out = append(out, rel)
 			}
 		}); err != nil {

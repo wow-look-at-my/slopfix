@@ -2,15 +2,10 @@ package gitread
 
 import (
 	"bytes"
+	"github.com/wow-look-at-my/go-containers/set"
 	"strconv"
 	"time"
 )
-
-// Commit answers a commit object with its committer time.
-type commitMeta struct {
-	when time.Time
-	seq  uint64
-}
 
 // RevList answers every commit reachable from oid, including oid.
 func (r *Repo) RevList(oid OID) ([]OID, error) {
@@ -19,22 +14,22 @@ func (r *Repo) RevList(oid OID) ([]OID, error) {
 		return nil, err
 	}
 	var out []OID
-	seen := map[OID]bool{}
+	seen := set.New[OID]()
 	stack := []OID{start}
 	for len(stack) > 0 {
 		oid := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		if seen[oid] {
+		if seen.Contains(oid) {
 			continue
 		}
-		seen[oid] = true
+		seen.Add(oid)
 		out = append(out, oid)
 		c, err := r.Commit(oid)
 		if err != nil {
 			continue
 		}
 		for _, p := range c.Parents {
-			if !seen[p] {
+			if !seen.Contains(p) {
 				stack = append(stack, p)
 			}
 		}
@@ -140,15 +135,15 @@ func (r *Repo) isAncestorWithin(a, b OID, limit map[OID]bool) (bool, error) {
 	if a == b {
 		return true, nil
 	}
-	seen := map[OID]bool{}
+	seen := set.New[OID]()
 	stack := []OID{b}
 	for len(stack) > 0 {
 		oid := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		if seen[oid] {
+		if seen.Contains(oid) {
 			continue
 		}
-		seen[oid] = true
+		seen.Add(oid)
 		c, err := r.Commit(oid)
 		if err != nil {
 			continue
@@ -157,7 +152,7 @@ func (r *Repo) isAncestorWithin(a, b OID, limit map[OID]bool) (bool, error) {
 			if p == a {
 				return true, nil
 			}
-			if limit[p] && !seen[p] {
+			if limit[p] && !seen.Contains(p) {
 				stack = append(stack, p)
 			}
 		}

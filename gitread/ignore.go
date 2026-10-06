@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-func relPath(root, path string) (string, error) {
-	return filepath.Rel(root, path)
-}
-
 // ignoreLine is one parsed gitignore line.
 type ignoreLine struct {
 	pattern  string

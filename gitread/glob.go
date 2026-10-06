@@ -71,12 +71,3 @@ func globRegexp(pattern string) string {
 	b.WriteString("$")
 	return b.String()
 }
-
-// relTo answers path relative to root in slash form, or false when outside.
-func relTo(root, path string) (string, bool) {
-	rel, err := relPath(root, path)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, "../") {
-		return "", false
-	}
-	return rel, true
-}

@@ -13,8 +13,6 @@ package gitread
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 )
 
 // OID is a SHA-1 object name.
@@ -79,21 +77,4 @@ func looksLikeOID(s string) bool {
 		}
 	}
 	return true
-}
-
-// splitNul cuts a NUL-separated list into its fields, dropping a trailing empty one.
-func splitNul(s string) []string {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, "\x00")
-	if parts[len(parts)-1] == "" {
-		parts = parts[:len(parts)-1]
-	}
-	return parts
-}
-
-func atoi(s string) int {
-	n, _ := strconv.Atoi(strings.TrimSpace(s))
-	return n
 }
