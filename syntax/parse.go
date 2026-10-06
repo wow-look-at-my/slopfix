@@ -70,8 +70,8 @@ func restoreVerbs(words []Word, phrases []Phrase) bool {
 			changed = restoreOne(words, phrases[n:n+1], phrases[n].First, phrases[n].Last+1) || changed
 		}
 	}
-	// A plural noun inside a compound, between a singular noun and a name, is
-	// the compound's verb whether the run already holds.
+	// A plural noun between a singular noun and a name is the compound's verb,
+	// whether a finite verb stands elsewhere in the run.
 	for _, p := range phrases {
 		if p.Kind == NounPhrase {
 			if k := innerVerb(words, p); k >= 0 && words[k].Tag == "NNS" {

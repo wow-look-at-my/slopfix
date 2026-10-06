@@ -336,7 +336,7 @@ func beforeCoordinate(s *syntax.Sentence, source string) []division {
 		if closingClause(s, i) {
 			continue
 		}
-		// A comma inside the clause before the conjunction ends.
+		// A comma inside the clause before the conjunction ends a list, not a clause.
 		if s.Words[i].Lower() != "so" && listBefore(s, syntax.Clause{Link: i}) {
 			continue
 		}
