@@ -13,7 +13,10 @@ import (
 // that never empties a cache that never fills" becomes "a cache that never
 // empties. A cache that never fills".
 func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) (string, bool) {
-	if len(whole.Words) == 0 || standsAlone(whole, 0, len(whole.Words)) {
+	if len(whole.Words) == 0 {
+		return source, false
+	}
+	if standsAlone(whole, 0, len(whole.Words)) && WordCount(checkMask(source)) <= limit {
 		return source, false
 	}
 	// Only a noun phrase is a fragment of its own. A sentence that opens on "to" or "if" leads into a clause the parser missed.
@@ -22,15 +25,26 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 	default:
 		return source, false
 	}
+	// A list of noun phrases joined by commas has no clause to divide at, so each comma ends one item and opens the next.
 	for _, c := range candidates(source, masked, false, limit) {
-		if seam := seamBefore(source, c.left); cutsAside(masked, c.left, c.right) || seam != "" && seam != "," {
+		seam := seamBefore(source, c.left)
+		if cutsAside(masked, c.left, c.right) {
 			continue
 		}
 		n := wordsBefore(whole, c.left)
 		if n < minimumHalf || len(whole.Words)-n < minimumHalf {
 			continue
 		}
-		if !endsBefore(whole, n) || !opensFragment(whole.Words[n]) || opensMainClause(whole, n) {
+		if seam == "," {
+			// A comma opens the next list item only when a determiner or a list
+			// adverb follows it. "Progress, when set, is called" is no list.
+			if !opensFragment(whole.Words[n]) && !listAdverb.Contains(whole.Words[n].Lower()) {
+				continue
+			}
+		} else if !endsBefore(whole, n) || !opensFragment(whole.Words[n]) || opensMainClause(whole, n) {
+			continue
+		}
+		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {
 			continue
 		}
 		left := closeHead(source[:c.left])
@@ -45,6 +59,9 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 
 // phraseEndParticle words end a phrase, though the tagger can read one as a preposition.
 var phraseEndParticle = set.Of(wordsOf("phrase-end-particle")...)
+
+// listAdverb words continue a list without a determiner.
+var listAdverb = set.Of("then", "next", "finally", "lastly", "also", "plus")
 
 // PhraseHead answers the longest leading run of text, at most maxWords long,
 // that ends a noun phrase where the next word opens one. It closes the run

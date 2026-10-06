@@ -455,13 +455,52 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 				over--
 			}
 		}
-		// A row cut that does not land on a sentence end leaves a fragment, so the block stays for a rewrite by hand.
+		// A row cut that does not land on a sentence end leaves a fragment, so
+		// the surviving row is trimmed back to one. The cap has to be
+		// reachable: dropping further rows would cost more than the fragment.
 		if !endsOnSentence(lines, b, drop) {
+			row, trimmed, ok := trimLastKeptRow(lines, b, drop)
+			if !ok {
+				continue
+			}
+			edits = append(edits, stripEdits(text, drop)...)
+			edits = append(edits, edit.Rows(text, row, row, 0, []string{trimmed}))
 			continue
 		}
 		edits = append(edits, stripEdits(text, drop)...)
 	}
 	return edits
+}
+
+// trimLastKeptRow cuts the last row a drop keeps back to its last sentence end.
+// A volume cut lands on a sentence rather than a fragment. It reports false
+// when that row holds no sentence end to cut back to.
+func trimLastKeptRow(lines []string, b Block, drop set.Set[int]) (int, string, bool) {
+	for i := len(b.LineNos) - 1; i >= 0; i-- {
+		no, pure := linePurity(b, i)
+		if !pure || drop.Contains(no) || no < 0 || no >= len(lines) {
+			continue
+		}
+		if trimmed, ok := trimToSentenceEnd(lines[no]); ok {
+			return no, trimmed, true
+		}
+		return 0, "", false
+	}
+	return 0, "", false
+}
+
+// trimToSentenceEnd removes whatever follows the last sentence end on a line,
+// keeping a block closer when one follows it.
+func trimToSentenceEnd(line string) (string, bool) {
+	cut := strings.LastIndexAny(line, ".!?")
+	if cut < 0 {
+		return "", false
+	}
+	trimmed := line[:cut+1]
+	if rest := line[cut+1:]; strings.Contains(rest, "*/") {
+		trimmed += " */"
+	}
+	return trimmed, true
 }
 
 // cutLines quotes the dropped rows a strip edit covers.

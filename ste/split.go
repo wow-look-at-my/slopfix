@@ -145,6 +145,9 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		// The parse of the whole can hand a clause a verb that belongs elsewhere, so each half is read again on its own.
+		if !standsAsSentence(left) {
+			continue
+		}
 		if d.opener == "" && !standsAsSentence(right) {
 			continue
 		}

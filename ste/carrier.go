@@ -123,6 +123,15 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		return listHead(head, "and", false, whole, main), capitalizeOpening(subject) + " also " + rest, opensWithCarrier
 	case seam == "," || seam == ":":
+		// "X must ensure that A, and that B" divides with the main clause
+		// restated: "X must also ensure that B".
+		if seam == "," && lower == "and" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "that" && !headOpen(whole, first) {
+			if subject := mainSubject(source, whole, main, whole.Words[main.Head].Tag); subject != "" {
+				if clause := strings.TrimLeft(rest[len(word.Text):], " "); clause != "" {
+					return head, capitalizeOpening(subject) + " " + alsoVerb(source, whole, main) + " " + clause, opensWithCarrier
+				}
+			}
+		}
 		// A list that opens after "so" or a subordinator belongs to that clause: "is a thin wrapper, so a hook, a CI job and an editor integration all get".
 		if carried, conj, ok := listRest(source, whole, main, c, rest, seam); ok && !subordinatorBetween(whole, main.Last+1, first+1) {
 			return listHead(head, conj, oxford(rest), whole, main), carried, opensWithCarrier
