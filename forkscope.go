@@ -198,7 +198,9 @@ func fold(req Request, repair Repair) Repair {
 		for _, h := range forkscope.Grown(base, repair.Text, r.first, r.last) {
 			if !seen.Contains(h.J1) {
 				seen.Add(h.J1)
-				edits = append(edits, foldHunk(repair.Text, h))
+				if e, ok := foldHunk(repair.Text, h); ok {
+					edits = append(edits, e)
+				}
 			}
 		}
 	}
@@ -223,44 +225,39 @@ func fold(req Request, repair Repair) Repair {
 
 // foldHunk answers the edit that joins the lines h added onto the last line it
 // keeps, with the comment marker of each joined line dropped.
-func foldHunk(text string, h forkscope.Hunk) edit.Edit {
+//
+// A hunk can run past the comment run into code. The join covers only the
+// comment rows: a code row stays, and the gate refuses an edit that spans one.
+func foldHunk(text string, h forkscope.Hunk) (edit.Edit, bool) {
 	rows := strings.Split(text, "\n")[h.J1:h.J2]
-	// A hunk can carry code rows beside the comment rows the fork grew.
-	var lines, run []string
-	flush := func() {
-		if len(run) == 0 {
-			return
-		}
-		joined := run[0]
-		for _, row := range run[1:] {
-			if prose := commentProse(row); prose != "" {
-				joined = strings.TrimRight(joined, " \t") + " " + prose
-			}
-		}
-		lines = append(lines, joined)
-		run = nil
+	n := 0
+	for n < len(rows) && commentProse(rows[n]) != "" {
+		n++
 	}
-	for _, row := range rows {
-		if commentProse(row) == "" {
-			flush()
-			lines = append(lines, row)
-			continue
-		}
-		run = append(run, row)
+	if n == 0 {
+		return edit.Edit{}, false
 	}
-	flush()
-	return edit.Rows(text, h.J1, h.J2-1, 0, lines)
+	joined := rows[0]
+	for _, row := range rows[1:n] {
+		joined = strings.TrimRight(joined, " \t") + " " + commentProse(row)
+	}
+	return edit.Rows(text, h.J1, h.J1+n-1, 0, []string{joined}), true
 }
 
 // commentProse answers what a comment line says, without its indent and marker.
+// A row that carries no comment marker is code, and answers "". A "#" that
+// opens an attribute, as in "#[allow(...)]", is code too.
 func commentProse(row string) string {
 	text := strings.TrimSpace(row)
+	if strings.HasPrefix(text, "#[") {
+		return ""
+	}
 	for _, marker := range []string{"//", "#", "*"} {
 		if rest, ok := strings.CutPrefix(text, marker); ok {
 			return strings.TrimSpace(rest)
 		}
 	}
-	return text
+	return ""
 }
 
 // upstreamRuns drops each block finding on a run of text the fork did not make
@@ -287,9 +284,14 @@ func upstreamRuns(req Request, owns *forkscope.Scope, text string, repair Repair
 		if cap <= 0 || first < 1 {
 			return true
 		}
+		// A hunk can run past the run into code.
 		add := 0
 		for _, h := range hunks {
-			add += (h.J2 - h.J1) - h.Had
+			lo, hi := max(h.J1, first-1), min(h.J2-1, last-1)
+			if lo > hi {
+				continue
+			}
+			add += max(0, (hi-lo+1)-h.Had)
 		}
 		baseLen := (last - first + 1) - add
 		return baseLen <= cap
