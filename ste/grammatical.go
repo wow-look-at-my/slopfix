@@ -222,7 +222,7 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 		case imperativeTag(s, *c.Verb) && skipAdverbs(s, max(c.First, c.Link+1)) == c.Verb.First:
 			// "Do NOT modify the workspace": the tagger reads a bare verb at the start as present tense.
 			start = c.Verb.First
-		case c.Kind == syntax.Opens && c.Verb.Finite && c.Verb.First > c.First:
+		case c.Kind == syntax.Opens && c.Verb.Finite && c.Verb.First > c.First && subjectOpensAt(s, c.First, c.Verb.First):
 			// The words ahead of a finite verb are its subject, though the tagger missed it: "The comment scan reads".
 			start = c.First
 		}
@@ -241,6 +241,16 @@ func frontedPhraseOnly(s *syntax.Sentence, from int, subject syntax.Phrase) bool
 	return lead < subject.First && s.Words[lead].Tag == "IN" && !finiteBetween(s, lead, subject.First)
 }
 
+// subjectOpensAt reports a run of words that reads as a subject. An adverb at
+// either end of it is none: "No longer exist" is no sentence.
+func subjectOpensAt(s *syntax.Sentence, from, verb int) bool {
+	if verb-1 < from || adverbLed(s.Words[from]) || adverbLed(s.Words[verb-1]) {
+		return false
+	}
+	return true
+}
+
+func adverbLed(w syntax.Word) bool { return w.Tag == "RB" || w.Tag == "JJR" || w.Tag == "JJS" }
 // instructs reports a sentence whose main clause is an imperative, after any
 // opening subordinate clause: "When a step exists, include a quote". A so in
 // an instruction states the purpose of the instruction.

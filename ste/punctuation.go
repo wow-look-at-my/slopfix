@@ -17,6 +17,12 @@ func punctuationDivision(source, masked string, whole *syntax.Sentence, limit in
 		left, right := source[:at], source[at:]
 		head := closeHead(strings.TrimRight(left, " "))
 		rest := capitalizeOpening(strings.TrimLeft(right, " "))
+		if !StandsAlone(rest) {
+			// "This is" carries a noun phrase that a dash introduces.
+			if carried := "This is " + strings.TrimLeft(right, " "); StandsAlone(capitalizeOpening(carried)) {
+				rest = capitalizeOpening(carried)
+			}
+		}
 		if WordCount(head) < minimumHalf || WordCount(rest) < minimumHalf || !holdsFinite(checkMask(head)) || !StandsAlone(rest) {
 			continue
 		}
@@ -56,8 +62,15 @@ func punctuationCuts(masked string) []int {
 			}
 		}
 	}
-	for _, a := range asides(masked) {
+	spans := asides(masked)
+	for _, a := range spans {
 		out = append(out, a[1])
+	}
+	for _, d := range asideDash.FindAllStringIndex(masked, -1) {
+		if insideAny(spans, d[0]) {
+			continue
+		}
+		out = append(out, d[1])
 	}
 	return out
 }
