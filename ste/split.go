@@ -47,6 +47,12 @@ func restOf(source string, d division) string {
 	return source[d.rightStart:d.comma] + "," + source[d.comma:]
 }
 
+// dashMark reports a dash, which introduces a clause the sentence before it
+// stands without.
+func dashMark(text string) bool {
+	return text == "--" || text == "—" || text == "–" || text == "-"
+}
+
 // connectors map a conjunction to the words that open the sentence after it.
 // A period says what and and so say, so both drop.
 var connectors = map[string]string{
@@ -153,6 +159,31 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		}
 		// A noun phrase whose only verbs sit in relative clauses is a fragment: "A number that is true today".
 		if !finiteOutsideRelative(syntax.Parse(checkMask(right), nil), 0) {
+			continue
+		}
+		score := max(WordCount(left), WordCount(right))
+		if bestScore < 0 || score < bestScore {
+			best, bestScore = left+" "+right, score
+		}
+	}
+	return best, bestScore >= 0
+}
+
+// coordinateDivision divides at a comma before a conjunction the clause pass
+// left inside one clause, as in "X, so Y" or "X, but Y". It is the fallback
+// behind the clause boundaries, and each half must read as a sentence.
+func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
+	best, bestScore := "", -1
+	for _, d := range beforeCoordinate(s, source) {
+		if !admissible(s, source, d) {
+			continue
+		}
+		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
+		right := joinOpener(d.opener, restOf(source, d))
+		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
+			continue
+		}
+		if !standsAsSentence(left) || !standsAsSentence(right) {
 			continue
 		}
 		score := max(WordCount(left), WordCount(right))
@@ -276,7 +307,42 @@ func divisions(s *syntax.Sentence, source string) []division {
 		}
 		out = append(out, d)
 	}
-	return append(out, beforeSubordinate(s, source)...)
+	out = append(out, beforeSubordinate(s, source)...)
+	return out
+}
+
+// beforeCoordinate divides at ", <conjunction>" when the clause pass left both
+// clauses as one. "X, so Y" and "X, but Y" where the parser read the whole as
+// a single clause. Each side must stand as a sentence, which bestDivision
+// checks. A list keeps its conjunction, because a comma before one inside a
+// list does not open a clause of its own.
+func beforeCoordinate(s *syntax.Sentence, source string) []division {
+	var out []division
+	for i := 2; i+1 < len(s.Words); i++ {
+		connector, known := connectors[s.Words[i].Lower()]
+		if !known || s.Words[i-1].Text != "," {
+			continue
+		}
+		if closingClause(s, i) {
+			continue
+		}
+		out = append(out, division{
+			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, i)].End, true),
+			rightStart: outsideSpans(source, s.Words[i+1].Start, false),
+			opener:     connector,
+		})
+	}
+	return out
+}
+
+// closingClause reports a conjunction that closes a subordinate clause before
+// the sentence's own verb, as in "so that" or "and so", where no clause opens.
+func closingClause(s *syntax.Sentence, i int) bool {
+	w := s.Words[i].Lower()
+	if w == "and" || w == "or" {
+		return false
+	}
+	return i+1 < len(s.Words) && s.Words[i+1].Lower() == "that"
 }
 
 // beforeSubordinate divides at ", and" when a subordinate clause and then a main
@@ -396,8 +462,26 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		return "This", true
 	case syntax.Punctuated:
 		// A colon or a dash before a clause that names its own subject ends a sentence.
-		if c.Depth != 0 || c.Subject == nil && !resumesAfter(s, c.Link+1) {
+		if c.Depth != 0 {
 			return "", false
+		}
+		if c.Subject == nil && !resumesAfter(s, c.Link+1) {
+			// A dash before a verb group leaves the clause before it whole, and the
+			// subject the sentence opened with is named.
+			if c.Verb == nil || !dashMark(s.Words[c.Link].Text) {
+				return "", false
+			}
+			if opensImperative(checkMask(source[s.Words[c.Link+1].Start:])) {
+				return "", opensWithCapital(s, c.Link+1, source)
+			}
+			if main.Subject == nil {
+				return "", false
+			}
+			subject, ok := restated(s, main, c, source)
+			if !ok {
+				return "", false
+			}
+			return subject, true
 		}
 		if c.Subject != nil && !subjectFollows(s, c) || !opensSubject(s, c.Link+1) {
 			// "not prose: left in the text a rewrite wraps it": a participle phrase opens a clause that names its own subject later.
@@ -477,6 +561,9 @@ func opensWithCapital(s *syntax.Sentence, i int, source string) bool {
 // Otherwise a pronoun stands in, chosen to agree with c's verb. It answers false
 // when no pronoun agrees, as for a single person and a verb in -s.
 func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string, bool) {
+	if main.Subject == nil || main.Verb == nil || c.Verb == nil {
+		return "", false
+	}
 	subject := *main.Subject
 	if subject.First > 0 && s.Words[subject.First-1].Tag == "VBG" {
 		// The noun phrase is the object of a gerund, and the gerund is the subject: "freezing the HOW pins it".
