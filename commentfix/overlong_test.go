@@ -181,6 +181,23 @@ func TestASingleOpeningSentenceTooLongToFitDivides(t *testing.T) {
 	assert.True(t, strings.HasPrefix(comment, "a long single opening sentence"), "the kept text is the opening: %q", comment)
 }
 
+// A one-sentence doc that no cut fits goes back on one line: the line count is
+// what the code beneath it weighs. No word is dropped to reach one line.
+func TestAOneSentenceDocTooLongToWrapFitsOneLine(t *testing.T) {
+	src := "package p\n\n// False when the id is not in this session's catalog at all, which is a\n// different fault from a model that is there and unflagged.\nconst inCatalog = true\n"
+
+	hits := CheckLength("x.go", src)
+	require.Len(t, hits, 1)
+
+	out, changed := FixLength("x.go", src)
+	require.True(t, changed)
+	assert.Empty(t, CheckLength("x.go", out), "the repaired file is clean:\n%s", out)
+	comment := commentProse(out)
+	assert.NotContains(t, comment, "\n", "the doc is one line")
+	assert.Contains(t, comment, "False when the id is not in this session's catalog at all", "%q", comment)
+	assert.Contains(t, comment, "which is a different fault from a model that is there and unflagged.", "no word is dropped: %q", comment)
+}
+
 // A long opening sentence with clauses keeps its leading clauses when it
 // divides to fit, so the comment still opens with its point.
 func TestALongOpeningKeepsItsLeadingClauses(t *testing.T) {

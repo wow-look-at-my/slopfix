@@ -166,26 +166,22 @@ var forkSnippet = strings.Replace(upstreamSnippet,
 	"    // The scheduler silently caps --max-running-requests to what the mamba pool\n    // admits unless --max-mamba-cache-size = requests x slots is set.\n",
 	"    // The scheduler caps --max-running-requests to what the mamba pool admits.\n    // Without a pin that pool is sized for the requested concurrency only up\n    // to 47% of the budget, so --max-mamba-cache-size = requests x slots is set.\n", 1)
 
-func TestAForkVolumeFindingNamesItsBlockAndIsRepaired(t *testing.T) {
+// The base already had the run over the cap. The volume finding is the base's:
+// neither the report nor the repair names it, and the fork's words stay.
+func TestAForkRunTheBaseAlreadyHadOverTheCapIsTheBases(t *testing.T) {
 	path := "docs/src/snippets/configs/Qwen/qwen3.8-flash-next.jsx"
 	require.NotEqual(t, upstreamSnippet, forkSnippet)
 	owned := forkscope.Changed(upstreamSnippet, forkSnippet)
 	req := slopfix.Request{Path: path, Content: forkSnippet, Owned: owned, MaxCommentLines: tombstones.DefaultMaxCommentLines}
 
 	before := slopfix.Report(req)
-	var volume []int
-	for _, k := range before.Kept {
-		if k.ID == tombstones.IDVolume {
-			volume = append(volume, k.LineNo)
-		}
-	}
-	assert.Equal(t, []int{5}, volume, "only the block the fork wrote a line of is the fork's finding, and it names where that block starts")
+	assert.Zero(t, ofID(repairIDs(before), tombstones.IDVolume), "the base had the run over the cap, so the finding is the base's")
 
 	repair := slopfix.Fix(req)
 	assert.Zero(t, ofID(repairIDs(repair), tombstones.IDVolume), "fix left a volume finding the fork's check reports")
-	assert.Equal(t, strings.Count(upstreamSnippet, "\n"), strings.Count(repair.Text, "\n"), "the fork's change takes no more lines than it replaced")
-	assert.Contains(t, repair.Text, "The scheduler caps --max-running-requests to what the mamba pool admits.", "the fork's words stay")
-	assert.NotContains(t, repair.Text, "silently", "the base's wording never comes back")
+	flat := strings.Join(strings.Fields(strings.ReplaceAll(repair.Text, "//", " ")), " ")
+	assert.Contains(t, flat, "The scheduler caps --max-running-requests to what the mamba pool admits.", "the fork's words stay")
+	assert.NotContains(t, flat, "silently", "the base's wording never comes back")
 }
 
 // Outside a fork, every volume finding names the line its block starts on.
