@@ -183,9 +183,10 @@ func TestAForkVolumeFindingNamesItsBlockAndIsRepaired(t *testing.T) {
 
 	repair := slopfix.Fix(req)
 	assert.Zero(t, ofID(repairIDs(repair), tombstones.IDVolume), "fix left a volume finding the fork's check reports")
-	assert.Equal(t, strings.Count(upstreamSnippet, "\n"), strings.Count(repair.Text, "\n"), "the fork's change takes no more lines than it replaced")
-	assert.Contains(t, repair.Text, "The scheduler caps --max-running-requests to what the mamba pool admits.", "the fork's words stay")
-	assert.NotContains(t, repair.Text, "silently", "the base's wording never comes back")
+	assert.LessOrEqual(t, strings.Count(repair.Text, "\n"), strings.Count(upstreamSnippet, "\n"), "the fork's change takes no more lines than it replaced")
+	flat := strings.Join(strings.Fields(strings.ReplaceAll(repair.Text, "//", " ")), " ")
+	assert.Contains(t, flat, "The scheduler caps --max-running-requests to what the mamba pool admits.", "the fork's words stay")
+	assert.NotContains(t, flat, "silently", "the base's wording never comes back")
 }
 
 // Outside a fork, every volume finding names the line its block starts on.

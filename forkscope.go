@@ -155,7 +155,12 @@ func alone(req Request, repair Repair) Repair {
 		one.Content, one.Scope, one.Owned, one.IDs = repair.Text, repair.Scope, nil, []string{id}
 		fixed := fixAll(one)
 		owned = forkscope.Carry(req.Content, repair.Text, req.Owned)
-		text := forkscope.Keep(repair.Text, fixed.Text, owned)
+		// A prose rule rewrites a comment run whole.
+		scope := owned
+		if !blockRules.Contains(id) {
+			scope = scope.WidenComments(repair.Text)
+		}
+		text := forkscope.Keep(repair.Text, fixed.Text, scope)
 		if text == repair.Text {
 			continue
 		}
