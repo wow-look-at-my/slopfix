@@ -81,7 +81,7 @@ func TestEveryExtractedSentenceDividesUnderTheCap(t *testing.T) {
 // regresses. It reports the count of the gap, because deleting a case would
 // hide it: a check that cannot fail enforces nothing.
 func TestTheSentenceInputCorpusIsTheKnownSet(t *testing.T) {
-	var failing []string
+	failing := []string{}
 	for _, in := range append(append([]string{}, capSentences...), capPending...) {
 		in = strings.TrimSpace(in)
 		if in == "" {

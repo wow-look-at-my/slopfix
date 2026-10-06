@@ -63,6 +63,19 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if headOpen(whole, first) {
 		return head, "", 0
 	}
+	// An aside that opens on a dash and closes on one, before "and <verb>",
+	// divides into the aside and the verb group with the subject named. Again:
+	// "X — A does Y — and yields Z" becomes "X. A does Y. It yields Z."
+	if trimmed := strings.TrimLeft(rest, " "); strings.HasPrefix(trimmed, "—") {
+		if body := strings.TrimLeft(trimmed[len("—"):], " "); body != "" {
+			if end := strings.Index(body, "—"); end > 0 {
+				aside := strings.TrimSpace(body[:end])
+				if clause, ok := strings.CutPrefix(strings.TrimSpace(body[end+len("—"):]), "and "); ok && opensVerb(clause) {
+					return head, capitalizeOpening(aside) + ". It " + lowerFirst(clause), opensWithCarrier
+				}
+			}
+		}
+	}
 	// ", as is X" or ", as are X" compares X to the subject: "A is true, as is
 	// B" becomes "A is true. The same holds for B."
 	if seam == "," && lower == "as" {
@@ -216,6 +229,19 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 	}
 	return head, "", 0
+}
+
+// opensVerb reports text whose first word is a verb, so a verb group that
+// shares. The sentence's subject opens a sentence with the subject named
+// again.
+func opensVerb(text string) bool {
+	s := syntax.Parse(checkMask(text), nil)
+	if len(s.Words) == 0 {
+		return false
+	}
+	t, w := s.Words[0].Tag, strings.ToLower(s.Words[0].Text)
+	// The tagger reads an -s verb after "and" as a plural noun, the same way it reads "goal mode blocks".
+	return strings.HasPrefix(t, "VB") || t == "MD" || t == "NNS" && strings.HasSuffix(w, "s") && !strings.HasSuffix(w, "ss")
 }
 
 // clauseOpeners open a clause whose verb a head must hold before it can close.
