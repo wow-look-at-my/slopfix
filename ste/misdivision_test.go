@@ -36,6 +36,11 @@ var misdivisions = []struct {
 		[]string{"where the words.", "This happens after the cut"},
 	},
 	{
+		"a dash before and opens a sentence of its own",
+		"Anything that lands while the session is busy is invisible to the entry gate -- and a session that is doing work is busy nearly all the time.",
+		[]string{"a session. That is"},
+	},
+	{
 		"a lone pronoun object keeps its noun",
 		"This covers a subordinator with no finite verb after it, as in \"reports whether the words\", or a noun followed by a new subject with no verb after it, as in \"answers the row the earliest node\".",
 		[]string{"This happens after it", "covers as in"},
