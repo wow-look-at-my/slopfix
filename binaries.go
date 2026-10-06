@@ -47,12 +47,7 @@ func trackedFiles(root string) ([]trackedFile, error) {
 				if entry.Stage != 0 || !strings.HasPrefix(entry.Mode, "100") {
 					continue
 				}
-				abs := filepath.Join(repo.WorkTree(), filepath.FromSlash(entry.Path))
-				rel, err := filepath.Rel(root, abs)
-				if err != nil {
-					continue
-				}
-				files = append(files, trackedFile{rel: rel, blob: entry.OID.String()})
+				files = append(files, trackedFile{rel: filepath.FromSlash(entry.Path), blob: entry.OID.String()})
 			}
 			return files, nil
 		}

@@ -70,11 +70,13 @@ func discover(dir string) (*Repo, bool) {
 	for {
 		gitPath := filepath.Join(dir, ".git")
 		if info, err := os.Stat(gitPath); err == nil {
-			if info.IsDir() {
+			if info.IsDir() && isGitDir(gitPath) {
 				return newRepo(dir, gitPath), true
 			}
-			if gd, ok := gitdirFile(gitPath); ok {
-				return newRepo(dir, gd), true
+			if info.Mode().IsRegular() {
+				if gd, ok := gitdirFile(gitPath); ok {
+					return newRepo(dir, gd), true
+				}
 			}
 		}
 		if isGitDir(dir) {

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
+	"github.com/wow-look-at-my/go-containers/set"
 	"io"
 	"net/http"
 	"strings"
@@ -120,14 +121,14 @@ func fetchPack(remote string, caps string, want OID) ([]byte, error) {
 
 // mapCaps keeps the capabilities the remote advertised.
 func mapCaps(caps string, names ...string) string {
-	have := map[string]bool{}
+	have := set.New[string]()
 	for _, cap := range strings.Fields(caps) {
 		name, _, _ := strings.Cut(cap, "=")
-		have[name] = true
+		have.Add(name)
 	}
 	var out []string
 	for _, name := range names {
-		if have[name] {
+		if have.Contains(name) {
 			out = append(out, name)
 		}
 	}

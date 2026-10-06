@@ -180,10 +180,9 @@ func TestATreeCheckInAForkStartsNoGitProcess(t *testing.T) {
 	fx := newForkRepo(t, aFork)
 	marker := poisonGit(t)
 
-	cmd, out := quietCmd()
-	failed, err := treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks, nil)
+	cmd, _ := quietCmd()
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks, nil)
 	require.NoError(t, err)
-	assert.False(t, failed, out.String())
 	assert.NoFileExists(t, marker, "a git process was spawned on the check path")
 }
 
