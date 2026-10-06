@@ -46,7 +46,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	head := source[:c.left]
 	rest := strings.TrimLeft(source[c.right:], " ")
 	seam := seamBefore(source, c.left)
-	if rest == "" || seam != "" && seam != "," && seam != ":" {
+	if rest == "" || seam != "" && seam != "," && seam != ":" && !seamIsDash(seam) {
 		return head, "", 0
 	}
 	first := wordFrom(whole, len(source)-len(rest))
@@ -87,6 +87,36 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 	}
 	main, hasMain := mainVerb(whole, c.left)
+	// A dash before a verb group, or before "and" and a verb group, closes the
+	// clause before it and names the subject again. "One call — with no turn of
+	// its own — leaves X" becomes "One call. It leaves X".
+	if seamIsDash(seam) {
+		switch {
+		case verbAt(whole, first):
+			return head, "It " + lowerFirst(rest), opensWithCarrier
+		case (lower == "and" || lower == "or") && first+1 < len(whole.Words) && verbAt(whole, first+1):
+			return head, "It " + lowerFirst(strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
+		}
+	}
+	// A comma before a preposition or a participle that describes the opening
+	// noun phrase restates its head noun: "The same leniency over X, for Y"
+	// becomes "That leniency is for Y".
+	if seam == "," && (word.Tag == "IN" || word.Tag == "TO" || word.Tag == "VBN" || word.Tag == "VBG") &&
+		!clauseOpeners.Contains(lower) && first+1 < len(whole.Words) && opensObject(whole, first+1) {
+		if noun, ok := headNoun(whole, c.left); ok {
+			return head, restate(source, noun, rest), opensWithCarrier
+		}
+	}
+	// A verb group after "and" shares the main clause's subject, so the subject
+	// is named again: "Drives X and asserts Y" becomes "Drives X. It asserts Y".
+	if (seam == "," || seam == "") && (lower == "and" || lower == "or") && strings.HasPrefix(prev.Tag, "NN") &&
+		first+1 < len(whole.Words) && verbAt(whole, first+1) {
+		clause := strings.TrimLeft(rest[len(word.Text):], " ")
+		if subject := subjectFor(source, checkMask(source), c, whole.Words[first+1].Tag); subject != "" {
+			return head, capitalizeOpening(subject) + " " + clause, opensWithCarrier
+		}
+		return head, "It " + lowerFirst(clause), opensWithCarrier
+	}
 	// A phrase after a noun that a verb then follows is the subject's own: "the case above passes".
 	predicateFollows := finiteBefore(whole, first+1, ",")
 	placeless := predicateFollows || !opensObject(whole, first+1)
@@ -380,8 +410,7 @@ func topCommas(text string, from int) []int {
 	return out
 }
 
-// plainPhrase reports the words from i to the end of the sentence when they
-// are plain. Outside a parenthesis, they hold no comma, no conjunction, no
+// plainPhrase reports the words from i to the end of the sentence when they// are plain. Outside a parenthesis, they hold no comma, no conjunction, no
 // subordinator and no finite verb. Only such a phrase moves behind a restated noun whole.
 func plainPhrase(s *syntax.Sentence, i int) bool {
 	depth := 0
@@ -585,6 +614,47 @@ func restateBare(source string, noun syntax.Word, rest string) string {
 		det = "Those"
 	}
 	return det + " " + nounText(source, noun) + " " + rest
+}
+
+// becauseDivision divides at "because" when no other boundary serves, and opens
+// the reason behind "This is because". The reason must name a subject and a
+// verb; "because of X" is a prepositional phrase, not a reason.
+func becauseDivision(source, masked string, whole *syntax.Sentence, limit int) (string, bool) {
+	for i := 1; i+1 < len(whole.Words); i++ {
+		if whole.Words[i].Lower() != "because" || !opensSubject(whole, i+1) || !finiteBefore(whole, i+1, "") {
+			continue
+		}
+		head := strings.TrimRight(source[:whole.Words[i].Start], " ,")
+		if head == "" {
+			continue
+		}
+		left := closeHead(head)
+		rest := "This is " + source[whole.Words[i].Start:]
+		if WordCount(left) < minimumHalf || WordCount(rest) < minimumHalf || !divides(left, rest, limit) {
+			continue
+		}
+		return left + " " + rest, true
+	}
+	return source, false
+}
+
+// seamIsDash reports a seam that is a dash, which closes the clause before it.
+func seamIsDash(seam string) bool { return dashMark(seam) }
+
+// headNoun answers the head noun of the first noun phrase that ends before
+// byte at. A comma before a phrase that describes it names this noun again.
+func headNoun(whole *syntax.Sentence, at int) (syntax.Word, bool) {
+	n := wordsBefore(whole, at)
+	for i := 0; i < n; i++ {
+		ph, ok := whole.PhraseAt(i)
+		if !ok || ph.Kind != syntax.NounPhrase || ph.First != i || ph.Last >= n || ph.Head >= len(whole.Words) {
+			continue
+		}
+		if h := whole.Words[ph.Head]; strings.HasPrefix(h.Tag, "NN") {
+			return h, true
+		}
+	}
+	return syntax.Word{}, false
 }
 
 // listRest writes the rest of a list as a sentence of its own: "It also
