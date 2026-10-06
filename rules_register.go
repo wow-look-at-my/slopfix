@@ -78,7 +78,16 @@ func init() {
 
 	registerFile(english.IDCommaNever, RuleEnglish, "x.md", "The gate reads the file, never the tool.\n")
 
-	registerFile(commentfix.ID, RuleComments, "main.go", "package main\n\n// There are 3 modes today.\nfunc main() {}\n")
+	RegisterRule(RuleSpec{
+		ID:       commentfix.ID,
+		Category: RuleComments,
+		Detect:   detectContent(commentfix.ID),
+		Autofix:  repairContent(commentfix.ID),
+		Cases: []RuleCase{
+			{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"},
+			{Name: commentfix.ID + "/doc", Path: "stop.rs", Text: commentNumberDocCase()},
+		},
+	})
 	registerFile(commentfix.IDLength, RuleComments, "main.go", "package main\n\n"+overlongComment()+"func main() {}\n")
 	registerFile(commentfix.IDTail, RuleComments, "main.go", "package main\n\n// The loop reads each value because\nfunc main() {}\n")
 
@@ -159,6 +168,20 @@ func referentID() string {
 func referentCase() string {
 	name := "Old" + "Scanner" + "Two"
 	return "package main\n\nfunc main() {\n\tvalue := 1 // The " + name + " reads each value.\n\t_ = value\n}\n"
+}
+
+// commentNumberDocCase is a Rust doc comment that states an exit code. The
+// number sits mid-sentence, so the repair must clear it without leaving a
+// finding behind.
+func commentNumberDocCase() string {
+	return "/// Dispatch the observe-only session-end `Stop`: runs in stop-gate mode so\n" +
+		"/// exit code 2 parses as a block, but the decision is discarded (no turn\n" +
+		"/// left to continue).\n" +
+		"pub(crate) async fn dispatch_session_end_stop(&self, reason: &str) {\n" +
+		"    if self.startup_hints.is_subagent {\n" +
+		"        return;\n" +
+		"    }\n" +
+		"}\n"
 }
 
 // volumeCase is a comment run longer than the default cap.

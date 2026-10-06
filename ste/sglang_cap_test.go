@@ -2,7 +2,6 @@ package ste_test
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -72,8 +71,6 @@ func TestEveryExtractedSentenceDividesUnderTheCap(t *testing.T) {
 			report.WriteString(r)
 		}
 	}
-	require := os.WriteFile("../.scratch/cap-report.txt", []byte(report.String()), 0o644)
-	assert.NoError(t, require)
 	t.Logf("sentences the repair got wrong: %d of the fixture", failed)
-	assert.Zero(t, failed, "see .scratch/cap-report.txt")
+	assert.Zero(t, failed, "the repair got these wrong:\n%s", report.String())
 }

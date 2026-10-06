@@ -3,6 +3,7 @@ package slopfix_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,9 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
+
+// autofixPromise is the phrase a finding's remedy uses to tell the reader that `slopfix fix` repairs it.
+const autofixPromise = "`slopfix fix` does this."
 
 // materialize writes a tree case's files under a fresh directory with the
 // repository marker the tree rules read. A file case is returned unchanged.
@@ -54,6 +58,42 @@ func TestEveryRuleAutofixClearsItsOwnDetection(t *testing.T) {
 				}
 				after := rule.Detect(rule.Autofix(c))
 				assert.Empty(t, after, "%s: case %q still detects after its own autofix", rule.ID, c.Name)
+			}
+		})
+	}
+}
+
+// A rule whose finding tells the reader `slopfix fix` does this owes a working
+// autofix. A message that advertises a repair the rule does not have, or an
+// autofix that fires on nothing, fails here rather than shipping a promise.
+// The tool cannot keep.
+func TestAMessagePromisingAnAutofixCarriesOne(t *testing.T) {
+	for _, rule := range slopfix.AllRuleSpecs() {
+		rule := rule
+		t.Run(rule.ID, func(t *testing.T) {
+			promises := false
+			for _, raw := range rule.Cases {
+				c := materialize(t, raw)
+				for _, f := range rule.Detect(c) {
+					if strings.Contains(f.Fix, autofixPromise) {
+						promises = true
+					}
+				}
+			}
+			if !promises {
+				return
+			}
+			require.NotNil(t, rule.Autofix, "%s: a finding promises an autofix and the rule carries none", rule.ID)
+			assert.Empty(t, rule.ReportOnly, "%s: it promises an autofix and declares report-only", rule.ID)
+			for _, raw := range rule.Cases {
+				c := materialize(t, raw)
+				before := rule.Detect(c)
+				if len(before) == 0 {
+					continue
+				}
+				after := rule.Autofix(c)
+				assert.NotEqual(t, c.Text, after.Text, "%s: case %q promises an autofix that fires on nothing", rule.ID, c.Name)
+				assert.Empty(t, rule.Detect(after), "%s: case %q still detects after the promised autofix", rule.ID, c.Name)
 			}
 		})
 	}
