@@ -63,10 +63,10 @@ func TestEveryRuleAutofixClearsItsOwnDetection(t *testing.T) {
 	}
 }
 
-// A rule whose finding tells the reader `slopfix fix` does this owes a working
-// autofix. A message that advertises a repair the rule does not have, or an
-// autofix that fires on nothing, fails here rather than shipping a promise.
-// The tool cannot keep.
+// A rule whose finding tells the reader that `slopfix fix` repairs it owes a
+// working autofix. A message that advertises a repair the rule does not carry,
+// or a report-only declaration behind. A promised repair, fails here rather
+// than shipping a promise the tool cannot keep.
 func TestAMessagePromisingAnAutofixCarriesOne(t *testing.T) {
 	for _, rule := range slopfix.AllRuleSpecs() {
 		rule := rule
