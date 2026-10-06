@@ -5,9 +5,10 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // IDBinary is a tracked file that starts with the magic number of an executable.
@@ -35,25 +36,29 @@ type trackedFile struct {
 }
 
 // trackedFiles names each regular file git tracks under root, relative to it.
-// A tree that git cannot list is read from disk, without its .git directory.
+// A tree outside a work tree is read from disk, without its .git directory.
 func trackedFiles(root string) ([]trackedFile, error) {
-	cmd := exec.Command("git", "ls-files", "-s", "-z")
-	cmd.Dir = root
-	if out, err := cmd.Output(); err == nil {
-		var files []trackedFile
-		for _, entry := range strings.Split(string(out), "\x00") {
-			meta, name, ok := strings.Cut(entry, "\t")
-			fields := strings.Fields(meta)
-			// Neither holds file bytes.
-			if !ok || len(fields) < 2 || !strings.HasPrefix(fields[0], "100") {
-				continue
+	repo, err := gitread.OpenWorkTree(root)
+	if err == nil && repo != nil {
+		if idx, err := repo.Index(); err == nil {
+			var files []trackedFile
+			for _, entry := range idx.Entries() {
+				// Neither a gitlink nor a symlink holds file bytes.
+				if entry.Stage != 0 || !strings.HasPrefix(entry.Mode, "100") {
+					continue
+				}
+				abs := filepath.Join(repo.WorkTree(), filepath.FromSlash(entry.Path))
+				rel, err := filepath.Rel(root, abs)
+				if err != nil {
+					continue
+				}
+				files = append(files, trackedFile{rel: rel, blob: entry.OID.String()})
 			}
-			files = append(files, trackedFile{filepath.FromSlash(name), fields[1]})
+			return files, nil
 		}
-		return files, nil
 	}
 	var files []trackedFile
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -115,17 +120,19 @@ func committedBinaries(root string, writing bool, writable func(string) bool) ([
 
 // blobKind reads the first bytes of a blob in the object store.
 func blobKind(root, blob string) string {
-	cmd := exec.Command("git", "cat-file", "blob", blob)
-	cmd.Dir = root
-	stdout, err := cmd.StdoutPipe()
-	if err != nil || cmd.Start() != nil {
+	repo, err := gitread.OpenWorkTree(root)
+	if err != nil || repo == nil {
 		return ""
 	}
-	head := make([]byte, 4)
-	n, _ := io.ReadFull(stdout, head)
-	_ = cmd.Process.Kill()
-	_ = cmd.Wait()
-	return executableKind(head[:n])
+	oid, err := gitread.ParseOID(blob)
+	if err != nil {
+		return ""
+	}
+	data, ok := repo.Blob(oid)
+	if !ok {
+		return ""
+	}
+	return executableKind(data[:min(len(data), 4)])
 }
 
 // fileKind reads the first bytes of a regular file. A symlink and a path the

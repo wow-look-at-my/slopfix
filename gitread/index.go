@@ -39,7 +39,12 @@ func (r *Repo) Index() (*Index, error) {
 	r.mu.Unlock()
 	idx, err := readIndexFile(filepath.Join(r.gitDir, "index"))
 	if err != nil {
-		return nil, err
+		if os.IsNotExist(err) {
+			// A repository with nothing staged yet holds no index.
+			idx = &Index{byPath: map[string]IndexEntry{}}
+		} else {
+			return nil, err
+		}
 	}
 	r.mu.Lock()
 	r.idx = idx

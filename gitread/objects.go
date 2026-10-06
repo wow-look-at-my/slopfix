@@ -275,7 +275,7 @@ func readOfsDelta(br *bufio.Reader) (uint64, error) {
 		if err != nil {
 			return 0, err
 		}
-		value = (value + 1)<<7 | uint64(b&0x7f)
+		value = (value+1)<<7 | uint64(b&0x7f)
 	}
 	return value, nil
 }

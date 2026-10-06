@@ -18,7 +18,7 @@ import (
 
 	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/commentfix"
-	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/gitread"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -90,8 +90,9 @@ func Borrowed(path string) bool { return under(path, "vendor", "node_modules") |
 // vendoredCache holds each path's answer, because a hook asks per write.
 var vendoredCache sync.Map
 
-// vendoredAttr asks git whether .gitattributes sets any commentfix.BorrowedAttributes on
-// path. A path outside a work tree, or one git cannot answer for, is not borrowed.
+// vendoredAttr asks .gitattributes whether any commentfix.BorrowedAttributes is
+// set on path. A path outside a work tree, or one whose attributes cannot be
+// read, is not borrowed.
 func vendoredAttr(path string) bool {
 	if path == "" {
 		return false
@@ -100,18 +101,20 @@ func vendoredAttr(path string) bool {
 	if err != nil {
 		return false
 	}
+	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+		abs = resolved
+	}
 	if v, ok := vendoredCache.Load(abs); ok {
 		return v.(bool)
 	}
-	args := append(append([]string{"check-attr", "-z"}, commentfix.BorrowedAttributes...), "--", filepath.Base(abs))
-	out, err := gitmod.Command(filepath.Dir(abs), args...).Output()
 	vendored := false
-	if err == nil {
-		// git answers a path, attribute, value triple per attribute.
-		fields := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
-		for i := 0; i+2 < len(fields); i += 3 {
-			if commentfix.AttributeSet(fields[i+2]) {
-				vendored = true
+	if repo, err := gitread.OpenWorkTree(filepath.Dir(abs)); err == nil && repo != nil {
+		if rel, ok := repo.Rel(abs); ok {
+			for _, name := range commentfix.BorrowedAttributes {
+				if gitread.AttributeSet(repo.Attr(rel, name)) {
+					vendored = true
+					break
+				}
 			}
 		}
 	}

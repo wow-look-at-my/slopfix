@@ -225,6 +225,26 @@ func sectionKey(header string) string {
 	return header
 }
 
+// Rel answers path relative to the work tree in slash form, or false when the
+// path lies outside it.
+func (r *Repo) Rel(path string) (string, bool) {
+	if r.workTree == "" {
+		return "", false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", false
+	}
+	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+		abs = resolved
+	}
+	rel, err := filepath.Rel(r.workTree, abs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return filepath.ToSlash(rel), true
+}
+
 // Resolve answers the object a revision names, following symbolic refs.
 func (r *Repo) Resolve(rev string) (OID, error) {
 	return r.resolve(rev, 0)
