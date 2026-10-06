@@ -63,6 +63,15 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if headOpen(whole, first) {
 		return head, "", 0
 	}
+	// ", as is X" or ", as are X" compares X to the subject: "A is true, as is
+	// B" becomes "A is true. The same holds for B."
+	if seam == "," && lower == "as" {
+		for _, lead := range []string{"as is", "as are"} {
+			if body, ok := strings.CutPrefix(strings.TrimLeft(rest, " "), lead); ok {
+				return head, "The same holds for " + strings.TrimSpace(body), opensWithCarrier
+			}
+		}
+	}
 	noun := strings.HasPrefix(prev.Tag, "NN")
 	// An -ing noun after a singular noun is one compound noun with it, and no division lands inside it.
 	if prev.Tag == "NN" && nominalIng.Contains(lower) {
@@ -87,6 +96,20 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 	}
 	main, hasMain := mainVerb(whole, c.left)
+	// ", rather than <participle>" contrasts the clause with what the subject
+	// does not do: "X is refused, rather than written through" becomes "X is
+	// refused. X is not written through".
+	if seam == "," && lower == "rather" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "than" {
+		if body := strings.TrimSpace(strings.TrimPrefix(strings.TrimLeft(rest, " "), "rather than")); body != "" {
+			subject := "It"
+			if hasMain {
+				if s := mainSubject(source, whole, main, "VBZ"); s != "" {
+					subject = capitalizeOpening(s)
+				}
+			}
+			return head, subject + " is not " + body, opensWithCarrier
+		}
+	}
 	// A dash before a verb group, or before "and" and a verb group, closes the
 	// clause before it and names the subject again. "One call — with no turn of
 	// its own — leaves X" becomes "One call. It leaves X".

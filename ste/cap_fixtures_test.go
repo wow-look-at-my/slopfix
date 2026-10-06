@@ -157,12 +157,13 @@ var capSentences = []string{
 	"The same leniency over `Option<Vec<String>>`, for a shadow struct that must tell a key the sender omitted from a key it sent as `null` or `[]` before folding one field's spellings together.",
 	"The config sibling that was left at DEFAULT answers for its own window because a listing sibling with the same routing slug (`grok-4`) carries the real one, resolved per exact slug.",
 	"Dispatch the observe-only session-end `Stop`: runs in stop-gate mode so exit code 2 parses as a block, but the decision is discarded (no turn left to continue).",
+	"So if goal mode blocks ASAP delivery the gate must live in how often turn.rs's loop *calls* the harvest during a goal round, not in the harvest or the enqueue path.",
+	"A session whose task-list tool cannot address the item a capture adds is refused before any model call, rather than written through with semantics that cannot express the append.",
+	"A criterion whose code is present but whose integrated behavior is wrong, unreachable, or unusable is `refuted: true`, as is anything that fails to compile, fails its tests, or errors at runtime.",
 }
 
 // capPending are the sentence inputs the fork job still leaves standing: a participial or appositive lead, a shared subject. This holds before ", and <verb>", a dash that names no main clause, and an opening subordinate clause. Each is a case the carrier design must reach. A case that starts converging moves out of this list and into capSentences. The test below fails until it does, and fails again if a converging case regresses. The list is asserted whole, so the build reports the count of the
 // gap instead of a deletion hiding it.
 var capPending = []string{
 	"Parses through the bridge first, which reverse-maps client-facing parameter names to canonical ones — a harness may rename `todos` the same way it renames the tool — and yields the typed input the tool itself would see.",
-	"So if goal mode blocks ASAP delivery the gate must live in how often turn.rs's loop *calls* the harvest during a goal round, not in the harvest or the enqueue path.",
-	"A session whose task-list tool cannot address the item a capture adds is refused before any model call, rather than written through with semantics that cannot express the append.",
 }

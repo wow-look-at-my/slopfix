@@ -336,6 +336,10 @@ func beforeCoordinate(s *syntax.Sentence, source string) []division {
 		if closingClause(s, i) {
 			continue
 		}
+		// A comma inside the clause before the conjunction ends.
+		if s.Words[i].Lower() != "so" && listBefore(s, syntax.Clause{Link: i}) {
+			continue
+		}
 		out = append(out, division{
 			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, i)].End, true),
 			rightStart: outsideSpans(source, s.Words[i+1].Start, false),
@@ -451,6 +455,11 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		}
 		// A shared subject needs its verb right after the link, and no aside before the link.
 		if !verbFollows(s, c) || c.Link > 0 && strings.Contains("—–--", s.Words[c.Link-1].Text) || laterVerb(s, c) {
+			return "", false
+		}
+		// A comma before the link puts the shared verb group in a list that the
+		// conjunction continues: "fails to compile, fails its tests, or errors".
+		if listsVerbs(source[:s.Words[c.Link].Start]) {
 			return "", false
 		}
 		if main.Verb.Imperative {

@@ -399,7 +399,11 @@ func clauseFit(b block) ([]string, bool) {
 	for _, cut := range clauseCuts(text) {
 		kept := strings.TrimRight(text[:cut], " ,;:-—–")
 		words := strings.Fields(kept)
-		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) || !closesWhole(kept) {
+		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+			continue
+		}
+		// A cut at a colon keeps the statement the colon elaborates.
+		if !closesWhole(kept) && !(cut < len(text) && text[cut] == ':') {
 			continue
 		}
 		if !endsSentence(kept) {

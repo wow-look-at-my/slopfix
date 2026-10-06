@@ -53,8 +53,77 @@ func reorderDependent(source string, whole *syntax.Sentence) (string, bool) {
 		}
 		return capitalizeOpening(main) + stop + " " + carrier + " " + lowerFirst(sub) + ".", true
 	}
+	return reorderNoComma(source, whole)
+}
+
+// reorderNoComma moves an opening subordinate clause behind its main clause
+// when no comma separates them: "So if X Y" becomes "Y. This happens if X."
+// The verb's own object is the noun phrase against the verb; the main clause
+// opens at the next noun phrase that a finite verb follows.
+func reorderNoComma(source string, whole *syntax.Sentence) (string, bool) {
+	sub, ok := firstSubordinate(whole)
+	if !ok || sub.Verb == nil {
+		return source, false
+	}
+	j := sub.Verb.Last + 1
+	// The verb's object sits directly against it, and belongs to the subordinate.
+	if ph, ok := whole.PhraseAt(j); ok && ph.Kind == syntax.NounPhrase && ph.First == j {
+		j = ph.Last + 1
+	}
+	for ; j < len(whole.Words); j++ {
+		if !opensSubject(whole, j) {
+			continue
+		}
+		if ph, ok := whole.PhraseAt(j); !ok || ph.Kind != syntax.NounPhrase || ph.First != j {
+			continue
+		}
+		start := whole.Words[j].Start
+		// The subordinate clause cannot end on a word that opens what follows it:
+		// "if X waits and" leaves the conjunction stranded.
+		if w, ok := lastWordBefore(whole, start); ok && danglingTags.Contains(w.Tag) {
+			continue
+		}
+		head := strings.TrimSpace(source[:start])
+		main := strings.TrimSpace(source[start:])
+		if !opensClause(syntax.Parse(checkMask(main), nil)) {
+			continue
+		}
+		ms := syntax.Parse(checkMask(main), nil)
+		verb, ok := mainVerb(ms, len(main))
+		if !ok {
+			continue
+		}
+		stop := "."
+		if n := len(main); n > 0 && strings.ContainsAny(main[n-1:], ".!?") {
+			stop, main = main[n-1:], main[:n-1]
+		}
+		return capitalizeOpening(main) + stop + " " + carrierFor(ms, verb) + " " + lowerFirst(stripLeadingAdverb(head)) + ".", true
+	}
 	return source, false
 }
+
+// firstSubordinate answers the opening subordinate clause of a sentence.
+func firstSubordinate(whole *syntax.Sentence) (syntax.Clause, bool) {
+	for _, c := range whole.Clauses {
+		if c.Kind == syntax.Subordinate && c.Depth == 1 {
+			return c, true
+		}
+	}
+	return syntax.Clause{}, false
+}
+
+// stripLeadingAdverb drops a sentence-opening adverb such as "So" from the
+// subordinate clause that moves behind the main one.
+func stripLeadingAdverb(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) > 1 && leadingAdverbs.Contains(strings.ToLower(fields[0])) {
+		return strings.TrimSpace(text[len(fields[0]):])
+	}
+	return text
+}
+
+// leadingAdverbs introduce a statement before its subordinate clause.
+var leadingAdverbs = set.Of("so", "then", "thus", "also", "therefore")
 
 // backReferences are the words that point back to a noun said before them.
 var backReferences = set.Of("those", "these", "this", "that", "it", "its", "they", "them", "their", "such")
