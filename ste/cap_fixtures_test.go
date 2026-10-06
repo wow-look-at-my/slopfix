@@ -161,6 +161,15 @@ var capSentences = []string{
 	"A session whose task-list tool cannot address the item a capture adds is refused before any model call, rather than written through with semantics that cannot express the append.",
 	"A criterion whose code is present but whose integrated behavior is wrong, unreachable, or unusable is `refuted: true`, as is anything that fails to compile, fails its tests, or errors at runtime.",
 	"Parses through the bridge first, which reverse-maps client-facing parameter names to canonical ones — a harness may rename `todos` the same way it renames the tool — and yields the typed input the tool itself would see.",
+	// A colon before a clause that names its own subject, whose head verb the tagger reads as a noun. So no clause boundary admits the division.
+	"With the server's prefetch config off, which is the default, the client's flags change nothing: a batch carries exactly the requested keys, even from a client that still sets prefetch on the request its build is blocked on.",
+	// A conjunction whose gerund opens a subject of its own: the words after it stand as a sentence and name. No subject of the main clause again.
+	"In short: `eviction.max_bytes` (default 50 GiB, or the `CACHE_MAX_BYTES` env var) is the LRU bound, `eviction.max_age` (default off) is the optional TTL, `eviction.interval` (default 24h) is the sweep cadence, and setting both limits to 0 disables eviction - which the server warns about, because the cache then grows until the disk fills.",
+	// A `--` aside that closes a clause, which the words after it then extend.
+	"Then every client it refuses rebuilds anyway -- having earliest paid for the round trip -- so a cache that sheds is worse than no cache at all.",
+	// A period before an em-dash aside: the dash opens the sentence.
+	"Under the default `relatime` it moves at most once a day, which is the resolution a multi-day eviction window needs. — the point — it **survives restarts**.",
+	"Under the default `relatime` it moves at most once a day, which is the resolution a multi-day eviction window needs, and - the point - it **survives restarts**.",
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.
