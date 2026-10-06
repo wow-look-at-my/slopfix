@@ -142,4 +142,8 @@ var capSentences = []string{
 	"The resident prefix stays in device memory for the run (it moves from the cached total to the reservation), a host hit is reloaded into device memory, and the rest is computed: device space is needed for everything but the resident prefix.",
 	"Each stream draws from its own generator, so both engines see the same turn sizes and think times whatever order they finish in; the random cold prompts are a precomputed schedule both engines share.",
 	"A burst of at most one chunk's tokens runs before decode must catch up; a chunk continuing a long prompt is bounded in GPU seconds at its marginal (context-inflated) rate.",
+	"An allowlist rather than a deny-list because the flags that matter are the ones that turn a read into a write: `-X POST`, `--method`, `--field`, `--input`.",
+	"Compiled under `cfg(test)` off Linux as well, because the emitted argv IS the contract (the option order is what makes a later bind win, and what keeps the CI host-worker fd an option rather than a program argument) and an ordering only one host can assert is one that regresses quietly everywhere else.",
+	"The whole point of the fd contract, end to end on macOS: a process inside the real Seatbelt jail, holding only the fd number the jail handed it, reaches the real host worker — the shipped worker loop running as a real unsandboxed child — and gets a framed answer back.",
+	"Then `(deny file-read*)` and `(deny file-write*)` take every file access away, and the rules that follow give each kind of access back only for the paths the jail is supposed to expose: - `/dev` (a terminal, a PTY, `/dev/null`) — read and write. - a `--rw` mount — read and write. - a `--ro` mount — read only. - the read-only system base (including the macOS `/System`,",
 }
