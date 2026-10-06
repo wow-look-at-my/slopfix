@@ -593,19 +593,12 @@ func runGH(args ...string) ([]byte, error) {
 
 // fetchParent fetches the parent's branch and answers its commit.
 func fetchParent(g *gitread.Repo, parentURL, branch string) (string, error) {
-	remote, ok := gitread.OpenRemote(parentURL)
-	if !ok {
-		return "", fmt.Errorf("fork scope: fetch the parent's %s from %s: the remote is not a local repository", branch, parentURL)
-	}
-	commit, err := remote.Resolve("refs/heads/" + branch)
+	commit, remote, err := gitread.FetchRef(parentURL, "refs/heads/"+branch, g)
 	if err != nil {
-		if commit, err = remote.Head(); err != nil {
-			return "", fmt.Errorf("fork scope: resolve the parent's %s: %w", branch, err)
-		}
+		commit, remote, err = gitread.FetchRef(parentURL, "HEAD", g)
 	}
-	commit, err = remote.PeelCommit(commit)
 	if err != nil {
-		return "", fmt.Errorf("fork scope: resolve the parent's %s: %w", branch, err)
+		return "", fmt.Errorf("fork scope: fetch the parent's %s from %s: %w", branch, parentURL, err)
 	}
 	g.AddAlternate(remote)
 	return commit.String(), nil
@@ -617,12 +610,16 @@ func deepen(g *gitread.Repo) error {
 		return nil
 	}
 	remote := g.OriginURL()
-	src, ok := gitread.OpenRemote(remote)
-	if !ok {
-		return fmt.Errorf("fork scope: deepen the shallow clone from origin: %s is not a local repository", remote)
-	}
-	if err := g.AdoptObjects(src); err != nil {
-		return fmt.Errorf("fork scope: deepen the shallow clone from origin: %w", err)
+	if src, ok := gitread.OpenRemote(remote); ok {
+		if err := g.AdoptObjects(src); err != nil {
+			return fmt.Errorf("fork scope: deepen the shallow clone from origin: %w", err)
+		}
+	} else {
+		_, fetched, err := gitread.FetchRef(remote, "HEAD", g)
+		if err != nil {
+			return fmt.Errorf("fork scope: deepen the shallow clone from origin: %w", err)
+		}
+		g.AddAlternate(fetched)
 	}
 	if err := g.Unshallow(); err != nil {
 		return fmt.Errorf("fork scope: %w", err)

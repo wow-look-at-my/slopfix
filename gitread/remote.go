@@ -110,12 +110,15 @@ func httpRefs(remote string) (map[string]OID, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gitread: read %s: %w", target, err)
 	}
-	return parseRefAdvertisement(body)
+	refs, _, err := parseRefAdvertisement(body)
+	return refs, err
 }
 
-// parseRefAdvertisement reads pkt-line refs from a smart HTTP advertisement.
-func parseRefAdvertisement(body []byte) (map[string]OID, error) {
+// parseRefAdvertisement reads pkt-line refs from a smart HTTP advertisement,
+// and answers the capability line the first ref carries.
+func parseRefAdvertisement(body []byte) (map[string]OID, string, error) {
 	out := map[string]OID{}
+	caps := ""
 	rest := body
 	first := true
 	for len(rest) >= 4 {
@@ -124,7 +127,6 @@ func parseRefAdvertisement(body []byte) (map[string]OID, error) {
 			rest = rest[4:]
 			if first {
 				first = false
-				continue
 			}
 			continue
 		}
@@ -142,6 +144,9 @@ func parseRefAdvertisement(body []byte) (map[string]OID, error) {
 		}
 		line = bytes.TrimRight(line, "\n")
 		if nul := bytes.IndexByte(line, 0); nul >= 0 {
+			if caps == "" {
+				caps = string(line[nul+1:])
+			}
 			line = line[:nul]
 		}
 		fields := bytes.Fields(line)
@@ -154,7 +159,7 @@ func parseRefAdvertisement(body []byte) (map[string]OID, error) {
 		}
 		out[string(fields[1])] = oid
 	}
-	return out, nil
+	return out, caps, nil
 }
 
 // pktSize reads a pkt-line's hexadecimal length.

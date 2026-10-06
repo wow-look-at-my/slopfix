@@ -91,17 +91,9 @@ func snapshotBase(g *gitread.Repo, rec *record) (string, error) {
 
 // fetchUpstreamHead reads the default branch of upstream and answers its commit.
 func fetchUpstreamHead(g *gitread.Repo, upstream string) (string, error) {
-	remote, ok := gitread.OpenRemote(upstream)
-	if !ok {
-		return "", fmt.Errorf("fork scope: fetch the default branch of %s: the remote is not a local repository", upstream)
-	}
-	head, err := remote.Head()
+	commit, remote, err := gitread.FetchRef(upstream, "HEAD", g)
 	if err != nil {
-		return "", fmt.Errorf("fork scope: resolve the default branch of %s: %w", upstream, err)
-	}
-	commit, err := remote.PeelCommit(head)
-	if err != nil {
-		return "", fmt.Errorf("fork scope: resolve the default branch of %s: %w", upstream, err)
+		return "", fmt.Errorf("fork scope: fetch the default branch of %s: %w", upstream, err)
 	}
 	g.AddAlternate(remote)
 	return commit.String(), nil
