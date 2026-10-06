@@ -53,8 +53,7 @@ func hardCorpus(t *testing.T) map[string]string {
 	files["AGENTS.md"] = strings.Join(agents, "\n\n") + "\n"
 	// A list item over the block cap, with a parenthesis that runs past the division target.
 	files["README.md"] += "\n- **Admin port**: (" + strings.Repeat("The gate reads the file. ", 50) + ") " + strings.Repeat("The tool writes the result to the store. ", 30) + "\n"
-	// A block over the volume cap above code longer than the cap, so the length cut alone leaves it over.
-	// A separate paragraph states a count, so comments/number is exercised too.
+	// A block over the volume cap above code longer than the cap, so the length cut alone leaves it over. A separate paragraph states a count, so comments/number is exercised too.
 	files["main.go"] = "package main\n\n// There are 3 modes today.\n\n" + strings.Join(comment, "\n") + "\nfunc sum() int {\n\ttotal := 0\n" + strings.Join(body, "\n") + "\n\treturn total\n}\n\nfunc main() { sum() }\n"
 	return files
 }
