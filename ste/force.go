@@ -250,7 +250,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		// Both parts must read as sentences, or the cut strands a fragment such
 		// as "writes. Through it while this function runs.".
 		if !standsAsSentence(closeHead(source[:c.left])) ||
-			!standsAsSentence(capitalizeOpening(strings.TrimLeft(source[c.right:], " —–"))) {
+			!standsAsSentence(hardRest(source, c.right)) {
 			continue
 		}
 		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
@@ -263,12 +263,16 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		return source, false
 	}
 	left := closeHead(source[:best.left])
-	// A dash that opened an aside opens no sentence, so the rest starts on the word after it.
-	right := capitalizeOpening(strings.TrimLeft(source[best.right:], " —–"))
+	right := hardRest(source, best.right)
 	if left == "" || right == "" {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// hardRest opens the words after a cut at right as a sentence, past any dash that opened an aside.
+func hardRest(source string, right int) string {
+	return capitalizeOpening(strings.TrimLeft(source[right:], " —–"))
 }
 
 // hardSeamRank grades a cut for hardDivision. A cut that parts a subject from
