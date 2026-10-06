@@ -175,7 +175,7 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 	best, bestScore := "", -1
 	for _, d := range beforeCoordinate(s, source) {
-		if !admissible(s, source, d) {
+		if cutsAside(mask(source), d.leftEnd, d.rightStart) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
@@ -183,7 +183,17 @@ func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
-		if !standsAsSentence(left) || !standsAsSentence(right) {
+		if w, ok := lastWordBefore(s, len(source[:d.leftEnd])); ok && danglingTags.Contains(w.Tag) {
+			continue
+		}
+		// A comma before a conjunction is a real boundary, so the head stands even
+		// where the whole sentence named no main clause for it.
+		if n := wordFrom(s, d.rightStart); n >= 0 {
+			if tag := s.Words[n].Tag; tag == "IN" || tag == "TO" {
+				continue
+			}
+		}
+		if !standsAsSentence(right) {
 			continue
 		}
 		score := max(WordCount(left), WordCount(right))

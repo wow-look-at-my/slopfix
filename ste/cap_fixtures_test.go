@@ -147,4 +147,8 @@ var capSentences = []string{
 	"The whole point of the fd contract, end to end on macOS: a process inside the real Seatbelt jail, holding only the fd number the jail handed it, reaches the real host worker — the shipped worker loop running as a real unsandboxed child — and gets a framed answer back.",
 	"Then `(deny file-read*)` and `(deny file-write*)` take every file access away, and the rules that follow give each kind of access back only for the paths the jail is supposed to expose: - `/dev` (a terminal, a PTY, `/dev/null`) — read and write. - a `--rw` mount — read and write. - a `--ro` mount — read only. - the read-only system base (including the macOS `/System`,",
 	"An idp that writes both the snake_case and the camelCase principal key — which is what a token relayed through a translating gateway looks like — must still be readable, not rejected as a duplicate field.",
+	"The local queue's rescue onto the shell's queue used to run only from a fresh `Action::SendPrompt`, so a row stuck locally before a never-idle turn (a goal) had no rescue until the user typed something new.",
+	"Painted on its OWN reserved row directly below the content (`cache_hit_reserved_rows`) rather than sharing the first line's already-narrowed gutter with the cost/timestamp, so wrapped content never loses more width to fit a second label.",
+	"Answers `false` when the request carries no reasoning, or is already at the last level, so the caller reports the rejection instead of resending the same body.",
+	"OpenRouter reports `usage.cost` on most but not all streaming chunks, so multi-call turns had `cost_missing_calls > 0`, which caused the scrub to drop ALL cost from the `TurnCompleted` notification, hiding it from the TUI.",
 }
