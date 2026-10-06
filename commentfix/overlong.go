@@ -365,8 +365,15 @@ func trim(b block) []string {
 		return out
 	}
 	// No cut fits, so the opening sentence divides until its first part does.
-	if shorter, ok := steOpening(kept, fit, true); ok {
+	if shorter, ok := steOpening(kept, fit, true); ok && fitsCode(shorter, b) {
 		return shorter
+	}
+	// Every cut is refused. The whole prose goes on one line: the line count is
+	// what the code beneath it weighs, and no word is dropped to reach one.
+	if wider, did := widen(kept, oneLine); did {
+		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return wider
+		}
 	}
 	return kept
 }

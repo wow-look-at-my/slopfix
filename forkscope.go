@@ -130,6 +130,9 @@ func ownedRuns(req Request, repair Repair) []blockRun {
 // blockRules judge a run of lines whole.
 var blockRules = set.Of(workflow.IDCommentBlock, tombstones.IDVolume, commentfix.IDLength)
 
+// baseRuns are the rules whose finding on a comment run the fork did not make longer is the base's.
+var baseRuns = blockRules.Union(set.Of(ste.IDSentenceCap, commentfix.ID))
+
 // alone runs each rule still reporting on a fork line by itself, and
 // keeps what lands on the fork's lines. Run with every rule, a repair of an
 // upstream line beside the run joins the run's change in one diff hunk. The
@@ -252,13 +255,13 @@ func upstreamRuns(owned *forkscope.Scope, text string, repair Repair) Repair {
 	grew := func(first, last int) bool { return len(forkscope.Grown(base, text, first, last)) > 0 }
 	findings := repair.Findings[:0:0]
 	for _, f := range repair.Findings {
-		if !blockRules.Contains(f.ID) || grew(f.Line, max(f.Line, f.EndLine)) {
+		if !baseRuns.Contains(f.ID) || grew(f.Line, max(f.Line, f.EndLine)) {
 			findings = append(findings, f)
 		}
 	}
 	kept := repair.Kept[:0:0]
 	for _, h := range repair.Kept {
-		if !blockRules.Contains(h.ID) || h.LineNo < 1 || grew(h.LineNo, max(h.LineNo, h.EndLineNo)) {
+		if !baseRuns.Contains(h.ID) || h.LineNo < 1 || grew(h.LineNo, max(h.LineNo, h.EndLineNo)) {
 			kept = append(kept, h)
 		}
 	}

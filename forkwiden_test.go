@@ -89,3 +89,35 @@ func TestAForkOwnsEachParagraphItWroteInto(t *testing.T) {
 	assert.Contains(t, repair.Text, "The tool reads the file. It then checks the file and reports each error.\n")
 	assert.Contains(t, repair.Text, "\nIt writes the result.\n", "a paragraph the fork never touched stays")
 }
+
+// upstreamSentence holds an over-cap doc sentence across a few lines.
+const upstreamSentence = "// An idp that writes both the snake_case and the camelCase key —\n// which is what a token relayed through a translating gateway looks like —\n// must still be readable, not rejected as a duplicate field.\nvar x = 1\n"
+
+// forkSentence rewords the first line, which is the fork's own edit.
+var forkSentence = strings.Replace(upstreamSentence, "snake_case", "snake-case", 1)
+
+// A fork that rewords one line of an over-cap doc sentence did not write the
+// sentence. The run is the base's, so neither the report nor the repair names
+// it, and the fork's own words stay.
+func TestAForkEditInsideAnUpstreamOverCapSentenceIsTheBasesFinding(t *testing.T) {
+	req := slopfix.Request{Path: "x.rs", Content: forkSentence, Owned: forkscope.Changed(upstreamSentence, forkSentence)}
+	assert.Zero(t, ofID(repairIDs(slopfix.Report(req)), "ste/sentence-length"))
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), "ste/sentence-length"), repair.Text)
+	assert.Contains(t, repair.Text, "snake-case", "the fork's words stay")
+}
+
+// upstreamField documents one field in one line.
+const upstreamField = "pub struct S {\n    pub a: bool,\n}\n"
+
+// forkFieldDoc adds a two-line doc above that field, so the fork wrote both lines.
+const forkFieldDoc = "pub struct S {\n    /// False when the id is not in this session's catalog at all, which is a\n    /// different fault from a model that is there and unflagged.\n    pub a: bool,\n}\n"
+
+// A doc the fork added and left over its field's line count is the fork's to
+// fit, so the repair lands and the finding clears.
+func TestAForkAuthorshipOfAnOverLineDocIsRepaired(t *testing.T) {
+	req := slopfix.Request{Path: "x.rs", Content: forkFieldDoc, Owned: forkscope.Changed(upstreamField, forkFieldDoc)}
+	assert.NotZero(t, ofID(repairIDs(slopfix.Report(req)), "comments/length"))
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), "comments/length"), repair.Text)
+}
