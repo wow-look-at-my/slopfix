@@ -231,19 +231,6 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	return head, "", 0
 }
 
-// opensVerb reports text whose first word is a verb, so a verb group that
-// shares. The sentence's subject opens a sentence with the subject named
-// again.
-func opensVerb(text string) bool {
-	s := syntax.Parse(checkMask(text), nil)
-	if len(s.Words) == 0 {
-		return false
-	}
-	t, w := s.Words[0].Tag, strings.ToLower(s.Words[0].Text)
-	// The tagger reads an -s verb after "and" as a plural noun, the same way it reads "goal mode blocks".
-	return strings.HasPrefix(t, "VB") || t == "MD" || t == "NNS" && strings.HasSuffix(w, "s") && !strings.HasSuffix(w, "ss")
-}
-
 // clauseOpeners open a clause whose verb a head must hold before it can close.
 var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since", "unless", "although", "though", "whereas", "so", "where")
 

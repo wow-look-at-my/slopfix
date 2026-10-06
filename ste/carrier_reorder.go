@@ -125,6 +125,19 @@ func stripLeadingAdverb(text string) string {
 // leadingAdverbs introduce a statement before its subordinate clause.
 var leadingAdverbs = set.Of("so", "then", "thus", "also", "therefore")
 
+// opensVerb reports text whose first word is a verb, so a verb group that
+// shares. The sentence's subject opens a sentence with the subject named
+// again.
+func opensVerb(text string) bool {
+	s := syntax.Parse(checkMask(text), nil)
+	if len(s.Words) == 0 {
+		return false
+	}
+	t, w := s.Words[0].Tag, strings.ToLower(s.Words[0].Text)
+	// The tagger reads an -s verb after "and" as a plural noun, the same way it reads "goal mode blocks".
+	return strings.HasPrefix(t, "VB") || t == "MD" || t == "NNS" && strings.HasSuffix(w, "s") && !strings.HasSuffix(w, "ss")
+}
+
 // backReferences are the words that point back to a noun said before them.
 var backReferences = set.Of("those", "these", "this", "that", "it", "its", "they", "them", "their", "such")
 
