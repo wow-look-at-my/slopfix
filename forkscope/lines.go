@@ -2,18 +2,23 @@ package forkscope
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // Lines is the part of a fork's work tree that the fork wrote.
 type Lines struct {
 	// top is the work tree root, with every symlink resolved.
 	top string
+	// repo reads the base commit's objects in-process.
+	repo *gitread.Repo
 	// commit is the base the lines are measured from.
 	commit string
 	// whole holds each file new since the base, or untracked.
@@ -28,74 +33,191 @@ func (b *Base) Lines() (*Lines, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fork scope: %w", err)
 	}
-	own := &Lines{top: resolved, commit: b.commit, whole: set.New[string](), lines: map[string]set.Set[int]{}}
-	diff, err := gitIn(b.top, "-c", "core.quotePath=false", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff",
-		"--src-prefix=a/", "--dst-prefix=b/", b.commit, "--")
-	if err != nil {
-		return nil, fmt.Errorf("fork scope: diff against the base %s: %w", b.commit, err)
-	}
-	if err := own.readDiff(diff); err != nil {
+	own := &Lines{top: resolved, repo: b.repo, commit: b.commit, whole: set.New[string](), lines: map[string]set.Set[int]{}}
+	if err := own.readWorkTree(); err != nil {
 		return nil, err
 	}
-	untracked, err := gitIn(b.top, "ls-files", "-z", "--others", "--exclude-standard")
-	if err != nil {
-		return nil, fmt.Errorf("fork scope: %w", err)
-	}
-	for name := range strings.SplitSeq(untracked, "\x00") {
-		if name != "" {
-			own.whole.Add(filepath.ToSlash(name))
-		}
-	}
 	if b.upstream != "" {
-		if err := own.dropUpstreamVersions(b.top, b.upstream); err != nil {
+		if err := own.dropUpstreamVersions(b.upstream); err != nil {
 			return nil, err
 		}
 	}
 	return own, nil
 }
 
+// readWorkTree records every tracked file that differs from the base and every
+// untracked file, which is what a zero-context diff against the base names.
+func (o *Lines) readWorkTree() error {
+	base, err := gitread.ParseOID(o.commit)
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	base, err = o.repo.PeelCommit(base)
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	baseNames, err := o.repo.TreeNames(base)
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	idx, err := o.repo.Index()
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	tracked := idx.Tracked()
+	for path := range tracked {
+		file := filepath.Join(o.top, filepath.FromSlash(path))
+		data, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+		baseEntry, ok := baseNames[path]
+		if !ok {
+			o.whole.Add(path)
+			continue
+		}
+		if baseEntry.Mode == "160000" {
+			continue
+		}
+		before, ok := o.repo.Blob(baseEntry.OID)
+		if !ok {
+			continue
+		}
+		if bytes.Equal(before, data) {
+			continue
+		}
+		if isBinary(before) || isBinary(data) {
+			o.whole.Add(path)
+			continue
+		}
+		o.recordLines(path, string(before), string(data))
+	}
+	return o.addUntracked(tracked)
+}
+
+// recordLines adds the new line numbers a change to a file holds.
+func (o *Lines) recordLines(path, before, after string) {
+	scope := Changed(before, after)
+	if scope.Empty() {
+		return
+	}
+	o.lines[path] = scope.lines
+}
+
+// addUntracked records every file the work tree holds that the index does not,
+// and that git does not ignore.
+func (o *Lines) addUntracked(tracked map[string]gitread.IndexEntry) error {
+	ignore := o.repo.Ignore()
+	return filepath.WalkDir(o.top, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		rel, err := filepath.Rel(o.top, path)
+		if err != nil {
+			return nil
+		}
+		rel = filepath.ToSlash(rel)
+		if d.IsDir() {
+			if path == o.top || rel == ".git" || strings.HasPrefix(rel, ".git/") {
+				return nil
+			}
+			if entry, ok := tracked[rel]; ok && entry.Mode == "160000" {
+				return filepath.SkipDir
+			}
+			if _, err := os.Stat(filepath.Join(path, ".git")); err == nil {
+				return filepath.SkipDir
+			}
+			if ignore.Ignored(rel, true) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if _, ok := tracked[rel]; ok {
+			return nil
+		}
+		if ignore.Ignored(rel, false) {
+			return nil
+		}
+		o.whole.Add(rel)
+		return nil
+	})
+}
+
+// isBinary reports whether content holds a NUL byte, which git reads as binary.
+func isBinary(data []byte) bool { return bytes.IndexByte(data, 0) >= 0 }
+
 // dropUpstreamVersions removes each clean file whose content a commit of
 // upstream gave that path. An upstream sync brings such a file in whole, so
 // the fork wrote none of it.
-func (o *Lines) dropUpstreamVersions(top, upstream string) error {
-	raw, err := gitIn(top, "log", upstream, "--format=", "--raw", "--no-abbrev", "--no-renames", "-z")
+func (o *Lines) dropUpstreamVersions(upstream string) error {
+	tip, err := gitread.ParseOID(upstream)
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	commits, err := o.repo.RevList(tip)
 	if err != nil {
 		return fmt.Errorf("fork scope: list the file versions of the upstream %s: %w", upstream, err)
 	}
 	known := set.New[string]()
-	fields := strings.Split(raw, "\x00")
-	for i := 0; i+1 < len(fields); i++ {
-		head := strings.TrimSpace(fields[i])
-		if !strings.HasPrefix(head, ":") {
-			continue
+	for _, commit := range commits {
+		names, err := o.repo.TreeNames(commit)
+		if err != nil {
+			return fmt.Errorf("fork scope: list the file versions of the upstream %s: %w", upstream, err)
 		}
-		if meta := strings.Fields(head[1:]); len(meta) >= 4 {
-			known.Add(fields[i+1] + "\x00" + meta[3])
+		for path, entry := range names {
+			known.Add(path + "\x00" + entry.OID.String())
 		}
-		i++
 	}
-	dirty, err := gitIn(top, "diff", "--name-only", "-z", "HEAD", "--")
+	dirty, err := o.dirtyPaths()
+	if err != nil {
+		return err
+	}
+	idx, err := o.repo.Index()
 	if err != nil {
 		return fmt.Errorf("fork scope: %w", err)
 	}
-	edited := set.New[string]()
-	for name := range strings.SplitSeq(dirty, "\x00") {
-		edited.Add(name)
-	}
-	staged, err := gitIn(top, "ls-files", "-s", "-z")
-	if err != nil {
-		return fmt.Errorf("fork scope: %w", err)
-	}
-	for entry := range strings.SplitSeq(staged, "\x00") {
-		meta, name, ok := strings.Cut(entry, "\t")
-		parts := strings.Fields(meta)
-		if !ok || len(parts) < 2 || edited.Contains(name) || !known.Contains(name+"\x00"+parts[1]) {
+	for _, entry := range idx.Entries() {
+		if dirty.Contains(entry.Path) || !known.Contains(entry.Path+"\x00"+entry.OID.String()) {
 			continue
 		}
-		delete(o.lines, name)
-		o.whole.Remove(name)
+		delete(o.lines, entry.Path)
+		o.whole.Remove(entry.Path)
 	}
 	return nil
+}
+
+// dirtyPaths answers every tracked path whose work-tree content differs from HEAD.
+func (o *Lines) dirtyPaths() (set.Set[string], error) {
+	out := set.New[string]()
+	head, err := o.repo.Head()
+	if err != nil {
+		return out, fmt.Errorf("fork scope: %w", err)
+	}
+	headNames, err := o.repo.TreeNames(head)
+	if err != nil {
+		return out, fmt.Errorf("fork scope: %w", err)
+	}
+	idx, err := o.repo.Index()
+	if err != nil {
+		return out, fmt.Errorf("fork scope: %w", err)
+	}
+	for path := range idx.Tracked() {
+		entry, ok := headNames[path]
+		if !ok {
+			out.Add(path)
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(o.top, filepath.FromSlash(path)))
+		if err != nil {
+			out.Add(path)
+			continue
+		}
+		before, ok := o.repo.Blob(entry.OID)
+		if !ok || !bytes.Equal(before, data) {
+			out.Add(path)
+		}
+	}
+	return out, nil
 }
 
 // File answers the lines of text that the fork wrote, for text headed for path
@@ -105,18 +227,22 @@ func (b *Base) File(path, text string) (*Scope, error) {
 	if err != nil {
 		return nil, err
 	}
-	listed, err := gitIn(b.top, "ls-tree", "-z", "--full-name", b.commit, "--", rel)
+	commit, err := gitread.ParseOID(b.commit)
 	if err != nil {
 		return nil, fmt.Errorf("fork scope: %w", err)
 	}
-	if listed == "" {
+	entry, ok, err := b.repo.TreeEntryAt(commit, rel)
+	if err != nil {
+		return nil, fmt.Errorf("fork scope: %w", err)
+	}
+	if !ok || entry.Mode == "160000" {
 		return Whole(), nil
 	}
-	upstream, err := gitIn(b.top, "cat-file", "blob", b.commit+":"+rel)
-	if err != nil {
-		return nil, fmt.Errorf("fork scope: read %s at the base: %w", rel, err)
+	upstream, ok := b.repo.Blob(entry.OID)
+	if !ok {
+		return nil, fmt.Errorf("fork scope: read %s at the base: the blob is missing", rel)
 	}
-	return Changed(upstream, text), nil
+	return Changed(string(upstream), text), nil
 }
 
 // relTo answers path relative to the work tree at top, in slash form. A path
@@ -332,13 +458,17 @@ func (o *Lines) Scope(path string) *Scope {
 	}
 	out := &Scope{lines: o.lines[name]}
 	// A selector measures from no base commit, so it reads no base text.
-	if o.commit != "" {
-		out.base = func() (string, error) {
-			text, err := gitIn(o.top, "cat-file", "blob", o.commit+":"+name)
-			if err != nil {
-				return "", fmt.Errorf("fork scope: read %s at the base: %w", name, err)
+	if o.commit != "" && o.repo != nil {
+		commit, err := gitread.ParseOID(o.commit)
+		repo := o.repo
+		if err == nil {
+			out.base = func() (string, error) {
+				text, err := repo.BlobAt(commit, name)
+				if err != nil {
+					return "", fmt.Errorf("fork scope: read %s at the base: %w", name, err)
+				}
+				return string(text), nil
 			}
-			return text, nil
 		}
 	}
 	return out
@@ -348,31 +478,113 @@ func (o *Lines) Scope(path string) *Scope {
 // dir. With staged it is the index against HEAD, and otherwise the work tree
 // against rev. A path the diff created counts whole.
 func DiffLines(dir, rev string, staged bool) (*Lines, error) {
-	top, err := gitIn(dir, "rev-parse", "--show-toplevel")
+	repo, err := gitread.OpenWorkTree(dir)
 	if err != nil {
 		return nil, fmt.Errorf("diff scope: %w", err)
 	}
-	top = strings.TrimSpace(top)
-	resolved, err := filepath.EvalSymlinks(top)
+	if repo == nil {
+		return nil, fmt.Errorf("diff scope: git rev-parse --show-toplevel: %s is not inside a work tree", dir)
+	}
+	top, err := filepath.EvalSymlinks(repo.WorkTree())
 	if err != nil {
 		return nil, fmt.Errorf("diff scope: %w", err)
 	}
-	args := []string{"-c", "core.quotePath=false", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"}
+	own := &Lines{top: top, repo: repo, whole: set.New[string](), lines: map[string]set.Set[int]{}}
+	idx, err := repo.Index()
+	if err != nil {
+		return nil, fmt.Errorf("diff scope: %w", err)
+	}
 	if staged {
-		args = append(args, "--cached")
-	} else {
-		args = append(args, rev)
+		if err := own.readStaged(repo, idx); err != nil {
+			return nil, err
+		}
+		return own, nil
 	}
-	args = append(args, "--")
-	diff, err := gitIn(top, args...)
-	if err != nil {
-		return nil, fmt.Errorf("diff scope: %w", err)
-	}
-	own := &Lines{top: resolved, whole: set.New[string](), lines: map[string]set.Set[int]{}}
-	if err := own.readDiff(diff); err != nil {
+	if err := own.readAgainst(repo, idx, rev); err != nil {
 		return nil, err
 	}
 	return own, nil
+}
+
+// readStaged records the lines the index changed against HEAD.
+func (o *Lines) readStaged(repo *gitread.Repo, idx *gitread.Index) error {
+	head, err := repo.Head()
+	if err != nil {
+		return fmt.Errorf("diff scope: %w", err)
+	}
+	headNames, err := repo.TreeNames(head)
+	if err != nil {
+		return fmt.Errorf("diff scope: %w", err)
+	}
+	for path, entry := range idx.Tracked() {
+		before, ok := headNames[path]
+		if !ok {
+			o.whole.Add(path)
+			continue
+		}
+		if before.OID == entry.OID {
+			continue
+		}
+		old, okOld := repo.Blob(before.OID)
+		next, okNext := repo.Blob(entry.OID)
+		if !okOld || !okNext {
+			continue
+		}
+		if isBinary(old) || isBinary(next) {
+			o.whole.Add(path)
+			continue
+		}
+		o.recordLines(path, string(old), string(next))
+	}
+	return nil
+}
+
+// readAgainst records the lines the work tree changed against a revision.
+func (o *Lines) readAgainst(repo *gitread.Repo, idx *gitread.Index, rev string) error {
+	base, err := resolveRev(repo, rev)
+	if err != nil {
+		return fmt.Errorf("diff scope: %w", err)
+	}
+	baseNames, err := repo.TreeNames(base)
+	if err != nil {
+		return fmt.Errorf("diff scope: %w", err)
+	}
+	for path := range idx.Tracked() {
+		data, err := os.ReadFile(filepath.Join(o.top, filepath.FromSlash(path)))
+		if err != nil {
+			continue
+		}
+		entry, ok := baseNames[path]
+		if !ok {
+			o.whole.Add(path)
+			continue
+		}
+		if entry.Mode == "160000" {
+			continue
+		}
+		before, ok := repo.Blob(entry.OID)
+		if !ok || bytes.Equal(before, data) {
+			continue
+		}
+		if isBinary(before) || isBinary(data) {
+			o.whole.Add(path)
+			continue
+		}
+		o.recordLines(path, string(before), string(data))
+	}
+	return nil
+}
+
+// resolveRev answers the commit a revision string names.
+func resolveRev(repo *gitread.Repo, rev string) (gitread.OID, error) {
+	if rev == "" || rev == "HEAD" {
+		return repo.Head()
+	}
+	oid, err := repo.Resolve(rev)
+	if err != nil {
+		return gitread.OID{}, err
+	}
+	return repo.PeelCommit(oid)
 }
 
 // IntersectLines answers the lines both a and b hold. A file both hold whole
@@ -384,7 +596,7 @@ func IntersectLines(a, b *Lines) *Lines {
 	case b == nil:
 		return a
 	}
-	out := &Lines{top: a.top, commit: a.commit, whole: set.New[string](), lines: map[string]set.Set[int]{}}
+	out := &Lines{top: a.top, repo: a.repo, commit: a.commit, whole: set.New[string](), lines: map[string]set.Set[int]{}}
 	names := set.New[string]()
 	for name := range a.whole.All() {
 		names.Add(name)

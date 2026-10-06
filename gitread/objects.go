@@ -53,7 +53,8 @@ func (r *Repo) object(oid OID) (object, error) {
 		extra := r.extra
 		r.mu.Unlock()
 		for _, other := range extra {
-			if found, err := other.object(oid); err == nil {
+			found, ferr := other.object(oid)
+			if ferr == nil {
 				obj, err = found, nil
 				break
 			}

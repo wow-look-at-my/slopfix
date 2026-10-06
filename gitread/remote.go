@@ -48,7 +48,11 @@ func OpenRemote(remote string) (*Repo, bool) {
 
 // Tags answers the commit each tag of a remote names, peeled.
 func Tags(remote string) ([]OID, error) {
-	if local, ok := OpenRemote(remote); ok {
+	if isLocalRemote(remote) {
+		local, ok := OpenRemote(remote)
+		if !ok {
+			return nil, fmt.Errorf("gitread: %s is not a local repository", remote)
+		}
 		return localTagCommits(local)
 	}
 	return httpTagCommits(remote)

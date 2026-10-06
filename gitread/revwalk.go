@@ -13,8 +13,8 @@ type commitMeta struct {
 }
 
 // RevList answers every commit reachable from oid, including oid.
-func (r *Repo) RevList(rev string) ([]OID, error) {
-	start, err := r.PeelCommit(oidOfRef(rev))
+func (r *Repo) RevList(oid OID) ([]OID, error) {
+	start, err := r.PeelCommit(oid)
 	if err != nil {
 		return nil, err
 	}
@@ -42,15 +42,9 @@ func (r *Repo) RevList(rev string) ([]OID, error) {
 	return out, nil
 }
 
-// oidOfRef turns a revision string into an object name (already an OID here).
-func oidOfRef(rev string) OID {
-	oid, _ := ParseOID(rev)
-	return oid
-}
-
 // FirstParent answers the first-parent chain from oid, newest first.
-func (r *Repo) FirstParent(rev string) ([]OID, error) {
-	oid, err := r.PeelCommit(oidOfRef(rev))
+func (r *Repo) FirstParent(oid OID) ([]OID, error) {
+	oid, err := r.PeelCommit(oid)
 	if err != nil {
 		return nil, err
 	}

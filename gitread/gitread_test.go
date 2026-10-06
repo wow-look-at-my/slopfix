@@ -79,7 +79,7 @@ func TestHeadAndTags(t *testing.T) {
 	base := gitT(t, dir, "rev-parse", "v1^{commit}")
 	assert.Equal(t, base, peeled.String())
 
-	commits, err := repo.RevList(head.String())
+	commits, err := repo.RevList(head)
 	require.NoError(t, err)
 	want := strings.Fields(gitT(t, dir, "rev-list", "HEAD"))
 	assert.Len(t, commits, len(want))
