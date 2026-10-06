@@ -148,6 +148,12 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if (seam == "," || seam == "") && (lower == "and" || lower == "or") && strings.HasPrefix(prev.Tag, "NN") &&
 		first+1 < len(whole.Words) && verbAt(whole, first+1) {
 		clause := strings.TrimLeft(rest[len(word.Text):], " ")
+		// "and setting both limits to 0 disables eviction". A gerund opens a
+		// subject of its own, so the words after the conjunction stand as a
+		// sentence without the main clause's subject named again.
+		if w := whole.Words[first+1]; w.Tag == "VBG" && opensSubject(whole, first+1) && StandsAlone(capitalizeOpening(clause)) {
+			return head, capitalizeOpening(clause), opensWithCarrier
+		}
 		if subject := subjectFor(source, checkMask(source), c, whole.Words[first+1].Tag); subject != "" {
 			return head, capitalizeOpening(subject) + " " + clause, opensWithCarrier
 		}

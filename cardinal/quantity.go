@@ -137,10 +137,37 @@ func NotAPluralNoun(text string, q Match) bool {
 
 // NoPluralNounAfter is NotAPluralNoun for a number that counts.
 func NoPluralNounAfter(text string, q Match) bool {
-	if _, point := APoint(text, q.At); point || NamesAnItem(text, q.At) {
+	if _, point := APoint(text, q.At); point {
+		// "set both limits to 0 disables eviction": the trailing word is the sentence's verb with an object.
+		return governsObject(text, q)
+	}
+	if NamesAnItem(text, q.At) {
 		return false
 	}
 	return NotAPluralNoun(text, q)
+}
+
+// governsObject reports a match whose plural "noun" is the sentence's verb
+// with an object after it: "set both limits to 0 disables eviction" states a
+// value, not a tally. Only a verb takes a noun phrase straight after it, so
+// the words that follow the match decide.
+func governsObject(text string, q Match) bool {
+	end := q.At + len(q.Text)
+	words := syntax.Parse(text, nil).Words
+	for i, w := range words {
+		if w.End != end {
+			continue
+		}
+		if i+1 >= len(words) || !strings.HasSuffix(strings.ToLower(w.Text), "s") {
+			return false
+		}
+		switch words[i+1].Tag {
+		case "DT", "PRP", "PRP$", "CD", "NN", "NNP", "NNPS", "NNS":
+			return true
+		}
+		return false
+	}
+	return false
 }
 
 // nominalTags are the tags a modifier between a cardinal and its noun carries.

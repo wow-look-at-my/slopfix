@@ -200,6 +200,9 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := becauseDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
+	if out, ok := punctuationDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
 	return hardDivision(source, masked, d.cap)
 }
 
