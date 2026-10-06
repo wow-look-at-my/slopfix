@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // identifierWords splits text into the runs the shape test judges, by cutting
@@ -120,19 +120,23 @@ func PrimeIndex(path string) {
 func (ix *symbolIndex) build(root string) {
 	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 	defer cancel()
-	listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	repo, err := gitread.OpenWorkTree(root)
+	if err != nil || repo == nil {
+		return
+	}
+	listed, err := repo.WorkFiles()
 	if err != nil {
 		return
 	}
 	names := set.New[string]()
-	for _, rel := range strings.Split(string(listed), "\x00") {
+	for _, rel := range listed {
 		if rel == "" {
 			continue
 		}
 		if ctx.Err() != nil {
 			return
 		}
-		data, err := os.ReadFile(filepath.Join(root, rel))
+		data, err := os.ReadFile(filepath.Join(repo.WorkTree(), rel))
 		if err != nil || len(data) > indexFileCap || bytes.IndexByte(data[:min(len(data), 8000)], 0) >= 0 {
 			continue
 		}
