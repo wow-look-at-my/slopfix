@@ -46,6 +46,11 @@ func TestEveryRuleAutofixClearsItsOwnDetection(t *testing.T) {
 			require.NotEmpty(t, rule.Cases, "%s carries no case", rule.ID)
 			for _, raw := range rule.Cases {
 				c := materialize(t, raw)
+				// A case the rule must leave as written fires nothing, and
+				// TestEveryUnchangedCaseRoundTrips holds its own property.
+				if c.Unchanged {
+					continue
+				}
 				before := rule.Detect(c)
 				require.NotEmpty(t, before, "%s: case %q does not fire its detection", rule.ID, c.Name)
 				for _, f := range before {
@@ -61,6 +66,31 @@ func TestEveryRuleAutofixClearsItsOwnDetection(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestEveryUnchangedCaseRoundTrips is the harness for the cases a rule must
+// leave alone: the text carries no finding. The autofix writes it back byte
+// for byte. A repair that rewords prose the author wrote fails here.
+func TestEveryUnchangedCaseRoundTrips(t *testing.T) {
+	seen := 0
+	for _, rule := range slopfix.AllRuleSpecs() {
+		rule := rule
+		for _, raw := range rule.Cases {
+			if !raw.Unchanged {
+				continue
+			}
+			seen++
+			c := materialize(t, raw)
+			t.Run(rule.ID+"/"+c.Name, func(t *testing.T) {
+				require.NotEmpty(t, c.Text, "%s: an unchanged case carries no text", c.Name)
+				assert.Empty(t, rule.Detect(c), "%s: case %q must fire no detection", rule.ID, c.Name)
+				if rule.Autofix != nil {
+					assert.Equal(t, c.Text, rule.Autofix(c).Text, "%s: case %q must round-trip unchanged", rule.ID, c.Name)
+				}
+			})
+		}
+	}
+	require.NotZero(t, seen, "no rule carries an unchanged case")
 }
 
 // A rule whose finding tells the reader that `slopfix fix` repairs it owes a

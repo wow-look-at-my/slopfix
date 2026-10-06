@@ -117,7 +117,7 @@ func Fix(req Request) Repair {
 	after := Fix(landed)
 	repair.Findings, repair.Kept = after.Findings, after.Kept
 	repair = scoped(repair, forkscope.Carry(req.Content, text, req.Owned), owned)
-	return upstreamRuns(req.Owned, repair.Text, repair)
+	return upstreamRuns(req, req.Owned, repair.Text, repair)
 }
 
 // fixBlock repairs rows first to last of text with every rule but the run
@@ -362,7 +362,7 @@ func Report(req Request) Repair {
 		return repair
 	}
 	repair = scoped(repair, req.Owned, widened(req))
-	return upstreamRuns(req.Owned, req.Content, repair)
+	return upstreamRuns(req, req.Owned, req.Content, repair)
 }
 
 // reportAll is Report with no regard to the lines a fork wrote.
