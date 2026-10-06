@@ -175,6 +175,9 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "CC" && opensNounPhrase(words[i+1]):
 			// "and reads every row": a plural noun cannot take a determiner after it.
 			w.Tag = "VBZ"
+		case w.Tag == "NNS" && i > 0 && words[i-1].Tag == ":" && verbEnding(w.Text) && colonFollowsClause(words, i-1):
+			// "Dispatch the Stop: runs in stop-gate mode": a colon opens the clause that explains the one before it.
+			w.Tag = "VBZ"
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "NN" && Is(words[i+1].Text, "object"):
 			// "a message reads it": a noun takes no object pronoun.
 			w.Tag = "VBZ"
@@ -205,6 +208,17 @@ func retag(words []Word) {
 			words[i].Tag = "NNS"
 		}
 	}
+}
+
+// colonFollowsClause reports a clause before the colon at index colon: a finite
+// verb in it, or a bare verb opening it as an instruction.
+func colonFollowsClause(words []Word, colon int) bool {
+	for i := 0; i < colon; i++ {
+		if isFinite(words[i].Tag) {
+			return true
+		}
+	}
+	return colon > 0 && (words[0].Tag == "VB" || words[0].Tag == "VBP")
 }
 
 // filler reports the word a mask writes over a code span or a quotation.

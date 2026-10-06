@@ -156,6 +156,7 @@ var capSentences = []string{
 	"One `setup_goal` call — with no model turn of its own — leaves the session's LIVE todo list carrying the planner's items, each a fresh pending harness-minted item.",
 	"The same leniency over `Option<Vec<String>>`, for a shadow struct that must tell a key the sender omitted from a key it sent as `null` or `[]` before folding one field's spellings together.",
 	"The config sibling that was left at DEFAULT answers for its own window because a listing sibling with the same routing slug (`grok-4`) carries the real one, resolved per exact slug.",
+	"Dispatch the observe-only session-end `Stop`: runs in stop-gate mode so exit code 2 parses as a block, but the decision is discarded (no turn left to continue).",
 }
 
 // capPending are the sentence inputs the fork job still leaves standing: a participial or appositive lead, a shared subject. This holds before ", and <verb>", a dash that names no main clause, and an opening subordinate clause. Each is a case the carrier design must reach. A case that starts converging moves out of this list and into capSentences. The test below fails until it does, and fails again if a converging case regresses. The list is asserted whole, so the build reports the count of the
