@@ -77,21 +77,33 @@ func paragraphs(text []string) []paragraph {
 			block = nil
 		}
 	}
+	// A code block in a comment opens after a blank comment line.
+	blank := true
 	for _, line := range text {
 		if isBlankComment(line) {
 			flush()
 			flushBlock()
 			out = append(out, paragraph{blank: true})
+			blank = true
 			continue
 		}
 		// A directive is read by a tool, so it keeps its bytes and its own line.
-		if codeRow(line) || isDirectiveLine(line) {
+		if isDirectiveLine(line) {
+			flush()
+			flushBlock()
+			block = append(block, line)
+			blank = false
+			continue
+		}
+		if codeRow(line) && (blank || len(block) > 0) {
 			flush()
 			block = append(block, line)
+			blank = false
 			continue
 		}
 		flushBlock()
 		run = append(run, stripMarker(line))
+		blank = false
 	}
 	flushBlock()
 	flush()

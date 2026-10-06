@@ -85,7 +85,7 @@ func init() {
 		Autofix:  repairContent(commentfix.ID),
 		Cases: []RuleCase{
 			{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"},
-			{Name: commentfix.ID + "/doc", Path: "stop.rs", Text: commentNumberDocCase()},
+			{Name: commentfix.ID + "/doc", Path: "stop.rs", Text: commentNumberDocCase(), Unchanged: true},
 		},
 	})
 	registerFile(commentfix.IDLength, RuleComments, "main.go", "package main\n\n"+overlongComment()+"func main() {}\n")
@@ -170,9 +170,10 @@ func referentCase() string {
 	return "package main\n\nfunc main() {\n\tvalue := 1 // The " + name + " reads each value.\n\t_ = value\n}\n"
 }
 
-// commentNumberDocCase is a Rust doc comment that states an exit code. The
-// number sits mid-sentence, so the repair must clear it without leaving a
-// finding behind.
+// commentNumberDocCase is a Rust doc comment that states an exit code. An exit
+// status is a value the program answers with, not a count of what exists here.
+// No rule reports it and the repair returns the comment as the author wrote
+// it.
 func commentNumberDocCase() string {
 	return "/// Dispatch the observe-only session-end `Stop`: runs in stop-gate mode so\n" +
 		"/// exit code 2 parses as a block, but the decision is discarded (no turn\n" +

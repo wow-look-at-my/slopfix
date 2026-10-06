@@ -56,6 +56,10 @@ func (p *clauseParser) run() []Clause {
 					// "that is absent, or that appears": both clauses describe the same noun, at the same depth.
 					depth = cur.Depth
 				}
+				if kind == Relative && cur.Kind == Coordinate && len(out) >= 2 && out[len(out)-2].Kind == Relative {
+					// "whose code is present but whose behavior is wrong": the second relative describes the same noun as the first.
+					depth = out[len(out)-2].Depth
+				}
 				cur = Clause{First: i, Link: link, Kind: kind, Comma: comma, Depth: depth}
 			}
 		}
