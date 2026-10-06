@@ -203,12 +203,12 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 // a code span, a link, a quotation or a parenthesis. candidates answers only
 // the gaps outside those spans, so the cut lands between whole words.
 func hardDivision(source, masked string, limit int) (string, bool) {
-	whole := syntax.Parse(masked, nil)
 	ends := wordEnds(masked)
 	if len(ends) <= limit || len(ends) < 2*minimumHalf {
 		return source, false
 	}
-	best, bestWords := forceCut{}, -1
+	whole := syntax.Parse(masked, nil)
+	best, bestWords, bestRank := forceCut{}, -1, -1
 	for _, c := range candidates(source, masked, false, limit) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < minimumHalf {
 			continue
@@ -250,23 +250,48 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		// Both parts must read as sentences, or the cut strands a fragment such
 		// as "writes. Through it while this function runs.".
 		if !standsAsSentence(closeHead(source[:c.left])) ||
-			!standsAsSentence(capitalizeOpening(strings.TrimLeft(source[c.right:], " "))) {
+			!standsAsSentence(hardRest(source, c.right)) {
 			continue
 		}
-		// The longest leading run that fits reads best, and the first cut of it is deterministic.
-		if c.words > bestWords {
-			best, bestWords = c, c.words
+		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
+		rank := hardSeamRank(source, whole, c)
+		if rank > bestRank || rank == bestRank && c.words > bestWords {
+			best, bestWords, bestRank = c, c.words, rank
 		}
 	}
 	if bestWords < 0 {
 		return source, false
 	}
 	left := closeHead(source[:best.left])
-	right := capitalizeOpening(strings.TrimLeft(source[best.right:], " "))
+	right := hardRest(source, best.right)
 	if left == "" || right == "" {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// hardRest opens the words after a cut at right as a sentence, past any dash that opened an aside.
+func hardRest(source string, right int) string {
+	return capitalizeOpening(strings.TrimLeft(source[right:], " —–"))
+}
+
+// hardSeamRank grades a cut for hardDivision. A cut that parts a subject from
+// its verb, or a verb from what follows it, ranks lowest: "it. Is carrying".
+// A cut at a mark, or before a conjunction or a preposition, ranks highest.
+func hardSeamRank(source string, whole *syntax.Sentence, c forceCut) int {
+	first := wordFrom(whole, c.right)
+	if first < 1 || first >= len(whole.Words) {
+		return 0
+	}
+	next, last := whole.Words[first].Tag, whole.Words[first-1].Tag
+	if strings.HasPrefix(next, "VB") || next == "MD" || next == "RP" || next == "POS" || strings.HasPrefix(last, "VB") || last == "MD" {
+		return 0
+	}
+	if strings.ContainsAny(source[c.left:c.right], ",;:—–") || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",") ||
+		next == "CC" || next == "IN" || next == "WDT" || next == "WRB" {
+		return 2
+	}
+	return 1
 }
 
 // carrierOrNone is carrierDivision, except for a sentence that opens with an
@@ -557,7 +582,7 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
-	case (conjunction == "and" || conjunction == "so") && seam == "," && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+	case (conjunction == "and" || conjunction == "so") && seam == "," && opensNounPhrase(tag) && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
 		// The parse cuts its clauses at commas, so a subject that is a list or
 		// carries a participle opens no clause of its own.
 		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) ||
@@ -576,6 +601,11 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 	}
 	return "", 0
+}
+
+// opensNounPhrase reports a tag that starts a subject.
+func opensNounPhrase(tag string) bool {
+	return tag == "DT" || tag == "PRP" || tag == "PRP$" || tag == "JJ" || tag == "CD" || strings.HasPrefix(tag, "NN")
 }
 
 // seriesBefore reports a comma after the first verb of head. A ", and" after it adds the last item of a series: "give the full path, why it matters, and the relevant code".
