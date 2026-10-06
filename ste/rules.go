@@ -122,6 +122,8 @@ var (
 	wordPattern = regexp.MustCompile(`[A-Za-z]+(?:'[A-Za-z]+)?`)
 	// codeSpan matches an inline code span, whose contents are data.
 	codeSpan = regexp.MustCompile("`[^`]*`")
+	// charRange matches an XML character-class range a comment quotes, as in `[#x370-#x37D]`.
+	charRange = regexp.MustCompile(`\[#x[0-9A-Fa-f]+(?:-#x[0-9A-Fa-f]+)?\]`)
 	// sectionLink matches a link that cites a section by its slug.
 	sectionLink = regexp.MustCompile(`\[§[^\]\s]*\]\([^)\s]*\)`)
 	// linkTarget matches a markdown link's URL, which is not prose.
@@ -204,11 +206,13 @@ var proseRules = []proseRule{
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
-// link's target, and an HTML entity. A semicolon inside any of them is not a
-// sentence joiner.
+// link's target, an HTML entity, and an XML character range. A semicolon inside
+// any of them is not a sentence joiner.
 func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
+	// A range becomes a separator, so neighbours never join into one word.
+	text = charRange.ReplaceAllString(text, " ")
 	// A section link reads as the citation it replaced, which holds no word.
 	text = sectionLink.ReplaceAllString(text, "§")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
