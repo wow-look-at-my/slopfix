@@ -2,33 +2,26 @@ package forkscope
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // tagBase answers the newest commit of HEAD's history that an upstream tag
 // names, or "" when HEAD contains none. A fork that merges upstream releases
 // carries that tag.
-func tagBase(g *gitread.Repo, tags []string) (string, error) {
-	if err := deepen(g); err != nil {
+func tagBase(top string, tags []string) (string, error) {
+	if err := deepen(top); err != nil {
 		return "", err
 	}
-	if len(tags) == 0 {
-		return "", nil
-	}
-	wanted := set.Of(tags...)
-	head, err := g.Head()
+	commits := set.Of(tags...)
+	revs, err := gitIn(top, "rev-list", "HEAD")
 	if err != nil {
 		return "", fmt.Errorf("fork scope: %w", err)
 	}
-	revs, err := g.RevList(head)
-	if err != nil {
-		return "", fmt.Errorf("fork scope: %w", err)
-	}
-	for _, rev := range revs {
-		if wanted.Contains(rev.String()) {
-			return rev.String(), nil
+	for rev := range strings.SplitSeq(revs, "\n") {
+		if commits.Contains(rev) {
+			return rev, nil
 		}
 	}
 	return "", nil
@@ -44,67 +37,62 @@ func tagBase(g *gitread.Repo, tags []string) (string, error) {
 //
 // The candidates are the upstream commits after the merge base, and the merge
 // base itself. With no merge base, every commit of the branch is a candidate.
-func snapshotBase(g *gitread.Repo, rec *record) (string, error) {
-	if rec.Tip == "" || !hasCommit(g, rec.Tip) {
-		tip, err := fetchUpstreamHead(g, rec.Upstream)
+func snapshotBase(top string, rec *record) (string, error) {
+	if rec.Tip == "" || !hasCommit(top, rec.Tip) {
+		tip, err := fetchUpstreamHead(top, rec.Upstream)
 		if err != nil {
 			return "", err
 		}
 		rec.Tip = tip
-		if err := store(g, *rec); err != nil {
+		if err := store(top, *rec); err != nil {
 			return "", err
 		}
 	}
-	tip, err := gitread.ParseOID(rec.Tip)
-	if err != nil {
-		return "", fmt.Errorf("fork scope: %w", err)
+	args := []string{"rev-list", "--first-parent", rec.Tip}
+	mergeBase := ""
+	if out, err := gitIn(top, "merge-base", "HEAD", rec.Tip); err == nil {
+		mergeBase = strings.TrimSpace(out)
+		args = append(args, "^"+mergeBase)
 	}
-	head, err := g.Head()
-	if err != nil {
-		return "", fmt.Errorf("fork scope: %w", err)
-	}
-	candidates, err := g.FirstParent(tip)
+	out, err := gitIn(top, args...)
 	if err != nil {
 		return "", fmt.Errorf("fork scope: list the commits of %s: %w", rec.Upstream, err)
 	}
-	var list []gitread.OID
-	list = append(list, candidates...)
-	if base, ok, err := g.MergeBase(head, tip); err == nil && ok {
-		list = append(list, base)
+	candidates := strings.Fields(out)
+	if mergeBase != "" {
+		candidates = append(candidates, mergeBase)
 	}
-	best := gitread.OID{}
-	fewest := -1
-	for _, commit := range list {
-		names, err := g.ChangedPaths(commit, head)
+	best, fewest := "", -1
+	for _, commit := range candidates {
+		names, err := gitIn(top, "diff", "--name-only", "--no-renames", commit, "HEAD", "--")
 		if err != nil {
 			return "", fmt.Errorf("fork scope: compare HEAD with %s of %s: %w", commit, rec.Upstream, err)
 		}
-		if n := len(names); fewest < 0 || n < fewest {
+		if n := strings.Count(names, "\n"); fewest < 0 || n < fewest {
 			best, fewest = commit, n
 		}
 	}
-	if best.IsZero() {
+	if best == "" {
 		return "", fmt.Errorf("fork scope: the default branch of %s has no commits", rec.Upstream)
 	}
-	return best.String(), nil
+	return best, nil
 }
 
-// fetchUpstreamHead reads the default branch of upstream and answers its commit.
-func fetchUpstreamHead(g *gitread.Repo, upstream string) (string, error) {
-	commit, remote, err := gitread.FetchRef(upstream, "HEAD", g)
-	if err != nil {
+// fetchUpstreamHead fetches the default branch of upstream into top, with its
+// history and without blobs, and answers its commit.
+func fetchUpstreamHead(top, upstream string) (string, error) {
+	if _, err := gitIn(top, "fetch", "--quiet", "--filter=blob:none", "--no-tags", upstream, "HEAD"); err != nil {
 		return "", fmt.Errorf("fork scope: fetch the default branch of %s: %w", upstream, err)
 	}
-	g.AddAlternate(remote)
-	return commit.String(), nil
+	out, err := gitIn(top, "rev-parse", "--verify", "FETCH_HEAD^{commit}")
+	if err != nil {
+		return "", fmt.Errorf("fork scope: resolve the default branch of %s: %w", upstream, err)
+	}
+	return strings.TrimSpace(out), nil
 }
 
-// hasCommit reports whether commit is in the object store.
-func hasCommit(g *gitread.Repo, commit string) bool {
-	oid, err := gitread.ParseOID(commit)
-	if err != nil {
-		return false
-	}
-	_, err = g.PeelCommit(oid)
+// hasCommit reports whether commit is in top's object store.
+func hasCommit(top, commit string) bool {
+	_, err := gitIn(top, "cat-file", "-e", commit+"^{commit}")
 	return err == nil
 }
