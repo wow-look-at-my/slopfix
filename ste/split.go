@@ -476,9 +476,17 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			return "", false
 		}
 		if c.Subject == nil && !resumesAfter(s, c.Link+1) {
+			if c.Verb == nil {
+				return "", false
+			}
+			// A colon opens the clause that explains the head: "Stop: runs in
+			// stop-gate mode ..." divides as "Stop. It runs in stop-gate mode".
+			if s.Words[c.Link].Text == ":" && finiteBefore(s, c.Link+1, "") {
+				return "", opensWithCapital(s, c.Link+1, source)
+			}
 			// A dash before a verb group leaves the clause before it whole, and the
 			// subject the sentence opened with is named.
-			if c.Verb == nil || !dashMark(s.Words[c.Link].Text) {
+			if !dashMark(s.Words[c.Link].Text) {
 				return "", false
 			}
 			if opensImperative(checkMask(source[s.Words[c.Link+1].Start:])) {
