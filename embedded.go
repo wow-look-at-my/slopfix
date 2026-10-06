@@ -1,14 +1,13 @@
 package slopfix
 
 import (
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gitread"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // includeMacro matches a Rust include_str! or include_bytes! of a literal path.
@@ -29,11 +28,11 @@ func Embedded(path string) bool {
 	if err != nil {
 		return false
 	}
-	repo, err := gitread.OpenWorkTree(filepath.Dir(abs))
-	if err != nil || repo == nil {
+	top := workTreeOf(filepath.Dir(abs))
+	if top == "" {
 		return false
 	}
-	files, _ := embeddedByTop.LoadOrStore(repo.WorkTree(), sync.OnceValue(func() set.Set[string] { return embeddedIn(repo) }))
+	files, _ := embeddedByTop.LoadOrStore(top, sync.OnceValue(func() set.Set[string] { return embeddedIn(top) }))
 	resolved, err := filepath.EvalSymlinks(abs)
 	if err != nil {
 		resolved = abs
@@ -41,25 +40,30 @@ func Embedded(path string) bool {
 	return files.(func() set.Set[string])().Contains(resolved)
 }
 
-// embeddedIn answers the absolute path of each file a Rust source in the work
-// tree includes, with every symlink resolved. It starts no git process.
-func embeddedIn(repo *gitread.Repo) set.Set[string] {
+// workTreeOf answers the root of the git work tree that holds dir, or "".
+func workTreeOf(dir string) string {
+	out, err := gitmod.Command(dir, "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// embeddedIn answers the absolute path of each file a Rust source under top
+// includes, with every symlink resolved.
+func embeddedIn(top string) set.Set[string] {
 	files := set.New[string]()
-	names, err := repo.WorkFiles()
+	out, err := gitmod.Command(top, "grep", "-I", "-n", "-z", "-E", `include_(str|bytes)!`, "--", "*.rs").Output()
 	if err != nil {
 		return files
 	}
-	top := repo.WorkTree()
-	for _, name := range names {
-		if !strings.HasSuffix(name, ".rs") {
+	for line := range strings.SplitSeq(string(out), "\n") {
+		name, rest, ok := strings.Cut(line, "\x00")
+		if !ok {
 			continue
 		}
-		src, err := os.ReadFile(filepath.Join(top, filepath.FromSlash(name)))
-		if err != nil {
-			continue
-		}
-		for _, m := range includeMacro.FindAllStringSubmatch(string(src), -1) {
-			target := filepath.Join(top, filepath.Dir(filepath.FromSlash(name)), m[1])
+		for _, m := range includeMacro.FindAllStringSubmatch(rest, -1) {
+			target := filepath.Join(top, filepath.Dir(name), m[1])
 			if resolved, err := filepath.EvalSymlinks(target); err == nil {
 				target = resolved
 			}
