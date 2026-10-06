@@ -168,6 +168,11 @@ var capSentences = []string{
 	"Under the default `relatime` it moves at most once a day, which is the resolution a multi-day eviction window needs, and - the point - it **survives restarts**.",
 	"A self-reconcile runs handleEvent, whose first outbound call is the secret-server fetch on the GLOBAL fetch (not the injected inbox fetch) — so counting hits on a real local secret-server is a direct, observable witness that the periodic pass EXECUTED, not merely that the loop spun.",
 	"One page (per_page=100) with a loud note when the total exceeds it: a fleet with >100 simultaneously labeled open PRs has bigger problems than a partial reconcile (the next tick re-searches).",
+	"One mirror notification's primary work: the same per-SHA lock the direct event path takes, then reconcileCommit -- the exact function every drain visit already calls for a commit with no live payload, which is what a mirror notification always is.",
+	"One mirror notification's primary work: the same per-SHA lock the direct event path takes, then reconcileCommit — the exact function every drain visit already calls for a commit with no live payload, which is what a mirror notification always is.",
+	"A map that carries no information is wasteful.",
+	"The file, which fails, is gone.",
+	"A user who reads the message leaves.",
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.

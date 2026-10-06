@@ -17,13 +17,13 @@ func punctuationDivision(source, masked string, whole *syntax.Sentence, limit in
 		left, right := source[:at], source[at:]
 		head := closeHead(strings.TrimRight(left, " "))
 		rest := capitalizeOpening(strings.TrimLeft(right, " "))
-		if !StandsAlone(rest) {
+		if !StandsAlone(rest) && !opensList(rest) {
 			// "This is" carries a noun phrase that a dash introduces.
 			if carried := "This is " + strings.TrimLeft(right, " "); StandsAlone(capitalizeOpening(carried)) {
 				rest = capitalizeOpening(carried)
 			}
 		}
-		if WordCount(head) < minimumHalf || WordCount(rest) < minimumHalf || !holdsFinite(checkMask(head)) || !StandsAlone(rest) {
+		if WordCount(head) < minimumHalf || WordCount(rest) < minimumHalf || !holdsFinite(checkMask(head)) || !StandsAlone(rest) && !opensList(rest) {
 			continue
 		}
 		if w, ok := lastWordBefore(whole, len(left)); ok && danglingTags.Contains(w.Tag) {
