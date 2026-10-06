@@ -152,3 +152,22 @@ var capSentences = []string{
 	"Answers `false` when the request carries no reasoning, or is already at the last level, so the caller reports the rejection instead of resending the same body.",
 	"OpenRouter reports `usage.cost` on most but not all streaming chunks, so multi-call turns had `cost_missing_calls > 0`, which caused the scrub to drop ALL cost from the `TurnCompleted` notification, hiding it from the TUI.",
 }
+
+// capPending are the sentence inputs the fork job still leaves standing: a
+// participial or appositive lead, a shared subject. This holds before ", and
+// <verb>", a dash that names no main clause, and an opening subordinate
+// clause. Each is a case the carrier design must reach. A case that starts
+// converging moves out of this list and into capSentences. The test below
+// fails until it does, and fails again if a converging case regresses. The
+// list is asserted whole, so the build reports the count of the gap instead of
+// a deletion hiding it.
+var capPending = []string{
+	"Entries that carry a real (non-default) context window, treated as a per-slug `/v1/models` listing for backfilling entries that were left at the silent hardcoded default.",
+	"Drives the real request-path helper `resolve_byok_context_window_on_request_path` against a loopback OpenRouter-style `/v1/models` server and asserts the returned model's window is backfilled from the provider's `context_length`.",
+	"The config sibling that was left at DEFAULT answers for its own window because a listing sibling with the same routing slug (`grok-4`) carries the real one, resolved per exact slug.",
+	"Parses through the bridge first, which reverse-maps client-facing parameter names to canonical ones — a harness may rename `todos` the same way it renames the tool — and yields the typed input the tool itself would see.",
+	"One `setup_goal` call — with no model turn of its own — leaves the session's LIVE todo list carrying the planner's items, each a fresh pending harness-minted item.",
+	"So if goal mode blocks ASAP delivery the gate must live in how often turn.rs's loop *calls* the harvest during a goal round, not in the harvest or the enqueue path.",
+	"A session whose task-list tool cannot address the item a capture adds is refused before any model call, rather than written through with semantics that cannot express the append.",
+	"The same leniency over `Option<Vec<String>>`, for a shadow struct that must tell a key the sender omitted from a key it sent as `null` or `[]` before folding one field's spellings together.",
+}

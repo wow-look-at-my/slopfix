@@ -74,3 +74,26 @@ func TestEveryExtractedSentenceDividesUnderTheCap(t *testing.T) {
 	t.Logf("sentences the repair got wrong: %d of the fixture", failed)
 	assert.Zero(t, failed, "the repair got these wrong:\n%s", report.String())
 }
+
+// The sentence input corpus is asserted whole, both the cases that converge and
+// the cases that do not yet. This test fails when a pending case starts
+// converging, so it must move to capSentences, and when a converging case
+// regresses. It reports the count of the gap, because deleting a case would
+// hide it: a check that cannot fail enforces nothing.
+func TestTheSentenceInputCorpusIsTheKnownSet(t *testing.T) {
+	var failing []string
+	for _, in := range append(append([]string{}, capSentences...), capPending...) {
+		in = strings.TrimSpace(in)
+		if in == "" {
+			continue
+		}
+		if capReport(in, ste.Fix(in)) != "" {
+			failing = append(failing, in)
+		}
+	}
+	sort.Strings(failing)
+	want := append([]string{}, capPending...)
+	sort.Strings(want)
+	t.Logf("known failing sentence inputs: %d of %d", len(failing), len(capSentences)+len(capPending))
+	assert.Equal(t, want, failing, "update capPending when a sentence starts or stops converging")
+}

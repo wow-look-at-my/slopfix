@@ -104,7 +104,7 @@ func within(req Request, repair Repair) Repair {
 	owned := forkscope.Carry(req.Content, repair.Text, scope)
 	repair.Findings = ownedFindings(repair.Findings, owned)
 	repair.Kept = ownedHits(repair.Kept, owned)
-	return upstreamRuns(req.Owned, repair.Text, repair)
+	return upstreamRuns(req, req.Owned, repair.Text, repair)
 }
 
 // blockRun is the rows, counted from one, that a block finding judges.
@@ -249,29 +249,56 @@ func commentProse(row string) string {
 // upstreamRuns drops each block finding on a run of text the fork did not make
 // longer. The base already had that run at that length. It is the base's
 // finding, and the fork's edit inside it stays as the fork wrote it.
-func upstreamRuns(owned *forkscope.Scope, text string, repair Repair) Repair {
-	if owned == nil || owned.All() {
+func upstreamRuns(req Request, owns *forkscope.Scope, text string, repair Repair) Repair {
+	if owns == nil || owns.All() {
 		return repair
 	}
-	base, err := owned.Base()
+	base, err := owns.Base()
 	if err != nil {
 		return repair
 	}
-	grew := func(first, last int) bool { return len(forkscope.Grown(base, text, first, last)) > 0 }
+	// grew reports a run the fork made long. For a capped block, the fork made
+	// it long only when its own added lines crossed the cap. A base run already
+	// over the cap is the base's finding. No fold of the fork's lines can reach
+	// that.
+	grew := func(id string, first, last int) bool {
+		hunks := forkscope.Grown(base, text, first, last)
+		if len(hunks) == 0 {
+			return false
+		}
+		cap := blockCap(req, id)
+		if cap <= 0 || first < 1 {
+			return true
+		}
+		add := 0
+		for _, h := range hunks {
+			add += (h.J2 - h.J1) - h.Had
+		}
+		baseLen := (last - first + 1) - add
+		return baseLen <= cap
+	}
 	findings := repair.Findings[:0:0]
 	for _, f := range repair.Findings {
-		if !baseRuns.Contains(f.ID) || grew(f.Line, max(f.Line, f.EndLine)) {
+		if !baseRuns.Contains(f.ID) || grew(f.ID, f.Line, max(f.Line, f.EndLine)) {
 			findings = append(findings, f)
 		}
 	}
 	kept := repair.Kept[:0:0]
 	for _, h := range repair.Kept {
-		if !baseRuns.Contains(h.ID) || h.LineNo < 1 || grew(h.LineNo, max(h.LineNo, h.EndLineNo)) {
+		if !baseRuns.Contains(h.ID) || h.LineNo < 1 || grew(h.ID, h.LineNo, max(h.LineNo, h.EndLineNo)) {
 			kept = append(kept, h)
 		}
 	}
 	repair.Findings, repair.Kept = findings, kept
 	return repair
+}
+
+// blockCap answers the line cap a block rule weighs a run against.
+func blockCap(req Request, id string) int {
+	if id == tombstones.IDVolume {
+		return req.MaxCommentLines
+	}
+	return 0
 }
 
 // landedRemovals keeps each removal that text, the repair as it lands, made.
