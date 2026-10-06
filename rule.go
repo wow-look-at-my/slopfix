@@ -41,6 +41,8 @@ type RuleCase struct {
 	Root string
 	// Files are written under Root before a tree case runs.
 	Files map[string]string
+	// Unchanged marks a case the rule must leave as written.
+	Unchanged bool
 }
 
 // A rule with a detection needs a repair or a declared exemption.
