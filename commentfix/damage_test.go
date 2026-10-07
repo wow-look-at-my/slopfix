@@ -34,6 +34,16 @@ func TestAnIndentedCommentLineKeepsItsLayout(t *testing.T) {
 		"func f() {}\n", repair.Text)
 }
 
+// A trailing comment keeps every word when its rewrite grows past the line. A
+// wrapped tail once began with the code before it, and the join lost it.
+func TestAGrownTrailingCommentKeepsItsTail(t *testing.T) {
+	src := "var cases = []int{\n" +
+		"\t1, // span 21 → mid band\n" +
+		"}\n"
+	repair := fix(t, src)
+	assert.Contains(t, repair.Text, "mid band", "the tail of the trailing comment was dropped:\n%s", repair.Text)
+}
+
 // A value the code compares against is a literal, not a count of what exists.
 func TestAComparedValueIsNotACount(t *testing.T) {
 	for _, src := range []string{
