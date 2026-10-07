@@ -194,6 +194,12 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := markDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
+	if out, ok := coordinateDivision(whole, source); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
+	if out, ok := becauseDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
 	return hardDivision(source, masked, d.cap)
 }
 
@@ -585,7 +591,8 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
-	case (conjunction == "and" || conjunction == "so") && seam == "," && opensNounPhrase(tag) && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+	case (conjunction == "and" || conjunction == "so") && (seam == "," || seam == "—" || seam == "–" || seam == "--") &&
+		opensNounPhrase(tag) && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
 		// The parse cuts its clauses at commas, so a subject that is a list or
 		// carries a participle opens no clause of its own.
 		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) ||

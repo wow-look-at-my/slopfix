@@ -9,12 +9,27 @@ import (
 // docMarkers is longest-first, so Rust's `//!` never leaves its `!` in the prose.
 var docMarkers = []string{"///", "//!", "//", "#"}
 
-// paragraph is a run of comment lines, or the blank marker between runs.
+// paragraph is a run of comment lines, or the blank marker between runs. raw
+// holds the run's lines as written, marker and indent included.
 type paragraph struct {
 	lines    []string
 	blank    bool
 	verbatim bool
 	raw      []string
+}
+
+// list reports a prose paragraph where a list item opens past its first line.
+// A reflow would join that item onto the prose before it.
+func (p paragraph) list() bool {
+	if p.blank || p.verbatim {
+		return false
+	}
+	for _, line := range p.lines[min(1, len(p.lines)):] {
+		if opensListItem(line) {
+			return true
+		}
+	}
+	return false
 }
 
 // codeRow reports a line laid out by hand. The prose after its marker opens
@@ -63,11 +78,11 @@ func commentShape(text []string) (marker, indent string, ok bool) {
 // paragraphs splits a block on its blank comment lines, keeping the breaks.
 func paragraphs(text []string) []paragraph {
 	var out []paragraph
-	var run []string
+	var run, runRaw []string
 	flush := func() {
 		if len(run) > 0 {
-			out = append(out, paragraph{lines: run})
-			run = nil
+			out = append(out, paragraph{lines: run, raw: runRaw})
+			run, runRaw = nil, nil
 		}
 	}
 	var block []string
@@ -77,21 +92,34 @@ func paragraphs(text []string) []paragraph {
 			block = nil
 		}
 	}
+	// A code block in a comment opens after a blank comment line.
+	blank := true
 	for _, line := range text {
 		if isBlankComment(line) {
 			flush()
 			flushBlock()
 			out = append(out, paragraph{blank: true})
+			blank = true
 			continue
 		}
 		// A directive is read by a tool, so it keeps its bytes and its own line.
-		if codeRow(line) || isDirectiveLine(line) {
+		if isDirectiveLine(line) {
+			flush()
+			flushBlock()
+			block = append(block, line)
+			blank = false
+			continue
+		}
+		if codeRow(line) && (blank || len(block) > 0) {
 			flush()
 			block = append(block, line)
+			blank = false
 			continue
 		}
 		flushBlock()
 		run = append(run, stripMarker(line))
+		runRaw = append(runRaw, line)
+		blank = false
 	}
 	flushBlock()
 	flush()
@@ -150,7 +178,7 @@ func widen(text []string, width int) ([]string, bool) {
 			out = append(out, indent+marker)
 			continue
 		}
-		if para.verbatim {
+		if para.verbatim || para.list() {
 			out = append(out, para.raw...)
 			continue
 		}
