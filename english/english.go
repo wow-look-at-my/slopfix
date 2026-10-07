@@ -106,8 +106,6 @@ type Pattern struct {
 
 	// Subject names where the clause's subject stands, and empty asks nothing.
 	Subject string `xml:"subject,attr"`
-	// Head names the tag prefix the word in the first capture must carry, and empty asks nothing.
-	Head string `xml:"head,attr"`
 
 	re *regexp.Regexp
 }
@@ -151,11 +149,8 @@ func (p Pattern) ApplyN(s string) (string, int) {
 	labels := linkLabel.FindAllStringIndex(s, -1)
 	quotes := quotation.FindAllStringIndex(s, -1)
 	spans := codeSpan.FindAllStringIndex(s, -1)
-	for _, loc := range p.re.FindAllStringSubmatchIndex(s, -1) {
+	for _, loc := range p.re.FindAllStringIndex(s, -1) {
 		if p.Subject != "" && !asserts(p.Subject, s, loc[0]) {
-			continue
-		}
-		if p.Head != "" && !headTagged(s, loc, p.Head) {
 			continue
 		}
 		if insideAny(labels, loc[0], loc[1]) || insideAny(quotes, loc[0], loc[1]) || insideAny(spans, loc[0], loc[1]) || splitsCompound(s, loc[0], loc[1]) {
@@ -183,20 +178,6 @@ func (p Pattern) ApplyN(s string) (string, int) {
 	}
 	out.WriteString(s[last:])
 	return out.String(), took
-}
-
-// headTagged reports whether the word that opens the first capture of loc
-// carries a tag that starts with prefix.
-func headTagged(s string, loc []int, prefix string) bool {
-	if len(loc) < 4 || loc[2] < 0 {
-		return false
-	}
-	for _, w := range syntax.Parse(s, nil).Words {
-		if w.Start == loc[2] {
-			return strings.HasPrefix(w.Tag, prefix)
-		}
-	}
-	return false
 }
 
 // splitsCompound reports whether s[from:to] ends or starts at the hyphen of a compound word. The regexp \b sees a word end there, but the reader sees one word.

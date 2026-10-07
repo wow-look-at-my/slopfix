@@ -59,8 +59,7 @@
   </xs:element>
 
   <!-- A rewrite with captures, for a shape no whole-word swap can express. A
-       <test> child adds a worked example. head= names the tag prefix the word
-       in the first capture must carry. -->
+       <test> child adds a worked example. -->
   <xs:element name="pattern">
     <xs:complexType>
       <xs:sequence>
@@ -73,7 +72,6 @@
       <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string"/>
       <xs:attribute name="subject" type="position"/>
-      <xs:attribute name="head" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
