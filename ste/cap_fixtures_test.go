@@ -161,6 +161,8 @@ var capSentences = []string{
 	"A session whose task-list tool cannot address the item a capture adds is refused before any model call, rather than written through with semantics that cannot express the append.",
 	"A criterion whose code is present but whose integrated behavior is wrong, unreachable, or unusable is `refuted: true`, as is anything that fails to compile, fails its tests, or errors at runtime.",
 	"Parses through the bridge first, which reverse-maps client-facing parameter names to canonical ones — a harness may rename `todos` the same way it renames the tool — and yields the typed input the tool itself would see.",
+	"With the server's prefetch config off, which is the default, the client's flags change nothing: a batch carries exactly the requested keys, even from a client that still sets prefetch on the request its build is blocked on.",
+	"Then every client it refuses rebuilds anyway -- having earliest paid for the round trip -- so a cache that sheds is worse than no cache at all.",
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.

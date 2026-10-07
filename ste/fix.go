@@ -39,7 +39,7 @@ func fixSelected(text string, keep func(id string) bool, reorder bool) string {
 		text = fixPostdeterminers(text)
 	}
 	if keep(IDSentenceCap) {
-		text = fixSentenceCap(text, capSpec{reorder: reorder, cap: SentenceWordCap})
+		text = fixSentenceCap(text, capSpec{reorder: reorder, cap: SentenceWordCap, every: reorder})
 	}
 	return text
 }
@@ -49,6 +49,8 @@ func fixSelected(text string, keep func(id string) bool, reorder bool) string {
 type capSpec struct {
 	reorder bool
 	cap     int
+	// every divides a sentence no grammatical division reads, at a mark or between words.
+	every bool
 }
 
 // DivideTo divides each sentence of text over maxWords, as the cap repair
