@@ -12,6 +12,9 @@ import (
 // danglingSpace matches the space a deletion leaves before punctuation that CLOSES something. A period with a word
 var danglingSpace = regexp.MustCompile(`\s+([.,])(\s|$)`)
 
+// strandedMark matches a mark a deleted clause leaves before the period that closed it: "passes `true`:.".
+var strandedMark = regexp.MustCompile(`\s*[,;:—–]\s*\.(\s|$)`)
+
 // doubledStop matches the period a deleted sentence leaves beside the period before it. An ellipsis does not match.
 var doubledStop = regexp.MustCompile(`([^.])\.\.(\s|$)`)
 
@@ -68,6 +71,9 @@ func FixN(s, surface string) (string, int) {
 	}
 	s = strings.Join(strings.Fields(s), " ")
 	s = danglingSpace.ReplaceAllString(s, "${1}${2}")
+	if n > 0 {
+		s = strandedMark.ReplaceAllString(s, ".${1}")
+	}
 	s = doubledStop.ReplaceAllString(s, "${1}.${2}")
 	if n > 0 {
 		s = dropFragments(strings.Join(strings.Fields(original), " "), s)
