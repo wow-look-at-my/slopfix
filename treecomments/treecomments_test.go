@@ -176,8 +176,8 @@ func Free() {}
 }
 
 // A support test asks the extension. Loading the grammar to answer meant a
-// caller that only wanted to skip a file it cannot read decoded a parse table,
-// and got a panic where the generate step had not run.
+// caller that only wanted to skip a file it cannot read decoded a parse table.
+// It got a panic where the generate step had not run.
 func TestSupportedDoesNotLoadTheGrammar(t *testing.T) {
 	t.Serial()
 	loaded := false

@@ -163,9 +163,9 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	return fmt.Sprintf("blocked: %s would lose %s.\nrun: %s", f.label, summary, f.rewrite), ""
 }
 
-// describeAtRisk names what a finding would destroy, split by class rather
+// describeAtRisk names what a finding would destroy, split by class. Rather
 // than totalled -- "modified" and "untracked" is the difference between a
-// command that spares half of it and a command that does not -- and shared
+// command that spares half of it and a command that does not. It shared
 // between the denial and the preservation notice. They never drift apart.
 func describeAtRisk(tracked, untracked, ignored []string) (summary string, names []string) {
 	var parts []string

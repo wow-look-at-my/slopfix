@@ -7,7 +7,7 @@
 // nothing at all.
 //
 // The apostrophe is not a quote mark here. It spells a contraction and a
-// possessive far more often than it opens a quotation, so reading it that way
+// possessive far more often than it opens a quotation. Reading it that way
 // would exempt the rest of any line carrying the word "doesn't".
 package cardinal
 

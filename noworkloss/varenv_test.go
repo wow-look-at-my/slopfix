@@ -141,7 +141,7 @@ rm -f "$OUT.tmp"
 }
 
 // The half of that which must NOT relax: a script naming a path statically
-// still writes where it says, so following the file still closes the
+// still writes where it says. Following the file still closes the
 // write-elsewhere-then-run bypass.
 func TestAScriptsStaticTargetIsStillJudged(t *testing.T) {
 	dir := newRepo(t)
@@ -163,7 +163,7 @@ func TestASourcedFileGetsNoVariableResolution(t *testing.T) {
 }
 
 // A word that resolves to no literal text at all must not be quoted as an
-// empty string, which reads as a real, empty path rather than as what it is:
+// empty string. Which reads as a real, empty path rather than as what it is:
 // an expansion this hook never evaluated.
 func TestUnresolvedPathDenialNamesAnExpansionRatherThanAnEmptyString(t *testing.T) {
 	dir := newRepo(t)

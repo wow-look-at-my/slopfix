@@ -1,5 +1,5 @@
 // questions.go finds the shapes a closing message must not end on: a
-// question put to the user in prose, and a deferral that hands the user a
+// question put to the user in prose. A deferral that hands the user a
 // decision without asking it through AskUserQuestion.
 //
 // Both tables are data on purpose. Extending either is editing a slice,

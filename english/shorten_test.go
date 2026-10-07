@@ -42,7 +42,7 @@ func TestACutTakesThePunctuationThatAttachesThePhrase(t *testing.T) {
 
 // Every entry declares its own worked examples, and each has to fire. Without
 // this an entry that stopped matching -- a typo, a phrase the boundary rule
-// rejects, a rewrite shadowed by a drop -- would sit in the table looking
+// rejects, a rewrite shadowed by a drop. It would sit in the table looking
 // enforced while doing nothing.
 func TestEveryDropFires(t *testing.T) {
 	require.NotEmpty(t, Drops())

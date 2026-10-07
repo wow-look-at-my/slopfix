@@ -11,7 +11,7 @@ import (
 )
 
 // Every case in this suite is a pair. A command that must be denied because it
-// writes inside the working tree, and a control that must be allowed because the
+// writes inside the working tree. And a control that must be allowed because the
 // same command writes somewhere else. The pair is what makes a case
 // load-bearing. A rule that denied on the command's shape alone would pass the
 // denial half and fail the control. Each denial is additionally required to NAME
@@ -76,7 +76,7 @@ func askNotices(t *testing.T, cwd, command string) (string, []string) {
 }
 
 // preserved asserts a command was allowed because its at-risk content was
-// committed into a preservation ref rather than lost, and returns the notice
+// committed into a preservation ref rather than lost. Returns the notice
 // text for the caller to inspect further.
 func preserved(t *testing.T, cwd, command string) string {
 	t.Helper()

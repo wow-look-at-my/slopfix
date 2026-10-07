@@ -309,7 +309,7 @@ func parse(parser *ts.Parser, src string) (root ts.Node, parsed bool) {
 	return root, true
 }
 
-// dropShebang removes the interpreter line a script opens on. Every grammar reads it as a comment. This is because it opens on the marker a single does, and a repair that reflows the run beneath it welds the
+// dropShebang removes the interpreter line a script opens on. Every grammar reads it as a comment. This is because it opens on the marker a single does. A repair that reflows the run beneath it welds the
 // earliest sentence onto the interpreter.
 func dropShebang(comments []Comment) []Comment {
 	if len(comments) == 0 {

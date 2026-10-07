@@ -7,7 +7,7 @@ import (
 )
 
 // sed and awk are the filters that can write a file without being told to on
-// the argv: sed's `w` command and awk's `print >` both name their target inside
+// the argv. Sed's `w` command and awk's `print >` both name their target inside
 // the program text. Reading the program is what separates a filter (a bare
 // comparison writes nothing) from a writer, so neither is denied for its name
 // alone.

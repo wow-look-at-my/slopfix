@@ -35,7 +35,7 @@ func commentBlocks(content string) []ste.Finding {
 	body := blockScalarRows(content)
 	for index, line := range rows {
 		trimmed := strings.TrimSpace(line)
-		// A # inside a block scalar opens a shell comment in a script, which
+		// A # inside a block scalar opens a shell comment in a script. Which
 		// this rule has nothing to say about and the repair must not fold.
 		if body[index] {
 			if count > 0 {

@@ -3,10 +3,10 @@
 //
 // The subject is what makes this half work where the Stop half's signature
 // comparison does not. A session that asks the same question several ways --
-// `gh wait-ci`, then `gh wait-ci checks`, then `pull_request_read` -- produces
-// differing signatures and no streak, while every call asks after the same
-// pull request and learns the same nothing. Keying on the subject rather than
-// the command text is what stops a re-spelling from laundering a repeat.
+// `gh wait-ci`, then `gh wait-ci checks`, then `pull_request_read`. It
+// produces differing signatures and no streak, while every call asks after the
+// same pull request and learns the same nothing. Keying on the subject rather
+// than the command text is what stops a re-spelling from laundering a repeat.
 package busypoll
 
 import (

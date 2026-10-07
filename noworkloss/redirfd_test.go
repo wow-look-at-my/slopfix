@@ -77,7 +77,7 @@ func TestStderrIntoATrackedFileIsRefusedAsAWriteRatherThanALoss(t *testing.T) {
 
 // Both halves, asked separately, on stdout and on stderr. This is the pair
 // the whole change turns on: stdout into a dirty tracked file is content this
-// hook must save beforehand, and stderr into the same file is not.
+// hook must save beforehand. Stderr into the same file is not.
 func TestOnlyAStdoutRedirectIsAWorkLossFinding(t *testing.T) {
 	stdoutRepo := newRepo(t)
 	modify(t, stdoutRepo)

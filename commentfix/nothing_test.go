@@ -70,7 +70,7 @@ func TestADirectiveSurvivesTheCut(t *testing.T) {
 }
 
 // The control. A comment that DOES document code is cut back to fit rather than
-// deleted, so the case above is about the measure and not about comments.
+// deleted. The case above is about the measure and not about comments.
 func TestACommentOverItsBudgetIsCutRatherThanDeleted(t *testing.T) {
 	src := "package p\n\n// The point.\n//\n// Then a paragraph of elaboration that runs well past the length of the\n// declaration it sits above, several lines of it, saying little.\nconst a = 1\n"
 

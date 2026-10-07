@@ -157,8 +157,8 @@ func ungate(content string) []edit.Edit {
 
 // gateRows answers the row each named step's continue-on-error sits on, read
 // off the parser's own positions. Walking the text for the step's extent
-// instead asks an indent to say where a step ends, and a block scalar holding
-// a deeper line then ends it early.
+// instead asks an indent to say where a step ends. A block scalar holding a
+// deeper line then ends it early.
 func gateRows(content string, findings []ste.Finding) set.Set[int] {
 	drop := set.New[int]()
 	var doc yaml.Node
@@ -245,9 +245,9 @@ func joinCommentBlocks(content string) []edit.Edit {
 	return out
 }
 
-// joinSentences joins comment lines into one. A line that ends with no
-// punctuation, followed by one that opens with a capital, ended a sentence
-// the author never closed, so the join closes it with a period.
+// joinSentences joins comment lines into one. This is a line that ends with
+// no punctuation. The line is followed by one that opens with a capital,
+// ended a sentence the author never closed. The join closes it with a period.
 func joinSentences(lines []string) string {
 	var b strings.Builder
 	for i, line := range lines {

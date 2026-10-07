@@ -1,4 +1,4 @@
-// Package tombstones finds a comment that describes a state the code is no
+// Package tombstones finds a comment. That describes a state the code is no
 // longer in, or that argues for the diff instead of telling the next editor
 // what breaks.
 //

@@ -108,10 +108,10 @@ const literalMarkers = `="'`
 // comparisonMarkers close an operator that takes a value: `=`, `<`, `>`, and every operator built from them.
 const comparisonMarkers = `=<>`
 
-// Literal exempts the digits of a value the code is written against: an env
-// marker an assignment sets, the quoted string a parser reads as unset, or the
-// operand of a comparison such as `used > 0`. An added item leaves a count
-// wrong, and leaves a value alone.
+// Literal exempts the digits of a value the code is written against. This
+// covers an env marker an assignment sets, the quoted string a parser reads as
+// unset, or the operand of a comparison such as `used > 0`. An added item
+// leaves a count wrong, and leaves a value alone.
 func Literal(text string, toks []Token, i int) bool {
 	tok := toks[i]
 	if !allDigits(strings.Trim(tok.Text, `"'`)) {

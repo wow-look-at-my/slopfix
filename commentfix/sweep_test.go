@@ -151,7 +151,7 @@ func TestTheWalkSkipsABlob(t *testing.T) {
 	assert.Empty(t, names(t, root))
 }
 
-// The reason the rule reads a tree rather than a package: a shell script and a
+// The reason the rule reads a tree rather than a package. A shell script and a
 // workflow carry the same stale prose a Go comment does. No Go analyzer ever
 // looked at either.
 func TestTheWalkReadsEveryLanguageTheExtractorKnows(t *testing.T) {

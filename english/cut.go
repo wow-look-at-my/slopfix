@@ -8,7 +8,7 @@ import (
 
 // A cut removes a phrase from its sentence. The parse decides what goes with
 // it. A phrase sits in a clause through its punctuation: a comma before a
-// phrase that ends the clause, a comma after one that opens it, or a pair of
+// phrase that ends the clause. A comma after one that opens it, or a pair of
 // commas round one in the middle. That punctuation belongs to the phrase and
 // goes with it. The regular expression only finds the phrase.
 
@@ -55,7 +55,7 @@ func cutSpan(s string, from, to int) (int, int, bool) {
 }
 
 // join is the text that replaces a cut, so the words on either side meet with
-// one space, or with none before punctuation that closes something.
+// one space, or with none before punctuation. That closes something.
 func join(s string, start, end int) (int, int, string) {
 	for start > 0 && (s[start-1] == ' ' || s[start-1] == '\t') {
 		start--

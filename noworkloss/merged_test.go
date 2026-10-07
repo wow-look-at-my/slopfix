@@ -9,7 +9,7 @@ import (
 
 // Where the halves disagree. Each case names both verdicts. This is because
 // the merged behaviour is not obvious from either rule alone and reading it
-// back later from a single rule would be reading half the answer.
+// back later. From a single rule would be reading half the answer.
 
 // The destruction half allows a command it cannot parse when nothing deletes;
 // the provenance half cannot, because unknown fails closed.

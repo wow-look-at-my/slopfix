@@ -370,7 +370,7 @@ func (r Resolver) eventSaysPlain(repo string) bool {
 }
 
 // cached answers the record in top's git common directory, when it names repo,
-// came from this resolver's sources, is younger than CacheTTL, and every
+// came from this resolver's sources, is younger than CacheTTL. And every
 // commit it names is still in the object store.
 func (r Resolver) cached(top, repo string) (record, bool) {
 	path, err := cachePath(top)

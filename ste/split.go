@@ -180,9 +180,9 @@ func withCloser(rest, closer string) string {
 	return body + " " + closer + rest[len(body):]
 }
 
-// objectRelative reports ", which X does not show" at the end of a sentence:
-// a relative clause with a subject of its own whose verb ends the sentence, so
-// the relative word is the verb's object.
+// objectRelative reports ", which X does not show" at the end of a sentence: a
+// relative clause with a subject of its own whose verb ends the sentence. The
+// relative word is the verb's object.
 func objectRelative(s *syntax.Sentence, c syntax.Clause) bool {
 	if c.Kind != syntax.Relative || !c.Comma || c.Depth != 1 || s.Words[c.Link].Lower() != "which" || c.Subject == nil || c.Verb == nil {
 		return false

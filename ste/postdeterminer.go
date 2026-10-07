@@ -57,7 +57,7 @@ func shift(spans [][]int, delta int) [][]int {
 }
 
 // redundantNumeral reports whether a noun phrase carries a numeral a reader
-// loses nothing without: a definite determiner, then the number, then a noun
+// loses nothing without: a definite determiner, then the number. Then a noun
 // in the number the numeral agrees with.
 func redundantNumeral(s *syntax.Sentence, np syntax.Phrase) bool {
 	if len(np.Numerals) == 0 || np.Det < 0 {

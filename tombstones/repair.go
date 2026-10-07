@@ -156,9 +156,9 @@ func blocksLosing(blocks []Block, drop set.Set[int]) set.Set[int] {
 	return losing
 }
 
-// reflowStripped rewraps each block a strip took a line out of, so the prose
-// that survives reads as a paragraph rather than as a sentence with a hole.
-// A strip that emptied a block moves every index after it, so a changed block
+// reflowStripped rewraps each block a strip took a line out of, so the prose.
+// That survives reads as a paragraph rather than as a sentence with a hole. A
+// strip that emptied a block moves every index after it, so a changed block
 // count leaves the text as it is.
 func reflowStripped(path, text string, losing set.Set[int], was int) []edit.Edit {
 	if losing.IsEmpty() {
