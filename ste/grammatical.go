@@ -214,7 +214,8 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 		}
 		start := -1
 		switch {
-		case c.Subject != nil && reducedRelative(s, c):
+		// "Left in the text a rewrite wraps it": after an opening participle phrase, a subject and its verb are the main clause.
+		case c.Subject != nil && reducedRelative(s, c) && !opensParticiple(s, from):
 		case c.Subject != nil:
 			start = c.Subject.First
 		case c.Verb.Imperative:
@@ -231,6 +232,11 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 		}
 	}
 	return false
+}
+
+// opensParticiple reports words from word from that open on a participle.
+func opensParticiple(s *syntax.Sentence, from int) bool {
+	return from < len(s.Words) && (s.Words[from].Tag == "VBN" || s.Words[from].Tag == "VBD")
 }
 
 // instructs reports a sentence whose main clause is an imperative, after any

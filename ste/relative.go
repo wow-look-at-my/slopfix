@@ -37,12 +37,15 @@ func fragmentSubject(source string, s *syntax.Sentence) (string, bool) {
 }
 
 // finiteOutsideRelative reports a finite verb from word from on that no
-// relative clause holds. A relative clause holds one finite verb group, and a
-// comma ends it. A later finite verb is the main verb: "the file that the
-// hook reads is".
+// relative clause holds.
 func finiteOutsideRelative(s *syntax.Sentence, from int) bool {
+	return finiteOutsideRelativeIn(s, from, len(s.Words))
+}
+
+// finiteOutsideRelativeIn is finiteOutsideRelative over the words before end.
+func finiteOutsideRelativeIn(s *syntax.Sentence, from, end int) bool {
 	inside, held := false, false
-	for i := from; i < len(s.Words); i++ {
+	for i := from; i < end && i < len(s.Words); i++ {
 		w := s.Words[i]
 		switch {
 		case w.Text == ",":

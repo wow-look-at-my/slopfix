@@ -67,9 +67,10 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	}
 	// "A trailing run of turns that each made a call, spaced close together": a participle after a fragment describes the fragment's head.
 	if seam == "," && (word.Tag == "VBN" || word.Tag == "VBD") && first+1 < len(whole.Words) && !takesObject(whole.Words[first+1].Tag) &&
-		!finiteOutsideRelative(syntax.Parse(checkMask(head), nil), 0) {
+		!finiteOutsideRelativeIn(whole, 0, first) {
+		// The fragment itself needs a verb to stand as a sentence.
 		if subject, ok := fragmentSubject(source, whole); ok {
-			return head, subject + " " + rest, opensWithCarrier
+			return "This is " + lowerOpening(head), subject + " " + rest, opensWithCarrier
 		}
 	}
 	main, hasMain := mainVerb(whole, c.left)
@@ -216,9 +217,9 @@ func subordinatorBetween(s *syntax.Sentence, from, end int) bool {
 	return false
 }
 
-// hiddenVerb reports a verb the tagger read as something else, from word i on:
-// a form of "be", or a plural noun right before a participle, as in "an
-// identifier split across lines stops being either".
+// hiddenVerb reports a verb the tagger read as something else. That hiddenVerb
+// is from word i on: a form of "be", or a plural noun right before a
+// participle, as in "an identifier split across lines stops being either".
 func hiddenVerb(s *syntax.Sentence, i int) bool {
 	for ; i < len(s.Words); i++ {
 		w := s.Words[i]
@@ -330,7 +331,7 @@ func topCommas(text string, from int) []int {
 }
 
 // plainPhrase reports words from i to the end of the sentence that hold no
-// comma, no conjunction, no subordinator and no finite verb outside a
+// comma, no conjunction. No subordinator and no finite verb outside a
 // parenthesis. Only such a phrase moves behind a restated noun whole.
 func plainPhrase(s *syntax.Sentence, i int) bool {
 	depth := 0
@@ -402,10 +403,11 @@ func mainSubject(source string, s *syntax.Sentence, verb syntax.Phrase, tag stri
 // and each part stays one.
 func closesPhrase(head string, whole *syntax.Sentence) bool {
 	n := wordsBefore(whole, len(head))
-	if n == 0 || finiteBetween(whole, 0, n) {
+	// A verb in a relative clause leaves the head a noun phrase: "a run of turns that each made a call".
+	if n == 0 || finiteOutsideRelativeIn(whole, 0, n) {
 		return false
 	}
-	// A head that opens on a preposition or a subordinator leads into the clause after it, so only a noun phrase stands as a fragment of its own.
+	// A head that opens on a preposition or a subordinator leads into the clause after it. Only a noun phrase stands as a fragment of its own.
 	switch t := whole.Words[0].Tag; {
 	case t == "DT" || t == "JJ" || t == "PRP$" || strings.HasPrefix(t, "NN"):
 	default:
