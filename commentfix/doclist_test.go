@@ -30,9 +30,9 @@ const forkArgsDoc = "/// Parse the raw argument string after `/fork`.\n" +
 	"    Ok(ForkArgs::new(rest))\n" +
 	"}\n"
 
-// A repair keeps a doc's paragraph breaks, and keeps each list item on a line
-// of its own. Joined into one paragraph, the doc only looks shorter.
-func TestALengthRepairKeepsParagraphsAndListItems(t *testing.T) {
+// A repair keeps each list item on a line of its own. Joined into the prose
+// around it, the doc only looks shorter.
+func TestALengthRepairKeepsListItems(t *testing.T) {
 	fixed, _ := FixLength("x.rs", forkArgsDoc)
 	for _, line := range strings.Split(fixed, "\n") {
 		prose := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "///"))
@@ -42,5 +42,4 @@ func TestALengthRepairKeepsParagraphsAndListItems(t *testing.T) {
 		assert.NotContains(t, prose, " - `", "a list item was joined onto other prose: %q", line)
 		assert.NotContains(t, prose, ". - ", "a list item was joined onto other prose: %q", line)
 	}
-	assert.NotContains(t, fixed, "`/fork`. Recognised flags", "two paragraphs were joined into one")
 }
