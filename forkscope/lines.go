@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 )
@@ -158,7 +159,43 @@ func Changed(before, after string) *Scope {
 			s.lines.Add(j + 1)
 		}
 	}
-	return s
+	return s.ClaimWordless(after)
+}
+
+// ClaimWordless answers s with each row of text that holds no word, where the
+// nearest rows with words above and below are both the fork's. Such a row
+// matches any blank row of the base, so the match says nothing about who wrote it.
+func (s *Scope) ClaimWordless(text string) *Scope {
+	if s == nil || s.whole {
+		return s
+	}
+	out := &Scope{lines: set.New[int](), base: s.base}
+	for n := range s.lines.All() {
+		out.lines.Add(n)
+	}
+	claimWordless(out, splitLines(text))
+	return out
+}
+
+func claimWordless(s *Scope, rows []string) {
+	wordless := func(row string) bool {
+		return strings.IndexFunc(row, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) < 0
+	}
+	for i, row := range rows {
+		if s.lines.Contains(i+1) || !wordless(row) {
+			continue
+		}
+		above, below := i-1, i+1
+		for above >= 0 && wordless(rows[above]) {
+			above--
+		}
+		for below < len(rows) && wordless(rows[below]) {
+			below++
+		}
+		if above >= 0 && below < len(rows) && s.lines.Contains(above+1) && s.lines.Contains(below+1) {
+			s.lines.Add(i + 1)
+		}
+	}
 }
 
 // readDiff records what a zero-context diff added. A hunk header gives the

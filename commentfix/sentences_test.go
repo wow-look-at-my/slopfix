@@ -27,6 +27,17 @@ func longFunction(name string) string {
 	return body.String() + "}\n"
 }
 
+// A list item opens a sentence of its own, even after a row that ends on a
+// colon. Read as one sentence, the lead-in and the items run past the cap.
+func TestAListItemInACommentIsASentenceOfItsOwn(t *testing.T) {
+	src := "package p\n\n" +
+		"// With a backup launcher the slow response keeps streaming. The earliest of these to happen decides the race:\n" +
+		"// - The original recovers above the floor or finishes: the backup stops.\n" +
+		"// - The backup overtakes or finishes, or the original fails: it takes over.\n" +
+		longFunction("Drive")
+	assert.Empty(t, CheckSentences("p.go", src))
+}
+
 // A sentence with no clause boundary. Its trailing adverbial goes into a
 // sentence of its own behind "This happens", whatever the comment weighs.
 func TestALongSentenceWithNoClauseBoundaryDivides(t *testing.T) {
