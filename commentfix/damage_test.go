@@ -44,6 +44,14 @@ func TestAGrownTrailingCommentKeepsItsTail(t *testing.T) {
 	assert.Contains(t, repair.Text, "mid band", "the tail of the trailing comment was dropped:\n%s", repair.Text)
 }
 
+// A number after a "-most" word counts the noun after it, as after "top". It
+// names no item, so no repair writes "a later".
+func TestANumberAfterAMostWordIsACountNotALabel(t *testing.T) {
+	src := "// The timestamp zone is the rightmost 10 cols of the first row.\nvar zone int\n"
+	repair := fix(t, src)
+	assert.NotContains(t, repair.Text, "a later", repair.Text)
+}
+
 // A value the code compares against is a literal, not a count of what exists.
 func TestAComparedValueIsNotACount(t *testing.T) {
 	for _, src := range []string{
