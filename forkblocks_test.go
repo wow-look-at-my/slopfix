@@ -184,6 +184,36 @@ func TestAForkRunTheBaseAlreadyHadOverTheCapIsTheBases(t *testing.T) {
 	assert.NotContains(t, flat, "silently", "the base's wording never comes back")
 }
 
+// upstreamInnerDoc is the parent's module doc, written with Rust's inner doc marker.
+var upstreamInnerDoc = "//! `/debug <what is wrong>` hands the model this process's context.\n" +
+	strings.Repeat("//! The model reads the config layers and the model id.\n", 10) +
+	"\nuse std::path::Path;\n"
+
+// forkInnerDoc adds lines to that doc until the run is past the volume cap.
+var forkInnerDoc = strings.Replace(upstreamInnerDoc, "//! The model reads",
+	"//! - The debug-log file the firehose writes for this session. `/debug` turns\n"+
+		"//!   the firehose on first, in this process and in the agent process.\n"+
+		"//!   It is created if it does not exist.\n"+
+		"//! - Whether the firehose ran since launch or only since this `/debug`.\n"+
+		"//! - The rest of the execution context, assembled by the context module.\n"+
+		"//! The model reads", 1)
+
+// A fold joins the fork's added lines onto one line. A `//!` line gives up its whole marker, so no `!` lands in the prose.
+func TestAForkFoldOfAnInnerDocDropsTheWholeMarker(t *testing.T) {
+	path := "src/debug.rs"
+	req := slopfix.Request{Path: path, Content: forkInnerDoc, Owned: forkscope.Changed(upstreamInnerDoc, forkInnerDoc), MaxCommentLines: tombstones.DefaultMaxCommentLines}
+	repair := slopfix.Fix(req)
+	for _, line := range strings.Split(repair.Text, "\n") {
+		prose, ok := strings.CutPrefix(line, "//!")
+		if !ok {
+			continue
+		}
+		assert.NotContains(t, prose, " ! ", "a joined line kept the `!` of a `//!` marker: %q", line)
+		assert.NotContains(t, prose, "//", "a joined line kept a marker: %q", line)
+	}
+	assert.Contains(t, repair.Text, "`/debug` turns the firehose on first", "the fork's words are joined, not lost")
+}
+
 // Outside a fork, every volume finding names the line its block starts on.
 func TestAVolumeFindingNamesItsBlock(t *testing.T) {
 	repair := slopfix.Report(slopfix.Request{Path: "config.jsx", Content: upstreamSnippet, MaxCommentLines: tombstones.DefaultMaxCommentLines})
