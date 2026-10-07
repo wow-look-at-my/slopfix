@@ -234,9 +234,13 @@
   <pattern match="(?i)\s*\b(?:anymore|nowadays|these days)\b" replace=""
            where="comment document" test="The walk does not recurse anymore"
            expect="The walk does not recurse"/>
+  <!-- head="NN": in "the original recovers", the adjective is the noun itself. -->
   <pattern match="(?i)\bthe (?:former|old|previous|legacy|original) (\S+)" replace="the $1"
-           where="comment document" test="The old scanner reads a marker byte"
-           expect="The scanner reads a marker byte"/>
+           where="comment document" head="NN" test="The old scanner reads a marker byte"
+           expect="The scanner reads a marker byte">
+    <test in="The original recovers above the floor or finishes: the backup stops."
+          out="The original recovers above the floor or finishes: the backup stops."/>
+  </pattern>
   <!--
     These two name a change verb without naming who it happened to, so the
     subject decides the reading. A subject that opens the sentence's own
