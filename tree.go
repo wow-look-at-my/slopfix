@@ -161,6 +161,7 @@ func judgeFile(path string, req Request, writing bool) *Repair {
 		return nil
 	}
 	req.Path, req.Content = path, string(src)
+	req.Owned = req.Owned.ClaimWordless(req.Content)
 	run := Report
 	if writing {
 		run = Fix

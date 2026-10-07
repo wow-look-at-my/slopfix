@@ -159,13 +159,24 @@ func Changed(before, after string) *Scope {
 			s.lines.Add(j + 1)
 		}
 	}
-	claimWordless(s, splitLines(after))
-	return s
+	return s.ClaimWordless(after)
 }
 
-// claimWordless gives the fork each row with no word whose nearest rows with
-// words, above and below, are both the fork's. Such a row matches any blank row
-// of the base, so the match says nothing about who wrote it.
+// ClaimWordless answers s with each row of text that holds no word, where the
+// nearest rows with words above and below are both the fork's. Such a row
+// matches any blank row of the base, so the match says nothing about who wrote it.
+func (s *Scope) ClaimWordless(text string) *Scope {
+	if s == nil || s.whole {
+		return s
+	}
+	out := &Scope{lines: set.New[int](), base: s.base}
+	for n := range s.lines.All() {
+		out.lines.Add(n)
+	}
+	claimWordless(out, splitLines(text))
+	return out
+}
+
 func claimWordless(s *Scope, rows []string) {
 	wordless := func(row string) bool {
 		return strings.IndexFunc(row, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) < 0
