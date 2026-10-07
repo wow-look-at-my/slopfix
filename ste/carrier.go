@@ -578,7 +578,6 @@ func splitsCoordination(s *syntax.Sentence, verb syntax.Phrase, first int) bool 
 	return false
 }
 
-
 // carrierFor answers the words that carry an adverbial of the main clause. An
 // instruction takes "Do this", a fact takes "This holds", and an event takes
 // "This happens". A negated verb takes "This applies", because "Do this" would
