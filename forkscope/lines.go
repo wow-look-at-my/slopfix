@@ -158,7 +158,32 @@ func Changed(before, after string) *Scope {
 			s.lines.Add(j + 1)
 		}
 	}
+	claimWordless(s, splitLines(after))
 	return s
+}
+
+// claimWordless gives the fork each row with no word whose nearest rows with
+// words, above and below, are both the fork's. Such a row matches any blank row
+// of the base, so the match says nothing about who wrote it.
+func claimWordless(s *Scope, rows []string) {
+	wordless := func(row string) bool {
+		return strings.IndexFunc(row, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) < 0
+	}
+	for i, row := range rows {
+		if s.lines.Contains(i+1) || !wordless(row) {
+			continue
+		}
+		above, below := i-1, i+1
+		for above >= 0 && wordless(rows[above]) {
+			above--
+		}
+		for below < len(rows) && wordless(rows[below]) {
+			below++
+		}
+		if above >= 0 && below < len(rows) && s.lines.Contains(above+1) && s.lines.Contains(below+1) {
+			s.lines.Add(i + 1)
+		}
+	}
 }
 
 // readDiff records what a zero-context diff added. A hunk header gives the

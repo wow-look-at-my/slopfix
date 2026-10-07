@@ -214,6 +214,50 @@ func TestAForkFoldOfAnInnerDocDropsTheWholeMarker(t *testing.T) {
 	assert.Contains(t, repair.Text, "`/debug` turns the firehose on first", "the fork's words are joined, not lost")
 }
 
+// upstreamDebugDoc is the base's module doc of a Rust file.
+const upstreamDebugDoc = "//! `/debug`: debug-overlay toggles (scroll HUD, FPS HUD, scroll log).\n" +
+	"//!\n" +
+	"//! The command is registered on every binary and fully functional in release.\n" +
+	"//! It is listed only on debug binaries.\n" +
+	"//!\n" +
+	"//! Subcommands:\n" +
+	"//! - `/debug` bare: print the toggles and their state to the transcript.\n" +
+	"//! - `/debug fps`: the release-safe FPS HUD.\n" +
+	"\nuse std::path::Path;\n"
+
+// forkDebugDoc rewrites that doc and makes it longer than the volume cap. Its blank rows match the base's blank rows.
+const forkDebugDoc = "//! `/debug <what is wrong>` hands the model this process's context.\n" +
+	"//!\n" +
+	"//! `/debug why was the context size defaulted?` injects the question too.\n" +
+	"//!\n" +
+	"//! - The debug-log file the firehose writes for this session. `/debug` turns\n" +
+	"//!   the firehose on first, in this process and in the agent process.\n" +
+	"//!   It is created if it does not exist.\n" +
+	"//! - Whether the firehose ran since launch or only since this `/debug`.\n" +
+	"//! - The rest of the execution context, assembled by the context module.\n" +
+	"//!\n" +
+	"//! Delivery is the inject path, the same path skills and `/loop`\n" +
+	"//! use, so the prompt reaches the model as the next turn's content.\n" +
+	"//!\n" +
+	"//! Args that are not a reserved keyword are the user's question.\n" +
+	"//! - `/debug scroll` toggles the scroll-diagnostics HUD.\n" +
+	"//! - `/debug fps` toggles the release-safe FPS HUD.\n" +
+	"//! - `/debug log` toggles the scroll flight recorder.\n" +
+	"\nuse std::path::Path;\n"
+
+// A doc the fork rewrote past the cap is the fork's to cut. A blank row that
+// matches a base blank row does not stop the cut, and no list item is joined
+// onto another.
+func TestAForkDocPastTheCapIsCutNotFolded(t *testing.T) {
+	req := slopfix.Request{Path: "src/debug.rs", Content: forkDebugDoc, Owned: forkscope.Changed(upstreamDebugDoc, forkDebugDoc), MaxCommentLines: tombstones.DefaultMaxCommentLines}
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), tombstones.IDVolume), "the run is still over the cap:\n%s", repair.Text)
+	for _, line := range strings.Split(repair.Text, "\n") {
+		assert.NotContains(t, line, ". - ", "a fold joined one list item onto another: %q", line)
+	}
+	assert.Contains(t, repair.Text, "//! `/debug <what is wrong>` hands the model this process's context.\n", "the cut keeps the opening line")
+}
+
 // Outside a fork, every volume finding names the line its block starts on.
 func TestAVolumeFindingNamesItsBlock(t *testing.T) {
 	repair := slopfix.Report(slopfix.Request{Path: "config.jsx", Content: upstreamSnippet, MaxCommentLines: tombstones.DefaultMaxCommentLines})
