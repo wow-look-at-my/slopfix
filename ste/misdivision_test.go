@@ -36,6 +36,11 @@ var misdivisions = []struct {
 		[]string{"where the words.", "This happens after the cut"},
 	},
 	{
+		"a restated subject agrees with its verb",
+		"A descriptor opened O_RDWR is a writer itself, so its reads never reach that EOF and newFile now asks F_GETFL and keeps a darwin FIFO in the poller when it was opened for both reading and writing.",
+		[]string{"Its reads keeps", "its reads keeps"},
+	},
+	{
 		"a dash before and opens a sentence of its own",
 		"Anything that lands while the session is busy is invisible to the entry gate -- and a session that is doing work is busy nearly all the time.",
 		[]string{"a session. That is"},
