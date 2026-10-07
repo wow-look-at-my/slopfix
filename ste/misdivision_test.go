@@ -36,6 +36,11 @@ var misdivisions = []struct {
 		[]string{"where the words.", "This happens after the cut"},
 	},
 	{
+		"a participle after a dash is passive, so its carrier takes be",
+		"The hint mirrors the dashboard flag: `None` when the env override disables it, otherwise whatever `dashboard_enabled()` says — asserted as consistency, not a fixed value, so the test doesn't depend on the machine's persisted `[dashboard].enabled`.",
+		[]string{"It asserted"},
+	},
+	{
 		"a dash before and opens a sentence of its own",
 		"Anything that lands while the session is busy is invisible to the entry gate -- and a session that is doing work is busy nearly all the time.",
 		[]string{"a session. That is"},

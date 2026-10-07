@@ -128,6 +128,9 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	// its own — leaves X" becomes "One call. It leaves X".
 	if seamIsDash(seam) {
 		switch {
+		case verbAt(whole, first) && participleAfterDash(whole, first, main, hasMain):
+			// "says — asserted as X" is passive: "It is asserted as X", not "It asserted as X".
+			return head, "It is " + lowerFirst(rest), opensWithCarrier
 		case verbAt(whole, first):
 			return head, "It " + lowerFirst(rest), opensWithCarrier
 		case (lower == "and" || lower == "or") && first+1 < len(whole.Words) && verbAt(whole, first+1):
@@ -584,6 +587,23 @@ func mainVerb(s *syntax.Sentence, at int) (syntax.Phrase, bool) {
 		}
 	}
 	return syntax.Phrase{}, false
+}
+
+// participleAfterDash reports a verb at word i that takes "is" after "It". A
+// present participle always does. A past form does when the tagger names it a
+// participle, or when the main verb is present, so the past form is no tense.
+func participleAfterDash(s *syntax.Sentence, i int, main syntax.Phrase, hasMain bool) bool {
+	switch s.Words[i].Tag {
+	case "VBN", "VBG":
+		return true
+	case "VBD":
+		if !hasMain {
+			return false
+		}
+		tag := s.Words[main.Head].Tag
+		return tag == "VBZ" || tag == "VBP"
+	}
+	return false
 }
 
 // verbAt reports a verb at word i, finite or bare.
