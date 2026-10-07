@@ -56,14 +56,20 @@ func TestCheckReportsALongSentenceInAComment(t *testing.T) {
 // aside, each divide under the cap in a Go comment. One fix leaves nothing
 // for check, and a second fix changes nothing.
 func TestAColonAndADashAsideDivideInAGoComment(t *testing.T) {
-	for _, comment := range []string{
-		"// With the server's prefetch config off, which is the default, the client's\n" +
-			"// flags change nothing: a batch carries exactly the requested keys, even from\n" +
-			"// a client that still sets prefetch on the request its build is blocked on.\n",
-		"// Then every client it refuses rebuilds anyway -- having earliest paid for the round\n" +
-			"// trip -- so a cache that sheds is worse than no cache at all.\n",
+	for _, c := range []struct{ comment, want string }{
+		{
+			"// With the server's prefetch config off, which is the default, the client's\n" +
+				"// flags change nothing: a batch carries exactly the requested keys, even from\n" +
+				"// a client that still sets prefetch on the request its build is blocked on.\n",
+			"the client's flags change nothing. A batch carries exactly the requested keys,",
+		},
+		{
+			"// Then every client it refuses rebuilds anyway -- having earliest paid for the round\n" +
+				"// trip -- so a cache that sheds is worse than no cache at all.\n",
+			"rebuilds anyway, having earliest paid for the round trip. A cache that sheds is worse than no cache at all.",
+		},
 	} {
-		src := "package demo\n\n" + comment + "func Demo() {}\n"
+		src := "package demo\n\n" + c.comment + "func Demo() {}\n"
 		require.Contains(t, findingIDs(slopfix.CheckContent("demo_test.go", src)), ste.IDSentenceCap, "the control: the sentence is over the cap")
 
 		once := slopfix.Fix(slopfix.Request{Content: src, Path: "demo_test.go", MaxCommentLines: tombstones.DefaultMaxCommentLines})
@@ -71,6 +77,7 @@ func TestAColonAndADashAsideDivideInAGoComment(t *testing.T) {
 		assert.NotEqual(t, src, once.Text)
 		assert.Equal(t, once.Text, twice.Text)
 		assert.Empty(t, quoted(slopfix.CheckContent("demo_test.go", once.Text)), once.Text)
+		assert.Contains(t, strings.ReplaceAll(once.Text, "\n// ", " "), c.want, once.Text)
 	}
 }
 
