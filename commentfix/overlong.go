@@ -391,9 +391,17 @@ func clauseFit(b block) ([]string, bool) {
 	if !ok {
 		return nil, false
 	}
+	// The cut stays inside the first paragraph. Joined across a paragraph break or a list, the prose only looks shorter.
 	var body []string
-	for _, line := range prose(b.text) {
-		body = append(body, stripMarker(line))
+	for _, para := range paragraphs(prose(b.text)) {
+		if para.blank || para.verbatim {
+			continue
+		}
+		if para.list() {
+			return nil, false
+		}
+		body = para.lines
+		break
 	}
 	text := unwrapAside(strings.Join(strings.Fields(strings.Join(body, " ")), " "))
 	for _, cut := range clauseCuts(text) {

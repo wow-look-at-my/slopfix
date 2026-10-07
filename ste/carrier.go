@@ -128,6 +128,9 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	// its own — leaves X" becomes "One call. It leaves X".
 	if seamIsDash(seam) {
 		switch {
+		case verbAt(whole, first) && participleAfterDash(whole, first, main, hasMain):
+			// "says — asserted as X" is passive: "It is asserted as X", not "It asserted as X".
+			return head, "It is " + lowerFirst(rest), opensWithCarrier
 		case verbAt(whole, first):
 			return head, "It " + lowerFirst(rest), opensWithCarrier
 		case (lower == "and" || lower == "or") && first+1 < len(whole.Words) && verbAt(whole, first+1):
@@ -569,32 +572,6 @@ func splitsCoordination(s *syntax.Sentence, verb syntax.Phrase, first int) bool 
 			return false
 		}
 		if w.Tag == "CC" {
-			return true
-		}
-	}
-	return false
-}
-
-// mainVerb answers the verb group of the main clause that holds the words
-// before byte at.
-func mainVerb(s *syntax.Sentence, at int) (syntax.Phrase, bool) {
-	for _, c := range s.Clauses {
-		if c.Depth == 0 && c.Verb != nil && s.Words[c.Verb.First].Start < at {
-			return *c.Verb, true
-		}
-	}
-	return syntax.Phrase{}, false
-}
-
-// verbAt reports a verb at word i, finite or bare.
-func verbAt(s *syntax.Sentence, i int) bool {
-	return i < len(s.Words) && (strings.HasPrefix(s.Words[i].Tag, "VB") || s.Words[i].Tag == "MD")
-}
-
-// negated reports a verb group that holds a negation, or one right after it.
-func negated(s *syntax.Sentence, verb syntax.Phrase) bool {
-	for i := max(verb.First-1, 0); i <= min(verb.Last+1, len(s.Words)-1); i++ {
-		if negations.Contains(s.Words[i].Lower()) {
 			return true
 		}
 	}
