@@ -18,8 +18,19 @@ type paragraph struct {
 	raw      []string
 }
 
-// list reports a prose paragraph that holds a list item.
-func (p paragraph) list() bool { return !p.blank && !p.verbatim && listParagraph(p.lines) }
+// list reports a prose paragraph where a list item opens past its first line.
+// A reflow would join that item onto the prose before it.
+func (p paragraph) list() bool {
+	if p.blank || p.verbatim {
+		return false
+	}
+	for _, line := range p.lines[min(1, len(p.lines)):] {
+		if opensListItem(line) {
+			return true
+		}
+	}
+	return false
+}
 
 // codeRow reports a line laid out by hand. The prose after its marker opens
 // with a tab, or with more than the space a marker takes. Godoc renders such

@@ -30,6 +30,19 @@ const forkArgsDoc = "/// Parse the raw argument string after `/fork`.\n" +
 	"    Ok(ForkArgs::new(rest))\n" +
 	"}\n"
 
+// stepComment is a numbered step that wraps, above the line it documents.
+const stepComment = "fn config() {\n" +
+	"    // 2) Every axis overridden -> the struct round-ends and the emitted rules\n" +
+	"    //    on this platform reflect a read-only grok home / writable system base.\n" +
+	"    let over = \"[jail]\\ncwd = \\\"ro\\\"\\ngrok_home = \\\"ro\\\"\\ntmp = \\\"rw\\\"\\nsystem = \\\"rw\\\"\\n\";\n" +
+	"}\n"
+
+// A step that opens on "2)" and wraps is prose, not a list, so the length repair still fixes it.
+func TestALengthRepairFixesAWrappedNumberedStep(t *testing.T) {
+	fixed, _ := FixLength("x.rs", stepComment)
+	assert.Empty(t, CheckLength("x.rs", fixed), "the step comment is still too long:\n%s", fixed)
+}
+
 // A repair keeps each list item on a line of its own. Joined into the prose
 // around it, the doc only looks shorter.
 func TestALengthRepairKeepsListItems(t *testing.T) {
