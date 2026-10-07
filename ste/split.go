@@ -609,12 +609,12 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	if head.Tag == "PRP" {
 		return head.Text, true
 	}
-	// A subject that disagrees with the verb is not that verb's subject: "its reads ... keeps".
-	if !agrees(s, subject, *c.Verb) {
-		return "", false
-	}
 	short := subject.Last-subject.First < restateLimit && !subject.Coordinated &&
 		s.Words[subject.Last+1].Tag != "IN"
+	// A noun that disagrees with the verb is not that verb's subject: "its reads ... keeps".
+	if short && !agrees(s, subject, *c.Verb) {
+		return "", false
+	}
 	if short && opensWithCapital(s, subject.First, source) {
 		text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 		if subject.Det == subject.First {

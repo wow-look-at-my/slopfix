@@ -701,11 +701,11 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 		if head.Tag == "PRP" {
 			return lowerOpening(head.Text)
 		}
-		// A subject that disagrees with the verb after the cut is not its subject.
-		if plural := s.Plural(subject); tag == "VBZ" && plural || tag == "VBP" && !plural && !partitives.Contains(strings.ToLower(head.Text)) {
-			return ""
-		}
 		if subject.Last-subject.First < restateLimit && !subject.Coordinated {
+			// A noun that disagrees with the verb after the cut is not its subject.
+			if plural := s.Plural(subject); tag == "VBZ" && plural || tag == "VBP" && !plural && !partitives.Contains(strings.ToLower(head.Text)) {
+				return ""
+			}
 			text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 			if first := s.Words[subject.First]; first.Tag == "DT" || first.Tag == "PRP$" {
 				text = lowerOpening(text)
