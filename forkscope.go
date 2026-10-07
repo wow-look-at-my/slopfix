@@ -252,7 +252,8 @@ func commentProse(row string) string {
 	if strings.HasPrefix(text, "#[") {
 		return ""
 	}
-	for _, marker := range []string{"//", "#", "*"} {
+	// Longest first, so Rust's `//!` and `///` never leave a mark in the prose.
+	for _, marker := range []string{"///", "//!", "//", "#", "*"} {
 		if rest, ok := strings.CutPrefix(text, marker); ok {
 			return strings.TrimSpace(rest)
 		}
