@@ -69,7 +69,8 @@ func TestAColonAndADashAsideDivideInAGoComment(t *testing.T) {
 			"rebuilds anyway, having earliest paid for the round trip. A cache that sheds is worse than no cache at all.",
 		},
 	} {
-		src := "package demo\n\n" + c.comment + "func Demo() {}\n"
+		// A long body keeps comments/length from cutting the comment, so the sentence repair is what runs.
+		src := "package demo\n\n" + c.comment + "func Demo() {\n" + strings.Repeat("\tstep()\n", 60) + "}\n"
 		require.Contains(t, findingIDs(slopfix.CheckContent("demo_test.go", src)), ste.IDSentenceCap, "the control: the sentence is over the cap")
 
 		once := slopfix.Fix(slopfix.Request{Content: src, Path: "demo_test.go", MaxCommentLines: tombstones.DefaultMaxCommentLines})
