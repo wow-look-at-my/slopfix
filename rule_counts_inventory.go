@@ -2,7 +2,6 @@ package slopfix
 
 import (
 	"github.com/wow-look-at-my/slopfix/counts"
-	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
@@ -18,35 +17,15 @@ func init() {
 	})
 }
 
-// detectInventoryCount answers the inventory-count rule's findings from the
-// document substrate its repair reads.
+// detectInventoryCount answers each inventory count the case carries.
 func detectInventoryCount(c RuleCase) []ste.Finding {
-	return detectInventory(c)
+	return caseFindings(c, counts.ID)
 }
 
 // autofixInventoryCount cuts the cardinal out of the sentence, or writes words
 // that state no figure.
 func autofixInventoryCount(c RuleCase) RuleCase {
 	return caseAutofix(c, counts.ID)
-}
-
-// detectInventory answers the inventory-count rule's findings from the
-// documents its repair reads: each document of the repository, and the message.
-func detectInventory(c RuleCase) []ste.Finding {
-	var docs []string
-	for _, path := range fixtureFiles(c) {
-		if kindOf(path, readFixture(path)) == fixer.Document {
-			docs = append(docs, readFixture(path))
-		}
-	}
-	if c.Text != "" {
-		docs = append(docs, c.Text)
-	}
-	var out []ste.Finding
-	for _, doc := range docs {
-		out = append(out, inventoryFindings(doc)...)
-	}
-	return out
 }
 
 // inventoryFindings answers each inventory count in one document.

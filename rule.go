@@ -13,6 +13,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/blamelanguage"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -46,7 +47,7 @@ type RuleCase struct {
 	Root string
 }
 
-// Materialize writes the case's repository under dir with the marker the
+// Materialize writes the case's repository under dir as a git repository, which the
 // repository rules read, and answers the case rooted there. Afterwards Path is
 // empty and Text holds the message alone, so every rule reads one shape.
 func Materialize(dir string, c RuleCase) (RuleCase, error) {
@@ -58,8 +59,9 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 		files[c.Path] = c.Text
 		c.Path, c.Text = "", ""
 	}
-	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
-		return c, err
+	// A real repository, because a rule that asks git which files exist reads it.
+	if out, err := gitmod.Command(dir, "init", "-q").CombinedOutput(); err != nil {
+		return c, fmt.Errorf("git init %s: %w: %s", dir, err, out)
 	}
 	for name, content := range files {
 		path := filepath.Join(dir, filepath.FromSlash(name))

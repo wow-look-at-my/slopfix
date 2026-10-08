@@ -15,8 +15,8 @@ func init() {
 		Detect:   detectLaziness,
 		Autofix:  autofixLaziness,
 		Cases: []RuleCase{
-			{Name: laziness.ID, Text: "The loader reads the cache. Want me to fix it?\n"},
-			{Name: laziness.ID + "/defect", Text: "The loader reads the cache.\nI did not fix the loader.\n"},
+			{Name: laziness.ID, Text: "The loader reads the cache. That is out of scope.\n"},
+			{Name: laziness.ID + "/defect", Text: "I found an off-by-one in the retry loop and left it alone.\n"},
 		},
 	})
 }

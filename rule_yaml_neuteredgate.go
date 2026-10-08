@@ -13,7 +13,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectNeuteredGate,
 		Autofix:  autofixNeuteredGate,
-		Cases: []RuleCase{workflowCase("neutered-gate", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+workflowGate+
+		Cases: []RuleCase{workflowCase("neutered-gate", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
 			"    steps:\n      - uses: wow-look-at-my/slopfix@master\n        continue-on-error: true\n")},
 	})
 }

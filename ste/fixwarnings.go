@@ -1,6 +1,8 @@
 package ste
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -36,14 +38,19 @@ const clauseRounds = 8
 
 // plain is the banned words a repair can write an approved word for, from the
 // table's plain list. The dictionary as a whole cannot drive a repair, because
-// a spelling does not tell one sense of a word from another.
+// a spelling does not tell one sense of a word from another. Each entry is a
+// dictionary word, and its approved word is one the dictionary gives for it.
 var plain = func() map[string]string {
 	out := map[string]string{}
 	for _, line := range steTable.List("plain") {
 		fields := strings.Fields(line)
-		if len(fields) == 2 {
-			out[fields[0]] = fields[1]
+		if len(fields) != 2 {
+			panic(fmt.Sprintf("rules/ste-words.xml: plain line %q is not a word and its approved word", line))
 		}
+		if !slices.Contains(dictionary[fields[0]], fields[1]) {
+			panic(fmt.Sprintf("rules/ste-words.xml: plain line %q names no approved word the dictionary gives", line))
+		}
+		out[fields[0]] = fields[1]
 	}
 	return out
 }()

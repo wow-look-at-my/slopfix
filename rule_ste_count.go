@@ -2,7 +2,7 @@ package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
 
-// ste/count: a stated count of items goes stale when somebody adds the item that makes it wrong. The repair writes words that state no figure. The case carries no frame, which is what keeps it to this
+// ste/count: a stated count of items goes stale when somebody adds the item that makes it wrong. The repair writes words that state no figure. The case carries no frame, which keeps it to this
 // rule rather than the document count rule.
 func init() {
 	RegisterRule(RuleSpec{
@@ -10,7 +10,7 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectStaleCount,
 		Autofix:  autofixStaleCount,
-		Cases:    []RuleCase{{Name: ste.IDStaleCount, Path: "x.md", Text: "There are 3 modes.\n"}},
+		Cases:    []RuleCase{{Name: ste.IDStaleCount, Path: "x.md", Text: "The gate reads 3 rows.\n"}},
 	})
 }
 

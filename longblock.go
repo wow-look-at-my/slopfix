@@ -160,7 +160,7 @@ func divide(text string) []string {
 	all := cuts(text)
 	var parts []string
 	start := 0
-	for !fits(text[start:], LongBlockTarget, LongBlockWordTarget) {
+	for !fits(text[start:], LongBlockTarget, LongBlockWordTarget) || len(ste.Sentences(text[start:])) > ste.ParagraphSentenceCap {
 		best := -1
 		for i, c := range all {
 			if c.at <= start {

@@ -14,7 +14,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectPushTags,
 		Autofix:  autofixPushTags,
-		Cases:    []RuleCase{workflowCase("push-tags", "name: CI\n\non:\n  push:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n"+workflowGate+"    steps:\n      - run: echo hi\n")},
+		Cases:    []RuleCase{workflowCase("push-tags", "name: CI\n\non:\n  push:\n\n"+workflowConcurrency+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+"    steps:\n      - run: echo hi\n")},
 	})
 }
 

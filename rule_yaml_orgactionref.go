@@ -13,7 +13,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectOrgActionRef,
 		Autofix:  autofixOrgActionRef,
-		Cases: []RuleCase{workflowCase("org-action-ref", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+workflowGate+
+		Cases: []RuleCase{workflowCase("org-action-ref", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
 			"    steps:\n      - uses: wow-look-at-my/slopfix@v2\n")},
 	})
 }

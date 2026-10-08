@@ -29,11 +29,22 @@ const IDHardWrap = "wrap/hard-wrap"
 // Check reports every finding in a document that fails a check, in source order.
 func Check(content string) []ste.Finding {
 	var out []ste.Finding
+	inventory := inventoryFindings(content)
 	for _, block := range markdown.Split(content) {
 		if block.Kind != markdown.Prose {
 			continue
 		}
-		out = append(out, ste.Check(block.Text(), block.Start)...)
+		var counted []ste.Finding
+		for _, f := range inventory {
+			if f.Line >= block.Start && f.Line < block.Start+len(block.Lines) {
+				counted = append(counted, f)
+			}
+		}
+		out = append(out, counted...)
+		// A count the inventory rule reports is that rule's finding, and the gate's copy of it would name the same words twice.
+		out = append(out, slices.DeleteFunc(ste.Check(block.Text(), block.Start), func(f ste.Finding) bool {
+			return f.ID == ste.IDStaleCount && slices.ContainsFunc(counted, func(c ste.Finding) bool { return c.Detail == f.Detail })
+		})...)
 		out = append(out, english.CheckCommaNever(block.Text(), block.Start)...)
 		for i := 1; i < len(block.Lines); i++ {
 			out = append(out, ste.Finding{

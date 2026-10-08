@@ -27,16 +27,13 @@ func autofixCommentLength(c RuleCase) RuleCase {
 	return caseAutofix(c, commentfix.IDLength)
 }
 
-// overlongComment is a Go comment far longer than the code beneath it.
+// overlongComment is a Go comment far longer than the code beneath it, and
+// under the volume cap. Only its weight against the code reads it.
 func overlongComment() string {
-	var out string
-	for i := range 6 {
-		if i > 0 {
-			out += "//\n"
-		}
-		out += "// The loop reads each value from the input and adds it to the total.\n"
-		out += "// It then checks the total against the limit that the caller set.\n"
-		out += "// A total over the limit stops the loop before it writes anything.\n"
-	}
-	return out
+	return "// The loop reads each value from the input and adds it to the total.\n" +
+		"// It then checks the total against the limit that the caller set.\n" +
+		"// A total over the limit stops the loop before it writes anything.\n" +
+		"//\n" +
+		"// The caller reads the total after the loop stops.\n" +
+		"// The caller then writes the total to the log.\n"
 }

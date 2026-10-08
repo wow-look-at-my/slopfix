@@ -80,9 +80,9 @@ func Warn(text string, line int, listItem bool) []Finding {
 		if word == strings.ToUpper(word) {
 			continue
 		}
-		if alts, banned := dictionary[strings.ToLower(word)]; banned {
+		if approved, banned := plain[strings.ToLower(word)]; banned {
 			out = append(out, warn(line, IDDictionary, "the STE dictionary does not approve this word", word,
-				"Write "+strings.Join(alts, " or ")+"."))
+				"Write "+approved+"."))
 		}
 	}
 	if sentences > ParagraphSentenceCap && !listItem {

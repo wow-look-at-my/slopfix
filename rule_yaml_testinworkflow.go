@@ -31,6 +31,6 @@ func autofixTestInYAML(c RuleCase) RuleCase {
 // testInYAMLCase is a workflow whose step asserts on a value beside its own
 // command.
 func testInYAMLCase() string {
-	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n" + workflowGate +
+	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n" +
 		"    steps:\n      - run: |\n          echo hi\n          assert_ok() { exit 1; }\n"
 }

@@ -13,7 +13,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectEnvIndirection,
 		Autofix:  autofixEnvIndirection,
-		Cases: []RuleCase{workflowCase("env-indirection", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+workflowGate+
+		Cases: []RuleCase{workflowCase("env-indirection", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
 			"    steps:\n      - env:\n          OUT: ${{ github.sha }}\n        run: echo \"$OUT\"\n")},
 	})
 }

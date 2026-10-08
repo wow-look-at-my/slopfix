@@ -14,7 +14,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectAllBuildsJob,
 		Autofix:  autofixAllBuildsJob,
-		Cases:    []RuleCase{workflowCase("all-builds-job", workflowHeader()+"jobs:\n  all-builds:\n    runs-on: ubuntu-latest\n"+workflowGate+"    steps:\n      - run: echo hi\n")},
+		Cases:    []RuleCase{workflowCase("all-builds-job", workflowHeader()+"jobs:\n  all-builds:\n    runs-on: ubuntu-latest\n"+"    steps:\n      - run: echo hi\n")},
 	})
 }
 

@@ -17,8 +17,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/english"
 )
 
-// deadReferent is the tell referents.go reports.
+// deadReferent is the tell referents.go reports, and IDDeadReferent the rule that reports it.
 const deadReferent = "a name nothing in the repository defines"
+
+// IDDeadReferent names the rule a dead referent reports under.
+var IDDeadReferent = ruleID(deadReferent)
 
 // IDVolume names the volume cap, whose tell carries a line count instead.
 const IDVolume = "tombstones/comment-volume"

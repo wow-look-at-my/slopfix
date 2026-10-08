@@ -1,8 +1,6 @@
 package slopfix
 
 import (
-	"strconv"
-
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
@@ -29,11 +27,16 @@ func autofixVolume(c RuleCase) RuleCase {
 	return caseAutofix(c, tombstones.IDVolume)
 }
 
-// volumeCase is a comment run longer than the default cap.
+// volumeCase is a comment run longer than the default cap, above code longer
+// than the comment. The run outweighs no code and only the cap reads it.
 func volumeCase() string {
 	out := "package main\n\n"
-	for i := range 16 {
-		out += "// The loop reads value " + strconv.Itoa(i) + " from the input and adds it to the running total.\n"
+	for range tombstones.DefaultMaxCommentLines + 2 {
+		out += "// The loop reads each value from the input and adds it to the running total.\n"
 	}
-	return out + "func main() {}\n"
+	out += "func main() {\n"
+	for range tombstones.DefaultMaxCommentLines * 3 {
+		out += "\ttotal += readValue(input, limit, offset)\n"
+	}
+	return out + "}\n"
 }

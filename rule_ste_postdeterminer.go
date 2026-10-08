@@ -10,7 +10,7 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectPostdeterminer,
 		Autofix:  autofixPostdeterminer,
-		Cases:    []RuleCase{{Name: ste.IDPostdeterminer, Path: "x.md", Text: "All the three rules apply here.\n"}},
+		Cases:    []RuleCase{{Name: ste.IDPostdeterminer, Path: "x.md", Text: "The gate reads the three rules.\n"}},
 	})
 }
 

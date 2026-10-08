@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
@@ -75,9 +77,37 @@ func testsInYAML(content string) []ste.Finding {
 // Repair rewrites the workflow so no run: script holds a test. The lines
 // that carry one come out, and the step keeps its other commands.
 func RepairTests(content string) string {
+	rows := testRows(content)
+	if rows.Len() == 0 {
+		return content
+	}
+	kept := []string{}
+	for i, row := range strings.Split(content, "\n") {
+		if !rows.Contains(i) {
+			kept = append(kept, row)
+		}
+	}
+	return strings.Join(kept, "\n")
+}
+
+// dropTests is the fixer's form of RepairTests: an edit per run of rows that
+// carry a test.
+func dropTests(content string) []edit.Edit {
+	rows := testRows(content)
+	if rows.Len() == 0 {
+		return nil
+	}
+	return dropRows(content, rows)
+}
+
+// testRows answers the rows, counted from zero, that carry a test. A run:
+// script left empty takes its step entry with it, so the job keeps the steps
+// around it.
+func testRows(content string) set.Set[int] {
+	out := set.New[int]()
 	findings := testsInYAML(content)
 	if len(findings) == 0 {
-		return content
+		return out
 	}
 	drop := make(map[int]bool, len(findings))
 	for _, finding := range findings {
@@ -94,15 +124,12 @@ func RepairTests(content string) string {
 			drop[header] = true
 		}
 	}
-	rows := strings.Split(content, "\n")
-	kept := make([]string, 0, len(rows))
-	for i, row := range rows {
-		if drop[i+1] {
-			continue
+	for line, dropped := range drop {
+		if dropped {
+			out.Add(line - 1)
 		}
-		kept = append(kept, row)
 	}
-	return strings.Join(kept, "\n")
+	return out
 }
 
 // allDropped reports whether every line of a run block carries a finding.

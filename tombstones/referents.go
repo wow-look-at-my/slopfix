@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -78,10 +79,10 @@ const indexTimeout = 5 * time.Minute
 // indexFileCap is the largest tracked file the index reads. A larger one is data.
 const indexFileCap = 4 << 20
 
-// symbolIndex holds every identifier-shaped word the tracked files contain.
+// symbolIndex holds every identifier-shaped word the tracked files contain, with the count of files that hold it.
 type symbolIndex struct {
 	once  sync.Once
-	names set.Set[string]
+	files map[string]int
 	ok    bool
 }
 
@@ -124,7 +125,7 @@ func (ix *symbolIndex) build(root string) {
 	if err != nil {
 		return
 	}
-	names := set.New[string]()
+	files := map[string]int{}
 	for _, rel := range strings.Split(string(listed), "\x00") {
 		if rel == "" {
 			continue
@@ -136,9 +137,13 @@ func (ix *symbolIndex) build(root string) {
 		if err != nil || len(data) > indexFileCap || bytes.IndexByte(data[:min(len(data), 8000)], 0) >= 0 {
 			continue
 		}
-		addWords(names, data)
+		words := set.New[string]()
+		addWords(words, data)
+		for word := range words.All() {
+			files[word]++
+		}
 	}
-	ix.names, ix.ok = names, true
+	ix.files, ix.ok = files, true
 }
 
 // addWords adds every candidate identifier in data to names.
@@ -167,17 +172,30 @@ func addWords(names set.Set[string], data []byte) {
 
 // holds reports a name the index saw.
 func (ix *symbolIndex) holds(name string) bool {
-	return ix.ok && ix.names.Contains(name)
+	return ix.ok && ix.files[name] > 0
+}
+
+// holdsBeyond reports a name the index saw in a file other than self, where
+// self is the copy on disk of the file being judged.
+func (ix *symbolIndex) holdsBeyond(name string, self []byte) bool {
+	n := ix.files[name]
+	if bytes.Contains(self, []byte(name)) {
+		n--
+	}
+	return ix.ok && n > 0
 }
 
 // DeadReferents returns the identifiers the blocks name that appear neither in
 // the text nor in the repository. It returns nothing when it cannot answer.
+//
+// The file being judged does not count as the repository. Its copy on disk
+// holds the comment itself, and the text says once where else the name sits.
 func DeadReferents(path, added string, blocks []Block) []string {
 	root := RepoRoot(path)
 	if root == "" {
 		return nil
 	}
-	names := set.New[string]()
+	files := map[string]int{}
 	for _, b := range blocks {
 		for _, m := range identifierWords(b.Text) {
 			if isCandidate(m) {
@@ -200,26 +218,31 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		return nil
 	}
 
+	self, _ := os.ReadFile(path)
+	selfPath, _ := filepath.Abs(path)
 	ix := indexFor(root)
 	rg := ""
 	if !ix.ok {
 		found, err := exec.LookPath("rg")
 		if err != nil {
-			return nil
+			// With no ripgrep to probe, the index reads the tree once and answers every name.
+			ix.once.Do(func() { ix.build(root) })
 		}
 		rg = found
+	}
+	if !ix.ok && rg == "" {
+		return nil
 	}
 	args := []string{"--no-messages", "--fixed-strings", "--files-with-matches", "--max-count", "1"}
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 	for _, name := range ordered {
-		if ix.holds(name) {
-			continue
-		}
 		// A built index read every file a probe reads, so a name it never saw is dead.
 		if ix.ok {
-			dead = append(dead, name)
+			if !ix.holdsBeyond(name, self) {
+				dead = append(dead, name)
+			}
 			continue
 		}
 		cmd := exec.CommandContext(ctx, rg, append(append([]string{}, args...), "-e", name, root)...)
@@ -230,7 +253,10 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		if err != nil && cmd.ProcessState != nil && cmd.ProcessState.ExitCode() > 1 {
 			return nil // ripgrep failed rather than found nothing
 		}
-		if strings.TrimSpace(string(out)) == "" {
+		if !slices.ContainsFunc(strings.Split(string(out), "\n"), func(file string) bool {
+			abs, _ := filepath.Abs(file)
+			return file != "" && abs != selfPath
+		}) {
 			dead = append(dead, name)
 		}
 	}
