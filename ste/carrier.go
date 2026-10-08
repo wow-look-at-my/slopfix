@@ -259,6 +259,9 @@ func headOpen(s *syntax.Sentence, end int) bool {
 		switch {
 		case finiteVerbTag(w.Tag) || w.Tag == "MD":
 			open = -1
+		case open >= 0 && i > open+1 && w.Tag == "NNS" && s.Words[i-1].Tag == "NN" && i+1 < len(s.Words) && s.Words[i+1].Tag == "IN":
+			// The tagger reads the verb of the new subject as a plural noun: "a word the actor of a clause stops in front of".
+			open = -1
 		case clauseOpeners.Contains(w.Lower()) && i > 0:
 			open = i
 		case i > 0 && strings.HasPrefix(s.Words[i-1].Tag, "NN") && (w.Tag == "DT" || w.Tag == "PRP"):
