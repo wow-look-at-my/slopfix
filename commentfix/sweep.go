@@ -17,6 +17,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // skipDirs hold text nobody in the tree authored.
@@ -212,6 +213,7 @@ func TreeFiles(root string) []string {
 // TreeFilesMatching is TreeFiles for a caller whose rule reads a different set
 // of files. The walk, and so the skip list, stays what this package owns.
 func TreeFilesMatching(root string, reads func(string) bool) []string {
+	defer trace.Phase("commentfix/walk")()
 	// Where the root is not a module, the modules below it are the whole tree.
 	_, err := os.Stat(filepath.Join(root, "go.mod"))
 	rootIsModule := err == nil
