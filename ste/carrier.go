@@ -692,10 +692,13 @@ func listRest(source string, s *syntax.Sentence, verb syntax.Phrase, c forceCut,
 func listEnd(rest string) (string, bool) {
 	r := syntax.Parse(rest, nil)
 	conj := ""
-	for _, w := range r.Words {
+	for i, w := range r.Words {
 		switch w.Tag {
 		case "VBZ", "VBD", "MD":
-			return "", false
+			// A verb of a relative clause describes an item: "a subordinator that opens a clause".
+			if !inRelative(r, i) {
+				return "", false
+			}
 		case "CC":
 			if l := w.Lower(); l == "and" || l == "or" {
 				conj = l
