@@ -166,13 +166,13 @@ func pastAttributes(parent ts.Node, next, count uint32) uint32 {
 	return at
 }
 
-// paragraphSpan measures the code a comment heads: the construct after it, and
-// each sibling that follows on the next line, up to a blank line or a comment
-// on its own line.
+// paragraphSpan measures the code a comment heads. The construct after it is
+// the first part. Each sibling that follows on the next line joins it, up to a
+// blank line or a comment on its own line.
 //
 // Only a comment at the top of a file heads a paragraph of declarations. A
-// comment inside a function body heads the statement under it, because the
-// statements around it run on for reasons the comment does not describe.
+// comment inside a function body heads the statement under it. The statements
+// around it run on for reasons the comment does not describe.
 func paragraphSpan(parent ts.Node, next uint32, lines []string, rows map[int]int) (int, int) {
 	top := parent.Parent().IsNull()
 	node := parent.NamedChild(next)
