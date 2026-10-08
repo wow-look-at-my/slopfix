@@ -1,4 +1,3 @@
-// it belongs to, as a division of its own.
 package ste
 
 import (

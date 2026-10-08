@@ -10,8 +10,7 @@ import (
 
 // The allow path's reader. It gives up on anything it cannot fully resolve --
 // a redirect, an expansion, a substitution -- because refusing to read is the
-// safe answer. This happens when the verdict would be "allow". The deny path
-// reason in reverse.
+// safe answer. This happens when the verdict would be "allow".
 
 func parseAllCommands(command string) [][]string {
 	parser := syntax.NewParser()

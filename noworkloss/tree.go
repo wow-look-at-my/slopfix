@@ -65,7 +65,6 @@ var buildOutputDirs = set.Of[string]("build", "dist", "target", "out",
 	".pytest_cache", ".gradle", ".tox", ".next",
 	".parcel-cache", ".turbo", ".terraform")
 
-// outside every guarded root, so the path rules never reach them.
 func isProtectedConfig(abs string) bool {
 	abs = filepath.Clean(abs)
 	base := filepath.Base(abs)
