@@ -272,8 +272,7 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	return failed || len(out.Kept) > 0 || len(out.Unmet) > 0, nil
 }
 
-// envOf answers the environment a branch-pin lookup reads. A resolver a test
-// built supplies its own; otherwise the process environment answers.
+// envOf answers the environment a branch-pin lookup reads.
 func envOf(forks forkscope.Resolver) func(string) string {
 	if forks.Getenv != nil {
 		return forks.Getenv

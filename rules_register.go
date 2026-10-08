@@ -267,8 +267,7 @@ func branchPinDetect(c RuleCase) []ste.Finding {
 	return found
 }
 
-// fixedRefs answers refs without the network: master is the default branch,
-// feature is another branch, and v1 is a tag.
+// fixedRefs answers refs without the network: master is the default branch, feature is another branch, and v1 is a tag.
 type fixedRefs struct{}
 
 func (fixedRefs) DefaultBranch(string) (string, error) { return "master", nil }

@@ -106,7 +106,7 @@ func remoteUse(node *yaml.Node) (Use, bool) {
 // that names it then fails to resolve the action. The default branch, a tag
 // and a full commit SHA are refs that stay. A tag that the org's
 // orphan-release cut from a branch build, ACTION/BRANCH#N, goes with that
-// branch, so it is a branch pin too. A ref that names no branch, no tag and no
+// branch. It is a branch pin too. A ref that names no branch, no tag and no
 // full SHA fails the run that resolves it. The first lookup that refs cannot
 // answer is the error, because a guess would pass a pin it never checked.
 func BranchPins(content string, refs Refs) ([]ste.Finding, error) {
@@ -154,8 +154,8 @@ func featureBranch(repo, branch string, refs Refs) (bool, error) {
 
 // tagBranch answers the feature branch an orphan-release tag NAME#VERSION was
 // cut from, or "" for a tag that follows none. The release tool names a branch
-// build ACTION/BRANCH#VERSION, and a branch name can hold a slash, so each
-// tail of NAME after a slash is a candidate.
+// build ACTION/BRANCH#VERSION. A branch name can hold a slash, so each tail of
+// NAME after a slash is a candidate.
 func tagBranch(use Use, refs Refs) (string, error) {
 	hash := strings.LastIndex(use.Ref, "#")
 	if hash < 0 {
