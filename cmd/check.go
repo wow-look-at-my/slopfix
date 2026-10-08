@@ -268,6 +268,8 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing, asJSON b
 		return err
 	}
 	request.Content = string(content)
+	// stdout carries one file, so no repair that creates another applies.
+	request.OneFile = true
 	run := slopfix.Report
 	if repairing {
 		run = slopfix.Fix

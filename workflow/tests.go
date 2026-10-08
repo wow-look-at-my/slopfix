@@ -5,16 +5,77 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
+	yaml "go.yaml.in/yaml/v3"
 )
 
-// runBlock is a run: script.
-type runBlock = scriptRows
+// shellStep is a run: step whose script is POSIX shell.
+type shellStep struct {
+	// job is the key of the job the step belongs to.
+	job string
+	// number is the step's place in its job's steps, counted from one.
+	number int
+	step   *yaml.Node
+	run    *yaml.Node
+	block  scriptRows
+	// shell is the step's own shell key, or else the job's or the workflow's defaults.run.shell.
+	shell string
+	// moved reports a working-directory that starts the step outside the checkout root.
+	moved bool
+}
 
-// runBlocks reads every run: script off the parser.
-func runBlocks(content string) []runBlock {
-	return scripts(content)
+// shellSteps answers every run: step whose script is POSIX shell, read off the
+// parser. A step that runs PowerShell, Python or cmd holds no shell test.
+func shellSteps(content string) []shellStep {
+	var doc yaml.Node
+	if yaml.Unmarshal([]byte(content), &doc) != nil {
+		return nil
+	}
+	root := rootOf(&doc)
+	jobs := mappingValue(root, "jobs")
+	if jobs == nil {
+		return nil
+	}
+	rows := lines(content)
+	spans := blockScalars(content)
+	var out []shellStep
+	for i := 0; i+1 < len(jobs.Content); i += 2 {
+		job := jobs.Content[i+1]
+		steps := mappingValue(job, "steps")
+		if steps == nil || steps.Kind != yaml.SequenceNode {
+			continue
+		}
+		shell := defaultShell(job)
+		if shell == "" {
+			shell = defaultShell(root)
+		}
+		windows := runsPowerShell(job, shell)
+		moved := defaultDirectory(job) || defaultDirectory(root)
+		for n, step := range steps.Content {
+			run := mappingValue(step, "run")
+			if run == nil || run.Kind != yaml.ScalarNode {
+				continue
+			}
+			s := shellStep{job: jobs.Content[i].Value, number: n + 1, step: step, run: run, shell: shell,
+				moved: moved || mappingValue(step, "working-directory") != nil}
+			if own := mappingValue(step, "shell"); own != nil {
+				s.shell = own.Value
+			} else if windows {
+				continue
+			}
+			if !bashLike(s.shell) {
+				continue
+			}
+			s.block = scriptOf(run, rows, spans)
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// defaultDirectory reports a defaults.run.working-directory on a job or a workflow.
+func defaultDirectory(node *yaml.Node) bool {
+	return mappingValue(mappingValue(mappingValue(node, "defaults"), "run"), "working-directory") != nil
 }
 
 // testFileNames match a name only a test suite gives a file.
@@ -60,12 +121,11 @@ var redirectTarget = regexp.MustCompile(`(?:^|[^>\d])>>?\s*(?:"([^"]+)"|'([^']+)
 var exitWord = regexp.MustCompile(`\bexit\b`)
 
 // testsInYAML reports every test written into a run: script. Each finding is
-// a warning: a line of a run: script is shell. Repair removes the line, and
-// moving the case into the repository suite is the author's call.
+// a warning. The repair moves the whole script into a file of its own.
 func testsInYAML(content string) []ste.Finding {
 	var out []ste.Finding
-	for _, block := range runBlocks(content) {
-		for _, f := range block.findings() {
+	for _, s := range shellSteps(content) {
+		for _, f := range s.block.findings() {
 			f.Severity = ste.SeverityWarning
 			out = append(out, f)
 		}
@@ -73,65 +133,7 @@ func testsInYAML(content string) []ste.Finding {
 	return out
 }
 
-// Repair rewrites the workflow so no run: script holds a test. The lines
-// that carry one come out, and the step keeps its other commands.
-func RepairTests(content string) string {
-	rows := testRows(content)
-	if rows.Len() == 0 {
-		return content
-	}
-	kept := []string{}
-	for i, row := range strings.Split(content, "\n") {
-		if !rows.Contains(i) {
-			kept = append(kept, row)
-		}
-	}
-	return strings.Join(kept, "\n")
-}
-
-// testRows answers the rows, counted from zero, that carry a test. A run:
-// script left empty takes its step entry with it, so the job keeps the steps
-// around it.
-func testRows(content string) set.Set[int] {
-	out := set.New[int]()
-	findings := testsInYAML(content)
-	if len(findings) == 0 {
-		return out
-	}
-	drop := make(map[int]bool, len(findings))
-	for _, finding := range findings {
-		drop[finding.Line] = true
-	}
-	inside := blockScalarRows(content)
-	for _, block := range runBlocks(content) {
-		if len(block.lines) == 0 || !allDropped(block, drop) {
-			continue
-		}
-		// The block would be left empty. Its step entry comes out too, so
-		// the job keeps the steps around it.
-		if header := block.start - 1; header >= 0 && header < len(inside) && inside[header] {
-			drop[header] = true
-		}
-	}
-	for line, dropped := range drop {
-		if dropped {
-			out.Add(line - 1)
-		}
-	}
-	return out
-}
-
-// allDropped reports whether every line of a run block carries a finding.
-func allDropped(block runBlock, drop map[int]bool) bool {
-	for offset := range block.lines {
-		if !drop[block.start+offset] {
-			return false
-		}
-	}
-	return true
-}
-
-func (b runBlock) findings() []ste.Finding {
+func (b scriptRows) findings() []ste.Finding {
 	script := strings.Join(b.lines, "\n")
 	annotates := strings.Contains(script, "::error")
 	ends := exitWord.MatchString(script)

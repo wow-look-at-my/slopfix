@@ -79,13 +79,15 @@ func changedLines(before, after string) []int {
 }
 
 // fixOf answers what `slopfix fix` makes of src. A panic in a fixer is an
-// error, so a failed computation is never read as a clean file.
+// error, so a failed computation is never read as a clean file. A hook writes
+// the file, so no repair that creates another applies.
 func fixOf(req slopfix.Request) (repair slopfix.Repair, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("slopfix fix panicked on %s: %v", req.Path, r)
 		}
 	}()
+	req.OneFile = true
 	return slopfix.Fix(req), nil
 }
 

@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -137,8 +138,9 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		if len(repair.Unmet) > 0 {
 			out.Unmet = append(out.Unmet, &UnmetError{Path: path, Unmet: repair.Unmet})
 		}
-		if writing && repair.Changed && commentfix.WriteFile(path, repair.Text) == nil {
+		if writing && repair.Changed && writeCreated(repair.Created) == nil && commentfix.WriteFile(path, repair.Text) == nil {
 			out.Repaired = append(out.Repaired, path)
+			out.created(repair.Created, req)
 		}
 		for _, text := range repair.Removed {
 			out.Removed = append(out.Removed, commentfix.Removal{Path: path, Text: text})
@@ -157,6 +159,28 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		mustBeRegistered(f.ID)
 	}
 	return out
+}
+
+// created records each file a repair wrote beside its own, and reports what the
+// rules make of it. A fork wrote all of a new file, so its check judges all of it.
+func (out *TreeRepair) created(files []fixer.Created, req Request) {
+	for _, c := range files {
+		out.Repaired = append(out.Repaired, c.Path)
+		if req.Fork != nil {
+			req.Fork.Claim(c.Path)
+		}
+		repair := judgeFile(c.Path, req, false)
+		if repair == nil {
+			continue
+		}
+		out.Read++
+		for _, finding := range repair.Findings {
+			out.Findings = append(out.Findings, TreeFinding{Path: c.Path, Finding: finding})
+		}
+		for _, kept := range repair.Kept {
+			out.Kept = append(out.Kept, TreeTombstone{Path: c.Path, Hit: kept})
+		}
+	}
 }
 
 // judgeFile runs every selected rule on one file. It answers nil for a file it

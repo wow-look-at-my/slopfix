@@ -68,6 +68,8 @@ type Request struct {
 	Owned *forkscope.Scope `json:"-"`
 	// Fork names the lines a fork wrote across a tree run. A file it holds no line of is neither read nor written.
 	Fork *forkscope.Lines `json:"-"`
+	// OneFile marks a caller that writes Content's file and no other, such as a hook. A repair that needs a new file then leaves the text as it stands.
+	OneFile bool `json:"-"`
 }
 
 // Repair is the text as this binary would write it, plus what the rewrite flagged.
@@ -90,6 +92,8 @@ type Repair struct {
 	Scope edit.Scope `json:"-"`
 	// Unmet names each slopfix-expect annotation the repair disagrees with.
 	Unmet []string `json:"unmet,omitempty"`
+	// Created holds each new file Text depends on. A caller that writes Text writes these first.
+	Created []fixer.Created `json:"created,omitempty"`
 }
 
 // Fix repairs req, unless it carries slopfix-expect annotations.
@@ -249,6 +253,11 @@ func fixText(req Request) Repair {
 	rep := f.Report()
 	repair := Repair{Text: text, Changed: text != req.Content, Removed: rep.Removed, Rewrites: rep.Rewrites, Scope: f.Scope()}
 	repair.refuse(rep.Refused)
+	// A new file answers to every rule, whatever the run selected, so it lands clean.
+	for _, c := range rep.Created {
+		settled := fixAll(Request{Content: c.Text, Path: c.Path, MaxCommentLines: req.MaxCommentLines, OneFile: true})
+		repair.Created = append(repair.Created, fixer.Created{Path: c.Path, Text: settled.Text})
+	}
 	// A URL is text in every kind of file, so this rule reads the whole file.
 	if wants(RulePins) {
 		for _, finding := range pins.CheckPath(req.Path, text) {
@@ -341,6 +350,7 @@ func openFile(req Request, kind fixer.Kind) *fixer.File {
 		Wants:           func(c string) bool { return wants(Rule(c)) },
 		Keeps:           keepsOf(req),
 		MaxCommentLines: req.MaxCommentLines,
+		Creates:         !req.OneFile && !req.Scope.Bounded && (req.Owned == nil || req.Owned.All()),
 	}
 	if kind == fixer.Workflow {
 		opts = workflow.Options(opts)
@@ -485,5 +495,21 @@ func FixFileWith(path string, req Request) (Repair, error) {
 	if !repair.Changed {
 		return repair, nil
 	}
+	if err := writeCreated(repair.Created); err != nil {
+		return repair, err
+	}
 	return repair, commentfix.WriteFile(path, repair.Text)
+}
+
+// writeCreated writes each new file a repair depends on, with its directories.
+func writeCreated(created []fixer.Created) error {
+	for _, c := range created {
+		if err := os.MkdirAll(filepath.Dir(c.Path), 0o755); err != nil {
+			return err
+		}
+		if err := commentfix.WriteFile(c.Path, c.Text); err != nil {
+			return err
+		}
+	}
+	return nil
 }
