@@ -368,21 +368,6 @@ func closingClause(s *syntax.Sentence, i int) bool {
 	return i+1 < len(s.Words) && s.Words[i+1].Lower() == "that"
 }
 
-// spacedDash is a dash with a blank on each side, which opens or closes an aside.
-var spacedDash = regexp.MustCompile(`\s(?:—|–|--)\s`)
-
-// dashAsides answers each aside between a pair of spaced dashes, from the
-// blank before the first dash to the blank after the second. A lone dash pairs
-// with nothing and stays a seam.
-func dashAsides(source string) [][]int {
-	dashes := spacedDash.FindAllStringIndex(source, -1)
-	var out [][]int
-	for i := 0; i+1 < len(dashes); i += 2 {
-		out = append(out, []int{dashes[i][0], dashes[i+1][1]})
-	}
-	return out
-}
-
 // beforeSubordinate divides at ", and" when a subordinate clause and then a main
 // clause follow it, as in ", and if the cache is cold, the build waits".
 func beforeSubordinate(s *syntax.Sentence, source string) []division {
