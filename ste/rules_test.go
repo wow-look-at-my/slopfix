@@ -64,6 +64,18 @@ func TestParenthesesCountAsOneWord(t *testing.T) {
 	assert.Equal(t, WordCount(strip("The §9 trigger fires.")), WordCount(strip("The [§owning-renderer](#9-owning-the-renderer) trigger fires.")))
 }
 
+// An XML character-class list is a literal, not a sentence. It holds no word the
+// cap can weigh, so no division of it is ever a sentence.
+func TestACharacterRangeListIsNotProse(t *testing.T) {
+	list := "[#xF8-#x2FF] | [#x370-#x37D] | [#x37F-#x1FFF] | [#x200C-#x200D] | " +
+		"[#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | " +
+		"[#xFDF0-#xFFFD] | [#x10000-#xEFFFF]"
+	assert.Equal(t, 0, WordCount(strip(list)))
+	assert.Empty(t, Check(list, 37))
+	// The control: words beside a range are still weighed.
+	assert.Positive(t, WordCount(strip(list+" are the characters a name starts with.")))
+}
+
 func TestSplicesTheReferenceRuleReports(t *testing.T) {
 	cases := map[string]string{
 		"bare":            "The file is short, it fits on one screen.",

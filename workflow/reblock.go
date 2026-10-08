@@ -95,7 +95,7 @@ func filtered(push *yaml.Node) *yaml.Node {
 	return &out
 }
 
-// lastTriggerRow answers the last row the on: value covers: the row before the
+// lastTriggerRow answers the last row the on: value covers. The row before the
 // next top-level key, less the blank and comment rows that close the gap.
 func lastTriggerRow(rows []string, root, key *yaml.Node) int {
 	end := len(rows) - 1

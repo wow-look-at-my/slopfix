@@ -7,7 +7,7 @@
 // renders the choices instead, so the model has to have thought them through.
 //
 // A Stop hook cannot do this job. It runs AFTER the message streams, so
-// refusing unsends nothing: the retype puts the decision back into prose and
+// refusing unsends nothing. The retype puts the decision back into prose and
 // fires the guard again, with no bound.
 //
 // displayContent is display-only: it replaces the delta on screen without
@@ -53,14 +53,14 @@ type Result struct {
 }
 
 // Run reads a MessageDisplay payload from r. An empty Stdout means print
-// nothing, which shows the original text.
+// nothing, which shows the text.
 func Run(r io.Reader) Result {
 	return Result{Stdout: run(r)}
 }
 
 // run decides what this flush renders as. An empty return means print nothing.
 //
-// The message is judged whole, on its last flush: a question can span a line
+// The message is judged whole, on its last flush. A question can span a line
 // wrap, so judging a flush alone would miss it and mark the message again.
 func run(r io.Reader) string {
 	data, err := io.ReadAll(r)

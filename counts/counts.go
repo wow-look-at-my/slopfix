@@ -117,6 +117,10 @@ func Edits(content string, hits []Hit) []edit.Edit {
 		if loadBearing(content, hit.Start, hit.End) {
 			continue
 		}
+		if e, ok := LabelAt(content, hit.Start, nil); ok {
+			out = append(out, e)
+			continue
+		}
 		if e, ok := reword(content, hit); ok {
 			out = append(out, e)
 			if more, ok := elided(content, hit, hits); ok {
@@ -229,7 +233,7 @@ type proseLine struct {
 }
 
 // proseLines returns the lines markdown.Split marks as prose, each with its
-// byte offset, so a phrase found there can be cut out of the document.
+// byte offset. A phrase found there can be cut out of the document.
 func proseLines(content string) []proseLine {
 	lines := strings.Split(content, "\n")
 	offsets := make([]int, len(lines))

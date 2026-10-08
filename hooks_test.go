@@ -34,8 +34,8 @@ func TestEveryRuleHasAHomeAndEveryHomeNamesARealRule(t *testing.T) {
 	}
 }
 
-// The negative control. A rule really added to the universe is really unhomed,
-// so the case above passes on coverage rather than on an empty walk.
+// The negative control. A rule added to the universe is unhomed, so the case
+// above passes on coverage rather than on an empty walk.
 func TestAnUnhomedRuleIsCaught(t *testing.T) {
 	homed := set.New[string]()
 	for _, hook := range slopfix.Hooks() {

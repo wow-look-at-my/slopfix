@@ -109,7 +109,7 @@ OUT=`+scratch+`/out.log
 echo x > "$OUT"`)
 }
 
-// The narrowing's own control: the spellings of `set` that really do rebind
+// The narrowing's own control: the spellings of `set` that do rebind
 // parameters still turn resolution off, so the same redirect denies.
 func TestParameterSettingSetStillDisablesVariableResolution(t *testing.T) {
 	scratch := t.TempDir()

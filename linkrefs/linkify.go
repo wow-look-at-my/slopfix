@@ -1,13 +1,13 @@
 // linkify.go turns a reference into the URL a reader can open.
 //
 // The rule it serves is not "put a link on everything". A link is a demand to
-// stop reading and move your hand, and the reader pays that cost before they
-// know whether it was worth paying. So a reference whose target cannot be shown
-// to exist is left as plain text. Silence is the correct answer there, never a
+// stop reading and move your hand. The reader pays that cost before they know
+// whether it was worth paying. So a reference whose target cannot be shown to
+// exist is left as plain text. Silence is the correct answer there, never a
 // guess at a URL.
 //
-// Everything here runs in the render path, so each git call is bounded and only
-// made when a token actually needs it.
+// Everything here runs in the render path, so each git call is bounded and
+// only made when a token needs it.
 package linkrefs
 
 import (
@@ -448,9 +448,9 @@ func lookupPull(repo Repo, number string) PullState {
 	return s
 }
 
-// askPull reads the pull request's own fields, then the checks on its head.
-// It never asks for statusCheckRollup: a fine-grained token cannot read the
-// Checks API on a private repository, and that one field fails the whole query.
+// askPull reads the pull request's own fields, then the checks on its head. It
+// never asks for statusCheckRollup. A fine-grained token cannot read the Checks
+// API on a private repository, and that one field fails the whole query.
 func askPull(repo Repo, number string) PullState {
 	slug := repo.Owner + "/" + repo.Name
 	out, ok := gh(ghTimeout, "pr", "view", number, "-R", slug, "--json", "state,mergeable,mergeStateStatus,headRefOid")
@@ -529,7 +529,7 @@ func mergeStateChecks(mergeState string) []string {
 // classify turns a pull request's fields into the dot it earns.
 //
 // Order is severity: a merged or closed pull request is finished whatever its
-// checks say, a failing check is a defect, a conflict is a merge-time chore,
+// checks say. A failing check is a defect. A conflict is a merge-time chore,
 // and a run still going is not yet news.
 func classify(v pullView) PullState {
 	switch v.State {

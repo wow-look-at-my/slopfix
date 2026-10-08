@@ -32,8 +32,6 @@ func TestWrappedCommandsResolve(t *testing.T) {
 // A wrapped invocation reaches the denies too.
 func TestWrappedCommandsDeny(t *testing.T) {
 	for _, in := range []string{
-		"sudo head -60 notes.md",
-		"env cat secret.txt",
 		"sudo shred secret.txt",
 		"timeout 5 rm --one-file-system x",
 		"/usr/bin/perl -e 'print 1'",

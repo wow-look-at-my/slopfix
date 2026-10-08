@@ -23,8 +23,8 @@ type postInput struct {
 }
 
 // RunPost answers a PostToolUse payload. A Bash call that PlanRead maps gets
-// its output replaced with the text the Read tool shows for the same lines,
-// and a names the Read calls. Every other payload gets silence.
+// its output replaced with the text the Read tool shows for the same lines.
+// A note names the Read calls. Every other payload gets silence.
 func RunPost(r io.Reader) HookResult {
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -67,8 +67,9 @@ func RunPost(r io.Reader) HookResult {
 	return HookResult{Stdout: encode(payload)}
 }
 
-// readText numbers the lines a Read call returns, the way the Read tool does:
-// the line number, a tab, and the line with a trailing carriage return cut.
+// readText numbers the lines a Read call returns, the way the Read tool does.
+// This also covers the line number, a tab, and the line with a trailing
+// carriage return cut.
 func readText(r ReadArgs) (string, bool) {
 	data, err := os.ReadFile(r.FilePath)
 	if err != nil {

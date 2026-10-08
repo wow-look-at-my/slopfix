@@ -103,7 +103,7 @@ func (w *walker) resolve(wd *syntax.Word) word {
 }
 
 // enterScope swaps in the variable scope of a script the walk is about to
-// follow as a fresh shell, binding $0 to the file it was read from. It
+// follow as a fresh shell. It binds $0 to the file the script came from. It
 // returns the function that restores the caller's scope.
 func (w *walker) enterScope(stmts []*syntax.Stmt, self string) func() {
 	prev, prevUnsafe, prevMulti := w.vars, w.unsafeVars, w.multiVars
@@ -171,7 +171,7 @@ func (w *walker) stmt(st *syntax.Stmt, cwd *string) {
 }
 
 // command dispatches on node type. The cwd pointer is shared only where the
-// shell itself shares it, so a cd carries forward across `&&`, `||` and `;`,
+// shell itself shares it. A cd carries forward across `&&`, `||` and `;`,
 // while a pipe stage, a subshell and a conditional body each get a copy.
 func (w *walker) command(c syntax.Command, cwd *string, rs []redirTarget, stdin bool) {
 	if c == nil || w.full() {
@@ -407,10 +407,9 @@ func shellNoExec(eff []word) bool {
 }
 
 // script parses shell source found inside the command and folds its segments
-// into the same walk, so a deeply nested write is judged like a write at top
-// level.
-// self names the file a fresh shell was started from, and is empty for text
-// that runs in the caller's own scope.
+// into the same walk. So a deeply nested write gets the same verdict as a
+// write at top level. self names the file a fresh shell was started from, and is empty for
+// text that runs in the caller's own scope.
 func (w *walker) script(src, cwd, what, self string) {
 	if w.scriptDepth >= maxScriptDepth {
 		w.block(what + ", nested deeper than this hook will follow")
@@ -437,10 +436,10 @@ func (w *walker) script(src, cwd, what, self string) {
 }
 
 // scriptFile follows a shell script on disk. A script that does not exist writes
-// nothing, so it is left alone; a script that exists and cannot be read or parsed is
-// the write-elsewhere-then-run bypass and denies.
-// fresh marks a script started as a new shell, whose variables are entirely
-// its own text; a sourced file shares the caller's scope and passes false.
+// nothing, so it is left alone. A script that exists and cannot be read or parsed is
+// the write-elsewhere-then-run bypass and denies. fresh marks a script started as a
+// new shell, whose variables are entirely its own text. A sourced file shares the
+// caller's scope and passes false.
 func (w *walker) scriptFile(f word, cwd string, fresh bool) {
 	if !f.static {
 		w.block("a script path built from an expansion, whose writes cannot be resolved")
@@ -513,8 +512,8 @@ func (w *walker) emit(argv []word, cwd string) {
 	w.segs = append(w.segs, segment{argv: eff, cwd: cwd, fromScript: w.fileDepth > 0})
 }
 
-// A command substitution runs its own shell, so its cd is contained, but the
-// command inside is every bit as able to write as a command at top level.
+// A command substitution runs its own shell, so its cd is contained. However,
+// the command inside is every bit as able to write as a command at top level.
 func (w *walker) scanSubst(wd *syntax.Word, cwd string) {
 	if wd == nil || w.full() || w.depth > maxWalkDepth {
 		return

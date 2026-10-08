@@ -9,8 +9,8 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 )
 
-// cmakeSnippet is cut down from a CMakeLists.txt whose fix joined the set, if
-// and endif lines into one paragraph and wrote prose into the code.
+// cmakeSnippet is cut down from a CMakeLists.txt. Its fix joined the set, if
+// and endif lines into one paragraph, and wrote prose into the code.
 const cmakeSnippet = `set(SGL_KERNEL_CUDA_FLAGS
     "-DNDEBUG"
     "--expt-extended-lambda"
@@ -87,7 +87,7 @@ func TestACMakeListfileIsSourceNotProse(t *testing.T) {
 	}
 }
 
-// A '#' inside a bracket argument or a quoted argument is data, and a bracket
+// A '#' inside a bracket argument or a quoted argument is data. A bracket
 // comment is a comment no line rule may cut a piece of.
 func TestCMakeBracketsAndQuotesAreNotLineComments(t *testing.T) {
 	src := "#[[ A bracket comment that names 3 widgets\n" +

@@ -50,17 +50,54 @@ func LabeledToken(_ string, toks []Token, i int) bool {
 	return InClass(strings.Trim(toks[i-1].Text, nameMarkers), "label")
 }
 
+// MeasureToken exempts a number whose plural noun takes a singular verb: "43
+// cols is less than the cap". The phrase is one measured amount, a value of a
+// test or a format, and a cut leaves "cols is".
+func MeasureToken(_ string, toks []Token, i int) bool {
+	if i+2 >= len(toks) || !strings.HasSuffix(strings.ToLower(toks[i+1].Text), "s") {
+		return false
+	}
+	return singularVerbs.Contains(strings.ToLower(toks[i+2].Text))
+}
+
+// WordSizeToken exempts a word size, "32 bits" and its kin. The width is fixed
+// by the machine, so no edit to a set makes it stale.
+func WordSizeToken(_ string, toks []Token, i int) bool {
+	if i+1 >= len(toks) {
+		return false
+	}
+	switch toks[i].Text {
+	case "8", "16", "32", "64", "128":
+		noun := strings.ToLower(toks[i+1].Text)
+		return noun == "bits" || noun == "bit"
+	}
+	return false
+}
+
+// singularVerbs agree with one amount, never with a plural tally.
+var singularVerbs = set.Of("is", "was", "has", "does", "fits", "equals")
+
 // exitStatusPrefixes name the digits after them as a status.
 var exitStatusPrefixes = set.Of("exit", "exits", "exited", "status", "errno", "signal")
 
+// statusNouns carry a status prefix toward its digits, as in "exit code 2".
+var statusNouns = set.Of("code", "codes")
+
 // ExitStatus exempts the digits of an exit status. The rule reports a count of
 // what exists today, because the edit that adds an item leaves the count wrong.
-// A status is a VALUE the program answers with, and no edit moves it.
+// A status is a VALUE the program answers with, and no edit moves it. A noun
+// between the status word and the digits, as in "exit code 2", is part of the
+// same phrase rather than a label the digits name.
 func ExitStatus(_ string, toks []Token, i int) bool {
 	if i == 0 || !allDigits(strings.Trim(toks[i].Text, nameMarkers)) {
 		return false
 	}
-	return exitStatusPrefixes.Contains(strings.ToLower(strings.Trim(toks[i-1].Text, nameMarkers)))
+	prev := strings.ToLower(strings.Trim(toks[i-1].Text, nameMarkers))
+	if exitStatusPrefixes.Contains(prev) {
+		return true
+	}
+	return i >= 2 && statusNouns.Contains(prev) &&
+		exitStatusPrefixes.Contains(strings.ToLower(strings.Trim(toks[i-2].Text, nameMarkers)))
 }
 
 // allDigits reports whether text is a bare run of digits.
@@ -82,9 +119,9 @@ const literalMarkers = `="'`
 // comparisonMarkers close an operator that takes a value: `=`, `<`, `>`, and every operator built from them.
 const comparisonMarkers = `=<>`
 
-// Literal exempts the digits of a value the code is written against: an env
-// marker an assignment sets, the quoted string a parser reads as unset, or the
-// operand of a comparison such as `used > 0`. An added item leaves a count
+// Literal exempts the digits of a value the code is written against. One is an
+// env marker an assignment sets. One is the quoted string a parser reads as
+// unset. One is the operand of a comparison such as `used > 0`. An added item leaves a count
 // wrong, and leaves a value alone.
 func Literal(text string, toks []Token, i int) bool {
 	tok := toks[i]
@@ -266,7 +303,8 @@ func wordNumber(tok Token, words set.Set[string]) (Token, bool) {
 			end++
 		}
 		word := string(runes[i:end])
-		if words.Contains(strings.ToLower(word)) {
+		// A hyphen binds a number word into a compound that names a shape: "two-line".
+		if words.Contains(strings.ToLower(word)) && !letterAt(runes, i-1, -1) && !letterAt(runes, end, 1) {
 			return Token{tok.Offset + offsets[i], word}, true
 		}
 		i = end

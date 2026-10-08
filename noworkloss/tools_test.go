@@ -13,8 +13,8 @@ import (
 )
 
 // The routes that are not Bash at all. Each keeps the same pair as the shell
-// cases: the call that must be refused, and the neighbouring call that must
-// still work, so a rule that denied the whole tool would fail the control.
+// cases. One call must be refused, and the neighbouring call must still work.
+// A rule that denied the whole tool would fail the control.
 
 func TestTheEditToolsThemselvesAreLeftAlone(t *testing.T) {
 	root := newTree(t)
@@ -164,7 +164,7 @@ func TestTheRestoreLeavesTheIndexAlone(t *testing.T) {
 }
 
 // Committing the removal frees nothing. A deletion committed only to get past
-// the refusal is the same evasion one step later, so the file comes back from
+// the refusal is the same evasion one step later. The file comes back from
 // the commit before the deletion and the Write is refused with its price.
 func TestACommittedDeletionDoesNotFreeThePathForWrite(t *testing.T) {
 	for _, tc := range []struct {
@@ -380,7 +380,7 @@ func TestNothingIsWrittenForAnAllowedCall(t *testing.T) {
 func TestOtherEventsAndToolsAreIgnored(t *testing.T) {
 	root := newTree(t)
 	for _, event := range []string{"PostToolUse", "Stop", "SessionStart", ""} {
-		assert.Empty(t, decideWithEvent(t, event, "Bash", root, "sed -i s/a/b/ src.txt"),
+		assert.Empty(t, decideWithEvent(t, event, "Bash", root, "truncate -s 0 src.txt"),
 			"%s is not this hook's event", event)
 	}
 	assert.Empty(t, ask(t, root, ""), "an empty command decides nothing")

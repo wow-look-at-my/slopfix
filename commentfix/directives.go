@@ -15,18 +15,94 @@ func capLines(b block, maxLines int) []string {
 	if len(body) > 0 {
 		closer = body[len(body)-1]
 	}
-	for len(body) > maxLines {
+	// A closer on its own line comes back after a cut, so it takes a line of the cap.
+	limit := maxLines
+	if strings.TrimSpace(closer) == "*/" {
+		limit--
+	}
+	// Rewrite the prose to its budget before any cut. A block the rewrite brings
+	// under the cap keeps every thought it had.
+	if len(body) > limit {
+		if fitted, ok := fitVolume(body, limit); ok {
+			body = fitted
+		}
+	}
+	for len(body) > limit {
 		next, ok := cutLastThought(body)
 		if !ok {
 			break
 		}
 		body = next
 	}
+	if len(body) > limit {
+		body = dropToSentenceEnd(body, limit)
+	}
+	// With no sentence end to cut at, the opening sentence stays, divided where it runs past the STE cap.
+	if len(body) > limit {
+		opening, whole := steOpening(body, func(sentence, indent, marker string) ([]string, bool) {
+			out := reflow(sentence, indent, marker, wrapWidth)
+			return out, len(out) <= limit
+		}, true)
+		if whole && len(opening) <= limit {
+			body = opening
+		}
+	}
+	// Every rewrite has run, so the line the cap keeps is trimmed back to its
+	// last sentence end.
+	if len(body) > limit {
+		if trimmed, ok := trimBodyToSentenceEnd(body, limit); ok {
+			body = trimmed
+		}
+	}
 	body = reclosed(body, closer)
 	out := make([]string, 0, len(lead)+len(body)+len(trail))
 	out = append(out, lead...)
 	out = append(out, body...)
 	return append(out, trail...)
+}
+
+// dropToSentenceEnd drops whole lines from the end of body until no more than
+// maxLines are left and the last line ends a sentence. With no such line, body
+// stays as it is, for a rewrite by hand.
+func dropToSentenceEnd(body []string, maxLines int) []string {
+	for n := min(maxLines, len(body)); n > 0; n-- {
+		last := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(stripMarker(body[n-1])), "*/"))
+		if isBlankComment(body[n-1]) || !endsSentence(last) {
+			continue
+		}
+		return body[:n]
+	}
+	return body
+}
+
+// trimBodyToSentenceEnd keeps the first maxLines lines of a body. It trims the
+// last of them back to its last sentence end, keeping a closer that follows it.
+// It reports false when that line holds no sentence end.
+func trimBodyToSentenceEnd(body []string, maxLines int) ([]string, bool) {
+	if maxLines <= 0 || len(body) <= maxLines {
+		return nil, false
+	}
+	kept := append([]string{}, body[:maxLines]...)
+	trimmed, ok := trimLineToSentenceEnd(kept[maxLines-1])
+	if !ok {
+		return nil, false
+	}
+	kept[maxLines-1] = trimmed
+	return reclosed(kept, body[len(body)-1]), true
+}
+
+// trimLineToSentenceEnd removes whatever follows the last sentence end on a
+// comment line, keeping a block closer that follows it.
+func trimLineToSentenceEnd(line string) (string, bool) {
+	cut := strings.LastIndexAny(line, ".!?")
+	if cut < 0 {
+		return "", false
+	}
+	trimmed := line[:cut+1]
+	if rest := line[cut+1:]; strings.Contains(rest, "*/") {
+		trimmed += " */"
+	}
+	return trimmed, true
 }
 
 // reclosed puts back the */ a cut took with the last thought, so the code
@@ -49,58 +125,9 @@ func reclosed(body []string, closer string) []string {
 }
 
 // CapLines cuts a comment run from its end until no more than maxLines of its
-// lines are prose, the way the length repair cuts. With no sentence left to cut
-// it drops whole lines, and closes the last sentence it keeps.
+// lines are prose, the way the length repair cuts.
 func CapLines(text []string, maxLines int) []string {
-	out := capLines(block{text: text}, maxLines)
-	lead, body, trail := splitDirectives(out)
-	if len(body) <= maxLines {
-		return out
-	}
-	closer := body[len(body)-1]
-	ends := strings.HasSuffix(strings.TrimSpace(closer), "*/")
-	keep := maxLines
-	if ends && strings.TrimSpace(closer) == "*/" {
-		keep--
-	}
-	body = append([]string{}, body[:max(keep, 1)]...)
-	for len(body) > 1 && isBlankComment(body[len(body)-1]) {
-		body = body[:len(body)-1]
-	}
-	for len(body) > 1 {
-		if closed, ok := closeLine(body[len(body)-1]); ok {
-			body[len(body)-1] = closed
-			break
-		}
-		body = body[:len(body)-1]
-	}
-	// A block comment keeps its closer, or the code under it reads as comment.
-	switch {
-	case !ends || strings.HasSuffix(strings.TrimSpace(body[len(body)-1]), "*/"):
-	case strings.TrimSpace(closer) == "*/":
-		body = append(body, closer)
-	default:
-		body[len(body)-1] += " */"
-	}
-	return append(append(append([]string{}, lead...), body...), trail...)
-}
-
-// closeLine ends a comment line as a sentence. It drops the words that open
-// what the cut took away, and reports false when no word is left.
-func closeLine(line string) (string, bool) {
-	if endsSentence(line) {
-		return line, true
-	}
-	words := strings.Fields(stripMarker(line))
-	for len(words) > 0 && dangling.Contains(strings.ToLower(trimWord(words[len(words)-1]))) {
-		words = words[:len(words)-1]
-	}
-	if len(words) == 0 {
-		return line, false
-	}
-	last := words[len(words)-1]
-	cut := strings.LastIndex(line, last) + len(last)
-	return strings.TrimRight(line[:cut], ",;:-—") + ".", true
+	return capLines(block{text: text}, maxLines)
 }
 
 // splitDirectives separates a block's tool lines from its prose. A directive

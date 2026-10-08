@@ -254,7 +254,7 @@ func TestANamedIDRepairsThatRuleAlone(t *testing.T) {
 	assert.NotEqual(t, semicolon.Text, contraction.Text)
 }
 
-// A finding outside the named ID is neither repaired nor reported, so a caller
+// A finding outside the named ID is neither repaired nor reported. A caller
 // that asks for a rule is not handed the rest of the category. The named rule
 // itself is repaired and reports nothing afterwards.
 func TestANamedIDLeavesTheRestOfItsCategoryAlone(t *testing.T) {

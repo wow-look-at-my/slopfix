@@ -19,8 +19,8 @@ import (
 const IDSection = "counts/section-number"
 
 // A section number goes stale the moment a section is inserted above it. The
-// repair cites the section by a slug of its title and links to its heading,
-// so the citation names the section and keeps naming it.
+// repair cites the section by a slug of its title and links to its heading.
+// The citation names the section and keeps naming it.
 
 var (
 	headingLine = regexp.MustCompile(`^#{1,6}\s+(.+?)\s*#*\s*$`)

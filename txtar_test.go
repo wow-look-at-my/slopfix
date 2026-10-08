@@ -8,8 +8,8 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 )
 
-// script is a cmd/go script test: commands, comments and archive files.
-const script = `# The first CI build of the run resolves each head and locks it. go.mod keeps
+// txtarScript is a cmd/go script test: commands, comments and archive files.
+const txtarScript = `# The first CI build of the run resolves each head and locks it. go.mod keeps
 # the placeholder.
 cd $WORK/m
 cp go.mod $WORK/m.go.mod
@@ -43,9 +43,9 @@ func TestAScriptTestIsNotADocument(t *testing.T) {
 		"internal/x/testdata/case.txtar",
 	} {
 		t.Run(path, func(t *testing.T) {
-			repair := slopfix.Fix(slopfix.Request{Path: path, Content: script})
-			assert.Equal(t, commands(script), commands(repair.Text))
-			for _, finding := range slopfix.CheckContent(path, script) {
+			repair := slopfix.Fix(slopfix.Request{Path: path, Content: txtarScript})
+			assert.Equal(t, commands(txtarScript), commands(repair.Text))
+			for _, finding := range slopfix.CheckContent(path, txtarScript) {
 				assert.NotEqual(t, slopfix.IDHardWrap, finding.ID)
 				assert.NotEqual(t, "ste/sentence-length", finding.ID)
 			}
@@ -55,6 +55,6 @@ func TestAScriptTestIsNotADocument(t *testing.T) {
 
 // The negative control: a text file outside a script directory is a document.
 func TestATextFileElsewhereIsStillADocument(t *testing.T) {
-	repair := slopfix.Fix(slopfix.Request{Path: "notes/lock.txt", Content: script})
-	assert.NotEqual(t, commands(script), commands(repair.Text))
+	repair := slopfix.Fix(slopfix.Request{Path: "notes/lock.txt", Content: txtarScript})
+	assert.NotEqual(t, commands(txtarScript), commands(repair.Text))
 }

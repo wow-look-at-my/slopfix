@@ -7,6 +7,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/laziness"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // IDInventoryCount names the stale-count rule over a document.
@@ -63,7 +64,7 @@ var hooks = []Hook{
 		Event:   "build",
 		Runs:    "slopfix check .",
 		Summary: "what a comment gets wrong, in any language the adapter knows",
-		Only:    []string{IDCommentNumber, commentfix.IDTail, commentfix.IDLength},
+		Only:    []string{IDCommentNumber, commentfix.IDTail, commentfix.IDLength, ste.IDSentenceCap},
 	},
 	{
 		Name:    "ci check",
@@ -137,14 +138,11 @@ func Selects(hook Hook) set.Set[string] {
 	return ids
 }
 
-// EveryRuleID is every rule this repository reports, whichever command reaches
-// it. The check path answers for part of it, and the repair categories and the
-// comment rule answer for the rest.
+// EveryRuleID is every rule the registry holds, whichever command reaches it.
 func EveryRuleID() set.Set[string] {
-	every := AllIDs()
-	for _, rule := range AllRules {
-		every = every.Union(IDsFor(rule))
+	every := set.New[string]()
+	for _, rule := range AllRuleSpecs() {
+		every.Add(rule.ID)
 	}
-	every.AddRange(IDCommentNumber, IDPunt, IDBlame, IDAsk)
 	return every
 }

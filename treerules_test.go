@@ -284,7 +284,7 @@ const namespacedXSD = `<?xml version="1.1" encoding="UTF-8"?>
 </xs:schema>
 `
 
-// The hint is read from the parsed root, as XSD defines it: the
+// The hint is read from the parsed root, as XSD defines it. This covers the
 // xsi:schemaLocation pair for the root's own namespace, with xsi matched by
 // URI. Text that only looks like a hint is not one.
 func TestANamespacedSchemaHintIsReadFromTheParsedRoot(t *testing.T) {

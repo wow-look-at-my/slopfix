@@ -17,7 +17,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// gitT runs git in dir with no user or system config, so a signing key or a
+// gitT runs git in dir with no user or system config. A signing key or a
 // hook on the machine cannot change what the test sees.
 func gitT(t *testing.T, dir string, args ...string) string {
 	t.Helper()
@@ -248,8 +248,8 @@ func TestKeepPutsBackEveryChangeToAnInheritedLine(t *testing.T) {
 	assert.Equal(t, "a\nb\nc", Keep("a\nb\nc", "a\nB\nc\n", OfLines(1)), "a line end is a change to its line")
 }
 
-// A change that replaces a couple of lines with a couple of lines pairs
-// them, so the fork's line lands although the inherited line beside it goes back.
+// A change that replaces a couple of lines with a couple of lines pairs them.
+// The fork's line lands, but the inherited line beside it goes back.
 func TestKeepTakesEachPairedLineAlone(t *testing.T) {
 	before := "fork: 2 hits\nbase: Two jobs\nbase: rest\n"
 	after := "fork: Hits\nbase: Jobs\nbase: rest\n"
@@ -381,9 +381,9 @@ func TestAListedForkReportsOnlyTheLinesItWrote(t *testing.T) {
 	assert.Equal(t, []int{3}, held(own, fx.fork, "loose.md", 3))
 }
 
-// An upstream that carries no tags names no release to measure from, so a
-// listed fork is measured against that upstream's default branch instead, and
-// is scoped exactly as the parent-merge-base path scopes it.
+// An upstream that carries no tags names no release to measure from. A listed
+// fork is measured against that upstream's default branch instead, and is
+// scoped exactly as the parent-merge-base path scopes it.
 func TestAListedForkWhoseUpstreamHasNoTagsIsMeasuredFromItsBranch(t *testing.T) {
 	fx := newForkFixture(t)
 	own := scoped(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))

@@ -9,8 +9,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// commentProse joins the prose of every line comment in src.
-func commentProse(src string) string {
+// joinedProse joins the prose of every line comment in src.
+func joinedProse(src string) string {
 	var words []string
 	for _, line := range strings.Split(src, "\n") {
 		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "//")
@@ -41,8 +41,8 @@ func TestALengthCutNeverWritesAFragment(t *testing.T) {
 			"func replacementFrom() {}\n",
 	} {
 		out, _ := FixLength("x.go", src)
-		before := commentProse(src)
-		for _, sentence := range ste.Sentences(commentProse(out)) {
+		before := joinedProse(src)
+		for _, sentence := range ste.Sentences(joinedProse(out)) {
 			assert.Contains(t, before, strings.TrimSpace(sentence), "the cut wrote a sentence the source never ended there:\n%s", out)
 		}
 	}

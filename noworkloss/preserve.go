@@ -193,10 +193,10 @@ func branchName(root string) string {
 	return name
 }
 
-// notice reports the preservation. The commit is on the branch, so it is
+// notice reports the preservation. The commit is on the branch. It is
 // visible in the log without this -- but a commit the session did not write
 // itself must still be announced. label is the finding's own name for the
-// command that would have destroyed the content; summary is the same
+// command that would have destroyed the content. Summary is the same
 // tracked/untracked/ignored breakdown a denial would have shown.
 func (r *preserveResult) notice(label, summary string) string {
 	if r.pushed {
@@ -221,9 +221,9 @@ func isProtectedRef(ref string) bool {
 }
 
 // protectedRefFinding is the unconditional denial for a command that names a
-// preservation ref. It skips the reachability question entirely: a ref under
-// protectedRefPrefix is by definition the only place its content survives, so
-// asking "does it exist somewhere else" would always answer no in the way
+// preservation ref. It skips the reachability question entirely. A ref under
+// protectedRefPrefix is by definition the only place its content survives.
+// Asking "does it exist somewhere else" would always answer no in the way
 // that matters and yes in the way that does not (the ref itself, trivially).
 func protectedRefFinding(dir, label string) *finding {
 	return &finding{

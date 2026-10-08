@@ -15,7 +15,20 @@ func surfaceOf(where string) string {
 	return "comment"
 }
 
-// A cut takes the punctuation the parse says attaches the phrase: the comma
+// A cut that takes a sentence's verb drops what is left of that sentence, and
+// a sentence the cut emptied leaves no stray stop.
+func TestACutNeverLeavesAFragment(t *testing.T) {
+	assert.Equal(t, "It carried no rule.", dropFragments(
+		"example-plugin was deleted on purpose. It carried no rule.",
+		"example-plugin. It carried no rule."))
+	assert.Equal(t, "The walk could not be repaired from.", dropFragments(
+		"It replaced a line walk. The walk could not be repaired from.",
+		". The walk could not be repaired from."))
+	assert.Equal(t, "The cache reads the file.", dropFragments(
+		"The cache reads the file.", "The cache reads the file."), "a sentence that keeps its verb stays")
+}
+
+// A cut takes the punctuation the parse says attaches the phrase. The comma
 // before a phrase that ends its clause, the comma after one that opens it, and
 // both commas round one in the middle.
 func TestACutTakesThePunctuationThatAttachesThePhrase(t *testing.T) {
@@ -27,10 +40,16 @@ func TestACutTakesThePunctuationThatAttachesThePhrase(t *testing.T) {
 	assert.Equal(t, "Keep 1,.5 as written.", Fix("Keep 1,.5 as written.", Document), "no cut, no change")
 }
 
-// Every entry declares its own worked examples, and each has to fire. Without
-// this an entry that stopped matching -- a typo, a phrase the boundary rule
-// rejects, a rewrite shadowed by a drop -- would sit in the table looking
-// enforced while doing nothing.
+// A cut that takes a clause through its period leaves no mark before that period.
+func TestACutToThePeriodLeavesNoMarkBeforeIt(t *testing.T) {
+	assert.Equal(t, "The explicit gesture passes `true`. Returns whether anything moved.", Fix(
+		"The explicit gesture passes `true`: the user asked for everything they can see. Returns whether anything moved.", Comment))
+}
+
+// Every entry declares its own worked examples, and each has to fire. An entry
+// can stop matching through a typo, a phrase the boundary rule rejects, or a
+// rewrite a drop shadows. Without this test, that entry looks enforced and
+// does nothing.
 func TestEveryDropFires(t *testing.T) {
 	require.NotEmpty(t, Drops())
 	for _, d := range Drops() {
@@ -79,7 +98,7 @@ func TestEveryShapeFires(t *testing.T) {
 	}
 }
 
-// A <test> under the table's root belongs to no entry: it states what the
+// A <test> under the table's root belongs to no entry. It states what the
 // repair writes for a whole line, which is where prose reaching several
 // entries, or reaching none, is said.
 func TestEveryWholeLineCaseHolds(t *testing.T) {

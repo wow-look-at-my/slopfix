@@ -46,33 +46,13 @@ const (
 	RulePins Rule = "pins"
 )
 
-// AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleEnglish, RuleComments, RuleWorkflow, RuleRepo, RulePins}
+// AllRules is every category the registry uses, in the order a rule declared it.
+var AllRules []Rule
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
 func IDsFor(rule Rule) set.Set[string] {
-	switch rule {
-	case RuleTombstones:
-		return tombstones.AllIDs()
-	case RuleCounts:
-		return set.Of(counts.ID, counts.IDSection)
-	case RuleWrap:
-		return set.Of(IDHardWrap, IDLongBlock)
-	case RuleSTE:
-		return ste.AllIDs
-	case RuleEnglish:
-		return set.Of(english.AllIDs...)
-	case RuleComments:
-		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
-	case RuleWorkflow:
-		return workflow.AllIDs
-	case RuleRepo:
-		return RepoIDs
-	case RulePins:
-		return pins.AllIDs
-	}
-	return set.New[string]()
+	return ruleIDsIn(rule)
 }
 
 // Request is a piece of text put to Fix. Path decides the comment syntax, and
@@ -137,7 +117,7 @@ func Fix(req Request) Repair {
 	after := Fix(landed)
 	repair.Findings, repair.Kept = after.Findings, after.Kept
 	repair = scoped(repair, forkscope.Carry(req.Content, text, req.Owned), owned)
-	return upstreamRuns(req.Owned, repair.Text, repair)
+	return upstreamRuns(req, req.Owned, repair.Text, repair)
 }
 
 // fixBlock repairs rows first to last of text with every rule but the run
@@ -288,6 +268,11 @@ func fixText(req Request) Repair {
 
 	switch kind {
 	case fixer.Workflow:
+		// A long sentence in a workflow comment is an STE rule, so --only ste
+		// reaches it even when the run omits the yaml category.
+		if wants(RuleSTE) && keeps(ste.IDSentenceCap) {
+			repair.Findings = append(repair.Findings, sentenceFindings(req.Path, text)...)
+		}
 		if !wants(RuleWorkflow) {
 			break
 		}
@@ -300,21 +285,28 @@ func fixText(req Request) Repair {
 		// Source keeps its own text for the prose rules, because a comma splice
 		// inside a code line is not a sentence.
 		// The number and tail rules report what their repair leaves, so check names what fix rewrites.
-		if wants(RuleComments) {
-			for _, finding := range commentFindings(req.Path, text) {
-				if finding.ID != commentfix.IDLength && keeps(finding.ID) {
-					repair.Findings = append(repair.Findings, finding)
-				}
+		for _, finding := range commentFindings(req.Path, text) {
+			// The sentence cap is an STE rule, so the STE selection reaches it in a comment too.
+			family := RuleComments
+			if finding.ID == ste.IDSentenceCap {
+				family = RuleSTE
+			}
+			if wants(family) && finding.ID != commentfix.IDLength && keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
 			}
 		}
 		if wants(RuleComments) && keeps(commentfix.IDLength) {
 			for _, hit := range commentfix.CheckLength(req.Path, text) {
-				repair.Kept = append(repair.Kept, tombstones.Hit{
+				kept := tombstones.Hit{
 					ID:     hit.ID,
 					Tell:   hit.Tell,
 					Phrase: hit.Sentence,
 					LineNo: hit.Line,
-				})
+				}
+				if !hit.Repairable {
+					kept.Fix = commentfix.FixLengthByHand
+				}
+				repair.Kept = append(repair.Kept, kept)
 			}
 		}
 	case fixer.Document:
@@ -370,7 +362,7 @@ func Report(req Request) Repair {
 		return repair
 	}
 	repair = scoped(repair, req.Owned, widened(req))
-	return upstreamRuns(req.Owned, req.Content, repair)
+	return upstreamRuns(req, req.Owned, req.Content, repair)
 }
 
 // reportAll is Report with no regard to the lines a fork wrote.
@@ -480,7 +472,7 @@ func FixFile(path string) (Repair, error) {
 // reports what it did.
 //
 // The Content and Path of req are the file's, whatever the caller put there.
-// Everything else is the caller's: a run that names a rule on the command line
+// Everything else is the caller's. A run that names a rule on the command line
 // has to reach the repair, or the selection is silently ignored.
 func FixFileWith(path string, req Request) (Repair, error) {
 	content, err := os.ReadFile(path)

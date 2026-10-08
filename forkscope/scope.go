@@ -33,6 +33,29 @@ func Whole() *Scope { return &Scope{whole: true} }
 // OfLines is the Scope of the named lines.
 func OfLines(lines ...int) *Scope { return &Scope{lines: set.Of(lines...)} }
 
+// Intersect answers the lines both a and b name. A scope of the whole file
+// leaves the other, so a file one side wrote whole keeps the other's lines.
+// The base of the first scope that holds one answers Base.
+func Intersect(a, b *Scope) *Scope {
+	switch {
+	case a == nil:
+		return b
+	case b == nil:
+		return a
+	case a.whole:
+		return b
+	case b.whole:
+		return a
+	}
+	out := &Scope{lines: a.lines.Intersection(b.lines)}
+	if a.base != nil {
+		out.base = a.base
+	} else {
+		out.base = b.base
+	}
+	return out
+}
+
 // All reports whether the fork wrote every line.
 func (s *Scope) All() bool { return s.whole }
 
@@ -86,8 +109,83 @@ func (s *Scope) Widen(text string) *Scope {
 	return out
 }
 
-// Blocks answers the first and last line, counted from one, of each
-// paragraph or list item of the document text that holds a line s names.
+// WidenComments answers s with every line of each comment run the fork grew. A
+// prose rule rewrites a comment run whole, and a fork that made the run long is
+// the one the sweep is for. The run is the fork's to repair. A run the fork
+// left at its base length is the base's, and stays as it is.
+func (s *Scope) WidenComments(text string) *Scope {
+	if s.whole {
+		return s
+	}
+	base, err := s.Base()
+	if err != nil {
+		return s
+	}
+	runs := commentRuns(text)
+	out := &Scope{lines: set.New[int](), base: s.base}
+	for n := range s.lines.All() {
+		out.lines.Add(n)
+	}
+	for n := range s.lines.All() {
+		if n < 1 || n > len(runs) || runs[n-1] < 0 {
+			continue
+		}
+		id := runs[n-1]
+		first, last := n, n
+		for first > 1 && runs[first-2] == id {
+			first--
+		}
+		for last < len(runs) && runs[last] == id {
+			last++
+		}
+		if len(Grown(base, text, first, last)) == 0 {
+			continue
+		}
+		for i, r := range runs {
+			if r == id {
+				out.lines.Add(i + 1)
+			}
+		}
+	}
+	return out
+}
+
+// commentRuns answers the comment run of each line of text, counted from one,
+// and a negative id for a line of code. Lines of one run are the consecutive
+// comment lines a prose rule rewrites together.
+func commentRuns(text string) []int {
+	lines := splitLines(text)
+	out := make([]int, len(lines))
+	run, inBlock := -1, false
+	for i, line := range lines {
+		t := strings.TrimSpace(line)
+		comment := false
+		switch {
+		case inBlock:
+			comment = true
+			inBlock = !strings.Contains(t, "*/")
+		case strings.HasPrefix(t, "/*"):
+			comment = true
+			inBlock = !strings.Contains(t, "*/")
+		case strings.HasPrefix(t, "//"):
+			comment = true
+		case strings.HasPrefix(t, "#") && !strings.HasPrefix(t, "#!") && !strings.HasPrefix(t, "#["):
+			comment = true
+		}
+		if !comment {
+			out[i] = -1
+			continue
+		}
+		if i == 0 || out[i-1] < 0 {
+			run++
+		}
+		out[i] = run
+	}
+	return out
+}
+
+// Blocks answers the first and last line of some paragraphs and list items.
+// Each holds a line s names. The count of lines starts from one.
 func Blocks(text string, s *Scope) [][2]int {
 	var out [][2]int
 	blocks := blocksOf(text)
@@ -192,7 +290,7 @@ func Carry(before, after string, s *Scope) *Scope {
 	if s.whole {
 		return Whole()
 	}
-	out := &Scope{}
+	out := &Scope{base: s.base}
 	for _, op := range opcodes(before, after) {
 		for j := op.J1; j < op.J2; j++ {
 			if op.Tag != 'e' || s.Owns(op.I1+j-op.J1+1) {

@@ -43,7 +43,7 @@ func TestATrailingCommentInsideABodyLosesItsLines(t *testing.T) {
 // A directive in the run is an instruction the prose beside it explains, so it
 // is what the prose is weighed against. A gen.go carries nothing but a
 // //go:generate line and the paragraph saying why, and the deletion above
-// would have taken that paragraph on every run.
+// would have taken that paragraph. This happens on every run.
 func TestProseBesideADirectiveIsWeighedAgainstIt(t *testing.T) {
 	src := "package p\n\n// A module zip carries the gitlink and none of the submodule's files, so a\n" +
 		"// consumer has to fetch the sources before anything can translate them.\n" +
@@ -70,7 +70,7 @@ func TestADirectiveSurvivesTheCut(t *testing.T) {
 }
 
 // The control. A comment that DOES document code is cut back to fit rather than
-// deleted, so the case above is about the measure and not about comments.
+// deleted. The case above is about the measure and not about comments.
 func TestACommentOverItsBudgetIsCutRatherThanDeleted(t *testing.T) {
 	src := "package p\n\n// The point.\n//\n// Then a paragraph of elaboration that runs well past the length of the\n// declaration it sits above, several lines of it, saying little.\nconst a = 1\n"
 

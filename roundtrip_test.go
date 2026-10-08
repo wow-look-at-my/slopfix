@@ -127,7 +127,7 @@ func roundTripFixtures() []fixture {
 
 // Every rule slopfix REPORTS, slopfix REPAIRS. A rule the fixer cannot answer
 // leaves the reader ways out, and the org allows neither: hand-edit the
-// prose, or delete the file. documents were deleted over exactly this.
+// prose, or delete the file.
 //
 // So the property is the whole contract: fix, then check, and find nothing.
 func TestFixLeavesNoFindingBehind(t *testing.T) {
@@ -148,7 +148,7 @@ func TestFixLeavesNoFindingBehind(t *testing.T) {
 	}
 }
 
-// The same property through the file path a caller actually runs: `slopfix fix`
+// The same property through the file path a caller runs: `slopfix fix`
 // rewrites the file, and `slopfix check` on what it wrote reports nothing.
 func TestFixingAFileLeavesNothingForCheckToReport(t *testing.T) {
 	for _, f := range roundTripFixtures() {
@@ -167,13 +167,13 @@ func TestFixingAFileLeavesNothingForCheckToReport(t *testing.T) {
 	}
 }
 
-// A number said in words is longer than the number, so the comment rewrite can
-// put a block back over the budget the length cut had just brought it under.
-// The cut runs before the rewrite, so the file came out of a single pass still
-// carrying the finding, and the caller had to know to run fix again.
+// A number said in words is longer than the number. The comment rewrite can
+// put a block back over the budget the length cut had brought it under. The
+// cut runs before the rewrite, so the file came out of a single pass still
+// carrying the finding. The caller had to know to run fix again.
 func TestALengthenedNumberIsCutBackInTheSamePass(t *testing.T) {
 	// The comment fits its budget as written and does not a single time every
-	// number in it is said in words, which is the whole of the interaction.
+	// number in it is said in words. This is the whole of the interaction.
 	src := "package demo\n\n" +
 		"// Reserve takes one slot out of the arena and hands the caller one handle to it. It then publishes the newest entry it has just made now.\n" +
 		"func Reserve() {}\n"
