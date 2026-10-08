@@ -208,6 +208,7 @@ func TestEveryRuleAppearsInAFixture(t *testing.T) {
 	var missing []string
 	for id := range slopfix.AllIDs().All() {
 		// A warning outlives the repair by design. TestEachWarningRuleFires covers
+		// each. A report-only rule has no repair for a fixture to clear.
 		// each. A report-only rule has no repair to round-trip.
 		if !covered.Contains(id) && !slopfix.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) {
 			missing = append(missing, id)

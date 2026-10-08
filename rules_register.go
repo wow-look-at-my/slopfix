@@ -248,6 +248,9 @@ func registerWorkflowRules() {
 	registerFile(workflow.IDPushTags, RuleWorkflow, ".github/workflows/ci.yml", "name: CI\n\non:\n  push:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: ci\n      cancel-in-progress: true\n    steps:\n      - run: echo hi\n")
 	registerFile(workflow.IDOrgActionRef, RuleWorkflow, ".github/workflows/ci.yml", orgActionRefWorkflow())
 	registerFile(workflow.IDConcurrency, RuleWorkflow, ".github/workflows/ci.yml", "name: CI\n\non:\n  push:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n")
+	registerExempt(workflow.IDDuplicateStepKey, RuleWorkflow, "the file does not say which value the author meant, so no rewrite answers it",
+		detectContent(workflow.IDDuplicateStepKey),
+		workflowCase("duplicate-step-key", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: one\n        run: echo hi\n        name: two\n"))
 	registerExempt(workflow.IDBranchPin, RuleWorkflow, "no rewrite knows which ref the author meant", branchPinDetect, branchPinCase())
 }
 
