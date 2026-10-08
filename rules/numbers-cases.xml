@@ -40,6 +40,10 @@
   <test in="The walk is dropping the one top directory."
         out="The walk is dropping the one top directory."/>
   <test in="Two goroutines contend for it." out="Goroutines contend for it."/>
+  <test in="It is consumed TWO ways, and both are first-class:"
+        out="It is consumed multiple ways, and both are first-class:"/>
+  <test in="It is consumed Two ways, and both are first-class:"
+        out="It is consumed multiple ways, and both are first-class:"/>
   <test in="One good entry and one relic."
         out="One good entry and one relic."/>
   <test in="It is a no-op once." out="It is a no-op once."/>
