@@ -101,36 +101,6 @@ func walk(node *yaml.Node, visit func(*yaml.Node)) {
 	}
 }
 
-// scripts answers every step's run script, read off the parser. A search for
-// a `run:` key would also match a script that quotes that text.
-func scripts(content string) []scriptRows {
-	var doc yaml.Node
-	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
-		return nil
-	}
-	rows := lines(content)
-	spans := blockScalars(content)
-	jobs := mappingValue(rootOf(&doc), "jobs")
-	if jobs == nil {
-		return nil
-	}
-	var out []scriptRows
-	for i := 0; i+1 < len(jobs.Content); i += 2 {
-		steps := mappingValue(jobs.Content[i+1], "steps")
-		if steps == nil || steps.Kind != yaml.SequenceNode {
-			continue
-		}
-		for _, step := range steps.Content {
-			run := mappingValue(step, "run")
-			if run == nil || run.Kind != yaml.ScalarNode {
-				continue
-			}
-			out = append(out, scriptOf(run, rows, spans))
-		}
-	}
-	return out
-}
-
 // scriptOf answers the rows a run scalar occupies. A script written on the
 // run: line itself occupies the row the parser puts it on.
 func scriptOf(run *yaml.Node, rows []string, spans map[int]rowSpan) scriptRows {

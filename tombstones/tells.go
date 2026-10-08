@@ -17,8 +17,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/english"
 )
 
-// deadReferent is the tell referents.go reports.
+// deadReferent is the tell referents.go reports, and IDDeadReferent the rule that reports it.
 const deadReferent = "a name nothing in the repository defines"
+
+// IDDeadReferent names the rule a dead referent reports under.
+var IDDeadReferent = ruleID(deadReferent)
 
 // IDVolume names the volume cap, whose tell carries a line count instead.
 const IDVolume = "tombstones/comment-volume"
@@ -57,9 +60,6 @@ type Hit struct {
 	// Fix asks for a rewrite by hand when no repair can make the text whole. It is empty for any other hit.
 	Fix string `json:"fix,omitempty"`
 }
-
-// FixVolumeByHand is the Fix of a block over the cap that no cut can end on a whole sentence.
-const FixVolumeByHand = "Rewrite it by hand: say less. No cut under the cap ends on a whole sentence."
 
 // Find returns the blocks over the cap. A non-positive maxLines turns it off.
 //

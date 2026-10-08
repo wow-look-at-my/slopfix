@@ -12,7 +12,7 @@ import (
 func TestADocumentSentenceWithAQuoteKeepsIt(t *testing.T) {
 	src := "# Git\n\n" +
 		"When the user says \"clean up the commit message\", they mean amend the LOCAL commit message, not fetch/reset/destroy their work.\n"
-	for _, rule := range slopfix.AllRules {
+	for _, rule := range slopfix.AllRules() {
 		t.Run(string(rule), func(t *testing.T) {
 			repair := slopfix.Fix(slopfix.Request{Path: "CLAUDE.git.md", Content: src, Rules: []slopfix.Rule{rule}})
 			assert.Contains(t, repair.Text, "\"clean up the commit message\"", repair.Text)

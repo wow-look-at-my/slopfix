@@ -28,9 +28,6 @@ import (
 // IDLength names this rule, on a report and on the command line alike.
 const IDLength = "comments/length"
 
-// FixLengthByHand is the Fix of a block that no cut fits on a whole sentence.
-const FixLengthByHand = "Rewrite it by hand: shorten the opening sentence, or say less. No cut leaves a whole sentence."
-
 // floorChars is the size a comment may always be, whatever it documents.
 const floorChars = 120
 
@@ -62,7 +59,9 @@ type block struct {
 	header bool
 }
 
-// Check reports every comment block in src that outweighs its code.
+// Check reports every comment block in src that outweighs its code and that
+// the repair brings inside its budget. A block no cut fits keeps its opening
+// sentence whole, so no repair answers it and no finding names it.
 func CheckLength(filename, src string) []LengthHit {
 	defer trace.Phase("rule/comments-length")()
 	var hits []LengthHit
@@ -75,13 +74,15 @@ func CheckLength(filename, src string) []LengthHit {
 			continue
 		}
 		fixed := repair(b)
-		_, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars})
+		if _, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars}); stillOver || !b.exact || sameText(fixed, b.text) {
+			continue
+		}
 		hits = append(hits, LengthHit{
 			ID:         IDLength,
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && !sameText(fixed, b.text) && !stillOver,
+			Repairable: true,
 		})
 	}
 	return hits
