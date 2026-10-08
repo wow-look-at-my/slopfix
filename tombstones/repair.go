@@ -539,4 +539,3 @@ func trimToSentenceEnd(line string) (string, bool) {
 	}
 	return trimmed, true
 }
-
