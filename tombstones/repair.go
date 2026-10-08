@@ -269,12 +269,17 @@ func repairFile(f *fixer.File) {
 	edits, took := rewrite(was, blocks)
 	// The count follows the edits that landed. A refused rewrite took no words out.
 	rewrote := f.ApplyComments(edits)
+	landed := set.New[[2]int]()
 	for _, e := range rewrote.Applied {
 		f.Rewrote(took[e.Start])
+		landed.Add([2]int{e.Start, e.End})
 	}
-	// A rewrite the scope refused leaves its wording in the text, so each wording rule it answers is reported there.
-	for _, r := range rewrote.Refused {
-		for _, h := range wordingHits(was, r.Edit, doc) {
+	// A rewrite that did not land leaves its wording in the text, so each wording rule it answers is reported there.
+	for _, e := range edits {
+		if landed.Contains([2]int{e.Start, e.End}) {
+			continue
+		}
+		for _, h := range wordingHits(was, e, doc) {
 			f.Note(h)
 		}
 	}
