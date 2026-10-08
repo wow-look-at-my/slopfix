@@ -75,3 +75,29 @@ func TestCheckTakesADirectoryAsTheTreeUnderIt(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(fixed), "doesn't", "the file under the directory was not repaired")
 }
+
+// A long sentence in a workflow comment is an STE rule. --only ste must reach
+// it even though the run names no yaml rule.
+func TestOnlySTECatchesALongSentenceInAWorkflow(t *testing.T) {
+	t.Serial()
+	path := filepath.Join(t.TempDir(), "ci.yml")
+	body := "name: CI\n" +
+		"on:\n" +
+		"  push:\n" +
+		"concurrency:\n" +
+		"  group: g\n" +
+		"  cancel-in-progress: true\n" +
+		"jobs:\n" +
+		"  build:\n" +
+		"    runs-on: ubuntu-latest\n" +
+		"    steps:\n" +
+		"      - run: |\n" +
+		"          # Building from a directory also asks the module cache for nothing, so the generator that lives in the module needing it never has to complete that module earliest.\n" +
+		"          make\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+
+	checkFix = false
+	checkOnly = []string{"ste"}
+	t.Cleanup(func() { checkOnly = nil })
+	assert.ErrorIs(t, runCheck(rootCmd, []string{path}), errFindings, "--only ste omits the sentence rule in a workflow")
+}
