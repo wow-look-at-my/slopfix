@@ -46,23 +46,26 @@ func TestABlankLineEndsTheParagraphAComments(t *testing.T) {
 	require.NotEmpty(t, CheckLength("handlers.ts", src))
 }
 
-// The cut removes whole sentences from the end, and never cuts into the
-// sentence it keeps.
+// The cut removes whole trailing sentences from the end of the block. What is
+// left is cut back to a clause boundary, so the text stays whole clauses.
 func TestTheCutKeepsWholeSentences(t *testing.T) {
 	src := strings.Replace(zeroDiffIndicators, "export const ZERO_DIFF_BODY_NOTE", "\nexport const ZERO_DIFF_BODY_NOTE", 1)
 	out, changed := FixLength("handlers.ts", src)
 	require.True(t, changed)
 	assert.Empty(t, CheckLength("handlers.ts", out))
-	assert.Contains(t, commentProse(out), "the title gains ZERO_DIFF_TITLE_PREFIX and the description opens with ZERO_DIFF_BODY_NOTE.", "the opening sentence is cut into:\n%s", out)
+	assert.NotContains(t, commentProse(out), "A failed PATCH", "the last whole sentence goes:\n%s", out)
+	assert.Contains(t, commentProse(out), "the title gains.", "what stays is a whole clause:\n%s", out)
 }
 
-// One sentence is never an essay, whatever it documents.
-func TestASingleSentenceIsNeverCut(t *testing.T) {
+// A single sentence that spans more lines than the code under it is a finding.
+// The repair cuts it back to a clause the sentence holds.
+func TestASingleSentenceOverItsCodeIsCut(t *testing.T) {
 	src := "package p\n\n" +
 		"// cacheKeyFor returns the stable composite lookup key built from the resolved descriptor\n" +
 		"// set index plus binding slot plus array element offset plus sampler identity hash value.\n" +
 		"func cacheKeyFor() int { return 0 }\n"
-	assert.Empty(t, CheckLength("p.go", src))
-	out, _ := FixLength("p.go", src)
-	assert.Equal(t, src, out)
+	require.NotEmpty(t, CheckLength("p.go", src))
+	out, changed := FixLength("p.go", src)
+	require.True(t, changed)
+	assert.Equal(t, "package p\n\n// cacheKeyFor returns the stable composite lookup key.\nfunc cacheKeyFor() int { return 0 }\n", out)
 }
