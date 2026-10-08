@@ -139,7 +139,8 @@ func init() {
 			"stderr. --json writes the whole answer as one object instead, and exits 0\n" +
 			"on a finding, because the caller decides what a finding means.\n\n" +
 			"--message reads stdin as a closing message, which is never on disk, and\n" +
-			"judges it with the message rules (" + slopfix.Listed(messageIDs()) + ").",
+			"judges it with the message rules (" + slopfix.Listed(messageIDs()) + "). With --fix\n" +
+			"it cuts each sentence they report and writes the message on stdout.",
 		// fix is check --fix. A file decides which rules read it, so no other name is needed.
 		Aliases: []string{"fix"},
 		Args:    cobra.ArbitraryArgs,
@@ -161,10 +162,10 @@ func init() {
 
 func runCheck(cmd *cobra.Command, args []string) error {
 	if checkMessage {
-		if len(args) > 0 || checkFix || cmd.CalledAs() == "fix" || checkStaged || checkDiff != "" {
-			return fmt.Errorf("--message judges stdin and repairs nothing, so it takes no file, no --fix and no line selector")
+		if len(args) > 0 || checkStaged || checkDiff != "" {
+			return fmt.Errorf("--message reads stdin, so it takes no file and no line selector")
 		}
-		return checkMessageStdin(cmd, checkOnly, checkJSON)
+		return checkMessageStdin(cmd, checkOnly, checkJSON, checkFix || cmd.CalledAs() == "fix")
 	}
 	// Invoked as "fix", the repair is what was asked for, flag or no flag.
 	repairing := checkFix || cmd.CalledAs() == "fix"
@@ -305,7 +306,7 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing, asJSON b
 
 // checkMessageStdin judges a closing message on stdin. It takes its selection
 // as arguments, so a test never swaps state that a parallel sibling reads.
-func checkMessageStdin(cmd *cobra.Command, only []string, asJSON bool) error {
+func checkMessageStdin(cmd *cobra.Command, only []string, asJSON, repairing bool) error {
 	runs, err := messageSelection(only)
 	if err != nil {
 		return err
@@ -314,9 +315,27 @@ func checkMessageStdin(cmd *cobra.Command, only []string, asJSON bool) error {
 	if err != nil {
 		return err
 	}
-	findings := messageFindings(string(text), runs)
+	message := string(text)
+	if repairing {
+		message = slopfix.FixMessage(message, runs)
+	}
+	findings := slopfix.CheckMessage(message, runs)
 	if asJSON {
-		return json.NewEncoder(cmd.OutOrStdout()).Encode(reportOutput{Findings: wireFindings(findings, nil)})
+		out := reportOutput{Findings: wireFindings(findings, nil)}
+		if repairing {
+			out.Text = &message
+		}
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(out)
+	}
+	if repairing {
+		fmt.Fprint(cmd.OutOrStdout(), message)
+		for _, finding := range findings {
+			fmt.Fprintln(cmd.ErrOrStderr(), finding)
+		}
+		if len(findings) > 0 {
+			return errFindings
+		}
+		return nil
 	}
 	for _, finding := range findings {
 		fmt.Fprintln(cmd.OutOrStdout(), finding)

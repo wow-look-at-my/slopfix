@@ -143,6 +143,9 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 			out.Kept = append(out.Kept, TreeTombstone{Path: path, Hit: kept})
 		}
 	}
+	for _, f := range out.Findings {
+		mustBeRegistered(f.ID)
+	}
 	return out
 }
 

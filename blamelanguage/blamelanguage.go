@@ -12,7 +12,6 @@ package blamelanguage
 
 import (
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -77,109 +76,6 @@ func compile(list []string) []matcher {
 		out[i] = matcher{text: p, re: regexp.MustCompile(`(?i)` + regexp.QuoteMeta(p))}
 	}
 	return out
-}
-
-// repairs answers each banned phrase with wording that owns the work instead.
-// The value reads in the phrase's place, and no value carries a phrase of its
-// own, so a repaired message is clean.
-var repairs = map[string]string{
-	"pre-existing":               "mine to fix",
-	"preexisting":                "mine to fix",
-	"not my fault":               "mine to fix",
-	"not my problem":             "mine to fix",
-	"not mine to fix":            "mine to fix",
-	"not my responsibility":      "mine to fix",
-	"worth your attention":       "mine to fix",
-	"flagging this for you":      "mine to fix",
-	"flagging this here":         "mine to fix",
-	"left as-is":                 "fixed",
-	"someone should":             "I will",
-	"out of scope":               "mine to fix",
-	"not caused by my change":    "mine to fix",
-	"not caused by my diff":      "mine to fix",
-	"you may want to":            "I will",
-	"that predates this session": "mine to fix",
-	"predates this session":      "mine to fix",
-	"this was existing code":     "mine to fix",
-	"i only copied it":           "mine to fix",
-	"git blame shows":            "I found",
-	"not related to my change":   "mine to fix",
-	"unrelated to my diff":       "mine to fix",
-}
-
-// Repair rewrites each phrase that shifts the work away, so the repaired
-// message owns the defect instead. Every byte outside a matched phrase keeps
-// its place, and quoted text is left alone.
-func Repair(message string) string {
-	text, _ := assertedText(message)
-	norm, offsets := normalizeWhitespace(text)
-	spans := matchedSpans(norm, offsets, len(text))
-	if len(spans) == 0 {
-		return message
-	}
-	out := message
-	for i := len(spans) - 1; i >= 0; i-- {
-		s := spans[i]
-		out = out[:s.start] + ownWords(message[s.start:s.end], s.words) + out[s.end:]
-	}
-	return out
-}
-
-// span is one phrase occurrence, with the wording that replaces it.
-type span struct {
-	start int
-	end   int
-	words string
-}
-
-// matchedSpans collects every banned phrase as byte offsets into the message.
-// An occurrence nested inside another is dropped, so one phrase is never
-// rewritten twice.
-func matchedSpans(norm string, offsets []int, length int) []span {
-	var spans []span
-	for _, m := range matchers {
-		for _, at := range m.re.FindAllStringIndex(norm, -1) {
-			words, ok := repairs[strings.ToLower(norm[at[0]:at[1]])]
-			if !ok {
-				continue
-			}
-			start := offsets[at[0]]
-			end := length
-			if at[1] < len(offsets) {
-				end = offsets[at[1]]
-			}
-			if start >= end || end > length {
-				continue
-			}
-			spans = append(spans, span{start: start, end: end, words: words})
-		}
-	}
-	sort.Slice(spans, func(i, j int) bool {
-		if spans[i].start != spans[j].start {
-			return spans[i].start < spans[j].start
-		}
-		return spans[i].end > spans[j].end
-	})
-	kept := spans[:0]
-	for _, s := range spans {
-		if len(kept) > 0 && s.start < kept[len(kept)-1].end {
-			continue
-		}
-		kept = append(kept, s)
-	}
-	return kept
-}
-
-// ownWords keeps the source's initial capital, so a phrase that opened a
-// sentence still opens one.
-func ownWords(phrase, words string) string {
-	if phrase == "" || words == "" {
-		return words
-	}
-	if phrase[0] >= 'A' && phrase[0] <= 'Z' {
-		return strings.ToUpper(words[:1]) + words[1:]
-	}
-	return words
 }
 
 // Check reports every banned phrase the message carries, in table order, each

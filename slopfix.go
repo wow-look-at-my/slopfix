@@ -89,7 +89,7 @@ func CheckContent(path, content string) []ste.Finding {
 		return nil
 	}
 	// A URL is text in every kind of file.
-	return append(kindFindings(path, content), pins.CheckPath(path, content)...)
+	return Registered(append(kindFindings(path, content), pins.CheckPath(path, content)...))
 }
 
 // kindFindings are the rules the file's kind selects.

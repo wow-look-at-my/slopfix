@@ -41,7 +41,7 @@ func fixSelected(text string, keep func(id string) bool, reorder bool) string {
 	if keep(IDSentenceCap) {
 		text = fixSentenceCap(text, capSpec{reorder: reorder, cap: SentenceWordCap})
 	}
-	return text
+	return fixWarnings(text, keep, reorder)
 }
 
 // capSpec is how a long sentence divides. It holds the word cap each part

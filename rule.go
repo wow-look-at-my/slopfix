@@ -9,7 +9,13 @@ import (
 	"sync"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/askproperly"
+	"github.com/wow-look-at-my/slopfix/blamelanguage"
+	"github.com/wow-look-at-my/slopfix/counts"
+	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
 // RuleSpec is one rule: what it detects, the repair that answers that
@@ -88,7 +94,7 @@ func RegisterRule(r RuleSpec) {
 		panic(fmt.Sprintf("rule %q: a detection is required", r.ID))
 	}
 	if r.Autofix == nil {
-		panic(fmt.Sprintf("rule %q: a detection with no autofix is a finding handed to the reader with no way out of it", r.ID))
+		panic(fmt.Sprintf("rule %q: a detection with no autofix hands the reader a finding with no way out of it", r.ID))
 	}
 	if len(r.Cases) == 0 {
 		panic(fmt.Sprintf("rule %q: the harness has no case to prove its detection", r.ID))
@@ -115,6 +121,42 @@ func RuleSpecByID(id string) (RuleSpec, bool) {
 	defer ruleMu.Unlock()
 	r, ok := ruleIndex[id]
 	return r, ok
+}
+
+// Registered answers findings unchanged, and panics on a finding whose ID no
+// rule registered.
+func Registered(findings []ste.Finding) []ste.Finding {
+	for _, f := range findings {
+		mustBeRegistered(f.ID)
+	}
+	return findings
+}
+
+// registeredHits is Registered for the tombstones a repair keeps.
+func registeredHits(hits []tombstones.Hit) []tombstones.Hit {
+	for _, h := range hits {
+		mustBeRegistered(h.ID)
+	}
+	return hits
+}
+
+func mustBeRegistered(id string) {
+	if _, ok := RuleSpecByID(id); !ok {
+		panic(fmt.Sprintf("a finding under %q, and no rule registers that ID", id))
+	}
+}
+
+// ReportableIDs names every rule ID a package below this can report, read
+// from each package's own list rather than from the registry.
+func ReportableIDs() set.Set[string] {
+	ids := AllIDs().Union(RepoIDs).Union(tombstones.AllIDs())
+	ids.AddRange(counts.ID, counts.IDSection, laziness.ID, blamelanguage.ID, askproperly.ID)
+	for _, p := range english.Patterns() {
+		if p.ID != "" {
+			ids.Add(p.ID)
+		}
+	}
+	return ids
 }
 
 // ruleIDsIn answers the IDs a category holds, as a set.

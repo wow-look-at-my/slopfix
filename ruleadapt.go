@@ -213,6 +213,24 @@ func caseAutofix(c RuleCase, id string) RuleCase {
 	return c
 }
 
+// messageFindings answers what one message rule reports in every text of the
+// case: the message, and each file of the repository read as a message.
+func messageFindings(c RuleCase, id string) []ste.Finding {
+	runs := func(rule string) bool { return rule == id }
+	var out []ste.Finding
+	for _, text := range allTexts(c) {
+		out = append(out, CheckMessage(text, runs)...)
+	}
+	return out
+}
+
+// messageAutofix cuts what one message rule reports out of every text of the
+// case, as `slopfix fix --message --only ID` does.
+func messageAutofix(c RuleCase, id string) RuleCase {
+	runs := func(rule string) bool { return rule == id }
+	return eachText(c, func(text string) string { return FixMessage(text, runs) })
+}
+
 // treeAutofix answers the case with one repository rule's repair applied.
 func treeAutofix(c RuleCase, id string) RuleCase { return caseAutofix(c, id) }
 

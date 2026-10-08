@@ -318,6 +318,7 @@ func fixText(req Request) Repair {
 			}
 		}
 	}
+	repair.Findings, repair.Kept = Registered(repair.Findings), registeredHits(repair.Kept)
 	return repair
 }
 
@@ -388,7 +389,7 @@ func reportAll(req Request) Repair {
 			findings = append(findings, finding)
 		}
 	}
-	repair.Findings = findings
+	repair.Findings, repair.Kept = Registered(findings), registeredHits(repair.Kept)
 	return repair
 }
 
