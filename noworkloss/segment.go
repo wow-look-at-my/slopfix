@@ -103,7 +103,7 @@ func (w *walker) resolve(wd *syntax.Word) word {
 }
 
 // enterScope swaps in the variable scope of a script the walk is about to
-// follow as a fresh shell. It binds $0 to the file the script came from. It
+// follow as a fresh shell, binding $0 to the file. It was read from. It
 // returns the function that restores the caller's scope.
 func (w *walker) enterScope(stmts []*syntax.Stmt, self string) func() {
 	prev, prevUnsafe, prevMulti := w.vars, w.unsafeVars, w.multiVars
@@ -406,9 +406,9 @@ func shellNoExec(eff []word) bool {
 	return shellwalk.ShellNoExec(shared)
 }
 
-// script parses shell source found inside the command and folds its segments
-// into the same walk. So a deeply nested write gets the same verdict as a
-// write at top level. self names the file a fresh shell was started from, and is empty for
+// script parses shell source found inside the command. It folds its segments
+// into the same walk, so a deeply nested write is judged like a write at top
+// level. self names the file a fresh shell was started from, and is empty for
 // text that runs in the caller's own scope.
 func (w *walker) script(src, cwd, what, self string) {
 	if w.scriptDepth >= maxScriptDepth {

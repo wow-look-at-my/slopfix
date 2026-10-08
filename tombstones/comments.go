@@ -1,6 +1,6 @@
-// Package tombstones finds a comment that describes a state the code has left.
-// It also finds a comment that argues for the diff instead of telling the next
-// editor what breaks.
+// Package tombstones finds a comment. That describes a state the code is no
+// longer in, or that argues for the diff instead of telling the next editor
+// what breaks.
 //
 // Only prose is judged. In source that is the comments, never the code, so a
 // string literal holding the word "previously" is not a tombstone. In a

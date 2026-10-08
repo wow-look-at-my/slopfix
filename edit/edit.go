@@ -1,9 +1,9 @@
 // Package edit is how a repair changes a file: as byte-range edits a parser
 // vouches for, never as a rewritten copy of the text.
 //
-// The mechanics live here. The parser that owns the file decides which bytes
-// an edit may touch, and what must hold once it lands. That parser is the
-// syntax tree for source, and the CommonMark tree for a document. Gate runs both checks.
+// The mechanics live here. Which bytes an edit may touch, and what must hold
+// once it lands, belong to the parser that owns the file. The syntax tree for
+// source, and the CommonMark tree for a document. Gate runs both checks.
 package edit
 
 import (

@@ -306,8 +306,8 @@ func APoint(text string, at int) (string, bool) {
 // The tagger reads a bare noun before digits as a verb or an adjective, as in
 // "branch/VBZ" and "id/JJ". So a word that ends in no "s" and is no function
 // word or quantity word reads as the noun too. The first word of a sentence
-// names an item only in lower case or before a finite verb. A capital there
-// opens an instruction: "Run 3 tests".
+// names an item only in lower case or before a finite verb. Because a capital
+// there opens an instruction: "Run 3 tests".
 func NamesAnItem(text string, at int) bool {
 	words := syntax.Parse(text, nil).Words
 	for i, w := range words {

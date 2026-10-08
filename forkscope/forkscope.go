@@ -369,9 +369,9 @@ func (r Resolver) eventSaysPlain(repo string) bool {
 	return strings.EqualFold(event.Repository.FullName, repo) && !*event.Repository.Fork
 }
 
-// cached answers the record in top's git common directory under conditions.
-// The record names repo and came from this resolver's sources. It is younger
-// than CacheTTL. Every commit it names is still in the object store.
+// cached answers the record in top's git common directory, when it names repo,
+// came from this resolver's sources, is younger than CacheTTL. And every
+// commit it names is still in the object store.
 func (r Resolver) cached(top, repo string) (record, bool) {
 	path, err := cachePath(top)
 	if err != nil {

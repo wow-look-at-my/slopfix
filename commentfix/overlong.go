@@ -581,9 +581,9 @@ func endsWell(text []string) bool {
 // dropTrailingSentence removes the last sentence of the last paragraph and
 // reflows what is left, so a cut lands mid-line where the prose ends there.
 //
-// It reports false for a block whose shape it cannot read. It also reports
-// false for a last paragraph with no interior sentence end. dropParagraph and
-// dropSentence own those.
+// It reports false for a block whose shape it cannot read, and for a last
+// paragraph with no interior sentence. End: dropParagraph and dropSentence
+// own those.
 func dropTrailingSentence(text []string) ([]string, bool) {
 	marker, indent, ok := commentShape(text)
 	if !ok {

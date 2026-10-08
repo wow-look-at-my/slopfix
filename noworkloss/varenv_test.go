@@ -163,8 +163,8 @@ func TestASourcedFileGetsNoVariableResolution(t *testing.T) {
 }
 
 // A word that resolves to no literal text at all must not be quoted as an
-// empty string. That reads as a real, empty path. The word is an expansion
-// this hook never evaluated.
+// empty string. Which reads as a real, empty path rather than as what it is:
+// an expansion this hook never evaluated.
 func TestUnresolvedPathDenialNamesAnExpansionRatherThanAnEmptyString(t *testing.T) {
 	dir := newRepo(t)
 	r := denied(t, dir, "rm $TARGET")

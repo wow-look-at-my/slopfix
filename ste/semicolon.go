@@ -90,10 +90,10 @@ func semicolonDivides(s *syntax.Sentence, from, i int) bool {
 	return standsAlone(s, from, i) && opensSentenceAt(s, i)
 }
 
-// opensSentenceAt reports whether the words after the mark at word i open a
-// sentence. They can open with their own subject and a verb that agrees with
-// it. They can open with an imperative. They can also open with a subordinate
-// clause and then its main clause.
+// opensSentenceAt reports whether the words. This happens after the mark at
+// word i open with their own subject and a verb that agrees with it. That
+// mark is with an imperative, or with a subordinate clause and then its main
+// clause.
 func opensSentenceAt(s *syntax.Sentence, i int) bool {
 	for k, c := range s.Clauses {
 		if c.Depth == 0 && c.Link == i {
@@ -319,8 +319,8 @@ func standsAsSentence(text string) bool {
 		return true
 	}
 	s := syntax.Parse(checkMask(text), nil)
-	// A gerund subject the parser missed: "deciding whether X can learn anything needs Y".
-	if len(s.Words) > 0 && s.Words[0].Tag == "VBG" && finiteBefore(s, 1, ",") {
+	// A gerund subject or a participle phrase the parser missed: "left in the text a rewrite wraps it".
+	if len(s.Words) > 0 && (s.Words[0].Tag == "VBG" || s.Words[0].Tag == "VBN" || s.Words[0].Tag == "VBD") && finiteBefore(s, 1, ",") {
 		return true
 	}
 	if !opensDependent(s) {

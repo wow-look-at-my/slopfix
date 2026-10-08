@@ -106,7 +106,7 @@ func repairNumbers(f *fixer.File) {
 
 // danglingMarkers deletes each bare comment line the repair left with nothing under it. The line was a paragraph break somebody wrote, and a break that separates a paragraph from the code below it separates nothing.
 //
-// The tree names the lines to weigh. So a line of code that only opens with a marker's characters never reads as an empty comment.
+// The tree names the lines to weigh. A line of code that merely opens with a marker's characters is never mistaken for an empty comment.
 func danglingMarkers(filename, src string) []edit.Edit {
 	rows := commentRowsOf(filename, src)
 	lines := strings.Split(src, "\n")

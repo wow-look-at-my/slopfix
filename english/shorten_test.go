@@ -46,10 +46,10 @@ func TestACutToThePeriodLeavesNoMarkBeforeIt(t *testing.T) {
 		"The explicit gesture passes `true`: the user asked for everything they can see. Returns whether anything moved.", Comment))
 }
 
-// Every entry declares its own worked examples, and each has to fire. An entry
-// can stop matching through a typo, a phrase the boundary rule rejects, or a
-// rewrite a drop shadows. Without this test, that entry looks enforced and
-// does nothing.
+// Every entry declares its own worked examples, and each has to fire. Without
+// this an entry that stopped matching -- a typo, a phrase the boundary rule
+// rejects, a rewrite shadowed by a drop. It would sit in the table looking
+// enforced while doing nothing.
 func TestEveryDropFires(t *testing.T) {
 	require.NotEmpty(t, Drops())
 	for _, d := range Drops() {

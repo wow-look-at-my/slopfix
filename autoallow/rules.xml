@@ -195,6 +195,15 @@
 					<flag name="-d" />
 				</refuse>
 			</rule>
+			<rule name="revert">
+				<test cmd="git revert HEAD" expect="deny"/>
+				<test cmd="git revert --no-edit abc123 def456" expect="deny"/>
+				<test cmd="git -C /repo revert HEAD" expect="deny"/>
+				<test cmd="git commit -m revert" expect=""/>
+				<refuse message="A session never runs git revert. Leave the commits as they are and tell the user.">
+					<argSubstring></argSubstring>
+				</refuse>
+			</rule>
 		</rule>
 		<rule name="gh">
 			<test cmd="gh api -X DELETE repos/o/r/git/refs/heads/feature" expect="deny"/>

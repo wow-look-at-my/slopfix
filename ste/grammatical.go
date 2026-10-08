@@ -214,7 +214,7 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 		}
 		start := -1
 		switch {
-		case c.Subject != nil && reducedRelative(s, c) && !frontedPhraseOnly(s, from, *c.Subject):
+		case c.Subject != nil && reducedRelative(s, c) && !frontedPhraseOnly(s, from, *c.Subject) && !opensParticiple(s, from):
 		case c.Subject != nil:
 			start = c.Subject.First
 		case c.Verb.Imperative:
@@ -239,6 +239,13 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 func frontedPhraseOnly(s *syntax.Sentence, from int, subject syntax.Phrase) bool {
 	lead := skipAdverbs(s, from)
 	return lead < subject.First && s.Words[lead].Tag == "IN" && !finiteBetween(s, lead, subject.First)
+}
+
+// opensParticiple reports words from word from that open on a participle. After
+// such a phrase, a subject and its verb are the main clause: "Left in the text
+// a rewrite wraps it".
+func opensParticiple(s *syntax.Sentence, from int) bool {
+	return from < len(s.Words) && (s.Words[from].Tag == "VBN" || s.Words[from].Tag == "VBD")
 }
 
 // subjectOpensAt reports a run of words that reads as a subject. An adverb at

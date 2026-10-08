@@ -40,9 +40,9 @@ type rowSpan struct {
 // blockScalars answers the text rows of every block scalar in the document.
 //
 // A literal scalar keeps its line breaks, so the parser's own value says how
-// many rows it took. A folded scalar does not. The row after its last is the
-// row the next node starts on. YAML reads the rest of the document from the
-// earliest row that is not the scalar's.
+// many rows it took. A folded scalar does not, and the row after its last is
+// the row the next node starts on. YAML reads the rest of the document from
+// the earliest row that is not the scalar's.
 func blockScalars(content string) map[int]rowSpan {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
@@ -101,8 +101,8 @@ func walk(node *yaml.Node, visit func(*yaml.Node)) {
 	}
 }
 
-// scripts answers every step's run script, read off the parser. A search for
-// a `run:` key would also match a script that quotes that text.
+// scripts answers every step's run script, read off the parser rather than off.
+// A search for a `run:` key, which a script quoting that text would answer too.
 func scripts(content string) []scriptRows {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {

@@ -532,7 +532,8 @@ func mainSubject(source string, s *syntax.Sentence, verb syntax.Phrase, tag stri
 // and each part stays one.
 func closesPhrase(head string, whole *syntax.Sentence) bool {
 	n := wordsBefore(whole, len(head))
-	if n == 0 || finiteBetween(whole, 0, n) {
+	// A verb in a relative clause leaves the head a noun phrase: "a run of turns that each made a call".
+	if n == 0 || finiteOutsideRelativeIn(whole, 0, n) {
 		return false
 	}
 	// A head that opens on a preposition or a subordinator leads into the clause after it. Only a noun phrase stands as a fragment of its own.

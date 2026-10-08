@@ -482,9 +482,9 @@ func TestDeniesTruncatingRedirectOntoDirtyFile(t *testing.T) {
 	assert.Contains(t, denied(t, dir, "echo x >> tracked.go"), "tracked.go")
 }
 
-// `mv` within the tree is not a provenance route either. copyWrites treats a
-// source already inside the tree as ordinary refactoring. So the hook only
-// preserves the destination's current content.
+// `mv` within the tree is not a provenance route either -- copyWrites treats
+// a source already inside the tree as ordinary refactoring. So the
+// destination's current content.
 func TestPreservesAndAllowsMvOverDirtyDestination(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)

@@ -35,7 +35,7 @@ type Table struct {
 }
 
 // Class is a set of words that fill the same slot, stated in a single
-// attribute. A shape reads it as the lexicon to ask about each word.
+// attribute and read. As the lexicon a shape asks about each word.
 type Class struct {
 	Name   string `xml:"name,attr"`
 	Words  string `xml:"words,attr"`

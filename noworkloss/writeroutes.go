@@ -63,8 +63,8 @@ func decide(raw []byte) (reason string, notices []string) {
 }
 
 // evaluateWrites runs the provenance analysis under a recover. This half fails
-// CLOSED, so a panic denies rather than letting the command through. A bug
-// here must be loud and visible, not a silent hole in the rule. (The work-loss half
+// CLOSED. A panic denies rather than waving the command through: a bug here
+// must be loud and visible, not a silent hole in the rule. (The work-loss half
 // keeps its own posture -- see evaluateLoss.)
 func evaluateWrites(command, cwd string) (reason string) {
 	if strings.TrimSpace(command) == "" {
@@ -166,9 +166,9 @@ func isEditTool(name string) bool {
 	return false
 }
 
-// The edit tools are the sanctioned route. This code leaves them alone, except
-// where their target is the live settings. A session could use that route to
-// grant again what every rule above denies.
+// The edit tools are the sanctioned route. The edit tools are left alone --
+// except. This happens where their target is the live settings, which is how a
+// session would re-grant what every rule above denies.
 func editToolReason(in hookInput, ti toolInput) string {
 	for _, p := range []string{ti.FilePath, ti.NotebookPath, ti.Path} {
 		if p == "" {

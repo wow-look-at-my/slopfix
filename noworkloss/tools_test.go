@@ -13,8 +13,8 @@ import (
 )
 
 // The routes that are not Bash at all. Each keeps the same pair as the shell
-// cases. One call must be refused, and the neighbouring call must still work.
-// A rule that denied the whole tool would fail the control.
+// cases. The call that must be refused, and the neighbouring call that must
+// still work. So a rule that denied the whole tool would fail the control.
 
 func TestTheEditToolsThemselvesAreLeftAlone(t *testing.T) {
 	root := newTree(t)
