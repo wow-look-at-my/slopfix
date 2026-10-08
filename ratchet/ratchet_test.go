@@ -55,9 +55,11 @@ func TestTheTreePassesItsOwnRatchet(t *testing.T) {
 	}
 }
 
-// A branch whose fix repairs nothing fails on every rule. That is the shape of
-// each weakening: a rule made report-only, a cap raised, a detection narrowed.
-func TestAFixThatRepairsNothingFailsEveryRule(t *testing.T) {
+// A branch whose fix repairs nothing fails on every rule whose case holds an
+// error. That is the shape of each weakening: a rule made report-only, a cap
+// raised, a detection narrowed. The rule's own detection names the errors, so
+// a case the judge's check misses fails here.
+func TestAFixThatRepairsNothingFailsEveryErrorRule(t *testing.T) {
 	t.Serial()
 	bin := slopfixBinary(t)
 	head := writeScript(t, "if [ \"$2\" = --message ]; then cat; fi\n")
@@ -69,9 +71,31 @@ func TestAFixThatRepairsNothingFailsEveryRule(t *testing.T) {
 	for _, f := range failures {
 		failed.Add(f.Rule)
 	}
+	errors := 0
 	for _, spec := range specs {
+		if !holdsAnError(t, spec) {
+			continue
+		}
+		errors++
 		assert.True(t, failed.Contains(spec.ID), "%s: a fix that repairs nothing passed", spec.ID)
 	}
+	assert.NotZero(t, errors, "the control finds rules with errors to hold")
+}
+
+// holdsAnError reports whether the rule's own detection finds an error, not a
+// warning, in one of its cases.
+func holdsAnError(t *testing.T, spec slopfix.RuleSpec) bool {
+	t.Helper()
+	for _, c := range spec.Cases {
+		materialized, err := slopfix.Materialize(t.TempDir(), c)
+		require.NoError(t, err)
+		for _, f := range spec.Detect(materialized) {
+			if !f.Warning() {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // A fix the judge cannot start is a failure, never a pass.
