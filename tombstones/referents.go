@@ -237,7 +237,8 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	if !ix.ok && rg == "" {
 		return nil
 	}
-	args := []string{"--no-messages", "--fixed-strings", "--files-with-matches", "--max-count", "1"}
+	// --word-regexp matches whole identifiers, the way the index counts them.
+	args := []string{"--no-messages", "--fixed-strings", "--word-regexp", "--files-with-matches", "--max-count", "1"}
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
