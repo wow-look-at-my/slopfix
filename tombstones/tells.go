@@ -90,10 +90,10 @@ func Find(blocks []Block, maxLines int) []Hit {
 
 // linePurity looks a block-relative line index up in b's parallel arrays.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
-	if li < len(b.LineNos) && li < len(b.Pure) {
-		return b.LineNos[li], b.Pure[li]
+	if li >= len(b.LineNos) {
+		return -1, false
 	}
-	return -1, false
+	return b.LineNos[li], li < len(b.Pure) && b.Pure[li]
 }
 
 // HitForName builds the Hit for a dead referent, carrying the strip metadata a

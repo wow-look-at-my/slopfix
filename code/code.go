@@ -8,6 +8,7 @@ package code
 import (
 	"path/filepath"
 	"strings"
+	"sync"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 	"github.com/wow-look-at-my/slopfix/grammars/bash"
@@ -75,11 +76,11 @@ func Parse(filename, src string) (root ts.Node, ok bool) {
 
 // ParseWith is Parse for a caller that already resolved the grammar.
 func ParseWith(language *ts.Language, src string) (root ts.Node, ok bool) {
-	parser := ts.NewParser()
-	if !parser.SetLanguage(language) {
-		return ts.Node{}, false
-	}
-	tree := parser.ParseString(nil, []byte(src))
+	return whole(Tree(language, src))
+}
+
+// whole answers the root of a tree that parsed with no error.
+func whole(tree *ts.Tree) (root ts.Node, ok bool) {
 	if tree == nil {
 		return ts.Node{}, false
 	}
@@ -88,6 +89,55 @@ func ParseWith(language *ts.Language, src string) (root ts.Node, ok bool) {
 		return ts.Node{}, false
 	}
 	return root, true
+}
+
+// Tree answers the syntax tree of src, errors and all, or nil when the grammar
+// does not load. Each rule reads the same file through its own parse, so the
+// latest trees are kept. A tree is only read, never edited, so rules share it.
+func Tree(language *ts.Language, src string) *ts.Tree {
+	key := treeKey{language, src}
+	trees.Lock()
+	tree, ok := trees.byKey[key]
+	trees.Unlock()
+	if ok {
+		return tree
+	}
+	tree = parseTree(language, src)
+	trees.Lock()
+	defer trees.Unlock()
+	if _, ok := trees.byKey[key]; ok {
+		return tree
+	}
+	if len(trees.order) == treeCap {
+		delete(trees.byKey, trees.order[0])
+		trees.order = trees.order[1:]
+	}
+	trees.order = append(trees.order, key)
+	trees.byKey[key] = tree
+	return tree
+}
+
+// treeCap is how many trees Tree keeps: one file for each worker of a tree walk.
+const treeCap = 128
+
+type treeKey struct {
+	language *ts.Language
+	src      string
+}
+
+var trees = struct {
+	sync.Mutex
+	byKey map[treeKey]*ts.Tree
+	order []treeKey
+}{byKey: map[treeKey]*ts.Tree{}}
+
+// parseTree runs the grammar over src.
+func parseTree(language *ts.Language, src string) *ts.Tree {
+	parser := ts.NewParser()
+	if !parser.SetLanguage(language) {
+		return nil
+	}
+	return parser.ParseString(nil, []byte(src))
 }
 
 // IsComment reports a node every grammar spells as a comment.

@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
+	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/grammars/bash"
 	"github.com/wow-look-at-my/slopfix/grammars/clang"
 	"github.com/wow-look-at-my/slopfix/grammars/cpp"
@@ -264,11 +265,7 @@ func (c *extractCache) put(key extractKey, comments []Comment) {
 
 // extract parses src and collects its comments.
 func extract(language *ts.Language, src string) []Comment {
-	parser := ts.NewParser()
-	if !parser.SetLanguage(language) {
-		return nil
-	}
-	root, parsed := parse(parser, src)
+	root, parsed := parse(language, src)
 	if !parsed {
 		return nil
 	}
@@ -299,9 +296,9 @@ func dropDockerDirectives(comments []Comment) []Comment {
 // It carries a phase name of its own. This is because a comment rule that
 // reads slowly is usually paying for the parse under it rather than for the
 // rule.
-func parse(parser *ts.Parser, src string) (root ts.Node, parsed bool) {
+func parse(language *ts.Language, src string) (root ts.Node, parsed bool) {
 	defer trace.Phase("treecomments/parse")()
-	tree := parser.ParseString(nil, []byte(src))
+	tree := code.Tree(language, src)
 	if tree == nil {
 		return ts.Node{}, false
 	}

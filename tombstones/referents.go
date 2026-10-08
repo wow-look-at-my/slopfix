@@ -201,7 +201,11 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	}
 	names := set.New[string]()
 	for _, b := range blocks {
-		for _, m := range identifierWords(b.Text) {
+		prose := b.Prose
+		if prose == "" {
+			prose = b.Text
+		}
+		for _, m := range identifierWords(prose) {
 			if isCandidate(m) {
 				names.Add(m)
 			}

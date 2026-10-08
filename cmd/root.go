@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/pprof"
 
 	"github.com/spf13/cobra"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -28,7 +29,11 @@ func init() {
 	rootCmd.PersistentFlags().Bool("trace", false,
 		"print how long each rule and each parse took, slowest first, on stderr. "+
 			"The "+trace.EnvVar+" environment variable does the same for a hook")
+	rootCmd.PersistentFlags().String("cpuprofile", "", "write a CPU profile of the run to this file, for go tool pprof")
 }
+
+// profile is the open CPU profile, nil when no run asked for one.
+var profile *os.File
 
 // startTrace switches tracing on when the flag asks, before the earliest
 // phase opens. The environment variable is read by the trace package itself.
@@ -40,12 +45,26 @@ func startTrace(cmd *cobra.Command, _ []string) error {
 	if on {
 		trace.Enable()
 	}
-	return nil
+	path, err := cmd.Flags().GetString("cpuprofile")
+	if err != nil || path == "" {
+		return err
+	}
+	profile, err = os.Create(path)
+	if err != nil {
+		return err
+	}
+	return pprof.StartCPUProfile(profile)
 }
 
 // Execute runs the CLI, failing without a usage dump.
 func Execute() {
 	err := rootCmd.Execute()
+	if profile != nil {
+		pprof.StopCPUProfile()
+		if cerr := profile.Close(); cerr != nil {
+			fmt.Fprintln(os.Stderr, "Error:", cerr)
+		}
+	}
 	trace.Report()
 	if err != nil {
 		if !errors.Is(err, errFindings) {

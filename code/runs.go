@@ -19,6 +19,8 @@ type Run struct {
 	Start int
 	End   int
 	Pure  []bool
+	// Spans holds the byte columns each row's comment covers, from and to.
+	Spans [][2]int
 }
 
 // Runs returns every comment run in src, in file order.
@@ -71,11 +73,29 @@ func merge(nodes []ts.Node, lines []string) []Run {
 				Start: start,
 				End:   end + 1,
 				Pure:  purity(nodes[i:j+1], start, end, lines),
+				Spans: spans(nodes[i:j+1], start, end),
 			})
 		}
 		i = j + 1
 	}
 	return runs
+}
+
+// spans answers the columns each row's comment covers. Code before a comment
+// that trails it, or after one that closes mid-line, falls outside.
+func spans(nodes []ts.Node, start, end int) [][2]int {
+	out := make([][2]int, end-start+1)
+	for i := range out {
+		out[i] = [2]int{0, -1}
+	}
+	for _, n := range nodes {
+		from, to := int(n.StartPoint().Row), lastRow(n)
+		out[from-start][0] = int(n.StartPoint().Column)
+		if to == int(n.EndPoint().Row) {
+			out[to-start][1] = int(n.EndPoint().Column)
+		}
+	}
+	return out
 }
 
 // purity marks the lines a caller may cut. A line shared with code is never

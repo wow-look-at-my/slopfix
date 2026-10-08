@@ -8,6 +8,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // IDPackageScripts is a package.json with a scripts section. A justfile holds the commands instead.
@@ -18,6 +19,7 @@ const IDPackageScripts = "repo/package-scripts"
 // it changed. A package.json that does not parse stays a finding, because no
 // rewrite can read it. So does one whose move writable refuses.
 func packageScripts(root string, writing bool, writable func(string) bool) ([]TreeFinding, []string, error) {
+	defer trace.Phase("repo/package-scripts")()
 	var out []TreeFinding
 	var changed []string
 	isManifest := func(path string) bool { return filepath.Base(path) == "package.json" }

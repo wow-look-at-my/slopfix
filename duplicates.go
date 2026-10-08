@@ -10,6 +10,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // IDNearDuplicate is a file that is nearly the same as another file of the same name.
@@ -41,6 +42,7 @@ type DuplicateReport struct {
 // nearDuplicateReports answers every pair of files with one name that share
 // lines above the threshold, and the portions of the later file to cut.
 func nearDuplicateReports(root string) ([]DuplicateReport, error) {
+	defer trace.Phase("repo/near-duplicates")()
 	byName := map[string][]string{}
 	for _, path := range commentfix.TreeFilesMatching(root, func(path string) bool {
 		return !perDirectoryNames.Contains(filepath.Base(path))

@@ -17,21 +17,12 @@ type Comment struct {
 }
 
 // Comments returns every comment in a file, in file order.
-//
-// A file carrying a syntax error still answers, unlike the block pairing beside
-// it. That pairing needs the construct under a comment, and a wrong span there
-// deletes the wrong prose. A comment node carries its own span. A hook reads a
-// file mid-edit routinely, and a rule quiet exactly then enforces nothing.
 func Comments(filename, src string) []Comment {
 	language := LanguageFor(filename)
 	if language == nil {
 		return nil
 	}
-	parser := ts.NewParser()
-	if !parser.SetLanguage(language) {
-		return nil
-	}
-	tree := parser.ParseString(nil, []byte(src))
+	tree := Tree(language, src)
 	if tree == nil {
 		return nil
 	}
