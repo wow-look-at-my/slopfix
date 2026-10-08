@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// What the table writes for a whole line is stated in rules/numbers-cases.xml,
+// What the table writes for a whole line is stated in rules/numbers.xml,
 // where somebody adding a case edits no Go. An entry's own test holds that
 // entry. These hold the rewrites, the rephrasings and the patterns together,
 // in the order the repair applies them.
