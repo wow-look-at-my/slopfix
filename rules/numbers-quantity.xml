@@ -77,6 +77,18 @@
     <test in="It reads about two files" out="It reads files"/>
   </rephrase>
 
+  <!-- "ways" after a verb is a manner, and a bare plural there is no English:
+       "consumed two ways" cut to "consumed ways" says nothing. "multiple"
+       keeps the quantity and states no figure. A cardinal in capitals is
+       emphasis, and passes no capital to what replaces it. -->
+  <rephrase id="ways-keep-a-quantity" match="{cardinal:c} ways" to="multiple ways">
+    <test in="It is consumed two ways" out="It is consumed multiple ways"/>
+    <test in="It is consumed TWO ways, and both are first-class" out="It is consumed multiple ways, and both are first-class"/>
+    <test in="It is consumed Two ways" out="It is consumed multiple ways"/>
+    <test in="Two ways reach it" out="Multiple ways reach it"/>
+    <test in="It runs. TWO ways reach it" out="It runs. Multiple ways reach it"/>
+  </rephrase>
+
   <!-- A plural tally: the noun carries the meaning and the number goes.
 
        A unit is not a tally. "waits two minutes" says how long, and dropping
