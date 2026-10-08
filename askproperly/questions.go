@@ -535,7 +535,7 @@ func questionToStatement(body string) string {
 				return beStatement("You", first, words[2:])
 			}
 			return youStatement(words[2:])
-		case pronounSubject[subject]:
+		case pronounSubject.Contains(subject):
 			return beStatement(capitalize(words[1]), first, words[2:])
 		case first == "do" || first == "does" || first == "did":
 			return capitalize(joinWords(words[1:])) + "."
@@ -560,7 +560,7 @@ func questionToStatement(body string) string {
 		return youStatement(rest[1:])
 	case subject == "me" && len(rest) >= 2 && wordKey(rest[1]) == "to":
 		return actionStatement(rest[2:])
-	case determiner[subject]:
+	case determiner.Contains(subject):
 		return capitalize(joinWords(rest)) + "."
 	}
 	return "The " + joinWords(rest) + "."
@@ -601,15 +601,13 @@ func beStatement(subject, verb string, rest []string) string {
 
 // isAuxiliary reports an auxiliary that a question may open with.
 func isAuxiliary(w string) bool {
-	return auxiliarySet[w]
+	return auxiliarySet.Contains(w)
 }
 
-var auxiliarySet = map[string]bool{
-	"is": true, "are": true, "was": true, "were": true, "am": true,
-	"do": true, "does": true, "did": true, "can": true, "will": true,
-	"would": true, "could": true, "should": true, "shall": true,
-	"have": true, "has": true,
-}
+var auxiliarySet = set.Of[string]("is", "are", "was", "were", "am",
+	"do", "does", "did", "can", "will",
+	"would", "could", "should", "shall",
+	"have", "has")
 
 // isBeVerb reports an auxiliary that carries no action of its own, so a
 // question that opens with it keeps the verb in the statement.
@@ -622,18 +620,14 @@ func isBeVerb(w string) bool {
 }
 
 // pronounSubject is a subject that a be-question can invert back into place.
-var pronounSubject = map[string]bool{
-	"it": true, "that": true, "this": true, "these": true, "those": true,
-	"there": true, "he": true, "she": true, "they": true, "we": true,
-}
+var pronounSubject = set.Of[string]("it", "that", "this", "these", "those",
+	"there", "he", "she", "they", "we")
 
 // determiner is a word that already carries its own noun phrase, so a
 // statement of a choice does not add another.
-var determiner = map[string]bool{
-	"the": true, "a": true, "an": true, "my": true, "your": true,
-	"our": true, "their": true, "its": true, "this": true, "that": true,
-	"these": true, "those": true,
-}
+var determiner = set.Of[string]("the", "a", "an", "my", "your",
+	"our", "their", "its", "this", "that",
+	"these", "those")
 
 // isCue reports an interrogative cue, the same table the detector reads.
 func isCue(w string) bool { return cueSet[w] }
