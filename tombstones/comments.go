@@ -32,6 +32,8 @@ type Block struct {
 	Pure    []bool
 	// Prefix is the indentation and list marker that open a document paragraph. A rewrite writes it back, or the paragraph leaves its list.
 	Prefix string
+	// Prose is Text with every byte of code on a shared line blanked. A paragraph's Prose is its Text.
+	Prose string
 }
 
 // AddedBlocks returns the prose that added contributes to path. It returns nil
@@ -63,6 +65,7 @@ func AddedBlocks(path, added string) []Block {
 			Lines:   pure,
 			LineNos: lineNos,
 			Pure:    run.Pure,
+			Prose:   strings.Join(run.Prose, "\n"),
 		})
 	}
 	return out
@@ -148,7 +151,8 @@ func paragraphs(doc string) []Block {
 		if b.Marker != "" {
 			prefix += b.Marker + " "
 		}
-		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos, Prefix: prefix})
+		text := strings.Join(cur, "\n")
+		out = append(out, Block{Text: text, Lines: len(cur), LineNos: nos, Prefix: prefix, Prose: text})
 	}
 	return out
 }
