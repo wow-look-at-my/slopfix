@@ -37,7 +37,7 @@ func traceForce(source string) string {
 		out, ok := f()
 		fmt.Fprintf(&b, "%s: ok=%v %q\n", name, ok, out)
 	}
-	fmt.Fprintf(&b, "cuts: %v asides: %v\n", punctuationCuts(masked), asides(masked))
+	fmt.Fprintf(&b, "cuts: %v asides: %v\n", punctuationCuts(masked, d.cap), asides(masked))
 	for _, c := range candidates(source, masked, false, d.cap) {
 		fmt.Fprintf(&b, "candidate left=%d right=%d words=%d seam=%q aside=%v head=%q\n", c.left, c.right, c.words, seamBefore(source, c.left), cutsAside(masked, c.left, c.right), source[:c.left])
 	}
