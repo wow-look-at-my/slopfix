@@ -32,6 +32,19 @@ func TestAQuotationIsLeftAsItsAuthorWroteIt(t *testing.T) {
 	assert.Equal(t, doc, markdown.Format(doc))
 }
 
+// The trailers that close a commit message stay a line each, because git reads
+// them a line at a time. A lone "Note:" line is still prose.
+func TestGitTrailersStayALineEach(t *testing.T) {
+	doc := "Subject\n\nThe body wraps\nby hand.\n\nCo-Authored-By: A <a@example.com>\nClaude-Session: https://example.com/s\n"
+	blocks := prose(doc)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "The body wraps by hand.", blocks[1].Text())
+	assert.Equal(t, "Subject\n\nThe body wraps by hand.\n\nCo-Authored-By: A <a@example.com>\nClaude-Session: https://example.com/s\n", markdown.Format(doc))
+
+	assert.Len(t, prose("Note: the cache\nholds every entry.\n"), 1)
+	assert.Empty(t, prose("Signed-off-by: A <a@example.com>\n"))
+}
+
 func TestASetextHeadingIsALabel(t *testing.T) {
 	assert.Empty(t, prose("A Heading\n=========\n"))
 }

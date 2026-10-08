@@ -143,6 +143,17 @@ func TestALongSentenceWithNoDivisionIsRepaired(t *testing.T) {
 	}
 }
 
+// A run of words that no division reads at all still divides, each part under
+// the cap, in one fix.
+func TestARunWithNoGrammarDividesUnderTheCap(t *testing.T) {
+	in := strings.TrimSpace(strings.Repeat("word ", 3*ste.SentenceWordCap+4)) + "."
+	require.NotEmpty(t, sentenceLengths(in), "the control: the sentence is over the cap")
+	fixed := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(fixed), fixed)
+	assert.Equal(t, fixed, ste.Fix(fixed))
+	assert.Equal(t, strings.Count(in, "word"), strings.Count(strings.ToLower(fixed), "word"), "no word is dropped")
+}
+
 // The fallback is bounded: a sentence already under the cap is left as it is,
 // and a one-word sentence is never cut.
 func TestAShortSentenceIsLeftAlone(t *testing.T) {
