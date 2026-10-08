@@ -91,7 +91,14 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 		}
 		left := closeHead(source[:c.left])
 		right := capitalizeOpening(strings.TrimLeft(source[c.right:], " "))
-		if left == "" || right == "" || !divides(left, right, limit) {
+		// The right part must read as a sentence, or open a list. A noun
+		// phrase before a mark stands behind "This is" instead of a fragment.
+		if !opensList(right) && !StandsAlone(right) {
+			if carried := "This is " + strings.TrimLeft(source[c.right:], " "); StandsAlone(capitalizeOpening(carried)) {
+				right = capitalizeOpening(carried)
+			}
+		}
+		if left == "" || right == "" || !StandsAlone(right) && !opensList(right) || !divides(left, right, limit) {
 			continue
 		}
 		if n > bestWords {
@@ -99,6 +106,20 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 		}
 	}
 	return best, bestWords >= 0
+}
+
+// opensList reports a right part that opens a list item, whose own text is no
+// sentence: "- `/dev` (a terminal, a PTY) — read and write."
+func opensList(right string) bool {
+	trimmed := strings.TrimLeft(right, " ")
+	if trimmed == "" {
+		return false
+	}
+	switch trimmed[0] {
+	case '-', '*', '+', '>':
+		return len(trimmed) > 1 && trimmed[1] == ' '
+	}
+	return false
 }
 
 // sentenceMark reports a cut at a mark that closes the part before it: a colon
