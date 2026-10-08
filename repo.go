@@ -26,7 +26,7 @@ const (
 const RuleRepo Rule = "repo"
 
 // RepoIDs names every repository rule.
-var RepoIDs = set.Of(IDAgentsFile, IDBudget, IDPackageScripts, IDBinary, IDNearDuplicate, IDJSON, IDXML)
+var RepoIDs = set.Of(IDAgentsFile, IDBudget, IDPackageScripts, IDBinary, IDNearDuplicate)
 
 // isRepoRoot reports whether dir is the top of a repository.
 func isRepoRoot(dir string) bool {
@@ -102,20 +102,6 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 			findings = append(findings, c)
 		}
 	}
-	if keeps(IDJSON) || keeps(IDXML) {
-		broken, err := documents(root, keeps)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		for _, b := range broken {
-			path := filepath.Join(root, b.Path)
-			if writing && writable(path) && documentRepair(root, b) {
-				changed = append(changed, path)
-				continue
-			}
-			findings = append(findings, b)
-		}
-	}
 	if !keeps(IDBudget) {
 		return findings, changed, created, nil
 	}
@@ -160,34 +146,4 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 
 func repoFinding(path, id, rule, fix string) TreeFinding {
 	return TreeFinding{Path: path, Finding: ste.Finding{Line: 1, ID: id, Rule: rule, Fix: fix}}
-}
-
-// documentRepair writes the repair a document finding answers. The brackets a
-// JSON document leaves open are closed, and a *.invalid.xml fixture that
-// passes its schema loses the marker. It reports whether it wrote.
-func documentRepair(root string, b TreeFinding) bool {
-	path := filepath.Join(root, b.Path)
-	switch {
-	case b.ID == IDJSON && b.Rule == ruleJSONUnparseable:
-		return rewriteJSON(path, func(content []byte) []byte { return closeBrackets(dropTrailingCommas(content)) })
-	case b.ID == IDJSON && b.Rule == ruleJSONSchemaMissing:
-		return rewriteJSON(path, func(content []byte) []byte { return dropTrailingCommas(dropSchemaMember(content)) })
-	case b.ID == IDXML && b.Rule == ruleNegativeFixturePass && negativeFixture(b.Path):
-		return os.Rename(path, renamedWithoutMarker(path)) == nil
-	}
-	return false
-}
-
-// rewriteJSON writes repair's answer over a JSON file, and reports whether the
-// file then passes its check. A rewrite that leaves a finding is not written.
-func rewriteJSON(path string, repair func([]byte) []byte) bool {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	repaired := repair(content)
-	if checkJSON(path, filepath.Base(path), repaired, schemas{}) != nil {
-		return false
-	}
-	return os.WriteFile(path, repaired, 0o644) == nil
 }

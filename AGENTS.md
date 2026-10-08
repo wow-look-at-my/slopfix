@@ -24,7 +24,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | Category | Rule IDs | Autofix |
 |---|---|---|
 | `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary` | yes, on a walk |
-| `repo` | `repo/near-duplicate`, `repo/json`, `repo/xml` | yes, on a walk. A copy loses the blocks it shares, an open bracket closes, and a negative fixture that passes loses its marker |
+| `repo` | `repo/near-duplicate` | yes, on a walk. A copy loses the blocks it shares |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
 | `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second. Before a verb it becomes `, and never`, or `, do not` before an instruction |
