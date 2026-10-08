@@ -27,11 +27,7 @@ func Comments(filename, src string) []Comment {
 	if language == nil {
 		return nil
 	}
-	parser := ts.NewParser()
-	if !parser.SetLanguage(language) {
-		return nil
-	}
-	tree := parser.ParseString(nil, []byte(src))
+	tree := Tree(language, src)
 	if tree == nil {
 		return nil
 	}

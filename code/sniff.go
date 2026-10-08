@@ -51,7 +51,7 @@ var verdicts sync.Map
 // sniff reports text that some grammar in sniffers parses with no error.
 func sniff(text string) bool {
 	for _, load := range sniffers {
-		if _, ok := ParseWith(load(), text); ok {
+		if _, ok := whole(parseTree(load(), text)); ok {
 			return true
 		}
 	}
