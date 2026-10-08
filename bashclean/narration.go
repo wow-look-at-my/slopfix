@@ -1,14 +1,15 @@
 // narration.go removes constant narration.
 //
-// An echo or a printf becomes the no-op `:` only when its stdout REACHES THE
-// TERMINAL. `X=$(echo hi)`, `echo x | jq` and `echo x > f` are data, not
-// narration, and a function body's call site decides its visibility rather than
-// the body. Visibility threads top-down, so this traversal is hand-rolled over
-// statement structure and never enters Word parts, which excludes every capture
-// by construction.
+// An echo or a printf goes only when its stdout REACHES THE TERMINAL.
+// `X=$(echo hi)`, `echo x | jq` and `echo x > f` are data, not narration, and a
+// function body's call site decides its visibility rather than the body.
+// Visibility threads top-down, so this traversal is hand-rolled over statement
+// structure and never enters Word parts, which excludes every capture by
+// construction.
 //
-// The whole command is replaced rather than deleted, so the statement count
-// never drops and the statement still succeeds.
+// The narration becomes `:`, and dropNoops then removes that `:` from its
+// list or chain. A `:` stays in a pipeline, or where its status decides a
+// condition.
 package bashclean
 
 import (
@@ -84,13 +85,27 @@ func allConstant(ws []*syntax.Word) bool {
 	return true
 }
 
+// narration keeps a command whose only work is narration as written. Cut to
+// `:`, it would run nothing, and the auto-allow guard refuses a command that
+// runs nothing.
 func narration(f *syntax.File) {
+	made := map[*syntax.Stmt]syntax.Command{}
 	for _, s := range f.Stmts {
-		narrationStmt(s, true)
+		narrationStmt(s, true, made)
 	}
+	if len(made) == 0 {
+		return
+	}
+	if runsNoWork(f) {
+		for s, orig := range made {
+			s.Cmd = orig
+		}
+		return
+	}
+	dropNoops(f, func(s *syntax.Stmt) bool { return made[s] != nil })
 }
 
-func narrationStmt(s *syntax.Stmt, vis bool) {
+func narrationStmt(s *syntax.Stmt, vis bool, made map[*syntax.Stmt]syntax.Command) {
 	if s == nil || s.Cmd == nil {
 		return
 	}
@@ -99,41 +114,42 @@ func narrationStmt(s *syntax.Stmt, vis bool) {
 	case *syntax.CallExpr:
 		if v && isNarration(c) {
 			s.Cmd = &syntax.CallExpr{Args: []*syntax.Word{word(":")}}
+			made[s] = c
 		}
 	case *syntax.BinaryCmd:
 		switch c.Op {
 		case syntax.Pipe, syntax.PipeAll:
-			narrationStmt(c.X, false)
-			narrationStmt(c.Y, v)
+			narrationStmt(c.X, false, made)
+			narrationStmt(c.Y, v, made)
 		case syntax.AndStmt, syntax.OrStmt:
-			narrationStmt(c.X, v)
-			narrationStmt(c.Y, v)
+			narrationStmt(c.X, v, made)
+			narrationStmt(c.Y, v, made)
 		}
 	case *syntax.Block:
-		narrationStmts(c.Stmts, v)
+		narrationStmts(c.Stmts, v, made)
 	case *syntax.Subshell:
-		narrationStmts(c.Stmts, v)
+		narrationStmts(c.Stmts, v, made)
 	case *syntax.WhileClause:
-		narrationStmts(c.Cond, v)
-		narrationStmts(c.Do, v)
+		narrationStmts(c.Cond, v, made)
+		narrationStmts(c.Do, v, made)
 	case *syntax.ForClause:
-		narrationStmts(c.Do, v)
+		narrationStmts(c.Do, v, made)
 	case *syntax.IfClause:
 		for x := c; x != nil; x = x.Else {
-			narrationStmts(x.Cond, v)
-			narrationStmts(x.Then, v)
+			narrationStmts(x.Cond, v, made)
+			narrationStmts(x.Then, v, made)
 		}
 	case *syntax.CaseClause:
 		for _, it := range c.Items {
-			narrationStmts(it.Stmts, v)
+			narrationStmts(it.Stmts, v, made)
 		}
 	case *syntax.TimeClause:
-		narrationStmt(c.Stmt, v)
+		narrationStmt(c.Stmt, v, made)
 	}
 }
 
-func narrationStmts(ss []*syntax.Stmt, vis bool) {
+func narrationStmts(ss []*syntax.Stmt, vis bool, made map[*syntax.Stmt]syntax.Command) {
 	for _, s := range ss {
-		narrationStmt(s, vis)
+		narrationStmt(s, vis, made)
 	}
 }
