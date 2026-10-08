@@ -6,11 +6,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// takesObject reports a tag that opens the object of the verb before it.
-func takesObject(tag string) bool {
-	return tag == "DT" || tag == "PRP$" || tag == "PRP" || tag == "CD" || strings.HasPrefix(tag, "NN")
-}
-
 // finiteOutsideReduced reports a finite verb from word from up to end that no
 // reduced relative clause holds.
 func finiteOutsideReduced(s *syntax.Sentence, from, end int) bool {

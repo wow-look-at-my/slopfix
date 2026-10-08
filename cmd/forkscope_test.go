@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -50,7 +51,7 @@ func TestATreeCheckInAForkWithNoBaseFails(t *testing.T) {
 	cmd.SetErr(&out)
 
 	forks := forkscope.Resolver{Getenv: func(k string) string { return env[k] }, ListURL: srv.URL + "/fork-of.json"}
-	failed, err := treeFindings(cmd, t.TempDir(), slopfix.Request{}, false, forks)
+	failed, err := treeFindings(cmd, t.TempDir(), slopfix.Request{}, false, forks, nil)
 	require.Error(t, err)
 	assert.False(t, failed)
 	assert.Contains(t, err.Error(), "500")
@@ -91,11 +92,22 @@ func put(t *testing.T, dir, name, body string) {
 // o/fork on GitHub. The server api builds, from the parent's clone URL,
 // answers both the API and the fork list.
 func newForkRepo(t *testing.T, api func(parent string) http.HandlerFunc) forkRepo {
+	return newForkRepoWith(t, api, nil)
+}
+
+// newForkRepoWith builds a parent with upstream.md, doc.md and parentFiles. It
+// also builds a fork that rewrites a line of doc.md and adds mine.md. The
+// fork's origin names o/fork on GitHub. The server api builds, from the
+// parent's clone URL, answers both the API and the fork list.
+func newForkRepoWith(t *testing.T, api func(parent string) http.HandlerFunc, parentFiles map[string]string) forkRepo {
 	t.Helper()
 	work := t.TempDir()
 	gitRun(t, work, "init", "-q", "-b", "main")
 	put(t, work, "upstream.md", upstreamDoc)
 	put(t, work, "doc.md", parentDoc)
+	for name, body := range parentFiles {
+		put(t, work, name, body)
+	}
 	gitRun(t, work, "add", "-A")
 	gitRun(t, work, "commit", "-q", "-m", "base")
 	parent := filepath.Join(t.TempDir(), "parent.git")
@@ -165,7 +177,7 @@ func quietCmd() (*cobra.Command, *bytes.Buffer) {
 func TestFixOfAForkTreeKeepsToTheForksLines(t *testing.T) {
 	fx := newForkRepo(t, aFork)
 	cmd, out := quietCmd()
-	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks)
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, upstreamDoc, readT(t, filepath.Join(fx.dir, "upstream.md")), "a file the fork never touched stays byte for byte")
@@ -176,11 +188,43 @@ func TestFixOfAForkTreeKeepsToTheForksLines(t *testing.T) {
 	assert.NotContains(t, out.String(), "upstream.md")
 }
 
+// In a fork, the files the budget move creates are the fork's, so the same `fix` repairs them and the check after it passes.
+func TestFixOfAForkRepairsTheDocsItsBudgetMoveCreates(t *testing.T) {
+	fx := newForkRepo(t, aFork)
+	var agents strings.Builder
+	agents.WriteString("# Agents\n")
+	paragraph := strings.Repeat("It doesn't wait for the lock. ", 20)
+	for section := range 12 {
+		fmt.Fprintf(&agents, "\n## Section %c\n", 'a'+section)
+		for range 6 {
+			agents.WriteString("\n" + strings.TrimSpace(paragraph) + "\n")
+		}
+	}
+	put(t, fx.dir, "AGENTS.md", agents.String())
+	gitRun(t, fx.dir, "add", "-A")
+	gitRun(t, fx.dir, "commit", "-q", "-m", "a large AGENTS.md")
+
+	cmd, out := quietCmd()
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks, nil)
+	require.NoError(t, err)
+	docs, err := filepath.Glob(filepath.Join(fx.dir, "docs", "*.md"))
+	require.NoError(t, err)
+	require.NotEmpty(t, docs, "the move wrote no docs:\n%s", out.String())
+	for _, doc := range docs {
+		assert.NotContains(t, readT(t, doc), "doesn't", "%s is left as the move wrote it", doc)
+	}
+
+	cmd, out = quietCmd()
+	failed, err := treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks, nil)
+	require.NoError(t, err)
+	assert.False(t, failed, "the check after the fix still fails:\n%s", out.String())
+}
+
 // A repository that is no fork is repaired whole, as before.
 func TestFixOfATreeThatIsNoForkRepairsEveryFile(t *testing.T) {
 	fx := newForkRepo(t, noFork)
 	cmd, _ := quietCmd()
-	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks)
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks, nil)
 	require.NoError(t, err)
 
 	assert.NotContains(t, readT(t, filepath.Join(fx.dir, "upstream.md")), "doesn't")
@@ -191,13 +235,13 @@ func TestFixOfATreeThatIsNoForkRepairsEveryFile(t *testing.T) {
 func TestFixOfAForkWithNoBaseWritesNothing(t *testing.T) {
 	fx := newForkRepo(t, broken)
 	cmd, _ := quietCmd()
-	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks)
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, true, fx.forks, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 	assert.Equal(t, upstreamDoc, readT(t, filepath.Join(fx.dir, "upstream.md")))
 	assert.Equal(t, forkDoc, readT(t, filepath.Join(fx.dir, "doc.md")))
 
-	_, err = repairOf(fx.forks, filepath.Join(fx.dir, "doc.md"), slopfix.Request{}, true)
+	_, err = repairOf(fx.forks, nil, filepath.Join(fx.dir, "doc.md"), slopfix.Request{}, true)
 	require.Error(t, err)
 	assert.Equal(t, forkDoc, readT(t, filepath.Join(fx.dir, "doc.md")))
 }
@@ -207,18 +251,18 @@ func TestFixOfAForkWithNoBaseWritesNothing(t *testing.T) {
 func TestFixOfANamedFileInAForkKeepsToTheForksLines(t *testing.T) {
 	fx := newForkRepo(t, aFork)
 
-	repair, err := repairOf(fx.forks, filepath.Join(fx.dir, "upstream.md"), slopfix.Request{}, true)
+	repair, err := repairOf(fx.forks, nil, filepath.Join(fx.dir, "upstream.md"), slopfix.Request{}, true)
 	require.NoError(t, err)
 	assert.False(t, repair.Changed)
 	assert.Empty(t, repair.Findings)
 	assert.Equal(t, upstreamDoc, readT(t, filepath.Join(fx.dir, "upstream.md")))
 
-	repair, err = repairOf(fx.forks, filepath.Join(fx.dir, "upstream.md"), slopfix.Request{}, false)
+	repair, err = repairOf(fx.forks, nil, filepath.Join(fx.dir, "upstream.md"), slopfix.Request{}, false)
 	require.NoError(t, err)
 	assert.Empty(t, repair.Findings)
 	assert.Empty(t, repair.Kept, "a check of a file the fork never touched finds nothing")
 
-	_, err = repairOf(fx.forks, filepath.Join(fx.dir, "doc.md"), slopfix.Request{}, true)
+	_, err = repairOf(fx.forks, nil, filepath.Join(fx.dir, "doc.md"), slopfix.Request{}, true)
 	require.NoError(t, err)
 	doc := readT(t, filepath.Join(fx.dir, "doc.md"))
 	assert.Equal(t, "It doesn't hold the lock.", nthLine(doc, 3))

@@ -10,7 +10,7 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 |---|---|---|
 | `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary`, `repo/near-duplicate`, `repo/json`, `repo/xml` | all but `repo/near-duplicate`, `repo/json` and `repo/xml` |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
-| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence or a semicolon that no division keeps grammatical |
+| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a semicolon that no period can replace |
 | `english` | `english/comma-never` | yes, except before a verb |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no, and a warning never fails `check` |
 | `counts` | `counts/inventory-count` | yes |
@@ -48,6 +48,8 @@ slopfix check --only ste docs/a.md    # narrow to a category
 slopfix fix --only ste/semicolon a.md # narrow to a rule ID
 slopfix check --json --path a.md < a.md      # JSON findings for text on stdin
 slopfix check --message < message.txt        # judge a closing message
+slopfix fix --staged                         # repair only the lines staged against HEAD
+slopfix fix --diff origin/master .           # repair only the lines this branch adds
 slopfix hook < payload.json                  # answer a Claude Code hook event
 ```
 
@@ -55,6 +57,7 @@ The commands are `check`, `hook`, `lsp`, `completion` and `help`.
 
 - `check` runs every rule by default. `fix` is `check --fix`. A directory argument is walked.
 - `--only` takes categories and rule IDs, comma separated. An unknown name is an error.
+- `--staged` and `--diff REV` scope the run to the lines a change introduced, so a fork's repair leaves the upstream lines alone.
 - `slopfix hook` reads the event off the payload and runs every guard that serves it.
 - `slopfix lsp` is a language server on stdio. It publishes the findings for each open file that a build reads.
 

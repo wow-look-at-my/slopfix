@@ -29,7 +29,7 @@ func init() {
 			"Every guard that serves the event runs, unless --only names a subset.\n\n" +
 			"  PreToolUse         clean-bash, write, no-work-loss, auto-allow, busy-poll\n" +
 			"  PermissionRequest  auto-allow\n" +
-			"  PostToolUse        md-budget, read-output\n" +
+			"  PostToolUse        md-budget\n" +
 			"  SessionStart       md-budget\n" +
 			"  Stop               busy-poll, md-budget, laziness\n" +
 			"  MessageDisplay     link-refs, blame-language, ask-properly\n\n" +

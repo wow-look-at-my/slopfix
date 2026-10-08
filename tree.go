@@ -82,9 +82,15 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 	var out TreeRepair
 	if wantsRepo(req) && isRepoRoot(root) {
 		SetPhase("repository rules", 0)
-		findings, changed, err := repoRun(root, keepsOf(req), writing, writableIn(req.Fork))
+		findings, changed, created, err := repoRun(root, keepsOf(req), writing, writableIn(req.Fork))
 		if err != nil {
 			findings = append(findings, repoFinding(root, IDBudget, "the repository rules could not read the tree", err.Error()))
+		}
+		// A file the move created is new once committed, so the fork's check judges all of it. This walk must judge it too.
+		if req.Fork != nil {
+			for _, path := range created {
+				req.Fork.Claim(path)
+			}
 		}
 		out.Findings = append(out.Findings, findings...)
 		out.Repaired = append(out.Repaired, changed...)
@@ -155,6 +161,7 @@ func judgeFile(path string, req Request, writing bool) *Repair {
 		return nil
 	}
 	req.Path, req.Content = path, string(src)
+	req.Owned = req.Owned.ClaimWordless(req.Content)
 	run := Report
 	if writing {
 		run = Fix

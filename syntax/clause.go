@@ -56,6 +56,10 @@ func (p *clauseParser) run() []Clause {
 					// "that is absent, or that appears": both clauses describe the same noun, at the same depth.
 					depth = cur.Depth
 				}
+				if kind == Relative && cur.Kind == Coordinate && len(out) >= 2 && out[len(out)-2].Kind == Relative {
+					// "whose code is present but whose behavior is wrong": the second relative describes the same noun as the first.
+					depth = out[len(out)-2].Depth
+				}
 				cur = Clause{First: i, Link: link, Kind: kind, Comma: comma, Depth: depth}
 			}
 		}
@@ -519,15 +523,21 @@ func (p *clauseParser) resume(i int, cur Clause, out []Clause) (Clause, bool) {
 			if parent.Depth != cur.Depth-1 {
 				continue
 			}
+			if parent.Verb != nil {
+				// A clause with a verb of its own is not resumed by these words.
+				return Clause{}, false
+			}
 			subject := parent.Subject
 			if subject == nil {
 				subject = p.subjectBefore(p.lastWord(parent.First, min(cur.Link-1, parent.Last)), parent.First+max(parent.Link+1-parent.First, 0))
 			}
-			// ", so the spelling, which sends X, is left": the verb after the relative clause is the verb of the clause it interrupts.
-			if parent.Verb == nil && subject != nil {
-				out[n].Verb, out[n].Subject = vg, subject
+			// The relative interrupts a clause still waiting for its verb,
+			// and the verb after it resumes that clause.
+			if subject == nil {
+				return Clause{}, false
 			}
-			return Clause{First: i, Link: -1, Kind: Opens, Depth: parent.Depth, Subject: subject, Verb: vg}, subject != nil
+			out[n].Verb, out[n].Subject = vg, subject
+			return Clause{First: i, Link: -1, Kind: Opens, Depth: parent.Depth, Subject: subject, Verb: vg}, true
 		}
 	case cur.Kind == Subordinate && cur.Depth == 1 && len(out) == 1 && out[0].First == 0 && out[0].Last == 0 && p.s.Words[0].Tag == "VBG":
 		// "Deciding whether X can learn anything needs Y": the gerund and its clause are the subject.

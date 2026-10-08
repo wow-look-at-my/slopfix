@@ -3,6 +3,7 @@ package syntax
 import (
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/jdkato/prose/v3/tag"
 	"github.com/jdkato/prose/v3/tokenize"
@@ -55,6 +56,11 @@ func restoreVerbs(words []Word, phrases []Phrase) bool {
 		}
 		if !hasFiniteVerb(words[start:i]) {
 			changed = restoreOne(words, phrases, start, i) || changed
+			// A sentence that opens on an -s form with no subject is a doc
+			// comment naming its function: "Parses through the bridge first".
+			if start == 0 && !hasFiniteVerb(words[start:i]) {
+				changed = restoreOpener(words, start, i) || changed
+			}
 		}
 		start = i + 1
 	}
@@ -64,7 +70,32 @@ func restoreVerbs(words []Word, phrases []Phrase) bool {
 			changed = restoreOne(words, phrases[n:n+1], phrases[n].First, phrases[n].Last+1) || changed
 		}
 	}
+	// A plural noun between a singular noun and a name is the compound's verb,
+	// whether a finite verb stands elsewhere in the run.
+	for _, p := range phrases {
+		if p.Kind == NounPhrase {
+			if k := innerVerb(words, p); k >= 0 && words[k].Tag == "NNS" {
+				words[k].Tag = "VBZ"
+				changed = true
+			}
+		}
+	}
 	return changed
+}
+
+// restoreOpener rereads the first word of a stretch that still holds no finite
+// verb as its verb, when that word is an -s form. A doc comment names the
+// function and drops the subject: "Parses through the bridge first".
+func restoreOpener(words []Word, start, end int) bool {
+	if start >= end || start+1 >= end || words[start].Tag != "NNS" || !verbEnding(words[start].Text) {
+		return false
+	}
+	next := words[start+1]
+	if next.Tag != "IN" && next.Tag != "TO" && !opensObjectAt(next) {
+		return false
+	}
+	words[start].Tag = "VBZ"
+	return true
 }
 
 // divides reports a word that separates clauses: a comma, a conjunction, a
@@ -98,6 +129,12 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 		}
 		if inner := innerVerb(words, p); inner >= 0 {
 			words[inner].Tag = "VBZ"
+			return true
+		}
+		// The phrase's own first word is the verb of the noun phrase before it:
+		// "goal mode blocks ASAP delivery".
+		if first := &words[p.First]; first.Tag == "NNS" && verbEnding(first.Text) && p.First > 0 && isNoun(words[p.First-1].Tag) {
+			first.Tag = "VBZ"
 			return true
 		}
 		head, before := &words[p.Head], words[p.Head-1]
@@ -149,6 +186,12 @@ func retag(words []Word) {
 		switch {
 		case lower == "n't" || lower == "not":
 			w.Tag = "RB"
+		case isFinite(w.Tag) && dottedName(w.Text):
+			// "turn.rs's loop calls": a dotted name is an identifier, and the tagger reads it as a verb.
+			w.Tag = "NN"
+		case i > 0 && words[i-1].Tag == "MD" && (w.Tag == "IN" || w.Tag == "JJ") && i+1 < len(words) && opensObjectAt(words[i+1]):
+			// "cannot address the item": the bare form after a modal is the modal's verb.
+			w.Tag = "VB"
 		case len(w.Text) > 1 && w.Text == strings.ToUpper(w.Text) && emphasized[lower] != "":
 			// "a comment that DOES document code": capitals stress a verb, and the tagger reads them as a name.
 			w.Tag = emphasized[lower]
@@ -175,6 +218,9 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "CC" && opensNounPhrase(words[i+1]):
 			// "and reads every row": a plural noun cannot take a determiner after it.
 			w.Tag = "VBZ"
+		case w.Tag == "NNS" && i > 0 && words[i-1].Tag == ":" && verbEnding(w.Text) && colonFollowsClause(words, i-1):
+			// "Dispatch the Stop: runs in stop-gate mode": a colon opens the clause that explains the one before it.
+			w.Tag = "VBZ"
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "NN" && Is(words[i+1].Text, "object"):
 			// "a message reads it": a noun takes no object pronoun.
 			w.Tag = "VBZ"
@@ -192,6 +238,10 @@ func retag(words []Word) {
 		words[0].Tag, words[1].Tag = "NNP", "VBZ"
 	}
 	for i := range words {
+		// "the same call, spaced close enough": a past form after a noun and a comma, with no object, describes the noun.
+		if w := words[i]; w.Tag == "VBD" && i > 1 && i+1 < len(words) && words[i-1].Tag == "," && isNoun(words[i-2].Tag) && (words[i+1].Tag == "JJ" || words[i+1].Tag == "RB") {
+			words[i].Tag = "VBN"
+		}
 		if participleAdjective(words, i) {
 			words[i].Tag = "JJ"
 		}
@@ -201,6 +251,17 @@ func retag(words []Word) {
 			words[i].Tag = "NNS"
 		}
 	}
+}
+
+// colonFollowsClause reports a clause before the colon at index colon: a finite
+// verb in it, or a bare verb opening it as an instruction.
+func colonFollowsClause(words []Word, colon int) bool {
+	for i := 0; i < colon; i++ {
+		if isFinite(words[i].Tag) {
+			return true
+		}
+	}
+	return colon > 0 && (words[0].Tag == "VB" || words[0].Tag == "VBP")
 }
 
 // filler reports the word a mask writes over a code span or a quotation.
@@ -231,6 +292,21 @@ func participleAdjective(words []Word, i int) bool {
 			return true
 		case t == "," || t == "CC" || t == ":" || t == "." || t == "WDT" || t == "WP" || t == "WRB" || t == "TO" || isVerb(t):
 			return false
+		}
+	}
+	return false
+}
+
+// wordRune reports a letter or a digit.
+func wordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
+
+// dottedName reports a name a marker joins between word characters: an
+// identifier such as "turn.rs", a path such as "net/http", or a version.
+func dottedName(word string) bool {
+	runes := []rune(word)
+	for i := 1; i < len(runes)-1; i++ {
+		if (runes[i] == '.' || runes[i] == '/' || runes[i] == '_') && wordRune(runes[i-1]) && wordRune(runes[i+1]) {
+			return true
 		}
 	}
 	return false

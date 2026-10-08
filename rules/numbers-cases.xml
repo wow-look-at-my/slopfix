@@ -83,6 +83,10 @@
   <test in="The three agree" out="Those agree"/>
   <test in="It reads the three" out="It reads those"/>
 
+  <!-- A hedge on a tally goes with the tally. -->
+  <test in="Exactly two requests: the rejected attempt, then the retry."
+        out="Requests: the rejected attempt, then the retry."/>
+
   <!-- A repeat interval keeps its unit. Only the number goes vague. -->
   <test in="every 15 minutes" out="every few minutes"/>
 

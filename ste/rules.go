@@ -122,6 +122,8 @@ var (
 	wordPattern = regexp.MustCompile(`[A-Za-z]+(?:'[A-Za-z]+)?`)
 	// codeSpan matches an inline code span, whose contents are data.
 	codeSpan = regexp.MustCompile("`[^`]*`")
+	// charRange matches an XML character-class range a comment quotes, as in `[#x370-#x37D]`.
+	charRange = regexp.MustCompile(`\[#x[0-9A-Fa-f]+(?:-#x[0-9A-Fa-f]+)?\]`)
 	// sectionLink matches a link that cites a section by its slug.
 	sectionLink = regexp.MustCompile(`\[§[^\]\s]*\]\([^)\s]*\)`)
 	// linkTarget matches a markdown link's URL, which is not prose.
@@ -169,30 +171,12 @@ func Check(text string, line int) []Finding {
 	return markByHand(text, out)
 }
 
-// markByHand gives the hand-rewrite Fix text to each finding that the repair
-// leaves. It runs the repair on the text itself, so Check and Fix agree on
-// which semicolon and which sentence a period can divide.
+// markByHand gives the hand-rewrite Fix text to a finding the repair leaves.
+// Only the semicolon is ever left: every other rule divides its own text.
 func markByHand(text string, findings []Finding) []Finding {
-	var left map[string]bool
 	for n, f := range findings {
-		switch f.ID {
-		case IDSemicolon:
-			if fixSemicolons(text) == text {
-				findings[n].Fix = FixSemicolonByHand
-			}
-		case IDSentenceCap:
-			if left == nil {
-				left = map[string]bool{}
-				// Only a sentence still over the cap is left. A divided first half opens with the same words as the whole.
-				for _, sentence := range Sentences(strip(fixSentenceCap(text, capSpec{reorder: true, cap: SentenceWordCap}))) {
-					if WordCount(sentence) > SentenceWordCap {
-						left[truncate(strings.TrimSpace(sentence))] = true
-					}
-				}
-			}
-			if left[f.Detail] {
-				findings[n].Fix = FixByHand
-			}
+		if f.ID == IDSemicolon && fixSemicolons(text) == text {
+			findings[n].Fix = FixSemicolonByHand
 		}
 	}
 	return findings
@@ -222,11 +206,13 @@ var proseRules = []proseRule{
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
-// link's target, and an HTML entity. A semicolon inside any of them is not a
-// sentence joiner.
+// link's target, an HTML entity, and an XML character range. A semicolon inside
+// any of them is not a sentence joiner.
 func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
+	// A range becomes a separator, so neighbours never join into one word.
+	text = charRange.ReplaceAllString(text, " ")
 	// A section link reads as the citation it replaced, which holds no word.
 	text = sectionLink.ReplaceAllString(text, "§")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
@@ -416,7 +402,7 @@ func opensSentence(rest []rune) bool {
 	switch first := rest[0]; {
 	case unicode.IsUpper(first), unicode.IsDigit(first):
 		return true
-	case strings.ContainsRune("(`'\"*_[§¶“‘", first):
+	case strings.ContainsRune("(`'\"*_[§¶“‘—–", first):
 		return true
 	}
 	// A masked code span is a run of x, and opens a sentence as its backtick does.

@@ -125,3 +125,29 @@ func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 	got := ste.Fix(in)
 	assert.Empty(t, sentenceLengths(got), got)
 }
+
+// A sentence that no clause boundary divides is still repaired: the fallback
+// cuts between words, and Check reports nothing after it.
+func TestALongSentenceWithNoDivisionIsRepaired(t *testing.T) {
+	in := "gotext comes from a checkout for the reason stringer does, and for any of its own: completing x/text runs that module's cmd/gotext/examples/extract directive, which starts gotext -- the program this install exists to produce."
+	require.NotEmpty(t, sentenceLengths(in), "the control: the sentence is over the cap")
+	for _, f := range ste.Check(in, 1) {
+		assert.False(t, ste.ByHand(f.Fix), "no finding asks for a rewrite by hand: %s", f.Fix)
+	}
+	fixed := ste.Fix(in)
+	assert.NotEqual(t, in, fixed)
+	assert.Empty(t, sentenceLengths(fixed), fixed)
+	assert.Equal(t, fixed, ste.Fix(fixed), "the same sentence writes the same repair")
+	for _, s := range ste.Sentences(fixed) {
+		assert.LessOrEqual(t, ste.WordCount(s), ste.SentenceWordCap, fixed)
+	}
+}
+
+// The fallback is bounded: a sentence already under the cap is left as it is,
+// and a one-word sentence is never cut.
+func TestAShortSentenceIsLeftAlone(t *testing.T) {
+	for _, in := range []string{"One.", "Two words.", "The cache holds every answer from the upstream for the whole day."} {
+		assert.Empty(t, sentenceLengths(in), in)
+		assert.Equal(t, in, ste.Fix(in), in)
+	}
+}

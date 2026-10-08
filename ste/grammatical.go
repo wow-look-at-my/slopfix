@@ -214,8 +214,7 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 		}
 		start := -1
 		switch {
-		// "Left in the text a rewrite wraps it": after an opening participle phrase, a subject and its verb are the main clause.
-		case c.Subject != nil && reducedRelative(s, c) && !opensParticiple(s, from):
+		case c.Subject != nil && reducedRelative(s, c) && !frontedPhraseOnly(s, from, *c.Subject) && !opensParticiple(s, from):
 		case c.Subject != nil:
 			start = c.Subject.First
 		case c.Verb.Imperative:
@@ -223,7 +222,7 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 		case imperativeTag(s, *c.Verb) && skipAdverbs(s, max(c.First, c.Link+1)) == c.Verb.First:
 			// "Do NOT modify the workspace": the tagger reads a bare verb at the start as present tense.
 			start = c.Verb.First
-		case c.Kind == syntax.Opens && c.Verb.Finite && c.Verb.First > c.First:
+		case c.Kind == syntax.Opens && c.Verb.Finite && c.Verb.First > c.First && subjectOpensAt(s, c.First, c.Verb.First):
 			// The words ahead of a finite verb are its subject, though the tagger missed it: "The comment scan reads".
 			start = c.First
 		}
@@ -234,10 +233,31 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 	return false
 }
 
-// opensParticiple reports words from word from that open on a participle.
+// frontedPhraseOnly reports words from from up to subject that open on a
+// preposition and hold no finite verb, as in "On a web surface every message
+// goes".
+func frontedPhraseOnly(s *syntax.Sentence, from int, subject syntax.Phrase) bool {
+	lead := skipAdverbs(s, from)
+	return lead < subject.First && s.Words[lead].Tag == "IN" && !finiteBetween(s, lead, subject.First)
+}
+
+// opensParticiple reports words from word from that open on a participle. After
+// such a phrase, a subject and its verb are the main clause: "Left in the text
+// a rewrite wraps it".
 func opensParticiple(s *syntax.Sentence, from int) bool {
 	return from < len(s.Words) && (s.Words[from].Tag == "VBN" || s.Words[from].Tag == "VBD")
 }
+
+// subjectOpensAt reports a run of words that reads as a subject. An adverb at
+// either end of it is none: "No longer exist" is no sentence.
+func subjectOpensAt(s *syntax.Sentence, from, verb int) bool {
+	if verb-1 < from || adverbLed(s.Words[from]) || adverbLed(s.Words[verb-1]) {
+		return false
+	}
+	return true
+}
+
+func adverbLed(w syntax.Word) bool { return w.Tag == "RB" || w.Tag == "JJR" || w.Tag == "JJS" }
 
 // instructs reports a sentence whose main clause is an imperative, after any
 // opening subordinate clause: "When a step exists, include a quote". A so in
@@ -317,7 +337,8 @@ var danglingTags = set.Of[string]("DT", "JJ", "JJR", "JJS", "PRP$", "IN", "CC",
 // inside a subordinate clause joins the items of a list.
 func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 	w, ok := lastWordBefore(whole, len(head))
-	if !ok || danglingTags.Contains(w.Tag) || !standsAlone(whole, 0, wordsBefore(whole, len(head))) || !segmentStands(whole, wordsBefore(whole, len(head))) {
+	n := wordsBefore(whole, len(head))
+	if !ok || danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) || !standsAlone(whole, 0, n) || !segmentStands(whole, n) {
 		return false
 	}
 	if seam != "," {
@@ -330,6 +351,21 @@ func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 	}
 	return false
 }
+
+// predicateAdjective reports an adjective at i after a form of be, as in "the closer is not prose". It completes its clause, where an adjective before a noun waits for the noun.
+func predicateAdjective(s *syntax.Sentence, i int) bool {
+	if i < 1 || i >= len(s.Words) || !strings.HasPrefix(s.Words[i].Tag, "JJ") {
+		return false
+	}
+	k := i - 1
+	for k > 0 && s.Words[k].Tag == "RB" {
+		k--
+	}
+	return copulas.Contains(s.Words[k].Lower())
+}
+
+// copulas are the forms of be that link a subject to an adjective.
+var copulas = set.Of("is", "are", "was", "were", "be", "been", "being", "am")
 
 // opensSubject reports whether word i of s can open a subject: a determiner, a
 // pronoun, a name, a number or a possessive. A bare adjective or noun more

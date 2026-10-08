@@ -103,4 +103,9 @@
     eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety
     dozen hundred thousand million"/>
 
+  <!-- A word that qualifies the number after it. It says nothing once the
+       number goes, so a repair that drops the number drops this word too. -->
+  <class name="approximation" words="about roughly around approximately
+    nearly almost only just exactly precisely"/>
+
 </rules>

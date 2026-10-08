@@ -8,15 +8,16 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// carrier.go divides a long sentence where the words. This happens after
-// the cut are no clause: a trailing adverbial, a phrase that describes a
+// carrier.go divides a long sentence where the words after the cut hold no
+// clause. Those words are a trailing adverbial, a phrase that describes a
 // noun, or the rest of a list.
 
 var (
 	// carrierAdverbial words open an adverbial that a carrier can take.
 	carrierAdverbial = set.Of(wordsOf("carrier-adverbial")...)
 	// focusing adverbs bind to the phrase after them: "lands only on the lines".
-	focusing = set.Of("only", "just", "even", "also", "still", "exactly", "directly", "right", "mostly", "mainly", "solely")
+	focusing = set.Of("only", "just", "even", "also", "still", "exactly", "directly", "right", "mostly", "mainly", "solely",
+		"immediately", "shortly", "soon", "long", "well", "far", "straight")
 	// carrierBound words move behind a carrier only before "every" or "each".
 	carrierBound = set.Of(wordsOf("carrier-bound")...)
 	// carrierPlace words open a phrase of place, which describes the noun before it.
@@ -27,6 +28,8 @@ var (
 	nominalIng = set.Of(wordsOf("nominal-ing")...)
 	// partitives name a part of a group and take a plural verb: "the rest are".
 	partitives = set.Of(wordsOf("partitive")...)
+	// indefinites are pronouns that take no restating determiner: "That nothing is" reads as nonsense.
+	indefinites = set.Of("nothing", "anything", "something", "everything", "none", "nobody", "anyone", "someone", "everyone")
 	// negations turn a verb group around.
 	negations = set.Of("not", "never", "n't", "no")
 	// auxiliaries come before the verb they carry.
@@ -43,7 +46,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	head := source[:c.left]
 	rest := strings.TrimLeft(source[c.right:], " ")
 	seam := seamBefore(source, c.left)
-	if rest == "" || seam != "" && seam != "," && seam != ":" {
+	if rest == "" || seam != "" && seam != "," && seam != ":" && !seamIsDash(seam) {
 		return head, "", 0
 	}
 	first := wordFrom(whole, len(source)-len(rest))
@@ -60,25 +63,115 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if headOpen(whole, first) {
 		return head, "", 0
 	}
+	// An aside that opens on a dash and closes on one, before "and <verb>",
+	// divides into the aside and the verb group with the subject named. Again:
+	// "X — A does Y — and yields Z" becomes "X. A does Y. It yields Z."
+	if trimmed := strings.TrimLeft(rest, " "); strings.HasPrefix(trimmed, "—") {
+		if body := strings.TrimLeft(trimmed[len("—"):], " "); body != "" {
+			if end := strings.Index(body, "—"); end > 0 {
+				aside := strings.TrimSpace(body[:end])
+				if clause, ok := strings.CutPrefix(strings.TrimSpace(body[end+len("—"):]), "and "); ok && opensVerb(clause) {
+					return head, capitalizeOpening(aside) + ". It " + lowerFirst(clause), opensWithCarrier
+				}
+			}
+		}
+	}
+	// ", as is X" or ", as are X" compares X to the subject: "A is true, as is
+	// B" becomes "A is true. The same holds for B."
+	if seam == "," && lower == "as" {
+		for _, lead := range []string{"as is", "as are"} {
+			if body, ok := strings.CutPrefix(strings.TrimLeft(rest, " "), lead); ok {
+				return head, "The same holds for " + strings.TrimSpace(body), opensWithCarrier
+			}
+		}
+	}
 	noun := strings.HasPrefix(prev.Tag, "NN")
 	// An -ing noun after a singular noun is one compound noun with it, and no division lands inside it.
 	if prev.Tag == "NN" && nominalIng.Contains(lower) {
 		return head, "", 0
 	}
 	// "A trailing run of turns that each made a call, spaced close together": a participle after a fragment describes the fragment's head.
-	if seam == "," && (word.Tag == "VBN" || word.Tag == "VBD") && first+1 < len(whole.Words) && !takesObject(whole.Words[first+1].Tag) &&
-		!finiteOutsideRelativeIn(whole, 0, first) {
-		// The fragment itself needs a verb to stand as a sentence.
+	if seam == "," && (word.Tag == "VBN" || word.Tag == "VBD") && first+1 < len(whole.Words) && !takesObject(whole, first+1) &&
+		!finiteOutsideRelative(syntax.Parse(checkMask(head), nil), 0) {
 		if subject, ok := fragmentSubject(source, whole); ok {
-			return "This is " + lowerOpening(head), subject + " " + rest, opensWithCarrier
+			return fragmentHead(head), subject + " " + rest, opensWithCarrier
+		}
+		// The head is a noun phrase the sentence opened with, so the noun the
+		// participle describes is named again.
+		if strings.HasPrefix(prev.Tag, "NN") && !indefinites.Contains(prev.Lower()) {
+			return head, restate(source, prev, rest), opensWithCarrier
+		}
+	}
+	// "close enough together that no event explains it": the that-clause after "enough" is a result, and it stands as a sentence of its own.
+	if seam == "" && lower == "that" && enoughBefore(whole, first) {
+		if result := capitalizeOpening(strings.TrimLeft(rest[len(word.Text):], " ")); StandsAlone(result) {
+			return head, result, opensWithCarrier
 		}
 	}
 	main, hasMain := mainVerb(whole, c.left)
+	// ", rather than <participle>" contrasts the clause with what the subject
+	// does not do: "X is refused, rather than written through" becomes "X is
+	// refused. X is not written through".
+	if seam == "," && lower == "rather" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "than" {
+		if body := strings.TrimSpace(strings.TrimPrefix(strings.TrimLeft(rest, " "), "rather than")); body != "" {
+			subject := "It"
+			if hasMain {
+				if s := mainSubject(source, whole, main, "VBZ"); s != "" {
+					subject = capitalizeOpening(s)
+				}
+			}
+			return head, subject + " is not " + body, opensWithCarrier
+		}
+	}
+	// A dash before a verb group, or before "and" and a verb group, closes the
+	// clause before it and names the subject again. "One call — with no turn of
+	// its own — leaves X" becomes "One call. It leaves X".
+	if seamIsDash(seam) {
+		// "— keeping it out here will let X": a gerund opens a subject of its
+		// own, so the words after the dash stand without the subject named again.
+		if w := whole.Words[first]; w.Tag == "VBG" && opensSubject(whole, first) && StandsAlone(capitalizeOpening(rest)) {
+			return head, capitalizeOpening(rest), opensWithCarrier
+		}
+		switch {
+		case verbAt(whole, first) && participleAfterDash(whole, first, main, hasMain):
+			// "says — asserted as X" is passive: "It is asserted as X", not "It asserted as X".
+			return head, "It is " + lowerFirst(rest), opensWithCarrier
+		case verbAt(whole, first):
+			return head, "It " + lowerFirst(rest), opensWithCarrier
+		case (lower == "and" || lower == "or") && first+1 < len(whole.Words) && verbAt(whole, first+1):
+			return head, "It " + lowerFirst(strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
+		}
+	}
+	// A comma before a preposition or a participle that describes the opening
+	// noun phrase restates its head noun: "The same leniency over X, for Y"
+	// becomes "That leniency is for Y".
+	if seam == "," && (word.Tag == "IN" || word.Tag == "TO" || word.Tag == "VBN" || word.Tag == "VBG") &&
+		!clauseOpeners.Contains(lower) && first+1 < len(whole.Words) && opensObject(whole, first+1) {
+		if noun, ok := headNoun(whole, c.left); ok {
+			return head, restate(source, noun, rest), opensWithCarrier
+		}
+	}
+	// A verb group after "and" shares the main clause's subject, so the subject
+	// is named again: "Drives X and asserts Y" becomes "Drives X. It asserts Y".
+	if (seam == "," || seam == "") && (lower == "and" || lower == "or") && strings.HasPrefix(prev.Tag, "NN") &&
+		first+1 < len(whole.Words) && verbAt(whole, first+1) {
+		clause := strings.TrimLeft(rest[len(word.Text):], " ")
+		// "and setting both limits to 0 disables eviction". A gerund opens a
+		// subject of its own, so the words after the conjunction stand as a
+		// sentence without the main clause's subject named again.
+		if w := whole.Words[first+1]; w.Tag == "VBG" && opensSubject(whole, first+1) && StandsAlone(capitalizeOpening(clause)) {
+			return head, capitalizeOpening(clause), opensWithCarrier
+		}
+		if subject := subjectFor(source, checkMask(source), c, whole.Words[first+1].Tag); subject != "" {
+			return head, capitalizeOpening(subject) + " " + clause, opensWithCarrier
+		}
+		return head, "It " + lowerFirst(clause), opensWithCarrier
+	}
 	// A phrase after a noun that a verb then follows is the subject's own: "the case above passes".
 	predicateFollows := finiteBefore(whole, first+1, ",")
 	placeless := predicateFollows || !opensObject(whole, first+1)
 	// A phrase that describes the noun before it ends the sentence: no comma, conjunction or clause follows it.
-	describes := seam == "" && noun && plainPhrase(whole, first)
+	describes := seam == "" && noun && !indefinites.Contains(prev.Lower()) && plainPhrase(whole, first)
 	switch {
 	case !hasMain && !finiteBetween(whole, 0, len(whole.Words)):
 		// A sentence with no verb at all is a noun phrase, and only a phrase that describes a noun in it can move.
@@ -97,7 +190,9 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restate(source, prev, rest), opensWithCarrier
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
-	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
+	// "the words after the cut are no clause": a verb after the phrase makes it part of the subject.
+	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
+		adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
 		(!inRelative(whole, first-1) || everyNext(whole, first)) && !coordinatedVerb(whole, first):
 		// A reason reads behind "This is", whatever the verb: "This is because X".
 		if lower == "because" {
@@ -113,6 +208,15 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		return listHead(head, "and", false, whole, main), capitalizeOpening(subject) + " also " + rest, opensWithCarrier
 	case seam == "," || seam == ":":
+		// "X must ensure that A, and that B" divides with the main clause
+		// restated: "X must also ensure that B".
+		if seam == "," && lower == "and" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "that" && !headOpen(whole, first) {
+			if subject := mainSubject(source, whole, main, whole.Words[main.Head].Tag); subject != "" {
+				if clause := strings.TrimLeft(rest[len(word.Text):], " "); clause != "" {
+					return head, capitalizeOpening(subject) + " " + alsoVerb(source, whole, main) + " " + clause, opensWithCarrier
+				}
+			}
+		}
 		// A list that opens after "so" or a subordinator belongs to that clause: "is a thin wrapper, so a hook, a CI job and an editor integration all get".
 		if carried, conj, ok := listRest(source, whole, main, c, rest, seam); ok && !subordinatorBetween(whole, main.Last+1, first+1) {
 			return listHead(head, conj, oxford(rest), whole, main), carried, opensWithCarrier
@@ -145,9 +249,9 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since", "unless", "although", "though", "whereas", "so", "where")
 
 // headOpen reports words before word end that end inside an unfinished clause.
-// This covers a subordinator with no finite verb after it, as in "reports
-// whether the words", or a noun followed by a new subject with no verb. This
-// happens after it, as in "answers the row the earliest node".
+// One is a subordinator with no finite verb after it: "reports whether the
+// words". The other is a noun with a new subject and no verb after them:
+// "answers the row the earliest node".
 func headOpen(s *syntax.Sentence, end int) bool {
 	open := -1
 	for i := 0; i < end && i < len(s.Words); i++ {
@@ -168,6 +272,20 @@ func headOpen(s *syntax.Sentence, end int) bool {
 // adverbial of frequency, which belongs to the sentence however deep it sits.
 func everyNext(s *syntax.Sentence, i int) bool {
 	return i+1 < len(s.Words) && (s.Words[i+1].Lower() == "every" || s.Words[i+1].Lower() == "each")
+}
+
+// fragmentHead turns a noun phrase that holds no main verb into a sentence.
+func fragmentHead(head string) string {
+	return "This is " + lowerOpening(head)
+}
+
+// takesObject reports an object after a participle. An adjective with no
+// noun after it is a complement: "spaced close enough".
+func takesObject(s *syntax.Sentence, i int) bool {
+	if s.Words[i].Tag == "JJ" && !opensObject(s, i+1) {
+		return false
+	}
+	return opensObject(s, i)
 }
 
 // opensObject reports word i opening a noun phrase a preposition can take.
@@ -217,9 +335,9 @@ func subordinatorBetween(s *syntax.Sentence, from, end int) bool {
 	return false
 }
 
-// hiddenVerb reports a verb the tagger read as something else. That hiddenVerb
-// is from word i on: a form of "be", or a plural noun right before a
-// participle, as in "an identifier split across lines stops being either".
+// hiddenVerb reports a verb the tagger read as something else, from word i on.
+// It finds a form of "be", or a plural noun right before a participle. An
+// example is "an identifier split across lines stops being either".
 func hiddenVerb(s *syntax.Sentence, i int) bool {
 	for ; i < len(s.Words); i++ {
 		w := s.Words[i]
@@ -245,10 +363,22 @@ func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool)
 	if !opensClause && strings.HasPrefix(prev.Tag, "VB") || prev.Tag == "RP" || focusing.Contains(prev.Lower()) || phraseEndParticle.Contains(prev.Lower()) {
 		return false
 	}
+	// "which is immediately before each request": a phrase after "be" and its adverbs completes "be".
+	k := first - 1
+	for k >= 0 && s.Words[k].Tag == "RB" {
+		k--
+	}
+	if k >= 0 && beForms.Contains(s.Words[k].Lower()) {
+		return false
+	}
 	if first+1 >= len(s.Words) {
 		return false
 	}
 	next := s.Words[first+1]
+	// "with no verb after it, as in": a lone pronoun object points back to the noun before it, and a carrier loses that noun.
+	if next.Tag == "PRP" && (first+2 >= len(s.Words) || s.Words[first+2].Tag == "," || s.Words[first+2].Tag == ".") {
+		return false
+	}
 	if !unicode.IsLetter(rune(next.Text[0])) && next.Text[0] != '`' {
 		return false
 	}
@@ -330,9 +460,8 @@ func topCommas(text string, from int) []int {
 	return out
 }
 
-// plainPhrase reports words from i to the end of the sentence that hold no
-// comma, no conjunction. No subordinator and no finite verb outside a
-// parenthesis. Only such a phrase moves behind a restated noun whole.
+// plainPhrase reports the words from i to the end of the sentence when they// are plain. Outside a parenthesis, they hold no comma, no conjunction, no
+// subordinator and no finite verb. Only such a phrase moves behind a restated noun whole.
 func plainPhrase(s *syntax.Sentence, i int) bool {
 	depth := 0
 	for k, w := range s.Words[min(i, len(s.Words)):] {
@@ -461,32 +590,6 @@ func splitsCoordination(s *syntax.Sentence, verb syntax.Phrase, first int) bool 
 	return false
 }
 
-// mainVerb answers the verb group of the main clause that holds the words
-// before byte at.
-func mainVerb(s *syntax.Sentence, at int) (syntax.Phrase, bool) {
-	for _, c := range s.Clauses {
-		if c.Depth == 0 && c.Verb != nil && s.Words[c.Verb.First].Start < at {
-			return *c.Verb, true
-		}
-	}
-	return syntax.Phrase{}, false
-}
-
-// verbAt reports a verb at word i, finite or bare.
-func verbAt(s *syntax.Sentence, i int) bool {
-	return i < len(s.Words) && (strings.HasPrefix(s.Words[i].Tag, "VB") || s.Words[i].Tag == "MD")
-}
-
-// negated reports a verb group that holds a negation, or one right after it.
-func negated(s *syntax.Sentence, verb syntax.Phrase) bool {
-	for i := max(verb.First-1, 0); i <= min(verb.Last+1, len(s.Words)-1); i++ {
-		if negations.Contains(s.Words[i].Lower()) {
-			return true
-		}
-	}
-	return false
-}
-
 // carrierFor answers the words that carry an adverbial of the main clause. An
 // instruction takes "Do this", a fact takes "This holds", and an event takes
 // "This happens". A negated verb takes "This applies", because "Do this" would
@@ -513,37 +616,53 @@ func passive(s *syntax.Sentence, verb syntax.Phrase) bool {
 	return false
 }
 
-// nounText answers the source text of a word, a whole code span where the
-// word is the filler the mask wrote over one.
-func nounText(source string, w syntax.Word) string {
-	return source[outsideSpans(source, w.Start, false):outsideSpans(source, w.End, true)]
+// becauseDivision divides at "because" when no other boundary serves, and opens
+// the reason behind "This is because". The reason must name a subject and a
+// verb; "because of X" is a prepositional phrase, not a reason.
+func becauseDivision(source, masked string, whole *syntax.Sentence, limit int) (string, bool) {
+	for i := 1; i+1 < len(whole.Words); i++ {
+		if whole.Words[i].Lower() != "because" || !opensSubject(whole, i+1) || !finiteBefore(whole, i+1, "") {
+			continue
+		}
+		head := strings.TrimRight(source[:whole.Words[i].Start], " ,")
+		if head == "" {
+			continue
+		}
+		left := closeHead(head)
+		rest := "This is " + source[whole.Words[i].Start:]
+		if WordCount(left) < minimumHalf || WordCount(rest) < minimumHalf || !divides(left, rest, limit) {
+			continue
+		}
+		return left + " " + rest, true
+	}
+	return source, false
 }
 
-// restate writes "That <noun> is <rest>", or "Those <nouns> are <rest>".
-func restate(source string, noun syntax.Word, rest string) string {
-	det, be := "That", "is"
-	if noun.Tag == "NNS" || noun.Tag == "NNPS" {
-		det, be = "Those", "are"
-	}
-	return det + " " + nounText(source, noun) + " " + be + " " + rest
-}
+// seamIsDash reports a seam that is a dash, which closes the clause before it.
+func seamIsDash(seam string) bool { return dashMark(seam) }
 
-// restateBare writes "That <noun> <rest>", where rest opens with the verb of a
-// relative clause that already agrees with the noun.
-func restateBare(source string, noun syntax.Word, rest string) string {
-	det := "That"
-	if noun.Tag == "NNS" || noun.Tag == "NNPS" {
-		det = "Those"
+// headNoun answers the head noun of the first noun phrase that ends before
+// byte at. A comma before a phrase that describes it names this noun again.
+func headNoun(whole *syntax.Sentence, at int) (syntax.Word, bool) {
+	n := wordsBefore(whole, at)
+	for i := 0; i < n; i++ {
+		ph, ok := whole.PhraseAt(i)
+		if !ok || ph.Kind != syntax.NounPhrase || ph.First != i || ph.Last >= n || ph.Head >= len(whole.Words) {
+			continue
+		}
+		if h := whole.Words[ph.Head]; strings.HasPrefix(h.Tag, "NN") {
+			return h, true
+		}
 	}
-	return det + " " + nounText(source, noun) + " " + rest
+	return syntax.Word{}, false
 }
 
 // listRest writes the rest of a list as a sentence of its own: "It also
 // covers D and E". The words before the cut end the list with its own
 // conjunction, which listRest writes into the head through c's left offset.
 func listRest(source string, s *syntax.Sentence, verb syntax.Phrase, c forceCut, rest, seam string) (string, string, bool) {
-	// A rest that opens on a verb continues a list of verbs, which the noun-list carrier cannot repeat: "may write delete it".
-	if r := syntax.Parse(checkMask(rest), nil); len(r.Words) > 0 && (strings.HasPrefix(r.Words[0].Tag, "VB") || r.Words[0].Tag == "MD") {
+	// A rest that opens on a verb or a preposition is no noun-list item: "may write delete it", "as in reports whether".
+	if r := syntax.Parse(checkMask(rest), nil); len(r.Words) > 0 && (strings.HasPrefix(r.Words[0].Tag, "VB") || r.Words[0].Tag == "MD" || r.Words[0].Tag == "IN") {
 		return "", "", false
 	}
 	conj, ok := listEnd(rest)
@@ -585,125 +704,4 @@ func listEnd(rest string) (string, bool) {
 		}
 	}
 	return conj, conj != ""
-}
-
-// reorderDependent moves an opening subordinate clause behind its main clause,
-// into a sentence of its own: "If X, Y." becomes "Y. This happens if X." A main
-// clause that points back into the subordinate clause, as "those files" does,
-// keeps the order: "If X, Y." becomes "Suppose X. Then Y."
-func reorderDependent(source string, whole *syntax.Sentence) (string, bool) {
-	if !opensDependent(whole) {
-		return source, false
-	}
-	// The main clause opens after the earliest comma outside a parenthesis that leaves a sentence: "To do X, or to do Y, see Z".
-	depth := 0
-	for comma, w := range whole.Words {
-		switch w.Text {
-		case "(":
-			depth++
-		case ")":
-			depth = max(depth-1, 0)
-		}
-		if w.Text != "," || depth > 0 || comma < 1 || comma+1 >= len(whole.Words) {
-			continue
-		}
-		sub := strings.TrimSpace(source[:w.Start])
-		main := strings.TrimSpace(source[w.End:])
-		imperative := opensImperative(checkMask(main))
-		if !StandsAlone(main) && !imperative {
-			continue
-		}
-		stop := "."
-		if n := len(main); n > 0 && strings.ContainsAny(main[n-1:], ".!?") {
-			stop, main = main[n-1:], main[:n-1]
-		}
-		ms := syntax.Parse(checkMask(main), nil)
-		carrier := "Do this"
-		if verb, ok := mainVerb(ms, len(main)); ok && !(imperative && !verb.Imperative) {
-			carrier = carrierFor(ms, verb)
-		} else if !imperative {
-			continue
-		}
-		link := strings.ToLower(firstToken.FindString(sub))
-		if (link == "if" || link == "when" || link == "whenever") && pointsBack(ms) {
-			return "Suppose " + strings.TrimSpace(sub[len(link):]) + ". Then " + lowerFirst(main) + stop, true
-		}
-		return capitalizeOpening(main) + stop + " " + carrier + " " + lowerFirst(sub) + ".", true
-	}
-	return source, false
-}
-
-// backReferences are the words that point back to a noun said before them.
-var backReferences = set.Of("those", "these", "this", "that", "it", "its", "they", "them", "their", "such")
-
-// pointsBack reports a clause whose first words point back to a noun said before them.
-func pointsBack(s *syntax.Sentence) bool {
-	for _, w := range s.Words[:min(3, len(s.Words))] {
-		if backReferences.Contains(w.Lower()) {
-			return true
-		}
-	}
-	return false
-}
-
-// subjectDivision writes a long subject as a sentence of its own: "A reader
-// arriving at X still deserves Y." becomes "Consider a reader arriving at X.
-// That reader still deserves Y." The noun the subject names carries the rest.
-func subjectDivision(source string, whole *syntax.Sentence, limit int) (string, bool) {
-	// The subject runs from the opening determiner to the first finite verb. The parser often names a later noun as the subject of a long one.
-	if len(whole.Words) == 0 || whole.Words[0].Tag != "DT" {
-		return source, false
-	}
-	verb := -1
-	for i, w := range whole.Words {
-		// A relative word ahead of the verb makes the verb the relative clause's own: "a sentence that will not fit".
-		if w.Text == "," || w.Text == ":" || w.Text == ";" || w.Text == "(" || w.Tag == "WDT" || w.Tag == "WP" || w.Lower() == "that" {
-			return source, false
-		}
-		if finiteVerbTag(w.Tag) || w.Tag == "MD" {
-			verb = i
-			break
-		}
-		// A noun followed by a new subject opens a relative clause with no relative
-		// word: "a file the rule reports nothing in".
-		if i > 0 && strings.HasPrefix(whole.Words[i-1].Tag, "NN") && (w.Tag == "DT" || w.Tag == "PRP" || w.Tag == "PRP$") {
-			return source, false
-		}
-	}
-	if verb < restateLimit+1 {
-		return source, false
-	}
-	var head syntax.Word
-	found := false
-	for _, ph := range whole.Phrases {
-		if ph.Kind == syntax.NounPhrase && ph.First == 0 {
-			head, found = whole.Words[ph.Head], true
-		}
-	}
-	if !found || !strings.HasPrefix(head.Tag, "NN") || head.Tag == "NNP" {
-		return source, false
-	}
-	first := verb
-	// An adverb right before the verb goes with the verb: "still deserves".
-	for first > 1 && whole.Words[first-1].Tag == "RB" {
-		first--
-	}
-	end := whole.Words[first].Start
-	subject := strings.TrimRight(source[:end], " ")
-	if WordCount(checkMask(subject))+1 > limit {
-		return source, false
-	}
-	det := "That"
-	if head.Tag == "NNS" || head.Tag == "NNPS" {
-		det = "Those"
-	}
-	return "Consider " + lowerFirst(subject) + ". " + det + " " + nounText(source, head) + " " + source[end:], true
-}
-
-// lowerFirst writes the first letter in lower case, unless the word is a name in capitals.
-func lowerFirst(s string) string {
-	if len(s) > 1 && unicode.IsUpper(rune(s[1])) {
-		return s
-	}
-	return lowerOpening(s)
 }

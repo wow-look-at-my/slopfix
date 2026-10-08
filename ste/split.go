@@ -17,6 +17,40 @@ type division struct {
 	opener              string
 	// closer is the object a division writes back at the end of the rest: ", which a list does not show" becomes "A list does not show that."
 	closer string
+	// comma is the byte offset where the rest takes a comma after an opening participle phrase: "Dropped, it leaves". Zero means none.
+	comma int
+}
+
+func participleComma(s *syntax.Sentence, c syntax.Clause) int {
+	p := c.Link + 1
+	if p+2 >= len(s.Words) || s.Words[p].Tag != "VBN" && s.Words[p].Tag != "VBD" {
+		return -1
+	}
+	if c.Subject == nil {
+		// "and dropped it leaves": the pronoun after the participle is the subject.
+		if s.Words[p+1].Tag == "PRP" && finiteAt(s, p+2) {
+			return p + 1
+		}
+		return -1
+	}
+	if c.Subject.First > p+1 {
+		return c.Subject.First
+	}
+	return -1
+}
+
+// restOf answers the rest of the source a division writes, with its comma.
+func restOf(source string, d division) string {
+	if d.comma <= d.rightStart {
+		return source[d.rightStart:]
+	}
+	return source[d.rightStart:d.comma] + "," + source[d.comma:]
+}
+
+// dashMark reports a dash, which introduces a clause the sentence before it
+// stands without.
+func dashMark(text string) bool {
+	return text == "--" || text == "—" || text == "–" || text == "-"
 }
 
 // connectors map a conjunction to the words that open the sentence after it.
@@ -29,12 +63,9 @@ var connectors = map[string]string{
 	"or":  "Otherwise,",
 }
 
-// FixByHand is the Fix text of a long sentence that no division can repair.
-const FixByHand = "Rewrite it by hand as shorter sentences. No division keeps each half a grammatical sentence."
-
-// fixSentenceCap divides every over-cap sentence where both halves stay
-// grammatical sentences. It first tries the clause boundaries, then the word
-// boundaries.
+// fixSentenceCap divides every over-cap sentence. It tries the clause
+// boundaries first and then the word boundaries. A sentence that no division
+// reads is cut between words. That leaves no finding standing.
 func fixSentenceCap(prose string, d capSpec) string {
 	for range len(strings.Fields(prose)) + 1 {
 		next, divided := divideNext(prose, d.cap)
@@ -115,16 +146,54 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := bold + withCloser(joinOpener(d.opener, source[d.rightStart:]), d.closer)
+		right := bold + withCloser(joinOpener(d.opener, restOf(source, d)), d.closer)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
 		// The parse of the whole can hand a clause a verb that belongs elsewhere, so each half is read again on its own.
+		if !standsAsSentence(left) {
+			continue
+		}
 		if d.opener == "" && !standsAsSentence(right) {
 			continue
 		}
 		// A noun phrase whose only verbs sit in relative clauses is a fragment: "A number that is true today".
 		if !finiteOutsideRelative(syntax.Parse(checkMask(right), nil), 0) {
+			continue
+		}
+		score := max(WordCount(left), WordCount(right))
+		if bestScore < 0 || score < bestScore {
+			best, bestScore = left+" "+right, score
+		}
+	}
+	return best, bestScore >= 0
+}
+
+// coordinateDivision divides at a comma before a conjunction the clause pass
+// left inside one clause, as in "X, so Y" or "X, but Y". It is the fallback
+// behind the clause boundaries, and each half must read as a sentence.
+func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
+	best, bestScore := "", -1
+	for _, d := range beforeCoordinate(s, source) {
+		if cutsAside(mask(source), d.leftEnd, d.rightStart) {
+			continue
+		}
+		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
+		right := joinOpener(d.opener, restOf(source, d))
+		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
+			continue
+		}
+		if w, ok := lastWordBefore(s, len(source[:d.leftEnd])); ok && danglingTags.Contains(w.Tag) {
+			continue
+		}
+		// A comma before a conjunction is a real boundary, so the head stands even
+		// where the whole sentence named no main clause for it.
+		if n := wordFrom(s, d.rightStart); n >= 0 {
+			if tag := s.Words[n].Tag; tag == "IN" || tag == "TO" {
+				continue
+			}
+		}
+		if !standsAsSentence(right) {
 			continue
 		}
 		score := max(WordCount(left), WordCount(right))
@@ -236,13 +305,58 @@ func divisions(s *syntax.Sentence, source string) []division {
 			}
 			continue
 		}
-		out = append(out, division{
+		d := division{
 			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
 			rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
 			opener:     opener,
+		}
+		if c.Kind != syntax.Relative && c.Kind != syntax.Subordinate {
+			if i := participleComma(s, c); i > 0 && s.Words[i-1].Text != "," {
+				d.comma = s.Words[i-1].End
+			}
+		}
+		out = append(out, d)
+	}
+	out = append(out, beforeSubordinate(s, source)...)
+	return out
+}
+
+// beforeCoordinate divides at ", <conjunction>" when the clause pass left both
+// clauses as one. "X, so Y" and "X, but Y" where the parser read the whole as
+// a single clause. Each side must stand as a sentence, which bestDivision
+// checks. A list keeps its conjunction, because a comma before one inside a
+// list does not open a clause of its own.
+func beforeCoordinate(s *syntax.Sentence, source string) []division {
+	var out []division
+	for i := 2; i+1 < len(s.Words); i++ {
+		connector, known := connectors[s.Words[i].Lower()]
+		if !known || s.Words[i-1].Text != "," {
+			continue
+		}
+		if closingClause(s, i) {
+			continue
+		}
+		// A comma inside the clause before the conjunction ends a list, not a clause.
+		if s.Words[i].Lower() != "so" && listBefore(s, syntax.Clause{Link: i}) {
+			continue
+		}
+		out = append(out, division{
+			leftEnd:    outsideSpans(source, s.Words[lastBefore(s, i)].End, true),
+			rightStart: outsideSpans(source, s.Words[i+1].Start, false),
+			opener:     connector,
 		})
 	}
-	return append(out, beforeSubordinate(s, source)...)
+	return out
+}
+
+// closingClause reports a conjunction that closes a subordinate clause before
+// the sentence's own verb, as in "so that" or "and so", where no clause opens.
+func closingClause(s *syntax.Sentence, i int) bool {
+	w := s.Words[i].Lower()
+	if w == "and" || w == "or" {
+		return false
+	}
+	return i+1 < len(s.Words) && s.Words[i+1].Lower() == "that"
 }
 
 // beforeSubordinate divides at ", and" when a subordinate clause and then a main
@@ -331,11 +445,21 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		if s.Clauses[indexOf(s, c)-1].Verb == nil && !(c.Comma && c.Subject != nil && subjectFollows(s, c)) {
 			return "", false
 		}
+		if p := c.Link + 1; c.Subject == nil && c.Verb != nil && c.Verb.First == p && p+2 < len(s.Words) &&
+			(s.Words[p].Tag == "VBD" || s.Words[p].Tag == "VBN") && s.Words[p+1].Tag == "PRP" && finiteAt(s, p+2) {
+			// "and dropped it leaves": a participle and its object open a clause whose own subject follows.
+			return connector, opensWithCapital(s, p, source)
+		}
 		if c.Subject != nil {
 			return connector, subjectFollows(s, c) && agrees(s, *c.Subject, *c.Verb) && opensWithCapital(s, c.Link+1, source)
 		}
 		// A shared subject needs its verb right after the link, and no aside before the link.
 		if !verbFollows(s, c) || c.Link > 0 && strings.Contains("—–--", s.Words[c.Link-1].Text) || laterVerb(s, c) {
+			return "", false
+		}
+		// A comma before the link puts the shared verb group in a list that the
+		// conjunction continues: "fails to compile, fails its tests, or errors".
+		if listsVerbs(source[:s.Words[c.Link].Start]) {
 			return "", false
 		}
 		if main.Verb.Imperative {
@@ -357,8 +481,39 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 		return "This", true
 	case syntax.Punctuated:
 		// A colon or a dash before a clause that names its own subject ends a sentence.
-		if c.Depth != 0 || c.Subject == nil && !resumesAfter(s, c.Link+1) {
+		if c.Depth != 0 {
 			return "", false
+		}
+		if c.Subject == nil && !resumesAfter(s, c.Link+1) {
+			if c.Verb == nil {
+				return "", false
+			}
+			// A colon opens the clause that explains the head: "Stop: runs in
+			// stop-gate mode ..." divides as "Stop. It runs in stop-gate mode".
+			if s.Words[c.Link].Text == ":" && finiteBefore(s, c.Link+1, "") {
+				if main.Subject != nil {
+					if subject, ok := restated(s, main, c, source); ok {
+						return subject, true
+					}
+				}
+				return "", opensWithCapital(s, c.Link+1, source)
+			}
+			// A dash before a verb group leaves the clause before it whole, and the
+			// subject the sentence opened with is named.
+			if !dashMark(s.Words[c.Link].Text) {
+				return "", false
+			}
+			if opensImperative(checkMask(source[s.Words[c.Link+1].Start:])) {
+				return "", opensWithCapital(s, c.Link+1, source)
+			}
+			if main.Subject == nil {
+				return "", false
+			}
+			subject, ok := restated(s, main, c, source)
+			if !ok {
+				return "", false
+			}
+			return subject, true
 		}
 		if c.Subject != nil && !subjectFollows(s, c) || !opensSubject(s, c.Link+1) {
 			// "not prose: left in the text a rewrite wraps it": a participle phrase opens a clause that names its own subject later.
@@ -438,6 +593,9 @@ func opensWithCapital(s *syntax.Sentence, i int, source string) bool {
 // Otherwise a pronoun stands in, chosen to agree with c's verb. It answers false
 // when no pronoun agrees, as for a single person and a verb in -s.
 func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string, bool) {
+	if main.Subject == nil || main.Verb == nil || c.Verb == nil {
+		return "", false
+	}
 	subject := *main.Subject
 	if subject.First > 0 && s.Words[subject.First-1].Tag == "VBG" {
 		// The noun phrase is the object of a gerund, and the gerund is the subject: "freezing the HOW pins it".

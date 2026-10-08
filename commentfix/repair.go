@@ -184,6 +184,10 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 			continue
 		}
 		wrapped := wrap(said, para.marker, para.cont, para.width)
+		if para.code != "" {
+			// A comment after code has one line. Its marker holds the code, so a wrapped tail cannot be read back.
+			wrapped = []string{strings.TrimRight(para.marker+said, " ")}
+		}
 		// An emptied block after code keeps its delimiters, because the code holds the line.
 		if len(wrapped) == 0 && para.trailer != "" {
 			wrapped = []string{strings.TrimRight(para.marker, " ")}

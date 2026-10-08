@@ -115,7 +115,7 @@ func segmentsOf(lines []string, p para) []segment {
 			current = nil
 			continue
 		}
-		if current == nil || strings.HasPrefix(prose, "@") || lineEndsThought(prev, prose) {
+		if current == nil || strings.HasPrefix(prose, "@") || opensListItem(prose) || lineEndsThought(prev, prose) {
 			out = append(out, segment{})
 			current = &out[len(out)-1]
 		}
@@ -126,9 +126,22 @@ func segmentsOf(lines []string, p para) []segment {
 	return out
 }
 
+// opensListItem reports a row that opens a list item: "- ", "* ", "+ ", or a
+// number with "." or ")" and a space.
+func opensListItem(prose string) bool {
+	for _, marker := range []string{"- ", "* ", "+ "} {
+		if strings.HasPrefix(prose, marker) {
+			return true
+		}
+	}
+	digits := len(prose) - len(strings.TrimLeft(prose, "0123456789"))
+	rest := prose[digits:]
+	return digits > 0 && (strings.HasPrefix(rest, ". ") || strings.HasPrefix(rest, ") "))
+}
+
 // lineEndsThought reports a row break that ends a thought with no stop. The
-// row before ends on no mark and no word that opens a phrase. And the row
-// after opens on a capital or a list marker. A terse comment writes a sentence
+// row before ends on no mark and no word that opens a phrase. The row after
+// opens on a capital or a list marker. A terse comment writes a sentence
 // a line, as in "the byte at the checkpoint" and then "This handles a list".
 func lineEndsThought(prev, next string) bool {
 	prev = strings.TrimSpace(prev)
