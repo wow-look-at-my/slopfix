@@ -6,14 +6,76 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/ste"
+	yaml "go.yaml.in/yaml/v3"
 )
 
-// runBlock is a run: script.
-type runBlock = scriptRows
+// shellStep is a run: step whose script is POSIX shell.
+type shellStep struct {
+	// job is the key of the job the step belongs to.
+	job string
+	// number is the step's place in its job's steps, counted from one.
+	number int
+	step   *yaml.Node
+	run    *yaml.Node
+	block  scriptRows
+	// shell is the step's own shell key, or else the job's or the workflow's defaults.run.shell.
+	shell string
+	// moved reports a working-directory that starts the step outside the checkout root.
+	moved bool
+}
 
-// runBlocks reads every run: script off the parser.
-func runBlocks(content string) []runBlock {
-	return scripts(content)
+// shellSteps answers every run: step whose script is POSIX shell, read off the
+// parser. A step that runs PowerShell, Python or cmd holds no shell test.
+func shellSteps(content string) []shellStep {
+	var doc yaml.Node
+	if yaml.Unmarshal([]byte(content), &doc) != nil {
+		return nil
+	}
+	root := rootOf(&doc)
+	jobs := mappingValue(root, "jobs")
+	if jobs == nil {
+		return nil
+	}
+	rows := lines(content)
+	spans := blockScalars(content)
+	var out []shellStep
+	for i := 0; i+1 < len(jobs.Content); i += 2 {
+		job := jobs.Content[i+1]
+		steps := mappingValue(job, "steps")
+		if steps == nil || steps.Kind != yaml.SequenceNode {
+			continue
+		}
+		shell := defaultShell(job)
+		if shell == "" {
+			shell = defaultShell(root)
+		}
+		windows := runsPowerShell(job, shell)
+		moved := defaultDirectory(job) || defaultDirectory(root)
+		for n, step := range steps.Content {
+			run := mappingValue(step, "run")
+			if run == nil || run.Kind != yaml.ScalarNode {
+				continue
+			}
+			s := shellStep{job: jobs.Content[i].Value, number: n + 1, step: step, run: run, shell: shell,
+				moved: moved || mappingValue(step, "working-directory") != nil}
+			if own := mappingValue(step, "shell"); own != nil {
+				s.shell = own.Value
+			} else if windows {
+				continue
+			}
+			if !bashLike(s.shell) {
+				continue
+			}
+			s.block = scriptOf(run, rows, spans)
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// defaultDirectory reports a defaults.run.working-directory on a job or a workflow.
+func defaultDirectory(node *yaml.Node) bool {
+	return mappingValue(mappingValue(mappingValue(node, "defaults"), "run"), "working-directory") != nil
 }
 
 // testFileNames match a name only a test suite gives a file.
@@ -59,12 +121,11 @@ var redirectTarget = regexp.MustCompile(`(?:^|[^>\d])>>?\s*(?:"([^"]+)"|'([^']+)
 var exitWord = regexp.MustCompile(`\bexit\b`)
 
 // testsInYAML reports every test written into a run: script. Each finding is
-// a warning: a line of a run: script is shell. No rewrite deletes it, and
-// moving a case into the suite is the author's call.
+// a warning. The repair moves the whole script into a file of its own.
 func testsInYAML(content string) []ste.Finding {
 	var out []ste.Finding
-	for _, block := range runBlocks(content) {
-		for _, f := range block.findings() {
+	for _, s := range shellSteps(content) {
+		for _, f := range s.block.findings() {
 			f.Severity = ste.SeverityWarning
 			out = append(out, f)
 		}
@@ -72,7 +133,7 @@ func testsInYAML(content string) []ste.Finding {
 	return out
 }
 
-func (b runBlock) findings() []ste.Finding {
+func (b scriptRows) findings() []ste.Finding {
 	script := strings.Join(b.lines, "\n")
 	annotates := strings.Contains(script, "::error")
 	ends := exitWord.MatchString(script)

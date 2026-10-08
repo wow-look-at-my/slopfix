@@ -9,8 +9,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
-// The warning rules. Each reads a pattern that needs a person's judgment to
-// repair, so a finding warns and never fails a check.
+// The warning rules. A finding warns and never fails a check, and `slopfix
+// fix` rewrites each.
 const (
 	IDInstructionLength = "ste/instruction-length"
 	IDPassive           = "ste/passive"
@@ -67,22 +67,23 @@ func Warn(text string, line int, listItem bool) []Finding {
 	for _, span := range sentenceSpans(prose) {
 		text := prose[span[0]:span[1]]
 		sentences++
-		if n := WordCount(text); n > InstructionWordCap && n <= SentenceWordCap {
+		off := opaque(text, text)
+		s := syntax.Parse(text, off)
+		if n := WordCount(text); n > InstructionWordCap && n <= SentenceWordCap && isInstruction(s) {
 			out = append(out, warn(line, IDInstructionLength,
 				fmt.Sprintf("over the %d-word cap for an instruction at %d words", InstructionWordCap, n),
-				truncate(strings.TrimSpace(text)), "Split it if it tells the reader to do something."))
+				truncate(strings.TrimSpace(text)), "Split it into shorter instructions. `slopfix fix` does this."))
 		}
-		off := opaque(text, text)
-		out = append(out, verbWarnings(syntax.Parse(text, off), off, line)...)
+		out = append(out, clauseWarnings(s, text, off, line)...)
 	}
 	for _, word := range wordPattern.FindAllString(prose, -1) {
 		// A word in capitals is a name or a mask, and never a dictionary word.
 		if word == strings.ToUpper(word) {
 			continue
 		}
-		if alts, banned := dictionary[strings.ToLower(word)]; banned {
+		if approved, banned := plain[strings.ToLower(word)]; banned {
 			out = append(out, warn(line, IDDictionary, "the STE dictionary does not approve this word", word,
-				"Write "+strings.Join(alts, " or ")+"."))
+				"Write "+approved+"."))
 		}
 	}
 	if sentences > ParagraphSentenceCap && !listItem {
@@ -93,49 +94,42 @@ func Warn(text string, line int, listItem bool) []Finding {
 	return out
 }
 
-// verbWarnings reads the tagged words for the passive voice, a complex tense
-// and a noun cluster.
-func verbWarnings(s *syntax.Sentence, off [][]int, line int) []Finding {
+// clauseWarnings reports the passive voice, a complex tense and a noun
+// cluster in a sentence, each where its repair rewrites the sentence. The
+// repair reads the same parse. A finding here is a rewrite `slopfix fix`
+// makes, and a form no rewrite can say otherwise is no finding.
+func clauseWarnings(s *syntax.Sentence, source string, off [][]int, line int) []Finding {
 	var out []Finding
-	words := s.Words
-	nouns := 0
-	for i, w := range words {
-		// Code, a quotation and a parenthetical are data, so each ends a cluster.
-		data := insideAny(off, w.Start) || masks.Contains(w.Text)
-		if strings.HasPrefix(w.Tag, "NN") && !data {
-			nouns++
-		} else {
-			nouns = 0
+	if _, ok := rewritePassive(s, source); ok {
+		i, j := auxiliary(s, 1, beForms)
+		out = append(out, warn(line, IDPassive, "STE prefers the active voice", s.Span(i, j),
+			"Name the actor as the subject. `slopfix fix` does this."))
+	}
+	if _, ok := rewriteTense(s, source); ok {
+		i, j, perfect := tenseAt(s)
+		rule := "STE allows only the simple tenses, and this is a progressive tense"
+		if perfect {
+			rule = "STE allows only the simple tenses, and this is a perfect tense"
 		}
-		if nouns == NounClusterCap+1 {
-			out = append(out, warn(line, IDNounCluster, "more than three nouns stand together", s.Span(i-NounClusterCap, i),
-				"Break the cluster up with a preposition or a relative clause."))
-		}
-		lower := w.Lower()
-		if !beForms.Contains(lower) && !haveForms.Contains(lower) {
-			continue
-		}
-		next := i + 1
-		for next < len(words) && (words[next].Tag == "RB" || words[next].Lower() == "not") {
-			next++
-		}
-		if next >= len(words) {
-			continue
-		}
-		verb := words[next]
-		switch {
-		case haveForms.Contains(lower) && verb.Tag == "VBN":
-			out = append(out, warn(line, IDTense, "STE allows only the simple tenses, and this is a perfect tense",
-				s.Span(i, next), "Write the simple past or the simple present."))
-		case beForms.Contains(lower) && verb.Tag == "VBG" && !approvedIng.Contains(verb.Lower()) && lower != "being":
-			out = append(out, warn(line, IDTense, "STE allows only the simple tenses, and this is a progressive tense",
-				s.Span(i, next), "Write the simple present."))
-		case beForms.Contains(lower) && verb.Tag == "VBN":
-			out = append(out, warn(line, IDPassive, "STE prefers the active voice", s.Span(i, next),
-				"Name the actor as the subject."))
-		}
+		out = append(out, warn(line, IDTense, rule, s.Span(i, j), "Write the simple tense. `slopfix fix` does this."))
+	}
+	if first, last, ok := clusterAt(s, off); ok {
+		out = append(out, warn(line, IDNounCluster, "more than three nouns stand together", s.Span(first, last),
+			"Break the cluster up with a preposition. `slopfix fix` does this."))
 	}
 	return out
+}
+
+// isInstruction reports a sentence that tells the reader to act: it opens on
+// the base form of a verb.
+func isInstruction(s *syntax.Sentence) bool {
+	for _, w := range s.Words {
+		if punctuationTag(w.Tag) || w.Tag == "RB" {
+			continue
+		}
+		return w.Tag == "VB" || w.Tag == "VBP"
+	}
+	return false
 }
 
 func warn(line int, id, rule, detail, fix string) Finding {

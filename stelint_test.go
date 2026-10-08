@@ -71,7 +71,7 @@ func TestEachWarningRuleFires(t *testing.T) {
 		ste.IDPassive:     {"The file is deleted by the loader.", "The loader deletes the file."},
 		ste.IDNounCluster: {"The upload session finalize integrity check fails.", "The integrity check on the finalize fails."},
 		ste.IDTense:       {"The loader is reading the file.", "The loader reads the file."},
-		ste.IDDictionary:  {"The loader will accomplish the task.", "The loader will do the task."},
+		ste.IDDictionary:  {"The loader will utilize the cache.", "The loader will use the cache."},
 		ste.IDParagraphLength: {
 			"It reads. It writes. It waits. It stops. It starts. It ends. It fails.",
 			"It reads. It writes. It waits.",

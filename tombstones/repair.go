@@ -303,9 +303,9 @@ func repairFile(f *fixer.File) {
 		case h.ID != IDVolume:
 			// A name no whole-line strip resolves loses its sentence below.
 			cut = true
-		default:
-			// The cap cut ran above, so a block still over the cap has no whole-sentence cut.
-			h.Fix = FixVolumeByHand
+		case cuttable(added, blocks, maxLines, h.LineNo):
+			// The cap cut lands outside the scope this run writes, so the block is still over the cap.
+			h.Fix = "Cut the run from its end down to the cap. `slopfix fix` does this."
 			f.Note(h)
 		}
 	}
@@ -459,17 +459,46 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 		// the surviving row is trimmed back to one. The cap has to be
 		// reachable: dropping further rows would cost more than the fragment.
 		if !endsOnSentence(lines, b, drop) {
-			row, trimmed, ok := trimLastKeptRow(lines, b, drop)
-			if !ok {
+			if row, trimmed, ok := trimLastKeptRow(lines, b, drop); ok {
+				edits = append(edits, stripEdits(text, drop)...)
+				edits = append(edits, edit.Rows(text, row, row, 0, []string{trimmed}))
 				continue
 			}
-			edits = append(edits, stripEdits(text, drop)...)
-			edits = append(edits, edit.Rows(text, row, row, 0, []string{trimmed}))
-			continue
+			// Rows go from the end until a kept row ends a sentence. A block with no such row keeps its prose.
+			for !endsOnSentence(lines, b, drop) && dropLastKept(lines, b, drop) {
+			}
+			if !endsOnSentence(lines, b, drop) {
+				continue
+			}
 		}
 		edits = append(edits, stripEdits(text, drop)...)
 	}
 	return edits
+}
+
+// cuttable reports whether the cap cut has an edit for the block whose first
+// line, counted from one, is lineNo. A block it cannot end on a sentence keeps
+// its prose, so no finding names it.
+func cuttable(text string, blocks []Block, maxLines, lineNo int) bool {
+	for _, b := range blocks {
+		if len(b.LineNos) > 0 && b.LineNos[0]+1 == lineNo {
+			return len(capEdits(text, []Block{b}, maxLines)) > 0
+		}
+	}
+	return false
+}
+
+// dropLastKept adds the last prose row a drop keeps to it, and reports false
+// when no prose row is left to drop.
+func dropLastKept(lines []string, b Block, drop set.Set[int]) bool {
+	for i := len(b.LineNos) - 1; i >= 0; i-- {
+		no, pure := linePurity(b, i)
+		if pure && no >= 0 && no < len(lines) && !drop.Contains(no) && !treecomments.IsDirective(lines[no]) {
+			drop.Add(no)
+			return true
+		}
+	}
+	return false
 }
 
 // trimLastKeptRow cuts the last row a drop keeps back to its last sentence end.
