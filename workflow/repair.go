@@ -65,6 +65,7 @@ func Options(o fixer.Options) fixer.Options {
 	o.Comments = func(text string, edits []edit.Edit, scope edit.Scope) edit.Result {
 		return apply(text, edits, scope, true)
 	}
+	o.Guard = keepScriptsParsing
 	return o
 }
 

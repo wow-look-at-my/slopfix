@@ -29,7 +29,6 @@ var capSentences = []string{
 	"burst counts prefill tokens since decode last caught up; a chunk continuation runs only once it is zero, and no batch runs once it reaches a chunk.",
 	"The cold chunks are exactly the steps of the isolated stretch, so their costs are measured rather than modelled, and the decode cost is the measured median decode step.",
 	"StreamSeconds is the time every stream in the run spent past its first token and inside the window: the denominator a throughput has to be divided by before it can be compared between policies that admit streams at different times.",
-	"SingleTokenSamples counts the per-token inter-token samples that came from a one-token delivery, and the total sample count, for the streams the ITL percentiles are measured over: with speculative decoding a delivery of N tokens contributes N samples of gap/N, so a delivery's share of a percentile depends on how many tokens it carried, not only on how long the wait was.",
 	"Cost per prefill token rises with the context attention reads, so a token bound alone lets a chunked prompt's later chunks stall decode for several times the seconds one chunk promises.",
 	"The continuation's cap is the GPU seconds one chunk is worth at the measured average rate, priced at the marginal rate of the batch that ran.",
 	"The prefill rates are prefill measurements: a decode batch also reports extend tokens (one per running request) and costs an order of magnitude more per token, so letting one in would price prefill work at decode cost and un-bind every continuation cap.",
@@ -64,7 +63,6 @@ var capSentences = []string{
 	"The percentile is taken over per-token samples, and a delivery of N tokens contributes N samples of gap/N, so which delivery the named sample came from is a count, not a guess: the class that fills the p(1-q) tail owns the reported number.",
 	"A mixed delivery is one token carried by a prefill batch, so it files that batch's whole wall clock as one sample; a policy that serves its streams only in decode batches files one sample per batch covering several tokens.",
 	"When that class alone reaches the tail's slot count the named sample is a ride, and the bound is that it is not longer than one of NEW's own forward passes -- the stall bound in another unit.",
-	"itlBand is the population one inter-token percentile is drawn from, split by the delivery each sample came from and by the prefill passes its gap waited out.",
 	"itlPassBand measures the band over NEW's runs and the opponent's, per run: the batches of one seed cannot be attributed to another seed's deliveries, so the populations are reduced per run and summed, never pooled into one trace.",
 	"checkPassCost states the arithmetic of a tail made of samples that waited out one prefill pass: the wait is one pass and one step, its whole length is work some other request was served, and NEW's own decode steps are still the faster ones.",
 	"boundTailAdmissible is the shared test that the policy being beaten was withholding tokens outright: delivered volume inside the cold prefills is the direct measure of that.",
@@ -74,7 +72,6 @@ var capSentences = []string{
 	"The bound is therefore that NEW's percentile is a forward pass it launched itself, and that the samples which put it there are no more numerous than the rows.",
 	"A bound whose document is missing, or a document no bound reads, means the excuse in the test and the argument on disk have drifted apart -- the test would keep passing while the reasoning it cites no longer exists.",
 	"boundName is consulted for every scenario the suite measures, so the set it can return is fixed by the table rather than by which cells happen to lose on this run.",
-	"The engine records a row's token at its mixed batch's end and a decode step's accepted tokens at that batch's end, so (request, time) names one batch.",
 	"A mixed batch hands one token per riding request where a decode step hands the sampled accept length, so the same wall-clock wait is divided differently.",
 	"The tail lines name the class the reported p99 and p99.9 fall in, which is decided by each class's weight in samples, not its delivery count.",
 	"WriteGapDiagnostic prints the inter-token gap distribution and the batch sequence around the widest gaps, so a latency difference can be traced to the batches that caused it rather than argued about.",
@@ -179,11 +176,15 @@ var capSentences = []string{
 // Each is a real comment. A division turns half of each into a fragment. The
 // reaching repair would have to write words the author did not. A subject for a
 // participial list item, a finite verb for a participle, or a subject for an
-// aside the sentence interrupts. The rule owns no rephrase for those.
+// aside the sentence interrupts. The rule owns no rephrase for those. A
+// sentence with no seam to cut at stays too, since a cut there halves a phrase.
 var capPending = []string{
 	"Bulk.txt v0 feat = A + shared.txt changed on the head side (the \"PR branch\") M1 = A + shared.txt changed differently (the conflict) + bulk.txt changed (a base-only blob the merge MUST materialize) Returns every sha the tests need.",
 	"Triggered by (A) a synchronize whose sender is not our own App bot and whose head the self-push recognizer cannot attribute to us, and (B) the leasehead guard catching a head that moved with no synchronize seen (same recognizer, same fallback).",
 	"With no settle record (prev == null) every later re-aggregation of a settled-green commit used to read as a \"first green\" and republish `pending` over the live `success` — the known first-green regression.",
 	"unless they have no commits unique to them (aka git checkout -b some-new-branch && git push = don't create and close a pr for this 'empty' branch)\" — and the follow-up: \"btw you need to *merge* zero-diff PRs so it wraps everything up properly and deletes the branhc.",
 	"The state CLIENT's own wire contract (get/put/delete/list, acquire/steal, the declared wait and its degradations) is covered once in sdk/state.test.ts — against a REAL local HTTP server rather than this suite's mock — now that this hook shares the SDK client.",
+	"SingleTokenSamples counts the per-token inter-token samples that came from a one-token delivery, and the total sample count, for the streams the ITL percentiles are measured over: with speculative decoding a delivery of N tokens contributes N samples of gap/N, so a delivery's share of a percentile depends on how many tokens it carried, not only on how long the wait was.",
+	"itlBand is the population one inter-token percentile is drawn from, split by the delivery each sample came from and by the prefill passes its gap waited out.",
+	"The engine records a row's token at its mixed batch's end and a decode step's accepted tokens at that batch's end, so (request, time) names one batch.",
 }

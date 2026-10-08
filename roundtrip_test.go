@@ -176,7 +176,7 @@ func TestALengthenedNumberIsCutBackInTheSamePass(t *testing.T) {
 	// The comment fits its budget as written and does not a single time every
 	// number in it is said in words. This is the whole of the interaction.
 	src := "package demo\n\n" +
-		"// Reserve takes one slot out of the arena, hands the caller back one handle to it and then publishes the newest entry it has just made now.\n" +
+		"// Reserve takes one slot out of the arena and hands the caller one handle to it. It then publishes the newest entry it has just made now.\n" +
 		"func Reserve() {}\n"
 	require.NotContains(t, findingIDs(slopfix.CheckContent("demo.go", src)), "comments/length",
 		"the fixture has to start inside the budget, or it proves nothing about the rewrite")
@@ -209,6 +209,7 @@ func TestEveryRuleAppearsInAFixture(t *testing.T) {
 	for id := range slopfix.AllIDs().All() {
 		// A warning outlives the repair by design. TestEachWarningRuleFires covers
 		// each. A report-only rule has no repair for a fixture to clear.
+		// each. A report-only rule has no repair to round-trip.
 		if !covered.Contains(id) && !slopfix.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) {
 			missing = append(missing, id)
 		}

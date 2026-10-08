@@ -251,6 +251,41 @@ func registerWorkflowRules() {
 	registerExempt(workflow.IDDuplicateStepKey, RuleWorkflow, "the file does not say which value the author meant, so no rewrite answers it",
 		detectContent(workflow.IDDuplicateStepKey),
 		workflowCase("duplicate-step-key", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - name: one\n        run: echo hi\n        name: two\n"))
+	registerExempt(workflow.IDBranchPin, RuleWorkflow, "no rewrite knows which ref the author meant", branchPinDetect, branchPinCase())
+}
+
+// branchPinCase pins a feature branch, so the branch-pin detection fires with
+// no lookup.
+func branchPinCase() RuleCase {
+	return workflowCase("branch-pin", "on: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n")
+}
+
+// branchPinDetect answers the branch pins of a case against a fixed set of
+// refs, so the harness proves the detection without the network.
+func branchPinDetect(c RuleCase) []ste.Finding {
+	found, err := workflow.BranchPins(c.Text, fixedRefs{})
+	if err != nil {
+		return nil
+	}
+	return found
+}
+
+// fixedRefs answers refs without the network: master is the default branch, feature is another branch, and v1 is a tag.
+type fixedRefs struct{}
+
+func (fixedRefs) DefaultBranch(string) (string, error) { return "master", nil }
+
+func (fixedRefs) Kind(_, ref string) (workflow.RefKind, error) {
+	switch ref {
+	case "master", "feature":
+		return workflow.RefBranch, nil
+	case "v1":
+		return workflow.RefTag, nil
+	}
+	return workflow.RefMissing, nil
+	registerExempt(workflow.IDRunScriptSyntax, RuleWorkflow, "no rewrite knows what the script meant, and a run script line is shell",
+		detectContent(workflow.IDRunScriptSyntax),
+		workflowCase("run-script-syntax", "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo (\n"))
 }
 
 func workflowHeader() string { return "name: CI\n\non:\n  push:\n    branches: ['**']\n\n" }

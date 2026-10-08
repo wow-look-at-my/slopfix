@@ -6,10 +6,15 @@
 package slopfix
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
@@ -29,6 +34,54 @@ func FileScope(r forkscope.Resolver, path, content string) (*forkscope.Scope, er
 		return nil, err
 	}
 	return base.File(path, content)
+}
+
+// DefaultGitHubAPI is the API root when GITHUB_API_URL is unset.
+const DefaultGitHubAPI = "https://api.github.com"
+
+// githubGet reads path from GITHUB_API_URL, with GITHUB_TOKEN as the bearer
+// when it is set. It answers the status and the body. A transport failure is
+// the error.
+func githubGet(getenv func(string) string, path string) (int, []byte, error) {
+	api := strings.TrimRight(getenv("GITHUB_API_URL"), "/")
+	if api == "" {
+		api = DefaultGitHubAPI
+	}
+	url := api + path
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return 0, nil, fmt.Errorf("GET %s: %w", url, err)
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	if token := getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, nil, fmt.Errorf("GET %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return 0, nil, fmt.Errorf("GET %s: %w", url, err)
+	}
+	return resp.StatusCode, body, nil
+}
+
+// githubGetJSON decodes path into out.
+func githubGetJSON(getenv func(string) string, path string, out any) error {
+	status, body, err := githubGet(getenv, path)
+	if err != nil {
+		return err
+	}
+	if status != http.StatusOK {
+		return fmt.Errorf("GET %s: %d %s: %s", path, status, http.StatusText(status), strings.TrimSpace(string(body)))
+	}
+	if err := json.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("GET %s: %w", path, err)
+	}
+	return nil
 }
 
 // BaseOf answers the fork base of the work tree path is in, or nil when it is
