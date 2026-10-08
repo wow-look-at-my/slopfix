@@ -351,7 +351,7 @@ func repairFile(f *fixer.File) {
 	// A strip that did not land leaves the line in the text, so its hit is reported there.
 	for _, h := range stripping {
 		if !gone.Contains(h.LineNo) {
-			f.Note(h)
+			f.Note(onLine(h))
 		}
 	}
 	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished.
@@ -419,8 +419,17 @@ func cutReferents(f *fixer.File, path string) {
 	f.ApplyComments(edits)
 	after := AddedBlocks(path, f.Text())
 	for _, name := range DeadReferents(path, f.Text(), after) {
-		f.Note(HitForName(after, name))
+		f.Note(onLine(HitForName(after, name)))
 	}
+}
+
+// onLine answers a dead-name hit as a finding reports it: HitForName counts its
+// row from zero, and a finding counts lines from one.
+func onLine(h Hit) Hit {
+	if h.LineNo >= 0 {
+		h.LineNo++
+	}
+	return h
 }
 
 // commentOpeners start the prose of a line. A sentence never reaches back past one.

@@ -35,7 +35,7 @@ func TestFixCutsADeadNameFromADocument(t *testing.T) {
 			lines = append(lines, h.LineNo)
 		}
 	}
-	assert.Equal(t, []int{2}, lines, "check names the line that holds the name")
+	assert.Equal(t, []int{3}, lines, "check names the line that holds the name, counted from one")
 
 	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
 	assert.NotContains(t, fixed.Text, "claudeguard_proc")
