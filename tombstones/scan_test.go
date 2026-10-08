@@ -147,8 +147,103 @@ func TestATrailingCommentNamingADeadSymbolIsReported(t *testing.T) {
 	blocks := AddedBlocks(path, src)
 	assert.Equal(t, []string{"parseLegacyFlag"}, DeadReferents(path, src, blocks))
 	hit := HitForName(blocks, "parseLegacyFlag")
-	assert.Equal(t, 1, hit.LineNo)
+	assert.Equal(t, 2, hit.LineNo, "the line counts from one")
 	assert.False(t, hit.Strippable)
+}
+
+// gitTree makes a repository whose only other file names nothing the cases use.
+func gitTree(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ts"), []byte("export const other = 1;\n"), 0o644))
+	return dir
+}
+
+// The scanner call of the code action's comments.ts, as written before its
+// inline comment named a dead parameter. The hit sits on the line that holds
+// it, counted from one, and the code around the comment names nothing.
+func TestADeadNameInAnInlineBlockCommentIsReportedOnItsLine(t *testing.T) {
+	path := filepath.Join(gitTree(t), "a.ts")
+	src := "function commentOnlyLines(script: string): number[] {\n" +
+		"\tconst scanner = ts.createScanner(ts.ScriptTarget.Latest, /* skipTrivia */ false, ts.LanguageVariant.Standard, script);\n" +
+		"}\n"
+	hits := DeadReferentHits(path, src)
+	require.Len(t, hits, 1)
+	assert.Equal(t, "skipTrivia", hits[0].Phrase)
+	assert.Equal(t, 2, hits[0].LineNo)
+}
+
+// The repair takes the whole inline comment, closer included, and leaves the
+// call as it would read with no comment at all.
+func TestAnInlineBlockCommentEmptiedOfItsDeadNameGoesWhole(t *testing.T) {
+	path := filepath.Join(gitTree(t), "a.ts")
+	src := "function commentOnlyLines(script: string): number[] {\n" +
+		"\tconst scanner = ts.createScanner(ts.ScriptTarget.Latest, /* skipTrivia */ false, ts.LanguageVariant.Standard, script);\n" +
+		"}\n"
+	repair := Fix(path, src, DefaultMaxCommentLines)
+	assert.Equal(t, "function commentOnlyLines(script: string): number[] {\n"+
+		"\tconst scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, script);\n"+
+		"}\n", repair.Text)
+	assert.Empty(t, repair.Kept)
+	assert.Empty(t, DeadReferentHits(path, repair.Text))
+}
+
+// The palette row of the code action's highlight.ts with a dead name added to
+// its trailing comment. The string before the comment is code, the hit sits
+// on the row, and the repair cuts the sentence back to the comment's own words.
+func TestADeadNameInATrailingCommentIsCutAndTheCodeStays(t *testing.T) {
+	path := filepath.Join(gitTree(t), "a.ts")
+	src := "const PALETTE = new Map<string, string>([\n" +
+		"\t['built_in', fg('#ffa657')], // built-in types (string, number) and globals (console, Math). See paletteFor.\n" +
+		"]);\n"
+	hits := DeadReferentHits(path, src)
+	require.Len(t, hits, 1)
+	assert.Equal(t, "paletteFor", hits[0].Phrase)
+	assert.Equal(t, 2, hits[0].LineNo)
+
+	repair := Fix(path, src, DefaultMaxCommentLines)
+	assert.Equal(t, "const PALETTE = new Map<string, string>([\n"+
+		"\t['built_in', fg('#ffa657')], // built-in types (string, number) and globals (console, Math).\n"+
+		"]);\n", repair.Text)
+	assert.Empty(t, repair.Kept)
+}
+
+// The sentence span stops at the comment the parse found, on either side.
+func TestSentenceAroundStaysInsideTheComment(t *testing.T) {
+	for _, c := range []struct {
+		line, prose, want string
+	}{
+		{
+			line:  "f(1, /* oldLegacyArg */ false);",
+			prose: "     /* oldLegacyArg */        ",
+			want:  "f(1, false);",
+		},
+		{
+			line:  "f(1, /* oldLegacyArg */);",
+			prose: "     /* oldLegacyArg */  ",
+			want:  "f(1,);",
+		},
+		{
+			line:  "x := 1 // see oldLegacyArg",
+			prose: "       // see oldLegacyArg",
+			want:  "x := 1",
+		},
+		{
+			line:  "/* see oldLegacyArg for the pin",
+			prose: "/* see oldLegacyArg for the pin",
+			want:  "/* ",
+		},
+		{
+			line:  "f(/* oldLegacyArg. Kept. */ x)",
+			prose: "  /* oldLegacyArg. Kept. */   ",
+			want:  "f(/* Kept. */ x)",
+		},
+	} {
+		from, to, ok := sentenceAround(c.line, c.prose, "oldLegacyArg", commentOpeners)
+		require.True(t, ok, c.line)
+		assert.Equal(t, c.want, c.line[:from]+c.line[to:], c.line)
+	}
 }
 
 func TestRepoRootFindsTheTreeAboveAFile(t *testing.T) {
