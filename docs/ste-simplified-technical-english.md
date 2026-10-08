@@ -2,15 +2,15 @@
 
 ASD-STE100 is a controlled language. Each approved word has a single meaning and part of speech. Its rules keep each sentence to a single reading. STE governs prose. It applies to a comment or a commit message as much as a document. The text that reaches `Check` is already a block joined to a single line.
 
-The members share the sentence splitter, the masks and the repair pass. They therefore share a package. Each member still selects on its own by ID.
+The `ste` package also runs rules that are not STE: plain English and the counts policy. They share the sentence splitter, the masks and the repair pass, so they share the package. The ID prefix names the category, and each rule still selects on its own by ID.
 
 - `ste/contraction`: a contraction. The repair writes the expansion and keeps the capitalization.
 - `ste/modal`: `should`, `shall`, `could`, `might` and `would`. The repair writes `must` for obligation and `can` for possibility.
-- `ste/semicolon`: the semicolon. Every semicolon has a repair. A period replaces one where the words after it are a sentence. The next word takes a capital. After a colon, each later item of a list opens a sentence behind `This also covers`. The item's own `and` or `or` goes. Items that each pair a case with an answer, as in `for a parser, round-trip`, become a list of pairs with each answer in a parenthesis. Any other semicolon becomes a comma, because the words after it describe the words before it.
-- `ste/comma-splice`: a comma that joins clauses that each stand alone. The repair writes a period. `However,` replaces `but` and `yet`. The repair drops `and` and `so`. The words before the comma must hold a main clause, and the subject after it must agree with its verb.
+- `english/semicolon`: the semicolon. Every semicolon has a repair. A period replaces one where the words after it are a sentence. The next word takes a capital. After a colon, each later item of a list opens a sentence behind `This also covers`. The item's own `and` or `or` goes. Items that each pair a case with an answer, as in `for a parser, round-trip`, become a list of pairs with each answer in a parenthesis. Any other semicolon becomes a comma, because the words after it describe the words before it.
+- `english/comma-splice`: a comma that joins clauses that each stand alone. The repair writes a period. `However,` replaces `but` and `yet`. The repair drops `and` and `so`. The words before the comma must hold a main clause, and the subject after it must agree with its verb.
 - `ste/sentence-length`: a sentence over `25` words, the STE cap for a description. The repair divides it at a clause boundary that the `syntax` parser finds. With no such boundary, it divides between words near the cap. Each half must be a grammatical sentence. After a colon, the words since the colon must hold a clause too. A restated subject must belong to the clause right before the cut, with no other finite verb between them. Where no clause boundary gives sentences, a carrier writes the rest as a sentence. The list below names each carrier. A sentence that no division reads is cut between words. The longest leading run under the cap ends as a sentence. The rest opens as one. The repair divides again until every sentence is under the cap. The rule then leaves no finding standing.
-- `ste/postdeterminer`: a numeral between a determiner and its noun, as in `the three rules`. The repair cuts the numeral. A unit, a percent, a year, a status code, `any` and `first` keep theirs. So does a numeral that heads its phrase, as in `the two cannot` and `this one`. Fix leaves the words inside a quotation alone, as Check reads them.
-- `ste/count`: a stated count anywhere in the line, read with the `Gate` substrate. The repair takes the number out after the join, with the `counts` rewording.
+- `counts/postdeterminer`: a numeral between a determiner and its noun, as in `the three rules`. The repair cuts the numeral. A unit, a percent, a year, a status code, `any` and `first` keep theirs. So does a numeral that heads its phrase, as in `the two cannot` and `this one`. Fix leaves the words inside a quotation alone, as Check reads them.
+- `counts/stated-count`: a stated count anywhere in the line, read with the `Gate` substrate. The repair takes the number out after the join, with the `counts` rewording.
 
 The warning rules read patterns that need a person to repair. A warning never fails `check`. `check --json` gives each finding a `severity` of `error` or `warning`. The language server sends a warning at warning level.
 
@@ -35,13 +35,13 @@ How a long sentence divides:
 - Any other rest goes behind a carrier (`ste/carrier.go`). A trailing adverbial takes `This happens`, `This holds`, `Do this` or `This applies`, by the main verb. A phrase of place, a participle or a relative clause after a noun restates the noun: `That barn is behind the hills`. The rest of a list takes `It also covers`, or the subject and `also` before a list of verb groups. A purpose after an instruction takes `Do this so`.
 - An opening subordinate clause or infinitive moves behind its main clause: `Y. This happens if X.` A main clause can point back into it, as `those files` does. That main clause keeps the order: `Suppose X. Then Y.` A long subject goes into a sentence of its own: `Consider a reader arriving at X. That reader still deserves Y.`
 
-What `ste` does not flag:
+What the package does not flag:
 
 - An inline code span, a link target and an HTML entity are masked. Every repair leaves them as they are.
 - A comma splice needs a subject and a finite verb after the comma. A list, an Oxford comma, a participle and an infinitive do not qualify. Without a conjunction, the words before the comma must be a main clause.
 - No repair rewrites inside a quotation.
 - Text in parentheses counts as a single word. A citation thus cannot inflate a sentence.
 - A period ends a sentence only when what follows opens the next. That rules out `e.g.` and `$(...)`. A file name or a section mark can open a sentence in lower case.
-- `ste/count` exempts arithmetic, such as a range or an expression. It exempts no noun, because a duration or a size goes stale too.
+- `counts/stated-count` exempts arithmetic, such as a range or an expression. It exempts no noun, because a duration or a size goes stale too.
 - The literal shapes `issue #<digits>`, `Vega <digits>`, `8 bits`, `16 bits`, `32 bits` and `64 bits` are not counts. A number that picks an item from a list, as in `gate 5`, is a count.
 - A cut keeps the sentence English. `over` and `above` always stay, so `over 32 banks` becomes `over many banks`. A capital moves only at the start of a sentence.

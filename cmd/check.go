@@ -26,7 +26,7 @@ func ruleNames() []string {
 
 // selectedRules turns --only into what Fix takes.
 //
-// An entry is a category (`ste`) or a rule ID (`ste/semicolon`), the name the
+// An entry is a category (`ste`) or a rule ID (`english/semicolon`), the name the
 // report prints. An ID turns its category on too. An unknown name is an error,
 // because a typo that quietly applies nothing reads as a clean file.
 func selectedRules(only []string) ([]slopfix.Rule, []string, error) {

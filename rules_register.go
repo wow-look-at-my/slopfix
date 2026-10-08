@@ -70,11 +70,11 @@ func init() {
 
 	registerFile(ste.IDContraction, RuleSTE, "x.md", "The tool doesn't write the result.\n")
 	registerFile(ste.IDModal, RuleSTE, "x.md", "The tool should write the result.\n")
-	registerFile(ste.IDSemicolon, RuleSTE, "x.md", "The gate reads the file; the tool writes the result.\n")
+	registerFile(ste.IDSemicolon, RuleEnglish, "x.md", "The gate reads the file; the tool writes the result.\n")
 	registerFile(ste.IDSentenceCap, RuleSTE, "x.md", "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n")
-	registerFile(ste.IDCommaSplice, RuleSTE, "x.md", "The gate reads the file, the tool writes the result.\n")
-	registerFile(ste.IDStaleCount, RuleSTE, "x.md", "This project has three rules.\n")
-	registerFile(ste.IDPostdeterminer, RuleSTE, "x.md", "All the three rules apply here.\n")
+	registerFile(ste.IDCommaSplice, RuleEnglish, "x.md", "The gate reads the file, the tool writes the result.\n")
+	registerFile(ste.IDStaleCount, RuleCounts, "x.md", "This project has three rules.\n")
+	registerFile(ste.IDPostdeterminer, RuleCounts, "x.md", "All the three rules apply here.\n")
 
 	registerFile(english.IDCommaNever, RuleEnglish, "x.md", "The gate reads the file, never the tool.\n")
 
