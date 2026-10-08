@@ -69,6 +69,7 @@ var hardCuts = []struct {
 	{"That snapshot must record every discovered skill name — including `paths:`-gated and preloaded skills that the listing baseline (`slash_skills`) holds back — so session-start telemetry can reuse it instead of re-walking the disk.", "telemetry. Can"},
 	{"The item list a `/todo` capture sends on its SECOND model call: the same prepared snapshot `/btw` sends, its instruction, then the first response echoed back verbatim (reasoning included) with the tool result that answered it.", "echoed. Back"},
 	{"The span the current window covers at `now`: the whole window once the response has run that long, and the time since its first chunk before then.", "first. Chunk"},
+	{"String carries every number a filesystem was judged on, which is what lets a log line be answered without the daemon still running to be asked.", "log. Line"},
 }
 
 // A last-resort cut may leave a sentence whole when no cut reads. These cases
