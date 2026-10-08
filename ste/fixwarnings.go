@@ -131,13 +131,32 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 	for range clauseRounds * (len(strings.Fields(text)) + 1) {
 		masked := mask(text)
 		off := opaque(text, masked)
-		rewritten, ok := rewriteSentence(syntax.Parse(masked, off), text, off, keep)
+		rewritten, ok := rewriteSentence(coverVerbatim(syntax.Parse(masked, off), text), text, off, keep)
 		if !ok || rewritten == text {
 			break
 		}
 		text = rewritten
 	}
 	return text
+}
+
+// coverVerbatim stretches each word mask writes over a code span, a link
+// target or an entity to the whole span. A rewrite that moves the word then
+// moves all of the span.
+func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
+	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
+		from, to := span[0], span[1]
+		// mask fills a link target inside its parentheses.
+		if to-from >= 3 && text[from] == ']' && text[from+1] == '(' && text[to-1] == ')' {
+			from, to = from+2, to-1
+		}
+		for k := range s.Words {
+			if s.Words[k].Start >= from && s.Words[k].Start < to {
+				s.Words[k].Start, s.Words[k].End = from, to
+			}
+		}
+	}
+	return s
 }
 
 // fixInstructions divides each instruction over InstructionWordCap, as the
@@ -227,7 +246,7 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	}
 	end := last
 	for k := by + 1; k <= last; k++ {
-		if s.Words[k].Text == "," {
+		if endsActor(s.Words[k]) {
 			end = k - 1
 			break
 		}
@@ -235,15 +254,107 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if end < by+1 {
 		return "", false
 	}
-	subject := strings.TrimSpace(source[s.Words[0].Start:s.Words[i].Start])
-	actor := source[s.Words[by+1].Start:s.Words[end].End]
-	tail := source[s.Words[end].End:]
+	first, ok := subjectStart(s, i)
+	if !ok {
+		return "", false
+	}
+	from, to := s.Words[first].Start, s.Words[end].End
+	subject := strings.TrimSpace(unbold(source[from:s.Words[i].Start]))
+	actor := strings.TrimSpace(unbold(source[s.Words[by+1].Start:to]))
 	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
 	if subject == "" || actor == "" || verb == "" {
 		return "", false
 	}
-	object := lowerOpeningFor(subject, s.Words[0].Tag)
-	return capitalizeOpening(actor) + " " + verb + " " + object + tail, true
+	object := subject
+	if first == 0 {
+		actor = capitalizeOpening(actor)
+		object = lowerOpeningFor(subject, s.Words[0].Tag)
+	}
+	clause := rebold(source, from, to, actor+" "+verb+" "+object)
+	return source[:from] + clause + source[to:], true
+}
+
+// endsActor reports a word the actor of a passive clause stops in front of.
+// Punctuation ends it, and so does a subordinator.
+func endsActor(w syntax.Word) bool {
+	switch w.Text {
+	case ",", ";", ":", "(":
+		return true
+	}
+	if strings.Trim(w.Text, "-–—") == "" {
+		return true
+	}
+	return syntax.Is(w.Lower(), "subordinator")
+}
+
+// subjectStart answers the first word of the subject in front of the verb
+// group at i. An opening phrase a comma closes stays in front of the clause, as
+// does the coordinator or subordinator after that comma. A relative pronoun
+// stands for a noun outside the clause, so it has no subject to move.
+func subjectStart(s *syntax.Sentence, i int) (int, bool) {
+	first := 0
+	for k := 0; k < i; k++ {
+		if s.Words[k].Text == "," && leadsClause(s, first, k) {
+			first = k + 1
+		}
+	}
+	for first < i && (s.Words[first].Tag == "CC" || syntax.Is(s.Words[first].Lower(), "subordinator") || s.Words[first].Lower() == "so") {
+		first++
+	}
+	if first >= i || strings.HasPrefix(s.Words[first].Tag, "W") {
+		return 0, false
+	}
+	return first, true
+}
+
+// leadsClause reports whether the words from first up to the comma at k stand
+// in front of a clause rather than in a list. They carry a finite verb, or they
+// open on a preposition or an adverb, or the comma is followed by a coordinator
+// or a subordinator.
+func leadsClause(s *syntax.Sentence, first, k int) bool {
+	if k+1 < len(s.Words) {
+		next := s.Words[k+1]
+		if next.Tag == "CC" || next.Lower() == "so" || syntax.Is(next.Lower(), "subordinator") {
+			return true
+		}
+	}
+	if first < k {
+		switch s.Words[first].Tag {
+		case "IN", "RB", "TO", "VBG":
+			return true
+		}
+	}
+	for _, w := range s.Words[first:k] {
+		switch w.Tag {
+		case "VBZ", "VBP", "VBD", "MD":
+			return true
+		}
+	}
+	return false
+}
+
+// unbold drops the bold markers from a piece a rewrite moves.
+func unbold(piece string) string {
+	return strings.ReplaceAll(piece, "**", "")
+}
+
+// rebold writes the bold markers source carries between from and to around the
+// rewritten clause. A run that opens inside the clause opens at its start, and
+// a run that closes inside it closes at its end.
+func rebold(source string, from, to int, clause string) string {
+	inside := strings.Count(source[from:to], "**")
+	if inside == 0 {
+		return clause
+	}
+	startBold := strings.Count(source[:from], "**")%2 == 1
+	endBold := (strings.Count(source[:from], "**")+inside)%2 == 1
+	if !startBold {
+		clause = "**" + clause
+	}
+	if !endBold {
+		clause += "**"
+	}
+	return clause
 }
 
 // lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
@@ -292,7 +403,61 @@ func baseFromParticiple(form string) string {
 	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
 		return stem + "e"
 	}
+	if silentE(stem) {
+		return stem + "e"
+	}
 	return stem
+}
+
+// silentE reports whether English spelling drops an e from the end of stem before
+// -ed. Endings like -dge, -ate, -ize, -ve, -ce and -ure need the e. A stem of one
+// syllable that ends on a single vowel and a single consonant took the e as well.
+// Because a stem without it doubles its consonant: "named" against "planned".
+func silentE(stem string) bool {
+	n := len(stem)
+	if n < 2 {
+		return false
+	}
+	last, prev := stem[n-1], stem[n-2]
+	consonant := func(c byte) bool { return c >= 'a' && c <= 'z' && !strings.ContainsRune("aeiou", rune(c)) }
+	switch {
+	case last == 'v', last == 'u' && prev != 'q':
+		return true
+	case last == 'c', last == 'z' && strings.ContainsRune("iy", rune(prev)):
+		return true
+	case last == 'g' && prev == 'd':
+		return true
+	case last == 's' && strings.ContainsRune("rnpl", rune(prev)):
+		return true
+	case last == 'l' && consonant(prev) && !strings.ContainsRune("lrw", rune(prev)):
+		return true
+	case n >= 3 && strings.ContainsRune("aiu", rune(prev)) && strings.ContainsRune("tr", rune(last)) && consonant(stem[n-3]):
+		// -ate, -ire, -ure and -are, after a consonant.
+		return prev != 'i' || last == 'r'
+	case n >= 3 && prev == 'i' && strings.ContainsRune("nd", rune(last)) && consonant(stem[n-3]):
+		// -ine and -ide, after a consonant.
+		return true
+	}
+	// The u of qu spells a consonant sound.
+	w := strings.ReplaceAll(stem, "qu", "q")
+	n = len(w)
+	return n >= 2 && oneSyllable(w) && strings.ContainsRune("aeiou", rune(w[n-2])) && (n == 2 || consonant(w[n-3])) &&
+		consonant(last) && !strings.ContainsRune("wxy", rune(last))
+}
+
+// oneSyllable reports whether word holds a single run of vowels. A y opens no
+// run at the start of a word, where it spells a consonant.
+func oneSyllable(word string) bool {
+	runs := 0
+	vowel := false
+	for i := 0; i < len(word); i++ {
+		v := strings.ContainsRune("aeiou", rune(word[i])) || word[i] == 'y' && i > 0
+		if v && !vowel {
+			runs++
+		}
+		vowel = v
+	}
+	return runs == 1
 }
 
 // rewriteTense writes a simple tense for a perfect or a progressive verb
@@ -347,7 +512,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	noun := func(k int) bool {
 		w := s.Words[k]
 		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			!strings.ContainsAny(w.Text, "()[]{}`\"")
+			!strings.ContainsAny(w.Text, "()[]{}`\"") && !versus.Contains(w.Lower())
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -382,6 +547,15 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 		out.WriteString(" of the ")
 		last--
 	}
-	out.WriteString(source[s.Words[start].Start:s.Words[last].End])
-	return splice(source, s, start, end, out.String()), true
+	rest := source[s.Words[start].Start:s.Words[last].End]
+	rewritten := out.String()
+	// A cluster that opens the sentence hands its capital to the head that now opens it.
+	if start == 0 && isCapitalized(s.Words[0].Text) {
+		rewritten = capitalizeOpening(rewritten)
+		rest = lowerOpeningFor(rest, s.Words[0].Tag)
+	}
+	return splice(source, s, start, end, rewritten+rest), true
 }
+
+// versus joins noun phrases and is no noun of either, though the tagger reads it as one.
+var versus = set.Of("vs", "vs.", "versus")
