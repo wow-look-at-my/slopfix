@@ -173,6 +173,7 @@ var capSentences = []string{
 	"A map that carries no information is wasteful.",
 	"The file, which fails, is gone.",
 	"A user who reads the message leaves.",
+	"Triggered by (A) a synchronize whose sender is not our own App bot and whose head the self-push recognizer cannot attribute to us, and (B) the leasehead guard catching a head that moved with no synchronize seen (same recognizer, same fallback).",
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.
@@ -182,7 +183,6 @@ var capSentences = []string{
 // aside the sentence interrupts. The rule owns no rephrase for those.
 var capPending = []string{
 	"Bulk.txt v0 feat = A + shared.txt changed on the head side (the \"PR branch\") M1 = A + shared.txt changed differently (the conflict) + bulk.txt changed (a base-only blob the merge MUST materialize) Returns every sha the tests need.",
-	"Triggered by (A) a synchronize whose sender is not our own App bot and whose head the self-push recognizer cannot attribute to us, and (B) the leasehead guard catching a head that moved with no synchronize seen (same recognizer, same fallback).",
 	"With no settle record (prev == null) every later re-aggregation of a settled-green commit used to read as a \"first green\" and republish `pending` over the live `success` — the known first-green regression.",
 	"unless they have no commits unique to them (aka git checkout -b some-new-branch && git push = don't create and close a pr for this 'empty' branch)\" — and the follow-up: \"btw you need to *merge* zero-diff PRs so it wraps everything up properly and deletes the branhc.",
 	"The state CLIENT's own wire contract (get/put/delete/list, acquire/steal, the declared wait and its degradations) is covered once in sdk/state.test.ts — against a REAL local HTTP server rather than this suite's mock — now that this hook shares the SDK client.",
