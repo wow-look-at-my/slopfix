@@ -45,7 +45,7 @@ func TestFixKeepsMarkdownOutsideTheRoot(t *testing.T) {
 func TestCheckReportsAnOverBudgetFileAndChangesNothing(t *testing.T) {
 	agents := "## Topic\n\n" + strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"
 	root := gitRoot(t, map[string]string{"AGENTS.md": agents})
-	assert.Contains(t, ids(slopfix.CheckTreeWith(root, repoOnly).Findings), slopfix.IDBudget)
+	assert.Contains(t, ids(slopfix.CheckTree(root).Findings), slopfix.IDBudget)
 	got, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
 	require.NoError(t, err)
 	assert.Equal(t, agents, string(got))
@@ -54,13 +54,10 @@ func TestCheckReportsAnOverBudgetFileAndChangesNothing(t *testing.T) {
 func TestFixSplitsAnOverBudgetFileIntoDocs(t *testing.T) {
 	agents := "# Guide\n\n## Topic\n\n" + strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"
 	root := gitRoot(t, map[string]string{"AGENTS.md": agents})
-	out := slopfix.FixTreeWith(root, repoOnly)
+	out := slopfix.FixTree(root)
 	assert.NotContains(t, ids(out.Findings), slopfix.IDBudget)
 	assert.FileExists(t, filepath.Join(root, "docs", "topic.md"))
 }
-
-// repoOnly selects the repository rules, which are what the budget tests judge.
-var repoOnly = slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}}
 
 // Every request loads a nested CLAUDE.md and an imported snippet whole too, so
 // the budget reads them. Another long markdown file is the control.
@@ -88,7 +85,7 @@ func TestTheBudgetReadsEveryInstructionFile(t *testing.T) {
 // A file with no heading loses its tail to a file of its own, and keeps a link.
 func TestFixMovesTheTailOfAFileWithNoHeading(t *testing.T) {
 	root := gitRoot(t, map[string]string{"AGENTS.md": strings.Repeat("word ", slopfix.CharBudget/5+10) + "\n"})
-	assert.NotContains(t, ids(slopfix.FixTreeWith(root, repoOnly).Findings), slopfix.IDBudget)
+	assert.NotContains(t, ids(slopfix.FixTree(root).Findings), slopfix.IDBudget)
 	got, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
 	require.NoError(t, err)
 	assert.LessOrEqual(t, len([]rune(string(got))), slopfix.CharBudget)
