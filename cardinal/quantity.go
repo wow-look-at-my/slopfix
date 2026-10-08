@@ -296,7 +296,8 @@ func NamesAnItem(text string, at int) bool {
 		if strings.IndexFunc(name, unicode.IsLetter) != 0 || strings.IndexFunc(name, func(r rune) bool { return !unicode.IsLetter(r) && r != '-' }) >= 0 {
 			return false
 		}
-		if functionTags.Contains(prev.Tag) && prev.Tag != "NNS" || notNames.Contains(lower) || InClass(lower, "preposition") {
+		// "rightmost 10 cols" orders as "top 10" does.
+		if functionTags.Contains(prev.Tag) && prev.Tag != "NNS" || notNames.Contains(lower) || strings.HasSuffix(lower, "most") || InClass(lower, "preposition") {
 			return false
 		}
 		plural := strings.HasSuffix(lower, "s") && !strings.HasSuffix(lower, "ss")

@@ -166,26 +166,96 @@ var forkSnippet = strings.Replace(upstreamSnippet,
 	"    // The scheduler silently caps --max-running-requests to what the mamba pool\n    // admits unless --max-mamba-cache-size = requests x slots is set.\n",
 	"    // The scheduler caps --max-running-requests to what the mamba pool admits.\n    // Without a pin that pool is sized for the requested concurrency only up\n    // to 47% of the budget, so --max-mamba-cache-size = requests x slots is set.\n", 1)
 
-func TestAForkVolumeFindingNamesItsBlockAndIsRepaired(t *testing.T) {
+// The base already had the run over the cap. The volume finding is the base's:
+// neither the report nor the repair names it, and the fork's words stay.
+func TestAForkRunTheBaseAlreadyHadOverTheCapIsTheBases(t *testing.T) {
 	path := "docs/src/snippets/configs/Qwen/qwen3.8-flash-next.jsx"
 	require.NotEqual(t, upstreamSnippet, forkSnippet)
 	owned := forkscope.Changed(upstreamSnippet, forkSnippet)
 	req := slopfix.Request{Path: path, Content: forkSnippet, Owned: owned, MaxCommentLines: tombstones.DefaultMaxCommentLines}
 
 	before := slopfix.Report(req)
-	var volume []int
-	for _, k := range before.Kept {
-		if k.ID == tombstones.IDVolume {
-			volume = append(volume, k.LineNo)
-		}
-	}
-	assert.Equal(t, []int{5}, volume, "only the block the fork wrote a line of is the fork's finding, and it names where that block starts")
+	assert.Zero(t, ofID(repairIDs(before), tombstones.IDVolume), "the base had the run over the cap, so the finding is the base's")
 
 	repair := slopfix.Fix(req)
 	assert.Zero(t, ofID(repairIDs(repair), tombstones.IDVolume), "fix left a volume finding the fork's check reports")
-	assert.Equal(t, strings.Count(upstreamSnippet, "\n"), strings.Count(repair.Text, "\n"), "the fork's change takes no more lines than it replaced")
-	assert.Contains(t, repair.Text, "The scheduler caps --max-running-requests to what the mamba pool admits.", "the fork's words stay")
-	assert.NotContains(t, repair.Text, "silently", "the base's wording never comes back")
+	flat := strings.Join(strings.Fields(strings.ReplaceAll(repair.Text, "//", " ")), " ")
+	assert.Contains(t, flat, "The scheduler caps --max-running-requests to what the mamba pool admits.", "the fork's words stay")
+	assert.NotContains(t, flat, "silently", "the base's wording never comes back")
+}
+
+// upstreamInnerDoc is the parent's module doc, written with Rust's inner doc marker.
+var upstreamInnerDoc = "//! `/debug <what is wrong>` hands the model this process's context.\n" +
+	strings.Repeat("//! The model reads the config layers and the model id.\n", 10) +
+	"\nuse std::path::Path;\n"
+
+// forkInnerDoc adds lines to that doc until the run is past the volume cap.
+var forkInnerDoc = strings.Replace(upstreamInnerDoc, "//! The model reads",
+	"//! - The debug-log file the firehose writes for this session. `/debug` turns\n"+
+		"//!   the firehose on first, in this process and in the agent process.\n"+
+		"//!   It is created if it does not exist.\n"+
+		"//! - Whether the firehose ran since launch or only since this `/debug`.\n"+
+		"//! - The rest of the execution context, assembled by the context module.\n"+
+		"//! The model reads", 1)
+
+// A fold joins the fork's added lines onto one line. A `//!` line gives up its whole marker, so no `!` lands in the prose.
+func TestAForkFoldOfAnInnerDocDropsTheWholeMarker(t *testing.T) {
+	path := "src/debug.rs"
+	req := slopfix.Request{Path: path, Content: forkInnerDoc, Owned: forkscope.Changed(upstreamInnerDoc, forkInnerDoc), MaxCommentLines: tombstones.DefaultMaxCommentLines}
+	repair := slopfix.Fix(req)
+	for _, line := range strings.Split(repair.Text, "\n") {
+		prose, ok := strings.CutPrefix(line, "//!")
+		if !ok {
+			continue
+		}
+		assert.NotContains(t, prose, " ! ", "a joined line kept the `!` of a `//!` marker: %q", line)
+		assert.NotContains(t, prose, "//", "a joined line kept a marker: %q", line)
+	}
+	assert.Contains(t, repair.Text, "`/debug` turns the firehose on first", "the fork's words are joined, not lost")
+}
+
+// upstreamDebugDoc is the base's module doc of a Rust file.
+const upstreamDebugDoc = "//! `/debug`: debug-overlay toggles (scroll HUD, FPS HUD, scroll log).\n" +
+	"//!\n" +
+	"//! The command is registered on every binary and fully functional in release.\n" +
+	"//! It is listed only on debug binaries.\n" +
+	"//!\n" +
+	"//! Subcommands:\n" +
+	"//! - `/debug` bare: print the toggles and their state to the transcript.\n" +
+	"//! - `/debug fps`: the release-safe FPS HUD.\n" +
+	"\nuse std::path::Path;\n"
+
+// forkDebugDoc rewrites that doc and makes it longer than the volume cap. Its blank rows match the base's blank rows.
+const forkDebugDoc = "//! `/debug <what is wrong>` hands the model this process's context.\n" +
+	"//!\n" +
+	"//! `/debug why was the context size defaulted?` injects the question too.\n" +
+	"//!\n" +
+	"//! - The debug-log file the firehose writes for this session. `/debug` turns\n" +
+	"//!   the firehose on first, in this process and in the agent process.\n" +
+	"//!   It is created if it does not exist.\n" +
+	"//! - Whether the firehose ran since launch or only since this `/debug`.\n" +
+	"//! - The rest of the execution context, assembled by the context module.\n" +
+	"//!\n" +
+	"//! Delivery is the inject path, the same path skills and `/loop`\n" +
+	"//! use, so the prompt reaches the model as the next turn's content.\n" +
+	"//!\n" +
+	"//! Args that are not a reserved keyword are the user's question.\n" +
+	"//! - `/debug scroll` toggles the scroll-diagnostics HUD.\n" +
+	"//! - `/debug fps` toggles the release-safe FPS HUD.\n" +
+	"//! - `/debug log` toggles the scroll flight recorder.\n" +
+	"\nuse std::path::Path;\n"
+
+// A doc the fork rewrote past the cap is the fork's to cut. A blank row that
+// matches a base blank row does not stop the cut, and no list item is joined
+// onto another.
+func TestAForkDocPastTheCapIsCutNotFolded(t *testing.T) {
+	req := slopfix.Request{Path: "src/debug.rs", Content: forkDebugDoc, Owned: forkscope.Changed(upstreamDebugDoc, forkDebugDoc), MaxCommentLines: tombstones.DefaultMaxCommentLines}
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), tombstones.IDVolume), "the run is still over the cap:\n%s", repair.Text)
+	for _, line := range strings.Split(repair.Text, "\n") {
+		assert.NotContains(t, line, ". - ", "a fold joined one list item onto another: %q", line)
+	}
+	assert.Contains(t, repair.Text, "//! `/debug <what is wrong>` hands the model this process's context.\n", "the cut keeps the opening line")
 }
 
 // Outside a fork, every volume finding names the line its block starts on.

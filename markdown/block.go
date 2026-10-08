@@ -3,6 +3,7 @@
 package markdown
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -166,13 +167,12 @@ func blankFrontMatter(content string, lines []string) string {
 	return content
 }
 
-// blankTemplateTags writes spaces over each line that holds one template tag
-// and nothing else, such as `{% if x %}` or `${%- endif %}`. A tag is code
-// for the renderer, so the parser reads it as a break between paragraphs.
+// blankTemplateTags writes spaces over each line that holds one template tag and nothing else, such as `{% if x %}` or `${%- endif %}`. A tag is code for the renderer, so the parser reads it as a break between paragraphs. A line that holds one markup
+// tag, such as `</memory>`, gets the same treatment.
 func blankTemplateTags(src []byte, lines []string) []byte {
 	at := 0
 	for _, line := range lines {
-		if isTemplateTag(strings.TrimSpace(line)) {
+		if trimmed := strings.TrimSpace(line); isTemplateTag(trimmed) || markupTagLine.MatchString(trimmed) {
 			for k := at; k < at+len(line) && k < len(src); k++ {
 				src[k] = ' '
 			}
@@ -181,6 +181,9 @@ func blankTemplateTags(src []byte, lines []string) []byte {
 	}
 	return src
 }
+
+// markupTagLine matches a trimmed line that is one opening, closing or self-closing markup tag.
+var markupTagLine = regexp.MustCompile(`^</?[A-Za-z][\w:.-]*(\s[^<>]*)?/?>$`)
 
 // isTemplateTag reports whether a trimmed line is one template tag.
 func isTemplateTag(trimmed string) bool {
