@@ -2,6 +2,7 @@ package tombstones
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -90,6 +91,18 @@ func TestANameTheRepositoryDefinesIsAlive(t *testing.T) {
 	path := filepath.Join(dir, "a.go")
 	src := "// see TestDarwinStatfsToLinux for the pin\n"
 	assert.Empty(t, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
+// A name that only sits inside a longer identifier is not defined, whether the
+// index or a ripgrep probe answers.
+func TestANameInsideALongerIdentifierIsDead(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("func eventBeforeIdleHook() {}\n"), 0o644))
+
+	path := filepath.Join(dir, "a.go")
+	src := "// BeforeIdleHook routes the worker\n"
+	assert.Equal(t, []string{"BeforeIdleHook"}, DeadReferents(path, src, AddedBlocks(path, src)))
 }
 
 func TestRepoRootFindsTheTreeAboveAFile(t *testing.T) {

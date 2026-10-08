@@ -170,3 +170,9 @@ func TestIdentifierShapeRefusesAWordAndAcceptsASymbol(t *testing.T) {
 	assert.True(t, isCandidate("TestDarwinStatfsToLinux"))
 	assert.True(t, isCandidate("comment_blocks"))
 }
+
+func TestIdentifierShapeRefusesANumber(t *testing.T) {
+	assert.False(t, isCandidate("0x00007FFFFFFF0000"))
+	assert.False(t, isCandidate("0x7fffFFFF"))
+	assert.False(t, isCandidate("1_000_000_000"))
+}
