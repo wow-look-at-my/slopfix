@@ -294,16 +294,12 @@ func fixText(req Request) Repair {
 		}
 		if wants(RuleComments) && keeps(commentfix.IDLength) {
 			for _, hit := range commentfix.CheckLength(req.Path, text) {
-				kept := tombstones.Hit{
+				repair.Kept = append(repair.Kept, tombstones.Hit{
 					ID:     hit.ID,
 					Tell:   hit.Tell,
 					Phrase: hit.Sentence,
 					LineNo: hit.Line,
-				}
-				if !hit.Repairable {
-					kept.Fix = commentfix.FixLengthByHand
-				}
-				repair.Kept = append(repair.Kept, kept)
+				})
 			}
 		}
 	case fixer.Document:
@@ -422,12 +418,16 @@ func init() {
 					text = english.FixCommaNever(text)
 				}
 				if stePass {
-					text = ste.FixSelected(text, f.Keeps)
+					// A paragraph divides as a block, below, so a list item keeps its parts.
+					text = ste.FixSelected(text, func(id string) bool { return id != ste.IDParagraphLength && f.Keeps(id) })
 				}
 				return text
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))
+			}
+			if stePass && f.Keeps(ste.IDParagraphLength) {
+				f.Apply(paragraphEdits(f.Text()))
 			}
 		},
 	})

@@ -129,29 +129,21 @@ func commentFindings(path, content string) []ste.Finding {
 		})
 	}
 	for _, hit := range commentfix.CheckLength(path, content) {
-		fix := "Cut the comment back inside the code it documents. Drop the trailing paragraph first."
-		if !hit.Repairable {
-			fix = commentfix.FixLengthByHand
-		}
 		out = append(out, ste.Finding{
 			Line:   hit.Line,
 			ID:     hit.ID,
 			Rule:   hit.Tell,
 			Detail: hit.Sentence,
-			Fix:    fix,
+			Fix:    "Cut the comment back inside the code it documents. `slopfix fix` does this.",
 		})
 	}
 	for _, hit := range commentfix.CheckTails(path, content) {
-		fix := "Finish the sentence, or let the repair close it. `slopfix fix` does this."
-		if !hit.Repairable {
-			fix = "Rewrite it by hand: finish the sentence. No cut leaves a whole sentence."
-		}
 		out = append(out, ste.Finding{
 			Line:   hit.Line,
 			ID:     hit.ID,
 			Rule:   hit.Tell,
 			Detail: hit.Sentence,
-			Fix:    fix,
+			Fix:    "Finish the sentence, or let the repair close it. `slopfix fix` does this.",
 		})
 	}
 	return append(out, sentenceFindings(path, content)...)

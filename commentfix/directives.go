@@ -54,6 +54,10 @@ func capLines(b block, maxLines int) []string {
 			body = trimmed
 		}
 	}
+	// No cut under the cap ends on a whole sentence, so the prose goes and the directives stay.
+	if len(body) > limit {
+		return append(append([]string{}, lead...), trail...)
+	}
 	body = reclosed(body, closer)
 	out := make([]string, 0, len(lead)+len(body)+len(trail))
 	out = append(out, lead...)

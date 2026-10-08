@@ -10,12 +10,16 @@ func init() {
 		Category: RuleRepo,
 		Detect:   detectJSON,
 		Autofix:  autofixJSON,
-		Cases:    []RuleCase{{Name: IDJSON, Files: map[string]string{"bad.json": "{\"a\": 1\n"}}},
+		Cases: []RuleCase{
+			{Name: IDJSON, Files: map[string]string{"bad.json": "{\"a\": 1\n"}},
+			{Name: IDJSON + "/trailing-comma", Files: map[string]string{"bad.json": "{\"a\": [1, 2,],}\n"}},
+			{Name: IDJSON + "/missing-schema", Files: map[string]string{"cfg.json": "{\"$schema\": \"./missing.schema.json\", \"a\": 1}\n"}},
+		},
 	})
 }
 
 // detectJSON answers every JSON document the rule reports under root.
 func detectJSON(c RuleCase) []ste.Finding { return treeFindings(c, IDJSON) }
 
-// autofixJSON closes the brackets the document leaves open.
+// autofixJSON closes the brackets the document leaves open, drops a comma before a closing bracket.
 func autofixJSON(c RuleCase) RuleCase { return treeAutofix(c, IDJSON) }

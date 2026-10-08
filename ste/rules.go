@@ -169,18 +169,7 @@ func Check(text string, line int) []Finding {
 	for _, rule := range proseRules {
 		out = append(out, rule.run(prose, line)...)
 	}
-	return markByHand(text, out)
-}
-
-// markByHand gives the hand-rewrite Fix text to a finding the repair leaves.
-// Only the semicolon is ever left: every other rule divides its own text.
-func markByHand(text string, findings []Finding) []Finding {
-	for n, f := range findings {
-		if f.ID == IDSemicolon && fixSemicolons(text) == text {
-			findings[n].Fix = FixSemicolonByHand
-		}
-	}
-	return findings
+	return out
 }
 
 // proseRule is a single rule under the phase name a timing run prints for it.

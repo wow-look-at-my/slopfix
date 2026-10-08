@@ -169,13 +169,25 @@ func documentRepair(root string, b TreeFinding) bool {
 	path := filepath.Join(root, b.Path)
 	switch {
 	case b.ID == IDJSON && b.Rule == ruleJSONUnparseable:
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return false
-		}
-		return os.WriteFile(path, closeBrackets(content), 0o644) == nil
+		return rewriteJSON(path, func(content []byte) []byte { return closeBrackets(dropTrailingCommas(content)) })
+	case b.ID == IDJSON && b.Rule == ruleJSONSchemaMissing:
+		return rewriteJSON(path, func(content []byte) []byte { return dropTrailingCommas(dropSchemaMember(content)) })
 	case b.ID == IDXML && b.Rule == ruleNegativeFixturePass && negativeFixture(b.Path):
 		return os.Rename(path, renamedWithoutMarker(path)) == nil
 	}
 	return false
+}
+
+// rewriteJSON writes repair's answer over a JSON file, and reports whether the
+// file then passes its check. A rewrite that leaves a finding is not written.
+func rewriteJSON(path string, repair func([]byte) []byte) bool {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	repaired := repair(content)
+	if checkJSON(path, filepath.Base(path), repaired, schemas{}) != nil {
+		return false
+	}
+	return os.WriteFile(path, repaired, 0o644) == nil
 }

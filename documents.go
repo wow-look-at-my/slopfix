@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,10 +26,11 @@ const IDJSON = "repo/json"
 // IDXML is an XML file the strict org validator refuses, that names no schema, or that breaks the schema it names.
 const IDXML = "repo/xml"
 
-// Both document failures a rewrite answers.
+// The document failures a rewrite answers.
 const (
 	ruleJSONUnparseable     = "this JSON does not parse"
 	ruleNegativeFixturePass = "this negative fixture passes the schema it names, so it tests nothing"
+	ruleJSONSchemaMissing   = "the schema its $schema names does not load"
 )
 
 // closeBrackets answers a document with every bracket it leaves open closed,
@@ -69,6 +71,51 @@ func closeBrackets(content []byte) []byte {
 		out = append(out, ']')
 	}
 	return append(out, '\n')
+}
+
+// dropTrailingCommas answers a document with each comma that stands before a
+// closing bracket taken out. A comma inside a string is text.
+func dropTrailingCommas(content []byte) []byte {
+	out := make([]byte, 0, len(content))
+	inString, escaped := false, false
+	for i, b := range content {
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case b == '\\':
+				escaped = true
+			case b == '"':
+				inString = false
+			}
+			out = append(out, b)
+			continue
+		}
+		if b == '"' {
+			inString = true
+		}
+		if b == ',' {
+			next := bytes.TrimLeft(content[i+1:], " \t\r\n")
+			if len(next) > 0 && (next[0] == '}' || next[0] == ']') {
+				continue
+			}
+		}
+		out = append(out, b)
+	}
+	return out
+}
+
+// schemaMember matches a top-level "$schema" member and the comma after it.
+var schemaMember = regexp.MustCompile(`"\$schema"\s*:\s*"(?:[^"\\]|\\.)*"\s*,?`)
+
+// dropSchemaMember answers a document without the "$schema" member that names
+// a schema nothing can load. The document is then held to no schema.
+func dropSchemaMember(content []byte) []byte {
+	loc := schemaMember.FindIndex(content)
+	if loc == nil {
+		return content
+	}
+	return append(append([]byte{}, content[:loc[0]]...), content[loc[1]:]...)
 }
 
 // closeIn answers the stack with the bracket at the top of the matching kind
@@ -218,7 +265,7 @@ func checkJSON(path, rel string, content []byte, compiled schemas) *TreeFinding 
 	}
 	v, err := compiled.get(ref)
 	if err != nil {
-		f := repoFinding(rel, IDJSON, "the schema its $schema names does not load", err.Error())
+		f := repoFinding(rel, IDJSON, ruleJSONSchemaMissing, err.Error())
 		return &f
 	}
 	result := v.ValidateBytes(content, rel)

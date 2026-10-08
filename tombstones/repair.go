@@ -459,17 +459,31 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 		// the surviving row is trimmed back to one. The cap has to be
 		// reachable: dropping further rows would cost more than the fragment.
 		if !endsOnSentence(lines, b, drop) {
-			row, trimmed, ok := trimLastKeptRow(lines, b, drop)
-			if !ok {
+			if row, trimmed, ok := trimLastKeptRow(lines, b, drop); ok {
+				edits = append(edits, stripEdits(text, drop)...)
+				edits = append(edits, edit.Rows(text, row, row, 0, []string{trimmed}))
 				continue
 			}
-			edits = append(edits, stripEdits(text, drop)...)
-			edits = append(edits, edit.Rows(text, row, row, 0, []string{trimmed}))
-			continue
+			// No kept row holds a sentence end, so rows go from the end until one ends a sentence, or the prose is gone.
+			for !endsOnSentence(lines, b, drop) && dropLastKept(lines, b, drop) {
+			}
 		}
 		edits = append(edits, stripEdits(text, drop)...)
 	}
 	return edits
+}
+
+// dropLastKept adds the last prose row a drop keeps to it, and reports false
+// when no prose row is left to drop.
+func dropLastKept(lines []string, b Block, drop set.Set[int]) bool {
+	for i := len(b.LineNos) - 1; i >= 0; i-- {
+		no, pure := linePurity(b, i)
+		if pure && no >= 0 && no < len(lines) && !drop.Contains(no) && !treecomments.IsDirective(lines[no]) {
+			drop.Add(no)
+			return true
+		}
+	}
+	return false
 }
 
 // trimLastKeptRow cuts the last row a drop keeps back to its last sentence end.

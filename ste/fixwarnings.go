@@ -83,31 +83,32 @@ func widenDictionary(prose string) string {
 	return out.String()
 }
 
-// fixParagraphs divides a paragraph over the sentence cap into paragraphs, so
-// no paragraph carries more sentences than the rule allows. A short paragraph
-// is returned as written.
+// fixParagraphs writes the parts of Paragraphs with a blank line between them.
 func fixParagraphs(text string) string {
+	return strings.Join(Paragraphs(text), "\n\n")
+}
+
+// Paragraphs divides text into parts of ParagraphSentenceCap sentences or
+// less, at the whitespace between sentences. A short text is one part.
+func Paragraphs(text string) []string {
 	spans := sentenceSpans(text)
 	if len(spans) <= ParagraphSentenceCap {
-		return text
+		return []string{text}
 	}
-	var out strings.Builder
+	var out []string
 	last := 0
 	for n, span := range spans {
 		if n == 0 || n%ParagraphSentenceCap != 0 {
 			continue
 		}
-		// The break lands on the whitespace that separates the sentences.
 		cut := span[0]
 		for cut > last && strings.ContainsRune(" \t\n", rune(text[cut-1])) {
 			cut--
 		}
-		out.WriteString(text[last:cut])
-		out.WriteString("\n\n")
+		out = append(out, text[last:cut])
 		last = span[0]
 	}
-	out.WriteString(text[last:])
-	return out.String()
+	return append(out, text[last:])
 }
 
 // fixClauseWarnings rewrites each sentence a clause warning reports, until no

@@ -28,8 +28,6 @@ import (
 // IDLength names this rule, on a report and on the command line alike.
 const IDLength = "comments/length"
 
-// FixLengthByHand is the Fix of a block that no cut fits on a whole sentence.
-const FixLengthByHand = "Rewrite it by hand: shorten the opening sentence, or say less. No cut leaves a whole sentence."
 
 // floorChars is the size a comment may always be, whatever it documents.
 const floorChars = 120
@@ -252,10 +250,12 @@ func repair(b block) []string {
 	}
 	// The pragma stays. Its free text is the prose left to cut.
 	if bare := withoutPragmaProse(b.text); !sameText(bare, b.text) {
-		b.text = bare
-		return repairProse(b)
+		if out = repairProse(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: bare, exact: b.exact}); fitsCode(out, b) {
+			return out
+		}
 	}
-	return out
+	// No cut ends on a whole sentence inside the budget, so the prose goes and the directives stay.
+	return directivesOf(withoutPragmaProse(b.text))
 }
 
 // repairProse rewrites a block's prose and puts its directive lines back verbatim.
