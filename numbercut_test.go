@@ -10,6 +10,25 @@ import (
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
+// An exit status is a value the program answers with, not a count of what
+// exists here. No rule reports it, and the repair writes the comment back as
+// the author wrote it.
+func TestAnExitCodeInADocCommentIsNoCount(t *testing.T) {
+	const doc = "/// Dispatch the observe-only session-end `Stop`: runs in stop-gate mode so\n" +
+		"/// exit code 2 parses as a block, but the decision is discarded (no turn\n" +
+		"/// left to continue).\n" +
+		"pub(crate) async fn dispatch_session_end_stop(&self, reason: &str) {\n" +
+		"    if self.startup_hints.is_subagent {\n" +
+		"        return;\n" +
+		"    }\n" +
+		"}\n"
+	for _, f := range slopfix.CheckContent("stop.rs", doc) {
+		assert.NotEqual(t, commentfix.ID, f.ID, f.String())
+	}
+	got := slopfix.Fix(slopfix.Request{Content: doc, Path: "stop.rs", IDs: []string{commentfix.ID}, MaxCommentLines: tombstones.DefaultMaxCommentLines})
+	assert.Equal(t, doc, got.Text)
+}
+
 // A /* */ block laid out under its opener with no star on each line. The length
 // cut leaves the count on a line of its own, and the number repair takes it out.
 const alignedBlock = "const reveal = (() => {\n" +

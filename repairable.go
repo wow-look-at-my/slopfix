@@ -1,10 +1,6 @@
 package slopfix
 
-import (
-	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/ste"
-	"github.com/wow-look-at-my/slopfix/workflow"
-)
+import "github.com/wow-look-at-my/go-containers/set"
 
 // EveryID names every rule the registry holds, the repository rules included.
 func EveryID() set.Set[string] {
@@ -15,11 +11,7 @@ func EveryID() set.Set[string] {
 	return ids
 }
 
-// WarningIDs names every rule whose findings are warnings. A warning fails no check, so no repair answers it.
-var WarningIDs = ste.WarningIDs.Union(workflow.WarningIDs)
-
-// Repairable reports whether slopfix repairs the DEFECT a finding names,
-// rather than the rule that found it.
+// Repairable reports whether slopfix repairs the DEFECT a finding names.
 func Repairable(id string) bool {
 	spec, ok := RuleSpecByID(id)
 	return ok && spec.Autofix != nil

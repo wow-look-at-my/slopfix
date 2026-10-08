@@ -15,14 +15,14 @@ const unboundedSentence = "package p\n\n" +
 	"func cacheKeyFor() int { return 0 }\n"
 
 // fitsOrStays asserts both outcomes a length repair may have. The block fits
-// and keeps want, or the block stays as written and asks for a rewrite by hand.
+// and keeps want, or no cut fits, the block stays as written, and no finding
+// names it.
 func fitsOrStays(t *testing.T, src, want string) {
 	t.Helper()
 	hits := CheckLength("p.go", src)
-	require.NotEmpty(t, hits)
 	out, _ := FixLength("p.go", src)
-	if !hits[0].Repairable {
-		assert.NotEmpty(t, CheckLength("p.go", out), "a block no cut fits stays for a rewrite by hand:\n%s", out)
+	if len(hits) == 0 {
+		assert.Equal(t, src, out, "a block no cut fits keeps its prose")
 		return
 	}
 	assert.Empty(t, CheckLength("p.go", out))

@@ -322,7 +322,7 @@ func TestACountCutAtTheStartCapitalizesWhatFollows(t *testing.T) {
 }
 
 func TestEveryCategoryNamesItsRules(t *testing.T) {
-	for _, rule := range slopfix.AllRules {
+	for _, rule := range slopfix.AllRules() {
 		ids := slopfix.IDsFor(rule)
 		assert.False(t, ids.IsEmpty(), "%s names no rule", rule)
 		for id := range ids.All() {
