@@ -37,6 +37,7 @@ A script test is code: a `.txtar` file, or a `.txt` under `testdata/script`. Its
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes |
 | `yaml`, report only | `yaml/run-script-syntax` | no |
 | `yaml`, warnings | `yaml/test-in-workflow` | report-only: a warning never fails `check` |
+| `yaml`, report only | `yaml/branch-pin` | report-only: no rewrite knows which ref the author meant |
 | `pins` | `pins/download-version` | yes |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | report-only: they ask a human to decide, and no string rewrite answers them |
 
@@ -168,6 +169,8 @@ It does not flag a comment above the package declaration, or a trailing comment 
 ## yaml: workflow and action manifest rules
 
 [docs/yaml-workflow-and-action-manifest-rules.md](docs/yaml-workflow-and-action-manifest-rules.md) holds this section.
+
+- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of the action's repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch, such as `wow-look-at-my/go-toolchain@master`, passes. So do a tag, a full commit SHA, a `./` path and a `docker://` image. The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too. The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. A lookup that fails, a private repository the token cannot read included, fails the check with the reason. Only `check` on a directory or on a named file runs it. A hook and text on stdin never reach the network. No rewrite knows which ref the author meant. As a result, it reports only.
 
 ## pins: a download URL that names a release
 

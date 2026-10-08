@@ -23,8 +23,13 @@ const (
 	IDNeuteredGate = "yaml/neutered-gate"
 )
 
+// AllIDs names every rule Check reports, as a membership test.
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency)
 // AllIDs names every rule this package reports, as a membership test.
 var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency, IDRunScriptSyntax)
+
+// NetworkIDs names the rules that ask the network, which Check never does.
+var NetworkIDs = set.Of(IDBranchPin)
 
 // WarningIDs names the rules here whose findings are warnings.
 var WarningIDs = set.Of(IDTestInYAML)

@@ -248,6 +248,38 @@ func registerWorkflowRules() {
 	registerFile(workflow.IDPushTags, RuleWorkflow, ".github/workflows/ci.yml", "name: CI\n\non:\n  push:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: ci\n      cancel-in-progress: true\n    steps:\n      - run: echo hi\n")
 	registerFile(workflow.IDOrgActionRef, RuleWorkflow, ".github/workflows/ci.yml", orgActionRefWorkflow())
 	registerFile(workflow.IDConcurrency, RuleWorkflow, ".github/workflows/ci.yml", "name: CI\n\non:\n  push:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n")
+	registerExempt(workflow.IDBranchPin, RuleWorkflow, "no rewrite knows which ref the author meant", branchPinDetect, branchPinCase())
+}
+
+// branchPinCase pins a feature branch, so the branch-pin detection fires with
+// no lookup.
+func branchPinCase() RuleCase {
+	return workflowCase("branch-pin", "on: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n")
+}
+
+// branchPinDetect answers the branch pins of a case against a fixed set of
+// refs, so the harness proves the detection without the network.
+func branchPinDetect(c RuleCase) []ste.Finding {
+	found, err := workflow.BranchPins(c.Text, fixedRefs{})
+	if err != nil {
+		return nil
+	}
+	return found
+}
+
+// fixedRefs answers refs without the network: master is the default branch, feature is another branch, and v1 is a tag.
+type fixedRefs struct{}
+
+func (fixedRefs) DefaultBranch(string) (string, error) { return "master", nil }
+
+func (fixedRefs) Kind(_, ref string) (workflow.RefKind, error) {
+	switch ref {
+	case "master", "feature":
+		return workflow.RefBranch, nil
+	case "v1":
+		return workflow.RefTag, nil
+	}
+	return workflow.RefMissing, nil
 	registerExempt(workflow.IDRunScriptSyntax, RuleWorkflow, "no rewrite knows what the script meant, and a run script line is shell",
 		detectContent(workflow.IDRunScriptSyntax),
 		workflowCase("run-script-syntax", "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo (\n"))
