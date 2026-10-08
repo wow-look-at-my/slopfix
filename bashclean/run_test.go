@@ -110,15 +110,21 @@ func TestRunLogsToTheDebugChannel(t *testing.T) {
 	assert.Contains(t, string(data), `reason="perl"`)
 }
 
-// A rewrite maps over, edits within, or prepends to the statement list, so it
-// can add a statement and never drop any.
-func TestRewriteNeverDropsAStatement(t *testing.T) {
-	for _, in := range []string{
-		"echo start\nsleep 10\nls | tail -5",
-		"cd /repo\nA=1\necho \"=== files ===\"\nls -1 \"$A\" 2>&1 | tail -12\necho \"=== done ===\"\n./run a b",
+// A rewrite drops only the statements that run nothing: narration and bare
+// no-ops. Every other statement survives, and the rewrite adds only the
+// pipefail line.
+func TestRewriteDropsOnlyStatementsThatRunNothing(t *testing.T) {
+	for _, tc := range []struct {
+		in      string
+		dropped int
+	}{
+		{"echo start\nsleep 10\nls | tail -5", 1},
+		{"cd /repo\nA=1\necho \"=== files ===\"\nls -1 \"$A\" 2>&1 | tail -12\necho \"=== done ===\"\n./run a b", 2},
+		{"sed -n 100,150p internal/trash/freedesktop_test.go; echo ===; git show 4ecc41f:internal/trash/freedesktop.go | grep -n \"dispose\" | head", 1},
+		{"make; true; ls; :", 2},
 	} {
-		before := len(parseStmts(t, in))
-		after := len(parseStmts(t, Transform(in).Command))
-		assert.GreaterOrEqual(t, after, before, "statements lost rewriting %q", in)
+		before := len(parseStmts(t, tc.in))
+		after := len(parseStmts(t, Transform(tc.in).Command))
+		assert.Equal(t, before-tc.dropped+1, after, "statement count rewriting %q", tc.in)
 	}
 }
