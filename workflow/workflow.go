@@ -25,6 +25,8 @@ const (
 
 // AllIDs names every rule Check reports, as a membership test.
 var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency)
+// AllIDs names every rule this package reports, as a membership test.
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency, IDRunScriptSyntax)
 
 // NetworkIDs names the rules that ask the network, which Check never does.
 var NetworkIDs = set.Of(IDBranchPin)
@@ -65,6 +67,7 @@ func Check(content string) []ste.Finding {
 	out = append(out, pushTags(content)...)
 	out = append(out, orgActionRefs(content)...)
 	out = append(out, concurrency(content)...)
+	out = append(out, runScriptSyntax(content)...)
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
 }

@@ -105,12 +105,16 @@ func strip(content string, hits []Hit) (string, []Hit) {
 	return res.Text, cut
 }
 
-// Edits answers an edit per hit that takes its cardinal out. reword says what
-// replaces the number when a bare cut leaves broken English.
+// Edits answers an edit per hit that takes its cardinal out. Reword says what
+// replaces the number when a bare cut leaves broken English. A count the
+// sentence depends on gets no edit, and stays a finding.
 func Edits(content string, hits []Hit) []edit.Edit {
 	var out []edit.Edit
 	for _, hit := range hits {
 		if hit.Start < 0 || hit.End > len(content) {
+			continue
+		}
+		if loadBearing(content, hit.Start, hit.End) {
 			continue
 		}
 		if e, ok := LabelAt(content, hit.Start, nil); ok {
@@ -123,8 +127,36 @@ func Edits(content string, hits []Hit) []edit.Edit {
 				out = append(out, more)
 			}
 		}
+
 	}
 	return out
+}
+
+// loadBearing reports a count whose cut changes what the sentence says. The
+// count opens its sentence, or sits on a line that ends with a colon and
+// introduces a list. A spelled number that opens the sentence is the claim's
+// whole subject; a digit there hands its capital to the words that replace it.
+func loadBearing(content string, start, end int) bool {
+	lineStart := strings.LastIndexByte(content[:start], '\n') + 1
+	lineEnd := len(content)
+	if n := strings.IndexByte(content[end:], '\n'); n >= 0 {
+		lineEnd = end + n
+	}
+	if strings.HasSuffix(strings.TrimSpace(content[end:lineEnd]), ":") {
+		return true
+	}
+	before := strings.TrimRight(content[lineStart:start], " \t*_(\"'")
+	if before == "" || listMarker.MatchString(before) || strings.ContainsAny(before[len(before)-1:], ".!?") {
+		return spelled(content[start:end])
+	}
+	return false
+}
+
+// spelled reports whether a hit's cardinal is a word, as "two" is, rather than
+// a run of digits.
+func spelled(phrase string) bool {
+	fields := strings.Fields(phrase)
+	return len(fields) > 0 && !strings.ContainsAny(fields[0], "0123456789")
 }
 
 // elidedNumber is a bare number after a preposition or a conjunction, which ends its phrase.

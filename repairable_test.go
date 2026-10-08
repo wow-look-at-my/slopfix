@@ -56,6 +56,8 @@ func TestOnlyTheseRulesReportWithoutARepair(t *testing.T) {
 	want := append([]string{
 		slopfix.IDNearDuplicate, slopfix.IDJSON, slopfix.IDXML,
 		workflow.IDTestInYAML, workflow.IDBranchPin,
+		workflow.IDRunScriptSyntax,
+		workflow.IDTestInYAML,
 		"laziness/punt", "blame/deflection", "ask/prose-decision",
 	}, ste.WarningIDs.Values()...)
 	assert.ElementsMatch(t, want, slopfix.ReportOnly.Values())

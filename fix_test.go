@@ -306,17 +306,15 @@ func TestACountCutLeavesTheSentenceTrue(t *testing.T) {
 	}
 }
 
-// A cut at the front of a sentence leaves the next word to start it.
-func TestACountCutAtTheStartCapitalizesWhatFollows(t *testing.T) {
+// A count at the front of a sentence is never cut. The reader then still knows
+// how many the subject names.
+func TestACountThatOpensASentenceIsKept(t *testing.T) {
 	for _, in := range []string{
 		"Two defects compounded, and the reader saw neither.\n",
 		"Two ambiguities are resolved deliberately here.\n",
 	} {
 		t.Run(in, func(t *testing.T) {
-			repair := prose(in)
-			require.NotEmpty(t, repair.Text)
-			first := []rune(repair.Text)[0]
-			assert.False(t, first >= 'a' && first <= 'z', "sentence starts lowercase: %q", repair.Text)
+			assert.Contains(t, prose(in).Text, "Two ")
 		})
 	}
 }

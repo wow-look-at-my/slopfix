@@ -280,6 +280,9 @@ func (fixedRefs) Kind(_, ref string) (workflow.RefKind, error) {
 		return workflow.RefTag, nil
 	}
 	return workflow.RefMissing, nil
+	registerExempt(workflow.IDRunScriptSyntax, RuleWorkflow, "no rewrite knows what the script meant, and a run script line is shell",
+		detectContent(workflow.IDRunScriptSyntax),
+		workflowCase("run-script-syntax", "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo (\n"))
 }
 
 func workflowHeader() string { return "name: CI\n\non:\n  push:\n    branches: ['**']\n\n" }

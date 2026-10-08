@@ -55,7 +55,7 @@ func Reads(path string) bool {
 // FixTree repairs every file under root with every rule and reports what it did.
 func FixTree(root string) TreeRepair { return FixTreeWith(root, Request{}) }
 
-// CheckTree reports what every rule makes of every file under root.
+// CheckTree reports what every rule finds under root, and writes nothing.
 func CheckTree(root string) TreeRepair { return treeRun(root, Request{}, false) }
 
 // FixTreeWith is FixTree under the caller's own rule selection.

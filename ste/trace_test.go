@@ -30,7 +30,7 @@ func TestAClauseBoundaryDivides(t *testing.T) {
 		t.Run(in[:30], func(t *testing.T) {
 			masked := mask(in)
 			s := syntax.Parse(masked, opaque(in, masked))
-			_, ok := bestDivision(s, in)
+			_, ok := bestDivision(s, in, nil)
 			assert.True(t, ok, "%s\n%s\n%s", s.Tags(), s.Outline(), traceDivisions(s, in))
 		})
 	}
