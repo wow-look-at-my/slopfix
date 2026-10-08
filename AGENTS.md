@@ -35,6 +35,7 @@ A script test is code: a `.txtar` file, or a `.txt` under `testdata/script`. Its
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes |
+| `yaml`, report only | `yaml/run-script-syntax` | no |
 | `yaml`, warnings | `yaml/test-in-workflow` | report-only: a warning never fails `check` |
 | `pins` | `pins/download-version` | yes |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | report-only: they ask a human to decide, and no string rewrite answers them |

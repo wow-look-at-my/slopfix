@@ -248,6 +248,9 @@ func registerWorkflowRules() {
 	registerFile(workflow.IDPushTags, RuleWorkflow, ".github/workflows/ci.yml", "name: CI\n\non:\n  push:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    concurrency:\n      group: ci\n      cancel-in-progress: true\n    steps:\n      - run: echo hi\n")
 	registerFile(workflow.IDOrgActionRef, RuleWorkflow, ".github/workflows/ci.yml", orgActionRefWorkflow())
 	registerFile(workflow.IDConcurrency, RuleWorkflow, ".github/workflows/ci.yml", "name: CI\n\non:\n  push:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n")
+	registerExempt(workflow.IDRunScriptSyntax, RuleWorkflow, "no rewrite knows what the script meant, and a run script line is shell",
+		detectContent(workflow.IDRunScriptSyntax),
+		workflowCase("run-script-syntax", "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo (\n"))
 }
 
 func workflowHeader() string { return "name: CI\n\non:\n  push:\n    branches: ['**']\n\n" }

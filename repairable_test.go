@@ -55,6 +55,7 @@ func TestEveryErrorRuleHasARepairPath(t *testing.T) {
 func TestOnlyTheseRulesReportWithoutARepair(t *testing.T) {
 	want := append([]string{
 		slopfix.IDNearDuplicate, slopfix.IDJSON, slopfix.IDXML,
+		workflow.IDRunScriptSyntax,
 		workflow.IDTestInYAML,
 		"laziness/punt", "blame/deflection", "ask/prose-decision",
 	}, ste.WarningIDs.Values()...)

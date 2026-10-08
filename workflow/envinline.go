@@ -159,7 +159,9 @@ type stepRef struct {
 	step      *yaml.Node
 	container bool
 	windows   bool
-	uses      map[string]string
+	// shell is the default shell the job or the workflow names, or "".
+	shell string
+	uses  map[string]string
 }
 
 // usesByID maps each step id in a steps list to the action that step uses.
@@ -196,7 +198,7 @@ func runSteps(root *yaml.Node) []stepRef {
 			}
 			uses := usesByID(steps)
 			for _, step := range steps.Content {
-				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), uses: uses})
+				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), shell: shell, uses: uses})
 			}
 		}
 	}
