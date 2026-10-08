@@ -268,8 +268,15 @@ func repairFile(f *fixer.File) {
 	}
 	edits, took := rewrite(was, blocks)
 	// The count follows the edits that landed. A refused rewrite took no words out.
-	for _, e := range f.ApplyComments(edits).Applied {
+	rewrote := f.ApplyComments(edits)
+	for _, e := range rewrote.Applied {
 		f.Rewrote(took[e.Start])
+	}
+	// A rewrite the scope refused leaves its wording in the text, so each wording rule it answers is reported there.
+	for _, r := range rewrote.Refused {
+		for _, h := range wordingHits(was, r.Edit, doc) {
+			f.Note(h)
+		}
 	}
 	added := f.Text()
 	if added != was {
@@ -330,6 +337,38 @@ func repairFile(f *fixer.File) {
 	stripped := f.ApplyComments(strips)
 	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished.
 	f.ApplyComments(reflowStripped(path, stripped.Text, blocksLosing(blocks, drop), len(blocks)))
+}
+
+// wordingHits answers a hit for each wording rule whose phrase the table would
+// cut from the span e rewrites in text.
+func wordingHits(text string, e edit.Edit, doc bool) []Hit {
+	surface := english.Comment
+	if doc {
+		surface = english.Document
+	}
+	span := text[e.Start:e.End]
+	lineNo := strings.Count(text[:e.Start], "\n") + 1
+	first, _, _ := strings.Cut(span, "\n")
+	ids := AllIDs()
+	seen := set.New[string]()
+	var hits []Hit
+	for _, p := range english.Patterns() {
+		if !ids.Contains(p.ID) || seen.Contains(p.ID) || !english.AppliesTo(p.Where, surface) {
+			continue
+		}
+		if _, took := p.ApplyN(span); took == 0 {
+			continue
+		}
+		seen.Add(p.ID)
+		hits = append(hits, Hit{
+			ID:     p.ID,
+			Tell:   "a phrase about a state the code has left",
+			Phrase: strings.TrimSpace(first),
+			Line:   first,
+			LineNo: lineNo,
+		})
+	}
+	return hits
 }
 
 // cutReferents cuts the sentence around each dead name a whole-line strip left,
