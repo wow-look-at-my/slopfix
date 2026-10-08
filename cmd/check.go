@@ -207,6 +207,13 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+		pins, err := slopfix.BranchPinsFile(path, request, slopfix.NewGitHubRefs(os.Getenv))
+		if err != nil {
+			return err
+		}
+		for _, pin := range pins {
+			repair.Findings = append(repair.Findings, pin.Finding)
+		}
 		for _, finding := range repair.Findings {
 			found = found || !finding.Warning()
 			fmt.Fprintf(cmd.OutOrStdout(), "%s:%s\n", path, finding)
@@ -241,7 +248,13 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	if repairing {
 		walk = slopfix.FixTreeWith
 	}
-	out := walk(root, request).Within(own, root)
+	pins, err := slopfix.BranchPinsTree(root, request, slopfix.NewGitHubRefs(envOf(forks)))
+	if err != nil {
+		return false, err
+	}
+	walked := walk(root, request)
+	walked.Findings = append(walked.Findings, pins...)
+	out := walked.Within(own, root)
 	for _, path := range out.Repaired {
 		fmt.Fprintln(cmd.OutOrStdout(), path)
 	}
@@ -257,6 +270,14 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 		fmt.Fprintln(cmd.ErrOrStderr(), unmet.Error())
 	}
 	return failed || len(out.Kept) > 0 || len(out.Unmet) > 0, nil
+}
+
+// envOf answers the environment a branch-pin lookup reads.
+func envOf(forks forkscope.Resolver) func(string) string {
+	if forks.Getenv != nil {
+		return forks.Getenv
+	}
+	return os.Getenv
 }
 
 // checkStdin answers for text on stdin rather than a named file. It takes the

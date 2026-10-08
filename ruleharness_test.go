@@ -163,7 +163,7 @@ func TestOnlyTheseRulesReportWithoutAnAutofix(t *testing.T) {
 	for id := range slopfix.WarningIDs.All() {
 		assert.True(t, exempt.Contains(id), "warning %s is not declared report-only", id)
 	}
-	for _, id := range []string{"laziness/punt", "blame/deflection", "ask/prose-decision", "yaml/test-in-workflow"} {
+	for _, id := range []string{"laziness/punt", "blame/deflection", "ask/prose-decision", "yaml/test-in-workflow", "yaml/duplicate-step-key"} {
 		assert.True(t, exempt.Contains(id), "%s is not declared report-only", id)
 		spec, ok := slopfix.RuleSpecByID(id)
 		require.True(t, ok, "%s is not registered", id)

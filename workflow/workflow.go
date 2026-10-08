@@ -17,14 +17,22 @@ import (
 
 // The rule IDs. A report prints the ID that found the text.
 const (
-	IDCommentBlock = "yaml/comment-block"
-	IDAllBuildsJob = "yaml/all-builds-job"
-	IDTestInYAML   = "yaml/test-in-workflow"
-	IDNeuteredGate = "yaml/neutered-gate"
+	IDCommentBlock     = "yaml/comment-block"
+	IDAllBuildsJob     = "yaml/all-builds-job"
+	IDTestInYAML       = "yaml/test-in-workflow"
+	IDNeuteredGate     = "yaml/neutered-gate"
+	IDDuplicateStepKey = "yaml/duplicate-step-key"
 )
 
 // AllIDs names every rule this package reports, as a membership test.
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDDuplicateStepKey, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency)
+// AllIDs names every rule Check reports, as a membership test.
 var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency)
+// AllIDs names every rule this package reports, as a membership test.
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency, IDRunScriptSyntax)
+
+// NetworkIDs names the rules that ask the network, which Check never does.
+var NetworkIDs = set.Of(IDBranchPin)
 
 // WarningIDs names the rules here whose findings are warnings.
 var WarningIDs = set.Of(IDTestInYAML)
@@ -58,10 +66,12 @@ func Check(content string) []ste.Finding {
 	out = append(out, allBuildsJobs(content)...)
 	out = append(out, testsInYAML(content)...)
 	out = append(out, neuteredGates(content)...)
+	out = append(out, duplicateStepKeys(content)...)
 	out = append(out, envIndirections(content)...)
 	out = append(out, pushTags(content)...)
 	out = append(out, orgActionRefs(content)...)
 	out = append(out, concurrency(content)...)
+	out = append(out, runScriptSyntax(content)...)
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
 }

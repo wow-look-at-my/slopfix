@@ -19,6 +19,8 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 [docs/commands.md](docs/commands.md) holds this section.
 
+A script test is code: a `.txtar` file, or a `.txt` under `testdata/script`. Its commands are never joined as a paragraph, and no prose rule reports them.
+
 ## Rule table
 
 | Category | Rule IDs | Autofix |
@@ -32,14 +34,18 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `counts` | `counts/inventory-count`, `counts/section-number` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | all but the duplicate key: no rewrite knows which value the author meant |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes |
+| `yaml`, report only | `yaml/run-script-syntax` | no |
 | `yaml`, warnings | `yaml/test-in-workflow` | report-only: a warning never fails `check` |
+| `yaml`, report only | `yaml/branch-pin` | report-only: no rewrite knows which ref the author meant |
 | `pins` | `pins/download-version` | yes |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | report-only: they ask a human to decide, and no string rewrite answers them |
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
-Every rule is one `RuleSpec`: a `Detect`, an `Autofix`, and the `Cases` that prove both. A rule that no rewrite answers declares `ReportOnly`, the reason it reports alone. The rows above marked report-only carry that declaration: the STE warning rules, `yaml/test-in-workflow`, and the message rules. `ruleharness_test.go` drives each `Case` through `Detect`, `Autofix` and `Detect` again, and names the report-only rules one by one. `ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. A `package.json` that does not parse has no repair either, because no rewrite knows what the author meant. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+Every rule is one `RuleSpec`: a `Detect`, an `Autofix`, and the `Cases` that prove both. A rule that no rewrite answers declares `ReportOnly`, the reason it reports alone. The rows above marked report-only carry that declaration: the STE warning rules, `yaml/test-in-workflow`, `yaml/duplicate-step-key`, and the message rules. `ruleharness_test.go` drives each `Case` through `Detect`, `Autofix` and `Detect` again, and names the report-only rules one by one. `ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. A `package.json` that does not parse has no repair either, because no rewrite knows what the author meant. The duplicate step key reports only for the same reason: the file does not say which value the author meant. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+Every rule is one `RuleSpec`: a `Detect`, an `Autofix`, and the `Cases` that prove both. A rule that no rewrite answers declares `ReportOnly`, the reason it reports alone. The rows above marked report-only carry that declaration: the STE warning rules, `yaml/test-in-workflow`, and the message rules. `ruleharness_test.go` drives each `Case` through `Detect`, `Autofix` and `Detect` again, and names the report-only rules one by one. `ste/sentence-length` divides a long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`docs/ste-simplified-technical-english.md`). A sentence with no seam to cut at stays, and its finding asks for a rewrite by hand. `ste/semicolon` repairs every semicolon. A `package.json` that does not parse has no repair either, because no rewrite knows what the author meant. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 
@@ -106,7 +112,7 @@ coordinate/0 subject="-" verb="refuses": and refuses the write
 | Shape | quantity | quantity | number |
 | Frame required | yes | no | no |
 | Vocabulary | two upward, plus a dozen | two to twelve | cardinals, ordinals, scales, repeat counts |
-| Exemptions | function-word gap, a longer number, arithmetic, status code, label, unit before the noun, a measure that takes a singular verb | arithmetic, function-word gap, status code, label, unit before the noun, a measure that takes a singular verb | status code, exit status, literal, section sign, currency, quotation, word size, a measure that takes a singular verb, a number word in a hyphenated compound |
+| Exemptions | function-word gap, a longer number, arithmetic, status code, label, unit before the noun, a measure that takes a singular verb | arithmetic, function-word gap, status code, label, unit before the noun, a measure that takes a singular verb | status code, exit status, literal, section sign, currency, quotation, version, list marker, operand, word size, a measure that takes a singular verb, a number word in a hyphenated compound |
 
 Prose requires a frame, because a document carries numbers that count nothing: a version, a port, an example. The gate needs no frame. That is the whole difference between the document substrates. A number beside code is nearly always a count. A comment therefore needs no frame either. The vocabularies stay separate, because widening one changes the verdict on text nobody edited. `Find` returns the whole quantity for prose. That `cardinal.Leading` can cut its number. For a comment it returns the number alone.
 
@@ -115,6 +121,8 @@ Prose requires a frame, because a document carries numbers that count nothing: a
 `counts/inventory-count` cuts the cardinal out of a sentence that counts what is here. `there are three sections` becomes `there are sections`, which stays true. The org rules that a count in markdown is not worth maintaining.
 
 Every reported count gets a repair. Where a bare cut breaks the sentence, `counts/reword.go` writes words that state no figure. A rate becomes `every few`. A cap becomes `a bounded number of`. A unit takes `a couple of`, `a few`, `several` or `many`, by size. After a preposition or a noun the number becomes `multiple`. A hedge such as `about` or `exactly` goes with the number. A zero becomes `no`. A label goes stale like a count. It is a finding too, and `counts/label.go` names the item instead. Digits after a singular noun name an item, as in `branch 3 sees` (`cardinal.NamesAnItem`). The repair takes the words the text gives that item, as in `branch (3) the keyless fallback` or `Keyless fallback (branch 3)`. With none, it writes `one id` or `a later branch`. A plural noun after the label is what the label describes: `rule 6 inputs` becomes `the inputs of a later rule`. A point sits after `at`, `by` or `to`, before a noun that is not a unit (`cardinal.APoint`). In a comment it takes the name of a constant with that value, in backticks. Otherwise it takes `a set number of` before a noun, or `a set limit`, `a set value` or `a set amount`. A bare number that the same clause sets beside it, as in `warns at 500 lines and errors at 750`, says how it compares: `a higher count`, `a lower count` or `the same count`. No clause stays half converted.
+
+A count the sentence depends on is reported and never cut. It opens its sentence, or sits on a line that ends with a colon and introduces a list. A count after a determiner is cut: `the two payloads` becomes `the payloads`. The same holds for `ste/count`.
 
 A count needs a frame and a quantity on the same line. The quantity is a cardinal that governs a plural noun. The frame is a possessive (`this repo's plugins`), a having verb (`it ships hooks`) or a deictic (`the rules below`). A quantity with no frame is ordinary technical prose.
 
@@ -163,6 +171,8 @@ It does not flag a comment above the package declaration, or a trailing comment 
 ## yaml: workflow and action manifest rules
 
 [docs/yaml-workflow-and-action-manifest-rules.md](docs/yaml-workflow-and-action-manifest-rules.md) holds this section.
+
+- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of the action's repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch, such as `wow-look-at-my/go-toolchain@master`, passes. So do a tag, a full commit SHA, a `./` path and a `docker://` image. The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too. The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. A lookup that fails, a private repository the token cannot read included, fails the check with the reason. Only `check` on a directory or on a named file runs it. A hook and text on stdin never reach the network. No rewrite knows which ref the author meant. As a result, it reports only.
 
 ## pins: a download URL that names a release
 
