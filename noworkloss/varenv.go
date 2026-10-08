@@ -233,7 +233,6 @@ var tempRoots = []string{"/tmp", "/var/tmp"}
 // it. However, the DIRECTORY is what decides whether a write lands in the
 // working tree, and mktemp with no template. Otherwise, a temp-rooted
 // template cannot leave the temp directory. A template naming any other
-// directory resolves to nothing, because `mktemp ./buildXXXX` does write
 // beside the source.
 func mktempPath(wd *syntax.Word) (word, bool) {
 	sub, ok := soleCmdSubst(wd)

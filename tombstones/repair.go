@@ -142,51 +142,6 @@ func blockSpan(b Block, total int) (from, to int, ok bool) {
 	return from, to, true
 }
 
-// blocksLosing names the blocks a strip takes a line out of, by index.
-func blocksLosing(blocks []Block, drop set.Set[int]) set.Set[int] {
-	losing := set.New[int]()
-	for i, b := range blocks {
-		for _, no := range b.LineNos {
-			if drop.Contains(no) {
-				losing.Add(i)
-				break
-			}
-		}
-	}
-	return losing
-}
-
-// reflowStripped rewraps each block a strip took a line out of. The prose that
-// survives then reads as a paragraph, not as a sentence with a hole.
-// A strip that emptied a block moves every index after it, so a changed block
-// count leaves the text as it is.
-func reflowStripped(path, text string, losing set.Set[int], was int) []edit.Edit {
-	if losing.IsEmpty() {
-		return nil
-	}
-	lines := strings.Split(text, "\n")
-	blocks := AddedBlocks(path, text)
-	if len(blocks) != was {
-		return nil
-	}
-	var edits []edit.Edit
-	for i, b := range blocks {
-		if !losing.Contains(i) {
-			continue
-		}
-		from, to, ok := pureSpan(b, len(lines))
-		if !ok {
-			continue
-		}
-		short, _, rewrapped := commentfix.Tighten(lines[from : to+1])
-		if !rewrapped {
-			continue
-		}
-		edits = append(edits, edit.Rows(text, from, to, 0, short))
-	}
-	return edits
-}
-
 // stripEdits deletes the dropped rows, a run of adjoining rows as a single
 // edit so no edits share a line end.
 func stripEdits(text string, drop set.Set[int]) []edit.Edit {
@@ -294,68 +249,14 @@ func repairFile(f *fixer.File) {
 		blocks = AddedBlocks(path, added)
 	}
 
-	hits := Find(blocks, maxLines)
-	for _, name := range DeadReferents(path, added, blocks) {
-		hits = append(hits, HitForName(blocks, name))
-	}
-	if doc {
-		// A document line is a paragraph rather than a sentence, so
-		// deleting it takes a keeper with it.
-		for i := range hits {
-			hits[i].Strippable = false
-		}
-	}
-
-	drop := set.New[int]()
-	var stripping []Hit
-	cut := false
-	for _, h := range hits {
-		switch {
-		case h.Strippable:
-			drop.Add(h.LineNo)
-			stripping = append(stripping, h)
-		case h.ID != IDVolume:
-			// A name no whole-line strip resolves loses its sentence below.
-			cut = true
-		case cuttable(added, blocks, maxLines, h.LineNo):
+	for _, h := range Find(blocks, maxLines) {
+		if cuttable(added, blocks, maxLines, h.LineNo) {
 			// The cap cut lands outside the scope this run writes, so the block is still over the cap.
 			h.Fix = "Cut the run from its end down to the cap. `slopfix fix` does this."
 			f.Note(h)
 		}
 	}
-	if cut {
-		defer cutReferents(f, path)
-	}
-	if drop.Len() == 0 {
-		return
-	}
-
-	strips := stripEdits(added, drop)
-	lines := strings.Split(added, "\n")
-	seen := set.New[string]()
-	for i := range strips {
-		for _, quote := range cutLines(lines, drop, strips[i], added) {
-			if !seen.Contains(quote) {
-				seen.Add(quote)
-				strips[i].Cut = append(strips[i].Cut, quote)
-			}
-		}
-	}
-	stripped := f.ApplyComments(strips)
-	gone := set.New[int]()
-	for _, e := range stripped.Applied {
-		for row := strings.Count(added[:e.Start], "\n"); row <= strings.Count(added[:max(e.Start, e.End-1)], "\n"); row++ {
-			gone.Add(row)
-		}
-	}
-	// A strip that did not land leaves the line in the text, so its hit is reported there.
-	for _, h := range stripping {
-		if !gone.Contains(h.LineNo) {
-			f.Note(onLine(h))
-		}
-	}
-	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished.
-	f.ApplyComments(reflowStripped(path, stripped.Text, blocksLosing(blocks, drop), len(blocks)))
+	cutReferents(f, path)
 }
 
 // wordingHits answers a hit for each wording rule whose phrase the table would
@@ -390,8 +291,9 @@ func wordingHits(text string, e edit.Edit, doc bool) []Hit {
 	return hits
 }
 
-// cutReferents cuts the sentence around each dead name a whole-line strip left,
-// and notes every name it could not cut.
+// cutReferents cuts the sentence that holds each dead name, and notes every
+// name it could not cut. A sentence of a comment run is cut across its lines,
+// and the paragraph it leaves is reflowed.
 func cutReferents(f *fixer.File, path string) {
 	text := f.Text()
 	blocks := AddedBlocks(path, text)
@@ -402,10 +304,22 @@ func cutReferents(f *fixer.File, path string) {
 		starts[i] = at
 	}
 	var edits []edit.Edit
+	// Each comment run is rewritten once, with every dead name it holds cut.
+	runs := map[int][]string{}
+	var order []int
 	for _, name := range DeadReferents(path, text, blocks) {
 		h := HitForName(blocks, name)
 		if h.LineNo < 0 || h.LineNo >= len(lines) {
 			continue
+		}
+		if b, ok := blockAt(blocks, h.LineNo); ok && !IsDocument(path) {
+			if _, _, pure := pureSpan(b, len(lines)); pure {
+				if _, seen := runs[b.LineNos[0]]; !seen {
+					order = append(order, b.LineNos[0])
+				}
+				runs[b.LineNos[0]] = append(runs[b.LineNos[0]], name)
+				continue
+			}
 		}
 		openers := commentOpeners
 		if IsDocument(path) {
@@ -416,11 +330,38 @@ func cutReferents(f *fixer.File, path string) {
 			edits = append(edits, edit.Edit{Start: at + from, End: at + to, Cut: []string{strings.TrimSpace(lines[h.LineNo][from:to])}})
 		}
 	}
+	for _, first := range order {
+		b, _ := blockAt(blocks, first)
+		from, to, _ := pureSpan(b, len(lines))
+		run, cut := lines[from:to+1], []string(nil)
+		for _, name := range runs[first] {
+			kept, dropped, ok := commentfix.CutSentences(run, name)
+			if ok {
+				run, cut = kept, append(cut, dropped...)
+			}
+		}
+		if cut == nil {
+			continue
+		}
+		e := edit.Rows(text, from, to, 0, run)
+		e.Cut = cut
+		edits = append(edits, e)
+	}
 	f.ApplyComments(edits)
 	after := AddedBlocks(path, f.Text())
 	for _, name := range DeadReferents(path, f.Text(), after) {
 		f.Note(onLine(HitForName(after, name)))
 	}
+}
+
+// blockAt answers the block that holds row.
+func blockAt(blocks []Block, row int) (Block, bool) {
+	for _, b := range blocks {
+		if slices.Contains(b.LineNos, row) {
+			return b, true
+		}
+	}
+	return Block{}, false
 }
 
 // onLine answers a dead-name hit as a finding reports it: HitForName counts its
@@ -599,16 +540,3 @@ func trimToSentenceEnd(line string) (string, bool) {
 	return trimmed, true
 }
 
-// cutLines quotes the dropped rows a strip edit covers.
-func cutLines(lines []string, drop set.Set[int], e edit.Edit, text string) []string {
-	var out []string
-	row := strings.Count(text[:max(e.Start, 0)], "\n")
-	if e.Start > 0 && e.Start < len(text) && text[e.Start] == '\n' {
-		// A strip of the last row starts on the line end before it.
-		row++
-	}
-	for ; row < len(lines) && drop.Contains(row); row++ {
-		out = append(out, strings.TrimSpace(lines[row]))
-	}
-	return out
-}

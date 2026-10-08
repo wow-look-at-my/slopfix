@@ -43,6 +43,16 @@ func TestFixCutsADeadNameFromADocument(t *testing.T) {
 	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
 }
 
+// A sentence that names a dead symbol goes whole, across every line it wraps
+// onto, and the comment keeps its other sentences.
+func TestFixCutsTheWholeSentenceThatWrapsADeadName(t *testing.T) {
+	path := deadReferentRepo(t, "main.go")
+	content := "package main\n\n// main reads the input. The check in\n// parseLegacyFlag runs first, so the caller\n// waits for it.\nfunc main() {}\n"
+
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.Equal(t, "package main\n\n// main reads the input.\nfunc main() {}\n", fixed.Text)
+}
+
 // A comment line that names nothing the repository defines is one fix strips
 // whole. Check strips nothing, so it reports the line instead.
 func TestCheckReportsTheDeadNameFixStrips(t *testing.T) {

@@ -204,7 +204,6 @@ func classifyGit(seg segment) *finding {
 		if g.has("-n", "--dry-run", "-i", "--interactive") {
 			return nil
 		}
-		// Deliberately not gated on -f: clean.requireForce is configurable.
 		haz := hazUntracked
 		rewrite := `git stash push -u -m "pre-clean"`
 		if g.has("-x", "-X") {
