@@ -146,7 +146,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	// noun phrase restates its head noun: "The same leniency over X, for Y"
 	// becomes "That leniency is for Y".
 	if seam == "," && (word.Tag == "IN" || word.Tag == "TO" || word.Tag == "VBN" || word.Tag == "VBG") &&
-		!clauseOpeners.Contains(lower) && first+1 < len(whole.Words) && opensObject(whole, first+1) {
+		!clauseOpeners.Contains(lower) && !opensClause(whole, first) && first+1 < len(whole.Words) && opensObject(whole, first+1) {
 		if noun, ok := headNoun(whole, c.left); ok {
 			return head, restate(source, noun, rest), opensWithCarrier
 		}
@@ -247,6 +247,14 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 
 // clauseOpeners open a clause whose verb a head must hold before it can close.
 var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since", "unless", "although", "though", "whereas", "so", "where")
+
+// opensClause reports "as" or a subordinator at word i whose words hold a
+// finite verb before the next comma. "as its go.mod approves" is a clause, and
+// no restated noun is it.
+func opensClause(s *syntax.Sentence, i int) bool {
+	lower := s.Words[i].Lower()
+	return (lower == "as" || syntax.Is(lower, "subordinator")) && finiteBefore(s, i+1, ",")
+}
 
 // headOpen reports words before word end that end inside an unfinished clause.
 // One is a subordinator with no finite verb after it: "reports whether the
