@@ -69,6 +69,22 @@ func TestADirectiveLineDividesTheParagraphAroundIt(t *testing.T) {
 	assert.Equal(t, "The last line wraps too.", blocks[1].Text())
 }
 
+// A CLAUDE.md lists its imports one per line. The list is no paragraph, and
+// prose around it stays prose.
+func TestAnImportListIsNotProse(t *testing.T) {
+	doc := "# Rules\n\n@CLAUDE.a.md\n@CLAUDE.b.md\n@~/notes/c.md\n\nRead them\nfirst.\n"
+	blocks := prose(doc)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Read them first.", blocks[0].Text())
+	assert.Equal(t, "# Rules\n\n@CLAUDE.a.md\n@CLAUDE.b.md\n@~/notes/c.md\n\nRead them first.\n", markdown.Format(doc))
+}
+
+func TestAnImportInsideASentenceStaysProse(t *testing.T) {
+	blocks := prose("Read @CLAUDE.a.md\nbefore you start.\n")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Read @CLAUDE.a.md before you start.", blocks[0].Text())
+}
+
 func TestATemplateTagIsNotProse(t *testing.T) {
 	doc := "- Read first.\n${%- if x %}\n- Write last.\n${%- endif %}\n{% if y %}\nThe body.\n{% endif %}\n"
 	blocks := prose(doc)
