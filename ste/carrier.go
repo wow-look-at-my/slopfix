@@ -190,6 +190,13 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restate(source, prev, rest), opensWithCarrier
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
+	case seam == "" && noun && !indefinites.Contains(prev.Lower()) && (lower == "that" || lower == "which") && relativeWithSubject(whole, first):
+		// "a plugin that the later run took from a cache": the relative clause has a subject of its own.
+		pronoun := "one"
+		if prev.Tag == "NNS" || prev.Tag == "NNPS" {
+			pronoun = "ones"
+		}
+		return head, restate(source, prev, pronoun+" "+rest), opensWithCarrier
 	// "the words after the cut are no clause": a verb after the phrase makes it part of the subject.
 	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
 		adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
@@ -495,6 +502,21 @@ func plainPhrase(s *syntax.Sentence, i int) bool {
 			return false
 		}
 		if l := w.Lower(); l == "so" || l == "because" || l == "while" || l == "when" || l == "if" || l == ";" {
+			return false
+		}
+	}
+	return true
+}
+
+// relativeWithSubject reports a relative word at i whose clause names. A
+// subject of its own and runs to the end of the sentence with no comma or
+// colon: "that the later run took from a cache and never published".
+func relativeWithSubject(s *syntax.Sentence, i int) bool {
+	if i+1 >= len(s.Words) || !opensObject(s, i+1) || !finiteBetween(s, i+1, len(s.Words)) {
+		return false
+	}
+	for _, w := range s.Words[i+1:] {
+		if w.Text == "," || w.Text == ":" || w.Text == ";" {
 			return false
 		}
 	}

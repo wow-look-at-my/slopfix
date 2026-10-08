@@ -105,6 +105,52 @@ func TestANameInsideALongerIdentifierIsDead(t *testing.T) {
 	assert.Equal(t, []string{"BeforeIdleHook"}, DeadReferents(path, src, AddedBlocks(path, src)))
 }
 
+// The code around an inline comment is never a referent. The members of an
+// imported module name nothing this repository must define.
+func TestCodeAroundAnInlineCommentIsNotAReferent(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ts"), []byte("export const other = 1;\n"), 0o644))
+
+	path := filepath.Join(dir, "a.ts")
+	src := "import ts from 'typescript';\n" +
+		"const scanner = ts.createScanner(ts.ScriptTarget.Latest, /* */ false, ts.LanguageVariant.Standard, script);\n"
+	assert.Empty(t, DeadReferents(path, src, AddedBlocks(path, src)))
+	assert.Empty(t, DeadReferentHits(path, src))
+}
+
+// A string literal before a trailing comment is code, so its spelling is
+// never a referent.
+func TestAStringBeforeATrailingCommentIsNotAReferent(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ts"), []byte("export const other = 1;\n"), 0o644))
+
+	path := filepath.Join(dir, "a.ts")
+	src := "const rules = [\n" +
+		"\t['built_in', fg('#ffa657')], // built-in types (string, number) and globals (console, Math)\n" +
+		"];\n"
+	assert.Empty(t, DeadReferents(path, src, AddedBlocks(path, src)))
+	assert.Empty(t, DeadReferentHits(path, src))
+}
+
+// A trailing comment that names a dead symbol itself is still reported, and
+// the hit sits on the comment's line.
+func TestATrailingCommentNamingADeadSymbolIsReported(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ts"), []byte("export const other = 1;\n"), 0o644))
+
+	path := filepath.Join(dir, "a.ts")
+	src := "const x = 1;\n" +
+		"const y = 2; // see parseLegacyFlag for the pin\n"
+	blocks := AddedBlocks(path, src)
+	assert.Equal(t, []string{"parseLegacyFlag"}, DeadReferents(path, src, blocks))
+	hit := HitForName(blocks, "parseLegacyFlag")
+	assert.Equal(t, 1, hit.LineNo)
+	assert.False(t, hit.Strippable)
+}
+
 func TestRepoRootFindsTheTreeAboveAFile(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
