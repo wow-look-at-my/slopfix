@@ -28,8 +28,8 @@ var samples = map[string]string{
 	ste.IDTense:       "The gate has read the file.",
 	ste.IDNounCluster: "The gate file system cache lookup stopped.",
 	ste.IDDictionary:  "The tool gives additional output today.",
-	ste.IDInstructionLength: "The gate reads the file and the tool writes the result " +
-		"to the store for the caller before the next build starts.",
+	ste.IDInstructionLength: "Read the file from the disk and write the result to the store " +
+		"for the caller before the next build of the tree starts.",
 	ste.IDParagraphLength: "The gate reads the file. The gate writes the result. " +
 		"The gate waits for the caller. The gate stops the loop. The gate starts the build. " +
 		"The gate ends the run. The gate fails the check.",

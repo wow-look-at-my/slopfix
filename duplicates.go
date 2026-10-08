@@ -76,6 +76,10 @@ func nearDuplicateReports(root string) ([]DuplicateReport, error) {
 		// Each copy is reported once, against the first path it matches.
 		for i, b := range files {
 			for _, a := range files[:i] {
+				// A file with no text holds nothing to share.
+				if len(nonBlank(a.lines)) == 0 || len(nonBlank(b.lines)) == 0 {
+					continue
+				}
 				share := lineShare(nonBlank(a.lines), nonBlank(b.lines))
 				if share < NearDuplicateShare {
 					continue
@@ -94,7 +98,7 @@ func nearDuplicateReports(root string) ([]DuplicateReport, error) {
 	return out, nil
 }
 
-// duplicatedPortions answers the ranges of the later file to delete: each top-level function or class. That duplicatedPortions is with the comment run above it, whose every line also appears in the earlier file. Only those portions are cut, and
+// duplicatedPortions answers the ranges of the later file to delete: each top-level function or class. That duplicatedPortions is with the comment run above it, whose every line also appears in the earlier file. Only
 // the rest of the file stays.
 func duplicatedPortions(a, b []string) []DuplicateBlock {
 	have := map[string]int{}
