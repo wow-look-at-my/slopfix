@@ -91,7 +91,7 @@ var parser = goldmark.New(goldmark.WithExtensions(extension.Table)).Parser()
 // paragraphs maps the line each paragraph opens on to the line it ends on. A
 // paragraph in a block quote quotes somebody, and stays as they wrote it.
 func paragraphs(content string, lines []string) map[int]int {
-	src := blankTemplateTags([]byte(blankFrontMatter(content, lines)), lines)
+	src := blankTemplateTags([]byte(blankGenerated(blankFrontMatter(content, lines), lines)), lines)
 	starts := lineStarts(lines)
 	ends := map[int]int{}
 	_ = ast.Walk(parser.Parse(text.NewReader(src)), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -115,7 +115,13 @@ func paragraphs(content string, lines []string) map[int]int {
 					for to < last && !isDirective(lines[to+1]) {
 						to++
 					}
-					if hasLetter(lines[from : to+1]) {
+					switch {
+					case trailerBlock(lines[from : to+1]):
+						// A trailer block is a line per trailer, and git reads each line alone.
+						for line := from; line <= to; line++ {
+							ends[line] = line
+						}
+					case hasLetter(lines[from : to+1]):
 						ends[from] = to
 					}
 					from = to + 1
@@ -126,6 +132,23 @@ func paragraphs(content string, lines []string) map[int]int {
 		return ast.WalkContinue, nil
 	})
 	return ends
+}
+
+// trailerLine is a git trailer: a token of letters, digits and hyphens, a colon, and a value.
+var trailerLine = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]*: \S`)
+
+// trailerBlock reports a paragraph of more than a single line in which every
+// line is a git trailer.
+func trailerBlock(lines []string) bool {
+	if len(lines) < 2 {
+		return false
+	}
+	for _, line := range lines {
+		if !trailerLine.MatchString(line) {
+			return false
+		}
+	}
+	return true
 }
 
 // templateDirectives open a template tag: a Jinja or Go template statement, an expression or a comment.
@@ -174,6 +197,46 @@ func blankFrontMatter(content string, lines []string) string {
 		return string(out)
 	}
 	return content
+}
+
+// generatedMark opens or closes a region a program writes, as in "<!-- BEGIN GENERATED: data layouts -->".
+var generatedMark = regexp.MustCompile(`^\s*<!--\s*(BEGIN|END) GENERATED\b.*-->\s*$`)
+
+// blankGenerated writes spaces over each region between a BEGIN GENERATED and
+// an END GENERATED mark, byte for byte. A program rewrites the region, so no
+// rule reads a paragraph there and every offset holds. A region with no end
+// runs to the end of the file.
+func blankGenerated(content string, lines []string) string {
+	starts := lineStarts(lines)
+	out := []byte(content)
+	from := -1
+	for i, line := range lines {
+		mark := generatedMark.FindStringSubmatch(line)
+		if mark == nil {
+			continue
+		}
+		if mark[1] == "BEGIN" && from < 0 {
+			from = starts[i]
+			continue
+		}
+		if mark[1] == "END" && from >= 0 {
+			blank(out[from:min(starts[i]+len(line), len(out))])
+			from = -1
+		}
+	}
+	if from >= 0 {
+		blank(out[from:])
+	}
+	return string(out)
+}
+
+// blank writes a space over every byte but a newline.
+func blank(b []byte) {
+	for k := range b {
+		if b[k] != '\n' {
+			b[k] = ' '
+		}
+	}
 }
 
 // blankTemplateTags writes spaces over each line that holds one template tag and nothing else, such as `{% if x %}` or `${%- endif %}`. A tag is code for the renderer, so the parser reads it as a break between paragraphs. A line that holds one markup

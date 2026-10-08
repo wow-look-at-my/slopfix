@@ -176,6 +176,41 @@ func TestEveryCountIsReworded(t *testing.T) {
 	}
 }
 
+// A sign written against the number bounds it the way "at most" does, and the
+// repair keeps the bound. The first case is a line of shader-simulator's
+// AGENTS.md.
+func TestABoundSignIsRewordedWithTheBound(t *testing.T) {
+	le, ge, dash := lessOrEqual, greaterOrEqual, string(rune(0x2014))
+	for in, want := range map[string]string{
+		"- **" + le + "750 lines per file** " + dash + " this is why codegen is split into `codegen.go` + `glsl_extinst.go`": "- **a bounded number of lines per file** " + dash + " this is why codegen is split into `codegen.go` + `glsl_extinst.go`",
+		"It keeps " + le + "500 lines.":   "It keeps a bounded number of lines.",
+		"It keeps " + le + " 500 lines.":  "It keeps a bounded number of lines.",
+		"It keeps <= 500 lines.":          "It keeps a bounded number of lines.",
+		"It keeps <500 lines.":            "It keeps a bounded number of lines.",
+		"It keeps max 500 lines.":         "It keeps a bounded number of lines.",
+		"It needs " + ge + "3 reviewers.": "It needs a few reviewers.",
+		"It needs >5 reviewers.":          "It needs several reviewers.",
+	} {
+		out, cut := StripGate(in)
+		assert.NotEmpty(t, cut, in)
+		assert.Equal(t, want, out, in)
+		assert.NotContains(t, out, le, in)
+	}
+}
+
+// A blockquote marker is no bound, so the count in it goes as any count does.
+func TestABlockquoteMarkerIsNoBound(t *testing.T) {
+	sign, at := boundSign("> 15 plugins", 2)
+	assert.Empty(t, sign.text)
+	assert.Equal(t, 2, at)
+
+	sign, _ = boundSign("<br>5 files", 4)
+	assert.Empty(t, sign.text, "the end of a tag is no bound")
+
+	sign, _ = boundSign("a->3 files", 3)
+	assert.Empty(t, sign.text, "an arrow is no bound")
+}
+
 // Each of these is the cut a document reader caught. The repair either keeps
 // the sentence English, or leaves a number that counts nothing alone.
 func TestARewordKeepsTheSentenceEnglish(t *testing.T) {

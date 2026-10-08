@@ -17,8 +17,8 @@ func TestFixRepairsASpliceCheckReadsThroughAQuotation(t *testing.T) {
 	assert.Contains(t, out, `"the native sandbox for this OS, else docker"`, "the quotation stays as written")
 }
 
-// Fix divides a sentence Check counts over the cap when an aside holds a link.
-// Check reads the link target as (URL), a word of its own, so the aside counts its words.
+// Fix divides a sentence Check counts over the cap when an aside holds a link,
+// and no division lands inside the aside.
 func TestFixDividesASentenceWhoseAsideHoldsALink(t *testing.T) {
 	text := "The tool reads an *existing* host file into the temp directory so a command can modify a copy of it, " +
 		"and it uses `inputs.copy` or `shared.copy` (see [file-format.md](file-format.md#copy-fixtures-inputscopy-and-sharedcopy))."
@@ -39,6 +39,13 @@ func TestAnInfinitiveOpenerFollowsItsMainClause(t *testing.T) {
 	assert.False(t, ste.ByHand(got[0].Fix), got[0].Fix)
 	assert.Equal(t, "Use the copy key or the shared copy key in the file for the run. "+
 		"Do this to pull an existing host file into the temp directory so a command can modify a copy of it.", ste.Fix(text))
+}
+
+// An aside that holds a link target is a single word, as any aside is.
+func TestAnAsideWithALinkCountsAsAWord(t *testing.T) {
+	assert.Equal(t, 3, ste.WordCount("a (see [Leak gates](URL)) b"))
+	assert.Equal(t, 3, ste.WordCount("a (see b) c"))
+	assert.Equal(t, 3, ste.WordCount("a (b c"))
 }
 
 // findings answers what Check reports under id.

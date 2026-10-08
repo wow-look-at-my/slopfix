@@ -1,6 +1,7 @@
 package ste
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -71,6 +72,21 @@ func punctuationCuts(masked string) []int {
 			continue
 		}
 		out = append(out, d[1])
+	}
+	return out
+}
+
+// spacedDash is a dash with a blank on each side, which opens or closes an aside.
+var spacedDash = regexp.MustCompile(`\s(?:—|–|--)\s`)
+
+// dashAsides answers each aside between a pair of spaced dashes, from the
+// blank before the first dash to the blank after the second. A lone dash pairs
+// with nothing and stays a seam.
+func dashAsides(source string) [][]int {
+	dashes := spacedDash.FindAllStringIndex(source, -1)
+	var out [][]int
+	for i := 0; i+1 < len(dashes); i += 2 {
+		out = append(out, []int{dashes[i][0], dashes[i+1][1]})
 	}
 	return out
 }

@@ -285,10 +285,19 @@ func capitalizeOpening(s string) string {
 // divisions answers each clause boundary where both sides stand as sentences.
 func divisions(s *syntax.Sentence, source string) []division {
 	var out []division
+	dashed := dashAsides(source)
 	for k := 1; k < len(s.Clauses); k++ {
 		c := s.Clauses[k]
 		main, ok := mainBefore(s, k)
 		if !ok || c.Link < 0 || c.Link+1 >= len(s.Words) {
+			continue
+		}
+		// A division inside a pair of dashes, or at either dash, halves the aside.
+		if insideAny(dashed, s.Words[c.Link].Start) {
+			continue
+		}
+		// The part before a division needs a verb with tense: "so newly created files." has none.
+		if !main.Verb.Finite && !main.Verb.Imperative {
 			continue
 		}
 		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {

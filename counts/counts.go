@@ -53,7 +53,7 @@ func Gate(content string) []Hit {
 func find(content string, substrate cardinal.Substrate, mask func(string) string) []Hit {
 	var hits []Hit
 	for _, line := range proseLines(content) {
-		text := mask(line.text)
+		text := mask(blankLead(line.text, line.lead))
 		for _, found := range cardinal.Find(text, substrate) {
 			hits = append(hits, Hit{
 				Phrase: found.Text,
@@ -198,6 +198,16 @@ type proseLine struct {
 	text   string
 	no     int
 	offset int
+	// lead is how many bytes of a list item's opening line its marker takes.
+	lead int
+}
+
+// blankLead writes spaces over the first n bytes of line, so every offset holds.
+func blankLead(line string, n int) string {
+	if n <= 0 || n > len(line) {
+		return line
+	}
+	return strings.Repeat(" ", n) + line[n:]
 }
 
 // proseLines returns the lines markdown.Split marks as prose, each with its
@@ -220,7 +230,13 @@ func proseLines(content string) []proseLine {
 			if i < 0 || i >= len(lines) {
 				continue
 			}
-			out = append(out, proseLine{text: text, no: i + 1, offset: offsets[i]})
+			line := proseLine{text: text, no: i + 1, offset: offsets[i]}
+			if n == 0 && block.Marker != "" {
+				if at := strings.Index(text, block.Marker); at >= 0 {
+					line.lead = at + len(block.Marker)
+				}
+			}
+			out = append(out, line)
 		}
 	}
 	return out

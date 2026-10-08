@@ -60,6 +60,21 @@ func TestAWriteIsRepairedAndLetThrough(t *testing.T) {
 	assert.NotContains(t, got.body, "permissionDecision")
 }
 
+// A commit message file keeps its trailers a line each, the way git reads
+// them, while the hand-wrapped body above them joins.
+func TestAWriteOfACommitMessageKeepsItsTrailerLines(t *testing.T) {
+	trailers := "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n" +
+		"Claude-Session: https://claude.ai/code/session_017LJqj9QeyPBBaQJcbngeEo\n"
+	path := filepath.Join(t.TempDir(), "commit-msg.txt")
+	got := ask(t, write(path, "Keep the trailers\n\nThe hook keeps each\ntrailer on its line.\n\n"+trailers))
+
+	require.NotNil(t, got.out)
+	assert.NotContains(t, got.body, "permissionDecision")
+	updated, _ := got.out["updatedInput"].(map[string]any)
+	require.NotNil(t, updated, got.body)
+	assert.Equal(t, "Keep the trailers\n\nThe hook keeps each trailer on its line.\n\n"+trailers, updated["content"])
+}
+
 // Every key the payload carried survives, so a field this does not read is not
 // dropped from the write.
 func TestAKeyThisDoesNotReadSurvives(t *testing.T) {

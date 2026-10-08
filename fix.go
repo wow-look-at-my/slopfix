@@ -209,7 +209,28 @@ func fixAll(req Request) Repair {
 // exempt reports a file no rule reads or rewrites: another project's, or a
 // generator's.
 func exempt(path, content string) bool {
-	return tombstones.Borrowed(path) || commentfix.IsGenerated(path, content)
+	return tombstones.Borrowed(path) || commentfix.IsGenerated(path, content) || machineRead(path, content)
+}
+
+// machineRead reports a text file a program reads: past its `#` comments,
+// each line is a single entry with no blank inside it, such as a path list or
+// a requirements.txt. Its lines are not paragraphs.
+func machineRead(path, content string) bool {
+	if !strings.EqualFold(filepath.Ext(path), ".txt") {
+		return false
+	}
+	entries := 0
+	for line := range strings.Lines(content) {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.ContainsAny(line, " \t") {
+			return false
+		}
+		entries++
+	}
+	return entries > 0
 }
 
 // UnmetError is a fixture whose slopfix-expect annotations the repair broke.

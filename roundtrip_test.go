@@ -105,8 +105,8 @@ func roundTripFixtures() []fixture {
 				"      - uses: wow-look-at-my/slopfix@v1\n" +
 				"        continue-on-error: true\n" +
 				"      - env:\n" +
-				"          OUT: ${{ steps.x.outputs.path }}\n" +
-				"        run: cat \"$OUT\"\n",
+				"          OUT: ${{ github.sha }}\n" +
+				"        run: git show \"$OUT\"\n",
 			wants: []string{
 				"yaml/comment-block",
 				"yaml/all-builds-job",

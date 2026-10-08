@@ -2,7 +2,10 @@ package slopfix_test
 
 import (
 	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,4 +79,43 @@ func TestActionClaimsTheCheckOncePerRun(t *testing.T) {
 		assert.Contains(t, steps[idx].If, "steps.claim.outputs.first != 'false'",
 			"step %s must skip in a job that lost the claim", id)
 	}
+}
+
+// checkRunScript answers the run script of the action's check step.
+func checkRunScript(t *testing.T) string {
+	content, err := os.ReadFile("action.yml")
+	require.NoError(t, err)
+	var action struct {
+		Runs struct {
+			Steps []actionStep `yaml:"steps"`
+		} `yaml:"runs"`
+	}
+	require.NoError(t, yaml.Unmarshal(content, &action))
+	for _, step := range action.Runs.Steps {
+		if step.ID == "check" {
+			return step.Run
+		}
+	}
+	t.Fatal("action.yml has no check step")
+	return ""
+}
+
+// The findings of a check go to the log only. GitHub caps a step's outputs, and
+// a large repository's findings in GITHUB_OUTPUT failed the step.
+func TestTheActionKeepsCheckFindingsOutOfItsOutputs(t *testing.T) {
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "slopfix")
+	require.NoError(t, os.WriteFile(stub, []byte("echo \"finding for $*\"\n"), 0o755))
+	script := strings.ReplaceAll(checkRunScript(t), "${{ steps.download.outputs.path }}", stub)
+
+	outputs := filepath.Join(dir, "outputs")
+	require.NoError(t, os.WriteFile(outputs, nil, 0o644))
+	cmd := exec.Command("bash", "-c", script)
+	cmd.Env = append(os.Environ(), "GITHUB_OUTPUT="+outputs)
+	log, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(log))
+	assert.Contains(t, string(log), "finding for", "the log keeps what slopfix wrote")
+	written, err := os.ReadFile(outputs)
+	require.NoError(t, err)
+	assert.Empty(t, string(written), "a check writes no output")
 }

@@ -161,7 +161,12 @@ func (p Pattern) ApplyN(s string) (string, int) {
 			continue
 		}
 		from, to := loc[0], loc[1]
-		if strings.TrimSpace(with) == "" {
+		if strings.TrimSpace(with) == "" && closesAnAside(s, from, to) {
+			// The cut would leave the aside open and its sentence a fragment, so the sentence goes whole.
+			if from, to, with = join(s, sentenceStart(s, from), sentenceEnd(s, to)); from < last {
+				continue
+			}
+		} else if strings.TrimSpace(with) == "" {
 			// A cut: the parse says which punctuation attaches the phrase.
 			var ok bool
 			if from, to, ok = cutSpan(s, loc[0], loc[1]); !ok {
@@ -230,6 +235,39 @@ func strandsOpener(s string, from, to int, with string) bool {
 	}
 	last := words[len(words)-1]
 	return is(last, "article") || is(last, "relative") || is(last, "conjunction")
+}
+
+// closesAnAside reports a cut that takes the bracket closing an aside its
+// sentence opened before the cut. The words before the cut then end inside
+// the aside.
+func closesAnAside(s string, from, to int) bool {
+	head, cut := s[sentenceStart(s, from):from], s[from:to]
+	for _, pair := range []string{"()", "[]"} {
+		open, shut := pair[:1], pair[1:]
+		if strings.Count(head, open) > strings.Count(head, shut) && strings.Contains(cut, shut) {
+			return true
+		}
+	}
+	return false
+}
+
+// sentenceStart answers where the sentence that holds the byte at at begins.
+func sentenceStart(s string, at int) int {
+	start := 0
+	for _, stop := range []string{". ", "! ", "? "} {
+		if i := strings.LastIndex(s[:at], stop); i >= 0 {
+			start = max(start, i+len(stop))
+		}
+	}
+	return start
+}
+
+// sentenceEnd answers the byte after the mark that ends the sentence going on at at.
+func sentenceEnd(s string, at int) int {
+	if i := strings.IndexAny(s[at:], ".!?"); i >= 0 {
+		return at + i + 1
+	}
+	return len(s)
 }
 
 // insideAny reports whether from..to overlaps any of the spans.
