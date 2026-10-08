@@ -48,8 +48,8 @@ func TestClauseRepairsKeepTheSentenceWhole(t *testing.T) {
 			"The plain variant holds no tests, so the richest variant answers `deadcode`.",
 		},
 		"a bold run around the clause stays around it": {
-			"The plain variant holds no tests, so **`deadcode` is answered by the richest variant** here.",
-			"The plain variant holds no tests, so **the richest variant answers `deadcode`** here.",
+			"The plain variant holds no tests, so **`deadcode` is answered by the richest variant** (`richestVariants`).",
+			"The plain variant holds no tests, so **the richest variant answers `deadcode`** (`richestVariants`).",
 		},
 		"a silent e comes back after dg": {
 			"The text is judged by the gate.",
