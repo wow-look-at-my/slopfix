@@ -251,6 +251,7 @@ func subjectOpensAt(s *syntax.Sentence, from, verb int) bool {
 }
 
 func adverbLed(w syntax.Word) bool { return w.Tag == "RB" || w.Tag == "JJR" || w.Tag == "JJS" }
+
 // instructs reports a sentence whose main clause is an imperative, after any
 // opening subordinate clause: "When a step exists, include a quote". A so in
 // an instruction states the purpose of the instruction.
