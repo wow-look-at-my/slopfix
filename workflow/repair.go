@@ -8,6 +8,7 @@ package workflow
 
 import (
 	"reflect"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -17,6 +18,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
+	"mvdan.cc/sh/v3/syntax"
 )
 
 // Repair is a workflow as this binary would write it.
@@ -104,7 +106,10 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 			if yaml.Unmarshal([]byte(compareData(text, comment)), &got) != nil {
 				return false
 			}
-			return !comment || reflect.DeepEqual(got, want)
+			if comment {
+				return reflect.DeepEqual(got, want)
+			}
+			return scriptsHold(content, text)
 		})
 }
 
@@ -123,6 +128,57 @@ func compareData(content string, comment bool) string {
 		}
 	}
 	return strings.Join(rows, "\n")
+}
+
+// scriptsHold reports whether every run script in after keeps the lines its
+// counterpart in before has, and still parses as shell where it did. A script
+// is code: no repair deletes a line of it or leaves it unparseable.
+func scriptsHold(before, after string) bool {
+	was, now := runScalars(before), runScalars(after)
+	if len(was) != len(now) {
+		return false
+	}
+	for i := range was {
+		if countRows(was[i]) != countRows(now[i]) {
+			return false
+		}
+		if parsesAsShell(was[i]) && !parsesAsShell(now[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// runScalars answers the value of every run key that holds a scalar, in
+// document order.
+func runScalars(content string) []string {
+	var doc yaml.Node
+	if yaml.Unmarshal([]byte(content), &doc) != nil {
+		return nil
+	}
+	var out []string
+	walk(&doc, func(n *yaml.Node) {
+		if n.Kind != yaml.MappingNode {
+			return
+		}
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			if n.Content[i].Value == "run" && n.Content[i+1].Kind == yaml.ScalarNode {
+				out = append(out, n.Content[i+1].Value)
+			}
+		}
+	})
+	return out
+}
+
+// expression matches a ${{ }} expression, which the runner replaces before the shell reads the script.
+var expression = regexp.MustCompile(`\$\{\{[^}]*\}\}`)
+
+// parsesAsShell reports whether a script parses as bash once each expression
+// stands as a plain word.
+func parsesAsShell(script string) bool {
+	masked := expression.ReplaceAllString(script, "expr")
+	_, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(masked), "")
+	return err == nil
 }
 
 // rowEdge reports whether a byte sits where a row starts or ends.

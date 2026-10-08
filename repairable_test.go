@@ -74,6 +74,7 @@ func TestARepairIsClaimedRuleByRule(t *testing.T) {
 	assert.True(t, slopfix.Repairable(slopfix.IDHardWrap))
 	assert.True(t, slopfix.Repairable(workflow.IDCommentBlock))
 	assert.True(t, slopfix.Repairable(workflow.IDNeuteredGate))
+	assert.False(t, slopfix.Repairable(workflow.IDTestInYAML))
 }
 
 // The defect this property exists for. A stale count is reported under the
