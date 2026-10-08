@@ -92,6 +92,23 @@ func TestATemplateTagIsNotProse(t *testing.T) {
 	assert.Equal(t, doc, markdown.Format(doc), "no tag joins a paragraph")
 }
 
+// A custom tag cannot end a CommonMark paragraph. A closing tag on its own
+// line must not read as the next line of the prose above it.
+func TestALoneMarkupTagLineEndsTheParagraph(t *testing.T) {
+	doc := "<memory>\nTreat memory as context.\n</memory>\n\n<rules lang=\"en\">\nRead first.\n</rules>\n"
+	blocks := prose(doc)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "Treat memory as context.", blocks[0].Text())
+	assert.Equal(t, "Read first.", blocks[1].Text())
+	assert.Equal(t, doc, markdown.Format(doc), "no tag joins a paragraph")
+}
+
+func TestATagInsideAParagraphStaysProse(t *testing.T) {
+	blocks := prose("Write the <b>bold</b> word\nand go on.\n")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Write the <b>bold</b> word and go on.", blocks[0].Text())
+}
+
 func TestATableIsAGrid(t *testing.T) {
 	assert.Empty(t, prose("a | b\n--|--\nc | d\n"))
 }
