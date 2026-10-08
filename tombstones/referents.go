@@ -49,8 +49,12 @@ func isCandidate(name string) bool {
 }
 
 // identifierShaped reports whether a whole word is built like a symbol rather
-// than prose: it carries an underscore, or a case change inside it.
+// than prose: it carries an underscore, or a case change inside it. A word
+// that starts with a digit is a number literal, never a symbol.
 func identifierShaped(name string) bool {
+	if name[0] >= '0' && name[0] <= '9' {
+		return false
+	}
 	if strings.Contains(name, "_") {
 		return true
 	}
@@ -233,7 +237,8 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	if !ix.ok && rg == "" {
 		return nil
 	}
-	args := []string{"--no-messages", "--fixed-strings", "--files-with-matches", "--max-count", "1"}
+	// --word-regexp matches whole identifiers, the way the index counts them.
+	args := []string{"--no-messages", "--fixed-strings", "--word-regexp", "--files-with-matches", "--max-count", "1"}
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
