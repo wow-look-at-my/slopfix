@@ -1,6 +1,7 @@
 # go-toolchain fails a branch that changes any path below. These tests are what
 # slopfix guarantees: every error rule has a repair, and fix leaves check clean.
 .github/protected-paths
+.github/workflows
 allfix_test.go
 testdata/allfix
 repairable_test.go
