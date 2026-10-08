@@ -88,12 +88,16 @@ func Find(blocks []Block, maxLines int) []Hit {
 	return hits
 }
 
-// linePurity looks a block-relative line index up in b's parallel arrays.
+// linePurity looks a block-relative line index up in b's parallel arrays. A
+// document paragraph has no Pure: its line is placed, and never stripped whole.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
-	if li < len(b.LineNos) && li < len(b.Pure) {
-		return b.LineNos[li], b.Pure[li]
+	if li >= len(b.LineNos) {
+		return -1, false
 	}
-	return -1, false
+	if li >= len(b.Pure) {
+		return b.LineNos[li], false
+	}
+	return b.LineNos[li], b.Pure[li]
 }
 
 // HitForName builds the Hit for a dead referent, carrying the strip metadata a

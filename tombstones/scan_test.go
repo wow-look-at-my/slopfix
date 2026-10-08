@@ -105,6 +105,27 @@ func TestANameInsideALongerIdentifierIsDead(t *testing.T) {
 	assert.Equal(t, []string{"BeforeIdleHook"}, DeadReferents(path, src, AddedBlocks(path, src)))
 }
 
+// A document names a dead symbol on a line the hit places, and the fix cuts
+// the sentence that holds it.
+func TestADeadNameInADocumentIsCut(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\n"), 0o644))
+
+	path := filepath.Join(dir, "a.md")
+	src := "The loop parks the worker. GoneIdleHookName routes it to a sleep. The pool stays warm.\n"
+	require.NoError(t, os.WriteFile(path, []byte(src), 0o644))
+
+	hits := DeadReferentHits(path, src)
+	require.Len(t, hits, 1)
+	assert.Equal(t, 0, hits[0].LineNo)
+
+	repair := Fix(path, src, DefaultMaxCommentLines)
+	assert.NotContains(t, repair.Text, "GoneIdleHookName")
+	assert.Contains(t, repair.Text, "The loop parks the worker.")
+	assert.Contains(t, repair.Text, "The pool stays warm.")
+}
+
 func TestRepoRootFindsTheTreeAboveAFile(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
