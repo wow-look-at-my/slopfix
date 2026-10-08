@@ -159,7 +159,7 @@ func TestForceRefspecIsTreatedAsAForcePush(t *testing.T) {
 // push --delete.
 
 // A remote branch whose commits survive elsewhere is still not deleted from
-// here: the branch is what its pull request, its CI run and any consumer
+// here. The branch is what its pull request, its CI run and any consumer
 // following it by name are attached to. A merged branch dies with the merge.
 func TestDeniesDeletingARemoteBranchEvenWhenMerged(t *testing.T) {
 	dir := remoteRepo(t)

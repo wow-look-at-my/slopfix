@@ -259,11 +259,10 @@ func classifyGit(seg segment) *finding {
 			}
 		}
 		if deleting {
-			// A remote branch is never deleted from here, whether or not its
-			// commits survive elsewhere: the branch is what a pull request,
-			// a CI run and a consumer following it by name are attached to,
-			// and deleting it ends all of those. The bot that merges a pull
-			// request deletes its head branch afterwards.
+			// A remote branch is never deleted from here, whether its commits survive
+			// elsewhere. The branch is what a pull request, a CI run and a consumer
+			// following it by name are attached to. Deleting it ends all of those. The
+			// bot that merges a pull request deletes its head branch afterwards.
 			return &finding{
 				label: "git push --delete", always: true, dir: g.dir,
 				reason:  "blocked: deleting a remote branch ends the pull request, the CI run and every consumer attached to it by name; a merged branch is deleted by the merge, and an unwanted one is left alone.",

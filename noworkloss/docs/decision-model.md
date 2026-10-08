@@ -10,13 +10,13 @@ Everything else is subordinate to that. Committed work is reachable from the ref
 
 The invariant is about the content, not about the command. The ordinary dirty-tree case is the tracked, untracked and ignored hazard below. The hook satisfies the invariant there directly instead of refusing. It commits the at-risk paths onto the CURRENT BRANCH. A ref no ordinary command shows is a ref nobody reviews and the next session deletes. So the commit goes where the log, the diff and the next push already look. Every step runs against a throwaway `GIT_INDEX_FILE`. The user's own index is never written and the working tree is never touched. `git read-tree HEAD` seeds that temp index with the last committed tree. It is skipped when no HEAD exists yet. The commit then gets no parent.
 
-Two commits can come out of it, because a file holds one thing in HEAD, another in the index and a third on disk. `stagedTree` copies the at-risk paths' INDEX entries into the temp index first and writes a tree. `git add --force` then overwrites them with the working-tree content and writes a second. A tree equal to the one below it is dropped. The ordinary case therefore makes exactly one commit and never writes an empty one. `git update-ref HEAD` advances the branch. `git reset -q <commit> -- <paths>` refreshes the real index for those paths alone. Without it the tree reads as a staged revert of what was just saved. A best-effort `git push origin HEAD` gets the content off the machine. A push failure still allows, because the local commit satisfies the invariant on its own. The line that reports this says the push failed and where the content sits instead.
+Commits can come out of it, because a file holds one thing in HEAD, another in the index and a third on disk. `stagedTree` copies the at-risk paths' INDEX entries into the temp index first and writes a tree. `git add --force` then overwrites them with the working-tree content and writes a second. A tree equal to the one below it is dropped. The ordinary case therefore makes exactly one commit and never writes an empty one. `git update-ref HEAD` advances the branch. `git reset -q <commit> -- <paths>` refreshes the real index for those paths alone. Without it the tree reads as a staged revert of what was just saved. A best-effort `git push origin HEAD` gets the content off the machine. A push failure still allows, because the local commit satisfies the invariant on its own. The line that reports this says the push failed and where the content sits instead.
 
 Content that was uncommitted before the hook ran is committed after it. So `git status` stops reporting the paths it saved. That is the mechanism working rather than a side effect to remove. Everything else must read exactly as it did. A file staged elsewhere keeps its staged blob and its `diff --cached` entry, and no byte on disk moves. `preserve_test.go` pins both halves.
 
 Once that commit exists, the destructive command is safe by construction -- there is nothing left to refuse. The case that still denies is the commit itself failing. Preservation that did not happen must never read as success. A failed `git add`, `write-tree`, `commit-tree` or `update-ref` therefore falls back to the ordinary denial below.
 
-Two hazard classes are deliberately excluded from this and still deny outright: a stash entry, and anything ref-destroying (the whole "reachability, not refusal" family below). Both ask a different question than "is there uncommitted work". Folding a stash pop or a synthesized ref into the same machinery is not worth the complexity here. `preserve_test.go`'s negative controls pin this as a stated boundary, not an oversight to fix later.
+Hazard classes are deliberately excluded from this and still deny outright: a stash entry, and anything ref-destroying (the whole "reachability, not refusal" family below). Both ask a different question than "is there uncommitted work". Folding a stash pop or a synthesized ref into the same machinery is not worth the complexity here. `preserve_test.go`'s negative controls pin this as a stated boundary, not an oversight to fix later.
 
 A preservation ref is the ONLY copy of what it holds. So it gets the opposite treatment from every other ref-destroying command. `git update-ref -d`, and a force-pushing or deleting `git push` that names one under `refs/no-work-loss/`, are refused unconditionally. That skips the "does it exist somewhere else" question entirely, because the ref itself contains the content and the answer is wrongly yes. `git branch -D` cannot reach this prefix at all: a branch name always resolves under `refs/heads/`.
 
@@ -33,7 +33,7 @@ Note the shape. The first command is individually reasonable and destroys nothin
 
 ## Hazard classes, and why they are not a single bit
 
-The single most tempting simplification here is a boolean: is the tree dirty? It is wrong. It is the failure that gets a guard uninstalled. The verbs do not agree about what "dirty" means:
+The most tempting simplification here is a boolean: is the tree dirty? It is wrong. It is the failure that gets a guard uninstalled. The verbs do not agree about what "dirty" means:
 
 | Command          | tracked modifications | untracked files | ignored files | stash entries |
 |------------------|-----------------------|-----------------|---------------|---------------|
@@ -43,7 +43,7 @@ The single most tempting simplification here is a boolean: is the tree dirty? It
 | `stash drop`     | spares                | spares          | spares        | destroys      |
 | `checkout <ref>` | destroys              | spares          | spares        | spares        |
 
-Both are false positives on the safe half of a legitimate command, and both teach the user that the guard is noise. So each verb is checked only against the classes it can actually reach. `TestResetHardSparesUntrackedFiles` and `TestCleanSparesTrackedModifications` pin the two halves.
+Both are false positives on the safe half of a legitimate command, and both teach the user that the guard is noise. So each verb is checked only against the classes it can actually reach. `TestResetHardSparesUntrackedFiles` and `TestCleanSparesTrackedModifications` pin the halves.
 
 ## Commands that destroy refs: reachability, not refusal
 
@@ -62,7 +62,7 @@ None of these is destructive on its own. So the question asked is not "is this v
 | `reflog expire` / `delete` | nothing reflog-only | `fsck --unreachable --no-reflogs` finds no commit |
 | `worktree remove --force` | that worktree's edits | its `status --porcelain` is empty |
 
-Two facts here were established by running git, and both had already produced a wrong answer in a draft:
+Facts here were established by running git, and both had already produced a wrong answer in a draft:
 
 - **`--exclude` does not take a full refname.** For `--branches` and `--remotes` the pattern matches the name *without* the `refs/heads/` or `refs/remotes/` prefix. `--exclude=refs/heads/feature --branches` silently excludes nothing, so a branch holding the only copy of a commit reported "0 will be lost". A silent false negative is the worst outcome available here, which is why containment via `for-each-ref --contains` is used instead of hand-built exclusion lists.
 - **`refs/remotes/<remote>/HEAD` is a symbolic alias** for the branch being overwritten. Counting it as "somewhere else" made every force push look safe. It is filtered out explicitly.
@@ -96,7 +96,7 @@ Substring matching on `git reset --hard` is not sufficient and gives false confi
 
 ## Ambiguity resolves to denial
 
-Three cases produce a denial without a state answer. A destructive verb whose target cannot be identified is what this plugin exists to refuse:
+Cases produce a denial without a state answer. A destructive verb whose target cannot be identified is what this plugin exists to refuse:
 
 - The command does not parse **and** names a destructive verb. (Unparseable with nothing destructive in it is allowed.)
 - An operand is not statically known -- `rm $TARGET`, `cd $DIR && git reset --hard`, `cd -`.
@@ -106,7 +106,7 @@ A script FILE the walk follows as a new shell is the exception to all of it. Its
 
 ## A redirect has a descriptor as well as a target
 
-Two redirect shapes cannot empty a file holding content no git object has. A device target swallows what it is given. `/dev/null`, `/dev/stdout`, `/dev/stderr`, `/dev/tty` and `/dev/fd/*` are all absolute, so no working directory is needed to resolve one. A descriptor other than stdout carries a stream rather than the command's output. The destruction half skips both. The provenance half judges every descriptor, because content reaching a file inside the tree is authored content whichever stream filled it. So `git status 2>/dev/null` runs and `echo x 2> tracked.go` is refused by name.
+Redirect shapes cannot empty a file holding content no git object has. A device target swallows what it is given. `/dev/null`, `/dev/stdout`, `/dev/stderr`, `/dev/tty` and `/dev/fd/*` are all absolute, so no working directory is needed to resolve one. A descriptor other than stdout carries a stream rather than the command's output. The destruction half skips both. The provenance half judges every descriptor, because content reaching a file inside the tree is authored content whichever stream filled it. So `git status 2>/dev/null` runs and `echo x 2> tracked.go` is refused by name.
 
 ## Fail-safety, stated honestly
 
