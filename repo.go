@@ -28,9 +28,6 @@ const RuleRepo Rule = "repo"
 // RepoIDs names every repository rule.
 var RepoIDs = set.Of(IDAgentsFile, IDBudget, IDPackageScripts, IDBinary, IDNearDuplicate, IDJSON, IDXML)
 
-// ReportOnly names every rule the registry declares report-only.
-var ReportOnly = set.New[string]()
-
 // isRepoRoot reports whether dir is the top of a repository.
 func isRepoRoot(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, ".git"))
@@ -87,18 +84,37 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 		changed = append(changed, removed...)
 	}
 	if keeps(IDNearDuplicate) {
-		copies, err := nearDuplicates(root)
+		copies, reports, err := nearDuplicates(root)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		findings = append(findings, copies...)
+		for n, c := range copies {
+			path := filepath.Join(root, c.Path)
+			if writing && writable(path) {
+				if portions := reports[n].Portions; len(portions) > 0 {
+					if err := removePortions(path, portions); err != nil {
+						return nil, nil, nil, err
+					}
+					changed = append(changed, path)
+					continue
+				}
+			}
+			findings = append(findings, c)
+		}
 	}
 	if keeps(IDJSON) || keeps(IDXML) {
 		broken, err := documents(root, keeps)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		findings = append(findings, broken...)
+		for _, b := range broken {
+			path := filepath.Join(root, b.Path)
+			if writing && writable(path) && documentRepair(root, b) {
+				changed = append(changed, path)
+				continue
+			}
+			findings = append(findings, b)
+		}
 	}
 	if !keeps(IDBudget) {
 		return findings, changed, created, nil
@@ -144,4 +160,22 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 
 func repoFinding(path, id, rule, fix string) TreeFinding {
 	return TreeFinding{Path: path, Finding: ste.Finding{Line: 1, ID: id, Rule: rule, Fix: fix}}
+}
+
+// documentRepair writes the repair a document finding answers. The brackets a
+// JSON document leaves open are closed, and a *.invalid.xml fixture that
+// passes its schema loses the marker. It reports whether it wrote.
+func documentRepair(root string, b TreeFinding) bool {
+	path := filepath.Join(root, b.Path)
+	switch {
+	case b.ID == IDJSON && b.Rule == ruleJSONUnparseable:
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return false
+		}
+		return os.WriteFile(path, closeBrackets(content), 0o644) == nil
+	case b.ID == IDXML && b.Rule == ruleNegativeFixturePass && negativeFixture(b.Path):
+		return os.Rename(path, renamedWithoutMarker(path)) == nil
+	}
+	return false
 }

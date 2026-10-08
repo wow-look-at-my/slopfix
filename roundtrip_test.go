@@ -207,9 +207,7 @@ func TestEveryRuleAppearsInAFixture(t *testing.T) {
 	}
 	var missing []string
 	for id := range slopfix.AllIDs().All() {
-		// A warning outlives the repair by design. TestEachWarningRuleFires covers
-		// each.
-		if !covered.Contains(id) && !slopfix.WarningIDs.Contains(id) {
+		if !covered.Contains(id) {
 			missing = append(missing, id)
 		}
 	}

@@ -93,3 +93,73 @@ func TestALongLineIsTruncatedInTheEvidence(t *testing.T) {
 	assert.Len(t, findings[0], workflow.EvidenceCap)
 	assert.True(t, strings.HasSuffix(findings[0], "..."))
 }
+
+// The repair drops the line whose redirect writes a test file, and keeps the
+// commands beside it.
+func TestTheRepairRemovesATestFileRedirect(t *testing.T) {
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          echo hello > out.txt\n          echo 'package main' > cache_test.go\n"
+
+	repaired := workflow.RepairTests(content)
+	assert.Empty(t, testFindings(t, repaired))
+	assert.NotContains(t, repaired, "cache_test.go")
+	assert.Contains(t, repaired, "echo hello > out.txt")
+}
+
+// The repair drops an assertion-helper definition.
+func TestTheRepairRemovesAnAssertionHelper(t *testing.T) {
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          assert_equal() {\n          npm ci\n"
+
+	repaired := workflow.RepairTests(content)
+	assert.Empty(t, testFindings(t, repaired))
+	assert.NotContains(t, repaired, "assert_equal")
+	assert.Contains(t, repaired, "npm ci")
+}
+
+// The repair drops a line that asserts on a value.
+func TestTheRepairRemovesAnAssertion(t *testing.T) {
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          grep -q ready out.txt || exit 1\n          npm ci\n"
+
+	repaired := workflow.RepairTests(content)
+	assert.Empty(t, testFindings(t, repaired))
+	assert.NotContains(t, repaired, "grep -q ready")
+	assert.Contains(t, repaired, "npm ci")
+}
+
+// Every shape comes out of one block, and the ordinary command stays.
+func TestTheRepairRemovesEveryTestShape(t *testing.T) {
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          echo 'package main' > cache_test.go\n          assert_equal() {\n          grep -q ready out.txt || exit 1\n          npm ci\n"
+
+	repaired := workflow.RepairTests(content)
+	assert.Empty(t, testFindings(t, repaired))
+	assert.NotContains(t, repaired, "cache_test.go")
+	assert.NotContains(t, repaired, "assert_equal")
+	assert.NotContains(t, repaired, "grep -q ready")
+	assert.Contains(t, repaired, "npm ci")
+}
+
+// A step that holds nothing but a test loses its whole entry, and the step
+// after it stays.
+func TestTheRepairRemovesAStepThatHoldsOnlyATest(t *testing.T) {
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          test -f out.txt || exit 1\n      - run: npm ci\n"
+
+	repaired := workflow.RepairTests(content)
+	assert.Empty(t, testFindings(t, repaired))
+	assert.NotContains(t, repaired, "test -f out.txt")
+	assert.NotContains(t, repaired, "- run: |")
+	assert.Contains(t, repaired, "- run: npm ci")
+}
+
+// Every other line stays byte-identical, the trailing newline included.
+func TestTheRepairKeepsEveryOtherLine(t *testing.T) {
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          npm ci\n          test -f out.txt || exit 1\n"
+	want := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          npm ci\n"
+
+	assert.Equal(t, want, workflow.RepairTests(content))
+}
+
+// A workflow that holds no test comes back unchanged.
+func TestTheRepairLeavesACleanWorkflowAlone(t *testing.T) {
+	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          npm ci\n"
+
+	assert.Equal(t, content, workflow.RepairTests(content))
+}

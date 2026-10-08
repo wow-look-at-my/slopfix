@@ -25,6 +25,69 @@ const IDJSON = "repo/json"
 // IDXML is an XML file the strict org validator refuses, that names no schema, or that breaks the schema it names.
 const IDXML = "repo/xml"
 
+// Both document failures a rewrite answers.
+const (
+	ruleJSONUnparseable     = "this JSON does not parse"
+	ruleNegativeFixturePass = "this negative fixture passes the schema it names, so it tests nothing"
+)
+
+// closeBrackets answers a document with every bracket it leaves open closed,
+// which is the JSON failure a rewrite decides without reading the author's
+// intent. A bracket inside a string is text, so the scan skips strings.
+func closeBrackets(content []byte) []byte {
+	var stack []byte
+	inString, escaped := false, false
+	for _, b := range content {
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case b == '\\':
+				escaped = true
+			case b == '"':
+				inString = false
+			}
+			continue
+		}
+		switch b {
+		case '"':
+			inString = true
+		case '{', '[':
+			stack = append(stack, b)
+		case '}':
+			stack = closeIn(stack, '{')
+		case ']':
+			stack = closeIn(stack, '[')
+		}
+	}
+	out := bytes.TrimRight(content, "\n")
+	for i := len(stack) - 1; i >= 0; i-- {
+		if stack[i] == '{' {
+			out = append(out, '}')
+			continue
+		}
+		out = append(out, ']')
+	}
+	return append(out, '\n')
+}
+
+// closeIn answers the stack with the bracket at the top of the matching kind
+// taken off.
+func closeIn(stack []byte, open byte) []byte {
+	for i := len(stack) - 1; i >= 0; i-- {
+		if stack[i] == open {
+			return stack[:i]
+		}
+	}
+	return stack
+}
+
+// renamedWithoutMarker answers the name a *.invalid.xml fixture takes when
+// the repair drops the marker.
+func renamedWithoutMarker(rel string) string {
+	return strings.TrimSuffix(rel, ".invalid.xml") + ".xml"
+}
+
 // isJSON reports whether a file holds JSON, comments allowed.
 func isJSON(path string) bool {
 	ext := filepath.Ext(path)

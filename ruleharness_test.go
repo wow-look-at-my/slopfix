@@ -3,6 +3,7 @@ package slopfix_test
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -34,12 +35,32 @@ func materialize(t *testing.T, c slopfix.RuleCase) slopfix.RuleCase {
 	return c
 }
 
-// TestEveryRuleAutofixClearsItsOwnDetection is the harness. For every
-// registered rule: each of its cases fires its detection; the autofix runs;
-// the detection is silent the second time. A rule whose autofix does not clear
-// its own detection fails the build here, rather than shipping a detection
-// with no way out of it.
-func TestEveryRuleAutofixClearsItsOwnDetection(t *testing.T) {
+// checkEveryOtherRule reports whether any rule other than id fires on c.
+func checkEveryOtherRule(t *testing.T, c slopfix.RuleCase, id string) []ste.Finding {
+	t.Helper()
+	var foreign []ste.Finding
+	for _, rule := range slopfix.AllRuleSpecs() {
+		if rule.ID == id {
+			continue
+		}
+		for _, f := range rule.Detect(c) {
+			foreign = append(foreign, f)
+		}
+	}
+	return foreign
+}
+
+// TestEveryRuleIsDetectedRepairedAndAlone is the common harness. Steps, no
+// deviation:
+
+//  1. Run ALL OTHER rules on the fixture, confirming none reports a finding
+//     other than the rule under test.
+//  2. Run the rule on the fixture, confirming it detects its own case.
+//  3. Run the rule's autofix on the fixture.
+//  4. Run the rule on the result, confirming it no longer detects anything.
+//  5. Run ALL OTHER rules on the fixed fixture, confirming no foreign rule
+//     reports a finding on the result.
+func TestEveryRuleIsDetectedRepairedAndAlone(t *testing.T) {
 	for _, rule := range slopfix.AllRuleSpecs() {
 		rule := rule
 		t.Run(rule.ID, func(t *testing.T) {
@@ -51,18 +72,23 @@ func TestEveryRuleAutofixClearsItsOwnDetection(t *testing.T) {
 				if c.Unchanged {
 					continue
 				}
+
+				foreign := checkEveryOtherRule(t, c, rule.ID)
+				assert.Empty(t, foreign, "%s: case %q trips another rule before the repair", rule.ID, c.Name)
+
 				before := rule.Detect(c)
 				require.NotEmpty(t, before, "%s: case %q does not fire its detection", rule.ID, c.Name)
 				for _, f := range before {
 					assert.Equal(t, rule.ID, f.ID, "%s: case %q reported another rule", rule.ID, c.Name)
 				}
-				if rule.Autofix == nil {
-					// The declared exemption. No rewrite answers this rule, so the harness checks only that its detection is real.
-					assert.NotEmpty(t, rule.ReportOnly, "%s: no autofix and no declared exemption", rule.ID)
-					continue
-				}
-				after := rule.Detect(rule.Autofix(c))
+
+				fixed := rule.Autofix(c)
+
+				after := rule.Detect(fixed)
 				assert.Empty(t, after, "%s: case %q still detects after its own autofix", rule.ID, c.Name)
+
+				foreignAfter := checkEveryOtherRule(t, fixed, rule.ID)
+				assert.Empty(t, foreignAfter, "%s: case %q trips another rule after the repair", rule.ID, c.Name)
 			}
 		})
 	}
@@ -84,9 +110,7 @@ func TestEveryUnchangedCaseRoundTrips(t *testing.T) {
 			t.Run(rule.ID+"/"+c.Name, func(t *testing.T) {
 				require.NotEmpty(t, c.Text, "%s: an unchanged case carries no text", c.Name)
 				assert.Empty(t, rule.Detect(c), "%s: case %q must fire no detection", rule.ID, c.Name)
-				if rule.Autofix != nil {
-					assert.Equal(t, c.Text, rule.Autofix(c).Text, "%s: case %q must round-trip unchanged", rule.ID, c.Name)
-				}
+				assert.Equal(t, c.Text, rule.Autofix(c).Text, "%s: case %q must round-trip unchanged", rule.ID, c.Name)
 			})
 		}
 	}
@@ -94,9 +118,8 @@ func TestEveryUnchangedCaseRoundTrips(t *testing.T) {
 }
 
 // A rule whose finding tells the reader that `slopfix fix` repairs it owes a
-// working autofix. A message that advertises a repair the rule does not carry,
-// or a report-only declaration behind. A promised repair, fails here rather
-// than shipping a promise the tool cannot keep.
+// working autofix. A message that advertises a repair the rule does not carry
+// fails here rather than shipping a promise the tool cannot keep.
 func TestAMessagePromisingAnAutofixCarriesOne(t *testing.T) {
 	for _, rule := range slopfix.AllRuleSpecs() {
 		rule := rule
@@ -113,8 +136,6 @@ func TestAMessagePromisingAnAutofixCarriesOne(t *testing.T) {
 			if !promises {
 				return
 			}
-			require.NotNil(t, rule.Autofix, "%s: a finding promises an autofix and the rule carries none", rule.ID)
-			assert.Empty(t, rule.ReportOnly, "%s: it promises an autofix and declares report-only", rule.ID)
 			for _, raw := range rule.Cases {
 				c := materialize(t, raw)
 				after := rule.Autofix(c)
@@ -124,8 +145,7 @@ func TestAMessagePromisingAnAutofixCarriesOne(t *testing.T) {
 	}
 }
 
-// A rule with a detection needs an autofix or a declared exemption. The
-// registry refuses the rest at init, so an unfixed detection fails to register.
+// A rule with a detection needs an autofix. The registry refuses a nil autofix.
 func TestRegistrationRefusesADetectionWithoutAnAutofix(t *testing.T) {
 	assert.Panics(t, func() {
 		slopfix.RegisterRule(slopfix.RuleSpec{
@@ -140,7 +160,7 @@ func TestRegistrationRefusesADetectionWithoutAnAutofix(t *testing.T) {
 // Every rule a category claims is registered, so --only never selects an empty
 // set and reads as a clean file.
 func TestEveryCategoryRuleIsRegistered(t *testing.T) {
-	for _, category := range slopfix.AllRules {
+	for _, category := range slopfix.AllRules() {
 		for id := range slopfix.IDsFor(category).All() {
 			_, ok := slopfix.RuleSpecByID(id)
 			assert.True(t, ok, "%s is in category %s and is not registered", id, category)
@@ -148,27 +168,33 @@ func TestEveryCategoryRuleIsRegistered(t *testing.T) {
 	}
 }
 
-// The report-only and warning rules are enumerated one by one, so a new rule
-// cannot join their ranks in passing.
-func TestOnlyTheseRulesReportWithoutAnAutofix(t *testing.T) {
-	exempt := set.New[string]()
+// Every rule the registry lists carries an autofix. A rule added without one
+// panics at registration, which a test above covers. This test asserts the
+// in-force set, so a rule that somehow slips past the panic is caught here.
+func TestEveryRegisteredRuleCarriesAnAutofix(t *testing.T) {
+	var missing []string
 	for _, rule := range slopfix.AllRuleSpecs() {
 		if rule.Autofix == nil {
-			exempt.Add(rule.ID)
-			assert.NotEmpty(t, rule.ReportOnly, "%s: an exemption states no reason", rule.ID)
-			continue
+			missing = append(missing, rule.ID)
 		}
-		assert.Empty(t, rule.ReportOnly, "%s repairs, so it cannot claim an exemption", rule.ID)
 	}
-	for id := range slopfix.WarningIDs.All() {
-		assert.True(t, exempt.Contains(id), "warning %s is not declared report-only", id)
+	sort.Strings(missing)
+	assert.Empty(t, missing, "these rules report a finding no autofix answers: %s", strings.Join(missing, ", "))
+}
+
+// The harness reaches every registered rule. A rule added with no driven case
+// fails here rather than shipping a detection the harness never proves.
+func TestTheHarnessCoversEveryRegisteredRule(t *testing.T) {
+	covered := set.New[string]()
+	for _, rule := range slopfix.AllRuleSpecs() {
+		for _, c := range rule.Cases {
+			if !c.Unchanged {
+				covered.Add(rule.ID)
+				break
+			}
+		}
 	}
-	for _, id := range []string{"laziness/punt", "blame/deflection", "ask/prose-decision", "yaml/test-in-workflow"} {
-		assert.True(t, exempt.Contains(id), "%s is not declared report-only", id)
-		spec, ok := slopfix.RuleSpecByID(id)
-		require.True(t, ok, "%s is not registered", id)
-		assert.NotEmpty(t, spec.ReportOnly, "%s carries no declared exemption", id)
-		assert.True(t, spec.Autofix == nil, "%s declares an exemption and an autofix", id)
+	for _, rule := range slopfix.AllRuleSpecs() {
+		assert.True(t, covered.Contains(rule.ID), "%s carries no case the harness drives", rule.ID)
 	}
-	assert.False(t, slopfix.Repairable("laziness/punt"))
 }

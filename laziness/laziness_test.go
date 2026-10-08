@@ -102,3 +102,30 @@ func TestASentenceIsReportedForASingleTell(t *testing.T) {
 func TestAnEmptyMessageIsClean(t *testing.T) {
 	assert.Empty(t, laziness.Check(""))
 }
+
+// A repair rewrites the matched span and leaves every other byte in place.
+func TestRepairTouchesOnlyTheMatchedSpan(t *testing.T) {
+	const message = "Header line.\n\nThe loader is broken and that is not my problem.\n\nFooter line."
+	assert.Equal(t,
+		"Header line.\n\nThe loader is broken and that is mine to fix.\n\nFooter line.",
+		laziness.Repair(message))
+}
+
+// A question is answered with the action it handed back, in a statement.
+func TestRepairStatesTheActionAQuestionHandedBack(t *testing.T) {
+	assert.Equal(t, "The bug is real. I will fix it.", laziness.Repair("The bug is real. Want me to fix it?"))
+	assert.Equal(t, "I will port the fix.", laziness.Repair("I can port the fix if you'd like."))
+	assert.Equal(t, "I will do it.", laziness.Repair("Say the word."))
+}
+
+// A pardoned sentence is left as written, so a repair never touches work the
+// message already owns.
+func TestRepairLeavesAPardonedSentenceAlone(t *testing.T) {
+	const message = "The build was red, so I left it as-is and then fixed it."
+	assert.Equal(t, message, laziness.Repair(message))
+}
+
+// An empty message comes back unchanged.
+func TestRepairLeavesAnEmptyMessageAlone(t *testing.T) {
+	assert.Equal(t, "", laziness.Repair(""))
+}

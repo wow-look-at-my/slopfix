@@ -8,9 +8,9 @@ import (
 	"unicode/utf8"
 )
 
-// Fix applies the repair Check names, for every rule.
+// Fix applies the repair Check names, for every rule Check reports.
 func Fix(text string) string {
-	return FixSelected(text, func(string) bool { return true })
+	return FixSelected(text, func(id string) bool { return !WarningIDs.Contains(id) })
 }
 
 // FixSelected applies the repairs whose ID keep accepts, so a caller that names
@@ -22,7 +22,7 @@ func FixSelected(text string, keep func(id string) bool) string {
 // FixKeepingOpening is Fix, with a division that keeps each sentence's
 // opening words as its first sentence.
 func FixKeepingOpening(text string) string {
-	return fixSelected(text, func(string) bool { return true }, false)
+	return fixSelected(text, func(id string) bool { return !WarningIDs.Contains(id) }, false)
 }
 
 // fixSelected runs the cap repair over the whole text rather than inside

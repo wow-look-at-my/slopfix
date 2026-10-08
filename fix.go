@@ -46,9 +46,6 @@ const (
 	RulePins Rule = "pins"
 )
 
-// AllRules is every category the registry uses, in the order a rule declared it.
-var AllRules []Rule
-
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
 func IDsFor(rule Rule) set.Set[string] {
@@ -332,7 +329,7 @@ const fixRounds = 4
 func wantsOf(req Request) func(Rule) bool {
 	rules := req.Rules
 	if len(rules) == 0 {
-		rules = AllRules
+		rules = AllRules()
 	}
 	return func(r Rule) bool { return slices.Contains(rules, r) }
 }

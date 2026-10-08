@@ -17,8 +17,8 @@ import (
 
 // ruleNames answers every category a caller may name to --only.
 func ruleNames() []string {
-	names := make([]string, 0, len(slopfix.AllRules))
-	for _, rule := range slopfix.AllRules {
+	names := make([]string, 0, len(slopfix.AllRules()))
+	for _, rule := range slopfix.AllRules() {
 		names = append(names, string(rule))
 	}
 	return names
@@ -36,7 +36,7 @@ func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
 		name = strings.TrimSpace(name)
 		if category, _, isID := strings.Cut(name, "/"); isID {
 			rule := slopfix.Rule(category)
-			if !slices.Contains(slopfix.AllRules, rule) {
+			if !slices.Contains(slopfix.AllRules(), rule) {
 				return nil, nil, fmt.Errorf("unknown rule %q: its category is not one of %s", name, strings.Join(ruleNames(), ", "))
 			}
 			known := slopfix.IDsFor(rule)
@@ -48,7 +48,7 @@ func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
 			continue
 		}
 		rule := slopfix.Rule(name)
-		if !slices.Contains(slopfix.AllRules, rule) {
+		if !slices.Contains(slopfix.AllRules(), rule) {
 			return nil, nil, fmt.Errorf("unknown rule %q: pick from %s, or name one rule as category/rule", name, strings.Join(ruleNames(), ", "))
 		}
 		rules = append(rules, rule)

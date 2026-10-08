@@ -52,8 +52,8 @@ func TestATestInARunScriptIsAWarning(t *testing.T) {
 		}
 	}
 	assert.Len(t, hits, 2)
-	assert.True(t, slopfix.WarningIDs.Contains(workflow.IDTestInYAML))
-	assert.False(t, slopfix.Repairable(workflow.IDTestInYAML))
+	assert.True(t, workflow.WarningIDs.Contains(workflow.IDTestInYAML))
+	assert.True(t, slopfix.Repairable(workflow.IDTestInYAML))
 }
 
 func TestFixKeepsEveryLineOfARunScript(t *testing.T) {

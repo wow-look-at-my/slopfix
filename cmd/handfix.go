@@ -383,7 +383,7 @@ func ruleIDsOn(req slopfix.Request, lines []int) (map[int][]string, error) {
 	}
 	categories := req.Rules
 	if len(categories) == 0 {
-		categories = slopfix.AllRules
+		categories = slopfix.AllRules()
 	}
 	for _, rule := range categories {
 		alone := req

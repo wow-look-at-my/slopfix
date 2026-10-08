@@ -59,8 +59,8 @@ var redirectTarget = regexp.MustCompile(`(?:^|[^>\d])>>?\s*(?:"([^"]+)"|'([^']+)
 var exitWord = regexp.MustCompile(`\bexit\b`)
 
 // testsInYAML reports every test written into a run: script. Each finding is
-// a warning: a line of a run: script is shell. No rewrite deletes it, and
-// moving a case into the suite is the author's call.
+// a warning: a line of a run: script is shell. Repair removes the line, and
+// moving the case into the repository suite is the author's call.
 func testsInYAML(content string) []ste.Finding {
 	var out []ste.Finding
 	for _, block := range runBlocks(content) {
@@ -70,6 +70,49 @@ func testsInYAML(content string) []ste.Finding {
 		}
 	}
 	return out
+}
+
+// Repair rewrites the workflow so no run: script holds a test. The lines
+// that carry one come out, and the step keeps its other commands.
+func RepairTests(content string) string {
+	findings := testsInYAML(content)
+	if len(findings) == 0 {
+		return content
+	}
+	drop := make(map[int]bool, len(findings))
+	for _, finding := range findings {
+		drop[finding.Line] = true
+	}
+	inside := blockScalarRows(content)
+	for _, block := range runBlocks(content) {
+		if len(block.lines) == 0 || !allDropped(block, drop) {
+			continue
+		}
+		// The block would be left empty. Its step entry comes out too, so
+		// the job keeps the steps around it.
+		if header := block.start - 1; header >= 0 && header < len(inside) && inside[header] {
+			drop[header] = true
+		}
+	}
+	rows := strings.Split(content, "\n")
+	kept := make([]string, 0, len(rows))
+	for i, row := range rows {
+		if drop[i+1] {
+			continue
+		}
+		kept = append(kept, row)
+	}
+	return strings.Join(kept, "\n")
+}
+
+// allDropped reports whether every line of a run block carries a finding.
+func allDropped(block runBlock, drop map[int]bool) bool {
+	for offset := range block.lines {
+		if !drop[block.start+offset] {
+			return false
+		}
+	}
+	return true
 }
 
 func (b runBlock) findings() []ste.Finding {

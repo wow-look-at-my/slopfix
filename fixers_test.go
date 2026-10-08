@@ -46,7 +46,7 @@ func TestEveryFixerFamilyIsARule(t *testing.T) {
 	for _, fx := range fixer.All() {
 		require.NotEmpty(t, fx.Categories(), fx.Name())
 		for _, family := range fx.Categories() {
-			assert.True(t, slices.Contains(slopfix.AllRules, slopfix.Rule(family)), "%s answers to %q, which --only does not accept", fx.Name(), family)
+			assert.True(t, slices.Contains(slopfix.AllRules(), slopfix.Rule(family)), "%s answers to %q, which --only does not accept", fx.Name(), family)
 		}
 	}
 }
