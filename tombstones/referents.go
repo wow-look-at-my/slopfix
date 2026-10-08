@@ -195,7 +195,7 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	if root == "" {
 		return nil
 	}
-	files := map[string]int{}
+	names := set.New[string]()
 	for _, b := range blocks {
 		for _, m := range identifierWords(b.Text) {
 			if isCandidate(m) {

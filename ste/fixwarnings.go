@@ -25,15 +25,15 @@ func fixWarnings(text string, keep func(id string) bool, reorder bool) string {
 		text = fixProse(text, widenDictionary)
 	}
 	if keep(IDTense) || keep(IDPassive) || keep(IDNounCluster) {
-		text = fixProse(text, func(prose string) string { return fixClauseWarnings(prose, keep) })
+		text = fixClauseWarnings(text, keep)
 	}
 	if keep(IDInstructionLength) {
-		text = fixSentenceCap(text, capSpec{reorder: reorder, cap: InstructionWordCap})
+		text = fixInstructions(text, reorder)
 	}
 	return text
 }
 
-// clauseRounds bounds the clause repairs, because a rewrite can hand a later clause a form the next round reads.
+// clauseRounds bounds the clause rewrites for each word of the text, because a rewrite can hand a later clause a form the next round reads.
 const clauseRounds = 8
 
 // plain is the banned words a repair can write an approved word for, from the
@@ -113,7 +113,7 @@ func fixParagraphs(text string) string {
 // fixClauseWarnings rewrites each sentence a clause warning reports, until no
 // clause of the text carries one.
 func fixClauseWarnings(prose string, keep func(id string) bool) string {
-	for range clauseRounds {
+	for range clauseRounds * (len(strings.Fields(prose)) + 1) {
 		next, changed := rewriteWarningClause(prose, keep)
 		if !changed {
 			break
@@ -129,8 +129,9 @@ func rewriteWarningClause(prose string, keep func(id string) bool) (string, bool
 	for _, span := range sentenceSpans(prose) {
 		text := prose[span[0]:span[1]]
 		masked := mask(text)
-		s := syntax.Parse(masked, opaque(text, masked))
-		rewritten, ok := rewriteSentence(s, text, keep)
+		off := opaque(text, masked)
+		s := syntax.Parse(masked, off)
+		rewritten, ok := rewriteSentence(s, text, off, keep)
 		if !ok || rewritten == text {
 			continue
 		}
@@ -139,9 +140,25 @@ func rewriteWarningClause(prose string, keep func(id string) bool) (string, bool
 	return prose, false
 }
 
+// fixInstructions divides each instruction over InstructionWordCap, as the
+// sentence cap divides a sentence over its own cap.
+func fixInstructions(prose string, reorder bool) string {
+	spans := sentenceSpans(prose)
+	for n := len(spans) - 1; n >= 0; n-- {
+		text := prose[spans[n][0]:spans[n][1]]
+		masked := mask(text)
+		count := WordCount(masked)
+		if count <= InstructionWordCap || count > SentenceWordCap || !isInstruction(syntax.Parse(masked, opaque(text, masked))) {
+			continue
+		}
+		prose = prose[:spans[n][0]] + fixSentenceCap(text, capSpec{reorder: reorder, cap: InstructionWordCap}) + prose[spans[n][1]:]
+	}
+	return prose
+}
+
 // rewriteSentence answers the sentence with the first clause warning its own
 // rule can repair, in the order the repairs read the words.
-func rewriteSentence(s *syntax.Sentence, source string, keep func(id string) bool) (string, bool) {
+func rewriteSentence(s *syntax.Sentence, source string, off [][]int, keep func(id string) bool) (string, bool) {
 	if keep(IDPassive) {
 		if out, ok := rewritePassive(s, source); ok {
 			return out, true
@@ -153,7 +170,7 @@ func rewriteSentence(s *syntax.Sentence, source string, keep func(id string) boo
 		}
 	}
 	if keep(IDNounCluster) {
-		if out, ok := rewriteCluster(s, source); ok {
+		if out, ok := rewriteCluster(s, source, off); ok {
 			return out, true
 		}
 	}
@@ -313,26 +330,50 @@ func splice(source string, s *syntax.Sentence, first, last int, replacement stri
 	return source[:start] + replacement + source[end:]
 }
 
-// rewriteCluster breaks a run of nouns apart: "the gate file system cache
-// lookup" becomes "the lookup of the gate file system cache".
-func rewriteCluster(s *syntax.Sentence, source string) (string, bool) {
+// tenseAt answers the verb group rewriteTense rewrites, and whether it is a
+// perfect tense rather than a progressive one.
+func tenseAt(s *syntax.Sentence) (int, int, bool) {
+	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
+		return i, j, true
+	}
+	i, j := auxiliary(s, 1, beForms)
+	return i, j, false
+}
+
+// clusterAt answers the first run of more than NounClusterCap nouns. Code, a
+// quotation, a parenthetical and a bracket are data, so each ends a run.
+func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	last := lastContent(s)
+	noun := func(k int) bool {
+		w := s.Words[k]
+		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
+			!strings.ContainsAny(w.Text, "()[]{}`\"")
+	}
 	for start := 0; start <= last; start++ {
-		if !strings.HasPrefix(s.Words[start].Tag, "NN") {
+		if !noun(start) {
 			continue
 		}
 		end := start
-		for end+1 <= last && strings.HasPrefix(s.Words[end+1].Tag, "NN") {
+		for end+1 <= last && noun(end+1) {
 			end++
 		}
-		if end-start+1 < NounClusterCap+1 {
-			start = end
-			continue
+		if end-start+1 > NounClusterCap {
+			return start, end, true
 		}
-		// The head names the thing, and the nouns in front of it describe it.
-		head := source[s.Words[end].Start:s.Words[end].End]
-		modifiers := source[s.Words[start].Start:s.Words[end-1].End]
-		return splice(source, s, start, end, head+" of the "+modifiers), true
+		start = end
 	}
-	return "", false
+	return -1, -1, false
+}
+
+// rewriteCluster breaks a run of nouns apart: "the gate file system cache
+// lookup" becomes "the lookup of the gate file system cache".
+func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, bool) {
+	start, end, ok := clusterAt(s, off)
+	if !ok {
+		return "", false
+	}
+	// The head names the thing, and the nouns in front of it describe it.
+	head := source[s.Words[end].Start:s.Words[end].End]
+	modifiers := source[s.Words[start].Start:s.Words[end-1].End]
+	return splice(source, s, start, end, head+" of the "+modifiers), true
 }
