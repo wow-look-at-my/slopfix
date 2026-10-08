@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/ratchet"
 )
@@ -64,12 +65,12 @@ func TestAFixThatRepairsNothingFailsEveryRule(t *testing.T) {
 	failures, err := ratchet.Judge{Base: bin, Head: head, Work: t.TempDir()}.Run(specs)
 	require.NoError(t, err)
 
-	failed := map[string]bool{}
+	failed := set.New[string]()
 	for _, f := range failures {
-		failed[f.Rule] = true
+		failed.Add(f.Rule)
 	}
 	for _, spec := range specs {
-		assert.True(t, failed[spec.ID], "%s: a fix that repairs nothing passed", spec.ID)
+		assert.True(t, failed.Contains(spec.ID), "%s: a fix that repairs nothing passed", spec.ID)
 	}
 }
 
