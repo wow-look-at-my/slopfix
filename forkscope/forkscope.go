@@ -5,11 +5,11 @@
 // server. With no such origin, it is GITHUB_REPOSITORY, for a root inside
 // GITHUB_WORKSPACE. A repository that the org's fork list names is measured
 // from the newest upstream tag that HEAD contains. With no such tag, it is
-// measured from the upstream commit whose tree is closest to HEAD's, which is
-// the snapshot a squashed sync brought in. Otherwise the API says
-// whether the repository is a fork, and the base is the merge base with the
-// parent's default branch. Only a line added or changed since that base, or a
-// line of a new or untracked file, is the fork's.
+// measured from the upstream commit whose tree is closest to HEAD's. This is
+// the snapshot a squashed sync brought in. Otherwise the API says whether the
+// repository is a fork, and the base is the merge base with the parent's
+// default branch. Only a line added or changed since that base, or a line of
+// a new or untracked file, is the fork's.
 package forkscope
 
 import (
@@ -73,6 +73,8 @@ func (r Resolver) listURL() string {
 type Base struct {
 	top    string
 	commit string
+	// upstream is the tip of a listed fork's upstream. A file that matches a version of it is upstream's.
+	upstream string
 }
 
 // Commit answers the base commit.
@@ -159,7 +161,7 @@ func (r Resolver) Base(root string) (*Base, error) {
 				return nil, err
 			}
 		}
-		return &Base{top: top, commit: commit}, nil
+		return &Base{top: top, commit: commit, upstream: rec.Tip}, nil
 	case kindParent:
 		if err := deepen(top); err != nil {
 			return nil, err
@@ -367,9 +369,9 @@ func (r Resolver) eventSaysPlain(repo string) bool {
 	return strings.EqualFold(event.Repository.FullName, repo) && !*event.Repository.Fork
 }
 
-// cached answers the record in top's git common directory, when it names repo,
-// came from this resolver's sources, is younger than CacheTTL, and every
-// commit it names is still in the object store.
+// cached answers the record in top's git common directory under conditions.
+// The record names repo and came from this resolver's sources. It is younger
+// than CacheTTL. Every commit it names is still in the object store.
 func (r Resolver) cached(top, repo string) (record, bool) {
 	path, err := cachePath(top)
 	if err != nil {
@@ -642,7 +644,7 @@ func listedUpstream(repo, url string) (string, error) {
 // listName is the shape forklist.schema.json gives a key of the fork list.
 var listName = regexp.MustCompile(`^[^/\s]+/[^/\s]+$`)
 
-// UpstreamFor reads a fork list: a JSON object, comments allowed, that maps
+// UpstreamFor reads a fork list. A JSON object, comments allowed, that maps
 // each fork's OWNER/NAME to its upstream URL, the shape forklist.schema.json
 // states. A list of any other shape is an error.
 func UpstreamFor(list, repo, source string) (string, error) {

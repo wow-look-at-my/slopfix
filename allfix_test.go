@@ -53,8 +53,8 @@ func hardCorpus(t *testing.T) map[string]string {
 	files["AGENTS.md"] = strings.Join(agents, "\n\n") + "\n"
 	// A list item over the block cap, with a parenthesis that runs past the division target.
 	files["README.md"] += "\n- **Admin port**: (" + strings.Repeat("The gate reads the file. ", 50) + ") " + strings.Repeat("The tool writes the result to the store. ", 30) + "\n"
-	// A block over the volume cap above code longer than the cap, so the length cut alone leaves it over.
-	files["main.go"] = "package main\n\n" + strings.Join(comment, "\n") + "\nfunc sum() int {\n\ttotal := 0\n" + strings.Join(body, "\n") + "\n\treturn total\n}\n\nfunc main() { sum() }\n"
+	// A block over the volume cap above code longer than the cap, so the length cut alone leaves it over. A separate paragraph states a count, so comments/number is exercised too.
+	files["main.go"] = "package main\n\n// There are 3 modes today.\n\n" + strings.Join(comment, "\n") + "\nfunc sum() int {\n\ttotal := 0\n" + strings.Join(body, "\n") + "\n\treturn total\n}\n\nfunc main() { sum() }\n"
 	return files
 }
 
@@ -73,8 +73,8 @@ func errorLines(out slopfix.TreeRepair) []string {
 	return lines
 }
 
-// The owner's rule: slopfix must be able to repair everything, even if not
-// well. A fix over a tree of every rule's hardest case leaves no error.
+// A fix over a tree of every rule's hardest case leaves no error, and no
+// finding asks for a rewrite by hand.
 func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 	root := gitRoot(t, hardCorpus(t))
 	req := slopfix.Request{MaxCommentLines: tombstones.DefaultMaxCommentLines}
@@ -91,7 +91,7 @@ func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 		"ste/sentence-length", "ste/semicolon", "ste/contraction", "ste/modal", "wrap/hard-wrap", slopfix.IDLongBlock,
 		slopfix.IDBudget, slopfix.IDPackageScripts, slopfix.IDAgentsFile,
 		"yaml/push-tags", "yaml/concurrency", "yaml/all-builds-job", "yaml/neutered-gate", "yaml/comment-block", "yaml/org-action-ref",
-		"pins/download-version", tombstones.IDVolume, "comments/length",
+		"pins/download-version", tombstones.IDVolume, "comments/length", "comments/number",
 	} {
 		assert.True(t, before.Contains(id), "the corpus holds no case of %s", id)
 	}
@@ -103,6 +103,10 @@ func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
 	require.NoError(t, err)
 	assert.Contains(t, string(readme), "warns at many lines and errors at a higher count", "every count in the clause reads the same way")
+	assert.Contains(t, string(readme), "for the team. The cache in the main store holds", "a long sentence divides where both halves are sentences")
+	assert.Contains(t, string(readme), "near the wooden barn. That barn is behind the tall green hills", "a sentence with no verb restates the noun a phrase of place describes")
+	assert.NotContains(t, string(readme), "This is", "no repair writes filler")
+	assert.Contains(t, string(readme), "for the build (the cache) and for the test (the tree).", "a semicolon between pairs becomes a list of pairs")
 	assert.Contains(t, string(readme), "`code span here`", "a code span stays whole")
 	assert.Contains(t, string(readme), "\"a long quoted phrase with many words\"", "a quotation stays whole")
 	assert.FileExists(t, filepath.Join(root, "justfile"))

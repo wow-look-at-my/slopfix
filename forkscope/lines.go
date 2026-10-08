@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 )
@@ -46,7 +47,56 @@ func (b *Base) Lines() (*Lines, error) {
 			own.whole.Add(filepath.ToSlash(name))
 		}
 	}
+	if b.upstream != "" {
+		if err := own.dropUpstreamVersions(b.top, b.upstream); err != nil {
+			return nil, err
+		}
+	}
 	return own, nil
+}
+
+// dropUpstreamVersions removes each clean file whose content a commit of
+// upstream gave that path. An upstream sync brings such a file in whole, so
+// the fork wrote none of it.
+func (o *Lines) dropUpstreamVersions(top, upstream string) error {
+	raw, err := gitIn(top, "log", upstream, "--format=", "--raw", "--no-abbrev", "--no-renames", "-z")
+	if err != nil {
+		return fmt.Errorf("fork scope: list the file versions of the upstream %s: %w", upstream, err)
+	}
+	known := set.New[string]()
+	fields := strings.Split(raw, "\x00")
+	for i := 0; i+1 < len(fields); i++ {
+		head := strings.TrimSpace(fields[i])
+		if !strings.HasPrefix(head, ":") {
+			continue
+		}
+		if meta := strings.Fields(head[1:]); len(meta) >= 4 {
+			known.Add(fields[i+1] + "\x00" + meta[3])
+		}
+		i++
+	}
+	dirty, err := gitIn(top, "diff", "--name-only", "-z", "HEAD", "--")
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	edited := set.New[string]()
+	for name := range strings.SplitSeq(dirty, "\x00") {
+		edited.Add(name)
+	}
+	staged, err := gitIn(top, "ls-files", "-s", "-z")
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	for entry := range strings.SplitSeq(staged, "\x00") {
+		meta, name, ok := strings.Cut(entry, "\t")
+		parts := strings.Fields(meta)
+		if !ok || len(parts) < 2 || edited.Contains(name) || !known.Contains(name+"\x00"+parts[1]) {
+			continue
+		}
+		delete(o.lines, name)
+		o.whole.Remove(name)
+	}
+	return nil
 }
 
 // File answers the lines of text that the fork wrote, for text headed for path
@@ -109,7 +159,43 @@ func Changed(before, after string) *Scope {
 			s.lines.Add(j + 1)
 		}
 	}
-	return s
+	return s.ClaimWordless(after)
+}
+
+// ClaimWordless answers s with each row of text that holds no word, where the
+// nearest rows with words above and below are both the fork's. Such a row
+// matches any blank row of the base, so the match says nothing about who wrote it.
+func (s *Scope) ClaimWordless(text string) *Scope {
+	if s == nil || s.whole {
+		return s
+	}
+	out := &Scope{lines: set.New[int](), base: s.base}
+	for n := range s.lines.All() {
+		out.lines.Add(n)
+	}
+	claimWordless(out, splitLines(text))
+	return out
+}
+
+func claimWordless(s *Scope, rows []string) {
+	wordless := func(row string) bool {
+		return strings.IndexFunc(row, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) < 0
+	}
+	for i, row := range rows {
+		if s.lines.Contains(i+1) || !wordless(row) {
+			continue
+		}
+		above, below := i-1, i+1
+		for above >= 0 && wordless(rows[above]) {
+			above--
+		}
+		for below < len(rows) && wordless(rows[below]) {
+			below++
+		}
+		if above >= 0 && below < len(rows) && s.lines.Contains(above+1) && s.lines.Contains(below+1) {
+			s.lines.Add(i + 1)
+		}
+	}
 }
 
 // readDiff records what a zero-context diff added. A hunk header gives the
@@ -281,18 +367,105 @@ func (o *Lines) Scope(path string) *Scope {
 	if o.whole.Contains(name) {
 		return Whole()
 	}
-	return &Scope{lines: o.lines[name], base: func() (string, error) {
-		text, err := gitIn(o.top, "cat-file", "blob", o.commit+":"+name)
-		if err != nil {
-			return "", fmt.Errorf("fork scope: read %s at the base: %w", name, err)
+	out := &Scope{lines: o.lines[name]}
+	// A selector measures from no base commit, so it reads no base text.
+	if o.commit != "" {
+		out.base = func() (string, error) {
+			text, err := gitIn(o.top, "cat-file", "blob", o.commit+":"+name)
+			if err != nil {
+				return "", fmt.Errorf("fork scope: read %s at the base: %w", name, err)
+			}
+			return text, nil
 		}
-		return text, nil
-	}}
+	}
+	return out
+}
+
+// DiffLines answers the lines a selector changed in the work tree that holds
+// dir. With staged it is the index against HEAD, and otherwise the work tree
+// against rev. A path the diff created counts whole.
+func DiffLines(dir, rev string, staged bool) (*Lines, error) {
+	top, err := gitIn(dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return nil, fmt.Errorf("diff scope: %w", err)
+	}
+	top = strings.TrimSpace(top)
+	resolved, err := filepath.EvalSymlinks(top)
+	if err != nil {
+		return nil, fmt.Errorf("diff scope: %w", err)
+	}
+	args := []string{"-c", "core.quotePath=false", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"}
+	if staged {
+		args = append(args, "--cached")
+	} else {
+		args = append(args, rev)
+	}
+	args = append(args, "--")
+	diff, err := gitIn(top, args...)
+	if err != nil {
+		return nil, fmt.Errorf("diff scope: %w", err)
+	}
+	own := &Lines{top: resolved, whole: set.New[string](), lines: map[string]set.Set[int]{}}
+	if err := own.readDiff(diff); err != nil {
+		return nil, err
+	}
+	return own, nil
+}
+
+// IntersectLines answers the lines both a and b hold. A file both hold whole
+// stays whole, and a file one holds whole takes the other's lines.
+func IntersectLines(a, b *Lines) *Lines {
+	switch {
+	case a == nil:
+		return b
+	case b == nil:
+		return a
+	}
+	out := &Lines{top: a.top, commit: a.commit, whole: set.New[string](), lines: map[string]set.Set[int]{}}
+	names := set.New[string]()
+	for name := range a.whole.All() {
+		names.Add(name)
+	}
+	for name := range b.whole.All() {
+		names.Add(name)
+	}
+	for name := range a.lines {
+		names.Add(name)
+	}
+	for name := range b.lines {
+		names.Add(name)
+	}
+	for name := range names.All() {
+		aWhole, bWhole := a.whole.Contains(name), b.whole.Contains(name)
+		switch {
+		case aWhole && bWhole:
+			out.whole.Add(name)
+		case aWhole:
+			copyLines(out, name, b.lines[name])
+		case bWhole:
+			copyLines(out, name, a.lines[name])
+		default:
+			copyLines(out, name, a.lines[name].Intersection(b.lines[name]))
+		}
+	}
+	return out
+}
+
+// copyLines records the lines of name when it holds any.
+func copyLines(o *Lines, name string, lines set.Set[int]) {
+	if lines.Len() > 0 {
+		o.lines[name] = lines
+	}
 }
 
 // Whole reports whether the fork wrote all of path: it is new since the base, or untracked.
 func (o *Lines) Whole(path string) bool {
 	return o.whole.Contains(o.rel(path))
+}
+
+// Claim records path as a file the fork wrote all of.
+func (o *Lines) Claim(path string) {
+	o.whole.Add(o.rel(path))
 }
 
 // Holds reports whether the fork wrote any line from first to last of path.

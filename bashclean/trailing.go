@@ -3,7 +3,7 @@
 // A limiting pipe, a stdout redirect or a swallowed exit status mid-script is a
 // deliberate part of a longer script and is preserved. The same shape on the
 // last top-level statement is what truncates the answer the reader was about to
-// get, so it is stripped there and nowhere else.
+// get. It is stripped there and nowhere else.
 //
 // The anchor is the last top-level statement, descending the right branch of
 // its && / || chain, which is a leaf under left association.
@@ -48,11 +48,6 @@ func promoteInto(outer, inner *syntax.Stmt) {
 	outer.Coprocess = outer.Coprocess || inner.Coprocess
 	outer.Cmd = inner.Cmd
 	outer.Redirs = redirs
-}
-
-func isHeadTailStage(c *syntax.CallExpr) bool {
-	n := cmd(c)
-	return n == "head" || n == "tail" || callIsSedSuppressing(c)
 }
 
 func isGrepStage(c *syntax.CallExpr) bool { return cmd(c) == "grep" }

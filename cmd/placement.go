@@ -46,8 +46,8 @@ func editsOf(tool string, in writeInput) []edit {
 }
 
 // applyEdits replays the replacements onto the file. A replacement that is
-// absent, or that appears more than a single time, leaves the result unknown,
-// and the caller then judges the fragment as it always did.
+// absent, or that appears more than a single time, leaves the result unknown.
+// The caller then judges the fragment as it always did.
 func applyEdits(src string, edits []edit) (string, bool) {
 	out := src
 	for _, e := range edits {
@@ -106,8 +106,9 @@ func place(tool string, in writeInput, rules []slopfix.Rule, ids []string, owned
 }
 
 // fragmentScope bounds the repair of an edit's own text when place could not
-// pin it to the file. In a fork, no line of such an edit to a file the fork did
-// not write whole can be told to be the fork's, so the repair lands nowhere.
+// pin it to the file. In a fork, the edit can go to a file the fork did not
+// write whole. No line of that edit is then known as the fork's line. So the
+// repair lands nowhere.
 func fragmentScope(tool string, in writeInput, owned forkLines) (splice.Scope, error) {
 	if tool == "Write" {
 		return splice.Scope{}, nil

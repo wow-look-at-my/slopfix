@@ -1,7 +1,7 @@
 // Package slopfix is the library behind the binary. It reports what the org's
 // prose rules reject, and rewrites what a rewrite can repair.
 //
-// The binary is a thin wrapper, so a hook, a CI job and an editor integration
+// The binary is a thin wrapper. A hook, a CI job and an editor integration
 // all get identical answers instead of separate implementations that drift.
 package slopfix
 
@@ -61,7 +61,7 @@ func Warnings(content string) []ste.Finding {
 }
 
 // Format joins every prose block to a single line, and reports whether the
-// rewrite is safe: a result whose words differ from the source is a bug.
+// rewrite is safe. A result whose words differ from the source is a bug.
 func Format(content string) (string, bool) {
 	formatted := markdown.Format(content)
 	return formatted, markdown.WordsOnly(content, formatted)
@@ -95,7 +95,7 @@ func CheckContent(path, content string) []ste.Finding {
 // kindFindings are the rules the file's kind selects.
 func kindFindings(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
-		return workflow.Check(content)
+		return append(workflow.Check(content), sentenceFindings(path, content)...)
 	}
 	if isDocument(path) {
 		return append(Check(content), Warnings(content)...)
@@ -120,7 +120,7 @@ func commentFindings(path, content string) []ste.Finding {
 	for _, hit := range commentfix.CheckLength(path, content) {
 		fix := "Cut the comment back inside the code it documents. Drop the trailing paragraph first."
 		if !hit.Repairable {
-			fix = "Shorten the opening sentence, or say less."
+			fix = commentfix.FixLengthByHand
 		}
 		out = append(out, ste.Finding{
 			Line:   hit.Line,
@@ -131,18 +131,39 @@ func commentFindings(path, content string) []ste.Finding {
 		})
 	}
 	for _, hit := range commentfix.CheckTails(path, content) {
+		fix := "Finish the sentence, or let the repair close it. `slopfix fix` does this."
+		if !hit.Repairable {
+			fix = "Rewrite it by hand: finish the sentence. No cut leaves a whole sentence."
+		}
 		out = append(out, ste.Finding{
 			Line:   hit.Line,
 			ID:     hit.ID,
 			Rule:   hit.Tell,
 			Detail: hit.Sentence,
-			Fix:    "Finish the sentence, or let the repair close it. `slopfix fix` does this.",
+			Fix:    fix,
+		})
+	}
+	return append(out, sentenceFindings(path, content)...)
+}
+
+// sentenceFindings are the sentences of a file's comments over the STE word
+// cap. It is its own check, apart from the comment's weight against its code.
+func sentenceFindings(path, content string) []ste.Finding {
+	var out []ste.Finding
+	for _, hit := range commentfix.CheckSentences(path, content) {
+		out = append(out, ste.Finding{
+			Line:    hit.Line,
+			EndLine: hit.EndLine,
+			ID:      ste.IDSentenceCap,
+			Rule:    hit.Tell,
+			Detail:  hit.Sentence,
+			Fix:     hit.Fix,
 		})
 	}
 	return out
 }
 
-// documentExtensions are the files whose lines really are prose.
+// documentExtensions are the files whose lines are prose.
 var documentExtensions = []string{".md", ".markdown", ".mdown", ".txt"}
 
 // isDocument reports whether the prose rules own this file. An empty path is a

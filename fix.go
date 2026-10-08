@@ -46,33 +46,13 @@ const (
 	RulePins Rule = "pins"
 )
 
-// AllRules is what Fix applies when a caller names none.
-var AllRules = []Rule{RuleTombstones, RuleCounts, RuleWrap, RuleSTE, RuleEnglish, RuleComments, RuleWorkflow, RuleRepo, RulePins}
+// AllRules is every category the registry uses, in the order a rule declared it.
+var AllRules []Rule
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
 func IDsFor(rule Rule) set.Set[string] {
-	switch rule {
-	case RuleTombstones:
-		return tombstones.AllIDs()
-	case RuleCounts:
-		return set.Of(counts.ID, counts.IDSection)
-	case RuleWrap:
-		return set.Of(IDHardWrap, IDLongBlock)
-	case RuleSTE:
-		return ste.AllIDs
-	case RuleEnglish:
-		return set.Of(english.AllIDs...)
-	case RuleComments:
-		return set.Of(commentfix.IDLength, commentfix.ID, commentfix.IDTail)
-	case RuleWorkflow:
-		return workflow.AllIDs
-	case RuleRepo:
-		return RepoIDs
-	case RulePins:
-		return pins.AllIDs
-	}
-	return set.New[string]()
+	return ruleIDsIn(rule)
 }
 
 // Request is a piece of text put to Fix. Path decides the comment syntax, and
@@ -117,7 +97,93 @@ type Repair struct {
 
 // Fix repairs req, unless it carries slopfix-expect annotations.
 func Fix(req Request) Repair {
-	return within(req, fixAll(req))
+	repair := within(req, fixAll(req))
+	wide := widened(req)
+	if wide == nil || wide == req.Owned || wide.All() || req.Scope.Bounded {
+		return repair
+	}
+	// Each paragraph the fork wrote into is repaired as a text of its own and put back.
+	text := repair.Text
+	ranges := forkscope.Blocks(text, forkscope.Carry(req.Content, text, req.Owned))
+	for i := len(ranges) - 1; i >= 0; i-- {
+		var removed []string
+		text, removed = fixBlock(req, text, ranges[i])
+		repair.Removed = append(repair.Removed, removed...)
+	}
+	repair.Text, repair.Changed = text, text != req.Content
+	owned := forkscope.Carry(req.Content, text, wide)
+	landed := req
+	landed.Content, landed.Owned, landed.Scope = text, nil, edit.Nowhere()
+	after := Fix(landed)
+	repair.Findings, repair.Kept = after.Findings, after.Kept
+	repair = scoped(repair, forkscope.Carry(req.Content, text, req.Owned), owned)
+	return upstreamRuns(req, req.Owned, repair.Text, repair)
+}
+
+// fixBlock repairs rows first to last of text with every rule but the run
+// rules, and puts the result back in place.
+func fixBlock(req Request, text string, rows [2]int) (string, []string) {
+	lines := strings.SplitAfter(text, "\n")
+	chunk := strings.Join(lines[rows[0]-1:rows[1]], "")
+	one := req
+	one.Content, one.Owned, one.Scope, one.IDs = chunk, nil, edit.Scope{}, blockFree(req)
+	fixed := fixAll(one)
+	out := fixed.Text
+	if strings.HasSuffix(chunk, "\n") && !strings.HasSuffix(out, "\n") {
+		out += "\n"
+	}
+	return strings.Join(lines[:rows[0]-1], "") + out + strings.Join(lines[rows[1]:], ""), fixed.Removed
+}
+
+// widened answers req.Owned grown to each whole block it reaches into.
+func widened(req Request) *forkscope.Scope {
+	if req.Owned == nil {
+		return nil
+	}
+	// A source comment rule rewrites a whole run, so a run keeps to the fork's lines.
+	if kindOf(req.Path, req.Content) != fixer.Document {
+		return req.Owned
+	}
+	return req.Owned.Widen(req.Content)
+}
+
+// runRule reports whether rule id rewrites a whole comment run. Such a rule
+// keeps to the lines the fork wrote, in a report and in a repair.
+func runRule(id string) bool {
+	return blockRules.Contains(id) || id == commentfix.IDLength || strings.HasPrefix(id, "tombstones/")
+}
+
+// scoped keeps each finding of repair on an owned line. A run rule reads
+// narrow, and every other rule reads wide.
+func scoped(repair Repair, narrow, wide *forkscope.Scope) Repair {
+	var findings []ste.Finding
+	for _, f := range repair.Findings {
+		owned := wide
+		if runRule(f.ID) {
+			owned = narrow
+		}
+		if owned.Holds(f.Line, f.EndLine) {
+			findings = append(findings, f)
+		}
+	}
+	repair.Findings = findings
+	repair.Kept = ownedHits(repair.Kept, narrow)
+	return repair
+}
+
+// blockFree answers the rule IDs req selects, less each run rule.
+func blockFree(req Request) []string {
+	ids := req.IDs
+	if len(ids) == 0 {
+		ids = slices.Sorted(EveryRuleID().All())
+	}
+	var out []string
+	for _, id := range ids {
+		if !runRule(id) {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // fixAll is Fix with no regard to the lines a fork wrote.
@@ -223,6 +289,11 @@ func fixText(req Request) Repair {
 
 	switch kind {
 	case fixer.Workflow:
+		// A long sentence in a workflow comment is an STE rule, so --only ste
+		// reaches it even when the run omits the yaml category.
+		if wants(RuleSTE) && keeps(ste.IDSentenceCap) {
+			repair.Findings = append(repair.Findings, sentenceFindings(req.Path, text)...)
+		}
 		if !wants(RuleWorkflow) {
 			break
 		}
@@ -235,21 +306,28 @@ func fixText(req Request) Repair {
 		// Source keeps its own text for the prose rules, because a comma splice
 		// inside a code line is not a sentence.
 		// The number and tail rules report what their repair leaves, so check names what fix rewrites.
-		if wants(RuleComments) {
-			for _, finding := range commentFindings(req.Path, text) {
-				if finding.ID != commentfix.IDLength && keeps(finding.ID) {
-					repair.Findings = append(repair.Findings, finding)
-				}
+		for _, finding := range commentFindings(req.Path, text) {
+			// The sentence cap is an STE rule, so the STE selection reaches it in a comment too.
+			family := RuleComments
+			if finding.ID == ste.IDSentenceCap {
+				family = RuleSTE
+			}
+			if wants(family) && finding.ID != commentfix.IDLength && keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
 			}
 		}
 		if wants(RuleComments) && keeps(commentfix.IDLength) {
 			for _, hit := range commentfix.CheckLength(req.Path, text) {
-				repair.Kept = append(repair.Kept, tombstones.Hit{
+				kept := tombstones.Hit{
 					ID:     hit.ID,
 					Tell:   hit.Tell,
 					Phrase: hit.Sentence,
 					LineNo: hit.Line,
-				})
+				}
+				if !hit.Repairable {
+					kept.Fix = commentfix.FixLengthByHand
+				}
+				repair.Kept = append(repair.Kept, kept)
 			}
 		}
 	case fixer.Document:
@@ -298,16 +376,14 @@ func openFile(req Request, kind fixer.Kind) *fixer.File {
 }
 
 // Report is Fix for a caller that writes nothing. No repair lands, so every
-// finding is reported on the text as it stands, the repairable ones too. With
-// req.Owned set, only a finding on an owned line is reported.
+// finding is reported on the text as it stands, the repairable ones too.
 func Report(req Request) Repair {
 	repair := reportAll(req)
 	if req.Owned == nil {
 		return repair
 	}
-	repair.Findings = ownedFindings(repair.Findings, req.Owned)
-	repair.Kept = ownedHits(repair.Kept, req.Owned)
-	return upstreamRuns(req.Owned, req.Content, repair)
+	repair = scoped(repair, req.Owned, widened(req))
+	return upstreamRuns(req, req.Owned, req.Content, repair)
 }
 
 // reportAll is Report with no regard to the lines a fork wrote.
@@ -417,7 +493,7 @@ func FixFile(path string) (Repair, error) {
 // reports what it did.
 //
 // The Content and Path of req are the file's, whatever the caller put there.
-// Everything else is the caller's: a run that names a rule on the command line
+// Everything else is the caller's. A run that names a rule on the command line
 // has to reach the repair, or the selection is silently ignored.
 func FixFileWith(path string, req Request) (Repair, error) {
 	content, err := os.ReadFile(path)

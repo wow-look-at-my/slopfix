@@ -1,9 +1,9 @@
-// Package english is the prose table every rule reads: the words a repair
+// Package english is the prose table every rule reads. The words a repair
 // drops, the phrasings it swaps, the shapes it rewrites, and the phrases it
 // refuses to touch.
 //
-// The table is XML rather than Go, the same way autoallow carries its rules, so
-// adding a rule is a single-line edit somebody can make without reading Go.
+// The table is XML rather than Go, the same way autoallow carries its rules.
+// Adding a rule is a single-line edit somebody can make without reading Go.
 package english
 
 import (
@@ -35,7 +35,7 @@ type Table struct {
 }
 
 // Class is a set of words that fill the same slot, stated in a single
-// attribute and read as the lexicon a shape asks about each word.
+// attribute. A shape reads it as the lexicon to ask about each word.
 type Class struct {
 	Name   string `xml:"name,attr"`
 	Words  string `xml:"words,attr"`

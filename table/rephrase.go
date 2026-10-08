@@ -1,9 +1,9 @@
 // rephrase.go applies the matcher language to a line of prose.
 //
-// An entry may write more words than it matched, fewer, or none at all, so a
+// An entry may write more words than it matched, fewer, or none at all. A
 // rule can swap a word, delete it, or rewrite the phrase around it. Prose no
-// entry matches is left exactly as it is: the rule still reports the word, and
-// a warning costs a reader less than a wrong repair.
+// entry matches is left exactly as it is: the rule still reports the word. A
+// warning costs a reader less than a wrong repair.
 package table
 
 import "strings"
@@ -52,7 +52,7 @@ func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose stri
 	last, i := 0, 0
 	for i < len(tokens) {
 		entry, end, caught, ok := firstMatch(lex, entries, tokens, i, written)
-		if !ok || !spaced(prose, spans[i:end]) {
+		if !ok || !spaced(prose, spans[i:end]) || hyphened(prose, spans[i], spans[end-1]) {
 			i++
 			continue
 		}
@@ -74,6 +74,14 @@ func spaced(prose string, words []span) bool {
 		}
 	}
 	return true
+}
+
+// hyphened reports a match whose edge word a hyphen joins to the word beside
+// it. "the two" in "the two-line row" is part of a compound.
+func hyphened(prose string, first, last span) bool {
+	before := first.at >= 2 && prose[first.at-1] == '-' && isWordByte(prose[first.at-2])
+	after := last.end+1 < len(prose) && prose[last.end] == '-' && isWordByte(prose[last.end+1])
+	return before || after
 }
 
 // firstMatch answers the earliest entry that fits at i.

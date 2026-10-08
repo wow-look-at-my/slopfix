@@ -84,7 +84,7 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 		return edit.Unchanged(content, scope)
 	}
 	var want any
-	if yaml.Unmarshal([]byte(content), &want) != nil {
+	if yaml.Unmarshal([]byte(compareData(content, comment)), &want) != nil {
 		out := edit.Unchanged(content, scope)
 		for _, e := range edits {
 			out.Refused = append(out.Refused, edit.Refused{Edit: e, Reason: "the workflow does not parse"})
@@ -100,11 +100,28 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 		},
 		func(text string) bool {
 			var got any
-			if yaml.Unmarshal([]byte(text), &got) != nil {
+			if yaml.Unmarshal([]byte(compareData(text, comment)), &got) != nil {
 				return false
 			}
 			return !comment || reflect.DeepEqual(got, want)
 		})
+}
+
+// compareData answers the text a comment gate compares. A # inside a block
+// scalar is part of the scalar's string, so a rewrite there changes the value.
+// A comment in a script is not its behavior, so those rows read blank first.
+func compareData(content string, comment bool) string {
+	if !comment {
+		return content
+	}
+	inside := blockScalarRows(content)
+	rows := lines(content)
+	for i, row := range rows {
+		if i < len(inside) && inside[i] && strings.HasPrefix(strings.TrimSpace(row), "#") {
+			rows[i] = ""
+		}
+	}
+	return strings.Join(rows, "\n")
 }
 
 // rowEdge reports whether a byte sits where a row starts or ends.
@@ -156,9 +173,9 @@ func ungate(content string) []edit.Edit {
 }
 
 // gateRows answers the row each named step's continue-on-error sits on, read
-// off the parser's own positions. Walking the text for the step's extent
-// instead asks an indent to say where a step ends, and a block scalar holding
-// a deeper line then ends it early.
+// off the parser's own positions. A walk of the text for the step's extent
+// asks an indent to say where a step ends. A block scalar with a deeper line
+// then ends the step early.
 func gateRows(content string, findings []ste.Finding) set.Set[int] {
 	drop := set.New[int]()
 	var doc yaml.Node
@@ -245,9 +262,9 @@ func joinCommentBlocks(content string) []edit.Edit {
 	return out
 }
 
-// joinSentences joins comment lines into one. A line that ends with no
-// punctuation, followed by one that opens with a capital, ended a sentence
-// the author never closed, so the join closes it with a period.
+// joinSentences joins comment lines into one. This is a line that ends with
+// no punctuation. The line is followed by one that opens with a capital,
+// ended a sentence the author never closed. The join closes it with a period.
 func joinSentences(lines []string) string {
 	var b strings.Builder
 	for i, line := range lines {

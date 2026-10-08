@@ -79,7 +79,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	}
 	// An unresolvable operand makes the blast radius unknown. A finding read
 	// out of a script FILE is the program's own behaviour, which this hook
-	// does not sandbox; a STATIC path inside a script is still judged.
+	// does not sandbox. A STATIC path inside a script is still judged.
 	for _, p := range f.paths {
 		// A device file holds nothing to lose, and it names itself absolutely, so
 		// an unknown working directory says nothing about it.
@@ -164,9 +164,9 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 }
 
 // describeAtRisk names what a finding would destroy, split by class rather
-// than totalled -- "modified" and "untracked" is the difference between a
-// command that spares half of it and a command that does not -- and shared
-// between the denial and the preservation notice, so they never drift apart.
+// than totalled. The split into "modified" and "untracked" shows whether a
+// command spares half of it. The denial and the preservation notice share
+// this text. They never drift apart.
 func describeAtRisk(tracked, untracked, ignored []string) (summary string, names []string) {
 	var parts []string
 	add := func(entries []string, label string) {

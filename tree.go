@@ -1,9 +1,9 @@
 // tree.go sweeps a whole tree with every rule, which is what a build calls.
 //
-// commentfix.FixTree reaches the comment rules alone, so a build running it
-// repaired a comment's length and left the ste finding beside it for a reviewer
-// to hit. A caller that wants a single rule family still has the narrower
-// sweep; this is for the caller that wants what `slopfix file fix` would do.
+// commentfix.FixTree reaches the comment rules alone. A build that ran it
+// repaired a comment's length and left the ste finding beside it. A caller
+// that wants a single rule family still has the narrower sweep. This is for
+// the caller that wants what `slopfix file fix` would do.
 package slopfix
 
 import (
@@ -81,16 +81,26 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 
 	var out TreeRepair
 	if wantsRepo(req) && isRepoRoot(root) {
-		findings, changed, err := repoRun(root, keepsOf(req), writing, writableIn(req.Fork))
+		SetPhase("repository rules", 0)
+		findings, changed, created, err := repoRun(root, keepsOf(req), writing, writableIn(req.Fork))
 		if err != nil {
 			findings = append(findings, repoFinding(root, IDBudget, "the repository rules could not read the tree", err.Error()))
+		}
+		// A file the move created is new once committed, so the fork's check judges all of it. This walk must judge it too.
+		if req.Fork != nil {
+			for _, path := range created {
+				req.Fork.Claim(path)
+			}
 		}
 		out.Findings = append(out.Findings, findings...)
 		out.Repaired = append(out.Repaired, changed...)
 	}
+	SetPhase("list the files", 0)
 	paths := commentfix.TreeFilesMatching(root, Reads)
+	SetPhase("index the names", 0)
 	// A walk asks the referent check about far more names than a probe for each can answer quickly.
 	tombstones.PrimeIndex(root)
+	SetPhase("judge the files", len(paths))
 	repairs := make([]*Repair, len(paths))
 	// Each file is independent, so workers judge them at once and the merge below keeps the walk's order.
 	work := make(chan int)
@@ -101,6 +111,7 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 			defer wg.Done()
 			for i := range work {
 				repairs[i] = judgeFile(paths[i], req, writing)
+				stepDone()
 			}
 		}()
 	}
@@ -150,6 +161,7 @@ func judgeFile(path string, req Request, writing bool) *Repair {
 		return nil
 	}
 	req.Path, req.Content = path, string(src)
+	req.Owned = req.Owned.ClaimWordless(req.Content)
 	run := Report
 	if writing {
 		run = Fix

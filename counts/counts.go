@@ -105,13 +105,16 @@ func strip(content string, hits []Hit) (string, []Hit) {
 	return res.Text, cut
 }
 
-// Edits answers an edit per hit that takes its cardinal out. Every hit gets
-// one: reword says what replaces the number when a bare cut leaves broken
-// English.
+// Edits answers an edit per hit that takes its cardinal out. reword says what
+// replaces the number when a bare cut leaves broken English.
 func Edits(content string, hits []Hit) []edit.Edit {
 	var out []edit.Edit
 	for _, hit := range hits {
 		if hit.Start < 0 || hit.End > len(content) {
+			continue
+		}
+		if e, ok := LabelAt(content, hit.Start, nil); ok {
+			out = append(out, e)
 			continue
 		}
 		if e, ok := reword(content, hit); ok {
@@ -208,7 +211,7 @@ func blankLead(line string, n int) string {
 }
 
 // proseLines returns the lines markdown.Split marks as prose, each with its
-// byte offset, so a phrase found there can be cut out of the document.
+// byte offset. A phrase found there can be cut out of the document.
 func proseLines(content string) []proseLine {
 	lines := strings.Split(content, "\n")
 	offsets := make([]int, len(lines))

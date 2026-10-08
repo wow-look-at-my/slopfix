@@ -17,7 +17,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 )
 
-// gitT runs git in dir with no user or system config, so a signing key or a
+// gitT runs git in dir with no user or system config. A signing key or a
 // hook on the machine cannot change what the test sees.
 func gitT(t *testing.T, dir string, args ...string) string {
 	t.Helper()
@@ -248,6 +248,14 @@ func TestKeepPutsBackEveryChangeToAnInheritedLine(t *testing.T) {
 	assert.Equal(t, "a\nb\nc", Keep("a\nb\nc", "a\nB\nc\n", OfLines(1)), "a line end is a change to its line")
 }
 
+// A change that replaces a couple of lines with a couple of lines pairs them.
+// The fork's line lands, but the inherited line beside it goes back.
+func TestKeepTakesEachPairedLineAlone(t *testing.T) {
+	before := "fork: 2 hits\nbase: Two jobs\nbase: rest\n"
+	after := "fork: Hits\nbase: Jobs\nbase: rest\n"
+	assert.Equal(t, "fork: Hits\nbase: Two jobs\nbase: rest\n", Keep(before, after, OfLines(1)))
+}
+
 func TestCarryFollowsTheLinesThroughARepair(t *testing.T) {
 	carried := Carry("a\nb\nc\n", "a\nx\ny\nc\n", OfLines(2))
 	assert.False(t, carried.Owns(1))
@@ -373,9 +381,9 @@ func TestAListedForkReportsOnlyTheLinesItWrote(t *testing.T) {
 	assert.Equal(t, []int{3}, held(own, fx.fork, "loose.md", 3))
 }
 
-// An upstream that carries no tags names no release to measure from, so a
-// listed fork is measured against that upstream's default branch instead, and
-// is scoped exactly as the parent-merge-base path scopes it.
+// An upstream that carries no tags names no release to measure from. A listed
+// fork is measured against that upstream's default branch instead, and is
+// scoped exactly as the parent-merge-base path scopes it.
 func TestAListedForkWhoseUpstreamHasNoTagsIsMeasuredFromItsBranch(t *testing.T) {
 	fx := newForkFixture(t)
 	own := scoped(t, fx.fork, listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent)))
@@ -432,15 +440,15 @@ func TestAListedForkWithNoTagCountsFromTheClosestUpstreamTree(t *testing.T) {
 	assert.True(t, own.Scope(filepath.Join(fx.fork, "later.md")).Empty())
 }
 
-// squashFixture is an upstream with commits, and a fork that brought the
-// second one in as one squashed commit. With shared, the fork began as a clone
-// of the first commit, so the merge base is that commit. Without it, the fork
-// shares no history with the upstream.
+const oldFirst = "# Old\n\nThe first upstream commit adds this.\n"
+
+// squashFixture is an upstream with commits, and a fork that brought the second one in as one squashed commit.
 func squashFixture(t *testing.T, shared bool) forkFixture {
 	t.Helper()
 	work := t.TempDir()
 	gitT(t, work, "init", "-q", "-b", "main")
 	writeT(t, work, "doc.md", inherited)
+	writeT(t, work, "old.md", oldFirst)
 	gitT(t, work, "add", "-A")
 	gitT(t, work, "commit", "-q", "-m", "first")
 	parent := filepath.Join(t.TempDir(), "parent.git")
@@ -458,6 +466,7 @@ func squashFixture(t *testing.T, shared bool) forkFixture {
 	synced := "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the file; it writes nothing.\n"
 	writeT(t, work, "doc.md", synced)
 	writeT(t, work, "sync.md", "# Sync\n\nThe second upstream commit adds this; it writes nothing.\n")
+	writeT(t, work, "old.md", "# Old\n\nThe second upstream commit rewrites this.\n")
 	gitT(t, work, "add", "-A")
 	gitT(t, work, "commit", "-q", "-m", "second")
 	writeT(t, work, "later.md", "# Later\n\nThe parent adds this afterwards.\n")
@@ -467,6 +476,7 @@ func squashFixture(t *testing.T, shared bool) forkFixture {
 
 	writeT(t, fork, "doc.md", synced)
 	writeT(t, fork, "sync.md", "# Sync\n\nThe second upstream commit adds this; it writes nothing.\n")
+	writeT(t, fork, "old.md", oldFirst)
 	gitT(t, fork, "add", "-A")
 	gitT(t, fork, "commit", "-q", "-m", "squashed sync of the second upstream commit")
 	writeT(t, fork, "doc.md", "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the tree; it writes nothing.\n\nThe fork adds this line; it writes nothing.\n")
@@ -486,6 +496,7 @@ func TestASquashSyncedForkCountsFromTheSnapshotItSynced(t *testing.T) {
 
 			assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...), "line 3 came in with the sync, line 5 is edited, line 7 is added")
 			assert.True(t, own.Scope(filepath.Join(fx.fork, "sync.md")).Empty(), "a file the sync brought in is upstream's")
+			assert.True(t, own.Scope(filepath.Join(fx.fork, "old.md")).Empty(), "a file synced at an older upstream version is upstream's")
 			assert.Equal(t, []int{3}, held(own, fx.fork, "new.md", 3))
 		})
 	}

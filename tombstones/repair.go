@@ -74,7 +74,7 @@ func pureSpan(b Block, total int) (from, to int, ok bool) {
 
 // rewriteParagraphs is rewriteComments for a document, where a block is a
 // paragraph rather than a comment. A paragraph carries no marker and is never
-// hard-wrapped, so it goes back as the single line the table leaves.
+// hard-wrapped, so it goes back as the line the table leaves.
 func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) {
 	lines := strings.Split(added, "\n")
 	rewrites := map[int]int{}
@@ -156,8 +156,8 @@ func blocksLosing(blocks []Block, drop set.Set[int]) set.Set[int] {
 	return losing
 }
 
-// reflowStripped rewraps each block a strip took a line out of, so the prose
-// that survives reads as a paragraph rather than as a sentence with a hole.
+// reflowStripped rewraps each block a strip took a line out of. The prose that
+// survives then reads as a paragraph, not as a sentence with a hole.
 // A strip that emptied a block moves every index after it, so a changed block
 // count leaves the text as it is.
 func reflowStripped(path, text string, losing set.Set[int], was int) []edit.Edit {
@@ -252,7 +252,7 @@ func repairFile(f *fixer.File) {
 	}
 	path, doc := f.Path, f.Kind == fixer.Document
 	maxLines := f.MaxCommentLines
-	if doc {
+	if doc || !f.Keeps(IDVolume) {
 		maxLines = 0
 	}
 	blocks := AddedBlocks(path, f.Text())
@@ -304,6 +304,8 @@ func repairFile(f *fixer.File) {
 			// A name no whole-line strip resolves loses its sentence below.
 			cut = true
 		default:
+			// The cap cut ran above, so a block still over the cap has no whole-sentence cut.
+			h.Fix = FixVolumeByHand
 			f.Note(h)
 		}
 	}
@@ -412,6 +414,20 @@ func sentenceAround(line, name string, openers []string) (int, int, bool) {
 	return from, to, from < to
 }
 
+// endsOnSentence reports whether the last row of block b that a cut keeps ends
+// a sentence.
+func endsOnSentence(lines []string, b Block, drop set.Set[int]) bool {
+	for i := len(b.LineNos) - 1; i >= 0; i-- {
+		no := b.LineNos[i]
+		if drop.Contains(no) || no < 0 || no >= len(lines) {
+			continue
+		}
+		text := strings.TrimRight(strings.TrimSpace(lines[no]), " */")
+		return strings.HasSuffix(text, ".") || strings.HasSuffix(text, "!") || strings.HasSuffix(text, "?")
+	}
+	return false
+}
+
 // capEdits answers an edit per block over maxLines. A block of comment lines
 // alone is cut at its thoughts. A block that shares a line with code loses its
 // last prose rows instead, because a row edit there would carry the code.
@@ -439,9 +455,52 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 				over--
 			}
 		}
+		// A row cut that does not land on a sentence end leaves a fragment, so
+		// the surviving row is trimmed back to one. The cap has to be
+		// reachable: dropping further rows would cost more than the fragment.
+		if !endsOnSentence(lines, b, drop) {
+			row, trimmed, ok := trimLastKeptRow(lines, b, drop)
+			if !ok {
+				continue
+			}
+			edits = append(edits, stripEdits(text, drop)...)
+			edits = append(edits, edit.Rows(text, row, row, 0, []string{trimmed}))
+			continue
+		}
 		edits = append(edits, stripEdits(text, drop)...)
 	}
 	return edits
+}
+
+// trimLastKeptRow cuts the last row a drop keeps back to its last sentence end.
+// A volume cut lands on a sentence rather than a fragment. It reports false
+// when that row holds no sentence end to cut back to.
+func trimLastKeptRow(lines []string, b Block, drop set.Set[int]) (int, string, bool) {
+	for i := len(b.LineNos) - 1; i >= 0; i-- {
+		no, pure := linePurity(b, i)
+		if !pure || drop.Contains(no) || no < 0 || no >= len(lines) {
+			continue
+		}
+		if trimmed, ok := trimToSentenceEnd(lines[no]); ok {
+			return no, trimmed, true
+		}
+		return 0, "", false
+	}
+	return 0, "", false
+}
+
+// trimToSentenceEnd removes whatever follows the last sentence end on a line,
+// keeping a block closer when one follows it.
+func trimToSentenceEnd(line string) (string, bool) {
+	cut := strings.LastIndexAny(line, ".!?")
+	if cut < 0 {
+		return "", false
+	}
+	trimmed := line[:cut+1]
+	if rest := line[cut+1:]; strings.Contains(rest, "*/") {
+		trimmed += " */"
+	}
+	return trimmed, true
 }
 
 // cutLines quotes the dropped rows a strip edit covers.

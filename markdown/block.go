@@ -5,6 +5,7 @@ package markdown
 import (
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -37,8 +38,8 @@ type Block struct {
 	Indent string
 }
 
-// Text renders a prose block as the single line the rules read: the lines
-// joined by a space, with each continuation's own indentation dropped.
+// Text renders a prose block as the line the rules read: the lines joined by
+// a space, with each continuation's own indentation dropped.
 func (b Block) Text() string {
 	parts := make([]string, 0, len(b.Lines))
 	for i, line := range b.Lines {
@@ -81,7 +82,7 @@ var parser = goldmark.New(goldmark.WithExtensions(extension.Table)).Parser()
 // paragraphs maps the line each paragraph opens on to the line it ends on. A
 // paragraph in a block quote quotes somebody, and stays as they wrote it.
 func paragraphs(content string, lines []string) map[int]int {
-	src := []byte(blankGenerated(blankFrontMatter(content, lines), lines))
+	src := blankTemplateTags([]byte(blankGenerated(blankFrontMatter(content, lines), lines)), lines)
 	starts := lineStarts(lines)
 	ends := map[int]int{}
 	_ = ast.Walk(parser.Parse(text.NewReader(src)), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -95,13 +96,26 @@ func paragraphs(content string, lines []string) map[int]int {
 			if segments := n.Lines(); segments.Len() > 0 {
 				first := lineOf(starts, segments.At(0).Start)
 				last := lineOf(starts, segments.At(segments.Len()-1).Stop-1)
-				if !trailerBlock(lines[first : last+1]) {
-					ends[first] = last
-					return ast.WalkSkipChildren, nil
-				}
-				// A trailer block is a line per trailer, and git reads each line alone.
-				for line := first; line <= last; line++ {
-					ends[line] = line
+				// A template directive line is not prose, so it divides the paragraph and stays as written.
+				for from := first; from <= last; {
+					if isDirective(lines[from]) {
+						from++
+						continue
+					}
+					to := from
+					for to < last && !isDirective(lines[to+1]) {
+						to++
+					}
+					switch {
+					case trailerBlock(lines[from : to+1]):
+						// A trailer block is a line per trailer, and git reads each line alone.
+						for line := from; line <= to; line++ {
+							ends[line] = line
+						}
+					case hasLetter(lines[from : to+1]):
+						ends[from] = to
+					}
+					from = to + 1
 				}
 			}
 			return ast.WalkSkipChildren, nil
@@ -126,6 +140,31 @@ func trailerBlock(lines []string) bool {
 		}
 	}
 	return true
+}
+
+// templateDirectives open a template tag: a Jinja or Go template statement, an expression or a comment.
+var templateDirectives = []string{"{%", "{{", "{#"}
+
+// isDirective reports a line that holds a template tag. A template engine reads
+// the line, so a join or a rewrite changes what it renders.
+func isDirective(line string) bool {
+	for _, d := range templateDirectives {
+		if strings.Contains(line, d) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasLetter reports whether any line holds a letter. A paragraph with none is
+// a picture, such as braille or box art. A join destroys its shape.
+func hasLetter(lines []string) bool {
+	for _, line := range lines {
+		if strings.IndexFunc(line, unicode.IsLetter) >= 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // blankFrontMatter writes spaces over a YAML front matter block, byte for byte,
@@ -189,6 +228,30 @@ func blank(b []byte) {
 			b[k] = ' '
 		}
 	}
+}
+
+// blankTemplateTags writes spaces over each line that holds one template tag and nothing else, such as `{% if x %}` or `${%- endif %}`. A tag is code for the renderer, so the parser reads it as a break between paragraphs. A line that holds one markup
+// tag, such as `</memory>`, gets the same treatment.
+func blankTemplateTags(src []byte, lines []string) []byte {
+	at := 0
+	for _, line := range lines {
+		if trimmed := strings.TrimSpace(line); isTemplateTag(trimmed) || markupTagLine.MatchString(trimmed) {
+			for k := at; k < at+len(line) && k < len(src); k++ {
+				src[k] = ' '
+			}
+		}
+		at += len(line) + 1
+	}
+	return src
+}
+
+// markupTagLine matches a trimmed line that is one opening, closing or self-closing markup tag.
+var markupTagLine = regexp.MustCompile(`^</?[A-Za-z][\w:.-]*(\s[^<>]*)?/?>$`)
+
+// isTemplateTag reports whether a trimmed line is one template tag.
+func isTemplateTag(trimmed string) bool {
+	body := strings.TrimPrefix(trimmed, "$")
+	return strings.HasPrefix(body, "{%") && strings.HasSuffix(body, "%}") && strings.Count(body, "%}") == 1
 }
 
 // lineStarts answers the byte offset each line starts at.

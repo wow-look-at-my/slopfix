@@ -1,13 +1,14 @@
 // referents.go carries the tier that does not read the wording at all: a
-// comment naming a symbol that exists nowhere is describing a tree that is
-// gone. "see TestDarwinStatfsToLinux for the pin", written beside the change
-// that deleted that test, is a tombstone with no tell in its phrasing, and no
-// rewording makes it true again.
+// comment naming a symbol that exists nowhere is describing a tree. That tree
+// is gone. "see TestDarwinStatfsToLinux for the pin", written beside the
+// change that deleted that test, is a tombstone with no tell in its phrasing,
+// and no rewording makes it true again.
 //
-// Precision comes entirely from which identifiers are eligible. A comment about
-// low-level work is full of names the repository does not define, and reporting
-// those is how a guard earns the reputation that gets it turned off. So a name
-// that is all capitals is never a candidate, and neither is a short name.
+// Precision comes entirely from which identifiers are eligible. Consider a
+// comment about low-level work. That comment is full of names the repository
+// does not define. Reporting those is how a guard earns the reputation that
+// gets it turned off. So a name that is all capitals is never a candidate, and
+// neither is a short name.
 package tombstones
 
 import (
