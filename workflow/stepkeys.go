@@ -8,11 +8,9 @@ import (
 )
 
 var (
-	// stepItem matches the line that opens a step: a sequence dash and the
-	// first key on the same row.
+	// stepItem matches the line that opens a step: a sequence dash and its first key.
 	stepItem = regexp.MustCompile(`^(\s*)-\s+([A-Za-z_][A-Za-z0-9_.-]*)\s*:`)
-	// stepKey matches a key line, with its indentation captured so a caller
-	// can tell a step's own key from one nested under it.
+	// stepKey captures a key line's indentation, so a caller can tell the step's own key from a nested one.
 	stepKey = regexp.MustCompile(`^(\s*)([A-Za-z_][A-Za-z0-9_.-]*)\s*:`)
 )
 
