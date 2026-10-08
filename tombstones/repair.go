@@ -307,11 +307,13 @@ func repairFile(f *fixer.File) {
 	}
 
 	drop := set.New[int]()
+	var stripping []Hit
 	cut := false
 	for _, h := range hits {
 		switch {
 		case h.Strippable:
 			drop.Add(h.LineNo)
+			stripping = append(stripping, h)
 		case h.ID != IDVolume:
 			// A name no whole-line strip resolves loses its sentence below.
 			cut = true
@@ -340,6 +342,18 @@ func repairFile(f *fixer.File) {
 		}
 	}
 	stripped := f.ApplyComments(strips)
+	gone := set.New[int]()
+	for _, e := range stripped.Applied {
+		for row := strings.Count(added[:e.Start], "\n"); row <= strings.Count(added[:max(e.Start, e.End-1)], "\n"); row++ {
+			gone.Add(row)
+		}
+	}
+	// A strip that did not land leaves the line in the text, so its hit is reported there.
+	for _, h := range stripping {
+		if !gone.Contains(h.LineNo) {
+			f.Note(h)
+		}
+	}
 	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished.
 	f.ApplyComments(reflowStripped(path, stripped.Text, blocksLosing(blocks, drop), len(blocks)))
 }
