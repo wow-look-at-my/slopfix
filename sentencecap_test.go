@@ -92,9 +92,7 @@ func TestALongJustfileCommentWithADashAsideIsRepaired(t *testing.T) {
 func assertEverySentenceUnderCap(t *testing.T, path, out string) {
 	t.Helper()
 	for _, f := range slopfix.CheckContent(path, out) {
-		if f.ID == ste.IDSentenceCap {
-			t.Errorf("sentence over the cap after fix: %s\n%s", f.Detail, out)
-		}
+		assert.NotEqual(t, ste.IDSentenceCap, f.ID, "sentence over the cap after fix: %s\n%s", f.Detail, out)
 	}
 }
 

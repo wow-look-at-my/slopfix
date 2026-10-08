@@ -100,10 +100,13 @@ func linePurity(b Block, li int) (lineNo int, pure bool) {
 // wording-based tell gets.
 func HitForName(blocks []Block, name string) Hit {
 	for _, b := range blocks {
-		for li, line := range strings.Split(b.Text, "\n") {
-			if !strings.Contains(line, name) {
+		lines := strings.Split(b.Text, "\n")
+		// The name is sought in the comment prose, so a code line that uses it never places the hit.
+		for li, prose := range strings.Split(b.Prose, "\n") {
+			if !strings.Contains(prose, name) || li >= len(lines) {
 				continue
 			}
+			line := lines[li]
 			lineNo, pure := linePurity(b, li)
 			return Hit{
 				ID:         ruleID(deadReferent),

@@ -19,6 +19,8 @@ type Run struct {
 	Start int
 	End   int
 	Pure  []bool
+	// Prose holds each line of the run with every byte outside a comment node written as a blank.
+	Prose []string
 }
 
 // Runs returns every comment run in src, in file order.
@@ -71,11 +73,40 @@ func merge(nodes []ts.Node, lines []string) []Run {
 				Start: start,
 				End:   end + 1,
 				Pure:  purity(nodes[i:j+1], start, end, lines),
+				Prose: prose(nodes[i:j+1], start, end, lines),
 			})
 		}
 		i = j + 1
 	}
 	return runs
+}
+
+// prose answers each line of the run with the bytes outside every comment
+// node blanked. A reader of the words then sees the comments alone.
+func prose(nodes []ts.Node, start, end int, lines []string) []string {
+	out := make([]string, end-start+1)
+	for i := range out {
+		out[i] = strings.Repeat(" ", len(lines[start+i]))
+	}
+	for _, n := range nodes {
+		from, to := int(n.StartPoint().Row), lastRow(n)
+		for row := from; row <= to && row <= end; row++ {
+			line := lines[row]
+			left, right := 0, len(line)
+			if row == from {
+				left = min(int(n.StartPoint().Column), right)
+			}
+			if row == int(n.EndPoint().Row) {
+				right = min(int(n.EndPoint().Column), right)
+			}
+			if left >= right {
+				continue
+			}
+			kept := out[row-start]
+			out[row-start] = kept[:left] + line[left:right] + kept[right:]
+		}
+	}
+	return out
 }
 
 // purity marks the lines a caller may cut. A line shared with code is never
