@@ -11,6 +11,7 @@ fixers_test.go
 fix_test.go
 runscript_test.go
 sentencecap_test.go
+tree_test.go
 ste/cap_fixtures_test.go
 ste/misdivision_test.go
 ste/semicolon_test.go
