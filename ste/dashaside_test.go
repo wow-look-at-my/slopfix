@@ -20,6 +20,26 @@ func TestADashAsideSentenceDividesUnderTheCap(t *testing.T) {
 	}
 }
 
+// A clause after a colon that names its own subject, behind a relative clause,
+// opens as it stands. The rest divides again until it is under the cap, and no
+// word is lost.
+func TestAColonRestWithARelativeSubjectDividesUnderTheCap(t *testing.T) {
+	for _, in := range []string{
+		"On the default branch the order is the release number, not the tip of the branch: a run that a later commit superseded is still the newest release of a plugin that the later run took from a cache and never published.",
+		"This is a run that a later commit superseded is still the newest release of a plugin that the later run took from a cache and never published.",
+		"A run that a later commit superseded is still the newest release of a plugin that the later run took from a cache and never published.",
+	} {
+		out := Fix(in)
+		masked := mask(in)
+		s := syntax.Parse(masked, opaque(in, masked))
+		for _, sentence := range Sentences(checkMask(out)) {
+			assert.LessOrEqual(t, WordCount(sentence), SentenceWordCap, "%s\n%s\n%s\n%s", out, s.Outline(), traceDivisions(s, in), traceForce(in))
+		}
+		assert.Contains(t, out, "never published", out)
+		assert.NotContains(t, out, "This is a run that a later commit superseded is", out)
+	}
+}
+
 // traceForce writes what each forced division answers for source.
 func traceForce(source string) string {
 	masked := checkMask(source)

@@ -58,13 +58,14 @@ func TestAColonDivisionThatLeavesALongRestDividesAgain(t *testing.T) {
 	src := "/**\n" +
 		" * On the default branch the order is the release number, not the tip of the branch: a run that a later commit superseded is still the newest release of a plugin that the later run took from a cache and never published.\n" +
 		" */\n" +
-		"export function order(): void {}\n"
+		"export function order(): void {\n" + strings.Repeat("\tstep();\n", 60) + "}\n"
 	path := "orphan-release/src/index.ts"
 	require.Contains(t, findingIDs(slopfix.CheckContent(path, src)), ste.IDSentenceCap, "the control: the comment is over the cap")
 
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: path, MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
 	assertEverySentenceUnderCap(t, path, out)
 	assert.Empty(t, quoted(slopfix.CheckContent(path, out)), out)
+	assert.Contains(t, strings.ReplaceAll(out, "\n * ", " "), "never published.", out)
 }
 
 // A justfile comment whose sentence holds a code span with dots, a dash
