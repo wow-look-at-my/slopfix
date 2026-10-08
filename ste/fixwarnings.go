@@ -113,31 +113,30 @@ func fixParagraphs(text string) string {
 // fixClauseWarnings rewrites each sentence a clause warning reports, until no
 // clause of the text carries one.
 func fixClauseWarnings(prose string, keep func(id string) bool) string {
-	for range clauseRounds * (len(strings.Fields(prose)) + 1) {
-		next, changed := rewriteWarningClause(prose, keep)
-		if !changed {
-			break
-		}
-		prose = next
+	var out strings.Builder
+	last := 0
+	for _, span := range sentenceSpans(prose) {
+		out.WriteString(prose[last:span[0]])
+		out.WriteString(fixSentenceWarnings(prose[span[0]:span[1]], keep))
+		last = span[1]
 	}
-	return prose
+	out.WriteString(prose[last:])
+	return out.String()
 }
 
-// rewriteWarningClause rewrites the first sentence that carries a clause
-// warning, and reports whether it changed anything.
-func rewriteWarningClause(prose string, keep func(id string) bool) (string, bool) {
-	for _, span := range sentenceSpans(prose) {
-		text := prose[span[0]:span[1]]
+// fixSentenceWarnings rewrites one sentence until no clause warning its rules
+// repair is left in it. A rewrite stays inside its sentence.
+func fixSentenceWarnings(text string, keep func(id string) bool) string {
+	for range clauseRounds * (len(strings.Fields(text)) + 1) {
 		masked := mask(text)
 		off := opaque(text, masked)
-		s := syntax.Parse(masked, off)
-		rewritten, ok := rewriteSentence(s, text, off, keep)
+		rewritten, ok := rewriteSentence(syntax.Parse(masked, off), text, off, keep)
 		if !ok || rewritten == text {
-			continue
+			break
 		}
-		return prose[:span[0]] + rewritten + prose[span[1]:], true
+		text = rewritten
 	}
-	return prose, false
+	return text
 }
 
 // fixInstructions divides each instruction over InstructionWordCap, as the

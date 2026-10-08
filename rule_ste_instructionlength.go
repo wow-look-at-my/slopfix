@@ -11,8 +11,8 @@ func init() {
 		Detect:   detectInstructionLength,
 		Autofix:  autofixInstructionLength,
 		Cases: []RuleCase{{Name: ste.IDInstructionLength, Path: "w.md",
-			Text: "The gate reads the task and the caller waits for it before the next step " +
-				"starts and the count goes to the table.\n"}},
+			Text: "Read the task from the disk and write the count to the table for the caller " +
+				"before the next step of the build starts.\n"}},
 	})
 }
 

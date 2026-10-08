@@ -80,13 +80,16 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 	defer trace.Phase("slopfix/fixtree")()
 
 	var out TreeRepair
-	if wantsRepo(req) && isRepoRoot(root) {
+	repository := func() {
+		if !wantsRepo(req) || !isRepoRoot(root) {
+			return
+		}
 		SetPhase("repository rules", 0)
 		findings, changed, created, err := repoRun(root, keepsOf(req), writing, writableIn(req.Fork))
 		if err != nil {
 			findings = append(findings, repoFinding(root, IDBudget, "the repository rules could not read the tree", err.Error()))
 		}
-		// A file the move created is new once committed, so the fork's check judges all of it. This walk must judge it too.
+		// A file the move created is new once committed, so the fork's check judges all of it.
 		if req.Fork != nil {
 			for _, path := range created {
 				req.Fork.Claim(path)
@@ -94,6 +97,10 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		}
 		out.Findings = append(out.Findings, findings...)
 		out.Repaired = append(out.Repaired, changed...)
+	}
+	// A repair of the files changes their size, so a write measures the repository after it.
+	if !writing {
+		repository()
 	}
 	SetPhase("list the files", 0)
 	paths := commentfix.TreeFilesMatching(root, Reads)
@@ -142,6 +149,9 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 		for _, kept := range repair.Kept {
 			out.Kept = append(out.Kept, TreeTombstone{Path: path, Hit: kept})
 		}
+	}
+	if writing {
+		repository()
 	}
 	for _, f := range out.Findings {
 		mustBeRegistered(f.ID)

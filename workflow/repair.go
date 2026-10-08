@@ -53,7 +53,6 @@ func init() {
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
 	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
 	register("yaml/set-concurrency", IDConcurrency, 70, setConcurrency, false)
-	register("yaml/drop-tests", IDTestInYAML, 80, dropTests, false)
 }
 
 // Options are the gates a workflow is written through, for the driver to open

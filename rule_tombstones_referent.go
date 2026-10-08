@@ -23,9 +23,22 @@ func init() {
 	})
 }
 
-// detectDeadReferent answers every name a comment carries that no file holds.
+// detectDeadReferent answers every name a comment of the repository carries
+// that no other file holds.
 func detectDeadReferent(c RuleCase) []ste.Finding {
-	return caseFindings(c, tombstones.IDDeadReferent)
+	var out []ste.Finding
+	for _, path := range fixtureFiles(c) {
+		for _, hit := range tombstones.DeadReferentHits(path, readFixture(path)) {
+			out = append(out, ste.Finding{
+				Line:   hit.LineNo + 1,
+				ID:     tombstones.IDDeadReferent,
+				Rule:   hit.Tell,
+				Detail: hit.Phrase,
+				Fix:    "Cut the sentence that names it. `slopfix fix` does this.",
+			})
+		}
+	}
+	return out
 }
 
 // autofixDeadReferent strips the comment line or cuts the sentence that holds

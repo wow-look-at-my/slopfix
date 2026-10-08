@@ -281,3 +281,14 @@ func RepoRoot(path string) string {
 		dir = parent
 	}
 }
+
+// DeadReferentHits answers a hit for each name the comments of text carry
+// that no other file of the repository holds.
+func DeadReferentHits(path, text string) []Hit {
+	blocks := AddedBlocks(path, text)
+	var out []Hit
+	for _, name := range DeadReferents(path, text, blocks) {
+		out = append(out, HitForName(blocks, name))
+	}
+	return out
+}

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
@@ -88,16 +87,6 @@ func RepairTests(content string) string {
 		}
 	}
 	return strings.Join(kept, "\n")
-}
-
-// dropTests is the fixer's form of RepairTests: an edit per run of rows that
-// carry a test.
-func dropTests(content string) []edit.Edit {
-	rows := testRows(content)
-	if rows.Len() == 0 {
-		return nil
-	}
-	return dropRows(content, rows)
 }
 
 // testRows answers the rows, counted from zero, that carry a test. A run:

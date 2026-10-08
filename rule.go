@@ -72,6 +72,17 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 			return c, err
 		}
 	}
+	// The files are committed, because a rule about a committed file asks git what the tree holds.
+	commit := [][]string{
+		{"add", "-A"},
+		{"-c", "user.name=slopfix", "-c", "user.email=slopfix@localhost", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
+			"commit", "-q", "--allow-empty", "-m", "fixture"},
+	}
+	for _, args := range commit {
+		if out, err := gitmod.Command(dir, args...).CombinedOutput(); err != nil {
+			return c, fmt.Errorf("git %v in %s: %w: %s", args, dir, err, out)
+		}
+	}
 	c.Files, c.Root = nil, dir
 	return c, nil
 }
