@@ -27,7 +27,7 @@ func TestAKeyNestedUnderAStepMayRepeat(test *testing.T) {
 	assert.Empty(test, workflow.Check(content))
 }
 
-// Each step starts its own key set, so two steps naming the same key is
+// Each step starts its own key set, so steps naming the same key is
 // ordinary.
 func TestTwoStepsMayNameTheSameKey(test *testing.T) {
 	content := "on: push\njobs:\n  build:\n    steps:\n      - name: one\n        run: echo hi\n      - name: two\n        run: echo bye\n"
