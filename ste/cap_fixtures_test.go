@@ -162,8 +162,28 @@ var capSentences = []string{
 	"A criterion whose code is present but whose integrated behavior is wrong, unreachable, or unusable is `refuted: true`, as is anything that fails to compile, fails its tests, or errors at runtime.",
 	"Parses through the bridge first, which reverse-maps client-facing parameter names to canonical ones — a harness may rename `todos` the same way it renames the tool — and yields the typed input the tool itself would see.",
 	"With the server's prefetch config off, which is the default, the client's flags change nothing: a batch carries exactly the requested keys, even from a client that still sets prefetch on the request its build is blocked on.",
+	"In short: `eviction.max_bytes` (default 50 GiB, or the `CACHE_MAX_BYTES` env var) is the LRU bound, `eviction.max_age` (default off) is the optional TTL, `eviction.interval` (default 24h) is the sweep cadence, and setting both limits to 0 disables eviction - which the server warns about, because the cache then grows until the disk fills.",
 	"Then every client it refuses rebuilds anyway -- having earliest paid for the round trip -- so a cache that sheds is worse than no cache at all.",
+	"Under the default `relatime` it moves at most once a day, which is the resolution a multi-day eviction window needs. — the point — it **survives restarts**.",
+	"Under the default `relatime` it moves at most once a day, which is the resolution a multi-day eviction window needs, and - the point - it **survives restarts**.",
+	"A self-reconcile runs handleEvent, whose first outbound call is the secret-server fetch on the GLOBAL fetch (not the injected inbox fetch) — so counting hits on a real local secret-server is a direct, observable witness that the periodic pass EXECUTED, not merely that the loop spun.",
+	"One page (per_page=100) with a loud note when the total exceeds it: a fleet with >100 simultaneously labeled open PRs has bigger problems than a partial reconcile (the next tick re-searches).",
+	"One mirror notification's primary work: the same per-SHA lock the direct event path takes, then reconcileCommit -- the exact function every drain visit already calls for a commit with no live payload, which is what a mirror notification always is.",
+	"One mirror notification's primary work: the same per-SHA lock the direct event path takes, then reconcileCommit — the exact function every drain visit already calls for a commit with no live payload, which is what a mirror notification always is.",
+	"A map that carries no information is wasteful.",
+	"The file, which fails, is gone.",
+	"A user who reads the message leaves.",
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.
-var capPending []string
+// Each is a real comment. A division turns half of each into a fragment. The
+// reaching repair would have to write words the author did not. A subject for a
+// participial list item, a finite verb for a participle, or a subject for an
+// aside the sentence interrupts. The rule owns no rephrase for those.
+var capPending = []string{
+	"Bulk.txt v0 feat = A + shared.txt changed on the head side (the \"PR branch\") M1 = A + shared.txt changed differently (the conflict) + bulk.txt changed (a base-only blob the merge MUST materialize) Returns every sha the tests need.",
+	"Triggered by (A) a synchronize whose sender is not our own App bot and whose head the self-push recognizer cannot attribute to us, and (B) the leasehead guard catching a head that moved with no synchronize seen (same recognizer, same fallback).",
+	"With no settle record (prev == null) every later re-aggregation of a settled-green commit used to read as a \"first green\" and republish `pending` over the live `success` — the known first-green regression.",
+	"unless they have no commits unique to them (aka git checkout -b some-new-branch && git push = don't create and close a pr for this 'empty' branch)\" — and the follow-up: \"btw you need to *merge* zero-diff PRs so it wraps everything up properly and deletes the branhc.",
+	"The state CLIENT's own wire contract (get/put/delete/list, acquire/steal, the declared wait and its degradations) is covered once in sdk/state.test.ts — against a REAL local HTTP server rather than this suite's mock — now that this hook shares the SDK client.",
+}

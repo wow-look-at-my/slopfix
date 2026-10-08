@@ -402,7 +402,7 @@ func opensSentence(rest []rune) bool {
 	switch first := rest[0]; {
 	case unicode.IsUpper(first), unicode.IsDigit(first):
 		return true
-	case strings.ContainsRune("(`'\"*_[§¶“‘", first):
+	case strings.ContainsRune("(`'\"*_[§¶“‘—–", first):
 		return true
 	}
 	// A masked code span is a run of x, and opens a sentence as its backtick does.

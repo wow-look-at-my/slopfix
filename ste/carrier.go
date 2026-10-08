@@ -127,6 +127,11 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	// clause before it and names the subject again. "One call — with no turn of
 	// its own — leaves X" becomes "One call. It leaves X".
 	if seamIsDash(seam) {
+		// "— keeping it out here will let X": a gerund opens a subject of its
+		// own, so the words after the dash stand without the subject named again.
+		if w := whole.Words[first]; w.Tag == "VBG" && opensSubject(whole, first) && StandsAlone(capitalizeOpening(rest)) {
+			return head, capitalizeOpening(rest), opensWithCarrier
+		}
 		switch {
 		case verbAt(whole, first) && participleAfterDash(whole, first, main, hasMain):
 			// "says — asserted as X" is passive: "It is asserted as X", not "It asserted as X".
@@ -151,6 +156,12 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if (seam == "," || seam == "") && (lower == "and" || lower == "or") && strings.HasPrefix(prev.Tag, "NN") &&
 		first+1 < len(whole.Words) && verbAt(whole, first+1) {
 		clause := strings.TrimLeft(rest[len(word.Text):], " ")
+		// "and setting both limits to 0 disables eviction". A gerund opens a
+		// subject of its own, so the words after the conjunction stand as a
+		// sentence without the main clause's subject named again.
+		if w := whole.Words[first+1]; w.Tag == "VBG" && opensSubject(whole, first+1) && StandsAlone(capitalizeOpening(clause)) {
+			return head, capitalizeOpening(clause), opensWithCarrier
+		}
 		if subject := subjectFor(source, checkMask(source), c, whole.Words[first+1].Tag); subject != "" {
 			return head, capitalizeOpening(subject) + " " + clause, opensWithCarrier
 		}
@@ -602,31 +613,6 @@ func passive(s *syntax.Sentence, verb syntax.Phrase) bool {
 		}
 	}
 	return false
-}
-
-// nounText answers the source text of a word, a whole code span where the
-// word is the filler the mask wrote over one.
-func nounText(source string, w syntax.Word) string {
-	return source[outsideSpans(source, w.Start, false):outsideSpans(source, w.End, true)]
-}
-
-// restate writes "That <noun> is <rest>", or "Those <nouns> are <rest>".
-func restate(source string, noun syntax.Word, rest string) string {
-	det, be := "That", "is"
-	if noun.Tag == "NNS" || noun.Tag == "NNPS" {
-		det, be = "Those", "are"
-	}
-	return det + " " + nounText(source, noun) + " " + be + " " + rest
-}
-
-// restateBare writes "That <noun> <rest>", where rest opens with the verb of a
-// relative clause that already agrees with the noun.
-func restateBare(source string, noun syntax.Word, rest string) string {
-	det := "That"
-	if noun.Tag == "NNS" || noun.Tag == "NNPS" {
-		det = "Those"
-	}
-	return det + " " + nounText(source, noun) + " " + rest
 }
 
 // becauseDivision divides at "because" when no other boundary serves, and opens
