@@ -151,6 +151,30 @@ func TestATrailingCommentNamingADeadSymbolIsReported(t *testing.T) {
 	assert.False(t, hit.Strippable)
 }
 
+// Document prose that grok-build's check reported: emphasis underscores and product names.
+func TestDocumentEmphasisAndProductNamesAreNotReferents(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\n"), 0o644))
+
+	path := filepath.Join(dir, "a.md")
+	src := "Treat it as _already established_ by the user.\n\n" +
+		"The proxy speaks WebSockets and HTTP.\n\n" +
+		"Copyright (c) PCRE2Project and its contributors.\n"
+	assert.Empty(t, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
+// A bare snake_case name in a document still names a symbol.
+func TestDocumentSnakeCaseNameIsStillJudged(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\n"), 0o644))
+
+	path := filepath.Join(dir, "a.md")
+	src := "Set legacy_retry_flag to turn it off.\n"
+	assert.Equal(t, []string{"legacy_retry_flag"}, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
 func TestRepoRootFindsTheTreeAboveAFile(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
