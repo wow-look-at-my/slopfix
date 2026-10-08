@@ -303,9 +303,9 @@ func repairFile(f *fixer.File) {
 		case h.ID != IDVolume:
 			// A name no whole-line strip resolves loses its sentence below.
 			cut = true
-		default:
-			// The cap cut ran above, so a block still over the cap has no whole-sentence cut.
-			h.Fix = FixVolumeByHand
+		case cuttable(added, blocks, maxLines, h.LineNo):
+			// The cap cut lands outside the scope this run writes, so the block is still over the cap.
+			h.Fix = "Cut the run from its end down to the cap. `slopfix fix` does this."
 			f.Note(h)
 		}
 	}
@@ -464,13 +464,28 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 				edits = append(edits, edit.Rows(text, row, row, 0, []string{trimmed}))
 				continue
 			}
-			// No kept row holds a sentence end, so rows go from the end until one ends a sentence, or the prose is gone.
+			// Rows go from the end until a kept row ends a sentence. A block with no such row keeps its prose.
 			for !endsOnSentence(lines, b, drop) && dropLastKept(lines, b, drop) {
+			}
+			if !endsOnSentence(lines, b, drop) {
+				continue
 			}
 		}
 		edits = append(edits, stripEdits(text, drop)...)
 	}
 	return edits
+}
+
+// cuttable reports whether the cap cut has an edit for the block whose first
+// line, counted from one, is lineNo. A block it cannot end on a sentence keeps
+// its prose, so no finding names it.
+func cuttable(text string, blocks []Block, maxLines, lineNo int) bool {
+	for _, b := range blocks {
+		if len(b.LineNos) > 0 && b.LineNos[0]+1 == lineNo {
+			return len(capEdits(text, []Block{b}, maxLines)) > 0
+		}
+	}
+	return false
 }
 
 // dropLastKept adds the last prose row a drop keeps to it, and reports false

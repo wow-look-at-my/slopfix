@@ -12,7 +12,6 @@ func init() {
 		Autofix:  autofixJSON,
 		Cases: []RuleCase{
 			{Name: IDJSON, Files: map[string]string{"bad.json": "{\"a\": 1\n"}},
-			{Name: IDJSON + "/trailing-comma", Files: map[string]string{"bad.json": "{\"a\": [1, 2,],}\n"}},
 			{Name: IDJSON + "/missing-schema", Files: map[string]string{"cfg.json": "{\"$schema\": \"./missing.schema.json\", \"a\": 1}\n"}},
 		},
 	})

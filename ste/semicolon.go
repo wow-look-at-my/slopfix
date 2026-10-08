@@ -10,7 +10,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-
 // ByHand reports whether a Fix text asks for a rewrite by hand, which no repair writes.
 func ByHand(fix string) bool { return strings.HasPrefix(fix, "Rewrite it by hand") }
 

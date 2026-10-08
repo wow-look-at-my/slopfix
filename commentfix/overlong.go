@@ -28,7 +28,6 @@ import (
 // IDLength names this rule, on a report and on the command line alike.
 const IDLength = "comments/length"
 
-
 // floorChars is the size a comment may always be, whatever it documents.
 const floorChars = 120
 
@@ -60,7 +59,9 @@ type block struct {
 	header bool
 }
 
-// Check reports every comment block in src that outweighs its code.
+// Check reports every comment block in src that outweighs its code and that
+// the repair brings inside its budget. A block no cut fits keeps its opening
+// sentence whole, so no repair answers it and no finding names it.
 func CheckLength(filename, src string) []LengthHit {
 	defer trace.Phase("rule/comments-length")()
 	var hits []LengthHit
@@ -73,13 +74,15 @@ func CheckLength(filename, src string) []LengthHit {
 			continue
 		}
 		fixed := repair(b)
-		_, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars})
+		if _, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars}); stillOver || !b.exact || sameText(fixed, b.text) {
+			continue
+		}
 		hits = append(hits, LengthHit{
 			ID:         IDLength,
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && !sameText(fixed, b.text) && !stillOver,
+			Repairable: true,
 		})
 	}
 	return hits
@@ -250,12 +253,10 @@ func repair(b block) []string {
 	}
 	// The pragma stays. Its free text is the prose left to cut.
 	if bare := withoutPragmaProse(b.text); !sameText(bare, b.text) {
-		if out = repairProse(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: bare, exact: b.exact}); fitsCode(out, b) {
-			return out
-		}
+		b.text = bare
+		return repairProse(b)
 	}
-	// No cut ends on a whole sentence inside the budget, so the prose goes and the directives stay.
-	return directivesOf(withoutPragmaProse(b.text))
+	return out
 }
 
 // repairProse rewrites a block's prose and puts its directive lines back verbatim.
