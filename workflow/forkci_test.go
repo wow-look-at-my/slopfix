@@ -117,7 +117,7 @@ func rowOf(t *testing.T, content, prefix string) int {
 }
 
 // A header of prose and column-aligned rows is a comment block like any
-// other: every row counts toward the limit, and the run is a single finding.
+// other: every row counts toward the limit. The run is a single finding.
 func TestACommentTableIsACommentBlock(t *testing.T) {
 	content := fixture(t, "fork-ci-header.yml.in")
 
