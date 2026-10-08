@@ -210,6 +210,8 @@ These are hook guards. `check --message` also runs `ask/prose-decision`, and `re
 
 `auto-allow` approves read-only work and refuses a program this environment does not run. The table is `autoallow/rules.xml`, embedded and checked by `rules.xsd`. MCP trust is per SERVER, not per tool-name pattern.
 
+A rule with `wholeCommand="true"` refuses only a command that runs nothing else. The `true`, `false` and `:` rules work this way. A list that holds real work is never refused for a no-op inside it, because clean-bash repairs that list. A `while` loop on a bare `true` or `:` waits like `until`, and the `until` rule refuses it.
+
 The binary is registered on PermissionRequest and PreToolUse. In `cli.js` (checked at `2.1.220`), `createCanUseTool` evaluates the rules first. PermissionRequest hooks run only on the "ask" path. `defaultMode: "auto"` answers first. A deny that rides PermissionRequest thus never fires in auto mode.
 
 PreToolUse fires before the permission pipeline, whatever its outcome. A deny there stops the tool. The reason reaches the model as an error result. Deny therefore rides PreToolUse. Allow rides PermissionRequest, where it never outranks the user. `denyOnly` in `run.go` drops every non-deny verdict on PreToolUse. The events want different output objects. `decisionPayload` therefore branches on the event. The verdict comes from `tool_input` alone. A call judged on both events is therefore harmless.
@@ -242,7 +244,8 @@ Denials: `heredoc`, `perl` (`^perl[0-9.]*$` as the effective command), `shred`, 
 - `grep_json` turns a `grep`, `egrep`, `fgrep` or `rg` over JSON files into `jq`. A fixed head and tail of each file decide, not the extension. JSON Lines prints each matching record. A document prints `.path = value` for each matching leaf. An unknown flag or a non-JSON operand leaves the grep alone. `bashclean/grepjson.xml` holds the programs, their flags, the fixtures and the tests beside each entry.
 - `gh_wait_ci` maps `gh run view`, `watch`, `rerun`, `list` and `gh pr checks` to `gh wait-ci`.
 - `sleep_cap` writes `sleep 3` for any sleep past `3` seconds or not literal.
-- `narration_remove` turns an `echo` that reaches the terminal into `:`.
+- `narration_remove` drops an `echo` or a `printf` of constant text that reaches the terminal from its list or chain. In a pipeline, or where its status decides a condition, it becomes `:`. A command whose only work is narration stays as written.
+- `noop_remove` drops a bare `true` or `:` from a list or chain that does real work. A no-op stays where nothing else runs, as a pipeline stage. Those stays are as the last statement of a nested list, and before a read of `$?`. A `false` stays, because it fails the list.
 - `pipefail` injects `set -o pipefail`. A `tee` then never masks a failure.
 
 ## What no rule reads

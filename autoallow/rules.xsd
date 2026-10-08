@@ -101,6 +101,8 @@
          stripped, version ignored. -->
     <xs:attribute name="command" type="xs:string"/>
     <xs:attribute name="inlineScript" type="xs:boolean"/>
+    <!-- Match only a command that runs nothing but programs such rules name. -->
+    <xs:attribute name="wholeCommand" type="xs:boolean"/>
     <xs:attribute name="evalFlags" type="xs:string"/>
     <xs:attribute name="evalSubcommands" type="xs:string"/>
     <xs:attribute name="message" type="xs:string"/>
