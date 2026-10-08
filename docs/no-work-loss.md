@@ -66,9 +66,9 @@ Any change to file content in the working tree goes through Write, Edit or Noteb
 
 | Shape | Example | Denies when |
 |---|---|---|
-| named path | `sed -i x.go`, `> x.go`, `cp a x.go` | the path is in a guarded root and not under a build directory |
+| named path | `> x.go`, `cp a x.go` | the path is in a guarded root and not under a build directory |
 | whole directory | `patch`, `tar -x`, `git apply` | the directory holds or sits in a guarded root |
-| opaque | `node -e`, an `xargs`-fed `sed -i`, a GitHub API commit | always |
+| opaque | `node -e`, a GitHub API commit | always |
 
 - Routes include editors, `busybox` applets, every file redirect, `tee`, `dd of=`, `truncate -s`, `sponge`, `xxd -r`, `sort -o`, `split`, compressors without `-c`, `zip`, `docker cp`, `yq -i` and `ln`.
 - `ln -s` passes when its target is a relative path to a file in the same tree, outside a build directory. No edit tool makes a symlink, and that link adds no text. A target that leaves the tree, or a link through a link that leaves it, is still a write. `ln -f` over a file with an edit keeps the edit first, like `mv`.

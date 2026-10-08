@@ -9,6 +9,8 @@ slopfix fix [path...]             # the same as check --fix
 slopfix check --path doc.md < doc.md          # judge stdin as text headed for doc.md
 slopfix check --json --path doc.md < doc.md   # JSON findings for text on stdin
 slopfix check --message < message.txt         # judge a closing message
+slopfix check --staged [path...]              # only the lines staged against HEAD
+slopfix fix --diff origin/master [path...]    # only the lines that differ from a revision
 slopfix check workflow-permission --permission id-token --json   # does the running job hold it
 slopfix hook < payload.json       # answer a Claude Code hook event
 slopfix lsp                       # a language server on stdio, for the editor plugin
@@ -24,7 +26,9 @@ slopfix lsp                       # a language server on stdio, for the editor p
 - With no path argument, `check` reads stdin. A repair goes to stdout. The findings go to stderr.
 - `--json` on stdin writes one object: `path`, `findings`, and with `--fix` the repaired `text`. Each finding carries `id`, `line`, `endLine`, `rule`, `detail`, `fix`, `repairable` and `severity`. It exits 0 on a finding, because the caller decides what a finding means.
 - `--message` reads stdin as a closing message and runs the message rules. `--only` then takes a message rule or a family such as `blame`.
-- `check workflow-permission [workflow] --permission NAME [--level write] [--job JOB] [--json]` asks whether a job holds a permission. The job block wins, then the workflow block, then the repository default, which reads as `none`. A missing grant is a finding. In a step, the workflow file comes from `GITHUB_WORKFLOW_REF` and the job from `GITHUB_JOB`. `--json` writes `granted`, `level`, `source` and `message`. The `has-permission` action in `wow-look-at-my/actions` wraps it.- `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
+- `--staged` and `--diff REV` narrow the run to the lines a change introduced. `--staged` reads the index against HEAD (`git diff --cached -U0`). `--diff` reads the work tree against `REV` (`git diff REV -U0`). Only a finding whose line the selector names is reported, and only those lines are repaired. A run with neither flag is unchanged. A file outside the fork scope stays untouched either way.
+- `check workflow-permission [workflow] --permission NAME [--level write] [--job JOB] [--json]` asks whether a job holds a permission. The job block wins, then the workflow block, then the repository default, which reads as `none`. A missing grant is a finding. In a step, the workflow file comes from `GITHUB_WORKFLOW_REF` and the job from `GITHUB_JOB`. `--json` writes `granted`, `level`, `source` and `message`. The `has-permission` action in `wow-look-at-my/actions` wraps it.
+- `--max-comment-lines` sets the tombstone volume cap. `0` turns the cap off.
 - `fmt`, `purge`, `comments` and `workflows` do not exist as commands. The wrap join is the `wrap/hard-wrap` rule. The purge is the `repo` category. The comment and workflow rules run inside `check` on each file they judge.
 
 ## Selecting rules with --only
@@ -42,6 +46,20 @@ The categories are `tombstones`, `counts`, `wrap`, `ste`, `english`, `comments`,
 
 A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream. A hand wrap hides half of it. So an `ste`, `english` or `counts` word rule also joins the paragraph it repairs.
 
+## Scoping a repair to a changed line
+
+A repair usually runs over a whole file, which in a fork cuts the parent's comments too. `--staged` and `--diff REV` scope the run to the lines the change itself introduced. The way the per-edit write hook already scopes a repair to the span an edit writes.
+
+```sh
+slopfix fix --staged                  # repair the lines this commit will add
+slopfix fix --diff origin/master .    # repair the lines this branch adds
+slopfix check --staged .              # fail only on a finding this commit introduces
+```
+
+The line set comes from `git diff -U0`. `--staged` runs it with `--cached`. The set is the index against HEAD. `--diff REV` runs it against `REV`. The set is the work tree against that revision. Each `-U0` hunk names the new-side range it added or changed. Those line numbers are the selected set for that file. A file the diff created counts whole. A finding whose line is not in the set is neither reported nor repaired.
+
+With a selector, `check` exits nonzero when a selected finding remains and zero otherwise, which is what a pre-commit hook reads. A selector needs a file or a directory argument. It cannot be combined with `--message`. A file outside the fork scope stays untouched, because the fork scope still applies on top of the selector.
+
 ## lsp
 
 `slopfix lsp [--max-per-file N]` speaks the Language Server Protocol on stdio with full document sync. It publishes the `check` findings for each open file that a build reads: a file in a work tree that a rule reads, outside `~/.claude`. Every diagnostic is an error. The `yaml` and `ste` families rank first and `wrap` ranks last. Past the cap, the last diagnostic sent counts the rest.
@@ -56,7 +74,7 @@ A word repair and the wrap join share a pass. A rule reads a paragraph as a sent
 |---|---|
 | PreToolUse | `clean-bash`, `write`, `no-work-loss`, `auto-allow`, `busy-poll` |
 | PermissionRequest | `auto-allow` |
-| PostToolUse | `md-budget`, `read-output` |
+| PostToolUse | `md-budget` |
 | SessionStart | `md-budget` |
 | Stop | `busy-poll`, `md-budget`, `laziness` |
 | MessageDisplay | `link-refs`, `blame-language`, `ask-properly` |

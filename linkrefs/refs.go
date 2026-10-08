@@ -1,5 +1,6 @@
 // refs.go finds the references a message hands the reader with nothing to
-// click: an issue or PR number, a commit SHA, a branch slug, a bare GitHub URL.
+// click. This covers an issue or PR number, a commit SHA, a branch slug, a bare
+// GitHub URL.
 //
 // Each match carries the byte range it occupies, because the caller rewrites
 // the reference in place rather than reporting it. Text that is already a link
@@ -171,9 +172,8 @@ func isAlnum(b byte) bool {
 	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
 }
 
-// validSHA requires both a digit and a hex letter, which is what separates a
-// commit from a decimal number (a timestamp, a byte count) and from an
-// ordinary word spelled in a-f ("defaced", "cabbage").
+// validSHA requires both a digit and a hex letter. That separates a commit from a decimal number (a timestamp, a byte count). It also separates a commit from an ordinary word
+// spelled in a-f ("defaced", "cabbage").
 func validSHA(token string) bool {
 	hasDigit, hasLetter := false, false
 	for _, r := range token {

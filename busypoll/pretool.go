@@ -1,5 +1,5 @@
-// pretool.go is the deny half: a status read is refused BEFORE it runs, so
-// the wasted call costs nothing rather than costing a round trip and then
+// pretool.go is the deny half: a status read is refused BEFORE it runs.
+// The wasted call costs nothing rather than costing a round trip and then
 // earning a note about it at Stop.
 //
 // The rules here answer the same question -- can this call learn anything? A

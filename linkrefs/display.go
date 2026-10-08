@@ -2,9 +2,9 @@
 // open arrives clickable.
 //
 // This is the whole enforcement. There is no Stop hook and nothing is sent back
-// to the model, because the token plus the checkout determine the URL, so the
-// hook writes it. Asking the model to re-emit the message costs a round trip,
-// and the reply explaining itself names the reference again and trips the
+// to the model, because the token plus the checkout determine the URL. The hook
+// writes it. Asking the model to re-emit the message costs a round trip, and
+// the reply explaining itself names the reference again. The message trips the
 // guard again.
 //
 // displayContent is display-only, verified against the shipped bundle: the
@@ -20,8 +20,8 @@ import (
 )
 
 // RewriteDelta returns the rendered form of a flush, and whether anything
-// changed. A false return means print nothing, which leaves the CLI showing the
-// original text.
+// changed. A false return means print nothing, which leaves the CLI showing
+// the text.
 func RewriteDelta(delta string, insideFence bool, res Resolver) (string, bool) {
 	if delta == "" {
 		return "", false

@@ -1,5 +1,4 @@
-# check read-plan prints how a Bash read maps onto Read calls. The hook's
-# read-output guard uses the same mapping to show a mapped read as Read shows it.
+# check read-plan prints how a Bash read maps onto Read calls.
 #
 # Commands exec the freshly built binary as
 # "${GO_TOOLCHAIN_DATS_BUILD_DIR:-build}/slopfix", the same as no-work-loss.dats.

@@ -10,9 +10,9 @@ import (
 
 // The allow path's reader. It gives up on anything it cannot fully resolve --
 // a redirect, an expansion, a substitution -- because refusing to read is the
-// safe answer when the verdict would be "allow". The deny path in
-// deny_process.go walks the same tree and never gives up, for the same reason
-// in reverse.
+// safe answer. This happens when the verdict would be "allow". The deny path
+// in deny_process.go walks the same tree and never gives up, for the same
+// reason in reverse.
 
 func parseAllCommands(command string) [][]string {
 	parser := syntax.NewParser()

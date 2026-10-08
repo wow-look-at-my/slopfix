@@ -14,7 +14,7 @@ import (
 
 // Each retired marketplace plugin, and what carries its rule now.
 type home struct {
-	// plugin is the directory that used to hold the rule.
+	// plugin is the directory.
 	plugin string
 	// command is the subcommand a launcher execs.
 	command string
@@ -41,7 +41,7 @@ var migrated = []home{
 }
 
 // Every retired plugin reaches a registered subcommand and a guard that hook
-// runs, and every rule it is asked for by name is a rule this binary knows.
+// runs. Every rule it is asked for by name is a rule this binary knows.
 func TestEveryRetiredPluginHasAHome(t *testing.T) {
 	for _, h := range migrated {
 		t.Run(h.plugin, func(t *testing.T) {
@@ -59,7 +59,7 @@ func TestEveryRetiredPluginHasAHome(t *testing.T) {
 	}
 }
 
-// example-plugin was deleted on purpose. It carried no rule.
+// The example plugin carried no rule, so no home names it.
 func TestTheExamplePluginIsNotMigrated(t *testing.T) {
 	for _, h := range migrated {
 		assert.NotEqual(t, "example-plugin", h.plugin)

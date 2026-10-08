@@ -24,8 +24,8 @@ func TestARuleIDCannotBeDeclaredTwice(t *testing.T) {
 	assert.True(t, every.Union(ste.AllIDs).Equal(every))
 }
 
-// The negative control. A set the caller really adds a NEW name to grows, so
-// the case above passes because the duplicate collapsed rather than because
+// The negative control. A set the caller adds a NEW name to grows, so the
+// case above passes because the duplicate collapsed rather than because
 // nothing was added.
 func TestANewRuleIDDoesGrowTheSet(t *testing.T) {
 	every := slopfix.AllIDs()
@@ -51,7 +51,7 @@ func TestTheListingAPersonReadsIsAlphabeticalAndStable(t *testing.T) {
 }
 
 // The negative control for the case above. An unsorted listing of the same
-// names really does differ, so the assertion can fail.
+// names does differ, so the assertion can fail.
 func TestAnUnsortedListingIsNotWhatIsPrinted(t *testing.T) {
 	names := slices.Sorted(slopfix.AllIDs().All())
 	require.Greater(t, len(names), 1)

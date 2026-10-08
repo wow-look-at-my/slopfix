@@ -1,6 +1,6 @@
 // Package treecomments answers where the comments are, from a real syntax tree.
 //
-// It is the substrate adapter a comment rule reads: a comment is a node whose
+// It is the substrate adapter a comment rule reads. A comment is a node whose
 // type carries "comment", which is how every grammar spells it, so nothing here
 // names a language. A marker inside a string literal is not a comment, and a
 // comment following code on its line is included, both because the parser says.
@@ -76,7 +76,7 @@ func grammarFor(filename string) (language *ts.Language, named bool) {
 
 // languageFor answers the grammar to read a file with. It is nil when the
 // grammar has no parse tables, which it reports, and nil for a file of unknown
-// syntax, which it does not: a `#` opens a directive in GLSL and a selector in
+// syntax, which it does not. A `#` opens a directive in GLSL and a selector in
 // CSS, so reading such a file as shell would cut code.
 func languageFor(filename string) *ts.Language {
 	language, named := grammarFor(filename)
@@ -177,6 +177,9 @@ func Extract(filename, src string) []Comment {
 	}
 	if IsCMake(filename) {
 		out = cmakeLineComments(src, out)
+	}
+	if isYAML(filename) {
+		out = yamlLineComments(src, out)
 	}
 	return out
 }
@@ -293,8 +296,9 @@ func dropDockerDirectives(comments []Comment) []Comment {
 // parse runs the grammar over the source and answers the root to walk, or
 // reports that there is none.
 //
-// It carries a phase name of its own because a comment rule that reads slowly
-// is usually paying for the parse under it rather than for the rule.
+// It carries a phase name of its own. This is because a comment rule that
+// reads slowly is usually paying for the parse under it rather than for the
+// rule.
 func parse(parser *ts.Parser, src string) (root ts.Node, parsed bool) {
 	defer trace.Phase("treecomments/parse")()
 	tree := parser.ParseString(nil, []byte(src))
@@ -308,10 +312,9 @@ func parse(parser *ts.Parser, src string) (root ts.Node, parsed bool) {
 	return root, true
 }
 
-// dropShebang removes the interpreter line a script opens on. Every grammar
-// reads it as a comment, because it opens on the marker a single does, and a
-// repair that reflows the run beneath it welds the earliest sentence onto the
-// interpreter.
+// dropShebang removes the interpreter line a script opens on. Every grammar reads it as a comment, because it opens on a comment marker.
+// A repair that reflows the run beneath it welds the earliest sentence onto
+// the interpreter.
 func dropShebang(comments []Comment) []Comment {
 	if len(comments) == 0 {
 		return comments

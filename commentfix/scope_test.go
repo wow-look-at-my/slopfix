@@ -15,7 +15,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/forkscope"
 )
 
-// run runs git in dir with no user or system config, so a signing key or a
+// run runs git in dir with no user or system config. A signing key or a
 // hook on the machine cannot change what the test sees.
 func run(t *testing.T, dir string, args ...string) {
 	t.Helper()
@@ -75,7 +75,7 @@ func TestTheSweepWritesAnUncommittedFile(t *testing.T) {
 }
 
 // A rewrite in the middle of a merge or a rebase mixes into the resolution the
-// user is making, so the sweep writes nothing and says why.
+// user is making, so the sweep writes nothing. The sweep says why.
 func TestTheSweepWritesNothingWhileGitWaitsForTheUser(t *testing.T) {
 	for marker, name := range map[string]string{
 		"MERGE_HEAD":       "a merge",

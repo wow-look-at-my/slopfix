@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -56,10 +57,14 @@ func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
 }
 
 // repairOf answers what every rule makes of a file. Repairing, it writes the
-// repair back; reporting, it runs the same rules and leaves the file alone, so
-// a rule selection means the same thing either way. In a fork, a file the fork
+// repair back. Reporting, it runs the same rules and leaves the file alone. A
+// rule selection means the same thing either way. In a fork, a file the fork
 // never touched answers nothing, and only the fork's lines change or count.
-func repairOf(forks forkscope.Resolver, path string, request slopfix.Request, repairing bool) (slopfix.Repair, error) {
+// A selector narrows the scope to the lines a diff changed.
+func repairOf(forks forkscope.Resolver, sel *forkscope.Lines, path string, request slopfix.Request, repairing bool) (slopfix.Repair, error) {
+	if sel != nil {
+		request.Owned = sel.Scope(path)
+	}
 	if repairing {
 		return slopfix.FixFileIn(forks, path, request)
 	}
@@ -71,6 +76,7 @@ func repairOf(forks forkscope.Resolver, path string, request slopfix.Request, re
 	if err != nil {
 		return slopfix.Repair{}, err
 	}
+	scope = forkscope.Intersect(scope, request.Owned)
 	if scope != nil && scope.Empty() {
 		return slopfix.Repair{Text: string(content)}, nil
 	}
@@ -80,6 +86,22 @@ func repairOf(forks forkscope.Resolver, path string, request slopfix.Request, re
 		return repair, &slopfix.UnmetError{Path: path, Unmet: repair.Unmet}
 	}
 	return repair, nil
+}
+
+// diffScope answers the lines a selector names, or nil when no selector is
+// set. The work tree is the one the process runs in.
+func diffScope(staged bool, rev string) (*forkscope.Lines, error) {
+	if !staged && rev == "" {
+		return nil, nil
+	}
+	if staged && rev != "" {
+		return nil, errors.New("--staged and --diff name one line set each, so they cannot both be set")
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	return forkscope.DiffLines(dir, rev, staged)
 }
 
 var (
@@ -95,6 +117,10 @@ var (
 	checkMaxLines int
 	// checkMessage reads stdin as a closing message rather than as a file.
 	checkMessage bool
+	// checkStaged selects the lines the index changed against HEAD.
+	checkStaged bool
+	// checkDiff selects the lines that differ from the revision it names.
+	checkDiff string
 	// checkCmd is check, which the kinds of check that read no rule register under.
 	checkCmd *cobra.Command
 )
@@ -127,14 +153,16 @@ func init() {
 	check.Flags().StringVar(&checkPath, "path", "", "the file the text on stdin is headed for")
 	check.Flags().IntVar(&checkMaxLines, "max-comment-lines", tombstones.DefaultMaxCommentLines, "cap a comment block, 0 to turn the cap off")
 	check.Flags().BoolVar(&checkMessage, "message", false, "judge stdin as a closing message, with the message rules")
+	check.Flags().BoolVar(&checkStaged, "staged", false, "limit the run to the lines staged against HEAD (git diff --cached -U0)")
+	check.Flags().StringVar(&checkDiff, "diff", "", "limit the run to the lines that differ from this revision (git diff REV -U0)")
 	rootCmd.AddCommand(check)
 	checkCmd = check
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
 	if checkMessage {
-		if len(args) > 0 || checkFix || cmd.CalledAs() == "fix" {
-			return fmt.Errorf("--message judges stdin and repairs nothing, so it takes no file and no --fix")
+		if len(args) > 0 || checkFix || cmd.CalledAs() == "fix" || checkStaged || checkDiff != "" {
+			return fmt.Errorf("--message judges stdin and repairs nothing, so it takes no file, no --fix and no line selector")
 		}
 		return checkMessageStdin(cmd, checkOnly, checkJSON)
 	}
@@ -143,6 +171,13 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	rules, ids, err := selectedRules(checkOnly)
 	if err != nil {
 		return err
+	}
+	sel, err := diffScope(checkStaged, checkDiff)
+	if err != nil {
+		return err
+	}
+	if sel != nil && len(args) == 0 {
+		return errors.New("--staged and --diff scope a set of files, so they need a file or directory")
 	}
 	request := slopfix.Request{
 		Path:            checkPath,
@@ -161,14 +196,14 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		}
 		// A directory is the whole tree under it, which is what a build names.
 		if info.IsDir() {
-			failed, err := treeFindings(cmd, path, request, repairing, forkscope.Resolver{})
+			failed, err := treeFindings(cmd, path, request, repairing, forkscope.Resolver{}, sel)
 			if err != nil {
 				return err
 			}
 			found = found || failed
 			continue
 		}
-		repair, err := repairOf(forkscope.Resolver{}, path, request, repairing)
+		repair, err := repairOf(forkscope.Resolver{}, sel, path, request, repairing)
 		if err != nil {
 			return err
 		}
@@ -190,8 +225,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 // Repairing, each file that changed is named as it is written. In a fork, a
 // file the fork never touched is neither read nor written, and only the lines
 // the fork wrote can change or fail. The resolver comes in as an argument, so
-// a test never sets the process environment.
-func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repairing bool, forks forkscope.Resolver) (bool, error) {
+// a test never sets the process environment. A selector narrows the walk to
+// the lines a diff changed.
+func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repairing bool, forks forkscope.Resolver, sel *forkscope.Lines) (bool, error) {
 	stop := slopfix.ReportProgress(cmd.ErrOrStderr(), slopfix.ProgressEvery)
 	defer stop()
 	slopfix.SetPhase("read the fork scope", 0)
@@ -199,6 +235,7 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	if err != nil {
 		return false, err
 	}
+	own = forkscope.IntersectLines(own, sel)
 	request.Fork = own
 	walk := slopfix.CheckTreeWith
 	if repairing {

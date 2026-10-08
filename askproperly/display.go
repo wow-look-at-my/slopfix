@@ -1,13 +1,12 @@
-// display.go turns the findings into the line appended to a finished
-// message.
+// display.go turns the findings into the line appended to a finished message.
 //
-// This is the whole enforcement. Nothing is refused and nothing is sent back to
-// the model, because the reader is the person the question was aimed at: a
-// prose question the reader can see marked as an offloaded decision has already
-// cost the writer what it was meant to cost. Asking the model to re-emit the
-// message instead costs a round trip, and the message it writes to comply puts
-// the decision back into prose while explaining itself, which trips the guard
-// again.
+// This is the whole enforcement. Nothing is refused and nothing is sent back
+// to the model, because the reader is the person the question was aimed at. A
+// prose question the reader can see marked as an offloaded decision has
+// already cost the writer what it was meant to cost. Asking the model to
+// re-emit the message instead costs a round trip. The message it writes to
+// comply puts the decision back into prose while explaining itself, which
+// trips the guard again.
 package askproperly
 
 import (
@@ -45,8 +44,9 @@ func Annotate(message string) string {
 	}
 	// The repair is DECIDE, not "ask on a card instead". A card stalls the work
 	// and the owner answers a question he did not want. A card is right only
-	// where guessing is not: an action outside the branch, a destructive action,
-	// access this session lacks, or a fork the owner reserved.
+	// where guessing is not. This covers an action outside the branch, a
+	// destructive action, access this session lacks, or a fork the owner
+	// reserved.
 	return fmt.Sprintf("\n\n> **ask-properly** -- %s%s. That is a decision handed over in prose. "+
 		"Make it yourself and say what you assumed. A card is for the narrow "+
 		"cases guessing cannot cover: reaching outside this branch, destroying "+
