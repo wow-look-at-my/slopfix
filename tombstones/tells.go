@@ -61,7 +61,6 @@ type Hit struct {
 	Fix string `json:"fix,omitempty"`
 }
 
-
 // Find returns the blocks over the cap. A non-positive maxLines turns it off.
 //
 // The wording rules are english.xml patterns, applied as a rewrite. Volume is
