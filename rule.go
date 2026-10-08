@@ -2,6 +2,9 @@ package slopfix
 
 import (
 	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 
@@ -24,21 +27,45 @@ type RuleSpec struct {
 	Cases []RuleCase
 }
 
-// RuleCase is the substrate a rule reads: a file's path and text, or a
-// repository the tree rules judge through the files under Root.
+// RuleCase is a fixture: a repository and a closing message.
 type RuleCase struct {
 	// Name labels the case in a failure.
 	Name string
-	// Path is the file the text is headed for, and decides the parser.
+	// Path names a single file of the repository, and Text is its content. With no Path, Text is the closing message.
 	Path string
-	// Text is a file case's content.
 	Text string
-	// Root is a tree case's directory. The harness fills it from Files.
-	Root string
-	// Files are written under Root before a tree case runs.
+	// Files are the other files of the repository, by path from its root.
 	Files map[string]string
-	// Unchanged marks a case the rule must leave as written.
-	Unchanged bool
+	// Root is the directory Materialize wrote the repository under.
+	Root string
+}
+
+// Materialize writes the case's repository under dir with the marker the
+// repository rules read, and answers the case rooted there. Afterwards Path is
+// empty and Text holds the message alone, so every rule reads one shape.
+func Materialize(dir string, c RuleCase) (RuleCase, error) {
+	files := maps.Clone(c.Files)
+	if files == nil {
+		files = map[string]string{}
+	}
+	if c.Path != "" {
+		files[c.Path] = c.Text
+		c.Path, c.Text = "", ""
+	}
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+		return c, err
+	}
+	for name, content := range files {
+		path := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return c, err
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			return c, err
+		}
+	}
+	c.Files, c.Root = nil, dir
+	return c, nil
 }
 
 // A rule with a detection needs an autofix. There is no exemption.
