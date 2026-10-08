@@ -47,7 +47,8 @@ func TestAPrimedIndexAnswersWithoutAProbe(t *testing.T) {
 	PrimeIndex(path)
 	t.Setenv("PATH", "")
 
-	blocks := []Block{{Text: "// LivingSymbolName and GoneSymbolName", LineNos: []int{0}}}
+	text := "// LivingSymbolName and GoneSymbolName"
+	blocks := []Block{{Text: text, Prose: text, LineNos: []int{0}}}
 	assert.Equal(t, []string{"GoneSymbolName"}, DeadReferents(path, "", blocks))
 }
 

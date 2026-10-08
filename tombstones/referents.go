@@ -201,7 +201,8 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	}
 	names := set.New[string]()
 	for _, b := range blocks {
-		for _, m := range identifierWords(b.Text) {
+		// The names come from the comment alone. Code on a shared line names what it uses, and the repository answers for that.
+		for _, m := range identifierWords(b.Prose) {
 			if isCandidate(m) {
 				names.Add(m)
 			}
