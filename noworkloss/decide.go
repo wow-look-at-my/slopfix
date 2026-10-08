@@ -134,7 +134,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 		}
 	}
 	if st.err != nil {
-		return fmt.Sprintf("blocked: cannot tell whether %s would lose uncommitted work (%v)."+
+		return fmt.Sprintf("blocked: cannot tell whether %s will lose uncommitted work (%v)."+
 			"\nrun: git status   # this hook denies destructive commands it cannot verify", f.label, st.err), ""
 	}
 	if !st.inRepo {
@@ -160,7 +160,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	if res, ok := preserveAtRiskPaths(st.root, names); ok {
 		return "", res.notice(f.label, summary)
 	}
-	return fmt.Sprintf("blocked: %s would lose %s.\nrun: %s", f.label, summary, f.rewrite), ""
+	return fmt.Sprintf("blocked: %s will lose %s.\nrun: %s", f.label, summary, f.rewrite), ""
 }
 
 // describeAtRisk names what a finding would destroy, split by class rather
