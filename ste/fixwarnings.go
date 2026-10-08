@@ -366,14 +366,22 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 }
 
 // rewriteCluster breaks a run of nouns apart: "the gate file system cache
-// lookup" becomes "the lookup of the gate file system cache".
+// lookup" becomes "the lookup of the gate file system cache". A longer run
+// keeps taking its last noun as the head until at most NounClusterCap nouns
+// stand together, all in one rewrite.
 func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, bool) {
 	start, end, ok := clusterAt(s, off)
 	if !ok {
 		return "", false
 	}
+	var out strings.Builder
+	last := end
 	// The head names the thing, and the nouns in front of it describe it.
-	head := source[s.Words[end].Start:s.Words[end].End]
-	modifiers := source[s.Words[start].Start:s.Words[end-1].End]
-	return splice(source, s, start, end, head+" of the "+modifiers), true
+	for last-start+1 > NounClusterCap {
+		out.WriteString(source[s.Words[last].Start:s.Words[last].End])
+		out.WriteString(" of the ")
+		last--
+	}
+	out.WriteString(source[s.Words[start].Start:s.Words[last].End])
+	return splice(source, s, start, end, out.String()), true
 }
