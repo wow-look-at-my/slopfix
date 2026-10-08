@@ -48,13 +48,13 @@ func TestATreeCheckReportsABranchPin(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 
-	failed, err := treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }})
+	failed, err := treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
 	require.NoError(t, err)
 	assert.True(t, failed)
 	assert.Contains(t, out.String(), "yaml/branch-pin")
 
 	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte("runs:\n  using: composite\n  steps:\n    - uses: o/hidden@v1\n"), 0o644))
-	_, err = treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }})
+	_, err = treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "o/hidden")
 }
@@ -119,16 +119,24 @@ func put(t *testing.T, dir, name, body string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644))
 }
 
-// newForkRepo builds a parent with upstream.md and doc.md. It also builds a
-// fork that rewrites a line of doc.md and adds mine.md. The fork's origin names
-// o/fork on GitHub. The server api builds, from the parent's clone URL,
-// answers both the API and the fork list.
+// newForkRepo is newForkRepoWith with no more parent files.
 func newForkRepo(t *testing.T, api func(parent string) http.HandlerFunc) forkRepo {
+	return newForkRepoWith(t, api, nil)
+}
+
+// newForkRepoWith builds a parent with upstream.md, doc.md and parentFiles. It
+// also builds a fork that rewrites a line of doc.md and adds mine.md. The
+// fork's origin names o/fork on GitHub. The server api builds, from the
+// parent's clone URL, answers both the API and the fork list.
+func newForkRepoWith(t *testing.T, api func(parent string) http.HandlerFunc, parentFiles map[string]string) forkRepo {
 	t.Helper()
 	work := t.TempDir()
 	gitRun(t, work, "init", "-q", "-b", "main")
 	put(t, work, "upstream.md", upstreamDoc)
 	put(t, work, "doc.md", parentDoc)
+	for name, body := range parentFiles {
+		put(t, work, name, body)
+	}
 	gitRun(t, work, "add", "-A")
 	gitRun(t, work, "commit", "-q", "-m", "base")
 	parent := filepath.Join(t.TempDir(), "parent.git")

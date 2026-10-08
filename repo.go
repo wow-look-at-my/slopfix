@@ -11,7 +11,6 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/ste"
-	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // The repository rules. They judge the tree rather than a file, so only a walk
@@ -29,8 +28,8 @@ const RuleRepo Rule = "repo"
 // RepoIDs names every repository rule.
 var RepoIDs = set.Of(IDAgentsFile, IDBudget, IDPackageScripts, IDBinary, IDNearDuplicate, IDJSON, IDXML)
 
-// ReportOnly names the rules no rewrite can repair.
-var ReportOnly = set.Of(IDNearDuplicate, IDJSON, IDXML, workflow.IDBranchPin)
+// ReportOnly names every rule the registry declares report-only.
+var ReportOnly = set.New[string]()
 
 // isRepoRoot reports whether dir is the top of a repository.
 func isRepoRoot(dir string) bool {

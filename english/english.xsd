@@ -58,9 +58,13 @@
     </xs:complexType>
   </xs:element>
 
-  <!-- A rewrite with captures, for a shape no whole-word swap can express. -->
+  <!-- A rewrite with captures, for a shape no whole-word swap can express. A
+       <test> child adds a worked example. -->
   <xs:element name="pattern">
     <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="test" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
       <xs:attribute name="match" type="xs:string" use="required"/>
       <xs:attribute name="replace" type="xs:string" use="required"/>
       <xs:attribute name="test" type="xs:string" use="required"/>

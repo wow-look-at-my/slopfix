@@ -147,9 +147,6 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			}
 			head := source[:c.left]
 			right, opened := openRest(source, masked, whole, c)
-			if right == "" {
-				head, right, opened = carrierDivision(source, whole, c)
-			}
 			left := closeHead(head)
 			seam := seamBefore(source, c.left)
 			// ", so" joins whole clauses, so the comma before it ends one wherever it sits.
@@ -157,28 +154,50 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 				seam = "so"
 			}
 			// A fragment head behind "This is" closes as a sentence of its own.
-			fragment := head == fragmentHead(source[:c.left])
-			if right == "" || !divides(left, right, d.cap) || !fragment && !closesWhole(source[:c.left], seam, whole) && !closesPhrase(source[:c.left], whole) {
-				continue
+			accept := func(h, r string) bool {
+				joined := closeHead(h) + " " + r
+				return r != "" && divides(closeHead(h), r, d.cap) &&
+					(h == fragmentHead(source[:c.left]) || closesWhole(source[:c.left], seam, whole) || closesPhrase(source[:c.left], whole)) &&
+					overCap(joined, d.cap) < overCap(source, d.cap)
+			}
+			if !accept(head, right) {
+				// The grammatical rest was refused, so the carrier division, which restates the main clause, gets its turn.
+				ch, cr, co := carrierOrNone(source, whole, c)
+				cl := closeHead(ch)
+				if cr == "" || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
+					continue
+				}
+				head, right, opened, left = ch, cr, co, cl
 			}
 			// A rest that opens a clause of its own reads best.
 			if score := c.score + opened; best == "" || score > bestScore {
 				best, bestScore = left+" "+right, score
 			}
 		}
-		if best != "" {
+		// A division that leaves as many words over the cap moves nothing, and
+		// forceSentenceCap would revert it.
+		if best != "" && overCap(best, d.cap) < overCap(source, d.cap) {
 			return best, true
 		}
 	}
 	if d.reorder {
-		if out, ok := reorderDependent(source, whole); ok {
+		if out, ok := reorderDependent(source, whole); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 			return out, true
 		}
-		if out, ok := subjectDivision(source, whole, d.cap); ok {
+		if out, ok := subjectDivision(source, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 			return out, true
 		}
 	}
-	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok {
+	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
+	if out, ok := markDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
+	if out, ok := coordinateDivision(whole, source); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
+	if out, ok := becauseDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
 	return hardDivision(source, masked, d.cap)
@@ -197,7 +216,8 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 	if len(ends) <= limit || len(ends) < 2*minimumHalf {
 		return source, false
 	}
-	best, bestWords := forceCut{}, -1
+	whole := syntax.Parse(masked, nil)
+	best, bestWords, bestRank := forceCut{}, -1, -1
 	for _, c := range candidates(source, masked, false, limit) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < minimumHalf {
 			continue
@@ -205,7 +225,28 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if len(ends)-c.words < minimumHalf {
 			continue
 		}
+		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {
+			// A cut inside a noun phrase strands its noun: "no other | thread".
+			continue
+		}
+		// A verb does not close a sentence before the adjective it links to:
+		// "the pointer stays. Valid for reads of n bytes" is no sentence pair.
+		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && strings.HasPrefix(w.Tag, "VB") {
+			if n := wordsBefore(whole, c.right); n < len(whole.Words) && strings.HasPrefix(whole.Words[n].Tag, "JJ") {
+				continue
+			}
+		}
+		// A tail that opens on a finite verb leaves its subject behind:
+		// "the pointer. Stays valid for reads of n bytes".
+		if n := wordsBefore(whole, c.right); n < len(whole.Words) && finiteVerbTag(whole.Words[n].Tag) {
+			continue
+		}
 		head := strings.TrimRight(source[:c.left], " ,;:—–-")
+		// The head must hold a clause of its own, or the cut strands a subject
+		// without its verb: "the pointer. Stays valid for reads of n bytes".
+		if !holdsFinite(checkMask(head)) && !opensImperative(checkMask(head)) {
+			continue
+		}
 		last := strings.ToLower(strings.Trim(lastField(head), ".,;:!?*_\"'`()[]“”‘’"))
 		next := strings.ToLower(strings.Trim(firstToken.FindString(source[c.right:]), ".,;:!?*_\"'`()[]“”‘’"))
 		// A possessive governs the word after it, so a part never ends on one.
@@ -215,20 +256,70 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if forceDangling.Contains(last) || forceBound.Contains(next) {
 			continue
 		}
-		// The longest leading run that fits reads best, and the first cut of it is deterministic.
-		if c.words > bestWords {
-			best, bestWords = c, c.words
+		// Both parts must read as sentences, or the cut strands a fragment such
+		// as "writes. Through it while this function runs.".
+		if !standsAsSentence(closeHead(source[:c.left])) ||
+			!standsAsSentence(hardRest(source, c.right)) {
+			continue
+		}
+		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
+		rank := hardSeamRank(source, whole, c)
+		if rank > bestRank || rank == bestRank && c.words > bestWords {
+			best, bestWords, bestRank = c, c.words, rank
 		}
 	}
 	if bestWords < 0 {
 		return source, false
 	}
 	left := closeHead(source[:best.left])
-	right := capitalizeOpening(strings.TrimLeft(source[best.right:], " "))
+	right := hardRest(source, best.right)
 	if left == "" || right == "" {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// hardRest opens the words after a cut at right as a sentence, past any dash that opened an aside.
+func hardRest(source string, right int) string {
+	return capitalizeOpening(strings.TrimLeft(source[right:], " —–"))
+}
+
+// hardSeamRank grades a cut for hardDivision. A cut that parts a subject from
+// its verb, or a verb from what follows it, ranks lowest: "it. Is carrying".
+// A cut at a mark, or before a conjunction or a preposition, ranks highest.
+func hardSeamRank(source string, whole *syntax.Sentence, c forceCut) int {
+	first := wordFrom(whole, c.right)
+	if first < 1 || first >= len(whole.Words) {
+		return 0
+	}
+	next, last := whole.Words[first].Tag, whole.Words[first-1].Tag
+	if strings.HasPrefix(next, "VB") || next == "MD" || next == "RP" || next == "POS" || strings.HasPrefix(last, "VB") || last == "MD" {
+		return 0
+	}
+	if strings.ContainsAny(source[c.left:c.right], ",;:—–") || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",") ||
+		next == "CC" || next == "IN" || next == "WDT" || next == "WRB" {
+		return 2
+	}
+	return 1
+}
+
+// carrierOrNone is carrierDivision, except for a sentence that opens with an
+// infinitive of purpose ("To pull X, use Y"). That sentence reorders behind "Do
+// this", and a carrier would restate the purpose clause's verb in place of the
+// main one, so it stands down.
+func carrierOrNone(source string, whole *syntax.Sentence, c forceCut) (string, string, int) {
+	if len(whole.Words) > 1 && whole.Words[0].Lower() == "to" && strings.HasPrefix(whole.Words[1].Tag, "VB") {
+		return source[:c.left], "", 0
+	}
+	return carrierDivision(source, whole, c)
+}
+
+// alsoVerb writes the main verb group with "also" before its last verb, so
+// "must ensure" restates as "must also ensure".
+func alsoVerb(source string, s *syntax.Sentence, verb syntax.Phrase) string {
+	text := source[s.Words[verb.First].Start:s.Words[verb.Last].End]
+	at := s.Words[verb.Last].Start - s.Words[verb.First].Start
+	return text[:at] + "also " + text[at:]
 }
 
 // splitsObject reports a cut between a finite verb and the noun phrase right
@@ -500,7 +591,8 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
-	case (conjunction == "and" || conjunction == "so") && seam == "," && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+	case (conjunction == "and" || conjunction == "so") && (seam == "," || seam == "—" || seam == "–" || seam == "--") &&
+		opensNounPhrase(tag) && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
 		// The parse cuts its clauses at commas, so a subject that is a list or
 		// carries a participle opens no clause of its own.
 		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) ||
@@ -519,6 +611,11 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 	}
 	return "", 0
+}
+
+// opensNounPhrase reports a tag that starts a subject.
+func opensNounPhrase(tag string) bool {
+	return tag == "DT" || tag == "PRP" || tag == "PRP$" || tag == "JJ" || tag == "CD" || strings.HasPrefix(tag, "NN")
 }
 
 // seriesBefore reports a comma after the first verb of head. A ", and" after it adds the last item of a series: "give the full path, why it matters, and the relevant code".

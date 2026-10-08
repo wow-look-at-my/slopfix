@@ -21,26 +21,26 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 ## Rule table
 
-| Category | Rule IDs | Repairs |
+| Category | Rule IDs | Autofix |
 |---|---|---|
 | `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary` | yes, on a walk, except a `package.json` that does not parse |
-| `repo`, report only | `repo/near-duplicate`, `repo/json`, `repo/xml` | no |
+| `repo`, report only | `repo/near-duplicate`, `repo/json`, `repo/xml` | report-only: no rewrite knows what the author meant |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
 | `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second. Before a verb it becomes `, and never`, or `, do not` before an instruction |
-| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
+| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | report-only: a warning needs a person's judgment, so it fails no check |
 | `counts` | `counts/inventory-count`, `counts/section-number` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes |
-| `yaml`, warnings | `yaml/test-in-workflow` | no |
-| `yaml`, report only | `yaml/branch-pin` | no |
+| `yaml`, warnings | `yaml/test-in-workflow` | report-only: a warning never fails `check` |
+| `yaml`, report only | `yaml/branch-pin` | report-only: no rewrite knows which ref the author meant |
 | `pins` | `pins/download-version` | yes |
-| message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
+| message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | report-only: they ask a human to decide, and no string rewrite answers them |
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
-Every error rule has a repair, so `slopfix fix` on any tree leaves no error but these. A `package.json` that does not parse and the `ReportOnly` rules have no repair, because no rewrite knows what the author meant. `repairable_test.go` names each of them. No finding asks for a rewrite by hand. `ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+Every rule is one `RuleSpec`: a `Detect`, an `Autofix`, and the `Cases` that prove both. A rule that no rewrite answers declares `ReportOnly`, the reason it reports alone. The rows above marked report-only carry that declaration: the STE warning rules, `yaml/test-in-workflow`, and the message rules. `ruleharness_test.go` drives each `Case` through `Detect`, `Autofix` and `Detect` again, and names the report-only rules one by one. `ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. A `package.json` that does not parse has no repair either, because no rewrite knows what the author meant. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 

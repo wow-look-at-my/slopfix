@@ -40,6 +40,12 @@ func TestACutTakesThePunctuationThatAttachesThePhrase(t *testing.T) {
 	assert.Equal(t, "Keep 1,.5 as written.", Fix("Keep 1,.5 as written.", Document), "no cut, no change")
 }
 
+// A cut that takes a clause through its period leaves no mark before that period.
+func TestACutToThePeriodLeavesNoMarkBeforeIt(t *testing.T) {
+	assert.Equal(t, "The explicit gesture passes `true`. Returns whether anything moved.", Fix(
+		"The explicit gesture passes `true`: the user asked for everything they can see. Returns whether anything moved.", Comment))
+}
+
 // Every entry declares its own worked examples, and each has to fire. An entry
 // can stop matching through a typo, a phrase the boundary rule rejects, or a
 // rewrite a drop shadows. Without this test, that entry looks enforced and

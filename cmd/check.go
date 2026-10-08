@@ -248,7 +248,7 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	if repairing {
 		walk = slopfix.FixTreeWith
 	}
-	pins, err := slopfix.BranchPinsTree(root, request, slopfix.NewGitHubRefs(getenv))
+	pins, err := slopfix.BranchPinsTree(root, request, slopfix.NewGitHubRefs(envOf(forks)))
 	if err != nil {
 		return false, err
 	}
@@ -270,6 +270,15 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 		fmt.Fprintln(cmd.ErrOrStderr(), unmet.Error())
 	}
 	return failed || len(out.Kept) > 0 || len(out.Unmet) > 0, nil
+}
+
+// envOf answers the environment a branch-pin lookup reads. A resolver a test
+// built supplies its own; otherwise the process environment answers.
+func envOf(forks forkscope.Resolver) func(string) string {
+	if forks.Getenv != nil {
+		return forks.Getenv
+	}
+	return os.Getenv
 }
 
 // checkStdin answers for text on stdin rather than a named file. It takes the
