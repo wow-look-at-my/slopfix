@@ -52,6 +52,52 @@ func TestCheckReportsALongSentenceInAComment(t *testing.T) {
 	assert.Empty(t, quoted(slopfix.CheckContent("demo.go", out)), out)
 }
 
+// A JSDoc sentence whose first division leaves a second sentence still over
+// the cap divides again, until every sentence holds.
+func TestAColonDivisionThatLeavesALongRestDividesAgain(t *testing.T) {
+	src := "/**\n" +
+		" * On the default branch the order is the release number, not the tip of the branch: a run that a later commit superseded is still the newest release of a plugin that the later run took from a cache and never published.\n" +
+		" */\n" +
+		"export function order(): void {}\n"
+	path := "orphan-release/src/index.ts"
+	require.Contains(t, findingIDs(slopfix.CheckContent(path, src)), ste.IDSentenceCap, "the control: the comment is over the cap")
+
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: path, MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+	assertEverySentenceUnderCap(t, path, out)
+	assert.Empty(t, quoted(slopfix.CheckContent(path, out)), out)
+}
+
+// A justfile comment whose sentence holds a code span with dots, a dash
+// aside and a parenthesis is still divided, at the dashes.
+func TestALongJustfileCommentWithADashAsideIsRepaired(t *testing.T) {
+	src := "build:\n" +
+		"\t# TypeScript standard libs. Only the `/// <reference lib=\"...\" />` closure of the libs\n" +
+		"\t# the action can select -- lib.es2022.d.ts always, and lib.dom.d.ts +\n" +
+		"\t# lib.dom.iterable.d.ts when a step passes dom: true -- seeded with any lib the staged\n" +
+		"\t# type packages reference (@types/node pulls in a couple of esnext.* libs).\n" +
+		"\tnpm run build\n"
+	path := "typescript/justfile"
+	require.Contains(t, findingIDs(slopfix.CheckContent(path, src)), ste.IDSentenceCap, "the control: the comment is over the cap")
+
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: path, MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+	assert.NotEqual(t, src, out)
+	assertEverySentenceUnderCap(t, path, out)
+	assert.Empty(t, quoted(slopfix.CheckContent(path, out)), out)
+	assert.Contains(t, out, "\t# ", out)
+	assert.Contains(t, out, "\tnpm run build\n", out)
+}
+
+// assertEverySentenceUnderCap fails on each sentence of out that Check reads
+// past the cap under path.
+func assertEverySentenceUnderCap(t *testing.T, path, out string) {
+	t.Helper()
+	for _, f := range slopfix.CheckContent(path, out) {
+		if f.ID == ste.IDSentenceCap {
+			t.Errorf("sentence over the cap after fix: %s\n%s", f.Detail, out)
+		}
+	}
+}
+
 // A shell comment inside a run: script is judged and repaired. The comment
 // gate compares data with a block scalar's # rows blanked, because a # inside
 // a scalar is part of the script's string.
