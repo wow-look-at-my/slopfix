@@ -299,7 +299,7 @@ func repairFile(f *fixer.File) {
 	for _, h := range hits {
 		switch {
 		case h.Strippable:
-			drop.Add(h.LineNo)
+			drop.Add(h.LineNo - 1)
 		case h.ID != IDVolume:
 			// A name no whole-line strip resolves loses its sentence below.
 			cut = true
@@ -344,18 +344,19 @@ func cutReferents(f *fixer.File, path string) {
 		starts[i] = at
 	}
 	var edits []edit.Edit
+	openers := commentOpeners
+	if IsDocument(path) {
+		openers = nil
+	}
 	for _, name := range DeadReferents(path, text, blocks) {
-		h := HitForName(blocks, name)
-		if h.LineNo < 0 || h.LineNo >= len(lines) {
+		row := HitForName(blocks, name).LineNo - 1
+		prose, ok := proseRow(blocks, row)
+		if !ok || row >= len(lines) || len(prose) != len(lines[row]) {
 			continue
 		}
-		openers := commentOpeners
-		if IsDocument(path) {
-			openers = nil
-		}
-		if from, to, ok := sentenceAround(lines[h.LineNo], name, openers); ok {
-			at := starts[h.LineNo]
-			edits = append(edits, edit.Edit{Start: at + from, End: at + to, Cut: []string{strings.TrimSpace(lines[h.LineNo][from:to])}})
+		if from, to, ok := sentenceAround(lines[row], prose, name, openers); ok {
+			at := starts[row]
+			edits = append(edits, edit.Edit{Start: at + from, End: at + to, Cut: []string{strings.TrimSpace(lines[row][from:to])}})
 		}
 	}
 	f.ApplyComments(edits)
@@ -365,48 +366,85 @@ func cutReferents(f *fixer.File, path string) {
 	}
 }
 
-// commentOpeners start the prose of a line. A sentence never reaches back past one.
-var commentOpeners = []string{"//", "/*", "#", "--", "* "}
+// proseRow answers the comment prose of a row: the row with every byte outside a comment blanked.
+func proseRow(blocks []Block, row int) (string, bool) {
+	for _, b := range blocks {
+		if len(b.LineNos) == 0 || row < b.LineNos[0] || row > b.LineNos[len(b.LineNos)-1] {
+			continue
+		}
+		rows := strings.Split(b.Prose, "\n")
+		if idx := row - b.LineNos[0]; idx < len(rows) {
+			return rows[idx], true
+		}
+	}
+	return "", false
+}
 
-// sentenceAround answers the byte span of the sentence in line that holds
-// name, with the blank in front of it. The span never reaches back past a
-// comment marker, so the code on the line stays.
-func sentenceAround(line, name string, openers []string) (int, int, bool) {
-	at := strings.LastIndex(line, name)
-	if at < 0 {
+// commentOpeners open the prose of a comment. The longest one at the comment's start is its marker.
+var commentOpeners = []string{"///", "//!", "//", "/**", "/*", "#", "--", "* "}
+
+// sentenceAround answers the byte span of the sentence in line that holds name,
+// with the blank in front of it. prose is line with every byte outside a
+// comment blanked, so the parse that found the comment also bounds the cut. The
+// code on the line stays.
+func sentenceAround(line, prose, name string, openers []string) (int, int, bool) {
+	at := strings.LastIndex(prose, name)
+	start := len(prose) - len(strings.TrimLeft(prose, " \t"))
+	end := len(strings.TrimRight(prose, " \t"))
+	if at < 0 || at < start {
 		return 0, 0, false
 	}
-	floor, marker := 0, 0
+	floor, marked := start, false
 	for _, opener := range openers {
-		if i := strings.LastIndex(line[:at], opener); i >= 0 && i+len(opener) > floor {
-			floor, marker = i+len(opener), i
+		if strings.HasPrefix(line[start:], opener) && start+len(opener) > floor {
+			floor, marked = start+len(opener), true
 		}
+	}
+	closer := end
+	if strings.HasSuffix(line[:end], "*/") && end-len("*/") >= at+len(name) {
+		closer = end - len("*/")
 	}
 	from := floor
 	if i := strings.LastIndex(line[floor:at], ". "); i >= 0 {
 		from = floor + i + 1
 	}
-	to := len(line)
-	if i := strings.Index(line[at:], ". "); i >= 0 {
+	to := closer
+	if i := strings.Index(line[at:closer], ". "); i >= 0 {
 		to = at + i + 1
-	} else if i := strings.Index(line[at:], "*/"); i >= 0 {
-		to = at + i
 	}
-	for to < len(line) && line[to] == '.' {
+	for to < closer && line[to] == '.' {
 		to++
 	}
-	rest := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line[to:]), "*/"))
+	// A block comment that runs on past this row keeps its opener.
+	unclosed := strings.HasPrefix(line[start:], "/*") && closer == end
+	whole := from == floor && marked && !unclosed && strings.TrimSpace(line[to:closer]) == ""
 	switch {
+	case whole && strings.TrimSpace(line[end:]) == "":
+		// The sentence is the whole comment and nothing follows it, so the comment goes with the blanks before it.
+		from, to = len(strings.TrimRight(line[:start], " \t")), len(line)
+	case whole:
+		// The sentence is the whole comment and code follows it, so the comment goes with one run of blanks beside it.
+		from, to = start, end
+		if to < len(line) && line[to] == ' ' {
+			for to < len(line) && line[to] == ' ' {
+				to++
+			}
+		} else {
+			for from > 0 && line[from-1] == ' ' {
+				from--
+			}
+		}
 	case from > floor:
 		// The period that ends the sentence before stays, and the blank after it goes.
 		for from < at && line[from] == ' ' {
 			from++
 		}
 		from--
-	case rest == "" && floor > 0:
-		// The sentence is the whole comment, so the comment goes, marker and all.
-		from, to = len(strings.TrimRight(line[:marker], " \t")), len(line)
 	default:
+		// The blank after the marker stays, and the blanks after the sentence go.
+		for from < at && line[from] == ' ' {
+			from++
+		}
 		for to < len(line) && line[to] == ' ' {
 			to++
 		}
