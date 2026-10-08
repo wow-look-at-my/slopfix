@@ -182,5 +182,6 @@ func fixOver(src, path string, rules []slopfix.Rule, ids []string, scope splice.
 		MaxCommentLines: hookMaxLines,
 		Scope:           scope,
 		Owned:           owned,
+		OneFile:         true,
 	})
 }

@@ -335,8 +335,8 @@
            where="comment document" test="As mentioned above it races" expect="It races"/>
   <pattern id="tombstones/position-reference"
            match="(?i)\s*\bsee (?:above|below)\b[^.]*" replace=""
-           where="comment document" test="The lock is held see above for the reason"
-           expect="The lock is held"/>
+           where="comment document" test="The gate holds the lock see above for the reason"
+           expect="The gate holds the lock"/>
   <pattern id="tombstones/hedged-time"
            match="(?i)\s*\bfor now\b[,]?" replace=""
            where="comment document" test="For now it retries once" expect="It retries once"/>
@@ -345,11 +345,11 @@
            where="comment document" test="It currently retries once" expect="It retries once"/>
   <pattern id="tombstones/hedged-time"
            match="(?i)\s*\bwill be\b[^.]*\b(?:later|soon|eventually|someday|in (?:a|the) future)\b[^.]*" replace=""
-           where="comment document" test="The retry count will be raised later"
+           where="comment document" test="The retry count will be higher later"
            expect="The retry count"/>
   <pattern id="tombstones/unstated-value"
-           match="(?i)\s*\bis (?:tbd|to be determined)\b" replace=" is not stated here"
-           where="comment document" test="The limit is TBD" expect="The limit is not stated here"/>
+           match="(?i)\s*\bis (?:tbd|to be determined)\b" replace=" has no set value"
+           where="comment document" test="The limit is TBD" expect="The limit has no set value"/>
   <pattern id="tombstones/shrug"
            match="(?i)\s*\bfor some reason\b[,]?" replace=""
            where="comment document" test="For some reason it races" expect="It races"/>
@@ -359,7 +359,7 @@
            expect="The cap holds"/>
   <pattern id="tombstones/shrug"
            match="(?i)\s*\bobviously\b" replace=""
-           where="comment document" test="This is obviously wrong" expect="This is wrong"/>
+           where="comment document" test="This is obviously slow" expect="This is slow"/>
   <pattern id="tombstones/unexplained-workaround"
            match="(?i)\ba hack around\b" replace="a workaround for"
            where="comment document" test="A hack around the race" expect="A workaround for the race"/>

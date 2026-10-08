@@ -253,7 +253,7 @@ func TestCheckMessageRunsEveryMessageRule(t *testing.T) {
 			cmd := &cobra.Command{}
 			cmd.SetOut(&out)
 			cmd.SetIn(strings.NewReader(c.message))
-			require.ErrorIs(t, checkMessageStdin(cmd, c.only, false), errFindings)
+			require.ErrorIs(t, checkMessageStdin(cmd, c.only, false, false), errFindings)
 			assert.Contains(t, out.String(), c.want)
 		})
 	}
@@ -265,8 +265,18 @@ func TestACleanMessagePasses(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
 	cmd.SetIn(strings.NewReader("I fixed the off-by-one in the retry loop and pushed it."))
-	require.NoError(t, checkMessageStdin(cmd, nil, true))
+	require.NoError(t, checkMessageStdin(cmd, nil, true, false))
 	assert.Contains(t, out.String(), `"findings":[]`)
+}
+
+// fix --message cuts each reported sentence, writes the message, and passes.
+func TestFixMessageCutsEachReportedSentence(t *testing.T) {
+	var out bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&out)
+	cmd.SetIn(strings.NewReader("I pushed the retry fix. Want me to fix the loader too?\n"))
+	require.NoError(t, checkMessageStdin(cmd, nil, false, true))
+	assert.Equal(t, "I pushed the retry fix.\n", out.String())
 }
 
 func TestAnUnknownMessageRuleIsAnError(t *testing.T) {
