@@ -33,10 +33,10 @@ func run(args []string) error {
 		Head: filepath.Join(work, "head"),
 		Work: filepath.Join(work, "cases"),
 	}
-	if err := ratchet.Build(".", judge.Base); err != nil {
+	if err := ratchet.Build(args[0], judge.Head); err != nil {
 		return err
 	}
-	if err := ratchet.Build(args[0], judge.Head); err != nil {
+	if err := ratchet.Build(".", judge.Base); err != nil {
 		return err
 	}
 	failures, err := judge.Run(slopfix.AllRuleSpecs())
