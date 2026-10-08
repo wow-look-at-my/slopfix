@@ -75,6 +75,8 @@ func stage(t *testing.T, dir string) {
 	git(t, dir, "add", "-A")
 }
 
+// ask lives in harness_test.go: a shared entry-point driver for both halves.
+
 func denied(t *testing.T, cwd, command string) string {
 	t.Helper()
 	r := ask(t, cwd, command)
