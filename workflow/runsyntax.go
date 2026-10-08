@@ -70,7 +70,7 @@ func shellScripts(content string) []shellScript {
 
 // variant answers the shell language a step runs in. ok is false for a shell
 // that is neither bash nor sh, such as pwsh, and for a Windows job with no
-// shell named, which runs pwsh.
+// shell named. This runs pwsh.
 func (s stepRef) variant() (syntax.LangVariant, bool) {
 	shell := s.shell
 	if own := mappingValue(s.step, "shell"); own != nil {
