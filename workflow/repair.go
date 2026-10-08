@@ -53,6 +53,10 @@ func init() {
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
 	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
 	register("yaml/set-concurrency", IDConcurrency, 70, setConcurrency, false)
+	fixer.Register(fixer.Spec{
+		Label: "yaml/extract-tests", Families: []string{Category}, Rules: []string{IDTestInYAML},
+		Files: []fixer.Kind{fixer.Workflow}, Place: 80, Repair: extractTests,
+	})
 }
 
 // Options are the gates a workflow is written through, for the driver to open

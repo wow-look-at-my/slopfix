@@ -10,9 +10,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// FixSemicolonByHand is the Fix text of a semicolon that no period can replace.
-const FixSemicolonByHand = "Rewrite it by hand. The semicolon joins items or phrases, and a period leaves a fragment on one side."
-
 // ByHand reports whether a Fix text asks for a rewrite by hand, which no repair writes.
 func ByHand(fix string) bool { return strings.HasPrefix(fix, "Rewrite it by hand") }
 

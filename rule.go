@@ -2,11 +2,19 @@ package slopfix
 
 import (
 	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/askproperly"
+	"github.com/wow-look-at-my/slopfix/blamelanguage"
+	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
@@ -20,32 +28,66 @@ type RuleSpec struct {
 	Category Rule
 	// Detect finds this rule's findings in a case.
 	Detect func(RuleCase) []ste.Finding
-	// Autofix rewrites the case so this rule no longer detects it. It is nil only for a rule whose ReportOnly says why.
+	// Autofix rewrites the case so this rule no longer detects it.
 	Autofix func(RuleCase) RuleCase
 	// Cases are the worked examples the harness drives.
 	Cases []RuleCase
-	// ReportOnly is the declared exemption for a rule no rewrite answers.
-	ReportOnly string
 }
 
-// RuleCase is the substrate a rule reads: a file's path and text, or a
-// repository the tree rules judge through the files under Root.
+// RuleCase is a fixture: a repository and a closing message.
 type RuleCase struct {
 	// Name labels the case in a failure.
 	Name string
-	// Path is the file the text is headed for, and decides the parser.
+	// Path names a single file of the repository, and Text is its content. With no Path, Text is the closing message.
 	Path string
-	// Text is a file case's content.
 	Text string
-	// Root is a tree case's directory. The harness fills it from Files.
-	Root string
-	// Files are written under Root before a tree case runs.
+	// Files are the other files of the repository, by path from its root.
 	Files map[string]string
-	// Unchanged marks a case the rule must leave as written.
-	Unchanged bool
+	// Root is the directory Materialize wrote the repository under.
+	Root string
 }
 
-// A rule with a detection needs a repair or a declared exemption.
+// Materialize writes the case's repository under dir as a git repository, which the
+// repository rules read, and answers the case rooted there. Afterwards Path is
+// empty and Text holds the message alone, so every rule reads one shape.
+func Materialize(dir string, c RuleCase) (RuleCase, error) {
+	files := maps.Clone(c.Files)
+	if files == nil {
+		files = map[string]string{}
+	}
+	if c.Path != "" {
+		files[c.Path] = c.Text
+		c.Path, c.Text = "", ""
+	}
+	// A real repository, because a rule that asks git which files exist reads it.
+	if out, err := gitmod.Command(dir, "init", "-q").CombinedOutput(); err != nil {
+		return c, fmt.Errorf("git init %s: %w: %s", dir, err, out)
+	}
+	for name, content := range files {
+		path := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return c, err
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			return c, err
+		}
+	}
+	// The files are committed, because a rule about a committed file asks git what the tree holds.
+	commit := [][]string{
+		{"add", "-A"},
+		{"-c", "user.name=slopfix", "-c", "user.email=slopfix@localhost", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
+			"commit", "-q", "--allow-empty", "-m", "fixture"},
+	}
+	for _, args := range commit {
+		if out, err := gitmod.Command(dir, args...).CombinedOutput(); err != nil {
+			return c, fmt.Errorf("git %v in %s: %w: %s", args, dir, err, out)
+		}
+	}
+	c.Files, c.Root = nil, dir
+	return c, nil
+}
+
+// A rule with a detection needs an autofix. There is no exemption.
 var (
 	ruleMu       sync.Mutex
 	ruleRegistry []RuleSpec
@@ -53,7 +95,7 @@ var (
 )
 
 // RegisterRule adds a rule to the registry. The build panics at init when a
-// rule is malformed or when its name is taken twice.
+// rule is malformed, when its Autofix is nil, or when its name is taken twice.
 func RegisterRule(r RuleSpec) {
 	if r.ID == "" {
 		panic("rule: a rule carries an empty ID")
@@ -64,14 +106,11 @@ func RegisterRule(r RuleSpec) {
 	if r.Detect == nil {
 		panic(fmt.Sprintf("rule %q: a detection is required", r.ID))
 	}
+	if r.Autofix == nil {
+		panic(fmt.Sprintf("rule %q: a detection with no autofix hands the reader a finding with no way out of it", r.ID))
+	}
 	if len(r.Cases) == 0 {
 		panic(fmt.Sprintf("rule %q: the harness has no case to prove its detection", r.ID))
-	}
-	if r.Autofix == nil && r.ReportOnly == "" {
-		panic(fmt.Sprintf("rule %q: a detection with no autofix and no declared report-only exemption", r.ID))
-	}
-	if r.Autofix != nil && r.ReportOnly != "" {
-		panic(fmt.Sprintf("rule %q: it repairs, so it cannot also claim ReportOnly", r.ID))
 	}
 	ruleMu.Lock()
 	defer ruleMu.Unlock()
@@ -97,6 +136,42 @@ func RuleSpecByID(id string) (RuleSpec, bool) {
 	return r, ok
 }
 
+// Registered answers findings unchanged, and panics on a finding whose ID no
+// rule registered.
+func Registered(findings []ste.Finding) []ste.Finding {
+	for _, f := range findings {
+		mustBeRegistered(f.ID)
+	}
+	return findings
+}
+
+// registeredHits is Registered for the tombstones a repair keeps.
+func registeredHits(hits []tombstones.Hit) []tombstones.Hit {
+	for _, h := range hits {
+		mustBeRegistered(h.ID)
+	}
+	return hits
+}
+
+func mustBeRegistered(id string) {
+	if _, ok := RuleSpecByID(id); !ok {
+		panic(fmt.Sprintf("a finding under %q, and no rule registers that ID", id))
+	}
+}
+
+// ReportableIDs names every rule ID a package below this can report, read
+// from each package's own list rather than from the registry.
+func ReportableIDs() set.Set[string] {
+	ids := AllIDs().Union(RepoIDs).Union(tombstones.AllIDs())
+	ids.AddRange(counts.ID, counts.IDSection, laziness.ID, blamelanguage.ID, askproperly.ID)
+	for _, p := range english.Patterns() {
+		if p.ID != "" {
+			ids.Add(p.ID)
+		}
+	}
+	return ids
+}
+
 // ruleIDsIn answers the IDs a category holds, as a set.
 func ruleIDsIn(category Rule) set.Set[string] {
 	ids := set.New[string]()
@@ -106,136 +181,4 @@ func ruleIDsIn(category Rule) set.Set[string] {
 		}
 	}
 	return ids
-}
-
-// --- detection and autofix adapters -----------------------------------------
-
-// detectContent answers the findings this rule reports in one file's text. It
-// unions what check reads with what a report keeps, so a kept tombstone or a
-// section finding surfaces too.
-func detectContent(ids ...string) func(RuleCase) []ste.Finding {
-	want := set.Of(ids...)
-	return func(c RuleCase) []ste.Finding {
-		var out []ste.Finding
-		add := func(f ste.Finding) {
-			if want.Contains(f.ID) {
-				out = append(out, f)
-			}
-		}
-		for _, f := range CheckContent(c.Path, c.Text) {
-			add(f)
-		}
-		rep := Report(Request{Content: c.Text, Path: c.Path, MaxCommentLines: tombstones.DefaultMaxCommentLines})
-		for _, f := range rep.Findings {
-			add(f)
-		}
-		for _, k := range rep.Kept {
-			if want.Contains(k.ID) {
-				out = append(out, ste.Finding{Line: k.LineNo, ID: k.ID, Rule: k.Tell, Detail: k.Phrase, Fix: k.Fix})
-			}
-		}
-		return out
-	}
-}
-
-// repairContent answers the file's text with this rule's repair applied and
-// every other rule left alone.
-func repairContent(ids ...string) func(RuleCase) RuleCase {
-	return func(c RuleCase) RuleCase {
-		c.Text = Fix(Request{
-			Content:         c.Text,
-			Path:            c.Path,
-			IDs:             ids,
-			MaxCommentLines: tombstones.DefaultMaxCommentLines,
-		}).Text
-		return c
-	}
-}
-
-// detectTree answers this rule's findings over a repository the tree rules
-// judge. It reports findings and kept tombstones alike.
-func detectTree(ids ...string) func(RuleCase) []ste.Finding {
-	want := set.Of(ids...)
-	return func(c RuleCase) []ste.Finding {
-		out := CheckTreeWith(c.Root, Request{MaxCommentLines: tombstones.DefaultMaxCommentLines})
-		var found []ste.Finding
-		for _, f := range out.Findings {
-			if want.Contains(f.ID) {
-				found = append(found, f.Finding)
-			}
-		}
-		for _, k := range out.Kept {
-			if want.Contains(k.ID) {
-				found = append(found, ste.Finding{Line: k.LineNo, ID: k.ID, Rule: k.Tell, Detail: k.Phrase, Fix: k.Fix})
-			}
-		}
-		return found
-	}
-}
-
-// repairTree answers the repository with this rule's repair applied.
-func repairTree(ids ...string) func(RuleCase) RuleCase {
-	return func(c RuleCase) RuleCase {
-		FixTreeWith(c.Root, Request{IDs: ids, MaxCommentLines: tombstones.DefaultMaxCommentLines})
-		return c
-	}
-}
-
-// patternGroups indexes the english table's identified patterns by rule ID.
-func patternGroups() map[string][]english.Pattern {
-	groups := map[string][]english.Pattern{}
-	for _, p := range english.Patterns() {
-		if p.ID == "" {
-			continue
-		}
-		groups[p.ID] = append(groups[p.ID], p)
-	}
-	return groups
-}
-
-// detectPattern answers the patterns a wording rule carries, reporting the rule
-// when any of them rewrites the case's text.
-func detectPattern(patterns []english.Pattern, id string) func(RuleCase) []ste.Finding {
-	return func(c RuleCase) []ste.Finding {
-		for _, p := range patterns {
-			if _, took := p.ApplyN(c.Text); took > 0 {
-				return []ste.Finding{{
-					Line:   1,
-					ID:     id,
-					Rule:   "a phrase about a state the code has left",
-					Detail: p.Match,
-					Fix:    "Cut the phrase. `slopfix fix` does this.",
-				}}
-			}
-		}
-		return nil
-	}
-}
-
-// repairPattern rewrites a wording rule's phrases out of the case's text.
-func repairPattern(patterns []english.Pattern) func(RuleCase) RuleCase {
-	return func(c RuleCase) RuleCase {
-		for _, p := range patterns {
-			c.Text = p.Apply(c.Text)
-		}
-		return c
-	}
-}
-
-// patternCases answers the table's own worked examples for a wording rule.
-func patternCases(patterns []english.Pattern, id string) []RuleCase {
-	var out []RuleCase
-	for n, p := range patterns {
-		for m, t := range p.Tests() {
-			if t.In == "" {
-				continue
-			}
-			out = append(out, RuleCase{
-				Name: fmt.Sprintf("%s-%d-%d", id, n, m),
-				Path: "x.md",
-				Text: t.In + "\n",
-			})
-		}
-	}
-	return out
 }

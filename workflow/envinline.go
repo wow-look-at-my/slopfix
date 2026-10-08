@@ -188,12 +188,7 @@ func runSteps(root *yaml.Node) []stepRef {
 			if shell == "" {
 				shell = rootShell
 			}
-			windows := false
-			if on := mappingValue(job, "runs-on"); on != nil && shell == "" {
-				var text strings.Builder
-				walk(on, func(n *yaml.Node) { text.WriteString(n.Value) })
-				windows = strings.Contains(strings.ToLower(text.String()), "windows")
-			}
+			windows := runsPowerShell(job, shell)
 			uses := usesByID(steps)
 			for _, step := range steps.Content {
 				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), uses: uses})
@@ -208,6 +203,18 @@ func runSteps(root *yaml.Node) []stepRef {
 		}
 	}
 	return out
+}
+
+// runsPowerShell reports whether a step that names no shell of its own runs
+// PowerShell: the job sets no default shell and runs on a Windows runner.
+func runsPowerShell(job *yaml.Node, shell string) bool {
+	on := mappingValue(job, "runs-on")
+	if on == nil || shell != "" {
+		return false
+	}
+	var text strings.Builder
+	walk(on, func(n *yaml.Node) { text.WriteString(n.Value) })
+	return strings.Contains(strings.ToLower(text.String()), "windows")
 }
 
 func defaultShell(node *yaml.Node) string {

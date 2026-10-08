@@ -9,6 +9,7 @@ package ste
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -168,18 +169,7 @@ func Check(text string, line int) []Finding {
 	for _, rule := range proseRules {
 		out = append(out, rule.run(prose, line)...)
 	}
-	return markByHand(text, out)
-}
-
-// markByHand gives the hand-rewrite Fix text to a finding the repair leaves.
-// Only the semicolon is ever left: every other rule divides its own text.
-func markByHand(text string, findings []Finding) []Finding {
-	for n, f := range findings {
-		if f.ID == IDSemicolon && fixSemicolons(text) == text {
-			findings[n].Fix = FixSemicolonByHand
-		}
-	}
-	return findings
+	return out
 }
 
 // proseRule is a single rule under the phase name a timing run prints for it.
@@ -292,9 +282,16 @@ func checkSplices(prose string, line int) []Finding {
 // after somebody adds the item that makes it wrong.
 // This rule's own spelling of a count lives in cardinal as the Gate substrate. The document rule and the comment rule read
 // the same package with their own policies, so they cannot drift apart.
+//
+// A numeral after a definite determiner is the postdeterminer rule's finding,
+// so this rule leaves it to that one.
 func checkCounts(prose string, line int) []Finding {
 	var out []Finding
+	numerals := postdeterminers(prose, prose, opaque(prose, prose))
 	for _, found := range cardinal.Find(prose, cardinal.Gate) {
+		if slices.ContainsFunc(numerals, func(p postdeterminer) bool { return found.Offset >= p.Start && found.Offset < p.End }) {
+			continue
+		}
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDStaleCount,

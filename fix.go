@@ -2,7 +2,6 @@ package slopfix
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -46,9 +45,6 @@ const (
 	RulePins Rule = "pins"
 )
 
-// AllRules is every category the registry uses, in the order a rule declared it.
-var AllRules []Rule
-
 // IDsFor names every rule inside a category, so a caller can reject a typo
 // before it applies nothing and reads as a clean file.
 func IDsFor(rule Rule) set.Set[string] {
@@ -71,6 +67,8 @@ type Request struct {
 	Owned *forkscope.Scope `json:"-"`
 	// Fork names the lines a fork wrote across a tree run. A file it holds no line of is neither read nor written.
 	Fork *forkscope.Lines `json:"-"`
+	// OneFile marks a caller that writes Content's file and no other, such as a hook. A repair that needs a new file then leaves the text as it stands.
+	OneFile bool `json:"-"`
 }
 
 // Repair is the text as this binary would write it, plus what the rewrite flagged.
@@ -93,6 +91,8 @@ type Repair struct {
 	Scope edit.Scope `json:"-"`
 	// Unmet names each slopfix-expect annotation the repair disagrees with.
 	Unmet []string `json:"unmet,omitempty"`
+	// Created holds each new file Text depends on. A caller that writes Text writes these first.
+	Created []fixer.Created `json:"created,omitempty"`
 }
 
 // Fix repairs req, unless it carries slopfix-expect annotations.
@@ -252,6 +252,11 @@ func fixText(req Request) Repair {
 	rep := f.Report()
 	repair := Repair{Text: text, Changed: text != req.Content, Removed: rep.Removed, Rewrites: rep.Rewrites, Scope: f.Scope()}
 	repair.refuse(rep.Refused)
+	// A new file answers to every rule, whatever the run selected, so it lands clean.
+	for _, c := range rep.Created {
+		settled := fixAll(Request{Content: c.Text, Path: c.Path, MaxCommentLines: req.MaxCommentLines, OneFile: true})
+		repair.Created = append(repair.Created, fixer.Created{Path: c.Path, Text: settled.Text})
+	}
 	// A URL is text in every kind of file, so this rule reads the whole file.
 	if wants(RulePins) {
 		for _, finding := range pins.CheckPath(req.Path, text) {
@@ -297,16 +302,12 @@ func fixText(req Request) Repair {
 		}
 		if wants(RuleComments) && keeps(commentfix.IDLength) {
 			for _, hit := range commentfix.CheckLength(req.Path, text) {
-				kept := tombstones.Hit{
+				repair.Kept = append(repair.Kept, tombstones.Hit{
 					ID:     hit.ID,
 					Tell:   hit.Tell,
 					Phrase: hit.Sentence,
 					LineNo: hit.Line,
-				}
-				if !hit.Repairable {
-					kept.Fix = commentfix.FixLengthByHand
-				}
-				repair.Kept = append(repair.Kept, kept)
+				})
 			}
 		}
 	case fixer.Document:
@@ -321,6 +322,7 @@ func fixText(req Request) Repair {
 			}
 		}
 	}
+	repair.Findings, repair.Kept = Registered(repair.Findings), registeredHits(repair.Kept)
 	return repair
 }
 
@@ -332,7 +334,7 @@ const fixRounds = 4
 func wantsOf(req Request) func(Rule) bool {
 	rules := req.Rules
 	if len(rules) == 0 {
-		rules = AllRules
+		rules = AllRules()
 	}
 	return func(r Rule) bool { return slices.Contains(rules, r) }
 }
@@ -347,6 +349,7 @@ func openFile(req Request, kind fixer.Kind) *fixer.File {
 		Wants:           func(c string) bool { return wants(Rule(c)) },
 		Keeps:           keepsOf(req),
 		MaxCommentLines: req.MaxCommentLines,
+		Creates:         !req.OneFile && !req.Scope.Bounded && (req.Owned == nil || req.Owned.All()),
 	}
 	if kind == fixer.Workflow {
 		opts = workflow.Options(opts)
@@ -391,7 +394,7 @@ func reportAll(req Request) Repair {
 			findings = append(findings, finding)
 		}
 	}
-	repair.Findings = findings
+	repair.Findings, repair.Kept = Registered(findings), registeredHits(repair.Kept)
 	return repair
 }
 
@@ -424,12 +427,16 @@ func init() {
 					text = english.FixCommaNever(text)
 				}
 				if stePass {
-					text = ste.FixSelected(text, f.Keeps)
+					// A paragraph divides as a block, below, so a list item keeps its parts.
+					text = ste.FixSelected(text, func(id string) bool { return id != ste.IDParagraphLength && f.Keeps(id) })
 				}
 				return text
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))
+			}
+			if stePass && f.Keeps(ste.IDParagraphLength) {
+				f.Apply(paragraphEdits(f.Text()))
 			}
 		},
 	})
@@ -458,34 +465,4 @@ func init() {
 			}
 		},
 	})
-}
-
-// IsDocument reports whether path names prose rather than source.
-func IsDocument(path string) bool { return tombstones.IsDocument(path) }
-
-// FixFile repairs a file in place under every rule.
-func FixFile(path string) (Repair, error) {
-	return FixFileWith(path, Request{})
-}
-
-// FixFileWith repairs a file in place under the caller's own selection, and
-// reports what it did.
-//
-// The Content and Path of req are the file's, whatever the caller put there.
-// Everything else is the caller's. A run that names a rule on the command line
-// has to reach the repair, or the selection is silently ignored.
-func FixFileWith(path string, req Request) (Repair, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return Repair{}, err
-	}
-	req.Content, req.Path = string(content), path
-	repair := Fix(req)
-	if len(repair.Unmet) > 0 {
-		return repair, &UnmetError{Path: path, Unmet: repair.Unmet}
-	}
-	if !repair.Changed {
-		return repair, nil
-	}
-	return repair, commentfix.WriteFile(path, repair.Text)
 }
