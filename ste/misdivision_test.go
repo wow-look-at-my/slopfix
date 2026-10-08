@@ -70,6 +70,9 @@ var hardCuts = []struct {
 	{"The item list a `/todo` capture sends on its SECOND model call: the same prepared snapshot `/btw` sends, its instruction, then the first response echoed back verbatim (reasoning included) with the tool result that answered it.", "echoed. Back"},
 	{"The span the current window covers at `now`: the whole window once the response has run that long, and the time since its first chunk before then.", "first. Chunk"},
 	{"String carries every number a filesystem was judged on, which is what lets a log line be answered without the daemon still running to be asked.", "log. Line"},
+	{"itlBand is the population one inter-token percentile is drawn from, split by the delivery each sample came from and by the prefill passes its gap waited out.", "delivery. Each"},
+	{"The engine records a row's token at its mixed batch's end and a decode step's accepted tokens at that batch's end, so (request, time) names one batch.", "time). Names"},
+	{"SingleTokenSamples counts the per-token inter-token samples that came from a one-token delivery, and the total sample count, for the streams the ITL percentiles are measured over: with speculative decoding a delivery of N tokens contributes N samples of gap/N, so a delivery's share of a percentile depends on how many tokens it carried, not only on how long the wait was.", "of N. Tokens"},
 }
 
 // A last-resort cut may leave a sentence whole when no cut reads. These cases
