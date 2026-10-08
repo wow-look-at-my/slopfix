@@ -58,6 +58,10 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 
 	var text string
 	switch {
+	case ceilingAfter.MatchString(content[hit.End:]):
+		// "25 words or fewer" caps the number from behind, so the cap words go with it and the noun stays.
+		text = "a bounded number of " + content[to:hit.End]
+		to = hit.End + len(ceilingAfter.FindString(content[hit.End:]))
 	case n == 0 && !measures(hit.Phrase):
 		// Zero of a thing is none of it, and "a couple of" would claim some.
 		text = "no "
@@ -149,6 +153,9 @@ var rates = set.Of[string]("every", "each", "per")
 // ceilings cap the number. The cap is the fact, so the repair keeps that much.
 var ceilings = set.Of[string]("at most", "up to", "no more than", "fewer than",
 	"less than", "not more than", "under", "below", "within")
+
+// ceilingAfter caps the number from behind the noun.
+var ceilingAfter = regexp.MustCompile(`^[ \t]+or (?:fewer|less)\b`)
 
 // floors set a minimum the vague word meets.
 var floors = set.Of[string]("at least", "no fewer than", "no less than", "not less than")
