@@ -54,6 +54,7 @@ func roundTripFixtures() []fixture {
 				"Its four fields hold the header.\n\n" +
 				"The set holds three rules.\n\n" +
 				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n\n" +
+				"See the README for the config reference. In short: `eviction.max_bytes` (default 50 GiB, or the `CACHE_MAX_BYTES` env var) is the LRU bound, `eviction.max_age` (default off) is the optional TTL, `eviction.interval` (default 24h) is the sweep cadence, and setting both limits to 0 disables eviction - which the server warns about, because the cache then grows until the disk fills.\n\n" +
 				"- **Admin port**: " + strings.Repeat("The runner reads each event from the stream and writes the result to the store. ", 25) + "\n",
 			wants: []string{
 				slopfix.IDHardWrap,
