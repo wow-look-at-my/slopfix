@@ -26,8 +26,10 @@ import (
 // Block is a comment run or a paragraph. LineNos and Pure place each line and
 // judge it, and are nil for a paragraph.
 type Block struct {
-	Text    string
-	Lines   int
+	Text string
+	// Prose is the comment text alone, with the code that shares its lines left out. It is empty for a paragraph, whose Text is all prose.
+	Prose string
+	Lines int
 	LineNos []int
 	Pure    []bool
 	// Prefix is the indentation and list marker that open a document paragraph. A rewrite writes it back, or the paragraph leaves its list.
@@ -58,8 +60,21 @@ func AddedBlocks(path, added string) []Block {
 				pure++
 			}
 		}
+		prose := make([]string, 0, run.End-run.Start)
+		for idx, line := range lines[run.Start:run.End] {
+			span := [2]int{0, -1}
+			if idx < len(run.Spans) {
+				span = run.Spans[idx]
+			}
+			from, to := min(span[0], len(line)), span[1]
+			if to < 0 || to > len(line) {
+				to = len(line)
+			}
+			prose = append(prose, line[from:max(from, to)])
+		}
 		out = append(out, Block{
 			Text:    strings.Join(lines[run.Start:run.End], "\n"),
+			Prose:   strings.Join(prose, "\n"),
 			Lines:   pure,
 			LineNos: lineNos,
 			Pure:    run.Pure,
