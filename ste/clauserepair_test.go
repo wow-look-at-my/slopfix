@@ -83,6 +83,18 @@ func TestClauseRepairsKeepTheSentenceWhole(t *testing.T) {
 			"Fix mode vs check mode stays.",
 			"Fix mode vs check mode stays.",
 		},
+		"a second verb group keeps the passive subject": {
+			"`src/vet` is untouched by this change and is now the slowest package.",
+			"`src/vet` is untouched by this change and is now the slowest package.",
+		},
+		"a gerund after by names the means": {
+			"An answer is asserted by pairing it with `uname -s`.",
+			"An answer is asserted by pairing it with `uname -s`.",
+		},
+		"a reduced clause after a comma is no subject": {
+			"`a.dats` asserts the tripwires, run by the action the same way `b.dats` is run by its job.",
+			"`a.dats` asserts the tripwires, run by the action the same way `b.dats` is run by its job.",
+		},
 	} {
 		assert.Equal(t, c.want, clauseRepair(c.in), name)
 	}

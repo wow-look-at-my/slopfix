@@ -28,8 +28,8 @@ import (
 type Block struct {
 	Text string
 	// Prose is the comment text alone, with the code that shares its lines left out. It is empty for a paragraph, whose Text is all prose.
-	Prose string
-	Lines int
+	Prose   string
+	Lines   int
 	LineNos []int
 	Pure    []bool
 	// Prefix is the indentation and list marker that open a document paragraph. A rewrite writes it back, or the paragraph leaves its list.

@@ -254,6 +254,16 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if end < by+1 {
 		return "", false
 	}
+	// "by" and a gerund name the means, and no actor: "is asserted by pairing it with X".
+	if s.Words[by+1].Tag == "VBG" {
+		return "", false
+	}
+	// A second verb group after the actor shares the passive subject, which the rewrite moves away from it: "is untouched by this and is now the slowest".
+	for k := by + 2; k < end; k++ {
+		if s.Words[k].Tag == "CC" && (strings.HasPrefix(s.Words[k+1].Tag, "VB") || s.Words[k+1].Tag == "MD") {
+			return "", false
+		}
+	}
 	first, ok := subjectStart(s, i)
 	if !ok {
 		return "", false
@@ -301,7 +311,8 @@ func subjectStart(s *syntax.Sentence, i int) (int, bool) {
 	for first < i && (s.Words[first].Tag == "CC" || syntax.Is(s.Words[first].Lower(), "subordinator") || s.Words[first].Lower() == "so") {
 		first++
 	}
-	if first >= i || strings.HasPrefix(s.Words[first].Tag, "W") {
+	// A subject opens on a noun phrase. A verb there is a reduced clause of the words before: "run by the action the same way X is".
+	if first >= i || strings.HasPrefix(s.Words[first].Tag, "W") || strings.HasPrefix(s.Words[first].Tag, "VB") {
 		return 0, false
 	}
 	return first, true
