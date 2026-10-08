@@ -2,6 +2,7 @@ package code
 
 import (
 	"strings"
+	"sync"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 	"github.com/wow-look-at-my/slopfix/grammars/clang"
@@ -36,6 +37,19 @@ func Is(text string) bool {
 	if strings.TrimSpace(text) == "" || !strings.ContainsAny(text, codeMarks) {
 		return false
 	}
+	if v, ok := verdicts.Load(text); ok {
+		return v.(bool)
+	}
+	is := sniff(text)
+	verdicts.Store(text, is)
+	return is
+}
+
+// verdicts holds the answer for each text Is has judged.
+var verdicts sync.Map
+
+// sniff reports text that some grammar in sniffers parses with no error.
+func sniff(text string) bool {
 	for _, load := range sniffers {
 		if _, ok := ParseWith(load(), text); ok {
 			return true
