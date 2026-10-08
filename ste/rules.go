@@ -1,6 +1,6 @@
 // Package ste checks prose against ASD-STE100, Simplified Technical English.
 //
-// STE is a controlled language: each approved word carries a single meaning and
+// STE is a controlled language. Each approved word carries a single meaning and
 // a single part of speech, and its rules keep every sentence to a single
 // reading. It suits code prose for the reason it suits a maintenance manual. The
 // reader is about to change the thing described, and nobody is there to ask.
@@ -122,6 +122,8 @@ var (
 	wordPattern = regexp.MustCompile(`[A-Za-z]+(?:'[A-Za-z]+)?`)
 	// codeSpan matches an inline code span, whose contents are data.
 	codeSpan = regexp.MustCompile("`[^`]*`")
+	// charRange matches an XML character-class range a comment quotes, as in `[#x370-#x37D]`.
+	charRange = regexp.MustCompile(`\[#x[0-9A-Fa-f]+(?:-#x[0-9A-Fa-f]+)?\]`)
 	// sectionLink matches a link that cites a section by its slug.
 	sectionLink = regexp.MustCompile(`\[§[^\]\s]*\]\([^)\s]*\)`)
 	// linkTarget matches a markdown link's URL, which is not prose.
@@ -166,7 +168,18 @@ func Check(text string, line int) []Finding {
 	for _, rule := range proseRules {
 		out = append(out, rule.run(prose, line)...)
 	}
-	return out
+	return markByHand(text, out)
+}
+
+// markByHand gives the hand-rewrite Fix text to a finding the repair leaves.
+// Only the semicolon is ever left: every other rule divides its own text.
+func markByHand(text string, findings []Finding) []Finding {
+	for n, f := range findings {
+		if f.ID == IDSemicolon && fixSemicolons(text) == text {
+			findings[n].Fix = FixSemicolonByHand
+		}
+	}
+	return findings
 }
 
 // proseRule is a single rule under the phase name a timing run prints for it.
@@ -193,11 +206,13 @@ var proseRules = []proseRule{
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
-// link's target, and an HTML entity. A semicolon inside any of them is not a
-// sentence joiner.
+// link's target, an HTML entity, and an XML character range. A semicolon inside
+// any of them is not a sentence joiner.
 func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
+	// A range becomes a separator, so neighbours never join into one word.
+	text = charRange.ReplaceAllString(text, " ")
 	// A section link reads as the citation it replaced, which holds no word.
 	text = sectionLink.ReplaceAllString(text, "§")
 	text = linkTarget.ReplaceAllString(text, "](URL)")

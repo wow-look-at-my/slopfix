@@ -2,6 +2,7 @@ package ste
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -14,18 +15,23 @@ func Fix(text string) string {
 
 // FixSelected applies the repairs whose ID keep accepts, so a caller that names
 // a rule gets that rule's repair and no other.
-//
-// The cap repair runs over the whole text rather than inside fixProse. It
-// measures a sentence the way Check measures it, and Check counts a code span
-// as a single word rather than as a gap between shorter sentences.
 func FixSelected(text string, keep func(id string) bool) string {
-	text = fixProse(text, func(prose string) string {
-		prose = fixWords(prose, keep)
-		if keep(IDSemicolon) {
-			prose = fixSemicolons(prose)
-		}
-		return prose
-	})
+	return fixSelected(text, keep, true)
+}
+
+// FixKeepingOpening is Fix, with a division that keeps each sentence's
+// opening words as its first sentence.
+func FixKeepingOpening(text string) string {
+	return fixSelected(text, func(string) bool { return true }, false)
+}
+
+// fixSelected runs the cap repair over the whole text rather than inside
+// fixProse, because Check counts a code span as a single word.
+func fixSelected(text string, keep func(id string) bool, reorder bool) string {
+	text = fixProse(text, func(prose string) string { return fixWords(prose, keep) })
+	if keep(IDSemicolon) {
+		text = fixSemicolons(text)
+	}
 	if keep(IDCommaSplice) {
 		text = fixSplices(text)
 	}
@@ -33,9 +39,22 @@ func FixSelected(text string, keep func(id string) bool) string {
 		text = fixPostdeterminers(text)
 	}
 	if keep(IDSentenceCap) {
-		text = fixSentenceCap(text)
+		text = fixSentenceCap(text, capSpec{reorder: reorder, cap: SentenceWordCap})
 	}
 	return text
+}
+
+// capSpec is how a long sentence divides. It holds the word cap each part
+// must meet.
+type capSpec struct {
+	reorder bool
+	cap     int
+}
+
+// DivideTo divides each sentence of text over maxWords, as the cap repair
+// does at its own cap, and keeps each sentence's opening words first.
+func DivideTo(text string, maxWords int) string {
+	return fixSentenceCap(text, capSpec{cap: maxWords})
 }
 
 var (
@@ -50,11 +69,20 @@ var (
 )
 
 // fixProse applies repair to the prose of text, leaving each verbatim span
-// alone. A semicolon inside `a; b` is the thing the sentence documents.
+// alone. A semicolon inside `a; b` is the thing the sentence documents. A
+// quotation is another voice, so its words stay as Check reads them: unjudged.
 func fixProse(text string, repair func(string) string) string {
+	spans := append(verbatimSpan.FindAllStringIndex(text, -1), quotedSpans(text)...)
+	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
 	var out strings.Builder
 	last := 0
-	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
+	for _, span := range spans {
+		if span[1] <= last {
+			continue
+		}
+		if span[0] < last {
+			span = []int{last, span[1]}
+		}
 		out.WriteString(repair(text[last:span[0]]))
 		out.WriteString(text[span[0]:span[1]])
 		last = span[1]
@@ -66,7 +94,18 @@ func fixProse(text string, repair func(string) string) string {
 // fixWords writes the approved word for each banned word, and keeps the
 // capitalization the source used.
 func fixWords(prose string, keep func(id string) bool) string {
-	return wordPattern.ReplaceAllStringFunc(prose, func(word string) string {
+	locs := wordPattern.FindAllStringIndex(prose, -1)
+	var out strings.Builder
+	last := 0
+	for _, loc := range locs {
+		out.WriteString(prose[last:loc[0]])
+		last = loc[1]
+		word := prose[loc[0]:loc[1]]
+		// A name such as should_hold contains a modal but is not one.
+		if from, to := loc[0], loc[1]; from > 0 && isIdentByte(prose[from-1]) || to < len(prose) && isIdentByte(prose[to]) {
+			out.WriteString(word)
+			continue
+		}
 		lower := strings.ToLower(word)
 		replacement, banned := Expand(word)
 		if banned && !keep(IDContraction) {
@@ -79,18 +118,19 @@ func fixWords(prose string, keep func(id string) bool) string {
 			}
 		}
 		if !banned {
-			return word
+			out.WriteString(word)
+			continue
 		}
 		if isCapitalized(word) {
-			return capitalize(replacement)
+			replacement = capitalize(replacement)
 		}
-		return replacement
-	})
+		out.WriteString(replacement)
+	}
+	out.WriteString(prose[last:])
+	return out.String()
 }
 
-func fixSemicolons(prose string) string {
-	return breakWith(prose, semicolonRun.FindAllStringIndex(prose, -1), nil)
-}
+func isIdentByte(b byte) bool { return b == '_' || b >= '0' && b <= '9' }
 
 // The comma is found the way checkSplices finds it, guard included, so the
 // repair covers exactly what the check reports. A conjunction the connectors
@@ -120,7 +160,7 @@ func fixSplices(prose string) string {
 	return breakWith(prose, joiners, openers)
 }
 
-// offLimits are the spans no break may land in: the data Check hides, and a
+// offLimits are the spans no break may land in. The data Check hides, and a
 // parenthetical, which STE counts as a single word and a break would halve.
 func offLimits(prose, masked string) [][]int {
 	off := verbatimSpan.FindAllStringIndex(prose, -1)
@@ -128,7 +168,7 @@ func offLimits(prose, masked string) [][]int {
 }
 
 // mask writes filler over every span strip hides from Check, byte for byte,
-// so an offset into the mask is an offset into the prose and both count the
+// so an offset into the mask is an offset into the prose. Both count the
 // same words. A code span and an entity get the word strip writes.
 func mask(prose string) string {
 	out := []byte(prose)

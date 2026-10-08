@@ -3,7 +3,7 @@
 // The repair of the file as it stands on disk is F. A line F changes carries
 // an auto-fixable finding, and only `slopfix fix` may write it. An Edit or
 // MultiEdit that changes such a line goes through as `slopfix fix` writes it:
-// the edit is replayed, the result is repaired, and the repair is kept on
+// the edit is replayed. The result is repaired, and the repair is kept on
 // every line the edit wrote. The edit then replaces those lines whole. A
 // Write is repaired whole by the write guard. A line the edit only inserts
 // beside is not a line it changes.
@@ -120,8 +120,8 @@ func cannotScope(path string, err error) []string {
 	return []string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", path, err)}
 }
 
-// handFix answers the rewrite of an edit that changes a line F changes, or nil
-// when the edit may go on to the repair as it stands. It answers a refusal
+// handFix answers the rewrite of an edit that changes a line F changes. It
+// answers nil when the edit may go on to the repair as it stands. It answers a refusal
 // only when it cannot compute the rewrite. A path with no file yet is a new
 // file, and only the repair judges it. In a fork, F changes only the lines the
 // fork wrote, so a file the fork never touched is left to the repair.
@@ -220,11 +220,11 @@ func rewriteHand(req slopfix.Request, fixedBefore, after string, touched []int, 
 	return h, nil
 }
 
-// restoreRepairs answers after with each line put back as fix writes it where
-// the edit changed a line fix repairs and fix leaves the edited line alone,
-// because the edit performed the repair by hand. stillFixed holds the 1-based
-// lines of after that fix changes. Only a line each diff pairs one to one is
-// put back.
+// restoreRepairs answers after with each line put back as fix writes it. This
+// happens where the edit changed a line fix repairs and fix leaves the edited
+// line alone. This is because the edit performed the repair by hand.
+// stillFixed holds the 1-based lines of after that fix changes. Only a line
+// each diff pairs one to one is put back.
 func restoreRepairs(before, fixedBefore, after string, stillFixed set.Set[int]) string {
 	edited := pairs(before, after)
 	repaired := pairs(before, fixedBefore)
@@ -274,9 +274,9 @@ func writtenLines(before, after string) set.Set[int] {
 }
 
 // keepWritten takes from fixed every change that lands on lines of after the
-// edit wrote, and leaves after as it stands everywhere else. A change that
-// also rewrites a line the edit never wrote, such as a paragraph join, is
-// left out, so no word the write did not touch is changed.
+// edit wrote, and leaves after as it stands everywhere else. It leaves out a
+// change that also rewrites a line the edit never wrote, such as a paragraph
+// join. So no word the write did not touch changes.
 func keepWritten(after, fixed string, written set.Set[int]) string {
 	a := strings.SplitAfter(after, "\n")
 	b := strings.SplitAfter(fixed, "\n")

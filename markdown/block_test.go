@@ -46,6 +46,29 @@ func TestFrontMatterIsNotProse(t *testing.T) {
 	assert.Equal(t, "The body.", blocks[0].Text())
 }
 
+// The logo a program prints holds no letter. A join puts it on one line.
+func TestAParagraphWithNoLetterIsAPicture(t *testing.T) {
+	doc := "⠀⠀⣠⣾⠿⠛⠛⢀⡴⠁\n⠀⣼⡟⠁⠀⢀⡴⠻⣿⡀\n⠀⢹⣷⠀⠀⢀⣴⡿⠀⠀\n"
+	assert.Empty(t, prose(doc))
+	assert.Equal(t, doc, markdown.Format(doc))
+}
+
+// A template engine reads a directive line. A join changes what it renders.
+func TestATemplateDirectiveLineStaysAsWritten(t *testing.T) {
+	doc := "<agent_usage>\n${{ agent_usage_note }}\n</agent_usage>\n${%- endif %}\n"
+	for _, b := range prose(doc) {
+		assert.NotContains(t, b.Text(), "{")
+	}
+	assert.Equal(t, doc, markdown.Format(doc))
+}
+
+func TestADirectiveLineDividesTheParagraphAroundIt(t *testing.T) {
+	blocks := prose("The first line\nwraps here.\n{% if x %}\nThe last line\nwraps too.\n{# a note #}\n")
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "The first line wraps here.", blocks[0].Text())
+	assert.Equal(t, "The last line wraps too.", blocks[1].Text())
+}
+
 func TestATemplateTagIsNotProse(t *testing.T) {
 	doc := "- Read first.\n${%- if x %}\n- Write last.\n${%- endif %}\n{% if y %}\nThe body.\n{% endif %}\n"
 	blocks := prose(doc)
@@ -54,6 +77,23 @@ func TestATemplateTagIsNotProse(t *testing.T) {
 	assert.Equal(t, "Write last.", blocks[1].Text())
 	assert.Equal(t, "The body.", blocks[2].Text())
 	assert.Equal(t, doc, markdown.Format(doc), "no tag joins a paragraph")
+}
+
+// A custom tag cannot end a CommonMark paragraph. A closing tag on its own
+// line must not read as the next line of the prose above it.
+func TestALoneMarkupTagLineEndsTheParagraph(t *testing.T) {
+	doc := "<memory>\nTreat memory as context.\n</memory>\n\n<rules lang=\"en\">\nRead first.\n</rules>\n"
+	blocks := prose(doc)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "Treat memory as context.", blocks[0].Text())
+	assert.Equal(t, "Read first.", blocks[1].Text())
+	assert.Equal(t, doc, markdown.Format(doc), "no tag joins a paragraph")
+}
+
+func TestATagInsideAParagraphStaysProse(t *testing.T) {
+	blocks := prose("Write the <b>bold</b> word\nand go on.\n")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Write the <b>bold</b> word and go on.", blocks[0].Text())
 }
 
 func TestATableIsAGrid(t *testing.T) {

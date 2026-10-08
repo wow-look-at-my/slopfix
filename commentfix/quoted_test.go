@@ -7,8 +7,8 @@ import (
 )
 
 // A comment that documents a rewrite quotes the text on each side of it. The
-// repair reads a quotation as the sentence's subject rather than its claim, so
-// the example still differs on each side of it after a pass.
+// repair reads a quotation as the sentence's subject rather than its claim.
+// The example still differs on each side of it after a pass.
 func TestAQuotedExampleSurvivesTheRepair(t *testing.T) {
 	src := "// The tally rule rewrites \"two goroutines\" to \"goroutines\".\nfunc f() {}\n"
 	repair := fix(t, src)

@@ -2,8 +2,8 @@
 //
 // A class here is CLOSED: the language admits no new article and no new
 // preposition, so the list is the whole class and stays correct. An open class
-// is what is left when no class claims the word, which is a noun or a verb,
-// and a production names that with <open/>.
+// is what is left when no class claims the word, which is a noun or a verb. A
+// production names that with <open/>.
 package table
 
 import (

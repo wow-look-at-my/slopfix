@@ -10,7 +10,7 @@ import (
 )
 
 // Every grammar gets the same walk, the same measure and the same repair. A
-// language that only REPORTS is the failure this pins: the old path repaired Go
+// language that only REPORTS is the failure this pins: the path repaired Go
 // alone.
 var languageFixtures = map[string]string{
 	"x.go":  "package p\n\n" + essay("//") + "const p = 1\n",

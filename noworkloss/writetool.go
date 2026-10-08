@@ -74,7 +74,7 @@ func vacatedReason(path string, w writeAttempt) string {
 		w.wasted(path, held)
 }
 
-// heldPath is a path git holds and the disk does not, with the place git
+// heldPath is a path git holds. The disk does not, with the place git
 // holds it: the index for a rename and a plain `rm`, HEAD for a `git rm`.
 type heldPath struct {
 	root, rel, source string

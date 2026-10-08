@@ -74,9 +74,8 @@ func isInstructionFile(path string) bool {
 }
 
 // wideLines returns the line numbers, counting from the top, that could have
-// been wrapped and were
-// not. Code fences, tables, indented blocks and headings cannot be rewrapped
-// without changing what they render as, and a line whose leading widthLimit
+// been wrapped and were not. A rewrap of code fences, tables, indented blocks
+// and headings changes what they render as. A line whose leading widthLimit
 // columns hold no space is a single unbreakable token (a URL).
 func wideLines(text string) []int {
 	var out []int
@@ -112,8 +111,8 @@ func wideLines(text string) []int {
 // measure reads a file and returns both measurements. Characters, the way
 // the CLI counts them -- not bytes, so a file with non-ASCII text measures
 // smaller than wc -c reports. wide is always empty while the width check is
-// off: a single choke point, so no caller and no report can bring wrapping
-// back on its own.
+// off. This is a single choke point. No caller and no report can bring
+// wrapping back on its own.
 func measure(path string) (chars int, wide []int, ok bool) {
 	st, err := os.Stat(path)
 	if err != nil || !st.Mode().IsRegular() {
@@ -132,8 +131,8 @@ func measure(path string) (chars int, wide []int, ok bool) {
 
 // homeCandidates lists the always-loaded files a tree walk from cwd cannot
 // find on its own: ~/.claude/CLAUDE.md and its @-imported snippets. Snippets
-// are measured too -- the CLI counts each import as its own entry, so an
-// oversized snippet is just as much a problem as an oversized CLAUDE.md.
+// are measured too -- the CLI counts each import as its own entry. An
+// oversized snippet is as much a problem as an oversized CLAUDE.md.
 func homeCandidates() []string {
 	var out []string
 	home := os.Getenv("HOME")
@@ -153,9 +152,10 @@ func homeCandidates() []string {
 }
 
 // claudeMdFiles walks root recursively for every CLAUDE.md, skipping .git and
-// node_modules. This is the ONLY scan every caller uses -- SessionStart's
-// census, PostToolUse/Stop's change tracking, and CI's full_scan alike -- so
-// no caller can fall back to a shallow "guess the sibling directories" mode.
+// node_modules. This is the ONLY scan, and every caller uses it. The callers
+// are SessionStart's census, PostToolUse/Stop's change tracking, and CI's
+// full_scan. No caller can fall back to a shallow "guess the sibling
+// directories" mode.
 // That guess let a real violation deep under the root through unseen.
 func claudeMdFiles(root string) []string {
 	var out []string
@@ -228,8 +228,8 @@ func signature(path string) (string, bool) {
 }
 
 // growthOverHead reports how much the working tree's copy grew over the last
-// committed copy, or false when there is no git, no commit, or nothing to
-// compare against.
+// committed copy. It reports false when there is no git, no commit, or nothing
+// to compare against.
 func growthOverHead(path string, chars int) (int, bool) {
 	abs, err := filepath.Abs(path)
 	if err != nil {

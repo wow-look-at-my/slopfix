@@ -17,7 +17,7 @@ import (
 // EVERY rule carries a repair. A rule that only reports hands the reader a
 // finding and no way out of it, and the tool exists to write the repair.
 //
-// This is the check the gate runs: a rule added without a repair fails the
+// This is the check the gate runs. A rule added without a repair fails the
 // build that adds it, while its author still holds the context to write it.
 func TestEveryRuleCarriesARepair(t *testing.T) {
 	var missing []string
@@ -53,7 +53,12 @@ func TestEveryErrorRuleHasARepairPath(t *testing.T) {
 // The rules with no repair are named one by one, so a new rule cannot join them
 // in passing.
 func TestOnlyTheseRulesReportWithoutARepair(t *testing.T) {
-	assert.ElementsMatch(t, []string{slopfix.IDNearDuplicate, slopfix.IDJSON, slopfix.IDXML}, slopfix.ReportOnly.Values())
+	want := append([]string{
+		slopfix.IDNearDuplicate, slopfix.IDJSON, slopfix.IDXML,
+		workflow.IDTestInYAML, workflow.IDDuplicateStepKey,
+		"laziness/punt", "blame/deflection", "ask/prose-decision",
+	}, ste.WarningIDs.Values()...)
+	assert.ElementsMatch(t, want, slopfix.ReportOnly.Values())
 	for id := range slopfix.ReportOnly.All() {
 		assert.False(t, slopfix.Repairable(id), "%s claims a repair it does not have", id)
 	}

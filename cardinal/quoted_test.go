@@ -7,8 +7,8 @@ import (
 )
 
 // The shape the exemption exists for: a comment documenting a rewrite quotes
-// the text on each side of it, and reporting the number inside the marks is
-// what lets a repair leave the same words on each side of it.
+// the text on each side of it. Reporting the number inside the marks is what
+// lets a repair leave the same words on each side of it.
 func TestAQuotedNumberCountsNothingHere(t *testing.T) {
 	documented := `the tally rule rewrites "two goroutines" to "goroutines"`
 	assert.Empty(t, texts(documented, Comment))
@@ -17,8 +17,8 @@ func TestAQuotedNumberCountsNothingHere(t *testing.T) {
 	assert.Equal(t, []string{"two"}, texts("the tally rule rewrites two goroutines", Comment))
 }
 
-// An apostrophe spells a contraction far more often than it opens a quotation,
-// so it bounds nothing and the count after it is still a count.
+// An apostrophe spells a contraction far more often than it opens a quotation.
+// It bounds nothing and the count after it is still a count.
 func TestAnApostropheOpensNoQuotation(t *testing.T) {
 	assert.Equal(t, []string{"three"}, texts("it doesn't wait for three workers", Comment))
 }

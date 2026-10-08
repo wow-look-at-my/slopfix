@@ -17,7 +17,7 @@ func texts(text string, s Substrate) []string {
 }
 
 // A prose finding carries the quantity so the repair can cut the cardinal off
-// the front of it, which a list of phrases does not show.
+// the front of it. A list of phrases does not show that.
 func TestAProseFindingOpensWithTheCardinal(t *testing.T) {
 	found := Find("This repo's 15 plugins ride along.", Prose)
 	require.Len(t, found, 1)

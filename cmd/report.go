@@ -42,7 +42,7 @@ func wireFindings(findings []ste.Finding, kept []tombstones.Hit) []reportFinding
 		out = append(out, wireFinding(finding))
 	}
 	for _, hit := range kept {
-		out = append(out, wireFinding(ste.Finding{Line: hit.LineNo, ID: hit.ID, Rule: hit.Tell, Detail: hit.Phrase}))
+		out = append(out, wireFinding(ste.Finding{Line: hit.LineNo, ID: hit.ID, Rule: hit.Tell, Detail: hit.Phrase, Fix: hit.Fix}))
 	}
 	return out
 }
@@ -59,7 +59,7 @@ func wireFinding(finding ste.Finding) reportFinding {
 		Rule:       finding.Rule,
 		Detail:     finding.Detail,
 		Fix:        finding.Fix,
-		Repairable: slopfix.Repairable(finding.ID),
+		Repairable: slopfix.Repairable(finding.ID) && !ste.ByHand(finding.Fix),
 		Severity:   severity(finding),
 	}
 }

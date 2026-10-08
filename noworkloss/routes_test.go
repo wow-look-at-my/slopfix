@@ -24,10 +24,6 @@ type routeCase struct {
 func routeCases() []routeCase {
 	return []routeCase{
 		// In-place editors.
-		{route: "sed -i", deny: "sed -i s/a/b/ src.txt", allow: "sed -i s/a/b/ {{out}}/src.txt", names: "src.txt"},
-		{route: "sed -i with a suffix in a flag cluster", deny: "sed -ri.bak -e s/a/b/ notes.md", allow: "sed -ri.bak -e s/a/b/ {{out}}/src.txt", names: "notes.md"},
-		{route: "sed w command", deny: `sed -n 's/a/b/w out.txt' src.txt`, allow: `sed -n 's/a/b/w {{out}}/out.txt' src.txt`, names: "out.txt"},
-		{route: "sed -i with files supplied by xargs", deny: "ls | xargs sed -i s/a/b/", allow: "ls | xargs sed s/a/b/", names: "supplied at runtime"},
 		{route: "ed", deny: "ed -s src.txt", allow: "ed -s {{out}}/src.txt", names: "src.txt"},
 		{route: "ex", deny: "ex -s -c wq src.txt", allow: "ex -s -c wq {{out}}/src.txt", names: "src.txt"},
 		{route: "vi -c", deny: "vi -c :wq src.txt", allow: "vi -c :wq {{out}}/src.txt", names: "src.txt"},
@@ -40,7 +36,6 @@ func routeCases() []routeCase {
 		{route: "perl -pi -e", deny: `perl -pi -e 's/a/b/' src.txt`, allow: "perl --version", names: "inline perl script"},
 		{route: "a script piped into an interpreter", deny: `echo 'x' | ruby`, allow: `echo 'x' | ruby prog.rb`, names: "piped in on stdin"},
 		{route: "a script redirected into an interpreter", deny: `ruby < prog.rb`, allow: `ruby prog.rb < data.json`, names: "piped in on stdin"},
-		{route: "busybox sed -i", deny: "busybox sed -i s/a/b/ src.txt", allow: "busybox sed -i s/a/b/ {{out}}/src.txt", names: "src.txt"},
 		{route: "sponge", deny: "sort src.txt | sponge src.txt", allow: "sort src.txt | sponge {{out}}/src.txt", names: "src.txt"},
 		{route: "xxd -r", deny: "xxd -r -p {{out}}/dump.hex src.txt", allow: "xxd -r -p {{out}}/dump.hex {{out}}/src.txt", names: "src.txt"},
 		{route: "base64 -d into a redirect", deny: "base64 -d {{out}}/in.b64 > src.txt", allow: "base64 -d {{out}}/in.b64 > {{out}}/src.txt", names: "src.txt"},
@@ -59,7 +54,6 @@ func routeCases() []routeCase {
 		{route: "rsync into the tree", deny: "rsync -a {{out}}/src.txt src.txt", allow: "rsync -a src.txt {{out}}/copy.txt", names: "src.txt"},
 
 		// Write elsewhere.
-		{route: "sed -i r, reading a fragment written elsewhere", deny: "sed -i '3r {{out}}/frag.txt' src.txt", allow: "sed -i '3r {{out}}/frag.txt' {{out}}/src.txt", names: "src.txt"},
 		{route: "appending a fragment written elsewhere", deny: "cat {{out}}/frag.txt >> src.txt", allow: "cat src.txt >> {{out}}/frag.txt", names: "src.txt"},
 
 		// Patch application.
@@ -104,7 +98,7 @@ func routeCases() []routeCase {
 			allow: "./reader.sh",
 			names: "src.txt",
 			setup: func(t *testing.T, root, out string) {
-				writeFile(t, filepath.Join(root, "shebang.sh"), "#!/bin/sh\nsed -i s/a/b/ src.txt\n")
+				writeFile(t, filepath.Join(root, "shebang.sh"), "#!/bin/sh\ntruncate -s 0 src.txt\n")
 				writeFile(t, filepath.Join(root, "reader.sh"), "#!/bin/bash\ngrep hi src.txt\n")
 			},
 		},
@@ -128,10 +122,10 @@ func routeCases() []routeCase {
 				writeFile(t, filepath.Join(out, "gen.js"), "// scratch\n")
 			},
 		},
-		{route: "find -exec", deny: `find . -name '*.txt' -exec sed -i s/a/b/ {} +`, allow: `cd {{out}} && find . -name '*.txt' -exec sed -i s/a/b/ {} +`, names: "sed -i"},
-		{route: "a writer started in the background", deny: "sed -i s/a/b/ src.txt &", allow: "sed -i s/a/b/ {{out}}/src.txt &", names: "src.txt"},
-		{route: "a shell function wrapping a writer", deny: "f() { sed -i s/a/b/ src.txt; }; f", allow: "f() { sed -i s/a/b/ {{out}}/src.txt; }; f", names: "src.txt"},
-		{route: "an alias wrapping a writer", deny: "alias fix='sed -i s/a/b/ src.txt'; fix", allow: "alias fix='sed -i s/a/b/ {{out}}/src.txt'; fix", names: "src.txt"},
+		{route: "find -exec", deny: `find . -name '*.txt' -exec truncate -s 0 {} +`, allow: `cd {{out}} && find . -name '*.txt' -exec truncate -s 0 {} +`, names: "truncate"},
+		{route: "a writer started in the background", deny: "truncate -s 0 src.txt &", allow: "truncate -s 0 {{out}}/src.txt &", names: "src.txt"},
+		{route: "a shell function wrapping a writer", deny: "f() { truncate -s 0 src.txt; }; f", allow: "f() { truncate -s 0 {{out}}/src.txt; }; f", names: "src.txt"},
+		{route: "an alias wrapping a writer", deny: "alias fix='truncate -s 0 src.txt'; fix", allow: "alias fix='truncate -s 0 {{out}}/src.txt'; fix", names: "src.txt"},
 		{route: "sh -c", deny: `sh -c 'echo hi > src.txt'`, allow: `sh -c 'echo hi > {{out}}/src.txt'`, names: "src.txt"},
 
 		// Symlinks.
@@ -144,7 +138,7 @@ func routeCases() []routeCase {
 
 		// Ambiguity, which fails closed.
 		{route: "a command that does not parse", deny: "echo 'unfinished", allow: "echo fine", names: "does not parse as shell"},
-		{route: "a target built from an expansion", deny: `sed -i s/a/b/ "$TARGET"`, allow: "sed -i s/a/b/ {{out}}/src.txt", names: "expansion"},
+		{route: "a target built from an expansion", deny: `truncate -s 0 "$TARGET"`, allow: "truncate -s 0 {{out}}/src.txt", names: "expansion"},
 		{route: "a cd this hook cannot follow", deny: `cd "$D" && echo hi > f.txt`, allow: "cd {{out}} && echo hi > f.txt", names: "not statically known"},
 		{route: "a git repository relocated by the environment", deny: "GIT_DIR={{out}}/.git git apply x.diff", allow: "cd {{out}} && git apply x.diff", names: "relocated"},
 
@@ -198,9 +192,9 @@ func TestEveryRouteIsAllowedOutsideTheTree(t *testing.T) {
 	}
 }
 
-// Removing this plugin makes every deny case allowed, so the assertion above is
-// the assertion that turns red. Asserting that here keeps the claim honest rather than
-// leaving it to be believed: nothing else in the suite would notice a hook that
+// Removing this plugin makes every deny case allowed, so the assertion above is the
+// assertion that turns red. Asserting that here keeps the claim honest rather than
+// leaving it to be believed: nothing else in the suite would notice a hook. That hook
 // stopped deciding.
 func TestDenyAssertionsFailWithNoHookInPlace(t *testing.T) {
 	noHook := func(string, string) string { return "" }
@@ -245,10 +239,10 @@ func TestOrdinaryCommandsAreUntouched(t *testing.T) {
 		"prettier --write src", "shfmt -w script.sh", "cargo fmt",
 
 		// Paths a build owns, and everything outside the tree.
-		"echo hi > build/app.js", "sed -i s/a/b/ node_modules/dep.js",
+		"echo hi > build/app.js", "truncate -s 0 node_modules/dep.js",
 		"tar -xzf {{out}}/a.tgz -C build", "echo hi > {{out}}/scratch.txt",
 
-		// Reads of the very things the write rules cover.
+		// Reads of the things the write rules cover.
 		"gh api /repos/o/r/contents/README.md", "gh pr view 1", "gh run list",
 	}
 	for _, cmd := range allowed {

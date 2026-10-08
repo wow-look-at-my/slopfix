@@ -101,7 +101,7 @@ func TestEveryGuardAnswersItsOwnInput(t *testing.T) {
 		{only: []string{"tombstones"}, payload: writeEnvelope("x.go", "package p\n\n// This used to read the flag from the environment.\nfunc f() {}\n"), want: `"content":"package p\n\nfunc f() {}\n"`},
 		{only: []string{"auto-allow"}, payload: bash("python3 -c 1"), want: `"permissionDecision":"deny"`},
 		{only: []string{"clean-bash"}, payload: bash("docker compose restart web"), want: "up -d"},
-		{only: []string{"no-work-loss"}, payload: bash("sed -i s/a/b/ README.md"), want: `"permissionDecision":"deny"`},
+		{only: []string{"no-work-loss"}, payload: bash("truncate -s 0 README.md"), want: `"permissionDecision":"deny"`},
 		{only: []string{"link-refs"}, payload: display("guard-link-refs", "Fixed in PazerOP/foo#42."), want: "](https://github.com/PazerOP/foo/"},
 		{only: []string{"ask-properly"}, payload: display("guard-ask-properly", "I fixed the parser. Your call whether to ship it."), want: "ask-properly"},
 		{only: []string{"laziness"}, payload: envelope(map[string]any{"hook_event_name": "Stop", "last_assistant_message": "I found an off-by-one in the retry loop and left it alone."}), want: "continue"},

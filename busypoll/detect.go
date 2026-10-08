@@ -1,12 +1,12 @@
-// detect.go finds a busy-poll: a trailing run of turns that each made the
-// exact same tool call, spaced close enough together that no real event or
-// scheduled wakeup could plausibly explain the repeat.
+// detect.go finds a busy-poll. This is a trailing run of turns that each made
+// the exact same tool call. The trailing run is spaced close enough together
+// that no real event or scheduled wakeup could plausibly explain the repeat.
 //
-// Spacing is what separates this from a legitimate watch loop. A session
-// that re-checks a pull request on a scheduled trigger repeats the same
-// command too, but each repeat follows a genuine gap; a busy-poll repeats it
-// turn after turn with the gap measured in seconds. Only the latter shape
-// wastes tokens for nothing, so only the latter shape refuses.
+// Spacing is what separates this from a legitimate watch loop. A session that
+// re-checks a pull request on a scheduled trigger repeats the same command
+// too, but each repeat follows a genuine gap. A busy-poll repeats it turn
+// after turn with the gap measured in seconds. Only the latter shape wastes
+// tokens for nothing, so only the latter shape refuses.
 package busypoll
 
 import (
@@ -40,9 +40,10 @@ func maxGap() time.Duration {
 }
 
 // streak returns the length of the trailing run of turns sharing the last
-// turn's signature, each following its predecessor within maxGap, plus
-// that last turn's calls for display. It returns nothing when the last
-// turn made no tool call at all -- there is nothing repeated to refuse.
+// turn's signature, each following its predecessor. This happens within
+// maxGap, plus that last turn's calls for display. It returns nothing
+// when the last turn made no tool call at all -- there is nothing
+// repeated to refuse.
 func streak(turns []turn) (int, []call) {
 	if len(turns) == 0 {
 		return 0, nil

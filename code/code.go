@@ -1,8 +1,8 @@
 // Package code is the parse every rule reads source through.
 //
 // Nothing here names a language beyond the grammar registry. A comment is a
-// node whose type carries "comment", which is how every grammar spells it, so
-// a rule asks the tree rather than a table of marker bytes.
+// node whose type carries "comment", which is how every grammar spells it. A
+// rule asks the tree rather than a table of marker bytes.
 package code
 
 import (

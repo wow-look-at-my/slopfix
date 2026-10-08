@@ -185,6 +185,13 @@ func TestACompoundAfterANounPhraseOpensAClause(t *testing.T) {
 	assert.Equal(t, "VBZ", s.Words[len(s.Words)-2].Tag)
 }
 
+func TestThatBeforeAnAdverbAndAVerbOpensARelativeClause(t *testing.T) {
+	s := parse(t, "A clause that never closes is still a clause.")
+	require.GreaterOrEqual(t, len(s.Clauses), 2)
+	assert.Equal(t, syntax.Relative, s.Clauses[1].Kind)
+	assert.Equal(t, 1, s.Clauses[1].Depth)
+}
+
 func TestTheMainVerbAfterARelativeClauseResumesTheMainClause(t *testing.T) {
 	s := parse(t, "A user who cannot dismiss a message reads it as contempt and reads nothing else.")
 	require.Len(t, s.Clauses, 4)
