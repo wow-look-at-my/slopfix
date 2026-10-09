@@ -214,6 +214,9 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
 		return "", false
 	}
+	if !simpleSpan(s, i, j) {
+		return "", false
+	}
 	// The actor is the phrase after "by", and it must close the clause.
 	by := -1
 	for k := j + 1; k < last; k++ {
@@ -295,14 +298,28 @@ func baseFromParticiple(form string) string {
 	return stem
 }
 
+// simpleSpan reports whether a verb group from the auxiliary i to the
+// participle j holds only the words the simple-tense repair replaces.
+func simpleSpan(s *syntax.Sentence, i, j int) bool {
+	return j == i+1
+}
+
 // rewriteTense writes a simple tense for a perfect or a progressive verb
 // group: "has read" becomes "read", and "is stopping" becomes "stops".
+// "has not read" is left as written, because the negative is not part of the
+// tense and no rewrite here writes it back.
 func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
+		if !simpleSpan(s, i, j) {
+			return "", false
+		}
 		return splice(source, s, i, j, pastFromParticiple(s.Words[j].Lower())), true
 	}
 	i, j := auxiliary(s, 1, beForms)
 	if i < 1 || j < 0 || s.Words[j].Tag != "VBG" || approvedIng.Contains(s.Words[j].Lower()) || s.Words[j].Lower() == "being" {
+		return "", false
+	}
+	if !simpleSpan(s, i, j) {
 		return "", false
 	}
 	subject, ok := subjectBefore(s, i)

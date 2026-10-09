@@ -175,6 +175,18 @@ func TestDocumentSnakeCaseNameIsStillJudged(t *testing.T) {
 	assert.Equal(t, []string{"legacy_retry_flag"}, DeadReferents(path, src, AddedBlocks(path, src)))
 }
 
+// A document paragraph places its lines, so the repair that cuts the naming
+// sentence can reach them.
+func TestADocumentParagraphPlacesItsLines(t *testing.T) {
+	blocks := AddedBlocks("a.md", "M parking is the stub_mutex design.\n\nThe cache reads it.\n")
+	require.Len(t, blocks, 2)
+	require.Len(t, blocks[0].Pure, len(blocks[0].LineNos))
+	assert.Equal(t, []bool{true}, blocks[0].Pure)
+
+	hit := HitForName(blocks, "stub_mutex")
+	assert.Equal(t, 0, hit.LineNo)
+}
+
 func TestRepoRootFindsTheTreeAboveAFile(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
