@@ -81,8 +81,8 @@ func inProcessJudge(t *testing.T) ratchet.Judge {
 // raised, a detection narrowed. The rule's own detection names the errors, so
 // a case the judge's check misses fails here.
 //
-// Head repairs nothing, and both sides reach slopfix's entry points in process,
-// so the registry sweep runs without a spawn for each case.
+// Head repairs nothing, and the check reaches slopfix's entry points in
+// process, so the registry sweep runs without a spawn for each case.
 func TestAFixThatRepairsNothingFailsEveryErrorRule(t *testing.T) {
 	t.Serial()
 	nothing := func(_, _, stdin string, args ...string) (string, error) {
