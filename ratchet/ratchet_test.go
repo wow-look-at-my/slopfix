@@ -43,28 +43,59 @@ func writeScript(t *testing.T, body string) string {
 	return path
 }
 
+// The shipped path runs the built binary, and a branch that weakens what the
+// default branch judges fails there. This drives the real spawn end to end.
+func TestTheBuiltBinaryFailsABranchThatWeakensTheGuarantee(t *testing.T) {
+	t.Serial()
+	bin := slopfixBinary(t)
+	// A head that repairs nothing, so the built binary must flag what it left.
+	head := writeScript(t, "if [ \"$2\" = --message ]; then cat; fi\n")
+	spec, ok := slopfix.RuleSpecByID(slopfix.IDAsk)
+	require.True(t, ok)
+
+	failures, err := ratchet.Judge{Base: bin, Head: head, Work: t.TempDir()}.Run([]slopfix.RuleSpec{spec})
+	require.NoError(t, err)
+	require.NotEmpty(t, failures, "the built binary must flag the message a head left unrepaired")
+	assert.Contains(t, failures[0].String(), slopfix.IDAsk)
+}
+
 // The default branch passes its own ratchet: its fix leaves every case it
 // registers clean under its own check.
 func TestTheTreePassesItsOwnRatchet(t *testing.T) {
 	t.Serial()
-	bin := slopfixBinary(t)
-	failures, err := ratchet.Judge{Base: bin, Head: bin, Work: t.TempDir()}.Run(slopfix.AllRuleSpecs())
+	failures, err := inProcessJudge(t).Run(slopfix.AllRuleSpecs())
 	require.NoError(t, err)
 	for _, f := range failures {
 		t.Error(f)
 	}
 }
 
+// inProcessJudge judges every case through slopfix's own entry points.
+func inProcessJudge(t *testing.T) ratchet.Judge {
+	t.Helper()
+	return ratchet.Judge{Repair: ratchet.InProcess(), Check: ratchet.InProcess(), Work: t.TempDir()}
+}
+
 // A branch whose fix repairs nothing fails on every rule whose case holds an
 // error. That is the shape of each weakening: a rule made report-only, a cap
 // raised, a detection narrowed. The rule's own detection names the errors, so
 // a case the judge's check misses fails here.
+//
+// Head repairs nothing, and both sides reach slopfix's entry points in process,
+// so the registry sweep runs without a spawn for each case.
 func TestAFixThatRepairsNothingFailsEveryErrorRule(t *testing.T) {
 	t.Serial()
-	bin := slopfixBinary(t)
-	head := writeScript(t, "if [ \"$2\" = --message ]; then cat; fi\n")
+	nothing := func(_, _, stdin string, args ...string) (string, error) {
+		for _, a := range args {
+			if a == "--message" {
+				return stdin, nil
+			}
+		}
+		return "", nil
+	}
+	judge := ratchet.Judge{Repair: nothing, Check: ratchet.InProcess(), Work: t.TempDir()}
 	specs := slopfix.AllRuleSpecs()
-	failures, err := ratchet.Judge{Base: bin, Head: head, Work: t.TempDir()}.Run(specs)
+	failures, err := judge.Run(specs)
 	require.NoError(t, err)
 
 	failed := set.New[string]()
