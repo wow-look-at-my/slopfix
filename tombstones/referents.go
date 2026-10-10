@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -27,15 +28,44 @@ import (
 	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
-// identifierWords splits text into the runs the shape test judges, by cutting
-// on every character an identifier cannot hold.
-func identifierWords(text string) []string {
-	return strings.FieldsFunc(text, func(r rune) bool {
-		return !(r == '_' ||
-			(r >= 'a' && r <= 'z') ||
-			(r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9'))
-	})
+// ownNames answers the identifier words of prose that can name a symbol of
+// this repository. A word inside a URL is part of an address.
+func ownNames(prose string) []string {
+	prose = urlPattern.ReplaceAllStringFunc(prose, func(u string) string { return strings.Repeat(" ", len(u)) })
+	var out []string
+	for _, loc := range identifierPattern.FindAllStringIndex(prose, -1) {
+		before, word, after := prose[:loc[0]], prose[loc[0]:loc[1]], prose[loc[1]:]
+		switch {
+		// A qualifier puts the name in another namespace.
+		case strings.HasSuffix(before, ".") || strings.HasSuffix(before, "#") || strings.HasSuffix(before, ":"):
+		// A possessive gives the name to its owner.
+		case strings.HasSuffix(before, "'s ") || strings.HasSuffix(before, "’s "):
+		// A file extension makes the name a file.
+		case len(after) > 1 && after[0] == '.' && (after[1] >= 'a' && after[1] <= 'z'):
+		case isPlaceholder(word):
+		default:
+			out = append(out, word)
+		}
+	}
+	return out
+}
+
+var (
+	urlPattern        = regexp.MustCompile(`\S+://\S+`)
+	identifierPattern = regexp.MustCompile(`[A-Za-z0-9_]+`)
+)
+
+// isPlaceholder reports a name built from a stand-in word, which names no symbol.
+func isPlaceholder(word string) bool {
+	if strings.Contains(word, "Xxx") {
+		return true
+	}
+	for _, part := range strings.Split(strings.ToLower(word), "_") {
+		if part == "foo" || part == "bar" || part == "baz" {
+			return true
+		}
+	}
+	return false
 }
 
 // minCandidate is the shortest name this rule judges: shorter reads as a word.
@@ -213,7 +243,7 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	names := set.New[string]()
 	for _, b := range blocks {
 		// The names come from the comment alone. Code on a shared line names what it uses, and the repository answers for that.
-		for _, m := range identifierWords(b.Prose) {
+		for _, m := range ownNames(b.Prose) {
 			if doc {
 				m = documentName(m)
 			}

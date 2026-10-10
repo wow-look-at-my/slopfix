@@ -59,8 +59,38 @@ func TestHitForNameFallsBackToTheNameItself(t *testing.T) {
 	assert.False(t, hit.Strippable)
 }
 
-func TestIdentifierWordsSplitsOnEveryCharacterASymbolCannotHold(t *testing.T) {
-	assert.Equal(t, []string{"see", "readFlag", "and", "flag_name"}, identifierWords("see readFlag() and flag_name."))
+func TestOwnNamesSplitsOnEveryCharacterASymbolCannotHold(t *testing.T) {
+	assert.Equal(t, []string{"see", "readFlag", "and", "flag_name"}, ownNames("see readFlag() and flag_name."))
+}
+
+// Each name here belongs to another namespace, another owner, a file, an
+// address or a placeholder, so none is a symbol this repository must define.
+func TestOwnNamesKeepsOnlyNamesOfThisRepository(t *testing.T) {
+	for _, prose := range []string{
+		"Module paths are case-encoded per module#EscapePath.",
+		"Fix math32.wrongCase to the correct package.",
+		"It joins the comment the way x/mod's setIndirect joins it.",
+		"The fork's isNumericType excludes complex.",
+		"Semantics mirror xattr_windows.go here.",
+		"Spec: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU",
+		"The test framework calls TestXxx and BenchmarkXxx.",
+		"Filename constraints (foo_windows.go) are platform only.",
+	} {
+		for _, name := range ownNames(prose) {
+			assert.False(t, isCandidate(name), "%q in %q", name, prose)
+		}
+	}
+	assert.Contains(t, ownNames("see parseLegacyFlag for the rule"), "parseLegacyFlag")
+}
+
+// A line that continues a sentence from the line above never strips whole,
+// because the strip would leave half a sentence behind.
+func TestAWrappedSentenceLineIsNotStrippable(t *testing.T) {
+	src := "package p\n\nfunc f() {\n\t// A tag-excluded file is never compiled. A match\n\t// error means it cannot classify (see fileMatchesBuild).\n\tf()\n}\n"
+	hit := HitForName(AddedBlocks("p.go", src), "fileMatchesBuild")
+	assert.False(t, hit.Strippable)
+	whole := "package p\n\nfunc f() {\n\t// A tag-excluded file is never compiled.\n\t// See fileMatchesBuild for the rule.\n\tf()\n}\n"
+	assert.True(t, HitForName(AddedBlocks("p.go", whole), "fileMatchesBuild").Strippable)
 }
 
 func TestNoRepositoryMeansNoAnswerRatherThanADeadName(t *testing.T) {

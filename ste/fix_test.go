@@ -199,8 +199,8 @@ func TestSymbolsAndNamesAreNoNounCluster(t *testing.T) {
 // A name is one noun inside a longer cluster, and the repair keeps it whole.
 func TestANameStaysWholeInACluster(t *testing.T) {
 	cluster := func(id string) bool { return id == ste.IDNounCluster }
-	assert.Equal(t, "The lookup of the AMD Vega build cache stopped.",
-		ste.FixSelected("The AMD Vega build cache lookup stopped.", cluster))
+	assert.Equal(t, "The lookup of the cache of the AMD Vega file system stopped.",
+		ste.FixSelected("The AMD Vega file system cache lookup stopped.", cluster))
 }
 
 // "more" takes no determiner, so "additional" stays after one.

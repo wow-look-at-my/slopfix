@@ -102,7 +102,8 @@ func HitForName(blocks []Block, name string) Hit {
 	for _, b := range blocks {
 		lines := strings.Split(b.Text, "\n")
 		// The name is sought in the comment prose, so a code line that uses it never places the hit.
-		for li, prose := range strings.Split(b.Prose, "\n") {
+		proseLines := strings.Split(b.Prose, "\n")
+		for li, prose := range proseLines {
 			if !strings.Contains(prose, name) || li >= len(lines) {
 				continue
 			}
@@ -113,12 +114,22 @@ func HitForName(blocks []Block, name string) Hit {
 				Tell:       deadReferent,
 				Phrase:     name,
 				Line:       strings.TrimSpace(line),
-				Strippable: pure,
+				Strippable: pure && wholeSentences(proseLines, li),
 				LineNo:     lineNo,
 			}
 		}
 	}
 	return Hit{ID: ruleID(deadReferent), Tell: deadReferent, Phrase: name, Line: name, LineNo: -1}
+}
+
+// wholeSentences reports a prose line that starts and ends at a sentence
+// boundary. A strip of any other line cuts a sentence in half.
+func wholeSentences(lines []string, li int) bool {
+	ends := func(s string) bool {
+		s = strings.TrimSpace(s)
+		return s == "" || strings.ContainsAny(s[len(s)-1:], ".!?:")
+	}
+	return (li == 0 || ends(lines[li-1])) && (li == len(lines)-1 || ends(lines[li]))
 }
 
 func firstLine(s string) string {
