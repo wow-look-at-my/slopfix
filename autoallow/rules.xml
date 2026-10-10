@@ -35,6 +35,20 @@
 	<test cmd="git status &amp;&amp; until false; do sleep 1; done" expect="deny"/>
 	<test cmd="while true; do sleep 1; done" expect="deny"/>
 	<test cmd="true" expect="deny"/>
+	<test cmd=":" expect="deny"/>
+	<test cmd="false" expect="deny"/>
+	<test cmd="true &amp;&amp; :" expect="deny"/>
+	<test cmd="set -o pipefail&#10;true" expect="deny"/>
+	<test cmd="X=1; :" expect="deny"/>
+	<test cmd="while :; do sleep 1; done" expect="deny"/>
+	<test cmd="git status; true" expect="allow"/>
+	<test cmd="git status &amp;&amp; :" expect=""/>
+	<test cmd="true $(git status)" expect=""/>
+	<test cmd=": &gt; out.log" expect=""/>
+	<test cmd="! :" expect=""/>
+	<test cmd="while git status; do :; done" expect=""/>
+	<test cmd='sed -n 100,150p internal/trash/freedesktop_test.go; echo ===; git show 4ecc41f:internal/trash/freedesktop.go | grep -n "dispose" | head' expect=""/>
+	<test cmd='sed -n 100,150p internal/trash/freedesktop_test.go; :; git show 4ecc41f:internal/trash/freedesktop.go | grep -n "dispose" | head' expect=""/>
 	<test cmd="go build ./... || true" expect="deny"/>
 	<test cmd="grep -rn until docs/" expect="allow"/>
 	<test cmd="python --version" expect="deny"/>
@@ -100,13 +114,13 @@
 		<rule command="until"
 			message="Do not wait in the shell. End the turn and read the output when the command reports, or use gh wait-ci for CI."/>
 
-		<!-- A command that does nothing and reports success. It exists to make a
-		     tool call, a chain or a pipeline look like work. -->
-		<rule command="true"
+		<!-- A tool call that runs nothing but a no-op. clean-bash drops a no-op
+		     from a list that does real work, so only a whole no-op is refused. -->
+		<rule command="true" wholeCommand="true"
 			message="This command does nothing. Run the real one, or say what is blocking."/>
-		<rule command="false"
+		<rule command="false" wholeCommand="true"
 			message="This command does nothing. Run the real one, or say what is blocking."/>
-		<rule command=":"
+		<rule command=":" wholeCommand="true"
 			message="This command does nothing. Run the real one, or say what is blocking."/>
 
 		<!-- node, ruby and perl themselves stay usable; this environment's own
