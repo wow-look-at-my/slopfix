@@ -1,5 +1,3 @@
-// carrier_reorder.go moves an opening dependent clause behind the main clause
-// it belongs to, as a division of its own.
 package ste
 
 import (
