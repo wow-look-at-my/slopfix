@@ -31,6 +31,19 @@ func TestFixCutsADeadNameFromAWrappedSentence(t *testing.T) {
 	assert.Equal(t, "package p\n\nfunc f() {\n\t// A tag-excluded file is never compiled, so it is not coverable.\n\tf()\n}\n", fixed.Text)
 }
 
+// A sentence that runs from the dead name onto the lines below is cut whole.
+// When it fills the comment, the comment goes.
+func TestFixCutsADeadNameWhoseSentenceRunsDown(t *testing.T) {
+	path := deadReferentRepo(t, "p.go")
+	content := "package p\n\n// sgArmAux records every arm's cost and its rate relative to the\n// measured rate. SgArmAux returns the per-arm map the\n// caller's ratios read.\nfunc sgArmAux() {}\n"
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.Equal(t, "package p\n\n// sgArmAux records every arm's cost and its rate relative to the measured rate.\nfunc sgArmAux() {}\n", fixed.Text)
+
+	whole := "package p\n\nfunc f() {}\n\n// errNoInst is a placeholder for an error raised\n// outside any single instruction.\n\nvar x = 1\n"
+	fixed = slopfix.Fix(slopfix.Request{Path: path, Content: whole})
+	assert.Equal(t, "package p\n\nfunc f() {}\n\nvar x = 1\n", fixed.Text)
+}
+
 // The marker of a comment is its first one. A `//` inside a URL is text, so
 // the cut keeps the sentence before the dead name.
 func TestFixKeepsTheTextBeforeAURL(t *testing.T) {

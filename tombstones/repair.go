@@ -413,7 +413,7 @@ func cutReferents(f *fixer.File, path string) {
 		}
 		if openers != nil {
 			if above, below := crossesLines(lines, h.LineNo, name); above || below {
-				if e, ok := cutFromAbove(lines, starts, h.LineNo, name); ok && !below {
+				if e, ok := cutWrapped(lines, starts, h.LineNo, name); ok {
 					edits = append(edits, e)
 				}
 				continue
@@ -452,41 +452,85 @@ func crossesLines(lines []string, row int, name string) (above, below bool) {
 	if at < 0 {
 		return false, false
 	}
-	terminal := func(s string) bool {
-		s = strings.TrimRight(strings.TrimSpace(s), " */")
-		return s == "" || strings.ContainsAny(s[len(s)-1:], ".!?:")
-	}
-	comment := func(s string) bool {
-		s = strings.TrimSpace(s)
-		for _, opener := range commentOpeners {
-			if strings.HasPrefix(s, strings.TrimSpace(opener)) {
-				return true
-			}
-		}
-		return false
-	}
-	above = !strings.Contains(line[:at], ". ") && row > 0 && comment(lines[row-1]) && !terminal(lines[row-1])
-	below = !strings.Contains(line[at:], ". ") && !terminal(line) && row+1 < len(lines) && comment(lines[row+1])
+	above = !strings.Contains(line[:at], ". ") && row > 0 && commentLine(lines[row-1]) && !endsSentence(lines[row-1])
+	below = !strings.Contains(line[at:], ". ") && !endsSentence(line) && row+1 < len(lines) && commentLine(lines[row+1])
 	return above, below
 }
 
-// cutFromAbove answers the edit that cuts a sentence which opens after the
-// last period of the line above and closes on row. The period above stays,
-// and the rest of row joins the line above.
-func cutFromAbove(lines []string, starts []int, row int, name string) (edit.Edit, bool) {
-	prev, line := lines[row-1], lines[row]
-	open := strings.LastIndex(prev, ". ")
-	at := strings.Index(line, name)
-	if open < 0 || at < 0 {
+// endsSentence reports a comment line whose prose ends a sentence, or holds none.
+func endsSentence(s string) bool {
+	s = strings.TrimRight(strings.TrimSpace(s), " */")
+	return s == "" || strings.ContainsAny(s[len(s)-1:], ".!?:")
+}
+
+// commentLine reports a line that holds only a comment.
+func commentLine(s string) bool {
+	s = strings.TrimSpace(s)
+	for _, opener := range commentOpeners {
+		if strings.HasPrefix(s, strings.TrimSpace(opener)) {
+			return true
+		}
+	}
+	return false
+}
+
+// proseStart answers the offset of the prose on a comment line, past its
+// marker and the blanks after it.
+func proseStart(line string) int {
+	at := len(line) - len(strings.TrimLeft(line, " \t"))
+	for _, opener := range commentOpeners {
+		if o := strings.TrimSpace(opener); strings.HasPrefix(line[at:], o) {
+			at += len(o)
+			break
+		}
+	}
+	for at < len(line) && line[at] == ' ' {
+		at++
+	}
+	return at
+}
+
+// cutWrapped answers the edit that cuts the sentence around name when it runs
+// over more than one comment line. A period before the sentence stays. A
+// sentence that fills whole lines takes those lines, markers and all. Text
+// after the sentence joins the line the sentence opened on.
+func cutWrapped(lines []string, starts []int, row int, name string) (edit.Edit, bool) {
+	at := strings.Index(lines[row], name)
+	if at < 0 {
 		return edit.Edit{}, false
 	}
-	start := starts[row-1] + open + 1
-	end := starts[row] + len(line)
-	if i := strings.Index(line[at:], ". "); i >= 0 {
-		end = starts[row] + at + i + 1
+	first, start := row, -1
+	if i := strings.LastIndex(lines[row][:at], ". "); i >= 0 {
+		start = starts[row] + i + 1
 	}
-	quote := strings.TrimSpace(prev[open+1:]) + " " + strings.TrimSpace(line[:end-starts[row]])
-	return edit.Edit{Start: start, End: end, Cut: []string{quote}}, true
+	for start < 0 {
+		if first == 0 || !commentLine(lines[first-1]) || endsSentence(lines[first-1]) {
+			start = starts[first] + proseStart(lines[first])
+			break
+		}
+		first--
+		if i := strings.LastIndex(lines[first], ". "); i >= 0 {
+			start = starts[first] + i + 1
+		}
+	}
+	last, from, end := row, at, -1
+	for end < 0 {
+		if i := strings.Index(lines[last][from:], ". "); i >= 0 {
+			end = starts[last] + from + i + 1
+			break
+		}
+		if endsSentence(lines[last]) || last+1 == len(lines) || !commentLine(lines[last+1]) {
+			end = starts[last] + len(lines[last])
+			break
+		}
+		last++
+		from = proseStart(lines[last])
+	}
+	wholeLines := start == starts[first]+proseStart(lines[first]) && end == starts[last]+len(lines[last])
+	if wholeLines {
+		start, end = starts[first], min(end+1, starts[last]+len(lines[last])+1)
+	}
+	return edit.Edit{Start: start, End: end, Cut: []string{name}}, true
 }
 
 // sentenceAround answers the byte span of the sentence in line that holds
