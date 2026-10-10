@@ -287,13 +287,13 @@ func repairFile(f *fixer.File) {
 			}
 		}
 	case missed:
-		// A scope can hold some rows of a block and not others. A phrase the block rewrite missed is cut a row at a time.
+		// A scope can hold some lines of a block and not others. A phrase the block rewrite missed is cut by an edit of its own line.
 		now := f.Text()
-		rows, rowTook := cutRows(now, AddedBlocks(path, now))
-		for _, e := range f.ApplyComments(rows).Applied {
-			f.Rewrote(rowTook[e.Start])
+		cuts, took := phraseCuts(now, AddedBlocks(path, now))
+		for _, e := range f.ApplyComments(cuts).Applied {
+			f.Rewrote(took[e.Start])
 		}
-		for _, h := range rowHits(f.Text(), AddedBlocks(path, f.Text())) {
+		for _, h := range phraseHits(f.Text(), AddedBlocks(path, f.Text())) {
 			f.Note(h)
 		}
 	}
@@ -419,49 +419,51 @@ func cutTombstones(s string) (string, int) {
 	return s, total
 }
 
-// commentRows calls visit with the row number and text of every comment row in
-// blocks that is not shared with code and is no directive.
-func commentRows(text string, blocks []Block, visit func(row int, line string)) {
+// commentLines calls visit with the zero-based number and text of every
+// comment line in blocks. A line shared with code is skipped, and so is a
+// directive.
+func commentLines(text string, blocks []Block, visit func(lineNo int, line string)) {
 	lines := strings.Split(text, "\n")
 	for _, b := range blocks {
-		for i, row := range b.LineNos {
-			if i >= len(b.Pure) || !b.Pure[i] || row < 0 || row >= len(lines) || treecomments.IsDirective(lines[row]) {
+		for i, lineNo := range b.LineNos {
+			if i >= len(b.Pure) || !b.Pure[i] || lineNo < 0 || lineNo >= len(lines) || treecomments.IsDirective(lines[lineNo]) {
 				continue
 			}
-			visit(row, lines[row])
+			visit(lineNo, lines[lineNo])
 		}
 	}
 }
 
-// cutRows answers an edit for each comment row that still holds a tombstone
-// phrase, cutting that phrase and nothing else. How many cuts each took.
-func cutRows(text string, blocks []Block) ([]edit.Edit, map[int]int) {
+// phraseCuts answers an edit for each comment line that still holds a
+// tombstone phrase. The edit cuts that phrase and nothing else, and spans that
+// line alone. It also answers how many cuts each edit took.
+func phraseCuts(text string, blocks []Block) ([]edit.Edit, map[int]int) {
 	took := map[int]int{}
 	var edits []edit.Edit
-	commentRows(text, blocks, func(row int, line string) {
-		short, n, ok := commentfix.CutRow(line, cutTombstones)
+	commentLines(text, blocks, func(lineNo int, line string) {
+		short, n, ok := commentfix.RewriteLineProse(line, cutTombstones)
 		if !ok {
 			return
 		}
-		e := edit.Rows(text, row, row, 0, short)
+		e := edit.Rows(text, lineNo, lineNo, 0, short)
 		edits = append(edits, e)
 		took[e.Start] = n
 	})
 	return edits, took
 }
 
-// rowHits answers a hit on each comment row where a wording rule still finds
-// its phrase.
-func rowHits(text string, blocks []Block) []Hit {
+// phraseHits answers a hit on each comment line where a wording rule still
+// finds its phrase.
+func phraseHits(text string, blocks []Block) []Hit {
 	ids := AllIDs()
 	var hits []Hit
-	commentRows(text, blocks, func(row int, line string) {
+	commentLines(text, blocks, func(lineNo int, line string) {
 		seen := set.New[string]()
 		for _, p := range english.Patterns() {
 			if !ids.Contains(p.ID) || seen.Contains(p.ID) || !english.AppliesTo(p.Where, english.Comment) {
 				continue
 			}
-			if _, n, ok := commentfix.CutRow(line, p.ApplyN); !ok || n == 0 {
+			if _, n, ok := commentfix.RewriteLineProse(line, p.ApplyN); !ok || n == 0 {
 				continue
 			}
 			seen.Add(p.ID)
@@ -470,7 +472,7 @@ func rowHits(text string, blocks []Block) []Hit {
 				Tell:   "a phrase about a state the code has left",
 				Phrase: strings.TrimSpace(line),
 				Line:   line,
-				LineNo: row + 1,
+				LineNo: lineNo + 1,
 			})
 		}
 	})
