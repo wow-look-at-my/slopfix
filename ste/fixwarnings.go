@@ -476,7 +476,15 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	// A capital, a digit, a hyphen or a slash marks a name or a compound. A run with no
 	// determiner in front often holds a verb the tagger read as a noun.
 	plainRun := func(start, end int) bool {
-		if start == 0 || s.Words[start-1].Tag != "DT" && s.Words[start-1].Tag != "PRP$" && s.Words[start-1].Tag != "POS" {
+		opener := func(k int) bool {
+			return k >= 0 && (s.Words[k].Tag == "DT" || s.Words[k].Tag == "PRP$" || s.Words[k].Tag == "POS")
+		}
+		// The tagger can read the first word of the run as a verb, so the determiner may stand one word back.
+		switch {
+		case opener(start - 1):
+		case opener(start-2) && strings.IndexFunc(s.Words[start-1].Text, func(r rune) bool { return r < 'a' || r > 'z' }) < 0:
+			start--
+		default:
 			return false
 		}
 		for k := start; k <= end; k++ {
