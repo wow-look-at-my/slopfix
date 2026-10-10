@@ -526,9 +526,16 @@ func cutWrapped(lines []string, starts []int, row int, name string) (edit.Edit, 
 		last++
 		from = proseStart(lines[last])
 	}
-	wholeLines := start == starts[first]+proseStart(lines[first]) && end == starts[last]+len(lines[last])
-	if wholeLines {
+	atProse := start == starts[first]+proseStart(lines[first])
+	wholeLines := atProse && end == starts[last]+len(lines[last])
+	switch {
+	case wholeLines:
 		start, end = starts[first], min(end+1, starts[last]+len(lines[last])+1)
+	case atProse:
+		// The text after the cut follows the marker's own blank, so its leading blanks go.
+		for end < starts[last]+len(lines[last]) && lines[last][end-starts[last]] == ' ' {
+			end++
+		}
 	}
 	return edit.Edit{Start: start, End: end, Cut: []string{name}}, true
 }

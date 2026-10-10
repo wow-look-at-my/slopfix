@@ -44,6 +44,17 @@ func TestFixCutsADeadNameWhoseSentenceRunsDown(t *testing.T) {
 	assert.Equal(t, "package p\n\nfunc f() {}\n\nvar x = 1\n", fixed.Text)
 }
 
+// A cut that opens a comment and stops mid-line leaves one blank after the
+// marker, which is what gofmt keeps.
+func TestFixLeavesOneBlankAfterTheMarker(t *testing.T) {
+	path := deadReferentRepo(t, "p.go")
+	content := "package p\n\n// fdinfoShape is the shape the kernel emits (see\n// amdgpu_show_fdinfo): identity, then timers. The\n// gfx-only pattern is what the tool produces.\nconst fdinfoShape = 1\n"
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.NotContains(t, fixed.Text, "//  ")
+	assert.Contains(t, fixed.Text, "The gfx-only pattern is what the tool produces.")
+	assert.NotContains(t, fixed.Text, "amdgpu_show_fdinfo")
+}
+
 // The marker of a comment is its first one. A `//` inside a URL is text, so
 // the cut keeps the sentence before the dead name.
 func TestFixKeepsTheTextBeforeAURL(t *testing.T) {
