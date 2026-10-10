@@ -153,3 +153,24 @@ func TestFixClearsTheMechanicalFindings(t *testing.T) {
 	assert.NotEmpty(t, ste.Check(text, 1))
 	assert.Empty(t, ste.Check(ste.Fix(text), 1))
 }
+
+// A negation stands between the auxiliary and its participle.
+func TestAPerfectTenseWithANegationIsLeftAsWritten(t *testing.T) {
+	for _, text := range []string{
+		"It has not repeated.",
+		"The walk has never finished.",
+		"It has not been read.",
+	} {
+		assert.Empty(t, ste.Check(text, 1), text)
+		assert.Equal(t, text, ste.Fix(text), text)
+	}
+}
+
+// The plain perfect and passive repairs still run when no word stands between
+// the auxiliary and its participle. The tense repair is a warning, so a caller
+// keeps its ID to reach it.
+func TestASimplePerfectTenseIsStillRewritten(t *testing.T) {
+	tense := func(id string) bool { return id == ste.IDTense }
+	assert.Equal(t, "The gate started the task.", ste.FixSelected("The gate has started the task.", tense))
+	assert.Equal(t, "The file was read.", ste.FixSelected("The file has been read.", tense))
+}
