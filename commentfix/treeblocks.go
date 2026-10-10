@@ -31,27 +31,27 @@ func treeBlocks(language *ts.Language, src string) (out []block, ok bool) {
 	}
 
 	lines := splitLines(src)
-	collect(root, true, src, lines, commentRows(root), &out)
+	collect(root, true, src, lines, commentColumns(root), &out)
 	sortBlocks(out)
 	return out, true
 }
 
-// commentRows maps every line a comment node covers to the column the comment
+// commentColumns maps every line a comment node covers to the column the comment
 // starts at there. A measure of code stops at that column, so what a comment
 // is weighed against is code the tree calls code.
-func commentRows(root ts.Node) map[int]int {
-	rows := map[int]int{}
+func commentColumns(root ts.Node) map[int]int {
+	cols := map[int]int{}
 	var walk func(node ts.Node)
 	walk = func(node ts.Node) {
 		if code.IsComment(node) {
 			first := int(node.StartPoint().Row)
-			for row := first; row <= int(lastRow(node)); row++ {
+			for line := first; line <= int(lastLine(node)); line++ {
 				col := 0
-				if row == first {
+				if line == first {
 					col = int(node.StartPoint().Column)
 				}
-				if have, ok := rows[row]; !ok || col < have {
-					rows[row] = col
+				if have, ok := cols[line]; !ok || col < have {
+					cols[line] = col
 				}
 			}
 			return
@@ -62,13 +62,13 @@ func commentRows(root ts.Node) map[int]int {
 		}
 	}
 	walk(root)
-	return rows
+	return cols
 }
 
 // collect walks a node's children, gathering each run of comments with the
 // construct that follows it, then recurses. A comment inside a function body
 // is found the same way as a comment above a declaration.
-func collect(node ts.Node, root bool, src string, lines []string, rows map[int]int, out *[]block) {
+func collect(node ts.Node, root bool, src string, lines []string, commentCols map[int]int, out *[]block) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
 		child := node.NamedChild(i)
@@ -87,13 +87,13 @@ func collect(node ts.Node, root bool, src string, lines []string, rows map[int]i
 			if documentsTheCgoImport(node, src, next, count) {
 				continue
 			}
-			if b, ok := blockFor(run, node, next, count, lines, rows); ok {
+			if b, ok := blockFor(run, node, next, count, lines, commentCols); ok {
 				b.header = header
 				*out = append(*out, b)
 			}
 			continue
 		}
-		collect(child, false, src, lines, rows, out)
+		collect(child, false, src, lines, commentCols, out)
 	}
 }
 
@@ -107,7 +107,7 @@ func commentRun(node ts.Node, i, count uint32) ([]ts.Node, uint32) {
 		if !code.IsComment(next) {
 			break
 		}
-		if next.StartPoint().Row > lastRow(run[len(run)-1])+1 {
+		if next.StartPoint().Row > lastLine(run[len(run)-1])+1 {
 			break
 		}
 		run = append(run, next)
@@ -116,9 +116,9 @@ func commentRun(node ts.Node, i, count uint32) ([]ts.Node, uint32) {
 }
 
 // blockFor measures a comment run against the construct it documents.
-func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string, rows map[int]int) (block, bool) {
+func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string, commentCols map[int]int) (block, bool) {
 	start := int(run[0].StartPoint().Row)
-	end := int(lastRow(run[len(run)-1])) + 1
+	end := int(lastLine(run[len(run)-1])) + 1
 	if start < 0 || end > len(lines) || start >= end {
 		return block{}, false
 	}
@@ -129,8 +129,8 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 	}
 	// A comment that leads code on its own line is a note on that code, as a trailing comment is.
 	lastNode := run[len(run)-1]
-	if endRow := int(lastNode.EndPoint().Row); endRow < len(lines) && endRow == int(lastNode.StartPoint().Row) {
-		after := lines[endRow][min(int(lastNode.EndPoint().Column), len(lines[endRow])):]
+	if endLine := int(lastNode.EndPoint().Row); endLine < len(lines) && endLine == int(lastNode.StartPoint().Row) {
+		after := lines[endLine][min(int(lastNode.EndPoint().Column), len(lines[endLine])):]
 		if strings.TrimSpace(after) != "" {
 			return block{}, false
 		}
@@ -149,7 +149,7 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 		b.codeLines, b.codeChars = measure(directivesOf(b.text))
 		return b, true
 	}
-	b.codeLines, b.codeChars = paragraphSpan(parent, pastAttributes(parent, next, count), lines, rows)
+	b.codeLines, b.codeChars = paragraphSpan(parent, pastAttributes(parent, next, count), lines, commentCols)
 	return b, true
 }
 
@@ -173,13 +173,13 @@ func pastAttributes(parent ts.Node, next, count uint32) uint32 {
 // Only a comment at the top of a file heads a paragraph of declarations. A
 // comment inside a function body heads the statement under it. The statements
 // around it run on for reasons the comment does not describe.
-func paragraphSpan(parent ts.Node, next uint32, lines []string, rows map[int]int) (int, int) {
+func paragraphSpan(parent ts.Node, next uint32, lines []string, commentCols map[int]int) (int, int) {
 	top := parent.Parent().IsNull()
 	node := parent.NamedChild(next)
 	for !node.IsNull() && isSequence(node) {
 		parent, next, node = node, 0, node.NamedChild(0)
 	}
-	codeLines, codeChars := nodeSpan(node, lines, rows)
+	codeLines, codeChars := nodeSpan(node, lines, commentCols)
 	if node.IsNull() || !top {
 		return codeLines, codeChars
 	}
@@ -187,7 +187,7 @@ func paragraphSpan(parent ts.Node, next uint32, lines []string, rows map[int]int
 	for i := next + 1; i < parent.NamedChildCount(); i++ {
 		sibling := parent.NamedChild(i)
 		start := sibling.StartPoint().Row
-		// A sibling on a row already measured adds nothing, and a trailing comment belongs to its code.
+		// A sibling on a line already measured adds nothing, and a trailing comment belongs to its code.
 		if start <= end {
 			end = max(end, sibling.EndPoint().Row)
 			continue
@@ -195,7 +195,7 @@ func paragraphSpan(parent ts.Node, next uint32, lines []string, rows map[int]int
 		if start != end+1 || code.IsComment(sibling) {
 			break
 		}
-		l, c := nodeSpan(sibling, lines, rows)
+		l, c := nodeSpan(sibling, lines, commentCols)
 		codeLines += l
 		codeChars += c
 		end = sibling.EndPoint().Row
@@ -203,8 +203,8 @@ func paragraphSpan(parent ts.Node, next uint32, lines []string, rows map[int]int
 	return codeLines, codeChars
 }
 
-// lastRow is the last row a comment's text sits on. A Rust line comment ends at the start of the next row.
-func lastRow(n ts.Node) uint32 {
+// lastLine is the last line a comment's text sits on. A Rust line comment ends at the start of the next line.
+func lastLine(n ts.Node) uint32 {
 	end := n.EndPoint()
 	if end.Column == 0 && end.Row > n.StartPoint().Row {
 		return end.Row - 1
@@ -242,15 +242,15 @@ func isSequence(node ts.Node) bool {
 	}
 	seen := node.NamedChild(0).StartPoint().Row
 	for i := uint32(1); i < count; i++ {
-		// A trailing comment shares its statement's row and orders nothing.
+		// A trailing comment shares its statement's line and orders nothing.
 		if code.IsComment(node.NamedChild(i)) {
 			continue
 		}
-		row := node.NamedChild(i).StartPoint().Row
-		if row <= seen {
+		line := node.NamedChild(i).StartPoint().Row
+		if line <= seen {
 			return false
 		}
-		seen = row
+		seen = line
 	}
 	return true
 }
@@ -293,7 +293,7 @@ func documentsTheCgoImport(node ts.Node, src string, next, count uint32) bool {
 // The span follows the node however far it runs. A cap here reported a long
 // function's proportionate comment as an essay, because the code it was weighed
 // against stopped short.
-func nodeSpan(node ts.Node, lines []string, rows map[int]int) (int, int) {
+func nodeSpan(node ts.Node, lines []string, commentCols map[int]int) (int, int) {
 	if node.IsNull() {
 		return 0, 0
 	}
@@ -306,10 +306,10 @@ func nodeSpan(node ts.Node, lines []string, rows map[int]int) (int, int) {
 		to = len(lines)
 	}
 	body := make([]string, 0, to-from)
-	for row := from; row < to; row++ {
-		line := lines[row]
+	for lineNo := from; lineNo < to; lineNo++ {
+		line := lines[lineNo]
 		// A trailing comment is cut off, so the code before it still counts.
-		if col, ok := rows[row]; ok {
+		if col, ok := commentCols[lineNo]; ok {
 			line = line[:min(col, len(line))]
 		}
 		if strings.TrimSpace(line) == "" {

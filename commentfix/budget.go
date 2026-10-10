@@ -40,7 +40,7 @@ func fitVolume(text []string, maxLines int) ([]string, bool) {
 			out = append(out, para.raw...)
 			lines += len(para.raw)
 		case listParagraph(para.lines):
-			// A list item, a heading or an aligned row is one line by design,
+			// A list item, a heading or an aligned line is laid out by design,
 			// so reflowing it would weld its items together.
 			for _, line := range para.lines {
 				out = append(out, prefix+line)
@@ -80,7 +80,7 @@ func fitVolume(text []string, maxLines int) ([]string, bool) {
 }
 
 // listParagraph reports a paragraph holding a list item, a heading or an
-// aligned row. Such a line carries its own shape, which reflow would destroy.
+// aligned line. Such a line carries its own shape, which reflow would destroy.
 func listParagraph(lines []string) bool {
 	for _, line := range lines {
 		trimmed := strings.TrimLeft(line, " \t")

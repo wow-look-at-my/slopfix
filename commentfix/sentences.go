@@ -32,7 +32,7 @@ func init() {
 
 // SentenceHit is a sentence in a comment over the STE word cap.
 type SentenceHit struct {
-	// Line and EndLine are the rows the sentence covers, counted from one.
+	// Line and EndLine are the lines the sentence covers, counted from one.
 	Line, EndLine int
 	// Sentence quotes the sentence.
 	Sentence string
@@ -84,8 +84,8 @@ func segmentHits(lines []string, p para, seg segment) []SentenceHit {
 			first := len(strings.Fields(seg.prose[:start]))
 			last := first + max(len(strings.Fields(sentence))-1, 0)
 			hits = append(hits, SentenceHit{
-				Line:     p.lines[seg.rows[rowOfWord(words, first)]] + 1,
-				EndLine:  p.lines[seg.rows[rowOfWord(words, last)]] + 1,
+				Line:     p.lines[seg.lines[lineOfWord(words, first)]] + 1,
+				EndLine:  p.lines[seg.lines[lineOfWord(words, last)]] + 1,
 				Sentence: sentence,
 				Tell:     f.Rule,
 				Fix:      f.Fix,
@@ -95,11 +95,11 @@ func segmentHits(lines []string, p para, seg segment) []SentenceHit {
 	return hits
 }
 
-// segment is a run of rows of a comment paragraph that holds a single
-// paragraph of prose. A blank row and a tag row such as "@param" end one.
+// segment is a run of lines of a comment paragraph that holds a single
+// paragraph of prose. A blank line and a tag line such as "@param" end one.
 type segment struct {
-	// rows index the paragraph's rows, in order.
-	rows []int
+	// lines index the paragraph's lines, in order.
+	lines []int
 	// prose is the segment's prose, joined.
 	prose string
 }
@@ -119,14 +119,14 @@ func segmentsOf(lines []string, p para) []segment {
 			out = append(out, segment{})
 			current = &out[len(out)-1]
 		}
-		current.rows = append(current.rows, n)
+		current.lines = append(current.lines, n)
 		current.prose = strings.TrimSpace(current.prose + " " + prose)
 		prev = prose
 	}
 	return out
 }
 
-// opensListItem reports a row that opens a list item: "- ", "* ", "+ ", or a
+// opensListItem reports a line that opens a list item: "- ", "* ", "+ ", or a
 // number with "." or ")" and a space.
 func opensListItem(prose string) bool {
 	for _, marker := range []string{"- ", "* ", "+ "} {
@@ -139,8 +139,8 @@ func opensListItem(prose string) bool {
 	return digits > 0 && (strings.HasPrefix(rest, ". ") || strings.HasPrefix(rest, ") "))
 }
 
-// lineEndsThought reports a row break that ends a thought with no stop. The
-// row before ends on no mark and no word that opens a phrase. The row after
+// lineEndsThought reports a line break that ends a thought with no stop. The
+// line before ends on no mark and no word that opens a phrase. The line after
 // opens on a capital or a list marker. A terse comment writes a sentence
 // a line, as in "the byte at the checkpoint" and then "This handles a list".
 func lineEndsThought(prev, next string) bool {
@@ -172,16 +172,16 @@ func judged(lines []string, p para) bool {
 	return !isLicenseNotice(text)
 }
 
-// segmentWords counts the prose words each row of a segment carries.
+// segmentWords counts the prose words each line of a segment carries.
 func segmentWords(lines []string, p para, seg segment) []int {
-	out := make([]int, len(seg.rows))
-	for k, n := range seg.rows {
+	out := make([]int, len(seg.lines))
+	for k, n := range seg.lines {
 		out[k] = len(strings.Fields(lineProse(lines[p.lines[n]], p, n)))
 	}
 	return out
 }
 
-// lineProse is the prose row n of a paragraph carries, with no marker and no closer.
+// lineProse is the prose line n of a paragraph carries, with no marker and no closer.
 func lineProse(line string, p para, n int) string {
 	if n == 0 {
 		line = line[min(len(p.code), len(line)):]
@@ -193,8 +193,8 @@ func lineProse(line string, p para, n int) string {
 	return prose
 }
 
-// rowOfWord answers which of the counted rows holds word w.
-func rowOfWord(words []int, w int) int {
+// lineOfWord answers which of the counted lines holds word w.
+func lineOfWord(words []int, w int) int {
 	seen := 0
 	for k, count := range words {
 		seen += count
@@ -233,9 +233,9 @@ func divideSentences(prose string) string {
 
 // sentenceEdits answers an edit per comment paragraph whose long sentences
 // divide. Each segment is laid out again at the width it had, with the marker
-// and the indentation its rows had. A comment after code, and a comment in a
-// workflow, keeps each segment on a single row.
-func sentenceEdits(filename, src string, oneRow bool) []edit.Edit {
+// and the indentation its lines had. A comment after code, and a comment in a
+// workflow, keeps each segment on a single line.
+func sentenceEdits(filename, src string, singleLine bool) []edit.Edit {
 	if IsGenerated(filename, src) {
 		return nil
 	}
@@ -249,7 +249,7 @@ func sentenceEdits(filename, src string, oneRow bool) []edit.Edit {
 		if !judged(lines, p) {
 			continue
 		}
-		out, changed := rewriteSegments(lines, p, oneRow || p.code != "")
+		out, changed := rewriteSegments(lines, p, singleLine || p.code != "")
 		if !changed {
 			continue
 		}
@@ -260,12 +260,12 @@ func sentenceEdits(filename, src string, oneRow bool) []edit.Edit {
 	return edits
 }
 
-// rewriteSegments answers the paragraph's rows with each long sentence divided.
-// A row that holds no prose comes back as written.
-func rewriteSegments(lines []string, p para, oneRow bool) ([]string, bool) {
-	rows := make([][]string, len(p.lines))
+// rewriteSegments answers the paragraph's lines with each long sentence divided.
+// A line that holds no prose comes back as written.
+func rewriteSegments(lines []string, p para, singleLine bool) ([]string, bool) {
+	rewritten := make([][]string, len(p.lines))
 	for n, i := range p.lines {
-		rows[n] = []string{lines[i]}
+		rewritten[n] = []string{lines[i]}
 	}
 	changed := false
 	for _, seg := range segmentsOf(lines, p) {
@@ -274,54 +274,54 @@ func rewriteSegments(lines []string, p para, oneRow bool) ([]string, bool) {
 			continue
 		}
 		changed = true
-		firstN, lastN := seg.rows[0], seg.rows[len(seg.rows)-1]
-		firstRow, lastRow := lines[p.lines[firstN]], lines[p.lines[lastN]]
-		lead := prefixOf(firstRow, lineProse(firstRow, p, firstN))
+		firstN, lastN := seg.lines[0], seg.lines[len(seg.lines)-1]
+		firstText, lastText := lines[p.lines[firstN]], lines[p.lines[lastN]]
+		lead := prefixOf(firstText, lineProse(firstText, p, firstN))
 		cont := p.cont
 		if strings.Contains(lead, "/*") && strings.Contains(cont, "/*") {
-			// A block's rows after its opener align under the opener's prose.
+			// A block's lines after its opener align under the opener's prose.
 			indent := lead[:len(lead)-len(strings.TrimLeft(lead, " \t"))]
 			cont = indent + strings.Repeat(" ", len(lead)-len(indent))
 		}
-		if len(seg.rows) > 1 {
-			second := lines[p.lines[seg.rows[1]]]
-			cont = prefixOf(second, lineProse(second, p, seg.rows[1]))
+		if len(seg.lines) > 1 {
+			second := lines[p.lines[seg.lines[1]]]
+			cont = prefixOf(second, lineProse(second, p, seg.lines[1]))
 		}
 		width := 0
-		for _, n := range seg.rows {
+		for _, n := range seg.lines {
 			width = max(width, len(lines[p.lines[n]]))
 		}
-		if oneRow {
+		if singleLine {
 			width = 1 << 20
 		}
 		wrapped := wrap(divided, strings.TrimRight(lead, " ")+" ", strings.TrimRight(cont, " ")+" ", width)
-		if closer := suffixOf(lastRow, lineProse(lastRow, p, lastN)); closer != "" {
+		if closer := suffixOf(lastText, lineProse(lastText, p, lastN)); closer != "" {
 			wrapped[len(wrapped)-1] = strings.TrimRight(wrapped[len(wrapped)-1], " ") + " " + closer
 		}
-		rows[firstN] = wrapped
-		for _, n := range seg.rows[1:] {
-			rows[n] = nil
+		rewritten[firstN] = wrapped
+		for _, n := range seg.lines[1:] {
+			rewritten[n] = nil
 		}
 	}
 	var out []string
-	for _, r := range rows {
+	for _, r := range rewritten {
 		out = append(out, r...)
 	}
 	return out, changed
 }
 
-// prefixOf answers what a row holds before its prose: indentation, marker and blank.
-func prefixOf(row, prose string) string {
-	if at := strings.Index(row, prose); at >= 0 && prose != "" {
-		return row[:at]
+// prefixOf answers what a line holds before its prose: indentation, marker and blank.
+func prefixOf(line, prose string) string {
+	if at := strings.Index(line, prose); at >= 0 && prose != "" {
+		return line[:at]
 	}
-	return row
+	return line
 }
 
-// suffixOf answers what a row holds after its prose, such as a block closer.
-func suffixOf(row, prose string) string {
-	if at := strings.LastIndex(row, prose); at >= 0 && prose != "" {
-		return strings.TrimSpace(row[at+len(prose):])
+// suffixOf answers what a line holds after its prose, such as a block closer.
+func suffixOf(line, prose string) string {
+	if at := strings.LastIndex(line, prose); at >= 0 && prose != "" {
+		return strings.TrimSpace(line[at+len(prose):])
 	}
 	return ""
 }

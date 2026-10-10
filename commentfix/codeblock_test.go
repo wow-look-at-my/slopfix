@@ -19,24 +19,24 @@ func indentedBlock(t *testing.T) string {
 	return string(src)
 }
 
-func TestAnIndentedCodeBlockKeepsEveryRow(t *testing.T) {
+func TestAnIndentedCodeBlockKeepsEveryLine(t *testing.T) {
 	out := Fix("putback.go", indentedBlock(t)).Text
-	for _, row := range []string{
+	for _, line := range []string{
 		"//\tptbL the original parent directory, relative to the volume root",
 		"//\tptbN the original name, which differs from the name in the trash when",
 		"//\t     something was already called that",
 	} {
-		assert.Contains(t, out, row, "an indented row is a code block line and survives whole")
+		assert.Contains(t, out, line, "an indented line belongs to a code block and survives whole")
 	}
 }
 
 func TestAnIndentedCodeBlockIsNotReflowed(t *testing.T) {
 	out := FixLengthText(t, indentedBlock(t))
 	require.NotEmpty(t, out)
-	assert.NotContains(t, out, "root ptbN", "two rows joined into one line")
+	assert.NotContains(t, out, "root ptbN", "two lines joined into one")
 }
 
-// classSBlock is a doc comment whose tab-indented rows are Ruby, carrying
+// classSBlock is a doc comment whose tab-indented lines are Ruby, carrying
 // digits that are code, not counts.
 var classSBlock = []string{
 	"//\tclass_name = name.capitalize",
@@ -55,7 +55,7 @@ func classSSource(prose string) string {
 
 func TestNumbersInADocCommentCodeBlockAreLeftAlone(t *testing.T) {
 	src := classSSource("// brewClassS is Homebrew's Formulary.class_s:\n")
-	assert.Empty(t, Check("brew.go", src), "a code block row states no count")
+	assert.Empty(t, Check("brew.go", src), "a code block line states no count")
 	got := Fix("brew.go", src)
 	assert.False(t, got.Changed)
 	assert.Equal(t, src, got.Text)

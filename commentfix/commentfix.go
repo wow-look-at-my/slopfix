@@ -188,12 +188,12 @@ type commentLine struct {
 
 // commentLines splits a comment token into its lines. A block comment carries
 // several. A directive line is skipped, because it addresses a tool rather than
-// a reader. A code row is skipped, because its digits are code, not counts.
+// a reader. A code line is skipped, because its digits are code, not counts.
 func commentLines(lit string) []commentLine {
 	var out []commentLine
 	at := 0
 	for _, text := range strings.Split(lit, "\n") {
-		if !isDirective(text) && !codeRow(text) {
+		if !isDirective(text) && !codeLine(text) {
 			out = append(out, commentLine{text: text, offset: at})
 		}
 		at += len(text) + 1
