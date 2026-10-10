@@ -100,6 +100,10 @@ func plainSwap(prose string, loc []int) (string, bool) {
 	if replacement == "more" && takesDeterminer.Contains(prev) {
 		return "", false
 	}
+	// "same" reads only after "the": "emits identical ISA" cannot become "emits same ISA".
+	if replacement == "same" && prev != "the" {
+		return "", false
+	}
 	// "a wrong" cannot become "a incorrect", so the swap keeps the article right or does not happen.
 	if (prev == "a" || prev == "an") && startsWithVowel(word) != startsWithVowel(replacement) {
 		return "", false
@@ -295,6 +299,12 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if end < by+1 {
 		return "", false
 	}
+	// The actor is one noun phrase. A verb or a conjunction in it means the clause goes on past the actor.
+	for k := by + 1; k <= end; k++ {
+		if tag := s.Words[k].Tag; tag == "CC" || strings.HasPrefix(tag, "VB") || tag == "MD" {
+			return "", false
+		}
+	}
 	// The words between the participle and "by" go after the object.
 	between := strings.TrimSpace(source[s.Words[j].End:s.Words[by].Start])
 	if strings.ContainsAny(between, ",;()[]—") || hasConjunction(s, j+1, by) {
@@ -347,7 +357,11 @@ func passiveVerb(participle, beWord string, plural bool) string {
 	case "be":
 		return pastFromParticiple(participle)
 	}
-	return presentOf(baseFromParticiple(participle), plural)
+	base := baseFromParticiple(participle)
+	if base == "" {
+		return ""
+	}
+	return presentOf(base, plural)
 }
 
 // baseFromParticiple answers the verb a participle belongs to. A regular verb
@@ -371,6 +385,9 @@ func baseFromParticiple(form string) string {
 	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
 		return stem + "e"
 	}
+	if !certainStem(stem) {
+		return ""
+	}
 	return stem
 }
 
@@ -392,7 +409,9 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 		return splice(source, s, i, j, pastFromParticiple(s.Words[j].Lower())), true
 	}
 	i, j := auxiliary(s, 1, beForms)
-	if i < 1 || j < 0 || s.Words[j].Tag != "VBG" || approvedIng.Contains(s.Words[j].Lower()) || s.Words[j].Lower() == "being" {
+	// A hyphenated -ing word is an adjective, as in "load-bearing".
+	if i < 1 || j < 0 || s.Words[j].Tag != "VBG" || approvedIng.Contains(s.Words[j].Lower()) || s.Words[j].Lower() == "being" ||
+		strings.Contains(s.Words[j].Text, "-") {
 		return "", false
 	}
 	if !simpleSpan(s, i, j) {
@@ -402,7 +421,11 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	return splice(source, s, i, j, presentOf(baseFromGerund(s.Words[j].Lower()), s.Plural(subject))), true
+	base := baseFromGerund(s.Words[j].Lower())
+	if base == "" {
+		return "", false
+	}
+	return splice(source, s, i, j, presentOf(base, s.Plural(subject))), true
 }
 
 // afterModal reports a have-form that follows a modal.
@@ -449,6 +472,20 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
 			!strings.ContainsAny(w.Text, "()[]{}`\"") && strings.IndexFunc(w.Text, unicode.IsLetter) >= 0
 	}
+	// The repair can only trust a run of plain lowercase words that a determiner opens.
+	// A capital, a digit, a hyphen or a slash marks a name or a compound. A run with no
+	// determiner in front often holds a verb the tagger read as a noun.
+	plainRun := func(start, end int) bool {
+		if start == 0 || s.Words[start-1].Tag != "DT" && s.Words[start-1].Tag != "PRP$" && s.Words[start-1].Tag != "POS" {
+			return false
+		}
+		for k := start; k <= end; k++ {
+			if strings.IndexFunc(s.Words[k].Text, func(r rune) bool { return r < 'a' || r > 'z' }) >= 0 {
+				return false
+			}
+		}
+		return true
+	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
 			continue
@@ -457,7 +494,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		for end+1 <= last && noun(end+1) {
 			end++
 		}
-		if nameUnits(s, start, end) > NounClusterCap {
+		if nameUnits(s, start, end) > NounClusterCap && plainRun(start, end) {
 			return start, end, true
 		}
 		start = end

@@ -196,11 +196,37 @@ func TestSymbolsAndNamesAreNoNounCluster(t *testing.T) {
 	}
 }
 
-// A name is one noun inside a longer cluster, and the repair keeps it whole.
-func TestANameStaysWholeInACluster(t *testing.T) {
+// The cluster repair trusts only plain lowercase runs after a determiner. A
+// name, a compound or a run with no determiner can hold a word the tagger
+// misread, so the repair leaves it as written.
+func TestTheClusterRepairTrustsOnlyPlainRuns(t *testing.T) {
 	cluster := func(id string) bool { return id == ste.IDNounCluster }
-	assert.Equal(t, "The lookup of the cache of the AMD Vega file system stopped.",
-		ste.FixSelected("The AMD Vega file system cache lookup stopped.", cluster))
+	for _, text := range []string{
+		"The AMD Vega file system cache lookup stopped.",
+		"Shuffling pixels through a hardware encode/decode round trip costs more.",
+		"It shrinks the dep/waitcnt test blast radius.",
+		"Several hours of CI log costs nothing.",
+	} {
+		assert.Equal(t, text, ste.FixSelected(text, cluster), text)
+		assert.Empty(t, warned(text, ste.IDNounCluster), text)
+	}
+	assert.Equal(t, "The lookup of the cache of the gate file system stopped.",
+		ste.FixSelected("The gate file system cache lookup stopped.", cluster))
+}
+
+// A verb whose base form the endings cannot settle is not rewritten, so
+// "measured" never becomes "measurs".
+func TestARepairNeverGuessesABaseForm(t *testing.T) {
+	keep := func(id string) bool { return id == ste.IDPassive || id == ste.IDTense }
+	for _, text := range []string{
+		"The resources are measured by several instruments.",
+		"The A/B pair is measuring something other than serialization.",
+		"This is load-bearing rather than cosmetic.",
+		"The resources are measured by the tool and are not interchangeable.",
+	} {
+		assert.Equal(t, text, ste.FixSelected(text, keep), text)
+	}
+	assert.Equal(t, "The gate works the file.", ste.FixSelected("The gate is working the file.", keep))
 }
 
 // "more" takes no determiner, so "additional" stays after one.

@@ -70,7 +70,30 @@ func baseFromGerund(form string) string {
 	if doubled(stem) {
 		return stem[:len(stem)-1]
 	}
+	if !certainStem(stem) {
+		return ""
+	}
 	return stem
+}
+
+// certainStem reports a regular stem that is the whole base form. A stem that
+// ends in one consonant after a vowel, or in a vowel, can also have dropped an
+// "e", as "measur" did from "measure". With no table entry nothing tells both
+// apart, so the answer is no.
+func certainStem(stem string) bool {
+	if len(stem) < 2 {
+		return false
+	}
+	vowel := func(c byte) bool { return strings.IndexByte("aeiou", c) >= 0 }
+	last, prev := stem[len(stem)-1], stem[len(stem)-2]
+	switch {
+	case vowel(last):
+		return false
+	case strings.IndexByte("wxy", last) >= 0:
+		return true
+	default:
+		return !vowel(prev)
+	}
 }
 
 // doubled reports a stem ending in a consonant written twice, as in "stopped"
