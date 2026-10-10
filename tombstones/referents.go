@@ -34,14 +34,12 @@ func ownNames(prose string) []string {
 	prose = urlPattern.ReplaceAllStringFunc(prose, func(u string) string { return strings.Repeat(" ", len(u)) })
 	var out []string
 	for _, loc := range identifierPattern.FindAllStringIndex(prose, -1) {
-		before, word, after := prose[:loc[0]], prose[loc[0]:loc[1]], prose[loc[1]:]
+		before, word := prose[:loc[0]], prose[loc[0]:loc[1]]
 		switch {
 		// A qualifier puts the name in another namespace.
 		case strings.HasSuffix(before, ".") || strings.HasSuffix(before, "#") || strings.HasSuffix(before, ":"):
 		// A possessive gives the name to its owner.
 		case strings.HasSuffix(before, "'s ") || strings.HasSuffix(before, "’s "):
-		// A file extension makes the name a file.
-		case len(after) > 1 && after[0] == '.' && (after[1] >= 'a' && after[1] <= 'z'):
 		case isPlaceholder(word):
 		default:
 			out = append(out, word)
@@ -287,7 +285,12 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
+	stems := fileStems(root)
 	for _, name := range ordered {
+		// The stem of a file that is here names that file.
+		if stems.Contains(name) {
+			continue
+		}
 		// A built index read every file a probe reads, so a name it never saw is dead.
 		if ix.ok {
 			if !ix.holdsBeyond(name, self) {
@@ -311,6 +314,28 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		}
 	}
 	return dead
+}
+
+var stemsByRoot sync.Map
+
+// fileStems answers the base name before the first dot of every file git
+// lists under root, read once per root.
+func fileStems(root string) set.Set[string] {
+	if v, ok := stemsByRoot.Load(root); ok {
+		return v.(set.Set[string])
+	}
+	stems := set.New[string]()
+	listed, err := gitmod.Command(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	if err == nil {
+		for _, rel := range strings.Split(string(listed), "\x00") {
+			base := filepath.Base(rel)
+			if stem, _, _ := strings.Cut(base, "."); stem != "" {
+				stems.Add(stem)
+			}
+		}
+	}
+	v, _ := stemsByRoot.LoadOrStore(root, stems)
+	return v.(set.Set[string])
 }
 
 // RepoRoot walks up from path looking for a working tree. An empty result puts

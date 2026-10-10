@@ -36,6 +36,17 @@ func TestTheIndexHoldsWhatAProbeReads(t *testing.T) {
 	assert.False(t, ix.holds("NothingDefinesThisName"))
 }
 
+// A name that is the stem of a file here names that file, so it is alive. A
+// file name that no file answers is still dead.
+func TestAFileStemIsAlive(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", root, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(root, "xattr_windows.go"), []byte("package p\n"), 0o644))
+	src := "package p\n\n// Semantics mirror xattr_windows.go, not xattr_plan9.go.\nfunc f() {}\n"
+	path := filepath.Join(root, "x.go")
+	assert.Equal(t, []string{"xattr_plan9"}, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
 // Once a walk primes the index, it answers every name without a probe: a name
 // it never saw is dead. A name it holds is alive.
 func TestAPrimedIndexAnswersWithoutAProbe(t *testing.T) {

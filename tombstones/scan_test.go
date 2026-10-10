@@ -71,7 +71,6 @@ func TestOwnNamesKeepsOnlyNamesOfThisRepository(t *testing.T) {
 		"Fix math32.wrongCase to the correct package.",
 		"It joins the comment the way x/mod's setIndirect joins it.",
 		"The fork's isNumericType excludes complex.",
-		"Semantics mirror xattr_windows.go here.",
 		"Spec: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU",
 		"The test framework calls TestXxx and BenchmarkXxx.",
 		"Filename constraints (foo_windows.go) are platform only.",
