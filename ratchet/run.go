@@ -122,10 +122,12 @@ func generateIn(dir string) error {
 		return err
 	}
 	// A fresh checkout carries neither the generated files nor a go.sum that
-	// resolves the branch-head modules, so both are settled first.
+	// resolves the branch-head modules, so both are settled first. GOFLAGS is
+	// cleared because an explicit -mod flag turns off the toolchain's
+	// resolution of a v0.0.0 org placeholder to its branch head.
 	for _, args := range [][]string{{"mod", "tidy"}, {"generate", "./..."}} {
 		cmd := exec.Command("go", args...)
-		cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
+		cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=")
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("ratchet: go %s in %s: %w", strings.Join(args, " "), dir, err)
