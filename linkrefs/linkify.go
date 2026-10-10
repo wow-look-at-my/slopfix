@@ -448,9 +448,7 @@ func lookupPull(repo Repo, number string) PullState {
 	return s
 }
 
-// askPull reads the pull request's own fields, then the checks on its head. It
-// never asks for statusCheckRollup. A fine-grained token cannot read the Checks
-// API on a private repository, and that one field fails the whole query.
+// askPull reads the pull request's own fields, then the checks on its head.
 func askPull(repo Repo, number string) PullState {
 	slug := repo.Owner + "/" + repo.Name
 	out, ok := gh(ghTimeout, "pr", "view", number, "-R", slug, "--json", "state,mergeable,mergeStateStatus,headRefOid")
