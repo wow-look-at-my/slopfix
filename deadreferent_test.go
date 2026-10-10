@@ -22,6 +22,24 @@ func deadReferentRepo(t *testing.T, name string) string {
 	return filepath.Join(dir, name)
 }
 
+// A sentence that wraps onto the line with the dead name is cut whole, and the
+// period on the line above stays.
+func TestFixCutsADeadNameFromAWrappedSentence(t *testing.T) {
+	path := deadReferentRepo(t, "p.go")
+	content := "package p\n\nfunc f() {\n\t// A tag-excluded file is never compiled, so it is not coverable. A match\n\t// error means it cannot classify; include it (see fileMatchesBuild).\n\tf()\n}\n"
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.Equal(t, "package p\n\nfunc f() {\n\t// A tag-excluded file is never compiled, so it is not coverable.\n\tf()\n}\n", fixed.Text)
+}
+
+// The marker of a comment is its first one. A `//` inside a URL is text, so
+// the cut keeps the sentence before the dead name.
+func TestFixKeepsTheTextBeforeAURL(t *testing.T) {
+	path := deadReferentRepo(t, "p.go")
+	content := "package p\n\n// WriteChrome writes a trace file. Load it in chrome://tracing or the ProfilerPanel tab.\nfunc WriteChrome() {}\n"
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.Equal(t, "package p\n\n// WriteChrome writes a trace file.\nfunc WriteChrome() {}\n", fixed.Text)
+}
+
 // A document that names a symbol nothing defines is reported on the line that
 // names it, and fix cuts the sentence.
 func TestFixCutsADeadNameFromADocument(t *testing.T) {

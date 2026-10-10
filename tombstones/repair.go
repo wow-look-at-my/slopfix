@@ -411,6 +411,14 @@ func cutReferents(f *fixer.File, path string) {
 		if IsDocument(path) {
 			openers = nil
 		}
+		if openers != nil {
+			if above, below := crossesLines(lines, h.LineNo, name); above || below {
+				if e, ok := cutFromAbove(lines, starts, h.LineNo, name); ok && !below {
+					edits = append(edits, e)
+				}
+				continue
+			}
+		}
 		if from, to, ok := sentenceAround(lines[h.LineNo], name, openers); ok {
 			at := starts[h.LineNo]
 			edits = append(edits, edit.Edit{Start: at + from, End: at + to, Cut: []string{strings.TrimSpace(lines[h.LineNo][from:to])}})
@@ -435,6 +443,52 @@ func onLine(h Hit) Hit {
 // commentOpeners start the prose of a line. A sentence never reaches back past one.
 var commentOpeners = []string{"//", "/*", "#", "--", "* "}
 
+// crossesLines reports a sentence around name that starts on the comment line
+// above or ends on the comment line below. A cut on one line would leave the
+// rest of that sentence behind.
+func crossesLines(lines []string, row int, name string) (above, below bool) {
+	line := lines[row]
+	at := strings.Index(line, name)
+	if at < 0 {
+		return false, false
+	}
+	terminal := func(s string) bool {
+		s = strings.TrimRight(strings.TrimSpace(s), " */")
+		return s == "" || strings.ContainsAny(s[len(s)-1:], ".!?:")
+	}
+	comment := func(s string) bool {
+		s = strings.TrimSpace(s)
+		for _, opener := range commentOpeners {
+			if strings.HasPrefix(s, strings.TrimSpace(opener)) {
+				return true
+			}
+		}
+		return false
+	}
+	above = !strings.Contains(line[:at], ". ") && row > 0 && comment(lines[row-1]) && !terminal(lines[row-1])
+	below = !strings.Contains(line[at:], ". ") && !terminal(line) && row+1 < len(lines) && comment(lines[row+1])
+	return above, below
+}
+
+// cutFromAbove answers the edit that cuts a sentence which opens after the
+// last period of the line above and closes on row. The period above stays,
+// and the rest of row joins the line above.
+func cutFromAbove(lines []string, starts []int, row int, name string) (edit.Edit, bool) {
+	prev, line := lines[row-1], lines[row]
+	open := strings.LastIndex(prev, ". ")
+	at := strings.Index(line, name)
+	if open < 0 || at < 0 {
+		return edit.Edit{}, false
+	}
+	start := starts[row-1] + open + 1
+	end := starts[row] + len(line)
+	if i := strings.Index(line[at:], ". "); i >= 0 {
+		end = starts[row] + at + i + 1
+	}
+	quote := strings.TrimSpace(prev[open+1:]) + " " + strings.TrimSpace(line[:end-starts[row]])
+	return edit.Edit{Start: start, End: end, Cut: []string{quote}}, true
+}
+
 // sentenceAround answers the byte span of the sentence in line that holds
 // name, with the blank in front of it. The span never reaches back past a
 // comment marker, so the code on the line stays.
@@ -443,12 +497,14 @@ func sentenceAround(line, name string, openers []string) (int, int, bool) {
 	if at < 0 {
 		return 0, 0, false
 	}
-	floor, marker := 0, 0
+	// The comment opens at its first marker. A later one is text, as in a URL.
+	floor, marker := 0, -1
 	for _, opener := range openers {
-		if i := strings.LastIndex(line[:at], opener); i >= 0 && i+len(opener) > floor {
+		if i := strings.Index(line[:at], opener); i >= 0 && (marker < 0 || i < marker) {
 			floor, marker = i+len(opener), i
 		}
 	}
+	marker = max(marker, 0)
 	from := floor
 	if i := strings.LastIndex(line[floor:at], ". "); i >= 0 {
 		from = floor + i + 1
