@@ -227,5 +227,49 @@ func TestCommandSkipsCommentsAndBlanks(t *testing.T) {
 // A checkout with no go.mod generates nothing.
 func TestGenerateInSkipsADirectoryWithoutAGoMod(t *testing.T) {
 	t.Serial()
-	assert.NoError(t, generateIn(t.TempDir()))
+	assert.NoError(t, generateIn(t.TempDir(), "", os.Environ()))
+}
+
+// A checkout with no go.mod needs no go command and keeps the environment.
+func TestOrgGoLeavesANonModuleCheckoutAlone(t *testing.T) {
+	t.Serial()
+	env, goBin, done, err := orgGo(t.TempDir())
+	require.NoError(t, err)
+	defer done()
+	assert.Empty(t, goBin)
+	assert.Equal(t, os.Environ(), env)
+}
+
+// A Go module's checkout builds with go-toolchain under the name go, first on
+// PATH, so a nested go run reaches it too.
+func TestOrgGoRunsGoToolchainAsGo(t *testing.T) {
+	t.Serial()
+	tools := t.TempDir()
+	writeIn(t, tools, "go-toolchain", "#!/bin/sh\n")
+	t.Setenv("PATH", tools)
+	dir := t.TempDir()
+	writeIn(t, dir, "go.mod", "module x\n")
+
+	env, goBin, done, err := orgGo(dir)
+	require.NoError(t, err)
+	defer done()
+	assert.Equal(t, "go", filepath.Base(goBin))
+	target, err := os.Readlink(goBin)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(tools, "go-toolchain"), target)
+	assert.Contains(t, env, "PATH="+filepath.Dir(goBin)+string(os.PathListSeparator)+tools)
+}
+
+// A Go module's checkout with no go-toolchain fails, rather than building with
+// a go that reads the org placeholders literally.
+func TestOrgGoFailsWithoutGoToolchain(t *testing.T) {
+	t.Serial()
+	t.Setenv("PATH", t.TempDir())
+	dir := t.TempDir()
+	writeIn(t, dir, "go.mod", "module x\n")
+
+	_, _, done, err := orgGo(dir)
+	defer done()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "go-toolchain is not on PATH")
 }
