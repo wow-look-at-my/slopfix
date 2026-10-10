@@ -217,6 +217,32 @@ func TestAdditionalStaysAfterADeterminer(t *testing.T) {
 	assert.Equal(t, "The tool gives more output today.", ste.FixSelected("The tool gives additional output today.", dict))
 }
 
+// A code span moves whole, and a "by" that a conjunction separates from the
+// verb is not that verb's actor.
+func TestThePassiveRepairKeepsEveryWord(t *testing.T) {
+	passive := func(id string) bool { return id == ste.IDPassive }
+	for _, text := range []string{
+		"The count is derived from a literal EXEC write or supplied by `--exec-lanes`.",
+		"Probe shaders are committed as text (`shaders/*.spvasm`), assembled to binaries by `spirv-as` alone.",
+	} {
+		assert.Equal(t, text, ste.FixSelected(text, passive), text)
+	}
+	assert.Equal(t, "`spirv-as` reads the file from disk.", ste.FixSelected("The file is read from disk by `spirv-as`.", passive))
+}
+
+// A word inside a hyphenated compound is not swapped, and a swap never leaves
+// "a" before a vowel.
+func TestTheDictionarySwapKeepsCompoundsAndArticles(t *testing.T) {
+	dict := func(id string) bool { return id == ste.IDDictionary }
+	for _, text := range []string{
+		"The output is byte-identical to the input.",
+		"It is as much a bug as a wrong instruction is.",
+	} {
+		assert.Equal(t, text, ste.FixSelected(text, dict), text)
+		assert.Empty(t, warned(text, ste.IDDictionary), text)
+	}
+}
+
 // warned answers the warnings of one rule on text.
 func warned(text, id string) []ste.Finding {
 	var out []ste.Finding
