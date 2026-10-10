@@ -227,6 +227,8 @@ func TestARepairNeverGuessesABaseForm(t *testing.T) {
 		assert.Equal(t, text, ste.FixSelected(text, keep), text)
 	}
 	assert.Equal(t, "The gate works the file.", ste.FixSelected("The gate is working the file.", keep))
+	assert.Equal(t, "The model guesses the cost.", ste.FixSelected("The model is guessing the cost.", keep))
+	assert.Equal(t, "The gate stops the run.", ste.FixSelected("The gate is stopping the run.", keep))
 }
 
 // "more" takes no determiner, so "additional" stays after one.

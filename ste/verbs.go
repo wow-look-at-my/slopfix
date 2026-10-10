@@ -68,12 +68,24 @@ func baseFromGerund(form string) string {
 	}
 	stem := lower[:len(lower)-3]
 	if doubled(stem) {
-		return stem[:len(stem)-1]
+		return undouble(stem)
 	}
 	if !certainStem(stem) {
 		return ""
 	}
 	return stem
+}
+
+// undouble answers the base of a stem that ends in a doubled consonant. A
+// base can itself end in ss, ff or zz, as in "guess", so those stay.
+func undouble(stem string) string {
+	switch stem[len(stem)-1] {
+	case 's', 'f', 'z':
+		return stem
+	case 'l':
+		return ""
+	}
+	return stem[:len(stem)-1]
 }
 
 // certainStem reports a regular stem that is the whole base form. A stem that

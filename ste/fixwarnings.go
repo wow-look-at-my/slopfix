@@ -377,7 +377,7 @@ func baseFromParticiple(form string) string {
 	}
 	stem := form[:len(form)-2]
 	if doubled(stem) {
-		return stem[:len(stem)-1]
+		return undouble(stem)
 	}
 	if strings.HasSuffix(stem, "i") {
 		return stem[:len(stem)-1] + "y"
