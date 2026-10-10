@@ -6,7 +6,7 @@ A repair never returns a rewritten copy of a file. It returns `edit.Edit` values
 |---|---|---|
 | `treecomments.Apply` | bytes inside a comment node, and the blank around it | every node that is not a comment keeps its type, its text and its place in the tree. Every directive line comes back byte for byte |
 | `markdown.Apply` | bytes inside a single CommonMark prose block | every verbatim block comes back as written, in order |
-| workflow YAML | whole rows | the file parses, and a comment edit decodes to the same data |
+| workflow YAML | whole lines | the file parses, and a comment edit decodes to the same data |
 | `goformat.Gate` | blank bytes, and it writes only blanks | the Go scanner reads every token as it was. A comment may lose the blanks that end its lines |
 
 So a rewrite cannot escape its comment. A newline can end a line comment early. A closer can end a block early. An opener can swallow the code below. Each changes the code tree, and the gate refuses it. The interpreter line and a cgo preamble are code to the gate, because a tool reads them.

@@ -21,7 +21,7 @@ const parentDebugDoc = "//! `/debug`: debug-overlay toggles (scroll HUD, FPS HUD
 	"//! - `/debug fps`: the release-safe FPS HUD.\n" +
 	"\nuse std::path::Path;\n"
 
-// forkDebugDoc rewrites that doc past the volume cap. Its blank rows match the parent's blank rows.
+// forkDebugDoc rewrites that doc past the volume cap. Its blank lines match the parent's blank lines.
 const forkDebugDoc = "//! `/debug <what is wrong>` hands the model this process's context.\n" +
 	"//!\n" +
 	"//! `/debug why was the context size defaulted?` injects the question too.\n" +
