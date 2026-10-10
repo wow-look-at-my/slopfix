@@ -307,10 +307,15 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	}
 	// The words between the participle and "by" go after the object.
 	between := strings.TrimSpace(source[s.Words[j].End:s.Words[by].Start])
-	if strings.ContainsAny(between, ",;()[]—") || hasConjunction(s, j+1, by) {
+	// A sentence end or a verb there means "by" belongs to a later clause.
+	if strings.ContainsAny(between, ",;()[]—.!?") || hasConjunction(s, j+1, by) || hasVerb(s, j+1, by) {
 		return "", false
 	}
 	subject := strings.TrimSpace(source[s.Words[0].Start:s.Words[i].Start])
+	// A subject behind a comma opens with a clause of its own, which cannot move to the object.
+	if strings.Contains(subject, ",") {
+		return "", false
+	}
 	actor := source[s.Words[by+1].Start:s.Words[end].End]
 	tail := source[s.Words[end].End:]
 	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
@@ -322,6 +327,16 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 		object += " " + between
 	}
 	return capitalizeOpening(actor) + " " + verb + " " + object + tail, true
+}
+
+// hasVerb reports a verb or a modal among the words from first up to last.
+func hasVerb(s *syntax.Sentence, first, last int) bool {
+	for k := first; k < last; k++ {
+		if tag := s.Words[k].Tag; strings.HasPrefix(tag, "VB") || tag == "MD" {
+			return true
+		}
+	}
+	return false
 }
 
 // hasConjunction reports a coordinating conjunction among the words from

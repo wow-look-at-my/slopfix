@@ -252,6 +252,7 @@ func TestThePassiveRepairKeepsEveryWord(t *testing.T) {
 	for _, text := range []string{
 		"The count is derived from a literal EXEC write or supplied by `--exec-lanes`.",
 		"Probe shaders are committed as text (`shaders/*.spvasm`), assembled to binaries by `spirv-as` alone.",
+		"As a result, the old discount for 8 B/px targets is gone. rgba16f nonetheless sustains 2.06x the read pool by an unexplained mechanism.",
 	} {
 		assert.Equal(t, text, ste.FixSelected(text, passive), text)
 	}
