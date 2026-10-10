@@ -30,23 +30,23 @@ var (
 // The step's own indentation bounds it. A YAML walk answers the same question,
 // and this rule must report the LINE the step opens on.
 func neuteredGates(content string) []ste.Finding {
-	rows := lines(content)
+	fileLines := lines(content)
 	var out []ste.Finding
-	for i := range rows {
-		open := stepOpen.FindStringSubmatch(rows[i])
+	for i := range fileLines {
+		open := stepOpen.FindStringSubmatch(fileLines[i])
 		if open == nil {
 			continue
 		}
 		indent := len(open[1])
 		runs, neutered := "", false
-		for j := i; j < len(rows); j++ {
-			if next := listItem.FindStringSubmatch(rows[j]); j > i && next != nil && len(next[1]) <= indent {
+		for j := i; j < len(fileLines); j++ {
+			if next := listItem.FindStringSubmatch(fileLines[j]); j > i && next != nil && len(next[1]) <= indent {
 				break
 			}
-			if usesLine.MatchString(rows[j]) && namesAGate(rows[j]) {
-				runs = strings.TrimSpace(rows[j])
+			if usesLine.MatchString(fileLines[j]) && namesAGate(fileLines[j]) {
+				runs = strings.TrimSpace(fileLines[j])
 			}
-			if allowedToFail.MatchString(rows[j]) {
+			if allowedToFail.MatchString(fileLines[j]) {
 				neutered = true
 			}
 		}

@@ -26,7 +26,7 @@ const ScriptDir = ".github/scripts"
 // scriptNames bounds the suffixes tried for a script name another file holds.
 const scriptNames = 100
 
-// trailingComment matches a YAML comment at the end of a row.
+// trailingComment matches a YAML comment at the end of a line.
 var trailingComment = regexp.MustCompile(`[ \t]+#.*$`)
 
 // moved is one step's script moved out: the edit that rewrites the step, and
@@ -116,10 +116,10 @@ func slug(name string) string {
 }
 
 // move answers the step with its script moved into a file. It reports false
-// when the step's rows or its script cannot be read back exactly.
+// when the step's lines or its script cannot be read back exactly.
 func (s shellStep) move(content, stem string, free func(rel, text string) bool) (moved, bool) {
-	rows := lines(content)
-	first, last, suffix, ok := s.valueRows(content, rows)
+	fileLines := lines(content)
+	first, last, suffix, ok := s.valueLines(content, fileLines)
 	if !ok {
 		return moved{}, false
 	}
@@ -155,9 +155,9 @@ func (s shellStep) move(content, stem string, free func(rel, text string) bool) 
 	if !ok {
 		return moved{}, false
 	}
-	row := rows[first]
+	line := fileLines[first]
 	col := s.run.Column - 1
-	return moved{edit: rewrite(content, first, last, []string{row[:col] + value + suffix}), script: rel, text: text}, true
+	return moved{edit: rewrite(content, first, last, []string{line[:col] + value + suffix}), script: rel, text: text}, true
 }
 
 // launcher answers the lines the file opens with, the command that runs the
@@ -182,16 +182,16 @@ func (s shellStep) launcher() (prelude string, launch func(path string) string, 
 	return shebang + "set -eo pipefail\n", func(path string) string { return "bash " + path }, 0
 }
 
-// valueRows answers the rows, counted from zero. That valueRows is that the
-// script's YAML value occupies, and the text after the value on its first
-// row, such as a comment.
-func (s shellStep) valueRows(content string, rows []string) (first, last int, suffix string, ok bool) {
+// valueLines answers the first and last line, counted from zero, of the
+// script's YAML value. It also answers the text after the value on its first
+// line, such as a comment.
+func (s shellStep) valueLines(content string, fileLines []string) (first, last int, suffix string, ok bool) {
 	first = s.run.Line - 1
 	col := s.run.Column - 1
-	if first < 0 || first >= len(rows) || col < 0 || col > len(rows[first]) || s.step.Style&yaml.FlowStyle != 0 {
+	if first < 0 || first >= len(fileLines) || col < 0 || col > len(fileLines[first]) || s.step.Style&yaml.FlowStyle != 0 {
 		return 0, 0, "", false
 	}
-	head := rows[first][col:]
+	head := fileLines[first][col:]
 	switch s.run.Style {
 	case yaml.LiteralStyle, yaml.FoldedStyle:
 		if len(s.block.lines) == 0 {
@@ -199,7 +199,7 @@ func (s shellStep) valueRows(content string, rows []string) (first, last int, su
 		}
 		return first, s.block.start - 2 + len(s.block.lines), trailingComment.FindString(head), true
 	}
-	last = flowEnd(content, rows, s.run.Line)
+	last = flowEnd(content, fileLines, s.run.Line)
 	if last < first {
 		return 0, 0, "", false
 	}
@@ -213,19 +213,19 @@ func (s shellStep) valueRows(content string, rows []string) (first, last int, su
 	return first, last, head[end:], true
 }
 
-// flowEnd answers the last row, counted from zero, of a flow scalar that opens
-// on a row counted from one. It is the last row before the next node that holds
+// flowEnd answers the last line, counted from zero, of a flow scalar that opens
+// on a line counted from one. It is the last line before the next node that holds
 // more than a comment.
-func flowEnd(content string, rows []string, line int) int {
+func flowEnd(content string, fileLines []string, line int) int {
 	var doc yaml.Node
 	if yaml.Unmarshal([]byte(content), &doc) != nil {
 		return -1
 	}
 	var starts []int
 	walk(&doc, func(node *yaml.Node) { starts = append(starts, node.Line) })
-	last := nextStart(starts, line, len(rows)) - 1
+	last := nextStart(starts, line, len(fileLines)) - 1
 	for last >= line {
-		trimmed := strings.TrimSpace(rows[last])
+		trimmed := strings.TrimSpace(fileLines[last])
 		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			break
 		}
@@ -234,7 +234,7 @@ func flowEnd(content string, rows []string, line int) int {
 	return last
 }
 
-// scalarEnd answers the byte where a scalar written on one row ends in head,
+// scalarEnd answers the byte where a scalar written on one line ends in head,
 // which opens with the scalar.
 func scalarEnd(head string, style yaml.Style) int {
 	switch style {

@@ -95,26 +95,26 @@ func masterRef(repo, ref string) string {
 }
 
 // retarget points each org action at the ref that tracks master. It rewrites
-// the row the value sits on, and skips a value it cannot find there verbatim.
+// the line the value sits on, and skips a value it cannot find there verbatim.
 func retarget(content string) []edit.Edit {
-	rows := lines(content)
+	fileLines := lines(content)
 	var out []edit.Edit
 	for _, at := range orgRefs(content) {
 		if allowedRef(at.ref) {
 			continue
 		}
-		row, col := at.node.Line-1, at.node.Column-1
-		if row < 0 || row >= len(rows) || col > len(rows[row]) {
+		lineNo, col := at.node.Line-1, at.node.Column-1
+		if lineNo < 0 || lineNo >= len(fileLines) || col > len(fileLines[lineNo]) {
 			continue
 		}
 		old := at.repo + "@" + at.ref
-		found := strings.Index(rows[row][col:], old)
+		found := strings.Index(fileLines[lineNo][col:], old)
 		if found < 0 {
 			continue
 		}
 		start := col + found
-		swapped := rows[row][:start] + at.repo + "@" + masterRef(at.repo, at.ref) + rows[row][start+len(old):]
-		out = append(out, rewrite(content, row, row, []string{swapped}))
+		swapped := fileLines[lineNo][:start] + at.repo + "@" + masterRef(at.repo, at.ref) + fileLines[lineNo][start+len(old):]
+		out = append(out, rewrite(content, lineNo, lineNo, []string{swapped}))
 	}
 	return out
 }
