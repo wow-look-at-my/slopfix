@@ -69,7 +69,7 @@ func widenDictionary(prose string) string {
 			out.WriteString(word)
 			continue
 		}
-		replacement, approved := plain[strings.ToLower(word)]
+		replacement, approved := plainSwap(prose, loc)
 		if !approved {
 			out.WriteString(word)
 			continue
@@ -81,6 +81,32 @@ func widenDictionary(prose string) string {
 	}
 	out.WriteString(prose[last:])
 	return out.String()
+}
+
+// plainSwap answers the approved word for the word at loc in prose. "more"
+// takes no determiner, so "an additional step" and "per additional row" keep
+// their word.
+func plainSwap(prose string, loc []int) (string, bool) {
+	replacement, ok := plain[strings.ToLower(prose[loc[0]:loc[1]])]
+	if !ok {
+		return "", false
+	}
+	if replacement == "more" && takesDeterminer.Contains(strings.ToLower(previousWord(prose[:loc[0]]))) {
+		return "", false
+	}
+	return replacement, true
+}
+
+// takesDeterminer are the words before which "more" is not English.
+var takesDeterminer = set.Of("a", "an", "the", "per", "each", "every", "any", "this", "that", "its", "their", "our", "one")
+
+// previousWord answers the last word of text.
+func previousWord(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return ""
+	}
+	return strings.Trim(fields[len(fields)-1], "*_(\"'")
 }
 
 // fixParagraphs writes the parts of Paragraphs with a blank line between them.
@@ -310,7 +336,7 @@ func simpleSpan(s *syntax.Sentence, i, j int) bool {
 // tense and no rewrite here writes it back.
 func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
-		if !simpleSpan(s, i, j) {
+		if !simpleSpan(s, i, j) || afterModal(s, i) {
 			return "", false
 		}
 		return splice(source, s, i, j, pastFromParticiple(s.Words[j].Lower())), true
@@ -328,6 +354,13 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	}
 	return splice(source, s, i, j, presentOf(baseFromGerund(s.Words[j].Lower()), s.Plural(subject))), true
 }
+
+// afterModal reports a have-form that follows a modal.
+func afterModal(s *syntax.Sentence, i int) bool {
+	return i > 0 && (s.Words[i-1].Tag == "MD" || modalWords.Contains(s.Words[i-1].Lower()))
+}
+
+var modalWords = set.Of("can", "could", "will", "would", "shall", "should", "may", "might", "must")
 
 // subjectBefore answers the noun phrase that stands in front of word i, which
 // is the subject the verb of a progressive clause agrees with.
@@ -364,7 +397,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	noun := func(k int) bool {
 		w := s.Words[k]
 		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			!strings.ContainsAny(w.Text, "()[]{}`\"")
+			!strings.ContainsAny(w.Text, "()[]{}`\"") && strings.IndexFunc(w.Text, unicode.IsLetter) >= 0
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -374,7 +407,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		for end+1 <= last && noun(end+1) {
 			end++
 		}
-		if end-start+1 > NounClusterCap {
+		if nameUnits(s, start, end) > NounClusterCap {
 			return start, end, true
 		}
 		start = end
@@ -393,12 +426,35 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 	}
 	var out strings.Builder
 	last := end
-	// The head names the thing, and the nouns in front of it describe it.
-	for last-start+1 > NounClusterCap {
-		out.WriteString(source[s.Words[last].Start:s.Words[last].End])
+	// The head names the thing, and the nouns in front of it describe it. A name is one head.
+	for nameUnits(s, start, last) > NounClusterCap {
+		head := nameStart(s, start, last)
+		out.WriteString(source[s.Words[head].Start:s.Words[last].End])
 		out.WriteString(" of the ")
-		last--
+		last = head - 1
 	}
 	out.WriteString(source[s.Words[start].Start:s.Words[last].End])
 	return splice(source, s, start, end, out.String()), true
+}
+
+// nameUnits counts the nouns from start to end, with each run of capitalized
+// words as one noun. "AMD Vega Instruction Set" is one name.
+func nameUnits(s *syntax.Sentence, start, end int) int {
+	n := 0
+	for k := end; k >= start; k = nameStart(s, start, k) - 1 {
+		n++
+	}
+	return n
+}
+
+// nameStart answers the first word of the run of capitalized words that ends
+// at k. It k itself when the word at k is not capitalized.
+func nameStart(s *syntax.Sentence, start, k int) int {
+	if !isCapitalized(s.Words[k].Text) {
+		return k
+	}
+	for k > start && isCapitalized(s.Words[k-1].Text) {
+		k--
+	}
+	return k
 }

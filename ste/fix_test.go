@@ -166,6 +166,68 @@ func TestAPerfectTenseWithANegationIsLeftAsWritten(t *testing.T) {
 	}
 }
 
+// A perfect after a modal has no simple tense the repair can write, so it is
+// neither reported nor rewritten.
+func TestAPerfectAfterAModalIsLeftAsWritten(t *testing.T) {
+	tense := func(id string) bool { return id == ste.IDTense }
+	for _, text := range []string{
+		"The number says whether a given run can have resolved it at all.",
+		"A probe that reads 2.0 there will have detected the change.",
+		"The arm delta would have measured nothing.",
+	} {
+		assert.Equal(t, text, ste.FixSelected(text, tense), text)
+		assert.Empty(t, warned(text, ste.IDTense), text)
+	}
+}
+
+// A symbol between nouns ends the run, and a run of capitalized words is one
+// name. Neither shape is a cluster, so neither is rewritten.
+func TestSymbolsAndNamesAreNoNounCluster(t *testing.T) {
+	cluster := func(id string) bool { return id == ste.IDNounCluster }
+	for _, text := range []string{
+		"Several rows in the subgroup / binding / API / video families sit well away from their derivations.",
+		"Then complete the GCN -> SPIR-V -> HLSL pipeline.",
+		"The ramp runs green → orange → amber → red.",
+		"The database came from the AMD Vega Instruction Set Architecture PDF.",
+		"Need the gates? DOWNLOAD THE PREBUILT MESA TREE now.",
+	} {
+		assert.Equal(t, text, ste.FixSelected(text, cluster), text)
+		assert.Empty(t, warned(text, ste.IDNounCluster), text)
+	}
+}
+
+// A name is one noun inside a longer cluster, and the repair keeps it whole.
+func TestANameStaysWholeInACluster(t *testing.T) {
+	cluster := func(id string) bool { return id == ste.IDNounCluster }
+	assert.Equal(t, "The lookup of the AMD Vega build cache stopped.",
+		ste.FixSelected("The AMD Vega build cache lookup stopped.", cluster))
+}
+
+// "more" takes no determiner, so "additional" stays after one.
+func TestAdditionalStaysAfterADeterminer(t *testing.T) {
+	dict := func(id string) bool { return id == ste.IDDictionary }
+	for _, text := range []string{
+		"The slope is 1142 ns per additional descriptor.",
+		"An additional step runs.",
+		"The additional cost is small.",
+	} {
+		assert.Equal(t, text, ste.FixSelected(text, dict), text)
+		assert.Empty(t, warned(text, ste.IDDictionary), text)
+	}
+	assert.Equal(t, "The tool gives more output today.", ste.FixSelected("The tool gives additional output today.", dict))
+}
+
+// warned answers the warnings of one rule on text.
+func warned(text, id string) []ste.Finding {
+	var out []ste.Finding
+	for _, f := range ste.Warn(text, 1, false) {
+		if f.ID == id {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // The plain perfect and passive repairs still run when no word stands between
 // the auxiliary and its participle. The tense repair is a warning, so a caller
 // keeps its ID to reach it.

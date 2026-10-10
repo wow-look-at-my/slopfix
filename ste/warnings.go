@@ -76,12 +76,13 @@ func Warn(text string, line int, listItem bool) []Finding {
 		}
 		out = append(out, clauseWarnings(s, text, off, line)...)
 	}
-	for _, word := range wordPattern.FindAllString(prose, -1) {
+	for _, loc := range wordPattern.FindAllStringIndex(prose, -1) {
+		word := prose[loc[0]:loc[1]]
 		// A word in capitals is a name or a mask, and never a dictionary word.
 		if word == strings.ToUpper(word) {
 			continue
 		}
-		if approved, banned := plain[strings.ToLower(word)]; banned {
+		if approved, banned := plainSwap(prose, loc); banned {
 			out = append(out, warn(line, IDDictionary, "the STE dictionary does not approve this word", word,
 				"Write "+approved+"."))
 		}
