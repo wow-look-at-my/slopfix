@@ -225,7 +225,7 @@ const upstreamDebugDoc = "//! `/debug`: debug-overlay toggles (scroll HUD, FPS H
 	"//! - `/debug fps`: the release-safe FPS HUD.\n" +
 	"\nuse std::path::Path;\n"
 
-// forkDebugDoc rewrites that doc and makes it longer than the volume cap. Its blank rows match the base's blank rows.
+// forkDebugDoc rewrites that doc and makes it longer than the volume cap. Its blank lines match the base's blank lines.
 const forkDebugDoc = "//! `/debug <what is wrong>` hands the model this process's context.\n" +
 	"//!\n" +
 	"//! `/debug why was the context size defaulted?` injects the question too.\n" +
@@ -245,8 +245,8 @@ const forkDebugDoc = "//! `/debug <what is wrong>` hands the model this process'
 	"//! - `/debug log` toggles the scroll flight recorder.\n" +
 	"\nuse std::path::Path;\n"
 
-// A doc the fork rewrote past the cap is the fork's to cut. A blank row that
-// matches a base blank row does not stop the cut, and no list item is joined
+// A doc the fork rewrote past the cap is the fork's to cut. A blank line that
+// matches a base blank line does not stop the cut, and no list item is joined
 // onto another.
 func TestAForkDocPastTheCapIsCutNotFolded(t *testing.T) {
 	req := slopfix.Request{Path: "src/debug.rs", Content: forkDebugDoc, Owned: forkscope.Changed(upstreamDebugDoc, forkDebugDoc), MaxCommentLines: tombstones.DefaultMaxCommentLines}

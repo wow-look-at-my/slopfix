@@ -120,11 +120,11 @@ func Fix(req Request) Repair {
 	return upstreamRuns(req, req.Owned, repair.Text, repair)
 }
 
-// fixBlock repairs rows first to last of text with every rule but the run
+// fixBlock repairs lines first to last of text with every rule but the run
 // rules, and puts the result back in place.
-func fixBlock(req Request, text string, rows [2]int) (string, []string) {
+func fixBlock(req Request, text string, span [2]int) (string, []string) {
 	lines := strings.SplitAfter(text, "\n")
-	chunk := strings.Join(lines[rows[0]-1:rows[1]], "")
+	chunk := strings.Join(lines[span[0]-1:span[1]], "")
 	one := req
 	one.Content, one.Owned, one.Scope, one.IDs = chunk, nil, edit.Scope{}, blockFree(req)
 	fixed := fixAll(one)
@@ -132,7 +132,7 @@ func fixBlock(req Request, text string, rows [2]int) (string, []string) {
 	if strings.HasSuffix(chunk, "\n") && !strings.HasSuffix(out, "\n") {
 		out += "\n"
 	}
-	return strings.Join(lines[:rows[0]-1], "") + out + strings.Join(lines[rows[1]:], ""), fixed.Removed
+	return strings.Join(lines[:span[0]-1], "") + out + strings.Join(lines[span[1]:], ""), fixed.Removed
 }
 
 // widened answers req.Owned grown to each whole block it reaches into.

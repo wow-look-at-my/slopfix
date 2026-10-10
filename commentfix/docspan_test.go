@@ -25,7 +25,7 @@ func TestADocCommentSpanStopsAtTheComment(t *testing.T) {
 	}
 }
 
-// Each doc comment ended its node on the next row, so the next comment after a
+// Each doc comment ended its node on the next line, so the next comment after a
 // single declaration read as adjoining. The run then held the declaration, and
 // the repair deleted it.
 func TestDocCommentsSplitByADeclarationAreSeparateBlocks(t *testing.T) {

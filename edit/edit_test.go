@@ -47,11 +47,11 @@ func TestGateRefusesEveryBadEdit(t *testing.T) {
 	assert.Len(t, res.Refused, 2)
 }
 
-// The row cache keys a text by its bytes, so texts of one length never share an answer.
-func TestRowsReadsEachTextOnItsOwn(t *testing.T) {
+// The line cache keys a text by its bytes, so texts of one length never share an answer.
+func TestLinesReadsEachTextOnItsOwn(t *testing.T) {
 	first := "ab\ncd\nef"
 	second := "abcd\ne\nf"
-	assert.Equal(t, Edit{Start: 3, End: 5, Text: "X"}, Rows(first, 1, 1, 0, []string{"X"}))
-	assert.Equal(t, Edit{Start: 5, End: 6, Text: "X"}, Rows(second, 1, 1, 0, []string{"X"}))
-	assert.Equal(t, Edit{Start: 3, End: 5, Text: "X"}, Rows(first, 1, 1, 0, []string{"X"}))
+	assert.Equal(t, Edit{Start: 3, End: 5, Text: "X"}, Lines(first, 1, 1, 0, []string{"X"}))
+	assert.Equal(t, Edit{Start: 5, End: 6, Text: "X"}, Lines(second, 1, 1, 0, []string{"X"}))
+	assert.Equal(t, Edit{Start: 3, End: 5, Text: "X"}, Lines(first, 1, 1, 0, []string{"X"}))
 }

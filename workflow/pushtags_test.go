@@ -51,7 +51,7 @@ func TestTheRepairWritesABranchFilter(t *testing.T) {
 	}
 }
 
-// A shape no row edit reaches gets the whole on: value again, in block style.
+// A shape no line edit reaches gets the whole on: value again, in block style.
 func TestAFlowStylePushIsWrittenAgainInBlockStyle(t *testing.T) {
 	cases := map[string]string{
 		"'on':\n  push: {}\njobs: {}\n":               "'on':\n  push:\n    branches: ['**']\njobs: {}\n",

@@ -81,7 +81,7 @@ func Fix(content string, keeps func(string) bool) Repair {
 }
 
 // apply writes edits into a workflow through the YAML gate. Every edit covers
-// whole rows, because a newline is syntax here. The result must parse, and a
+// whole lines, because a newline is syntax here. The result must parse, and a
 // comment edit must decode to the same data.
 func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) edit.Result {
 	if len(edits) == 0 {
@@ -97,8 +97,8 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 	}
 	return edit.Gate(content, edits, scope,
 		func(e edit.Edit) string {
-			if !rowEdge(content, e.Start) || !rowEdge(content, e.End) {
-				return "it covers part of a row"
+			if !lineEdge(content, e.Start) || !lineEdge(content, e.End) {
+				return "it covers part of a line"
 			}
 			return ""
 		},
@@ -113,55 +113,55 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 
 // compareData answers the text a comment gate compares. A # inside a block
 // scalar is part of the scalar's string, so a rewrite there changes the value.
-// A comment in a script is not its behavior, so those rows read blank first.
+// A comment in a script is not its behavior, so those lines read blank first.
 func compareData(content string, comment bool) string {
 	if !comment {
 		return content
 	}
-	inside := blockScalarRows(content)
-	rows := lines(content)
-	for i, row := range rows {
-		if i < len(inside) && inside[i] && strings.HasPrefix(strings.TrimSpace(row), "#") {
-			rows[i] = ""
+	inside := blockScalarLines(content)
+	fileLines := lines(content)
+	for i, line := range fileLines {
+		if i < len(inside) && inside[i] && strings.HasPrefix(strings.TrimSpace(line), "#") {
+			fileLines[i] = ""
 		}
 	}
-	return strings.Join(rows, "\n")
+	return strings.Join(fileLines, "\n")
 }
 
-// rowEdge reports whether a byte sits where a row starts or ends.
-func rowEdge(content string, at int) bool {
+// lineEdge reports whether a byte sits where a line starts or ends.
+func lineEdge(content string, at int) bool {
 	return at == 0 || at == len(content) || content[at] == '\n' || content[at-1] == '\n'
 }
 
-// rewrite replaces rows from..to with lines, keeping a carriage return the
-// last row carried, because lines reads rows without it.
+// rewrite replaces the lines from..to with lines, keeping a carriage return
+// the last of them carried, because the lines function drops it.
 func rewrite(content string, from, to int, lines []string) edit.Edit {
-	e := edit.Rows(content, from, to, 0, lines)
+	e := edit.Lines(content, from, to, 0, lines)
 	if e.End > 0 && content[e.End-1] == '\r' {
 		e.Text += "\r"
 	}
 	return e
 }
 
-// dropRows deletes the marked rows, a run of adjoining rows as a single edit,
+// dropLines deletes the marked lines, a run of adjoining lines as a single edit,
 // each quoting what it takes.
-func dropRows(content string, drop set.Set[int]) []edit.Edit {
-	rows := lines(content)
+func dropLines(content string, drop set.Set[int]) []edit.Edit {
+	fileLines := lines(content)
 	var out []edit.Edit
-	for row := 0; row < len(rows); row++ {
-		if !drop.Contains(row) {
+	for line := 0; line < len(fileLines); line++ {
+		if !drop.Contains(line) {
 			continue
 		}
-		end := row
-		for end+1 < len(rows) && drop.Contains(end+1) {
+		end := line
+		for end+1 < len(fileLines) && drop.Contains(end+1) {
 			end++
 		}
-		e := edit.Rows(content, row, end, 0, nil)
-		for r := row; r <= end; r++ {
-			e.Cut = append(e.Cut, strings.TrimSpace(rows[r]))
+		e := edit.Lines(content, line, end, 0, nil)
+		for r := line; r <= end; r++ {
+			e.Cut = append(e.Cut, strings.TrimSpace(fileLines[r]))
 		}
 		out = append(out, e)
-		row = end
+		line = end
 	}
 	return out
 }
@@ -173,14 +173,14 @@ func ungate(content string) []edit.Edit {
 	if len(findings) == 0 {
 		return nil
 	}
-	return dropRows(content, gateRows(content, findings))
+	return dropLines(content, gateLines(content, findings))
 }
 
-// gateRows answers the row each named step's continue-on-error sits on, read
+// gateLines answers the line each named step's continue-on-error sits on, read
 // off the parser's own positions. A walk of the text for the step's extent
 // asks an indent to say where a step ends. A block scalar with a deeper line
 // then ends the step early.
-func gateRows(content string, findings []ste.Finding) set.Set[int] {
+func gateLines(content string, findings []ste.Finding) set.Set[int] {
 	drop := set.New[int]()
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
@@ -235,19 +235,19 @@ func joinCommentBlocks(content string) []edit.Edit {
 	if len(findings) == 0 {
 		return nil
 	}
-	rows := lines(content)
+	fileLines := lines(content)
 	var out []edit.Edit
 	for _, f := range findings {
-		first, last := f.Line-1, min(f.EndLine, len(rows))-1
+		first, last := f.Line-1, min(f.EndLine, len(fileLines))-1
 		if first < 0 || last < first {
 			continue
 		}
 		var said, cut, rest []string
 		for j := first; j <= last; j++ {
-			trimmed := strings.TrimSpace(rows[j])
+			trimmed := strings.TrimSpace(fileLines[j])
 			if !strings.HasPrefix(trimmed, "#") {
-				// A blank row inside the run is no comment, and it stays.
-				rest = append(rest, rows[j])
+				// A blank line inside the run is no comment, and it stays.
+				rest = append(rest, fileLines[j])
 				continue
 			}
 			if words := strings.TrimSpace(strings.TrimPrefix(trimmed, "#")); words != "" {
@@ -257,7 +257,7 @@ func joinCommentBlocks(content string) []edit.Edit {
 				cut = append(cut, trimmed)
 			}
 		}
-		indent := rows[first][:len(rows[first])-len(strings.TrimLeft(rows[first], " \t"))]
+		indent := fileLines[first][:len(fileLines[first])-len(strings.TrimLeft(fileLines[first], " \t"))]
 		joined := strings.TrimRight(indent+"# "+joinSentences(said), " ")
 		e := rewrite(content, first, last, append([]string{joined}, rest...))
 		e.Cut = cut
@@ -314,18 +314,18 @@ var continuations = set.Of("a", "an", "the", "of", "in", "on", "at", "to", "for"
 // needs entries that point at it. The name is the whole finding, so renaming it
 // is the whole repair.
 func renameGuardedJob(content string) []edit.Edit {
-	rows := lines(content)
+	fileLines := lines(content)
 	var out []edit.Edit
 	for _, at := range guardedSites(content) {
-		row := at.Line - 1
-		if row < 0 || row >= len(rows) {
+		lineNo := at.Line - 1
+		if lineNo < 0 || lineNo >= len(fileLines) {
 			continue
 		}
-		swapped, ok := renameAt(rows[row], at.Column-1)
+		swapped, ok := renameAt(fileLines[lineNo], at.Column-1)
 		if !ok {
 			continue
 		}
-		out = append(out, rewrite(content, row, row, []string{swapped}))
+		out = append(out, rewrite(content, lineNo, lineNo, []string{swapped}))
 	}
 	return out
 }
@@ -376,17 +376,17 @@ func guardedNeeds(job *yaml.Node) []*yaml.Node {
 
 // renameAt swaps the guarded name for its replacement at a column the parser
 // gave, and reports whether the name was there.
-func renameAt(row string, col int) (string, bool) {
+func renameAt(line string, col int) (string, bool) {
 	for _, at := range []int{col, col + 1} {
-		if at < 0 || at+len(GuardedName) > len(row) {
+		if at < 0 || at+len(GuardedName) > len(line) {
 			continue
 		}
-		if row[at:at+len(GuardedName)] != GuardedName {
+		if line[at:at+len(GuardedName)] != GuardedName {
 			continue
 		}
-		return row[:at] + replacementName + row[at+len(GuardedName):], true
+		return line[:at] + replacementName + line[at+len(GuardedName):], true
 	}
-	return row, false
+	return line, false
 }
 
 // replacementName is a job name the gate does not reserve.

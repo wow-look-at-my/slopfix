@@ -204,11 +204,11 @@ func Blocks(text string, s *Scope) [][2]int {
 
 // blocksOf answers the block of each line of text, counted from zero.
 func blocksOf(text string) []int {
-	rows := strings.Split(text, "\n")
-	out := make([]int, len(rows))
+	lines := strings.Split(text, "\n")
+	out := make([]int, len(lines))
 	block, open, fenced := -1, false, false
-	for i, row := range rows {
-		trimmed := strings.TrimSpace(row)
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
 			fenced = !fenced
 		}
@@ -304,7 +304,7 @@ func Carry(before, after string, s *Scope) *Scope {
 // Hunk is a change after makes to base that leaves more lines than.
 type Hunk struct{ J1, J2, Had int }
 
-// Grown answers each change after makes to base that reaches into rows first
+// Grown answers each change after makes to base that reaches into lines first
 // to last of after, counted from one, and leaves more lines than.
 func Grown(base, after string, first, last int) []Hunk {
 	var out []Hunk
