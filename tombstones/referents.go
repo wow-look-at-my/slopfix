@@ -41,6 +41,8 @@ func ownNames(prose string) []string {
 		// A possessive gives the name to its owner.
 		case strings.HasSuffix(before, "'s ") || strings.HasSuffix(before, "’s "):
 		case isPlaceholder(word):
+		// A trailing star or underscore makes the name a pattern over many names.
+		case strings.HasSuffix(word, "_") || strings.HasPrefix(prose[loc[1]:], "*"):
 		default:
 			out = append(out, word)
 		}
@@ -158,20 +160,17 @@ func PrimeIndex(path string) {
 }
 
 // build reads every candidate word in the files git lists under root: tracked,
-// and untracked unless git ignores them. That is what ripgrep reads, without a
-// submodule's checkout, which the walk skips too.
+// untracked unless git ignores them, and tracked in a checked-out submodule.
+// That is what ripgrep reads. A name a submodule defines is defined here.
 func (ix *symbolIndex) build(root string) {
 	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 	defer cancel()
-	listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	listed, err := listedFiles(ctx, root)
 	if err != nil {
 		return
 	}
 	files := map[string]int{}
-	for _, rel := range strings.Split(string(listed), "\x00") {
-		if rel == "" {
-			continue
-		}
+	for _, rel := range listed {
 		if ctx.Err() != nil {
 			return
 		}
@@ -286,34 +285,59 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 	stems := fileStems(root)
-	for _, name := range ordered {
+	// alive answers whether the repository holds name, and false for ok when it cannot answer.
+	alive := func(name string) (held, ok bool) {
 		// The stem of a file that is here names that file.
 		if stems.Contains(name) {
-			continue
+			return true, true
 		}
 		// A built index read every file a probe reads, so a name it never saw is dead.
 		if ix.ok {
-			if !ix.holdsBeyond(name, self) {
-				dead = append(dead, name)
-			}
-			continue
+			return ix.holdsBeyond(name, self), true
 		}
 		cmd := exec.CommandContext(ctx, rg, append(append([]string{}, args...), "-e", name, root)...)
 		out, err := cmd.Output()
 		if ctx.Err() != nil {
-			return nil
+			return false, false
 		}
 		if err != nil && cmd.ProcessState != nil && cmd.ProcessState.ExitCode() > 1 {
-			return nil // ripgrep failed rather than found nothing
+			return false, false // ripgrep failed rather than found nothing
 		}
-		if !slices.ContainsFunc(strings.Split(string(out), "\n"), func(file string) bool {
+		return slices.ContainsFunc(strings.Split(string(out), "\n"), func(file string) bool {
 			abs, _ := filepath.Abs(file)
 			return file != "" && abs != selfPath
-		}) {
+		}), true
+	}
+	for _, name := range ordered {
+		held := false
+		for _, form := range nameForms(name) {
+			h, ok := alive(form)
+			if !ok {
+				return nil
+			}
+			if h {
+				held = true
+				break
+			}
+		}
+		if !held {
 			dead = append(dead, name)
 		}
 	}
 	return dead
+}
+
+// nameForms answers name. The spellings prose gives a name it uses: a
+// plural with an added s, and a capital at the start of a sentence.
+func nameForms(name string) []string {
+	forms := []string{name}
+	if trimmed, ok := strings.CutSuffix(name, "s"); ok && isCandidate(trimmed) {
+		forms = append(forms, trimmed)
+	}
+	if first := name[0]; first >= 'A' && first <= 'Z' {
+		forms = append(forms, string(first+'a'-'A')+name[1:])
+	}
+	return forms
 }
 
 var stemsByRoot sync.Map
@@ -325,17 +349,41 @@ func fileStems(root string) set.Set[string] {
 		return v.(set.Set[string])
 	}
 	stems := set.New[string]()
-	listed, err := gitmod.Command(root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
-	if err == nil {
-		for _, rel := range strings.Split(string(listed), "\x00") {
-			base := filepath.Base(rel)
-			if stem, _, _ := strings.Cut(base, "."); stem != "" {
-				stems.Add(stem)
-			}
+	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
+	defer cancel()
+	listed, _ := listedFiles(ctx, root)
+	for _, rel := range listed {
+		if stem, _, _ := strings.Cut(filepath.Base(rel), "."); stem != "" {
+			stems.Add(stem)
 		}
 	}
 	v, _ := stemsByRoot.LoadOrStore(root, stems)
 	return v.(set.Set[string])
+}
+
+// listedFiles answers the files git lists under root: tracked, untracked
+// unless ignored, and tracked in each checked-out submodule.
+func listedFiles(ctx context.Context, root string) ([]string, error) {
+	top, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	if err != nil {
+		return nil, err
+	}
+	seen := set.New[string]()
+	var out []string
+	add := func(listed []byte) {
+		for _, rel := range strings.Split(string(listed), "\x00") {
+			if rel != "" && !seen.Contains(rel) {
+				seen.Add(rel)
+				out = append(out, rel)
+			}
+		}
+	}
+	add(top)
+	// A submodule that is not checked out lists nothing, and an error here leaves the top-level list.
+	if nested, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--recurse-submodules").Output(); err == nil {
+		add(nested)
+	}
+	return out, nil
 }
 
 // RepoRoot walks up from path looking for a working tree. An empty result puts

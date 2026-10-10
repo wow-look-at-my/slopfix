@@ -36,6 +36,40 @@ func TestTheIndexHoldsWhatAProbeReads(t *testing.T) {
 	assert.False(t, ix.holds("NothingDefinesThisName"))
 }
 
+// A checked-out submodule is part of the tree, so the names it defines are alive.
+func TestTheIndexReadsASubmodule(t *testing.T) {
+	base := t.TempDir()
+	run := func(dir string, args ...string) {
+		cmd := exec.Command("git", append([]string{"-C", dir, "-c", "protocol.file.allow=always", "-c", "user.name=t", "-c", "user.email=t@e"}, args...)...)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+	}
+	sub := filepath.Join(base, "sub")
+	require.NoError(t, os.MkdirAll(sub, 0o755))
+	run(sub, "init", "-q")
+	require.NoError(t, os.WriteFile(filepath.Join(sub, "s.go"), []byte("package s\n\nfunc SubmoduleSymbolName() {}\n"), 0o644))
+	run(sub, "add", "s.go")
+	run(sub, "commit", "-q", "-m", "s")
+	root := filepath.Join(base, "root")
+	require.NoError(t, os.MkdirAll(root, 0o755))
+	run(root, "init", "-q")
+	run(root, "submodule", "add", "-q", sub, "dep")
+
+	ix := &symbolIndex{}
+	ix.build(root)
+	require.True(t, ix.ok)
+	assert.True(t, ix.holds("SubmoduleSymbolName"))
+}
+
+// Prose writes a name as a plural, or with a capital at a sentence start, and
+// both forms answer to the name. A star or a trailing underscore is a pattern.
+func TestNameFormsAndPatterns(t *testing.T) {
+	assert.Equal(t, []string{"OpConstants", "OpConstant", "opConstants"}, nameForms("OpConstants"))
+	assert.Equal(t, []string{"Vid_convert_roundtrip", "vid_convert_roundtrip"}, nameForms("Vid_convert_roundtrip"))
+	assert.Empty(t, ownNames("the DotProductAccelerated* features"))
+	assert.Empty(t, ownNames("every VK_KHR_pipeline_executable_ entry point"))
+}
+
 // A name that is the stem of a file here names that file, so it is alive. A
 // file name that no file answers is still dead.
 func TestAFileStemIsAlive(t *testing.T) {
