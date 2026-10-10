@@ -152,7 +152,12 @@ func paragraphs(doc string) []Block {
 			prefix += b.Marker + " "
 		}
 		text := strings.Join(cur, "\n")
-		out = append(out, Block{Text: text, Lines: len(cur), LineNos: nos, Prefix: prefix, Prose: text})
+		// A paragraph is prose alone, so every line is pure. linePurity reads this.
+		pure := make([]bool, len(cur))
+		for i := range pure {
+			pure[i] = true
+		}
+		out = append(out, Block{Text: text, Lines: len(cur), LineNos: nos, Pure: pure, Prefix: prefix, Prose: text})
 	}
 	return out
 }
