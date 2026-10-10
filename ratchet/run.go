@@ -91,6 +91,11 @@ func CheckIn(dir string) error {
 		return fmt.Errorf("ratchet: checking out %s: %w", branch, err)
 	}
 	defer git("worktree", "remove", "--force", checkout)
+	restore, err := orgGo()
+	if err != nil {
+		return fmt.Errorf("ratchet: %w", err)
+	}
+	defer restore()
 	// A checkout holds no generated file, so the command generates first.
 	if err := generateIn(checkout); err != nil {
 		return err
@@ -132,6 +137,31 @@ func generateIn(dir string) error {
 		}
 	}
 	return nil
+}
+
+// orgGo puts the go-toolchain binary first on PATH under the name go, as its
+// action does. Only that go command resolves the placeholder version of an org
+// module to a branch head. A stock go cannot. With no go-toolchain on PATH,
+// PATH stays as it is. The answer puts PATH back.
+func orgGo() (func(), error) {
+	gt, err := exec.LookPath("go-toolchain")
+	if err != nil {
+		return func() {}, nil
+	}
+	dir, err := os.MkdirTemp("", "ratchet-go")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.Symlink(gt, filepath.Join(dir, "go")); err != nil {
+		os.RemoveAll(dir)
+		return nil, err
+	}
+	old := os.Getenv("PATH")
+	os.Setenv("PATH", dir+string(os.PathListSeparator)+old)
+	return func() {
+		os.Setenv("PATH", old)
+		os.RemoveAll(dir)
+	}, nil
 }
 
 // onDefaultBranch reports whether this CI run is for the default branch.

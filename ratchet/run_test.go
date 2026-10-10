@@ -79,6 +79,23 @@ var judged = map[string]string{
 }
 
 // A branch that keeps the guarantee passes, and may change anything else.
+// With go-toolchain on PATH, go names it, and the restore puts PATH back.
+func TestOrgGoRunsGoToolchainAsGo(t *testing.T) {
+	t.Serial()
+	bin := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "go-toolchain"), []byte("#!/bin/sh\n"), 0o755))
+	t.Setenv("PATH", bin)
+	restore, err := orgGo()
+	require.NoError(t, err)
+	goPath, err := exec.LookPath("go")
+	require.NoError(t, err)
+	target, err := os.Readlink(goPath)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(bin, "go-toolchain"), target)
+	restore()
+	assert.Equal(t, bin, os.Getenv("PATH"))
+}
+
 func TestABranchThatKeepsTheGuaranteePasses(t *testing.T) {
 	t.Serial()
 	inCIOn(t, "feature")
