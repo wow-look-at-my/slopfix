@@ -255,7 +255,7 @@ func sentenceEdits(filename, src string, oneRow bool) []edit.Edit {
 		}
 		col := len(p.code)
 		out[0] = out[0][min(col, len(out[0])):]
-		edits = append(edits, edit.Rows(src, p.lines[0], p.lines[len(p.lines)-1], col, out))
+		edits = append(edits, edit.Lines(src, p.lines[0], p.lines[len(p.lines)-1], col, out))
 	}
 	return edits
 }

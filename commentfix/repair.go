@@ -120,7 +120,7 @@ func danglingMarkers(filename, src string) []edit.Edit {
 		for j+1 < len(lines) && rows.Contains(j+1) && bareMarker(lines[j+1]) && !carriesProse(lines, rows, j+2) {
 			j++
 		}
-		edits = append(edits, edit.Rows(src, i, j, 0, nil))
+		edits = append(edits, edit.Lines(src, i, j, 0, nil))
 		i = j
 	}
 	return edits
@@ -171,14 +171,14 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 		first, last := para.lines[0], para.lines[len(para.lines)-1]
 		if said == "" && para.code != "" && para.trailer == "" {
 			// A comment following code loses the comment, and the code stays.
-			e := edit.Rows(src, first, last, len(strings.TrimRight(para.code, " \t")), []string{""})
+			e := edit.Lines(src, first, last, len(strings.TrimRight(para.code, " \t")), []string{""})
 			e.Cut = cut
 			edits = append(edits, e)
 			continue
 		}
 		if said == "" && para.code == "" {
 			// A comment with nothing left to say loses its lines, delimiters and all.
-			e := edit.Rows(src, first, last, 0, nil)
+			e := edit.Lines(src, first, last, 0, nil)
 			e.Cut = cut
 			edits = append(edits, e)
 			continue
@@ -204,7 +204,7 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 		if len(wrapped) > 0 {
 			wrapped[0] = wrapped[0][col:]
 		}
-		e := edit.Rows(src, first, last, col, wrapped)
+		e := edit.Lines(src, first, last, col, wrapped)
 		e.Cut = cut
 		edits = append(edits, e)
 	}

@@ -50,7 +50,7 @@ func rewriteComments(added string, blocks []Block) ([]edit.Edit, map[int]int) {
 		if !rewrote {
 			continue
 		}
-		e := edit.Rows(added, from, to, 0, short)
+		e := edit.Lines(added, from, to, 0, short)
 		edits = append(edits, e)
 		rewrites[e.Start] = took
 	}
@@ -97,7 +97,7 @@ func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) 
 		if hasWord(short) {
 			kept = []string{b.Prefix + short}
 		}
-		e := edit.Rows(added, from, to, 0, kept)
+		e := edit.Lines(added, from, to, 0, kept)
 		edits = append(edits, e)
 		rewrites[e.Start] = took
 	}
@@ -182,7 +182,7 @@ func reflowStripped(path, text string, losing set.Set[int], was int) []edit.Edit
 		if !rewrapped {
 			continue
 		}
-		edits = append(edits, edit.Rows(text, from, to, 0, short))
+		edits = append(edits, edit.Lines(text, from, to, 0, short))
 	}
 	return edits
 }
@@ -200,7 +200,7 @@ func stripEdits(text string, drop set.Set[int]) []edit.Edit {
 		for end+1 < total && drop.Contains(end+1) {
 			end++
 		}
-		edits = append(edits, edit.Rows(text, row, end, 0, nil))
+		edits = append(edits, edit.Lines(text, row, end, 0, nil))
 		row = end
 	}
 	return edits
@@ -443,7 +443,7 @@ func cutRows(text string, blocks []Block) ([]edit.Edit, map[int]int) {
 		if !ok {
 			return
 		}
-		e := edit.Rows(text, row, row, 0, short)
+		e := edit.Lines(text, row, row, 0, short)
 		edits = append(edits, e)
 		took[e.Start] = n
 	})
@@ -597,7 +597,7 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 		}
 		if from, to, ok := pureSpan(b, len(lines)); ok {
 			kept := commentfix.CapLines(lines[from:to+1], maxLines)
-			edits = append(edits, edit.Rows(text, from, to, 0, kept))
+			edits = append(edits, edit.Lines(text, from, to, 0, kept))
 			continue
 		}
 		drop := set.New[int]()
@@ -615,7 +615,7 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 		if !endsOnSentence(lines, b, drop) {
 			if row, trimmed, ok := trimLastKeptRow(lines, b, drop); ok {
 				edits = append(edits, stripEdits(text, drop)...)
-				edits = append(edits, edit.Rows(text, row, row, 0, []string{trimmed}))
+				edits = append(edits, edit.Lines(text, row, row, 0, []string{trimmed}))
 				continue
 			}
 			// Rows go from the end until a kept row ends a sentence. A block with no such row keeps its prose.

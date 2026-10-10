@@ -95,7 +95,7 @@ func filterPushRow(content string) []edit.Edit {
 		}
 		head := strings.TrimRight(rows[row][:trigger.Column-1], " ")
 		tail := rows[row][trigger.Column-1+len(trigger.Value):]
-		return []edit.Edit{edit.Rows(content, row, row, 0, []string{
+		return []edit.Edit{edit.Lines(content, row, row, 0, []string{
 			head + tail, indent + "  push:", indent + "    " + branchFilter,
 		})}
 	case yaml.SequenceNode:
@@ -112,7 +112,7 @@ func filterPushRow(content string) []edit.Edit {
 				out = append(out, indent+"    "+branchFilter)
 			}
 		}
-		return []edit.Edit{edit.Rows(content, row, row, 0, out)}
+		return []edit.Edit{edit.Lines(content, row, row, 0, out)}
 	case yaml.MappingNode:
 		pushKey, push := mappingKey(trigger, "push"), mappingValue(trigger, "push")
 		pushRow := pushKey.Line - 1
@@ -125,7 +125,7 @@ func filterPushRow(content string) []edit.Edit {
 		default:
 			return nil
 		}
-		return []edit.Edit{edit.Rows(content, pushRow, pushRow, 0, []string{rows[pushRow], child + branchFilter})}
+		return []edit.Edit{edit.Lines(content, pushRow, pushRow, 0, []string{rows[pushRow], child + branchFilter})}
 	}
 	return nil
 }

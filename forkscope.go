@@ -241,7 +241,7 @@ func foldHunk(text string, h forkscope.Hunk) (edit.Edit, bool) {
 	for _, row := range rows[1:n] {
 		joined = strings.TrimRight(joined, " \t") + " " + commentProse(row)
 	}
-	return edit.Rows(text, h.J1, h.J1+n-1, 0, []string{joined}), true
+	return edit.Lines(text, h.J1, h.J1+n-1, 0, []string{joined}), true
 }
 
 // commentProse answers what a comment line says, without its indent and marker.

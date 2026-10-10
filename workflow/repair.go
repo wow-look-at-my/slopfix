@@ -136,7 +136,7 @@ func rowEdge(content string, at int) bool {
 // rewrite replaces rows from..to with lines, keeping a carriage return the
 // last row carried, because lines reads rows without it.
 func rewrite(content string, from, to int, lines []string) edit.Edit {
-	e := edit.Rows(content, from, to, 0, lines)
+	e := edit.Lines(content, from, to, 0, lines)
 	if e.End > 0 && content[e.End-1] == '\r' {
 		e.Text += "\r"
 	}
@@ -156,7 +156,7 @@ func dropRows(content string, drop set.Set[int]) []edit.Edit {
 		for end+1 < len(rows) && drop.Contains(end+1) {
 			end++
 		}
-		e := edit.Rows(content, row, end, 0, nil)
+		e := edit.Lines(content, row, end, 0, nil)
 		for r := row; r <= end; r++ {
 			e.Cut = append(e.Cut, strings.TrimSpace(rows[r]))
 		}

@@ -71,7 +71,7 @@ func shape(content string) string {
 
 // BlockEdit is an edit that replaces a whole prose block with lines.
 func BlockEdit(content string, b Block, lines []string) edit.Edit {
-	return edit.Rows(content, b.Start-1, b.Start-2+len(b.Lines), 0, lines)
+	return edit.Lines(content, b.Start-1, b.Start-2+len(b.Lines), 0, lines)
 }
 
 // proseSpans answers the bytes each prose block covers, line ends inside it
