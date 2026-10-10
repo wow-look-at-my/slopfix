@@ -37,7 +37,7 @@ func TestFixKeepsTheTextBeforeAURL(t *testing.T) {
 	path := deadReferentRepo(t, "p.go")
 	content := "package p\n\n// WriteChrome writes the events as a\n// trace file. Load it in chrome://tracing or the ProfilerPanel tab.\nfunc WriteChrome() {}\n"
 	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
-	assert.Equal(t, "package p\n\n// WriteChrome writes the events as a\n// trace file.\nfunc WriteChrome() {}\n", fixed.Text)
+	assert.Equal(t, "package p\n\n// WriteChrome writes the events as a trace file.\nfunc WriteChrome() {}\n", fixed.Text)
 }
 
 // A document that names a symbol nothing defines is reported on the line that
