@@ -91,13 +91,22 @@ func CheckIn(dir string) error {
 		return fmt.Errorf("ratchet: checking out %s: %w", branch, err)
 	}
 	defer git("worktree", "remove", "--force", checkout)
+	env, goBin, done, err := orgGo(checkout)
+	if err != nil {
+		return err
+	}
+	defer done()
 	// A checkout holds no generated file, so the command generates first.
-	if err := generateIn(checkout); err != nil {
+	if err := generateIn(checkout, goBin, env); err != nil {
 		return err
 	}
 
+	if argv[0] == "go" && goBin != "" {
+		argv[0] = goBin
+	}
 	cmd := exec.Command(argv[0], append(argv[1:], head)...)
 	cmd.Dir = checkout
+	cmd.Env = env
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("ratchet: %s's %s (%s) fails on this branch: %w",
@@ -106,10 +115,45 @@ func CheckIn(dir string) error {
 	return nil
 }
 
-// generateIn runs the generate directives of the checkout at dir, which the
-// repository builds from and CI holds no generated file for. A directory with
-// no go.mod generates nothing.
-func generateIn(dir string) error {
+// orgGo answers the environment and the go command for every go the ratchet
+// starts in the checkout at dir. Only the org's go command, which is
+// go-toolchain run under the name go, resolves an org module's v0.0.0
+// placeholder to its branch head. A go.mod checkout gets it first on PATH. A
+// checkout with no go.mod gets the process environment and no go command.
+func orgGo(dir string) (env []string, goBin string, done func(), err error) {
+	done = func() {}
+	if _, err := os.Stat(filepath.Join(dir, "go.mod")); os.IsNotExist(err) {
+		return os.Environ(), "", done, nil
+	}
+	toolchain, err := exec.LookPath("go-toolchain")
+	if err != nil {
+		return nil, "", done, fmt.Errorf("ratchet: go-toolchain is not on PATH, and only its go command resolves an org module's v0.0.0 placeholder: %w", err)
+	}
+	bin, err := os.MkdirTemp("", "ratchet-go")
+	if err != nil {
+		return nil, "", done, err
+	}
+	done = func() { os.RemoveAll(bin) }
+	goBin = filepath.Join(bin, "go")
+	if err := os.Symlink(toolchain, goBin); err != nil {
+		done()
+		return nil, "", func() {}, err
+	}
+	env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	// A runner sets GOPROXY and GOSUMDB to nothing, and the org's go command
+	// refuses an empty proxy list.
+	for _, kv := range [][2]string{{"GOPROXY", "direct"}, {"GOSUMDB", "off"}} {
+		if os.Getenv(kv[0]) == "" {
+			env = append(env, kv[0]+"="+kv[1])
+		}
+	}
+	return env, goBin, done, nil
+}
+
+// generateIn runs the generate directives of the checkout at dir with goBin,
+// which the repository builds from and CI holds no generated file for. A
+// directory with no go.mod generates nothing.
+func generateIn(dir, goBin string, env []string) error {
 	if _, err := os.Stat(filepath.Join(dir, "go.mod")); os.IsNotExist(err) {
 		return nil
 	}
@@ -122,10 +166,12 @@ func generateIn(dir string) error {
 		return err
 	}
 	// A fresh checkout carries neither the generated files nor a go.sum that
-	// resolves the branch-head modules, so both are settled first.
+	// resolves the branch-head modules, so both are settled first. GOFLAGS is
+	// cleared because an explicit -mod flag turns off the toolchain's
+	// resolution of a v0.0.0 org placeholder to its branch head.
 	for _, args := range [][]string{{"mod", "tidy"}, {"generate", "./..."}} {
-		cmd := exec.Command("go", args...)
-		cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=mod")
+		cmd := exec.Command(goBin, args...)
+		cmd.Env = append(append([]string{}, env...), "GOWORK=off", "GOFLAGS=")
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("ratchet: go %s in %s: %w", strings.Join(args, " "), dir, err)
