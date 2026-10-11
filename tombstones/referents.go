@@ -101,6 +101,7 @@ type symbolIndex struct {
 
 	pathOnce sync.Once
 	paths    set.Set[string]
+	pathsOK  bool
 }
 
 // namesAFile reports a name that a path git lists under root spells, such as
@@ -120,8 +121,9 @@ func (ix *symbolIndex) namesAFile(root, name string) bool {
 				ix.paths.Add(word)
 			}
 		}
+		ix.pathsOK = true
 	})
-	if ix.paths == nil {
+	if !ix.pathsOK {
 		return false
 	}
 	if ix.paths.Contains(name) {
