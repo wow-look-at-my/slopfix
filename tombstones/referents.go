@@ -98,6 +98,60 @@ type symbolIndex struct {
 	once  sync.Once
 	files map[string]int
 	ok    bool
+
+	pathOnce sync.Once
+	paths    set.Set[string]
+	pathsOK  bool
+}
+
+// namesAFile reports a name that a path git lists under root spells, such as
+// sig_cosmo_test for sig_cosmo_test.go. A name that ends in an underscore
+// names the files that start with it.
+func (ix *symbolIndex) namesAFile(root, name string) bool {
+	ix.pathOnce.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
+		defer cancel()
+		listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+		if err != nil {
+			return
+		}
+		ix.paths = set.New[string]()
+		for _, rel := range strings.Split(string(listed), "\x00") {
+			for _, word := range identifierWords(rel) {
+				ix.paths.Add(word)
+			}
+		}
+		ix.pathsOK = true
+	})
+	if !ix.pathsOK {
+		return false
+	}
+	if ix.paths.Contains(name) {
+		return true
+	}
+	if !strings.HasSuffix(name, "_") {
+		return false
+	}
+	for word := range ix.paths.All() {
+		if strings.HasPrefix(word, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// foreignInGo reports an underscored name in Go, which is a C name or a file.
+// A test function keeps its underscore and stays a candidate.
+func foreignInGo(path, name string) bool {
+	if !strings.HasSuffix(path, ".go") || !strings.Contains(name, "_") {
+		return false
+	}
+	for _, prefix := range []string{"Test", "Benchmark", "Example", "Fuzz"} {
+		if strings.HasPrefix(name, prefix) {
+			return false
+		}
+	}
+	return true
 }
 
 var (
@@ -226,9 +280,10 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		return nil
 	}
 
+	ix := indexFor(root)
 	var ordered []string
 	for n := range names.All() {
-		if strings.Count(added, n) > 1 {
+		if strings.Count(added, n) > 1 || foreignInGo(path, n) || ix.namesAFile(root, n) {
 			continue
 		}
 		ordered = append(ordered, n)
@@ -239,7 +294,6 @@ func DeadReferents(path, added string, blocks []Block) []string {
 
 	self, _ := os.ReadFile(path)
 	selfPath, _ := filepath.Abs(path)
-	ix := indexFor(root)
 	rg := ""
 	if !ix.ok {
 		found, err := exec.LookPath("rg")
