@@ -35,7 +35,7 @@ func rewriteWould(prose string) string {
 // wouldGroup answers where the verb group that opens with "would" at word i
 // ends, and the present-tense words that replace it.
 func wouldGroup(s *syntax.Sentence, prose string, i int) (int, string) {
-	question := i == 0 || s.Words[i-1].Text == "," && i == 1
+	question := asksAQuestion(s, i)
 	plural := false
 	j := i + 1
 	if question {
@@ -67,7 +67,7 @@ func wouldGroup(s *syntax.Sentence, prose string, i int) (int, string) {
 		j++
 	}
 	// "would have failed" is the same condition, written about a past moment.
-	if j+1 < len(s.Words) && s.Words[j].Lower() == "have" && s.Words[j+1].Tag == "VBN" {
+	if j+1 < len(s.Words) && s.Words[j].Lower() == "have" && (s.Words[j+1].Tag == "VBN" || s.Words[j+1].Tag == "VBD") {
 		j++
 	}
 	if j >= len(s.Words) || !strings.HasPrefix(s.Words[j].Tag, "VB") {
@@ -92,6 +92,27 @@ func wouldGroup(s *syntax.Sentence, prose string, i int) (int, string) {
 		return s.Words[j].End, presentAux(plural, true) + " " + lead + base
 	}
 	return s.Words[j].End, lead + presentOf(base, plural)
+}
+
+// asksAQuestion reports that the "would" at word i opens an inverted question.
+// Its sentence ends on a question mark and a subject, not a verb, follows it.
+func asksAQuestion(s *syntax.Sentence, i int) bool {
+	if i+1 >= len(s.Words) {
+		return false
+	}
+	next := s.Words[i+1]
+	if strings.HasPrefix(next.Tag, "VB") || next.Tag == "RB" || next.Lower() == "not" {
+		return false
+	}
+	for k := i + 1; k < len(s.Words); k++ {
+		switch s.Words[k].Text {
+		case "?":
+			return true
+		case ".", "!":
+			return false
+		}
+	}
+	return false
 }
 
 // verbBase answers the base form of the verb at word k.

@@ -18,7 +18,7 @@ func init() {
 			{Name: ste.IDModal + " with would be", Path: "x.md", Text: "A cached tree would be faster.\n"},
 			{Name: ste.IDModal + " with would have", Path: "x.md", Text: "The old runner would have dropped the job.\n"},
 			{Name: ste.IDModal + " with would not", Path: "x.md", Text: "The gate would not accept the token.\n"},
-			{Name: ste.IDModal + " in a question", Path: "x.md", Text: "Would the gate accept the token?\n"},
+			{Name: ste.IDModal + " in a question", Path: "x.md", Text: "In that case, would the gate accept the token? The gate reads the header.\n"},
 		},
 	})
 }
