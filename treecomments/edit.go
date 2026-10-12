@@ -146,9 +146,5 @@ func sameShape(language *ts.Language, text string, want []string) bool {
 
 // parseWith parses src and answers the root.
 func parseWith(language *ts.Language, src string) (ts.Node, bool) {
-	parser := ts.NewParser()
-	if !parser.SetLanguage(language) {
-		return ts.Node{}, false
-	}
-	return parse(parser, src)
+	return parse(language, src)
 }
