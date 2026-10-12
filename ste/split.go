@@ -145,6 +145,10 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if !admissible(s, source, d) {
 			continue
 		}
+		// "with no visibility test": with no mark or conjunction at the seam, a bare verb form after a noun continues the noun phrase.
+		if d.opener == "" && strings.TrimSpace(source[d.leftEnd:d.rightStart]) == "" && opensImperative(checkMask(lowerFirst(restOf(source, d)))) {
+			continue
+		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
 		right := bold + withCloser(joinOpener(d.opener, restOf(source, d)), d.closer)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
