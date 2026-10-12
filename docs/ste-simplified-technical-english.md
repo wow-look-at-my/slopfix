@@ -16,7 +16,7 @@ The warning rules read patterns that need a person to repair. A warning never fa
 
 - `ste/instruction-length`: a sentence of `21` to `25` words, over the STE cap for an instruction.
 - `ste/passive`: a form of `be` and a past participle, as the parser tags them.
-- `ste/noun-cluster`: a run of nouns longer than `NounClusterCap`, which is `3`. A symbol, an article and a name in capitals, such as `REST` or `GitHub`, end a run. The tagger reads each as a noun, and none folds behind `of the`. Hand and left as written reports a run with markup between its words.
+- `ste/noun-cluster`: a run of nouns longer than `NounClusterCap`, which is `3`. A symbol, an article, a proper noun and a name in capitals, such as `REST` or `GitHub`, end a run. The tagger reads each as a noun, and none folds behind `of the`. Hand and left as written reports a run with markup between its words.
 - `ste/tense`: a perfect or a progressive tense. The approved `-ing` words, such as `missing` and `during`, do not count.
 - `ste/dictionary`: a word the STE dictionary does not approve, with its approved replacements. The table is the `dictionary` list in `rules/ste-dictionary.xml`. A `<list>` holds a string on each line of its text and needs no `<test>`. It holds only words with no approved sense, because a match by spelling cannot tell senses apart. A word inside a path, a file name, a URL or an identifier is neither reported nor rewritten, so `docs/reveal-layer.md` stays a working pointer.
 - `ste/paragraph-length`: a paragraph with more sentences than `ParagraphSentenceCap`, which is `6`. A list item never counts.

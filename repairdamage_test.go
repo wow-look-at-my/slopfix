@@ -19,6 +19,7 @@ var untouchedLines = map[string]string{
 	"actor-past-dash":  "- **JSON text is produced by MARSHALLING — a JSON literal is a constant, or it is a bug.** Every other way.\n",
 	"capitals-run":     "- **A BRANCH TIP IS THE ANSWER A LOST DELIVERY RUINS WORST.** A consumer cannot notice it.\n",
 	"symbol-heading":   "- **Timeline wire format + response compression**: the chart reads a columnar payload.\n",
+	"adjective-opener": "- `internal/freshness/` — Generic cache freshness framework with zero GitHub knowledge.\n",
 }
 
 func TestTheRepairsLeaveEachDamagedLineAlone(t *testing.T) {

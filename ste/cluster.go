@@ -8,13 +8,15 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// clusterAt answers the first run of more than NounClusterCap nouns. Code, a
-// quotation, a parenthetical and a bracket are data, so each ends a run.
+// clusterAt answers the first run of more than NounClusterCap common nouns.
+// Code, a quotation, a parenthetical and a bracket are data, so each ends a
+// run. A proper noun ends one too, because the tagger also gives that tag to
+// a capitalized adjective, such as "Generic".
 func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	last := lastContent(s)
 	noun := func(k int) bool {
 		w := s.Words[k]
-		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && foldable(w.Text)
+		return (w.Tag == "NN" || w.Tag == "NNS") && !insideAny(off, w.Start) && foldable(w.Text)
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
