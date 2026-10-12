@@ -56,7 +56,7 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		drop(1)
 	}
 
-	// A sign against the number caps it, as "≤750 lines" does.
+	// A sign against the number caps it, as "≤40 rows" does.
 	capSign := ""
 	for _, sign := range []string{"≤", "<=", "<", "⩽"} {
 		if strings.HasSuffix(content[:from], sign) {

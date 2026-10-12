@@ -12,8 +12,8 @@ func init() {
 		Autofix:  autofixStaleCount,
 		Cases: []RuleCase{
 			{Name: ste.IDStaleCount, Path: "x.md", Text: "The gate reads 3 rows.\n"},
-			// shader-simulator AGENTS.md: a sign caps the number, and a list item holds it.
-			{Name: ste.IDStaleCount + " behind a cap sign in a list item", Path: "x.md", Text: "- **≤750 lines per file** keeps each source file short.\n"},
+			// A sign caps the number, and a list item holds it.
+			{Name: ste.IDStaleCount + " behind a cap sign in a list item", Path: "x.md", Text: "- **≤40 rows per page** keeps each report page short.\n"},
 		},
 	})
 }

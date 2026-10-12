@@ -285,7 +285,7 @@ func divisions(s *syntax.Sentence, source string) []division {
 		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {
 			continue
 		}
-		// "X must default to denied, never inherit Y": a bare verb after a comma shares the main clause's subject and modal, so both are named again rather than read as a command.
+		// "X must default to blocked, never inherit Y": a bare verb after a comma shares the main clause's subject and modal, so both are named again rather than read as a command.
 		if c.Verb != nil && c.Verb.Imperative && c.Subject == nil && main.Verb != nil && !main.Verb.Imperative && main.Subject != nil {
 			opener := "It"
 			if s.Plural(*main.Subject) {

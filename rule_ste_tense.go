@@ -12,7 +12,7 @@ func init() {
 		Autofix:  autofixTense,
 		Cases: []RuleCase{
 			{Name: ste.IDTense, Path: "w.md", Text: "The gate has started the task.\n"},
-			// dats docs/cli.md: a perfect after \"after\" under a present verb becomes the simple present.
+			// A perfect after \"after\" under a present verb becomes the simple present.
 			{Name: ste.IDTense + " after after", Path: "w.md", Text: "A later run begins only after the first run has finished.\n"},
 		},
 	})

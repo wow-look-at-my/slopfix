@@ -56,7 +56,7 @@ func listRest(source string, s *syntax.Sentence, verb syntax.Phrase, c forceCut,
 		return "", "", false
 	}
 	conj, ok := listEnd(rest)
-	// A rest that opens on a conjunction is a clause the list never reached: "but remembered grants are".
+	// A rest that opens on a conjunction is a clause the list never reached: "but cached rows are".
 	if !ok || len(topCommas(source[:c.left], s.Words[verb.Last].End)) == 0 || leadingConjunction.MatchString(strings.ToLower(rest)) || strings.HasPrefix(strings.ToLower(rest), "but ") {
 		return "", "", false
 	}
