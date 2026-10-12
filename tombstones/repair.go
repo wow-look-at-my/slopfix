@@ -348,6 +348,15 @@ func repairFile(f *fixer.File) {
 		blocks = AddedBlocks(path, added)
 	}
 
+	// A dead name that a defined identifier replaces is renamed, so its sentence stays.
+	if dead := DeadReferents(path, added, blocks); len(dead) > 0 {
+		if renamed := f.ApplyComments(renameEdits(path, added, blocks, dead)); len(renamed.Applied) > 0 {
+			f.Rewrote(len(renamed.Applied))
+			added = f.Text()
+			blocks = AddedBlocks(path, added)
+		}
+	}
+
 	hits := Find(blocks, maxLines)
 	for _, name := range DeadReferents(path, added, blocks) {
 		hits = append(hits, HitForName(blocks, name))
@@ -403,7 +412,6 @@ func repairFile(f *fixer.File) {
 		}
 	}
 	// A strip that did not land leaves the line in the text, so its hit is reported there.
-	// HitForName counts its line from one, and gone holds rows counted from zero.
 	for _, h := range stripping {
 		if !gone.Contains(h.LineNo - 1) {
 			f.Note(h)
@@ -516,126 +524,6 @@ func phraseHits(text string, blocks []Block) []Hit {
 		}
 	})
 	return hits
-}
-
-// cutReferents cuts the sentence around each dead name a whole-line strip left,
-// and notes every name it could not cut.
-func cutReferents(f *fixer.File, path string) {
-	text := f.Text()
-	blocks := AddedBlocks(path, text)
-	lines := strings.Split(text, "\n")
-	starts := make([]int, len(lines))
-	for i, at := 1, 0; i < len(lines); i++ {
-		at += len(lines[i-1]) + 1
-		starts[i] = at
-	}
-	var edits []edit.Edit
-	openers := commentOpeners
-	if IsDocument(path) {
-		openers = nil
-	}
-	for _, name := range DeadReferents(path, text, blocks) {
-		row := HitForName(blocks, name).LineNo - 1
-		prose, ok := proseRow(blocks, row)
-		if !ok || row >= len(lines) || len(prose) != len(lines[row]) {
-			continue
-		}
-		if from, to, ok := sentenceAround(lines[row], prose, name, openers); ok {
-			at := starts[row]
-			edits = append(edits, edit.Edit{Start: at + from, End: at + to, Cut: []string{strings.TrimSpace(lines[row][from:to])}})
-		}
-	}
-	f.ApplyComments(edits)
-	after := AddedBlocks(path, f.Text())
-	for _, name := range DeadReferents(path, f.Text(), after) {
-		f.Note(HitForName(after, name))
-	}
-}
-
-// proseRow answers the comment prose of a row: the row with every byte outside a comment blanked.
-func proseRow(blocks []Block, row int) (string, bool) {
-	for _, b := range blocks {
-		if len(b.LineNos) == 0 || row < b.LineNos[0] || row > b.LineNos[len(b.LineNos)-1] {
-			continue
-		}
-		rows := strings.Split(b.Prose, "\n")
-		if idx := row - b.LineNos[0]; idx < len(rows) {
-			return rows[idx], true
-		}
-	}
-	return "", false
-}
-
-// commentOpeners open the prose of a comment. The longest one at the comment's start is its marker.
-var commentOpeners = []string{"///", "//!", "//", "/**", "/*", "#", "--", "* "}
-
-// sentenceAround answers the byte span of the sentence in line that holds name,
-// with the blank in front of it. prose is line with every byte outside a
-// comment blanked, so the parse that found the comment also bounds the cut. The
-// code on the line stays.
-func sentenceAround(line, prose, name string, openers []string) (int, int, bool) {
-	at := strings.LastIndex(prose, name)
-	start := len(prose) - len(strings.TrimLeft(prose, " \t"))
-	end := len(strings.TrimRight(prose, " \t"))
-	if at < 0 || at < start {
-		return 0, 0, false
-	}
-	floor, marked := start, false
-	for _, opener := range openers {
-		if strings.HasPrefix(line[start:], opener) && start+len(opener) > floor {
-			floor, marked = start+len(opener), true
-		}
-	}
-	closer := end
-	if strings.HasSuffix(line[:end], "*/") && end-len("*/") >= at+len(name) {
-		closer = end - len("*/")
-	}
-	from := floor
-	if i := strings.LastIndex(line[floor:at], ". "); i >= 0 {
-		from = floor + i + 1
-	}
-	to := closer
-	if i := strings.Index(line[at:closer], ". "); i >= 0 {
-		to = at + i + 1
-	}
-	for to < closer && line[to] == '.' {
-		to++
-	}
-	// A block comment that runs on past this row keeps its opener.
-	unclosed := strings.HasPrefix(line[start:], "/*") && closer == end
-	whole := from == floor && marked && !unclosed && strings.TrimSpace(line[to:closer]) == ""
-	switch {
-	case whole && strings.TrimSpace(line[end:]) == "":
-		// The sentence is the whole comment and nothing follows it, so the comment goes with the blanks before it.
-		from, to = len(strings.TrimRight(line[:start], " \t")), len(line)
-	case whole:
-		// The sentence is the whole comment and code follows it, so the comment goes with one run of blanks beside it.
-		from, to = start, end
-		if to < len(line) && line[to] == ' ' {
-			for to < len(line) && line[to] == ' ' {
-				to++
-			}
-		} else {
-			for from > 0 && line[from-1] == ' ' {
-				from--
-			}
-		}
-	case from > floor:
-		// The period that ends the sentence before stays, and the blank after it goes.
-		for from < at && line[from] == ' ' {
-			from++
-		}
-		from--
-	default:
-		// The blank after the marker stays, and the blanks after the sentence go.
-		for from < at && line[from] == ' ' {
-			from++
-		}
-		for to < len(line) && line[to] == ' ' {
-			to++
-		}
-	}
-	return from, to, from < to
 }
 
 // endsOnSentence reports whether the last line of block b that a cut keeps ends
