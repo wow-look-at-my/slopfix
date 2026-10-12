@@ -25,6 +25,11 @@ func TestIsDirective(t *testing.T) {
 		"//":                             false,
 		"//lines of prose":               false,
 		"//TODO(x): prose":               false,
+		`/// <reference types="vite/client" />`: true,
+		`/// <reference path="./globals.d.ts" />`: true,
+		`/// <amd-module name="NamedModule"/>`: true,
+		"/// <summary>Prose in a tag.</summary>": false,
+		"/// The doc comment is prose.":          false,
 	} {
 		assert.Equal(t, want, IsDirective(line), line)
 	}

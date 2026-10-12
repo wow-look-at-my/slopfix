@@ -3,6 +3,7 @@ package workflow
 import (
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -69,6 +70,10 @@ type hostedJob struct {
 	job    *yaml.Node
 	node   *yaml.Node
 	label  string
+	// key is the matrix key a runs-on of the form ${{ matrix.<key> }} reads.
+	// The label is then empty, and hosted holds the hosted Linux values of the key.
+	key    string
+	hosted []string
 	docker bool
 	// flow reports whether the runs-on value sits inside a flow collection.
 	flow bool
@@ -126,14 +131,62 @@ func hostedJobs(content string) []hostedJob {
 		if on == nil || on.Kind != yaml.ScalarNode {
 			continue
 		}
+		flow := (root.Style|jobs.Style|job.Style)&yaml.FlowStyle != 0
 		label, dind := runnerLabel(on.Value)
-		if label == "" {
+		if label != "" {
+			out = append(out, hostedJob{job: job, node: on, label: label, docker: dind, flow: flow})
 			continue
 		}
-		flow := (root.Style|jobs.Style|job.Style)&yaml.FlowStyle != 0
-		out = append(out, hostedJob{job: job, node: on, label: label, docker: dind, flow: flow})
+		if key, hosted := matrixRunner(job, on.Value); len(hosted) > 0 {
+			out = append(out, hostedJob{job: job, node: on, key: key, hosted: hosted, flow: flow})
+		}
 	}
 	return out
+}
+
+// matrixReference matches a runs-on that is one matrix value, such as ${{ matrix.os }}.
+var matrixReference = regexp.MustCompile(`^\$\{\{\s*matrix\.([A-Za-z_][A-Za-z0-9_-]*)\s*\}\}$`)
+
+// matrixRunner answers the matrix key a runs-on reads, and each hosted Linux
+// value the job's matrix gives that key, in source order. It answers no value
+// when the matrix is not written out in the file, such as fromJSON of an output.
+func matrixRunner(job *yaml.Node, value string) (string, []string) {
+	m := matrixReference.FindStringSubmatch(value)
+	if m == nil {
+		return "", nil
+	}
+	key := m[1]
+	matrix := mappingValue(mappingValue(job, "strategy"), "matrix")
+	if matrix == nil || matrix.Kind != yaml.MappingNode {
+		return "", nil
+	}
+	var values []*yaml.Node
+	if list := mappingValue(matrix, key); list != nil {
+		if list.Kind != yaml.SequenceNode {
+			return "", nil
+		}
+		values = append(values, list.Content...)
+	}
+	if include := mappingValue(matrix, "include"); include != nil {
+		if include.Kind != yaml.SequenceNode {
+			return "", nil
+		}
+		for _, entry := range include.Content {
+			if entry.Kind != yaml.MappingNode {
+				return "", nil
+			}
+			if v := mappingValue(entry, key); v != nil {
+				values = append(values, v)
+			}
+		}
+	}
+	var hosted []string
+	for _, v := range values {
+		if v.Kind == yaml.ScalarNode && hostedLinux.MatchString(v.Value) && !slices.Contains(hosted, v.Value) {
+			hosted = append(hosted, v.Value)
+		}
+	}
+	return key, hosted
 }
 
 // runsDocker reports whether a job needs a docker engine on its runner. It
@@ -194,6 +247,12 @@ func runnerExpression(j hostedJob) string {
 	if j.docker {
 		name = runnerDindVar
 	}
+	if j.key != "" {
+		// A value outside the hosted Linux list keeps its runner. A public repository keeps every value.
+		ref := "matrix." + j.key
+		list := `["` + strings.Join(j.hosted, `","`) + `"]`
+		return "${{ (github.event.repository.visibility == 'public' || !contains(fromJSON('" + list + "'), " + ref + ")) && " + ref + " || " + name + " || " + ref + " }}"
+	}
 	return "${{ github.event.repository.visibility == 'public' && '" + j.label + "' || " + name + " || '" + j.label + "' }}"
 }
 
@@ -229,7 +288,7 @@ func retargetRunners(path, content string) []edit.Edit {
 		}
 		value := runnerExpression(j)
 		if j.flow {
-			value = `"` + value + `"`
+			value = `"` + strings.ReplaceAll(value, `"`, `\"`) + `"`
 		}
 		out = append(out, rewrite(content, first, last, []string{before + value + after}))
 	}

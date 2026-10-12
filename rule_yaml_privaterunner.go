@@ -28,6 +28,17 @@ func init() {
 		privateRunnerCase("private-runner-flow", workflowHeader()+"jobs:\n"+
 			"  build: {runs-on: ubuntu-latest, steps: [{run: make}]}\n"+
 			"  image: {runs-on: 'ubuntu-24.04', steps: [{uses: docker/setup-buildx-action@v3}]}\n"),
+		privateRunnerCase("private-runner-matrix-linux", matrixJob("        os: [ubuntu-22.04, ubuntu-24.04]\n", "      - run: make\n")),
+		privateRunnerCase("private-runner-matrix-mixed", matrixJob("        os: [ubuntu-latest, macos-latest, windows-latest, ubuntu-24.04-arm]\n", "      - run: make\n")),
+		privateRunnerCase("private-runner-matrix-include", matrixJob("        include:\n          - {os: ubuntu-22.04, arch: amd64}\n          - {os: ubuntu-24.04-arm, arch: arm64}\n", "      - run: make\n")),
+		privateRunnerCase("private-runner-matrix-docker", matrixJob("        os: [ubuntu-latest, macos-latest]\n", "      - run: docker build .\n")),
+		privateRunnerCase("private-runner-matrix-beside-done", matrixJob("        os: [ubuntu-latest]\n", "      - run: make\n")+
+			"  done:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest]\n"+
+			"    runs-on: ${{ (github.event.repository.visibility == 'public' || !contains(fromJSON('[\"ubuntu-latest\"]'), matrix.os)) && matrix.os || vars.CI_RUNNER || matrix.os }}\n"+
+			"    steps:\n      - run: make\n"+
+			"  dynamic:\n    strategy:\n      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"),
+		privateRunnerCase("private-runner-matrix-flow", workflowHeader()+"jobs:\n"+
+			"  build: {strategy: {matrix: {os: [ubuntu-latest, windows-latest]}}, runs-on: '${{ matrix.os }}', steps: [{run: make}]}\n"),
 	}
 	RegisterRule(RuleSpec{
 		ID:       workflow.IDPrivateRunner,
@@ -36,6 +47,11 @@ func init() {
 		Autofix:  autofixPrivateRunner,
 		Cases:    cases,
 	})
+}
+
+// matrixJob is a workflow whose build job takes its runner from the matrix value os.
+func matrixJob(matrix, steps string) string {
+	return workflowHeader() + "jobs:\n  build:\n    strategy:\n      matrix:\n" + matrix + "    runs-on: ${{ matrix.os }}\n    steps:\n" + steps
 }
 
 // ContainerActionFixture is a third-party action that the fixture records as a container action.

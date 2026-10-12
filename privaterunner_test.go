@@ -3,6 +3,7 @@ package slopfix
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -135,3 +136,33 @@ const (
 	runnerSlim = "CI_RUNNER"
 	runnerDind = "CI_RUNNER_DIND"
 )
+
+// matrixVisible is the runs-on expression the repair writes for a matrix key and its hosted Linux values.
+func matrixVisible(key, list, variable string) string {
+	ref := "matrix." + key
+	return "${{ (github.event.repository.visibility == 'public' || !contains(fromJSON('" + list + "'), " + ref + ")) && " + ref + " || vars." + variable + " || " + ref + " }}"
+}
+
+func TestPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrix(t *testing.T) {
+	done := matrixVisible("os", `["ubuntu-latest"]`, runnerSlim)
+	body := workflowHeader() + "jobs:\n" +
+		"  linux:\n    strategy:\n      matrix:\n        include:\n          - {os: ubuntu-22.04, arch: amd64}\n          - {os: ubuntu-24.04, arch: amd64}\n          - {os: ubuntu-22.04-arm, arch: arm64}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		"  mixed:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest, windows-latest]\n        include:\n          - os: ubuntu-24.04\n    runs-on: ${{matrix.os}}\n    steps:\n      - run: docker build .\n" +
+		"  apple:\n    strategy:\n      matrix:\n        os: [macos-14, macos-15]\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		"  dynamic:\n    strategy:\n      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		"  partial:\n    strategy:\n      matrix:\n        os: ${{ fromJSON(needs.plan.outputs.os) }}\n        include:\n          - os: ubuntu-latest\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		"  done:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest]\n    runs-on: " + done + "\n    steps:\n      - run: make\n" +
+		"  flow: {strategy: {matrix: {os: [ubuntu-latest, windows-latest]}}, runs-on: '${{ matrix.os }}', steps: [{run: make}]}\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 3)
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "runs-on: "+matrixVisible("os", `["ubuntu-22.04","ubuntu-24.04"]`, runnerSlim)+"\n", "the arm values stay out of the list")
+	assert.Contains(t, got.Text, "runs-on: "+matrixVisible("os", `["ubuntu-latest","ubuntu-24.04"]`, runnerDind)+"\n", "a docker job picks the docker runners")
+	assert.Contains(t, got.Text, "runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n  dynamic:", "a matrix with no hosted Linux value is not read")
+	assert.Contains(t, got.Text, "matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n    runs-on: ${{ matrix.os }}\n", "a dynamic matrix is not read")
+	assert.Contains(t, got.Text, "          - os: ubuntu-latest\n    runs-on: ${{ matrix.os }}\n", "a key with a dynamic list is not read")
+	assert.Contains(t, got.Text, "runs-on: "+done+"\n", "the expression is not written twice")
+	assert.Contains(t, got.Text, `runs-on: "`+strings.ReplaceAll(matrixVisible("os", `["ubuntu-latest"]`, runnerSlim), `"`, `\"`)+`", steps:`)
+	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
+}
