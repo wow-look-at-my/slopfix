@@ -102,6 +102,35 @@ type symbolIndex struct {
 	pathOnce sync.Once
 	paths    set.Set[string]
 	pathsOK  bool
+
+	blindOnce sync.Once
+	blind     bool
+}
+
+// missingDependency reports a submodule with no checkout under root. A name the
+// repository takes from it, such as an API that a registry submodule defines,
+// is in no file a probe can read. The probe then cannot answer.
+func (ix *symbolIndex) missingDependency(root string) bool {
+	ix.blindOnce.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
+		defer cancel()
+		listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--stage").Output()
+		if err != nil {
+			ix.blind = true
+			return
+		}
+		for _, entry := range strings.Split(string(listed), "\x00") {
+			meta, rel, ok := strings.Cut(entry, "\t")
+			if !ok || !strings.HasPrefix(meta, "160000 ") {
+				continue
+			}
+			if children, err := os.ReadDir(filepath.Join(root, rel)); err != nil || len(children) == 0 {
+				ix.blind = true
+				return
+			}
+		}
+	})
+	return ix.blind
 }
 
 // namesAFile reports a name that a path git lists under root spells, such as
@@ -184,8 +213,8 @@ func PrimeIndex(path string) {
 }
 
 // build reads every candidate word in the files git lists under root: tracked,
-// and untracked unless git ignores them. That is what ripgrep reads, without a
-// submodule's checkout, which the walk skips too.
+// untracked unless git ignores them, and tracked in a submodule checkout. That
+// is what ripgrep reads.
 func (ix *symbolIndex) build(root string) {
 	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 	defer cancel()
@@ -193,11 +222,17 @@ func (ix *symbolIndex) build(root string) {
 	if err != nil {
 		return
 	}
+	nested, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--recurse-submodules").Output()
+	if err != nil {
+		return
+	}
 	files := map[string]int{}
-	for _, rel := range strings.Split(string(listed), "\x00") {
-		if rel == "" {
+	seen := set.New[string]()
+	for _, rel := range strings.Split(string(listed)+"\x00"+string(nested), "\x00") {
+		if rel == "" || seen.Contains(rel) {
 			continue
 		}
+		seen.Add(rel)
 		if ctx.Err() != nil {
 			return
 		}
@@ -281,6 +316,9 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	}
 
 	ix := indexFor(root)
+	if ix.missingDependency(root) {
+		return nil
+	}
 	var ordered []string
 	for n := range names.All() {
 		if strings.Count(added, n) > 1 || foreignInGo(path, n) || ix.namesAFile(root, n) {

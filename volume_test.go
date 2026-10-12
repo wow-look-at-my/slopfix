@@ -36,6 +36,25 @@ func TestFixCutsABlockBackUnderTheVolumeCap(t *testing.T) {
 	assert.Contains(t, repair.Text, "func Run() {\n\tstep(theFirstArgumentOfTheCall", "the code is untouched")
 }
 
+// A cgo preamble is C source, from go-depth-anything's interop.go. No rule
+// reads it as a comment, so the fix leaves every line of it in place.
+func TestACgoPreambleIsNoComment(t *testing.T) {
+	src := "//go:build cuda\n\npackage interop\n\n/*\n#cgo LDFLAGS: -lcuda\n\n#include <cuda.h>\n#include <cuda_gl_interop.h>\n\n" +
+		"// Register a GL texture for CUDA access.\n" +
+		"static cudaError_t register_gl_texture(cudaGraphicsResource_t *res, unsigned int tex, unsigned int flags) {\n" +
+		"    return cudaGraphicsGLRegisterImage(res, tex, GL_TEXTURE_2D, flags);\n}\n\n" +
+		"// Map a resource and get the CUDA array.\n" +
+		"static cudaError_t map_and_get_array(cudaGraphicsResource_t res, cudaArray_t *arr) {\n" +
+		"    cudaError_t err = cudaGraphicsMapResources(1, &res, 0);\n    if (err != cudaSuccess) return err;\n" +
+		"    return cudaGraphicsSubResourceGetMappedArray(arr, res, 0, 0);\n}\n\n" +
+		"// Unmap a resource (returns texture to GL).\n" +
+		"static cudaError_t unmap_resource(cudaGraphicsResource_t res) {\n    return cudaGraphicsUnmapResources(1, &res, 0);\n}\n*/\n" +
+		"import \"C\"\n\nfunc Run() {}\n"
+	assert.Empty(t, tombstones.AddedBlocks("interop.go", src))
+	repair := slopfix.Fix(slopfix.Request{Content: src, Path: "interop.go", MaxCommentLines: tombstones.DefaultMaxCommentLines})
+	assert.Equal(t, src, repair.Text)
+}
+
 // Each field doc of a Rust struct is its own block, so short docs on many fields never add up to a volume finding.
 func TestRustFieldDocsAreSeparateBlocks(t *testing.T) {
 	var src strings.Builder
