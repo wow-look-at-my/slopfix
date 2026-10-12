@@ -10,7 +10,7 @@ import (
 // A space after the marker turns it into prose, so no repair may touch it.
 func IsDirective(line string) bool {
 	text := strings.TrimSpace(line)
-	if strings.HasPrefix(text, "// +build") || isMetadataLine(text) {
+	if strings.HasPrefix(text, "// +build") || isMetadataLine(text) || tripleSlash(text) {
 		return true
 	}
 	rest, found := strings.CutPrefix(text, "//")
@@ -56,4 +56,23 @@ func directiveLines(filename, src string) []string {
 		}
 	}
 	return out
+}
+
+// tripleSlashTags are the XML tags of a TypeScript triple-slash directive.
+var tripleSlashTags = []string{"<reference", "<amd-module", "<amd-dependency"}
+
+// tripleSlash reports a TypeScript triple-slash directive, such as
+// `/// <reference types="vite/client" />`. The compiler reads it.
+func tripleSlash(text string) bool {
+	rest, found := strings.CutPrefix(text, "///")
+	if !found {
+		return false
+	}
+	rest = strings.TrimLeft(rest, " \t")
+	for _, tag := range tripleSlashTags {
+		if after, ok := strings.CutPrefix(rest, tag); ok && after != "" && strings.ContainsRune(" \t/", rune(after[0])) {
+			return true
+		}
+	}
+	return false
 }
