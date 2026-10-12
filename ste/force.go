@@ -142,7 +142,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict, d.cap) {
-			if cutsAside(masked, c.left, c.right) || splitsObject(whole, c) {
+			if cutsAside(masked, c.left, c.right) || splitsObject(whole, c) || insideCompound(source, whole, c) {
 				continue
 			}
 			head := source[:c.left]
@@ -156,7 +156,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			// A fragment head behind "This is" closes as a sentence of its own.
 			accept := func(h, r string) bool {
 				joined := closeHead(h) + " " + r
-				return r != "" && divides(closeHead(h), r, d.cap) &&
+				return r != "" && restStands(r) && divides(closeHead(h), r, d.cap) &&
 					(h == fragmentHead(source[:c.left]) || closesWhole(source[:c.left], seam, whole) || closesPhrase(source[:c.left], whole)) &&
 					overCap(joined, d.cap) < overCap(source, d.cap)
 			}
@@ -187,6 +187,9 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 		if out, ok := subjectDivision(source, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 			return out, true
 		}
+	}
+	if out, ok := gappedDivision(source, whole, d.cap); ok {
+		return out, true
 	}
 	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
@@ -241,7 +244,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		}
 		// A tail that opens on a finite verb leaves its subject behind:
 		// "the pointer. Stays valid for reads of n bytes".
-		if n := wordsBefore(whole, c.right); n < len(whole.Words) && finiteVerbTag(whole.Words[n].Tag) {
+		if n := wordsBefore(whole, c.right); n < len(whole.Words) && finiteVerbTag(whole.Words[n].Tag) || insideCompound(source, whole, c) {
 			continue
 		}
 		head := strings.TrimRight(source[:c.left], " ,;:—–-")

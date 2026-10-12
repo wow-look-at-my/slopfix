@@ -16,7 +16,7 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 	if len(whole.Words) == 0 {
 		return source, false
 	}
-	if standsAlone(whole, 0, len(whole.Words)) && WordCount(checkMask(source)) <= limit {
+	if standsAlone(whole, 0, len(whole.Words)) {
 		return source, false
 	}
 	// Only a noun phrase is a fragment of its own. A sentence that opens on "to" or "if" leads into a clause the parser missed.
