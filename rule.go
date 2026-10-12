@@ -43,6 +43,8 @@ type RuleCase struct {
 	Text string
 	// Files are the other files of the repository, by path from its root.
 	Files map[string]string
+	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
+	Origin string
 	// Root is the directory Materialize wrote the repository under.
 	Root string
 }
@@ -75,9 +77,14 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 	// The files are committed, because a rule about a committed file asks git what the tree holds.
 	commit := [][]string{
 		{"add", "-A"},
+	}
+	if c.Origin != "" {
+		commit = append(commit, []string{"remote", "add", "origin", c.Origin})
+	}
+	commit = append(commit, [][]string{
 		{"-c", "user.name=slopfix", "-c", "user.email=slopfix@localhost", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
 			"commit", "-q", "--allow-empty", "-m", "fixture"},
-	}
+	}...)
 	for _, args := range commit {
 		if out, err := gitmod.Command(dir, args...).CombinedOutput(); err != nil {
 			return c, fmt.Errorf("git %v in %s: %w: %s", args, dir, err, out)

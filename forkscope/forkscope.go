@@ -136,13 +136,7 @@ func (r Resolver) Lines(root string) (*Lines, error) {
 // root is in no fork. A fork with no base is an error.
 func (r Resolver) Base(root string) (*Base, error) {
 	top, topErr := toplevel(root)
-	repo := ""
-	if topErr == nil {
-		repo = r.originRepo(top)
-	}
-	if repo == "" && r.workspaceHolds(root) {
-		repo = r.getenv("GITHUB_REPOSITORY")
-	}
+	repo := r.repoName(root, top, topErr)
 	if repo == "" {
 		return nil, nil
 	}

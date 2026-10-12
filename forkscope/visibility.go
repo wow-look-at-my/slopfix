@@ -47,13 +47,7 @@ var visibilities = struct {
 // be read is an error.
 func (r Resolver) Visibility(root, owner string) (Repo, error) {
 	top, topErr := toplevel(root)
-	repo := ""
-	if topErr == nil {
-		repo = r.originRepo(top)
-	}
-	if repo == "" && r.workspaceHolds(root) {
-		repo = r.getenv("GITHUB_REPOSITORY")
-	}
+	repo := r.repoName(root, top, topErr)
 	out := Repo{Name: repo}
 	if repo == "" || !strings.EqualFold(out.Owner(), owner) {
 		return out, nil
@@ -73,6 +67,25 @@ func (r Resolver) Visibility(root, owner string) (Repo, error) {
 	}
 	out.Private = private
 	return out, nil
+}
+
+// RepoName answers the OWNER/NAME of the work tree that holds root.
+func (r Resolver) RepoName(root string) string {
+	top, topErr := toplevel(root)
+	return r.repoName(root, top, topErr)
+}
+
+// repoName answers the repository that the origin of top names. With no such
+// origin, it is GITHUB_REPOSITORY for a root inside GITHUB_WORKSPACE.
+func (r Resolver) repoName(root, top string, topErr error) string {
+	repo := ""
+	if topErr == nil {
+		repo = r.originRepo(top)
+	}
+	if repo == "" && r.workspaceHolds(root) {
+		repo = r.getenv("GITHUB_REPOSITORY")
+	}
+	return repo
 }
 
 // readVisibility answers whether repo is private: from the Actions event
@@ -148,6 +161,21 @@ func (r Resolver) cachedVisibility(top, repo string) (visibilityRecord, bool) {
 		return visibilityRecord{}, false
 	}
 	return rec, true
+}
+
+// ExistingDir answers dir, or its nearest parent that exists. A path that does
+// not exist yet belongs to the work tree of that directory.
+func ExistingDir(dir string) string {
+	for {
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return dir
+		}
+		dir = parent
+	}
 }
 
 // writeRecord writes v as JSON into the file name of top's git common
