@@ -1,6 +1,7 @@
 package slopfix_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,8 +25,9 @@ const profilingSource = "// Package profiling bakes an optional, hyperfine-based
 
 func TestAnIngFormAfterADashBecomesAFiniteVerb(t *testing.T) {
 	got := slopfix.Fix(slopfix.Request{Content: profilingSource, Path: "profiling.go"}).Text
-	assert.Contains(t, got, "It uses hyperfine, then exits without running the user's body.", got)
-	assert.NotContains(t, got, "It using", got)
+	prose := strings.ReplaceAll(got, "\n// ", " ")
+	assert.Contains(t, prose, "It uses hyperfine, then exits without running the user's body.", got)
+	assert.NotContains(t, prose, "It using", got)
 	var left []string
 	for _, f := range slopfix.CheckContent("profiling.go", got) {
 		if f.ID == ste.IDSentenceCap {
