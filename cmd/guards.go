@@ -18,6 +18,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/linkrefs"
 	"github.com/wow-look-at-my/slopfix/mdbudget"
 	"github.com/wow-look-at-my/slopfix/noworkloss"
+	"github.com/wow-look-at-my/slopfix/rustfmt"
 )
 
 // The events a guard serves, as Claude Code spells them on the payload.
@@ -65,6 +66,7 @@ var guards = []guard{
 		return hookResult{Stdout: judge(payload, write.rules, write.ids, write.forks)}
 	}},
 	{name: "no-work-loss", events: []string{eventPreToolUse}, run: reader(func(r *strings.Reader) hookResult { return hookResult(noworkloss.Run(r)) })},
+	{name: "rustfmt", events: []string{eventPreToolUse, eventPostToolUse}, run: reader(func(r *strings.Reader) hookResult { return hookResult(rustfmt.Run(r)) })},
 	{name: "auto-allow", events: []string{eventPreToolUse, eventPermissionRequest}, run: reader(func(r *strings.Reader) hookResult { return hookResult(autoallow.Run(r)) })},
 	{name: "busy-poll", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(busypoll.Run(r)) })},
 	{name: "md-budget", events: []string{eventSessionStart, eventPostToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(mdbudget.Run(r)) })},
