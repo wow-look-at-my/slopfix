@@ -190,6 +190,16 @@ func hasHeredoc(n syntax.Node) bool {
 	})
 	return found
 }
+func hasPipe(n syntax.Node) bool {
+	found := false
+	syntax.Walk(n, func(n syntax.Node) bool {
+		if b, ok := n.(*syntax.BinaryCmd); ok && (b.Op == syntax.Pipe || b.Op == syntax.PipeAll) {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
 func hasStatementCall(f *syntax.File, p func(*syntax.CallExpr) bool) bool {
 	hit := false
 	var st func(*syntax.Stmt)
