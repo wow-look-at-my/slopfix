@@ -19,7 +19,7 @@ func init() {
 			// go-ipc .github/workflows/ci.yml: "the C and Python ones" is one noun phrase, so no division lands inside it.
 			{Name: ste.IDSentenceCap + " around a gapped clause", Path: "x.md", Text: "Linux builds and tests the C, C++ and Python implementations and their peers first, macOS the C and Python ones, and Windows runs the interop matrix with the Go peer alone.\n"},
 			// claude-host Dockerfile: "and by B to Q" names a second actor for the participle.
-			{Name: ste.IDSentenceCap + " with a second actor", Path: "x.md", Text: "Shared stage used by Dockerfile.worker to pre-install the lint extension and by the scheduler (below) to seed the private cache it serves.\n"},
+			{Name: ste.IDSentenceCap + " with a second actor", Path: "x.md", Text: "Shared stage used by Dockerfile.worker to pre-install the static code lint extension and by the job scheduler (below) to seed the private build cache that it serves.\n"},
 			// claude-host push_reminder_test.go: a dash aside before "so".
 			{Name: ste.IDSentenceCap + " with a dash aside before so", Path: "x.md", Text: "A stale index is a different fault than a stale cache -- it is not on disk at all -- so it has to be rebuilt even when every file is on the server.\n"},
 			// claude-host web-src/session-permissions.ts: ", each with" gives each item what follows.
