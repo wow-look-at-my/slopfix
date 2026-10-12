@@ -27,9 +27,9 @@ func init() {
 		Long: "hook reads any Claude Code hook payload on stdin and writes the hook's\n" +
 			"response on stdout. The event on the payload decides which guards run.\n" +
 			"Every guard that serves the event runs, unless --only names a subset.\n\n" +
-			"  PreToolUse         clean-bash, write, no-work-loss, auto-allow, busy-poll\n" +
+			"  PreToolUse         clean-bash, write, no-work-loss, rustfmt, auto-allow, busy-poll\n" +
 			"  PermissionRequest  auto-allow\n" +
-			"  PostToolUse        md-budget\n" +
+			"  PostToolUse        rustfmt, md-budget\n" +
 			"  SessionStart       md-budget\n" +
 			"  Stop               busy-poll, md-budget, laziness\n" +
 			"  MessageDisplay     link-refs, blame-language, ask-properly\n\n" +
@@ -242,6 +242,7 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 				Rules:           rules,
 				IDs:             ids,
 				MaxCommentLines: hookMaxLines,
+				OneFile:         true,
 			}
 			if in.ToolName == "Write" {
 				if req.Owned, err = owned(u.text); err != nil {

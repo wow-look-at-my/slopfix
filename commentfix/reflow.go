@@ -32,10 +32,10 @@ func (p paragraph) list() bool {
 	return false
 }
 
-// codeRow reports a line laid out by hand. The prose after its marker opens
+// codeLine reports a line laid out by hand. The prose after its marker opens
 // with a tab, or with more than the space a marker takes. Godoc renders such
 // a line verbatim, and an aligned list in any language means the same.
-func codeRow(line string) bool {
+func codeLine(line string) bool {
 	t := strings.TrimLeft(line, " \t")
 	for _, m := range docMarkers {
 		if rest, found := strings.CutPrefix(t, m); found {
@@ -110,7 +110,7 @@ func paragraphs(text []string) []paragraph {
 			blank = false
 			continue
 		}
-		if codeRow(line) && (blank || len(block) > 0) {
+		if codeLine(line) && (blank || len(block) > 0) {
 			flush()
 			block = append(block, line)
 			blank = false

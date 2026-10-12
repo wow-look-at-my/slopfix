@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,19 @@ type fixture struct {
 	content string
 	wants   []string
 }
+
+// privateWorkflowPath answers a workflow path in a private org repository, made once.
+var privateWorkflowPath = sync.OnceValue(func() string {
+	dir, err := os.MkdirTemp("", "slopfix-private-")
+	if err != nil {
+		panic(err)
+	}
+	c, err := slopfix.Materialize(dir, slopfix.RuleCase{Name: "private", Origin: slopfix.PrivateRunnerFixture, Private: true})
+	if err != nil {
+		panic(err)
+	}
+	return filepath.Join(c.Root, ".github", "workflows", "ci.yml")
+})
 
 // pinnedFetch reads from testdata, which this repository's own check skips.
 func pinnedFetch() string {
@@ -106,14 +120,46 @@ func roundTripFixtures() []fixture {
 				"        continue-on-error: true\n" +
 				"      - env:\n" +
 				"          OUT: ${{ steps.x.outputs.path }}\n" +
-				"        run: cat \"$OUT\"\n",
+				"        run: cat \"$OUT\"\n" +
+				"      - run: |\n" +
+				"          echo hi\n" +
+				"          assert_ok() { exit 1; }\n",
 			wants: []string{
+				"yaml/test-in-workflow",
 				"yaml/comment-block",
 				"yaml/all-builds-job",
 				"yaml/neutered-gate",
 				"yaml/env-indirection",
 				"yaml/push-tags",
 				"yaml/org-action-ref",
+				"yaml/concurrency",
+			},
+		},
+		{
+			name: "warnings",
+			path: "warn.md",
+			content: "The file is read by the gate.\n\n" +
+				"The gate has read the file.\n\n" +
+				"The gate file system cache lookup stopped.\n\n" +
+				"The tool gives additional output.\n\n" +
+				"Read the file from the disk and write the result to the store for the caller before the next build of the tree starts.\n\n" +
+				"The gate reads the file. The gate writes the result. The gate waits for the caller. The gate stops the loop. " +
+				"The gate starts the build. The gate ends the run. The gate fails the check.\n",
+			wants: []string{
+				ste.IDPassive,
+				ste.IDTense,
+				ste.IDNounCluster,
+				ste.IDDictionary,
+				ste.IDInstructionLength,
+				ste.IDParagraphLength,
+			},
+		},
+		{
+			name:    "private workflow",
+			path:    privateWorkflowPath(),
+			content: "name: CI\non:\n  push:\n    branches: ['**']\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n",
+			wants: []string{
+				"yaml/private-runner",
 				"yaml/concurrency",
 			},
 		},
@@ -207,10 +253,7 @@ func TestEveryRuleAppearsInAFixture(t *testing.T) {
 	}
 	var missing []string
 	for id := range slopfix.AllIDs().All() {
-		// A warning outlives the repair by design. TestEachWarningRuleFires covers
-		// each. A report-only rule has no repair for a fixture to clear.
-		// each. A report-only rule has no repair to round-trip.
-		if !covered.Contains(id) && !slopfix.WarningIDs.Contains(id) && !slopfix.ReportOnly.Contains(id) {
+		if !covered.Contains(id) {
 			missing = append(missing, id)
 		}
 	}
@@ -226,14 +269,12 @@ func findingIDs(findings []ste.Finding) []string {
 	return out
 }
 
-// quoted renders the findings that fail a check, so a break names what is left
-// rather than a count. A warning fails nothing, so it is not left over.
+// quoted renders the findings, so a break names what is left rather than a
+// count. A repair answers a warning too, so a warning left over is a break.
 func quoted(findings []ste.Finding) []string {
 	out := make([]string, 0, len(findings))
 	for _, f := range findings {
-		if !f.Warning() {
-			out = append(out, f.String())
-		}
+		out = append(out, f.String())
 	}
 	return out
 }
