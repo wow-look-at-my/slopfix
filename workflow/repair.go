@@ -118,19 +118,21 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 
 // compareData answers the text a comment gate compares. A # inside a block
 // scalar is part of the scalar's string, so a rewrite there changes the value.
-// A comment in a script is not its behavior, so those lines read blank first.
+// A comment in a script is not its behavior, so those lines drop out first. A
+// repair that lays a script's comment out on fewer lines then reads the same.
 func compareData(content string, comment bool) string {
 	if !comment {
 		return content
 	}
 	inside := blockScalarLines(content)
-	fileLines := lines(content)
-	for i, line := range fileLines {
+	var kept []string
+	for i, line := range lines(content) {
 		if i < len(inside) && inside[i] && strings.HasPrefix(strings.TrimSpace(line), "#") {
-			fileLines[i] = ""
+			continue
 		}
+		kept = append(kept, line)
 	}
-	return strings.Join(fileLines, "\n")
+	return strings.Join(kept, "\n")
 }
 
 // lineEdge reports whether a byte sits where a line starts or ends.

@@ -73,11 +73,36 @@ func literalAround(src string, at, stop int) (int, int) {
 			at--
 		case strings.IndexByte("+-", src[at-1]) >= 0 && (at == 1 || isSpace(src[at-2])):
 			at--
+		case src[at-1] == '#':
+			return referenceAround(src, at-1, extendLiteral(src, stop))
 		default:
 			return at, extendLiteral(src, stop)
 		}
 	}
 	return at, extendLiteral(src, stop)
+}
+
+// referencePrepositions open a phrase whose object is a reference such as "#123".
+var referencePrepositions = []string{"in", "by", "from", "via", "see", "since", "after", "per", "at"}
+
+// referenceAround widens a reference such as "#123" from at up to stop to the
+// phrase it closes. This covers the parentheses around it, or the preposition
+// before it. The sentence then reads whole without it.
+func referenceAround(src string, at, stop int) (int, int) {
+	if at > 0 && src[at-1] == '(' && stop < len(src) && src[stop] == ')' {
+		return at - 1, stop + 1
+	}
+	before := strings.TrimRight(src[:at], " \t")
+	for _, p := range referencePrepositions {
+		start := len(before) - len(p)
+		if start < 0 || !strings.EqualFold(before[start:], p) {
+			continue
+		}
+		if start == 0 || src[start-1] == ' ' || src[start-1] == '\t' {
+			return start, stop
+		}
+	}
+	return at, stop
 }
 
 // extendLiteral moves stop past the rest of the numeric literal it is inside.

@@ -1,6 +1,10 @@
 package syntax
 
-import "github.com/wow-look-at-my/go-containers/set"
+import (
+	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
+)
 
 // clauseParser walks a chunked sentence and cuts it into clauses.
 type clauseParser struct {
@@ -481,6 +485,23 @@ func (p *clauseParser) attach(c *Clause, vg *Phrase) {
 	c.Verb, c.Subject = vg, subject
 }
 
+// measureAdjectives close a measure phrase that describes the noun before it.
+var measureAdjectives = set.Of("old", "long", "wide", "deep", "tall", "high", "thick", "late", "early")
+
+func (p *clauseParser) measureBefore(k, start int) int {
+	w := p.s.Words
+	if k-3 < start || w[k].Tag != "JJ" || !measureAdjectives.Contains(w[k].Lower()) {
+		return -1
+	}
+	if !strings.HasPrefix(w[k-1].Tag, "NN") || (w[k-2].Tag != "DT" && w[k-2].Tag != "CD") {
+		return -1
+	}
+	if !strings.HasPrefix(w[k-3].Tag, "NN") {
+		return -1
+	}
+	return k - 2
+}
+
 // onlyAdverbs reports whether nothing but adverbs sits between from and to.
 func (p *clauseParser) onlyAdverbs(from, to int) bool {
 	for i := from; i < to; i++ {
@@ -500,6 +521,14 @@ func (p *clauseParser) subjectBefore(k, start int) *Phrase {
 	// "an editor integration all get", "the case above is": a quantifier or a place word after the subject floats off it.
 	if k > start && (quantifiers.Contains(p.s.Words[k].Lower()) || postposed.Contains(p.s.Words[k].Lower())) && p.isNounPhraseEnd(k-1) {
 		k--
+	}
+	// "an image a week old does": a measure after the subject describes it, and the subject is the noun phrase before the measure.
+	if measure := p.measureBefore(k, start); measure >= 0 {
+		if ph, ok := p.phrase(measure - 1); ok && ph.Kind == NounPhrase {
+			extended := *ph
+			extended.Last = k
+			return &extended
+		}
 	}
 	ph, ok := p.phrase(k)
 	if k < start || !ok || ph.Kind != NounPhrase {
