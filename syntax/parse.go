@@ -98,8 +98,6 @@ func restoreOpener(words []Word, start, end int) bool {
 	return true
 }
 
-// divides reports a word that separates clauses: a comma, a conjunction, a
-// subordinator or a relative word.
 func divides(w Word) bool {
 	switch w.Tag {
 	case ",", ":", "CC", "WDT", "WP":
@@ -300,8 +298,6 @@ func participleAdjective(words []Word, i int) bool {
 // wordRune reports a letter or a digit.
 func wordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
 
-// dottedName reports a name a marker joins between word characters: an
-// identifier such as "turn.rs", a path such as "net/http", or a version.
 func dottedName(word string) bool {
 	runes := []rune(word)
 	for i := 1; i < len(runes)-1; i++ {

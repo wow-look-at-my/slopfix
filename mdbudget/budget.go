@@ -64,8 +64,6 @@ func budget() int {
 	return n
 }
 
-// isInstructionFile reports whether a path is something this guard measures: a
-// CLAUDE.md anywhere, or a snippet @-imported into such a file.
 func isInstructionFile(path string) bool {
 	if filepath.Base(path) == "CLAUDE.md" {
 		return true
@@ -152,11 +150,9 @@ func homeCandidates() []string {
 }
 
 // claudeMdFiles walks root recursively for every CLAUDE.md, skipping .git and
-// node_modules. This is the ONLY scan, and every caller uses it. The callers
-// are SessionStart's census, PostToolUse/Stop's change tracking, and CI's
-// full_scan. No caller can fall back to a shallow "guess the sibling
-// directories" mode.
-// That guess let a real violation deep under the root through unseen.
+// node_modules. This is the ONLY scan, and every caller uses it. No caller
+// can fall back to a shallow "guess the sibling directories" mode. That guess
+// let a real violation deep under the root through unseen.
 func claudeMdFiles(root string) []string {
 	var out []string
 	var walk func(dir string)

@@ -49,8 +49,7 @@ var dictionary = func() map[string][]string {
 var (
 	beForms = set.Of("am", "is", "are", "was", "were", "be", "been", "being")
 	// haveForms open a perfect tense. "will have" is the future perfect.
-	haveForms = set.Of("has", "have", "had")
-	// approvedIng are the -ing words the STE dictionary approves as an adjective, a pronoun or a preposition.
+	haveForms   = set.Of("has", "have", "had")
 	approvedIng = set.Of("mating", "missing", "remaining", "something", "during")
 	// masks are the words strip writes over data.
 	masks = set.Of("CODE", "URL", "ENTITY", "QUOTE")

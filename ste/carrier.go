@@ -367,11 +367,9 @@ func hiddenVerb(s *syntax.Sentence, i int) bool {
 	return false
 }
 
-// adverbialMoves reports an adverbial at word first that a carrier can take. It
-// never takes one right after a verb or a particle, which the adverbial completes:
-// "the question was aimed at", "a repair lands only on the lines". A bound
-// preposition moves only before "every" or "each". A preposition with no object
-// after it ("aimed at: a prose question") belongs to the words before it.
+// adverbialMoves reports an adverbial at word first that a carrier can take. A
+// bound preposition moves only before "every" or "each". A preposition with no
+// object after it ("aimed at: a prose question") belongs to the words before it.
 func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool) bool {
 	// ", where the fork's changes made": after a comma a clause opener starts its own clause, whatever the verb before it.
 	opensClause := first > 0 && s.Words[first-1].Text == "," && clauseOpeners.Contains(s.Words[first].Lower()) && finiteBefore(s, first+1, ",")

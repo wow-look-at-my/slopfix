@@ -171,8 +171,7 @@ func (w *walker) stmt(st *syntax.Stmt, cwd *string) {
 }
 
 // command dispatches on node type. The cwd pointer is shared only where the
-// shell itself shares it. A cd carries forward across `&&`, `||` and `;`,
-// while a pipe stage, a subshell and a conditional body each get a copy.
+// shell itself shares it.
 func (w *walker) command(c syntax.Command, cwd *string, rs []redirTarget, stdin bool) {
 	if c == nil || w.full() {
 		return

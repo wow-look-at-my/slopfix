@@ -1,11 +1,10 @@
 // environment.go decides whether this session hears about the world without
 // asking for it.
 //
-// A remote session gets wake events: a webhook for a review or a check run, a
-// notification, a scheduled trigger. It can stop and be woken, so a re-read
-// that beats the event only spends tokens. A local session gets none of that.
-// There, a check nobody makes is a check that never happens, and a repeated
-// read is the only way to learn that CI finished.
+// It can stop and be woken, so a re-read that beats the event only spends
+// tokens. A local session gets none of that. There, a check nobody makes is a
+// check that never happens, and a repeated read is the only way to learn that
+// CI finished.
 //
 // So both rules that tell the model to wait apply to a remote session only.
 // The terminal rule applies everywhere: a merged pull request does not

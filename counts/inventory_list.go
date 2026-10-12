@@ -193,12 +193,7 @@ func placeOf(text string, s *syntax.Sentence, e element) listPlace {
 	for first < len(tokens)-1 && listDeterminers[strings.ToLower(tokens[first])] {
 		first++
 	}
-	verb := false
-	for _, w := range s.Words {
-		if w.Start >= e.start && w.Start < e.end && (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD") {
-			verb = true
-		}
-	}
+	verb := finite(s, e)
 	return listPlace{
 		head:  IsMember(strings.TrimRight(tokens[len(tokens)-1], ".,;:!?")),
 		inner: !verb,
@@ -288,12 +283,30 @@ func framed(sentence, masked string, end int) bool {
 			continue
 		}
 		every := true
-		for _, e := range elements {
-			if !nounPhrase(s, i+1, e) && !placeOf(sentence, s, e).tail {
+		for n, e := range elements {
+			place := placeOf(sentence, s, e)
+			if !nounPhrase(s, i+1, e) && !place.tail || finite(s, e) {
+				every = false
+			}
+			// A joiner after "between" pairs the ends of one phrase. It divides no list.
+			if n < len(elements)-1 && pairs.MatchString(sentence[e.start:e.end]) {
 				every = false
 			}
 		}
 		if every {
+			return true
+		}
+	}
+	return false
+}
+
+// pairs matches a word that takes both ends of a pair as one phrase.
+var pairs = regexp.MustCompile(`(?i)\b(?:between|both)\b`)
+
+// finite reports an element that holds a finite verb, which makes it a clause.
+func finite(s *syntax.Sentence, e element) bool {
+	for _, w := range s.Words {
+		if w.Start >= e.start && w.Start < e.end && (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD") {
 			return true
 		}
 	}
