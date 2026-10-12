@@ -585,18 +585,46 @@
 		<rule name="pr">
 			<test cmd="gh pr view 123" expect="allow"/>
 			<test cmd="gh pr view --json number,state" expect="allow"/>
+			<test cmd="gh pr diff 123" expect="allow"/>
+			<test cmd="gh pr diff https://github.com/owner/repo/pull/7 --name-only" expect="allow"/>
 			<test cmd="gh pr list" expect="deny"/>
 			<test cmd="gh pr checks" expect="deny"/>
 			<test cmd="gh pr create" expect="deny"/>
-			<test cmd="gh pr merge 123" expect="deny"/>
+			<test cmd="gh pr merge https://github.com/owner/repo/pull/7 --squash --match-head-commit abc123" expect="allow"/>
+			<test cmd="gh pr merge 123 --squash --admin" expect="deny"/>
+			<test cmd="gh pr merge 123 --auto --squash" expect="deny"/>
+			<test cmd="gh pr merge 123 --squash --delete-branch" expect="deny"/>
+			<test cmd="gh pr merge 123 -sd" expect="deny"/>
+			<test cmd="gh pr merge 123 --squash --body text" expect="deny"/>
+			<test cmd="gh pr merge https://github.com/owner/thing-spec/pull/3 --squash" expect="deny"/>
 		<!-- Closing a PR ends a review the owner is having, and the branch behind
 		     it is then a thing nobody is looking at. -->
 		<test cmd="gh pr close 45" expect="deny"/>
 		<test cmd="gh pr close 45 --comment superseded" expect="deny"/>
 		<test cmd="gh pr reopen 45" expect="deny"/>
 			<rule name="view" allowedFlags="*"/>
-			<rule name="checkout,checks,close,comment,create,diff,edit,list,lock,merge,ready,reopen,review,status,unlock,update-branch"
-			      denyWithMessage="gh pr view is the only gh pr this session runs"/>
+			<rule name="diff" allowedFlags="*"/>
+			<rule name="merge" allowedFlags="*">
+				<refuse message="a merge is never forced, deferred, or followed by a branch delete">
+					<flag name="--admin"/>
+					<flag name="--auto"/>
+					<flag name="--delete-branch"/>
+					<flag name="-d"/>
+				</refuse>
+				<refuse message="a merge carries no message of its own; the squash uses the PR's commits">
+					<flag name="--body"/>
+					<flag name="-b"/>
+					<flag name="--body-file"/>
+					<flag name="-F"/>
+					<flag name="--subject"/>
+					<flag name="-t"/>
+				</refuse>
+				<refuse message="pull requests in -spec repos are never merged">
+					<argSubstring>-spec/pull/</argSubstring>
+				</refuse>
+			</rule>
+			<rule name="checkout,checks,close,comment,create,edit,list,lock,ready,reopen,review,status,unlock,update-branch"
+			      denyWithMessage="gh pr view, gh pr diff and gh pr merge are the only gh pr commands this session runs"/>
 		</rule>
 		<rule name="release">
 			<test cmd="gh release list" expect="allow"/>
@@ -644,7 +672,7 @@
 			     leaves a PATCH to be asked about; this says no outright. -->
 			<test cmd="gh api -X PATCH /repos/o/r/pulls/45 -f state=closed" expect="deny"/>
 			<test cmd="gh api /repos/o/r/pulls/45" expect="allow"/>
-			<refuse message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
+			<refuse message="closing a pull request is the user's call; gh pr view, gh pr diff and gh pr merge are the only pull request commands this session runs">
 				<argSubstring>state=closed</argSubstring>
 				<argSubstring>"state":"closed"</argSubstring>
 				<argSubstring>"state": "closed"</argSubstring>
@@ -1042,7 +1070,7 @@
 		<test cmd="curl http://evil.com/" expect=""/>
 		<test cmd="curl" expect=""/>
 		<test cmd="curl -X PATCH https://api.github.com/repos/o/r/pulls/45 -d '{&quot;state&quot;:&quot;closed&quot;}'" expect="deny"/>
-		<refuse message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
+		<refuse message="closing a pull request is the user's call; gh pr view, gh pr diff and gh pr merge are the only pull request commands this session runs">
 			<argSubstring>"state":"closed"</argSubstring>
 			<argSubstring>"state": "closed"</argSubstring>
 			<argSubstring>state=closed</argSubstring>
