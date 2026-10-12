@@ -212,6 +212,21 @@ func commentStart(lines []string, at int) int {
 	return start
 }
 
+// mergedPortions sorts the ranges and joins each pair that overlaps.
+func mergedPortions(portions []DuplicateBlock) []DuplicateBlock {
+	sorted := append([]DuplicateBlock{}, portions...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Start < sorted[j].Start })
+	var out []DuplicateBlock
+	for _, p := range sorted {
+		if n := len(out); n > 0 && p.Start <= out[n-1].End {
+			out[n-1].End = max(out[n-1].End, p.End)
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
 // removePortions deletes the line ranges from a file, from the last backward so
 // an earlier range stays valid. The gate admits the removal only when every
 // line it takes stands in other, the file the portions copy. And a markdown
@@ -226,6 +241,8 @@ func removePortions(path, other string, portions []DuplicateBlock) error {
 		return err
 	}
 	lines := strings.Split(string(content), "\n")
+	// A doc comment and the block it opens come as nested ranges, so each run of overlapping ranges goes as one.
+	portions = mergedPortions(portions)
 	for i := len(portions) - 1; i >= 0; i-- {
 		p := portions[i]
 		if p.Start < 1 || p.End > len(lines) || p.Start > p.End {

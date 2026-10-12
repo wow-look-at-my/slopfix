@@ -25,7 +25,7 @@ func init() {
 			// claude-host web-src/session-permissions.ts: ", each with" gives each item what follows.
 			{Name: ste.IDSentenceCap + " before each with", Path: "x.md", Text: "Shows what the agent tried and was refused, each with a one-click way to allow it going forward instead of hunting through the grant list above.\n"},
 			// claude-host github_permissions_test.go: a bare verb after the comma shares the subject and its modal, so both are named again.
-			{Name: ste.IDSentenceCap + " before a verb that shares the modal", Path: "x.md", Text: "A capability added to the catalog after that policy was written must default to denied, never take the permissive default, and stay that way for every live session.\n"},
+			{Name: ste.IDSentenceCap + " before a verb that shares the modal", Path: "x.md", Text: "A capability added to the catalog after that policy was written must default to denied, refuse the permissive default, and stay that way for every live session.\n"},
 			// claude-host docs/session-activity.md: a "that" clause after a list is another item of it.
 			{Name: ste.IDSentenceCap + " before a that clause in a list", Path: "x.md", Text: "- `session_activity_test.go` covers the precedence order, the two-sample rule, the tail-only window, case-insensitivity, the rate limit, that a failed capture keeps the previous reading.\n"},
 			// sglang .github/workflows/fork-ci.yml: a comment in a run: script is prose, and divides like any comment.

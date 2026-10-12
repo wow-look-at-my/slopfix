@@ -14,10 +14,18 @@ import (
 // inlineNodes answers every code span of a document in source order, and how
 // many stray backticks it holds.
 func inlineNodes(content string) (nodes []string, stray int) {
-	for _, s := range codespan.Find(content) {
-		nodes = append(nodes, content[s[0]:s[1]])
+	// A fence is a verbatim block, and its backticks are no code span; only prose holds inline nodes.
+	for _, b := range Split(content) {
+		if b.Kind != Prose {
+			continue
+		}
+		text := strings.Join(b.Lines, "\n")
+		for _, s := range codespan.Find(text) {
+			nodes = append(nodes, text[s[0]:s[1]])
+		}
+		stray += len(codespan.Stray(text))
 	}
-	return nodes, len(codespan.Stray(content))
+	return nodes, stray
 }
 
 // links answers every link of a document in source order, as its label and
