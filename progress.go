@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // ProgressEvery is how often a tree run says where it is.
@@ -14,18 +16,30 @@ const ProgressEvery = 5 * time.Second
 var progress struct {
 	mu    sync.Mutex
 	phase string
+	// end closes the trace span of the current step.
+	end   func()
 	done  atomic.Int64
 	total atomic.Int64
 }
 
 // SetPhase names the step a tree run is in. A total above zero counts the
-// files the step works through.
+// files the step works through. Each step is a trace phase of its own.
 func SetPhase(name string, total int) {
 	progress.mu.Lock()
+	endPhase()
 	progress.phase = name
+	progress.end = trace.Phase("step/" + name)
 	progress.mu.Unlock()
 	progress.done.Store(0)
 	progress.total.Store(int64(total))
+}
+
+// endPhase closes the current step's trace span. The caller holds progress.mu.
+func endPhase() {
+	if progress.end != nil {
+		progress.end()
+		progress.end = nil
+	}
 }
 
 // stepDone counts one file of the current step.
@@ -51,6 +65,9 @@ func ReportProgress(w io.Writer, every time.Duration) (stop func()) {
 	return func() {
 		close(quit)
 		wg.Wait()
+		progress.mu.Lock()
+		endPhase()
+		progress.mu.Unlock()
 	}
 }
 

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -131,13 +129,32 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 	for range clauseRounds * (len(strings.Fields(text)) + 1) {
 		masked := mask(text)
 		off := opaque(text, masked)
-		rewritten, ok := rewriteSentence(syntax.Parse(masked, off), text, off, keep)
+		rewritten, ok := rewriteSentence(coverVerbatim(syntax.Parse(masked, off), text), text, off, keep)
 		if !ok || rewritten == text {
 			break
 		}
 		text = rewritten
 	}
 	return text
+}
+
+// coverVerbatim stretches each word mask writes over a code span, a link
+// target or an entity to the whole span. A rewrite that moves the word then
+// moves all of the span.
+func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
+	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
+		from, to := span[0], span[1]
+		// mask fills a link target inside its parentheses.
+		if to-from >= 3 && text[from] == ']' && text[from+1] == '(' && text[to-1] == ')' {
+			from, to = from+2, to-1
+		}
+		for k := range s.Words {
+			if s.Words[k].Start >= from && s.Words[k].Start < to {
+				s.Words[k].Start, s.Words[k].End = from, to
+			}
+		}
+	}
+	return s
 }
 
 // fixInstructions divides each instruction over InstructionWordCap, as the
@@ -250,9 +267,62 @@ func baseFromParticiple(form string) string {
 	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
 		return stem + "e"
 	}
+	if silentE(stem) {
+		return stem + "e"
+	}
 	return stem
 }
 
+// silentE reports whether English spelling drops an e from the end of stem before
+// -ed. Endings like -dge, -ate, -ize, -ve, -ce and -ure need the e. A stem of one
+// syllable that ends on a single vowel and a single consonant took the e as well.
+// Because a stem without it doubles its consonant: "named" against "planned".
+func silentE(stem string) bool {
+	n := len(stem)
+	if n < 2 {
+		return false
+	}
+	last, prev := stem[n-1], stem[n-2]
+	consonant := func(c byte) bool { return c >= 'a' && c <= 'z' && !strings.ContainsRune("aeiou", rune(c)) }
+	switch {
+	case last == 'v', last == 'u' && prev != 'q':
+		return true
+	case last == 'c', last == 'z' && strings.ContainsRune("iy", rune(prev)):
+		return true
+	case last == 'g' && prev == 'd':
+		return true
+	case last == 's' && strings.ContainsRune("rnpl", rune(prev)):
+		return true
+	case last == 'l' && consonant(prev) && !strings.ContainsRune("lrw", rune(prev)):
+		return true
+	case n >= 3 && strings.ContainsRune("aiu", rune(prev)) && strings.ContainsRune("tr", rune(last)) && consonant(stem[n-3]):
+		// -ate, -ire, -ure and -are, after a consonant.
+		return prev != 'i' || last == 'r'
+	case n >= 3 && prev == 'i' && strings.ContainsRune("nd", rune(last)) && consonant(stem[n-3]):
+		// -ine and -ide, after a consonant.
+		return true
+	}
+	// The u of qu spells a consonant sound.
+	w := strings.ReplaceAll(stem, "qu", "q")
+	n = len(w)
+	return n >= 2 && oneSyllable(w) && strings.ContainsRune("aeiou", rune(w[n-2])) && (n == 2 || consonant(w[n-3])) &&
+		consonant(last) && !strings.ContainsRune("wxy", rune(last))
+}
+
+// oneSyllable reports whether word holds a single run of vowels. A y opens no
+// run at the start of a word, where it spells a consonant.
+func oneSyllable(word string) bool {
+	runs := 0
+	vowel := false
+	for i := 0; i < len(word); i++ {
+		v := strings.ContainsRune("aeiou", rune(word[i])) || word[i] == 'y' && i > 0
+		if v && !vowel {
+			runs++
+		}
+		vowel = v
+	}
+	return runs == 1
+}
 // simpleSpan reports whether a verb group from the auxiliary i to the
 // participle j holds only the words the simple-tense repair replaces.
 func simpleSpan(s *syntax.Sentence, i, j int) bool {
@@ -319,7 +389,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	noun := func(k int) bool {
 		w := s.Words[k]
 		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			!strings.ContainsAny(w.Text, "()[]{}`\"")
+			!strings.ContainsAny(w.Text, "()[]{}`\"") && !versus.Contains(w.Lower())
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -354,6 +424,15 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 		out.WriteString(" of the ")
 		last--
 	}
-	out.WriteString(source[s.Words[start].Start:s.Words[last].End])
-	return splice(source, s, start, end, out.String()), true
+	rest := source[s.Words[start].Start:s.Words[last].End]
+	rewritten := out.String()
+	// A cluster that opens the sentence hands its capital to the head that now opens it.
+	if start == 0 && isCapitalized(s.Words[0].Text) {
+		rewritten = capitalizeOpening(rewritten)
+		rest = lowerOpeningFor(rest, s.Words[0].Tag)
+	}
+	return splice(source, s, start, end, rewritten+rest), true
 }
+
+// versus joins noun phrases and is no noun of either, though the tagger reads it as one.
+var versus = set.Of("vs", "vs.", "versus")
