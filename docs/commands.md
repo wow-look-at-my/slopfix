@@ -72,9 +72,9 @@ With a selector, `check` exits nonzero when a selected finding remains and zero 
 
 | Event | Guards |
 |---|---|
-| PreToolUse | `clean-bash`, `write`, `no-work-loss`, `auto-allow`, `busy-poll` |
+| PreToolUse | `clean-bash`, `write`, `no-work-loss`, `rustfmt`, `auto-allow`, `busy-poll` |
 | PermissionRequest | `auto-allow` |
-| PostToolUse | `md-budget` |
+| PostToolUse | `rustfmt`, `md-budget` |
 | SessionStart | `md-budget` |
 | Stop | `busy-poll`, `md-budget`, `laziness` |
 | MessageDisplay | `link-refs`, `blame-language`, `ask-properly` |
