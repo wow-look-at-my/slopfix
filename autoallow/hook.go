@@ -253,7 +253,10 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 				return "", ""
 			}
 		}
-		return "allow", ""
+		// A rule that also lists its allowed flags is held to them below.
+		if node.AllowedFlags == nil {
+			return "allow", ""
+		}
 	}
 
 	// Strip own flags (that take values) before subcommand matching
@@ -389,22 +392,23 @@ func stripFlagsWithValue(args []string, flags []string) []string {
 	return result
 }
 
-// getFlagValues returns the value after every occurrence of any of flags. A
-// flag given as the last word, with no value after it, yields an empty value.
+// getFlagValues returns the value of every occurrence of any of flags, in the
+// spellings `-X V`, `--long=V` and `-XV`. A flag given as the last word, with
+// no value after it, yields an empty value.
 func getFlagValues(args []string, flags []string) []string {
-	flagSet := set.New[string]()
-	for _, f := range flags {
-		flagSet.Add(f)
-	}
 	var values []string
 	for i, arg := range args {
-		if !flagSet.Contains(arg) {
-			continue
-		}
-		if i+1 < len(args) {
-			values = append(values, args[i+1])
-		} else {
-			values = append(values, "")
+		for _, f := range flags {
+			switch {
+			case arg == f && i+1 < len(args):
+				values = append(values, args[i+1])
+			case arg == f:
+				values = append(values, "")
+			case strings.HasPrefix(f, "--") && strings.HasPrefix(arg, f+"="):
+				values = append(values, arg[len(f)+1:])
+			case len(f) == 2 && f[0] == '-' && f[1] != '-' && strings.HasPrefix(arg, f) && len(arg) > 2:
+				values = append(values, arg[2:])
+			}
 		}
 	}
 	return values
