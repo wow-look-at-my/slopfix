@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // IDBinary is a tracked file that starts with the magic number of an executable.
@@ -87,6 +89,7 @@ func executableKind(head []byte) string {
 // holds each. A Git LFS file stores a pointer in git, so it never matches. A
 // binary writable refuses stays a finding.
 func committedBinaries(root string, writing bool, writable func(string) bool) ([]TreeFinding, []string, error) {
+	defer trace.Phase("repo/binaries")()
 	files, err := trackedFiles(root)
 	if err != nil {
 		return nil, nil, err
