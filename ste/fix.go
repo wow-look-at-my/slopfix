@@ -187,6 +187,10 @@ var (
 	finiteVerbs = set.Of(wordsOf("finite-verb")...)
 	// passiveAuxiliaries make a participle after them the clause's verb.
 	passiveAuxiliaries = set.Of("be", "been", "being", "get", "got", "gets")
+	// absoluteAuxiliaries are the finite verbs that predicate the noun, so the words before the participle close a clause.
+	absoluteAuxiliaries = set.Of(wordsOf("absolute-auxiliary")...)
+	// clauseSubjects name the subject a relative clause puts before its verb.
+	clauseSubjects = set.Of(wordsOf("clause-subject")...)
 	// absolutePrepositions say an absolute phrase as a preposition before its noun.
 	absolutePrepositions = map[string]string{"included": "including", "excluded": "excluding"}
 )
@@ -232,8 +236,9 @@ func fixAbsolutes(prose string) string {
 
 // absoluteTail answers the end of the absolute phrase that opens at byte. From
 // and runs to the end of its sentence, and the start of its closing participle.
-// The phrase holds no further mark, and no auxiliary or finite verb stands
-// right before the participle: "the tests are included" is a clause.
+// The phrase holds no further mark. An auxiliary right before the participle
+// predicates the noun: "the tests are included" is a clause. A finite verb
+// there needs the subject a relative clause brings.
 func absoluteTail(masked string, from int, spans [][2]int) (to, last int, ok bool) {
 	end := -1
 	for _, span := range spans {
@@ -253,7 +258,13 @@ func absoluteTail(masked string, from int, spans [][2]int) (to, last int, ok boo
 		return 0, 0, false
 	}
 	before := strings.ToLower(words[len(words)-2])
-	if finiteVerbs.Contains(before) || passiveAuxiliaries.Contains(before) {
+	if absoluteAuxiliaries.Contains(before) || passiveAuxiliaries.Contains(before) {
+		return 0, 0, false
+	}
+	// A finite verb with a subject of its own sits in a relative clause
+	// inside the noun phrase, as in "the logs it writes attached".
+	if finiteVerbs.Contains(before) &&
+		(len(words) < 4 || !clauseSubjects.Contains(strings.ToLower(words[len(words)-3]))) {
 		return 0, 0, false
 	}
 	to = from + len(tail)
