@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -131,7 +129,7 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 	for range clauseRounds * (len(strings.Fields(text)) + 1) {
 		masked := mask(text)
 		off := opaque(text, masked)
-		rewritten, ok := rewriteSentence(widenToSpans(syntax.Parse(masked, off), off), text, off, keep)
+		rewritten, ok := rewriteSentence(coverVerbatim(syntax.Parse(masked, off), text), text, off, keep)
 		if !ok || rewritten == text {
 			break
 		}
@@ -140,15 +138,19 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 	return text
 }
 
-// widenToSpans stretches each word inside an opaque span to the whole span. The
-// mask writes one word, such as CODE, inside a code span, and a cut at that
-// word's end lands inside the span.
-func widenToSpans(s *syntax.Sentence, off [][]int) *syntax.Sentence {
-	for k := range s.Words {
-		w := &s.Words[k]
-		for _, span := range off {
-			if span[0] <= w.Start && w.Start < span[1] {
-				w.Start, w.End = min(w.Start, span[0]), max(w.End, span[1])
+// coverVerbatim stretches each word mask writes over a code span, a link
+// target or an entity to the whole span. A rewrite that moves the word then
+// moves all of the span.
+func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
+	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
+		from, to := span[0], span[1]
+		// mask fills a link target inside its parentheses.
+		if to-from >= 3 && text[from] == ']' && text[from+1] == '(' && text[to-1] == ')' {
+			from, to = from+2, to-1
+		}
+		for k := range s.Words {
+			if s.Words[k].Start >= from && s.Words[k].Start < to {
+				s.Words[k].Start, s.Words[k].End = from, to
 			}
 		}
 	}
@@ -219,6 +221,7 @@ func auxiliary(s *syntax.Sentence, from int, forms set.Set[string]) (int, int) {
 	return -1, -1
 }
 
+<<<<<<< HEAD
 // rewritePassive writes the active voice for a passive clause that names its
 // actor: "The file is read by the gate" becomes "The gate reads the file".
 // A clause that names no actor is left as written, because nothing states who
@@ -346,6 +349,8 @@ func silentE(stem string) bool {
 	return !strings.ContainsAny(stem[:n-2], vowels+"y")
 }
 
+=======
+>>>>>>> origin/master
 // simpleSpan reports whether a verb group from the auxiliary i to the
 // participle j holds only the words the simple-tense repair replaces.
 func simpleSpan(s *syntax.Sentence, i, j int) bool {
@@ -411,7 +416,8 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	last := lastContent(s)
 	noun := func(k int) bool {
 		w := s.Words[k]
-		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) && wordlike(w.Text)
+		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
+			wordlike(w.Text) && !versus.Contains(w.Lower())
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -463,6 +469,15 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 		out.WriteString(" of the ")
 		last--
 	}
-	out.WriteString(source[s.Words[start].Start:s.Words[last].End])
-	return splice(source, s, start, end, out.String()), true
+	rest := source[s.Words[start].Start:s.Words[last].End]
+	rewritten := out.String()
+	// A cluster that opens the sentence hands its capital to the head that now opens it.
+	if start == 0 && isCapitalized(s.Words[0].Text) {
+		rewritten = capitalizeOpening(rewritten)
+		rest = lowerOpeningFor(rest, s.Words[0].Tag)
+	}
+	return splice(source, s, start, end, rewritten+rest), true
 }
+
+// versus joins noun phrases and is no noun of either, though the tagger reads it as one.
+var versus = set.Of("vs", "vs.", "versus")

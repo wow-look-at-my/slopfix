@@ -9,11 +9,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// PrivateRunnerFixture is the origin of the private org repository the private-runner cases run in.
+// PrivateRunnerFixture is the origin of the org repository the private-runner cases run in.
 const PrivateRunnerFixture = "https://github.com/wow-look-at-my/private-runner-fixture"
 
-// yaml/private-runner: a job of a private org repository on a GitHub-hosted
-// Linux runner. The repair sends it to the org's own runners.
+// yaml/private-runner: an org job whose runner ignores the repository's
+// visibility. The repair picks the runner from the visibility at run time.
 func init() {
 	jobs := func(steps string) string {
 		return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" + steps
@@ -25,6 +25,14 @@ func init() {
 		containerActionCase(jobs("      - uses: " + ContainerActionFixture + "\n")),
 		privateRunnerCase("private-runner-unexplained-opt-out", strings.Replace(jobs("      - run: make\n"),
 			"ubuntu-latest", "ubuntu-latest # "+workflow.HostedMarker, 1)),
+		privateRunnerCase("private-runner-blind-fallback", workflowHeader()+"jobs:\n"+
+			"  build:\n    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}\n    steps:\n      - run: make\n"+
+			"  image:\n    runs-on: '${{ vars.CI_RUNNER_DIND || ''ubuntu-latest'' }}'\n    steps:\n      - run: make\n"+
+			"  db:\n    runs-on: \"ubuntu-22.04\"\n    services:\n      db:\n        image: postgres\n    steps:\n      - run: make\n"+
+			"  box:\n    runs-on: >-\n      ubuntu-latest\n    container: alpine\n    steps:\n      - run: make\n"),
+		privateRunnerCase("private-runner-flow", workflowHeader()+"jobs:\n"+
+			"  build: {runs-on: ubuntu-latest, steps: [{run: make}]}\n"+
+			"  image: {runs-on: 'ubuntu-24.04', steps: [{uses: docker/setup-buildx-action@v3}]}\n"),
 	}
 	for _, name := range slices.Sorted(maps.Keys(HostJobSteps)) {
 		cases = append(cases, privateRunnerCase("private-runner-host-"+name, jobs("      - run: make\n")+hostJob(HostJobSteps[name])))
@@ -71,19 +79,19 @@ func containerActionCase(body string) RuleCase {
 	return c
 }
 
-// privateRunnerCase is a workflow in the private fixture repository.
+// privateRunnerCase is a workflow in the org fixture repository.
 func privateRunnerCase(name, body string) RuleCase {
 	c := workflowCase(name, body)
-	c.Origin, c.Private = PrivateRunnerFixture, true
+	c.Origin = PrivateRunnerFixture
 	return c
 }
 
-// detectPrivateRunner answers each job this case runs on a GitHub-hosted runner.
+// detectPrivateRunner answers each job whose runner ignores the visibility.
 func detectPrivateRunner(c RuleCase) []ste.Finding {
 	return caseFindings(c, workflow.IDPrivateRunner)
 }
 
-// autofixPrivateRunner sends each such job to the org's own runners.
+// autofixPrivateRunner writes the visibility expression into each such job.
 func autofixPrivateRunner(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDPrivateRunner)
 }

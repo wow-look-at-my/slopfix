@@ -46,8 +46,6 @@ type RuleCase struct {
 	Files map[string]string
 	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
 	Origin string
-	// Private is the visibility Materialize records for the origin repository.
-	Private bool
 	// Actions maps a step's uses value to the runs.using that Materialize records for it.
 	Actions map[string]string
 	// Root is the directory Materialize wrote the repository under.
@@ -98,7 +96,7 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 	// A case with an origin records what the network would say about it, so no rule asks.
 	r := forkscope.Resolver{}
 	if c.Origin != "" {
-		if err := r.RecordPlain(dir, r.RepoName(dir), c.Private); err != nil {
+		if err := r.RecordPlain(dir, r.RepoName(dir)); err != nil {
 			return c, err
 		}
 	}
