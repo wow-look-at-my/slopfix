@@ -323,6 +323,7 @@ func oneSyllable(word string) bool {
 	}
 	return runs == 1
 }
+
 // simpleSpan reports whether a verb group from the auxiliary i to the
 // participle j holds only the words the simple-tense repair replaces.
 func simpleSpan(s *syntax.Sentence, i, j int) bool {
