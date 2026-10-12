@@ -106,7 +106,7 @@ func CheckContent(path, content string) []ste.Finding {
 // kindFindings are the rules the file's kind selects.
 func kindFindings(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
-		return append(workflow.Check(content), sentenceFindings(path, content)...)
+		return append(workflow.CheckPath(path, content), sentenceFindings(path, content)...)
 	}
 	if isDocument(path) {
 		return append(Check(content), Warnings(content)...)
