@@ -107,7 +107,7 @@ func within(req Request, repair Repair) Repair {
 	return upstreamRuns(req, req.Owned, repair.Text, repair)
 }
 
-// blockRun is the rows, counted from one, that a block finding judges.
+// blockRun is the lines, counted from one, that a block finding judges.
 type blockRun struct{ first, last int }
 
 // ownedRuns answers each run a block rule reports on a line the fork wrote.
@@ -227,28 +227,28 @@ func fold(req Request, repair Repair) Repair {
 // keeps, with the comment marker of each joined line dropped.
 //
 // A hunk can run past the comment run into code. The join covers only the
-// comment rows: a code row stays, and the gate refuses an edit that spans one.
+// comment lines: a code line stays, and the gate refuses an edit that spans one.
 func foldHunk(text string, h forkscope.Hunk) (edit.Edit, bool) {
-	rows := strings.Split(text, "\n")[h.J1:h.J2]
+	hunkLines := strings.Split(text, "\n")[h.J1:h.J2]
 	n := 0
-	for n < len(rows) && commentProse(rows[n]) != "" {
+	for n < len(hunkLines) && commentProse(hunkLines[n]) != "" {
 		n++
 	}
 	if n == 0 {
 		return edit.Edit{}, false
 	}
-	joined := rows[0]
-	for _, row := range rows[1:n] {
-		joined = strings.TrimRight(joined, " \t") + " " + commentProse(row)
+	joined := hunkLines[0]
+	for _, line := range hunkLines[1:n] {
+		joined = strings.TrimRight(joined, " \t") + " " + commentProse(line)
 	}
-	return edit.Rows(text, h.J1, h.J1+n-1, 0, []string{joined}), true
+	return edit.Lines(text, h.J1, h.J1+n-1, 0, []string{joined}), true
 }
 
 // commentProse answers what a comment line says, without its indent and marker.
-// A row that carries no comment marker is code, and answers "". A "#" that
+// A line that carries no comment marker is code, and answers "". A "#" that
 // opens an attribute, as in "#[allow(...)]", is code too.
-func commentProse(row string) string {
-	text := strings.TrimSpace(row)
+func commentProse(line string) string {
+	text := strings.TrimSpace(line)
 	if strings.HasPrefix(text, "#[") {
 		return ""
 	}
