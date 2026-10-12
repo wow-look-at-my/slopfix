@@ -13,7 +13,7 @@ import (
 // themselves are cut apart.
 func punctuationDivision(source, masked string, whole *syntax.Sentence, limit int) (string, bool) {
 	best, bestScore := "", -1
-	for _, at := range punctuationCuts(masked) {
+	for _, at := range punctuationCuts(masked, limit) {
 		left, right := source[:at], source[at:]
 		head := closeHead(strings.TrimRight(left, " "))
 		rest := capitalizeOpening(strings.TrimLeft(right, " "))
@@ -41,8 +41,10 @@ func punctuationDivision(source, masked string, whole *syntax.Sentence, limit in
 
 // punctuationCuts answers where a colon or a closing aside dash ends a clause
 // the words before it hold. A mark inside a code span, a link, a quotation or a
-// parenthesis is data, and ends nothing.
-func punctuationCuts(masked string) []int {
+// parenthesis is data, and ends nothing. An aside whose closing dash sits past
+// limit cannot end a sentence under the cap. Its opening dash is a cut as well.
+// The aside then opens a sentence of its own.
+func punctuationCuts(masked string, limit int) []int {
 	off := verbatimSpan.FindAllStringIndex(masked, -1)
 	off = append(off, quotedSpans(masked)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
@@ -63,10 +65,14 @@ func punctuationCuts(masked string) []int {
 		}
 	}
 	spans := asides(masked)
-	for _, a := range spans {
+	dashes := asideDash.FindAllStringIndex(masked, -1)
+	for i, a := range spans {
 		out = append(out, a[1])
+		if WordCount(masked[:a[1]]) > limit {
+			out = append(out, dashes[2*i][1])
+		}
 	}
-	for _, d := range asideDash.FindAllStringIndex(masked, -1) {
+	for _, d := range dashes {
 		if insideAny(spans, d[0]) {
 			continue
 		}

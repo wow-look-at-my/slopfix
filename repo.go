@@ -26,10 +26,7 @@ const (
 const RuleRepo Rule = "repo"
 
 // RepoIDs names every repository rule.
-var RepoIDs = set.Of(IDAgentsFile, IDBudget, IDPackageScripts, IDBinary, IDNearDuplicate, IDJSON, IDXML)
-
-// ReportOnly names every rule the registry declares report-only.
-var ReportOnly = set.New[string]()
+var RepoIDs = set.Of(IDAgentsFile, IDBudget, IDPackageScripts, IDBinary, IDNearDuplicate)
 
 // isRepoRoot reports whether dir is the top of a repository.
 func isRepoRoot(dir string) bool {
@@ -87,18 +84,23 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 		changed = append(changed, removed...)
 	}
 	if keeps(IDNearDuplicate) {
-		copies, err := nearDuplicates(root)
+		copies, reports, err := nearDuplicates(root)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		findings = append(findings, copies...)
-	}
-	if keeps(IDJSON) || keeps(IDXML) {
-		broken, err := documents(root, keeps)
-		if err != nil {
-			return nil, nil, nil, err
+		for n, c := range copies {
+			path := filepath.Join(root, c.Path)
+			if writing && writable(path) {
+				if portions := reports[n].Portions; len(portions) > 0 {
+					if err := removePortions(path, portions); err != nil {
+						return nil, nil, nil, err
+					}
+					changed = append(changed, path)
+					continue
+				}
+			}
+			findings = append(findings, c)
 		}
-		findings = append(findings, broken...)
 	}
 	if !keeps(IDBudget) {
 		return findings, changed, created, nil
