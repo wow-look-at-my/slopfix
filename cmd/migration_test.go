@@ -37,6 +37,7 @@ var migrated = []home{
 	{plugin: "detect-permission-seeking", command: "hook", guard: "laziness", rule: laziness.ID},
 	{plugin: "no-counts-in-docs", command: "hook", rule: slopfix.IDInventoryCount},
 	{plugin: "no-tombstones", command: "hook", rule: tombstones.IDVolume},
+	{plugin: "rustfmt-enforce", command: "hook", guard: "rustfmt"},
 	{plugin: "common-checks", command: "check"},
 }
 
