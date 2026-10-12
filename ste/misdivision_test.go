@@ -36,6 +36,11 @@ var misdivisions = []struct {
 		[]string{"where the words.", "This happens after the cut"},
 	},
 	{
+		"a restated subject agrees with its verb",
+		"A descriptor opened O_RDWR is a writer itself, so its reads never reach that EOF and newFile now asks F_GETFL and keeps a darwin FIFO in the poller when it was opened for both reading and writing.",
+		[]string{"Its reads keeps", "its reads keeps"},
+	},
+	{
 		"a participle after a dash is passive, so its carrier takes be",
 		"The hint mirrors the dashboard flag: `None` when the env override disables it, otherwise whatever `dashboard_enabled()` says — asserted as consistency, not a fixed value, so the test doesn't depend on the machine's persisted `[dashboard].enabled`.",
 		[]string{"It asserted"},

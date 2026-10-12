@@ -612,6 +612,10 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	short := subject.Last-subject.First < restateLimit && !subject.Coordinated &&
 		s.Words[subject.Last+1].Tag != "IN"
 	if short && opensWithCapital(s, subject.First, source) {
+		// A noun that disagrees with the verb is not that verb's subject: "its reads ... keeps".
+		if !agrees(s, subject, *c.Verb) {
+			return "", false
+		}
 		text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 		if subject.Det == subject.First {
 			if det := s.Words[subject.Det].Lower(); det == "a" || det == "an" {

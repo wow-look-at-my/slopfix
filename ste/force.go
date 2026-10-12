@@ -203,7 +203,16 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := punctuationDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
-	return hardDivision(source, masked, d.cap)
+	if out, ok := hardDivision(source, masked, d.cap); ok || !d.every {
+		return out, ok
+	}
+	if out, ok := asideDivision(source, masked, d.cap); ok {
+		return out, true
+	}
+	if out, ok := standingMarkDivision(source, masked, d.cap); ok {
+		return out, true
+	}
+	return anyDivision(source, masked, d.cap)
 }
 
 // hardDivision divides a sentence that no grammatical division reads. It keeps
@@ -696,6 +705,10 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 			return lowerOpening(head.Text)
 		}
 		if subject.Last-subject.First < restateLimit && !subject.Coordinated {
+			// A noun that disagrees with the verb after the cut is not its subject.
+			if plural := s.Plural(subject); tag == "VBZ" && plural || tag == "VBP" && !plural && !partitives.Contains(strings.ToLower(head.Text)) {
+				return ""
+			}
 			text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 			if first := s.Words[subject.First]; first.Tag == "DT" || first.Tag == "PRP$" {
 				text = lowerOpening(text)
