@@ -17,6 +17,8 @@ var untouchedLines = map[string]string{
 	"symbol-in-a-run":  "- `internal/webhook/` — Webhook HTTP handler + event parsing, and the dispatcher.\n",
 	"capitals":         "- **A LOST DELIVERY IS THE QUIETEST FAILURE HERE, AND GITHUB NEVER RETRIES ONE.** Miss a push.\n",
 	"actor-past-dash":  "- **JSON text is produced by MARSHALLING — a JSON literal is a constant, or it is a bug.** Every other way.\n",
+	"capitals-run":     "- **A BRANCH TIP IS THE ANSWER A LOST DELIVERY RUINS WORST.** A consumer cannot notice it.\n",
+	"symbol-heading":   "- **Timeline wire format + response compression**: the chart reads a columnar payload.\n",
 }
 
 func TestTheRepairsLeaveEachDamagedLineAlone(t *testing.T) {
@@ -43,10 +45,10 @@ func TestThePassiveRepairKeepsTheOpeningMarker(t *testing.T) {
 // The controls for the cluster: a run of common nouns still folds. A run
 // with markup between its words is reported and left as written.
 func TestTheClusterRepairFoldsOnlyPlainNouns(t *testing.T) {
-	repair := slopfix.Fix(slopfix.Request{Content: "The gate file system cache lookup stopped.\n", Path: "AGENTS.md"})
-	assert.Equal(t, "The lookup of the gate file system cache stopped.\n", repair.Text)
+	repair := slopfix.Fix(slopfix.Request{Content: "The gate cache lookup table stopped.\n", Path: "AGENTS.md"})
+	assert.Equal(t, "The table of the gate cache lookup stopped.\n", repair.Text)
 
-	marked := "The gate *file system* cache lookup stopped.\n"
+	marked := "The gate *cache lookup* table stopped.\n"
 	repair = slopfix.Fix(slopfix.Request{Content: marked, Path: "AGENTS.md"})
 	assert.Equal(t, marked, repair.Text)
 	var hits []ste.Finding
