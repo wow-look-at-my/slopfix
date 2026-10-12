@@ -2,9 +2,8 @@
 //
 // A run of backticks opens a span when the byte before it is no word byte and
 // the byte after it is no blank. The span closes at the next run of the same
-// length whose byte before is no blank. A run that opens nothing. It closes
-// nothing is a stray: a literal backtick, which a repair must not pair with
-// the opener of a later span.
+// length. Any other run is a stray: a literal backtick, which a repair must
+// not pair with the opener of a later span.
 package codespan
 
 // Find answers the byte range of each code span in s, backticks included, in
@@ -49,7 +48,7 @@ func closer(s string, i, j int) int {
 			continue
 		}
 		l := runEnd(s, k)
-		if l-k == n && !blank(s[k-1]) {
+		if l-k == n {
 			return l
 		}
 		k = l

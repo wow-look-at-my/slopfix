@@ -217,6 +217,10 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if !simpleSpan(s, i, j) {
 		return "", false
 	}
+	// Emphasis delimiters stand in the source, and moving the words around them would split the span they mark.
+	if strings.Contains(source, "**") || strings.Contains(source, "__") {
+		return "", false
+	}
 	// The actor is the phrase after "by", and it must close the clause.
 	by := -1
 	for k := j + 1; k < last; k++ {
@@ -226,6 +230,12 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 		}
 	}
 	if by < 0 || by+1 > last {
+		return "", false
+	}
+	// An actor names someone or something: "by the gate", "by GitHub". A bare noun after "by" names a method, as in "by absolute path".
+	switch s.Words[by+1].Tag {
+	case "DT", "PRP", "PRP$", "NNP", "NNPS", "CD":
+	default:
 		return "", false
 	}
 	end := last
@@ -238,14 +248,24 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if end < by+1 {
 		return "", false
 	}
-	subject := strings.TrimSpace(source[s.Words[0].Start:s.Words[i].Start])
+	// An adverb that opens the sentence modifies the whole clause, so it keeps its place in front: "Otherwise runs are separated by a line".
+	open := 0
+	opener := ""
+	if s.Words[0].Tag == "RB" && i > 1 {
+		open = 1
+		opener = source[s.Words[0].Start:s.Words[0].End] + " "
+	}
+	subject := strings.TrimSpace(source[s.Words[open].Start:s.Words[i].Start])
 	actor := source[s.Words[by+1].Start:s.Words[end].End]
 	tail := source[s.Words[end].End:]
 	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
 	if subject == "" || actor == "" || verb == "" {
 		return "", false
 	}
-	object := lowerOpeningFor(subject, s.Words[0].Tag)
+	object := lowerOpeningFor(subject, s.Words[open].Tag)
+	if opener != "" {
+		return opener + actor + " " + verb + " " + object + tail, true
+	}
 	return capitalizeOpening(actor) + " " + verb + " " + object + tail, true
 }
 
@@ -295,7 +315,30 @@ func baseFromParticiple(form string) string {
 	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
 		return stem + "e"
 	}
+	if silentE(stem) {
+		return stem + "e"
+	}
 	return stem
+}
+
+// silentE reports a stem no English verb ends on, whose base therefore keeps
+// the e that -ed absorbed. "deduplicated" is "deduplicate", "separated" is
+// "separate", "removed" is "remove".
+func silentE(stem string) bool {
+	n := len(stem)
+	if n < 3 {
+		return false
+	}
+	consonant := func(c byte) bool { return !strings.ContainsRune("aeiouy", rune(c)) }
+	switch {
+	case strings.HasSuffix(stem, "v"), strings.HasSuffix(stem, "c") && !strings.HasSuffix(stem, "ck"):
+		return true
+	case strings.HasSuffix(stem, "iz"), strings.HasSuffix(stem, "yz"):
+		return true
+	case strings.HasSuffix(stem, "at"), strings.HasSuffix(stem, "ut"), strings.HasSuffix(stem, "ur"):
+		return consonant(stem[n-3])
+	}
+	return false
 }
 
 // simpleSpan reports whether a verb group from the auxiliary i to the
