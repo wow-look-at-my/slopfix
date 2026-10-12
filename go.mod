@@ -14,11 +14,11 @@ require (
 	github.com/wow-look-at-my/go-tokenizer v0.0.0 // go-toolchain:auto-branch
 	github.com/wow-look-at-my/go-tree-sitter v0.0.0 // go-toolchain:auto-branch; go-toolchain:generate=a0022f830ef0
 	github.com/wow-look-at-my/json-validator v0.0.0 // go-toolchain:auto-branch
-	github.com/wow-look-at-my/xml-validator/validator v0.0.0 // go-toolchain:auto-branch
 	github.com/yuin/goldmark v1.8.6
 )
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	go.yaml.in/yaml/v3 v3.0.5
 	mvdan.cc/sh/v3 v3.14.1
 )
@@ -30,8 +30,9 @@ require (
 	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
-	github.com/wow-look-at-my/xml-validator/reader v0.0.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )
 
 replace mvdan.cc/sh/v3 v3.14.1 => github.com/mvdan/sh/v3 v3.14.1
+
+replace gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 => github.com/go-check/check v0.0.0-20161208181325-20d25e280405

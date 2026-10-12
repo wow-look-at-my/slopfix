@@ -199,6 +199,11 @@ var brokenShapes = []struct {
 		"This covers",
 	},
 	{
+		"an as clause after a comma restates no noun",
+		"generateIn writes what the module at dir generates, as its own go.mod approves, so a command that builds it finds every file the build phase would have written.",
+		"generateIn is as",
+	},
+	{
 		"an -ing noun stays in its compound noun",
 		"The fix pass repaired a comment's length in the source file and left the ste finding beside it for a reviewer to hit on the next pass through the tree.",
 		"That ste is",

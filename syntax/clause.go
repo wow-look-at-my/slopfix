@@ -396,7 +396,46 @@ func (p *clauseParser) relativeThat(i int) bool {
 	for j < len(p.s.Words) && p.s.Words[j].Tag == "RB" {
 		j++
 	}
-	return j < len(p.s.Words) && isFinite(p.s.Words[j].Tag)
+	if j < len(p.s.Words) && isFinite(p.s.Words[j].Tag) {
+		return true
+	}
+	return p.objectRelativeAt(j)
+}
+
+// objectRelativeAt reports a relative clause with a subject of its own at j,
+// whose noun waits for the finite verb after the clause's own: "a run that a
+// later commit superseded is still the newest". No comma, conjunction or
+// subordinator stands between the clause's verb and the one the noun takes.
+func (p *clauseParser) objectRelativeAt(j int) bool {
+	if !p.subjectVerbAt(j) {
+		return false
+	}
+	own, ok := p.finiteGroupFrom(j)
+	if !ok {
+		return false
+	}
+	next, ok := p.finiteGroupFrom(own.Last + 1)
+	if !ok {
+		return false
+	}
+	for k := own.Last + 1; k < next.First; k++ {
+		w := p.s.Words[k]
+		if w.Text == "," || w.Tag == "CC" || Is(w.Lower(), "subordinator") || Is(w.Lower(), "relative") {
+			return false
+		}
+	}
+	return true
+}
+
+// finiteGroupFrom answers the first finite verb group that opens at or after word from.
+func (p *clauseParser) finiteGroupFrom(from int) (*Phrase, bool) {
+	for n := range p.s.Phrases {
+		ph := &p.s.Phrases[n]
+		if ph.Kind == VerbGroup && ph.Finite && ph.First >= from {
+			return ph, true
+		}
+	}
+	return nil, false
 }
 
 func (p *clauseParser) relative(i int) bool {
@@ -523,15 +562,21 @@ func (p *clauseParser) resume(i int, cur Clause, out []Clause) (Clause, bool) {
 			if parent.Depth != cur.Depth-1 {
 				continue
 			}
+			if parent.Verb != nil {
+				// A clause with a verb of its own is not resumed by these words.
+				return Clause{}, false
+			}
 			subject := parent.Subject
 			if subject == nil {
 				subject = p.subjectBefore(p.lastWord(parent.First, min(cur.Link-1, parent.Last)), parent.First+max(parent.Link+1-parent.First, 0))
 			}
-			// ", so the spelling, which sends X, is left": the verb after the relative clause is the verb of the clause it interrupts.
-			if parent.Verb == nil && subject != nil {
-				out[n].Verb, out[n].Subject = vg, subject
+			// The relative interrupts a clause still waiting for its verb,
+			// and the verb after it resumes that clause.
+			if subject == nil {
+				return Clause{}, false
 			}
-			return Clause{First: i, Link: -1, Kind: Opens, Depth: parent.Depth, Subject: subject, Verb: vg}, subject != nil
+			out[n].Verb, out[n].Subject = vg, subject
+			return Clause{First: i, Link: -1, Kind: Opens, Depth: parent.Depth, Subject: subject, Verb: vg}, true
 		}
 	case cur.Kind == Subordinate && cur.Depth == 1 && len(out) == 1 && out[0].First == 0 && out[0].Last == 0 && p.s.Words[0].Tag == "VBG":
 		// "Deciding whether X can learn anything needs Y": the gerund and its clause are the subject.

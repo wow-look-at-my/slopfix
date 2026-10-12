@@ -4,7 +4,8 @@
 
   Each line is a word, then the approved words STE gives for it. A word with
   any approved sense is absent, because a match by spelling cannot tell the
-  senses apart. ste/dictionary reads this list and warns on each match.
+  senses apart. The plain list in ste-words.xml names each word here that a
+  repair can rewrite, and ste/dictionary reports those words.
 -->
 <rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="ste">
 
