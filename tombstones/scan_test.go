@@ -2,6 +2,7 @@ package tombstones
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -90,6 +91,100 @@ func TestANameTheRepositoryDefinesIsAlive(t *testing.T) {
 	path := filepath.Join(dir, "a.go")
 	src := "// see TestDarwinStatfsToLinux for the pin\n"
 	assert.Empty(t, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
+// A name that only sits inside a longer identifier is not defined, whether the
+// index or a ripgrep probe answers.
+func TestANameInsideALongerIdentifierIsDead(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("func eventBeforeIdleHook() {}\n"), 0o644))
+
+	path := filepath.Join(dir, "a.go")
+	src := "// BeforeIdleHook routes the worker\n"
+	assert.Equal(t, []string{"BeforeIdleHook"}, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
+// The code around an inline comment is never a referent. The members of an
+// imported module name nothing this repository must define.
+func TestCodeAroundAnInlineCommentIsNotAReferent(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ts"), []byte("export const other = 1;\n"), 0o644))
+
+	path := filepath.Join(dir, "a.ts")
+	src := "import ts from 'typescript';\n" +
+		"const scanner = ts.createScanner(ts.ScriptTarget.Latest, /* */ false, ts.LanguageVariant.Standard, script);\n"
+	assert.Empty(t, DeadReferents(path, src, AddedBlocks(path, src)))
+	assert.Empty(t, DeadReferentHits(path, src))
+}
+
+// A string literal before a trailing comment is code, so its spelling is
+// never a referent.
+func TestAStringBeforeATrailingCommentIsNotAReferent(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ts"), []byte("export const other = 1;\n"), 0o644))
+
+	path := filepath.Join(dir, "a.ts")
+	src := "const rules = [\n" +
+		"\t['built_in', fg('#ffa657')], // built-in types (string, number) and globals (console, Math)\n" +
+		"];\n"
+	assert.Empty(t, DeadReferents(path, src, AddedBlocks(path, src)))
+	assert.Empty(t, DeadReferentHits(path, src))
+}
+
+// A trailing comment that names a dead symbol itself is still reported, and
+// the hit sits on the comment's line.
+func TestATrailingCommentNamingADeadSymbolIsReported(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ts"), []byte("export const other = 1;\n"), 0o644))
+
+	path := filepath.Join(dir, "a.ts")
+	src := "const x = 1;\n" +
+		"const y = 2; // see parseLegacyFlag for the pin\n"
+	blocks := AddedBlocks(path, src)
+	assert.Equal(t, []string{"parseLegacyFlag"}, DeadReferents(path, src, blocks))
+	hit := HitForName(blocks, "parseLegacyFlag")
+	assert.Equal(t, 1, hit.LineNo)
+	assert.False(t, hit.Strippable)
+}
+
+// Document prose that grok-build's check reported: emphasis underscores and product names.
+func TestDocumentEmphasisAndProductNamesAreNotReferents(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\n"), 0o644))
+
+	path := filepath.Join(dir, "a.md")
+	src := "Treat it as _already established_ by the user.\n\n" +
+		"The proxy speaks WebSockets and HTTP.\n\n" +
+		"Copyright (c) PCRE2Project and its contributors.\n"
+	assert.Empty(t, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
+// A bare snake_case name in a document still names a symbol.
+func TestDocumentSnakeCaseNameIsStillJudged(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\n"), 0o644))
+
+	path := filepath.Join(dir, "a.md")
+	src := "Set legacy_retry_flag to turn it off.\n"
+	assert.Equal(t, []string{"legacy_retry_flag"}, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
+// A document paragraph places its lines, so the repair that cuts the naming
+// sentence can reach them.
+func TestADocumentParagraphPlacesItsLines(t *testing.T) {
+	blocks := AddedBlocks("a.md", "M parking is the stub_mutex design.\n\nThe cache reads it.\n")
+	require.Len(t, blocks, 2)
+	require.Len(t, blocks[0].Pure, len(blocks[0].LineNos))
+	assert.Equal(t, []bool{true}, blocks[0].Pure)
+
+	hit := HitForName(blocks, "stub_mutex")
+	assert.Equal(t, 0, hit.LineNo)
 }
 
 func TestRepoRootFindsTheTreeAboveAFile(t *testing.T) {
