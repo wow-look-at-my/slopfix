@@ -9,15 +9,31 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// The doc comment the length repair deleted. Its heading carries the invariant
-// for the sentence under it, and the repair cut the block to the heading alone.
-func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
+// A heading-led doc comment no repair can keep whole above a one-line body.
+// The length repair leaves one whole opening sentence under the cap, and no
+// finding is left after fix.
+func TestTheLengthRepairLeavesAWholeOpeningSentenceAndNoFinding(t *testing.T) {
 	src := "/// # Safety\n" +
 		"/// The caller must ensure that the pointer stays valid for reads of n bytes for the whole call, and that no other thread writes through it while this function runs.\n" +
 		"fn f() {}\n"
-	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}).Text
-	assert.Contains(t, out, "The caller must ensure", "the doc body was deleted:\n%s", out)
-	assert.Contains(t, out, "no other thread writes through it", "the invariant clause was deleted:\n%s", out)
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs"}).Text
+	assert.Equal(t, out, slopfix.Fix(slopfix.Request{Content: out, Path: "f.rs"}).Text, "a second fix changed the text")
+	assert.Empty(t, slopfix.CheckContent("f.rs", out), "a finding is left after fix:\n%s", out)
+
+	var prose []string
+	for _, line := range strings.Split(out, "\n") {
+		if body, ok := strings.CutPrefix(line, "///"); ok && !strings.HasPrefix(strings.TrimSpace(body), "#") {
+			prose = append(prose, strings.TrimSpace(body))
+		}
+	}
+	opening := strings.TrimSpace(strings.Join(prose, " "))
+	assert.Len(t, ste.Sentences(opening), 1, "the comment is not one sentence:\n%s", out)
+	assert.True(t, strings.HasPrefix(opening, "The caller must ensure"), "the opening sentence went:\n%s", out)
+	assert.True(t, strings.HasSuffix(opening, "."), "the opening sentence does not close:\n%s", out)
+	assert.True(t, ste.StandsAlone(opening), "the opening sentence is not grammatical: %q", opening)
+	for _, f := range ste.Check(opening, 1) {
+		assert.NotEqual(t, ste.IDSentenceCap, f.ID, "%q: %s", opening, f.Detail)
+	}
 }
 
 // A doc comment that opens on a heading is still repaired. The heading and
