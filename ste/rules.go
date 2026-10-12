@@ -233,7 +233,11 @@ func checkWords(prose string, line int) []Finding {
 			out = append(out, Finding{Line: line, ID: IDContraction, Rule: "STE bans contractions", Detail: word, Fix: "Write " + fix + "."})
 		}
 		if fix, banned := modals[lower]; banned {
-			out = append(out, Finding{Line: line, ID: IDModal, Rule: "STE bans this modal", Detail: word, Fix: "Write " + fix + ", or rewrite the sentence."})
+			advice := "Write " + fix + ", or rewrite the sentence."
+			if lower == "would" {
+				advice = "Write the verb in the present tense. `slopfix fix` does this."
+			}
+			out = append(out, Finding{Line: line, ID: IDModal, Rule: "STE bans this modal", Detail: word, Fix: advice})
 		}
 	}
 	return out

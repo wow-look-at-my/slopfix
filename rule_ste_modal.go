@@ -11,7 +11,15 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectModal,
 		Autofix:  autofixModal,
-		Cases:    []RuleCase{{Name: ste.IDModal, Path: "x.md", Text: "The tool should write the result.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDModal, Path: "x.md", Text: "The tool should write the result.\n"},
+			// "would" takes the present tense of its verb group, never "will", which turns a condition into a promise.
+			{Name: ste.IDModal + " with would", Path: "x.md", Text: "Without the cache the build would fail.\n"},
+			{Name: ste.IDModal + " with would be", Path: "x.md", Text: "A cached tree would be faster.\n"},
+			{Name: ste.IDModal + " with would have", Path: "x.md", Text: "The old runner would have dropped the job.\n"},
+			{Name: ste.IDModal + " with would not", Path: "x.md", Text: "The gate would not accept the token.\n"},
+			{Name: ste.IDModal + " in a question", Path: "x.md", Text: "Would the gate accept the token?\n"},
+		},
 	})
 }
 

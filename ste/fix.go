@@ -120,6 +120,10 @@ func fixProse(text string, repair func(string) string) string {
 // fixWords writes the approved word for each banned word, and keeps the
 // capitalization the source used.
 func fixWords(prose string, keep func(id string) bool) string {
+	// "would" takes the present tense of its verb group, never "will".
+	if keep(IDModal) {
+		prose = rewriteWould(prose)
+	}
 	locs := wordPattern.FindAllStringIndex(prose, -1)
 	var out strings.Builder
 	last := 0

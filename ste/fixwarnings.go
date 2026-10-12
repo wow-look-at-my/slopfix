@@ -382,6 +382,10 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 		if !simpleSpan(s, i, j) {
 			return "", false
 		}
+		// "would have failed" is the modal's verb group, not a perfect tense, and ste/modal writes it in the present.
+		if k := i - 1; k >= 0 && (s.Words[k].Tag == "MD" || s.Words[k].Lower() == "not" && k > 0 && s.Words[k-1].Tag == "MD") {
+			return "", false
+		}
 		// After "after", "once" or "until" under a present-tense verb, the perfect is a completed condition, and the simple present says it: "begins only after it has finished" becomes "after it finishes".
 		if at := clauseOpenerBefore(s, i); at > 0 && presentBefore(s, at) {
 			if base := baseFromParticiple(s.Words[j].Lower()); base != "" {
