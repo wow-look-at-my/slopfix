@@ -146,21 +146,20 @@ func runHook(cmd *cobra.Command, _ []string) error {
 type forkLines func(text string) (*forkscope.Scope, error)
 
 // forkLinesOf reads the fork base of path once, for every text judge asks about.
-// It also answers whether no rule reads the work tree that holds path.
-func forkLinesOf(forks forkscope.Resolver, path string) (forkLines, bool, error) {
+func forkLinesOf(forks forkscope.Resolver, path string) (forkLines, error) {
 	if path == "" {
-		return func(string) (*forkscope.Scope, error) { return nil, nil }, false, nil
+		return func(string) (*forkscope.Scope, error) { return nil, nil }, nil
 	}
 	base, err := slopfix.BaseOf(forks, path)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	return func(text string) (*forkscope.Scope, error) {
 		if base == nil {
 			return nil, nil
 		}
 		return base.File(path, text)
-	}, base.Unjudged(), nil
+	}, nil
 }
 
 // judge answers a payload with the response to print, or "" to let the write
@@ -187,12 +186,9 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 	if in.ToolName != "Write" && in.ToolName != "Edit" && in.ToolName != "MultiEdit" {
 		return ""
 	}
-	owned, unjudged, err := forkLinesOf(forks, write.FilePath)
+	owned, err := forkLinesOf(forks, write.FilePath)
 	if err != nil {
 		return deny([]string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", write.FilePath, err)})
-	}
-	if unjudged {
-		return ""
 	}
 	hand, refused := handFix(in.ToolName, in.ToolInput, write.FilePath, rules, ids, owned)
 	if refused != nil {

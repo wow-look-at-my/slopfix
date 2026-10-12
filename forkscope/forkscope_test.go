@@ -137,23 +137,6 @@ func TestAForkOwnsOnlyTheLinesItWrote(t *testing.T) {
 	assert.True(t, own.Scope(filepath.Join(fx.fork, "later.md")).Empty(), "a file the fork never had is not the fork's")
 }
 
-// The spec repository owns no line, so no rule reads it, and the network is never asked.
-func TestTheSpecRepositoryOwnsNoLine(t *testing.T) {
-	fx := newForkFixture(t)
-	gitT(t, fx.fork, "remote", "set-url", "origin", "https://github.com/wow-look-at-my/slopfix-spec.git")
-	r := Resolver{Getenv: envOf(map[string]string{"GITHUB_API_URL": "http://127.0.0.1:1", "GITHUB_TOKEN": "tok"}), ListURL: "http://127.0.0.1:1/list.json"}
-	base, err := r.Base(fx.fork)
-	require.NoError(t, err)
-	require.True(t, base.Unjudged())
-	own, err := base.Lines()
-	require.NoError(t, err)
-	assert.Empty(t, held(own, fx.fork, "new.md", 3), "a committed file is not judged")
-	assert.Empty(t, held(own, fx.fork, "loose.md", 3), "an untracked file is not judged")
-	scope, err := base.File(filepath.Join(fx.fork, "brand-new.md"), "text\n")
-	require.NoError(t, err)
-	assert.True(t, scope.Empty(), "a file the write creates is not judged")
-}
-
 // A fork's origin on GitHub names the repository, with no GITHUB_REPOSITORY.
 // What the network said is kept in the git directory, so a second run asks nothing.
 func TestTheOriginNamesTheForkAndTheAnswerIsKept(t *testing.T) {

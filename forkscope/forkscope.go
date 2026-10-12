@@ -75,15 +75,7 @@ type Base struct {
 	commit string
 	// upstream is the tip of a listed fork's upstream. A file that matches a version of it is upstream's.
 	upstream string
-	// unjudged marks a work tree no rule reads: every one of its lines is outside the scope.
-	unjudged bool
 }
-
-// SpecRepo holds the text that states slopfix's rules. A rule never judges or repairs a line of it.
-const SpecRepo = "wow-look-at-my/slopfix-spec"
-
-// Unjudged reports whether no rule reads the work tree at all.
-func (b *Base) Unjudged() bool { return b != nil && b.unjudged }
 
 // Commit answers the base commit.
 func (b *Base) Commit() string { return b.commit }
@@ -147,9 +139,6 @@ func (r Resolver) Base(root string) (*Base, error) {
 	repo := r.repoName(root, top, topErr)
 	if repo == "" {
 		return nil, nil
-	}
-	if strings.EqualFold(repo, SpecRepo) {
-		return &Base{top: top, unjudged: true}, nil
 	}
 	rec, err := r.record(top, topErr, repo)
 	if err != nil {
