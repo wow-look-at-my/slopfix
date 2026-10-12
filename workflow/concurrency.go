@@ -19,8 +19,8 @@ const (
 	concurrencyCancel = "${{ github.ref != 'refs/heads/master' }}"
 )
 
-// concurrencyRows are the rows the repair writes, under the key's own indent.
-func concurrencyRows(indent, step string) []string {
+// concurrencyLines are the lines the repair writes, under the key's own indent.
+func concurrencyLines(indent, step string) []string {
 	return []string{
 		indent + "concurrency:",
 		indent + step + "group: " + concurrencyGroup,
@@ -99,7 +99,7 @@ func concurrencyFinding(line int, rule string) ste.Finding {
 }
 
 // setConcurrency writes the org's block. A block that exists is written again
-// in place. With no block, the rows go after the on: value.
+// in place. With no block, the lines go after the on: value.
 func setConcurrency(content string) []edit.Edit {
 	if len(concurrency(content)) == 0 {
 		return nil
@@ -109,33 +109,33 @@ func setConcurrency(content string) []edit.Edit {
 		return nil
 	}
 	root := rootOf(&doc)
-	rows := lines(content)
-	step := childIndent(root, rows)
+	fileLines := lines(content)
+	step := childIndent(root, fileLines)
 	if key := mappingKey(root, "concurrency"); key != nil {
-		indent := rows[key.Line-1][:key.Column-1]
-		return []edit.Edit{rewrite(content, key.Line-1, lastTriggerRow(rows, root, key), concurrencyRows(indent, step))}
+		indent := fileLines[key.Line-1][:key.Column-1]
+		return []edit.Edit{rewrite(content, key.Line-1, lastTriggerLine(fileLines, root, key), concurrencyLines(indent, step))}
 	}
 	onKey := mappingKey(root, "on")
-	indent := rows[onKey.Line-1][:onKey.Column-1]
-	last := lastTriggerRow(rows, root, onKey)
-	out := append([]string{rows[last]}, concurrencyRows(indent, step)...)
-	if last+1 < len(rows) && strings.TrimSpace(rows[last+1]) == "" {
-		out = append([]string{rows[last], ""}, concurrencyRows(indent, step)...)
+	indent := fileLines[onKey.Line-1][:onKey.Column-1]
+	last := lastTriggerLine(fileLines, root, onKey)
+	out := append([]string{fileLines[last]}, concurrencyLines(indent, step)...)
+	if last+1 < len(fileLines) && strings.TrimSpace(fileLines[last+1]) == "" {
+		out = append([]string{fileLines[last], ""}, concurrencyLines(indent, step)...)
 	}
 	return []edit.Edit{rewrite(content, last, last, out)}
 }
 
 // childIndent answers the step the file indents a block mapping by, read off the
 // first top-level block mapping that has a child. The default is spaces.
-func childIndent(root *yaml.Node, rows []string) string {
+func childIndent(root *yaml.Node, fileLines []string) string {
 	for i := 0; i+1 < len(root.Content); i += 2 {
 		key, value := root.Content[i], root.Content[i+1]
 		if value.Kind != yaml.MappingNode || value.Style&yaml.FlowStyle != 0 || len(value.Content) == 0 {
 			continue
 		}
 		if step := value.Content[0].Column - key.Column; step > 0 && value.Content[0].Line > key.Line {
-			row := rows[value.Content[0].Line-1]
-			return row[key.Column-1 : value.Content[0].Column-1]
+			line := fileLines[value.Content[0].Line-1]
+			return line[key.Column-1 : value.Content[0].Column-1]
 		}
 	}
 	return "  "
