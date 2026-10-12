@@ -210,7 +210,6 @@ var linkLabel = regexp.MustCompile(`\[[^\[\]]*\]\(`)
 // quotation finds a quoted phrase. A quotation names its words rather than uses them, so a cut there changes what it names.
 var quotation = regexp.MustCompile(`"[^"\n]*"|“[^”\n]*”`)
 
-
 // strandsOpener reports whether a cut to the end of the sentence leaves the sentence on an article, a relative or a conjunction. Each opens words the cut took away.
 func strandsOpener(s string, from, to int, with string) bool {
 	if strings.TrimSpace(with) != "" {
