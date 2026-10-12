@@ -22,7 +22,6 @@ const (
 )
 
 // SelfHostExempt names each org repository the self-hosted fleet depends on.
-// Its CI stays on GitHub-hosted runners, so a fleet outage cannot block the fix.
 var SelfHostExempt = set.Of(
 	"wow-look-at-my/webhook-runner",
 	"wow-look-at-my/buildhost",
