@@ -255,18 +255,48 @@ func Keep(before, after string, s *Scope) string {
 			out.WriteString(strings.Join(b[op.J1:op.J2], ""))
 		case op.Tag == 'r' && op.I2-op.I1 == op.J2-op.J1:
 			// Lines pair one to one, so each lands or goes back alone.
+			var mixed strings.Builder
 			for k := range op.I2 - op.I1 {
 				if s.Owns(op.I1 + k + 1) {
-					out.WriteString(b[op.J1+k])
+					mixed.WriteString(b[op.J1+k])
 				} else {
-					out.WriteString(a[op.I1+k])
+					mixed.WriteString(a[op.I1+k])
 				}
+			}
+			if !reflowed(a[op.I1:op.I2], b[op.J1:op.J2], func(k int) bool { return s.Owns(op.I1 + k + 1) }) {
+				out.WriteString(mixed.String())
+			} else {
+				out.WriteString(strings.Join(a[op.I1:op.I2], ""))
 			}
 		default:
 			out.WriteString(strings.Join(a[op.I1:op.I2], ""))
 		}
 	}
 	return out.String()
+}
+
+// reflowed reports a hunk whose new owned line took a word from an old line
+// the fork did not write: a rewrap moved it there. That line keeps it too.
+func reflowed(old, now []string, owned func(int) bool) bool {
+	words := func(s string) set.Set[string] { return set.Of(strings.Fields(s)...) }
+	upstream := set.New[string]()
+	for k, line := range old {
+		if !owned(k) {
+			upstream = upstream.Union(words(line))
+		}
+	}
+	for k := range now {
+		if !owned(k) {
+			continue
+		}
+		own := words(old[k])
+		for w := range words(now[k]).All() {
+			if !own.Contains(w) && upstream.Contains(w) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // mayChange reports whether the fork wrote the lines from i1 up to i2,
