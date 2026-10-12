@@ -18,6 +18,7 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	go.yaml.in/yaml/v3 v3.0.5
 	mvdan.cc/sh/v3 v3.14.1
 )
