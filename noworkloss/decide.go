@@ -79,7 +79,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	}
 	// An unresolvable operand makes the blast radius unknown. A finding read
 	// out of a script FILE is the program's own behaviour, which this hook
-	// does not sandbox; a STATIC path inside a script is still judged.
+	// does not sandbox. A STATIC path inside a script is still judged.
 	for _, p := range f.paths {
 		// A device file holds nothing to lose, and it names itself absolutely, so
 		// an unknown working directory says nothing about it.
@@ -96,7 +96,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	// does: not "is there uncommitted work" but "does this content exist
 	// anywhere else". Already pushed, already merged, or sitting on another
 	// branch all mean nothing is lost. Preservation is not attempted here --
-	// see docs/decision-model.md.
+	// see the no-work-loss section of AGENTS.md.
 	if f.reach != nil {
 		st := cache.probe(f.dir)
 		if st.err != nil {
@@ -134,7 +134,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 		}
 	}
 	if st.err != nil {
-		return fmt.Sprintf("blocked: cannot tell whether %s would lose uncommitted work (%v)."+
+		return fmt.Sprintf("blocked: cannot tell whether %s will lose uncommitted work (%v)."+
 			"\nrun: git status   # this hook denies destructive commands it cannot verify", f.label, st.err), ""
 	}
 	if !st.inRepo {
@@ -142,7 +142,7 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	}
 
 	// Preservation is not attempted for a stash entry -- see
-	// docs/decision-model.md.
+	// the no-work-loss section of AGENTS.md.
 	if f.haz&hazStash != 0 {
 		if st.stash == 0 {
 			return "", ""
@@ -160,13 +160,13 @@ func judge(f *finding, cache *repoCache) (deny, notice string) {
 	if res, ok := preserveAtRiskPaths(st.root, names); ok {
 		return "", res.notice(f.label, summary)
 	}
-	return fmt.Sprintf("blocked: %s would lose %s.\nrun: %s", f.label, summary, f.rewrite), ""
+	return fmt.Sprintf("blocked: %s will lose %s.\nrun: %s", f.label, summary, f.rewrite), ""
 }
 
 // describeAtRisk names what a finding would destroy, split by class rather
-// than totalled -- "modified" and "untracked" is the difference between a
-// command that spares half of it and a command that does not -- and shared
-// between the denial and the preservation notice, so they never drift apart.
+// than totalled. The split into "modified" and "untracked" shows whether a
+// command spares half of it. The denial and the preservation notice share
+// this text. They never drift apart.
 func describeAtRisk(tracked, untracked, ignored []string) (summary string, names []string) {
 	var parts []string
 	add := func(entries []string, label string) {

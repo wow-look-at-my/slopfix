@@ -97,8 +97,12 @@ func TestTheCharacterFloorHolds(t *testing.T) {
 	src := "package p\n\n" + note + "\nconst p = 1\n"
 	assert.Empty(t, CheckLength("x.go", src), "a comment inside the floor is allowed")
 
-	over := "// " + strings.Repeat("a", floorChars+40)
+	over := "// " + strings.Repeat("The gate reads the file. ", floorChars/25+2)
 	assert.NotEmpty(t, CheckLength("x.go", "package p\n\n"+over+"\nconst p = 1\n"))
+
+	// One sentence under the sentence cap has no cut to make, so the floor of characters does not weigh it.
+	one := "// " + strings.Repeat("a", floorChars+40)
+	assert.Empty(t, CheckLength("x.go", "package p\n\n"+one+"\nconst p = 1\n"))
 }
 
 // A comment inside a switch case documents the statement under it, not the rest
@@ -164,6 +168,34 @@ func TestARunWithNothingAfterItIsAFinding(t *testing.T) {
 		"// left behind by whatever it used to introduce.\n"
 
 	assert.NotEmpty(t, CheckLength("x.go", src))
+}
+
+// A trailing comment on the field above is not part of the next field's doc.
+// Read as one run, the doc was dropped as a trailing comment and never measured.
+func TestADocBelowATrailingCommentIsMeasured(t *testing.T) {
+	src := "package p\n\ntype T struct {\n" +
+		"\tfirstSeen int // instruction index of the first tap (ordering)\n" +
+		"\t// synthetic marks the no-descriptor pool (flat/global loads addressed\n" +
+		"\t// straight from VGPRs).\n" +
+		"\tsynthetic bool\n}\n"
+	assert.NotEmpty(t, CheckLength("x.go", src), "commentspan reports two comment lines over one code line")
+}
+
+// A trailing comment later in the body leaves the opening statement the thing
+// a comment documents. It broke the line order, and the whole body was weighed.
+func TestATrailingCommentInTheBodyKeepsTheStatement(t *testing.T) {
+	src := "package p\n\nfunc f() {\n" +
+		"\t// Copies share the value: resolving an argument in place must be seen\n" +
+		"\t// through every copy (the save-before-clobber idiom).\n" +
+		"\tm := machine()\n" +
+		"\tm.write(0, got) // s_mov_b32 s0, s3\n" +
+		"\tm.write(3, nil)\n}\n"
+	assert.NotEmpty(t, CheckLength("x.go", src))
+}
+
+// A line that holds only its marker is a comment line, as commentspan counts it.
+func TestABareMarkerLineCounts(t *testing.T) {
+	assert.NotEmpty(t, CheckLength("x.sh", "# The point.\n#\nn=1\n"))
 }
 
 // The control. A comment proportionate to its statement is not a finding, or

@@ -25,12 +25,10 @@ func fix(t *testing.T, src string) commentfix.Repair {
 // repair that leaves the rule reporting is not a repair.
 func TestWhatFixWritesCarriesNoFinding(t *testing.T) {
 	for _, src := range []string{
-		"// It reserves one slot with one atomic add.\nfunc f() {}\n",
-		"// The zero value is ready to use.\ntype T struct{}\n",
+		"// It reserves two slots with three atomic adds.\nfunc f() {}\n",
+		"// The other two run a loop.\ntype T struct{}\n",
 		"// Two goroutines never wait for one another.\nfunc g() {}\n",
-		"// A first-in-first-out queue. It hashes the key twice.\nfunc h() {}\n",
 		"// Each shard is padded to 128 bytes.\nvar x int\n",
-		"// First, it locks. Second, it writes.\nfunc i() {}\n",
 	} {
 		repair := fix(t, src)
 		require.True(t, repair.Changed, "nothing repaired in %q", src)
@@ -42,29 +40,80 @@ func TestWhatFixWritesCarriesNoFinding(t *testing.T) {
 // The table says it in words wherever a swap keeps the meaning, so the sentence
 // survives the repair rather than being cut.
 func TestATableEntryKeepsTheSentence(t *testing.T) {
-	repair := fix(t, "// It reserves one slot with one atomic add.\nfunc f() {}\n")
-	assert.Equal(t, "// It reserves a single slot with a single atomic add.\nfunc f() {}\n", repair.Text)
+	repair := fix(t, "// It reserves two slots with three atomic adds.\nfunc f() {}\n")
+	assert.Equal(t, "// It reserves slots with atomic adds.\nfunc f() {}\n", repair.Text)
 	assert.Empty(t, repair.Removed, "a rewritten sentence is not a cut one")
 }
 
-// A number no entry covers is not guessed at. The sentence goes, and the caller
-// is told which sentence went.
-func TestANumberNoEntryCoversCutsItsSentence(t *testing.T) {
-	repair := fix(t, "// It is padded. Each shard is padded to 128 bytes.\nvar x int\n")
+// A count no entry covers is reworded the way the document rule does it, so
+// the sentence stays and only the figure goes.
+func TestANumberNoEntryCoversIsReworded(t *testing.T) {
+	for in, want := range map[string]string{
+		"// It is padded. Each shard is padded to 128 bytes.\nvar x int\n":   "// It is padded. Each shard is padded to many bytes.\nvar x int\n",
+		"// Run waits 2 minutes before it starts.\nfunc Run() {}\n":          "// Run waits a couple of minutes before it starts.\nfunc Run() {}\n",
+		"// Run keeps at most 500 lines in the buffer.\nfunc Run() {}\n":     "// Run keeps a bounded number of lines in the buffer.\nfunc Run() {}\n",
+		"// Run answers one call 3 ways and ships 4 hooks.\nfunc Run() {}\n": "// Run answers one call multiple ways and ships hooks.\nfunc Run() {}\n",
+	} {
+		repair := fix(t, in)
+		assert.Equal(t, want, repair.Text, in)
+		assert.Empty(t, repair.Removed, in)
+		assert.Empty(t, commentfix.Check("x.go", header+repair.Text), in)
+	}
+}
+
+// A point on a scale, or an id, goes stale like a count, so each is a finding.
+// The repair names the constant with that value, or writes a generic phrase.
+// "at multiple cols" and "branch multiple sees" are no English, so no repair
+// writes them.
+func TestALabelOrAPointIsRepaired(t *testing.T) {
+	for in, want := range map[string]string{
+		"// It is wide. At 100 cols the row wraps.\nvar x int\n":                                  "// It is wide. At a set number of cols the row wraps.\nvar x int\n",
+		"// id 1 completes after a short delay.\nvar x int\n":                                     "// One id completes after a short delay.\nvar x int\n",
+		"// It is slow. The mock with id 1 completes after a short delay.\nvar x int\n":           "// It is slow. The mock with one id completes after a short delay.\nvar x int\n",
+		"// It is slow. Then branch 3 sees the entry already cleared.\nvar x int\n":               "// It is slow. Then a later branch sees the entry already cleared.\nvar x int\n",
+		"// Truncating to 15 cuts inside the second span.\nvar x int\n":                           "// Truncating to a set limit cuts inside the second span.\nvar x int\n",
+		"const narrowWidth = 1\nconst NARROW = 100\n\n// At 100 cols the row wraps.\nvar x int\n": "const narrowWidth = 1\nconst NARROW = 100\n\n// At `NARROW` cols the row wraps.\nvar x int\n",
+	} {
+		assert.NotEmpty(t, commentfix.Check("x.go", header+in), "check reports %q", in)
+		repair := fix(t, in)
+		assert.Equal(t, want, repair.Text, in)
+		assert.Empty(t, repair.Removed, in)
+		assert.Empty(t, commentfix.Check("x.go", header+repair.Text), in)
+	}
+}
+
+// "both" never follows "of" and never comes before a determiner. A word size
+// and a hedged point on a scale are values.
+func TestARewordReadsAsEnglish(t *testing.T) {
+	for in, banned := range map[string]string{
+		"// Every plugin lands in exactly one of the two lists.\nvar x int\n":       "of both",
+		"// Mutations, and the two the main turn counts as read-only.\nvar x int\n": "both the main",
+		"// Only the low 32 bits are compared.\nvar x int\n":                        "many bits",
+		"// It is short. The cap trips at exactly 850 tokens.\nvar x int\n":         "multiple tokens",
+	} {
+		repair := fix(t, in)
+		assert.NotContains(t, repair.Text, banned, in)
+	}
+}
+
+// A number that governs no plural noun has nothing to reword around. The
+// sentence goes, and the caller is told which sentence went.
+func TestANumberWithNoPluralNounCutsItsSentence(t *testing.T) {
+	repair := fix(t, "// It is padded. Each take pays for 1 add.\nvar x int\n")
 	assert.Equal(t, "// It is padded.\nvar x int\n", repair.Text)
-	assert.Equal(t, []string{"Each shard is padded to 128 bytes."}, repair.Removed)
+	assert.Equal(t, []string{"Each take pays for 1 add."}, repair.Removed)
 }
 
 // A comment left with nothing to say loses its line rather than sitting there
 // as a bare marker.
 func TestACommentLeftWithNothingToSayLosesItsLine(t *testing.T) {
-	repair := fix(t, "// Each shard is padded to 128 bytes.\nvar x int\n")
+	repair := fix(t, "// Each take pays for 1 add.\nvar x int\n")
 	assert.Equal(t, "var x int\n", repair.Text)
 }
 
 // A sentence wraps across comment lines, and a cut takes the whole sentence.
-// Cutting only the share a line carries leaves the rest dangling below it,
-// which is what the repair did before it read a paragraph at a time.
+// A cut of only the share a line carries leaves the rest of the sentence
+// below it. The repair reads a paragraph at a time to prevent that.
 func TestACutTakesAWrappedSentenceWhole(t *testing.T) {
 	src := "// A take that finds it empty puts refillBatch values back. Every\n" +
 		"// measured take therefore also pays for 1 add. Subtract the add\n" +
@@ -97,8 +146,8 @@ func TestARewrittenParagraphKeepsItsShape(t *testing.T) {
 // A comment following code on its line is repaired too, and the code in front
 // of it is not prose the rewrite may touch.
 func TestACommentFollowingCodeIsRepaired(t *testing.T) {
-	repair := fix(t, "func f() {\n\tb.CompleteAdding() // A second call changes nothing.\n}\n")
-	assert.Equal(t, "func f() {\n\tb.CompleteAdding() // Another call changes nothing.\n}\n", repair.Text)
+	repair := fix(t, "func f() {\n\tb.CompleteAdding() // Two calls change nothing.\n}\n")
+	assert.Equal(t, "func f() {\n\tb.CompleteAdding() // Calls change nothing.\n}\n", repair.Text)
 	assert.Empty(t, commentfix.Check("x.go", header+repair.Text))
 }
 
@@ -112,13 +161,13 @@ func TestACutTrailingCommentLeavesTheCode(t *testing.T) {
 // A blank comment line the source already carried is a paragraph break somebody
 // wrote.
 func TestABlankCommentLineTheSourceCarriedSurvives(t *testing.T) {
-	src := "// It locks.\n//\n// It reserves one slot.\nfunc f() {}\n"
+	src := "// It locks.\n//\n// It reserves two slots.\nfunc f() {}\n"
 	repair := fix(t, src)
-	assert.Equal(t, "// It locks.\n//\n// It reserves a single slot.\nfunc f() {}\n", repair.Text)
+	assert.Equal(t, "// It locks.\n//\n// It reserves slots.\nfunc f() {}\n", repair.Text)
 }
 
 // The negative control. A file the rule reports nothing in is written back
-// byte for byte, so the cases above pass on a repair rather than on any edit.
+// byte for byte. The cases above pass on a repair rather than on any edit.
 func TestAFileWithNoFindingIsUntouched(t *testing.T) {
 	src := "// It reserves a slot and publishes it.\nfunc f() {}\n"
 	repair := fix(t, src)
@@ -126,9 +175,27 @@ func TestAFileWithNoFindingIsUntouched(t *testing.T) {
 	assert.Equal(t, src, repair.Text)
 }
 
+// An exit status is a value, so a status noun between the word and the digits
+// does not make the digits a label to name. "exit code 2" was rewritten into
+// "exit a later code", which says something the author did not.
+func TestAnExitCodeIsNotACount(t *testing.T) {
+	src := "/// Dispatch the observe-only session-end `Stop`: runs in stop-gate mode so\n" +
+		"/// exit code 2 parses as a block, but the decision is discarded (no turn\n" +
+		"/// left to continue).\n" +
+		"pub(crate) async fn dispatch_session_end_stop(&self, reason: &str) {\n" +
+		"    if self.startup_hints.is_subagent {\n" +
+		"        return;\n" +
+		"    }\n" +
+		"}\n"
+	got := commentfix.Fix("stop.rs", src)
+	assert.False(t, got.Changed, "the status is a value, not a count")
+	assert.Equal(t, src, got.Text, "the number repair leaves the phrase as written")
+	assert.Empty(t, commentfix.Check("stop.rs", got.Text))
+}
+
 // A generated file is left alone, the same way the check skips it.
 func TestAGeneratedFileIsLeftAlone(t *testing.T) {
-	src := "// Code generated by hand. DO NOT EDIT.\n\n// It reserves one slot.\npackage p\n"
+	src := "// Code generated by hand. DO NOT EDIT.\n\n// It reserves two slots.\npackage p\n"
 	repair := commentfix.Fix("x.go", src)
 	assert.False(t, repair.Changed)
 	assert.Equal(t, src, repair.Text)
@@ -137,10 +204,10 @@ func TestAGeneratedFileIsLeftAlone(t *testing.T) {
 // A directive addresses a tool rather than a reader, so the repair leaves it
 // alone.
 func TestADirectiveIsNotRewritten(t *testing.T) {
-	src := "//go:build one\n\n// It reserves one slot.\npackage p\n"
+	src := "//go:build two\n\n// It reserves two slots.\npackage p\n"
 	repair := commentfix.Fix("x.go", src)
-	assert.Contains(t, repair.Text, "//go:build one")
-	assert.Contains(t, repair.Text, "// It reserves a single slot.")
+	assert.Contains(t, repair.Text, "//go:build two")
+	assert.Contains(t, repair.Text, "// It reserves slots.")
 }
 
 // Code is not prose. A number in a string literal or an expression is the
@@ -154,8 +221,8 @@ func TestCodeIsNotRewritten(t *testing.T) {
 
 // The rule reads every language the extractor knows, so the repair does too.
 func TestTheRepairFollowsTheExtractorIntoAnotherLanguage(t *testing.T) {
-	repair := commentfix.Fix("x.sh", "# It reserves one slot.\necho hi\n")
-	assert.Equal(t, "# It reserves a single slot.\necho hi\n", repair.Text)
+	repair := commentfix.Fix("x.sh", "# It reserves two slots.\necho hi\n")
+	assert.Equal(t, "# It reserves slots.\necho hi\n", repair.Text)
 }
 
 // A block comment is a single token spanning its lines. The repair read only
@@ -171,25 +238,43 @@ func TestABlockCommentIsRepairedBelowItsOpener(t *testing.T) {
 	assert.Empty(t, commentfix.Check("x.c", got.Text), "nothing is left to report")
 }
 
-// The closer is not prose. Dropped, the comment stays open and every
-// declaration below it is swallowed by it, so an emptied block keeps its
-// delimiters and the file still parses.
-func TestAnEmptiedBlockKeepsItsDelimiters(t *testing.T) {
-	src := "int a;\n\n/* The tables run to 12 sections. */\nint b;\n"
+// A block left with nothing to say loses its lines, as a line comment does. An
+// empty /* */ is noise, and a closer dropped alone swallows the code below.
+func TestAnEmptiedBlockLosesItsLines(t *testing.T) {
+	src := "int a;\n\n/* Each take pays for 1 add. */\nint b;\n"
 	got := commentfix.Fix("x.c", src)
 
-	assert.True(t, got.Changed)
-	assert.Contains(t, got.Text, "*/", "the block is closed")
-	assert.Contains(t, got.Text, "int b;")
-	assert.Equal(t, strings.Count(src, "/*"), strings.Count(got.Text, "/*"), "openers are balanced")
-	assert.Equal(t, strings.Count(src, "*/"), strings.Count(got.Text, "*/"), "closers are balanced")
+	assert.Equal(t, "int a;\n\nint b;\n", got.Text)
 	assert.Empty(t, commentfix.Check("x.c", got.Text))
+}
+
+// A doc comment opens with /**. Read as /* with prose that starts with a star,
+// the star went into the prose and the opener came back as /*.
+func TestADocBlockKeepsItsOpener(t *testing.T) {
+	src := "/** Keeps the ring.\n * Each take pays for 1 add. */\nfunction f() {}\n"
+	got := commentfix.Fix("x.ts", src)
+
+	assert.Equal(t, "/** Keeps the ring. */\nfunction f() {}\n", got.Text)
+	assert.Equal(t, []string{"Each take pays for 1 add."}, got.Removed)
+
+	emptied := commentfix.Fix("x.ts", "/** Each take pays for 1 add. */\nfunction f() {}\n")
+	assert.Equal(t, "function f() {}\n", emptied.Text)
+}
+
+// A sentence in a comment often opens on a lowercase identifier. Read as one
+// sentence with the sentence before it, the cut of a number took both.
+func TestACutKeepsTheSentenceBeforeALowercaseOne(t *testing.T) {
+	src := "/** It names the commit. sha is empty when it is absent. number is -1 when none is. */\nfunction f() {}\n"
+	got := commentfix.Fix("x.ts", src)
+
+	assert.Equal(t, "/** It names the commit. sha is empty when it is absent. */\nfunction f() {}\n", got.Text)
+	assert.Equal(t, []string{"number is -1 when none is."}, got.Removed)
 }
 
 // A block opens a single time. Repeating its opener down the paragraph nests a
 // comment inside itself, which is a syntax error in C.
 func TestARewrittenBlockDoesNotRepeatItsOpener(t *testing.T) {
-	long := "/* Asked once. " + strings.Repeat("A clause that carries the paragraph well past a line. ", 4) + "*/\n"
+	long := "/* Asked by two callers. " + strings.Repeat("A clause that carries the paragraph well past a line. ", 4) + "*/\n"
 	src := "int a;\n\n" + long + "int b;\n"
 	got := commentfix.Fix("x.c", src)
 
@@ -214,7 +299,7 @@ func TestABlockCommentWithABlankLineStaysOneComment(t *testing.T) {
 
 // An indented example or a table inside a block carries no marker of its own,
 // and a rewrap would destroy it. The paragraph rewrite therefore declines the
-// block, and the number is deleted where it sits instead: the table keeps its
+// block. The number is deleted where it sits instead: the table keeps its
 // shape and the rule is left with nothing to report.
 func TestABlockHoldingUnmarkedLinesKeepsItsShape(t *testing.T) {
 	src := "int a;\n\n/* Layout, in 3 parts:\n\n     a | b\n\n */\nint b;\n"
@@ -227,7 +312,7 @@ func TestABlockHoldingUnmarkedLinesKeepsItsShape(t *testing.T) {
 
 // A block whose closer sits on a line of its own. The marker scan read that
 // line's star as a continuation and its slash as prose, so the delimiter was
-// lost, a stray byte entered the text, and the block was declined instead.
+// lost. A stray byte entered the text, and the block was declined instead.
 func TestABlockWhoseCloserHasItsOwnLineIsRepaired(t *testing.T) {
 	src := "int a;\n\n/* Keeps the ring.\n * The tables run to 12 sections.\n */\nint b;\n"
 	got := commentfix.Fix("x.c", src)

@@ -45,6 +45,21 @@ func TestSentencesSplitBeforeALowerCaseFileName(t *testing.T) {
 	assert.Len(t, got, 2)
 }
 
+// A mark after a period closes the sentence only when the sentence opened it.
+// The `*` of a glob and a `)` with no open parenthesis are words.
+func TestSentencesKeepAGlobAndAStrayCloserWhole(t *testing.T) {
+	for _, text := range []string{
+		"The package pulls in a couple of esnext.* libs that the step names.",
+		"The step reads lib.dom.* when a step passes dom: true.",
+	} {
+		assert.Len(t, Sentences(text), 1, text)
+	}
+	got := Sentences("The step reads *every lib.* The next one reads none.")
+	assert.Equal(t, []string{"The step reads *every lib.*", "The next one reads none."}, got)
+	got = Sentences("The step reads a lib (the dom one.) The next one reads none.")
+	assert.Equal(t, []string{"The step reads a lib (the dom one.)", "The next one reads none."}, got)
+}
+
 func TestALongSentenceIsReportedOnceTheSplitterIsHonest(t *testing.T) {
 	// A single sentence, well over the cap.
 	long := "The scanner walks the input once and hands the parser every token it " +
@@ -60,6 +75,20 @@ func TestALongSentenceIsReportedOnceTheSplitterIsHonest(t *testing.T) {
 // full of citations is otherwise reported as too long when it is not.
 func TestParenthesesCountAsOneWord(t *testing.T) {
 	assert.Equal(t, 5, WordCount("The lexer (see lexer.md §3.3.4) runs first."))
+	// A section link holds no word, as the number it replaced held none.
+	assert.Equal(t, WordCount(strip("The §9 trigger fires.")), WordCount(strip("The [§owning-renderer](#9-owning-the-renderer) trigger fires.")))
+}
+
+// An XML character-class list is a literal, not a sentence. It holds no word the
+// cap can weigh, so no division of it is ever a sentence.
+func TestACharacterRangeListIsNotProse(t *testing.T) {
+	list := "[#xF8-#x2FF] | [#x370-#x37D] | [#x37F-#x1FFF] | [#x200C-#x200D] | " +
+		"[#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | " +
+		"[#xFDF0-#xFFFD] | [#x10000-#xEFFFF]"
+	assert.Equal(t, 0, WordCount(strip(list)))
+	assert.Empty(t, Check(list, 37))
+	// The control: words beside a range are still weighed.
+	assert.Positive(t, WordCount(strip(list+" are the characters a name starts with.")))
 }
 
 func TestSplicesTheReferenceRuleReports(t *testing.T) {
@@ -107,6 +136,7 @@ func TestCountsLeaveArithmeticAlone(t *testing.T) {
 	cases := map[string]string{
 		"range":      "The exit code range is 0-255 and nothing outside it.",
 		"expression": "A chain of N commands carries N-1 operators.",
+		"equation":   "It defaults to RGBA8 (32 bits per pixel = 4 bytes), the default target.",
 	}
 	for name, text := range cases {
 		t.Run(name, func(t *testing.T) {

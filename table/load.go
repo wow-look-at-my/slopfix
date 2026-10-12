@@ -1,8 +1,8 @@
-// A file declares its consumer with the `for` attribute on its root, and the
-// folder is read in file name order and then document order: a longer phrase
-// that must beat a shorter phrase sits above it. What an entry must carry to be
-// usable is decided here rather than in the consumer, so a malformed entry
-// stops the program at its earliest read instead of quietly matching nothing.
+// A file declares its consumer with the `for` attribute on its root. The folder
+// is read in file name order and then document order: a longer phrase that must
+// beat a shorter phrase sits above it. What an entry must carry to be usable is
+// decided here rather than in the consumer. A malformed entry stops the program
+// at its earliest read instead of quietly matching nothing.
 package table
 
 import (
@@ -15,8 +15,8 @@ import (
 )
 
 // document mirrors a rules file. The table types the consumer reads carry no
-// XML tags of their own: a class states its words in a single attribute and
-// holds them as a list, and a pattern holds a compiled matcher the file cannot spell.
+// XML tags of their own: a class states its words in a single attribute and holds
+// them as a list. A pattern holds a compiled matcher the file cannot spell.
 type document struct {
 	For       string      `xml:"for,attr"`
 	Drops     []xmlDrop   `xml:"drop"`
@@ -27,11 +27,26 @@ type document struct {
 	Rephrases []xmlShape  `xml:"rephrase"`
 	Normals   []xmlPhrase `xml:"normalize"`
 	Tests     []xmlTest   `xml:"test"`
+	Detects   []xmlDetect `xml:"detect"`
+	Lists     []xmlList   `xml:"list"`
 }
 
 type xmlTest struct {
 	In  string `xml:"in,attr"`
 	Out string `xml:"out,attr"`
+}
+
+// xmlDetect states what a single substrate reports for a line. The
+// phrases are children rather than an attribute, because a phrase carries spaces.
+type xmlDetect struct {
+	In        string     `xml:"in,attr"`
+	Substrate string     `xml:"substrate,attr"`
+	Why       string     `xml:"why,attr"`
+	Found     []xmlFound `xml:"found"`
+}
+
+type xmlFound struct {
+	Text string `xml:"text,attr"`
 }
 
 type xmlDrop struct {
@@ -68,10 +83,17 @@ type xmlFlag struct {
 	Tests  []xmlTest `xml:"test"`
 }
 
+// xmlList holds one string on each line of its text.
+type xmlList struct {
+	Name string `xml:"name,attr"`
+	Body string `xml:",chardata"`
+}
+
 type xmlClass struct {
 	Name   string `xml:"name,attr"`
 	Words  string `xml:"words,attr"`
 	Suffix string `xml:"suffix,attr"`
+	Digits bool   `xml:"digits,attr"`
 	Open   bool   `xml:"open,attr"`
 	Except string `xml:"except,attr"`
 }
@@ -184,6 +206,7 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 			Name:   c.Name,
 			Words:  strings.Fields(c.Words),
 			Suffix: strings.Fields(c.Suffix),
+			Digits: c.Digits,
 			Open:   c.Open,
 			Except: strings.Fields(c.Except),
 		})
@@ -212,6 +235,50 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 		}
 	}
 	t.Tests = append(t.Tests, tests(doc.Tests)...)
+	for _, d := range doc.Detects {
+		if d.In == "" || d.Substrate == "" {
+			return fmt.Errorf("%s: a <detect> needs both an in and a substrate", path)
+		}
+		found := make([]string, 0, len(d.Found))
+		for _, f := range d.Found {
+			if f.Text == "" {
+				return fmt.Errorf("%s: <detect in=%q> has a <found> with no text", path, d.In)
+			}
+			found = append(found, f.Text)
+		}
+		t.Detects = append(t.Detects, Detect{In: d.In, Substrate: d.Substrate, Why: d.Why, Found: found})
+	}
+	for _, l := range doc.Lists {
+		if err := t.addList(path, l); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// addList reads a list's text as one item on each line. A blank line holds no
+// item. An empty list and a reused name are errors, because a rule that reads
+// either reads nothing.
+func (t *Table) addList(path string, l xmlList) error {
+	if l.Name == "" {
+		return fmt.Errorf("%s: a <list> carries no name", path)
+	}
+	if _, taken := t.Lists[l.Name]; taken {
+		return fmt.Errorf("%s: the list %q is already defined", path, l.Name)
+	}
+	var items []string
+	for _, line := range strings.Split(l.Body, "\n") {
+		if item := strings.TrimSpace(line); item != "" {
+			items = append(items, item)
+		}
+	}
+	if len(items) == 0 {
+		return fmt.Errorf("%s: <list name=%q> holds no item", path, l.Name)
+	}
+	if t.Lists == nil {
+		t.Lists = map[string][]string{}
+	}
+	t.Lists[l.Name] = items
 	return nil
 }
 
@@ -225,5 +292,5 @@ func tests(in []xmlTest) []Test {
 
 func (t *Table) empty() bool {
 	return len(t.Drops)+len(t.Rewrites)+len(t.Patterns)+len(t.Flags)+
-		len(t.Classes)+len(t.Rephrasings)+len(t.Normals)+len(t.Tests) == 0
+		len(t.Classes)+len(t.Rephrasings)+len(t.Normals)+len(t.Tests)+len(t.Detects)+len(t.Lists) == 0
 }

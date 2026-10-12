@@ -60,10 +60,12 @@ func TestFormatLosesNoWords(t *testing.T) {
 }
 
 func TestCheckReportsAWrappedParagraph(t *testing.T) {
-	findings := Check("A sentence that the author\nwrapped in the middle.\n")
-	require.Len(t, findings, 1)
-	assert.Equal(t, "a paragraph is one line", findings[0].Rule)
-	assert.Equal(t, 1, findings[0].Line)
+	findings := Check("A sentence that the author\nwrapped in the middle\nof a line, twice.\n")
+	require.Len(t, findings, 2)
+	for i, f := range findings {
+		assert.Equal(t, "a paragraph is one line", f.Rule)
+		assert.Equal(t, i+2, f.Line, "one finding on each continuation line")
+	}
 }
 
 func TestCheckIgnoresAFencesContents(t *testing.T) {

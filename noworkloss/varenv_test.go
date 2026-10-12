@@ -11,7 +11,6 @@ import (
 
 // ---------------------------------------------------------------------------
 // Resolving a variable this hook can prove holds a literal value.
-// newRepo, modify, denied and allowed live in guard_test.go.
 
 // The reported incident: literal assignments feed a redirect target outside
 // any repository, which the repo-scoping allows.
@@ -98,7 +97,7 @@ func TestUnresolvedPathDenialCarriesTheFindingsOwnRemedy(t *testing.T) {
 
 // The self-update shape: a script re-execs a copy of itself under a temp
 // path and deletes that copy. mktemp fixes the DIRECTORY even when the exact
-// name is chosen at run time, and a temp directory is outside every guarded
+// name is chosen at run time. A temp directory is outside every guarded
 // root, so nothing here can reach the working tree.
 func TestFollowsAScriptThatReExecsAMktempCopyOfItself(t *testing.T) {
 	dir := newRepo(t)
@@ -116,8 +115,8 @@ rm -f "${BASH_SOURCE[0]}"
 }
 
 // The negative control on the same mechanism: mktemp told to build its file
-// inside the repository really does write there, so the directory it names
-// is what decides the verdict.
+// inside the repository does write there. The directory it names is what
+// decides the verdict.
 func TestMktempWithARepoTemplateStaysGuarded(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
@@ -141,7 +140,7 @@ rm -f "$OUT.tmp"
 }
 
 // The half of that which must NOT relax: a script naming a path statically
-// still writes where it says, so following the file still closes the
+// still writes where it says. Following the file still closes the
 // write-elsewhere-then-run bypass.
 func TestAScriptsStaticTargetIsStillJudged(t *testing.T) {
 	dir := newRepo(t)
@@ -163,8 +162,8 @@ func TestASourcedFileGetsNoVariableResolution(t *testing.T) {
 }
 
 // A word that resolves to no literal text at all must not be quoted as an
-// empty string, which reads as a real, empty path rather than as what it
-// actually is: an expansion this hook never evaluated.
+// empty string. That reads as a real, empty path. The word is an expansion
+// this hook never evaluated.
 func TestUnresolvedPathDenialNamesAnExpansionRatherThanAnEmptyString(t *testing.T) {
 	dir := newRepo(t)
 	r := denied(t, dir, "rm $TARGET")

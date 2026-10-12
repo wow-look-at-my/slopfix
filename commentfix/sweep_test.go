@@ -2,12 +2,14 @@ package commentfix_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/gitmod/gitmodtest"
 )
 
 // tree writes a repository the walk reads, and returns its root.
@@ -45,6 +47,7 @@ func TestTheWalkSkipsTextNobodyHereAuthored(t *testing.T) {
 		"node_modules/n/n.js": "const n = 1\n",
 		"testdata/t.go":       "package t\n",
 		"build/b.go":          "package b\n",
+		"dist/assets/app.js":  "// compiled\nconst a = 1\n",
 		"nested/go.mod":       "module example.com/n\n",
 		"nested/n.go":         "package n\n",
 		"README.md":           "# m\n",
@@ -65,6 +68,50 @@ func TestTheWalkSkipsASubmodule(t *testing.T) {
 	assert.ElementsMatch(t, []string{"kept/k.go"}, names(t, root))
 }
 
+// A clone inside the tree, such as a second checkout a CI job makes, is another
+// repository. Its prose is fixed there.
+func TestTheWalkSkipsANestedClone(t *testing.T) {
+	root := tree(t, map[string]string{
+		"main.go":                 "package main\n",
+		"_runner/doc.go":          "package runner\n",
+		"_runner/.git/HEAD":       "ref: refs/heads/master\n",
+		"_runner/.git/objects/.k": "",
+	})
+	assert.ElementsMatch(t, []string{"main.go"}, names(t, root))
+}
+
+// A build can copy a source tree into a submodule path that nobody initialized.
+// The index still holds the gitlink, so the walk still skips it.
+func TestTheWalkSkipsAnUninitializedSubmoduleWithCopiedFiles(t *testing.T) {
+	root := gitmodtest.RepoWithSubmodule(t, "mesa")
+	deinit := exec.Command("git", "submodule", "deinit", "-f", "mesa")
+	deinit.Dir = root
+	require.NoError(t, deinit.Run())
+	require.NoError(t, os.WriteFile(filepath.Join(root, "mesa", "copied.c"), []byte("/** copied */\nint x;\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "main.c"), []byte("int y;\n"), 0o644))
+	_, err := os.Stat(filepath.Join(root, "mesa", ".git"))
+	require.True(t, os.IsNotExist(err), "the copied tree must carry no .git, or IsSubmodule alone covers it")
+	assert.ElementsMatch(t, []string{"main.c"}, names(t, root))
+}
+
+// Built output that git ignores is not prose anybody here wrote. A tracked file
+// stays even when an ignore pattern matches it.
+func TestTheWalkSkipsWhatGitIgnores(t *testing.T) {
+	root := tree(t, map[string]string{
+		"go.mod":      "module example.com/m\n",
+		".gitignore":  "dist/\ntracked.js\n",
+		"main.go":     "package main\n",
+		"dist/out.js": "const x = 1\n",
+		"tracked.js":  "const y = 1\n",
+	})
+	for _, args := range [][]string{{"init", "-q"}, {"add", "-f", "tracked.js"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		require.NoError(t, cmd.Run())
+	}
+	assert.ElementsMatch(t, []string{"main.go", "tracked.js"}, names(t, root))
+}
+
 // Where the root declares no module of its own, the modules below it are the
 // whole tree, so skipping them scans nothing at all.
 func TestTheWalkKeepsTheModulesUnderANonModuleRoot(t *testing.T) {
@@ -73,6 +120,25 @@ func TestTheWalkKeepsTheModulesUnderANonModuleRoot(t *testing.T) {
 		"a/a.go":   "package a\n",
 	})
 	assert.ElementsMatch(t, []string{"a/a.go"}, names(t, root))
+}
+
+// The write goes through a rename, so a run killed part way cannot leave half
+// a file. The mode survives, and the temp file does not.
+func TestWriteFileReplacesWholeAndKeepsTheMode(t *testing.T) {
+	root := tree(t, map[string]string{"run.sh": "old\n"})
+	path := filepath.Join(root, "run.sh")
+	require.NoError(t, os.Chmod(path, 0o755))
+
+	require.NoError(t, commentfix.WriteFile(path, "new\n"))
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "new\n", string(got))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o755), info.Mode().Perm())
+	entries, err := os.ReadDir(root)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1, "no temp file is left beside it")
 }
 
 func TestTheWalkSkipsABlob(t *testing.T) {
@@ -85,21 +151,21 @@ func TestTheWalkSkipsABlob(t *testing.T) {
 	assert.Empty(t, names(t, root))
 }
 
-// The reason the rule reads a tree rather than a package: a shell script and a
-// workflow carry the same stale prose a Go comment does, and no Go analyzer
-// ever looked at either.
+// This is why the rule reads a tree rather than a package. A shell script and
+// a workflow carry the same stale prose a Go comment does. No Go analyzer ever
+// looked at either.
 func TestTheWalkReadsEveryLanguageTheExtractorKnows(t *testing.T) {
 	root := tree(t, map[string]string{
 		"go.mod": "module example.com/m\n",
 		"a.go":   "package p\n\n// the walk has 3 phases\n",
-		"run.sh": "#!/bin/sh\n# the sweep runs twice\n",
+		"run.sh": "#!/bin/sh\n# the sweep reads two trees\n",
 		"ci.yml": "# holds 4 jobs\njobs: {}\n",
 	})
 	found := map[string]string{}
 	for _, finding := range commentfix.CheckTree(root).Findings {
 		found[filepath.Base(finding.Path)] = finding.Number
 	}
-	assert.Equal(t, map[string]string{"a.go": "3", "run.sh": "twice", "ci.yml": "4"}, found)
+	assert.Equal(t, map[string]string{"a.go": "3", "run.sh": "two", "ci.yml": "4"}, found)
 }
 
 // A sentence naming several numbers costs a single finding. The repair is a
@@ -162,4 +228,22 @@ func TestRepairLeavesNoTempFile(t *testing.T) {
 	for _, entry := range entries {
 		assert.NotContains(t, entry.Name(), "slopfix")
 	}
+}
+
+// A repair through a symlink writes the file the link names. The link stays a link.
+func TestWriteFileKeepsASymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.ts")
+	require.NoError(t, os.WriteFile(target, []byte("old\n"), 0o644))
+	link := filepath.Join(dir, "link.ts")
+	require.NoError(t, os.Symlink("target.ts", link))
+
+	require.NoError(t, commentfix.WriteFile(link, "new\n"))
+
+	info, err := os.Lstat(link)
+	require.NoError(t, err)
+	assert.Equal(t, os.ModeSymlink, info.Mode()&os.ModeSymlink, "the link must stay a link")
+	got, err := os.ReadFile(target)
+	require.NoError(t, err)
+	assert.Equal(t, "new\n", string(got))
 }

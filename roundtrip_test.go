@@ -5,12 +5,15 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
@@ -22,6 +25,28 @@ type fixture struct {
 	path    string
 	content string
 	wants   []string
+}
+
+// privateWorkflowPath answers a workflow path in a private org repository, made once.
+var privateWorkflowPath = sync.OnceValue(func() string {
+	dir, err := os.MkdirTemp("", "slopfix-private-")
+	if err != nil {
+		panic(err)
+	}
+	c, err := slopfix.Materialize(dir, slopfix.RuleCase{Name: "private", Origin: slopfix.PrivateRunnerFixture, Private: true})
+	if err != nil {
+		panic(err)
+	}
+	return filepath.Join(c.Root, ".github", "workflows", "ci.yml")
+})
+
+// pinnedFetch reads from testdata, which this repository's own check skips.
+func pinnedFetch() string {
+	body, err := os.ReadFile(filepath.Join("pins", "testdata", "fetch.sh"))
+	if err != nil {
+		panic(err)
+	}
+	return string(body)
 }
 
 // roundTripFixtures carry at least a single instance of every rule
@@ -36,19 +61,26 @@ func roundTripFixtures() []fixture {
 				"It doesn't run, and a caller should wait.\n\n" +
 				"The gate is shut; the write fails.\n\n" +
 				"The gate is shut, the write fails.\n\n" +
+				"The list names the fork, never its own tree.\n\n" +
 				"The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
 				"The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
-				"A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion.\n\n" +
+				"The loader reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs.\n\n" +
+				"Its four fields hold the header.\n\n" +
 				"The set holds three rules.\n\n" +
-				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n",
+				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n\n" +
+				"See the README for the config reference. In short: `eviction.max_bytes` (default 50 GiB, or the `CACHE_MAX_BYTES` env var) is the LRU bound, `eviction.max_age` (default off) is the optional TTL, `eviction.interval` (default 24h) is the sweep cadence, and setting both limits to 0 disables eviction - which the server warns about, because the cache then grows until the disk fills.\n\n" +
+				"- **Admin port**: " + strings.Repeat("The runner reads each event from the stream and writes the result to the store. ", 25) + "\n",
 			wants: []string{
 				slopfix.IDHardWrap,
+				slopfix.IDLongBlock,
 				ste.IDContraction,
 				ste.IDModal,
 				ste.IDSemicolon,
+				english.IDCommaNever,
 				ste.IDCommaSplice,
 				ste.IDSentenceCap,
 				ste.IDStaleCount,
+				ste.IDPostdeterminer,
 			},
 		},
 		{
@@ -86,22 +118,63 @@ func roundTripFixtures() []fixture {
 				"      # It reads the tree.\n" +
 				"      - uses: wow-look-at-my/slopfix@v1\n" +
 				"        continue-on-error: true\n" +
-				"      - name: assert\n" +
-				"        run: |\n" +
-				"          grep -q ok out.txt || { echo \"::error::missing\"; exit 1; }\n",
+				"      - env:\n" +
+				"          OUT: ${{ steps.x.outputs.path }}\n" +
+				"        run: cat \"$OUT\"\n" +
+				"      - run: |\n" +
+				"          echo hi\n" +
+				"          assert_ok() { exit 1; }\n",
 			wants: []string{
+				"yaml/test-in-workflow",
 				"yaml/comment-block",
 				"yaml/all-builds-job",
-				"yaml/test-in-workflow",
 				"yaml/neutered-gate",
+				"yaml/env-indirection",
+				"yaml/push-tags",
+				"yaml/org-action-ref",
+				"yaml/concurrency",
 			},
+		},
+		{
+			name: "warnings",
+			path: "warn.md",
+			content: "The file is read by the gate.\n\n" +
+				"The gate has read the file.\n\n" +
+				"The gate file system cache lookup stopped.\n\n" +
+				"The tool gives additional output.\n\n" +
+				"Read the file from the disk and write the result to the store for the caller before the next build of the tree starts.\n\n" +
+				"The gate reads the file. The gate writes the result. The gate waits for the caller. The gate stops the loop. " +
+				"The gate starts the build. The gate ends the run. The gate fails the check.\n",
+			wants: []string{
+				ste.IDPassive,
+				ste.IDTense,
+				ste.IDNounCluster,
+				ste.IDDictionary,
+				ste.IDInstructionLength,
+				ste.IDParagraphLength,
+			},
+		},
+		{
+			name:    "private workflow",
+			path:    privateWorkflowPath(),
+			content: "name: CI\non:\n  push:\n    branches: ['**']\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n",
+			wants: []string{
+				"yaml/private-runner",
+				"yaml/concurrency",
+			},
+		},
+		{
+			name:    "script",
+			path:    "fetch.sh",
+			content: pinnedFetch(),
+			wants:   []string{pins.ID},
 		},
 	}
 }
 
 // Every rule slopfix REPORTS, slopfix REPAIRS. A rule the fixer cannot answer
 // leaves the reader ways out, and the org allows neither: hand-edit the
-// prose, or delete the file. documents were deleted over exactly this.
+// prose, or delete the file.
 //
 // So the property is the whole contract: fix, then check, and find nothing.
 func TestFixLeavesNoFindingBehind(t *testing.T) {
@@ -122,7 +195,7 @@ func TestFixLeavesNoFindingBehind(t *testing.T) {
 	}
 }
 
-// The same property through the file path a caller actually runs: `slopfix fix`
+// The same property through the file path a caller runs: `slopfix fix`
 // rewrites the file, and `slopfix check` on what it wrote reports nothing.
 func TestFixingAFileLeavesNothingForCheckToReport(t *testing.T) {
 	for _, f := range roundTripFixtures() {
@@ -141,13 +214,13 @@ func TestFixingAFileLeavesNothingForCheckToReport(t *testing.T) {
 	}
 }
 
-// A number said in words is longer than the number, so the comment rewrite can
-// put a block back over the budget the length cut had just brought it under.
-// The cut runs before the rewrite, so the file came out of a single pass still
-// carrying the finding, and the caller had to know to run fix again.
+// A number said in words is longer than the number. The comment rewrite can
+// put a block back over the budget the length cut had brought it under. The
+// cut runs before the rewrite, so the file came out of a single pass still
+// carrying the finding. The caller had to know to run fix again.
 func TestALengthenedNumberIsCutBackInTheSamePass(t *testing.T) {
 	// The comment fits its budget as written and does not a single time every
-	// number in it is said in words, which is the whole of the interaction.
+	// number in it is said in words. This is the whole of the interaction.
 	src := "package demo\n\n" +
 		"// Reserve takes one slot out of the arena, hands the caller back one handle to it and then publishes the newest entry it has just made now.\n" +
 		"func Reserve() {}\n"
@@ -196,8 +269,8 @@ func findingIDs(findings []ste.Finding) []string {
 	return out
 }
 
-// quoted renders findings for a failure message, so a break names what is left
-// rather than a count.
+// quoted renders the findings, so a break names what is left rather than a
+// count. A repair answers a warning too, so a warning left over is a break.
 func quoted(findings []ste.Finding) []string {
 	out := make([]string, 0, len(findings))
 	for _, f := range findings {

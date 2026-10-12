@@ -1,12 +1,16 @@
 package tombstones
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
 
 // DefaultMaxCommentLines caps a comment block, the tier no rewording defeats.
@@ -21,18 +25,24 @@ type Repair struct {
 	Removed  []string `json:"removed,omitempty"`
 	Rewrites int      `json:"rewrites,omitempty"`
 	Kept     []Hit    `json:"kept,omitempty"`
+	// Refused names each edit a gate would not write.
+	Refused []edit.Refused `json:"-"`
+	// Scope bounds, in Text, what the caller's Scope bounded.
+	Scope edit.Scope `json:"-"`
 }
 
 // rewriteComments applies the english table to every comment block and reflows
-// what it leaves. It answers the new text and how many rewrites that took.
+// what it leaves. It answers an edit per block it rewrote, and how many
+// rewrites that took.
 //
-// Every block goes through it, not only the ones over the cap.
-func rewriteComments(added string, blocks []Block) (string, int) {
+// Every block goes through it, not only the ones over the cap. The count is
+// keyed by where each edit starts.
+func rewriteComments(added string, blocks []Block) ([]edit.Edit, map[int]int) {
 	lines := strings.Split(added, "\n")
-	rewrites := 0
-	changed := false
-	for i := len(blocks) - 1; i >= 0; i-- {
-		from, to, ok := blockSpan(blocks[i], len(lines))
+	rewrites := map[int]int{}
+	var edits []edit.Edit
+	for _, b := range blocks {
+		from, to, ok := pureSpan(b, len(lines))
 		if !ok {
 			continue
 		}
@@ -40,53 +50,73 @@ func rewriteComments(added string, blocks []Block) (string, int) {
 		if !rewrote {
 			continue
 		}
-		out := make([]string, 0, len(lines)-(to-from+1)+len(short))
-		out = append(out, lines[:from]...)
-		out = append(out, short...)
-		out = append(out, lines[to+1:]...)
-		lines = out
-		rewrites += took
-		changed = true
+		e := edit.Lines(added, from, to, 0, short)
+		edits = append(edits, e)
+		rewrites[e.Start] = took
 	}
-	if !changed {
-		return added, 0
+	return edits, rewrites
+}
+
+// pureSpan is blockSpan for a block every line of which is comment alone. A
+// line shared with code is never rewritten, because the rewrite carries the code.
+func pureSpan(b Block, total int) (from, to int, ok bool) {
+	from, to, ok = blockSpan(b, total)
+	if !ok || len(b.Pure) != len(b.LineNos) {
+		return 0, 0, false
 	}
-	return strings.Join(lines, "\n"), rewrites
+	for _, pure := range b.Pure {
+		if !pure {
+			return 0, 0, false
+		}
+	}
+	return from, to, true
 }
 
 // rewriteParagraphs is rewriteComments for a document, where a block is a
 // paragraph rather than a comment. A paragraph carries no marker and is never
-// hard-wrapped, so it goes back as the single line the table leaves.
-func rewriteParagraphs(added string, blocks []Block) (string, int) {
+// hard-wrapped, so it goes back as the line the table leaves.
+func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) {
 	lines := strings.Split(added, "\n")
-	rewrites := 0
-	for i := len(blocks) - 1; i >= 0; i-- {
-		from, to, ok := blockSpan(blocks[i], len(lines))
+	rewrites := map[int]int{}
+	var edits []edit.Edit
+	for _, b := range blocks {
+		from, to, ok := blockSpan(b, len(lines))
 		if !ok {
 			continue
 		}
-		body := strings.Join(lines[from:to+1], " ")
+		body := paragraphBody(lines[from:to+1], b.Prefix)
 		// A backtick span is a literal rather than a claim, and the table reads
 		if strings.Contains(body, "`") {
 			continue
 		}
-		short, took := english.FixN(body, english.Comment)
+		short, took := english.FixN(body, english.Document)
 		if took == 0 {
 			continue
 		}
-		out := make([]string, 0, len(lines)-(to-from))
-		out = append(out, lines[:from]...)
+		var kept []string
 		if hasWord(short) {
-			out = append(out, short)
+			kept = []string{b.Prefix + short}
 		}
-		out = append(out, lines[to+1:]...)
-		lines = out
-		rewrites += took
+		e := edit.Lines(added, from, to, 0, kept)
+		edits = append(edits, e)
+		rewrites[e.Start] = took
 	}
-	if rewrites == 0 {
-		return added, 0
+	return edits, rewrites
+}
+
+// paragraphBody joins a paragraph's lines without the prefix that opens it or
+// the indentation each line carries.
+func paragraphBody(lines []string, prefix string) string {
+	parts := make([]string, 0, len(lines))
+	for i, line := range lines {
+		if i == 0 {
+			line = strings.TrimPrefix(line, prefix)
+		}
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			parts = append(parts, trimmed)
+		}
 	}
-	return strings.Join(lines, "\n"), rewrites
+	return strings.Join(parts, " ")
 }
 
 // hasWord reports whether any letter or digit survives, so a paragraph the
@@ -126,24 +156,25 @@ func blocksLosing(blocks []Block, drop set.Set[int]) set.Set[int] {
 	return losing
 }
 
-// reflowStripped rewraps each block a strip took a line out of, so the prose
-// that survives reads as a paragraph rather than as a sentence with a hole.
-//
-// moves every index after it.
-func reflowStripped(path, text string, losing set.Set[int], was int) string {
+// reflowStripped rewraps each block a strip took a line out of. The prose that
+// survives then reads as a paragraph, not as a sentence with a hole.
+// A strip that emptied a block moves every index after it, so a changed block
+// count leaves the text as it is.
+func reflowStripped(path, text string, losing set.Set[int], was int) []edit.Edit {
 	if losing.IsEmpty() {
-		return text
+		return nil
 	}
 	lines := strings.Split(text, "\n")
 	blocks := AddedBlocks(path, text)
 	if len(blocks) != was {
-		return text
+		return nil
 	}
-	for i := len(blocks) - 1; i >= 0; i-- {
+	var edits []edit.Edit
+	for i, b := range blocks {
 		if !losing.Contains(i) {
 			continue
 		}
-		from, to, ok := blockSpan(blocks[i], len(lines))
+		from, to, ok := pureSpan(b, len(lines))
 		if !ok {
 			continue
 		}
@@ -151,44 +182,184 @@ func reflowStripped(path, text string, losing set.Set[int], was int) string {
 		if !rewrapped {
 			continue
 		}
-		out := make([]string, 0, len(lines)-(to-from+1)+len(short))
-		out = append(out, lines[:from]...)
-		out = append(out, short...)
-		out = append(out, lines[to+1:]...)
-		lines = out
+		edits = append(edits, edit.Lines(text, from, to, 0, short))
 	}
-	return strings.Join(lines, "\n")
+	return edits
+}
+
+// stripEdits deletes the dropped lines, a run of adjoining lines as a single
+// edit so no edits share a line end. A block comment that reaches past the run
+// keeps the opener or closer the run held, so the comment stays closed.
+func stripEdits(text string, drop set.Set[int]) []edit.Edit {
+	var edits []edit.Edit
+	lines := strings.Split(text, "\n")
+	total := len(lines)
+	for line := 0; line < total; line++ {
+		if !drop.Contains(line) {
+			continue
+		}
+		end := line
+		for end+1 < total && drop.Contains(end+1) {
+			end++
+		}
+		edits = append(edits, edit.Lines(text, line, end, 0, delimitersKept(lines[line:end+1])))
+		line = end
+	}
+	return edits
+}
+
+// delimitersKept answers the lines a strip of run leaves. The closer of a block
+// comment that opened above the run, and the opener of one that closes below
+// it. Each on a line of its own at the indentation it had.
+func delimitersKept(run []string) []string {
+	var kept []string
+	open := -1
+	for i, line := range run {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "--") {
+			continue
+		}
+		opens := strings.HasPrefix(trimmed, "/*") && !strings.Contains(trimmed[2:], "*/")
+		closes := strings.HasSuffix(trimmed, "*/") && !strings.Contains(trimmed, "/*")
+		switch {
+		case closes && open >= 0:
+			open = -1
+		case closes:
+			kept = append(kept, indentOf(line)+"*/")
+		case opens:
+			open = i
+		}
+	}
+	if open >= 0 {
+		trimmed := strings.TrimSpace(run[open])
+		opener := "/*"
+		if strings.HasPrefix(trimmed, "/**") {
+			opener = "/**"
+		}
+		kept = append(kept, indentOf(run[open])+opener)
+	}
+	return kept
+}
+
+// indentOf answers the blanks that open line.
+func indentOf(line string) string {
+	return line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 }
 
 // Fix scans the text a write adds to path and strips what it safely can.
 // maxLines caps a comment block, and a cap below the floor turns it off.
 func Fix(path, added string, maxLines int) Repair {
-	doc := IsDocument(path)
-	if doc {
+	return FixIn(path, added, maxLines, edit.Scope{})
+}
+
+// Name is the fixer's name in the registry.
+const Name = "tombstones"
+
+func init() {
+	fixer.Register(fixer.Spec{
+		Label:    Name,
+		Families: []string{"tombstones"},
+		Rules:    slices.Sorted(AllIDs().All()),
+		Files:    []fixer.Kind{fixer.Source, fixer.Document},
+		Place:    10,
+		Repair:   repairFile,
+	})
+}
+
+// FixIn is Fix with every edit held inside scope.
+func FixIn(path, added string, maxLines int, scope edit.Scope) Repair {
+	kind := fixer.Source
+	if IsDocument(path) {
+		kind = fixer.Document
+	}
+	f := fixer.Open(path, added, fixer.Options{Kind: kind, Scope: scope, MaxCommentLines: maxLines})
+	fixer.Run(f, fixer.Named(Name))
+	rep := f.Report()
+	repair := Repair{Text: f.Text(), Changed: f.Text() != added, Removed: rep.Removed, Rewrites: rep.Rewrites, Refused: rep.Refused, Scope: f.Scope()}
+	for _, note := range rep.Notes {
+		if hit, ok := note.(Hit); ok {
+			repair.Kept = append(repair.Kept, hit)
+		}
+	}
+	return repair
+}
+
+// repairFile rewrites the tombstones in f, strips the lines a strip resolves,
+// and notes every Hit it leaves for the driver to report.
+func repairFile(f *fixer.File) {
+	if f.Path == "" {
+		return
+	}
+	path, doc := f.Path, f.Kind == fixer.Document
+	maxLines := f.MaxCommentLines
+	if doc || !f.Keeps(IDVolume) {
 		maxLines = 0
 	}
-	blocks := AddedBlocks(path, added)
+	blocks := AddedBlocks(path, f.Text())
 	if len(blocks) == 0 {
-		return Repair{Text: added}
+		return
 	}
 
 	// A block over the cap is rewritten before it is judged.
-	was := added
+	was := f.Text()
 	rewrite := rewriteComments
 	if doc {
 		rewrite = rewriteParagraphs
 	}
-	added, rewrites := rewrite(added, blocks)
+	edits, took := rewrite(was, blocks)
+	// The count follows the edits that landed. A refused rewrite took no words out.
+	rewrote := f.ApplyComments(edits)
+	landed := set.New[[2]int]()
+	for _, e := range rewrote.Applied {
+		f.Rewrote(took[e.Start])
+		landed.Add([2]int{e.Start, e.End})
+	}
+	missed := slices.ContainsFunc(edits, func(e edit.Edit) bool { return !landed.Contains([2]int{e.Start, e.End}) })
+	switch {
+	case missed && doc:
+		// A rewrite that did not land leaves its wording in the text, so each wording rule it answers is reported there.
+		for _, e := range edits {
+			if landed.Contains([2]int{e.Start, e.End}) {
+				continue
+			}
+			for _, h := range wordingHits(was, e, doc) {
+				f.Note(h)
+			}
+		}
+	case missed:
+		// A scope can hold some lines of a block and not others. A phrase the block rewrite missed is cut a line at a time.
+		now := f.Text()
+		cuts, took := phraseCuts(now, AddedBlocks(path, now))
+		for _, e := range f.ApplyComments(cuts).Applied {
+			f.Rewrote(took[e.Start])
+		}
+		for _, h := range phraseHits(f.Text(), AddedBlocks(path, f.Text())) {
+			f.Note(h)
+		}
+	}
+	added := f.Text()
 	if added != was {
 		blocks = AddedBlocks(path, added)
+	}
+	// A block still over the cap is cut from its end, the way comments/length cuts.
+	if capped := f.ApplyComments(capEdits(added, blocks, maxLines)); len(capped.Applied) > 0 {
+		f.RemovedOnce("comment prose past the volume cap")
+		added = f.Text()
+		blocks = AddedBlocks(path, added)
+	}
+
+	// A dead name that a defined identifier replaces is renamed, so its sentence stays.
+	if dead := DeadReferents(path, added, blocks); len(dead) > 0 {
+		if renamed := f.ApplyComments(renameEdits(path, added, blocks, dead)); len(renamed.Applied) > 0 {
+			f.Rewrote(len(renamed.Applied))
+			added = f.Text()
+			blocks = AddedBlocks(path, added)
+		}
 	}
 
 	hits := Find(blocks, maxLines)
 	for _, name := range DeadReferents(path, added, blocks) {
 		hits = append(hits, HitForName(blocks, name))
-	}
-	if len(hits) == 0 {
-		return Repair{Text: added, Changed: added != was, Rewrites: rewrites}
 	}
 	if doc {
 		// A document line is a paragraph rather than a sentence, so
@@ -198,34 +369,291 @@ func Fix(path, added string, maxLines int) Repair {
 		}
 	}
 
-	repair := Repair{Text: added, Changed: added != was, Rewrites: rewrites}
 	drop := set.New[int]()
+	var stripping []Hit
+	cut := false
 	for _, h := range hits {
-		if h.Strippable {
+		switch {
+		case h.Strippable:
 			drop.Add(h.LineNo)
-			continue
+			stripping = append(stripping, h)
+		case h.ID != IDVolume:
+			// A name no whole-line strip resolves loses its sentence below.
+			cut = true
+		case cuttable(added, blocks, maxLines, h.LineNo):
+			// The cap cut lands outside the scope this run writes, so the block is still over the cap.
+			h.Fix = "Cut the run from its end down to the cap. `slopfix fix` does this."
+			f.Note(h)
 		}
-		repair.Kept = append(repair.Kept, h)
+	}
+	if cut {
+		defer cutReferents(f, path)
 	}
 	if drop.Len() == 0 {
-		return repair
+		return
 	}
 
+	strips := stripEdits(added, drop)
+	lines := strings.Split(added, "\n")
 	seen := set.New[string]()
-	var kept []string
-	for i, line := range strings.Split(added, "\n") {
-		if drop.Contains(i) {
-			trimmed := strings.TrimSpace(line)
-			if !seen.Contains(trimmed) {
-				seen.Add(trimmed)
-				repair.Removed = append(repair.Removed, trimmed)
+	for i := range strips {
+		for _, quote := range cutLines(lines, drop, strips[i], added) {
+			if !seen.Contains(quote) {
+				seen.Add(quote)
+				strips[i].Cut = append(strips[i].Cut, quote)
 			}
+		}
+	}
+	stripped := f.ApplyComments(strips)
+	gone := set.New[int]()
+	for _, e := range stripped.Applied {
+		for lineNo := strings.Count(added[:e.Start], "\n"); lineNo <= strings.Count(added[:max(e.Start, e.End-1)], "\n"); lineNo++ {
+			gone.Add(lineNo)
+		}
+	}
+	// A strip that did not land leaves the line in the text, so its hit is reported there.
+	for _, h := range stripping {
+		if !gone.Contains(h.LineNo) {
+			f.Note(onLine(h))
+		}
+	}
+	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished.
+	f.ApplyComments(reflowStripped(path, stripped.Text, blocksLosing(blocks, drop), len(blocks)))
+}
+
+// wordingHits answers a hit for each wording rule whose phrase the table would
+// cut from the span e rewrites in text.
+func wordingHits(text string, e edit.Edit, doc bool) []Hit {
+	surface := english.Comment
+	if doc {
+		surface = english.Document
+	}
+	span := text[e.Start:e.End]
+	lineNo := strings.Count(text[:e.Start], "\n") + 1
+	first, _, _ := strings.Cut(span, "\n")
+	ids := AllIDs()
+	seen := set.New[string]()
+	var hits []Hit
+	for _, p := range english.Patterns() {
+		if !ids.Contains(p.ID) || seen.Contains(p.ID) || !english.AppliesTo(p.Where, surface) {
 			continue
 		}
-		kept = append(kept, line)
+		if _, took := p.ApplyN(span); took == 0 {
+			continue
+		}
+		seen.Add(p.ID)
+		hits = append(hits, Hit{
+			ID:     p.ID,
+			Tell:   "a phrase about a state the code has left",
+			Phrase: strings.TrimSpace(first),
+			Line:   first,
+			LineNo: lineNo,
+		})
 	}
-	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished,
-	repair.Text = reflowStripped(path, strings.Join(kept, "\n"), blocksLosing(blocks, drop), len(blocks))
-	repair.Changed = repair.Changed || repair.Text != added
-	return repair
+	return hits
+}
+
+// cutTombstones applies every wording rule of this family to comment prose.
+func cutTombstones(s string) (string, int) {
+	ids := AllIDs()
+	total := 0
+	for _, p := range english.Patterns() {
+		if !ids.Contains(p.ID) || !english.AppliesTo(p.Where, english.Comment) {
+			continue
+		}
+		var took int
+		s, took = p.ApplyN(s)
+		total += took
+	}
+	return s, total
+}
+
+// commentLines calls visit with the line number and text of every comment line in
+// blocks that is not shared with code and is no directive.
+func commentLines(text string, blocks []Block, visit func(lineNo int, line string)) {
+	lines := strings.Split(text, "\n")
+	for _, b := range blocks {
+		for i, lineNo := range b.LineNos {
+			if i >= len(b.Pure) || !b.Pure[i] || lineNo < 0 || lineNo >= len(lines) || treecomments.IsDirective(lines[lineNo]) {
+				continue
+			}
+			visit(lineNo, lines[lineNo])
+		}
+	}
+}
+
+// phraseCuts answers an edit for each comment line that still holds a tombstone
+// phrase, cutting that phrase and nothing else. How many cuts each took.
+func phraseCuts(text string, blocks []Block) ([]edit.Edit, map[int]int) {
+	took := map[int]int{}
+	var edits []edit.Edit
+	commentLines(text, blocks, func(lineNo int, line string) {
+		short, n, ok := commentfix.RewriteLineProse(line, cutTombstones)
+		if !ok {
+			return
+		}
+		e := edit.Lines(text, lineNo, lineNo, 0, short)
+		edits = append(edits, e)
+		took[e.Start] = n
+	})
+	return edits, took
+}
+
+// phraseHits answers a hit on each comment line where a wording rule still finds
+// its phrase.
+func phraseHits(text string, blocks []Block) []Hit {
+	ids := AllIDs()
+	var hits []Hit
+	commentLines(text, blocks, func(lineNo int, line string) {
+		seen := set.New[string]()
+		for _, p := range english.Patterns() {
+			if !ids.Contains(p.ID) || seen.Contains(p.ID) || !english.AppliesTo(p.Where, english.Comment) {
+				continue
+			}
+			if _, n, ok := commentfix.RewriteLineProse(line, p.ApplyN); !ok || n == 0 {
+				continue
+			}
+			seen.Add(p.ID)
+			hits = append(hits, Hit{
+				ID:     p.ID,
+				Tell:   "a phrase about a state the code has left",
+				Phrase: strings.TrimSpace(line),
+				Line:   line,
+				LineNo: lineNo + 1,
+			})
+		}
+	})
+	return hits
+}
+
+// endsOnSentence reports whether the last line of block b that a cut keeps ends
+// a sentence.
+func endsOnSentence(lines []string, b Block, drop set.Set[int]) bool {
+	for i := len(b.LineNos) - 1; i >= 0; i-- {
+		no := b.LineNos[i]
+		if drop.Contains(no) || no < 0 || no >= len(lines) {
+			continue
+		}
+		text := strings.TrimRight(strings.TrimSpace(lines[no]), " */")
+		return strings.HasSuffix(text, ".") || strings.HasSuffix(text, "!") || strings.HasSuffix(text, "?")
+	}
+	return false
+}
+
+// capEdits answers an edit per block over maxLines. A block of comment lines
+// alone is cut at its thoughts. A block that shares a line with code loses its
+// last prose lines instead, because a line edit there would carry the code.
+func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
+	if maxLines <= 0 {
+		return nil
+	}
+	lines := strings.Split(text, "\n")
+	var edits []edit.Edit
+	for _, b := range blocks {
+		if b.Lines <= maxLines {
+			continue
+		}
+		if from, to, ok := pureSpan(b, len(lines)); ok {
+			kept := commentfix.CapLines(lines[from:to+1], maxLines)
+			edits = append(edits, edit.Lines(text, from, to, 0, kept))
+			continue
+		}
+		drop := set.New[int]()
+		over := b.Lines - maxLines
+		for i := len(b.LineNos) - 1; i >= 0 && over > 0; i-- {
+			no, pure := linePurity(b, i)
+			if pure && no >= 0 && no < len(lines) && !treecomments.IsDirective(lines[no]) {
+				drop.Add(no)
+				over--
+			}
+		}
+		// A line cut that does not land on a sentence end leaves a fragment, so
+		// the surviving line is trimmed back to one. The cap has to be
+		// reachable: dropping further lines would cost more than the fragment.
+		if !endsOnSentence(lines, b, drop) {
+			if lineNo, trimmed, ok := trimLastKeptLine(lines, b, drop); ok {
+				edits = append(edits, stripEdits(text, drop)...)
+				edits = append(edits, edit.Lines(text, lineNo, lineNo, 0, []string{trimmed}))
+				continue
+			}
+			// Lines go from the end until a kept line ends a sentence. A block with no such line keeps its prose.
+			for !endsOnSentence(lines, b, drop) && dropLastKept(lines, b, drop) {
+			}
+			if !endsOnSentence(lines, b, drop) {
+				continue
+			}
+		}
+		edits = append(edits, stripEdits(text, drop)...)
+	}
+	return edits
+}
+
+// cuttable reports whether the cap cut has an edit for the block whose first
+// line, counted from one, is lineNo. A block it cannot end on a sentence keeps
+// its prose, so no finding names it.
+func cuttable(text string, blocks []Block, maxLines, lineNo int) bool {
+	for _, b := range blocks {
+		if len(b.LineNos) > 0 && b.LineNos[0]+1 == lineNo {
+			return len(capEdits(text, []Block{b}, maxLines)) > 0
+		}
+	}
+	return false
+}
+
+// dropLastKept adds the last prose line a drop keeps to it, and reports false
+// when no prose line is left to drop.
+func dropLastKept(lines []string, b Block, drop set.Set[int]) bool {
+	for i := len(b.LineNos) - 1; i >= 0; i-- {
+		no, pure := linePurity(b, i)
+		if pure && no >= 0 && no < len(lines) && !drop.Contains(no) && !treecomments.IsDirective(lines[no]) {
+			drop.Add(no)
+			return true
+		}
+	}
+	return false
+}
+
+// trimLastKeptLine cuts the last line a drop keeps back to its last sentence end.
+// A volume cut lands on a sentence rather than a fragment. It reports false
+// when that line holds no sentence end to cut back to.
+func trimLastKeptLine(lines []string, b Block, drop set.Set[int]) (int, string, bool) {
+	for i := len(b.LineNos) - 1; i >= 0; i-- {
+		no, pure := linePurity(b, i)
+		if !pure || drop.Contains(no) || no < 0 || no >= len(lines) {
+			continue
+		}
+		if trimmed, ok := trimToSentenceEnd(lines[no]); ok {
+			return no, trimmed, true
+		}
+		return 0, "", false
+	}
+	return 0, "", false
+}
+
+// trimToSentenceEnd removes whatever follows the last sentence end on a line,
+// keeping a block closer when one follows it.
+func trimToSentenceEnd(line string) (string, bool) {
+	cut := strings.LastIndexAny(line, ".!?")
+	if cut < 0 {
+		return "", false
+	}
+	trimmed := line[:cut+1]
+	if rest := line[cut+1:]; strings.Contains(rest, "*/") {
+		trimmed += " */"
+	}
+	return trimmed, true
+}
+
+// cutLines quotes the dropped lines a strip edit covers.
+func cutLines(lines []string, drop set.Set[int], e edit.Edit, text string) []string {
+	var out []string
+	lineNo := strings.Count(text[:max(e.Start, 0)], "\n")
+	if e.Start > 0 && e.Start < len(text) && text[e.Start] == '\n' {
+		// A strip of the last line starts on the line end before it.
+		lineNo++
+	}
+	for ; lineNo < len(lines) && drop.Contains(lineNo); lineNo++ {
+		out = append(out, strings.TrimSpace(lines[lineNo]))
+	}
+	return out
 }

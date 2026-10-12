@@ -8,7 +8,7 @@ import (
 )
 
 // Rust spells an inner doc comment `//!`. Read as `//` it leaves a `!` at the head
-// of the prose, so the finding quotes a sentence the author never wrote and the
+// of the prose, so the finding quotes a sentence the author never wrote. The
 // repair emits `// !` with the collected marks welded onto the tail.
 const innerDoc = "//! An explanation that runs well past the declaration below it.\n" +
 	"//!\n" +

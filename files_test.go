@@ -31,13 +31,13 @@ func TestCheckFileSaysSoWhenTheFileIsMissing(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestFormatFileJoinsAWrappedParagraphInPlace(t *testing.T) {
+func TestFixFileJoinsAWrappedParagraphInPlace(t *testing.T) {
 	const wrapped = "The loader reads\nthe flag it names.\n"
 	path := write(t, "a.md", wrapped)
 
-	changed, err := slopfix.FormatFile(path)
+	repair, err := slopfix.FixFile(path)
 	require.NoError(t, err)
-	assert.True(t, changed)
+	assert.True(t, repair.Changed)
 
 	after, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -46,15 +46,15 @@ func TestFormatFileJoinsAWrappedParagraphInPlace(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(string(after), "\n"))
 }
 
-func TestFormatFileLeavesAFormattedDocumentAlone(t *testing.T) {
+func TestFixFileLeavesAFormattedDocumentAlone(t *testing.T) {
 	path := write(t, "a.md", "The loader reads the flag it names.\n")
 
-	changed, err := slopfix.FormatFile(path)
+	repair, err := slopfix.FixFile(path)
 	require.NoError(t, err)
-	assert.False(t, changed)
+	assert.False(t, repair.Changed)
 }
 
-func TestFormatFileSaysSoWhenTheFileIsMissing(t *testing.T) {
-	_, err := slopfix.FormatFile(filepath.Join(t.TempDir(), "absent.md"))
+func TestFixFileSaysSoWhenTheFileIsMissing(t *testing.T) {
+	_, err := slopfix.FixFile(filepath.Join(t.TempDir(), "absent.md"))
 	assert.Error(t, err)
 }

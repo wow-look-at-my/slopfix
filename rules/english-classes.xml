@@ -84,11 +84,28 @@
   <!-- A noun is what no closed class claims and no ending marks as a verb. It
        is the open class, less the verb forms, so a term can ask for a noun
        without asking a parser. -->
-  <class name="noun" open="true" except="verbform irregular"/>
+  <class name="noun" open="true" except="verbform irregular number"/>
+
+  <!-- A word that ends like a plural. A tally governs a plural noun, and a verb
+       after a plural subject carries no "s": "the three shapes" is a tally,
+       "the three agree" is a subject and its verb. -->
+  <class name="plural" suffix="s"/>
 
   <!-- The cardinals the rule is about. A shape names the word it governs, so
        this class is what a shape reads to find any of them at once. -->
-  <class name="cardinal" words="zero one two three four five six seven eight
+  <class name="cardinal" words="two three four five six seven eight
     nine ten eleven twelve dozen hundred thousand million"/>
+
+  <!-- Any number, in digits or in words. A shape that must not care how the
+       author spelled it names this class. -->
+  <class name="number" digits="true" words="two three four five six seven
+    eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen
+    eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety
+    dozen hundred thousand million"/>
+
+  <!-- A word that qualifies the number after it. It says nothing once the
+       number goes, so a repair that drops the number drops this word too. -->
+  <class name="approximation" words="about roughly around approximately
+    nearly almost only just exactly precisely"/>
 
 </rules>

@@ -1,8 +1,9 @@
 // Package table is the prose tables in rules/, as the binary holds them.
 //
 // The folder is embedded and read at start-up: Load hands back what a single
-// `for` value adds up to, with every pattern compiled and every word class
-// indexed. This package holds the entry types and the matchers that run them.
+// `for` value adds up to, with every pattern. That pattern is compiled and
+// every word class indexed. This package holds the entry types and the
+// matchers that run them.
 package table
 
 import (
@@ -15,6 +16,15 @@ import (
 type Test struct {
 	In  string
 	Out string
+}
+
+// A Detect states what a single substrate reports for a line. An empty Found
+// says it reports nothing.
+type Detect struct {
+	In        string
+	Substrate string
+	Why       string
+	Found     []string
 }
 
 // Drop is a word that survives its own deletion.
@@ -66,6 +76,12 @@ type Table struct {
 	// Tests are the worked examples the folder states for the consumer rather than for a single entry: a line of prose,
 	Tests []Test
 
+	// Detects are what each substrate reports, for the reader rather than the repair.
+	Detects []Detect
+
+	// Lists are the <list> items by list name, in file order.
+	Lists map[string][]string
+
 	once    sync.Once
 	lexicon *Lexicon
 }
@@ -86,6 +102,15 @@ func (t *Table) WordsOf(class string) []string {
 		}
 	}
 	return nil
+}
+
+// List answers a named list's items. It panics on a missing name, because an empty list reads as clean.
+func (t *Table) List(name string) []string {
+	items, ok := t.Lists[name]
+	if !ok {
+		panic("table: rules/ defines no list " + name)
+	}
+	return items
 }
 
 // AppliesTo reports whether an entry's where= covers a surface, and an empty

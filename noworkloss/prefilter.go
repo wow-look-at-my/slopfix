@@ -16,7 +16,7 @@ func mayDestroy(command string) bool {
 // A script's own text is invisible to a raw scan, so the spellings that START
 // a script parse too.
 var prefilterNeedles = []string{
-	"git", "rm", "mv", ">", "tee", "truncate",
+	"git", "rm", "mv", ">", "tee", "truncate", "ln ",
 	"bash", "sh ", "zsh", "source", ".sh",
 }
 

@@ -1,20 +1,18 @@
 // treeblocks.go pairs a comment with the construct it documents, from a real
 // syntax tree.
 //
-// It replaced a line walk that guessed where a declaration ended, and a Go-only
-// path built on go/ast beside it. The walk could not be repaired from, because
-// a span wrong by a line deletes the wrong prose, so the fix ran for Go alone.
-// A tree gives every language an exact span, so the fix runs everywhere.
+// The walk could not be repaired from, because a span wrong by a line deletes
+// the wrong prose, so the fix ran for Go alone. A tree gives every language
+// an exact span, so the fix runs everywhere.
 //
 // Nothing here names a language. A comment is a node whose type carries
-// "comment", which is how every grammar spells it, and the documented construct
-// is the next named sibling. Both facts come from the tree.
+// "comment", which is how every grammar spells it, and the documented
+// construct is the next named sibling. Both facts come from the tree.
 package commentfix
 
 import (
 	"strings"
 
-	"github.com/wow-look-at-my/go-containers/set"
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 	"github.com/wow-look-at-my/slopfix/code"
 )
@@ -33,20 +31,28 @@ func treeBlocks(language *ts.Language, src string) (out []block, ok bool) {
 	}
 
 	lines := splitLines(src)
-	collect(root, true, src, lines, commentRows(root), &out)
+	collect(root, true, src, lines, commentColumns(root), &out)
 	sortBlocks(out)
 	return out, true
 }
 
-// commentRows names every line a comment node covers. A measure of code skips
-// those rows, so what a comment is weighed against is code the tree calls code.
-func commentRows(root ts.Node) set.Set[int] {
-	rows := set.New[int]()
+// commentColumns maps every line a comment node covers to the column the comment
+// starts at there. A measure of code stops at that column, so what a comment
+// is weighed against is code the tree calls code.
+func commentColumns(root ts.Node) map[int]int {
+	cols := map[int]int{}
 	var walk func(node ts.Node)
 	walk = func(node ts.Node) {
 		if code.IsComment(node) {
-			for row := int(node.StartPoint().Row); row <= int(node.EndPoint().Row); row++ {
-				rows.Add(row)
+			first := int(node.StartPoint().Row)
+			for line := first; line <= int(lastLine(node)); line++ {
+				col := 0
+				if line == first {
+					col = int(node.StartPoint().Column)
+				}
+				if have, ok := cols[line]; !ok || col < have {
+					cols[line] = col
+				}
 			}
 			return
 		}
@@ -56,32 +62,38 @@ func commentRows(root ts.Node) set.Set[int] {
 		}
 	}
 	walk(root)
-	return rows
+	return cols
 }
 
 // collect walks a node's children, gathering each run of comments with the
 // construct that follows it, then recurses. A comment inside a function body
 // is found the same way as a comment above a declaration.
-func collect(node ts.Node, root bool, src string, lines []string, rows set.Set[int], out *[]block) {
+func collect(node ts.Node, root bool, src string, lines []string, commentCols map[int]int, out *[]block) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
 		child := node.NamedChild(i)
+		if code.IsInterpreter(child, src) {
+			continue
+		}
+		// A comment after code on its line documents that code, so it opens no run.
+		if code.IsComment(child) && int(child.StartPoint().Column) > indentWidth(lines[child.StartPoint().Row]) {
+			continue
+		}
 		if code.IsComment(child) {
 			run, stop := commentRun(node, i, count)
 			next := afterComments(node, stop, count)
-			header := root && i == 0 && documentsThePackage(node, next, count)
+			header := root && documentsThePackage(node, next, count)
 			i = stop - 1
-			// A comment above the package declaration introduces the package
-			// rather than a construct, so there is nothing of a comparable size
-			if header || documentsTheCgoImport(node, src, next, count) {
+			if documentsTheCgoImport(node, src, next, count) {
 				continue
 			}
-			if b, ok := blockFor(run, node, next, count, lines, rows); ok {
+			if b, ok := blockFor(run, node, next, count, lines, commentCols); ok {
+				b.header = header
 				*out = append(*out, b)
 			}
 			continue
 		}
-		collect(child, false, src, lines, rows, out)
+		collect(child, false, src, lines, commentCols, out)
 	}
 }
 
@@ -95,8 +107,7 @@ func commentRun(node ts.Node, i, count uint32) ([]ts.Node, uint32) {
 		if !code.IsComment(next) {
 			break
 		}
-		last := run[len(run)-1]
-		if next.StartPoint().Row > last.EndPoint().Row+1 {
+		if next.StartPoint().Row > lastLine(run[len(run)-1])+1 {
 			break
 		}
 		run = append(run, next)
@@ -105,9 +116,9 @@ func commentRun(node ts.Node, i, count uint32) ([]ts.Node, uint32) {
 }
 
 // blockFor measures a comment run against the construct it documents.
-func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string, rows set.Set[int]) (block, bool) {
+func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string, commentCols map[int]int) (block, bool) {
 	start := int(run[0].StartPoint().Row)
-	end := int(run[len(run)-1].EndPoint().Row) + 1
+	end := int(lastLine(run[len(run)-1])) + 1
 	if start < 0 || end > len(lines) || start >= end {
 		return block{}, false
 	}
@@ -116,29 +127,109 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 	if int(run[0].StartPoint().Column) > indentWidth(lines[start]) {
 		return block{}, false
 	}
+	// A comment that leads code on its own line is a note on that code, as a trailing comment is.
+	lastNode := run[len(run)-1]
+	if endLine := int(lastNode.EndPoint().Row); endLine < len(lines) && endLine == int(lastNode.StartPoint().Row) {
+		after := lines[endLine][min(int(lastNode.EndPoint().Column), len(lines[endLine])):]
+		if strings.TrimSpace(after) != "" {
+			return block{}, false
+		}
+	}
+	// A grammar can end a comment node on the construct it documents.
+	closes := strings.HasPrefix(lines[lastNode.StartPoint().Row][min(int(lastNode.StartPoint().Column), len(lines[lastNode.StartPoint().Row])):], "/*")
+	for !closes && end > start && !opensWithMarker(lines[end-1]) {
+		end--
+	}
+	if start >= end {
+		return block{}, false
+	}
 	b := block{start: start, end: end, text: lines[start:end], exact: true}
 	// Nothing after it.
 	if next >= count {
 		b.codeLines, b.codeChars = measure(directivesOf(b.text))
 		return b, true
 	}
-	b.codeLines, b.codeChars = nodeSpan(firstStatement(parent.NamedChild(next)), lines, rows)
+	b.codeLines, b.codeChars = paragraphSpan(parent, pastAttributes(parent, next, count), lines, commentCols)
 	return b, true
+}
+
+// pastAttributes answers the sibling an attribute run at next decorates. The
+// comment above the attributes documents that item, not the attribute line.
+func pastAttributes(parent ts.Node, next, count uint32) uint32 {
+	at := next
+	for at+1 < count && strings.Contains(parent.NamedChild(at).Type(), "attribute") {
+		at++
+	}
+	if code.IsComment(parent.NamedChild(at)) {
+		return next
+	}
+	return at
+}
+
+// paragraphSpan measures the code a comment heads. The construct after it is
+// the first part. Each sibling that follows on the next line joins it, up to a
+// blank line or a comment on its own line.
+//
+// Only a comment at the top of a file heads a paragraph of declarations. A
+// comment inside a function body heads the statement under it. The statements
+// around it run on for reasons the comment does not describe.
+func paragraphSpan(parent ts.Node, next uint32, lines []string, commentCols map[int]int) (int, int) {
+	top := parent.Parent().IsNull()
+	node := parent.NamedChild(next)
+	for !node.IsNull() && isSequence(node) {
+		parent, next, node = node, 0, node.NamedChild(0)
+	}
+	codeLines, codeChars := nodeSpan(node, lines, commentCols)
+	if node.IsNull() || !top {
+		return codeLines, codeChars
+	}
+	end := node.EndPoint().Row
+	for i := next + 1; i < parent.NamedChildCount(); i++ {
+		sibling := parent.NamedChild(i)
+		start := sibling.StartPoint().Row
+		// A sibling on a line already measured adds nothing, and a trailing comment belongs to its code.
+		if start <= end {
+			end = max(end, sibling.EndPoint().Row)
+			continue
+		}
+		if start != end+1 || code.IsComment(sibling) {
+			break
+		}
+		l, c := nodeSpan(sibling, lines, commentCols)
+		codeLines += l
+		codeChars += c
+		end = sibling.EndPoint().Row
+	}
+	return codeLines, codeChars
+}
+
+// lastLine is the last line a comment's text sits on. A Rust line comment ends at the start of the next line.
+func lastLine(n ts.Node) uint32 {
+	end := n.EndPoint()
+	if end.Column == 0 && end.Row > n.StartPoint().Row {
+		return end.Row - 1
+	}
+	return end.Row
+}
+
+// opensWithMarker reports a line that starts with a comment marker, which bounds a span a grammar ran past its comment.
+func opensWithMarker(line string) bool {
+	t := strings.TrimSpace(line)
+	if t == "" {
+		return false
+	}
+	for _, m := range []string{"///", "//!", "//", "/*", "*/", "*", "#"} {
+		if strings.HasPrefix(t, m) {
+			return true
+		}
+	}
+	return false
 }
 
 // indentWidth is how many bytes of blank open a line, which is the column a
 // comment sits at when nothing precedes it.
 func indentWidth(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
-}
-
-// firstStatement descends through a bare sequence to the construct a comment
-// documents.
-func firstStatement(node ts.Node) ts.Node {
-	for !node.IsNull() && isSequence(node) {
-		node = node.NamedChild(0)
-	}
-	return node
 }
 
 func isSequence(node ts.Node) bool {
@@ -151,11 +242,15 @@ func isSequence(node ts.Node) bool {
 	}
 	seen := node.NamedChild(0).StartPoint().Row
 	for i := uint32(1); i < count; i++ {
-		row := node.NamedChild(i).StartPoint().Row
-		if row <= seen {
+		// A trailing comment shares its statement's line and orders nothing.
+		if code.IsComment(node.NamedChild(i)) {
+			continue
+		}
+		line := node.NamedChild(i).StartPoint().Row
+		if line <= seen {
 			return false
 		}
-		seen = row
+		seen = line
 	}
 	return true
 }
@@ -198,7 +293,7 @@ func documentsTheCgoImport(node ts.Node, src string, next, count uint32) bool {
 // The span follows the node however far it runs. A cap here reported a long
 // function's proportionate comment as an essay, because the code it was weighed
 // against stopped short.
-func nodeSpan(node ts.Node, lines []string, rows set.Set[int]) (int, int) {
+func nodeSpan(node ts.Node, lines []string, commentCols map[int]int) (int, int) {
 	if node.IsNull() {
 		return 0, 0
 	}
@@ -211,11 +306,16 @@ func nodeSpan(node ts.Node, lines []string, rows set.Set[int]) (int, int) {
 		to = len(lines)
 	}
 	body := make([]string, 0, to-from)
-	for row := from; row < to; row++ {
-		if strings.TrimSpace(lines[row]) == "" || rows.Contains(row) {
+	for lineNo := from; lineNo < to; lineNo++ {
+		line := lines[lineNo]
+		// A trailing comment is cut off, so the code before it still counts.
+		if col, ok := commentCols[lineNo]; ok {
+			line = line[:min(col, len(line))]
+		}
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		body = append(body, lines[row])
+		body = append(body, line)
 	}
 	// The same measure the comment gets, so both counts compare directly.
 	return measure(body)

@@ -1,9 +1,9 @@
-// Package english is the prose table every rule reads: the words a repair
+// Package english is the prose table every rule reads. The words a repair
 // drops, the phrasings it swaps, the shapes it rewrites, and the phrases it
 // refuses to touch.
 //
-// The table is XML rather than Go, the same way autoallow carries its rules, so
-// adding a rule is a single-line edit somebody can make without reading Go.
+// The table is XML rather than Go, the same way autoallow carries its rules.
+// Adding a rule is a single-line edit somebody can make without reading Go.
 package english
 
 import (
@@ -13,7 +13,10 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
+	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
@@ -26,12 +29,13 @@ type Table struct {
 	Drops    []Drop    `xml:"drop"`
 	Rewrites []Rewrite `xml:"rewrite"`
 	Patterns []Pattern `xml:"pattern"`
+	Shapes   []Shape   `xml:"shape"`
 	Flags    []Flag    `xml:"flag"`
 	Whole    []Case    `xml:"test"`
 }
 
 // Class is a set of words that fill the same slot, stated in a single
-// attribute and read as the lexicon a shape asks about each word.
+// attribute. A shape reads it as the lexicon to ask about each word.
 type Class struct {
 	Name   string `xml:"name,attr"`
 	Words  string `xml:"words,attr"`
@@ -40,11 +44,12 @@ type Class struct {
 	Except string `xml:"except,attr"`
 }
 
-// classes indexes the declared word classes.
+// classes indexes the declared word classes, and the indefinite pronouns rules/syntax.xml lists.
 var classes = table.NewLexicon(lexicalClasses(loaded.Classes))
 
 func lexicalClasses(declared []Class) []table.Class {
-	out := make([]table.Class, 0, len(declared))
+	out := make([]table.Class, 0, len(declared)+1)
+	out = append(out, table.Class{Name: "indefinite", Words: syntax.WordsOf("indefinite")})
 	for _, c := range declared {
 		out = append(out, table.Class{
 			Name:   c.Name,
@@ -139,22 +144,125 @@ func (p Pattern) Apply(s string) string {
 // the shape, and the sentence around them says they report the data rather than
 // the tree.
 func (p Pattern) ApplyN(s string) (string, int) {
-	if p.Subject == "" {
-		return p.re.ReplaceAllString(s, p.Replace), len(p.re.FindAllString(s, -1))
-	}
 	var out strings.Builder
 	last, took := 0, 0
+	labels := linkLabel.FindAllStringIndex(s, -1)
+	quotes := quotation.FindAllStringIndex(s, -1)
+	spans := codeSpan.FindAllStringIndex(s, -1)
 	for _, loc := range p.re.FindAllStringIndex(s, -1) {
-		if !asserts(p.Subject, s, loc[0]) {
+		if p.Subject != "" && !asserts(p.Subject, s, loc[0]) {
 			continue
 		}
-		out.WriteString(s[last:loc[0]])
-		out.WriteString(p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace))
-		last = loc[1]
+		if insideAny(labels, loc[0], loc[1]) || insideAny(quotes, loc[0], loc[1]) || insideAny(spans, loc[0], loc[1]) || splitsCompound(s, loc[0], loc[1]) {
+			continue
+		}
+		with := keepCapital(s[loc[0]:loc[1]], p.re.ReplaceAllString(s[loc[0]:loc[1]], p.Replace))
+		if !keepsNegation(s, loc[0], loc[1], with) || strandsOpener(s, loc[0], loc[1], with) {
+			continue
+		}
+		from, to := loc[0], loc[1]
+		if strings.TrimSpace(with) == "" {
+			// A cut: the parse says which punctuation attaches the phrase.
+			var ok bool
+			if from, to, ok = cutSpan(s, loc[0], loc[1]); !ok {
+				continue
+			}
+			if from, to, with = join(s, from, to); from < last {
+				continue
+			}
+		}
+		out.WriteString(s[last:from])
+		out.WriteString(with)
+		last = to
 		took++
 	}
 	out.WriteString(s[last:])
 	return out.String(), took
+}
+
+// splitsCompound reports whether s[from:to] ends or starts at the hyphen of a compound word. The regexp \b sees a word end there, but the reader sees one word.
+func splitsCompound(s string, from, to int) bool {
+	if to > from && to < len(s) && s[to] == '-' && isWordByte(s[to-1]) {
+		return true
+	}
+	return from > 0 && from < to && s[from-1] == '-' && isWordByte(s[from])
+}
+
+// keepCapital gives the replacement the capital that the cut text opened with. A template such as "the $1" otherwise writes a sentence in lower case.
+func keepCapital(cut, with string) string {
+	c := strings.IndexFunc(cut, unicode.IsLetter)
+	w := strings.IndexFunc(with, unicode.IsLetter)
+	if c < 0 || w < 0 {
+		return with
+	}
+	upper, _ := utf8.DecodeRuneInString(cut[c:])
+	lower, size := utf8.DecodeRuneInString(with[w:])
+	if !unicode.IsUpper(upper) || unicode.ToUpper(lower) != upper || lower == upper {
+		return with
+	}
+	return with[:w] + string(upper) + with[w+size:]
+}
+
+// linkLabel finds the label of a markdown link. The label names its target, so a cut there leaves a link with no text.
+var linkLabel = regexp.MustCompile(`\[[^\[\]]*\]\(`)
+
+// quotation finds a quoted phrase. A quotation names its words rather than uses them, so a cut there changes what it names.
+var quotation = regexp.MustCompile(`"[^"\n]*"|“[^”\n]*”`)
+
+// codeSpan finds an inline code span. A span is a command or a name, so a word cut there breaks it. A comment can wrap a span over one line break.
+var codeSpan = regexp.MustCompile("`[^`\\n]*(?:\\n[^`\\n]*)?`")
+
+// strandsOpener reports whether a cut to the end of the sentence leaves the sentence on an article, a relative or a conjunction. Each opens words the cut took away.
+func strandsOpener(s string, from, to int, with string) bool {
+	if strings.TrimSpace(with) != "" {
+		return false
+	}
+	rest := s[to:]
+	if end := strings.IndexAny(rest, ".!?"); end >= 0 {
+		rest = rest[:end]
+	}
+	if strings.IndexFunc(rest, unicode.IsLetter) >= 0 {
+		return false
+	}
+	words := strings.Fields(s[:from])
+	if len(words) == 0 {
+		return false
+	}
+	last := words[len(words)-1]
+	return is(last, "article") || is(last, "relative") || is(last, "conjunction")
+}
+
+// insideAny reports whether from..to overlaps any of the spans.
+func insideAny(spans [][]int, from, to int) bool {
+	for _, sp := range spans {
+		if from < sp[1] && to > sp[0] {
+			return true
+		}
+	}
+	return false
+}
+
+// negation finds a word that turns a clause into its opposite.
+var negation = regexp.MustCompile(`(?i)\b(?:no longer|not|no|never|none|cannot|nobody|nothing|neither|nor|without)\b|n't\b`)
+
+// keepsNegation reports whether the rewrite of s[from:to] to with keeps what
+// each negation says. A cut can take a negation only with all the words it
+// negates, up to the end of the sentence.
+func keepsNegation(s string, from, to int, with string) bool {
+	cut := s[from:to]
+	found := negation.FindAllStringIndex(cut, -1)
+	if len(found) <= len(negation.FindAllString(with, -1)) {
+		return true
+	}
+	rest := s[to:]
+	if end := strings.IndexAny(rest, ".!?"); end >= 0 {
+		rest = rest[:end]
+	}
+	if strings.IndexFunc(rest, unicode.IsLetter) >= 0 {
+		return false
+	}
+	final := found[len(found)-1]
+	return strings.IndexFunc(cut[final[1]:], unicode.IsLetter) >= 0
 }
 
 // PatternIDs names every rule the table carries, in the order it carries them.
@@ -167,6 +275,36 @@ func PatternIDs() []string {
 	}
 	return out
 }
+
+// Shape is a rewrite over word classes, in table's match language, for a word that is filler only in some slots.
+type Shape struct {
+	Match   string `xml:"match,attr"`
+	Replace string `xml:"replace,attr"`
+	Where   string `xml:"where,attr"`
+	Test    string `xml:"test,attr"`
+	Expect  string `xml:"expect,attr"`
+	ID      string `xml:"id,attr"`
+	Cases   []Case `xml:"test"`
+
+	terms table.Match
+}
+
+// Tests is every worked example a shape declares.
+func (s Shape) Tests() []Case { return cases(s.Test, s.Expect, s.Cases) }
+
+// ApplyN rewrites every place the shape fits in a single pass. The count is
+// whether it changed anything, as the scan does not number its matches.
+func (s Shape) ApplyN(text string) (string, int) {
+	entry := []table.Rephrase{{ID: s.ID, Match: s.Match, Terms: s.terms, To: s.Replace}}
+	next := table.Rephrasings(classes, nil, entry, text)
+	if next == text {
+		return text, 0
+	}
+	return next, 1
+}
+
+// Shapes is every class-aware rewrite the table carries.
+func Shapes() []Shape { return loaded.Shapes }
 
 // Drops is every word a repair deletes.
 func Drops() []Drop { return loaded.Drops }
@@ -195,7 +333,7 @@ type Rewrite struct {
 
 // AppliesTo says whether an entry covers a surface.
 func AppliesTo(where, surface string) bool {
-	return where == "" || where == "both" || where == surface
+	return where == "" || where == "both" || slices.Contains(strings.Fields(where), surface)
 }
 
 // loaded is the parsed table.
@@ -223,6 +361,17 @@ func mustLoad() Table {
 		if f.Phrase == "" || f.Say == "" || len(f.Tests()) == 0 {
 			panic("english: a <flag> is missing phrase, say or test")
 		}
+	}
+	for i := range e.Shapes {
+		s := &e.Shapes[i]
+		if s.Match == "" || len(s.Tests()) == 0 {
+			panic("english: a <shape> is missing match or test")
+		}
+		terms, err := table.ParseMatch(s.Match)
+		if err != nil {
+			panic(fmt.Sprintf("english: <shape match=%q> does not parse: %v", s.Match, err))
+		}
+		s.terms = terms
 	}
 	for i := range e.Patterns {
 		p := &e.Patterns[i]

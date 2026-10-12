@@ -27,6 +27,9 @@ func TestEverySentenceTestHolds(t *testing.T) {
 				return
 			}
 			assert.Equal(t, c.Out, got)
+			for _, f := range ste.Check(got, 1) {
+				assert.NotEqual(t, ste.IDSentenceCap, f.ID, "every sentence comes out under the cap: %s", f.Detail)
+			}
 		})
 	}
 }

@@ -3,7 +3,7 @@
 //
 // A rewrite carries updatedInput and nothing else. It sets no
 // permissionDecision, so the normal permission flow still judges the rewritten
-// command, and it says nothing to the model: a visible hook message lets the
+// command, and it says nothing to the model. A visible hook message lets the
 // model blame the hook for its own command mistakes.
 package bashclean
 
@@ -20,6 +20,7 @@ type Input struct {
 	HookEventName string          `json:"hook_event_name"`
 	ToolName      string          `json:"tool_name"`
 	ToolInput     json.RawMessage `json:"tool_input"`
+	Cwd           string          `json:"cwd"`
 }
 
 type HookResult struct {
@@ -54,7 +55,7 @@ func Run(r io.Reader) HookResult {
 		return HookResult{}
 	}
 
-	res := Transform(command)
+	res := TransformIn(command, in.Cwd)
 	switch {
 	case res.Denied:
 		logLine("DENY\toriginal=%q\treason=%q\n", command, res.Reason)
@@ -89,12 +90,10 @@ func denyReason(rule string) string {
 	switch rule {
 	case "perl":
 		return "perl is banned in this environment."
-	case "file_read":
-		return "Reading files with cat/head/tail, or with sed -n selecting lines, is banned in this environment. Use the Read tool instead: its offset and limit parameters read part of a file, which is what head/tail/sed -n were reached for. Only /proc, /sys, and /dev pseudo-files are exempt."
 	case "shred":
 		return "shred/srm destroy data unrecoverably by design and are banned in this environment. There is no safe equivalent; if the file must go, use recycler trash <path> and it can be restored."
 	case "git_rm":
-		return "git rm deletes the working-tree file and is banned in this environment. Use recycler trash <path> && git add -A instead. (git rm --cached only unstages and is allowed.)"
+		return "git rm --pathspec-from-file hides which files it deletes, so it cannot be rewritten to recycler trash. Name the paths: git rm <path>... is rewritten to git rm --cached plus recycler trash."
 	case "truncate_zero":
 		return "truncate -s 0 empties a file in place, destroying its contents unrecoverably. Use recycler trash <path> instead, which moves it to the recycle bin."
 	case "rm_flag":

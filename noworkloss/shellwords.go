@@ -1,6 +1,7 @@
 package noworkloss
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,6 +33,28 @@ func stripWrappers(argv []word) []word {
 }
 
 func isShell(name string) bool { return shellwalk.IsShell(name) }
+
+// apeMagics open an Actually Portable Executable.
+var apeMagics = []string{"MZqFpD='", "jartsr='", "APEDBG='"}
+
+// isAPE reports whether path holds an APE binary.
+func isAPE(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	buf := make([]byte, len(apeMagics[0]))
+	if _, err := io.ReadFull(f, buf); err != nil {
+		return false
+	}
+	for _, magic := range apeMagics {
+		if string(buf) == magic {
+			return true
+		}
+	}
+	return false
+}
 
 func hasShellShebang(path string) bool {
 	if path == "" {

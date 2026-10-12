@@ -1,11 +1,13 @@
 package linkrefs
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,9 +43,9 @@ func newRepo(t *testing.T) (dir string, head string) {
 	git(dir, "add", "f.txt")
 	git(dir, "commit", "-m", "one")
 
-	// A hash prefix sometimes carries no a-f letter, and the detector reads a
-	// token as a SHA only when it has a digit and such a letter. Amending until
-	// it qualifies makes the fixture state the property.
+	// A hash prefix sometimes carries no a-f letter. The detector reads a token
+	// as a SHA only when it has a digit and such a letter. Amending until it
+	// qualifies makes the fixture state the property.
 	for i := 0; !shaLike(shortHead(t, dir)); i++ {
 		require.Less(t, i, 200, "no commit hash with a digit and an a-f letter in 200 amends")
 		git(dir, "commit", "--amend", "-m", fmt.Sprintf("one %d", i))
@@ -135,7 +137,7 @@ func TestAnswersAreMemoized(t *testing.T) {
 }
 
 // A directory that is not a checkout answers "no" rather than failing, so the
-// original text renders.
+// text renders.
 func TestOutsideACheckoutNothingResolves(t *testing.T) {
 	res := &GitResolver{Dir: t.TempDir()}
 	_, ok := res.Repo()
@@ -189,7 +191,7 @@ func TestAPullStateIsMemoized(t *testing.T) {
 }
 
 // End to end through the real resolver: a merged pull request comes back with
-// the words bare and the dot linked, an open pull request with the words linked.
+// the words bare. The dot linked, an open pull request with the words linked.
 func TestARealResolverMovesTheLinkOnAMergedPullRequest(t *testing.T) {
 	dir, _ := newRepo(t)
 	res := &GitResolver{Dir: dir}
@@ -229,6 +231,62 @@ func TestClassifyReadsWhatGHReports(t *testing.T) {
 			assert.Equal(t, tc.want, classify(tc.view))
 		})
 	}
+}
+
+// The checks come from `gh wait-ci checks --json`. The fixture is a real report's shape.
+func TestChecksReportReadsStatusesAndRuns(t *testing.T) {
+	var r checksReport
+	require.NoError(t, json.Unmarshal([]byte(`{"statuses":[{"state":"failure","context":"all-builds"}],
+		"check_runs":[{"status":"completed","conclusion":"skipped"},{"status":"in_progress","conclusion":""},
+		{"status":"completed","conclusion":"success"}]}`), &r))
+	assert.Equal(t, []string{"FAILURE", "SKIPPED", "PENDING", "SUCCESS"}, r.words())
+	assert.Equal(t, StateFailing, classify(pullView{State: "OPEN", Checks: r.words()}))
+}
+
+// Without the checks, mergeStateStatus still says red, green or not yet.
+func TestMergeStateStandsInForTheChecks(t *testing.T) {
+	at := func(ms string) PullState {
+		return classify(pullView{State: "OPEN", MergeState: ms, Checks: mergeStateChecks(ms)})
+	}
+	assert.Equal(t, StateMergeable, at("CLEAN"))
+	assert.Equal(t, StateFailing, at("UNSTABLE"))
+	assert.Equal(t, StateConflicted, at("DIRTY"))
+	assert.Equal(t, StatePending, at("BLOCKED"))
+	assert.Equal(t, StatePending, at("UNKNOWN"))
+}
+
+// The disk cache spares each later flush the slow lookup. An unknown is never kept,
+// an open state expires, and a finished one does not.
+func TestThePullStateCacheKeepsOnlyAnswers(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+
+	writeCachedPull("o/r#1", StateUnknown)
+	_, ok := readCachedPull("o/r#1")
+	assert.False(t, ok, "an unknown must not be cached")
+
+	writeCachedPull("o/r#2", StateFailing)
+	s, ok := readCachedPull("o/r#2")
+	require.True(t, ok)
+	assert.Equal(t, StateFailing, s)
+
+	old := time.Now().Add(-2 * cacheTTL)
+	require.NoError(t, os.Chtimes(cachePath("o/r#2"), old, old))
+	_, ok = readCachedPull("o/r#2")
+	assert.False(t, ok, "an open state older than the TTL must be asked again")
+
+	writeCachedPull("o/r#3", StateMerged)
+	require.NoError(t, os.Chtimes(cachePath("o/r#3"), old, old))
+	s, ok = readCachedPull("o/r#3")
+	require.True(t, ok, "a merged pull request does not change")
+	assert.Equal(t, StateMerged, s)
+}
+
+// Prefetch fills the memo, so the rewrite that follows asks nothing more.
+func TestPrefetchSkipsWhatIsMemoized(t *testing.T) {
+	res := &GitResolver{Dir: t.TempDir()}
+	res.prSeen = map[string]PullState{"o/r#1": StatePending}
+	res.Prefetch([]PullRef{{Repo{Owner: "o", Name: "r"}, "1"}, {Repo{}, "2"}})
+	assert.Equal(t, map[string]PullState{"o/r#1": StatePending}, res.prSeen)
 }
 
 // A skipped job correctly did not need to run. Colouring it red would make

@@ -18,17 +18,19 @@ const reported = `package p
 func walk() {}
 `
 
-// The hook repairs a write and lets it through. Nothing it judges is grounds
-// for refusing the write, so a comment reworded by hand is ordinary work.
-func TestNoWriteIsEverRefused(t *testing.T) {
+// The hook repairs a write and lets it through. A line `slopfix fix` repairs
+// is written as the fix writes it, never as the hand wrote it.
+func TestAHandFixIsRewrittenNotRefused(t *testing.T) {
 	path := onDisk(t, "a.go", reported)
 	for _, c := range []struct {
 		name, old, new string
+		rewritten      bool
 	}{
 		{
-			name: "a comment reworded by hand in a reported file",
-			old:  "// The walk has 3 phases.",
-			new:  "// The walk runs in phases.",
+			name:      "a comment reworded by hand in a reported file",
+			old:       "// The walk has 3 phases.",
+			new:       "// The walk runs in phases.",
+			rewritten: true,
 		},
 		{
 			name: "a comment the author writes afresh",
@@ -36,15 +38,20 @@ func TestNoWriteIsEverRefused(t *testing.T) {
 			new:  "// walk reaches every node.\nfunc walk() {}",
 		},
 		{
-			name: "an edit that moves the code under the comment",
-			old:  "// The walk has 3 phases.\nfunc walk() {}",
-			new:  "// The walk runs in phases.\nfunc walk() error { return nil }",
+			name:      "an edit that moves the code under the comment",
+			old:       "// The walk has 3 phases.\nfunc walk() {}",
+			new:       "// The walk runs in phases.\nfunc walk() error { return nil }",
+			rewritten: true,
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			out := drive(t, editPayload(t, path, c.old, c.new))
 			assert.NotContains(t, out, "permissionDecision")
 			assert.NotContains(t, out, "blocked")
+			if c.rewritten {
+				assert.Contains(t, out, `"updatedInput"`)
+				assert.Contains(t, out, path+":3: [")
+			}
 		})
 	}
 }

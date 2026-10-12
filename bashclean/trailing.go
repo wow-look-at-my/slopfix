@@ -3,7 +3,7 @@
 // A limiting pipe, a stdout redirect or a swallowed exit status mid-script is a
 // deliberate part of a longer script and is preserved. The same shape on the
 // last top-level statement is what truncates the answer the reader was about to
-// get, so it is stripped there and nowhere else.
+// get. It is stripped there and nowhere else.
 //
 // The anchor is the last top-level statement, descending the right branch of
 // its && / || chain, which is a leaf under left association.
@@ -48,11 +48,6 @@ func promoteInto(outer, inner *syntax.Stmt) {
 	outer.Coprocess = outer.Coprocess || inner.Coprocess
 	outer.Cmd = inner.Cmd
 	outer.Redirs = redirs
-}
-
-func isHeadTailStage(c *syntax.CallExpr) bool {
-	n := cmd(c)
-	return n == "head" || n == "tail" || callIsSedSuppressing(c)
 }
 
 func isGrepStage(c *syntax.CallExpr) bool { return cmd(c) == "grep" }
@@ -209,11 +204,10 @@ func leftmost(s *syntax.Stmt) *syntax.Stmt {
 	}
 }
 
-// ensurePipefail keeps the producer's exit status observable through the pipe
-// the tee rewrite introduces. A strictness setting the caller wrote is never
-// removed.
+// ensurePipefail keeps a producer's exit status observable through a pipe. A
+// command with no pipe stays one command, so a permission rule still matches it.
 func ensurePipefail(f *syntax.File) {
-	if len(f.Stmts) == 0 || enablesPipefail(leftmost(f.Stmts[0])) {
+	if len(f.Stmts) == 0 || !hasPipe(f) || enablesPipefail(leftmost(f.Stmts[0])) {
 		return
 	}
 	f.Stmts = append([]*syntax.Stmt{{Cmd: &syntax.CallExpr{

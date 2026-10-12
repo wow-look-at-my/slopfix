@@ -24,11 +24,14 @@ type Result struct {
 var perlName = regexp.MustCompile(`^perl[0-9.]*$`)
 
 // Transform applies the rules to command. A parse failure fails open.
-func Transform(command string) Result { return transform(command, maxPasses, os.Stderr) }
+func Transform(command string) Result { return TransformIn(command, "") }
 
-// transform takes the pass bound and the warning sink as arguments, so a test
+// TransformIn resolves a relative path against dir, the directory the command runs in.
+func TransformIn(command, dir string) Result { return transform(command, dir, maxPasses, os.Stderr) }
+
+// transform takes the pass bound and the warning sink as arguments. A test
 // drives the exhaustion path without a global a parallel sibling can see.
-func transform(command string, passes int, warn io.Writer) Result {
+func transform(command, dir string, passes int, warn io.Writer) Result {
 	f, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(command), "")
 	if err != nil {
 		return Result{Command: command}
@@ -42,8 +45,10 @@ func transform(command string, passes int, warn io.Writer) Result {
 	}) {
 		return deny(command, "perl")
 	}
-	if hasFileRead(f) {
-		return deny(command, "file_read")
+	// A read PlanRead maps runs as written, and RunPost shows its output as Read
+	// shows it.
+	if PlanRead(command, dir) != nil {
+		return Result{Command: command}
 	}
 	if hasStatementCall(f, func(c *syntax.CallExpr) bool {
 		e, ok := effectiveCommand(c)
@@ -51,7 +56,7 @@ func transform(command string, passes int, warn io.Writer) Result {
 	}) {
 		return deny(command, "shred")
 	}
-	if hasGitRM(f) {
+	if hasUnrewritableGitRM(f) {
 		return deny(command, "git_rm")
 	}
 	if hasBadTruncate(f) {
@@ -72,9 +77,10 @@ func transform(command string, passes int, warn io.Writer) Result {
 			rules = appendUnique(rules, name)
 		}
 	}
+	j := &grepJSON{dir: dir, cache: map[string]jsonKind{}}
 	// Runs to a fixed point: a rule's output is another rule's input, and a
 	// single pass leaves the later rewrite undone.
-	if !runToFixedPoint(f, apply, passes) {
+	if !runToFixedPoint(f, func() { onePass(apply, j) }, passes) {
 		reportNonConvergence(warn, command, printFile(f), passes)
 	}
 	apply("pipefail", ensurePipefail)
@@ -87,11 +93,11 @@ const maxPasses = 20
 
 // runToFixedPoint applies the rules until the printed tree stops changing, and
 // reports false when the bound ran out.
-func runToFixedPoint(f *syntax.File, apply func(string, func(*syntax.File)), passes int) bool {
+func runToFixedPoint(f *syntax.File, onePass func(), passes int) bool {
 	for range passes {
-		pass := printFile(f)
-		onePass(apply)
-		if printFile(f) == pass {
+		before := printFile(f)
+		onePass()
+		if printFile(f) == before {
 			return true
 		}
 	}
@@ -100,8 +106,8 @@ func runToFixedPoint(f *syntax.File, apply func(string, func(*syntax.File)), pas
 
 // reportNonConvergence says what the bound dropped. The rewrite it emits is
 // half-applied, so it can be worse than either endpoint. It goes to stderr
-// rather than the debug log, because it reports a defect in the rules and must
-// be visible without a log path set.
+// rather than the debug log. This is because it reports a defect in the rules
+// and must be visible without a log path set.
 func reportNonConvergence(warn io.Writer, original, partial string, passes int) {
 	fmt.Fprintf(warn,
 		"cleanup-bash-cmds: the rewrite did not reach a fixed point in %d passes, "+
@@ -110,17 +116,17 @@ func reportNonConvergence(warn io.Writer, original, partial string, passes int) 
 		passes, original, partial)
 }
 
-func onePass(apply func(string, func(*syntax.File))) {
+func onePass(apply func(string, func(*syntax.File)), j *grepJSON) {
 	apply("devnull", scrubDevnull)
+	apply("grep_json", j.apply)
 	apply("toolchain_output", undivertToolchain)
 	apply("docker_compose_restart", func(f *syntax.File) { walkCalls(f, dockerCompose) })
 	apply("gh_wait_ci", func(f *syntax.File) { walkCalls(f, ghWaitCI) })
+	apply("git_cd", rewriteGitC)
+	apply("git_rm_recycle", rewriteGitRM)
 	apply("rm_recycle", func(f *syntax.File) { walkCalls(f, rewriteRM) })
 	apply("truncate_recycle", func(f *syntax.File) { walkCalls(f, rewriteTruncate) })
 	apply("find_delete_recycle", func(f *syntax.File) { walkCalls(f, rewriteFind) })
-	apply("head_tail", func(f *syntax.File) {
-		trailing(f, func(s *syntax.Stmt) { stripStages(spineLeaf(s), isHeadTailStage) })
-	})
 	apply("or_true", func(f *syntax.File) { trailing(f, stripOrTrue) })
 	apply("grep", func(f *syntax.File) {
 		trailing(f, func(s *syntax.Stmt) { stripStages(spineLeaf(s), isGrepStage) })
@@ -178,6 +184,16 @@ func hasHeredoc(n syntax.Node) bool {
 	found := false
 	syntax.Walk(n, func(n syntax.Node) bool {
 		if r, ok := n.(*syntax.Redirect); ok && (r.Op == syntax.Hdoc || r.Op == syntax.DashHdoc) {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+func hasPipe(n syntax.Node) bool {
+	found := false
+	syntax.Walk(n, func(n syntax.Node) bool {
+		if b, ok := n.(*syntax.BinaryCmd); ok && (b.Op == syntax.Pipe || b.Op == syntax.PipeAll) {
 			found = true
 		}
 		return !found
@@ -303,7 +319,7 @@ func capSleep(c *syntax.CallExpr) {
 }
 
 // rmTargets returns the real targets of an `rm` call. `--` ends flag parsing
-// and is RE-EMITTED in front of a dash-leading name, so the filename is not
+// and is RE-EMITTED in front of a dash-leading name. The filename is not
 // re-read as a recycler flag.
 func rmTargets(args []*syntax.Word) []*syntax.Word {
 	ops := []*syntax.Word{}

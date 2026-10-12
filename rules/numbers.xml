@@ -1,0 +1,177 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  A cardinal tallying a set. The tally is true until somebody changes the set,
+  so the repair says what is there and lets the reader count.
+
+  Only a tally is here. "one", "once", "first" and "zero" count no set that can
+  grow, so the rule does not report them and nothing here rewrites them.
+
+  The tests at the end hold what the table writes for a whole line, as opposed
+  to what a single entry writes for the phrase it names. Each belongs to the
+  consumer, so it drives the rewrites, the rephrasings and the patterns
+  together, in the order the repair applies them. A test whose out repeats its
+  in names prose the table declines. Those hold the matching inside a word
+  boundary, and dropping one lets a rewrite loose inside a name.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="numbers">
+
+  <!-- The cardinal stands in for the noun. "both" fits as a subject and as an
+       object, where "they" and "them" each fit only one. -->
+  <rewrite id="the-two" from="the two" to="both">
+    <test in="The two agree" out="Both agree"/>
+    <test in="It keeps the two apart" out="It keeps both apart"/>
+  </rewrite>
+
+  <!-- A term names a word CLASS, which a regexp has no way to say. The classes
+       are in english-classes.xml, and {name} in the replacement writes back
+       what the term of that name matched.
+
+       Each shape with a noun goes before the same shape without one. The scan
+       tries entries in order at each word, so the bare shape would otherwise
+       claim "the three shapes" and write "all of them shapes". The noun must
+       be plural: "agree" in "all three agree" is the verb. -->
+  <rephrase id="the-other-cardinal-noun" match="the other {cardinal:c} {noun+plural:n}" to="the other {n}">
+    <test in="The other two files run a loop" out="The other files run a loop"/>
+  </rephrase>
+  <rephrase id="the-other-cardinal" match="the other {cardinal:c}" to="the others">
+    <test in="The other two run a loop" out="The others run a loop"/>
+  </rephrase>
+  <rephrase id="all-cardinal-noun" match="all {cardinal:c} {noun+plural:n}" to="all {n}">
+    <test in="All three files agree" out="All files agree"/>
+  </rephrase>
+  <rephrase id="all-cardinal" match="all {cardinal:c}" to="all of them">
+    <test in="All three agree" out="All of them agree"/>
+  </rephrase>
+  <rephrase id="the-cardinal-noun" match="the {cardinal:c} {noun+plural:n}" to="the {n}">
+    <test in="It names the three shapes GitHub uses" out="It names the shapes GitHub uses"/>
+  </rephrase>
+  <!-- "the three" points back at a set, and nothing on the line says the set
+       holds only three. "those" keeps the reference and claims no "all". -->
+  <rephrase id="the-cardinal" match="the {cardinal:c}" to="those">
+    <test in="It reads the three" out="It reads those"/>
+    <test in="The three agree" out="Those agree"/>
+    <test in="The three that fail stop the run" out="Those that fail stop the run"/>
+    <test in="It mirrors the two-line row hit-rects" out="It mirrors the two-line row hit-rects"/>
+  </rephrase>
+  <!-- "those" already points back at the set, so the cardinal after it only
+       claims a size. -->
+  <rephrase id="those-cardinal" match="those {cardinal:c}" to="those">
+    <test in="It would miss those two" out="It would miss those"/>
+    <test in="Those three agree" out="Those agree"/>
+  </rephrase>
+
+  <!-- A preposition after the cardinal means the cardinal is the noun phrase
+       itself: "two of them" names a part of a group. Cutting the cardinal
+       leaves "GET of them", so the part is said in words instead. -->
+  <rephrase id="a-cardinal-governing-no-noun" match="{cardinal:c} of" to="some of">
+    <test in="Batch GET two of them" out="Batch GET some of them"/>
+  </rephrase>
+
+  <!-- A repeat interval goes stale when someone tunes the knob. "few" keeps the
+       unit, so the reader still knows the scale. -->
+  <rephrase id="every-interval-goes-vague" match="every {number} {unit+plural:u}" to="every few {u}">
+    <test in="It polls every 15 minutes" out="It polls every few minutes"/>
+    <test in="Every 30 seconds it retries" out="Every few seconds it retries"/>
+    <test in="It runs every two hours" out="It runs every few hours"/>
+    <test in="It runs every 1.5 hours" out="It runs every 1.5 hours"/>
+  </rephrase>
+
+  <!-- A word that qualifies the count goes with the count. Left behind, it
+       qualifies the noun instead and says something false. -->
+  <rephrase id="qualified-tally-drops-its-qualifier" match="{approximation:a} {cardinal:c} {noun+plural:n}" to="{n}">
+    <test in="It waits for exactly two requests" out="It waits for requests"/>
+    <test in="It sends only three probes" out="It sends probes"/>
+    <test in="It reads about two files" out="It reads files"/>
+  </rephrase>
+
+  <!-- A plural tally: the noun carries the meaning and the number goes.
+
+       A unit is not a tally. "waits two minutes" says how long, and dropping
+       the cardinal leaves "waits minutes", which states nothing. The unit class
+       claims those words, so the noun term below never matches one. -->
+  <rephrase id="plural-tally-drops-its-count" match="{cardinal:c} {noun:n}" to="{n}">
+    <test in="Two goroutines contend" out="Goroutines contend"/>
+    <test in="It waits two minutes" out="It waits two minutes"/>
+    <test in="It reads 260 characters" out="It reads 260 characters"/>
+  </rephrase>
+
+  <test in="sync.Once guards it" out="sync.Once guards it"/>
+  <test in="net/http serves it" out="net/http serves it"/>
+  <test in="it calls Do.Once here" out="it calls Do.Once here"/>
+  <test in="it calls pkg.Two here" out="it calls pkg.Two here"/>
+  <test in="The twoPhase flag and someone else" out="The twoPhase flag and someone else"/>
+
+  <test in="Tests for .github/scripts/register.sh, the step it runs"
+        out="Tests for .github/scripts/register.sh, the step it runs"/>
+  <test in="The suite lives in .dats files" out="The suite lives in .dats files"/>
+  <test in="Ignored by .gitignore already" out="Ignored by .gitignore already"/>
+
+  <test in="Two goroutines contend" out="Goroutines contend"/>
+
+  <test in="It reserves two slots ." out="It reserves slots."/>
+  <test in="It locks , then writes ." out="It locks, then writes."/>
+
+  <test in="It reserves a slot and publishes it" out="It reserves a slot and publishes it"/>
+
+  <!-- Taken out of repositories the number repair had already been run over.
+       Each in is a comment as its author wrote it, and each out is what the
+       repair has to write instead of the wreckage it shipped. -->
+  <test in="Batch GET two of them." out="Batch GET some of them."/>
+  <!-- "one" here is a prop-word and a pleonastic postdeterminer, not a tally.
+       english.xml drops it, and this table leaves it. -->
+  <test in="It fails when this one does not carry it."
+        out="It fails when this one does not carry it."/>
+  <test in="The walk is dropping the one top directory."
+        out="The walk is dropping the one top directory."/>
+  <test in="Two goroutines contend for it." out="Goroutines contend for it."/>
+  <test in="One good entry and one relic."
+        out="One good entry and one relic."/>
+  <test in="It is a no-op once." out="It is a no-op once."/>
+  <test in="It reads from the first .gitmodules parser above."
+        out="It reads from the first .gitmodules parser above."/>
+
+  <!-- A rewrite inside a line keeps the case of what it replaced, so a
+       sentence that opens mid-line still opens with a capital. -->
+  <test in="It drains uploads. Two workers own the cache."
+        out="It drains uploads. Workers own the cache."/>
+  <test in="They offer it. The two agree."
+        out="They offer it. Both agree."/>
+
+  <test in="It runs, and only one that exits holds the lock."
+        out="It runs, and only one that exits holds the lock."/>
+  <test in="It matters when only one is configured."
+        out="It matters when only one is configured."/>
+
+  <!-- Taken from a run over gh-wait-ci. Only a tally is banned: a count of a
+       set that can grow or shrink while the sentence stays true. A pronoun, a
+       condition, a repeat count, an order and a value are none of those, so
+       the table leaves them as the author wrote them. -->
+  <test in="It fails if exactly one is found." out="It fails if exactly one is found."/>
+  <test in="It picks the flag, otherwise the one the current directory names."
+        out="It picks the flag, otherwise the one the current directory names."/>
+  <test in="The one thing that matters most" out="The one thing that matters most"/>
+  <test in="A workflow job is one of these, but so is a status."
+        out="A workflow job is one of these, but so is a status."/>
+  <test in="The all-builds merge gate is one of these"
+        out="The all-builds merge gate is one of these"/>
+  <test in="Splits once, before any subcommand runs" out="Splits once, before any subcommand runs"/>
+  <test in="It lists workflow runs, newest first" out="It lists workflow runs, newest first"/>
+  <test in="A zero deadline never expires" out="A zero deadline never expires"/>
+
+  <!-- A tally, which the table does rewrite. -->
+  <test in="It names the three shapes GitHub uses" out="It names the shapes GitHub uses"/>
+  <test in="It lists them, so the two are kept apart" out="It lists them, so both are kept apart"/>
+  <test in="The other two files run a loop" out="The other files run a loop"/>
+  <test in="All three files agree" out="All files agree"/>
+  <test in="All three agree" out="All of them agree"/>
+  <test in="The three agree" out="Those agree"/>
+  <test in="It reads the three" out="It reads those"/>
+
+  <!-- A hedge on a tally goes with the tally. -->
+  <test in="Exactly two requests: the rejected attempt, then the retry."
+        out="Requests: the rejected attempt, then the retry."/>
+
+  <!-- A repeat interval keeps its unit. Only the number goes vague. -->
+  <test in="every 15 minutes" out="every few minutes"/>
+
+</rules>

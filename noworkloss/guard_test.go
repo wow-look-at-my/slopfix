@@ -75,8 +75,6 @@ func stage(t *testing.T, dir string) {
 	git(t, dir, "add", "-A")
 }
 
-// ask lives in harness_test.go: a shared entry-point driver for both halves.
-
 func denied(t *testing.T, cwd, command string) string {
 	t.Helper()
 	r := ask(t, cwd, command)
@@ -144,7 +142,7 @@ func TestPreservesAndAllowsResetHardReachedByCdOutsideGuardedRoots(t *testing.T)
 	assert.Contains(t, notice, "git reset --hard")
 }
 
-// `clean` is not a provenance route (routes.go names no such verb), so it is
+// `clean` is not a provenance route (routes.go names no such verb). It is
 // the destruction half alone standing between the untracked file and the
 // command -- and that half now preserves the file rather than refusing.
 func TestPreservesAndAllowsCleanWithUntrackedFilesViaDashC(t *testing.T) {
@@ -164,13 +162,31 @@ func TestDeniesStashClearWithEntries(t *testing.T) {
 }
 
 // `rm` is not a provenance route either -- deletion is not authorship -- so
-// this is exactly the owner's own example: preserve the file, then allow
+// this is exactly the owner's own example. Preserve the file, then allow
 // the deletion.
 func TestPreservesAndAllowsRmOfUntrackedFile(t *testing.T) {
 	dir := newRepo(t)
 	untrack(t, dir, "internal/config/env.go")
 	notice := preserved(t, dir, "rm internal/config/env.go")
 	assert.Contains(t, notice, "internal/config/env.go")
+}
+
+// git reports the physical root, and on macOS a temp dir is reached through
+// the /var symlink. The cwd a session reports is spelled another way.
+func TestPreservesAnUntrackedFileReachedThroughASymlinkedCwd(t *testing.T) {
+	for name, operand := range map[string]func(link string) string{
+		"relative": func(string) string { return "scratch.txt" },
+		"absolute": func(link string) string { return filepath.Join(link, "scratch.txt") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := newRepo(t)
+			untrack(t, dir, "scratch.txt")
+			link := filepath.Join(t.TempDir(), "link")
+			require.NoError(t, os.Symlink(dir, link))
+			notice := preserved(t, link, "rm "+operand(link))
+			assert.Contains(t, notice, "scratch.txt")
+		})
+	}
 }
 
 func TestDeniesCheckoutDashDashDot(t *testing.T) {
@@ -345,7 +361,7 @@ func TestDeniesUnparseableCommandNamingADestructiveVerb(t *testing.T) {
 // Every spelling of the flag set is preserved and allowed, since `clean` names no provenance route.
 func TestFlagVariantsAllReachTheSamePreservedVerdict(t *testing.T) {
 	// Every spelling is judged from the same starting state, so each gets its
-	// own repository: preservation commits the scratch file, and a shared tree
+	// own repository: preservation commits the scratch file. A shared tree
 	// would leave the later spellings nothing to preserve.
 	for _, c := range []string{
 		"git clean -f -d -x", "git clean -fdx", "git clean -xdf",
@@ -389,11 +405,10 @@ func TestAllowsStashSubcommandsThatPreserveContent(t *testing.T) {
 	allowed(t, dir, "git stash show")
 	allowed(t, dir, "git stash branch recovered")
 
-	// pop and apply destroy nothing, but they put a stash's content back into
-	// the worktree, which no edit tool did.
+	// pop and apply put back work that a stash holds, and no edit tool can.
 	for _, c := range []string{"git stash apply", "git stash pop"} {
 		assert.Empty(t, lossOnly(t, dir, c), "%s discards nothing", c)
-		denied(t, dir, c)
+		allowed(t, dir, c)
 	}
 }
 
@@ -433,6 +448,17 @@ func TestRebaseFamilyBlockedDirtyButRecoveryVerbsAllowed(t *testing.T) {
 	allowed(t, dir, "git cherry-pick --continue")
 }
 
+// revert replays a commit git holds, as cherry-pick does. commit-tree wraps a
+// tree the store already holds and touches no file.
+func TestRevertAndCommitTreeAreNotProvenanceRoutes(t *testing.T) {
+	dir := newRepo(t)
+	allowed(t, dir, "git revert --no-edit HEAD")
+	allowed(t, dir, "git commit-tree HEAD^{tree} -p HEAD -m reland")
+	allowed(t, dir, `reland=$(git commit-tree "HEAD^{tree}" -p HEAD -m reland) && git checkout -q -B reland "$reland"`)
+	modify(t, dir)
+	preserved(t, dir, "git revert --no-edit HEAD")
+}
+
 func TestGitRmCachedLeavesTheFileAlone(t *testing.T) {
 	dir := newRepo(t)
 	untrack(t, dir, "scratch.txt")
@@ -454,9 +480,9 @@ func TestDeniesTruncatingRedirectOntoDirtyFile(t *testing.T) {
 	assert.Contains(t, denied(t, dir, "echo x >> tracked.go"), "tracked.go")
 }
 
-// `mv` within the tree is not a provenance route either -- copyWrites treats
-// a source already inside the tree as ordinary refactoring -- so the
-// destination's current content.
+// `mv` within the tree is not a provenance route either. copyWrites treats a
+// source already inside the tree as ordinary refactoring. So the hook only
+// preserves the destination's current content.
 func TestPreservesAndAllowsMvOverDirtyDestination(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)

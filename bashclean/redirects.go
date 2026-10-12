@@ -7,8 +7,8 @@
 //
 // A bare merge of stderr onto stdout survives: it is a merge, not a discard. It
 // goes only where an EARLIER entry in the same list already sent stdout to
-// /dev/null, so the reversed spelling, which sends stderr to the terminal, is
-// left alone. Each predicate below names the shape it matches.
+// /dev/null. The reversed spelling, which sends stderr to the terminal, is left
+// alone. Each predicate below names the shape it matches.
 package bashclean
 
 import "mvdan.cc/sh/v3/syntax"

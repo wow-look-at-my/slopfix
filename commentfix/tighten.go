@@ -41,6 +41,26 @@ func tighten(text []string) ([]string, int, bool) {
 			out = append(out, para.raw...)
 			continue
 		}
+		if para.list() {
+			for i, line := range para.raw {
+				short, took := english.FixN(para.lines[i], english.Comment)
+				rewrites += took
+				if short != para.lines[i] {
+					changed = true
+				}
+				if !hasWord(short) {
+					continue
+				}
+				// The prefix keeps an item's hanging indent.
+				prefix, _, found := strings.Cut(line, para.lines[i])
+				if !found {
+					out = append(out, line)
+					continue
+				}
+				out = append(out, prefix+short)
+			}
+			continue
+		}
 		body := strings.Join(para.lines, " ")
 		short, took := english.FixN(body, english.Comment)
 		rewrites += took

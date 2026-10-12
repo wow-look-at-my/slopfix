@@ -5,16 +5,25 @@ package english
 import (
 	"regexp"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
 // danglingSpace matches the space a deletion leaves before punctuation that CLOSES something. A period with a word
 var danglingSpace = regexp.MustCompile(`\s+([.,])(\s|$)`)
 
+// strandedMark matches a mark a deleted clause leaves before the period that closed it: "passes `true`:.".
+var strandedMark = regexp.MustCompile(`\s*[,;:—–]\s*\.(\s|$)`)
+
+// doubledStop matches the period a deleted sentence leaves beside the period before it. An ellipsis does not match.
+var doubledStop = regexp.MustCompile(`([^.])\.\.(\s|$)`)
+
 // Surface names where prose is being read, which decides the entries that
 // apply to it.
 const (
-	Comment = "comment"
-	Message = "message"
+	Comment  = "comment"
+	Document = "document"
+	Message  = "message"
 )
 
 // Fix rewrites prose with every table entry that names the surface.
@@ -44,6 +53,13 @@ func FixN(s, surface string) (string, int) {
 			n += took
 		}
 	}
+	for _, sh := range Shapes() {
+		if AppliesTo(sh.Where, surface) {
+			var took int
+			s, took = sh.ApplyN(s)
+			n += took
+		}
+	}
 	// Patterns last: they carry a shape rather than a phrase, and a shape must
 	// see the text a word swap has already settled.
 	for _, p := range Patterns() {
@@ -55,7 +71,67 @@ func FixN(s, surface string) (string, int) {
 	}
 	s = strings.Join(strings.Fields(s), " ")
 	s = danglingSpace.ReplaceAllString(s, "${1}${2}")
+	if n > 0 {
+		s = strandedMark.ReplaceAllString(s, ".${1}")
+	}
+	s = doubledStop.ReplaceAllString(s, "${1}.${2}")
+	if n > 0 {
+		s = dropFragments(strings.Join(strings.Fields(original), " "), s)
+	}
 	return capitalise(original, s), n
+}
+
+// emptiedStop matches the stop a deleted sentence leaves after the stop before it: "it. The".
+var emptiedStop = regexp.MustCompile(`([.!?])\s+\.(\s|$)`)
+
+// sentenceRun matches a sentence and the blank after it. A stop inside a code span does not end one.
+var sentenceRun = regexp.MustCompile("(?:`[^`]*`|[^.!?`])+[.!?]+(?:\\s+|$)|(?:`[^`]*`|[^.!?`])+$")
+
+// dropFragments removes each sentence a cut left with no verb, where the
+// sentence it came from had one: "example-plugin was deleted on purpose."
+// leaves "example-plugin.", which says nothing. A sentence the cut emptied goes
+// too. It compares the sentences pair by pair, so it does nothing when the cut
+// changed their count.
+func dropFragments(before, after string) string {
+	if !strings.HasPrefix(before, ".") {
+		after = strings.TrimLeft(after, " .")
+	}
+	after = emptiedStop.ReplaceAllString(after, "${1}${2}")
+	was := sentenceRun.FindAllString(before, -1)
+	now := sentenceRun.FindAllString(after, -1)
+	// A single sentence is the table's own case, and dropping it would leave nothing.
+	if len(was) < 2 || len(was) != len(now) {
+		return after
+	}
+	var b strings.Builder
+	dropped := false
+	for i, sentence := range now {
+		if !hasWordIn(sentence) || hasFiniteVerb(was[i]) && !hasFiniteVerb(sentence) {
+			dropped = true
+			continue
+		}
+		b.WriteString(sentence)
+	}
+	if !dropped {
+		return after
+	}
+	return strings.TrimSpace(b.String())
+}
+
+// hasWordIn reports text that holds a letter.
+func hasWordIn(text string) bool {
+	return strings.IndexFunc(text, func(r rune) bool { return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' }) >= 0
+}
+
+// hasFiniteVerb reports a sentence that holds a finite verb or a modal.
+func hasFiniteVerb(sentence string) bool {
+	for _, w := range syntax.Parse(sentence, nil).Words {
+		switch w.Tag {
+		case "VBZ", "VBP", "VBD", "MD":
+			return true
+		}
+	}
+	return false
 }
 
 // ReplaceWord swaps a whole word or phrase, case-insensitively, leaving a
@@ -69,6 +145,8 @@ func replaceWordN(s, word, with string) (string, int) {
 	lower := strings.ToLower(s)
 	target := strings.ToLower(word)
 	took := 0
+	spans := codeSpan.FindAllStringIndex(s, -1)
+	quotes := quotation.FindAllStringIndex(s, -1)
 	var b strings.Builder
 	for i := 0; i < len(s); {
 		j := strings.Index(lower[i:], target)
@@ -78,7 +156,7 @@ func replaceWordN(s, word, with string) (string, int) {
 		}
 		at := i + j
 		end := at + len(target)
-		if !WordBoundary(s, at, end) {
+		if !WordBoundary(s, at, end) || inProperName(s, at, end) || insideAny(spans, at, end) || insideAny(quotes, at, end) {
 			b.WriteString(s[i : at+1])
 			i = at + 1
 			continue
@@ -90,6 +168,23 @@ func replaceWordN(s, word, with string) (string, int) {
 	}
 	return b.String(), took
 }
+
+// inProperName reports a capitalized match inside a sentence with a
+// capitalized word after it. Such a match is part of a name, and a name loses
+// meaning when one of its words goes.
+func inProperName(s string, at, end int) bool {
+	if !isUpper(s[at]) {
+		return false
+	}
+	before := strings.TrimRight(s[:at], " \t")
+	if before == "" || strings.ContainsAny(before[len(before)-1:], ".!?:\n") {
+		return false
+	}
+	after := strings.TrimLeft(s[end:], " \t")
+	return after != "" && isUpper(after[0])
+}
+
+func isUpper(b byte) bool { return b >= 'A' && b <= 'Z' }
 
 // ContainsWord reports a whole-word occurrence, so `hack` never matches
 // `hackney` and `for now` never matches `for nowhere`.

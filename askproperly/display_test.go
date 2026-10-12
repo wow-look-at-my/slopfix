@@ -51,8 +51,8 @@ func flush(t *testing.T, in HookInput) string {
 	return run(strings.NewReader(string(data)))
 }
 
-// displayed is the text the CLI shows for a flush: the hook's replacement when
-// it emitted a replacement, and the original delta otherwise.
+// displayed is the text the CLI shows for a flush: the hook's replacement
+// when it emitted a replacement, and the delta otherwise.
 func displayed(t *testing.T, out, delta string) string {
 	t.Helper()
 	if out == "" {
@@ -83,7 +83,7 @@ func TestADeferralIsAnnotated(t *testing.T) {
 	assert.Contains(t, got, `"your call"`)
 }
 
-// The escape hatch survives the move: a turn that used the tool asked properly,
+// The escape hatch survives the move. A turn that used the tool asked properly,
 // so prose alongside the rendered card is commentary, not an offloaded decision.
 func TestAMessageBesideAnAskUserQuestionCardIsNotAnnotated(t *testing.T) {
 	path := writeTranscript(t,
@@ -142,8 +142,8 @@ func TestADeferralInsideAQuotedQuestionIsNotNamedTwice(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(got, `"`)/2, "one finding quoted in %q", got)
 }
 
-// A question hit carries the sentence the detector cut at the "?", so the mark
-// goes back on, and a long sentence is trimmed rather than quoted whole.
+// A question hit carries the sentence the detector cut at the "?". The mark
+// goes back on. A long sentence is trimmed rather than quoted whole.
 func TestAQuotedQuestionIsBoundedAndKeepsItsMark(t *testing.T) {
 	long := "Should I " + strings.Repeat("really ", 40) + "land it?"
 	got := Annotate(long)
@@ -153,8 +153,8 @@ func TestAQuotedQuestionIsBoundedAndKeepsItsMark(t *testing.T) {
 }
 
 // A question can span a line wrap, and a flush carries only the lines that
-// completed since the previous flush. So the message is accumulated and judged
-// whole on its final flush.
+// completed since the flush. So the message is accumulated and judged whole
+// on its final flush.
 func TestAQuestionSplitAcrossFlushesIsStillFound(t *testing.T) {
 	assert.Empty(t, flush(t, HookInput{MessageID: "wrap", Index: 0, Delta: "Landed the fix. Which rule\n"}),
 		"a non-final flush is never annotated")
@@ -181,7 +181,7 @@ func TestAMessageIsAnnotatedOnceAndItsStateIsDropped(t *testing.T) {
 	assert.Empty(t, flush(t, HookInput{MessageID: "once", Final: true, Delta: "All green."}))
 }
 
-// Printing nothing leaves the CLI showing the original delta, which is the only
+// Printing nothing leaves the CLI showing the delta, which is the only
 // acceptable failure for a hook in the render path.
 func TestEverySurpriseRendersTheOriginal(t *testing.T) {
 	cases := map[string]string{
@@ -208,7 +208,7 @@ func TestAnUnreadableTranscriptStillAnnotates(t *testing.T) {
 	assert.Contains(t, got, "ask-properly")
 }
 
-// Nothing is sent back to the model and nothing is refused: the process always
+// Nothing is sent back to the model and nothing is refused. The process always
 // exits with success, and the only output it can produce is a displayContent
 // envelope.
 func TestTheOnlyOutputIsADisplayContentEnvelope(t *testing.T) {

@@ -11,18 +11,20 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
 // proseQuantity is the inventory-count spelling: a plural cardinal, up
-const proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
+var proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
 	`\s+(?:[a-z][a-z-]*\s+){0,3}?[a-z][a-z-]{2,}s\b`
 
-// gateQuantity is the merge gate's spelling. It reads a shorter list of words,
-// any run of digits, and a shorter adjective gap.
+// gateQuantity is the merge gate's spelling. It reads a shorter list of
+// words, any run of digits, and a shorter adjective gap.
 var gateQuantity = regexp.MustCompile(`(?i)\b(?:` + gateAlt + `|[0-9]+)` +
-	`\s+(?:[a-z-]+\s+){0,2}?[a-z]+s\b`)
+	`\s+(?:[0-9]+(?:\.[0-9]+)?\s+[a-z]+\s+)?(?:[a-z-]+\s+){0,2}?[a-z]+s\b`)
 
 // Match is a quantity the pattern found, and the parts an exemption asks about.
 type Match struct {
@@ -104,6 +106,304 @@ var gapStopWords = set.Of[string](
 	"if", "so", "than", "then", "when", "while", "not", "no", "it", "its",
 )
 
+// AfterAnArticle exempts a number after "a" or "an". A tally takes no singular
+// article, so the number there is itself the noun: "a 404 buries it".
+func AfterAnArticle(text string, q Match) bool {
+	before := strings.Fields(strings.ToLower(text[:q.At]))
+	if len(before) == 0 {
+		return false
+	}
+	last := before[len(before)-1]
+	return last == "a" || last == "an"
+}
+
+// NotAPluralNoun exempts a match whose last word the tagger reads as something
+// other than a plural noun. The pattern only asks for a trailing s, so "a
+// buries it" and "the other confirms" match on a verb.
+func NotAPluralNoun(text string, q Match) bool {
+	end := q.At + len(q.Text)
+	words := syntax.Parse(text, nil).Words
+	for i, w := range words {
+		if w.End != end {
+			continue
+		}
+		if w.Tag == "VBZ" && countsANominal(words, q.At, i) {
+			return false
+		}
+		return w.Tag != "NNS" && w.Tag != "NNPS"
+	}
+	return false
+}
+
+// NoPluralNounAfter is NotAPluralNoun for a number that counts.
+func NoPluralNounAfter(text string, q Match) bool {
+	if _, point := APoint(text, q.At); point {
+		// "set both limits to 0 disables eviction": the trailing word is the sentence's verb with an object.
+		return governsObject(text, q)
+	}
+	if NamesAnItem(text, q.At) {
+		return false
+	}
+	return NotAPluralNoun(text, q)
+}
+
+// governsObject reports a match whose plural "noun" is the sentence's verb
+// with an object after it: "set both limits to 0 disables eviction" states a
+// value, not a tally. Only a verb takes a noun phrase straight after it, so
+// the words that follow the match decide.
+func governsObject(text string, q Match) bool {
+	end := q.At + len(q.Text)
+	words := syntax.Parse(text, nil).Words
+	for i, w := range words {
+		if w.End != end {
+			continue
+		}
+		if i+1 >= len(words) || !strings.HasSuffix(strings.ToLower(w.Text), "s") {
+			return false
+		}
+		switch words[i+1].Tag {
+		case "DT", "PRP", "PRP$", "CD", "NN", "NNP", "NNPS", "NNS":
+			return true
+		}
+		return false
+	}
+	return false
+}
+
+// nominalTags are the tags a modifier between a cardinal and its noun carries.
+var nominalTags = set.Of("CD", "NN", "NNP", "JJ")
+
+// auxiliaries are verbs whose -s form is never a plural noun.
+var auxiliaries = set.Of("is", "has", "does", "was")
+
+// countsANominal reports a cardinal at start followed only by modifiers up to
+// the word at last, in a sentence whose verb came before it. The tagger reads
+// "sends four PATCH requests" as a subject and a verb, and the earlier verb
+// is what leaves the last word a noun. "128 KiB is" has no such verb.
+func countsANominal(words []syntax.Word, start, last int) bool {
+	if auxiliaries.Contains(words[last].Lower()) {
+		return false
+	}
+	first := -1
+	for i, w := range words[:last] {
+		if w.Start == start {
+			first = i
+			break
+		}
+	}
+	if first < 0 || last-first < 2 || words[first].Tag != "CD" {
+		return false
+	}
+	for _, w := range words[first+1 : last] {
+		if !nominalTags.Contains(w.Tag) {
+			return false
+		}
+	}
+	return verbBefore(words, first)
+}
+
+// verbBefore reports a verb earlier in the sentence than the word at i.
+func verbBefore(words []syntax.Word, i int) bool {
+	for j := i - 1; j >= 0 && words[j].Tag != "."; j-- {
+		if strings.HasPrefix(words[j].Tag, "VB") || words[j].Tag == "MD" {
+			return true
+		}
+	}
+	return false
+}
+
+// ChoiceAmongASet exempts the size of a set something is picked from. "one of
+// things" loses its meaning without the count, and the cut leaves "one of
+// things".
+func ChoiceAmongASet(text string, q Match) bool {
+	before := strings.Fields(strings.ToLower(text[:q.At]))
+	if len(before) < 2 || before[len(before)-1] != "of" {
+		return false
+	}
+	return choosers.Contains(before[len(before)-2])
+}
+
+var choosers = set.Of[string]("one", "either", "neither", "any", "each", "none", "both", "all")
+
+// leadingNumber is the cardinal a quantity opens with.
+func leadingNumber(q Match) string {
+	fields := strings.Fields(q.Text)
+	if len(fields) == 0 {
+		return ""
+	}
+	return fields[0]
+}
+
+// bare strips the punctuation that sits against a word in a sentence.
+func bare(word string) string {
+	return strings.Trim(strings.ToLower(word), ".,;:()\"'`")
+}
+
+// joiners link values the way a list of status codes does.
+var joiners = set.Of("or", "and", "nor")
+
+// StatusCode exempts an HTTP status code. One that heads a reply noun ("the
+// responses"), follows the word status, or sits in a list beside another code
+// ("201 or 409", "200 and 404"). A status is a value, so no edit that adds an
+// item moves it.
+func StatusCode(text string, q Match) bool {
+	if !InClass(leadingNumber(q), "status-code") {
+		return false
+	}
+	if fields := strings.Fields(q.Text); len(fields) > 1 && InClass(fields[1], "status-noun") {
+		return true
+	}
+	before := strings.Fields(text[:q.At])
+	if n := len(before); n > 0 {
+		last := bare(before[n-1])
+		if last == "status" || InClass(last, "status-code") {
+			return true
+		}
+		if n > 1 && joiners.Contains(last) && InClass(bare(before[n-2]), "status-code") {
+			return true
+		}
+	}
+	after := strings.Fields(text[q.At+len(leadingNumber(q)):])
+	return len(after) > 1 && joiners.Contains(bare(after[0])) && InClass(bare(after[1]), "status-code")
+}
+
+// Labeled exempts a number that names an item rather than counting a set: one
+// after a label word, as in "Migration 014" or "HTTP 404".
+func Labeled(text string, q Match) bool {
+	before := strings.Fields(text[:q.At])
+	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
+}
+
+// APoint answers the preposition before digits at offset at that set a point on
+// a scale, "at", "by" or "to", as in "at 100 cols" or "truncating to 15". A
+// point is no count, so "at multiple cols" is no repair. A unit after the point
+// still takes a vague amount: "warns at many lines".
+func APoint(text string, at int) (string, bool) {
+	words := strings.Fields(text[at:])
+	if len(words) == 0 || !allDigits(strings.TrimRight(words[0], ".,;:)")) {
+		return "", false
+	}
+	before := strings.Fields(strings.ToLower(text[:at]))
+	// A hedge goes with the number, so the word before the hedge decides: "at exactly 850 tokens".
+	for len(before) > 0 && hedges.Contains(bare(before[len(before)-1])) {
+		before = before[:len(before)-1]
+	}
+	if len(before) == 0 || len(words) > 1 && IsUnit(bare(words[1])) {
+		return "", false
+	}
+	switch prep := bare(before[len(before)-1]); prep {
+	case "at", "by":
+		return prep, true
+	case "to":
+		return prep, len(before) < 2 || bare(before[len(before)-2]) != "up"
+	}
+	return "", false
+}
+
+// NamesAnItem reports digits at offset at right after a singular noun, as in
+// "branch 3 sees" or "the Section 4 pins". The digits name one item. A noun
+// that a number or "each" governs starts a second phrase: "one call 3 ways".
+// The tagger reads a bare noun before digits as a verb or an adjective, as in
+// "branch/VBZ" and "id/JJ". So a word that ends in no "s" and is no function
+// word or quantity word reads as the noun too. The first word of a sentence
+// names an item only in lower case or before a finite verb. A capital there
+// opens an instruction: "Run 3 tests".
+func NamesAnItem(text string, at int) bool {
+	words := syntax.Parse(text, nil).Words
+	for i, w := range words {
+		if w.Start != at {
+			continue
+		}
+		if !allDigits(w.Text) || i < 1 || words[i-1].End == at {
+			return false
+		}
+		prev := words[i-1]
+		name, opened := strings.CutPrefix(prev.Text, "(")
+		lower := strings.ToLower(name)
+		if strings.IndexFunc(name, unicode.IsLetter) != 0 || strings.IndexFunc(name, func(r rune) bool { return !unicode.IsLetter(r) && r != '-' }) >= 0 {
+			return false
+		}
+		// "rightmost 10 cols" orders as "top 10" does.
+		if functionTags.Contains(prev.Tag) && prev.Tag != "NNS" || notNames.Contains(lower) || strings.HasSuffix(lower, "most") || InClass(lower, "preposition") {
+			return false
+		}
+		plural := strings.HasSuffix(lower, "s") && !strings.HasSuffix(lower, "ss")
+		noun := prev.Tag == "NN" || prev.Tag == "NNP" || !plural && (prev.Tag == "VBZ" || prev.Tag == "JJ")
+		if i < 2 || words[i-2].Tag == "." && words[i-2].Text != "(" {
+			next := i+1 < len(words) && finiteTags.Contains(words[i+1].Tag)
+			return noun && !plural && (next || unicode.IsLower([]rune(name)[0]))
+		}
+		before := words[i-2]
+		opened = opened || before.Text == "(" || (prev.Start > 0 && text[prev.Start-1] == '(')
+		if before.Tag == "CD" || singleItem.Contains(before.Lower()) {
+			return false
+		}
+		if noun {
+			return true
+		}
+		// The tagger reads a noun that opens a parenthesis as a verb: "(branch 1 rejects".
+		return opened && !plural && !functionTags.Contains(prev.Tag)
+	}
+	return false
+}
+
+// notNames are the words before digits that count or order them, and never
+// name an item: "the last 3 runs", "top 10".
+var notNames = set.Of("first", "last", "next", "top", "bottom", "previous", "other", "only", "past", "final", "initial",
+	"remaining", "additional", "extra", "another", "same", "different", "both", "these", "those", "total", "about", "all", "some", "any", "most", "few", "many", "several", "every",
+	"each", "is", "are", "was", "were", "be", "been", "has", "have", "had", "than", "and", "or", "of", "to", "in", "at", "by")
+
+// finiteTags mark a finite verb.
+var finiteTags = set.Of("VBZ", "VBD", "VBP", "MD")
+
+// functionTags mark a word that is never a name an item carries.
+var functionTags = set.Of("IN", "DT", "CC", "PRP", "PRP$", "TO", "MD", "WDT", "RB", "NNS", "NNPS")
+
+// hedges qualify the number after them.
+var hedges = set.Of("exactly", "about", "roughly", "around", "approximately", "nearly", "almost", "only", "just")
+
+// singleItem are the words that make the noun after them one counted item.
+var singleItem = set.Of("a", "an", "each", "every", "one", "per")
+
+// Measure exempts a quantity that takes a singular verb, as in "43 cols is
+// less than the cap". It is one measured amount, and a cut leaves "cols is".
+func Measure(text string, q Match) bool {
+	rest := strings.Fields(text[q.At+len(q.Text):])
+	return len(rest) > 0 && singularVerbs.Contains(bare(rest[0]))
+}
+
+// SectionCite exempts a number behind a section sign, as in "§9 trigger". It
+// cites a section, so it counts nothing.
+func SectionCite(text string, q Match) bool {
+	before := strings.TrimRight(strings.TrimRight(text[:q.At], " \t"), "0123456789.")
+	last, size := utf8.DecodeLastRuneInString(before)
+	return size > 0 && last == sectionSign
+}
+
+// IssueNumber exempts the digits of the literal shape "issue #<digits>". An
+// issue number never changes.
+func IssueNumber(text string, q Match) bool {
+	return issueRef.MatchString(text[:q.At])
+}
+
+var issueRef = regexp.MustCompile(`(?i)\bissue #$`)
+
+// GPUName exempts the digits of the literal shape "Vega <digits>". The digits
+// are part of a product name.
+func GPUName(text string, q Match) bool {
+	return gpuRef.MatchString(text[:q.At])
+}
+
+var gpuRef = regexp.MustCompile(`(?i)\bvega $`)
+
+// WordSize exempts the literal shapes "8 bits", "16 bits", "32 bits" and
+// "64 bits". A word size is a fixed width.
+func WordSize(_ string, q Match) bool {
+	return wordSizeRef.MatchString(q.Text)
+}
+
+var wordSizeRef = regexp.MustCompile(`(?i)^(?:8|16|32|64) bits$`)
+
 // InExpression exempts a number that is arithmetic rather than a count. The
 // digits in an expression or a range name no set of items.
 func InExpression(text string, q Match) bool {
@@ -116,5 +416,16 @@ func InExpression(text string, q Match) bool {
 	case '-', '−', '+', '/', '*', '=', '.', ',', '_':
 		return true
 	}
-	return unicode.IsDigit(prev)
+	return unicode.IsDigit(prev) || inEquation(text, q.At)
+}
+
+// inEquation reports a number in a clause that holds an equals sign. An
+// equation states an identity, such as a unit conversion, and no tally.
+func inEquation(text string, at int) bool {
+	start := strings.LastIndexAny(text[:at], "(;,") + 1
+	end := len(text)
+	if i := strings.IndexAny(text[at:], ");,"); i >= 0 {
+		end = at + i
+	}
+	return strings.Contains(text[start:end], " = ")
 }

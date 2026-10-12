@@ -1,18 +1,20 @@
 // Package repairwrite repairs the file a write landed, in place.
 //
-// Judging the text before it lands means putting the fragment back where it
-// goes because a fence and a table are properties of the whole document. The
+// A judgment of the text before it lands needs the fragment back in its place.
+// A fence and a table are properties of the whole document. The
 // file on disk is already whole, so this reads it and rewrites it.
 package repairwrite
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 )
 
 // Result is what the launcher prints and exits with.
@@ -55,7 +57,12 @@ func Run(r io.Reader) Result {
 		return Result{}
 	}
 
-	repair, err := slopfix.FixFile(path)
+	repair, err := slopfix.FixFileIn(forkscope.Resolver{}, path, slopfix.Request{})
+	var unmet *slopfix.UnmetError
+	if errors.As(err, &unmet) {
+		// Exit 2 is how a PostToolUse hook puts stderr in front of the model.
+		return Result{Stderr: unmet.Error() + "\n", Code: 2}
+	}
 	if err != nil {
 		// Said on stderr rather than swallowed: a repair that never ran, and never.
 		return Result{Stderr: fmt.Sprintf("slopfix: did not repair %s: %v\n", path, err)}

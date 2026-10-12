@@ -68,18 +68,18 @@ func interpreterWrites(seg segment, name string, rest []word, roots []string) ([
 		}
 	}
 	// A pipe or a `< file` redirect only carries a SCRIPT when the interpreter
-	// was given nothing else to run: a named script means stdin is its input.
+	// was given nothing else to run. A named script means stdin is its input.
 	if seg.stdinScript && !namesAScript(rest) {
 		return []write{{route: name + " (stdin)", opaque: "a " + name + " script piped in on stdin, which is not in the command text"}}, true
 	}
 	return scratchScriptWrites(seg, name, rest, roots), true
 }
 
-// scratchScriptWrites closes the write-elsewhere-then-run route: the Write tool
+// scratchScriptWrites closes the write-elsewhere-then-run route. The Write tool
 // aimed at /tmp is allowed, so running that file is the half that puts its
 // content into the tree. A script that lives inside the tree is not this -- it
-// got there through Write or Edit and is visible in the diff -- and a system
-// script is the tool it belongs to, so only a scratch script denies.
+// got there through Write or Edit and is visible in the diff. A system script
+// is the tool it belongs to, so only a scratch script denies.
 func scratchScriptWrites(seg segment, name string, rest []word, roots []string) []write {
 	_, operands := scanArgs(rest, noFlags)
 	for _, o := range operands {
@@ -133,8 +133,8 @@ func editorWrites(seg segment, name string, rest []word) []write {
 }
 
 // isSessionScratchpad recognises the directory the harness ITSELF tells a
-// session to use for temporary files, so denying the scripts written there
-// would refuse the documented workflow. It needs a "scratchpad" segment under
+// session to use for temporary files. A denial of the scripts there would
+// refuse the documented workflow. It needs a "scratchpad" segment under
 // an ancestor named claude, so an ordinary /tmp/scratchpad does not qualify.
 func isSessionScratchpad(p string) bool {
 	if p == "" || !isScratchPath(p) {

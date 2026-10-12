@@ -1,6 +1,6 @@
 // Package ste checks prose against ASD-STE100, Simplified Technical English.
 //
-// STE is a controlled language: each approved word carries a single meaning and
+// STE is a controlled language. Each approved word carries a single meaning and
 // a single part of speech, and its rules keep every sentence to a single
 // reading. It suits code prose for the reason it suits a maintenance manual. The
 // reader is about to change the thing described, and nobody is there to ask.
@@ -9,8 +9,10 @@ package ste
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
@@ -34,7 +36,8 @@ const (
 // asks whether a name is in it rather than reading it in order.
 var AllIDs = set.Of(
 	IDContraction, IDModal, IDSemicolon, IDSentenceCap, IDCommaSplice, IDStaleCount,
-)
+	IDPostdeterminer,
+).Union(WarningIDs)
 
 // Finding is a rule the line breaks, and how to repair it.
 type Finding struct {
@@ -48,14 +51,23 @@ type Finding struct {
 	Detail string
 	// Fix names the repair, in the imperative.
 	Fix string
+	// Severity is SeverityWarning for a finding that must not fail a check, and empty for an error.
+	Severity string
 }
+
+// Warning reports whether the finding informs rather than fails.
+func (f Finding) Warning() bool { return f.Severity == SeverityWarning }
 
 func (f Finding) String() string {
 	detail := ""
 	if f.Detail != "" {
 		detail = fmt.Sprintf(" %q", f.Detail)
 	}
-	return fmt.Sprintf("%d: [%s] %s%s. %s", f.Line, f.ID, f.Rule, detail, f.Fix)
+	level := ""
+	if f.Warning() {
+		level = "warning "
+	}
+	return fmt.Sprintf("%d: %s[%s] %s%s. %s", f.Line, level, f.ID, f.Rule, detail, f.Fix)
 }
 
 // SentenceWordCap is STE's cap for a descriptive sentence.
@@ -111,6 +123,10 @@ var (
 	wordPattern = regexp.MustCompile(`[A-Za-z]+(?:'[A-Za-z]+)?`)
 	// codeSpan matches an inline code span, whose contents are data.
 	codeSpan = regexp.MustCompile("`[^`]*`")
+	// charRange matches an XML character-class range a comment quotes, as in `[#x370-#x37D]`.
+	charRange = regexp.MustCompile(`\[#x[0-9A-Fa-f]+(?:-#x[0-9A-Fa-f]+)?\]`)
+	// sectionLink matches a link that cites a section by its slug.
+	sectionLink = regexp.MustCompile(`\[§[^\]\s]*\]\([^)\s]*\)`)
 	// linkTarget matches a markdown link's URL, which is not prose.
 	linkTarget = regexp.MustCompile(`\]\([^)]*\)`)
 	// entity ENDS IN A SEMICOLON, which unmasked prose reports as its own.
@@ -176,17 +192,26 @@ var proseRules = []proseRule{
 	{"rule/ste-sentence-length", checkSentences},
 	{"rule/ste-comma-splice", checkSplices},
 	{"rule/ste-count", checkCounts},
+	{"rule/ste-postdeterminer", checkPostdeterminers},
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
-// link's target, and an HTML entity. A semicolon inside any of them is not a
-// sentence joiner.
+// link's target, an HTML entity, and an XML character range. A semicolon inside
+// any of them is not a sentence joiner.
 func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
+	// A range becomes a separator, so neighbours never join into one word.
+	text = charRange.ReplaceAllString(text, " ")
+	// A section link reads as the citation it replaced, which holds no word.
+	text = sectionLink.ReplaceAllString(text, "§")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
-	return entity.ReplaceAllString(text, " ENTITY ")
+	text = entity.ReplaceAllString(text, " ENTITY ")
+	// A quotation is another voice, so no rule judges the words inside it.
+	return quotation.ReplaceAllString(text, " QUOTE ")
 }
+
+var quotation = regexp.MustCompile(`"[^"\n]*"|“[^”\n]*”`)
 
 func checkWords(prose string, line int) []Finding {
 	var out []Finding
@@ -237,9 +262,9 @@ func checkSentences(prose string, line int) []Finding {
 // finite verb too. A conjunction joins equals, and says as much by itself.
 func checkSplices(prose string, line int) []Finding {
 	var out []Finding
+	parens := parenthetical.FindAllStringIndex(prose, -1)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(prose, -1) {
-		bare := loc[2] < 0
-		if bare && !isClause(clauseBefore(prose, loc[0])) {
+		if insideAny(parens, loc[0]) || !spliced(prose, loc) {
 			continue
 		}
 		out = append(out, Finding{
@@ -257,9 +282,16 @@ func checkSplices(prose string, line int) []Finding {
 // after somebody adds the item that makes it wrong.
 // This rule's own spelling of a count lives in cardinal as the Gate substrate. The document rule and the comment rule read
 // the same package with their own policies, so they cannot drift apart.
+//
+// A numeral after a definite determiner is the postdeterminer rule's finding,
+// so this rule leaves it to that one.
 func checkCounts(prose string, line int) []Finding {
 	var out []Finding
+	numerals := postdeterminers(prose, prose, opaque(prose, prose))
 	for _, found := range cardinal.Find(prose, cardinal.Gate) {
+		if slices.ContainsFunc(numerals, func(p postdeterminer) bool { return found.Offset >= p.Start && found.Offset < p.End }) {
+			continue
+		}
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDStaleCount,
@@ -271,12 +303,23 @@ func checkCounts(prose string, line int) []Finding {
 	return out
 }
 
-// clauseBefore returns the words from the end of the previous sentence up to
-// the comma at idx.
+// insideAny reports whether the byte at idx falls in any of the spans.
+func insideAny(spans [][]int, idx int) bool {
+	for _, span := range spans {
+		if span[0] <= idx && idx < span[1] {
+			return true
+		}
+	}
+	return false
+}
+
+// clauseBefore returns the words from the end of the sentence up to the comma
+// at idx.
 func clauseBefore(prose string, idx int) string {
 	before := prose[:idx]
-	if cut := strings.LastIndexAny(before, ".!?"); cut >= 0 {
-		before = before[cut+1:]
+	if cut := strings.LastIndexAny(before, ".!?:;—"); cut >= 0 {
+		_, width := utf8.DecodeRuneInString(before[cut:])
+		before = before[cut+width:]
 	}
 	return before
 }
@@ -292,16 +335,20 @@ func isClause(before string) bool {
 }
 
 // Sentences splits prose into sentences.
-//
-// A period ends a sentence only when what follows opens the next. That rules
-// out "e.g. the lexer" and the "$(...)" of a shell example, which a plain
-// period-and-space split cuts apart. An oversized sentence then reads as short
-// pieces and escapes the cap.
+func Sentences(text string) []string { return SentencesOpenedBy(text, opensSentence) }
+
+// OpensSentence reports whether rest starts a sentence by the rule Sentences uses.
+func OpensSentence(rest []rune) bool { return opensSentence(rest) }
+
+// SentencesOpenedBy ends a sentence at a period only when opens accepts what
+// follows. That rules out "e.g. the lexer" and the "$(...)" of a shell example,
+// which a plain period-and-space split cuts apart. An oversized sentence then
+// reads as short pieces and escapes the cap.
 //
 // A lower-case opener still starts a sentence when it is a file name or a
 // section mark. Demanding a capital there is the mirror defect, and it hides
 // the length of everything it welds together.
-func Sentences(text string) []string {
+func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 	var out []string
 	runes := []rune(text)
 	start := 0
@@ -313,6 +360,12 @@ func Sentences(text string) []string {
 		for end+1 < len(runes) && terminator(runes[end+1]) {
 			end++
 		}
+		stop := end
+		// A mark that closes emphasis, a quote or a parenthetical belongs to the
+		// sentence it ends.
+		for end+1 < len(runes) && closesMark(runes[start:stop], runes[end+1]) {
+			end++
+		}
 		gap := end + 1
 		if gap >= len(runes) || !unicode.IsSpace(runes[gap]) {
 			i = end
@@ -322,7 +375,7 @@ func Sentences(text string) []string {
 		for next < len(runes) && unicode.IsSpace(runes[next]) {
 			next++
 		}
-		if next >= len(runes) || !opensSentence(runes[next:]) || endsWithAbbreviation(runes[start:end+1]) {
+		if next >= len(runes) || !opens(runes[next:]) || endsWithAbbreviation(runes[start:stop+1]) {
 			i = end
 			continue
 		}
@@ -340,24 +393,49 @@ func terminator(r rune) bool {
 	return r == '.' || r == '!' || r == '?'
 }
 
-// opensSentence reports whether the text starts a new sentence. A capital, a
-// digit and an opening delimiter each do, and so does a lower-case file name.
+// closesMark reports a mark after a terminator that closes what the sentence
+// so far opened. A `*` with no emphasis open before it is the glob of
+// `esnext.*`, and a `)` with no open parenthesis is a word.
+func closesMark(sentence []rune, mark rune) bool {
+	switch mark {
+	case ')':
+		return strings.Count(string(sentence), "(") > strings.Count(string(sentence), ")")
+	case '”':
+		return strings.ContainsRune(string(sentence), '“')
+	case '’':
+		return strings.ContainsRune(string(sentence), '‘')
+	case '*', '_', '"', '\'':
+		return strings.ContainsRune(string(sentence), mark)
+	}
+	return false
+}
+
+// opensSentence reports whether the text starts a new sentence.
+var maskedSpan = regexp.MustCompile(`^x{4,}(?:\s|$)`)
+
 func opensSentence(rest []rune) bool {
 	switch first := rest[0]; {
 	case unicode.IsUpper(first), unicode.IsDigit(first):
 		return true
-	case strings.ContainsRune("(`'\"*_[§¶“‘", first):
+	case strings.ContainsRune("(`'\"*_[§¶“‘—–", first):
 		return true
 	}
-	return fileOrSection.MatchString(string(rest))
+	// A masked code span is a run of x, and opens a sentence as its backtick does.
+	head := string(rest[:min(len(rest), openerReach)])
+	return maskedSpan.MatchString(head) || fileOrSection.MatchString(head)
 }
+
+// openerReach bounds how far opensSentence reads.
+const openerReach = 512
 
 func endsWithAbbreviation(sentence []rune) bool {
 	fields := strings.Fields(string(sentence))
 	if len(fields) == 0 {
 		return false
 	}
-	return abbreviations.Contains(strings.ToLower(fields[len(fields)-1]))
+	// "(e.g." is the abbreviation behind an opening mark.
+	last := strings.TrimLeft(fields[len(fields)-1], "([\"'“‘*_")
+	return abbreviations.Contains(strings.ToLower(last))
 }
 
 // WordCount counts the words in a sentence. Text in parentheses counts as a

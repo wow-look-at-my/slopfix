@@ -11,6 +11,7 @@ type toolInput struct {
 	FilePath       string          `json:"file_path"`
 	NotebookPath   string          `json:"notebook_path"`
 	Path           string          `json:"path"`
+	Content        string          `json:"content"`
 	Skill          string          `json:"skill"`
 	PermissionMode string          `json:"permissionMode"`
 	PermissionMod2 string          `json:"permission_mode"`
@@ -45,13 +46,13 @@ func decide(raw []byte) (reason string, notices []string) {
 			return reason, nil
 		}
 		// The provenance half can still deny a command the destruction half
-		// just preserved and allowed -- `> tracked.go` is both a truncation
+		// preserved and allowed -- `> tracked.go` is both a truncation
 		if writeReason := evaluateWrites(ti.Command, in.Cwd); writeReason != "" {
 			return writeReason, nil
 		}
 		return "", notices
 	case isEditTool(in.ToolName):
-		return editToolReason(in.ToolName, ti, in.Cwd), nil
+		return editToolReason(in, ti), nil
 	case isAgentTool(in.ToolName):
 		return agentReason(in.ToolName, ti), nil
 	case in.ToolName == "Skill":
@@ -62,8 +63,8 @@ func decide(raw []byte) (reason string, notices []string) {
 }
 
 // evaluateWrites runs the provenance analysis under a recover. This half fails
-// CLOSED, so a panic denies rather than waving the command through: a bug here
-// must be loud and visible, not a silent hole in the rule. (The work-loss half
+// CLOSED, so a panic denies rather than letting the command through. A bug
+// here must be loud and visible, not a silent hole in the rule. (The work-loss half
 // keeps its own posture -- see evaluateLoss.)
 func evaluateWrites(command, cwd string) (reason string) {
 	if strings.TrimSpace(command) == "" {
@@ -103,12 +104,12 @@ func analyzeWrites(command, cwd string) string {
 }
 
 // judgeWrite turns a write into a verdict. Every branch that cannot resolve a
-// target denies: a path this hook cannot name is a path it cannot clear.
-// A write read out of a script FILE is the exception. There the unresolvable
-// target belongs to a program this hook runs rather than to the command text,
-// and it already declines to sandbox what it starts. Denying it made an
-// ordinary `./make.bash` unrunnable. A target the script names statically is
-// still judged, so following a script still closes the write-elsewhere-then-run
+// target denies: a path this hook cannot name is a path it cannot clear. A
+// write read out of a script FILE is the exception. There the unresolvable
+// target belongs to a program this hook runs rather than to the command text.
+// It already declines to sandbox what it starts. Denying it made an ordinary
+// `./make.bash` unrunnable. A target the script names statically is still
+// judged, so following a script still closes the write-elsewhere-then-run
 // bypass.
 func judgeWrite(w write, roots []string) string {
 	if w.opaque != "" {
@@ -165,23 +166,23 @@ func isEditTool(name string) bool {
 	return false
 }
 
-// The edit tools are the sanctioned route and are left alone -- except where
-// their target is the live settings, which is how a session would re-grant what
-// every rule above denies.
-func editToolReason(tool string, ti toolInput, cwd string) string {
+// The edit tools are the sanctioned route. This code leaves them alone, except
+// where their target is the live settings. A session could use that route to
+// grant again what every rule above denies.
+func editToolReason(in hookInput, ti toolInput) string {
 	for _, p := range []string{ti.FilePath, ti.NotebookPath, ti.Path} {
 		if p == "" {
 			continue
 		}
-		a := abs(cwd, p)
+		a := abs(in.Cwd, p)
 		if a == "" {
 			continue
 		}
 		if isProtectedConfig(a) {
-			return settingsReason(tool + " targets " + a)
+			return settingsReason(in.ToolName + " targets " + a)
 		}
-		if tool == "Write" {
-			if reason := writeToolReason(a); reason != "" {
+		if in.ToolName == "Write" {
+			if reason := writeToolReason(a, writeAttempt{input: in.ToolInput, content: ti.Content, id: in.ToolUseID, transcript: in.TranscriptPath}); reason != "" {
 				return reason
 			}
 		}
@@ -194,11 +195,11 @@ func isAgentTool(name string) bool {
 		strings.HasSuffix(name, "__create_session")
 }
 
-// A subagent inherits the session's hooks, so its own Bash calls arrive here
-// like any other. What does not arrive here is a grant the spawn hands the
-// child: an explicit tool list or a permissive mode makes the child able to do
-// what the parent was refused, in a single call. A spawn that asks for neither is
-// ordinary delegation and passes.
+// A subagent inherits the session's hooks, so its own Bash calls arrive here like
+// any other. What does not arrive here is a grant the spawn hands the child. An
+// explicit tool list or a permissive mode makes the child able to do what the
+// parent was refused, in a single call. A spawn that asks for neither is ordinary
+// delegation and passes.
 func agentReason(tool string, ti toolInput) string {
 	mode := ti.PermissionMode
 	if mode == "" {

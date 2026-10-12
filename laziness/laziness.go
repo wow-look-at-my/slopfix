@@ -2,12 +2,12 @@
 // the work.
 //
 // It folds together what used to be judged apart. A closing message reports a
-// defect the session found and left in place. Or it asks permission to carry on
-// instead of carrying on. Both end the turn with the work undone, and the reader
-// is left holding it.
+// defect the session found and left in place. Or it asks permission to carry
+// on instead of carrying on. Both end the turn with the work undone, and the
+// reader is left holding it.
 //
-// The consumer is a Stop hook. It answers a finding with the single word the
-// user would have typed back.
+// The consumer is a Stop hook. It answers a finding with the word the user
+// would have typed back.
 package laziness
 
 import (
@@ -25,7 +25,7 @@ type Hit struct {
 	ID string `json:"id"`
 	// Tell says in words which shape fired.
 	Tell string `json:"tell"`
-	// Sentence quotes what was actually written.
+	// Sentence quotes what was written.
 	Sentence string `json:"sentence"`
 	// Line is where the sentence starts, counting from the top.
 	Line int `json:"line"`

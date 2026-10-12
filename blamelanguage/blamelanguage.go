@@ -33,8 +33,8 @@ type Hit struct {
 }
 
 // phrases is the table. It is data: extending this package is adding a row.
-// Every entry is grounded in this org's own written convention, and the rest
-// are direct synonyms of an entry already here, kept narrow rather than
+// Every entry is grounded in this org's own written convention. The rest are
+// direct synonyms of an entry already here, kept narrow rather than
 // speculative.
 var phrases = []string{
 	"pre-existing",
@@ -104,9 +104,9 @@ func Check(message string) []Hit {
 	return hits
 }
 
-// spelled is the phrase as the writer wrote it, read back out of the original
-// text so its case survives and a line wrap inside it collapses. A match
-// reaching the end of the collapsed text has no offset after it.
+// spelled is the phrase as the writer wrote it, read back out of the text.
+// Its case survives, and a line wrap inside it collapses. A match reaching the
+// end of the collapsed text has no offset after it.
 func spelled(text string, start int, offsets []int, at []int) string {
 	end := len(text)
 	if at[1] < len(offsets) {

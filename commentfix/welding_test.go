@@ -10,8 +10,9 @@ import (
 
 // What the tidy pass writes for a whole line is stated in english.xml and
 // driven by the english package's own test. This is the property behind those
-// cases, which no worked example states: the repair may drop a word and may
-// rewrite a word, and may never run of the author's words together.
+// cases, which no worked example states: the repair may drop a word. The
+// repair may rewrite a word, and may never run of the author's words
+// together.
 func TestTighteningNeverWeldsTwoWordsTogether(t *testing.T) {
 	for _, in := range []string{
 		"It reads from the .gitmodules parser above.",

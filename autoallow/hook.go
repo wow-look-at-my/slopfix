@@ -2,6 +2,7 @@ package autoallow
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -43,22 +44,21 @@ type Rules struct {
 }
 
 type CommandNode struct {
-	Name                interface{}      `json:"name"` // string or []string
-	Description         string           `json:"description,omitempty"`
-	AllowedFlags        interface{}      `json:"allowedFlags,omitempty"` // "*" or []string
-	DeniedFlags         []string         `json:"deniedFlags,omitempty"`
-	ExecFlags           []string         `json:"execFlags,omitempty"`
-	RequiredFlags       []string         `json:"requiredFlags,omitempty"`
-	RequireFlagValue    *RequireFlagRule `json:"requireFlagValue,omitempty"`
-	DenyWithMessage     string           `json:"denyWithMessage,omitempty"`
-	FlagsWithValue      []string         `json:"flagsWithValue,omitempty"`
-	HelpAlwaysAllowed   bool             `json:"helpAlwaysAllowed,omitempty"`
-	BareOnly            bool             `json:"bareOnly,omitempty"`
-	DenyArgSubstrings   []string         `json:"denyArgSubstrings,omitempty"`
-	RefuseArgSubstrings []string         `json:"refuseArgSubstrings,omitempty"`
-	RefuseArgMessage    string           `json:"refuseArgMessage,omitempty"`
-	AllowedArgPrefixes  []string         `json:"allowedArgPrefixes,omitempty"`
-	Subcommands         []CommandNode    `json:"subcommands,omitempty"`
+	Name               interface{}      `json:"name"` // string or []string
+	Description        string           `json:"description,omitempty"`
+	AllowedFlags       interface{}      `json:"allowedFlags,omitempty"` // "*" or []string
+	DeniedFlags        []string         `json:"deniedFlags,omitempty"`
+	ExecFlags          []string         `json:"execFlags,omitempty"`
+	RequiredFlags      []string         `json:"requiredFlags,omitempty"`
+	RequireFlagValue   *RequireFlagRule `json:"requireFlagValue,omitempty"`
+	DenyWithMessage    string           `json:"denyWithMessage,omitempty"`
+	FlagsWithValue     []string         `json:"flagsWithValue,omitempty"`
+	HelpAlwaysAllowed  bool             `json:"helpAlwaysAllowed,omitempty"`
+	BareOnly           bool             `json:"bareOnly,omitempty"`
+	DenyArgSubstrings  []string         `json:"denyArgSubstrings,omitempty"`
+	Refusals           []Refusal        `json:"refusals,omitempty"`
+	AllowedArgPrefixes []string         `json:"allowedArgPrefixes,omitempty"`
+	Subcommands        []CommandNode    `json:"subcommands,omitempty"`
 }
 
 type RequireFlagRule struct {
@@ -68,7 +68,7 @@ type RequireFlagRule struct {
 }
 
 // The events this binary answers. They are NOT interchangeable; the deny half
-// rides PreToolUse. see docs/two-event-registration.md
+// rides PreToolUse. See the auto-allow section of AGENTS.md
 const (
 	eventPermissionRequest = "PermissionRequest"
 	eventPreToolUse        = "PreToolUse"
@@ -105,8 +105,8 @@ func evaluateCommand(command string) (string, string) {
 // evaluateCommandWith takes the rule set as a value, so a test never swaps the package-level `rules`.
 func evaluateCommandWith(command string, rules Rules) (string, string) {
 	// Process rules outrank command rules, and are answered by walking the parse
-	// tree, so they still see a command the allow path below refuses to read --
-	// a `$(...)`, a subshell, anything with a redirect.
+	// tree. They still see a command the allow path below refuses to read -- a
+	// `$(...)`, a subshell, anything with a redirect.
 	for _, section := range []struct {
 		rules    []CommandRule
 		behavior string
@@ -206,13 +206,11 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 		return "deny", node.DenyWithMessage
 	}
 
-	// A refused substring is a verdict of its own: the endpoint and method are
-	// ordinary, and what the request carries decides it.
-	for _, arg := range args {
-		for _, substr := range node.RefuseArgSubstrings {
-			if strings.Contains(arg, substr) {
-				return "deny", node.RefuseArgMessage
-			}
+	// A refusal is a verdict of its own: the command is ordinary, and what its
+	// arguments carry decides it.
+	for _, r := range node.Refusals {
+		if r.matches(args) {
+			return "deny", r.Message
 		}
 	}
 
@@ -246,16 +244,19 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 
 	// Check requireFlagValue
 	if node.RequireFlagValue != nil {
-		value := getFlagValue(args, node.RequireFlagValue.Flags)
-		if value == "" {
-			value = node.RequireFlagValue.Default
+		values := getFlagValues(args, node.RequireFlagValue.Flags)
+		if len(values) == 0 {
+			values = []string{node.RequireFlagValue.Default}
 		}
-		for _, allowed := range node.RequireFlagValue.Allowed {
-			if value == allowed {
-				return "allow", ""
+		for _, value := range values {
+			if !slices.Contains(node.RequireFlagValue.Allowed, value) {
+				return "", ""
 			}
 		}
-		return "", ""
+		// A rule that also lists its allowed flags is held to them below.
+		if node.AllowedFlags == nil {
+			return "allow", ""
+		}
 	}
 
 	// Strip own flags (that take values) before subcommand matching
@@ -391,17 +392,26 @@ func stripFlagsWithValue(args []string, flags []string) []string {
 	return result
 }
 
-func getFlagValue(args []string, flags []string) string {
-	flagSet := set.New[string]()
-	for _, f := range flags {
-		flagSet.Add(f)
-	}
+// getFlagValues returns the value of every occurrence of any of flags, in the
+// spellings `-X V`, `--long=V` and `-XV`. A flag given as the last word, with
+// no value after it, yields an empty value.
+func getFlagValues(args []string, flags []string) []string {
+	var values []string
 	for i, arg := range args {
-		if flagSet.Contains(arg) && i+1 < len(args) {
-			return args[i+1]
+		for _, f := range flags {
+			switch {
+			case arg == f && i+1 < len(args):
+				values = append(values, args[i+1])
+			case arg == f:
+				values = append(values, "")
+			case strings.HasPrefix(f, "--") && strings.HasPrefix(arg, f+"="):
+				values = append(values, arg[len(f)+1:])
+			case len(f) == 2 && f[0] == '-' && f[1] != '-' && strings.HasPrefix(arg, f) && len(arg) > 2:
+				values = append(values, arg[2:])
+			}
 		}
 	}
-	return ""
+	return values
 }
 
 func splitFlagsAndArgs(args []string) (flags, positionals []string) {

@@ -12,7 +12,7 @@ import (
 )
 
 // gitOutput runs git and returns its trimmed stdout, for the tests below that
-// must read back what preservation actually committed.
+// must read back what preservation committed.
 func gitOutput(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", args...)
@@ -64,6 +64,22 @@ func TestPreservesUntrackedFileContentBeforeRm(t *testing.T) {
 	// The hook analyses the command and never runs it, so the copy holds what stood in the tree.
 	content := gitOutput(t, dir, "show", refs[0]+":scratch.txt")
 	assert.Equal(t, "scratch", content)
+}
+
+// commit-tree ignores commit.gpgsign. A repository that signs must get a signed
+// preservation commit, or GitHub shows it as Unverified.
+func TestPreservationSignsWhenTheRepositorySigns(t *testing.T) {
+	dir := newRepo(t)
+	key := filepath.Join(t.TempDir(), "signing")
+	out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key).CombinedOutput()
+	require.NoError(t, err, string(out))
+	git(t, dir, "config", "gpg.format", "ssh")
+	git(t, dir, "config", "user.signingkey", key+".pub")
+	git(t, dir, "config", "commit.gpgsign", "true")
+	untrack(t, dir, "scratch.txt")
+
+	preserved(t, dir, "rm scratch.txt")
+	assert.Contains(t, gitOutput(t, dir, "cat-file", "-p", "HEAD"), "gpgsig ")
 }
 
 // A tracked edit is preserved on top of HEAD, without writing the working tree.
@@ -122,7 +138,7 @@ func TestPreservesInARepositoryWithNoCommitsYet(t *testing.T) {
 	assert.Equal(t, "package a", content)
 }
 
-// A real bare remote: the preservation ref must actually land there.
+// A real bare remote: the preservation ref must land there.
 func TestPreservesAndPushesToOrigin(t *testing.T) {
 	dir := remoteRepo(t)
 	untrack(t, dir, "scratch.txt")
@@ -139,7 +155,7 @@ func TestPreservesAndPushesToOrigin(t *testing.T) {
 	assert.Equal(t, local, onRemote, "the commit pushed to the bare remote must match the local ref")
 }
 
-// A pre-push hook that fails must not stop the preservation push: the push is
+// A pre-push hook that fails must not stop the preservation push. The push is
 // --no-verify, so git runs it but the exit status does not matter.
 func TestPreservesAndPushesPastAFailingPrePushHook(t *testing.T) {
 	dir := remoteRepo(t)
@@ -177,7 +193,7 @@ func TestPreservesLocallyWhenPushFails(t *testing.T) {
 // What the preservation commit contains, and what it does to the index.
 // ---------------------------------------------------------------------------
 
-// dirtyThreeWays builds the tree every question below is asked about: a
+// dirtyThreeWays builds the tree every question below is asked about. A
 // tracked file staged, a tracked file modified and left unstaged, and a
 // file git has never seen.
 func dirtyThreeWays(t *testing.T, dir string) {
@@ -246,7 +262,7 @@ func TestPreservationMakesNoEmptyIndexCommit(t *testing.T) {
 }
 
 // The working tree is never written, and every at-risk path is still on disk
-// byte for byte: this hook analyses a command and never runs it.
+// byte for byte. This hook analyses a command and never runs it.
 func TestPreservationNeverWritesTheWorkingTree(t *testing.T) {
 	dir := newRepo(t)
 	dirtyThreeWays(t, dir)
@@ -333,7 +349,7 @@ func TestPreserveNeverAttemptedForAnUnresolvablePath(t *testing.T) {
 	assert.Empty(t, listPreservationRefs(t, dir))
 }
 
-// A stash entry is deliberately not preserved (see docs/decision-model.md),
+// A stash entry is deliberately not preserved (see AGENTS.md),
 // so dropping an entry still denies exactly as before.
 func TestPreserveNeverAttemptedForAStashEntry(t *testing.T) {
 	dir := newRepo(t)
@@ -370,7 +386,7 @@ func TestDeniesDeletingAPreservationRef(t *testing.T) {
 	r := denied(t, dir, "git update-ref -d "+ref)
 	assert.Contains(t, r, "the only copy")
 
-	// Still there: the denial actually stopped it.
+	// Still there: the denial stopped it.
 	assert.NotEmpty(t, gitOutput(t, dir, "rev-parse", ref))
 }
 
@@ -381,7 +397,7 @@ func TestDeniesForcePushDeletingOrOverwritingAPreservationRef(t *testing.T) {
 	ref := makeStrandedPreservationRef(t, dir)
 
 	r := denied(t, dir, "git push --delete origin "+ref)
-	assert.Contains(t, r, "the only copy")
+	assert.Contains(t, r, "deleting a remote branch")
 
 	r2 := denied(t, dir, "git push --force origin HEAD:"+ref)
 	assert.Contains(t, r2, "the only copy")

@@ -14,7 +14,6 @@ import (
 // firing says so here rather than sitting in the file looking enforced.
 func TestEveryTableEntryFires(t *testing.T) {
 	require.NotEmpty(t, numbersTable.Rewrites)
-	require.NotEmpty(t, numbersTable.Patterns)
 
 	require.NotEmpty(t, numbersTable.Rephrasings)
 	for _, r := range numbersTable.Rewrites {
@@ -63,10 +62,10 @@ func TestEveryClassAMatchNamesIsDeclared(t *testing.T) {
 // the rule REPORTS, or a shape nothing covers goes quietly unreported.
 func TestTheCardinalStaysBannedWhereTheTableRepairsNothing(t *testing.T) {
 	for _, prose := range []string{
-		"The count is one",
-		"It holds one",
-		"It takes the wrong one",
-		"It owns the one below",
+		"The count is three",
+		"It holds three",
+		"It takes the wrong three",
+		"It owns the dozen below",
 	} {
 		assert.NotEmpty(t, cardinal.Find(prose, cardinal.Comment), "the rule stopped reporting %q", prose)
 	}

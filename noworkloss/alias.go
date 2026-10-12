@@ -41,9 +41,9 @@ func (a *aliasResolver) table(dir string) map[string]string {
 	return t
 }
 
-// expand turns `git <alias> args` into the segments it really runs. Returns
-// nil when the verb is a builtin (git resolves those ahead of aliases and
-// refuses to let an alias shadow a builtin) or when no such alias exists.
+// expand turns `git <alias> args` into the segments it runs. Returns nil when
+// the verb is a builtin (git resolves those ahead of aliases and refuses to
+// let an alias shadow a builtin) or when no such alias exists.
 func (a *aliasResolver) expand(seg segment, depth int) []segment {
 	if depth >= maxAliasDepth {
 		return nil
@@ -58,8 +58,8 @@ func (a *aliasResolver) expand(seg segment, depth int) []segment {
 	}
 	rest := argsAfterVerb(seg.argv, g.verb)
 
-	// A `!` alias is a shell command, not a git subcommand, so it gets parsed
-	// as shell -- which is also what lets `!git reset --hard` be seen at all.
+	// A `!` alias is a shell command, not a git subcommand. It gets parsed as
+	// shell -- which is also what lets `!git reset --hard` be seen at all.
 	if shell, isShell := strings.CutPrefix(value, "!"); isShell {
 		text := shell
 		if len(rest) > 0 {

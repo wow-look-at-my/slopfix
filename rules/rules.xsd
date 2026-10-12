@@ -27,6 +27,29 @@
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
 
+        <!-- A case for the file rather than for one entry, which is what a
+             rule spelled as classes rather than as entries has to assert
+             against: the repair is the whole file's, so the case is too. -->
+        <xs:element name="test" type="test"/>
+
+        <!-- What one substrate reports for a line, before any repair runs.
+             Each <found> names a phrase the reader must report, in the order
+             they appear; no children says it reports nothing. -->
+        <xs:element name="detect">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="found" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:attribute name="text" type="xs:string" use="required"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="in" type="xs:string" use="required"/>
+            <xs:attribute name="substrate" type="xs:string" use="required"/>
+            <xs:attribute name="why" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+
         <!-- A word the sentence still reads without. -->
         <xs:element name="drop">
           <xs:complexType>
@@ -77,14 +100,29 @@
 
         <!-- A set of words filling the same slot, named by a <rephrase> match.
              open= lets a word outside the list fill the slot; suffix= admits a
-             word by its ending; except= takes one back out. -->
+             word by its ending; digits= admits a word of digits alone;
+             except= takes one back out. -->
         <xs:element name="class">
           <xs:complexType>
             <xs:attribute name="name" type="xs:string" use="required"/>
             <xs:attribute name="words" type="xs:string"/>
             <xs:attribute name="suffix" type="xs:string"/>
+            <xs:attribute name="digits" type="xs:boolean"/>
             <xs:attribute name="open" type="xs:boolean"/>
             <xs:attribute name="except" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- A named collection of strings, one on each line of the text. A
+             consumer reads each line as it chooses. It carries no <test>,
+             because each item is data and states no match that can drift. -->
+        <xs:element name="list">
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="xs:string">
+                <xs:attribute name="name" type="xs:string" use="required"/>
+              </xs:extension>
+            </xs:simpleContent>
           </xs:complexType>
         </xs:element>
 

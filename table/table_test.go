@@ -9,8 +9,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
-// folder is a rules folder standing in for rules/, so a case states the file it
-// is about rather than depending on what the repository's own tables say.
+// folder is a rules folder standing in for rules/. A case states the file it is
+// about rather than depending on what the repository's own tables say.
 func folder(files map[string]string) fstest.MapFS {
 	out := fstest.MapFS{}
 	for name, body := range files {
@@ -51,6 +51,38 @@ func TestLoadKeepsTheTargetsEntries(t *testing.T) {
 	assert.Len(t, loaded.Classes, 1)
 	assert.Len(t, loaded.Tests, 1)
 	assert.Empty(t, loaded.Drops, "another consumer's entries stay with it")
+}
+
+// A list holds a string on each line, with no test per item.
+func TestAListHoldsOneItemOnEachLine(t *testing.T) {
+	body := `<?xml version="1.0" encoding="UTF-8"?>
+<rules for="words">
+  <list name="banned">
+    abate decrease
+
+    abandon go stop
+  </list>
+</rules>
+`
+	loaded, err := table.Load(folder(map[string]string{"a.xml": body}), "words")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"abate decrease", "abandon go stop"}, loaded.List("banned"))
+	assert.Panics(t, func() { loaded.List("missing") })
+}
+
+// A list that reads nothing, or a name used twice, fails the load.
+func TestABrokenListFailsTheLoad(t *testing.T) {
+	empty := `<?xml version="1.0" encoding="UTF-8"?><rules for="words"><list name="banned">  </list></rules>`
+	_, err := table.Load(folder(map[string]string{"a.xml": empty}), "words")
+	assert.ErrorContains(t, err, "holds no item")
+
+	twice := `<?xml version="1.0" encoding="UTF-8"?><rules for="words"><list name="banned">a</list><list name="banned">b</list></rules>`
+	_, err = table.Load(folder(map[string]string{"a.xml": twice}), "words")
+	assert.ErrorContains(t, err, "already defined")
+
+	unnamed := `<?xml version="1.0" encoding="UTF-8"?><rules for="words"><list>a</list></rules>`
+	_, err = table.Load(folder(map[string]string{"a.xml": unnamed}), "words")
+	assert.ErrorContains(t, err, "no name")
 }
 
 // The folder is read in file name order. That is what lets a longer phrase in
@@ -109,7 +141,7 @@ func TestLoadRefusesWhatCannotFire(t *testing.T) {
 }
 
 // An id names an entry across the whole folder, so another file may not take
-// an id an earlier file used: a failure would otherwise name an entry the
+// an id an earlier file used. A failure would otherwise name an entry the
 // reader cannot find.
 func TestLoadRefusesADuplicateIDAcrossFiles(t *testing.T) {
 	again := `<?xml version="1.0" encoding="UTF-8"?>

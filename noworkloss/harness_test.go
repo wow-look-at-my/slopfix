@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Every case in this suite is a pair: a command that must be denied because it
-// writes inside the working tree, and a control that must be allowed because the
-// same command writes somewhere else. The pair is what makes a case load-bearing
-// -- a rule that denied on the command's shape alone would pass the denial half
-// and fail the control -- and each denial is additionally required to NAME the
-// path or route it stopped, so a deny arriving from an unrelated rule cannot
+// Every case in this suite is a pair. The hook must deny the command because
+// it writes inside the working tree. The hook must allow the control because
+// the same command writes somewhere else. The pair is what makes a case
+// load-bearing. A rule that denied on the command's shape alone would pass the
+// denial half and fail the control. Each denial is additionally required to NAME
+// the path or route it stopped, so a deny arriving from an unrelated rule cannot
 // satisfy the assertion.
 
 // newTree builds a working tree: a repository root with source files, a build
@@ -56,7 +56,7 @@ func askTool(t *testing.T, tool, cwd string, input map[string]any) string {
 }
 
 // askToolNotices is askTool plus the preservation notices, for the tests that
-// need to see what a preserve-and-allow verdict actually said.
+// need to see what a preserve-and-allow verdict said.
 func askToolNotices(t *testing.T, tool, cwd string, input map[string]any) (string, []string) {
 	t.Helper()
 	raw, err := json.Marshal(map[string]any{
@@ -75,8 +75,8 @@ func askNotices(t *testing.T, cwd, command string) (string, []string) {
 	return askToolNotices(t, "Bash", cwd, map[string]any{"command": command})
 }
 
-// preserved asserts a command was allowed because its at-risk content was
-// committed into a preservation ref rather than lost, and returns the notice
+// preserved asserts the hook allowed a command because its at-risk content
+// went into a preservation ref rather than being lost. It returns the notice
 // text for the caller to inspect further.
 func preserved(t *testing.T, cwd, command string) string {
 	t.Helper()

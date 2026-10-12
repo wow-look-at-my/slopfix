@@ -1,8 +1,8 @@
 // Package code is the parse every rule reads source through.
 //
 // Nothing here names a language beyond the grammar registry. A comment is a
-// node whose type carries "comment", which is how every grammar spells it, so
-// a rule asks the tree rather than a table of marker bytes.
+// node whose type carries "comment", which is how every grammar spells it. A
+// rule asks the tree rather than a table of marker bytes.
 package code
 
 import (
@@ -93,6 +93,11 @@ func ParseWith(language *ts.Language, src string) (root ts.Node, ok bool) {
 // IsComment reports a node every grammar spells as a comment.
 func IsComment(node ts.Node) bool {
 	return !node.IsNull() && strings.Contains(node.Type(), "comment")
+}
+
+// IsInterpreter reports the line a script opens on.
+func IsInterpreter(node ts.Node, src string) bool {
+	return IsComment(node) && node.StartByte() == 0 && node.EndPoint().Row == 0 && strings.HasPrefix(src, "#!")
 }
 
 // Lines splits source the way every span here counts it.

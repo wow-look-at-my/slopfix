@@ -315,7 +315,7 @@ func TestAReadThatErroredIsNotARead(t *testing.T) {
 
 // The result of a call is not on disk yet when the NEXT call's hook reads the
 // transcript. Counting an unanswered read refused the retry of a command that
-// had just died on an unknown flag.
+// had died on an unknown flag.
 func TestAReadWithNoResultYetIsNotARead(t *testing.T) {
 	const sha = "4f7cea8b1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f60"
 	tr := stageTranscript(t,
@@ -508,9 +508,9 @@ func TestAWakeEnvelopeIsRecognisedInAToolResult(t *testing.T) {
 	assert.True(t, recs[0].wake, "the envelope arrives escaped inside the result's content")
 
 	// The same record written by an encoder that escapes HTML must read the
-	// same, or the guard is blind on half the transcripts it may be handed.
-	// json.Marshal escapes HTML by default, so marshaling the whole record IS
-	// the escaped spelling.
+	// same. Otherwise, the guard is blind on half the transcripts it may be
+	// handed. json.Marshal escapes HTML by default, so marshaling the whole
+	// record IS the escaped spelling.
 	escaped, err := json.Marshal(map[string]any{
 		"type": "user",
 		"message": map[string]any{"role": "user", "content": []any{

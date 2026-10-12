@@ -33,3 +33,71 @@ func TestCheckFixRepairsInPlace(t *testing.T) {
 	assert.NotContains(t, string(fixed), "doesn't")
 	assert.Contains(t, string(fixed), "# Title")
 }
+
+// A comment finding on a named file fails the check. The report carries it as a
+// kept hit, and a check that read only the other list passed an essay.
+func TestCheckReportsAKeptHitOnANamedFile(t *testing.T) {
+	t.Serial()
+	path := filepath.Join(t.TempDir(), "a.go")
+	body := "package p\n\n" +
+		"// FullMipChain marks a TextureBinding as carrying its complete mip pyramid\n" +
+		"// when the exact level count is not supplied (--tex ...:mips).\n" +
+		"const FullMipChain = -1\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+
+	checkFix = false
+	assert.ErrorIs(t, runCheck(rootCmd, []string{path}), errFindings)
+}
+
+// A build names a directory rather than every file under it, so a directory is
+// the tree beneath it. Reading the directory as a file is what a build sees as
+// "read .: is a directory".
+func TestCheckTakesADirectoryAsTheTreeUnderIt(t *testing.T) {
+	t.Serial()
+	dir := t.TempDir()
+	nested := filepath.Join(dir, "docs")
+	require.NoError(t, os.MkdirAll(nested, 0o755))
+	path := filepath.Join(nested, "README.md")
+	body := "# Title\n\nIt doesn't hold the lock.\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+
+	checkFix = false
+	_ = runCheck(rootCmd, []string{dir})
+	after, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, body, string(after), "a check over a tree writes nothing")
+
+	checkFix = true
+	t.Cleanup(func() { checkFix = false })
+	require.NoError(t, runCheck(rootCmd, []string{dir}))
+
+	fixed, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.NotContains(t, string(fixed), "doesn't", "the file under the directory was not repaired")
+}
+
+// A long sentence in a workflow comment is an STE rule. --only ste must reach
+// it even though the run names no yaml rule.
+func TestOnlySTECatchesALongSentenceInAWorkflow(t *testing.T) {
+	t.Serial()
+	path := filepath.Join(t.TempDir(), "ci.yml")
+	body := "name: CI\n" +
+		"on:\n" +
+		"  push:\n" +
+		"concurrency:\n" +
+		"  group: g\n" +
+		"  cancel-in-progress: true\n" +
+		"jobs:\n" +
+		"  build:\n" +
+		"    runs-on: ubuntu-latest\n" +
+		"    steps:\n" +
+		"      - run: |\n" +
+		"          # Building from a directory also asks the module cache for nothing, so the generator that lives in the module needing it never has to complete that module earliest.\n" +
+		"          make\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
+
+	checkFix = false
+	checkOnly = []string{"ste"}
+	t.Cleanup(func() { checkOnly = nil })
+	assert.ErrorIs(t, runCheck(rootCmd, []string{path}), errFindings, "--only ste omits the sentence rule in a workflow")
+}

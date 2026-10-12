@@ -1,0 +1,131 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  The grep_json format: which grep programs the rule translates to jq, the flags
+  each one accepts, and the tests that drive a command through the rewrite and
+  then through jq.
+
+  A flag outside its set stops the rewrite, so the set is the whole list of
+  what the jq query reproduces.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <!-- A command in the fixture directory. The text is the output jq must
+       print, line by line. keep="true" means the rewrite must leave the
+       command as written, and then the text must be empty. -->
+  <xs:complexType name="test">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="cmd" type="xs:string" use="required"/>
+        <xs:attribute name="keep" type="xs:boolean"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- What a flag does to the query. pattern takes a value: the next word,
+       the rest of a short cluster, or the text after = on a long flag. -->
+  <xs:simpleType name="effect">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="pattern"/>
+      <xs:enumeration value="ignore-case"/>
+      <xs:enumeration value="case-sensitive"/>
+      <xs:enumeration value="smart-case"/>
+      <xs:enumeration value="invert"/>
+      <xs:enumeration value="basic"/>
+      <xs:enumeration value="extended"/>
+      <xs:enumeration value="fixed"/>
+      <xs:enumeration value="perl"/>
+      <xs:enumeration value="word"/>
+      <xs:enumeration value="line"/>
+      <xs:enumeration value="with-filename"/>
+      <xs:enumeration value="no-filename"/>
+      <xs:enumeration value="line-number"/>
+      <xs:enumeration value="no-line-number"/>
+      <xs:enumeration value="count"/>
+      <xs:enumeration value="none"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- A flag names a short letter, a long spelling, or both. value="optional"
+       lets a long flag carry =VALUE, which the query ignores. -->
+  <xs:complexType name="flag">
+    <xs:sequence>
+      <xs:element name="test" type="test" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="short" type="xs:string"/>
+    <xs:attribute name="long" type="xs:string"/>
+    <xs:attribute name="effect" type="effect" use="required"/>
+    <xs:attribute name="value" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:simpleType name="syntax">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="basic"/>
+      <xs:enumeration value="extended"/>
+      <xs:enumeration value="fixed"/>
+      <xs:enumeration value="perl"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="kind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="none"/>
+      <xs:enumeration value="document"/>
+      <xs:enumeration value="lines"/>
+      <xs:enumeration value="one-line"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="grepJSON">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="test" type="test"/>
+
+        <!-- A file the tests run in. kind= is what the content sniff must
+             answer for it. The text is trimmed and ends in a newline. -->
+        <xs:element name="fixture">
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="xs:string">
+                <xs:attribute name="name" type="xs:string" use="required"/>
+                <xs:attribute name="kind" type="kind" use="required"/>
+              </xs:extension>
+            </xs:simpleContent>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="flags">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="flag" type="flag" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- A program the rule translates. flags= names its flag set, and
+             syntax= is how it reads a pattern when no flag says otherwise. -->
+        <xs:element name="program">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="test" type="test" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="flags" type="xs:string" use="required"/>
+            <xs:attribute name="syntax" type="syntax" use="required"/>
+          </xs:complexType>
+        </xs:element>
+
+        <!-- A pattern and the Oniguruma regex it becomes. An absent to=
+             means the translation refuses the pattern. -->
+        <xs:element name="translate">
+          <xs:complexType>
+            <xs:attribute name="syntax" type="syntax" use="required"/>
+            <xs:attribute name="from" type="xs:string" use="required"/>
+            <xs:attribute name="to" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

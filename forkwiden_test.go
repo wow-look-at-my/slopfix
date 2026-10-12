@@ -1,0 +1,134 @@
+package slopfix_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/forkscope"
+	"github.com/wow-look-at-my/slopfix/tombstones"
+)
+
+// upstreamReadme holds a paragraph of one line, as the base has it.
+const upstreamReadme = "# Tool\n\nThe tool reads the file.\n\nIt writes the result.\n"
+
+// forkReadme adds lines to that paragraph. The paragraph is now hard-wrapped, and its first line is still the base's.
+const forkReadme = "# Tool\n\nThe tool reads the file.\nIt then checks the file\nand reports each error.\n\nIt writes the result.\n"
+
+// A run that leaves the volume rule out never cuts a comment block to the cap.
+func TestTheVolumeCutNeedsTheVolumeRule(t *testing.T) {
+	src := "package p\n\n" + strings.Repeat("// The value is read once.\n", 20) + "var x = 1\n"
+	req := slopfix.Request{Path: "p.go", Content: src, IDs: []string{"comments/number"}, MaxCommentLines: tombstones.DefaultMaxCommentLines}
+	assert.Equal(t, src, slopfix.Fix(req).Text)
+
+	req.IDs = []string{tombstones.IDVolume}
+	assert.NotEqual(t, src, slopfix.Fix(req).Text, "the volume rule alone still cuts the block")
+}
+
+// upstreamList holds list items that are both hard-wrapped.
+const upstreamList = "# Rules\n\n- The first item reads the file\n  and its rules.\n- The second item writes the file\n  and its result.\n"
+
+// forkList edits the first line of the first item.
+const forkList = "# Rules\n\n- The first item reads the config\n  and its rules.\n- The second item writes the file\n  and its result.\n"
+
+// The fork's item is joined. The item under it is the base's, and stays as
+// the base wrapped it, although one diff hunk holds both joins.
+func TestAForkItemIsJoinedBesideAnUpstreamItem(t *testing.T) {
+	req := slopfix.Request{Path: "docs/rules.md", Content: forkList, Owned: forkscope.Changed(upstreamList, forkList)}
+	repair := slopfix.Fix(req)
+	assert.Empty(t, repair.Findings)
+	assert.Contains(t, repair.Text, "- The first item reads the config and its rules.\n")
+	assert.Contains(t, repair.Text, "- The second item writes the file\n  and its result.\n")
+}
+
+// upstreamLong documents one line of code with a comment far longer than it.
+const upstreamLong = "// The flag turns the replay on.\n// The replay reads every record.\n// It sends each one again.\n// It stops at the first error.\n// It writes the count it sent.\nvar replay = true\n"
+
+// forkLong rewords one line of that comment and adds none.
+var forkLong = strings.Replace(upstreamLong, "It stops at the first error.", "It stops at the first refusal.", 1)
+
+// A fork that rewords a line of an over-long comment did not make it long.
+// The finding is the base's.
+func TestAForkEditInsideAnUpstreamLongCommentIsTheBasesFinding(t *testing.T) {
+	req := slopfix.Request{Path: "replay.go", Content: forkLong, Owned: forkscope.Changed(upstreamLong, forkLong)}
+	assert.Zero(t, ofID(repairIDs(slopfix.Report(req)), "comments/length"))
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), "comments/length"))
+	assert.Contains(t, repair.Text, "It stops at the first refusal.", "the fork's words stay")
+}
+
+// upstreamLib opens with a crate doc longer than the code it documents.
+const upstreamLib = "//! The crate holds the transport.\n//! It owns the client.\n//! It owns the tool calls.\n//! It owns the error classes.\n//! It owns the refresh.\n\npub mod servers;\n"
+
+// forkLib adds a trailing count above that doc.
+const forkLib = "#![allow(clippy::unwrap_used)] // 2 hits predate the gate\n" + upstreamLib
+
+// The count is the fork's to repair, and the cut the length rule wants
+// falls on the base's doc. The count lands, and the doc stays.
+func TestAForkRepairLandsBesideAnUpstreamCutItMayNotMake(t *testing.T) {
+	req := slopfix.Request{Path: "src/lib.rs", Content: forkLib, Owned: forkscope.Changed(upstreamLib, forkLib)}
+	repair := slopfix.Fix(req)
+	assert.Empty(t, repair.Findings)
+	assert.NotContains(t, repair.Text, "2 hits", "the fork's count is repaired")
+	assert.Contains(t, repair.Text, upstreamLib, "the base's doc stays as the base wrote it")
+}
+
+// A fork that writes lines into a paragraph owns the paragraph. A rule that
+// judges the paragraph whole can then repair it, the base's line too.
+func TestAForkOwnsEachParagraphItWroteInto(t *testing.T) {
+	owned := forkscope.Changed(upstreamReadme, forkReadme)
+	req := slopfix.Request{Path: "README.md", Content: forkReadme, Owned: owned}
+
+	report := slopfix.Report(req)
+	assert.Contains(t, repairIDs(report), slopfix.IDHardWrap, "the fork wrapped the paragraph")
+
+	repair := slopfix.Fix(req)
+	assert.Empty(t, repair.Findings, "the fix reaches the base's line of the paragraph")
+	assert.Contains(t, repair.Text, "The tool reads the file. It then checks the file and reports each error.\n")
+	assert.Contains(t, repair.Text, "\nIt writes the result.\n", "a paragraph the fork never touched stays")
+}
+
+// upstreamSentence holds an over-cap doc sentence across a few lines.
+const upstreamSentence = "// An idp that writes both the snake_case and the camelCase key —\n// which is what a token relayed through a translating gateway looks like —\n// must still be readable, not rejected as a duplicate field.\nvar x = 1\n"
+
+// forkSentence rewords the first line, which is the fork's own edit.
+var forkSentence = strings.Replace(upstreamSentence, "snake_case", "snake-case", 1)
+
+// A fork that rewords one line of an over-cap doc sentence did not write the
+// sentence. The run is the base's, so neither the report nor the repair names
+// it, and the fork's own words stay.
+func TestAForkEditInsideAnUpstreamOverCapSentenceIsTheBasesFinding(t *testing.T) {
+	req := slopfix.Request{Path: "x.rs", Content: forkSentence, Owned: forkscope.Changed(upstreamSentence, forkSentence)}
+	assert.Zero(t, ofID(repairIDs(slopfix.Report(req)), "ste/sentence-length"))
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), "ste/sentence-length"), repair.Text)
+	assert.Contains(t, repair.Text, "snake-case", "the fork's words stay")
+}
+
+// upstreamField documents one field in one line.
+const upstreamField = "pub struct S {\n    pub a: bool,\n}\n"
+
+// forkFieldDoc adds a two-line doc above that field, so the fork wrote both lines.
+const forkFieldDoc = "pub struct S {\n    /// False when the id is not in this session's catalog at all, which is a\n    /// different fault from a model that is there and unflagged.\n    pub a: bool,\n}\n"
+
+// A doc the fork added and left over its field's line count is the fork's to
+// fit, so the repair lands and the finding clears.
+func TestAForkAuthorshipOfAnOverLineDocIsRepaired(t *testing.T) {
+	req := slopfix.Request{Path: "x.rs", Content: forkFieldDoc, Owned: forkscope.Changed(upstreamField, forkFieldDoc)}
+	assert.NotZero(t, ofID(repairIDs(slopfix.Report(req)), "comments/length"))
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), "comments/length"), repair.Text)
+}
+
+// A fork that grows a crate doc past the volume cap owns the added lines, and
+// the volume cut brings the block back under it.
+func TestAForkVolumeRunItGrewIsCapped(t *testing.T) {
+	base := "//! The crate.\n" + strings.Repeat("//! It reads the file.\n", 6) + "\npub fn a() {}\n"
+	fork := "//! The crate.\n" + strings.Repeat("//! It reads the file.\n", 14) + "\npub fn a() {}\n"
+	req := slopfix.Request{Path: "x.rs", Content: fork, Owned: forkscope.Changed(base, fork), MaxCommentLines: tombstones.DefaultMaxCommentLines}
+	assert.NotZero(t, ofID(repairIDs(slopfix.Report(req)), "tombstones/comment-volume"), "the block is over the cap")
+	repair := slopfix.Fix(req)
+	assert.Zero(t, ofID(repairIDs(repair), "tombstones/comment-volume"), repair.Text)
+}

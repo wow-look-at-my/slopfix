@@ -1,0 +1,280 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<grepJSON xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="grepjson.xsd">
+	<!-- The files every test runs among. kind= is the content sniff's verdict. -->
+	<fixture name="data.json" kind="document">
+{
+	"name": "demo",
+	"version": "1.2.0",
+	"scripts": {"build": "go build", "test": "go test"},
+	"tags": ["alpha", "beta"],
+	"weird key": "x.y",
+	"quote": "say \"hi\"",
+	"note": "it's here",
+	"enabled": false,
+	"nothing": null
+}
+	</fixture>
+	<fixture name="logs.jsonl" kind="lines">
+{"level":"info","msg":"started","n":1}
+{"level":"error","msg":"say \"hi\" failed","n":2}
+{"level":"ERROR","msg":"disk full","n":3}
+	</fixture>
+	<fixture name="more.jsonl" kind="one-line">{"level":"error","msg":"second file"}</fixture>
+	<fixture name="misnamed.txt" kind="document">
+{
+	"version": "1.2.0"
+}
+	</fixture>
+	<fixture name="notes.txt" kind="none">error: plain text</fixture>
+	<fixture name="bracketed.log" kind="none">
+[INFO] started
+[ERROR] failed
+	</fixture>
+	<fixture name="bom.json" kind="one-line">&#xFEFF;[1, 2]</fixture>
+	<fixture name="scalar.json" kind="none">"just a string"</fixture>
+	<fixture name="unclosed.json" kind="none">{"a": [1, 2</fixture>
+	<fixture name="trailing.json" kind="none">{"a": 1} junk</fixture>
+
+	<!-- The content decides, never the extension. -->
+	<test cmd="grep version misnamed.txt">.version = "1.2.0"</test>
+	<test cmd="grep error notes.txt" keep="true"/>
+	<test cmd="grep ERROR bracketed.log" keep="true"/>
+	<test cmd="grep error data.json notes.txt" keep="true"/>
+	<test cmd="grep error missing.json" keep="true"/>
+	<!-- A document and a stream print different shapes, so they never share a query. -->
+	<test cmd="grep error logs.jsonl data.json" keep="true"/>
+	<!-- A single record on a single line reads as either kind. -->
+	<test cmd="grep error logs.jsonl more.jsonl">
+		logs.jsonl:{"level":"error","msg":"say \"hi\" failed","n":2}
+		more.jsonl:{"level":"error","msg":"second file"}
+	</test>
+	<test cmd="grep error *.jsonl">
+		logs.jsonl:{"level":"error","msg":"say \"hi\" failed","n":2}
+		more.jsonl:{"level":"error","msg":"second file"}
+	</test>
+	<test cmd="grep error *.nothing" keep="true"/>
+	<test cmd="grep version &lt; data.json">.version = "1.2.0"</test>
+	<test cmd="true &amp;&amp; grep error logs.jsonl">{"level":"error","msg":"say \"hi\" failed","n":2}</test>
+	<test cmd="timeout 5 grep version data.json">.version = "1.2.0"</test>
+	<test cmd="some-command | grep error" keep="true"/>
+	<test cmd="xargs grep error logs.jsonl" keep="true"/>
+	<test cmd='grep "$pattern" data.json' keep="true"/>
+
+	<flags name="grep">
+		<flag short="e" long="--regexp" effect="pattern">
+			<test cmd="grep -e full -e started logs.jsonl">
+				{"level":"info","msg":"started","n":1}
+				{"level":"ERROR","msg":"disk full","n":3}
+			</test>
+			<test cmd="grep --regexp=version data.json">.version = "1.2.0"</test>
+		</flag>
+		<flag short="i" long="--ignore-case" effect="ignore-case">
+			<test cmd="grep -i error logs.jsonl">
+				{"level":"error","msg":"say \"hi\" failed","n":2}
+				{"level":"ERROR","msg":"disk full","n":3}
+			</test>
+			<test cmd="grep --ignore-case error logs.jsonl">
+				{"level":"error","msg":"say \"hi\" failed","n":2}
+				{"level":"ERROR","msg":"disk full","n":3}
+			</test>
+		</flag>
+		<flag short="y" effect="ignore-case">
+			<test cmd="grep -y STARTED logs.jsonl">{"level":"info","msg":"started","n":1}</test>
+		</flag>
+		<flag short="v" long="--invert-match" effect="invert">
+			<test cmd="grep -vi error logs.jsonl">{"level":"info","msg":"started","n":1}</test>
+			<test cmd="grep -v o data.json">
+				.tags[0] = "alpha"
+				.tags[1] = "beta"
+				.["weird key"] = "x.y"
+				.enabled = false
+			</test>
+		</flag>
+		<flag short="G" long="--basic-regexp" effect="basic">
+			<test cmd="grep -G 'alp\|bet' data.json">
+				.tags[0] = "alpha"
+				.tags[1] = "beta"
+			</test>
+		</flag>
+		<flag short="E" long="--extended-regexp" effect="extended">
+			<test cmd="grep -E '^(alpha|beta)$' data.json">
+				.tags[0] = "alpha"
+				.tags[1] = "beta"
+			</test>
+		</flag>
+		<flag short="F" long="--fixed-strings" effect="fixed">
+			<test cmd="grep -F x.y data.json">.["weird key"] = "x.y"</test>
+		</flag>
+		<flag short="P" long="--perl-regexp" effect="perl">
+			<test cmd="grep -P 'alp(?=ha)' data.json">.tags[0] = "alpha"</test>
+		</flag>
+		<flag short="w" long="--word-regexp" effect="word">
+			<test cmd="grep -w go data.json">
+				.scripts.build = "go build"
+				.scripts.test = "go test"
+			</test>
+			<test cmd="grep -w dis logs.jsonl"/>
+		</flag>
+		<flag short="x" long="--line-regexp" effect="line">
+			<test cmd="grep -x false data.json">.enabled = false</test>
+			<test cmd="grep -x 3 logs.jsonl">{"level":"ERROR","msg":"disk full","n":3}</test>
+		</flag>
+		<flag short="h" long="--no-filename" effect="no-filename">
+			<test cmd="grep -h error logs.jsonl more.jsonl">
+				{"level":"error","msg":"say \"hi\" failed","n":2}
+				{"level":"error","msg":"second file"}
+			</test>
+		</flag>
+		<flag short="H" long="--with-filename" effect="with-filename">
+			<test cmd="grep -H version data.json">data.json:.version = "1.2.0"</test>
+		</flag>
+		<!-- A document has no line to number: its path is the location. -->
+		<flag short="n" long="--line-number" effect="line-number">
+			<test cmd="grep -n ERROR logs.jsonl">3:{"level":"ERROR","msg":"disk full","n":3}</test>
+			<test cmd="grep -n version data.json">.version = "1.2.0"</test>
+		</flag>
+		<flag short="s" long="--no-messages" effect="none">
+			<test cmd="grep -s version data.json">.version = "1.2.0"</test>
+		</flag>
+		<!-- A count over several files prints one total per file, which one query cannot. -->
+		<flag short="c" long="--count" effect="count">
+			<test cmd="grep -c go data.json">2</test>
+			<test cmd="grep -ci error logs.jsonl">2</test>
+			<test cmd="grep -c error logs.jsonl more.jsonl" keep="true"/>
+		</flag>
+		<flag long="--color" effect="none" value="optional">
+			<test cmd="grep --color=always version data.json">.version = "1.2.0"</test>
+		</flag>
+		<flag long="--colour" effect="none" value="optional">
+			<test cmd="grep --colour version data.json">.version = "1.2.0"</test>
+		</flag>
+	</flags>
+
+	<!-- grep reads a pattern as POSIX basic. A flag outside the set keeps the grep. -->
+	<program name="grep" flags="grep" syntax="basic">
+		<test cmd="grep version data.json">.version = "1.2.0"</test>
+		<test cmd="grep scripts data.json">
+			.scripts.build = "go build"
+			.scripts.test = "go test"
+		</test>
+		<test cmd="grep alpha data.json">.tags[0] = "alpha"</test>
+		<test cmd="grep null data.json">.nothing = null</test>
+		<test cmd="grep 'alp\|bet' data.json">
+			.tags[0] = "alpha"
+			.tags[1] = "beta"
+		</test>
+		<test cmd="grep error logs.jsonl">{"level":"error","msg":"say \"hi\" failed","n":2}</test>
+		<!-- jq reads the decoded value, where grep read the escaped text. -->
+		<test cmd="grep 'say &quot;hi&quot;' logs.jsonl">{"level":"error","msg":"say \"hi\" failed","n":2}</test>
+		<test cmd="grep 'say &quot;hi&quot;' data.json">.quote = "say \"hi\""</test>
+		<test cmd="grep &quot;it's&quot; data.json">.note = "it's here"</test>
+		<test cmd="grep -A2 version data.json" keep="true"/>
+		<test cmd="grep -l version data.json" keep="true"/>
+		<test cmd="grep -o version data.json" keep="true"/>
+		<test cmd="grep -r version ." keep="true"/>
+	</program>
+	<program name="egrep" flags="grep" syntax="extended">
+		<test cmd="egrep 'alp|bet' data.json">
+			.tags[0] = "alpha"
+			.tags[1] = "beta"
+		</test>
+	</program>
+	<program name="fgrep" flags="grep" syntax="fixed">
+		<test cmd="fgrep x.y data.json">.["weird key"] = "x.y"</test>
+	</program>
+
+	<!-- rg reads -h as help and -q as quiet, so neither is in its set. -->
+	<flags name="rg">
+		<flag short="e" long="--regexp" effect="pattern">
+			<test cmd="rg -e started -e full logs.jsonl">
+				{"level":"info","msg":"started","n":1}
+				{"level":"ERROR","msg":"disk full","n":3}
+			</test>
+		</flag>
+		<flag short="i" long="--ignore-case" effect="ignore-case">
+			<test cmd="rg -i error logs.jsonl">
+				{"level":"error","msg":"say \"hi\" failed","n":2}
+				{"level":"ERROR","msg":"disk full","n":3}
+			</test>
+		</flag>
+		<flag short="s" long="--case-sensitive" effect="case-sensitive">
+			<test cmd="rg -i -s ERROR logs.jsonl">{"level":"ERROR","msg":"disk full","n":3}</test>
+		</flag>
+		<flag short="S" long="--smart-case" effect="smart-case">
+			<test cmd="rg -S ERROR logs.jsonl">{"level":"ERROR","msg":"disk full","n":3}</test>
+			<test cmd="rg -S error logs.jsonl">
+				{"level":"error","msg":"say \"hi\" failed","n":2}
+				{"level":"ERROR","msg":"disk full","n":3}
+			</test>
+		</flag>
+		<flag short="v" long="--invert-match" effect="invert">
+			<test cmd="rg -v -i error logs.jsonl">{"level":"info","msg":"started","n":1}</test>
+		</flag>
+		<flag short="F" long="--fixed-strings" effect="fixed">
+			<test cmd="rg -F x.y data.json">.["weird key"] = "x.y"</test>
+		</flag>
+		<flag short="P" long="--pcre2" effect="perl">
+			<test cmd="rg -P 'alp(?=ha)' data.json">.tags[0] = "alpha"</test>
+		</flag>
+		<flag short="w" long="--word-regexp" effect="word">
+			<test cmd="rg -w go data.json">
+				.scripts.build = "go build"
+				.scripts.test = "go test"
+			</test>
+		</flag>
+		<flag short="x" long="--line-regexp" effect="line">
+			<test cmd="rg -x false data.json">.enabled = false</test>
+		</flag>
+		<flag short="H" long="--with-filename" effect="with-filename">
+			<test cmd="rg -H version data.json">data.json:.version = "1.2.0"</test>
+		</flag>
+		<flag short="I" long="--no-filename" effect="no-filename">
+			<test cmd="rg -I error logs.jsonl more.jsonl">
+				{"level":"error","msg":"say \"hi\" failed","n":2}
+				{"level":"error","msg":"second file"}
+			</test>
+		</flag>
+		<flag short="n" long="--line-number" effect="line-number">
+			<test cmd="rg -n started logs.jsonl">1:{"level":"info","msg":"started","n":1}</test>
+		</flag>
+		<flag short="N" long="--no-line-number" effect="no-line-number">
+			<test cmd="rg -n -N started logs.jsonl">{"level":"info","msg":"started","n":1}</test>
+		</flag>
+		<flag short="c" long="--count" effect="count">
+			<test cmd="rg -c -i error logs.jsonl">2</test>
+		</flag>
+		<flag long="--no-messages" effect="none">
+			<test cmd="rg --no-messages version data.json">.version = "1.2.0"</test>
+		</flag>
+		<flag long="--color" effect="none" value="optional">
+			<test cmd="rg --color=never version data.json">.version = "1.2.0"</test>
+		</flag>
+		<flag long="--colour" effect="none" value="optional">
+			<test cmd="rg --colour=never version data.json">.version = "1.2.0"</test>
+		</flag>
+	</flags>
+
+	<program name="rg" flags="rg" syntax="perl">
+		<test cmd="rg version data.json">.version = "1.2.0"</test>
+		<test cmd="rg -h error logs.jsonl" keep="true"/>
+		<test cmd="rg -q error logs.jsonl" keep="true"/>
+	</program>
+
+	<!-- Oniguruma reads the escaped and the bare forms of ( ) { } | + ? the other way round from POSIX basic. -->
+	<translate syntax="basic" from="a\|b" to="a|b"/>
+	<translate syntax="basic" from="\(ab\)\{2\}" to="(ab){2}"/>
+	<translate syntax="basic" from="a+b?" to="a\+b\?"/>
+	<translate syntax="basic" from="(x)" to="\(x\)"/>
+	<translate syntax="basic" from="*star" to="\*star"/>
+	<translate syntax="basic" from="a^b$c" to="a\^b\$c"/>
+	<translate syntax="basic" from="^anchored$" to="^anchored$"/>
+	<translate syntax="basic" from="\&lt;word\&gt;" to="\bword\b"/>
+	<translate syntax="basic" from="[]a\[]" to="[\]a\\\[]"/>
+	<translate syntax="basic" from="[[:alpha:]]" to="[[:alpha:]]"/>
+	<translate syntax="basic" from="a\.b" to="a\.b"/>
+	<translate syntax="basic" from="trailing\"/>
+	<translate syntax="extended" from="(a|b)+" to="(a|b)+"/>
+	<translate syntax="extended" from="[unclosed"/>
+	<translate syntax="fixed" from="a.b(c)" to="a\.b\(c\)"/>
+	<translate syntax="perl" from="a(?=b)\d" to="a(?=b)\d"/>
+</grepJSON>

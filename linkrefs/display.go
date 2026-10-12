@@ -2,27 +2,26 @@
 // open arrives clickable.
 //
 // This is the whole enforcement. There is no Stop hook and nothing is sent back
-// to the model, because a missing link is not work only the model can do: the
-// token plus the checkout determine the URL, so the hook writes it. Asking the
-// model to re-emit the same message with a link in it costs a round trip, and
-// the message it writes to comply names the reference again while explaining
-// itself, which trips the guard again. What the user reads at the end of
-// that is a reply carrying nothing but links.
+// to the model, because the token plus the checkout determine the URL. The hook
+// writes it. Asking the model to re-emit the message costs a round trip, and
+// the reply explaining itself names the reference again. The message trips the
+// guard again.
 //
 // displayContent is display-only, verified against the shipped bundle: the
-// transcript and the model's next request are both fed from an array that is
-// populated BEFORE this hook runs and never updated from its result. So this
-// changes what the reader sees and nothing else, which is exactly the surface
-// the rule is about.
+// transcript and the model's next request are both fed from an array populated
+// BEFORE this hook runs and never updated from its result. So this changes what
+// the reader sees and nothing else.
 package linkrefs
 
 import (
+	"github.com/wow-look-at-my/go-containers/set"
+	"slices"
 	"strings"
 )
 
 // RewriteDelta returns the rendered form of a flush, and whether anything
-// changed. A false return means print nothing, which leaves the CLI showing the
-// original text.
+// changed. A false return means print nothing, which leaves the CLI showing
+// the text.
 func RewriteDelta(delta string, insideFence bool, res Resolver) (string, bool) {
 	if delta == "" {
 		return "", false
@@ -31,12 +30,26 @@ func RewriteDelta(delta string, insideFence bool, res Resolver) (string, bool) {
 	changed := false
 	lines := strings.Split(delta, "\n")
 
+	// Every line to rewrite, found first, so the pull requests they name are asked about together.
+	live := make([]bool, len(lines))
+	var pulls []PullRef
 	for i, line := range lines {
 		if fenceMarker(line) != "" {
 			fence = !fence
 			continue
 		}
 		if fence || isQuoted(line) {
+			continue
+		}
+		live[i] = true
+		pulls = append(pulls, linePulls(line)...)
+	}
+	if p, ok := res.(prefetcher); ok && len(pulls) > 0 {
+		p.Prefetch(pulls)
+	}
+
+	for i, line := range lines {
+		if !live[i] {
 			continue
 		}
 		rewritten, ok := rewriteLine(line, res)
@@ -53,25 +66,66 @@ func RewriteDelta(delta string, insideFence bool, res Resolver) (string, bool) {
 	return strings.Join(lines, "\n"), true
 }
 
-// rewriteLine splices a markdown link over every reference in a line that resolves to a page.
-func rewriteLine(line string, res Resolver) (string, bool) {
-	refs := FindUnlinkedInLine(line)
-	if len(refs) == 0 {
-		return "", false
+// splice is a replacement for the bytes [start,end) of a line.
+type splice struct {
+	start, end int
+	text       string
+}
+
+// linePulls names every pull request a line refers to, linked or not.
+func linePulls(line string) []PullRef {
+	var out []PullRef
+	for _, ref := range FindUnlinkedInLine(line) {
+		if p, ok := pullRefOf(ref.Ref); ok {
+			out = append(out, p)
+		}
 	}
-	out := line
-	changed := false
-	// Right to left, so an earlier offset stays valid after a later splice.
-	for i := len(refs) - 1; i >= 0; i-- {
-		ref := refs[i]
-		link, ok := Linkify(ref.Ref, res)
-		if !ok {
+	for _, l := range findLinks(line) {
+		if repo, n, ok := IssueRef(l.url); ok {
+			out = append(out, PullRef{repo, n})
+		}
+	}
+	return out
+}
+
+// rewriteLine links every bare reference that resolves to a page, and puts a
+// dot beside every link to a pull request, whoever wrote the link.
+func rewriteLine(line string, res Resolver) (string, bool) {
+	var edits []splice
+	// The words after a finished dot belong to it, so they are not linked again.
+	dotted := set.New[int]()
+	for _, l := range findLinks(line) {
+		if isDot(strings.TrimSpace(l.text)) {
+			dotted.Add(l.end + 1)
+		}
+	}
+	for _, ref := range FindUnlinkedInLine(line) {
+		if dotted.Contains(ref.Start) {
 			continue
 		}
-		out = out[:ref.Start] + link + out[ref.End:]
-		changed = true
+		if link, ok := Linkify(ref.Ref, res); ok {
+			edits = append(edits, splice{ref.Start, ref.End, link})
+		}
 	}
-	return out, changed
+	for _, l := range findLinks(line) {
+		if endsWithDot(line[:l.start]) {
+			continue
+		}
+		if badged, ok := BadgeLink(line[l.start:l.end], l.text, l.url, res); ok {
+			edits = append(edits, splice{l.start, l.end, badged})
+		}
+	}
+	if len(edits) == 0 {
+		return "", false
+	}
+	slices.SortFunc(edits, func(a, b splice) int { return a.start - b.start })
+	out := line
+	// Right to left, so an earlier offset stays valid after a later splice.
+	for i := len(edits) - 1; i >= 0; i-- {
+		e := edits[i]
+		out = out[:e.start] + e.text + out[e.end:]
+	}
+	return out, true
 }
 
 // isQuoted reports the line shapes a message uses to quote rather than assert: a blockquote or indented code.

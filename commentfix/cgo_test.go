@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // A cgo preamble is C source, so the rule must not measure or cut it.
@@ -52,8 +53,8 @@ func TestAWrapOverTheLineCountIsLaidOutRatherThanCut(t *testing.T) {
 }
 
 // A repair that keeps the line count is still a repair. Comparing counts rather
-// than text discarded it, and the character half of the rule is what it answers,
-// so the block stayed a finding that no run could clear.
+// than text discarded it, and the character half of the rule is what it answers.
+// The block stayed a finding that no run could clear.
 func TestARepairThatKeepsItsLineCountIsStillApplied(t *testing.T) {
 	src := "// Run does the thing, and it says so at a length no single line holds inside the budget it must meet, because the words past the floor are what the character half of the rule counts. So the cut lands here.\nfunc Run() {}\n"
 	out, changed := FixLength("p.go", src)
@@ -62,9 +63,9 @@ func TestARepairThatKeepsItsLineCountIsStillApplied(t *testing.T) {
 	assert.Empty(t, CheckLength("p.go", out))
 }
 
-// Laying a block out rescues only what the budget already holds. Prose past it
-// is cut mid-sentence rather than left: a run that no honest cut reaches would
-// otherwise stay a finding forever, which no automatic pass can clear.
+// Laying a block out rescues only what the budget already holds. The repair
+// cuts prose past it mid-sentence. Otherwise a run that no honest cut reaches
+// stays a finding forever, and no automatic pass can clear it.
 func TestProsePastTheBudgetIsForceFitted(t *testing.T) {
 	long := "// Foo names a thing, and then it says a great deal more about that thing, at such length that no width lays it out inside the budget it must meet.\n// A second sentence carries on well past the point.\nconst Foo = 1\n"
 	out, changed := FixLength("p.go", long)
@@ -76,7 +77,7 @@ func TestProsePastTheBudgetIsForceFitted(t *testing.T) {
 
 // A directive is machine text bound to the declaration by position. Every
 // repair path rebuilds a block out of its prose alone, so the rewrite replaced
-// the directives: a lost go:embed leaves the variable empty and the tests
+// the directives. A lost go:embed leaves the variable empty and the tests
 // reading it pass on nothing.
 func TestARepairKeepsTheEmbedDirective(t *testing.T) {
 	src := "// trivialASM is a minimal compute shader in SPIR-V assembly text, the form\n" +
@@ -103,13 +104,15 @@ func TestARepairKeepsALeadingBuildConstraint(t *testing.T) {
 	assert.True(t, strings.HasPrefix(out, "//go:build cgo"), "it stays first")
 }
 
-// Go writes a bare marker line to separate a directive from the prose above it.
-// It holds no words, and counting it as a line left such a block over its budget
-// with no repair able to bring it back inside: the prose was already a line long.
-func TestASeparatorBeforeADirectiveIsNotProse(t *testing.T) {
+// gofmt puts a bare marker line between a doc and a directive, and commentspan
+// counts it. A one-line var has no room for both, so the doc goes.
+func TestADocOverAOneLineEmbedIsDropped(t *testing.T) {
 	src := "// trivialASM holds the fixture.\n" +
 		"//\n" +
 		"//go:embed testdata/trivial.spvasm\n" +
 		"var trivialASM []byte\n"
-	assert.Empty(t, CheckLength("p.go", src), "the prose is a line, and so is the code")
+	require.NotEmpty(t, CheckLength("p.go", src), "commentspan counts the separator")
+	out, changed := FixLength("p.go", src)
+	require.True(t, changed)
+	assert.Equal(t, "//go:embed testdata/trivial.spvasm\nvar trivialASM []byte\n", out)
 }

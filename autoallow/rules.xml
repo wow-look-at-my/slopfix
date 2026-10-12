@@ -136,6 +136,88 @@
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
 		<rule command="osascript" inlineScript="true" evalFlags="-e"
 			message="Write the script to a file and run it, or use an Edit/Write tool."/>
+
+		<!-- Deleting a branch is the user's call, local or remote, in every
+		     spelling: a delete flag, an empty source refspec, a prune, a ref
+		     update, and the REST and GraphQL calls behind them. -->
+		<rule name="git">
+			<test cmd="git push origin --delete feature" expect="deny"/>
+			<test cmd="git push --delete origin feature" expect="deny"/>
+			<test cmd="git push -d origin feature" expect="deny"/>
+			<test cmd="git push -fd origin feature" expect="deny"/>
+			<test cmd="git push origin :feature" expect="deny"/>
+			<test cmd="git push origin +:refs/heads/feature" expect="deny"/>
+			<test cmd="git push --prune origin" expect="deny"/>
+			<test cmd="git push --mirror origin" expect="deny"/>
+			<test cmd="git -C /repo push origin --delete feature" expect="deny"/>
+			<test cmd="git -c push.default=current -C /repo push origin --delete feature" expect="deny"/>
+			<test cmd="cd /repo &amp;&amp; git push origin --delete feature" expect="deny"/>
+			<test cmd="git push origin bf92470:refs/heads/feature" expect=""/>
+			<test cmd="git push -u origin feature" expect=""/>
+			<test cmd="git push --force-with-lease origin feature" expect=""/>
+			<test cmd="git push --dry-run origin main" expect="allow"/>
+			<test cmd="git branch -d feature" expect="deny"/>
+			<test cmd="git branch -D feature" expect="deny"/>
+			<test cmd="git branch --delete feature" expect="deny"/>
+			<test cmd="git branch -m old new" expect=""/>
+			<test cmd="git branch -a" expect="allow"/>
+			<test cmd="git update-ref -d refs/heads/feature" expect="deny"/>
+			<test cmd="git update-ref --delete refs/heads/feature" expect="deny"/>
+			<flagsWithValue>
+				<flag name="-C" />
+				<flag name="-c" />
+				<flag name="--git-dir" />
+				<flag name="--work-tree" />
+				<flag name="--namespace" />
+			</flagsWithValue>
+			<rule name="push">
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<flag name="--delete" />
+					<flag name="-d" />
+					<flag name="--prune" />
+					<flag name="--mirror" />
+				</refuse>
+				<refuse message="An empty source deletes the remote branch. Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<argPrefix>:</argPrefix>
+					<argPrefix>+:</argPrefix>
+				</refuse>
+			</rule>
+			<rule name="branch">
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<flag name="--delete" />
+					<flag name="-d" />
+					<flag name="-D" />
+				</refuse>
+			</rule>
+			<rule name="update-ref">
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<flag name="--delete" />
+					<flag name="-d" />
+				</refuse>
+			</rule>
+		</rule>
+		<rule name="gh">
+			<test cmd="gh api -X DELETE repos/o/r/git/refs/heads/feature" expect="deny"/>
+			<test cmd="gh api --method DELETE /repos/o/r/git/refs/heads/feature" expect="deny"/>
+			<test cmd="gh api --method=delete repos/o/r/git/refs/heads/feature" expect="deny"/>
+			<test cmd="gh api -XDELETE repos/o/r/git/refs/heads/feature" expect="deny"/>
+			<test cmd="gh api repos/o/r/git/refs/heads/feature" expect="allow"/>
+			<test cmd="gh api -X DELETE repos/o/r/issues/comments/9" expect=""/>
+			<test cmd="gh api graphql -f query='mutation { deleteRef(input: {refId: &quot;R&quot;}) { clientMutationId } }'" expect="deny"/>
+			<rule name="api">
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<flagValue>
+						<flag name="-X" />
+						<flag name="--method" />
+						<value>DELETE</value>
+					</flagValue>
+					<argSubstring>/git/refs/</argSubstring>
+				</refuse>
+				<refuse message="Deleting a branch is the user's call. Tell the user which branch and why, and leave it to them.">
+					<argSubstring>deleteRef</argSubstring>
+				</refuse>
+			</rule>
+		</rule>
 	</deny>
 
 	<!-- Rules that prompt rather than decide. Empty on purpose: everything not
@@ -408,7 +490,7 @@
 		<rule name="merge-base" allowedFlags="*"/>
 		<rule name="branch">
 			<test cmd="git branch -a" expect="allow"/>
-			<test cmd="git branch -d feature" expect=""/>
+			<test cmd="git branch -d feature" expect="deny"/>
 			<allowedFlags>
 				<flag name="-a" />
 				<flag name="-r" />
@@ -503,18 +585,91 @@
 		<rule name="pr">
 			<test cmd="gh pr view 123" expect="allow"/>
 			<test cmd="gh pr view --json number,state" expect="allow"/>
+			<test cmd="gh pr diff 123" expect="allow"/>
+			<test cmd="gh pr diff https://github.com/owner/repo/pull/7 --name-only" expect="allow"/>
 			<test cmd="gh pr list" expect="deny"/>
 			<test cmd="gh pr checks" expect="deny"/>
 			<test cmd="gh pr create" expect="deny"/>
 			<test cmd="gh pr merge 123" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge" expect="allow"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge --title new" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge --remove-label auto-pr-update" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label other" expect=""/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge --add-label other" expect=""/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge,other" expect=""/>
+			<test cmd="gh pr edit 7 --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit 3 -R owner/thing-spec --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit 3 --repo owner/thing-spec --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/thing-spec/pull/3 --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/THING-SPEC/pull/3 --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label=other --add-label auto-pr-merge" expect=""/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label=auto-pr-merge" expect=""/>
+			<test cmd="gh pr edit some-branch --add-label auto-pr-merge" expect=""/>
+			<test cmd="gh pr edit --add-label auto-pr-merge" expect=""/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 https://github.com/owner/thing-spec/pull/3 --add-label auto-pr-merge" expect="deny"/>
 		<!-- Closing a PR ends a review the owner is having, and the branch behind
 		     it is then a thing nobody is looking at. -->
 		<test cmd="gh pr close 45" expect="deny"/>
 		<test cmd="gh pr close 45 --comment superseded" expect="deny"/>
 		<test cmd="gh pr reopen 45" expect="deny"/>
 			<rule name="view" allowedFlags="*"/>
-			<rule name="checkout,checks,close,comment,create,diff,edit,list,lock,merge,ready,reopen,review,status,unlock,update-branch"
-			      denyWithMessage="gh pr view is the only gh pr this session runs"/>
+			<rule name="diff" allowedFlags="*"/>
+			<rule name="edit">
+				<refuse message="the auto-pr-merge label is the only PR edit this session makes">
+					<flag name="--title"/>
+					<flag name="-t"/>
+					<flag name="--body"/>
+					<flag name="-b"/>
+					<flag name="--body-file"/>
+					<flag name="-F"/>
+					<flag name="--base"/>
+					<flag name="-B"/>
+					<flag name="--remove-label"/>
+					<flag name="--add-reviewer"/>
+					<flag name="--remove-reviewer"/>
+					<flag name="--add-assignee"/>
+					<flag name="--remove-assignee"/>
+					<flag name="--add-project"/>
+					<flag name="--remove-project"/>
+					<flag name="--milestone"/>
+					<flag name="-m"/>
+					<flag name="--remove-milestone"/>
+				</refuse>
+				<refuse message="pull requests in -spec repos are never merged">
+					<argSubstring>-spec/pull/</argSubstring>
+				</refuse>
+				<refuse message="name the pull request by its full URL, so its repository is in the command">
+					<flag name="-R"/>
+					<flag name="--repo"/>
+				</refuse>
+				<refuse message="name the pull request by its full URL, so its repository is in the command">
+					<argPrefix>0</argPrefix>
+					<argPrefix>1</argPrefix>
+					<argPrefix>2</argPrefix>
+					<argPrefix>3</argPrefix>
+					<argPrefix>4</argPrefix>
+					<argPrefix>5</argPrefix>
+					<argPrefix>6</argPrefix>
+					<argPrefix>7</argPrefix>
+					<argPrefix>8</argPrefix>
+					<argPrefix>9</argPrefix>
+				</refuse>
+				<requireFlagValue>
+					<flag name="--add-label"/>
+					<allowed>auto-pr-merge</allowed>
+				</requireFlagValue>
+				<allowedFlags>
+					<flag name="--add-label"/>
+				</allowedFlags>
+				<flagsWithValue>
+					<flag name="--add-label"/>
+				</flagsWithValue>
+				<allowedArgPrefixes>
+					<value>https://github.com/</value>
+				</allowedArgPrefixes>
+			</rule>
+			<rule name="checkout,checks,close,comment,create,list,lock,merge,ready,reopen,review,status,unlock,update-branch"
+			      denyWithMessage="gh pr view, gh pr diff and gh pr edit --add-label auto-pr-merge are the only gh pr commands this session runs"/>
 		</rule>
 		<rule name="release">
 			<test cmd="gh release list" expect="allow"/>
@@ -558,15 +713,19 @@
 		<rule name="api">
 			<test cmd="gh api /repos/owner/repo" expect="allow"/>
 			<test cmd="gh api -X POST /repos/owner/repo" expect=""/>
+			<test cmd="gh api --method=POST /repos/owner/repo" expect=""/>
+			<test cmd="gh api -XPOST /repos/owner/repo" expect=""/>
+			<test cmd="gh api -X GET /repos/owner/repo -X POST" expect=""/>
+			<test cmd="gh api /repos/owner/repo -X" expect=""/>
 			<!-- The API spelling of a PR close. Only GET is allowed here, which
 			     leaves a PATCH to be asked about; this says no outright. -->
 			<test cmd="gh api -X PATCH /repos/o/r/pulls/45 -f state=closed" expect="deny"/>
 			<test cmd="gh api /repos/o/r/pulls/45" expect="allow"/>
-			<refuseArgSubstrings message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
-				<value>state=closed</value>
-				<value>"state":"closed"</value>
-				<value>"state": "closed"</value>
-			</refuseArgSubstrings>
+			<refuse message="closing a pull request is the user's call; gh pr view, gh pr diff and adding the auto-pr-merge label are the only pull request commands this session runs">
+				<argSubstring>state=closed</argSubstring>
+				<argSubstring>"state":"closed"</argSubstring>
+				<argSubstring>"state": "closed"</argSubstring>
+			</refuse>
 			<requireFlagValue default="GET">
 				<flag name="-X" />
 				<flag name="--method" />
@@ -960,11 +1119,11 @@
 		<test cmd="curl http://evil.com/" expect=""/>
 		<test cmd="curl" expect=""/>
 		<test cmd="curl -X PATCH https://api.github.com/repos/o/r/pulls/45 -d '{&quot;state&quot;:&quot;closed&quot;}'" expect="deny"/>
-		<refuseArgSubstrings message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
-			<value>"state":"closed"</value>
-			<value>"state": "closed"</value>
-			<value>state=closed</value>
-		</refuseArgSubstrings>
+		<refuse message="closing a pull request is the user's call; gh pr view, gh pr diff and adding the auto-pr-merge label are the only pull request commands this session runs">
+			<argSubstring>"state":"closed"</argSubstring>
+			<argSubstring>"state": "closed"</argSubstring>
+			<argSubstring>state=closed</argSubstring>
+		</refuse>
 		<flagsWithValue>
 			<flag name="-H" />
 			<flag name="--header" />
@@ -1060,7 +1219,7 @@
 	     Leaving this empty makes the hook return nothing for this server, the
 	     dialog stands, and a click actually authorises the call.
 	     Do NOT "fix" send_later by adding it back; that is the regression.
-	     see docs/ccr-approval-card.md -->
+	     See the auto-allow section of AGENTS.md. -->
 
 	<!-- This marketplace's own grep/glob servers: the same builtin read-only
 	     tools the hook already allows by bare name. -->

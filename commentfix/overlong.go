@@ -1,18 +1,15 @@
 // overlong.go finds a comment longer than the code it documents.
 //
-// A comment earns its place by stopping the next mistake. A comment that runs
-// longer than the code becomes an essay, and the reader pays for it on every
-// pass through the file. The rule is a proxy rather than a judgement of
-// content: length is what a machine can measure.
+// A comment earns its place by stopping the next mistake. A single longer
+// than the code it documents becomes an essay the reader pays for on every
+// pass. The rule is a proxy rather than a judgement of content: length is measurable.
 //
-// It reads a real syntax tree, so a span is exact rather than guessed, and the
-// same code serves every grammar in treeblocks.go. Nothing here names a
-// language.
+// It reads a real syntax tree, so a span is exact rather than guessed, and
+// treeblocks.go serves every grammar. Nothing here names a language.
 //
-// The repair is to cut, from the end. A comment leads with its point and
-// elaborates afterwards, so the trailing paragraph is what a reader loses least
-// by losing. The opening sentence is never cut: a block trimmed to nothing is a
-// worse edit than a block left long.
+// The repair cuts from the end, because a comment leads with its point. The
+// opening sentence is never cut: a block trimmed to nothing is a worse edit
+// than a block left long.
 package commentfix
 
 import (
@@ -20,7 +17,11 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -54,15 +55,26 @@ type block struct {
 	text []string
 	// exact is true when a parser decided this span rather than a line walk. It gates the REPAIR and nothing else.
 	exact bool
+	// header is true for the comment above the package declaration.
+	header bool
 }
 
-// Check reports every comment block in src that outweighs its code.
+// Check reports every comment block in src that outweighs its code and that
+// the repair brings inside its budget. A block no cut fits keeps its opening
+// sentence whole, so no repair answers it and no finding names it.
 func CheckLength(filename, src string) []LengthHit {
 	defer trace.Phase("rule/comments-length")()
 	var hits []LengthHit
 	for _, b := range blocks(filename, src) {
+		if b.header {
+			continue
+		}
 		tell, over := judge(b)
 		if !over {
+			continue
+		}
+		fixed := repair(b)
+		if _, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars}); stillOver || !b.exact || sameText(fixed, b.text) {
 			continue
 		}
 		hits = append(hits, LengthHit{
@@ -70,7 +82,7 @@ func CheckLength(filename, src string) []LengthHit {
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && !sameText(repair(b), b.text),
+			Repairable: true,
 		})
 	}
 	return hits
@@ -79,17 +91,39 @@ func CheckLength(filename, src string) []LengthHit {
 // Fix cuts every over-long comment block back inside its budget, from the end,
 // stopping before the opening sentence.
 func FixLength(filename, src string) (string, bool) {
-	defer trace.Phase("repair/comments-length")()
-	bs := blocks(filename, src)
-	if len(bs) == 0 {
-		return src, false
-	}
-	lines := splitLines(src)
-	changed := false
+	f := fixer.Open(filename, src, fixer.Options{Kind: fixer.Source})
+	fixer.Run(f, fixer.Named(FixerLength))
+	return f.Text(), f.Text() != src
+}
 
-	// Back to front, so an earlier block's line numbers stay valid.
-	for i := len(bs) - 1; i >= 0; i-- {
-		b := bs[i]
+// cutNote is what the report carries a single time any length cut lands.
+const cutNote = "trailing comment prose"
+
+// repairLength cuts every over-long comment block in f back inside its budget.
+func repairLength(f *fixer.File) {
+	defer trace.Phase("repair/comments-length")()
+	if len(f.ApplyComments(lengthEdits(f.Path, f.Text(), f.MaxCommentLines)).Applied) > 0 {
+		f.RemovedOnce(cutNote)
+	}
+}
+
+// lengthEdits answers an edit per block that outweighs its code, or that runs
+// past maxLines. The volume cap has no repair of its own, so this cut serves it.
+func lengthEdits(filename, src string, maxLines int) []edit.Edit {
+	var edits []edit.Edit
+	for _, b := range blocks(filename, src) {
+		if b.header {
+			if maxLines <= 0 || len(prose(b.text)) <= maxLines {
+				continue
+			}
+			if kept := capLines(b, maxLines); !sameText(kept, b.text) {
+				edits = append(edits, edit.Lines(src, b.start, b.end-1, 0, kept))
+			}
+			continue
+		}
+		if maxLines > 0 && b.codeLines > maxLines {
+			b.codeLines = maxLines
+		}
 		if _, over := judge(b); !over {
 			continue
 		}
@@ -104,19 +138,18 @@ func FixLength(filename, src string) (string, bool) {
 		if sameText(kept, b.text) {
 			continue
 		}
-		lines = append(lines[:b.start], append(kept, lines[b.end:]...)...)
-		changed = true
+		edits = append(edits, edit.Lines(src, b.start, b.end-1, 0, kept))
 	}
-	if !changed {
-		return src, false
-	}
-	return strings.Join(lines, "\n"), true
+	return edits
 }
 
 // judge measures a block against its code and names every measure it failed.
 // Lines catch an essay; characters catch a dense paragraph.
 func judge(b block) (string, bool) {
 	lines, chars := measure(prose(b.text))
+	// The free text after a lint pragma is prose, so its characters count.
+	_, pragmaChars := measure(pragmaProse(b.text))
+	chars += pragmaChars
 	// Nothing to weigh against.
 	if b.codeLines == 0 {
 		if lines == 0 {
@@ -125,12 +158,12 @@ func judge(b block) (string, bool) {
 		return "the comment documents nothing", true
 	}
 	limit := max(floorChars, b.codeChars)
-
 	var tells []string
 	if lines > b.codeLines {
 		tells = append(tells, "the comment runs more lines than the code it documents")
 	}
-	if chars > limit {
+	// A single sentence under the STE cap is the least a comment can say, so its characters are never an essay.
+	if chars > limit && !oneSentence(b.text) {
 		tells = append(tells, "the comment runs longer than the code it documents")
 	}
 	if len(tells) == 0 {
@@ -139,14 +172,64 @@ func judge(b block) (string, bool) {
 	return strings.Join(tells, ", and "), true
 }
 
+// oneSentence reports a block whose prose is a single sentence under the STE
+// word cap. A line with no letter is a banner, not prose.
+func oneSentence(text []string) bool {
+	var words []string
+	for _, line := range prose(text) {
+		body := stripMarker(line)
+		if strings.IndexFunc(body, unicode.IsLetter) < 0 {
+			continue
+		}
+		words = append(words, strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body), "*/")))
+	}
+	joined := strings.TrimSpace(strings.Join(words, " "))
+	if joined == "" {
+		return false
+	}
+	found := ste.Sentences(joined)
+	return len(found) == 1 && ste.WordCount(found[0]) <= ste.SentenceWordCap && !hasBanner(text)
+}
+
+// hasBanner reports a comment line whose prose holds no letter, such as a
+// rule of "=" signs. A banner has no reader, so a block that holds one is weighed whole.
+func hasBanner(text []string) bool {
+	for _, line := range prose(text) {
+		body := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(stripMarker(line)), "*/"))
+		if body != "" && strings.IndexFunc(body, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) < 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// withoutBanners drops each banner line of a block, and the blank comment lines
+// left at either end.
+func withoutBanners(text []string) []string {
+	if !hasBanner(text) {
+		return text
+	}
+	var out []string
+	for _, line := range text {
+		body := strings.TrimSpace(stripMarker(line))
+		if body != "" && strings.IndexFunc(body, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) < 0 && !isDirectiveLine(line) {
+			continue
+		}
+		out = append(out, line)
+	}
+	for len(out) > 0 && isBlankComment(out[0]) {
+		out = out[1:]
+	}
+	for len(out) > 0 && isBlankComment(out[len(out)-1]) {
+		out = out[:len(out)-1]
+	}
+	return out
+}
+
 // measure counts the non-blank lines and the non-whitespace characters of a
 // run of text, so indentation costs nothing and both counts compare directly.
 func measure(text []string) (lines, chars int) {
 	for _, line := range text {
-		// A line carrying only its marker holds no words.
-		if bareMarkerLine(line) {
-			continue
-		}
 		content := false
 		for _, r := range line {
 			if unicode.IsSpace(r) {
@@ -162,110 +245,77 @@ func measure(text []string) (lines, chars int) {
 	return lines, chars
 }
 
-// bareMarkerLine reports a comment line holding a marker and nothing else.
-func bareMarkerLine(line string) bool {
-	switch strings.TrimSpace(line) {
-	case "//", "///", "//!", "#", "*", "/*", "*/":
-		return true
+// repair fits a block to its budget, and cuts pragma free text only when the prose cut is not enough.
+func repair(b block) []string {
+	out := repairProse(b)
+	if fitsCode(out, b) {
+		return out
 	}
-	return false
+	// The pragma stays. Its free text is the prose left to cut.
+	if bare := withoutPragmaProse(b.text); !sameText(bare, b.text) {
+		b.text = bare
+		return repairProse(b)
+	}
+	return out
 }
 
-// repair rewrites a block's prose and puts its directive lines back verbatim.
+// repairProse rewrites a block's prose and puts its directive lines back verbatim.
 //
 // Every repair path rebuilds the block out of prose() alone, which drops the
 // directives: the rewrite then REPLACED them. A lost //go:embed leaves the
 // variable it filled empty, and the tests reading it pass on nothing.
-func repair(b block) []string {
+func repairProse(b block) []string {
 	lead, body, trail := splitDirectives(b.text)
 	// A comment with no code under it has nothing to be measured against, so no
 	// amount of cutting brings it inside a budget.
 	if b.codeLines == 0 {
 		return append(append([]string{}, lead...), trail...)
 	}
+	if out, ok := repairBlockComment(b); ok {
+		return out
+	}
 	if len(lead) == 0 && len(trail) == 0 {
 		return trim(b)
+	}
+	for len(body) > 0 && isBlankComment(body[len(body)-1]) {
+		body = body[:len(body)-1]
 	}
 	if len(body) == 0 {
 		return b.text
 	}
-	kept := trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact})
+	bodyBlock := block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: body, exact: b.exact}
+	// A /* */ body is cut as a block, so its closer survives the cut.
+	if out, ok := repairBlockComment(bodyBlock); ok {
+		return append(append(append([]string{}, lead...), out...), trail...)
+	}
+	kept := trim(bodyBlock)
+	if len(trail) > 0 {
+		kept = withSeparator(kept, trail)
+		// Doc and separator cannot fit, so the doc goes and the directive stays.
+		if !fitsCode(kept, b) {
+			kept = nil
+		}
+	}
 	out := make([]string, 0, len(lead)+len(kept)+len(trail))
 	out = append(out, lead...)
 	out = append(out, kept...)
 	return append(out, trail...)
 }
 
-// splitDirectives separates a block's tool lines from its prose. A directive
-// binds to the declaration by position -- a build constraint leads.
-func splitDirectives(text []string) (lead, body, trail []string) {
-	seen := false
-	for _, line := range text {
-		switch {
-		case !isDirectiveLine(line):
-			seen = true
-			body = append(body, line)
-		case seen:
-			trail = append(trail, line)
-		default:
-			lead = append(lead, line)
-		}
-	}
-	return lead, body, trail
-}
-
-// directivesOf keeps only the directive lines of a block, which is the half
-// prose drops.
-func directivesOf(text []string) []string {
-	kept := make([]string, 0, len(text))
-	for _, line := range text {
-		if isDirectiveLine(line) {
-			kept = append(kept, line)
-		}
-	}
-	return kept
-}
-
-// prose drops the directive lines from a block. A build constraint is an
-// instruction to a tool, so measuring it reports an essay nobody wrote.
-func prose(text []string) []string {
-	kept := make([]string, 0, len(text))
-	for _, line := range text {
-		if isDirectiveLine(line) {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	return kept
-}
-
-// isDirectiveLine reports a line a tool reads rather than a reader. The C family
-// spells it with no space after the marker, and the hash family carries the
-// interpreter line and the linter pragma.
-func isDirectiveLine(line string) bool {
-	t := strings.TrimSpace(line)
-	for _, marker := range []string{"//", "#"} {
-		rest, found := strings.CutPrefix(t, marker)
-		if !found {
-			continue
-		}
-		if marker == "#" && strings.HasPrefix(rest, "!") {
-			return true // an interpreter line
-		}
-		name, _, hasColon := strings.Cut(rest, ":")
-		if !hasColon || name == "" || strings.ContainsAny(name, " \t") {
-			continue
-		}
-		// `//go:build` and `# shellcheck:` carry no space before the colon.
-		return true
-	}
-	return false
+// withSeparator adds the bare marker line gofmt puts between a doc and the
+// directive after it. The repair is measured as gofmt will leave it.
+func withSeparator(kept, trail []string) []string {
+	indent := trail[0][:len(trail[0])-len(strings.TrimLeft(trail[0], " \t"))]
+	return append(append([]string{}, kept...), indent+"//")
 }
 
 // trim cuts the block's trailing prose until it fits, keeping the opening.
 // A paragraph goes before a line does, and the opening paragraph always survives.
 func trim(b block) []string {
-	kept := b.text
+	kept := withoutBanners(b.text)
+	if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+		return kept
+	}
 
 	// Tighten before cutting. A padded comment fits after its filler is gone and
 	// it is reflowed, and keeping the whole thought beats losing the last of it.
@@ -288,17 +338,45 @@ func trim(b block) []string {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
 		}
+		if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
+			if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return wider
+			}
+		}
 		next, ok := cutLastThought(kept)
 		if !ok {
 			break
 		}
 		kept = next
 	}
-	if forced, ok := hardFit(b); ok {
-		return forced
+	// The STE opening sentence reads best, then a clause cut.
+	fit := func(sentence, indent, marker string) ([]string, bool) {
+		out := reflow(sentence, indent, marker, wrapWidth)
+		return out, fitsCode(out, b)
 	}
-	// Nothing shorter both fits and reads.
-	return b.text
+	opening, whole := steOpening(kept, fit, false)
+	var fits [][]string
+	if whole && fitsCode(opening, b) {
+		fits = append(fits, opening)
+	}
+	if clause, ok := clauseFit(b); ok {
+		fits = append(fits, clause)
+	}
+	if out, ok := preferred(fits); ok {
+		return out
+	}
+	// No cut fits, so the opening sentence divides until its first part does.
+	if shorter, ok := steOpening(kept, fit, true); ok && fitsCode(shorter, b) {
+		return shorter
+	}
+	// Every cut is refused. The whole prose goes on one line: the line count is
+	// what the code beneath it weighs, and no word is dropped to reach one.
+	if wider, did := widen(kept, oneLine); did {
+		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return wider
+		}
+	}
+	return kept
 }
 
 // sameText compares runs of lines by what they say. A line count cannot: a
@@ -307,59 +385,178 @@ func sameText(a, b []string) bool {
 	return strings.Join(a, "\n") == strings.Join(b, "\n")
 }
 
-// hardFit drops words off the end until the block fits, wherever the sentence
-// ends. It mangles prose that no honest cut reaches, so it runs last, after
-// every cut that leaves a comment somebody can read.
-func hardFit(b block) ([]string, bool) {
+// clauseFit cuts the block back to the last clause boundary that fits, and
+// closes what it keeps with a period. A whole clause still reads as a sentence.
+func clauseFit(b block) ([]string, bool) {
 	marker, indent, ok := commentShape(b.text)
 	if !ok {
 		return nil, false
 	}
+	// The cut stays inside the first paragraph. Joined across a paragraph break or a list, the prose only looks shorter.
 	var body []string
-	for _, line := range prose(b.text) {
-		body = append(body, stripMarker(line))
-	}
-	words := strings.Fields(strings.Join(body, " "))
-	// The budget is a character count, and the layout takes a column.
-	width := min(max(floorChars, b.codeChars), wrapWidth)
-	for len(words) > 0 {
-		closed := closeTail(words)
-		if len(closed) == 0 {
+	for _, para := range paragraphs(prose(b.text)) {
+		if para.blank || para.verbatim {
+			continue
+		}
+		if para.list() {
 			return nil, false
 		}
-		out := reflow(strings.Join(closed, " "), indent, marker, width)
-		if _, over := judge(block{text: out, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+		body = para.lines
+		break
+	}
+	text := unwrapAside(strings.Join(strings.Fields(strings.Join(body, " ")), " "))
+	for _, cut := range clauseCuts(text) {
+		kept := strings.TrimRight(text[:cut], " ,;:-—–")
+		words := strings.Fields(kept)
+		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+			continue
+		}
+		// A cut at a colon keeps the statement the colon elaborates.
+		if !closesWhole(kept) && !(cut < len(text) && text[cut] == ':') {
+			continue
+		}
+		if !endsSentence(kept) {
+			kept += "."
+		}
+		if out, ok := fitReflow(kept, indent, marker, b); ok {
 			return out, true
 		}
-		words = words[:len(words)-1]
 	}
 	return nil, false
 }
 
-// dangling words open something the cut took away, so a forced cut that ends.
-var dangling = set.Of(danglingWords()...)
+// unwrapAside drops the parentheses around a comment that is one aside, so a
+// cut inside it leaves the pair balanced.
+func unwrapAside(text string) string {
+	inner, ok := strings.CutPrefix(text, "(")
+	if !ok {
+		return text
+	}
+	end := strings.TrimSuffix(inner, ".")
+	inner, ok = strings.CutSuffix(end, ")")
+	if !ok || strings.ContainsAny(inner, "()") {
+		return text
+	}
+	return strings.TrimSuffix(inner, ".") + "."
+}
 
-// closeTail makes a forced cut read as a sentence: it drops back past a word
-// that opens what the cut removed, and closes what is left with a period.
-func closeTail(words []string) []string {
-	out := append([]string{}, words...)
-	for len(out) > 0 {
-		last := strings.TrimRight(out[len(out)-1], ",;:")
-		if last == "" || dangling.Contains(strings.ToLower(last)) {
-			out = out[:len(out)-1]
+// closesWhole reports whether the last sentence of text holds a main clause, so
+// a cut there leaves a sentence: "If the cache is cold" does not.
+func closesWhole(text string) bool {
+	sentences := ste.Sentences(text)
+	return len(sentences) > 0 && standsAlone(sentences[len(sentences)-1])
+}
+
+// oneLine is a reflow width no comment reaches, so the prose stays on one line.
+const oneLine = 1 << 20
+
+// fitReflow lays text out at the narrowest width that fits the budget of b.
+// The budget counts characters, not columns, so a single line is the last try.
+func fitReflow(text, indent, marker string, b block) ([]string, bool) {
+	budget := max(floorChars, b.codeChars)
+	var out []string
+	for _, width := range []int{min(budget, wrapWidth), budget, oneLine} {
+		out = reflow(text, indent, marker, width)
+		if fitsCode(out, b) {
+			return out, true
+		}
+	}
+	return out, false
+}
+
+// preferred answers the earliest cut that keeps at least a third of the words
+// the longest cut keeps. A cut that reads well and keeps almost nothing loses.
+func preferred(cuts [][]string) ([]string, bool) {
+	most := 0
+	for _, cut := range cuts {
+		most = max(most, wordCount(cut))
+	}
+	for _, cut := range cuts {
+		if 3*wordCount(cut) >= most {
+			return cut, true
+		}
+	}
+	return nil, false
+}
+
+// wordCount counts the words of a block's prose.
+func wordCount(text []string) int {
+	n := 0
+	for _, line := range prose(text) {
+		n += len(strings.Fields(stripMarker(line)))
+	}
+	return n
+}
+
+// fitsCode reports whether text fits the budget of the code under b.
+func fitsCode(text []string, b block) bool {
+	_, over := judge(block{text: text, codeLines: b.codeLines, codeChars: b.codeChars})
+	return !over
+}
+
+// clausesTable is what rules/ says for="comment-clauses".
+var clausesTable = table.MustLoad(rules.FS, "comment-clauses")
+
+// boundaryMarks answers the marks that end a clause.
+func boundaryMarks() []string {
+	for _, c := range clausesTable.Classes {
+		if c.Name == "boundary" {
+			return c.Words
+		}
+	}
+	panic("commentfix: rules/ names no class boundary")
+}
+
+// clauseCuts answers every clause boundary in text, the last one first. A mark
+// ends a clause when a space follows it. A word-length mark needs a space before it too.
+// A tail opener, such as "so" or an open parenthesis, starts a part the cut can drop.
+func clauseCuts(text string) []int {
+	marks := boundaryMarks()
+	tails := tailOpeners()
+	var cuts []int
+	for i := len(text) - 1; i > 0; i-- {
+		for _, m := range marks {
+			if !strings.HasPrefix(text[i:], m+" ") {
+				continue
+			}
+			if len(m) > 1 && text[i-1] != ' ' {
+				continue
+			}
+			cuts = append(cuts, i)
+			break
+		}
+		if text[i-1] != ' ' {
 			continue
 		}
-		out[len(out)-1] = last
-		break
+		for _, m := range tails {
+			if strings.HasPrefix(text[i:], m) && (m == "(" || strings.HasPrefix(text[i+len(m):], " ")) {
+				cuts = append(cuts, i)
+				break
+			}
+		}
 	}
-	if len(out) == 0 {
-		return nil
-	}
-	if !endsSentence(out[len(out)-1]) {
-		out[len(out)-1] += "."
-	}
-	return out
+	return cuts
 }
+
+// tailOpeners answers the words that open a part a cut can drop and leave the claim before it true.
+func tailOpeners() []string {
+	for _, c := range clausesTable.Classes {
+		if c.Name == "tail" {
+			return c.Words
+		}
+	}
+	panic("commentfix: rules/ names no class tail")
+}
+
+// balanced reports text that closes every bracket, backtick and quote it opens.
+func balanced(text string) bool {
+	return strings.Count(text, "(") == strings.Count(text, ")") &&
+		strings.Count(text, "[") == strings.Count(text, "]") &&
+		strings.Count(text, "`")%2 == 0 && strings.Count(text, `"`)%2 == 0
+}
+
+// dangling words open something that must follow them, so a comment cannot end on one.
+var dangling = set.Of(danglingWords()...)
 
 // cutLastThought drops the last thought out of a block, and reports false when
 // nothing is left to drop.
@@ -385,9 +582,9 @@ func endsWell(text []string) bool {
 // dropTrailingSentence removes the last sentence of the last paragraph and
 // reflows what is left, so a cut lands mid-line where the prose ends there.
 //
-// It reports false for a block whose shape it cannot read, and for a last
-// paragraph with no interior sentence end: dropParagraph and dropSentence own
-// those.
+// It reports false for a block whose shape it cannot read. It also reports
+// false for a last paragraph with no interior sentence end. dropParagraph and
+// dropSentence own those.
 func dropTrailingSentence(text []string) ([]string, bool) {
 	marker, indent, ok := commentShape(text)
 	if !ok {

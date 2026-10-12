@@ -1,11 +1,18 @@
-// Only prose is rewritten or checked. A fenced code block is data, a table is a
-// grid whose rows are not sentences, and a heading is a label. Each reaches the
-// caller marked verbatim, so no rule can reflow it.
+// Package markdown finds prose with a CommonMark parser.
+// Fences, tables, headings and quotes stay verbatim.
 package markdown
 
 import (
+	"regexp"
 	"strings"
+	"unicode"
 
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/text"
+
+	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -15,7 +22,7 @@ type Kind int
 const (
 	// Prose is a paragraph or a list item. It is rewritten and checked.
 	Prose Kind = iota
-	// Verbatim is a fence, a table, a heading or a blank run. It is left alone.
+	// Verbatim is anything else, such as a fence, a heading or a quotation.
 	Verbatim
 )
 
@@ -28,12 +35,12 @@ type Block struct {
 	Start int
 	// Marker is the list bullet the item opened with, empty for a paragraph.
 	Marker string
-	// Indent is the whitespace before Marker, preserved for a nested item.
+	// Indent is the whitespace before the block.
 	Indent string
 }
 
-// Text renders a prose block as the single line the rules read: the lines
-// joined by a space, with each continuation's own indentation dropped.
+// Text renders a prose block as the line the rules read: the lines joined by
+// a space, with each continuation's own indentation dropped.
 func (b Block) Text() string {
 	parts := make([]string, 0, len(b.Lines))
 	for i, line := range b.Lines {
@@ -52,102 +59,177 @@ func (b Block) Text() string {
 func Split(content string) []Block {
 	defer trace.Phase("markdown/split")()
 	lines := strings.Split(content, "\n")
+	ends := paragraphs(content, lines)
+	// Source text is code however its file is named, and so is a paragraph of it.
+	whole := code.Is(content)
 	var blocks []Block
 	for i := 0; i < len(lines); {
-		line := lines[i]
-		switch {
-		case fenceDelimiter(line) != "":
-			end := closingFence(lines, i)
-			blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : end+1], Start: i + 1})
-			i = end + 1
-		case isVerbatimLine(line):
+		end, prose := ends[i]
+		if prose && (whole || code.Is(strings.Join(lines[i:end+1], "\n"))) {
+			for ; i <= end; i++ {
+				blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : i+1], Start: i + 1})
+			}
+			continue
+		}
+		if !prose {
 			blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : i+1], Start: i + 1})
 			i++
-		default:
-			block, next := proseBlock(lines, i)
-			blocks = append(blocks, block)
-			i = next
+			continue
 		}
+		indent, marker := listMarker(lines[i])
+		if marker == "" {
+			indent = lines[i][:len(lines[i])-len(strings.TrimLeft(lines[i], " \t"))]
+		}
+		blocks = append(blocks, Block{Kind: Prose, Lines: lines[i : end+1], Start: i + 1, Marker: marker, Indent: indent})
+		i = end + 1
 	}
 	return blocks
 }
 
-// proseBlock consumes the paragraph or list item starting at lines[i].
-func proseBlock(lines []string, i int) (Block, int) {
-	indent, marker := listMarker(lines[i])
-	block := Block{Kind: Prose, Start: i + 1, Marker: marker, Indent: indent}
-	block.Lines = append(block.Lines, lines[i])
-	for j := i + 1; j < len(lines); j++ {
-		next := lines[j]
-		if endsProse(next) {
-			return block, j
+var parser = goldmark.New(goldmark.WithExtensions(extension.Table)).Parser()
+
+// paragraphs maps the line each paragraph opens on to the line it ends on. A
+// paragraph in a block quote quotes somebody, and stays as they wrote it.
+func paragraphs(content string, lines []string) map[int]int {
+	src := blankTemplateTags([]byte(blankFrontMatter(content, lines)), lines)
+	starts := lineStarts(lines)
+	ends := map[int]int{}
+	_ = ast.Walk(parser.Parse(text.NewReader(src)), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
 		}
-		// A new list item ends its predecessor rather than continuing it.
-		if _, m := listMarker(next); m != "" {
-			return block, j
+		switch n.Kind() {
+		case ast.KindBlockquote:
+			return ast.WalkSkipChildren, nil
+		case ast.KindParagraph, ast.KindTextBlock:
+			if segments := n.Lines(); segments.Len() > 0 {
+				first := lineOf(starts, segments.At(0).Start)
+				last := lineOf(starts, segments.At(segments.Len()-1).Stop-1)
+				// A template directive line is not prose, so it divides the paragraph and stays as written.
+				for from := first; from <= last; {
+					if isDirective(lines[from]) {
+						from++
+						continue
+					}
+					to := from
+					for to < last && !isDirective(lines[to+1]) {
+						to++
+					}
+					if hasLetter(lines[from : to+1]) {
+						ends[from] = to
+					}
+					from = to + 1
+				}
+			}
+			return ast.WalkSkipChildren, nil
 		}
-		block.Lines = append(block.Lines, next)
-	}
-	return block, len(lines)
+		return ast.WalkContinue, nil
+	})
+	return ends
 }
 
-// endsProse reports a line that closes the paragraph before it. Indentation is
-// absent from the test on purpose: inside a paragraph an indented line is the
-// author's wrap, not a code block.
-func endsProse(line string) bool {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" || fenceDelimiter(line) != "" {
-		return true
-	}
-	return strings.HasPrefix(trimmed, "#") ||
-		strings.HasPrefix(trimmed, "|") ||
-		strings.HasPrefix(trimmed, "<!--") ||
-		strings.HasPrefix(trimmed, "---")
-}
+// templateDirectives open a template tag: a Jinja or Go template statement, an expression or a comment.
+var templateDirectives = []string{"{%", "{{", "{#"}
 
-// isVerbatimLine reports a line no prose rule may touch on its own.
-func isVerbatimLine(line string) bool {
-	trimmed := strings.TrimSpace(line)
-	switch {
-	case trimmed == "":
-		return true
-	case strings.HasPrefix(trimmed, "#"):
-		return true
-	case strings.HasPrefix(trimmed, "|"):
-		return true
-	case strings.HasPrefix(trimmed, "<!--"), strings.HasPrefix(trimmed, "---"):
+// importLine matches a trimmed line that is one `@path` import, as a CLAUDE.md lists the files it pulls in.
+var importLine = regexp.MustCompile(`^@[^\s@]+$`)
+
+// isDirective reports a line that holds a template tag or a lone import. A
+// template engine or an agent reads the line, so a join or a rewrite changes
+// what it loads.
+func isDirective(line string) bool {
+	if importLine.MatchString(strings.TrimSpace(line)) {
 		return true
 	}
-	// An indented code block, which carries no list marker.
-	if strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t") {
-		if _, marker := listMarker(line); marker == "" {
+	for _, d := range templateDirectives {
+		if strings.Contains(line, d) {
 			return true
 		}
 	}
 	return false
 }
 
-// fenceDelimiter returns the fence a line opens, empty when it opens none.
-func fenceDelimiter(line string) string {
-	trimmed := strings.TrimSpace(line)
-	for _, delim := range []string{"```", "~~~"} {
-		if strings.HasPrefix(trimmed, delim) {
-			return delim
+// hasLetter reports whether any line holds a letter. A paragraph with none is
+// a picture, such as braille or box art. A join destroys its shape.
+func hasLetter(lines []string) bool {
+	for _, line := range lines {
+		if strings.IndexFunc(line, unicode.IsLetter) >= 0 {
+			return true
 		}
 	}
-	return ""
+	return false
 }
 
-// closingFence returns the index of the line that closes the fence opened at
-// open, or the last line when the document never closes it.
-func closingFence(lines []string, open int) int {
-	delim := fenceDelimiter(lines[open])
-	for j := open + 1; j < len(lines); j++ {
-		if strings.HasPrefix(strings.TrimSpace(lines[j]), delim) {
-			return j
+// blankFrontMatter writes spaces over a YAML front matter block, byte for byte,
+// so the parser reads no paragraph there and every offset holds.
+func blankFrontMatter(content string, lines []string) string {
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return content
+	}
+	end := len(lines[0]) + 1
+	for j := 1; j < len(lines); j++ {
+		end += len(lines[j]) + 1
+		if strings.TrimSpace(lines[j]) != "---" {
+			continue
+		}
+		out := []byte(content)
+		for k := range min(end, len(out)) {
+			if out[k] != '\n' {
+				out[k] = ' '
+			}
+		}
+		return string(out)
+	}
+	return content
+}
+
+// blankTemplateTags writes spaces over each line that holds one template tag and nothing else, such as `{% if x %}` or `${%- endif %}`. A tag is code for the renderer, so the parser reads it as a break between paragraphs. A line that holds one markup
+// tag, such as `</memory>`, gets the same treatment.
+func blankTemplateTags(src []byte, lines []string) []byte {
+	at := 0
+	for _, line := range lines {
+		if trimmed := strings.TrimSpace(line); isTemplateTag(trimmed) || markupTagLine.MatchString(trimmed) {
+			for k := at; k < at+len(line) && k < len(src); k++ {
+				src[k] = ' '
+			}
+		}
+		at += len(line) + 1
+	}
+	return src
+}
+
+// markupTagLine matches a trimmed line that is one opening, closing or self-closing markup tag.
+var markupTagLine = regexp.MustCompile(`^</?[A-Za-z][\w:.-]*(\s[^<>]*)?/?>$`)
+
+// isTemplateTag reports whether a trimmed line is one template tag.
+func isTemplateTag(trimmed string) bool {
+	body := strings.TrimPrefix(trimmed, "$")
+	return strings.HasPrefix(body, "{%") && strings.HasSuffix(body, "%}") && strings.Count(body, "%}") == 1
+}
+
+// lineStarts answers the byte offset each line starts at.
+func lineStarts(lines []string) []int {
+	starts := make([]int, len(lines))
+	at := 0
+	for i, line := range lines {
+		starts[i] = at
+		at += len(line) + 1
+	}
+	return starts
+}
+
+// lineOf answers the line that holds the byte at offset at.
+func lineOf(starts []int, at int) int {
+	lo, hi := 0, len(starts)-1
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if starts[mid] <= at {
+			lo = mid
+		} else {
+			hi = mid - 1
 		}
 	}
-	return len(lines) - 1
+	return lo
 }
 
 // listMarker splits a list line into its leading whitespace and its bullet or

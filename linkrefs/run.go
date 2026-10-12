@@ -1,10 +1,10 @@
 // run.go is this package's entry point: the MessageDisplay payload in, the
 // displayContent envelope out.
 //
-// The message arrives in flushes, and a fenced block can span them, so the
-// fence state is carried in a per-message file under the temp directory. A lost
-// state file costs the fence exemption on later flushes of that message,
-// never a wrong rewrite of another.
+// The message arrives in flushes. A fenced block can span them. The fence state
+// is carried in a per-message file under the temp directory. A lost state file
+// costs the fence exemption on later flushes of that message, never a wrong
+// rewrite of another.
 package linkrefs
 
 import (
@@ -35,8 +35,8 @@ type Result struct {
 // disabled reports the escape hatch: a guard that eats output is worse than none.
 func disabled() bool { return os.Getenv("CC_LINK_ALL_REFS") == "0" }
 
-// Run rewrites the flush it is given and returns the envelope to print.
-// Every failure path prints nothing, which leaves the original text on screen.
+// Run rewrites the flush it is given and returns the envelope to print. Every
+// failure path prints nothing, which leaves the text on screen.
 func Run(r io.Reader) Result {
 	if disabled() {
 		return Result{}

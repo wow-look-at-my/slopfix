@@ -1,6 +1,6 @@
 // Package trace reports where slopfix spent its time.
 //
-// A hook runs on every tool call, so a phase that walks a tree costs the
+// A hook runs on every tool call. A phase that walks a tree costs the
 // session that many traversals, and nothing in the output says so. Setting
 // SLOPFIX_TRACE makes each phase report its own duration on stderr, which is
 // where a hook's diagnostics go without reaching the model.

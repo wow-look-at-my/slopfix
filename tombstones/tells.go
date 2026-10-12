@@ -1,7 +1,7 @@
 // tells.go holds what a tombstone looks like on the page.
 //
 // A property separates it from a comment worth keeping. Its referent is gone:
-// the flag, the test, the old spelling it names does not exist any more. Or its
+// the flag, the test, the spelling it names does not exist any more. Or its
 // audience is the reviewer: it argues for the change instead of telling the
 // next editor what breaks.
 //
@@ -17,8 +17,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/english"
 )
 
-// deadReferent is the tell referents.go reports.
+// deadReferent is the tell referents.go reports, and IDDeadReferent the rule that reports it.
 const deadReferent = "a name nothing in the repository defines"
+
+// IDDeadReferent names the rule a dead referent reports under.
+var IDDeadReferent = ruleID(deadReferent)
 
 // IDVolume names the volume cap, whose tell carries a line count instead.
 const IDVolume = "tombstones/comment-volume"
@@ -52,6 +55,10 @@ type Hit struct {
 
 	Strippable bool `json:"strippable"`
 	LineNo     int  `json:"lineNo"`
+	// EndLineNo is the last line of a hit that judges a whole block, counted from one, and zero for any other hit.
+	EndLineNo int `json:"endLineNo,omitempty"`
+	// Fix asks for a rewrite by hand when no repair can make the text whole. It is empty for any other hit.
+	Fix string `json:"fix,omitempty"`
 }
 
 // Find returns the blocks over the cap. A non-positive maxLines turns it off.
@@ -64,14 +71,18 @@ func Find(blocks []Block, maxLines int) []Hit {
 	for _, b := range blocks {
 		if maxLines > 0 && b.Lines > maxLines {
 			// A judgement about the whole block, not a span to excise, so
-			// Strippable stays false.
-			hits = append(hits, Hit{
+			// Strippable stays false. The hit names the lines the block covers.
+			hit := Hit{
 				ID:     IDVolume,
 				Tell:   "a comment block of " + strconv.Itoa(b.Lines) + " lines",
 				Phrase: firstLine(b.Text),
 				Line:   firstLine(b.Text),
 				LineNo: -1,
-			})
+			}
+			if len(b.LineNos) > 0 {
+				hit.LineNo, hit.EndLineNo = b.LineNos[0]+1, b.LineNos[len(b.LineNos)-1]+1
+			}
+			hits = append(hits, hit)
 		}
 	}
 	return hits
@@ -79,27 +90,32 @@ func Find(blocks []Block, maxLines int) []Hit {
 
 // linePurity looks a block-relative line index up in b's parallel arrays.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
-	if li < len(b.LineNos) && li < len(b.Pure) {
-		return b.LineNos[li], b.Pure[li]
+	if li >= len(b.LineNos) {
+		return -1, false
 	}
-	return -1, false
+	return b.LineNos[li], li < len(b.Pure) && b.Pure[li]
 }
 
 // HitForName builds the Hit for a dead referent, carrying the strip metadata a
 // wording-based tell gets.
 func HitForName(blocks []Block, name string) Hit {
 	for _, b := range blocks {
-		for li, line := range strings.Split(b.Text, "\n") {
-			if !strings.Contains(line, name) {
+		lines := strings.Split(b.Text, "\n")
+		// The name is sought in the comment prose, so a code line that uses it never places the hit.
+		proseLines := strings.Split(b.Prose, "\n")
+		for li, prose := range proseLines {
+			if !strings.Contains(prose, name) || li >= len(lines) {
 				continue
 			}
+			line := lines[li]
 			lineNo, pure := linePurity(b, li)
 			return Hit{
-				ID:         ruleID(deadReferent),
-				Tell:       deadReferent,
-				Phrase:     name,
-				Line:       strings.TrimSpace(line),
-				Strippable: pure,
+				ID:     ruleID(deadReferent),
+				Tell:   deadReferent,
+				Phrase: name,
+				Line:   strings.TrimSpace(line),
+				// A line that holds another sentence too is cut, not stripped.
+				Strippable: pure && wholeSentencesOnLine(proseLines, li, name),
 				LineNo:     lineNo,
 			}
 		}

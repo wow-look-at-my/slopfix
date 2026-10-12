@@ -6,67 +6,76 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/ste"
+	yaml "go.yaml.in/yaml/v3"
 )
 
-// runBlock is a run: script.
-type runBlock struct {
-	start int
-	lines []string
+// shellStep is a run: step whose script is POSIX shell.
+type shellStep struct {
+	// job is the key of the job the step belongs to.
+	job string
+	// number is the step's place in its job's steps, counted from one.
+	number int
+	step   *yaml.Node
+	run    *yaml.Node
+	block  scriptLines
+	// shell is the step's own shell key, or else the job's or the workflow's defaults.run.shell.
+	shell string
+	// moved reports a working-directory that starts the step outside the checkout root.
+	moved bool
 }
 
-var runKey = regexp.MustCompile(`^(\s*)(-\s+)?run:\s*(.*)$`)
-
-// blockScalar matches the | and > forms, with their chomping and indent digits.
-var blockScalar = regexp.MustCompile(`^[|>][+-]?\d*$`)
-
-// runBlocks reads every run: script. A regex walk rather than a parse, since a
-// file this rule rejects may also be a file a parser rejects.
-func runBlocks(content string) []runBlock {
-	all := lines(content)
-	var blocks []runBlock
-
-	for index := 0; index < len(all); index++ {
-		match := runKey.FindStringSubmatch(all[index])
-		if match == nil {
+// shellSteps answers every run: step whose script is POSIX shell, read off the
+// parser. A step that runs PowerShell, Python or cmd holds no shell test.
+func shellSteps(content string) []shellStep {
+	var doc yaml.Node
+	if yaml.Unmarshal([]byte(content), &doc) != nil {
+		return nil
+	}
+	root := rootOf(&doc)
+	jobs := mappingValue(root, "jobs")
+	if jobs == nil {
+		return nil
+	}
+	fileLines := lines(content)
+	spans := blockScalars(content)
+	var out []shellStep
+	for i := 0; i+1 < len(jobs.Content); i += 2 {
+		job := jobs.Content[i+1]
+		steps := mappingValue(job, "steps")
+		if steps == nil || steps.Kind != yaml.SequenceNode {
 			continue
 		}
-		// A sequence item carries its key past the dash, so the KEY sets the end.
-		indent := len(match[1]) + len(match[2])
-		rest := strings.TrimSpace(match[3])
-		if !blockScalar.MatchString(rest) {
-			if rest != "" {
-				blocks = append(blocks, runBlock{start: index + 1, lines: []string{rest}})
-			}
-			continue
+		shell := defaultShell(job)
+		if shell == "" {
+			shell = defaultShell(root)
 		}
-
-		var body []string
-		cursor := index + 1
-		for ; cursor < len(all); cursor++ {
-			line := all[cursor]
-			if strings.TrimSpace(line) == "" {
-				body = append(body, "")
+		windows := runsPowerShell(job, shell)
+		moved := defaultDirectory(job) || defaultDirectory(root)
+		for n, step := range steps.Content {
+			run := mappingValue(step, "run")
+			if run == nil || run.Kind != yaml.ScalarNode {
 				continue
 			}
-			if indentOf(line) <= indent {
-				break
+			s := shellStep{job: jobs.Content[i].Value, number: n + 1, step: step, run: run, shell: shell,
+				moved: moved || mappingValue(step, "working-directory") != nil}
+			if own := mappingValue(step, "shell"); own != nil {
+				s.shell = own.Value
+			} else if windows {
+				continue
 			}
-			body = append(body, line)
+			if !bashLike(s.shell) {
+				continue
+			}
+			s.block = scriptOf(run, fileLines, spans)
+			out = append(out, s)
 		}
-		// A trailing run of blank lines belongs to the document, not the script.
-		for len(body) > 0 && body[len(body)-1] == "" {
-			body = body[:len(body)-1]
-		}
-		if len(body) > 0 {
-			blocks = append(blocks, runBlock{start: index + 2, lines: body})
-		}
-		index = cursor - 1
 	}
-	return blocks
+	return out
 }
 
-func indentOf(line string) int {
-	return len(line) - len(strings.TrimLeft(line, " \t"))
+// defaultDirectory reports a defaults.run.working-directory on a job or a workflow.
+func defaultDirectory(node *yaml.Node) bool {
+	return mappingValue(mappingValue(mappingValue(node, "defaults"), "run"), "working-directory") != nil
 }
 
 // testFileNames match a name only a test suite gives a file.
@@ -111,16 +120,20 @@ var redirectTarget = regexp.MustCompile(`(?:^|[^>\d])>>?\s*(?:"([^"]+)"|'([^']+)
 
 var exitWord = regexp.MustCompile(`\bexit\b`)
 
-// testsInYAML reports every test written into a run: script.
+// testsInYAML reports every test written into a run: script. Each finding is
+// a warning. The repair moves the whole script into a file of its own.
 func testsInYAML(content string) []ste.Finding {
 	var out []ste.Finding
-	for _, block := range runBlocks(content) {
-		out = append(out, block.findings()...)
+	for _, s := range shellSteps(content) {
+		for _, f := range s.block.findings() {
+			f.Severity = ste.SeverityWarning
+			out = append(out, f)
+		}
 	}
 	return out
 }
 
-func (b runBlock) findings() []ste.Finding {
+func (b scriptLines) findings() []ste.Finding {
 	script := strings.Join(b.lines, "\n")
 	annotates := strings.Contains(script, "::error")
 	ends := exitWord.MatchString(script)

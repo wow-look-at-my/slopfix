@@ -36,7 +36,7 @@ func TestSessionScratchpadIsNotRefusedAsAScratchScript(t *testing.T) {
 	}
 }
 
-// The exemption has to reach the actual decision, not just the predicate.
+// The exemption has to reach the actual decision, not the predicate.
 func TestScratchScriptWritesAllowsTheSessionScratchpad(t *testing.T) {
 	root := t.TempDir()
 	pad := filepath.Join("/tmp", "claude-0", "proj", "sess", "scratchpad")

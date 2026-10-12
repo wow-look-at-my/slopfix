@@ -40,39 +40,63 @@ func exemptToken(text string, toks []Token, i int, rules []TokenExemption) bool 
 	return false
 }
 
-// httpStatusPrefix is the word that names the digits after it as a status code.
-const httpStatusPrefix = "HTTP"
-
-// statusCodeDigits is the width of an HTTP status code.
-const statusCodeDigits = len("500")
-
-// HTTPStatus exempts a status code. The prefix is what separates the digits of
-// a protocol answer from a count wearing the same shape.
-func HTTPStatus(_ string, toks []Token, i int) bool {
-	if i == 0 {
+// LabeledToken exempts digits after a label word, as in "HTTP 403" or
+// "migration 014". The word names one item, and the digits identify it.
+func LabeledToken(_ string, toks []Token, i int) bool {
+	if i == 0 || !allDigits(strings.Trim(toks[i].Text, nameMarkers)) {
 		return false
 	}
-	prefix := strings.Trim(toks[i-1].Text, nameMarkers)
-	return strings.EqualFold(prefix, httpStatusPrefix) && isStatusCode(toks[i].Text)
+	return InClass(strings.Trim(toks[i-1].Text, nameMarkers), "label")
 }
 
-// isStatusCode reports whether text is the bare digits of a status code.
-func isStatusCode(text string) bool {
-	text = strings.Trim(text, nameMarkers)
-	return len(text) == statusCodeDigits && allDigits(text)
+// MeasureToken exempts a number whose plural noun takes a singular verb: "43
+// cols is less than the cap". The phrase is one measured amount, a value of a
+// test or a format, and a cut leaves "cols is".
+func MeasureToken(_ string, toks []Token, i int) bool {
+	if i+2 >= len(toks) || !strings.HasSuffix(strings.ToLower(toks[i+1].Text), "s") {
+		return false
+	}
+	return singularVerbs.Contains(strings.ToLower(toks[i+2].Text))
 }
+
+// WordSizeToken exempts a word size, "32 bits" and its kin. The width is fixed
+// by the machine, so no edit to a set makes it stale.
+func WordSizeToken(_ string, toks []Token, i int) bool {
+	if i+1 >= len(toks) {
+		return false
+	}
+	switch toks[i].Text {
+	case "8", "16", "32", "64", "128":
+		noun := strings.ToLower(toks[i+1].Text)
+		return noun == "bits" || noun == "bit"
+	}
+	return false
+}
+
+// singularVerbs agree with one amount, never with a plural tally.
+var singularVerbs = set.Of("is", "was", "has", "does", "fits", "equals")
 
 // exitStatusPrefixes name the digits after them as a status.
 var exitStatusPrefixes = set.Of("exit", "exits", "exited", "status", "errno", "signal")
 
+// statusNouns carry a status prefix toward its digits, as in "exit code 2".
+var statusNouns = set.Of("code", "codes")
+
 // ExitStatus exempts the digits of an exit status. The rule reports a count of
 // what exists today, because the edit that adds an item leaves the count wrong.
-// A status is a VALUE the program answers with, and no edit moves it.
+// A status is a VALUE the program answers with, and no edit moves it. A noun
+// between the status word and the digits, as in "exit code 2", is part of the
+// same phrase rather than a label the digits name.
 func ExitStatus(_ string, toks []Token, i int) bool {
 	if i == 0 || !allDigits(strings.Trim(toks[i].Text, nameMarkers)) {
 		return false
 	}
-	return exitStatusPrefixes.Contains(strings.ToLower(strings.Trim(toks[i-1].Text, nameMarkers)))
+	prev := strings.ToLower(strings.Trim(toks[i-1].Text, nameMarkers))
+	if exitStatusPrefixes.Contains(prev) {
+		return true
+	}
+	return i >= 2 && statusNouns.Contains(prev) &&
+		exitStatusPrefixes.Contains(strings.ToLower(strings.Trim(toks[i-2].Text, nameMarkers)))
 }
 
 // allDigits reports whether text is a bare run of digits.
@@ -91,16 +115,24 @@ func allDigits(text string) bool {
 // literalMarkers stand against the digits of a literal value.
 const literalMarkers = `="'`
 
-// Literal exempts the digits of a value the code is written against: an env
-// marker an assignment sets, or the quoted string a parser reads as unset. An
-// added item leaves a count wrong, and leaves a value alone.
+// comparisonMarkers close an operator that takes a value: `=`, `<`, `>`, and every operator built from them.
+const comparisonMarkers = `=<>`
+
+// Literal exempts the digits of a value the code is written against. One is an
+// env marker an assignment sets. One is the quoted string a parser reads as
+// unset. One is the operand of a comparison such as `used > 0`. An added item leaves a count
+// wrong, and leaves a value alone.
 func Literal(text string, toks []Token, i int) bool {
 	tok := toks[i]
 	if !allDigits(strings.Trim(tok.Text, `"'`)) {
 		return false
 	}
 	last, size := utf8.DecodeLastRuneInString(text[:tok.Offset])
-	return size > 0 && strings.ContainsRune(literalMarkers, last)
+	if size > 0 && strings.ContainsRune(literalMarkers, last) {
+		return true
+	}
+	last, size = utf8.DecodeLastRuneInString(strings.TrimRight(text[:tok.Offset], " \t"))
+	return size > 0 && strings.ContainsRune(comparisonMarkers, last)
 }
 
 // sectionSign marks the number after it as a citation of a section.
@@ -126,6 +158,43 @@ func Money(text string, toks []Token, i int) bool {
 		return false
 	}
 	return unicode.IsDigit(rune(tok.Text[0]))
+}
+
+// listLead is what may stand before a list marker: indentation and comment markers.
+const listLead = " \t/#*;"
+
+// ListMarker exempts the digits that open a numbered list item, such as "1." or
+// "2)". The marker orders the items and counts nothing.
+func ListMarker(text string, toks []Token, i int) bool {
+	tok := toks[i]
+	if strings.Trim(text[:tok.Offset], listLead) != "" {
+		return false
+	}
+	digits := strings.TrimSuffix(tok.Text, ".")
+	if !allDigits(digits) {
+		return false
+	}
+	rest := text[tok.Offset+len(digits):]
+	return strings.HasPrefix(rest, ". ") || strings.HasPrefix(rest, ") ")
+}
+
+// Operand exempts a number written as code: the argument of a call, or an operand
+// of a star or a plus. Its value is a size the format fixes.
+func Operand(text string, toks []Token, i int) bool {
+	tok := toks[i]
+	if !allDigits(tok.Text) {
+		return false
+	}
+	before, _ := utf8.DecodeLastRuneInString(text[:tok.Offset])
+	after, _ := utf8.DecodeRuneInString(text[tok.Offset+len(tok.Text):])
+	if before == '*' || before == '+' || after == '*' {
+		return true
+	}
+	if before != '(' || after != ')' {
+		return false
+	}
+	call, size := utf8.DecodeLastRuneInString(text[:tok.Offset-1])
+	return size > 0 && isNameRune(call)
 }
 
 // tokensIn splits a line into runs of name characters, so a URL, an import path
@@ -160,6 +229,9 @@ func isNameRune(r rune) bool {
 func tokenNumber(tok Token, words set.Set[string]) (Token, bool) {
 	if strings.Contains(tok.Text, "://") {
 		return Token{}, false // the digits of a URL are part of it
+	}
+	if isQualifiedName(tok.Text) && strings.IndexFunc(tok.Text, unicode.IsLetter) >= 0 {
+		return Token{}, false
 	}
 	if hit, ok := digitNumber(tok); ok {
 		return hit, true
@@ -221,7 +293,8 @@ func wordNumber(tok Token, words set.Set[string]) (Token, bool) {
 			end++
 		}
 		word := string(runes[i:end])
-		if words.Contains(strings.ToLower(word)) {
+		// A hyphen binds a number word into a compound that names a shape: "two-line".
+		if words.Contains(strings.ToLower(word)) && !letterAt(runes, i-1, -1) && !letterAt(runes, end, 1) {
 			return Token{tok.Offset + offsets[i], word}, true
 		}
 		i = end

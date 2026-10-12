@@ -17,7 +17,10 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix"
+	splice "github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
 // edit is a replacement a write performs, as the payload states it.
@@ -43,8 +46,8 @@ func editsOf(tool string, in writeInput) []edit {
 }
 
 // applyEdits replays the replacements onto the file. A replacement that is
-// absent, or that appears more than a single time, leaves the result unknown,
-// and the caller then judges the fragment as it always did.
+// absent, or that appears more than a single time, leaves the result unknown.
+// The caller then judges the fragment as it always did.
 func applyEdits(src string, edits []edit) (string, bool) {
 	out := src
 	for _, e := range edits {
@@ -60,36 +63,104 @@ func applyEdits(src string, edits []edit) (string, bool) {
 type placed struct {
 	// findings are the rules the write's own text broke.
 	findings []ste.Finding
+	// repair is the repair of the edit's own text, where it lands.
+	repair *slopfix.Repair
 	// ok is false when the edit could not be pinned to the file, and the caller then judges the fragment as it always did.
 	ok bool
 }
 
 // place replays the edits onto the file and answers what the write introduced.
-func place(tool string, in writeInput, rules []slopfix.Rule, ids []string) placed {
+// In a fork, the repair and the findings keep to the lines the fork wrote once
+// the edits land.
+func place(tool string, in writeInput, rules []slopfix.Rule, ids []string, owned forkLines) (placed, error) {
 	edits := editsOf(tool, in)
 	if len(edits) == 0 || in.FilePath == "" {
-		return placed{}
+		return placed{}, nil
 	}
 	data, err := os.ReadFile(in.FilePath)
 	if err != nil {
-		return placed{}
+		return placed{}, nil
 	}
 	before := string(data)
 	after, ok := applyEdits(before, edits)
 	if !ok {
-		return placed{}
+		return placed{}, nil
 	}
-	return placed{findings: introduced(before, after, in.FilePath, rules, ids), ok: true}
+	lines, err := owned(after)
+	if err != nil {
+		return placed{}, err
+	}
+	had := fixOver(before, in.FilePath, rules, ids, splice.Nowhere(), nil)
+	// A MultiEdit's spans cannot be told apart a single time the repair has moved them.
+	scope := splice.Nowhere()
+	if len(edits) == 1 {
+		at := strings.Index(before, edits[0].old)
+		scope = splice.Within(at, at+len(edits[0].new))
+	}
+	fixed := fixOver(after, in.FilePath, rules, ids, scope, lines)
+	p := placed{findings: introduced(had.Findings, fixed.Findings), ok: true}
+	if len(edits) == 1 {
+		p.repair = cutBack(fixed, edits[0], had.Kept)
+	}
+	return p, nil
+}
+
+// fragmentScope bounds the repair of an edit's own text when place could not
+// pin it to the file. In a fork, the edit can go to a file the fork did not
+// write whole. No line of that edit is then known as the fork's line. So the
+// repair lands nowhere.
+func fragmentScope(tool string, in writeInput, owned forkLines) (splice.Scope, error) {
+	if tool == "Write" {
+		return splice.Scope{}, nil
+	}
+	data, err := os.ReadFile(in.FilePath)
+	if err != nil {
+		data = nil
+	}
+	lines, err := owned(string(data))
+	if err != nil {
+		return splice.Scope{}, err
+	}
+	if lines == nil || lines.All() {
+		return splice.Scope{}, nil
+	}
+	return splice.Nowhere(), nil
+}
+
+// cutBack answers the repair of the edit's own text. Every rewrite was held
+// inside the edit's span, so the span the repair answers IS the new_string.
+// A tombstone the file already carried is its author's, and is left out.
+func cutBack(fixed slopfix.Repair, e edit, had []tombstones.Hit) *slopfix.Repair {
+	s := fixed.Scope
+	if s.Start < 0 || s.End > len(fixed.Text) || s.Start > s.End {
+		return nil
+	}
+	out := fixed
+	out.Text = fixed.Text[s.Start:s.End]
+	out.Changed = out.Text != e.new
+	seen := map[string]int{}
+	for _, hit := range had {
+		seen[hit.ID+"\x00"+hit.Phrase]++
+	}
+	out.Kept = nil
+	for _, hit := range fixed.Kept {
+		if key := hit.ID + "\x00" + hit.Phrase; seen[key] > 0 {
+			seen[key]--
+			continue
+		}
+		out.Kept = append(out.Kept, hit)
+	}
+	return &out
 }
 
 // introduced subtracts what the file already carried.
-func introduced(before, after, path string, rules []slopfix.Rule, ids []string) []ste.Finding {
+func introduced(before, after []ste.Finding) []ste.Finding {
 	had := map[string]int{}
-	for _, f := range findingsOver(before, path, rules, ids) {
+	for _, f := range before {
 		had[f.ID+"\x00"+f.Detail]++
 	}
 	var out []ste.Finding
-	for _, f := range findingsOver(after, path, rules, ids) {
+	for _, f := range after {
 		key := f.ID + "\x00" + f.Detail
 		if had[key] > 0 {
 			had[key]--
@@ -100,13 +171,17 @@ func introduced(before, after, path string, rules []slopfix.Rule, ids []string) 
 	return out
 }
 
-// findingsOver runs the caller's own rule selection over a whole document.
-func findingsOver(src, path string, rules []slopfix.Rule, ids []string) []ste.Finding {
+// fixOver runs the caller's own rule selection over a whole document, with
+// every repair held inside scope and on the lines owned names.
+func fixOver(src, path string, rules []slopfix.Rule, ids []string, scope splice.Scope, owned *forkscope.Scope) slopfix.Repair {
 	return slopfix.Fix(slopfix.Request{
 		Content:         src,
 		Path:            path,
 		Rules:           rules,
 		IDs:             ids,
 		MaxCommentLines: hookMaxLines,
-	}).Findings
+		Scope:           scope,
+		Owned:           owned,
+		OneFile:         true,
+	})
 }

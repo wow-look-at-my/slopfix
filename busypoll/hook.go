@@ -1,21 +1,14 @@
-// Package busypoll refuses a turn that is the latest in a run of several
-// turns making the exact same tool call, closely spaced in time, with nothing
-// else different in between. It also refuses the status read itself, before
-// it runs, when nothing it could return has changed.
+// Package busypoll refuses the latest turn in a run of turns that make the
+// same tool call. The turns are close together, and nothing else differs.
+// It also refuses the status read itself when nothing it returns has changed.
 //
-// That shape is what a manual polling loop looks like: re-running the
-// same status check every turn instead of waiting for a real event or arming
-// an actual scheduled wakeup. It burns the user's tokens for no new
-// information, because the answer cannot have changed between calls seconds
-// apart.
+// That shape is a manual polling loop: the same check re-run every turn
+// instead of waiting for an event. It burns tokens for no new information,
+// because the answer cannot have changed between calls seconds apart.
 //
-// A properly spaced watch loop -- the same check re-run after a real gap,
-// because a scheduled trigger fired or an event arrived -- is not that
-// pattern and is not refused. See detect.go for the spacing rule that tells
-// them apart.
-//
-// A refusal that says "wait for the event" needs events to exist, so both
-// rules that say it run in a remote session only. See environment.go.
+// A properly spaced watch loop -- the same check after a real gap -- is not
+// refused. See detect.go for the spacing rule, and environment.go for why both
+// rules run in a remote session only: "wait for the event" needs events.
 //
 // Every failure path allows. A guard that blocks because it could not read a
 // file is worse than no guard.
@@ -90,8 +83,8 @@ func runPreTool(in Input) Result {
 }
 
 // reason is what the model is told. It names the repeated call, states the
-// count, and gives the ways out, because a refusal that does not say what to
-// do instead just gets repeated with a different excuse.
+// count, and gives the ways out. This is because a refusal that does not say
+// what to do instead gets repeated with a different excuse.
 func reason(n int, calls []call, repeat bool) string {
 	shown := make([]string, 0, len(calls))
 	for _, c := range calls {
