@@ -218,6 +218,9 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "CC" && opensNounPhrase(words[i+1]):
 			// "and reads every row": a plural noun cannot take a determiner after it.
 			w.Tag = "VBZ"
+		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "JJ" && verbEnding(w.Text) && opensNounPhrase(words[i+1]):
+			// "the build keeps every output": an -s form between a modifier and a determiner is the verb.
+			w.Tag = "VBZ"
 		case w.Tag == "NNS" && i > 0 && words[i-1].Tag == ":" && verbEnding(w.Text) && colonFollowsClause(words, i-1):
 			// "Dispatch the Stop: runs in stop-gate mode": a colon opens the clause that explains the one before it.
 			w.Tag = "VBZ"
