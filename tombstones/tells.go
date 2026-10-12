@@ -90,7 +90,7 @@ func Find(blocks []Block, maxLines int) []Hit {
 }
 
 // linePurity looks a block-relative line index up in b's parallel arrays. A
-// paragraph carries no purity, so its line is placed and never pure.
+// line the block does not judge is placed, and never stripped whole.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
 	if li < 0 || li >= len(b.LineNos) {
 		return -1, false
