@@ -5,10 +5,17 @@ import "strings"
 // lineMarkers open the prose of a single comment line. A line inside a /* */ run opens with its star.
 var lineMarkers = append(append([]string{}, docMarkers...), "*")
 
+<<<<<<< HEAD
 // RewriteLineProse applies rewrite to the prose of one comment line, keeping
 // its indent, its marker and the blank after the marker. A line the rewrite
 // empties answers no lines, so the caller deletes it. It answers false for a
 // line with no comment marker, and for a line the rewrite leaves as it was.
+=======
+// RewriteLineProse applies rewrite to the prose of one comment line, keeping its indent, its
+// marker and the blank after the marker. A line the rewrite empties answers no
+// lines, so the caller deletes it. It answers false for a line with no comment
+// marker, and for a line the rewrite leaves as it was.
+>>>>>>> origin/master
 func RewriteLineProse(line string, rewrite func(string) (string, int)) ([]string, int, bool) {
 	trimmed := strings.TrimLeft(line, " \t")
 	marker := ""
