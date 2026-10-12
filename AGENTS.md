@@ -28,7 +28,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
 | `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second. Before a verb it becomes `, and never`, or `, do not` before an instruction |
-| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | yes. A warning fails no check, and each one reports only where its rewrite applies |
+| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | yes. A warning fails no check, and each one reports only where its rewrite applies. A noun cluster with markup between its words is the exception: it is reported for a rewrite by hand |
 | `counts` | `counts/inventory-count`, `counts/section-number` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |

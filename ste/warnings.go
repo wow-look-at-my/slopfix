@@ -76,9 +76,10 @@ func Warn(text string, line int, listItem bool) []Finding {
 		}
 		out = append(out, clauseWarnings(s, text, off, line)...)
 	}
-	for _, word := range wordPattern.FindAllString(prose, -1) {
+	for _, loc := range wordPattern.FindAllStringIndex(prose, -1) {
+		word := prose[loc[0]:loc[1]]
 		// A word in capitals is a name or a mask, and never a dictionary word.
-		if word == strings.ToUpper(word) {
+		if word == strings.ToUpper(word) || partOfName(prose, loc[0], loc[1]) {
 			continue
 		}
 		if approved, banned := plain[strings.ToLower(word)]; banned {
@@ -114,8 +115,11 @@ func clauseWarnings(s *syntax.Sentence, source string, off [][]int, line int) []
 		out = append(out, warn(line, IDTense, rule, s.Span(i, j), "Write the simple tense. `slopfix fix` does this."))
 	}
 	if first, last, ok := clusterAt(s, off); ok {
-		out = append(out, warn(line, IDNounCluster, "more than three nouns stand together", s.Span(first, last),
-			"Break the cluster up with a preposition. `slopfix fix` does this."))
+		fix := "Break the cluster up with a preposition. `slopfix fix` does this."
+		if !clusterRewritable(s, source, first, last) {
+			fix = "Rewrite it by hand: markup stands between the nouns, and a rewrite moves it."
+		}
+		out = append(out, warn(line, IDNounCluster, "more than three nouns stand together", s.Span(first, last), fix))
 	}
 	return out
 }

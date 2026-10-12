@@ -65,7 +65,8 @@ func widenDictionary(prose string) string {
 		out.WriteString(prose[last:loc[0]])
 		last = loc[1]
 		word := prose[loc[0]:loc[1]]
-		if from, to := loc[0], loc[1]; from > 0 && isIdentByte(prose[from-1]) || to < len(prose) && isIdentByte(prose[to]) {
+		// Warn reports neither a name nor a word in capitals, so neither is rewritten.
+		if word == strings.ToUpper(word) || partOfName(prose, loc[0], loc[1]) {
 			out.WriteString(word)
 			continue
 		}
@@ -81,6 +82,41 @@ func widenDictionary(prose string) string {
 	}
 	out.WriteString(prose[last:])
 	return out.String()
+}
+
+// partOfName reports whether the word at prose[from:to] is part of a path, a
+// file name, a URL or an identifier. A rewrite there breaks a name that
+// something else resolves, as "docs/reveal-layer.md" does.
+func partOfName(prose string, from, to int) bool {
+	start, end := from, to
+	for start > 0 && nameByte(prose[start-1]) {
+		start--
+	}
+	for end < len(prose) && nameByte(prose[end]) {
+		end++
+	}
+	// A period or a colon after the token closes the sentence or the clause.
+	for end > to && (prose[end-1] == '.' || prose[end-1] == ':') {
+		end--
+	}
+	token := prose[start:end]
+	for i := 0; i < len(token); i++ {
+		b := token[i]
+		switch {
+		case b >= 'A' && b <= 'Z', b >= 'a' && b <= 'z', b == '\'':
+		case b == '-' && i > 0 && i < len(token)-1:
+			// An inner hyphen joins the words of a compound, and the compound is prose.
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+// nameByte answers a byte that joins a word to its neighbours inside a name.
+func nameByte(b byte) bool {
+	return b >= 'A' && b <= 'Z' || b >= 'a' && b <= 'z' || b >= '0' && b <= '9' ||
+		strings.IndexByte("_./\\-:@#$~=%'", b) >= 0
 }
 
 // fixParagraphs writes the parts of Paragraphs with a blank line between them.
@@ -235,7 +271,7 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 			break
 		}
 	}
-	if end < by+1 {
+	if end < by+1 || !plainActor(s, source, by+1, end) {
 		return "", false
 	}
 	subject := strings.TrimSpace(source[s.Words[0].Start:s.Words[i].Start])
@@ -246,7 +282,24 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 		return "", false
 	}
 	object := lowerOpeningFor(subject, s.Words[0].Tag)
-	return capitalizeOpening(actor) + " " + verb + " " + object + tail, true
+	// The text before the first word, such as an emphasis marker, stays in front.
+	return source[:s.Words[0].Start] + capitalizeOpening(actor) + " " + verb + " " + object + tail, true
+}
+
+// plainActor reports whether the words from first to last are one noun phrase
+// that can open the active clause. A verb or a dash there means the phrase
+// after "by" runs on into a clause of its own.
+func plainActor(s *syntax.Sentence, source string, first, last int) bool {
+	for k := first; k <= last; k++ {
+		w := s.Words[k]
+		if strings.HasPrefix(w.Tag, "VB") || w.Tag == "MD" || punctuationTag(w.Tag) || strings.ContainsAny(w.Text, "—–") {
+			return false
+		}
+		if k < last && strings.ContainsAny(source[w.End:s.Words[k+1].Start], "—–") {
+			return false
+		}
+	}
+	return true
 }
 
 // lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
@@ -363,8 +416,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	last := lastContent(s)
 	noun := func(k int) bool {
 		w := s.Words[k]
-		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			!strings.ContainsAny(w.Text, "()[]{}`\"")
+		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && foldable(w.Text)
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -382,13 +434,44 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	return -1, -1, false
 }
 
+// foldable reports a common noun the cluster repair can move. A symbol, an
+// article and a name in capitals, such as REST or GitHub, are not.
+func foldable(word string) bool {
+	if articles.Contains(strings.ToLower(word)) {
+		return false
+	}
+	for i, r := range word {
+		switch {
+		case unicode.IsLower(r):
+		case unicode.IsUpper(r) && i == 0:
+		case (r == '-' || r == '\'') && i > 0 && i < len(word)-1:
+		default:
+			return false
+		}
+	}
+	return word != ""
+}
+
+var articles = set.Of("a", "an", "the")
+
+// clusterRewritable reports whether the words of a cluster stand with only
+// spaces between them.
+func clusterRewritable(s *syntax.Sentence, source string, start, end int) bool {
+	for k := start; k < end; k++ {
+		if strings.TrimSpace(source[s.Words[k].End:s.Words[k+1].Start]) != "" {
+			return false
+		}
+	}
+	return true
+}
+
 // rewriteCluster breaks a run of nouns apart: "the gate file system cache
 // lookup" becomes "the lookup of the gate file system cache". A longer run
 // keeps taking its last noun as the head until at most NounClusterCap nouns
 // stand together, all in one rewrite.
 func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, bool) {
 	start, end, ok := clusterAt(s, off)
-	if !ok {
+	if !ok || !clusterRewritable(s, source, start, end) {
 		return "", false
 	}
 	var out strings.Builder
