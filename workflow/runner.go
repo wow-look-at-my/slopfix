@@ -24,6 +24,7 @@ const (
 // SelfHostExempt names each org repository the self-hosted fleet depends on.
 var SelfHostExempt = set.Of(
 	"wow-look-at-my/webhook-runner",
+	"wow-look-at-my/webhooks",
 	"wow-look-at-my/buildhost",
 	"wow-look-at-my/github-state-mirror",
 )
