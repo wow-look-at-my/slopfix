@@ -77,9 +77,6 @@ func Warn(text string, line int, listItem bool) []Finding {
 	for _, loc := range wordPattern.FindAllStringIndex(prose, -1) {
 		word := prose[loc[0]:loc[1]]
 		// A word in capitals is a name or a mask, and never a dictionary word.
-		// A word in capitals is a name or a mask, and never a dictionary word.
-		// partOfName covers a path, a file name, a URL or an identifier; inName adds
-		// a hyphenated name such as `ask-properly`.
 		if word == strings.ToUpper(word) || partOfName(prose, loc[0], loc[1]) || inName(prose, loc[0], loc[1]) {
 			continue
 		}

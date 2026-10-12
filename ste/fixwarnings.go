@@ -66,8 +66,6 @@ func widenDictionary(prose string) string {
 		last = loc[1]
 		word := prose[loc[0]:loc[1]]
 		// Warn reports neither a name nor a word in capitals, so neither is rewritten.
-		// partOfName covers a path, a file name, a URL or an identifier; inName adds
-		// a hyphenated name such as `ask-properly`.
 		if word == strings.ToUpper(word) || partOfName(prose, loc[0], loc[1]) || inName(prose, loc[0], loc[1]) {
 			out.WriteString(word)
 			continue
