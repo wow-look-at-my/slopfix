@@ -583,8 +583,9 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, subject+" "+rest), opensWithVerb
+	// A verb that only a relative clause holds leaves the rest a noun phrase: "a subordinator that opens a clause".
 	case opensClause(s) && opensSubject(whole, first) && agrees(s, *s.Clauses[0].Subject, *s.Clauses[0].Verb) &&
-		verbOfSubject(s, *s.Clauses[0].Subject, *s.Clauses[0].Verb):
+		verbOfSubject(s, *s.Clauses[0].Subject, *s.Clauses[0].Verb) && finiteOutsideRelative(s, 0):
 		// A so with no comma before it, or after an instruction, states a purpose.
 		if conjunction == "so" && (seam != "," || opensImperativeMain(masked[:c.left]) || instructs(whole)) {
 			return "", 0
