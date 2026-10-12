@@ -132,6 +132,23 @@ func fixWords(prose string, keep func(id string) bool) string {
 
 func isIdentByte(b byte) bool { return b == '_' || b >= '0' && b <= '9' }
 
+// inName reports whether the word at prose[from:to] is part of a longer name:
+// an identifier, or a hyphenated name such as `ask-properly`. A dictionary
+// repair inside a name renames the thing.
+func inName(prose string, from, to int) bool {
+	if from > 0 && isIdentByte(prose[from-1]) || to < len(prose) && isIdentByte(prose[to]) {
+		return true
+	}
+	if from > 1 && prose[from-1] == '-' && isAlnum(prose[from-2]) {
+		return true
+	}
+	return to+1 < len(prose) && prose[to] == '-' && isAlnum(prose[to+1])
+}
+
+func isAlnum(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
+}
+
 // The comma is found the way checkSplices finds it, guard included, so the
 // repair covers exactly what the check reports. A conjunction the connectors
 // know gives way to its opener. Any other conjunction opens the new sentence.
