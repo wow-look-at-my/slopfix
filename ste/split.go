@@ -273,22 +273,6 @@ func joinOpener(opener, rest string) string {
 	return capitalizeOpening(rest)
 }
 
-// capitalizeOpening capitalizes a lower-case letter at the start, and leaves anything else.
-func capitalizeOpening(s string) string {
-	first, width := utf8.DecodeRuneInString(s)
-	if !unicode.IsLower(first) {
-		return s
-	}
-	word := s
-	if end := strings.IndexAny(s, " \t"); end >= 0 {
-		word = s[:end]
-	}
-	if strings.ContainsFunc(word[width:], unicode.IsUpper) || strings.ContainsAny(word, "_.") {
-		return s
-	}
-	return string(unicode.ToUpper(first)) + s[width:]
-}
-
 // divisions answers each clause boundary where both sides stand as sentences.
 func divisions(s *syntax.Sentence, source string) []division {
 	var out []division
