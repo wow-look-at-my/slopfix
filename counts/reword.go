@@ -56,8 +56,23 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		drop(1)
 	}
 
+	// A sign against the number caps it, as "≤750 lines" does.
+	capSign := ""
+	for _, sign := range []string{"≤", "<=", "<", "⩽"} {
+		if strings.HasSuffix(content[:from], sign) {
+			capSign = sign
+			break
+		}
+	}
+
 	var text string
 	switch {
+	case capSign != "":
+		from -= len(capSign)
+		text = "a bounded number of "
+		if opensSentence(content, from) || strings.HasSuffix(strings.TrimRight(content[:from], " "), "- **") {
+			text = "A bounded number of "
+		}
 	case ceilingAfter.MatchString(content[hit.End:]):
 		// "25 words or fewer" caps the number from behind, so the cap words go with it and the noun stays.
 		text = "a bounded number of " + content[to:hit.End]
