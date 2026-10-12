@@ -526,7 +526,6 @@ func phraseHits(text string, blocks []Block) []Hit {
 	return hits
 }
 
-
 // endsOnSentence reports whether the last line of block b that a cut keeps ends
 // a sentence.
 func endsOnSentence(lines []string, b Block, drop set.Set[int]) bool {
