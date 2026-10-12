@@ -55,3 +55,46 @@ func TestPrivateRunnerSkipsRepositoriesItDoesNotGovern(t *testing.T) {
 		assert.Empty(t, only(CheckContent(path, body), workflow.IDPrivateRunner), name)
 	}
 }
+
+func TestPrivateRunnerSendsAContainerStepToTheDockerRunner(t *testing.T) {
+	steps := map[string]struct {
+		uses, using, want string
+	}{
+		"docker image":     {"docker://alpine:3.20", "", runnerDind},
+		"container action": {"someone/container-action@v1", "docker", runnerDind},
+		"node action":      {"someone/node-action/sub@v3", "node20", runnerSlim},
+	}
+	for name, step := range steps {
+		body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: " + step.uses + "\n"
+		c := RuleCase{Name: name, Path: ".github/workflows/ci.yml", Text: body, Origin: PrivateRunnerFixture, Private: true}
+		if step.using != "" {
+			c.Actions = map[string]string{step.uses: step.using}
+		}
+		c, err := Materialize(t.TempDir(), c)
+		require.NoError(t, err)
+		path := filepath.Join(c.Root, ".github", "workflows", "ci.yml")
+		got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+		require.NoError(t, err)
+		assert.Contains(t, got.Text, "runs-on: ${{ "+step.want+" || 'ubuntu-latest' }}\n", name)
+	}
+}
+
+func TestPrivateRunnerChoosesTheDockerRunnerForAnUnreadAction(t *testing.T) {
+	t.Setenv("GITHUB_API_URL", "http://127.0.0.1:1")
+	t.Setenv("GITHUB_TOKEN", "fixture")
+	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: someone/unread-action@v1\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	found := only(CheckContent(path, body), workflow.IDPrivateRunner)
+	require.Len(t, found, 1)
+	assert.Contains(t, found[0].Detail, "the action metadata could not be read")
+	assert.Contains(t, found[0].Detail, "someone/unread-action@v1")
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "runs-on: ${{ "+runnerDind+" || 'ubuntu-latest' }}\n")
+}
+
+// The org runner variables, as the repair writes them.
+const (
+	runnerSlim = "vars.CI_RUNNER"
+	runnerDind = "vars.CI_RUNNER_DIND"
+)

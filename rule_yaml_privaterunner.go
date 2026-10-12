@@ -22,8 +22,20 @@ func init() {
 		Cases: []RuleCase{
 			privateRunnerCase("private-runner", jobs("      - run: go-toolchain\n")),
 			privateRunnerCase("private-runner-dind", jobs("      - run: docker build .\n")),
+			privateRunnerCase("private-runner-docker-image", jobs("      - uses: docker://alpine:3.20\n")),
+			containerActionCase(jobs("      - uses: " + ContainerActionFixture + "\n")),
 		},
 	})
+}
+
+// ContainerActionFixture is a third-party action that the fixture records as a container action.
+const ContainerActionFixture = "someone/notify-irc@v2"
+
+// containerActionCase is a workflow whose step uses ContainerActionFixture.
+func containerActionCase(body string) RuleCase {
+	c := privateRunnerCase("private-runner-container-action", body)
+	c.Actions = map[string]string{ContainerActionFixture: "docker"}
+	return c
 }
 
 // privateRunnerCase is a workflow in the private fixture repository.
