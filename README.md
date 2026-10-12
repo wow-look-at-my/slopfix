@@ -71,4 +71,4 @@ The commands are `check`, `hook`, `lsp`, `completion` and `help`.
 The action runs `check .` with every rule. No input narrows it to some paths or some rules, and it never repairs.
 ## More
 
-`AGENTS.md` holds the full reference: each rule, what it does not flag, the hook guards and the design decisions. `docs/` holds the depth of single subsystems.
+`AGENTS.md` holds the full reference: each rule, what it does not flag, the hook guards and the design decisions. `spec/`, the [slopfix-spec](https://github.com/wow-look-at-my/slopfix-spec) submodule, holds the depth of single subsystems.
