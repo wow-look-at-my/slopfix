@@ -80,3 +80,13 @@ func TestACommentOverItsBudgetIsCutRatherThanDeleted(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(out, "const a = 1"))
 	assert.Empty(t, CheckLength("x.go", out))
 }
+
+// A TypeScript triple-slash directive is read by the compiler. The vite
+// declaration file holds nothing else, and the directive is not a comment.
+func TestATripleSlashDirectiveDocumentsNothingAndStays(t *testing.T) {
+	src := "/// <reference types=\"vite/client\" />\n"
+	assert.Empty(t, CheckLength("src/vite-env.d.ts", src))
+	out, changed := FixLength("src/vite-env.d.ts", src)
+	assert.False(t, changed)
+	assert.Equal(t, src, out)
+}
