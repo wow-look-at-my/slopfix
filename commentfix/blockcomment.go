@@ -35,7 +35,7 @@ func starRun(text []string) (string, bool) {
 }
 
 // readBlock reports a run that is a single /* */ comment, closed on its last
-// line, and answers its prose lines. A layout row keeps its extra indent.
+// line, and answers its prose lines. A layout line keeps its extra indent.
 func readBlock(text []string) (blockShape, []string, bool) {
 	if len(text) == 0 {
 		return blockShape{}, nil, false
@@ -53,7 +53,7 @@ func readBlock(text []string) (blockShape, []string, bool) {
 	if len(text) > 1 {
 		shape.stars, shape.starred = starRun(text[1:])
 	}
-	// A continuation row past this column is laid out by hand.
+	// A continuation line past this column is laid out by hand.
 	column := len(shape.indent) + len(shape.opener) + 1
 	var prose []string
 	for i, line := range text {

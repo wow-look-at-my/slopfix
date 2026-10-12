@@ -180,7 +180,11 @@ func write(path, text string) error { return WriteFile(path, text) }
 
 // WriteFile replaces path with text through a rename. A run killed part way
 // leaves the file whole: either as it was or as the repair wrote it.
+// A symlink keeps its link: the write goes to the file the link names.
 func WriteFile(path, text string) error {
+	if target, err := filepath.EvalSymlinks(path); err == nil {
+		path = target
+	}
 	info, err := os.Stat(path)
 	mode := os.FileMode(0o644)
 	if err == nil {

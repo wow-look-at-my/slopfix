@@ -88,33 +88,34 @@ func Find(blocks []Block, maxLines int) []Hit {
 	return hits
 }
 
-// linePurity looks a block-relative line index up in b's parallel arrays. A
-// document paragraph has no Pure: its line is placed, and never stripped whole.
+// linePurity looks a block-relative line index up in b's parallel arrays.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
 	if li >= len(b.LineNos) {
 		return -1, false
 	}
-	if li >= len(b.Pure) {
-		return b.LineNos[li], false
-	}
-	return b.LineNos[li], b.Pure[li]
+	return b.LineNos[li], li < len(b.Pure) && b.Pure[li]
 }
 
 // HitForName builds the Hit for a dead referent, carrying the strip metadata a
 // wording-based tell gets.
 func HitForName(blocks []Block, name string) Hit {
 	for _, b := range blocks {
-		for li, line := range strings.Split(b.Text, "\n") {
-			if !strings.Contains(line, name) {
+		lines := strings.Split(b.Text, "\n")
+		// The name is sought in the comment prose, so a code line that uses it never places the hit.
+		proseLines := strings.Split(b.Prose, "\n")
+		for li, prose := range proseLines {
+			if !strings.Contains(prose, name) || li >= len(lines) {
 				continue
 			}
+			line := lines[li]
 			lineNo, pure := linePurity(b, li)
 			return Hit{
-				ID:         ruleID(deadReferent),
-				Tell:       deadReferent,
-				Phrase:     name,
-				Line:       strings.TrimSpace(line),
-				Strippable: pure,
+				ID:     ruleID(deadReferent),
+				Tell:   deadReferent,
+				Phrase: name,
+				Line:   strings.TrimSpace(line),
+				// A line that holds another sentence too is cut, not stripped.
+				Strippable: pure && wholeSentencesOnLine(proseLines, li, name),
 				LineNo:     lineNo,
 			}
 		}

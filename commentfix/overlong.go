@@ -117,7 +117,7 @@ func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 				continue
 			}
 			if kept := capLines(b, maxLines); !sameText(kept, b.text) {
-				edits = append(edits, edit.Rows(src, b.start, b.end-1, 0, kept))
+				edits = append(edits, edit.Lines(src, b.start, b.end-1, 0, kept))
 			}
 			continue
 		}
@@ -138,7 +138,7 @@ func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 		if sameText(kept, b.text) {
 			continue
 		}
-		edits = append(edits, edit.Rows(src, b.start, b.end-1, 0, kept))
+		edits = append(edits, edit.Lines(src, b.start, b.end-1, 0, kept))
 	}
 	return edits
 }

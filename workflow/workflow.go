@@ -24,7 +24,7 @@ const (
 )
 
 // AllIDs names every rule this package reports, as a membership test.
-var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency)
+var AllIDs = set.Of(IDCommentBlock, IDAllBuildsJob, IDTestInYAML, IDNeuteredGate, IDEnvIndirection, IDPushTags, IDOrgActionRef, IDConcurrency, IDPrivateRunner)
 
 // WarningIDs names the rules here whose findings are warnings.
 var WarningIDs = set.Of(IDTestInYAML)
@@ -62,6 +62,13 @@ func Check(content string) []ste.Finding {
 	out = append(out, pushTags(content)...)
 	out = append(out, orgActionRefs(content)...)
 	out = append(out, concurrency(content)...)
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
+	return out
+}
+
+// CheckPath is Check for the file at path, with the rules that read the repository it belongs to.
+func CheckPath(path, content string) []ste.Finding {
+	out := append(Check(content), privateRunners(path, content)...)
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Line < out[j].Line })
 	return out
 }
