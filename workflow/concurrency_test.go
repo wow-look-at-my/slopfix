@@ -67,6 +67,16 @@ func TestTheRepairWritesTheOrgBlock(t *testing.T) {
 	}
 }
 
+// The block goes after the blank line that ends the triggers. Every line of the
+// comment after it stays.
+func TestTheRepairKeepsTheCommentAfterTheTriggers(t *testing.T) {
+	head := "on:\n  push:\n    branches: [\"**\"]\n  pull_request:\n\n"
+	tail := "# go-toolchain@v1 requirements. contents: write is the dependency-graph\n" +
+		"# submission (403 without it).\npermissions:\n  contents: write\njobs: {}\n"
+	only := func(id string) bool { return id == workflow.IDConcurrency }
+	assert.Equal(t, head+orgBlock+"\n"+tail, workflow.Fix(head+tail, only).Text)
+}
+
 func TestTheRepairKeepsTheFileIndent(t *testing.T) {
 	content := "on:\n    workflow_dispatch:\njobs:\n    a:\n        runs-on: x\n"
 	out := workflow.Fix(content, func(string) bool { return true }).Text

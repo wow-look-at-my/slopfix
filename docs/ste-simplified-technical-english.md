@@ -29,6 +29,8 @@ How a long sentence divides:
 - A closing `, which` clause opens with `This`. A closing `because` clause opens with `This is because`.
 - A list, a quotation and a subordinate clause never divide at a clause boundary.
 - The first half must hold a main clause. A sentence that opens on `If`, `When` or a `to` infinitive keeps that clause with its main clause after the comma.
+- An `-ing` form after a dash says how the main verb acts. The rest takes a pronoun, and the form becomes a finite verb that agrees with the main verb: `-- using hyperfine` becomes `It uses hyperfine`.
+- A conjunction before a fronted clause, as in `X but, when Y is set, benchmarks Z`, divides with the subject named again: `X. When Y is set, it benchmarks Z`. The conjunction drops.
 - No division leaves part of a dash aside on each side. A division at the closing dash ends the aside with the sentence.
 - A sentence with no boundary divides between words, as close to the cap as a good place allows. A comma. Then a word that opens a phrase, rank first. The first part never ends on a word that opens what it leaves out. The last-resort cut lands only at a mark or before a conjunction, a preposition or a relative word.
 - The forced division never lands inside a code span, a link, a quotation or a parenthesis. A bold run that opens on the `and` the division drops opens the rest instead. The rest opens as it stands when it names its own subject or opens on an imperative. So does a clause after a dash or a colon, and an instruction after `, so`. A finite verb gets the subject again.

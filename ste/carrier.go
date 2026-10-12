@@ -133,6 +133,13 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 			return head, capitalizeOpening(rest), opensWithCarrier
 		}
 		switch {
+		case whole.Words[first].Tag == "VBG":
+			// "-- using hyperfine" says how the main verb acts: "It uses hyperfine".
+			body, found := strings.CutPrefix(rest, word.Text)
+			if !hasMain || !found {
+				return head, "", 0
+			}
+			return head, "It " + presentOf(baseFromGerund(word.Text), false) + body, opensWithCarrier
 		case verbAt(whole, first) && participleAfterDash(whole, first, main, hasMain):
 			// "says — asserted as X" is passive: "It is asserted as X", not "It asserted as X".
 			return head, "It is " + lowerFirst(rest), opensWithCarrier
