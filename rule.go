@@ -44,6 +44,8 @@ type RuleCase struct {
 	Text string
 	// Files are the other files of the repository, by path from its root.
 	Files map[string]string
+	// Unchanged marks a case the rule must leave as written.
+	Unchanged bool
 	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
 	Origin string
 	// Actions maps a step's uses value to the runs.using that Materialize records for it.
