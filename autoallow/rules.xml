@@ -592,10 +592,14 @@
 			<test cmd="gh pr create" expect="deny"/>
 			<test cmd="gh pr merge 123" expect="deny"/>
 			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge" expect="allow"/>
-			<test cmd="gh pr edit 7 --add-label auto-pr-merge --title new" expect="deny"/>
-			<test cmd="gh pr edit 7 --add-label auto-pr-merge --remove-label auto-pr-update" expect="deny"/>
-			<test cmd="gh pr edit 7 --add-label other" expect=""/>
-			<test cmd="gh pr edit 7 --title new" expect=""/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge --title new" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge --remove-label auto-pr-update" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label other" expect=""/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge --add-label other" expect=""/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge,other" expect=""/>
+			<test cmd="gh pr edit 7 --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit 3 -R owner/thing-spec --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit 3 --repo owner/thing-spec --add-label auto-pr-merge" expect="deny"/>
 			<test cmd="gh pr edit https://github.com/owner/thing-spec/pull/3 --add-label auto-pr-merge" expect="deny"/>
 		<!-- Closing a PR ends a review the owner is having, and the branch behind
 		     it is then a thing nobody is looking at. -->
@@ -627,6 +631,22 @@
 				</refuse>
 				<refuse message="pull requests in -spec repos are never merged">
 					<argSubstring>-spec/pull/</argSubstring>
+				</refuse>
+				<refuse message="name the pull request by its full URL, so its repository is in the command">
+					<flag name="-R"/>
+					<flag name="--repo"/>
+				</refuse>
+				<refuse message="name the pull request by its full URL, so its repository is in the command">
+					<argPrefix>0</argPrefix>
+					<argPrefix>1</argPrefix>
+					<argPrefix>2</argPrefix>
+					<argPrefix>3</argPrefix>
+					<argPrefix>4</argPrefix>
+					<argPrefix>5</argPrefix>
+					<argPrefix>6</argPrefix>
+					<argPrefix>7</argPrefix>
+					<argPrefix>8</argPrefix>
+					<argPrefix>9</argPrefix>
 				</refuse>
 				<requireFlagValue>
 					<flag name="--add-label"/>
