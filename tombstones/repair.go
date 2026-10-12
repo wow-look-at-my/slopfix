@@ -188,10 +188,12 @@ func reflowStripped(path, text string, losing set.Set[int], was int) []edit.Edit
 }
 
 // stripEdits deletes the dropped lines, a run of adjoining lines as a single
-// edit so no edits share a line end.
+// edit so no edits share a line end. A block comment that reaches past the run
+// keeps the opener or closer the run held, so the comment stays closed.
 func stripEdits(text string, drop set.Set[int]) []edit.Edit {
 	var edits []edit.Edit
-	total := strings.Count(text, "\n") + 1
+	lines := strings.Split(text, "\n")
+	total := len(lines)
 	for line := 0; line < total; line++ {
 		if !drop.Contains(line) {
 			continue
@@ -200,10 +202,48 @@ func stripEdits(text string, drop set.Set[int]) []edit.Edit {
 		for end+1 < total && drop.Contains(end+1) {
 			end++
 		}
-		edits = append(edits, edit.Lines(text, line, end, 0, nil))
+		edits = append(edits, edit.Lines(text, line, end, 0, delimitersKept(lines[line:end+1])))
 		line = end
 	}
 	return edits
+}
+
+// delimitersKept answers the lines a strip of run leaves. The closer of a block
+// comment that opened above the run, and the opener of one that closes below
+// it. Each on a line of its own at the indentation it had.
+func delimitersKept(run []string) []string {
+	var kept []string
+	open := -1
+	for i, line := range run {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "--") {
+			continue
+		}
+		opens := strings.HasPrefix(trimmed, "/*") && !strings.Contains(trimmed[2:], "*/")
+		closes := strings.HasSuffix(trimmed, "*/") && !strings.Contains(trimmed, "/*")
+		switch {
+		case closes && open >= 0:
+			open = -1
+		case closes:
+			kept = append(kept, indentOf(line)+"*/")
+		case opens:
+			open = i
+		}
+	}
+	if open >= 0 {
+		trimmed := strings.TrimSpace(run[open])
+		opener := "/*"
+		if strings.HasPrefix(trimmed, "/**") {
+			opener = "/**"
+		}
+		kept = append(kept, indentOf(run[open])+opener)
+	}
+	return kept
+}
+
+// indentOf answers the blanks that open line.
+func indentOf(line string) string {
+	return line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 }
 
 // Fix scans the text a write adds to path and strips what it safely can.

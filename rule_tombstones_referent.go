@@ -20,6 +20,7 @@ func init() {
 			Text:  "package main\n\n// parseLegacyFlag reads the input.\nfunc main() {}\n",
 			Files: map[string]string{"util.go": "package main\n\nfunc readInput() {}\n"},
 		}, {
+
 			// The inline comment of a call names a dead parameter, and the call around it names members of an imported module.
 			Name: "inline block comment in a TypeScript call",
 			Path: "src/comments.ts",
@@ -37,6 +38,12 @@ func init() {
 				"\t['built_in', fg('#ffa657')], // built-in types (string, number) and globals (console, Math). See paletteFor.\n" +
 				"]);\n",
 			Files: map[string]string{"src/other.ts": "export function fg(hex: string): string {\n\treturn hex;\n}\n"},
+
+		}, {
+			Name: tombstones.IDDeadReferent + " on the closer line of a JSDoc block",
+			Path: "plain.js",
+			Text: "/** Report whether the value is plain.\n * A plain value never equals `value === thisOperand` at runtime. */\nexport function isPlain(value) {\n\treturn value === null;\n}\n",
+
 		}},
 	})
 }
