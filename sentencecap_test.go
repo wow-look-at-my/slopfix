@@ -98,7 +98,7 @@ func assertEverySentenceUnderCap(t *testing.T, path, out string) {
 }
 
 // A shell comment inside a run: script is judged and repaired. The comment
-// gate compares data with a block scalar's # rows blanked, because a # inside
+// gate compares data with a block scalar's # lines blanked, because a # inside
 // a scalar is part of the script's string.
 func TestALongSentenceInARunScriptCommentIsRepaired(t *testing.T) {
 	src := "name: CI\n" +

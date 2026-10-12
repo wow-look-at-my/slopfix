@@ -38,7 +38,7 @@ func Runs(filename, src string) (runs []Run, ok bool) {
 	if len(nodes) > 0 && IsInterpreter(nodes[0], src) {
 		nodes = nodes[1:]
 	}
-	byStartRow(nodes)
+	byStartLine(nodes)
 	return merge(nodes, Lines(src)), true
 }
 
@@ -60,12 +60,12 @@ func merge(nodes []ts.Node, lines []string) []Run {
 	var runs []Run
 	for i := 0; i < len(nodes); {
 		start := int(nodes[i].StartPoint().Row)
-		end := lastRow(nodes[i])
+		end := lastLine(nodes[i])
 		j := i
 		for j+1 < len(nodes) && int(nodes[j+1].StartPoint().Row) <= end+1 && followsCode(nodes[j+1], lines) == followsCode(nodes[j], lines) {
 			j++
-			if row := lastRow(nodes[j]); row > end {
-				end = row
+			if lineNo := lastLine(nodes[j]); lineNo > end {
+				end = lineNo
 			}
 		}
 		if start >= 0 && end < len(lines) && start <= end {
@@ -89,21 +89,21 @@ func prose(nodes []ts.Node, start, end int, lines []string) []string {
 		out[i] = strings.Repeat(" ", len(lines[start+i]))
 	}
 	for _, n := range nodes {
-		from, to := int(n.StartPoint().Row), lastRow(n)
-		for row := from; row <= to && row <= end; row++ {
-			line := lines[row]
+		from, to := int(n.StartPoint().Row), lastLine(n)
+		for lineNo := from; lineNo <= to && lineNo <= end; lineNo++ {
+			line := lines[lineNo]
 			left, right := 0, len(line)
-			if row == from {
+			if lineNo == from {
 				left = min(int(n.StartPoint().Column), right)
 			}
-			if row == int(n.EndPoint().Row) {
+			if lineNo == int(n.EndPoint().Row) {
 				right = min(int(n.EndPoint().Column), right)
 			}
 			if left >= right {
 				continue
 			}
-			kept := out[row-start]
-			out[row-start] = kept[:left] + line[left:right] + kept[right:]
+			kept := out[lineNo-start]
+			out[lineNo-start] = kept[:left] + line[left:right] + kept[right:]
 		}
 	}
 	return out
@@ -117,7 +117,7 @@ func purity(nodes []ts.Node, start, end int, lines []string) []bool {
 		pure[i] = true
 	}
 	for _, n := range nodes {
-		from, to := int(n.StartPoint().Row), lastRow(n)
+		from, to := int(n.StartPoint().Row), lastLine(n)
 		if before := int(n.StartPoint().Column); before > 0 && !blankTo(lines, from, before) {
 			pure[from-start] = false
 		}
@@ -128,8 +128,8 @@ func purity(nodes []ts.Node, start, end int, lines []string) []bool {
 	// A line inside the run that no comment covers holds something else.
 	covered := make([]bool, len(pure))
 	for _, n := range nodes {
-		for row := int(n.StartPoint().Row); row <= lastRow(n); row++ {
-			covered[row-start] = true
+		for lineNo := int(n.StartPoint().Row); lineNo <= lastLine(n); lineNo++ {
+			covered[lineNo-start] = true
 		}
 	}
 	for i, seen := range covered {
@@ -140,8 +140,8 @@ func purity(nodes []ts.Node, start, end int, lines []string) []bool {
 	return pure
 }
 
-// lastRow is the last row that holds part of a comment.
-func lastRow(n ts.Node) int {
+// lastLine is the last line that holds part of a comment.
+func lastLine(n ts.Node) int {
 	end := n.EndPoint()
 	if end.Column == 0 && end.Row > n.StartPoint().Row {
 		return int(end.Row) - 1
@@ -156,25 +156,25 @@ func followsCode(n ts.Node, lines []string) bool {
 }
 
 // blankTo reports whether the line holds only whitespace before a column.
-func blankTo(lines []string, row, col int) bool {
-	if row < 0 || row >= len(lines) || col > len(lines[row]) {
+func blankTo(lines []string, lineNo, col int) bool {
+	if lineNo < 0 || lineNo >= len(lines) || col > len(lines[lineNo]) {
 		return false
 	}
-	return strings.TrimSpace(lines[row][:col]) == ""
+	return strings.TrimSpace(lines[lineNo][:col]) == ""
 }
 
-func blankFrom(lines []string, row, col int) bool {
-	if row < 0 || row >= len(lines) {
+func blankFrom(lines []string, lineNo, col int) bool {
+	if lineNo < 0 || lineNo >= len(lines) {
 		return false
 	}
-	if col > len(lines[row]) {
+	if col > len(lines[lineNo]) {
 		return true
 	}
-	return strings.TrimSpace(lines[row][col:]) == ""
+	return strings.TrimSpace(lines[lineNo][col:]) == ""
 }
 
-// byStartRow puts the comments in file order.
-func byStartRow(nodes []ts.Node) {
+// byStartLine puts the comments in file order.
+func byStartLine(nodes []ts.Node) {
 	for i := 1; i < len(nodes); i++ {
 		for j := i; j > 0 && nodes[j].StartPoint().Row < nodes[j-1].StartPoint().Row; j-- {
 			nodes[j], nodes[j-1] = nodes[j-1], nodes[j]

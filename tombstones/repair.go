@@ -50,7 +50,7 @@ func rewriteComments(added string, blocks []Block) ([]edit.Edit, map[int]int) {
 		if !rewrote {
 			continue
 		}
-		e := edit.Rows(added, from, to, 0, short)
+		e := edit.Lines(added, from, to, 0, short)
 		edits = append(edits, e)
 		rewrites[e.Start] = took
 	}
@@ -97,7 +97,7 @@ func rewriteParagraphs(added string, blocks []Block) ([]edit.Edit, map[int]int) 
 		if hasWord(short) {
 			kept = []string{b.Prefix + short}
 		}
-		e := edit.Rows(added, from, to, 0, kept)
+		e := edit.Lines(added, from, to, 0, kept)
 		edits = append(edits, e)
 		rewrites[e.Start] = took
 	}
@@ -182,26 +182,26 @@ func reflowStripped(path, text string, losing set.Set[int], was int) []edit.Edit
 		if !rewrapped {
 			continue
 		}
-		edits = append(edits, edit.Rows(text, from, to, 0, short))
+		edits = append(edits, edit.Lines(text, from, to, 0, short))
 	}
 	return edits
 }
 
-// stripEdits deletes the dropped rows, a run of adjoining rows as a single
+// stripEdits deletes the dropped lines, a run of adjoining lines as a single
 // edit so no edits share a line end.
 func stripEdits(text string, drop set.Set[int]) []edit.Edit {
 	var edits []edit.Edit
 	total := strings.Count(text, "\n") + 1
-	for row := 0; row < total; row++ {
-		if !drop.Contains(row) {
+	for line := 0; line < total; line++ {
+		if !drop.Contains(line) {
 			continue
 		}
-		end := row
+		end := line
 		for end+1 < total && drop.Contains(end+1) {
 			end++
 		}
-		edits = append(edits, edit.Rows(text, row, end, 0, nil))
-		row = end
+		edits = append(edits, edit.Lines(text, line, end, 0, nil))
+		line = end
 	}
 	return edits
 }
@@ -287,13 +287,13 @@ func repairFile(f *fixer.File) {
 			}
 		}
 	case missed:
-		// A scope can hold some rows of a block and not others. A phrase the block rewrite missed is cut a row at a time.
+		// A scope can hold some lines of a block and not others. A phrase the block rewrite missed is cut a line at a time.
 		now := f.Text()
-		rows, rowTook := cutRows(now, AddedBlocks(path, now))
-		for _, e := range f.ApplyComments(rows).Applied {
-			f.Rewrote(rowTook[e.Start])
+		cuts, took := phraseCuts(now, AddedBlocks(path, now))
+		for _, e := range f.ApplyComments(cuts).Applied {
+			f.Rewrote(took[e.Start])
 		}
-		for _, h := range rowHits(f.Text(), AddedBlocks(path, f.Text())) {
+		for _, h := range phraseHits(f.Text(), AddedBlocks(path, f.Text())) {
 			f.Note(h)
 		}
 	}
@@ -358,8 +358,8 @@ func repairFile(f *fixer.File) {
 	stripped := f.ApplyComments(strips)
 	gone := set.New[int]()
 	for _, e := range stripped.Applied {
-		for row := strings.Count(added[:e.Start], "\n"); row <= strings.Count(added[:max(e.Start, e.End-1)], "\n"); row++ {
-			gone.Add(row)
+		for lineNo := strings.Count(added[:e.Start], "\n"); lineNo <= strings.Count(added[:max(e.Start, e.End-1)], "\n"); lineNo++ {
+			gone.Add(lineNo)
 		}
 	}
 	// A strip that did not land leaves the line in the text, so its hit is reported there.
@@ -419,49 +419,49 @@ func cutTombstones(s string) (string, int) {
 	return s, total
 }
 
-// commentRows calls visit with the row number and text of every comment row in
+// commentLines calls visit with the line number and text of every comment line in
 // blocks that is not shared with code and is no directive.
-func commentRows(text string, blocks []Block, visit func(row int, line string)) {
+func commentLines(text string, blocks []Block, visit func(lineNo int, line string)) {
 	lines := strings.Split(text, "\n")
 	for _, b := range blocks {
-		for i, row := range b.LineNos {
-			if i >= len(b.Pure) || !b.Pure[i] || row < 0 || row >= len(lines) || treecomments.IsDirective(lines[row]) {
+		for i, lineNo := range b.LineNos {
+			if i >= len(b.Pure) || !b.Pure[i] || lineNo < 0 || lineNo >= len(lines) || treecomments.IsDirective(lines[lineNo]) {
 				continue
 			}
-			visit(row, lines[row])
+			visit(lineNo, lines[lineNo])
 		}
 	}
 }
 
-// cutRows answers an edit for each comment row that still holds a tombstone
+// phraseCuts answers an edit for each comment line that still holds a tombstone
 // phrase, cutting that phrase and nothing else. How many cuts each took.
-func cutRows(text string, blocks []Block) ([]edit.Edit, map[int]int) {
+func phraseCuts(text string, blocks []Block) ([]edit.Edit, map[int]int) {
 	took := map[int]int{}
 	var edits []edit.Edit
-	commentRows(text, blocks, func(row int, line string) {
-		short, n, ok := commentfix.CutRow(line, cutTombstones)
+	commentLines(text, blocks, func(lineNo int, line string) {
+		short, n, ok := commentfix.RewriteLineProse(line, cutTombstones)
 		if !ok {
 			return
 		}
-		e := edit.Rows(text, row, row, 0, short)
+		e := edit.Lines(text, lineNo, lineNo, 0, short)
 		edits = append(edits, e)
 		took[e.Start] = n
 	})
 	return edits, took
 }
 
-// rowHits answers a hit on each comment row where a wording rule still finds
+// phraseHits answers a hit on each comment line where a wording rule still finds
 // its phrase.
-func rowHits(text string, blocks []Block) []Hit {
+func phraseHits(text string, blocks []Block) []Hit {
 	ids := AllIDs()
 	var hits []Hit
-	commentRows(text, blocks, func(row int, line string) {
+	commentLines(text, blocks, func(lineNo int, line string) {
 		seen := set.New[string]()
 		for _, p := range english.Patterns() {
 			if !ids.Contains(p.ID) || seen.Contains(p.ID) || !english.AppliesTo(p.Where, english.Comment) {
 				continue
 			}
-			if _, n, ok := commentfix.CutRow(line, p.ApplyN); !ok || n == 0 {
+			if _, n, ok := commentfix.RewriteLineProse(line, p.ApplyN); !ok || n == 0 {
 				continue
 			}
 			seen.Add(p.ID)
@@ -470,7 +470,7 @@ func rowHits(text string, blocks []Block) []Hit {
 				Tell:   "a phrase about a state the code has left",
 				Phrase: strings.TrimSpace(line),
 				Line:   line,
-				LineNo: row + 1,
+				LineNo: lineNo + 1,
 			})
 		}
 	})
@@ -511,7 +511,7 @@ func cutReferents(f *fixer.File, path string) {
 }
 
 // onLine answers a dead-name hit as a finding reports it: HitForName counts its
-// row from zero, and a finding counts lines from one.
+// line from zero, and a finding counts lines from one.
 func onLine(h Hit) Hit {
 	if h.LineNo >= 0 {
 		h.LineNo++
@@ -568,7 +568,7 @@ func sentenceAround(line, name string, openers []string) (int, int, bool) {
 	return from, to, from < to
 }
 
-// endsOnSentence reports whether the last row of block b that a cut keeps ends
+// endsOnSentence reports whether the last line of block b that a cut keeps ends
 // a sentence.
 func endsOnSentence(lines []string, b Block, drop set.Set[int]) bool {
 	for i := len(b.LineNos) - 1; i >= 0; i-- {
@@ -584,7 +584,7 @@ func endsOnSentence(lines []string, b Block, drop set.Set[int]) bool {
 
 // capEdits answers an edit per block over maxLines. A block of comment lines
 // alone is cut at its thoughts. A block that shares a line with code loses its
-// last prose rows instead, because a row edit there would carry the code.
+// last prose lines instead, because a line edit there would carry the code.
 func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 	if maxLines <= 0 {
 		return nil
@@ -597,7 +597,7 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 		}
 		if from, to, ok := pureSpan(b, len(lines)); ok {
 			kept := commentfix.CapLines(lines[from:to+1], maxLines)
-			edits = append(edits, edit.Rows(text, from, to, 0, kept))
+			edits = append(edits, edit.Lines(text, from, to, 0, kept))
 			continue
 		}
 		drop := set.New[int]()
@@ -609,16 +609,16 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 				over--
 			}
 		}
-		// A row cut that does not land on a sentence end leaves a fragment, so
-		// the surviving row is trimmed back to one. The cap has to be
-		// reachable: dropping further rows would cost more than the fragment.
+		// A line cut that does not land on a sentence end leaves a fragment, so
+		// the surviving line is trimmed back to one. The cap has to be
+		// reachable: dropping further lines would cost more than the fragment.
 		if !endsOnSentence(lines, b, drop) {
-			if row, trimmed, ok := trimLastKeptRow(lines, b, drop); ok {
+			if lineNo, trimmed, ok := trimLastKeptLine(lines, b, drop); ok {
 				edits = append(edits, stripEdits(text, drop)...)
-				edits = append(edits, edit.Rows(text, row, row, 0, []string{trimmed}))
+				edits = append(edits, edit.Lines(text, lineNo, lineNo, 0, []string{trimmed}))
 				continue
 			}
-			// Rows go from the end until a kept row ends a sentence. A block with no such row keeps its prose.
+			// Lines go from the end until a kept line ends a sentence. A block with no such line keeps its prose.
 			for !endsOnSentence(lines, b, drop) && dropLastKept(lines, b, drop) {
 			}
 			if !endsOnSentence(lines, b, drop) {
@@ -642,8 +642,8 @@ func cuttable(text string, blocks []Block, maxLines, lineNo int) bool {
 	return false
 }
 
-// dropLastKept adds the last prose row a drop keeps to it, and reports false
-// when no prose row is left to drop.
+// dropLastKept adds the last prose line a drop keeps to it, and reports false
+// when no prose line is left to drop.
 func dropLastKept(lines []string, b Block, drop set.Set[int]) bool {
 	for i := len(b.LineNos) - 1; i >= 0; i-- {
 		no, pure := linePurity(b, i)
@@ -655,10 +655,10 @@ func dropLastKept(lines []string, b Block, drop set.Set[int]) bool {
 	return false
 }
 
-// trimLastKeptRow cuts the last row a drop keeps back to its last sentence end.
+// trimLastKeptLine cuts the last line a drop keeps back to its last sentence end.
 // A volume cut lands on a sentence rather than a fragment. It reports false
-// when that row holds no sentence end to cut back to.
-func trimLastKeptRow(lines []string, b Block, drop set.Set[int]) (int, string, bool) {
+// when that line holds no sentence end to cut back to.
+func trimLastKeptLine(lines []string, b Block, drop set.Set[int]) (int, string, bool) {
 	for i := len(b.LineNos) - 1; i >= 0; i-- {
 		no, pure := linePurity(b, i)
 		if !pure || drop.Contains(no) || no < 0 || no >= len(lines) {
@@ -686,16 +686,16 @@ func trimToSentenceEnd(line string) (string, bool) {
 	return trimmed, true
 }
 
-// cutLines quotes the dropped rows a strip edit covers.
+// cutLines quotes the dropped lines a strip edit covers.
 func cutLines(lines []string, drop set.Set[int], e edit.Edit, text string) []string {
 	var out []string
-	row := strings.Count(text[:max(e.Start, 0)], "\n")
+	lineNo := strings.Count(text[:max(e.Start, 0)], "\n")
 	if e.Start > 0 && e.Start < len(text) && text[e.Start] == '\n' {
-		// A strip of the last row starts on the line end before it.
-		row++
+		// A strip of the last line starts on the line end before it.
+		lineNo++
 	}
-	for ; row < len(lines) && drop.Contains(row); row++ {
-		out = append(out, strings.TrimSpace(lines[row]))
+	for ; lineNo < len(lines) && drop.Contains(lineNo); lineNo++ {
+		out = append(out, strings.TrimSpace(lines[lineNo]))
 	}
 	return out
 }
