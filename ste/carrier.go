@@ -85,6 +85,30 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 			}
 		}
 	}
+	// ", each with X" gives each item of the head what follows: "Each comes with X".
+	if seam == "," && lower == "each" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "with" {
+		if body, ok := strings.CutPrefix(strings.TrimLeft(rest, " "), word.Text+" with "); ok {
+			return head, "Each comes with " + body, opensWithCarrier
+		}
+	}
+	// "used by A to P and by B to Q" names a second actor for the same participle: "The same holds for B, to Q".
+	if seam == "" && lower == "and" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "by" {
+		for k := first - 1; k > 0; k-- {
+			if whole.Words[k].Lower() == "by" && whole.Words[k-1].Tag == "VBN" {
+				body := strings.TrimLeft(strings.TrimLeft(rest[len(word.Text):], " ")[len("by"):], " ")
+				return head, "The same holds for " + body, opensWithCarrier
+			}
+		}
+	}
+	// "X -- an aside -- so Y": the aside explains X, so a colon carries it, and "so" opens the next sentence.
+	if seamIsDash(seam) && lower == "so" {
+		aside := strings.TrimRight(strings.TrimSuffix(strings.TrimRight(head, " "), seam), " ")
+		if strings.Count(aside, seam) == 1 {
+			if at := strings.Index(aside, " "+seam+" "); at > 0 {
+				return aside[:at] + ":" + aside[at+len(seam)+1:], capitalizeOpening(rest), opensWithCarrier
+			}
+		}
+	}
 	noun := strings.HasPrefix(prev.Tag, "NN")
 	// An -ing noun after a singular noun is one compound noun with it, and no division lands inside it.
 	if prev.Tag == "NN" && nominalIng.Contains(lower) {
