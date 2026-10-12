@@ -1,8 +1,10 @@
 package workflow
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -66,16 +68,17 @@ func governedRepo(path string) (string, string, bool) {
 
 // hostedJob is a job whose runs-on ignores the repository's visibility.
 type hostedJob struct {
-	job    *yaml.Node
-	node   *yaml.Node
-	label  string
+	job   *yaml.Node
+	node  *yaml.Node
+	label string
+	// key is the matrix key runs-on reads, with its hosted Linux values in hosted.
+	key    string
+	hosted []string
 	docker bool
 	// flow reports whether the runs-on value sits inside a flow collection.
 	flow bool
 	// unread names each action whose runs.using could not be read. The job then goes to the docker runner.
 	unread []string
-	// unexplained reports a hosted opt-out comment that gives no reason. It keeps nothing.
-	unexplained bool
 }
 
 // governedJobs answers each job of the file at path that the rule reports,
@@ -110,8 +113,7 @@ func runnerLabel(value string) (label string, dind bool) {
 }
 
 // hostedJobs answers each job of content whose runs-on ignores the
-// visibility, in source order. A job that needs the host, or whose runs-on
-// comment opts out with a reason, keeps its runner and is not answered.
+// visibility, in source order.
 func hostedJobs(content string) []hostedJob {
 	var doc yaml.Node
 	if yaml.Unmarshal([]byte(content), &doc) != nil {
@@ -129,18 +131,62 @@ func hostedJobs(content string) []hostedJob {
 		if on == nil || on.Kind != yaml.ScalarNode {
 			continue
 		}
-		label, dind := runnerLabel(on.Value)
-		if label == "" {
-			continue
-		}
-		reason, marked := hostedOptOut(on.LineComment)
-		if (marked && reason != "") || needsHost(job) != "" {
-			continue
-		}
 		flow := (root.Style|jobs.Style|job.Style)&yaml.FlowStyle != 0
-		out = append(out, hostedJob{job: job, node: on, label: label, docker: dind, flow: flow, unexplained: marked})
+		label, dind := runnerLabel(on.Value)
+		if label != "" {
+			out = append(out, hostedJob{job: job, node: on, label: label, docker: dind, flow: flow})
+			continue
+		}
+		if key, hosted := matrixRunner(job, on.Value); len(hosted) > 0 {
+			out = append(out, hostedJob{job: job, node: on, key: key, hosted: hosted, flow: flow})
+		}
 	}
 	return out
+}
+
+// matrixReference matches a runs-on that is one matrix value, such as ${{ matrix.os }}.
+var matrixReference = regexp.MustCompile(`^\$\{\{\s*matrix\.([A-Za-z_][A-Za-z0-9_-]*)\s*\}\}$`)
+
+// matrixRunner answers the matrix key a runs-on reads, and each hosted Linux
+// value the job's matrix gives that key, in source order. It answers no value
+// when the matrix is not written out in the file, such as fromJSON of an output.
+func matrixRunner(job *yaml.Node, value string) (string, []string) {
+	m := matrixReference.FindStringSubmatch(value)
+	if m == nil {
+		return "", nil
+	}
+	key := m[1]
+	matrix := mappingValue(mappingValue(job, "strategy"), "matrix")
+	if matrix == nil || matrix.Kind != yaml.MappingNode {
+		return "", nil
+	}
+	var values []*yaml.Node
+	if list := mappingValue(matrix, key); list != nil {
+		if list.Kind != yaml.SequenceNode {
+			return "", nil
+		}
+		values = append(values, list.Content...)
+	}
+	if include := mappingValue(matrix, "include"); include != nil {
+		if include.Kind != yaml.SequenceNode {
+			return "", nil
+		}
+		for _, entry := range include.Content {
+			if entry.Kind != yaml.MappingNode {
+				return "", nil
+			}
+			if v := mappingValue(entry, key); v != nil {
+				values = append(values, v)
+			}
+		}
+	}
+	var hosted []string
+	for _, v := range values {
+		if v.Kind == yaml.ScalarNode && hostedLinux.MatchString(v.Value) && !slices.Contains(hosted, v.Value) {
+			hosted = append(hosted, v.Value)
+		}
+	}
+	return key, hosted
 }
 
 // runsDocker reports whether a job needs a docker engine on its runner. It
@@ -201,6 +247,12 @@ func runnerExpression(j hostedJob) string {
 	if j.docker {
 		name = runnerDindVar
 	}
+	if j.key != "" {
+		// A value outside the hosted Linux list keeps its runner. A public repository keeps every value.
+		ref := "matrix." + j.key
+		list, _ := json.Marshal(j.hosted)
+		return "${{ (github.event.repository.visibility == 'public' || !contains(fromJSON('" + string(list) + "'), " + ref + ")) && " + ref + " || " + name + " || " + ref + " }}"
+	}
 	return "${{ github.event.repository.visibility == 'public' && '" + j.label + "' || " + name + " || '" + j.label + "' }}"
 }
 
@@ -210,9 +262,6 @@ func privateRunners(path, content string) []ste.Finding {
 	var out []ste.Finding
 	for _, j := range jobs {
 		detail := repo + ": runs-on: " + j.node.Value
-		if j.unexplained {
-			detail += " (the `# " + HostedMarker + "` comment gives no reason, so it keeps nothing)"
-		}
 		if len(j.unread) > 0 {
 			detail += " (the action metadata could not be read, so the rule chooses " + runnerDindVar + ", which has docker: " + strings.Join(j.unread, "; ") + ")"
 		}
@@ -239,7 +288,7 @@ func retargetRunners(path, content string) []edit.Edit {
 		}
 		value := runnerExpression(j)
 		if j.flow {
-			value = `"` + value + `"`
+			value = `"` + strings.ReplaceAll(value, `"`, `\"`) + `"`
 		}
 		out = append(out, rewrite(content, first, last, []string{before + value + after}))
 	}
