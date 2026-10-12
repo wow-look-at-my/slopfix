@@ -429,11 +429,10 @@ type forkParent struct {
 	DefaultBranch string `json:"default_branch"`
 }
 
-// forkRepo is the part of GET /repos/{repo} that names a parent and the visibility.
+// forkRepo is the part of GET /repos/{repo} that names a parent.
 type forkRepo struct {
-	Fork    *bool       `json:"fork"`
-	Parent  *forkParent `json:"parent"`
-	Private *bool       `json:"private"`
+	Fork   *bool       `json:"fork"`
+	Parent *forkParent `json:"parent"`
 }
 
 // parentURL answers the URL a fork's parent clones from.
@@ -501,11 +500,11 @@ func (r Resolver) fetchRepo(repo string) (forkRepo, error) {
 	return decodeRepo(body, "GET "+url)
 }
 
-// ghRepoQuery asks GraphQL whether a repository is a fork, of what, and whether it is private.
-const ghRepoQuery = `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { isFork isPrivate parent { nameWithOwner defaultBranchRef { name } } } }`
+// ghRepoQuery asks GraphQL whether a repository is a fork, and of what.
+const ghRepoQuery = `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { isFork parent { nameWithOwner defaultBranchRef { name } } } }`
 
-// ghRepoShape reshapes the GraphQL answer into the REST repository object's fields.
-const ghRepoShape = `.data.repository | {fork: .isFork, private: .isPrivate, parent: (if .parent then {full_name: .parent.nameWithOwner, default_branch: .parent.defaultBranchRef.name} else null end)}`
+// ghRepoShape reshapes the GraphQL answer into the REST repository object's fork fields.
+const ghRepoShape = `.data.repository | {fork: .isFork, parent: (if .parent then {full_name: .parent.nameWithOwner, default_branch: .parent.defaultBranchRef.name} else null end)}`
 
 // ghRepo asks GraphQL through the gh CLI. GraphQL states isFork on every
 // server gh may point at, a mirror's trimmed REST rebuild included.

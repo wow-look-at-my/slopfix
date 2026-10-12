@@ -18,6 +18,7 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	go.yaml.in/yaml/v3 v3.0.5
 	mvdan.cc/sh/v3 v3.14.1
 )
@@ -33,3 +34,5 @@ require (
 )
 
 replace mvdan.cc/sh/v3 v3.14.1 => github.com/mvdan/sh/v3 v3.14.1
+
+replace gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 => github.com/go-check/check v0.0.0-20161208181325-20d25e280405
