@@ -375,7 +375,7 @@ func repairFile(f *fixer.File) {
 	for _, h := range hits {
 		switch {
 		case h.Strippable:
-			drop.Add(h.LineNo)
+			drop.Add(h.LineNo - 1)
 			stripping = append(stripping, h)
 		case h.ID != IDVolume:
 			// A name no whole-line strip resolves loses its sentence below.
@@ -413,8 +413,8 @@ func repairFile(f *fixer.File) {
 	}
 	// A strip that did not land leaves the line in the text, so its hit is reported there.
 	for _, h := range stripping {
-		if !gone.Contains(h.LineNo) {
-			f.Note(onLine(h))
+		if !gone.Contains(h.LineNo - 1) {
+			f.Note(h)
 		}
 	}
 	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished.
