@@ -37,14 +37,14 @@ slopfix lsp                       # a language server on stdio, for the editor p
 
 ```sh
 slopfix fix --only counts            # every rule in the counts category
-slopfix fix --only ste/semicolon     # that rule alone
+slopfix fix --only english/semicolon # that rule alone
 slopfix fix --only tombstones,wrap   # two categories
 slopfix fix --only ste/nosuch        # an error that names the rules ste holds
 ```
 
-The categories are `tombstones`, `counts`, `wrap`, `ste`, `comments`, `yaml`, `repo` and `pins`. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
+The categories are `tombstones`, `counts`, `wrap`, `ste`, `english`, `comments`, `yaml`, `repo` and `pins`. The text before the slash in a rule ID names its category. A rule ID turns its category on. An unknown name is an error, because a run that applies nothing reads as a clean file. There is no `--exclude`. An exemption that a caller writes is one that a caller sets to everything.
 
-A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream. A hand wrap hides half of it. So an `ste` rule also joins the paragraph it repairs.
+A word repair and the wrap join share a pass. A rule reads a paragraph as a sentence stream. A hand wrap hides half of it. So an `ste`, `english` or `counts` word rule also joins the paragraph it repairs.
 
 ## Scoping a repair to a changed line
 

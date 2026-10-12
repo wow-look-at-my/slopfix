@@ -2,13 +2,14 @@ package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
 
-// ste/semicolon: STE bans the semicolon. The repair writes a period. The repair
-// starts a new sentence. The repair asks for a rewrite by hand only where the
-// semicolon joins items that a period would leave as a fragment.
+// english/semicolon: a semicolon joins sentences that a period keeps apart. The
+// repair writes a period. The repair starts a new sentence. The repair asks for
+// a rewrite by hand only where the semicolon joins items that a period would
+// leave as a fragment.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       ste.IDSemicolon,
-		Category: RuleSTE,
+		Category: RuleEnglish,
 		Detect:   detectSemicolon,
 		Autofix:  autofixSemicolon,
 		Cases:    []RuleCase{{Name: ste.IDSemicolon, Path: "x.md", Text: "The gate reads the file; the tool writes the result.\n"}},
