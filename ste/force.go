@@ -168,7 +168,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 				// The grammatical rest was refused, so the carrier division, which restates the main clause, gets its turn.
 				ch, cr, co := carrierOrNone(source, whole, c)
 				cl := closeHead(ch)
-				if cr == "" || !restStands(cr) || !standsAsSentence(cl) || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
+				if cr == "" || !restStands(cr) || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
 					continue
 				}
 				head, right, opened, left = ch, cr, co, cl

@@ -183,7 +183,7 @@ func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := joinOpener(d.opener, restOf(source, d))
+		right := capitalizeOpening(joinOpener(d.opener, restOf(source, d)))
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}

@@ -1,6 +1,7 @@
 package ste
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -36,9 +37,24 @@ func gappedDivision(source string, whole *syntax.Sentence, limit int) (string, b
 		return source, false
 	}
 	head := closeHead(source[:whole.Words[items[0][0]].Start])
-	rest := source[whole.Words[items[0][1]].Start:]
-	if !StandsAlone(head) || restStands(capitalizeOpening(rest)) {
+	if !StandsAlone(head) {
 		return source, false
+	}
+	// Each item repeats the preposition that closes the main clause, in place of its verb: "happens after X, A after Y".
+	prep := ""
+	for k := items[0][0] - 1; k >= 0 && prep == ""; k-- {
+		if w := whole.Words[k]; w.Tag == "IN" || w.Tag == "TO" {
+			prep = w.Lower()
+		}
+	}
+	for n, item := range items {
+		end := len(whole.Words)
+		if n+1 < len(items) {
+			end = items[n+1][0]
+		}
+		if prep == "" || !slices.ContainsFunc(whole.Words[item[1]:end], func(w syntax.Word) bool { return w.Lower() == prep }) {
+			return source, false
+		}
 	}
 	out := head
 	for n, item := range items {
@@ -76,6 +92,10 @@ func cutsNounPhrase(source string, whole *syntax.Sentence, left, right int) bool
 		return false
 	}
 	before, after := whole.Words[n-1].Tag, whole.Words[n].Tag
+	// "falls | back": a particle completes the verb before it.
+	if strings.HasPrefix(before, "VB") && (after == "RP" || phraseEndParticle.Contains(whole.Words[n].Lower())) {
+		return true
+	}
 	switch {
 	case before == "DT" || before == "PRP$" || before == "POS":
 		return true
@@ -86,6 +106,9 @@ func cutsNounPhrase(source string, whole *syntax.Sentence, left, right int) bool
 	}
 	return strings.HasPrefix(before, "NN") && (after == "VB" || after == "VBP")
 }
+
+// objectClauseOpeners open a clause that is the object of a verb: "reads whether the job runs docker".
+var objectClauseOpeners = set.Of("that", "whether", "what", "how", "why", "which", "who", "where", "when")
 
 // modifiesNoun is the tags of a word that modifies the noun after it.
 var modifiesNoun = set.Of("JJ", "JJR", "JJS", "VBN", "VBG", "CD")

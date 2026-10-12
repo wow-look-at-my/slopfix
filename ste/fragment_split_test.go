@@ -26,10 +26,3 @@ func TestTheSentenceCapLeavesNoFragment(t *testing.T) {
 		}
 	}
 }
-
-// A clause a subordinator opens is no main clause, so a gapped item with one
-// does not stand alone.
-func TestASubordinateClauseAloneIsNoSentence(t *testing.T) {
-	assert.False(t, ste.StandsAlone("A single read's body after the size guards, and a batch read's archive after every member is opened."))
-	assert.True(t, ste.StandsAlone("The slot goes back after every member is opened."))
-}

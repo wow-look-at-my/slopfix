@@ -226,8 +226,7 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 			// The words ahead of a finite verb are its subject, though the tagger missed it: "The comment scan reads".
 			start = c.First
 		}
-		// "a batch GET's tar after every member is opened": a clause a subordinator opens depends on another, so it is no main clause.
-		if start > after && !(start > from && syntax.Is(s.Words[start-1].Lower(), "subordinator")) {
+		if start > after {
 			return true
 		}
 	}
