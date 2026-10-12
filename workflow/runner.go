@@ -12,7 +12,7 @@ import (
 	yaml "go.yaml.in/yaml/v3"
 )
 
-// IDPrivateRunner is a job of a private org repository on a GitHub-hosted Linux runner.
+// IDPrivateRunner is a job of an org repository whose runs-on ignores the repository's visibility.
 const IDPrivateRunner = "yaml/private-runner"
 
 // The org variables that name the org's own runners.
@@ -28,55 +28,62 @@ var SelfHostExempt = set.Of(
 	"wow-look-at-my/github-state-mirror",
 )
 
-// hostedLinux matches a GitHub-hosted x64 Linux label, which the org runners replace.
+// hostedLinux matches a GitHub-hosted x64 Linux label.
 var hostedLinux = regexp.MustCompile(`^ubuntu-(latest|[0-9]+\.[0-9]+)$`)
+
+// blindFallback matches an expression that picks an org runner variable.
+var blindFallback = regexp.MustCompile(`^\$\{\{\s*vars\.(CI_RUNNER|CI_RUNNER_DIND)\s*\|\|\s*'(ubuntu-(?:latest|[0-9]+\.[0-9]+))'\s*\}\}$`)
 
 // dockerCommand matches a script line that runs the docker client.
 var dockerCommand = regexp.MustCompile(`(^|[\s;&|(])(sudo\s+)?docker(-compose)?(\s|$)`)
 
-// runnerTarget is the repository a file belongs to, as the rule needs it.
-type runnerTarget struct {
-	repo forkscope.Repo
-	// unread is why the visibility could not be read. The rule then treats the repository as private.
-	unread string
-}
-
-// runnerTargetOf answers the target of the file at path, and whether the rule applies.
-func runnerTargetOf(path string) (runnerTarget, bool) {
+// governedRepo answers the org repository the file at path belongs to, and
+// whether the rule reads it. The name comes from the work tree alone.
+func governedRepo(path string) (string, bool) {
 	if path == "" {
-		return runnerTarget{}, false
+		return "", false
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return runnerTarget{}, false
+		return "", false
 	}
-	dir := forkscope.ExistingDir(filepath.Dir(abs))
-	// An exempt repository is skipped before the network is asked.
-	name := forkscope.Repo{Name: forkscope.Resolver{}.RepoName(dir)}
-	if !strings.EqualFold(name.Owner(), orgOwner) || SelfHostExempt.Contains(strings.ToLower(name.Name)) {
-		return runnerTarget{}, false
+	repo := forkscope.Resolver{}.RepoName(forkscope.ExistingDir(filepath.Dir(abs)))
+	owner, _, _ := strings.Cut(repo, "/")
+	if !strings.EqualFold(owner, orgOwner) || SelfHostExempt.Contains(strings.ToLower(repo)) {
+		return "", false
 	}
-	repo, err := forkscope.Resolver{}.Visibility(dir, orgOwner)
-	if err != nil {
-		return runnerTarget{repo: repo, unread: err.Error()}, true
-	}
-	return runnerTarget{repo: repo}, repo.Private
+	return repo, true
 }
 
-// hostedJob is a job whose runs-on names a GitHub-hosted Linux label.
+// hostedJob is a job whose runs-on ignores the repository's visibility.
 type hostedJob struct {
 	node   *yaml.Node
 	label  string
 	docker bool
+	// flow reports whether the runs-on value sits inside a flow collection.
+	flow bool
 }
 
-// hostedJobs answers each job of content on a GitHub-hosted Linux label, in source order.
+// runnerLabel answers the hosted Linux label of a runs-on value. It also
+// answers whether the value names the docker runner variable.
+func runnerLabel(value string) (label string, dind bool) {
+	if hostedLinux.MatchString(value) {
+		return value, false
+	}
+	if m := blindFallback.FindStringSubmatch(value); m != nil {
+		return m[2], m[1] == "CI_RUNNER_DIND"
+	}
+	return "", false
+}
+
+// hostedJobs answers each job of content whose runs-on ignores the visibility, in source order.
 func hostedJobs(content string) []hostedJob {
 	var doc yaml.Node
 	if yaml.Unmarshal([]byte(content), &doc) != nil {
 		return nil
 	}
-	jobs := mappingValue(rootOf(&doc), "jobs")
+	root := rootOf(&doc)
+	jobs := mappingValue(root, "jobs")
 	if jobs == nil || jobs.Kind != yaml.MappingNode {
 		return nil
 	}
@@ -84,10 +91,15 @@ func hostedJobs(content string) []hostedJob {
 	for i := 1; i < len(jobs.Content); i += 2 {
 		job := jobs.Content[i]
 		on := mappingValue(job, "runs-on")
-		if on == nil || on.Kind != yaml.ScalarNode || !hostedLinux.MatchString(on.Value) {
+		if on == nil || on.Kind != yaml.ScalarNode {
 			continue
 		}
-		out = append(out, hostedJob{node: on, label: on.Value, docker: runsDocker(job)})
+		label, dind := runnerLabel(on.Value)
+		if label == "" {
+			continue
+		}
+		flow := (root.Style|jobs.Style|job.Style)&yaml.FlowStyle != 0
+		out = append(out, hostedJob{node: on, label: label, docker: dind || runsDocker(job), flow: flow})
 	}
 	return out
 }
@@ -124,37 +136,33 @@ func runnerExpression(j hostedJob) string {
 	if j.docker {
 		name = runnerDindVar
 	}
-	return "${{ " + name + " || '" + j.label + "' }}"
+	return "${{ github.event.repository.visibility == 'public' && '" + j.label + "' || " + name + " || '" + j.label + "' }}"
 }
 
-// privateRunners reports each job of a private org repository on a GitHub-hosted Linux runner.
+// privateRunners reports each job of an org repository whose runs-on ignores the visibility.
 func privateRunners(path, content string) []ste.Finding {
 	jobs := hostedJobs(content)
 	if len(jobs) == 0 {
 		return nil
 	}
-	target, applies := runnerTargetOf(path)
-	if !applies {
+	repo, governed := governedRepo(path)
+	if !governed {
 		return nil
 	}
 	var out []ste.Finding
 	for _, j := range jobs {
-		detail := target.repo.Name + ": runs-on: " + j.label
-		if target.unread != "" {
-			detail += " (the visibility could not be read, so the rule treats the repository as private: " + target.unread + ")"
-		}
 		out = append(out, ste.Finding{
 			Line:   j.node.Line,
 			ID:     IDPrivateRunner,
-			Rule:   "a private org repository that runs a job on a GitHub-hosted runner",
-			Detail: detail,
+			Rule:   "an org job whose runner ignores the repository's visibility",
+			Detail: repo + ": runs-on: " + j.node.Value,
 			Fix:    "Use `runs-on: " + runnerExpression(j) + "`. GitHub bills each minute a private repository spends on its runners. `slopfix fix` does this.",
 		})
 	}
 	return out
 }
 
-// retargetRunners writes the org runner expression into each job privateRunners reports.
+// retargetRunners writes the visibility expression into each job privateRunners reports.
 func retargetRunners(path, content string) []edit.Edit {
 	if len(privateRunners(path, content)) == 0 {
 		return nil
@@ -162,37 +170,101 @@ func retargetRunners(path, content string) []edit.Edit {
 	fileLines := lines(content)
 	var out []edit.Edit
 	for _, j := range hostedJobs(content) {
-		lineNo, col := j.node.Line-1, j.node.Column-1
-		if lineNo < 0 || lineNo >= len(fileLines) || col >= len(fileLines[lineNo]) {
+		first, last, before, after, ok := scalarSource(content, fileLines, j)
+		if !ok {
 			continue
 		}
-		line := fileLines[lineNo]
-		raw := scalarToken(line[col:])
-		if raw == "" {
-			continue
+		value := runnerExpression(j)
+		if j.flow {
+			value = `"` + value + `"`
 		}
-		swapped := line[:col] + runnerExpression(j) + line[col+len(raw):]
-		out = append(out, rewrite(content, lineNo, lineNo, []string{swapped}))
+		out = append(out, rewrite(content, first, last, []string{before + value + after}))
 	}
 	return out
 }
 
-// scalarToken answers the source text of the scalar at the start of rest.
-// This covers a quoted scalar through its closing quote, or a plain one up
-// to a space.
-func scalarToken(rest string) string {
-	if rest == "" {
-		return ""
+// scalarSource answers the 0-based lines a job's runs-on value spans. It also
+// answers the text on those lines before and after the value.
+func scalarSource(content string, fileLines []string, j hostedJob) (first, last int, before, after string, ok bool) {
+	first, col := j.node.Line-1, j.node.Column-1
+	if first < 0 || first >= len(fileLines) || col < 0 || col > len(fileLines[first]) {
+		return 0, 0, "", "", false
 	}
-	if quote := rest[0]; quote == '\'' || quote == '"' {
-		end := strings.IndexByte(rest[1:], quote)
+	col += properties(fileLines[first][col:])
+	before, head := fileLines[first][:col], fileLines[first][col:]
+	style := j.node.Style &^ (yaml.FlowStyle | yaml.TaggedStyle)
+	if style == yaml.LiteralStyle || style == yaml.FoldedStyle {
+		last = flowEnd(content, fileLines, j.node.Line)
+		return first, last, before, trailingComment.FindString(head), last >= first
+	}
+	if style == 0 && !j.flow {
+		last, after, ok = plainSource(content, fileLines, j.node.Line, head)
+		return first, last, before, after, ok
+	}
+	rest := strings.Join(append([]string{head}, fileLines[first+1:]...), "\n")
+	end := scalarSpan(rest, style)
+	if end < 0 {
+		return 0, 0, "", "", false
+	}
+	taken := rest[:end]
+	last = first + strings.Count(taken, "\n")
+	if last == first {
+		return first, last, before, head[end:], true
+	}
+	return first, last, before, fileLines[last][len(taken)-strings.LastIndexByte(taken, '\n')-1:], true
+}
+
+// properties answers the length of the tag and anchor that open head, with
+// the blanks after them. The repair keeps them.
+func properties(head string) int {
+	at := 0
+	for at < len(head) && (head[at] == '!' || head[at] == '&') {
+		end := strings.IndexAny(head[at:], " \t")
 		if end < 0 {
-			return ""
+			return at
 		}
-		return rest[:end+2]
+		at += end
+		for at < len(head) && (head[at] == ' ' || head[at] == '\t') {
+			at++
+		}
 	}
-	if end := strings.IndexAny(rest, " \t"); end >= 0 {
-		return rest[:end]
+	return at
+}
+
+// plainSource answers the last line of a plain scalar in block context, and
+// the text after it. It runs to the line before the next node, and stops at
+// a trailing comment.
+func plainSource(content string, fileLines []string, line int, head string) (last int, after string, ok bool) {
+	first := line - 1
+	last = flowEnd(content, fileLines, line)
+	if last < first {
+		return 0, "", false
 	}
-	return rest
+	if last == first {
+		end := scalarEnd(head, 0)
+		return last, head[end:], true
+	}
+	if at := trailingComment.FindStringIndex(fileLines[last]); at != nil {
+		after = fileLines[last][at[0]:]
+	}
+	return last, after, true
+}
+
+// scalarSpan answers the byte where the scalar that opens rest ends. A quoted
+// scalar ends at its closing quote. A plain scalar inside a flow collection
+// ends before a flow indicator or a comment.
+func scalarSpan(rest string, style yaml.Style) int {
+	switch style {
+	case yaml.DoubleQuotedStyle, yaml.SingleQuotedStyle:
+		return scalarEnd(rest, style)
+	}
+	end := len(rest)
+	for i := 0; i < len(rest); i++ {
+		c := rest[i]
+		if c == ',' || c == ']' || c == '}' || (c == '#' && i > 0 && strings.ContainsRune(" \t\n", rune(rest[i-1]))) {
+			end = i
+			break
+		}
+	}
+	return len(strings.TrimRight(rest[:end], " \t\r\n"))
 }
