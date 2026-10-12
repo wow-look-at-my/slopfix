@@ -1,6 +1,8 @@
 package slopfix_test
 
 import (
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -58,6 +60,13 @@ func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 				// run the rule on the result, confirming it was fixed (i.e. no longer detected)
 				fixed := rule.Autofix(fixture)
 				assert.Empty(t, rule.Detect(fixed), "%s: case %q: the rule still detects the result of its autofix", rule.ID, raw.Name)
+
+				// The repair writes the sentence the case names, which keeps it grammatical and keeps its meaning.
+				if raw.Want != "" {
+					got, err := os.ReadFile(filepath.Join(fixed.Root, filepath.FromSlash(raw.Path)))
+					require.NoError(t, err)
+					assert.Equal(t, raw.Want, string(got), "%s: case %q: the autofix wrote another text", rule.ID, raw.Name)
+				}
 
 				// run ALL OTHER rules on the "fixed" fixture, confirming there are STILL no detctions.
 				assert.Empty(t, everyOtherRule(fixed, rule.ID), "%s: case %q: another rule detects the fixed fixture", rule.ID, raw.Name)

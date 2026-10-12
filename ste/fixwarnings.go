@@ -204,51 +204,6 @@ func auxiliary(s *syntax.Sentence, from int, forms set.Set[string]) (int, int) {
 	return -1, -1
 }
 
-// rewritePassive writes the active voice for a passive clause that names its
-// actor: "The file is read by the gate" becomes "The gate reads the file".
-// A clause that names no actor is left as written, because nothing states who
-// acts.
-func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
-	last := lastContent(s)
-	i, j := auxiliary(s, 1, beForms)
-	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
-		return "", false
-	}
-	if !simpleSpan(s, i, j) {
-		return "", false
-	}
-	// The actor is the phrase after "by", and it must close the clause.
-	by := -1
-	for k := j + 1; k < last; k++ {
-		if s.Words[k].Lower() == "by" {
-			by = k
-			break
-		}
-	}
-	if by < 0 || by+1 > last {
-		return "", false
-	}
-	end := last
-	for k := by + 1; k <= last; k++ {
-		if s.Words[k].Text == "," {
-			end = k - 1
-			break
-		}
-	}
-	if end < by+1 {
-		return "", false
-	}
-	subject := strings.TrimSpace(source[s.Words[0].Start:s.Words[i].Start])
-	actor := source[s.Words[by+1].Start:s.Words[end].End]
-	tail := source[s.Words[end].End:]
-	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
-	if subject == "" || actor == "" || verb == "" {
-		return "", false
-	}
-	object := lowerOpeningFor(subject, s.Words[0].Tag)
-	return capitalizeOpening(actor) + " " + verb + " " + object + tail, true
-}
-
 // lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
 // the start of one. A name keeps its capital.
 func lowerOpeningFor(phrase, tag string) string {

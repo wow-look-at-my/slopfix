@@ -42,6 +42,8 @@ type RuleCase struct {
 	// Path names a single file of the repository, and Text is its content. With no Path, Text is the closing message.
 	Path string
 	Text string
+	// Want is the content the rule's autofix writes to Path. An empty Want asserts only that the finding is gone.
+	Want string
 	// Files are the other files of the repository, by path from its root.
 	Files map[string]string
 	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
