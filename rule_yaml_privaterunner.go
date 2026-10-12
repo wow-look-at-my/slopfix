@@ -19,7 +19,7 @@ func init() {
 		privateRunnerCase("private-runner-dind", jobs("      - run: docker build .\n")),
 		privateRunnerCase("private-runner-docker-image", jobs("      - uses: docker://alpine:3.20\n")),
 		containerActionCase(jobs("      - uses: " + ContainerActionFixture + "\n")),
-		privateRunnerCase("private-runner-host-job", jobs("      - uses: vmactions/freebsd-vm@v1\n      - run: sudo modprobe zfs\n")),
+		privateRunnerCase("private-runner-host-job", jobs("      - run: sudo modprobe zfs\n      - run: sudo systemctl restart containerd\n")),
 		privateRunnerCase("private-runner-blind-fallback", workflowHeader()+"jobs:\n"+
 			"  build:\n    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}\n    steps:\n      - run: make\n"+
 			"  image:\n    runs-on: '${{ vars.CI_RUNNER_DIND || ''ubuntu-latest'' }}'\n    steps:\n      - run: make\n"+

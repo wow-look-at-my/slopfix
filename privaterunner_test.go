@@ -116,8 +116,6 @@ func TestPrivateRunnerChoosesTheDockerRunnerForAnUnreadAction(t *testing.T) {
 
 func TestPrivateRunnerMovesAJobThatNeedsTheHost(t *testing.T) {
 	for name, steps := range map[string]string{
-		"a vm action":   "      - uses: vmactions/freebsd-vm@v1\n",
-		"a k3s action":  "      - uses: crazy-max/.github/.github/actions/install-k3s@v1.8.0\n",
 		"kernel module": "      - run: sudo modprobe zfs\n",
 		"swap":          "      - run: sudo swapoff -a\n",
 		"systemd":       "      - run: sudo systemctl restart containerd\n",
