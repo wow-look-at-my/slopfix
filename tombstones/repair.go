@@ -348,6 +348,15 @@ func repairFile(f *fixer.File) {
 		blocks = AddedBlocks(path, added)
 	}
 
+	// A dead name that a defined identifier replaces is renamed, so its sentence stays.
+	if dead := DeadReferents(path, added, blocks); len(dead) > 0 {
+		if renamed := f.ApplyComments(renameEdits(path, added, blocks, dead)); len(renamed.Applied) > 0 {
+			f.Rewrote(len(renamed.Applied))
+			added = f.Text()
+			blocks = AddedBlocks(path, added)
+		}
+	}
+
 	hits := Find(blocks, maxLines)
 	for _, name := range DeadReferents(path, added, blocks) {
 		hits = append(hits, HitForName(blocks, name))
@@ -523,16 +532,30 @@ func cutReferents(f *fixer.File, path string) {
 	text := f.Text()
 	blocks := AddedBlocks(path, text)
 	lines := strings.Split(text, "\n")
-	starts := make([]int, len(lines))
-	for i, at := 1, 0; i < len(lines); i++ {
-		at += len(lines[i-1]) + 1
-		starts[i] = at
-	}
+	starts := lineStarts(lines)
 	var edits []edit.Edit
+	// One edit per block, so no edits overlap. The next pass of the fixer cuts a second name.
+	cutBlocks := set.New[int]()
 	for _, name := range DeadReferents(path, text, blocks) {
 		h := HitForName(blocks, name)
 		if h.LineNo < 0 || h.LineNo >= len(lines) {
 			continue
+		}
+		if i := blockHolding(blocks, h.LineNo); i >= 0 && !IsDocument(path) {
+			if cutBlocks.Contains(i) {
+				continue
+			}
+			// A sentence that runs over several lines goes whole, and the lines around it stay.
+			if from, to, ok := pureSpan(blocks[i], len(lines)); ok {
+				if short, cut := commentfix.CutSentence(lines[from:to+1], name); cut {
+					cutBlocks.Add(i)
+					e := edit.Lines(text, from, to, 0, short)
+					e.Cut = []string{name}
+					edits = append(edits, e)
+					continue
+				}
+			}
+			cutBlocks.Add(i)
 		}
 		openers := commentOpeners
 		if IsDocument(path) {
@@ -548,6 +571,17 @@ func cutReferents(f *fixer.File, path string) {
 	for _, name := range DeadReferents(path, f.Text(), after) {
 		f.Note(onLine(HitForName(after, name)))
 	}
+}
+
+// blockHolding answers the index of the block that holds line lineNo, or a
+// negative index when no block does.
+func blockHolding(blocks []Block, lineNo int) int {
+	for i, b := range blocks {
+		if slices.Contains(b.LineNos, lineNo) {
+			return i
+		}
+	}
+	return -1
 }
 
 // onLine answers a dead-name hit as a finding reports it: HitForName counts its
