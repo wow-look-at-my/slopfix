@@ -12,7 +12,7 @@ func init() {
 		Autofix:  autofixPassive,
 		Cases: []RuleCase{
 			{Name: ste.IDPassive, Path: "w.md", Text: "The task is started by the gate.\n"},
-			// An opening adverb keeps its place, and a verb the table does not list keeps its e.
+			// dats docs/cli.md: an opening adverb keeps its place, and a verb the table does not list keeps its e.
 			{Name: ste.IDPassive + " after an opening adverb", Path: "w.md", Text: "Otherwise the runs are separated by a dashed line.\n"},
 		},
 	})

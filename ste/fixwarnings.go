@@ -442,22 +442,15 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	last := lastContent(s)
 	noun := func(k int) bool {
 		w := s.Words[k]
-		first, _ := utf8.DecodeRuneInString(w.Text)
-		// A possessive noun opens the noun phrase after it, as "Homebrew's" opens "Homebrew's llvm", so no run reaches it.
-		possessive := k+1 < len(s.Words) && s.Words[k+1].Tag == "POS"
-		return strings.HasPrefix(w.Tag, "NN") && unicode.IsLetter(first) && !possessive && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
+		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
 			!strings.ContainsAny(w.Text, "()[]{}`\"")
-	}
-	// A run is nouns with only blanks between them. A mark such as "+" or "/" joins multiple runs and is no noun of either.
-	adjoins := func(k int) bool {
-		return strings.TrimSpace(s.Text[s.Words[k].End:s.Words[k+1].Start]) == ""
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
 			continue
 		}
 		end := start
-		for end+1 <= last && noun(end+1) && adjoins(end) {
+		for end+1 <= last && noun(end+1) {
 			end++
 		}
 		if end-start+1 > NounClusterCap {
@@ -476,6 +469,12 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 	start, end, ok := clusterAt(s, off)
 	if !ok {
 		return "", false
+	}
+	if out, ok := conjoinMark(s, source, start, end); ok {
+		return out, true
+	}
+	if out, ok := ownerAfter(s, source, start, end); ok {
+		return out, true
 	}
 	var out strings.Builder
 	last := end
