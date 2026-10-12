@@ -32,7 +32,7 @@ func find(t *testing.T, name string) *cobra.Command {
 
 // The binary carries commands. Cobra adds completion and help itself when it
 // executes, so those below are every command this package registers.
-func TestTheOnlyCommandsAreCheckHookAndLsp(t *testing.T) {
+func TestTheOnlyCommandsAreCheckHookLspAndRatchet(t *testing.T) {
 	var names []string
 	for _, c := range rootCmd.Commands() {
 		if c.Name() != "completion" && c.Name() != "help" {
@@ -40,7 +40,7 @@ func TestTheOnlyCommandsAreCheckHookAndLsp(t *testing.T) {
 		}
 	}
 	slices.Sort(names)
-	assert.Equal(t, []string{"check", "hook", "lsp"}, names)
+	assert.Equal(t, []string{"check", "hook", "lsp", "ratchet"}, names)
 }
 
 // guarded runs hook with only the named guards, the way --only selects them.

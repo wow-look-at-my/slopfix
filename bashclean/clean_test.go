@@ -8,10 +8,10 @@ import (
 
 func TestTransformCoreRules(t *testing.T) {
 	cases := []struct{ in, want string }{
-		{"rm -rf build", "set -o pipefail\nrecycler trash build\n"},
-		{"docker compose restart api", "set -o pipefail\ndocker compose up -d --force-recreate api\n"},
-		{"gh run view 123 --log-failed", "set -o pipefail\ngh wait-ci log 123 --failed\n"},
-		{"sleep 30", "set -o pipefail\nsleep 3\n"},
+		{"rm -rf build", "recycler trash build\n"},
+		{"docker compose restart api", "docker compose up -d --force-recreate api\n"},
+		{"gh run view 123 --log-failed", "gh wait-ci log 123 --failed\n"},
+		{"sleep 30", "sleep 3\n"},
 	}
 	for _, tc := range cases {
 		got := Transform(tc.in)

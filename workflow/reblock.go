@@ -9,7 +9,7 @@ import (
 )
 
 // reblock writes the whole on: value again in block style, with branchFilter
-// under push. It serves the shapes a row edit cannot reach, such as `push: {}`.
+// under push. It serves the shapes a line edit cannot reach, such as `push: {}`.
 func reblock(content string) []edit.Edit {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
@@ -31,18 +31,18 @@ func reblock(content string) []edit.Edit {
 	if err := enc.Encode(wrapper); err != nil || enc.Close() != nil {
 		return nil
 	}
-	rows := lines(content)
-	row := rows[key.Line-1]
-	indent := row[:key.Column-1]
+	fileLines := lines(content)
+	keyLine := fileLines[key.Line-1]
+	indent := keyLine[:key.Column-1]
 	var out []string
 	for _, line := range strings.Split(strings.TrimRight(buf.String(), "\n"), "\n") {
 		out = append(out, indent+line)
 	}
 	// The key keeps the spelling it had, quotes included.
-	if colon := strings.Index(row[key.Column-1:], ":"); colon > 0 && len(out) > 0 {
-		out[0] = row[:key.Column-1+colon+1]
+	if colon := strings.Index(keyLine[key.Column-1:], ":"); colon > 0 && len(out) > 0 {
+		out[0] = keyLine[:key.Column-1+colon+1]
 	}
-	return []edit.Edit{rewrite(content, key.Line-1, lastTriggerRow(rows, root, key), out)}
+	return []edit.Edit{rewrite(content, key.Line-1, lastTriggerLine(fileLines, root, key), out)}
 }
 
 // blockEvents answers the trigger as a block mapping of events, push filtered.
@@ -95,17 +95,17 @@ func filtered(push *yaml.Node) *yaml.Node {
 	return &out
 }
 
-// lastTriggerRow answers the last row the on: value covers. The row before the
-// next top-level key, less the blank and comment rows that close the gap.
-func lastTriggerRow(rows []string, root, key *yaml.Node) int {
-	end := len(rows) - 1
+// lastTriggerLine answers the last line the on: value covers. The line before the
+// next top-level key, less the blank and comment lines that close the gap.
+func lastTriggerLine(fileLines []string, root, key *yaml.Node) int {
+	end := len(fileLines) - 1
 	for i := 0; i+1 < len(root.Content); i += 2 {
 		if root.Content[i] == key && i+2 < len(root.Content) {
 			end = root.Content[i+2].Line - 2
 		}
 	}
 	for end > key.Line-1 {
-		trimmed := strings.TrimSpace(rows[end])
+		trimmed := strings.TrimSpace(fileLines[end])
 		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
 			break
 		}
