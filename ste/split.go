@@ -301,6 +301,25 @@ func divisions(s *syntax.Sentence, source string) []division {
 		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {
 			continue
 		}
+		// "X must default to denied, never inherit Y": a bare verb after a comma shares the main clause's subject and modal, so both are named again rather than read as a command.
+		if c.Verb != nil && c.Verb.Imperative && c.Subject == nil && main.Verb != nil && !main.Verb.Imperative && main.Subject != nil {
+			opener := "It"
+			if s.Plural(*main.Subject) {
+				opener = "They"
+			}
+			for i := main.Verb.First; i <= main.Verb.Last; i++ {
+				if s.Words[i].Tag == "MD" {
+					opener += " " + s.Words[i].Lower()
+					break
+				}
+			}
+			out = append(out, division{
+				leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
+				rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
+				opener:     opener,
+			})
+			continue
+		}
 		opener, ok := openerFor(s, c, main, source)
 		if !ok {
 			if objectRelative(s, c) {
