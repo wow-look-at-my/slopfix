@@ -281,7 +281,7 @@ func fixText(req Request) Repair {
 		if !wants(RuleWorkflow) {
 			break
 		}
-		for _, finding := range workflow.Check(text) {
+		for _, finding := range workflow.CheckPath(req.Path, text) {
 			if keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
 			}

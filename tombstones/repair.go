@@ -188,10 +188,12 @@ func reflowStripped(path, text string, losing set.Set[int], was int) []edit.Edit
 }
 
 // stripEdits deletes the dropped lines, a run of adjoining lines as a single
-// edit so no edits share a line end.
+// edit so no edits share a line end. A block comment that reaches past the run
+// keeps the opener or closer the run held, so the comment stays closed.
 func stripEdits(text string, drop set.Set[int]) []edit.Edit {
 	var edits []edit.Edit
-	total := strings.Count(text, "\n") + 1
+	lines := strings.Split(text, "\n")
+	total := len(lines)
 	for line := 0; line < total; line++ {
 		if !drop.Contains(line) {
 			continue
@@ -200,10 +202,48 @@ func stripEdits(text string, drop set.Set[int]) []edit.Edit {
 		for end+1 < total && drop.Contains(end+1) {
 			end++
 		}
-		edits = append(edits, edit.Lines(text, line, end, 0, nil))
+		edits = append(edits, edit.Lines(text, line, end, 0, delimitersKept(lines[line:end+1])))
 		line = end
 	}
 	return edits
+}
+
+// delimitersKept answers the lines a strip of run leaves. The closer of a block
+// comment that opened above the run, and the opener of one that closes below
+// it. Each on a line of its own at the indentation it had.
+func delimitersKept(run []string) []string {
+	var kept []string
+	open := -1
+	for i, line := range run {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "--") {
+			continue
+		}
+		opens := strings.HasPrefix(trimmed, "/*") && !strings.Contains(trimmed[2:], "*/")
+		closes := strings.HasSuffix(trimmed, "*/") && !strings.Contains(trimmed, "/*")
+		switch {
+		case closes && open >= 0:
+			open = -1
+		case closes:
+			kept = append(kept, indentOf(line)+"*/")
+		case opens:
+			open = i
+		}
+	}
+	if open >= 0 {
+		trimmed := strings.TrimSpace(run[open])
+		opener := "/*"
+		if strings.HasPrefix(trimmed, "/**") {
+			opener = "/**"
+		}
+		kept = append(kept, indentOf(run[open])+opener)
+	}
+	return kept
+}
+
+// indentOf answers the blanks that open line.
+func indentOf(line string) string {
+	return line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 }
 
 // Fix scans the text a write adds to path and strips what it safely can.
@@ -306,6 +346,15 @@ func repairFile(f *fixer.File) {
 		f.RemovedOnce("comment prose past the volume cap")
 		added = f.Text()
 		blocks = AddedBlocks(path, added)
+	}
+
+	// A dead name that a defined identifier replaces is renamed, so its sentence stays.
+	if dead := DeadReferents(path, added, blocks); len(dead) > 0 {
+		if renamed := f.ApplyComments(renameEdits(path, added, blocks, dead)); len(renamed.Applied) > 0 {
+			f.Rewrote(len(renamed.Applied))
+			added = f.Text()
+			blocks = AddedBlocks(path, added)
+		}
 	}
 
 	hits := Find(blocks, maxLines)
@@ -477,96 +526,6 @@ func phraseHits(text string, blocks []Block) []Hit {
 	return hits
 }
 
-// cutReferents cuts the sentence around each dead name a whole-line strip left,
-// and notes every name it could not cut.
-func cutReferents(f *fixer.File, path string) {
-	text := f.Text()
-	blocks := AddedBlocks(path, text)
-	lines := strings.Split(text, "\n")
-	starts := make([]int, len(lines))
-	for i, at := 1, 0; i < len(lines); i++ {
-		at += len(lines[i-1]) + 1
-		starts[i] = at
-	}
-	var edits []edit.Edit
-	for _, name := range DeadReferents(path, text, blocks) {
-		h := HitForName(blocks, name)
-		if h.LineNo < 0 || h.LineNo >= len(lines) {
-			continue
-		}
-		openers := commentOpeners
-		if IsDocument(path) {
-			openers = nil
-		}
-		if from, to, ok := sentenceAround(lines[h.LineNo], name, openers); ok {
-			at := starts[h.LineNo]
-			edits = append(edits, edit.Edit{Start: at + from, End: at + to, Cut: []string{strings.TrimSpace(lines[h.LineNo][from:to])}})
-		}
-	}
-	f.ApplyComments(edits)
-	after := AddedBlocks(path, f.Text())
-	for _, name := range DeadReferents(path, f.Text(), after) {
-		f.Note(onLine(HitForName(after, name)))
-	}
-}
-
-// onLine answers a dead-name hit as a finding reports it: HitForName counts its
-// line from zero, and a finding counts lines from one.
-func onLine(h Hit) Hit {
-	if h.LineNo >= 0 {
-		h.LineNo++
-	}
-	return h
-}
-
-// commentOpeners start the prose of a line. A sentence never reaches back past one.
-var commentOpeners = []string{"//", "/*", "#", "--", "* "}
-
-// sentenceAround answers the byte span of the sentence in line that holds
-// name, with the blank in front of it. The span never reaches back past a
-// comment marker, so the code on the line stays.
-func sentenceAround(line, name string, openers []string) (int, int, bool) {
-	at := strings.LastIndex(line, name)
-	if at < 0 {
-		return 0, 0, false
-	}
-	floor, marker := 0, 0
-	for _, opener := range openers {
-		if i := strings.LastIndex(line[:at], opener); i >= 0 && i+len(opener) > floor {
-			floor, marker = i+len(opener), i
-		}
-	}
-	from := floor
-	if i := strings.LastIndex(line[floor:at], ". "); i >= 0 {
-		from = floor + i + 1
-	}
-	to := len(line)
-	if i := strings.Index(line[at:], ". "); i >= 0 {
-		to = at + i + 1
-	} else if i := strings.Index(line[at:], "*/"); i >= 0 {
-		to = at + i
-	}
-	for to < len(line) && line[to] == '.' {
-		to++
-	}
-	rest := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line[to:]), "*/"))
-	switch {
-	case from > floor:
-		// The period that ends the sentence before stays, and the blank after it goes.
-		for from < at && line[from] == ' ' {
-			from++
-		}
-		from--
-	case rest == "" && floor > 0:
-		// The sentence is the whole comment, so the comment goes, marker and all.
-		from, to = len(strings.TrimRight(line[:marker], " \t")), len(line)
-	default:
-		for to < len(line) && line[to] == ' ' {
-			to++
-		}
-	}
-	return from, to, from < to
-}
 
 // endsOnSentence reports whether the last line of block b that a cut keeps ends
 // a sentence.

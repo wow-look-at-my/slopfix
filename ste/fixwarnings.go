@@ -65,7 +65,7 @@ func widenDictionary(prose string) string {
 		out.WriteString(prose[last:loc[0]])
 		last = loc[1]
 		word := prose[loc[0]:loc[1]]
-		if from, to := loc[0], loc[1]; from > 0 && isIdentByte(prose[from-1]) || to < len(prose) && isIdentByte(prose[to]) {
+		if inName(prose, loc[0], loc[1]) {
 			out.WriteString(word)
 			continue
 		}
