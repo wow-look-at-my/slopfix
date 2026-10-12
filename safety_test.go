@@ -20,6 +20,33 @@ func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
 	assert.Contains(t, out, "no other thread writes through it", "the invariant clause was deleted:\n%s", out)
 }
 
+// A Rust doc block of sglang's tool_parser.rs. The bare `///` lines are
+// paragraph breaks and `# Safety` is a heading, so neither joins the prose
+// around it. One fix reaches a fixed point.
+func TestARustDocHeadingAndItsBreaksStay(t *testing.T) {
+	src := "/// Reset the parser state for reuse\n" +
+		"///\n" +
+		"/// # Safety\n" +
+		"/// `handle` must be live; `text` must be NUL-terminated UTF-8; `result_json_out`\n" +
+		"/// must be writable and its buffer freed with `sgl_free_string`.\n" +
+		"#[no_mangle]\n" +
+		"pub unsafe extern \"C\" fn sgl_tool_parser_reset(handle: *mut ToolParserHandle) {\n" +
+		"    if handle.is_null() {\n" +
+		"        return;\n" +
+		"    }\n" +
+		"    let handle_ref = &mut *handle;\n" +
+		"    handle_ref.a.clear();\n" +
+		"    handle_ref.b.clear();\n" +
+		"    handle_ref.c.clear();\n" +
+		"    handle_ref.d.clear();\n" +
+		"}\n"
+	once := slopfix.Fix(slopfix.Request{Content: src, Path: "src/tool_parser.rs", MaxCommentLines: 14}).Text
+	twice := slopfix.Fix(slopfix.Request{Content: once, Path: "src/tool_parser.rs", MaxCommentLines: 14}).Text
+	assert.Equal(t, once, twice, "a second fix changed the text")
+	assert.Contains(t, once, "/// Reset the parser state for reuse\n///\n/// # Safety\n", once)
+	assert.NotContains(t, once, "reuse # Safety", once)
+}
+
 // The sentence split that invented a fragment. The tail became a sentence of
 // its own with a pronoun subject it never had: "It while this function runs."
 func TestALongDocSentenceDoesNotSplitIntoAFragment(t *testing.T) {

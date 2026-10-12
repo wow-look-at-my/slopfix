@@ -20,6 +20,11 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 		return nil, false
 	}
 	for _, para := range paragraphs(text) {
+		// A heading such as "# Safety" is not the comment's sentence, and the
+		// claim under it is the section's whole content.
+		if para.opensSection() {
+			return nil, false
+		}
 		if para.blank || para.verbatim {
 			continue
 		}

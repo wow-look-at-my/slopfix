@@ -111,7 +111,8 @@ func segmentsOf(lines []string, p para) []segment {
 	prev := ""
 	for n, i := range p.lines {
 		prose := lineProse(lines[i], p, n)
-		if prose == "" {
+		// A heading is a title, not a sentence, so it stands apart from the prose on either side.
+		if prose == "" || isHeadingLine(lines[i]) {
 			current = nil
 			continue
 		}

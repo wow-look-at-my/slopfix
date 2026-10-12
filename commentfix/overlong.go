@@ -395,6 +395,10 @@ func clauseFit(b block) ([]string, bool) {
 	// The cut stays inside the first paragraph. Joined across a paragraph break or a list, the prose only looks shorter.
 	var body []string
 	for _, para := range paragraphs(prose(b.text)) {
+		// The prose under a heading is the section's whole content, so no clause of it is cut.
+		if para.opensSection() {
+			return nil, false
+		}
 		if para.blank || para.verbatim {
 			continue
 		}
@@ -404,7 +408,8 @@ func clauseFit(b block) ([]string, bool) {
 		body = para.lines
 		break
 	}
-	text := unwrapAside(strings.Join(strings.Fields(strings.Join(body, " ")), " "))
+	// A line that ends a thought with no stop gets one, so a cut keeps whole sentences.
+	text := unwrapAside(strings.Join(strings.Fields(closeThoughts(body)), " "))
 	for _, cut := range clauseCuts(text) {
 		kept := strings.TrimRight(text[:cut], " ,;:-—–")
 		words := strings.Fields(kept)
@@ -675,7 +680,7 @@ func dropParagraph(text []string) ([]string, bool) {
 // comment block spells a paragraph break.
 func isBlankComment(line string) bool {
 	t := strings.TrimSpace(line)
-	for _, marker := range []string{"//!", "//", "#", "*"} {
+	for _, marker := range []string{"///", "//!", "//", "#", "*"} {
 		if t == marker {
 			return true
 		}
