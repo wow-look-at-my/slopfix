@@ -6,6 +6,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/codespan"
 )
 
@@ -35,24 +36,21 @@ func inlineNodes(content string) (nodes []string, stray int) {
 }
 
 // spansKept reports whether every code span and link of after stands in
-// before, byte for byte and in the same order. A repair may cut a span with
-// the sentence that holds it. It never writes one, splits one, or leaves a
-// stray backtick before did not hold.
+// before, byte for byte. A repair may cut a span with the sentence that holds
+// it, or name one again when it restates a noun. It never writes a span the
+// text did not hold, splits one, or leaves a stray backtick before did not hold.
 func spansKept(before, after string) bool {
 	was, wasStray := inlineNodes(before)
 	now, nowStray := inlineNodes(after)
 	if nowStray > wasStray {
 		return false
 	}
-	i := 0
+	held := set.New[string]()
+	held.AddRange(was...)
 	for _, n := range now {
-		for i < len(was) && was[i] != n {
-			i++
-		}
-		if i == len(was) {
+		if !held.Contains(n) {
 			return false
 		}
-		i++
 	}
 	return true
 }

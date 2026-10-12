@@ -363,15 +363,20 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	last := lastContent(s)
 	noun := func(k int) bool {
 		w := s.Words[k]
-		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
+		first, _ := utf8.DecodeRuneInString(w.Text)
+		return strings.HasPrefix(w.Tag, "NN") && unicode.IsLetter(first) && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
 			!strings.ContainsAny(w.Text, "()[]{}`\"")
+	}
+	// A run is nouns with only blanks between them. A mark such as "+" or "/" joins multiple runs and is no noun of either.
+	adjoins := func(k int) bool {
+		return strings.TrimSpace(s.Text[s.Words[k].End:s.Words[k+1].Start]) == ""
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
 			continue
 		}
 		end := start
-		for end+1 <= last && noun(end+1) {
+		for end+1 <= last && noun(end+1) && adjoins(end) {
 			end++
 		}
 		if end-start+1 > NounClusterCap {
