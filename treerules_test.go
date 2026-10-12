@@ -89,6 +89,9 @@ func TestABuildOutputInATreeAnotherUserOwnsIsNotReported(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "build"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "build", "tool"), []byte(elf), 0o755))
 	t.Setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+	// A runner's own config can trust every directory, which hides the refusal.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	refused, err := exec.Command("git", "-C", root, "ls-files").CombinedOutput()
 	require.Error(t, err, "the fixture must make a bare git refuse the tree")
 	require.Contains(t, string(refused), "dubious ownership")
