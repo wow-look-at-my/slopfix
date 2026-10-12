@@ -2,6 +2,7 @@ package autoallow
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -243,16 +244,16 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 
 	// Check requireFlagValue
 	if node.RequireFlagValue != nil {
-		value := getFlagValue(args, node.RequireFlagValue.Flags)
-		if value == "" {
-			value = node.RequireFlagValue.Default
+		values := getFlagValues(args, node.RequireFlagValue.Flags)
+		if len(values) == 0 {
+			values = []string{node.RequireFlagValue.Default}
 		}
-		for _, allowed := range node.RequireFlagValue.Allowed {
-			if value == allowed {
-				return "allow", ""
+		for _, value := range values {
+			if !slices.Contains(node.RequireFlagValue.Allowed, value) {
+				return "", ""
 			}
 		}
-		return "", ""
+		return "allow", ""
 	}
 
 	// Strip own flags (that take values) before subcommand matching
@@ -388,17 +389,25 @@ func stripFlagsWithValue(args []string, flags []string) []string {
 	return result
 }
 
-func getFlagValue(args []string, flags []string) string {
+// getFlagValues returns the value after every occurrence of any of flags. A
+// flag given as the last word, with no value after it, yields an empty value.
+func getFlagValues(args []string, flags []string) []string {
 	flagSet := set.New[string]()
 	for _, f := range flags {
 		flagSet.Add(f)
 	}
+	var values []string
 	for i, arg := range args {
-		if flagSet.Contains(arg) && i+1 < len(args) {
-			return args[i+1]
+		if !flagSet.Contains(arg) {
+			continue
+		}
+		if i+1 < len(args) {
+			values = append(values, args[i+1])
+		} else {
+			values = append(values, "")
 		}
 	}
-	return ""
+	return values
 }
 
 func splitFlagsAndArgs(args []string) (flags, positionals []string) {
