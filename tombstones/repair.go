@@ -327,11 +327,7 @@ func repairFile(f *fixer.File) {
 			}
 		}
 	case missed:
-<<<<<<< HEAD
-		// A scope can hold some lines of a block and not others. A phrase the block rewrite missed is cut by an edit of its own line.
-=======
 		// A scope can hold some lines of a block and not others. A phrase the block rewrite missed is cut a line at a time.
->>>>>>> origin/master
 		now := f.Text()
 		cuts, took := phraseCuts(now, AddedBlocks(path, now))
 		for _, e := range f.ApplyComments(cuts).Applied {
@@ -463,93 +459,6 @@ func cutTombstones(s string) (string, int) {
 	total := 0
 	for _, p := range english.Patterns() {
 		if !ids.Contains(p.ID) || !english.AppliesTo(p.Where, english.Comment) {
-<<<<<<< HEAD
-			continue
-		}
-		var took int
-		s, took = p.ApplyN(s)
-		total += took
-	}
-	return s, total
-}
-
-// commentLines calls visit with the zero-based number and text of every
-// comment line in blocks. A line shared with code is skipped, and so is a
-// directive.
-func commentLines(text string, blocks []Block, visit func(lineNo int, line string)) {
-	lines := strings.Split(text, "\n")
-	for _, b := range blocks {
-		for i, lineNo := range b.LineNos {
-			if i >= len(b.Pure) || !b.Pure[i] || lineNo < 0 || lineNo >= len(lines) || treecomments.IsDirective(lines[lineNo]) {
-				continue
-			}
-			visit(lineNo, lines[lineNo])
-		}
-	}
-}
-
-// phraseCuts answers an edit for each comment line that still holds a
-// tombstone phrase. The edit cuts that phrase and nothing else, and spans that
-// line alone. It also answers how many cuts each edit took.
-func phraseCuts(text string, blocks []Block) ([]edit.Edit, map[int]int) {
-	took := map[int]int{}
-	var edits []edit.Edit
-	commentLines(text, blocks, func(lineNo int, line string) {
-		short, n, ok := commentfix.RewriteLineProse(line, cutTombstones)
-		if !ok {
-			return
-		}
-		e := edit.Rows(text, lineNo, lineNo, 0, short)
-		edits = append(edits, e)
-		took[e.Start] = n
-	})
-	return edits, took
-}
-
-// phraseHits answers a hit on each comment line where a wording rule still
-// finds its phrase.
-func phraseHits(text string, blocks []Block) []Hit {
-	ids := AllIDs()
-	var hits []Hit
-	commentLines(text, blocks, func(lineNo int, line string) {
-		seen := set.New[string]()
-		for _, p := range english.Patterns() {
-			if !ids.Contains(p.ID) || seen.Contains(p.ID) || !english.AppliesTo(p.Where, english.Comment) {
-				continue
-			}
-			if _, n, ok := commentfix.RewriteLineProse(line, p.ApplyN); !ok || n == 0 {
-				continue
-			}
-			seen.Add(p.ID)
-			hits = append(hits, Hit{
-				ID:     p.ID,
-				Tell:   "a phrase about a state the code has left",
-				Phrase: strings.TrimSpace(line),
-				Line:   line,
-				LineNo: lineNo + 1,
-			})
-		}
-	})
-	return hits
-}
-
-// cutReferents cuts the sentence around each dead name a whole-line strip left,
-// and notes every name it could not cut.
-func cutReferents(f *fixer.File, path string) {
-	text := f.Text()
-	blocks := AddedBlocks(path, text)
-	lines := strings.Split(text, "\n")
-	starts := make([]int, len(lines))
-	for i, at := 1, 0; i < len(lines); i++ {
-		at += len(lines[i-1]) + 1
-		starts[i] = at
-	}
-	var edits []edit.Edit
-	for _, name := range DeadReferents(path, text, blocks) {
-		h := HitForName(blocks, name)
-		if h.LineNo < 0 || h.LineNo >= len(lines) {
-=======
->>>>>>> origin/master
 			continue
 		}
 		var took int
