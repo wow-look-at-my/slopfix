@@ -8,9 +8,9 @@ import (
 	"unicode/utf8"
 )
 
-// Fix applies the repair Check names, for every rule.
+// Fix applies the repair Check names, for every rule Check reports.
 func Fix(text string) string {
-	return FixSelected(text, func(string) bool { return true })
+	return FixSelected(text, func(id string) bool { return !WarningIDs.Contains(id) })
 }
 
 // FixSelected applies the repairs whose ID keep accepts, so a caller that names
@@ -22,7 +22,7 @@ func FixSelected(text string, keep func(id string) bool) string {
 // FixKeepingOpening is Fix, with a division that keeps each sentence's
 // opening words as its first sentence.
 func FixKeepingOpening(text string) string {
-	return fixSelected(text, func(string) bool { return true }, false)
+	return fixSelected(text, func(id string) bool { return !WarningIDs.Contains(id) }, false)
 }
 
 // fixSelected runs the cap repair over the whole text rather than inside
@@ -41,7 +41,7 @@ func fixSelected(text string, keep func(id string) bool, reorder bool) string {
 	if keep(IDSentenceCap) {
 		text = fixSentenceCap(text, capSpec{reorder: reorder, cap: SentenceWordCap})
 	}
-	return text
+	return fixWarnings(text, keep, reorder)
 }
 
 // capSpec is how a long sentence divides. It holds the word cap each part
@@ -94,7 +94,18 @@ func fixProse(text string, repair func(string) string) string {
 // fixWords writes the approved word for each banned word, and keeps the
 // capitalization the source used.
 func fixWords(prose string, keep func(id string) bool) string {
-	return wordPattern.ReplaceAllStringFunc(prose, func(word string) string {
+	locs := wordPattern.FindAllStringIndex(prose, -1)
+	var out strings.Builder
+	last := 0
+	for _, loc := range locs {
+		out.WriteString(prose[last:loc[0]])
+		last = loc[1]
+		word := prose[loc[0]:loc[1]]
+		// A name such as should_hold contains a modal but is not one.
+		if from, to := loc[0], loc[1]; from > 0 && isIdentByte(prose[from-1]) || to < len(prose) && isIdentByte(prose[to]) {
+			out.WriteString(word)
+			continue
+		}
 		lower := strings.ToLower(word)
 		replacement, banned := Expand(word)
 		if banned && !keep(IDContraction) {
@@ -107,13 +118,35 @@ func fixWords(prose string, keep func(id string) bool) string {
 			}
 		}
 		if !banned {
-			return word
+			out.WriteString(word)
+			continue
 		}
 		if isCapitalized(word) {
-			return capitalize(replacement)
+			replacement = capitalize(replacement)
 		}
-		return replacement
-	})
+		out.WriteString(replacement)
+	}
+	out.WriteString(prose[last:])
+	return out.String()
+}
+
+func isIdentByte(b byte) bool { return b == '_' || b >= '0' && b <= '9' }
+
+// inName reports whether the word at prose[from:to] is part of a longer name:
+// an identifier, or a hyphenated name such as `ask-properly`. A dictionary
+// repair inside a name renames the thing.
+func inName(prose string, from, to int) bool {
+	if from > 0 && isIdentByte(prose[from-1]) || to < len(prose) && isIdentByte(prose[to]) {
+		return true
+	}
+	if from > 1 && prose[from-1] == '-' && isAlnum(prose[from-2]) {
+		return true
+	}
+	return to+1 < len(prose) && prose[to] == '-' && isAlnum(prose[to+1])
+}
+
+func isAlnum(b byte) bool {
+	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
 }
 
 // The comma is found the way checkSplices finds it, guard included, so the

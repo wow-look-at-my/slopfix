@@ -89,6 +89,7 @@
   <detect in="the proxy answers HTTP 403 here" substrate="comment" why="status code"/>
   <detect in="the loader exits 121 from a read-only path" substrate="comment" why="exit status"/>
   <detect in="it fails with status 2 and says why" substrate="comment" why="exit word"/>
+  <detect in="a stop runs so exit code 2 parses as a block" substrate="comment" why="exit code"/>
   <detect in="CLAUDECODE=1 guarantees the guard fires" substrate="comment" why="assigned"/>
   <detect in="the parser treats &quot;&quot; and &quot;0&quot; as unset" substrate="comment" why="quoted value"/>
   <detect in="the rule in &#xA7;7.3 governs this" substrate="comment" why="section"/>

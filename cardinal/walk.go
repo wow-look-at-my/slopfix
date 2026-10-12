@@ -79,14 +79,24 @@ var singularVerbs = set.Of("is", "was", "has", "does", "fits", "equals")
 // exitStatusPrefixes name the digits after them as a status.
 var exitStatusPrefixes = set.Of("exit", "exits", "exited", "status", "errno", "signal")
 
+// statusNouns carry a status prefix toward its digits, as in "exit code 2".
+var statusNouns = set.Of("code", "codes")
+
 // ExitStatus exempts the digits of an exit status. The rule reports a count of
 // what exists today, because the edit that adds an item leaves the count wrong.
-// A status is a VALUE the program answers with, and no edit moves it.
+// A status is a VALUE the program answers with, and no edit moves it. A noun
+// between the status word and the digits, as in "exit code 2", is part of the
+// same phrase rather than a label the digits name.
 func ExitStatus(_ string, toks []Token, i int) bool {
 	if i == 0 || !allDigits(strings.Trim(toks[i].Text, nameMarkers)) {
 		return false
 	}
-	return exitStatusPrefixes.Contains(strings.ToLower(strings.Trim(toks[i-1].Text, nameMarkers)))
+	prev := strings.ToLower(strings.Trim(toks[i-1].Text, nameMarkers))
+	if exitStatusPrefixes.Contains(prev) {
+		return true
+	}
+	return i >= 2 && statusNouns.Contains(prev) &&
+		exitStatusPrefixes.Contains(strings.ToLower(strings.Trim(toks[i-2].Text, nameMarkers)))
 }
 
 // allDigits reports whether text is a bare run of digits.

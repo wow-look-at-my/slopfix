@@ -28,9 +28,6 @@ import (
 // IDLength names this rule, on a report and on the command line alike.
 const IDLength = "comments/length"
 
-// FixLengthByHand is the Fix of a block that no cut fits on a whole sentence.
-const FixLengthByHand = "Rewrite it by hand: shorten the opening sentence, or say less. No cut leaves a whole sentence."
-
 // floorChars is the size a comment may always be, whatever it documents.
 const floorChars = 120
 
@@ -62,7 +59,9 @@ type block struct {
 	header bool
 }
 
-// Check reports every comment block in src that outweighs its code.
+// Check reports every comment block in src that outweighs its code and that
+// the repair brings inside its budget. A block no cut fits keeps its opening
+// sentence whole, so no repair answers it and no finding names it.
 func CheckLength(filename, src string) []LengthHit {
 	defer trace.Phase("rule/comments-length")()
 	var hits []LengthHit
@@ -75,13 +74,15 @@ func CheckLength(filename, src string) []LengthHit {
 			continue
 		}
 		fixed := repair(b)
-		_, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars})
+		if _, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars}); stillOver || !b.exact || sameText(fixed, b.text) {
+			continue
+		}
 		hits = append(hits, LengthHit{
 			ID:         IDLength,
 			Tell:       tell,
 			Sentence:   opening(b.text),
 			Line:       b.start + 1,
-			Repairable: b.exact && !sameText(fixed, b.text) && !stillOver,
+			Repairable: true,
 		})
 	}
 	return hits
@@ -116,7 +117,7 @@ func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 				continue
 			}
 			if kept := capLines(b, maxLines); !sameText(kept, b.text) {
-				edits = append(edits, edit.Rows(src, b.start, b.end-1, 0, kept))
+				edits = append(edits, edit.Lines(src, b.start, b.end-1, 0, kept))
 			}
 			continue
 		}
@@ -137,7 +138,7 @@ func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 		if sameText(kept, b.text) {
 			continue
 		}
-		edits = append(edits, edit.Rows(src, b.start, b.end-1, 0, kept))
+		edits = append(edits, edit.Lines(src, b.start, b.end-1, 0, kept))
 	}
 	return edits
 }
@@ -365,8 +366,15 @@ func trim(b block) []string {
 		return out
 	}
 	// No cut fits, so the opening sentence divides until its first part does.
-	if shorter, ok := steOpening(kept, fit, true); ok {
+	if shorter, ok := steOpening(kept, fit, true); ok && fitsCode(shorter, b) {
 		return shorter
+	}
+	// Every cut is refused. The whole prose goes on one line: the line count is
+	// what the code beneath it weighs, and no word is dropped to reach one.
+	if wider, did := widen(kept, oneLine); did {
+		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return wider
+		}
 	}
 	return kept
 }
@@ -384,15 +392,27 @@ func clauseFit(b block) ([]string, bool) {
 	if !ok {
 		return nil, false
 	}
+	// The cut stays inside the first paragraph. Joined across a paragraph break or a list, the prose only looks shorter.
 	var body []string
-	for _, line := range prose(b.text) {
-		body = append(body, stripMarker(line))
+	for _, para := range paragraphs(prose(b.text)) {
+		if para.blank || para.verbatim {
+			continue
+		}
+		if para.list() {
+			return nil, false
+		}
+		body = para.lines
+		break
 	}
 	text := unwrapAside(strings.Join(strings.Fields(strings.Join(body, " ")), " "))
 	for _, cut := range clauseCuts(text) {
 		kept := strings.TrimRight(text[:cut], " ,;:-—–")
 		words := strings.Fields(kept)
-		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) || !closesWhole(kept) {
+		if len(words) == 0 || !balanced(kept) || dangling.Contains(strings.ToLower(words[len(words)-1])) {
+			continue
+		}
+		// A cut at a colon keeps the statement the colon elaborates.
+		if !closesWhole(kept) && !(cut < len(text) && text[cut] == ':') {
 			continue
 		}
 		if !endsSentence(kept) {

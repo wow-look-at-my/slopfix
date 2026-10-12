@@ -20,6 +20,13 @@ func capLines(b block, maxLines int) []string {
 	if strings.TrimSpace(closer) == "*/" {
 		limit--
 	}
+	// Rewrite the prose to its budget before any cut. A block the rewrite brings
+	// under the cap keeps every thought it had.
+	if len(body) > limit {
+		if fitted, ok := fitVolume(body, limit); ok {
+			body = fitted
+		}
+	}
 	for len(body) > limit {
 		next, ok := cutLastThought(body)
 		if !ok {
@@ -38,6 +45,13 @@ func capLines(b block, maxLines int) []string {
 		}, true)
 		if whole && len(opening) <= limit {
 			body = opening
+		}
+	}
+	// Every rewrite has run, so the line the cap keeps is trimmed back to its
+	// last sentence end.
+	if len(body) > limit {
+		if trimmed, ok := trimBodyToSentenceEnd(body, limit); ok {
+			body = trimmed
 		}
 	}
 	body = reclosed(body, closer)
@@ -59,6 +73,36 @@ func dropToSentenceEnd(body []string, maxLines int) []string {
 		return body[:n]
 	}
 	return body
+}
+
+// trimBodyToSentenceEnd keeps the first maxLines lines of a body. It trims the
+// last of them back to its last sentence end, keeping a closer that follows it.
+// It reports false when that line holds no sentence end.
+func trimBodyToSentenceEnd(body []string, maxLines int) ([]string, bool) {
+	if maxLines <= 0 || len(body) <= maxLines {
+		return nil, false
+	}
+	kept := append([]string{}, body[:maxLines]...)
+	trimmed, ok := trimLineToSentenceEnd(kept[maxLines-1])
+	if !ok {
+		return nil, false
+	}
+	kept[maxLines-1] = trimmed
+	return reclosed(kept, body[len(body)-1]), true
+}
+
+// trimLineToSentenceEnd removes whatever follows the last sentence end on a
+// comment line, keeping a block closer that follows it.
+func trimLineToSentenceEnd(line string) (string, bool) {
+	cut := strings.LastIndexAny(line, ".!?")
+	if cut < 0 {
+		return "", false
+	}
+	trimmed := line[:cut+1]
+	if rest := line[cut+1:]; strings.Contains(rest, "*/") {
+		trimmed += " */"
+	}
+	return trimmed, true
 }
 
 // reclosed puts back the */ a cut took with the last thought, so the code

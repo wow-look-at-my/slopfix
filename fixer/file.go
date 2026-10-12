@@ -29,10 +29,21 @@ type File struct {
 	wants    func(category string) bool
 	keeps    func(id string) bool
 
+	creates bool
+	created []Created
+
 	removed  []string
 	refused  []edit.Refused
 	rewrites int
 	notes    []any
+}
+
+// Created is a file a repair writes beside the file under repair.
+type Created struct {
+	// Path names the file the way the File's own Path names it.
+	Path string `json:"path"`
+	// Text is what the file holds.
+	Text string `json:"text"`
 }
 
 // Options are what a driver sets on a new File.
@@ -46,6 +57,8 @@ type Options struct {
 	Keeps func(id string) bool
 	// MaxCommentLines caps a comment block.
 	MaxCommentLines int
+	// Creates reports that the driver writes each file a fixer creates.
+	Creates bool
 }
 
 // Open is NewFile with the gate the kind's parser owns. A source file is
@@ -77,6 +90,7 @@ func NewFile(path, text string, o Options) *File {
 		comments:        o.Comments,
 		wants:           o.Wants,
 		keeps:           o.Keeps,
+		creates:         o.Creates,
 	}
 	if f.comments == nil {
 		f.comments = f.data
@@ -138,15 +152,29 @@ func (f *File) RemovedOnce(quote string) {
 // Note keeps a finding a fixer could not repair, for the driver to report.
 func (f *File) Note(v any) { f.notes = append(f.notes, v) }
 
+// Creates reports whether the driver writes the files a fixer creates.
+func (f *File) Creates() bool { return f.creates }
+
+// Create hands the driver a new file to write beside this. It reports false,
+// and keeps nothing, when the driver writes this file alone.
+func (f *File) Create(path, text string) bool {
+	if !f.creates {
+		return false
+	}
+	f.created = append(f.created, Created{Path: path, Text: text})
+	return true
+}
+
 // Report is what the fixers did to a File.
 type Report struct {
 	Removed  []string
 	Refused  []edit.Refused
 	Rewrites int
 	Notes    []any
+	Created  []Created
 }
 
 // Report answers what the fixers did.
 func (f *File) Report() Report {
-	return Report{Removed: f.removed, Refused: f.refused, Rewrites: f.rewrites, Notes: f.notes}
+	return Report{Removed: f.removed, Refused: f.refused, Rewrites: f.rewrites, Notes: f.notes, Created: f.created}
 }

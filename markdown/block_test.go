@@ -69,6 +69,22 @@ func TestADirectiveLineDividesTheParagraphAroundIt(t *testing.T) {
 	assert.Equal(t, "The last line wraps too.", blocks[1].Text())
 }
 
+// A CLAUDE.md lists its imports one per line. The list is no paragraph, and
+// prose around it stays prose.
+func TestAnImportListIsNotProse(t *testing.T) {
+	doc := "# Rules\n\n@CLAUDE.a.md\n@CLAUDE.b.md\n@~/notes/c.md\n\nRead them\nfirst.\n"
+	blocks := prose(doc)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Read them first.", blocks[0].Text())
+	assert.Equal(t, "# Rules\n\n@CLAUDE.a.md\n@CLAUDE.b.md\n@~/notes/c.md\n\nRead them first.\n", markdown.Format(doc))
+}
+
+func TestAnImportInsideASentenceStaysProse(t *testing.T) {
+	blocks := prose("Read @CLAUDE.a.md\nbefore you start.\n")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Read @CLAUDE.a.md before you start.", blocks[0].Text())
+}
+
 func TestATemplateTagIsNotProse(t *testing.T) {
 	doc := "- Read first.\n${%- if x %}\n- Write last.\n${%- endif %}\n{% if y %}\nThe body.\n{% endif %}\n"
 	blocks := prose(doc)
@@ -77,6 +93,23 @@ func TestATemplateTagIsNotProse(t *testing.T) {
 	assert.Equal(t, "Write last.", blocks[1].Text())
 	assert.Equal(t, "The body.", blocks[2].Text())
 	assert.Equal(t, doc, markdown.Format(doc), "no tag joins a paragraph")
+}
+
+// A custom tag cannot end a CommonMark paragraph. A closing tag on its own
+// line must not read as the next line of the prose above it.
+func TestALoneMarkupTagLineEndsTheParagraph(t *testing.T) {
+	doc := "<memory>\nTreat memory as context.\n</memory>\n\n<rules lang=\"en\">\nRead first.\n</rules>\n"
+	blocks := prose(doc)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "Treat memory as context.", blocks[0].Text())
+	assert.Equal(t, "Read first.", blocks[1].Text())
+	assert.Equal(t, doc, markdown.Format(doc), "no tag joins a paragraph")
+}
+
+func TestATagInsideAParagraphStaysProse(t *testing.T) {
+	blocks := prose("Write the <b>bold</b> word\nand go on.\n")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Write the <b>bold</b> word and go on.", blocks[0].Text())
 }
 
 func TestATableIsAGrid(t *testing.T) {

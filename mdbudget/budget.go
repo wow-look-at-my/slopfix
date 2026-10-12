@@ -74,10 +74,9 @@ func isInstructionFile(path string) bool {
 }
 
 // wideLines returns the line numbers, counting from the top, that could have
-// been wrapped and were
-// not. A rewrap of code fences, tables, indented blocks and headings changes
-// what they render as. A line whose leading widthLimit columns hold no space
-// is a single unbreakable token (a URL).
+// been wrapped and were not. A rewrap of code fences, tables, indented blocks
+// and headings changes what they render as. A line whose leading widthLimit
+// columns hold no space is a single unbreakable token (a URL).
 func wideLines(text string) []int {
 	var out []int
 	fenced := false
