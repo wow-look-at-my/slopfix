@@ -21,7 +21,6 @@ const (
 	runnerDindVar = "vars.CI_RUNNER_DIND"
 )
 
-
 // SelfHostExempt names each org repository the self-hosted fleet depends on.
 // Its CI stays on GitHub-hosted runners, so a fleet outage cannot block the fix.
 var SelfHostExempt = set.Of(

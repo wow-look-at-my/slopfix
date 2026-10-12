@@ -141,10 +141,19 @@ func (r Resolver) eventPrivate(repo string) (bool, bool) {
 }
 
 // RecordVisibility writes what the API would answer about repo into the work
-// tree at top, as this resolver records it. A fixture states its visibility this way.
+// tree at top, as this resolver records it.
 func (r Resolver) RecordVisibility(top, repo string, private bool) error {
 	rec := visibilityRecord{Repo: repo, Source: r.api(), Checked: time.Now(), Private: private}
 	return writeRecord(top, visibilityFile, rec)
+}
+
+// RecordPlain records repo in the work tree at top as a repository that is no
+// fork, together with its visibility. A fixture states what the network would answer this way.
+func (r Resolver) RecordPlain(top, repo string, private bool) error {
+	if err := store(top, record{Repo: repo, Source: r.source(), Checked: time.Now(), Kind: kindPlain}); err != nil {
+		return err
+	}
+	return r.RecordVisibility(top, repo, private)
 }
 
 // cachedVisibility answers the record in top's git common directory when it

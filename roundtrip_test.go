@@ -155,8 +155,8 @@ func roundTripFixtures() []fixture {
 			},
 		},
 		{
-			name: "private workflow",
-			path: privateWorkflowPath(),
+			name:    "private workflow",
+			path:    privateWorkflowPath(),
 			content: "name: CI\non:\n  push:\n    branches: ['**']\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n",
 			wants: []string{
 				"yaml/private-runner",

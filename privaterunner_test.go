@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -22,8 +21,6 @@ func TestPrivateRunnerLeavesAPublicRepositoryAlone(t *testing.T) {
 	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n"
 	c, err := Materialize(t.TempDir(), RuleCase{Name: "public", Path: ".github/workflows/ci.yml", Text: body, Origin: "https://github.com/wow-look-at-my/public-runner-fixture"})
 	require.NoError(t, err)
-	r := forkscope.Resolver{}
-	require.NoError(t, r.RecordVisibility(c.Root, "wow-look-at-my/public-runner-fixture", false))
 	path := filepath.Join(c.Root, ".github", "workflows", "ci.yml")
 	assert.Empty(t, only(CheckContent(path, body), workflow.IDPrivateRunner))
 }

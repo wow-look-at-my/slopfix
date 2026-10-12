@@ -12,8 +12,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/askproperly"
 	"github.com/wow-look-at-my/slopfix/blamelanguage"
 	"github.com/wow-look-at-my/slopfix/counts"
-	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -46,7 +46,7 @@ type RuleCase struct {
 	Files map[string]string
 	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
 	Origin string
-	// Private records the origin repository as private, so a rule reads that with no network request.
+	// Private is the visibility Materialize records for the origin repository.
 	Private bool
 	// Root is the directory Materialize wrote the repository under.
 	Root string
@@ -93,9 +93,10 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 			return c, fmt.Errorf("git %v in %s: %w: %s", args, dir, err, out)
 		}
 	}
-	if c.Private {
+	// A case with an origin records what the network would say about it, so no rule asks.
+	if c.Origin != "" {
 		r := forkscope.Resolver{}
-		if err := r.RecordVisibility(dir, r.RepoName(dir), true); err != nil {
+		if err := r.RecordPlain(dir, r.RepoName(dir), c.Private); err != nil {
 			return c, err
 		}
 	}
