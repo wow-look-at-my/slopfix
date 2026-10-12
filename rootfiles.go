@@ -8,6 +8,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // The root files every request loads. CharBudget caps each.
@@ -27,6 +28,7 @@ type RootResult struct {
 // SurveyRoot moves CLAUDE.md into AGENTS.md, then measures each root file
 // against CharBudget. A dry run reports the same work and changes nothing.
 func SurveyRoot(root string, dryRun bool) (*RootResult, error) {
+	defer trace.Phase("repo/survey")()
 	result := &RootResult{OverBudget: map[string]int{}}
 	agents, err := MigrateAgents(root, dryRun)
 	if err != nil {
