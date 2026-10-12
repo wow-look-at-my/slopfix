@@ -19,3 +19,6 @@
 [submodule "grammars-typescript"]
 	path = grammars/typescript/testdata/tree-sitter-typescript
 	url = https://github.com/tree-sitter/tree-sitter-typescript.git
+[submodule "spec"]
+	path = spec
+	url = ../slopfix-spec.git
