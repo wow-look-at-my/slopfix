@@ -43,6 +43,52 @@ func TestFixCutsADeadNameFromADocument(t *testing.T) {
 	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
 }
 
+// A dead name that differs from a defined one in case alone is a typo. Fix
+// renames it and keeps the line, which holds the opening sentence too.
+func TestFixRenamesACaseTypoToTheDefinedName(t *testing.T) {
+	path := deadReferentRepo(t, "os_cosmo_nt_msg.go")
+	content := "package runtime\n\n" +
+		"// ntSCMParse walks a Linux cmsg buffer. NtSCMParse collects the SCM_RIGHTS\n" +
+		"// payload fds, with the kernel's exact acceptance rules.\n" +
+		"func ntSCMParse() {}\n"
+
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.NotContains(t, fixed.Text, "NtSCMParse")
+	assert.Contains(t, fixed.Text, "// ntSCMParse walks a Linux cmsg buffer. ntSCMParse collects the SCM_RIGHTS")
+	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
+}
+
+// A doc comment whose subject is stale names the declaration below it. Fix
+// renames the subject to that declaration and keeps the comment.
+func TestFixRenamesAStaleSubjectToTheDocumentedField(t *testing.T) {
+	path := deadReferentRepo(t, "github_test.go")
+	content := "package codehost\n\n" +
+		"type fakeServer struct {\n" +
+		"\t// lastInfoRefsCredential is the Authorization of every info/refs request, in order.\n" +
+		"\tinfoRefsAuth []string\n" +
+		"}\n"
+
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.NotContains(t, fixed.Text, "lastInfoRefsCredential")
+	assert.Contains(t, fixed.Text, "\t// infoRefsAuth is the Authorization of every info/refs request")
+	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
+}
+
+// A dead name with no defined name to take its place loses its sentence alone,
+// across lines, and the sentences around it stay.
+func TestFixCutsOnlyTheSentenceThatHoldsADeadName(t *testing.T) {
+	path := deadReferentRepo(t, "walk.go")
+	content := "package p\n\n" +
+		"// readInput walks the buffer. GoneHelperName collects the payload\n" +
+		"// with the exact rules. It returns the count.\n" +
+		"func readInput() {}\n"
+
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.NotContains(t, fixed.Text, "GoneHelperName")
+	assert.Contains(t, fixed.Text, "// readInput walks the buffer. It returns the count.\n")
+	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
+}
+
 // A sentence that names a dead symbol goes whole, across every line it wraps
 // onto, and the comment keeps its other sentences.
 func TestFixCutsTheWholeSentenceThatWrapsADeadName(t *testing.T) {

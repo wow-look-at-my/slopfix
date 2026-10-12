@@ -18,6 +18,9 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
 		return "", false
 	}
+	if !simpleSpan(s, i, j) {
+		return "", false
+	}
 	// The actor is the phrase after "by", and it must close the clause.
 	by := -1
 	for k := j + 1; k < last; k++ {

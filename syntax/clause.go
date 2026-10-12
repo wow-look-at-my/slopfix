@@ -396,7 +396,46 @@ func (p *clauseParser) relativeThat(i int) bool {
 	for j < len(p.s.Words) && p.s.Words[j].Tag == "RB" {
 		j++
 	}
-	return j < len(p.s.Words) && isFinite(p.s.Words[j].Tag)
+	if j < len(p.s.Words) && isFinite(p.s.Words[j].Tag) {
+		return true
+	}
+	return p.objectRelativeAt(j)
+}
+
+// objectRelativeAt reports a relative clause with a subject of its own at j,
+// whose noun waits for the finite verb after the clause's own: "a run that a
+// later commit superseded is still the newest". No comma, conjunction or
+// subordinator stands between the clause's verb and the one the noun takes.
+func (p *clauseParser) objectRelativeAt(j int) bool {
+	if !p.subjectVerbAt(j) {
+		return false
+	}
+	own, ok := p.finiteGroupFrom(j)
+	if !ok {
+		return false
+	}
+	next, ok := p.finiteGroupFrom(own.Last + 1)
+	if !ok {
+		return false
+	}
+	for k := own.Last + 1; k < next.First; k++ {
+		w := p.s.Words[k]
+		if w.Text == "," || w.Tag == "CC" || Is(w.Lower(), "subordinator") || Is(w.Lower(), "relative") {
+			return false
+		}
+	}
+	return true
+}
+
+// finiteGroupFrom answers the first finite verb group that opens at or after word from.
+func (p *clauseParser) finiteGroupFrom(from int) (*Phrase, bool) {
+	for n := range p.s.Phrases {
+		ph := &p.s.Phrases[n]
+		if ph.Kind == VerbGroup && ph.Finite && ph.First >= from {
+			return ph, true
+		}
+	}
+	return nil, false
 }
 
 func (p *clauseParser) relative(i int) bool {

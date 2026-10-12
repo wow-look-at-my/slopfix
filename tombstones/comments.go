@@ -26,14 +26,14 @@ import (
 // Block is a comment run or a paragraph. LineNos and Pure place each line and
 // judge it, and are nil for a paragraph.
 type Block struct {
-	Text string
-	// Prose is the comment text alone, with the code that shares its lines left out. It is empty for a paragraph, whose Text is all prose.
-	Prose   string
+	Text    string
 	Lines   int
 	LineNos []int
 	Pure    []bool
 	// Prefix is the indentation and list marker that open a document paragraph. A rewrite writes it back, or the paragraph leaves its list.
 	Prefix string
+	// Prose is Text with every byte of code on a shared line blanked. A paragraph's Prose is its Text.
+	Prose string
 }
 
 // AddedBlocks returns the prose that added contributes to path. It returns nil
@@ -60,24 +60,12 @@ func AddedBlocks(path, added string) []Block {
 				pure++
 			}
 		}
-		prose := make([]string, 0, run.End-run.Start)
-		for idx, line := range lines[run.Start:run.End] {
-			span := [2]int{0, -1}
-			if idx < len(run.Spans) {
-				span = run.Spans[idx]
-			}
-			from, to := min(span[0], len(line)), span[1]
-			if to < 0 || to > len(line) {
-				to = len(line)
-			}
-			prose = append(prose, line[from:max(from, to)])
-		}
 		out = append(out, Block{
 			Text:    strings.Join(lines[run.Start:run.End], "\n"),
-			Prose:   strings.Join(prose, "\n"),
 			Lines:   pure,
 			LineNos: lineNos,
 			Pure:    run.Pure,
+			Prose:   strings.Join(run.Prose, "\n"),
 		})
 	}
 	return out
@@ -163,7 +151,13 @@ func paragraphs(doc string) []Block {
 		if b.Marker != "" {
 			prefix += b.Marker + " "
 		}
-		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos, Prefix: prefix})
+		text := strings.Join(cur, "\n")
+		// A paragraph is prose alone, so every line is pure. linePurity reads this.
+		pure := make([]bool, len(cur))
+		for i := range pure {
+			pure[i] = true
+		}
+		out = append(out, Block{Text: text, Lines: len(cur), LineNos: nos, Pure: pure, Prefix: prefix, Prose: text})
 	}
 	return out
 }

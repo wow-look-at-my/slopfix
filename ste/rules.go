@@ -361,8 +361,9 @@ func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 			end++
 		}
 		stop := end
-		// A mark that closes emphasis, a quote or a parenthetical belongs to the sentence it ends.
-		for end+1 < len(runes) && strings.ContainsRune("*_)\"'”’", runes[end+1]) {
+		// A mark that closes emphasis, a quote or a parenthetical belongs to the
+		// sentence it ends.
+		for end+1 < len(runes) && closesMark(runes[start:stop], runes[end+1]) {
 			end++
 		}
 		gap := end + 1
@@ -390,6 +391,23 @@ func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 
 func terminator(r rune) bool {
 	return r == '.' || r == '!' || r == '?'
+}
+
+// closesMark reports a mark after a terminator that closes what the sentence
+// so far opened. A `*` with no emphasis open before it is the glob of
+// `esnext.*`, and a `)` with no open parenthesis is a word.
+func closesMark(sentence []rune, mark rune) bool {
+	switch mark {
+	case ')':
+		return strings.Count(string(sentence), "(") > strings.Count(string(sentence), ")")
+	case '”':
+		return strings.ContainsRune(string(sentence), '“')
+	case '’':
+		return strings.ContainsRune(string(sentence), '‘')
+	case '*', '_', '"', '\'':
+		return strings.ContainsRune(string(sentence), mark)
+	}
+	return false
 }
 
 // opensSentence reports whether the text starts a new sentence.
