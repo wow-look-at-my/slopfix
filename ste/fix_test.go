@@ -68,6 +68,17 @@ func TestFixRepairsASpliceBeforeACodeSpanSubject(t *testing.T) {
 	}
 }
 
+// An absolute phrase after the comma holds no clause, so the repair keeps it in the sentence.
+func TestFixKeepsAnAbsolutePhraseAttached(t *testing.T) {
+	only := func(id string) bool { return id == ste.IDCommaSplice }
+	text := "A merge you run makes everything in that master yours, the problems you did not cause included."
+	assert.Equal(t, "A merge you run makes everything in that master yours, including the problems you did not cause.", ste.FixSelected(text, only))
+	other := "The build keeps every output, the logs it writes attached."
+	assert.Equal(t, "The build keeps every output, with the logs it writes attached.", ste.FixSelected(other, only))
+	clause := "The gate reads the file, the tests are included."
+	assert.Equal(t, "The gate reads the file. The tests are included.", ste.FixSelected(clause, only))
+}
+
 // A division never lands inside bold text, so each marker keeps its partner.
 func TestFixNeverDividesInsideBoldText(t *testing.T) {
 	long := "With no trip count given, each loop is modeled as one iteration **and the estimate is flagged** with a section in the report and a note in the output so it is never read as the exact cost."

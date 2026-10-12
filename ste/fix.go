@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // Fix applies the repair Check names, for every rule Check reports.
@@ -155,6 +157,7 @@ func isAlnum(b byte) bool {
 // It reads a mask of the whole text, so a code span neither hides a splice nor
 // cuts a sentence the parser needs whole.
 func fixSplices(prose string) string {
+	prose = fixAbsolutes(prose)
 	masked := checkMask(prose)
 	var joiners [][]int
 	var openers []string
@@ -175,6 +178,86 @@ func fixSplices(prose string) string {
 		openers = append(openers, opener)
 	}
 	return breakWith(prose, joiners, openers)
+}
+
+var (
+	// absoluteParticiples close an absolute phrase: "the tests included".
+	absoluteParticiples = set.Of(wordsOf("absolute-participle")...)
+	// finiteVerbs are the verbs the splice pattern reads as a clause's own.
+	finiteVerbs = set.Of(wordsOf("finite-verb")...)
+	// passiveAuxiliaries make a participle after them the clause's verb.
+	passiveAuxiliaries = set.Of("be", "been", "being", "get", "got", "gets")
+	// absolutePrepositions say an absolute phrase as a preposition before its noun.
+	absolutePrepositions = map[string]string{"included": "including", "excluded": "excluding"}
+)
+
+// fixAbsolutes rewrites each splice the check reports whose words after the
+// comma are an absolute phrase: a noun phrase closed by a participle. That
+// fixAbsolutes is with no finite verb of the noun's own. "yours, the problems
+// you did not cause included" names no clause, so a period there leaves a
+// fragment. The phrase becomes "including the problems you did not cause", or
+// takes "with" in front of a participle that has no preposition form.
+func fixAbsolutes(prose string) string {
+	masked := checkMask(prose)
+	parens := parenthetical.FindAllStringIndex(masked, -1)
+	spans := sentenceSpans(masked)
+	type rewrite struct {
+		from, to int
+		text     string
+	}
+	var rewrites []rewrite
+	for _, loc := range commaSplice.FindAllStringSubmatchIndex(masked, -1) {
+		if loc[2] >= 0 || insideAny(parens, loc[0]) || !spliced(masked, loc) {
+			continue
+		}
+		from := loc[0] + len(spliceComma.FindString(masked[loc[0]:]))
+		to, last, ok := absoluteTail(masked, from, spans)
+		if !ok {
+			continue
+		}
+		participle := prose[last:to]
+		phrase := strings.TrimRight(prose[from:last], " \t")
+		text := "with " + phrase + " " + participle
+		if preposition, known := absolutePrepositions[strings.ToLower(participle)]; known {
+			text = preposition + " " + phrase
+		}
+		rewrites = append(rewrites, rewrite{from, to, text})
+	}
+	for i := len(rewrites) - 1; i >= 0; i-- {
+		r := rewrites[i]
+		prose = prose[:r.from] + r.text + prose[r.to:]
+	}
+	return prose
+}
+
+// absoluteTail answers the end of the absolute phrase that opens at byte. From
+// and runs to the end of its sentence, and the start of its closing participle.
+// The phrase holds no further mark, and no auxiliary or finite verb stands
+// right before the participle: "the tests are included" is a clause.
+func absoluteTail(masked string, from int, spans [][2]int) (to, last int, ok bool) {
+	end := -1
+	for _, span := range spans {
+		if span[0] <= from && from < span[1] {
+			end = span[1]
+		}
+	}
+	if end < 0 {
+		return 0, 0, false
+	}
+	tail := strings.TrimRight(masked[from:end], " \t\n.!?")
+	if strings.ContainsAny(tail, ",;:()[]\"") {
+		return 0, 0, false
+	}
+	words := strings.Fields(tail)
+	if len(words) < 2 || !absoluteParticiples.Contains(strings.ToLower(words[len(words)-1])) {
+		return 0, 0, false
+	}
+	before := strings.ToLower(words[len(words)-2])
+	if finiteVerbs.Contains(before) || passiveAuxiliaries.Contains(before) {
+		return 0, 0, false
+	}
+	to = from + len(tail)
+	return to, to - len(words[len(words)-1]), true
 }
 
 // offLimits are the spans no break may land in. The data Check hides, and a
