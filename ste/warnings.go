@@ -52,8 +52,6 @@ var (
 	haveForms = set.Of("has", "have", "had")
 	// approvedIng are the -ing words the STE dictionary approves as an adjective, a pronoun or a preposition.
 	approvedIng = set.Of("mating", "missing", "remaining", "something", "during")
-	// masks are the words strip writes over data.
-	masks = set.Of("CODE", "URL", "ENTITY", "QUOTE")
 )
 
 // Warn reports every warning rule the text breaks. Check never answers these,

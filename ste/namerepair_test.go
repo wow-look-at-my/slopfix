@@ -39,11 +39,11 @@ func TestDictionaryLeavesEveryNameAlone(t *testing.T) {
 // hyphenated compound and a word before a period included.
 func TestDictionaryStillRewritesProse(t *testing.T) {
 	cases := map[string]string{
-		"The reveal layer gates every read.":    "The show layer gates every read.",
-		"It does not reveal-check the row.":     "It does not show-check the row.",
-		"The gate does not reveal.":             "The gate does not show.",
-		"Reveal the row: the gate reads it.":    "Show the row: the gate reads it.",
-		"Read docs/a.md to reveal the row.":     "Read docs/a.md to show the row.",
+		"The reveal layer gates every read.": "The show layer gates every read.",
+		"It does not reveal-check the row.":  "It does not show-check the row.",
+		"The gate does not reveal.":          "The gate does not show.",
+		"Reveal the row: the gate reads it.": "Show the row: the gate reads it.",
+		"Read docs/a.md to reveal the row.":  "Read docs/a.md to show the row.",
 	}
 	for in, want := range cases {
 		assert.Equal(t, want, ste.FixSelected(in, only(ste.IDDictionary)), in)
