@@ -3,29 +3,50 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 )
 
-// release and revision are what go-toolchain stamped into cmd/slopfix's releaseNumber and gitHash.
-var release, revision string
-
 var (
-	errNoRelease  = errors.New("this slopfix binary carries no release number: go-toolchain stamps it into every CI build through cmd/slopfix's releaseNumber")
-	errNoRevision = errors.New("this slopfix binary carries no commit stamp: go-toolchain stamps it through cmd/slopfix's gitHash")
+	errNoRelease  = errors.New("this slopfix binary carries no release number: go-toolchain stamps the build setting release into every CI build")
+	errNoRevision = errors.New("this slopfix binary carries no commit stamp: go-toolchain stamps the build setting release.revision beside the release")
 )
 
-// SetBuild records the stamped release number and commit before Execute runs.
-func SetBuild(releaseNumber, gitHash string) { release, revision = releaseNumber, gitHash }
+// buildSettings is the build info go-toolchain stamped the release into.
+var buildSettings = func() []debug.BuildSetting {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return nil
+	}
+	return bi.Settings
+}
 
-func printVersion(cmd *cobra.Command) error {
+// stampedRelease answers the buildhost release number and its commit.
+func stampedRelease() (release, revision string, err error) {
+	for _, s := range buildSettings() {
+		switch s.Key {
+		case "release":
+			release = s.Value
+		case "release.revision":
+			revision = s.Value
+		}
+	}
 	if release == "" {
-		return errNoRelease
+		return "", "", errNoRelease
 	}
 	if revision == "" {
-		return errNoRevision
+		return "", "", errNoRevision
 	}
-	_, err := fmt.Fprintf(cmd.OutOrStdout(), "slopfix %s (%s)\n", release, revision)
+	return release, revision, nil
+}
+
+func printVersion(cmd *cobra.Command) error {
+	release, revision, err := stampedRelease()
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "slopfix %s (%s)\n", release, revision)
 	return err
 }
 

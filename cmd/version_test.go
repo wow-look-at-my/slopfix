@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"runtime/debug"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,17 +11,26 @@ import (
 
 const commit = "660ecca3f00d8e1b2c3d4e5f60718293a4b5c6d7"
 
-// runRoot drives the root command with a release number and a commit stamped, returning stdout and the error.
+// runRoot drives the root command over build info that carries the given
+// release settings (an empty value is left out), returning stdout and the error.
 func runRoot(t *testing.T, number, rev string, args ...string) (string, error) {
 	t.Helper()
 	cmdMu.Lock()
 	defer cmdMu.Unlock()
+	settings := []debug.BuildSetting{{Key: "-compiler", Value: "gc"}}
+	if number != "" {
+		settings = append(settings, debug.BuildSetting{Key: "release", Value: number})
+	}
+	if rev != "" {
+		settings = append(settings, debug.BuildSetting{Key: "release.revision", Value: rev})
+	}
+	read := buildSettings
+	buildSettings = func() []debug.BuildSetting { return settings }
 	var out bytes.Buffer
-	SetBuild(number, rev)
 	rootCmd.SetOut(&out)
 	rootCmd.SetArgs(args)
 	defer func() {
-		SetBuild("", "")
+		buildSettings = read
 		rootCmd.SetOut(nil)
 		rootCmd.SetArgs(nil)
 		require.NoError(t, rootCmd.Flags().Set("version", "false"))
