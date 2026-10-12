@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -67,11 +68,10 @@ func governedRepo(path string) (string, string, bool) {
 
 // hostedJob is a job whose runs-on ignores the repository's visibility.
 type hostedJob struct {
-	job    *yaml.Node
-	node   *yaml.Node
-	label  string
-	// key is the matrix key a runs-on of the form ${{ matrix.<key> }} reads.
-	// The label is then empty, and hosted holds the hosted Linux values of the key.
+	job   *yaml.Node
+	node  *yaml.Node
+	label string
+	// key is the matrix key runs-on reads, with its hosted Linux values in hosted.
 	key    string
 	hosted []string
 	docker bool
@@ -250,8 +250,8 @@ func runnerExpression(j hostedJob) string {
 	if j.key != "" {
 		// A value outside the hosted Linux list keeps its runner. A public repository keeps every value.
 		ref := "matrix." + j.key
-		list := `["` + strings.Join(j.hosted, `","`) + `"]`
-		return "${{ (github.event.repository.visibility == 'public' || !contains(fromJSON('" + list + "'), " + ref + ")) && " + ref + " || " + name + " || " + ref + " }}"
+		list, _ := json.Marshal(j.hosted)
+		return "${{ (github.event.repository.visibility == 'public' || !contains(fromJSON('" + string(list) + "'), " + ref + ")) && " + ref + " || " + name + " || " + ref + " }}"
 	}
 	return "${{ github.event.repository.visibility == 'public' && '" + j.label + "' || " + name + " || '" + j.label + "' }}"
 }

@@ -417,8 +417,7 @@ func DeadReferentHits(path, text string) []Hit {
 	return out
 }
 
-// foreignCitation matches a C family source file cited at a line, such as
-// UnrealNames.cpp:4588 or Script.h:222.
+// foreignCitation matches a C family source cited at a line, as in Script.h:222.
 var foreignCitation = regexp.MustCompile(`\b[A-Za-z_][A-Za-z0-9_.-]*\.(?:c|cc|cpp|cxx|h|hh|hpp|hxx|inl|m|mm):[0-9]+\b`)
 
 // portsForeignSource reports a file whose comments cite a line of a source
