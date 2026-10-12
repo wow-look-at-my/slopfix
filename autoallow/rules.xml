@@ -594,18 +594,76 @@
 		<rule name="pr">
 			<test cmd="gh pr view 123" expect="allow"/>
 			<test cmd="gh pr view --json number,state" expect="allow"/>
+			<test cmd="gh pr diff 123" expect="allow"/>
+			<test cmd="gh pr diff https://github.com/owner/repo/pull/7 --name-only" expect="allow"/>
 			<test cmd="gh pr list" expect="deny"/>
 			<test cmd="gh pr checks" expect="deny"/>
 			<test cmd="gh pr create" expect="deny"/>
 			<test cmd="gh pr merge 123" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge" expect="allow"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge --title new" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge --remove-label auto-pr-update" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label other" expect=""/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge --add-label other" expect=""/>
+			<test cmd="gh pr edit https://github.com/owner/repo/pull/7 --add-label auto-pr-merge,other" expect=""/>
+			<test cmd="gh pr edit 7 --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit 3 -R owner/thing-spec --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit 3 --repo owner/thing-spec --add-label auto-pr-merge" expect="deny"/>
+			<test cmd="gh pr edit https://github.com/owner/thing-spec/pull/3 --add-label auto-pr-merge" expect="deny"/>
 		<!-- Closing a PR ends a review the owner is having, and the branch behind
 		     it is then a thing nobody is looking at. -->
 		<test cmd="gh pr close 45" expect="deny"/>
 		<test cmd="gh pr close 45 --comment superseded" expect="deny"/>
 		<test cmd="gh pr reopen 45" expect="deny"/>
 			<rule name="view" allowedFlags="*"/>
-			<rule name="checkout,checks,close,comment,create,diff,edit,list,lock,merge,ready,reopen,review,status,unlock,update-branch"
-			      denyWithMessage="gh pr view is the only gh pr this session runs"/>
+			<rule name="diff" allowedFlags="*"/>
+			<rule name="edit">
+				<refuse message="the auto-pr-merge label is the only PR edit this session makes">
+					<flag name="--title"/>
+					<flag name="-t"/>
+					<flag name="--body"/>
+					<flag name="-b"/>
+					<flag name="--body-file"/>
+					<flag name="-F"/>
+					<flag name="--base"/>
+					<flag name="-B"/>
+					<flag name="--remove-label"/>
+					<flag name="--add-reviewer"/>
+					<flag name="--remove-reviewer"/>
+					<flag name="--add-assignee"/>
+					<flag name="--remove-assignee"/>
+					<flag name="--add-project"/>
+					<flag name="--remove-project"/>
+					<flag name="--milestone"/>
+					<flag name="-m"/>
+					<flag name="--remove-milestone"/>
+				</refuse>
+				<refuse message="pull requests in -spec repos are never merged">
+					<argSubstring>-spec/pull/</argSubstring>
+				</refuse>
+				<refuse message="name the pull request by its full URL, so its repository is in the command">
+					<flag name="-R"/>
+					<flag name="--repo"/>
+				</refuse>
+				<refuse message="name the pull request by its full URL, so its repository is in the command">
+					<argPrefix>0</argPrefix>
+					<argPrefix>1</argPrefix>
+					<argPrefix>2</argPrefix>
+					<argPrefix>3</argPrefix>
+					<argPrefix>4</argPrefix>
+					<argPrefix>5</argPrefix>
+					<argPrefix>6</argPrefix>
+					<argPrefix>7</argPrefix>
+					<argPrefix>8</argPrefix>
+					<argPrefix>9</argPrefix>
+				</refuse>
+				<requireFlagValue>
+					<flag name="--add-label"/>
+					<allowed>auto-pr-merge</allowed>
+				</requireFlagValue>
+			</rule>
+			<rule name="checkout,checks,close,comment,create,list,lock,merge,ready,reopen,review,status,unlock,update-branch"
+			      denyWithMessage="gh pr view, gh pr diff and gh pr edit --add-label auto-pr-merge are the only gh pr commands this session runs"/>
 		</rule>
 		<rule name="release">
 			<test cmd="gh release list" expect="allow"/>
@@ -653,7 +711,7 @@
 			     leaves a PATCH to be asked about; this says no outright. -->
 			<test cmd="gh api -X PATCH /repos/o/r/pulls/45 -f state=closed" expect="deny"/>
 			<test cmd="gh api /repos/o/r/pulls/45" expect="allow"/>
-			<refuse message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
+			<refuse message="closing a pull request is the user's call; gh pr view, gh pr diff and adding the auto-pr-merge label are the only pull request commands this session runs">
 				<argSubstring>state=closed</argSubstring>
 				<argSubstring>"state":"closed"</argSubstring>
 				<argSubstring>"state": "closed"</argSubstring>
@@ -1051,7 +1109,7 @@
 		<test cmd="curl http://evil.com/" expect=""/>
 		<test cmd="curl" expect=""/>
 		<test cmd="curl -X PATCH https://api.github.com/repos/o/r/pulls/45 -d '{&quot;state&quot;:&quot;closed&quot;}'" expect="deny"/>
-		<refuse message="closing a pull request is the user's call; gh pr view is the only pull request command this session runs">
+		<refuse message="closing a pull request is the user's call; gh pr view, gh pr diff and adding the auto-pr-merge label are the only pull request commands this session runs">
 			<argSubstring>"state":"closed"</argSubstring>
 			<argSubstring>"state": "closed"</argSubstring>
 			<argSubstring>state=closed</argSubstring>
