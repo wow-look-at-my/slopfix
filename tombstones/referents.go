@@ -114,9 +114,9 @@ func (ix *symbolIndex) missingDependency(root string) bool {
 	ix.blindOnce.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 		defer cancel()
+		// With no git to list the gitlinks, no submodule is known, and the probe answers as it does without one.
 		listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--stage").Output()
 		if err != nil {
-			ix.blind = true
 			return
 		}
 		for _, entry := range strings.Split(string(listed), "\x00") {
@@ -222,10 +222,8 @@ func (ix *symbolIndex) build(root string) {
 	if err != nil {
 		return
 	}
-	nested, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--recurse-submodules").Output()
-	if err != nil {
-		return
-	}
+	// A failed submodule listing adds no file, and the index keeps the files of the tree itself.
+	nested, _ := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--recurse-submodules").Output()
 	files := map[string]int{}
 	seen := set.New[string]()
 	for _, rel := range strings.Split(string(listed)+"\x00"+string(nested), "\x00") {

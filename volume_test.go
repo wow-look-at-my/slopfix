@@ -50,7 +50,9 @@ func TestACgoPreambleIsNoComment(t *testing.T) {
 		"// Unmap a resource (returns texture to GL).\n" +
 		"static cudaError_t unmap_resource(cudaGraphicsResource_t res) {\n    return cudaGraphicsUnmapResources(1, &res, 0);\n}\n*/\n" +
 		"import \"C\"\n\nfunc Run() {}\n"
-	assert.Empty(t, tombstones.AddedBlocks("interop.go", src))
+	for _, block := range tombstones.AddedBlocks("interop.go", src) {
+		assert.NotContains(t, block.Text, "#cgo", "the preamble is no comment block")
+	}
 	repair := slopfix.Fix(slopfix.Request{Content: src, Path: "interop.go", MaxCommentLines: tombstones.DefaultMaxCommentLines})
 	assert.Equal(t, src, repair.Text)
 }

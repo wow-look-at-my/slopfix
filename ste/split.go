@@ -596,9 +596,8 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	if main.Subject == nil || main.Verb == nil || c.Verb == nil {
 		return "", false
 	}
-	// A clause whose verb group opens on an -ing form has no finite verb. A
-	// subject in front of it writes "It using hyperfine", which is no sentence.
-	if s.Words[c.Verb.First].Tag == "VBG" {
+	// A subject before an -ing form writes "It using hyperfine", which is no sentence.
+	if s.Words[c.Verb.First].Tag == "VBG" || c.Link >= 0 && c.Link+1 < len(s.Words) && s.Words[c.Link+1].Tag == "VBG" {
 		return "", false
 	}
 	subject := *main.Subject
