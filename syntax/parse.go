@@ -227,6 +227,15 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i == 1 && i+1 < len(words) && identifier(words[0].Text) && verbEnding(w.Text) && opensObjectAt(words[i+1]):
 			// "readText numbers the lines": a doc comment names its identifier, then the verb.
 			words[0].Tag, w.Tag = "NNP", "VBZ"
+		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && Is(words[i-1].Text, "singular-subject") && verbEnding(w.Text) && opensNounPhrase(words[i+1]):
+			// "it gains a block": an -s form after a subject pronoun, before a determiner, is the verb.
+			w.Tag = "VBZ"
+		case w.Tag == "VBZ" && i > 0 && i+1 < len(words) && words[i-1].Tag == "WDT" && words[i+1].Tag == "VBZ":
+			// "that bashfs owns": the earlier of a couple of -s forms after a relative word is its subject.
+			w.Tag = "NNP"
+		case (w.Tag == "VBD" || w.Tag == "VBN") && i > 0 && i+1 < len(words) && Is(words[i-1].Text, "determiner") && isNoun(words[i+1].Tag):
+			// "each embedded file": a past form between a determiner and its noun describes the noun.
+			w.Tag = "JJ"
 		case w.Tag == "VB" && i > 0 && verbEnding(w.Text) && words[i-1].Tag != "TO" && words[i-1].Tag != "MD":
 			// "the message it writes to comply puts": a bare form takes no -s ending.
 			w.Tag = "VBZ"
