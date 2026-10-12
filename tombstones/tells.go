@@ -92,7 +92,11 @@ func Find(blocks []Block, maxLines int) []Hit {
 // linePurity looks a block-relative line index up in b's parallel arrays. A
 // paragraph carries no purity, so its line is placed and never pure.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
+<<<<<<< HEAD
 	if li < 0 || li >= len(b.LineNos) {
+=======
+	if li >= len(b.LineNos) {
+>>>>>>> origin/comment-extract-code-leak
 		return -1, false
 	}
 	return b.LineNos[li], li < len(b.Pure) && b.Pure[li]
@@ -104,19 +108,21 @@ func HitForName(blocks []Block, name string) Hit {
 	for _, b := range blocks {
 		lines := strings.Split(b.Text, "\n")
 		// The name is sought in the comment prose, so a code line that uses it never places the hit.
-		for li, prose := range strings.Split(b.Prose, "\n") {
+		proseLines := strings.Split(b.Prose, "\n")
+		for li, prose := range proseLines {
 			if !strings.Contains(prose, name) || li >= len(lines) {
 				continue
 			}
 			line := lines[li]
-			row, pure := linePurity(b, li)
+			lineNo, pure := linePurity(b, li)
 			return Hit{
-				ID:         ruleID(deadReferent),
-				Tell:       deadReferent,
-				Phrase:     name,
-				Line:       strings.TrimSpace(line),
-				Strippable: pure,
-				LineNo:     row + 1,
+				ID:     ruleID(deadReferent),
+				Tell:   deadReferent,
+				Phrase: name,
+				Line:   strings.TrimSpace(line),
+				// A line that holds another sentence too is cut, not stripped.
+				Strippable: pure && wholeSentencesOnLine(proseLines, li, name),
+				LineNo:     lineNo + 1,
 			}
 		}
 	}

@@ -152,12 +152,21 @@ func paragraphs(doc string) []Block {
 			prefix += b.Marker + " "
 		}
 		text := strings.Join(cur, "\n")
+<<<<<<< HEAD
 		// The list marker opens the block and is not prose, so it is blanked like a comment marker.
 		prose := text
 		if strings.HasPrefix(prose, prefix) {
 			prose = strings.Repeat(" ", len(prefix)) + prose[len(prefix):]
 		}
 		out = append(out, Block{Text: text, Lines: len(cur), LineNos: nos, Prefix: prefix, Prose: prose})
+=======
+		// A paragraph is prose alone, so every line is pure. linePurity reads this.
+		pure := make([]bool, len(cur))
+		for i := range pure {
+			pure[i] = true
+		}
+		out = append(out, Block{Text: text, Lines: len(cur), LineNos: nos, Pure: pure, Prefix: prefix, Prose: text})
+>>>>>>> origin/comment-extract-code-leak
 	}
 	return out
 }

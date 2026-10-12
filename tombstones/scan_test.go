@@ -246,6 +246,63 @@ func TestSentenceAroundStaysInsideTheComment(t *testing.T) {
 	}
 }
 
+// Document prose that grok-build's check reported: emphasis underscores and product names.
+func TestDocumentEmphasisAndProductNamesAreNotReferents(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\n"), 0o644))
+
+	path := filepath.Join(dir, "a.md")
+	src := "Treat it as _already established_ by the user.\n\n" +
+		"The proxy speaks WebSockets and HTTP.\n\n" +
+		"Copyright (c) PCRE2Project and its contributors.\n"
+	assert.Empty(t, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
+// A bare snake_case name in a document still names a symbol.
+func TestDocumentSnakeCaseNameIsStillJudged(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\n"), 0o644))
+
+	path := filepath.Join(dir, "a.md")
+	src := "Set legacy_retry_flag to turn it off.\n"
+	assert.Equal(t, []string{"legacy_retry_flag"}, DeadReferents(path, src, AddedBlocks(path, src)))
+}
+
+// A document paragraph places its lines, so the repair that cuts the naming
+// sentence can reach them.
+func TestADocumentParagraphPlacesItsLines(t *testing.T) {
+	blocks := AddedBlocks("a.md", "M parking is the stub_mutex design.\n\nThe cache reads it.\n")
+	require.Len(t, blocks, 2)
+	require.Len(t, blocks[0].Pure, len(blocks[0].LineNos))
+	assert.Equal(t, []bool{true}, blocks[0].Pure)
+
+	hit := HitForName(blocks, "stub_mutex")
+	assert.Equal(t, 1, hit.LineNo)
+}
+
+// A document names a dead symbol on a line the hit places, and the fix cuts
+// the sentence that holds it.
+func TestADeadNameInADocumentIsCut(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", dir, "init", "-q").Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\n"), 0o644))
+
+	path := filepath.Join(dir, "a.md")
+	src := "The loop parks the worker. gone_idle_hook routes it to a sleep. The pool stays warm.\n"
+	require.NoError(t, os.WriteFile(path, []byte(src), 0o644))
+
+	hits := DeadReferentHits(path, src)
+	require.Len(t, hits, 1)
+	assert.Equal(t, 0, hits[0].LineNo)
+
+	repair := Fix(path, src, DefaultMaxCommentLines)
+	assert.NotContains(t, repair.Text, "gone_idle_hook")
+	assert.Contains(t, repair.Text, "The loop parks the worker.")
+	assert.Contains(t, repair.Text, "The pool stays warm.")
+}
+
 func TestRepoRootFindsTheTreeAboveAFile(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0o755))
