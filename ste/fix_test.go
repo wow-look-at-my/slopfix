@@ -166,6 +166,14 @@ func TestAPerfectTenseWithANegationIsLeftAsWritten(t *testing.T) {
 	}
 }
 
+// A regular verb that ends in a silent e keeps it in the active voice, so
+// "graded" becomes "grades" and not "grads".
+func TestAPassiveKeepsTheSilentE(t *testing.T) {
+	passive := func(id string) bool { return id == ste.IDPassive }
+	assert.Equal(t, "The judge grades each run.", ste.FixSelected("Each run is graded by the judge.", passive))
+	assert.Equal(t, "The gate uses the file.", ste.FixSelected("The file is used by the gate.", passive))
+}
+
 // The plain perfect and passive repairs still run when no word stands between
 // the auxiliary and its participle. The tense repair is a warning, so a caller
 // keeps its ID to reach it.
