@@ -9,8 +9,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/shellwalk"
 	"github.com/wow-look-at-my/slopfix/table"
-	"mvdan.cc/sh/v3/syntax"
 	yaml "go.yaml.in/yaml/v3"
+	"mvdan.cc/sh/v3/syntax"
 )
 
 // hostTable is what rules/ says for="host-runner".

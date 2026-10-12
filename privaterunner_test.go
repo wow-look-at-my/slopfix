@@ -110,10 +110,10 @@ func TestPrivateRunnerKeepsAJobThatNeedsTheHost(t *testing.T) {
 
 func TestPrivateRunnerMovesAJobThatOnlyMentionsTheHost(t *testing.T) {
 	for name, steps := range map[string]string{
-		"an echo":           "      - run: echo modprobe swapoff\n",
-		"a user package":    "      - run: sudo apt-get install -y libsystemd-dev\n",
+		"an echo":            "      - run: echo modprobe swapoff\n",
+		"a user package":     "      - run: sudo apt-get install -y libsystemd-dev\n",
 		"a header elsewhere": "      - run: ls linux-headers-6.8\n",
-		"a quoted word":     "      - run: grep -r 'systemctl' docs\n",
+		"a quoted word":      "      - run: grep -r 'systemctl' docs\n",
 	} {
 		body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" + steps
 		path := runnerRepo(t, PrivateRunnerFixture, body)
