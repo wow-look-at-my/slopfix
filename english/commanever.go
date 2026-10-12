@@ -6,6 +6,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/codespan"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -116,7 +117,7 @@ var objects = set.Of("it", "them", "him", "her", "us", "me")
 
 // unmasked answers each match that no code span or quotation holds, because their words are data.
 func unmasked(prose string) [][]int {
-	masks := append(codeSpan.FindAllStringIndex(prose, -1), quotation.FindAllStringIndex(prose, -1)...)
+	masks := append(codespan.Find(prose), quotation.FindAllStringIndex(prose, -1)...)
 	var out [][]int
 	for _, at := range commaNever.FindAllStringIndex(prose, -1) {
 		if !insideAny(masks, at[0], at[1]) {

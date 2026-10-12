@@ -82,7 +82,7 @@ func Masked(prose string) string { return checkMask(prose) }
 // and an offset into the mask is an offset into the prose.
 func checkMask(prose string) string {
 	out := []byte(prose)
-	for _, span := range verbatimSpan.FindAllStringIndex(prose, -1) {
+	for _, span := range verbatimSpans(prose) {
 		switch prose[span[0]] {
 		case '`':
 			fillCheckWord(out[span[0]:span[1]], "CODE")
@@ -437,7 +437,7 @@ func wordEnds(masked string) []int {
 // candidates answers every admissible cut, best first. A strict pass also keeps
 // each part off a word that leaves it hanging.
 func candidates(source, masked string, strict bool, limit int) []forceCut {
-	off := verbatimSpan.FindAllStringIndex(source, -1)
+	off := verbatimSpans(source)
 	off = append(off, quotedSpans(source)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 	off = append(off, outerParens(masked)...)

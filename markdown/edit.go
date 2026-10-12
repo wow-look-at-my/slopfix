@@ -36,7 +36,9 @@ func Apply(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 			}
 			return "it reaches past its prose block"
 		},
-		func(text string) bool { return sameLines(verbatim(text), want) && shape(text) == wantShape })
+		func(text string) bool {
+			return sameLines(verbatim(text), want) && shape(text) == wantShape && spansKept(content, text)
+		})
 }
 
 // shape renders the container tree of a document. A run of paragraphs in one

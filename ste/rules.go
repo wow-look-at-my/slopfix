@@ -16,6 +16,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/codespan"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -121,8 +122,6 @@ var (
 var (
 	// wordPattern keeps an internal apostrophe, so a contraction stays intact.
 	wordPattern = regexp.MustCompile(`[A-Za-z]+(?:'[A-Za-z]+)?`)
-	// codeSpan matches an inline code span, whose contents are data.
-	codeSpan = regexp.MustCompile("`[^`]*`")
 	// charRange matches an XML character-class range a comment quotes, as in `[#x370-#x37D]`.
 	charRange = regexp.MustCompile(`\[#x[0-9A-Fa-f]+(?:-#x[0-9A-Fa-f]+)?\]`)
 	// sectionLink matches a link that cites a section by its slug.
@@ -200,7 +199,7 @@ var proseRules = []proseRule{
 // any of them is not a sentence joiner.
 func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
-	text = codeSpan.ReplaceAllString(text, " CODE ")
+	text = replaceSpans(text, codespan.Find(text), " CODE ")
 	// A range becomes a separator, so neighbours never join into one word.
 	text = charRange.ReplaceAllString(text, " ")
 	// A section link reads as the citation it replaced, which holds no word.
@@ -209,6 +208,19 @@ func strip(text string) string {
 	text = entity.ReplaceAllString(text, " ENTITY ")
 	// A quotation is another voice, so no rule judges the words inside it.
 	return quotation.ReplaceAllString(text, " QUOTE ")
+}
+
+// replaceSpans writes with in place of each of spans, which run in source order.
+func replaceSpans(text string, spans [][]int, with string) string {
+	var b strings.Builder
+	last := 0
+	for _, s := range spans {
+		b.WriteString(text[last:s[0]])
+		b.WriteString(with)
+		last = s[1]
+	}
+	b.WriteString(text[last:])
+	return b.String()
 }
 
 var quotation = regexp.MustCompile(`"[^"\n]*"|“[^”\n]*”`)

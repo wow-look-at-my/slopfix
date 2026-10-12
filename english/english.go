@@ -16,6 +16,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/wow-look-at-my/slopfix/codespan"
 	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
 )
@@ -148,7 +149,7 @@ func (p Pattern) ApplyN(s string) (string, int) {
 	last, took := 0, 0
 	labels := linkLabel.FindAllStringIndex(s, -1)
 	quotes := quotation.FindAllStringIndex(s, -1)
-	spans := codeSpan.FindAllStringIndex(s, -1)
+	spans := codespan.Find(s)
 	for _, loc := range p.re.FindAllStringIndex(s, -1) {
 		if p.Subject != "" && !asserts(p.Subject, s, loc[0]) {
 			continue
@@ -209,8 +210,6 @@ var linkLabel = regexp.MustCompile(`\[[^\[\]]*\]\(`)
 // quotation finds a quoted phrase. A quotation names its words rather than uses them, so a cut there changes what it names.
 var quotation = regexp.MustCompile(`"[^"\n]*"|“[^”\n]*”`)
 
-// codeSpan finds an inline code span. A span is a command or a name, so a word cut there breaks it. A comment can wrap a span over one line break.
-var codeSpan = regexp.MustCompile("`[^`\\n]*(?:\\n[^`\\n]*)?`")
 
 // strandsOpener reports whether a cut to the end of the sentence leaves the sentence on an article, a relative or a conjunction. Each opens words the cut took away.
 func strandsOpener(s string, from, to int, with string) bool {
