@@ -25,6 +25,9 @@ type Lines struct {
 
 // Lines answers the lines of the work tree that differ from the base.
 func (b *Base) Lines() (*Lines, error) {
+	if b.unjudged {
+		return &Lines{top: realPath(b.top), whole: set.New[string](), lines: map[string]set.Set[int]{}}, nil
+	}
 	resolved, err := filepath.EvalSymlinks(b.top)
 	if err != nil {
 		return nil, fmt.Errorf("fork scope: %w", err)
@@ -102,6 +105,9 @@ func (o *Lines) dropUpstreamVersions(top, upstream string) error {
 // File answers the lines of text that the fork wrote, for text headed for path
 // in the work tree. A path the base does not hold is the fork's whole.
 func (b *Base) File(path, text string) (*Scope, error) {
+	if b.unjudged {
+		return OfLines(), nil
+	}
 	rel, err := relTo(b.top, path)
 	if err != nil {
 		return nil, err
