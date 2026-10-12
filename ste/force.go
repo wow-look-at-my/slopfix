@@ -200,14 +200,16 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := becauseDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
+	// A pair of dashes is one aside. It divides whole, with the aside kept
+	// behind a comma, before the punctuation cut reads the closing dash.
+	if out, ok := asideDivision(source, masked, d.cap); ok {
+		return out, true
+	}
 	if out, ok := punctuationDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
 	if out, ok := hardDivision(source, masked, d.cap); ok || !d.every {
 		return out, ok
-	}
-	if out, ok := asideDivision(source, masked, d.cap); ok {
-		return out, true
 	}
 	if out, ok := standingMarkDivision(source, masked, d.cap); ok {
 		return out, true
