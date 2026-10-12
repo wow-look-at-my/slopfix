@@ -68,7 +68,7 @@ func Warn(text string, line int, listItem bool) []Finding {
 		text := prose[span[0]:span[1]]
 		sentences++
 		off := opaque(text, text)
-		s := widenToSpans(syntax.Parse(text, off), off)
+		s := coverVerbatim(syntax.Parse(text, off), text)
 		if n := WordCount(text); n > InstructionWordCap && n <= SentenceWordCap && isInstruction(s) {
 			out = append(out, warn(line, IDInstructionLength,
 				fmt.Sprintf("over the %d-word cap for an instruction at %d words", InstructionWordCap, n),

@@ -7,6 +7,12 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
+func TestAGerundThatHidesASilentEReadsItsBaseForm(t *testing.T) {
+	for gerund, base := range map[string]string{"using": "use", "writing": "write", "seeing": "see", "being": "be", "running": "run"} {
+		assert.Equal(t, base, baseFromGerund(gerund), gerund)
+	}
+}
+
 // The long sentence of the bashfs profiling package comment. It ends on
 // "-- using hyperfine", an -ing form after a dash. Every part it divides into
 // is a sentence under the cap, and the -ing form becomes a finite verb.
