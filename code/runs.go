@@ -39,7 +39,48 @@ func Runs(filename, src string) (runs []Run, ok bool) {
 		nodes = nodes[1:]
 	}
 	byStartLine(nodes)
-	return merge(nodes, Lines(src)), true
+	return merge(dropCgoPreamble(root, src, nodes), Lines(src)), true
+}
+
+// dropCgoPreamble removes the comments that adjoin a standalone `import "C"`.
+// cgo compiles them as C source, so no rule judges them as prose.
+func dropCgoPreamble(root ts.Node, src string, nodes []ts.Node) []ts.Node {
+	importAt := -1
+	for i := uint32(0); i < root.NamedChildCount(); i++ {
+		child := root.NamedChild(i)
+		if child.IsNull() || child.Type() != "import_declaration" {
+			continue
+		}
+		start, end := int(child.StartByte()), int(child.EndByte())
+		if start >= 0 && end <= len(src) && start < end && strings.Join(strings.Fields(src[start:end]), " ") == `import "C"` {
+			importAt = start
+			break
+		}
+	}
+	if importAt < 0 {
+		return nodes
+	}
+	// The preamble is the group of comments that reaches the import with no blank line between.
+	next, cut := importAt, -1
+	for i := len(nodes) - 1; i >= 0; i-- {
+		start, end := int(nodes[i].StartByte()), int(nodes[i].EndByte())
+		if start >= next {
+			continue
+		}
+		gap := src[min(end, next):next]
+		if strings.TrimSpace(gap) != "" || strings.Count(gap, "\n") > 1 {
+			break
+		}
+		cut, next = i, start
+	}
+	if cut < 0 {
+		return nodes
+	}
+	end := cut
+	for end < len(nodes) && int(nodes[end].StartByte()) < importAt {
+		end++
+	}
+	return append(nodes[:cut:cut], nodes[end:]...)
 }
 
 func gatherComments(node ts.Node, out *[]ts.Node) {
