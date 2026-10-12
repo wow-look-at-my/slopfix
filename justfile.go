@@ -47,9 +47,7 @@ func moveScripts(path string, content []byte) ([]string, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	if err := os.WriteFile(justfile, []byte(justRecipes(string(existing), moved)), 0o644); err != nil {
-		return nil, err
-	}
+	recipes := justRecipes(string(existing), moved)
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -60,10 +58,68 @@ func moveScripts(path string, content []byte) ([]string, error) {
 		replacement = scriptsObject(kept, indentOf(content, member.valueStart))
 	}
 	manifest := append(append(append([]byte{}, content[:start]...), replacement...), content[end:]...)
+	if err := manifestGate(content, manifest, kept); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	if !strings.HasPrefix(recipes, strings.TrimRight(string(existing), "\n")) {
+		return nil, fmt.Errorf("%s: the recipes would rewrite what the justfile held", justfile)
+	}
+	if err := os.WriteFile(justfile, []byte(recipes), 0o644); err != nil {
+		return nil, err
+	}
 	if err := os.WriteFile(path, manifest, info.Mode().Perm()); err != nil {
 		return nil, err
 	}
 	return []string{path, justfile}, nil
+}
+
+// manifestGate is the JSON gate a manifest rewrite passes. The result parses,
+// every member but scripts decodes as it did, and scripts holds exactly the
+// kept entries, or is gone when none stay.
+func manifestGate(before, after []byte, kept []script) error {
+	var was, now map[string]json.RawMessage
+	if err := json.Unmarshal(before, &was); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(after, &now); err != nil {
+		return fmt.Errorf("the rewrite does not parse: %w", err)
+	}
+	for key, value := range was {
+		if key == "scripts" {
+			continue
+		}
+		if !jsonEqual(value, now[key]) {
+			return fmt.Errorf("the rewrite changed the %s member", key)
+		}
+	}
+	if len(now) != len(was) && !(len(kept) == 0 && len(now) == len(was)-1) {
+		return fmt.Errorf("the rewrite added or dropped a member")
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	got, err := scriptsOf(now["scripts"])
+	if err != nil {
+		return err
+	}
+	if len(got) != len(kept) {
+		return fmt.Errorf("the rewrite kept %d scripts, not %d", len(got), len(kept))
+	}
+	for i := range got {
+		if got[i].name != kept[i].name || got[i].command != kept[i].command {
+			return fmt.Errorf("the rewrite changed the %s script", kept[i].name)
+		}
+	}
+	return nil
+}
+
+// jsonEqual reports whether JSON values decode to the same data.
+func jsonEqual(a, b json.RawMessage) bool {
+	var x, y any
+	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
+		return false
+	}
+	return fmt.Sprint(x) == fmt.Sprint(y)
 }
 
 // indentOf answers the blanks that open the line holding offset.

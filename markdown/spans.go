@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/yuin/goldmark/ast"
@@ -44,6 +45,36 @@ func links(content string) []string {
 		return ast.WalkContinue, nil
 	})
 	return out
+}
+
+// KeepsNodes is the gate for a repair that moves markdown between files, as a
+// split into docs/. Otherwise, a merge of CLAUDE.md into AGENTS.md does.
+// Every code span and link the files held before stands, byte for byte. That
+// span is in some file after, and no file holds more stray backticks than all
+// the files did.
+func KeepsNodes(before, after []string) error {
+	held := set.New[string]()
+	stray := 0
+	for _, text := range after {
+		spans, n := inlineNodes(text)
+		held.AddRange(spans...)
+		held.AddRange(links(text)...)
+		stray += n
+	}
+	wasStray := 0
+	for _, text := range before {
+		spans, n := inlineNodes(text)
+		wasStray += n
+		for _, node := range append(spans, links(text)...) {
+			if !held.Contains(node) {
+				return fmt.Errorf("the repair lost %s", node)
+			}
+		}
+	}
+	if stray > wasStray {
+		return fmt.Errorf("the repair left a stray backtick")
+	}
+	return nil
 }
 
 // subsequence reports whether every item of part stands in whole, in order.

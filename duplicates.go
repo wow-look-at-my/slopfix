@@ -10,6 +10,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/markdown"
 )
 
 // IDNearDuplicate is a file that is nearly the same as another file of the same name.
@@ -212,9 +213,15 @@ func commentStart(lines []string, at int) int {
 }
 
 // removePortions deletes the line ranges from a file, from the last backward so
-// an earlier range stays valid.
-func removePortions(path string, portions []DuplicateBlock) error {
+// an earlier range stays valid. The gate admits the removal only when every
+// line it takes stands in other, the file the portions copy. And a markdown
+// file keeps each code span and link in one of the files.
+func removePortions(path, other string, portions []DuplicateBlock) error {
 	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	twin, err := os.ReadFile(other)
 	if err != nil {
 		return err
 	}
@@ -224,9 +231,20 @@ func removePortions(path string, portions []DuplicateBlock) error {
 		if p.Start < 1 || p.End > len(lines) || p.Start > p.End {
 			continue
 		}
+		for _, line := range lines[p.Start-1 : p.End] {
+			if t := strings.TrimSpace(line); t != "" && !strings.Contains(string(twin), t) {
+				return fmt.Errorf("remove a copy from %s: %q stands in no line of %s", path, t, other)
+			}
+		}
 		lines = append(lines[:p.Start-1], lines[p.End:]...)
 	}
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
+	out := strings.Join(lines, "\n")
+	if strings.HasSuffix(path, ".md") {
+		if err := markdown.KeepsNodes([]string{string(content)}, []string{out, string(twin)}); err != nil {
+			return fmt.Errorf("remove a copy from %s: %w", path, err)
+		}
+	}
+	return os.WriteFile(path, []byte(out), 0o644)
 }
 
 // nearDuplicates reports each near-duplicate as a finding, with the portions a
