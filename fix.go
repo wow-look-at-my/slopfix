@@ -415,7 +415,7 @@ func kindOf(path, content string) fixer.Kind {
 func init() {
 	fixer.Register(fixer.Spec{
 		Label:    "wrap-and-ste",
-		Families: []string{string(RuleWrap), string(RuleSTE), string(RuleEnglish), string(RuleCounts)},
+		Families: []string{string(RuleWrap), string(RuleSTE), string(RuleEnglish)},
 		Rules:    append(append([]string{IDHardWrap}, slices.Sorted(ste.AllIDs.All())...), english.AllIDs...),
 		Files:    []fixer.Kind{fixer.Document},
 		Place:    30,
