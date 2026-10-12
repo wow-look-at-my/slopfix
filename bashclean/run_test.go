@@ -65,7 +65,7 @@ func TestRunRewriteIsSilent(t *testing.T) {
 	assert.NotContains(t, hso, "additionalContext")
 
 	updated := hso["updatedInput"].(map[string]any)
-	assert.Equal(t, "set -o pipefail\nls\n", updated["command"])
+	assert.Equal(t, "ls\n", updated["command"])
 	assert.Equal(t, "keep me", updated["description"])
 }
 

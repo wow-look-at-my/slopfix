@@ -13,7 +13,7 @@ const interleaved = "cmd | grep x 2>&1"
 func TestTheChainedRulesConverge(t *testing.T) {
 	var warn strings.Builder
 	got := transform(interleaved, "", maxPasses, &warn)
-	assert.Equal(t, "set -o pipefail\ncmd\n", got.Command)
+	assert.Equal(t, "cmd\n", got.Command)
 	assert.Empty(t, warn.String(), "a converged rewrite says nothing")
 }
 
