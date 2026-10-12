@@ -20,6 +20,26 @@ func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
 	assert.Contains(t, out, "no other thread writes through it", "the invariant clause was deleted:\n%s", out)
 }
 
+// A doc comment that opens on a heading is still repaired. The heading and
+// the break line under it stay, and the cut runs in the prose under them.
+func TestAHeadingLedDocCommentIsCutUnderItsHeading(t *testing.T) {
+	src := "/// # Safety\n" +
+		"///\n" +
+		"/// The caller keeps the pointer valid for the whole call. No other thread writes through it. The buffer holds at least n bytes. The length counts bytes and not characters. A null pointer is never passed here.\n" +
+		"unsafe fn first(p: *const u8, n: usize) -> u8 {\n" +
+		"    let s = std::slice::from_raw_parts(p, n);\n" +
+		"    let v = s[0];\n" +
+		"    v\n" +
+		"}\n"
+	req := slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}
+	out := slopfix.Fix(req).Text
+	assert.True(t, strings.HasPrefix(out, "/// # Safety\n///\n/// The caller keeps the pointer valid for the whole call."), "the heading or its break went:\n%s", out)
+	assert.NotContains(t, out, "A null pointer is never passed here.", "the prose under the heading was not cut:\n%s", out)
+	assert.Contains(t, out, "unsafe fn first(p: *const u8, n: usize) -> u8 {\n", out)
+	req.Content = out
+	assert.Equal(t, out, slopfix.Fix(req).Text, "a second fix changed the text")
+}
+
 // A Rust doc block of sglang's tool_parser.rs. The bare `///` lines are
 // paragraph breaks and `# Safety` is a heading, so neither joins the prose
 // around it. One fix reaches a fixed point.
