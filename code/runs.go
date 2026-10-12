@@ -19,8 +19,13 @@ type Run struct {
 	Start int
 	End   int
 	Pure  []bool
+<<<<<<< HEAD
 	// Prose holds each line of the run with every byte outside a comment node written as a blank.
 	Prose []string
+=======
+	// Spans holds the byte columns each row's comment covers, from and to.
+	Spans [][2]int
+>>>>>>> 73ee053 (net)
 }
 
 // Runs returns every comment run in src, in file order.
@@ -73,7 +78,11 @@ func merge(nodes []ts.Node, lines []string) []Run {
 				Start: start,
 				End:   end + 1,
 				Pure:  purity(nodes[i:j+1], start, end, lines),
+<<<<<<< HEAD
 				Prose: prose(nodes[i:j+1], start, end, lines),
+=======
+				Spans: spans(nodes[i:j+1], start, end),
+>>>>>>> 73ee053 (net)
 			})
 		}
 		i = j + 1
@@ -81,6 +90,7 @@ func merge(nodes []ts.Node, lines []string) []Run {
 	return runs
 }
 
+<<<<<<< HEAD
 // prose answers each line of the run with the bytes outside every comment
 // node blanked. A reader of the words then sees the comments alone.
 func prose(nodes []ts.Node, start, end int, lines []string) []string {
@@ -104,6 +114,20 @@ func prose(nodes []ts.Node, start, end int, lines []string) []string {
 			}
 			kept := out[lineNo-start]
 			out[lineNo-start] = kept[:left] + line[left:right] + kept[right:]
+=======
+// spans answers the columns each row's comment covers. Code before a comment
+// that trails it, or after one that closes mid-line, falls outside.
+func spans(nodes []ts.Node, start, end int) [][2]int {
+	out := make([][2]int, end-start+1)
+	for i := range out {
+		out[i] = [2]int{0, -1}
+	}
+	for _, n := range nodes {
+		from, to := int(n.StartPoint().Row), lastRow(n)
+		out[from-start][0] = int(n.StartPoint().Column)
+		if to == int(n.EndPoint().Row) {
+			out[to-start][1] = int(n.EndPoint().Column)
+>>>>>>> 73ee053 (net)
 		}
 	}
 	return out

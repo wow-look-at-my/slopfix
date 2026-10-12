@@ -27,8 +27,18 @@ func withoutIgnored(root string, paths []string) []string {
 		}
 		abs[i] = a
 	}
+	tracked := trackedUnder(root)
+	var asked []string
+	for _, a := range abs {
+		if !tracked.Contains(a) {
+			asked = append(asked, a)
+		}
+	}
+	if len(asked) == 0 {
+		return paths
+	}
 	cmd := gitmod.Command(root, "check-ignore", "--stdin", "-z")
-	cmd.Stdin = strings.NewReader(strings.Join(abs, "\x00") + "\x00")
+	cmd.Stdin = strings.NewReader(strings.Join(asked, "\x00") + "\x00")
 	out, err := cmd.Output()
 	// Exit status 1 means git ignores none of the paths.
 	var exit *exec.ExitError
@@ -44,6 +54,27 @@ func withoutIgnored(root string, paths []string) []string {
 		}
 	}
 	return kept
+}
+
+// trackedUnder answers the absolute path of each file git tracks under root.
+// check-ignore spends its time on paths git tracks and never ignores, so only
+// the rest go to it. A root git cannot list answers none, and then every path goes.
+func trackedUnder(root string) set.Set[string] {
+	tracked := set.New[string]()
+	base, err := filepath.Abs(root)
+	if err != nil {
+		return tracked
+	}
+	out, err := gitmod.Command(root, "ls-files", "-z").Output()
+	if err != nil {
+		return tracked
+	}
+	for _, rel := range strings.Split(string(out), "\x00") {
+		if rel != "" {
+			tracked.Add(filepath.Join(base, filepath.FromSlash(rel)))
+		}
+	}
+	return tracked
 }
 
 // withoutVendored drops each path .gitattributes marks with any of

@@ -1,6 +1,11 @@
 // Command ratchet runs from the default branch's checkout and judges the branch
+<<<<<<< HEAD
 // checked out at its one argument. A repository's .github/ratchet names it, and
 // slopfix's own ratchet command runs it against every branch.
+=======
+// checked out at its one argument. go-toolchain runs it, as .github/ratchet
+// names it, on every branch's CI run.
+>>>>>>> 73ee053 (net)
 package main
 
 import (
