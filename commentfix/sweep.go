@@ -17,6 +17,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/trace"
 )
 
 // skipDirs hold text nobody in the tree authored.
@@ -180,7 +181,11 @@ func write(path, text string) error { return WriteFile(path, text) }
 
 // WriteFile replaces path with text through a rename. A run killed part way
 // leaves the file whole: either as it was or as the repair wrote it.
+// A symlink keeps its link: the write goes to the file the link names.
 func WriteFile(path, text string) error {
+	if target, err := filepath.EvalSymlinks(path); err == nil {
+		path = target
+	}
 	info, err := os.Stat(path)
 	mode := os.FileMode(0o644)
 	if err == nil {
@@ -212,6 +217,7 @@ func TreeFiles(root string) []string {
 // TreeFilesMatching is TreeFiles for a caller whose rule reads a different set
 // of files. The walk, and so the skip list, stays what this package owns.
 func TreeFilesMatching(root string, reads func(string) bool) []string {
+	defer trace.Phase("commentfix/walk")()
 	// Where the root is not a module, the modules below it are the whole tree.
 	_, err := os.Stat(filepath.Join(root, "go.mod"))
 	rootIsModule := err == nil

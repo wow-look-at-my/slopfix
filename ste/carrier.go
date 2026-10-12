@@ -146,7 +146,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	// noun phrase restates its head noun: "The same leniency over X, for Y"
 	// becomes "That leniency is for Y".
 	if seam == "," && (word.Tag == "IN" || word.Tag == "TO" || word.Tag == "VBN" || word.Tag == "VBG") &&
-		!clauseOpeners.Contains(lower) && first+1 < len(whole.Words) && opensObject(whole, first+1) {
+		!clauseOpeners.Contains(lower) && !opensAdverbialClause(whole, first) && first+1 < len(whole.Words) && opensObject(whole, first+1) {
 		if noun, ok := headNoun(whole, c.left); ok {
 			return head, restate(source, noun, rest), opensWithCarrier
 		}
@@ -190,6 +190,13 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restate(source, prev, rest), opensWithCarrier
 	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
+	case seam == "" && noun && !indefinites.Contains(prev.Lower()) && (lower == "that" || lower == "which") && relativeWithSubject(whole, first):
+		// "a plugin that the later run took from a cache": the relative clause has a subject of its own.
+		pronoun := "one"
+		if prev.Tag == "NNS" || prev.Tag == "NNPS" {
+			pronoun = "ones"
+		}
+		return head, restate(source, prev, pronoun+" "+rest), opensWithCarrier
 	// "the words after the cut are no clause": a verb after the phrase makes it part of the subject.
 	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
 		adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
@@ -248,6 +255,14 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 // clauseOpeners open a clause whose verb a head must hold before it can close.
 var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since", "unless", "although", "though", "whereas", "so", "where")
 
+// opensAdverbialClause reports "as" or a subordinator at word i whose words hold a
+// finite verb before the next comma. "as its go.mod approves" is a clause, and
+// no restated noun is it.
+func opensAdverbialClause(s *syntax.Sentence, i int) bool {
+	lower := s.Words[i].Lower()
+	return (lower == "as" || syntax.Is(lower, "subordinator")) && finiteBefore(s, i+1, ",")
+}
+
 // headOpen reports words before word end that end inside an unfinished clause.
 // One is a subordinator with no finite verb after it: "reports whether the
 // words". The other is a noun with a new subject and no verb after them:
@@ -258,6 +273,9 @@ func headOpen(s *syntax.Sentence, end int) bool {
 		w := s.Words[i]
 		switch {
 		case finiteVerbTag(w.Tag) || w.Tag == "MD":
+			open = -1
+		case open >= 0 && i > open+1 && w.Tag == "NNS" && s.Words[i-1].Tag == "NN" && i+1 < len(s.Words) && s.Words[i+1].Tag == "IN":
+			// The tagger reads the verb of the new subject as a plural noun: "a word the actor of a clause stops in front of".
 			open = -1
 		case clauseOpeners.Contains(w.Lower()) && i > 0:
 			open = i
@@ -493,6 +511,21 @@ func plainPhrase(s *syntax.Sentence, i int) bool {
 	return true
 }
 
+// relativeWithSubject reports a relative word at i whose clause names. A
+// subject of its own and runs to the end of the sentence with no comma or
+// colon: "that the later run took from a cache and never published".
+func relativeWithSubject(s *syntax.Sentence, i int) bool {
+	if i+1 >= len(s.Words) || !opensObject(s, i+1) || !finiteBetween(s, i+1, len(s.Words)) {
+		return false
+	}
+	for _, w := range s.Words[i+1:] {
+		if w.Text == "," || w.Text == ":" || w.Text == ";" {
+			return false
+		}
+	}
+	return true
+}
+
 // mainSubject names the subject of the main clause whose verb group is verb
 // again. A short subject repeats with "the" for "a". A long one becomes a
 // pronoun that agrees with tag. A person in the singular has no pronoun here.
@@ -692,10 +725,13 @@ func listRest(source string, s *syntax.Sentence, verb syntax.Phrase, c forceCut,
 func listEnd(rest string) (string, bool) {
 	r := syntax.Parse(rest, nil)
 	conj := ""
-	for _, w := range r.Words {
+	for i, w := range r.Words {
 		switch w.Tag {
 		case "VBZ", "VBD", "MD":
-			return "", false
+			// A verb of a relative clause describes an item: "a subordinator that opens a clause".
+			if !inRelative(r, i) {
+				return "", false
+			}
 		case "CC":
 			if l := w.Lower(); l == "and" || l == "or" {
 				conj = l

@@ -49,8 +49,12 @@ func isCandidate(name string) bool {
 }
 
 // identifierShaped reports whether a whole word is built like a symbol rather
-// than prose: it carries an underscore, or a case change inside it.
+// than prose: it carries an underscore, or a case change inside it. A word
+// that starts with a digit is a number literal, never a symbol.
 func identifierShaped(name string) bool {
+	if name[0] >= '0' && name[0] <= '9' {
+		return false
+	}
 	if strings.Contains(name, "_") {
 		return true
 	}
@@ -62,6 +66,16 @@ func identifierShaped(name string) bool {
 	}
 	// Prose capitalises a sentence head too, so a capital needs a digit.
 	return name[0] >= 'A' && name[0] <= 'Z' && strings.ContainsAny(name, "0123456789")
+}
+
+// documentName answers the part of a bare document word that can name a
+// symbol, or "".
+func documentName(word string) string {
+	word = strings.Trim(word, "_")
+	if !strings.Contains(word, "_") {
+		return ""
+	}
+	return word
 }
 
 // probeTimeout bounds the search, because a guard that hangs is worse.
@@ -84,6 +98,60 @@ type symbolIndex struct {
 	once  sync.Once
 	files map[string]int
 	ok    bool
+
+	pathOnce sync.Once
+	paths    set.Set[string]
+	pathsOK  bool
+}
+
+// namesAFile reports a name that a path git lists under root spells, such as
+// sig_cosmo_test for sig_cosmo_test.go. A name that ends in an underscore
+// names the files that start with it.
+func (ix *symbolIndex) namesAFile(root, name string) bool {
+	ix.pathOnce.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
+		defer cancel()
+		listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+		if err != nil {
+			return
+		}
+		ix.paths = set.New[string]()
+		for _, rel := range strings.Split(string(listed), "\x00") {
+			for _, word := range identifierWords(rel) {
+				ix.paths.Add(word)
+			}
+		}
+		ix.pathsOK = true
+	})
+	if !ix.pathsOK {
+		return false
+	}
+	if ix.paths.Contains(name) {
+		return true
+	}
+	if !strings.HasSuffix(name, "_") {
+		return false
+	}
+	for word := range ix.paths.All() {
+		if strings.HasPrefix(word, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// foreignInGo reports an underscored name in Go, which is a C name or a file.
+// A test function keeps its underscore and stays a candidate.
+func foreignInGo(path, name string) bool {
+	if !strings.HasSuffix(path, ".go") || !strings.Contains(name, "_") {
+		return false
+	}
+	for _, prefix := range []string{"Test", "Benchmark", "Example", "Fuzz"} {
+		if strings.HasPrefix(name, prefix) {
+			return false
+		}
+	}
+	return true
 }
 
 var (
@@ -195,10 +263,15 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	if root == "" {
 		return nil
 	}
+	doc := IsDocument(path)
 	names := set.New[string]()
 	for _, b := range blocks {
-		for _, m := range identifierWords(b.Text) {
-			if isCandidate(m) {
+		// The names come from the comment alone. Code on a shared line names what it uses, and the repository answers for that.
+		for _, m := range identifierWords(b.Prose) {
+			if doc {
+				m = documentName(m)
+			}
+			if m != "" && isCandidate(m) {
 				names.Add(m)
 			}
 		}
@@ -207,9 +280,10 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		return nil
 	}
 
+	ix := indexFor(root)
 	var ordered []string
 	for n := range names.All() {
-		if strings.Count(added, n) > 1 {
+		if strings.Count(added, n) > 1 || foreignInGo(path, n) || ix.namesAFile(root, n) {
 			continue
 		}
 		ordered = append(ordered, n)
@@ -220,7 +294,6 @@ func DeadReferents(path, added string, blocks []Block) []string {
 
 	self, _ := os.ReadFile(path)
 	selfPath, _ := filepath.Abs(path)
-	ix := indexFor(root)
 	rg := ""
 	if !ix.ok {
 		found, err := exec.LookPath("rg")
@@ -233,7 +306,8 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	if !ix.ok && rg == "" {
 		return nil
 	}
-	args := []string{"--no-messages", "--fixed-strings", "--files-with-matches", "--max-count", "1"}
+	// --word-regexp matches whole identifiers, the way the index counts them.
+	args := []string{"--no-messages", "--fixed-strings", "--word-regexp", "--files-with-matches", "--max-count", "1"}
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()

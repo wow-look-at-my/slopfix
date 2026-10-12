@@ -24,7 +24,7 @@ const guardedRunScripts = "name: CI\n" +
 	"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n" +
 	"jobs:\n" +
 	"  kernel:\n" +
-	"    runs-on: ubuntu-latest\n" +
+	"    runs-on: ${{ github.event.repository.visibility == 'public' && 'ubuntu-latest' || vars.CI_RUNNER || 'ubuntu-latest' }}\n" +
 	"    steps:\n" +
 	"      - run: |\n" +
 	"          shopt -s nullglob\n" +
