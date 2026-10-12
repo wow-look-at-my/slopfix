@@ -19,13 +19,36 @@ type preserveResult struct {
 // preserveAtRiskPaths commits the paths a destructive command would destroy,
 // without touching the user's index.
 func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok bool) {
-	if root == "" || len(paths) == 0 {
+	commit, ok := commitPaths(root, paths, func(working bool) string { return preserveMessage(paths, working) })
+	if !ok {
 		return nil, false
+	}
+	res = &preserveResult{ref: branchName(root), commit: commit}
+	if _, stderr, err := runGitEnvTimeout(root, preservePushTimeout, nil, "push", "--no-verify", "origin", "HEAD"); err != nil {
+		res.pushErr = strings.TrimSpace(stderr)
+		if res.pushErr == "" {
+			res.pushErr = err.Error()
+		}
+	} else {
+		res.pushed = true
+	}
+	return res, true
+}
+
+// commitPaths commits the working-tree content of paths onto the current
+// branch through a throwaway index, and answers the new commit. The real index
+// takes the committed content of those paths. A staged version that differs
+// gets a commit of its own first. message names each commit, and working is
+// true for the commit that holds the working tree. A tree equal to its parent
+// makes no commit.
+func commitPaths(root string, paths []string, message func(working bool) string) (string, bool) {
+	if root == "" || len(paths) == 0 {
+		return "", false
 	}
 
 	tmp, err := os.CreateTemp("", "no-work-loss-index-*")
 	if err != nil {
-		return nil, false
+		return "", false
 	}
 	tmpIndex := tmp.Name()
 	tmp.Close()
@@ -57,19 +80,23 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	// --force: an ignored file (clean -fdx) is exactly the case `git add`
 	addArgs := append([]string{"add", "--force", "--"}, paths...)
 	if _, _, err := runGitEnvTimeout(root, gitTimeout, env, addArgs...); err != nil {
-		return nil, false
+		return "", false
 	}
 
 	treeOut, _, err := runGitEnvTimeout(root, gitTimeout, env, "write-tree")
 	if err != nil {
-		return nil, false
+		return "", false
 	}
 	tree := strings.TrimSpace(treeOut)
 	if tree == "" {
-		return nil, false
+		return "", false
 	}
 	if len(trees) == 0 || trees[len(trees)-1] != tree {
 		trees = append(trees, tree)
+	}
+	if len(trees) == 1 && trees[0] == headTree {
+		// Nothing differs from HEAD, so no commit is made.
+		return "", false
 	}
 
 	commit := ""
@@ -81,7 +108,7 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	signOut, _, _ := runGit(root, "config", "--type=bool", "commit.gpgsign")
 	sign := strings.TrimSpace(signOut) == "true"
 	for i, t := range trees {
-		commitArgs := []string{"commit-tree", t, "-m", preserveMessage(paths, i == len(trees)-1)}
+		commitArgs := []string{"commit-tree", t, "-m", message(i == len(trees)-1)}
 		if sign {
 			commitArgs = append(commitArgs, "-S")
 		}
@@ -90,11 +117,11 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 		}
 		commitOut, _, err := runGit(root, commitArgs...)
 		if err != nil {
-			return nil, false
+			return "", false
 		}
 		commit = strings.TrimSpace(commitOut)
 		if commit == "" {
-			return nil, false
+			return "", false
 		}
 		parent = commit
 	}
@@ -102,22 +129,12 @@ func preserveAtRiskPaths(root string, paths []string) (res *preserveResult, ok b
 	// The commit lands on the CURRENT BRANCH, where the log, the diff and the next push all show it.
 	if _, _, err := runGit(root, "update-ref", "HEAD", commit); err != nil {
 		// The commit object exists but nothing names it, so git gc can reap
-		return nil, false
+		return "", false
 	}
 	// The branch moved under the real index, which would then report a STAGED
 	resetArgs := append([]string{"reset", "-q", commit, "--"}, paths...)
 	runGit(root, resetArgs...)
-
-	res = &preserveResult{ref: branchName(root), commit: commit}
-	if _, stderr, err := runGitEnvTimeout(root, preservePushTimeout, nil, "push", "--no-verify", "origin", "HEAD"); err != nil {
-		res.pushErr = strings.TrimSpace(stderr)
-		if res.pushErr == "" {
-			res.pushErr = err.Error()
-		}
-	} else {
-		res.pushed = true
-	}
-	return res, true
+	return commit, true
 }
 
 // stagedTree builds a tree holding HEAD's content except at the at-risk paths, which take the USER'S index.

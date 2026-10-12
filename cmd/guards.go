@@ -65,7 +65,7 @@ var guards = []guard{
 	{name: writeGuard, events: []string{eventPreToolUse}, run: func(payload []byte, write writeSelection) hookResult {
 		return hookResult{Stdout: judge(payload, write.rules, write.ids, write.forks)}
 	}},
-	{name: "no-work-loss", events: []string{eventPreToolUse}, run: reader(func(r *strings.Reader) hookResult { return hookResult(noworkloss.Run(r)) })},
+	{name: "no-work-loss", events: []string{eventPreToolUse, eventPostToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(noworkloss.Run(r)) })},
 	{name: "rustfmt", events: []string{eventPreToolUse, eventPostToolUse}, run: reader(func(r *strings.Reader) hookResult { return hookResult(rustfmt.Run(r)) })},
 	{name: "auto-allow", events: []string{eventPreToolUse, eventPermissionRequest}, run: reader(func(r *strings.Reader) hookResult { return hookResult(autoallow.Run(r)) })},
 	{name: "busy-poll", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(busypoll.Run(r)) })},

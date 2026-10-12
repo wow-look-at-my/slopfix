@@ -29,9 +29,9 @@ func init() {
 			"Every guard that serves the event runs, unless --only names a subset.\n\n" +
 			"  PreToolUse         clean-bash, write, no-work-loss, rustfmt, auto-allow, busy-poll\n" +
 			"  PermissionRequest  auto-allow\n" +
-			"  PostToolUse        rustfmt, md-budget\n" +
+			"  PostToolUse        no-work-loss, rustfmt, md-budget\n" +
 			"  SessionStart       md-budget\n" +
-			"  Stop               busy-poll, md-budget, laziness\n" +
+			"  Stop               no-work-loss, busy-poll, md-budget, laziness\n" +
 			"  MessageDisplay     link-refs, blame-language, ask-properly\n\n" +
 			"On PreToolUse the guards run in that order. The first refusal is the\n" +
 			"answer, and a Bash rewrite reaches every guard after it. On Stop, every\n" +
