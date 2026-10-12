@@ -30,7 +30,7 @@ func TestADivertedGoToolchainIsUndiverted(t *testing.T) {
 	} {
 		got := Transform(in)
 		assert.False(t, got.Denied, "wrongly denied: %s", in)
-		assert.Equal(t, "set -o pipefail\n"+want+"\n", got.Command, "wrong rewrite: %s", in)
+		assert.Equal(t, ""+want+"\n", got.Command, "wrong rewrite: %s", in)
 	}
 }
 
@@ -38,7 +38,7 @@ func TestADivertedGoToolchainIsUndiverted(t *testing.T) {
 // while the stdout redirect beside it goes.
 func TestStderrRedirectsSurviveTheRewrite(t *testing.T) {
 	got := Transform("go-toolchain > log 2> errors")
-	assert.Equal(t, "set -o pipefail\ngo-toolchain 2>errors\n", got.Command)
+	assert.Equal(t, "go-toolchain 2>errors\n", got.Command)
 }
 
 // A capture feeds a value to the rest of the script, so there is nothing to
