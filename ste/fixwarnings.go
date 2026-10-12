@@ -209,17 +209,26 @@ func auxiliary(s *syntax.Sentence, from int, forms set.Set[string]) (int, int) {
 // A clause that names no actor is left as written, because nothing states who
 // acts.
 func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
+	if marks := emphasisMarks(source); len(marks) > 0 {
+		return rewriteEmphasized(source, marks)
+	}
+	parts, ok := passiveParts(s, source)
+	if !ok {
+		return "", false
+	}
+	return joinParts(parts), true
+}
+
+// passiveParts answers the active clause for a passive one, as the parts
+// rewritePassive joins. Each part records the source bytes it came from.
+func passiveParts(s *syntax.Sentence, source string) ([]part, bool) {
 	last := lastContent(s)
 	i, j := auxiliary(s, 1, beForms)
 	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
-		return "", false
+		return nil, false
 	}
 	if !simpleSpan(s, i, j) {
-		return "", false
-	}
-	// Emphasis delimiters stand in the source, and moving the words around them would split the span they mark.
-	if strings.Contains(source, "**") || strings.Contains(source, "__") {
-		return "", false
+		return nil, false
 	}
 	// The actor is the phrase after "by", and it must close the clause.
 	by := -1
@@ -230,13 +239,7 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 		}
 	}
 	if by < 0 || by+1 > last {
-		return "", false
-	}
-	// An actor names someone or something: "by the gate", "by GitHub". A bare noun after "by" names a method, as in "by absolute path".
-	switch s.Words[by+1].Tag {
-	case "DT", "PRP", "PRP$", "NNP", "NNPS", "CD":
-	default:
-		return "", false
+		return nil, false
 	}
 	end := last
 	for k := by + 1; k <= last; k++ {
@@ -246,27 +249,35 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 		}
 	}
 	if end < by+1 {
-		return "", false
+		return nil, false
 	}
 	// An adverb that opens the sentence modifies the whole clause, so it keeps its place in front: "Otherwise runs are separated by a line".
 	open := 0
-	opener := ""
 	if s.Words[0].Tag == "RB" && i > 1 {
 		open = 1
-		opener = source[s.Words[0].Start:s.Words[0].End] + " "
 	}
-	subject := strings.TrimSpace(source[s.Words[open].Start:s.Words[i].Start])
-	actor := source[s.Words[by+1].Start:s.Words[end].End]
-	tail := source[s.Words[end].End:]
+	subjectAt := s.Words[open].Start
+	subject := strings.TrimSpace(source[subjectAt:s.Words[i].Start])
+	actorAt, actorEnd := s.Words[by+1].Start, s.Words[end].End
+	actor := source[actorAt:actorEnd]
 	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
 	if subject == "" || actor == "" || verb == "" {
-		return "", false
+		return nil, false
 	}
-	object := lowerOpeningFor(subject, s.Words[open].Tag)
-	if opener != "" {
-		return opener + actor + " " + verb + " " + object + tail, true
+	var parts []part
+	if open == 1 {
+		parts = append(parts, part{source[s.Words[0].Start:s.Words[0].End], s.Words[0].Start, s.Words[0].End, true}, part{text: " ", from: -1})
+	} else {
+		actor = capitalizeOpening(actor)
 	}
-	return capitalizeOpening(actor) + " " + verb + " " + object + tail, true
+	return append(parts,
+		part{actor, actorAt, actorEnd, true},
+		part{text: " ", from: -1},
+		part{verb, s.Words[i].Start, s.Words[j].End, false},
+		part{text: " ", from: -1},
+		part{lowerOpeningFor(subject, s.Words[open].Tag), subjectAt, subjectAt + len(subject), true},
+		part{source[actorEnd:], actorEnd, len(source), true},
+	), true
 }
 
 // lowerOpeningFor writes a phrase as it reads inside a sentence rather than at

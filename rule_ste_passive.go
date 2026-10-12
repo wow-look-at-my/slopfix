@@ -14,6 +14,10 @@ func init() {
 			{Name: ste.IDPassive, Path: "w.md", Text: "The task is started by the gate.\n"},
 			// dats docs/cli.md: an opening adverb keeps its place, and a verb the table does not list keeps its e.
 			{Name: ste.IDPassive + " after an opening adverb", Path: "w.md", Text: "Otherwise the runs are separated by a dashed line.\n"},
+			// A plural common noun names the actor as well as a name does.
+			{Name: ste.IDPassive + " with a common-noun actor", Path: "w.md", Text: "The task is started by users.\n"},
+			// Bold text goes back around the words it marked, wherever the rewrite moves them.
+			{Name: ste.IDPassive + " with bold text", Path: "w.md", Text: "The task is **started** by the gate.\n"},
 		},
 	})
 }
