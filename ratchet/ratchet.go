@@ -5,10 +5,6 @@
 package ratchet
 
 import (
-<<<<<<< HEAD
-=======
-	"bytes"
->>>>>>> 73ee053 (net)
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,11 +13,8 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix"
-<<<<<<< HEAD
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/tombstones"
-=======
->>>>>>> 73ee053 (net)
 )
 
 // Judge pairs the binary that judges with the binary under test.
@@ -32,12 +25,9 @@ type Judge struct {
 	Head string
 	// Work is a directory each case is written under.
 	Work string
-<<<<<<< HEAD
 	// Repair and Check decide a case. Nil runs Base and Head as programs.
 	Repair Decider
 	Check  Decider
-=======
->>>>>>> 73ee053 (net)
 }
 
 // Failure is a case Base still flags after Head repaired it.
@@ -54,7 +44,6 @@ func (f Failure) String() string {
 	return fmt.Sprintf("%s, case %q:\n%s%s", f.Rule, f.Case, f.Verdict, f.Repair)
 }
 
-<<<<<<< HEAD
 // Decider repairs a case, or judges it. The shipped one runs bin as a program.
 type Decider func(bin, dir, stdin string, args ...string) (string, error)
 
@@ -75,8 +64,6 @@ func (j Judge) check(bin, dir, stdin string, args ...string) (string, error) {
 	return run(bin, dir, stdin, args...)
 }
 
-=======
->>>>>>> 73ee053 (net)
 // Run repairs each case with Head and judges it with Base. It answers every
 // case Base still flags.
 func (j Judge) Run(specs []slopfix.RuleSpec) ([]Failure, error) {
@@ -93,33 +80,20 @@ func (j Judge) Run(specs []slopfix.RuleSpec) ([]Failure, error) {
 				return nil, fmt.Errorf("%s, case %q: %w", spec.ID, c.Name, err)
 			}
 			if tree {
-<<<<<<< HEAD
 				repair, _ := j.repair(j.Head, dir, "", "fix", ".")
 				if verdict, err := j.check(j.Base, dir, "", "check", "."); err != nil {
-=======
-				repair, _ := run(j.Head, dir, "", "fix", ".")
-				if verdict, err := run(j.Base, dir, "", "check", "."); err != nil {
->>>>>>> 73ee053 (net)
 					failures = append(failures, Failure{Rule: spec.ID, Case: c.Name, Repair: repair, Verdict: verdict})
 				}
 			}
 			if materialized.Text == "" {
 				continue
 			}
-<<<<<<< HEAD
 			repaired, err := j.message(dir, materialized.Text)
-=======
-			repaired, err := message(j.Head, dir, materialized.Text)
->>>>>>> 73ee053 (net)
 			if err != nil {
 				failures = append(failures, Failure{Rule: spec.ID, Case: c.Name, Repair: err.Error()})
 				continue
 			}
-<<<<<<< HEAD
 			if verdict, err := j.check(j.Base, dir, repaired, "check", "--message"); err != nil {
-=======
-			if verdict, err := run(j.Base, dir, repaired, "check", "--message"); err != nil {
->>>>>>> 73ee053 (net)
 				failures = append(failures, Failure{Rule: spec.ID, Case: c.Name, Verdict: verdict})
 			}
 		}
@@ -127,25 +101,9 @@ func (j Judge) Run(specs []slopfix.RuleSpec) ([]Failure, error) {
 	return failures, nil
 }
 
-<<<<<<< HEAD
 // message repairs a closing message with Head, and answers the repaired text.
 func (j Judge) message(dir, text string) (string, error) {
 	return j.repair(j.Head, dir, text, "check", "--message", "--fix")
-=======
-// message repairs a closing message with bin, and answers the repaired text.
-func message(bin, dir, text string) (string, error) {
-	cmd := exec.Command(bin, "check", "--message", "--fix")
-	cmd.Dir = dir
-	cmd.Stdin = strings.NewReader(text)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		if _, exited := err.(*exec.ExitError); !exited {
-			return "", fmt.Errorf("%s check --message --fix: %w", bin, err)
-		}
-	}
-	return stdout.String(), nil
->>>>>>> 73ee053 (net)
 }
 
 // run runs bin in dir with stdin, and answers its combined output. A non-zero
@@ -158,7 +116,6 @@ func run(bin, dir, stdin string, args ...string) (string, error) {
 	return string(out), err
 }
 
-<<<<<<< HEAD
 // InProcess answers a decider that reaches slopfix's entry points in process.
 func InProcess() Decider {
 	return func(_, dir, stdin string, args ...string) (string, error) {
@@ -231,8 +188,6 @@ func flagged(tree slopfix.TreeRepair) error {
 	return nil
 }
 
-=======
->>>>>>> 73ee053 (net)
 // Build compiles the slopfix command of the module at dir into out.
 func Build(dir, out string) error {
 	cmd := exec.Command("go", "build", "-o", out, "./cmd/slopfix")

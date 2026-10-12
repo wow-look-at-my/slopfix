@@ -43,7 +43,6 @@ func TestFixCutsADeadNameFromADocument(t *testing.T) {
 	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
 }
 
-<<<<<<< HEAD
 // A dead name that differs from a defined one in case alone is a typo. Fix
 // renames it and keeps the line, which holds the opening sentence too.
 func TestFixRenamesACaseTypoToTheDefinedName(t *testing.T) {
@@ -88,25 +87,6 @@ func TestFixCutsOnlyTheSentenceThatHoldsADeadName(t *testing.T) {
 	assert.NotContains(t, fixed.Text, "GoneHelperName")
 	assert.Contains(t, fixed.Text, "// readInput walks the buffer. It returns the count.\n")
 	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
-=======
-// A sentence that names a dead symbol goes whole, across every line it wraps
-// onto, and the comment keeps its other sentences.
-func TestFixCutsTheWholeSentenceThatWrapsADeadName(t *testing.T) {
-	path := deadReferentRepo(t, "main.go")
-	content := "package main\n\n// main reads the input. The check in\n// parseLegacyFlag runs first, so the caller\n// waits for it.\nfunc main() {}\n"
-
-	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
-	assert.Equal(t, "package main\n\n// main reads the input.\nfunc main() {}\n", fixed.Text)
-}
-
-// A name in the code before a trailing comment is no name the comment carries.
-func TestADeadNameRuleReadsOnlyTheComment(t *testing.T) {
-	path := deadReferentRepo(t, "main.go")
-	content := "package main\n\nvar names = []string{\n\t\"wasmonly_wasm_js\", // js-only main\n}\n"
-
-	report := slopfix.Report(slopfix.Request{Path: path, Content: content})
-	assert.NotContains(t, keptIDs(report.Kept), tombstones.IDDeadReferent)
->>>>>>> 73ee053 (net)
 }
 
 // A sentence that names a dead symbol goes whole, across every line it wraps
