@@ -19,6 +19,10 @@ func init() {
 			Path:  "main.go",
 			Text:  "package main\n\n// parseLegacyFlag reads the input.\nfunc main() {}\n",
 			Files: map[string]string{"util.go": "package main\n\nfunc readInput() {}\n"},
+		}, {
+			Name: tombstones.IDDeadReferent + " on the closer line of a JSDoc block",
+			Path: "plain.js",
+			Text: "/** Report whether the value is plain.\n * A plain value never equals `value === thisOperand` at runtime. */\nexport function isPlain(value) {\n\treturn value === null;\n}\n",
 		}},
 	})
 }
