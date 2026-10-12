@@ -82,6 +82,19 @@ func TestAnUntrackedExecutableIsNotTheRepositorys(t *testing.T) {
 	assert.Empty(t, checkOnly(root, slopfix.IDBinary))
 }
 
+// A CI container checks the tree out as another user. A bare git refuses that
+// tree, and a disk walk then reads every ignored build output.
+func TestABuildOutputInATreeAnotherUserOwnsIsNotReported(t *testing.T) {
+	root := gitRepo(t, map[string]string{".gitignore": "build/\n"})
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "build"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "build", "tool"), []byte(elf), 0o755))
+	t.Setenv("GIT_TEST_ASSUME_DIFFERENT_OWNER", "1")
+	refused, err := exec.Command("git", "-C", root, "ls-files").CombinedOutput()
+	require.Error(t, err, "the fixture must make a bare git refuse the tree")
+	require.Contains(t, string(refused), "dubious ownership")
+	assert.Empty(t, checkOnly(root, slopfix.IDBinary))
+}
+
 func TestATreeGitCannotListIsReadFromDisk(t *testing.T) {
 	root := gitRoot(t, map[string]string{"tool": elf})
 	assert.Equal(t, []string{"tool repo/binary"}, pathsOf(checkOnly(root, slopfix.IDBinary)))
