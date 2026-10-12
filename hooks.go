@@ -138,14 +138,11 @@ func Selects(hook Hook) set.Set[string] {
 	return ids
 }
 
-// EveryRuleID is every rule this repository reports, whichever command reaches
-// it. The check path answers for part of it, and the repair categories and the
-// comment rule answer for the rest.
+// EveryRuleID is every rule the registry holds, whichever command reaches it.
 func EveryRuleID() set.Set[string] {
-	every := AllIDs()
-	for _, rule := range AllRules {
-		every = every.Union(IDsFor(rule))
+	every := set.New[string]()
+	for _, rule := range AllRuleSpecs() {
+		every.Add(rule.ID)
 	}
-	every.AddRange(IDCommentNumber, IDPunt, IDBlame, IDAsk)
 	return every
 }

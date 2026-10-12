@@ -234,9 +234,15 @@
   <pattern match="(?i)\s*\b(?:anymore|nowadays|these days)\b" replace=""
            where="comment document" test="The walk does not recurse anymore"
            expect="The walk does not recurse"/>
-  <pattern match="(?i)\bthe (?:former|old|previous|legacy|original) (\S+)" replace="the $1"
+  <!-- "original" and "former" are absent: each is a noun as often, as in "the original fails". -->
+  <pattern match="(?i)\bthe (?:old|previous|legacy) (\S+)" replace="the $1"
            where="comment document" test="The old scanner reads a marker byte"
-           expect="The scanner reads a marker byte"/>
+           expect="The scanner reads a marker byte">
+    <test in="The original recovers above the floor or finishes: the backup stops."
+          out="The original recovers above the floor or finishes: the backup stops."/>
+    <test in="The former is faster than the latter."
+          out="The former is faster than the latter."/>
+  </pattern>
   <!--
     These two name a change verb without naming who it happened to, so the
     subject decides the reading. A subject that opens the sentence's own
@@ -329,8 +335,8 @@
            where="comment document" test="As mentioned above it races" expect="It races"/>
   <pattern id="tombstones/position-reference"
            match="(?i)\s*\bsee (?:above|below)\b[^.]*" replace=""
-           where="comment document" test="The lock is held see above for the reason"
-           expect="The lock is held"/>
+           where="comment document" test="The gate holds the lock see above for the reason"
+           expect="The gate holds the lock"/>
   <pattern id="tombstones/hedged-time"
            match="(?i)\s*\bfor now\b[,]?" replace=""
            where="comment document" test="For now it retries once" expect="It retries once"/>
@@ -339,11 +345,11 @@
            where="comment document" test="It currently retries once" expect="It retries once"/>
   <pattern id="tombstones/hedged-time"
            match="(?i)\s*\bwill be\b[^.]*\b(?:later|soon|eventually|someday|in (?:a|the) future)\b[^.]*" replace=""
-           where="comment document" test="The retry count will be raised later"
+           where="comment document" test="The retry count will be higher later"
            expect="The retry count"/>
   <pattern id="tombstones/unstated-value"
-           match="(?i)\s*\bis (?:tbd|to be determined)\b" replace=" is not stated here"
-           where="comment document" test="The limit is TBD" expect="The limit is not stated here"/>
+           match="(?i)\s*\bis (?:tbd|to be determined)\b" replace=" has no set value"
+           where="comment document" test="The limit is TBD" expect="The limit has no set value"/>
   <pattern id="tombstones/shrug"
            match="(?i)\s*\bfor some reason\b[,]?" replace=""
            where="comment document" test="For some reason it races" expect="It races"/>
@@ -353,7 +359,7 @@
            expect="The cap holds"/>
   <pattern id="tombstones/shrug"
            match="(?i)\s*\bobviously\b" replace=""
-           where="comment document" test="This is obviously wrong" expect="This is wrong"/>
+           where="comment document" test="This is obviously slow" expect="This is slow"/>
   <pattern id="tombstones/unexplained-workaround"
            match="(?i)\ba hack around\b" replace="a workaround for"
            where="comment document" test="A hack around the race" expect="A workaround for the race"/>

@@ -3,6 +3,7 @@
 package markdown
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/text"
 
+	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -58,9 +60,17 @@ func Split(content string) []Block {
 	defer trace.Phase("markdown/split")()
 	lines := strings.Split(content, "\n")
 	ends := paragraphs(content, lines)
+	// Source text is code however its file is named, and so is a paragraph of it.
+	whole := code.Is(content)
 	var blocks []Block
 	for i := 0; i < len(lines); {
 		end, prose := ends[i]
+		if prose && (whole || code.Is(strings.Join(lines[i:end+1], "\n"))) {
+			for ; i <= end; i++ {
+				blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : i+1], Start: i + 1})
+			}
+			continue
+		}
 		if !prose {
 			blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : i+1], Start: i + 1})
 			i++
@@ -121,9 +131,16 @@ func paragraphs(content string, lines []string) map[int]int {
 // templateDirectives open a template tag: a Jinja or Go template statement, an expression or a comment.
 var templateDirectives = []string{"{%", "{{", "{#"}
 
-// isDirective reports a line that holds a template tag. A template engine reads
-// the line, so a join or a rewrite changes what it renders.
+// importLine matches a trimmed line that is one `@path` import, as a CLAUDE.md lists the files it pulls in.
+var importLine = regexp.MustCompile(`^@[^\s@]+$`)
+
+// isDirective reports a line that holds a template tag or a lone import. A
+// template engine or an agent reads the line, so a join or a rewrite changes
+// what it loads.
 func isDirective(line string) bool {
+	if importLine.MatchString(strings.TrimSpace(line)) {
+		return true
+	}
 	for _, d := range templateDirectives {
 		if strings.Contains(line, d) {
 			return true
@@ -166,13 +183,12 @@ func blankFrontMatter(content string, lines []string) string {
 	return content
 }
 
-// blankTemplateTags writes spaces over each line that holds one template tag
-// and nothing else, such as `{% if x %}` or `${%- endif %}`. A tag is code
-// for the renderer, so the parser reads it as a break between paragraphs.
+// blankTemplateTags writes spaces over each line that holds one template tag and nothing else, such as `{% if x %}` or `${%- endif %}`. A tag is code for the renderer, so the parser reads it as a break between paragraphs. A line that holds one markup
+// tag, such as `</memory>`, gets the same treatment.
 func blankTemplateTags(src []byte, lines []string) []byte {
 	at := 0
 	for _, line := range lines {
-		if isTemplateTag(strings.TrimSpace(line)) {
+		if trimmed := strings.TrimSpace(line); isTemplateTag(trimmed) || markupTagLine.MatchString(trimmed) {
 			for k := at; k < at+len(line) && k < len(src); k++ {
 				src[k] = ' '
 			}
@@ -181,6 +197,9 @@ func blankTemplateTags(src []byte, lines []string) []byte {
 	}
 	return src
 }
+
+// markupTagLine matches a trimmed line that is one opening, closing or self-closing markup tag.
+var markupTagLine = regexp.MustCompile(`^</?[A-Za-z][\w:.-]*(\s[^<>]*)?/?>$`)
 
 // isTemplateTag reports whether a trimmed line is one template tag.
 func isTemplateTag(trimmed string) bool {

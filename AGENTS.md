@@ -21,25 +21,43 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 ## Rule table
 
-| Category | Rule IDs | Repairs |
+| Category | Rule IDs | Autofix |
 |---|---|---|
-| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary` | yes, on a walk, except a `package.json` that does not parse |
-| `repo`, report only | `repo/near-duplicate`, `repo/json`, `repo/xml` | no |
+| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary` | yes, on a walk |
+| `repo` | `repo/near-duplicate` | yes, on a walk. A copy loses the blocks it shares |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
 | `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes |
 | `english` | `english/comma-never` | yes. `, never` becomes `, not`. Edited English rarely writes the first and often the second. Before a verb it becomes `, and never`, or `, do not` before an instruction |
-| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no |
+| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | yes. A warning fails no check, and each one reports only where its rewrite applies |
 | `counts` | `counts/inventory-count`, `counts/section-number` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes |
-| `yaml`, warnings | `yaml/test-in-workflow` | no |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes |
+| `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`, and the step runs the file. No line is cut |
 | `pins` | `pins/download-version` | yes |
-| message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
+| message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | yes, with `fix --message`. Each sentence that carries the tell comes out |
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
-Every error rule has a repair, so `slopfix fix` on any tree leaves no error but these. A `package.json` that does not parse and the `ReportOnly` rules have no repair, because no rewrite knows what the author meant. `repairable_test.go` names each of them. No finding asks for a rewrite by hand. `ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on an error rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+## Every detection has an autofix
+
+Every rule is one `RuleSpec` in a `rule_*.go` file: a `Detect`, an `Autofix`, and the `Cases` that prove both. `RegisterRule` panics at init on a rule with no `Autofix`, so a binary with such a rule does not start. No field, flag or option exempts a rule. Every finding passes through `Registered` on its way out of `CheckContent`, `Fix` and a tree walk. A finding under an ID that no rule registers panics there. A detection thus cannot reach a reader without the autofix and the test of its rule.
+
+A rule reports only what its repair rewrites. Where no rewrite can say a thing correctly, the rule does not report it: `ste/dictionary` reports only the words of the `plain` list in `rules/ste-words.xml`. `ste/passive` reports only a passive that names its actor.
+
+`ruleharness_test.go` drives every case of every rule through the same common test. The test is non-negotiable, and its steps are exactly these:
+
+```
+* <input fixture, which includes the case(s) that the rule should detect>
+* run ALL OTHER rules on the fixture, confirming that there are no detections other than the current rule we're testing
+* run the rule on the fixture, confirming it is detected
+* run the rule on the result, confirming it was fixed (i.e. no longer detected)
+* run ALL OTHER rules on the "fixed" fixture, confirming there are STILL no detctions.
+```
+
+A fixture is a repository and a closing message. `Materialize` writes the repository to a temporary directory under `git init`. Every rule reads every text of it.
+
+`ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on a rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 
@@ -224,6 +242,14 @@ Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` 
 
 `docs/no-work-loss.md` holds the detail: what each verb destroys, how a command is parsed and wrapped, and which write shapes are refused.
 
+## rustfmt
+
+`rustfmt` formats each `.rs` file a Write, Edit or MultiEdit writes, on PostToolUse. A change goes back to the model as `additionalContext`. A rustfmt failure exits 2 with rustfmt's stderr. On PreToolUse it finds each `git commit` in a Bash command, through `cd DIR` and `git -C DIR`. It formats every staged or modified tracked `.rs` file in that repository, and denies the commit when that changed or rejected a file.
+
+- rustfmt reads the file on stdin. A path argument makes rustfmt follow `mod` declarations into files nobody touched. The working directory is the file's directory, so `rustfmt.toml` and `rust-toolchain.toml` still apply.
+- The edition is the one `cargo fmt` passes: the nearest `[package].edition`, through `edition.workspace = true` to `[workspace.package]`, else `2015` inside a package.
+- A missing rustfmt fails loud. It never reads as a clean file. `SLOPFIX_RUSTFMT_BIN` points the guard at another binary.
+
 ## clean-bash
 
 `clean-bash` rewrites a Bash command rather than refusing it, wherever a rewrite exists. The rules run on the parse tree to a fixed point. An unparseable command passes through. A rewrite is silent: it emits only the new input and `suppressOutput: true`. A visible message gives the model something to blame. A denial carries a reason. Without one, the model retries forever. `CLEANUP_BASH_CMDS_LOG=/path` logs each rewrite and each deny.
@@ -243,7 +269,7 @@ Denials: `heredoc`, `perl` (`^perl[0-9.]*$` as the effective command), `shred`, 
 - `gh_wait_ci` maps `gh run view`, `watch`, `rerun`, `list` and `gh pr checks` to `gh wait-ci`.
 - `sleep_cap` writes `sleep 3` for any sleep past `3` seconds or not literal.
 - `narration_remove` turns an `echo` that reaches the terminal into `:`.
-- `pipefail` injects `set -o pipefail`. A `tee` then never masks a failure.
+- `pipefail` injects `set -o pipefail` when the command has a pipe. A `tee` then never masks a failure. A command with no pipe stays one command, so a permission rule still matches it.
 
 ## What no rule reads
 

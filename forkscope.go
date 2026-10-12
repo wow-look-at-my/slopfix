@@ -39,21 +39,7 @@ func BaseOf(r forkscope.Resolver, path string) (*forkscope.Base, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.Base(existingDir(filepath.Dir(abs)))
-}
-
-// existingDir answers dir, or its nearest parent that exists.
-func existingDir(dir string) string {
-	for {
-		if info, err := os.Stat(dir); err == nil && info.IsDir() {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return dir
-		}
-		dir = parent
-	}
+	return r.Base(forkscope.ExistingDir(filepath.Dir(abs)))
 }
 
 // FixFileIn is FixFileWith in a fork. A file the fork never touched is neither
@@ -104,10 +90,10 @@ func within(req Request, repair Repair) Repair {
 	owned := forkscope.Carry(req.Content, repair.Text, scope)
 	repair.Findings = ownedFindings(repair.Findings, owned)
 	repair.Kept = ownedHits(repair.Kept, owned)
-	return upstreamRuns(req.Owned, repair.Text, repair)
+	return upstreamRuns(req, req.Owned, repair.Text, repair)
 }
 
-// blockRun is the rows, counted from one, that a block finding judges.
+// blockRun is the lines, counted from one, that a block finding judges.
 type blockRun struct{ first, last int }
 
 // ownedRuns answers each run a block rule reports on a line the fork wrote.
@@ -129,6 +115,9 @@ func ownedRuns(req Request, repair Repair) []blockRun {
 
 // blockRules judge a run of lines whole.
 var blockRules = set.Of(workflow.IDCommentBlock, tombstones.IDVolume, commentfix.IDLength)
+
+// baseRuns are the rules whose finding on a comment run the fork did not make longer is the base's.
+var baseRuns = blockRules.Union(set.Of(ste.IDSentenceCap, commentfix.ID))
 
 // alone runs each rule still reporting on a fork line by itself, and
 // keeps what lands on the fork's lines. Run with every rule, a repair of an
@@ -152,7 +141,12 @@ func alone(req Request, repair Repair) Repair {
 		one.Content, one.Scope, one.Owned, one.IDs = repair.Text, repair.Scope, nil, []string{id}
 		fixed := fixAll(one)
 		owned = forkscope.Carry(req.Content, repair.Text, req.Owned)
-		text := forkscope.Keep(repair.Text, fixed.Text, owned)
+		// A prose rule rewrites a comment run whole.
+		scope := owned
+		if !blockRules.Contains(id) {
+			scope = scope.WidenComments(repair.Text)
+		}
+		text := forkscope.Keep(repair.Text, fixed.Text, scope)
 		if text == repair.Text {
 			continue
 		}
@@ -190,7 +184,9 @@ func fold(req Request, repair Repair) Repair {
 		for _, h := range forkscope.Grown(base, repair.Text, r.first, r.last) {
 			if !seen.Contains(h.J1) {
 				seen.Add(h.J1)
-				edits = append(edits, foldHunk(repair.Text, h))
+				if e, ok := foldHunk(repair.Text, h); ok {
+					edits = append(edits, e)
+				}
 			}
 		}
 	}
@@ -215,55 +211,100 @@ func fold(req Request, repair Repair) Repair {
 
 // foldHunk answers the edit that joins the lines h added onto the last line it
 // keeps, with the comment marker of each joined line dropped.
-func foldHunk(text string, h forkscope.Hunk) edit.Edit {
-	rows := strings.Split(text, "\n")[h.J1:h.J2]
-	keep := max(h.Had, 1)
-	lines := slices.Clone(rows[:keep])
-	for _, row := range rows[keep:] {
-		if prose := commentProse(row); prose != "" {
-			lines[keep-1] = strings.TrimRight(lines[keep-1], " \t") + " " + prose
-		}
+//
+// A hunk can run past the comment run into code. The join covers only the
+// comment lines: a code line stays, and the gate refuses an edit that spans one.
+func foldHunk(text string, h forkscope.Hunk) (edit.Edit, bool) {
+	hunkLines := strings.Split(text, "\n")[h.J1:h.J2]
+	n := 0
+	for n < len(hunkLines) && commentProse(hunkLines[n]) != "" {
+		n++
 	}
-	return edit.Rows(text, h.J1, h.J2-1, 0, lines)
+	if n == 0 {
+		return edit.Edit{}, false
+	}
+	joined := hunkLines[0]
+	for _, line := range hunkLines[1:n] {
+		joined = strings.TrimRight(joined, " \t") + " " + commentProse(line)
+	}
+	return edit.Lines(text, h.J1, h.J1+n-1, 0, []string{joined}), true
 }
 
 // commentProse answers what a comment line says, without its indent and marker.
-func commentProse(row string) string {
-	text := strings.TrimSpace(row)
-	for _, marker := range []string{"//", "#", "*"} {
+// A line that carries no comment marker is code, and answers "". A "#" that
+// opens an attribute, as in "#[allow(...)]", is code too.
+func commentProse(line string) string {
+	text := strings.TrimSpace(line)
+	if strings.HasPrefix(text, "#[") {
+		return ""
+	}
+	// Longest first, so Rust's `//!` and `///` never leave a mark in the prose.
+	for _, marker := range []string{"///", "//!", "//", "#", "*"} {
 		if rest, ok := strings.CutPrefix(text, marker); ok {
 			return strings.TrimSpace(rest)
 		}
 	}
-	return text
+	return ""
 }
 
 // upstreamRuns drops each block finding on a run of text the fork did not make
 // longer. The base already had that run at that length. It is the base's
 // finding, and the fork's edit inside it stays as the fork wrote it.
-func upstreamRuns(owned *forkscope.Scope, text string, repair Repair) Repair {
-	if owned == nil || owned.All() {
+func upstreamRuns(req Request, owns *forkscope.Scope, text string, repair Repair) Repair {
+	if owns == nil || owns.All() {
 		return repair
 	}
-	base, err := owned.Base()
+	base, err := owns.Base()
 	if err != nil {
 		return repair
 	}
-	grew := func(first, last int) bool { return len(forkscope.Grown(base, text, first, last)) > 0 }
+	// grew reports a run the fork made long. For a capped block, the fork made
+	// it long only when its own added lines crossed the cap. A base run already
+	// over the cap is the base's finding. No fold of the fork's lines can reach
+	// that.
+	grew := func(id string, first, last int) bool {
+		hunks := forkscope.Grown(base, text, first, last)
+		if len(hunks) == 0 {
+			return false
+		}
+		cap := blockCap(req, id)
+		if cap <= 0 || first < 1 {
+			return true
+		}
+		// A hunk can run past the run into code.
+		add := 0
+		for _, h := range hunks {
+			lo, hi := max(h.J1, first-1), min(h.J2-1, last-1)
+			if lo > hi {
+				continue
+			}
+			add += max(0, (hi-lo+1)-h.Had)
+		}
+		baseLen := (last - first + 1) - add
+		return baseLen <= cap
+	}
 	findings := repair.Findings[:0:0]
 	for _, f := range repair.Findings {
-		if !blockRules.Contains(f.ID) || grew(f.Line, max(f.Line, f.EndLine)) {
+		if !baseRuns.Contains(f.ID) || grew(f.ID, f.Line, max(f.Line, f.EndLine)) {
 			findings = append(findings, f)
 		}
 	}
 	kept := repair.Kept[:0:0]
 	for _, h := range repair.Kept {
-		if !blockRules.Contains(h.ID) || h.LineNo < 1 || grew(h.LineNo, max(h.LineNo, h.EndLineNo)) {
+		if !baseRuns.Contains(h.ID) || h.LineNo < 1 || grew(h.ID, h.LineNo, max(h.LineNo, h.EndLineNo)) {
 			kept = append(kept, h)
 		}
 	}
 	repair.Findings, repair.Kept = findings, kept
 	return repair
+}
+
+// blockCap answers the line cap a block rule weighs a run against.
+func blockCap(req Request, id string) int {
+	if id == tombstones.IDVolume {
+		return req.MaxCommentLines
+	}
+	return 0
 }
 
 // landedRemovals keeps each removal that text, the repair as it lands, made.

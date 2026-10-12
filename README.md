@@ -8,16 +8,16 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 
 | Category | Rule IDs | Repairs |
 |---|---|---|
-| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary`, `repo/near-duplicate`, `repo/json`, `repo/xml` | all but `repo/near-duplicate`, `repo/json` and `repo/xml` |
+| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary`, `repo/near-duplicate` | all |
 | `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
-| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a long sentence or a semicolon that no division keeps grammatical |
+| `ste` | `ste/contraction`, `ste/modal`, `ste/semicolon`, `ste/comma-splice`, `ste/sentence-length`, `ste/postdeterminer`, `ste/count` | yes, except a semicolon that no period can replace |
 | `english` | `english/comma-never` | yes, except before a verb |
 | `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no, and a warning never fails `check` |
 | `counts` | `counts/inventory-count` | yes |
 | `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes, except a flow-style `push` mapping |
-| `yaml`, warnings | `yaml/test-in-workflow` | no, because a `run:` script line is shell, and a warning never fails `check` |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes, except a flow-style `push` mapping |
+| `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`. A warning never fails `check` |
 | `pins` | `pins/download-version` | yes, except a templated URL |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
 

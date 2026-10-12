@@ -27,6 +27,17 @@ func longFunction(name string) string {
 	return body.String() + "}\n"
 }
 
+// A list item opens a sentence of its own, even after a line that ends on a
+// colon. Read as one sentence, the lead-in and the items run past the cap.
+func TestAListItemInACommentIsASentenceOfItsOwn(t *testing.T) {
+	src := "package p\n\n" +
+		"// With a backup launcher the slow response keeps streaming. The earliest of these to happen decides the race:\n" +
+		"// - The original recovers above the floor or finishes: the backup stops.\n" +
+		"// - The backup overtakes or finishes, or the original fails: it takes over.\n" +
+		longFunction("Drive")
+	assert.Empty(t, CheckSentences("p.go", src))
+}
+
 // A sentence with no clause boundary. Its trailing adverbial goes into a
 // sentence of its own behind "This happens", whatever the comment weighs.
 func TestALongSentenceWithNoClauseBoundaryDivides(t *testing.T) {
@@ -101,7 +112,7 @@ func TestARealCommentSentenceDividesOrStays(t *testing.T) {
 	}
 }
 
-// A comment after code stays on its row. A block comment keeps its delimiters.
+// A comment after code stays on its line. A block comment keeps its delimiters.
 func TestADividedCommentKeepsItsShape(t *testing.T) {
 	trailing := "package p\n\nvar x = 1 // The gate reads every file that the session wrote, but if the cache is cold at the start of the run, the build waits for the whole tree.\n"
 	out := fixSentences("p.go", trailing)

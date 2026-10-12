@@ -9,6 +9,7 @@ package ste
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -122,6 +123,8 @@ var (
 	wordPattern = regexp.MustCompile(`[A-Za-z]+(?:'[A-Za-z]+)?`)
 	// codeSpan matches an inline code span, whose contents are data.
 	codeSpan = regexp.MustCompile("`[^`]*`")
+	// charRange matches an XML character-class range a comment quotes, as in `[#x370-#x37D]`.
+	charRange = regexp.MustCompile(`\[#x[0-9A-Fa-f]+(?:-#x[0-9A-Fa-f]+)?\]`)
 	// sectionLink matches a link that cites a section by its slug.
 	sectionLink = regexp.MustCompile(`\[§[^\]\s]*\]\([^)\s]*\)`)
 	// linkTarget matches a markdown link's URL, which is not prose.
@@ -166,36 +169,7 @@ func Check(text string, line int) []Finding {
 	for _, rule := range proseRules {
 		out = append(out, rule.run(prose, line)...)
 	}
-	return markByHand(text, out)
-}
-
-// markByHand gives the hand-rewrite Fix text to each finding that the repair
-// leaves. It runs the repair on the text itself, so Check and Fix agree on
-// which semicolon and which sentence a period can divide.
-func markByHand(text string, findings []Finding) []Finding {
-	var left map[string]bool
-	for n, f := range findings {
-		switch f.ID {
-		case IDSemicolon:
-			if fixSemicolons(text) == text {
-				findings[n].Fix = FixSemicolonByHand
-			}
-		case IDSentenceCap:
-			if left == nil {
-				left = map[string]bool{}
-				// Only a sentence still over the cap is left. A divided first half opens with the same words as the whole.
-				for _, sentence := range Sentences(strip(fixSentenceCap(text, capSpec{reorder: true, cap: SentenceWordCap}))) {
-					if WordCount(sentence) > SentenceWordCap {
-						left[truncate(strings.TrimSpace(sentence))] = true
-					}
-				}
-			}
-			if left[f.Detail] {
-				findings[n].Fix = FixByHand
-			}
-		}
-	}
-	return findings
+	return out
 }
 
 // proseRule is a single rule under the phase name a timing run prints for it.
@@ -222,11 +196,13 @@ var proseRules = []proseRule{
 }
 
 // strip removes the spans that are data rather than prose: inline code, a
-// link's target, and an HTML entity. A semicolon inside any of them is not a
-// sentence joiner.
+// link's target, an HTML entity, and an XML character range. A semicolon inside
+// any of them is not a sentence joiner.
 func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
 	text = codeSpan.ReplaceAllString(text, " CODE ")
+	// A range becomes a separator, so neighbours never join into one word.
+	text = charRange.ReplaceAllString(text, " ")
 	// A section link reads as the citation it replaced, which holds no word.
 	text = sectionLink.ReplaceAllString(text, "§")
 	text = linkTarget.ReplaceAllString(text, "](URL)")
@@ -306,9 +282,16 @@ func checkSplices(prose string, line int) []Finding {
 // after somebody adds the item that makes it wrong.
 // This rule's own spelling of a count lives in cardinal as the Gate substrate. The document rule and the comment rule read
 // the same package with their own policies, so they cannot drift apart.
+//
+// A numeral after a definite determiner is the postdeterminer rule's finding,
+// so this rule leaves it to that one.
 func checkCounts(prose string, line int) []Finding {
 	var out []Finding
+	numerals := postdeterminers(prose, prose, opaque(prose, prose))
 	for _, found := range cardinal.Find(prose, cardinal.Gate) {
+		if slices.ContainsFunc(numerals, func(p postdeterminer) bool { return found.Offset >= p.Start && found.Offset < p.End }) {
+			continue
+		}
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDStaleCount,
@@ -378,8 +361,9 @@ func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 			end++
 		}
 		stop := end
-		// A mark that closes emphasis, a quote or a parenthetical belongs to the sentence it ends.
-		for end+1 < len(runes) && strings.ContainsRune("*_)\"'”’", runes[end+1]) {
+		// A mark that closes emphasis, a quote or a parenthetical belongs to the
+		// sentence it ends.
+		for end+1 < len(runes) && closesMark(runes[start:stop], runes[end+1]) {
 			end++
 		}
 		gap := end + 1
@@ -409,6 +393,23 @@ func terminator(r rune) bool {
 	return r == '.' || r == '!' || r == '?'
 }
 
+// closesMark reports a mark after a terminator that closes what the sentence
+// so far opened. A `*` with no emphasis open before it is the glob of
+// `esnext.*`, and a `)` with no open parenthesis is a word.
+func closesMark(sentence []rune, mark rune) bool {
+	switch mark {
+	case ')':
+		return strings.Count(string(sentence), "(") > strings.Count(string(sentence), ")")
+	case '”':
+		return strings.ContainsRune(string(sentence), '“')
+	case '’':
+		return strings.ContainsRune(string(sentence), '‘')
+	case '*', '_', '"', '\'':
+		return strings.ContainsRune(string(sentence), mark)
+	}
+	return false
+}
+
 // opensSentence reports whether the text starts a new sentence.
 var maskedSpan = regexp.MustCompile(`^x{4,}(?:\s|$)`)
 
@@ -416,7 +417,7 @@ func opensSentence(rest []rune) bool {
 	switch first := rest[0]; {
 	case unicode.IsUpper(first), unicode.IsDigit(first):
 		return true
-	case strings.ContainsRune("(`'\"*_[§¶“‘", first):
+	case strings.ContainsRune("(`'\"*_[§¶“‘—–", first):
 		return true
 	}
 	// A masked code span is a run of x, and opens a sentence as its backtick does.
