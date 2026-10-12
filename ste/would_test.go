@@ -24,3 +24,10 @@ func TestWouldTakesThePresentTense(t *testing.T) {
 		assert.NotContains(t, got, "will", in)
 	}
 }
+
+// "wouldn't" expands to what it says. Alone, the contraction repair writes
+// "would not". With ste/modal in the same fix, the group takes the present tense.
+func TestWouldntExpandsToWouldNot(t *testing.T) {
+	assert.Equal(t, "It would not attach.", ste.FixSelected("It wouldn't attach.", func(id string) bool { return id == ste.IDContraction }))
+	assert.Equal(t, "It does not attach.", ste.Fix("It wouldn't attach."))
+}

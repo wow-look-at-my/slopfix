@@ -33,10 +33,12 @@
     <test in="I'm opening the file"/>
   </rewrite>
 
-  <!-- A contraction of a banned modal carries the ban with it: "wouldn't"
-       expands to the modal STE approves for that sense, never to "would
-       not". These stand in front of the n't rule for that reason. -->
-  <rewrite id="ste-wouldnt" from="wouldn't" to="will not">
+  <!-- A contraction of a banned modal carries the ban with it. "wouldn't"
+       expands to what it says, "would not", and ste/modal then writes that
+       verb group in the present tense: "will not" turns a condition into a
+       promise. The others expand to the modal STE approves for that sense.
+       These stand in front of the n't rule. -->
+  <rewrite id="ste-wouldnt" from="wouldn't" to="would not">
     <test in="It wouldn't open the file"/>
   </rewrite>
   <rewrite id="ste-shouldnt" from="shouldn't" to="must not">
