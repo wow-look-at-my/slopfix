@@ -224,4 +224,4 @@ func TestAFindingInsideAPlacedEditIsRepaired(t *testing.T) {
 	assert.Equal(t, "func x() {}", updated["new_string"])
 }
 
-var _ = slopfix.AllRules
+var _ = slopfix.AllRules()

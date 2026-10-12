@@ -12,16 +12,16 @@ import (
 // build` reached the shell untouched.
 func TestWrappedCommandsResolve(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
-		{"sudo rm -rf build", "set -o pipefail\nsudo recycler trash build\n"},
-		{"sudo -u root rm -rf build", "set -o pipefail\nsudo -u root recycler trash build\n"},
-		{"env rm -f a", "set -o pipefail\nenv recycler trash a\n"},
-		{"env FOO=1 rm -f a", "set -o pipefail\nenv FOO=1 recycler trash a\n"},
-		{"nice -n 10 rm a", "set -o pipefail\nnice -n 10 recycler trash a\n"},
-		{"timeout 5 rm a", "set -o pipefail\ntimeout 5 recycler trash a\n"},
-		{"/bin/rm -rf build", "set -o pipefail\nrecycler trash build\n"},
-		{"nohup rm a", "set -o pipefail\nnohup recycler trash a\n"},
-		{"busybox rm a", "set -o pipefail\nbusybox recycler trash a\n"},
-		{"xargs rm", "set -o pipefail\nxargs recycler trash\n"},
+		{"sudo rm -rf build", "sudo recycler trash build\n"},
+		{"sudo -u root rm -rf build", "sudo -u root recycler trash build\n"},
+		{"env rm -f a", "env recycler trash a\n"},
+		{"env FOO=1 rm -f a", "env FOO=1 recycler trash a\n"},
+		{"nice -n 10 rm a", "nice -n 10 recycler trash a\n"},
+		{"timeout 5 rm a", "timeout 5 recycler trash a\n"},
+		{"/bin/rm -rf build", "recycler trash build\n"},
+		{"nohup rm a", "nohup recycler trash a\n"},
+		{"busybox rm a", "busybox recycler trash a\n"},
+		{"xargs rm", "xargs recycler trash\n"},
 	} {
 		got := Transform(tc.in)
 		assert.False(t, got.Denied, "%s: unexpected deny (%s)", tc.in, got.Reason)
