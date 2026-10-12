@@ -93,6 +93,42 @@ func TestPrivateRunnerChoosesTheDockerRunnerForAnUnreadAction(t *testing.T) {
 	assert.Contains(t, got.Text, "runs-on: ${{ "+runnerDind+" || 'ubuntu-latest' }}\n")
 }
 
+func TestPrivateRunnerKeepsAJobThatNeedsTheHost(t *testing.T) {
+	for name, steps := range HostJobSteps {
+		body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n" + hostJob(steps)
+		path := runnerRepo(t, PrivateRunnerFixture, body)
+		found := only(CheckContent(path, body), workflow.IDPrivateRunner)
+		require.Len(t, found, 1, name)
+		assert.Contains(t, found[0].Detail, "runs-on: ubuntu-latest", name)
+		got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+		require.NoError(t, err)
+		assert.Contains(t, got.Text, "runs-on: ${{ "+runnerSlim+" || 'ubuntu-latest' }}\n", name)
+		assert.Contains(t, got.Text, "  host:\n    runs-on: ubuntu-24.04", name)
+		assert.NotContains(t, got.Text, "|| 'ubuntu-24.04'", name)
+	}
+}
+
+func TestPrivateRunnerMovesAJobThatOnlyMentionsTheHost(t *testing.T) {
+	for name, steps := range map[string]string{
+		"an echo":           "      - run: echo modprobe swapoff\n",
+		"a user package":    "      - run: sudo apt-get install -y libsystemd-dev\n",
+		"a header elsewhere": "      - run: ls linux-headers-6.8\n",
+		"a quoted word":     "      - run: grep -r 'systemctl' docs\n",
+	} {
+		body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" + steps
+		path := runnerRepo(t, PrivateRunnerFixture, body)
+		assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 1, name)
+	}
+}
+
+func TestPrivateRunnerNamesAnOptOutWithNoReason(t *testing.T) {
+	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest # " + workflow.HostedMarker + "\n    steps:\n      - run: make\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	found := only(CheckContent(path, body), workflow.IDPrivateRunner)
+	require.Len(t, found, 1)
+	assert.Contains(t, found[0].Detail, "gives no reason")
+}
+
 // The org runner variables, as the repair writes them.
 const (
 	runnerSlim = "vars.CI_RUNNER"

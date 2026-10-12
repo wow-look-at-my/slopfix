@@ -79,6 +79,8 @@ type hostedJob struct {
 	docker bool
 	// unread names each action whose runs.using could not be read. The job then goes to the docker runner.
 	unread []string
+	// unexplained reports a hosted opt-out comment that gives no reason. It keeps nothing.
+	unexplained bool
 }
 
 // governedJobs answers each hosted job of the file at path that the rule
@@ -98,7 +100,9 @@ func governedJobs(path, content string) ([]hostedJob, runnerTarget) {
 	return jobs, target
 }
 
-// hostedJobs answers each job of content on a GitHub-hosted Linux label, in source order.
+// hostedJobs answers each job of content on a GitHub-hosted Linux label, in
+// source order. A job that needs the host, or whose runs-on comment opts out
+// with a reason, keeps its label and is not answered.
 func hostedJobs(content string) []hostedJob {
 	var doc yaml.Node
 	if yaml.Unmarshal([]byte(content), &doc) != nil {
@@ -115,7 +119,11 @@ func hostedJobs(content string) []hostedJob {
 		if on == nil || on.Kind != yaml.ScalarNode || !hostedLinux.MatchString(on.Value) {
 			continue
 		}
-		out = append(out, hostedJob{job: job, node: on, label: on.Value})
+		reason, marked := hostedOptOut(on.LineComment)
+		if (marked && reason != "") || needsHost(job) != "" {
+			continue
+		}
+		out = append(out, hostedJob{job: job, node: on, label: on.Value, unexplained: marked})
 	}
 	return out
 }
@@ -189,6 +197,9 @@ func privateRunners(path, content string) []ste.Finding {
 		detail := target.repo.Name + ": runs-on: " + j.label
 		if target.unread != "" {
 			detail += " (the visibility could not be read, so the rule treats the repository as private: " + target.unread + ")"
+		}
+		if j.unexplained {
+			detail += " (the `# " + HostedMarker + "` comment gives no reason, so it keeps nothing)"
 		}
 		if len(j.unread) > 0 {
 			detail += " (the action metadata could not be read, so the rule chooses " + runnerDindVar + ", which has docker: " + strings.Join(j.unread, "; ") + ")"
