@@ -163,37 +163,112 @@ func elementsOf(text, masked string, from, to int, split *regexp.Regexp) []eleme
 	return out
 }
 
-// longestRun answers the most consecutive elements that hold a member.
-func longestRun(elements []element) int {
-	best, run := 0, 0
-	for _, e := range elements {
-		if !e.member {
-			run = 0
+// listPlace is where an element of a run may sit.
+type listPlace struct {
+	// head: the element ends on a member, so it can open a run.
+	head bool
+	// inner: the element holds a member and no finite verb, so it can sit inside a run.
+	inner bool
+	// tail: the element opens on a member, so it can close a run.
+	tail bool
+}
+
+// listDeterminers may stand before the member that opens an element.
+var listDeterminers = map[string]bool{"a": true, "an": true, "the": true, "each": true, "every": true, "this": true, "these": true, "those": true, "any": true}
+
+// placeOf judges where an element of text may sit in a run. s is the parse of
+// the whole sentence.
+func placeOf(text string, s *syntax.Sentence, e element) listPlace {
+	if !e.member {
+		return listPlace{}
+	}
+	tokens := tokenPattern.FindAllString(text[e.start:e.end], -1)
+	for len(tokens) > 0 && strings.Trim(tokens[len(tokens)-1], ".,;:!?") == "" {
+		tokens = tokens[:len(tokens)-1]
+	}
+	if len(tokens) == 0 {
+		return listPlace{}
+	}
+	first := 0
+	for first < len(tokens)-1 && listDeterminers[strings.ToLower(tokens[first])] {
+		first++
+	}
+	verb := false
+	for _, w := range s.Words {
+		if w.Start >= e.start && w.Start < e.end && (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD") {
+			verb = true
+		}
+	}
+	return listPlace{
+		head:  IsMember(strings.TrimRight(tokens[len(tokens)-1], ".,;:!?")),
+		inner: !verb,
+		tail:  IsMember(strings.TrimRight(tokens[first], ".,;:!?")),
+	}
+}
+
+// longestRun answers the most elements in a row that read as one list: the earliest
+// ends on a member. The last opens on one, and each between is a bare member.
+func longestRun(places []listPlace) int {
+	best := 0
+	for i := range places {
+		if !places[i].head {
 			continue
 		}
-		run++
-		best = max(best, run)
+		for j := i + 1; j < len(places); j++ {
+			if places[j].tail {
+				best = max(best, j-i+1)
+			}
+			if !places[j].inner || !places[j].tail {
+				break
+			}
+		}
 	}
 	return best
 }
 
+// parenthetical matches a parenthesis with no parenthesis inside it.
+var parenthetical = regexp.MustCompile(`\([^()]*\)`)
+
 // SentenceList reports whether one sentence holds an enumeration: a
 // coordinated run of members, or a list behind a complete-set frame. detail
-// quotes the list.
+// quotes the list. A parenthesis is read as a list of its own.
 func SentenceList(sentence string) (string, bool) {
 	masked := ste.Masked(sentence)
 	end := len(strings.TrimRight(sentence, " \t\n.!?"))
 	if end <= 0 {
 		return "", false
 	}
-	elements := elementsOf(sentence, masked, 0, end, boundarySplit)
-	if longestRun(elements) >= MinMembers {
+	outer, outerMasked := []byte(sentence), []byte(masked)
+	var asides [][]int
+	for _, loc := range parenthetical.FindAllStringIndex(masked, -1) {
+		asides = append(asides, loc)
+		for i := loc[0]; i < loc[1]; i++ {
+			outer[i], outerMasked[i] = ' ', ' '
+		}
+	}
+	s := syntax.Parse(masked, inlineCode.FindAllStringIndex(sentence, -1))
+	if coordinated(string(outer), string(outerMasked), s, 0, end) {
 		return strings.TrimSpace(sentence), true
 	}
-	if framed(sentence, masked, end) {
+	for _, loc := range asides {
+		if coordinated(sentence, masked, s, loc[0]+1, loc[1]-1) {
+			return strings.TrimSpace(sentence), true
+		}
+	}
+	if framed(string(outer), string(outerMasked), end) {
 		return strings.TrimSpace(sentence), true
 	}
 	return "", false
+}
+
+// coordinated reports a run of at least MinMembers elements in text[from:to].
+func coordinated(text, masked string, s *syntax.Sentence, from, to int) bool {
+	elements := elementsOf(text, masked, from, to, boundarySplit)
+	places := make([]listPlace, len(elements))
+	for i, e := range elements {
+		places[i] = placeOf(text, s, e)
+	}
+	return longestRun(places) >= MinMembers
 }
 
 // framed reports a set noun, then a complete-set word or a colon, then a list
@@ -214,7 +289,7 @@ func framed(sentence, masked string, end int) bool {
 		}
 		every := true
 		for _, e := range elements {
-			if !e.member && !nounPhrase(s, i+1, e) {
+			if !nounPhrase(s, i+1, e) && !placeOf(sentence, s, e).tail {
 				every = false
 			}
 		}
