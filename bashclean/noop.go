@@ -8,10 +8,11 @@ package bashclean
 import (
 	"slices"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"mvdan.cc/sh/v3/syntax"
 )
 
-var noopNames = map[string]bool{"true": true, "false": true, ":": true}
+var noopNames = set.Of("true", "false", ":")
 
 // noopName is the no-op a statement runs bare, or "". A redirect, an
 // assignment, a negation or a background job does something, so each keeps
@@ -24,7 +25,7 @@ func noopName(s *syntax.Stmt) string {
 	if !ok || len(c.Assigns) > 0 || len(c.Args) != 1 {
 		return ""
 	}
-	if n := cmd(c); noopNames[n] {
+	if n := cmd(c); noopNames.Contains(n) {
 		return n
 	}
 	return ""
