@@ -15,11 +15,7 @@ These rules judge the format. The prose rules never run on these files. A file i
 
   A container action is one whose `action.yml` or `action.yaml` says `runs: using: docker` at the ref the step names. The rule reads that file through the GitHub contents API for each action outside `actions/*` and `wow-look-at-my/*`, and keeps each answer in `slopfix-actions.json`. That `slopfix-actions.json` is in the git common directory. A walk thus asks once for each action at each ref. When the file cannot be read, the job goes to `vars.CI_RUNNER_DIND`, which runs both kinds of action. The finding says why.
 
-  A job that needs the host machine keeps its GitHub-hosted label. The rule does not report it. A fleet container has no KVM, no host kernel and no systemd as PID 1. The signs come from the job's steps, and `rules/host-runner.xml` lists them. A `uses:` that boots a nested VM (`vmactions/`) or installs k3s counts. So does a command that loads a kernel module, turns swap off, runs `systemctl` or `k3s`, starts `qemu-system-*`, or touches `/dev/kvm`.
-
-  A package manager that installs `linux-headers-*` also counts. The shell parser reads each `run:` script. The program comes after wrappers such as `sudo`. A word an `echo` prints is thus no sign. A script the parser cannot read shows no sign. A file a step runs is not read.
-
-  For a need the steps do not show, a comment on the `runs-on` line keeps the label: `runs-on: ubuntu-24.04 # slopfix: hosted the tests boot a KVM guest`. The comment must give a reason. Without one it keeps nothing. The finding says so. A host job whose `runs-on` is already an org runner expression is not reported either. The rule does not write it back.
+  No job keeps a GitHub-hosted label. A job that boots a VM or needs the host kernel goes to the org runners too. No comment opts a job out.
 
 The all-builds wording is the operator's own. It must not be softened. A job that wears the required status's name is a known deception attempt.
 

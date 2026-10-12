@@ -114,46 +114,22 @@ func TestPrivateRunnerChoosesTheDockerRunnerForAnUnreadAction(t *testing.T) {
 	assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-latest", runnerDind)+"\n")
 }
 
-func TestPrivateRunnerKeepsAJobThatNeedsTheHost(t *testing.T) {
-	for name, steps := range HostJobSteps {
-		body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n" + hostJob(steps)
+func TestPrivateRunnerMovesAJobThatNeedsTheHost(t *testing.T) {
+	for name, steps := range map[string]string{
+		"a vm action":   "      - uses: vmactions/freebsd-vm@v1\n",
+		"a k3s action":  "      - uses: crazy-max/.github/.github/actions/install-k3s@v1.8.0\n",
+		"kernel module": "      - run: sudo modprobe zfs\n",
+		"swap":          "      - run: sudo swapoff -a\n",
+		"systemd":       "      - run: sudo systemctl restart containerd\n",
+		"kvm":           "      - run: qemu-system-x86_64 -enable-kvm -m 2G disk.img\n",
+	} {
+		body := workflowHeader() + "jobs:\n  host:\n    runs-on: ubuntu-24.04 # slopfix: hosted the job boots a guest\n    steps:\n" + steps
 		path := runnerRepo(t, PrivateRunnerFixture, body)
-		found := only(CheckContent(path, body), workflow.IDPrivateRunner)
-		require.Len(t, found, 1, name)
-		assert.Contains(t, found[0].Detail, "runs-on: ubuntu-latest", name)
+		require.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 1, name)
 		got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 		require.NoError(t, err)
-		assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-latest", runnerSlim)+"\n", name)
-		assert.Contains(t, got.Text, "  host:\n    runs-on: ubuntu-24.04", name)
-		assert.NotContains(t, got.Text, "|| 'ubuntu-24.04'", name)
+		assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-24.04", runnerSlim), name)
 	}
-}
-
-func TestPrivateRunnerLeavesAHostJobOnTheOrgRunnersAlone(t *testing.T) {
-	body := workflowHeader() + "jobs:\n  zloop:\n    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}\n    steps:\n      - run: sudo modprobe zfs\n"
-	path := runnerRepo(t, PrivateRunnerFixture, body)
-	assert.Empty(t, only(CheckContent(path, body), workflow.IDPrivateRunner), "a host job is neither reported nor written back")
-}
-
-func TestPrivateRunnerMovesAJobThatOnlyMentionsTheHost(t *testing.T) {
-	for name, steps := range map[string]string{
-		"an echo":            "      - run: echo modprobe swapoff\n",
-		"a user package":     "      - run: sudo apt-get install -y libsystemd-dev\n",
-		"a header elsewhere": "      - run: ls linux-headers-6.8\n",
-		"a quoted word":      "      - run: grep -r 'systemctl' docs\n",
-	} {
-		body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" + steps
-		path := runnerRepo(t, PrivateRunnerFixture, body)
-		assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 1, name)
-	}
-}
-
-func TestPrivateRunnerNamesAnOptOutWithNoReason(t *testing.T) {
-	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest # " + workflow.HostedMarker + "\n    steps:\n      - run: make\n"
-	path := runnerRepo(t, PrivateRunnerFixture, body)
-	found := only(CheckContent(path, body), workflow.IDPrivateRunner)
-	require.Len(t, found, 1)
-	assert.Contains(t, found[0].Detail, "gives no reason")
 }
 
 // The org runner variables, as the repair writes them.

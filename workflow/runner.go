@@ -74,8 +74,6 @@ type hostedJob struct {
 	flow bool
 	// unread names each action whose runs.using could not be read. The job then goes to the docker runner.
 	unread []string
-	// unexplained reports a hosted opt-out comment that gives no reason. It keeps nothing.
-	unexplained bool
 }
 
 // governedJobs answers each job of the file at path that the rule reports,
@@ -110,8 +108,7 @@ func runnerLabel(value string) (label string, dind bool) {
 }
 
 // hostedJobs answers each job of content whose runs-on ignores the
-// visibility, in source order. A job that needs the host, or whose runs-on
-// comment opts out with a reason, keeps its runner and is not answered.
+// visibility, in source order.
 func hostedJobs(content string) []hostedJob {
 	var doc yaml.Node
 	if yaml.Unmarshal([]byte(content), &doc) != nil {
@@ -133,12 +130,8 @@ func hostedJobs(content string) []hostedJob {
 		if label == "" {
 			continue
 		}
-		reason, marked := hostedOptOut(on.LineComment)
-		if (marked && reason != "") || needsHost(job) != "" {
-			continue
-		}
 		flow := (root.Style|jobs.Style|job.Style)&yaml.FlowStyle != 0
-		out = append(out, hostedJob{job: job, node: on, label: label, docker: dind, flow: flow, unexplained: marked})
+		out = append(out, hostedJob{job: job, node: on, label: label, docker: dind, flow: flow})
 	}
 	return out
 }
@@ -210,9 +203,6 @@ func privateRunners(path, content string) []ste.Finding {
 	var out []ste.Finding
 	for _, j := range jobs {
 		detail := repo + ": runs-on: " + j.node.Value
-		if j.unexplained {
-			detail += " (the `# " + HostedMarker + "` comment gives no reason, so it keeps nothing)"
-		}
 		if len(j.unread) > 0 {
 			detail += " (the action metadata could not be read, so the rule chooses " + runnerDindVar + ", which has docker: " + strings.Join(j.unread, "; ") + ")"
 		}
