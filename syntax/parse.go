@@ -143,7 +143,7 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 		case head.Tag == "NNS" && filler(before.Text) && listed:
 			// "`deny` rules, hooks": a name and a plural before a comma or a relative word are a noun phrase.
 			continue
-		case head.Tag == "NNS" && (before.Tag == "NN" || before.Tag == "NNP"):
+		case head.Tag == "NNS" && (before.Tag == "NN" || before.Tag == "NNP") && !nounOnly(head.Lower()):
 			head.Tag = "VBZ"
 		case head.Tag == "NN" && before.Tag == "NNS":
 			head.Tag = "VBP"
@@ -186,6 +186,9 @@ func retag(words []Word) {
 		switch {
 		case lower == "n't" || lower == "not":
 			w.Tag = "RB"
+		case w.Tag == "VBZ" && nounOnly(lower):
+			// "the C and Python ones": no English verb ends this way, and the tagger reads the plural noun as one.
+			w.Tag = "NNS"
 		case isFinite(w.Tag) && dottedName(w.Text):
 			// "turn.rs's loop calls": a dotted name is an identifier, and the tagger reads it as a verb.
 			w.Tag = "NN"
@@ -316,7 +319,13 @@ func dottedName(word string) bool {
 func verbEnding(word string) bool {
 	lower := strings.ToLower(word)
 	return strings.HasSuffix(lower, "s") && !strings.HasSuffix(lower, "ss") &&
-		!strings.HasSuffix(lower, "us") && !strings.HasSuffix(lower, "is")
+		!strings.HasSuffix(lower, "us") && !strings.HasSuffix(lower, "is") && !nounOnly(lower)
+}
+
+// nounOnly reports a plural form that no English verb takes: "ones" and the
+// plurals of -tion, -ment and -ness nouns.
+func nounOnly(lower string) bool {
+	return lower == "ones" || strings.HasSuffix(lower, "tions") || strings.HasSuffix(lower, "ments") || strings.HasSuffix(lower, "nesses")
 }
 
 // identifier reports a name written as code.

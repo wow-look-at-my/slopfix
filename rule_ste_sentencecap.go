@@ -16,6 +16,8 @@ func init() {
 			{Name: ste.IDSentenceCap + " with a stray backtick", Path: "docs/CI.md", Text: "Their jobs run .github/dats-fixtures/cache-profile.dats` asserts the tripwires themselves, run by the dats action in `host-build` the same way `same.dats` and `smoke.dats`.\n"},
 			// sglang .github/scripts/ghcr-image-retention.ts: "an image a week old" is the subject after the colon, so no other subject is put in front of it.
 			{Name: ste.IDSentenceCap + " with a measure after the subject", Path: "x.md", Text: "Ranked over every default-branch image, so the retention count is what bounds the history: an image a week old does not hold a slot that then falls to the newest of the images the age guard has already spared.\n"},
+			// go-ipc .github/workflows/ci.yml: "the C and Python ones" is one noun phrase, so no division lands inside it.
+			{Name: ste.IDSentenceCap + " around a gapped clause", Path: "x.md", Text: "Linux builds and tests the C, C++ and Python implementations and their peers first, macOS the C and Python ones, and Windows runs the interop matrix with the Go peer alone.\n"},
 			// sglang .github/workflows/fork-ci.yml: a comment in a run: script is prose, and divides like any comment.
 			workflowCase("sentence-length in a run: script", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n"+
 				"          ON_DEFAULT=false\n\n"+

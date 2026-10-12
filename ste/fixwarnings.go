@@ -407,7 +407,9 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	noun := func(k int) bool {
 		w := s.Words[k]
 		first, _ := utf8.DecodeRuneInString(w.Text)
-		return strings.HasPrefix(w.Tag, "NN") && unicode.IsLetter(first) && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
+		// A possessive noun opens the noun phrase after it, as "Homebrew's" opens "Homebrew's llvm", so no run reaches it.
+		possessive := k+1 < len(s.Words) && s.Words[k+1].Tag == "POS"
+		return strings.HasPrefix(w.Tag, "NN") && unicode.IsLetter(first) && !possessive && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
 			!strings.ContainsAny(w.Text, "()[]{}`\"")
 	}
 	// A run is nouns with only blanks between them. A mark such as "+" or "/" joins multiple runs and is no noun of either.
