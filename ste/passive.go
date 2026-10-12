@@ -72,19 +72,19 @@ func clauseOpening(s *syntax.Sentence, i int) int {
 		w := s.Words[k]
 		switch {
 		case w.Text == ":" || w.Text == ";" || dashMark(w.Text):
-			return opening(k+1, i)
+			return openingAt(k+1, i)
 		case (w.Tag == "IN" || w.Tag == "WRB") && syntax.Is(w.Text, "subordinator"):
-			return opening(k+1, i)
+			return openingAt(k+1, i)
 		case w.Tag == "CC" && s.Words[k-1].Text == ",":
-			return opening(k+1, i)
+			return openingAt(k+1, i)
 		}
 	}
 	return 0
 }
 
-// opening answers k when words stand between k and the verb at i, and the
+// openingAt answers k when words stand between k and the verb at i, and the
 // start of the sentence otherwise.
-func opening(k, i int) int {
+func openingAt(k, i int) int {
 	if k >= i {
 		return 0
 	}
