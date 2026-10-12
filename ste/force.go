@@ -420,7 +420,7 @@ func isWordByte(b byte) bool {
 // wordEnds answers where each word WordCount counts ends, in order. A
 // parenthetical is a single word that ends where it closes.
 func wordEnds(masked string) []int {
-	parens := parenthetical.FindAllStringIndex(masked, -1)
+	parens := parenAsides(masked)
 	var ends []int
 	for _, span := range parens {
 		ends = append(ends, span[1])
@@ -439,7 +439,7 @@ func wordEnds(masked string) []int {
 func candidates(source, masked string, strict bool, limit int) []forceCut {
 	off := verbatimSpan.FindAllStringIndex(source, -1)
 	off = append(off, quotedSpans(source)...)
-	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
+	off = append(off, parenAsides(masked)...)
 	off = append(off, outerParens(masked)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)

@@ -1,6 +1,7 @@
 package treecomments
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 )
@@ -9,7 +10,7 @@ import (
 // A space after the marker turns it into prose, so no repair may touch it.
 func IsDirective(line string) bool {
 	text := strings.TrimSpace(line)
-	if strings.HasPrefix(text, "// +build") {
+	if strings.HasPrefix(text, "// +build") || isMetadataLine(text) {
 		return true
 	}
 	rest, found := strings.CutPrefix(text, "//")
@@ -34,6 +35,14 @@ func IsDirective(line string) bool {
 		return after == "" || after[0] == ' ' || after[0] == '\t'
 	}
 	return false
+}
+
+// metadataLine is a line of a userscript metadata block, which the browser extension parses.
+var metadataLine = regexp.MustCompile(`^//\s*(?:==/?User(?:Script|Style)==\s*$|@[A-Za-z][A-Za-z0-9:_-]*(?:\s|$))`)
+
+// isMetadataLine reports a trimmed line of a userscript metadata block.
+func isMetadataLine(text string) bool {
+	return metadataLine.MatchString(text)
 }
 
 // directiveLines answers every directive line in the comments of src, in order.

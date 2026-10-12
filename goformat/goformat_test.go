@@ -25,6 +25,8 @@ func TestTheEditsGiveTheGofmtLayout(t *testing.T) {
 		"package p\n\n\nimport \"fmt\"\n\nvar _ = fmt.Sprint\n\n",
 		"package p\n\nfunc f()   { x:=1; _ = x }\n",
 		"package p\r\n\r\nvar x = 1 // note   \r\n",
+		"package p\n\n\n// F runs:\n//\tx := 1\nfunc F() {}\n",
+		"package p\n\n// F runs.\n//\nfunc F() {}\n",
 	} {
 		res := goformat.Gate(src, goformat.Edits(src), edit.Scope{})
 		assert.Empty(t, res.Refused, src)

@@ -119,6 +119,78 @@ func TestAForcedDivisionKeepsANounPhraseWhole(t *testing.T) {
 	assert.Contains(t, got, "a detached fetch", got)
 }
 
+// dash is the em dash dats writes between an aside and its sentence.
+var dash = string(rune(0x2014))
+
+// The paragraphs of dats docs/cli.md that the forced division wrote as "This
+// is a command that genuinely needs the host is not a sandboxed command.",
+// "This is from there", "This is use `inputs.copy`" and "This is not `/var`".
+// "This is" goes only in front of a noun phrase or "for every run", with no verb of its own.
+func TestAForcedDivisionNeverWritesThisIsInFrontOfAClauseOrAPhrase(t *testing.T) {
+	for _, in := range []string{
+		"**Writes** are confined to the file's temp directory (plus `--coverdir`, whose data has to outlive the run). There is deliberately no way to declare additional writable HOST paths: something to write is the temp directory " + dash + " a real filesystem inside every backend " + dash + " and a command that genuinely needs the host is not a sandboxed command, so it belongs to a `--no-sandbox` run. That includes a binary that rewrites itself on first run, such as an APE: copy it into the temp directory and run it from there, or run the file unsandboxed. To pull an *existing* host file into the temp directory so a command can modify a copy of it, use `inputs.copy` or `shared.copy` (see [file-format.md](file-format.md#copy-fixtures-inputscopy-and-sharedcopy)) " + dash + " the read-write counterpart of the working directory's read-only bind mount, resolved and copied before the sandbox starts.",
+		"**Reads are confined under bwrap and docker**: a command sees the OS tool tree, the working directory, and the paths the file declared " + dash + " not `$HOME`, not `/var`, not another checkout on the machine. bwrap used to bind `/` read-only, which made every suite a reader of the whole host and made the two backends expose entirely different filesystems.",
+	} {
+		got := ste.Fix(in)
+		for _, bad := range []string{"This is a command", "This is from there", "This is use", "This is not", "This is or"} {
+			assert.NotContains(t, got, bad, got)
+		}
+	}
+}
+
+// A division never halves an aside between a pair of dashes, and never cuts a
+// noun from the clause that describes it. These are dats docs/cli.md paragraphs
+// a division wrote as "the temp directory. A real filesystem", "hooks. Runs at
+// low OS priority" and "the paths. The file declared".
+func TestADivisionKeepsADashAsideAndAReducedRelative(t *testing.T) {
+	writes := "There is deliberately no way to declare additional writable HOST paths: something to write is the temp directory " + dash + " a real filesystem inside every backend " + dash + " and a command that genuinely needs the host is not a sandboxed command, so it belongs to a `--no-sandbox` run."
+	nice := "Every spawned workload command " + dash + " test instances and setup/teardown hooks " + dash + " runs at low OS priority (nice 19 applied to the command's process group) so a heavily parallel run does not starve the machine."
+	reads := "**Reads are confined under bwrap and docker**: a command sees the OS tool tree, the working directory, and the paths the file declared " + dash + " not `$HOME`, not `/var`, not another checkout on the machine."
+	for in, bad := range map[string]string{
+		writes: "directory. A real filesystem",
+		nice:   "hooks. Runs",
+		reads:  "the paths. The file declared",
+	} {
+		got := ste.Fix(in)
+		assert.NotContains(t, got, bad, got)
+	}
+}
+
+// A division never parts a verb from its object, never leaves a first part
+// with no verb, and never cuts inside a noun phrase. dats docs/cli.md came out
+// as "genuinely needs. The host", "canonical. This is order", "dats has. No
+// test filtering", "another checkout. This is on the machine" and "`.dats`
+// files. New subdirectories".
+func TestADivisionLeavesEachPartASentence(t *testing.T) {
+	cases := [][2]string{
+		{"There is deliberately no way to declare additional writable HOST paths: something to write is the temp directory " + dash + " a real filesystem inside every backend " + dash + " and a command that genuinely needs the host is not a sandboxed command, so it belongs to a `--no-sandbox` run.", "needs. The host"},
+		{"Output is buffered and printed in canonical order " + dash + " files in the order given on the command line (or discovered), instances in expansion order within each file " + dash + " regardless of completion order.", "canonical. This is order"},
+		{"Each re-run executes the **complete original argument scope**, never a subset. dats has no test filtering or selection by design " + dash + " every instance always runs " + dash + " and `watch` adds no narrowing flags.", "dats has. No test"},
+		{"**Reads are confined under bwrap and docker**: a command sees the OS tool tree, the working directory, and the paths the file declared " + dash + " not `$HOME`, not `/var`, not another checkout on the machine.", "This is on the machine"},
+		{"- Every **directory argument** (and the current directory in no-arg mode), recursively " + dash + " with the same hidden-directory skip rules as discovery " + dash + " so newly created `.dats` files and new subdirectories are picked up and join the scope.", "files. New subdirectories"},
+	}
+	for _, c := range cases {
+		got := ste.Fix(c[0])
+		assert.NotContains(t, got, c[1], got)
+	}
+}
+
+// The opening of unreal-tools namescrub/README.md, which a division wrote as
+// "between cook. This is staging". A list item opens no sentence of its own.
+func TestAForcedDivisionNeverOpensOnAListItem(t *testing.T) {
+	in := "Redacts sensitive names (material parameter names, asset/package names, and the paths built from them) in Unreal Engine cooked output by **same-byte-length hash replacement** -- either on the loose cooked files between cook and staging, or directly **inside an existing classic `.pak`** (see Pak mode below)."
+	got := ste.Fix(in)
+	assert.NotContains(t, got, "This is staging", got)
+	assert.NotContains(t, got, "between cook.", got)
+}
+
+// A division never ends a part on a verb and opens the rest on its object.
+func TestAForcedDivisionKeepsAVerbWithItsObject(t *testing.T) {
+	in := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a careful repair rather than a quiet deletion."
+	got := ste.Fix(in)
+	assert.NotContains(t, got, "deserves.", got)
+}
+
 // A verb that opens the rest gets the subject again.
 func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 	in := "The cache keeps every answer the upstream sent for the whole day across the restart of the process and the reload of the spec and holds the rows."
