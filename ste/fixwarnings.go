@@ -131,13 +131,28 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 	for range clauseRounds * (len(strings.Fields(text)) + 1) {
 		masked := mask(text)
 		off := opaque(text, masked)
-		rewritten, ok := rewriteSentence(syntax.Parse(masked, off), text, off, keep)
+		rewritten, ok := rewriteSentence(widenToSpans(syntax.Parse(masked, off), off), text, off, keep)
 		if !ok || rewritten == text {
 			break
 		}
 		text = rewritten
 	}
 	return text
+}
+
+// widenToSpans stretches each word inside an opaque span to the whole span. The
+// mask writes one word, such as CODE, inside a code span, and a cut at that
+// word's end lands inside the span.
+func widenToSpans(s *syntax.Sentence, off [][]int) *syntax.Sentence {
+	for k := range s.Words {
+		w := &s.Words[k]
+		for _, span := range off {
+			if span[0] <= w.Start && w.Start < span[1] {
+				w.Start, w.End = min(w.Start, span[0]), max(w.End, span[1])
+			}
+		}
+	}
+	return s
 }
 
 // fixInstructions divides each instruction over InstructionWordCap, as the
@@ -238,10 +253,24 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if end < by+1 {
 		return "", false
 	}
-	subject := strings.TrimSpace(source[s.Words[0].Start:s.Words[i].Start])
+	// A bare "be" is active only behind a modal: "X must be read by Y" becomes "Y must read X".
+	subjectEnd, verb := i, ""
+	if s.Words[i].Lower() == "be" {
+		if i < 2 || s.Words[i-1].Tag != "MD" {
+			return "", false
+		}
+		subjectEnd = i - 1
+		verb = source[s.Words[i-1].Start:s.Words[i-1].End] + " " + baseFromParticiple(s.Words[j].Lower())
+	} else {
+		// "has been read" and "must not be read" carry a word no rewrite here moves.
+		if before := s.Words[i-1]; before.Tag == "MD" || haveForms.Contains(before.Lower()) || beForms.Contains(before.Lower()) {
+			return "", false
+		}
+		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
+	}
+	subject := strings.TrimSpace(source[s.Words[0].Start:s.Words[subjectEnd].Start])
 	actor := source[s.Words[by+1].Start:s.Words[end].End]
 	tail := source[s.Words[end].End:]
-	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
 	if subject == "" || actor == "" || verb == "" {
 		return "", false
 	}
@@ -267,8 +296,6 @@ func lowerOpeningFor(phrase, tag string) string {
 func passiveVerb(participle, beWord string, plural bool) string {
 	switch beWord {
 	case "was", "were", "been", "being":
-		return pastFromParticiple(participle)
-	case "be":
 		return pastFromParticiple(participle)
 	}
 	return presentOf(baseFromParticiple(participle), plural)
@@ -384,8 +411,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	last := lastContent(s)
 	noun := func(k int) bool {
 		w := s.Words[k]
-		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			!strings.ContainsAny(w.Text, "()[]{}`\"")
+		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) && wordlike(w.Text)
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -401,6 +427,23 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		start = end
 	}
 	return -1, -1, false
+}
+
+// wordlike reports a token made of letters and digits, which can be a noun. The
+// tagger tags a symbol such as an arrow. A plus or a slash as a noun, and a
+// symbol between names is a chain or a list, not a cluster.
+func wordlike(text string) bool {
+	letter := false
+	for _, r := range text {
+		switch {
+		case unicode.IsLetter(r):
+			letter = true
+		case unicode.IsDigit(r) || strings.ContainsRune("-'._", r):
+		default:
+			return false
+		}
+	}
+	return letter
 }
 
 // rewriteCluster breaks a run of nouns apart: "the gate file system cache

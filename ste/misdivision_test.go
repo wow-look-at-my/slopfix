@@ -16,6 +16,11 @@ var misdivisions = []struct {
 	bad      []string
 }{
 	{
+		"an -ing form after a dash takes no carrier",
+		"When a script is packaged with profiling support (the default), it gains a guarded block that does nothing on a normal run but, when the environment variable BASHFS_PROFILE_SCRIPT=1 is set, benchmarks the parts of the script that bashfs owns -- the startup integrity check and each embedded file's extraction -- using hyperfine, then exits without running the user's body.",
+		[]string{"It using", "it using"},
+	},
+	{
 		"a phrase after be and its adverb stays with be",
 		"The turn loop calls this immediately before `drain_pending_interjections`, which is immediately before each model request — the earliest point the model can see the text without cancelling anything.",
 		[]string{"is immediately.", "this immediately.", "This happens before"},
