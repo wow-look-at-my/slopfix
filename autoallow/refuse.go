@@ -108,9 +108,11 @@ func hasAnyPrefix(s string, prefixes []string) bool {
 	return false
 }
 
+// containsAny ignores case: a URL's owner and repository name are case-insensitive.
 func containsAny(s string, subs []string) bool {
+	lower := strings.ToLower(s)
 	for _, sub := range subs {
-		if strings.Contains(s, sub) {
+		if strings.Contains(lower, strings.ToLower(sub)) {
 			return true
 		}
 	}
