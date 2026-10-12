@@ -90,6 +90,9 @@ func divideNext(prose string, limit int) (string, bool) {
 		if rewritten, ok := bestDivision(s, prose[start:end]); ok {
 			return prose[:start] + rewritten + prose[end:], true
 		}
+		if rewritten, ok := frontedDivision(s, prose[start:end]); ok {
+			return prose[:start] + rewritten + prose[end:], true
+		}
 	}
 	return prose, false
 }
@@ -296,6 +299,10 @@ func divisions(s *syntax.Sentence, source string) []division {
 		}
 		opener, ok := openerFor(s, c, main, source)
 		if !ok {
+			if d, ok := gerundDivision(s, c, main, source); ok {
+				out = append(out, d)
+				continue
+			}
 			if objectRelative(s, c) {
 				out = append(out, division{
 					leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
@@ -594,6 +601,10 @@ func opensWithCapital(s *syntax.Sentence, i int, source string) bool {
 // when no pronoun agrees, as for a single person and a verb in -s.
 func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string, bool) {
 	if main.Subject == nil || main.Verb == nil || c.Verb == nil {
+		return "", false
+	}
+	// A subject before an -ing form writes "It using hyperfine", which is no sentence.
+	if s.Words[c.Verb.First].Tag == "VBG" || c.Link >= 0 && c.Link+1 < len(s.Words) && s.Words[c.Link+1].Tag == "VBG" {
 		return "", false
 	}
 	subject := *main.Subject
