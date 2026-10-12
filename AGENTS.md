@@ -269,7 +269,7 @@ Denials: `heredoc`, `perl` (`^perl[0-9.]*$` as the effective command), `shred`, 
 - `gh_wait_ci` maps `gh run view`, `watch`, `rerun`, `list` and `gh pr checks` to `gh wait-ci`.
 - `sleep_cap` writes `sleep 3` for any sleep past `3` seconds or not literal.
 - `narration_remove` turns an `echo` that reaches the terminal into `:`.
-- `pipefail` injects `set -o pipefail`. A `tee` then never masks a failure.
+- `pipefail` injects `set -o pipefail` when the command has a pipe. A `tee` then never masks a failure. A command with no pipe stays one command, so a permission rule still matches it.
 
 ## What no rule reads
 
