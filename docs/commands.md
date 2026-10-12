@@ -1,6 +1,6 @@
 # Commands
 
-The commands are `check`, `hook`, `lsp`, `ratchet`, `version`, `completion` and `help`. `slopfix --version` prints the same line as `slopfix version`: the build's version, commit and commit time from Go's VCS stamp. A kind of check is a rule category or a hook guard, not a command of its own.
+The commands are `check`, `hook`, `lsp`, `ratchet`, `version`, `completion` and `help`. `slopfix --version` prints the same line as `slopfix version`: the buildhost release number, then the commit in parentheses. go-toolchain stamps both at link time. That `slopfix --version` is into `cmd/slopfix`'s `releaseNumber` and `gitHash`. A binary missing either fails with an error rather than naming a version. A kind of check is a rule category or a hook guard, not a command of its own.
 
 ```sh
 slopfix check [path...]           # report what the rules reject, exit 1 on any finding

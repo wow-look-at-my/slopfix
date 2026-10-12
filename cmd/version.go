@@ -1,78 +1,48 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"runtime/debug"
-	"time"
 
 	"github.com/spf13/cobra"
 )
 
-// buildInfo is what Go's VCS stamping recorded in this binary.
-type buildInfo struct {
-	Revision string
-	Time     time.Time
-	Modified bool
-}
+// release and revision are what go-toolchain stamped into cmd/slopfix's releaseNumber and gitHash.
+var release, revision string
 
-// readBuildInfo reads the VCS stamp. A binary built outside a checkout has none.
-func readBuildInfo() buildInfo {
-	var b buildInfo
-	bi, ok := debug.ReadBuildInfo()
-	if !ok {
-		return b
-	}
-	return parseBuildSettings(bi.Settings)
-}
+var (
+	errNoRelease  = errors.New("this slopfix binary carries no release number: go-toolchain stamps it into every CI build through cmd/slopfix's releaseNumber")
+	errNoRevision = errors.New("this slopfix binary carries no commit stamp: go-toolchain stamps it through cmd/slopfix's gitHash")
+)
 
-func parseBuildSettings(settings []debug.BuildSetting) buildInfo {
-	var b buildInfo
-	for _, s := range settings {
-		switch s.Key {
-		case "vcs.revision":
-			b.Revision = s.Value
-		case "vcs.time":
-			if t, err := time.Parse(time.RFC3339, s.Value); err == nil {
-				b.Time = t
-			}
-		case "vcs.modified":
-			b.Modified = s.Value == "true"
-		}
-	}
-	return b
-}
+// SetBuild records the stamped release number and commit before Execute runs.
+func SetBuild(releaseNumber, gitHash string) { release, revision = releaseNumber, gitHash }
 
-// version is v0.0.<commit time in Unix seconds>, the numbering go-toolchain's own version command uses.
-func (b buildInfo) version() string {
-	if b.Time.IsZero() {
-		return "dev"
+func printVersion(cmd *cobra.Command) error {
+	if release == "" {
+		return errNoRelease
 	}
-	return fmt.Sprintf("v0.0.%d", b.Time.Unix())
-}
-
-// String is the line both `--version` and `version` print.
-func (b buildInfo) String() string {
-	if b.Revision == "" {
-		return b.version()
+	if revision == "" {
+		return errNoRevision
 	}
-	s := fmt.Sprintf("%s (%s, %s)", b.version(), b.Revision, b.Time.UTC().Format(time.RFC3339))
-	if b.Modified {
-		s += " modified"
-	}
-	return s
+	_, err := fmt.Fprintf(cmd.OutOrStdout(), "slopfix %s (%s)\n", release, revision)
+	return err
 }
 
 func init() {
-	info := readBuildInfo()
-	rootCmd.Version = info.String()
-	rootCmd.SetVersionTemplate("slopfix {{.Version}}\n")
+	rootCmd.Flags().Bool("version", false, "print the buildhost release number and the commit")
+	rootCmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		if on, _ := cmd.Flags().GetBool("version"); on {
+			return printVersion(cmd)
+		}
+		return cmd.Help()
+	}
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",
-		Short: "Print the build's version, commit and commit time",
+		Short: "Print the buildhost release number and the commit",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			_, err := fmt.Fprintf(cmd.OutOrStdout(), "slopfix %s\n", info)
-			return err
+			return printVersion(cmd)
 		},
 	})
 }
