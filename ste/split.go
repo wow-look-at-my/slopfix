@@ -90,6 +90,9 @@ func divideNext(prose string, limit int) (string, bool) {
 		if rewritten, ok := bestDivision(s, prose[start:end]); ok {
 			return prose[:start] + rewritten + prose[end:], true
 		}
+		if rewritten, ok := frontedDivision(s, prose[start:end]); ok {
+			return prose[:start] + rewritten + prose[end:], true
+		}
 	}
 	return prose, false
 }
