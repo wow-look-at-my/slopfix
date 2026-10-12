@@ -54,6 +54,11 @@ func init() {
 	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
 	register("yaml/set-concurrency", IDConcurrency, 70, setConcurrency, false)
 	fixer.Register(fixer.Spec{
+		Label: "yaml/retarget-runner", Families: []string{Category}, Rules: []string{IDPrivateRunner},
+		Files: []fixer.Kind{fixer.Workflow}, Place: 70,
+		Repair: func(f *fixer.File) { f.Apply(retargetRunners(f.Path, f.Text())) },
+	})
+	fixer.Register(fixer.Spec{
 		Label: "yaml/extract-tests", Families: []string{Category}, Rules: []string{IDTestInYAML},
 		Files: []fixer.Kind{fixer.Workflow}, Place: 80, Repair: extractTests,
 	})

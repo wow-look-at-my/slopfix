@@ -39,21 +39,7 @@ func BaseOf(r forkscope.Resolver, path string) (*forkscope.Base, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.Base(existingDir(filepath.Dir(abs)))
-}
-
-// existingDir answers dir, or its nearest parent that exists.
-func existingDir(dir string) string {
-	for {
-		if info, err := os.Stat(dir); err == nil && info.IsDir() {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return dir
-		}
-		dir = parent
-	}
+	return r.Base(forkscope.ExistingDir(filepath.Dir(abs)))
 }
 
 // FixFileIn is FixFileWith in a fork. A file the fork never touched is neither
