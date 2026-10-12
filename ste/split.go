@@ -279,6 +279,13 @@ func capitalizeOpening(s string) string {
 	if !unicode.IsLower(first) {
 		return s
 	}
+	word := s
+	if end := strings.IndexAny(s, " \t"); end >= 0 {
+		word = s[:end]
+	}
+	if strings.ContainsFunc(word[width:], unicode.IsUpper) || strings.ContainsAny(word, "_.") {
+		return s
+	}
 	return string(unicode.ToUpper(first)) + s[width:]
 }
 
