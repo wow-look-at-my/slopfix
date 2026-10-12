@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -101,6 +102,7 @@ type symbolIndex struct {
 
 	pathOnce sync.Once
 	paths    set.Set[string]
+	bases    set.Set[string]
 	pathsOK  bool
 
 	blindOnce sync.Once
@@ -133,10 +135,8 @@ func (ix *symbolIndex) missingDependency(root string) bool {
 	return ix.blind
 }
 
-// namesAFile reports a name that a path git lists under root spells, such as
-// sig_cosmo_test for sig_cosmo_test.go. A name that ends in an underscore
-// names the files that start with it.
-func (ix *symbolIndex) namesAFile(root, name string) bool {
+// listPaths reads the paths git lists under root, once.
+func (ix *symbolIndex) listPaths(root string) {
 	ix.pathOnce.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 		defer cancel()
@@ -145,13 +145,24 @@ func (ix *symbolIndex) namesAFile(root, name string) bool {
 			return
 		}
 		ix.paths = set.New[string]()
+		ix.bases = set.New[string]()
 		for _, rel := range strings.Split(string(listed), "\x00") {
 			for _, word := range identifierWords(rel) {
 				ix.paths.Add(word)
 			}
+			if rel != "" {
+				ix.bases.Add(filepath.Base(rel))
+			}
 		}
 		ix.pathsOK = true
 	})
+}
+
+// namesAFile reports a name that a path git lists under root spells, such as
+// sig_cosmo_test for sig_cosmo_test.go. A name that ends in an underscore
+// names the files that start with it.
+func (ix *symbolIndex) namesAFile(root, name string) bool {
+	ix.listPaths(root)
 	if !ix.pathsOK {
 		return false
 	}
@@ -329,6 +340,9 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	}
 
 	self, _ := os.ReadFile(path)
+	if ix.portsForeignSource(root, path, blocks, self) {
+		return nil
+	}
 	selfPath, _ := filepath.Abs(path)
 	rg := ""
 	if !ix.ok {
@@ -401,4 +415,56 @@ func DeadReferentHits(path, text string) []Hit {
 		out = append(out, HitForName(blocks, name))
 	}
 	return out
+}
+
+// foreignCitation matches a C family source cited at a line, as in Script.h:222.
+var foreignCitation = regexp.MustCompile(`\b[A-Za-z_][A-Za-z0-9_.-]*\.(?:c|cc|cpp|cxx|h|hh|hpp|hxx|inl|m|mm):[0-9]+\b`)
+
+// portsForeignSource reports a file whose comments cite a line of a source
+// file that the repository does not hold. Its test counterpart counts too.
+// Such a file ports another codebase, so its comments name that codebase's
+// API, and the repository has no definition to find.
+func (ix *symbolIndex) portsForeignSource(root, path string, blocks []Block, self []byte) bool {
+	ix.listPaths(root)
+	if !ix.pathsOK {
+		return false
+	}
+	if ix.citesForeign(blocks) || ix.citesForeign(AddedBlocks(path, string(self))) {
+		return true
+	}
+	other := testCounterpart(path)
+	if other == "" {
+		return false
+	}
+	data, err := os.ReadFile(other)
+	return err == nil && ix.citesForeign(AddedBlocks(other, string(data)))
+}
+
+// citesForeign reports a block that cites a line of a file no listed path names.
+func (ix *symbolIndex) citesForeign(blocks []Block) bool {
+	for _, b := range blocks {
+		for _, cite := range foreignCitation.FindAllString(b.Prose, -1) {
+			file, _, _ := strings.Cut(cite, ":")
+			if !ix.bases.Contains(file) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// testCounterpart answers the source file a test file tests, or the test file
+// of a source file. X_test.go and x.go, x.test.ts and x.ts.
+func testCounterpart(path string) string {
+	ext := filepath.Ext(path)
+	stem := strings.TrimSuffix(path, ext)
+	for _, mark := range []string{"_test", ".test", ".spec"} {
+		if base, ok := strings.CutSuffix(stem, mark); ok {
+			return base + ext
+		}
+	}
+	if ext == ".go" {
+		return stem + "_test.go"
+	}
+	return stem + ".test" + ext
 }
