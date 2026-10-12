@@ -107,8 +107,7 @@ func (r Resolver) readVisibility(top string, topErr error, repo string) (bool, e
 		return false, fmt.Errorf("fork scope: the API answered %s with no private flag", repo)
 	}
 	if topErr == nil {
-		rec := visibilityRecord{Repo: repo, Source: r.api(), Checked: time.Now(), Private: *info.Private}
-		if err := writeRecord(top, visibilityFile, rec); err != nil {
+		if err := r.RecordVisibility(top, repo, *info.Private); err != nil {
 			return false, err
 		}
 	}
@@ -139,6 +138,13 @@ func (r Resolver) eventPrivate(repo string) (bool, bool) {
 		return false, false
 	}
 	return *event.Repository.Private, true
+}
+
+// RecordVisibility writes what the API would answer about repo into the work
+// tree at top, as this resolver records it. A fixture states its visibility this way.
+func (r Resolver) RecordVisibility(top, repo string, private bool) error {
+	rec := visibilityRecord{Repo: repo, Source: r.api(), Checked: time.Now(), Private: private}
+	return writeRecord(top, visibilityFile, rec)
 }
 
 // cachedVisibility answers the record in top's git common directory when it

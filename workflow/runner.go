@@ -21,8 +21,6 @@ const (
 	runnerDindVar = "vars.CI_RUNNER_DIND"
 )
 
-// Resolver reads the repository a workflow belongs to. Tests replace it.
-var Resolver forkscope.Resolver
 
 // SelfHostExempt names each org repository the self-hosted fleet depends on.
 // Its CI stays on GitHub-hosted runners, so a fleet outage cannot block the fix.
@@ -57,11 +55,11 @@ func runnerTargetOf(path string) (runnerTarget, bool) {
 	}
 	dir := forkscope.ExistingDir(filepath.Dir(abs))
 	// An exempt repository is skipped before the network is asked.
-	name := forkscope.Repo{Name: Resolver.RepoName(dir)}
+	name := forkscope.Repo{Name: forkscope.Resolver{}.RepoName(dir)}
 	if !strings.EqualFold(name.Owner(), orgOwner) || SelfHostExempt.Contains(strings.ToLower(name.Name)) {
 		return runnerTarget{}, false
 	}
-	repo, err := Resolver.Visibility(dir, orgOwner)
+	repo, err := forkscope.Resolver{}.Visibility(dir, orgOwner)
 	if err != nil {
 		return runnerTarget{repo: repo, unread: err.Error()}, true
 	}

@@ -1,7 +1,6 @@
 package slopfix
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -11,31 +10,22 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// The event payload says the fixture repository is private, the way an Actions run reads it.
-func init() {
-	dir, err := os.MkdirTemp("", "slopfix-event-")
-	if err != nil {
-		panic(err)
-	}
-	event := filepath.Join(dir, "event.json")
-	payload := `{"repository":{"full_name":"wow-look-at-my/private-runner-fixture","private":true}}`
-	if err := os.WriteFile(event, []byte(payload), 0o644); err != nil {
-		panic(err)
-	}
-	workflow.Resolver = forkscope.Resolver{Getenv: func(key string) string {
-		if key == "GITHUB_EVENT_PATH" {
-			return event
-		}
-		return os.Getenv(key)
-	}}
-}
-
-// runnerRepo writes a workflow into a repository with origin, and answers its path.
+// runnerRepo writes a workflow into a private repository with origin, and answers its path.
 func runnerRepo(t *testing.T, origin, body string) string {
 	t.Helper()
-	c, err := Materialize(t.TempDir(), RuleCase{Name: "runner", Path: ".github/workflows/ci.yml", Text: body, Origin: origin})
+	c, err := Materialize(t.TempDir(), RuleCase{Name: "runner", Path: ".github/workflows/ci.yml", Text: body, Origin: origin, Private: origin != ""})
 	require.NoError(t, err)
 	return filepath.Join(c.Root, ".github", "workflows", "ci.yml")
+}
+
+func TestPrivateRunnerLeavesAPublicRepositoryAlone(t *testing.T) {
+	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n"
+	c, err := Materialize(t.TempDir(), RuleCase{Name: "public", Path: ".github/workflows/ci.yml", Text: body, Origin: "https://github.com/wow-look-at-my/public-runner-fixture"})
+	require.NoError(t, err)
+	r := forkscope.Resolver{}
+	require.NoError(t, r.RecordVisibility(c.Root, "wow-look-at-my/public-runner-fixture", false))
+	path := filepath.Join(c.Root, ".github", "workflows", "ci.yml")
+	assert.Empty(t, only(CheckContent(path, body), workflow.IDPrivateRunner))
 }
 
 func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
@@ -57,9 +47,9 @@ func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
 func TestPrivateRunnerSkipsRepositoriesItDoesNotGovern(t *testing.T) {
 	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n"
 	for name, origin := range map[string]string{
-		"no origin":       "",
-		"another owner":   "https://github.com/someone/private-runner-fixture",
-		"exempt":          "https://github.com/wow-look-at-my/infra",
+		"no origin":        "",
+		"another owner":    "https://github.com/someone/private-runner-fixture",
+		"exempt":           "https://github.com/wow-look-at-my/infra",
 		"another git host": "https://example.com/wow-look-at-my/private-runner-fixture",
 	} {
 		path := runnerRepo(t, origin, body)

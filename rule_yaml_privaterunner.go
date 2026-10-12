@@ -29,7 +29,7 @@ func init() {
 // privateRunnerCase is a workflow in the private fixture repository.
 func privateRunnerCase(name, body string) RuleCase {
 	c := workflowCase(name, body)
-	c.Origin = PrivateRunnerFixture
+	c.Origin, c.Private = PrivateRunnerFixture, true
 	return c
 }
 
