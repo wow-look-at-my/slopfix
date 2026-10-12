@@ -2,7 +2,7 @@
 
 slopfix is one binary for the org's prose rules. It also judges code comments, GitHub Actions workflows and the markdown files a repository keeps. It answers every event of the Claude Code hook that the marketplace plugin sends it. A hook, a CI job and an editor integration all call this binary. Each gets the same verdict.
 
-`README.md` is for a person, `AGENTS.md` (this file) for an agent, and `CLAUDE.md` is the line `@AGENTS.md`. Depth that only one subsystem needs goes in `spec/<topic>.md`, with a pointer here.
+`README.md` is for a person, `AGENTS.md` (this file) for an agent, and `CLAUDE.md` is the line `@AGENTS.md`. Depth that only one subsystem needs goes in `spec/docs/<topic>.md`, with a pointer here.
 
 ## Build and test
 
@@ -17,9 +17,11 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 
 ## Commands
 
-[spec/commands.md](spec/commands.md) holds this section.
+[spec/docs/commands.md](spec/docs/commands.md) holds this section.
 
 ## Rule table
+
+[spec/docs/rules.md](spec/docs/rules.md) holds this section.
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
 
@@ -41,7 +43,7 @@ A rule reports only what its repair rewrites. Where no rewrite can say a thing c
 
 A fixture is a repository and a closing message. `Materialize` writes the repository to a temporary directory under `git init`. Every rule reads every text of it.
 
-`ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`spec/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on a rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+`ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`spec/docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on a rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 
@@ -56,9 +58,9 @@ Several org actions call this action, so one workflow run can reach it from many
 
 No input narrows the check. A path list, a rule list or a raw command line lets a caller set the gate to nothing. `action_test.go` fails the build on any input. The action never repairs. A job that repairs its own checkout and then passes enforced nothing.
 
-In a fork, only the lines the fork wrote can fail the check. The org's `dot_github` repository lists, in `fork-list/fork-of.json`, each fork GitHub does not record, and publishes it to buildhost. `spec/fork-scope.md` holds the detail.
+In a fork, only the lines the fork wrote can fail the check. The org's `dot_github` repository lists, in `fork-list/fork-of.json`, each fork GitHub does not record, and publishes it to buildhost. `spec/docs/fork-scope.md` holds the detail.
 
-`check` and `fix` also take `--staged` and `--diff REV`. Each scopes a run to the lines a change introduced. A repair then stays off the upstream lines. [spec/commands.md](spec/commands.md) holds the detail.
+`check` and `fix` also take `--staged` and `--diff REV`. Each scopes a run to the lines a change introduced. A repair then stays off the upstream lines. [spec/docs/commands.md](spec/docs/commands.md) holds the detail.
 
 ## The marketplace follows each publish
 
@@ -66,11 +68,11 @@ cc-marketplace ships this binary inside its `slopfix` plugin. A publish here the
 
 ## repo: what a repository keeps
 
-[spec/repo-what-a-repository-keeps.md](spec/repo-what-a-repository-keeps.md) holds this section.
+[spec/docs/repo-what-a-repository-keeps.md](spec/docs/repo-what-a-repository-keeps.md) holds this section.
 
 ## edit: the only way a repair writes
 
-[spec/edit-the-only-way-a-repair-writes.md](spec/edit-the-only-way-a-repair-writes.md) holds this section.
+[spec/docs/edit-the-only-way-a-repair-writes.md](spec/docs/edit-the-only-way-a-repair-writes.md) holds this section.
 
 ## markdown: the document model
 
@@ -86,7 +88,7 @@ It never lands inside a code span, a link, bold text or a quotation, or before t
 
 ## ste: Simplified Technical English
 
-[spec/ste-simplified-technical-english.md](spec/ste-simplified-technical-english.md) holds this section.
+[spec/docs/ste-simplified-technical-english.md](spec/docs/ste-simplified-technical-english.md) holds this section.
 
 ## syntax: the sentence parser
 
@@ -165,7 +167,7 @@ It does not flag a comment above the package declaration, or a trailing comment 
 
 ## yaml: workflow and action manifest rules
 
-[spec/yaml-workflow-and-action-manifest-rules.md](spec/yaml-workflow-and-action-manifest-rules.md) holds this section.
+[spec/docs/yaml-workflow-and-action-manifest-rules.md](spec/docs/yaml-workflow-and-action-manifest-rules.md) holds this section.
 
 ## pins: a download URL that names a release
 
@@ -230,7 +232,7 @@ Without `send_later`, use the `/loop` skill. Watch a pull request with `mcp__git
 
 `no-work-loss` asks questions of one parsed command. Destruction: does it destroy content that exists only in the working tree? Provenance: does it change file content without Write, Edit or NotebookEdit?
 
-`spec/no-work-loss.md` holds the detail: what each verb destroys, how a command is parsed and wrapped, and which write shapes are refused.
+`spec/docs/no-work-loss.md` holds the detail: what each verb destroys, how a command is parsed and wrapped, and which write shapes are refused.
 
 ## rustfmt
 

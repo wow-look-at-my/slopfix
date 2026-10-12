@@ -2,11 +2,8 @@ package ste
 
 import (
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -132,13 +129,32 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 	for range clauseRounds * (len(strings.Fields(text)) + 1) {
 		masked := mask(text)
 		off := opaque(text, masked)
-		rewritten, ok := rewriteSentence(syntax.Parse(masked, off), text, off, keep)
+		rewritten, ok := rewriteSentence(coverVerbatim(syntax.Parse(masked, off), text), text, off, keep)
 		if !ok || rewritten == text {
 			break
 		}
 		text = rewritten
 	}
 	return text
+}
+
+// coverVerbatim stretches each word mask writes over a code span, a link
+// target or an entity to the whole span. A rewrite that moves the word then
+// moves all of the span.
+func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
+	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
+		from, to := span[0], span[1]
+		// mask fills a link target inside its parentheses.
+		if to-from >= 3 && text[from] == ']' && text[from+1] == '(' && text[to-1] == ')' {
+			from, to = from+2, to-1
+		}
+		for k := range s.Words {
+			if s.Words[k].Start >= from && s.Words[k].Start < to {
+				s.Words[k].Start, s.Words[k].End = from, to
+			}
+		}
+	}
+	return s
 }
 
 // fixInstructions divides each instruction over InstructionWordCap, as the
@@ -204,159 +220,6 @@ func auxiliary(s *syntax.Sentence, from int, forms set.Set[string]) (int, int) {
 	}
 	return -1, -1
 }
-
-// rewritePassive writes the active voice for a passive clause that names its
-// actor: "The file is read by the gate" becomes "The gate reads the file".
-// A clause that names no actor is left as written, because nothing states who
-// acts.
-func rewritePassive(s *syntax.Sentence, source string, off [][]int) (string, bool) {
-	last := lastContent(s)
-	i, j := auxiliary(s, 1, beForms)
-	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
-		return "", false
-	}
-	if !simpleSpan(s, i, j) {
-		return "", false
-	}
-	// The actor is the phrase after "by", and it must close the clause.
-	by := -1
-	for k := j + 1; k < last; k++ {
-		if s.Words[k].Lower() == "by" {
-			by = k
-			break
-		}
-	}
-	if by < 0 || by+1 > last {
-		return "", false
-	}
-	// Only adverbs may stand between the participle and "by". Another word makes "by" belong to another verb.
-	var adverbs []string
-	for k := j + 1; k < by; k++ {
-		if s.Words[k].Tag != "RB" {
-			return "", false
-		}
-		adverbs = append(adverbs, s.Words[k].Lower())
-	}
-	end := last
-	for k := by + 1; k <= last; k++ {
-		if s.Words[k].Text == "," {
-			end = k - 1
-			break
-		}
-	}
-	if end < by+1 {
-		return "", false
-	}
-	subjectEnd := snapStart(off, s.Words[i].Start)
-	subject := strings.TrimRight(strings.TrimSpace(source[s.Words[0].Start:subjectEnd]), ",")
-	actorStart, actorEnd := snapStart(off, s.Words[by+1].Start), snapEnd(off, s.Words[end].End)
-	actor := source[actorStart:actorEnd]
-	tail := source[actorEnd:]
-	actorPhrase := syntax.Phrase{Head: end}
-	if p, ok := s.PhraseAt(by + 1); ok && p.Kind == syntax.NounPhrase {
-		actorPhrase = *p
-	}
-	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(actorPhrase))
-	if subject == "" || actor == "" || verb == "" {
-		return "", false
-	}
-	object := lowerOpeningFor(subject, s.Words[0].Tag)
-	// "only" limits the actor, so it stands in front of the actor. Another adverb stands in front of the verb.
-	var lead, mid string
-	for _, adv := range adverbs {
-		if adv == "only" {
-			lead = "only "
-			continue
-		}
-		mid += adv + " "
-	}
-	return capitalizeOpening(lead+actor) + " " + mid + verb + " " + object + tail, true
-}
-
-// snapStart moves an offset inside an opaque span to the span's start, so a
-// cut never divides a code span.
-func snapStart(off [][]int, at int) int {
-	for _, span := range off {
-		if at > span[0] && at < span[1] {
-			return span[0]
-		}
-	}
-	return at
-}
-
-// snapEnd moves an offset inside an opaque span to the span's end.
-func snapEnd(off [][]int, at int) int {
-	for _, span := range off {
-		if at > span[0] && at < span[1] {
-			return span[1]
-		}
-	}
-	return at
-}
-
-// lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
-// the start of one. A name keeps its capital.
-func lowerOpeningFor(phrase, tag string) string {
-	first, width := utf8.DecodeRuneInString(phrase)
-	if !unicode.IsUpper(first) {
-		return phrase
-	}
-	lowered := string(unicode.ToLower(first)) + phrase[width:]
-	if tag != "NNP" && tag != "NNPS" {
-		return lowered
-	}
-	// A capital at the start of a sentence reads as a name to the tagger. The word is a name only when it reads as one in lower case too.
-	word := strings.Fields(phrase)[0]
-	if strings.IndexFunc(word[width:], unicode.IsUpper) >= 0 {
-		return phrase
-	}
-	if words := syntax.Parse(lowered, nil).Words; len(words) > 0 && !strings.HasPrefix(words[0].Tag, "NNP") {
-		return lowered
-	}
-	return phrase
-}
-
-// passiveVerb answers the active form of a passive verb group: the participle
-// for a past clause, and the present tense of the base form otherwise.
-func passiveVerb(participle, beWord string, plural bool) string {
-	switch beWord {
-	case "was", "were", "been", "being":
-		return pastFromParticiple(participle)
-	case "be":
-		return pastFromParticiple(participle)
-	}
-	return presentOf(baseFromParticiple(participle), plural)
-}
-
-// baseFromParticiple answers the verb a participle belongs to. A regular verb
-// spells its participle with -ed, so the ending answers it by rule. The table
-// answers each verb the ending hides.
-func baseFromParticiple(form string) string {
-	form = strings.ToLower(form)
-	if v, ok := verbBy(form); ok && v.participle == form {
-		return v.base
-	}
-	if !strings.HasSuffix(form, "ed") || len(form) <= 3 {
-		return form
-	}
-	stem := form[:len(form)-2]
-	if doubled(stem) {
-		return stem[:len(stem)-1]
-	}
-	if strings.HasSuffix(stem, "i") {
-		return stem[:len(stem)-1] + "y"
-	}
-	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
-		return stem + "e"
-	}
-	if silentE.MatchString(stem) {
-		return stem + "e"
-	}
-	return stem
-}
-
-// silentE matches a stem no English verb ends on, because its base form ends in a silent e: "judg", "mov", "trac", "merg", "handl", "siz".
-var silentE = regexp.MustCompile(`(?:dg|v|[aeiour]c|rg|[^aeioul]l|[aeiouy]z|u)$`)
 
 // simpleSpan reports whether a verb group from the auxiliary i to the
 // participle j holds only the words the simple-tense repair replaces.
@@ -424,7 +287,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	noun := func(k int) bool {
 		w := s.Words[k]
 		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			!strings.ContainsAny(w.Text, "()[]{}`\"")
+			!strings.ContainsAny(w.Text, "()[]{}`\"") && !versus.Contains(w.Lower())
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -459,6 +322,15 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 		out.WriteString(" of the ")
 		last--
 	}
-	out.WriteString(source[s.Words[start].Start:s.Words[last].End])
-	return splice(source, s, start, end, out.String()), true
+	rest := source[s.Words[start].Start:s.Words[last].End]
+	rewritten := out.String()
+	// A cluster that opens the sentence hands its capital to the head that now opens it.
+	if start == 0 && isCapitalized(s.Words[0].Text) {
+		rewritten = capitalizeOpening(rewritten)
+		rest = lowerOpeningFor(rest, s.Words[0].Tag)
+	}
+	return splice(source, s, start, end, rewritten+rest), true
 }
+
+// versus joins noun phrases and is no noun of either, though the tagger reads it as one.
+var versus = set.Of("vs", "vs.", "versus")
