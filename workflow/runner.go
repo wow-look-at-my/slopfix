@@ -34,6 +34,9 @@ var hostedLinux = regexp.MustCompile(`^ubuntu-(latest|[0-9]+\.[0-9]+)$`)
 // dockerCommand matches a script line that runs the docker client.
 var dockerCommand = regexp.MustCompile(`(^|[\s;&|(])(sudo\s+)?docker(-compose)?(\s|$)`)
 
+// dockerAction matches a uses: value whose action runs the docker client. The org's ghcr action builds with buildx.
+var dockerAction = regexp.MustCompile(`docker|buildx|^wow-look-at-my/actions@ghcr#`)
+
 // runnerTarget is the repository a file belongs to, as the rule needs it.
 type runnerTarget struct {
 	repo forkscope.Repo
@@ -102,7 +105,7 @@ func runsDocker(job *yaml.Node) bool {
 		return false
 	}
 	for _, step := range steps.Content {
-		if uses := mappingValue(step, "uses"); uses != nil && strings.Contains(strings.ToLower(uses.Value), "docker") {
+		if uses := mappingValue(step, "uses"); uses != nil && dockerAction.MatchString(strings.ToLower(uses.Value)) {
 			return true
 		}
 		run := mappingValue(step, "run")

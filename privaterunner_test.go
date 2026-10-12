@@ -30,12 +30,14 @@ func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
 		"  build:\n    runs-on: ubuntu-24.04 # pinned\n    steps:\n      - run: make\n" +
 		"  image:\n    runs-on: 'ubuntu-latest'\n    services:\n      db:\n        image: postgres\n    steps:\n      - run: make\n" +
 		"  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n" +
-		"  matrix:\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"
+		"  matrix:\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		"  push:\n    runs-on: ubuntu-22.04\n    steps:\n      - uses: wow-look-at-my/actions@ghcr#latest\n"
 	path := runnerRepo(t, PrivateRunnerFixture, body)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 	require.NoError(t, err)
 	assert.Contains(t, got.Text, "runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }} # pinned\n")
 	assert.Contains(t, got.Text, "runs-on: ${{ vars.CI_RUNNER_DIND || 'ubuntu-latest' }}\n")
+	assert.Contains(t, got.Text, "runs-on: ${{ vars.CI_RUNNER_DIND || 'ubuntu-22.04' }}\n", "the ghcr action builds with docker")
 	assert.Contains(t, got.Text, "runs-on: macos-latest\n", "the org runners are Linux")
 	assert.Contains(t, got.Text, "runs-on: ${{ matrix.os }}\n", "an expression is not read")
 	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
