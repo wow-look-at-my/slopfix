@@ -180,7 +180,7 @@ func mustBeRegistered(id string) {
 // from each package's own list rather than from the registry.
 func ReportableIDs() set.Set[string] {
 	ids := AllIDs().Union(RepoIDs).Union(tombstones.AllIDs())
-	ids.AddRange(counts.ID, counts.IDSection, laziness.ID, blamelanguage.ID, askproperly.ID)
+	ids.AddRange(counts.ID, counts.IDSection, counts.IDList, laziness.ID, blamelanguage.ID, askproperly.ID)
 	for _, p := range english.Patterns() {
 		if p.ID != "" {
 			ids.Add(p.ID)

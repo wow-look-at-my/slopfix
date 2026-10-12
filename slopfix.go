@@ -56,6 +56,7 @@ func Check(content string) []ste.Finding {
 			})
 		}
 	}
+	out = append(out, listFindings(content)...)
 	return append(out, longBlocks(content)...)
 }
 
@@ -106,7 +107,7 @@ func CheckContent(path, content string) []ste.Finding {
 // kindFindings are the rules the file's kind selects.
 func kindFindings(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
-		return append(workflow.CheckPath(path, content), sentenceFindings(path, content)...)
+		return append(append(workflow.CheckPath(path, content), sentenceFindings(path, content)...), commentListFindings(path, content)...)
 	}
 	if isDocument(path) {
 		return append(Check(content), Warnings(content)...)
@@ -146,6 +147,7 @@ func commentFindings(path, content string) []ste.Finding {
 			Fix:    "Finish the sentence, or let the repair close it. `slopfix fix` does this.",
 		})
 	}
+	out = append(out, commentListFindings(path, content)...)
 	return append(out, sentenceFindings(path, content)...)
 }
 
