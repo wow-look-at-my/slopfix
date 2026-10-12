@@ -27,13 +27,13 @@ type fixture struct {
 	wants   []string
 }
 
-// privateWorkflowPath answers a workflow path in a private org repository, made once.
+// privateWorkflowPath answers a workflow path in an org repository, made once.
 var privateWorkflowPath = sync.OnceValue(func() string {
 	dir, err := os.MkdirTemp("", "slopfix-private-")
 	if err != nil {
 		panic(err)
 	}
-	c, err := slopfix.Materialize(dir, slopfix.RuleCase{Name: "private", Origin: slopfix.PrivateRunnerFixture, Private: true})
+	c, err := slopfix.Materialize(dir, slopfix.RuleCase{Name: "private", Origin: slopfix.PrivateRunnerFixture})
 	if err != nil {
 		panic(err)
 	}
