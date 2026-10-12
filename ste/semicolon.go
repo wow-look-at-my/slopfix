@@ -10,9 +10,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// FixSemicolonByHand is the Fix text of a semicolon that no period can replace.
-const FixSemicolonByHand = "Rewrite it by hand. The semicolon joins items or phrases, and a period leaves a fragment on one side."
-
 // ByHand reports whether a Fix text asks for a rewrite by hand, which no repair writes.
 func ByHand(fix string) bool { return strings.HasPrefix(fix, "Rewrite it by hand") }
 
@@ -90,10 +87,10 @@ func semicolonDivides(s *syntax.Sentence, from, i int) bool {
 	return standsAlone(s, from, i) && opensSentenceAt(s, i)
 }
 
-// opensSentenceAt reports whether the words. This happens after the mark at
-// word i open with their own subject and a verb that agrees with it. That
-// mark is with an imperative, or with a subordinate clause and then its main
-// clause.
+// opensSentenceAt reports whether the words after the mark at word i open a
+// sentence. They can open with their own subject and a verb that agrees with
+// it. They can open with an imperative. They can also open with a subordinate
+// clause and then its main clause.
 func opensSentenceAt(s *syntax.Sentence, i int) bool {
 	for k, c := range s.Clauses {
 		if c.Depth == 0 && c.Link == i {

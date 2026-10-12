@@ -31,12 +31,12 @@ func commentBlocks(content string) []ste.Finding {
 		count = 0
 	}
 
-	rows := lines(content)
-	body := blockScalarRows(content)
-	for index, line := range rows {
+	fileLines := lines(content)
+	body := blockScalarLines(content)
+	for index, line := range fileLines {
 		trimmed := strings.TrimSpace(line)
-		// A # inside a block scalar opens a shell comment in a script. Which
-		// this rule has nothing to say about and the repair must not fold.
+		// A # inside a block scalar opens a shell comment in a script. This
+		// rule does not judge it, and the repair must not fold it.
 		if body[index] {
 			if count > 0 {
 				flush()

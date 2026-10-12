@@ -1,6 +1,6 @@
-// Package tombstones finds a comment. That describes a state the code is no
-// longer in, or that argues for the diff instead of telling the next editor
-// what breaks.
+// Package tombstones finds a comment that describes a state the code has left.
+// It also finds a comment that argues for the diff instead of telling the next
+// editor what breaks.
 //
 // Only prose is judged. In source that is the comments, never the code, so a
 // string literal holding the word "previously" is not a tombstone. In a
@@ -32,6 +32,8 @@ type Block struct {
 	Pure    []bool
 	// Prefix is the indentation and list marker that open a document paragraph. A rewrite writes it back, or the paragraph leaves its list.
 	Prefix string
+	// Prose is Text with every byte of code on a shared line blanked. A paragraph's Prose is its Text.
+	Prose string
 }
 
 // AddedBlocks returns the prose that added contributes to path. It returns nil
@@ -63,6 +65,7 @@ func AddedBlocks(path, added string) []Block {
 			Lines:   pure,
 			LineNos: lineNos,
 			Pure:    run.Pure,
+			Prose:   strings.Join(run.Prose, "\n"),
 		})
 	}
 	return out
@@ -148,7 +151,13 @@ func paragraphs(doc string) []Block {
 		if b.Marker != "" {
 			prefix += b.Marker + " "
 		}
-		out = append(out, Block{Text: strings.Join(cur, "\n"), Lines: len(cur), LineNos: nos, Prefix: prefix})
+		text := strings.Join(cur, "\n")
+		// A paragraph is prose alone, so every line is pure. linePurity reads this.
+		pure := make([]bool, len(cur))
+		for i := range pure {
+			pure[i] = true
+		}
+		out = append(out, Block{Text: text, Lines: len(cur), LineNos: nos, Pure: pure, Prefix: prefix, Prose: text})
 	}
 	return out
 }

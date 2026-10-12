@@ -136,13 +136,7 @@ func (r Resolver) Lines(root string) (*Lines, error) {
 // root is in no fork. A fork with no base is an error.
 func (r Resolver) Base(root string) (*Base, error) {
 	top, topErr := toplevel(root)
-	repo := ""
-	if topErr == nil {
-		repo = r.originRepo(top)
-	}
-	if repo == "" && r.workspaceHolds(root) {
-		repo = r.getenv("GITHUB_REPOSITORY")
-	}
+	repo := r.repoName(root, top, topErr)
 	if repo == "" {
 		return nil, nil
 	}
@@ -369,9 +363,9 @@ func (r Resolver) eventSaysPlain(repo string) bool {
 	return strings.EqualFold(event.Repository.FullName, repo) && !*event.Repository.Fork
 }
 
-// cached answers the record in top's git common directory, when it names repo,
-// came from this resolver's sources, is younger than CacheTTL. And every
-// commit it names is still in the object store.
+// cached answers the record in top's git common directory under conditions.
+// The record names repo and came from this resolver's sources. It is younger
+// than CacheTTL. Every commit it names is still in the object store.
 func (r Resolver) cached(top, repo string) (record, bool) {
 	path, err := cachePath(top)
 	if err != nil {
@@ -402,6 +396,11 @@ func (r Resolver) cached(top, repo string) (record, bool) {
 
 // cachePath answers where top's record lives.
 func cachePath(top string) (string, error) {
+	return recordPath(top, cacheFile)
+}
+
+// recordPath answers where the record name lives in top's git common directory.
+func recordPath(top, name string) (string, error) {
 	out, err := gitIn(top, "rev-parse", "--git-common-dir")
 	if err != nil {
 		return "", fmt.Errorf("fork scope: %w", err)
@@ -410,7 +409,7 @@ func cachePath(top string) (string, error) {
 	if !filepath.IsAbs(dir) {
 		dir = filepath.Join(top, dir)
 	}
-	return filepath.Join(dir, cacheFile), nil
+	return filepath.Join(dir, name), nil
 }
 
 // store writes rec into top's git common directory through a rename. A root in
@@ -419,30 +418,7 @@ func store(top string, rec record) error {
 	if top == "" {
 		return nil
 	}
-	path, err := cachePath(top)
-	if err != nil {
-		return err
-	}
-	data, err := json.Marshal(rec)
-	if err != nil {
-		return fmt.Errorf("fork scope: %w", err)
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), cacheFile+".*")
-	if err != nil {
-		return fmt.Errorf("fork scope: record the fork: %w", err)
-	}
-	defer os.Remove(tmp.Name())
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return fmt.Errorf("fork scope: record the fork: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("fork scope: record the fork: %w", err)
-	}
-	if err := os.Rename(tmp.Name(), path); err != nil {
-		return fmt.Errorf("fork scope: record the fork: %w", err)
-	}
-	return nil
+	return writeRecord(top, cacheFile, rec)
 }
 
 // forkParent is a fork's parent as GET /repos/{repo} names it. GitHub gives
@@ -453,10 +429,11 @@ type forkParent struct {
 	DefaultBranch string `json:"default_branch"`
 }
 
-// forkRepo is the part of GET /repos/{repo} that names a parent.
+// forkRepo is the part of GET /repos/{repo} that names a parent and the visibility.
 type forkRepo struct {
-	Fork   *bool       `json:"fork"`
-	Parent *forkParent `json:"parent"`
+	Fork    *bool       `json:"fork"`
+	Parent  *forkParent `json:"parent"`
+	Private *bool       `json:"private"`
 }
 
 // parentURL answers the URL a fork's parent clones from.
@@ -524,11 +501,11 @@ func (r Resolver) fetchRepo(repo string) (forkRepo, error) {
 	return decodeRepo(body, "GET "+url)
 }
 
-// ghRepoQuery asks GraphQL whether a repository is a fork, and of what.
-const ghRepoQuery = `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { isFork parent { nameWithOwner defaultBranchRef { name } } } }`
+// ghRepoQuery asks GraphQL whether a repository is a fork, of what, and whether it is private.
+const ghRepoQuery = `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { isFork isPrivate parent { nameWithOwner defaultBranchRef { name } } } }`
 
-// ghRepoShape reshapes the GraphQL answer into the REST repository object's fork fields.
-const ghRepoShape = `.data.repository | {fork: .isFork, parent: (if .parent then {full_name: .parent.nameWithOwner, default_branch: .parent.defaultBranchRef.name} else null end)}`
+// ghRepoShape reshapes the GraphQL answer into the REST repository object's fields.
+const ghRepoShape = `.data.repository | {fork: .isFork, private: .isPrivate, parent: (if .parent then {full_name: .parent.nameWithOwner, default_branch: .parent.defaultBranchRef.name} else null end)}`
 
 // ghRepo asks GraphQL through the gh CLI. GraphQL states isFork on every
 // server gh may point at, a mirror's trimmed REST rebuild included.

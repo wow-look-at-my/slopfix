@@ -11,7 +11,6 @@ import (
 
 // ---------------------------------------------------------------------------
 // Resolving a variable this hook can prove holds a literal value.
-// newRepo, modify, denied and allowed live in guard_test.go.
 
 // The reported incident: literal assignments feed a redirect target outside
 // any repository, which the repo-scoping allows.
@@ -163,8 +162,8 @@ func TestASourcedFileGetsNoVariableResolution(t *testing.T) {
 }
 
 // A word that resolves to no literal text at all must not be quoted as an
-// empty string. Which reads as a real, empty path rather than as what it is:
-// an expansion this hook never evaluated.
+// empty string. That reads as a real, empty path. The word is an expansion
+// this hook never evaluated.
 func TestUnresolvedPathDenialNamesAnExpansionRatherThanAnEmptyString(t *testing.T) {
 	dir := newRepo(t)
 	r := denied(t, dir, "rm $TARGET")

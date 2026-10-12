@@ -79,13 +79,15 @@ func changedLines(before, after string) []int {
 }
 
 // fixOf answers what `slopfix fix` makes of src. A panic in a fixer is an
-// error, so a failed computation is never read as a clean file.
+// error, so a failed computation is never read as a clean file. A hook writes
+// the file, so no repair that creates another applies.
 func fixOf(req slopfix.Request) (repair slopfix.Repair, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("slopfix fix panicked on %s: %v", req.Path, r)
 		}
 	}()
+	req.OneFile = true
 	return slopfix.Fix(req), nil
 }
 
@@ -120,12 +122,11 @@ func cannotScope(path string, err error) []string {
 	return []string{fmt.Sprintf("slopfix cannot tell which lines of %s this fork wrote: %v", path, err)}
 }
 
-// handFix answers the rewrite of an edit that changes a line F changes.
-// Otherwise, nil when the edit may go on to the repair as it stands. It
-// answers a refusal only when it cannot compute the rewrite. A path with no
-// file yet is a new file, and only the repair judges it. In a fork, F changes
-// only the lines the fork wrote, so a file the fork never touched is left to
-// the repair.
+// handFix answers the rewrite of an edit that changes a line F changes. It
+// answers nil when the edit may go on to the repair as it stands. It answers a refusal
+// only when it cannot compute the rewrite. A path with no file yet is a new
+// file, and only the repair judges it. In a fork, F changes only the lines the
+// fork wrote, so a file the fork never touched is left to the repair.
 func handFix(tool string, toolInput []byte, path string, rules []slopfix.Rule, ids []string, owned forkLines) (*handRepair, []string) {
 	if path == "" || (tool != "Edit" && tool != "MultiEdit") {
 		return nil, nil
@@ -275,9 +276,9 @@ func writtenLines(before, after string) set.Set[int] {
 }
 
 // keepWritten takes from fixed every change that lands on lines of after the
-// edit wrote, and leaves after as it stands everywhere else. A change that
-// also rewrites a line the edit never wrote, such as a paragraph join, is
-// left out. No word the write did not touch is changed.
+// edit wrote, and leaves after as it stands everywhere else. It leaves out a
+// change that also rewrites a line the edit never wrote, such as a paragraph
+// join. So no word the write did not touch changes.
 func keepWritten(after, fixed string, written set.Set[int]) string {
 	a := strings.SplitAfter(after, "\n")
 	b := strings.SplitAfter(fixed, "\n")
@@ -384,7 +385,7 @@ func ruleIDsOn(req slopfix.Request, lines []int) (map[int][]string, error) {
 	}
 	categories := req.Rules
 	if len(categories) == 0 {
-		categories = slopfix.AllRules
+		categories = slopfix.AllRules()
 	}
 	for _, rule := range categories {
 		alone := req

@@ -45,6 +45,21 @@ func TestSentencesSplitBeforeALowerCaseFileName(t *testing.T) {
 	assert.Len(t, got, 2)
 }
 
+// A mark after a period closes the sentence only when the sentence opened it.
+// The `*` of a glob and a `)` with no open parenthesis are words.
+func TestSentencesKeepAGlobAndAStrayCloserWhole(t *testing.T) {
+	for _, text := range []string{
+		"The package pulls in a couple of esnext.* libs that the step names.",
+		"The step reads lib.dom.* when a step passes dom: true.",
+	} {
+		assert.Len(t, Sentences(text), 1, text)
+	}
+	got := Sentences("The step reads *every lib.* The next one reads none.")
+	assert.Equal(t, []string{"The step reads *every lib.*", "The next one reads none."}, got)
+	got = Sentences("The step reads a lib (the dom one.) The next one reads none.")
+	assert.Equal(t, []string{"The step reads a lib (the dom one.)", "The next one reads none."}, got)
+}
+
 func TestALongSentenceIsReportedOnceTheSplitterIsHonest(t *testing.T) {
 	// A single sentence, well over the cap.
 	long := "The scanner walks the input once and hands the parser every token it " +

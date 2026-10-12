@@ -241,13 +241,6 @@ func frontedPhraseOnly(s *syntax.Sentence, from int, subject syntax.Phrase) bool
 	return lead < subject.First && s.Words[lead].Tag == "IN" && !finiteBetween(s, lead, subject.First)
 }
 
-// opensParticiple reports words from word from that open on a participle. After
-// such a phrase, a subject and its verb are the main clause: "Left in the text
-// a rewrite wraps it".
-func opensParticiple(s *syntax.Sentence, from int) bool {
-	return from < len(s.Words) && (s.Words[from].Tag == "VBN" || s.Words[from].Tag == "VBD")
-}
-
 // subjectOpensAt reports a run of words that reads as a subject. An adverb at
 // either end of it is none: "No longer exist" is no sentence.
 func subjectOpensAt(s *syntax.Sentence, from, verb int) bool {
@@ -258,6 +251,11 @@ func subjectOpensAt(s *syntax.Sentence, from, verb int) bool {
 }
 
 func adverbLed(w syntax.Word) bool { return w.Tag == "RB" || w.Tag == "JJR" || w.Tag == "JJS" }
+
+// opensParticiple reports words from word from that open on a participle.
+func opensParticiple(s *syntax.Sentence, from int) bool {
+	return from < len(s.Words) && (s.Words[from].Tag == "VBN" || s.Words[from].Tag == "VBD")
+}
 
 // instructs reports a sentence whose main clause is an imperative, after any
 // opening subordinate clause: "When a step exists, include a quote". A so in

@@ -151,8 +151,8 @@ func TestTheWalkSkipsABlob(t *testing.T) {
 	assert.Empty(t, names(t, root))
 }
 
-// The reason the rule reads a tree rather than a package. A shell script and a
-// workflow carry the same stale prose a Go comment does. No Go analyzer ever
+// This is why the rule reads a tree rather than a package. A shell script and
+// a workflow carry the same stale prose a Go comment does. No Go analyzer ever
 // looked at either.
 func TestTheWalkReadsEveryLanguageTheExtractorKnows(t *testing.T) {
 	root := tree(t, map[string]string{
@@ -228,4 +228,22 @@ func TestRepairLeavesNoTempFile(t *testing.T) {
 	for _, entry := range entries {
 		assert.NotContains(t, entry.Name(), "slopfix")
 	}
+}
+
+// A repair through a symlink writes the file the link names. The link stays a link.
+func TestWriteFileKeepsASymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.ts")
+	require.NoError(t, os.WriteFile(target, []byte("old\n"), 0o644))
+	link := filepath.Join(dir, "link.ts")
+	require.NoError(t, os.Symlink("target.ts", link))
+
+	require.NoError(t, commentfix.WriteFile(link, "new\n"))
+
+	info, err := os.Lstat(link)
+	require.NoError(t, err)
+	assert.Equal(t, os.ModeSymlink, info.Mode()&os.ModeSymlink, "the link must stay a link")
+	got, err := os.ReadFile(target)
+	require.NoError(t, err)
+	assert.Equal(t, "new\n", string(got))
 }

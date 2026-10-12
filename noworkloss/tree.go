@@ -65,8 +65,6 @@ var buildOutputDirs = set.Of[string]("build", "dist", "target", "out",
 	".pytest_cache", ".gradle", ".tox", ".next",
 	".parcel-cache", ".turbo", ".terraform")
 
-// protectedConfig names the live settings a session must not rewrite. They sit
-// outside every guarded root, so the path rules never reach them.
 func isProtectedConfig(abs string) bool {
 	abs = filepath.Clean(abs)
 	base := filepath.Base(abs)
@@ -97,10 +95,10 @@ func insideGuarded(roots []string, abs string) (string, bool) {
 	return "", false
 }
 
-// coversGuarded is insideGuarded's other direction. A write whose target is a
-// directory rather than a named file -- an extraction, a patch, a git verb.
-// It lands somewhere under that directory, so a guarded root sitting inside
-// it is as reachable as a root containing it.
+// coversGuarded is insideGuarded's other direction. Some writes target a
+// directory rather than a named file: an extraction, a patch, a git verb.
+// Such a write lands somewhere under that directory. So a guarded root inside
+// it is as reachable as a root that contains it.
 func coversGuarded(roots []string, dir string) (string, bool) {
 	if root, ok := insideGuarded(roots, dir); ok {
 		return root, true

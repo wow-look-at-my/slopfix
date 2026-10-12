@@ -242,6 +242,7 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 				Rules:           rules,
 				IDs:             ids,
 				MaxCommentLines: hookMaxLines,
+				OneFile:         true,
 			}
 			if in.ToolName == "Write" {
 				if req.Owned, err = owned(u.text); err != nil {
