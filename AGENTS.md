@@ -242,6 +242,14 @@ Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` 
 
 `docs/no-work-loss.md` holds the detail: what each verb destroys, how a command is parsed and wrapped, and which write shapes are refused.
 
+## rustfmt
+
+`rustfmt` formats each `.rs` file a Write, Edit or MultiEdit writes, on PostToolUse. A change goes back to the model as `additionalContext`. A rustfmt failure exits 2 with rustfmt's stderr. On PreToolUse it finds each `git commit` in a Bash command, through `cd DIR` and `git -C DIR`. It formats every staged or modified tracked `.rs` file in that repository, and denies the commit when that changed or rejected a file.
+
+- rustfmt reads the file on stdin. A path argument makes rustfmt follow `mod` declarations into files nobody touched. The working directory is the file's directory, so `rustfmt.toml` and `rust-toolchain.toml` still apply.
+- The edition is the one `cargo fmt` passes: the nearest `[package].edition`, through `edition.workspace = true` to `[workspace.package]`, else `2015` inside a package.
+- A missing rustfmt fails loud. It never reads as a clean file. `SLOPFIX_RUSTFMT_BIN` points the guard at another binary.
+
 ## clean-bash
 
 `clean-bash` rewrites a Bash command rather than refusing it, wherever a rewrite exists. The rules run on the parse tree to a fixed point. An unparseable command passes through. A rewrite is silent: it emits only the new input and `suppressOutput: true`. A visible message gives the model something to blame. A denial carries a reason. Without one, the model retries forever. `CLEANUP_BASH_CMDS_LOG=/path` logs each rewrite and each deny.
