@@ -40,6 +40,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      # The ratchet judges this branch by the default branch's guarantee. It reads that branch's .github/ratchet, so a branch cannot change what judges it.
+      - run: ./build/slopfix ratchet
+
       # Runs the action at the root, so a break in the action fails its own repository first.
       - uses: ./
         with:

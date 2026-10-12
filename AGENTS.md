@@ -32,7 +32,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `counts` | `counts/inventory-count`, `counts/section-number` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency` | yes |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes |
 | `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`, and the step runs the file. No line is cut |
 | `pins` | `pins/download-version` | yes |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | yes, with `fix --message`. Each sentence that carries the tell comes out |
@@ -242,6 +242,14 @@ Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` 
 
 `docs/no-work-loss.md` holds the detail: what each verb destroys, how a command is parsed and wrapped, and which write shapes are refused.
 
+## rustfmt
+
+`rustfmt` formats each `.rs` file a Write, Edit or MultiEdit writes, on PostToolUse. A change goes back to the model as `additionalContext`. A rustfmt failure exits 2 with rustfmt's stderr. On PreToolUse it finds each `git commit` in a Bash command, through `cd DIR` and `git -C DIR`. It formats every staged or modified tracked `.rs` file in that repository, and denies the commit when that changed or rejected a file.
+
+- rustfmt reads the file on stdin. A path argument makes rustfmt follow `mod` declarations into files nobody touched. The working directory is the file's directory, so `rustfmt.toml` and `rust-toolchain.toml` still apply.
+- The edition is the one `cargo fmt` passes: the nearest `[package].edition`, through `edition.workspace = true` to `[workspace.package]`, else `2015` inside a package.
+- A missing rustfmt fails loud. It never reads as a clean file. `SLOPFIX_RUSTFMT_BIN` points the guard at another binary.
+
 ## clean-bash
 
 `clean-bash` rewrites a Bash command rather than refusing it, wherever a rewrite exists. The rules run on the parse tree to a fixed point. An unparseable command passes through. A rewrite is silent: it emits only the new input and `suppressOutput: true`. A visible message gives the model something to blame. A denial carries a reason. Without one, the model retries forever. `CLEANUP_BASH_CMDS_LOG=/path` logs each rewrite and each deny.
@@ -261,7 +269,7 @@ Denials: `heredoc`, `perl` (`^perl[0-9.]*$` as the effective command), `shred`, 
 - `gh_wait_ci` maps `gh run view`, `watch`, `rerun`, `list` and `gh pr checks` to `gh wait-ci`.
 - `sleep_cap` writes `sleep 3` for any sleep past `3` seconds or not literal.
 - `narration_remove` turns an `echo` that reaches the terminal into `:`.
-- `pipefail` injects `set -o pipefail`. A `tee` then never masks a failure.
+- `pipefail` injects `set -o pipefail` when the command has a pipe. A `tee` then never masks a failure. A command with no pipe stays one command, so a permission rule still matches it.
 
 ## What no rule reads
 
