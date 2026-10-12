@@ -267,7 +267,7 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	names := set.New[string]()
 	for _, b := range blocks {
 		// The names come from the comment alone. Code on a shared line names what it uses, and the repository answers for that.
-		for _, m := range identifierWords(b.Prose) {
+		for _, m := range identifierWords(withoutURLs(b.Prose)) {
 			if doc {
 				m = documentName(m)
 			}
