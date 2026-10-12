@@ -295,7 +295,7 @@ func TestADeadNameInADocumentIsCut(t *testing.T) {
 
 	hits := DeadReferentHits(path, src)
 	require.Len(t, hits, 1)
-	assert.Equal(t, 0, hits[0].LineNo)
+	assert.Equal(t, 1, hits[0].LineNo, "the line counts from one")
 
 	repair := Fix(path, src, DefaultMaxCommentLines)
 	assert.NotContains(t, repair.Text, "gone_idle_hook")
