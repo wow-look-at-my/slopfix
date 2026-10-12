@@ -8,11 +8,11 @@ import (
 
 // frontedDivision divides at a conjunction that a fronted clause follows, as
 // in "X but, when Y is set, benchmarks Z". The verb after the fronted clause
-// shares the subject of X, so the rest names it again: "X. However, when Y is
-// set, it benchmarks Z".
+// shares the subject of X, so the rest names it again: "X. When Y is set, it
+// benchmarks Z".
 func frontedDivision(s *syntax.Sentence, source string) (string, bool) {
 	for i := 1; i+3 < len(s.Words); i++ {
-		connector, ok := connectors[s.Words[i].Lower()]
+		_, ok := connectors[s.Words[i].Lower()]
 		if !ok || s.Words[i].Tag != "CC" || s.Words[i+1].Text != "," || !syntax.Is(s.Words[i+2].Text, "subordinator") {
 			continue
 		}
@@ -38,7 +38,8 @@ func frontedDivision(s *syntax.Sentence, source string) (string, bool) {
 		}
 		rest := source[s.Words[i+2].Start:s.Words[comma].End] + " " + pronoun + " " + source[s.Words[comma+1].Start:]
 		left := strings.TrimRight(source[:s.Words[i-1].End], " ,") + "."
-		return left + " " + joinOpener(connector, rest), true
+		// The conjunction drops, because the reorder repair moves a sentence adverb such as "However," to the end of the sentence.
+		return left + " " + joinOpener("", rest), true
 	}
 	return "", false
 }
@@ -54,9 +55,14 @@ func gerundDivision(s *syntax.Sentence, c, main syntax.Clause, source string) (d
 		return division{}, false
 	}
 	word := s.Words[at]
-	// A gerund that is the subject of its own clause opens a sentence as it stands.
-	if outsideSpans(source, word.Start, false) != word.Start || StandsAlone(capitalizeOpening(source[word.Start:])) {
+	if outsideSpans(source, word.Start, false) != word.Start {
 		return division{}, false
+	}
+	// A gerund whose phrase runs to a finite verb with no comma between is the subject of that verb: "-- keeping it here lets X".
+	for k := at + 1; k < len(s.Words) && s.Words[k].Text != ","; k++ {
+		if finiteAt(s, k) {
+			return division{}, false
+		}
 	}
 	// The clause that names the subject sets the person. A later clause can share that subject.
 	for _, opening := range s.Clauses {
