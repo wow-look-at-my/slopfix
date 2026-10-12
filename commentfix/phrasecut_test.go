@@ -87,7 +87,7 @@ func TestNoCutStopsBetweenWords(t *testing.T) {
 }
 
 // A comment over a literal element with a trailing comment is weighed against
-// the element. Read as a comment row, the element measured as no code at all.
+// the element. Read as a comment line, the element measured as no code at all.
 func TestAnElementWithATrailingCommentIsCode(t *testing.T) {
 	src := "package p\n\nvar m = map[string]int{\n" +
 		"\t\"a\": 1, // first\n" +
