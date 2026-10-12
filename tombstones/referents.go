@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -48,8 +49,12 @@ func isCandidate(name string) bool {
 }
 
 // identifierShaped reports whether a whole word is built like a symbol rather
-// than prose: it carries an underscore, or a case change inside it.
+// than prose: it carries an underscore, or a case change inside it. A word
+// that starts with a digit is a number literal, never a symbol.
 func identifierShaped(name string) bool {
+	if name[0] >= '0' && name[0] <= '9' {
+		return false
+	}
 	if strings.Contains(name, "_") {
 		return true
 	}
@@ -61,6 +66,16 @@ func identifierShaped(name string) bool {
 	}
 	// Prose capitalises a sentence head too, so a capital needs a digit.
 	return name[0] >= 'A' && name[0] <= 'Z' && strings.ContainsAny(name, "0123456789")
+}
+
+// documentName answers the part of a bare document word that can name a
+// symbol, or "".
+func documentName(word string) string {
+	word = strings.Trim(word, "_")
+	if !strings.Contains(word, "_") {
+		return ""
+	}
+	return word
 }
 
 // probeTimeout bounds the search, because a guard that hangs is worse.
@@ -78,11 +93,65 @@ const indexTimeout = 5 * time.Minute
 // indexFileCap is the largest tracked file the index reads. A larger one is data.
 const indexFileCap = 4 << 20
 
-// symbolIndex holds every identifier-shaped word the tracked files contain.
+// symbolIndex holds every identifier-shaped word the tracked files contain, with the count of files that hold it.
 type symbolIndex struct {
 	once  sync.Once
-	names set.Set[string]
+	files map[string]int
 	ok    bool
+
+	pathOnce sync.Once
+	paths    set.Set[string]
+	pathsOK  bool
+}
+
+// namesAFile reports a name that a path git lists under root spells, such as
+// sig_cosmo_test for sig_cosmo_test.go. A name that ends in an underscore
+// names the files that start with it.
+func (ix *symbolIndex) namesAFile(root, name string) bool {
+	ix.pathOnce.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
+		defer cancel()
+		listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+		if err != nil {
+			return
+		}
+		ix.paths = set.New[string]()
+		for _, rel := range strings.Split(string(listed), "\x00") {
+			for _, word := range identifierWords(rel) {
+				ix.paths.Add(word)
+			}
+		}
+		ix.pathsOK = true
+	})
+	if !ix.pathsOK {
+		return false
+	}
+	if ix.paths.Contains(name) {
+		return true
+	}
+	if !strings.HasSuffix(name, "_") {
+		return false
+	}
+	for word := range ix.paths.All() {
+		if strings.HasPrefix(word, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// foreignInGo reports an underscored name in Go, which is a C name or a file.
+// A test function keeps its underscore and stays a candidate.
+func foreignInGo(path, name string) bool {
+	if !strings.HasSuffix(path, ".go") || !strings.Contains(name, "_") {
+		return false
+	}
+	for _, prefix := range []string{"Test", "Benchmark", "Example", "Fuzz"} {
+		if strings.HasPrefix(name, prefix) {
+			return false
+		}
+	}
+	return true
 }
 
 var (
@@ -124,7 +193,7 @@ func (ix *symbolIndex) build(root string) {
 	if err != nil {
 		return
 	}
-	names := set.New[string]()
+	files := map[string]int{}
 	for _, rel := range strings.Split(string(listed), "\x00") {
 		if rel == "" {
 			continue
@@ -136,9 +205,13 @@ func (ix *symbolIndex) build(root string) {
 		if err != nil || len(data) > indexFileCap || bytes.IndexByte(data[:min(len(data), 8000)], 0) >= 0 {
 			continue
 		}
-		addWords(names, data)
+		words := set.New[string]()
+		addWords(words, data)
+		for word := range words.All() {
+			files[word]++
+		}
 	}
-	ix.names, ix.ok = names, true
+	ix.files, ix.ok = files, true
 }
 
 // addWords adds every candidate identifier in data to names.
@@ -167,20 +240,38 @@ func addWords(names set.Set[string], data []byte) {
 
 // holds reports a name the index saw.
 func (ix *symbolIndex) holds(name string) bool {
-	return ix.ok && ix.names.Contains(name)
+	return ix.ok && ix.files[name] > 0
+}
+
+// holdsBeyond reports a name the index saw in a file other than self, where
+// self is the copy on disk of the file being judged.
+func (ix *symbolIndex) holdsBeyond(name string, self []byte) bool {
+	n := ix.files[name]
+	if bytes.Contains(self, []byte(name)) {
+		n--
+	}
+	return ix.ok && n > 0
 }
 
 // DeadReferents returns the identifiers the blocks name that appear neither in
 // the text nor in the repository. It returns nothing when it cannot answer.
+//
+// The file being judged does not count as the repository. Its copy on disk
+// holds the comment itself, and the text says once where else the name sits.
 func DeadReferents(path, added string, blocks []Block) []string {
 	root := RepoRoot(path)
 	if root == "" {
 		return nil
 	}
+	doc := IsDocument(path)
 	names := set.New[string]()
 	for _, b := range blocks {
-		for _, m := range identifierWords(b.Text) {
-			if isCandidate(m) {
+		// The names come from the comment alone. Code on a shared line names what it uses, and the repository answers for that.
+		for _, m := range identifierWords(b.Prose) {
+			if doc {
+				m = documentName(m)
+			}
+			if m != "" && isCandidate(m) {
 				names.Add(m)
 			}
 		}
@@ -189,9 +280,10 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		return nil
 	}
 
+	ix := indexFor(root)
 	var ordered []string
 	for n := range names.All() {
-		if strings.Count(added, n) > 1 {
+		if strings.Count(added, n) > 1 || foreignInGo(path, n) || ix.namesAFile(root, n) {
 			continue
 		}
 		ordered = append(ordered, n)
@@ -200,26 +292,31 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		return nil
 	}
 
-	ix := indexFor(root)
+	self, _ := os.ReadFile(path)
+	selfPath, _ := filepath.Abs(path)
 	rg := ""
 	if !ix.ok {
 		found, err := exec.LookPath("rg")
 		if err != nil {
-			return nil
+			// With no ripgrep to probe, the index reads the tree once and answers every name.
+			ix.once.Do(func() { ix.build(root) })
 		}
 		rg = found
 	}
-	args := []string{"--no-messages", "--fixed-strings", "--files-with-matches", "--max-count", "1"}
+	if !ix.ok && rg == "" {
+		return nil
+	}
+	// --word-regexp matches whole identifiers, the way the index counts them.
+	args := []string{"--no-messages", "--fixed-strings", "--word-regexp", "--files-with-matches", "--max-count", "1"}
 	var dead []string
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 	for _, name := range ordered {
-		if ix.holds(name) {
-			continue
-		}
 		// A built index read every file a probe reads, so a name it never saw is dead.
 		if ix.ok {
-			dead = append(dead, name)
+			if !ix.holdsBeyond(name, self) {
+				dead = append(dead, name)
+			}
 			continue
 		}
 		cmd := exec.CommandContext(ctx, rg, append(append([]string{}, args...), "-e", name, root)...)
@@ -230,7 +327,10 @@ func DeadReferents(path, added string, blocks []Block) []string {
 		if err != nil && cmd.ProcessState != nil && cmd.ProcessState.ExitCode() > 1 {
 			return nil // ripgrep failed rather than found nothing
 		}
-		if strings.TrimSpace(string(out)) == "" {
+		if !slices.ContainsFunc(strings.Split(string(out), "\n"), func(file string) bool {
+			abs, _ := filepath.Abs(file)
+			return file != "" && abs != selfPath
+		}) {
 			dead = append(dead, name)
 		}
 	}
@@ -254,4 +354,15 @@ func RepoRoot(path string) string {
 		}
 		dir = parent
 	}
+}
+
+// DeadReferentHits answers a hit for each name the comments of text carry
+// that no other file of the repository holds.
+func DeadReferentHits(path, text string) []Hit {
+	blocks := AddedBlocks(path, text)
+	var out []Hit
+	for _, name := range DeadReferents(path, text, blocks) {
+		out = append(out, HitForName(blocks, name))
+	}
+	return out
 }

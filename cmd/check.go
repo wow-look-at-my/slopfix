@@ -17,8 +17,8 @@ import (
 
 // ruleNames answers every category a caller may name to --only.
 func ruleNames() []string {
-	names := make([]string, 0, len(slopfix.AllRules))
-	for _, rule := range slopfix.AllRules {
+	names := make([]string, 0, len(slopfix.AllRules()))
+	for _, rule := range slopfix.AllRules() {
 		names = append(names, string(rule))
 	}
 	return names
@@ -36,7 +36,7 @@ func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
 		name = strings.TrimSpace(name)
 		if category, _, isID := strings.Cut(name, "/"); isID {
 			rule := slopfix.Rule(category)
-			if !slices.Contains(slopfix.AllRules, rule) {
+			if !slices.Contains(slopfix.AllRules(), rule) {
 				return nil, nil, fmt.Errorf("unknown rule %q: its category is not one of %s", name, strings.Join(ruleNames(), ", "))
 			}
 			known := slopfix.IDsFor(rule)
@@ -48,7 +48,7 @@ func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
 			continue
 		}
 		rule := slopfix.Rule(name)
-		if !slices.Contains(slopfix.AllRules, rule) {
+		if !slices.Contains(slopfix.AllRules(), rule) {
 			return nil, nil, fmt.Errorf("unknown rule %q: pick from %s, or name one rule as category/rule", name, strings.Join(ruleNames(), ", "))
 		}
 		rules = append(rules, rule)
@@ -139,7 +139,8 @@ func init() {
 			"stderr. --json writes the whole answer as one object instead, and exits 0\n" +
 			"on a finding, because the caller decides what a finding means.\n\n" +
 			"--message reads stdin as a closing message, which is never on disk, and\n" +
-			"judges it with the message rules (" + slopfix.Listed(messageIDs()) + ").",
+			"judges it with the message rules (" + slopfix.Listed(messageIDs()) + "). With --fix\n" +
+			"it cuts each sentence they report and writes the message on stdout.",
 		// fix is check --fix. A file decides which rules read it, so no other name is needed.
 		Aliases: []string{"fix"},
 		Args:    cobra.ArbitraryArgs,
@@ -161,10 +162,10 @@ func init() {
 
 func runCheck(cmd *cobra.Command, args []string) error {
 	if checkMessage {
-		if len(args) > 0 || checkFix || cmd.CalledAs() == "fix" || checkStaged || checkDiff != "" {
-			return fmt.Errorf("--message judges stdin and repairs nothing, so it takes no file, no --fix and no line selector")
+		if len(args) > 0 || checkStaged || checkDiff != "" {
+			return fmt.Errorf("--message reads stdin, so it takes no file and no line selector")
 		}
-		return checkMessageStdin(cmd, checkOnly, checkJSON)
+		return checkMessageStdin(cmd, checkOnly, checkJSON, checkFix || cmd.CalledAs() == "fix")
 	}
 	// Invoked as "fix", the repair is what was asked for, flag or no flag.
 	repairing := checkFix || cmd.CalledAs() == "fix"
@@ -267,6 +268,8 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing, asJSON b
 		return err
 	}
 	request.Content = string(content)
+	// stdout carries one file, so no repair that creates another applies.
+	request.OneFile = true
 	run := slopfix.Report
 	if repairing {
 		run = slopfix.Fix
@@ -305,7 +308,7 @@ func checkStdin(cmd *cobra.Command, request slopfix.Request, repairing, asJSON b
 
 // checkMessageStdin judges a closing message on stdin. It takes its selection
 // as arguments, so a test never swaps state that a parallel sibling reads.
-func checkMessageStdin(cmd *cobra.Command, only []string, asJSON bool) error {
+func checkMessageStdin(cmd *cobra.Command, only []string, asJSON, repairing bool) error {
 	runs, err := messageSelection(only)
 	if err != nil {
 		return err
@@ -314,9 +317,27 @@ func checkMessageStdin(cmd *cobra.Command, only []string, asJSON bool) error {
 	if err != nil {
 		return err
 	}
-	findings := messageFindings(string(text), runs)
+	message := string(text)
+	if repairing {
+		message = slopfix.FixMessage(message, runs)
+	}
+	findings := slopfix.CheckMessage(message, runs)
 	if asJSON {
-		return json.NewEncoder(cmd.OutOrStdout()).Encode(reportOutput{Findings: wireFindings(findings, nil)})
+		out := reportOutput{Findings: wireFindings(findings, nil)}
+		if repairing {
+			out.Text = &message
+		}
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(out)
+	}
+	if repairing {
+		fmt.Fprint(cmd.OutOrStdout(), message)
+		for _, finding := range findings {
+			fmt.Fprintln(cmd.ErrOrStderr(), finding)
+		}
+		if len(findings) > 0 {
+			return errFindings
+		}
+		return nil
 	}
 	for _, finding := range findings {
 		fmt.Fprintln(cmd.OutOrStdout(), finding)

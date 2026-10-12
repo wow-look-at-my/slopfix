@@ -183,4 +183,102 @@
     where if unless until after before since with without for from by via in
     on at into through during to as"/>
 
+  <!-- A banned word the repair writes an approved word for. Each line is the
+       word the dictionary bans and the approved word that carries the same
+       sense in any sentence.
+
+       The full dictionary cannot drive a repair. A match by spelling cannot
+       tell one sense of a word from another, so a substitution drawn from it
+       reads correctly in one sentence and wrongly in the next: the table
+       answers "file" with "remove", and "any" with "one". The words here are
+       the ones where the approved word carries the banned word's sense
+       wherever it appears, so a repair can write it without reading the
+       sentence first. -->
+  <list name="plain">
+    accumulate collect
+    acquire get
+    additional more
+    adopt use
+    alter change
+    amend change
+    assist help
+    attempt try
+    augment increase
+    avert prevent
+    begin start
+    cease stop
+    commence start
+    discontinue stop
+    fabricate make
+    facilitate help
+    inform tell
+    initiate start
+    modify change
+    obtain get
+    perform do
+    portion part
+    provide give
+    retain keep
+    reveal show
+    terminate stop
+    utilize use
+    abate decrease
+    absolutely fully
+    abut touch
+    adequate sufficient
+    adjoining adjacent
+    briskly quickly
+    cautiously carefully
+    circa approximately
+    completely fully
+    compulsory mandatory
+    contiguous adjacent
+    discover find
+    dismantle disassemble
+    disregard ignore
+    distinctly clearly
+    entirely fully
+    exceptionally unusually
+    extremely very
+    final last
+    firmly tightly
+    generally usually
+    halt stop
+    hazardous dangerous
+    highly very
+    huge large
+    identical same
+    improper incorrect
+    improperly incorrectly
+    inadvertent accidental
+    inadvertently accidentally
+    inhibit prevent
+    interconnect connect
+    lukewarm warm
+    minor small
+    nearly almost
+    often frequently
+    precise accurate
+    precisely accurately
+    prohibit prevent
+    proper correct
+    properly correctly
+    rapid fast
+    rapidly quickly
+    rectify correct
+    reinstall install
+    restart start
+    thoroughly fully
+    till until
+    toxic poisonous
+    unintentional accidental
+    unsafe dangerous
+    various different
+    whenever when
+    whilst while
+    wholly fully
+    wrong incorrect
+    wrongly incorrectly
+  </list>
+
 </rules>

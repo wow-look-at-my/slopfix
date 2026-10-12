@@ -78,6 +78,27 @@ func longBlockEdits(content string) []edit.Edit {
 	return out
 }
 
+// paragraphEdits divides each paragraph over the STE sentence cap into
+// paragraphs. A list item is no paragraph to the rule, so it stays whole.
+func paragraphEdits(content string) []edit.Edit {
+	var out []edit.Edit
+	for _, block := range markdown.Split(content) {
+		if block.Kind != markdown.Prose || block.Marker != "" {
+			continue
+		}
+		parts := ste.Paragraphs(block.Text())
+		if len(parts) < 2 {
+			continue
+		}
+		lines := []string{block.Indent + strings.TrimSpace(parts[0])}
+		for _, part := range parts[1:] {
+			lines = append(lines, "", block.Indent+strings.TrimSpace(part))
+		}
+		out = append(out, markdown.BlockEdit(content, block, lines))
+	}
+	return out
+}
+
 // Cut classes, best first.
 const (
 	cutSentence      = iota // a sentence end outside every bracket
@@ -160,7 +181,7 @@ func divide(text string) []string {
 	all := cuts(text)
 	var parts []string
 	start := 0
-	for !fits(text[start:], LongBlockTarget, LongBlockWordTarget) {
+	for !fits(text[start:], LongBlockTarget, LongBlockWordTarget) || len(ste.Sentences(text[start:])) > ste.ParagraphSentenceCap {
 		best := -1
 		for i, c := range all {
 			if c.at <= start {

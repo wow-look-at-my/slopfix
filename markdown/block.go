@@ -131,9 +131,16 @@ func paragraphs(content string, lines []string) map[int]int {
 // templateDirectives open a template tag: a Jinja or Go template statement, an expression or a comment.
 var templateDirectives = []string{"{%", "{{", "{#"}
 
-// isDirective reports a line that holds a template tag. A template engine reads
-// the line, so a join or a rewrite changes what it renders.
+// importLine matches a trimmed line that is one `@path` import, as a CLAUDE.md lists the files it pulls in.
+var importLine = regexp.MustCompile(`^@[^\s@]+$`)
+
+// isDirective reports a line that holds a template tag or a lone import. A
+// template engine or an agent reads the line, so a join or a rewrite changes
+// what it loads.
 func isDirective(line string) bool {
+	if importLine.MatchString(strings.TrimSpace(line)) {
+		return true
+	}
 	for _, d := range templateDirectives {
 		if strings.Contains(line, d) {
 			return true
