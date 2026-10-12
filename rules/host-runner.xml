@@ -1,0 +1,64 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  A job that needs the host machine itself cannot run in a container of the org
+  runner fleet. yaml/private-runner keeps such a job on its GitHub-hosted label.
+  Each list here names one sign of that need, read from the steps of the job.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="host-runner">
+
+  <!-- A uses: value that starts with one of these boots a nested VM, which needs /dev/kvm. -->
+  <list name="vm-action">
+    vmactions/
+    cross-platform-actions/
+  </list>
+
+  <!-- A uses: action whose last path part is one of these installs k3s, which needs systemd as PID 1. -->
+  <list name="host-action">
+    install-k3s
+    setup-k3s
+  </list>
+
+  <!--
+    A command that runs one of these programs needs the host: a kernel module,
+    swap, systemd as PID 1, or KVM.
+  -->
+  <list name="host-program">
+    modprobe
+    insmod
+    rmmod
+    depmod
+    swapoff
+    swapon
+    systemctl
+    k3s
+    kvm-ok
+  </list>
+
+  <!-- A command whose program starts with one of these runs a full virtual machine. -->
+  <list name="host-program-prefix">
+    qemu-system-
+  </list>
+
+  <!-- A package manager that installs a kernel package. -->
+  <list name="package-program">
+    apt-get
+    apt
+    aptitude
+    dnf
+    yum
+    zypper
+  </list>
+
+  <!-- A package argument that starts with one of these is a part of the host kernel. -->
+  <list name="kernel-package">
+    linux-headers-
+    linux-modules-
+    linux-image-
+  </list>
+
+  <!-- A command argument that starts with one of these reaches the host: the KVM device, or the k3s installer. -->
+  <list name="host-argument">
+    /dev/kvm
+    https://get.k3s.io
+  </list>
+</rules>

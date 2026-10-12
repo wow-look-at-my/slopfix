@@ -41,11 +41,20 @@ func verbBy(form string) (verb, bool) {
 func verbByGerund(form string) (verb, bool) {
 	form = strings.ToLower(form)
 	for _, v := range verbs {
-		if v.base+"ing" == form {
+		if gerundOf(v.base) == form {
 			return v, true
 		}
 	}
 	return verb{}, false
+}
+
+// gerundOf writes the -ing form of a base form. A silent e drops, as in
+// "using", and a doubled e stays, as in "seeing".
+func gerundOf(base string) string {
+	if strings.HasSuffix(base, "e") && !strings.HasSuffix(base, "ee") && base != "be" {
+		return base[:len(base)-1] + "ing"
+	}
+	return base + "ing"
 }
 
 // pastFromParticiple answers the simple past of a participle.
