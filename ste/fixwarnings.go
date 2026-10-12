@@ -295,7 +295,28 @@ func baseFromParticiple(form string) string {
 	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
 		return stem + "e"
 	}
+	if silentE(stem) {
+		return stem + "e"
+	}
 	return stem
+}
+
+// silentE reports whether a stem lost a silent e to -ed. This is a stem that
+// ends in u, as in "issued", or one short syllable that ends vowel then
+// consonant, as in "graded" or "used". A doubled consonant never reaches it.
+func silentE(stem string) bool {
+	const vowels = "aeiou"
+	if strings.HasSuffix(stem, "u") {
+		return true
+	}
+	n := len(stem)
+	if n < 2 || strings.ContainsRune(vowels+"wxy", rune(stem[n-1])) || !strings.ContainsRune(vowels, rune(stem[n-2])) {
+		return false
+	}
+	if n > 2 && strings.ContainsRune(vowels, rune(stem[n-3])) {
+		return false
+	}
+	return !strings.ContainsAny(stem[:n-2], vowels+"y")
 }
 
 // simpleSpan reports whether a verb group from the auxiliary i to the
