@@ -71,7 +71,7 @@ func Split(content string) []Block {
 			}
 			continue
 		}
-		if !prose {
+		if !prose || trailerBlock(lines, i, end) {
 			blocks = append(blocks, Block{Kind: Verbatim, Lines: lines[i : i+1], Start: i + 1})
 			i++
 			continue
@@ -84,6 +84,30 @@ func Split(content string) []Block {
 		i = end + 1
 	}
 	return blocks
+}
+
+// trailerLine matches a git trailer: a hyphenated key such as "Signed-off-by", a colon and a value.
+var trailerLine = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+: \S`)
+
+// trailerBlock reports that the paragraph from line i to line end is the git
+// trailer block of a commit message. It is the last paragraph after the
+// subject, and each of its lines is a trailer. Git reads each line as a key
+// and a value, so no rule rewrites, joins or cuts it.
+func trailerBlock(lines []string, i, end int) bool {
+	if i == 0 {
+		return false
+	}
+	for _, line := range lines[end+1:] {
+		if strings.TrimSpace(line) != "" {
+			return false
+		}
+	}
+	for _, line := range lines[i : end+1] {
+		if !trailerLine.MatchString(line) {
+			return false
+		}
+	}
+	return true
 }
 
 var parser = goldmark.New(goldmark.WithExtensions(extension.Table)).Parser()
