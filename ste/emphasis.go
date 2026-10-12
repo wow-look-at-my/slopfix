@@ -64,15 +64,12 @@ func emphasisMarks(source string) []emphasis {
 func rewriteEmphasized(source string, marks []emphasis) (string, bool) {
 	plain, spans := withoutDelimiters(source, marks)
 	masked := mask(plain)
-	parts, ok := passiveParts(syntax.Parse(masked, opaque(plain, masked)), plain)
+	s := coverVerbatim(syntax.Parse(masked, opaque(plain, masked)), plain)
+	parts, ok := passiveParts(s, plain)
 	if !ok {
 		return "", false
 	}
-	var out strings.Builder
-	for _, p := range parts {
-		out.WriteString(remark(p, spans))
-	}
-	text := out.String()
+	text := remarkParts(parts, spans)
 	for _, m := range marks {
 		text = strings.ReplaceAll(text, m.delim+" "+m.delim, " ")
 	}
@@ -117,12 +114,18 @@ func withoutDelimiters(source string, marks []emphasis) (string, []marked) {
 	return plain.String(), spans
 }
 
-// remark writes a part with the delimiters of each span that marks its bytes.
-// A copied part takes them around the marked words alone. A part the rewrite
-// wrote, such as a new verb, takes them whole.
-func remark(p part, spans []marked) string {
-	if p.from < 0 {
-		return p.text
+// remarkParts writes the parts of a rewritten clause in order, with each
+// delimiter pair around the run of parts its words landed in. A delimiter over
+// one word marks that word alone, and one over the whole clause wraps the
+// clause. A part the rewrite wrote, such as a new verb, takes the delimiters
+// whole.
+func remarkParts(parts []part, spans []marked) string {
+	text := joinParts(parts)
+	starts := make([]int, len(parts))
+	at := 0
+	for i, p := range parts {
+		starts[i] = at
+		at += len(p.text)
 	}
 	type insert struct {
 		at    int
@@ -130,31 +133,54 @@ func remark(p part, spans []marked) string {
 	}
 	var inserts []insert
 	for _, sp := range spans {
-		from, to := max(sp.from, p.from), min(sp.to, p.to)
-		if from >= to {
+		first, last := -1, -1
+		for i, p := range parts {
+			if p.from < 0 || max(sp.from, p.from) >= min(sp.to, p.to) {
+				continue
+			}
+			if first < 0 {
+				first = i
+			}
+			last = i
+		}
+		if first < 0 {
 			continue
 		}
-		if !p.verbatim || len(p.text) != p.to-p.from {
-			inserts = append(inserts, insert{len(p.text), sp.delim}, insert{0, sp.delim})
+		openAt, closeAt := starts[first]+partOffset(parts[first], sp.from, true), starts[last]+partOffset(parts[last], sp.to, false)
+		if openAt >= closeAt {
 			continue
 		}
-		x, y := from-p.from, to-p.from
-		for x < y && isBlankByte(p.text[x]) {
-			x++
-		}
-		for y > x && isBlankByte(p.text[y-1]) {
-			y--
-		}
-		if x < y {
-			inserts = append(inserts, insert{y, sp.delim}, insert{x, sp.delim})
-		}
+		inserts = append(inserts, insert{openAt, sp.delim}, insert{closeAt, sp.delim})
 	}
 	sort.SliceStable(inserts, func(a, b int) bool { return inserts[a].at > inserts[b].at })
-	text := p.text
 	for _, in := range inserts {
 		text = text[:in.at] + in.delim + text[in.at:]
 	}
 	return text
+}
+
+// partOffset answers the offset inside a part where a marked byte at opens or
+// closes it. A part the rewrite wrote takes its whole text. A copied part
+// lands on the marked words alone, past the blanks around them.
+func partOffset(p part, at int, opening bool) int {
+	if !p.verbatim || len(p.text) != p.to-p.from {
+		if opening {
+			return 0
+		}
+		return len(p.text)
+	}
+	if opening {
+		x := max(at, p.from) - p.from
+		for x < len(p.text) && isBlankByte(p.text[x]) {
+			x++
+		}
+		return x
+	}
+	y := min(at, p.to) - p.from
+	for y > 0 && isBlankByte(p.text[y-1]) {
+		y--
+	}
+	return y
 }
 
 func isBlankByte(c byte) bool { return c == ' ' || c == '\t' || c == '\n' }
