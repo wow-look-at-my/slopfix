@@ -33,23 +33,15 @@ func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
 		"  plain:\n    runs-on: ubuntu-latest\n\n    # the steps\n    steps:\n      - run: make\n" +
 		"  flow: {runs-on: \"ubuntu-\\\n      latest\", steps: [{run: make}]}\n" +
 		"  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n" +
-<<<<<<< HEAD
-		"  matrix:\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
-		"  push:\n    runs-on: ubuntu-22.04\n    steps:\n      - uses: wow-look-at-my/actions@ghcr#latest\n"
-=======
 		"  arm:\n    runs-on: ubuntu-24.04-arm\n    steps:\n      - run: make\n" +
 		"  matrix:\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
-		"  done:\n    runs-on: " + visible("ubuntu-latest", "CI_RUNNER") + "\n    steps:\n      - run: make\n"
->>>>>>> origin/master
+		"  done:\n    runs-on: " + visible("ubuntu-latest", "CI_RUNNER") + "\n    steps:\n      - run: make\n" +
+		"  push:\n    runs-on: ubuntu-20.04\n    steps:\n      - uses: wow-look-at-my/actions@ghcr#latest\n"
 	path := runnerRepo(t, PrivateRunnerFixture, body)
-	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 7)
+	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 8)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 	require.NoError(t, err)
-<<<<<<< HEAD
-	assert.Contains(t, got.Text, "runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }} # pinned\n")
-	assert.Contains(t, got.Text, "runs-on: ${{ vars.CI_RUNNER_DIND || 'ubuntu-latest' }}\n")
-	assert.Contains(t, got.Text, "runs-on: ${{ vars.CI_RUNNER_DIND || 'ubuntu-22.04' }}\n", "the ghcr action builds with docker")
-=======
+	assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-20.04", "CI_RUNNER_DIND")+"\n", "the ghcr action builds with docker")
 	assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-24.04", "CI_RUNNER")+" # pinned\n")
 	assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-latest", "CI_RUNNER_DIND")+"\n    services:")
 	assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-latest", "CI_RUNNER_DIND")+" # org runner\n", "a docker step picks the docker runners")
@@ -57,7 +49,6 @@ func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
 	assert.Contains(t, got.Text, "runs-on: &runner !!str "+visible("ubuntu-latest", "CI_RUNNER")+"\n", "the tag and anchor stay")
 	assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-latest", "CI_RUNNER")+"\n\n    # the steps\n")
 	assert.Contains(t, got.Text, "  flow: {runs-on: \""+visible("ubuntu-latest", "CI_RUNNER")+"\", steps: [{run: make}]}\n")
->>>>>>> origin/master
 	assert.Contains(t, got.Text, "runs-on: macos-latest\n", "the org runners are Linux")
 	assert.Contains(t, got.Text, "runs-on: ubuntu-24.04-arm\n", "the org runners are x64")
 	assert.Contains(t, got.Text, "runs-on: ${{ matrix.os }}\n", "another expression is not read")
@@ -96,7 +87,7 @@ func TestPrivateRunnerSendsAContainerStepToTheDockerRunner(t *testing.T) {
 	}
 	for name, step := range steps {
 		body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: " + step.uses + "\n"
-		c := RuleCase{Name: name, Path: ".github/workflows/ci.yml", Text: body, Origin: PrivateRunnerFixture, Private: true}
+		c := RuleCase{Name: name, Path: ".github/workflows/ci.yml", Text: body, Origin: PrivateRunnerFixture}
 		if step.using != "" {
 			c.Actions = map[string]string{step.uses: step.using}
 		}
@@ -105,7 +96,7 @@ func TestPrivateRunnerSendsAContainerStepToTheDockerRunner(t *testing.T) {
 		path := filepath.Join(c.Root, ".github", "workflows", "ci.yml")
 		got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 		require.NoError(t, err)
-		assert.Contains(t, got.Text, "runs-on: ${{ "+step.want+" || 'ubuntu-latest' }}\n", name)
+		assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-latest", step.want)+"\n", name)
 	}
 }
 
@@ -120,7 +111,7 @@ func TestPrivateRunnerChoosesTheDockerRunnerForAnUnreadAction(t *testing.T) {
 	assert.Contains(t, found[0].Detail, "someone/unread-action@v1")
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 	require.NoError(t, err)
-	assert.Contains(t, got.Text, "runs-on: ${{ "+runnerDind+" || 'ubuntu-latest' }}\n")
+	assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-latest", runnerDind)+"\n")
 }
 
 func TestPrivateRunnerKeepsAJobThatNeedsTheHost(t *testing.T) {
@@ -132,10 +123,16 @@ func TestPrivateRunnerKeepsAJobThatNeedsTheHost(t *testing.T) {
 		assert.Contains(t, found[0].Detail, "runs-on: ubuntu-latest", name)
 		got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 		require.NoError(t, err)
-		assert.Contains(t, got.Text, "runs-on: ${{ "+runnerSlim+" || 'ubuntu-latest' }}\n", name)
+		assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-latest", runnerSlim)+"\n", name)
 		assert.Contains(t, got.Text, "  host:\n    runs-on: ubuntu-24.04", name)
 		assert.NotContains(t, got.Text, "|| 'ubuntu-24.04'", name)
 	}
+}
+
+func TestPrivateRunnerLeavesAHostJobOnTheOrgRunnersAlone(t *testing.T) {
+	body := workflowHeader() + "jobs:\n  zloop:\n    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}\n    steps:\n      - run: sudo modprobe zfs\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	assert.Empty(t, only(CheckContent(path, body), workflow.IDPrivateRunner), "a host job is neither reported nor written back")
 }
 
 func TestPrivateRunnerMovesAJobThatOnlyMentionsTheHost(t *testing.T) {
@@ -161,6 +158,6 @@ func TestPrivateRunnerNamesAnOptOutWithNoReason(t *testing.T) {
 
 // The org runner variables, as the repair writes them.
 const (
-	runnerSlim = "vars.CI_RUNNER"
-	runnerDind = "vars.CI_RUNNER_DIND"
+	runnerSlim = "CI_RUNNER"
+	runnerDind = "CI_RUNNER_DIND"
 )

@@ -37,50 +37,30 @@ var blindFallback = regexp.MustCompile(`^\$\{\{\s*vars\.(CI_RUNNER|CI_RUNNER_DIN
 // dockerCommand matches a script line that runs the docker client.
 var dockerCommand = regexp.MustCompile(`(^|[\s;&|(])(sudo\s+)?docker(-compose)?(\s|$)`)
 
-<<<<<<< HEAD
 // dockerAction matches a uses: value whose action runs the docker client. The org's ghcr action builds with buildx.
 var dockerAction = regexp.MustCompile(`docker|buildx|^wow-look-at-my/actions@ghcr#`)
 
 // firstParty matches an action owner whose actions the rule knows. Their docker use is in dockerAction.
 var firstParty = regexp.MustCompile(`^(actions|wow-look-at-my)/`)
 
-// runnerTarget is the repository a file belongs to, as the rule needs it.
-type runnerTarget struct {
-	repo forkscope.Repo
-	// dir is a directory of the work tree. The action lookups keep their answers there.
-	dir string
-	// unread is why the visibility could not be read. The rule then treats the repository as private.
-	unread string
-}
-
-// runnerTargetOf answers the target of the file at path, and whether the rule applies.
-func runnerTargetOf(path string) (runnerTarget, bool) {
-=======
-// governedRepo answers the org repository the file at path belongs to, and
-// whether the rule reads it. The name comes from the work tree alone.
-func governedRepo(path string) (string, bool) {
->>>>>>> origin/master
+// governedRepo answers the org repository the file at path belongs to, a
+// directory of its work tree, and whether the rule reads it. The name comes
+// from the work tree alone.
+func governedRepo(path string) (string, string, bool) {
 	if path == "" {
-		return "", false
+		return "", "", false
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return "", false
+		return "", "", false
 	}
-	repo := forkscope.Resolver{}.RepoName(forkscope.ExistingDir(filepath.Dir(abs)))
+	dir := forkscope.ExistingDir(filepath.Dir(abs))
+	repo := forkscope.Resolver{}.RepoName(dir)
 	owner, _, _ := strings.Cut(repo, "/")
 	if !strings.EqualFold(owner, orgOwner) || SelfHostExempt.Contains(strings.ToLower(repo)) {
-		return "", false
+		return "", "", false
 	}
-<<<<<<< HEAD
-	repo, err := forkscope.Resolver{}.Visibility(dir, orgOwner)
-	if err != nil {
-		return runnerTarget{repo: repo, dir: dir, unread: err.Error()}, true
-	}
-	return runnerTarget{repo: repo, dir: dir}, repo.Private
-=======
-	return repo, true
->>>>>>> origin/master
+	return repo, dir, true
 }
 
 // hostedJob is a job whose runs-on ignores the repository's visibility.
@@ -89,36 +69,31 @@ type hostedJob struct {
 	node   *yaml.Node
 	label  string
 	docker bool
-<<<<<<< HEAD
+	// flow reports whether the runs-on value sits inside a flow collection.
+	flow bool
 	// unread names each action whose runs.using could not be read. The job then goes to the docker runner.
 	unread []string
 	// unexplained reports a hosted opt-out comment that gives no reason. It keeps nothing.
 	unexplained bool
 }
 
-// governedJobs answers each hosted job of the file at path that the rule
-// governs, with its docker need, and the file's target.
-func governedJobs(path, content string) ([]hostedJob, runnerTarget) {
+// governedJobs answers each job of the file at path that the rule reports,
+// with its docker need, and the repository.
+func governedJobs(path, content string) ([]hostedJob, string) {
 	jobs := hostedJobs(content)
 	if len(jobs) == 0 {
-		return nil, runnerTarget{}
+		return nil, ""
 	}
-	target, applies := runnerTargetOf(path)
-	if !applies {
-		return nil, runnerTarget{}
+	repo, dir, governed := governedRepo(path)
+	if !governed {
+		return nil, ""
 	}
 	for idx := range jobs {
-		jobs[idx].docker, jobs[idx].unread = runsDocker(jobs[idx].job, target.dir)
+		docker, unread := runsDocker(jobs[idx].job, dir)
+		jobs[idx].docker = jobs[idx].docker || docker
+		jobs[idx].unread = unread
 	}
-	return jobs, target
-}
-
-// hostedJobs answers each job of content on a GitHub-hosted Linux label, in
-// source order. A job that needs the host, or whose runs-on comment opts out
-// with a reason, keeps its label and is not answered.
-=======
-	// flow reports whether the runs-on value sits inside a flow collection.
-	flow bool
+	return jobs, repo
 }
 
 // runnerLabel answers the hosted Linux label of a runs-on value. It also
@@ -133,8 +108,9 @@ func runnerLabel(value string) (label string, dind bool) {
 	return "", false
 }
 
-// hostedJobs answers each job of content whose runs-on ignores the visibility, in source order.
->>>>>>> origin/master
+// hostedJobs answers each job of content whose runs-on ignores the
+// visibility, in source order. A job that needs the host, or whose runs-on
+// comment opts out with a reason, keeps its runner and is not answered.
 func hostedJobs(content string) []hostedJob {
 	var doc yaml.Node
 	if yaml.Unmarshal([]byte(content), &doc) != nil {
@@ -152,20 +128,16 @@ func hostedJobs(content string) []hostedJob {
 		if on == nil || on.Kind != yaml.ScalarNode {
 			continue
 		}
-<<<<<<< HEAD
-		reason, marked := hostedOptOut(on.LineComment)
-		if (marked && reason != "") || needsHost(job) != "" {
-			continue
-		}
-		out = append(out, hostedJob{job: job, node: on, label: on.Value, unexplained: marked})
-=======
 		label, dind := runnerLabel(on.Value)
 		if label == "" {
 			continue
 		}
+		reason, marked := hostedOptOut(on.LineComment)
+		if (marked && reason != "") || needsHost(job) != "" {
+			continue
+		}
 		flow := (root.Style|jobs.Style|job.Style)&yaml.FlowStyle != 0
-		out = append(out, hostedJob{node: on, label: label, docker: dind || runsDocker(job), flow: flow})
->>>>>>> origin/master
+		out = append(out, hostedJob{job: job, node: on, label: label, docker: dind, flow: flow, unexplained: marked})
 	}
 	return out
 }
@@ -233,37 +205,21 @@ func runnerExpression(j hostedJob) string {
 
 // privateRunners reports each job of an org repository whose runs-on ignores the visibility.
 func privateRunners(path, content string) []ste.Finding {
-<<<<<<< HEAD
-	jobs, target := governedJobs(path, content)
+	jobs, repo := governedJobs(path, content)
 	var out []ste.Finding
 	for _, j := range jobs {
-		detail := target.repo.Name + ": runs-on: " + j.label
-		if target.unread != "" {
-			detail += " (the visibility could not be read, so the rule treats the repository as private: " + target.unread + ")"
-		}
+		detail := repo + ": runs-on: " + j.node.Value
 		if j.unexplained {
 			detail += " (the `# " + HostedMarker + "` comment gives no reason, so it keeps nothing)"
 		}
 		if len(j.unread) > 0 {
 			detail += " (the action metadata could not be read, so the rule chooses " + runnerDindVar + ", which has docker: " + strings.Join(j.unread, "; ") + ")"
 		}
-=======
-	jobs := hostedJobs(content)
-	if len(jobs) == 0 {
-		return nil
-	}
-	repo, governed := governedRepo(path)
-	if !governed {
-		return nil
-	}
-	var out []ste.Finding
-	for _, j := range jobs {
->>>>>>> origin/master
 		out = append(out, ste.Finding{
 			Line:   j.node.Line,
 			ID:     IDPrivateRunner,
 			Rule:   "an org job whose runner ignores the repository's visibility",
-			Detail: repo + ": runs-on: " + j.node.Value,
+			Detail: detail,
 			Fix:    "Use `runs-on: " + runnerExpression(j) + "`. GitHub bills each minute a private repository spends on its runners. `slopfix fix` does this.",
 		})
 	}
@@ -275,15 +231,9 @@ func retargetRunners(path, content string) []edit.Edit {
 	jobs, _ := governedJobs(path, content)
 	fileLines := lines(content)
 	var out []edit.Edit
-<<<<<<< HEAD
 	for _, j := range jobs {
-		lineNo, col := j.node.Line-1, j.node.Column-1
-		if lineNo < 0 || lineNo >= len(fileLines) || col >= len(fileLines[lineNo]) {
-=======
-	for _, j := range hostedJobs(content) {
 		first, last, before, after, ok := scalarSource(content, fileLines, j)
 		if !ok {
->>>>>>> origin/master
 			continue
 		}
 		value := runnerExpression(j)
