@@ -92,11 +92,7 @@ func Find(blocks []Block, maxLines int) []Hit {
 // linePurity looks a block-relative line index up in b's parallel arrays. A
 // paragraph carries no purity, so its line is placed and never pure.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
-<<<<<<< HEAD
 	if li < 0 || li >= len(b.LineNos) {
-=======
-	if li >= len(b.LineNos) {
->>>>>>> origin/comment-extract-code-leak
 		return -1, false
 	}
 	return b.LineNos[li], li < len(b.Pure) && b.Pure[li]
