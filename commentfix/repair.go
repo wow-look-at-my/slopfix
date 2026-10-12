@@ -108,39 +108,39 @@ func repairNumbers(f *fixer.File) {
 //
 // The tree names the lines to weigh. So a line of code that only opens with a marker's characters never reads as an empty comment.
 func danglingMarkers(filename, src string) []edit.Edit {
-	rows := commentRowsOf(filename, src)
+	commented := commentLinesOf(filename, src)
 	lines := strings.Split(src, "\n")
 	var edits []edit.Edit
 	for i := 0; i < len(lines); i++ {
-		if !rows.Contains(i) || !bareMarker(lines[i]) || carriesProse(lines, rows, i+1) {
+		if !commented.Contains(i) || !bareMarker(lines[i]) || carriesProse(lines, commented, i+1) {
 			continue
 		}
 		// A run of bare lines goes as a single edit, so no edits share a line end.
 		j := i
-		for j+1 < len(lines) && rows.Contains(j+1) && bareMarker(lines[j+1]) && !carriesProse(lines, rows, j+2) {
+		for j+1 < len(lines) && commented.Contains(j+1) && bareMarker(lines[j+1]) && !carriesProse(lines, commented, j+2) {
 			j++
 		}
-		edits = append(edits, edit.Rows(src, i, j, 0, nil))
+		edits = append(edits, edit.Lines(src, i, j, 0, nil))
 		i = j
 	}
 	return edits
 }
 
-// commentRowsOf names every line the grammar reads as comment, counting from
+// commentLinesOf names every line the grammar reads as comment, counting from
 // empty the way a line slice does.
-func commentRowsOf(filename, src string) set.Set[int] {
-	rows := set.New[int]()
+func commentLinesOf(filename, src string) set.Set[int] {
+	commented := set.New[int]()
 	for _, c := range treecomments.Extract(filename, src) {
-		for row := c.Line - 1; row < c.Line-1+c.Lines; row++ {
-			rows.Add(row)
+		for line := c.Line - 1; line < c.Line-1+c.Lines; line++ {
+			commented.Add(line)
 		}
 	}
-	return rows
+	return commented
 }
 
 // carriesProse reports whether the line at i is a comment line saying something.
-func carriesProse(lines []string, rows set.Set[int], i int) bool {
-	if i < 0 || i >= len(lines) || !rows.Contains(i) {
+func carriesProse(lines []string, commented set.Set[int], i int) bool {
+	if i < 0 || i >= len(lines) || !commented.Contains(i) {
 		return false
 	}
 	_, prose, _, ok := splitBlock(lines[i])
@@ -171,14 +171,14 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 		first, last := para.lines[0], para.lines[len(para.lines)-1]
 		if said == "" && para.code != "" && para.trailer == "" {
 			// A comment following code loses the comment, and the code stays.
-			e := edit.Rows(src, first, last, len(strings.TrimRight(para.code, " \t")), []string{""})
+			e := edit.Lines(src, first, last, len(strings.TrimRight(para.code, " \t")), []string{""})
 			e.Cut = cut
 			edits = append(edits, e)
 			continue
 		}
 		if said == "" && para.code == "" {
 			// A comment with nothing left to say loses its lines, delimiters and all.
-			e := edit.Rows(src, first, last, 0, nil)
+			e := edit.Lines(src, first, last, 0, nil)
 			e.Cut = cut
 			edits = append(edits, e)
 			continue
@@ -204,7 +204,7 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 		if len(wrapped) > 0 {
 			wrapped[0] = wrapped[0][col:]
 		}
-		e := edit.Rows(src, first, last, col, wrapped)
+		e := edit.Lines(src, first, last, col, wrapped)
 		e.Cut = cut
 		edits = append(edits, e)
 	}
@@ -263,7 +263,7 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 					current = nil
 					continue
 				}
-				if codeRow(line) {
+				if codeLine(line) {
 					// A tab after the marker is how a doc comment spells a code block.
 					out = append(out, para{lines: []int{i}, verbatim: true})
 					current = nil

@@ -87,16 +87,16 @@ var runnerContext = map[string]string{
 }
 
 // envStep is a run step that this rule can read: its script parses as shell,
-// and its rows sit where the file holds them.
+// and its lines sit where the file holds them.
 type envStep struct {
 	step      *yaml.Node
 	container bool
 	script    string
-	// rows maps each script line to its 0-based file row.
-	rows []int
-	// file holds each file row of the script, for the rewrite.
+	// lineNos maps each script line to its 0-based file line.
+	lineNos []int
+	// file holds each file line of the script, for the rewrite.
 	file []string
-	// prefix is the bytes on each row before the script line starts.
+	// prefix is the bytes on each line before the script line starts.
 	prefix []string
 	parsed *syntax.File
 	// uses maps each step id in the same steps list to the action it uses.
@@ -135,19 +135,19 @@ func envPlans(content string) []envPlan {
 	if yaml.Unmarshal([]byte(content), &doc) != nil {
 		return nil
 	}
-	rows := lines(content)
+	fileLines := lines(content)
 	spans := blockScalars(content)
 	var out []envPlan
 	root := rootOf(&doc)
 	safe := safeInputs(root)
 	for _, s := range runSteps(root) {
-		es, ok := readEnvStep(s.step, s.container, s.windows, rows, spans)
+		es, ok := readEnvStep(s.step, s.container, s.windows, fileLines, spans)
 		if !ok {
 			continue
 		}
 		es.uses = s.uses
 		es.safe = safe
-		if p := es.plan(content, rows); len(p.findings) > 0 {
+		if p := es.plan(content, fileLines); len(p.findings) > 0 {
 			out = append(out, p)
 		}
 	}
@@ -233,7 +233,7 @@ func bashLike(shell string) bool {
 	return first == "bash" || first == "sh"
 }
 
-func readEnvStep(step *yaml.Node, container, windows bool, rows []string, spans map[int]rowSpan) (envStep, bool) {
+func readEnvStep(step *yaml.Node, container, windows bool, fileLines []string, spans map[int]lineSpan) (envStep, bool) {
 	run := mappingValue(step, "run")
 	if run == nil || run.Kind != yaml.ScalarNode {
 		return envStep{}, false
@@ -253,30 +253,30 @@ func readEnvStep(step *yaml.Node, container, windows bool, rows []string, spans 
 			return envStep{}, false
 		}
 		script := strings.Split(strings.TrimSuffix(run.Value, "\n"), "\n")
-		if at.from+len(script) > len(rows) {
+		if at.from+len(script) > len(fileLines) {
 			return envStep{}, false
 		}
 		for k, line := range script {
-			row := rows[at.from+k]
-			if !strings.HasSuffix(row, line) {
+			fileLine := fileLines[at.from+k]
+			if !strings.HasSuffix(fileLine, line) {
 				return envStep{}, false
 			}
-			es.rows = append(es.rows, at.from+k)
-			es.file = append(es.file, row)
-			es.prefix = append(es.prefix, row[:len(row)-len(line)])
+			es.lineNos = append(es.lineNos, at.from+k)
+			es.file = append(es.file, fileLine)
+			es.prefix = append(es.prefix, fileLine[:len(fileLine)-len(line)])
 		}
 	case 0:
-		if strings.Contains(run.Value, "\n") || run.Line-1 >= len(rows) {
+		if strings.Contains(run.Value, "\n") || run.Line-1 >= len(fileLines) {
 			return envStep{}, false
 		}
-		row := rows[run.Line-1]
+		fileLine := fileLines[run.Line-1]
 		col := run.Column - 1
-		if col < 0 || col > len(row) || strings.TrimRight(row[col:], " \t") != run.Value {
+		if col < 0 || col > len(fileLine) || strings.TrimRight(fileLine[col:], " \t") != run.Value {
 			return envStep{}, false
 		}
-		es.rows = []int{run.Line - 1}
-		es.file = []string{row}
-		es.prefix = []string{row[:col]}
+		es.lineNos = []int{run.Line - 1}
+		es.file = []string{fileLine}
+		es.prefix = []string{fileLine[:col]}
 	default:
 		return envStep{}, false
 	}
@@ -353,7 +353,7 @@ type replacement struct {
 	text       string
 }
 
-func (es envStep) plan(content string, rows []string) envPlan {
+func (es envStep) plan(content string, fileLines []string) envPlan {
 	var p envPlan
 	refs := es.refs()
 	var swaps []replacement
@@ -366,7 +366,7 @@ func (es envStep) plan(content string, rows []string) envPlan {
 		for i := 0; i+1 < len(env.Content); i += 2 {
 			key, value := env.Content[i], env.Content[i+1]
 			name := key.Value
-			found, inline := es.judgeEntry(name, key, value, refs[name], others, rows)
+			found, inline := es.judgeEntry(name, key, value, refs[name], others, fileLines)
 			if !found {
 				kept++
 				continue
@@ -388,14 +388,14 @@ func (es envStep) plan(content string, rows []string) envPlan {
 		swaps = append(swaps, es.runnerSwaps(&p, refs, env)...)
 	}
 	p.edits = append(p.edits, es.rewriteScript(content, swaps)...)
-	p.edits = append(p.edits, dropRows(content, drop)...)
+	p.edits = append(p.edits, dropLines(content, drop)...)
 	return p
 }
 
 // judgeEntry reports whether an env entry has no job to do, and whether its
 // expression goes into the script in its place. An entry the script overwrites
 // before it reads it carries a value nothing reads.
-func (es envStep) judgeEntry(name string, key, value *yaml.Node, refs []paramRef, others string, rows []string) (found, inline bool) {
+func (es envStep) judgeEntry(name string, key, value *yaml.Node, refs []paramRef, others string, fileLines []string) (found, inline bool) {
 	if value.Kind != yaml.ScalarNode || value.Line != key.Line || value.Style&(yaml.LiteralStyle|yaml.FoldedStyle) != 0 {
 		return false, false
 	}
@@ -461,7 +461,7 @@ func (es envStep) runnerSwaps(p *envPlan, refs map[string][]paramRef, env *yaml.
 			expr := "${{ " + runnerContext[name] + " }}"
 			out = append(out, replacement{r.start, r.end, expr})
 			p.findings = append(p.findings, ste.Finding{
-				Line: es.rows[0] + 1 + strings.Count(es.script[:r.start], "\n"), ID: IDEnvIndirection,
+				Line: es.lineNos[0] + 1 + strings.Count(es.script[:r.start], "\n"), ID: IDEnvIndirection,
 				Rule:   "the script reads a runner variable that a context names",
 				Detail: "$" + name,
 				Fix:    "Write " + expr + " in its place.",
@@ -496,7 +496,7 @@ func stepTextOutsideRun(step *yaml.Node) string {
 	return out.String()
 }
 
-// rewriteScript splices the replacements into the script, and rewrites each row
+// rewriteScript splices the replacements into the script, and rewrites each line
 // whose line changed.
 func (es envStep) rewriteScript(content string, swaps []replacement) []edit.Edit {
 	if len(swaps) == 0 {
@@ -521,14 +521,14 @@ func (es envStep) rewriteScript(content string, swaps []replacement) []edit.Edit
 	}
 	var out []edit.Edit
 	for k := range before {
-		if before[k] == after[k] || k >= len(es.rows) {
+		if before[k] == after[k] || k >= len(es.lineNos) {
 			continue
 		}
 		line := es.prefix[k] + after[k]
-		if k == 0 && len(es.rows) == 1 {
+		if k == 0 && len(es.lineNos) == 1 {
 			line += strings.TrimPrefix(es.file[0], es.prefix[0]+before[0])
 		}
-		out = append(out, rewrite(content, es.rows[k], es.rows[k], []string{line}))
+		out = append(out, rewrite(content, es.lineNos[k], es.lineNos[k], []string{line}))
 	}
 	return out
 }
