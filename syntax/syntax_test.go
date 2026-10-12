@@ -172,6 +172,12 @@ func TestAPluralFormBeforeADeterminerIsAVerb(t *testing.T) {
 	assert.Equal(t, "reads", verb(s, s.Clauses[1]))
 }
 
+func TestAnSFormAfterAMisreadModifierIsTheVerb(t *testing.T) {
+	s := parse(t, "The build keeps every output.")
+	require.Len(t, s.Clauses, 1)
+	assert.Equal(t, "keeps", verb(s, s.Clauses[0]))
+}
+
 func TestAnSFormBeforeANameIsAVerb(t *testing.T) {
 	text := "It ships, and a downloaded vkbench needs xxxxxxxxxx here."
 	s := syntax.Parse(text, [][]int{{41, 51}})
