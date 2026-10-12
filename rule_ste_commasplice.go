@@ -11,7 +11,11 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectCommaSplice,
 		Autofix:  autofixCommaSplice,
-		Cases:    []RuleCase{{Name: ste.IDCommaSplice, Path: "x.md", Text: "The gate reads the file, the tool writes the result.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDCommaSplice, Path: "x.md", Text: "The gate reads the file, the tool writes the result.\n"},
+			{Name: ste.IDCommaSplice + "/absolute-phrase", Path: "absolute.md", Text: "- A merge you run makes everything in that master yours, the problems you did not cause included.\n"},
+			{Name: ste.IDCommaSplice + "/relative-clause-in-absolute-phrase", Path: "relative.md", Text: "- The build keeps every output, the logs it writes attached.\n"},
+		},
 	})
 }
 
