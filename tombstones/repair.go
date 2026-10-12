@@ -268,8 +268,34 @@ func repairFile(f *fixer.File) {
 	}
 	edits, took := rewrite(was, blocks)
 	// The count follows the edits that landed. A refused rewrite took no words out.
-	for _, e := range f.ApplyComments(edits).Applied {
+	rewrote := f.ApplyComments(edits)
+	landed := set.New[[2]int]()
+	for _, e := range rewrote.Applied {
 		f.Rewrote(took[e.Start])
+		landed.Add([2]int{e.Start, e.End})
+	}
+	missed := slices.ContainsFunc(edits, func(e edit.Edit) bool { return !landed.Contains([2]int{e.Start, e.End}) })
+	switch {
+	case missed && doc:
+		// A rewrite that did not land leaves its wording in the text, so each wording rule it answers is reported there.
+		for _, e := range edits {
+			if landed.Contains([2]int{e.Start, e.End}) {
+				continue
+			}
+			for _, h := range wordingHits(was, e, doc) {
+				f.Note(h)
+			}
+		}
+	case missed:
+		// A scope can hold some rows of a block and not others. A phrase the block rewrite missed is cut a row at a time.
+		now := f.Text()
+		rows, rowTook := cutRows(now, AddedBlocks(path, now))
+		for _, e := range f.ApplyComments(rows).Applied {
+			f.Rewrote(rowTook[e.Start])
+		}
+		for _, h := range rowHits(f.Text(), AddedBlocks(path, f.Text())) {
+			f.Note(h)
+		}
 	}
 	added := f.Text()
 	if added != was {
@@ -295,11 +321,13 @@ func repairFile(f *fixer.File) {
 	}
 
 	drop := set.New[int]()
+	var stripping []Hit
 	cut := false
 	for _, h := range hits {
 		switch {
 		case h.Strippable:
 			drop.Add(h.LineNo - 1)
+			stripping = append(stripping, h)
 		case h.ID != IDVolume:
 			// A name no whole-line strip resolves loses its sentence below.
 			cut = true
@@ -328,8 +356,126 @@ func repairFile(f *fixer.File) {
 		}
 	}
 	stripped := f.ApplyComments(strips)
+	gone := set.New[int]()
+	for _, e := range stripped.Applied {
+		for row := strings.Count(added[:e.Start], "\n"); row <= strings.Count(added[:max(e.Start, e.End-1)], "\n"); row++ {
+			gone.Add(row)
+		}
+	}
+	// A strip that did not land leaves the line in the text, so its hit is reported there.
+	// HitForName counts its line from one, and gone holds rows counted from zero.
+	for _, h := range stripping {
+		if !gone.Contains(h.LineNo - 1) {
+			f.Note(h)
+		}
+	}
 	// The strip leaves a paragraph with a hole in it, so what survives is rewrapped here. The write then lands finished.
 	f.ApplyComments(reflowStripped(path, stripped.Text, blocksLosing(blocks, drop), len(blocks)))
+}
+
+// wordingHits answers a hit for each wording rule whose phrase the table would
+// cut from the span e rewrites in text.
+func wordingHits(text string, e edit.Edit, doc bool) []Hit {
+	surface := english.Comment
+	if doc {
+		surface = english.Document
+	}
+	span := text[e.Start:e.End]
+	lineNo := strings.Count(text[:e.Start], "\n") + 1
+	first, _, _ := strings.Cut(span, "\n")
+	ids := AllIDs()
+	seen := set.New[string]()
+	var hits []Hit
+	for _, p := range english.Patterns() {
+		if !ids.Contains(p.ID) || seen.Contains(p.ID) || !english.AppliesTo(p.Where, surface) {
+			continue
+		}
+		if _, took := p.ApplyN(span); took == 0 {
+			continue
+		}
+		seen.Add(p.ID)
+		hits = append(hits, Hit{
+			ID:     p.ID,
+			Tell:   "a phrase about a state the code has left",
+			Phrase: strings.TrimSpace(first),
+			Line:   first,
+			LineNo: lineNo,
+		})
+	}
+	return hits
+}
+
+// cutTombstones applies every wording rule of this family to comment prose.
+func cutTombstones(s string) (string, int) {
+	ids := AllIDs()
+	total := 0
+	for _, p := range english.Patterns() {
+		if !ids.Contains(p.ID) || !english.AppliesTo(p.Where, english.Comment) {
+			continue
+		}
+		var took int
+		s, took = p.ApplyN(s)
+		total += took
+	}
+	return s, total
+}
+
+// commentRows calls visit with the row number and text of every comment row in
+// blocks that is not shared with code and is no directive.
+func commentRows(text string, blocks []Block, visit func(row int, line string)) {
+	lines := strings.Split(text, "\n")
+	for _, b := range blocks {
+		for i, row := range b.LineNos {
+			if i >= len(b.Pure) || !b.Pure[i] || row < 0 || row >= len(lines) || treecomments.IsDirective(lines[row]) {
+				continue
+			}
+			visit(row, lines[row])
+		}
+	}
+}
+
+// cutRows answers an edit for each comment row that still holds a tombstone
+// phrase, cutting that phrase and nothing else. How many cuts each took.
+func cutRows(text string, blocks []Block) ([]edit.Edit, map[int]int) {
+	took := map[int]int{}
+	var edits []edit.Edit
+	commentRows(text, blocks, func(row int, line string) {
+		short, n, ok := commentfix.CutRow(line, cutTombstones)
+		if !ok {
+			return
+		}
+		e := edit.Rows(text, row, row, 0, short)
+		edits = append(edits, e)
+		took[e.Start] = n
+	})
+	return edits, took
+}
+
+// rowHits answers a hit on each comment row where a wording rule still finds
+// its phrase.
+func rowHits(text string, blocks []Block) []Hit {
+	ids := AllIDs()
+	var hits []Hit
+	commentRows(text, blocks, func(row int, line string) {
+		seen := set.New[string]()
+		for _, p := range english.Patterns() {
+			if !ids.Contains(p.ID) || seen.Contains(p.ID) || !english.AppliesTo(p.Where, english.Comment) {
+				continue
+			}
+			if _, n, ok := commentfix.CutRow(line, p.ApplyN); !ok || n == 0 {
+				continue
+			}
+			seen.Add(p.ID)
+			hits = append(hits, Hit{
+				ID:     p.ID,
+				Tell:   "a phrase about a state the code has left",
+				Phrase: strings.TrimSpace(line),
+				Line:   line,
+				LineNo: row + 1,
+			})
+		}
+	})
+	return hits
 }
 
 // cutReferents cuts the sentence around each dead name a whole-line strip left,

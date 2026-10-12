@@ -68,6 +68,16 @@ func identifierShaped(name string) bool {
 	return name[0] >= 'A' && name[0] <= 'Z' && strings.ContainsAny(name, "0123456789")
 }
 
+// documentName answers the part of a bare document word that can name a
+// symbol, or "".
+func documentName(word string) string {
+	word = strings.Trim(word, "_")
+	if !strings.Contains(word, "_") {
+		return ""
+	}
+	return word
+}
+
 // probeTimeout bounds the search, because a guard that hangs is worse.
 const probeTimeout = 2 * time.Second
 
@@ -199,11 +209,15 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	if root == "" {
 		return nil
 	}
+	doc := IsDocument(path)
 	names := set.New[string]()
 	for _, b := range blocks {
 		// The names come from the comment alone. Code on a shared line names what it uses, and the repository answers for that.
 		for _, m := range identifierWords(b.Prose) {
-			if isCandidate(m) {
+			if doc {
+				m = documentName(m)
+			}
+			if m != "" && isCandidate(m) {
 				names.Add(m)
 			}
 		}
