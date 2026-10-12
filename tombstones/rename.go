@@ -213,7 +213,11 @@ func endsSentence(prose string) bool {
 // such a line takes no other sentence with it.
 func wholeSentencesOnLine(proseLines []string, li int, name string) bool {
 	prose := proseOf(proseLines[li])
-	if prose == "" || !endsSentence(prose) {
+	if prose == "" {
+		return false
+	}
+	// A line with no sentence end still closes its sentence when no prose follows it.
+	if !endsSentence(prose) && li+1 < len(proseLines) && proseOf(proseLines[li+1]) != "" {
 		return false
 	}
 	for i := li - 1; i >= 0; i-- {

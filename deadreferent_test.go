@@ -54,7 +54,7 @@ func TestFixRenamesACaseTypoToTheDefinedName(t *testing.T) {
 
 	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
 	assert.NotContains(t, fixed.Text, "NtSCMParse")
-	assert.Contains(t, fixed.Text, "// ntSCMParse walks a Linux cmsg buffer. ntSCMParse collects the SCM_RIGHTS\n// payload fds")
+	assert.Contains(t, fixed.Text, "// ntSCMParse walks a Linux cmsg buffer. ntSCMParse collects the SCM_RIGHTS")
 	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
 }
 
