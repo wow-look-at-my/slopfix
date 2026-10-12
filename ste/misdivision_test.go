@@ -46,6 +46,11 @@ var misdivisions = []struct {
 		[]string{"a session. That is"},
 	},
 	{
+		"the rest of a list whose last item holds a relative clause is still a list",
+		"endsActor reports a word the actor of a passive clause stops in front of: a comma, a dash, a colon, a semicolon, a parenthesis, or a subordinator that opens a clause of its own.",
+		[]string{"semicolon. A parenthesis", "colon. A semicolon", "dash. A colon"},
+	},
+	{
 		"a clause after a fronted phrase is the main clause",
 		"On a bridge/web surface every inbound user message goes through the queue, so anything that lands while the session is busy is invisible to the entry gate -- and a session that is doing work is busy nearly all the time.",
 		[]string{"queue, so anything"},
