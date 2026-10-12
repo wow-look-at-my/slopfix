@@ -22,12 +22,10 @@ const (
 )
 
 // SelfHostExempt names each org repository the self-hosted fleet depends on.
-// Its CI stays on GitHub-hosted runners, so a fleet outage cannot block the fix.
 var SelfHostExempt = set.Of(
-	"wow-look-at-my/infra",
 	"wow-look-at-my/webhook-runner",
+	"wow-look-at-my/buildhost",
 	"wow-look-at-my/github-state-mirror",
-	"wow-look-at-my/gitea-runner",
 )
 
 // hostedLinux matches a GitHub-hosted x64 Linux label, which the org runners replace.

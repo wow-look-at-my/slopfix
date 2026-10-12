@@ -46,7 +46,7 @@ func TestPrivateRunnerSkipsRepositoriesItDoesNotGovern(t *testing.T) {
 	for name, origin := range map[string]string{
 		"no origin":        "",
 		"another owner":    "https://github.com/someone/private-runner-fixture",
-		"exempt":           "https://github.com/wow-look-at-my/infra",
+		"exempt":           "https://github.com/wow-look-at-my/webhook-runner",
 		"another git host": "https://example.com/wow-look-at-my/private-runner-fixture",
 	} {
 		path := runnerRepo(t, origin, body)
