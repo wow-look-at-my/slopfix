@@ -63,6 +63,16 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if headOpen(whole, first) {
 		return head, "", 0
 	}
+	// "a block in which the lines share a word": the clause after "in which" stands behind the noun it describes. It becomes "A block. In that block, the lines share a word."
+	if seam == "" && word.Tag == "IN" && first+2 < len(whole.Words) && whole.Words[first+1].Lower() == "which" &&
+		strings.HasPrefix(prev.Tag, "NN") && !indefinites.Contains(prev.Lower()) && finiteBetween(whole, first+2, len(whole.Words)) {
+		clause := strings.TrimLeft(strings.TrimLeft(rest[len(word.Text):], " ")[len("which"):], " ")
+		det := "that"
+		if prev.Tag == "NNS" || prev.Tag == "NNPS" {
+			det = "those"
+		}
+		return head, capitalizeOpening(lower) + " " + det + " " + nounText(source, prev) + ", " + clause, opensWithCarrier
+	}
 	// An aside that opens on a dash and closes on one, before "and <verb>",
 	// divides into the aside and the verb group with the subject named. Again:
 	// "X — A does Y — and yields Z" becomes "X. A does Y. It yields Z."
@@ -268,19 +278,28 @@ func opensAdverbialClause(s *syntax.Sentence, i int) bool {
 // words". The other is a noun with a new subject and no verb after them:
 // "answers the row the earliest node".
 func headOpen(s *syntax.Sentence, end int) bool {
-	open := -1
+	// Each clause still waiting for its verb, innermost last. A finite verb closes the innermost.
+	var open []int
 	for i := 0; i < end && i < len(s.Words); i++ {
 		w := s.Words[i]
 		switch {
 		case finiteVerbTag(w.Tag) || w.Tag == "MD":
-			open = -1
+			if len(open) > 0 {
+				open = open[:len(open)-1]
+			}
 		case clauseOpeners.Contains(w.Lower()) && i > 0:
-			open = i
+			open = append(open, i)
+		case i > 0 && s.Words[i-1].Tag == "IN" && (w.Tag == "WDT" || w.Tag == "WP"):
+			// "in which the lines": a relative clause after a preposition names its own subject, and waits for its verb.
+			open = append(open, i)
+		case i > 0 && strings.HasPrefix(s.Words[i-1].Tag, "NN") && (w.Tag == "WDT" || w.Lower() == "that") && i+1 < len(s.Words) && finiteVerbTag(s.Words[i+1].Tag):
+			// "lines that are": the relative verb follows at once, and closes this clause and no other.
+			open = append(open, i)
 		case i > 0 && strings.HasPrefix(s.Words[i-1].Tag, "NN") && (w.Tag == "DT" || w.Tag == "PRP"):
-			open = i
+			open = append(open, i)
 		}
 	}
-	return open >= 0
+	return len(open) > 0
 }
 
 // everyNext reports "every" or "each" after the preposition at word i: an

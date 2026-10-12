@@ -2,6 +2,7 @@ package ste
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode"
@@ -160,7 +161,7 @@ func fixInstructions(prose string, reorder bool) string {
 // rule can repair, in the order the repairs read the words.
 func rewriteSentence(s *syntax.Sentence, source string, off [][]int, keep func(id string) bool) (string, bool) {
 	if keep(IDPassive) {
-		if out, ok := rewritePassive(s, source); ok {
+		if out, ok := rewritePassive(s, source, off); ok {
 			return out, true
 		}
 	}
@@ -208,7 +209,7 @@ func auxiliary(s *syntax.Sentence, from int, forms set.Set[string]) (int, int) {
 // actor: "The file is read by the gate" becomes "The gate reads the file".
 // A clause that names no actor is left as written, because nothing states who
 // acts.
-func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
+func rewritePassive(s *syntax.Sentence, source string, off [][]int) (string, bool) {
 	last := lastContent(s)
 	i, j := auxiliary(s, 1, beForms)
 	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
@@ -228,6 +229,14 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if by < 0 || by+1 > last {
 		return "", false
 	}
+	// Only adverbs may stand between the participle and "by". Another word makes "by" belong to another verb.
+	var adverbs []string
+	for k := j + 1; k < by; k++ {
+		if s.Words[k].Tag != "RB" {
+			return "", false
+		}
+		adverbs = append(adverbs, s.Words[k].Lower())
+	}
 	end := last
 	for k := by + 1; k <= last; k++ {
 		if s.Words[k].Text == "," {
@@ -238,28 +247,73 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if end < by+1 {
 		return "", false
 	}
-	subject := strings.TrimSpace(source[s.Words[0].Start:s.Words[i].Start])
-	actor := source[s.Words[by+1].Start:s.Words[end].End]
-	tail := source[s.Words[end].End:]
-	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
+	subjectEnd := snapStart(off, s.Words[i].Start)
+	subject := strings.TrimRight(strings.TrimSpace(source[s.Words[0].Start:subjectEnd]), ",")
+	actorStart, actorEnd := snapStart(off, s.Words[by+1].Start), snapEnd(off, s.Words[end].End)
+	actor := source[actorStart:actorEnd]
+	tail := source[actorEnd:]
+	actorPhrase := syntax.Phrase{Head: end}
+	if p, ok := s.PhraseAt(by + 1); ok && p.Kind == syntax.NounPhrase {
+		actorPhrase = *p
+	}
+	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(actorPhrase))
 	if subject == "" || actor == "" || verb == "" {
 		return "", false
 	}
 	object := lowerOpeningFor(subject, s.Words[0].Tag)
-	return capitalizeOpening(actor) + " " + verb + " " + object + tail, true
+	// "only" limits the actor, so it stands in front of the actor. Another adverb stands in front of the verb.
+	var lead, mid string
+	for _, adv := range adverbs {
+		if adv == "only" {
+			lead = "only "
+			continue
+		}
+		mid += adv + " "
+	}
+	return capitalizeOpening(lead+actor) + " " + mid + verb + " " + object + tail, true
+}
+
+// snapStart moves an offset inside an opaque span to the span's start, so a
+// cut never divides a code span.
+func snapStart(off [][]int, at int) int {
+	for _, span := range off {
+		if at > span[0] && at < span[1] {
+			return span[0]
+		}
+	}
+	return at
+}
+
+// snapEnd moves an offset inside an opaque span to the span's end.
+func snapEnd(off [][]int, at int) int {
+	for _, span := range off {
+		if at > span[0] && at < span[1] {
+			return span[1]
+		}
+	}
+	return at
 }
 
 // lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
 // the start of one. A name keeps its capital.
 func lowerOpeningFor(phrase, tag string) string {
-	if tag == "NNP" || tag == "NNPS" {
-		return phrase
-	}
 	first, width := utf8.DecodeRuneInString(phrase)
 	if !unicode.IsUpper(first) {
 		return phrase
 	}
-	return string(unicode.ToLower(first)) + phrase[width:]
+	lowered := string(unicode.ToLower(first)) + phrase[width:]
+	if tag != "NNP" && tag != "NNPS" {
+		return lowered
+	}
+	// A capital at the start of a sentence reads as a name to the tagger. The word is a name only when it reads as one in lower case too.
+	word := strings.Fields(phrase)[0]
+	if strings.IndexFunc(word[width:], unicode.IsUpper) >= 0 {
+		return phrase
+	}
+	if words := syntax.Parse(lowered, nil).Words; len(words) > 0 && !strings.HasPrefix(words[0].Tag, "NNP") {
+		return lowered
+	}
+	return phrase
 }
 
 // passiveVerb answers the active form of a passive verb group: the participle
@@ -295,8 +349,14 @@ func baseFromParticiple(form string) string {
 	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
 		return stem + "e"
 	}
+	if silentE.MatchString(stem) {
+		return stem + "e"
+	}
 	return stem
 }
+
+// silentE matches a stem no English verb ends on, because its base form ends in a silent e: "judg", "mov", "trac", "merg", "handl", "siz".
+var silentE = regexp.MustCompile(`(?:dg|v|[aeiour]c|rg|[^aeioul]l|[aeiouy]z|u)$`)
 
 // simpleSpan reports whether a verb group from the auxiliary i to the
 // participle j holds only the words the simple-tense repair replaces.

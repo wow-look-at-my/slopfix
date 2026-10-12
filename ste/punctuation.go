@@ -19,7 +19,7 @@ func punctuationDivision(source, masked string, whole *syntax.Sentence, limit in
 		rest := capitalizeOpening(strings.TrimLeft(right, " "))
 		if !StandsAlone(rest) && !opensList(rest) {
 			// "This is" carries a noun phrase that a dash introduces.
-			if carried := "This is " + strings.TrimLeft(right, " "); StandsAlone(capitalizeOpening(carried)) {
+			if carried := thisCarried(strings.TrimLeft(right, " ")); StandsAlone(capitalizeOpening(carried)) {
 				rest = capitalizeOpening(carried)
 			}
 		}
@@ -79,4 +79,12 @@ func punctuationCuts(masked string, limit int) []int {
 		out = append(out, d[1])
 	}
 	return out
+}
+
+// thisCarried writes a phrase behind "This is", so it stands as a sentence.
+func thisCarried(rest string) string {
+	if after, ok := strings.CutPrefix(rest, "which "); ok {
+		return "This " + after
+	}
+	return "This is " + rest
 }

@@ -94,7 +94,7 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 		// The right part must read as a sentence, or open a list. A noun
 		// phrase before a mark stands behind "This is" instead of a fragment.
 		if !opensList(right) && !StandsAlone(right) {
-			if carried := "This is " + strings.TrimLeft(source[c.right:], " "); StandsAlone(capitalizeOpening(carried)) {
+			if carried := thisCarried(strings.TrimLeft(source[c.right:], " ")); StandsAlone(capitalizeOpening(carried)) {
 				right = capitalizeOpening(carried)
 			}
 		}

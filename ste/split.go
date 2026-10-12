@@ -609,6 +609,14 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	if head.Tag == "PRP" {
 		return head.Text, true
 	}
+	// A noun phrase after a comma or a conjunction is the last part of a
+	// coordinated subject. The whole list is the subject, so "they" names it.
+	if subject.First > 0 && (s.Words[subject.First-1].Tag == "CC" || s.Words[subject.First-1].Text == ",") {
+		if s.Words[c.Verb.Head].Tag == "VBZ" {
+			return "", false
+		}
+		return "they", true
+	}
 	short := subject.Last-subject.First < restateLimit && !subject.Coordinated &&
 		s.Words[subject.Last+1].Tag != "IN"
 	if short && opensWithCapital(s, subject.First, source) {
