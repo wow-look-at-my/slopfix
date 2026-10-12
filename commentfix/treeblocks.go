@@ -149,7 +149,7 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 		b.codeLines, b.codeChars = measure(directivesOf(b.text))
 		return b, true
 	}
-	b.codeLines, b.codeChars = nodeSpan(firstStatement(parent.NamedChild(pastAttributes(parent, next, count))), lines, rows)
+	b.codeLines, b.codeChars = paragraphSpan(parent, pastAttributes(parent, next, count), lines, rows)
 	return b, true
 }
 
@@ -164,6 +164,43 @@ func pastAttributes(parent ts.Node, next, count uint32) uint32 {
 		return next
 	}
 	return at
+}
+
+// paragraphSpan measures the code a comment heads. The construct after it is
+// the first part. Each sibling that follows on the next line joins it, up to a
+// blank line or a comment on its own line.
+//
+// Only a comment at the top of a file heads a paragraph of declarations. A
+// comment inside a function body heads the statement under it. The statements
+// around it run on for reasons the comment does not describe.
+func paragraphSpan(parent ts.Node, next uint32, lines []string, rows map[int]int) (int, int) {
+	top := parent.Parent().IsNull()
+	node := parent.NamedChild(next)
+	for !node.IsNull() && isSequence(node) {
+		parent, next, node = node, 0, node.NamedChild(0)
+	}
+	codeLines, codeChars := nodeSpan(node, lines, rows)
+	if node.IsNull() || !top {
+		return codeLines, codeChars
+	}
+	end := node.EndPoint().Row
+	for i := next + 1; i < parent.NamedChildCount(); i++ {
+		sibling := parent.NamedChild(i)
+		start := sibling.StartPoint().Row
+		// A sibling on a row already measured adds nothing, and a trailing comment belongs to its code.
+		if start <= end {
+			end = max(end, sibling.EndPoint().Row)
+			continue
+		}
+		if start != end+1 || code.IsComment(sibling) {
+			break
+		}
+		l, c := nodeSpan(sibling, lines, rows)
+		codeLines += l
+		codeChars += c
+		end = sibling.EndPoint().Row
+	}
+	return codeLines, codeChars
 }
 
 // lastRow is the last row a comment's text sits on. A Rust line comment ends at the start of the next row.
@@ -193,15 +230,6 @@ func opensWithMarker(line string) bool {
 // comment sits at when nothing precedes it.
 func indentWidth(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
-}
-
-// firstStatement descends through a bare sequence to the construct a comment
-// documents.
-func firstStatement(node ts.Node) ts.Node {
-	for !node.IsNull() && isSequence(node) {
-		node = node.NamedChild(0)
-	}
-	return node
 }
 
 func isSequence(node ts.Node) bool {

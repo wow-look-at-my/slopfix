@@ -46,8 +46,8 @@ var assertions = []*regexp.Regexp{
 	regexp.MustCompile(comparison + `[^;&|]*\|\|\s*(?:\{|\(|exit\b|echo\b|printf\b|core\b)`),
 	regexp.MustCompile(`^\s*if\s+!\s*` + comparison),
 	regexp.MustCompile(comparison + `[^;&|]*&&\s*\{?\s*(?:echo|printf)[^;]*::error`),
-	// A case arm asserts with no comparison word: it annotates and exits.
-	regexp.MustCompile(`::error.*\bexit\s+[1-9]`),
+	// A case arm asserts with no comparison word: its pattern annotates and exits.
+	regexp.MustCompile(`^\s*\(?[^\s()"']+(?:\s*\|\s*[^\s()"']+)*\)\s*.*::error.*\bexit\s+[1-9]`),
 }
 
 // assertHelper matches a shell function whose name says it asserts.

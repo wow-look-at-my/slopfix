@@ -13,7 +13,8 @@ import (
 )
 
 // guardedRunScripts carries shell guards from sglang's fork-ci.yml. Each
-// annotates and exits inside an if, so the test-in-workflow rule reads it.
+// annotates and exits inside an if, which is a guard on the step's own work
+// and not a test.
 const guardedRunScripts = "name: CI\n" +
 	"on:\n" +
 	"  push:\n" +
@@ -41,8 +42,19 @@ const guardedRunScripts = "name: CI\n" +
 
 const guardedRunScriptsPath = ".github/workflows/fork-ci.yml"
 
-// The fixture provokes the rule, and the rule only warns: a run: script line
-// is shell, and no rewrite deletes it.
+// assertedRunScript carries one assertion in a run: script, which the rule
+// reads as a test.
+const assertedRunScript = "on: {push: {branches: ['**']}}\n" +
+	"concurrency:\n" +
+	"  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n" +
+	"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n" +
+	"jobs:\n  x:\n    steps:\n" +
+	"      - run: |\n" +
+	"          grep -q ready out.txt || { echo '::error::missing'; exit 1; }\n"
+
+// The fixture carries if guards, which are code, not tests: the rule does not
+// report them. An assertion it does report only warns, because a run: script
+// line is shell and no rewrite deletes it.
 func TestATestInARunScriptIsAWarning(t *testing.T) {
 	var hits []string
 	for _, f := range slopfix.CheckContent(guardedRunScriptsPath, guardedRunScripts) {
@@ -51,7 +63,15 @@ func TestATestInARunScriptIsAWarning(t *testing.T) {
 			hits = append(hits, f.Detail)
 		}
 	}
-	assert.Len(t, hits, 2)
+	assert.Empty(t, hits, "an if guard that annotates and exits is not a test")
+
+	for _, f := range slopfix.CheckContent(guardedRunScriptsPath, assertedRunScript) {
+		require.True(t, f.Warning(), "only the warning rule may read this fixture: %s", f)
+		if f.ID == workflow.IDTestInYAML {
+			hits = append(hits, f.Detail)
+		}
+	}
+	assert.Len(t, hits, 1, "an assertion in a run: script is a test")
 	assert.True(t, slopfix.WarningIDs.Contains(workflow.IDTestInYAML))
 	assert.False(t, slopfix.Repairable(workflow.IDTestInYAML))
 }

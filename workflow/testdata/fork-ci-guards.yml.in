@@ -1,0 +1,45 @@
+name: Fork CI
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  fork-sgl-kernel-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish to release sglang-kernel-v${{ needs.fork-plan.outputs.kernel_version }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.fork-plan.outputs.kernel_version }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          WHEELS=(wheels/*.whl)
+          if [ ${#WHEELS[@]} -eq 0 ]; then
+            echo "::error::no sglang-kernel wheel was built"; exit 1
+          fi
+          TAG="sglang-kernel-v${VERSION}"
+          gh release create "$TAG" "${WHEELS[@]}"
+
+  fork-docker-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Join the per-arch images under each tag
+        env:
+          IMAGE_TAGS: ${{ needs.fork-plan.outputs.image_tags }}
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sglang"
+          for TAG in $IMAGE_TAGS; do
+            SOURCES=()
+            for SUFFIX in amd64; do
+              if docker buildx imagetools inspect "${IMAGE}:${TAG}-${SUFFIX}" >/dev/null 2>&1; then
+                SOURCES+=("${IMAGE}:${TAG}-${SUFFIX}")
+              fi
+            done
+            if [ ${#SOURCES[@]} -eq 0 ]; then
+              echo "::error::no per-arch image was pushed for ${TAG}"; exit 1
+            fi
+            docker buildx imagetools create -t "${IMAGE}:${TAG}" "${SOURCES[@]}"
+          done

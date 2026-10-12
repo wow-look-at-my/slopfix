@@ -112,6 +112,29 @@ func TestARealCommentSentenceDividesOrStays(t *testing.T) {
 	}
 }
 
+// A sentence whose only cut between words lands inside the noun phrase "log
+// line". The repair divides it at a clause boundary or leaves it as written,
+// and a sentence it leaves asks for a rewrite by hand.
+func TestALongSentenceNeverDividesInsideANounPhrase(t *testing.T) {
+	src := "package p\n\n" +
+		"// String carries every number a filesystem was judged on, which is what lets a\n" +
+		"// log line be answered without the daemon still running to be asked.\n" +
+		longFunction("String")
+	hits := CheckSentences("p.go", src)
+	require.Len(t, hits, 1)
+
+	out := fixSentences("p.go", src)
+	assert.NotContains(t, out, "log. Line", out)
+	assert.Contains(t, commentProse(out), "a log line be answered", out)
+	if out == src {
+		assert.True(t, ste.ByHand(hits[0].Fix), hits[0].Fix)
+		return
+	}
+	assert.False(t, ste.ByHand(hits[0].Fix), hits[0].Fix)
+	assert.Contains(t, commentProse(out), "judged on. ", out)
+	assert.Empty(t, CheckSentences("p.go", out))
+}
+
 // A comment after code stays on its row. A block comment keeps its delimiters.
 func TestADividedCommentKeepsItsShape(t *testing.T) {
 	trailing := "package p\n\nvar x = 1 // The gate reads every file that the session wrote, but if the cache is cold at the start of the run, the build waits for the whole tree.\n"

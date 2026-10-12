@@ -55,6 +55,9 @@ func TestEveryErrorRuleHasARepairPath(t *testing.T) {
 func TestOnlyTheseRulesReportWithoutARepair(t *testing.T) {
 	want := append([]string{
 		slopfix.IDNearDuplicate, slopfix.IDJSON, slopfix.IDXML,
+		workflow.IDTestInYAML, workflow.IDDuplicateStepKey,
+		workflow.IDTestInYAML, workflow.IDBranchPin,
+		workflow.IDRunScriptSyntax,
 		workflow.IDTestInYAML,
 		"laziness/punt", "blame/deflection", "ask/prose-decision",
 	}, ste.WarningIDs.Values()...)
@@ -71,6 +74,7 @@ func TestARepairIsClaimedRuleByRule(t *testing.T) {
 	assert.True(t, slopfix.Repairable(slopfix.IDHardWrap))
 	assert.True(t, slopfix.Repairable(workflow.IDCommentBlock))
 	assert.True(t, slopfix.Repairable(workflow.IDNeuteredGate))
+	assert.False(t, slopfix.Repairable(workflow.IDTestInYAML))
 }
 
 // The defect this property exists for. A stale count is reported under the
