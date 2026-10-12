@@ -17,12 +17,26 @@ func runnerRepo(t *testing.T, origin, body string) string {
 	return filepath.Join(c.Root, ".github", "workflows", "ci.yml")
 }
 
-func TestPrivateRunnerLeavesAPublicRepositoryAlone(t *testing.T) {
+func TestPrivateRunnerRewritesAPublicRepositoryToo(t *testing.T) {
 	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n"
 	c, err := Materialize(t.TempDir(), RuleCase{Name: "public", Path: ".github/workflows/ci.yml", Text: body, Origin: "https://github.com/wow-look-at-my/public-runner-fixture"})
 	require.NoError(t, err)
 	path := filepath.Join(c.Root, ".github", "workflows", "ci.yml")
-	assert.Empty(t, only(CheckContent(path, body), workflow.IDPrivateRunner))
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "runs-on: ${{ github.event.repository.visibility == 'public' && 'ubuntu-latest' || vars.CI_RUNNER || 'ubuntu-latest' }}\n")
+}
+
+func TestPrivateRunnerRewritesTheExpressionThatIgnoresVisibility(t *testing.T) {
+	body := workflowHeader() + "jobs:\n" +
+		"  build:\n    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}\n    steps:\n      - run: make\n" +
+		"  image:\n    runs-on: ${{ vars.CI_RUNNER_DIND || 'ubuntu-22.04' }} # dind\n    steps:\n      - run: docker build .\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "runs-on: ${{ github.event.repository.visibility == 'public' && 'ubuntu-latest' || vars.CI_RUNNER || 'ubuntu-latest' }}\n")
+	assert.Contains(t, got.Text, "runs-on: ${{ github.event.repository.visibility == 'public' && 'ubuntu-22.04' || vars.CI_RUNNER_DIND || 'ubuntu-22.04' }} # dind\n")
+	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
 }
 
 func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
@@ -34,8 +48,8 @@ func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
 	path := runnerRepo(t, PrivateRunnerFixture, body)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 	require.NoError(t, err)
-	assert.Contains(t, got.Text, "runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }} # pinned\n")
-	assert.Contains(t, got.Text, "runs-on: ${{ vars.CI_RUNNER_DIND || 'ubuntu-latest' }}\n")
+	assert.Contains(t, got.Text, "runs-on: ${{ github.event.repository.visibility == 'public' && 'ubuntu-24.04' || vars.CI_RUNNER || 'ubuntu-24.04' }} # pinned\n")
+	assert.Contains(t, got.Text, "runs-on: ${{ github.event.repository.visibility == 'public' && 'ubuntu-latest' || vars.CI_RUNNER_DIND || 'ubuntu-latest' }}\n")
 	assert.Contains(t, got.Text, "runs-on: macos-latest\n", "the org runners are Linux")
 	assert.Contains(t, got.Text, "runs-on: ${{ matrix.os }}\n", "an expression is not read")
 	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))

@@ -31,39 +31,31 @@ var SelfHostExempt = set.Of(
 // hostedLinux matches a GitHub-hosted x64 Linux label, which the org runners replace.
 var hostedLinux = regexp.MustCompile(`^ubuntu-(latest|[0-9]+\.[0-9]+)$`)
 
+// orgRunnerOnly matches a runs-on that sends a job to the org runners whatever the repository's visibility.
+var orgRunnerOnly = regexp.MustCompile(`^\$\{\{\s*vars\.CI_RUNNER(?:_DIND)?\s*\|\|\s*'(ubuntu-(?:latest|[0-9]+\.[0-9]+))'\s*\}\}$`)
+
 // dockerCommand matches a script line that runs the docker client.
 var dockerCommand = regexp.MustCompile(`(^|[\s;&|(])(sudo\s+)?docker(-compose)?(\s|$)`)
 
-// runnerTarget is the repository a file belongs to, as the rule needs it.
-type runnerTarget struct {
-	repo forkscope.Repo
-	// unread is why the visibility could not be read. The rule then treats the repository as private.
-	unread string
-}
-
-// runnerTargetOf answers the target of the file at path, and whether the rule applies.
-func runnerTargetOf(path string) (runnerTarget, bool) {
+// runnerRepoOf answers the org repository the file at path belongs to, and whether the rule applies.
+// The visibility is read at run time by the expression the repair writes, so no lookup happens here.
+func runnerRepoOf(path string) (string, bool) {
 	if path == "" {
-		return runnerTarget{}, false
+		return "", false
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return runnerTarget{}, false
+		return "", false
 	}
 	dir := forkscope.ExistingDir(filepath.Dir(abs))
-	// An exempt repository is skipped before the network is asked.
 	name := forkscope.Repo{Name: forkscope.Resolver{}.RepoName(dir)}
 	if !strings.EqualFold(name.Owner(), orgOwner) || SelfHostExempt.Contains(strings.ToLower(name.Name)) {
-		return runnerTarget{}, false
+		return "", false
 	}
-	repo, err := forkscope.Resolver{}.Visibility(dir, orgOwner)
-	if err != nil {
-		return runnerTarget{repo: repo, unread: err.Error()}, true
-	}
-	return runnerTarget{repo: repo}, repo.Private
+	return name.Name, true
 }
 
-// hostedJob is a job whose runs-on names a GitHub-hosted Linux label.
+// hostedJob is a job whose runs-on names a GitHub-hosted Linux label, bare or as the fallback of an expression that ignores visibility.
 type hostedJob struct {
 	node   *yaml.Node
 	label  string
@@ -84,10 +76,16 @@ func hostedJobs(content string) []hostedJob {
 	for i := 1; i < len(jobs.Content); i += 2 {
 		job := jobs.Content[i]
 		on := mappingValue(job, "runs-on")
-		if on == nil || on.Kind != yaml.ScalarNode || !hostedLinux.MatchString(on.Value) {
+		if on == nil || on.Kind != yaml.ScalarNode {
 			continue
 		}
-		out = append(out, hostedJob{node: on, label: on.Value, docker: runsDocker(job)})
+		label := on.Value
+		if m := orgRunnerOnly.FindStringSubmatch(strings.TrimSpace(on.Value)); m != nil {
+			label = m[1]
+		} else if !hostedLinux.MatchString(on.Value) {
+			continue
+		}
+		out = append(out, hostedJob{node: on, label: label, docker: runsDocker(job)})
 	}
 	return out
 }
@@ -118,36 +116,34 @@ func runsDocker(job *yaml.Node) bool {
 	return false
 }
 
-// runnerExpression answers the runs-on value that sends a job to the org runners.
+// runnerExpression answers the runs-on value that keeps a public repository on
+// the hosted label and sends every other run to the org runners. An event with
+// no repository in its payload reads as not public.
 func runnerExpression(j hostedJob) string {
 	name := runnerVar
 	if j.docker {
 		name = runnerDindVar
 	}
-	return "${{ " + name + " || '" + j.label + "' }}"
+	return "${{ github.event.repository.visibility == 'public' && '" + j.label + "' || " + name + " || '" + j.label + "' }}"
 }
 
-// privateRunners reports each job of a private org repository on a GitHub-hosted Linux runner.
+// privateRunners reports each job of an org repository whose runner ignores the repository's visibility.
 func privateRunners(path, content string) []ste.Finding {
 	jobs := hostedJobs(content)
 	if len(jobs) == 0 {
 		return nil
 	}
-	target, applies := runnerTargetOf(path)
+	repo, applies := runnerRepoOf(path)
 	if !applies {
 		return nil
 	}
 	var out []ste.Finding
 	for _, j := range jobs {
-		detail := target.repo.Name + ": runs-on: " + j.label
-		if target.unread != "" {
-			detail += " (the visibility could not be read, so the rule treats the repository as private: " + target.unread + ")"
-		}
 		out = append(out, ste.Finding{
 			Line:   j.node.Line,
 			ID:     IDPrivateRunner,
-			Rule:   "a private org repository that runs a job on a GitHub-hosted runner",
-			Detail: detail,
+			Rule:   "an org job whose runner ignores the repository's visibility",
+			Detail: repo + ": runs-on: " + j.node.Value,
 			Fix:    "Use `runs-on: " + runnerExpression(j) + "`. GitHub bills each minute a private repository spends on its runners. `slopfix fix` does this.",
 		})
 	}
@@ -183,6 +179,13 @@ func retargetRunners(path, content string) []edit.Edit {
 func scalarToken(rest string) string {
 	if rest == "" {
 		return ""
+	}
+	if strings.HasPrefix(rest, "${{") {
+		end := strings.Index(rest, "}}")
+		if end < 0 {
+			return ""
+		}
+		return rest[:end+2]
 	}
 	if quote := rest[0]; quote == '\'' || quote == '"' {
 		end := strings.IndexByte(rest[1:], quote)
