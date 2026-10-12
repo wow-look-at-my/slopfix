@@ -29,6 +29,7 @@ func TestDictionaryLeavesEveryNameAlone(t *testing.T) {
 		"Call ns::reveal for the row.",
 		"Pass --reveal to the tool.",
 		"Read reveal2 before the edit.",
+		"It does not reveal-check the row.",
 	} {
 		assert.Equal(t, text, ste.FixSelected(text, only(ste.IDDictionary)), text)
 		assert.Empty(t, warned(ste.IDDictionary, text), text)
@@ -36,11 +37,10 @@ func TestDictionaryLeavesEveryNameAlone(t *testing.T) {
 }
 
 // The control. A dictionary word in prose still takes its approved word, a
-// hyphenated compound and a word before a period included.
+// word before a period included.
 func TestDictionaryStillRewritesProse(t *testing.T) {
 	cases := map[string]string{
 		"The reveal layer gates every read.": "The show layer gates every read.",
-		"It does not reveal-check the row.":  "It does not show-check the row.",
 		"The gate does not reveal.":          "The gate does not show.",
 		"Reveal the row: the gate reads it.": "Show the row: the gate reads it.",
 		"Read docs/a.md to reveal the row.":  "Read docs/a.md to show the row.",
