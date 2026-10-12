@@ -3,6 +3,7 @@ package ste
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -30,7 +31,8 @@ func gappedDivision(source string, whole *syntax.Sentence, limit int) (string, b
 			items = append(items, [2]int{k, j})
 		}
 	}
-	if len(items) == 0 {
+	// A gapped list holds at least items, the last behind "and". A single item after a comma is an appositive, which names the noun before it.
+	if len(items) < 2 || whole.Words[items[len(items)-1][0]+1].Lower() != "and" {
 		return source, false
 	}
 	head := closeHead(source[:whole.Words[items[0][0]].Start])
@@ -57,13 +59,33 @@ func gappedDivision(source string, whole *syntax.Sentence, limit int) (string, b
 // after it with no mark between them, as in "no visibility | test". Both
 // words are one noun phrase, so no sentence ends between them.
 func insideCompound(source string, whole *syntax.Sentence, c forceCut) bool {
-	if strings.TrimSpace(source[c.left:c.right]) != "" || seamBefore(source, c.left) != "" {
+	return cutsNounPhrase(source, whole, c.left, c.right)
+}
+
+// cutsNounPhrase reports a cut from left to right, with no mark between the
+// halves, that lands inside a noun phrase. A determiner or a possessive needs
+// the words after it. An adjective, a participle, a numeral or a noun before
+// a noun modifies that noun: "a hosted | Linux label". A bare verb form after
+// a noun continues it: "no visibility | test".
+func cutsNounPhrase(source string, whole *syntax.Sentence, left, right int) bool {
+	if strings.TrimSpace(source[left:right]) != "" || seamBefore(source, left) != "" {
 		return false
 	}
-	n := wordsBefore(whole, c.right)
+	n := wordsBefore(whole, right)
 	if n < 1 || n >= len(whole.Words) {
 		return false
 	}
 	before, after := whole.Words[n-1].Tag, whole.Words[n].Tag
-	return strings.HasPrefix(before, "NN") && (strings.HasPrefix(after, "NN") || after == "VB" || after == "VBP")
+	switch {
+	case before == "DT" || before == "PRP$" || before == "POS":
+		return true
+	case modifiesNoun.Contains(before) || strings.HasPrefix(before, "NN"):
+		if strings.HasPrefix(after, "NN") {
+			return true
+		}
+	}
+	return strings.HasPrefix(before, "NN") && (after == "VB" || after == "VBP")
 }
+
+// modifiesNoun is the tags of a word that modifies the noun after it.
+var modifiesNoun = set.Of("JJ", "JJR", "JJS", "VBN", "VBG", "CD")

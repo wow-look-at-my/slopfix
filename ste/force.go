@@ -139,6 +139,10 @@ type forceCut struct {
 func forceDivision(source, masked string, d capSpec) (string, bool) {
 	// The tags come from the whole sentence, because a fragment parsed alone reads "a faithful" as a noun.
 	whole := syntax.Parse(masked, nil)
+	// A gapped list divides into its items before any cut, because a cut between items leaves each without its verb.
+	if out, ok := gappedDivision(source, whole, d.cap); ok {
+		return out, true
+	}
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict, d.cap) {
@@ -164,7 +168,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 				// The grammatical rest was refused, so the carrier division, which restates the main clause, gets its turn.
 				ch, cr, co := carrierOrNone(source, whole, c)
 				cl := closeHead(ch)
-				if cr == "" || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
+				if cr == "" || !restStands(cr) || !standsAsSentence(cl) || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
 					continue
 				}
 				head, right, opened, left = ch, cr, co, cl
@@ -187,9 +191,6 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 		if out, ok := subjectDivision(source, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 			return out, true
 		}
-	}
-	if out, ok := gappedDivision(source, whole, d.cap); ok {
-		return out, true
 	}
 	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true

@@ -146,7 +146,7 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		// "with no visibility test": with no mark or conjunction at the seam, a bare verb form after a noun continues the noun phrase.
-		if d.opener == "" && strings.TrimSpace(source[d.leftEnd:d.rightStart]) == "" && opensImperative(checkMask(lowerFirst(restOf(source, d)))) {
+		if cutsNounPhrase(source, s, d.leftEnd, d.rightStart) || d.opener == "" && strings.TrimSpace(source[d.leftEnd:d.rightStart]) == "" && opensImperative(checkMask(lowerFirst(restOf(source, d)))) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
