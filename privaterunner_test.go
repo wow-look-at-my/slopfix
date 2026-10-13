@@ -227,6 +227,23 @@ func TestPrivateRunnerSplitsAnIncludeList(t *testing.T) {
 	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
 }
 
+func TestPrivateRunnerReadsTheMatrixKeyOfAWrittenExpression(t *testing.T) {
+	written := "${{ matrix.os == 'ubuntu-latest' && (vars.CI_RUNNER_DIND || 'ubuntu-latest') || matrix.os }}"
+	prefix := "${{ startsWith(matrix.os, 'ubuntu') && (vars.CI_RUNNER || matrix.os) || matrix.os }}"
+	body := workflowHeader() + "jobs:\n" +
+		"  test:\n    strategy:\n      matrix:\n        go: [1.25.x, 1.26.x]\n        os: [ubuntu-latest, macos-latest, windows-latest]\n    runs-on: " + written + "\n    steps:\n      - run: make\n" +
+		"  clippy:\n    strategy:\n      matrix:\n        include:\n          - name: Linux\n            os: ubuntu-24.04\n          - name: Mac\n            os: macos-14\n    runs-on: " + prefix + "\n    steps:\n      - run: make\n" +
+		"  mac:\n    runs-on: macOS-latest\n    steps:\n      - run: make\n" +
+		"  two:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-14]\n        host: [a]\n    runs-on: ${{ matrix.host == 'a' && matrix.os || 'ubuntu-latest' }}\n    steps:\n      - run: make\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "        os: "+split(`["ubuntu-latest","macos-latest","windows-latest"]`, `["ubuntu-latest"]`)+"\n    runs-on: "+written+"\n", "a written expression keeps its Linux routing")
+	assert.Contains(t, got.Text, "        include: "+split(`[{"name":"Linux","os":"ubuntu-24.04"},{"name":"Mac","os":"macos-14"}]`, `[{"name":"Linux","os":"ubuntu-24.04"}]`)+"\n    runs-on: "+prefix+"\n")
+	assert.Contains(t, got.Text, "  mac:\n    if: "+publicOnly+"\n    runs-on: macOS-latest\n", "a label in any case is the same runner")
+	assert.Contains(t, got.Text, "        os: [ubuntu-latest, macos-14]\n", "an expression that reads two matrix keys is not read")
+}
+
 func TestPrivateRunnerSplitsABlockMatrixList(t *testing.T) {
 	body := workflowHeader() + "jobs:\n  build:\n    strategy:\n      matrix:\n        os:\n          - ubuntu-22.04\n          - macos-latest # apple\n          - self-hosted-box\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"
 	path := runnerRepo(t, PrivateRunnerFixture, body)

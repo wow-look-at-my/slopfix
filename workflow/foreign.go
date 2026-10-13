@@ -17,7 +17,11 @@ const publicOnly = "github.event.repository.visibility == 'public'"
 var visibilityTest = regexp.MustCompile(`github\.event\.repository\.visibility\s*==\s*'public'`)
 
 // hostedForeign matches a GitHub-hosted label the org runners cannot serve: macOS, Windows or arm.
-var hostedForeign = regexp.MustCompile(`^(macos|windows)-[A-Za-z0-9.-]+$|^ubuntu-(latest|[0-9]+\.[0-9]+)-arm$`)
+// GitHub reads a runner label without regard to case, so macOS-latest is macos-latest.
+var hostedForeign = regexp.MustCompile(`(?i)^(macos|windows)-[A-Za-z0-9.-]+$|^ubuntu-(latest|[0-9]+\.[0-9]+)-arm$`)
+
+// matrixKeyRef matches each matrix value an expression reads.
+var matrixKeyRef = regexp.MustCompile(`\bmatrix\.([A-Za-z_][A-Za-z0-9_-]*)`)
 
 // routedReference matches the runs-on expression that routes the hosted Linux values of a matrix.
 var routedReference = regexp.MustCompile(`^\$\{\{ \(github\.event\.repository\.visibility == 'public' \|\| !contains\(fromJSON\('[^']*'\), matrix\.([A-Za-z_][A-Za-z0-9_-]*)\)\) && matrix\.[A-Za-z0-9_-]+ \|\| vars\.CI_RUNNER(_DIND)? \|\| matrix\.[A-Za-z0-9_-]+ \}\}$`)
@@ -96,10 +100,34 @@ func foreignJobOf(job *yaml.Node) (foreignJob, bool) {
 	if m == nil {
 		m = routedReference.FindStringSubmatch(f.on.Value)
 	}
-	if m == nil {
+	if m != nil {
+		return foreignMatrix(f, job, m[1])
+	}
+	key, ok := onlyMatrixKey(f.on.Value)
+	if !ok {
 		return f, false
 	}
-	return foreignMatrix(f, job, m[1])
+	return foreignMatrix(f, job, key)
+}
+
+// onlyMatrixKey answers the one matrix key that a runs-on expression reads,
+// such as os in ${{ startsWith(matrix.os, 'ubuntu') && vars.CI_RUNNER || matrix.os }}.
+// The repair drops the foreign values from that key, and leaves the expression as written.
+func onlyMatrixKey(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if !strings.HasPrefix(value, "${{") || !strings.HasSuffix(value, "}}") || strings.Count(value, "${{") != 1 {
+		return "", false
+	}
+	refs := matrixKeyRef.FindAllStringSubmatch(value, -1)
+	if len(refs) == 0 {
+		return "", false
+	}
+	for _, ref := range refs {
+		if ref[1] != refs[0][1] {
+			return "", false
+		}
+	}
+	return refs[0][1], true
 }
 
 // foreignMatrix reads the values a matrix gives key. Every value foreign: the

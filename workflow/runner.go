@@ -32,7 +32,7 @@ var SelfHostExempt = set.Of(
 )
 
 // hostedLinux matches a GitHub-hosted x64 Linux label.
-var hostedLinux = regexp.MustCompile(`^ubuntu-(latest|[0-9]+\.[0-9]+)$`)
+var hostedLinux = regexp.MustCompile(`(?i)^ubuntu-(latest|[0-9]+\.[0-9]+)$`)
 
 // blindFallback matches an expression that picks an org runner variable.
 var blindFallback = regexp.MustCompile(`^\$\{\{\s*vars\.(CI_RUNNER|CI_RUNNER_DIND)\s*\|\|\s*'(ubuntu-(?:latest|[0-9]+\.[0-9]+))'\s*\}\}$`)
