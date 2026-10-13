@@ -145,7 +145,7 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			}
 			bold = "**"
 		}
-		if !admissible(s, source, d) {
+		if !admissible(s, source, d) || absolutePhrase(source, d) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."

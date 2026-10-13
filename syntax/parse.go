@@ -288,8 +288,8 @@ func secondObjectNoun(words []Word, i int) bool {
 }
 
 // phraseStart walks back from word i over the words of a noun phrase, an
-// aside in parentheses included, and answers where the phrase starts. It
-// answers i+1 when word i belongs to no noun phrase.
+// aside in parentheses. A hyphenated compound included, and answers where
+// the phrase starts. It answers i+1 when word i belongs to no noun phrase.
 func phraseStart(words []Word, i int) int {
 	depth := 0
 	for ; i >= 0; i-- {
@@ -300,11 +300,22 @@ func phraseStart(words []Word, i int) int {
 			depth = max(depth-1, 0)
 		case depth > 0:
 		case t == "DT" || t == "PRP$" || t == "POS" || t == "CD" || strings.HasPrefix(t, "JJ") || isNoun(t):
+		case strings.Contains(strings.Trim(words[i].Text, "-"), "-") || joinedByHyphen(words, i):
+			// "in-place" is one word of the phrase, whatever the tagger reads its parts as.
 		default:
 			return i + 1
 		}
 	}
 	return 0
+}
+
+// joinedByHyphen reports word i that a hyphen joins to the word after it, or a
+// hyphen. That sits between a couple of words with no blank: "in - place".
+func joinedByHyphen(words []Word, i int) bool {
+	if i+1 >= len(words) || words[i].End != words[i+1].Start {
+		return false
+	}
+	return words[i].Text == "-" || words[i+1].Text == "-"
 }
 
 // colonFollowsClause reports a clause before the colon at index colon: a finite

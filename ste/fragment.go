@@ -149,6 +149,29 @@ func openDivision(source string, d division) string {
 	return joinOpener(d.opener, rest)
 }
 
+// absolutePhrase reports a division at a bare comma whose rest holds no verb
+// but a regular past form. "each rung's ratio raised to its elasticity" names
+// a noun and a participle that describes it. With no auxiliary, the past form
+// reads as a participle, and the rest is a phrase of the sentence before it.
+func absolutePhrase(source string, d division) bool {
+	if d.opener != "" || strings.TrimSpace(source[d.leftEnd:d.rightStart]) != "," {
+		return false
+	}
+	s := syntax.Parse(checkMask(restOf(source, d)), nil)
+	past := false
+	for _, w := range s.Words {
+		switch {
+		case w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "MD":
+			return false
+		case w.Tag == "VBD" && strings.HasSuffix(w.Lower(), "ed"):
+			past = true
+		case w.Tag == "VBD":
+			return false
+		}
+	}
+	return past
+}
+
 // conjoinedClause writes the clause after a conjunction as a sentence behind
 // the conjunction's opener, and answers "" where the words are no clause. A so
 // states a consequence that a bare period loses, so it never divides here.
