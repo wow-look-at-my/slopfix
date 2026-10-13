@@ -98,8 +98,8 @@ var realSentences = []struct {
 	},
 	{
 		"a restated identifier subject keeps its case",
-		"foreignJobs now shows each job's label and runner in the workflow file, lets you move jobs with a matrix, keeps the foreign jobs to a public repository by default, and drops older hosted labels from the list.",
-		"foreignJobs now shows each job's label and runner in the workflow file and lets you move jobs with a matrix. foreignJobs also keeps the foreign jobs to a public repository by default, and drops older hosted labels from the list.",
+		"foreignJobs answers each job of content that runs on a foreign hosted label in a private repository, and that the repair can keep to a public one.",
+		"foreignJobs answers each job of content that runs on a foreign hosted label in a private repository. foreignJobs also answers that the repair can keep to a public one.",
 	},
 	{
 		"a compound subject stays whole",
