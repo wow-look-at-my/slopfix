@@ -449,6 +449,31 @@ func sentences(prose string) []string {
 	})
 }
 
+// cutSentences splits comment prose where a cut may land. A sentence opens on
+// a capital or on an identifier in lower case, such as cubeCount_.
+func cutSentences(prose string) []string {
+	return ste.SentencesOpenedBy(prose, func(rest []rune) bool {
+		return ste.OpensSentence(rest) || opensOnIdentifier(rest)
+	})
+}
+
+// opensOnIdentifier reports words that open on a name from code in lower case.
+// Such a name holds a capital, a digit or an underscore after its first letter.
+func opensOnIdentifier(rest []rune) bool {
+	if len(rest) == 0 || !unicode.IsLower(rest[0]) {
+		return false
+	}
+	for _, r := range rest[1:] {
+		if unicode.IsSpace(r) {
+			return false
+		}
+		if unicode.IsUpper(r) || unicode.IsDigit(r) || r == '_' {
+			return true
+		}
+	}
+	return false
+}
+
 // split separates a comment line's marker and indent from its prose.
 func split(line string) (marker, prose string, ok bool) {
 	marker, prose, _, ok = splitBlock(line)

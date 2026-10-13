@@ -29,7 +29,7 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 			joined += "."
 		}
 		// A comment sentence can open on an identifier in lower case: "adopt. cubeCount_ = 0 forces" holds a couple of sentences.
-		found := sentences(ste.FixKeepingOpening(joined))
+		found := cutSentences(ste.FixKeepingOpening(joined))
 		if len(found) == 0 {
 			return nil, false
 		}
