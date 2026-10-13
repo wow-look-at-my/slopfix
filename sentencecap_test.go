@@ -122,7 +122,7 @@ func TestALongSentenceInARunScriptCommentIsRepaired(t *testing.T) {
 	assert.NotContains(t, findingIDs(slopfix.CheckContent(path, out)), ste.IDSentenceCap, out)
 }
 
-// A division that restates a lowerCamel subject keeps its case. A capital
+// A division that restates an identifier subject keeps its case. A capital
 // makes ForeignJobs, a name nothing defines, and the dead-name check fails.
 func TestADivisionRestatesAnIdentifierSubjectWithItsCase(t *testing.T) {
 	src := "package demo\n\n" +
