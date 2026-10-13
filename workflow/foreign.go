@@ -40,9 +40,8 @@ type foreignJob struct {
 	foreign  []string
 }
 
-// foreignJobs answers each job of content that runs on a foreign hosted label
-// in a private repository. ForeignJobs also answers that the repair can keep
-// to a public one.
+// foreignJobs answers each job of content on a foreign hosted label that the
+// repair can keep to a public repository.
 func foreignJobs(content string) []foreignJob {
 	var doc yaml.Node
 	if yaml.Unmarshal([]byte(content), &doc) != nil {
