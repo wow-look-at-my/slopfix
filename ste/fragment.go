@@ -179,10 +179,29 @@ func conjoinedClause(conjunction, opener, clause string) string {
 	if conjunction == "so" || clause == "" || lowerIdentifier(firstToken.FindString(clause)) {
 		return ""
 	}
-	if !StandsAlone(capitalizeOpening(clause)) {
+	if !StandsAlone(capitalizeOpening(clause)) && !verbAfterRelative(clause) {
 		return ""
 	}
 	return joinOpener(opener, clause)
+}
+
+// verbAfterRelative reports a subject whose relative clause ends on its verb,
+// right before the main verb in its bare form: "the rules that follow give".
+// The parse reads both verbs into the relative clause, and the main clause then
+// has none.
+func verbAfterRelative(clause string) bool {
+	s := syntax.Parse(checkMask(opening(clause)), nil)
+	for i := 1; i+2 < len(s.Words); i++ {
+		w := s.Words[i]
+		if w.Tag != "WDT" && w.Lower() != "that" || !strings.HasPrefix(s.Words[i-1].Tag, "NN") {
+			continue
+		}
+		relative, main := s.Words[i+1], s.Words[i+2]
+		if finiteVerbTag(relative.Tag) && !auxiliaryVerbs.Contains(relative.Lower()) && (main.Tag == "VB" || main.Tag == "VBP") {
+			return true
+		}
+	}
+	return false
 }
 
 // presentClause reports words that hold a verb in the present tense, or a
