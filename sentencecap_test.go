@@ -128,7 +128,7 @@ func TestADivisionRestatesAnIdentifierSubjectWithItsCase(t *testing.T) {
 	src := "package demo\n\n" +
 		"// foreignJobs answers each job of content that runs on a foreign hosted label\n" +
 		"// in a private repository, and that the repair can keep to a public one.\n" +
-		"func foreignJobs() {\n" + strings.Repeat("\tstep()\n", 20) + "}\n\nfunc step() {}\n"
+		"func foreignJobs() {\n" + strings.Repeat("\tstep()\n", 60) + "}\n\nfunc step() {}\n"
 	require.Contains(t, findingIDs(slopfix.CheckContent("demo.go", src)), ste.IDSentenceCap, "the control: the comment is over the cap")
 
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "demo.go", MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
