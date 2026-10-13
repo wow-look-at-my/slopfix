@@ -139,6 +139,16 @@ func carryRest(rest string) string {
 	return ""
 }
 
+// openDivision writes the rest of a clause division as a sentence, behind the
+// division's opener.
+func openDivision(source string, d division) string {
+	rest := restOf(source, d)
+	if d.opener == "" && lowerIdentifier(firstToken.FindString(rest)) {
+		return carryRest(rest)
+	}
+	return joinOpener(d.opener, rest)
+}
+
 // conjoinedClause writes the clause after a conjunction as a sentence behind
 // the conjunction's opener, and answers "" where the words are no clause. A so
 // states a consequence that a bare period loses, so it never divides here.
