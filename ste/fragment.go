@@ -254,6 +254,35 @@ func presentClause(text string) bool {
 	return false
 }
 
+// dependentRest reports a cut whose rest cannot stand as a sentence of its own,
+// though it holds a subject and a verb. One is a clause of manner: "as a
+// variable such as q is". Another is the next item of a list whose verb came
+// before the cut: "a digit, | an underscore or a dot inside it, or it is".
+func dependentRest(whole *syntax.Sentence, c forceCut) bool {
+	n := wordsBefore(whole, c.right)
+	if n >= len(whole.Words) {
+		return false
+	}
+	if whole.Words[n].Lower() == "as" && finiteBefore(whole, n+1, ",") {
+		return true
+	}
+	if n < 1 || whole.Words[n-1].Text != "," || !nounOpener(whole.Words[n].Tag) {
+		return false
+	}
+	// The rest continues the list when another comma or a conjunction comes before its first verb.
+	for i := n + 1; i < len(whole.Words) && !finiteAt(whole, i); i++ {
+		if whole.Words[i].Text == "," || whole.Words[i].Tag == "CC" {
+			return true
+		}
+	}
+	return false
+}
+
+// nounOpener reports a tag a noun phrase opens with.
+func nounOpener(tag string) bool {
+	return tag == "DT" || tag == "PRP$" || tag == "CD" || strings.HasPrefix(tag, "JJ") || strings.HasPrefix(tag, "NN")
+}
+
 // listDivision divides a list that holds no verb at all, such as the terms of a
 // formula: "Per octant, the total mass, the mean, ..., and the flatness". It
 // closes the list at the last comma that leaves the head under the cap, and

@@ -228,7 +228,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < minimumHalf {
 			continue
 		}
-		if len(ends)-c.words < minimumHalf {
+		if len(ends)-c.words < minimumHalf || dependentRest(whole, c) {
 			continue
 		}
 		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {

@@ -73,7 +73,7 @@ func lowerIdentifier(word string) bool {
 // cap, and the rest stands behind "This also covers".
 const verblessListCase = `package moments
 
-// Per octant, the total mass, the mean position, the second moment, the weighted color, the merged opacity, the luma variance per cube, and the flatness ratio of the stack against an opaque layer of the same cube.
+// Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube, and flatness ratio of the stack against an opaque layer of the same cube.
 func octantMoments(masses, positions, colors []float64) (mass, mean, color float64) {
 	for i, m := range masses {
 		mass += m
@@ -90,7 +90,7 @@ func octantMoments(masses, positions, colors []float64) (mass, mean, color float
 
 const verblessListWant = `package moments
 
-// Per octant, the total mass, the mean position, the second moment, the weighted color, the merged opacity, the luma variance per cube. This also covers the flatness ratio of the stack against an opaque layer of
+// Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube. This also covers flatness ratio of the stack against an opaque layer of
 // the same cube.
 func octantMoments(masses, positions, colors []float64) (mass, mean, color float64) {
 	for i, m := range masses {

@@ -21,6 +21,14 @@ var splatComments = []struct{ in, want string }{
 		"animation-prepack-equivalence - the animation pre-pack's byte gate: every adopted frame of a synthetic clip lands records, cubeBuf, C and a rendered image equal to the live async tick wire's, on the copy and the in-place (UMA direct) row wires; a repeated C reuses its pipeline triple; an edge repack of an adopted frame and a resumed live tick match too.",
 		"animation-prepack-equivalence - the animation pre-pack's byte gate. Every adopted frame of a synthetic clip lands records and cubeBuf. Every adopted frame also lands C and a rendered image equal to the live async tick wire's. That frame is on the copy and the in-place (UMA direct) row wires. A repeated C reuses its pipeline triple. An edge repack of an adopted frame and a resumed live tick match too.",
 	},
+	{
+		"It carries a capital, a digit, an underscore or a dot inside it, or it is a single letter other than the article, as a variable such as q is.",
+		"It carries a capital, a digit, an underscore or a dot inside it. Otherwise, it is a single letter other than the article, as a variable such as q is.",
+	},
+	{
+		"Per octant, total mass W = sum o_i sqrt(det Sigma_i), mean mu, second moment Sigma_m, mass-weighted color, merged opacity o_m = min(1, W / sqrt(det Sigma_m)), and per cube the luma variance.",
+		"Per octant, total mass W = sum o_i sqrt(det Sigma_i), mean mu, second moment Sigma_m, mass-weighted color, merged opacity o_m = min(1, W / sqrt(det Sigma_m)). This also covers per cube the luma variance.",
+	},
 }
 
 // A list after a colon that a clause opens, behind a conjunction, divides under
