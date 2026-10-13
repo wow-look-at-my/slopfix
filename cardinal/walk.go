@@ -49,6 +49,32 @@ func LabeledToken(_ string, toks []Token, i int) bool {
 	return InClass(strings.Trim(toks[i-1].Text, nameMarkers), "label")
 }
 
+// ValueToken exempts a number that states a value rather than counting a set.
+// A flag takes one: "--warp-field 0". A set literal holds one: "{1,2,4,8}". An
+// assignment sets one: "0 = off". A unit measures one: "16 px". It can be the
+// subject of "is", or end its clause with no noun to count: "exactly 0.".
+func ValueToken(text string, toks []Token, i int) bool {
+	tok := toks[i]
+	rest := strings.TrimLeft(text[tok.Offset+len(tok.Text):], " \t")
+	if fields := strings.Fields(rest); len(fields) > 0 && IsUnit(fields[0]) {
+		return true
+	}
+	if !allDigits(tok.Text) {
+		return false
+	}
+	before := strings.Fields(text[:tok.Offset])
+	if n := len(before); n > 0 && strings.HasPrefix(before[n-1], "-") && strings.IndexFunc(before[n-1], unicode.IsLetter) >= 0 {
+		return true
+	}
+	if open := strings.LastIndex(text[:tok.Offset], "{"); open >= 0 && !strings.Contains(text[open:tok.Offset], "}") {
+		return true
+	}
+	if rest == "" || strings.ContainsRune(".,;:)=", rune(rest[0])) {
+		return true
+	}
+	return singularVerbs.Contains(strings.ToLower(strings.Trim(strings.Fields(rest)[0], ".,;:")))
+}
+
 // MeasureToken exempts a number whose plural noun takes a singular verb: "43
 // cols is less than the cap". The phrase is one measured amount, a value of a
 // test or a format, and a cut leaves "cols is".

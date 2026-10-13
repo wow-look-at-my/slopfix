@@ -18,6 +18,7 @@ func init() {
 			{Name: "a cut keeps the rule that opens each line", Path: "test-governor.cpp", Text: ruledNumbersCase, Want: ruledNumbersWant},
 			{Name: "index zero after a possessive is the first item", Path: "froxel-path.h", Text: chunkZeroCase, Want: chunkZeroWant},
 			{Name: "index zero is the first item", Path: "froxel-path.cpp", Text: frameZeroCase, Want: frameZeroWant},
+			{Name: "a value is never a count", Path: "warp-pass.h", Text: valuesCase, Want: valuesWant},
 		},
 	})
 }
@@ -39,6 +40,39 @@ const chunkZeroWant = `struct FroxelPath {
   // the caller's buffer into srcRows_.
   bool beginFeedTickFromBuffer(Context& ctx, VkBuffer rows, uint32_t count, double edge,
                                std::string* why = nullptr, bool direct = false);
+};
+`
+
+// valuesCase holds a single count beside values the repair leaves alone: a
+// flag's value, a set literal, an assignment, a measurement in a unit. The
+// subject of "is", and a number that ends its clause.
+const valuesCase = `struct WarpPass {
+  // The pass ships 4 hooks.
+  //
+  // It reads N px/texel (N in {1,2,4,8}; 4 is the default, 0 = off).
+  // Pin --warp-field 0, so the field holds no 16 px cell structure.
+  // Inert pixels still produce mask exactly 0.
+  void record(int n) {
+    density_ = n;
+    mask_ = 0;
+    field_ = n * 2;
+    cells_ = n + 1;
+  }
+};
+`
+
+const valuesWant = `struct WarpPass {
+  // The pass ships hooks.
+  //
+  // It reads N px/texel (N in {1,2,4,8}; 4 is the default, 0 = off).
+  // Pin --warp-field 0, so the field holds no 16 px cell structure.
+  // Inert pixels still produce mask exactly 0.
+  void record(int n) {
+    density_ = n;
+    mask_ = 0;
+    field_ = n * 2;
+    cells_ = n + 1;
+  }
 };
 `
 
