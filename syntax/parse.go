@@ -142,6 +142,11 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 			continue
 		}
 		listed := p.Head+1 < len(words) && (words[p.Head+1].Tag == "," || words[p.Head+1].Tag == "WDT" || words[p.Head+1].Lower() == "that")
+		// "center depth sorts triangles": of a couple of plurals after a singular noun, the first is the verb.
+		if head.Tag == "NNS" && before.Tag == "NNS" && verbEnding(before.Text) && p.Head-2 >= p.First && words[p.Head-2].Tag == "NN" {
+			words[p.Head-1].Tag = "VBZ"
+			return true
+		}
 		switch {
 		case head.Tag == "NNS" && filler(before.Text) && listed:
 			// "`deny` rules, hooks": a name and a plural before a comma or a relative word are a noun phrase.

@@ -104,7 +104,7 @@ func repairNumbers(f *fixer.File) {
 	}
 }
 
-// danglingMarkers deletes each bare comment line the repair left with nothing under it. The line was a paragraph break somebody wrote, and a break that separates a paragraph from the code below it separates nothing.
+// danglingMarkers deletes each bare comment line the repair left with no prose under it or over it. The line was a paragraph break somebody wrote, and a break at the edge of a comment separates nothing.
 //
 // The tree names the lines to weigh. So a line of code that only opens with a marker's characters never reads as an empty comment.
 func danglingMarkers(filename, src string) []edit.Edit {
@@ -112,15 +112,18 @@ func danglingMarkers(filename, src string) []edit.Edit {
 	lines := strings.Split(src, "\n")
 	var edits []edit.Edit
 	for i := 0; i < len(lines); i++ {
-		if !commented.Contains(i) || !bareMarker(lines[i]) || carriesProse(lines, commented, i+1) {
+		if !commented.Contains(i) || !bareMarker(lines[i]) {
 			continue
 		}
 		// A run of bare lines goes as a single edit, so no edits share a line end.
 		j := i
-		for j+1 < len(lines) && commented.Contains(j+1) && bareMarker(lines[j+1]) && !carriesProse(lines, commented, j+2) {
+		for j+1 < len(lines) && commented.Contains(j+1) && bareMarker(lines[j+1]) {
 			j++
 		}
-		edits = append(edits, edit.Lines(src, i, j, 0, nil))
+		// A break with no prose above it or below it separates nothing.
+		if !carriesProse(lines, commented, j+1) || !carriesProse(lines, commented, i-1) {
+			edits = append(edits, edit.Lines(src, i, j, 0, nil))
+		}
 		i = j
 	}
 	return edits

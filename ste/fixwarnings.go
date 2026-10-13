@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -288,7 +289,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	noun := func(k int) bool {
 		w := s.Words[k]
 		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			wordlike(w.Text) && !versus.Contains(w.Lower())
+			wordlike(w.Text) && !versus.Contains(w.Lower()) && !inTitle(s, k)
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -304,6 +305,20 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		start = end
 	}
 	return -1, -1, false
+}
+
+// inTitle reports a capitalized word beside another capitalized word. A run in
+// title case names a paper, a product or a section, as in "Real-Time Radiance
+// Field Rendering". A name is one token, and no rewrite reorders it.
+func inTitle(s *syntax.Sentence, k int) bool {
+	upper := func(i int) bool {
+		if i < 0 || i >= len(s.Words) {
+			return false
+		}
+		first, _ := utf8.DecodeRuneInString(s.Words[i].Text)
+		return unicode.IsUpper(first) || unicode.IsDigit(first) && strings.IndexFunc(s.Words[i].Text, unicode.IsUpper) > 0
+	}
+	return upper(k) && (upper(k-1) || upper(k+1))
 }
 
 // wordlike reports a token made of letters and digits, which can be a noun. The

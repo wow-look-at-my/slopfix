@@ -338,7 +338,8 @@ func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 	}
 	for _, c := range whole.Clauses {
 		if whole.Words[c.First].Start <= w.Start && w.Start <= whole.Words[c.Last].Start {
-			return c.Depth == 0 && c.Verb != nil
+			// "a capital, a digit, an underscore or a dot inside it": the last item of an object list joins the main clause's verb.
+			return c.Depth == 0 && (c.Verb != nil || c.Kind == syntax.Coordinate && c.Subject == nil)
 		}
 	}
 	return false

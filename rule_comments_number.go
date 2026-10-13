@@ -19,9 +19,38 @@ func init() {
 			{Name: "index zero after a possessive is the first item", Path: "froxel-path.h", Text: chunkZeroCase, Want: chunkZeroWant},
 			{Name: "index zero is the first item", Path: "froxel-path.cpp", Text: frameZeroCase, Want: frameZeroWant},
 			{Name: "a value is never a count", Path: "warp-pass.h", Text: valuesCase, Want: valuesWant},
+			{Name: "a cut paragraph takes its break with it", Path: "warp-pass.h", Text: cutParagraphCase, Want: cutParagraphWant},
 		},
 	})
 }
+
+// cutParagraphCase opens with a paragraph of a single sentence the number cut
+// takes whole. The break under it then separates nothing, so it goes too.
+const cutParagraphCase = `struct WarpPass {
+  // The pass ships 4 hooks.
+  //
+  // It reads N px/texel (N in {1,2,4,8}; 0 = off).
+  // Pin --warp-field 0 for the pre-field warp.
+  void record(int n) {
+    density_ = n;
+    mask_ = 0;
+    field_ = n * 2;
+    cells_ = n + 1;
+  }
+};
+`
+
+const cutParagraphWant = `struct WarpPass {
+  // It reads N px/texel (N in {1,2,4,8}; 0 = off).
+  // Pin --warp-field 0 for the pre-field warp.
+  void record(int n) {
+    density_ = n;
+    mask_ = 0;
+    field_ = n * 2;
+    cells_ = n + 1;
+  }
+};
+`
 
 // chunkZeroCase names an item by its index: "chunk 0" is the first chunk, and
 // "one chunk" says another thing.

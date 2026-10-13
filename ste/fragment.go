@@ -254,6 +254,31 @@ func presentClause(text string) bool {
 	return false
 }
 
+// listDivision divides a list that holds no verb at all, such as the terms of a
+// formula: "Per octant, the total mass, the mean, ..., and the flatness". It
+// closes the list at the last comma that leaves the head under the cap, and
+// the rest of the list stands behind "This also covers".
+func listDivision(source, masked string, limit int) (string, bool) {
+	if holdsFinite(masked) {
+		return source, false
+	}
+	best := forceCut{words: -1}
+	for _, c := range candidates(source, masked, false, limit) {
+		if seamBefore(source, c.left) != "," || cutsAside(masked, c.left, c.right) || c.words < minimumHalf {
+			continue
+		}
+		if WordCount(masked[c.right:]) >= minimumHalf && c.words > best.words {
+			best = c
+		}
+	}
+	if best.words < 0 {
+		return source, false
+	}
+	rest := strings.TrimLeft(source[best.right:], " ")
+	rest = rest[len(leadingConjunction.FindString(rest)):]
+	return closeHead(source[:best.left]) + " This also covers " + rest, true
+}
+
 // opensList reports a right part that opens a list item, whose own text is no
 // sentence: "- `/dev` (a terminal, a PTY) — read and write."
 func opensList(right string) bool {

@@ -16,9 +16,95 @@ func init() {
 			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: variableOpensCase, Want: variableOpensWant},
 			{Name: "a rule around comment prose stays at the edges", Path: "governor.cpp", Text: ruledCommentCase, Want: ruledCommentWant},
 			{Name: "the objects of a preposition stay joined", Path: "CMakeLists.txt", Text: coordinatedObjectsCase, Want: coordinatedObjectsWant},
+			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: mannerClauseCase, Want: mannerClauseWant},
+			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: verblessListCase, Want: verblessListWant},
 		},
 	})
 }
+
+// mannerClauseCase holds a sentence over the cap that ends on a clause of
+// manner. "As a variable such as q is" stands as no sentence, so the division
+// lands at ", or", where the clause after it stands.
+const mannerClauseCase = `package ident
+
+import "strings"
+
+// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it, or it is a single letter other than the article, as a variable such as q is.
+func lowerIdentifier(word string) bool {
+	if word == "" {
+		return false
+	}
+	if len(word) == 1 {
+		return word != "a"
+	}
+	for _, r := range word[1:] {
+		if r == '_' || r == '.' || r >= '0' && r <= '9' || r >= 'A' && r <= 'Z' {
+			return true
+		}
+	}
+	return strings.ToLower(word) != word
+}
+`
+
+const mannerClauseWant = `package ident
+
+import "strings"
+
+// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it. Otherwise, it is a single letter other than the article, as a variable such
+// as q is.
+func lowerIdentifier(word string) bool {
+	if word == "" {
+		return false
+	}
+	if len(word) == 1 {
+		return word != "a"
+	}
+	for _, r := range word[1:] {
+		if r == '_' || r == '.' || r >= '0' && r <= '9' || r >= 'A' && r <= 'Z' {
+			return true
+		}
+	}
+	return strings.ToLower(word) != word
+}
+`
+
+// verblessListCase holds a list over the cap that names terms and holds no
+// verb, as the terms of a formula do. It closes at the last comma under the
+// cap, and the rest stands behind "This also covers".
+const verblessListCase = `package moments
+
+// Per octant, the total mass, the mean position, the second moment, the weighted color, the merged opacity, the luma variance per cube, and the flatness ratio of the stack against an opaque layer of the same cube.
+func octantMoments(masses, positions, colors []float64) (mass, mean, color float64) {
+	for i, m := range masses {
+		mass += m
+		mean += m * positions[i]
+		color += m * colors[i]
+	}
+	if mass > 0 {
+		mean /= mass
+		color /= mass
+	}
+	return mass, mean, color
+}
+`
+
+const verblessListWant = `package moments
+
+// Per octant, the total mass, the mean position, the second moment, the weighted color, the merged opacity, the luma variance per cube. This also covers the flatness ratio of the stack against an opaque layer of
+// the same cube.
+func octantMoments(masses, positions, colors []float64) (mass, mean, color float64) {
+	for i, m := range masses {
+		mass += m
+		mean += m * positions[i]
+		color += m * colors[i]
+	}
+	if mass > 0 {
+		mean /= mass
+		color /= mass
+	}
+	return mass, mean, color
+}
+`
 
 // carrierConjunctionCase holds a noun phrase over the cap whose list after a
 // colon ends on ", and". A carrier in front of "and the scalars it set" reads
