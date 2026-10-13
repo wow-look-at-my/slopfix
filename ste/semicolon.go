@@ -213,10 +213,17 @@ func listOpener(text string, from, end int) string {
 		return "This also covers"
 	}
 	item := segmentAfter(text, from, end)
-	if presentClause(item) && standsAsSentence(capitalizeOpening(item)) {
+	if presentClause(item) && standsAsSentence(capitalizeOpening(item)) || closesPredicate(item) {
 		return ""
 	}
 	return "This also covers"
+}
+
+// closesPredicate reports an item that ends on "too", which closes a verb's
+// predicate and never a noun phrase: "a resumed live tick match too".
+func closesPredicate(item string) bool {
+	fields := strings.Fields(strings.TrimRight(item, " .;"))
+	return len(fields) > 2 && strings.ToLower(fields[len(fields)-1]) == "too"
 }
 
 // leadingConjunction is the "and" or "or" that opens the last item of a list.
