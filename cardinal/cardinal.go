@@ -58,7 +58,7 @@ var Prose = Substrate{
 	Shape:  Quantity,
 	Frame:  true,
 	Words:  proseWords,
-	Exempt: []Exemption{ContinuesANumber, InExpression, FunctionWordGap, StatusCode, Labeled, SectionCite, IssueNumber, GPUName, WordSize, Measure, InUnits},
+	Exempt: []Exemption{ContinuesANumber, InExpression, FunctionWordGap, StatusCode, Labeled, SectionCite, IssueNumber, GPUName, WordSize, Measure},
 }
 
 // Gate is the same document, as the merge gate's stale-count rule reads it.
@@ -67,7 +67,7 @@ var Gate = Substrate{
 	Shape:    Quantity,
 	Frame:    false,
 	Words:    gateWords,
-	Exempt:   []Exemption{InExpression, FunctionWordGap, AfterAnArticle, ChoiceAmongASet, StatusCode, Labeled, SectionCite, IssueNumber, GPUName, WordSize, NoPluralNounAfter, Measure, InUnits},
+	Exempt:   []Exemption{InExpression, FunctionWordGap, AfterAnArticle, ChoiceAmongASet, StatusCode, Labeled, SectionCite, IssueNumber, GPUName, WordSize, NoPluralNounAfter, Measure},
 	quantity: gateQuantity,
 }
 

@@ -43,15 +43,13 @@ const chunkZeroWant = `struct FroxelPath {
 };
 `
 
-// valuesCase holds a single count beside values the repair leaves alone: a
-// flag's value, a set literal, an assignment, a measurement in a unit. The
-// subject of "is", and a number that ends its clause.
+// valuesCase holds a single count beside values the repair leaves alone: the
+// value of a flag, a set literal and an assignment.
 const valuesCase = `struct WarpPass {
   // The pass ships 4 hooks.
   //
-  // It reads N px/texel (N in {1,2,4,8}; 4 is the default, 0 = off).
-  // Pin --warp-field 0, so the field holds no 16 px cell structure.
-  // Inert pixels still produce mask exactly 0.
+  // It reads N px/texel (N in {1,2,4,8}; 0 = off).
+  // Pin --warp-field 0 for the pre-field warp.
   void record(int n) {
     density_ = n;
     mask_ = 0;
@@ -64,9 +62,8 @@ const valuesCase = `struct WarpPass {
 const valuesWant = `struct WarpPass {
   // The pass ships hooks.
   //
-  // It reads N px/texel (N in {1,2,4,8}; 4 is the default, 0 = off).
-  // Pin --warp-field 0, so the field holds no 16 px cell structure.
-  // Inert pixels still produce mask exactly 0.
+  // It reads N px/texel (N in {1,2,4,8}; 0 = off).
+  // Pin --warp-field 0 for the pre-field warp.
   void record(int n) {
     density_ = n;
     mask_ = 0;

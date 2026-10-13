@@ -402,18 +402,6 @@ func SectionCite(text string, q Match) bool {
 	return size > 0 && last == sectionSign
 }
 
-// InUnits exempts a measurement: a quantity in a unit of measure, as in "60
-// fps" or "49 ms".
-func InUnits(_ string, q Match) bool {
-	fields := strings.Fields(q.Text)
-	for _, word := range fields[min(1, len(fields)):] {
-		if IsUnit(word) {
-			return true
-		}
-	}
-	return false
-}
-
 // IssueNumber exempts the digits of the literal shape "issue #<digits>". An
 // issue number never changes.
 func IssueNumber(text string, q Match) bool {
