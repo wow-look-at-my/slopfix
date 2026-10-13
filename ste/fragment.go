@@ -53,8 +53,13 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {
 			continue
 		}
+		// A capital renames an identifier written in lower case, so no part opens on one.
+		rest := strings.TrimLeft(source[c.right:], " ")
+		if lowerIdentifier(firstToken.FindString(rest)) {
+			continue
+		}
 		left := closeHead(source[:c.left])
-		right := capitalizeOpening(strings.TrimLeft(source[c.right:], " "))
+		right := capitalizeOpening(rest)
 		if !divides(left, right, limit) {
 			continue
 		}
@@ -90,15 +95,9 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 			continue
 		}
 		left := closeHead(source[:c.left])
-		right := capitalizeOpening(strings.TrimLeft(source[c.right:], " "))
-		// The right part must read as a sentence, or open a list. A noun
-		// phrase before a mark stands behind "This is" instead of a fragment.
-		if !opensList(right) && !StandsAlone(right) {
-			if carried := "This is " + strings.TrimLeft(source[c.right:], " "); StandsAlone(capitalizeOpening(carried)) {
-				right = capitalizeOpening(carried)
-			}
-		}
-		if left == "" || right == "" || !StandsAlone(right) && !opensList(right) || !divides(left, right, limit) {
+		// The right part must read as a sentence, or open a list.
+		right := carryRest(source[c.right:])
+		if left == "" || right == "" || !divides(left, right, limit) {
 			continue
 		}
 		if n > bestWords {
@@ -106,6 +105,56 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 		}
 	}
 	return best, bestWords >= 0
+}
+
+// carryRest writes the words after a mark as a sentence of their own, and
+// answers "" where they make none. Words that stand alone, or open a list,
+// open with a capital. A noun phrase stands behind "This is". Words that open
+// on a conjunction add to what the mark ended, so no carrier goes in front of
+// them: "This is and the scalars it set" is no sentence. A capital renames an
+// identifier written in lower case. Words that open on one keep its case, and
+// stand only behind the carrier, as a noun phrase: "This is q split over the
+// rungs".
+func carryRest(rest string) string {
+	rest = strings.TrimLeft(rest, " ")
+	first := firstToken.FindString(rest)
+	if first == "" {
+		return ""
+	}
+	identifier := lowerIdentifier(first)
+	if right := capitalizeOpening(rest); !identifier && (opensList(right) || StandsAlone(right)) {
+		return right
+	}
+	if _, joins := connectors[strings.ToLower(strings.TrimRight(first, ",;:"))]; joins {
+		return ""
+	}
+	if identifier && presentClause(rest) {
+		return ""
+	}
+	if carried := "This is " + rest; StandsAlone(carried) {
+		return carried
+	}
+	return ""
+}
+
+// presentClause reports words that hold a verb in the present tense, or a
+// modal, outside a relative clause. They read as a clause, and no carrier
+// makes a noun phrase of them. A past form can be a participle that describes
+// the noun before it, as in "q split over the rungs", so it does not count.
+func presentClause(text string) bool {
+	s := syntax.Parse(checkMask(opening(text)), nil)
+	inside := false
+	for i, w := range s.Words {
+		switch {
+		case w.Text == ",":
+			inside = false
+		case w.Tag == "WDT" || w.Tag == "WP" || w.Lower() == "that":
+			inside = true
+		case i > 0 && !inside && (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "MD") && !inReducedRelative(s, i):
+			return true
+		}
+	}
+	return false
 }
 
 // opensList reports a right part that opens a list item, whose own text is no

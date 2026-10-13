@@ -46,6 +46,8 @@ type RuleCase struct {
 	Files map[string]string
 	// Unchanged marks a case the rule must leave as written.
 	Unchanged bool
+	// Want pins what the autofix writes: Path's content, or the message when the case has no Path.
+	Want string
 	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
 	Origin string
 	// Actions maps a step's uses value to the runs.using that Materialize records for it.

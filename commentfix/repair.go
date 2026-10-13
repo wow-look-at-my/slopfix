@@ -169,7 +169,7 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 			continue
 		}
 		first, last := para.lines[0], para.lines[len(para.lines)-1]
-		if said == "" && para.code != "" && para.trailer == "" {
+		if said == "" && para.code != "" && !closesBlock(para.trailer) {
 			// A comment following code loses the comment, and the code stays.
 			e := edit.Lines(src, first, last, len(strings.TrimRight(para.code, " \t")), []string{""})
 			e.Cut = cut
@@ -189,7 +189,7 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 			wrapped = []string{strings.TrimRight(para.marker+said, " ")}
 		}
 		// An emptied block after code keeps its delimiters, because the code holds the line.
-		if len(wrapped) == 0 && para.trailer != "" {
+		if len(wrapped) == 0 && closesBlock(para.trailer) {
 			wrapped = []string{strings.TrimRight(para.marker, " ")}
 		}
 		if n := len(para.lines); len(wrapped) > n {
@@ -289,6 +289,10 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 				if trailer != "" {
 					current.trailer = trailer
 				}
+				// A rule that closes a line ends a heading, so the paragraph ends with it.
+				if trailer != "" && !closesBlock(trailer) {
+					current = nil
+				}
 			}
 		}
 	}
@@ -344,7 +348,7 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 		}
 	}
 	// A block with no closer is not a block this can safely rewrite.
-	return b, b.prose != "" && b.trailer != ""
+	return b, b.prose != "" && closesBlock(b.trailer)
 }
 
 // alignedLine reads a block's continuation line that carries no marker and
@@ -471,12 +475,50 @@ func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 		}
 		space := rest[:len(rest)-len(strings.TrimLeft(rest, " \t"))]
 		body := strings.TrimSpace(rest)
+		closer := ""
 		if cut, held := strings.CutSuffix(body, "*/"); held {
-			return indent + m + space, strings.TrimSpace(cut), "*/", true
+			body, closer = strings.TrimSpace(cut), "*/"
 		}
-		return indent + m + space, body, "", true
+		// A rule drawn around the prose belongs to the marker and the closer.
+		lead, body, rule := cutRules(body)
+		return indent + m + space + lead, body, strings.TrimSpace(rule + " " + closer), true
 	}
 	return "", "", "", false
+}
+
+// ruleChars are the characters a comment draws a rule with, as in "// ---- the probe ----".
+const ruleChars = "-=*~#"
+
+// cutRules splits the rule that opens a line's prose and the rule that closes
+// it off the prose. The lead keeps the blank after its rule. A line that holds
+// only a rule keeps it as its prose, because no prose sits beside it.
+func cutRules(body string) (lead, prose, rule string) {
+	prose = body
+	if n := ruleRun(prose); n > 0 && n < len(prose) && (prose[n] == ' ' || prose[n] == '\t') {
+		rest := strings.TrimLeft(prose[n:], " \t")
+		lead, prose = prose[:len(prose)-len(rest)], rest
+	}
+	if at := strings.LastIndexAny(prose, " \t"); at >= 0 && ruleRun(prose[at+1:]) == len(prose)-at-1 {
+		prose, rule = strings.TrimRight(prose[:at], " \t"), prose[at+1:]
+	}
+	return lead, prose, rule
+}
+
+// ruleRun answers the length of the rule that opens s, and zero when s opens no rule.
+func ruleRun(s string) int {
+	if s == "" || !strings.ContainsRune(ruleChars, rune(s[0])) {
+		return 0
+	}
+	n := len(s) - len(strings.TrimLeft(s, s[:1]))
+	if n < 3 {
+		return 0
+	}
+	return n
+}
+
+// closesBlock reports a trailer that holds a block closer, and not only a rule.
+func closesBlock(trailer string) bool {
+	return strings.HasSuffix(trailer, "*/")
 }
 
 // bareMarker reports whether the line carries a comment marker and nothing else.
