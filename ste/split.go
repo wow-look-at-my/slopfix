@@ -2,6 +2,7 @@ package ste
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -87,14 +88,19 @@ func divideNext(prose string, limit int) (string, bool) {
 			continue
 		}
 		s := syntax.Parse(masked[start:end], shift(off, -start))
-		if rewritten, ok := bestDivision(s, prose[start:end]); ok {
+		if rewritten, ok := bestDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
 			return prose[:start] + rewritten + prose[end:], true
 		}
-		if rewritten, ok := frontedDivision(s, prose[start:end]); ok {
+		if rewritten, ok := frontedDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
 			return prose[:start] + rewritten + prose[end:], true
 		}
 	}
 	return prose, false
+}
+
+// keepsCodeSpans reports that a division kept each code span whole, in order.
+func keepsCodeSpans(source, rewritten string) bool {
+	return slices.Equal(codeSpan.FindAllString(source, -1), codeSpan.FindAllString(rewritten, -1))
 }
 
 // sentenceSpans answers the byte range of each sentence. It reads the source
