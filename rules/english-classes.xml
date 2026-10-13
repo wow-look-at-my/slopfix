@@ -36,7 +36,8 @@
     megabyte megabytes gigabyte gigabytes terabyte terabytes
     character characters line lines column columns row rows word words
     percent degree degrees pixel pixels em rem
-    time times level levels version versions"/>
+    time times level levels version versions
+    ns us ms fps hz khz mhz ghz px mpx spp vgpr vgprs sgpr sgprs"/>
 
   <!-- A conjunction joins, and heads no noun phrase. -->
   <class name="conjunction" words="and or but so because though although if

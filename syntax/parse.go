@@ -138,6 +138,9 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 			return true
 		}
 		head, before := &words[p.Head], words[p.Head-1]
+		if coordinatedObject(words, p.Head) {
+			continue
+		}
 		listed := p.Head+1 < len(words) && (words[p.Head+1].Tag == "," || words[p.Head+1].Tag == "WDT" || words[p.Head+1].Lower() == "that")
 		switch {
 		case head.Tag == "NNS" && filler(before.Text) && listed:
@@ -268,12 +271,17 @@ func retag(words []Word) {
 	}
 }
 
-// secondObjectNoun reports an -s form at i that ends the second of a couple of
-// objects of a preposition, before a stop: "on the copy and the in-place row
-// wires;". The conjunction joins the objects, so the -s form is a plural noun,
-// and the tagger reads it as a verb.
+// secondObjectNoun reports a verb tag on a plural noun that ends a second
+// object of a preposition: "on the copy and the in-place row wires".
 func secondObjectNoun(words []Word, i int) bool {
-	if words[i].Tag != "VBZ" && words[i].Tag != "VBP" || !verbEnding(words[i].Text) {
+	return (words[i].Tag == "VBZ" || words[i].Tag == "VBP") && coordinatedObject(words, i)
+}
+
+// coordinatedObject reports an -s form at i that ends the second object of a
+// preposition, before a stop, whatever the tagger read it as. No restore makes
+// a verb of it.
+func coordinatedObject(words []Word, i int) bool {
+	if !verbEnding(words[i].Text) {
 		return false
 	}
 	if i+1 < len(words) && !strings.Contains(".,;:", words[i+1].Text) {

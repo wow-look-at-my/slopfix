@@ -192,6 +192,12 @@ func conjoinedClause(conjunction, opener, clause string) string {
 // over the rungs", so it does not count.
 func presentClause(text string) bool {
 	s := syntax.Parse(checkMask(opening(text)), nil)
+	// An -s form after a determiner and an adjective is a plural noun: "the free rungs".
+	for i := 2; i < len(s.Words); i++ {
+		if (s.Words[i].Tag == "VBZ" || s.Words[i].Tag == "VBP") && s.Words[i-1].Tag == "JJ" && s.Words[i-2].Tag == "DT" {
+			s.Words[i].Tag = "NNS"
+		}
+	}
 	inside, depth := false, 0
 	for i, w := range s.Words {
 		switch {

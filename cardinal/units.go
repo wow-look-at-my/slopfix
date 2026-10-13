@@ -16,8 +16,13 @@ import (
 // numbersTable carries the classes the number rules read.
 var numbersTable = table.MustLoad(rules.FS, "numbers")
 
-// IsUnit reports whether a word names a unit of measure.
+// IsUnit reports whether a word names a unit of measure. A rate written with a
+// slash is one too: "waves/SIMD", "ns/pair".
 func IsUnit(word string) bool {
+	trimmed := strings.Trim(word, ".,;:()")
+	if at := strings.Index(trimmed, "/"); at > 0 && at < len(trimmed)-1 {
+		return true
+	}
 	return InClass(word, "unit")
 }
 

@@ -271,7 +271,12 @@ func StatusCode(text string, q Match) bool {
 // after a label word, as in "Migration 014" or "HTTP 404".
 func Labeled(text string, q Match) bool {
 	before := strings.Fields(text[:q.At])
-	return len(before) > 0 && InClass(bare(before[len(before)-1]), "label")
+	if len(before) == 0 {
+		return false
+	}
+	last := strings.Trim(before[len(before)-1], ".,;:()\"'`")
+	// A model name in capitals carries its number: "an RTX 3090".
+	return InClass(bare(last), "label") || len(last) > 1 && strings.ToUpper(last) == last && strings.ToLower(last) != last
 }
 
 // APoint answers the preposition before digits at offset at that set a point on
@@ -327,6 +332,9 @@ func NamesAnItem(text string, at int) bool {
 		if functionTags.Contains(prev.Tag) && prev.Tag != "NNS" || notNames.Contains(lower) || strings.HasSuffix(lower, "most") || InClass(lower, "preposition") {
 			return false
 		}
+		if namesAValue(name) || i+1 < len(words) && IsUnit(words[i+1].Text) {
+			return false
+		}
 		plural := strings.HasSuffix(lower, "s") && !strings.HasSuffix(lower, "ss")
 		noun := prev.Tag == "NN" || prev.Tag == "NNP" || !plural && (prev.Tag == "VBZ" || prev.Tag == "JJ")
 		if i < 2 || words[i-2].Tag == "." && words[i-2].Text != "(" {
@@ -345,6 +353,20 @@ func NamesAnItem(text string, at int) bool {
 		return opened && !plural && !functionTags.Contains(prev.Tag)
 	}
 	return false
+}
+
+// namesAValue reports a word before digits that holds a value rather than
+// numbering an item. This covers an identifier with a capital inside it, or a
+// model name in capitals.
+func namesAValue(word string) bool {
+	runes := []rune(word)
+	if len(runes) < 2 {
+		return false
+	}
+	if strings.ToUpper(word) == word {
+		return true
+	}
+	return strings.IndexFunc(string(runes[1:]), unicode.IsUpper) >= 0
 }
 
 // notNames are the words before digits that count or order them, and never
