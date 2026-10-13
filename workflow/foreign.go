@@ -241,9 +241,9 @@ func includeLists(include *yaml.Node, key string) (whole, private string, ok boo
 	return whole, private, true
 }
 
-// jsonOf answers node as JSON with the value GitHub reads from it. It answers
-// false for a node the expression cannot carry: an alias, a merge key, a
-// multi-line scalar, or a scalar that JSON does not spell the same way.
+// jsonOf answers node as JSON with the value GitHub reads from it. It refuses
+// an alias, a merge key and a multi-line scalar. It also refuses a scalar
+// that JSON spells another way.
 func jsonOf(node *yaml.Node) (string, bool) {
 	switch node.Kind {
 	case yaml.ScalarNode:
