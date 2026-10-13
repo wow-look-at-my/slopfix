@@ -79,3 +79,29 @@ func TestTheRepairPointsAtMaster(t *testing.T) {
 		assert.Empty(t, orgRefFindings(out), uses)
 	}
 }
+
+const pinnedSHA = "a9b20e200c7edc8e7bc23fbafbe5ae87eb5f2410"
+
+func TestASHAPinOfTheMonorepoTakesTheTagItsCommentNames(t *testing.T) {
+	cases := map[string]string{
+		"wow-look-at-my/actions@" + pinnedSHA + "#latest # cache-upload#latest": "wow-look-at-my/actions@cache-upload#latest # cache-upload#latest",
+		"wow-look-at-my/actions@" + pinnedSHA + " # cache-download#latest":      "wow-look-at-my/actions@cache-download#latest # cache-download#latest",
+		"wow-look-at-my/go-toolchain@" + pinnedSHA + "#latest":                  "wow-look-at-my/go-toolchain@master",
+	}
+	for uses, want := range cases {
+		require.Len(t, orgRefFindings(steps(uses)), 1, uses)
+		out := repaired(t, steps(uses))
+		assert.Equal(t, steps(want), out, uses)
+		assert.Empty(t, orgRefFindings(out), uses)
+	}
+}
+
+func TestASHAPinOfTheMonorepoWithNoDirectoryIsNotReported(t *testing.T) {
+	for _, uses := range []string{
+		"wow-look-at-my/actions@" + pinnedSHA,
+		"wow-look-at-my/actions@" + pinnedSHA + " # v4",
+		"wow-look-at-my/actions@" + pinnedSHA + " # pinned",
+	} {
+		assert.Empty(t, orgRefFindings(steps(uses)), uses)
+	}
+}
