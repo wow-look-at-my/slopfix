@@ -154,11 +154,13 @@ func TestPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrix(t *testing.T) {
 		"  done:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest]\n    runs-on: " + done + "\n    steps:\n      - run: make\n" +
 		"  flow: {strategy: {matrix: {os: [ubuntu-latest, windows-latest]}}, runs-on: '${{ matrix.os }}', steps: [{run: make}]}\n"
 	path := runnerRepo(t, PrivateRunnerFixture, body)
-	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 6)
+	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 7)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 	require.NoError(t, err)
 	assert.Contains(t, got.Text, "runs-on: "+matrixVisible("os", `["ubuntu-22.04","ubuntu-24.04"]`, runnerSlim)+"\n", "the arm values stay out of the list")
-	assert.Contains(t, got.Text, "          - {os: ubuntu-22.04-arm, arch: arm64}\n", "an include entry with a foreign value is not read")
+	assert.Contains(t, got.Text, "        include: "+split(
+		`[{"os":"ubuntu-22.04","arch":"amd64"},{"os":"ubuntu-24.04","arch":"amd64"},{"os":"ubuntu-22.04-arm","arch":"arm64"}]`,
+		`[{"os":"ubuntu-22.04","arch":"amd64"},{"os":"ubuntu-24.04","arch":"amd64"}]`)+"\n    runs-on:", "a private repository drops the arm include entry")
 	assert.Contains(t, got.Text, "runs-on: "+matrixVisible("os", `["ubuntu-latest","ubuntu-24.04"]`, runnerDind)+"\n", "a docker job picks the docker runners")
 	assert.Contains(t, got.Text, "        os: "+split(`["ubuntu-latest","macos-latest","windows-latest"]`, `["ubuntu-latest"]`)+"\n        include:\n", "a private repository drops the foreign values")
 	assert.Contains(t, got.Text, "os: [macos-14, macos-15]\n    if: "+publicOnly+"\n    runs-on: ${{ matrix.os }}\n", "a matrix of foreign values keeps the job to a public repository")
@@ -207,6 +209,22 @@ func TestPrivateRunnerLeavesForeignJobsOfAnExemptRepository(t *testing.T) {
 		path := runnerRepo(t, origin, body)
 		assert.Empty(t, only(CheckContent(path, body), workflow.IDPrivateRunner), name)
 	}
+}
+
+func TestPrivateRunnerSplitsAnIncludeList(t *testing.T) {
+	body := workflowHeader() + "jobs:\n" +
+		"  both:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-14]\n        include:\n          - os: windows-2022\n            flags: {cc: \"it's\", n: 2, on: true}\n          - os: ubuntu-latest\n            extra: [\"1.20\", 3]\n        # the end\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		"  apple:\n    strategy:\n      matrix:\n        include:\n          - os: macos-14\n          - os: macos-15\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		"  alias:\n    strategy:\n      matrix:\n        os: [ubuntu-latest]\n        include:\n          - &win {os: windows-2022}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "        os: "+split(`["ubuntu-latest","macos-14"]`, `["ubuntu-latest"]`)+"\n        include: "+split(
+		`[{"os":"windows-2022","flags":{"cc":"it''s","n":2,"on":true} },{"os":"ubuntu-latest","extra":["1.20",3]}]`,
+		`[{"os":"ubuntu-latest","extra":["1.20",3]}]`)+"\n        # the end\n", "the list and the include both drop their foreign values")
+	assert.Contains(t, got.Text, "          - os: macos-15\n    if: "+publicOnly+"\n", "an include of foreign legs alone keeps the job to a public repository")
+	assert.Contains(t, got.Text, "          - &win {os: windows-2022}\n", "an anchored entry is not read")
+	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
 }
 
 func TestPrivateRunnerSplitsABlockMatrixList(t *testing.T) {
