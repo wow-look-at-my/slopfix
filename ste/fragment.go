@@ -111,10 +111,11 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 // answers "" where they make none. Words that stand alone, or open a list,
 // open with a capital. A noun phrase stands behind "This is". Words that open
 // on a conjunction add to what the mark ended, so no carrier goes in front of
-// them: "This is and the scalars it set" is no sentence. A capital renames an
-// identifier written in lower case. Words that open on one keep its case, and
-// stand only behind the carrier, as a noun phrase: "This is q split over the
-// rungs".
+// them: "This is and the scalars it set" is no sentence. A clause after the
+// conjunction stands behind the conjunction's opener instead. A capital renames
+// an identifier written in lower case. Words that open on one keep its case,
+// and stand only behind the carrier, as a noun phrase: "This is q split over
+// the rungs".
 func carryRest(rest string) string {
 	rest = strings.TrimLeft(rest, " ")
 	first := firstToken.FindString(rest)
@@ -125,8 +126,9 @@ func carryRest(rest string) string {
 	if right := capitalizeOpening(rest); !identifier && (opensList(right) || StandsAlone(right)) {
 		return right
 	}
-	if _, joins := connectors[strings.ToLower(strings.TrimRight(first, ",;:"))]; joins {
-		return ""
+	word := strings.ToLower(strings.TrimRight(first, ",;:"))
+	if opener, joins := connectors[word]; joins {
+		return conjoinedClause(word, opener, strings.TrimLeft(rest[len(first):], " "))
 	}
 	if identifier && presentClause(rest) {
 		return ""
@@ -137,18 +139,37 @@ func carryRest(rest string) string {
 	return ""
 }
 
+// conjoinedClause writes the clause after a conjunction as a sentence behind
+// the conjunction's opener, and answers "" where the words are no clause. A so
+// states a consequence that a bare period loses, so it never divides here.
+func conjoinedClause(conjunction, opener, clause string) string {
+	if conjunction == "so" || clause == "" || lowerIdentifier(firstToken.FindString(clause)) {
+		return ""
+	}
+	if !StandsAlone(capitalizeOpening(clause)) {
+		return ""
+	}
+	return joinOpener(opener, clause)
+}
+
 // presentClause reports words that hold a verb in the present tense, or a
-// modal, outside a relative clause. They read as a clause, and no carrier
-// makes a noun phrase of them. A past form can be a participle that describes
-// the noun before it, as in "q split over the rungs", so it does not count.
+// modal, outside a relative clause, a subordinate clause and a parenthesis.
+// They read as a clause, and no carrier makes a noun phrase of them. A past
+// form can be a participle that describes the noun before it, as in "q split
+// over the rungs", so it does not count.
 func presentClause(text string) bool {
 	s := syntax.Parse(checkMask(opening(text)), nil)
-	inside := false
+	inside, depth := false, 0
 	for i, w := range s.Words {
 		switch {
+		case w.Text == "(":
+			depth++
+		case w.Text == ")":
+			depth = max(depth-1, 0)
+		case depth > 0:
 		case w.Text == ",":
 			inside = false
-		case w.Tag == "WDT" || w.Tag == "WP" || w.Lower() == "that":
+		case w.Tag == "WDT" || w.Tag == "WP" || w.Tag == "WP$" || w.Tag == "WRB" || w.Lower() == "that" || syntax.Is(w.Lower(), "subordinator"):
 			inside = true
 		case i > 0 && !inside && (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "MD") && !inReducedRelative(s, i):
 			return true

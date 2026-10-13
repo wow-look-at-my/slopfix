@@ -262,7 +262,49 @@ func retag(words []Word) {
 			(words[i+1].Tag == "," || words[i+1].Tag == "WDT" || words[i+1].Lower() == "that") {
 			words[i].Tag = "NNS"
 		}
+		if secondObjectNoun(words, i) {
+			words[i].Tag = "NNS"
+		}
 	}
+}
+
+// secondObjectNoun reports an -s form at i that ends the second of a couple of
+// objects of a preposition, before a stop: "on the copy and the in-place row
+// wires;". The conjunction joins the objects, so the -s form is a plural noun,
+// and the tagger reads it as a verb.
+func secondObjectNoun(words []Word, i int) bool {
+	if words[i].Tag != "VBZ" && words[i].Tag != "VBP" || !verbEnding(words[i].Text) {
+		return false
+	}
+	if i+1 < len(words) && !strings.Contains(".,;:", words[i+1].Text) {
+		return false
+	}
+	j := phraseStart(words, i-1)
+	if j == i || j < 1 || words[j-1].Tag != "CC" || (words[j-1].Lower() != "and" && words[j-1].Lower() != "or") {
+		return false
+	}
+	k := phraseStart(words, j-2)
+	return k <= j-2 && k > 0 && words[k-1].Tag == "IN" && !Is(words[k-1].Lower(), "subordinator")
+}
+
+// phraseStart walks back from word i over the words of a noun phrase, an
+// aside in parentheses included, and answers where the phrase starts. It
+// answers i+1 when word i belongs to no noun phrase.
+func phraseStart(words []Word, i int) int {
+	depth := 0
+	for ; i >= 0; i-- {
+		switch t := words[i].Tag; {
+		case words[i].Text == ")":
+			depth++
+		case words[i].Text == "(":
+			depth = max(depth-1, 0)
+		case depth > 0:
+		case t == "DT" || t == "PRP$" || t == "POS" || t == "CD" || strings.HasPrefix(t, "JJ") || isNoun(t):
+		default:
+			return i + 1
+		}
+	}
+	return 0
 }
 
 // colonFollowsClause reports a clause before the colon at index colon: a finite

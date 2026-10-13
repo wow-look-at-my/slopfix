@@ -16,9 +16,55 @@ func init() {
 		Cases: []RuleCase{
 			{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"},
 			{Name: "a cut keeps the rule that opens each line", Path: "test-governor.cpp", Text: ruledNumbersCase, Want: ruledNumbersWant},
+			{Name: "index zero after a possessive is the first item", Path: "froxel-path.h", Text: chunkZeroCase, Want: chunkZeroWant},
+			{Name: "index zero is the first item", Path: "froxel-path.cpp", Text: frameZeroCase, Want: frameZeroWant},
 		},
 	})
 }
+
+// chunkZeroCase names an item by its index: "chunk 0" is the first chunk, and
+// "one chunk" says another thing.
+const chunkZeroCase = `struct FroxelPath {
+  Buffer srcRows_;
+  // No host memcpy runs at all: the pack's chunk 0 copies straight from the
+  // caller's buffer into srcRows_.
+  bool beginFeedTickFromBuffer(Context& ctx, VkBuffer rows, uint32_t count, double edge,
+                               std::string* why = nullptr, bool direct = false);
+};
+`
+
+const chunkZeroWant = `struct FroxelPath {
+  Buffer srcRows_;
+  // No host memcpy runs at all: the pack's first chunk copies straight from
+  // the caller's buffer into srcRows_.
+  bool beginFeedTickFromBuffer(Context& ctx, VkBuffer rows, uint32_t count, double edge,
+                               std::string* why = nullptr, bool direct = false);
+};
+`
+
+// frameZeroCase names frame zero at the start of a sentence and before a
+// possessive ending.
+const frameZeroCase = `void FroxelPath::finishPrepack(Context& ctx) {
+  // Frame 0 goes live through the ordinary adopt, which installs frame 0's
+  // triple from the map.
+  if (prepack_.empty()) {
+    livePrepackFrame_ = kNoPrepackFrame;
+    prepackPending_ = 0;
+    adoptPrepacked(ctx);
+  }
+}
+`
+
+const frameZeroWant = `void FroxelPath::finishPrepack(Context& ctx) {
+  // The first frame goes live through the ordinary adopt, which installs
+  // the first frame's triple from the map.
+  if (prepack_.empty()) {
+    livePrepackFrame_ = kNoPrepackFrame;
+    prepackPending_ = 0;
+    adoptPrepacked(ctx);
+  }
+}
+`
 
 // ruledNumbersCase opens every comment line with a rule of dashes. The cut
 // takes the sentences that state numbers, and the rewrap puts the rule back

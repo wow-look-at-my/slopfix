@@ -287,10 +287,6 @@ func opensDependentAt(s *syntax.Sentence, from int) bool {
 	if s.Words[first].Lower() == "to" && first+1 < len(s.Words) && strings.HasPrefix(s.Words[first+1].Tag, "VB") {
 		return true
 	}
-	// "as" with a finite verb before the next comma opens a clause of manner: "as a variable such as q is".
-	if s.Words[first].Lower() == "as" && finiteBefore(s, first+1, ",") {
-		return true
-	}
 	for _, c := range s.Clauses {
 		if c.Link == first && c.Kind == syntax.Subordinate {
 			return true

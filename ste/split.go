@@ -149,7 +149,15 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := bold + withCloser(joinOpener(d.opener, restOf(source, d)), d.closer)
+		rest := restOf(source, d)
+		opened := joinOpener(d.opener, rest)
+		// A capital renames an identifier written in lower case, so such a rest stands behind the carrier.
+		if d.opener == "" && lowerIdentifier(firstToken.FindString(rest)) {
+			if opened = carryRest(rest); opened == "" {
+				continue
+			}
+		}
+		right := bold + withCloser(opened, d.closer)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
@@ -182,6 +190,10 @@ func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
+		// A capital renames an identifier written in lower case.
+		if d.opener == "" && lowerIdentifier(firstToken.FindString(restOf(source, d))) {
+			continue
+		}
 		right := joinOpener(d.opener, restOf(source, d))
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue

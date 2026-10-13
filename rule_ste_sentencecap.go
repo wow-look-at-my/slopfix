@@ -15,7 +15,7 @@ func init() {
 			{Name: "a carrier never opens on a conjunction", Path: "governor.cpp", Text: carrierConjunctionCase, Want: carrierConjunctionWant},
 			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: variableOpensCase, Want: variableOpensWant},
 			{Name: "a rule around comment prose stays at the edges", Path: "governor.cpp", Text: ruledCommentCase, Want: ruledCommentWant},
-			{Name: "a clause of manner never stands alone", Path: "ident.go", Text: mannerClauseCase, Want: mannerClauseWant},
+			{Name: "the objects of a preposition stay joined", Path: "CMakeLists.txt", Text: coordinatedObjectsCase, Want: coordinatedObjectsWant},
 		},
 	})
 }
@@ -28,11 +28,12 @@ const carrierConjunctionCase = `struct Governor {
   // Pair-demand elasticity per rung, and the act whose demand response
   // measures one of them: the demand and scalars before the act, and the
   // scalars it set.
-  double eLod_ = kGovDemandElasticityPrior;
-  double eRes_ = kGovDemandElasticityPrior;
   struct {
+    double eLod = kGovDemandElasticityPrior;
+    double eRes = kGovDemandElasticityPrior;
     bool armed = false;
-    double demand = 0, lod = 1, res = 1, actLod = 1, actRes = 1;
+    double demand = 0, lod = 1, res = 1;
+    double actLod = 1, actRes = 1;
   } probe_;
 };
 `
@@ -42,11 +43,12 @@ const carrierConjunctionWant = `struct Governor {
   // Pair-demand elasticity per rung, and the act whose demand response
   // measures one of them. This is the demand and scalars before the act,
   // and the scalars it set.
-  double eLod_ = kGovDemandElasticityPrior;
-  double eRes_ = kGovDemandElasticityPrior;
   struct {
+    double eLod = kGovDemandElasticityPrior;
+    double eRes = kGovDemandElasticityPrior;
     bool armed = false;
-    double demand = 0, lod = 1, res = 1, actLod = 1, actRes = 1;
+    double demand = 0, lod = 1, res = 1;
+    double actLod = 1, actRes = 1;
   } probe_;
 };
 `
@@ -146,49 +148,31 @@ const ruledCommentWant = `double sample(double demand) {
 }
 `
 
-// mannerClauseCase holds a sentence over the cap that ends on a clause of
-// manner after a comma. "As a variable such as q is" holds a subject and a
-// verb, and still reads as no sentence of its own.
-const mannerClauseCase = `package ident
-
-import "strings"
-
-// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it, or it is a single letter other than the article, as a variable such as q is.
-func lowerIdentifier(word string) bool {
-	if word == "" {
-		return false
-	}
-	if len(word) == 1 {
-		return word != "a"
-	}
-	for _, r := range word[1:] {
-		if r == '_' || r == '.' || r >= '0' && r <= '9' || r >= 'A' && r <= 'Z' {
-			return true
-		}
-	}
-	return strings.ToLower(word) != word
-}
+// coordinatedObjectsCase holds a CMake comment whose list after a colon joins
+// clauses with semicolons. "on the copy and the in-place row wires" names a
+// couple of objects of "on", so no division lands at its "and". Each item that
+// is a clause of its own opens a sentence as it stands.
+const coordinatedObjectsCase = `# animation-prepack-equivalence - the animation pre-pack's byte gate: every
+# adopted frame of a synthetic clip lands records, cubeBuf, C and a rendered
+# image equal to the live async tick wire's, on the copy and the in-place
+# (UMA direct) row wires; a repeated C reuses its pipeline triple; an edge
+# repack of an adopted frame and a resumed live tick match too. The parking
+# leg packs a real multi-round chain at the default chunk clamp.
+add_test(NAME animation-prepack-equivalence
+  COMMAND $<TARGET_FILE:splat-vulkan> ${PARKING} --max-splats 5000 --fgen-test prepack
+          --cube-edge 1 --validate)
 `
 
-const mannerClauseWant = `package ident
-
-import "strings"
-
-// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it. Or it is a single letter other than the article, as a variable such as q is.
-func lowerIdentifier(word string) bool {
-	if word == "" {
-		return false
-	}
-	if len(word) == 1 {
-		return word != "a"
-	}
-	for _, r := range word[1:] {
-		if r == '_' || r == '.' || r >= '0' && r <= '9' || r >= 'A' && r <= 'Z' {
-			return true
-		}
-	}
-	return strings.ToLower(word) != word
-}
+const coordinatedObjectsWant = `# animation-prepack-equivalence - the animation pre-pack's byte gate. Every
+# adopted frame of a synthetic clip lands records, cubeBuf, C and a rendered
+# image equal to the live async tick wire's. This happens on the copy and
+# the in-place (UMA direct) row wires. A repeated C reuses its pipeline
+# triple. An edge repack of an adopted frame and a resumed live tick match
+# too. The parking leg packs a real multi-round chain at the default chunk
+# clamp.
+add_test(NAME animation-prepack-equivalence
+  COMMAND $<TARGET_FILE:splat-vulkan> ${PARKING} --max-splats 5000 --fgen-test prepack
+          --cube-edge 1 --validate)
 `
 
 // detectSentenceCap answers each sentence over the word cap that the case

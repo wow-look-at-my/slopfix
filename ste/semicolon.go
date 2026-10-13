@@ -177,7 +177,7 @@ func fixSemicolons(text string) string {
 			case strings.Contains(masked[span[0]:p], ":") && !strings.Contains(masked[p:span[1]], ":"):
 				// The list's conjunction goes with the semicolon: "This also covers or a subsystem" is no English.
 				end += len(leadingConjunction.FindString(text[end:]))
-				joins, openers = append(joins, []int{p, end}), append(openers, "This also covers")
+				joins, openers = append(joins, []int{p, end}), append(openers, listOpener(text, end, span[1]))
 			case end < span[1] && standsAsSentence(segmentAfter(text, end, span[1])):
 				joins, openers = append(joins, []int{p, end}), append(openers, "")
 			case end < span[1] && holdsFinite(segmentAfter(text, end, span[1])) && holdsFinite(masked[span[0]:p]):
@@ -203,6 +203,20 @@ func fixSemicolons(text string) string {
 		}
 	}
 	return breakWith(text, joins, openers)
+}
+
+// listOpener answers what opens the sentence an item of a list after a colon
+// becomes. An item that is a clause of its own, with a verb in the present
+// tense, opens as it stands: "a repeated C reuses its triple".
+func listOpener(text string, from, end int) string {
+	if from >= end {
+		return "This also covers"
+	}
+	item := segmentAfter(text, from, end)
+	if presentClause(item) && standsAsSentence(capitalizeOpening(item)) {
+		return ""
+	}
+	return "This also covers"
 }
 
 // leadingConjunction is the "and" or "or" that opens the last item of a list.
