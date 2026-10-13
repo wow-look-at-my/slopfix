@@ -14,6 +14,7 @@ package tombstones
 import (
 	"bytes"
 	"context"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -237,7 +238,8 @@ func (ix *symbolIndex) build(root string) {
 	nested, _ := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--recurse-submodules").Output()
 	files := map[string]int{}
 	seen := set.New[string]()
-	for _, rel := range strings.Split(string(listed)+"\x00"+string(nested), "\x00") {
+	paths := append(strings.Split(string(listed)+"\x00"+string(nested), "\x00"), copiedSubmoduleFiles(ctx, root)...)
+	for _, rel := range paths {
 		if rel == "" || seen.Contains(rel) {
 			continue
 		}
@@ -256,6 +258,39 @@ func (ix *symbolIndex) build(root string) {
 		}
 	}
 	ix.files, ix.ok = files, true
+}
+
+// copiedSubmoduleFiles lists the files under each submodule path that holds
+// files but no checkout. A build that copies a dependency in place of a
+// checkout leaves such a path, and git lists none of its files.
+func copiedSubmoduleFiles(ctx context.Context, root string) []string {
+	staged, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--stage").Output()
+	if err != nil {
+		return nil
+	}
+	var files []string
+	for _, entry := range strings.Split(string(staged), "\x00") {
+		meta, rel, ok := strings.Cut(entry, "\t")
+		if !ok || !strings.HasPrefix(meta, "160000 ") {
+			continue
+		}
+		if _, err := os.Lstat(filepath.Join(root, rel, ".git")); err == nil {
+			continue
+		}
+		_ = filepath.WalkDir(filepath.Join(root, rel), func(path string, d fs.DirEntry, err error) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if err != nil || !d.Type().IsRegular() {
+				return nil
+			}
+			if name, err := filepath.Rel(root, path); err == nil {
+				files = append(files, name)
+			}
+			return nil
+		})
+	}
+	return files
 }
 
 // addWords adds every candidate identifier in data to names.
