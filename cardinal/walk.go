@@ -145,7 +145,6 @@ func Index(text string, toks []Token, i int) bool {
 	if end >= len(text) || text[end] != ']' {
 		return false
 	}
-	// A slice bound such as 0:4 tokenizes as one name, because a colon joins names.
 	for _, bound := range strings.Split(tok.Text, ":") {
 		if bound != "" && !allDigits(bound) {
 			return false
