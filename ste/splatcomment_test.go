@@ -27,7 +27,7 @@ var splatComments = []struct{ in, want string }{
 	},
 	{
 		"Per octant, total mass W = sum o_i sqrt(det Sigma_i), mean mu, second moment Sigma_m, mass-weighted color, merged opacity o_m = min(1, W / sqrt(det Sigma_m)), and per cube the luma variance.",
-		"Per octant, total mass W = sum o_i sqrt(det Sigma_i), mean mu, second moment Sigma_m, mass-weighted color, merged opacity o_m = min(1, W / sqrt(det Sigma_m)). This also covers per cube the luma variance.",
+		"Per octant, total mass W = sum o_i sqrt(det Sigma_i), mean mu, second moment Sigma_m, mass-weighted color. This also covers merged opacity o_m = min(1, W / sqrt(det Sigma_m)), and per cube the luma variance.",
 	},
 }
 

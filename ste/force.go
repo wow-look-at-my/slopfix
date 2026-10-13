@@ -139,6 +139,9 @@ type forceCut struct {
 func forceDivision(source, masked string, d capSpec) (string, bool) {
 	// The tags come from the whole sentence, because a fragment parsed alone reads "a faithful" as a noun.
 	whole := syntax.Parse(masked, nil)
+	if out, ok := listDivision(source, masked, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict, d.cap) {
@@ -201,9 +204,6 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 		return out, true
 	}
 	if out, ok := punctuationDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
-		return out, true
-	}
-	if out, ok := listDivision(source, masked, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
 	return hardDivision(source, masked, d.cap)
@@ -594,8 +594,8 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		if conjunction == "so" && (seam != "," || opensImperativeMain(masked[:c.left]) || instructs(whole)) {
 			return "", 0
 		}
-		// After a list, ", and" adds the last item to it: "rules, hooks, and `ask` rules apply".
-		if seam == "," && listsVerbs(masked[:c.left]) {
+		// After a list, ", and" adds the last item to it: "rules, hooks, and `ask` rules apply". A pronoun and its verb open a clause: ", or it is".
+		if seam == "," && listsVerbs(masked[:c.left]) && !(tag == "PRP" && finiteAt(whole, first+1)) {
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
