@@ -1,6 +1,9 @@
 package workflow_test
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,6 +66,26 @@ func TestAnOrgActionOnMasterPasses(t *testing.T) {
 	)
 	assert.Empty(t, orgRefFindings(content))
 	assert.Empty(t, orgRefFindings("runs:\n  using: composite\n  steps:\n    - uses: wow-look-at-my/dats@master\n"))
+}
+
+func TestTheRepairPointsAtTheDefaultBranch(t *testing.T) {
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/wow-look-at-my/static-pkgsite-action":
+			fmt.Fprint(w, `{"default_branch":"v1"}`)
+		case "/repos/wow-look-at-my/go-toolchain":
+			fmt.Fprint(w, `{"default_branch":"master"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+	t.Setenv("GITHUB_API_URL", api.URL)
+	t.Setenv("GITHUB_TOKEN", "fixture")
+	assert.Empty(t, orgRefFindings(steps("wow-look-at-my/static-pkgsite-action@v1")), "the default branch is the tracked ref")
+	assert.Equal(t, steps("wow-look-at-my/static-pkgsite-action@v1"), repaired(t, steps("wow-look-at-my/static-pkgsite-action@master")))
+	assert.Equal(t, steps("wow-look-at-my/go-toolchain@master"), repaired(t, steps("wow-look-at-my/go-toolchain@v1")))
+	assert.Equal(t, steps("wow-look-at-my/unknown-action@master"), repaired(t, steps("wow-look-at-my/unknown-action@feature")), "an unanswered lookup keeps master")
 }
 
 func TestTheRepairPointsAtMaster(t *testing.T) {

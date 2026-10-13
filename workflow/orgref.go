@@ -5,14 +5,15 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
 
-// IDOrgActionRef is an org action or reusable workflow that names a ref other than master.
+// IDOrgActionRef is an org action or reusable workflow that names a ref other than its default branch.
 const IDOrgActionRef = "yaml/org-action-ref"
 
-// orgOwner is the owner whose actions must track master.
+// orgOwner is the owner whose actions must track their default branch.
 const orgOwner = "wow-look-at-my"
 
 // monorepo publishes each of its directories to its own orphan tag.
@@ -73,10 +74,24 @@ func orgRefs(content string) []orgRef {
 	return out
 }
 
-// allowedRef reports master, or an orphan tag. `<sha>#latest` names no tag.
-func allowedRef(ref string) bool {
+// allowedRef reports the branch repo tracks, or an orphan tag. `<sha>#latest` names no tag.
+func allowedRef(repo, ref string) bool {
 	name, _, _ := strings.Cut(ref, "#")
-	return ref == "master" || orphanTag.MatchString(ref) && !commitSHA.MatchString(name)
+	return ref == trackedBranch(repo) || orphanTag.MatchString(ref) && !commitSHA.MatchString(name)
+}
+
+// trackedBranch answers the default branch of the repository that holds an
+// action path. Where GitHub cannot answer, it answers master, the org's branch.
+func trackedBranch(repo string) string {
+	parts := strings.SplitN(repo, "/", 3)
+	if len(parts) < 2 {
+		return "master"
+	}
+	branch, err := forkscope.Resolver{}.DefaultBranch(parts[0] + "/" + parts[1])
+	if err != nil {
+		return "master"
+	}
+	return branch
 }
 
 // isMonorepo reports whether a repo path is the monorepo itself, not a path inside it.
@@ -110,19 +125,19 @@ func repairable(at orgRef) bool {
 	return ok
 }
 
-// orgActionRefs reports each org action that names a ref other than master.
+// orgActionRefs reports each org action that names a ref other than its default branch.
 func orgActionRefs(content string) []ste.Finding {
 	var out []ste.Finding
 	for _, at := range orgRefs(content) {
-		if allowedRef(at.ref) || !repairable(at) {
+		if allowedRef(at.repo, at.ref) || !repairable(at) {
 			continue
 		}
 		out = append(out, ste.Finding{
 			Line:   at.node.Line,
 			ID:     IDOrgActionRef,
-			Rule:   "an org action that names a ref other than master",
+			Rule:   "an org action that names a ref other than its default branch",
 			Detail: at.repo + "@" + at.ref,
-			Fix:    "Use `@master`, or `@<directory>#latest` for an action of " + orgOwner + "/" + monorepo + ". `slopfix fix` does this.",
+			Fix:    "Use `@" + trackedBranch(at.repo) + "`, or `@<directory>#latest` for an action of " + orgOwner + "/" + monorepo + ". `slopfix fix` does this.",
 		})
 	}
 	return out
@@ -138,7 +153,7 @@ func masterRef(at orgRef) string {
 		if dir, ok := pinnedDirectory(at); ok && isMonorepo(at.repo) {
 			return dir + "#latest"
 		}
-		return "master"
+		return trackedBranch(at.repo)
 	}
 	if tagged {
 		return name + "#latest"
@@ -146,7 +161,7 @@ func masterRef(at orgRef) string {
 	if isMonorepo(at.repo) {
 		return at.ref + "#latest"
 	}
-	return "master"
+	return trackedBranch(at.repo)
 }
 
 // retarget points each org action at the ref that tracks master. It rewrites
@@ -155,7 +170,7 @@ func retarget(content string) []edit.Edit {
 	fileLines := lines(content)
 	var out []edit.Edit
 	for _, at := range orgRefs(content) {
-		if allowedRef(at.ref) || !repairable(at) {
+		if allowedRef(at.repo, at.ref) || !repairable(at) {
 			continue
 		}
 		lineNo, col := at.node.Line-1, at.node.Column-1
