@@ -46,7 +46,7 @@ const chunkZeroWant = `struct FroxelPath {
 // valuesCase holds a single count beside values the repair leaves alone: the
 // value of a flag, a set literal and an assignment.
 const valuesCase = `struct WarpPass {
-  // The pass ships 4 hooks.
+  // Run answers one call 3 ways and ships 4 hooks.
   //
   // It reads N px/texel (N in {1,2,4,8}; 0 = off).
   // Pin --warp-field 0 for the pre-field warp.
@@ -60,7 +60,7 @@ const valuesCase = `struct WarpPass {
 `
 
 const valuesWant = `struct WarpPass {
-  // The pass ships hooks.
+  // Run answers one call multiple ways and ships hooks.
   //
   // It reads N px/texel (N in {1,2,4,8}; 0 = off).
   // Pin --warp-field 0 for the pre-field warp.
