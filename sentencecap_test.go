@@ -126,12 +126,12 @@ func TestALongSentenceInARunScriptCommentIsRepaired(t *testing.T) {
 // makes ForeignJobs, a name nothing defines, and the dead-name check fails.
 func TestADivisionRestatesAnIdentifierSubjectWithItsCase(t *testing.T) {
 	src := "package demo\n\n" +
-		"// foreignJobs answers each job of content that runs on a foreign hosted label in a private repository and answers that the repair can keep the job to a public one.\n" +
+		"// foreignJobs reads each job's label and runner in the workflow file, finds every job on a hosted label, keeps the foreign jobs to a public repository by default, and drops the other jobs from the list.\n" +
 		"func foreignJobs() {\n" + strings.Repeat("\tstep()\n", 20) + "}\n\nfunc step() {}\n"
 	require.Contains(t, findingIDs(slopfix.CheckContent("demo.go", src)), ste.IDSentenceCap, "the control: the comment is over the cap")
 
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "demo.go", MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
 	assert.NotContains(t, out, "ForeignJobs", out)
-	assert.Regexp(t, `\. foreignJobs `, strings.ReplaceAll(out, "\n// ", " "), out)
+	assert.Contains(t, strings.ReplaceAll(out, "\n// ", " "), ". foreignJobs also keeps", out)
 	assert.Empty(t, quoted(slopfix.CheckContent("demo.go", out)), out)
 }

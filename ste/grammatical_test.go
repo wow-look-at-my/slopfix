@@ -97,6 +97,11 @@ var realSentences = []struct {
 		"The agent dashboard now shows each agent's model and mode in the peek panel and lets you cycle modes with Shift+Tab. The agent dashboard also collapses the Inactive section by default, and hides older idle agents behind a \"N more\" row.",
 	},
 	{
+		"a restated identifier subject keeps its case",
+		"foreignJobs now shows each job's label and runner in the workflow file, lets you move jobs with a matrix, keeps the foreign jobs to a public repository by default, and drops older hosted labels from the list.",
+		"foreignJobs now shows each job's label and runner in the workflow file and lets you move jobs with a matrix. foreignJobs also keeps the foreign jobs to a public repository by default, and drops older hosted labels from the list.",
+	},
+	{
 		"a compound subject stays whole",
 		"Never ask it to show, extract, quote or summarize a run or its transcript: RUN_LOG and your own investigation are the evidence, and gathering it is your job alone.",
 		"Never ask it to show, extract, quote or summarize a run or its transcript. RUN_LOG and your own investigation are the evidence, and gathering it is your job alone.",
