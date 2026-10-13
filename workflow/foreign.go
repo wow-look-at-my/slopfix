@@ -16,8 +16,7 @@ const publicOnly = "github.event.repository.visibility == 'public'"
 // visibilityTest matches a condition that already reads the repository's visibility.
 var visibilityTest = regexp.MustCompile(`github\.event\.repository\.visibility\s*==\s*'public'`)
 
-// hostedForeign matches a GitHub-hosted label the org runners cannot serve: macOS, Windows or arm.
-// GitHub reads a runner label without regard to case, so macOS-latest is macos-latest.
+// hostedForeign matches, in any case, a GitHub-hosted macOS, Windows or arm label.
 var hostedForeign = regexp.MustCompile(`(?i)^(macos|windows)-[A-Za-z0-9.-]+$|^ubuntu-(latest|[0-9]+\.[0-9]+)-arm$`)
 
 // matrixKeyRef matches each matrix value an expression reads.
