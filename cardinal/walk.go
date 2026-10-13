@@ -135,6 +135,17 @@ func Literal(text string, toks []Token, i int) bool {
 	return size > 0 && strings.ContainsRune(comparisonMarkers, last)
 }
 
+// Index exempts the digits of a subscript, such as argv[1] or buf[0:4]. A
+// subscript names a position. It counts nothing.
+func Index(text string, toks []Token, i int) bool {
+	tok := toks[i]
+	if !allDigits(tok.Text) || tok.Offset == 0 || text[tok.Offset-1] != '[' {
+		return false
+	}
+	end := tok.Offset + len(tok.Text)
+	return end < len(text) && (text[end] == ']' || text[end] == ':')
+}
+
 // sectionSign marks the number after it as a citation of a section.
 const sectionSign = '§'
 
