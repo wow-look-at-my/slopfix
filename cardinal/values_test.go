@@ -37,6 +37,17 @@ func TestACompoundOrAMeasureIsNotACommentCount(t *testing.T) {
 	assert.NotEmpty(t, cardinal.Find("It keeps two lines.", cardinal.Comment))
 }
 
+// A subscript names a position. The rule wrote "argv[one]" in an apeld comment.
+func TestASubscriptIsNotACommentCount(t *testing.T) {
+	for _, prose := range []string{
+		"argv[1] is the file, and its arguments follow.",
+		"It reads buf[0:4] as the magic.",
+	} {
+		assert.Empty(t, cardinal.Find(prose, cardinal.Comment), prose)
+	}
+	assert.NotEmpty(t, cardinal.Find("It holds [3 entries] here.", cardinal.Comment))
+}
+
 func TestAValueOrALabelIsNotAStaleCount(t *testing.T) {
 	for _, prose := range notCounts {
 		assert.Empty(t, cardinal.Find(prose, cardinal.Gate), "gate: %s", prose)

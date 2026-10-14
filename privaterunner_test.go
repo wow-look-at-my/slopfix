@@ -39,7 +39,7 @@ func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
 		"  done:\n    runs-on: " + visible("ubuntu-latest", "CI_RUNNER") + "\n    steps:\n      - run: make\n" +
 		"  push:\n    runs-on: ubuntu-20.04\n    steps:\n      - uses: wow-look-at-my/actions@ghcr#latest\n"
 	path := runnerRepo(t, PrivateRunnerFixture, body)
-	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 8)
+	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 10)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 	require.NoError(t, err)
 	assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-20.04", "CI_RUNNER_DIND")+"\n", "the ghcr action builds with docker")
@@ -50,8 +50,8 @@ func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
 	assert.Contains(t, got.Text, "runs-on: &runner !!str "+visible("ubuntu-latest", "CI_RUNNER")+"\n", "the tag and anchor stay")
 	assert.Contains(t, got.Text, "runs-on: "+visible("ubuntu-latest", "CI_RUNNER")+"\n\n    # the steps\n")
 	assert.Contains(t, got.Text, "  flow: {runs-on: \""+visible("ubuntu-latest", "CI_RUNNER")+"\", steps: [{run: make}]}\n")
-	assert.Contains(t, got.Text, "runs-on: macos-latest\n", "the org runners are Linux")
-	assert.Contains(t, got.Text, "runs-on: ubuntu-24.04-arm\n", "the org runners are x64")
+	assert.Contains(t, got.Text, "  mac:\n    if: "+publicOnly+"\n    runs-on: macos-latest\n", "the org runners are Linux")
+	assert.Contains(t, got.Text, "  arm:\n    if: "+publicOnly+"\n    runs-on: ubuntu-24.04-arm\n", "the org runners are x64")
 	assert.Contains(t, got.Text, "runs-on: ${{ matrix.os }}\n", "another expression is not read")
 	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
 }
@@ -154,15 +154,102 @@ func TestPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrix(t *testing.T) {
 		"  done:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest]\n    runs-on: " + done + "\n    steps:\n      - run: make\n" +
 		"  flow: {strategy: {matrix: {os: [ubuntu-latest, windows-latest]}}, runs-on: '${{ matrix.os }}', steps: [{run: make}]}\n"
 	path := runnerRepo(t, PrivateRunnerFixture, body)
-	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 3)
+	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 7)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 	require.NoError(t, err)
 	assert.Contains(t, got.Text, "runs-on: "+matrixVisible("os", `["ubuntu-22.04","ubuntu-24.04"]`, runnerSlim)+"\n", "the arm values stay out of the list")
+	assert.Contains(t, got.Text, "        include: "+split(
+		`[{"os":"ubuntu-22.04","arch":"amd64"},{"os":"ubuntu-24.04","arch":"amd64"},{"os":"ubuntu-22.04-arm","arch":"arm64"}]`,
+		`[{"os":"ubuntu-22.04","arch":"amd64"},{"os":"ubuntu-24.04","arch":"amd64"}]`)+"\n    runs-on:", "a private repository drops the arm include entry")
 	assert.Contains(t, got.Text, "runs-on: "+matrixVisible("os", `["ubuntu-latest","ubuntu-24.04"]`, runnerDind)+"\n", "a docker job picks the docker runners")
-	assert.Contains(t, got.Text, "runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n  dynamic:", "a matrix with no hosted Linux value is not read")
+	assert.Contains(t, got.Text, "        os: "+split(`["ubuntu-latest","macos-latest","windows-latest"]`, `["ubuntu-latest"]`)+"\n        include:\n", "a private repository drops the foreign values")
+	assert.Contains(t, got.Text, "os: [macos-14, macos-15]\n    if: "+publicOnly+"\n    runs-on: ${{ matrix.os }}\n", "a matrix of foreign values keeps the job to a public repository")
+	assert.Contains(t, got.Text, "        os: "+split(`["ubuntu-latest","macos-latest"]`, `["ubuntu-latest"]`)+"\n    runs-on: "+done+"\n", "a routed matrix drops its foreign values")
 	assert.Contains(t, got.Text, "matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n    runs-on: ${{ matrix.os }}\n", "a dynamic matrix is not read")
 	assert.Contains(t, got.Text, "          - os: ubuntu-latest\n    runs-on: ${{ matrix.os }}\n", "a key with a dynamic list is not read")
-	assert.Contains(t, got.Text, "runs-on: "+done+"\n", "the expression is not written twice")
 	assert.Contains(t, got.Text, `runs-on: "`+strings.ReplaceAll(matrixVisible("os", `["ubuntu-latest"]`, runnerSlim), `"`, `\"`)+`", steps:`)
+	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
+}
+
+// publicOnly is the condition that keeps a job or a matrix value to a public repository.
+const publicOnly = "github.event.repository.visibility == 'public'"
+
+// split is the matrix list expression the repair writes for the whole list and the list a private repository runs.
+func split(whole, private string) string {
+	return "${{ " + publicOnly + " && fromJSON('" + whole + "') || fromJSON('" + private + "') }}"
+}
+
+func TestPrivateRunnerKeepsAForeignJobToAPublicRepository(t *testing.T) {
+	body := workflowHeader() + "jobs:\n" +
+		"  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n" +
+		"  win:\n    if: github.ref == 'refs/heads/master'\n    runs-on: windows-latest\n    steps:\n      - run: make\n" +
+		"  wrapped:\n    if: ${{ !cancelled() }} # keep going\n    runs-on: ubuntu-24.04-arm\n    steps:\n      - run: make\n" +
+		"  quoted:\n    if: \"needs.plan.outputs.go == 'yes'\"\n    runs-on: windows-11-arm\n    steps:\n      - run: make\n" +
+		"  gated:\n    if: ${{ github.event.repository.visibility == 'public' && always() }}\n    runs-on: macos-14\n    steps:\n      - run: make\n" +
+		"  self:\n    runs-on: [self-hosted, macOS]\n    steps:\n      - run: make\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 4)
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "  mac:\n    if: "+publicOnly+"\n    runs-on: macos-latest\n")
+	assert.Contains(t, got.Text, "  win:\n    if: (github.ref == 'refs/heads/master') && "+publicOnly+"\n    runs-on: windows-latest\n")
+	assert.Contains(t, got.Text, "  wrapped:\n    if: ${{ (!cancelled()) && "+publicOnly+" }} # keep going\n")
+	assert.Contains(t, got.Text, "  quoted:\n    if: (needs.plan.outputs.go == 'yes') && "+publicOnly+"\n")
+	assert.Contains(t, got.Text, "  gated:\n    if: ${{ github.event.repository.visibility == 'public' && always() }}\n", "a gated job is not gated twice")
+	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
+}
+
+func TestPrivateRunnerLeavesForeignJobsOfAnExemptRepository(t *testing.T) {
+	body := workflowHeader() + "jobs:\n  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n" +
+		"  apple:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-14]\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"
+	for name, origin := range map[string]string{
+		"exempt":        "https://github.com/wow-look-at-my/buildhost",
+		"another owner": "https://github.com/someone/private-runner-fixture",
+	} {
+		path := runnerRepo(t, origin, body)
+		assert.Empty(t, only(CheckContent(path, body), workflow.IDPrivateRunner), name)
+	}
+}
+
+func TestPrivateRunnerSplitsAnIncludeList(t *testing.T) {
+	body := workflowHeader() + "jobs:\n" +
+		"  both:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-14]\n        include:\n          - os: windows-2022\n            flags: {cc: \"it's\", n: 2, on: true}\n          - os: ubuntu-latest\n            extra: [\"1.20\", 3]\n        # the end\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		"  apple:\n    strategy:\n      matrix:\n        include:\n          - os: macos-14\n          - os: macos-15\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		"  alias:\n    strategy:\n      matrix:\n        os: [ubuntu-latest]\n        include:\n          - &win {os: windows-2022}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "        os: "+split(`["ubuntu-latest","macos-14"]`, `["ubuntu-latest"]`)+"\n        include: "+split(
+		`[{"os":"windows-2022","flags":{"cc":"it''s","n":2,"on":true} },{"os":"ubuntu-latest","extra":["1.20",3]}]`,
+		`[{"os":"ubuntu-latest","extra":["1.20",3]}]`)+"\n        # the end\n", "the list and the include both drop their foreign values")
+	assert.Contains(t, got.Text, "          - os: macos-15\n    if: "+publicOnly+"\n", "an include of foreign legs alone keeps the job to a public repository")
+	assert.Contains(t, got.Text, "          - &win {os: windows-2022}\n", "an anchored entry is not read")
+	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
+}
+
+func TestPrivateRunnerReadsTheMatrixKeyOfAWrittenExpression(t *testing.T) {
+	written := "${{ matrix.os == 'ubuntu-latest' && (vars.CI_RUNNER_DIND || 'ubuntu-latest') || matrix.os }}"
+	prefix := "${{ startsWith(matrix.os, 'ubuntu') && (vars.CI_RUNNER || matrix.os) || matrix.os }}"
+	body := workflowHeader() + "jobs:\n" +
+		"  test:\n    strategy:\n      matrix:\n        go: [1.25.x, 1.26.x]\n        os: [ubuntu-latest, macos-latest, windows-latest]\n    runs-on: " + written + "\n    steps:\n      - run: make\n" +
+		"  clippy:\n    strategy:\n      matrix:\n        include:\n          - name: Linux\n            os: ubuntu-24.04\n          - name: Mac\n            os: macos-14\n    runs-on: " + prefix + "\n    steps:\n      - run: make\n" +
+		"  mac:\n    runs-on: macOS-latest\n    steps:\n      - run: make\n" +
+		"  two:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-14]\n        host: [a]\n    runs-on: ${{ matrix.host == 'a' && matrix.os || 'ubuntu-latest' }}\n    steps:\n      - run: make\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "        os: "+split(`["ubuntu-latest","macos-latest","windows-latest"]`, `["ubuntu-latest"]`)+"\n    runs-on: "+written+"\n", "a written expression keeps its Linux routing")
+	assert.Contains(t, got.Text, "        include: "+split(`[{"name":"Linux","os":"ubuntu-24.04"},{"name":"Mac","os":"macos-14"}]`, `[{"name":"Linux","os":"ubuntu-24.04"}]`)+"\n    runs-on: "+prefix+"\n")
+	assert.Contains(t, got.Text, "  mac:\n    if: "+publicOnly+"\n    runs-on: macOS-latest\n", "a label in any case is the same runner")
+	assert.Contains(t, got.Text, "        os: [ubuntu-latest, macos-14]\n", "an expression that reads two matrix keys is not read")
+}
+
+func TestPrivateRunnerSplitsABlockMatrixList(t *testing.T) {
+	body := workflowHeader() + "jobs:\n  build:\n    strategy:\n      matrix:\n        os:\n          - ubuntu-22.04\n          - macos-latest # apple\n          - self-hosted-box\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"
+	path := runnerRepo(t, PrivateRunnerFixture, body)
+	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 2)
+	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
+	require.NoError(t, err)
+	assert.Contains(t, got.Text, "      matrix:\n        os: "+split(`["ubuntu-22.04","macos-latest","self-hosted-box"]`, `["ubuntu-22.04","self-hosted-box"]`)+"\n    runs-on: "+matrixVisible("os", `["ubuntu-22.04"]`, runnerSlim)+"\n")
 	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
 }
