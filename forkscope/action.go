@@ -153,16 +153,51 @@ func (r Resolver) fetchUsing(repo, path, ref string) (string, error) {
 	return "", firstErr
 }
 
-// fetchFile reads one file of repo at ref through the contents API. It asks as
-// fetchRepo does: through the gh CLI with no token and the default API.
+// branches remembers each repository's default branch for the life of the process.
+var branches = struct {
+	sync.Mutex
+	byKey map[string]string
+}{byKey: map[string]string{}}
+
+// DefaultBranch answers the default branch of repo, as OWNER/REPO.
+func (r Resolver) DefaultBranch(repo string) (string, error) {
+	key := r.api() + " " + repo
+	branches.Lock()
+	defer branches.Unlock()
+	if branch, ok := branches.byKey[key]; ok {
+		return branch, nil
+	}
+	body, err := r.get("repos/"+repo, "application/vnd.github+json")
+	if err != nil {
+		return "", err
+	}
+	var info struct {
+		DefaultBranch string `json:"default_branch"`
+	}
+	if err := json.Unmarshal(body, &info); err != nil {
+		return "", fmt.Errorf("repository %s: %w", repo, err)
+	}
+	if info.DefaultBranch == "" {
+		return "", fmt.Errorf("repository %s: no default branch", repo)
+	}
+	branches.byKey[key] = info.DefaultBranch
+	return info.DefaultBranch, nil
+}
+
+// fetchFile reads one file of repo at ref through the contents API.
 func (r Resolver) fetchFile(repo, file, ref string) ([]byte, error) {
-	endpoint := "repos/" + repo + "/contents/" + escapePath(file) + "?ref=" + url.QueryEscape(ref)
+	return r.get("repos/"+repo+"/contents/"+escapePath(file)+"?ref="+url.QueryEscape(ref), "application/vnd.github.raw")
+}
+
+// get reads one API endpoint. It asks as fetchRepo does: through the gh CLI
+// with no token and the default API.
+func (r Resolver) get(endpoint, accept string) ([]byte, error) {
 	if r.token() == "" && r.getenv("GITHUB_API_URL") == "" {
 		run := r.GH
 		if run == nil {
 			run = runGH
 		}
-		out, err := run("api", "-H", "Accept: application/vnd.github.raw", endpoint)
+		out, err := run("api", "-H", "Accept: "+accept, endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("gh api %s: %w", endpoint, err)
 		}
@@ -173,7 +208,7 @@ func (r Resolver) fetchFile(repo, file, ref string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("GET %s: %w", full, err)
 	}
-	req.Header.Set("Accept", "application/vnd.github.raw")
+	req.Header.Set("Accept", accept)
 	if token := r.token(); token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
