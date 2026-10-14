@@ -5,14 +5,15 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
 
-// IDOrgActionRef is an org action or reusable workflow that names a ref other than master.
+// IDOrgActionRef is an org action or reusable workflow that names a ref other than its default branch.
 const IDOrgActionRef = "yaml/org-action-ref"
 
-// orgOwner is the owner whose actions must track master.
+// orgOwner is the owner whose actions must track their default branch.
 const orgOwner = "wow-look-at-my"
 
 // monorepo publishes each of its directories to its own orphan tag.
@@ -21,12 +22,23 @@ const monorepo = "actions"
 // orphanTag is the tag the monorepo publishes a directory to from master.
 var orphanTag = regexp.MustCompile(`^[A-Za-z0-9._-]+#latest$`)
 
+// commitSHA is a full commit SHA, the only commit form a uses: value takes.
+var commitSHA = regexp.MustCompile(`^[0-9A-Fa-f]{40}$`)
+
+// commentName is the tag a pin's comment names: `# cache-upload#latest`.
+var commentName = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9._-]*)#[A-Za-z0-9._-]+$`)
+
+// versionName is a tag name, which no monorepo directory carries.
+var versionName = regexp.MustCompile(`^[vV]?[0-9]`)
+
 // orgRef is a uses: value that names an org action.
 type orgRef struct {
 	node *yaml.Node
 	// repo is the path before the @, with the owner.
 	repo string
 	ref  string
+	// comment is the line comment beside the value, without its marker.
+	comment string
 }
 
 // orgRefs answers every uses: value that names an org action, in source order.
@@ -51,31 +63,81 @@ func orgRefs(content string) []orgRef {
 			if !ok || !strings.EqualFold(owner, orgOwner) {
 				continue
 			}
-			out = append(out, orgRef{node: value, repo: repo, ref: ref})
+			comment := value.LineComment
+			if comment == "" {
+				comment = node.Content[i].LineComment
+			}
+			comment = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(comment), "#"))
+			out = append(out, orgRef{node: value, repo: repo, ref: ref, comment: comment})
 		}
 	})
 	return out
 }
 
-// allowedRef reports whether a ref tracks master: master itself, or an orphan
-// tag the monorepo publishes from it.
-func allowedRef(ref string) bool {
-	return ref == "master" || orphanTag.MatchString(ref)
+// allowedRef reports the branch repo tracks, or an orphan tag. `<sha>#latest` names no tag.
+func allowedRef(repo, ref string) bool {
+	name, _, _ := strings.Cut(ref, "#")
+	return ref == trackedBranch(repo) || orphanTag.MatchString(ref) && !commitSHA.MatchString(name)
 }
 
-// orgActionRefs reports each org action that names a ref other than master.
+// trackedBranch answers the default branch of the repository that holds an
+// action path. Where GitHub cannot answer, it answers master, the org's branch.
+func trackedBranch(repo string) string {
+	parts := strings.SplitN(repo, "/", 3)
+	if len(parts) < 2 {
+		return "master"
+	}
+	branch, err := forkscope.Resolver{}.DefaultBranch(parts[0] + "/" + parts[1])
+	if err != nil {
+		return "master"
+	}
+	return branch
+}
+
+// isMonorepo reports whether a repo path is the monorepo itself, not a path inside it.
+func isMonorepo(repo string) bool {
+	return strings.EqualFold(repo, orgOwner+"/"+monorepo)
+}
+
+// pinnedDirectory answers the monorepo directory a SHA pin stands for. Only the
+// comment beside the pin can name it. The second result is false when no
+// comment names one, because a guessed directory breaks the job.
+func pinnedDirectory(at orgRef) (string, bool) {
+	fields := strings.Fields(at.comment)
+	if len(fields) == 0 {
+		return "", false
+	}
+	match := commentName.FindStringSubmatch(fields[0])
+	if match == nil || versionName.MatchString(match[1]) {
+		return "", false
+	}
+	return match[1], true
+}
+
+// repairable reports whether the rule can name the ref that tracks master. A
+// SHA pin of the monorepo with no directory beside it has no such ref.
+func repairable(at orgRef) bool {
+	name, _, _ := strings.Cut(at.ref, "#")
+	if !isMonorepo(at.repo) || !commitSHA.MatchString(name) {
+		return true
+	}
+	_, ok := pinnedDirectory(at)
+	return ok
+}
+
+// orgActionRefs reports each org action that names a ref other than its default branch.
 func orgActionRefs(content string) []ste.Finding {
 	var out []ste.Finding
 	for _, at := range orgRefs(content) {
-		if allowedRef(at.ref) {
+		if allowedRef(at.repo, at.ref) || !repairable(at) {
 			continue
 		}
 		out = append(out, ste.Finding{
 			Line:   at.node.Line,
 			ID:     IDOrgActionRef,
-			Rule:   "an org action that names a ref other than master",
+			Rule:   "an org action that names a ref other than its default branch",
 			Detail: at.repo + "@" + at.ref,
-			Fix:    "Use `@master`, or `@<directory>#latest` for an action of " + orgOwner + "/" + monorepo + ". `slopfix fix` does this.",
+			Fix:    "Use `@" + trackedBranch(at.repo) + "`, or `@<directory>#latest` for an action of " + orgOwner + "/" + monorepo + ". `slopfix fix` does this.",
 		})
 	}
 	return out
@@ -83,15 +145,23 @@ func orgActionRefs(content string) []ste.Finding {
 
 // masterRef answers the ref that tracks master for an action. A numbered
 // orphan tag becomes its latest tag. A bare monorepo directory gets the tag
-// the monorepo publishes it to.
-func masterRef(repo, ref string) string {
-	if name, _, ok := strings.Cut(ref, "#"); ok {
+// the monorepo publishes it to. A monorepo SHA pin gets the tag of the
+// directory its comment names.
+func masterRef(at orgRef) string {
+	name, _, tagged := strings.Cut(at.ref, "#")
+	if commitSHA.MatchString(name) {
+		if dir, ok := pinnedDirectory(at); ok && isMonorepo(at.repo) {
+			return dir + "#latest"
+		}
+		return trackedBranch(at.repo)
+	}
+	if tagged {
 		return name + "#latest"
 	}
-	if strings.EqualFold(repo, orgOwner+"/"+monorepo) {
-		return ref + "#latest"
+	if isMonorepo(at.repo) {
+		return at.ref + "#latest"
 	}
-	return "master"
+	return trackedBranch(at.repo)
 }
 
 // retarget points each org action at the ref that tracks master. It rewrites
@@ -100,7 +170,7 @@ func retarget(content string) []edit.Edit {
 	fileLines := lines(content)
 	var out []edit.Edit
 	for _, at := range orgRefs(content) {
-		if allowedRef(at.ref) {
+		if allowedRef(at.repo, at.ref) || !repairable(at) {
 			continue
 		}
 		lineNo, col := at.node.Line-1, at.node.Column-1
@@ -113,7 +183,7 @@ func retarget(content string) []edit.Edit {
 			continue
 		}
 		start := col + found
-		swapped := fileLines[lineNo][:start] + at.repo + "@" + masterRef(at.repo, at.ref) + fileLines[lineNo][start+len(old):]
+		swapped := fileLines[lineNo][:start] + at.repo + "@" + masterRef(at) + fileLines[lineNo][start+len(old):]
 		out = append(out, rewrite(content, lineNo, lineNo, []string{swapped}))
 	}
 	return out

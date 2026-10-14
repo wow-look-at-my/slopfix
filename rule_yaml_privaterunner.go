@@ -39,6 +39,15 @@ func init() {
 			"  dynamic:\n    strategy:\n      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"),
 		privateRunnerCase("private-runner-matrix-flow", workflowHeader()+"jobs:\n"+
 			"  build: {strategy: {matrix: {os: [ubuntu-latest, windows-latest]}}, runs-on: '${{ matrix.os }}', steps: [{run: make}]}\n"),
+		privateRunnerCase("private-runner-macos", workflowHeader()+"jobs:\n  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n"),
+		privateRunnerCase("private-runner-windows-if", workflowHeader()+"jobs:\n"+
+			"  windows:\n    if: github.ref == 'refs/heads/master'\n    runs-on: windows-latest\n    steps:\n      - run: make\n"+
+			"  arm:\n    if: ${{ !cancelled() }}\n    runs-on: ubuntu-24.04-arm\n    steps:\n      - run: make\n"),
+		privateRunnerCase("private-runner-beside-gated", workflowHeader()+"jobs:\n"+
+			"  gated:\n    if: github.event.repository.visibility == 'public'\n    runs-on: macos-14\n    steps:\n      - run: make\n"+
+			"  open:\n    runs-on: windows-2022\n    steps:\n      - run: make\n"),
+		privateRunnerCase("private-runner-matrix-foreign", matrixJob("        os: [macos-14, macos-15]\n", "      - run: make\n")),
+		privateRunnerCase("private-runner-matrix-split", matrixJob("        os:\n          - ubuntu-latest\n          - windows-latest\n        go: [stable]\n", "      - run: make\n")),
 	}
 	RegisterRule(RuleSpec{
 		ID:       workflow.IDPrivateRunner,
