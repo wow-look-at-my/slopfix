@@ -353,6 +353,9 @@ func breakWith(prose string, joiners [][]int, openers []string) string {
 			out.WriteString(openers[n] + " ")
 			continue
 		}
+		if NameLike(prose[last:]) {
+			continue
+		}
 		next, width := utf8.DecodeRuneInString(prose[last:])
 		out.WriteRune(unicode.ToUpper(next))
 		last += width
@@ -368,7 +371,7 @@ func isCapitalized(word string) bool {
 
 func capitalize(s string) string {
 	first, width := utf8.DecodeRuneInString(s)
-	if width == 0 {
+	if width == 0 || NameLike(s) {
 		return s
 	}
 	return string(unicode.ToUpper(first)) + s[width:]
