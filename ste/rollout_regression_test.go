@@ -1,6 +1,7 @@
 package ste_test
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,4 +41,14 @@ func TestClauseRepairsOnRealRolloutInput(t *testing.T) {
 			assert.Equal(t, c.want, ste.FixSelected(c.in, keep))
 		})
 	}
+}
+
+// From wow-cli's CLAUDE.md: the division before "when" ended the left
+// sentence inside `runtime/debug.ReadBuildInfo()`, and wrote "reads `runt.".
+func TestADivisionBeforeAFrontedClauseKeepsTheCodeSpanWhole(t *testing.T) {
+	in := "go-selfupdate-mini detects the running binary's version itself: `selfupdate.CurrentVersion()` reads `runtime/debug.ReadBuildInfo()` and, when `Main.Version` is missing/`(devel)`/a Go pseudo-version, formats `vcs.time` as `v0.0.<unix-seconds>` (matching the autorelease tag scheme), with `+dirty` appended for modified working trees."
+	out := ste.FixSelected(in, func(string) bool { return true })
+	assert.Contains(t, out, "reads `runtime/debug.ReadBuildInfo()`.")
+	span := regexp.MustCompile("`[^`]*`")
+	assert.Equal(t, span.FindAllString(in, -1), span.FindAllString(out, -1))
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -199,6 +200,9 @@ func pluralNoun(content string, end int) bool {
 var finiteVerbTags = set.Of("VBZ", "VBD", "VBP", "MD")
 
 func upperFirst(s string) string {
+	if ste.NameLike(s) {
+		return s
+	}
 	for i, r := range s {
 		return string(unicode.ToUpper(r)) + s[i+len(string(r)):]
 	}
