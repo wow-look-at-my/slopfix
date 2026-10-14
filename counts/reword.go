@@ -10,6 +10,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // RewordAt is reword for a caller that holds the phrase but no Hit: the
@@ -105,6 +106,7 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	capital := opensSentence(content, from) && (unicode.IsUpper(first) || !unicode.IsLetter(first))
 	switch {
 	case !capital:
+	case ste.NameLike(text), text == "" && ste.NameLike(content[e.End:]):
 	case text != "":
 		e.Text = strings.ToUpper(text[:1]) + text[1:]
 	default:
