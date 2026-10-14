@@ -99,6 +99,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		text = vague(n)
 	case len(before) > 0 && (cardinal.InClass(last(1), "preposition") || followsANoun(content, hit.Start)):
 		text = "multiple "
+	case len(before) > 0 && pastVerbBefore(content, hit):
+		// A past event states how many happened, and a bare plural drops the amount: "recorded 2 intervals" reads "recorded a couple of intervals".
+		text = vague(n)
 	case len(before) > 0 && clauseCoordinator.MatchString(last(1)) && subjectOfVerb(content, hit):
 		// The number was the subject's only determiner: "and 17 gates sat" reads "and the gates sat".
 		text = "the "
@@ -119,6 +122,20 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		e.End += width
 	}
 	return e, true
+}
+
+// pastVerbBefore reports a past-tense verb right before the count, whose
+// object the count measures.
+func pastVerbBefore(content string, hit Hit) bool {
+	from := strings.LastIndexByte(content[:hit.Start], '\n') + 1
+	var prev syntax.Word
+	for _, w := range syntax.Parse(content[from:hit.End], nil).Words {
+		if from+w.Start >= hit.Start {
+			return prev.Tag == "VBD" || prev.Tag == "VBN"
+		}
+		prev = w
+	}
+	return false
 }
 
 // subjectOfVerb reports a counted noun phrase that a finite verb follows, which
