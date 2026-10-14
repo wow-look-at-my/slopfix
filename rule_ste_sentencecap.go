@@ -41,6 +41,18 @@ func init() {
 				Files: map[string]string{"path.cpp": "int growPairs();\nint pairsChanged;\nint growthCap_;\nint coarseGrowthCap_;\nint prepare();\n"},
 			},
 			{
+				// From splat2's system-lock.h: the division kept "at a time" off its verb.
+				Name: "a so clause keeps its adverbial", Path: "lock.md",
+				Text: "main() holds the \"gpu\" lock for every splat-vulkan run except --help and --dump-layouts, so only one splat-vulkan uses the GPU at a time.\n",
+				Want: "main() holds the \"gpu\" lock for every splat-vulkan run except --help and --dump-layouts. Only one splat-vulkan uses the GPU at a time.\n",
+			},
+			{
+				// From splat2's system-lock.h: the division after the colon dropped the verb "takes a ticket in".
+				Name: "a clause after a colon keeps its own subject", Path: "queue.md",
+				Text: "Every request takes a ticket in \"<lock file>.queue/\": a sequence number from the counter file, taken under flock on that file, names a ticket file that its owner holds flock(LOCK_EX) on for as long as it waits or holds.\n",
+				Want: "Every request takes a ticket in \"<lock file>.queue/\". A sequence number from the counter file, taken under flock on that file, names a ticket file. Its owner holds flock(LOCK_EX) on that file for as long as it waits or holds.\n",
+			},
+			{
 				Name: "an object after or takes the main verb again", Path: "x.md",
 				Text: "The rule answers the number at offset at and the words up to the plural noun it counts, as in \"0 validation errors\", or \"\" when no plural noun ends a phrase it governs.\n",
 				Want: "The rule answers the number at offset at and the words up to the plural noun it counts, as in \"0 validation errors\". Otherwise, the rule answers \"\" when no plural noun ends a phrase it governs.\n",
