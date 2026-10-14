@@ -46,6 +46,11 @@ func init() {
 				Want: "The gate reads the cache file of the build host for each module of the tree. This holds in the order of the paths of the list of the repository at the start of the run.\n",
 			},
 			{
+				Name: "a sentence with no verb at all", Path: "noverb.md",
+				Text: "A list of the cache files of the build host for each module of the tree in the order of the paths of the list of the repository at the start of the run.\n",
+				Want: "This covers a list of the cache files of the build host for each module of the tree. This holds in the order of the paths of the list of the repository at the start of the run.\n",
+			},
+			{
 				// From splat2's system-lock.h: the division kept "at a time" off its verb.
 				Name: "a so clause keeps its adverbial", Path: "lock.md",
 				Text: "main() holds the \"gpu\" lock for every splat-vulkan run except --help and --dump-layouts, so only one splat-vulkan uses the GPU at a time.\n",
