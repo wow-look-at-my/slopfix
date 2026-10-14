@@ -36,8 +36,12 @@ func frontedDivision(s *syntax.Sentence, source string) (string, bool) {
 		if pronoun == "" {
 			continue
 		}
-		rest := source[s.Words[i+2].Start:s.Words[comma].End] + " " + pronoun + " " + source[s.Words[comma+1].Start:]
-		left := strings.TrimRight(source[:s.Words[i-1].End], " ,") + "."
+		// A masked code span's word stops short of its backticks, so each offset moves out of the span.
+		opens := outsideSpans(source, s.Words[i+2].Start, false)
+		closes := outsideSpans(source, s.Words[comma].End, true)
+		resumes := outsideSpans(source, s.Words[comma+1].Start, false)
+		rest := source[opens:closes] + " " + pronoun + " " + source[resumes:]
+		left := strings.TrimRight(source[:outsideSpans(source, s.Words[i-1].End, true)], " ,") + "."
 		// The conjunction drops, because the reorder repair moves a sentence adverb such as "However," to the end of the sentence.
 		return left + " " + joinOpener("", rest), true
 	}
