@@ -36,8 +36,9 @@ func carriedRest(whole *syntax.Sentence, c forceCut, rest string) string {
 
 // lastResortDivision divides a sentence that every filter of hardDivision
 // refused, so no path leaves it over the cap. It takes the longest head under
-// the cap that reads as a sentence, then any head under the cap, then the
-// words. Up to the cap. The rest takes a carrier when it holds no verb.
+// the cap that reads as a sentence. Failing that, it takes any head under the
+// cap, and then the first words the cap allows. The rest takes a carrier when
+// it holds no verb.
 func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int) (string, bool) {
 	var cuts []forceCut
 	for _, c := range candidates(source, masked, false, limit) {
