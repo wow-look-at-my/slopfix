@@ -225,6 +225,9 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "CC" && opensNounPhrase(words[i+1]):
 			// "and reads every row": a plural noun cannot take a determiner after it.
 			w.Tag = "VBZ"
+		case w.Tag == "NN" && Is(w.Text, "bare-verb"):
+			// "locals computed in setup become plain members": no noun spells "become".
+			w.Tag = "VBP"
 		case w.Tag == "NNS" && i > 1 && words[i-1].Tag == "JJ" && verbEnding(w.Text) && Is(words[i-2].Text, "singular-quantifier"):
 			// "each real packs into": a singular quantifier takes no plural noun, so its modifier is the noun and the -s form is the verb.
 			words[i-1].Tag, w.Tag = "NN", "VBZ"

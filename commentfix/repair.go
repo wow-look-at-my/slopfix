@@ -439,6 +439,9 @@ func countedPhrase(prose string, at int) string {
 		}
 		return phrase
 	}
+	if head := cardinal.CountedHead(words, k); head >= 0 && head <= k+compoundWords {
+		return prose[at:words[head].End]
+	}
 	for j := k + 1; j < len(words) && j <= k+compoundWords; j++ {
 		phrase := prose[at:words[j].End]
 		if !cardinal.NotAPluralNoun(prose, cardinal.Match{At: at, Text: phrase}) {

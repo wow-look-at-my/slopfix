@@ -339,7 +339,7 @@ func NamesAnItem(text string, at int) bool {
 			return false
 		}
 		// A word that opens a coordinated predicate is its verb, and the digits count its object: "exit 0, report 0 validation errors".
-		if (before.Tag == "," || before.Tag == "CC") && !plural && countsAPlural(words, i+1) {
+		if (before.Tag == "," || before.Tag == "CC") && !plural && CountedHead(words, i) >= 0 {
 			return false
 		}
 		if noun {
@@ -351,18 +351,33 @@ func NamesAnItem(text string, at int) bool {
 	return false
 }
 
-// countsAPlural reports a noun run from word i that ends on a plural noun, as
-// in "validation errors". A finite verb after the run makes the run the
-// subject of a label clause instead: "branch 3 sees".
-func countsAPlural(words []syntax.Word, i int) bool {
-	j := i
+// CountedHead answers the index of the plural noun a compound ends on, after
+// the number at word i, as in "validation errors". It answers below zero when
+// no compound follows. The tagger reads such a head as a verb in -s, so the
+// words after it decide. A compound noun ends where a conjunction, a comma, a
+// preposition or the sentence end stands. A lone -s word after the digits is
+// no compound, and is the verb of a label: "branch 3 sees".
+func CountedHead(words []syntax.Word, i int) int {
+	j := i + 1
 	for j < len(words) && (words[j].Tag == "NN" || words[j].Tag == "NNP" || words[j].Tag == "JJ") {
 		j++
 	}
-	if j >= len(words) || words[j].Tag != "NNS" && words[j].Tag != "NNPS" {
-		return false
+	if j == i+1 || j >= len(words) || !strings.HasSuffix(words[j].Lower(), "s") || strings.HasSuffix(words[j].Lower(), "ss") {
+		return -1
 	}
-	return j+1 >= len(words) || !finiteTags.Contains(words[j+1].Tag)
+	switch words[j].Tag {
+	case "NNS", "NNPS", "VBZ":
+	default:
+		return -1
+	}
+	if j+1 < len(words) {
+		switch words[j+1].Tag {
+		case "CC", ",", ".", ":", "IN", "TO":
+		default:
+			return -1
+		}
+	}
+	return j
 }
 
 // notNames are the words before digits that count or order them, and never

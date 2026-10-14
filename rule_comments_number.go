@@ -22,7 +22,7 @@ func init() {
 			},
 			{
 				Name: "an exit status wrapped onto the next comment line", Path: "gate.h", Unchanged: true,
-				Text: "// Under --validate the validation errors of the device phases fail the run (exit\n// 2), the convention of the shed test.\nint runRecreateTest();\n",
+				Text: "// Under --validate the validation errors of the device phases fail the run (exit\n// 2), the convention of the shed test.\nint runRecreateTest() {\n\tint failed = validate();\n\treturn failed;\n}\n",
 			},
 		},
 	})

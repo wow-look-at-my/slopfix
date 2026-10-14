@@ -45,6 +45,9 @@
   <!-- A quantifier that takes a singular noun. A modifier and an -s form after it are its noun and the verb: "each real packs". -->
   <class name="singular-quantifier" words="each every one"/>
 
+  <!-- A bare verb that no noun spells. The tagger reads it as a noun inside a compound: "setup become plain members". -->
+  <class name="bare-verb" words="become seem exist belong"/>
+
   <!-- A place word that follows the noun it places: "the case above". -->
   <class name="postposed" words="above below here there"/>
 
