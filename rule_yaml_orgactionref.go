@@ -5,8 +5,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// yaml/org-action-ref: an org action referenced at a version tag or a branch of
-// one person's making. The repair points every org action at master.
+// yaml/org-action-ref: an org action referenced at a version tag, a SHA or a
+// branch of one person's making. The `lkgb` tag passes. The repair points the
+// action at its default branch.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       workflow.IDOrgActionRef,
@@ -22,16 +23,26 @@ func init() {
 				"        with:\n          key: zxt-bin-${{ github.sha }}\n          path: build/zxt\n"),
 			workflowCase("org-action-ref-sha-pin", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
 				"    steps:\n      - uses: wow-look-at-my/actions@f294f0c3c3873f1452bdb965c761580d7bcf625d # cache-download#latest\n"),
+			lkgbCase(),
 		},
 	})
 }
 
-// detectOrgActionRef answers every org action pinned to a tag or branch.
+// lkgbCase is a workflow whose org actions sit at the `lkgb` tag, which the
+// rule leaves as written.
+func lkgbCase() RuleCase {
+	c := workflowCase("org-action-ref-lkgb", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
+		"    steps:\n      - uses: wow-look-at-my/go-toolchain@lkgb\n      - uses: wow-look-at-my/actions@lkgb\n")
+	c.Unchanged = true
+	return c
+}
+
+// detectOrgActionRef answers every org action pinned to a tag other than `lkgb`, a SHA or a branch.
 func detectOrgActionRef(c RuleCase) []ste.Finding {
 	return caseFindings(c, workflow.IDOrgActionRef)
 }
 
-// autofixOrgActionRef points each org action reference at master.
+// autofixOrgActionRef points each reported org action at its default branch.
 func autofixOrgActionRef(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDOrgActionRef)
 }
