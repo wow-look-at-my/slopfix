@@ -74,7 +74,7 @@ var (
 // alone. A semicolon inside `a; b` is the thing the sentence documents. A
 // quotation is another voice, so its words stay as Check reads them: unjudged.
 func fixProse(text string, repair func(string) string) string {
-	spans := append(verbatimSpan.FindAllStringIndex(text, -1), quotedSpans(text)...)
+	spans := append(dataSpans(text), quotedSpans(text)...)
 	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
 	var out strings.Builder
 	last := 0
@@ -274,7 +274,7 @@ func absoluteTail(masked string, from int, spans [][2]int) (to, last int, ok boo
 // offLimits are the spans no break may land in. The data Check hides, and a
 // parenthetical, which STE counts as a single word and a break would halve.
 func offLimits(prose, masked string) [][]int {
-	off := verbatimSpan.FindAllStringIndex(prose, -1)
+	off := dataSpans(prose)
 	return append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 }
 
@@ -292,6 +292,9 @@ func mask(prose string) string {
 		default:
 			fillLink(out[span[0]:span[1]], fill)
 		}
+	}
+	for _, span := range formulaSpans(prose) {
+		fillWith(out[span[0]:span[1]], "CODE")
 	}
 	return string(out)
 }

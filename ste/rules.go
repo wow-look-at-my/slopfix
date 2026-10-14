@@ -200,6 +200,8 @@ var proseRules = []proseRule{
 // any of them is not a sentence joiner.
 func strip(text string) string {
 	defer trace.Phase("rule/ste-strip")()
+	// A formula reads as data first, while the code spans that hold one are still in place.
+	text = stripFormulas(text)
 	text = codeSpan.ReplaceAllString(text, " CODE ")
 	// A range becomes a separator, so neighbours never join into one word.
 	text = charRange.ReplaceAllString(text, " ")

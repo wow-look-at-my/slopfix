@@ -92,6 +92,9 @@ func checkMask(prose string) string {
 			fillLink(out[span[0]:span[1]], func(inner []byte) { fillCheckWord(inner, "URL") })
 		}
 	}
+	for _, span := range formulaSpans(prose) {
+		fillCheckWord(out[span[0]:span[1]], "CODE")
+	}
 	// Check finds a quotation after it strips code, so a quote mark inside a code span pairs with nothing.
 	for _, span := range quotation.FindAllIndex(out, -1) {
 		fillCheckWord(out[span[0]:span[1]], "QUOTE")
@@ -448,7 +451,7 @@ func wordEnds(masked string) []int {
 // candidates answers every admissible cut, best first. A strict pass also keeps
 // each part off a word that leaves it hanging.
 func candidates(source, masked string, strict bool, limit int) []forceCut {
-	off := verbatimSpan.FindAllStringIndex(source, -1)
+	off := dataSpans(source)
 	off = append(off, quotedSpans(source)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 	off = append(off, outerParens(masked)...)

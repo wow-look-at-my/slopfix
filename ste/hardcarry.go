@@ -101,7 +101,7 @@ func closesAPhrase(head string) bool {
 // capCut answers a cut after the last word the cap allows that closes a
 // phrase, outside any code span, link or entity.
 func capCut(source, masked string, limit int) (forceCut, bool) {
-	spans := verbatimSpan.FindAllStringIndex(source, -1)
+	spans := dataSpans(source)
 	var ends []int
 	for _, end := range wordEnds(masked) {
 		if !insideAny(spans, end-1) {

@@ -46,6 +46,12 @@ func init() {
 				Want: "The gate reads the cache file of the build host for each module of the tree. This holds in the order of the paths of the list of the repository at the start of the run.\n",
 			},
 			{
+				// From a splat2 commit message: a division read the minus sign as a dash and wrote "This is 3f^3/2".
+				Name: "a formula is data that no division enters", Path: "msg.txt",
+				Text: "The gate fits the samples with w2 = f/2 + 2f^2 - 3f^3/2 for every frame of the run, and it writes the weight into the table that the shader reads at startup.\n",
+				Want: "The gate fits the samples with w2 = f/2 + 2f^2 - 3f^3/2 for every frame of the run. It writes the weight into the table that the shader reads at startup.\n",
+			},
+			{
 				Name: "a sentence with no verb at all", Path: "noverb.md",
 				Text: "A list of the cache files of the build host for each module of the tree in the order of the paths of the list of the repository at the start of the run.\n",
 				Want: "This covers a list of the cache files of the build host for each module of the tree. This holds in the order of the paths of the list of the repository at the start of the run.\n",
