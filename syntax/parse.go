@@ -225,6 +225,9 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "CC" && opensNounPhrase(words[i+1]):
 			// "and reads every row": a plural noun cannot take a determiner after it.
 			w.Tag = "VBZ"
+		case filler(w.Text) && isVerb(w.Tag):
+			// "or "" when": a mask stands for data, which is a name and never a verb.
+			w.Tag = "NNP"
 		case w.Tag == "NN" && Is(w.Text, "bare-verb"):
 			// "locals computed in setup become plain members": no noun spells "become".
 			w.Tag = "VBP"
