@@ -120,7 +120,7 @@ func segmentsOf(lines []string, p para) []segment {
 			current = &out[len(out)-1]
 		}
 		current.lines = append(current.lines, n)
-		current.prose = strings.TrimSpace(current.prose + " " + prose)
+		current.prose = joinProse(current.prose, prose)
 		prev = prose
 	}
 	return out
@@ -249,7 +249,7 @@ func sentenceEdits(filename, src string, singleLine bool) []edit.Edit {
 		if !judged(lines, p) {
 			continue
 		}
-		out, changed := rewriteSegments(lines, p, singleLine || p.code != "")
+		out, changed := rewriteSegments(lines, p, singleLine || p.code != "" && len(p.lines) == 1)
 		if !changed {
 			continue
 		}

@@ -288,7 +288,7 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 					current.cont = marker
 				}
 				current.lines = append(current.lines, i)
-				current.prose = strings.TrimSpace(current.prose + " " + prose)
+				current.prose = joinProse(current.prose, prose)
 				current.width = max(current.width, len(line))
 				// The closer sits on the paragraph's last line, wherever that lands.
 				if trailer != "" {
