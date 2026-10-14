@@ -259,24 +259,29 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if forceDangling.Contains(last) || forceBound.Contains(next) {
 			continue
 		}
-		// Both parts must read as sentences, or the cut strands a fragment such
-		// as "writes. Through it while this function runs.".
-		if !standsAsSentence(closeHead(source[:c.left])) ||
-			!standsAsSentence(hardRest(source, c.right)) || strandsPhrase(whole, c.right, hardRest(source, c.right)) ||
-			!holdsFinite(checkMask(hardRest(source, c.right))) && !opensImperative(checkMask(hardRest(source, c.right))) {
+		// The head must read as a sentence. A rest that reads as none, such as
+		// "Through it while this function runs.", takes a carrier below.
+		if !standsAsSentence(closeHead(source[:c.left])) {
 			continue
 		}
 		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
 		rank := hardSeamRank(source, whole, c)
+		if verbless(whole, c, source) {
+			rank -= verblessPenalty
+		}
 		if rank > bestRank || rank == bestRank && c.words > bestWords {
 			best, bestWords, bestRank = c, c.words, rank
 		}
 	}
 	if bestWords < 0 {
-		return source, false
+		return lastResortDivision(source, masked, whole, limit)
 	}
+
 	left := closeHead(source[:best.left])
 	right := hardRest(source, best.right)
+	if verbless(whole, best, source) {
+		right = carriedRest(whole, best, right)
+	}
 	if left == "" || right == "" {
 		return source, false
 	}
