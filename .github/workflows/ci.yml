@@ -34,6 +34,8 @@ jobs:
         with:
           # Approves the //go:generate directives; editing a single fails the build with the new value.
           generate: 165003bec91c
+          # A cold cache takes go generate and vet past the default timeout.
+          timeout: 30
 
       # The fork check reads the repository from the API, and an anonymous call shares the runner IP's rate limit.
       - run: ./build/slopfix check .
