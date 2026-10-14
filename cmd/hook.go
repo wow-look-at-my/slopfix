@@ -228,7 +228,12 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 			findings = append(findings, f.String())
 		}
 		if p.repair != nil {
-			take(*p.repair, func(s string) { raw["new_string"] = s })
+			take(*p.repair, func(s string) {
+				raw["new_string"] = s
+				if p.old != "" {
+					raw["old_string"] = p.old
+				}
+			})
 		}
 	} else {
 		scope, err := fragmentScope(in.ToolName, write, owned)

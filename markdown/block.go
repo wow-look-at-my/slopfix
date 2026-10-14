@@ -115,7 +115,7 @@ func paragraphs(content string, lines []string) map[int]int {
 					for to < last && !isDirective(lines[to+1]) {
 						to++
 					}
-					if hasLetter(lines[from : to+1]) {
+					if hasLetter(lines[from:to+1]) && !trailerBlock(lines[from:to+1]) {
 						ends[from] = to
 					}
 					from = to + 1
@@ -147,6 +147,23 @@ func isDirective(line string) bool {
 		}
 	}
 	return false
+}
+
+// trailerLine matches a git trailer such as "Co-Authored-By: a <b@c>": a hyphenated token, a colon and a value.
+var trailerLine = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+: \S`)
+
+// trailerBlock reports a run of git trailers, one on each line. git reads each
+// line as a trailer of its own, so a join turns them into one wrong value.
+func trailerBlock(lines []string) bool {
+	if len(lines) < 2 {
+		return false
+	}
+	for _, line := range lines {
+		if !trailerLine.MatchString(strings.TrimSpace(line)) {
+			return false
+		}
+	}
+	return true
 }
 
 // hasLetter reports whether any line holds a letter. A paragraph with none is

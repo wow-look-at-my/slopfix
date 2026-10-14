@@ -39,6 +39,9 @@ func identifierWords(text string) []string {
 	})
 }
 
+// webAddress is a URL with a scheme, up to the next blank.
+var webAddress = regexp.MustCompile(`\b[a-z][a-z0-9+.-]*://\S+`)
+
 // minCandidate is the shortest name this rule judges: shorter reads as a word.
 const minCandidate = 8
 
@@ -310,8 +313,10 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	doc := IsDocument(path)
 	names := set.New[string]()
 	for _, b := range blocks {
+		// A URL names a page on another host, not a symbol of this repository.
+		prose := webAddress.ReplaceAllString(b.Prose, " ")
 		// The names come from the comment alone. Code on a shared line names what it uses, and the repository answers for that.
-		for _, m := range identifierWords(b.Prose) {
+		for _, m := range identifierWords(prose) {
 			if doc {
 				m = documentName(m)
 			}

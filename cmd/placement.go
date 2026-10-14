@@ -67,6 +67,8 @@ type placed struct {
 	repair *slopfix.Repair
 	// ok is false when the edit could not be pinned to the file, and the caller then judges the fragment as it always did.
 	ok bool
+	// old is the text the repair replaces where it reaches past the edit, or "" where it keeps to the edit's own old_string.
+	old string
 }
 
 // place replays the edits onto the file and answers what the write introduced.
@@ -99,10 +101,53 @@ func place(tool string, in writeInput, rules []slopfix.Rule, ids []string, owned
 	}
 	fixed := fixOver(after, in.FilePath, rules, ids, scope, lines)
 	p := placed{findings: introduced(had.Findings, fixed.Findings), ok: true}
-	if len(edits) == 1 {
-		p.repair = cutBack(fixed, edits[0], had.Kept)
+	if len(edits) != 1 {
+		return p, nil
 	}
+	e := edits[0]
+	if len(p.findings) > 0 {
+		// A repair that needs words outside the edit, such as the division of a sentence the edit only began, gets the paragraph around it.
+		at := strings.Index(before, e.old)
+		from, to := paragraphAround(before, at, at+len(e.old))
+		grow := len(e.new) - len(e.old)
+		wide := fixOver(after, in.FilePath, rules, ids, splice.Within(from, to+grow), lines)
+		if found := introduced(had.Findings, wide.Findings); len(found) < len(p.findings) {
+			e = edit{old: before[from:to], new: after[from : to+grow]}
+			fixed, p.findings, p.old = wide, found, e.old
+		}
+	}
+	p.repair = cutBack(fixed, e, had.Kept)
 	return p, nil
+}
+
+// paragraphAround widens the bytes from start up to end of src to the run of
+// lines around them that no blank line breaks.
+func paragraphAround(src string, start, end int) (int, int) {
+	from := strings.LastIndexByte(src[:start], '\n') + 1
+	for from > 0 {
+		prev := strings.LastIndexByte(src[:from-1], '\n') + 1
+		if strings.TrimSpace(src[prev:from-1]) == "" {
+			break
+		}
+		from = prev
+	}
+	to := end
+	if i := strings.IndexByte(src[to:], '\n'); i >= 0 {
+		to += i
+	} else {
+		to = len(src)
+	}
+	for to < len(src) {
+		next := len(src)
+		if i := strings.IndexByte(src[to+1:], '\n'); i >= 0 {
+			next = to + 1 + i
+		}
+		if strings.TrimSpace(src[to+1:next]) == "" {
+			break
+		}
+		to = next
+	}
+	return from, to
 }
 
 // fragmentScope bounds the repair of an edit's own text when place could not

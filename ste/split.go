@@ -166,6 +166,10 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if d.opener == "" && !standsAsSentence(right) {
 			continue
 		}
+		// "Otherwise," and "However," open a sentence that the words after them must still make: "Otherwise, "" when no noun ends" is none.
+		if connectorOpener(d.opener) && !standsAsSentence(capitalizeOpening(strings.TrimLeft(restOf(source, d), " "))) {
+			continue
+		}
 		// A noun phrase whose only verbs sit in relative clauses is a fragment: "A number that is true today".
 		if !finiteOutsideRelative(syntax.Parse(checkMask(right), nil), 0) {
 			continue

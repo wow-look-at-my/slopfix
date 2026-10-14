@@ -17,6 +17,11 @@ func init() {
 				Text: "- Measured fact: each real packs into the `8.33 ms` present windows at about `66%` duty, so one real spans about `4` windows (`33 ms`) against the `27.8 ms` content tick.\n",
 				Want: "- Measured fact: each real packs into the `8.33 ms` present windows at about `66%` duty. One real spans about `4` windows (`33 ms`) against the `27.8 ms` content tick.\n",
 			},
+			{
+				Name: "an object after or takes the main verb again", Path: "x.md",
+				Text: "The rule answers the number at offset at and the words up to the plural noun it counts, as in \"0 validation errors\", or \"\" when no plural noun ends a phrase it governs.\n",
+				Want: "The rule answers the number at offset at and the words up to the plural noun it counts, as in \"0 validation errors\". Otherwise, the rule answers \"\" when no plural noun ends a phrase it governs.\n",
+			},
 		},
 	})
 }

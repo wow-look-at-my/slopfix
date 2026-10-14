@@ -314,7 +314,12 @@ func carrierOrNone(source string, whole *syntax.Sentence, c forceCut) (string, s
 	if len(whole.Words) > 1 && whole.Words[0].Lower() == "to" && strings.HasPrefix(whole.Words[1].Tag, "VB") {
 		return source[:c.left], "", 0
 	}
-	return carrierDivision(source, whole, c)
+	head, rest, score := carrierDivision(source, whole, c)
+	// A pronoun carrier names the subject of a verb group. The rest is a sentence only where a verb follows it: "It "" when no noun ends" has none.
+	if strings.HasPrefix(rest, "It ") && !standsAsSentence(rest) {
+		return head, "", 0
+	}
+	return head, rest, score
 }
 
 // alsoVerb writes the main verb group with "also" before its last verb, so

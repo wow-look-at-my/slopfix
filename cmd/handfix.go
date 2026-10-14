@@ -228,18 +228,52 @@ func rewriteHand(req slopfix.Request, fixedBefore, after string, touched []int, 
 // stillFixed holds the 1-based lines of after that fix changes. Only a line
 // each diff pairs one to one is put back.
 func restoreRepairs(before, fixedBefore, after string, stillFixed set.Set[int]) string {
-	edited := pairs(before, after)
 	repaired := pairs(before, fixedBefore)
+	kept := sameLines(before, fixedBefore)
 	fixedLines := strings.SplitAfter(fixedBefore, "\n")
+	beforeLines := strings.SplitAfter(before, "\n")
 	out := strings.SplitAfter(after, "\n")
-	for i, j := range edited {
-		k, ok := repaired[i]
-		if !ok || stillFixed.Contains(j+1) {
+	for _, op := range difflib.NewMatcherWithJunk(beforeLines, strings.SplitAfter(after, "\n"), false, nil).GetOpCodes() {
+		if op.Tag != 'r' || op.I2-op.I1 != op.J2-op.J1 {
 			continue
 		}
-		out[j] = fixedLines[k]
+		restores := false
+		for k := 0; k < op.I2-op.I1; k++ {
+			if _, ok := repaired[op.I1+k]; ok && !stillFixed.Contains(op.J1+k+1) {
+				restores = true
+			}
+		}
+		if !restores {
+			continue
+		}
+		// A sentence wraps across the lines of one replacement, so they come back together. They a line fix wrote beside a line the edit wrote reads as
+		// neither.
+		for k := 0; k < op.I2-op.I1; k++ {
+			i, j := op.I1+k, op.J1+k
+			switch f, ok := repaired[i]; {
+			case ok:
+				out[j] = fixedLines[f]
+			case kept.Contains(i):
+				out[j] = beforeLines[i]
+			}
+		}
 	}
 	return strings.Join(out, "")
+}
+
+// sameLines answers the 0-based lines of x that y keeps as they are.
+func sameLines(x, y string) set.Set[int] {
+	a := strings.SplitAfter(x, "\n")
+	b := strings.SplitAfter(y, "\n")
+	out := set.New[int]()
+	for _, op := range difflib.NewMatcherWithJunk(a, b, false, nil).GetOpCodes() {
+		if op.Tag == 'e' {
+			for i := op.I1; i < op.I2; i++ {
+				out.Add(i)
+			}
+		}
+	}
+	return out
 }
 
 // pairs maps each 0-based line of x that y replaces one for one to the line

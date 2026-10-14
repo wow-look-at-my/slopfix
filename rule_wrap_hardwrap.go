@@ -11,7 +11,13 @@ func init() {
 		Category: RuleWrap,
 		Detect:   detectHardWrap,
 		Autofix:  autofixHardWrap,
-		Cases:    []RuleCase{{Name: IDHardWrap, Path: "x.md", Text: "The gate reads the file\nand writes the result.\n"}},
+		Cases: []RuleCase{
+			{Name: IDHardWrap, Path: "x.md", Text: "The gate reads the file\nand writes the result.\n"},
+			{
+				Name: "git trailers each hold a line", Path: "msg.txt", Unchanged: true,
+				Text: "The gate reads the file.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_013ERSrxHkx1TwBeoQVMojfm\n",
+			},
+		},
 	})
 }
 
