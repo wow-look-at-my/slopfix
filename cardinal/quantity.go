@@ -317,6 +317,10 @@ func NamesAnItem(text string, at int) bool {
 		if !allDigits(w.Text) || i < 1 || words[i-1].End == at {
 			return false
 		}
+		// Digits before a unit measure an amount, as in "alive 15 s later", and name no item.
+		if i+1 < len(words) && IsUnit(strings.ToLower(words[i+1].Text)) {
+			return false
+		}
 		prev := words[i-1]
 		name, opened := strings.CutPrefix(prev.Text, "(")
 		lower := strings.ToLower(name)

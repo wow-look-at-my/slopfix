@@ -13,6 +13,11 @@ func init() {
 		Cases: []RuleCase{
 			{Name: ste.IDStaleCount, Path: "x.md", Text: "The gate reads 3 rows.\n"},
 			{
+				// From a splat2 AGENTS.md: the label repair wrote "A run still a later alive s later exits 124".
+				Name: "a duration with a unit abbreviation is no count", Path: "watchdog.md", Unchanged: true,
+				Text: "The watchdog sends SIGTERM when the budget runs out. A run still alive 15 s later exits 124.\n",
+			},
+			{
 				Name: "a count that opens a subject keeps a determiner", Path: "x.md",
 				Text: "The run passed, and 17 gates sat \"Skipped\" in a green suite.\n",
 				Want: "The run passed, and the gates sat \"Skipped\" in a green suite.\n",
