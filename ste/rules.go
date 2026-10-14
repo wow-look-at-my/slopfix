@@ -434,7 +434,8 @@ func opensSentence(rest []rune) bool {
 	}
 	// A masked code span is a run of x, and opens a sentence as its backtick does.
 	head := string(rest[:min(len(rest), openerReach)])
-	return maskedSpan.MatchString(head) || fileOrSection.MatchString(head)
+	// An identifier such as foreignJobs opens a sentence in its own case.
+	return maskedSpan.MatchString(head) || fileOrSection.MatchString(head) || NameLike(head)
 }
 
 // openerReach bounds how far opensSentence reads.

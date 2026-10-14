@@ -136,6 +136,24 @@ func Literal(text string, toks []Token, i int) bool {
 	return size > 0 && strings.ContainsRune(comparisonMarkers, last)
 }
 
+// A subscript names a position. It counts nothing.
+func Index(text string, toks []Token, i int) bool {
+	tok := toks[i]
+	if tok.Offset == 0 || text[tok.Offset-1] != '[' {
+		return false
+	}
+	end := tok.Offset + len(tok.Text)
+	if end >= len(text) || text[end] != ']' {
+		return false
+	}
+	for _, bound := range strings.Split(tok.Text, ":") {
+		if bound != "" && !allDigits(bound) {
+			return false
+		}
+	}
+	return true
+}
+
 // sectionSign marks the number after it as a citation of a section.
 const sectionSign = '§'
 

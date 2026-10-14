@@ -15,9 +15,19 @@ import (
 
 var (
 	builtOnce sync.Once
+	builtDir  string
 	built     string
 	buildErr  error
 )
+
+// TestMain removes the shared build directory, which no single test owns.
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if builtDir != "" {
+		os.RemoveAll(builtDir)
+	}
+	os.Exit(code)
+}
 
 // slopfixBinary builds this tree's slopfix once for every test.
 func slopfixBinary(t *testing.T) string {
@@ -28,6 +38,7 @@ func slopfixBinary(t *testing.T) string {
 			buildErr = err
 			return
 		}
+		builtDir = dir
 		built = filepath.Join(dir, "slopfix")
 		buildErr = ratchet.Build("..", built)
 	})
