@@ -247,6 +247,11 @@ func retag(words []Word) {
 		(words[1].Tag == "VBZ" || words[1].Tag == "NNS") && opensObjectAt(words[2]) {
 		words[0].Tag, words[1].Tag = "NNP", "VBZ"
 	}
+	// "foreignJobs also answers that": a name written as code opens the sentence, and an adverb can stand before its verb.
+	if len(words) > 3 && identifier(words[0].Text) && words[1].Tag == "RB" && verbEnding(words[2].Text) &&
+		(words[2].Tag == "VBZ" || words[2].Tag == "NNS") {
+		words[0].Tag, words[2].Tag = "NNP", "VBZ"
+	}
 	for i := range words {
 		// "the same call, spaced close enough": a past form after a noun and a comma, with no object, describes the noun.
 		if w := words[i]; w.Tag == "VBD" && i > 1 && i+1 < len(words) && words[i-1].Tag == "," && isNoun(words[i-2].Tag) && (words[i+1].Tag == "JJ" || words[i+1].Tag == "RB") {

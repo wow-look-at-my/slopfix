@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -72,7 +73,7 @@ func TestFixRenamesACaseTypoToTheDefinedName(t *testing.T) {
 	content := "package runtime\n\n" +
 		"// ntSCMParse walks a Linux cmsg buffer. NtSCMParse collects the SCM_RIGHTS\n" +
 		"// payload fds, with the kernel's exact acceptance rules.\n" +
-		"func ntSCMParse() {}\n"
+		"func ntSCMParse() {\n" + strings.Repeat("\tstep()\n", 8) + "}\n"
 
 	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
 	assert.NotContains(t, fixed.Text, "NtSCMParse")
