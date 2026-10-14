@@ -15,7 +15,14 @@ func init() {
 		Category: RuleEnglish,
 		Detect:   detectCommaNever,
 		Autofix:  autofixCommaNever,
-		Cases:    []RuleCase{{Name: english.IDCommaNever, Path: "x.md", Text: "The gate reads the file, never the tool.\n"}},
+		Cases: []RuleCase{
+			{Name: english.IDCommaNever, Path: "x.md", Text: "The gate reads the file, never the tool.\n"},
+			{
+				Name: "a verb in -s that closes the sentence", Path: "x.md",
+				Text: "A missing validation layer fails the run, never skips.\n",
+				Want: "A missing validation layer fails the run, and never skips.\n",
+			},
+		},
 	})
 }
 

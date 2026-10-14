@@ -13,7 +13,18 @@ func init() {
 		Category: RuleComments,
 		Detect:   detectCommentNumber,
 		Autofix:  autofixCommentNumber,
-		Cases:    []RuleCase{{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"}},
+		Cases: []RuleCase{
+			{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"},
+			{
+				Name: "a verb before a zero count is no label", Path: "gate.cmake",
+				Text: "# Each run must exit 0, report the registry slots and the stripe mode, report 0 validation errors and write its PNG.\nset(A 1)\n",
+				Want: "# Each run must exit 0, report the registry slots and the stripe mode, report no validation errors and write its PNG.\nset(A 1)\n",
+			},
+			{
+				Name: "an exit status wrapped onto the next comment line", Path: "gate.h", Unchanged: true,
+				Text: "// Under --validate the validation errors of the device phases fail the run (exit\n// 2), the convention of the shed test.\nint runRecreateTest();\n",
+			},
+		},
 	})
 }
 

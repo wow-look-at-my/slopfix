@@ -338,6 +338,10 @@ func NamesAnItem(text string, at int) bool {
 		if before.Tag == "CD" || singleItem.Contains(before.Lower()) {
 			return false
 		}
+		// A word that opens a coordinated predicate is its verb, and the digits count its object: "exit 0, report 0 validation errors".
+		if (before.Tag == "," || before.Tag == "CC") && !plural && countsAPlural(words, i+1) {
+			return false
+		}
 		if noun {
 			return true
 		}
@@ -345,6 +349,20 @@ func NamesAnItem(text string, at int) bool {
 		return opened && !plural && !functionTags.Contains(prev.Tag)
 	}
 	return false
+}
+
+// countsAPlural reports a noun run from word i that ends on a plural noun, as
+// in "validation errors". A finite verb after the run makes the run the
+// subject of a label clause instead: "branch 3 sees".
+func countsAPlural(words []syntax.Word, i int) bool {
+	j := i
+	for j < len(words) && (words[j].Tag == "NN" || words[j].Tag == "NNP" || words[j].Tag == "JJ") {
+		j++
+	}
+	if j >= len(words) || words[j].Tag != "NNS" && words[j].Tag != "NNPS" {
+		return false
+	}
+	return j+1 >= len(words) || !finiteTags.Contains(words[j+1].Tag)
 }
 
 // notNames are the words before digits that count or order them, and never

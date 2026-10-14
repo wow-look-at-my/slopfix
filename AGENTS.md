@@ -55,7 +55,7 @@ A rule reports only what its repair rewrites. Where no rewrite can say a thing c
 * run ALL OTHER rules on the "fixed" fixture, confirming there are STILL no detctions.
 ```
 
-A fixture is a repository and a closing message. `Materialize` writes the repository to a temporary directory under `git init`. Every rule reads every text of it.
+A case with `Want` also pins the text its autofix writes, so a repair that writes broken English fails. A case marked `Unchanged` is text the rule must leave as written: the rule detects nothing there, and its autofix writes it back. Every rule still carries a case it detects. A fixture is a repository and a closing message. `Materialize` writes the repository to a temporary directory under `git init`. Every rule reads every text of it.
 
 `ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on a rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 

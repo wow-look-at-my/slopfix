@@ -11,6 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
 // RewordAt is reword for a caller that holds the phrase but no Hit: the
@@ -98,6 +99,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		text = vague(n)
 	case len(before) > 0 && (cardinal.InClass(last(1), "preposition") || followsANoun(content, hit.Start)):
 		text = "multiple "
+	case subjectOfVerb(content, hit):
+		// The number was the subject's only determiner: "and 17 gates sat" reads "and the gates sat".
+		text = "the "
 	}
 
 	e := edit.Edit{Start: from, End: to, Text: text, Cut: []string{hit.Phrase}}
@@ -115,6 +119,23 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		e.End += width
 	}
 	return e, true
+}
+
+// subjectOfVerb reports a counted noun phrase that a finite verb follows, which
+// makes it the subject of that verb.
+func subjectOfVerb(content string, hit Hit) bool {
+	from := strings.LastIndexByte(content[:hit.Start], '\n') + 1
+	to := len(content)
+	if i := strings.IndexByte(content[hit.End:], '\n'); i >= 0 {
+		to = hit.End + i
+	}
+	for _, w := range syntax.Parse(content[from:to], nil).Words {
+		if from+w.Start < hit.End {
+			continue
+		}
+		return finiteVerbTags.Contains(w.Tag)
+	}
+	return false
 }
 
 // measures reports a number whose next word is a unit ahead of the noun, as

@@ -11,7 +11,11 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectNounCluster,
 		Autofix:  autofixNounCluster,
-		Cases:    []RuleCase{{Name: ste.IDNounCluster, Path: "w.md", Text: "The gate cache lookup table stopped.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDNounCluster, Path: "w.md", Text: "The gate cache lookup table stopped.\n"},
+			{Name: "a bare verb after a plural subject", Path: "w.md", Unchanged: true, Text: "Wave paths default ON wherever the ops exist.\n"},
+			{Name: "a verb after a reduced relative", Path: "w.md", Unchanged: true, Text: "Move the locals into the class: locals computed in setup become plain members plus an assignment.\n"},
+		},
 	})
 }
 

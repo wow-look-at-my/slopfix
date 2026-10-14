@@ -10,7 +10,14 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectSentenceCap,
 		Autofix:  autofixSentenceCap,
-		Cases:    []RuleCase{{Name: ste.IDSentenceCap, Path: "x.md", Text: "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDSentenceCap, Path: "x.md", Text: "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n"},
+			{
+				Name: "a list item whose code spans count as words divides at so", Path: "x.md",
+				Text: "- Measured fact: each real packs into the `8.33 ms` present windows at about `66%` duty, so one real spans about `4` windows (`33 ms`) against the `27.8 ms` content tick.\n",
+				Want: "- Measured fact: each real packs into the `8.33 ms` present windows at about `66%` duty. One real spans about `4` windows (`33 ms`) against the `27.8 ms` content tick.\n",
+			},
+		},
 	})
 }
 

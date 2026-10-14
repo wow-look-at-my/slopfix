@@ -10,7 +10,14 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectStaleCount,
 		Autofix:  autofixStaleCount,
-		Cases:    []RuleCase{{Name: ste.IDStaleCount, Path: "x.md", Text: "The gate reads 3 rows.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDStaleCount, Path: "x.md", Text: "The gate reads 3 rows.\n", Want: "The gate reads rows.\n"},
+			{
+				Name: "a count that opens a subject keeps a determiner", Path: "x.md",
+				Text: "The run passed, and 17 gates sat \"Skipped\" in a green suite.\n",
+				Want: "The run passed, and the gates sat \"Skipped\" in a green suite.\n",
+			},
+		},
 	})
 }
 

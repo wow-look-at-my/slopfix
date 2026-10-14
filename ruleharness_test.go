@@ -1,6 +1,9 @@
 package slopfix_test
 
 import (
+	"os"
+	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -10,6 +13,17 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
+
+// caseText answers the text a materialized case holds where raw put its Text:
+// the file at raw's Path, or the message.
+func caseText(t *testing.T, c, raw slopfix.RuleCase) string {
+	if raw.Path == "" {
+		return c.Text
+	}
+	b, err := os.ReadFile(filepath.Join(c.Root, filepath.FromSlash(raw.Path)))
+	require.NoError(t, err)
+	return string(b)
+}
 
 // everyOtherRule answers what every registered rule except id detects in c.
 func everyOtherRule(c slopfix.RuleCase, id string) []string {
@@ -40,6 +54,8 @@ func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 	for _, rule := range slopfix.AllRuleSpecs() {
 		t.Run(rule.ID, func(t *testing.T) {
 			require.NotEmpty(t, rule.Cases, "%s carries no case", rule.ID)
+			require.True(t, slices.ContainsFunc(rule.Cases, func(c slopfix.RuleCase) bool { return !c.Unchanged }),
+				"%s carries no case it detects", rule.ID)
 			for _, raw := range rule.Cases {
 				// <input fixture, which includes the case(s) that the rule should detect>
 				fixture, err := slopfix.Materialize(t.TempDir(), raw)
@@ -47,6 +63,13 @@ func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 
 				// run ALL OTHER rules on the fixture, confirming that there are no detections other than the current rule we're testing
 				assert.Empty(t, everyOtherRule(fixture, rule.ID), "%s: case %q: another rule detects the fixture", rule.ID, raw.Name)
+
+				if raw.Unchanged {
+					// A case the rule must leave as written: no detection, and the autofix writes the text back.
+					assert.Empty(t, rule.Detect(fixture), "%s: case %q: the rule detects a case it must leave as written", rule.ID, raw.Name)
+					assert.Equal(t, raw.Text, caseText(t, rule.Autofix(fixture), raw), "%s: case %q: the autofix rewrote a case it must leave as written", rule.ID, raw.Name)
+					continue
+				}
 
 				// run the rule on the fixture, confirming it is detected
 				detected := rule.Detect(fixture)
@@ -58,6 +81,9 @@ func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 				// run the rule on the result, confirming it was fixed (i.e. no longer detected)
 				fixed := rule.Autofix(fixture)
 				assert.Empty(t, rule.Detect(fixed), "%s: case %q: the rule still detects the result of its autofix", rule.ID, raw.Name)
+				if raw.Want != "" {
+					assert.Equal(t, raw.Want, caseText(t, fixed, raw), "%s: case %q: the autofix wrote other words", rule.ID, raw.Name)
+				}
 
 				// run ALL OTHER rules on the "fixed" fixture, confirming there are STILL no detctions.
 				assert.Empty(t, everyOtherRule(fixed, rule.ID), "%s: case %q: another rule detects the fixed fixture", rule.ID, raw.Name)
