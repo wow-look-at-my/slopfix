@@ -262,7 +262,8 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		// Both parts must read as sentences, or the cut strands a fragment such
 		// as "writes. Through it while this function runs.".
 		if !standsAsSentence(closeHead(source[:c.left])) ||
-			!standsAsSentence(hardRest(source, c.right)) || strandsPhrase(whole, c.right, hardRest(source, c.right)) {
+			!standsAsSentence(hardRest(source, c.right)) || strandsPhrase(whole, c.right, hardRest(source, c.right)) ||
+			!holdsFinite(checkMask(hardRest(source, c.right))) && !opensImperative(checkMask(hardRest(source, c.right))) {
 			continue
 		}
 		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
