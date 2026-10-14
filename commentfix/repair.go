@@ -263,7 +263,9 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 					current = nil
 					continue
 				}
-				if codeLine(line) || ruleLine(prose) {
+				// A line comment at the column of a comment that follows code continues it, whatever indent its words take.
+				continues := current != nil && current.code != "" && n == 0 && col == aligned && trailer == "" && current.trailer == ""
+				if !continues && (codeLine(line) || ruleLine(prose)) {
 					// A tab after the marker is how a doc comment spells a code block. A rule line frames a banner and holds no word.
 					out = append(out, para{lines: []int{i}, verbatim: true})
 					current = nil
@@ -275,8 +277,7 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 					current, aligned = &out[len(out)-1], col
 					continue
 				}
-				if current != nil && current.code != "" && (n > 0 || col != aligned || trailer != "" || current.trailer != "") {
-					// Only a line comment at the trailing comment's column continues it.
+				if current != nil && current.code != "" && !continues {
 					current = nil
 				}
 				if current == nil {

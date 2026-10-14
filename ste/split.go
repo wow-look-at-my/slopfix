@@ -166,6 +166,9 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if d.opener == "" && !standsAsSentence(right) {
 			continue
 		}
+		if d.opener == "" && strandsPhrase(s, d.rightStart, right) {
+			continue
+		}
 		// "Otherwise," and "However," open a sentence that the words after them must still make: "Otherwise, "" when no noun ends" is none.
 		if connectorOpener(d.opener) && !standsAsSentence(capitalizeOpening(strings.TrimLeft(restOf(source, d), " "))) {
 			continue

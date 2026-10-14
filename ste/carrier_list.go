@@ -108,3 +108,23 @@ func connectorOpener(opener string) bool {
 	}
 	return false
 }
+
+// strandsPhrase reports a rest that opens on a preposition with no clause
+// after it, as in "Up to the plural noun it counts, as in X". That phrase
+// finishes the sentence before the cut and stands as no sentence of its own.
+// A fronted phrase that a comma closes before a clause is a sentence.
+func strandsPhrase(s *syntax.Sentence, rightStart int, right string) bool {
+	n := wordFrom(s, rightStart)
+	if n < 0 || n >= len(s.Words) {
+		return false
+	}
+	w := s.Words[n]
+	// "up to" and "out of": a particle before a preposition opens a phrase that finishes the words before it.
+	next := n + 1
+	opens := next < len(s.Words) && (w.Tag == "RB" || w.Tag == "RP" || w.Tag == "IN") && (s.Words[next].Tag == "IN" || s.Words[next].Tag == "TO")
+	if !opens || syntax.Is(w.Text, "subordinator") {
+		return false
+	}
+	comma := strings.Index(right, ",")
+	return comma < 0 || !StandsAlone(capitalizeOpening(strings.TrimSpace(right[comma+1:])))
+}
