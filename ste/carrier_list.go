@@ -128,3 +128,18 @@ func strandsPhrase(s *syntax.Sentence, rightStart int, right string) bool {
 	comma := strings.Index(right, ",")
 	return comma < 0 || !StandsAlone(capitalizeOpening(strings.TrimSpace(right[comma+1:])))
 }
+
+// contactRelative reports a division with no mark and no link word, between
+// a noun and a clause that opens on a determiner: "into the generation no
+// pending warp binds". The clause describes the noun, with its "that" left
+// out, so a sentence of its own inverts what it says.
+func contactRelative(s *syntax.Sentence, source string, d division) bool {
+	if strings.TrimSpace(source[d.leftEnd:d.rightStart]) != "" {
+		return false
+	}
+	n := wordFrom(s, d.rightStart)
+	if n < 1 || n >= len(s.Words) {
+		return false
+	}
+	return strings.HasPrefix(s.Words[n-1].Tag, "NN") && (s.Words[n].Tag == "DT" || s.Words[n].Tag == "PRP$")
+}
