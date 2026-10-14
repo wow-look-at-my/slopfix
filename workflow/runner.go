@@ -32,7 +32,7 @@ var SelfHostExempt = set.Of(
 )
 
 // hostedLinux matches a GitHub-hosted x64 Linux label.
-var hostedLinux = regexp.MustCompile(`^ubuntu-(latest|[0-9]+\.[0-9]+)$`)
+var hostedLinux = regexp.MustCompile(`(?i)^ubuntu-(latest|[0-9]+\.[0-9]+)$`)
 
 // blindFallback matches an expression that picks an org runner variable.
 var blindFallback = regexp.MustCompile(`^\$\{\{\s*vars\.(CI_RUNNER|CI_RUNNER_DIND)\s*\|\|\s*'(ubuntu-(?:latest|[0-9]+\.[0-9]+))'\s*\}\}$`)
@@ -273,7 +273,25 @@ func privateRunners(path, content string) []ste.Finding {
 			Fix:    "Use `runs-on: " + runnerExpression(j) + "`. GitHub bills each minute a private repository spends on its runners. `slopfix fix` does this.",
 		})
 	}
+	foreign, repo := governedForeign(path, content)
+	for _, f := range foreign {
+		out = append(out, foreignFinding(repo, f))
+	}
 	return out
+}
+
+// governedForeign answers each job of the file at path on a foreign hosted
+// label that the rule reports, and the repository.
+func governedForeign(path, content string) ([]foreignJob, string) {
+	jobs := foreignJobs(content)
+	if len(jobs) == 0 {
+		return nil, ""
+	}
+	repo, _, governed := governedRepo(path)
+	if !governed {
+		return nil, ""
+	}
+	return jobs, repo
 }
 
 // retargetRunners writes the visibility expression into each job privateRunners reports.
@@ -282,7 +300,7 @@ func retargetRunners(path, content string) []edit.Edit {
 	fileLines := lines(content)
 	var out []edit.Edit
 	for _, j := range jobs {
-		first, last, before, after, ok := scalarSource(content, fileLines, j)
+		first, last, before, after, ok := scalarSource(content, fileLines, j.node, j.flow)
 		if !ok {
 			continue
 		}
@@ -292,25 +310,30 @@ func retargetRunners(path, content string) []edit.Edit {
 		}
 		out = append(out, rewrite(content, first, last, []string{before + value + after}))
 	}
+	foreign, _ := governedForeign(path, content)
+	for _, f := range foreign {
+		out = append(out, foreignEdits(content, fileLines, f)...)
+	}
 	return out
 }
 
-// scalarSource answers the 0-based lines a job's runs-on value spans. It also
-// answers the text on those lines before and after the value.
-func scalarSource(content string, fileLines []string, j hostedJob) (first, last int, before, after string, ok bool) {
-	first, col := j.node.Line-1, j.node.Column-1
+// scalarSource answers the 0-based lines a scalar value spans. It also
+// answers the text on those lines before and after the value. flow reports
+// whether the value sits inside a flow collection.
+func scalarSource(content string, fileLines []string, node *yaml.Node, flow bool) (first, last int, before, after string, ok bool) {
+	first, col := node.Line-1, node.Column-1
 	if first < 0 || first >= len(fileLines) || col < 0 || col > len(fileLines[first]) {
 		return 0, 0, "", "", false
 	}
 	col += properties(fileLines[first][col:])
 	before, head := fileLines[first][:col], fileLines[first][col:]
-	style := j.node.Style &^ (yaml.FlowStyle | yaml.TaggedStyle)
+	style := node.Style &^ (yaml.FlowStyle | yaml.TaggedStyle)
 	if style == yaml.LiteralStyle || style == yaml.FoldedStyle {
-		last = flowEnd(content, fileLines, j.node.Line)
+		last = flowEnd(content, fileLines, node.Line)
 		return first, last, before, trailingComment.FindString(head), last >= first
 	}
-	if style == 0 && !j.flow {
-		last, after, ok = plainSource(content, fileLines, j.node.Line, head)
+	if style == 0 && !flow {
+		last, after, ok = plainSource(content, fileLines, node.Line, head)
 		return first, last, before, after, ok
 	}
 	rest := strings.Join(append([]string{head}, fileLines[first+1:]...), "\n")
