@@ -53,7 +53,7 @@ jobs:
           mkdir -p "$fork"
           curl -fsSL --compressed "https://dl.pazer.build/gosmopolitan?branch=master&os=linux&arch=amd64" | tar -xz -C "$fork"
           (cd "$src" && GOROOT="$fork/go" GOTOOLCHAIN=local GOTELEMETRY=off GOPROXY=direct GOSUMDB=off GONOSUMDB='*' GOFLAGS= CGO_ENABLED=0 \
-            "$fork/go/bin/go" build -o "${{ runner.temp }}/go-toolchain" ./src)
+            "$fork/go/bin/go" build -trimpath -o "${{ runner.temp }}/go-toolchain" ./src)
           echo "binary=${{ runner.temp }}/go-toolchain" >> "$GITHUB_OUTPUT"
       - uses: wow-look-at-my/go-toolchain@master
         with:
