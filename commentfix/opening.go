@@ -45,18 +45,14 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 		}
 		out, fits := fit(first, indent, marker)
 		cuts := ste.Cuts(first)
-		for limit := ste.WordCount(first) - 1; shrink && !fits && limit >= minimumOpening; limit-- {
-			divided := ste.Sentences(ste.DivideTo(first, limit))
-			if len(divided) < 2 {
-				continue
+		// Only a boundary the division repair admits keeps the words the clause
+		// after the cut needs, and the repair admits few of them.
+		for i := len(cuts) - 1; shrink && !fits && i >= 0; i-- {
+			head := strings.TrimSpace(first[:cuts[i]])
+			if !endsSentence(head) {
+				head += "."
 			}
-			head := strings.TrimSpace(divided[0])
-			if !endsSentence(head) || isHeading(head) {
-				continue
-			}
-			// A division that no clause ends strands the words the clause needs,
-			// so only a boundary the division repair admits counts here.
-			if !atClauseCut(first, head, cuts) {
+			if isHeading(head) || ste.WordCount(head) >= ste.WordCount(first) || ste.WordCount(head) < minimumOpening {
 				continue
 			}
 			if shorter, ok := fit(head, indent, marker); ok {
@@ -71,18 +67,6 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 		return out, true
 	}
 	return nil, false
-}
-
-// atClauseCut reports a head that closes where a division of sentence may
-// close, rather than at the first word boundary the cap reaches.
-func atClauseCut(sentence, head string, cuts []int) bool {
-	trimmed := strings.TrimSuffix(strings.TrimSpace(head), ".")
-	for _, cut := range cuts {
-		if strings.EqualFold(strings.TrimRight(strings.TrimSpace(sentence[:cut]), " ,;:—–-"), trimmed) {
-			return true
-		}
-	}
-	return false
 }
 
 // phraseLines keeps the longest run of leading lines that ends a noun phrase
