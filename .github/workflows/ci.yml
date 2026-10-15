@@ -37,11 +37,6 @@ jobs:
       - name: Install the TypeScript compiler
         run: npm install -g typescript@latest
       # The published pipeline predates the release stamp its own build writes. Every binary it links is then unstamped, and dats/version.dats fails. Building the pipeline from the action's checkout is what the action itself does for allow-source-build. That pipeline stamps the release into what it links.
-      - name: Read the secrets a private module fetch needs
-        uses: wow-look-at-my/actions@secret-server#latest
-      - name: Configure git for private repos
-        if: env.PRIVATE_ORG_REPO_READ != ''
-        run: git config --global url."https://${PRIVATE_ORG_REPO_READ}@github.com/wow-look-at-my/".insteadOf "https://github.com/wow-look-at-my/"
       - name: Build the pipeline from the action's checkout
         id: gotoolchain
         shell: bash
