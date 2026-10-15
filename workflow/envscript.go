@@ -113,11 +113,7 @@ func exactReads(line, name string) ([]envRead, bool) {
 		if writesAfter.MatchString(line[m[1]:]) || writesBefore.MatchString(line[:m[0]]) {
 			return nil, false
 		}
-		end, wrap := deadArms(line, m[1])
-		if end == m[1] && !wrap {
-			wrap = truthTested(line[:m[0]], line[m[1]:])
-		}
-		out = append(out, envRead{start: m[0], end: end, wrap: wrap})
+		out = append(out, envRead{start: m[0], end: deadArms(line, m[1])})
 	}
 	return out, true
 }
@@ -229,7 +225,7 @@ func scriptPlan(s stepRef, all []stepRef, root *yaml.Node, content string, fileL
 			Line: key.Line, ID: IDEnvIndirection,
 			Rule:   "an env entry only carries an expression into the script",
 			Detail: key.Value + ": " + value.Value,
-			Fix:    "Write " + literal + " where the script reads process.env." + key.Value + ", and remove the entry.",
+			Fix:    "Write " + readText(literal) + " where the script reads process.env." + key.Value + ", and remove the entry.",
 		})
 		for _, sw := range swaps {
 			sw.literal = literal
@@ -272,7 +268,7 @@ func applySwaps(fileLine, prefix string, k int, swaps []lineSwap) string {
 			continue
 		}
 		for _, r := range sw.reads {
-			spans = append(spans, span{r.start, r.end, r.text(sw.literal)})
+			spans = append(spans, span{r.start, r.end, readText(sw.literal)})
 		}
 	}
 	if len(spans) == 0 {

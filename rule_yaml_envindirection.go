@@ -25,8 +25,9 @@ func init() {
 				"          const inputAptDepends: string = process.env.BUILDHOST_APT_DEPENDS ?? \"\";\n"+
 					"          const project: string = process.env.BUILDHOST_PROJECT || \"repo\";\n"+
 					"          if (!process.env.BUILDHOST_PROJECT) {\n            core.info(\"no project input\");\n          }\n"+
+					"          if (inputAptDepends && process.env.BUILDHOST_PROJECT) {\n            core.info(\"project with prerequisites\");\n          }\n"+
 					"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT} as ${project} with ${inputAptDepends}`);\n")},
-			// A `??` arm that goes on past its line stays, behind String().
+			// A `??` arm that goes on past its line stays.
 			workflowCase("env-indirection-github-script", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
 				"    steps:\n      - uses: actions/github-script@v7\n        env:\n          SHA: ${{ github.sha }}\n"+
 				"        with:\n          script: |\n            core.info(process.env.SHA);\n"+

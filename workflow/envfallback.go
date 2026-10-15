@@ -1,51 +1,31 @@
 package workflow
 
-import (
-	"regexp"
-	"strings"
-)
+import "strings"
 
-// envRead is one process.env.NAME read on a script line: the byte span the
-// literal replaces, and whether the literal goes inside String().
+// envRead is the byte span of one process.env.NAME read on a script line,
+// with the dead `??` arms after it.
 type envRead struct {
 	start, end int
-	// wrap marks a read where tsc rejects a bare string literal.
-	wrap bool
 }
 
-// text answers what the literal writes over this read.
-func (r envRead) text(literal string) string {
-	if r.wrap {
-		return "String(" + literal + ")"
-	}
-	return literal
+// readText answers what goes over a read.
+func readText(literal string) string {
+	return "String(" + literal + ")"
 }
 
-// truthAfter matches what follows a read whose truth a test reads: the left side of `||` or `&&`, or a conditional.
-var truthAfter = regexp.MustCompile(`^\s*(\|\||&&|\?($|[^?.]|\.[0-9]))`)
-
-// truthBefore matches what precedes a read whose truth a test reads: `!`, or the opening of an if or while condition.
-var truthBefore = regexp.MustCompile(`(!|\bif\s*\(|\bwhile\s*\()\s*$`)
-
-// truthTested reports whether a read sits where tsc rejects a string literal
-// as always truthy or always falsy, given the text before and after it.
-func truthTested(before, after string) bool {
-	return truthAfter.MatchString(after) || truthBefore.MatchString(before)
-}
-
-// deadArms answers where the `??` arms after a read end. A string literal is
-// never nullish, so each arm is dead. With no arm it answers from. An arm
-// that does not end on this line answers from and true.
-func deadArms(line string, from int) (int, bool) {
+// deadArms answers where the `??` arms after a read end. The entry always
+// defines the variable, so each arm is dead. With no arm, or an arm that does
+// not end on this line, it answers from, and the arms stay.
+func deadArms(line string, from int) int {
 	at := from
 	for {
 		j := skipBlanks(line, at)
 		if !strings.HasPrefix(line[j:], "??") || strings.HasPrefix(line[j:], "??=") {
-			return at, false
+			return at
 		}
 		end, ok := operandEnd(line, j+2)
 		if !ok {
-			return from, true
+			return from
 		}
 		at = end
 	}
