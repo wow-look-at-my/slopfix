@@ -251,8 +251,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		}
 		last := strings.ToLower(strings.Trim(lastField(head), ".,;:!?*_\"'`()[]“”‘’"))
 		next := strings.ToLower(strings.Trim(firstToken.FindString(source[c.right:]), ".,;:!?*_\"'`()[]“”‘’"))
-		// A possessive governs the word after it, so a part never ends on one.
-		if strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s") {
+		if endsOnPossessive(source, c.left) {
 			continue
 		}
 		if forceDangling.Contains(last) || forceBound.Contains(next) {
@@ -284,6 +283,13 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 	return left + " " + right, true
 }
 
+// endsOnPossessive reports a cut whose head closes on a possessive. The
+// possessive governs the word after it, so a part never ends on one.
+func endsOnPossessive(source string, left int) bool {
+	last := strings.ToLower(strings.Trim(lastField(strings.TrimRight(source[:left], " ,;:—–-")), ".,;:!?*_\"'`()[]“”‘’"))
+	return strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s")
+}
+
 // lastResortCut answers the cut that keeps the most leading words under the
 // cap, for a sentence where no cut leaves both parts reading as sentences. A
 // finding that fix leaves standing breaks the guarantee, and an awkward pair
@@ -293,6 +299,9 @@ func lastResortCut(source, masked string, words, limit int) (forceCut, int) {
 	best, bestWords := forceCut{}, -1
 	for _, c := range candidates(source, masked, false, limit) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < 1 || words-c.words < 1 {
+			continue
+		}
+		if endsOnPossessive(source, c.left) {
 			continue
 		}
 		if c.words > bestWords {
