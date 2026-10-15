@@ -101,6 +101,27 @@ func mentions(script, name string) int {
 	}
 }
 
+// shellReads answers each place text reads name as a shell expansion, $NAME or
+// ${NAME}. A shell step reads the environment that way for both forms.
+func shellReads(text, name string) int {
+	count := 0
+	for at := 0; at < len(text); {
+		i := strings.IndexByte(text[at:], '$')
+		if i < 0 {
+			return count
+		}
+		start := at + i
+		rest := strings.TrimPrefix(text[start+1:], "{")
+		if strings.HasPrefix(rest, name) {
+			if after := rest[len(name):]; after == "" || !identChar(after[0]) {
+				count++
+			}
+		}
+		at = start + 1
+	}
+	return count
+}
+
 // exactReads answers each process.env.NAME read on a line. A read takes in
 // the dead `??` arms after it, because the entry always defines the variable.
 // The second result is false when a read writes the variable or deletes it.
@@ -320,7 +341,7 @@ func judgeScriptEntry(key, value *yaml.Node, script string, at placedLines, othe
 	if match == nil || secret.MatchString(match[1]) || strings.Contains(match[1], "\n") {
 		return "", nil, false
 	}
-	if mentions(others, name) > 0 {
+	if mentions(others, name) > 0 || shellReads(others, name) > 0 {
 		return "", nil, false
 	}
 	var swaps []lineSwap
