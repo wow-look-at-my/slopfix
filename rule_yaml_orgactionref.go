@@ -23,6 +23,10 @@ func init() {
 				"        with:\n          key: zxt-bin-${{ github.sha }}\n          path: build/zxt\n"),
 			workflowCase("org-action-ref-sha-pin", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
 				"    steps:\n      - uses: wow-look-at-my/actions@f294f0c3c3873f1452bdb965c761580d7bcf625d # cache-download#latest\n"),
+			workflowCase("org-action-ref-branch", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
+				"    steps:\n      - uses: wow-look-at-my/slopfix@one-person-feature\n"),
+			workflowCase("org-action-ref-bare-sha", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
+				"    steps:\n      - uses: wow-look-at-my/buildhost@f294f0c3c3873f1452bdb965c761580d7bcf625d\n"),
 			lkgbCase(),
 		},
 	})
