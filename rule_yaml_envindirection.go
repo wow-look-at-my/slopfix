@@ -20,11 +20,15 @@ func init() {
 				"    steps:\n      - env:\n          OUT: ${{ github.sha }}\n        run: echo \"$OUT\"\n"),
 			// From buildhost's buildhost-publish action: the entry only carries an input into the script.
 			{Name: "yaml/env-indirection-typescript", Path: ".github/actions/buildhost-publish/action.yml", Text: scriptActionManifest(
-				"      env:\n        # An env var carries the value, so no character in it can break the script.\n        BUILDHOST_PROJECT: ${{ inputs.project }}\n",
-				"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT}`);\n")},
+				"      env:\n        # An env var carries the value, so no character in it can break the script.\n"+
+					"        BUILDHOST_PROJECT: ${{ inputs.project }}\n        BUILDHOST_APT_DEPENDS: ${{ inputs.apt_depends }}\n",
+				"          const inputAptDepends: string = process.env.BUILDHOST_APT_DEPENDS ?? \"\";\n"+
+					"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT} with ${inputAptDepends}`);\n")},
+			// A `??` arm that goes on past its line stays, behind String().
 			workflowCase("env-indirection-github-script", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
 				"    steps:\n      - uses: actions/github-script@v7\n        env:\n          SHA: ${{ github.sha }}\n"+
-				"        with:\n          script: |\n            core.info(process.env.SHA);\n"),
+				"        with:\n          script: |\n            core.info(process.env.SHA);\n"+
+				"            core.info(process.env.SHA ??\n              \"none\");\n"),
 			envKeptCase(),
 		},
 	})
@@ -39,13 +43,14 @@ func scriptActionManifest(env, script string) string {
 		env + "      with:\n        script: |\n" + script
 }
 
-// envKeptCase holds entries with a job to do. A read with a nullish fallback
-// leans on the variable being undefined, which no string literal stands in
-// for. A name another step reads keeps its entry too.
+// envKeptCase holds entries with a job to do. A script that assigns the
+// variable needs it in the environment. A name another step reads keeps its
+// entry too.
 func envKeptCase() RuleCase {
 	c := RuleCase{Name: "yaml/env-indirection-typescript-kept", Path: ".github/actions/buildhost-publish/action.yml", Text: scriptActionManifest(
 		"      env:\n        BUILDHOST_APT_DEPENDS: ${{ inputs.apt_depends }}\n        BUILDHOST_PROJECT: ${{ inputs.project }}\n",
-		"          const depends: string = process.env.BUILDHOST_APT_DEPENDS ?? \"\";\n"+
+		"          process.env.BUILDHOST_APT_DEPENDS ??= \"\";\n"+
+			"          const depends: string = process.env.BUILDHOST_APT_DEPENDS;\n"+
 			"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT} with ${depends}`);\n"+
 			"    - shell: bash\n      run: echo \"$BUILDHOST_PROJECT\"\n")}
 	c.Unchanged = true

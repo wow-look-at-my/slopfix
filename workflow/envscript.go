@@ -71,8 +71,8 @@ var envMember = regexp.MustCompile(`\bprocess\.env\.([A-Za-z_$][A-Za-z0-9_$]*)`)
 // envMemberAt matches a member read of process.env at the start of the text.
 var envMemberAt = regexp.MustCompile(`^process\.env\.[A-Za-z_$]`)
 
-// writesAfter matches what follows a read that writes the variable or needs it nullable.
-var writesAfter = regexp.MustCompile(`^\s*(\?\?|\+\+|--|=($|[^=])|[-+*/%&|^]=|&&=|\|\|=|<<=|>>=)`)
+// writesAfter matches what follows a read that writes the variable.
+var writesAfter = regexp.MustCompile(`^\s*(\?\?=|\+\+|--|=($|[^=])|[-+*/%&|^]=|&&=|\|\|=|<<=|>>=)`)
 
 // writesBefore matches what precedes a read that deletes or steps the variable.
 var writesBefore = regexp.MustCompile(`(\bdelete|\+\+|--)\s*$`)
@@ -101,11 +101,11 @@ func mentions(script, name string) int {
 	}
 }
 
-// exactReads answers the byte spans of each process.env.NAME read on a line.
-// The second result is false when a read writes the variable, deletes it, or
-// leans on it being undefined. No string literal stands in for those reads.
-func exactReads(line, name string) ([][2]int, bool) {
-	var out [][2]int
+// exactReads answers each process.env.NAME read on a line. A read takes in
+// the dead `??` arms after it, because the entry always defines the variable.
+// The second result is false when a read writes the variable or deletes it.
+func exactReads(line, name string) ([]envRead, bool) {
+	var out []envRead
 	for _, m := range envMember.FindAllStringSubmatchIndex(line, -1) {
 		if line[m[2]:m[3]] != name {
 			continue
@@ -113,7 +113,8 @@ func exactReads(line, name string) ([][2]int, bool) {
 		if writesAfter.MatchString(line[m[1]:]) || writesBefore.MatchString(line[:m[0]]) {
 			return nil, false
 		}
-		out = append(out, [2]int{m[0], m[1]})
+		end, wrap := deadArms(line, m[1])
+		out = append(out, envRead{start: m[0], end: end, wrap: wrap})
 	}
 	return out, true
 }
@@ -255,8 +256,8 @@ func scriptPlan(s stepRef, all []stepRef, root *yaml.Node, content string, fileL
 	return p
 }
 
-// applySwaps writes each swap's literal over its reads on script line k, from
-// the last read back, so the spans of earlier reads still hold.
+// applySwaps writes each swap's literal over its reads on script line k. A
+// read inside the dead arm of an earlier read goes with that arm.
 func applySwaps(fileLine, prefix string, k int, swaps []lineSwap) string {
 	type span struct {
 		start, end int
@@ -268,14 +269,27 @@ func applySwaps(fileLine, prefix string, k int, swaps []lineSwap) string {
 			continue
 		}
 		for _, r := range sw.reads {
-			spans = append(spans, span{r[0], r[1], sw.literal})
+			spans = append(spans, span{r.start, r.end, r.text(sw.literal)})
 		}
 	}
-	sort.Slice(spans, func(i, j int) bool { return spans[i].start > spans[j].start })
-	for _, s := range spans {
-		fileLine = fileLine[:len(prefix)+s.start] + s.text + fileLine[len(prefix)+s.end:]
+	if len(spans) == 0 {
+		return fileLine
 	}
-	return fileLine
+	sort.Slice(spans, func(i, j int) bool { return spans[i].start < spans[j].start })
+	script := fileLine[len(prefix):]
+	var b strings.Builder
+	b.WriteString(prefix)
+	at := 0
+	for _, s := range spans {
+		if s.start < at {
+			continue
+		}
+		b.WriteString(script[at:s.start])
+		b.WriteString(s.text)
+		at = s.end
+	}
+	b.WriteString(script[at:])
+	return b.String()
 }
 
 // commentLines answers how many comment lines sit above a key as its head comment.
@@ -290,7 +304,7 @@ func commentLines(key *yaml.Node) int {
 // that takes their place.
 type lineSwap struct {
 	line    int
-	reads   [][2]int
+	reads   []envRead
 	literal string
 }
 
