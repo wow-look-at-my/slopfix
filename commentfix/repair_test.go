@@ -55,7 +55,7 @@ func TestANumberNoEntryCoversIsReworded(t *testing.T) {
 		"// Run answers one call 3 ways and ships 4 hooks.\nfunc Run() {}\n": "// Run answers one call multiple ways and ships hooks.\nfunc Run() {}\n",
 		// A zero that is the subject of a verb names a value, and "no disables" is not English.
 		"// Size reads the input: empty is the default, 0 disables chunking.\nfunc Size() {}\n": "// Size reads the input: empty is the default, a value of zero disables chunking.\nfunc Size() {}\n",
-		"// It is the input. 0 disables chunking.\nfunc Size() {}\n":                             "// It is the input. A value of zero disables chunking.\nfunc Size() {}\n",
+		"// It is the input. 0 disables chunking.\nfunc Size() {}\n":                            "// It is the input. A value of zero disables chunking.\nfunc Size() {}\n",
 	} {
 		repair := fix(t, in)
 		assert.Equal(t, want, repair.Text, in)
