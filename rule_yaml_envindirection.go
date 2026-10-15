@@ -23,7 +23,9 @@ func init() {
 				"      env:\n        # An env var carries the value, so no character in it can break the script.\n"+
 					"        BUILDHOST_PROJECT: ${{ inputs.project }}\n        BUILDHOST_APT_DEPENDS: ${{ inputs.apt_depends }}\n",
 				"          const inputAptDepends: string = process.env.BUILDHOST_APT_DEPENDS ?? \"\";\n"+
-					"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT} with ${inputAptDepends}`);\n")},
+					"          const project: string = process.env.BUILDHOST_PROJECT || \"repo\";\n"+
+					"          if (!process.env.BUILDHOST_PROJECT) {\n            core.info(\"no project input\");\n          }\n"+
+					"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT} as ${project} with ${inputAptDepends}`);\n")},
 			// A `??` arm that goes on past its line stays, behind String().
 			workflowCase("env-indirection-github-script", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
 				"    steps:\n      - uses: actions/github-script@v7\n        env:\n          SHA: ${{ github.sha }}\n"+
@@ -50,8 +52,7 @@ func envKeptCase() RuleCase {
 	c := RuleCase{Name: "yaml/env-indirection-typescript-kept", Path: ".github/actions/buildhost-publish/action.yml", Text: scriptActionManifest(
 		"      env:\n        BUILDHOST_APT_DEPENDS: ${{ inputs.apt_depends }}\n        BUILDHOST_PROJECT: ${{ inputs.project }}\n",
 		"          process.env.BUILDHOST_APT_DEPENDS ??= \"\";\n"+
-			"          const depends: string = process.env.BUILDHOST_APT_DEPENDS;\n"+
-			"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT} with ${depends}`);\n"+
+			"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT} with ${process.env.BUILDHOST_APT_DEPENDS}`);\n"+
 			"    - shell: bash\n      run: echo \"$BUILDHOST_PROJECT\"\n")}
 	c.Unchanged = true
 	return c

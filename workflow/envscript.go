@@ -114,6 +114,9 @@ func exactReads(line, name string) ([]envRead, bool) {
 			return nil, false
 		}
 		end, wrap := deadArms(line, m[1])
+		if end == m[1] && !wrap {
+			wrap = truthTested(line[:m[0]], line[m[1]:])
+		}
 		out = append(out, envRead{start: m[0], end: end, wrap: wrap})
 	}
 	return out, true
