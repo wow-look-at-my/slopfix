@@ -272,6 +272,9 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		}
 	}
 	if bestWords < 0 {
+		best, bestWords = lastResortCut(source, masked, len(ends), limit)
+	}
+	if bestWords < 0 {
 		return source, false
 	}
 	left := closeHead(source[:best.left])
@@ -280,6 +283,24 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// lastResortCut answers the cut that keeps the most leading words under the
+// cap, for a sentence where no cut leaves both parts reading as sentences. A
+// finding that fix leaves standing breaks the guarantee, and an awkward pair
+// of sentences does not. The cut still lands between whole words, outside a
+// code span, a link, a quotation and a parenthesis.
+func lastResortCut(source, masked string, words, limit int) (forceCut, int) {
+	best, bestWords := forceCut{}, -1
+	for _, c := range candidates(source, masked, false, limit) {
+		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < 1 || words-c.words < 1 {
+			continue
+		}
+		if c.words > bestWords {
+			best, bestWords = c, c.words
+		}
+	}
+	return best, bestWords
 }
 
 // hardRest opens the words after a cut at right as a sentence, past any dash that opened an aside.
