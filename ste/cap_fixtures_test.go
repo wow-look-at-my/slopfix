@@ -180,10 +180,7 @@ var capSentences = []string{
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.
-// Each is a real comment. A division turns half of each into a fragment. The
-// reaching repair would have to write words the author did not. A subject for a
-// participial list item, a finite verb for a participle, or a subject for an
-// aside the sentence interrupts. The rule owns no rephrase for those.
+// A division would turn half of each into a fragment.
 var capPending = []string{
 	"Bulk.txt v0 feat = A + shared.txt changed on the head side (the \"PR branch\") M1 = A + shared.txt changed differently (the conflict) + bulk.txt changed (a base-only blob the merge MUST materialize) Returns every sha the tests need.",
 }
