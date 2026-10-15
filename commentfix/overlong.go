@@ -175,6 +175,28 @@ func judge(b block) (string, bool) {
 // oneSentence reports a block whose prose is a single sentence under the STE
 // word cap. A line with no letter is a banner, not prose.
 func oneSentence(text []string) bool {
+	joined := sentenceRun(text)
+	if joined == "" {
+		return false
+	}
+	found := ste.Sentences(joined)
+	return len(found) == 1 && ste.WordCount(found[0]) <= ste.SentenceWordCap && !hasBanner(text)
+}
+
+// oneShortRun reports a block of a couple of lines whose prose is one sentence.
+func oneShortRun(text []string) bool {
+	return len(text) >= 2 && len(sentenceRun(text)) <= 2*floorChars && oneRun(text)
+}
+
+// oneRun reports a block whose prose is a single sentence of any length, which
+// a cut must keep whole.
+func oneRun(text []string) bool {
+	joined := sentenceRun(text)
+	return joined != "" && len(ste.Sentences(joined)) == 1 && !hasBanner(text)
+}
+
+// sentenceRun joins the prose of a block's lines, banners aside.
+func sentenceRun(text []string) string {
 	var words []string
 	for _, line := range prose(text) {
 		body := stripMarker(line)
@@ -183,12 +205,7 @@ func oneSentence(text []string) bool {
 		}
 		words = append(words, strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body), "*/")))
 	}
-	joined := strings.TrimSpace(strings.Join(words, " "))
-	if joined == "" {
-		return false
-	}
-	found := ste.Sentences(joined)
-	return len(found) == 1 && ste.WordCount(found[0]) <= ste.SentenceWordCap && !hasBanner(text)
+	return strings.TrimSpace(strings.Join(words, " "))
 }
 
 // hasBanner reports a comment line whose prose holds no letter, such as a
@@ -364,6 +381,15 @@ func trim(b block) []string {
 	}
 	if out, ok := preferred(fits); ok {
 		return out
+	}
+	// A couple of lines that hold one sentence have no cut that keeps every
+	// word. Their words go on one line before a division takes what it needs.
+	if oneShortRun(kept) {
+		if wider, did := widen(kept, oneLine); did {
+			if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return wider
+			}
+		}
 	}
 	// No cut fits, so the opening sentence divides until its first part does.
 	if shorter, ok := steOpening(kept, fit, true); ok && fitsCode(shorter, b) {
