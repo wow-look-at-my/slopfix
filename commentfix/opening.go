@@ -44,6 +44,7 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 			return nil, false
 		}
 		out, fits := fit(first, indent, marker)
+		cuts := ste.Cuts(first)
 		for limit := ste.WordCount(first) - 1; shrink && !fits && limit >= minimumOpening; limit-- {
 			divided := ste.Sentences(ste.DivideTo(first, limit))
 			if len(divided) < 2 {
@@ -51,6 +52,11 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 			}
 			head := strings.TrimSpace(divided[0])
 			if !endsSentence(head) || isHeading(head) {
+				continue
+			}
+			// A division that no clause ends strands the words the clause needs,
+			// so only a boundary the division repair admits counts here.
+			if !atClauseCut(first, head, cuts) {
 				continue
 			}
 			if shorter, ok := fit(head, indent, marker); ok {
@@ -65,6 +71,18 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 		return out, true
 	}
 	return nil, false
+}
+
+// atClauseCut reports a head that closes where a division of sentence may
+// close, rather than at the first word boundary the cap reaches.
+func atClauseCut(sentence, head string, cuts []int) bool {
+	trimmed := strings.TrimSuffix(strings.TrimSpace(head), ".")
+	for _, cut := range cuts {
+		if strings.EqualFold(strings.TrimRight(strings.TrimSpace(sentence[:cut]), " ,;:—–-"), trimmed) {
+			return true
+		}
+	}
+	return false
 }
 
 // phraseLines keeps the longest run of leading lines that ends a noun phrase
