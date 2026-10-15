@@ -175,6 +175,23 @@ func judge(b block) (string, bool) {
 // oneSentence reports a block whose prose is a single sentence under the STE
 // word cap. A line with no letter is a banner, not prose.
 func oneSentence(text []string) bool {
+	joined := sentenceRun(text)
+	if joined == "" {
+		return false
+	}
+	found := ste.Sentences(joined)
+	return len(found) == 1 && ste.WordCount(found[0]) <= ste.SentenceWordCap && !hasBanner(text)
+}
+
+// oneRun reports a block whose prose is a single sentence of any length, which
+// a cut must keep whole.
+func oneRun(text []string) bool {
+	joined := sentenceRun(text)
+	return joined != "" && len(ste.Sentences(joined)) == 1 && !hasBanner(text)
+}
+
+// sentenceRun joins the prose of a block's lines, banners aside.
+func sentenceRun(text []string) string {
 	var words []string
 	for _, line := range prose(text) {
 		body := stripMarker(line)
@@ -183,12 +200,7 @@ func oneSentence(text []string) bool {
 		}
 		words = append(words, strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body), "*/")))
 	}
-	joined := strings.TrimSpace(strings.Join(words, " "))
-	if joined == "" {
-		return false
-	}
-	found := ste.Sentences(joined)
-	return len(found) == 1 && ste.WordCount(found[0]) <= ste.SentenceWordCap && !hasBanner(text)
+	return strings.TrimSpace(strings.Join(words, " "))
 }
 
 // hasBanner reports a comment line whose prose holds no letter, such as a
@@ -348,6 +360,15 @@ func trim(b block) []string {
 			break
 		}
 		kept = next
+	}
+	// A block that is one sentence has no sentence to drop. The whole prose goes
+	// on one line before any cut takes the words that sentence needs.
+	if oneRun(kept) {
+		if wider, did := widen(kept, oneLine); did {
+			if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return wider
+			}
+		}
 	}
 	// The STE opening sentence reads best, then a clause cut.
 	fit := func(sentence, indent, marker string) ([]string, bool) {
