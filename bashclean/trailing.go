@@ -204,11 +204,10 @@ func leftmost(s *syntax.Stmt) *syntax.Stmt {
 	}
 }
 
-// ensurePipefail keeps the producer's exit status observable through the pipe
-// the tee rewrite introduces. A strictness setting the caller wrote is never
-// removed.
+// ensurePipefail keeps a producer's exit status observable through a pipe. A
+// command with no pipe stays one command, so a permission rule still matches it.
 func ensurePipefail(f *syntax.File) {
-	if len(f.Stmts) == 0 || enablesPipefail(leftmost(f.Stmts[0])) {
+	if len(f.Stmts) == 0 || !hasPipe(f) || enablesPipefail(leftmost(f.Stmts[0])) {
 		return
 	}
 	f.Stmts = append([]*syntax.Stmt{{Cmd: &syntax.CallExpr{

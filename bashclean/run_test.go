@@ -65,7 +65,7 @@ func TestRunRewriteIsSilent(t *testing.T) {
 	assert.NotContains(t, hso, "additionalContext")
 
 	updated := hso["updatedInput"].(map[string]any)
-	assert.Equal(t, "set -o pipefail\nls\n", updated["command"])
+	assert.Equal(t, "ls\n", updated["command"])
 	assert.Equal(t, "keep me", updated["description"])
 }
 
@@ -99,7 +99,7 @@ func TestRunLogsToTheDebugChannel(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cleanup.log")
 	t.Setenv("CLEANUP_BASH_CMDS_LOG", path)
 
-	Run(strings.NewReader(payload(t, "Bash", "rm -rf build")))
+	Run(strings.NewReader(payload(t, "Bash", "rm -rf build | cat")))
 	Run(strings.NewReader(payload(t, "Bash", "perl -e 'print 1'")))
 
 	data, err := os.ReadFile(path)
