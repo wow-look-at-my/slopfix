@@ -36,6 +36,25 @@ func TestTheIndexHoldsWhatAProbeReads(t *testing.T) {
 	assert.False(t, ix.holds("NothingDefinesThisName"))
 }
 
+// CI can copy a dependency into a submodule path in place of a checkout. git
+// lists none of those files, so the index reads them from disk.
+func TestTheIndexHoldsASubmoduleCopiedInPlaceOfACheckout(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, exec.Command("git", "-C", root, "init", "-q").Run())
+	sha := "0123456789abcdef0123456789abcdef01234567"
+	out, err := exec.Command("git", "-C", root, "update-index", "--add", "--cacheinfo", "160000,"+sha+",dep").CombinedOutput()
+	require.NoError(t, err, string(out))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "dep", "src"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "dep", "src", "defs.h"), []byte("#define CopiedSymbolName 1\n"), 0o644))
+
+	ix := &symbolIndex{}
+	require.False(t, ix.missingDependency(root))
+	ix.build(root)
+	require.True(t, ix.ok)
+	assert.True(t, ix.holds("CopiedSymbolName"))
+	assert.False(t, ix.holds("NothingDefinesThisName"))
+}
+
 // Once a walk primes the index, it answers every name without a probe: a name
 // it never saw is dead. A name it holds is alive.
 func TestAPrimedIndexAnswersWithoutAProbe(t *testing.T) {

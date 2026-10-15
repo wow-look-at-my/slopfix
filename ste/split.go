@@ -2,6 +2,7 @@ package ste
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -87,11 +88,19 @@ func divideNext(prose string, limit int) (string, bool) {
 			continue
 		}
 		s := syntax.Parse(masked[start:end], shift(off, -start))
-		if rewritten, ok := bestDivision(s, prose[start:end]); ok {
+		if rewritten, ok := bestDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
+			return prose[:start] + rewritten + prose[end:], true
+		}
+		if rewritten, ok := frontedDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
 			return prose[:start] + rewritten + prose[end:], true
 		}
 	}
 	return prose, false
+}
+
+// keepsCodeSpans reports that a division kept each code span whole, in order.
+func keepsCodeSpans(source, rewritten string) bool {
+	return slices.Equal(codeSpan.FindAllString(source, -1), codeSpan.FindAllString(rewritten, -1))
 }
 
 // sentenceSpans answers the byte range of each sentence. It reads the source
@@ -310,6 +319,10 @@ func divisions(s *syntax.Sentence, source string) []division {
 		}
 		opener, ok := openerFor(s, c, main, source)
 		if !ok {
+			if d, ok := gerundDivision(s, c, main, source); ok {
+				out = append(out, d)
+				continue
+			}
 			if objectRelative(s, c) {
 				out = append(out, division{
 					leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
@@ -608,6 +621,10 @@ func opensWithCapital(s *syntax.Sentence, i int, source string) bool {
 // when no pronoun agrees, as for a single person and a verb in -s.
 func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string, bool) {
 	if main.Subject == nil || main.Verb == nil || c.Verb == nil {
+		return "", false
+	}
+	// A subject before an -ing form writes "It using hyperfine", which is no sentence.
+	if s.Words[c.Verb.First].Tag == "VBG" || c.Link >= 0 && c.Link+1 < len(s.Words) && s.Words[c.Link+1].Tag == "VBG" {
 		return "", false
 	}
 	subject := *main.Subject

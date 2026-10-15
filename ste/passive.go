@@ -70,16 +70,30 @@ func passiveParts(s *syntax.Sentence, source string) ([]part, bool) {
 	if !ok {
 		return nil, false
 	}
+	// A bare "be" is active only behind a modal: "X must be read by Y" becomes "Y must read X".
+	subjectEnd, verb := i, ""
+	if s.Words[i].Lower() == "be" {
+		if i-1 <= first || s.Words[i-1].Tag != "MD" {
+			return nil, false
+		}
+		subjectEnd = i - 1
+		verb = source[s.Words[i-1].Start:s.Words[i-1].End] + " " + baseFromParticiple(s.Words[j].Lower())
+	} else {
+		// "has been read" and "must not be read" carry a word no rewrite here moves.
+		if before := s.Words[i-1]; before.Tag == "MD" || haveForms.Contains(before.Lower()) || beForms.Contains(before.Lower()) {
+			return nil, false
+		}
+		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
+	}
 	// An adverb that opens the clause modifies the whole clause, so it keeps its place in front: "Otherwise the runs are separated by a dashed line".
 	open := first
 	if s.Words[first].Tag == "RB" && i > first+1 {
 		open = first + 1
 	}
 	subjectAt := s.Words[open].Start
-	subject := strings.TrimSpace(source[subjectAt:s.Words[i].Start])
+	subject := strings.TrimSpace(source[subjectAt:s.Words[subjectEnd].Start])
 	actorAt, actorEnd := s.Words[by+1].Start, s.Words[end].End
 	actor := source[actorAt:actorEnd]
-	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
 	if subject == "" || actor == "" || verb == "" {
 		return nil, false
 	}
@@ -183,8 +197,6 @@ func lowerOpeningFor(phrase, tag string) string {
 func passiveVerb(participle, beWord string, plural bool) string {
 	switch beWord {
 	case "was", "were", "been", "being":
-		return pastFromParticiple(participle)
-	case "be":
 		return pastFromParticiple(participle)
 	}
 	return presentOf(baseFromParticiple(participle), plural)

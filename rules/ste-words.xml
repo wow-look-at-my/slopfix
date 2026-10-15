@@ -118,6 +118,16 @@
     because although though unless since after before until once whether
     provided assuming given for"/>
 
+  <!-- A participle that closes an absolute phrase after a comma, as in "the
+       tests included". The phrase has no finite verb of its own. -->
+  <class name="absolute-participle" words="included excluded attached
+    considered omitted removed enclosed"/>
+
+  <!-- An auxiliary in front of the participle is the noun's own verb, so the
+       words close a clause and no absolute phrase stands there. -->
+  <class name="absolute-auxiliary" words="is are was were am be been being has
+    have had having does do did can could will would shall should may might must"/>
+
   <!-- A conjunction may stand in front of the spliced clause. -->
   <class name="splice-conjunction" words="and but so yet then"/>
 

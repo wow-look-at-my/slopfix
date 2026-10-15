@@ -12,19 +12,16 @@
 package tombstones
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gitmod"
 )
 
 // identifierWords splits text into the runs the shape test judges, by cutting
@@ -87,59 +84,6 @@ const maxNames = 40
 // probeBudget is how many files a process probes name by name before it reads the tree once.
 const probeBudget = 50
 
-// indexTimeout bounds the read of the tree.
-const indexTimeout = 5 * time.Minute
-
-// indexFileCap is the largest tracked file the index reads. A larger one is data.
-const indexFileCap = 4 << 20
-
-// symbolIndex holds every identifier-shaped word the tracked files contain, with the count of files that hold it.
-type symbolIndex struct {
-	once  sync.Once
-	files map[string]int
-	ok    bool
-
-	pathOnce sync.Once
-	paths    set.Set[string]
-	pathsOK  bool
-}
-
-// namesAFile reports a name that a path git lists under root spells, such as
-// sig_cosmo_test for sig_cosmo_test.go. A name that ends in an underscore
-// names the files that start with it.
-func (ix *symbolIndex) namesAFile(root, name string) bool {
-	ix.pathOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
-		defer cancel()
-		listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
-		if err != nil {
-			return
-		}
-		ix.paths = set.New[string]()
-		for _, rel := range strings.Split(string(listed), "\x00") {
-			for _, word := range identifierWords(rel) {
-				ix.paths.Add(word)
-			}
-		}
-		ix.pathsOK = true
-	})
-	if !ix.pathsOK {
-		return false
-	}
-	if ix.paths.Contains(name) {
-		return true
-	}
-	if !strings.HasSuffix(name, "_") {
-		return false
-	}
-	for word := range ix.paths.All() {
-		if strings.HasPrefix(word, name) {
-			return true
-		}
-	}
-	return false
-}
-
 // foreignInGo reports an underscored name in Go, which is a C name or a file.
 // A test function keeps its underscore and stays a candidate.
 func foreignInGo(path, name string) bool {
@@ -152,105 +96,6 @@ func foreignInGo(path, name string) bool {
 		}
 	}
 	return true
-}
-
-var (
-	indexes sync.Map
-	probed  atomic.Int64
-)
-
-// indexFor answers the index of root, built on the first call past the budget.
-func indexFor(root string) *symbolIndex {
-	v, _ := indexes.LoadOrStore(root, &symbolIndex{})
-	ix := v.(*symbolIndex)
-	if probed.Add(1) <= probeBudget {
-		return ix
-	}
-	ix.once.Do(func() { ix.build(root) })
-	return ix
-}
-
-// PrimeIndex builds the index of the working tree that holds path now. A tree
-// walk calls it first, because it probes far past the budget.
-func PrimeIndex(path string) {
-	root := RepoRoot(path)
-	if root == "" {
-		return
-	}
-	v, _ := indexes.LoadOrStore(root, &symbolIndex{})
-	ix := v.(*symbolIndex)
-	ix.once.Do(func() { ix.build(root) })
-	probed.Add(probeBudget)
-}
-
-// build reads every candidate word in the files git lists under root: tracked,
-// and untracked unless git ignores them. That is what ripgrep reads, without a
-// submodule's checkout, which the walk skips too.
-func (ix *symbolIndex) build(root string) {
-	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
-	defer cancel()
-	listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
-	if err != nil {
-		return
-	}
-	files := map[string]int{}
-	for _, rel := range strings.Split(string(listed), "\x00") {
-		if rel == "" {
-			continue
-		}
-		if ctx.Err() != nil {
-			return
-		}
-		data, err := os.ReadFile(filepath.Join(root, rel))
-		if err != nil || len(data) > indexFileCap || bytes.IndexByte(data[:min(len(data), 8000)], 0) >= 0 {
-			continue
-		}
-		words := set.New[string]()
-		addWords(words, data)
-		for word := range words.All() {
-			files[word]++
-		}
-	}
-	ix.files, ix.ok = files, true
-}
-
-// addWords adds every candidate identifier in data to names.
-func addWords(names set.Set[string], data []byte) {
-	start := -1
-	for i, c := range data {
-		if c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' {
-			if start < 0 {
-				start = i
-			}
-			continue
-		}
-		if start >= 0 && i-start >= minCandidate {
-			if word := string(data[start:i]); isCandidate(word) {
-				names.Add(word)
-			}
-		}
-		start = -1
-	}
-	if start >= 0 && len(data)-start >= minCandidate {
-		if word := string(data[start:]); isCandidate(word) {
-			names.Add(word)
-		}
-	}
-}
-
-// holds reports a name the index saw.
-func (ix *symbolIndex) holds(name string) bool {
-	return ix.ok && ix.files[name] > 0
-}
-
-// holdsBeyond reports a name the index saw in a file other than self, where
-// self is the copy on disk of the file being judged.
-func (ix *symbolIndex) holdsBeyond(name string, self []byte) bool {
-	n := ix.files[name]
-	if bytes.Contains(self, []byte(name)) {
-		n--
-	}
-	return ix.ok && n > 0
 }
 
 // DeadReferents returns the identifiers the blocks name that appear neither in
@@ -281,6 +126,9 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	}
 
 	ix := indexFor(root)
+	if ix.missingDependency(root) {
+		return nil
+	}
 	var ordered []string
 	for n := range names.All() {
 		if strings.Count(added, n) > 1 || foreignInGo(path, n) || ix.namesAFile(root, n) {
@@ -293,6 +141,9 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	}
 
 	self, _ := os.ReadFile(path)
+	if ix.portsForeignSource(root, path, blocks, self) {
+		return nil
+	}
 	selfPath, _ := filepath.Abs(path)
 	rg := ""
 	if !ix.ok {
@@ -365,4 +216,56 @@ func DeadReferentHits(path, text string) []Hit {
 		out = append(out, HitForName(blocks, name))
 	}
 	return out
+}
+
+// foreignCitation matches a C family source cited at a line, as in Script.h:222.
+var foreignCitation = regexp.MustCompile(`\b[A-Za-z_][A-Za-z0-9_.-]*\.(?:c|cc|cpp|cxx|h|hh|hpp|hxx|inl|m|mm):[0-9]+\b`)
+
+// portsForeignSource reports a file whose comments cite a line of a source
+// file that the repository does not hold. Its test counterpart counts too.
+// Such a file ports another codebase, so its comments name that codebase's
+// API, and the repository has no definition to find.
+func (ix *symbolIndex) portsForeignSource(root, path string, blocks []Block, self []byte) bool {
+	ix.listPaths(root)
+	if !ix.pathsOK {
+		return false
+	}
+	if ix.citesForeign(blocks) || ix.citesForeign(AddedBlocks(path, string(self))) {
+		return true
+	}
+	other := testCounterpart(path)
+	if other == "" {
+		return false
+	}
+	data, err := os.ReadFile(other)
+	return err == nil && ix.citesForeign(AddedBlocks(other, string(data)))
+}
+
+// citesForeign reports a block that cites a line of a file no listed path names.
+func (ix *symbolIndex) citesForeign(blocks []Block) bool {
+	for _, b := range blocks {
+		for _, cite := range foreignCitation.FindAllString(b.Prose, -1) {
+			file, _, _ := strings.Cut(cite, ":")
+			if !ix.bases.Contains(file) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// testCounterpart answers the source file a test file tests, or the test file
+// of a source file. X_test.go and x.go, x.test.ts and x.ts.
+func testCounterpart(path string) string {
+	ext := filepath.Ext(path)
+	stem := strings.TrimSuffix(path, ext)
+	for _, mark := range []string{"_test", ".test", ".spec"} {
+		if base, ok := strings.CutSuffix(stem, mark); ok {
+			return base + ext
+		}
+	}
+	if ext == ".go" {
+		return stem + "_test.go"
+	}
+	return stem + ".test" + ext
 }
