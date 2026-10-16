@@ -82,14 +82,15 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 		return joinOpener(opener, subject+" "+rest), opensWithVerb
 	// A verb that only a relative clause holds leaves the rest a noun phrase: "a subordinator that opens a clause".
+	// The whole sentence must read a finite verb there too: alone, "the in-place row wires" reads "wires" as one.
 	case opensClause(s) && opensSubject(whole, first) && agrees(s, *s.Clauses[0].Subject, *s.Clauses[0].Verb) &&
-		verbOfSubject(s, *s.Clauses[0].Subject, *s.Clauses[0].Verb) && finiteOutsideRelative(s, 0):
+		verbOfSubject(s, *s.Clauses[0].Subject, *s.Clauses[0].Verb) && finiteOutsideRelative(s, 0) && finiteBetween(whole, first, len(whole.Words)):
 		// A so with no comma before it, or after an instruction, states a purpose.
 		if conjunction == "so" && (seam != "," || opensImperativeMain(masked[:c.left]) || instructs(whole)) {
 			return "", 0
 		}
-		// After a list, ", and" adds the last item to it: "rules, hooks, and `ask` rules apply".
-		if seam == "," && listsVerbs(masked[:c.left]) {
+		// After a list, ", and" adds the last item to it: "rules, hooks, and `ask` rules apply". A pronoun and its verb open a clause: ", or it is".
+		if seam == "," && listsVerbs(masked[:c.left]) && !(tag == "PRP" && finiteAt(whole, first+1)) {
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause
@@ -194,7 +195,7 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 		if head.Tag == "PRP" {
 			return lowerOpening(head.Text)
 		}
-		if subject.Last-subject.First < restateLimit && !subject.Coordinated {
+		if restates(s, subject) {
 			// A noun that disagrees with the verb after the cut is not its subject.
 			if plural := s.Plural(subject); tag == "VBZ" && plural || tag == "VBP" && !plural && !partitives.Contains(strings.ToLower(head.Text)) {
 				return ""
