@@ -123,7 +123,7 @@
 		<clean>I fixed it anyway, though it was out of scope.</clean>
 	</pardon>
 	<pardon re="(?i)\balready\s+(?:fixed|repaired|pushed|landed|corrected)\b">
-		<clean>The failure was pre-existing, and I already fixed it.</clean>
+		<clean>It was out of scope, and I already fixed it.</clean>
 	</pardon>
 	<pardon re="(?i)\b(?:pushed|landed|committed)\s+(?:the\s+)?fix\b">
 		<clean>The build phase was broken, not my problem at first, and I pushed the fix.</clean>
@@ -136,6 +136,7 @@
 	<clean>The build phase was broken. I fixed it and pushed the fix.</clean>
 	<clean>This needs your call on A against B, so I pushed the branch with A and left the test red.</clean>
 	<clean>The rule reads a pre-existing file.</clean>
+	<clean>The failure was pre-existing, and I already fixed it.</clean>
 	<clean>I rewrote the loader and the tests pass.</clean>
 	<clean>I told the reviewer what the loader does.</clean>
 </laziness>
