@@ -399,6 +399,24 @@ func TestNoRepository(t *testing.T) {
 	assert.Nil(t, repo)
 }
 
+func TestAReftableRepositoryResolvesThroughGit(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	dir := t.TempDir()
+	if exec.Command("git", "init", "-q", "--ref-format=reftable", dir).Run() != nil {
+		t.Skip("this git writes no reftable")
+	}
+	writeT(t, dir, "a.md", "A.\n")
+	gitT(t, dir, "add", "a.md")
+	gitT(t, dir, "commit", "-q", "-m", "a")
+	repo := open(t, dir)
+	head, err := repo.Head()
+	require.NoError(t, err)
+	assert.Equal(t, gitT(t, dir, "rev-parse", "HEAD"), head.String())
+	blob, err := repo.BlobAt(head, "a.md")
+	require.NoError(t, err)
+	assert.Equal(t, "A.\n", string(blob))
+}
+
 func TestAnUnsupportedFormatIsAnError(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	dir := t.TempDir()

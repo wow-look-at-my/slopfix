@@ -104,6 +104,9 @@ func normalKey(key string) string {
 	return strings.ToLower(key[:first]) + key[first:last] + strings.ToLower(key[last:])
 }
 
+// ConfigFile parses one file in git config syntax, such as .gitmodules.
+func ConfigFile(path string) map[string]string { return readConfigFile(path, 0) }
+
 // readConfigFile parses one git config file and the files it includes.
 func readConfigFile(path string, depth int) config {
 	out := config{}

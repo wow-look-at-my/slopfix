@@ -24,6 +24,8 @@ type Repo struct {
 	// gitDirInfo and cfgStamp tell this repository from a new one at the same path.
 	gitDirInfo os.FileInfo
 	cfgStamp   fileStamp
+	// reftable marks refs in the binary reftable format, which git reads for us.
+	reftable bool
 
 	cfgOnce sync.Once
 	cfg     config
@@ -144,7 +146,11 @@ func (r *Repo) supported() error {
 	if f := strings.ToLower(r.Config("extensions.objectformat")); f != "" && f != "sha1" {
 		return fmt.Errorf("%w: %s uses the %s object format", ErrUnsupported, r.gitDir, f)
 	}
-	if s := strings.ToLower(r.Config("extensions.refstorage")); s != "" && s != "files" {
+	switch s := strings.ToLower(r.Config("extensions.refstorage")); s {
+	case "", "files":
+	case "reftable":
+		r.reftable = true
+	default:
 		return fmt.Errorf("%w: %s keeps its refs in %s", ErrUnsupported, r.gitDir, s)
 	}
 	return nil

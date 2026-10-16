@@ -194,6 +194,9 @@ func (r *Repo) ref(name string, depth int) (OID, bool) {
 	if depth > maxSymrefDepth || strings.Contains(name, "..") {
 		return OID{}, false
 	}
+	if r.reftable {
+		return r.reftableRef(name)
+	}
 	for _, base := range []string{r.gitDir, r.commonDir} {
 		data, err := os.ReadFile(filepath.Join(base, filepath.FromSlash(name)))
 		if err != nil {
@@ -212,6 +215,9 @@ func (r *Repo) ref(name string, depth int) (OID, bool) {
 
 // SymbolicRef answers the ref a symbolic ref names, or false.
 func (r *Repo) SymbolicRef(name string) (string, bool) {
+	if r.reftable {
+		return r.reftableSymbolic(name)
+	}
 	for _, base := range []string{r.gitDir, r.commonDir} {
 		data, err := os.ReadFile(filepath.Join(base, filepath.FromSlash(name)))
 		if err != nil {
@@ -249,6 +255,9 @@ func (r *Repo) packedRefs() map[string]OID {
 
 // Refs answers every ref under prefix, loose and packed.
 func (r *Repo) Refs(prefix string) map[string]OID {
+	if r.reftable {
+		return r.reftableRefs(prefix)
+	}
 	out := map[string]OID{}
 	for ref, oid := range r.packedRefs() {
 		if strings.HasPrefix(ref, prefix) {
