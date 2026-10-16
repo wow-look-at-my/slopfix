@@ -292,10 +292,8 @@ func divisions(s *syntax.Sentence, source string) []division {
 		if !ok || c.Link < 0 || c.Link+1 >= len(s.Words) {
 			continue
 		}
-		// A division inside a pair of dashes, or at either dash, halves the aside.
-		if insideAny(dashed, s.Words[c.Link].Start) {
-			continue
-		}
+		// A division inside a pair of dashes, or at either dash, halves the aside, unless the rest names its subject again.
+		inAside := insideAny(dashed, s.Words[c.Link].Start)
 		// The part before a division needs a verb with tense: "so newly created files." has none.
 		if !main.Verb.Finite && !main.Verb.Imperative {
 			continue
@@ -309,13 +307,16 @@ func divisions(s *syntax.Sentence, source string) []division {
 				out = append(out, d)
 				continue
 			}
-			if objectRelative(s, c) {
+			if !inAside && objectRelative(s, c) {
 				out = append(out, division{
 					leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
 					rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
 					closer:     "that",
 				})
 			}
+			continue
+		}
+		if inAside && opener == "" {
 			continue
 		}
 		d := division{
