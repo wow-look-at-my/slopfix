@@ -327,17 +327,21 @@ func trim(b block) []string {
 	}
 
 	// The words can fit where the wrap does not. Laying them out at the budget's
-	// own width, then on one line, drops none.
-	if wider, did := widenToFit(kept, b); did {
-		return wider
+	// own width drops none.
+	if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
+		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+			return wider
+		}
 	}
 
 	for {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
 		}
-		if wider, did := widenToFit(kept, b); did {
-			return wider
+		if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
+			if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
+				return wider
+			}
 		}
 		next, ok := cutLastThought(kept)
 		if !ok {
@@ -373,27 +377,6 @@ func trim(b block) []string {
 		}
 	}
 	return kept
-}
-
-// widenToFit lays the block's words out at the budget's width and then on one
-// line, and answers the first layout the judge accepts. The budget counts
-// characters without blanks, so words inside it can need more columns than it.
-func widenToFit(text []string, b block) ([]string, bool) {
-	limit := max(floorChars, b.codeChars)
-	for _, width := range []int{limit, oneLine} {
-		wider, did := widen(text, width)
-		if !did {
-			continue
-		}
-		// A line past the budget that only the one-sentence exemption admits is a cut's to make.
-		if _, chars := measure(prose(wider)); width == oneLine && chars > limit {
-			continue
-		}
-		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
-			return wider, true
-		}
-	}
-	return text, false
 }
 
 // sameText compares runs of lines by what they say. A line count cannot: a
