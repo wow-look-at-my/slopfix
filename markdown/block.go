@@ -105,6 +105,10 @@ func paragraphs(content string, lines []string) map[int]int {
 			if segments := n.Lines(); segments.Len() > 0 {
 				first := lineOf(starts, segments.At(0).Start)
 				last := lineOf(starts, segments.At(segments.Len()-1).Stop-1)
+				// Git reads a trailer a line at a time, so a join breaks every trailer after the first.
+				if isTrailerBlock(lines[first : last+1]) {
+					return ast.WalkSkipChildren, nil
+				}
 				// A template directive line is not prose, so it divides the paragraph and stays as written.
 				for from := first; from <= last; {
 					if isDirective(lines[from]) {
@@ -116,7 +120,7 @@ func paragraphs(content string, lines []string) map[int]int {
 						to++
 					}
 					switch {
-					case trailerBlock(lines[from : to+1]):
+					case isTrailerBlock(lines[from : to+1]):
 						// A trailer block is a line per trailer, and git reads each line alone.
 						for line := from; line <= to; line++ {
 							ends[line] = line
@@ -134,21 +138,24 @@ func paragraphs(content string, lines []string) map[int]int {
 	return ends
 }
 
-// trailerLine is a git trailer: a token of letters, digits and hyphens, a colon, and a value.
-var trailerLine = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]*: \S`)
+// trailerLine matches a git trailer, a token of letters, digits and hyphens and then its value.
+var trailerLine = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*: \S`)
 
-// trailerBlock reports a paragraph of more than a single line in which every
-// line is a git trailer.
-func trailerBlock(lines []string) bool {
-	if len(lines) < 2 {
+// isTrailerBlock reports a paragraph of git trailers, such as the
+// Co-Authored-By and Signed-off-by lines that close a commit message. Every
+// line is a trailer, or folds the value of the one before it. A single line
+// counts only when its token holds a hyphen, because "Note: the cache" is prose.
+func isTrailerBlock(lines []string) bool {
+	if len(lines) == 0 || !trailerLine.MatchString(lines[0]) {
 		return false
 	}
-	for _, line := range lines {
-		if !trailerLine.MatchString(line) {
+	for _, line := range lines[1:] {
+		if !trailerLine.MatchString(line) && !(line != "" && (line[0] == ' ' || line[0] == '\t')) {
 			return false
 		}
 	}
-	return true
+	token, _, _ := strings.Cut(lines[0], ":")
+	return len(lines) > 1 || strings.Contains(token, "-")
 }
 
 // templateDirectives open a template tag: a Jinja or Go template statement, an expression or a comment.
