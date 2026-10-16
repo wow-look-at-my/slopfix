@@ -9,11 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // The CLI's own floor, pinned rather than scaled per model: a wider budget keeps files loadable, not skimmable.
@@ -141,7 +143,7 @@ func homeCandidates() []string {
 	}
 	out = append(out, filepath.Join(home, ".claude", "CLAUDE.md"))
 	snippets := filepath.Join(home, ".claude", "claude_snippets")
-	if entries, err := os.ReadDir(snippets); err == nil {
+	if entries, err := walktree.List(snippets); err == nil {
 		for _, e := range entries {
 			if strings.HasSuffix(e.Name(), ".md") {
 				out = append(out, filepath.Join(snippets, e.Name()))
@@ -151,35 +153,12 @@ func homeCandidates() []string {
 	return out
 }
 
-// claudeMdFiles walks root recursively for every CLAUDE.md, skipping .git and
-// node_modules. This is the ONLY scan, and every caller uses it. The callers
-// are SessionStart's census, PostToolUse/Stop's change tracking, and CI's
-// full_scan. No caller can fall back to a shallow "guess the sibling
-// directories" mode.
-// That guess let a real violation deep under the root through unseen.
+// claudeMdFiles answers every CLAUDE.md under root, sorted, from the walk
+// walktree makes of root once per process.
 func claudeMdFiles(root string) []string {
-	var out []string
-	var walk func(dir string)
-	walk = func(dir string) {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			return
-		}
-		for _, e := range entries {
-			if e.IsDir() {
-				if e.Name() == ".git" || e.Name() == "node_modules" {
-					continue
-				}
-				walk(filepath.Join(dir, e.Name()))
-				continue
-			}
-			if e.Name() == "CLAUDE.md" {
-				out = append(out, filepath.Join(dir, e.Name()))
-			}
-		}
-	}
-	walk(root)
-	return out
+	files := walktree.Get(root).Named("CLAUDE.md")
+	sort.Strings(files)
+	return files
 }
 
 // allCandidatePaths is every instruction file a session could have loaded:

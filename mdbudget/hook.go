@@ -55,11 +55,11 @@ func cwdOrDot() string {
 // full_scan uses (allCandidatePaths), reported size only. Width is judged on
 // what a session WRITES (see editReport). A list of every old unwrapped file at
 // session start buries the file that matters under a crowd that does not. This is how a guard teaches the model to skim past it.
-func findOffenders(cwd string, limit int) []offender {
+func findOffenders(paths []string, limit int) []offender {
 	floor := nearLimit(limit)
 	seen := set.New[string]()
 	var offenders []offender
-	for _, path := range allCandidatePaths(cwd) {
+	for _, path := range paths {
 		key, err := filepath.Abs(path)
 		if err != nil || seen.Contains(key) {
 			continue
@@ -184,8 +184,9 @@ func run(r io.Reader) (string, int) {
 	case "PostToolUse":
 		return context(in.HookEventName, editReport(in, limit)), 0
 	default:
-		seedSnapshot(in.SessionID, in.CWD)
-		offenders := findOffenders(in.CWD, limit)
+		paths := allCandidatePaths(in.CWD)
+		seedSnapshot(in.SessionID, paths)
+		offenders := findOffenders(paths, limit)
 		if len(offenders) == 0 {
 			return "", 0
 		}

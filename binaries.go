@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // IDBinary is a tracked file that starts with the magic number of an executable.
@@ -60,23 +60,15 @@ func trackedFiles(root string) ([]trackedFile, error) {
 		return nil, fmt.Errorf("git ls-files in %s: %s", root, reason)
 	}
 	var files []trackedFile
-	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	walktree.Get(root).Visit(nil, func(path string, e walktree.Entry) {
+		if !e.IsRegular() {
+			return
 		}
-		if d.IsDir() && d.Name() == ".git" {
-			return filepath.SkipDir
-		}
-		if d.Type().IsRegular() {
-			rel, err := filepath.Rel(root, path)
-			if err != nil {
-				return err
-			}
+		if rel, err := filepath.Rel(root, path); err == nil {
 			files = append(files, trackedFile{rel: rel})
 		}
-		return nil
 	})
-	return files, err
+	return files, nil
 }
 
 // executableKind names the executable format that head opens with, or answers "".
@@ -112,6 +104,7 @@ func committedBinaries(root string, writing bool, writable func(string) bool) ([
 			if err := os.Remove(path); err != nil {
 				return out, removed, err
 			}
+			walktree.Removed(path)
 			removed = append(removed, path)
 			continue
 		}
