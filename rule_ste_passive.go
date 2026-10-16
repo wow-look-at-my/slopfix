@@ -10,7 +10,11 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectPassive,
 		Autofix:  autofixPassive,
-		Cases:    []RuleCase{{Name: ste.IDPassive, Path: "w.md", Text: "The task is started by the gate.\n", Want: "The gate starts the task.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDPassive, Path: "w.md", Text: "The task is started by the gate.\n", Want: "The gate starts the task.\n"},
+			{Name: "label", Path: "w.md", Text: "The rule: a file must never be lost by a command the agent runs.\n", Want: "The rule: a command the agent runs must never lose a file.\n"},
+			{Name: "modal and never", Path: "w.md", Text: "The file must never be edited by the agent.\n", Want: "The agent must never edit the file.\n"},
+		},
 	})
 }
 

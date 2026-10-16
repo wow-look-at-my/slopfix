@@ -2,7 +2,7 @@
 
 ## The invariant
 
-A command the agent runs lost content that exists only in the working tree -- modified but uncommitted, or untracked -- must never.
+Content that exists only in the working tree -- modified but uncommitted, or untracked -- must never be lost by a command the agent runs.
 
 Everything else is subordinate to that. Committed work is reachable from the reflog for weeks, so a command that only rewrites committed history is not this plugin's problem.
 
@@ -47,7 +47,7 @@ Both are false positives on the safe half of a legitimate command, and both teac
 
 None of these is destructive on its own.
 
-Running git established facts here, and both had already produced a incorrect answer in a draft:
+Facts here were established by running git, and both had already produced an incorrect answer in a draft:
 
 - **`--exclude` does not take a full refname.** For `--branches` and `--remotes` the pattern matches the name *without* the `refs/heads/` or `refs/remotes/` prefix. `--exclude=refs/heads/feature --branches` silently excludes nothing, so a branch holding the only copy of a commit reported "0 will be lost". A silent false negative is the worst outcome available here, which is why containment via `for-each-ref --contains` is used instead of hand-built exclusion lists.
 - **`refs/remotes/<remote>/HEAD` is a symbolic alias** for the branch being overwritten. Counting it as "somewhere else" made every force push look safe. It is filtered out explicitly.
@@ -81,7 +81,7 @@ A blocker ABOUT the file, such as one that does not parse, still denies. It desc
 
 ## A redirect has a descriptor as well as a target
 
-Redirect shapes cannot empty a file holding content no git object has. A device target swallows what it is given. A descriptor other than stdout carries a stream rather than the command's output. The destruction half skips both. The provenance half judges every descriptor, because content reaching a file inside the tree is authored content whichever stream filled it. Name refuses so `git status 2>/dev/null` runs and `echo x 2> tracked.go`.
+Redirect shapes cannot empty a file holding content no git object has. A device target swallows what it is given. A descriptor other than stdout carries a stream rather than the command's output. The destruction half skips both. The provenance half judges every descriptor, because content reaching a file inside the tree is authored content whichever stream filled it. So name refuses `git status 2>/dev/null` runs and `echo x 2> tracked.go`.
 
 ## Fail-safety, stated honestly
 

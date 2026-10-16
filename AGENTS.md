@@ -200,7 +200,7 @@ It reports only, because the repair is work. The `laziness` hook guard runs it a
 
 The `blame-language` hook guard runs it on MessageDisplay and appends one line for the reader. Nothing goes to the model. `displayContent` changes the screen and not the stored message. `CC_NO_BLAME_LANGUAGE=0` disables it. Every failure prints nothing, because a guard that eats output is worse than none.
 
-The message is judged whole. A per-message state file keyed by `message_id` accumulates the flushes. The last flush drops it. A lost file costs earlier phrases, not a incorrect mark.
+The message is judged whole. A per-message state file keyed by `message_id` accumulates the flushes. The last flush drops it. A lost file costs earlier phrases, not an incorrect mark.
 
 `bannedPhrases` is a plain slice. It holds provenance openers such as `that predates this session` and `git blame shows`. It also holds `pre-existing` and narrow synonyms such as `not related to my change`. Matching is case-insensitive over whitespace-normalized text, with source offsets kept. Fences, indented code and blockquotes are exempt. Inline backticks are not.
 

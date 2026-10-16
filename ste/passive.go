@@ -214,7 +214,7 @@ func endsActor(w syntax.Word) bool {
 func subjectStart(s *syntax.Sentence, i int) (int, bool) {
 	first := 0
 	for k := 0; k < i; k++ {
-		if s.Words[k].Text == "," && leadsClause(s, first, k) && !joinsSubject(s, first, k) {
+		if s.Words[k].Text == ":" || s.Words[k].Text == "," && leadsClause(s, first, k) && !joinsSubject(s, first, k) {
 			first = k + 1
 		}
 	}
