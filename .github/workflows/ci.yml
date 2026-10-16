@@ -30,12 +30,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bubblewrap
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      # The test suite type-checks each script-action script a repair writes with the real tsc.
-      - name: Install the TypeScript compiler
-        run: npm install -g typescript@latest
       - uses: wow-look-at-my/go-toolchain@master
         with:
           # Approves the //go:generate directives; editing a single fails the build with the new value.
