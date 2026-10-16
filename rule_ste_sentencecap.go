@@ -33,7 +33,8 @@ func init() {
 					"  // The ONE pair-capacity law (pre-size envelope + adaptive high-water +\n" +
 					"  // budget/device clamps) — prepare() and growPairs() MUST agree\n" +
 					"  // byte-for-byte. Otherwise, growth would ping-pong through prepare()'s\n" +
-					"  // pairsChanged check. Updates growthCap_/coarseGrowthCap_ as a side effect.\n" +
+					"  // pairsChanged check. Updates growthCap_/coarseGrowthCap_ as a side\n" +
+					"  // effect.\n" +
 					"  void computePairCapacities(const Context& ctx, uint32_t F, uint32_t Fc,\n" +
 					"                             uint32_t& pairCapacity,\n" +
 					"                             uint32_t& coarsePairCapacity);\n" +
