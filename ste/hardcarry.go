@@ -108,7 +108,7 @@ func carriedHead(head string) string {
 // closesAPhrase reports a head whose last word ends a phrase, not one that
 // waits for the word after it, such as "the" or "of".
 func closesAPhrase(head string) bool {
-	last := strings.ToLower(strings.Trim(lastField(head), ".,;:!?*_\"'`()[]“”‘’"))
+	last := strings.ToLower(strings.Trim(lastField(head), ".,;:!?*_\"'`()[]\u201c\u201d\u2018\u2019"))
 	return last != "" && !forceDangling.Contains(last) && !strings.HasSuffix(last, "'s")
 }
 
@@ -144,5 +144,5 @@ func capCut(source, masked string, limit int) forceCut {
 
 // firstWordOf answers the first word of text in lower case, with no mark around it.
 func firstWordOf(text string) string {
-	return strings.ToLower(strings.Trim(firstToken.FindString(text), ".,;:!?*_\"'`()[]“”‘’"))
+	return strings.ToLower(strings.Trim(firstToken.FindString(text), ".,;:!?*_\"'`()[]\u201c\u201d\u2018\u2019"))
 }
