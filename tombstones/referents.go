@@ -255,7 +255,7 @@ func (ix *symbolIndex) citesForeign(blocks []Block) bool {
 }
 
 // testCounterpart answers the source file a test file tests, or the test file
-// of a source file. X_test.go and x.go, x.test.ts and x.ts.
+// of a source file.
 func testCounterpart(path string) string {
 	ext := filepath.Ext(path)
 	stem := strings.TrimSuffix(path, ext)

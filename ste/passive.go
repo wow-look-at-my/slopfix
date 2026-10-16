@@ -304,9 +304,9 @@ func baseFromParticiple(form string) string {
 }
 
 // silentE reports whether English spelling drops an e from the end of stem before
-// -ed. Endings like -dge, -ate, -ize, -ve, -ce and -ure need the e. A stem of one
-// syllable that ends on a single vowel and a single consonant took the e as well.
-// Because a stem without it doubles its consonant: "named" against "planned".
+// -ed. A stem of one syllable that ends on a single vowel and a single consonant
+// took the e as well. Because a stem without it doubles its consonant: "named"
+// against "planned".
 func silentE(stem string) bool {
 	n := len(stem)
 	if n < 2 {
@@ -326,7 +326,6 @@ func silentE(stem string) bool {
 	case last == 'l' && consonant(prev) && !strings.ContainsRune("lrw", rune(prev)):
 		return true
 	case n >= 3 && strings.ContainsRune("aiu", rune(prev)) && strings.ContainsRune("tr", rune(last)) && consonant(stem[n-3]):
-		// -ate, -ire, -ure and -are, after a consonant.
 		return prev != 'i' || last == 'r'
 	case n >= 3 && prev == 'i' && strings.ContainsRune("nd", rune(last)) && consonant(stem[n-3]):
 		// -ine and -ide, after a consonant.
