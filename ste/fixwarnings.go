@@ -337,9 +337,34 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		if end-start+1 > NounClusterCap {
 			return start, end, true
 		}
+		if far, ok := bridgedRun(s, noun, start, end, last); ok {
+			return start, far, true
+		}
 		start = end
 	}
 	return -1, -1, false
+}
+
+// bridgedRun answers the end of the noun run that follows a plus, an ampersand.
+// A slash or a bar after the run from start to end. The marks join noun
+// phrases, and the repair writes the conjunction. A list of single names is no
+// cluster, so one side must be a phrase of at least nouns.
+func bridgedRun(s *syntax.Sentence, noun func(int) bool, start, end, last int) (int, bool) {
+	if end+2 > last {
+		return 0, false
+	}
+	if _, isMark := markConjunctions[s.Words[end+1].Text]; !isMark || !noun(end+2) {
+		return 0, false
+	}
+	far := end + 2
+	for far+1 <= last && noun(far+1) {
+		far++
+	}
+	left, right := end-start+1, far-(end+2)+1
+	if left+right <= NounClusterCap || max(left, right) < 2 {
+		return 0, false
+	}
+	return far, true
 }
 
 // wordlike reports a token made of letters and digits, which can be a noun. The
