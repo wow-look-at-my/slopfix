@@ -16,7 +16,7 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 | `counts` | `counts/inventory-count`, `counts/stated-count`, `counts/postdeterminer` | yes |
 | `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes, except a flow-style `push` mapping |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes, except a flow-style `push` mapping |
 | `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`. A warning never fails `check` |
 | `pins` | `pins/download-version` | yes, except a templated URL |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
@@ -27,7 +27,7 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 - `counts` and `comments/number`: a stated count goes stale when the set changes.
 - `tombstones`: a comment that narrates history or argues for the diff.
 - `comments`: a number in a comment, a comment longer than its code, and a comment cut off mid-thought.
-- `yaml`: a comment block, a job named `all-builds`, a test in a `run:` script, and a gate under `continue-on-error`.
+- `yaml`: a comment block, a job named `all-builds`, a test in a `run:` script, a gate under `continue-on-error`. A `run:` script that does not parse as shell, a step key written twice, and a `uses:` ref on a feature branch.
 - message: a closing message that leaves the work undone, deflects blame, or hands the reader a decision.
 
 A fenced code block, a table and a heading are data. No rule reads them.
