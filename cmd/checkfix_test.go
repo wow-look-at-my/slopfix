@@ -14,6 +14,8 @@ import (
 func TestCheckFixRepairsInPlace(t *testing.T) {
 	t.Serial()
 	dir := t.TempDir()
+	gitRun(t, dir, "init", "-q")
+	t.Chdir(dir)
 	path := filepath.Join(dir, "README.md")
 	body := "# Title\n\nIt doesn't hold the lock.\n"
 	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
@@ -55,6 +57,8 @@ func TestCheckReportsAKeptHitOnANamedFile(t *testing.T) {
 func TestCheckTakesADirectoryAsTheTreeUnderIt(t *testing.T) {
 	t.Serial()
 	dir := t.TempDir()
+	gitRun(t, dir, "init", "-q")
+	t.Chdir(dir)
 	nested := filepath.Join(dir, "docs")
 	require.NoError(t, os.MkdirAll(nested, 0o755))
 	path := filepath.Join(nested, "README.md")

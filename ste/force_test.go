@@ -29,6 +29,17 @@ func TestALongSentenceWithNoVerbRestatesANoun(t *testing.T) {
 	assert.Empty(t, sentenceLengths(ste.Fix(in)))
 }
 
+// A sentence where no cut leaves both parts reading as sentences still divides.
+// It came from an earlier repair that divided inside a parenthesis, in ts0's
+// build-prebuilt.ts, and fix left it standing.
+func TestASentenceNoGrammaticalCutReadsStillDivides(t *testing.T) {
+	in := "The generated bin/tsc driver above -- tsserver, the CLI rebuild, and the locale directories are never shipped), the whole @types/node package (so a Node-target project type-checks with no @types/node install of its own -- see nodeTypeRootsDir in commands/build.ts), and the fetch-interceptor template."
+	require.NotEmpty(t, sentenceLengths(in), "the control: the sentence is over the cap")
+	got := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+	assert.Contains(t, got, "(so a Node-target project type-checks with no @types/node install of its own -- see nodeTypeRootsDir in commands/build.ts)", got)
+}
+
 // A division never lands inside a code span, a quotation, a parenthesis or bold text.
 func TestAForcedDivisionKeepsEachSpanWhole(t *testing.T) {
 	spans := []string{"`a code span with several words in it`", "\"a quoted phrase with several words\"", "(an aside with several words)", "**bold words here**"}
