@@ -69,6 +69,7 @@ func openingUnder(head, text []string, fit layout, shrink bool) ([]string, bool,
 			return nil, false, false
 		}
 		first := strings.TrimSpace(sentences[0])
+		whole := first
 		if ste.WordCount(first) > ste.SentenceWordCap {
 			if clause, ok := ste.Leading(first); ok {
 				first = strings.TrimSpace(ste.FixKeepingOpening(clause))
@@ -79,14 +80,16 @@ func openingUnder(head, text []string, fit layout, shrink bool) ([]string, bool,
 		if !endsSentence(first) || isHeading(first) {
 			return nil, false, false
 		}
-		out, fits := fit(head, first, indent, marker)
-		if shrink && !fits {
-			// A later "that" clause states a condition of its own, so it keeps the verb that governs it.
-			for _, restated := range sharedHeadTails(first) {
+		// A later "that" clause states a condition of its own, so it keeps the verb that governs it.
+		if _, wholeFits := fit(head, whole, indent, marker); !wholeFits {
+			for _, restated := range sharedHeadTails(whole) {
 				if shorter, ok := fit(head, restated, indent, marker); ok {
 					return shorter, true, true
 				}
 			}
+		}
+		out, fits := fit(head, first, indent, marker)
+		if shrink && !fits {
 			// Only a boundary the division repair admits keeps every word the clause needs.
 			cuts := ste.Cuts(first)
 			for i := len(cuts) - 1; i >= 0; i-- {
