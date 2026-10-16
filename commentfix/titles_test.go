@@ -13,8 +13,8 @@ import (
 const exporterSource = "import path from 'node:path';\n" +
 	"\n" +
 	"/** Absolute path of the exporter under test. */\n" +
-	"// path.resolve (not `new URL(..., import.meta.url)`): the jsdom environment\n" +
-	"// shadows the URL global, and Node's fileURLToPath rejects cross-realm URLs.\n" +
+	"// The path.resolve call (not `new URL(..., import.meta.url)`) avoids the shadowed URL global of the jsdom test environment.\n" +
+	"// Node's fileURLToPath rejects cross-realm URLs.\n" +
 	"// A file path avoids both problems.\n" +
 	"export const EXPORTER_MODULE = path.resolve(\n" +
 	"\timport.meta.dirname,\n" +
