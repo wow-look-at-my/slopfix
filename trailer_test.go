@@ -10,9 +10,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// commitMessage is a commit message with a git trailer block, as a hook sees
+// trailerMessage is a commit message with a git trailer block, as a hook sees
 // it written to a file before `git commit -F`.
-const commitMessage = "Read the runner from the visibility at run time\n" +
+const trailerMessage = "Read the runner from the visibility at run time\n" +
 	"\n" +
 	"The rule writes the expression and asks no network.\n" +
 	"\n" +
@@ -22,7 +22,7 @@ const commitMessage = "Read the runner from the visibility at run time\n" +
 // Git reads each trailer line as a key and a value. No rule joins, rewrites
 // or cuts one: the session trailer names no symbol of the repository.
 func TestFixKeepsACommitMessagesTrailers(t *testing.T) {
-	out := slopfix.Fix(slopfix.Request{Content: commitMessage, Path: "notes/commit.txt"})
+	out := slopfix.Fix(slopfix.Request{Content: trailerMessage, Path: "notes/commit.txt"})
 	assert.Contains(t, out.Text, "\nCo-Authored-By: Example Author <author@example.com>\nClaude-Session: https://claude.ai/code/session_01ExampleSessionIdentifier\n", out.Text)
 	assert.Empty(t, out.Removed)
 }
@@ -31,7 +31,7 @@ func TestFixKeepsACommitMessagesTrailers(t *testing.T) {
 // rule reads its value and no reflow joins it to the next.
 func TestEachTrailerLineIsProseOfItsOwn(t *testing.T) {
 	var prose []string
-	for _, b := range markdown.Split(commitMessage) {
+	for _, b := range markdown.Split(trailerMessage) {
 		if b.Kind == markdown.Prose {
 			prose = append(prose, b.Text())
 		}
