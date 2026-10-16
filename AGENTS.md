@@ -216,7 +216,7 @@ These are hook guards. `check --message` also runs `ask/prose-decision`, and `re
 
 `auto-allow` approves read-only work and refuses a program this environment does not run. The table is `autoallow/rules.xml`, embedded and checked by `rules.xsd`. MCP trust is per SERVER, not per tool-name pattern.
 
-A rule with `wholeCommand="true"` refuses only a command that runs nothing else. The `true`, `false` and `:` rules work this way. A list that holds real work is never refused for a no-op inside it, because clean-bash repairs that list. A `while` loop on a bare `true` or `:` waits like `until`, and the `until` rule refuses it.
+A rule with `wholeCommand="true"` refuses only a command that runs nothing else. A list that holds real work is never refused for a no-op inside it, because clean-bash repairs that list. A `while` loop on a bare `true` or `:` waits like `until`, and the `until` rule refuses it.
 
 The binary is registered on PermissionRequest and PreToolUse. In `cli.js` (checked at `2.1.220`), `createCanUseTool` evaluates the rules first. PermissionRequest hooks run only on the "ask" path. `defaultMode: "auto"` answers first. A deny that rides PermissionRequest thus never fires in auto mode.
 
