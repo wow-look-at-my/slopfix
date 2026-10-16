@@ -78,6 +78,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		// "25 words or fewer" caps the number from behind, so the cap words go with it and the noun stays.
 		text = "a bounded number of " + content[to:hit.End]
 		to = hit.End + len(ceilingAfter.FindString(content[hit.End:]))
+	case n == 0 && cardinal.ValueSubject(content, cardinal.Match{At: hit.Start, Text: hit.Phrase}):
+		// "0 disables chunking" names a value that acts, so the value keeps its place as the subject.
+		text = "a value of zero "
 	case n == 0 && !measures(hit.Phrase):
 		// Zero of a thing is none of it, and "a couple of" would claim some.
 		text = "no "
