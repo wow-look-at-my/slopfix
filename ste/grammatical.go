@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -214,7 +213,7 @@ func standsAlone(s *syntax.Sentence, from, end int) bool {
 		}
 		start := -1
 		switch {
-		case c.Subject != nil && reducedRelative(s, c) && !frontedPhraseOnly(s, from, *c.Subject):
+		case c.Subject != nil && reducedRelative(s, c) && !frontedPhraseOnly(s, from, *c.Subject) && !opensParticiple(s, from):
 		case c.Subject != nil:
 			start = c.Subject.First
 		case c.Verb.Imperative:
@@ -251,6 +250,11 @@ func subjectOpensAt(s *syntax.Sentence, from, verb int) bool {
 }
 
 func adverbLed(w syntax.Word) bool { return w.Tag == "RB" || w.Tag == "JJR" || w.Tag == "JJS" }
+
+// opensParticiple reports words from word from that open on a participle.
+func opensParticiple(s *syntax.Sentence, from int) bool {
+	return from < len(s.Words) && (s.Words[from].Tag == "VBN" || s.Words[from].Tag == "VBD")
+}
 
 // instructs reports a sentence whose main clause is an imperative, after any
 // opening subordinate clause: "When a step exists, include a quote". A so in
@@ -375,37 +379,6 @@ func opensSubject(s *syntax.Sentence, i int) bool {
 		return finiteBefore(s, i+1, ",")
 	}
 	return i+1 < len(s.Words) && s.Words[i+1].Tag == "POS"
-}
-
-// listsVerbs reports a comma after the main verb of head. A verb group after
-// the cut then continues a list of verb groups, as in "it reads, writes and
-// holds".
-func listsVerbs(head string) bool {
-	s := syntax.Parse(strings.TrimRight(head, " ,"), nil)
-	for _, c := range s.Clauses {
-		if c.Depth != 0 || c.Verb == nil {
-			continue
-		}
-		for i := c.Verb.Last + 1; i < len(s.Words); i++ {
-			if s.Words[i].Text == "," {
-				return true
-			}
-		}
-		return false
-	}
-	return false
-}
-
-// lowerIdentifier reports a word that opens in lower case and reads as a name
-// in code. It carries a capital, a digit, an underscore or a dot inside it.
-func lowerIdentifier(word string) bool {
-	first, width := utf8.DecodeRuneInString(word)
-	if !unicode.IsLower(first) {
-		return false
-	}
-	return strings.IndexFunc(strings.TrimRight(word[width:], ".,;:!?)"), func(r rune) bool {
-		return unicode.IsUpper(r) || unicode.IsDigit(r) || r == '_' || r == '.'
-	}) >= 0
 }
 
 // opensClause reports a parse whose first clause starts with its own subject
