@@ -278,6 +278,10 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 			!standsAsSentence(opening(hardRest(source, c.right))) {
 			continue
 		}
+		// A rest that opens on a preposition and holds a finite verb only inside a relative clause has no main clause: "With the verb that governs it, laid out".
+		if rs := syntax.Parse(opening(hardRest(source, c.right)), nil); len(rs.Words) > 0 && (rs.Words[0].Tag == "IN" || rs.Words[0].Tag == "TO") && !finiteOutsideRelative(rs, 0) {
+			continue
+		}
 		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
 		rank := hardSeamRank(source, whole, c)
 		if rank > bestRank || rank == bestRank && c.words > bestWords {
@@ -325,11 +329,15 @@ func endsOnPossessive(source string, left int) bool {
 // code span, a link, a quotation and a parenthesis.
 func lastResortCut(source, masked string, words, limit int) (forceCut, int) {
 	best, bestWords := forceCut{}, -1
+	whole := syntax.Parse(masked, nil)
 	for _, c := range candidates(source, masked, false, limit) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < 1 || words-c.words < 1 {
 			continue
 		}
 		if endsOnPossessive(source, c.left) {
+			continue
+		}
+		if n := wordsBefore(whole, c.right); n > 0 && n+1 < len(whole.Words) && relativeAfterNoun(whole, n) {
 			continue
 		}
 		if c.words > bestWords {
