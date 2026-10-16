@@ -13,7 +13,7 @@ func init() {
 		Autofix:  autofixHardWrap,
 		Cases: []RuleCase{
 			{Name: IDHardWrap, Path: "x.md", Text: "The gate reads the file\nand writes the result.\n"},
-			{Name: "entry list", Path: "paths.txt", Text: ".claude/\n**/.claude/\nCLAUDE.md\n", Unchanged: true},
+			{Name: "entry run", Path: "paths.md", Text: ".claude/\n**/.claude/\nCLAUDE.md\n"},
 		},
 	})
 }
