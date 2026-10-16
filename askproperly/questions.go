@@ -7,41 +7,33 @@
 package askproperly
 
 import (
-	"github.com/wow-look-at-my/go-containers/set"
+	_ "embed"
+	"encoding/xml"
 	"regexp"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // ID names this rule, on a report and on the command line alike.
 const ID = "ask/prose-decision"
 
-// deferralPhrases is the phrase table for handing a decision back without a
-// question mark. Each entry offloads a choice the model was asked to make. A
-// message may state what it did and stop; it may not close by inviting the
-// user to decide in prose.
-var deferralPhrases = []string{
-	"let me know",
-	"your call",
-	"up to you",
-	"say the word",
-	"just say",
-	"tell me which",
-	"tell me what you",
-	"waiting on you",
-	"waiting for you to",
-	"if you want me to",
-	"want me to",
-	"would you like me to",
-	"do you want me to",
-	"shall i",
-	"should i proceed",
-	"i won't",
-	"i'm not going to",
-	"i will not touch",
-	"and i'll pick",
-	"and i will pick",
-	"and i'll land",
-	"or say",
+//go:embed deferrals.xml
+var deferralsXML []byte
+
+type deferralDoc struct {
+	Phrases []string `xml:"phrase"`
+}
+
+var deferralPhrases = loadDeferrals()
+
+func loadDeferrals() []string {
+	var doc deferralDoc
+	if err := xml.Unmarshal(table.Readable(deferralsXML), &doc); err != nil {
+		panic("askproperly: deferrals.xml: " + err.Error())
+	}
+	return doc.Phrases
 }
 
 // cueWords are the interrogative cues that separate a real question from a
