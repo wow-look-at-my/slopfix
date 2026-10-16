@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // foundState is what the guard keeps for a session: every repository the
@@ -306,11 +308,11 @@ func undeclaredRepos(root string) []string {
 	if err != nil {
 		return nil
 	}
-	declared := map[string]bool{}
+	declared := set.New[string]()
 	if mods, _, err := runGit(root, "config", "-f", ".gitmodules", "--get-regexp", `\.path$`); err == nil {
 		for _, line := range strings.Split(mods, "\n") {
 			if f := strings.Fields(line); len(f) == 2 {
-				declared[strings.TrimSuffix(f[1], "/")] = true
+				declared.Add(strings.TrimSuffix(f[1], "/"))
 			}
 		}
 	}
@@ -320,7 +322,7 @@ func undeclaredRepos(root string) []string {
 			continue
 		}
 		p = strings.TrimSuffix(p, "/")
-		if declared[p] {
+		if declared.Contains(p) {
 			continue
 		}
 		if _, err := os.Stat(filepath.Join(root, p, ".git")); err == nil {

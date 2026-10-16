@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/markdown"
@@ -174,7 +175,7 @@ type listPlace struct {
 }
 
 // listDeterminers may stand before the member that opens an element.
-var listDeterminers = map[string]bool{"a": true, "an": true, "the": true, "each": true, "every": true, "this": true, "these": true, "those": true, "any": true}
+var listDeterminers = set.Of("a", "an", "the", "each", "every", "this", "these", "those", "any")
 
 // placeOf judges where an element of text may sit in a run. s is the parse of
 // the whole sentence.
@@ -190,7 +191,7 @@ func placeOf(text string, s *syntax.Sentence, e element) listPlace {
 		return listPlace{}
 	}
 	first := 0
-	for first < len(tokens)-1 && listDeterminers[strings.ToLower(tokens[first])] {
+	for first < len(tokens)-1 && listDeterminers.Contains(strings.ToLower(tokens[first])) {
 		first++
 	}
 	verb := finite(s, e)

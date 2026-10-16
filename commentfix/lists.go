@@ -6,6 +6,7 @@ package commentfix
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
@@ -129,14 +130,14 @@ func listEdits(filename, src string, singleLine bool) []edit.Edit {
 		}
 		segs := segmentsOf(lines, p)
 		dropped := droppedItems(segs)
-		drop := map[string]bool{}
+		drop := set.New[string]()
 		for k, seg := range segs {
 			if dropped[k] {
-				drop[seg.prose] = true
+				drop.Add(seg.prose)
 			}
 		}
 		rewrite := func(prose string) string {
-			if drop[prose] {
+			if drop.Contains(prose) {
 				return ""
 			}
 			return cutLists(prose)

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // foundBeforeTool runs Found work on PreToolUse. It records what the call
@@ -26,21 +28,19 @@ func foundBeforeTool(in hookInput) (notices []string, updated *string) {
 			notices = append(notices, "no-work-loss: cannot add "+pattern+" to info/exclude in "+root+": "+err.Error())
 		}
 	}
-	var roots []string
+	roots := set.New[string]()
 	for root, nested := range trig.embedded {
 		for _, p := range nested {
 			if err := excludePath(root, "/"+p+"/"); err != nil {
 				notices = append(notices, "no-work-loss: cannot add /"+p+"/ to info/exclude in "+root+": "+err.Error())
 			}
-			roots = append(roots, filepath.Join(root, p))
+			roots.Add(filepath.Join(root, p))
 		}
 	}
 	for _, r := range trig.roots {
-		if !slices.Contains(roots, r) {
-			roots = append(roots, r)
-		}
+		roots.Add(r)
 	}
-	for _, root := range roots {
+	for _, root := range slices.Sorted(roots.All()) {
 		for _, res := range commitFound(root, in.SessionID, 0) {
 			notices = append(notices, res.report())
 		}
