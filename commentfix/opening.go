@@ -70,6 +70,9 @@ func openingUnder(head, text []string, fit layout, shrink bool) ([]string, bool,
 		}
 		first := strings.TrimSpace(sentences[0])
 		whole := first
+		if raw := ste.Sentences(joined); len(raw) > 0 {
+			whole = strings.TrimSpace(raw[0])
+		}
 		if ste.WordCount(first) > ste.SentenceWordCap {
 			if clause, ok := ste.Leading(first); ok {
 				first = strings.TrimSpace(ste.FixKeepingOpening(clause))
