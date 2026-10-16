@@ -170,6 +170,7 @@ var capSentences = []string{
 	"A map that carries no information is wasteful.",
 	"The file, which fails, is gone.",
 	"A user who reads the message leaves.",
+<<<<<<< HEAD
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.
@@ -180,6 +181,8 @@ var capSentences = []string{
 // sentence with no seam to cut at stays too, since a cut there halves a phrase.
 var capPending = []string{
 	"Bulk.txt v0 feat = A + shared.txt changed on the head side (the \"PR branch\") M1 = A + shared.txt changed differently (the conflict) + bulk.txt changed (a base-only blob the merge MUST materialize) Returns every sha the tests need.",
+=======
+>>>>>>> origin/master
 	"Triggered by (A) a synchronize whose sender is not our own App bot and whose head the self-push recognizer cannot attribute to us, and (B) the leasehead guard catching a head that moved with no synchronize seen (same recognizer, same fallback).",
 	"With no settle record (prev == null) every later re-aggregation of a settled-green commit used to read as a \"first green\" and republish `pending` over the live `success` — the known first-green regression.",
 	"unless they have no commits unique to them (aka git checkout -b some-new-branch && git push = don't create and close a pr for this 'empty' branch)\" — and the follow-up: \"btw you need to *merge* zero-diff PRs so it wraps everything up properly and deletes the branhc.",
@@ -187,4 +190,10 @@ var capPending = []string{
 	"SingleTokenSamples counts the per-token inter-token samples that came from a one-token delivery, and the total sample count, for the streams the ITL percentiles are measured over: with speculative decoding a delivery of N tokens contributes N samples of gap/N, so a delivery's share of a percentile depends on how many tokens it carried, not only on how long the wait was.",
 	"itlBand is the population one inter-token percentile is drawn from, split by the delivery each sample came from and by the prefill passes its gap waited out.",
 	"The engine records a row's token at its mixed batch's end and a decode step's accepted tokens at that batch's end, so (request, time) names one batch.",
+}
+
+// capPending names the sentence inputs the repair still leaves over the cap.
+// A division would turn half of each into a fragment.
+var capPending = []string{
+	"Bulk.txt v0 feat = A + shared.txt changed on the head side (the \"PR branch\") M1 = A + shared.txt changed differently (the conflict) + bulk.txt changed (a base-only blob the merge MUST materialize) Returns every sha the tests need.",
 }
