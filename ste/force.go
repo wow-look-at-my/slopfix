@@ -167,10 +167,6 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 					continue
 				}
 				head, right, opened, left = ch, cr, co, cl
-				// A carrier that restates the subject for a rest with no verb of its own ranks below every division whose rest holds one.
-				if !holdsFinite(checkMask(opening(hardRest(source, c.right)))) {
-					opened -= verblessPenalty
-				}
 			}
 			// A rest that opens a clause of its own reads best.
 			if score := c.score + opened; best == "" || score > bestScore {
