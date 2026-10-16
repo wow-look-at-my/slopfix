@@ -32,10 +32,10 @@ func sectionHead(text []string) []string {
 	return nil
 }
 
-// steOpening answers a block's first sentence, repaired to STE and divided at a
-// clause boundary when it runs past the cap. With shrink, a first sentence that
-// fit does not accept divides again at a lower cap each time, and its own first
-// sentence replaces it. It reports false when no division gives a whole sentence.
+// steOpening answers a block's first sentence, repaired to STE and divided at
+// a clause boundary when it runs past the cap. With shrink, a first sentence
+// that fit does not accept divides again at a lower cap each time, and its
+// own first sentence replaces it.
 func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 	// A heading stays above the opening when both fit together. Where they
 	// cannot, the opening goes alone.
