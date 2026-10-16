@@ -37,7 +37,7 @@ func TestTheRegistryRunsEachKindInOrder(t *testing.T) {
 		return out
 	}
 	assert.Equal(t, []string{"tombstones", "comments/inventory-list", "comments/length", "comments/number", "comments/sentence-length", "comments/length-after-number", "pins/download-version", "gofmt"}, names(fixer.Source))
-	assert.Equal(t, []string{"tombstones", "counts/inventory-list", "counts/inventory-count", "counts/section-number", "wrap-and-ste", "wrap/long-block", "ste/count", "pins/download-version"}, names(fixer.Document))
+	assert.Equal(t, []string{"tombstones", "counts/inventory-list", "counts/inventory-count", "counts/section-number", "wrap-and-ste", "wrap/long-block", "counts/stated-count", "pins/download-version"}, names(fixer.Document))
 	assert.Equal(t, []string{"yaml/ungate", "comments/inventory-list", "yaml/join-comments", "yaml/rename-guarded-job", "comments/sentence-length", "yaml/inline-env", "yaml/filter-push", "yaml/retarget-org-action", "yaml/retarget-runner", "yaml/set-concurrency", "yaml/extract-tests", "pins/download-version"}, names(fixer.Workflow))
 }
 

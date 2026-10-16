@@ -43,7 +43,7 @@ A rule reports only what its repair rewrites. Where no rewrite can say a thing c
 
 A fixture is a repository and a closing message. `Materialize` writes the repository to a temporary directory under `git init`. Every rule reads every text of it.
 
-`ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`spec/docs/ste-simplified-technical-english.md`). `ste/semicolon` repairs every semicolon. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on a rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
+`ste/sentence-length` divides every long sentence into grammatical sentences, behind a carrier where no clause boundary serves (`spec/docs/ste-simplified-technical-english.md`). `english/semicolon` repairs every semicolon. `allfix_test.go` runs `fix` over a tree of each rule's hardest case and requires a clean `check` after it. `repairable_test.go` fails on a rule with no fixer and no repository pass behind it. `Fix` runs the fixers again until the text holds, because one repair can hand a later rule new text.
 
 ## CI action
 
