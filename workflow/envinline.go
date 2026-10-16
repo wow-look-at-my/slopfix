@@ -55,8 +55,6 @@ var plainContext = regexp.MustCompile(`^(?:runner\.(?:temp|tool_cache|os|arch|na
 	`github\.(?:event_name|sha|workflow_sha|run_id|run_number|run_attempt|ref_type|repository|repository_owner|repository_id|repository_owner_id|actor_id|server_url|api_url|graphql_url|retention_days|job)|` +
 	`strategy\.(?:job-index|job-total|fail-fast|max-parallel)|job\.status)$`)
 
-=======
-
 // secret matches a secret, which must not land in the script file on disk.
 var secret = regexp.MustCompile(`\bsecrets\.`)
 

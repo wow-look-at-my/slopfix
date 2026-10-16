@@ -138,25 +138,8 @@ func paragraphs(content string, lines []string) map[int]int {
 	return ends
 }
 
-// trailerLine is a git trailer: a token of letters, digits and hyphens, a colon, and a value.
+// trailerLine matches a git trailer, a token of letters, digits and hyphens and then its value.
 var trailerLine = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*: \S`)
-
-// trailerBlock reports a run of two or more git trailers, every line of which
-// is a trailer. A trailer block is a block a line at a time, because git reads
-// a trailer a line at a time: the run reaches here only when a directive line
-// has already divided the paragraph, since a paragraph that is nothing but
-// trailers is taken whole by isTrailerBlock above.
-func trailerBlock(lines []string) bool {
-	if len(lines) < 2 {
-		return false
-	}
-	for _, line := range lines {
-		if !trailerLine.MatchString(line) {
-			return false
-		}
-	}
-	return true
-}
 
 // isTrailerBlock reports a paragraph of git trailers, such as the
 // Co-Authored-By and Signed-off-by lines that close a commit message. Every
