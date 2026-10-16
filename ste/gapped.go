@@ -72,8 +72,7 @@ func gappedDivision(source string, whole *syntax.Sentence, limit int) (string, b
 }
 
 // insideCompound reports a cut between a noun and the noun or bare verb form
-// after it with no mark between them, as in "no visibility | test". Both
-// words are one noun phrase, so no sentence ends between them.
+// after it with no mark between them, as in "no visibility | test".
 func insideCompound(source string, whole *syntax.Sentence, c forceCut) bool {
 	return cutsNounPhrase(source, whole, c.left, c.right)
 }
