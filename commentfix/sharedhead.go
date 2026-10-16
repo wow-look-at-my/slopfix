@@ -60,8 +60,12 @@ func sharedHeadRestated(sentences []string) []string {
 	}
 	lead := first[:at+len(" that ")]
 	for _, later := range sentences[1:] {
-		restated := strings.Replace(strings.TrimSpace(later), " also ", " ", 1)
-		if strings.HasPrefix(restated, lead) && ste.StandsAlone(restated) {
+		later = strings.TrimSpace(later)
+		j := strings.Index(later, " that ")
+		if j < 0 || strings.Replace(later[:j], " also", "", 1)+" that " != lead {
+			continue
+		}
+		if restated := lead + later[j+len(" that "):]; ste.StandsAlone(restated) {
 			out = append(out, restated)
 		}
 	}

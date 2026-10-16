@@ -20,6 +20,12 @@ func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
 	assert.Contains(t, out, "no other thread writes through it", "the invariant clause was deleted:\n%s", out)
 }
 
+// The division restates the verb that governs the later clause, which the length repair relies on.
+func TestTheSharedHeadDivisionShape(t *testing.T) {
+	src := "The caller must ensure that the pointer stays valid for reads of n bytes for the whole call, and that no other thread writes through it while this function runs."
+	assert.Equal(t, []string{"The caller must ensure that the pointer stays valid for reads of n bytes for the whole call.", "The caller must also ensure that no other thread writes through it while this function runs."}, ste.Sentences(ste.FixKeepingOpening(src)))
+}
+
 // A heading-led doc comment no repair can keep whole above a one-line body.
 // The length repair leaves one whole opening sentence under the cap, and no
 // finding is left after fix.
