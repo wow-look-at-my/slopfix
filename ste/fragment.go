@@ -2,28 +2,10 @@ package ste
 
 import (
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
-
-// lowerIdentifier reports a word that opens in lower case and reads as a name
-// in code. It carries a capital, a digit, an underscore or a dot inside it. A
-// single letter other than the article is a variable, such as q.
-func lowerIdentifier(word string) bool {
-	first, width := utf8.DecodeRuneInString(word)
-	if !unicode.IsLower(first) {
-		return false
-	}
-	if strings.TrimRight(word[width:], ".,;:!?)") == "" {
-		return first != 'a'
-	}
-	return strings.IndexFunc(strings.TrimRight(word[width:], ".,;:!?)"), func(r rune) bool {
-		return unicode.IsUpper(r) || unicode.IsDigit(r) || r == '_' || r == '.'
-	}) >= 0
-}
 
 // fragmentDivision divides a sentence that holds no main clause. Such a
 // sentence is a noun phrase as written, so each part stays a noun phrase. The
