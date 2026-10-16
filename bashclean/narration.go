@@ -1,18 +1,11 @@
 // narration.go removes constant narration.
 //
-<<<<<<< HEAD
-// An echo or a printf becomes the no-op `:` only when its stdout REACHES THE
-// TERMINAL. Visibility threads top-down, so this traversal is hand-rolled over
-// statement structure and never enters Word parts, which excludes every capture
-// by construction.
-=======
 // An echo or a printf goes only when its stdout REACHES THE TERMINAL.
 // `X=$(echo hi)`, `echo x | jq` and `echo x > f` are data, not narration, and a
 // function body's call site decides its visibility rather than the body.
 // Visibility threads top-down, so this traversal is hand-rolled over statement
 // structure and never enters Word parts, which excludes every capture by
 // construction.
->>>>>>> origin/master
 //
 // The narration becomes `:`, and dropNoops then removes that `:` from its
 // list or chain. A `:` stays in a pipeline, or where its status decides a
