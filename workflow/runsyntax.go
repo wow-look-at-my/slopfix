@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
@@ -285,7 +286,7 @@ func repairRunScripts(content string) []edit.Edit {
 	rows := lines(content)
 	spans := blockScalars(content)
 	var out []edit.Edit
-	named := map[int]bool{}
+	named := set.New[int]()
 	for _, s := range shellScripts(content) {
 		if s.err == nil {
 			continue
@@ -294,8 +295,8 @@ func repairRunScripts(content string) []edit.Edit {
 		var lang syntax.LangError
 		if errors.As(s.err, &lang) && s.shell != nil {
 			variant = syntax.LangBash
-			if row := s.shell.Line - 1; !named[row] {
-				named[row] = true
+			if row := s.shell.Line - 1; !named.Contains(row) {
+				named.Add(row)
 				if edited, ok := nameBash(rows, s.shell); ok {
 					out = append(out, rewrite(content, row, row, []string{edited}))
 				}
