@@ -50,3 +50,15 @@ func contactRelative(s *syntax.Sentence, source string, d division) bool {
 	}
 	return strings.HasPrefix(s.Words[n-1].Tag, "NN") && (s.Words[n].Tag == "DT" || s.Words[n].Tag == "PRP$")
 }
+
+// listBefore reports a comma inside the clause before c, which makes ", and"
+// the end of a list rather than a join between clauses.
+func listBefore(s *syntax.Sentence, c syntax.Clause) bool {
+	for i := c.Link - 2; i >= 0 && i >= clauseStart(s, c.Link); i-- {
+		// A comma inside a quotation reads as a name, and lists nothing.
+		if s.Words[i].Text == "," && s.Words[i].Tag == "," {
+			return true
+		}
+	}
+	return false
+}
