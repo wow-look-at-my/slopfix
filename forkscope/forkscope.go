@@ -598,23 +598,52 @@ func listedUpstream(repo, url string) (string, error) {
 	if !ok || owner == "" || name == "" {
 		return "", fmt.Errorf("fork scope: the repository is %q, which is not OWNER/NAME", repo)
 	}
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(url)
+	status, body, err := getList(url)
 	if err != nil {
-		return "", fmt.Errorf("fork scope: GET %s: %w", url, err)
+		return "", err
 	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return "", fmt.Errorf("fork scope: GET %s: %w", url, err)
-	}
-	if resp.StatusCode == http.StatusNotFound {
+	if status == http.StatusNotFound {
 		return "", nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("fork scope: GET %s: %s", url, resp.Status)
+	return UpstreamFor(body, repo, url)
+}
+
+// listAttempts is how many times getList asks for the list before it reports the failure.
+const listAttempts = 3
+
+// listRetryWait is the pause before each later attempt. A test sets it to zero.
+var listRetryWait = func(attempt int) { time.Sleep(time.Duration(attempt) * time.Second) }
+
+// getList fetches the fork list. A transport error and a server error are a
+// blip of the host, so it asks again before it fails the run.
+func getList(url string) (int, string, error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	var last error
+	for attempt := 1; attempt <= listAttempts; attempt++ {
+		if attempt > 1 {
+			listRetryWait(attempt - 1)
+		}
+		resp, err := client.Get(url)
+		if err != nil {
+			last = fmt.Errorf("fork scope: GET %s: %w", url, err)
+			continue
+		}
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+		if err != nil {
+			last = fmt.Errorf("fork scope: GET %s: %w", url, err)
+			continue
+		}
+		if resp.StatusCode >= http.StatusInternalServerError {
+			last = fmt.Errorf("fork scope: GET %s: %s", url, resp.Status)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+			return 0, "", fmt.Errorf("fork scope: GET %s: %s", url, resp.Status)
+		}
+		return resp.StatusCode, string(body), nil
 	}
-	return UpstreamFor(string(body), repo, url)
+	return 0, "", last
 }
 
 // listName is the shape forklist.schema.json gives a key of the fork list.
