@@ -136,6 +136,31 @@ func roundTripFixtures() []fixture {
 			},
 		},
 		{
+			name: "broken workflow",
+			path: ".github/workflows/ci.yml",
+			content: "name: CI\n" +
+				"on:\n" +
+				"  push:\n" +
+				"    branches: ['**']\n" +
+				"concurrency:\n" +
+				"  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n" +
+				"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n" +
+				"jobs:\n" +
+				"  build:\n" +
+				"    runs-on: ubuntu-latest\n" +
+				"    steps:\n" +
+				"      - run: |\n" +
+				"          if true; then\n" +
+				"          fi\n" +
+				"      - run: echo one\n" +
+				"        name: build\n" +
+				"        run: echo two\n",
+			wants: []string{
+				"yaml/run-script-syntax",
+				"yaml/duplicate-step-key",
+			},
+		},
+		{
 			name: "warnings",
 			path: "warn.md",
 			content: "The file is read by the gate.\n\n" +
