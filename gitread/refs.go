@@ -10,8 +10,7 @@ import (
 	"strings"
 )
 
-// ErrUnknownRevision marks a revision this package cannot name. A caller may
-// ask git for a spelling this package does not parse, such as a reflog entry.
+// ErrUnknownRevision marks a revision this package cannot name.
 var ErrUnknownRevision = errors.New("gitread: the revision is unknown")
 
 // maxSymrefDepth stops a symbolic ref cycle.
@@ -21,7 +20,8 @@ const maxSymrefDepth = 10
 func (r *Repo) Head() (OID, error) { return r.Resolve("HEAD") }
 
 // Resolve answers the object a revision names: a full or abbreviated object
-// name, or a ref by its full or short name, with ~N, ^N and ^{type} suffixes.
+// name, or a ref by its full or short name. That Resolve is with ~N, ^N and
+// ^{type} suffixes.
 func (r *Repo) Resolve(rev string) (OID, error) {
 	base, ops := splitRevision(rev)
 	oid, err := r.resolveBase(base)
@@ -142,7 +142,7 @@ func (r *Repo) resolveBase(name string) (OID, error) {
 // minAbbrev is the shortest object name prefix git accepts.
 const minAbbrev = 4
 
-// abbreviated answers the one object whose name starts with prefix.
+// abbreviated answers the object whose name starts with prefix.
 func (r *Repo) abbreviated(prefix string) (OID, bool) {
 	if len(prefix) < minAbbrev || len(prefix) >= len(OID{})*2 {
 		return OID{}, false

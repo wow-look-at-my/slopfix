@@ -22,8 +22,7 @@ const (
 
 var kindNames = map[int]string{kindCommit: TypeCommit, kindTree: TypeTree, kindBlob: TypeBlob, kindTag: TypeTag}
 
-// ErrMissing marks an object the repository does not hold. A partial clone
-// leaves such objects on its promisor remote.
+// ErrMissing marks an object the repository does not hold. A partial clone leaves such objects on its promisor remote.
 var ErrMissing = errors.New("gitread: the object is not in this repository")
 
 // Cache budgets, in bytes. Git keeps delta bases to the same budget.
@@ -251,7 +250,7 @@ func sharedODB(dir string) *odb {
 	return v.(*odb)
 }
 
-// fileStamp tells a rewritten file from the one read before.
+// fileStamp tells a rewritten file from the read before.
 type fileStamp struct {
 	size  int64
 	mtime int64

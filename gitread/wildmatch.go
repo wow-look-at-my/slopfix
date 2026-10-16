@@ -10,8 +10,7 @@ const (
 	wmAbortToStarStar
 )
 
-// wildmatch reports whether text matches pattern. With pathname, a wildcard
-// never matches a slash, and only a "**" between slashes crosses one.
+// wildmatch reports whether text matches pattern.
 func wildmatch(pattern, text string, pathname, fold bool) bool {
 	return dowild(pattern, text, pathname, fold) == wmMatch
 }

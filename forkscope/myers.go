@@ -1,8 +1,6 @@
 package forkscope
 
-// myers finds the lines a shortest edit script inserts, with the linear-space
-// middle-snake method of Myers' O(ND) diff, the method git diff uses. Its cost
-// grows with the size of the change, not with the square of the file.
+// myers finds the lines a shortest edit script inserts.
 type myers struct {
 	a, b    []int
 	matched []bool
@@ -54,8 +52,7 @@ func (m *myers) compare(aLo, aHi, bLo, bHi int) {
 	if aLo == aHi || bLo == bHi {
 		return
 	}
-	// Both ends now differ, so the edit holds at least two steps and the
-	// middle snake splits it into two smaller problems.
+	// Both ends now differ, so the edit holds at least steps and the middle snake splits it into smaller problems.
 	xs, ys, xe, ye := m.snake(aLo, aHi, bLo, bHi)
 	for i := 0; i < xe-xs; i++ {
 		m.matched[ys+i] = true
@@ -65,7 +62,7 @@ func (m *myers) compare(aLo, aHi, bLo, bHi int) {
 }
 
 // snake answers the middle snake of the edit graph of a[aLo:aHi] and
-// b[bLo:bHi]: the run of matches where the forward and backward searches meet.
+// b[bLo:bHi]. The run of matches where the forward and backward searches meet.
 func (m *myers) snake(aLo, aHi, bLo, bHi int) (xs, ys, xe, ye int) {
 	n, k0 := aHi-aLo, bHi-bLo
 	delta := n - k0

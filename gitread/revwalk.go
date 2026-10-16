@@ -244,7 +244,7 @@ func (r *Repo) FirstParent(oid OID) ([]OID, error) {
 }
 
 // FirstParentExcluding answers the first-parent chain from tip, newest first,
-// up to the first commit an excluded commit reaches: what git rev-list
+// up to the first commit an excluded commit reaches. What git rev-list
 // --first-parent tip ^exclude prints. It paints the excluded history only as
 // deep as the chain's dates need.
 func (r *Repo) FirstParentExcluding(tip OID, exclude []OID) ([]OID, error) {
@@ -441,8 +441,7 @@ func (r *Repo) IsAncestor(a, b OID) (bool, error) {
 			found = true
 			return false
 		}
-		// A commit can carry an earlier date than its parent, so the cut
-		// allows a day of skew.
+		// A commit can carry an earlier date than its parent, so the cut allows a day of skew.
 		return c.When+skewAllowance >= ca.When
 	})
 	return found, err

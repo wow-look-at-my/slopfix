@@ -11,7 +11,7 @@ import (
 )
 
 // WorkFiles answers every path the index tracks, and every untracked path git
-// does not ignore: what git ls-files --cached --others --exclude-standard
+// does not ignore. What git ls-files --cached --others --exclude-standard
 // prints, in slash form. An untracked repository inside the tree is one entry
 // that ends in a slash.
 func (r *Repo) WorkFiles() ([]string, error) {
@@ -147,7 +147,7 @@ func (r *Repo) workOID(idx *Index, e IndexEntry, filemode bool) (OID, uint32, bo
 }
 
 // ChangedNames answers every path git diff --name-only names between a
-// commit's tree and the work tree, and every untracked path git does not
+// commit's tree and the work tree. Every untracked path git does not
 // ignore, sorted. A submodule is left out.
 func (r *Repo) ChangedNames(base OID) ([]string, error) {
 	changed, untracked, err := r.Changes(base)
@@ -164,8 +164,8 @@ func (r *Repo) ChangedNames(base OID) ([]string, error) {
 }
 
 // Changes answers, sorted, each path git diff --name-only names between a
-// commit's tree and the work tree, and each untracked path git does not
-// ignore. A submodule is left out.
+// commit's tree and the work tree, and each untracked path git does not.
+// Ignore. A submodule is left out.
 func (r *Repo) Changes(base OID) (changed, untracked []string, err error) {
 	baseNames, err := r.TreeNames(base)
 	if err != nil {
@@ -207,7 +207,7 @@ func (r *Repo) Changes(base OID) (changed, untracked []string, err error) {
 }
 
 // WorkChanged reports whether the work tree copy of a tracked path differs
-// from the blob the index stages, and false for a path the index lacks.
+// from the blob the index stages. False for a path the index lacks.
 func (r *Repo) WorkChanged(path string) bool {
 	idx, err := r.Index()
 	if err != nil {
@@ -251,7 +251,7 @@ func (r *Repo) Submodule(rel string) (*Repo, error) {
 }
 
 // TrackedRecursive answers every path the index tracks, and each path a
-// checked-out submodule's index tracks, prefixed with the submodule path: what
+// checked-out submodule's index tracks, prefixed with the submodule path. What
 // git ls-files --cached --recurse-submodules prints.
 func (r *Repo) TrackedRecursive() ([]string, error) {
 	idx, err := r.Index()

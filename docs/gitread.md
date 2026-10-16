@@ -14,7 +14,7 @@
 
 ## What stays the same across callers
 
-`Open` answers one `Repo` per repository for the whole process. A second caller finds what the first one read. A long-lived process, such as the language server, sees each change on disk: the index, the packed refs, the shallow file and each rule file are read again when their stamp moves. A pack directory is scanned again on a miss. A repository created again at the same path opens fresh.
+`Open` answers one `Repo` per repository for the whole process. A second caller finds what the first one read. A long-lived process, such as the language server, sees each change on disk. The index, the packed refs, the shallow file and each rule file are read again when their stamp moves. A pack directory is scanned again on a miss. A repository created again at the same path opens fresh.
 
 ## How it finds a change
 
@@ -33,4 +33,4 @@ A repository in the SHA-256 object format, a split index or a sparse index is an
 
 ## Tests
 
-`gitread_test.go` checks each answer against git itself: the index, every object of a repository packed with offset deltas and with ref deltas, ignore and attribute rules, the file listing, the changed paths, submodules and revisions. `bench_test.go` times each read beside the git process that answered it before.
+`gitread_test.go` checks each answer against git itself. The index, every object of a repository packed with offset deltas and with ref deltas, ignore and attribute rules, the file listing. The changed paths, submodules and revisions. `bench_test.go` times each read beside the git process that answered it before.

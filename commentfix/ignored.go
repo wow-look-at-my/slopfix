@@ -80,8 +80,7 @@ func Borrowed(attrs *gitread.Attributes, rel string) bool {
 	return false
 }
 
-// lostRead reports a repository read that failed inside a work tree. The walk
-// then judges the paths that read would skip, and the reader must see why.
+// lostRead reports a repository read that failed inside a work tree.
 func lostRead(skip string, err error) {
 	fmt.Fprintf(os.Stderr, "slopfix: cannot list the %s paths, so the walk judges them: %v\n", skip, err)
 }

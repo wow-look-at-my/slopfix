@@ -156,8 +156,9 @@ func (r *Repo) supported() error {
 	return nil
 }
 
-// locate answers the work tree and git directory for dir, as git finds them:
-// GIT_DIR and GIT_WORK_TREE first, then a walk up to a .git entry.
+// locate answers the work tree and git directory for dir, as git finds them.
+// This also covers GIT_DIR and GIT_WORK_TREE first, then a walk up to a .git
+// entry.
 func locate(dir string) (workTree, gitDir string, ok bool) {
 	if env := os.Getenv("GIT_DIR"); env != "" {
 		gitDir = absFrom(dir, env)

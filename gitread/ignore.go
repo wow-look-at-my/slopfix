@@ -7,8 +7,7 @@ import (
 )
 
 // Ignore answers whether git ignores a path, as git check-ignore does for an
-// untracked path. Its rules come from each .gitignore on the way down,
-// info/exclude, and core.excludesFile. It reads each directory's rules once.
+// untracked path.
 type Ignore struct {
 	repo *Repo
 	fold bool

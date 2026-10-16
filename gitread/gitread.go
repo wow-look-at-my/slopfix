@@ -1,6 +1,6 @@
 // Package gitread reads a git repository in-process.
 //
-// The rules ask many small questions of one repository: is this path ignored,
+// The rules ask many small questions of one repository. Is this path ignored,
 // what attributes does it carry, what did this blob hold at the base. Each
 // question as a git subprocess costs a fork and an exec. This package answers
 // them from the files git writes, and keeps what it reads for the next caller.

@@ -8,15 +8,13 @@ import (
 	"strings"
 )
 
-// config maps a dotted key to its last value. The section and the name are
-// lower case. A subsection keeps its case.
+// config maps a dotted key to its last value. The section and the name are lower case. A subsection keeps its case.
 type config map[string]string
 
 // maxIncludeDepth stops an include cycle.
 const maxIncludeDepth = 8
 
-// Config answers a configuration value, or "" when it is unset. It reads the
-// system, global, repository and work tree files, and GIT_CONFIG_COUNT, as git does.
+// Config answers a configuration value, or "" when it is unset.
 func (r *Repo) Config(key string) string {
 	r.cfgOnce.Do(func() { r.cfg = r.loadConfig() })
 	return r.cfg[strings.ToLower(key)]
@@ -192,7 +190,7 @@ func sectionKey(header string) string {
 		sub = strings.NewReplacer(`\"`, `"`, `\\`, `\`).Replace(sub)
 		return strings.ToLower(strings.TrimSpace(name)) + "." + sub
 	}
-	// The old spelling [section.sub] lowers the subsection too.
+	// The spelling [section.sub] lowers the subsection too.
 	return strings.ToLower(header)
 }
 

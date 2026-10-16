@@ -30,9 +30,7 @@ var builtinMacros = map[string][]attrValue{
 	"binary": {{"binary", AttrSet}, {"diff", AttrUnset}, {"merge", AttrUnset}, {"text", AttrUnset}},
 }
 
-// Attributes answers attribute values, as git check-attr does. Its rules come
-// from each .gitattributes on the way down, info/attributes, and
-// core.attributesFile. It reads each directory's rules once.
+// Attributes answers attribute values, as git check-attr does.
 type Attributes struct {
 	repo   *Repo
 	fold   bool

@@ -10,7 +10,7 @@ import (
 )
 
 // The work tree is diffed against the base in-process: a changed file holds
-// its new lines, a new file and a binary are whole, and a deleted file holds
+// its new lines, a new file and a binary are whole. A deleted file holds
 // nothing. A line that reads like a diff header is plain text here.
 func TestTheWorkTreeDiffCountsWhatTheForkWrote(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
