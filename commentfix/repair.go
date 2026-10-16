@@ -434,7 +434,12 @@ func rewordCounts(prose string) string {
 	for i := len(tokens) - 1; i >= 0; i-- {
 		t := tokens[i]
 		phrase := governed.FindString(prose[t.Offset:])
-		if phrase == "" || cardinal.NotAPluralNoun(prose, cardinal.Match{At: t.Offset, Text: phrase}) {
+		if phrase == "" {
+			continue
+		}
+		at := cardinal.Match{At: t.Offset, Text: phrase}
+		zeroSubject := strings.HasPrefix(phrase, "0 ") && cardinal.ValueSubject(prose, at)
+		if !zeroSubject && cardinal.NotAPluralNoun(prose, at) {
 			continue
 		}
 		if e, ok := counts.RewordAt(prose, t.Offset, phrase); ok {
