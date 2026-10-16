@@ -64,8 +64,7 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 	}
 	c, found := pick(func(c forceCut) bool {
 		head := closeHead(source[:c.left])
-		return !cutsAside(masked, c.left, c.right) && standsAsSentence(head) &&
-			(holdsFinite(checkMask(head)) || opensImperative(checkMask(head)))
+		return !cutsAside(masked, c.left, c.right) && standsAsSentence(head) && headHoldsMainVerb(whole, c.left)
 	})
 	if !found {
 		c, found = pick(func(c forceCut) bool {
@@ -87,6 +86,17 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 		right = carriedRest(whole, c, right)
 	}
 	return head + " " + right, true
+}
+
+// headHoldsMainVerb reports a head that ends after the verb of a main clause
+// of the whole sentence. The head carries a predicate of its own.
+func headHoldsMainVerb(whole *syntax.Sentence, left int) bool {
+	for _, clause := range whole.Clauses {
+		if clause.Depth == 0 && clause.Verb != nil && whole.Words[clause.Verb.Last].End <= left {
+			return true
+		}
+	}
+	return false
 }
 
 // carrierWords are the words a carrier adds to the half it carries.

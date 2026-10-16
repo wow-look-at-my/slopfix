@@ -27,6 +27,7 @@ func TestTheLastResortDivisionCarriesBothHalves(t *testing.T) {
 	out, ok := lastResortDivision(in, masked, syntax.Parse(masked, nil), SentenceWordCap)
 	assert.True(t, ok, out)
 	assert.Equal(t, "This covers a list of the cache files of the build host for each module of the tree. "+
-		"This holds in the order of the paths of the list of the repository at the start of the run.", out)
+		"This holds in the order of the paths of the list of the repository at the start of the run.", out,
+		syntax.Parse(masked, nil).Tags()+"\n"+syntax.Parse(masked, nil).Outline())
 	assert.Zero(t, overCap(out, SentenceWordCap), out)
 }
