@@ -76,7 +76,7 @@ func TestAMarkdownFileIsReadByTheProseRules(t *testing.T) {
 	require.NoError(t, err)
 	ids := idsOf(out)
 	assert.Contains(t, ids, "ste/contraction")
-	assert.Contains(t, ids, "ste/semicolon")
+	assert.Contains(t, ids, "english/semicolon")
 	for _, finding := range out.Findings {
 		assert.Equal(t, 1, finding.Line)
 		assert.Equal(t, finding.Line, finding.EndLine)
@@ -95,9 +95,9 @@ func TestOnlyNarrowsTheReportToTheRuleNamed(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(all.Findings), 1)
 
-	narrowed, _, err := report(t, "docs/notes.md", []string{"ste/semicolon"}, content)
+	narrowed, _, err := report(t, "docs/notes.md", []string{"english/semicolon"}, content)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"ste/semicolon"}, idsOf(narrowed))
+	assert.Equal(t, []string{"english/semicolon"}, idsOf(narrowed))
 }
 
 // A typo that selects nothing reads exactly like a clean file, so it is an
@@ -106,7 +106,7 @@ func TestAnUnknownRuleIsAnError(t *testing.T) {
 	_, _, err := report(t, "docs/notes.md", []string{"ste/nosuch"}, "text\n")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown rule")
-	assert.Contains(t, err.Error(), "ste/semicolon")
+	assert.Contains(t, err.Error(), "ste/contraction")
 }
 
 // A finding is the answer rather than a failure. The caller decides what it
