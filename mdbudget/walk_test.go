@@ -98,6 +98,37 @@ func TestCachedWalkFindsANewDirectory(t *testing.T) {
 	require.Equal(t, uncached(t, repo), claudeMdFiles(repo))
 }
 
+func TestWalkSkipsALinkedWorktree(t *testing.T) {
+	repo := cacheTree(t)
+	wt := filepath.Join(repo, ".claude", "worktrees", "feature")
+	writeFile(t, filepath.Join(wt, ".git"), "gitdir: "+filepath.Join(repo, ".git", "worktrees", "feature")+"\n")
+	writeFile(t, filepath.Join(wt, "CLAUDE.md"), "x")
+	writeFile(t, filepath.Join(wt, "sub", "CLAUDE.md"), "x")
+
+	got := uncached(t, repo)
+	require.NotContains(t, got, filepath.Join(wt, "CLAUDE.md"))
+	require.NotContains(t, got, filepath.Join(wt, "sub", "CLAUDE.md"))
+	require.Equal(t, got, claudeMdFiles(repo))
+}
+
+func TestWalkEntersASubmodule(t *testing.T) {
+	repo := cacheTree(t)
+	sub := filepath.Join(repo, "vendor", "lib")
+	writeFile(t, filepath.Join(sub, ".git"), "gitdir: ../../.git/modules/vendor/lib\n")
+	writeFile(t, filepath.Join(sub, "CLAUDE.md"), "x")
+
+	require.Contains(t, uncached(t, repo), filepath.Join(sub, "CLAUDE.md"))
+}
+
+func TestWalkEntersARootThatIsAWorktree(t *testing.T) {
+	repo := isolate(t)
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(filepath.Dir(repo), "cache"))
+	writeFile(t, filepath.Join(repo, ".git"), "gitdir: /elsewhere/.git/worktrees/repo\n")
+	writeFile(t, filepath.Join(repo, "a", "CLAUDE.md"), "x")
+
+	require.Contains(t, uncached(t, repo), filepath.Join(repo, "a", "CLAUDE.md"))
+}
+
 func TestCorruptWalkCacheIsAFullWalk(t *testing.T) {
 	repo := cacheTree(t)
 	want := uncached(t, repo)

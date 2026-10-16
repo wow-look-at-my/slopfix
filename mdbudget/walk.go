@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -90,6 +91,10 @@ func (w *walker) read(dir string) {
 	if mtime >= w.racy {
 		entry.Mtime = -1
 	}
+	if dir != w.root && isLinkedWorktree(dir, entries) {
+		w.done(dir, &dirEntry{Mtime: entry.Mtime})
+		return
+	}
 	for _, e := range entries {
 		name := e.Name()
 		if e.IsDir() {
@@ -105,12 +110,34 @@ func (w *walker) read(dir string) {
 	w.done(dir, &entry)
 }
 
-// claudeMdFiles walks root recursively for every CLAUDE.md, skipping .git and
-// node_modules, and returns them sorted. A pool of readers shares the walk,
-// and a cache of directory listings keyed by mtime spares the reads of
-// directories that did not change. SessionStart's census, PostToolUse/Stop's
-// change tracking and CI's full_scan all use this walk, so none can miss a
-// file deep under the root.
+// isLinkedWorktree reports whether dir is a git linked worktree: its .git is a
+// file whose gitdir line names a directory inside a worktrees directory. A
+// submodule's .git file names one inside a modules directory instead.
+func isLinkedWorktree(dir string, entries []os.DirEntry) bool {
+	for _, e := range entries {
+		if e.Name() != ".git" || !e.Type().IsRegular() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, ".git"))
+		if err != nil {
+			return false
+		}
+		line, _, _ := strings.Cut(string(data), "\n")
+		target, ok := strings.CutPrefix(strings.TrimSpace(line), "gitdir:")
+		if !ok {
+			return false
+		}
+		return filepath.Base(filepath.Dir(filepath.Clean(strings.TrimSpace(target)))) == "worktrees"
+	}
+	return false
+}
+
+// claudeMdFiles walks root recursively for every CLAUDE.md and returns them
+// sorted. It prunes .git, node_modules and every git linked worktree below
+// the root; the root itself is walked even when it is a worktree. A pool of
+// readers shares the walk, and a cache of directory listings keyed by mtime
+// spares the reads of directories that did not change. A pruned worktree is
+// cached as a directory with nothing below it.
 func claudeMdFiles(root string) []string {
 	w := &walker{
 		root:    root,
