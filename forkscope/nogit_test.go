@@ -34,11 +34,13 @@ func spawnedInGit(marker string) bool {
 func TestACachedForkScopeStartsNoGitProcess(t *testing.T) {
 	fx := newForkFixture(t)
 	env := forkEnv(forkAPI(t, forkBody(fx.parent)))
-	_, err := forkLines(fx.fork, env, noList(t))
+	// The record is kept for the sources that answered it, so both runs ask the same list.
+	list := noList(t)
+	_, err := forkLines(fx.fork, env, list)
 	require.NoError(t, err)
 	marker := poisonGit(t)
 
-	own, err := forkLines(fx.fork, env, noList(t))
+	own, err := forkLines(fx.fork, env, list)
 	require.NoError(t, err)
 	require.NotNil(t, own)
 	assert.False(t, spawnedInGit(marker), "a git process was spawned on the fork-scope path")
@@ -51,12 +53,12 @@ func TestACachedForkScopeStartsNoGitProcess(t *testing.T) {
 func TestACachedListedForkStartsNoGitProcess(t *testing.T) {
 	fx := newForkFixture(t)
 	tagParent(t, fx)
-	list := forkList("o/fork", fx.parent)
-	_, err := forkLines(fx.fork, listedEnv(t), listAt(t, http.StatusOK, list))
+	env, list := listedEnv(t), listAt(t, http.StatusOK, forkList("o/fork", fx.parent))
+	_, err := forkLines(fx.fork, env, list)
 	require.NoError(t, err)
 	marker := poisonGit(t)
 
-	own, err := forkLines(fx.fork, listedEnv(t), listAt(t, http.StatusOK, list))
+	own, err := forkLines(fx.fork, env, list)
 	require.NoError(t, err)
 	require.NotNil(t, own)
 	assert.False(t, spawnedInGit(marker), "a git process was spawned on the listed-fork path")

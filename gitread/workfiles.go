@@ -187,7 +187,8 @@ func (r *Repo) Changes(base OID) (changed, untracked []string, err error) {
 		}
 		before, inBase := baseNames[e.Path]
 		oid, mode, present := r.workOID(idx, e, filemode)
-		if !inBase || !present || oid != before.OID || modeString(mode) != before.Mode {
+		// A file gone from both sides is no change.
+		if inBase != present || present && (oid != before.OID || modeString(mode) != before.Mode) {
 			diff.Add(e.Path)
 		}
 	}
