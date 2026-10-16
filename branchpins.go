@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 
@@ -95,20 +96,31 @@ func escapeRef(ref string) string {
 // lookup that cannot be made is a finding under the rule's own ID. No
 // selection hides it and no failure reads as a clean file.
 func pinsInText(req Request, text string) (string, []ste.Finding) {
-	if !req.Scope.Bounded {
-		if fixed, err := workflow.RepairBranchPins(text, req.Refs); err == nil {
-			text = fixed
-		}
+	refs := req.Refs
+	if refs == nil {
+		refs = NewGitHubRefs(os.Getenv)
 	}
-	found, err := workflow.BranchPins(text, req.Refs)
+	if !req.Scope.Bounded {
+		fixed, err := workflow.RepairBranchPins(text, refs)
+		if err != nil {
+			return text, []ste.Finding{lookupFailure(err)}
+		}
+		text = fixed
+	}
+	found, err := workflow.BranchPins(text, refs)
 	if err != nil {
-		return text, []ste.Finding{{
-			Line:   1,
-			ID:     workflow.IDBranchPin,
-			Rule:   "the branch pins could not be judged",
-			Detail: err.Error(),
-			Fix:    "Make the lookup answerable: reach the GitHub API and set GITHUB_TOKEN for a private repository.",
-		}}
+		return text, []ste.Finding{lookupFailure(err)}
 	}
 	return text, found
+}
+
+// lookupFailure is the finding for a branch pin that could not be judged.
+func lookupFailure(err error) ste.Finding {
+	return ste.Finding{
+		Line:   1,
+		ID:     workflow.IDBranchPin,
+		Rule:   "the branch pins could not be judged",
+		Detail: err.Error(),
+		Fix:    "Make the lookup answerable: reach the GitHub API and set GITHUB_TOKEN for a private repository.",
+	}
 }

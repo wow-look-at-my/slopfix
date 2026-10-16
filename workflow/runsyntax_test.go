@@ -1,7 +1,6 @@
 package workflow_test
 
 import (
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -153,36 +152,25 @@ func TestAnShStepWithAnArrayNamesBash(t *testing.T) {
 	assert.Empty(t, syntaxFindings(fixed))
 }
 
-// A line no rule mends passes to eval whole, so it still fails loudly at run time and no command is cut.
-func TestAnotherRejectedLineGoesToEval(t *testing.T) {
-	fixed := repairedBy(stepsHead + "      - run: |\n          echo hi\n          case\n")
-	assert.Equal(t, stepsHead+"      - run: |\n          echo hi\n          eval 'case'\n", fixed)
+// A trailing operator with nothing after it is quoted into an argument.
+func TestATrailingOperatorIsQuoted(t *testing.T) {
+	fixed := repairedBy(stepsHead + "      - run: |\n          echo a &&\n")
+	assert.Equal(t, stepsHead+"      - run: |\n          echo a '&&'\n", fixed)
 	assert.Empty(t, syntaxFindings(fixed))
 }
 
-// Every input that reaches the eval fallback fails loudly when bash runs the repaired script.
-func TestEveryEvalFallbackFailsLoudlyAtRunTime(t *testing.T) {
+// An error no repair mends is not reported, because the rule reports what its repair rewrites.
+func TestAnErrorNoRepairMendsIsNotReported(t *testing.T) {
 	for _, line := range []string{"case", "function"} {
-		fixed := repairedBy(stepsHead + "      - run: |\n          " + line + "\n")
-		assert.Contains(t, fixed, "eval '"+line+"'", line)
-		var doc struct {
-			Jobs map[string]struct {
-				Steps []struct {
-					Run string `yaml:"run"`
-				} `yaml:"steps"`
-			} `yaml:"jobs"`
-		}
-		require.NoError(t, yaml.Unmarshal([]byte(fixed), &doc))
-		script := doc.Jobs["a"].Steps[0].Run
-		out, err := exec.Command("bash", "-ec", script).CombinedOutput()
-		require.Error(t, err, line)
-		assert.Contains(t, string(out), "syntax error", line)
+		content := stepsHead + "      - run: |\n          " + line + "\n"
+		assert.Empty(t, syntaxFindings(content), line)
+		assert.Equal(t, content, repairedBy(content), line)
 	}
 }
 
 // No repair comments a command out.
 func TestNoRepairCommentsALineOut(t *testing.T) {
-	for _, script := range []string{"echo (", "echo hi\nfi", "case", "echo )", "echo a &&"} {
+	for _, script := range []string{"echo (", "echo hi\nfi", "echo a &&"} {
 		fixed := repairedBy(stepsHead + "      - run: |\n          " + strings.ReplaceAll(script, "\n", "\n          ") + "\n")
 		assert.NotContains(t, fixed, "# ", script)
 		assert.Empty(t, syntaxFindings(fixed), script)
@@ -198,6 +186,16 @@ func TestARepeatedKeyStopsEveryRepairButItsOwn(t *testing.T) {
 	assert.NotEqual(t, content, dropped.Text)
 	var parsed any
 	require.NoError(t, yaml.Unmarshal([]byte(dropped.Text), &parsed))
+}
+
+// The repeated key goes first, so one pass of every repair leaves a file with another finding clean.
+func TestARepeatedKeyAndAnotherFindingAreBothRepaired(t *testing.T) {
+	content := stepsHead + "      - name: a\n        name: b\n        run: echo hi\n      - run: echo (\n"
+	fixed := workflow.Fix(content, nil).Text
+	assert.Equal(t, stepsHead+"      - name: b\n        run: echo hi\n      - run: \"echo '('\"\n", fixed)
+	for _, f := range workflow.Check(fixed) {
+		assert.NotContains(t, []string{workflow.IDDuplicateStepKey, workflow.IDRunScriptSyntax}, f.ID)
+	}
 }
 
 // A script that parses is left as written.

@@ -51,7 +51,7 @@ func init() {
 	register("yaml/rename-guarded-job", IDAllBuildsJob, 30, renameGuardedJob, false)
 	fixer.Register(fixer.Spec{
 		Label: "yaml/drop-duplicate-step-key", Families: []string{Category}, Rules: []string{IDDuplicateStepKey},
-		Files: []fixer.Kind{fixer.Workflow}, Place: 15,
+		Files: []fixer.Kind{fixer.Workflow}, Place: 5,
 		Repair: func(f *fixer.File) { f.ApplyThrough(applyDroppingKeys, dropDuplicateKeys(f.Text())) },
 	})
 	register("yaml/fix-run-script", IDRunScriptSyntax, 40, repairRunScripts, false)
@@ -111,7 +111,9 @@ func gate(content string, edits []edit.Edit, scope edit.Scope, comment, repeatsA
 	var err error
 	if repeatsAllowed {
 		var tree yaml.Node
-		err = yaml.Unmarshal([]byte(content), &tree)
+		if err = yaml.Unmarshal([]byte(content), &tree); err == nil {
+			want = keptData(&tree)
+		}
 	} else {
 		err = yaml.Unmarshal([]byte(compareData(content, comment)), &want)
 	}
@@ -134,8 +136,40 @@ func gate(content string, edits []edit.Edit, scope edit.Scope, comment, repeatsA
 			if yaml.Unmarshal([]byte(compareData(text, comment)), &got) != nil {
 				return false
 			}
-			return !comment || reflect.DeepEqual(got, want)
+			return !(comment || repeatsAllowed) || reflect.DeepEqual(got, want)
 		})
+}
+
+// keptData decodes a node the way a strict decode would, except that a key
+// repeated in a mapping keeps its last value. That is the data left once the
+// earlier repeats are gone.
+func keptData(n *yaml.Node) any {
+	switch n.Kind {
+	case yaml.DocumentNode:
+		if len(n.Content) == 0 {
+			return nil
+		}
+		return keptData(n.Content[0])
+	case yaml.AliasNode:
+		return keptData(n.Alias)
+	case yaml.SequenceNode:
+		out := make([]any, 0, len(n.Content))
+		for _, item := range n.Content {
+			out = append(out, keptData(item))
+		}
+		return out
+	case yaml.MappingNode:
+		out := map[string]any{}
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			out[n.Content[i].Value] = keptData(n.Content[i+1])
+		}
+		return out
+	}
+	var v any
+	if n.Decode(&v) != nil {
+		return nil
+	}
+	return v
 }
 
 // compareData answers the text a comment gate compares. A # inside a block

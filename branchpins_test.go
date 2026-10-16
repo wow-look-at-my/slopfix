@@ -118,20 +118,42 @@ func TestATreeRunAsksTheAPIWhenGivenNoRefs(t *testing.T) {
 	assert.Positive(t, calls)
 }
 
-func TestARecordedAnswerIsUsedAndAnUnrecordedRefIsLookedUp(t *testing.T) {
-	t.Setenv("GITHUB_API_URL", "http://127.0.0.1:1")
+// cachedTree is a repository whose .git holds cache and whose workflow uses o/r@feature.
+func cachedTree(t *testing.T, cache string) string {
+	t.Helper()
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "slopfix-refs.json"), []byte(`{"o/r":"master","o/r@feature":"branch"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "slopfix-refs.json"), []byte(cache), 0o644))
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n      - uses: o/x@v1\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"), 0o644))
+	return root
+}
 
-	var details []string
-	for _, f := range slopfix.CheckTreeWith(root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings {
-		details = append(details, f.Rule)
-	}
-	assert.Contains(t, details, "the branch pins could not be judged")
+// The API says feature is a branch. A cache that says it is a tag wins, and the API is not asked.
+func TestARecordedAnswerIsUsedInPlaceOfTheAPI(t *testing.T) {
+	calls := 0
+	srv := refsAPI(t, &calls)
+	t.Setenv("GITHUB_API_URL", srv.URL)
+	t.Setenv("GITHUB_TOKEN", "tok")
+	root := cachedTree(t, `{"o/r":"master","o/r@feature":"tag"}`)
+
+	assert.Empty(t, slopfix.CheckTreeWith(root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings)
+	assert.Zero(t, calls)
+}
+
+// A ref the cache lacks is looked up, and the API's answer decides.
+func TestAnUnrecordedRefIsLookedUp(t *testing.T) {
+	calls := 0
+	srv := refsAPI(t, &calls)
+	t.Setenv("GITHUB_API_URL", srv.URL)
+	t.Setenv("GITHUB_TOKEN", "tok")
+	root := cachedTree(t, `{"o/other":"master"}`)
+
+	found := slopfix.CheckTreeWith(root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings
+	require.Len(t, found, 1)
+	assert.Equal(t, "a uses: ref names a feature branch, which a merge deletes", found[0].Rule)
+	assert.Positive(t, calls)
 }
 
 func TestARecordedBranchIsFlaggedWithoutTheAPI(t *testing.T) {

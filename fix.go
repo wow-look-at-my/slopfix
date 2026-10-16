@@ -73,7 +73,7 @@ type Request struct {
 	Owned *forkscope.Scope `json:"-"`
 	// Fork names the lines a fork wrote across a tree run. A file it holds no line of is neither read nor written.
 	Fork *forkscope.Lines `json:"-"`
-	// Refs answers the branch-pin lookups. With none, a text run judges no pin and a tree run asks the GitHub API.
+	// Refs answers the branch-pin lookups. With none, a run asks the GitHub API.
 	Refs workflow.Refs `json:"-"`
 	// OneFile marks a caller that writes Content's file and no other, such as a hook. A repair that needs a new file then leaves the text as it stands.
 	OneFile bool `json:"-"`
@@ -258,7 +258,7 @@ func fixText(req Request) Repair {
 
 	text := f.Text()
 	var pinFindings []ste.Finding
-	if kind == fixer.Workflow && req.Refs != nil && wants(RuleWorkflow) && keeps(workflow.IDBranchPin) {
+	if kind == fixer.Workflow && wants(RuleWorkflow) && keeps(workflow.IDBranchPin) {
 		text, pinFindings = pinsInText(req, text)
 	}
 	rep := f.Report()

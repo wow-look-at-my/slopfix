@@ -38,7 +38,10 @@ type shellScript struct {
 func runScriptSyntax(content string) []ste.Finding {
 	var out []ste.Finding
 	for _, s := range shellScripts(content) {
-		if s.err != nil {
+		if s.err == nil {
+			continue
+		}
+		if _, _, ok := s.repair(); ok {
 			out = append(out, s.finding())
 		}
 	}
@@ -130,7 +133,7 @@ func (s shellScript) finding() ste.Finding {
 		ID:     IDRunScriptSyntax,
 		Rule:   "a run script does not parse as shell",
 		Detail: text,
-		Fix:    "Correct the script so `bash -n` accepts it. `slopfix fix` gives an empty body the no-op `:`, closes what the script left open, drops a stray closing word, quotes a stray operator, passes any other rejected line to `eval`, and names bash for an `sh` step that uses a bash feature.",
+		Fix:    "Correct the script so `bash -n` accepts it. `slopfix fix` gives an empty body the no-op `:`, closes what the script left open, drops a stray closing word, quotes a stray operator, and names bash for an `sh` step that uses a bash feature.",
 	}
 }
 
@@ -149,18 +152,36 @@ var closerError = regexp.MustCompile("(?:statement must end with|without matchin
 // emptyBodyError matches a keyword that opens a body and finds none.
 var emptyBodyError = regexp.MustCompile("^`([^`]+)` must be followed by a statement list$")
 
-// repairScript answers the script with each syntax error mended. A keyword
-// with an empty body gets the no-op `:`. An unclosed statement, bracket or
-// quote gets its closer at the end.
-func repairScript(script string, variant syntax.LangVariant) string {
+// repairScript answers the script with each syntax error mended, and reports
+// whether the result parses.
+func repairScript(script string, variant syntax.LangVariant) (string, bool) {
 	for range strings.Count(script, "\n") + 2 {
 		err := parseShell(script, variant)
 		if err == nil {
-			return script
+			return script, true
 		}
-		script = mendScript(script, err)
+		mended, ok := mendScript(script, err)
+		if !ok {
+			return script, false
+		}
+		script = mended
 	}
-	return script
+	return script, parseShell(script, variant) == nil
+}
+
+// repair answers the script as repairScript mends it. These bash parses in
+// place of sh when the error is a bash feature the step's shell lacks.
+func (s shellScript) repair() (mended string, naming bool, ok bool) {
+	var lang syntax.LangError
+	if errors.As(s.err, &lang) {
+		if s.shell == nil {
+			return s.run.Value, false, false
+		}
+		mended, ok = repairScript(s.run.Value, syntax.LangBash)
+		return mended, true, ok
+	}
+	mended, ok = repairScript(s.run.Value, s.variant)
+	return mended, false, ok
 }
 
 // strayWordError matches a closing or continuing word that has nothing to close or continue.
@@ -169,31 +190,30 @@ var strayWordError = regexp.MustCompile("^`([^`!]+)` can only be used ")
 // operatorRunes are the characters the shell reads as operators, not as parts of a word.
 const operatorRunes = "()<>|&;"
 
-// mendScript changes script at the place err names. Every command the script
-// holds stays in it: an empty body gets `:`. An unclosed construct gets its
-// closer, a stray closing word is dropped. A stray operator is quoted into a
-// word, and any other rejected line runs through `eval`. This fails loudly
-// at run time with the line it was given.
-func mendScript(script string, err error) string {
+// mendScript changes script at the place err names, and reports false for an
+// error that none of the repairs covers. An empty body gets `:`. An unclosed
+// construct gets its closer, a stray closing word is dropped, and a stray
+// operator is quoted into a word.
+func mendScript(script string, err error) (string, bool) {
 	var parse syntax.ParseError
 	if !errors.As(err, &parse) {
-		return script
+		return script, false
 	}
 	if body := emptyBodyError.FindStringSubmatch(parse.Text); body != nil {
 		if mended, ok := insertAfter(script, parse.Pos, body[1], " :"); ok {
-			return mended
+			return mended, true
 		}
 	}
 	if closer := closerError.FindStringSubmatch(parse.Text); closer != nil {
-		return strings.TrimSuffix(script, "\n") + "\n" + closer[1] + "\n"
+		return strings.TrimSuffix(script, "\n") + "\n" + closer[1] + "\n", true
 	}
 	if stray := strayWordError.FindStringSubmatch(parse.Text); stray != nil {
 		if mended, ok := removeAt(script, parse.Pos, stray[1]); ok {
-			return mended
+			return mended, true
 		}
 	}
 	if mended, ok := quoteOperator(script, parse.Pos); ok {
-		return mended
+		return mended, true
 	}
 	// A word followed by ( reads as a function name. The error names the word, so the bracket is the next one on its line.
 	if parse.Text == "`foo(` must be followed by `)`" {
@@ -202,12 +222,12 @@ func mendScript(script string, err error) string {
 		if line >= 0 && line < len(rows) && col >= 0 && col <= len(rows[line]) {
 			if at := strings.Index(rows[line][col:], "("); at >= 0 {
 				if mended, ok := quoteOperatorAt(script, line, col+at); ok {
-					return mended
+					return mended, true
 				}
 			}
 		}
 	}
-	return evalLine(script, int(parse.Pos.Line()))
+	return script, false
 }
 
 // removeAt deletes word where it starts at pos.
@@ -239,18 +259,6 @@ func quoteOperatorAt(script string, line, col int) (string, bool) {
 	}
 	rows[line] = rows[line][:col] + "'" + rows[line][col:end] + "'" + rows[line][end:]
 	return strings.Join(rows, "\n"), true
-}
-
-// evalLine passes the 1-based line of script to eval as one quoted word.
-func evalLine(script string, line int) string {
-	rows := strings.Split(script, "\n")
-	line = min(max(line, 1), len(rows)) - 1
-	for line > 0 && strings.TrimSpace(rows[line]) == "" {
-		line--
-	}
-	body := strings.TrimLeft(rows[line], " \t")
-	rows[line] = rows[line][:len(rows[line])-len(body)] + "eval '" + strings.ReplaceAll(body, "'", `'\''`) + "'"
-	return strings.Join(rows, "\n")
 }
 
 // insertAfter writes text right after the keyword that starts at pos.
@@ -291,10 +299,11 @@ func repairRunScripts(content string) []edit.Edit {
 		if s.err == nil {
 			continue
 		}
-		variant := s.variant
-		var lang syntax.LangError
-		if errors.As(s.err, &lang) && s.shell != nil {
-			variant = syntax.LangBash
+		mended, naming, ok := s.repair()
+		if !ok {
+			continue
+		}
+		if naming {
 			if row := s.shell.Line - 1; !named.Contains(row) {
 				named.Add(row)
 				if edited, ok := nameBash(rows, s.shell); ok {
@@ -302,7 +311,6 @@ func repairRunScripts(content string) []edit.Edit {
 				}
 			}
 		}
-		mended := repairScript(s.run.Value, variant)
 		if mended == s.run.Value {
 			continue
 		}
