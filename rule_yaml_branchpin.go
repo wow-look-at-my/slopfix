@@ -5,8 +5,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// yaml/branch-pin: a uses: ref that names a branch other than the default branch of the action's repository. A merge deletes the branch, and every job that names it then fails to resolve the action. The repair writes the default branch. The rule asks the GitHub API, so its cases record the
-// answers a walk of the case reads in place of the network.
+// yaml/branch-pin: a uses: ref that names a branch other than the default branch of the action's repository. A merge deletes the branch, and every job that names it then fails to resolve the action. The repair writes the default branch. The rule asks the GitHub API, and its cases run against the fixture API that Materialize serves.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       workflow.IDBranchPin,

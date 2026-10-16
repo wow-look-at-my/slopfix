@@ -59,6 +59,13 @@ func TestATreeCheckReportsABranchPin(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, failed)
 	assert.Contains(t, out.String(), "o/hidden")
+	assert.Contains(t, out.String(), "[yaml/branch-pin] the branch pins could not be judged")
+	assert.NotContains(t, out.String(), "repo/budget")
+
+	out.Reset()
+	failed, err = treeFindings(cmd, root, slopfix.Request{IDs: []string{"yaml/branch-pin"}}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
+	require.NoError(t, err)
+	assert.True(t, failed, "a selection of the rule still reports its lookup failure")
 }
 
 // noForks finds no fork: no origin is on its server, and it names no repository.
