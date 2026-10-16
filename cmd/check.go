@@ -259,22 +259,8 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	if repairing {
 		walk = slopfix.FixTreeWith
 	}
-	var written []string
-	if repairing {
-		var err error
-		written, err = slopfix.RepairBranchPinsTree(root, request, slopfix.NewGitHubRefs(envOf(forks)))
-		if err != nil {
-			return false, err
-		}
-	}
-	pins, err := slopfix.BranchPinsTree(root, request, slopfix.NewGitHubRefs(envOf(forks)))
-	if err != nil {
-		return false, err
-	}
-	walked := walk(root, request)
-	walked.Repaired = append(walked.Repaired, written...)
-	walked.Findings = append(walked.Findings, pins...)
-	out := walked.Within(own, root)
+	request.Refs = slopfix.NewGitHubRefs(envOf(forks))
+	out := walk(root, request).Within(own, root)
 	for _, path := range out.Repaired {
 		fmt.Fprintln(cmd.OutOrStdout(), path)
 	}

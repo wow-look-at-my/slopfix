@@ -121,6 +121,10 @@ func BranchPinsFile(path string, req Request, refs workflow.Refs) ([]TreeFinding
 	if exempt(path, string(content)) || !isWorkflow(path, string(content)) {
 		return nil, nil
 	}
+	refs, err = refsAt(repoRootOf(path), refs)
+	if err != nil || refs == nil {
+		return nil, err
+	}
 	findings, err := workflow.BranchPins(string(content), refs)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
@@ -164,6 +168,10 @@ func RepairBranchPinsFile(path string, req Request, refs workflow.Refs) (bool, e
 	}
 	if exempt(path, string(content)) || !isWorkflow(path, string(content)) {
 		return false, nil
+	}
+	refs, err = refsAt(repoRootOf(path), refs)
+	if err != nil || refs == nil {
+		return false, err
 	}
 	fixed, err := workflow.RepairBranchPins(string(content), refs)
 	if err != nil {

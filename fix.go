@@ -73,6 +73,8 @@ type Request struct {
 	Owned *forkscope.Scope `json:"-"`
 	// Fork names the lines a fork wrote across a tree run. A file it holds no line of is neither read nor written.
 	Fork *forkscope.Lines `json:"-"`
+	// Refs answers the branch-pin lookups a tree run makes. With none, a tree run judges only the pins its repository recorded answers for.
+	Refs workflow.Refs `json:"-"`
 	// OneFile marks a caller that writes Content's file and no other, such as a hook. A repair that needs a new file then leaves the text as it stands.
 	OneFile bool `json:"-"`
 }

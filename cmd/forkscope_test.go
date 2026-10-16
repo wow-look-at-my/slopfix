@@ -54,9 +54,11 @@ func TestATreeCheckReportsABranchPin(t *testing.T) {
 	assert.Contains(t, out.String(), "yaml/branch-pin")
 
 	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte("runs:\n  using: composite\n  steps:\n    - uses: o/hidden@v1\n"), 0o644))
-	_, err = treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "o/hidden")
+	out.Reset()
+	failed, err = treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
+	require.NoError(t, err)
+	assert.True(t, failed)
+	assert.Contains(t, out.String(), "o/hidden")
 }
 
 // noForks finds no fork: no origin is on its server, and it names no repository.

@@ -109,8 +109,8 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 			return c, err
 		}
 	}
-	if len(c.Refs) > 0 {
-		if err := recordRefs(dir, c.Refs); err != nil {
+	if refs := fixtureRefs(files, c.Refs); len(refs) > 0 {
+		if err := recordRefs(dir, refs); err != nil {
 			return c, err
 		}
 	}
