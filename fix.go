@@ -436,7 +436,11 @@ func init() {
 				return ste.FixSelected(text, func(id string) bool { return id != ste.IDParagraphLength && selected(id) })
 			}
 			if _, safe := Format(f.Text()); safe {
-				f.Apply(markdown.FormatEdits(f.Text(), word))
+				entries := markdown.EntryBullets
+				if strings.EqualFold(filepath.Ext(f.Path), ".txt") {
+					entries = markdown.EntryBlankLines
+				}
+				f.Apply(markdown.FormatEditsWith(f.Text(), word, entries))
 			}
 			if selected(ste.IDParagraphLength) {
 				f.Apply(paragraphEdits(f.Text()))

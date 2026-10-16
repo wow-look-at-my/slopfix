@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -26,16 +27,43 @@ const releaseExclude = "# exclude.txt - paths left out of the snapshot.\n" +
 	"NOTES.md\n" +
 	"**/NOTES.md\n"
 
-// Lines that each hold one word are entries of a list, so no repair joins
-// them. This holds for any file the prose rules read, whatever its extension.
-func TestAnEntryListIsNotJoined(t *testing.T) {
-	path := ".github/release-exclude.txt"
-	assert.Empty(t, slopfix.CheckContent(path, releaseExclude))
-	out := slopfix.Fix(slopfix.Request{Content: releaseExclude, Path: path, MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
-	assert.Equal(t, releaseExclude, out)
+// A wrapped run of one-word lines is a finding, and no repair joins the
+// entries. In markdown each becomes a list item.
+func TestAnEntryRunInMarkdownBecomesAList(t *testing.T) {
+	src := ".claude/\n**/.claude/\nCLAUDE.md\n"
+	require.NotEmpty(t, slopfix.CheckContent("paths.md", src))
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: "paths.md", MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+	assert.Equal(t, "- .claude/\n- **/.claude/\n- CLAUDE.md\n", out)
+	assert.Empty(t, slopfix.CheckContent("paths.md", out))
+}
 
+// A text file a program reads keeps every entry a bare line: the repair parts
+// the entries with blank lines, which such a file ignores.
+func TestAnEntryRunInATextFileKeepsBareLines(t *testing.T) {
+	path := ".github/release-exclude.txt"
+	require.NotEmpty(t, slopfix.CheckContent(path, releaseExclude))
+	out := slopfix.Fix(slopfix.Request{Content: releaseExclude, Path: path, MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+	assert.Empty(t, slopfix.CheckContent(path, out))
+	assert.Equal(t, nonBlank(releaseExclude), nonBlank(out), "every line the program reads survives")
+	assert.Contains(t, out, ".tools/\n\n**/.tools/\n")
+}
+
+// nonBlank lists the lines of text that hold something.
+func nonBlank(text string) []string {
+	var out []string
+	for _, line := range strings.Split(text, "\n") {
+		if strings.TrimSpace(line) != "" {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+// Prose after the entries is a document too, and joins.
+func TestProseAfterEntriesStillJoins(t *testing.T) {
 	prose := releaseExclude + "The release script reads these entries\none per line.\n"
-	assert.NotEmpty(t, slopfix.CheckContent(path, prose), "the control: a text file with prose in it is a document")
+	out := slopfix.Fix(slopfix.Request{Content: prose, Path: ".github/release-exclude.txt", MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+	assert.Contains(t, out, "The release script reads these entries one per line.\n")
 }
 
 var unrepairedParagraphs = map[string]string{

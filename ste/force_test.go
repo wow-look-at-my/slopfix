@@ -146,6 +146,7 @@ func TestAForcedDivisionNeverWritesThisIsInFrontOfAClauseOrAPhrase(t *testing.T)
 		for _, bad := range []string{"This is a command", "This is from there", "This is use", "This is not", "This is or"} {
 			assert.NotContains(t, got, bad, got)
 		}
+		assert.Empty(t, sentenceLengths(got), got)
 	}
 }
 
@@ -164,6 +165,7 @@ func TestADivisionKeepsADashAsideAndAReducedRelative(t *testing.T) {
 	} {
 		got := ste.Fix(in)
 		assert.NotContains(t, got, bad, got)
+		assert.Empty(t, sentenceLengths(got), got)
 	}
 }
 
@@ -183,6 +185,7 @@ func TestADivisionLeavesEachPartASentence(t *testing.T) {
 	for _, c := range cases {
 		got := ste.Fix(c[0])
 		assert.NotContains(t, got, c[1], got)
+		assert.Empty(t, sentenceLengths(got), got)
 	}
 }
 
@@ -193,6 +196,7 @@ func TestAForcedDivisionNeverOpensOnAListItem(t *testing.T) {
 	got := ste.Fix(in)
 	assert.NotContains(t, got, "This is staging", got)
 	assert.NotContains(t, got, "between cook.", got)
+	assert.Empty(t, sentenceLengths(got), got)
 }
 
 // A division never ends a part on a verb and opens the rest on its object.
@@ -200,6 +204,7 @@ func TestAForcedDivisionKeepsAVerbWithItsObject(t *testing.T) {
 	in := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a careful repair rather than a quiet deletion."
 	got := ste.Fix(in)
 	assert.NotContains(t, got, "deserves.", got)
+	assert.Empty(t, sentenceLengths(got), got)
 }
 
 // A verb that opens the rest gets the subject again.
