@@ -33,7 +33,7 @@ var declaredFixtureRefs = map[string]string{
 
 	"someone/notify-irc@v2": "tag",
 
-	"wow-look-at-my/go-toolchain":                   "master",
+	"wow-look-at-my/go-toolchain":                    "master",
 	"wow-look-at-my/go-toolchain@master":             "branch",
 	"wow-look-at-my/go-toolchain@lkgb":               "tag",
 	"wow-look-at-my/go-toolchain@drop-common-checks": "tag",
