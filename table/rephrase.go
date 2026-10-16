@@ -58,12 +58,46 @@ func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose stri
 		}
 		out.WriteString(prose[last:spans[i].at])
 		matched := prose[spans[i].at:spans[end-1].end]
-		out.WriteString(MatchCase(matched, Expand(entry.To, caught)))
+		out.WriteString(caseAt(prose, spans[i].at, matched, Expand(entry.To, caught)))
 		last = spans[end-1].end
 		i = end
 	}
 	out.WriteString(prose[last:])
 	return closeGaps(out.String())
+}
+
+// caseAt is MatchCase for a match at offset at in prose. A capital opens the
+// replacement only where the match opens a sentence, or where the author
+// capitalized a plain word.
+func caseAt(prose string, at int, matched, replacement string) string {
+	if !opensSentence(prose[:at]) && emphatic(prose[:at], matched) {
+		return replacement
+	}
+	return MatchCase(matched, replacement)
+}
+
+// opensSentence reports whether the text before a word ends a sentence, or is empty.
+func opensSentence(before string) bool {
+	trimmed := strings.TrimRight(before, " \t\r\n")
+	return trimmed == "" || strings.ContainsAny(trimmed[len(trimmed)-1:], ".!?")
+}
+
+// emphatic reports a first word in capitals, or a capitalized first word after
+// a lower-case word. Either way, the capital is not a sentence opener.
+func emphatic(before, matched string) bool {
+	word := matched
+	if end := strings.IndexFunc(matched, func(r rune) bool { return r < 'A' || (r > 'Z' && r < 'a') || r > 'z' }); end >= 0 {
+		word = matched[:end]
+	}
+	if len(word) > 1 && strings.ToUpper(word) == word && strings.ToLower(word) != word {
+		return true
+	}
+	prev := strings.Fields(before)
+	if len(prev) == 0 {
+		return false
+	}
+	last := prev[len(prev)-1]
+	return last[0] >= 'a' && last[0] <= 'z'
 }
 
 // spaced reports whether whitespace alone joins the words, so a hyphenated compound stays whole.
