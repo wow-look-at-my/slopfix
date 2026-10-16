@@ -15,7 +15,7 @@ func init() {
 			{
 				Name: "a relative clause stays with its noun", Path: "x.md",
 				Text: "The reader answers the first prose paragraph of text as one restated sentence that carries a later \"that\" clause with the verb that governs it, laid out under a leading heading where both fit.\n",
-				Want: "The reader answers the first prose paragraph of text as one restated sentence that carries a later \"that\" clause with the verb. That verb governs it, laid out under a leading heading where both fit.\n",
+				Want: "The reader answers the first prose paragraph of text as one restated sentence that carries a later \"that\" clause. This happens with the verb that governs it, laid out under a leading heading where both fit.\n",
 			},
 			{
 				Name: "a colon before a clause with its own subject", Path: "x.md",

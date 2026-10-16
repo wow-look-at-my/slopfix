@@ -205,7 +205,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		return head, restate(source, prev, pronoun+" "+rest), opensWithCarrier
 	// "the words after the cut are no clause": a verb after the phrase makes it part of the subject.
-	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
+	case seam != ":" && carrierAdverbial.Contains(lower) && !standsWithMainClause(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
 		adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
 		(!inRelative(whole, first-1) || everyNext(whole, first)) && !coordinatedVerb(whole, first):
 		// A reason reads behind "This is", whatever the verb: "This is because X".
@@ -483,6 +483,19 @@ func topCommas(text string, from int) []int {
 		}
 	}
 	return out
+}
+
+// standsWithMainClause reports text that stands alone and, when it opens on a
+// preposition, holds a finite verb outside a relative clause.
+func standsWithMainClause(rest string) bool {
+	if !StandsAlone(rest) {
+		return false
+	}
+	s := syntax.Parse(checkMask(rest), nil)
+	if len(s.Words) > 0 && (s.Words[0].Tag == "IN" || s.Words[0].Tag == "TO") {
+		return finiteOutsideRelative(s, 0)
+	}
+	return true
 }
 
 // plainPhrase reports the words from i to the end of the sentence when they// are plain. Outside a parenthesis, they hold no comma, no conjunction, no
