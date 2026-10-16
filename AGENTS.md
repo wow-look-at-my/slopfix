@@ -231,6 +231,8 @@ Fences, indented code and blockquotes are exempt. Inline backticks are not. A se
 
 It reports only, because the repair is work. The `laziness` hook guard runs it at Stop, because only a Stop hook can stop the model stopping. The hook answers with the single word the reader types back. It gives nothing to argue with. The guard reads the transcript when the payload carries no message.
 
+On PreToolUse the same guard reads the questions and options of `AskUserQuestion`, the prompt of `Agent` and the message of `SendMessage`. It denies one that asks permission to do a fix, or frames a fix as something the user grants. The denial names the shape and quotes the sentence.
+
 ## blamelanguage: a message that deflects blame
 
 `blame/deflection` marks a message that deflects the work onto another author or an earlier time. It never refuses. A Stop refusal runs after the message streams. It unsends nothing. The retype then loops without a bound. The standing rule for a guard here is to mitigate rather than refuse.

@@ -76,6 +76,14 @@ var tells = []tell{
 	{"asking permission in place of acting", regexp.MustCompile(`(?i)\blet\s+me\s+know\s+if\s+you\s*(?:'|’)?d?\s*(?:would\s+)?like\b`)},
 	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bI\s+can\s+\S[^.!?\n]{0,60}\s+if\s+you\s*(?:'|’)?d?\s*(?:would\s+)?like\b`)},
 	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bsay\s+the\s+word\b`)},
+	{"asking permission in place of acting", regexp.MustCompile(`(?i)\b(?:can|may|could)\s+I\s+(?:go\s+ahead\s+and\s+)?(?:fix|repair|patch|change|edit|touch|work\s+on)\b[^.!?\n]*\?`)},
+	{"asking permission in place of acting", regexp.MustCompile(`(?i)\b(?:ok|okay|alright|fine)\s+(?:if\s+I|to|for\s+me\s+to)\s+(?:fix|repair|patch|change|edit|touch|work\s+on|proceed|go\s+ahead)\b[^.!?\n]*\?`)},
+
+	// A fix framed as something the user grants. Fixing needs no one's permission.
+	{"treating a fix as needing permission", regexp.MustCompile(`(?i)\bthe\s+user\s+(?:has\s+)?(?:authori[sz]ed|approved|permitted|allowed|cleared|okayed|signed\s+off\s+on)\s+(?:fixing|repairing|changing|editing|touching|work(?:ing)?\s+on|me\s+to|you\s+to|the\s+fix|a\s+fix)\b`)},
+	{"treating a fix as needing permission", regexp.MustCompile(`(?i)\boff[- ]limits\s+(?:unless|until|without)\b`)},
+	{"treating a fix as needing permission", regexp.MustCompile(`(?i)\bI(?:\s+am|['\x{2019}]m)\s+(?:asking|checking\s+with)\s+the\s+user\b`)},
+	{"treating a fix as needing permission", regexp.MustCompile(`(?i)\b(?:needs?|needing|requires?|wait(?:s|ing)?\s+(?:for|on))\s+(?:the\s+user['\x{2019}]?s?|your)\s+(?:permission|approval|authori[sz]ation|go-?ahead|OK|okay|sign-?off)\b`)},
 }
 
 // pardons mean the obligation was met. A sentence carrying a tell AND saying
