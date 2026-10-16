@@ -26,9 +26,9 @@ func TestTheTableFailsOnInvalidContent(t *testing.T) {
 		"a drop test that does not fire": {`<drop word="just" test="It really fails"/>`, "is matched by nothing"},
 		"a drop with child tests of one input": {
 			`<drop word="just" test="It just fails"><test in="It JUST fails" out="It fails"/></drop>`, "repeats the one"},
-		"a pattern with no expectation": {`<pattern match="a+" replace="b" test="aa"/>`, "needs a expect"},
+		"a pattern with no expectation":    {`<pattern match="a+" replace="b" test="aa"/>`, "needs a expect"},
 		"a pattern naming a missing group": {`<pattern match="(a)" replace="$2" test="a" expect="b"/>`, "names the group"},
-		"a pattern that does not compile": {`<pattern match="(" replace="b" test="(" expect="b"/>`, "does not compile"},
+		"a pattern that does not compile":  {`<pattern match="(" replace="b" test="(" expect="b"/>`, "does not compile"},
 		"a shape writing a capture nothing makes": {
 			`<shape id="s" match="the one {noun:n}" replace="{x}" test="the one cat" expect="cat"/>`, "no term of the match captures"},
 		"a rewrite to itself": {`<rewrite from="once" to="ONCE" test="once"/>`, "rewritten to itself"},
@@ -36,11 +36,11 @@ func TestTheTableFailsOnInvalidContent(t *testing.T) {
 			`<rewrite from="in order" to="to" test="in order"/><rewrite from="in order to" to="to" test="in order to"/>`, "never fires"},
 		"a drop behind its part": {
 			`<drop word="very" test="very"/><drop word="very much" test="very much"/>`, "never fires"},
-		"an expect on a drop": {`<drop word="just" test="It just fails" expect="It fails"/>`, `no attribute "expect"`},
-		"a surface outside the three": {`<drop word="just" test="just" where="margin"/>`, "is not one of"},
-		"a subject outside the two": {`<pattern match="a" replace="b" test="a" expect="b" subject="after"/>`, "is not one of"},
-		"a case value outside the two": {`<drop word="just" test="just" case="yes"/>`, `is not "sensitive" or "insensitive"`},
-		"a root test no entry matches": {`<drop word="just" test="just"/><test in="It never fails" out="It fails"/>`, "matched by no entry"},
+		"an expect on a drop":               {`<drop word="just" test="It just fails" expect="It fails"/>`, `no attribute "expect"`},
+		"a surface outside the three":       {`<drop word="just" test="just" where="margin"/>`, "is not one of"},
+		"a subject outside the two":         {`<pattern match="a" replace="b" test="a" expect="b" subject="after"/>`, "is not one of"},
+		"a case value outside the two":      {`<drop word="just" test="just" case="yes"/>`, `is not "sensitive" or "insensitive"`},
+		"a root test no entry matches":      {`<drop word="just" test="just"/><test in="It never fails" out="It fails"/>`, "matched by no entry"},
 		"a root test that leaves its input": {`<drop word="just" test="just"/><test in="It never fails" out="It never fails"/>`, ""},
 		"two entries answering one input differently": {
 			`<drop word="just" test="a just"><test in="It just fails" out="It fails"/></drop>` +

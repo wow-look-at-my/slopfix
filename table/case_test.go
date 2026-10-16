@@ -78,22 +78,22 @@ func TestARephraseIgnoresCaseByDefault(t *testing.T) {
 func TestLoadRefusesInvalidContent(t *testing.T) {
 	test := func(in, out string) string { return `<test in="` + in + `" out="` + out + `"/>` }
 	for name, c := range map[string]struct{ root, body, want string }{
-		"two drops that differ in case": {"", `<drop id="a" word="Just">` + test("It just fails", "It fails") + `</drop><drop id="b" word="just">` + test("It just fails", "It fails") + `</drop>`, "repeats the one"},
+		"two drops that differ in case":                    {"", `<drop id="a" word="Just">` + test("It just fails", "It fails") + `</drop><drop id="b" word="just">` + test("It just fails", "It fails") + `</drop>`, "repeats the one"},
 		"two sensitive drops that differ in case are fine": {` case="sensitive"`, `<drop id="a" word="Just">` + test("It Just fails", "It fails") + `</drop><drop id="b" word="just">` + test("It just fails", "It fails") + `</drop>`, ""},
-		"two tests with one input": {"", `<drop id="a" word="just">` + test("It just fails", "It fails") + test("it JUST fails", "it fails") + `</drop>`, "repeats the one"},
-		"two entries expecting two results": {"", `<drop id="a" word="just">` + test("It just fails", "It fails") + `</drop><drop id="b" word="fails">` + test("It just fails", "It just") + `</drop>`, "expects a different result"},
-		"a test its entry does not match": {"", `<drop id="a" word="just">` + test("It really fails", "It fails") + `</drop>`, "is matched by nothing"},
-		"a rephrase test its match does not fit": {"", `<rephrase id="r" match="only one" to="a single">` + test("Only two here", "A single here") + `</rephrase>`, "is matched by nothing"},
-		"a pattern that does not compile": {"", `<pattern id="p" match="(" to="x">` + test("(", "x") + `</pattern>`, "error parsing regexp"},
-		"a pattern naming a missing group": {"", `<pattern id="p" match="(one)" to="$2">` + test("one", "x") + `</pattern>`, "names the group"},
-		"a rephrase writing a capture nothing makes": {"", `<rephrase id="r" match="only one" to="{n}">` + test("only one", "") + `</rephrase>`, "no term of the match captures"},
-		"a normalize writing a space": {"", `<normalize id="n" from="a" to="b c">` + test("a", "b c") + `</normalize>`, "holds a space"},
-		"a rewrite to itself": {"", `<rewrite id="w" from="once" to="Once">` + test("once", "Once") + `</rewrite>`, "rewritten to itself"},
-		"a longer phrase behind its part": {"", `<rewrite id="a" from="one" to="a single">` + test("one", "a single") + `</rewrite><rewrite id="b" from="one or more" to="any">` + test("one or more", "any") + `</rewrite>`, "never fires"},
-		"an unknown attribute": {"", `<drop id="a" word="just" color="red">` + test("just", "") + `</drop>`, `no attribute "color"`},
-		"a case value outside the two": {"", `<drop id="a" word="just" case="maybe">` + test("just", "") + `</drop>`, `is not "sensitive" or "insensitive"`},
-		"two classes of one name": {"", `<class name="n" words="a"/><class name="n" words="b"/>`, "repeats the one"},
-		"a normalize that takes case": {"", `<normalize id="n" from="a" to="b" case="sensitive">` + test("a", "b") + `</normalize>`, "does not take case="},
+		"two tests with one input":                         {"", `<drop id="a" word="just">` + test("It just fails", "It fails") + test("it JUST fails", "it fails") + `</drop>`, "repeats the one"},
+		"two entries expecting two results":                {"", `<drop id="a" word="just">` + test("It just fails", "It fails") + `</drop><drop id="b" word="fails">` + test("It just fails", "It just") + `</drop>`, "expects a different result"},
+		"a test its entry does not match":                  {"", `<drop id="a" word="just">` + test("It really fails", "It fails") + `</drop>`, "is matched by nothing"},
+		"a rephrase test its match does not fit":           {"", `<rephrase id="r" match="only one" to="a single">` + test("Only two here", "A single here") + `</rephrase>`, "is matched by nothing"},
+		"a pattern that does not compile":                  {"", `<pattern id="p" match="(" to="x">` + test("(", "x") + `</pattern>`, "error parsing regexp"},
+		"a pattern naming a missing group":                 {"", `<pattern id="p" match="(one)" to="$2">` + test("one", "x") + `</pattern>`, "names the group"},
+		"a rephrase writing a capture nothing makes":       {"", `<rephrase id="r" match="only one" to="{n}">` + test("only one", "") + `</rephrase>`, "no term of the match captures"},
+		"a normalize writing a space":                      {"", `<normalize id="n" from="a" to="b c">` + test("a", "b c") + `</normalize>`, "holds a space"},
+		"a rewrite to itself":                              {"", `<rewrite id="w" from="once" to="Once">` + test("once", "Once") + `</rewrite>`, "rewritten to itself"},
+		"a longer phrase behind its part":                  {"", `<rewrite id="a" from="one" to="a single">` + test("one", "a single") + `</rewrite><rewrite id="b" from="one or more" to="any">` + test("one or more", "any") + `</rewrite>`, "never fires"},
+		"an unknown attribute":                             {"", `<drop id="a" word="just" color="red">` + test("just", "") + `</drop>`, `no attribute "color"`},
+		"a case value outside the two":                     {"", `<drop id="a" word="just" case="maybe">` + test("just", "") + `</drop>`, `is not "sensitive" or "insensitive"`},
+		"two classes of one name":                          {"", `<class name="n" words="a"/><class name="n" words="b"/>`, "repeats the one"},
+		"a normalize that takes case":                      {"", `<normalize id="n" from="a" to="b" case="sensitive">` + test("a", "b") + `</normalize>`, "does not take case="},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := load(c.root, c.body)
