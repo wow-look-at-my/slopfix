@@ -86,8 +86,8 @@ func TestCheckReportsTheProseRules(t *testing.T) {
 	}{
 		"contraction":  {"The runner doesn't care.\n", "STE bans contractions"},
 		"banned modal": {"The caller should write a period.\n", "STE bans this modal"},
-		"semicolon":    {"The runner cares; the caller does not.\n", "STE bans the semicolon"},
-		"comma splice": {"The command failed, so the run stops.\n", "a comma joining two clauses is the semicolon STE bans, spelled differently"},
+		"semicolon":    {"The runner cares; the caller does not.\n", "a semicolon joins sentences that a period keeps apart"},
+		"comma splice": {"The command failed, so the run stops.\n", "a comma joins two clauses that each stand alone"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
