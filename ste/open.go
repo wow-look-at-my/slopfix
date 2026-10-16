@@ -195,7 +195,7 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 		if head.Tag == "PRP" {
 			return lowerOpening(head.Text)
 		}
-		if subject.Last-subject.First < restateLimit && !subject.Coordinated {
+		if restates(s, subject) {
 			// A noun that disagrees with the verb after the cut is not its subject.
 			if plural := s.Plural(subject); tag == "VBZ" && plural || tag == "VBP" && !plural && !partitives.Contains(strings.ToLower(head.Text)) {
 				return ""

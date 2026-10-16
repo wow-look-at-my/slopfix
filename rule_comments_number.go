@@ -18,7 +18,7 @@ func init() {
 			{Name: "a cut keeps the rule that opens each line", Path: "test-governor.cpp", Text: ruledNumbersCase, Want: ruledNumbersWant},
 			{Name: "index zero after a possessive is the first item", Path: "froxel-path.h", Text: chunkZeroCase, Want: chunkZeroWant},
 			{Name: "index zero is the first item", Path: "froxel-path.cpp", Text: frameZeroCase, Want: frameZeroWant},
-			{Name: "a value is never a count", Path: "warp-pass.h", Text: valuesCase, Want: valuesWant},
+			{Name: "a value is cut with its sentence", Path: "warp-pass.h", Text: valuesCase, Want: valuesWant},
 			{Name: "a cut paragraph takes its break with it", Path: "warp-pass.h", Text: cutParagraphCase, Want: cutParagraphWant},
 			// A zero that is the subject of a verb, as in buildhost's upload.ts.
 			{Name: commentfix.ID + "-zero-subject", Path: "size.ts", Text: "/** The size from the input: empty is the default, 0 disables chunking. */\nexport function size(input: string): number {\n\treturn input.length;\n}\n"},
@@ -43,8 +43,6 @@ const cutParagraphCase = `struct WarpPass {
 `
 
 const cutParagraphWant = `struct WarpPass {
-  // It reads N px/texel (N in {1,2,4,8}; 0 = off).
-  // Pin --warp-field 0 for the pre-field warp.
   void record(int n) {
     density_ = n;
     mask_ = 0;
@@ -74,8 +72,9 @@ const chunkZeroWant = `struct FroxelPath {
 };
 `
 
-// valuesCase holds a single count beside values the repair leaves alone: the
-// value of a flag, a set literal and an assignment.
+// valuesCase holds a count beside the value of a flag, a set literal and an
+// assignment. The repair says the count in words and cuts each sentence that
+// holds a value.
 const valuesCase = `struct WarpPass {
   // Run answers one call 3 ways and ships 4 hooks.
   //
@@ -92,9 +91,6 @@ const valuesCase = `struct WarpPass {
 
 const valuesWant = `struct WarpPass {
   // Run answers one call multiple ways and ships hooks.
-  //
-  // It reads N px/texel (N in {1,2,4,8}; 0 = off).
-  // Pin --warp-field 0 for the pre-field warp.
   void record(int n) {
     density_ = n;
     mask_ = 0;

@@ -549,7 +549,7 @@ func mainSubject(source string, s *syntax.Sentence, verb syntax.Phrase, tag stri
 		if head.Tag == "PRP" {
 			return lowerOpening(head.Text)
 		}
-		if subject.Last-subject.First < restateLimit && !subject.Coordinated {
+		if restates(s, subject) {
 			text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 			if det := s.Words[subject.First].Lower(); det == "a" || det == "an" {
 				text = "the" + text[len(det):]
