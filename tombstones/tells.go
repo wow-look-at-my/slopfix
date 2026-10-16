@@ -54,7 +54,8 @@ type Hit struct {
 	Line   string `json:"line"`
 
 	Strippable bool `json:"strippable"`
-	LineNo     int  `json:"lineNo"`
+	// LineNo is the line of the hit, counted from one.
+	LineNo int `json:"lineNo"`
 	// EndLineNo is the last line of a hit that judges a whole block, counted from one, and zero for any other hit.
 	EndLineNo int `json:"endLineNo,omitempty"`
 	// Fix asks for a rewrite by hand when no repair can make the text whole. It is empty for any other hit.
@@ -89,37 +90,39 @@ func Find(blocks []Block, maxLines int) []Hit {
 }
 
 // linePurity looks a block-relative line index up in b's parallel arrays. A
-// document paragraph has no Pure: its line is placed, and never stripped whole.
+// line the block does not judge is placed, and never stripped whole.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
-	if li >= len(b.LineNos) {
+	if li < 0 || li >= len(b.LineNos) {
 		return -1, false
 	}
-	if li >= len(b.Pure) {
-		return b.LineNos[li], false
-	}
-	return b.LineNos[li], b.Pure[li]
+	return b.LineNos[li], li < len(b.Pure) && b.Pure[li]
 }
 
 // HitForName builds the Hit for a dead referent, carrying the strip metadata a
 // wording-based tell gets.
 func HitForName(blocks []Block, name string) Hit {
 	for _, b := range blocks {
-		for li, line := range strings.Split(b.Text, "\n") {
-			if !strings.Contains(line, name) {
+		lines := strings.Split(b.Text, "\n")
+		// The name is sought in the comment prose, so a code line that uses it never places the hit.
+		proseLines := strings.Split(b.Prose, "\n")
+		for li, prose := range proseLines {
+			if !strings.Contains(prose, name) || li >= len(lines) {
 				continue
 			}
+			line := lines[li]
 			lineNo, pure := linePurity(b, li)
 			return Hit{
-				ID:         ruleID(deadReferent),
-				Tell:       deadReferent,
-				Phrase:     name,
-				Line:       strings.TrimSpace(line),
-				Strippable: pure,
-				LineNo:     lineNo,
+				ID:     ruleID(deadReferent),
+				Tell:   deadReferent,
+				Phrase: name,
+				Line:   strings.TrimSpace(line),
+				// A line that holds another sentence too is cut, not stripped.
+				Strippable: pure && wholeSentencesOnLine(proseLines, li, name),
+				LineNo:     lineNo + 1,
 			}
 		}
 	}
-	return Hit{ID: ruleID(deadReferent), Tell: deadReferent, Phrase: name, Line: name, LineNo: -1}
+	return Hit{ID: ruleID(deadReferent), Tell: deadReferent, Phrase: name, Line: name}
 }
 
 func firstLine(s string) string {

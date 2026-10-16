@@ -17,7 +17,7 @@ type shellStep struct {
 	number int
 	step   *yaml.Node
 	run    *yaml.Node
-	block  scriptRows
+	block  scriptLines
 	// shell is the step's own shell key, or else the job's or the workflow's defaults.run.shell.
 	shell string
 	// moved reports a working-directory that starts the step outside the checkout root.
@@ -36,7 +36,7 @@ func shellSteps(content string) []shellStep {
 	if jobs == nil {
 		return nil
 	}
-	rows := lines(content)
+	fileLines := lines(content)
 	spans := blockScalars(content)
 	var out []shellStep
 	for i := 0; i+1 < len(jobs.Content); i += 2 {
@@ -66,7 +66,7 @@ func shellSteps(content string) []shellStep {
 			if !bashLike(s.shell) {
 				continue
 			}
-			s.block = scriptOf(run, rows, spans)
+			s.block = scriptOf(run, fileLines, spans)
 			out = append(out, s)
 		}
 	}
@@ -133,7 +133,7 @@ func testsInYAML(content string) []ste.Finding {
 	return out
 }
 
-func (b scriptRows) findings() []ste.Finding {
+func (b scriptLines) findings() []ste.Finding {
 	script := strings.Join(b.lines, "\n")
 	annotates := strings.Contains(script, "::error")
 	ends := exitWord.MatchString(script)

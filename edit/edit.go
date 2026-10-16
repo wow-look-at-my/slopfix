@@ -175,22 +175,22 @@ func Splice(src string, edits []Edit) string {
 	return b.String()
 }
 
-// Rows is an Edit over whole rows, counted from zero, of src. The first col
-// bytes of row from stay as written. With no lines and a col of zero, the rows
+// Lines is an Edit over whole lines, counted from zero, of src. The first col
+// bytes of line from stay as written. With no lines and a col of zero, the lines
 // go, line ends and all.
-func Rows(src string, from, to, col int, lines []string) Edit {
-	starts := rowStarts(src)
+func Lines(src string, from, to, col int, lines []string) Edit {
+	starts := lineStarts(src)
 	if from < 0 || to >= len(starts) || from > to {
 		return Edit{Start: -1, End: -1}
 	}
 	start := starts[from] + col
-	end := rowEnd(src, starts, to)
+	end := lineEnd(src, starts, to)
 	if len(lines) == 0 && col == 0 {
 		switch {
 		case to+1 < len(starts):
 			end = starts[to+1]
 		case start > 0:
-			// The last row has no line end of its own, so the one before it goes.
+			// The last line has no line end of its own, so the one before it goes.
 			start--
 		}
 		return Edit{Start: start, End: end}
@@ -198,53 +198,53 @@ func Rows(src string, from, to, col int, lines []string) Edit {
 	return Edit{Start: start, End: end, Text: strings.Join(lines, "\n")}
 }
 
-// rowStarts answers the byte each row opens at. A repair asks it once for each
+// lineStarts answers the byte each line opens at. A repair asks it once for each
 // edit on the same text, so it remembers recent texts. Callers must not change the slice.
-func rowStarts(src string) []int {
-	key := rowKey{data: unsafe.StringData(src), n: len(src)}
-	rowCache.mu.Lock()
-	entry, ok := rowCache.byKey[key]
-	rowCache.mu.Unlock()
+func lineStarts(src string) []int {
+	key := lineKey{data: unsafe.StringData(src), n: len(src)}
+	lineCache.mu.Lock()
+	entry, ok := lineCache.byKey[key]
+	lineCache.mu.Unlock()
 	if ok {
 		return entry.starts
 	}
-	starts := scanRows(src)
-	rowCache.mu.Lock()
-	defer rowCache.mu.Unlock()
-	if _, ok := rowCache.byKey[key]; !ok {
-		if len(rowCache.order) == rowCacheSize {
-			delete(rowCache.byKey, rowCache.order[0])
-			rowCache.order = rowCache.order[1:]
+	starts := scanLines(src)
+	lineCache.mu.Lock()
+	defer lineCache.mu.Unlock()
+	if _, ok := lineCache.byKey[key]; !ok {
+		if len(lineCache.order) == lineCacheSize {
+			delete(lineCache.byKey, lineCache.order[0])
+			lineCache.order = lineCache.order[1:]
 		}
-		rowCache.order = append(rowCache.order, key)
+		lineCache.order = append(lineCache.order, key)
 		// The entry holds src, so its bytes stay put and no other text takes the key.
-		rowCache.byKey[key] = rowEntry{src: src, starts: starts}
+		lineCache.byKey[key] = lineEntry{src: src, starts: starts}
 	}
 	return starts
 }
 
-// rowKey names a text by where its bytes sit. A string never changes in place.
-type rowKey struct {
+// lineKey names a text by where its bytes sit. A string never changes in place.
+type lineKey struct {
 	data *byte
 	n    int
 }
 
-type rowEntry struct {
+type lineEntry struct {
 	src    string
 	starts []int
 }
 
-// rowCacheSize bounds the remembered texts: a few for each worker of a tree walk.
-const rowCacheSize = 64
+// lineCacheSize bounds the remembered texts: a few for each worker of a tree walk.
+const lineCacheSize = 64
 
-var rowCache = struct {
+var lineCache = struct {
 	mu    sync.Mutex
-	order []rowKey
-	byKey map[rowKey]rowEntry
-}{byKey: map[rowKey]rowEntry{}}
+	order []lineKey
+	byKey map[lineKey]lineEntry
+}{byKey: map[lineKey]lineEntry{}}
 
-// scanRows finds the byte each row opens at.
-func scanRows(src string) []int {
+// scanLines finds the byte each line opens at.
+func scanLines(src string) []int {
 	starts := []int{0}
 	for i := 0; i < len(src); i++ {
 		if src[i] == '\n' {
@@ -254,20 +254,20 @@ func scanRows(src string) []int {
 	return starts
 }
 
-// rowEnd answers the byte a row's line end sits at, or the end of src.
-func rowEnd(src string, starts []int, row int) int {
-	if row+1 < len(starts) {
-		return starts[row+1] - 1
+// lineEnd answers the byte a line's end sits at, or the end of src.
+func lineEnd(src string, starts []int, line int) int {
+	if line+1 < len(starts) {
+		return starts[line+1] - 1
 	}
 	return len(src)
 }
 
-// Offset answers the byte a row and column name, or a negative for a row src
+// Offset answers the byte a line and column name, or a negative for a line src
 // does not have.
-func Offset(src string, row, col int) int {
-	starts := rowStarts(src)
-	if row < 0 || row >= len(starts) {
+func Offset(src string, line, col int) int {
+	starts := lineStarts(src)
+	if line < 0 || line >= len(starts) {
 		return -1
 	}
-	return starts[row] + col
+	return starts[line] + col
 }

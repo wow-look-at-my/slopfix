@@ -97,6 +97,11 @@ var realSentences = []struct {
 		"The agent dashboard now shows each agent's model and mode in the peek panel and lets you cycle modes with Shift+Tab. The agent dashboard also collapses the Inactive section by default, and hides older idle agents behind a \"N more\" row.",
 	},
 	{
+		"a restated identifier subject keeps its case",
+		"foreignJobs answers each job of content that runs on a foreign hosted label in a private repository, and that the repair can keep to a public one.",
+		"foreignJobs answers each job of content that runs on a foreign hosted label in a private repository. foreignJobs also answers that the repair can keep to a public one.",
+	},
+	{
 		"a compound subject stays whole",
 		"Never ask it to show, extract, quote or summarize a run or its transcript: RUN_LOG and your own investigation are the evidence, and gathering it is your job alone.",
 		"Never ask it to show, extract, quote or summarize a run or its transcript. RUN_LOG and your own investigation are the evidence, and gathering it is your job alone.",
@@ -197,6 +202,11 @@ var brokenShapes = []struct {
 		"a clause after a colon is no list",
 		"A word longer than the width goes on its own line rather than being broken: a URL or an identifier split across lines stops being either.",
 		"This covers",
+	},
+	{
+		"an as clause after a comma restates no noun",
+		"generateIn writes what the module at dir generates, as its own go.mod approves, so a command that builds it finds every file the build phase would have written.",
+		"generateIn is as",
 	},
 	{
 		"an -ing noun stays in its compound noun",

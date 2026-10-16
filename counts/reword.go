@@ -10,6 +10,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // RewordAt is reword for a caller that holds the phrase but no Hit: the
@@ -62,6 +63,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		// "25 words or fewer" caps the number from behind, so the cap words go with it and the noun stays.
 		text = "a bounded number of " + content[to:hit.End]
 		to = hit.End + len(ceilingAfter.FindString(content[hit.End:]))
+	case n == 0 && cardinal.ValueSubject(content, cardinal.Match{At: hit.Start, Text: hit.Phrase}):
+		// "0 disables chunking" names a value that acts, so the value keeps its place as the subject.
+		text = "a value of zero "
 	case n == 0 && !measures(hit.Phrase):
 		// Zero of a thing is none of it, and "a couple of" would claim some.
 		text = "no "
@@ -105,6 +109,7 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	capital := opensSentence(content, from) && (unicode.IsUpper(first) || !unicode.IsLetter(first))
 	switch {
 	case !capital:
+	case ste.NameLike(text), text == "" && ste.NameLike(content[e.End:]):
 	case text != "":
 		e.Text = strings.ToUpper(text[:1]) + text[1:]
 	default:
