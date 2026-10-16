@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -392,7 +391,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	noun := func(k int) bool {
 		w := s.Words[k]
 		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			!strings.ContainsAny(w.Text, "()[]{}`\"") && !versus.Contains(w.Lower())
+			wordlike(w.Text) && !versus.Contains(w.Lower())
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -408,6 +407,23 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		start = end
 	}
 	return -1, -1, false
+}
+
+// wordlike reports a token made of letters and digits, which can be a noun. The
+// tagger tags a symbol such as an arrow. A plus or a slash as a noun, and a
+// symbol between names is a chain or a list, not a cluster.
+func wordlike(text string) bool {
+	letter := false
+	for _, r := range text {
+		switch {
+		case unicode.IsLetter(r):
+			letter = true
+		case unicode.IsDigit(r) || strings.ContainsRune("-'._", r):
+		default:
+			return false
+		}
+	}
+	return letter
 }
 
 // rewriteCluster breaks a run of nouns apart: "the gate file system cache

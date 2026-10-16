@@ -23,19 +23,19 @@ func renameEdits(path, text string, blocks []Block, dead []string) []edit.Edit {
 	gone.AddRange(dead...)
 	var edits []edit.Edit
 	for _, name := range dead {
-		h := HitForName(blocks, name)
-		if h.LineNo < 0 || h.LineNo >= len(lines) {
+		lineNo := HitForName(blocks, name).LineNo - 1
+		if lineNo < 0 || lineNo >= len(lines) {
 			continue
 		}
 		with := replacementFor(path, text, lines, blocks, name, gone)
 		if with == "" {
 			continue
 		}
-		at := wordIndex(lines[h.LineNo], name)
+		at := wordIndex(lines[lineNo], name)
 		if at < 0 {
 			continue
 		}
-		start := starts[h.LineNo] + at
+		start := starts[lineNo] + at
 		edits = append(edits, edit.Edit{Start: start, End: start + len(name), Text: with, Cut: []string{name}})
 	}
 	return edits

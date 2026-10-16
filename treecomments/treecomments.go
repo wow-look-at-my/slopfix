@@ -173,6 +173,7 @@ func Extract(filename, src string) []Comment {
 	if strings.HasSuffix(filename, "_test.go") {
 		out = withoutExampleOutput(out)
 	}
+	out = withoutUserscriptMetadata(out)
 	if _, named := grammars[strings.ToLower(filepath.Ext(filename))]; !named {
 		out = wholeLineOnly(src, out)
 	}
