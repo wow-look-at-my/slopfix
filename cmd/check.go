@@ -169,6 +169,11 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 	// Invoked as "fix", the repair is what was asked for, flag or no flag.
 	repairing := checkFix || cmd.CalledAs() == "fix"
+	if repairing && len(args) > 0 {
+		if err := fixWorkTree(args); err != nil {
+			return err
+		}
+	}
 	rules, ids, err := selectedRules(checkOnly)
 	if err != nil {
 		return err
