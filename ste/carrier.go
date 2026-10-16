@@ -491,11 +491,16 @@ func standsWithMainClause(rest string) bool {
 	if !StandsAlone(rest) {
 		return false
 	}
-	s := syntax.Parse(checkMask(rest), nil)
-	if len(s.Words) > 0 && (s.Words[0].Tag == "IN" || s.Words[0].Tag == "TO") {
-		return finiteOutsideRelative(s, 0)
+	if startsWithPreposition(rest) {
+		return finiteOutsideRelative(syntax.Parse(checkMask(rest), nil), 0)
 	}
 	return true
+}
+
+// startsWithPreposition reports text whose first word is a preposition.
+func startsWithPreposition(text string) bool {
+	s := syntax.Parse(checkMask(text), nil)
+	return len(s.Words) > 0 && (s.Words[0].Tag == "IN" || s.Words[0].Tag == "TO")
 }
 
 // plainPhrase reports the words from i to the end of the sentence when they// are plain. Outside a parenthesis, they hold no comma, no conjunction, no
