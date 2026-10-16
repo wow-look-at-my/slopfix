@@ -107,7 +107,7 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 			return "", 0
 		}
 		return joinOpener(opener, rest), opensOwnClause - 1
-	case (conjunction == "or" || conjunction == "but") && opensNounPhrase(tag) && !listsVerbs(masked[:c.left]) &&
+	case (conjunction == "or" || conjunction == "but") && opensNounPhrase(tag) && !listsVerbs(masked[:c.left]) && startsModalClause(restMasked) &&
 		!lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
 		// "MUST agree or growth would ping-pong": a clause after "or" with its own subject is the alternative, behind "Otherwise,".
 		return joinOpener(opener, rest), opensOwnClause - 1
@@ -193,7 +193,7 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 	s := syntax.Parse(masked[:c.left], nil)
 	// Only the clause right before the cut shares its subject with the verb after it.
 	last := max(len(s.Clauses)-1, 0)
-	for last > 0 && s.Clauses[last].Depth > 0 {
+	for last > 0 && (s.Clauses[last].Depth > 0 || coordinateWithoutSubject(s, s.Clauses[last])) {
 		last--
 	}
 	for _, clause := range s.Clauses[last:min(last+1, len(s.Clauses))] {
@@ -237,6 +237,23 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 		return "it"
 	}
 	return ""
+}
+
+// coordinateWithoutSubject reports a coordinate clause whose named subject
+// cannot open one, as in "or history images".
+func coordinateWithoutSubject(s *syntax.Sentence, c syntax.Clause) bool {
+	return c.Kind == syntax.Coordinate && c.Subject != nil && !opensSubject(s, c.Subject.First)
+}
+
+// startsModalClause reports a rest whose first finite verb is a modal: "growth
+// would ping-pong". Only a modal tells a new clause from the rest of a noun group.
+func startsModalClause(rest string) bool {
+	for _, w := range syntax.Parse(rest, nil).Words {
+		if finiteVerbTag(w.Tag) || w.Tag == "MD" {
+			return w.Tag == "MD"
+		}
+	}
+	return false
 }
 
 // standsBeforeConjunction reports a head that holds a main clause and ends
