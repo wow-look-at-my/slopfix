@@ -109,7 +109,7 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		return joinOpener(opener, rest), opensOwnClause - 1
 	case (conjunction == "or" || conjunction == "but") && opensNounPhrase(tag) && !listsVerbs(masked[:c.left]) && startsModalClause(restMasked) &&
 		!lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
-		// "MUST agree or growth would ping-pong": a clause after "or" with its own subject is the alternative, behind "Otherwise,".
+		// "MUST agree or the cache would thrash": a clause after "or" with its own subject is the alternative, behind "Otherwise,".
 		return joinOpener(opener, rest), opensOwnClause - 1
 	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)):
 		// A dash or a colon before words that hold a main clause of their own: "— on first launch Grok runs your binary".
@@ -125,7 +125,7 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 }
 
 // opensAfterAdverb reports a word at first that is an adverb, then a noun
-// phrase: "only one splat-vulkan uses the GPU".
+// phrase: "only one sync-tool uses the disk".
 func opensAfterAdverb(s *syntax.Sentence, first int) bool {
 	next := skipAdverbs(s, first)
 	return next > first && next < len(s.Words) && opensNounPhrase(s.Words[next].Tag)
@@ -246,7 +246,7 @@ func coordinateWithoutSubject(s *syntax.Sentence, c syntax.Clause) bool {
 }
 
 // startsModalClause reports a rest whose first finite verb is a modal: "growth
-// would ping-pong". Only a modal tells a new clause from the rest of a noun group.
+// would thrash". Only a modal tells a new clause from the rest of a noun group.
 func startsModalClause(rest string) bool {
 	for _, w := range syntax.Parse(rest, nil).Words {
 		if finiteVerbTag(w.Tag) || w.Tag == "MD" {
@@ -289,7 +289,7 @@ func mistaggedNoun(s *syntax.Sentence, j int) bool {
 
 // inContactRelative reports a finite verb at j that a determiner and its noun
 // phrase govern right after a noun. A relative clause with its "that" left
-// out: "into the generation no pending warp binds".
+// out: "into the segment no pending reader holds".
 func inContactRelative(s *syntax.Sentence, j int) bool {
 	k := j - 1
 	for k >= 0 && (strings.HasPrefix(s.Words[k].Tag, "NN") || strings.HasPrefix(s.Words[k].Tag, "JJ") || s.Words[k].Tag == "VBG" || s.Words[k].Tag == "VBN") {

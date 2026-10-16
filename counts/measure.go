@@ -42,7 +42,7 @@ func countedEdit(content string, from int, line string, at int) (edit.Edit, bool
 
 // measureEdit writes the unit out where digits and an abbreviated unit end a
 // phrase: "alive 15 s later" reads "alive several seconds later". Before a
-// plural noun the measure goes with its number: "Quiet 30 s runs" reads "Quiet runs".
+// plural noun the measure goes with its number: "Idle 30 s jobs" reads "Idle jobs".
 func measureEdit(content string, start int, line string, at int, digits string) (edit.Edit, bool) {
 	loc := abbreviatedUnit.FindStringSubmatchIndex(line[at+len(digits):])
 	if loc == nil {

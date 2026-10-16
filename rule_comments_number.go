@@ -17,26 +17,26 @@ func init() {
 			{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"},
 			{
 				Name: "a verb before a zero count is no label", Path: "gate.cmake",
-				Text: "# Each run must exit 0, report the registry slots and the stripe mode, report 0 validation errors and write its PNG.\nset(A 1)\n",
-				Want: "# Each run must exit 0, report the registry slots and the stripe mode, report no validation errors and write its PNG.\nset(A 1)\n",
+				Text: "# Each run must exit 0, report the cache entries and the retry mode, report 0 validation errors and write its log.\nset(A 1)\n",
+				Want: "# Each run must exit 0, report the cache entries and the retry mode, report no validation errors and write its log.\nset(A 1)\n",
 			},
 			{
 				Name: "an exit status wrapped onto the next comment line", Path: "gate.h",
-				Text: "// Under --validate the validation errors of the device phases fail the run (exit\n// 2), the convention of the shed test.\nint runRecreateTest() {\n\tint failed = validate();\n\treturn failed;\n}\n",
-				Want: "// Under --validate the validation errors of the device phases fail the run\n// (exit 2), the convention of the shed test.\nint runRecreateTest() {\n\tint failed = validate();\n\treturn failed;\n}\n",
+				Text: "// Under --strict the lint errors of the build phases fail the run (exit\n// 2), the convention of the old suite.\nint runSuite() {\n\tint failed = lint();\n\treturn failed;\n}\n",
+				Want: "// Under --strict the lint errors of the build phases fail the run\n// (exit 2), the convention of the old suite.\nint runSuite() {\n\tint failed = lint();\n\treturn failed;\n}\n",
 			},
 			{
 				Name: "a comment after code continues on the aligned lines under it", Path: "opts.h",
 				Text: "struct Options {\n" +
-					"  bool sortShuffle = true;    // --sort-impl picks the sort the raster runs.\n" +
-					"  bool rasterStats = false;   // --raster-stats 0|1: compile the counters of\n" +
-					"                              //   the raster in. The image bytes stay the same.\n" +
-					"  double pairBudgetMb = 0.0;  // --pair-budget-mb caps the pair buffer.\n" +
+					"  bool tracePrefix = true;    // --prefix-mode picks the prefix the trace uses.\n" +
+					"  bool traceCounts = false;   // --trace-counts 0|1: compile the counters of\n" +
+					"                              //   the trace in. The log bytes stay the same.\n" +
+					"  double poolBudgetMb = 0.0;  // --pool-budget-mb caps the pool buffer.\n" +
 					"};\n",
 				Want: "struct Options {\n" +
-					"  bool sortShuffle = true;    // --sort-impl picks the sort the raster runs.\n" +
-					"  bool rasterStats = false;   // The image bytes stay the same.\n" +
-					"  double pairBudgetMb = 0.0;  // --pair-budget-mb caps the pair buffer.\n" +
+					"  bool tracePrefix = true;    // --prefix-mode picks the prefix the trace uses.\n" +
+					"  bool traceCounts = false;   // The log bytes stay the same.\n" +
+					"  double poolBudgetMb = 0.0;  // --pool-budget-mb caps the pool buffer.\n" +
 					"};\n",
 			},
 			{

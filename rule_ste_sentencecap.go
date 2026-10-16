@@ -14,32 +14,31 @@ func init() {
 			{Name: ste.IDSentenceCap, Path: "x.md", Text: "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n"},
 			{
 				Name: "a list item whose code spans count as words divides at so", Path: "x.md",
-				Text: "- Measured fact: each real packs into the `8.33 ms` present windows at about `66%` duty, so one real spans about `4` windows (`33 ms`) against the `27.8 ms` content tick.\n",
-				Want: "- Measured fact: each real packs into the `8.33 ms` present windows at about `66%` duty. One real spans about `4` windows (`33 ms`) against the `27.8 ms` content tick.\n",
+				Text: "- Measured fact: each static packs into the `8.33 ms` render windows at about `66%` duty, so one static spans about `4` windows (`33 ms`) against the `27.8 ms` frame tick.\n",
+				Want: "- Measured fact: each static packs into the `8.33 ms` render windows at about `66%` duty. One static spans about `4` windows (`33 ms`) against the `27.8 ms` frame tick.\n",
 			},
 			{
-				// From splat2's froxel-path-members.h, where `slopfix fix` left the finding standing.
 				Name: "a comment sentence behind a dash and a parenthesis", Path: "path.h",
-				Text: "class FroxelPath {\n" +
-					"  // The ONE pair-capacity law (pre-size envelope + adaptive high-water +\n" +
-					"  // budget/device clamps) — prepare() and growPairs() MUST agree byte-for-\n" +
-					"  // byte or growth would ping-pong through prepare()'s pairsChanged check.\n" +
+				Text: "class SlotPool {\n" +
+					"  // The ONE slot-capacity law (pre-size envelope + adaptive high-water +\n" +
+					"  // budget/device clamps) \u2014 reserve() and growSlots() MUST agree byte-for-\n" +
+					"  // byte or growth would thrash through reserve()'s slotsChanged check.\n" +
 					"  // Updates growthCap_/coarseGrowthCap_ as a side effect.\n" +
-					"  void computePairCapacities(const Context& ctx, uint32_t F, uint32_t Fc,\n" +
-					"                             uint32_t& pairCapacity,\n" +
-					"                             uint32_t& coarsePairCapacity);\n" +
+					"  void computeSlotCapacities(const Context& ctx, uint32_t F, uint32_t Fc,\n" +
+					"                             uint32_t& slotCapacity,\n" +
+					"                             uint32_t& coarseSlotCapacity);\n" +
 					"};\n",
-				Want: "class FroxelPath {\n" +
-					"  // The ONE pair-capacity law (pre-size envelope + adaptive high-water +\n" +
-					"  // budget/device clamps) — prepare() and growPairs() MUST agree\n" +
-					"  // byte-for-byte. Otherwise, growth would ping-pong through prepare()'s\n" +
-					"  // pairsChanged check. Updates growthCap_/coarseGrowthCap_ as a side\n" +
+				Want: "class SlotPool {\n" +
+					"  // The ONE slot-capacity law (pre-size envelope + adaptive high-water +\n" +
+					"  // budget/device clamps) \u2014 reserve() and growSlots() MUST agree\n" +
+					"  // byte-for-byte. Otherwise, growth would thrash through reserve()'s\n" +
+					"  // slotsChanged check. Updates growthCap_/coarseGrowthCap_ as a side\n" +
 					"  // effect.\n" +
-					"  void computePairCapacities(const Context& ctx, uint32_t F, uint32_t Fc,\n" +
-					"                             uint32_t& pairCapacity,\n" +
-					"                             uint32_t& coarsePairCapacity);\n" +
+					"  void computeSlotCapacities(const Context& ctx, uint32_t F, uint32_t Fc,\n" +
+					"                             uint32_t& slotCapacity,\n" +
+					"                             uint32_t& coarseSlotCapacity);\n" +
 					"};\n",
-				Files: map[string]string{"path.cpp": "int growPairs();\nint pairsChanged;\nint growthCap_;\nint coarseGrowthCap_;\nint prepare();\n"},
+				Files: map[string]string{"path.cpp": "int growSlots();\nint slotsChanged;\nint growthCap_;\nint coarseGrowthCap_;\nint reserve();\n"},
 			},
 			{
 				Name: "a clause whose long tail has no verb-safe cut", Path: "tail.md",
@@ -47,16 +46,14 @@ func init() {
 				Want: "The gate reads the cache file of the build host for each module of the tree. That tree is in the order of the paths of the list of the repository at the start of the run.\n",
 			},
 			{
-				// From a splat2 commit message: a division read the minus sign as a dash and wrote "This is 3f^3/2".
 				Name: "a formula is data that no division enters", Path: "msg.txt",
-				Text: "The gate fits the samples with w2 = f/2 + 2f^2 - 3f^3/2 for every frame of the run and it writes the weight into the table that the shader reads at startup.\n",
-				Want: "The gate fits the samples with w2 = f/2 + 2f^2 - 3f^3/2 for every frame of the run. It writes the weight into the table that the shader reads at startup.\n",
+				Text: "The gate fits the samples with k1 = f/3 + 4f^2 - 5f^3/2 for every frame of the run and it writes the weight into the table that the loader reads at startup.\n",
+				Want: "The gate fits the samples with k1 = f/3 + 4f^2 - 5f^3/2 for every frame of the run. It writes the weight into the table that the loader reads at startup.\n",
 			},
 			{
-				// From a splat2 commit message: "into the generation no pending warp binds" lost its relative clause to a division.
 				Name: "a relative clause with no that stays on its noun", Path: "msg.txt",
-				Text: "captureReal writes new snapshot or history images into the generation no pending warp binds and flips to it before the next real frame starts its capture pass.\n",
-				Want: "captureReal writes new snapshot or history images into the generation no pending warp binds. captureReal flips to it before the next real frame starts its capture pass.\n",
+				Text: "flushPage writes new index or journal entries into the segment no pending reader holds and flips to it before the next full commit starts its sync pass.\n",
+				Want: "flushPage writes new index or journal entries into the segment no pending reader holds. flushPage flips to it before the next full commit starts its sync pass.\n",
 			},
 			{
 				Name: "a sentence with no verb at all", Path: "noverb.md",
@@ -64,16 +61,14 @@ func init() {
 				Want: "A list of the cache files of the build host for each module of the tree. That tree is in the order of the paths of the list of the repository at the start of the run.\n",
 			},
 			{
-				// From splat2's system-lock.h: the division kept "at a time" off its verb.
 				Name: "a so clause keeps its adverbial", Path: "lock.md",
-				Text: "main() holds the \"gpu\" lock for every splat-vulkan run except --help and --dump-layouts, so only one splat-vulkan uses the GPU at a time.\n",
-				Want: "main() holds the \"gpu\" lock for every splat-vulkan run except --help and --dump-layouts. Only one splat-vulkan uses the GPU at a time.\n",
+				Text: "main() holds the \"disk\" lock for every sync-tool run except --help and --dump-config, so only one sync-tool uses the disk at a time.\n",
+				Want: "main() holds the \"disk\" lock for every sync-tool run except --help and --dump-config. Only one sync-tool uses the disk at a time.\n",
 			},
 			{
-				// From splat2's system-lock.h: the division after the colon dropped the verb "takes a ticket in".
 				Name: "a clause after a colon keeps its own subject", Path: "queue.md",
-				Text: "Every request takes a ticket in \"<lock file>.queue/\": a sequence number from the counter file, taken under flock on that file, names a ticket file that its owner holds flock(LOCK_EX) on for as long as it waits or holds.\n",
-				Want: "Every request takes a ticket in \"<lock file>.queue/\". A sequence number from the counter file, taken under flock on that file, names a ticket file. That file is one that its owner holds flock(LOCK_EX) on for as long as it waits or holds.\n",
+				Text: "Every job takes a slot in \"<state dir>.pool/\": a serial number from the index file, taken under flock on that file, names a slot file that its owner holds flock(LOCK_EX) on for as long as it waits or holds.\n",
+				Want: "Every job takes a slot in \"<state dir>.pool/\". A serial number from the index file, taken under flock on that file, names a slot file. That file is one that its owner holds flock(LOCK_EX) on for as long as it waits or holds.\n",
 			},
 			{
 				Name: "an object after or takes the main verb again", Path: "x.md",

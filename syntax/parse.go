@@ -131,7 +131,7 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 			words[inner].Tag = "VBZ"
 			return true
 		}
-		// A bare form after a plural inside the compound is the plural's verb: "Wave paths default ON".
+		// A bare form after a plural inside the compound is the plural's verb: "Cache paths default ON".
 		for k := p.First + 1; k < p.Head; k++ {
 			if words[k].Tag == "NN" && words[k-1].Tag == "NNS" && !strings.HasSuffix(words[k].Lower(), "s") {
 				words[k].Tag = "VBP"
@@ -229,10 +229,10 @@ func retag(words []Word) {
 			// "or "" when": a mask stands for data, which is a name and never a verb.
 			w.Tag = "NNP"
 		case w.Tag == "NN" && Is(w.Text, "bare-verb"):
-			// "locals computed in setup become plain members": no noun spells "become".
+			// "fields computed in setup become plain members": no noun spells "become".
 			w.Tag = "VBP"
 		case w.Tag == "NNS" && i > 1 && words[i-1].Tag == "JJ" && verbEnding(w.Text) && Is(words[i-2].Text, "singular-quantifier"):
-			// "each real packs into": a singular quantifier takes no plural noun, so its modifier is the noun and the -s form is the verb.
+			// "each static packs into": a singular quantifier takes no plural noun, so its modifier is the noun and the -s form is the verb.
 			words[i-1].Tag, w.Tag = "NN", "VBZ"
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "JJ" && verbEnding(w.Text) && opensNounPhrase(words[i+1]):
 			// "the build keeps every output": an -s form between a modifier and a determiner is the verb.

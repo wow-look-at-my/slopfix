@@ -13,8 +13,8 @@ func init() {
 		Autofix:  autofixNounCluster,
 		Cases: []RuleCase{
 			{Name: ste.IDNounCluster, Path: "w.md", Text: "The gate cache lookup table stopped.\n"},
-			{Name: "default is a verb after a plural subject, so no noun cluster stands there", Path: "w.md", Unchanged: true, Text: "Wave paths default ON wherever the ops exist.\n"},
-			{Name: "become is a verb after a reduced relative, so no noun cluster stands there", Path: "w.md", Unchanged: true, Text: "Move the locals into the class: locals computed in setup become plain members plus an assignment.\n"},
+			{Name: "default is a verb after a plural subject, so no noun cluster stands there", Path: "w.md", Unchanged: true, Text: "Cache paths default ON wherever the keys exist.\n"},
+			{Name: "become is a verb after a reduced relative, so no noun cluster stands there", Path: "w.md", Unchanged: true, Text: "Move the fields into the struct: fields computed in setup become plain members plus an assignment.\n"},
 		},
 	})
 }

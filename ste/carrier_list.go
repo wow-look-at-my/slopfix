@@ -37,8 +37,8 @@ func strandsPhrase(s *syntax.Sentence, rightStart int, right string) bool {
 }
 
 // contactRelative reports a division with no mark and no link word, between
-// a noun and a clause that opens on a determiner: "into the generation no
-// pending warp binds". The clause describes the noun, with its "that" left
+// a noun and a clause that opens on a determiner: "into the segment no
+// pending reader holds". The clause describes the noun, with its "that" left
 // out, so a sentence of its own inverts what it says.
 func contactRelative(s *syntax.Sentence, source string, d division) bool {
 	if strings.TrimSpace(source[d.leftEnd:d.rightStart]) != "" {
