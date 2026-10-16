@@ -147,14 +147,12 @@ func TestAListItemKeepsItsMarker(t *testing.T) {
 const commitTrailers = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n" +
 	"Claude-Session: https://claude.ai/code/session_017LJqj9QeyPBBaQJcbngeEo\n"
 
-// Git reads a trailer a line at a time, so each line is a block of its own
-// and Format joins none of them.
+// Git reads a trailer a line at a time, so the trailer block is no prose
+// block and Format joins none of its lines.
 func TestATrailerBlockKeepsALinePerTrailer(t *testing.T) {
 	doc := "Join the paragraph\nwrapped by hand.\n\n" + commitTrailers
 	blocks := prose(doc)
-	require.Len(t, blocks, 3)
-	assert.Equal(t, "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>", blocks[1].Text())
-	assert.Equal(t, "Claude-Session: https://claude.ai/code/session_017LJqj9QeyPBBaQJcbngeEo", blocks[2].Text())
+	require.Len(t, blocks, 1)
 	assert.Equal(t, "Join the paragraph wrapped by hand.\n\n"+commitTrailers, markdown.Format(doc))
 }
 
