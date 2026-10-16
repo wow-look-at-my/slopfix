@@ -64,7 +64,7 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 	}
 	c, found := pick(func(c forceCut) bool {
 		head := closeHead(source[:c.left])
-		return !cutsAside(masked, c.left, c.right) && standsAsSentence(head) && headHoldsMainVerb(whole, c.left) &&
+		return !cutsAside(masked, c.left, c.right) && standsAsSentence(head) && headHoldsMainVerb(whole, c.left) && closesAPhrase(head) &&
 			!forceBound.Contains(firstWordOf(source[c.right:]))
 	})
 	if !found {

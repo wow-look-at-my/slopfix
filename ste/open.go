@@ -196,8 +196,8 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 			return ""
 		}
 		// A later finite verb has a subject of its own, which the parse did not name.
-		for _, w := range s.Words[clause.Verb.Last+1:] {
-			if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
+		for j := clause.Verb.Last + 1; j < len(s.Words); j++ {
+			if w := s.Words[j]; (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD") && !inContactRelative(s, j) {
 				return ""
 			}
 		}
@@ -224,6 +224,21 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 		return "it"
 	}
 	return ""
+}
+
+// inContactRelative reports a finite verb at j that a determiner and its noun
+// phrase govern right after a noun. A relative clause with its "that" left
+// out: "into the generation no pending warp binds".
+func inContactRelative(s *syntax.Sentence, j int) bool {
+	k := j - 1
+	for k >= 0 && (strings.HasPrefix(s.Words[k].Tag, "NN") || strings.HasPrefix(s.Words[k].Tag, "JJ")) {
+		k--
+	}
+	if k < 1 || j-k < 2 {
+		return false
+	}
+	det := s.Words[k].Tag
+	return (det == "DT" || det == "PRP$") && strings.HasPrefix(s.Words[k-1].Tag, "NN")
 }
 
 // lowerOpening writes the first letter in lower case.
