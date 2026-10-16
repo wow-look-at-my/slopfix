@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
@@ -27,7 +28,9 @@ type shellScript struct {
 	literal bool
 	// variant is the shell language the script was parsed as.
 	variant syntax.LangVariant
-	err     error
+	// shell is the node that names the shell, the step's own or the default it inherits.
+	shell *yaml.Node
+	err   error
 }
 
 // runScriptSyntax reports each run script that does not parse as the shell it
@@ -35,7 +38,10 @@ type shellScript struct {
 func runScriptSyntax(content string) []ste.Finding {
 	var out []ste.Finding
 	for _, s := range shellScripts(content) {
-		if s.err != nil {
+		if s.err == nil {
+			continue
+		}
+		if _, _, ok := s.repair(); ok {
 			out = append(out, s.finding())
 		}
 	}
@@ -60,7 +66,10 @@ func shellScripts(content string) []shellScript {
 		if !ok {
 			continue
 		}
-		script := shellScript{run: run, first: run.Line, variant: variant}
+		script := shellScript{run: run, first: run.Line, variant: variant, shell: s.shellNode}
+		if own := mappingValue(s.step, "shell"); own != nil {
+			script.shell = own
+		}
 		if at, held := spans[run.Line]; held && run.Style == yaml.LiteralStyle {
 			script.first, script.literal = at.from+1, true
 		}
@@ -124,7 +133,7 @@ func (s shellScript) finding() ste.Finding {
 		ID:     IDRunScriptSyntax,
 		Rule:   "a run script does not parse as shell",
 		Detail: text,
-		Fix:    "Correct the script so `bash -n` accepts it. `slopfix fix` gives an empty body the no-op `:`, closes what the script left open, and comments out any other line the shell rejects.",
+		Fix:    "Correct the script so `bash -n` accepts it. `slopfix fix` gives an empty body the no-op `:`, closes what the script left open, drops a stray closing word, quotes a stray operator, and names bash for an `sh` step that uses a bash feature.",
 	}
 }
 
@@ -143,44 +152,113 @@ var closerError = regexp.MustCompile("(?:statement must end with|without matchin
 // emptyBodyError matches a keyword that opens a body and finds none.
 var emptyBodyError = regexp.MustCompile("^`([^`]+)` must be followed by a statement list$")
 
-// repairScript answers the script with each syntax error mended. A keyword
-// with an empty body gets the no-op `:`. An unclosed statement, bracket or
-// quote gets its closer at the end.
-func repairScript(script string, variant syntax.LangVariant) string {
+// repairScript answers the script with each syntax error mended, and reports
+// whether the result parses.
+func repairScript(script string, variant syntax.LangVariant) (string, bool) {
 	for range strings.Count(script, "\n") + 2 {
 		err := parseShell(script, variant)
 		if err == nil {
-			return script
+			return script, true
 		}
-		script = mendScript(script, err)
+		mended, ok := mendScript(script, err)
+		if !ok {
+			return script, false
+		}
+		script = mended
 	}
-	return script
+	return script, parseShell(script, variant) == nil
 }
 
-// mendScript changes script at the place err names.
-func mendScript(script string, err error) string {
+// repair answers the script as repairScript mends it. These bash parses in
+// place of sh when the error is a bash feature the step's shell lacks.
+func (s shellScript) repair() (mended string, naming bool, ok bool) {
+	var lang syntax.LangError
+	if errors.As(s.err, &lang) {
+		if s.shell == nil {
+			return s.run.Value, false, false
+		}
+		mended, ok = repairScript(s.run.Value, syntax.LangBash)
+		return mended, true, ok
+	}
+	mended, ok = repairScript(s.run.Value, s.variant)
+	return mended, false, ok
+}
+
+// strayWordError matches a closing or continuing word that has nothing to close or continue.
+var strayWordError = regexp.MustCompile("^`([^`!]+)` can only be used ")
+
+// operatorRunes are the characters the shell reads as operators, not as parts of a word.
+const operatorRunes = "()<>|&;"
+
+// mendScript changes script at the place err names, and reports false for an
+// error that none of the repairs covers. An empty body gets `:`. An unclosed
+// construct gets its closer, a stray closing word is dropped, and a stray
+// operator is quoted into a word.
+func mendScript(script string, err error) (string, bool) {
 	var parse syntax.ParseError
 	if !errors.As(err, &parse) {
-		return commentLine(script, errorLine(err))
+		return script, false
 	}
 	if body := emptyBodyError.FindStringSubmatch(parse.Text); body != nil {
 		if mended, ok := insertAfter(script, parse.Pos, body[1], " :"); ok {
-			return mended
+			return mended, true
 		}
 	}
 	if closer := closerError.FindStringSubmatch(parse.Text); closer != nil {
-		return strings.TrimSuffix(script, "\n") + "\n" + closer[1] + "\n"
+		return strings.TrimSuffix(script, "\n") + "\n" + closer[1] + "\n", true
 	}
-	return commentLine(script, int(parse.Pos.Line()))
+	if stray := strayWordError.FindStringSubmatch(parse.Text); stray != nil {
+		if mended, ok := removeAt(script, parse.Pos, stray[1]); ok {
+			return mended, true
+		}
+	}
+	if mended, ok := quoteOperator(script, parse.Pos); ok {
+		return mended, true
+	}
+	// A word followed by ( reads as a function name. The error names the word, so the bracket is the next one on its line.
+	if parse.Text == "`foo(` must be followed by `)`" {
+		line, col := int(parse.Pos.Line())-1, int(parse.Pos.Col())-1
+		rows := strings.Split(script, "\n")
+		if line >= 0 && line < len(rows) && col >= 0 && col <= len(rows[line]) {
+			if at := strings.Index(rows[line][col:], "("); at >= 0 {
+				if mended, ok := quoteOperatorAt(script, line, col+at); ok {
+					return mended, true
+				}
+			}
+		}
+	}
+	return script, false
 }
 
-// errorLine answers the 1-based script line a shell error names, or the first line.
-func errorLine(err error) int {
-	var lang syntax.LangError
-	if errors.As(err, &lang) && lang.Pos.Line() > 0 {
-		return int(lang.Pos.Line())
+// removeAt deletes word where it starts at pos.
+func removeAt(script string, pos syntax.Pos, word string) (string, bool) {
+	rows := strings.Split(script, "\n")
+	line, col := int(pos.Line())-1, int(pos.Col())-1
+	if line < 0 || line >= len(rows) || col < 0 || col > len(rows[line]) || !strings.HasPrefix(rows[line][col:], word) {
+		return script, false
 	}
-	return 1
+	rows[line] = rows[line][:col] + rows[line][col+len(word):]
+	return strings.Join(rows, "\n"), true
+}
+
+// quoteOperator wraps the run of operator characters at pos in single quotes,
+// which makes it an argument.
+func quoteOperator(script string, pos syntax.Pos) (string, bool) {
+	return quoteOperatorAt(script, int(pos.Line())-1, int(pos.Col())-1)
+}
+
+// quoteOperatorAt is quoteOperator for a 0-based line and byte column.
+func quoteOperatorAt(script string, line, col int) (string, bool) {
+	rows := strings.Split(script, "\n")
+	if line < 0 || line >= len(rows) || col < 0 || col >= len(rows[line]) || !strings.ContainsRune(operatorRunes, rune(rows[line][col])) {
+		return script, false
+	}
+	end := col
+	for end < len(rows[line]) && strings.ContainsRune(operatorRunes, rune(rows[line][end])) {
+		end++
+	}
+	rows[line] = rows[line][:col] + "'" + rows[line][col:end] + "'" + rows[line][end:]
+	return strings.Join(rows, "\n"), true
 }
 
 // insertAfter writes text right after the keyword that starts at pos.
@@ -195,16 +273,18 @@ func insertAfter(script string, pos syntax.Pos, keyword, text string) (string, b
 	return strings.Join(rows, "\n"), true
 }
 
-// commentLine turns the 1-based line of script into a comment.
-func commentLine(script string, line int) string {
-	rows := strings.Split(script, "\n")
-	line = min(max(line, 1), len(rows)) - 1
-	for line > 0 && strings.TrimSpace(rows[line]) == "" {
-		line--
+// nameBash writes bash in place of the leading sh of the shell value on its row.
+func nameBash(rows []string, shell *yaml.Node) (string, bool) {
+	row, col := shell.Line-1, shell.Column-1
+	if row < 0 || row >= len(rows) || col < 0 || col > len(rows[row]) {
+		return "", false
 	}
-	body := strings.TrimLeft(rows[line], " \t")
-	rows[line] = rows[line][:len(rows[line])-len(body)] + "# " + body
-	return strings.Join(rows, "\n")
+	at := strings.Index(rows[row][col:], "sh")
+	if at < 0 {
+		return "", false
+	}
+	at += col
+	return rows[row][:at] + "bash" + rows[row][at+len("sh"):], true
 }
 
 // repairRunScripts writes each run script that does not parse as shell back
@@ -214,11 +294,23 @@ func repairRunScripts(content string) []edit.Edit {
 	rows := lines(content)
 	spans := blockScalars(content)
 	var out []edit.Edit
+	named := set.New[int]()
 	for _, s := range shellScripts(content) {
 		if s.err == nil {
 			continue
 		}
-		mended := repairScript(s.run.Value, s.variant)
+		mended, naming, ok := s.repair()
+		if !ok {
+			continue
+		}
+		if naming {
+			if row := s.shell.Line - 1; !named.Contains(row) {
+				named.Add(row)
+				if edited, ok := nameBash(rows, s.shell); ok {
+					out = append(out, rewrite(content, row, row, []string{edited}))
+				}
+			}
+		}
 		if mended == s.run.Value {
 			continue
 		}
