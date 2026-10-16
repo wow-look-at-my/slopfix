@@ -3,8 +3,18 @@ package ste
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
+
+// quantifiers open a subject that picks members out of a set.
+var quantifiers = set.Of("every", "each", "all", "any", "some", "both")
+
+// restates reports a subject short enough to write again after a division, and
+// not opened by a quantifier.
+func restates(s *syntax.Sentence, subject syntax.Phrase) bool {
+	return subject.Last-subject.First < restateLimit && !subject.Coordinated && !quantifiers.Contains(s.Words[subject.First].Lower())
+}
 
 // subjectDivision writes a long subject as a sentence of its own: "A reader
 // arriving at X still deserves Y." becomes "Consider a reader arriving at X.
