@@ -15,10 +15,10 @@ import (
 	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/gitmod"
-	"github.com/wow-look-at-my/slopfix/walktree"
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // RuleSpec is one rule: what it detects, the repair that answers that
