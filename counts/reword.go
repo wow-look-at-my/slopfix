@@ -199,9 +199,9 @@ var boundSigns = []bound{
 }
 
 // boundSign answers the sign that stands in front of the number at, with the
-// blanks between them, and where the sign starts. A lone "<" or ">" is a bound
-// only against the number and after no word, because a blockquote marker and
-// the end of a tag spell it too.
+// blanks between them, and where the sign starts. Consider a lone "<" or ">".
+// That < is a bound only against the number and after no word, because a
+// blockquote marker and the end of a tag spell it too.
 func boundSign(content string, at int) (bound, int) {
 	head := strings.TrimRight(content[:at], " \t")
 	for _, b := range boundSigns {
@@ -218,7 +218,7 @@ func boundSign(content string, at int) (bound, int) {
 }
 
 // joinsASign reports a byte that makes a lone "<" or ">" part of something
-// else: a word, as the end of a tag, or an arrow.
+// else: a word. That joinsASign is as the end of a tag, or an arrow.
 func joinsASign(c byte) bool {
 	return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || strings.IndexByte("-=<>", c) >= 0
 }

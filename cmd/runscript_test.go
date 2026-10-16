@@ -86,7 +86,7 @@ const validateStep = "          for f in artifacts/debugger/*.html; do\n" +
 	"            echo \"OK\"\n" +
 	"          done\n"
 
-// An Edit to a line whose only finding the hook does not repair lands as written, so the
+// An Edit to a line whose only finding the hook does not repair lands as written. The
 // assertion can move into the repository's suite as the finding asks.
 func TestTheHookLetsAnEditChangeALineWithNoRepair(t *testing.T) {
 	content := runScriptHead + validateStep

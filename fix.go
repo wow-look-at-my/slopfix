@@ -218,9 +218,9 @@ func exempt(path, content string) bool {
 	return tombstones.Borrowed(path) || commentfix.IsGenerated(path, content) || machineRead(path, content)
 }
 
-// machineRead reports a text file a program reads: past its `#` comments,
-// each line is a single entry with no blank inside it, such as a path list or
-// a requirements.txt. Its lines are not paragraphs.
+// machineRead reports a text file a program reads: past its `#` comments or
+// each line is a single entry with no blank inside it. This also covers such
+// as a path list or a requirements.txt. Its lines are not paragraphs.
 func machineRead(path, content string) bool {
 	if !strings.EqualFold(filepath.Ext(path), ".txt") {
 		return false

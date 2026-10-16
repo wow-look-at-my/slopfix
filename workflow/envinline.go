@@ -50,7 +50,7 @@ func safeInputs(root *yaml.Node) set.Set[string] {
 }
 
 // plainContext matches a context whose value holds no quote, space or other
-// shell text: a runner fact, a number, a hash or a name GitHub restricts.
+// shell text. A runner fact, a number, a hash or a name GitHub restricts.
 var plainContext = regexp.MustCompile(`^(?:runner\.(?:temp|tool_cache|os|arch|name|environment|debug)|` +
 	`github\.(?:event_name|sha|workflow_sha|run_id|run_number|run_attempt|ref_type|repository|repository_owner|repository_id|repository_owner_id|actor_id|server_url|api_url|graphql_url|retention_days|job)|` +
 	`strategy\.(?:job-index|job-total|fail-fast|max-parallel)|job\.status)$`)
