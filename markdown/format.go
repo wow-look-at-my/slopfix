@@ -3,6 +3,8 @@ package markdown
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
+
 	"github.com/wow-look-at-my/slopfix/edit"
 )
 
@@ -70,18 +72,18 @@ func EntryRepair(content string, style EntryStyle) []edit.Edit {
 // for style. This covers a bullet ahead of its text, or a blank line ahead of
 // every entry but the first of a run. Every other line is as written.
 func entryRepairOnly(before, after string, style EntryStyle) bool {
-	entry := map[int]bool{}
+	entry := set.New[int]()
 	for _, b := range Split(before) {
 		if b.Kind == Prose && b.Marker == "" && entryList(b.Lines) {
 			for k := range b.Lines {
-				entry[b.Start-1+k] = true
+				entry.Add(b.Start - 1 + k)
 			}
 		}
 	}
 	was, now := strings.Split(before, "\n"), strings.Split(after, "\n")
 	j := 0
 	for i, line := range was {
-		if style == EntryBlankLines && entry[i] && entry[i-1] {
+		if style == EntryBlankLines && entry.Contains(i) && entry.Contains(i-1) {
 			if j >= len(now) || now[j] != "" {
 				return false
 			}
@@ -93,7 +95,7 @@ func entryRepairOnly(before, after string, style EntryStyle) bool {
 		got := now[j]
 		j++
 		switch {
-		case !entry[i]:
+		case !entry.Contains(i):
 			if got != line {
 				return false
 			}
