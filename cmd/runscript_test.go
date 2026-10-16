@@ -76,8 +76,8 @@ func TestTheHookKeepsALineAnEditAddsToARunScript(t *testing.T) {
 	}
 }
 
-// validateStep is shader-simulator's debugger check. The if line carries a
-// yaml/test-in-workflow finding, which the hook does not repair.
+// validateStep is a debugger check with an assertion in it. The if line
+// carries a yaml/test-in-workflow finding.
 const validateStep = "          for f in artifacts/debugger/*.html; do\n" +
 	"            if ! grep -q 'STOP_AT ==' \"$f\"; then\n" +
 	"              echo \"FAIL: no STOP_AT breakpoints in $f\"\n" +
@@ -86,9 +86,9 @@ const validateStep = "          for f in artifacts/debugger/*.html; do\n" +
 	"            echo \"OK\"\n" +
 	"          done\n"
 
-// An Edit to a line whose only finding the hook does not repair lands as written. The
-// assertion can move into the repository's suite as the finding asks.
-func TestTheHookLetsAnEditChangeALineWithNoRepair(t *testing.T) {
+// The finding has a repair, which moves the script to a file. The hook writes
+// one file, so an Edit to the line lands as written.
+func TestTheHookLetsAnEditChangeALineTheTreeRepairMoves(t *testing.T) {
 	content := runScriptHead + validateStep
 	path := runScriptFile(t, content)
 	var lines []int
@@ -98,6 +98,7 @@ func TestTheHookLetsAnEditChangeALineWithNoRepair(t *testing.T) {
 		}
 	}
 	require.NotEmpty(t, lines, "the step carries the finding")
+	require.True(t, slopfix.Repairable(workflow.IDTestInYAML))
 
 	for name, text := range map[string]string{
 		"remove the assertion": "          go test ./...\n",

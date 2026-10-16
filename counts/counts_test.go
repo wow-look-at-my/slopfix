@@ -180,12 +180,12 @@ func TestEveryCountIsReworded(t *testing.T) {
 }
 
 // A sign written against the number bounds it the way "at most" does, and the
-// repair keeps the bound. The first case is a line of shader-simulator's
-// AGENTS.md.
+// repair keeps the bound. The first case is a line of an
+// agent instruction file.
 func TestABoundSignIsRewordedWithTheBound(t *testing.T) {
 	le, ge, dash := lessOrEqual, greaterOrEqual, string(rune(0x2014))
 	for in, want := range map[string]string{
-		"- **" + le + "750 lines per file** " + dash + " this is why codegen is split into `codegen.go` + `glsl_extinst.go`": "- **a bounded number of lines per file** " + dash + " this is why codegen is split into `codegen.go` + `glsl_extinst.go`",
+		"- **" + le + "750 lines per file** " + dash + " this is why the parser is split into `parser.go` + `lexer.go`": "- **a bounded number of lines per file** " + dash + " this is why the parser is split into `parser.go` + `lexer.go`",
 		"It keeps " + le + "500 lines.":   "It keeps a bounded number of lines.",
 		"It keeps " + le + " 500 lines.":  "It keeps a bounded number of lines.",
 		"It keeps <= 500 lines.":          "It keeps a bounded number of lines.",

@@ -119,8 +119,8 @@ func roundTripFixtures() []fixture {
 				"      - uses: wow-look-at-my/slopfix@v1\n" +
 				"        continue-on-error: true\n" +
 				"      - env:\n" +
-				"          OUT: ${{ github.sha }}\n" +
-				"        run: git show \"$OUT\"\n" +
+				"          OUT: ${{ steps.x.outputs.path }}\n" +
+				"        run: cat \"$OUT\"\n" +
 				"      - run: |\n" +
 				"          echo hi\n" +
 				"          assert_ok() { exit 1; }\n",

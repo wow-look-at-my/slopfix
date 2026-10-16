@@ -56,7 +56,7 @@ func AddedBlocks(path, added string) []Block {
 		// A line shared with code is a note on that code, and a directive is an instruction to a tool.
 		pure := 0
 		for idx, p := range run.Pure {
-			if p && !treecomments.IsDirective(lines[run.Start+idx]) {
+			if p && !treecomments.DirectiveAt(lines, run.Start+idx) {
 				pure++
 			}
 		}

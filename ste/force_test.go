@@ -186,10 +186,10 @@ func TestADivisionLeavesEachPartASentence(t *testing.T) {
 	}
 }
 
-// The opening of unreal-tools namescrub/README.md, which a division wrote as
+// The opening of a scrubber README, which a division wrote as
 // "between cook. This is staging". A list item opens no sentence of its own.
 func TestAForcedDivisionNeverOpensOnAListItem(t *testing.T) {
-	in := "Redacts sensitive names (material parameter names, asset/package names, and the paths built from them) in Unreal Engine cooked output by **same-byte-length hash replacement** -- either on the loose cooked files between cook and staging, or directly **inside an existing classic `.pak`** (see Pak mode below)."
+	in := "Redacts sensitive names (parameter names, asset names, and the paths built from them) in generated output by **same-byte-length hash replacement** -- either on the loose files between cook and staging, or directly **inside an existing `.pak` archive** (see archive mode below)."
 	got := ste.Fix(in)
 	assert.NotContains(t, got, "This is staging", got)
 	assert.NotContains(t, got, "between cook.", got)
