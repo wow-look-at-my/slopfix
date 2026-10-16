@@ -89,9 +89,10 @@ func Find(blocks []Block, maxLines int) []Hit {
 	return hits
 }
 
-// linePurity looks a block-relative line index up in b's parallel arrays.
+// linePurity looks a block-relative line index up in b's parallel arrays. A
+// line the block does not judge is placed, and never stripped whole.
 func linePurity(b Block, li int) (lineNo int, pure bool) {
-	if li >= len(b.LineNos) {
+	if li < 0 || li >= len(b.LineNos) {
 		return -1, false
 	}
 	return b.LineNos[li], li < len(b.Pure) && b.Pure[li]

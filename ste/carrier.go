@@ -133,6 +133,13 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 			return head, capitalizeOpening(rest), opensWithCarrier
 		}
 		switch {
+		case whole.Words[first].Tag == "VBG":
+			// "-- using hyperfine" says how the main verb acts: "It uses hyperfine".
+			body, found := strings.CutPrefix(rest, word.Text)
+			if !hasMain || !found {
+				return head, "", 0
+			}
+			return head, "It " + presentOf(baseFromGerund(word.Text), false) + body, opensWithCarrier
 		case verbAt(whole, first) && participleAfterDash(whole, first, main, hasMain):
 			// "says — asserted as X" is passive: "It is asserted as X", not "It asserted as X".
 			return head, "It is " + lowerFirst(rest), opensWithCarrier
@@ -273,6 +280,9 @@ func headOpen(s *syntax.Sentence, end int) bool {
 		w := s.Words[i]
 		switch {
 		case finiteVerbTag(w.Tag) || w.Tag == "MD":
+			open = -1
+		case open >= 0 && i > open+1 && w.Tag == "NNS" && s.Words[i-1].Tag == "NN" && i+1 < len(s.Words) && s.Words[i+1].Tag == "IN":
+			// The tagger reads the verb of the new subject as a plural noun: "a word the actor of a clause stops in front of".
 			open = -1
 		case clauseOpeners.Contains(w.Lower()) && i > 0:
 			open = i
@@ -722,10 +732,13 @@ func listRest(source string, s *syntax.Sentence, verb syntax.Phrase, c forceCut,
 func listEnd(rest string) (string, bool) {
 	r := syntax.Parse(rest, nil)
 	conj := ""
-	for _, w := range r.Words {
+	for i, w := range r.Words {
 		switch w.Tag {
 		case "VBZ", "VBD", "MD":
-			return "", false
+			// A verb of a relative clause describes an item: "a subordinator that opens a clause".
+			if !inRelative(r, i) {
+				return "", false
+			}
 		case "CC":
 			if l := w.Lower(); l == "and" || l == "or" {
 				conj = l

@@ -16,6 +16,11 @@ var misdivisions = []struct {
 	bad      []string
 }{
 	{
+		"an -ing form after a dash takes no carrier",
+		"When a script is packaged with profiling support (the default), it gains a guarded block that does nothing on a normal run but, when the environment variable BASHFS_PROFILE_SCRIPT=1 is set, benchmarks the parts of the script that bashfs owns -- the startup integrity check and each embedded file's extraction -- using hyperfine, then exits without running the user's body.",
+		[]string{"It using", "it using"},
+	},
+	{
 		"a phrase after be and its adverb stays with be",
 		"The turn loop calls this immediately before `drain_pending_interjections`, which is immediately before each model request — the earliest point the model can see the text without cancelling anything.",
 		[]string{"is immediately.", "this immediately.", "This happens before"},
@@ -44,6 +49,11 @@ var misdivisions = []struct {
 		"a dash before and opens a sentence of its own",
 		"Anything that lands while the session is busy is invisible to the entry gate -- and a session that is doing work is busy nearly all the time.",
 		[]string{"a session. That is"},
+	},
+	{
+		"the rest of a list whose last item holds a relative clause is still a list",
+		"endsActor reports a word the actor of a passive clause stops in front of: a comma, a dash, a colon, a semicolon, a parenthesis, or a subordinator that opens a clause of its own.",
+		[]string{"semicolon. A parenthesis", "colon. A semicolon", "dash. A colon"},
 	},
 	{
 		"a clause after a fronted phrase is the main clause",
