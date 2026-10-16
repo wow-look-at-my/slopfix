@@ -1,15 +1,10 @@
 package slopfix_test
 
 import (
-<<<<<<< HEAD
-	"os"
-	"path/filepath"
-=======
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
->>>>>>> origin/master
 	"sort"
 	"strings"
 	"testing"

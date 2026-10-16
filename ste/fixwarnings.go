@@ -5,10 +5,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
-<<<<<<< HEAD
 	"unicode/utf8"
-=======
->>>>>>> origin/master
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -244,8 +241,6 @@ func lowerOpeningFor(phrase, tag string) string {
 func passiveVerb(participle, beWord string, plural bool) string {
 	switch beWord {
 	case "was", "were", "been", "being":
-		return pastFromParticiple(participle)
-	case "be":
 		return pastFromParticiple(participle)
 	}
 	return presentOf(baseFromParticiple(participle), plural)
