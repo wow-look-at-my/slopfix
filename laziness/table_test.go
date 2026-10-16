@@ -56,12 +56,12 @@ func TestTheCleanMessagesFireNothing(t *testing.T) {
 
 func TestAMalformedTableIsAnError(t *testing.T) {
 	for name, raw := range map[string]string{
-		"not XML":         `<laziness>`,
-		"no pattern":      `<laziness></laziness>`,
-		"bad regexp":      `<laziness><shape name="s"><pattern re="("><punt>x</punt></pattern></shape></laziness>`,
-		"no punt":         `<laziness><shape name="s"><pattern re="x"/></shape></laziness>`,
-		"no shape name":   `<laziness><shape><pattern re="x"><punt>x</punt></pattern></shape></laziness>`,
-		"bad pardon":      `<laziness><shape name="s"><pattern re="x"><punt>x</punt></pattern></shape><pardon re="("/></laziness>`,
+		"not XML":       `<laziness>`,
+		"no pattern":    `<laziness></laziness>`,
+		"bad regexp":    `<laziness><shape name="s"><pattern re="("><punt>x</punt></pattern></shape></laziness>`,
+		"no punt":       `<laziness><shape name="s"><pattern re="x"/></shape></laziness>`,
+		"no shape name": `<laziness><shape><pattern re="x"><punt>x</punt></pattern></shape></laziness>`,
+		"bad pardon":    `<laziness><shape name="s"><pattern re="x"><punt>x</punt></pattern></shape><pardon re="("/></laziness>`,
 	} {
 		_, err := laziness.Load([]byte(raw))
 		assert.Error(t, err, name)

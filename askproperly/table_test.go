@@ -24,12 +24,12 @@ func TestEveryDeferralFiresOnItsExamples(t *testing.T) {
 
 func TestAMalformedTableIsAnError(t *testing.T) {
 	for name, raw := range map[string]string{
-		"not XML":       `<questions>`,
-		"empty":         `<questions></questions>`,
-		"no example":    `<questions><deferral phrase="x"/><cue word="is"/></questions>`,
-		"no phrase":     `<questions><deferral><example>x</example></deferral><cue word="is"/></questions>`,
-		"no cue":        `<questions><deferral phrase="x"><example>x</example></deferral></questions>`,
-		"empty cue":     `<questions><deferral phrase="x"><example>x</example></deferral><cue/></questions>`,
+		"not XML":    `<questions>`,
+		"empty":      `<questions></questions>`,
+		"no example": `<questions><deferral phrase="x"/><cue word="is"/></questions>`,
+		"no phrase":  `<questions><deferral><example>x</example></deferral><cue word="is"/></questions>`,
+		"no cue":     `<questions><deferral phrase="x"><example>x</example></deferral></questions>`,
+		"empty cue":  `<questions><deferral phrase="x"><example>x</example></deferral><cue/></questions>`,
 	} {
 		_, err := Load([]byte(raw))
 		assert.Error(t, err, name)

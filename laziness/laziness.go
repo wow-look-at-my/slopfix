@@ -30,8 +30,6 @@ type Hit struct {
 	Line int `json:"line"`
 }
 
-
-
 // Check reports every punt the message carries.
 //
 // A sentence is reported for a single tell, whichever found it.
