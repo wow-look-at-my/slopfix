@@ -1,0 +1,67 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+	The ask/prose-decision table. A deferral is a phrase that hands the reader a
+	decision without a question mark. Each example must report its phrase. A cue
+	is an opening word that makes a closing question mark a real question.
+-->
+<questions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="questions.xsd">
+	<deferral phrase="let me know"><example>Let me know which branch to use.</example></deferral>
+	<deferral phrase="your call"><example>Both work. Your call.</example></deferral>
+	<deferral phrase="up to you"><example>The name is up to you.</example></deferral>
+	<deferral phrase="say the word"><example>Say the word and I push it.</example></deferral>
+	<deferral phrase="just say"><example>Just say go.</example></deferral>
+	<deferral phrase="tell me which"><example>Tell me which one to keep.</example></deferral>
+	<deferral phrase="tell me what you"><example>Tell me what you prefer.</example></deferral>
+	<deferral phrase="tell me if you"><example>The fix is ready. Tell me if you want it.</example></deferral>
+	<deferral phrase="tell me whether you"><example>Tell me whether you need the port.</example></deferral>
+	<deferral phrase="waiting on you"><example>The branch is waiting on you.</example></deferral>
+	<deferral phrase="waiting for you to"><example>I am waiting for you to pick one.</example></deferral>
+	<deferral phrase="if you want me to"><example>I can port it if you want me to.</example></deferral>
+	<deferral phrase="want me to"><example>Want me to port it.</example></deferral>
+	<deferral phrase="would you like me to"><example>Would you like me to port it.</example></deferral>
+	<deferral phrase="do you want me to"><example>Do you want me to port it.</example></deferral>
+	<deferral phrase="shall i"><example>Shall I port it.</example></deferral>
+	<deferral phrase="should i proceed"><example>Should I proceed.</example></deferral>
+	<deferral phrase="i won't touch"><example>I won't touch the loader without a go.</example></deferral>
+	<deferral phrase="i will not touch"><example>I will not touch the loader without a go.</example></deferral>
+	<deferral phrase="and i'll pick"><example>Name one and I'll pick it up.</example></deferral>
+	<deferral phrase="and i will pick"><example>Name one and I will pick it up.</example></deferral>
+	<deferral phrase="and i'll land"><example>Approve it and I'll land it.</example></deferral>
+	<deferral phrase="or say"><example>Keep A, or say B.</example></deferral>
+
+	<!-- Interrogative cues. A question mark alone is not enough: nullable types
+	     and query strings both carry the mark. -->
+	<cue word="what"/>
+	<cue word="which"/>
+	<cue word="why"/>
+	<cue word="how"/>
+	<cue word="when"/>
+	<cue word="where"/>
+	<cue word="who"/>
+	<cue word="whose"/>
+	<cue word="should"/>
+	<cue word="shall"/>
+	<cue word="would"/>
+	<cue word="could"/>
+	<cue word="can"/>
+	<cue word="will"/>
+	<cue word="do"/>
+	<cue word="does"/>
+	<cue word="did"/>
+	<cue word="is"/>
+	<cue word="are"/>
+	<cue word="was"/>
+	<cue word="were"/>
+	<cue word="am"/>
+	<cue word="have"/>
+	<cue word="has"/>
+	<cue word="any"/>
+	<cue word="want"/>
+	<cue word="prefer"/>
+	<cue word="ok"/>
+	<cue word="okay"/>
+	<cue word="right"/>
+	<cue word="correct"/>
+	<cue word="agree"/>
+	<cue word="sound"/>
+</questions>

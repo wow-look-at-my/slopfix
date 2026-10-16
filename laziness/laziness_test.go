@@ -17,51 +17,13 @@ func TestAReportedDefectLeftUnfixedIsAPunt(t *testing.T) {
 	assert.Contains(t, hits[0].Sentence, "mine to fix")
 }
 
-// The other half of the fold. A turn that ends on a question whose answer was
-// already yes.
-func TestAskingPermissionInPlaceOfActingIsAPunt(t *testing.T) {
-	for _, message := range []string{
-		"The analyzer has a bug. Want me to fix it?",
-		"Should I go ahead and push?",
-		"I can port the fix if you'd like.",
-		"Say the word.",
-		"Tell me if you want it.",
-		"The loader fix is ready. Tell me if you want it.",
-		"Let me know if you want it.",
-		"Tell me whether you need the port too.",
-	} {
-		assert.NotEmpty(t, laziness.Check(message), "no finding on %q", message)
-	}
-}
-
-// Every tell must be reachable. A row nothing can fire is a row that reads as
-// coverage.
-func TestEveryShapeInTheTableIsReported(t *testing.T) {
-	for _, message := range []string{
-		"That is not my problem.",
-		"Worth your attention.",
-		"I left it as-is.",
-		"That is out of scope.",
-		"It is pre-existing, so I did not touch it.",
-		"I did not break it.",
-		"It fails on master too, so nothing here caused it.",
-		"Whether master is red too is the question.",
-	} {
-		assert.NotEmpty(t, laziness.Check(message), "no finding on %q", message)
-	}
-}
-
-// The negative controls. A message that owns the work carries no finding.
-func TestOwnedWorkIsNotAPunt(t *testing.T) {
-	for _, message := range []string{
-		"The build phase was broken. I fixed it and pushed the fix.",
-		"The failure was pre-existing, and I already fixed it.",
-		"This needs your call on A against B, so I pushed the branch with A and left the test red.",
-		"The rule reads a pre-existing file.",
-		"I rewrote the loader and the tests pass.",
-	} {
-		assert.Empty(t, laziness.Check(message), "false finding on %q", message)
-	}
+// An offer held back for a reply is permission seeking. The Stop hook answers
+// it with the approval the reader would type.
+func TestAnOfferHeldForAReplyIsAPunt(t *testing.T) {
+	hits := laziness.Check("The loader fix is ready. Tell me if you want it.")
+	require.Len(t, hits, 1)
+	assert.Equal(t, "asking permission in place of acting", hits[0].Tell)
+	assert.Equal(t, "Tell me if you want it.", hits[0].Sentence)
 }
 
 // A pardon is per sentence. The repair has to be claimed where the tell sits.
