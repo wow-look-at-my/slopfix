@@ -154,7 +154,7 @@ func handFix(tool string, toolInput []byte, path string, rules []slopfix.Rule, i
 	if scope != nil && scope.Empty() {
 		return nil, nil
 	}
-	req := slopfix.Request{Content: before, Path: path, Rules: rules, IDs: ids, MaxCommentLines: hookMaxLines, Owned: scope}
+	req := slopfix.Request{Content: before, Path: path, Rules: rules, IDs: ids, MaxCommentLines: hookMaxLines, Owned: scope, Refs: slopfix.NewGitHubRefs(os.Getenv)}
 	fixed, err := fixOf(req)
 	if err != nil {
 		return nil, cannotFix(path, err)
