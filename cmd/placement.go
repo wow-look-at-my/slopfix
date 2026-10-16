@@ -228,5 +228,6 @@ func fixOver(src, path string, rules []slopfix.Rule, ids []string, scope splice.
 		Scope:           scope,
 		Owned:           owned,
 		OneFile:         true,
+		Refs:            slopfix.NewGitHubRefs(os.Getenv),
 	})
 }
