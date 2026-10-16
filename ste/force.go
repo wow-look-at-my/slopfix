@@ -254,6 +254,10 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if n := wordsBefore(whole, c.right); n < len(whole.Words) && finiteVerbTag(whole.Words[n].Tag) {
 			continue
 		}
+		// A relative word binds its clause to the noun in front of it: "the verb. That governs it".
+		if n := wordsBefore(whole, c.right); n > 0 && n+1 < len(whole.Words) && relativeAfterNoun(whole, n) {
+			continue
+		}
 		head := strings.TrimRight(source[:c.left], " ,;:—–-")
 		// The head must hold a clause of its own, or the cut strands a subject
 		// without its verb: "the pointer. Stays valid for reads of n bytes".
@@ -292,6 +296,19 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// relativeAfterNoun reports a relative word at word n, such as "that" or
+// "which", right behind a noun and in front of a verb. Its clause belongs to
+// that noun, so no sentence opens on it.
+func relativeAfterNoun(s *syntax.Sentence, n int) bool {
+	switch s.Words[n].Lower() {
+	case "that", "which", "who":
+	default:
+		return false
+	}
+	after := s.Words[n+1].Tag
+	return strings.HasPrefix(s.Words[n-1].Tag, "NN") && (strings.HasPrefix(after, "VB") || after == "NNS")
 }
 
 // endsOnPossessive reports a cut whose head closes on a possessive. The
