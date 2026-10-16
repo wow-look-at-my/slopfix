@@ -1,15 +1,10 @@
 package slopfix_test
 
 import (
-<<<<<<< HEAD
-	"os"
-	"path/filepath"
-=======
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
->>>>>>> origin/master
 	"sort"
 	"strings"
 	"testing"
@@ -84,7 +79,6 @@ func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 	}
 }
 
-<<<<<<< HEAD
 // A case that pins its repair in Want gets exactly that text from its rule's
 // autofix. A repair can clear its finding and still garble the prose around it.
 func TestEveryPinnedCaseRepairsToItsWant(t *testing.T) {
@@ -107,7 +101,8 @@ func TestEveryPinnedCaseRepairsToItsWant(t *testing.T) {
 			})
 		}
 	}
-=======
+}
+
 // assertLeftAsWritten holds a rule to a case it must leave alone: no detection. This
 // also covers an autofix that changes no text, and no other rule's detection after
 // it.
@@ -147,7 +142,6 @@ func caseTexts(t *testing.T, c slopfix.RuleCase) map[string]string {
 	})
 	require.NoError(t, err)
 	return out
->>>>>>> origin/master
 }
 
 // A rule with a detection needs an autofix. The registry refuses a nil autofix.

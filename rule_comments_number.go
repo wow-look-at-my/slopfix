@@ -15,16 +15,13 @@ func init() {
 		Autofix:  autofixCommentNumber,
 		Cases: []RuleCase{
 			{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"},
-<<<<<<< HEAD
 			{Name: "a cut keeps the rule that opens each line", Path: "test-governor.cpp", Text: ruledNumbersCase, Want: ruledNumbersWant},
 			{Name: "index zero after a possessive is the first item", Path: "froxel-path.h", Text: chunkZeroCase, Want: chunkZeroWant},
 			{Name: "index zero is the first item", Path: "froxel-path.cpp", Text: frameZeroCase, Want: frameZeroWant},
 			{Name: "a value is never a count", Path: "warp-pass.h", Text: valuesCase, Want: valuesWant},
 			{Name: "a cut paragraph takes its break with it", Path: "warp-pass.h", Text: cutParagraphCase, Want: cutParagraphWant},
-=======
 			// A zero that is the subject of a verb, as in buildhost's upload.ts.
 			{Name: commentfix.ID + "-zero-subject", Path: "size.ts", Text: "/** The size from the input: empty is the default, 0 disables chunking. */\nexport function size(input: string): number {\n\treturn input.length;\n}\n"},
->>>>>>> origin/master
 		},
 	})
 }
