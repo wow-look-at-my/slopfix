@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/codespan"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -100,7 +101,16 @@ func divideNext(prose string, limit int) (string, bool) {
 
 // keepsCodeSpans reports that a division kept each code span whole, in order.
 func keepsCodeSpans(source, rewritten string) bool {
-	return slices.Equal(codeSpan.FindAllString(source, -1), codeSpan.FindAllString(rewritten, -1))
+	return slices.Equal(codeSpanTexts(source), codeSpanTexts(rewritten))
+}
+
+// codeSpanTexts answers the text of each code span in s, in source order.
+func codeSpanTexts(s string) []string {
+	var out []string
+	for _, span := range codespan.Find(s) {
+		out = append(out, s[span[0]:span[1]])
+	}
+	return out
 }
 
 // sentenceSpans answers the byte range of each sentence. It reads the source
