@@ -12,11 +12,15 @@ const verblessPenalty = 1 << 10
 // verbless reports a rest after cut c that holds no verb of its own, such as
 // "At a time." or "Up to the noun it counts". It reads as no sentence.
 func verbless(whole *syntax.Sentence, c forceCut, source string) bool {
-	rest := hardRest(source, c.right)
+	rest := opening(hardRest(source, c.right))
 	if strandsPhrase(whole, c.right, rest) || !standsAsSentence(rest) {
 		return true
 	}
-	return !holdsFinite(checkMask(rest)) && !opensImperative(checkMask(rest))
+	if holdsFinite(checkMask(rest)) {
+		return false
+	}
+	// A capital turns a noun into a verb for the tagger, so a rest reads as an instruction only after an instruction.
+	return !(opensImperative(checkMask(rest)) && opensImperativeMain(checkMask(source[:c.left])))
 }
 
 // carriedRest gives a verbless rest the subject and verb it lacks, so the
@@ -45,7 +49,7 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 	room := limit - len(strings.Fields(carrierWords))
 	var cuts []forceCut
 	for _, c := range candidates(source, masked, false, limit) {
-		if c.words <= limit && c.words >= minimumHalf && strings.TrimSpace(source[c.right:]) != "" {
+		if c.words <= limit && c.words >= minimumHalf && strings.TrimSpace(source[c.right:]) != "" && !endsOnPossessive(source, c.left) {
 			cuts = append(cuts, c)
 		}
 	}
@@ -59,7 +63,9 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 		return best, found
 	}
 	c, found := pick(func(c forceCut) bool {
-		return !cutsAside(masked, c.left, c.right) && standsAsSentence(closeHead(source[:c.left]))
+		head := closeHead(source[:c.left])
+		return !cutsAside(masked, c.left, c.right) && standsAsSentence(head) &&
+			(holdsFinite(checkMask(head)) || opensImperative(checkMask(head)))
 	})
 	if !found {
 		c, found = pick(func(c forceCut) bool {
