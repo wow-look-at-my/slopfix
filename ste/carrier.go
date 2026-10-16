@@ -195,7 +195,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restate(source, prev, rest), opensWithCarrier
 	case describes && !predicateFollows && (word.Tag == "VBN" || word.Tag == "VBG") && first+1 < len(whole.Words) && !strings.HasPrefix(whole.Words[first+1].Tag, "NN"):
 		return head, restate(source, prev, rest), opensWithCarrier
-	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
+	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && (plainPhrase(whole, first+2) || relativeTail(whole, first+2)):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
 	case seam == "" && noun && !indefinites.Contains(prev.Lower()) && (lower == "that" || lower == "which") && relativeWithSubject(whole, first):
 		// "a plugin that the later run took from a cache": the relative clause has a subject of its own.
@@ -205,7 +205,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		return head, restate(source, prev, pronoun+" "+rest), opensWithCarrier
 	// "the words after the cut are no clause": a verb after the phrase makes it part of the subject.
-	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
+	case seam != ":" && carrierAdverbial.Contains(lower) && !standsWithMainClause(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
 		adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
 		(!inRelative(whole, first-1) || everyNext(whole, first)) && !coordinatedVerb(whole, first):
 		// A reason reads behind "This is", whatever the verb: "This is because X".
@@ -483,6 +483,35 @@ func topCommas(text string, from int) []int {
 		}
 	}
 	return out
+}
+
+// standsWithMainClause reports text that stands alone and, when it opens on a
+// preposition, holds a finite verb outside a relative clause.
+func standsWithMainClause(rest string) bool {
+	if !StandsAlone(rest) {
+		return false
+	}
+	if startsWithPreposition(rest) {
+		return finiteOutsideRelative(syntax.Parse(checkMask(rest), nil), 0)
+	}
+	return true
+}
+
+// relativeTail reports the words from i to the end as the rest of a relative
+// clause whose antecedent sits behind the main verb.
+func relativeTail(s *syntax.Sentence, i int) bool {
+	for _, w := range s.Words[min(i, len(s.Words)):] {
+		if w.Tag == "CC" || w.Text == ":" || w.Text == ";" {
+			return false
+		}
+	}
+	return true
+}
+
+// startsWithPreposition reports text whose first word is a preposition.
+func startsWithPreposition(text string) bool {
+	s := syntax.Parse(checkMask(text), nil)
+	return len(s.Words) > 0 && (s.Words[0].Tag == "IN" || s.Words[0].Tag == "TO")
 }
 
 // plainPhrase reports the words from i to the end of the sentence when they// are plain. Outside a parenthesis, they hold no comma, no conjunction, no
