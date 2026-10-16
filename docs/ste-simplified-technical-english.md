@@ -16,7 +16,7 @@ The warning rules read patterns that need a person to repair. A warning never fa
 
 - `ste/instruction-length`: a sentence of `21` to `25` words, over the STE cap for an instruction.
 - `ste/passive`: a form of `be` and a past participle, as the parser tags them.
-- `ste/noun-cluster`: a run of nouns longer than `NounClusterCap`, which is `3`. A run of capitalized words, such as `Claude Code`, counts as one name and breaks no further.
+- `ste/noun-cluster`: a run of nouns longer than `NounClusterCap`, which is `3`. A run of capitalized words from the `name-word` class in `rules/syntax.xml`, such as `Claude Code`, counts as one name and breaks no further. A title-cased common noun is no name.
 - `ste/tense`: a perfect or a progressive tense. The approved `-ing` words, such as `missing` and `during`, do not count.
 - `ste/dictionary`: a word the STE dictionary does not approve, with its approved replacements. The table is the `dictionary` list in `rules/ste-dictionary.xml`. A `<list>` holds a string on each line of its text and needs no `<test>`. It holds only words with no approved sense, because a match by spelling cannot tell senses apart.
 - `ste/paragraph-length`: a paragraph with more sentences than `ParagraphSentenceCap`, which is `6`. A list item never counts.

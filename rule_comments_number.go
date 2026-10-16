@@ -23,6 +23,12 @@ func init() {
 				Text: "package main\n\n// A run of at least two nouns stands together.\nfunc main() {}\n",
 				Want: "package main\n\n// A run of multiple nouns stands together.\nfunc main() {}\n",
 			},
+			// A "more than" stays true for every cardinal it can name.
+			{
+				Name: commentfix.ID + "-more-than", Path: "main.go",
+				Text: "package main\n\n// A run of more than three nouns stands together.\nfunc main() {}\n",
+				Want: "package main\n\n// A run of more than a couple of nouns stands together.\nfunc main() {}\n",
+			},
 			// A ceiling stays a maximum.
 			{
 				Name: commentfix.ID + "-ceiling", Path: "main.go",

@@ -91,8 +91,8 @@
   <rephrase id="floor-tally-stays-a-minimum" match="at least {cardinal:c} {noun+plural:n}" to="multiple {n}">
     <test in="It takes a run of at least two nouns" out="It takes a run of multiple nouns"/>
   </rephrase>
-  <rephrase id="more-than-tally-stays-a-minimum" match="more than {cardinal:c} {noun+plural:n}" to="multiple {n}">
-    <test in="It takes a run of more than three nouns" out="It takes a run of multiple nouns"/>
+  <rephrase id="more-than-tally-stays-a-minimum" match="more than {cardinal:c} {noun+plural:n}" to="more than a couple of {n}">
+    <test in="It takes a run of more than three nouns" out="It takes a run of more than a couple of nouns"/>
   </rephrase>
   <rephrase id="ceiling-tally-stays-a-maximum" match="at most {cardinal:c} {noun+plural:n}" to="a bounded number of {n}">
     <test in="It takes a run of at most three nouns" out="It takes a run of a bounded number of nouns"/>

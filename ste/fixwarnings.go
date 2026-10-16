@@ -322,15 +322,12 @@ func clusterUnits(s *syntax.Sentence, first, last int) [][2]int {
 	return units
 }
 
-// properName reports a word written as part of a name: tagged a proper noun,
-// or capitalized away from the start of the sentence.
+// properName reports a capitalized word that rules/syntax.xml lists as part of
+// a product or standard name. A title-cased common noun is no name.
 func properName(s *syntax.Sentence, k int) bool {
 	w := s.Words[k]
-	if strings.HasPrefix(w.Tag, "NNP") {
-		return true
-	}
 	first, _ := utf8.DecodeRuneInString(w.Text)
-	return k > 0 && unicode.IsUpper(first)
+	return unicode.IsUpper(first) && syntax.Is(w.Text, "name-word")
 }
 
 // wordlike reports a token made of letters and digits, which can be a noun. The

@@ -18,6 +18,11 @@ func init() {
 				Text: "The gate cache lookup table stopped. It answers the Claude Code hook events.\n",
 				Want: "The table of the gate cache lookup stopped. It answers the Claude Code hook events.\n",
 			},
+			{
+				Name: "a title-cased cluster is no name", Path: "w.md",
+				Text: "It reads the Gate Cache Lookup Table.\n",
+				Want: "It reads the Table of the Gate Cache Lookup.\n",
+			},
 			{Name: "a product name and two nouns", Path: "w.md", Text: "It answers the Claude Code hook events.\n", Unchanged: true},
 			{Name: "a named standard", Path: "w.md", Text: "Its prose follows ASD-STE100 Simplified Technical English.\n", Unchanged: true},
 		},
