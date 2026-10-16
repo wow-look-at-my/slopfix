@@ -58,7 +58,6 @@ func mergeBase(top, a, b string) (string, error) {
 	return base.String(), nil
 }
 
-
 // RepoName answers the OWNER/NAME of the work tree that holds root.
 func (r Resolver) RepoName(root string) string {
 	top, topErr := toplevel(root)
