@@ -11,7 +11,11 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectNounCluster,
 		Autofix:  autofixNounCluster,
-		Cases:    []RuleCase{{Name: ste.IDNounCluster, Path: "w.md", Text: "The gate cache lookup table stopped.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDNounCluster, Path: "w.md", Text: "The gate cache lookup table stopped.\n", Want: "The table of the gate cache lookup stopped.\n"},
+			{Name: "a product name and two nouns", Path: "w.md", Text: "It answers the Claude Code hook events.\n", Unchanged: true},
+			{Name: "a named standard", Path: "w.md", Text: "Its prose follows ASD-STE100 Simplified Technical English.\n", Unchanged: true},
+		},
 	})
 }
 

@@ -239,6 +239,9 @@ func retag(words []Word) {
 		case (w.Tag == "VBD" || w.Tag == "VBN") && i > 0 && i+1 < len(words) && Is(words[i-1].Text, "determiner") && isNoun(words[i+1].Tag):
 			// "each embedded file": a past form between a determiner and its noun describes the noun.
 			w.Tag = "JJ"
+		case (w.Tag == "VBD" || w.Tag == "VBN") && i > 0 && i+1 < len(words) && Is(words[i-1].Text, "have") && Is(w.Text, "attributive") && isNoun(words[i+1].Tag):
+			// "has expected results": a participle that describes its noun is no perfect tense.
+			w.Tag = "JJ"
 		case w.Tag == "VB" && i > 0 && verbEnding(w.Text) && words[i-1].Tag != "TO" && words[i-1].Tag != "MD":
 			// "the message it writes to comply puts": a bare form takes no -s ending.
 			w.Tag = "VBZ"

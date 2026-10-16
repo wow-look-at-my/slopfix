@@ -42,6 +42,12 @@
   <!-- A determiner that opens a noun phrase. A past form after it describes the noun. "that" is absent, because it also opens a relative clause. -->
   <class name="determiner" words="a an the each every this these those no any some"/>
 
+  <!-- A form of have, which opens a perfect tense when a past participle follows. -->
+  <class name="have" words="has have had"/>
+
+  <!-- A past participle that commonly describes the noun after it, so "has expected results" holds an adjective and no perfect tense. -->
+  <class name="attributive" words="expected unexpected supported unsupported"/>
+
   <!-- A place word that follows the noun it places: "the case above". -->
   <class name="postposed" words="above below here there"/>
 

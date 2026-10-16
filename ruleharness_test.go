@@ -72,6 +72,12 @@ func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 				fixed := rule.Autofix(fixture)
 				assert.Empty(t, rule.Detect(fixed), "%s: case %q: the rule still detects the result of its autofix", rule.ID, raw.Name)
 
+				if raw.Want != "" {
+					written, err := os.ReadFile(filepath.Join(fixed.Root, filepath.FromSlash(raw.Path)))
+					require.NoError(t, err)
+					assert.Equal(t, raw.Want, string(written), "%s: case %q: the autofix wrote other text than the case wants", rule.ID, raw.Name)
+				}
+
 				// run ALL OTHER rules on the "fixed" fixture, confirming there are STILL no detctions.
 				assert.Empty(t, everyOtherRule(fixed, rule.ID), "%s: case %q: another rule detects the fixed fixture", rule.ID, raw.Name)
 			}

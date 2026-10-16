@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -298,12 +299,38 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		for end+1 <= last && noun(end+1) {
 			end++
 		}
-		if end-start+1 > NounClusterCap {
+		if len(clusterUnits(s, start, end)) > NounClusterCap {
 			return start, end, true
 		}
 		start = end
 	}
 	return -1, -1, false
+}
+
+// clusterUnits divides the nouns from first to last into the units a reader
+// holds apart. A run of capitalized words is one name, as in "Claude Code" or
+// "ASD-STE100 Simplified Technical English", and breaks no further.
+func clusterUnits(s *syntax.Sentence, first, last int) [][2]int {
+	var units [][2]int
+	for k := first; k <= last; k++ {
+		if k > first && properName(s, k) && properName(s, k-1) {
+			units[len(units)-1][1] = k
+			continue
+		}
+		units = append(units, [2]int{k, k})
+	}
+	return units
+}
+
+// properName reports a word written as part of a name: tagged a proper noun,
+// or capitalized away from the start of the sentence.
+func properName(s *syntax.Sentence, k int) bool {
+	w := s.Words[k]
+	if strings.HasPrefix(w.Tag, "NNP") {
+		return true
+	}
+	first, _ := utf8.DecodeRuneInString(w.Text)
+	return k > 0 && unicode.IsUpper(first)
 }
 
 // wordlike reports a token made of letters and digits, which can be a noun. The
@@ -333,13 +360,15 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 		return "", false
 	}
 	var out strings.Builder
-	last := end
+	units := clusterUnits(s, start, end)
 	// The head names the thing, and the nouns in front of it describe it.
-	for last-start+1 > NounClusterCap {
-		out.WriteString(source[s.Words[last].Start:s.Words[last].End])
+	for len(units) > NounClusterCap {
+		head := units[len(units)-1]
+		out.WriteString(source[s.Words[head[0]].Start:s.Words[head[1]].End])
 		out.WriteString(" of the ")
-		last--
+		units = units[:len(units)-1]
 	}
+	last := units[len(units)-1][1]
 	rest := source[s.Words[start].Start:s.Words[last].End]
 	rewritten := out.String()
 	// A cluster that opens the sentence hands its capital to the head that now opens it.
