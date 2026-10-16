@@ -44,8 +44,7 @@ type xmlTable struct {
 	} `xml:"cue"`
 }
 
-// Rules is the table the binary judges with. A malformed file stops the
-// binary at its first start.
+// Rules is the table the binary judges with. A malformed file stops the binary at its first start.
 var Rules = mustLoad(questionsXML)
 
 func mustLoad(raw []byte) Table {

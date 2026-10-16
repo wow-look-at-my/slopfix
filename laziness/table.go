@@ -53,9 +53,7 @@ type xmlTable struct {
 	Clean []string `xml:"clean"`
 }
 
-// Rules is the table the binary judges with. A malformed file stops the
-// binary at its first start, because a table that matches nothing reads as
-// a clean message.
+// Rules is the table the binary judges with.
 var Rules = mustLoad(lazinessXML)
 
 var tells, pardons = Rules.Patterns, Rules.Pardons
