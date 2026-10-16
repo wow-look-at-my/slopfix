@@ -120,11 +120,7 @@ func paragraphs(content string, lines []string) map[int]int {
 						to++
 					}
 					switch {
-<<<<<<< HEAD
-					case trailerBlock(lines[from : to+1]):
-=======
 					case isTrailerBlock(lines[from : to+1]):
->>>>>>> origin/repair-master-ci
 						// A trailer block is a line per trailer, and git reads each line alone.
 						for line := from; line <= to; line++ {
 							ends[line] = line
