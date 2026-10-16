@@ -28,11 +28,12 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 		if !endsSentence(joined) {
 			joined += "."
 		}
-		sentences := ste.Sentences(ste.FixKeepingOpening(joined))
-		if len(sentences) == 0 {
+		// A comment sentence can open on an identifier in lower case: "adopt. cubeCount_ = 0 forces" holds a couple of sentences.
+		found := cutSentences(ste.FixKeepingOpening(joined))
+		if len(found) == 0 {
 			return nil, false
 		}
-		first := strings.TrimSpace(sentences[0])
+		first := strings.TrimSpace(found[0])
 		if ste.WordCount(first) > ste.SentenceWordCap {
 			if clause, ok := ste.Leading(first); ok {
 				first = strings.TrimSpace(ste.FixKeepingOpening(clause))
