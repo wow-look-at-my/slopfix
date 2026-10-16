@@ -232,7 +232,7 @@ func checkSemicolons(prose string, line int) []Finding {
 	if !strings.Contains(prose, ";") {
 		return nil
 	}
-	return []Finding{{Line: line, ID: IDSemicolon, Rule: "STE bans the semicolon", Detail: ";", Fix: "Write a period and start a new sentence."}}
+	return []Finding{{Line: line, ID: IDSemicolon, Rule: "a semicolon joins sentences that a period keeps apart", Detail: ";", Fix: "Write a period and start a new sentence."}}
 }
 
 func checkSentences(prose string, line int) []Finding {
@@ -271,7 +271,7 @@ func checkSplices(prose string, line int) []Finding {
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDCommaSplice,
-			Rule:   "a comma joining two clauses is the semicolon STE bans, spelled differently",
+			Rule:   "a comma joins two clauses that each stand alone",
 			Detail: strings.TrimSpace(prose[loc[0]:loc[1]]),
 			Fix:    "Write a period in place of the comma and capitalize the next word.",
 		})
