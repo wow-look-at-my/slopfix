@@ -155,6 +155,12 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 	if writing {
 		repository()
 	}
+	repinned, pins, err := pinsInTree(root, req, writing)
+	if err != nil {
+		out.Findings = append(out.Findings, repoFinding(root, IDBudget, "the branch pins could not be judged", err.Error()))
+	}
+	out.Repaired = append(out.Repaired, repinned...)
+	out.Findings = append(out.Findings, pins...)
 	for _, f := range out.Findings {
 		mustBeRegistered(f.ID)
 	}
