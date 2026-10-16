@@ -80,6 +80,15 @@ func keepsOf(req Request) func(string) bool {
 func treeRun(root string, req Request, writing bool) TreeRepair {
 	defer trace.Phase("slopfix/fixtree")()
 
+	// A tree run always judges branch pins, against the GitHub API unless the caller brought its own answers.
+	if req.Refs == nil {
+		req.Refs = NewGitHubRefs(os.Getenv)
+	}
+	cached, err := refsAt(root, req.Refs)
+	if err != nil {
+		return TreeRepair{Findings: []TreeFinding{repoFinding(root, workflow.IDBranchPin, "the recorded ref answers could not be read", err.Error())}}
+	}
+	req.Refs = cached
 	var out TreeRepair
 	repository := func() {
 		if !wantsRepo(req) || !isRepoRoot(root) {
@@ -155,12 +164,6 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 	if writing {
 		repository()
 	}
-	repinned, pins, err := pinsInTree(root, req, writing)
-	if err != nil {
-		out.Findings = append(out.Findings, repoFinding(root, IDBudget, "the branch pins could not be judged", err.Error()))
-	}
-	out.Repaired = append(out.Repaired, repinned...)
-	out.Findings = append(out.Findings, pins...)
 	for _, f := range out.Findings {
 		mustBeRegistered(f.ID)
 	}
