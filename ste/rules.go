@@ -425,7 +425,8 @@ func opensSentence(rest []rune) bool {
 	// A name from code keeps its lower case at the start of a sentence: "newFile now asks".
 	first, _, _ := strings.Cut(head, " ")
 	// An identifier such as foreignJobs opens a sentence in its own case.
-	return maskedSpan.MatchString(head) || fileOrSection.MatchString(head) || lowerIdentifier(first) || NameLike(head)
+	return maskedSpan.MatchString(head) || fileOrSection.MatchString(head) ||
+		lowerIdentifier(first) || NameLike(head)
 }
 
 // openerReach bounds how far opensSentence reads.
