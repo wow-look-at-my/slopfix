@@ -13,7 +13,11 @@ func init() {
 		Category: RuleComments,
 		Detect:   detectCommentNumber,
 		Autofix:  autofixCommentNumber,
-		Cases:    []RuleCase{{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"}},
+		Cases: []RuleCase{
+			{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"},
+			// A zero that is the subject of a verb, as in buildhost's upload.ts.
+			{Name: commentfix.ID + "-zero-subject", Path: "size.ts", Text: "/** The size from the input: empty is the default, 0 disables chunking. */\nexport function size(input: string): number {\n\treturn input.length;\n}\n"},
+		},
 	})
 }
 
