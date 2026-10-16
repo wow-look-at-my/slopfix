@@ -76,10 +76,44 @@ func widenDictionary(prose string) string {
 		if isCapitalized(word) {
 			replacement = capitalize(replacement)
 		}
+		if agreed, ok := agreeArticle(out.String(), replacement); ok {
+			out.Reset()
+			out.WriteString(agreed)
+		}
 		out.WriteString(replacement)
 	}
 	out.WriteString(prose[last:])
 	return out.String()
+}
+
+// agreeArticle rewrites the article that ends before. It agrees with the
+// word that follows it: "a" before a vowel becomes "an", and "an" before a
+// consonant becomes "a". It answers false when no article stands there.
+func agreeArticle(before, word string) (string, bool) {
+	if word == "" {
+		return before, false
+	}
+	vowel := strings.ContainsRune("aeiouAEIOU", rune(word[0]))
+	for _, c := range []struct {
+		article, other string
+		wantVowel      bool
+	}{{"an", "a", false}, {"a", "an", true}} {
+		for _, form := range []string{c.article, capitalize(c.article)} {
+			stem, ok := strings.CutSuffix(before, form+" ")
+			if !ok || vowel != c.wantVowel {
+				continue
+			}
+			if stem != "" && (unicode.IsLetter(rune(stem[len(stem)-1])) || unicode.IsDigit(rune(stem[len(stem)-1]))) {
+				continue
+			}
+			other := c.other
+			if form != c.article {
+				other = capitalize(other)
+			}
+			return stem + other + " ", true
+		}
+	}
+	return before, false
 }
 
 // fixParagraphs writes the parts of Paragraphs with a blank line between them.
@@ -234,7 +268,7 @@ func simpleSpan(s *syntax.Sentence, i, j int) bool {
 // tense and no rewrite here writes it back.
 func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
-		if !simpleSpan(s, i, j) {
+		if !simpleSpan(s, i, j) || followsModal(s, i) {
 			return "", false
 		}
 		return splice(source, s, i, j, pastFromParticiple(s.Words[j].Lower())), true
@@ -251,6 +285,17 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 		return "", false
 	}
 	return splice(source, s, i, j, presentOf(baseFromGerund(s.Words[j].Lower()), s.Plural(subject))), true
+}
+
+// followsModal reports an auxiliary that a modal or an infinitive "to" governs:
+// "will have watched" has no simple tense, and dropping the auxiliary alone
+// would leave "will watched".
+func followsModal(s *syntax.Sentence, i int) bool {
+	if i < 1 {
+		return false
+	}
+	before := s.Words[i-1]
+	return before.Tag == "MD" || before.Lower() == "to" || beForms.Contains(before.Lower())
 }
 
 // subjectBefore answers the noun phrase that stands in front of word i, which

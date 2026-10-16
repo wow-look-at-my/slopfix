@@ -10,7 +10,7 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectPassive,
 		Autofix:  autofixPassive,
-		Cases:    []RuleCase{{Name: ste.IDPassive, Path: "w.md", Text: "The task is started by the gate.\n"}},
+		Cases:    []RuleCase{{Name: ste.IDPassive, Path: "w.md", Text: "The task is started by the gate.\n", Want: "The gate starts the task.\n"}},
 	})
 }
 

@@ -6,6 +6,30 @@ It also answers the events of the Claude Code hook that the org's marketplace pl
 
 ## The rules
 
+| Category | Rule IDs | Repairs |
+|---|---|---|
+| `repo` | `repo/agents-file`, `repo/budget`, `repo/package-scripts`, `repo/binary`, `repo/near-duplicate` | all |
+| `wrap` | `wrap/hard-wrap`, `wrap/long-block` | yes |
+| `ste` | `ste/contraction`, `ste/modal`, `ste/sentence-length` | yes |
+| `english` | `english/comma-never`, `english/semicolon`, `english/comma-splice` | yes, except before a verb |
+| `ste`, warnings | `ste/instruction-length`, `ste/passive`, `ste/noun-cluster`, `ste/tense`, `ste/dictionary`, `ste/paragraph-length` | no, and a warning never fails `check` |
+| `counts` | `counts/inventory-count`, `counts/stated-count`, `counts/postdeterminer` | yes |
+| `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
+| `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes, except a flow-style `push` mapping |
+| `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`. A warning never fails `check` |
+| `pins` | `pins/download-version` | yes, except a templated URL |
+| message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
+
+- `repo`: `CLAUDE.md` holds only `@AGENTS.md`. Each root file, each `CLAUDE.md` and each `claude_snippets/` file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`. No executable is committed. No file is a near copy of another file of its name. Each JSON and XML file parses and meets the schema it names.
+- `wrap` and `ste`: a paragraph is one line, and its prose follows English of the ASD-STE100 Simplified Technical.
+- `english`: plain English usage that STE does not cover, such as a semicolon or a comma splice.
+- `counts` and `comments/number`: a stated count goes stale when the set changes.
+- `tombstones`: a comment that narrates history or argues for the diff.
+- `comments`: a number in a comment, a comment longer than its code, and a comment cut off mid-thought.
+- `yaml`: a comment block, a job named `all-builds`, a test in a `run:` script, a gate under `continue-on-error`. A `run:` script that does not parse as shell, a step key written twice, and a `uses:` ref on a feature branch.
+- message: a closing message that leaves the work undone, deflects blame, or hands the reader a decision.
+
 A fenced code block, a table and a heading are data. No rule reads them.
 
 ## Install
@@ -15,6 +39,28 @@ The CI action downloads the published binary from buildhost. For local use, buil
 ```sh
 go-toolchain            # builds build/slopfix, and runs the tests
 ```
+
+## Use
+
+```sh
+slopfix check .                       # report what the rules reject, exit 1 on any finding
+slopfix fix .                         # repair in place, then report what is left
+slopfix check --only ste docs/a.md    # narrow to a category
+slopfix fix --only english/semicolon a.md # narrow to a rule ID
+slopfix check --json --path a.md < a.md      # JSON findings for text on stdin
+slopfix check --message < message.txt        # judge a closing message
+slopfix fix --staged                         # repair only the lines staged against HEAD
+slopfix fix --diff origin/master .           # repair only the lines this branch adds
+slopfix hook < payload.json                  # answer a Claude Code hook event
+```
+
+The commands are `check`, `hook`, `lsp`, `completion` and `help`.
+
+- `check` runs every rule by default. `fix` is `check --fix`. A directory argument is walked.
+- `--only` takes categories and rule IDs, comma separated. An unknown name is an error.
+- `--staged` and `--diff REV` scope the run to the lines a change introduced, so a fork's repair leaves the upstream lines alone.
+- `slopfix hook` reads the event off the payload and runs every guard that serves it.
+- `slopfix lsp` is a language server on stdio. It publishes the findings for each open file that a build reads.
 
 ## In CI
 
