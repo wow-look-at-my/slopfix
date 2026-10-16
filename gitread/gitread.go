@@ -64,11 +64,6 @@ func oidOf(b []byte) OID {
 	return out
 }
 
-func looksLikeOID(s string) bool {
-	_, err := ParseOID(s)
-	return err == nil
-}
-
 // HashBlob answers the name git gives a blob with this content.
 func HashBlob(data []byte) OID {
 	h := sha1.New()
