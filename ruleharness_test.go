@@ -1,6 +1,10 @@
 package slopfix_test
 
 import (
+	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -35,11 +39,15 @@ func everyOtherRule(c slopfix.RuleCase, id string) []string {
 //   - run ALL OTHER rules on the "fixed" fixture, confirming there are STILL no detctions.
 //
 // The result is what the rule's autofix writes. No rule and no case has a way
-// to skip a step.
+// to skip a step. A case marked Unchanged inverts the detection step: the rule
+// detects nothing, and its autofix writes every text back byte for byte. Every
+// rule still carries a case it detects.
 func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 	for _, rule := range slopfix.AllRuleSpecs() {
 		t.Run(rule.ID, func(t *testing.T) {
 			require.NotEmpty(t, rule.Cases, "%s carries no case", rule.ID)
+			require.True(t, slices.ContainsFunc(rule.Cases, func(c slopfix.RuleCase) bool { return !c.Unchanged }),
+				"%s carries no case it detects", rule.ID)
 			for _, raw := range rule.Cases {
 				// <input fixture, which includes the case(s) that the rule should detect>
 				fixture, err := slopfix.Materialize(t.TempDir(), raw)
@@ -47,6 +55,11 @@ func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 
 				// run ALL OTHER rules on the fixture, confirming that there are no detections other than the current rule we're testing
 				assert.Empty(t, everyOtherRule(fixture, rule.ID), "%s: case %q: another rule detects the fixture", rule.ID, raw.Name)
+
+				if raw.Unchanged {
+					assertLeftAsWritten(t, rule, fixture, raw.Name)
+					continue
+				}
 
 				// run the rule on the fixture, confirming it is detected
 				detected := rule.Detect(fixture)
@@ -64,6 +77,47 @@ func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 			}
 		})
 	}
+}
+
+// assertLeftAsWritten holds a rule to a case it must leave alone: no detection. This
+// also covers an autofix that changes no text, and no other rule's detection after
+// it.
+func assertLeftAsWritten(t *testing.T, rule slopfix.RuleSpec, fixture slopfix.RuleCase, name string) {
+	t.Helper()
+	assert.Empty(t, rule.Detect(fixture), "%s: case %q: the rule detects a case it must leave as written", rule.ID, name)
+	before := caseTexts(t, fixture)
+	fixed := rule.Autofix(fixture)
+	assert.Equal(t, before, caseTexts(t, fixed), "%s: case %q: the autofix rewrote a case it must leave as written", rule.ID, name)
+	assert.Empty(t, everyOtherRule(fixed, rule.ID), "%s: case %q: another rule detects the fixed fixture", rule.ID, name)
+}
+
+// caseTexts answers every text of a materialized case: each file of its
+// repository outside .git by path, and the message under the empty path.
+func caseTexts(t *testing.T, c slopfix.RuleCase) map[string]string {
+	t.Helper()
+	out := map[string]string{"": c.Text}
+	if c.Root == "" {
+		return out
+	}
+	err := filepath.WalkDir(c.Root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		out[path] = string(content)
+		return nil
+	})
+	require.NoError(t, err)
+	return out
 }
 
 // A rule with a detection needs an autofix. The registry refuses a nil autofix.
