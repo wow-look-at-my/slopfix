@@ -4,7 +4,7 @@
 	narrow enough that ordinary reporting does not trip it. Each punt under a
 	pattern must fire that pattern. Each clean message must fire nothing.
 -->
-<laziness xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="laziness.xsd">
+<laziness xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="laziness.xsd" answer="continue">
 	<shape name="disowning a defect you found">
 		<pattern re="(?i)\b(?:not|neither)\s+(?:mine|ours|my own)\s+to\s+fix\b">
 			<punt>I found a broken build phase. Neither mine to fix unasked.</punt>

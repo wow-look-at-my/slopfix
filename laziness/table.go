@@ -32,6 +32,8 @@ type Pardon struct {
 
 // Table is laziness.xml, compiled.
 type Table struct {
+	// Answer is what the Stop hook sends back on a punt.
+	Answer   string
 	Patterns []Pattern
 	Pardons  []Pardon
 	// Clean holds messages that own the work. None may fire.
@@ -39,6 +41,7 @@ type Table struct {
 }
 
 type xmlTable struct {
+	Answer string `xml:"answer,attr"`
 	Shapes []struct {
 		Name     string `xml:"name,attr"`
 		Patterns []struct {
@@ -72,7 +75,10 @@ func Load(raw []byte) (Table, error) {
 	if err := xml.Unmarshal(table.Readable(raw), &doc); err != nil {
 		return Table{}, err
 	}
-	var t Table
+	t := Table{Answer: strings.TrimSpace(doc.Answer)}
+	if t.Answer == "" {
+		return Table{}, fmt.Errorf("no answer")
+	}
 	for _, s := range doc.Shapes {
 		name := strings.TrimSpace(s.Name)
 		if name == "" {

@@ -56,14 +56,28 @@ func TestTheCleanMessagesFireNothing(t *testing.T) {
 
 func TestAMalformedTableIsAnError(t *testing.T) {
 	for name, raw := range map[string]string{
-		"not XML":       `<laziness>`,
-		"no pattern":    `<laziness></laziness>`,
-		"bad regexp":    `<laziness><shape name="s"><pattern re="("><punt>x</punt></pattern></shape></laziness>`,
-		"no punt":       `<laziness><shape name="s"><pattern re="x"/></shape></laziness>`,
-		"no shape name": `<laziness><shape><pattern re="x"><punt>x</punt></pattern></shape></laziness>`,
-		"bad pardon":    `<laziness><shape name="s"><pattern re="x"><punt>x</punt></pattern></shape><pardon re="("/></laziness>`,
+		"not XML":       `<laziness answer="a">`,
+		"no answer":     `<laziness><shape name="s"><pattern re="x"><punt>x</punt></pattern></shape></laziness>`,
+		"no pattern":    `<laziness answer="a"></laziness>`,
+		"bad regexp":    `<laziness answer="a"><shape name="s"><pattern re="("><punt>x</punt></pattern></shape></laziness>`,
+		"no punt":       `<laziness answer="a"><shape name="s"><pattern re="x"/></shape></laziness>`,
+		"no shape name": `<laziness answer="a"><shape><pattern re="x"><punt>x</punt></pattern></shape></laziness>`,
+		"bad pardon":    `<laziness answer="a"><shape name="s"><pattern re="x"><punt>x</punt></pattern></shape><pardon re="("/></laziness>`,
 	} {
 		_, err := laziness.Load([]byte(raw))
 		assert.Error(t, err, name)
 	}
+}
+
+// The control for the cases above: the smallest well-formed table loads.
+func TestTheSmallestTableLoads(t *testing.T) {
+	got, err := laziness.Load([]byte(`<laziness answer="a"><shape name="s"><pattern re="x"><punt>x</punt></pattern></shape></laziness>`))
+	require.NoError(t, err)
+	assert.Equal(t, "a", got.Answer)
+	assert.Len(t, got.Patterns, 1)
+}
+
+// The Stop hook approves with the word the table names.
+func TestTheAnswerIsContinue(t *testing.T) {
+	assert.Equal(t, "continue", laziness.Rules.Answer)
 }
