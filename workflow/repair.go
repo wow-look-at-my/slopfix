@@ -49,7 +49,11 @@ func init() {
 	register("yaml/ungate", IDNeuteredGate, 10, ungate, false)
 	register("yaml/join-comments", IDCommentBlock, 20, joinCommentBlocks, true)
 	register("yaml/rename-guarded-job", IDAllBuildsJob, 30, renameGuardedJob, false)
-	register("yaml/drop-duplicate-step-key", IDDuplicateStepKey, 15, dropDuplicateKeys, false)
+	fixer.Register(fixer.Spec{
+		Label: "yaml/drop-duplicate-step-key", Families: []string{Category}, Rules: []string{IDDuplicateStepKey},
+		Files: []fixer.Kind{fixer.Workflow}, Place: 15,
+		Repair: func(f *fixer.File) { f.ApplyThrough(applyDroppingKeys, dropDuplicateKeys(f.Text())) },
+	})
 	register("yaml/fix-run-script", IDRunScriptSyntax, 40, repairRunScripts, false)
 	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
@@ -87,16 +91,31 @@ func Fix(content string, keeps func(string) bool) Repair {
 	return Repair{Text: f.Text(), Changed: f.Text() != content, Removed: f.Report().Removed}
 }
 
-// apply writes edits into a workflow through the YAML gate. Every edit covers
-// whole lines, because a newline is syntax here. The result must parse, and a
-// comment edit must decode to the same data.
 func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) edit.Result {
+	return gate(content, edits, scope, comment, false)
+}
+
+func applyDroppingKeys(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
+	return gate(content, edits, scope, false, true)
+}
+
+// gate writes edits into a workflow through the YAML gate. Every edit covers
+// whole lines, because a newline is syntax here. The result must parse, and a
+// comment edit must decode to the same data. With repeatsAllowed the input
+// need only be well formed, since the edit removes the repeated key.
+func gate(content string, edits []edit.Edit, scope edit.Scope, comment, repeatsAllowed bool) edit.Result {
 	if len(edits) == 0 {
 		return edit.Unchanged(content, scope)
 	}
 	var want any
-	// A repeated key is the defect a repair removes, so it does not stop the repair.
-	if err := yaml.Unmarshal([]byte(compareData(content, comment)), &want); err != nil && !(strings.Contains(err.Error(), "already defined") && !comment) {
+	var err error
+	if repeatsAllowed {
+		var tree yaml.Node
+		err = yaml.Unmarshal([]byte(content), &tree)
+	} else {
+		err = yaml.Unmarshal([]byte(compareData(content, comment)), &want)
+	}
+	if err != nil {
 		out := edit.Unchanged(content, scope)
 		for _, e := range edits {
 			out.Refused = append(out.Refused, edit.Refused{Edit: e, Reason: "the workflow does not parse"})

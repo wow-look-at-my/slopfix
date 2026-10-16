@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 
-	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -91,98 +90,25 @@ func escapeRef(ref string) string {
 	return strings.Join(parts, "/")
 }
 
-// BranchPinsTree reports the branch pins of every workflow and action manifest
-// a walk of root reads, when the selection reaches the rule.
-func BranchPinsTree(root string, req Request, refs workflow.Refs) ([]TreeFinding, error) {
-	if !selectsBranchPin(req) {
-		return nil, nil
-	}
-	var out []TreeFinding
-	for _, path := range commentfix.TreeFilesMatching(root, func(p string) bool { return workflow.Judges(p) || isYAML(p) }) {
-		found, err := BranchPinsFile(path, req, refs)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, found...)
-	}
-	return out, nil
-}
-
-// BranchPinsFile reports the branch pins of one file, when the selection
-// reaches the rule and the workflow rules own the file.
-func BranchPinsFile(path string, req Request, refs workflow.Refs) ([]TreeFinding, error) {
-	if !selectsBranchPin(req) {
-		return nil, nil
-	}
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	if exempt(path, string(content)) || !isWorkflow(path, string(content)) {
-		return nil, nil
-	}
-	refs, err = refsAt(repoRootOf(path), refs)
-	if err != nil || refs == nil {
-		return nil, err
-	}
-	findings, err := workflow.BranchPins(string(content), refs)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
-	out := make([]TreeFinding, 0, len(findings))
-	for _, f := range findings {
-		out = append(out, TreeFinding{Path: path, Finding: f})
-	}
-	return out, nil
-}
-
-// RepairBranchPinsTree writes the default branch over each branch pin of every
-// workflow and action manifest a walk of root reads. Answers the paths it
-// wrote.
-func RepairBranchPinsTree(root string, req Request, refs workflow.Refs) ([]string, error) {
-	if !selectsBranchPin(req) {
-		return nil, nil
-	}
-	var out []string
-	for _, path := range commentfix.TreeFilesMatching(root, func(p string) bool { return workflow.Judges(p) || isYAML(p) }) {
-		changed, err := RepairBranchPinsFile(path, req, refs)
-		if err != nil {
-			return nil, err
-		}
-		if changed {
-			out = append(out, path)
+// pinsInText writes the default branch over each branch pin of workflow text,
+// when the request writes, and answers the text with the pins that remain. A
+// lookup that cannot be made is a finding under the rule's own ID. No
+// selection hides it and no failure reads as a clean file.
+func pinsInText(req Request, text string) (string, []ste.Finding) {
+	if !req.Scope.Bounded {
+		if fixed, err := workflow.RepairBranchPins(text, req.Refs); err == nil {
+			text = fixed
 		}
 	}
-	return out, nil
-}
-
-// RepairBranchPinsFile is RepairBranchPinsTree for one file. It reports
-// whether it wrote the file.
-func RepairBranchPinsFile(path string, req Request, refs workflow.Refs) (bool, error) {
-	if !selectsBranchPin(req) {
-		return false, nil
-	}
-	content, err := os.ReadFile(path)
+	found, err := workflow.BranchPins(text, req.Refs)
 	if err != nil {
-		return false, err
+		return text, []ste.Finding{{
+			Line:   1,
+			ID:     workflow.IDBranchPin,
+			Rule:   "the branch pins could not be judged",
+			Detail: err.Error(),
+			Fix:    "Make the lookup answerable: reach the GitHub API and set GITHUB_TOKEN for a private repository.",
+		}}
 	}
-	if exempt(path, string(content)) || !isWorkflow(path, string(content)) {
-		return false, nil
-	}
-	refs, err = refsAt(repoRootOf(path), refs)
-	if err != nil || refs == nil {
-		return false, err
-	}
-	fixed, err := workflow.RepairBranchPins(string(content), refs)
-	if err != nil {
-		return false, fmt.Errorf("%s: %w", path, err)
-	}
-	if fixed == string(content) {
-		return false, nil
-	}
-	return true, os.WriteFile(path, []byte(fixed), 0o644)
-}
-
-func selectsBranchPin(req Request) bool {
-	return wantsOf(req)(RuleWorkflow) && keepsOf(req)(workflow.IDBranchPin)
+	return text, found
 }

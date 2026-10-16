@@ -83,13 +83,60 @@ func TestBranchPinsTreeReportsAWorkflowFinding(t *testing.T) {
 	ci := filepath.Join(dir, "ci.yml")
 	require.NoError(t, os.WriteFile(ci, []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@master\n      - uses: o/r@feature\n"), 0o644))
 
-	found, err := slopfix.BranchPinsTree(root, slopfix.Request{}, refs)
-	require.NoError(t, err)
+	pins := func(req slopfix.Request) []slopfix.TreeFinding {
+		var found []slopfix.TreeFinding
+		for _, f := range slopfix.CheckTreeWith(root, req).Findings {
+			if f.ID == workflow.IDBranchPin {
+				found = append(found, f)
+			}
+		}
+		return found
+	}
+	found := pins(slopfix.Request{Refs: refs})
 	require.Len(t, found, 1)
 	assert.Equal(t, ci, found[0].Path)
 	assert.Equal(t, 7, found[0].Line)
 
-	none, err := slopfix.BranchPinsTree(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}}, refs)
-	require.NoError(t, err)
-	assert.Empty(t, none, "a selection without the workflow rules asks nothing")
+	assert.Empty(t, pins(slopfix.Request{Refs: refs, Rules: []slopfix.Rule{slopfix.RuleRepo}}), "a selection without the workflow rules asks nothing")
+}
+
+func TestATreeRunAsksTheAPIWhenGivenNoRefs(t *testing.T) {
+	calls := 0
+	srv := refsAPI(t, &calls)
+	t.Setenv("GITHUB_API_URL", srv.URL)
+	t.Setenv("GITHUB_TOKEN", "tok")
+	root := t.TempDir()
+	dir := filepath.Join(root, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"), 0o644))
+
+	var ids []string
+	for _, f := range slopfix.CheckTreeWith(root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings {
+		ids = append(ids, f.ID)
+	}
+	assert.Equal(t, []string{workflow.IDBranchPin}, ids)
+	assert.Positive(t, calls)
+}
+
+func TestAnUnreadableRepositoryIsAFindingNotATag(t *testing.T) {
+	calls := 0
+	srv := refsAPI(t, &calls)
+	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
+	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
+	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/private@v1\n"
+	repair := slopfix.Report(slopfix.Request{Content: text, Path: ".github/workflows/ci.yml", Refs: refs, IDs: []string{workflow.IDBranchPin}})
+	require.Len(t, repair.Findings, 1)
+	assert.Equal(t, workflow.IDBranchPin, repair.Findings[0].ID)
+	assert.Contains(t, repair.Findings[0].Detail, "404")
+}
+
+func TestFixWritesTheDefaultBranchOverABranchPin(t *testing.T) {
+	calls := 0
+	srv := refsAPI(t, &calls)
+	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
+	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
+	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"
+	repair := slopfix.Fix(slopfix.Request{Content: text, Path: ".github/workflows/ci.yml", Refs: refs, IDs: []string{workflow.IDBranchPin}})
+	assert.Contains(t, repair.Text, "uses: o/r@master")
+	assert.Empty(t, repair.Findings)
 }
