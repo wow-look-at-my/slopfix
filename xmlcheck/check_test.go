@@ -9,20 +9,85 @@ import (
 	"github.com/wow-look-at-my/slopfix/xmlcheck"
 )
 
+// miniatureSchema is the shape of the small table: a root holding entries
+// (e), entries that take no case (f), named rows (r) and tests.
+const miniatureSchema = `<?xml version="1.1" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:simpleType name="text">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[\s\S]*\S[\s\S]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="case">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="sensitive"/>
+      <xs:enumeration value="insensitive"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="level">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="low"/>
+      <xs:enumeration value="high"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="surface">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="a"/>
+      <xs:enumeration value="b"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="surfaces">
+    <xs:list itemType="surface"/>
+  </xs:simpleType>
+  <xs:complexType name="test">
+    <xs:attribute name="in" type="text" use="required"/>
+    <xs:attribute name="out" type="xs:string"/>
+  </xs:complexType>
+  <xs:element name="t">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="test" type="test"/>
+        <xs:element name="e">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="test" type="test" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="word" type="text" use="required"/>
+            <xs:attribute name="level" type="level"/>
+            <xs:attribute name="where" type="surfaces"/>
+            <xs:attribute name="probe" type="xs:string"/>
+            <xs:attribute name="expect" type="xs:string"/>
+            <xs:attribute name="case" type="case"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="f">
+          <xs:complexType>
+            <xs:attribute name="word" type="text" use="required"/>
+            <xs:attribute name="case" type="case"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="r">
+          <xs:complexType>
+            <xs:attribute name="name" type="text" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+      <xs:attribute name="case" type="case"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`
+
 // miniature is a small table that exercises each kind of check.
 func miniature() xmlcheck.Spec {
 	return xmlcheck.Spec{
-		Root: "t",
+		Schema: []byte(miniatureSchema),
 		Elems: map[string]xmlcheck.Elem{
-			"t": {Case: true, Children: []string{"e", "test"}},
+			"t": {Case: true},
 			"e": {
-				Required: []string{"word"}, Attrs: []string{"level", "where"}, Case: true,
-				Children: []string{"test"}, TestAttr: "probe", ExpectAttr: "expect",
-				Enum:  map[string][]string{"level": {"low", "high"}, "where": {"a", "b"}},
-				Lists: []string{"where"},
-				Keys:  []xmlcheck.Key{{Attrs: []string{"word"}, Exact: []string{"where"}}},
+				Case: true, TestAttr: "probe", ExpectAttr: "expect",
+				Keys: []xmlcheck.Key{{Attrs: []string{"word"}, Exact: []string{"where"}}},
 			},
-			"test": {Required: []string{"in"}, Attrs: []string{"out"}},
+			"r": {Keys: []xmlcheck.Key{{Attrs: []string{"name"}, Split: true}}},
 		},
 		Test:    xmlcheck.TestDef{Elem: "test", In: "in", Out: []string{"out"}},
 		Shadows: []xmlcheck.Shadow{{Elem: "e", Attr: "word"}},
@@ -64,39 +129,63 @@ func TestAProblemNamesItsLine(t *testing.T) {
 	assert.Contains(t, err.Error(), "t.xml:4:")
 }
 
-func TestAnUnknownElementFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<t><bogus/></t>`), "<bogus> is not an element")
+func TestTheSchemaRejectsAnUnknownElement(t *testing.T) {
+	assert.ErrorContains(t, run(miniature(), `<t><bogus/></t>`), `"bogus"`)
 }
 
-func TestAnElementInTheWrongPlaceFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<t><e word="a"><e word="b"/></e></t>`), "may not appear inside")
+func TestTheSchemaRejectsAnElementInTheWrongPlace(t *testing.T) {
+	assert.ErrorContains(t, run(miniature(), `<t><e word="a"><e word="b"/></e></t>`), `"e"`)
 }
 
-func TestAnUnknownAttributeFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<t><e word="a" color="red"/></t>`), `no attribute "color"`)
+func TestTheSchemaRejectsAnUnknownAttribute(t *testing.T) {
+	assert.ErrorContains(t, run(miniature(), `<t><e word="a" color="red"/></t>`), `unexpected attribute "color"`)
 }
 
-func TestAnEmptyRequiredAttributeFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<t><e word="  "/></t>`), "needs a word that is not empty")
-	assert.ErrorContains(t, run(miniature(), `<t><e/></t>`), "needs a word that is not empty")
+func TestTheSchemaRejectsAMissingOrBlankRequiredAttribute(t *testing.T) {
+	assert.ErrorContains(t, run(miniature(), `<t><e word="  "/></t>`), "does not match pattern")
+	assert.ErrorContains(t, run(miniature(), `<t><e/></t>`), `required attribute "word" is missing`)
 }
 
-func TestAValueOutsideItsSetFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<t><e word="a" level="medium"/></t>`), `level="medium" is not one of`)
-	assert.ErrorContains(t, run(miniature(), `<t><e word="a" where="a c"/></t>`), `where="c" is not one of`)
+func TestTheSchemaRejectsAValueOutsideItsSet(t *testing.T) {
+	assert.ErrorContains(t, run(miniature(), `<t><e word="a" level="medium"/></t>`), "is not one of the allowed values")
+	assert.ErrorContains(t, run(miniature(), `<t><e word="a" where="a c"/></t>`), "is not one of the allowed values")
 }
 
-func TestTextWhereNoneBelongsFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<t><e word="a">stray</e></t>`), "may not hold text")
+func TestTheSchemaRejectsTextWhereNoneBelongs(t *testing.T) {
+	assert.ErrorContains(t, run(miniature(), `<t><e word="a">stray</e></t>`), "t.xml:2:")
 }
 
-func TestACaseValueOutsideTheTwoFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<t case="Sensitive"/>`), `is not "sensitive" or "insensitive"`)
-	assert.ErrorContains(t, run(miniature(), `<t><e word="a" case="yes"/></t>`), `is not "sensitive" or "insensitive"`)
+func TestTheSchemaRejectsACaseValueOutsideTheTwo(t *testing.T) {
+	assert.ErrorContains(t, run(miniature(), `<t case="Sensitive"/>`), "is not one of the allowed values")
+	assert.ErrorContains(t, run(miniature(), `<t><e word="a" case="yes"/></t>`), "is not one of the allowed values")
 }
 
+func TestTheSchemaRejectsACaseAttributeOnAnElementThatDeclaresNone(t *testing.T) {
+	assert.ErrorContains(t, run(miniature(), `<t><test in="a" case="sensitive"/></t>`), `unexpected attribute "case"`)
+}
+
+// A schema may declare case= on an element the table does not let an entry flip.
 func TestACaseAttributeOnAnElementThatTakesNoneFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<t><test in="a" case="sensitive"/></t>`), "does not take case=")
+	assert.ErrorContains(t, run(miniature(), `<t><f word="a" case="sensitive"/></t>`), "does not take case=")
+}
+
+// The semantic checks read a table whose shape is sound, so a schema defect
+// is the only thing reported while one stands.
+func TestSemanticChecksWaitForTheSchema(t *testing.T) {
+	err := run(miniature(), `<t><e word="a"/><e word="A"/><bogus/></t>`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"bogus"`)
+	assert.NotContains(t, err.Error(), "repeats the one")
+}
+
+// Each file is validated on its own, so each bad file is named.
+func TestEveryFileWithASchemaDefectIsReported(t *testing.T) {
+	a := xmlcheck.File{Name: "a.xml", Raw: []byte(`<t><bogus/></t>`)}
+	b := xmlcheck.File{Name: "b.xml", Raw: []byte(`<t><e/></t>`)}
+	err := xmlcheck.Run(miniature(), a, b)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "a.xml:1:")
+	assert.Contains(t, err.Error(), "b.xml:1:")
 }
 
 // Case does not separate entries unless both are sensitive.
@@ -182,16 +271,8 @@ func TestAnEarlierEntryOnOtherSurfacesClaimsNothing(t *testing.T) {
 	require.NoError(t, run(miniature(), `<t><e word="in order" where="a"/><e word="in order to" where="b"/></t>`))
 }
 
-func TestARootThatMatchesAsTypedNeedsTheAttribute(t *testing.T) {
-	spec := miniature()
-	spec.Sensitive = true
-	assert.ErrorContains(t, run(spec, `<t/>`), `says case="sensitive"`)
-	require.NoError(t, run(spec, `<t case="sensitive"/>`))
-	assert.ErrorContains(t, run(spec, `<t case="sensitive"><e word="a" case="insensitive"/></t>`), `cannot say case="insensitive"`)
-}
-
 func TestTheWrongRootFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<other/>`), "the root element is <other>")
+	assert.ErrorContains(t, run(miniature(), `<other/>`), `"other"`)
 }
 
 func TestAnEntryHookReportsItsProblems(t *testing.T) {
@@ -207,12 +288,12 @@ func TestAnEntryHookReportsItsProblems(t *testing.T) {
 }
 
 func TestMalformedXMLFails(t *testing.T) {
-	assert.ErrorContains(t, run(miniature(), `<t><e word="a"></t>`), "t.xml")
-	assert.ErrorContains(t, run(miniature(), `<t><e word="a" word="b"/></t>`), "twice")
+	assert.ErrorContains(t, run(miniature(), `<t><e word="a"></t>`), "t.xml:")
+	assert.ErrorContains(t, run(miniature(), `<t><e word="a" word="b"/></t>`), "t.xml:")
 }
 
-func TestEveryProblemIsReportedAtOnce(t *testing.T) {
-	err := run(miniature(), `<t><bogus/><e word=""/><e word="a" color="x"/></t>`)
+func TestEverySemanticProblemIsReportedAtOnce(t *testing.T) {
+	err := run(miniature(), `<t><e word="Alpha"/><e word="alpha"/><e word="x"><test in="zzz" out="1"/></e><test in="qqq" out="2"/></t>`)
 	require.Error(t, err)
 	assert.GreaterOrEqual(t, strings.Count(err.Error(), "t.xml:"), 3)
 }
@@ -227,15 +308,8 @@ func TestKeysAcrossFilesOfOneTableCollide(t *testing.T) {
 }
 
 func TestListedKeysSplitOnCommas(t *testing.T) {
-	spec := xmlcheck.Spec{
-		Root: "t",
-		Elems: map[string]xmlcheck.Elem{
-			"t": {Children: []string{"r"}},
-			"r": {Required: []string{"name"}, Keys: []xmlcheck.Key{{Attrs: []string{"name"}, Split: true}}},
-		},
-	}
-	assert.ErrorContains(t, run(spec, `<t><r name="ls"/><r name="dir, ls"/></t>`), "repeats the one")
-	require.NoError(t, run(spec, `<t><r name="ls"/><r name="dir"/></t>`))
+	assert.ErrorContains(t, run(miniature(), `<t><r name="ls"/><r name="dir, ls"/></t>`), "repeats the one")
+	require.NoError(t, run(miniature(), `<t><r name="ls"/><r name="dir"/></t>`))
 }
 
 func TestAPatternWithAGroupItLacksFails(t *testing.T) {

@@ -6,62 +6,52 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/xmlcheck"
 )
 
-// entryChildren are the elements a rules file holds at its top.
-var entryChildren = []string{"test", "detect", "drop", "rewrite", "pattern", "flag", "class", "list", "rephrase", "normalize"}
+// schema is rules.xsd, which every rules file is validated against.
+var schema = rules.Schema
 
-// SpecFor is what the rules files of one consumer are held to. Matching ignores
-// case unless a file or an entry says case="sensitive". ste reads a rewrite
-// through a lowercased lookup, so its rewrites take no case attribute.
+// SpecFor is what the rules files of one consumer are held to. rules.xsd owns
+// the shape of a file. Matching ignores case unless a file or an entry says
+// case="sensitive". ste reads a rewrite through a lowercased lookup, so its
+// rewrites take no case attribute.
 func SpecFor(target string) xmlcheck.Spec {
-	one := []string{"test"}
 	elems := map[string]xmlcheck.Elem{
-		"rules": {Required: []string{"for"}, Case: true, Children: entryChildren},
-		"test":  {Required: []string{"in"}, Attrs: []string{"out"}},
+		"rules": {Case: true},
 		"detect": {
-			Required: []string{"in", "substrate"}, Attrs: []string{"why"}, Children: []string{"found"},
 			Keys: []xmlcheck.Key{{Attrs: []string{"in"}, Exact: []string{"substrate"}}},
 		},
-		"found": {Required: []string{"text"}},
 		"drop": {
-			Required: []string{"word", "id"}, Attrs: []string{"where"}, Children: one, Case: true,
+			Case: true,
 			Keys: []xmlcheck.Key{{Attrs: []string{"word"}, Exact: []string{"where"}}},
 		},
 		"rewrite": {
-			Required: []string{"from", "to", "id"}, Attrs: []string{"where"}, Children: one, Case: target != "ste",
+			Case: target != "ste",
 			Keys: []xmlcheck.Key{{Attrs: []string{"from"}, Exact: []string{"where"}}},
 		},
 		"pattern": {
-			Required: []string{"match", "id"}, Attrs: []string{"to", "where"}, Children: one, Case: true,
+			Case: true,
 			Keys: []xmlcheck.Key{{Attrs: []string{"match"}, Exact: []string{"where"}}},
 		},
 		"flag": {
-			Required: []string{"phrase", "say", "id"}, Attrs: []string{"where"}, Children: one, Case: true,
+			Case: true,
 			Keys: []xmlcheck.Key{{Attrs: []string{"phrase"}, Exact: []string{"where"}}},
 		},
-		"class": {
-			Required: []string{"name"}, Attrs: []string{"words", "suffix", "digits", "open", "except"},
-			Enum: map[string][]string{"digits": {"true", "false"}, "open": {"true", "false"}},
-			Keys: []xmlcheck.Key{{Attrs: []string{"name"}}},
-		},
-		"list": {Required: []string{"name"}, Text: true},
+		"class": {Keys: []xmlcheck.Key{{Attrs: []string{"name"}}}},
 		"rephrase": {
-			Required: []string{"match", "id"}, Attrs: []string{"to", "where"}, Children: one, Case: true,
+			Case: true,
 			Keys: []xmlcheck.Key{{Attrs: []string{"match"}, Exact: []string{"where"}}},
 		},
-		"normalize": {
-			Required: []string{"from", "to", "id"}, Children: one,
-			Keys: []xmlcheck.Key{{Attrs: []string{"from"}}},
-		},
+		"normalize": {Keys: []xmlcheck.Key{{Attrs: []string{"from"}}}},
 	}
 	spec := xmlcheck.Spec{
-		Root:  "rules",
-		Elems: elems,
-		Test:  xmlcheck.TestDef{Elem: "test", In: "in", Out: []string{"out"}},
-		Entry: checkEntry,
-		Fires: entryFires,
+		Schema: schema,
+		Elems:  elems,
+		Test:   xmlcheck.TestDef{Elem: "test", In: "in", Out: []string{"out"}},
+		Entry:  checkEntry,
+		Fires:  entryFires,
 	}
 	if target == "numbers" {
 		spec.Shadows = []xmlcheck.Shadow{{Elem: "rewrite", Attr: "from"}, {Elem: "drop", Attr: "word"}}

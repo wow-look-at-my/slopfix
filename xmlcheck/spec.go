@@ -11,28 +11,13 @@ type Key struct {
 	Split bool
 }
 
-// An Elem states what one element may carry.
+// An Elem states what the semantic checks need to know of one element. The
+// shape of an element belongs to the schema.
 type Elem struct {
-	// Attrs may be present.
-	Attrs []string
-	// Required attributes are present and not blank.
-	Required []string
-	// Present attributes exist, and may hold the empty string.
-	Present []string
-	// Any is a set of attributes of which at least one is not blank.
-	Any []string
-	// Children are the element names allowed inside.
-	Children []string
-	// Text lets the element hold text of its own.
-	Text bool
 	// Case lets the element carry case=, which is how an entry changes the case rule it inherits.
 	Case bool
 	// Keys name the element among its siblings.
 	Keys []Key
-	// Enum limits an attribute to a set of values.
-	Enum map[string][]string
-	// Lists names the Enum attributes that hold several space-separated values.
-	Lists []string
 	// TestAttr and ExpectAttr name an inline test the entry carries on its own attributes.
 	TestAttr, ExpectAttr string
 }
@@ -59,14 +44,12 @@ type Shadow struct {
 
 // A Spec is everything a table file is held to.
 type Spec struct {
-	// Root is the document element.
-	Root string
-	// Elems is the vocabulary, the root included.
+	// Schema is the XSD every file is validated against before any semantic check runs.
+	Schema []byte
+	// Elems names the elements the semantic checks read, the root included.
 	Elems map[string]Elem
 	// Test is the worked example element.
 	Test TestDef
-	// Sensitive makes the table match as typed: the root must say case="sensitive" and no entry may say otherwise.
-	Sensitive bool
 	// Shadows are the ordered phrase lists.
 	Shadows []Shadow
 	// Entry checks one element the way only its consumer can, and answers a problem for each defect.

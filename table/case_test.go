@@ -91,10 +91,16 @@ func TestLoadRefusesInvalidContent(t *testing.T) {
 		"a normalize writing a space":                      {"", `<normalize id="n" from="a" to="b c">` + test("a", "b c") + `</normalize>`, "holds a space"},
 		"a rewrite to itself":                              {"", `<rewrite id="w" from="once" to="Once">` + test("once", "Once") + `</rewrite>`, "rewritten to itself"},
 		"a longer phrase behind its part":                  {"", `<rewrite id="a" from="one" to="a single">` + test("one", "a single") + `</rewrite><rewrite id="b" from="one or more" to="any">` + test("one or more", "any") + `</rewrite>`, "never fires"},
-		"an unknown attribute":                             {"", `<drop id="a" word="just" color="red">` + test("just", "") + `</drop>`, `no attribute "color"`},
-		"a case value outside the two":                     {"", `<drop id="a" word="just" case="maybe">` + test("just", "") + `</drop>`, `is not "sensitive" or "insensitive"`},
+		"an unknown attribute":                             {"", `<drop id="a" word="just" color="red">` + test("just", "") + `</drop>`, `unexpected attribute "color"`},
+		"an unknown element":                               {"", `<bogus/>`, `"bogus"`},
+		"a drop with no id":                                {"", `<drop word="just">` + test("just", "") + `</drop>`, `required attribute "id" is missing`},
+		"a drop with a blank word":                         {"", `<drop id="a" word=" ">` + test("just", "") + `</drop>`, "does not match pattern"},
+		"a drop with no test":                              {"", `<drop id="a" word="just"/>`, `"drop"`},
+		"a test with a blank input":                        {"", `<drop id="a" word="just"><test in=" " out=""/></drop>`, "does not match pattern"},
+		"a class flag outside true and false":              {"", `<class name="n" words="a" open="maybe"/>`, `attribute "open"`},
+		"a case value outside the two":                     {"", `<drop id="a" word="just" case="maybe">` + test("just", "") + `</drop>`, "is not one of the allowed values"},
 		"two classes of one name":                          {"", `<class name="n" words="a"/><class name="n" words="b"/>`, "repeats the one"},
-		"a normalize that takes case":                      {"", `<normalize id="n" from="a" to="b" case="sensitive">` + test("a", "b") + `</normalize>`, "does not take case="},
+		"a normalize that takes case":                      {"", `<normalize id="n" from="a" to="b" case="sensitive">` + test("a", "b") + `</normalize>`, `unexpected attribute "case"`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := load(c.root, c.body)

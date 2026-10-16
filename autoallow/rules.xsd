@@ -17,7 +17,7 @@
   <!-- One command, and the verdict the hook must return for it. An empty
        expect= means the hook answers nothing and the caller decides. -->
   <xs:complexType name="test">
-    <xs:attribute name="cmd" type="xs:string" use="required"/>
+    <xs:attribute name="cmd" type="text" use="required"/>
     <xs:attribute name="expect" type="xs:string" use="required"/>
   </xs:complexType>
 
@@ -25,7 +25,7 @@
     <xs:sequence>
       <xs:element name="flag" minOccurs="0" maxOccurs="unbounded">
         <xs:complexType>
-          <xs:attribute name="name" type="xs:string" use="required"/>
+          <xs:attribute name="name" type="text" use="required"/>
         </xs:complexType>
       </xs:element>
     </xs:sequence>
@@ -41,41 +41,41 @@
        the rule. Every kind of child given must match, and any one of a kind is
        enough. message= is what the caller is told instead. -->
   <xs:complexType name="refuse">
-    <xs:sequence>
-      <xs:element name="flag" minOccurs="0" maxOccurs="unbounded">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="flag">
         <xs:complexType>
-          <xs:attribute name="name" type="xs:string" use="required"/>
+          <xs:attribute name="name" type="text" use="required"/>
         </xs:complexType>
       </xs:element>
-      <xs:element name="flagValue" minOccurs="0">
+      <xs:element name="flagValue">
         <xs:complexType>
-          <xs:sequence>
-            <xs:element name="flag" maxOccurs="unbounded">
+          <xs:choice maxOccurs="unbounded">
+            <xs:element name="flag">
               <xs:complexType>
-                <xs:attribute name="name" type="xs:string" use="required"/>
+                <xs:attribute name="name" type="text" use="required"/>
               </xs:complexType>
             </xs:element>
-            <xs:element name="value" type="xs:string" maxOccurs="unbounded"/>
-          </xs:sequence>
+            <xs:element name="value" type="xs:string"/>
+          </xs:choice>
         </xs:complexType>
       </xs:element>
-      <xs:element name="argPrefix" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
-      <xs:element name="argSubstring" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
-    </xs:sequence>
-    <xs:attribute name="message" type="xs:string" use="required"/>
+      <xs:element name="argPrefix" type="xs:string"/>
+      <xs:element name="argSubstring" type="xs:string"/>
+    </xs:choice>
+    <xs:attribute name="message" type="text" use="required"/>
   </xs:complexType>
 
   <!-- A flag whose VALUE decides the verdict, with the value assumed when the
        flag is absent. -->
   <xs:complexType name="requireFlagValue">
-    <xs:sequence>
-      <xs:element name="flag" minOccurs="0" maxOccurs="unbounded">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="flag">
         <xs:complexType>
-          <xs:attribute name="name" type="xs:string" use="required"/>
+          <xs:attribute name="name" type="text" use="required"/>
         </xs:complexType>
       </xs:element>
-      <xs:element name="allowed" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
-    </xs:sequence>
+      <xs:element name="allowed" type="xs:string"/>
+    </xs:choice>
     <xs:attribute name="default" type="xs:string"/>
   </xs:complexType>
 
@@ -130,7 +130,7 @@
           <xs:complexType>
             <xs:simpleContent>
               <xs:extension base="xs:string">
-                <xs:attribute name="prefix" type="xs:string" use="required"/>
+                <xs:attribute name="prefix" type="text" use="required"/>
               </xs:extension>
             </xs:simpleContent>
           </xs:complexType>
@@ -141,7 +141,7 @@
             <xs:sequence>
               <xs:element name="tool" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
             </xs:sequence>
-            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="name" type="text" use="required"/>
           </xs:complexType>
         </xs:element>
       </xs:choice>
@@ -149,8 +149,15 @@
     </xs:complexType>
   </xs:element>
 
+  <!-- A value with a visible character in it. -->
+  <xs:simpleType name="text">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[\s\S]*\S[\s\S]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
   <!-- Commands, flags and paths are read as typed, so the root says
-       sensitive and the loader refuses a table that does not. -->
+       sensitive and the schema refuses a table that does not. -->
   <xs:simpleType name="case">
     <xs:restriction base="xs:string">
       <xs:enumeration value="sensitive"/>

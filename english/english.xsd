@@ -37,7 +37,7 @@
        them by ending, or claims every word no other class holds. -->
   <xs:element name="class">
     <xs:complexType>
-      <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:attribute name="name" type="text" use="required"/>
       <xs:attribute name="words" type="xs:string"/>
       <xs:attribute name="suffix" type="xs:string"/>
       <xs:attribute name="open" type="xs:boolean"/>
@@ -51,10 +51,10 @@
       <xs:sequence>
         <xs:element ref="test" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
-      <xs:attribute name="word" type="xs:string" use="required"/>
-      <xs:attribute name="test" type="xs:string" use="required"/>
+      <xs:attribute name="word" type="text" use="required"/>
+      <xs:attribute name="test" type="text" use="required"/>
       <xs:attribute name="where" type="surfaces"/>
-      <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="id" type="text"/>
       <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
@@ -65,11 +65,11 @@
       <xs:sequence>
         <xs:element ref="test" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
-      <xs:attribute name="from" type="xs:string" use="required"/>
-      <xs:attribute name="to" type="xs:string" use="required"/>
-      <xs:attribute name="test" type="xs:string" use="required"/>
+      <xs:attribute name="from" type="text" use="required"/>
+      <xs:attribute name="to" type="text" use="required"/>
+      <xs:attribute name="test" type="text" use="required"/>
       <xs:attribute name="where" type="surfaces"/>
-      <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="id" type="text"/>
       <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
@@ -81,12 +81,12 @@
       <xs:sequence>
         <xs:element ref="test" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
-      <xs:attribute name="match" type="xs:string" use="required"/>
+      <xs:attribute name="match" type="text" use="required"/>
       <xs:attribute name="replace" type="xs:string" use="required"/>
-      <xs:attribute name="test" type="xs:string" use="required"/>
+      <xs:attribute name="test" type="text" use="required"/>
       <xs:attribute name="expect" type="xs:string" use="required"/>
       <xs:attribute name="where" type="surfaces"/>
-      <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="id" type="text"/>
       <xs:attribute name="case" type="case"/>
       <xs:attribute name="subject" type="position"/>
     </xs:complexType>
@@ -99,12 +99,12 @@
       <xs:sequence>
         <xs:element ref="test" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
-      <xs:attribute name="match" type="xs:string" use="required"/>
+      <xs:attribute name="match" type="text" use="required"/>
       <xs:attribute name="replace" type="xs:string" use="required"/>
-      <xs:attribute name="test" type="xs:string" use="required"/>
+      <xs:attribute name="test" type="text" use="required"/>
       <xs:attribute name="expect" type="xs:string" use="required"/>
       <xs:attribute name="where" type="surfaces"/>
-      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="id" type="text" use="required"/>
       <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
@@ -124,11 +124,11 @@
       <xs:sequence>
         <xs:element ref="test" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
-      <xs:attribute name="phrase" type="xs:string" use="required"/>
-      <xs:attribute name="say" type="xs:string" use="required"/>
-      <xs:attribute name="test" type="xs:string" use="required"/>
+      <xs:attribute name="phrase" type="text" use="required"/>
+      <xs:attribute name="say" type="text" use="required"/>
+      <xs:attribute name="test" type="text" use="required"/>
       <xs:attribute name="where" type="surfaces"/>
-      <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="id" type="text"/>
       <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
@@ -136,10 +136,17 @@
   <!-- A line of prose and what the repair as a whole writes for it. -->
   <xs:element name="test">
     <xs:complexType>
-      <xs:attribute name="in" type="xs:string" use="required"/>
+      <xs:attribute name="in" type="text" use="required"/>
       <xs:attribute name="out" type="xs:string" use="required"/>
     </xs:complexType>
   </xs:element>
+
+  <!-- A value with a visible character in it. -->
+  <xs:simpleType name="text">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[\s\S]*\S[\s\S]*"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <!-- Which text a rule reads. An entry with no where= reads every surface. -->
   <xs:simpleType name="surface">
@@ -147,6 +154,7 @@
       <xs:enumeration value="comment"/>
       <xs:enumeration value="document"/>
       <xs:enumeration value="message"/>
+      <xs:enumeration value="both"/>
     </xs:restriction>
   </xs:simpleType>
 

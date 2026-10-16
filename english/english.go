@@ -24,6 +24,9 @@ import (
 //go:embed english.xml
 var englishXML []byte
 
+//go:embed english.xsd
+var schema []byte
+
 // Table mirrors english.xml.
 type Table struct {
 	// Case is the case rule of the file: "sensitive", or "insensitive" for the default.

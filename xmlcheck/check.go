@@ -1,12 +1,11 @@
 package xmlcheck
 
 import (
+	"errors"
 	"fmt"
-	"slices"
-	"sort"
 	"strings"
 
-	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/xml-validator/validator"
 )
 
 func (p Problem) String() string {
@@ -16,12 +15,21 @@ func (p Problem) String() string {
 	return fmt.Sprintf("%s:%d: %s", p.File, p.Line, p.Msg)
 }
 
-// Run parses every file and holds the trees to the spec. A defect of any kind
-// is an error naming every one of them, each with its file and line.
+// Run validates every file against the spec's schema, which owns the shape of
+// the table, and then holds the trees to the spec's semantic checks. A defect
+// of any kind is an error naming it with its file and line. The semantic checks
+// read a table whose shape is sound, so they run only after every file passes
+// the schema.
 func Run(spec Spec, files ...File) error {
 	var problems []Problem
 	var roots []*Node
 	for _, f := range files {
+		if spec.Schema != nil {
+			if err := validator.ValidateWithSchemaBytes(f.Raw, spec.Schema); err != nil {
+				problems = append(problems, schemaProblem(f.Name, err))
+				continue
+			}
+		}
 		root, err := Parse(f.Name, f.Raw)
 		if err != nil {
 			problems = append(problems, Problem{Msg: err.Error()})
@@ -29,7 +37,9 @@ func Run(spec Spec, files ...File) error {
 		}
 		roots = append(roots, root)
 	}
-	problems = append(problems, Check(spec, roots...)...)
+	if len(problems) == 0 {
+		problems = Check(spec, roots...)
+	}
 	if len(problems) == 0 {
 		return nil
 	}
@@ -44,22 +54,22 @@ func Run(spec Spec, files ...File) error {
 // or an ordered phrase list is read across all of them.
 func Check(spec Spec, roots ...*Node) []Problem {
 	c := &checker{spec: spec}
-	var valid []*Node
 	for _, root := range roots {
-		if root.Name != spec.Root {
-			c.add(root, "the root element is <%s>, and this table's is <%s>", root.Name, spec.Root)
-			continue
-		}
-		if spec.Sensitive && root.Attrs[CaseAttr] != CaseSensitive {
-			c.add(root, `<%s> matches text as typed, so its root says case="sensitive"`, root.Name)
-		}
 		c.node(root)
-		valid = append(valid, root)
 	}
-	c.keys(valid)
-	c.tests(valid)
-	c.shadows(valid)
+	c.keys(roots)
+	c.tests(roots)
+	c.shadows(roots)
 	return c.problems
+}
+
+// schemaProblem words the first defect the schema found in a file.
+func schemaProblem(file string, err error) Problem {
+	var verr *validator.Error
+	if errors.As(err, &verr) && verr.Line > 0 {
+		return Problem{File: file, Line: verr.Line, Msg: verr.Message}
+	}
+	return Problem{Msg: fmt.Sprintf("%s: %v", file, err)}
 }
 
 type checker struct {
@@ -71,22 +81,13 @@ func (c *checker) add(n *Node, format string, args ...any) {
 	c.problems = append(c.problems, Problem{File: n.File, Line: n.Line, Msg: fmt.Sprintf(format, args...)})
 }
 
-// node checks one element and, when it is sound, everything inside it.
+// node checks the case rule of one element, runs the consumer's own check of
+// it, and goes on inside it.
 func (c *checker) node(n *Node) {
-	elem, known := c.spec.Elems[n.Name]
-	if !known {
-		c.add(n, "<%s> is not an element of this table", n.Name)
-		return
+	if _, ok := n.Attrs[CaseAttr]; ok {
+		c.caseAttr(n, c.spec.Elems[n.Name])
 	}
-	if p := n.Parent; p != nil && !slices.Contains(c.spec.Elems[p.Name].Children, n.Name) {
-		c.add(n, "<%s> may not appear inside <%s>", n.Name, p.Name)
-	}
-	sound := c.attrs(n, elem)
-	if !elem.Text && n.Body() != "" {
-		c.add(n, "<%s> may not hold text", n.Name)
-		sound = false
-	}
-	if sound && c.spec.Entry != nil {
+	if c.spec.Entry != nil {
 		for _, msg := range c.spec.Entry(n, n.Sensitive()) {
 			c.add(n, "%s", msg)
 		}
@@ -96,83 +97,11 @@ func (c *checker) node(n *Node) {
 	}
 }
 
-// attrs holds an element's attributes to its entry in the vocabulary, and
-// reports whether it found nothing wrong.
-func (c *checker) attrs(n *Node, elem Elem) bool {
-	before := len(c.problems)
-	allowed := set.Of[string]()
-	for _, list := range [][]string{elem.Attrs, elem.Required, elem.Present, elem.Any, {elem.TestAttr, elem.ExpectAttr}} {
-		for _, name := range list {
-			allowed.Add(name)
-		}
-	}
-	names := make([]string, 0, len(n.Attrs))
-	for name := range n.Attrs {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		value := n.Attrs[name]
-		switch {
-		case name == CaseAttr:
-			c.caseAttr(n, elem, value)
-		case !allowed.Contains(name):
-			c.add(n, "<%s> has no attribute %q", n.Name, name)
-		default:
-			c.enum(n, elem, name, value)
-		}
-	}
-	for _, name := range elem.Required {
-		if strings.TrimSpace(n.Attrs[name]) == "" {
-			c.add(n, "<%s> needs a %s that is not empty", n.Name, name)
-		}
-	}
-	for _, name := range elem.Present {
-		if _, ok := n.Attrs[name]; !ok {
-			c.add(n, "<%s> needs a %s", n.Name, name)
-		}
-	}
-	if len(elem.Any) > 0 && !anyFilled(n, elem.Any) {
-		c.add(n, "<%s> needs one of %s", n.Name, strings.Join(elem.Any, ", "))
-	}
-	return len(c.problems) == before
-}
-
-func anyFilled(n *Node, names []string) bool {
-	for _, name := range names {
-		if strings.TrimSpace(n.Attrs[name]) != "" {
-			return true
-		}
-	}
-	return false
-}
-
-// caseAttr holds the one opt-in spelling to its allowed values.
-func (c *checker) caseAttr(n *Node, elem Elem, value string) {
-	switch {
-	case !elem.Case:
+// caseAttr holds a case= to the elements of this table that take it. The schema
+// owns both spellings.
+func (c *checker) caseAttr(n *Node, elem Elem) {
+	if !elem.Case {
 		c.add(n, "<%s> does not take case=", n.Name)
-	case value != CaseSensitive && value != CaseInsensitive:
-		c.add(n, `case=%q is not "sensitive" or "insensitive"`, value)
-	case c.spec.Sensitive && value == CaseInsensitive:
-		c.add(n, `<%s> matches text as typed, so it cannot say case="insensitive"`, n.Name)
-	}
-}
-
-// enum holds an attribute to the values its element allows.
-func (c *checker) enum(n *Node, elem Elem, name, value string) {
-	allowed, limited := elem.Enum[name]
-	if !limited {
-		return
-	}
-	values := []string{value}
-	if slices.Contains(elem.Lists, name) {
-		values = strings.Fields(value)
-	}
-	for _, v := range values {
-		if !slices.Contains(allowed, v) {
-			c.add(n, "%s=%q is not one of %s", name, v, strings.Join(allowed, ", "))
-		}
 	}
 }
 

@@ -1,62 +1,48 @@
 package autoallow
 
-import "github.com/wow-look-at-my/slopfix/xmlcheck"
+import (
+	_ "embed"
+	"slices"
+	"strings"
 
-// Spec is what rules.xml is held to. It names shell words, flags and paths,
-// which a shell reads as typed, so the root says case="sensitive" and no entry
-// can say otherwise.
+	"github.com/wow-look-at-my/slopfix/xmlcheck"
+)
+
+//go:embed rules.xsd
+var schema []byte
+
+// Spec is what rules.xml is held to. rules.xsd owns the shape of the file and
+// pins its root to case="sensitive". This is because the table names shell
+// words, flags and paths, which a shell reads as typed.
 func Spec() xmlcheck.Spec {
-	bool2 := []string{"true", "false"}
-	flagList := xmlcheck.Elem{Children: []string{"flag"}}
-	stringList := xmlcheck.Elem{Children: []string{"value"}}
-	text := xmlcheck.Elem{Text: true}
 	elems := map[string]xmlcheck.Elem{
-		"rules":     {Case: true, Children: []string{"test", "allow", "ask", "deny", "denyPath", "mcpServer"}},
-		"test":      {Required: []string{"cmd"}, Present: []string{"expect"}},
-		"allow":     {Children: []string{"rule"}},
-		"ask":       {Children: []string{"rule"}},
-		"deny":      {Children: []string{"rule"}},
-		"denyPath":  {Required: []string{"prefix"}, Text: true, Keys: []xmlcheck.Key{{Attrs: []string{"prefix"}}}},
-		"mcpServer": {Required: []string{"name"}, Children: []string{"tool"}, Keys: []xmlcheck.Key{{Attrs: []string{"name"}}}},
-		"tool":      {Text: true, Keys: []xmlcheck.Key{{Attrs: []string{"#text"}}}},
-		"rule": {
-			Any: []string{"name", "command"},
-			Attrs: []string{
-				"description", "inlineScript", "evalFlags", "evalSubcommands", "message",
-				"allowedFlags", "denyWithMessage", "helpAlwaysAllowed", "bareOnly",
-			},
-			Enum: map[string][]string{"inlineScript": bool2, "helpAlwaysAllowed": bool2, "bareOnly": bool2},
-			Children: []string{
-				"test", "allowedFlags", "deniedFlags", "execFlags", "requiredFlags", "flagsWithValue",
-				"denyArgSubstrings", "refuse", "allowedArgPrefixes", "requireFlagValue", "rule",
-			},
-			Keys: []xmlcheck.Key{{Attrs: []string{"name"}, Split: true}, {Attrs: []string{"command"}}},
-		},
-		"allowedFlags":       flagList,
-		"deniedFlags":        flagList,
-		"execFlags":          flagList,
-		"requiredFlags":      flagList,
-		"flagsWithValue":     flagList,
-		"flag":               {Required: []string{"name"}, Keys: []xmlcheck.Key{{Attrs: []string{"name"}}}},
-		"denyArgSubstrings":  stringList,
-		"allowedArgPrefixes": stringList,
-		"value":              {Text: true, Keys: []xmlcheck.Key{{Attrs: []string{"#text"}}}},
-		"refuse": {
-			Required: []string{"message"},
-			Children: []string{"flag", "flagValue", "argPrefix", "argSubstring"},
-		},
-		"flagValue":        {Children: []string{"flag", "value"}},
-		"argPrefix":        text,
-		"argSubstring":     text,
-		"requireFlagValue": {Attrs: []string{"default"}, Children: []string{"flag", "allowed"}},
-		"allowed":          text,
+		"rules":     {Case: true},
+		"denyPath":  {Keys: []xmlcheck.Key{{Attrs: []string{"prefix"}}}},
+		"mcpServer": {Keys: []xmlcheck.Key{{Attrs: []string{"name"}}}},
+		"tool":      {Keys: []xmlcheck.Key{{Attrs: []string{"#text"}}}},
+		"rule":      {Keys: []xmlcheck.Key{{Attrs: []string{"name"}, Split: true}, {Attrs: []string{"command"}}}},
+		"flag":      {Keys: []xmlcheck.Key{{Attrs: []string{"name"}}}},
+		"value":     {Keys: []xmlcheck.Key{{Attrs: []string{"#text"}}}},
 	}
 	return xmlcheck.Spec{
-		Root:      "rules",
-		Elems:     elems,
-		Test:      xmlcheck.TestDef{Elem: "test", In: "cmd", Out: []string{"expect"}, EmptyOut: true},
-		Sensitive: true,
+		Schema: schema,
+		Elems:  elems,
+		Test:   xmlcheck.TestDef{Elem: "test", In: "cmd", Out: []string{"expect"}, EmptyOut: true},
+		Entry:  checkRule,
 	}
+}
+
+// checkRule answers what a schema cannot say: a rule matches by name or by
+// command, and needs one of those.
+func checkRule(n *xmlcheck.Node, _ bool) []string {
+	if n.Name != "rule" {
+		return nil
+	}
+	names := []string{n.Attrs["name"], n.Attrs["command"]}
+	if slices.ContainsFunc(names, func(s string) bool { return strings.TrimSpace(s) != "" }) {
+		return nil
+	}
+	return []string{"a <rule> needs one of name, command"}
 }
 
 // Validate holds a rules file to Spec.

@@ -5,57 +5,37 @@ import (
 	"github.com/wow-look-at-my/slopfix/xmlcheck"
 )
 
-// Spec is what english.xml is held to. Matching ignores case unless the file or
-// an entry says case="sensitive".
+// Spec is what english.xml is held to. english.xsd owns the shape of the file.
+// Matching ignores case unless the file or an entry says case="sensitive".
 func Spec() xmlcheck.Spec {
-	one := []string{"test"}
-	surfaces := []string{"comment", "document", "message", "both"}
-	enum := map[string][]string{"where": surfaces}
-	lists := []string{"where"}
 	inline := func(e xmlcheck.Elem) xmlcheck.Elem {
 		e.TestAttr = "test"
-		e.Children = one
 		e.Case = true
-		e.Enum = enum
-		e.Lists = lists
 		return e
 	}
 	elems := map[string]xmlcheck.Elem{
-		"english": {Case: true, Children: []string{"class", "drop", "rewrite", "pattern", "shape", "flag", "test"}},
-		"class": {
-			Required: []string{"name"}, Attrs: []string{"words", "suffix", "open", "except"},
-			Enum: map[string][]string{"open": {"true", "false"}},
-			Keys: []xmlcheck.Key{{Attrs: []string{"name"}}},
-		},
-		"test": {Required: []string{"in"}, Present: []string{"out"}},
+		"english": {Case: true},
+		"class":   {Keys: []xmlcheck.Key{{Attrs: []string{"name"}}}},
 		"drop": inline(xmlcheck.Elem{
-			Required: []string{"word", "test"}, Attrs: []string{"where", "id"},
 			Keys: []xmlcheck.Key{{Attrs: []string{"word"}, Exact: []string{"where"}}},
 		}),
 		"rewrite": inline(xmlcheck.Elem{
-			Required: []string{"from", "to", "test"}, Attrs: []string{"where", "id"},
 			Keys: []xmlcheck.Key{{Attrs: []string{"from"}, Exact: []string{"where"}}},
 		}),
 		"flag": inline(xmlcheck.Elem{
-			Required: []string{"phrase", "say", "test"}, Attrs: []string{"where", "id"},
 			Keys: []xmlcheck.Key{{Attrs: []string{"phrase"}, Exact: []string{"where"}}},
 		}),
 		"pattern": inline(xmlcheck.Elem{
-			Required: []string{"match", "test", "expect"}, Present: []string{"replace"}, Attrs: []string{"where", "id", "subject"},
 			ExpectAttr: "expect",
 			Keys:       []xmlcheck.Key{{Attrs: []string{"match"}, Exact: []string{"where"}}},
 		}),
 		"shape": inline(xmlcheck.Elem{
-			Required: []string{"match", "test", "expect", "id"}, Present: []string{"replace"}, Attrs: []string{"where"},
 			ExpectAttr: "expect",
 			Keys:       []xmlcheck.Key{{Attrs: []string{"match"}, Exact: []string{"where"}}},
 		}),
 	}
-	pattern := elems["pattern"]
-	pattern.Enum = map[string][]string{"where": surfaces, "subject": SubjectPositions()}
-	elems["pattern"] = pattern
 	return xmlcheck.Spec{
-		Root:     "english",
+		Schema:   schema,
 		Elems:    elems,
 		Test:     xmlcheck.TestDef{Elem: "test", In: "in", Out: []string{"out"}},
 		Shadows:  []xmlcheck.Shadow{{Elem: "rewrite", Attr: "from"}, {Elem: "drop", Attr: "word"}},

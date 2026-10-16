@@ -15,7 +15,7 @@
   <xs:complexType name="test">
     <xs:simpleContent>
       <xs:extension base="xs:string">
-        <xs:attribute name="cmd" type="xs:string" use="required"/>
+        <xs:attribute name="cmd" type="text" use="required"/>
         <xs:attribute name="keep" type="xs:boolean"/>
       </xs:extension>
     </xs:simpleContent>
@@ -54,8 +54,21 @@
     <xs:attribute name="short" type="xs:string"/>
     <xs:attribute name="long" type="xs:string"/>
     <xs:attribute name="effect" type="effect" use="required"/>
-    <xs:attribute name="value" type="xs:string"/>
+    <xs:attribute name="value" type="valueMode"/>
   </xs:complexType>
+
+  <xs:simpleType name="valueMode">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="optional"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- A value with a visible character in it. -->
+  <xs:simpleType name="text">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[\s\S]*\S[\s\S]*"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:simpleType name="syntax">
     <xs:restriction base="xs:string">
@@ -86,7 +99,7 @@
           <xs:complexType>
             <xs:simpleContent>
               <xs:extension base="xs:string">
-                <xs:attribute name="name" type="xs:string" use="required"/>
+                <xs:attribute name="name" type="text" use="required"/>
                 <xs:attribute name="kind" type="kind" use="required"/>
               </xs:extension>
             </xs:simpleContent>
@@ -98,7 +111,7 @@
             <xs:sequence>
               <xs:element name="flag" type="flag" maxOccurs="unbounded"/>
             </xs:sequence>
-            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="name" type="text" use="required"/>
           </xs:complexType>
         </xs:element>
 
@@ -109,8 +122,8 @@
             <xs:sequence>
               <xs:element name="test" type="test" minOccurs="0" maxOccurs="unbounded"/>
             </xs:sequence>
-            <xs:attribute name="name" type="xs:string" use="required"/>
-            <xs:attribute name="flags" type="xs:string" use="required"/>
+            <xs:attribute name="name" type="text" use="required"/>
+            <xs:attribute name="flags" type="text" use="required"/>
             <xs:attribute name="syntax" type="syntax" use="required"/>
           </xs:complexType>
         </xs:element>
@@ -120,7 +133,7 @@
         <xs:element name="translate">
           <xs:complexType>
             <xs:attribute name="syntax" type="syntax" use="required"/>
-            <xs:attribute name="from" type="xs:string" use="required"/>
+            <xs:attribute name="from" type="text" use="required"/>
             <xs:attribute name="to" type="xs:string"/>
           </xs:complexType>
         </xs:element>
@@ -130,7 +143,7 @@
   </xs:element>
 
   <!-- Programs, flags and patterns are read as typed, so the root says
-       sensitive and the loader refuses a table that does not. -->
+       sensitive and the schema refuses a table that does not. -->
   <xs:simpleType name="case">
     <xs:restriction base="xs:string">
       <xs:enumeration value="sensitive"/>
