@@ -2,6 +2,7 @@ package table
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -137,7 +138,21 @@ func entryFires(n *xmlcheck.Node, sens bool, in string) bool {
 		return xmlcheck.HasPhrase(in, n.Attrs["phrase"], sens)
 	case "pattern":
 		re, err := xmlcheck.Compile(n.Attrs["match"], sens)
-		return err != nil || re.MatchString(in)
+		return err != nil || matchesTextOrWord(re, in)
 	}
 	return true
+}
+
+// matchesTextOrWord reports a match on the text, or on one of its words. A
+// pattern anchored to a whole word is applied to each word of a sentence.
+func matchesTextOrWord(re *regexp.Regexp, in string) bool {
+	if re.MatchString(in) {
+		return true
+	}
+	for _, word := range strings.Fields(in) {
+		if re.MatchString(word) {
+			return true
+		}
+	}
+	return false
 }
