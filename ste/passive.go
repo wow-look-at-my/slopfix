@@ -16,6 +16,14 @@ import (
 // front of the subject: "since the checks are red by definition" becomes
 // "since by definition the checks are red".
 func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
+	if out, ok := rewriteActor(s, source); ok {
+		return out, true
+	}
+	return rewriteWithoutActor(s, source)
+}
+
+// rewriteWithoutActor writes a passive clause whose "by" phrase names no actor.
+func rewriteWithoutActor(s *syntax.Sentence, source string) (string, bool) {
 	last := lastContent(s)
 	i, j := auxiliary(s, 1, beForms)
 	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" || !simpleSpan(s, i, j) {
@@ -46,23 +54,15 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 		return "", false
 	}
 	p := passiveClause{s: s, source: source, start: start, be: i, participle: j, by: by, end: end}
-	// A bare "be" is active only behind a modal: "X must be read by Y" becomes "Y must read X".
-	if s.Words[i].Lower() == "be" {
-		if i-1 <= start || s.Words[i-1].Tag != "MD" {
-			return "", false
-		}
-		p.be, p.modal = i-1, true
-	} else if before := s.Words[i-1]; before.Tag == "MD" || haveForms.Contains(before.Lower()) || beForms.Contains(before.Lower()) {
-		// "has been read" and "must not be read" carry a word no rewrite here moves.
+	// "has been read", "must not be read" and "must be read" carry a word no rewrite here moves.
+	if s.Words[i].Lower() == "be" || s.Words[i-1].Tag == "MD" || haveForms.Contains(s.Words[i-1].Lower()) || beForms.Contains(s.Words[i-1].Lower()) {
 		return "", false
 	}
 	verb := participleOfVerb(s.Words[j].Lower())
-	if p.modal && !(verb && p.namesActor()) {
+	if verb && p.namesActor() {
 		return "", false
 	}
 	switch {
-	case verb && p.namesActor():
-		return p.active(), true
 	case verb && p.opensInstruction():
 		return p.instruction(), true
 	}
@@ -75,8 +75,6 @@ type passiveClause struct {
 	s                              *syntax.Sentence
 	source                         string
 	start, be, participle, by, end int
-	// modal marks a clause whose be is a bare "be" behind the modal at index be.
-	modal bool
 }
 
 // clauseOpening answers the first word of the clause that holds word i. A
@@ -184,26 +182,6 @@ func (p passiveClause) coordinated(form func(string) string) string {
 	}
 	out.WriteString(p.source[at:p.s.Words[p.by].Start])
 	return out.String()
-}
-
-// active names the actor as the subject, and the subject as the object.
-func (p passiveClause) active() string {
-	w := p.s.Words
-	plural := p.s.Plural(syntax.Phrase{Head: p.end})
-	be := w[p.be].Lower()
-	form := func(participle string) string { return passiveVerb(participle, be, plural) }
-	if p.modal {
-		modal := p.source[w[p.be].Start:w[p.be].End]
-		form = func(participle string) string { return modal + " " + baseFromParticiple(participle) }
-	}
-	actor := p.source[w[p.by+1].Start:w[p.end].End]
-	object := p.subject()
-	if p.start == 0 {
-		actor = capitalizeOpening(actor)
-		object = lowerOpeningFor(object, w[p.start].Tag)
-	}
-	rest := strings.TrimRight(p.coordinated(form), " ,")
-	return p.source[:w[p.start].Start] + actor + " " + form(w[p.participle].Lower()) + " " + object + rest + p.source[w[p.end].End:]
 }
 
 // instruction writes the clause as an instruction to the reader, who is the
