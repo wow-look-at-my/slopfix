@@ -77,10 +77,10 @@ func rewritePassive(s *syntax.Sentence, source string, off [][]int) (string, boo
 		if before := s.Words[i-1]; before.Tag == "MD" || haveForms.Contains(before.Lower()) || beForms.Contains(before.Lower()) {
 			return "", false
 		}
-		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
+		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: actorHead(s, by+1, end)}))
 	}
 	from, to := s.Words[first].Start, snapEnd(off, s.Words[end].End)
-	subject := strings.TrimSpace(unbold(source[from:snapStart(off, s.Words[subjectEnd].Start)]))
+	subject := strings.TrimSpace(strings.TrimRight(strings.TrimSpace(unbold(source[from:snapStart(off, s.Words[subjectEnd].Start)])), ","))
 	actor := strings.TrimSpace(unbold(source[snapStart(off, s.Words[by+1].Start):to]))
 	if subject == "" || actor == "" || verb == "" {
 		return "", false
@@ -153,10 +153,45 @@ func subjectStart(s *syntax.Sentence, i int) (int, bool) {
 		first++
 	}
 	// A subject opens on a noun phrase. A verb there is a reduced clause of the words before: "run by the action the same way X is".
-	if first >= i || strings.HasPrefix(s.Words[first].Tag, "W") || strings.HasPrefix(s.Words[first].Tag, "VB") {
+	if first >= i || strings.HasPrefix(s.Words[first].Tag, "W") {
+		return 0, false
+	}
+	if strings.HasPrefix(s.Words[first].Tag, "VB") && !modifiesNoun(s, first, i) {
 		return 0, false
 	}
 	return first, true
+}
+
+// modifiesNoun reports a participle at word first that modifies the noun after
+// it: "Unpushed commits are judged". A participle before any other word opens a
+// reduced clause.
+func modifiesNoun(s *syntax.Sentence, first, limit int) bool {
+	tag := s.Words[first].Tag
+	if (tag != "VBN" && tag != "VBG") || first+1 >= limit {
+		return false
+	}
+	return strings.HasPrefix(s.Words[first+1].Tag, "NN")
+}
+
+// actorHead answers the head noun of the actor phrase that opens at word from:
+// the last noun before the first word. That word is no part of the noun
+// phrase.
+func actorHead(s *syntax.Sentence, from, end int) int {
+	head := -1
+	for k := from; k <= end; k++ {
+		tag := s.Words[k].Tag
+		if strings.HasPrefix(tag, "NN") {
+			head = k
+			continue
+		}
+		if tag != "DT" && tag != "JJ" && tag != "CD" && tag != "PRP$" && tag != "RB" && tag != "VBN" {
+			break
+		}
+	}
+	if head < 0 {
+		return end
+	}
+	return head
 }
 
 // leadsClause reports whether the words from first up to the comma at k stand
@@ -166,7 +201,7 @@ func subjectStart(s *syntax.Sentence, i int) (int, bool) {
 func leadsClause(s *syntax.Sentence, first, k int) bool {
 	if k+1 < len(s.Words) {
 		next := s.Words[k+1]
-		if next.Tag == "CC" || next.Lower() == "so" || syntax.Is(next.Lower(), "subordinator") {
+		if next.Lower() == "so" || syntax.Is(next.Lower(), "subordinator") {
 			return true
 		}
 	}
