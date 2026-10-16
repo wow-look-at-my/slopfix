@@ -77,7 +77,7 @@ func init() {
 		Repair: func(f *fixer.File) { f.Apply(Edits(f.Text(), Check(f.Text()))) },
 	})
 	fixer.Register(fixer.Spec{
-		Label: "ste/count", Families: []string{"ste"}, Rules: []string{ste.IDStaleCount},
+		Label: "counts/stated-count", Families: []string{"counts"}, Rules: []string{ste.IDStaleCount},
 		Files: []fixer.Kind{fixer.Document}, Place: 40,
 		Repair: func(f *fixer.File) { f.Apply(Edits(f.Text(), Gate(f.Text()))) },
 	})
