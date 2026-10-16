@@ -104,6 +104,9 @@ func declaredPaths(root string) ([]string, bool) {
 	return paths, true
 }
 
+// TopLevel resolves the work tree holding target, absolute and free of symlinks.
+func TopLevel(target string) (string, bool) { return topLevel(target) }
+
 // topLevel resolves the work tree holding target.
 func topLevel(target string) (string, bool) {
 	dir := target

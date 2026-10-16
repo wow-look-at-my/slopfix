@@ -218,6 +218,9 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "CC" && opensNounPhrase(words[i+1]):
 			// "and reads every row": a plural noun cannot take a determiner after it.
 			w.Tag = "VBZ"
+		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && words[i-1].Tag == "JJ" && verbEnding(w.Text) && opensNounPhrase(words[i+1]):
+			// "the build keeps every output": an -s form between a modifier and a determiner is the verb.
+			w.Tag = "VBZ"
 		case w.Tag == "NNS" && i > 0 && words[i-1].Tag == ":" && verbEnding(w.Text) && colonFollowsClause(words, i-1):
 			// "Dispatch the Stop: runs in stop-gate mode": a colon opens the clause that explains the one before it.
 			w.Tag = "VBZ"
@@ -227,6 +230,15 @@ func retag(words []Word) {
 		case w.Tag == "NNS" && i == 1 && i+1 < len(words) && identifier(words[0].Text) && verbEnding(w.Text) && opensObjectAt(words[i+1]):
 			// "readText numbers the lines": a doc comment names its identifier, then the verb.
 			words[0].Tag, w.Tag = "NNP", "VBZ"
+		case w.Tag == "NNS" && i > 0 && i+1 < len(words) && Is(words[i-1].Text, "singular-subject") && verbEnding(w.Text) && opensNounPhrase(words[i+1]):
+			// "it gains a block": an -s form after a subject pronoun, before a determiner, is the verb.
+			w.Tag = "VBZ"
+		case w.Tag == "VBZ" && i > 0 && i+1 < len(words) && words[i-1].Tag == "WDT" && words[i+1].Tag == "VBZ":
+			// "that bashfs owns": the earlier of a couple of -s forms after a relative word is its subject.
+			w.Tag = "NNP"
+		case (w.Tag == "VBD" || w.Tag == "VBN") && i > 0 && i+1 < len(words) && Is(words[i-1].Text, "determiner") && isNoun(words[i+1].Tag):
+			// "each embedded file": a past form between a determiner and its noun describes the noun.
+			w.Tag = "JJ"
 		case w.Tag == "VB" && i > 0 && verbEnding(w.Text) && words[i-1].Tag != "TO" && words[i-1].Tag != "MD":
 			// "the message it writes to comply puts": a bare form takes no -s ending.
 			w.Tag = "VBZ"
@@ -236,6 +248,11 @@ func retag(words []Word) {
 	if len(words) > 2 && lowerOpening(words[0].Text) && verbEnding(words[1].Text) &&
 		(words[1].Tag == "VBZ" || words[1].Tag == "NNS") && opensObjectAt(words[2]) {
 		words[0].Tag, words[1].Tag = "NNP", "VBZ"
+	}
+	// "foreignJobs also answers that": a name written as code opens the sentence, and an adverb can stand before its verb.
+	if len(words) > 3 && identifier(words[0].Text) && words[1].Tag == "RB" && verbEnding(words[2].Text) &&
+		(words[2].Tag == "VBZ" || words[2].Tag == "NNS") {
+		words[0].Tag, words[2].Tag = "NNP", "VBZ"
 	}
 	for i := range words {
 		// "the same call, spaced close enough": a past form after a noun and a comma, with no object, describes the noun.

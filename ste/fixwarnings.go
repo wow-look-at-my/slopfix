@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -65,7 +64,7 @@ func widenDictionary(prose string) string {
 		out.WriteString(prose[last:loc[0]])
 		last = loc[1]
 		word := prose[loc[0]:loc[1]]
-		if from, to := loc[0], loc[1]; from > 0 && isIdentByte(prose[from-1]) || to < len(prose) && isIdentByte(prose[to]) {
+		if inName(prose, loc[0], loc[1]) {
 			out.WriteString(word)
 			continue
 		}
@@ -131,13 +130,32 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 	for range clauseRounds * (len(strings.Fields(text)) + 1) {
 		masked := mask(text)
 		off := opaque(text, masked)
-		rewritten, ok := rewriteSentence(syntax.Parse(masked, off), text, off, keep)
+		rewritten, ok := rewriteSentence(coverVerbatim(syntax.Parse(masked, off), text), text, off, keep)
 		if !ok || rewritten == text {
 			break
 		}
 		text = rewritten
 	}
 	return text
+}
+
+// coverVerbatim stretches each word mask writes over a code span, a link
+// target or an entity to the whole span. A rewrite that moves the word then
+// moves all of the span.
+func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
+	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
+		from, to := span[0], span[1]
+		// mask fills a link target inside its parentheses.
+		if to-from >= 3 && text[from] == ']' && text[from+1] == '(' && text[to-1] == ')' {
+			from, to = from+2, to-1
+		}
+		for k := range s.Words {
+			if s.Words[k].Start >= from && s.Words[k].Start < to {
+				s.Words[k].Start, s.Words[k].End = from, to
+			}
+		}
+	}
+	return s
 }
 
 // fixInstructions divides each instruction over InstructionWordCap, as the
@@ -202,100 +220,6 @@ func auxiliary(s *syntax.Sentence, from int, forms set.Set[string]) (int, int) {
 		}
 	}
 	return -1, -1
-}
-
-// rewritePassive writes the active voice for a passive clause that names its
-// actor: "The file is read by the gate" becomes "The gate reads the file".
-// A clause that names no actor is left as written, because nothing states who
-// acts.
-func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
-	last := lastContent(s)
-	i, j := auxiliary(s, 1, beForms)
-	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
-		return "", false
-	}
-	if !simpleSpan(s, i, j) {
-		return "", false
-	}
-	// The actor is the phrase after "by", and it must close the clause.
-	by := -1
-	for k := j + 1; k < last; k++ {
-		if s.Words[k].Lower() == "by" {
-			by = k
-			break
-		}
-	}
-	if by < 0 || by+1 > last {
-		return "", false
-	}
-	end := last
-	for k := by + 1; k <= last; k++ {
-		if s.Words[k].Text == "," {
-			end = k - 1
-			break
-		}
-	}
-	if end < by+1 {
-		return "", false
-	}
-	subject := strings.TrimSpace(source[s.Words[0].Start:s.Words[i].Start])
-	actor := source[s.Words[by+1].Start:s.Words[end].End]
-	tail := source[s.Words[end].End:]
-	verb := passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
-	if subject == "" || actor == "" || verb == "" {
-		return "", false
-	}
-	object := lowerOpeningFor(subject, s.Words[0].Tag)
-	return capitalizeOpening(actor) + " " + verb + " " + object + tail, true
-}
-
-// lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
-// the start of one. A name keeps its capital.
-func lowerOpeningFor(phrase, tag string) string {
-	if tag == "NNP" || tag == "NNPS" {
-		return phrase
-	}
-	first, width := utf8.DecodeRuneInString(phrase)
-	if !unicode.IsUpper(first) {
-		return phrase
-	}
-	return string(unicode.ToLower(first)) + phrase[width:]
-}
-
-// passiveVerb answers the active form of a passive verb group: the participle
-// for a past clause, and the present tense of the base form otherwise.
-func passiveVerb(participle, beWord string, plural bool) string {
-	switch beWord {
-	case "was", "were", "been", "being":
-		return pastFromParticiple(participle)
-	case "be":
-		return pastFromParticiple(participle)
-	}
-	return presentOf(baseFromParticiple(participle), plural)
-}
-
-// baseFromParticiple answers the verb a participle belongs to. A regular verb
-// spells its participle with -ed, so the ending answers it by rule. The table
-// answers each verb the ending hides.
-func baseFromParticiple(form string) string {
-	form = strings.ToLower(form)
-	if v, ok := verbBy(form); ok && v.participle == form {
-		return v.base
-	}
-	if !strings.HasSuffix(form, "ed") || len(form) <= 3 {
-		return form
-	}
-	stem := form[:len(form)-2]
-	if doubled(stem) {
-		return stem[:len(stem)-1]
-	}
-	if strings.HasSuffix(stem, "i") {
-		return stem[:len(stem)-1] + "y"
-	}
-	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
-		return stem + "e"
-	}
-	return stem
 }
 
 // simpleSpan reports whether a verb group from the auxiliary i to the
@@ -364,7 +288,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	noun := func(k int) bool {
 		w := s.Words[k]
 		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			!strings.ContainsAny(w.Text, "()[]{}`\"")
+			wordlike(w.Text) && !versus.Contains(w.Lower())
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -380,6 +304,23 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		start = end
 	}
 	return -1, -1, false
+}
+
+// wordlike reports a token made of letters and digits, which can be a noun. The
+// tagger tags a symbol such as an arrow. A plus or a slash as a noun, and a
+// symbol between names is a chain or a list, not a cluster.
+func wordlike(text string) bool {
+	letter := false
+	for _, r := range text {
+		switch {
+		case unicode.IsLetter(r):
+			letter = true
+		case unicode.IsDigit(r) || strings.ContainsRune("-'._", r):
+		default:
+			return false
+		}
+	}
+	return letter
 }
 
 // rewriteCluster breaks a run of nouns apart: "the gate file system cache
@@ -399,6 +340,15 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 		out.WriteString(" of the ")
 		last--
 	}
-	out.WriteString(source[s.Words[start].Start:s.Words[last].End])
-	return splice(source, s, start, end, out.String()), true
+	rest := source[s.Words[start].Start:s.Words[last].End]
+	rewritten := out.String()
+	// A cluster that opens the sentence hands its capital to the head that now opens it.
+	if start == 0 && isCapitalized(s.Words[0].Text) {
+		rewritten = capitalizeOpening(rewritten)
+		rest = lowerOpeningFor(rest, s.Words[0].Tag)
+	}
+	return splice(source, s, start, end, rewritten+rest), true
 }
+
+// versus joins noun phrases and is no noun of either, though the tagger reads it as one.
+var versus = set.Of("vs", "vs.", "versus")
