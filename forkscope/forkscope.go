@@ -29,7 +29,6 @@ import (
 
 	"github.com/tidwall/jsonc"
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // DefaultGitHubAPI is the API root when GITHUB_API_URL is unset.
@@ -168,54 +167,6 @@ func (r Resolver) Base(root string) (*Base, error) {
 		return &Base{top: top, commit: base}, nil
 	}
 	return nil, nil
-}
-
-// openTop opens the repository of the work tree at top.
-func openTop(top string) (*gitread.Repo, error) {
-	repo, err := gitread.OpenWorkTree(top)
-	if err != nil {
-		return nil, fmt.Errorf("fork scope: %w", err)
-	}
-	if repo == nil {
-		return nil, fmt.Errorf("fork scope: git rev-parse --show-toplevel: %s is not inside a work tree", top)
-	}
-	return repo, nil
-}
-
-// resolve answers the commit a revision names in the work tree at top.
-func resolve(top, rev string) (gitread.OID, *gitread.Repo, error) {
-	repo, err := openTop(top)
-	if err != nil {
-		return gitread.OID{}, nil, err
-	}
-	oid, err := repo.Resolve(rev)
-	if err == nil {
-		oid, err = repo.PeelCommit(oid)
-	}
-	if err != nil {
-		return gitread.OID{}, nil, fmt.Errorf("fork scope: %s: %w", rev, err)
-	}
-	return oid, repo, nil
-}
-
-// mergeBase answers the best common ancestor of revisions.
-func mergeBase(top, a, b string) (string, error) {
-	oa, repo, err := resolve(top, a)
-	if err != nil {
-		return "", err
-	}
-	ob, _, err := resolve(top, b)
-	if err != nil {
-		return "", err
-	}
-	base, ok, err := repo.MergeBase(oa, ob)
-	if err != nil {
-		return "", fmt.Errorf("fork scope: %w", err)
-	}
-	if !ok {
-		return "", fmt.Errorf("fork scope: %s and %s share no history", a, b)
-	}
-	return base.String(), nil
 }
 
 // workspaceHolds reports whether GITHUB_REPOSITORY names the checkout that
