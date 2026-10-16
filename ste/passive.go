@@ -7,14 +7,7 @@ import (
 )
 
 // rewritePassive writes a passive clause that carries a "by" phrase after its
-// participle in a form with no passive. A "by" phrase that names an actor
-// becomes the subject: "The file is read by the gate" becomes "The gate reads
-// the file". A "by" phrase that names a means or a manner names no actor. A
-// clause that opens the sentence then becomes an instruction: "Repos are
-// reached by making a token" becomes "Reach repos by making a token".
-// Elsewhere, and for a participle that is no verb, the "by" phrase moves in
-// front of the subject: "since the checks are red by definition" becomes
-// "since by definition the checks are red".
+// participle in a form with no passive.
 func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if out, ok := rewriteActor(s, source); ok {
 		return out, true
