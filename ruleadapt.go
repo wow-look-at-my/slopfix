@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,6 +14,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/walktree"
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
@@ -33,21 +33,11 @@ func fixtureFiles(c RuleCase) []string {
 		return nil
 	}
 	var out []string
-	err := filepath.WalkDir(c.Root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() && d.Name() == ".git" {
-			return filepath.SkipDir
-		}
-		if d.Type().IsRegular() {
+	walktree.Get(c.Root).Visit(nil, func(path string, e walktree.Entry) {
+		if e.IsRegular() {
 			out = append(out, path)
 		}
-		return nil
 	})
-	if err != nil {
-		panic(fmt.Sprintf("rule case %q: %v", c.Name, err))
-	}
 	sort.Strings(out)
 	return out
 }

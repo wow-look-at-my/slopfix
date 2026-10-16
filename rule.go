@@ -15,6 +15,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/walktree"
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -80,6 +81,7 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			return c, err
 		}
+		walktree.Created(path)
 	}
 	// The files are committed, because a rule about a committed file asks git what the tree holds.
 	commit := [][]string{

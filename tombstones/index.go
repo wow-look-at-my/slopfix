@@ -3,7 +3,6 @@ package tombstones
 import (
 	"bytes"
 	"context"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // indexTimeout bounds the read of the tree.
@@ -53,7 +53,7 @@ func (ix *symbolIndex) missingDependency(root string) bool {
 			if !ok || !strings.HasPrefix(meta, "160000 ") {
 				continue
 			}
-			if children, err := os.ReadDir(filepath.Join(root, rel)); err != nil || len(children) == 0 {
+			if children, err := walktree.List(filepath.Join(root, rel)); err != nil || len(children) == 0 {
 				ix.blind = true
 				return
 			}
@@ -189,17 +189,16 @@ func copiedSubmoduleFiles(ctx context.Context, root string) []string {
 		if _, err := os.Lstat(filepath.Join(root, rel, ".git")); err == nil {
 			continue
 		}
-		_ = filepath.WalkDir(filepath.Join(root, rel), func(path string, d fs.DirEntry, err error) error {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if err != nil || !d.Type().IsRegular() {
-				return nil
+		if ctx.Err() != nil {
+			return files
+		}
+		walktree.Get(filepath.Join(root, rel)).Visit(nil, func(path string, e walktree.Entry) {
+			if !e.IsRegular() {
+				return
 			}
 			if name, err := filepath.Rel(root, path); err == nil {
 				files = append(files, name)
 			}
-			return nil
 		})
 	}
 	return files

@@ -9,11 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // The CLI's own floor, pinned rather than scaled per model: a wider budget keeps files loadable, not skimmable.
@@ -141,7 +143,7 @@ func homeCandidates() []string {
 	}
 	out = append(out, filepath.Join(home, ".claude", "CLAUDE.md"))
 	snippets := filepath.Join(home, ".claude", "claude_snippets")
-	if entries, err := os.ReadDir(snippets); err == nil {
+	if entries, err := walktree.List(snippets); err == nil {
 		for _, e := range entries {
 			if strings.HasSuffix(e.Name(), ".md") {
 				out = append(out, filepath.Join(snippets, e.Name()))
@@ -149,6 +151,14 @@ func homeCandidates() []string {
 		}
 	}
 	return out
+}
+
+// claudeMdFiles answers every CLAUDE.md under root, sorted, from the walk
+// walktree makes of root once per process.
+func claudeMdFiles(root string) []string {
+	files := walktree.Get(root).Named("CLAUDE.md")
+	sort.Strings(files)
+	return files
 }
 
 // allCandidatePaths is every instruction file a session could have loaded:

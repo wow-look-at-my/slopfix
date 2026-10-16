@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // A new script that repeats another script's lines is a variant of that
@@ -41,7 +43,7 @@ func copiedScriptReason(path, content string) string {
 		return ""
 	}
 	dir := filepath.Dir(path)
-	entries, err := os.ReadDir(dir)
+	entries, err := walktree.List(dir)
 	if err != nil {
 		return ""
 	}

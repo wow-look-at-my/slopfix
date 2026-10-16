@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // AgentsFile holds a repository's agent instructions. Every agent reads it by name.
@@ -74,6 +76,7 @@ func MigrateAgents(root string, dryRun bool) (Migration, error) {
 		if err := os.WriteFile(agentsPath, []byte(merged), info.Mode().Perm()); err != nil {
 			return Migration{}, err
 		}
+		walktree.Created(agentsPath)
 	}
 	if err := os.WriteFile(claudePath, []byte(ClaudeStub), info.Mode().Perm()); err != nil {
 		return Migration{}, err
