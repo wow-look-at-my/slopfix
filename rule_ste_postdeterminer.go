@@ -2,12 +2,12 @@ package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
 
-// ste/postdeterminer: a cardinal after a determiner, as in "all the rules".
+// counts/postdeterminer: a cardinal after a determiner, as in "all the rules".
 // The repair writes the determiner's own number word, or drops the cardinal.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       ste.IDPostdeterminer,
-		Category: RuleSTE,
+		Category: RuleCounts,
 		Detect:   detectPostdeterminer,
 		Autofix:  autofixPostdeterminer,
 		Cases:    []RuleCase{{Name: ste.IDPostdeterminer, Path: "x.md", Text: "The gate reads the three rules.\n"}},
