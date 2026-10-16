@@ -141,7 +141,7 @@ func readIndexFile(path string) (*Index, error) {
 		} else {
 			entry.Path = string(data[pos : pos+end])
 			pos += end + 1
-			// An entry pads to a multiple of eight bytes.
+			// An entry pads to a multiple of several bytes.
 			pos = start + (pos-start+7)&^7
 		}
 		if entry.mode&0o170000 == 0o040000 {

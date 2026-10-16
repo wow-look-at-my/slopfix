@@ -250,7 +250,7 @@ const (
 	paintResult
 )
 
-// MergeBase answers the best common ancestor of two commits, as git
+// MergeBase answers the best common ancestor of commits, as git
 // merge-base prints it: the newest of the bases no other base contains.
 func (r *Repo) MergeBase(a, b OID) (OID, bool, error) {
 	bases, err := r.mergeBases(a, b)

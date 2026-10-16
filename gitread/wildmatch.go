@@ -138,9 +138,7 @@ func star(p string, pi *int, text string, ti *int, pathname, fold bool) (int, bo
 	return wmAbortAll, true
 }
 
-// matchClass matches a bracket expression that starts at p[open]. It answers
-// whether tch matches, and the index of the closing bracket, or -1 when the
-// expression never closes.
+// matchClass matches a bracket expression that starts at p[open].
 func matchClass(p string, open int, tch byte, pathname, fold bool) (bool, int) {
 	i := open + 1
 	if i >= len(p) {

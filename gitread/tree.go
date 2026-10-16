@@ -187,9 +187,9 @@ func (r *Repo) Blob(oid OID) ([]byte, bool) {
 	return obj.data, true
 }
 
-// DiffTrees visits each path whose entry differs between two commits, without
+// DiffTrees visits each path whose entry differs between commits, without
 // rename detection. A side that lacks the path passes nil. It reads a subtree
-// only where the two sides name different subtrees.
+// only where both sides name different subtrees.
 func (r *Repo) DiffTrees(from, to OID, visit func(path string, old, new *TreeEntry)) error {
 	var a, b OID
 	var err error

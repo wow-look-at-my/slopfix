@@ -3,6 +3,7 @@ package gitread
 import (
 	"errors"
 	"fmt"
+	"github.com/wow-look-at-my/go-containers/set"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -159,18 +160,18 @@ func (r *Repo) abbreviated(prefix string) (OID, bool) {
 		}
 	}
 	odd := len(prefix)%2 == 1
-	found := map[OID]bool{}
+	found := set.New[OID]()
 	var scan func(db *odb)
 	scan = func(db *odb) {
 		for _, p := range db.packList(false) {
-			p.prefix(digits, odd, func(oid OID) { found[oid] = true })
+			p.prefix(digits, odd, func(oid OID) { found.Add(oid) })
 		}
 		lower := strings.ToLower(prefix)
 		entries, _ := os.ReadDir(filepath.Join(db.dir, lower[:2]))
 		for _, e := range entries {
 			if strings.HasPrefix(e.Name(), lower[2:]) {
 				if oid, err := ParseOID(lower[:2] + e.Name()); err == nil {
-					found[oid] = true
+					found.Add(oid)
 				}
 			}
 		}
@@ -179,10 +180,10 @@ func (r *Repo) abbreviated(prefix string) (OID, bool) {
 		}
 	}
 	scan(r.db)
-	if len(found) != 1 {
+	if found.Len() != 1 {
 		return OID{}, false
 	}
-	for oid := range found {
+	for oid := range found.All() {
 		return oid, true
 	}
 	return OID{}, false

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
@@ -27,9 +28,9 @@ func runGit(b *testing.B, dir string, args ...string) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
-		if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() > 1 {
-			b.Fatal(err)
-		}
+		exit, ok := err.(*exec.ExitError)
+		require.False(b, !ok || exit.ExitCode() > 1)
+
 	}
 }
 
@@ -67,9 +68,9 @@ func BenchmarkIndex(b *testing.B) {
 	dir := benchRepo(b)
 	for b.Loop() {
 		repo, _ := gitread.OpenWorkTree(dir)
-		if _, err := repo.Index(); err != nil {
-			b.Fatal(err)
-		}
+		_, err := repo.Index()
+		require.Nil(b, err)
+
 	}
 }
 
@@ -84,9 +85,9 @@ func BenchmarkWorkFiles(b *testing.B) {
 	dir := benchRepo(b)
 	for b.Loop() {
 		repo, _ := gitread.OpenWorkTree(dir)
-		if _, err := repo.WorkFiles(); err != nil {
-			b.Fatal(err)
-		}
+		_, err := repo.WorkFiles()
+		require.Nil(b, err)
+
 	}
 }
 
@@ -102,9 +103,9 @@ func BenchmarkBlobAt(b *testing.B) {
 	for b.Loop() {
 		repo, _ := gitread.OpenWorkTree(dir)
 		head, _ := repo.Head()
-		if _, err := repo.BlobAt(head, "pkg3/file13.go"); err != nil {
-			b.Fatal(err)
-		}
+		_, err := repo.BlobAt(head, "pkg3/file13.go")
+		require.Nil(b, err)
+
 	}
 }
 
@@ -121,9 +122,9 @@ func BenchmarkMergeBase(b *testing.B) {
 		repo, _ := gitread.OpenWorkTree(dir)
 		head, _ := repo.Head()
 		feature, _ := repo.Resolve("feature")
-		if _, _, err := repo.MergeBase(head, feature); err != nil {
-			b.Fatal(err)
-		}
+		_, _, err := repo.MergeBase(head, feature)
+		require.Nil(b, err)
+
 	}
 }
 
@@ -139,9 +140,9 @@ func BenchmarkChangedNames(b *testing.B) {
 	for b.Loop() {
 		repo, _ := gitread.OpenWorkTree(dir)
 		base, _ := repo.Resolve("v1")
-		if _, err := repo.ChangedNames(base); err != nil {
-			b.Fatal(err)
-		}
+		_, err := repo.ChangedNames(base)
+		require.Nil(b, err)
+
 	}
 }
 
