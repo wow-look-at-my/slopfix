@@ -121,3 +121,18 @@ func TestALongSentenceInARunScriptCommentIsRepaired(t *testing.T) {
 	assert.NotEqual(t, src, out)
 	assert.NotContains(t, findingIDs(slopfix.CheckContent(path, out)), ste.IDSentenceCap, out)
 }
+
+// A division that restates an identifier subject keeps its case. A capital
+// makes a name nothing defines, and the dead-name check fails.
+func TestADivisionRestatesAnIdentifierSubjectWithItsCase(t *testing.T) {
+	src := "package demo\n\n" +
+		"// foreignJobs answers each job of content that runs on a foreign hosted label\n" +
+		"// in a private repository, and that the repair can keep to a public one.\n" +
+		"func foreignJobs() {\n" + strings.Repeat("\tstep()\n", 60) + "}\n\nfunc step() {}\n"
+	require.Contains(t, findingIDs(slopfix.CheckContent("demo.go", src)), ste.IDSentenceCap, "the control: the comment is over the cap")
+
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: "demo.go", MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+	assert.NotContains(t, out, "ForeignJobs", out)
+	assert.Contains(t, strings.ReplaceAll(out, "\n// ", " "), ". foreignJobs also answers", out)
+	assert.Empty(t, quoted(slopfix.CheckContent("demo.go", out)), out)
+}
