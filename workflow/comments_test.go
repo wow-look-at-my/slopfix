@@ -81,6 +81,25 @@ func TestAScriptCommentMayShrinkButItsCodeMayNot(t *testing.T) {
 	assert.Equal(t, scriptWithComments, res.Text)
 }
 
+// The interpreter line and a # line inside a heredoc are code and data. A
+// comment edit that removes either is refused.
+func TestAShebangAndAHeredocLineAreNotComments(t *testing.T) {
+	gate := workflow.Options(fixer.Options{}).Comments
+	head := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n"
+	for name, script := range map[string]string{
+		"shebang": head + "          #!/bin/sh\n          # a note\n          make\n",
+		"heredoc": head + "          cat <<EOF\n          # not a comment\n          EOF\n",
+	} {
+		res := gate(script, []edit.Edit{edit.Lines(script, 5, 5, 0, nil)}, edit.Scope{})
+		if name == "heredoc" {
+			res = gate(script, []edit.Edit{edit.Lines(script, 6, 6, 0, nil)}, edit.Scope{})
+		}
+		assert.Empty(t, res.Applied, name)
+		assert.Len(t, res.Refused, 1, name)
+		assert.Equal(t, script, res.Text, name)
+	}
+}
+
 // Comment lines whose first never closed its sentence join into sentences, not
 // one run-on. A line that wraps mid-sentence still joins as one.
 func TestJoiningCommentLinesKeepsTheirSentencesApart(t *testing.T) {

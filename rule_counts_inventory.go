@@ -13,7 +13,13 @@ func init() {
 		Category: RuleCounts,
 		Detect:   detectInventoryCount,
 		Autofix:  autofixInventoryCount,
-		Cases:    []RuleCase{{Name: counts.ID, Path: "x.md", Text: "This project has 20 rules.\n"}},
+		Cases: []RuleCase{
+			{Name: counts.ID, Path: "x.md", Text: "This project has 20 rules.\n"},
+			{Name: counts.ID + " in a label after a subordinator", Path: "x.md", Text: "Work begins only after instance 1 finishes.\n", Want: "Work begins only after one instance finishes.\n"},
+			{Name: counts.ID + " in a bullet item", Path: "x.md", Text: "- There are 20 rules here.\n", Want: "- There are rules here.\n"},
+			{Name: counts.ID + " in a numbered item", Path: "x.md", Text: "1. The repo ships 15 hooks.\n", Want: "1. The repo ships hooks.\n"},
+			{Name: counts.ID + " in a parenthesis numbered item", Path: "x.md", Text: "1) The repo ships 15 hooks.\n", Want: "1) The repo ships hooks.\n"},
+		},
 	})
 }
 
