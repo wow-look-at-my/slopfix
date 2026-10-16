@@ -5,6 +5,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 func (p Problem) String() string {
@@ -98,10 +100,10 @@ func (c *checker) node(n *Node) {
 // reports whether it found nothing wrong.
 func (c *checker) attrs(n *Node, elem Elem) bool {
 	before := len(c.problems)
-	allowed := map[string]bool{}
+	allowed := set.Of[string]()
 	for _, list := range [][]string{elem.Attrs, elem.Required, elem.Present, elem.Any, {elem.TestAttr, elem.ExpectAttr}} {
 		for _, name := range list {
-			allowed[name] = true
+			allowed.Add(name)
 		}
 	}
 	names := make([]string, 0, len(n.Attrs))
@@ -114,7 +116,7 @@ func (c *checker) attrs(n *Node, elem Elem) bool {
 		switch {
 		case name == CaseAttr:
 			c.caseAttr(n, elem, value)
-		case !allowed[name]:
+		case !allowed.Contains(name):
 			c.add(n, "<%s> has no attribute %q", n.Name, name)
 		default:
 			c.enum(n, elem, name, value)

@@ -64,11 +64,10 @@ func Validate(data []byte) error {
 	return xmlcheck.Run(Spec(), xmlcheck.File{Name: "autoallow/rules.xml", Raw: data})
 }
 
-// shippedRulesValid stops the binary at start-up when the embedded table is
-// invalid, rather than letting a rule that cannot fire sit in it.
-var shippedRulesValid = func() bool {
+// init stops the binary at start-up when the embedded table is invalid, rather
+// than letting a rule that cannot fire sit in it.
+func init() {
 	if err := Validate(rulesXML); err != nil {
 		panic("autoallow: " + err.Error())
 	}
-	return true
-}()
+}

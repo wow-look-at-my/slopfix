@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/xmlcheck"
 )
 
@@ -102,10 +103,10 @@ func CaptureProblems(match, to string) []string {
 	if err != nil {
 		return []string{fmt.Sprintf("the match does not parse: %v", err)}
 	}
-	captured := map[string]bool{}
+	captured := set.Of[string]()
 	for _, term := range terms.Terms {
 		if term.Name != "" {
-			captured[term.Name] = true
+			captured.Add(term.Name)
 		}
 	}
 	var out []string
@@ -118,7 +119,7 @@ func CaptureProblems(match, to string) []string {
 		if end < 0 {
 			return out
 		}
-		if name := rest[open+1 : open+end]; !captured[name] {
+		if name := rest[open+1 : open+end]; !captured.Contains(name) {
 			out = append(out, fmt.Sprintf("the replacement writes {%s}, which no term of the match captures", name))
 		}
 		rest = rest[open+end+1:]

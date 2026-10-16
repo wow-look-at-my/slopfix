@@ -46,11 +46,9 @@ func ValidateGrepJSON(raw []byte) error {
 	return xmlcheck.Run(GrepJSONSpec(), xmlcheck.File{Name: "bashclean/grepjson.xml", Raw: raw})
 }
 
-// shippedGrepJSONValid stops the binary at start-up when the embedded table is
-// invalid.
-var shippedGrepJSONValid = func() bool {
+// init stops the binary at start-up when the embedded table is invalid.
+func init() {
 	if err := ValidateGrepJSON(grepJSONXML); err != nil {
 		panic("bashclean: " + err.Error())
 	}
-	return true
-}()
+}

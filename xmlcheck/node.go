@@ -64,9 +64,6 @@ func (n *Node) Body() string { return strings.TrimSpace(n.Text) }
 // Where words a position for a message.
 func (n *Node) Where() string { return fmt.Sprintf("%s:%d", n.File, n.Line) }
 
-// isRoot reports the document element.
-func (n *Node) isRoot() bool { return n.Parent == nil }
-
 var xmlDecl = regexp.MustCompile(`^(\s*<\?xml\s+version=")1\.1(")`)
 
 // Readable answers raw with a declaration encoding/xml accepts.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/xmlcheck"
@@ -26,15 +27,15 @@ func TestEveryEmbeddedRulesFileIsChecked(t *testing.T) {
 	paths, err := fs.Glob(rules.FS, "*.xml")
 	require.NoError(t, err)
 	require.NotEmpty(t, paths)
-	targets := map[string]bool{}
+	targets := set.Of[string]()
 	for _, path := range paths {
 		raw, err := fs.ReadFile(rules.FS, path)
 		require.NoError(t, err)
 		root, err := xmlcheck.Parse(path, raw)
 		require.NoError(t, err)
-		targets[root.Attrs["for"]] = true
+		targets.Add(root.Attrs["for"])
 	}
-	for target := range targets {
+	for _, target := range targets.Values() {
 		_, err := table.Load(rules.FS, target)
 		require.NoError(t, err, "target %s", target)
 	}
