@@ -54,6 +54,7 @@ func safeInputs(root *yaml.Node) set.Set[string] {
 var plainContext = regexp.MustCompile(`^(?:runner\.(?:temp|tool_cache|os|arch|name|environment|debug)|` +
 	`github\.(?:event_name|sha|workflow_sha|run_id|run_number|run_attempt|ref_type|repository|repository_owner|repository_id|repository_owner_id|actor_id|server_url|api_url|graphql_url|retention_days|job)|` +
 	`strategy\.(?:job-index|job-total|fail-fast|max-parallel)|job\.status)$`)
+<<<<<<< HEAD
 
 // typedInput matches a read of a single input by its name.
 var typedInput = regexp.MustCompile(`^inputs\.([A-Za-z_][A-Za-z0-9_-]*)$`)
@@ -67,6 +68,27 @@ func plainValue(expr string, safe set.Set[string]) bool {
 	return plainContext.MatchString(expr)
 }
 
+=======
+
+// secret matches a secret, which must not land in the script file on disk.
+var secret = regexp.MustCompile(`\bsecrets\.`)
+
+// scriptAction matches an action whose result output is JSON.
+var scriptAction = regexp.MustCompile(`(^|[/@])typescript([@#]|$)|github-script@`)
+
+// typedInput matches a read of a single input by its name.
+var typedInput = regexp.MustCompile(`^inputs\.([A-Za-z_][A-Za-z0-9_-]*)$`)
+
+// plainValue reports an expression whose value cannot carry shell text.
+func plainValue(expr string, safe set.Set[string]) bool {
+	expr = strings.TrimSpace(expr)
+	if m := typedInput.FindStringSubmatch(expr); m != nil {
+		return safe.Contains(m[1])
+	}
+	return plainContext.MatchString(expr)
+}
+
+>>>>>>> origin/repair-master-ci
 // runnerContext maps a runner variable to the context that carries the same
 // value. A path in this map names the host inside a job container, where the
 // variable names the mount. A step that can run in a container keeps the variable.

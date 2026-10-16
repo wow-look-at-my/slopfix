@@ -258,22 +258,6 @@ func withCloser(rest, closer string) string {
 	return body + " " + closer + rest[len(body):]
 }
 
-// objectRelative reports ", which X does not show" at the end of a sentence: a
-// relative clause with a subject of its own whose verb ends the sentence. The
-// relative word is the verb's object.
-func objectRelative(s *syntax.Sentence, c syntax.Clause) bool {
-	if c.Kind != syntax.Relative || !c.Comma || c.Depth != 1 || s.Words[c.Link].Lower() != "which" || c.Subject == nil || c.Verb == nil {
-		return false
-	}
-	last := len(s.Words) - 1
-	for last > 0 && punctuationTag(s.Words[last].Tag) {
-		last--
-	}
-	return c.Verb.Last == last && c.Subject.First == c.Link+1 && !strings.HasPrefix(s.Words[last].Tag, "VBN")
-}
-
-func punctuationTag(tag string) bool { return tag == "." || tag == "," || tag == ":" }
-
 // joinOpener puts the opener in front of the rest, and capitalizes what opens the sentence.
 func joinOpener(opener, rest string) string {
 	if opener != "" {
@@ -292,10 +276,15 @@ func divisions(s *syntax.Sentence, source string) []division {
 		if !ok || c.Link < 0 || c.Link+1 >= len(s.Words) {
 			continue
 		}
+<<<<<<< HEAD
 		// A division inside a pair of dashes, or at either dash, halves the aside.
 		if insideAny(dashed, s.Words[c.Link].Start) {
 			continue
 		}
+=======
+		// A division inside a pair of dashes, or at either dash, halves the aside, unless the rest names its subject again.
+		inAside := insideAny(dashed, s.Words[c.Link].Start)
+>>>>>>> origin/repair-master-ci
 		// The part before a division needs a verb with tense: "so newly created files." has none.
 		if !main.Verb.Finite && !main.Verb.Imperative {
 			continue
@@ -309,13 +298,16 @@ func divisions(s *syntax.Sentence, source string) []division {
 				out = append(out, d)
 				continue
 			}
-			if objectRelative(s, c) {
+			if !inAside && objectRelative(s, c) {
 				out = append(out, division{
 					leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
 					rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
 					closer:     "that",
 				})
 			}
+			continue
+		}
+		if inAside && opener == "" {
 			continue
 		}
 		d := division{
