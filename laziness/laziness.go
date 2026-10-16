@@ -76,6 +76,7 @@ var tells = []tell{
 	{"asking permission in place of acting", regexp.MustCompile(`(?i)\blet\s+me\s+know\s+if\s+you\s*(?:'|’)?d?\s*(?:would\s+)?like\b`)},
 	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bI\s+can\s+\S[^.!?\n]{0,60}\s+if\s+you\s*(?:'|’)?d?\s*(?:would\s+)?like\b`)},
 	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bsay\s+the\s+word\b`)},
+	{"asking permission in place of acting", regexp.MustCompile(`(?i)\b(?:tell\s+me|let\s+me\s+know)\s+(?:if|whether)\s+you\s*(?:'|’)?d?\s*(?:want|need|would\s+like)\b`)},
 }
 
 // pardons mean the obligation was met. A sentence carrying a tell AND saying

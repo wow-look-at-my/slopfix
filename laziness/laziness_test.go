@@ -25,6 +25,10 @@ func TestAskingPermissionInPlaceOfActingIsAPunt(t *testing.T) {
 		"Should I go ahead and push?",
 		"I can port the fix if you'd like.",
 		"Say the word.",
+		"Tell me if you want it.",
+		"The loader fix is ready. Tell me if you want it.",
+		"Let me know if you want it.",
+		"Tell me whether you need the port too.",
 	} {
 		assert.NotEmpty(t, laziness.Check(message), "no finding on %q", message)
 	}
