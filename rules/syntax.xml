@@ -45,6 +45,9 @@
   <!-- A place word that follows the noun it places: "the case above". -->
   <class name="postposed" words="above below here there"/>
 
+  <!-- An adjective the tagger reads as a past participle: "cannot be solid". -->
+  <class name="adjective" words="solid liquid rigid"/>
+
   <!-- A noun that names a person takes they rather than it. -->
   <class name="person" words="user users person people caller callers author
     authors owner owners reader readers writer writers reviewer reviewers
