@@ -89,7 +89,7 @@ func TestClauseRepairsKeepTheSentenceWhole(t *testing.T) {
 		},
 		"a gerund after by names the means": {
 			"An answer is asserted by pairing it with `uname -s`.",
-			"Assert an answer by pairing it with `uname -s`.",
+			"Pairing it with `uname -s` asserts an answer.",
 		},
 		"a reduced clause after a comma is no subject": {
 			"`a.dats` asserts the tripwires, run by the action the same way `b.dats` is run by its job.",

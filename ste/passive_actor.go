@@ -38,8 +38,10 @@ func rewriteActor(s *syntax.Sentence, source string) (string, bool) {
 	if end < by+1 {
 		return "", false
 	}
-	// "by" and a gerund name the means, and no actor: "is asserted by pairing it with X".
-	if s.Words[by+1].Tag == "VBG" {
+	// "by" and a gerund name the means, which acts as a singular subject: "is asserted by pairing it with X" becomes "Pairing it with X asserts".
+	means := s.Words[by+1].Tag == "VBG"
+	// A bare noun after "by" names a manner, and a participle that is no verb has no active form.
+	if !participleOfVerb(s.Words[j].Lower()) || !means && !(passiveClause{s: s, by: by}).namesActor() {
 		return "", false
 	}
 	// A second verb group after the actor shares the passive subject, which the rewrite moves away from it: "is untouched by this and is now the slowest".
@@ -65,7 +67,7 @@ func rewriteActor(s *syntax.Sentence, source string) (string, bool) {
 		if before := s.Words[i-1]; before.Tag == "MD" || haveForms.Contains(before.Lower()) || beForms.Contains(before.Lower()) {
 			return "", false
 		}
-		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
+		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), !means && s.Plural(syntax.Phrase{Head: end}))
 	}
 	from, to := s.Words[first].Start, s.Words[end].End
 	subject := strings.TrimSpace(unbold(source[from:s.Words[subjectEnd].Start]))

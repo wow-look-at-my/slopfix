@@ -51,13 +51,8 @@ func rewriteWithoutActor(s *syntax.Sentence, source string) (string, bool) {
 	if s.Words[i].Lower() == "be" || s.Words[i-1].Tag == "MD" || haveForms.Contains(s.Words[i-1].Lower()) || beForms.Contains(s.Words[i-1].Lower()) {
 		return "", false
 	}
-	verb := participleOfVerb(s.Words[j].Lower())
-	if verb && p.namesActor() {
+	if participleOfVerb(s.Words[j].Lower()) && p.namesActor() {
 		return "", false
-	}
-	switch {
-	case verb && p.opensInstruction():
-		return p.instruction(), true
 	}
 	return p.frontedBy(), true
 }
@@ -125,71 +120,6 @@ func (p passiveClause) namesActor() bool {
 	}
 	head := p.s.Words[ph.Head].Tag
 	return head == "NNS" || head == "NNPS"
-}
-
-// opensInstruction reports a clause that opens the sentence, or opens it. This
-// happens after a label and a colon, so that a bare verb in its place reads as
-// an instruction.
-func (p passiveClause) opensInstruction() bool {
-	if p.start == 0 {
-		return true
-	}
-	colon := p.start - 1
-	if p.s.Words[colon].Text != ":" {
-		return false
-	}
-	for k := 0; k < colon; k++ {
-		if finiteVerbTag(p.s.Words[k].Tag) || p.s.Words[k].Tag == "MD" {
-			return false
-		}
-	}
-	return true
-}
-
-// subject answers the words from the clause's opening to its form of be.
-func (p passiveClause) subject() string {
-	return strings.TrimSpace(p.source[p.s.Words[p.start].Start:p.s.Words[p.be].Start])
-}
-
-// pronoun answers the object pronoun that stands for the subject after a later verb.
-func (p passiveClause) pronoun() string {
-	if ph, ok := p.s.PhraseAt(p.start); ok && ph.Kind == syntax.NounPhrase && p.s.Plural(*ph) {
-		return "them"
-	}
-	return "it"
-}
-
-// coordinated answers the words between the participle and "by", with each
-// later participle that a conjunction joins to it written by form. It given
-// the subject as its object. "and named" becomes "and name it".
-func (p passiveClause) coordinated(form func(string) string) string {
-	var out strings.Builder
-	at := p.s.Words[p.participle].End
-	for k := p.participle + 1; k < p.by; k++ {
-		w := p.s.Words[k]
-		if (w.Tag == "VBN" || w.Tag == "VBD") && p.s.Words[k-1].Tag == "CC" {
-			out.WriteString(p.source[at:w.Start])
-			out.WriteString(form(w.Lower()) + " " + p.pronoun())
-			at = w.End
-		}
-	}
-	out.WriteString(p.source[at:p.s.Words[p.by].Start])
-	return out.String()
-}
-
-// instruction writes the clause as an instruction to the reader, who is the
-// actor a clause with no actor leaves.
-func (p passiveClause) instruction() string {
-	w := p.s.Words
-	verb := baseFromParticiple(w[p.participle].Lower())
-	object := p.subject()
-	if p.start == 0 || isCapitalized(object) {
-		verb = capitalizeOpening(verb)
-	}
-	if p.start == 0 {
-		object = lowerOpeningFor(object, w[p.start].Tag)
-	}
-	return p.source[:w[p.start].Start] + verb + " " + object + p.coordinated(baseFromParticiple) + p.source[w[p.by].Start:]
 }
 
 // frontedBy moves the "by" phrase in front of the subject, which leaves the
