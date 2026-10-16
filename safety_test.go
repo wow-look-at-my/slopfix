@@ -9,6 +9,17 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
+// The doc comment the length repair deleted. Its heading carries the invariant
+// for the sentence under it, and the repair cut the block to the heading alone.
+func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
+	src := "/// # Safety\n" +
+		"/// The caller must ensure that the pointer stays valid for reads of n bytes for the whole call, and that no other thread writes through it while this function runs.\n" +
+		"fn f() {}\n"
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}).Text
+	assert.Contains(t, out, "The caller must ensure", "the doc body was deleted:\n%s", out)
+	assert.Contains(t, out, "no other thread writes through it", "the invariant clause was deleted:\n%s", out)
+}
+
 // A heading-led doc comment no repair can keep whole above a one-line body.
 // The length repair leaves one whole opening sentence under the cap, and no
 // finding is left after fix.
@@ -37,8 +48,8 @@ func TestTheLengthRepairLeavesAWholeOpeningSentenceAndNoFinding(t *testing.T) {
 }
 
 // A doc comment that opens on a heading is still repaired. The heading and
-// the break line under it stay, and the cut runs in the prose under them.
-func TestAHeadingLedDocCommentIsCutUnderItsHeading(t *testing.T) {
+// the break line under it stay, and the repair leaves no comment finding.
+func TestAHeadingLedDocCommentIsRepairedUnderItsHeading(t *testing.T) {
 	src := "/// # Safety\n" +
 		"///\n" +
 		"/// The caller keeps the pointer valid for the whole call. No other thread writes through it. The buffer holds at least n bytes. The length counts bytes and not characters. A null pointer is never passed here.\n" +
@@ -50,7 +61,7 @@ func TestAHeadingLedDocCommentIsCutUnderItsHeading(t *testing.T) {
 	req := slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}
 	out := slopfix.Fix(req).Text
 	assert.True(t, strings.HasPrefix(out, "/// # Safety\n///\n/// The caller keeps the pointer valid for the whole call."), "the heading or its break went:\n%s", out)
-	assert.NotContains(t, out, "A null pointer is never passed here.", "the prose under the heading was not cut:\n%s", out)
+	assert.Empty(t, slopfix.CheckContent("f.rs", out), "a finding is left after fix:\n%s", out)
 	assert.Contains(t, out, "unsafe fn first(p: *const u8, n: usize) -> u8 {\n", out)
 	req.Content = out
 	assert.Equal(t, out, slopfix.Fix(req).Text, "a second fix changed the text")

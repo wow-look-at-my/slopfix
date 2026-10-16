@@ -81,6 +81,12 @@ func openingUnder(head, text []string, fit layout, shrink bool) ([]string, bool,
 		}
 		out, fits := fit(head, first, indent, marker)
 		if shrink && !fits {
+			// A later "that" clause states a condition of its own, so it keeps the verb that governs it.
+			for _, restated := range sharedHeadTails(first) {
+				if shorter, ok := fit(head, restated, indent, marker); ok {
+					return shorter, true, true
+				}
+			}
 			// Only a boundary the division repair admits keeps every word the clause needs.
 			cuts := ste.Cuts(first)
 			for i := len(cuts) - 1; i >= 0; i-- {
