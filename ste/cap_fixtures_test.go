@@ -183,6 +183,11 @@ var capSentences = []string{
 	"flushPage writes new index or journal entries into the segment no pending reader holds and flips to it before the next full commit starts its sync pass.",
 	"main() holds the \"disk\" lock for every sync-tool run except --help and --dump-config, so only one sync-tool uses the disk at a time.",
 	"Every job takes a slot in \"<state dir>.pool/\": a serial number from the index file, taken under flock on that file, names a slot file that its owner holds flock(LOCK_EX) on for as long as it waits or holds.",
+	"It carries a capital, a digit, an underscore or a dot inside it, or it is a single letter other than the article, as a variable such as q is.",
+	"Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube, and flatness ratio of the stack against an opaque layer of the same cube.",
+	"Pair-demand elasticity per rung, and the act whose demand response measures one of them: the demand and scalars before the act, and the scalars it set.",
+	"Pair demand at quality q relative to now: q split over the free rungs the way applyQuality spends it (before the res lattice), each rung's ratio raised to its measured elasticity.",
+	"Every adopted frame of a synthetic clip lands records, cubeBuf, C and a rendered image equal to the live async tick wire's, on the copy and the in-place (UMA direct) row wires; a repeated C reuses its pipeline triple; an edge repack of an adopted frame and a resumed live tick match too.",
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.

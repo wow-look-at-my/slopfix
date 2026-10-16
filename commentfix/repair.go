@@ -16,10 +16,8 @@ import (
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
-	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -102,7 +100,7 @@ func repairNumbers(f *fixer.File) {
 	}
 }
 
-// danglingMarkers deletes each bare comment line the repair left with nothing under it. The line was a paragraph break somebody wrote, and a break that separates a paragraph from the code below it separates nothing.
+// danglingMarkers deletes each bare comment line the repair left with no prose under it or over it. The line was a paragraph break somebody wrote, and a break at the edge of a comment separates nothing.
 //
 // The tree names the lines to weigh. So a line of code that only opens with a marker's characters never reads as an empty comment.
 func danglingMarkers(filename, src string) []edit.Edit {
@@ -110,15 +108,18 @@ func danglingMarkers(filename, src string) []edit.Edit {
 	lines := strings.Split(src, "\n")
 	var edits []edit.Edit
 	for i := 0; i < len(lines); i++ {
-		if !commented.Contains(i) || !bareMarker(lines[i]) || carriesProse(lines, commented, i+1) {
+		if !commented.Contains(i) || !bareMarker(lines[i]) {
 			continue
 		}
 		// A run of bare lines goes as a single edit, so no edits share a line end.
 		j := i
-		for j+1 < len(lines) && commented.Contains(j+1) && bareMarker(lines[j+1]) && !carriesProse(lines, commented, j+2) {
+		for j+1 < len(lines) && commented.Contains(j+1) && bareMarker(lines[j+1]) {
 			j++
 		}
-		edits = append(edits, edit.Lines(src, i, j, 0, nil))
+		// A break with no prose above it or below it separates nothing.
+		if !carriesProse(lines, commented, j+1) || !carriesProse(lines, commented, i-1) {
+			edits = append(edits, edit.Lines(src, i, j, 0, nil))
+		}
 		i = j
 	}
 	return edits
@@ -167,7 +168,7 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 			continue
 		}
 		first, last := para.lines[0], para.lines[len(para.lines)-1]
-		if said == "" && para.code != "" && para.trailer == "" {
+		if said == "" && para.code != "" && !closesBlock(para.trailer) {
 			// A comment following code loses the comment, and the code stays.
 			e := edit.Lines(src, first, last, len(strings.TrimRight(para.code, " \t")), []string{""})
 			e.Cut = cut
@@ -187,7 +188,7 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 			wrapped = []string{strings.TrimRight(para.marker+said, " ")}
 		}
 		// An emptied block after code keeps its delimiters, because the code holds the line.
-		if len(wrapped) == 0 && para.trailer != "" {
+		if len(wrapped) == 0 && closesBlock(para.trailer) {
 			wrapped = []string{strings.TrimRight(para.marker, " ")}
 		}
 		if n := len(para.lines); len(wrapped) > n {
@@ -300,6 +301,10 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 				if trailer != "" {
 					current.trailer = trailer
 				}
+				// A rule that closes a line ends a heading, so the paragraph ends with it.
+				if trailer != "" && !closesBlock(trailer) {
+					current = nil
+				}
 			}
 		}
 	}
@@ -355,7 +360,7 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 		}
 	}
 	// A block with no closer is not a block this can safely rewrite.
-	return b, b.prose != "" && b.trailer != ""
+	return b, b.prose != "" && closesBlock(b.trailer)
 }
 
 // alignedLine reads a block's continuation line that carries no marker and
@@ -388,33 +393,6 @@ func proseOf(lines []string) []string {
 	return out
 }
 
-// cutWhatIsLeft rewords each number the table did not rewrite, as the document
-// count rule does. It removes the sentence around a number that is still left,
-// and reports what it cut.
-func cutWhatIsLeft(prose string) (string, []string) {
-	prose = rewordCounts(prose)
-	if len(cardinal.Find(prose, cardinal.Comment)) == 0 {
-		return prose, nil
-	}
-	var kept, cut []string
-	for _, sentence := range sentences(prose) {
-		if len(cardinal.Find(sentence, cardinal.Comment)) > 0 {
-			cut = append(cut, strings.TrimSpace(sentence))
-			continue
-		}
-		kept = append(kept, strings.TrimSpace(sentence))
-	}
-	return strings.TrimSpace(strings.Join(kept, " ")), cut
-}
-
-// sentences splits comment prose on its sentence ends. A comment sentence
-// often opens on a lower-case identifier, such as a parameter name.
-func sentences(prose string) []string {
-	return ste.SentencesOpenedBy(prose, func(rest []rune) bool {
-		return unicode.IsLower(rest[0]) || ste.OpensSentence(rest)
-	})
-}
-
 // split separates a comment line's marker and indent from its prose.
 func split(line string) (marker, prose string, ok bool) {
 	marker, prose, _, ok = splitBlock(line)
@@ -441,10 +419,13 @@ func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 		}
 		space := rest[:len(rest)-len(strings.TrimLeft(rest, " \t"))]
 		body := strings.TrimSpace(rest)
+		closer := ""
 		if cut, held := strings.CutSuffix(body, "*/"); held {
-			return indent + m + space, strings.TrimSpace(cut), "*/", true
+			body, closer = strings.TrimSpace(cut), "*/"
 		}
-		return indent + m + space, body, "", true
+		// A rule drawn around the prose belongs to the marker and the closer.
+		lead, body, rule := cutRules(body)
+		return indent + m + space + lead, body, strings.TrimSpace(rule + " " + closer), true
 	}
 	return "", "", "", false
 }
