@@ -14,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // gitT runs git in dir with no user or system config. A signing key or a

@@ -245,23 +245,20 @@ func (o *Lines) dropUpstreamVersions(repo *gitread.Repo, upstream string) error 
 		return fmt.Errorf("fork scope: %w", err)
 	}
 	// Only a clean staged file can be dropped, so the walk reads only the directories that hold one.
-	staged := map[string]set.Set[gitread.OID]{}
+	staged := set.New[string]()
 	dirs := set.Of("")
 	for _, e := range idx.Entries() {
 		if edited.Contains(e.Path) {
 			continue
 		}
-		if staged[e.Path] == nil {
-			staged[e.Path] = set.New[gitread.OID]()
-		}
-		staged[e.Path].Add(e.OID)
+		staged.Add(e.Path + "\x00" + e.OID.String())
 		for dir := path.Dir(e.Path); dir != "." && !dirs.Contains(dir); dir = path.Dir(dir) {
 			dirs.Add(dir)
 		}
 	}
 	known := set.New[string]()
 	err = repo.HistoryVersions(tip, dirs.Contains, func(name string, blob gitread.OID) {
-		if oids, ok := staged[name]; ok && oids.Contains(blob) {
+		if staged.Contains(name + "\x00" + blob.String()) {
 			known.Add(name)
 		}
 	})
