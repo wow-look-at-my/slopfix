@@ -23,14 +23,15 @@ import (
 )
 
 // The rule IDs. A report prints the ID that found the text, and the same ID
-// selects that rule on the command line.
+// selects that rule on the command line. The prefix names the category: some
+// rules this package runs are plain English or the counts policy, not STE.
 const (
 	IDContraction = "ste/contraction"
 	IDModal       = "ste/modal"
-	IDSemicolon   = "ste/semicolon"
+	IDSemicolon   = "english/semicolon"
 	IDSentenceCap = "ste/sentence-length"
-	IDCommaSplice = "ste/comma-splice"
-	IDStaleCount  = "ste/count"
+	IDCommaSplice = "english/comma-splice"
+	IDStaleCount  = "counts/stated-count"
 )
 
 // AllIDs names every rule this package reports. A set, because every consumer
