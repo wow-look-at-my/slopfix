@@ -13,6 +13,7 @@ func init() {
 		Autofix:  autofixNounCluster,
 		Cases: []RuleCase{
 			{Name: ste.IDNounCluster, Path: "w.md", Text: "The gate cache lookup table stopped.\n", Want: "The table of the gate cache lookup stopped.\n"},
+			{Name: "a verb stays out of a cluster", Path: "w.md", Text: verbCase, Want: verbWant},
 			{
 				Name: "a cluster that ends in a product name", Path: "w.md",
 				Text: "It answers the Claude Code hook events.\n",
@@ -31,6 +32,11 @@ func init() {
 		},
 	})
 }
+
+// verbCase holds a real cluster beside a verb the tagger reads as a plural noun ("center depth sorts triangles").
+const verbCase = "The gate cache lookup table stopped. Center depth sorts triangles.\n"
+
+const verbWant = "The table of the gate cache lookup stopped. Center depth sorts triangles.\n"
 
 // detectNounCluster answers every noun cluster this case reports.
 func detectNounCluster(c RuleCase) []ste.Finding {
