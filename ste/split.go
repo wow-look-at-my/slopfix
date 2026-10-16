@@ -161,7 +161,7 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			}
 			bold = "**"
 		}
-		if !admissible(s, source, d) {
+		if !admissible(s, source, d) || absolutePhrase(source, d) {
 			continue
 		}
 		// "with no visibility test": with no mark or conjunction at the seam, a bare verb form after a noun continues the noun phrase.
@@ -169,7 +169,11 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := bold + withCloser(joinOpener(d.opener, restOf(source, d)), d.closer)
+		opened := openDivision(source, d)
+		if opened == "" {
+			continue
+		}
+		right := bold + withCloser(opened, d.closer)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
@@ -202,7 +206,7 @@ func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := capitalizeOpening(joinOpener(d.opener, restOf(source, d)))
+		right := openDivision(source, d)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
@@ -539,8 +543,7 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	if head.Tag == "PRP" {
 		return head.Text, true
 	}
-	short := subject.Last-subject.First < restateLimit && !subject.Coordinated &&
-		s.Words[subject.Last+1].Tag != "IN"
+	short := restates(s, subject) && s.Words[subject.Last+1].Tag != "IN"
 	if short && opensWithCapital(s, subject.First, source) {
 		// A noun that disagrees with the verb is not that verb's subject: "its reads ... keeps".
 		if !agrees(s, subject, *c.Verb) {

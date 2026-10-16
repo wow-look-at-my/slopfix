@@ -142,6 +142,9 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := gappedDivision(source, whole, d.cap); ok {
 		return out, true
 	}
+	if out, ok := listDivision(source, masked, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict, d.cap) {
@@ -239,7 +242,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < minimumHalf {
 			continue
 		}
-		if len(ends)-c.words < minimumHalf {
+		if len(ends)-c.words < minimumHalf || dependentRest(whole, c) {
 			continue
 		}
 		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {

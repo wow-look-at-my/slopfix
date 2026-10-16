@@ -148,12 +148,15 @@ func (p paragraph) opensSection() bool {
 	return p.verbatim && len(p.raw) == 1 && isHeadingLine(p.raw[0])
 }
 
-// stripMarker removes the indent and comment marker, leaving the prose.
+// stripMarker removes the indent and comment marker, leaving the prose. A rule
+// drawn around the prose goes with the marker, so a reflow never wraps it into
+// the middle of a sentence.
 func stripMarker(line string) string {
 	t := strings.TrimSpace(line)
 	for _, m := range docMarkers {
 		if rest, found := strings.CutPrefix(t, m); found {
-			return strings.TrimSpace(rest)
+			_, prose, _ := cutRules(strings.TrimSpace(rest))
+			return prose
 		}
 	}
 	return t

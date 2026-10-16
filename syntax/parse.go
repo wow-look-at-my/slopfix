@@ -139,7 +139,15 @@ func restoreOne(words []Word, phrases []Phrase, from, to int) bool {
 			return true
 		}
 		head, before := &words[p.Head], words[p.Head-1]
+		if coordinatedObject(words, p.Head) {
+			continue
+		}
 		listed := p.Head+1 < len(words) && (words[p.Head+1].Tag == "," || words[p.Head+1].Tag == "WDT" || words[p.Head+1].Lower() == "that")
+		// "center depth sorts triangles": of a couple of plurals after a singular noun, the first is the verb.
+		if head.Tag == "NNS" && before.Tag == "NNS" && verbEnding(before.Text) && p.Head-2 >= p.First && words[p.Head-2].Tag == "NN" {
+			words[p.Head-1].Tag = "VBZ"
+			return true
+		}
 		switch {
 		case head.Tag == "NNS" && filler(before.Text) && listed:
 			// "`deny` rules, hooks": a name and a plural before a comma or a relative word are a noun phrase.
@@ -202,6 +210,9 @@ func retag(words []Word) {
 		case (w.Tag == "NN" || w.Tag == "VB") && i > 1 && words[i-2].Tag == "NNS" && Is(words[i-1].Text, "postposed") && i+1 < len(words) && words[i+1].Tag == "IN":
 			// "the cases above pass on a repair": after a plural noun and its place word, the bare form is the verb.
 			w.Tag = "VBP"
+		case (w.Tag == "VBN" || w.Tag == "VBD") && Is(lower, "adjective"):
+			// "cannot be solid": the tagger reads some adjectives as past participles.
+			w.Tag = "JJ"
 		case lower == "cannot":
 			// The tagger reads "cannot" as a noun.
 			w.Tag = "MD"
@@ -271,7 +282,65 @@ func retag(words []Word) {
 			(words[i+1].Tag == "," || words[i+1].Tag == "WDT" || words[i+1].Lower() == "that") {
 			words[i].Tag = "NNS"
 		}
+		if secondObjectNoun(words, i) {
+			words[i].Tag = "NNS"
+		}
 	}
+}
+
+// secondObjectNoun reports a verb tag on a plural noun that ends a second
+// object of a preposition: "on the copy and the in-place row wires".
+func secondObjectNoun(words []Word, i int) bool {
+	return (words[i].Tag == "VBZ" || words[i].Tag == "VBP") && coordinatedObject(words, i)
+}
+
+// coordinatedObject reports an -s form at i that ends the second object of a
+// preposition, before a stop, whatever the tagger read it as. No restore makes
+// a verb of it.
+func coordinatedObject(words []Word, i int) bool {
+	if !verbEnding(words[i].Text) {
+		return false
+	}
+	if i+1 < len(words) && !strings.Contains(".,;:", words[i+1].Text) {
+		return false
+	}
+	j := phraseStart(words, i-1)
+	if j == i || j < 1 || words[j-1].Tag != "CC" || (words[j-1].Lower() != "and" && words[j-1].Lower() != "or") {
+		return false
+	}
+	k := phraseStart(words, j-2)
+	return k <= j-2 && k > 0 && words[k-1].Tag == "IN" && !Is(words[k-1].Lower(), "subordinator")
+}
+
+// phraseStart walks back from word i over the words of a noun phrase, an
+// aside in parentheses. A hyphenated compound included, and answers where
+// the phrase starts. It answers i+1 when word i belongs to no noun phrase.
+func phraseStart(words []Word, i int) int {
+	depth := 0
+	for ; i >= 0; i-- {
+		switch t := words[i].Tag; {
+		case words[i].Text == ")":
+			depth++
+		case words[i].Text == "(":
+			depth = max(depth-1, 0)
+		case depth > 0:
+		case t == "DT" || t == "PRP$" || t == "POS" || t == "CD" || strings.HasPrefix(t, "JJ") || isNoun(t):
+		case strings.Contains(strings.Trim(words[i].Text, "-"), "-") || joinedByHyphen(words, i):
+			// "in-place" is one word of the phrase, whatever the tagger reads its parts as.
+		default:
+			return i + 1
+		}
+	}
+	return 0
+}
+
+// joinedByHyphen reports word i that a hyphen joins to the word after it, or a
+// hyphen. That sits between a couple of words with no blank: "in - place".
+func joinedByHyphen(words []Word, i int) bool {
+	if i+1 >= len(words) || words[i].End != words[i+1].Start {
+		return false
+	}
+	return words[i].Text == "-" || words[i+1].Text == "-"
 }
 
 // colonFollowsClause reports a clause before the colon at index colon: a finite

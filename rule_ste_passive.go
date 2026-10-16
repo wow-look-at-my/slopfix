@@ -18,6 +18,9 @@ func init() {
 			{Name: ste.IDPassive + " with a common-noun actor", Path: "w.md", Text: "The task is started by users.\n"},
 			// Bold text goes back around the words it marked, wherever the rewrite moves them.
 			{Name: ste.IDPassive + " with bold text", Path: "w.md", Text: "The task is **started** by the gate.\n"},
+			// An adjective after be ("solid by definition") is no passive to rewrite.
+			{Name: "an adjective after be is no passive", Path: "w.md", Text: "The task is started by the gate. Floaters cannot be solid by definition.\n",
+				Want: "The gate starts the task. Floaters cannot be solid by definition.\n"},
 		},
 	})
 }

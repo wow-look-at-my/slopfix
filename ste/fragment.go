@@ -53,8 +53,13 @@ func fragmentDivision(source, masked string, whole *syntax.Sentence, limit int) 
 		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {
 			continue
 		}
+		// A capital renames an identifier written in lower case, so no part opens on one.
+		rest := strings.TrimLeft(source[c.right:], " ")
+		if lowerIdentifier(firstToken.FindString(rest)) {
+			continue
+		}
 		left := closeHead(source[:c.left])
-		right := capitalizeOpening(strings.TrimLeft(source[c.right:], " "))
+		right := capitalizeOpening(rest)
 		if !divides(left, right, limit) {
 			continue
 		}
@@ -90,15 +95,9 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 			continue
 		}
 		left := closeHead(source[:c.left])
-		right := capitalizeOpening(strings.TrimLeft(source[c.right:], " "))
-		// The right part must read as a sentence, or open a list. A noun
-		// phrase before a mark stands behind "This is" instead of a fragment.
-		if !opensList(right) && !StandsAlone(right) {
-			if carried := "This is " + strings.TrimLeft(source[c.right:], " "); StandsAlone(capitalizeOpening(carried)) {
-				right = capitalizeOpening(carried)
-			}
-		}
-		if left == "" || right == "" || !StandsAlone(right) && !opensList(right) || !divides(left, right, limit) {
+		// The right part must read as a sentence, or open a list.
+		right := carryRest(source[c.right:])
+		if left == "" || right == "" || !divides(left, right, limit) {
 			continue
 		}
 		if n > bestWords {
@@ -106,6 +105,135 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 		}
 	}
 	return best, bestWords >= 0
+}
+
+// carryRest writes the words after a mark as a sentence of their own, and
+// answers "" where they make none. Words that stand alone, or open a list,
+// open with a capital. A noun phrase stands behind "This is". Words that open
+// on a conjunction add to what the mark ended, so no carrier goes in front of
+// them: "This is and the scalars it set" is no sentence. A clause after the
+// conjunction stands behind the conjunction's opener instead. A capital renames
+// an identifier written in lower case. Words that open on one keep its case,
+// and stand only behind the carrier, as a noun phrase: "This is q split over
+// the rungs".
+func carryRest(rest string) string {
+	rest = strings.TrimLeft(rest, " ")
+	first := firstToken.FindString(rest)
+	if first == "" {
+		return ""
+	}
+	identifier := lowerIdentifier(first)
+	if right := capitalizeOpening(rest); !identifier && (opensList(right) || StandsAlone(right)) {
+		return right
+	}
+	word := strings.ToLower(strings.TrimRight(first, ",;:"))
+	if opener, joins := connectors[word]; joins {
+		return conjoinedClause(word, opener, strings.TrimLeft(rest[len(first):], " "))
+	}
+	if identifier && presentClause(rest) {
+		return ""
+	}
+	if carried := "This is " + rest; StandsAlone(carried) {
+		return carried
+	}
+	return ""
+}
+
+// openDivision writes the rest of a clause division as a sentence, behind the
+// division's opener.
+func openDivision(source string, d division) string {
+	rest := restOf(source, d)
+	if d.opener == "" && lowerIdentifier(firstToken.FindString(rest)) {
+		return carryRest(rest)
+	}
+	return joinOpener(d.opener, rest)
+}
+
+// absolutePhrase reports a division at a bare comma whose rest holds no verb
+// but a regular past form. "each rung's ratio raised to its elasticity" names
+// a noun and a participle that describes it. With no auxiliary, the past form
+// reads as a participle, and the rest is a phrase of the sentence before it.
+func absolutePhrase(source string, d division) bool {
+	if d.opener != "" || strings.TrimSpace(source[d.leftEnd:d.rightStart]) != "," {
+		return false
+	}
+	s := syntax.Parse(checkMask(restOf(source, d)), nil)
+	past := false
+	for _, w := range s.Words {
+		switch {
+		case w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "MD":
+			return false
+		case w.Tag == "VBD" && strings.HasSuffix(w.Lower(), "ed"):
+			past = true
+		case w.Tag == "VBD":
+			return false
+		}
+	}
+	return past
+}
+
+// conjoinedClause writes the clause after a conjunction as a sentence behind
+// the conjunction's opener, and answers "" where the words are no clause. A so
+// states a consequence that a bare period loses, so it never divides here.
+func conjoinedClause(conjunction, opener, clause string) string {
+	if conjunction == "so" || clause == "" || lowerIdentifier(firstToken.FindString(clause)) {
+		return ""
+	}
+	if !StandsAlone(capitalizeOpening(clause)) && !verbAfterRelative(clause) {
+		return ""
+	}
+	return joinOpener(opener, clause)
+}
+
+// verbAfterRelative reports a subject whose relative clause ends on its verb,
+// right before the main verb in its bare form: "the rules that follow give".
+// The parse reads both verbs into the relative clause, and the main clause then
+// has none.
+func verbAfterRelative(clause string) bool {
+	s := syntax.Parse(checkMask(opening(clause)), nil)
+	for i := 1; i+2 < len(s.Words); i++ {
+		w := s.Words[i]
+		if w.Tag != "WDT" && w.Lower() != "that" || !strings.HasPrefix(s.Words[i-1].Tag, "NN") {
+			continue
+		}
+		relative, main := s.Words[i+1], s.Words[i+2]
+		if finiteVerbTag(relative.Tag) && !auxiliaryVerbs.Contains(relative.Lower()) && (main.Tag == "VB" || main.Tag == "VBP") {
+			return true
+		}
+	}
+	return false
+}
+
+// presentClause reports words that hold a verb in the present tense, or a
+// modal, outside a relative clause, a subordinate clause and a parenthesis.
+// They read as a clause, and no carrier makes a noun phrase of them. A past
+// form can be a participle that describes the noun before it, as in "q split
+// over the rungs", so it does not count.
+func presentClause(text string) bool {
+	s := syntax.Parse(checkMask(opening(text)), nil)
+	// An -s form after a determiner and an adjective is a plural noun: "the free rungs".
+	for i := 2; i < len(s.Words); i++ {
+		if (s.Words[i].Tag == "VBZ" || s.Words[i].Tag == "VBP") && s.Words[i-1].Tag == "JJ" && s.Words[i-2].Tag == "DT" {
+			s.Words[i].Tag = "NNS"
+		}
+	}
+	inside, depth := false, 0
+	for i, w := range s.Words {
+		switch {
+		case w.Text == "(":
+			depth++
+		case w.Text == ")":
+			depth = max(depth-1, 0)
+		case depth > 0:
+		case w.Text == ",":
+			inside = false
+		case w.Tag == "WDT" || w.Tag == "WP" || w.Tag == "WP$" || w.Tag == "WRB" || w.Lower() == "that" || syntax.Is(w.Lower(), "subordinator"):
+			inside = true
+		case i > 0 && !inside && (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "MD") && !inReducedRelative(s, i):
+			return true
+		}
+	}
+	return false
 }
 
 // opensList reports a right part that opens a list item, whose own text is no
