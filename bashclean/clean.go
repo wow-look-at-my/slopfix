@@ -137,6 +137,7 @@ func onePass(apply func(string, func(*syntax.File)), j *grepJSON) {
 	apply("tee", func(f *syntax.File) { trailing(f, func(s *syntax.Stmt) { teeRewrite(spineLeaf(s)) }) })
 	apply("sleep_cap", func(f *syntax.File) { walkCalls(f, capSleep) })
 	apply("narration_remove", narration)
+	apply("noop_remove", noopRemove)
 }
 
 // Clean is a concise alias for Transform.
