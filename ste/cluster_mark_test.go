@@ -19,8 +19,7 @@ func noCluster(t *testing.T, s string) {
 	}
 }
 
-// github-state-mirror docs/ghclient.md: a "+" or a "/" between nouns stands
-// for a conjunction. The repair writes it, which divides the run into the
+// A "+" or a "/" between nouns stands for a conjunction. The repair writes it, which divides the run into the
 // noun phrases the mark joined.
 func TestAMarkBetweenNounsBecomesItsConjunction(t *testing.T) {
 	for in, want := range map[string]string{

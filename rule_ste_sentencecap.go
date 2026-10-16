@@ -26,6 +26,12 @@ func init() {
 			{Name: ste.IDSentenceCap + " before each with", Path: "x.md", Text: "Lists what the client asked for and was denied, each with a one-step way to grant it going forward instead of searching through the access table above.\n"},
 			// A bare verb after the comma shares the subject and its modal, so both are named again.
 			{Name: ste.IDSentenceCap + " before a verb that shares the modal", Path: "x.md", Text: "A feature added to the registry after that rule was written must default to blocked, refuse the open default, and stay that way for every running job.\n"},
+			// A heading line stands apart from the prose around it, and is judged for its own length.
+			{Name: ste.IDSentenceCap + " in a comment heading", Path: "main.go", Text: "package main\n\n" +
+				"// # This heading carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n" +
+				"func main() {\n" +
+				"\tprintln(\"first\")\n\tprintln(\"second\")\n\tprintln(\"third\")\n\tprintln(\"fourth\")\n\tprintln(\"fifth\")\n" +
+				"\tprintln(\"sixth\")\n\tprintln(\"seventh\")\n\tprintln(\"eighth\")\n\tprintln(\"ninth\")\n\tprintln(\"tenth\")\n}\n"},
 			// A "that" clause after a list is another item of it.
 			{Name: ste.IDSentenceCap + " before a that clause in a list", Path: "x.md", Text: "- `queue_order_test.go` covers the priority order, the two-pass rule, the head-only window, case-folding, the size limit, that a failed fetch keeps the previous value.\n"},
 			// sglang .github/workflows/fork-ci.yml: a comment in a run: script is prose, and divides like any comment.

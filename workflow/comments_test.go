@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -61,6 +63,22 @@ func TestRepairingLeavesAScriptsCommentsAlone(t *testing.T) {
 	repair := workflow.Fix(scriptWithComments, othersThanConcurrency)
 	assert.False(t, repair.Changed)
 	assert.Equal(t, scriptWithComments, repair.Text)
+}
+
+// A comment repair may change how many lines a script comment takes, and any
+// change to the script's code is still refused.
+func TestAScriptCommentMayShrinkButItsCodeMayNot(t *testing.T) {
+	gate := workflow.Options(fixer.Options{}).Comments
+	shorter := edit.Lines(scriptWithComments, 5, 6, 0, []string{"          # the suites need the backend"})
+	res := gate(scriptWithComments, []edit.Edit{shorter}, edit.Scope{})
+	require.Len(t, res.Applied, 1)
+	assert.Equal(t, "on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n          # the suites need the backend\n          apt-get install -y bubblewrap\n          apt-get clean\n", res.Text)
+
+	code := edit.Lines(scriptWithComments, 5, 7, 0, []string{"          # the suites need the backend"})
+	res = gate(scriptWithComments, []edit.Edit{code}, edit.Scope{})
+	assert.Empty(t, res.Applied)
+	assert.Len(t, res.Refused, 1)
+	assert.Equal(t, scriptWithComments, res.Text)
 }
 
 // Comment lines whose first never closed its sentence join into sentences, not

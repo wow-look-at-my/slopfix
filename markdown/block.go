@@ -86,14 +86,6 @@ func Split(content string) []Block {
 	return blocks
 }
 
-// fieldLine matches a line that opens with a field: a key such as "Signed-off-by", a colon, a blank and a value.
-var fieldLine = regexp.MustCompile(`^\s*[A-Za-z][A-Za-z0-9-]*: \S`)
-
-// fieldsMeet reports that lines a and b each open with a field.
-func fieldsMeet(a, b string) bool {
-	return fieldLine.MatchString(a) && fieldLine.MatchString(b)
-}
-
 var parser = goldmark.New(goldmark.WithExtensions(extension.Table)).Parser()
 
 // paragraphs maps the line each paragraph opens on to the line it ends on. A
@@ -113,6 +105,10 @@ func paragraphs(content string, lines []string) map[int]int {
 			if segments := n.Lines(); segments.Len() > 0 {
 				first := lineOf(starts, segments.At(0).Start)
 				last := lineOf(starts, segments.At(segments.Len()-1).Stop-1)
+				// Git reads a trailer a line at a time, so a join breaks every trailer after the first.
+				if isTrailerBlock(lines[first : last+1]) {
+					return ast.WalkSkipChildren, nil
+				}
 				// A template directive line is not prose, so it divides the paragraph and stays as written.
 				for from := first; from <= last; {
 					if isDirective(lines[from]) {
@@ -120,7 +116,7 @@ func paragraphs(content string, lines []string) map[int]int {
 						continue
 					}
 					to := from
-					for to < last && !isDirective(lines[to+1]) && !fieldsMeet(lines[to], lines[to+1]) {
+					for to < last && !isDirective(lines[to+1]) {
 						to++
 					}
 					if hasLetter(lines[from : to+1]) {
@@ -134,6 +130,26 @@ func paragraphs(content string, lines []string) map[int]int {
 		return ast.WalkContinue, nil
 	})
 	return ends
+}
+
+// trailerLine matches a git trailer, a token of letters, digits and hyphens and then its value.
+var trailerLine = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*: \S`)
+
+// isTrailerBlock reports a paragraph of git trailers, such as the
+// Co-Authored-By and Signed-off-by lines that close a commit message. Every
+// line is a trailer, or folds the value of the one before it. A single line
+// counts only when its token holds a hyphen, because "Note: the cache" is prose.
+func isTrailerBlock(lines []string) bool {
+	if len(lines) == 0 || !trailerLine.MatchString(lines[0]) {
+		return false
+	}
+	for _, line := range lines[1:] {
+		if !trailerLine.MatchString(line) && !(line != "" && (line[0] == ' ' || line[0] == '\t')) {
+			return false
+		}
+	}
+	token, _, _ := strings.Cut(lines[0], ":")
+	return len(lines) > 1 || strings.Contains(token, "-")
 }
 
 // templateDirectives open a template tag: a Jinja or Go template statement, an expression or a comment.

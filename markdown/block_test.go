@@ -37,14 +37,12 @@ func TestAQuotationIsLeftAsItsAuthorWroteIt(t *testing.T) {
 func TestGitTrailersStayALineEach(t *testing.T) {
 	doc := "Subject\n\nThe body wraps\nby hand.\n\nCo-Authored-By: A <a@example.com>\nClaude-Session: https://example.com/s\n"
 	blocks := prose(doc)
-	require.Len(t, blocks, 4)
+	require.Len(t, blocks, 2)
 	assert.Equal(t, "The body wraps by hand.", blocks[1].Text())
-	assert.Equal(t, "Co-Authored-By: A <a@example.com>", blocks[2].Text())
-	assert.Equal(t, "Claude-Session: https://example.com/s", blocks[3].Text())
 	assert.Equal(t, "Subject\n\nThe body wraps by hand.\n\nCo-Authored-By: A <a@example.com>\nClaude-Session: https://example.com/s\n", markdown.Format(doc))
 
 	assert.Len(t, prose("Note: the cache\nholds every entry.\n"), 1)
-	assert.Len(t, prose("Signed-off-by: A <a@example.com>\n"), 1)
+	assert.Empty(t, prose("Signed-off-by: A <a@example.com>\n"))
 }
 
 func TestASetextHeadingIsALabel(t *testing.T) {
