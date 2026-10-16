@@ -69,10 +69,6 @@ func openingUnder(head, text []string, fit layout, shrink bool) ([]string, bool,
 			return nil, false, false
 		}
 		first := strings.TrimSpace(sentences[0])
-		whole := first
-		if raw := ste.Sentences(joined); len(raw) > 0 {
-			whole = strings.TrimSpace(raw[0])
-		}
 		if ste.WordCount(first) > ste.SentenceWordCap {
 			if clause, ok := ste.Leading(first); ok {
 				first = strings.TrimSpace(ste.FixKeepingOpening(clause))
@@ -82,14 +78,6 @@ func openingUnder(head, text []string, fit layout, shrink bool) ([]string, bool,
 		// as the opening would delete the claim under it.
 		if !endsSentence(first) || isHeading(first) {
 			return nil, false, false
-		}
-		// A later "that" clause states a condition of its own, so it keeps the verb that governs it.
-		if _, wholeFits := fit(head, whole, indent, marker); !wholeFits {
-			for _, restated := range sharedHeadTails(whole) {
-				if shorter, ok := fit(head, restated, indent, marker); ok {
-					return shorter, true, true
-				}
-			}
 		}
 		out, fits := fit(head, first, indent, marker)
 		if shrink && !fits {

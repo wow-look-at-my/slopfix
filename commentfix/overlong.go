@@ -334,6 +334,15 @@ func trim(b block) []string {
 		}
 	}
 
+	fit := func(head []string, sentence, indent, marker string) ([]string, bool) {
+		out := append(append([]string{}, head...), reflow(sentence, indent, marker, wrapWidth)...)
+		return out, fitsCode(out, b)
+	}
+	// A later "that" clause states a condition of its own, so a cut that drops it keeps the verb that governs it.
+	if restated, ok := restatedOpening(kept, fit); ok {
+		return restated
+	}
+
 	for {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
@@ -350,10 +359,6 @@ func trim(b block) []string {
 		kept = next
 	}
 	// The STE opening sentence reads best, then a clause cut.
-	fit := func(head []string, sentence, indent, marker string) ([]string, bool) {
-		out := append(append([]string{}, head...), reflow(sentence, indent, marker, wrapWidth)...)
-		return out, fitsCode(out, b)
-	}
 	opening, whole := steOpening(kept, fit, false)
 	var fits [][]string
 	if whole && fitsCode(opening, b) {
