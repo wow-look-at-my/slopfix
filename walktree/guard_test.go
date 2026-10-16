@@ -9,20 +9,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // dirReads are the calls that read a directory. Outside this package every
 // one of them is a second walk waiting to happen.
-var dirReads = map[string]bool{
-	"filepath.Walk":    true,
-	"filepath.WalkDir": true,
-	"fs.WalkDir":       true,
-	"os.ReadDir":       true,
-	"fs.ReadDir":       true,
-}
+var dirReads = set.Of[string]("filepath.Walk",
+	"filepath.WalkDir",
+	"fs.WalkDir",
+	"os.ReadDir",
+	"fs.ReadDir")
 
 // dirMethods are the *os.File methods that read a directory.
-var dirMethods = map[string]bool{"ReadDir": true, "Readdir": true, "Readdirnames": true}
+var dirMethods = set.Of[string]("ReadDir", "Readdir", "Readdirnames")
 
 // TestOnlyWalktreeReadsDirectories fails the build on any non-test Go file
 // outside this package that reads a directory itself.
@@ -56,11 +55,11 @@ func TestOnlyWalktreeReadsDirectories(t *testing.T) {
 				return true
 			}
 			name := sel.Sel.Name
-			if pkg, ok := sel.X.(*ast.Ident); ok && dirReads[pkg.Name+"."+name] {
+			if pkg, ok := sel.X.(*ast.Ident); ok && dirReads.Contains(pkg.Name+"."+name) {
 				offenders = append(offenders, fset.Position(call.Pos()).String()+": "+pkg.Name+"."+name)
 				return true
 			}
-			if _, isPkg := sel.X.(*ast.Ident); dirMethods[name] && !(isPkg && sel.X.(*ast.Ident).Name == "walktree") {
+			if _, isPkg := sel.X.(*ast.Ident); dirMethods.Contains(name) && !(isPkg && sel.X.(*ast.Ident).Name == "walktree") {
 				offenders = append(offenders, fset.Position(call.Pos()).String()+": ."+name)
 			}
 			return true
