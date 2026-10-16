@@ -182,7 +182,7 @@ func TestADocBelowATrailingCommentIsMeasured(t *testing.T) {
 }
 
 // A trailing comment later in the body leaves the opening statement the thing
-// a comment documents. It broke the row order, and the whole body was weighed.
+// a comment documents. It broke the line order, and the whole body was weighed.
 func TestATrailingCommentInTheBodyKeepsTheStatement(t *testing.T) {
 	src := "package p\n\nfunc f() {\n" +
 		"\t// Copies share the value: resolving an argument in place must be seen\n" +

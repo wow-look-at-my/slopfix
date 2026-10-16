@@ -136,13 +136,7 @@ func (r Resolver) Lines(root string) (*Lines, error) {
 // root is in no fork. A fork with no base is an error.
 func (r Resolver) Base(root string) (*Base, error) {
 	top, topErr := toplevel(root)
-	repo := ""
-	if topErr == nil {
-		repo = r.originRepo(top)
-	}
-	if repo == "" && r.workspaceHolds(root) {
-		repo = r.getenv("GITHUB_REPOSITORY")
-	}
+	repo := r.repoName(root, top, topErr)
 	if repo == "" {
 		return nil, nil
 	}
@@ -402,6 +396,11 @@ func (r Resolver) cached(top, repo string) (record, bool) {
 
 // cachePath answers where top's record lives.
 func cachePath(top string) (string, error) {
+	return recordPath(top, cacheFile)
+}
+
+// recordPath answers where the record name lives in top's git common directory.
+func recordPath(top, name string) (string, error) {
 	out, err := gitIn(top, "rev-parse", "--git-common-dir")
 	if err != nil {
 		return "", fmt.Errorf("fork scope: %w", err)
@@ -410,7 +409,7 @@ func cachePath(top string) (string, error) {
 	if !filepath.IsAbs(dir) {
 		dir = filepath.Join(top, dir)
 	}
-	return filepath.Join(dir, cacheFile), nil
+	return filepath.Join(dir, name), nil
 }
 
 // store writes rec into top's git common directory through a rename. A root in
@@ -419,30 +418,7 @@ func store(top string, rec record) error {
 	if top == "" {
 		return nil
 	}
-	path, err := cachePath(top)
-	if err != nil {
-		return err
-	}
-	data, err := json.Marshal(rec)
-	if err != nil {
-		return fmt.Errorf("fork scope: %w", err)
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), cacheFile+".*")
-	if err != nil {
-		return fmt.Errorf("fork scope: record the fork: %w", err)
-	}
-	defer os.Remove(tmp.Name())
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return fmt.Errorf("fork scope: record the fork: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("fork scope: record the fork: %w", err)
-	}
-	if err := os.Rename(tmp.Name(), path); err != nil {
-		return fmt.Errorf("fork scope: record the fork: %w", err)
-	}
-	return nil
+	return writeRecord(top, cacheFile, rec)
 }
 
 // forkParent is a fork's parent as GET /repos/{repo} names it. GitHub gives
@@ -622,23 +598,52 @@ func listedUpstream(repo, url string) (string, error) {
 	if !ok || owner == "" || name == "" {
 		return "", fmt.Errorf("fork scope: the repository is %q, which is not OWNER/NAME", repo)
 	}
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(url)
+	status, body, err := getList(url)
 	if err != nil {
-		return "", fmt.Errorf("fork scope: GET %s: %w", url, err)
+		return "", err
 	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return "", fmt.Errorf("fork scope: GET %s: %w", url, err)
-	}
-	if resp.StatusCode == http.StatusNotFound {
+	if status == http.StatusNotFound {
 		return "", nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("fork scope: GET %s: %s", url, resp.Status)
+	return UpstreamFor(body, repo, url)
+}
+
+// listAttempts is how many times getList asks for the list before it reports the failure.
+const listAttempts = 3
+
+// listRetryWait is the pause before each later attempt. A test sets it to zero.
+var listRetryWait = func(attempt int) { time.Sleep(time.Duration(attempt) * time.Second) }
+
+// getList fetches the fork list. A transport error and a server error are a
+// blip of the host, so it asks again before it fails the run.
+func getList(url string) (int, string, error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	var last error
+	for attempt := 1; attempt <= listAttempts; attempt++ {
+		if attempt > 1 {
+			listRetryWait(attempt - 1)
+		}
+		resp, err := client.Get(url)
+		if err != nil {
+			last = fmt.Errorf("fork scope: GET %s: %w", url, err)
+			continue
+		}
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+		if err != nil {
+			last = fmt.Errorf("fork scope: GET %s: %w", url, err)
+			continue
+		}
+		if resp.StatusCode >= http.StatusInternalServerError {
+			last = fmt.Errorf("fork scope: GET %s: %s", url, resp.Status)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+			return 0, "", fmt.Errorf("fork scope: GET %s: %s", url, resp.Status)
+		}
+		return resp.StatusCode, string(body), nil
 	}
-	return UpstreamFor(string(body), repo, url)
+	return 0, "", last
 }
 
 // listName is the shape forklist.schema.json gives a key of the fork list.

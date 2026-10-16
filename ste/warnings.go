@@ -68,7 +68,7 @@ func Warn(text string, line int, listItem bool) []Finding {
 		text := prose[span[0]:span[1]]
 		sentences++
 		off := opaque(text, text)
-		s := syntax.Parse(text, off)
+		s := coverVerbatim(syntax.Parse(text, off), text)
 		if n := WordCount(text); n > InstructionWordCap && n <= SentenceWordCap && isInstruction(s) {
 			out = append(out, warn(line, IDInstructionLength,
 				fmt.Sprintf("over the %d-word cap for an instruction at %d words", InstructionWordCap, n),
@@ -76,9 +76,10 @@ func Warn(text string, line int, listItem bool) []Finding {
 		}
 		out = append(out, clauseWarnings(s, text, off, line)...)
 	}
-	for _, word := range wordPattern.FindAllString(prose, -1) {
+	for _, loc := range wordPattern.FindAllStringIndex(prose, -1) {
+		word := prose[loc[0]:loc[1]]
 		// A word in capitals is a name or a mask, and never a dictionary word.
-		if word == strings.ToUpper(word) {
+		if word == strings.ToUpper(word) || inName(prose, loc[0], loc[1]) {
 			continue
 		}
 		if approved, banned := plain[strings.ToLower(word)]; banned {

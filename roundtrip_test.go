@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,19 @@ type fixture struct {
 	content string
 	wants   []string
 }
+
+// privateWorkflowPath answers a workflow path in an org repository, made once.
+var privateWorkflowPath = sync.OnceValue(func() string {
+	dir, err := os.MkdirTemp("", "slopfix-private-")
+	if err != nil {
+		panic(err)
+	}
+	c, err := slopfix.Materialize(dir, slopfix.RuleCase{Name: "private", Origin: slopfix.PrivateRunnerFixture})
+	if err != nil {
+		panic(err)
+	}
+	return filepath.Join(c.Root, ".github", "workflows", "ci.yml")
+})
 
 // pinnedFetch reads from testdata, which this repository's own check skips.
 func pinnedFetch() string {
@@ -138,6 +152,15 @@ func roundTripFixtures() []fixture {
 				ste.IDDictionary,
 				ste.IDInstructionLength,
 				ste.IDParagraphLength,
+			},
+		},
+		{
+			name:    "private workflow",
+			path:    privateWorkflowPath(),
+			content: "name: CI\non:\n  push:\n    branches: ['**']\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n",
+			wants: []string{
+				"yaml/private-runner",
+				"yaml/concurrency",
 			},
 		},
 		{

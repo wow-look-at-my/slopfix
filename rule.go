@@ -13,6 +13,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/blamelanguage"
 	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -43,6 +44,12 @@ type RuleCase struct {
 	Text string
 	// Files are the other files of the repository, by path from its root.
 	Files map[string]string
+	// Unchanged marks a case the rule must leave as written.
+	Unchanged bool
+	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
+	Origin string
+	// Actions maps a step's uses value to the runs.using that Materialize records for it.
+	Actions map[string]string
 	// Root is the directory Materialize wrote the repository under.
 	Root string
 }
@@ -75,15 +82,32 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 	// The files are committed, because a rule about a committed file asks git what the tree holds.
 	commit := [][]string{
 		{"add", "-A"},
+	}
+	if c.Origin != "" {
+		commit = append(commit, []string{"remote", "add", "origin", c.Origin})
+	}
+	commit = append(commit, [][]string{
 		{"-c", "user.name=slopfix", "-c", "user.email=slopfix@localhost", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
 			"commit", "-q", "--allow-empty", "-m", "fixture"},
-	}
+	}...)
 	for _, args := range commit {
 		if out, err := gitmod.Command(dir, args...).CombinedOutput(); err != nil {
 			return c, fmt.Errorf("git %v in %s: %w: %s", args, dir, err, out)
 		}
 	}
-	c.Files, c.Root = nil, dir
+	// A case with an origin records what the network would say about it, so no rule asks.
+	r := forkscope.Resolver{}
+	if c.Origin != "" {
+		if err := r.RecordPlain(dir, r.RepoName(dir)); err != nil {
+			return c, err
+		}
+	}
+	for uses, using := range c.Actions {
+		if err := r.RecordAction(dir, uses, using); err != nil {
+			return c, err
+		}
+	}
+	c.Files, c.Actions, c.Root = nil, nil, dir
 	return c, nil
 }
 

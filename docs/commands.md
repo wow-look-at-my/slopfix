@@ -1,6 +1,8 @@
 # Commands
 
-The commands are `check`, `hook`, `lsp`, `completion` and `help`. A kind of check is a rule category or a hook guard, not a command of its own.
+The commands are `check`, `hook`, `lsp`, `ratchet`, `version`, `completion` and `help`. `slopfix version` prints the buildhost release number, then the commit in parentheses. `slopfix --version` prints the same line. go-toolchain stamps both into the build info of every binary it links. They are the build settings `release` and `release.revision`. A binary missing either fails with an error. It never names a stand-in version.
+
+A kind of check is a rule category or a hook guard, not a command of its own.
 
 ```sh
 slopfix check [path...]           # report what the rules reject, exit 1 on any finding
@@ -72,9 +74,9 @@ With a selector, `check` exits nonzero when a selected finding remains and zero 
 
 | Event | Guards |
 |---|---|
-| PreToolUse | `clean-bash`, `write`, `no-work-loss`, `auto-allow`, `busy-poll` |
+| PreToolUse | `clean-bash`, `write`, `no-work-loss`, `rustfmt`, `auto-allow`, `busy-poll` |
 | PermissionRequest | `auto-allow` |
-| PostToolUse | `md-budget` |
+| PostToolUse | `rustfmt`, `md-budget` |
 | SessionStart | `md-budget` |
 | Stop | `busy-poll`, `md-budget`, `laziness` |
 | MessageDisplay | `link-refs`, `blame-language`, `ask-properly` |
