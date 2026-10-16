@@ -443,6 +443,10 @@ func opensImperativeMain(head string) bool {
 			if c.Verb.Imperative {
 				return true
 			}
+			// A clause that names its subject before a finite verb is a statement, whatever its first word could be.
+			if c.Subject != nil && c.Subject.Last < c.Verb.First && (finiteVerbTag(s.Words[c.Verb.Head].Tag) || s.Words[c.Verb.Head].Tag == "MD") {
+				return false
+			}
 			break
 		}
 	}

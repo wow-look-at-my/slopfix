@@ -159,7 +159,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			accept := func(h, r string) bool {
 				joined := closeHead(h) + " " + r
 				return r != "" && divides(closeHead(h), r, d.cap) &&
-					(h == fragmentHead(source[:c.left]) || closesWhole(source[:c.left], seam, whole) || closesPhrase(source[:c.left], whole)) &&
+					(h == fragmentHead(source[:c.left]) || closesWhole(source[:c.left], seam, whole) || closesPhrase(source[:c.left], whole) || standsBeforeConjunction(whole, source[:c.left])) &&
 					overCap(joined, d.cap) < overCap(source, d.cap)
 			}
 			if !accept(head, right) {

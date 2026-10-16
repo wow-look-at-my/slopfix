@@ -58,7 +58,11 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		return "", 0
 	}
 	strong := seam == "—" || seam == "–" || seam == "--" || seam == ":"
-	switch tag := whole.Words[first].Tag; {
+	tagAt := whole.Words[first].Tag
+	if conjunction == "and" && verbAfterConjunction(whole, first) {
+		tagAt = "VBZ"
+	}
+	switch tag := tagAt; {
 	case strong && conjunction != "so" && !lowerIdentifier(firstToken.FindString(rest)) && opensImperative(restMasked):
 		// A dash or a colon before an instruction ends the sentence before it: "— but be economical".
 		return joinOpener(opener, rest), opensOwnClause - 1
@@ -202,7 +206,7 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 		}
 		// A later finite verb has a subject of its own, which the parse did not name.
 		for j := clause.Verb.Last + 1; j < len(s.Words); j++ {
-			if w := s.Words[j]; (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD") && !inContactRelative(s, j) {
+			if w := s.Words[j]; (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD") && !inContactRelative(s, j) && !mistaggedNoun(s, j) {
 				return ""
 			}
 		}
@@ -235,12 +239,42 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 	return ""
 }
 
+// standsBeforeConjunction reports a head that holds a main clause and ends
+// right before a conjunction. So the clause after the conjunction is a sentence
+// of its own.
+func standsBeforeConjunction(whole *syntax.Sentence, head string) bool {
+	n := wordsBefore(whole, len(head))
+	return n > 0 && n < len(whole.Words) && whole.Words[n].Tag == "CC" && standsAlone(whole, 0, n)
+}
+
+// verbAfterConjunction reports a plural noun at first that opens a verb group
+// of its own after "and": "writes images and flips to it". Its object is a
+// pronoun or a phrase of direction, which a plural noun cannot take.
+func verbAfterConjunction(s *syntax.Sentence, first int) bool {
+	if first < 1 || first+1 >= len(s.Words) || s.Words[first].Tag != "NNS" || !strings.HasSuffix(strings.ToLower(s.Words[first].Text), "s") {
+		return false
+	}
+	next := s.Words[first+1].Tag
+	return s.Words[first-1].Tag == "CC" && (next == "TO" || next == "PRP" || next == "RP")
+}
+
+// mistaggedNoun reports a word the tagger reads as a finite verb at j that ends
+// a bare group of nouns. That mistaggedNoun is with no determiner in front: "or
+// history images".
+func mistaggedNoun(s *syntax.Sentence, j int) bool {
+	k := j - 1
+	for k >= 0 && (strings.HasPrefix(s.Words[k].Tag, "NN") && s.Words[k].Tag != "NNP" || strings.HasPrefix(s.Words[k].Tag, "JJ")) {
+		k--
+	}
+	return k >= 0 && j-k >= 2 && s.Words[k].Tag == "CC"
+}
+
 // inContactRelative reports a finite verb at j that a determiner and its noun
 // phrase govern right after a noun. A relative clause with its "that" left
 // out: "into the generation no pending warp binds".
 func inContactRelative(s *syntax.Sentence, j int) bool {
 	k := j - 1
-	for k >= 0 && (strings.HasPrefix(s.Words[k].Tag, "NN") || strings.HasPrefix(s.Words[k].Tag, "JJ")) {
+	for k >= 0 && (strings.HasPrefix(s.Words[k].Tag, "NN") || strings.HasPrefix(s.Words[k].Tag, "JJ") || s.Words[k].Tag == "VBG" || s.Words[k].Tag == "VBN") {
 		k--
 	}
 	if k < 1 || j-k < 2 {
