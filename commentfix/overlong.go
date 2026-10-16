@@ -339,7 +339,10 @@ func trim(b block) []string {
 		return out, fitsCode(out, b)
 	}
 	// A later "that" clause states a condition of its own, so a cut that drops it keeps the verb that governs it.
-	if restated, ok := restatedOpening(kept, fit); ok {
+	wide := func(head []string, sentence, indent, marker string) ([]string, bool) {
+		return fitReflow(head, sentence, indent, marker, b)
+	}
+	if restated, ok := restatedOpening(kept, wide); ok {
 		return restated
 	}
 
