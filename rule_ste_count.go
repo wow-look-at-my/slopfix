@@ -19,8 +19,9 @@ func init() {
 			},
 			{
 				// From splat2's docs/handoff.md: "Quiet 30 s runs" lost its number and kept the unit.
-				Name: "a measure before its noun is no count", Path: "handoff.md", Unchanged: true,
+				Name: "a measure before its noun leaves no unit behind", Path: "handoff.md",
 				Text: "Quiet 30 s runs show no stall.\n",
+				Want: "Quiet runs show no stall.\n",
 			},
 			{
 				// From a splat2 commit message: "recorded 2 intervals" became "recorded intervals".

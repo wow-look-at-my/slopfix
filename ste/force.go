@@ -328,6 +328,10 @@ func carrierOrNone(source string, whole *syntax.Sentence, c forceCut) (string, s
 	if len(whole.Words) > 1 && whole.Words[0].Lower() == "to" && strings.HasPrefix(whole.Words[1].Tag, "VB") {
 		return source[:c.left], "", 0
 	}
+	// A carrier invents the verb of a rest that has none: "That tree is in the order of the paths". The hard division carries such a rest instead.
+	if rest := opening(hardRest(source, c.right)); !holdsFinite(checkMask(rest)) && !opensImperative(checkMask(rest)) {
+		return source[:c.left], "", 0
+	}
 	head, rest, score := carrierDivision(source, whole, c)
 	// A pronoun carrier names the subject of a verb group. The rest is a sentence only where a verb follows it: "It "" when no noun ends" has none.
 	if strings.HasPrefix(rest, "It ") && !standsAsSentence(rest) {

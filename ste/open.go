@@ -94,7 +94,7 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 		return joinOpener(opener, rest), opensOwnClause
 	case (conjunction == "and" || conjunction == "so") && (seam == "," || seam == "—" || seam == "–" || seam == "--") &&
-		opensNounPhrase(tag) && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+		(opensNounPhrase(tag) || opensAfterAdverb(whole, first)) && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
 		// The parse cuts its clauses at commas, so a subject that is a list or
 		// carries a participle opens no clause of its own.
 		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) ||
@@ -117,6 +117,13 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 	}
 	return "", 0
+}
+
+// opensAfterAdverb reports a word at first that is an adverb, then a noun
+// phrase: "only one splat-vulkan uses the GPU".
+func opensAfterAdverb(s *syntax.Sentence, first int) bool {
+	next := skipAdverbs(s, first)
+	return next > first && next < len(s.Words) && opensNounPhrase(s.Words[next].Tag)
 }
 
 // opensNounPhrase reports a tag that starts a subject.
