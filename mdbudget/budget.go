@@ -151,37 +151,6 @@ func homeCandidates() []string {
 	return out
 }
 
-// claudeMdFiles walks root recursively for every CLAUDE.md, skipping .git and
-// node_modules. This is the ONLY scan, and every caller uses it. The callers
-// are SessionStart's census, PostToolUse/Stop's change tracking, and CI's
-// full_scan. No caller can fall back to a shallow "guess the sibling
-// directories" mode.
-// That guess let a real violation deep under the root through unseen.
-func claudeMdFiles(root string) []string {
-	var out []string
-	var walk func(dir string)
-	walk = func(dir string) {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			return
-		}
-		for _, e := range entries {
-			if e.IsDir() {
-				if e.Name() == ".git" || e.Name() == "node_modules" {
-					continue
-				}
-				walk(filepath.Join(dir, e.Name()))
-				continue
-			}
-			if e.Name() == "CLAUDE.md" {
-				out = append(out, filepath.Join(dir, e.Name()))
-			}
-		}
-	}
-	walk(root)
-	return out
-}
-
 // allCandidatePaths is every instruction file a session could have loaded:
 // ~/.claude's files, plus every CLAUDE.md under cwd.
 func allCandidatePaths(cwd string) []string {
