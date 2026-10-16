@@ -44,10 +44,10 @@ type RuleCase struct {
 	Text string
 	// Files are the other files of the repository, by path from its root.
 	Files map[string]string
-	// Want is the text the rule's autofix writes for Text, when the case pins it.
-	Want string
 	// Unchanged marks a case the rule must leave as written.
 	Unchanged bool
+	// Want pins what the autofix writes: Path's content, or the message when the case has no Path.
+	Want string
 	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
 	Origin string
 	// Actions maps a step's uses value to the runs.using that Materialize records for it.
