@@ -17,7 +17,7 @@ func TestAnEntityIsNotASemicolon(t *testing.T) {
 func TestASemicolonInProseIsStillReported(t *testing.T) {
 	findings := Check("The runner cares; the caller does not.", 1)
 	require.Len(t, findings, 1)
-	assert.Equal(t, "STE bans the semicolon", findings[0].Rule)
+	assert.Equal(t, "a semicolon joins sentences that a period keeps apart", findings[0].Rule)
 }
 
 func TestSentencesSplitOnARealBoundary(t *testing.T) {
@@ -103,7 +103,7 @@ func TestSplicesTheReferenceRuleReports(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			findings := Check(text, 1)
 			require.NotEmpty(t, findings)
-			assert.Equal(t, "a comma joining two clauses is the semicolon STE bans, spelled differently", findings[0].Rule)
+			assert.Equal(t, "a comma joins two clauses that each stand alone", findings[0].Rule)
 		})
 	}
 }
