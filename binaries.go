@@ -2,13 +2,14 @@ package slopfix
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -37,11 +38,12 @@ type trackedFile struct {
 }
 
 // trackedFiles names each regular file git tracks under root, relative to it.
-// A tree that git cannot list is read from disk, without its .git directory.
+// A directory with no repository is read from disk, without a .git directory.
+// A repository git cannot list is an error. A disk walk there would read every
+// ignored build output as a committed file.
 func trackedFiles(root string) ([]trackedFile, error) {
-	cmd := exec.Command("git", "ls-files", "-s", "-z")
-	cmd.Dir = root
-	if out, err := cmd.Output(); err == nil {
+	out, err := gitmod.Command(root, "ls-files", "-s", "-z").Output()
+	if err == nil {
 		var files []trackedFile
 		for _, entry := range strings.Split(string(out), "\x00") {
 			meta, name, ok := strings.Cut(entry, "\t")
@@ -54,8 +56,11 @@ func trackedFiles(root string) ([]trackedFile, error) {
 		}
 		return files, nil
 	}
+	if reason := gitmod.Unexpected(err); reason != "" {
+		return nil, fmt.Errorf("git ls-files in %s: %s", root, reason)
+	}
 	var files []trackedFile
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -118,8 +123,7 @@ func committedBinaries(root string, writing bool, writable func(string) bool) ([
 
 // blobKind reads the first bytes of a blob in the object store.
 func blobKind(root, blob string) string {
-	cmd := exec.Command("git", "cat-file", "blob", blob)
-	cmd.Dir = root
+	cmd := gitmod.Command(root, "cat-file", "blob", blob)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil || cmd.Start() != nil {
 		return ""
