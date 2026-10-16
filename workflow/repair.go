@@ -121,8 +121,8 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 
 // compareData answers the text a comment gate compares. A # inside a block
 // scalar is part of the scalar's string, so a rewrite there changes the value.
-// A comment in a script is not its behavior, so those lines are removed from
-// both sides, and a comment repair may change how many lines a script holds.
+// A comment in a script is not its behavior. Those lines are removed from both
+// sides, and a comment repair may change how many lines a script holds.
 func compareData(content string, comment bool) string {
 	if !comment {
 		return content
