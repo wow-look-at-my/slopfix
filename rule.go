@@ -50,6 +50,8 @@ type RuleCase struct {
 	Origin string
 	// Actions maps a step's uses value to the runs.using that Materialize records for it.
 	Actions map[string]string
+	// Refs are the ref lookups Materialize records for the branch-pin rule.
+	Refs map[string]string
 	// Root is the directory Materialize wrote the repository under.
 	Root string
 }
@@ -107,7 +109,12 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 			return c, err
 		}
 	}
-	c.Files, c.Actions, c.Root = nil, nil, dir
+	if len(c.Refs) > 0 {
+		if err := recordRefs(dir, c.Refs); err != nil {
+			return c, err
+		}
+	}
+	c.Files, c.Actions, c.Refs, c.Root = nil, nil, nil, dir
 	return c, nil
 }
 
