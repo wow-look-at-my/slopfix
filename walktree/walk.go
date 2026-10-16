@@ -8,6 +8,7 @@
 package walktree
 
 import (
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -17,6 +18,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	fstree "github.com/wow-look-at-my/go-fs-tree-fast"
 )
 
 // Entry is one name in a directory and its type bits.
@@ -163,82 +166,62 @@ func join(rel, name string) string {
 	return filepath.Join(rel, name)
 }
 
-// walker is a work queue of directories shared by a fixed pool of readers.
-// old is the cache the walk started from and is only read.
+// walker feeds fstree.Walk. Its read is the walk's ReadDir: it applies the
+// cache and the pruning.
 type walker struct {
-	mu      sync.Mutex
-	cond    *sync.Cond
-	root    string
-	queue   []string
-	pending int
-	old     map[string]*listing
-	fresh   map[string]*listing
-	racy    int64
+	mu    sync.Mutex
+	root  string
+	old   map[string]*listing
+	fresh map[string]*listing
+	racy  int64
 }
 
 func walk(root string) *tree {
 	w := &walker{
-		root:    root,
-		queue:   []string{""},
-		pending: 1,
-		old:     loadCache(root),
-		fresh:   map[string]*listing{},
-		racy:    time.Now().Add(-2 * time.Second).UnixNano(),
+		root:  root,
+		old:   loadCache(root),
+		fresh: map[string]*listing{},
+		racy:  time.Now().Add(-2 * time.Second).UnixNano(),
 	}
-	w.cond = sync.NewCond(&w.mu)
-	var wg sync.WaitGroup
-	for range 4 * runtime.NumCPU() {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				rel, ok := w.next()
-				if !ok {
-					return
-				}
-				w.read(rel)
-			}
-		}()
+	// A walk has no exclude patterns, so it cannot fail.
+	_, _ = fstree.Walk(context.Background(), w, []string{root}, fstree.Options{
+		Workers: 4 * runtime.NumCPU(),
+		ReadDir: w.read,
+	})
+	for rel, l := range w.fresh {
+		if l.Pruned {
+			w.unlist(rel)
+		}
 	}
-	wg.Wait()
 	saveCache(root, w.fresh)
 	return &tree{root: root, dirs: w.fresh}
 }
 
-func (w *walker) next() (string, bool) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	for len(w.queue) == 0 {
-		if w.pending == 0 {
-			return "", false
-		}
-		w.cond.Wait()
-	}
-	rel := w.queue[len(w.queue)-1]
-	w.queue = w.queue[:len(w.queue)-1]
-	return rel, true
+// key names a directory by its path under the root.
+func (w *walker) key(dir string) string {
+	return strings.TrimPrefix(strings.TrimPrefix(dir, w.root), string(filepath.Separator))
 }
 
-func (w *walker) done(rel string, l *listing) {
+// listingOf answers the listing recorded for rel, making one when there is none.
+func (w *walker) listingOf(rel string) *listing {
+	l := w.fresh[rel]
+	if l == nil {
+		l = &listing{}
+		w.fresh[rel] = l
+	}
+	return l
+}
+
+// AddDir records the entries the walk read in dir.
+func (w *walker) AddDir(dir string, entries []fstree.Entry) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	n := 0
-	if l != nil {
-		w.fresh[rel] = l
-		if l.Pruned {
-			w.unlist(rel)
-		}
-		for _, e := range l.Entries {
-			if e.IsDir() {
-				w.queue = append(w.queue, join(rel, e.Name))
-				n++
-			}
-		}
+	l := w.listingOf(w.key(dir))
+	l.Entries = make([]Entry, len(entries))
+	for i, e := range entries {
+		l.Entries[i] = Entry{Name: e.Name, Mode: e.Mode}
 	}
-	w.pending += n - 1
-	if n > 0 || w.pending == 0 {
-		w.cond.Broadcast()
-	}
+	sort.Slice(l.Entries, func(i, j int) bool { return l.Entries[i].Name < l.Entries[j].Name })
 }
 
 // unlist removes a pruned directory from its parent's listing.
@@ -258,54 +241,74 @@ func (w *walker) unlist(rel string) {
 			kept = append(kept, e)
 		}
 	}
-	w.fresh[parent] = &listing{Mtime: p.Mtime, Entries: kept}
+	p.Entries = kept
+}
+
+// record keeps a directory's mtime and pruning, and the entries when the
+// sink will not see them.
+func (w *walker) record(rel string, mtime int64, pruned bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	l := w.listingOf(rel)
+	l.Mtime, l.Pruned = mtime, pruned
 }
 
 // read answers one directory from the cache when its mtime matches the
-// cached one, and from ReadDir otherwise. Adding, removing or renaming an
+// cached one, and from os.ReadDir otherwise. Adding, removing or renaming an
 // entry changes a directory's mtime, so a match means the listing is the same.
-func (w *walker) read(rel string) {
-	dir := filepath.Join(w.root, rel)
+func (w *walker) read(dir string) ([]os.DirEntry, error) {
+	rel := w.key(dir)
 	stat := os.Lstat
 	if rel == "" {
 		stat = os.Stat // the root may be a symlink, such as /tmp on macOS
 	}
 	Ops.Add(1)
 	st, err := stat(dir)
-	if err != nil || !st.IsDir() {
-		w.done(rel, nil)
-		return
+	if err != nil {
+		return nil, err
 	}
 	mtime := st.ModTime().UnixNano()
 	if cached := w.old[rel]; cached != nil && cached.Mtime == mtime {
-		w.done(rel, cached)
-		return
+		w.record(rel, mtime, cached.Pruned)
+		return dirEntries(cached.Entries), nil
 	}
 	Ops.Add(1)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		w.done(rel, nil)
-		return
+		return nil, err
 	}
-	l := &listing{Mtime: mtime}
-	// A directory changed within the mtime resolution of the walk's start can
-	// change again with no visible mtime change, so its listing never matches.
+	// A directory changed within the mtime resolution of the walk's start can change again unseen.
 	if mtime >= w.racy {
-		l.Mtime = -1
+		mtime = -1
 	}
 	if rel != "" && linkedWorktree(dir, entries) {
-		l.Pruned = true
-		w.done(rel, l)
-		return
+		w.record(rel, mtime, true)
+		return nil, nil
 	}
+	w.record(rel, mtime, false)
+	kept := entries[:0]
 	for _, e := range entries {
-		if e.IsDir() && pruned(e.Name()) {
-			continue
+		if !(e.IsDir() && pruned(e.Name())) {
+			kept = append(kept, e)
 		}
-		l.Entries = append(l.Entries, Entry{Name: e.Name(), Mode: e.Type()})
 	}
-	sort.Slice(l.Entries, func(i, j int) bool { return l.Entries[i].Name < l.Entries[j].Name })
-	w.done(rel, l)
+	return kept, nil
+}
+
+// cachedEntry is a cached listing entry handed back to the walk as an os.DirEntry.
+type cachedEntry struct{ Entry }
+
+func (c cachedEntry) Name() string               { return c.Entry.Name }
+func (c cachedEntry) IsDir() bool                { return c.Mode.IsDir() }
+func (c cachedEntry) Type() fs.FileMode          { return c.Mode.Type() }
+func (c cachedEntry) Info() (fs.FileInfo, error) { return nil, fs.ErrInvalid }
+
+func dirEntries(entries []Entry) []os.DirEntry {
+	out := make([]os.DirEntry, len(entries))
+	for i, e := range entries {
+		out[i] = cachedEntry{e}
+	}
+	return out
 }
 
 // linkedWorktree reports whether dir is a git linked worktree: its .git is a
