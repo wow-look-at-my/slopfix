@@ -239,8 +239,8 @@ func TestANamedIDRepairsThatRuleAlone(t *testing.T) {
 
 	semicolon := slopfix.Fix(slopfix.Request{
 		Content: doc,
-		Rules:   []slopfix.Rule{slopfix.RuleSTE},
-		IDs:     []string{"ste/semicolon"},
+		Rules:   []slopfix.Rule{slopfix.RuleEnglish},
+		IDs:     []string{"english/semicolon"},
 	})
 	contraction := slopfix.Fix(slopfix.Request{
 		Content: doc,
@@ -261,8 +261,8 @@ func TestANamedIDLeavesTheRestOfItsCategoryAlone(t *testing.T) {
 	doc := "There are three sections; each is read.\n"
 	repair := slopfix.Fix(slopfix.Request{
 		Content: doc,
-		Rules:   []slopfix.Rule{slopfix.RuleSTE},
-		IDs:     []string{"ste/count"},
+		Rules:   []slopfix.Rule{slopfix.RuleCounts},
+		IDs:     []string{"counts/stated-count"},
 	})
 
 	// The count is repaired, the semicolon beside it is left standing.
