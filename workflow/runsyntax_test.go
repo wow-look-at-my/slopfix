@@ -1,12 +1,14 @@
 package workflow_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
+	yaml "go.yaml.in/yaml/v3"
 )
 
 func syntaxFindings(content string) []ste.Finding {
@@ -127,10 +129,73 @@ func TestAnUnclosedIfGetsItsFi(t *testing.T) {
 	assert.Contains(t, fixed, "            echo hi\n          fi\n")
 }
 
-// A script on the run row is quoted whole once a line of it is a comment.
+const stepsHead = "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n"
+
+// A script on the run row is written again as a quoted string, with the stray bracket quoted.
 func TestAScriptOnTheRunRowIsRepaired(t *testing.T) {
-	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo (\n"
-	assert.Empty(t, syntaxFindings(repairedBy(content)))
+	fixed := repairedBy(stepsHead + "      - run: echo (\n")
+	assert.Equal(t, stepsHead+"      - run: \"echo '('\"\n", fixed)
+	assert.Empty(t, syntaxFindings(fixed))
+}
+
+// A closing word with nothing to close is dropped, and every command stays.
+func TestAStrayClosingWordIsDropped(t *testing.T) {
+	fixed := repairedBy(stepsHead + "      - run: |\n          echo hi\n          fi\n")
+	assert.Equal(t, stepsHead+"      - run: |\n          echo hi\n\n", fixed)
+	assert.Empty(t, syntaxFindings(fixed))
+}
+
+// An sh step that uses a bash feature names bash, and its script stays as written.
+func TestAnShStepWithAnArrayNamesBash(t *testing.T) {
+	fixed := repairedBy(stepsHead + "      - shell: sh\n        run: |\n          X=(a b)\n")
+	assert.Equal(t, stepsHead+"      - shell: bash\n        run: |\n          X=(a b)\n", fixed)
+	assert.Empty(t, syntaxFindings(fixed))
+}
+
+// A trailing operator with nothing after it is quoted into an argument.
+func TestATrailingOperatorIsQuoted(t *testing.T) {
+	fixed := repairedBy(stepsHead + "      - run: |\n          echo a &&\n")
+	assert.Equal(t, stepsHead+"      - run: |\n          echo a '&&'\n", fixed)
+	assert.Empty(t, syntaxFindings(fixed))
+}
+
+// An error no repair mends is not reported, because the rule reports what its repair rewrites.
+func TestAnErrorNoRepairMendsIsNotReported(t *testing.T) {
+	for _, line := range []string{"case", "function"} {
+		content := stepsHead + "      - run: |\n          " + line + "\n"
+		assert.Empty(t, syntaxFindings(content), line)
+		assert.Equal(t, content, repairedBy(content), line)
+	}
+}
+
+// No repair comments a command out.
+func TestNoRepairCommentsALineOut(t *testing.T) {
+	for _, script := range []string{"echo (", "echo hi\nfi", "echo a &&"} {
+		fixed := repairedBy(stepsHead + "      - run: |\n          " + strings.ReplaceAll(script, "\n", "\n          ") + "\n")
+		assert.NotContains(t, fixed, "# ", script)
+		assert.Empty(t, syntaxFindings(fixed), script)
+	}
+}
+
+// A repeated key parses for its own repair alone: another repair of the file is refused until the key is dropped.
+func TestARepeatedKeyStopsEveryRepairButItsOwn(t *testing.T) {
+	content := stepsHead + "      - run: echo (\n        run: echo there\n"
+	kept := func(id string) bool { return id == workflow.IDRunScriptSyntax }
+	assert.Equal(t, content, workflow.Fix(content, kept).Text)
+	dropped := workflow.Fix(content, func(id string) bool { return id == workflow.IDDuplicateStepKey })
+	assert.NotEqual(t, content, dropped.Text)
+	var parsed any
+	require.NoError(t, yaml.Unmarshal([]byte(dropped.Text), &parsed))
+}
+
+// The repeated key goes first, so one pass of every repair leaves a file with another finding clean.
+func TestARepeatedKeyAndAnotherFindingAreBothRepaired(t *testing.T) {
+	content := stepsHead + "      - name: a\n        name: b\n        run: echo hi\n      - run: echo (\n"
+	fixed := workflow.Fix(content, nil).Text
+	assert.Equal(t, stepsHead+"      - name: b\n        run: echo hi\n      - run: \"echo '('\"\n", fixed)
+	for _, f := range workflow.Check(fixed) {
+		assert.NotContains(t, []string{workflow.IDDuplicateStepKey, workflow.IDRunScriptSyntax}, f.ID)
+	}
 }
 
 // A script that parses is left as written.
