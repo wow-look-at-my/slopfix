@@ -94,7 +94,8 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 		return joinOpener(opener, rest), opensOwnClause
 	case (conjunction == "and" || conjunction == "so") && (seam == "," || seam == "—" || seam == "–" || seam == "--") &&
-		(opensNounPhrase(tag) || opensAfterAdverb(whole, first)) && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+		(opensNounPhrase(tag) || opensAfterAdverb(whole, first)) && !lowerIdentifier(firstToken.FindString(rest)) &&
+		(StandsAlone(capitalizeOpening(rest)) || opensAfterAdverb(whole, first) && holdsFinite(restMasked)):
 		// The parse cuts its clauses at commas, so a subject that is a list or
 		// carries a participle opens no clause of its own.
 		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) ||
@@ -187,7 +188,11 @@ func opening(text string) string {
 func subjectFor(source, masked string, c forceCut, tag string) string {
 	s := syntax.Parse(masked[:c.left], nil)
 	// Only the clause right before the cut shares its subject with the verb after it.
-	for _, clause := range s.Clauses[max(len(s.Clauses)-1, 0):] {
+	last := max(len(s.Clauses)-1, 0)
+	for last > 0 && s.Clauses[last].Depth > 0 {
+		last--
+	}
+	for _, clause := range s.Clauses[last:min(last+1, len(s.Clauses))] {
 		if clause.Depth != 0 || clause.Subject == nil || clause.Verb == nil {
 			continue
 		}
