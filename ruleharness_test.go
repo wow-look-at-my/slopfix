@@ -72,16 +72,34 @@ func TestEveryRuleUndergoesTheCommonTest(t *testing.T) {
 				fixed := rule.Autofix(fixture)
 				assert.Empty(t, rule.Detect(fixed), "%s: case %q: the rule still detects the result of its autofix", rule.ID, raw.Name)
 
-				if raw.Want != "" {
-					written, err := os.ReadFile(filepath.Join(fixed.Root, filepath.FromSlash(raw.Path)))
-					require.NoError(t, err)
-					assert.Equal(t, raw.Want, string(written), "%s: case %q: the autofix wrote other text than the case wants", rule.ID, raw.Name)
-				}
-
 				// run ALL OTHER rules on the "fixed" fixture, confirming there are STILL no detctions.
 				assert.Empty(t, everyOtherRule(fixed, rule.ID), "%s: case %q: another rule detects the fixed fixture", rule.ID, raw.Name)
 			}
 		})
+	}
+}
+
+// A case that pins its repair in Want gets exactly that text from its rule's
+// autofix. A repair can clear its finding and still garble the prose around it.
+func TestEveryPinnedCaseRepairsToItsWant(t *testing.T) {
+	for _, rule := range slopfix.AllRuleSpecs() {
+		for _, raw := range rule.Cases {
+			if raw.Want == "" {
+				continue
+			}
+			t.Run(rule.ID+"/"+raw.Name, func(t *testing.T) {
+				fixture, err := slopfix.Materialize(t.TempDir(), raw)
+				require.NoError(t, err)
+				fixed := rule.Autofix(fixture)
+				got := fixed.Text
+				if raw.Path != "" {
+					content, err := os.ReadFile(filepath.Join(fixed.Root, filepath.FromSlash(raw.Path)))
+					require.NoError(t, err)
+					got = string(content)
+				}
+				assert.Equal(t, raw.Want, got)
+			})
+		}
 	}
 }
 
