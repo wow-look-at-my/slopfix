@@ -113,7 +113,9 @@ func narrationStmt(s *syntax.Stmt, vis bool, made map[*syntax.Stmt]syntax.Comman
 	switch c := s.Cmd.(type) {
 	case *syntax.CallExpr:
 		if v && isNarration(c) {
-			s.Cmd = &syntax.CallExpr{Args: []*syntax.Word{word(":")}}
+			colon := word(":")
+			colon.Parts[0].(*syntax.Lit).ValuePos, colon.Parts[0].(*syntax.Lit).ValueEnd = c.Pos(), c.End()
+			s.Cmd = &syntax.CallExpr{Args: []*syntax.Word{colon}}
 			made[s] = c
 		}
 	case *syntax.BinaryCmd:
