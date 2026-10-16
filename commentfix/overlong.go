@@ -379,9 +379,14 @@ func trim(b block) []string {
 // line, and answers the first layout the judge accepts. The budget counts
 // characters without blanks, so words inside it can need more columns than it.
 func widenToFit(text []string, b block) ([]string, bool) {
-	for _, width := range []int{max(floorChars, b.codeChars), oneLine} {
+	limit := max(floorChars, b.codeChars)
+	for _, width := range []int{limit, oneLine} {
 		wider, did := widen(text, width)
 		if !did {
+			continue
+		}
+		// A line past the budget that only the one-sentence exemption admits is a cut's to make.
+		if _, chars := measure(prose(wider)); width == oneLine && chars > limit {
 			continue
 		}
 		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
