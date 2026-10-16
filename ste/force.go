@@ -5,7 +5,6 @@ import (
 	"sort"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -256,17 +255,16 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		}
 		last := strings.ToLower(strings.Trim(lastField(head), ".,;:!?*_\"'`()[]“”‘’"))
 		next := strings.ToLower(strings.Trim(firstToken.FindString(source[c.right:]), ".,;:!?*_\"'`()[]“”‘’"))
-		// A possessive governs the word after it, so a part never ends on one.
-		if strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s") {
+		if endsOnPossessive(source, c.left) {
 			continue
 		}
 		if forceDangling.Contains(last) || forceBound.Contains(next) {
 			continue
 		}
 		// Both parts must read as sentences, or the cut strands a fragment such
-		// as "writes. Through it while this function runs.".
+		// as "writes. Through it" -- and the start of the rest decides that.
 		if !standsAsSentence(closeHead(source[:c.left])) ||
-			!standsAsSentence(hardRest(source, c.right)) {
+			!standsAsSentence(opening(hardRest(source, c.right))) {
 			continue
 		}
 		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
@@ -274,6 +272,9 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if rank > bestRank || rank == bestRank && c.words > bestWords {
 			best, bestWords, bestRank = c, c.words, rank
 		}
+	}
+	if bestWords < 0 {
+		best, bestWords = lastResortCut(source, masked, len(ends), limit)
 	}
 	if bestWords < 0 {
 		return source, false
@@ -284,6 +285,34 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// endsOnPossessive reports a cut whose head closes on a possessive. The
+// possessive governs the word after it, so a part never ends on one.
+func endsOnPossessive(source string, left int) bool {
+	last := strings.ToLower(strings.Trim(lastField(strings.TrimRight(source[:left], " ,;:—–-")), ".,;:!?*_\"'`()[]“”‘’"))
+	return strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s")
+}
+
+// lastResortCut answers the cut that keeps the most leading words under the
+// cap, for a sentence where no cut leaves both parts reading as sentences. A
+// finding that fix leaves standing breaks the guarantee, and an awkward pair
+// of sentences does not. The cut still lands between whole words, outside a
+// code span, a link, a quotation and a parenthesis.
+func lastResortCut(source, masked string, words, limit int) (forceCut, int) {
+	best, bestWords := forceCut{}, -1
+	for _, c := range candidates(source, masked, false, limit) {
+		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < 1 || words-c.words < 1 {
+			continue
+		}
+		if endsOnPossessive(source, c.left) {
+			continue
+		}
+		if c.words > bestWords {
+			best, bestWords = c, c.words
+		}
+	}
+	return best, bestWords
 }
 
 // hardRest opens the words after a cut at right as a sentence, past any dash that opened an aside.
@@ -516,6 +545,7 @@ func outerParens(text string) [][]int {
 	}
 	return out
 }
+<<<<<<< HEAD
 
 // How well each way of opening the rest reads, added to a cut's score.
 const (
@@ -740,3 +770,5 @@ func lastField(s string) string {
 	}
 	return fields[len(fields)-1]
 }
+=======
+>>>>>>> origin/master

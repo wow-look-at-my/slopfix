@@ -79,6 +79,7 @@ func openingUnder(head, text []string, fit layout, shrink bool) ([]string, bool,
 		if !endsSentence(first) || isHeading(first) {
 			return nil, false, false
 		}
+<<<<<<< HEAD
 		out, fits := fit(head, first, indent, marker)
 		for limit := ste.WordCount(first) - 1; shrink && !fits && limit >= minimumOpening; limit-- {
 			divided := ste.Sentences(ste.DivideTo(first, limit))
@@ -96,6 +97,26 @@ func openingUnder(head, text []string, fit layout, shrink bool) ([]string, bool,
 		if shrink && !fits {
 			if shorter, ok := phraseLines(head, para.lines, fit, indent, marker); ok {
 				return shorter, true, true
+=======
+		out, fits := fit(first, indent, marker)
+		if shrink && !fits {
+			// Only a boundary the division repair admits keeps every word the clause needs.
+			cuts := ste.Cuts(first)
+			for i := len(cuts) - 1; i >= 0; i-- {
+				head := strings.TrimSpace(first[:cuts[i]])
+				if !endsSentence(head) {
+					head += "."
+				}
+				if isHeading(head) || ste.WordCount(head) >= ste.WordCount(first) || ste.WordCount(head) < minimumOpening {
+					continue
+				}
+				if shorter, ok := fit(head, indent, marker); ok {
+					return shorter, true
+				}
+			}
+			if shorter, ok := phraseLines(para.lines, fit, indent, marker); ok {
+				return shorter, true
+>>>>>>> origin/master
 			}
 		}
 		return out, fits, true
