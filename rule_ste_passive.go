@@ -17,6 +17,8 @@ func init() {
 			{Name: ste.IDPassive + "/manner", Path: "manner.md", Text: "The sites are deduplicated by full URL.\n", Want: "By full URL, the sites are deduplicated.\n"},
 			{Name: ste.IDPassive + "/manner-after-subordinator", Path: "clause.md", Text: "The build stops because the sites are deduplicated by full URL.\n", Want: "The build stops because by full URL the sites are deduplicated.\n"},
 			{Name: ste.IDPassive + "/no-by-phrase", Path: "plain.md", Text: "The task is started.\n", Unchanged: true},
+			{Name: "an adjective after be is no passive", Path: "w.md", Text: "The task is started by the gate. Floaters cannot be solid by definition.\n",
+				Want: "The gate starts the task. Floaters cannot be solid by definition.\n"},
 		},
 	})
 }
