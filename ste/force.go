@@ -140,6 +140,7 @@ type forceCut struct {
 func forceDivision(source, masked string, d capSpec) (string, bool) {
 	// The tags come from the whole sentence, because a fragment parsed alone reads "a faithful" as a noun.
 	whole := syntax.Parse(masked, nil)
+	dashed := dashAsides(source)
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict, d.cap) {
@@ -148,6 +149,10 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			}
 			head := source[:c.left]
 			right, opened := openRest(source, masked, whole, c)
+			// A rest that only gains a capital leaves the dash aside halved.
+			if insideAny(dashed, c.left) && right == capitalizeOpening(strings.TrimLeft(source[c.right:], " —–-")) {
+				continue
+			}
 			left := closeHead(head)
 			seam := seamBefore(source, c.left)
 			// ", so" joins whole clauses, so the comma before it ends one wherever it sits.
@@ -478,7 +483,6 @@ func candidates(source, masked string, strict bool, limit int) []forceCut {
 	off := verbatimSpan.FindAllStringIndex(source, -1)
 	off = append(off, quotedSpans(source)...)
 	off = append(off, parenAsides(masked)...)
-	off = append(off, dashAsides(source)...)
 	off = append(off, outerParens(masked)...)
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
