@@ -49,6 +49,7 @@ type xmlCommand struct {
 	Command string `xml:"command,attr,omitempty"`
 	// Narrows Process to an invocation handed a script, sparing `node file.js`.
 	InlineScript    bool   `xml:"inlineScript,attr,omitempty"`
+	WholeCommand    bool   `xml:"wholeCommand,attr,omitempty"`
 	EvalFlags       string `xml:"evalFlags,attr,omitempty"`
 	EvalSubcommands string `xml:"evalSubcommands,attr,omitempty"`
 	Message         string `xml:"message,attr,omitempty"`
@@ -151,6 +152,7 @@ func convertXMLProcess(xc xmlCommand, behavior string) CommandRule {
 		Behavior:        behavior,
 		Message:         xc.Message,
 		InlineOnly:      xc.InlineScript,
+		WholeOnly:       xc.WholeCommand,
 		EvalFlags:       splitList(xc.EvalFlags),
 		EvalSubcommands: splitList(xc.EvalSubcommands),
 	}
