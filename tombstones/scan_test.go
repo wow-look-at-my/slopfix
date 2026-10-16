@@ -105,8 +105,6 @@ func TestANameInsideALongerIdentifierIsDead(t *testing.T) {
 	assert.Equal(t, []string{"BeforeIdleHook"}, DeadReferents(path, src, AddedBlocks(path, src)))
 }
 
-<<<<<<< HEAD
-=======
 // The code around an inline comment is never a referent. The members of an
 // imported module name nothing this repository must define.
 func TestCodeAroundAnInlineCommentIsNotAReferent(t *testing.T) {
@@ -284,7 +282,6 @@ func TestADocumentParagraphPlacesItsLines(t *testing.T) {
 	assert.Equal(t, 1, hit.LineNo)
 }
 
->>>>>>> origin/master
 // A document names a dead symbol on a line the hit places, and the fix cuts
 // the sentence that holds it.
 func TestADeadNameInADocumentIsCut(t *testing.T) {
@@ -293,26 +290,15 @@ func TestADeadNameInADocumentIsCut(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.go"), []byte("package p\n"), 0o644))
 
 	path := filepath.Join(dir, "a.md")
-<<<<<<< HEAD
-	src := "The loop parks the worker. GoneIdleHookName routes it to a sleep. The pool stays warm.\n"
-=======
 	src := "The loop parks the worker. gone_idle_hook routes it to a sleep. The pool stays warm.\n"
->>>>>>> origin/master
 	require.NoError(t, os.WriteFile(path, []byte(src), 0o644))
 
 	hits := DeadReferentHits(path, src)
 	require.Len(t, hits, 1)
-<<<<<<< HEAD
-	assert.Equal(t, 0, hits[0].LineNo)
-
-	repair := Fix(path, src, DefaultMaxCommentLines)
-	assert.NotContains(t, repair.Text, "GoneIdleHookName")
-=======
 	assert.Equal(t, 1, hits[0].LineNo, "the line counts from one")
 
 	repair := Fix(path, src, DefaultMaxCommentLines)
 	assert.NotContains(t, repair.Text, "gone_idle_hook")
->>>>>>> origin/master
 	assert.Contains(t, repair.Text, "The loop parks the worker.")
 	assert.Contains(t, repair.Text, "The pool stays warm.")
 }
