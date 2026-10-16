@@ -190,6 +190,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		Rules:           rules,
 		IDs:             ids,
 		MaxCommentLines: checkMaxLines,
+		Refs:            slopfix.NewGitHubRefs(os.Getenv),
 	}
 	if len(args) == 0 {
 		return checkStdin(cmd, request, repairing, checkJSON)
@@ -209,21 +210,9 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			found = found || failed
 			continue
 		}
-		if repairing {
-			if _, err := slopfix.RepairBranchPinsFile(path, request, slopfix.NewGitHubRefs(os.Getenv)); err != nil {
-				return err
-			}
-		}
 		repair, err := repairOf(forkscope.Resolver{}, sel, path, request, repairing)
 		if err != nil {
 			return err
-		}
-		pins, err := slopfix.BranchPinsFile(path, request, slopfix.NewGitHubRefs(os.Getenv))
-		if err != nil {
-			return err
-		}
-		for _, pin := range pins {
-			repair.Findings = append(repair.Findings, pin.Finding)
 		}
 		for _, finding := range repair.Findings {
 			found = found || !finding.Warning()

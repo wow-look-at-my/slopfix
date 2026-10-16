@@ -52,7 +52,7 @@ type RuleCase struct {
 	Origin string
 	// Actions maps a step's uses value to the runs.using that Materialize records for it.
 	Actions map[string]string
-	// Refs are the ref lookups Materialize records for the branch-pin rule.
+	// Refs are the answers the fixture GitHub API gives for the case: "owner/repo" to its default branch, "owner/repo@ref" to "branch" or "tag".
 	Refs map[string]string
 	// Root is the directory Materialize wrote the repository under.
 	Root string
@@ -111,10 +111,8 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 			return c, err
 		}
 	}
-	if refs := fixtureRefs(files, c.Refs); len(refs) > 0 {
-		if err := recordRefs(dir, refs); err != nil {
-			return c, err
-		}
+	if err := serveFixtureRefs(c.Refs); err != nil {
+		return c, err
 	}
 	c.Files, c.Actions, c.Refs, c.Root = nil, nil, nil, dir
 	return c, nil
