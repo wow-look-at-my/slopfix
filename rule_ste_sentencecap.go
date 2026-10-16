@@ -10,7 +10,14 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectSentenceCap,
 		Autofix:  autofixSentenceCap,
-		Cases:    []RuleCase{{Name: ste.IDSentenceCap, Path: "x.md", Text: "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDSentenceCap, Path: "x.md", Text: "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n"},
+			{
+				Name: "a colon before a clause with its own subject", Path: "x.md",
+				Text: "A sentence wraps across the lines of one replacement, so they come back together: a line fix wrote beside a line the edit wrote reads as neither.\n",
+				Want: "A sentence wraps across the lines of one replacement, so they come back together. A line fix wrote beside a line the edit wrote reads as neither.\n",
+			},
+		},
 	})
 }
 

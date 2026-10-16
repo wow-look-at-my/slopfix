@@ -86,13 +86,22 @@
 
   <!-- A bound on a tally goes vague in the direction the bound points. Cutting
        the number alone leaves "at least nouns", which says nothing. A floor
-       becomes "multiple", which still claims a minimum. A ceiling becomes a
-       bounded number, which still claims a maximum. -->
-  <rephrase id="floor-tally-stays-a-minimum" match="at least {cardinal:c} {noun+plural:n}" to="multiple {n}">
-    <test in="It takes a run of at least two nouns" out="It takes a run of multiple nouns"/>
+       or a bound above a number becomes the vague word of that size, so the
+       lower bound never drops. A ceiling becomes a bounded number. -->
+  <rephrase id="floor-two-stays-a-minimum" match="at least {tally-two:c} {noun+plural:n}" to="a couple of {n}">
+    <test in="It takes a run of at least two nouns" out="It takes a run of a couple of nouns"/>
   </rephrase>
-  <rephrase id="more-than-tally-stays-a-minimum" match="more than {cardinal:c} {noun+plural:n}" to="more than a couple of {n}">
-    <test in="It takes a run of more than three nouns" out="It takes a run of more than a couple of nouns"/>
+  <rephrase id="floor-few-stays-a-minimum" match="at least {tally-three-to-five:c} {noun+plural:n}" to="a few {n}">
+    <test in="It takes a run of at least four nouns" out="It takes a run of a few nouns"/>
+  </rephrase>
+  <rephrase id="floor-several-stays-a-minimum" match="at least {tally-six-to-twelve:c} {noun+plural:n}" to="several {n}">
+    <test in="It takes a run of at least ten nouns" out="It takes a run of several nouns"/>
+  </rephrase>
+  <rephrase id="more-than-few-stays-a-minimum" match="more than {tally-two-to-four:c} {noun+plural:n}" to="a few {n}">
+    <test in="It takes a run of more than three nouns" out="It takes a run of a few nouns"/>
+  </rephrase>
+  <rephrase id="more-than-several-stays-a-minimum" match="more than {tally-five-to-twelve:c} {noun+plural:n}" to="several {n}">
+    <test in="It takes a run of more than ten nouns" out="It takes a run of several nouns"/>
   </rephrase>
   <rephrase id="ceiling-tally-stays-a-maximum" match="at most {cardinal:c} {noun+plural:n}" to="a bounded number of {n}">
     <test in="It takes a run of at most three nouns" out="It takes a run of a bounded number of nouns"/>

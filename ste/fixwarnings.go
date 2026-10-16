@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -299,35 +298,12 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		for end+1 <= last && noun(end+1) {
 			end++
 		}
-		if len(clusterUnits(s, start, end)) > NounClusterCap {
+		if end-start+1 > NounClusterCap {
 			return start, end, true
 		}
 		start = end
 	}
 	return -1, -1, false
-}
-
-// clusterUnits divides the nouns from first to last into the units a reader
-// holds apart. A run of capitalized words is one name, as in "Claude Code" or
-// "ASD-STE100 Simplified Technical English", and breaks no further.
-func clusterUnits(s *syntax.Sentence, first, last int) [][2]int {
-	var units [][2]int
-	for k := first; k <= last; k++ {
-		if k > first && properName(s, k) && properName(s, k-1) {
-			units[len(units)-1][1] = k
-			continue
-		}
-		units = append(units, [2]int{k, k})
-	}
-	return units
-}
-
-// properName reports a capitalized word that rules/syntax.xml lists as part of
-// a product or standard name. A title-cased common noun is no name.
-func properName(s *syntax.Sentence, k int) bool {
-	w := s.Words[k]
-	first, _ := utf8.DecodeRuneInString(w.Text)
-	return unicode.IsUpper(first) && syntax.Is(w.Text, "name-word")
 }
 
 // wordlike reports a token made of letters and digits, which can be a noun. The
@@ -356,16 +332,19 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 	if !ok {
 		return "", false
 	}
-	var out strings.Builder
-	units := clusterUnits(s, start, end)
-	// The head names the thing, and the nouns in front of it describe it.
-	for len(units) > NounClusterCap {
-		head := units[len(units)-1]
-		out.WriteString(source[s.Words[head[0]].Start:s.Words[head[1]].End])
-		out.WriteString(" of the ")
-		units = units[:len(units)-1]
+	// An identifier in front of a name labels it: "ASD-STE100 Simplified Technical English" becomes "Simplified Technical English (ASD-STE100)".
+	if NameLike(s.Words[start].Text) && !strings.ContainsAny(s.Words[start].Text, " ") {
+		label := source[s.Words[start].Start:s.Words[start].End]
+		return splice(source, s, start, end, source[s.Words[start+1].Start:s.Words[end].End]+" ("+label+")"), true
 	}
-	last := units[len(units)-1][1]
+	var out strings.Builder
+	last := end
+	// The head names the thing, and the nouns in front of it describe it.
+	for last-start+1 > NounClusterCap {
+		out.WriteString(source[s.Words[last].Start:s.Words[last].End])
+		out.WriteString(" of the ")
+		last--
+	}
 	rest := source[s.Words[start].Start:s.Words[last].End]
 	rewritten := out.String()
 	// A cluster that opens the sentence hands its capital to the head that now opens it.

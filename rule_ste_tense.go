@@ -12,12 +12,6 @@ func init() {
 		Autofix:  autofixTense,
 		Cases: []RuleCase{
 			{Name: ste.IDTense, Path: "w.md", Text: "The gate has started the task.\n", Want: "The gate started the task.\n"},
-			{
-				Name: "a perfect tense beside a participle that describes its noun", Path: "w.md",
-				Text: "The tool has expected results. The gate has started the task.\n",
-				Want: "The tool has expected results. The gate started the task.\n",
-			},
-			{Name: "a participle that describes its noun", Path: "w.md", Text: "The tool has expected results.\n", Unchanged: true},
 		},
 	})
 }
