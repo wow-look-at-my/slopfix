@@ -21,7 +21,7 @@ func TestFixRenamesCaseTypoOfDeclaredName(t *testing.T) {
 		"func ntSCMParse() {}\n"
 	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
 	require.NotContains(t, fixed.Text, "NtSCMParse")
-	require.Contains(t, fixed.Text, "ntSCMParse collects the SCM_RIGHTS")
+	require.Contains(t, fixed.Text, "ntSCMParse collects the SCM_RIGHTS", "removed %q refused %v rewrites %d", fixed.Removed, fixed.Refused, fixed.Rewrites)
 	require.Empty(t, fixed.Refused)
 	require.Empty(t, fixed.Kept)
 }
