@@ -160,6 +160,8 @@ type stepRef struct {
 	step      *yaml.Node
 	container bool
 	windows   bool
+	// shell is the default shell the job or the workflow names, or "".
+	shell string
 }
 
 // runSteps answers every step of every job, and every step of a composite action.
@@ -179,7 +181,7 @@ func runSteps(root *yaml.Node) []stepRef {
 			}
 			windows := runsPowerShell(job, shell)
 			for _, step := range steps.Content {
-				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell)})
+				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), shell: shell})
 			}
 		}
 	}
