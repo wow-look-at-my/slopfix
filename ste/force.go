@@ -205,12 +205,10 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	return hardDivision(source, masked, d.cap)
 }
 
-// hardDivision divides a sentence that no grammatical division reads. It cuts
-// only at a seam: a mark, or a conjunction, a preposition or a relative word
-// after the cut. It keeps the longest run of leading words under the cap,
-// closes that run as a sentence, and opens the rest with a capital. With no
-// such seam the sentence stays as written, and its finding asks for a rewrite
-// by hand.
+// hardDivision divides a sentence that no grammatical division reads. It keeps
+// the longest run of leading words under the cap. It closes that run as a
+// sentence and opens the rest with a capital. The cap rule then leaves no
+// finding standing.
 //
 // It never ends a half on a word that needs the next one. It never cuts inside
 // a code span, a link, a quotation or a parenthesis. candidates answers only
@@ -221,16 +219,12 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		return source, false
 	}
 	whole := syntax.Parse(masked, nil)
-	best, bestWords := forceCut{}, -1
+	best, bestWords, bestRank := forceCut{}, -1, -1
 	for _, c := range candidates(source, masked, false, limit) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < minimumHalf {
 			continue
 		}
 		if len(ends)-c.words < minimumHalf {
-			continue
-		}
-		// A cut with no seam lands inside a clause, often inside a noun phrase: "lets a log. Line be answered".
-		if !hardSeam(source, whole, c) {
 			continue
 		}
 		if w, ok := lastWordBefore(whole, len(source[:c.left])); ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) {
@@ -263,26 +257,16 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if forceDangling.Contains(last) || forceBound.Contains(next) {
 			continue
 		}
-<<<<<<< HEAD
-		// The rest must hold a clause of its own too.
-		rest := hardRest(source, c.right)
-		if !holdsFinite(checkMask(rest)) && !opensImperative(checkMask(rest)) {
-=======
 		// Both parts must read as sentences, or the cut strands a fragment such
 		// as "writes. Through it" -- and the start of the rest decides that.
 		if !standsAsSentence(closeHead(source[:c.left])) ||
 			!standsAsSentence(opening(hardRest(source, c.right))) {
->>>>>>> origin/master
 			continue
 		}
-		// Both parts must read as sentences, or the cut strands a fragment such
-		// as "writes. Through it while this function runs.".
-		if !standsAsSentence(closeHead(source[:c.left])) || !standsAsSentence(rest) {
-			continue
-		}
-		// The longest leading run wins. The first cut of a tie is deterministic.
-		if c.words > bestWords {
-			best, bestWords = c, c.words
+		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
+		rank := hardSeamRank(source, whole, c)
+		if rank > bestRank || rank == bestRank && c.words > bestWords {
+			best, bestWords, bestRank = c, c.words, rank
 		}
 	}
 	if bestWords < 0 {
@@ -332,20 +316,23 @@ func hardRest(source string, right int) string {
 	return capitalizeOpening(strings.TrimLeft(source[right:], " —–"))
 }
 
-// hardSeam reports a cut hardDivision may take: one at a mark, or before a
-// conjunction, a preposition or a relative word. A cut that parts a subject
-// from its verb, or a verb from what follows it, is none: "it. Is carrying".
-func hardSeam(source string, whole *syntax.Sentence, c forceCut) bool {
+// hardSeamRank grades a cut for hardDivision. A cut that parts a subject from
+// its verb, or a verb from what follows it, ranks lowest: "it. Is carrying".
+// A cut at a mark, or before a conjunction or a preposition, ranks highest.
+func hardSeamRank(source string, whole *syntax.Sentence, c forceCut) int {
 	first := wordFrom(whole, c.right)
 	if first < 1 || first >= len(whole.Words) {
-		return false
+		return 0
 	}
 	next, last := whole.Words[first].Tag, whole.Words[first-1].Tag
 	if strings.HasPrefix(next, "VB") || next == "MD" || next == "RP" || next == "POS" || strings.HasPrefix(last, "VB") || last == "MD" {
-		return false
+		return 0
 	}
-	return strings.ContainsAny(source[c.left:c.right], ",;:—–") || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",") ||
-		next == "CC" || next == "IN" || next == "WDT" || next == "WRB"
+	if strings.ContainsAny(source[c.left:c.right], ",;:—–") || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",") ||
+		next == "CC" || next == "IN" || next == "WDT" || next == "WRB" {
+		return 2
+	}
+	return 1
 }
 
 // carrierOrNone is carrierDivision, except for a sentence that opens with an
