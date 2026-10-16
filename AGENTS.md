@@ -32,7 +32,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `counts` | `counts/inventory-count`, `counts/section-number`, `counts/stated-count`, `counts/postdeterminer` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes |
 | `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`, and the step runs the file. No line is cut |
 | `pins` | `pins/download-version` | yes |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | yes, with `fix --message`. Each sentence that carries the tell comes out |
@@ -128,7 +128,7 @@ coordinate/0 subject="-" verb="refuses": and refuses the write
 | Shape | quantity | quantity | number |
 | Frame required | yes | no | no |
 | Vocabulary | two upward, plus a dozen | two to twelve | cardinals, ordinals, scales, repeat counts |
-| Exemptions | function-word gap, a longer number, arithmetic, status code, label, unit before the noun, a measure that takes a singular verb | arithmetic, function-word gap, status code, label, unit before the noun, a measure that takes a singular verb | status code, exit status, literal, section sign, currency, quotation, word size, a measure that takes a singular verb, a number word in a hyphenated compound |
+| Exemptions | function-word gap, a longer number, arithmetic, status code, label, unit before the noun, a measure that takes a singular verb | arithmetic, function-word gap, status code, label, unit before the noun, a measure that takes a singular verb | status code, exit status, literal, section sign, currency, quotation, list marker, operand, word size, a measure that takes a singular verb, a number word in a hyphenated compound |
 
 Prose requires a frame, because a document carries numbers that count nothing: a version, a port, an example. The gate needs no frame. That is the whole difference between the document substrates. A number beside code is almost always a count. A comment therefore needs no frame either. The vocabularies stay separate, because widening one changes the verdict on text nobody edited.
 
@@ -201,6 +201,10 @@ It does not flag a comment above the package declaration, or a trailing comment 
 ## yaml: workflow and action manifest rules
 
 [docs/yaml-workflow-and-action-manifest-rules.md](docs/yaml-workflow-and-action-manifest-rules.md) holds this section.
+
+- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of the action's repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch, such as `wow-look-at-my/go-toolchain@master`, passes. So do a tag, a full commit SHA, a `./` path and a `docker://` image. The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too. The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. A lookup that fails, a private repository the token cannot read included, fails the check with the reason. Only `check` on a directory or on a named file runs it. A hook and text on stdin never reach the network. `fix` writes the default branch over a branch, and over an unresolvable ref. It writes `NAME#latest` over the tag of a branch build.
+- `yaml/run-script-syntax`: a `run:` script that the shell it runs in does not parse. Only bash and sh are read. The repair gives a keyword with an empty body the no-op `:`. The repair appends the closer of a statement, a bracket or a quote the script left open. It comments out any other line the shell rejects.
+- `yaml/duplicate-step-key`: a step that names a key twice. GitHub rejects the file. The repair keeps the last pair and deletes the earlier ones.
 
 ## pins: a download URL that names a release
 

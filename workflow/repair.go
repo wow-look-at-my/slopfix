@@ -49,6 +49,8 @@ func init() {
 	register("yaml/ungate", IDNeuteredGate, 10, ungate, false)
 	register("yaml/join-comments", IDCommentBlock, 20, joinCommentBlocks, true)
 	register("yaml/rename-guarded-job", IDAllBuildsJob, 30, renameGuardedJob, false)
+	register("yaml/drop-duplicate-step-key", IDDuplicateStepKey, 15, dropDuplicateKeys, false)
+	register("yaml/fix-run-script", IDRunScriptSyntax, 40, repairRunScripts, false)
 	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
 	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
@@ -93,7 +95,8 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 		return edit.Unchanged(content, scope)
 	}
 	var want any
-	if yaml.Unmarshal([]byte(compareData(content, comment)), &want) != nil {
+	// A repeated key is the defect a repair removes, so it does not stop the repair.
+	if err := yaml.Unmarshal([]byte(compareData(content, comment)), &want); err != nil && !(strings.Contains(err.Error(), "already defined") && !comment) {
 		out := edit.Unchanged(content, scope)
 		for _, e := range edits {
 			out.Refused = append(out.Refused, edit.Refused{Edit: e, Reason: "the workflow does not parse"})
