@@ -43,6 +43,8 @@ func init() {
 				Text: bannerOpen + "// The gate renders the scene in each mode and compares the bytes of the frames of every run against the baseline.\n// There are 3 modes today.\n" + bannerClose,
 				Want: bannerOpen + "// The gate renders the scene in each mode and compares the bytes of the frames of every run against the baseline.\n// There are modes today.\n" + bannerClose,
 			},
+			// A zero that is the subject of a verb, as in buildhost's upload.ts.
+			{Name: commentfix.ID + "-zero-subject", Path: "size.ts", Text: "/** The size from the input: empty is the default, 0 disables chunking. */\nexport function size(input: string): number {\n\treturn input.length;\n}\n"},
 		},
 	})
 }
