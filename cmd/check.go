@@ -26,7 +26,7 @@ func ruleNames() []string {
 
 // selectedRules turns --only into what Fix takes.
 //
-// An entry is a category (`ste`) or a rule ID (`ste/semicolon`), the name the
+// An entry is a category (`ste`) or a rule ID (`english/semicolon`), the name the
 // report prints. An ID turns its category on too. An unknown name is an error,
 // because a typo that quietly applies nothing reads as a clean file.
 func selectedRules(only []string) ([]slopfix.Rule, []string, error) {
@@ -169,6 +169,11 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 	// Invoked as "fix", the repair is what was asked for, flag or no flag.
 	repairing := checkFix || cmd.CalledAs() == "fix"
+	if repairing && len(args) > 0 {
+		if err := fixWorkTree(args); err != nil {
+			return err
+		}
+	}
 	rules, ids, err := selectedRules(checkOnly)
 	if err != nil {
 		return err
