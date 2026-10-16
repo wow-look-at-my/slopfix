@@ -131,7 +131,7 @@ func compareData(content string, comment bool) string {
 		return content
 	}
 	all := lines(content)
-	dropped := map[int]bool{}
+	dropped := set.New[int]()
 	for _, span := range blockScalars(content) {
 		if span.from >= span.to || span.to > len(all) {
 			continue
@@ -140,13 +140,13 @@ func compareData(content string, comment bool) string {
 		for _, c := range treecomments.Extract("script.sh", strings.Join(dedent(body), "\n")) {
 			at := span.from + c.Line - 1
 			if c.Lines == 1 && at < span.to && strings.HasPrefix(strings.TrimSpace(all[at]), "#") {
-				dropped[at] = true
+				dropped.Add(at)
 			}
 		}
 	}
 	var kept []string
 	for i, line := range all {
-		if !dropped[i] {
+		if !dropped.Contains(i) {
 			kept = append(kept, line)
 		}
 	}
