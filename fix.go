@@ -51,6 +51,12 @@ func IDsFor(rule Rule) set.Set[string] {
 	return ruleIDsIn(rule)
 }
 
+// categoryOf answers the category an ID names before its slash.
+func categoryOf(id string) Rule {
+	category, _, _ := strings.Cut(id, "/")
+	return Rule(category)
+}
+
 // Request is a piece of text put to Fix. Path decides the comment syntax, and
 // an empty Rules means AllRules.
 type Request struct {
@@ -335,11 +341,9 @@ func fixText(req Request) Repair {
 		if wants(RuleCounts) && keeps(counts.IDSection) {
 			repair.Findings = append(repair.Findings, counts.SectionFindings(req.Path, text)...)
 		}
-		if wants(RuleSTE) || wants(RuleEnglish) {
-			for _, finding := range Check(text) {
-				if keeps(finding.ID) {
-					repair.Findings = append(repair.Findings, finding)
-				}
+		for _, finding := range Check(text) {
+			if wants(categoryOf(finding.ID)) && keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
 			}
 		}
 	}
@@ -441,22 +445,19 @@ func init() {
 		Place:    30,
 		Repair: func(f *fixer.File) {
 			defer trace.Phase("fix/wrap-and-ste")()
-			stePass := f.Wants(string(RuleSTE))
-			englishPass := f.Wants(string(RuleEnglish)) && f.Keeps(english.IDCommaNever)
+			// A rule runs when the caller wants its category and keeps its ID.
+			selected := func(id string) bool { return f.Wants(string(categoryOf(id))) && f.Keeps(id) }
 			word := func(text string) string {
-				if englishPass {
+				if selected(english.IDCommaNever) {
 					text = english.FixCommaNever(text)
 				}
-				if stePass {
-					// A paragraph divides as a block, below, so a list item keeps its parts.
-					text = ste.FixSelected(text, func(id string) bool { return id != ste.IDParagraphLength && f.Keeps(id) })
-				}
-				return text
+				// A paragraph divides as a block, below, so a list item keeps its parts.
+				return ste.FixSelected(text, func(id string) bool { return id != ste.IDParagraphLength && selected(id) })
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))
 			}
-			if stePass && f.Keeps(ste.IDParagraphLength) {
+			if selected(ste.IDParagraphLength) {
 				f.Apply(paragraphEdits(f.Text()))
 			}
 		},
