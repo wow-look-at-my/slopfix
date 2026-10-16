@@ -120,12 +120,13 @@ func paragraphs(content string, lines []string) map[int]int {
 						to++
 					}
 					switch {
+					case !hasLetter(lines[from : to+1]):
 					case entryList(lines[from : to+1]):
 						// Each line is a single entry, as in a path list, so no line continues another.
 						for line := from; line <= to; line++ {
 							ends[line] = line
 						}
-					case hasLetter(lines[from : to+1]):
+					default:
 						ends[from] = to
 					}
 					from = to + 1
