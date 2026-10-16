@@ -44,9 +44,9 @@ type RuleCase struct {
 	Text string
 	// Files are the other files of the repository, by path from its root.
 	Files map[string]string
-	// Unchanged marks a case the rule must leave as written: it detects nothing there, and its autofix writes the text back.
+	// Unchanged marks a case the rule must leave as written.
 	Unchanged bool
-	// Want is the text Path holds after the rule's autofix, for a case that pins the words the repair writes.
+	// Want pins what the autofix writes: Path's content, or the message when the case has no Path.
 	Want string
 	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
 	Origin string
