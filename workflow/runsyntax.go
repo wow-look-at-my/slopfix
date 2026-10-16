@@ -3,10 +3,10 @@ package workflow
 import (
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/edit"
-	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 	"mvdan.cc/sh/v3/syntax"
@@ -25,6 +25,8 @@ type shellScript struct {
 	first int
 	// literal is true when each script line sits on its own file row.
 	literal bool
+	// variant is the shell language the script was parsed as.
+	variant syntax.LangVariant
 	err     error
 }
 
@@ -58,7 +60,7 @@ func shellScripts(content string) []shellScript {
 		if !ok {
 			continue
 		}
-		script := shellScript{run: run, first: run.Line}
+		script := shellScript{run: run, first: run.Line, variant: variant}
 		if at, held := spans[run.Line]; held && run.Style == yaml.LiteralStyle {
 			script.first, script.literal = at.from+1, true
 		}
@@ -122,7 +124,7 @@ func (s shellScript) finding() ste.Finding {
 		ID:     IDRunScriptSyntax,
 		Rule:   "a run script does not parse as shell",
 		Detail: text,
-		Fix:    "Correct the script so `bash -n` accepts it. A step gated to the default branch runs only after a merge, so no pull request run shows the error.",
+		Fix:    "Correct the script so `bash -n` accepts it. `slopfix fix` gives an empty body the no-op `:`, closes what the script left open, and comments out any other line the shell rejects.",
 	}
 }
 
@@ -135,41 +137,114 @@ func (s shellScript) row(pos syntax.Pos) int {
 	return s.first + int(pos.Line()) - 1
 }
 
-// failingScripts counts the text of each run script that does not parse.
-func failingScripts(content string) map[string]int {
-	out := map[string]int{}
-	for _, s := range shellScripts(content) {
-		if s.err != nil {
-			out[s.run.Value]++
+// closerError matches a parse error that names the word that closes what the script opened: a statement that must end with it.
+var closerError = regexp.MustCompile("(?:statement must end with|without matching .* with|without closing quote) `([^`]+)`$")
+
+// emptyBodyError matches a keyword that opens a body and finds none.
+var emptyBodyError = regexp.MustCompile("^`([^`]+)` must be followed by a statement list$")
+
+// repairScript answers the script with each syntax error mended. A keyword
+// with an empty body gets the no-op `:`. An unclosed statement, bracket or
+// quote gets its closer at the end.
+func repairScript(script string, variant syntax.LangVariant) string {
+	for range strings.Count(script, "\n") + 2 {
+		err := parseShell(script, variant)
+		if err == nil {
+			return script
 		}
+		script = mendScript(script, err)
 	}
-	return out
+	return script
 }
 
-// keepScriptsParsing wraps a gate. An edit that leaves a run script failing to
-// parse, where its text before the edit parsed, is refused. The script then
-// keeps its text. A script that failed before the edit and is left as it was
-// does not block an edit elsewhere in the file.
-func keepScriptsParsing(gate fixer.Gate) fixer.Gate {
-	return func(text string, edits []edit.Edit, scope edit.Scope) edit.Result {
-		first := gate(text, edits, scope)
-		if len(first.Applied) == 0 {
-			return first
-		}
-		before := failingScripts(text)
-		holds := func(out string) bool {
-			for script, n := range failingScripts(out) {
-				if n > before[script] {
-					return false
-				}
-			}
-			return true
-		}
-		second := edit.Gate(text, first.Applied, scope, func(edit.Edit) string { return "" }, holds)
-		for i := range second.Refused {
-			second.Refused[i].Reason = "a run script it rewrites no longer parses as shell"
-		}
-		second.Refused = append(append([]edit.Refused{}, first.Refused...), second.Refused...)
-		return second
+// mendScript changes script at the place err names.
+func mendScript(script string, err error) string {
+	var parse syntax.ParseError
+	if !errors.As(err, &parse) {
+		return commentLine(script, errorLine(err))
 	}
+	if body := emptyBodyError.FindStringSubmatch(parse.Text); body != nil {
+		if mended, ok := insertAfter(script, parse.Pos, body[1], " :"); ok {
+			return mended
+		}
+	}
+	if closer := closerError.FindStringSubmatch(parse.Text); closer != nil {
+		return strings.TrimSuffix(script, "\n") + "\n" + closer[1] + "\n"
+	}
+	return commentLine(script, int(parse.Pos.Line()))
+}
+
+// errorLine answers the 1-based script line a shell error names, or the first line.
+func errorLine(err error) int {
+	var lang syntax.LangError
+	if errors.As(err, &lang) && lang.Pos.Line() > 0 {
+		return int(lang.Pos.Line())
+	}
+	return 1
+}
+
+// insertAfter writes text right after the keyword that starts at pos.
+func insertAfter(script string, pos syntax.Pos, keyword, text string) (string, bool) {
+	rows := strings.Split(script, "\n")
+	line, col := int(pos.Line())-1, int(pos.Col())-1
+	if line < 0 || line >= len(rows) || col < 0 || col > len(rows[line]) || !strings.HasPrefix(rows[line][col:], keyword) {
+		return script, false
+	}
+	at := col + len(keyword)
+	rows[line] = rows[line][:at] + text + rows[line][at:]
+	return strings.Join(rows, "\n"), true
+}
+
+// commentLine turns the 1-based line of script into a comment.
+func commentLine(script string, line int) string {
+	rows := strings.Split(script, "\n")
+	line = min(max(line, 1), len(rows)) - 1
+	for line > 0 && strings.TrimSpace(rows[line]) == "" {
+		line--
+	}
+	body := strings.TrimLeft(rows[line], " \t")
+	rows[line] = rows[line][:len(rows[line])-len(body)] + "# " + body
+	return strings.Join(rows, "\n")
+}
+
+// repairRunScripts writes each run script that does not parse as shell back
+// as the repairScript text. A literal or folded block takes the rows its text
+// held. A scalar on one row is written again as a quoted string.
+func repairRunScripts(content string) []edit.Edit {
+	rows := lines(content)
+	spans := blockScalars(content)
+	var out []edit.Edit
+	for _, s := range shellScripts(content) {
+		if s.err == nil {
+			continue
+		}
+		mended := repairScript(s.run.Value, s.variant)
+		if mended == s.run.Value {
+			continue
+		}
+		if at, held := spans[s.run.Line]; held {
+			indent := ""
+			if at.from < len(rows) {
+				body := strings.TrimLeft(rows[at.from], " ")
+				indent = rows[at.from][:len(rows[at.from])-len(body)]
+			}
+			var written []string
+			for _, row := range strings.Split(strings.TrimSuffix(mended, "\n"), "\n") {
+				if row == "" {
+					written = append(written, "")
+					continue
+				}
+				written = append(written, indent+row)
+			}
+			out = append(out, rewrite(content, at.from, at.to-1, written))
+			continue
+		}
+		row := s.run.Line - 1
+		col := s.run.Column - 1
+		if row < 0 || row >= len(rows) || col < 0 || col > len(rows[row]) || strings.Contains(rows[row][col:], " #") {
+			continue
+		}
+		out = append(out, rewrite(content, row, row, []string{rows[row][:col] + strconv.Quote(mended)}))
+	}
+	return out
 }

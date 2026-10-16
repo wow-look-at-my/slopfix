@@ -87,12 +87,8 @@ func divideNext(prose string, limit int) (string, bool) {
 		if WordCount(masked[start:end]) <= limit {
 			continue
 		}
-		local := shift(off, -start)
-		s := syntax.Parse(masked[start:end], local)
-		if rewritten, ok := bestDivision(s, prose[start:end], local); ok && keepsCodeSpans(prose[start:end], rewritten) {
-			return prose[:start] + rewritten + prose[end:], true
-		}
-		if rewritten, ok := frontedDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
+		s := syntax.Parse(masked[start:end], shift(off, -start))
+		if rewritten, ok := bestDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
 			return prose[:start] + rewritten + prose[end:], true
 		}
 		if rewritten, ok := frontedDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
@@ -140,10 +136,9 @@ func opaque(prose, masked string) [][]int {
 var curlyQuote = regexp.MustCompile(`“[^”]*”`)
 
 // bestDivision picks the division that leaves the longer half shortest.
-func bestDivision(s *syntax.Sentence, source string, hidden [][]int) (string, bool) {
+func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 	best, bestScore := "", -1
 	for _, d := range divisions(s, source) {
-		d = outsideOpaque(d, hidden)
 		// A division inside bold text leaves each half with an unclosed marker.
 		if strings.Count(source[:d.leftEnd], "**")%2 != 0 {
 			continue
@@ -216,21 +211,6 @@ func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 		}
 	}
 	return best, bestScore >= 0
-}
-
-// outsideOpaque moves each end of a division out of any opaque span it falls
-// in. A masked code span reads as a word without its backticks, so its word
-// ends inside the span.
-func outsideOpaque(d division, spans [][]int) division {
-	for _, span := range spans {
-		if span[0] < d.leftEnd && d.leftEnd < span[1] {
-			d.leftEnd = span[1]
-		}
-		if span[0] < d.rightStart && d.rightStart < span[1] {
-			d.rightStart = span[0]
-		}
-	}
-	return d
 }
 
 // Leading closes a sentence at a clause boundary the parser finds. It keeps the

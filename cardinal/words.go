@@ -20,7 +20,7 @@ var gateAlt = words("gate")
 // gateWords is that vocabulary as a set.
 var gateWords = set.Of(numbersTable.WordsOf("gate")...)
 
-// commentWords are the numbers spelled as whole words. A word inside a name, as in oneShot, is not one.
+// commentWords are number words, matched whole so a name like oneShot never counts.
 var commentWords = set.Of(numbersTable.WordsOf("comment")...)
 
 // Leading matches the cardinal at the front of a quantity, with the space after

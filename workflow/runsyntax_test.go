@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/slopfix/edit"
-	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
@@ -109,52 +107,34 @@ func TestAnExpressionParsesWhereAWordDoes(t *testing.T) {
 	assert.Empty(t, syntaxFindings(content))
 }
 
-// fixing opens a workflow under the gates slopfix fix writes it through.
-func fixing(content string) *fixer.File {
-	return fixer.NewFile("", content, workflow.Options(fixer.Options{}))
+func repairedBy(content string) string {
+	return workflow.Fix(content, func(id string) bool { return id == workflow.IDRunScriptSyntax }).Text
 }
 
-// A guard with its body, for the deletion below.
-const guardedBody = "on:\n" +
-	"  push:\n" +
-	"    branches: ['**']\n" +
-	"jobs:\n" +
-	"  release:\n" +
-	"    runs-on: ubuntu-latest\n" +
-	"    steps:\n" +
-	"      - run: |\n" +
-	"          if [ -z \"$WHEEL\" ]; then\n" +
-	"            exit 1\n" +
-	"          fi\n" +
-	"      - uses: wow-look-at-my/slopfix@master\n" +
-	"        continue-on-error: true\n"
-
-// A deletion of the if's only body line leaves bash a then with nothing before
-// fi. The gate refuses it, and the script keeps its text.
-func TestFixKeepsAScriptADeletionWouldLeaveWithAnEmptyIfBody(t *testing.T) {
-	f := fixing(guardedBody)
-	res := f.Apply([]edit.Edit{edit.Rows(guardedBody, 9, 9, 0, nil)})
-	assert.Equal(t, guardedBody, f.Text())
-	assert.Empty(t, res.Applied)
-	require.Len(t, res.Refused, 1)
-	assert.Contains(t, res.Refused[0].Reason, "no longer parses as shell")
-	assert.Empty(t, syntaxFindings(f.Text()))
+// An if with no body gets the no-op, and the rest of the file is as written.
+func TestAnEmptyIfBodyGetsTheNoOp(t *testing.T) {
+	fixed := repairedBy(emptyIfBody)
+	assert.Contains(t, fixed, "then :\n")
+	assert.Empty(t, syntaxFindings(fixed))
+	assert.Contains(t, fixed, "WHEELS=(dist/*.whl)\n")
 }
 
-// The negative control: a deletion outside the script lands in the same batch.
-func TestADeletionOutsideTheScriptStillLands(t *testing.T) {
-	f := fixing(guardedBody)
-	res := f.Apply([]edit.Edit{edit.Rows(guardedBody, 9, 9, 0, nil), edit.Rows(guardedBody, 12, 12, 0, nil)})
-	assert.Equal(t, guardedBody[:len(guardedBody)-len("        continue-on-error: true\n")], f.Text())
-	assert.Len(t, res.Applied, 1)
-	assert.Len(t, res.Refused, 1)
+// A statement the script never closes gets its closer.
+func TestAnUnclosedIfGetsItsFi(t *testing.T) {
+	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          if true; then\n            echo hi\n"
+	fixed := repairedBy(content)
+	assert.Empty(t, syntaxFindings(fixed))
+	assert.Contains(t, fixed, "            echo hi\n          fi\n")
 }
 
-// A script that already fails does not hold every other repair back.
-func TestAScriptThatFailedBeforeBlocksNoOtherEdit(t *testing.T) {
-	f := fixing(emptyIfBody)
-	res := f.Apply([]edit.Edit{edit.Rows(emptyIfBody, 5, 5, 0, nil)})
-	assert.Len(t, res.Applied, 1)
-	assert.NotContains(t, f.Text(), "if: github.ref")
-	assert.Len(t, syntaxFindings(f.Text()), 1)
+// A script on the run row is quoted whole once a line of it is a comment.
+func TestAScriptOnTheRunRowIsRepaired(t *testing.T) {
+	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo (\n"
+	assert.Empty(t, syntaxFindings(repairedBy(content)))
+}
+
+// A script that parses is left as written.
+func TestAParsingScriptIsNotRewritten(t *testing.T) {
+	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          echo hi\n"
+	assert.Equal(t, content, repairedBy(content))
 }

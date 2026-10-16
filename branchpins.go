@@ -132,6 +132,49 @@ func BranchPinsFile(path string, req Request, refs workflow.Refs) ([]TreeFinding
 	return out, nil
 }
 
+// RepairBranchPinsTree writes the default branch over each branch pin of every
+// workflow and action manifest a walk of root reads. Answers the paths it
+// wrote.
+func RepairBranchPinsTree(root string, req Request, refs workflow.Refs) ([]string, error) {
+	if !selectsBranchPin(req) {
+		return nil, nil
+	}
+	var out []string
+	for _, path := range commentfix.TreeFilesMatching(root, func(p string) bool { return workflow.Judges(p) || isYAML(p) }) {
+		changed, err := RepairBranchPinsFile(path, req, refs)
+		if err != nil {
+			return nil, err
+		}
+		if changed {
+			out = append(out, path)
+		}
+	}
+	return out, nil
+}
+
+// RepairBranchPinsFile is RepairBranchPinsTree for one file. It reports
+// whether it wrote the file.
+func RepairBranchPinsFile(path string, req Request, refs workflow.Refs) (bool, error) {
+	if !selectsBranchPin(req) {
+		return false, nil
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	if exempt(path, string(content)) || !isWorkflow(path, string(content)) {
+		return false, nil
+	}
+	fixed, err := workflow.RepairBranchPins(string(content), refs)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", path, err)
+	}
+	if fixed == string(content) {
+		return false, nil
+	}
+	return true, os.WriteFile(path, []byte(fixed), 0o644)
+}
+
 func selectsBranchPin(req Request) bool {
 	return wantsOf(req)(RuleWorkflow) && keepsOf(req)(workflow.IDBranchPin)
 }

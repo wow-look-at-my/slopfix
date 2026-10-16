@@ -191,22 +191,6 @@ func oneSentence(text []string) bool {
 	return len(found) == 1 && ste.WordCount(found[0]) <= ste.SentenceWordCap && !hasBanner(text)
 }
 
-// singleThought reports a block whose prose is one sentence. A one-sentence
-// comment cut to its first clause loses its claim, so the clause cut serves a
-// multi-sentence block alone.
-func singleThought(text []string) bool {
-	var words []string
-	for _, line := range prose(text) {
-		body := stripMarker(line)
-		if strings.IndexFunc(body, unicode.IsLetter) < 0 {
-			continue
-		}
-		words = append(words, strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body), "*/")))
-	}
-	joined := strings.Join(strings.Fields(strings.Join(words, " ")), " ")
-	return len(ste.Sentences(joined)) <= 1
-}
-
 // hasBanner reports a comment line whose prose holds no letter, such as a
 // rule of "=" signs. A banner has no reader, so a block that holds one is weighed whole.
 func hasBanner(text []string) bool {
@@ -354,7 +338,6 @@ func trim(b block) []string {
 		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return kept
 		}
-		// A cut reflows at the wrap width, so the sentences it keeps can still fit wider.
 		if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
 			if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 				return wider
@@ -366,11 +349,6 @@ func trim(b block) []string {
 		}
 		kept = next
 	}
-	// A block of one sentence has no sentence end to cut at, so every cut writes
-	// a fragment the source never ended.
-	if singleThought(b.text) {
-		return b.text
-	}
 	// The STE opening sentence reads best, then a clause cut.
 	fit := func(sentence, indent, marker string) ([]string, bool) {
 		out := reflow(sentence, indent, marker, wrapWidth)
@@ -381,12 +359,8 @@ func trim(b block) []string {
 	if whole && fitsCode(opening, b) {
 		fits = append(fits, opening)
 	}
-	// A clause cut serves a block whose opening sentence is not the thing being
-	// cut.
-	if !singleThought(b.text) {
-		if clause, ok := clauseFit(b); ok {
-			fits = append(fits, clause)
-		}
+	if clause, ok := clauseFit(b); ok {
+		fits = append(fits, clause)
 	}
 	if out, ok := preferred(fits); ok {
 		return out

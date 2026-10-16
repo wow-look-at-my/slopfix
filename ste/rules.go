@@ -241,27 +241,15 @@ func checkSentences(prose string, line int) []Finding {
 		if words <= SentenceWordCap {
 			continue
 		}
-		fix := "Split it into shorter sentences."
-		if overCap(fixSelected(sentence, DivisionRepairs, true), SentenceWordCap) > 0 {
-			fix = FixSentenceByHand
-		}
 		out = append(out, Finding{
 			Line:   line,
 			ID:     IDSentenceCap,
 			Rule:   fmt.Sprintf("over the %d-word sentence cap at %d words", SentenceWordCap, words),
 			Detail: truncate(strings.TrimSpace(sentence)),
-			Fix:    fix,
+			Fix:    "Split it into shorter sentences.",
 		})
 	}
 	return out
-}
-
-// FixSentenceByHand is the Fix text of a long sentence that no division reads.
-const FixSentenceByHand = "Rewrite it by hand. No cut leaves a whole sentence on each side."
-
-// DivisionRepairs are the repairs that divide a long sentence.
-func DivisionRepairs(id string) bool {
-	return id == IDSentenceCap || id == IDSemicolon || id == IDCommaSplice
 }
 
 // checkSplices finds a comma doing a period's job.

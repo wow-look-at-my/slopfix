@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
@@ -102,15 +104,32 @@ func remoteUse(node *yaml.Node) (Use, bool) {
 }
 
 // BranchPins reports each uses: ref that names a branch other than the action
-// repository's default branch. A merge deletes a feature branch, and every run
-// that names it then fails to resolve the action. The default branch, a tag
-// and a full commit SHA are refs that stay. A tag that the org's
-// orphan-release cut from a branch build, ACTION/BRANCH#N, goes with that
-// branch. It is a branch pin too. A ref that names no branch, no tag and no
-// full SHA fails the run that resolves it. The first lookup that refs cannot
-// answer is the error, because a guess would pass a pin it never checked.
+// repository's default branch. A merge deletes a feature branch, and every
+// run that names it then fails to resolve the action.
 func BranchPins(content string, refs Refs) ([]ste.Finding, error) {
+	pins, err := branchPins(content, refs)
+	if err != nil {
+		return nil, err
+	}
 	var out []ste.Finding
+	for _, p := range pins {
+		out = append(out, branchPinFinding(p.use, p.detail))
+	}
+	return out, nil
+}
+
+// branchPin is a uses: value that BranchPins reports, and the ref the repair
+// writes in its place.
+type branchPin struct {
+	use    Use
+	detail string
+	// ref is the default branch, or for a branch build's tag the tag that follows the default branch.
+	ref string
+}
+
+// branchPins answers every reported uses: value with its replacement ref.
+func branchPins(content string, refs Refs) ([]branchPin, error) {
+	var out []branchPin
 	for _, use := range Uses(content) {
 		if fullSHA.MatchString(use.Ref) {
 			continue
@@ -119,28 +138,64 @@ func BranchPins(content string, refs Refs) ([]ste.Finding, error) {
 		if err != nil {
 			return nil, err
 		}
+		def, err := refs.DefaultBranch(use.Repo)
+		if err != nil {
+			return nil, err
+		}
 		switch kind {
 		case RefBranch:
-			feature, err := featureBranch(use.Repo, use.Ref, refs)
-			if err != nil {
-				return nil, err
-			}
-			if feature {
-				out = append(out, branchPinFinding(use, "names "+use.Ref+", a branch of "+use.Repo+" that is not its default branch"))
+			if use.Ref != def {
+				out = append(out, branchPin{use, "names " + use.Ref + ", a branch of " + use.Repo + " that is not its default branch", def})
 			}
 		case RefMissing:
-			out = append(out, branchPinFinding(use, use.Ref+" is neither a tag nor a branch of "+use.Repo+", and not a full commit SHA"))
+			out = append(out, branchPin{use, use.Ref + " is neither a tag nor a branch of " + use.Repo + ", and not a full commit SHA", def})
 		case RefTag:
 			branch, err := tagBranch(use, refs)
 			if err != nil {
 				return nil, err
 			}
 			if branch != "" {
-				out = append(out, branchPinFinding(use, "the tag "+use.Ref+" is a build of the branch "+branch+" of "+use.Repo+", and goes when that branch goes"))
+				name := strings.TrimSuffix(use.Ref[:strings.LastIndex(use.Ref, "#")], "/"+branch)
+				out = append(out, branchPin{use, "the tag " + use.Ref + " is a build of the branch " + branch + " of " + use.Repo + ", and goes when that branch goes", name + "#latest"})
 			}
 		}
 	}
 	return out, nil
+}
+
+// RetargetBranchPins writes each reported uses: value again with its
+// replacement ref: the default branch of the action's repository, or for a
+// branch build's tag. The tag that follows the default branch. It edits the
+// row the value sits on and skips a value it cannot find there verbatim.
+func RetargetBranchPins(content string, refs Refs) ([]edit.Edit, error) {
+	pins, err := branchPins(content, refs)
+	if err != nil {
+		return nil, err
+	}
+	fileLines := lines(content)
+	var out []edit.Edit
+	for _, p := range pins {
+		row := p.use.Line - 1
+		if row < 0 || row >= len(fileLines) || !strings.Contains(fileLines[row], p.use.Value) {
+			continue
+		}
+		target, _, _ := strings.Cut(p.use.Value, "@")
+		swapped := strings.Replace(fileLines[row], p.use.Value, target+"@"+p.ref, 1)
+		out = append(out, rewrite(content, row, row, []string{swapped}))
+	}
+	return out, nil
+}
+
+// RepairBranchPins answers the workflow with every branch pin retargeted,
+// written through the gates slopfix fix uses.
+func RepairBranchPins(content string, refs Refs) (string, error) {
+	edits, err := RetargetBranchPins(content, refs)
+	if err != nil || len(edits) == 0 {
+		return content, err
+	}
+	f := fixer.NewFile("", content, Options(fixer.Options{}))
+	f.Apply(edits)
+	return f.Text(), nil
 }
 
 // featureBranch reports whether branch is not the default branch of repo.
@@ -190,6 +245,6 @@ func branchPinFinding(use Use, detail string) ste.Finding {
 		ID:     IDBranchPin,
 		Rule:   "a uses: ref names a feature branch, which a merge deletes",
 		Detail: fmt.Sprintf("%s: %s", use.Value, detail),
-		Fix:    "Pin " + use.Repo + " to its default branch, a tag it publishes, or a full commit SHA.",
+		Fix:    "Pin " + use.Repo + " to its default branch, a tag it publishes, or a full commit SHA. `slopfix fix` writes the default branch, or the latest tag of a branch build.",
 	}
 }

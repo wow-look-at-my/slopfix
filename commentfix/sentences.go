@@ -221,7 +221,9 @@ func divideSentences(prose string) string {
 			out.WriteString(sentence)
 		} else {
 			// A semicolon and a splice are where a long sentence divides best, so the division repairs them too.
-			out.WriteString(ste.FixSelected(sentence, ste.DivisionRepairs))
+			out.WriteString(ste.FixSelected(sentence, func(id string) bool {
+				return id == ste.IDSentenceCap || id == ste.IDSemicolon || id == ste.IDCommaSplice
+			}))
 		}
 		at = start + len(sentence)
 	}

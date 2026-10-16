@@ -209,6 +209,11 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			found = found || failed
 			continue
 		}
+		if repairing {
+			if _, err := slopfix.RepairBranchPinsFile(path, request, slopfix.NewGitHubRefs(os.Getenv)); err != nil {
+				return err
+			}
+		}
 		repair, err := repairOf(forkscope.Resolver{}, sel, path, request, repairing)
 		if err != nil {
 			return err
@@ -254,11 +259,20 @@ func treeFindings(cmd *cobra.Command, root string, request slopfix.Request, repa
 	if repairing {
 		walk = slopfix.FixTreeWith
 	}
+	var written []string
+	if repairing {
+		var err error
+		written, err = slopfix.RepairBranchPinsTree(root, request, slopfix.NewGitHubRefs(envOf(forks)))
+		if err != nil {
+			return false, err
+		}
+	}
 	pins, err := slopfix.BranchPinsTree(root, request, slopfix.NewGitHubRefs(envOf(forks)))
 	if err != nil {
 		return false, err
 	}
 	walked := walk(root, request)
+	walked.Repaired = append(walked.Repaired, written...)
 	walked.Findings = append(walked.Findings, pins...)
 	out := walked.Within(own, root)
 	for _, path := range out.Repaired {

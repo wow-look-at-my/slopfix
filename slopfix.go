@@ -176,9 +176,6 @@ func isDocument(path string) bool {
 	if path == "" {
 		return true
 	}
-	if tombstones.IsScript(path) {
-		return false
-	}
 	if tombstones.InTestdata(path) || treecomments.HashComments(path) {
 		return false
 	}
