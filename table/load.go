@@ -115,7 +115,7 @@ type xmlClass struct {
 // loaded is a rules file and the name it was read under.
 type loaded struct {
 	path string
-	doc  document
+	raw  []byte
 }
 
 // Load reads every XML in fsys and returns what a single consumer declares.
@@ -134,17 +134,19 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 		if err != nil {
 			return nil, err
 		}
-		var doc document
-		if err := xml.Unmarshal(Readable(raw), &doc); err != nil {
+		var head struct {
+			For string `xml:"for,attr"`
+		}
+		if err := xml.Unmarshal(Readable(raw), &head); err != nil {
 			return nil, fmt.Errorf("%s does not parse: %w", path, err)
 		}
-		if doc.For == "" {
+		if head.For == "" {
 			return nil, fmt.Errorf("%s: the root element needs a for= naming its consumer", path)
 		}
-		if doc.For != target {
+		if head.For != target {
 			continue
 		}
-		docs = append(docs, loaded{path: path, doc: doc})
+		docs = append(docs, loaded{path: path, raw: raw})
 		files = append(files, xmlcheck.File{Name: path, Raw: raw})
 	}
 	if len(files) == 0 {
@@ -156,7 +158,11 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 	// An id names an entry across the whole folder, so a duplicate is caught over every file rather than over each alone.
 	ids := map[string]string{}
 	for _, d := range docs {
-		if err := out.add(d.path, d.doc, ids); err != nil {
+		var doc document
+		if err := xml.Unmarshal(Readable(d.raw), &doc); err != nil {
+			return nil, fmt.Errorf("%s does not parse: %w", d.path, err)
+		}
+		if err := out.add(d.path, doc, ids); err != nil {
 			return nil, err
 		}
 	}
