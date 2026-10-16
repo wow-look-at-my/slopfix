@@ -163,7 +163,7 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 		}
 		said := CloseProse(reworded)
 		said, cut := cutWhatIsLeft(said)
-		if said == para.prose {
+		if said == para.prose && !numberLeadsLine(lines, para) {
 			continue
 		}
 		first, last := para.lines[0], para.lines[len(para.lines)-1]
@@ -265,9 +265,15 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 				}
 				// A line comment at the column of a comment that follows code continues it, whatever indent its words take.
 				continues := current != nil && current.code != "" && n == 0 && col == aligned && trailer == "" && current.trailer == ""
-				if !continues && (codeLine(line) || ruleLine(prose)) {
-					// A tab after the marker is how a doc comment spells a code block. A rule line frames a banner and holds no word.
+				if !continues && codeLine(line) {
+					// A tab after the marker is how a doc comment spells a code block.
 					out = append(out, para{lines: []int{i}, verbatim: true})
+					current = nil
+					continue
+				}
+				if !continues && ruleLine(prose) {
+					// A rule line frames a banner, so the lines around it make paragraphs of their own.
+					out = append(out, para{marker: marker, cont: marker, lines: []int{i}, prose: prose, width: len(line)})
 					current = nil
 					continue
 				}
@@ -380,15 +386,53 @@ func wrap(prose, marker, cont string, width int) []string {
 	}
 	var out []string
 	line, at := marker, marker
+	var last string
+	count := 0
 	for _, w := range words {
 		if line != at && len(line)+len(w) > width {
+			// A number never opens a line: the word before it carries down, so "exit" stays with "2".
+			carry := ""
+			if count > 1 && opensWithDigit(w) {
+				carry = last
+				line = strings.TrimSuffix(line, carry+" ")
+			}
 			out = append(out, strings.TrimRight(line, " "))
 			at = cont
 			line = cont
+			count = 0
+			if carry != "" {
+				line += carry + " "
+				count = 1
+			}
 		}
 		line += w + " "
+		last = w
+		count++
 	}
 	return append(out, strings.TrimRight(line, " "))
+}
+
+// opensWithDigit reports a word that starts on a digit.
+func opensWithDigit(w string) bool {
+	return w != "" && w[0] >= '0' && w[0] <= '9'
+}
+
+// numberLeadsLine reports a paragraph with a line after its first that opens on
+// a number. Such a number is a finding of its own line. The paragraph is
+// and the word before the number moves down beside it.
+func numberLeadsLine(lines []string, p para) bool {
+	for _, i := range p.lines[min(1, len(p.lines)):] {
+		_, prose, _, ok := splitBlock(lines[i])
+		if !ok {
+			continue
+		}
+		for _, found := range cardinal.Find(prose, cardinal.Comment) {
+			if found.Offset == 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // proseOf strips the marker off each wrapped line, for a tail that has to join

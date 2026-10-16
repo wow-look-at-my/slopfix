@@ -21,8 +21,9 @@ func init() {
 				Want: "# Each run must exit 0, report the registry slots and the stripe mode, report no validation errors and write its PNG.\nset(A 1)\n",
 			},
 			{
-				Name: "an exit status wrapped onto the next comment line", Path: "gate.h", Unchanged: true,
+				Name: "an exit status wrapped onto the next comment line", Path: "gate.h",
 				Text: "// Under --validate the validation errors of the device phases fail the run (exit\n// 2), the convention of the shed test.\nint runRecreateTest() {\n\tint failed = validate();\n\treturn failed;\n}\n",
+				Want: "// Under --validate the validation errors of the device phases fail the run\n// (exit 2), the convention of the shed test.\nint runRecreateTest() {\n\tint failed = validate();\n\treturn failed;\n}\n",
 			},
 			{
 				Name: "a comment after code continues on the aligned lines under it", Path: "opts.h",

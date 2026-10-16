@@ -143,7 +143,7 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 // target or an entity to the whole span. A rewrite that moves the word then
 // moves all of the span.
 func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
-	for _, span := range dataSpans(text) {
+	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
 		from, to := span[0], span[1]
 		// mask fills a link target inside its parentheses.
 		if to-from >= 3 && text[from] == ']' && text[from+1] == '(' && text[to-1] == ')' {

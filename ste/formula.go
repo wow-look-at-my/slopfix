@@ -46,12 +46,3 @@ func overlapsAny(spans [][]int, span []int) bool {
 	}
 	return false
 }
-
-// stripFormulas writes CODE over each formula, as strip does over a code span.
-func stripFormulas(text string) string {
-	spans := formulaSpans(text)
-	for i := len(spans) - 1; i >= 0; i-- {
-		text = text[:spans[i][0]] + " CODE " + text[spans[i][1]:]
-	}
-	return text
-}

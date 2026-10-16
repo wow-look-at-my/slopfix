@@ -76,7 +76,7 @@ var (
 // alone. A semicolon inside `a; b` is the thing the sentence documents. A
 // quotation is another voice, so its words stay as Check reads them: unjudged.
 func fixProse(text string, repair func(string) string) string {
-	spans := append(dataSpans(text), quotedSpans(text)...)
+	spans := append(verbatimSpan.FindAllStringIndex(text, -1), quotedSpans(text)...)
 	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
 	var out strings.Builder
 	last := 0
@@ -294,9 +294,6 @@ func mask(prose string) string {
 		default:
 			fillLink(out[span[0]:span[1]], fill)
 		}
-	}
-	for _, span := range formulaSpans(prose) {
-		fillWith(out[span[0]:span[1]], "CODE")
 	}
 	return string(out)
 }

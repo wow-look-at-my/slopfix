@@ -162,7 +162,7 @@ func subjectOfVerb(content string, hit Hit) bool {
 // in "64 MiB chunks".
 func measures(phrase string) bool {
 	fields := strings.Fields(phrase)
-	return len(fields) > 2 && cardinal.IsUnit(fields[1])
+	return len(fields) > 2 && isUnit(fields[1])
 }
 
 var leadingWord = regexp.MustCompile(`^[ \t]*\S+[ \t]+`)

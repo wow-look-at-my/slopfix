@@ -18,7 +18,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
@@ -102,38 +101,18 @@ func stanzasOf(lines []commentLine) [][]commentLine {
 // quotation that opens on one line and closes on a later one. The repair reads
 // the paragraph whole, so that number is quoted to it as well.
 func stanzaHits(src string, stanza []commentLine) []Hit {
-	var joined, prose strings.Builder
+	var joined strings.Builder
 	starts := make([]int, len(stanza))
-	proseAt := make([]func(int) int, len(stanza))
 	for i, line := range stanza {
 		starts[i] = joined.Len()
 		joined.WriteString(line.text)
 		joined.WriteByte('\n')
-		proseAt[i] = func(int) int { return -1 }
-		if _, words, ok := split(line.text); ok && words != "" {
-			if at := strings.Index(line.text, words); at >= 0 {
-				if prose.Len() > 0 {
-					prose.WriteByte(' ')
-				}
-				base := prose.Len() - at
-				prose.WriteString(words)
-				proseAt[i] = func(o int) int { return base + o }
-			}
-		}
 	}
 	quoted := cardinal.QuotedSpans(joined.String())
-	// A number counts only where the paragraph reads it as one.
-	counted := set.New[int]()
-	for _, found := range cardinal.Find(prose.String(), cardinal.Comment) {
-		counted.Add(found.Offset)
-	}
 	var hits []Hit
 	for i, line := range stanza {
 		for _, found := range cardinal.Find(line.text, cardinal.Comment) {
 			if inSpans(quoted, starts[i]+found.Offset) {
-				continue
-			}
-			if at := proseAt[i](found.Offset); at >= 0 && !counted.Contains(at) {
 				continue
 			}
 			at := line.offset + found.Offset

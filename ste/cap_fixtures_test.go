@@ -177,6 +177,13 @@ var capSentences = []string{
 	"With no settle record (prev == null) every later re-aggregation of a settled-green commit used to read as a \"first green\" and republish `pending` over the live `success` — the known first-green regression.",
 	"unless they have no commits unique to them (aka git checkout -b some-new-branch && git push = don't create and close a pr for this 'empty' branch)\" — and the follow-up: \"btw you need to *merge* zero-diff PRs so it wraps everything up properly and deletes the branhc.",
 	"The state CLIENT's own wire contract (get/put/delete/list, acquire/steal, the declared wait and its degradations) is covered once in sdk/state.test.ts — against a REAL local HTTP server rather than this suite's mock — now that this hook shares the SDK client.",
+	"The gate reads the cache file of the build host for each module of the tree in the order of the paths of the list of the repository at the start of the run.",
+	"A list of the cache files of the build host for each module of the tree in the order of the paths of the list of the repository at the start of the run.",
+	"The gate fits the samples with w2 = f/2 + 2f^2 - 3f^3/2 for every frame of the run and it writes the weight into the table that the shader reads at startup.",
+	"captureReal writes new snapshot or history images into the generation no pending warp binds and flips to it before the next real frame starts its capture pass.",
+	"main() holds the \"gpu\" lock for every splat-vulkan run except --help and --dump-layouts, so only one splat-vulkan uses the GPU at a time.",
+	"Every request takes a ticket in \"<lock file>.queue/\": a sequence number from the counter file, taken under flock on that file, names a ticket file that its owner holds flock(LOCK_EX) on for as long as it waits or holds.",
+	"The rule answers the number at offset at and the words up to the plural noun it counts, as in \"0 validation errors\", or \"\" when no plural noun ends a phrase it governs.",
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.

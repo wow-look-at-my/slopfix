@@ -14,8 +14,9 @@ func init() {
 			{Name: ste.IDStaleCount, Path: "x.md", Text: "The gate reads 3 rows.\n"},
 			{
 				// From a splat2 AGENTS.md: the label repair wrote "A run still a later alive s later exits 124".
-				Name: "a duration with a unit abbreviation is no count", Path: "watchdog.md", Unchanged: true,
+				Name: "a duration with a unit abbreviation is written out", Path: "watchdog.md",
 				Text: "The watchdog sends SIGTERM when the budget runs out. A run still alive 15 s later exits 124.\n",
+				Want: "The watchdog sends SIGTERM when the budget runs out. A run still alive several seconds later exits 124.\n",
 			},
 			{
 				// From splat2's docs/handoff.md: "Quiet 30 s runs" lost its number and kept the unit.

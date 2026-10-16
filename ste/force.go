@@ -91,9 +91,6 @@ func checkMask(prose string) string {
 			fillLink(out[span[0]:span[1]], func(inner []byte) { fillCheckWord(inner, "URL") })
 		}
 	}
-	for _, span := range formulaSpans(prose) {
-		fillCheckWord(out[span[0]:span[1]], "CODE")
-	}
 	// Check finds a quotation after it strips code, so a quote mark inside a code span pairs with nothing.
 	for _, span := range quotation.FindAllIndex(out, -1) {
 		fillCheckWord(out[span[0]:span[1]], "QUOTE")
@@ -170,6 +167,10 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 					continue
 				}
 				head, right, opened, left = ch, cr, co, cl
+				// A carrier that restates the subject for a rest with no verb of its own ranks below every division whose rest holds one.
+				if verbless(whole, c, source) {
+					opened -= verblessPenalty
+				}
 			}
 			// A rest that opens a clause of its own reads best.
 			if score := c.score + opened; best == "" || score > bestScore {

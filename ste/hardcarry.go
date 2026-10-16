@@ -73,10 +73,7 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 		})
 	}
 	if !found {
-		var ok bool
-		if c, ok = capCut(source, masked, room); !ok {
-			return source, false
-		}
+		c = capCut(source, masked, room)
 	}
 	head := closeHead(source[:c.left])
 	if !standsAsSentence(head) {
@@ -86,7 +83,7 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 	if verbless(whole, c, source) {
 		right = carriedRest(whole, c, right)
 	}
-	return head + " " + right, true
+	return strings.TrimSpace(head + " " + right), true
 }
 
 // headHoldsMainVerb reports a head that ends after the verb of a main clause
@@ -115,26 +112,34 @@ func closesAPhrase(head string) bool {
 	return last != "" && !forceDangling.Contains(last) && !strings.HasSuffix(last, "'s")
 }
 
-// capCut answers a cut after the last word the cap allows that closes a
-// phrase, outside any code span, link or entity.
-func capCut(source, masked string, limit int) (forceCut, bool) {
-	spans := dataSpans(source)
+// capCut answers a cut after the last word the cap allows that closes a phrase. A word
+// inside a code span, link or entity ends at the end of that span. Every word of the
+// sentence is a place to cut and the cut lands outside the span. A sentence over the
+// cap holds many words, so the cut always exists.
+func capCut(source, masked string, limit int) forceCut {
 	var ends []int
 	for _, end := range wordEnds(masked) {
-		if !insideAny(spans, end-1) {
+		if at := outsideSpans(source, end-1, true); at != end-1 {
+			end = at
+		}
+		if len(ends) == 0 || ends[len(ends)-1] != end {
 			ends = append(ends, end)
 		}
 	}
 	if len(ends) < 2 {
-		return forceCut{}, false
+		end := len(source)
+		if len(ends) == 1 {
+			end = ends[0]
+		}
+		return forceCut{left: end, right: end}
 	}
 	k := min(max(limit, 1), len(ends)-1)
 	for i := k - 1; i >= minimumHalf-1; i-- {
 		if closesAPhrase(source[:ends[i]]) {
-			return forceCut{left: ends[i], right: ends[i]}, true
+			return forceCut{left: ends[i], right: ends[i]}
 		}
 	}
-	return forceCut{left: ends[k-1], right: ends[k-1]}, true
+	return forceCut{left: ends[k-1], right: ends[k-1]}
 }
 
 // firstWordOf answers the first word of text in lower case, with no mark around it.

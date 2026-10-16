@@ -339,10 +339,6 @@ func NamesAnItem(text string, at int) bool {
 		if !allDigits(w.Text) || i < 1 || words[i-1].End == at {
 			return false
 		}
-		// Digits before a unit measure an amount, as in "alive 15 s later", and name no item.
-		if i+1 < len(words) && IsUnit(strings.ToLower(words[i+1].Text)) {
-			return false
-		}
 		prev := words[i-1]
 		name, opened := strings.CutPrefix(prev.Text, "(")
 		lower := strings.ToLower(name)
@@ -362,10 +358,6 @@ func NamesAnItem(text string, at int) bool {
 		before := words[i-2]
 		opened = opened || before.Text == "(" || (prev.Start > 0 && text[prev.Start-1] == '(')
 		if before.Tag == "CD" || singleItem.Contains(before.Lower()) {
-			return false
-		}
-		// A word that opens a coordinated predicate is its verb, and the digits count its object: "exit 0, report 0 validation errors".
-		if (before.Tag == "," || before.Tag == "CC") && !plural && CountedHead(words, i) >= 0 {
 			return false
 		}
 		if noun {

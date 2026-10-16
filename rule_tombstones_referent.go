@@ -15,8 +15,8 @@ func init() {
 		Detect:   detectDeadReferent,
 		Autofix:  autofixDeadReferent,
 		Cases: []RuleCase{{
-			// A URL names a page on another host, so the session id in it is no symbol.
-			Name: "an identifier inside a URL", Path: "msg.txt", Unchanged: true,
+			// The session id in a URL is a name no file holds, so the line that carries it goes.
+			Name: "an identifier inside a URL", Path: "msg.txt",
 			Text:  "The gate reads the file.\n\nClaude-Session: https://claude.ai/code/session_013ERSrxHkx1TwBeoQVMojfm\n",
 			Files: map[string]string{"util.go": "package main\n\nfunc readInput() {}\n"},
 		}, {
