@@ -2,12 +2,12 @@ package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
 
-// ste/count: a stated count of items goes stale when somebody adds the item that makes it wrong. The repair writes words that state no figure. The case carries no frame, which keeps it to this
+// counts/stated-count: a stated count of items goes stale when somebody adds the item that makes it wrong. The repair writes words that state no figure. The case carries no frame, which keeps it to this
 // rule rather than the document count rule.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       ste.IDStaleCount,
-		Category: RuleSTE,
+		Category: RuleCounts,
 		Detect:   detectStaleCount,
 		Autofix:  autofixStaleCount,
 		Cases: []RuleCase{
