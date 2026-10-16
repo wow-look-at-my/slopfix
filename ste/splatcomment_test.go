@@ -19,7 +19,7 @@ var splatComments = []struct{ in, want string }{
 	},
 	{
 		"animation-prepack-equivalence - the animation pre-pack's byte gate: every adopted frame of a synthetic clip lands records, cubeBuf, C and a rendered image equal to the live async tick wire's, on the copy and the in-place (UMA direct) row wires; a repeated C reuses its pipeline triple; an edge repack of an adopted frame and a resumed live tick match too.",
-		"animation-prepack-equivalence - the animation pre-pack's byte gate. Every adopted frame of a synthetic clip lands records and cubeBuf. Every adopted frame also lands C and a rendered image equal to the live async tick wire's. That frame is on the copy and the in-place (UMA direct) row wires. A repeated C reuses its pipeline triple. An edge repack of an adopted frame and a resumed live tick match too.",
+		"animation-prepack-equivalence - the animation pre-pack's byte gate. Every adopted frame of a synthetic clip lands records and cubeBuf. It also lands C and a rendered image equal to the live async tick wire's, on the copy and the in-place (UMA direct) row wires. A repeated C reuses its pipeline triple. An edge repack of an adopted frame and a resumed live tick match too.",
 	},
 	{
 		"It carries a capital, a digit, an underscore or a dot inside it, or it is a single letter other than the article, as a variable such as q is.",

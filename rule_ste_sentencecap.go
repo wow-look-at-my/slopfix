@@ -251,11 +251,11 @@ add_test(NAME animation-prepack-equivalence
 
 const coordinatedObjectsWant = `# animation-prepack-equivalence - the animation pre-pack's byte gate. Every
 # adopted frame of a synthetic clip lands records and cubeBuf. It also lands
-# C and a rendered image equal to the live async tick wire's. That frame is
-# on the copy and the in-place (UMA direct) row wires. A repeated C reuses
-# its pipeline triple. An edge repack of an adopted frame and a resumed live
-# tick match too. The parking leg packs a real multi-round chain at the
-# default chunk clamp.
+# C and a rendered image equal to the live async tick wire's, on the copy
+# and the in-place (UMA direct) row wires. A repeated C reuses its pipeline
+# triple. An edge repack of an adopted frame and a resumed live tick match
+# too. The parking leg packs a real multi-round chain at the default chunk
+# clamp.
 add_test(NAME animation-prepack-equivalence
   COMMAND $<TARGET_FILE:splat-vulkan> ${PARKING} --max-splats 5000 --fgen-test prepack
           --cube-edge 1 --validate)
