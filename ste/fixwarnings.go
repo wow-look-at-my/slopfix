@@ -345,15 +345,20 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	return -1, -1, false
 }
 
-// bridgedRun answers the end of the noun run that follows a plus, an ampersand.
-// A slash or a bar after the run from start to end. The marks join noun
-// phrases, and the repair writes the conjunction. A list of single names is no
-// cluster, so one side must be a phrase of at least nouns.
+// bridgedRun answers the end of the noun run behind a mark that stands for a
+// conjunction, after the run from start to end. The mark joins noun phrases, and
+// the repair writes the conjunction. A list of single names is no cluster, so one
+// side must hold a multi-noun phrase. A hyphenated compound such as session-token
+// is a noun here, though the tagger reads it as an adjective.
 func bridgedRun(s *syntax.Sentence, noun func(int) bool, start, end, last int) (int, bool) {
 	if end+2 > last {
 		return 0, false
 	}
-	if _, isMark := markConjunctions[s.Words[end+1].Text]; !isMark || !noun(end+2) {
+	part := func(k int) bool {
+		w := s.Words[k]
+		return noun(k) || w.Tag == "JJ" && strings.Contains(w.Text, "-") && wordlike(w.Text)
+	}
+	if _, isMark := markConjunctions[s.Words[end+1].Text]; !isMark || !part(end+2) {
 		return 0, false
 	}
 	far := end + 2
