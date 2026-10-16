@@ -163,7 +163,7 @@ func fixSplices(prose string) string {
 	masked := checkMask(prose)
 	var joiners [][]int
 	var openers []string
-	parens := parenAsides(masked)
+	parens := parenthetical.FindAllStringIndex(masked, -1)
 	for _, loc := range commaSplice.FindAllStringSubmatchIndex(masked, -1) {
 		if insideAny(parens, loc[0]) || !spliced(masked, loc) {
 			continue
@@ -277,7 +277,7 @@ func absoluteTail(masked string, from int, spans [][2]int) (to, last int, ok boo
 // parenthetical, which STE counts as a single word and a break would halve.
 func offLimits(prose, masked string) [][]int {
 	off := verbatimSpan.FindAllStringIndex(prose, -1)
-	return append(off, parenAsides(masked)...)
+	return append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 }
 
 // mask writes filler over every span strip hides from Check, byte for byte,

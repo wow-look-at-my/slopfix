@@ -82,14 +82,14 @@ func TestNumbersInAHashCommentCodeBlockAreLeftAlone(t *testing.T) {
 	assert.Equal(t, src, Fix("x.py", src).Text)
 }
 
-// displayShapeRow is the code row of ffs.impl.bash's displayShape comment.
-const displayShapeRow = "//\te<Name>;  enum   l<shape>  list of shape   m<key><val>  map   .  anything else"
+// displayShapeRow is the code row of a comment that documents an encoding.
+const displayShapeRow = "//\te<Name>;  tag    l<shape>  list of shape   m<key><val>  map   .  anything else"
 
 // displayShapeSource is that comment over its function. The comment runs
 // longer than the code, so the length repair cuts it.
 const displayShapeSource = "package codegen\n\n" +
-	"// displayShape encodes where enums sit inside a type, for the runtime's\n" +
-	"// display walk. Empty means the type holds no enum, and the ordinary\n" +
+	"// displayShape encodes where tags sit inside a type, for the printer's\n" +
+	"// walk. Empty means the type holds no tag, and the ordinary\n" +
 	"// rendering applies. Encoding (prefix form, parses left to right):\n" +
 	"//\n" +
 	displayShapeRow + "\n" +
@@ -131,13 +131,13 @@ func TestACutNeverJoinsACodeRowIntoProse(t *testing.T) {
 	require.True(t, changed)
 
 	assert.NotContains(t, out, "map. anything else")
-	assert.NotContains(t, out, "e<Name>; enum")
+	assert.NotContains(t, out, "e<Name>; tag")
 	for _, line := range strings.Split(out, "\n") {
 		if strings.Contains(line, "e<Name>") {
 			assert.Equal(t, displayShapeRow, line, "a code row survives whole or not at all")
 		}
 	}
-	assert.Contains(t, out, "// displayShape encodes where enums sit inside a type")
+	assert.Contains(t, out, "// displayShape encodes where tags sit inside a type")
 	assert.Empty(t, CheckLength("alloc.go", out))
 }
 

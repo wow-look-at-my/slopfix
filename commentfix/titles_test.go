@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// exporterSource is tampermonkey's test/harness/page.ts at EXPORTER_MODULE: a
+// exporterSource is a test harness page.ts at EXPORTER_MODULE: a
 // one-line JSDoc, then a line comment, over the constant.
 const exporterSource = "import path from 'node:path';\n" +
 	"\n" +
@@ -18,7 +18,7 @@ const exporterSource = "import path from 'node:path';\n" +
 	"// A file path avoids both problems.\n" +
 	"export const EXPORTER_MODULE = path.resolve(\n" +
 	"\timport.meta.dirname,\n" +
-	"\t'../../src/Claude/export-session-markdown.user.ts',\n" +
+	"\t'../../src/exporter.user.ts',\n" +
 	");\n"
 
 // A one-line JSDoc closes a sentence, so the cut keeps it and drops what follows.
@@ -33,25 +33,25 @@ func TestAOneLineJSDocIsAnOpeningTheCutKeeps(t *testing.T) {
 	assert.Empty(t, CheckLength("page.ts", out))
 }
 
-// steerSource is splat-webgpu's froxel-path.ts banner over the steer constant.
-const steerSource = "const GOV_FALLBACK_UNDER = 0.75;\n" +
+// steerSource is a banner over a steer constant.
+const steerSource = "const FALLBACK_UNDER = 0.75;\n" +
 	"// ---- continuous wall-clock steer (hybrid signal) ----------------------------\n" +
-	"// Per-pass timestamps cannot see INTER-pass or submission overhead, so the steer\n" +
+	"// Per-pass timestamps cannot see the overhead between passes, so the steer\n" +
 	"// reads the wall clock between presents and folds it into the model each frame.\n" +
 	"const STEER_GAIN = 0.2;\n"
 
 // A banner names a section, so the cut keeps the title and drops the prose under it.
 func TestABannerIsAnOpeningTheCutKeeps(t *testing.T) {
-	hits := CheckLength("froxel-path.ts", steerSource)
+	hits := CheckLength("steer.ts", steerSource)
 	require.Len(t, hits, 1, "the control: the comment outweighs its code")
 	assert.True(t, hits[0].Repairable, hits[0].Tell)
 
-	out, changed := FixLength("froxel-path.ts", steerSource)
+	out, changed := FixLength("steer.ts", steerSource)
 	require.True(t, changed)
 	assert.Contains(t, out, "// ---- continuous wall-clock steer (hybrid signal) ----")
 	assert.NotContains(t, out, "Per-pass")
 	assert.True(t, strings.HasSuffix(out, "const STEER_GAIN = 0.2;\n"), out)
-	assert.Empty(t, CheckLength("froxel-path.ts", out))
+	assert.Empty(t, CheckLength("steer.ts", out))
 }
 
 // A rule of marks with no title is no sentence.
