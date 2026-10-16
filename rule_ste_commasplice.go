@@ -2,13 +2,12 @@ package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
 
-// ste/comma-splice: a comma joining clauses is the semicolon STE bans,
-// spelled differently. The repair writes a period and capitalizes the next
-// word.
+// english/comma-splice: a comma joins clauses that each stand alone. The
+// repair writes a period and capitalizes the next word.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       ste.IDCommaSplice,
-		Category: RuleSTE,
+		Category: RuleEnglish,
 		Detect:   detectCommaSplice,
 		Autofix:  autofixCommaSplice,
 		Cases: []RuleCase{

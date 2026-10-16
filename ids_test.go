@@ -62,7 +62,10 @@ func TestAnUnsortedListingIsNotWhatIsPrinted(t *testing.T) {
 // Every category answers with a set too, so a caller never falls back to a scan
 // over a materialised slice.
 func TestEveryCategoryAnswersWithASet(t *testing.T) {
-	assert.True(t, slopfix.IDsFor(slopfix.RuleSTE).Contains(ste.IDSemicolon))
+	assert.True(t, slopfix.IDsFor(slopfix.RuleEnglish).Contains(ste.IDSemicolon))
+	assert.False(t, slopfix.IDsFor(slopfix.RuleSTE).Contains(ste.IDSemicolon))
+	assert.True(t, slopfix.IDsFor(slopfix.RuleCounts).Contains(ste.IDStaleCount))
+	assert.True(t, slopfix.IDsFor(slopfix.RuleCounts).Contains(ste.IDPostdeterminer))
 	assert.True(t, slopfix.IDsFor(slopfix.RuleWrap).Contains(slopfix.IDHardWrap))
 	assert.True(t, slopfix.IDsFor(slopfix.RuleTombstones).Contains(tombstones.IDVolume))
 	assert.False(t, slopfix.IDsFor(slopfix.RuleCounts).Contains(ste.IDSemicolon))
