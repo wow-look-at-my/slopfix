@@ -195,7 +195,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restate(source, prev, rest), opensWithCarrier
 	case describes && !predicateFollows && (word.Tag == "VBN" || word.Tag == "VBG") && first+1 < len(whole.Words) && !strings.HasPrefix(whole.Words[first+1].Tag, "NN"):
 		return head, restate(source, prev, rest), opensWithCarrier
-	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
+	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && (plainPhrase(whole, first+2) || relativeTail(whole, first+2)):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
 	case seam == "" && noun && !indefinites.Contains(prev.Lower()) && (lower == "that" || lower == "which") && relativeWithSubject(whole, first):
 		// "a plugin that the later run took from a cache": the relative clause has a subject of its own.
@@ -493,6 +493,17 @@ func standsWithMainClause(rest string) bool {
 	}
 	if startsWithPreposition(rest) {
 		return finiteOutsideRelative(syntax.Parse(checkMask(rest), nil), 0)
+	}
+	return true
+}
+
+// relativeTail reports the words from i to the end as the rest of a relative
+// clause whose antecedent sits behind the main verb.
+func relativeTail(s *syntax.Sentence, i int) bool {
+	for _, w := range s.Words[min(i, len(s.Words)):] {
+		if w.Tag == "CC" || w.Text == ":" || w.Text == ";" {
+			return false
+		}
 	}
 	return true
 }
