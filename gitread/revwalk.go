@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/heap"
 	"fmt"
+	"github.com/wow-look-at-my/go-containers/set"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -175,20 +176,20 @@ func (q *commitQueue) Pop() any {
 // git rev-list prints. A visit that answers false stops the walk.
 func (r *Repo) Walk(starts []OID, visit func(*Commit) bool) error {
 	q := &commitQueue{}
-	seen := map[OID]bool{}
+	seen := set.New[OID]()
 	for _, s := range starts {
 		oid, err := r.PeelCommit(s)
 		if err != nil {
 			return err
 		}
-		if seen[oid] {
+		if seen.Contains(oid) {
 			continue
 		}
 		c, err := r.Commit(oid)
 		if err != nil {
 			return err
 		}
-		seen[oid] = true
+		seen.Add(oid)
 		heap.Push(q, c)
 	}
 	for q.Len() > 0 {
@@ -197,10 +198,10 @@ func (r *Repo) Walk(starts []OID, visit func(*Commit) bool) error {
 			return nil
 		}
 		for _, p := range c.Parents {
-			if seen[p] {
+			if seen.Contains(p) {
 				continue
 			}
-			seen[p] = true
+			seen.Add(p)
 			pc, err := r.Commit(p)
 			if err != nil {
 				// A partial history ends where its objects end.
@@ -229,9 +230,9 @@ func (r *Repo) FirstParent(oid OID) ([]OID, error) {
 		return nil, err
 	}
 	var out []OID
-	seen := map[OID]bool{}
-	for !seen[oid] {
-		seen[oid] = true
+	seen := set.New[OID]()
+	for !seen.Contains(oid) {
+		seen.Add(oid)
 		out = append(out, oid)
 		c, err := r.Commit(oid)
 		if err != nil || len(c.Parents) == 0 {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
@@ -232,15 +233,15 @@ func TestIgnoreMatchesCheckIgnore(t *testing.T) {
 	cmd := exec.Command("git", append([]string{"check-ignore", "--no-index", "-z", "--"}, paths...)...)
 	cmd.Dir = dir
 	raw, _ := cmd.Output()
-	want := map[string]bool{}
+	want := set.New[string]()
 	for _, p := range strings.Split(string(raw), "\x00") {
-		want[p] = true
+		want.Add(p)
 	}
 	ignore := repo.Ignore()
 	for _, p := range paths {
 		info, err := os.Stat(filepath.Join(dir, p))
 		isDir := err == nil && info.IsDir()
-		assert.Equal(t, want[p], ignore.Ignored(p, isDir), p)
+		assert.Equal(t, want.Contains(p), ignore.Ignored(p, isDir), p)
 	}
 }
 
