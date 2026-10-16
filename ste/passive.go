@@ -15,7 +15,7 @@ import (
 func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	last := lastContent(s)
 	i, j := auxiliary(s, 1, beForms)
-	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" || !isParticiple(s.Words[j].Lower()) {
+	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
 		return "", false
 	}
 	if !simpleSpan(s, i, j) {
@@ -191,14 +191,6 @@ func passiveVerb(participle, beWord string, plural bool) string {
 		return pastFromParticiple(participle)
 	}
 	return presentOf(baseFromParticiple(participle), plural)
-}
-
-// isParticiple reports a past participle: a form the verb table holds, or a regular -ed form. "solid" after "be" is an adjective.
-func isParticiple(form string) bool {
-	if v, ok := verbBy(form); ok && v.participle == form {
-		return true
-	}
-	return strings.HasSuffix(form, "ed")
 }
 
 // baseFromParticiple answers the verb a participle belongs to. A regular verb

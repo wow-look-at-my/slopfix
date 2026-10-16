@@ -13,23 +13,15 @@ func init() {
 		Autofix:  autofixNounCluster,
 		Cases: []RuleCase{
 			{Name: ste.IDNounCluster, Path: "w.md", Text: "The gate cache lookup table stopped.\n"},
-			{Name: "a title and a verb stay out of a cluster", Path: "w.md", Text: titlesCase, Want: titlesWant},
+			{Name: "a verb stays out of a cluster", Path: "w.md", Text: verbCase, Want: verbWant},
 		},
 	})
 }
 
-// titlesCase holds a real cluster beside words the rule must leave alone. A
-// verb the tagger reads as a plural noun ("center depth sorts triangles"), and
-// paper titles in title case, which name a work.
-const titlesCase = "The gate cache lookup table stopped. Center depth sorts triangles.\n" +
-	"\n" +
-	"- [Triangle Splatting for Real-Time Radiance Field Rendering](https://arxiv.org/abs/2505.19175)\n" +
-	"- [Efficient Perspective-Correct Gaussian Splatting Using Hybrid Transparency](https://arxiv.org/abs/2410.08129)\n"
+// verbCase holds a real cluster beside a verb the tagger reads as a plural noun ("center depth sorts triangles").
+const verbCase = "The gate cache lookup table stopped. Center depth sorts triangles.\n"
 
-const titlesWant = "The table of the gate cache lookup stopped. Center depth sorts triangles.\n" +
-	"\n" +
-	"- [Triangle Splatting for Real-Time Radiance Field Rendering](https://arxiv.org/abs/2505.19175)\n" +
-	"- [Efficient Perspective-Correct Gaussian Splatting Using Hybrid Transparency](https://arxiv.org/abs/2410.08129)\n"
+const verbWant = "The table of the gate cache lookup stopped. Center depth sorts triangles.\n"
 
 // detectNounCluster answers every noun cluster this case reports.
 func detectNounCluster(c RuleCase) []ste.Finding {

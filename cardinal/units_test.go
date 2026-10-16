@@ -20,17 +20,6 @@ func TestAMeasurementIsStillReported(t *testing.T) {
 	}
 }
 
-// A value in a comment is no count: the value of a flag, a member of a set
-// literal, or one side of an assignment.
-func TestACommentValueIsNoCount(t *testing.T) {
-	for _, prose := range []string{
-		"which is what makes --warp-field 0 the pre-field warp.",
-		"(N in {1,2,4,8}; 0 = off)",
-	} {
-		assert.Empty(t, cardinal.Find(prose, cardinal.Comment), "comment: %s", prose)
-	}
-}
-
 // The control. A cardinal governing items the reader can go and count is what
 // the rule is for, and it still fires.
 func TestATallyOfItemsIsStillACount(t *testing.T) {

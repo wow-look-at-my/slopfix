@@ -49,24 +49,6 @@ func LabeledToken(_ string, toks []Token, i int) bool {
 	return InClass(strings.Trim(toks[i-1].Text, nameMarkers), "label")
 }
 
-// ValueToken exempts a number that states a value rather than counting a set.
-// A flag takes one: "--warp-field 0". A set literal holds one: "{1,2,4,8}". An
-// assignment sets one: "0 = off".
-func ValueToken(text string, toks []Token, i int) bool {
-	tok := toks[i]
-	if !allDigits(tok.Text) {
-		return false
-	}
-	before := strings.Fields(text[:tok.Offset])
-	if n := len(before); n > 0 && strings.HasPrefix(before[n-1], "-") && strings.IndexFunc(before[n-1], unicode.IsLetter) >= 0 {
-		return true
-	}
-	if open := strings.LastIndex(text[:tok.Offset], "{"); open >= 0 && !strings.Contains(text[open:tok.Offset], "}") {
-		return true
-	}
-	return strings.HasPrefix(strings.TrimLeft(text[tok.Offset+len(tok.Text):], " \t"), "=")
-}
-
 // MeasureToken exempts a number whose plural noun takes a singular verb: "43
 // cols is less than the cap". The phrase is one measured amount, a value of a
 // test or a format, and a cut leaves "cols is".

@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -68,6 +69,20 @@ func TestFixCutsADeadNameFromADocument(t *testing.T) {
 // A dead name that differs from a defined one in case alone is a typo. Fix
 // renames it and keeps the line, which holds the opening sentence too.
 func TestFixRenamesACaseTypoToTheDefinedName(t *testing.T) {
+	path := deadReferentRepo(t, "os_cosmo_nt_msg.go")
+	content := "package runtime\n\n" +
+		"// ntSCMParse walks a Linux cmsg buffer. NtSCMParse collects the SCM_RIGHTS\n" +
+		"// payload fds, with the kernel's exact acceptance rules.\n" +
+		"func ntSCMParse() {\n" + strings.Repeat("\tstep()\n", 8) + "}\n"
+
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.NotContains(t, fixed.Text, "NtSCMParse")
+	assert.Contains(t, fixed.Text, "// ntSCMParse walks a Linux cmsg buffer. ntSCMParse collects the SCM_RIGHTS")
+	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
+}
+
+// The same typo above a short body.
+func TestFixRenamesACaseTypoAboveAShortBody(t *testing.T) {
 	path := deadReferentRepo(t, "os_cosmo_nt_msg.go")
 	content := "package runtime\n\n" +
 		"// ntSCMParse walks a Linux cmsg buffer. NtSCMParse collects the SCM_RIGHTS\n" +

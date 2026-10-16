@@ -206,6 +206,9 @@ func retag(words []Word) {
 		case (w.Tag == "NN" || w.Tag == "VB") && i > 1 && words[i-2].Tag == "NNS" && Is(words[i-1].Text, "postposed") && i+1 < len(words) && words[i+1].Tag == "IN":
 			// "the cases above pass on a repair": after a plural noun and its place word, the bare form is the verb.
 			w.Tag = "VBP"
+		case (w.Tag == "VBN" || w.Tag == "VBD") && Is(lower, "adjective"):
+			// "cannot be solid": the tagger reads some adjectives as past participles.
+			w.Tag = "JJ"
 		case lower == "cannot":
 			// The tagger reads "cannot" as a noun.
 			w.Tag = "MD"
