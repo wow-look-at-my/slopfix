@@ -1,14 +1,18 @@
 package forkscope
 
 import (
-	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // Lines is the part of a fork's work tree that the fork wrote.
@@ -30,69 +34,241 @@ func (b *Base) Lines() (*Lines, error) {
 		return nil, fmt.Errorf("fork scope: %w", err)
 	}
 	own := &Lines{top: resolved, commit: b.commit, whole: set.New[string](), lines: map[string]set.Set[int]{}}
-	diff, err := gitIn(b.top, "-c", "core.quotePath=false", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff",
-		"--src-prefix=a/", "--dst-prefix=b/", b.commit, "--")
+	base, repo, err := resolve(b.top, b.commit)
 	if err != nil {
-		return nil, fmt.Errorf("fork scope: diff against the base %s: %w", b.commit, err)
-	}
-	if err := own.readDiff(diff); err != nil {
 		return nil, err
 	}
-	untracked, err := gitIn(b.top, "ls-files", "-z", "--others", "--exclude-standard")
-	if err != nil {
-		return nil, fmt.Errorf("fork scope: %w", err)
-	}
-	for name := range strings.SplitSeq(untracked, "\x00") {
-		if name != "" {
-			own.whole.Add(filepath.ToSlash(name))
-		}
+	if err := own.readWorkTree(repo, base, Changed, true); err != nil {
+		return nil, fmt.Errorf("fork scope: diff against the base %s: %w", b.commit, err)
 	}
 	if b.upstream != "" {
-		if err := own.dropUpstreamVersions(b.top, b.upstream); err != nil {
+		if err := own.dropUpstreamVersions(repo, b.upstream); err != nil {
 			return nil, err
 		}
 	}
 	return own, nil
 }
 
+// pair is a tracked file that differs from the base: its base blob and its new text.
+type pair struct {
+	name   string
+	before gitread.OID
+	after  []byte
+}
+
+// readWorkTree records each tracked file whose work tree copy differs from
+// base, as a diff of the work tree against base names it. With untracked, it
+// records each untracked file git does not ignore as whole too.
+func (o *Lines) readWorkTree(repo *gitread.Repo, base gitread.OID, lines func(before, after string) *Scope, untracked bool) error {
+	idx, err := repo.Index()
+	if err != nil {
+		return err
+	}
+	changed, others, err := repo.Changes(base)
+	if err != nil {
+		return err
+	}
+	if untracked {
+		for _, name := range others {
+			o.whole.Add(name)
+		}
+	}
+	unmerged := set.New[string]()
+	for _, e := range idx.Entries() {
+		if e.Stage != 0 {
+			unmerged.Add(e.Path)
+		}
+	}
+	var pairs []pair
+	for _, name := range changed {
+		// A path the index dropped is a deletion, which adds no line.
+		entry, ok := idx.Tracked()[name]
+		if ok && entry.IsGitlink() || !ok && !unmerged.Contains(name) {
+			continue
+		}
+		after, err := readWorkFile(repo.WorkTree(), name)
+		if err != nil {
+			// The file is gone, so the diff deletes it and adds no line.
+			continue
+		}
+		before, ok, err := repo.TreeEntryAt(base, name)
+		if err != nil {
+			return err
+		}
+		if !ok || before.IsDir() {
+			o.whole.Add(name)
+			continue
+		}
+		pairs = append(pairs, pair{name, before.OID, after})
+	}
+	return o.addPairs(repo, pairs, lines)
+}
+
+// addPairs records the lines each pair's new text adds. A binary file counts whole.
+func (o *Lines) addPairs(repo *gitread.Repo, pairs []pair, lines func(before, after string) *Scope) error {
+	oids := make([]gitread.OID, len(pairs))
+	for i, p := range pairs {
+		oids[i] = p.before
+	}
+	blobs, err := readBlobs(o.top, repo, oids)
+	if err != nil {
+		return err
+	}
+	attrs := repo.Attributes()
+	for _, p := range pairs {
+		before := blobs[p.before]
+		if bytes.Equal(before, p.after) {
+			continue
+		}
+		if isBinary(before) || isBinary(p.after) || attrs.Value(p.name, "diff") == gitread.AttrUnset {
+			o.whole.Add(p.name)
+			continue
+		}
+		if scope := lines(string(before), string(p.after)); scope.lines.Len() > 0 {
+			o.lines[p.name] = scope.lines
+		}
+	}
+	return nil
+}
+
+// binarySniff is how far into a file git looks for a NUL byte.
+const binarySniff = 8000
+
+// isBinary reports content git's diff treats as binary: a NUL byte near its start.
+func isBinary(data []byte) bool {
+	return bytes.IndexByte(data[:min(len(data), binarySniff)], 0) >= 0
+}
+
+// readWorkFile reads a work tree file, or the target of a symlink, as git hashes it.
+func readWorkFile(top, name string) ([]byte, error) {
+	path := filepath.Join(top, filepath.FromSlash(name))
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := os.Readlink(path)
+		return []byte(filepath.ToSlash(target)), err
+	}
+	return os.ReadFile(path)
+}
+
+// readBlobs answers the content of each blob. A partial clone leaves blobs on
+// its promisor remote, so the missing ones are fetched in one git call, as git
+// diff fetches them.
+func readBlobs(top string, repo *gitread.Repo, oids []gitread.OID) (map[gitread.OID][]byte, error) {
+	out := map[gitread.OID][]byte{}
+	var missing []gitread.OID
+	for _, oid := range oids {
+		if data, ok := repo.Blob(oid); ok {
+			out[oid] = data
+		} else {
+			missing = append(missing, oid)
+		}
+	}
+	if len(missing) == 0 {
+		return out, nil
+	}
+	if err := fetchBlobs(top, repo, missing); err != nil {
+		return nil, err
+	}
+	for _, oid := range missing {
+		data, ok := repo.Blob(oid)
+		if !ok {
+			return nil, fmt.Errorf("fork scope: the blob %s is not in the repository, and its promisor remote did not supply it", oid)
+		}
+		out[oid] = data
+	}
+	return out, nil
+}
+
+// fetchBlobs asks the promisor remote for blobs by name, the call git makes
+// for a lazy fetch.
+func fetchBlobs(top string, repo *gitread.Repo, oids []gitread.OID) error {
+	remote := repo.PromisorRemote()
+	if remote == "" {
+		return fmt.Errorf("fork scope: the blob %s is not in the repository, and no promisor remote holds it", oids[0])
+	}
+	names := make([]string, len(oids))
+	for i, oid := range oids {
+		names[i] = oid.String()
+	}
+	cmd := exec.Command("git", "-c", "fetch.negotiationAlgorithm=noop", "fetch", remote, "--quiet", "--no-tags",
+		"--no-write-fetch-head", "--recurse-submodules=no", "--filter=blob:none", "--stdin")
+	cmd.Dir = top
+	cmd.Stdin = strings.NewReader(strings.Join(names, "\n") + "\n")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("fork scope: fetch the missing blobs from %s: %w: %s", remote, err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// blobAt answers the text of rel at commit, or false when commit holds no such file.
+func blobAt(top, commit, rel string) (string, bool, error) {
+	oid, repo, err := resolve(top, commit)
+	if err != nil {
+		return "", false, err
+	}
+	entry, ok, err := repo.TreeEntryAt(oid, rel)
+	if err != nil {
+		return "", false, fmt.Errorf("fork scope: %w", err)
+	}
+	if !ok || entry.IsDir() {
+		return "", false, nil
+	}
+	blobs, err := readBlobs(top, repo, []gitread.OID{entry.OID})
+	if err != nil {
+		return "", false, err
+	}
+	return string(blobs[entry.OID]), true, nil
+}
+
 // dropUpstreamVersions removes each clean file whose content a commit of
 // upstream gave that path. An upstream sync brings such a file in whole, so
 // the fork wrote none of it.
-func (o *Lines) dropUpstreamVersions(top, upstream string) error {
-	raw, err := gitIn(top, "log", upstream, "--format=", "--raw", "--no-abbrev", "--no-renames", "-z")
+func (o *Lines) dropUpstreamVersions(repo *gitread.Repo, upstream string) error {
+	tip, _, err := resolve(o.top, upstream)
+	if err != nil {
+		return err
+	}
+	head, _, err := resolve(o.top, "HEAD")
+	if err != nil {
+		return err
+	}
+	dirty, _, err := repo.Changes(head)
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	edited := set.Of(dirty...)
+	idx, err := repo.Index()
+	if err != nil {
+		return fmt.Errorf("fork scope: %w", err)
+	}
+	// Only a clean staged file can be dropped, so the walk reads only the directories that hold one.
+	staged := map[string]set.Set[gitread.OID]{}
+	dirs := set.Of("")
+	for _, e := range idx.Entries() {
+		if edited.Contains(e.Path) {
+			continue
+		}
+		if staged[e.Path] == nil {
+			staged[e.Path] = set.New[gitread.OID]()
+		}
+		staged[e.Path].Add(e.OID)
+		for dir := path.Dir(e.Path); dir != "." && !dirs.Contains(dir); dir = path.Dir(dir) {
+			dirs.Add(dir)
+		}
+	}
+	known := set.New[string]()
+	err = repo.HistoryVersions(tip, dirs.Contains, func(name string, blob gitread.OID) {
+		if oids, ok := staged[name]; ok && oids.Contains(blob) {
+			known.Add(name)
+		}
+	})
 	if err != nil {
 		return fmt.Errorf("fork scope: list the file versions of the upstream %s: %w", upstream, err)
 	}
-	known := set.New[string]()
-	fields := strings.Split(raw, "\x00")
-	for i := 0; i+1 < len(fields); i++ {
-		head := strings.TrimSpace(fields[i])
-		if !strings.HasPrefix(head, ":") {
-			continue
-		}
-		if meta := strings.Fields(head[1:]); len(meta) >= 4 {
-			known.Add(fields[i+1] + "\x00" + meta[3])
-		}
-		i++
-	}
-	dirty, err := gitIn(top, "diff", "--name-only", "-z", "HEAD", "--")
-	if err != nil {
-		return fmt.Errorf("fork scope: %w", err)
-	}
-	edited := set.New[string]()
-	for name := range strings.SplitSeq(dirty, "\x00") {
-		edited.Add(name)
-	}
-	staged, err := gitIn(top, "ls-files", "-s", "-z")
-	if err != nil {
-		return fmt.Errorf("fork scope: %w", err)
-	}
-	for entry := range strings.SplitSeq(staged, "\x00") {
-		meta, name, ok := strings.Cut(entry, "\t")
-		parts := strings.Fields(meta)
-		if !ok || len(parts) < 2 || edited.Contains(name) || !known.Contains(name+"\x00"+parts[1]) {
-			continue
-		}
+	for name := range known.All() {
 		delete(o.lines, name)
 		o.whole.Remove(name)
 	}
@@ -106,16 +282,12 @@ func (b *Base) File(path, text string) (*Scope, error) {
 	if err != nil {
 		return nil, err
 	}
-	listed, err := gitIn(b.top, "ls-tree", "-z", "--full-name", b.commit, "--", rel)
-	if err != nil {
-		return nil, fmt.Errorf("fork scope: %w", err)
-	}
-	if listed == "" {
-		return Whole(), nil
-	}
-	upstream, err := gitIn(b.top, "cat-file", "blob", b.commit+":"+rel)
+	upstream, ok, err := blobAt(b.top, b.commit, rel)
 	if err != nil {
 		return nil, fmt.Errorf("fork scope: read %s at the base: %w", rel, err)
+	}
+	if !ok {
+		return Whole(), nil
 	}
 	return Changed(upstream, text), nil
 }
@@ -150,6 +322,11 @@ func relTo(top, path string) (string, error) {
 
 // Changed answers the lines of after that differ from before.
 func Changed(before, after string) *Scope {
+	return added(before, after).ClaimWordless(after)
+}
+
+// added answers the lines of after that a diff from before inserts or replaces.
+func added(before, after string) *Scope {
 	s := &Scope{base: func() (string, error) { return before, nil }}
 	for _, op := range opcodes(before, after) {
 		if op.Tag != 'r' && op.Tag != 'i' {
@@ -159,7 +336,7 @@ func Changed(before, after string) *Scope {
 			s.lines.Add(j + 1)
 		}
 	}
-	return s.ClaimWordless(after)
+	return s
 }
 
 // ClaimWordless answers s with each line of text that holds no word, where the
@@ -198,152 +375,6 @@ func claimWordless(s *Scope, lines []string) {
 	}
 }
 
-// readDiff records what a zero-context diff added. A hunk header gives the
-// count of lines on each side, so a content line is never read as a header.
-func (o *Lines) readDiff(diff string) error {
-	scanner := bufio.NewScanner(strings.NewReader(diff))
-	scanner.Buffer(make([]byte, 0, 64*1024), 64*1024*1024)
-	var file string
-	created := false
-	for scanner.Scan() {
-		line := scanner.Text()
-		switch {
-		case strings.HasPrefix(line, "diff --git "):
-			file, created = "", false
-		case line == "--- /dev/null":
-			created = true
-		case strings.HasPrefix(line, "+++ "):
-			name, err := diffPath(strings.TrimPrefix(line, "+++ "))
-			if err != nil {
-				return err
-			}
-			file = name
-			if file != "" && created {
-				o.whole.Add(file)
-			}
-		case strings.HasPrefix(line, "Binary files ") && strings.HasSuffix(line, " differ"):
-			name, err := binaryDiffPath(strings.TrimSuffix(strings.TrimPrefix(line, "Binary files "), " differ"))
-			if err != nil {
-				return err
-			}
-			if name != "" {
-				o.whole.Add(name)
-			}
-		case strings.HasPrefix(line, "@@ "):
-			start, count, err := hunkNew(line)
-			if err != nil {
-				return err
-			}
-			if err := o.addHunk(scanner, file, start, count, hunkOldCount(line)); err != nil {
-				return err
-			}
-		}
-	}
-	return scanner.Err()
-}
-
-// addHunk records a hunk's new lines and reads past its body.
-func (o *Lines) addHunk(scanner *bufio.Scanner, file string, start, added, removed int) error {
-	if file != "" && added > 0 {
-		lines, ok := o.lines[file]
-		if !ok {
-			lines = set.New[int]()
-			o.lines[file] = lines
-		}
-		for n := start; n < start+added; n++ {
-			lines.Add(n)
-		}
-	}
-	for added > 0 || removed > 0 {
-		if !scanner.Scan() {
-			return fmt.Errorf("fork scope: the diff of %s ends inside a hunk", file)
-		}
-		switch body := scanner.Text(); {
-		case strings.HasPrefix(body, "+"):
-			added--
-		case strings.HasPrefix(body, "-"):
-			removed--
-		}
-	}
-	return nil
-}
-
-// diffPath answers the path a "+++" header names, or "" for /dev/null.
-func diffPath(field string) (string, error) {
-	if field == "/dev/null" {
-		return "", nil
-	}
-	if strings.HasPrefix(field, `"`) {
-		unquoted, err := strconv.Unquote(field)
-		if err != nil {
-			return "", fmt.Errorf("fork scope: the diff names %s, which does not unquote: %w", field, err)
-		}
-		field = unquoted
-	}
-	return strings.TrimPrefix(field, "b/"), nil
-}
-
-// binaryDiffPath answers the new path of a binary diff's "A and B" pair, or ""
-// for a deleted file. The diff runs with --no-renames, so A and B name one path
-// unless a side is /dev/null. The halves therefore split at the middle " and ".
-func binaryDiffPath(pair string) (string, error) {
-	if newSide, ok := strings.CutPrefix(pair, "/dev/null and "); ok {
-		return diffPath(newSide)
-	}
-	if strings.HasSuffix(pair, " and /dev/null") {
-		return "", nil
-	}
-	refused := fmt.Errorf("fork scope: the binary diff %q does not name one path on each side", pair)
-	half := (len(pair) - len(" and ")) / 2
-	if half <= 0 || pair[half:half+len(" and ")] != " and " {
-		return "", refused
-	}
-	oldSide, err := diffPath(strings.Replace(pair[:half], "a/", "b/", 1))
-	if err != nil {
-		return "", err
-	}
-	newSide, err := diffPath(pair[half+len(" and "):])
-	if err != nil {
-		return "", err
-	}
-	if oldSide != newSide {
-		return "", refused
-	}
-	return newSide, nil
-}
-
-// hunkRange reads "start[,count]" after the sign of a hunk header side.
-func hunkRange(side string) (start, count int, err error) {
-	first, rest, ranged := strings.Cut(side, ",")
-	if start, err = strconv.Atoi(first); err != nil {
-		return 0, 0, err
-	}
-	if !ranged {
-		return start, 1, nil
-	}
-	count, err = strconv.Atoi(rest)
-	return start, count, err
-}
-
-// hunkNew answers the first new line and the new line count of "@@ -a,b +c,d @@".
-func hunkNew(header string) (start, count int, err error) {
-	fields := strings.Fields(header)
-	if len(fields) < 3 || !strings.HasPrefix(fields[2], "+") {
-		return 0, 0, fmt.Errorf("fork scope: %q is not a hunk header", header)
-	}
-	start, count, err = hunkRange(strings.TrimPrefix(fields[2], "+"))
-	if err != nil {
-		return 0, 0, fmt.Errorf("fork scope: %q is not a hunk header: %w", header, err)
-	}
-	return start, count, nil
-}
-
-// hunkOldCount answers the line count of a header hunkNew already read.
-func hunkOldCount(header string) int {
-	_, count, _ := hunkRange(strings.TrimPrefix(strings.Fields(header)[1], "-"))
-	return count
-}
-
 // rel answers path relative to the work tree, in slash form.
 func (o *Lines) rel(path string) string {
 	abs, err := filepath.Abs(path)
@@ -371,7 +402,10 @@ func (o *Lines) Scope(path string) *Scope {
 	// A selector measures from no base commit, so it reads no base text.
 	if o.commit != "" {
 		out.base = func() (string, error) {
-			text, err := gitIn(o.top, "cat-file", "blob", o.commit+":"+name)
+			text, ok, err := blobAt(o.top, o.commit, name)
+			if err == nil && !ok {
+				err = fmt.Errorf("the base holds no such file")
+			}
 			if err != nil {
 				return "", fmt.Errorf("fork scope: read %s at the base: %w", name, err)
 			}
@@ -385,31 +419,78 @@ func (o *Lines) Scope(path string) *Scope {
 // dir. With staged it is the index against HEAD, and otherwise the work tree
 // against rev. A path the diff created counts whole.
 func DiffLines(dir, rev string, staged bool) (*Lines, error) {
-	top, err := gitIn(dir, "rev-parse", "--show-toplevel")
+	repo, err := gitread.OpenWorkTree(dir)
+	if err == nil && repo == nil {
+		err = fmt.Errorf("%s is not inside a work tree", dir)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("diff scope: %w", err)
 	}
-	top = strings.TrimSpace(top)
-	resolved, err := filepath.EvalSymlinks(top)
-	if err != nil {
-		return nil, fmt.Errorf("diff scope: %w", err)
-	}
-	args := []string{"-c", "core.quotePath=false", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/"}
+	own := &Lines{top: repo.WorkTree(), whole: set.New[string](), lines: map[string]set.Set[int]{}}
 	if staged {
-		args = append(args, "--cached")
+		err = own.readIndex(repo)
 	} else {
-		args = append(args, rev)
+		var base gitread.OID
+		if base, err = revision(repo, rev); err == nil {
+			err = own.readWorkTree(repo, base, added, false)
+		}
 	}
-	args = append(args, "--")
-	diff, err := gitIn(top, args...)
 	if err != nil {
 		return nil, fmt.Errorf("diff scope: %w", err)
-	}
-	own := &Lines{top: resolved, whole: set.New[string](), lines: map[string]set.Set[int]{}}
-	if err := own.readDiff(diff); err != nil {
-		return nil, err
 	}
 	return own, nil
+}
+
+// revision answers the commit a selector names. Git parses a spelling this
+// package does not, such as a reflog entry.
+func revision(repo *gitread.Repo, rev string) (gitread.OID, error) {
+	oid, err := repo.Resolve(rev)
+	if errors.Is(err, gitread.ErrUnknownRevision) {
+		out, gitErr := gitIn(repo.WorkTree(), "rev-parse", "--verify", "--end-of-options", rev+"^{commit}")
+		if gitErr != nil {
+			return gitread.OID{}, gitErr
+		}
+		return gitread.ParseOID(strings.TrimSpace(out))
+	}
+	if err != nil {
+		return gitread.OID{}, err
+	}
+	return repo.PeelCommit(oid)
+}
+
+// readIndex records each staged file that differs from HEAD, as git diff
+// --cached names it. With no commit yet, every staged file is new.
+func (o *Lines) readIndex(repo *gitread.Repo) error {
+	idx, err := repo.Index()
+	if err != nil {
+		return err
+	}
+	headFiles := map[string]gitread.TreeEntry{}
+	if head, err := repo.Head(); err == nil {
+		if headFiles, err = repo.TreeNames(head); err != nil {
+			return err
+		}
+	}
+	var pairs []pair
+	for _, e := range idx.Entries() {
+		if e.Stage != 0 || e.IsGitlink() {
+			continue
+		}
+		before, ok := headFiles[e.Path]
+		if !ok {
+			o.whole.Add(e.Path)
+			continue
+		}
+		if before.OID == e.OID {
+			continue
+		}
+		after, err := readBlobs(o.top, repo, []gitread.OID{e.OID})
+		if err != nil {
+			return err
+		}
+		pairs = append(pairs, pair{e.Path, before.OID, after[e.OID]})
+	}
+	return o.addPairs(repo, pairs, added)
 }
 
 // IntersectLines answers the lines both a and b hold. A file both hold whole

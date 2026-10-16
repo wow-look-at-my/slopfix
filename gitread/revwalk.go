@@ -243,6 +243,59 @@ func (r *Repo) FirstParent(oid OID) ([]OID, error) {
 	return out, nil
 }
 
+// FirstParentExcluding answers the first-parent chain from tip, newest first,
+// up to the first commit an excluded commit reaches: what git rev-list
+// --first-parent tip ^exclude prints. It paints the excluded history only as
+// deep as the chain's dates need.
+func (r *Repo) FirstParentExcluding(tip OID, exclude []OID) ([]OID, error) {
+	chain, err := r.FirstParent(tip)
+	if err != nil {
+		return nil, err
+	}
+	reached := set.New[OID]()
+	q := &commitQueue{}
+	for _, e := range exclude {
+		oid, err := r.PeelCommit(e)
+		if err != nil {
+			return nil, err
+		}
+		c, err := r.Commit(oid)
+		if err != nil {
+			return nil, err
+		}
+		if !reached.Contains(oid) {
+			reached.Add(oid)
+			heap.Push(q, c)
+		}
+	}
+	var out []OID
+	for _, oid := range chain {
+		c, err := r.Commit(oid)
+		if err != nil {
+			return nil, err
+		}
+		for q.Len() > 0 && q.items[0].When+skewAllowance >= c.When {
+			top := heap.Pop(q).(*Commit)
+			for _, p := range top.Parents {
+				if reached.Contains(p) {
+					continue
+				}
+				pc, err := r.Commit(p)
+				if err != nil {
+					continue
+				}
+				reached.Add(p)
+				heap.Push(q, pc)
+			}
+		}
+		if reached.Contains(oid) {
+			break
+		}
+		out = append(out, oid)
+	}
+	return out, nil
+}
+
 // Paint marks for the merge-base walk.
 const (
 	paintA = 1 << iota

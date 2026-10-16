@@ -150,45 +150,59 @@ func (r *Repo) workOID(idx *Index, e IndexEntry, filemode bool) (OID, uint32, bo
 // commit's tree and the work tree, and every untracked path git does not
 // ignore, sorted. A submodule is left out.
 func (r *Repo) ChangedNames(base OID) ([]string, error) {
-	baseNames, err := r.TreeNames(base)
+	changed, untracked, err := r.Changes(base)
 	if err != nil {
 		return nil, err
+	}
+	all := set.Of(changed...)
+	for _, path := range untracked {
+		all.Add(strings.TrimSuffix(path, "/"))
+	}
+	out := all.Values()
+	sort.Strings(out)
+	return out, nil
+}
+
+// Changes answers, sorted, each path git diff --name-only names between a
+// commit's tree and the work tree, and each untracked path git does not
+// ignore. A submodule is left out.
+func (r *Repo) Changes(base OID) (changed, untracked []string, err error) {
+	baseNames, err := r.TreeNames(base)
+	if err != nil {
+		return nil, nil, err
 	}
 	idx, err := r.Index()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	changed := set.New[string]()
+	diff := set.New[string]()
 	filemode := r.ConfigBool("core.filemode", true)
 	for _, e := range idx.entries {
 		if e.IsGitlink() {
 			continue
 		}
 		if e.Stage != 0 {
-			changed.Add(e.Path)
+			diff.Add(e.Path)
 			continue
 		}
 		before, inBase := baseNames[e.Path]
 		oid, mode, present := r.workOID(idx, e, filemode)
 		if !inBase || !present || oid != before.OID || modeString(mode) != before.Mode {
-			changed.Add(e.Path)
+			diff.Add(e.Path)
 		}
 	}
 	for path := range baseNames {
 		if _, tracked := idx.byPath[path]; !tracked {
-			changed.Add(path)
+			diff.Add(path)
 		}
 	}
-	untracked, err := r.untracked(idx)
-	if err != nil {
-		return nil, err
+	if untracked, err = r.untracked(idx); err != nil {
+		return nil, nil, err
 	}
-	for _, path := range untracked {
-		changed.Add(strings.TrimSuffix(path, "/"))
-	}
-	out := changed.Values()
-	sort.Strings(out)
-	return out, nil
+	changed = diff.Values()
+	sort.Strings(changed)
+	sort.Strings(untracked)
+	return changed, untracked, nil
 }
 
 // WorkChanged reports whether the work tree copy of a tracked path differs

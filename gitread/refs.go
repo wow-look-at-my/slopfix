@@ -206,6 +206,10 @@ func (r *Repo) ref(name string, depth int) (OID, bool) {
 		if target, ok := strings.CutPrefix(line, "ref:"); ok {
 			return r.ref(strings.TrimSpace(target), depth+1)
 		}
+		// FETCH_HEAD follows the name with what was fetched.
+		if end := strings.IndexAny(line, " \t\n"); end >= 0 {
+			line = line[:end]
+		}
 		oid, err := ParseOID(line)
 		return oid, err == nil
 	}

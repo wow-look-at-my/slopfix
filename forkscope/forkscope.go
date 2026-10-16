@@ -29,6 +29,7 @@ import (
 
 	"github.com/tidwall/jsonc"
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // DefaultGitHubAPI is the API root when GITHUB_API_URL is unset.
@@ -160,13 +161,61 @@ func (r Resolver) Base(root string) (*Base, error) {
 		if err := deepen(top); err != nil {
 			return nil, err
 		}
-		out, err := gitIn(top, "merge-base", "HEAD", rec.Parent)
+		base, err := mergeBase(top, "HEAD", rec.Parent)
 		if err != nil {
 			return nil, fmt.Errorf("fork scope: no merge base between HEAD and the parent's %s (%s) from %s: %w", rec.Branch, rec.Parent, rec.ParentURL, err)
 		}
-		return &Base{top: top, commit: strings.TrimSpace(out)}, nil
+		return &Base{top: top, commit: base}, nil
 	}
 	return nil, nil
+}
+
+// openTop opens the repository of the work tree at top.
+func openTop(top string) (*gitread.Repo, error) {
+	repo, err := gitread.OpenWorkTree(top)
+	if err != nil {
+		return nil, fmt.Errorf("fork scope: %w", err)
+	}
+	if repo == nil {
+		return nil, fmt.Errorf("fork scope: git rev-parse --show-toplevel: %s is not inside a work tree", top)
+	}
+	return repo, nil
+}
+
+// resolve answers the commit a revision names in the work tree at top.
+func resolve(top, rev string) (gitread.OID, *gitread.Repo, error) {
+	repo, err := openTop(top)
+	if err != nil {
+		return gitread.OID{}, nil, err
+	}
+	oid, err := repo.Resolve(rev)
+	if err == nil {
+		oid, err = repo.PeelCommit(oid)
+	}
+	if err != nil {
+		return gitread.OID{}, nil, fmt.Errorf("fork scope: %s: %w", rev, err)
+	}
+	return oid, repo, nil
+}
+
+// mergeBase answers the best common ancestor of two revisions.
+func mergeBase(top, a, b string) (string, error) {
+	oa, repo, err := resolve(top, a)
+	if err != nil {
+		return "", err
+	}
+	ob, _, err := resolve(top, b)
+	if err != nil {
+		return "", err
+	}
+	base, ok, err := repo.MergeBase(oa, ob)
+	if err != nil {
+		return "", fmt.Errorf("fork scope: %w", err)
+	}
+	if !ok {
+		return "", fmt.Errorf("fork scope: %s and %s share no history", a, b)
+	}
+	return base.String(), nil
 }
 
 // workspaceHolds reports whether GITHUB_REPOSITORY names the checkout that
@@ -194,18 +243,22 @@ func realPath(path string) string {
 
 // toplevel answers the work tree root that holds dir.
 func toplevel(dir string) (string, error) {
-	out, err := gitIn(dir, "rev-parse", "--show-toplevel")
+	repo, err := openTop(dir)
 	if err != nil {
-		return "", fmt.Errorf("fork scope: %w", err)
+		return "", err
 	}
-	return strings.TrimSpace(out), nil
+	return repo.WorkTree(), nil
 }
 
 // originRepo answers the OWNER/NAME the origin remote of top names on the
 // GitHub server, or "" for an origin elsewhere or none.
 func (r Resolver) originRepo(top string) string {
-	out, err := gitIn(top, "config", "--get", "remote.origin.url")
+	repo, err := openTop(top)
 	if err != nil {
+		return ""
+	}
+	out := repo.OriginURL()
+	if out == "" {
 		return ""
 	}
 	server := r.getenv("GITHUB_SERVER_URL")
@@ -388,8 +441,7 @@ func (r Resolver) cached(top, repo string) (record, bool) {
 	case kindListed:
 		return rec, rec.Upstream != ""
 	case kindParent:
-		_, err := gitIn(top, "cat-file", "-e", rec.Parent+"^{commit}")
-		return rec, err == nil && rec.Parent != ""
+		return rec, rec.Parent != "" && hasCommit(top, rec.Parent)
 	}
 	return record{}, false
 }
@@ -401,15 +453,11 @@ func cachePath(top string) (string, error) {
 
 // recordPath answers where the record name lives in top's git common directory.
 func recordPath(top, name string) (string, error) {
-	out, err := gitIn(top, "rev-parse", "--git-common-dir")
+	repo, err := openTop(top)
 	if err != nil {
-		return "", fmt.Errorf("fork scope: %w", err)
+		return "", err
 	}
-	dir := strings.TrimSpace(out)
-	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(top, dir)
-	}
-	return filepath.Join(dir, name), nil
+	return filepath.Join(repo.CommonDir(), name), nil
 }
 
 // store writes rec into top's git common directory through a rename. A root in
@@ -568,20 +616,20 @@ func fetchParent(top, parentURL, branch string) (string, error) {
 	if _, err := gitIn(top, "fetch", "--quiet", "--filter=blob:none", "--no-tags", parentURL, "refs/heads/"+branch); err != nil {
 		return "", fmt.Errorf("fork scope: fetch the parent's %s from %s: %w", branch, parentURL, err)
 	}
-	out, err := gitIn(top, "rev-parse", "--verify", "FETCH_HEAD^{commit}")
+	commit, _, err := resolve(top, "FETCH_HEAD")
 	if err != nil {
 		return "", fmt.Errorf("fork scope: resolve the parent's %s: %w", branch, err)
 	}
-	return strings.TrimSpace(out), nil
+	return commit.String(), nil
 }
 
 // deepen fetches the whole history of a shallow clone from origin, without blobs.
 func deepen(top string) error {
-	shallow, err := gitIn(top, "rev-parse", "--is-shallow-repository")
+	repo, err := openTop(top)
 	if err != nil {
-		return fmt.Errorf("fork scope: %w", err)
+		return err
 	}
-	if strings.TrimSpace(shallow) != "true" {
+	if !repo.IsShallow() {
 		return nil
 	}
 	if _, err := gitIn(top, "fetch", "--quiet", "--unshallow", "--filter=blob:none", "--no-tags", "origin"); err != nil {

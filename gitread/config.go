@@ -3,6 +3,7 @@ package gitread
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -36,6 +37,26 @@ func (r *Repo) ConfigBool(key string, def bool) bool {
 
 // OriginURL answers the URL the origin remote clones from, or "".
 func (r *Repo) OriginURL() string { return r.Config("remote.origin.url") }
+
+// PromisorRemote answers the remote a partial clone fetches a missing object
+// from, or "" for a complete repository.
+func (r *Repo) PromisorRemote() string {
+	if name := r.Config("extensions.partialclone"); name != "" {
+		return name
+	}
+	var names []string
+	for key, value := range r.cfg {
+		rest, ok := strings.CutPrefix(key, "remote.")
+		if name, promisor := strings.CutSuffix(rest, ".promisor"); ok && promisor && truthy(value) {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	if len(names) == 0 {
+		return ""
+	}
+	return names[0]
+}
 
 func (r *Repo) loadConfig() config {
 	out := config{}

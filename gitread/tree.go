@@ -125,31 +125,12 @@ func (r *Repo) TreeNames(commit OID) (map[string]TreeEntry, error) {
 		return nil, err
 	}
 	out := map[string]TreeEntry{}
-	err = r.walkTree(oid, "", func(path string, e TreeEntry) {
+	err = differ{r: r}.walk(oid, "", func(path string, e TreeEntry) {
 		if e.Mode != treeModeGitlink {
 			out[path] = e
 		}
 	})
 	return out, err
-}
-
-// walkTree visits every non-tree entry under a tree.
-func (r *Repo) walkTree(oid OID, prefix string, visit func(string, TreeEntry)) error {
-	entries, err := r.tree(oid)
-	if err != nil {
-		return err
-	}
-	for _, e := range entries {
-		path := joinPath(prefix, e.name)
-		if e.IsDir() {
-			if err := r.walkTree(e.OID, path, visit); err != nil {
-				return err
-			}
-			continue
-		}
-		visit(path, e.TreeEntry)
-	}
-	return nil
 }
 
 func joinPath(prefix, name string) string {
@@ -201,7 +182,43 @@ func (r *Repo) DiffTrees(from, to OID, visit func(path string, old, new *TreeEnt
 	if b, err = r.rootTree(to); err != nil {
 		return err
 	}
-	return r.diffTree(a, b, "", visit)
+	return differ{r, nil, visit}.tree(a, b, "")
+}
+
+// HistoryVersions visits each file version that a non-merge commit reachable
+// from tip brought in against its first parent: what git log --raw lists.
+// descend names each directory, the root as "", and the walk reads only those
+// it accepts.
+func (r *Repo) HistoryVersions(tip OID, descend func(dir string) bool, visit func(path string, blob OID)) error {
+	d := differ{r, descend, func(path string, _, new *TreeEntry) {
+		if new != nil {
+			visit(path, new.OID)
+		}
+	}}
+	var failed error
+	err := r.Walk([]OID{tip}, func(c *Commit) bool {
+		if len(c.Parents) > 1 {
+			return true
+		}
+		var parent OID
+		if len(c.Parents) == 1 {
+			pc, err := r.Commit(c.Parents[0])
+			if err != nil {
+				failed = err
+				return false
+			}
+			parent = pc.Tree
+		}
+		if err := d.tree(parent, c.Tree, ""); err != nil {
+			failed = err
+			return false
+		}
+		return true
+	})
+	if err != nil {
+		return err
+	}
+	return failed
 }
 
 func (r *Repo) entriesOf(oid OID) ([]namedEntry, error) {
@@ -211,15 +228,24 @@ func (r *Repo) entriesOf(oid OID) ([]namedEntry, error) {
 	return r.tree(oid)
 }
 
-func (r *Repo) diffTree(a, b OID, prefix string, visit func(string, *TreeEntry, *TreeEntry)) error {
-	if a == b {
+// differ walks two trees side by side.
+type differ struct {
+	r       *Repo
+	descend func(string) bool
+	visit   func(string, *TreeEntry, *TreeEntry)
+}
+
+func (d differ) enters(dir string) bool { return d.descend == nil || d.descend(dir) }
+
+func (d differ) tree(a, b OID, prefix string) error {
+	if a == b || !d.enters(prefix) {
 		return nil
 	}
-	left, err := r.entriesOf(a)
+	left, err := d.r.entriesOf(a)
 	if err != nil {
 		return err
 	}
-	right, err := r.entriesOf(b)
+	right, err := d.r.entriesOf(b)
 	if err != nil {
 		return err
 	}
@@ -227,12 +253,12 @@ func (r *Repo) diffTree(a, b OID, prefix string, visit func(string, *TreeEntry, 
 	for i < len(left) || j < len(right) {
 		switch {
 		case j == len(right) || i < len(left) && left[i].name < right[j].name:
-			if err := r.diffSide(left[i], prefix, true, visit); err != nil {
+			if err := d.side(left[i], prefix, true); err != nil {
 				return err
 			}
 			i++
 		case i == len(left) || right[j].name < left[i].name:
-			if err := r.diffSide(right[j], prefix, false, visit); err != nil {
+			if err := d.side(right[j], prefix, false); err != nil {
 				return err
 			}
 			j++
@@ -242,21 +268,21 @@ func (r *Repo) diffTree(a, b OID, prefix string, visit func(string, *TreeEntry, 
 			switch {
 			case l.TreeEntry == rt.TreeEntry:
 			case l.IsDir() && rt.IsDir():
-				if err := r.diffTree(l.OID, rt.OID, path, visit); err != nil {
+				if err := d.tree(l.OID, rt.OID, path); err != nil {
 					return err
 				}
 			case l.IsDir():
-				if err := r.diffSide(l, prefix, true, visit); err != nil {
+				if err := d.side(l, prefix, true); err != nil {
 					return err
 				}
-				visit(path, nil, &rt.TreeEntry)
+				d.visit(path, nil, &rt.TreeEntry)
 			case rt.IsDir():
-				visit(path, &l.TreeEntry, nil)
-				if err := r.diffSide(rt, prefix, false, visit); err != nil {
+				d.visit(path, &l.TreeEntry, nil)
+				if err := d.side(rt, prefix, false); err != nil {
 					return err
 				}
 			default:
-				visit(path, &l.TreeEntry, &rt.TreeEntry)
+				d.visit(path, &l.TreeEntry, &rt.TreeEntry)
 			}
 			i++
 			j++
@@ -265,21 +291,45 @@ func (r *Repo) diffTree(a, b OID, prefix string, visit func(string, *TreeEntry, 
 	return nil
 }
 
-// diffSide visits an entry only one side holds, every file of it for a tree.
-func (r *Repo) diffSide(e namedEntry, prefix string, old bool, visit func(string, *TreeEntry, *TreeEntry)) error {
+// side visits an entry only one side holds, every file of it for a tree.
+func (d differ) side(e namedEntry, prefix string, old bool) error {
+	path := joinPath(prefix, e.name)
 	emit := func(path string, entry TreeEntry) {
 		if old {
-			visit(path, &entry, nil)
+			d.visit(path, &entry, nil)
 		} else {
-			visit(path, nil, &entry)
+			d.visit(path, nil, &entry)
 		}
 	}
-	path := joinPath(prefix, e.name)
 	if !e.IsDir() {
 		emit(path, e.TreeEntry)
 		return nil
 	}
-	return r.walkTree(e.OID, path, emit)
+	if !d.enters(path) {
+		return nil
+	}
+	return d.walk(e.OID, path, emit)
+}
+
+// walk visits every file under a tree, inside the directories the differ enters.
+func (d differ) walk(oid OID, prefix string, visit func(string, TreeEntry)) error {
+	entries, err := d.r.tree(oid)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		path := joinPath(prefix, e.name)
+		if !e.IsDir() {
+			visit(path, e.TreeEntry)
+			continue
+		}
+		if d.enters(path) {
+			if err := d.walk(e.OID, path, visit); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // ChangedPaths answers every path that differs between commits, sorted.

@@ -304,21 +304,6 @@ func TestAForkOwnsOnlyTheBinariesItWrote(t *testing.T) {
 	assert.False(t, own.Holds(filepath.Join(fork, "inherited.bin"), 0, 0), "a binary it inherited unchanged is not")
 }
 
-func TestBinaryDiffPath(t *testing.T) {
-	for pair, want := range map[string]string{
-		"/dev/null and b/new.bin":                 "new.bin",
-		"a/x.bin and b/x.bin":                     "x.bin",
-		"a/this and that and b/this and that":     "this and that",
-		`"a/t\303\251.bin" and "b/t\303\251.bin"`: "té.bin",
-		"a/gone.bin and /dev/null":                "",
-	} {
-		got, err := binaryDiffPath(pair)
-		require.NoError(t, err, pair)
-		assert.Equal(t, want, got, pair)
-	}
-	_, err := binaryDiffPath("a/x and b/yy")
-	assert.Error(t, err, "sides that name different paths are refused")
-}
 
 func TestARepositoryThatIsNoForkHasNoScope(t *testing.T) {
 	fx := newForkFixture(t)
@@ -683,53 +668,3 @@ func TestAForkOutsideAWorkTreeFailsLoudly(t *testing.T) {
 	assert.Contains(t, err.Error(), "rev-parse --show-toplevel")
 }
 
-// A content line that reads like a header is counted as hunk body, and a
-// quoted path and a deleted file are read.
-func TestTheDiffReaderCountsHunkBodies(t *testing.T) {
-	diff := strings.Join([]string{
-		`diff --git a/x.md b/x.md`,
-		`--- a/x.md`,
-		`+++ b/x.md`,
-		`@@ -2 +2,2 @@`,
-		`-old`,
-		`+++ b/fake.md`,
-		`+@@ -1 +1,9 @@`,
-		`\ No newline at end of file`,
-		`diff --git "a/sp ace\t.md" "b/sp ace\t.md"`,
-		`--- /dev/null`,
-		`+++ "b/sp ace\t.md"`,
-		`@@ -0,0 +1 @@`,
-		`+new`,
-		`diff --git a/gone.md b/gone.md`,
-		`--- a/gone.md`,
-		`+++ /dev/null`,
-		`@@ -1 +0,0 @@`,
-		`-gone`,
-		``,
-	}, "\n")
-	own := &Lines{top: "/", whole: set.New[string](), lines: map[string]set.Set[int]{}}
-	require.NoError(t, own.readDiff(diff))
-
-	assert.True(t, own.Holds("/x.md", 2, 0))
-	assert.True(t, own.Holds("/x.md", 1, 3))
-	assert.False(t, own.Holds("/x.md", 1, 1))
-	assert.True(t, own.Holds("/x.md", 0, 0), "a file finding holds when any line changed")
-	assert.False(t, own.Holds("/fake.md", 1, 1))
-	assert.True(t, own.Holds("/sp ace\t.md", 40, 40))
-	assert.False(t, own.Holds("/gone.md", 1, 1))
-	assert.False(t, own.Holds("/untouched.md", 0, 0))
-}
-
-func TestTheDiffReaderRefusesWhatItCannotRead(t *testing.T) {
-	for name, diff := range map[string]string{
-		"bad header":   "@@ nonsense\n",
-		"bad range":    "@@ -1 +x @@\n",
-		"bad quote":    "+++ \"b/x\n",
-		"cut off hunk": "+++ b/x\n@@ -1 +1 @@\n-a\n",
-	} {
-		t.Run(name, func(t *testing.T) {
-			own := &Lines{top: "/", whole: set.New[string](), lines: map[string]set.Set[int]{}}
-			assert.Error(t, own.readDiff(diff))
-		})
-	}
-}

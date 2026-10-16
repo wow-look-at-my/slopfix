@@ -8,8 +8,6 @@
 package gitmod
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -133,27 +131,7 @@ func Resolve(path string) (string, error) {
 // Command is a git read in the work tree slopfix judges. It trusts that tree
 // whatever user owns it. A CI container checks out as another user.
 func Command(dir string, args ...string) *exec.Cmd {
-	return CommandContext(context.Background(), dir, args...)
-}
-
-// CommandContext is Command with a deadline.
-func CommandContext(ctx context.Context, dir string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-c", "safe.directory=*"}, args...)...)
+	cmd := exec.Command("git", append([]string{"-c", "safe.directory=*"}, args...)...)
 	cmd.Dir = dir
 	return cmd
-}
-
-// Unexpected answers why a git read failed, or "" when the cause is only that
-// the path is outside a work tree. A caller reports a reason it gets back,
-// because the read it lost turns a skip off.
-func Unexpected(err error) string {
-	var exit *exec.ExitError
-	if !errors.As(err, &exit) {
-		return err.Error()
-	}
-	reason := strings.TrimSpace(string(exit.Stderr))
-	if strings.Contains(reason, "not a git repository") {
-		return ""
-	}
-	return reason
 }

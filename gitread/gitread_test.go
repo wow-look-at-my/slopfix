@@ -230,9 +230,11 @@ func TestIgnoreMatchesCheckIgnore(t *testing.T) {
 	repo := open(t, dir)
 	paths := []string{"out.go", "build/a.o", "build", "x.log", "keep.log", "docs/a/b/tmp", "Temp1", "temp2", "sub/local.txt",
 		"sub/anchored.txt", "sub/x/anchored.txt", "fresh.md", "sub/fresh.go", "excluded.md", "sub/out.go", "deep/build/x"}
-	cmd := exec.Command("git", append([]string{"check-ignore", "--no-index", "-z", "--"}, paths...)...)
+	cmd := exec.Command("git", "check-ignore", "--no-index", "-z", "--stdin")
 	cmd.Dir = dir
+	cmd.Stdin = strings.NewReader(strings.Join(paths, "\x00") + "\x00")
 	raw, _ := cmd.Output()
+	require.NotEmpty(t, raw, "git ignores some of the paths")
 	want := set.New[string]()
 	for _, p := range strings.Split(string(raw), "\x00") {
 		want.Add(p)
@@ -277,7 +279,8 @@ func TestChangedNamesMatchDiff(t *testing.T) {
 
 	names, err := repo.ChangedNames(base)
 	require.NoError(t, err)
-	want := append(gitZ(t, dir, "diff", "-z", "--name-only", "--no-renames", "v1", "--"), gitZ(t, dir, "ls-files", "-z", "--others", "--exclude-standard")...)
+	// A path the index dropped is both deleted and untracked.
+	want := set.Of(append(gitZ(t, dir, "diff", "-z", "--name-only", "--no-renames", "v1", "--"), gitZ(t, dir, "ls-files", "-z", "--others", "--exclude-standard")...)...).Values()
 	sort.Strings(want)
 	assert.Equal(t, want, names)
 }
@@ -349,7 +352,7 @@ func TestObjectsReadLooseAndPacked(t *testing.T) {
 	gitT(t, dir, "repack", "-adf", "-q")
 	verifyAllObjects(t, dir)
 
-	gitT(t, dir, "repack", "-adf", "-q", "--no-delta-base-offset")
+	gitT(t, dir, "-c", "repack.useDeltaBaseOffset=false", "repack", "-adf", "-q")
 	verifyAllObjects(t, dir)
 }
 
