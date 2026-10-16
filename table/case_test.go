@@ -45,7 +45,7 @@ func TestEveryEmbeddedRulesFileIsChecked(t *testing.T) {
 func TestAPatternIgnoresCaseUnlessSensitive(t *testing.T) {
 	loose, err := load("", `<pattern id="p" match="\bone\b" to="a single"><test in="It has one" out="It has a single"/></pattern>`)
 	require.NoError(t, err)
-	assert.Equal(t, "It has a single", loose.Patterns[0].Replace("It has ONE"))
+	assert.Equal(t, "It has A single", loose.Patterns[0].Replace("It has ONE"), "the replacement takes the opening case of the text it replaces")
 	assert.False(t, loose.Patterns[0].Sensitive)
 
 	exact, err := load(` case="sensitive"`, `<pattern id="p" match="\bone\b" to="a single"><test in="It has one" out="It has a single"/></pattern>`)
