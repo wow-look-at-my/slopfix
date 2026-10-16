@@ -6,47 +6,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// becauseDivision divides at "because" when no other boundary serves, and opens
-// the reason behind "This is because". The reason must name a subject and a
-// verb; "because of X" is a prepositional phrase, not a reason.
-func becauseDivision(source, masked string, whole *syntax.Sentence, limit int) (string, bool) {
-	for i := 1; i+1 < len(whole.Words); i++ {
-		if whole.Words[i].Lower() != "because" || !opensSubject(whole, i+1) || !finiteBefore(whole, i+1, "") {
-			continue
-		}
-		head := strings.TrimRight(source[:whole.Words[i].Start], " ,")
-		if head == "" {
-			continue
-		}
-		left := closeHead(head)
-		rest := "This is " + source[whole.Words[i].Start:]
-		if WordCount(left) < minimumHalf || WordCount(rest) < minimumHalf || !divides(left, rest, limit) {
-			continue
-		}
-		return left + " " + rest, true
-	}
-	return source, false
-}
-
-// seamIsDash reports a seam that is a dash, which closes the clause before it.
-func seamIsDash(seam string) bool { return dashMark(seam) }
-
-// headNoun answers the head noun of the first noun phrase that ends before
-// byte at. A comma before a phrase that describes it names this noun again.
-func headNoun(whole *syntax.Sentence, at int) (syntax.Word, bool) {
-	n := wordsBefore(whole, at)
-	for i := 0; i < n; i++ {
-		ph, ok := whole.PhraseAt(i)
-		if !ok || ph.Kind != syntax.NounPhrase || ph.First != i || ph.Last >= n || ph.Head >= len(whole.Words) {
-			continue
-		}
-		if h := whole.Words[ph.Head]; strings.HasPrefix(h.Tag, "NN") {
-			return h, true
-		}
-	}
-	return syntax.Word{}, false
-}
-
 // listRest writes the rest of a list as a sentence of its own: "It also
 // covers D and E". The words before the cut end the list with its own
 // conjunction, which listRest writes into the head through c's left offset.
@@ -56,7 +15,7 @@ func listRest(source string, s *syntax.Sentence, verb syntax.Phrase, c forceCut,
 		return "", "", false
 	}
 	conj, ok := listEnd(rest)
-	// A rest that opens on a conjunction is a clause the list never reached: "but cached rows are".
+	// A rest that opens on a conjunction is a clause the list never reached: "but remembered grants are".
 	if !ok || len(topCommas(source[:c.left], s.Words[verb.Last].End)) == 0 || leadingConjunction.MatchString(strings.ToLower(rest)) || strings.HasPrefix(strings.ToLower(rest), "but ") {
 		return "", "", false
 	}

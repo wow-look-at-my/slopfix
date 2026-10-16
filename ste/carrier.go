@@ -596,7 +596,8 @@ func mainSubject(source string, s *syntax.Sentence, verb syntax.Phrase, tag stri
 // and each part stays one.
 func closesPhrase(head string, whole *syntax.Sentence) bool {
 	n := wordsBefore(whole, len(head))
-	if n == 0 || finiteBetween(whole, 0, n) {
+	// A verb in a relative clause leaves the head a noun phrase: "a run of turns that each made a call".
+	if n == 0 || finiteOutsideRelativeIn(whole, 0, n) {
 		return false
 	}
 	// A head that opens on a preposition or a subordinator leads into the clause after it. Only a noun phrase stands as a fragment of its own.
@@ -677,4 +678,45 @@ func passive(s *syntax.Sentence, verb syntax.Phrase) bool {
 		}
 	}
 	return false
+}
+
+// becauseDivision divides at "because" when no other boundary serves, and opens
+// the reason behind "This is because". The reason must name a subject and a
+// verb; "because of X" is a prepositional phrase, not a reason.
+func becauseDivision(source, masked string, whole *syntax.Sentence, limit int) (string, bool) {
+	for i := 1; i+1 < len(whole.Words); i++ {
+		if whole.Words[i].Lower() != "because" || !opensSubject(whole, i+1) || !finiteBefore(whole, i+1, "") {
+			continue
+		}
+		head := strings.TrimRight(source[:whole.Words[i].Start], " ,")
+		if head == "" {
+			continue
+		}
+		left := closeHead(head)
+		rest := "This is " + source[whole.Words[i].Start:]
+		if WordCount(left) < minimumHalf || WordCount(rest) < minimumHalf || !divides(left, rest, limit) {
+			continue
+		}
+		return left + " " + rest, true
+	}
+	return source, false
+}
+
+// seamIsDash reports a seam that is a dash, which closes the clause before it.
+func seamIsDash(seam string) bool { return dashMark(seam) }
+
+// headNoun answers the head noun of the first noun phrase that ends before
+// byte at. A comma before a phrase that describes it names this noun again.
+func headNoun(whole *syntax.Sentence, at int) (syntax.Word, bool) {
+	n := wordsBefore(whole, at)
+	for i := 0; i < n; i++ {
+		ph, ok := whole.PhraseAt(i)
+		if !ok || ph.Kind != syntax.NounPhrase || ph.First != i || ph.Last >= n || ph.Head >= len(whole.Words) {
+			continue
+		}
+		if h := whole.Words[ph.Head]; strings.HasPrefix(h.Tag, "NN") {
+			return h, true
+		}
+	}
+	return syntax.Word{}, false
 }

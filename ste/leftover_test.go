@@ -40,7 +40,7 @@ func TestALeftoverSentenceDivides(t *testing.T) {
 			got := ste.Fix(in)
 			for _, s := range ste.Sentences(got) {
 				assert.LessOrEqual(t, ste.WordCount(s), ste.SentenceWordCap, "%q\n%s\n%s", got, syntax.Parse(in, nil).Tags(), syntax.Parse(in, nil).Outline())
-				assert.True(t, ste.StandsAlone(s), "%q in %q", s, got)
+				assert.True(t, ste.StandsAlone(s), "%q in %q\n%s\n%s", s, got, syntax.Parse(s, nil).Tags(), syntax.Parse(s, nil).Outline())
 			}
 		})
 	}
