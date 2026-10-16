@@ -29,6 +29,14 @@ func TestALongSentenceWithNoVerbRestatesANoun(t *testing.T) {
 	assert.Empty(t, sentenceLengths(ste.Fix(in)))
 }
 
+// A list of noun phrases joined by commas has clauses and no verb. It divides under the cap.
+func TestAVerblessListOfPhrasesDividesUnderTheCap(t *testing.T) {
+	in := "The old wooden barn near the river, and the tall green hills of the northern valley beside the cold river under the grey winter sky, and the small stone house with the red roof at the end of the long dirt road."
+	require.NotEmpty(t, sentenceLengths(in), "the control: the sentence is over the cap")
+	got := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+}
+
 // A sentence where no cut leaves both parts reading as sentences still divides.
 // It came from an earlier repair that divided inside a parenthesis, in ts0's
 // build-prebuilt.ts, and fix left it standing.

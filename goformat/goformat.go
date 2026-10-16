@@ -84,12 +84,25 @@ func bareComment(s string, i int) bool {
 
 // Gate writes an edit only when it trades blanks for blanks. It holds only when
 // the scanner reads the tokens src holds, so a blank inside a literal or a
-// directive never moves.
+// directive never moves. An edit that adds or drops a bare comment line is
+// written only when gofmt itself makes that edit.
 func Gate(src string, edits []edit.Edit, scope edit.Scope) edit.Result {
 	want := tokens(src)
+	var layout []edit.Edit
 	reach := func(e edit.Edit) string {
+		if allBlank(src[e.Start:e.End]) && allBlank(e.Text) {
+			return ""
+		}
 		if skipBlank(src, e.Start) < e.End || skipBlank(e.Text, 0) != len(e.Text) {
 			return "it changes more than whitespace"
+		}
+		if layout == nil {
+			layout = Edits(src)
+		}
+		if !slices.ContainsFunc(layout, func(g edit.Edit) bool {
+			return g.Start == e.Start && g.End == e.End && g.Text == e.Text
+		}) {
+			return "it moves a comment line gofmt does not"
 		}
 		return ""
 	}
@@ -126,6 +139,15 @@ func trimLineEnds(text string) string {
 		lines[i] = strings.TrimRight(line, " \t\r")
 	}
 	return strings.Join(lines, "\n")
+}
+
+func allBlank(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if !blank(s[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // blank is the whitespace the Go scanner skips.

@@ -440,7 +440,8 @@ func init() {
 				if strings.EqualFold(filepath.Ext(f.Path), ".txt") {
 					entries = markdown.EntryBlankLines
 				}
-				f.Apply(markdown.FormatEditsWith(f.Text(), word, entries))
+				f.Apply(markdown.EntryRepair(f.Text(), entries))
+				f.Apply(markdown.FormatEdits(f.Text(), word))
 			}
 			if selected(ste.IDParagraphLength) {
 				f.Apply(paragraphEdits(f.Text()))

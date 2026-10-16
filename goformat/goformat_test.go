@@ -71,6 +71,7 @@ func TestTheGateRefusesWhatChangesTheTokens(t *testing.T) {
 	quoted := "package p\n\nvar s = \"a  b\"\n"
 	sum := "package p\n\nvar x = a + b\n"
 	directive := "package p\n\n//go:generate true\nvar x = 1\n"
+	bare := "package p\n\n// F runs.\n//\nfunc F() {}\n"
 	for name, c := range map[string]struct {
 		src string
 		e   edit.Edit
@@ -79,6 +80,8 @@ func TestTheGateRefusesWhatChangesTheTokens(t *testing.T) {
 		"a blank inside a string":       {quoted, blankAfter(quoted, "\"a", " ")},
 		"a line end that ends a line":   {sum, blankAfter(sum, "= a", "\n")},
 		"a blank that ends a directive": {directive, blankAfter(directive, "//", " ")},
+		"an unrelated bare comment":     {word, edit.Edit{Start: len("package p\n"), End: len("package p\n"), Text: "//\n"}},
+		"a bare comment cut short":      {bare, edit.Edit{Start: len("package p\n\n// F runs.\n"), End: len("package p\n\n// F runs.\n//\n"), Text: ""}},
 	} {
 		res := goformat.Gate(c.src, []edit.Edit{c.e}, edit.Scope{})
 		assert.Equal(t, c.src, res.Text, name)
