@@ -304,7 +304,6 @@ func TestAForkOwnsOnlyTheBinariesItWrote(t *testing.T) {
 	assert.False(t, own.Holds(filepath.Join(fork, "inherited.bin"), 0, 0), "a binary it inherited unchanged is not")
 }
 
-
 func TestARepositoryThatIsNoForkHasNoScope(t *testing.T) {
 	fx := newForkFixture(t)
 	own, err := forkLines(fx.fork, forkEnv(forkAPI(t, `{"fork":false}`)), noList(t))
@@ -667,4 +666,3 @@ func TestAForkOutsideAWorkTreeFailsLoudly(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rev-parse --show-toplevel")
 }
-

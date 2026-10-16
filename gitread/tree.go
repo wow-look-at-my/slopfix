@@ -228,7 +228,7 @@ func (r *Repo) entriesOf(oid OID) ([]namedEntry, error) {
 	return r.tree(oid)
 }
 
-// differ walks two trees side by side.
+// differ walks trees side by side.
 type differ struct {
 	r       *Repo
 	descend func(string) bool

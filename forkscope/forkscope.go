@@ -198,7 +198,7 @@ func resolve(top, rev string) (gitread.OID, *gitread.Repo, error) {
 	return oid, repo, nil
 }
 
-// mergeBase answers the best common ancestor of two revisions.
+// mergeBase answers the best common ancestor of revisions.
 func mergeBase(top, a, b string) (string, error) {
 	oa, repo, err := resolve(top, a)
 	if err != nil {
