@@ -166,7 +166,9 @@ type stepRef struct {
 	windows   bool
 	// shell is the default shell the job or the workflow names, or "".
 	shell string
-	uses  map[string]string
+	// shellNode is the value node of that default, or nil.
+	shellNode *yaml.Node
+	uses      map[string]string
 }
 
 // usesByID maps each step id in a steps list to the action that step uses.
@@ -191,14 +193,14 @@ func runSteps(root *yaml.Node) []stepRef {
 			if steps == nil || steps.Kind != yaml.SequenceNode {
 				continue
 			}
-			shell := defaultShell(job)
+			shell, shellNode := defaultShell(job), defaultShellNode(job)
 			if shell == "" {
-				shell = rootShell
+				shell, shellNode = rootShell, defaultShellNode(root)
 			}
 			windows := runsPowerShell(job, shell)
 			uses := usesByID(steps)
 			for _, step := range steps.Content {
-				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), shell: shell, uses: uses})
+				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), shell: shell, shellNode: shellNode, uses: uses})
 			}
 		}
 	}
@@ -225,10 +227,15 @@ func runsPowerShell(job *yaml.Node, shell string) bool {
 }
 
 func defaultShell(node *yaml.Node) string {
-	if shell := mappingValue(mappingValue(mappingValue(node, "defaults"), "run"), "shell"); shell != nil {
+	if shell := defaultShellNode(node); shell != nil {
 		return shell.Value
 	}
 	return ""
+}
+
+// defaultShellNode answers the value of defaults.run.shell, or nil.
+func defaultShellNode(node *yaml.Node) *yaml.Node {
+	return mappingValue(mappingValue(mappingValue(node, "defaults"), "run"), "shell")
 }
 
 // bashLike reports whether a shell value runs a POSIX shell.
