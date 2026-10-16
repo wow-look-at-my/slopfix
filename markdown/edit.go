@@ -80,7 +80,11 @@ func wordList(n ast.Node, src []byte) bool {
 			return false
 		}
 		lines := body.Lines()
-		if lines.Len() != 1 || strings.ContainsAny(strings.TrimSpace(string(lines.At(0).Value(src))), " \t") {
+		if lines.Len() != 1 {
+			return false
+		}
+		seg := lines.At(0)
+		if strings.ContainsAny(strings.TrimSpace(string(seg.Value(src))), " \t") {
 			return false
 		}
 	}
