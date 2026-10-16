@@ -214,7 +214,7 @@ It does not flag a comment above the package declaration, or a trailing comment 
 
 ## laziness: a turn that ends with the work undone
 
-`laziness/punt` reports a closing message that leaves the work undone because the work is harder. It covers a found defect left in place, and permission asked in place of action. Both leave the reader holding the work. One table therefore holds both.
+`laziness/punt` reports a closing message that leaves the work undone because the work is harder. It covers a found defect left in place, and permission asked in place of action. Both leave the reader holding the work. One table therefore holds both: `laziness/laziness.xml`, checked by `laziness.xsd`. Each pattern carries the punts that must fire it. Each pardon carries a message it must clear. `table_test.go` runs every row.
 
 The shapes are: disowning a defect you found, handing a repair back, leaving a defect in place. Excusing yourself from a repair, announcing an attribution hunt, offering authorship in place of a fix. And asking permission in place of acting.
 
@@ -245,7 +245,7 @@ A real blocker named plainly is never marked.
 
 These are hook guards. `check --message` also runs `ask/prose-decision`, and `repo/budget` covers the files `md-budget` measures.
 
-- `ask-properly` appends a line when a message puts a decision to the reader in prose. `AskUserQuestion` renders the choices instead. It refuses nothing and judges the message whole.
+- `ask-properly` appends a line when a message puts a decision to the reader in prose. `AskUserQuestion` renders the choices instead. It refuses nothing and judges the message whole. The phrases and question cues live in `askproperly/questions.xml`, and each phrase carries an example that must fire it.
 - `link-refs` renders a pull request, a commit or a branch as a markdown link as the message streams. A target it cannot show to exist stays plain text. A state file carries the fence state across flushes.
 - `busy-poll` serves Stop and PreToolUse. On Stop it refuses a turn that repeats the same call seconds apart. On PreToolUse it refuses a status read of a subject this session saw settle. It runs in a remote session only, because waiting for an event needs events. Evidence ages out. Every failure allows.
 - `md-budget` keeps each `CLAUDE.md` and each `claude_snippets/` file under `40000` characters, because every request re-sends them. It reports at session start and on a write. It blocks a Stop that leaves one broken. `CC_CLAUDE_MD_BUDGET` sets the budget. `CC_CLAUDE_MD_WIDTH` turns on the wrap check.
