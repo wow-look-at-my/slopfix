@@ -279,7 +279,7 @@ func divisions(s *syntax.Sentence, source string) []division {
 		// A division inside a pair of dashes, or at either dash, halves the aside, unless the rest names its subject again.
 		inAside := insideAny(dashed, s.Words[c.Link].Start)
 		// The part before a division needs a verb with tense: "so newly created files." has none.
-		if !main.Verb.Finite && !main.Verb.Imperative {
+		if main.Verb == nil || (!main.Verb.Finite && !main.Verb.Imperative) {
 			continue
 		}
 		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {
