@@ -6,6 +6,7 @@
 package bashclean
 
 import (
+	"reflect"
 	"slices"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -99,11 +100,54 @@ func (d noopDrop) list(ss []*syntax.Stmt, top bool) []*syntax.Stmt {
 		case last && !top:
 		case !last && readsStatus(ss[i+1]):
 		default:
+			closeGap(out, s, ss[i+1:])
 			continue
 		}
 		out = append(out, s)
 	}
 	return out
+}
+
+// closeGap moves the statements after a dropped one up by the lines it held,
+// so the printer leaves no blank line where the statement stood. A dropped
+// statement that shares a line with a neighbor leaves no gap.
+func closeGap(kept []*syntax.Stmt, dropped *syntax.Stmt, rest []*syntax.Stmt) {
+	start, end := dropped.Pos().Line(), dropped.End().Line()
+	if len(kept) > 0 && kept[len(kept)-1].End().Line() >= start {
+		return
+	}
+	if len(rest) == 0 || rest[0].Pos().Line() <= end {
+		return
+	}
+	delta := end - start + 1
+	for _, s := range rest {
+		shiftLines(s, delta)
+	}
+}
+
+var posType = reflect.TypeOf(syntax.Pos{})
+
+// shiftLines moves every position in the tree up by delta lines.
+func shiftLines(n syntax.Node, delta uint) {
+	syntax.Walk(n, func(node syntax.Node) bool {
+		v := reflect.ValueOf(node)
+		if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Struct {
+			return true
+		}
+		v = v.Elem()
+		for i := range v.NumField() {
+			f := v.Field(i)
+			if f.Type() != posType || !f.CanSet() {
+				continue
+			}
+			p := f.Interface().(syntax.Pos)
+			if !p.IsValid() || p.Line() <= delta {
+				continue
+			}
+			f.Set(reflect.ValueOf(syntax.NewPos(p.Offset(), p.Line()-delta, p.Col())))
+		}
+		return true
+	})
 }
 
 func (d noopDrop) stmt(s *syntax.Stmt) {

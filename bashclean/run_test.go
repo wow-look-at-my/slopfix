@@ -121,7 +121,7 @@ func TestRewriteDropsOnlyStatementsThatRunNothing(t *testing.T) {
 		{"echo start\nsleep 10\nls | tail -5", 1},
 		{"cd /repo\nA=1\necho \"=== files ===\"\nls -1 \"$A\" 2>&1 | tail -12\necho \"=== done ===\"\n./run a b", 2},
 		{"sed -n 100,150p internal/trash/freedesktop_test.go; echo ===; git show 4ecc41f:internal/trash/freedesktop.go | grep -n \"dispose\" | head", 1},
-		{"make; true; ls; :", 2},
+		{"make; true; ls | tail -5; :", 2},
 	} {
 		before := len(parseStmts(t, tc.in))
 		after := len(parseStmts(t, Transform(tc.in).Command))
