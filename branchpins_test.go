@@ -142,6 +142,29 @@ func TestARecordedAnswerIsUsedInPlaceOfTheAPI(t *testing.T) {
 	assert.Zero(t, calls)
 }
 
+// The fixture API knows only what a fixture declares, so an undeclared repository is a finding and a declared one passes.
+func TestAnUndeclaredFixtureRepositoryIsReported(t *testing.T) {
+	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: acme/undeclared@v1\n"
+	judged := func(declared map[string]string) []slopfix.TreeFinding {
+		c, err := slopfix.Materialize(t.TempDir(), slopfix.RuleCase{Path: ".github/workflows/ci.yml", Text: text, Refs: declared})
+		require.NoError(t, err)
+		return slopfix.CheckTreeWith(c.Root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings
+	}
+	found := judged(nil)
+	require.Len(t, found, 1)
+	assert.Equal(t, "the branch pins could not be judged", found[0].Rule)
+	assert.Empty(t, judged(map[string]string{"acme/undeclared": "master", "acme/undeclared@v1": "tag"}))
+}
+
+func TestAnUndeclaredFixtureRefIsReported(t *testing.T) {
+	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: acme/declared@v9\n"
+	c, err := slopfix.Materialize(t.TempDir(), slopfix.RuleCase{Path: ".github/workflows/ci.yml", Text: text, Refs: map[string]string{"acme/declared": "master"}})
+	require.NoError(t, err)
+	found := slopfix.CheckTreeWith(c.Root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings
+	require.Len(t, found, 1)
+	assert.Equal(t, workflow.IDBranchPin, found[0].ID)
+}
+
 // A ref the cache lacks is looked up, and the API's answer decides.
 func TestAnUnrecordedRefIsLookedUp(t *testing.T) {
 	calls := 0

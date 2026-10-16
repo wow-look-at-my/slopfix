@@ -2,6 +2,7 @@ package slopfix
 
 import (
 	"encoding/json"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -20,11 +21,11 @@ var fixtureAPI struct {
 
 // serveFixtureRefs adds a case's answers to the fixture API. The table maps
 // "owner/repo" to the default branch, and "owner/repo@ref" to "branch" or
-// "tag". A repository the table omits defaults to master, and a ref it omits
-// is a tag.
+// "tag". The API answers for a repository or ref the table omits, so a
+// fixture declares each one it relies on.
 func serveFixtureRefs(table map[string]string) error {
 	fixtureAPI.once.Do(func() {
-		fixtureAPI.table = map[string]string{}
+		fixtureAPI.table = maps.Clone(declaredFixtureRefs)
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			fixtureAPI.err = err
@@ -55,7 +56,8 @@ func answerFixtureRef(w http.ResponseWriter, r *http.Request) {
 	if rest == "" {
 		def, ok := fixtureAPI.table[repo]
 		if !ok {
-			def = "master"
+			http.NotFound(w, r)
+			return
 		}
 		json.NewEncoder(w).Encode(map[string]string{"default_branch": def})
 		return
@@ -70,10 +72,7 @@ func answerFixtureRef(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	kind, named := fixtureAPI.table[repo+"@"+ref]
-	if !named {
-		kind = "tag"
-	}
+	kind := fixtureAPI.table[repo+"@"+ref]
 	if (space == "heads" && kind == "branch") || (space == "tags" && kind == "tag") {
 		w.WriteHeader(http.StatusOK)
 		return
