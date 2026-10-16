@@ -183,7 +183,6 @@ var capSentences = []string{
 	"captureReal writes new snapshot or history images into the generation no pending warp binds and flips to it before the next real frame starts its capture pass.",
 	"main() holds the \"gpu\" lock for every splat-vulkan run except --help and --dump-layouts, so only one splat-vulkan uses the GPU at a time.",
 	"Every request takes a ticket in \"<lock file>.queue/\": a sequence number from the counter file, taken under flock on that file, names a ticket file that its owner holds flock(LOCK_EX) on for as long as it waits or holds.",
-	"The rule answers the number at offset at and the words up to the plural noun it counts, as in \"0 validation errors\", or \"\" when no plural noun ends a phrase it governs.",
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.

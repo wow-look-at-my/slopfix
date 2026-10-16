@@ -37,8 +37,10 @@ func LabelAt(content string, start int, consts Constants) (edit.Edit, bool) {
 	}
 	line := content[from:to]
 	if cardinal.NamesAnItem(line, start-from) {
-		if e, ok := countedEdit(content, from, line, start-from); ok {
-			return e, true
+		if digits == "0" {
+			if e, ok := countedEdit(content, from, line, start-from); ok {
+				return e, true
+			}
 		}
 		if e, ok := measureEdit(content, start, line, start-from, digits); ok {
 			return e, true
