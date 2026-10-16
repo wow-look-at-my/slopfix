@@ -66,9 +66,11 @@ func wouldGroup(s *syntax.Sentence, prose string, i int) (int, string) {
 		}
 		j++
 	}
-	// "would have failed" is the same condition, written about a past moment.
+	// "would have failed" speaks of a past moment, so its verb stays in the past.
+	perfect := false
 	if j+1 < len(s.Words) && s.Words[j].Lower() == "have" && (s.Words[j+1].Tag == "VBN" || s.Words[j+1].Tag == "VBD") {
 		j++
+		perfect = true
 	}
 	if j >= len(s.Words) || !strings.HasPrefix(s.Words[j].Tag, "VB") {
 		return s.Words[i].End, presentAux(plural, negated)
@@ -81,6 +83,9 @@ func wouldGroup(s *syntax.Sentence, prose string, i int) (int, string) {
 	switch {
 	case base == "be":
 		text := presentBe(plural)
+		if perfect {
+			text = pastBe(plural)
+		}
 		if negated {
 			text += " not"
 		}
@@ -88,8 +93,12 @@ func wouldGroup(s *syntax.Sentence, prose string, i int) (int, string) {
 			text += " " + strings.TrimSpace(lead)
 		}
 		return s.Words[j].End, text
+	case negated && perfect:
+		return s.Words[j].End, "did not " + lead + base
 	case negated:
 		return s.Words[j].End, presentAux(plural, true) + " " + lead + base
+	case perfect:
+		return s.Words[j].End, lead + pastFromParticiple(s.Words[j].Lower())
 	}
 	return s.Words[j].End, lead + presentOf(base, plural)
 }
@@ -156,6 +165,14 @@ func presentBe(plural bool) string {
 		return "are"
 	}
 	return "is"
+}
+
+// pastBe answers "was" or "were".
+func pastBe(plural bool) string {
+	if plural {
+		return "were"
+	}
+	return "was"
 }
 
 // presentAux answers the auxiliary a present-tense negative or question takes.

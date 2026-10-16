@@ -53,8 +53,7 @@ func Gate(content string) []Hit {
 func find(content string, substrate cardinal.Substrate, mask func(string) string) []Hit {
 	var hits []Hit
 	for _, line := range proseLines(content) {
-		// A list marker opens the item and is no word of its prose, so the check reads past it as ste does.
-		text := blankListMarker(mask(line.text))
+		text := mask(line.text)
 		for _, found := range cardinal.Find(text, substrate) {
 			hits = append(hits, Hit{
 				Phrase: found.Text,
@@ -67,18 +66,6 @@ func find(content string, substrate cardinal.Substrate, mask func(string) string
 	}
 	sort.SliceStable(hits, func(i, j int) bool { return hits[i].Start < hits[j].Start })
 	return hits
-}
-
-// itemMarker matches the marker that opens a list item, with the blanks around it.
-var itemMarker = regexp.MustCompile(`^\s*(?:[-*+]|\d+[.)])\s+`)
-
-// blankListMarker writes blanks over a list item's marker, so offsets stay.
-func blankListMarker(text string) string {
-	loc := itemMarker.FindStringIndex(text)
-	if loc == nil {
-		return text
-	}
-	return strings.Repeat(" ", loc[1]) + text[loc[1]:]
 }
 
 func init() {

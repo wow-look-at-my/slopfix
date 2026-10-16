@@ -87,7 +87,7 @@ func verbBefore(words []syntax.Word, i int) bool {
 		case t == "." || t == "," || t == ":" || t == "(":
 			return false
 		case syntax.Is(words[j].Lower(), "subordinator"):
-			// "begins only after instance 1 finishes": a subordinator opens a clause of its own, and its verb comes after the label.
+			// "begins only after instance 1 finishes".
 			return false
 		case finiteVerbTags.Contains(t):
 			return true

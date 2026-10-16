@@ -51,13 +51,11 @@ func Apply(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Resul
 	// The bash grammar reads a YAML apostrophe as a quote, so its tree of a YAML file is no model of it.
 	sameCode := func(text string) bool { return sameShape(language, text, want) }
 	if isYAML(filename) {
-		data, ok := yamlData(src)
-		if !ok {
-			return refuseAll("the YAML does not parse")
-		}
-		sameCode = func(text string) bool {
-			got, ok := yamlData(text)
-			return ok && reflect.DeepEqual(got, data)
+		if data, ok := yamlData(src); ok {
+			sameCode = func(text string) bool {
+				got, ok := yamlData(text)
+				return ok && reflect.DeepEqual(got, data)
+			}
 		}
 	}
 	return edit.Gate(src, edits, scope,

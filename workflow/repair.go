@@ -94,6 +94,9 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 	if len(edits) == 0 {
 		return edit.Unchanged(content, scope)
 	}
+	if comment {
+		edits = keepScriptCommentLines(content, edits)
+	}
 	var want any
 	// A repeated key is the defect a repair removes, so it does not stop the repair.
 	if err := yaml.Unmarshal([]byte(compareData(content, comment)), &want); err != nil && !(strings.Contains(err.Error(), "already defined") && !comment) {
@@ -121,21 +124,64 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 
 // compareData answers the text a comment gate compares. A # inside a block
 // scalar is part of the scalar's string, so a rewrite there changes the value.
-// A comment in a script is not its behavior, so those lines drop out first. A
-// repair that lays a script's comment out on fewer lines then reads the same.
+// A comment in a script is not its behavior, so those lines read blank first.
 func compareData(content string, comment bool) string {
 	if !comment {
 		return content
 	}
 	inside := blockScalarLines(content)
-	var kept []string
-	for i, line := range lines(content) {
+	fileLines := lines(content)
+	for i, line := range fileLines {
 		if i < len(inside) && inside[i] && strings.HasPrefix(strings.TrimSpace(line), "#") {
+			fileLines[i] = ""
+		}
+	}
+	return strings.Join(fileLines, "\n")
+}
+
+// keepScriptCommentLines pads an edit that lays a script's comment out on fewer
+// lines with bare comment lines. The gate reads each comment line of a script
+// as a blank line of its scalar, so the scalar keeps its line count.
+func keepScriptCommentLines(content string, edits []edit.Edit) []edit.Edit {
+	inside := blockScalarLines(content)
+	out := make([]edit.Edit, len(edits))
+	for i, e := range edits {
+		out[i] = e
+		if e.Start < 0 || e.End > len(content) || e.Start >= e.End {
 			continue
 		}
-		kept = append(kept, line)
+		first := strings.Count(content[:e.Start], "\n")
+		old := strings.Split(strings.TrimSuffix(content[e.Start:e.End], "\n"), "\n")
+		if first >= len(inside) || !inside[first] {
+			continue
+		}
+		allComments := true
+		for _, line := range old {
+			allComments = allComments && strings.HasPrefix(strings.TrimSpace(line), "#")
+		}
+		newText := strings.TrimSuffix(e.Text, "\n")
+		have := strings.Count(newText, "\n") + 1
+		if newText == "" {
+			have = 0
+		}
+		if !allComments || have >= len(old) {
+			continue
+		}
+		indent := old[0][:len(old[0])-len(strings.TrimLeft(old[0], " \t"))]
+		var b strings.Builder
+		b.WriteString(newText)
+		for pad := have; pad < len(old); pad++ {
+			if b.Len() > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(indent + "#")
+		}
+		if strings.HasSuffix(e.Text, "\n") || strings.HasSuffix(content[e.Start:e.End], "\n") {
+			b.WriteString("\n")
+		}
+		out[i].Text = b.String()
 	}
-	return strings.Join(kept, "\n")
+	return out
 }
 
 // lineEdge reports whether a byte sits where a line starts or ends.

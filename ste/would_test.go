@@ -13,7 +13,10 @@ func TestWouldTakesThePresentTense(t *testing.T) {
 	for in, want := range map[string]string{
 		"Without the cache the build would fail.":                                   "Without the cache the build fails.",
 		"A cached tree would be faster.":                                            "A cached tree is faster.",
-		"The old runner would have dropped the job.":                                "The old runner drops the job.",
+		"The old runner would have dropped the job.":                                "The old runner dropped the job.",
+		"The old runner would not have dropped the job.":                            "The old runner did not drop the job.",
+		"The old runner would have been slower.":                                    "The old runner was slower.",
+		"The old runners would have written the file.":                              "The old runners wrote the file.",
 		"The gate would not accept the token.":                                      "The gate does not accept the token.",
 		"Would the gate accept the token?":                                          "Does the gate accept the token?",
 		"Would it be faster?":                                                       "Is it faster?",
