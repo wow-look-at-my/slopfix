@@ -84,6 +84,11 @@ func treeRun(root string, req Request, writing bool) TreeRepair {
 	if req.Refs == nil {
 		req.Refs = NewGitHubRefs(os.Getenv)
 	}
+	cached, err := refsAt(root, req.Refs)
+	if err != nil {
+		return TreeRepair{Findings: []TreeFinding{repoFinding(root, workflow.IDBranchPin, "the recorded ref answers could not be read", err.Error())}}
+	}
+	req.Refs = cached
 	var out TreeRepair
 	repository := func() {
 		if !wantsRepo(req) || !isRepoRoot(root) {

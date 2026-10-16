@@ -1,6 +1,7 @@
 package workflow_test
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -157,6 +158,26 @@ func TestAnotherRejectedLineGoesToEval(t *testing.T) {
 	fixed := repairedBy(stepsHead + "      - run: |\n          echo hi\n          case\n")
 	assert.Equal(t, stepsHead+"      - run: |\n          echo hi\n          eval 'case'\n", fixed)
 	assert.Empty(t, syntaxFindings(fixed))
+}
+
+// Every input that reaches the eval fallback fails loudly when bash runs the repaired script.
+func TestEveryEvalFallbackFailsLoudlyAtRunTime(t *testing.T) {
+	for _, line := range []string{"case", "function"} {
+		fixed := repairedBy(stepsHead + "      - run: |\n          " + line + "\n")
+		assert.Contains(t, fixed, "eval '"+line+"'", line)
+		var doc struct {
+			Jobs map[string]struct {
+				Steps []struct {
+					Run string `yaml:"run"`
+				} `yaml:"steps"`
+			} `yaml:"jobs"`
+		}
+		require.NoError(t, yaml.Unmarshal([]byte(fixed), &doc))
+		script := doc.Jobs["a"].Steps[0].Run
+		out, err := exec.Command("bash", "-ec", script).CombinedOutput()
+		require.Error(t, err, line)
+		assert.Contains(t, string(out), "syntax error", line)
+	}
 }
 
 // No repair comments a command out.
