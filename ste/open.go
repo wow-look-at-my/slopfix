@@ -261,7 +261,8 @@ func startsModalClause(rest string) bool {
 // of its own.
 func standsBeforeConjunction(whole *syntax.Sentence, head string) bool {
 	n := wordsBefore(whole, len(head))
-	return n > 0 && n < len(whole.Words) && whole.Words[n].Tag == "CC" && standsAlone(whole, 0, n)
+	return n > 0 && n < len(whole.Words) && whole.Words[n].Tag == "CC" && !forceDangling.Contains(whole.Words[n-1].Lower()) &&
+		(standsAlone(whole, 0, n) || holdsFinite(checkMask(head)))
 }
 
 // verbAfterConjunction reports a plural noun at first that opens a verb group
