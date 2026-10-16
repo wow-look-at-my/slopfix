@@ -15,6 +15,7 @@ const exporterSource = "import path from 'node:path';\n" +
 	"/** Absolute path of the exporter under test. */\n" +
 	"// path.resolve (not `new URL(..., import.meta.url)`): the jsdom environment\n" +
 	"// shadows the URL global, and Node's fileURLToPath rejects cross-realm URLs.\n" +
+	"// A file path avoids both problems.\n" +
 	"export const EXPORTER_MODULE = path.resolve(\n" +
 	"\timport.meta.dirname,\n" +
 	"\t'../../src/Claude/export-session-markdown.user.ts',\n" +
@@ -23,12 +24,6 @@ const exporterSource = "import path from 'node:path';\n" +
 // A one-line JSDoc closes a sentence, so the cut keeps it and drops what follows.
 func TestAOneLineJSDocIsAnOpeningTheCutKeeps(t *testing.T) {
 	hits := CheckLength("page.ts", exporterSource)
-	for _, b := range blocks("page.ts", exporterSource) {
-		tell, over := judge(b)
-		fixed := repair(b)
-		_, stillOver := judge(block{text: fixed, codeLines: b.codeLines, codeChars: b.codeChars})
-		t.Logf("block %d-%d header=%v exact=%v code=%d/%d tell=%q over=%v fixed=%q stillOver=%v", b.start, b.end, b.header, b.exact, b.codeLines, b.codeChars, tell, over, fixed, stillOver)
-	}
 	require.Len(t, hits, 1, "the control: the comment outweighs its code")
 	assert.True(t, hits[0].Repairable, hits[0].Tell)
 
