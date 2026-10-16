@@ -10,8 +10,11 @@ import (
 	yaml "go.yaml.in/yaml/v3"
 )
 
-// IDOrgActionRef is an org action or reusable workflow that names a ref other than its default branch.
+// IDOrgActionRef is an org action or reusable workflow that names a ref other than its default branch, `lkgb`.
 const IDOrgActionRef = "yaml/org-action-ref"
+
+// lkgbTag is the last-known-good-build tag.
+const lkgbTag = "lkgb"
 
 // orgOwner is the owner whose actions must track their default branch.
 const orgOwner = "wow-look-at-my"
@@ -74,8 +77,12 @@ func orgRefs(content string) []orgRef {
 	return out
 }
 
-// allowedRef reports the branch repo tracks, or an orphan tag. `<sha>#latest` names no tag.
+// allowedRef reports the `lkgb` tag, the branch repo tracks, or an orphan tag.
+// `<sha>#latest` names no tag.
 func allowedRef(repo, ref string) bool {
+	if ref == lkgbTag {
+		return true
+	}
 	name, _, _ := strings.Cut(ref, "#")
 	return ref == trackedBranch(repo) || orphanTag.MatchString(ref) && !commitSHA.MatchString(name)
 }
@@ -125,7 +132,8 @@ func repairable(at orgRef) bool {
 	return ok
 }
 
-// orgActionRefs reports each org action that names a ref other than its default branch.
+// orgActionRefs reports each org action that names a ref other than its
+// default branch, `lkgb`, or an orphan tag.
 func orgActionRefs(content string) []ste.Finding {
 	var out []ste.Finding
 	for _, at := range orgRefs(content) {
@@ -135,9 +143,9 @@ func orgActionRefs(content string) []ste.Finding {
 		out = append(out, ste.Finding{
 			Line:   at.node.Line,
 			ID:     IDOrgActionRef,
-			Rule:   "an org action that names a ref other than its default branch",
+			Rule:   "an org action that names a ref other than its default branch or `" + lkgbTag + "`",
 			Detail: at.repo + "@" + at.ref,
-			Fix:    "Use `@" + trackedBranch(at.repo) + "`, or `@<directory>#latest` for an action of " + orgOwner + "/" + monorepo + ". `slopfix fix` does this.",
+			Fix:    "Use `@" + trackedBranch(at.repo) + "` or `@" + lkgbTag + "`, or `@<directory>#latest` for an action of " + orgOwner + "/" + monorepo + ". `slopfix fix` writes the default branch or the directory tag.",
 		})
 	}
 	return out
