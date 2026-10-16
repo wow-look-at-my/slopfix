@@ -436,7 +436,7 @@ func init() {
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))
 			}
-			if stePass && f.Keeps(ste.IDParagraphLength) {
+			if selected(ste.IDParagraphLength) {
 				f.Apply(paragraphEdits(f.Text()))
 			}
 		},
