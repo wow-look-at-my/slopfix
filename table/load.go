@@ -9,9 +9,10 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/fs"
-	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/xmlcheck"
 )
 
 // document mirrors a rules file. The table types the consumer reads carry no
@@ -19,6 +20,7 @@ import (
 // them as a list. A pattern holds a compiled matcher the file cannot spell.
 type document struct {
 	For       string      `xml:"for,attr"`
+	Case      string      `xml:"case,attr"`
 	Drops     []xmlDrop   `xml:"drop"`
 	Rewrites  []xmlPhrase `xml:"rewrite"`
 	Patterns  []xmlShape  `xml:"pattern"`
@@ -53,6 +55,7 @@ type xmlDrop struct {
 	ID    string    `xml:"id,attr"`
 	Word  string    `xml:"word,attr"`
 	Where string    `xml:"where,attr"`
+	Case  string    `xml:"case,attr"`
 	Tests []xmlTest `xml:"test"`
 }
 
@@ -63,6 +66,7 @@ type xmlPhrase struct {
 	From  string    `xml:"from,attr"`
 	To    string    `xml:"to,attr"`
 	Where string    `xml:"where,attr"`
+	Case  string    `xml:"case,attr"`
 	Tests []xmlTest `xml:"test"`
 }
 
@@ -73,6 +77,7 @@ type xmlShape struct {
 	Match string    `xml:"match,attr"`
 	To    string    `xml:"to,attr"`
 	Where string    `xml:"where,attr"`
+	Case  string    `xml:"case,attr"`
 	Tests []xmlTest `xml:"test"`
 }
 
@@ -80,7 +85,16 @@ type xmlFlag struct {
 	ID     string    `xml:"id,attr"`
 	Phrase string    `xml:"phrase,attr"`
 	Say    string    `xml:"say,attr"`
+	Case   string    `xml:"case,attr"`
 	Tests  []xmlTest `xml:"test"`
+}
+
+// sensitive answers the case rule of an entry: its own case attribute, else the file's.
+func sensitive(root, entry string) bool {
+	if entry != "" {
+		return entry == xmlcheck.CaseSensitive
+	}
+	return root == xmlcheck.CaseSensitive
 }
 
 // xmlList holds one string on each line of its text.
@@ -109,6 +123,7 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 	out := &Table{}
 	// An id names an entry across the whole folder, so a duplicate is caught over every file rather than over each alone.
 	ids := map[string]string{}
+	var files []xmlcheck.File
 	for _, path := range paths {
 		raw, err := fs.ReadFile(fsys, path)
 		if err != nil {
@@ -127,11 +142,35 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 		if err := out.add(path, doc, ids); err != nil {
 			return nil, err
 		}
+		files = append(files, xmlcheck.File{Name: path, Raw: raw})
 	}
 	if out.empty() {
 		return nil, fmt.Errorf("no file in the rules folder carries for=%q", target)
 	}
+	if err := xmlcheck.Run(SpecFor(target), files...); err != nil {
+		return nil, fmt.Errorf("for=%q: %w", target, err)
+	}
+	if err := out.checkRephrasings(); err != nil {
+		return nil, fmt.Errorf("for=%q: %w", target, err)
+	}
 	return out, nil
+}
+
+// checkRephrasings holds each rephrase to its own tests: a test that changes
+// the prose must be prose the entry's match fits.
+func (t *Table) checkRephrasings() error {
+	lex := t.Lexicon()
+	for _, r := range t.Rephrasings {
+		for _, c := range r.Tests {
+			if c.Out != "" && c.Out == c.In {
+				continue
+			}
+			if !r.Matches(lex, t.Normals, c.In) {
+				return fmt.Errorf("<rephrase id=%q>: the test %q is matched by nothing in its match %q", r.ID, c.In, r.Match)
+			}
+		}
+	}
+	return nil
 }
 
 // MustLoad is Load for a package-level table. A rules folder that does not load
@@ -172,31 +211,34 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 		if err := named("drop", d.ID, d.Tests, d.Word == ""); err != nil {
 			return err
 		}
-		t.Drops = append(t.Drops, Drop{ID: d.ID, Word: d.Word, Where: d.Where, Tests: tests(d.Tests)})
+		t.Drops = append(t.Drops, Drop{ID: d.ID, Word: d.Word, Where: d.Where, Tests: tests(d.Tests), Sensitive: sensitive(doc.Case, d.Case)})
 	}
 	for _, r := range doc.Rewrites {
 		if err := named("rewrite", r.ID, r.Tests, r.From == "" || r.To == ""); err != nil {
 			return err
 		}
-		t.Rewrites = append(t.Rewrites, Rewrite{ID: r.ID, From: r.From, To: r.To, Where: r.Where, Tests: tests(r.Tests)})
+		t.Rewrites = append(t.Rewrites, Rewrite{
+			ID: r.ID, From: r.From, To: r.To, Where: r.Where, Tests: tests(r.Tests), Sensitive: sensitive(doc.Case, r.Case),
+		})
 	}
 	for _, p := range doc.Patterns {
 		if err := named("pattern", p.ID, p.Tests, p.Match == ""); err != nil {
 			return err
 		}
-		re, err := regexp.Compile(p.Match)
+		sens := sensitive(doc.Case, p.Case)
+		re, err := xmlcheck.Compile(p.Match, sens)
 		if err != nil {
 			return fmt.Errorf("%s: <pattern id=%q>: %w", path, p.ID, err)
 		}
 		t.Patterns = append(t.Patterns, Pattern{
-			ID: p.ID, Match: p.Match, To: p.To, Where: p.Where, Tests: tests(p.Tests), re: re,
+			ID: p.ID, Match: p.Match, To: p.To, Where: p.Where, Tests: tests(p.Tests), Sensitive: sens, re: re,
 		})
 	}
 	for _, f := range doc.Flags {
 		if err := named("flag", f.ID, f.Tests, f.Phrase == "" || f.Say == ""); err != nil {
 			return err
 		}
-		t.Flags = append(t.Flags, Flag{ID: f.ID, Phrase: f.Phrase, Say: f.Say, Tests: tests(f.Tests)})
+		t.Flags = append(t.Flags, Flag{ID: f.ID, Phrase: f.Phrase, Say: f.Say, Tests: tests(f.Tests), Sensitive: sensitive(doc.Case, f.Case)})
 	}
 	for _, c := range doc.Classes {
 		if c.Name == "" {
@@ -219,6 +261,7 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 		if err != nil {
 			return fmt.Errorf("%s: <rephrase id=%q>: %w", path, r.ID, err)
 		}
+		terms.Sensitive = sensitive(doc.Case, r.Case)
 		t.Rephrasings = append(t.Rephrasings, Rephrase{
 			ID: r.ID, Match: r.Match, Terms: terms, To: r.To, Where: r.Where, Tests: tests(r.Tests),
 		})

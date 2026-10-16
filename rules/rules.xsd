@@ -21,7 +21,17 @@
   <xs:attributeGroup name="placement">
     <xs:attribute name="id" type="xs:string"/>
     <xs:attribute name="where" type="xs:string"/>
+    <xs:attribute name="case" type="case"/>
   </xs:attributeGroup>
+
+  <!-- Matching ignores case unless the root or an entry says sensitive. The
+       nearest case= on the way up from an entry decides. -->
+  <xs:simpleType name="case">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="sensitive"/>
+      <xs:enumeration value="insensitive"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:element name="rules">
     <xs:complexType>
@@ -152,6 +162,7 @@
 
       </xs:choice>
       <xs:attribute name="for" type="xs:string" use="required"/>
+      <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
 

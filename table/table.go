@@ -33,6 +33,8 @@ type Drop struct {
 	Word  string
 	Where string
 	Tests []Test
+	// Sensitive makes the word match as written. Otherwise case is ignored.
+	Sensitive bool
 }
 
 // Rewrite swaps a whole phrase for another.
@@ -42,6 +44,8 @@ type Rewrite struct {
 	To    string
 	Where string
 	Tests []Test
+	// Sensitive makes the phrase match as written. Otherwise case is ignored.
+	Sensitive bool
 }
 
 // Flag names prose a rule refuses to rewrite, and what to write instead.
@@ -50,6 +54,8 @@ type Flag struct {
 	Phrase string
 	Say    string
 	Tests  []Test
+	// Sensitive makes the phrase match as written. Otherwise case is ignored.
+	Sensitive bool
 }
 
 // Pattern is a rewrite with captures.
@@ -59,6 +65,8 @@ type Pattern struct {
 	To    string
 	Where string
 	Tests []Test
+	// Sensitive makes the match case-sensitive. Otherwise it ignores case.
+	Sensitive bool
 
 	// re is Match, compiled when the folder is loaded.
 	re *regexp.Regexp

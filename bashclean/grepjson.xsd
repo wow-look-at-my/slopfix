@@ -125,7 +125,16 @@
           </xs:complexType>
         </xs:element>
       </xs:choice>
+      <xs:attribute name="case" type="case" use="required"/>
     </xs:complexType>
   </xs:element>
+
+  <!-- Programs, flags and patterns are read as typed, so the root says
+       sensitive and the loader refuses a table that does not. -->
+  <xs:simpleType name="case">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="sensitive"/>
+    </xs:restriction>
+  </xs:simpleType>
 
 </xs:schema>

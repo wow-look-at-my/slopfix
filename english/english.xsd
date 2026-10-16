@@ -19,8 +19,18 @@
         <xs:element ref="flag"/>
         <xs:element ref="test"/>
       </xs:choice>
+      <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
+
+  <!-- Matching ignores case unless the root or an entry says sensitive. The
+       nearest case= on the way up from an entry decides. -->
+  <xs:simpleType name="case">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="sensitive"/>
+      <xs:enumeration value="insensitive"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <!-- A set of words that fill the same slot, which a shape reads to tell one
        sentence structure from another. A class names its members, or claims
@@ -38,23 +48,29 @@
   <!-- A word that survives its own deletion. -->
   <xs:element name="drop">
     <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="test" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
       <xs:attribute name="word" type="xs:string" use="required"/>
       <xs:attribute name="test" type="xs:string" use="required"/>
-      <xs:attribute name="expect" type="xs:string"/>
       <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
 
   <!-- A whole phrase swapped for a shorter one. -->
   <xs:element name="rewrite">
     <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="test" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
       <xs:attribute name="from" type="xs:string" use="required"/>
       <xs:attribute name="to" type="xs:string" use="required"/>
       <xs:attribute name="test" type="xs:string" use="required"/>
-      <xs:attribute name="expect" type="xs:string"/>
       <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
 
@@ -71,6 +87,7 @@
       <xs:attribute name="expect" type="xs:string" use="required"/>
       <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="case" type="case"/>
       <xs:attribute name="subject" type="position"/>
     </xs:complexType>
   </xs:element>
@@ -88,6 +105,7 @@
       <xs:attribute name="expect" type="xs:string" use="required"/>
       <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
 
@@ -103,11 +121,15 @@
   <!-- A phrase named rather than rewritten, where no one replacement is right. -->
   <xs:element name="flag">
     <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="test" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
       <xs:attribute name="phrase" type="xs:string" use="required"/>
       <xs:attribute name="say" type="xs:string" use="required"/>
       <xs:attribute name="test" type="xs:string" use="required"/>
       <xs:attribute name="where" type="surfaces"/>
       <xs:attribute name="id" type="xs:string"/>
+      <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
 
