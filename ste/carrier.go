@@ -100,15 +100,6 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 			}
 		}
 	}
-	// "X -- an aside -- so Y": the aside explains X, so a colon carries it, and "so" opens the next sentence.
-	if seamIsDash(seam) && lower == "so" {
-		aside := strings.TrimRight(strings.TrimSuffix(strings.TrimRight(head, " "), seam), " ")
-		if strings.Count(aside, seam) == 1 {
-			if at := strings.Index(aside, " "+seam+" "); at > 0 {
-				return aside[:at] + ":" + aside[at+len(seam)+1:], capitalizeOpening(rest), opensWithCarrier
-			}
-		}
-	}
 	noun := strings.HasPrefix(prev.Tag, "NN")
 	// An -ing noun after a singular noun is one compound noun with it, and no division lands inside it.
 	if prev.Tag == "NN" && nominalIng.Contains(lower) {
