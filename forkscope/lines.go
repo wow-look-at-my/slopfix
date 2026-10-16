@@ -38,7 +38,7 @@ func (b *Base) Lines() (*Lines, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := own.readWorkTree(repo, base, Changed, true); err != nil {
+	if err := own.readWorkTree(repo, base, inserted, true); err != nil {
 		return nil, fmt.Errorf("fork scope: diff against the base %s: %w", b.commit, err)
 	}
 	if b.upstream != "" {
@@ -319,11 +319,6 @@ func relTo(top, path string) (string, error) {
 
 // Changed answers the lines of after that differ from before.
 func Changed(before, after string) *Scope {
-	return added(before, after).ClaimWordless(after)
-}
-
-// added answers the lines of after that a diff from before inserts or replaces.
-func added(before, after string) *Scope {
 	s := &Scope{base: func() (string, error) { return before, nil }}
 	for _, op := range opcodes(before, after) {
 		if op.Tag != 'r' && op.Tag != 'i' {
@@ -333,7 +328,7 @@ func added(before, after string) *Scope {
 			s.lines.Add(j + 1)
 		}
 	}
-	return s
+	return s.ClaimWordless(after)
 }
 
 // ClaimWordless answers s with each line of text that holds no word, where the
@@ -429,7 +424,7 @@ func DiffLines(dir, rev string, staged bool) (*Lines, error) {
 	} else {
 		var base gitread.OID
 		if base, err = revision(repo, rev); err == nil {
-			err = own.readWorkTree(repo, base, added, false)
+			err = own.readWorkTree(repo, base, inserted, false)
 		}
 	}
 	if err != nil {
@@ -487,7 +482,7 @@ func (o *Lines) readIndex(repo *gitread.Repo) error {
 		}
 		pairs = append(pairs, pair{e.Path, before.OID, after[e.OID]})
 	}
-	return o.addPairs(repo, pairs, added)
+	return o.addPairs(repo, pairs, inserted)
 }
 
 // IntersectLines answers the lines both a and b hold. A file both hold whole
