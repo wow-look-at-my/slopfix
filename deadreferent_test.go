@@ -81,6 +81,23 @@ func TestFixRenamesACaseTypoToTheDefinedName(t *testing.T) {
 	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
 }
 
+// The same typo above a short body.
+func TestFixRenamesACaseTypoAboveAShortBody(t *testing.T) {
+	path := deadReferentRepo(t, "os_cosmo_nt_msg.go")
+	content := "package runtime\n\n" +
+		"// ntSCMParse walks a Linux cmsg buffer. NtSCMParse collects the SCM_RIGHTS\n" +
+		"// payload fds, with the kernel's exact acceptance rules.\n" +
+		"func ntSCMParse(buf []byte) int {\n" +
+		"\tn := len(buf)\n" +
+		"\treturn n\n" +
+		"}\n"
+
+	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
+	assert.NotContains(t, fixed.Text, "NtSCMParse")
+	assert.Contains(t, fixed.Text, "// ntSCMParse walks a Linux cmsg buffer. ntSCMParse collects the SCM_RIGHTS")
+	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
+}
+
 // A doc comment whose subject is stale names the declaration below it. Fix
 // renames the subject to that declaration and keeps the comment.
 func TestFixRenamesAStaleSubjectToTheDocumentedField(t *testing.T) {

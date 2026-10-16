@@ -602,12 +602,13 @@ func dropTrailingSentence(text []string) ([]string, bool) {
 		return text, false
 	}
 
+	// A comment sentence can open on an identifier in lower case, so the cut reads its ends as a comment does.
 	body := strings.Join(paras[last].lines, " ")
-	sentences := ste.Sentences(body)
-	if len(sentences) < 2 {
+	found := cutSentences(body)
+	if len(found) < 2 {
 		return text, false
 	}
-	kept := strings.TrimSpace(strings.Join(sentences[:len(sentences)-1], " "))
+	kept := strings.TrimSpace(strings.Join(found[:len(found)-1], " "))
 	if kept == "" {
 		return text, false
 	}

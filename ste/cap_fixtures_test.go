@@ -178,6 +178,11 @@ var capSentences = []string{
 	"With no settle record (prev == null) every later re-aggregation of a settled-green commit used to read as a \"first green\" and republish `pending` over the live `success` — the known first-green regression.",
 	"unless they have no commits unique to them (aka git checkout -b some-new-branch && git push = don't create and close a pr for this 'empty' branch)\" — and the follow-up: \"btw you need to *merge* zero-diff PRs so it wraps everything up properly and deletes the branhc.",
 	"The state CLIENT's own wire contract (get/put/delete/list, acquire/steal, the declared wait and its degradations) is covered once in sdk/state.test.ts — against a REAL local HTTP server rather than this suite's mock — now that this hook shares the SDK client.",
+	"It carries a capital, a digit, an underscore or a dot inside it, or it is a single letter other than the article, as a variable such as q is.",
+	"Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube, and flatness ratio of the stack against an opaque layer of the same cube.",
+	"Pair-demand elasticity per rung, and the act whose demand response measures one of them: the demand and scalars before the act, and the scalars it set.",
+	"Pair demand at quality q relative to now: q split over the free rungs the way applyQuality spends it (before the res lattice), each rung's ratio raised to its measured elasticity.",
+	"Every adopted frame of a synthetic clip lands records, cubeBuf, C and a rendered image equal to the live async tick wire's, on the copy and the in-place (UMA direct) row wires; a repeated C reuses its pipeline triple; an edge repack of an adopted frame and a resumed live tick match too.",
 }
 
 // capPending names the sentence inputs the repair still leaves over the cap.
