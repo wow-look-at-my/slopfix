@@ -332,6 +332,11 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 	if !ok {
 		return "", false
 	}
+	// An identifier in front of a name labels it: "ASD-STE100 Simplified Technical English" becomes "Simplified Technical English (ASD-STE100)".
+	if NameLike(s.Words[start].Text) && !strings.ContainsAny(s.Words[start].Text, " ") {
+		label := source[s.Words[start].Start:s.Words[start].End]
+		return splice(source, s, start, end, source[s.Words[start+1].Start:s.Words[end].End]+" ("+label+")"), true
+	}
 	var out strings.Builder
 	last := end
 	// The head names the thing, and the nouns in front of it describe it.

@@ -103,6 +103,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	case floors.Contains(last(2)):
 		drop(2)
 		text = vague(n)
+	case len(before) > 0 && haveForms.Contains(last(1)) && participleFirst(hit.Phrase, content[hit.End:]):
+		// "has two expected results" must not become "has expected results", which reads as a perfect tense.
+		text = vague(n)
 	case determined(before):
 		text = ""
 	case unit:
@@ -127,6 +130,23 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	}
 	return e, true
 }
+
+// haveForms open a perfect tense when a past participle follows.
+var haveForms = set.Of[string]("has", "have", "had")
+
+// participleFirst reports a phrase whose word after the number ends in -ed and
+// has a noun after it: "two expected results". The phrase may stop at the
+// participle, so the text behind it is read too.
+func participleFirst(phrase, behind string) bool {
+	fields := strings.Fields(phrase)
+	if len(fields) < 2 || !strings.HasSuffix(strings.ToLower(fields[1]), "ed") {
+		return false
+	}
+	return len(fields) > 2 || wordBehind.MatchString(behind)
+}
+
+// wordBehind is a blank and then a letter, the start of a word after a phrase.
+var wordBehind = regexp.MustCompile(`^[ \t]+[A-Za-z]`)
 
 // measures reports a number whose next word is a unit ahead of the noun, as
 // in "64 MiB chunks".
