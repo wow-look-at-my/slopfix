@@ -260,8 +260,7 @@ func repair(b block) []string {
 	return slices.Clone(repaired.Get(key, func() []string { return repairUncached(b) }))
 }
 
-// blockKey names a block by every field the repair reads. Its place in the
-// file only labels the edit, so the check and each fix pass share one answer.
+// blockKey holds every field the repair reads, and not the block's place.
 type blockKey struct {
 	text                 string
 	codeLines, codeChars int
