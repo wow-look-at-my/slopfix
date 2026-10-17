@@ -15,6 +15,10 @@ func init() {
 		Autofix:  autofixCommentNumber,
 		Cases: []RuleCase{
 			{Name: commentfix.ID, Path: "main.go", Text: "package main\n\n// There are 3 modes today.\nfunc main() {}\n"},
+			// A label after a subordinator names an item, and the word after it is the verb of its clause.
+			{Name: commentfix.ID + " in a label after a subordinator", Path: "main.go", Text: "package main\n\n// Work begins only after instance 1 finishes.\nfunc main() {}\n", Want: "package main\n\n// Work begins only after one instance finishes.\nfunc main() {}\n"},
+			// sglang .pre-commit-config.yaml: an issue reference goes with the preposition before it, so no "in #." is left.
+			{Name: commentfix.ID + " on an issue reference", Path: ".pre-commit-config.yaml", Text: "repos:\n  - repo: local\n    hooks:\n      - id: forbid-docs-new-path\n        # docs_new/ was renamed to docs/ in #32123.\n        language: fail\n"},
 			{Name: "a cut keeps the rule that opens each line", Path: "test-governor.cpp", Text: ruledNumbersCase, Want: ruledNumbersWant},
 			{Name: "index zero after a possessive is the first item", Path: "froxel-path.h", Text: chunkZeroCase, Want: chunkZeroWant},
 			{Name: "index zero is the first item", Path: "froxel-path.cpp", Text: frameZeroCase, Want: frameZeroWant},

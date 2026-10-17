@@ -255,18 +255,37 @@ func Keep(before, after string, s *Scope) string {
 			out.WriteString(strings.Join(b[op.J1:op.J2], ""))
 		case op.Tag == 'r' && op.I2-op.I1 == op.J2-op.J1:
 			// Lines pair one to one, so each lands or goes back alone.
+			var mixed strings.Builder
 			for k := range op.I2 - op.I1 {
 				if s.Owns(op.I1 + k + 1) {
-					out.WriteString(b[op.J1+k])
+					mixed.WriteString(b[op.J1+k])
 				} else {
-					out.WriteString(a[op.I1+k])
+					mixed.WriteString(a[op.I1+k])
 				}
+			}
+			owned := func(k int) bool { return s.Owns(op.I1 + k + 1) }
+			if !reflowed(a[op.I1:op.I2], b[op.J1:op.J2], owned) {
+				out.WriteString(mixed.String())
+			} else {
+				out.WriteString(ownedRewrap(a[op.I1:op.I2], b[op.J1:op.J2], owned))
 			}
 		default:
 			out.WriteString(strings.Join(a[op.I1:op.I2], ""))
 		}
 	}
 	return out.String()
+}
+
+// reflowed reports a hunk whose rewrap moved a word onto or off a line the
+// fork did not write. That line goes back, so a word it gained would stand
+// twice and a word it lost would stand nowhere.
+func reflowed(old, now []string, owned func(int) bool) bool {
+	for k := range old {
+		if !owned(k) && strings.Join(strings.Fields(old[k]), " ") != strings.Join(strings.Fields(now[k]), " ") {
+			return true
+		}
+	}
+	return false
 }
 
 // mayChange reports whether the fork wrote the lines from i1 up to i2,

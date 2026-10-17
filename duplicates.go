@@ -10,6 +10,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
+	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -213,22 +214,56 @@ func commentStart(lines []string, at int) int {
 	return start
 }
 
+// mergedPortions sorts the ranges and joins each pair that overlaps.
+func mergedPortions(portions []DuplicateBlock) []DuplicateBlock {
+	sorted := append([]DuplicateBlock{}, portions...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Start < sorted[j].Start })
+	var out []DuplicateBlock
+	for _, p := range sorted {
+		if n := len(out); n > 0 && p.Start <= out[n-1].End {
+			out[n-1].End = max(out[n-1].End, p.End)
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
 // removePortions deletes the line ranges from a file, from the last backward so
-// an earlier range stays valid.
-func removePortions(path string, portions []DuplicateBlock) error {
+// an earlier range stays valid. The gate admits the removal only when every
+// line it takes stands in other, the file the portions copy. And a markdown
+// file keeps each code span and link in one of the files.
+func removePortions(path, other string, portions []DuplicateBlock) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
+	twin, err := os.ReadFile(other)
+	if err != nil {
+		return err
+	}
 	lines := strings.Split(string(content), "\n")
+	// A doc comment and the block it opens come as nested ranges, so each run of overlapping ranges goes as one.
+	portions = mergedPortions(portions)
 	for i := len(portions) - 1; i >= 0; i-- {
 		p := portions[i]
 		if p.Start < 1 || p.End > len(lines) || p.Start > p.End {
 			continue
 		}
+		for _, line := range lines[p.Start-1 : p.End] {
+			if t := strings.TrimSpace(line); t != "" && !strings.Contains(string(twin), t) {
+				return fmt.Errorf("remove a copy from %s: %q stands in no line of %s", path, t, other)
+			}
+		}
 		lines = append(lines[:p.Start-1], lines[p.End:]...)
 	}
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
+	out := strings.Join(lines, "\n")
+	if strings.HasSuffix(path, ".md") {
+		if err := markdown.KeepsNodes([]string{string(content)}, []string{out, string(twin)}); err != nil {
+			return fmt.Errorf("remove a copy from %s: %w", path, err)
+		}
+	}
+	return os.WriteFile(path, []byte(out), 0o644)
 }
 
 // nearDuplicates reports each near-duplicate as a finding, with the portions a

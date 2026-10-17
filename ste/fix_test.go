@@ -141,7 +141,7 @@ func TestCheckAgreesWithADivisionThatKeepsTheOpening(t *testing.T) {
 func TestFixLeavesQuotedWordsAlone(t *testing.T) {
 	in := `IDLE is an ACTIVE corruption, not a benign "would not attach its cost."`
 	assert.Equal(t, in, ste.Fix(in))
-	assert.Equal(t, "It will not attach.", ste.Fix("It would not attach."))
+	assert.Equal(t, "It does not attach.", ste.Fix("It would not attach."))
 }
 
 // A semicolon that ends the prose before a code span keeps its space.

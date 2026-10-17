@@ -143,7 +143,7 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 // target or an entity to the whole span. A rewrite that moves the word then
 // moves all of the span.
 func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
-	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
+	for _, span := range verbatimSpans(text) {
 		from, to := span[0], span[1]
 		// mask fills a link target inside its parentheses.
 		if to-from >= 3 && text[from] == ']' && text[from+1] == '(' && text[to-1] == ')' {
@@ -228,6 +228,32 @@ func simpleSpan(s *syntax.Sentence, i, j int) bool {
 	return j == i+1
 }
 
+// completedAfter opens a clause whose perfect verb names something done before the main verb.
+var completedAfter = set.Of("after", "once", "until")
+
+func clauseOpenerBefore(s *syntax.Sentence, i int) int {
+	for k := i - 1; k >= 0; k-- {
+		w := s.Words[k]
+		if strings.HasPrefix(w.Tag, "VB") || w.Tag == "MD" || w.Text == "," {
+			return -1
+		}
+		if completedAfter.Contains(w.Lower()) {
+			return k
+		}
+	}
+	return -1
+}
+
+// presentBefore reports a present-tense verb before word end.
+func presentBefore(s *syntax.Sentence, end int) bool {
+	for k := 0; k < end; k++ {
+		if s.Words[k].Tag == "VBZ" || s.Words[k].Tag == "VBP" {
+			return true
+		}
+	}
+	return false
+}
+
 // rewriteTense writes a simple tense for a perfect or a progressive verb
 // group: "has read" becomes "read", and "is stopping" becomes "stops".
 // "has not read" is left as written, because the negative is not part of the
@@ -236,6 +262,16 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
 		if !simpleSpan(s, i, j) {
 			return "", false
+		}
+		// "would have failed" is the modal's verb group, not a perfect tense, and ste/modal writes it in the present.
+		if k := i - 1; k >= 0 && (s.Words[k].Tag == "MD" || s.Words[k].Lower() == "not" && k > 0 && s.Words[k-1].Tag == "MD") {
+			return "", false
+		}
+		// After "after", "once" or "until" under a present-tense verb, the perfect is a completed condition, and the simple present says it: "begins only after it has finished" becomes "after it finishes".
+		if at := clauseOpenerBefore(s, i); at > 0 && presentBefore(s, at) {
+			if base := baseFromParticiple(s.Words[j].Lower()); base != "" {
+				return splice(source, s, i, j, presentOf(base, s.Words[i].Lower() == "have")), true
+			}
 		}
 		return splice(source, s, i, j, pastFromParticiple(s.Words[j].Lower())), true
 	}
@@ -301,9 +337,39 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		if end-start+1 > NounClusterCap {
 			return start, end, true
 		}
+		if far, ok := bridgedRun(s, noun, start, end, last); ok {
+			return start, far, true
+		}
 		start = end
 	}
 	return -1, -1, false
+}
+
+// bridgedRun answers the end of the noun run behind a mark that stands for a
+// conjunction, after the run from start to end. The mark joins noun phrases, and
+// the repair writes the conjunction. A list of single names is no cluster, so one
+// side must hold a multi-noun phrase. A hyphenated compound such as session-token
+// is a noun here, though the tagger reads it as an adjective.
+func bridgedRun(s *syntax.Sentence, noun func(int) bool, start, end, last int) (int, bool) {
+	if end+2 > last {
+		return 0, false
+	}
+	part := func(k int) bool {
+		w := s.Words[k]
+		return noun(k) || w.Tag == "JJ" && strings.Contains(w.Text, "-") && wordlike(w.Text)
+	}
+	if _, isMark := markConjunctions[s.Words[end+1].Text]; !isMark || !part(end+2) {
+		return 0, false
+	}
+	far := end + 2
+	for far+1 <= last && noun(far+1) {
+		far++
+	}
+	left, right := end-start+1, far-(end+2)+1
+	if left+right <= NounClusterCap || max(left, right) < 2 {
+		return 0, false
+	}
+	return far, true
 }
 
 // wordlike reports a token made of letters and digits, which can be a noun. The
@@ -331,6 +397,12 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 	start, end, ok := clusterAt(s, off)
 	if !ok {
 		return "", false
+	}
+	if out, ok := conjoinMark(s, source, start, end); ok {
+		return out, true
+	}
+	if out, ok := ownerAfter(s, source, start, end); ok {
+		return out, true
 	}
 	var out strings.Builder
 	last := end

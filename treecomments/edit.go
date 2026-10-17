@@ -10,13 +10,17 @@
 package treecomments
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 	"github.com/wow-look-at-my/slopfix/edit"
+	yaml "go.yaml.in/yaml/v3"
 )
 
 // Apply writes the edits into src through the gate. An edit outside the scope
@@ -44,13 +48,40 @@ func Apply(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Resul
 	spans := commentSpans(filename, src)
 	want := shape(root, src)
 	directives := directiveLines(filename, src)
+	// The bash grammar reads a YAML apostrophe as a quote, so its tree of a YAML file is no model of it.
+	sameCode := func(text string) bool { return sameShape(language, text, want) }
+	if isYAML(filename) {
+		if data, ok := yamlData(src); ok {
+			sameCode = func(text string) bool {
+				got, ok := yamlData(text)
+				return ok && reflect.DeepEqual(got, data)
+			}
+		}
+	}
 	return edit.Gate(src, edits, scope,
 		func(e edit.Edit) string { return reach(src, spans, e) },
 		func(text string) bool {
-			return sameShape(language, text, want) &&
+			return sameCode(text) &&
 				slices.Equal(directiveLines(filename, text), directives) &&
 				(!IsCMake(filename) || sameCMake(src, text))
 		})
+}
+
+// yamlData decodes every document of a YAML file.
+func yamlData(text string) ([]any, bool) {
+	dec := yaml.NewDecoder(strings.NewReader(text))
+	var out []any
+	for {
+		var doc any
+		err := dec.Decode(&doc)
+		if errors.Is(err, io.EOF) {
+			return out, true
+		}
+		if err != nil {
+			return nil, false
+		}
+		out = append(out, doc)
+	}
 }
 
 // span is where a comment node sits.

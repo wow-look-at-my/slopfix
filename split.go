@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/wow-look-at-my/slopfix/markdown"
 )
 
 // SplitTarget is the size a split brings a root file down to. The gap under CharBudget leaves room for the next edit.
@@ -100,28 +102,50 @@ func Split(root, rel string, dryRun bool) ([]string, error) {
 		return s.written, nil
 	}
 	out := strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
+	// The moved text passes the markdown gate as one repair: each code span and link stands in some file after the split.
+	after := []string{out}
+	for _, name := range s.order {
+		after = append(after, s.docs[name])
+	}
+	if err := markdown.KeepsNodes([]string{string(raw)}, after); err != nil {
+		return nil, fmt.Errorf("split %s: %w", rel, err)
+	}
+	if len(s.order) > 0 {
+		if err := os.MkdirAll(filepath.Join(root, DocsDir), 0o755); err != nil {
+			return nil, err
+		}
+	}
+	for _, name := range s.order {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(name)), []byte(s.docs[name]), s.perm); err != nil {
+			return nil, err
+		}
+	}
 	return s.written, os.WriteFile(file, []byte(out), info.Mode().Perm())
 }
 
-// splitter writes the files a split moves text into.
+// splitter collects the files a split moves text into.
 type splitter struct {
 	root    string
 	dryRun  bool
 	perm    os.FileMode
 	taken   map[string]bool
 	written []string
+	// docs holds each moved document by name, in order, until the gate admits the split.
+	docs  map[string]string
+	order []string
 }
 
-// write puts a moved document into DocsDir.
+// write records a moved document for DocsDir.
 func (s *splitter) write(name, doc string) error {
 	s.written = append(s.written, name)
-	if s.dryRun {
-		return nil
+	if s.docs == nil {
+		s.docs = map[string]string{}
 	}
-	if err := os.MkdirAll(filepath.Join(s.root, DocsDir), 0o755); err != nil {
-		return err
+	if _, ok := s.docs[name]; !ok {
+		s.order = append(s.order, name)
 	}
-	return os.WriteFile(filepath.Join(s.root, filepath.FromSlash(name)), []byte(doc), s.perm)
+	s.docs[name] = doc
+	return nil
 }
 
 // moveSections moves the largest sections at level until the text is at or

@@ -94,6 +94,9 @@ func verbBefore(words []syntax.Word, i int) bool {
 		switch t := words[j].Tag; {
 		case t == "." || t == "," || t == ":" || t == "(":
 			return false
+		case syntax.Is(words[j].Lower(), "subordinator"):
+			// "begins only after instance 1 finishes".
+			return false
 		case finiteVerbTags.Contains(t):
 			return true
 		}

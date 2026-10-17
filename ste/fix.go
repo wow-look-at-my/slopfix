@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/codespan"
 )
 
 // Fix applies the repair Check names, for every rule Check reports.
@@ -62,21 +63,45 @@ func DivideTo(text string, maxWords int) string {
 }
 
 var (
-	// verbatimSpan matches the data strip also hides from Check. An entity ends
-	// in a semicolon, which a repair must not touch.
-	verbatimSpan = regexp.MustCompile(
-		codeSpan.String() + `|` + linkTarget.String() + `|` + entity.String())
 	// semicolonRun matches a semicolon and the space that follows it.
 	semicolonRun = regexp.MustCompile(`;[ \t]*`)
 	// spliceComma matches the comma checkSplices reports, and nothing past it.
 	spliceComma = regexp.MustCompile(`,\s+`)
 )
 
+// verbatimSpans answers the data strip also hides from Check, in source order:
+// each code span, link target and entity. An entity ends in a semicolon,
+// which a repair must not touch. A stray backtick is text, and pairs with
+// nothing.
+func verbatimSpans(s string) [][]int {
+	code := codespan.Find(s)
+	out := append([][]int{}, code...)
+	for _, re := range []*regexp.Regexp{linkTarget, entity} {
+		for _, m := range re.FindAllStringIndex(s, -1) {
+			if !overlapsAny(m, out) {
+				out = append(out, m)
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i][0] < out[j][0] })
+	return out
+}
+
+// overlapsAny reports a span that shares a byte with any of spans.
+func overlapsAny(m []int, spans [][]int) bool {
+	for _, s := range spans {
+		if m[0] < s[1] && s[0] < m[1] {
+			return true
+		}
+	}
+	return false
+}
+
 // fixProse applies repair to the prose of text, leaving each verbatim span
 // alone. A semicolon inside `a; b` is the thing the sentence documents. A
 // quotation is another voice, so its words stay as Check reads them: unjudged.
 func fixProse(text string, repair func(string) string) string {
-	spans := append(verbatimSpan.FindAllStringIndex(text, -1), quotedSpans(text)...)
+	spans := append(verbatimSpans(text), quotedSpans(text)...)
 	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
 	var out strings.Builder
 	last := 0
@@ -98,6 +123,10 @@ func fixProse(text string, repair func(string) string) string {
 // fixWords writes the approved word for each banned word, and keeps the
 // capitalization the source used.
 func fixWords(prose string, keep func(id string) bool) string {
+	// "would" takes the present tense of its verb group, never "will".
+	if keep(IDModal) {
+		prose = rewriteWould(prose)
+	}
 	locs := wordPattern.FindAllStringIndex(prose, -1)
 	var out strings.Builder
 	last := 0
@@ -276,7 +305,7 @@ func absoluteTail(masked string, from int, spans [][2]int) (to, last int, ok boo
 // offLimits are the spans no break may land in. The data Check hides, and a
 // parenthetical, which STE counts as a single word and a break would halve.
 func offLimits(prose, masked string) [][]int {
-	off := verbatimSpan.FindAllStringIndex(prose, -1)
+	off := verbatimSpans(prose)
 	return append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 }
 
@@ -285,7 +314,7 @@ func offLimits(prose, masked string) [][]int {
 // same words. A code span and an entity get the word strip writes.
 func mask(prose string) string {
 	out := []byte(prose)
-	for _, span := range verbatimSpan.FindAllStringIndex(prose, -1) {
+	for _, span := range verbatimSpans(prose) {
 		switch prose[span[0]] {
 		case '`':
 			fillWith(out[span[0]:span[1]], "CODE")

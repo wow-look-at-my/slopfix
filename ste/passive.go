@@ -13,13 +13,27 @@ import (
 // A clause that names no actor is left as written, because nothing states who
 // acts.
 func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
+	if marks := emphasisMarks(source); len(marks) > 0 {
+		return rewriteEmphasized(source, marks)
+	}
+	parts, ok := passiveParts(s, source)
+	if !ok {
+		return "", false
+	}
+	return joinParts(parts), true
+}
+
+// passiveParts answers the active clause for a passive one, as the parts
+// rewritePassive joins. Each part records the source bytes it came from, so a
+// caller that moves markup can tell a copied piece from one it wrote.
+func passiveParts(s *syntax.Sentence, source string) ([]part, bool) {
 	last := lastContent(s)
 	i, j := auxiliary(s, 1, beForms)
 	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
-		return "", false
+		return nil, false
 	}
 	if !simpleSpan(s, i, j) {
-		return "", false
+		return nil, false
 	}
 	// The actor is the phrase after "by", and it must close the clause.
 	by := -1
@@ -30,7 +44,7 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 		}
 	}
 	if by < 0 || by+1 > last {
-		return "", false
+		return nil, false
 	}
 	end := last
 	for k := by + 1; k <= last; k++ {
@@ -40,50 +54,69 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 		}
 	}
 	if end < by+1 {
-		return "", false
+		return nil, false
 	}
 	// "by" and a gerund name the means, and no actor: "is asserted by pairing it with X".
 	if s.Words[by+1].Tag == "VBG" {
-		return "", false
+		return nil, false
 	}
 	// A second verb group after the actor shares the passive subject, which the rewrite moves away from it: "is untouched by this and is now the slowest".
 	for k := by + 2; k < end; k++ {
 		if s.Words[k].Tag == "CC" && (strings.HasPrefix(s.Words[k+1].Tag, "VB") || s.Words[k+1].Tag == "MD") {
-			return "", false
+			return nil, false
 		}
 	}
 	first, ok := subjectStart(s, i)
 	if !ok {
-		return "", false
+		return nil, false
 	}
 	// A bare "be" is active only behind a modal: "X must be read by Y" becomes "Y must read X".
 	subjectEnd, verb := i, ""
 	if s.Words[i].Lower() == "be" {
 		if i-1 <= first || s.Words[i-1].Tag != "MD" {
-			return "", false
+			return nil, false
 		}
 		subjectEnd = i - 1
 		verb = source[s.Words[i-1].Start:s.Words[i-1].End] + " " + baseFromParticiple(s.Words[j].Lower())
 	} else {
 		// "has been read" and "must not be read" carry a word no rewrite here moves.
 		if before := s.Words[i-1]; before.Tag == "MD" || haveForms.Contains(before.Lower()) || beForms.Contains(before.Lower()) {
-			return "", false
+			return nil, false
 		}
 		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
 	}
-	from, to := s.Words[first].Start, s.Words[end].End
-	subject := strings.TrimSpace(unbold(source[from:s.Words[subjectEnd].Start]))
-	actor := strings.TrimSpace(unbold(source[s.Words[by+1].Start:to]))
-	if subject == "" || actor == "" || verb == "" {
-		return "", false
+	// An adverb that opens the clause modifies the whole clause, so it keeps its place in front: "Otherwise the runs are separated by a dashed line".
+	open := first
+	if s.Words[first].Tag == "RB" && i > first+1 {
+		open = first + 1
 	}
+	subjectAt := s.Words[open].Start
+	subject := strings.TrimSpace(source[subjectAt:s.Words[subjectEnd].Start])
+	actorAt, actorEnd := s.Words[by+1].Start, s.Words[end].End
+	actor := source[actorAt:actorEnd]
+	if subject == "" || actor == "" || verb == "" {
+		return nil, false
+	}
+	// The words in front of the clause stay in front of it, and the actor takes no capital while they do.
+	var parts []part
 	object := subject
-	if first == 0 {
+	if front := s.Words[first].Start; front > 0 {
+		parts = append(parts, part{source[:front], 0, front, true})
+	}
+	if adverb := source[s.Words[first].Start:subjectAt]; adverb != "" {
+		parts = append(parts, part{adverb, s.Words[first].Start, subjectAt, true})
+	} else if first == 0 {
 		actor = capitalizeOpening(actor)
 		object = lowerOpeningFor(subject, s.Words[0].Tag)
 	}
-	clause := rebold(source, from, to, actor+" "+verb+" "+object)
-	return source[:from] + clause + source[to:], true
+	return append(parts,
+		part{actor, actorAt, actorEnd, true},
+		part{text: " ", from: -1},
+		part{verb, s.Words[i].Start, s.Words[j].End, false},
+		part{text: " ", from: -1},
+		part{object, subjectAt, subjectAt + len(subject), true},
+		part{source[actorEnd:], actorEnd, len(source), true},
+	), true
 }
 
 // endsActor reports a word the actor of a passive clause stops in front of.
@@ -144,30 +177,6 @@ func leadsClause(s *syntax.Sentence, first, k int) bool {
 		}
 	}
 	return false
-}
-
-// unbold drops the bold markers from a piece a rewrite moves.
-func unbold(piece string) string {
-	return strings.ReplaceAll(piece, "**", "")
-}
-
-// rebold writes the bold markers source carries between from and to around the
-// rewritten clause. A run that opens inside the clause opens at its start, and
-// a run that closes inside it closes at its end.
-func rebold(source string, from, to int, clause string) string {
-	inside := strings.Count(source[from:to], "**")
-	if inside == 0 {
-		return clause
-	}
-	startBold := strings.Count(source[:from], "**")%2 == 1
-	endBold := (strings.Count(source[:from], "**")+inside)%2 == 1
-	if !startBold {
-		clause = "**" + clause
-	}
-	if !endBold {
-		clause += "**"
-	}
-	return clause
 }
 
 // lowerOpeningFor writes a phrase as it reads inside a sentence rather than at

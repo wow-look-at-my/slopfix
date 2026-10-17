@@ -16,6 +16,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 	yaml "go.yaml.in/yaml/v3"
 )
 
@@ -174,19 +175,54 @@ func keptData(n *yaml.Node) any {
 
 // compareData answers the text a comment gate compares. A # inside a block
 // scalar is part of the scalar's string, so a rewrite there changes the value.
-// A comment in a script is not its behavior, so those lines read blank first.
+// The bash grammar names the comment lines of a script, and only those lines
+// are removed from both sides. A shebang and a # line inside a heredoc are code
+// or data, so they compare exactly. A comment repair may change how many lines
+// a script holds.
 func compareData(content string, comment bool) string {
 	if !comment {
 		return content
 	}
-	inside := blockScalarLines(content)
-	fileLines := lines(content)
-	for i, line := range fileLines {
-		if i < len(inside) && inside[i] && strings.HasPrefix(strings.TrimSpace(line), "#") {
-			fileLines[i] = ""
+	all := lines(content)
+	dropped := set.New[int]()
+	for _, span := range blockScalars(content) {
+		if span.from >= span.to || span.to > len(all) {
+			continue
+		}
+		body := all[span.from:span.to]
+		for _, c := range treecomments.Extract("script.sh", strings.Join(dedent(body), "\n")) {
+			at := span.from + c.Line - 1
+			if c.Lines == 1 && at < span.to && strings.HasPrefix(strings.TrimSpace(all[at]), "#") {
+				dropped.Add(at)
+			}
 		}
 	}
-	return strings.Join(fileLines, "\n")
+	var kept []string
+	for i, line := range all {
+		if !dropped.Contains(i) {
+			kept = append(kept, line)
+		}
+	}
+	return strings.Join(kept, "\n")
+}
+
+// dedent takes the indentation every non-blank line shares off the lines.
+func dedent(body []string) []string {
+	shared := -1
+	for _, line := range body {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		if shared < 0 || indent < shared {
+			shared = indent
+		}
+	}
+	out := make([]string, len(body))
+	for i, line := range body {
+		out[i] = line[min(max(shared, 0), len(line)):]
+	}
+	return out
 }
 
 // lineEdge reports whether a byte sits where a line starts or ends.

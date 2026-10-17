@@ -7,10 +7,24 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/wow-look-at-my/slopfix/treecomments"
 )
+
+// sameComments reports whether before and after hold the same comment words, in order.
+func sameComments(path, before, after string) bool {
+	words := func(text string) []string {
+		var out []string
+		for _, c := range treecomments.Extract(path, text) {
+			out = append(out, strings.Fields(c.Text)...)
+		}
+		return out
+	}
+	return slices.Equal(words(before), words(after))
+}
 
 func isRust(path string) bool {
 	return strings.HasSuffix(path, ".rs")
@@ -48,6 +62,10 @@ func FormatFile(path string) (bool, error) {
 	}
 	if bytes.Equal(out.Bytes(), src) {
 		return false, nil
+	}
+	// The layout gate: rustfmt moves code, and every comment comes back with the same words in the same order.
+	if !sameComments(path, string(src), out.String()) {
+		return false, fmt.Errorf("rustfmt changed the comments of %s", path)
 	}
 	if err := os.WriteFile(path, out.Bytes(), info.Mode().Perm()); err != nil {
 		return false, err

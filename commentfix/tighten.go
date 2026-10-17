@@ -61,7 +61,8 @@ func tighten(text []string) ([]string, int, bool) {
 			}
 			continue
 		}
-		body := strings.Join(para.lines, " ")
+		// A line that ends a thought with no stop gets one, so the joined lines still read as sentences.
+		body := closeThoughts(para.lines)
 		short, took := english.FixN(body, english.Comment)
 		rewrites += took
 		if short != body {

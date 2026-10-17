@@ -115,6 +115,13 @@ func segmentsOf(lines []string, p para) []segment {
 			current = nil
 			continue
 		}
+		// A heading never joins the prose on either side, and its own sentence is judged like any other.
+		if isHeadingLine(lines[i]) {
+			out = append(out, segment{lines: []int{n}, prose: prose})
+			current = nil
+			prev = ""
+			continue
+		}
 		if current == nil || strings.HasPrefix(prose, "@") || opensListItem(prose) || lineEndsThought(prev, prose) {
 			out = append(out, segment{})
 			current = &out[len(out)-1]

@@ -92,7 +92,12 @@ func repoRun(root string, keeps func(string) bool, writing bool, writable func(s
 			path := filepath.Join(root, c.Path)
 			if writing && writable(path) {
 				if portions := reports[n].Portions; len(portions) > 0 {
-					if err := removePortions(path, portions); err != nil {
+					// The other file of the pair holds the lines the removal takes.
+					other := reports[n].PathA
+					if filepath.Clean(other) == filepath.Clean(path) {
+						other = reports[n].PathB
+					}
+					if err := removePortions(path, other, portions); err != nil {
 						return nil, nil, nil, err
 					}
 					changed = append(changed, path)

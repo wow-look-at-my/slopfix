@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/codespan"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -145,7 +146,7 @@ func replaceWordN(s, word, with string) (string, int) {
 	lower := strings.ToLower(s)
 	target := strings.ToLower(word)
 	took := 0
-	spans := codeSpan.FindAllStringIndex(s, -1)
+	spans := codespan.Find(s)
 	quotes := quotation.FindAllStringIndex(s, -1)
 	var b strings.Builder
 	for i := 0; i < len(s); {

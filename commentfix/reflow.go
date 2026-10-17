@@ -102,6 +102,14 @@ func paragraphs(text []string) []paragraph {
 			blank = true
 			continue
 		}
+		// A heading names the section under it, so it keeps its own line and the prose under it reflows apart.
+		if isHeadingLine(line) {
+			flush()
+			flushBlock()
+			out = append(out, paragraph{verbatim: true, raw: []string{line}})
+			blank = false
+			continue
+		}
 		// A directive is read by a tool, so it keeps its bytes and its own line.
 		if isDirectiveLine(line) {
 			flush()
@@ -124,6 +132,20 @@ func paragraphs(text []string) []paragraph {
 	flushBlock()
 	flush()
 	return out
+}
+
+// isHeadingLine reports a comment line whose prose is a markdown heading, such
+// as `/// # Safety` in a Rust doc comment.
+func isHeadingLine(line string) bool {
+	prose := stripMarker(line)
+	title := strings.TrimLeft(prose, "#")
+	level := len(prose) - len(title)
+	return level >= 1 && level <= 6 && strings.HasPrefix(title, " ") && strings.TrimSpace(title) != ""
+}
+
+// opensSection reports a paragraph that is a heading line alone.
+func (p paragraph) opensSection() bool {
+	return p.verbatim && len(p.raw) == 1 && isHeadingLine(p.raw[0])
 }
 
 // stripMarker removes the indent and comment marker, leaving the prose. A rule
@@ -185,7 +207,8 @@ func widen(text []string, width int) ([]string, bool) {
 			out = append(out, para.raw...)
 			continue
 		}
-		out = append(out, reflow(strings.Join(para.lines, " "), indent, marker, width)...)
+		// A line that ends a thought with no stop gets one, so the joined lines still read as sentences.
+		out = append(out, reflow(closeThoughts(para.lines), indent, marker, width)...)
 	}
 	if len(out) >= len(text) {
 		return text, false
