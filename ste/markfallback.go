@@ -151,6 +151,14 @@ func anyCut(source, masked string, limit int) (string, string, bool) {
 				continue
 			}
 			left, right := closeHead(head), capitalizeOpening(restText)
+			// A prepositional rest with no main clause reads behind a carrier: "This happens with the verb that governs it".
+			if StandsAlone(restText) && !standsWithMainClause(restText) {
+				main, ok := mainVerb(whole, c.left)
+				if !ok {
+					continue
+				}
+				right = carrierFor(whole, main) + " " + restText
+			}
 			if !divides(left, right, limit) {
 				continue
 			}
