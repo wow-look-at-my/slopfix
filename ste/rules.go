@@ -364,9 +364,9 @@ func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 			end++
 		}
 		stop := end
+		marks.span(runes, start, stop)
 		// A mark that closes emphasis, a quote or a parenthetical belongs to the
 		// sentence it ends.
-		marks.span(runes, start, stop)
 		for end+1 < len(runes) && marks.closes(runes[end+1]) {
 			end++
 		}

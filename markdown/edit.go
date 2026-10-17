@@ -26,8 +26,7 @@ func Apply(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 	if len(edits) == 0 {
 		return edit.Unchanged(content, scope)
 	}
-	// Gate drops an edit out of scope before it asks either test, so a run that
-	// lands nothing parses nothing here.
+	// Gate drops an out-of-scope edit first, so a run that lands nothing parses nothing.
 	prose := sync.OnceValue(func() [][2]int { return proseSpans(content) })
 	want := sync.OnceValue(func() []string { return verbatim(content) })
 	wantShape := sync.OnceValue(func() string { return shape(content) })

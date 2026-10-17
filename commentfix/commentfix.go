@@ -146,8 +146,6 @@ func lineAndColumn(src string, at int) (line, col int) {
 }
 
 // IsGenerated reports whether the file carries the generated-code marker in its header.
-//
-// The header is where the marker counts: the same words further down are prose somebody wrote. The header is read off the tree. So the grammar decides what counts as a comment, not a guess at a line's opening bytes. The header ends at the earliest comment that code separates from the top.
 func IsGenerated(filename, src string) bool {
 	defer trace.Phase("rule/generated-marker")()
 	return generated.Get(fileKey{filename, src}, func() bool { return isGenerated(filename, src) })
@@ -159,6 +157,9 @@ type fileKey struct{ filename, src string }
 // generated keeps IsGenerated's answer for the rest of the run.
 var generated = memo.New[fileKey, bool](512)
 
+// isGenerated is IsGenerated with no cache.
+//
+// The header is where the marker counts: the same words further down are prose somebody wrote. The header is read off the tree. So the grammar decides what counts as a comment, not a guess at a line's opening bytes. The header ends at the earliest comment that code separates from the top.
 func isGenerated(filename, src string) bool {
 	if !Supported(filename) {
 		return markedGenerated(src)

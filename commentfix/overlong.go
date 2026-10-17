@@ -254,7 +254,7 @@ func measure(text []string) (lines, chars int) {
 	return lines, chars
 }
 
-// repair fits a block to its budget, and cuts pragma free text only when the prose cut is not enough.
+// repair answers repairUncached once for each block.
 func repair(b block) []string {
 	key := blockKey{text: strings.Join(b.text, "\n"), codeLines: b.codeLines, codeChars: b.codeChars, exact: b.exact, header: b.header}
 	return slices.Clone(repaired.Get(key, func() []string { return repairUncached(b) }))
@@ -271,6 +271,7 @@ type blockKey struct {
 // repaired keeps repair's answer for the rest of the run.
 var repaired = memo.New[blockKey, []string](4096)
 
+// repairUncached fits a block to its budget, and cuts pragma free text only when the prose cut is not enough.
 func repairUncached(b block) []string {
 	out := repairProse(b)
 	if fitsCode(out, b) {

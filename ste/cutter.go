@@ -1,9 +1,6 @@
 package ste
 
-// cutter finds where a window of a long sentence can end. A window never ends
-// inside a code span, a quotation, a parenthesis, a link or bold text, because
-// a division reads each of those whole. It reads the sentence forward once,
-// whatever the count of windows.
+// cutter finds where a window can end: never inside a span a division reads whole.
 type cutter struct {
 	source string
 	// states holds the scan state at each position a window can start from.

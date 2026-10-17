@@ -111,9 +111,8 @@ func divideLong(source string, cut *cutter, limit int, budget *int) string {
 		divideAll(&out, rewritten[:tail], m, opaque(rewritten[:tail], m), limit, budget)
 		head, rest = rewritten[tail:], rest[at:]
 	}
-	// The rest is one sentence. A short rest divides as any sentence does. A
-	// long one held no boundary in its windows, and the forced division takes it.
 	rem := head + rest
+	// A long rest held no boundary in its windows, so the forced division takes it.
 	if newCutter(rem).longerThan(windowCaps * limit) {
 		out.WriteString(rem)
 		return out.String()
@@ -196,7 +195,7 @@ func forceLong(source string, cut *cutter, d capSpec, budget *int) string {
 	head, rest := "", source
 	words := windowCaps * d.cap
 	for *budget > 0 {
-		// The window grows to its size and no further. A division can add a carrier to the head it leaves, so a fixed top-up would grow the window with every step.
+		// A carrier can lengthen the head, so the window tops up to its size and no more.
 		at, ok := cut.after(len(source)-len(rest), max(words-len(strings.Fields(head)), 1))
 		if !ok {
 			break

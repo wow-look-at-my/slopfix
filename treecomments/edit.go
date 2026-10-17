@@ -43,8 +43,7 @@ func Apply(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Resul
 	if !ok {
 		return refuseAll("the source does not parse")
 	}
-	// Gate drops an edit out of scope before it asks either test, so a run that
-	// lands nothing reads none of these.
+	// Gate drops an out-of-scope edit first, so a run that lands nothing reads none of these.
 	spans := sync.OnceValue(func() []span { return commentSpans(filename, src) })
 	want := sync.OnceValue(func() []string { return shape(root, src) })
 	directives := sync.OnceValue(func() []string { return directiveLines(filename, src) })

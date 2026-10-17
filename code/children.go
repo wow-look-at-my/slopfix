@@ -18,9 +18,7 @@ func NamedAt(n ts.Node, i uint32) ts.Node {
 	return kids[i]
 }
 
-// Children answers every visible child of n, as n.Child(i) answers each. A
-// cursor moves to the next child in one step. Child(i) reads from the first
-// child each time, so a loop over it costs the square of the count.
+// Children answers every visible child of n, as n.Child(i) answers each.
 func Children(n ts.Node) []ts.Node {
 	if n.IsNull() {
 		return nil

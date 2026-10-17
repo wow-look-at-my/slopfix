@@ -24,9 +24,7 @@ func finalWord(sentence []rune) string {
 	return strings.ToLower(strings.TrimLeft(string(sentence[from:end]), "([\"'“‘*_"))
 }
 
-// markTally holds the open and closed parentheses of a sentence, and which
-// opening marks it holds. It extends to a later end without reading the
-// sentence again.
+// markTally holds a sentence's parentheses and opening marks, and extends without a reread.
 type markTally struct {
 	from, to    int
 	open, shut  int
