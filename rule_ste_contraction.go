@@ -11,7 +11,7 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectContraction,
 		Autofix:  autofixContraction,
-		Cases:    []RuleCase{{Name: ste.IDContraction, Path: "x.md", Text: "The tool doesn't write the result.\n"}},
+		Cases:    []RuleCase{{Name: ste.IDContraction, Path: "x.md", Text: "The tool doesn't write the result.\n", Want: "The tool does not write the result.\n"}},
 	})
 }
 
