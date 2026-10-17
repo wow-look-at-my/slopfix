@@ -2,8 +2,8 @@
 // is a question put to the user in prose. The other is a deferral that hands
 // the user a decision without AskUserQuestion.
 //
-// Both tables are data on purpose. Extending either is editing a slice,
-// never touching the matcher.
+// Both tables live in questions.xml. Extending either is adding an entry
+// there, never touching the matcher.
 package askproperly
 
 import (
@@ -17,44 +17,6 @@ import (
 // ID names this rule, on a report and on the command line alike.
 const ID = "ask/prose-decision"
 
-// deferralPhrases is the phrase table for handing a decision back without a
-// question mark. Each entry offloads a choice the model was asked to make. A
-// message may state what it did and stop; it may not close by inviting the
-// user to decide in prose.
-var deferralPhrases = []string{
-	"let me know",
-	"your call",
-	"up to you",
-	"say the word",
-	"just say",
-	"tell me which",
-	"tell me what you",
-	"waiting on you",
-	"waiting for you to",
-	"if you want me to",
-	"want me to",
-	"would you like me to",
-	"do you want me to",
-	"shall i",
-	"should i proceed",
-	"i won't touch",
-	"i will not touch",
-	"and i'll pick",
-	"and i will pick",
-	"and i'll land",
-	"or say",
-}
-
-// cueWords are the interrogative cues that separate a real question from a
-// question mark doing another job. A "?" alone is not enough: nullable types
-// and query strings both carry the mark, in a message that asked nothing.
-var cueWords = []string{
-	"what", "which", "why", "how", "when", "where", "who", "whose",
-	"should", "shall", "would", "could", "can", "will", "do", "does",
-	"did", "is", "are", "was", "were", "am", "have", "has", "any",
-	"want", "prefer", "ok", "okay", "right", "correct", "agree", "sound",
-}
-
 // Hit is a finding, with the line it sits on so the refusal can quote it.
 type Hit struct {
 	Kind string // "question" or "deferral"
@@ -67,7 +29,7 @@ type phraseMatcher struct {
 	re   *regexp.Regexp
 }
 
-var deferralMatchers = compilePhrases(deferralPhrases)
+var deferralMatchers = compilePhrases(Rules.DeferralPhrases())
 
 func compilePhrases(phrases []string) []phraseMatcher {
 	out := make([]phraseMatcher, 0, len(phrases))
@@ -81,8 +43,8 @@ func compilePhrases(phrases []string) []phraseMatcher {
 }
 
 var cueSet = func() map[string]bool {
-	m := make(map[string]bool, len(cueWords))
-	for _, w := range cueWords {
+	m := make(map[string]bool, len(Rules.Cues))
+	for _, w := range Rules.Cues {
 		m[w] = true
 	}
 	return m
