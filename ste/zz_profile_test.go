@@ -10,6 +10,7 @@ import (
 )
 
 func TestZZProfileRunOn(t *testing.T) {
+	t.Serial()
 	path := os.Getenv("SLOPFIX_RUNON_PROFILE")
 	if path == "" {
 		t.Skip("no profile path")
