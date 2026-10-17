@@ -2,14 +2,13 @@ package slopfix
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/gitread"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -38,26 +37,21 @@ type trackedFile struct {
 }
 
 // trackedFiles names each regular file git tracks under root, relative to it.
-// A directory with no repository is read from disk, without a .git directory.
-// A repository git cannot list is an error. A disk walk there would read every
-// ignored build output as a committed file.
+// A tree outside a work tree is read from disk, without its .git directory.
 func trackedFiles(root string) ([]trackedFile, error) {
-	out, err := gitmod.Command(root, "ls-files", "-s", "-z").Output()
-	if err == nil {
-		var files []trackedFile
-		for _, entry := range strings.Split(string(out), "\x00") {
-			meta, name, ok := strings.Cut(entry, "\t")
-			fields := strings.Fields(meta)
-			// Neither holds file bytes.
-			if !ok || len(fields) < 2 || !strings.HasPrefix(fields[0], "100") {
-				continue
+	repo, err := gitread.OpenWorkTree(root)
+	if err == nil && repo != nil {
+		if idx, err := repo.Index(); err == nil {
+			var files []trackedFile
+			for _, entry := range idx.Entries() {
+				// Neither a gitlink nor a symlink holds file bytes.
+				if entry.Stage != 0 || !strings.HasPrefix(entry.Mode, "100") {
+					continue
+				}
+				files = append(files, trackedFile{rel: filepath.FromSlash(entry.Path), blob: entry.OID.String()})
 			}
-			files = append(files, trackedFile{filepath.FromSlash(name), fields[1]})
+			return files, nil
 		}
-		return files, nil
-	}
-	if reason := gitmod.Unexpected(err); reason != "" {
-		return nil, fmt.Errorf("git ls-files in %s: %s", root, reason)
 	}
 	var files []trackedFile
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
@@ -123,16 +117,19 @@ func committedBinaries(root string, writing bool, writable func(string) bool) ([
 
 // blobKind reads the first bytes of a blob in the object store.
 func blobKind(root, blob string) string {
-	cmd := gitmod.Command(root, "cat-file", "blob", blob)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil || cmd.Start() != nil {
+	repo, err := gitread.OpenWorkTree(root)
+	if err != nil || repo == nil {
 		return ""
 	}
-	head := make([]byte, 4)
-	n, _ := io.ReadFull(stdout, head)
-	_ = cmd.Process.Kill()
-	_ = cmd.Wait()
-	return executableKind(head[:n])
+	oid, err := gitread.ParseOID(blob)
+	if err != nil {
+		return ""
+	}
+	data, ok := repo.Blob(oid)
+	if !ok {
+		return ""
+	}
+	return executableKind(data[:min(len(data), 4)])
 }
 
 // fileKind reads the first bytes of a regular file. A symlink and a path the

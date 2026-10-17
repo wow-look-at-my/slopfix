@@ -13,6 +13,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // indexTimeout bounds the read of the tree.
@@ -142,7 +143,11 @@ func PrimeIndex(path string) {
 func (ix *symbolIndex) build(root string) {
 	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 	defer cancel()
-	listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	repo, err := gitread.OpenWorkTree(root)
+	if err != nil || repo == nil {
+		return
+	}
+	listed, err := repo.WorkFiles()
 	if err != nil {
 		return
 	}
@@ -150,7 +155,7 @@ func (ix *symbolIndex) build(root string) {
 	nested, _ := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--recurse-submodules").Output()
 	files := map[string]int{}
 	seen := set.New[string]()
-	paths := append(strings.Split(string(listed)+"\x00"+string(nested), "\x00"), copiedSubmoduleFiles(ctx, root)...)
+	paths := append(append(listed, strings.Split(string(nested), "\x00")...), copiedSubmoduleFiles(ctx, root)...)
 	for _, rel := range paths {
 		if rel == "" || seen.Contains(rel) {
 			continue

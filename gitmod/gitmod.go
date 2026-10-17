@@ -8,6 +8,7 @@
 package gitmod
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // gitlinkMode is the index mode git gives a submodule entry.
@@ -28,11 +30,11 @@ const gitlinkMode = "160000"
 func Skip(target string) (set.Set[string], error) {
 	empty := set.New[string]()
 
-	root, ok := topLevel(target)
-	if !ok {
+	repo, err := gitread.OpenWorkTree(target)
+	if err != nil || repo == nil {
 		return empty, nil
 	}
-	root = Resolved(root)
+	root := Resolved(repo.WorkTree())
 	declared, ok := declaredPaths(root)
 	if !ok {
 		return empty, nil
@@ -40,7 +42,7 @@ func Skip(target string) (set.Set[string], error) {
 
 	out := set.New[string]()
 	for _, path := range declared {
-		if err := verify(root, path); err != nil {
+		if err := verify(repo, path); err != nil {
 			return empty, err
 		}
 		out.Add(filepath.Join(root, filepath.FromSlash(path)))
@@ -65,16 +67,17 @@ func Resolved(path string) string {
 // verify requires the declared path to be a gitlink in the index. A directory
 // holding this repository's own source cannot become a gitlink without
 // replacing that source with a commit pointer.
-func verify(root, path string) error {
+func verify(repo *gitread.Repo, path string) error {
 	if path == "" || path == "." || filepath.IsAbs(path) ||
 		path != filepath.ToSlash(filepath.Clean(path)) || strings.HasPrefix(path, "../") {
 		return fmt.Errorf(".gitmodules names %q, which is not a path inside this repository", path)
 	}
-	staged, ok := git(root, "ls-files", "--stage", "--", path)
-	if !ok {
+	idx, err := repo.Index()
+	if err != nil {
 		return fmt.Errorf("cannot read the index entry for the submodule %q", path)
 	}
-	if !strings.HasPrefix(strings.TrimSpace(staged), gitlinkMode+" ") {
+	entry, ok := idx.Tracked()[path]
+	if !ok || entry.Mode != gitlinkMode {
 		return fmt.Errorf(".gitmodules names %q as a submodule, but the index has no gitlink there."+
 			" A submodule carries its own CI, so its files are the only ones this skips;"+
 			" an entry that is not one would exempt this repository's own source", path)
@@ -84,20 +87,22 @@ func verify(root, path string) error {
 
 // declaredPaths reads the path of every submodule .gitmodules registers.
 func declaredPaths(root string) ([]string, bool) {
-	if _, err := os.Stat(filepath.Join(root, ".gitmodules")); err != nil {
+	file, err := os.Open(filepath.Join(root, ".gitmodules"))
+	if err != nil {
 		return nil, false
 	}
-	out, ok := git(root, "config", "--file", ".gitmodules", "--get-regexp", `^submodule\..*\.path$`)
-	if !ok {
-		return nil, false
-	}
+	defer file.Close()
 	var paths []string
-	for _, line := range strings.Split(out, "\n") {
-		_, value, found := strings.Cut(strings.TrimSpace(line), " ")
-		if !found {
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		key, value, ok := strings.Cut(line, "=")
+		if !ok || strings.TrimSpace(key) != "path" {
 			continue
 		}
-		if value = strings.TrimRight(strings.TrimSpace(value), "/"); value != "" {
+		value = strings.TrimSpace(value)
+		value = strings.TrimRight(value, "/")
+		if value != "" {
 			paths = append(paths, value)
 		}
 	}

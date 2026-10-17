@@ -7,12 +7,12 @@ package mdbudget
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/wow-look-at-my/slopfix/gitread"
 	"github.com/wow-look-at-my/slopfix/trace"
 )
 
@@ -228,23 +228,25 @@ func signature(path string) (string, bool) {
 }
 
 // growthOverHead reports how much the working tree's copy grew over the last
-// committed copy. It reports false when there is no git, no commit, or nothing
-// to compare against.
+// committed copy. It reports false when there is no commit to compare against.
 func growthOverHead(path string, chars int) (int, bool) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return 0, false
 	}
-	top, err := exec.Command("git", "-C", filepath.Dir(abs), "rev-parse", "--show-toplevel").Output()
+	repo, err := gitread.OpenWorkTree(filepath.Dir(abs))
+	if err != nil || repo == nil {
+		return 0, false
+	}
+	rel, ok := repo.Rel(abs)
+	if !ok {
+		return 0, false
+	}
+	head, err := repo.Head()
 	if err != nil {
 		return 0, false
 	}
-	root := strings.TrimSpace(string(top))
-	if root == "" || !strings.HasPrefix(abs, root+string(filepath.Separator)) {
-		return 0, false
-	}
-	rel := abs[len(root)+1:]
-	before, err := exec.Command("git", "-C", root, "show", "HEAD:"+rel).Output()
+	before, err := repo.BlobAt(head, rel)
 	if err != nil {
 		return 0, false
 	}

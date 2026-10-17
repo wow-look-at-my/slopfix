@@ -19,7 +19,9 @@ func (r Resolver) RepoName(root string) string {
 func (r Resolver) repoName(root, top string, topErr error) string {
 	repo := ""
 	if topErr == nil {
-		repo = r.originRepo(top)
+		if g, err := openRepo(top); err == nil {
+			repo = r.originRepo(g)
+		}
 	}
 	if repo == "" && r.workspaceHolds(root) {
 		repo = r.getenv("GITHUB_REPOSITORY")
@@ -30,7 +32,11 @@ func (r Resolver) repoName(root, top string, topErr error) string {
 // RecordPlain records repo in the work tree at top as a repository that is no
 // fork. A fixture states what the network would answer this way.
 func (r Resolver) RecordPlain(top, repo string) error {
-	return store(top, record{Repo: repo, Source: r.source(), Checked: time.Now(), Kind: kindPlain})
+	g, err := openRepo(top)
+	if err != nil {
+		return err
+	}
+	return store(g, record{Repo: repo, Source: r.source(), Checked: time.Now(), Kind: kindPlain})
 }
 
 // ExistingDir answers dir, or its nearest parent that exists. A path that does
