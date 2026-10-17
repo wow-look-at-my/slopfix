@@ -45,7 +45,7 @@ func Apply(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Resul
 	}
 	// Gate drops an out-of-scope edit first, so a run that lands nothing reads none of these.
 	spans := sync.OnceValue(func() []span { return commentSpans(filename, src) })
-	want := sync.OnceValue(func() []string { return shape(root, src) })
+	want := sync.OnceValue(func() []shapeNode { return shape(root, src) })
 	directives := sync.OnceValue(func() []string { return directiveLines(filename, src) })
 	return edit.Gate(src, edits, scope,
 		func(e edit.Edit) string { return reach(src, spans(), e) },
@@ -102,49 +102,73 @@ func blank(b byte) bool { return b == ' ' || b == '\t' || b == '\r' || b == '\n'
 // shape renders every node that is not a comment: its depth, its type, and
 // for a token its text. Whitespace is no node, so a comment edit that stays a
 // comment leaves the shape as it was.
-func shape(root ts.Node, src string) []string {
-	var out []string
-	var walk func(n ts.Node, depth int)
-	walk = func(n ts.Node, depth int) {
-		if strings.Contains(n.Type(), "comment") {
-			return
-		}
-		entry := fmt.Sprintf("%d %s", depth, n.Type())
-		if n.IsMissing() {
-			entry += " missing"
-		}
-		children := code.Children(n)
-		if len(children) == 0 {
-			start, end := int(n.StartByte()), int(n.EndByte())
-			if start >= 0 && end <= len(src) && start <= end {
-				entry += " " + fmt.Sprintf("%q", src[start:end])
-			}
-		}
-		out = append(out, entry)
-		for _, child := range children {
-			walk(child, depth+1)
-		}
-	}
-	walk(root, 0)
+func shape(root ts.Node, src string) []shapeNode {
+	var out []shapeNode
+	walkShape(root, src, func(s shapeNode) bool {
+		out = append(out, s)
+		return true
+	})
 	return out
 }
 
-// sameShape reports whether text parses to the code tree want describes.
-func sameShape(language *ts.Language, text string, want []string) bool {
+// shapeNode is one node of a shape.
+type shapeNode struct {
+	depth   int
+	kind    string
+	missing bool
+	// text is a token's source, and hasText marks a token whose bytes lie in the source.
+	text    string
+	hasText bool
+}
+
+// walkShape hands visit each node of the shape in order, and stops at the
+// earliest one visit refuses.
+func walkShape(root ts.Node, src string, visit func(shapeNode) bool) bool {
+	var walk func(n ts.Node, depth int) bool
+	walk = func(n ts.Node, depth int) bool {
+		kind := n.Type()
+		if strings.Contains(kind, "comment") {
+			return true
+		}
+		s := shapeNode{depth: depth, kind: kind, missing: n.IsMissing()}
+		if n.ChildCount() == 0 {
+			start, end := int(n.StartByte()), int(n.EndByte())
+			if start >= 0 && end <= len(src) && start <= end {
+				s.text, s.hasText = src[start:end], true
+			}
+			return visit(s)
+		}
+		if !visit(s) {
+			return false
+		}
+		for _, child := range code.Children(n) {
+			if !walk(child, depth+1) {
+				return false
+			}
+		}
+		return true
+	}
+	return walk(root, 0)
+}
+
+// sameShape reports whether text parses to the code tree want describes. It
+// stops at the earliest node that differs.
+func sameShape(language *ts.Language, text string, want []shapeNode) bool {
 	root, ok := parseWith(language, text)
 	if !ok {
 		return false
 	}
-	got := shape(root, text)
-	if len(got) != len(want) {
-		return false
-	}
-	for i := range got {
-		if got[i] != want[i] {
+	i := 0
+	if !walkShape(root, text, func(s shapeNode) bool {
+		if i >= len(want) || s != want[i] {
 			return false
 		}
+		i++
+		return true
+	}) {
+		return false
 	}
-	return true
+	return i == len(want)
 }
 
 // parseWith parses src and answers the root.

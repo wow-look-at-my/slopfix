@@ -23,26 +23,13 @@ func Children(n ts.Node) []ts.Node {
 	if n.IsNull() {
 		return nil
 	}
-	c := n.Walk()
-	if !c.GotoFirstChild() {
-		return nil
-	}
-	var out []ts.Node
-	for {
-		out = append(out, c.Node())
-		if !c.GotoNextSibling() {
-			return out
-		}
-	}
+	return n.Children()
 }
 
 // NamedChildren answers every named child of n, as n.NamedChild(i) answers each.
 func NamedChildren(n ts.Node) []ts.Node {
-	var out []ts.Node
-	for _, child := range Children(n) {
-		if child.IsNamed() {
-			out = append(out, child)
-		}
+	if n.IsNull() {
+		return nil
 	}
-	return out
+	return n.NamedChildren()
 }
