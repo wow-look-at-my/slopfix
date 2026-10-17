@@ -99,9 +99,7 @@ func inside(spans []span, at int) bool {
 
 func blank(b byte) bool { return b == ' ' || b == '\t' || b == '\r' || b == '\n' }
 
-// shape renders every node that is not a comment: its depth, its type, and
-// for a token its text. Whitespace is no node, so a comment edit that stays a
-// comment leaves the shape as it was.
+// shape answers every node walkShape visits.
 func shape(root ts.Node, src string) []shapeNode {
 	var out []shapeNode
 	walkShape(root, src, func(s shapeNode) bool {
@@ -121,8 +119,10 @@ type shapeNode struct {
 	hasText bool
 }
 
-// walkShape hands visit each node of the shape in order, and stops at the
-// earliest one visit refuses.
+// walkShape hands visit each node that is not a comment: its depth, its type,
+// and for a token its text. Whitespace is no node, so a comment edit that stays
+// a comment leaves the shape as it was. It stops at the earliest node visit
+// refuses.
 func walkShape(root ts.Node, src string, visit func(shapeNode) bool) bool {
 	var walk func(n ts.Node, depth int) bool
 	walk = func(n ts.Node, depth int) bool {
