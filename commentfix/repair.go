@@ -13,6 +13,7 @@ package commentfix
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
@@ -163,7 +164,7 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 		}
 		said := CloseProse(reworded)
 		said, cut := cutWhatIsLeft(said)
-		if said == para.prose {
+		if said == para.prose && !numberLeadsLine(lines, para) {
 			continue
 		}
 		first, last := para.lines[0], para.lines[len(para.lines)-1]
@@ -182,8 +183,8 @@ func repairRuns(src string, lines []string, runs []treecomments.Run) (edits []ed
 			continue
 		}
 		wrapped := wrap(said, para.marker, para.cont, para.width)
-		if para.code != "" {
-			// A comment after code has one line. Its marker holds the code, so a wrapped tail cannot be read back.
+		if para.code != "" && len(para.lines) == 1 {
+			// A comment after code with no continuation has one line. Its marker holds the code, so a wrapped tail cannot be read back.
 			wrapped = []string{strings.TrimRight(para.marker+said, " ")}
 		}
 		// An emptied block after code keeps its delimiters, because the code holds the line.
@@ -236,6 +237,8 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 	var out []para
 	for _, run := range runs {
 		var current *para
+		// aligned is the column of the comment that follows code, which a continuation line shares.
+		aligned := -1
 		for _, c := range run {
 			// A block comment is a single token spanning its lines.
 			if isBlock(c.Text) && !isDirective(c.Text) {
@@ -261,17 +264,28 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 					current = nil
 					continue
 				}
-				if codeLine(line) {
+				// A line comment at the column of a comment that follows code continues it, whatever indent its words take.
+				continues := current != nil && current.code != "" && n == 0 && col == aligned && trailer == "" && current.trailer == ""
+				if !continues && codeLine(line) {
 					// A tab after the marker is how a doc comment spells a code block.
 					out = append(out, para{lines: []int{i}, verbatim: true})
 					current = nil
 					continue
 				}
-				if n == 0 && col > 0 && col > indentOf(line) {
-					// A comment following code stands alone and cannot be rewrapped.
-					out = append(out, para{marker: marker, cont: marker, lines: []int{i}, prose: prose, width: len(line), code: line[:col], trailer: trailer})
+				if !continues && ruleLine(prose) {
+					// A rule line frames a banner, so the lines around it make paragraphs of their own.
+					out = append(out, para{marker: marker, cont: marker, lines: []int{i}, prose: prose, width: len(line)})
 					current = nil
 					continue
+				}
+				if n == 0 && col > 0 && col > indentOf(line) {
+					// A comment following code opens a paragraph that the comment lines under it, at its column, continue.
+					out = append(out, para{marker: marker, cont: marker, lines: []int{i}, prose: prose, width: len(line), code: line[:col], trailer: trailer})
+					current, aligned = &out[len(out)-1], col
+					continue
+				}
+				if current != nil && current.code != "" && !continues {
+					current = nil
 				}
 				if current == nil {
 					out = append(out, para{marker: marker, cont: marker})
@@ -281,7 +295,7 @@ func paragraphsOf(lines []string, runs []treecomments.Run) []para {
 					current.cont = marker
 				}
 				current.lines = append(current.lines, i)
-				current.prose = strings.TrimSpace(current.prose + " " + prose)
+				current.prose = joinProse(current.prose, prose)
 				current.width = max(current.width, len(line))
 				// The closer sits on the paragraph's last line, wherever that lands.
 				if trailer != "" {
@@ -367,27 +381,6 @@ func indentOf(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
 
-// wrap lays prose back onto comment lines at the width the paragraph had. A
-// word longer than the width goes on its own line rather than being broken. A
-// URL or an identifier split across lines stops being either.
-func wrap(prose, marker, cont string, width int) []string {
-	words := strings.Fields(prose)
-	if len(words) == 0 {
-		return nil
-	}
-	var out []string
-	line, at := marker, marker
-	for _, w := range words {
-		if line != at && len(line)+len(w) > width {
-			out = append(out, strings.TrimRight(line, " "))
-			at = cont
-			line = cont
-		}
-		line += w + " "
-	}
-	return append(out, strings.TrimRight(line, " "))
-}
-
 // proseOf strips the marker off each wrapped line, for a tail that has to join
 // the line above it.
 func proseOf(lines []string) []string {
@@ -435,6 +428,12 @@ func splitBlock(line string) (marker, prose, trailer string, ok bool) {
 		return indent + m + space + lead, body, strings.TrimSpace(rule + " " + closer), true
 	}
 	return "", "", "", false
+}
+
+// ruleLine reports comment prose with no letter and no digit, such as a row
+// of "=" that frames a banner.
+func ruleLine(prose string) bool {
+	return strings.IndexFunc(prose, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) < 0
 }
 
 // bareMarker reports whether the line carries a comment marker and nothing else.

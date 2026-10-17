@@ -11,6 +11,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/ste"
+	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
 // RewordAt is reword for a caller that holds the phrase but no Hit: the
@@ -101,6 +102,12 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		text = vague(n)
 	case len(before) > 0 && (cardinal.InClass(last(1), "preposition") || followsANoun(content, hit.Start)):
 		text = "multiple "
+	case len(before) > 0 && pastVerbBefore(content, hit):
+		// A past event states how many happened, and a bare plural drops the amount: "recorded 2 intervals" reads "recorded a couple of intervals".
+		text = vague(n)
+	case len(before) > 0 && clauseCoordinator.MatchString(last(1)) && subjectOfVerb(content, hit):
+		// The number was the subject's only determiner: "and 17 gates sat" reads "and the gates sat".
+		text = "the "
 	}
 
 	e := edit.Edit{Start: from, End: to, Text: text, Cut: []string{hit.Phrase}}
@@ -120,11 +127,42 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	return e, true
 }
 
+// pastVerbBefore reports a past-tense verb right before the count, whose
+// object the count measures.
+func pastVerbBefore(content string, hit Hit) bool {
+	from := strings.LastIndexByte(content[:hit.Start], '\n') + 1
+	var prev syntax.Word
+	for _, w := range syntax.Parse(content[from:hit.End], nil).Words {
+		if from+w.Start >= hit.Start {
+			return prev.Tag == "VBD" || prev.Tag == "VBN"
+		}
+		prev = w
+	}
+	return false
+}
+
+// subjectOfVerb reports a counted noun phrase that a finite verb follows, which
+// makes it the subject of that verb.
+func subjectOfVerb(content string, hit Hit) bool {
+	from := strings.LastIndexByte(content[:hit.Start], '\n') + 1
+	to := len(content)
+	if i := strings.IndexByte(content[hit.End:], '\n'); i >= 0 {
+		to = hit.End + i
+	}
+	for _, w := range syntax.Parse(content[from:to], nil).Words {
+		if from+w.Start < hit.End {
+			continue
+		}
+		return finiteVerbTags.Contains(w.Tag)
+	}
+	return false
+}
+
 // measures reports a number whose next word is a unit ahead of the noun, as
 // in "64 MiB chunks".
 func measures(phrase string) bool {
 	fields := strings.Fields(phrase)
-	return len(fields) > 2 && cardinal.IsUnit(fields[1])
+	return len(fields) > 2 && isUnit(fields[1])
 }
 
 var leadingWord = regexp.MustCompile(`^[ \t]*\S+[ \t]+`)

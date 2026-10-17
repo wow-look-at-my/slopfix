@@ -79,9 +79,38 @@ func beforeVerb(prose string, at int) bool {
 		switch w.Tag {
 		case "VB", "VBP", "VBZ", "VBD", "MD":
 			return true
+		case "NNS":
+			if parallelsVerb(s, i) {
+				return true
+			}
 		}
 		// A word with an object pronoun after it is a verb the tagger missed: "never auto-allow it".
 		return i+1 < len(s.Words) && objects.Contains(s.Words[i+1].Lower())
+	}
+	return false
+}
+
+// parallelsVerb reports an -s form after "never" that the tagger reads as a
+// plural noun. This happens where the clause before the comma ends on a
+// singular object after its own verb in -s: "fails the run, never skips". A
+// plural noun there would contrast with that object, and a singular object
+// takes no plural contrast, so the word is the second verb.
+func parallelsVerb(s *syntax.Sentence, i int) bool {
+	w := s.Words[i]
+	if i < 3 || !strings.HasSuffix(w.Lower(), "s") || strings.HasSuffix(w.Lower(), "ss") || s.Words[i-1].Lower() != "never" || s.Words[i-2].Tag != "," {
+		return false
+	}
+	if next := i + 1; next < len(s.Words) && !strings.ContainsAny(s.Words[next].Tag, ".,:") && s.Words[next].Tag != "IN" && s.Words[next].Tag != "TO" {
+		return false
+	}
+	object := s.Words[i-3]
+	if object.Tag != "NN" && object.Tag != "NNP" {
+		return false
+	}
+	for k := i - 4; k >= 0 && s.Words[k].Tag != ","; k-- {
+		if s.Words[k].Tag == "VBZ" {
+			return true
+		}
 	}
 	return false
 }

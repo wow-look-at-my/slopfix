@@ -369,6 +369,35 @@ func NamesAnItem(text string, at int) bool {
 	return false
 }
 
+// CountedHead answers the index of the plural noun a compound ends on, after
+// the number at word i, as in "validation errors". It answers below zero when
+// no compound follows. The tagger reads such a head as a verb in -s, so the
+// words after it decide. A compound noun ends where a conjunction, a comma, a
+// preposition or the sentence end stands. A lone -s word after the digits is
+// no compound, and is the verb of a label: "branch 3 sees".
+func CountedHead(words []syntax.Word, i int) int {
+	j := i + 1
+	for j < len(words) && (words[j].Tag == "NN" || words[j].Tag == "NNP" || words[j].Tag == "JJ") {
+		j++
+	}
+	if j == i+1 || j >= len(words) || !strings.HasSuffix(words[j].Lower(), "s") || strings.HasSuffix(words[j].Lower(), "ss") {
+		return -1
+	}
+	switch words[j].Tag {
+	case "NNS", "NNPS", "VBZ":
+	default:
+		return -1
+	}
+	if j+1 < len(words) {
+		switch words[j+1].Tag {
+		case "CC", ",", ".", ":", "IN", "TO":
+		default:
+			return -1
+		}
+	}
+	return j
+}
+
 // notNames are the words before digits that count or order them, and never
 // name an item: "the last 3 runs", "top 10".
 var notNames = set.Of("first", "last", "next", "top", "bottom", "previous", "other", "only", "past", "final", "initial",

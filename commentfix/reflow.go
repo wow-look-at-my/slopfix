@@ -192,3 +192,16 @@ func widen(text []string, width int) ([]string, bool) {
 	}
 	return out, true
 }
+
+// joinProse joins the prose of a comment line to the paragraph before it. A
+// word that a hyphen breaks across the wrap, as in "byte-for-" and "byte",
+// joins back whole.
+func joinProse(paragraph, line string) string {
+	if n := len(paragraph); n > 1 && paragraph[n-1] == '-' && isLetter(paragraph[n-2]) && line != "" && isLetter(line[0]) {
+		return paragraph + line
+	}
+	return strings.TrimSpace(paragraph + " " + line)
+}
+
+// isLetter reports an ASCII letter.
+func isLetter(b byte) bool { return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' }

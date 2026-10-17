@@ -170,6 +170,13 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if d.opener == "" && !standsAsSentence(right) {
 			continue
 		}
+		if d.opener == "" && strandsPhrase(s, d.rightStart, right) || contactRelative(s, source, d) {
+			continue
+		}
+		// "Otherwise," and "However," open a sentence that the words after them must still make: "Otherwise, "" when no noun ends" is none.
+		if connectorOpener(d.opener) && !standsAsSentence(capitalizeOpening(strings.TrimLeft(restOf(source, d), " "))) {
+			continue
+		}
 		// A noun phrase whose only verbs sit in relative clauses is a fragment: "A number that is true today".
 		if !finiteOutsideRelative(syntax.Parse(checkMask(right), nil), 0) {
 			continue
@@ -400,7 +407,7 @@ func beforeSubordinate(s *syntax.Sentence, source string) []division {
 // outsideSpans moves an offset out of a verbatim span, to its end or to its start.
 // The parser reads a masked span, whose filler word stops short of the closing backtick.
 func outsideSpans(source string, at int, toEnd bool) int {
-	for _, span := range verbatimSpan.FindAllStringIndex(source, -1) {
+	for _, span := range dataSpans(source) {
 		if span[0] < at && at < span[1] {
 			if toEnd {
 				return span[1]
@@ -499,6 +506,10 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			// A colon opens the clause that explains the head: "Stop: runs in
 			// stop-gate mode ..." divides as "Stop. It runs in stop-gate mode".
 			if s.Words[c.Link].Text == ":" && finiteBefore(s, c.Link+1, "") {
+				// A determiner after the colon opens a subject of its own, which an aside parts from its verb: ": a sequence number, taken under flock, names".
+				if tag := s.Words[c.Link+1].Tag; tag == "DT" || tag == "PRP$" || tag == "PDT" {
+					return "", opensWithCapital(s, c.Link+1, source)
+				}
 				if main.Subject != nil {
 					if subject, ok := restated(s, main, c, source); ok {
 						return subject, true
@@ -713,18 +724,6 @@ func joinsClauses(prose string, at int) bool {
 			}
 		}
 		return false
-	}
-	return false
-}
-
-// listBefore reports a comma inside the clause before c, which makes ", and"
-// the end of a list rather than a join between clauses.
-func listBefore(s *syntax.Sentence, c syntax.Clause) bool {
-	for i := c.Link - 2; i >= 0 && i >= clauseStart(s, c.Link); i-- {
-		// A comma inside a quotation reads as a name, and lists nothing.
-		if s.Words[i].Text == "," && s.Words[i].Tag == "," {
-			return true
-		}
 	}
 	return false
 }

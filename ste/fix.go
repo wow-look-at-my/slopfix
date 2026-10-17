@@ -276,7 +276,7 @@ func absoluteTail(masked string, from int, spans [][2]int) (to, last int, ok boo
 // offLimits are the spans no break may land in. The data Check hides, and a
 // parenthetical, which STE counts as a single word and a break would halve.
 func offLimits(prose, masked string) [][]int {
-	off := verbatimSpan.FindAllStringIndex(prose, -1)
+	off := dataSpans(prose)
 	return append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 }
 

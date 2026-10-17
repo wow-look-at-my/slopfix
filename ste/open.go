@@ -58,7 +58,11 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		return "", 0
 	}
 	strong := seam == "—" || seam == "–" || seam == "--" || seam == ":"
-	switch tag := whole.Words[first].Tag; {
+	tagAt := whole.Words[first].Tag
+	if conjunction == "and" && verbAfterConjunction(whole, first) {
+		tagAt = "VBZ"
+	}
+	switch tag := tagAt; {
 	case strong && conjunction != "so" && !lowerIdentifier(firstToken.FindString(rest)) && opensImperative(restMasked):
 		// A dash or a colon before an instruction ends the sentence before it: "— but be economical".
 		return joinOpener(opener, rest), opensOwnClause - 1
@@ -95,13 +99,18 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 		return joinOpener(opener, rest), opensOwnClause
 	case (conjunction == "and" || conjunction == "so") && (seam == "," || seam == "—" || seam == "–" || seam == "--") &&
-		opensNounPhrase(tag) && !lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+		(opensNounPhrase(tag) || opensAfterAdverb(whole, first)) && !lowerIdentifier(firstToken.FindString(rest)) &&
+		(StandsAlone(capitalizeOpening(rest)) || opensAfterAdverb(whole, first) && holdsFinite(restMasked)):
 		// The parse cuts its clauses at commas, so a subject that is a list or
 		// carries a participle opens no clause of its own.
 		if conjunction == "so" && (opensImperativeMain(masked[:c.left]) || instructs(whole)) || listsVerbs(masked[:c.left]) ||
 			conjunction == "and" && seriesBefore(masked[:c.left]) {
 			return "", 0
 		}
+		return joinOpener(opener, rest), opensOwnClause - 1
+	case (conjunction == "or" || conjunction == "but") && opensNounPhrase(tag) && !listsVerbs(masked[:c.left]) && startsModalClause(restMasked) &&
+		!lowerIdentifier(firstToken.FindString(rest)) && StandsAlone(capitalizeOpening(rest)):
+		// "MUST agree or the cache would thrash": a clause after "or" with its own subject is the alternative, behind "Otherwise,".
 		return joinOpener(opener, rest), opensOwnClause - 1
 	case conjunction == "" && (seam == "—" || seam == "–" || seam == ":" || seam == "--") && !lowerIdentifier(firstToken.FindString(rest)):
 		// A dash or a colon before words that hold a main clause of their own: "— on first launch Grok runs your binary".
@@ -114,6 +123,13 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		}
 	}
 	return "", 0
+}
+
+// opensAfterAdverb reports a word at first that is an adverb, then a noun
+// phrase: "only one sync-tool uses the disk".
+func opensAfterAdverb(s *syntax.Sentence, first int) bool {
+	next := skipAdverbs(s, first)
+	return next > first && next < len(s.Words) && opensNounPhrase(s.Words[next].Tag)
 }
 
 // opensNounPhrase reports a tag that starts a subject.
@@ -177,7 +193,11 @@ func opening(text string) string {
 func subjectFor(source, masked string, c forceCut, tag string) string {
 	s := syntax.Parse(masked[:c.left], nil)
 	// Only the clause right before the cut shares its subject with the verb after it.
-	for _, clause := range s.Clauses[max(len(s.Clauses)-1, 0):] {
+	last := max(len(s.Clauses)-1, 0)
+	for last > 0 && (s.Clauses[last].Depth > 0 || coordinateWithoutSubject(s, s.Clauses[last])) {
+		last--
+	}
+	for _, clause := range s.Clauses[last:min(last+1, len(s.Clauses))] {
 		if clause.Depth != 0 || clause.Subject == nil || clause.Verb == nil {
 			continue
 		}
@@ -186,8 +206,8 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 			return ""
 		}
 		// A later finite verb has a subject of its own, which the parse did not name.
-		for _, w := range s.Words[clause.Verb.Last+1:] {
-			if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
+		for j := clause.Verb.Last + 1; j < len(s.Words); j++ {
+			if w := s.Words[j]; (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD") && !inContactRelative(s, j) && !mistaggedNoun(s, j) {
 				return ""
 			}
 		}
@@ -218,6 +238,69 @@ func subjectFor(source, masked string, c forceCut, tag string) string {
 		return "it"
 	}
 	return ""
+}
+
+// coordinateWithoutSubject reports a coordinate clause whose named subject
+// cannot open one, as in "or history images".
+func coordinateWithoutSubject(s *syntax.Sentence, c syntax.Clause) bool {
+	return c.Kind == syntax.Coordinate && c.Subject != nil && !opensSubject(s, c.Subject.First)
+}
+
+// startsModalClause reports a rest whose first finite verb is a modal: "growth
+// would thrash". Only a modal tells a new clause from the rest of a noun group.
+func startsModalClause(rest string) bool {
+	for _, w := range syntax.Parse(rest, nil).Words {
+		if finiteVerbTag(w.Tag) || w.Tag == "MD" {
+			return w.Tag == "MD"
+		}
+	}
+	return false
+}
+
+// standsBeforeConjunction reports a head that holds a main clause and ends
+// right before a conjunction. So the clause after the conjunction is a sentence
+// of its own.
+func standsBeforeConjunction(whole *syntax.Sentence, head string) bool {
+	n := wordsBefore(whole, len(head))
+	return n > 0 && n < len(whole.Words) && whole.Words[n].Tag == "CC" && !forceDangling.Contains(whole.Words[n-1].Lower()) &&
+		(standsAlone(whole, 0, n) || holdsFinite(checkMask(head)))
+}
+
+// verbAfterConjunction reports a plural noun at first that opens a verb group
+// of its own after "and": "writes images and flips to it". Its object is a
+// pronoun or a phrase of direction, which a plural noun cannot take.
+func verbAfterConjunction(s *syntax.Sentence, first int) bool {
+	if first < 1 || first+1 >= len(s.Words) || s.Words[first].Tag != "NNS" || !strings.HasSuffix(strings.ToLower(s.Words[first].Text), "s") {
+		return false
+	}
+	next := s.Words[first+1].Tag
+	return s.Words[first-1].Tag == "CC" && (next == "TO" || next == "PRP" || next == "RP")
+}
+
+// mistaggedNoun reports a word the tagger reads as a finite verb at j that ends
+// a bare group of nouns. That mistaggedNoun is with no determiner in front: "or
+// history images".
+func mistaggedNoun(s *syntax.Sentence, j int) bool {
+	k := j - 1
+	for k >= 0 && (strings.HasPrefix(s.Words[k].Tag, "NN") && s.Words[k].Tag != "NNP" || strings.HasPrefix(s.Words[k].Tag, "JJ")) {
+		k--
+	}
+	return k >= 0 && j-k >= 2 && s.Words[k].Tag == "CC"
+}
+
+// inContactRelative reports a finite verb at j that a determiner and its noun
+// phrase govern right after a noun. A relative clause with its "that" left
+// out: "into the segment no pending reader holds".
+func inContactRelative(s *syntax.Sentence, j int) bool {
+	k := j - 1
+	for k >= 0 && (strings.HasPrefix(s.Words[k].Tag, "NN") || strings.HasPrefix(s.Words[k].Tag, "JJ") || s.Words[k].Tag == "VBG" || s.Words[k].Tag == "VBN") {
+		k--
+	}
+	if k < 1 || j-k < 2 {
+		return false
+	}
+	det := s.Words[k].Tag
+	return (det == "DT" || det == "PRP$") && strings.HasPrefix(s.Words[k-1].Tag, "NN")
 }
 
 // lowerOpening writes the first letter in lower case.
