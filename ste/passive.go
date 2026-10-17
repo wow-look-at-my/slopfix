@@ -2,26 +2,26 @@ package ste
 
 import (
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// rewritePassive writes the active voice for a passive clause that names its
-// actor: "The file is read by the gate" becomes "The gate reads the file".
-// A clause that names no actor is left as written, because nothing states who
-// acts.
+// rewritePassive writes a passive clause that carries a "by" phrase after its
+// participle in a form with no passive.
 func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
+	if out, ok := rewriteActor(s, source); ok {
+		return out, true
+	}
+	return rewriteWithoutActor(s, source)
+}
+
+// rewriteWithoutActor writes a passive clause whose "by" phrase names no actor.
+func rewriteWithoutActor(s *syntax.Sentence, source string) (string, bool) {
 	last := lastContent(s)
 	i, j := auxiliary(s, 1, beForms)
-	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
+	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" || !simpleSpan(s, i, j) {
 		return "", false
 	}
-	if !simpleSpan(s, i, j) {
-		return "", false
-	}
-	// The actor is the phrase after "by", and it must close the clause.
 	by := -1
 	for k := j + 1; k < last; k++ {
 		if s.Words[k].Lower() == "by" {
@@ -29,12 +29,12 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 			break
 		}
 	}
-	if by < 0 || by+1 > last {
+	if by < 0 {
 		return "", false
 	}
 	end := last
 	for k := by + 1; k <= last; k++ {
-		if endsActor(s.Words[k]) {
+		if s.Words[k].Text == "," {
 			end = k - 1
 			break
 		}
@@ -42,231 +42,95 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	if end < by+1 {
 		return "", false
 	}
-	// "by" and a gerund name the means, and no actor: "is asserted by pairing it with X".
-	if s.Words[by+1].Tag == "VBG" {
+	start := clauseOpening(s, i)
+	if strings.TrimSpace(source[s.Words[start].Start:s.Words[i].Start]) == "" {
 		return "", false
 	}
-	// A second verb group after the actor shares the passive subject, which the rewrite moves away from it: "is untouched by this and is now the slowest".
-	for k := by + 2; k < end; k++ {
-		if s.Words[k].Tag == "CC" && (strings.HasPrefix(s.Words[k+1].Tag, "VB") || s.Words[k+1].Tag == "MD") {
-			return "", false
-		}
-	}
-	first, ok := subjectStart(s, i)
-	if !ok {
+	p := passiveClause{s: s, source: source, start: start, be: i, participle: j, by: by, end: end}
+	// "has been read", "must not be read" and "must be read" carry a word no rewrite here moves.
+	if s.Words[i].Lower() == "be" || s.Words[i-1].Tag == "MD" || haveForms.Contains(s.Words[i-1].Lower()) || beForms.Contains(s.Words[i-1].Lower()) {
 		return "", false
 	}
-	// A bare "be" is active only behind a modal: "X must be read by Y" becomes "Y must read X".
-	subjectEnd, verb := i, ""
-	if s.Words[i].Lower() == "be" {
-		if i-1 <= first || s.Words[i-1].Tag != "MD" {
-			return "", false
-		}
-		subjectEnd = i - 1
-		verb = source[s.Words[i-1].Start:s.Words[i-1].End] + " " + baseFromParticiple(s.Words[j].Lower())
-	} else {
-		// "has been read" and "must not be read" carry a word no rewrite here moves.
-		if before := s.Words[i-1]; before.Tag == "MD" || haveForms.Contains(before.Lower()) || beForms.Contains(before.Lower()) {
-			return "", false
-		}
-		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
-	}
-	from, to := s.Words[first].Start, s.Words[end].End
-	subject := strings.TrimSpace(unbold(source[from:s.Words[subjectEnd].Start]))
-	actor := strings.TrimSpace(unbold(source[s.Words[by+1].Start:to]))
-	if subject == "" || actor == "" || verb == "" {
+	if participleOfVerb(s.Words[j].Lower()) && p.namesActor() {
 		return "", false
 	}
-	object := subject
-	if first == 0 {
-		actor = capitalizeOpening(actor)
-		object = lowerOpeningFor(subject, s.Words[0].Tag)
-	}
-	clause := rebold(source, from, to, actor+" "+verb+" "+object)
-	return source[:from] + clause + source[to:], true
+	return p.frontedBy(), true
 }
 
-// endsActor reports a word the actor of a passive clause stops in front of.
-// Punctuation ends it, and so does a subordinator.
-func endsActor(w syntax.Word) bool {
-	switch w.Text {
-	case ",", ";", ":", "(":
-		return true
-	}
-	if strings.Trim(w.Text, "-–—") == "" {
-		return true
-	}
-	return syntax.Is(w.Lower(), "subordinator")
+// passiveClause holds the word indexes of a passive clause: where its subject
+// starts, its form of be, its participle.
+type passiveClause struct {
+	s                              *syntax.Sentence
+	source                         string
+	start, be, participle, by, end int
 }
 
-// subjectStart answers the first word of the subject in front of the verb
-// group at i. An opening phrase a comma closes stays in front of the clause, as
-// does the coordinator or subordinator after that comma. A relative pronoun
-// stands for a noun outside the clause, so it has no subject to move.
-func subjectStart(s *syntax.Sentence, i int) (int, bool) {
-	first := 0
-	for k := 0; k < i; k++ {
-		if s.Words[k].Text == "," && leadsClause(s, first, k) {
-			first = k + 1
+// clauseOpening answers the first word of the clause that holds word i. A
+// colon, a semicolon, a dash, a subordinator and a comma before a conjunction
+// open a clause. A comma alone does not, because a subject can list nouns.
+func clauseOpening(s *syntax.Sentence, i int) int {
+	for k := i - 1; k > 0; k-- {
+		w := s.Words[k]
+		switch {
+		case w.Text == ":" || w.Text == ";" || dashMark(w.Text):
+			return openingAt(k+1, i)
+		case (w.Tag == "IN" || w.Tag == "WRB") && syntax.Is(w.Text, "subordinator"):
+			return openingAt(k+1, i)
+		case w.Tag == "CC" && s.Words[k-1].Text == ",":
+			return openingAt(k+1, i)
 		}
 	}
-	for first < i && (s.Words[first].Tag == "CC" || syntax.Is(s.Words[first].Lower(), "subordinator") || s.Words[first].Lower() == "so") {
-		first++
-	}
-	// A subject opens on a noun phrase. A verb there is a reduced clause of the words before: "run by the action the same way X is".
-	if first >= i || strings.HasPrefix(s.Words[first].Tag, "W") || strings.HasPrefix(s.Words[first].Tag, "VB") {
-		return 0, false
-	}
-	return first, true
+	return 0
 }
 
-// leadsClause reports whether the words from first up to the comma at k stand
-// in front of a clause rather than in a list. They carry a finite verb, or they
-// open on a preposition or an adverb, or the comma is followed by a coordinator
-// or a subordinator.
-func leadsClause(s *syntax.Sentence, first, k int) bool {
-	if k+1 < len(s.Words) {
-		next := s.Words[k+1]
-		if next.Tag == "CC" || next.Lower() == "so" || syntax.Is(next.Lower(), "subordinator") {
-			return true
-		}
+// openingAt answers k when words stand between k and the verb at i, and the
+// start of the sentence otherwise.
+func openingAt(k, i int) int {
+	if k >= i {
+		return 0
 	}
-	if first < k {
-		switch s.Words[first].Tag {
-		case "IN", "RB", "TO", "VBG":
-			return true
-		}
-	}
-	for _, w := range s.Words[first:k] {
-		switch w.Tag {
-		case "VBZ", "VBP", "VBD", "MD":
-			return true
-		}
-	}
-	return false
+	return k
 }
 
-// unbold drops the bold markers from a piece a rewrite moves.
-func unbold(piece string) string {
-	return strings.ReplaceAll(piece, "**", "")
-}
-
-// rebold writes the bold markers source carries between from and to around the
-// rewritten clause. A run that opens inside the clause opens at its start, and
-// a run that closes inside it closes at its end.
-func rebold(source string, from, to int, clause string) string {
-	inside := strings.Count(source[from:to], "**")
-	if inside == 0 {
-		return clause
-	}
-	startBold := strings.Count(source[:from], "**")%2 == 1
-	endBold := (strings.Count(source[:from], "**")+inside)%2 == 1
-	if !startBold {
-		clause = "**" + clause
-	}
-	if !endBold {
-		clause += "**"
-	}
-	return clause
-}
-
-// lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
-// the start of one. A name keeps its capital.
-func lowerOpeningFor(phrase, tag string) string {
-	if tag == "NNP" || tag == "NNPS" {
-		return phrase
-	}
-	first, width := utf8.DecodeRuneInString(phrase)
-	if !unicode.IsUpper(first) {
-		return phrase
-	}
-	return string(unicode.ToLower(first)) + phrase[width:]
-}
-
-// passiveVerb answers the active form of a passive verb group: the participle
-// for a past clause, and the present tense of the base form otherwise.
-func passiveVerb(participle, beWord string, plural bool) string {
-	switch beWord {
-	case "was", "were", "been", "being":
-		return pastFromParticiple(participle)
-	}
-	return presentOf(baseFromParticiple(participle), plural)
-}
-
-// baseFromParticiple answers the verb a participle belongs to. A regular verb
-// spells its participle with -ed, so the ending answers it by rule. The table
-// answers each verb the ending hides.
-func baseFromParticiple(form string) string {
-	form = strings.ToLower(form)
+// participleOfVerb reports a participle a verb writes: a form the verb table
+// lists, or a regular one in -ed. "red" ends in -ed and is an adjective.
+func participleOfVerb(form string) bool {
 	if v, ok := verbBy(form); ok && v.participle == form {
-		return v.base
+		return true
 	}
-	if !strings.HasSuffix(form, "ed") || len(form) <= 3 {
-		return form
-	}
-	stem := form[:len(form)-2]
-	if doubled(stem) {
-		return stem[:len(stem)-1]
-	}
-	if strings.HasSuffix(stem, "i") {
-		return stem[:len(stem)-1] + "y"
-	}
-	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
-		return stem + "e"
-	}
-	if silentE(stem) {
-		return stem + "e"
-	}
-	return stem
+	return strings.HasSuffix(form, "ed") && len(form) > 3
 }
 
-// silentE reports whether English spelling drops an e from the end of stem before
-// -ed. Endings like -dge, -ate, -ize, -ve, -ce and -ure need the e. A stem of one
-// syllable that ends on a single vowel and a single consonant took the e as well.
-// Because a stem without it doubles its consonant: "named" against "planned".
-func silentE(stem string) bool {
-	n := len(stem)
-	if n < 2 {
+// namesActor reports a "by" phrase that names who acts. A phrase that opens on
+// a determiner, a pronoun, a number or a name, or one whose head is plural. A
+// bare singular noun names a manner, as in "by definition" and "by full URL".
+// A gerund names a means.
+func (p passiveClause) namesActor() bool {
+	w := p.s.Words[p.by+1]
+	switch w.Tag {
+	case "DT", "PRP", "PRP$", "CD", "NNP", "NNPS", "NNS":
+		return true
+	}
+	if syntax.Is(w.Text, "definite") || syntax.Is(w.Text, "indefinite") {
+		return true
+	}
+	ph, ok := p.s.PhraseAt(p.by + 1)
+	if !ok || ph.Kind != syntax.NounPhrase {
 		return false
 	}
-	last, prev := stem[n-1], stem[n-2]
-	consonant := func(c byte) bool { return c >= 'a' && c <= 'z' && !strings.ContainsRune("aeiou", rune(c)) }
-	switch {
-	case last == 'v', last == 'u' && prev != 'q':
-		return true
-	case last == 'c', last == 'z' && strings.ContainsRune("iy", rune(prev)):
-		return true
-	case last == 'g' && prev == 'd':
-		return true
-	case last == 's' && strings.ContainsRune("rnpl", rune(prev)):
-		return true
-	case last == 'l' && consonant(prev) && !strings.ContainsRune("lrw", rune(prev)):
-		return true
-	case n >= 3 && strings.ContainsRune("aiu", rune(prev)) && strings.ContainsRune("tr", rune(last)) && consonant(stem[n-3]):
-		// -ate, -ire, -ure and -are, after a consonant.
-		return prev != 'i' || last == 'r'
-	case n >= 3 && prev == 'i' && strings.ContainsRune("nd", rune(last)) && consonant(stem[n-3]):
-		// -ine and -ide, after a consonant.
-		return true
-	}
-	// The u of qu spells a consonant sound.
-	w := strings.ReplaceAll(stem, "qu", "q")
-	n = len(w)
-	return n >= 2 && oneSyllable(w) && strings.ContainsRune("aeiou", rune(w[n-2])) && (n == 2 || consonant(w[n-3])) &&
-		consonant(last) && !strings.ContainsRune("wxy", rune(last))
+	head := p.s.Words[ph.Head].Tag
+	return head == "NNS" || head == "NNPS"
 }
 
-// oneSyllable reports whether word holds a single run of vowels. A y opens no
-// run at the start of a word, where it spells a consonant.
-func oneSyllable(word string) bool {
-	runs := 0
-	vowel := false
-	for i := 0; i < len(word); i++ {
-		v := strings.ContainsRune("aeiou", rune(word[i])) || word[i] == 'y' && i > 0
-		if v && !vowel {
-			runs++
-		}
-		vowel = v
+// frontedBy moves the "by" phrase in front of the subject, which leaves the
+// clause with no passive "by" phrase.
+func (p passiveClause) frontedBy() string {
+	w := p.s.Words
+	phrase := p.source[w[p.by].Start:w[p.end].End]
+	clause := strings.TrimRight(p.source[w[p.start].Start:w[p.by].Start], " ,")
+	tail := p.source[w[p.end].End:]
+	if p.start == 0 {
+		return capitalizeOpening(phrase) + ", " + lowerOpeningFor(clause, w[p.start].Tag) + tail
 	}
-	return runs == 1
+	return p.source[:w[p.start].Start] + phrase + " " + clause + tail
 }
