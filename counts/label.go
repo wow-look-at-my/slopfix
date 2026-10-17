@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
@@ -127,18 +128,102 @@ func possessive(w syntax.Word) bool {
 // resolveItem answers the words the text gives an item elsewhere, or "". It
 // reads "branch (3) the keyless fallback" and "Keyless fallback (branch 3)".
 func resolveItem(content, noun, digits string) string {
-	n := regexp.QuoteMeta(noun)
-	after := regexp.MustCompile(`(?i)\b` + n + `[ \t]*(?:\([ \t]*` + digits + `[ \t]*\)|` + digits + `[ \t]*[:—–])[ \t]*(the[ \t]+[^,;:.()\n—–]+)`)
-	if m := after.FindStringSubmatch(content); m != nil {
-		if name := nameOf(m[1]); name != "" {
+	if desc, ok := describedAfter(content, noun, digits); ok {
+		if name := nameOf(desc); name != "" {
 			return name
 		}
 	}
-	before := regexp.MustCompile(`(?m)^[ \t]*(?:#+[ \t]*)?(?:[-*+][ \t]+)?(?:\d+[.)][ \t]*)?([A-Z][\w'-]*(?:[ \t]+[a-z][\w'-]*){0,3})[ \t]*\([ \t]*(?i:` + n + `)[ \t]*\(?` + digits + `\)?[ \t]*\)`)
-	if m := before.FindStringSubmatch(content); m != nil {
-		return "the " + lowerFirst(m[1])
+	if name, ok := namedBefore(content, noun, digits); ok {
+		return "the " + lowerFirst(name)
 	}
 	return ""
+}
+
+// labelThen reads what follows a label's noun: "(3) the keyless fallback" or
+// "3: the keyless fallback". The digits are captured, so the pattern is constant.
+var labelThen = regexp.MustCompile(`(?i)^[ \t]*(?:\([ \t]*(\d+)[ \t]*\)|(\d+)[ \t]*[:—–])[ \t]*(the[ \t]+[^,;:.()\n—–]+)`)
+
+// describedAfter answers the description after the leftmost "noun (digits)"
+// or "noun digits:" that starts at a word boundary. The noun matches without
+// regard to case.
+func describedAfter(content, noun, digits string) (string, bool) {
+	for at := 0; at <= len(content); at++ {
+		if at > 0 && at < len(content) && !utf8.RuneStart(content[at]) {
+			continue
+		}
+		if !wordBoundary(content, at) {
+			continue
+		}
+		n, ok := foldPrefix(content[at:], noun)
+		if !ok {
+			continue
+		}
+		m := labelThen.FindStringSubmatch(content[at+n:])
+		if m == nil || m[1]+m[2] != digits {
+			continue
+		}
+		return m[3], true
+	}
+	return "", false
+}
+
+// nameThenParen reads a line that names an item before a parenthesis. A name
+// and the marks before it hold no "(", so the parenthesis is the first on the
+// line, and each line has at most one reading.
+var nameThenParen = regexp.MustCompile(`(?m)^[ \t]*(?:#+[ \t]*)?(?:[-*+][ \t]+)?(?:\d+[.)][ \t]*)?([A-Z][\w'-]*(?:[ \t]+[a-z][\w'-]*){0,3})[ \t]*\(`)
+
+// namedBefore answers the name of the earliest line that reads
+// "Name (noun digits)". The noun matches without regard to case.
+func namedBefore(content, noun, digits string) (string, bool) {
+	for _, m := range nameThenParen.FindAllStringSubmatchIndex(content, -1) {
+		if closesLabel(content[m[1]:], noun, digits) {
+			return content[m[2]:m[3]], true
+		}
+	}
+	return "", false
+}
+
+// closesLabel reports whether s opens with `[ \t]*noun[ \t]*\(?digits\)?[ \t]*\)`,
+// the noun without regard to case.
+func closesLabel(s, noun, digits string) bool {
+	s = strings.TrimLeft(s, " \t")
+	n, ok := foldPrefix(s, noun)
+	if !ok {
+		return false
+	}
+	s = strings.TrimLeft(s[n:], " \t")
+	s = strings.TrimPrefix(s, "(")
+	if !strings.HasPrefix(s, digits) {
+		return false
+	}
+	s = s[len(digits):]
+	closes := func(t string) bool { return strings.HasPrefix(strings.TrimLeft(t, " \t"), ")") }
+	return strings.HasPrefix(s, ")") && closes(s[1:]) || closes(s)
+}
+
+// foldPrefix answers the byte length of the prefix of s that matches lit rune
+// by rune under Unicode case folding, as (?i) matches it.
+func foldPrefix(s, lit string) (int, bool) {
+	n := 0
+	for _, want := range lit {
+		got, size := utf8.DecodeRuneInString(s[n:])
+		if size == 0 || !strings.EqualFold(string(got), string(want)) {
+			return 0, false
+		}
+		n += size
+	}
+	return n, true
+}
+
+// wordBoundary reports a \b at byte at: an ASCII word byte on exactly one side.
+func wordBoundary(s string, at int) bool {
+	before := at > 0 && isWordByte(s[at-1])
+	after := at < len(s) && isWordByte(s[at])
+	return before != after
+}
+
+func isWordByte(c byte) bool {
+	return c == '_' || '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 // nameOf trims a description to the name it opens with. A code span after a

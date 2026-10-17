@@ -16,6 +16,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -136,12 +137,12 @@ var (
 	parenthetical = regexp.MustCompile(`\([^()]*\)`)
 	// commaSplice wants a subject and a finite verb after the comma. The
 	// conjunction is optional, because a bare comma splices too.
-	commaSplice = regexp.MustCompile(
+	commaSplice = precompiled.MustCompile(
 		`(?i),\s+((?:` + spliceConjunction + `)\s+)?(?:` + clauseSubject +
 			`)\s+(?:\w+\s+){0,2}?(?:not\s+)?(?:` + finiteVerb + `)\b`)
-	finiteVerbRe = regexp.MustCompile(`(?i)\b(?:` + finiteVerb + `)\b`)
+	finiteVerbRe = precompiled.MustCompile(`(?i)\b(?:` + finiteVerb + `)\b`)
 	// subordinator opens a dependent clause, which a comma may join.
-	subordinator = regexp.MustCompile(`(?i)^(?:(?:` + subordinatorConjunction + `)\s+)?` +
+	subordinator = precompiled.MustCompile(`(?i)^(?:(?:` + subordinatorConjunction + `)\s+)?` +
 		`(?:` + subordinators + `)\b`)
 	// fileOrSection matches a lower-case sentence opener: a file name, or a
 	// section reference. Demanding a capital welds it onto its predecessor.

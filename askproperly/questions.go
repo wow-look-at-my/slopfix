@@ -7,9 +7,11 @@
 package askproperly
 
 import (
-	"github.com/wow-look-at-my/go-containers/set"
 	"regexp"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -72,7 +74,7 @@ func compilePhrases(phrases []string) []phraseMatcher {
 	for _, p := range phrases {
 		out = append(out, phraseMatcher{
 			text: p,
-			re:   regexp.MustCompile(`(?i)` + regexp.QuoteMeta(p)),
+			re:   precompiled.MustCompile(`(?i)` + regexp.QuoteMeta(p)),
 		})
 	}
 	return out

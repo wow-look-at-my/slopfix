@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -37,20 +38,26 @@ func Fix(s, surface string) string {
 func FixN(s, surface string) (string, int) {
 	original := s
 	n := 0
+	// Each entry reads the lower-case text, which changes only when an entry rewrites s.
+	lower := strings.ToLower(s)
+	swap := func(word, with string) {
+		var took int
+		s, took = replaceWordLower(s, lower, word, with)
+		if took > 0 {
+			n += took
+			lower = strings.ToLower(s)
+		}
+	}
 	// Rewrites go before drops: a phrase like "in order to" would otherwise lose
 	// its middle to a <drop> and stop matching as a phrase at all.
 	for _, r := range Rewrites() {
 		if AppliesTo(r.Where, surface) {
-			var took int
-			s, took = replaceWordN(s, r.From, r.To)
-			n += took
+			swap(r.From, r.To)
 		}
 	}
 	for _, d := range Drops() {
 		if AppliesTo(d.Where, surface) {
-			var took int
-			s, took = replaceWordN(s, d.Word, "")
-			n += took
+			swap(d.Word, "")
 		}
 	}
 	for _, sh := range Shapes() {
@@ -62,11 +69,16 @@ func FixN(s, surface string) (string, int) {
 	}
 	// Patterns last: they carry a shape rather than a phrase, and a shape must
 	// see the text a word swap has already settled.
+	folded := precompiled.Fold(s)
 	for _, p := range Patterns() {
 		if AppliesTo(p.Where, surface) {
 			var took int
-			s, took = p.ApplyN(s)
+			before := s
+			s, took = p.applyN(s, folded)
 			n += took
+			if s != before {
+				folded = precompiled.Fold(s)
+			}
 		}
 	}
 	s = strings.Join(strings.Fields(s), " ")
@@ -142,8 +154,16 @@ func ReplaceWord(s, word, with string) string {
 }
 
 func replaceWordN(s, word, with string) (string, int) {
-	lower := strings.ToLower(s)
+	return replaceWordLower(s, strings.ToLower(s), word, with)
+}
+
+// replaceWordLower is replaceWordN for a caller that holds strings.ToLower(s).
+// The spans are read only when the word occurs, because most entries do not.
+func replaceWordLower(s, lower, word, with string) (string, int) {
 	target := strings.ToLower(word)
+	if !strings.Contains(lower, target) {
+		return s, 0
+	}
 	took := 0
 	spans := codeSpan.FindAllStringIndex(s, -1)
 	quotes := quotation.FindAllStringIndex(s, -1)

@@ -9,9 +9,10 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/fs"
-	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
 // document mirrors a rules file. The table types the consumer reads carry no
@@ -184,12 +185,12 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 		if err := named("pattern", p.ID, p.Tests, p.Match == ""); err != nil {
 			return err
 		}
-		re, err := regexp.Compile(p.Match)
+		re, err := precompiled.Compile(p.Match)
 		if err != nil {
 			return fmt.Errorf("%s: <pattern id=%q>: %w", path, p.ID, err)
 		}
 		t.Patterns = append(t.Patterns, Pattern{
-			ID: p.ID, Match: p.Match, To: p.To, Where: p.Where, Tests: tests(p.Tests), re: re,
+			ID: p.ID, Match: p.Match, To: p.To, Where: p.Where, Tests: tests(p.Tests), re: re, needs: precompiled.Needs(re),
 		})
 	}
 	for _, f := range doc.Flags {
