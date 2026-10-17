@@ -10,12 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // inProgressMarkers are the paths git writes while an operation stops for the
@@ -31,79 +29,76 @@ var inProgressMarkers = map[string]string{
 // errNoGit marks a root git does not track, where no branch scopes the sweep.
 var errNoGit = errors.New("not inside a git work tree")
 
-// git runs a git command in dir and answers its trimmed output.
-func git(dir string, args ...string) (string, error) {
-	out, err := gitmod.Command(dir, args...).Output()
+// openRoot opens the work tree that holds root.
+func openRoot(root string) (*gitread.Repo, error) {
+	repo, err := gitread.OpenWorkTree(root)
 	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			return "", fmt.Errorf("git %s: %s", strings.Join(args, " "), strings.TrimSpace(string(exit.Stderr)))
-		}
-		return "", err
+		return nil, err
 	}
-	return strings.TrimSpace(string(out)), nil
+	if repo == nil {
+		return nil, errNoGit
+	}
+	return repo, nil
 }
 
 // operationInProgress names the git operation stopped in the work tree at
 // root, or answers "".
 func operationInProgress(root string) (string, error) {
+	repo, err := openRoot(root)
+	if err != nil {
+		return "", err
+	}
 	for marker, name := range inProgressMarkers {
-		path, err := git(root, "rev-parse", "--git-path", marker)
-		if err != nil {
-			return "", err
-		}
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(root, path)
-		}
-		if _, err := os.Stat(path); err == nil {
+		if _, err := os.Stat(repo.Path(marker)); err == nil {
 			return name, nil
 		}
 	}
 	return "", nil
 }
 
-// defaultBranch answers the ref of the remote's default branch.
-func defaultBranch(root string) (string, error) {
-	if ref, err := git(root, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"); err == nil && ref != "" {
-		return ref, nil
+// defaultBranch answers the commit and the ref of the remote's default branch.
+func defaultBranch(repo *gitread.Repo) (gitread.OID, string, error) {
+	refs := []string{"refs/remotes/origin/main", "refs/remotes/origin/master", "refs/heads/main", "refs/heads/master"}
+	if target, ok := repo.SymbolicRef("refs/remotes/origin/HEAD"); ok {
+		refs = append([]string{target}, refs...)
 	}
-	for _, ref := range []string{"refs/remotes/origin/main", "refs/remotes/origin/master", "refs/heads/main", "refs/heads/master"} {
-		if _, err := git(root, "rev-parse", "--verify", "--quiet", ref); err == nil {
-			return ref, nil
+	for _, ref := range refs {
+		if oid, err := repo.Resolve(ref); err == nil {
+			return oid, ref, nil
 		}
 	}
-	return "", errors.New("no default branch: origin/HEAD, main and master are all missing")
+	return gitread.OID{}, "", errors.New("no default branch: origin/HEAD, main and master are all missing")
 }
 
 // changedFiles answers every file under root that differs from the merge base
 // with the default branch: committed on the branch, staged, unstaged or new.
 func changedFiles(root string) (set.Set[string], error) {
-	top, err := git(root, "rev-parse", "--show-toplevel")
-	if err != nil {
-		return set.New[string](), errNoGit
-	}
-	branch, err := defaultBranch(root)
+	repo, err := openRoot(root)
 	if err != nil {
 		return set.New[string](), err
 	}
-	base, err := git(root, "merge-base", "HEAD", branch)
-	if err != nil {
-		return set.New[string](), fmt.Errorf("no merge base with %s: %w", branch, err)
-	}
-	diffed, err := git(top, "diff", "--name-only", "--no-renames", base, "--")
+	branch, ref, err := defaultBranch(repo)
 	if err != nil {
 		return set.New[string](), err
 	}
-	untracked, err := git(top, "ls-files", "--others", "--exclude-standard")
+	head, err := repo.Head()
+	if err != nil {
+		return set.New[string](), fmt.Errorf("no merge base with %s: %w", ref, err)
+	}
+	base, ok, err := repo.MergeBase(head, branch)
+	if err != nil {
+		return set.New[string](), fmt.Errorf("no merge base with %s: %w", ref, err)
+	}
+	if !ok {
+		return set.New[string](), fmt.Errorf("no merge base with %s", ref)
+	}
+	names, err := repo.ChangedNames(base)
 	if err != nil {
 		return set.New[string](), err
 	}
 	out := set.New[string]()
-	for _, name := range append(strings.Split(diffed, "\n"), strings.Split(untracked, "\n")...) {
-		if name == "" {
-			continue
-		}
-		out.Add(filepath.Clean(filepath.Join(top, name)))
+	for _, name := range names {
+		out.Add(filepath.Join(repo.WorkTree(), filepath.FromSlash(name)))
 	}
 	return out, nil
 }
