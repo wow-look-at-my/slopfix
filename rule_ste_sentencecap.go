@@ -12,6 +12,16 @@ func init() {
 		Autofix:  autofixSentenceCap,
 		Cases: []RuleCase{
 			{Name: ste.IDSentenceCap, Path: "x.md", Text: "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n"},
+			{
+				Name: "a relative clause stays with its noun", Path: "x.md",
+				Text: "The reader answers the first prose paragraph of text as one restated sentence that carries a later \"that\" clause with the verb that governs it, laid out under a leading heading where both fit.\n",
+				Want: "The reader answers the first prose paragraph of text as one restated sentence that carries a later \"that\" clause with the verb. That verb governs it, laid out under a leading heading where both fit.\n",
+			},
+			{
+				Name: "a colon before a clause with its own subject", Path: "x.md",
+				Text: "A sentence wraps across the lines of one replacement, so they come back together: a line fix wrote beside a line the edit wrote reads as neither.\n",
+				Want: "A sentence wraps across the lines of one replacement, so they come back together. A line fix wrote beside a line the edit wrote reads as neither.\n",
+			},
 			{Name: "a carrier never opens on a conjunction", Path: "governor.cpp", Text: carrierConjunctionCase, Want: carrierConjunctionWant},
 			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: variableOpensCase, Want: variableOpensWant},
 			{Name: "a rule around comment prose stays at the edges", Path: "governor.cpp", Text: ruledCommentCase, Want: ruledCommentWant},
