@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/syntax"
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // danglingSpace matches the space a deletion leaves before punctuation that CLOSES something. A period with a word
@@ -42,14 +43,14 @@ func FixN(s, surface string) (string, int) {
 	for _, r := range Rewrites() {
 		if AppliesTo(r.Where, surface) {
 			var took int
-			s, took = replaceWordN(s, r.From, r.To)
+			s, took = replaceWordN(s, r.From, r.To, r.Sensitive)
 			n += took
 		}
 	}
 	for _, d := range Drops() {
 		if AppliesTo(d.Where, surface) {
 			var took int
-			s, took = replaceWordN(s, d.Word, "")
+			s, took = replaceWordN(s, d.Word, "", d.Sensitive)
 			n += took
 		}
 	}
@@ -137,13 +138,18 @@ func hasFiniteVerb(sentence string) bool {
 // ReplaceWord swaps a whole word or phrase, case-insensitively, leaving a
 // longer word that merely contains it alone.
 func ReplaceWord(s, word, with string) string {
-	out, _ := replaceWordN(s, word, with)
+	out, _ := replaceWordN(s, word, with, false)
 	return out
 }
 
-func replaceWordN(s, word, with string) (string, int) {
-	lower := strings.ToLower(s)
-	target := strings.ToLower(word)
+// replaceWordN swaps each whole-word occurrence of word. A sensitive entry
+// matches as written. The replacement takes the opening case of the text it
+// replaces.
+func replaceWordN(s, word, with string, sensitive bool) (string, int) {
+	lower, target := s, word
+	if !sensitive {
+		lower, target = strings.ToLower(s), strings.ToLower(word)
+	}
 	took := 0
 	spans := codeSpan.FindAllStringIndex(s, -1)
 	quotes := quotation.FindAllStringIndex(s, -1)
@@ -162,7 +168,7 @@ func replaceWordN(s, word, with string) (string, int) {
 			continue
 		}
 		b.WriteString(s[i:at])
-		b.WriteString(with)
+		b.WriteString(table.MatchCase(s[at:end], with))
 		took++
 		i = end
 	}
