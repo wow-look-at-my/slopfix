@@ -12,8 +12,7 @@ import (
 // IDIDToken is a job whose permissions do not grant id-token: write.
 const IDIDToken = "yaml/id-token"
 
-// The org's actions mint a GitHub OIDC token to reach buildhost and secret-server. A job without
-// id-token: write fails the first such step, so every job grants it.
+// The org's actions mint a GitHub OIDC token to reach buildhost and secret-server.
 const idTokenLine = "id-token: write"
 
 // idTokenBlock is a permissions mapping that some job runs under and that does not grant id-token: write.
@@ -25,8 +24,8 @@ type idTokenBlock struct {
 
 // idTokenBlocks answers each permissions mapping that leaves a job without id-token: write, once each.
 // A job with no block anywhere runs under the repository default, and a block written for it would set
-// every other permission to none, so no repair can say what it holds. read-all names no permission
-// a line could raise.
+// every other permission to none. No repair can say what it holds. read-all names no permission a line
+// could raise.
 func idTokenBlocks(content string) []idTokenBlock {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
