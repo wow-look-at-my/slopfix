@@ -21,8 +21,7 @@ var tagger = sync.OnceValue(func() *tag.Tagger {
 
 var tokenizer = sync.OnceValue(func() *tokenize.Tokenizer { return tokenize.New() })
 
-// tags keeps each text's tagged tokens for the rest of the run. A repair parses
-// the same sentence many times, and the tagger is the costly part.
+// tags keeps each text's tagged tokens, because the tagger is the costly part.
 var tags = memo.New[string, []tokenize.Token](8192)
 
 // tagged answers text's tokens with their tags. Callers only read the slice.

@@ -51,8 +51,7 @@ type fixing struct {
 	n   int
 }
 
-// fixed keeps FixN's answer for the rest of the run. Each repair pass hands
-// it the same paragraphs again.
+// fixed keeps FixN's answer, which every repair pass asks again.
 var fixed = memo.New[fixKey, fixing](8192)
 
 func fixN(s, surface string) (string, int) {
@@ -87,9 +86,9 @@ func fixN(s, surface string) (string, int) {
 			n += took
 		}
 	}
+	folded := precompiled.Fold(s)
 	// Patterns last: they carry a shape rather than a phrase, and a shape must
 	// see the text a word swap has already settled.
-	folded := precompiled.Fold(s)
 	for _, p := range Patterns() {
 		if AppliesTo(p.Where, surface) {
 			var took int

@@ -139,8 +139,7 @@ func resolveItem(content, noun, digits string) string {
 	return ""
 }
 
-// labelThen reads what follows a label's noun: "(3) the keyless fallback" or
-// "3: the keyless fallback". The digits are captured, so the pattern is constant.
+// labelThen reads "(3) the name" or "3: the name" after a label's noun.
 var labelThen = regexp.MustCompile(`(?i)^[ \t]*(?:\([ \t]*(\d+)[ \t]*\)|(\d+)[ \t]*[:—–])[ \t]*(the[ \t]+[^,;:.()\n—–]+)`)
 
 // describedAfter answers the description after the leftmost "noun (digits)"
@@ -167,9 +166,7 @@ func describedAfter(content, noun, digits string) (string, bool) {
 	return "", false
 }
 
-// nameThenParen reads a line that names an item before a parenthesis. A name
-// and the marks before it hold no "(", so the parenthesis is the first on the
-// line, and each line has at most one reading.
+// nameThenParen reads "Name (". A name holds no "(", so a line reads one way.
 var nameThenParen = regexp.MustCompile(`(?m)^[ \t]*(?:#+[ \t]*)?(?:[-*+][ \t]+)?(?:\d+[.)][ \t]*)?([A-Z][\w'-]*(?:[ \t]+[a-z][\w'-]*){0,3})[ \t]*\(`)
 
 // namedBefore answers the name of the earliest line that reads

@@ -141,8 +141,7 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 	return out, nil
 }
 
-// decoded keeps each file's decoded document. Every consumer loads the whole
-// folder, so without it each file decodes once per consumer.
+// decoded keeps each file's document, because every consumer reads every file.
 var decoded = memo.New[string, decoding](64)
 
 type decoding struct {

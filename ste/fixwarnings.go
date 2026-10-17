@@ -161,17 +161,21 @@ func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
 // fixInstructions divides each instruction over InstructionWordCap, as the
 // sentence cap divides a sentence over its own cap.
 func fixInstructions(prose string, reorder bool) string {
-	spans := sentenceSpans(prose)
-	for n := len(spans) - 1; n >= 0; n-- {
-		text := prose[spans[n][0]:spans[n][1]]
+	var out strings.Builder
+	last := 0
+	for _, span := range sentenceSpans(prose) {
+		text := prose[span[0]:span[1]]
 		masked := mask(text)
 		count := WordCount(masked)
 		if count <= InstructionWordCap || count > SentenceWordCap || !isInstruction(syntax.Parse(masked, opaque(text, masked))) {
 			continue
 		}
-		prose = prose[:spans[n][0]] + fixSentenceCap(text, capSpec{reorder: reorder, cap: InstructionWordCap}) + prose[spans[n][1]:]
+		out.WriteString(prose[last:span[0]])
+		out.WriteString(fixSentenceCap(text, capSpec{reorder: reorder, cap: InstructionWordCap}))
+		last = span[1]
 	}
-	return prose
+	out.WriteString(prose[last:])
+	return out.String()
 }
 
 // rewriteSentence answers the sentence with the first clause warning its own

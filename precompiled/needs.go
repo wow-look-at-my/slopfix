@@ -8,14 +8,11 @@ import (
 	"unicode/utf8"
 )
 
-// maxSet bounds the strings that one node expands to. A larger set costs more
-// to search than the regexp it guards.
+// maxSet bounds a set, past which a search costs more than the regexp.
 const maxSet = 64
 
-// Required answers literals of which every match of pattern holds one, folded
-// by Fold. Nil means that no such set is known. The set lets a caller skip a
-// regexp on text that holds none of the literals, because the regexp cannot
-// match there.
+// Required answers folded literals of which every match of pattern holds one.
+// Nil means none are known. Text without them cannot match.
 func Required(pattern string) []string {
 	re, err := syntax.Parse(pattern, syntax.Perl)
 	if err != nil {

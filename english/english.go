@@ -141,18 +141,16 @@ func (p Pattern) Apply(s string) string {
 }
 
 // ApplyN is Apply, and the count of what it changed.
+func (p Pattern) ApplyN(s string) (string, int) {
+	return p.applyN(s, precompiled.Fold(s))
+}
+
+// applyN is ApplyN for a caller that holds precompiled.Fold(s).
 //
 // A pattern naming a subject position rewrites only the matches whose clause
 // states the sentence's own assertion. The rest are left whole: the words fit
 // the shape, and the sentence around them says they report the data rather than
 // the tree.
-func (p Pattern) ApplyN(s string) (string, int) {
-	return p.applyN(s, precompiled.Fold(s))
-}
-
-// applyN is ApplyN for a caller that holds precompiled.Fold(s). Text that
-// holds none of the literals a match needs cannot match, so the regexp does
-// not run on it.
 func (p Pattern) applyN(s, folded string) (string, int) {
 	if !precompiled.HoldsAny(folded, p.needs) {
 		return s, 0

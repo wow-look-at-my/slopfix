@@ -35,8 +35,7 @@ type tightening struct {
 	ok  bool
 }
 
-// tightened keeps tighten's answer for the rest of the run. The tombstones
-// repair and the length repair tighten the same blocks in every pass.
+// tightened keeps tighten's answer, which every repair pass asks again.
 var tightened = memo.New[string, tightening](4096)
 
 func tightenUncached(text []string) ([]string, int, bool) {
