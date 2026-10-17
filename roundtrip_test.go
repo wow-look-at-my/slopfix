@@ -148,6 +148,8 @@ func roundTripFixtures() []fixture {
 				"jobs:\n" +
 				"  build:\n" +
 				"    runs-on: ubuntu-latest\n" +
+				"    permissions:\n" +
+				"      contents: read\n" +
 				"    steps:\n" +
 				"      - run: |\n" +
 				"          if true; then\n" +
@@ -158,6 +160,7 @@ func roundTripFixtures() []fixture {
 			wants: []string{
 				"yaml/run-script-syntax",
 				"yaml/duplicate-step-key",
+				"yaml/id-token",
 			},
 		},
 		{
