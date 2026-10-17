@@ -194,8 +194,9 @@ func forceWhole(source, masked string, d capSpec, budget *int) string {
 func forceLong(source string, cut *cutter, d capSpec, budget *int) string {
 	var out strings.Builder
 	head, rest := "", source
+	words := windowCaps * d.cap
 	for *budget > 0 {
-		at, ok := cut.after(len(source)-len(rest), max(windowCaps*d.cap-len(strings.Fields(head)), d.cap))
+		at, ok := cut.after(len(source)-len(rest), max(words-len(strings.Fields(head)), d.cap))
 		if !ok {
 			break
 		}
@@ -203,13 +204,19 @@ func forceLong(source string, cut *cutter, d capSpec, budget *int) string {
 		masked := checkMask(window)
 		rewritten, ok := forceDivision(window, masked, d)
 		if !ok || overCap(rewritten, d.cap) >= overCap(window, d.cap) {
-			break
+			// The end of a window can refuse a division the whole sentence takes. A wider window reads past it.
+			if words >= 4*windowCaps*d.cap {
+				break
+			}
+			words *= 2
+			continue
 		}
 		spans := forceSpans(rewritten, checkMask(rewritten))
 		tail := spans[len(spans)-1][0]
 		if tail == 0 {
 			break
 		}
+		words = windowCaps * d.cap
 		*budget--
 		forceAll(&out, rewritten[:tail], d, budget)
 		head, rest = rewritten[tail:], rest[at:]

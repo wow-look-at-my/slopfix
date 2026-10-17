@@ -4,6 +4,9 @@ import (
 	"os"
 	"runtime/pprof"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestZZProfileRunOn(t *testing.T) {
@@ -11,14 +14,15 @@ func TestZZProfileRunOn(t *testing.T) {
 	if path == "" {
 		t.Skip("no profile path")
 	}
+	for _, n := range []int{500, 1000, 2000, 4000} {
+		start := time.Now()
+		fixSentenceCap(runOn(n), capSpec{reorder: true, cap: SentenceWordCap, every: true})
+		t.Logf("words %d: %v", n, time.Since(start))
+	}
 	f, err := os.Create(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer f.Close()
-	if err := pprof.StartCPUProfile(f); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, pprof.StartCPUProfile(f))
 	fixSentenceCap(runOn(4000), capSpec{reorder: true, cap: SentenceWordCap, every: true})
 	pprof.StopCPUProfile()
 }
