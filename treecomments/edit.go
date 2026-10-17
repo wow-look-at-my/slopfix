@@ -110,16 +110,16 @@ func shape(root ts.Node, src string) []string {
 		if n.IsMissing() {
 			entry += " missing"
 		}
-		count := n.ChildCount()
-		if count == 0 {
+		children := code.Children(n)
+		if len(children) == 0 {
 			start, end := int(n.StartByte()), int(n.EndByte())
 			if start >= 0 && end <= len(src) && start <= end {
 				entry += " " + fmt.Sprintf("%q", src[start:end])
 			}
 		}
 		out = append(out, entry)
-		for i := uint32(0); i < count; i++ {
-			walk(n.Child(i), depth+1)
+		for _, child := range children {
+			walk(child, depth+1)
 		}
 	}
 	walk(root, 0)

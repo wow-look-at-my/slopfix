@@ -74,8 +74,7 @@ func (c *cutter) longerThan(words int) bool {
 
 // after answers the length of the window that starts at from and holds at
 // least words words, ending at a blank where the scan holds nothing open. It
-// answers false when the rest is shorter, or has no such blank. from must be
-// 0 or a length after answered.
+// answers false when the rest is shorter, or has no such blank.
 func (c *cutter) after(from, words int) (int, bool) {
 	s, ok := c.states[from]
 	if !ok {

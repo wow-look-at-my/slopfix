@@ -5,11 +5,11 @@ import (
 	"unicode"
 )
 
-// lastWord answers the last blank-separated field of sentence in lower case,
+// finalWord answers the last blank-separated field of sentence in lower case,
 // without the opening marks before it. "(e.g." is the abbreviation behind an
 // opening mark. It reads back from the end, so a long sentence costs no more
 // than a short one.
-func lastWord(sentence []rune) string {
+func finalWord(sentence []rune) string {
 	end := len(sentence)
 	for end > 0 && unicode.IsSpace(sentence[end-1]) {
 		end--

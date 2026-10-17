@@ -356,9 +356,7 @@ func dropCgoPreamble(root ts.Node, src string, comments []Comment) []Comment {
 // cgoImport reports where a standalone `import "C"` starts, and a negative when
 // the file has none. A grouped import carries no preamble, which is cgo's rule.
 func cgoImport(root ts.Node, src string) int {
-	count := root.NamedChildCount()
-	for i := uint32(0); i < count; i++ {
-		child := root.NamedChild(i)
+	for _, child := range code.NamedChildren(root) {
 		if child.IsNull() || child.Type() != "import_declaration" {
 			continue
 		}
@@ -384,9 +382,7 @@ func onlyBlanksBetween(src string, from, to int) bool {
 
 // collect walks the tree and gathers every comment node under it.
 func collect(node ts.Node, src string, out *[]Comment) {
-	count := node.NamedChildCount()
-	for i := uint32(0); i < count; i++ {
-		child := node.NamedChild(i)
+	for _, child := range code.NamedChildren(node) {
 		if child.IsNull() {
 			continue
 		}

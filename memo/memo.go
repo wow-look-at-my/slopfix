@@ -22,7 +22,7 @@ func New[K comparable, V any](limit int) *Cache[K, V] {
 
 // Get answers the value for key. On a miss it calls compute and keeps the
 // answer. compute runs outside the lock, so a slow answer blocks no other key.
-// Two callers that miss on one key both compute it, and both get an equal value.
+// Callers that miss on one key both compute it, and both get an equal value.
 func (c *Cache[K, V]) Get(key K, compute func() V) V {
 	c.mu.Lock()
 	v, ok := c.byKey[key]

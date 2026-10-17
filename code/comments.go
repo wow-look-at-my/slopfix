@@ -37,9 +37,7 @@ func Comments(filename, src string) []Comment {
 
 // collectComments walks every named node and keeps the comments.
 func collectComments(node ts.Node, src string, out *[]Comment) {
-	count := node.NamedChildCount()
-	for i := uint32(0); i < count; i++ {
-		child := node.NamedChild(i)
+	for _, child := range NamedChildren(node) {
 		if IsComment(child) {
 			start, end := int(child.StartByte()), int(child.EndByte())
 			if start < 0 || end > len(src) || start >= end {

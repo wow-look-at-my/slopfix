@@ -27,8 +27,8 @@ func TestARunOnSentenceDividesToTheCap(t *testing.T) {
 	assert.GreaterOrEqual(t, strings.Count(out, "parser"), strings.Count(runOn(1200), "parser"), "no word is lost")
 }
 
-// A division reads a bounded window, so four times the words take about four
-// times as long. Rereading the whole rest at each division took sixteen.
+// A division reads a bounded window, so a few times the words take a few
+// times as long.
 func TestARunOnSentenceDividesInLinearTime(t *testing.T) {
 	timed := func(words int) time.Duration {
 		best := time.Duration(1 << 62)

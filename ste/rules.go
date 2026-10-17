@@ -379,7 +379,7 @@ func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 		for next < len(runes) && unicode.IsSpace(runes[next]) {
 			next++
 		}
-		if next >= len(runes) || !opens(runes[next:]) || abbreviations.Contains(lastWord(runes[start:stop+1])) {
+		if next >= len(runes) || !opens(runes[next:]) || abbreviations.Contains(finalWord(runes[start:stop+1])) {
 			i = end
 			continue
 		}
