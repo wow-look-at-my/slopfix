@@ -63,6 +63,16 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if headOpen(whole, first) {
 		return head, "", 0
 	}
+	// "a block in which the lines share a word": the clause after "in which" stands behind the noun it describes. It becomes "A block. In that block, the lines share a word."
+	if seam == "" && word.Tag == "IN" && first+2 < len(whole.Words) && whole.Words[first+1].Lower() == "which" &&
+		strings.HasPrefix(prev.Tag, "NN") && !indefinites.Contains(prev.Lower()) && finiteBetween(whole, first+2, len(whole.Words)) {
+		clause := strings.TrimLeft(strings.TrimLeft(rest[len(word.Text):], " ")[len("which"):], " ")
+		det := "that"
+		if prev.Tag == "NNS" || prev.Tag == "NNPS" {
+			det = "those"
+		}
+		return head, capitalizeOpening(lower) + " " + det + " " + nounText(source, prev) + ", " + clause, opensWithCarrier
+	}
 	// An aside that opens on a dash and closes on one, before "and <verb>",
 	// divides into the aside and the verb group with the subject named. Again:
 	// "X — A does Y — and yields Z" becomes "X. A does Y. It yields Z."
@@ -270,29 +280,6 @@ func opensAdverbialClause(s *syntax.Sentence, i int) bool {
 	return (lower == "as" || syntax.Is(lower, "subordinator")) && finiteBefore(s, i+1, ",")
 }
 
-// headOpen reports words before word end that end inside an unfinished clause.
-// One is a subordinator with no finite verb after it: "reports whether the
-// words". The other is a noun with a new subject and no verb after them:
-// "answers the row the earliest node".
-func headOpen(s *syntax.Sentence, end int) bool {
-	open := -1
-	for i := 0; i < end && i < len(s.Words); i++ {
-		w := s.Words[i]
-		switch {
-		case finiteVerbTag(w.Tag) || w.Tag == "MD":
-			open = -1
-		case open >= 0 && i > open+1 && w.Tag == "NNS" && s.Words[i-1].Tag == "NN" && i+1 < len(s.Words) && s.Words[i+1].Tag == "IN":
-			// The tagger reads the verb of the new subject as a plural noun: "a word the actor of a clause stops in front of".
-			open = -1
-		case clauseOpeners.Contains(w.Lower()) && i > 0:
-			open = i
-		case i > 0 && strings.HasPrefix(s.Words[i-1].Tag, "NN") && (w.Tag == "DT" || w.Tag == "PRP"):
-			open = i
-		}
-	}
-	return open >= 0
-}
-
 // everyNext reports "every" or "each" after the preposition at word i: an
 // adverbial of frequency, which belongs to the sentence however deep it sits.
 func everyNext(s *syntax.Sentence, i int) bool {
@@ -377,11 +364,9 @@ func hiddenVerb(s *syntax.Sentence, i int) bool {
 	return false
 }
 
-// adverbialMoves reports an adverbial at word first that a carrier can take. It
-// never takes one right after a verb or a particle, which the adverbial completes:
-// "the question was aimed at", "a repair lands only on the lines". A bound
-// preposition moves only before "every" or "each". A preposition with no object
-// after it ("aimed at: a prose question") belongs to the words before it.
+// adverbialMoves reports an adverbial at word first that a carrier can take. A
+// bound preposition moves only before "every" or "each". A preposition with no
+// object after it ("aimed at: a prose question") belongs to the words before it.
 func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool) bool {
 	// ", where the fork's changes made": after a comma a clause opener starts its own clause, whatever the verb before it.
 	opensClause := first > 0 && s.Words[first-1].Text == "," && clauseOpeners.Contains(s.Words[first].Lower()) && finiteBefore(s, first+1, ",")

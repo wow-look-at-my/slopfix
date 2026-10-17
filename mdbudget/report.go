@@ -1,5 +1,4 @@
-// The reports: the session-start census, the post-edit notice, and the Stop
-// refusal. They prescribe the same remedy, because no other remedy exists.
+// They prescribe the same remedy, because no other remedy exists.
 
 package mdbudget
 

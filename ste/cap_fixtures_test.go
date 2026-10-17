@@ -173,6 +173,7 @@ var capSentences = []string{
 	"A map that carries no information is wasteful.",
 	"The file, which fails, is gone.",
 	"A user who reads the message leaves.",
+	"The scanner, the parser, and the formatter writes its output to the log in order, and keeps a copy of every line it wrote in a table until the next run of the build starts.",
 	"Triggered by (A) a synchronize whose sender is not our own App bot and whose head the self-push recognizer cannot attribute to us, and (B) the leasehead guard catching a head that moved with no synchronize seen (same recognizer, same fallback).",
 	"With no settle record (prev == null) every later re-aggregation of a settled-green commit used to read as a \"first green\" and republish `pending` over the live `success` — the known first-green regression.",
 	"unless they have no commits unique to them (aka git checkout -b some-new-branch && git push = don't create and close a pr for this 'empty' branch)\" — and the follow-up: \"btw you need to *merge* zero-diff PRs so it wraps everything up properly and deletes the branhc.",

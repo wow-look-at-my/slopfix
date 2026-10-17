@@ -1,8 +1,6 @@
 // narration.go removes constant narration.
 //
 // An echo or a printf goes only when its stdout REACHES THE TERMINAL.
-// `X=$(echo hi)`, `echo x | jq` and `echo x > f` are data, not narration, and a
-// function body's call site decides its visibility rather than the body.
 // Visibility threads top-down, so this traversal is hand-rolled over statement
 // structure and never enters Word parts, which excludes every capture by
 // construction.

@@ -73,8 +73,6 @@ func classifyRoutes(seg segment, roots []string, aliases *aliasResolver, depth i
 	return append(out, fileWrites(seg, name, rest, roots)...)
 }
 
-// redirectWrites covers `cmd > path`, `>>`, `>|`, `&>` and `<>`: the shell
-// truncates or extends the file before the command it decorates even runs.
 func redirectWrites(seg segment) []write {
 	var out []write
 	for _, r := range seg.redirs {

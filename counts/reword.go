@@ -71,6 +71,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		text = "no "
 	case measures(hit.Phrase):
 		to = hit.Start + loc[1] + len(unitAfter(content[hit.Start+loc[1]:]))
+	case n == 2 && len(before) > 0 && last(1) == "between":
+		// "between" takes both ends of one span, and "multiple" would widen it past a pair.
+		text = "a pair of "
 	case len(before) > 0 && prepositionFloors.Contains(last(1)):
 		// "over" stays: "spreads over 32 banks" spans the banks.
 		text = vague(n)

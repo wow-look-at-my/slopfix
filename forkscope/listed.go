@@ -46,8 +46,7 @@ func tagBase(top string, tags []string) (string, error) {
 // diff from it counts upstream's work as the fork's. The closest tree is the
 // snapshot the last sync brought in.
 //
-// The candidates are the upstream commits after the merge base, and the merge
-// base itself. With no merge base, every commit of the branch is a candidate.
+// With no merge base, every commit of the branch is a candidate.
 func snapshotBase(top string, rec *record) (string, error) {
 	if rec.Tip == "" || !hasCommit(top, rec.Tip) {
 		tip, err := fetchUpstreamHead(top, rec.Upstream)

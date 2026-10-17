@@ -339,6 +339,10 @@ func hardSeamRank(source string, whole *syntax.Sentence, c forceCut) int {
 		return 0
 	}
 	next, last := whole.Words[first].Tag, whole.Words[first-1].Tag
+	// A head that ends inside a clause still waiting for its verb strands that clause's subject. That cut is the last resort.
+	if headOpen(whole, first) {
+		return -1
+	}
 	if strings.HasPrefix(next, "VB") || next == "MD" || next == "RP" || next == "POS" || strings.HasPrefix(last, "VB") || last == "MD" {
 		return 0
 	}

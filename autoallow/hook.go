@@ -392,9 +392,8 @@ func stripFlagsWithValue(args []string, flags []string) []string {
 	return result
 }
 
-// getFlagValues returns the value of every occurrence of any of flags, in the
-// spellings `-X V`, `--long=V` and `-XV`. A flag given as the last word, with
-// no value after it, yields an empty value.
+// A flag given as the last word, with no value after it, yields an empty
+// value.
 func getFlagValues(args []string, flags []string) []string {
 	var values []string
 	for i, arg := range args {

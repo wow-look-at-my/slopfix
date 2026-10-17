@@ -1,0 +1,29 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  counts/inventory-list: the word lists the enumeration detector reads. The
+  detector and its thresholds live in counts/inventory_list.go.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="inventory-list">
+
+  <!-- A joiner divides a stretch of a sentence into elements. -->
+  <class name="joiner" words=", ; and or nor &amp; plus"/>
+
+  <!-- A lead-in opens a list. An underscore joins the words of a lead-in that is a phrase. -->
+  <class name="lead-in" words="including namely such_as especially e.g. i.e."/>
+
+  <!-- A complete-set word, after a plural noun, says the list that follows is the whole set. -->
+  <class name="complete-set" words="are were comprise consist_of consists_of"/>
+
+  <!-- A token that ends this way names a file of the code. -->
+  <class name="name-shape" suffix=".go .md .xml .xsd .yml .yaml .json .sh .ts .tsx .js .rs .toml .txt .py .c .h .cc .cpp .mod .sum .dats"/>
+
+  <!-- Each line is an RE2 pattern for a token whose shape names a symbol, a flag or a path. -->
+  <list name="name-shape">
+    ^--?[a-z][a-z0-9]*(-[a-z0-9]+)*$
+    ^[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+$
+    ^[a-z]+[A-Z][A-Za-z0-9]*$
+    ^\.{0,2}/[\w./-]+$
+    ^[\w.-]+/$
+  </list>
+
+</rules>

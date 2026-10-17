@@ -133,8 +133,7 @@ func newForkRepo(t *testing.T, api func(parent string) http.HandlerFunc) forkRep
 	return newForkRepoWith(t, api, nil)
 }
 
-// newForkRepoWith builds a parent with upstream.md, doc.md and parentFiles. It
-// also builds a fork that rewrites a line of doc.md and adds mine.md. The
+// It also builds a fork that rewrites a line of doc.md and adds mine.md. The
 // fork's origin names o/fork on GitHub. The server api builds, from the
 // parent's clone URL, answers both the API and the fork list.
 func newForkRepoWith(t *testing.T, api func(parent string) http.HandlerFunc, parentFiles map[string]string) forkRepo {

@@ -253,7 +253,7 @@ func sentenceEdits(filename, src string, singleLine bool) []edit.Edit {
 		if !judged(lines, p) {
 			continue
 		}
-		out, changed := rewriteSegments(lines, p, singleLine || p.code != "")
+		out, changed := rewriteSegments(lines, p, singleLine || p.code != "", divideSentences)
 		if !changed {
 			continue
 		}
@@ -264,21 +264,32 @@ func sentenceEdits(filename, src string, singleLine bool) []edit.Edit {
 	return edits
 }
 
-// rewriteSegments answers the paragraph's lines with each long sentence divided.
-// A line that holds no prose comes back as written.
-func rewriteSegments(lines []string, p para, singleLine bool) ([]string, bool) {
+// rewriteSegments answers the paragraph's lines with rewrite applied to each
+// segment's prose. A line that holds no prose comes back as written. A segment
+// the rewrite empties loses its lines, and the code before a comment on its
+// line stays.
+func rewriteSegments(lines []string, p para, singleLine bool, rewrite func(string) string) ([]string, bool) {
 	rewritten := make([][]string, len(p.lines))
 	for n, i := range p.lines {
 		rewritten[n] = []string{lines[i]}
 	}
 	changed := false
 	for _, seg := range segmentsOf(lines, p) {
-		divided := divideSentences(seg.prose)
+		divided := rewrite(seg.prose)
 		if divided == seg.prose {
 			continue
 		}
 		changed = true
 		firstN, lastN := seg.lines[0], seg.lines[len(seg.lines)-1]
+		if divided == "" {
+			for _, n := range seg.lines {
+				rewritten[n] = nil
+			}
+			if firstN == 0 && p.code != "" {
+				rewritten[0] = []string{p.code}
+			}
+			continue
+		}
 		firstText, lastText := lines[p.lines[firstN]], lines[p.lines[lastN]]
 		lead := prefixOf(firstText, lineProse(firstText, p, firstN))
 		cont := p.cont

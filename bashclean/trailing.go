@@ -171,8 +171,6 @@ func teeRewrite(s *syntax.Stmt) {
 
 var setOFlag = regexp.MustCompile(`^-[A-Za-z]*o$`)
 
-// enablesPipefail: `set -o pipefail`, `set -eo pipefail`, `set -e -o pipefail`
-// and multiple -o pairs all count.
 func enablesPipefail(s *syntax.Stmt) bool {
 	c, ok := s.Cmd.(*syntax.CallExpr)
 	if !ok || cmd(c) != "set" {

@@ -16,8 +16,14 @@ func punctuationDivision(source, masked string, whole *syntax.Sentence, limit in
 	for _, at := range punctuationCuts(masked, limit) {
 		left, right := source[:at], source[at:]
 		head := closeHead(strings.TrimRight(left, " "))
-		// "This is" carries a noun phrase that a dash introduces.
+		// "This is" carries a noun phrase that a dash introduces. Words that
+		// make no sentence of their own stand behind the carrier instead.
 		rest := carryRest(right)
+		if rest == "" {
+			if carried := thisCarried(strings.TrimLeft(right, " ")); StandsAlone(capitalizeOpening(carried)) {
+				rest = capitalizeOpening(carried)
+			}
+		}
 		if WordCount(head) < minimumHalf || WordCount(rest) < minimumHalf || !holdsFinite(checkMask(head)) {
 			continue
 		}
@@ -74,4 +80,15 @@ func punctuationCuts(masked string, limit int) []int {
 		out = append(out, d[1])
 	}
 	return out
+}
+
+// thisCarried writes a phrase behind "This is", so it stands as a sentence. A
+// phrase that opens on "which" stands for the thing the mark ended, so "This"
+// takes its place as the subject and the "is" drops: "which holds no word"
+// becomes "This holds no word".
+func thisCarried(rest string) string {
+	if after, ok := strings.CutPrefix(rest, "which "); ok {
+		return "This " + after
+	}
+	return "This is " + rest
 }

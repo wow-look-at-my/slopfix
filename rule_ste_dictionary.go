@@ -9,7 +9,10 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectDictionary,
 		Autofix:  autofixDictionary,
-		Cases:    []RuleCase{{Name: ste.IDDictionary, Path: "w.md", Text: "The tool gives additional output today.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDDictionary, Path: "w.md", Text: "The tool gives additional output today.\n", Want: "The tool gives more output today.\n"},
+			{Name: "article", Path: "w.md", Text: "The gate gives an adequate result.\n", Want: "The gate gives a sufficient result.\n"},
+		},
 	})
 }
 

@@ -51,10 +51,7 @@ type readSpec struct {
 	fromEnd       int
 }
 
-// PlanRead maps one plain `cat`, `head`, `tail`, `sed -n` or line-number `awk` call onto one Read
-// for each file. dir is the directory the command runs in, because Read takes
-// an absolute path. A command with no exact Read equivalent returns nil, and
-// the caller runs it as written.
+// A command with no exact Read equivalent returns nil, and the caller runs it as written.
 func PlanRead(command, dir string) *ReadPlan {
 	f, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(command), "")
 	if err != nil || len(f.Stmts) != 1 {
@@ -286,9 +283,7 @@ func resolve(sp readSpec, dir string) (ReadArgs, bool) {
 	return r, true
 }
 
-// readPath makes a file operand absolute. A pseudo-file under /proc, /sys or
-// /dev is left to Bash, and a relative path with no directory has no
-// absolute form.
+// readPath makes a file operand absolute.
 func readPath(p, dir string) (string, bool) {
 	if p == "" || p == "-" {
 		return "", false

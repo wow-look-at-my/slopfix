@@ -12,7 +12,7 @@ import (
 // actor: "The file is read by the gate" becomes "The gate reads the file".
 // A clause that names no actor is left as written, because nothing states who
 // acts.
-func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
+func rewritePassive(s *syntax.Sentence, source string, off [][]int) (string, bool) {
 	last := lastContent(s)
 	i, j := auxiliary(s, 1, beForms)
 	if i < 1 || j < 0 || s.Words[j].Tag != "VBN" {
@@ -31,6 +31,14 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	}
 	if by < 0 || by+1 > last {
 		return "", false
+	}
+	// Only adverbs may stand between the participle and "by". Another word makes "by" belong to another verb.
+	var adverbs []string
+	for k := j + 1; k < by; k++ {
+		if s.Words[k].Tag != "RB" {
+			return "", false
+		}
+		adverbs = append(adverbs, s.Words[k].Lower())
 	}
 	end := last
 	for k := by + 1; k <= last; k++ {
@@ -59,31 +67,131 @@ func rewritePassive(s *syntax.Sentence, source string) (string, bool) {
 	// A bare "be" is active only behind a modal: "X must be read by Y" becomes "Y must read X".
 	subjectEnd, verb := i, ""
 	if s.Words[i].Lower() == "be" {
-		if i-1 <= first || s.Words[i-1].Tag != "MD" {
+		// The adverbs between the modal and "be" stay with the modal: "must never be lost" becomes "must never lose".
+		modal := i - 1
+		for modal > first && (s.Words[modal].Tag == "RB" || s.Words[modal].Lower() == "not") {
+			modal--
+		}
+		if modal <= first || s.Words[modal].Tag != "MD" {
 			return "", false
 		}
-		subjectEnd = i - 1
-		verb = source[s.Words[i-1].Start:s.Words[i-1].End] + " " + baseFromParticiple(s.Words[j].Lower())
+		subjectEnd = modal
+		verb = source[s.Words[modal].Start:s.Words[i-1].End] + " " + baseFromParticiple(s.Words[j].Lower())
 	} else {
 		// "has been read" and "must not be read" carry a word no rewrite here moves.
 		if before := s.Words[i-1]; before.Tag == "MD" || haveForms.Contains(before.Lower()) || beForms.Contains(before.Lower()) {
 			return "", false
 		}
-		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: end}))
+		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), s.Plural(syntax.Phrase{Head: actorHead(s, by+1, end)}))
 	}
-	from, to := s.Words[first].Start, s.Words[end].End
-	subject := strings.TrimSpace(unbold(source[from:s.Words[subjectEnd].Start]))
-	actor := strings.TrimSpace(unbold(source[s.Words[by+1].Start:to]))
+	// A finite verb in the subject outside a relative clause makes the words in
+	// front of the passive a clause of their own.
+	if verbOutsideRelative(s, first, subjectEnd) {
+		return "", false
+	}
+	// "by name" and "by default" state a manner. An actor is a determined noun, a plural, a name or a pronoun.
+	if !namesActor(s, by+1, end) {
+		return "", false
+	}
+	from, to := s.Words[first].Start, snapEnd(off, s.Words[end].End)
+	subject := strings.TrimSpace(unbold(source[from:snapStart(off, s.Words[subjectEnd].Start)]))
+	subject, ok = trimClosingDash(subject)
+	if !ok {
+		return "", false
+	}
+	subject = strings.TrimSpace(strings.TrimRight(subject, ","))
+	actor := strings.TrimSpace(unbold(source[snapStart(off, s.Words[by+1].Start):to]))
 	if subject == "" || actor == "" || verb == "" {
 		return "", false
 	}
+	// "only" limits the actor, so it stands in front of the actor. Another adverb stands in front of the verb.
+	var lead, mid string
+	for _, adv := range adverbs {
+		if adv == "only" {
+			lead = "only "
+			continue
+		}
+		mid += adv + " "
+	}
 	object := subject
+	actor = lead + actor
 	if first == 0 {
 		actor = capitalizeOpening(actor)
 		object = lowerOpeningFor(subject, s.Words[0].Tag)
 	}
-	clause := rebold(source, from, to, actor+" "+verb+" "+object)
+	clause := rebold(source, from, to, actor+" "+mid+verb+" "+object)
 	return source[:from] + clause + source[to:], true
+}
+
+// verbOutsideRelative reports a finite verb after the first word of the subject
+// that no relative pronoun before it governs.
+func verbOutsideRelative(s *syntax.Sentence, first, end int) bool {
+	relative := false
+	for k := first; k < end; k++ {
+		w := s.Words[k]
+		if w.Tag == "WDT" || w.Tag == "WP" || w.Lower() == "that" {
+			relative = true
+		}
+		if k > first && !relative && (w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD") {
+			return true
+		}
+	}
+	return false
+}
+
+// namesActor reports that the words from first to end name something that acts.
+// They hold a determiner, a plural noun, a proper noun, a number or a pronoun.
+func namesActor(s *syntax.Sentence, first, end int) bool {
+	for k := first; k <= end; k++ {
+		switch s.Words[k].Tag {
+		case "DT", "PRP$", "PRP", "NNS", "NNP", "NNPS", "CD":
+			return true
+		}
+		if first, _ := utf8.DecodeRuneInString(s.Words[k].Text); unicode.IsUpper(first) {
+			return true
+		}
+	}
+	return false
+}
+
+// trimClosingDash drops a dash that closes an aside at the end of the subject.
+// This happens since the sentence end closes it once the subject moves behind
+// the verb. A subject that ends on a dash with no dash before it is not
+// rewritten.
+func trimClosingDash(subject string) (string, bool) {
+	trimmed := strings.TrimRight(subject, " ")
+	for _, dash := range []string{"--", "—", "–"} {
+		stem, ok := strings.CutSuffix(trimmed, dash)
+		if !ok {
+			continue
+		}
+		if !strings.Contains(stem, dash) {
+			return "", false
+		}
+		return strings.TrimRight(stem, " "), true
+	}
+	return subject, true
+}
+
+// snapStart moves an offset inside an opaque span to the span's start, so a
+// cut never divides a code span.
+func snapStart(off [][]int, at int) int {
+	for _, span := range off {
+		if at > span[0] && at < span[1] {
+			return span[0]
+		}
+	}
+	return at
+}
+
+// snapEnd moves an offset inside an opaque span to the span's end.
+func snapEnd(off [][]int, at int) int {
+	for _, span := range off {
+		if at > span[0] && at < span[1] {
+			return span[1]
+		}
+	}
+	return at
 }
 
 // endsActor reports a word the actor of a passive clause stops in front of.
@@ -106,7 +214,7 @@ func endsActor(w syntax.Word) bool {
 func subjectStart(s *syntax.Sentence, i int) (int, bool) {
 	first := 0
 	for k := 0; k < i; k++ {
-		if s.Words[k].Text == "," && leadsClause(s, first, k) {
+		if s.Words[k].Text == ":" || s.Words[k].Text == "," && leadsClause(s, first, k) && !joinsSubject(s, first, k) {
 			first = k + 1
 		}
 	}
@@ -114,10 +222,66 @@ func subjectStart(s *syntax.Sentence, i int) (int, bool) {
 		first++
 	}
 	// A subject opens on a noun phrase. A verb there is a reduced clause of the words before: "run by the action the same way X is".
-	if first >= i || strings.HasPrefix(s.Words[first].Tag, "W") || strings.HasPrefix(s.Words[first].Tag, "VB") {
+	if first >= i || strings.HasPrefix(s.Words[first].Tag, "W") {
+		return 0, false
+	}
+	if strings.HasPrefix(s.Words[first].Tag, "VB") && !modifiesNoun(s, first, i) {
 		return 0, false
 	}
 	return first, true
+}
+
+// joinsSubject reports a comma at k that a coordinator follows, after words
+// that hold no verb and open on no adverbial. The words on both sides of the
+// coordinator are one coordinated subject, as in "Work in a tree, and the files
+// of a clean tree, are judged by the rules".
+func joinsSubject(s *syntax.Sentence, first, k int) bool {
+	if k+1 >= len(s.Words) || s.Words[k+1].Tag != "CC" || first >= k {
+		return false
+	}
+	switch s.Words[first].Tag {
+	case "IN", "RB", "TO", "VBG":
+		return false
+	}
+	for _, w := range s.Words[first:k] {
+		switch w.Tag {
+		case "VBZ", "VBP", "VBD", "MD":
+			return false
+		}
+	}
+	return true
+}
+
+// modifiesNoun reports a participle at word first that modifies the noun after
+// it: "Unpushed commits are judged". A participle before any other word opens a
+// reduced clause.
+func modifiesNoun(s *syntax.Sentence, first, limit int) bool {
+	tag := s.Words[first].Tag
+	if (tag != "VBN" && tag != "VBG") || first+1 >= limit {
+		return false
+	}
+	return strings.HasPrefix(s.Words[first+1].Tag, "NN")
+}
+
+// actorHead answers the head noun of the actor phrase that opens at word from:
+// the last noun before the first word. That word is no part of the noun
+// phrase.
+func actorHead(s *syntax.Sentence, from, end int) int {
+	head := -1
+	for k := from; k <= end; k++ {
+		tag := s.Words[k].Tag
+		if strings.HasPrefix(tag, "NN") {
+			head = k
+			continue
+		}
+		if tag != "DT" && tag != "JJ" && tag != "CD" && tag != "PRP$" && tag != "RB" && tag != "VBN" {
+			break
+		}
+	}
+	if head < 0 {
+		return end
+	}
+	return head
 }
 
 // leadsClause reports whether the words from first up to the comma at k stand
@@ -173,14 +337,23 @@ func rebold(source string, from, to int, clause string) string {
 // lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
 // the start of one. A name keeps its capital.
 func lowerOpeningFor(phrase, tag string) string {
-	if tag == "NNP" || tag == "NNPS" {
-		return phrase
-	}
 	first, width := utf8.DecodeRuneInString(phrase)
 	if !unicode.IsUpper(first) {
 		return phrase
 	}
-	return string(unicode.ToLower(first)) + phrase[width:]
+	lowered := string(unicode.ToLower(first)) + phrase[width:]
+	if tag != "NNP" && tag != "NNPS" {
+		return lowered
+	}
+	// A capital at the start of a sentence reads as a name to the tagger. The word is a name only when it reads as one in lower case too.
+	word := strings.Fields(phrase)[0]
+	if strings.IndexFunc(word[width:], unicode.IsUpper) >= 0 {
+		return phrase
+	}
+	if words := syntax.Parse(lowered, nil).Words; len(words) > 0 && !strings.HasPrefix(words[0].Tag, "NNP") {
+		return lowered
+	}
+	return phrase
 }
 
 // passiveVerb answers the active form of a passive verb group: the participle
@@ -221,9 +394,9 @@ func baseFromParticiple(form string) string {
 }
 
 // silentE reports whether English spelling drops an e from the end of stem before
-// -ed. Endings like -dge, -ate, -ize, -ve, -ce and -ure need the e. A stem of one
-// syllable that ends on a single vowel and a single consonant took the e as well.
-// Because a stem without it doubles its consonant: "named" against "planned".
+// -ed. A stem of one syllable that ends on a single vowel and a single consonant
+// took the e as well. Because a stem without it doubles its consonant: "named"
+// against "planned".
 func silentE(stem string) bool {
 	n := len(stem)
 	if n < 2 {
@@ -243,7 +416,6 @@ func silentE(stem string) bool {
 	case last == 'l' && consonant(prev) && !strings.ContainsRune("lrw", rune(prev)):
 		return true
 	case n >= 3 && strings.ContainsRune("aiu", rune(prev)) && strings.ContainsRune("tr", rune(last)) && consonant(stem[n-3]):
-		// -ate, -ire, -ure and -are, after a consonant.
 		return prev != 'i' || last == 'r'
 	case n >= 3 && prev == 'i' && strings.ContainsRune("nd", rune(last)) && consonant(stem[n-3]):
 		// -ine and -ide, after a consonant.

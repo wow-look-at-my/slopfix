@@ -115,7 +115,6 @@ func allDigits(text string) bool {
 // literalMarkers stand against the digits of a literal value.
 const literalMarkers = `="'`
 
-// comparisonMarkers close an operator that takes a value: `=`, `<`, `>`, and every operator built from them.
 const comparisonMarkers = `=<>`
 
 // Literal exempts the digits of a value the code is written against. One is an

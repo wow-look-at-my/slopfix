@@ -6,14 +6,14 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/askproperly"
 	"github.com/wow-look-at-my/slopfix/blamelanguage"
+	"github.com/wow-look-at-my/slopfix/counts"
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// MessageIDs names every rule that judges a closing message, which is never
-// on disk.
+// MessageIDs names every rule that judges a closing message.
 func MessageIDs() set.Set[string] {
-	return set.Of(laziness.ID, blamelanguage.ID, askproperly.ID)
+	return set.Of(laziness.ID, blamelanguage.ID, askproperly.ID, counts.IDList)
 }
 
 // CheckMessage judges a closing message with every message rule runs keeps.
@@ -40,6 +40,12 @@ func CheckMessage(message string, runs func(string) bool) []ste.Finding {
 			out = append(out, ste.Finding{Line: messageLine(message, hit.Line), ID: askproperly.ID,
 				Rule: "a decision handed to the reader in prose", Detail: strings.TrimSpace(hit.Text),
 				Fix: "Make the decision and say what you assumed. `slopfix fix --message` cuts the question."})
+		}
+	}
+	if runs(counts.IDList) {
+		for _, cut := range counts.ProseCuts(message) {
+			out = append(out, ste.Finding{Line: lineAtOffset(message, cut.Start), ID: counts.IDList,
+				Rule: listRule, Detail: cut.Detail, Fix: listFix})
 		}
 	}
 	return Registered(out)
