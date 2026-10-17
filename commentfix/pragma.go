@@ -32,6 +32,16 @@ func isDirectiveLine(line string) bool {
 	return false
 }
 
+// directiveMask answers isDirectiveLine for every line of a block, and also
+// marks the lines inside a userscript metadata block.
+func directiveMask(text []string) []bool {
+	mask := make([]bool, len(text))
+	for i, line := range text {
+		mask[i] = isDirectiveLine(line) || treecomments.DirectiveAt(text, i)
+	}
+	return mask
+}
+
 // isLintPragma reports a line comment that a linter reads. A cut that drops one
 // turns a suppressed warning back on.
 func isLintPragma(line string) bool {

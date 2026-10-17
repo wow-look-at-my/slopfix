@@ -173,6 +173,19 @@ func isDirective(line string) bool {
 	return false
 }
 
+// entryList answers true for lines that are entries of a list, not the words of a sentence. Each holds a single word.
+func entryList(lines []string) bool {
+	if len(lines) < 2 {
+		return false
+	}
+	for _, line := range lines {
+		if text := strings.TrimSpace(line); text == "" || strings.ContainsAny(text, " \t") {
+			return false
+		}
+	}
+	return true
+}
+
 // hasLetter reports whether any line holds a letter. A paragraph with none is
 // a picture, such as braille or box art. A join destroys its shape.
 func hasLetter(lines []string) bool {
