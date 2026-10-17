@@ -232,8 +232,8 @@ func cross(a, b []string) ([]string, bool) {
 	return out, true
 }
 
-// Fold writes each rune of s as the least rune of its case-fold orbit. Two
-// strings that (?i) matches against each other fold to the same text, and a
+// Fold writes each rune of s as the least rune of its case-fold orbit.
+// Strings that (?i) matches against each other fold to the same text, and a
 // literal that the text holds is held by the folded text too.
 func Fold(s string) string {
 	ascii := true
