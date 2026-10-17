@@ -499,6 +499,10 @@ func openerFor(s *syntax.Sentence, c, main syntax.Clause, source string) (string
 			// A colon opens the clause that explains the head: "Stop: runs in
 			// stop-gate mode ..." divides as "Stop. It runs in stop-gate mode".
 			if s.Words[c.Link].Text == ":" && finiteBefore(s, c.Link+1, "") {
+				// A determiner opens a subject of its own that the parse missed: "together: a line fix wrote X reads as Y".
+				if tag := s.Words[c.Link+1].Tag; tag == "DT" || tag == "PRP$" || tag == "CD" {
+					return "", opensWithCapital(s, c.Link+1, source)
+				}
 				if main.Subject != nil {
 					if subject, ok := restated(s, main, c, source); ok {
 						return subject, true

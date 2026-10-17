@@ -22,6 +22,24 @@ func init() {
 			{Name: "a cut paragraph takes its break with it", Path: "warp-pass.h", Text: cutParagraphCase, Want: cutParagraphWant},
 			// A zero that is the subject of a verb, as in buildhost's upload.ts.
 			{Name: commentfix.ID + "-zero-subject", Path: "size.ts", Text: "/** The size from the input: empty is the default, 0 disables chunking. */\nexport function size(input: string): number {\n\treturn input.length;\n}\n"},
+			// A floor stays a minimum: cutting the number alone would write "at least nouns".
+			{
+				Name: commentfix.ID + "-floor", Path: "main.go",
+				Text: "package main\n\n// A run of at least two nouns stands together.\nfunc main() {}\n",
+				Want: "package main\n\n// A run of at least a couple of nouns stands together.\nfunc main() {}\n",
+			},
+			// A "more than" stays true for every cardinal it can name.
+			{
+				Name: commentfix.ID + "-more-than", Path: "main.go",
+				Text: "package main\n\n// A run of more than three nouns stands together.\nfunc main() {}\n",
+				Want: "package main\n\n// A run of more than a few nouns stands together.\nfunc main() {}\n",
+			},
+			// A ceiling stays a maximum.
+			{
+				Name: commentfix.ID + "-ceiling", Path: "main.go",
+				Text: "package main\n\n// A run of at most three nouns stands together.\nfunc main() {}\n",
+				Want: "package main\n\n// A run of a bounded number of nouns stands together.\nfunc main() {}\n",
+			},
 		},
 	})
 }
