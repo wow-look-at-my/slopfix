@@ -12,8 +12,23 @@ func init() {
 		Detect:   detectNounCluster,
 		Autofix:  autofixNounCluster,
 		Cases: []RuleCase{
-			{Name: ste.IDNounCluster, Path: "w.md", Text: "The gate cache lookup table stopped.\n"},
+			{Name: ste.IDNounCluster, Path: "w.md", Text: "The gate cache lookup table stopped.\n", Want: "The table of the gate cache lookup stopped.\n"},
 			{Name: "a verb stays out of a cluster", Path: "w.md", Text: verbCase, Want: verbWant},
+			{
+				Name: "a cluster that ends in a product name", Path: "w.md",
+				Text: "It answers the Claude Code hook events.\n",
+				Want: "It answers the events of the Claude Code hook.\n",
+			},
+			{
+				Name: "a title-cased cluster", Path: "w.md",
+				Text: "It reads the Gate Cache Lookup Table.\n",
+				Want: "It reads the Table of the Gate Cache Lookup.\n",
+			},
+			{
+				Name: "an identifier in front of a named standard", Path: "w.md",
+				Text: "Its prose follows ASD-STE100 Simplified Technical English.\n",
+				Want: "Its prose follows Simplified Technical English (ASD-STE100).\n",
+			},
 		},
 	})
 }

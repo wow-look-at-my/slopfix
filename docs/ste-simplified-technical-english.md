@@ -16,7 +16,7 @@ The warning rules read patterns that need a person to repair. A warning never fa
 
 - `ste/instruction-length`: a sentence of `21` to `25` words, over the STE cap for an instruction.
 - `ste/passive`: a form of `be` and a past participle, as the parser tags them.
-- `ste/noun-cluster`: a run of nouns longer than `NounClusterCap`, which is `3`.
+- `ste/noun-cluster`: a run of nouns longer than `NounClusterCap`, which is `3`. The repair moves the last noun in front. An identifier that opens the run, such as `ASD-STE100`, goes in a parenthesis behind the rest.
 - `ste/tense`: a perfect or a progressive tense. The approved `-ing` words, such as `missing` and `during`, do not count.
 - `ste/dictionary`: a word the STE dictionary does not approve, with its approved replacements. The table is the `dictionary` list in `rules/ste-dictionary.xml`. A `<list>` holds a string on each line of its text and needs no `<test>`. It holds only words with no approved sense, because a match by spelling cannot tell senses apart.
 - `ste/paragraph-length`: a paragraph with more sentences than `ParagraphSentenceCap`, which is `6`. A list item never counts.
