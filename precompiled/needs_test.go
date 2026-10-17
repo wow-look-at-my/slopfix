@@ -16,15 +16,15 @@ import (
 
 func TestRequiredNamesTheLiteralsEveryMatchHolds(t *testing.T) {
 	cases := map[string][]string{
-		`(?i)\s*\b(?:previously|formerly)\b[,]?`: {"FORMERLY", "PREVIOUSLY"},
+		`(?i)\s*\b(?:previously|formerly)\b[,]?`:  {"FORMERLY", "PREVIOUSLY"},
 		`(?i)\s*\bfor now\b[,]?`:                  {"FOR NOW"},
 		`(?i)\bthe (?:old|previous|legacy) (\S+)`: {"THE LEGACY ", "THE OLD ", "THE PREVIOUS "},
-		`abc`:                                     {"ABC"},
-		`a+b`:                                     {"A"},
-		`x*`:                                      nil,
-		`\d+`:                                     {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"},
-		`(?:foo|.+)`:                              nil,
-		`colou?r`:                                 {"COLOR", "COLOUR"},
+		`abc`:        {"ABC"},
+		`a+b`:        {"A"},
+		`x*`:         nil,
+		`\d+`:        {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"},
+		`(?:foo|.+)`: nil,
+		`colou?r`:    {"COLOR", "COLOUR"},
 	}
 	for pattern, want := range cases {
 		assert.Equal(t, want, precompiled.Required(pattern), pattern)

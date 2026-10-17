@@ -14,6 +14,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 	"github.com/wow-look-at-my/slopfix/code"
@@ -42,14 +43,16 @@ func Apply(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Resul
 	if !ok {
 		return refuseAll("the source does not parse")
 	}
-	spans := commentSpans(filename, src)
-	want := shape(root, src)
-	directives := directiveLines(filename, src)
+	// Gate drops an edit out of scope before it asks either test, so a run that
+	// lands nothing reads none of these.
+	spans := sync.OnceValue(func() []span { return commentSpans(filename, src) })
+	want := sync.OnceValue(func() []string { return shape(root, src) })
+	directives := sync.OnceValue(func() []string { return directiveLines(filename, src) })
 	return edit.Gate(src, edits, scope,
-		func(e edit.Edit) string { return reach(src, spans, e) },
+		func(e edit.Edit) string { return reach(src, spans(), e) },
 		func(text string) bool {
-			return sameShape(language, text, want) &&
-				slices.Equal(directiveLines(filename, text), directives) &&
+			return sameShape(language, text, want()) &&
+				slices.Equal(directiveLines(filename, text), directives()) &&
 				(!IsCMake(filename) || sameCMake(src, text))
 		})
 }

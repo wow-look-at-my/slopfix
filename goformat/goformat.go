@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/wow-look-at-my/slopfix/edit"
 )
@@ -63,14 +64,14 @@ func Edits(src string) []edit.Edit {
 // the scanner reads the tokens src holds, so a blank inside a literal or a
 // directive never moves.
 func Gate(src string, edits []edit.Edit, scope edit.Scope) edit.Result {
-	want := tokens(src)
+	want := sync.OnceValue(func() []string { return tokens(src) })
 	reach := func(e edit.Edit) string {
 		if !allBlank(src[e.Start:e.End]) || !allBlank(e.Text) {
 			return "it changes more than whitespace"
 		}
 		return ""
 	}
-	holds := func(text string) bool { return slices.Equal(tokens(text), want) }
+	holds := func(text string) bool { return slices.Equal(tokens(text), want()) }
 	return edit.Gate(src, edits, scope, reach, holds)
 }
 
