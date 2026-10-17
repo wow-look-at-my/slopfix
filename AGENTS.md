@@ -106,6 +106,10 @@ opens/0 subject="The gate" verb="reads": The gate reads every file
 coordinate/0 subject="-" verb="refuses": and refuses the write
 ```
 
+## gitread: the repository, read in-process
+
+Every read of the repository on the check path goes through `gitread`, not a git process. The index, objects, refs, config, ignore and attribute rules, history walks and the work tree's changes. One `Repo` per repository serves the whole process and revalidates by stat. Only network transport and a few named cases go to git. [docs/gitread.md](docs/gitread.md) holds the detail.
+
 ## cardinal: is this number a count
 
 `cardinal` holds no rule ID. It decides whether a number is a stated count, true today and incorrect after the next commit. Each caller brings its substrate. The substrate is the policy.
