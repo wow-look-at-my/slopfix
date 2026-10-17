@@ -15,13 +15,7 @@ func TestZZProfileRunOn(t *testing.T) {
 	if path == "" {
 		t.Skip("no profile path")
 	}
-	counts := map[string]int{}
-	sizes := map[string]int{}
-	probeForce = func(event string, n int) { counts[event]++; sizes[event] = max(sizes[event], n) }
-	fixSentenceCap(runOn(2000), capSpec{reorder: true, cap: SentenceWordCap, every: true})
-	t.Logf("events %v max sizes %v", counts, sizes)
-	probeForce = func(string, int) {}
-	for _, n := range []int{500, 1000, 2000, 4000} {
+	for _, n := range []int{500, 1000, 2000, 4000, 8000} {
 		start := time.Now()
 		fixSentenceCap(runOn(n), capSpec{reorder: true, cap: SentenceWordCap, every: true})
 		t.Logf("words %d: %v", n, time.Since(start))

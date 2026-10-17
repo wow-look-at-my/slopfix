@@ -86,7 +86,7 @@ func divideLong(source string, cut *cutter, limit int, budget *int) string {
 	head, rest := "", source
 	words := windowCaps * limit
 	for *budget > 0 {
-		at, ok := cut.after(len(source)-len(rest), max(words-len(strings.Fields(head)), limit))
+		at, ok := cut.after(len(source)-len(rest), max(words-len(strings.Fields(head)), 1))
 		if !ok {
 			break
 		}
@@ -189,9 +189,6 @@ func forceWhole(source, masked string, d capSpec, budget *int) string {
 	return b.String()
 }
 
-// probeForce is a temporary debugging hook.
-var probeForce = func(string, int) {}
-
 // forceLong divides a long sentence window by window. A window that no
 // division reads hands the whole rest to forceWhole once.
 func forceLong(source string, cut *cutter, d capSpec, budget *int) string {
@@ -199,16 +196,15 @@ func forceLong(source string, cut *cutter, d capSpec, budget *int) string {
 	head, rest := "", source
 	words := windowCaps * d.cap
 	for *budget > 0 {
-		at, ok := cut.after(len(source)-len(rest), max(words-len(strings.Fields(head)), d.cap))
+		// The window grows to its size and no further. A division can add a carrier to the head it leaves, so a fixed top-up would grow the window with every step.
+		at, ok := cut.after(len(source)-len(rest), max(words-len(strings.Fields(head)), 1))
 		if !ok {
-			probeForce("nocut", len(rest))
 			break
 		}
 		window := head + rest[:at]
 		masked := checkMask(window)
 		rewritten, ok := forceDivision(window, masked, d)
 		if !ok || overCap(rewritten, d.cap) >= overCap(window, d.cap) {
-			probeForce("refused", words)
 			// The end of a window can refuse a division the whole sentence takes. A wider window reads past it.
 			if words >= 4*windowCaps*d.cap {
 				break
@@ -219,10 +215,8 @@ func forceLong(source string, cut *cutter, d capSpec, budget *int) string {
 		spans := forceSpans(rewritten, checkMask(rewritten))
 		tail := spans[len(spans)-1][0]
 		if tail == 0 {
-			probeForce("tail0", len(rewritten))
 			break
 		}
-		probeForce("step", len(window))
 		words = windowCaps * d.cap
 		*budget--
 		forceAll(&out, rewritten[:tail], d, budget)
