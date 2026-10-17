@@ -126,7 +126,7 @@ func (r *Repo) workOID(idx *Index, e IndexEntry, filemode bool) (OID, uint32, bo
 	case filemode && info.Mode()&0o111 != 0:
 		mode = modeExec
 	case !filemode && e.mode == modeExec:
-		// With core.fileMode off, git keeps the mode the index records.
+		// With core.filemode off, git keeps the mode the index records.
 		mode = modeExec
 	}
 	mtime := info.ModTime().UnixNano()
