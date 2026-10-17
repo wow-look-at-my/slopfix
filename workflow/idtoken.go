@@ -3,6 +3,7 @@ package workflow
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
@@ -37,17 +38,17 @@ func idTokenBlocks(content string) []idTokenBlock {
 		return nil
 	}
 	workflowBlock := mappingValue(root, "permissions")
-	seen := map[*yaml.Node]bool{}
+	seen := set.New[*yaml.Node]()
 	var out []idTokenBlock
 	for i := 1; i < len(jobs.Content); i += 2 {
 		block := mappingValue(jobs.Content[i], "permissions")
 		if block == nil {
 			block = workflowBlock
 		}
-		if block == nil || block.Kind != yaml.MappingNode || seen[block] {
+		if block == nil || block.Kind != yaml.MappingNode || seen.Contains(block) {
 			continue
 		}
-		seen[block] = true
+		seen.Add(block)
 		level := mappingValue(block, "id-token")
 		if level != nil && level.Value == "write" {
 			continue
