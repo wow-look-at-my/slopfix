@@ -51,7 +51,8 @@ func shape(content string) string {
 	src := []byte(blankFrontMatter(content, lines))
 	var b strings.Builder
 	_ = ast.Walk(parser.Parse(text.NewReader(src)), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		paragraph := n.Kind() == ast.KindParagraph || n.Kind() == ast.KindTextBlock
+		// A list of one-word items renders as the paragraph of entry lines it replaces.
+		paragraph := n.Kind() == ast.KindParagraph || n.Kind() == ast.KindTextBlock || wordList(n, src)
 		if !entering {
 			if !paragraph {
 				b.WriteByte(')')
@@ -59,7 +60,7 @@ func shape(content string) string {
 			return ast.WalkContinue, nil
 		}
 		if paragraph {
-			if prev := n.PreviousSibling(); prev == nil || (prev.Kind() != ast.KindParagraph && prev.Kind() != ast.KindTextBlock) {
+			if prev := n.PreviousSibling(); prev == nil || (prev.Kind() != ast.KindParagraph && prev.Kind() != ast.KindTextBlock && !wordList(prev, src)) {
 				b.WriteString("P")
 			}
 			return ast.WalkSkipChildren, nil
@@ -71,6 +72,27 @@ func shape(content string) string {
 		return ast.WalkContinue, nil
 	})
 	return b.String()
+}
+
+func wordList(n ast.Node, src []byte) bool {
+	if n.Kind() != ast.KindList || n.ChildCount() < 2 {
+		return false
+	}
+	for item := n.FirstChild(); item != nil; item = item.NextSibling() {
+		body := item.FirstChild()
+		if body == nil || item.ChildCount() != 1 || body.Kind() != ast.KindTextBlock && body.Kind() != ast.KindParagraph {
+			return false
+		}
+		lines := body.Lines()
+		if lines.Len() != 1 {
+			return false
+		}
+		seg := lines.At(0)
+		if strings.ContainsAny(strings.TrimSpace(string(seg.Value(src))), " \t") {
+			return false
+		}
+	}
+	return true
 }
 
 // BlockEdit is an edit that replaces a whole prose block with lines.

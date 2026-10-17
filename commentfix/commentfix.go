@@ -204,8 +204,9 @@ type commentLine struct {
 func commentLines(lit string) []commentLine {
 	var out []commentLine
 	at := 0
-	for _, text := range strings.Split(lit, "\n") {
-		if !isDirective(text) && !codeLine(text) {
+	lines := strings.Split(lit, "\n")
+	for i, text := range lines {
+		if !treecomments.DirectiveAt(lines, i) && !codeLine(text) {
 			out = append(out, commentLine{text: text, offset: at})
 		}
 		at += len(text) + 1
