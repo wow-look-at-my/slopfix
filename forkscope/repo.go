@@ -6,7 +6,57 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
+
+// openTop opens the repository of the work tree at top.
+func openTop(top string) (*gitread.Repo, error) {
+	repo, err := gitread.OpenWorkTree(top)
+	if err != nil {
+		return nil, fmt.Errorf("fork scope: %w", err)
+	}
+	if repo == nil {
+		return nil, fmt.Errorf("fork scope: git rev-parse --show-toplevel: %s is not inside a work tree", top)
+	}
+	return repo, nil
+}
+
+// resolve answers the commit a revision names in the work tree at top.
+func resolve(top, rev string) (gitread.OID, *gitread.Repo, error) {
+	repo, err := openTop(top)
+	if err != nil {
+		return gitread.OID{}, nil, err
+	}
+	oid, err := repo.Resolve(rev)
+	if err == nil {
+		oid, err = repo.PeelCommit(oid)
+	}
+	if err != nil {
+		return gitread.OID{}, nil, fmt.Errorf("fork scope: %s: %w", rev, err)
+	}
+	return oid, repo, nil
+}
+
+// mergeBase answers the best common ancestor of revisions.
+func mergeBase(top, a, b string) (string, error) {
+	oa, repo, err := resolve(top, a)
+	if err != nil {
+		return "", err
+	}
+	ob, _, err := resolve(top, b)
+	if err != nil {
+		return "", err
+	}
+	base, ok, err := repo.MergeBase(oa, ob)
+	if err != nil {
+		return "", fmt.Errorf("fork scope: %w", err)
+	}
+	if !ok {
+		return "", fmt.Errorf("fork scope: %s and %s share no history", a, b)
+	}
+	return base.String(), nil
+}
 
 // RepoName answers the OWNER/NAME of the work tree that holds root.
 func (r Resolver) RepoName(root string) string {
