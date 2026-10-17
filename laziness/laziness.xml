@@ -1,0 +1,142 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+	The laziness/punt table. Each pattern is a phrase a punt is written in,
+	narrow enough that ordinary reporting does not trip it. Each punt under a
+	pattern must fire that pattern. Each clean message must fire nothing.
+-->
+<laziness xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="laziness.xsd" answer="continue">
+	<shape name="disowning a defect you found">
+		<pattern re="(?i)\b(?:not|neither)\s+(?:mine|ours|my own)\s+to\s+fix\b">
+			<punt>I found a broken build phase. Neither mine to fix unasked.</punt>
+		</pattern>
+		<pattern re="(?i)\bnot\s+(?:my|our)\s+(?:problem|job|responsibility)\b">
+			<punt>That is not my problem.</punt>
+		</pattern>
+	</shape>
+
+	<shape name="handing a repair back to the reader">
+		<pattern re="(?i)\bworth\s+your\s+attention\b">
+			<punt>Worth your attention.</punt>
+		</pattern>
+		<pattern re="(?i)\bflagging\s+(?:it|this|these|them|that)?\s*(?:for|to)\s+you\b">
+			<punt>Flagging this for you.</punt>
+		</pattern>
+		<pattern re="(?i)\bsomeone\s+should\s+(?:fix|look|clean|deal)\b">
+			<punt>Someone should fix the loader.</punt>
+		</pattern>
+		<pattern re="(?i)\byou\s+(?:may|might|could)\s+want\s+to\s+(?:fix|look|check|clean)\b">
+			<punt>You might want to check the loader.</punt>
+		</pattern>
+	</shape>
+
+	<shape name="leaving a defect in place">
+		<pattern re="(?i)\bleft\s+(?:it|them|that|these|those)\s+(?:as[- ]is|alone|unfixed|broken|red)\b">
+			<punt>I left it as-is.</punt>
+		</pattern>
+		<pattern re="(?i)\bleaving\s+(?:it|them|that|these|those)\s+(?:as[- ]is|alone|unfixed|broken|red)\b">
+			<punt>I am leaving it alone.</punt>
+		</pattern>
+		<pattern re="(?i)\bI\s+(?:did\s+not|didn['’]t)\s+fix\b">
+			<punt>I didn't fix the loader.</punt>
+		</pattern>
+	</shape>
+
+	<shape name="excusing yourself from a repair">
+		<pattern re="(?i)\bunasked\b">
+			<punt>I will not touch it unasked.</punt>
+		</pattern>
+		<pattern re="(?i)\bout\s+of\s+scope\b">
+			<punt>That is out of scope.</punt>
+		</pattern>
+		<pattern re="(?i)\boutside\s+(?:the|my|our)\s+scope\b">
+			<punt>That is outside the scope.</punt>
+		</pattern>
+		<pattern re="(?i)\bnot\s+caused\s+by\s+(?:my|this|the)\s+change\b">
+			<punt>The failure is not caused by my change.</punt>
+		</pattern>
+		<pattern re="(?i)\bpre-?existing\b[^.!?\n]{0,80}\b(?:so|and)\s+(?:I|we)\s+(?:did\s+not|didn['’]t|left|have\s+not|haven['’]t)\b">
+			<punt>It is pre-existing, so I did not touch it.</punt>
+		</pattern>
+	</shape>
+
+	<!-- Attribution in place of repair, narrow on purpose. -->
+	<shape name="announcing an attribution hunt instead of a repair">
+		<pattern re="(?i)\b(?:two|three|first)\s+things?\s+to\s+establish\b">
+			<punt>Two things to establish first.</punt>
+		</pattern>
+		<pattern re="(?i)\bwhether\s+(?:master|main|the\s+base\s+branch)\s+is\s+(?:also\s+)?(?:red|failing|broken)\b">
+			<punt>Whether master is red too is the question.</punt>
+		</pattern>
+		<pattern re="(?i)\b(?:establish|determine|work\s+out|figure\s+out)\s+(?:whether|if|who)\s+(?:I|we|this\s+PR|my\s+change)\b">
+			<punt>First I will determine whether my change broke it.</punt>
+		</pattern>
+	</shape>
+
+	<shape name="offering authorship in place of a fix">
+		<pattern re="(?i)\bnot\s+(?:this\s+PR|my\s+change|mine)['’]?s?\s+(?:to\s+)?(?:fault|failure|problem)\b">
+			<punt>The red check is not this PR's fault.</punt>
+		</pattern>
+		<pattern re="(?i)\b(?:fails|red|broken|failing)\s+on\s+(?:master|main|the\s+base\s+branch)\s+too\b[^.!?\n]{0,60}\b(?:so|therefore)\b">
+			<punt>It fails on master too, so nothing here caused it.</punt>
+		</pattern>
+		<pattern re="(?i)\bI\s+(?:did\s+not|didn['’]t)\s+(?:break|cause)\s+(?:it|this|that)\b">
+			<punt>I did not break it.</punt>
+		</pattern>
+	</shape>
+
+	<!-- The turn ends on a question or an offer whose answer was already yes. -->
+	<shape name="asking permission in place of acting">
+		<pattern re="(?i)\bwant\s+me\s+to\b[^.!?\n]*\?">
+			<punt>The analyzer has a bug. Want me to fix it?</punt>
+		</pattern>
+		<pattern re="(?i)\bwould\s+you\s+like\s+me\s+to\b[^.!?\n]*\?">
+			<punt>Would you like me to port the fix?</punt>
+		</pattern>
+		<pattern re="(?i)\bshall\s+I\b[^.!?\n]*\?">
+			<punt>Shall I push it?</punt>
+		</pattern>
+		<pattern re="(?i)\bshould\s+I\b[^.!?\n]*\?">
+			<punt>Should I go ahead and push?</punt>
+		</pattern>
+		<pattern re="(?i)\bdo\s+you\s+want\s+me\s+to\b[^.!?\n]*\?">
+			<punt>Do you want me to land it?</punt>
+		</pattern>
+		<pattern re="(?i)\blet\s+me\s+know\s+if\s+you\s*(?:'|’)?d?\s*(?:would\s+)?like\b">
+			<punt>Let me know if you'd like the port.</punt>
+		</pattern>
+		<pattern re="(?i)\bI\s+can\s+\S[^.!?\n]{0,60}\s+if\s+you\s*(?:'|’)?d?\s*(?:would\s+)?like\b">
+			<punt>I can port the fix if you'd like.</punt>
+		</pattern>
+		<pattern re="(?i)\bsay\s+the\s+word\b">
+			<punt>Say the word.</punt>
+		</pattern>
+		<pattern re="(?i)\b(?:tell\s+me|let\s+me\s+know)\s+(?:if|whether)\s+you\s*(?:'|’)?d?\s*(?:want|need|would\s+like)\b">
+			<punt>Tell me if you want it.</punt>
+			<punt>The loader fix is ready. Tell me if you want it.</punt>
+			<punt>Let me know if you want it.</punt>
+			<punt>Tell me whether you need the port too.</punt>
+		</pattern>
+	</shape>
+
+	<!-- A sentence that carries a pattern AND says the repair happened is not a punt. -->
+	<pardon re="(?i)\b(?:fixed|repaired|patched|corrected)\s+(?:it|them|that|those|these|anyway|here|now|in)\b">
+		<clean>I fixed it anyway, though it was out of scope.</clean>
+	</pardon>
+	<pardon re="(?i)\balready\s+(?:fixed|repaired|pushed|landed|corrected)\b">
+		<clean>It was out of scope, and I already fixed it.</clean>
+	</pardon>
+	<pardon re="(?i)\b(?:pushed|landed|committed)\s+(?:the\s+)?fix\b">
+		<clean>The build phase was broken, not my problem at first, and I pushed the fix.</clean>
+	</pardon>
+	<pardon re="(?i)\bfix(?:ed)?\s+(?:it\s+)?in\s+(?:this|the\s+same)\s+(?:turn|commit|change|PR|pull\s+request)\b">
+		<clean>That was out of scope, so I fixed it in this commit.</clean>
+	</pardon>
+
+	<!-- Messages that own the work. None may fire. -->
+	<clean>The build phase was broken. I fixed it and pushed the fix.</clean>
+	<clean>This needs your call on A against B, so I pushed the branch with A and left the test red.</clean>
+	<clean>The rule reads a pre-existing file.</clean>
+	<clean>The failure was pre-existing, and I already fixed it.</clean>
+	<clean>I rewrote the loader and the tests pass.</clean>
+	<clean>I told the reviewer what the loader does.</clean>
+</laziness>
