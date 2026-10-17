@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/memo"
 	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
@@ -36,6 +37,25 @@ func Fix(s, surface string) string {
 // FixN is Fix, and the number of rewrites it took. A caller hands that count
 // back to whoever wrote the prose, so the repair is visible rather than silent.
 func FixN(s, surface string) (string, int) {
+	f := fixed.Get(fixKey{s, surface}, func() fixing {
+		out, n := fixN(s, surface)
+		return fixing{out, n}
+	})
+	return f.out, f.n
+}
+
+type fixKey struct{ s, surface string }
+
+type fixing struct {
+	out string
+	n   int
+}
+
+// fixed keeps FixN's answer for the rest of the run. Each repair pass hands
+// it the same paragraphs again.
+var fixed = memo.New[fixKey, fixing](8192)
+
+func fixN(s, surface string) (string, int) {
 	original := s
 	n := 0
 	// Each entry reads the lower-case text, which changes only when an entry rewrites s.

@@ -7,7 +7,6 @@
 package treecomments
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -163,7 +162,7 @@ func Extract(filename, src string) []Comment {
 	if language == nil {
 		return nil
 	}
-	key := extractKey{language: language, sum: sha256.Sum256([]byte(src))}
+	key := extractKey{language: language, src: src}
 	cached, ok := extracted.get(key)
 	if !ok {
 		cached = extract(language, src)
@@ -225,10 +224,11 @@ func withoutExampleOutput(comments []Comment) []Comment {
 	return kept
 }
 
-// extractKey names a parse by its grammar and the exact bytes it read.
+// extractKey names a parse by its grammar and the exact bytes it read. The map
+// hashes the bytes, which costs far less than a digest of them.
 type extractKey struct {
 	language *ts.Language
-	sum      [sha256.Size]byte
+	src      string
 }
 
 // extractCacheSize bounds the remembered parses. Every rule on a file asks for the same parse.

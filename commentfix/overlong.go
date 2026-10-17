@@ -13,12 +13,14 @@
 package commentfix
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/memo"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/table"
@@ -64,6 +66,13 @@ type block struct {
 // sentence whole, so no repair answers it and no finding names it.
 func CheckLength(filename, src string) []LengthHit {
 	defer trace.Phase("rule/comments-length")()
+	return slices.Clone(lengthHits.Get(fileKey{filename, src}, func() []LengthHit { return checkLength(filename, src) }))
+}
+
+// lengthHits keeps CheckLength's answer for the rest of the run.
+var lengthHits = memo.New[fileKey, []LengthHit](512)
+
+func checkLength(filename, src string) []LengthHit {
 	var hits []LengthHit
 	for _, b := range blocks(filename, src) {
 		if b.header {
@@ -247,6 +256,22 @@ func measure(text []string) (lines, chars int) {
 
 // repair fits a block to its budget, and cuts pragma free text only when the prose cut is not enough.
 func repair(b block) []string {
+	key := blockKey{text: strings.Join(b.text, "\n"), codeLines: b.codeLines, codeChars: b.codeChars, exact: b.exact, header: b.header}
+	return slices.Clone(repaired.Get(key, func() []string { return repairUncached(b) }))
+}
+
+// blockKey names a block by every field the repair reads. Its place in the
+// file only labels the edit, so the check and each fix pass share one answer.
+type blockKey struct {
+	text                 string
+	codeLines, codeChars int
+	exact, header        bool
+}
+
+// repaired keeps repair's answer for the rest of the run.
+var repaired = memo.New[blockKey, []string](4096)
+
+func repairUncached(b block) []string {
 	out := repairProse(b)
 	if fitsCode(out, b) {
 		return out

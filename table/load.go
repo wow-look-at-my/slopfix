@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/memo"
 	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
@@ -115,10 +116,15 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 		if err != nil {
 			return nil, err
 		}
-		var doc document
-		if err := xml.Unmarshal(Readable(raw), &doc); err != nil {
-			return nil, fmt.Errorf("%s does not parse: %w", path, err)
+		parsed := decoded.Get(string(raw), func() decoding {
+			var doc document
+			err := xml.Unmarshal(Readable(raw), &doc)
+			return decoding{doc, err}
+		})
+		if parsed.err != nil {
+			return nil, fmt.Errorf("%s does not parse: %w", path, parsed.err)
 		}
+		doc := parsed.doc
 		if doc.For == "" {
 			return nil, fmt.Errorf("%s: the root element needs a for= naming its consumer", path)
 		}
@@ -133,6 +139,15 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 		return nil, fmt.Errorf("no file in the rules folder carries for=%q", target)
 	}
 	return out, nil
+}
+
+// decoded keeps each file's decoded document. Every consumer loads the whole
+// folder, so without it each file decodes once per consumer.
+var decoded = memo.New[string, decoding](64)
+
+type decoding struct {
+	doc document
+	err error
 }
 
 // MustLoad is Load for a package-level table. A rules folder that does not load
