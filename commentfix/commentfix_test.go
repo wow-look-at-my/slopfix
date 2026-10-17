@@ -67,6 +67,11 @@ func TestHTTPExemptsAStatusCode(t *testing.T) {
 	assert.Empty(t, numbersFound(t, "// the proxy answers HTTP 403 here"))
 }
 
+// "PID 1" names the init process. "one PID" says something else.
+func TestPIDExemptsTheProcessItNames(t *testing.T) {
+	assert.Empty(t, numbersFound(t, "// The shim is PID 1 of the container, so the kernel hands it every orphan."))
+}
+
 func TestABareStatusCodeIsStillACount(t *testing.T) {
 	assert.Equal(t, []string{"403"}, numbersFound(t, "// the proxy answers 403 here"))
 }
