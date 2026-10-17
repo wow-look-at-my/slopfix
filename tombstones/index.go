@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
 
 // indexTimeout bounds the read of the tree.
@@ -41,18 +41,8 @@ type symbolIndex struct {
 // is in no file a probe can read. The probe then cannot answer.
 func (ix *symbolIndex) missingDependency(root string) bool {
 	ix.blindOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
-		defer cancel()
-		// With no git to list the gitlinks, no submodule is known, and the probe answers as it does without one.
-		listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--stage").Output()
-		if err != nil {
-			return
-		}
-		for _, entry := range strings.Split(string(listed), "\x00") {
-			meta, rel, ok := strings.Cut(entry, "\t")
-			if !ok || !strings.HasPrefix(meta, "160000 ") {
-				continue
-			}
+		// With no index to list the gitlinks, no submodule is known, and the probe answers as it does without one.
+		for _, rel := range gitlinks(root) {
 			if children, err := os.ReadDir(filepath.Join(root, rel)); err != nil || len(children) == 0 {
 				ix.blind = true
 				return
@@ -62,18 +52,49 @@ func (ix *symbolIndex) missingDependency(root string) bool {
 	return ix.blind
 }
 
+// gitlinks answers the path of each submodule the index of root records.
+func gitlinks(root string) []string {
+	repo, err := gitread.OpenWorkTree(root)
+	if err != nil || repo == nil {
+		return nil
+	}
+	idx, err := repo.Index()
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range idx.Entries() {
+		if e.IsGitlink() {
+			out = append(out, filepath.FromSlash(e.Path))
+		}
+	}
+	return out
+}
+
+// workFiles answers what git ls-files --cached --others --exclude-standard
+// lists under root, or false when root holds no readable repository.
+func workFiles(root string) (*gitread.Repo, []string, bool) {
+	repo, err := gitread.OpenWorkTree(root)
+	if err != nil || repo == nil {
+		return nil, nil, false
+	}
+	listed, err := repo.WorkFiles()
+	if err != nil {
+		return nil, nil, false
+	}
+	return repo, listed, true
+}
+
 // listPaths reads the paths git lists under root, once.
 func (ix *symbolIndex) listPaths(root string) {
 	ix.pathOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
-		defer cancel()
-		listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
-		if err != nil {
+		_, listed, ok := workFiles(root)
+		if !ok {
 			return
 		}
 		ix.paths = set.New[string]()
 		ix.bases = set.New[string]()
-		for _, rel := range strings.Split(string(listed), "\x00") {
+		for _, rel := range listed {
 			for _, word := range identifierWords(rel) {
 				ix.paths.Add(word)
 			}
@@ -142,15 +163,15 @@ func PrimeIndex(path string) {
 func (ix *symbolIndex) build(root string) {
 	ctx, cancel := context.WithTimeout(context.Background(), indexTimeout)
 	defer cancel()
-	listed, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
-	if err != nil {
+	repo, listed, ok := workFiles(root)
+	if !ok {
 		return
 	}
 	// A failed submodule listing adds no file, and the index keeps the files of the tree itself.
-	nested, _ := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--cached", "--recurse-submodules").Output()
+	nested, _ := repo.TrackedRecursive()
 	files := map[string]int{}
 	seen := set.New[string]()
-	paths := append(strings.Split(string(listed)+"\x00"+string(nested), "\x00"), copiedSubmoduleFiles(ctx, root)...)
+	paths := append(append(listed, nested...), copiedSubmoduleFiles(ctx, root)...)
 	for _, rel := range paths {
 		if rel == "" || seen.Contains(rel) {
 			continue
@@ -176,16 +197,8 @@ func (ix *symbolIndex) build(root string) {
 // files but no checkout. A build that copies a dependency in place of a
 // checkout leaves such a path, and git lists none of its files.
 func copiedSubmoduleFiles(ctx context.Context, root string) []string {
-	staged, err := gitmod.CommandContext(ctx, root, "ls-files", "-z", "--stage").Output()
-	if err != nil {
-		return nil
-	}
 	var files []string
-	for _, entry := range strings.Split(string(staged), "\x00") {
-		meta, rel, ok := strings.Cut(entry, "\t")
-		if !ok || !strings.HasPrefix(meta, "160000 ") {
-			continue
-		}
+	for _, rel := range gitlinks(root) {
 		if _, err := os.Lstat(filepath.Join(root, rel, ".git")); err == nil {
 			continue
 		}
