@@ -610,7 +610,8 @@
 			<test cmd="gh pr view --json number,state" expect="allow"/>
 			<test cmd="gh pr diff 123" expect="allow"/>
 			<test cmd="gh pr diff https://github.com/owner/repo/pull/7 --name-only" expect="allow"/>
-			<test cmd="gh pr list" expect="deny"/>
+			<test cmd="gh pr list" expect="allow"/>
+			<test cmd="gh pr list -R owner/repo --state open --json number,title" expect="allow"/>
 			<test cmd="gh pr checks" expect="deny"/>
 			<test cmd="gh pr create" expect="deny"/>
 			<test cmd="gh pr merge 123" expect="deny"/>
@@ -637,6 +638,7 @@
 		<test cmd="gh pr reopen 45" expect="deny"/>
 			<rule name="view" allowedFlags="*"/>
 			<rule name="diff" allowedFlags="*"/>
+			<rule name="list" allowedFlags="*"/>
 			<rule name="edit">
 				<refuse message="the auto-pr-merge label is the only PR edit this session makes">
 					<flag name="--title"/>
@@ -691,8 +693,8 @@
 					<value>https://github.com/</value>
 				</allowedArgPrefixes>
 			</rule>
-			<rule name="checkout,checks,close,comment,create,list,lock,merge,ready,reopen,review,status,unlock,update-branch"
-			      denyWithMessage="gh pr view, gh pr diff and gh pr edit --add-label auto-pr-merge are the only gh pr commands this session runs"/>
+			<rule name="checkout,checks,close,comment,create,lock,merge,ready,reopen,review,status,unlock,update-branch"
+			      denyWithMessage="gh pr view, gh pr list, gh pr diff and gh pr edit --add-label auto-pr-merge are the only gh pr commands this session runs"/>
 		</rule>
 		<rule name="release">
 			<test cmd="gh release list" expect="allow"/>
