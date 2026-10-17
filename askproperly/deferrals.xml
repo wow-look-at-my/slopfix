@@ -1,0 +1,31 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  Phrases that hand a decision back to the reader without a question mark.
+  Each one is matched case-insensitively anywhere in the asserted text of a
+  closing message. Adding a phrase is adding a line here, never a Go change.
+-->
+<deferrals>
+  <phrase>let me know</phrase>
+  <phrase>your call</phrase>
+  <phrase>up to you</phrase>
+  <phrase>say the word</phrase>
+  <phrase>just say</phrase>
+  <phrase>tell me which</phrase>
+  <phrase>tell me what you</phrase>
+  <phrase>waiting on you</phrase>
+  <phrase>waiting for you to</phrase>
+  <phrase>if you want me to</phrase>
+  <phrase>want me to</phrase>
+  <phrase>would you like me to</phrase>
+  <phrase>do you want me to</phrase>
+  <phrase>shall i</phrase>
+  <phrase>should i proceed</phrase>
+  <phrase>still needs work</phrase>
+  <phrase>i won't</phrase>
+  <phrase>i'm not going to</phrase>
+  <phrase>i will not touch</phrase>
+  <phrase>and i'll pick</phrase>
+  <phrase>and i will pick</phrase>
+  <phrase>and i'll land</phrase>
+  <phrase>or say</phrase>
+</deferrals>
