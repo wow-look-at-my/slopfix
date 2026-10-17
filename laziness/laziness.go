@@ -12,7 +12,6 @@ package laziness
 
 import (
 	"github.com/wow-look-at-my/go-containers/set"
-	"regexp"
 	"strings"
 )
 
@@ -31,62 +30,6 @@ type Hit struct {
 	Line int `json:"line"`
 }
 
-// tell is a recognisable shape. name is what a report prints.
-type tell struct {
-	name string
-	re   *regexp.Regexp
-}
-
-// tells is the table. It is data: extending this package is adding a row. Each
-// row is a phrase a punt is written in, narrow enough that ordinary reporting
-// does not trip it.
-var tells = []tell{
-	{"disowning a defect you found", regexp.MustCompile(`(?i)\b(?:not|neither)\s+(?:mine|ours|my own)\s+to\s+fix\b`)},
-	{"disowning a defect you found", regexp.MustCompile(`(?i)\bnot\s+(?:my|our)\s+(?:problem|job|responsibility)\b`)},
-
-	{"handing a repair back to the reader", regexp.MustCompile(`(?i)\bworth\s+your\s+attention\b`)},
-	{"handing a repair back to the reader", regexp.MustCompile(`(?i)\bflagging\s+(?:it|this|these|them|that)?\s*(?:for|to)\s+you\b`)},
-	{"handing a repair back to the reader", regexp.MustCompile(`(?i)\bsomeone\s+should\s+(?:fix|look|clean|deal)\b`)},
-	{"handing a repair back to the reader", regexp.MustCompile(`(?i)\byou\s+(?:may|might|could)\s+want\s+to\s+(?:fix|look|check|clean)\b`)},
-
-	{"leaving a defect in place", regexp.MustCompile(`(?i)\bleft\s+(?:it|them|that|these|those)\s+(?:as[- ]is|alone|unfixed|broken|red)\b`)},
-	{"leaving a defect in place", regexp.MustCompile(`(?i)\bleaving\s+(?:it|them|that|these|those)\s+(?:as[- ]is|alone|unfixed|broken|red)\b`)},
-	{"leaving a defect in place", regexp.MustCompile(`(?i)\bI\s+(?:did\s+not|didn['’]t)\s+fix\b`)},
-
-	{"excusing yourself from a repair", regexp.MustCompile(`(?i)\bunasked\b`)},
-	{"excusing yourself from a repair", regexp.MustCompile(`(?i)\bout\s+of\s+scope\b`)},
-	{"excusing yourself from a repair", regexp.MustCompile(`(?i)\boutside\s+(?:the|my|our)\s+scope\b`)},
-	{"excusing yourself from a repair", regexp.MustCompile(`(?i)\bnot\s+caused\s+by\s+(?:my|this|the)\s+change\b`)},
-	{"excusing yourself from a repair", regexp.MustCompile(`(?i)\bpre-?existing\b[^.!?\n]{0,80}\b(?:so|and)\s+(?:I|we)\s+(?:did\s+not|didn['’]t|left|have\s+not|haven['’]t)\b`)},
-
-	// Attribution in place of repair, narrow on purpose.
-	{"announcing an attribution hunt instead of a repair", regexp.MustCompile(`(?i)\b(?:two|three|first)\s+things?\s+to\s+establish\b`)},
-	{"announcing an attribution hunt instead of a repair", regexp.MustCompile(`(?i)\bwhether\s+(?:master|main|the\s+base\s+branch)\s+is\s+(?:also\s+)?(?:red|failing|broken)\b`)},
-	{"announcing an attribution hunt instead of a repair", regexp.MustCompile(`(?i)\b(?:establish|determine|work\s+out|figure\s+out)\s+(?:whether|if|who)\s+(?:I|we|this\s+PR|my\s+change)\b`)},
-	{"offering authorship in place of a fix", regexp.MustCompile(`(?i)\bnot\s+(?:this\s+PR|my\s+change|mine)['’]?s?\s+(?:to\s+)?(?:fault|failure|problem)\b`)},
-	{"offering authorship in place of a fix", regexp.MustCompile(`(?i)\b(?:fails|red|broken|failing)\s+on\s+(?:master|main|the\s+base\s+branch)\s+too\b[^.!?\n]{0,60}\b(?:so|therefore)\b`)},
-	{"offering authorship in place of a fix", regexp.MustCompile(`(?i)\bI\s+(?:did\s+not|didn['’]t)\s+(?:break|cause)\s+(?:it|this|that)\b`)},
-
-	// The turn ends on a question whose answer was already yes.
-	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bwant\s+me\s+to\b[^.!?\n]*\?`)},
-	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bwould\s+you\s+like\s+me\s+to\b[^.!?\n]*\?`)},
-	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bshall\s+I\b[^.!?\n]*\?`)},
-	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bshould\s+I\b[^.!?\n]*\?`)},
-	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bdo\s+you\s+want\s+me\s+to\b[^.!?\n]*\?`)},
-	{"asking permission in place of acting", regexp.MustCompile(`(?i)\blet\s+me\s+know\s+if\s+you\s*(?:'|’)?d?\s*(?:would\s+)?like\b`)},
-	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bI\s+can\s+\S[^.!?\n]{0,60}\s+if\s+you\s*(?:'|’)?d?\s*(?:would\s+)?like\b`)},
-	{"asking permission in place of acting", regexp.MustCompile(`(?i)\bsay\s+the\s+word\b`)},
-}
-
-// pardons mean the obligation was met. A sentence carrying a tell AND saying
-// the repair happened is not a punt.
-var pardons = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)\b(?:fixed|repaired|patched|corrected)\s+(?:it|them|that|those|these|anyway|here|now|in)\b`),
-	regexp.MustCompile(`(?i)\balready\s+(?:fixed|repaired|pushed|landed|corrected)\b`),
-	regexp.MustCompile(`(?i)\b(?:pushed|landed|committed)\s+(?:the\s+)?fix\b`),
-	regexp.MustCompile(`(?i)\bfix(?:ed)?\s+(?:it\s+)?in\s+(?:this|the\s+same)\s+(?:turn|commit|change|PR|pull\s+request)\b`),
-}
-
 // Check reports every punt the message carries.
 //
 // A sentence is reported for a single tell, whichever found it.
@@ -95,7 +38,7 @@ func Check(message string) []Hit {
 	var hits []Hit
 	seen := set.New[string]()
 	for _, t := range tells {
-		at := t.re.FindStringIndex(text)
+		at := t.Re.FindStringIndex(text)
 		if at == nil {
 			continue
 		}
@@ -105,14 +48,14 @@ func Check(message string) []Hit {
 			continue
 		}
 		seen.Add(sentence)
-		hits = append(hits, Hit{ID: ID, Tell: t.name, Sentence: sentence, Line: lineOf(kept, start)})
+		hits = append(hits, Hit{ID: ID, Tell: t.Shape, Sentence: sentence, Line: lineOf(kept, start)})
 	}
 	return hits
 }
 
 func isPardoned(sentence string) bool {
-	for _, re := range pardons {
-		if re.MatchString(sentence) {
+	for _, p := range pardons {
+		if p.Re.MatchString(sentence) {
 			return true
 		}
 	}
