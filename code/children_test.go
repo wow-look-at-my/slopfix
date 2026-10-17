@@ -10,7 +10,7 @@ import (
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 )
 
-// sameNode reports two nodes of one tree at one place with one type.
+// sameNode reports nodes of one tree at one place with one type.
 func sameNode(a, b ts.Node) bool {
 	return a.StartByte() == b.StartByte() && a.EndByte() == b.EndByte() && a.Type() == b.Type() && a.IsNamed() == b.IsNamed()
 }

@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	ts "github.com/wow-look-at-my/go-tree-sitter"
+	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/edit"
 )
 
