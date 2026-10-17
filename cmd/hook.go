@@ -27,7 +27,7 @@ func init() {
 		Long: "hook reads any Claude Code hook payload on stdin and writes the hook's\n" +
 			"response on stdout. The event on the payload decides which guards run.\n" +
 			"Every guard that serves the event runs, unless --only names a subset.\n\n" +
-			"  PreToolUse         clean-bash, write, no-work-loss, rustfmt, auto-allow, busy-poll\n" +
+			"  PreToolUse         clean-bash, write, no-work-loss, rustfmt, auto-allow, busy-poll, laziness\n" +
 			"  PermissionRequest  auto-allow\n" +
 			"  PostToolUse        rustfmt, md-budget\n" +
 			"  SessionStart       md-budget\n" +

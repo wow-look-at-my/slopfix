@@ -37,6 +37,9 @@ func Run(r io.Reader) Result {
 	if json.Unmarshal(data, &in) != nil {
 		return Result{}
 	}
+	if in.HookEventName == "PreToolUse" {
+		return runTool(data)
+	}
 	if in.HookEventName != "" && in.HookEventName != "Stop" {
 		return Result{}
 	}
