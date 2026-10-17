@@ -59,6 +59,7 @@ func init() {
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
 	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
 	register("yaml/set-concurrency", IDConcurrency, 70, setConcurrency, false)
+	register("yaml/grant-id-token", IDIDToken, 70, grantIDToken, false)
 	fixer.Register(fixer.Spec{
 		Label: "yaml/retarget-runner", Families: []string{Category}, Rules: []string{IDPrivateRunner},
 		Files: []fixer.Kind{fixer.Workflow}, Place: 70,
