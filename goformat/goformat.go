@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/wow-look-at-my/slopfix/edit"
 )
@@ -87,7 +88,7 @@ func bareComment(s string, i int) bool {
 // directive never moves. An edit that adds or drops a bare comment line is
 // written only when gofmt itself makes that edit.
 func Gate(src string, edits []edit.Edit, scope edit.Scope) edit.Result {
-	want := tokens(src)
+	want := sync.OnceValue(func() []string { return tokens(src) })
 	var layout []edit.Edit
 	reach := func(e edit.Edit) string {
 		if allBlank(src[e.Start:e.End]) && allBlank(e.Text) {
@@ -106,7 +107,7 @@ func Gate(src string, edits []edit.Edit, scope edit.Scope) edit.Result {
 		}
 		return ""
 	}
-	holds := func(text string) bool { return slices.Equal(tokens(text), want) }
+	holds := func(text string) bool { return slices.Equal(tokens(text), want()) }
 	return edit.Gate(src, edits, scope, reach, holds)
 }
 

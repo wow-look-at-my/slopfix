@@ -28,20 +28,6 @@ var (
 	firstToken = regexp.MustCompile(`^\S+`)
 )
 
-// forceSentenceCap divides each sentence still over the cap at a word boundary.
-func forceSentenceCap(prose string, d capSpec) string {
-	over := overCap(prose, d.cap)
-	for range len(strings.Fields(prose)) + 1 {
-		next, divided := forceNext(prose, d)
-		// A division that leaves as many words past the cap moves nothing, so the loop stops on it.
-		if !divided || overCap(next, d.cap) >= over {
-			return prose
-		}
-		prose, over = next, overCap(next, d.cap)
-	}
-	return prose
-}
-
 // overCap counts the words past limit in every sentence Check reads in prose.
 func overCap(prose string, limit int) int {
 	n := 0
@@ -49,28 +35,6 @@ func overCap(prose string, limit int) int {
 		n += max(0, WordCount(sentence)-limit)
 	}
 	return n
-}
-
-// forceNext divides the earliest over-cap sentence, as Check reads it.
-func forceNext(prose string, d capSpec) (string, bool) {
-	masked := checkMask(prose)
-	for _, span := range sentenceSpans(masked) {
-		start, end := span[0], span[1]
-		// A filled span ends in a blank where the prose has its mark, so the sentence takes the mark back.
-		for start > 0 && masked[start-1] == ' ' && prose[start-1] != ' ' {
-			start--
-		}
-		for end < len(prose) && masked[end] == ' ' && prose[end] != ' ' {
-			end++
-		}
-		if WordCount(masked[start:end]) <= d.cap {
-			continue
-		}
-		if rewritten, ok := forceDivision(prose[start:end], masked[start:end], d); ok {
-			return prose[:start] + rewritten + prose[end:], true
-		}
-	}
-	return prose, false
 }
 
 // Masked is the prose as Check reads it, with every offset kept.

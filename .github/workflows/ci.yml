@@ -33,7 +33,7 @@ jobs:
       - uses: wow-look-at-my/go-toolchain@master
         with:
           # Approves the //go:generate directives; editing a single fails the build with the new value.
-          generate: 165003bec91c
+          generate: 51ee948188c9
           # A cold cache takes go generate and vet past the default timeout.
           timeout: 30
 

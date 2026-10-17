@@ -11,6 +11,7 @@ package markdown
 import (
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
@@ -25,10 +26,13 @@ func Apply(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 	if len(edits) == 0 {
 		return edit.Unchanged(content, scope)
 	}
-	spans := proseSpans(content)
-	want, wantShape := verbatim(content), shape(content)
+	// Gate drops an out-of-scope edit first, so a run that lands nothing parses nothing.
+	prose := sync.OnceValue(func() [][2]int { return proseSpans(content) })
+	want := sync.OnceValue(func() []string { return verbatim(content) })
+	wantShape := sync.OnceValue(func() string { return shape(content) })
 	return edit.Gate(content, edits, scope,
 		func(e edit.Edit) string {
+			spans := prose()
 			// The spans run in source order, so the only candidate is the last one that opens at or before the edit.
 			i := sort.Search(len(spans), func(i int) bool { return spans[i][0] > e.Start }) - 1
 			if i >= 0 && e.End <= spans[i][1] {
@@ -36,7 +40,7 @@ func Apply(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 			}
 			return "it reaches past its prose block"
 		},
-		func(text string) bool { return sameLines(verbatim(text), want) && shape(text) == wantShape })
+		func(text string) bool { return sameLines(verbatim(text), want()) && shape(text) == wantShape() })
 }
 
 // shape renders the container tree of a document. A run of paragraphs in one

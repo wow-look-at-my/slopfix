@@ -64,40 +64,6 @@ var connectors = map[string]string{
 	"or":  "Otherwise,",
 }
 
-// fixSentenceCap divides every over-cap sentence. It tries the clause
-// boundaries first and then the word boundaries. A sentence that no division
-// reads is cut between words. That leaves no finding standing.
-func fixSentenceCap(prose string, d capSpec) string {
-	for range len(strings.Fields(prose)) + 1 {
-		next, divided := divideNext(prose, d.cap)
-		if !divided {
-			break
-		}
-		prose = next
-	}
-	return forceSentenceCap(prose, d)
-}
-
-// divideNext divides the earliest over-cap sentence that a clause boundary can divide.
-func divideNext(prose string, limit int) (string, bool) {
-	masked := mask(prose)
-	off := opaque(prose, masked)
-	for _, span := range sentenceSpans(prose) {
-		start, end := span[0], span[1]
-		if WordCount(masked[start:end]) <= limit {
-			continue
-		}
-		s := syntax.Parse(masked[start:end], shift(off, -start))
-		if rewritten, ok := bestDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
-			return prose[:start] + rewritten + prose[end:], true
-		}
-		if rewritten, ok := frontedDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
-			return prose[:start] + rewritten + prose[end:], true
-		}
-	}
-	return prose, false
-}
-
 // keepsCodeSpans reports that a division kept each code span whole, in order.
 func keepsCodeSpans(source, rewritten string) bool {
 	return slices.Equal(codeSpan.FindAllString(source, -1), codeSpan.FindAllString(rewritten, -1))

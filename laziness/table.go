@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/table"
 )
 
@@ -85,7 +86,7 @@ func Load(raw []byte) (Table, error) {
 			return Table{}, fmt.Errorf("a shape has no name")
 		}
 		for _, p := range s.Patterns {
-			re, err := regexp.Compile(p.Re)
+			re, err := precompiled.Compile(p.Re)
 			if err != nil {
 				return Table{}, fmt.Errorf("shape %q: %w", name, err)
 			}
@@ -99,7 +100,7 @@ func Load(raw []byte) (Table, error) {
 		return Table{}, fmt.Errorf("no pattern")
 	}
 	for _, p := range doc.Pardons {
-		re, err := regexp.Compile(p.Re)
+		re, err := precompiled.Compile(p.Re)
 		if err != nil {
 			return Table{}, fmt.Errorf("pardon: %w", err)
 		}
