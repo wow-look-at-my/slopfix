@@ -40,10 +40,14 @@ func init() {
 // scriptActionManifest is a composite action whose one step runs a TypeScript
 // script with the given env block and script lines.
 func scriptActionManifest(env, script string) string {
+	return scriptActionHead() + env + "      with:\n        script: |\n" + script
+}
+
+// scriptActionHead is the composite action up to its TypeScript step's uses line.
+func scriptActionHead() string {
 	return "name: Publish\ndescription: Publish a release.\n\ninputs:\n  project:\n    description: Project name\n    required: false\n" +
 		"  apt_depends:\n    description: Runtime prerequisites\n    required: false\n\n" +
-		"runs:\n  using: composite\n  steps:\n    - id: publish\n      uses: wow-look-at-my/actions@typescript#latest\n" +
-		env + "      with:\n        script: |\n" + script
+		"runs:\n  using: composite\n  steps:\n    - id: publish\n      uses: wow-look-at-my/actions@typescript#latest\n"
 }
 
 // envKeptCase holds entries with a job to do. A script that assigns the
