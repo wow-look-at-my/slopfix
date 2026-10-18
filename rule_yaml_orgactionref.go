@@ -6,8 +6,9 @@ import (
 )
 
 // yaml/org-action-ref: an org action referenced at a version tag, a SHA or a
-// branch of one person's making. The `lkgb` tag passes. The repair points the
-// action at its default branch.
+// branch, its default branch included. The `lkgb` tag passes. The repair points
+// the action at `lkgb`, or at the default branch of a repository that
+// publishes no `lkgb`.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       workflow.IDOrgActionRef,
@@ -28,6 +29,9 @@ func init() {
 			workflowCase("org-action-ref-bare-sha", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
 				"    steps:\n      - uses: wow-look-at-my/buildhost@f294f0c3c3873f1452bdb965c761580d7bcf625d\n"),
 			lkgbCase(),
+			goneBranchCase(),
+			workflowCase("org-action-ref-default-branch", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
+				"    steps:\n      - uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master\n"),
 		},
 	})
 }
@@ -41,12 +45,23 @@ func lkgbCase() RuleCase {
 	return c
 }
 
+// goneBranchCase pins go-toolchain at v1, and the repair writes lkgb.
+func goneBranchCase() RuleCase {
+	steps := func(ref string) string {
+		return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n" +
+			"    steps:\n      - uses: wow-look-at-my/go-toolchain@" + ref + "\n        with:\n          working-directory: go\n"
+	}
+	c := workflowCase("org-action-ref-gone-branch", steps("v1"))
+	c.Want = steps("lkgb")
+	return c
+}
+
 // detectOrgActionRef answers every org action pinned to a tag other than `lkgb`, a SHA or a branch.
 func detectOrgActionRef(c RuleCase) []ste.Finding {
 	return caseFindings(c, workflow.IDOrgActionRef)
 }
 
-// autofixOrgActionRef points each reported org action at its default branch.
+// autofixOrgActionRef points each reported org action at `lkgb`.
 func autofixOrgActionRef(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDOrgActionRef)
 }

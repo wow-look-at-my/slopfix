@@ -14,7 +14,7 @@ func init() {
 		Detect:   detectNeuteredGate,
 		Autofix:  autofixNeuteredGate,
 		Cases: []RuleCase{workflowCase("neutered-gate", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
-			"    steps:\n      - uses: wow-look-at-my/slopfix@master\n        continue-on-error: true\n")},
+			"    steps:\n      - uses: wow-look-at-my/slopfix@lkgb\n        continue-on-error: true\n")},
 	})
 }
 
