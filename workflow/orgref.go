@@ -72,8 +72,7 @@ func orgRefs(content string) []orgRef {
 	return out
 }
 
-// movingBranch matches a ref that names a branch by its shape: a major-version branch such as `v1`, or a default branch name.
-// A branch moves to a red commit, and a renamed one stops resolving, as `go-toolchain@v1` did.
+// movingBranch matches a ref shaped like a branch: `v1`, `master`, `main`.
 var movingBranch = regexp.MustCompile(`^(?:[vV][0-9]+|master|main)$`)
 
 // allowedRef reports the `lkgb` tag, or an orphan tag. The default branch passes only in a repository that publishes no `lkgb`.
@@ -89,8 +88,7 @@ func allowedRef(repo, ref string) bool {
 	return ref == trackedBranch(repo) && stableRef(repo) != lkgbTag
 }
 
-// stableRef answers `lkgb`, the last master commit that passed CI. Only a repository that GitHub says publishes no `lkgb` answers its default branch.
-// Where GitHub cannot answer, it answers `lkgb`, because the required-builds manager tags every org repository.
+// stableRef answers `lkgb`, or the default branch of a repository GitHub says has no `lkgb`.
 func stableRef(repo string) string {
 	parts := strings.SplitN(repo, "/", 3)
 	if len(parts) < 2 {

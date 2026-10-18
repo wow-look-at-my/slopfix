@@ -47,10 +47,7 @@ type Use struct {
 // fullSHA matches a full commit SHA, which needs no lookup.
 var fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
-// Uses answers every remote uses: value of a workflow or an action manifest:
-// a job's reusable workflow, a job's step, and a composite action's step. A
-// local path, a docker:// image and a value that holds an expression name no
-// remote ref. Unparseable YAML yields nothing, because the runner rejects it.
+// Uses answers every remote uses: value the runner reads. A local path, a docker:// image and an expression name no remote ref.
 func Uses(content string) []Use {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
