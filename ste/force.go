@@ -300,6 +300,18 @@ func endsOnPossessive(source string, left int) bool {
 	return strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s")
 }
 
+// endsOnOpener reports a cut whose head ends on a word that needs the next
+// one, such as an article, a preposition or a conjunction. The cut would part
+// a phrase: "understanding the. Environment".
+func endsOnOpener(source string, whole *syntax.Sentence, c forceCut) bool {
+	last := strings.ToLower(strings.Trim(lastField(strings.TrimRight(source[:c.left], " ,;:—–-")), ".,;:!?*_\"'`()[]“”‘’"))
+	if forceDangling.Contains(last) {
+		return true
+	}
+	w, ok := lastWordBefore(whole, c.left)
+	return ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start))
+}
+
 // lastResortCut answers the cut that keeps the most leading words under the
 // cap, for a sentence where no cut leaves both parts reading as sentences. A
 // finding that fix leaves standing breaks the guarantee, and an awkward pair
@@ -312,7 +324,7 @@ func lastResortCut(source, masked string, words, limit int) (forceCut, int) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < 1 || words-c.words < 1 {
 			continue
 		}
-		if endsOnPossessive(source, c.left) {
+		if endsOnPossessive(source, c.left) || endsOnOpener(source, whole, c) {
 			continue
 		}
 		if n := wordsBefore(whole, c.right); n > 0 && n+1 < len(whole.Words) && relativeAfterNoun(whole, n) {

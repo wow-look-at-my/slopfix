@@ -83,6 +83,7 @@ var hardCuts = []struct {
 	{"Immediate-sending the new prompt onto the server queue while the one stayed local ran them AHEAD of it (the merge is server-rows-first), so `[2, 3]` showed up as `[3, 2]`.", "showed. Up"},
 	{"That snapshot must record every discovered skill name — including `paths:`-gated and preloaded skills that the listing baseline (`slash_skills`) holds back — so session-start telemetry can reuse it instead of re-walking the disk.", "telemetry. Can"},
 	{"The item list a `/todo` capture sends on its SECOND model call: the same prepared snapshot `/btw` sends, its instruction, then the first response echoed back verbatim (reasoning included) with the tool result that answered it.", "echoed. Back"},
+	{"Loopspamming or \"doom looping\" is where a model continues spamming the same action over and over again instead of reasoning about its state, properly understanding the environment and situation, and making an informed decision. For example:", "the. Environment"},
 	{"The span the current window covers at `now`: the whole window once the response has run that long, and the time since its first chunk before then.", "first. Chunk"},
 }
 
