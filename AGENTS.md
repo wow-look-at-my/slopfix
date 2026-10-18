@@ -67,7 +67,7 @@ The action at the repository root downloads the published binary from buildhost 
 
 ```yml
 - uses: actions/checkout@v4
-- uses: wow-look-at-my/slopfix@master
+- uses: wow-look-at-my/slopfix@lkgb
 ```
 
 Several org actions call this action, so one workflow run can reach it from many jobs. The check claims the run through `wow-look-at-my/actions@run-once#latest` with the name `slopfix-check`. One job runs it. Each other job logs the skip.

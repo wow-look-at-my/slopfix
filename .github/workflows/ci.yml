@@ -30,7 +30,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bubblewrap
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - uses: wow-look-at-my/go-toolchain@master
+      - uses: wow-look-at-my/go-toolchain@lkgb
         with:
           # Approves the //go:generate directives; editing a single fails the build with the new value.
           generate: 51ee948188c9
@@ -55,6 +55,6 @@ jobs:
       # The marketplace ships this binary inside its slopfix plugin, so each master publish asks cc-marketplace to package it.
       - name: Ship this build in the marketplace
         if: github.ref == 'refs/heads/master'
-        uses: wow-look-at-my/cc-marketplace/.github/actions/ship@master
+        uses: wow-look-at-my/cc-marketplace/.github/actions/ship@lkgb
         with:
           plugins: slopfix

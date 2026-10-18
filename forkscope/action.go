@@ -185,7 +185,6 @@ func (r Resolver) DefaultBranch(repo string) (string, error) {
 	return info.DefaultBranch, nil
 }
 
-// ErrNotFound marks an API answer of 404.
 var ErrNotFound = errors.New("not found")
 
 // tags remembers each tag lookup for the life of the process.
@@ -194,7 +193,7 @@ var tags = struct {
 	byKey map[string]bool
 }{byKey: map[string]bool{}}
 
-// HasTag reports whether repo, as OWNER/REPO, publishes the tag. A 404 is no tag. Any other failure is the error.
+// HasTag reports whether repo, as OWNER/REPO, publishes the tag. Any other failure is the error.
 func (r Resolver) HasTag(repo, tag string) (bool, error) {
 	key := r.api() + " " + repo + "@" + tag
 	tags.Lock()

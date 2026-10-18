@@ -25,7 +25,7 @@ func TestSplitUsesCutsEachPart(t *testing.T) {
 	}
 }
 
-// A 404 is no tag, on the HTTP path and on the gh path. Any other failure is an error.
+// Any other failure is an error.
 func TestHasTagReadsA404AsNoTag(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
