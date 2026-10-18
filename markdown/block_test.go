@@ -166,3 +166,16 @@ func TestASecondParagraphInAListItemKeepsItsIndent(t *testing.T) {
 	doc := "- an item\n\n  a second\n  paragraph\n"
 	assert.Equal(t, "- an item\n\n  a second paragraph\n", markdown.Format(doc))
 }
+
+func TestAnHTMLBlockWithAnIndentedChildIsNotProse(t *testing.T) {
+	for _, doc := range []string{
+		"<div>\n  <defs><style>text { font-family: Arial, sans-serif; }</style></defs>\n</div>\n",
+		"Intro line here.\n\n<div>\n  <defs><style>text { font-family: Arial, sans-serif; }</style></defs>\n</div>\n",
+		"Intro line here.\n\n<svg width=\"4\">\n  <defs><style>text { font-family: Arial, sans-serif; }</style></defs>\n</svg>\n",
+	} {
+		for _, b := range markdown.Split(doc) {
+			t.Logf("%q kind=%v start=%d", b.Lines, b.Kind, b.Start)
+		}
+		assert.Empty(t, prose(doc), doc)
+	}
+}
