@@ -309,6 +309,9 @@ func endsOnOpener(source string, whole *syntax.Sentence, c forceCut) bool {
 		return true
 	}
 	w, ok := lastWordBefore(whole, c.left)
+	if ok && w.Tag == "VBG" {
+		return true
+	}
 	return ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start))
 }
 
@@ -318,7 +321,7 @@ func endsOnOpener(source string, whole *syntax.Sentence, c forceCut) bool {
 // of sentences does not. The cut still lands between whole words, outside a
 // code span, a link, a quotation and a parenthesis.
 func lastResortCut(source, masked string, words, limit int) (forceCut, int) {
-	best, bestWords := forceCut{}, -1
+	best, bestWords, bestComma := forceCut{}, -1, false
 	whole := syntax.Parse(masked, nil)
 	for _, c := range candidates(source, masked, false, limit) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < 1 || words-c.words < 1 {
@@ -330,8 +333,10 @@ func lastResortCut(source, masked string, words, limit int) (forceCut, int) {
 		if n := wordsBefore(whole, c.right); n > 0 && n+1 < len(whole.Words) && relativeAfterNoun(whole, n) {
 			continue
 		}
-		if c.words > bestWords {
-			best, bestWords = c, c.words
+		// A cut at a comma parts a clause from the next, so it beats a longer cut inside a phrase.
+		comma := seamBefore(source, c.left) == ","
+		if bestWords < 0 || comma && !bestComma || comma == bestComma && c.words > bestWords {
+			best, bestWords, bestComma = c, c.words, comma
 		}
 	}
 	return best, bestWords

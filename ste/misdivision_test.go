@@ -97,6 +97,14 @@ func TestALastResortCutKeepsAVerbWithItsNeighbours(t *testing.T) {
 	}
 }
 
+// With no cut that reads as sentences, the last resort cuts at a comma and
+// never inside a phrase: not "understanding the." and not "understanding.".
+func TestALastResortCutPrefersACommaOverAPhrase(t *testing.T) {
+	in := "Loopspamming or \"doom looping\" is where a model continues spamming the same action over and over again instead of reasoning about its state, properly understanding the environment and situation, and making an informed decision. For example:"
+	want := "Loopspamming or \"doom looping\" is where a model continues spamming the same action over and over again instead of reasoning about its state. Properly understanding the environment and situation, and making an informed decision. For example:"
+	assert.Equal(t, want, ste.Fix(in))
+}
+
 func TestADivisionNeverWritesABrokenFragment(t *testing.T) {
 	for _, c := range misdivisions {
 		t.Run(c.name, func(t *testing.T) {
