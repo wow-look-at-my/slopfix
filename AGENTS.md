@@ -144,7 +144,9 @@ Prose requires a frame, because a document carries numbers that count nothing: a
 
 `counts/inventory-count` cuts the cardinal out of a sentence that counts what is here. `there are three sections` becomes `there are sections`, which stays true. The org rules that a count in markdown is not worth maintaining.
 
-Every reported count gets a repair. Where a bare cut breaks the sentence, `counts/reword.go` writes words that state no figure. A rate becomes `every few`. A cap becomes `a bounded number of`, whether words (`at most`, `max`) or a sign (`<=`, `<`) state it. A sign that sets a floor (`>=`, `>`) reads as a unit does. A unit takes `a couple of`, `a few`, `several` or `many`, by size. After a preposition or a noun the number becomes `multiple`.
+Every reported count gets a repair. Where a bare cut breaks the sentence, `counts/reword.go` writes words that state no figure. A rate becomes `every few`. A cap becomes `a bounded number of`, whether words (`at most`, `max`) or a sign (`<=`, `<`) state it. A sign that sets a floor (`>=`, `>`) reads as a unit does. A unit takes `a couple of`, `a few`, `several` or `many`, by size.
+
+After a preposition or a noun the number becomes `multiple`.
 
 A hedge such as `about` or `exactly` goes with the number. A zero becomes `no`. A zero that is the subject of a verb names a value, and becomes `a value of zero`: `0 disables chunking` reads `a value of zero disables chunking`. A label goes stale like a count. It is a finding too, and `counts/label.go` names the item instead. Digits after a singular noun name an item, as in `branch 3 sees` (`cardinal.NamesAnItem`).
 
@@ -208,7 +210,13 @@ It does not flag a comment above the package declaration, or a trailing comment 
 
 [docs/yaml-workflow-and-action-manifest-rules.md](docs/yaml-workflow-and-action-manifest-rules.md) holds this section.
 
-- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of the action's repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch, such as `actions/checkout@main`, passes this rule. An org action at its default branch is a `yaml/org-action-ref` finding, which writes `@lkgb`. So do a tag, a full commit SHA, a `./` path and a `docker://` image. The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too. The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. A lookup that fails, a private repository the token cannot read included, is a `yaml/branch-pin` finding with the reason, so no `--only` selection hides it. A tree run, a named file, text on stdin and a hook all run the rule. A tree run first reads answers a repository cached in `.git/slopfix-refs.json`, and looks up every repository or ref the cache lacks. The rule cases run against a fixture API that `Materialize` serves, and `GITHUB_API_URL` points at it. `fix` writes the default branch over a branch, and over an unresolvable ref. It writes `NAME#latest` over the tag of a branch build.
+- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of the action's repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch, such as `actions/checkout@main`, passes this rule. An org action at its default branch is a `yaml/org-action-ref` finding, which writes `@lkgb`. So do a tag, a full commit SHA, a `./` path and a `docker://` image.
+
+  The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too.
+
+  The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. A lookup that fails, a private repository the token cannot read included, is a `yaml/branch-pin` finding with the reason, so no `--only` selection hides it. A tree run, a named file, text on stdin and a hook all run the rule. A tree run first reads answers a repository cached in `.git/slopfix-refs.json`, and looks up every repository or ref the cache lacks.
+
+  The rule cases run against a fixture API that `Materialize` serves, and `GITHUB_API_URL` points at it. `fix` writes the default branch over a branch, and over an unresolvable ref. It writes `NAME#latest` over the tag of a branch build.
 - `yaml/run-script-syntax`: a `run:` script that the shell it runs in does not parse. Only bash and sh are read. The repair gives a keyword with an empty body the no-op `:`. The repair appends the closer of a statement, a bracket or a quote the script left open. It drops a closing word with nothing to close and quotes a stray operator. An `sh` step that uses a bash feature names `bash`. The rule reports exactly those error classes, because it reports only what its repair rewrites.
 - `yaml/duplicate-step-key`: a step that names a key twice. GitHub rejects the file. The repair keeps the last pair and deletes the earlier ones.
 
@@ -220,7 +228,9 @@ It does not flag a comment above the package declaration, or a trailing comment 
 
 ## laziness: a turn that ends with the work undone
 
-`laziness/punt` reports a closing message that leaves the work undone because the work is harder. It covers a found defect left in place, and permission asked in place of action. Both leave the reader holding the work. One table therefore holds both: `laziness/laziness.xml`, checked by `laziness.xsd`. Each pattern carries the punts that must fire it. Each pardon carries a message it must clear. `table_test.go` runs every row.
+`laziness/punt` reports a closing message that leaves the work undone because the work is harder. It covers a found defect left in place, and permission asked in place of action. Both leave the reader holding the work. One table therefore holds both: `laziness/laziness.xml`, checked by `laziness.xsd`. Each pattern carries the punts that must fire it. Each pardon carries a message it must clear.
+
+`table_test.go` runs every row.
 
 The shapes are: disowning a defect you found, handing a repair back, leaving a defect in place. Excusing yourself from a repair, announcing an attribution hunt, offering authorship in place of a fix. And asking permission in place of acting.
 
