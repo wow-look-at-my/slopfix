@@ -66,7 +66,7 @@ The commands are `check`, `hook`, `lsp`, `completion` and `help`.
 
 ```yml
 - uses: actions/checkout@v4
-- uses: wow-look-at-my/slopfix@master
+- uses: wow-look-at-my/slopfix@lkgb
 ```
 
 The action runs `check .` with every rule. No input narrows it to some paths or some rules, and it never repairs.
