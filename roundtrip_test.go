@@ -121,6 +121,10 @@ func roundTripFixtures() []fixture {
 				"      - env:\n" +
 				"          OUT: ${{ steps.x.outputs.path }}\n" +
 				"        run: cat \"$OUT\"\n" +
+				"      - uses: wow-look-at-my/actions@typescript#latest\n" +
+				"        with:\n" +
+				"          script: |\n" +
+				"            core.info(${{ toJSON(steps.x.outputs.path) }});\n" +
 				"      - run: |\n" +
 				"          echo hi\n" +
 				"          assert_ok() { exit 1; }\n",
@@ -130,6 +134,7 @@ func roundTripFixtures() []fixture {
 				"yaml/all-builds-job",
 				"yaml/neutered-gate",
 				"yaml/env-indirection",
+				"yaml/script-expression",
 				"yaml/push-tags",
 				"yaml/org-action-ref",
 				"yaml/concurrency",
