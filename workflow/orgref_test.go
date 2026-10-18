@@ -168,3 +168,32 @@ func TestASHAPinOfTheMonorepoWithNoDirectoryIsNotReported(t *testing.T) {
 		assert.Empty(t, orgRefFindings(steps(uses)), uses)
 	}
 }
+
+// Only a uses: key the runner reads names an action. One under with: is an input value.
+func TestAUsesKeyOutsideAJobOrAStepIsNotAnAction(t *testing.T) {
+	orgAPI(t)
+	content := "on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          uses: wow-look-at-my/go-toolchain@v1\n"
+	assert.Empty(t, orgRefFindings(content))
+	assert.Equal(t, content, repaired(t, content))
+}
+
+// The incident: go-toolchain's v1 branch became master and the pin stopped resolving. The repair needs no API answer to write lkgb.
+func TestAMovingBranchRepairsToLKGBWhenGitHubCannotAnswer(t *testing.T) {
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(api.Close)
+	t.Setenv("GITHUB_API_URL", api.URL)
+	t.Setenv("GITHUB_TOKEN", "fixture")
+	for uses, want := range map[string]string{
+		"wow-look-at-my/go-toolchain@v1":     "wow-look-at-my/go-toolchain@lkgb",
+		"wow-look-at-my/go-toolchain@master": "wow-look-at-my/go-toolchain@lkgb",
+		"wow-look-at-my/actions@master":      "wow-look-at-my/actions@lkgb",
+		"wow-look-at-my/actions@v2":          "wow-look-at-my/actions@lkgb",
+	} {
+		found := orgRefFindings(steps(uses))
+		require.Len(t, found, 1, uses)
+		assert.Contains(t, found[0].Detail, "is a branch", uses)
+		assert.Equal(t, steps(want), repaired(t, steps(uses)), uses)
+	}
+}

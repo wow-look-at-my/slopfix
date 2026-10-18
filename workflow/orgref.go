@@ -52,30 +52,29 @@ func orgRefs(content string) []orgRef {
 		return nil
 	}
 	var out []orgRef
-	walk(&doc, func(node *yaml.Node) {
-		if node.Kind != yaml.MappingNode {
-			return
+	for _, site := range usesSites(&doc) {
+		value := site.value
+		if value.Kind != yaml.ScalarNode {
+			continue
 		}
-		for i := 0; i+1 < len(node.Content); i += 2 {
-			value := node.Content[i+1]
-			if node.Content[i].Value != "uses" || value.Kind != yaml.ScalarNode {
-				continue
-			}
-			repo, ref, ok := strings.Cut(value.Value, "@")
-			owner, _, _ := strings.Cut(repo, "/")
-			if !ok || !strings.EqualFold(owner, orgOwner) {
-				continue
-			}
-			comment := value.LineComment
-			if comment == "" {
-				comment = node.Content[i].LineComment
-			}
-			comment = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(comment), "#"))
-			out = append(out, orgRef{node: value, repo: repo, ref: ref, comment: comment})
+		repo, ref, ok := strings.Cut(strings.TrimSpace(value.Value), "@")
+		owner, _, _ := strings.Cut(repo, "/")
+		if !ok || !strings.EqualFold(owner, orgOwner) {
+			continue
 		}
-	})
+		comment := value.LineComment
+		if comment == "" {
+			comment = site.key.LineComment
+		}
+		comment = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(comment), "#"))
+		out = append(out, orgRef{node: value, repo: repo, ref: ref, comment: comment})
+	}
 	return out
 }
+
+// movingBranch matches a ref that names a branch by its shape: a major-version branch such as `v1`, or a default branch name.
+// A branch moves to a red commit, and a renamed one stops resolving, as `go-toolchain@v1` did.
+var movingBranch = regexp.MustCompile(`^(?:[vV][0-9]+|master|main)$`)
 
 // allowedRef reports the `lkgb` tag, or an orphan tag. The default branch passes only in a repository that publishes no `lkgb`.
 // `<sha>#latest` names no tag.
@@ -90,16 +89,17 @@ func allowedRef(repo, ref string) bool {
 	return ref == trackedBranch(repo) && stableRef(repo) != lkgbTag
 }
 
-// stableRef answers `lkgb` when the repository publishes it, and its default branch otherwise. `lkgb` is the last master commit that passed CI, so a red master does not reach the caller.
-// Where GitHub cannot answer, it answers the default branch.
+// stableRef answers `lkgb`, the last master commit that passed CI. Only a repository that GitHub says publishes no `lkgb` answers its default branch.
+// Where GitHub cannot answer, it answers `lkgb`, because the required-builds manager tags every org repository.
 func stableRef(repo string) string {
 	parts := strings.SplitN(repo, "/", 3)
-	if len(parts) >= 2 {
-		if has, err := (forkscope.Resolver{}).HasTag(parts[0]+"/"+parts[1], lkgbTag); err == nil && has {
-			return lkgbTag
-		}
+	if len(parts) < 2 {
+		return lkgbTag
 	}
-	return trackedBranch(repo)
+	if has, err := (forkscope.Resolver{}).HasTag(parts[0]+"/"+parts[1], lkgbTag); err == nil && !has {
+		return trackedBranch(repo)
+	}
+	return lkgbTag
 }
 
 // trackedBranch answers the default branch of the repository that holds an
@@ -114,6 +114,14 @@ func trackedBranch(repo string) string {
 		return "master"
 	}
 	return branch
+}
+
+// refDetail names the reference, and says so when its shape is a moving branch.
+func refDetail(at orgRef) string {
+	if movingBranch.MatchString(at.ref) {
+		return at.repo + "@" + at.ref + ": " + at.ref + " is a branch, which moves to a red commit or stops resolving when it is renamed"
+	}
+	return at.repo + "@" + at.ref
 }
 
 // isMonorepo reports whether a repo path is the monorepo itself, not a path inside it.
@@ -159,7 +167,7 @@ func orgActionRefs(content string) []ste.Finding {
 			Line:   at.node.Line,
 			ID:     IDOrgActionRef,
 			Rule:   "an org action that names a ref other than `" + lkgbTag + "`",
-			Detail: at.repo + "@" + at.ref,
+			Detail: refDetail(at),
 			Fix:    "Use `@" + stableRef(at.repo) + "`, or `@<directory>#latest` for an action of " + orgOwner + "/" + monorepo + ". `slopfix fix` writes `" + lkgbTag + "`, or the default branch of a repository that publishes no `" + lkgbTag + "`, or the directory tag.",
 		})
 	}
@@ -182,7 +190,7 @@ func masterRef(at orgRef) string {
 	if tagged {
 		return name + "#latest"
 	}
-	if isMonorepo(at.repo) && at.ref != trackedBranch(at.repo) {
+	if isMonorepo(at.repo) && !movingBranch.MatchString(at.ref) && at.ref != trackedBranch(at.repo) {
 		return at.ref + "#latest"
 	}
 	return stableRef(at.repo)
