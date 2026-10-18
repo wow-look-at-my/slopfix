@@ -3,6 +3,7 @@ package workflow
 import (
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
@@ -72,7 +73,7 @@ func accessor(root, rest string) (string, bool) {
 			b.WriteString("." + seg)
 			continue
 		}
-		b.WriteString(`["` + seg + `"]`)
+		b.WriteString("[" + strconv.Quote(seg) + "]")
 	}
 	return b.String(), true
 }
