@@ -1,6 +1,7 @@
 package workflow_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
@@ -67,13 +69,13 @@ func orgAPI(t *testing.T) {
 		"actions":               "master",
 		"static-pkgsite-action": "v1",
 	}
-	lkgb := map[string]bool{"go-toolchain": true, "slopfix": true, "buildhost": true, "dats": true, "actions": true}
+	lkgb := set.Of[string]("go-toolchain", "slopfix", "buildhost", "dats", "actions")
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		repo, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/repos/wow-look-at-my/"), "/")
 		switch {
 		case rest == "" && defaults[repo] != "":
-			fmt.Fprintf(w, `{"default_branch":%q}`, defaults[repo])
-		case rest == "git/ref/tags/lkgb" && lkgb[repo]:
+			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"default_branch": defaults[repo]}))
+		case rest == "git/ref/tags/lkgb" && lkgb.Contains(repo):
 			fmt.Fprint(w, `{"ref":"refs/tags/lkgb"}`)
 		default:
 			http.NotFound(w, r)
