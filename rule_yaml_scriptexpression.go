@@ -50,7 +50,7 @@ func scriptActionWith(with, script string) string {
 }
 
 // scriptExpressionKept holds expressions the rule leaves. A github-script step
-// gets no context object, a with entry that names the context another way
+// gets no context object. A with entry that names the context another way
 // blocks it, and text around an expression is not one value.
 func scriptExpressionKept() RuleCase {
 	c := workflowCase("script-expression-kept", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"+
