@@ -56,6 +56,7 @@ func init() {
 	})
 	register("yaml/fix-run-script", IDRunScriptSyntax, 40, repairRunScripts, false)
 	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
+	register("yaml/read-contexts", IDScriptExpression, 55, readContexts, false)
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
 	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
 	register("yaml/set-concurrency", IDConcurrency, 70, setConcurrency, false)

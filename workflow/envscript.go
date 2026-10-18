@@ -185,13 +185,21 @@ func stringInputs(root *yaml.Node) set.Set[string] {
 // inputName matches an expression that is one input read by name.
 var inputName = regexp.MustCompile(`^inputs\.([A-Za-z_][A-Za-z0-9_-]*)$`)
 
-// literalOf answers the expression that writes an env value as a script string literal. toJSON quotes any text safely. An expression that can yield a number, a boolean or null is formatted
-// first, as the runner formats an env value.
-func literalOf(expr string, strs set.Set[string]) string {
-	if m := inputName.FindStringSubmatch(expr); m != nil && strs.Contains(m[1]) {
-		return "${{ toJSON(" + expr + ") }}"
+// readOf answers what the script reads in place of an env value, and the
+// context the step must pass for it. A TypeScript step reads the context object
+// that holds the value. Any other expression goes in through toJSON, which
+// quotes any text safely. An expression that can yield a number, a boolean or
+// null is formatted first, as the runner formats an env value.
+func readOf(expr string, strs set.Set[string], with *yaml.Node) (string, string) {
+	if with != nil {
+		if read, root, ok := objectRead(expr, strs); ok && passes(with, root) {
+			return read, root
+		}
 	}
-	return "${{ toJSON(format('{0}', " + expr + ")) }}"
+	if m := inputName.FindStringSubmatch(expr); m != nil && strs.Contains(m[1]) {
+		return "String(${{ toJSON(" + expr + ") }})", ""
+	}
+	return "String(${{ toJSON(format('{0}', " + expr + ")) }})", ""
 }
 
 // stepsText answers every scalar of every step but one, so a read of a name in
@@ -232,24 +240,30 @@ func scriptPlan(s stepRef, all []stepRef, root *yaml.Node, content string, fileL
 	}
 	others := stepTextOutsideScript(s.step, script) + stepsText(all, s.step)
 	strs := stringInputs(root)
+	var with *yaml.Node
+	if typescriptAction.MatchString(uses.Value) {
+		with = mappingValue(s.step, "with")
+	}
 	var swapped []lineSwap
 	drop := set.New[int]()
+	roots := set.New[string]()
 	kept := 0
 	for i := 0; i+1 < len(env.Content); i += 2 {
 		key, value := env.Content[i], env.Content[i+1]
-		literal, swaps, ok := judgeScriptEntry(key, value, script.Value, at, others, strs)
+		read, swaps, ok := judgeScriptEntry(key, value, script.Value, at, others, strs, with)
 		if !ok {
 			kept++
 			continue
 		}
+		roots.Add(read.root)
 		p.findings = append(p.findings, ste.Finding{
 			Line: key.Line, ID: IDEnvIndirection,
 			Rule:   "an env entry only carries an expression into the script",
 			Detail: key.Value + ": " + value.Value,
-			Fix:    "Write " + readText(literal) + " where the script reads process.env." + key.Value + ", and remove the entry.",
+			Fix:    "Write " + read.text + " where the script reads process.env." + key.Value + ", and remove the entry.",
 		})
 		for _, sw := range swaps {
-			sw.literal = literal
+			sw.literal = read.text
 			swapped = append(swapped, sw)
 		}
 		drop.Add(key.Line - 1)
@@ -267,11 +281,18 @@ func scriptPlan(s stepRef, all []stepRef, root *yaml.Node, content string, fileL
 	if envKey := mappingKey(s.step, "env"); kept == 0 && envKey != nil && envKey.Line != env.Content[0].Line {
 		drop.Add(envKey.Line - 1)
 	}
+	rows := map[int][]string{}
 	for k := range at.file {
 		if after := applySwaps(at.file[k], at.prefix[k], k, swapped); after != at.file[k] {
-			p.edits = append(p.edits, rewrite(content, at.lineNos[k], at.lineNos[k], []string{after}))
+			rows[at.lineNos[k]] = []string{after}
 		}
 	}
+	roots.Remove("")
+	if roots.Len() > 0 {
+		entries, row := withEntries(with, roots, fileLines)
+		addEntries(rows, row, entries, fileLines)
+	}
+	p.edits = append(p.edits, rowEdits(content, rows)...)
 	p.edits = append(p.edits, dropLines(content, drop)...)
 	return p
 }
@@ -289,7 +310,7 @@ func applySwaps(fileLine, prefix string, k int, swaps []lineSwap) string {
 			continue
 		}
 		for _, r := range sw.reads {
-			spans = append(spans, span{r.start, r.end, readText(sw.literal)})
+			spans = append(spans, span{r.start, r.end, sw.literal})
 		}
 	}
 	if len(spans) == 0 {
@@ -332,24 +353,24 @@ type lineSwap struct {
 // process.env.NAME, and where each read sits. It answers false for an entry
 // with a job to do. A value that is not one expression, a secret, a read the
 // literal cannot stand in for, or a mention anywhere else.
-func judgeScriptEntry(key, value *yaml.Node, script string, at placedLines, others string, strs set.Set[string]) (string, []lineSwap, bool) {
+func judgeScriptEntry(key, value *yaml.Node, script string, at placedLines, others string, strs set.Set[string], with *yaml.Node) (entryRead, []lineSwap, bool) {
 	name := key.Value
 	if value.Kind != yaml.ScalarNode || value.Line != key.Line || value.Style&(yaml.LiteralStyle|yaml.FoldedStyle) != 0 {
-		return "", nil, false
+		return entryRead{}, nil, false
 	}
 	match := wholeExpression.FindStringSubmatch(strings.TrimSpace(value.Value))
 	if match == nil || secret.MatchString(match[1]) || strings.Contains(match[1], "\n") {
-		return "", nil, false
+		return entryRead{}, nil, false
 	}
 	if mentions(others, name) > 0 || shellReads(others, name) > 0 {
-		return "", nil, false
+		return entryRead{}, nil, false
 	}
 	var swaps []lineSwap
 	total := 0
 	for k := range at.file {
 		reads, ok := exactReads(at.file[k][len(at.prefix[k]):], name)
 		if !ok {
-			return "", nil, false
+			return entryRead{}, nil, false
 		}
 		if len(reads) > 0 {
 			swaps = append(swaps, lineSwap{line: k, reads: reads})
@@ -357,9 +378,16 @@ func judgeScriptEntry(key, value *yaml.Node, script string, at placedLines, othe
 		}
 	}
 	if total == 0 || mentions(script, name) != total {
-		return "", nil, false
+		return entryRead{}, nil, false
 	}
-	return literalOf(match[1], strs), swaps, true
+	text, root := readOf(match[1], strs, with)
+	return entryRead{text: text, root: root}, swaps, true
+}
+
+// entryRead is what the script reads in place of an env entry, and the context
+// the step must pass for it, or "".
+type entryRead struct {
+	text, root string
 }
 
 // stepTextOutsideScript answers every scalar of the step except its script,
