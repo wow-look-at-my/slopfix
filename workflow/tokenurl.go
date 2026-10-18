@@ -130,7 +130,12 @@ func wordSource(w *syntax.Word, script string) string {
 
 // assignsVariable reports whether a line of the script sets the variable without export.
 func assignsVariable(script, name string) bool {
-	return regexp.MustCompile(`(?m)^[ \t]*` + regexp.QuoteMeta(name) + `=`).MatchString(script)
+	for _, row := range strings.Split(script, "\n") {
+		if strings.HasPrefix(strings.TrimLeft(row, " \t"), name+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 // credentialCommand answers the command that sets the helper. The single quotes keep $NAME for the shell git
