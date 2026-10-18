@@ -12,16 +12,13 @@ import (
 	yaml "go.yaml.in/yaml/v3"
 )
 
-// IDScriptExpression is a TypeScript step script that writes a context value
-// in as a ${{ }} expression, where the script can read the context object.
+// IDScriptExpression is a TypeScript step script that writes a context value in as a ${{ }} expression.
 const IDScriptExpression = "yaml/script-expression"
 
-// typescriptAction matches the org's TypeScript action, which hands the script
-// each context as an object.
+// typescriptAction matches the org's TypeScript action, which hands the script each context as an object.
 var typescriptAction = regexp.MustCompile(`(^|[/@])typescript([@#]|$)`)
 
-// passedContexts are the contexts the TypeScript action reads from a with entry
-// of the same name. Each holds what the runner writes as `toJSON(name)`.
+// passedContexts are the contexts the TypeScript action reads from a with entry of the same name.
 var passedContexts = set.Of("inputs", "steps", "needs", "matrix", "vars")
 
 // githubFields are the fields of the github object that the TypeScript action
@@ -156,7 +153,7 @@ func passEntry(root string) string {
 	return "${{ toJSON(" + root + ") }}"
 }
 
-// passes reports whether the script can read root as an object: the action
+// passes reports whether the script can read root as an object. The action
 // builds github itself, and with passes any other context or can take a line
 // that does. A with entry that names the context another way blocks it.
 func passes(with *yaml.Node, root string) bool {
