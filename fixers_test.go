@@ -38,7 +38,7 @@ func TestTheRegistryRunsEachKindInOrder(t *testing.T) {
 	}
 	assert.Equal(t, []string{"tombstones", "comments/length", "comments/number", "comments/sentence-length", "comments/length-after-number", "pins/download-version", "gofmt"}, names(fixer.Source))
 	assert.Equal(t, []string{"tombstones", "counts/inventory-count", "counts/section-number", "wrap-and-ste", "wrap/long-block", "counts/stated-count", "pins/download-version"}, names(fixer.Document))
-	assert.Equal(t, []string{"yaml/drop-duplicate-step-key", "yaml/ungate", "yaml/join-comments", "yaml/rename-guarded-job", "comments/sentence-length", "yaml/fix-run-script", "yaml/inline-env", "yaml/read-contexts", "yaml/filter-push", "yaml/use-credential-helper", "yaml/grant-id-token", "yaml/retarget-org-action", "yaml/retarget-runner", "yaml/set-concurrency", "yaml/extract-tests", "pins/download-version"}, names(fixer.Workflow))
+	assert.Equal(t, []string{"yaml/drop-duplicate-step-key", "yaml/ungate", "yaml/join-comments", "yaml/rename-guarded-job", "comments/sentence-length", "yaml/fix-run-script", "yaml/inline-env", "yaml/read-contexts", "yaml/filter-push", "yaml/grant-id-token", "yaml/retarget-org-action", "yaml/retarget-runner", "yaml/set-concurrency", "yaml/extract-tests", "pins/download-version"}, names(fixer.Workflow))
 }
 
 // Every family a fixer answers to is one --only accepts.

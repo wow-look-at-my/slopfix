@@ -102,17 +102,11 @@ func (s stepRef) variant() (syntax.LangVariant, bool) {
 	return 0, false
 }
 
-// parseShell parses a script as the runner hands it to the shell.
+// parseShell parses a script as the runner hands it to the shell. Each
+// expression becomes underscores of its own length, a word that parses as a
+// command, an argument, a variable name or a number operand.
 func parseShell(script string, variant syntax.LangVariant) error {
-	_, err := syntax.NewParser(syntax.Variant(variant)).Parse(strings.NewReader(maskExpressions(script)), "")
-	return err
-}
-
-// maskExpressions writes each ${{ }} expression as underscores of its own
-// length. The result parses as a command, an argument, a variable name or a
-// number operand, and every offset of the script stays.
-func maskExpressions(script string) string {
-	return expressionSpan.ReplaceAllStringFunc(script, func(expr string) string {
+	masked := expressionSpan.ReplaceAllStringFunc(script, func(expr string) string {
 		return strings.Map(func(r rune) rune {
 			if r == '\n' {
 				return r
@@ -120,6 +114,8 @@ func maskExpressions(script string) string {
 			return '_'
 		}, expr)
 	})
+	_, err := syntax.NewParser(syntax.Variant(variant)).Parse(strings.NewReader(masked), "")
+	return err
 }
 
 func (s shellScript) finding() ste.Finding {
