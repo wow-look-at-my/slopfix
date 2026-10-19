@@ -47,7 +47,7 @@ slopfix check .                       # report what the rules reject, exit 1 on 
 slopfix fix .                         # repair in place, then report what is left
 slopfix check --only ste docs/a.md    # narrow to a category
 slopfix fix --only english/semicolon a.md # narrow to a rule ID
-slopfix check --json --path a.md < a.md      # JSON findings for text on stdin
+slopfix check --json --path a.md - < a.md    # JSON findings for text on stdin
 slopfix check --message < message.txt        # judge a closing message
 slopfix fix --staged                         # repair only the lines staged against HEAD
 slopfix fix --diff origin/master .           # repair only the lines this branch adds
