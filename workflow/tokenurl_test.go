@@ -56,10 +56,9 @@ func TestTheBlockRepairKeepsTheIndentAndTheOtherLines(t *testing.T) {
 
 func TestTheHelperReadsTheVariableTheOldLineUsed(t *testing.T) {
 	for old, variable := range map[string]string{
-		`git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf https://github.com/`: "GH_TOKEN",
-		`git config --global url."https://$GH_TOKEN@github.com/".insteadOf https://github.com/`:                  "GH_TOKEN",
-		`git config --global "url.https://${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"`:              "GH_TOKEN",
-		`git config url.https://${GH_TOKEN}@github.com/.insteadOf https://github.com/`:                           "GH_TOKEN",
+		`git config --global url."https://$GH_TOKEN@github.com/".insteadOf https://github.com/`:     "GH_TOKEN",
+		`git config --global "url.https://${GH_TOKEN}@github.com/.insteadOf" "https://github.com/"`: "GH_TOKEN",
+		`git config url.https://${GH_TOKEN}@github.com/.insteadOf https://github.com/`:              "GH_TOKEN",
 	} {
 		fixed := repairedTokenURL(tokenURLJob(old + "\n"))
 		assert.Contains(t, fixed, "echo password=$"+variable+"; }; f'", old)
@@ -81,6 +80,15 @@ func TestAnInsteadOfWithNoTokenIsNotReported(t *testing.T) {
 		`git config --global url."git@github.com:".insteadOf https://github.com/`,
 		`git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"`,
 		`git config --global url."https://x-access-token@github.com/".insteadOf https://github.com/`,
+	} {
+		assert.Empty(t, tokenURLFindings(tokenURLJob(run+"\n")), run)
+	}
+}
+
+func TestAUserAndPasswordURLIsNotReported(t *testing.T) {
+	for _, run := range []string{
+		`git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf https://github.com/`,
+		`git config --global url."https://x-access-token:$GH_TOKEN@github.com/".insteadOf https://github.com/`,
 	} {
 		assert.Empty(t, tokenURLFindings(tokenURLJob(run+"\n")), run)
 	}

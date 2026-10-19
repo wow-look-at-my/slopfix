@@ -32,12 +32,6 @@ func init() {
 					"          go build ./...\n"),
 				Want: job(env + "        run: |\n          set -e\n          " + helper + "\n          go build ./...\n"),
 			},
-			{
-				Name: "yaml/token-in-git-url-access-token", Path: ".github/workflows/ci.yml",
-				Text: job(env + "        run: |\n" +
-					"          git config --global url.\"https://x-access-token:$PRIVATE_ORG_REPO_READ@github.com/\".insteadOf https://github.com/\n"),
-				Want: job(env + "        run: |\n          " + helper + "\n"),
-			},
 		},
 	})
 }

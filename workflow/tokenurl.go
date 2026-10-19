@@ -14,8 +14,8 @@ import (
 // IDTokenInGitURL is a git config line that puts a token in the user part of a github.com URL.
 const IDTokenInGitURL = "yaml/token-in-git-url"
 
-// tokenURLKey matches the key of an insteadOf rewrite whose base URL holds a shell variable before the @ of github.com.
-var tokenURLKey = regexp.MustCompile(`(?i)^["']?url\.["']?https?://(?:[A-Za-z0-9._~-]+:)?\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))@github\.com(?:/[^"'\s]*)?["']?\.insteadof["']?$`)
+// tokenURLKey matches the key of an insteadOf rewrite whose base URL holds a shell variable as the whole user part, with no password.
+var tokenURLKey = regexp.MustCompile(`(?i)^["']?url\.["']?https?://\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))@github\.com(?:/[^"'\s]*)?["']?\.insteadof["']?$`)
 
 // tokenURLOptions are the options a repair keeps. Any other option, such as --unset, makes the command no rewrite.
 var tokenURLOptions = set.Of("--global", "--system", "--local", "--worktree", "--add", "--replace-all")
@@ -40,7 +40,7 @@ func tokenInGitURLs(content string) []ste.Finding {
 		out = append(out, ste.Finding{
 			Line:   t.row + 1,
 			ID:     IDTokenInGitURL,
-			Rule:   "git does not use a token that is only the user name of a github.com URL. A private repository fails with `could not read Username` because git cannot prompt, and git prints `warning: redirecting`.",
+			Rule:   "A token that is the whole user part of a github.com URL, with no password, fails on a private repository. git sends the `git-upload-pack` POST with no `Authorization` header, GitHub answers 401, and git prints `could not read Username`.",
 			Detail: "$" + t.name,
 			Fix:    "Set a credential helper in place of the `insteadOf` rewrite. The helper reads the token from the environment when git asks, so the token never reaches the git config. `slopfix fix` writes it.",
 		})
