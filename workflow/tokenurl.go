@@ -38,7 +38,7 @@ func tokenInGitURLs(content string) []ste.Finding {
 		out = append(out, ste.Finding{
 			Line:   t.row + 1,
 			ID:     IDTokenInGitURL,
-			Rule:   "A token that is the whole user part of a github.com URL, with no password, fails on a private repository with git 2.55.0. git sends the `git-upload-pack` POST with no `Authorization` header, GitHub answers 401, and git prints `could not read Username`.",
+			Rule:   "A token that is the whole user part of a github.com URL, with no password, fails on a private repository. git sends the `git-upload-pack` POST with no `Authorization` header, GitHub answers 401, and git prints `could not read Username`.",
 			Detail: "$" + t.name,
 			Fix:    "Write `x-access-token:` before the token, so the URL has a user and a password. `slopfix fix` writes it.",
 		})
