@@ -57,7 +57,7 @@ var hooks = []Hook{
 	{
 		Name:    "common-checks",
 		Event:   "PreToolUse",
-		Runs:    "slopfix check --json --path <file>",
+		Runs:    "slopfix check --json --path <file> -",
 		Summary: "the default check set, which is what this gate means",
 	},
 	{

@@ -184,7 +184,7 @@ A referent line strips only when the comment is alone on its source line. A docu
 `--path` is required on stdin, because the path decides the comment syntax.
 
 ```sh
-slopfix fix --only tombstones --max-comment-lines 0 --path pkg/thing.go < pkg/thing.go
+slopfix fix --only tombstones --max-comment-lines 0 --path pkg/thing.go - < pkg/thing.go
 ```
 
 ## comments: what a comment gets wrong
