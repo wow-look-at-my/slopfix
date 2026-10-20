@@ -1,0 +1,9 @@
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: make

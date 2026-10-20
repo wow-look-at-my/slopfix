@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -39,10 +41,12 @@ func TestVendoredCodeIsLeftAlone(t *testing.T) {
 
 // A rule the caller did not select reports nothing, in a workflow as anywhere.
 func TestASelectionLeavesWorkflowRulesOut(t *testing.T) {
-	src := "name: CI\non:\n  push:\njobs:\n  test:\n    runs-on: ubuntu-latest\n" +
-		"    steps:\n      # one\n      # two\n      # three\n      - run: make\n"
+	src := testASelectionLeavesWorkflowRulesOutYml
 	repair := slopfix.Report(slopfix.Request{Path: ".github/workflows/ci.yml", Content: src, Rules: []slopfix.Rule{slopfix.RuleComments}})
 	for _, f := range repair.Findings {
 		assert.False(t, strings.HasPrefix(f.ID, "yaml/"), "an unselected rule reported: %s", f)
 	}
 }
+
+//go:embed testdata/test-a-selection-leaves-workflow-rules-out.yml
+var testASelectionLeavesWorkflowRulesOutYml string

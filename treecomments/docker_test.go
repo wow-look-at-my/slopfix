@@ -1,5 +1,7 @@
 package treecomments
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -9,7 +11,7 @@ import (
 
 // The docker build reads a parser directive, so a rule must never cut it.
 func TestADockerDirectiveIsNotAComment(t *testing.T) {
-	src := "# syntax=docker/dockerfile:1\n#check=skip=JSONArgsRecommended\n# ESCAPE = `\n\n# what this image holds\nFROM alpine\n"
+	src := testADockerDirectiveIsNotACommentMd
 
 	got := Extract("Dockerfile", src)
 	require.Len(t, got, 1)
@@ -18,7 +20,7 @@ func TestADockerDirectiveIsNotAComment(t *testing.T) {
 
 // A compose file carries the directive inside a dockerfile_inline block.
 func TestADockerDirectiveInComposeIsNotAComment(t *testing.T) {
-	src := "services:\n  app:\n    build:\n      dockerfile_inline: |\n        # syntax=docker/dockerfile:1\n        FROM alpine\n"
+	src := testADockerDirectiveInComposeIsNotACommentYml
 
 	assert.Empty(t, Extract("compose.yaml", src))
 }
@@ -29,3 +31,9 @@ func TestProseAboutADirectiveStaysAComment(t *testing.T) {
 
 	assert.Len(t, Extract("Dockerfile", src), 1)
 }
+
+//go:embed testdata/test-a-docker-directive-is-not-a-comment.md
+var testADockerDirectiveIsNotACommentMd string
+
+//go:embed testdata/test-a-docker-directive-in-compose-is-not-a-comment.yml
+var testADockerDirectiveInComposeIsNotACommentYml string

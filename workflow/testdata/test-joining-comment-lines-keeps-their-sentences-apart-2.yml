@@ -1,0 +1,6 @@
+jobs:
+  build:
+    steps:
+      # Stock Go cannot resolve the placeholder. Some are private, so
+      # the checksum database skips them.
+      - run: make

@@ -1,0 +1,3 @@
+on: {push: {branches: ['**']}}
+concurrency:
+  group: release

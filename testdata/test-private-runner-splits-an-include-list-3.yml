@@ -1,0 +1,9 @@
+  alias:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        include:
+          - &win {os: windows-2022}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: make

@@ -1,0 +1,5 @@
+name: ci
+on:
+  workflow_dispatch:
+  push:
+jobs: {}

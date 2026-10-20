@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -10,7 +12,7 @@ import (
 // as the user, which leaves the token as the password.
 func init() {
 	job := func(step string) string {
-		return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" + step
+		return workflowHeader() + embeddedYml54 + step
 	}
 	env := "      - env:\n          PRIVATE_ORG_REPO_READ: ${{ secrets.PRIVATE_ORG_REPO_READ }}\n"
 	rewrite := func(user string) string {
@@ -45,3 +47,6 @@ func detectTokenInGitURL(c RuleCase) []ste.Finding {
 func autofixTokenInGitURL(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDTokenInGitURL)
 }
+
+//go:embed testdata/embedded-9.yml
+var embeddedYml54 string

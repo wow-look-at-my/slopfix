@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -13,32 +15,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// guardedRunScripts carries shell guards from sglang's fork-ci.yml. Each
-// annotates and exits inside an if, so the test-in-workflow rule reads it.
-const guardedRunScripts = "name: CI\n" +
-	"on:\n" +
-	"  push:\n" +
-	"    branches: ['**']\n" +
-	"concurrency:\n" +
-	"  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n" +
-	"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n" +
-	"jobs:\n" +
-	"  kernel:\n" +
-	"    runs-on: ${{ github.event.repository.visibility == 'public' && 'ubuntu-latest' || vars.CI_RUNNER || 'ubuntu-latest' }}\n" +
-	"    steps:\n" +
-	"      - run: |\n" +
-	"          shopt -s nullglob\n" +
-	"          WHEELS=(dist/*.whl)\n" +
-	"          if [ ${#WHEELS[@]} -eq 0 ]; then\n" +
-	"            echo \"::error::no sglang-kernel wheel was built\"; exit 1\n" +
-	"          fi\n" +
-	"      - run: |\n" +
-	"          for TAG in a b; do\n" +
-	"            SOURCES=()\n" +
-	"            if [ ${#SOURCES[@]} -eq 0 ]; then\n" +
-	"              echo \"::error::no per-arch image was pushed for ${TAG}\"; exit 1\n" +
-	"            fi\n" +
-	"          done\n"
+//go:embed testdata/guarded-run-scripts.yml
+var guardedRunScripts string
 
 const guardedRunScriptsPath = ".github/workflows/fork-ci.yml"
 
@@ -58,19 +36,8 @@ func TestATestInARunScriptIsAWarning(t *testing.T) {
 
 // The scripts guardedRunScripts moves out, by their path from the checkout root.
 var guardedScripts = map[string]string{
-	".github/scripts/fork-ci-kernel-1.sh": "#!/usr/bin/env bash\nset -eo pipefail\n" +
-		"shopt -s nullglob\n" +
-		"WHEELS=(dist/*.whl)\n" +
-		"if [ ${#WHEELS[@]} -eq 0 ]; then\n" +
-		"  echo \"::error::no sglang-kernel wheel was built\"; exit 1\n" +
-		"fi\n",
-	".github/scripts/fork-ci-kernel-2.sh": "#!/usr/bin/env bash\nset -eo pipefail\n" +
-		"for TAG in a b; do\n" +
-		"  SOURCES=()\n" +
-		"  if [ ${#SOURCES[@]} -eq 0 ]; then\n" +
-		"    echo \"::error::no per-arch image was pushed for ${TAG}\"; exit 1\n" +
-		"  fi\n" +
-		"done\n",
+	".github/scripts/fork-ci-kernel-1.sh": embeddedSh,
+	".github/scripts/fork-ci-kernel-2.sh": embeddedSh2,
 }
 
 // guardedRunScriptsFixed is guardedRunScripts with each step running its file.
@@ -116,3 +83,9 @@ func TestFixingAWorkflowFileWritesItsRunScripts(t *testing.T) {
 		assert.Equal(t, want, string(got))
 	}
 }
+
+//go:embed testdata/embedded.sh
+var embeddedSh string
+
+//go:embed testdata/embedded-2.sh
+var embeddedSh2 string

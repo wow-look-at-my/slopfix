@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -24,7 +26,7 @@ func tokenURLFindings(content string) []ste.Finding {
 }
 
 func tokenURLJob(run string) string {
-	return "on: workflow_dispatch\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - env:\n          PRIVATE_ORG_REPO_READ: ${{ secrets.PRIVATE_ORG_REPO_READ }}\n        run: " + run
+	return tokenURLJobYml + run
 }
 
 func repairedTokenURL(content string) string {
@@ -124,7 +126,7 @@ func TestAVariableTheScriptAssignsIsRepaired(t *testing.T) {
 }
 
 func TestACompositeActionStepIsReported(t *testing.T) {
-	content := "name: x\nruns:\n  using: composite\n  steps:\n    - shell: bash\n      run: |\n        git config --global url.\"https://${GH_TOKEN}@github.com/\".insteadOf https://github.com/\n"
+	content := testACompositeActionStepIsReportedYml
 	found := tokenURLFindings(content)
 	require.Len(t, found, 1)
 	assert.Equal(t, 7, found[0].Line)
@@ -141,3 +143,9 @@ func TestTwoRewritesOnOneLineAreBothRepaired(t *testing.T) {
 	assert.Contains(t, fixed, "https://x-access-token:${A}@github.com/a/\".insteadOf https://github.com/a/; git config")
 	assert.Contains(t, fixed, "https://x-access-token:${B}@github.com/b/\".insteadOf https://github.com/b/\n")
 }
+
+//go:embed testdata/token-url-job.yml
+var tokenURLJobYml string
+
+//go:embed testdata/test-a-composite-action-step-is-reported.yml
+var testACompositeActionStepIsReportedYml string

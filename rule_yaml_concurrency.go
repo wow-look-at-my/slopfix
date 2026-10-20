@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -13,7 +15,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectConcurrency,
 		Autofix:  autofixConcurrency,
-		Cases:    []RuleCase{workflowCase("concurrency", "name: CI\n\non:\n  push:\n    branches: ['**']\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n")},
+		Cases:    []RuleCase{workflowCase("concurrency", embeddedYml)},
 	})
 }
 
@@ -26,3 +28,6 @@ func detectConcurrency(c RuleCase) []ste.Finding {
 func autofixConcurrency(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDConcurrency)
 }
+
+//go:embed testdata/embedded.yml
+var embeddedYml string

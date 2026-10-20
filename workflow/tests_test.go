@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -23,7 +25,7 @@ func testFindings(t *testing.T, content string) []string {
 }
 
 func TestAnAssertionInARunBlockIsReported(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          grep -q ready out.txt || { echo '::error::missing'; exit 1; }\n"
+	content := testAnAssertionInARunBlockIsReportedYml
 
 	findings := testFindings(t, content)
 	require.Len(t, findings, 1)
@@ -31,7 +33,7 @@ func TestAnAssertionInARunBlockIsReported(t *testing.T) {
 }
 
 func TestABracketComparisonIsReported(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          [ \"$count\" = 3 ] || exit 1\n"
+	content := testABracketComparisonIsReportedYml
 
 	assert.Len(t, testFindings(t, content), 1)
 }
@@ -39,20 +41,20 @@ func TestABracketComparisonIsReported(t *testing.T) {
 // A step that merely runs a command fails on its own exit code. That is not an
 // assertion, and reporting it makes every workflow unwritable.
 func TestAnOrdinaryCommandIsAllowed(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          npm ci\n          npm test\n          go-toolchain\n"
+	content := testAnOrdinaryCommandIsAllowedYml
 
 	assert.Empty(t, testFindings(t, content))
 }
 
 // An error annotation on its own is a report, not an expectation.
 func TestAnErrorAnnotationAloneIsAllowed(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          echo '::error::the cache was cold'\n"
+	content := testAnErrorAnnotationAloneIsAllowedYml
 
 	assert.Empty(t, testFindings(t, content))
 }
 
 func TestAWorkflowThatWritesATestFileIsReported(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          echo 'package main' > cache_test.go\n"
+	content := testAWorkflowThatWritesATestFileIsReportedYml
 
 	findings := testFindings(t, content)
 	require.Len(t, findings, 1)
@@ -60,13 +62,13 @@ func TestAWorkflowThatWritesATestFileIsReported(t *testing.T) {
 }
 
 func TestWritingAnOrdinaryFileIsAllowed(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          echo hello > out.txt\n"
+	content := testWritingAnOrdinaryFileIsAllowedYml
 
 	assert.Empty(t, testFindings(t, content))
 }
 
 func TestAnAssertionHelperIsReported(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          assert_equal() {\n            [ \"$1\" = \"$2\" ]\n          }\n"
+	content := testAnAssertionHelperIsReportedYml
 
 	findings := testFindings(t, content)
 	require.NotEmpty(t, findings)
@@ -75,20 +77,20 @@ func TestAnAssertionHelperIsReported(t *testing.T) {
 
 // A run: block ends at anything indented no further than its own key.
 func TestABlockEndsAtTheNextKey(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          npm ci\n        env:\n          GREP: grep -q x || exit 1\n"
+	content := testABlockEndsAtTheNextKeyYml
 
 	assert.Empty(t, testFindings(t, content))
 }
 
 func TestAOneLineRunIsRead(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: test -f out.txt || exit 1\n"
+	content := testAOneLineRunIsReadYml
 
 	assert.Len(t, testFindings(t, content), 1)
 }
 
 func TestALongLineIsTruncatedInTheEvidence(t *testing.T) {
 	long := "grep -q ready " + strings.Repeat("x", 200) + " || exit 1"
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    steps:\n      - run: |\n          " + long + "\n"
+	content := testALongLineIsTruncatedInTheEvidenceYml + long + "\n"
 
 	findings := testFindings(t, content)
 	require.Len(t, findings, 1)
@@ -98,12 +100,13 @@ func TestALongLineIsTruncatedInTheEvidence(t *testing.T) {
 
 // A step that runs PowerShell holds no shell test, so the rule does not read it.
 func TestAPowerShellStepIsNotRead(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  x:\n    runs-on: windows-latest\n    steps:\n      - run: test -f out.txt || exit 1\n      - shell: pwsh\n        run: test -f out.txt || exit 1\n"
+	content := testAPowerShellStepIsNotReadYml
 
 	assert.Empty(t, testFindings(t, content))
 }
 
-const extractHead = "on: {push: {branches: ['**']}}\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n"
+//go:embed testdata/extract-head.yml
+var extractHead string
 
 // extracted runs the repair on a workflow under .github/workflows of a fresh
 // directory. It answers the workflow and each file it created, by the path
@@ -124,12 +127,11 @@ func extracted(t *testing.T, content string) (string, map[string]string) {
 // The whole script moves into a file, every line of it, and the step runs the
 // file. A guard keeps its body, so bash never meets an if with an empty then.
 func TestTheRepairMovesTheWholeScript(t *testing.T) {
-	content := extractHead + "      - run: |\n          npm ci\n          if [ ! -f out.txt ]; then\n            echo \"::error::no out.txt\"; exit 1\n          fi\n      - run: npm test\n"
+	content := extractHead + testTheRepairMovesTheWholeScriptSh
 
 	text, files := extracted(t, content)
 	assert.Equal(t, extractHead+"      - run: bash .github/scripts/ci-x-1.sh\n      - run: npm test\n", text)
-	assert.Equal(t, map[string]string{".github/scripts/ci-x-1.sh": "#!/usr/bin/env bash\nset -eo pipefail\n" +
-		"npm ci\nif [ ! -f out.txt ]; then\n  echo \"::error::no out.txt\"; exit 1\nfi\n"}, files)
+	assert.Equal(t, map[string]string{".github/scripts/ci-x-1.sh": testTheRepairMovesTheWholeScriptSh2}, files)
 	assert.Empty(t, testFindings(t, text))
 }
 
@@ -143,10 +145,7 @@ func TestAnExpressionBecomesAnArgument(t *testing.T) {
 
 	text, files := extracted(t, content)
 	assert.Equal(t, extractHead+"      - run: bash .github/scripts/ci-x-1.sh \"${{ github.sha }}\" \"${{ runner.os }}\"\n", text)
-	assert.Equal(t, "#!/usr/bin/env bash\nset -eo pipefail\n"+
-		"grep -q \"$1\" out.txt || exit 1\n"+
-		"echo \"built $1 on $2\"\n"+
-		"echo ''\"$2\"''\n", files[".github/scripts/ci-x-1.sh"])
+	assert.Equal(t, testAnExpressionBecomesAnArgumentSh, files[".github/scripts/ci-x-1.sh"])
 	assert.Empty(t, testFindings(t, text))
 	for _, f := range workflow.Check(text) {
 		assert.NotEqual(t, workflow.IDEnvIndirection, f.ID, f.String())
@@ -161,10 +160,7 @@ func TestAnExpressionInAFunctionIsHeldInAVariable(t *testing.T) {
 		"          assert_sha out.txt\n"
 
 	_, files := extracted(t, content)
-	assert.Equal(t, "#!/usr/bin/env bash\nset -eo pipefail\n"+
-		"slopfix_arg_1=\"$1\"\nset --\n"+
-		"assert_sha() { grep -q \"${slopfix_arg_1}\" \"$1\" || exit 1; }\n"+
-		"assert_sha out.txt\n", files[".github/scripts/ci-x-1.sh"])
+	assert.Equal(t, testAnExpressionInAFunctionIsHeldInAVariableSh, files[".github/scripts/ci-x-1.sh"])
 }
 
 // A step that names sh runs the file with sh, under sh's own errexit.
@@ -173,11 +169,11 @@ func TestAShStepRunsTheFileWithSh(t *testing.T) {
 
 	text, files := extracted(t, content)
 	assert.Contains(t, text, "        run: sh .github/scripts/ci-x-1.sh\n")
-	assert.Equal(t, "#!/bin/sh\nset -e\ntest -f out.txt || exit 1\n", files[".github/scripts/ci-x-1.sh"])
+	assert.Equal(t, testAShStepRunsTheFileWithShSh, files[".github/scripts/ci-x-1.sh"])
 }
 
 func TestAShellTemplateRunsTheFile(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\ndefaults:\n  run:\n    shell: bash -x {0}\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: test -f out.txt || exit 1\n"
+	content := testAShellTemplateRunsTheFileYml
 
 	text, files := extracted(t, content)
 	assert.Contains(t, text, "      - run: bash -x .github/scripts/ci-x-1.sh\n")
@@ -223,3 +219,54 @@ func TestTheRepairLeavesACleanWorkflowAlone(t *testing.T) {
 	assert.Equal(t, content, text)
 	assert.Empty(t, files)
 }
+
+//go:embed testdata/test-an-assertion-in-a-run-block-is-reported.yml
+var testAnAssertionInARunBlockIsReportedYml string
+
+//go:embed testdata/test-a-bracket-comparison-is-reported.yml
+var testABracketComparisonIsReportedYml string
+
+//go:embed testdata/test-an-ordinary-command-is-allowed.yml
+var testAnOrdinaryCommandIsAllowedYml string
+
+//go:embed testdata/test-an-error-annotation-alone-is-allowed.yml
+var testAnErrorAnnotationAloneIsAllowedYml string
+
+//go:embed testdata/test-a-workflow-that-writes-a-test-file-is-reported.yml
+var testAWorkflowThatWritesATestFileIsReportedYml string
+
+//go:embed testdata/test-writing-an-ordinary-file-is-allowed.yml
+var testWritingAnOrdinaryFileIsAllowedYml string
+
+//go:embed testdata/test-an-assertion-helper-is-reported.yml
+var testAnAssertionHelperIsReportedYml string
+
+//go:embed testdata/test-a-block-ends-at-the-next-key.yml
+var testABlockEndsAtTheNextKeyYml string
+
+//go:embed testdata/test-a-one-line-run-is-read.yml
+var testAOneLineRunIsReadYml string
+
+//go:embed testdata/test-a-long-line-is-truncated-in-the-evidence.yml
+var testALongLineIsTruncatedInTheEvidenceYml string
+
+//go:embed testdata/test-a-power-shell-step-is-not-read.yml
+var testAPowerShellStepIsNotReadYml string
+
+//go:embed testdata/test-the-repair-moves-the-whole-script.sh
+var testTheRepairMovesTheWholeScriptSh string
+
+//go:embed testdata/test-the-repair-moves-the-whole-script-2.sh
+var testTheRepairMovesTheWholeScriptSh2 string
+
+//go:embed testdata/test-an-expression-becomes-an-argument.sh
+var testAnExpressionBecomesAnArgumentSh string
+
+//go:embed testdata/test-an-expression-in-a-function-is-held-in-a-variable.sh
+var testAnExpressionInAFunctionIsHeldInAVariableSh string
+
+//go:embed testdata/test-a-sh-step-runs-the-file-with-sh.sh
+var testAShStepRunsTheFileWithShSh string
+
+//go:embed testdata/test-a-shell-template-runs-the-file.yml
+var testAShellTemplateRunsTheFileYml string

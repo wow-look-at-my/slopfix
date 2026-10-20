@@ -1,0 +1,13 @@
+on:
+  push:
+    branches: ['**']
+jobs:
+  release:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          shopt -s nullglob
+          WHEELS=(dist/*.whl)
+          if [ ${#WHEELS[@]} -eq 0 ]; then
+          fi

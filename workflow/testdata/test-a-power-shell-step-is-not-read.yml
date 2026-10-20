@@ -1,0 +1,8 @@
+on: {push: {branches: ['**']}}
+jobs:
+  x:
+    runs-on: windows-latest
+    steps:
+      - run: test -f out.txt || exit 1
+      - shell: pwsh
+        run: test -f out.txt || exit 1

@@ -1,0 +1,6 @@
+  plain:
+    runs-on: ubuntu-latest
+
+    # the steps
+    steps:
+      - run: make

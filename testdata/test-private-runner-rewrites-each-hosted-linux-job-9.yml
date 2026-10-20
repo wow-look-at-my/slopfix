@@ -1,0 +1,4 @@
+  matrix:
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: make

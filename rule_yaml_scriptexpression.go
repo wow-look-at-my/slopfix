@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -10,8 +12,8 @@ import (
 // object, so the repair reads the object and passes the context under with.
 func init() {
 	steps := func(with, script string) string {
-		return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n        os: [linux]\n" +
-			"    steps:\n      - id: download\n        run: echo \"path=out\" >> \"$GITHUB_OUTPUT\"\n" +
+		return workflowHeader() + embeddedYml52 +
+			embeddedYml53 +
 			"      - uses: wow-look-at-my/actions@typescript#latest\n        with:\n" + with + "          script: |\n" + script
 	}
 	RegisterRule(RuleSpec{
@@ -53,7 +55,7 @@ func scriptActionWith(with, script string) string {
 // gets no context object. A with entry that names the context another way
 // blocks it, and text around an expression is not one value.
 func scriptExpressionKept() RuleCase {
-	c := workflowCase("script-expression-kept", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"+
+	c := workflowCase("script-expression-kept", workflowHeader()+scriptExpressionKeptYml+
 		"      - uses: actions/github-script@v7\n        with:\n          script: |\n            core.info(${{ toJSON(github.sha) }});\n"+
 		"      - uses: wow-look-at-my/actions@typescript#latest\n        with:\n          steps: '{}'\n          script: |\n"+
 		"            core.info(${{ toJSON(steps.a.outputs.b) }});\n            core.info(\"sha ${{ github.sha }}\");\n"+
@@ -71,3 +73,12 @@ func detectScriptExpression(c RuleCase) []ste.Finding {
 func autofixScriptExpression(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDScriptExpression)
 }
+
+//go:embed testdata/embedded-44.yml
+var embeddedYml52 string
+
+//go:embed testdata/embedded-45.yml
+var embeddedYml53 string
+
+//go:embed testdata/script-expression-kept.yml
+var scriptExpressionKeptYml string

@@ -1,0 +1,7 @@
+{
+    "name": "a",
+    "scripts": {
+        "build": "tsc",
+        "postinstall": "node bin/postinstall.js"
+    }
+}

@@ -35,6 +35,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner`, `yaml/id-token`, `yaml/script-expression`, `yaml/token-in-git-url` | yes |
 | `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`, and the step runs the file. No line is cut |
 | `pins` | `pins/download-version` | yes |
+| `go` | `go/foreign-source` | yes. The string moves into a file and a `//go:embed` var reads it |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | yes, with `fix --message`. Each sentence that carries the tell comes out |
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
@@ -225,6 +226,12 @@ It does not flag a comment above the package declaration, or a trailing comment 
 `pins/download-version` rejects a `dl.pazer.build` URL with a `v` query parameter. It reads every file `check` reads, code strings included, except a test file (`*_test.*`, `*.test.*`, `*.spec.*`, `test_*.py`, `__tests__/`). A test asserts the exact URL the code under test produces. A URL with no `v` serves the newest published build on the default branch. A pinned one breaks when that release is gone.
 
 `net/url` reads the query. The repair deletes `v` and writes the query back with `Encode`. `pins.Gate` admits only that rewrite, because the source gate lets an edit touch comments alone. `Encode` escapes `${OS}` and writes `&` for `&amp;`. A URL that holds either loses `v` as text instead, and keeps every other byte. A `${{ }}` expression is part of the URL, blanks included.
+
+## go: another language inside a Go string
+
+`go/foreign-source` reports a Go string that holds the source of another language. A shell script, SQL, YAML, JSON, HTML, Markdown and other files belong in a file of their own type. `goembed.Classify` reads the value of a literal, or of literals joined with `+`, of at least `minLines` lines. A string that parses as Go is not foreign.
+
+The repair writes the text to a file and declares `//go:embed` on a `string` var. A package-level var or const of one name keeps its name. A string inside a function becomes a var named for the function and the language, at the end of the file. A test file's string goes under `testdata/`. The file imports `embed` where it does not. A string in a const declaration of a function, a struct tag or an import stays, because no var can replace it.
 
 ## laziness: a turn that ends with the work undone
 

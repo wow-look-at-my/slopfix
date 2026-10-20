@@ -14,6 +14,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/goembed"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -112,7 +113,7 @@ func kindFindings(path, content string) []ste.Finding {
 		return append(Check(content), Warnings(content)...)
 	}
 	// A source file's lines are not paragraphs, so the prose rules stop here.
-	return commentFindings(path, content)
+	return append(commentFindings(path, content), goembed.CheckPath(path, content)...)
 }
 
 // commentFindings are the source rules: what the comments in a source file
@@ -191,7 +192,7 @@ func isDocument(path string) bool {
 // AllIDs names every rule CheckContent reports, so a caller can reject a typo
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
-	ids := workflow.AllIDs.Union(ste.AllIDs).Union(pins.AllIDs)
+	ids := workflow.AllIDs.Union(ste.AllIDs).Union(pins.AllIDs).Union(goembed.AllIDs)
 	ids.AddRange(IDHardWrap, IDLongBlock, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
 	ids.AddRange(english.AllIDs...)
 	return ids
