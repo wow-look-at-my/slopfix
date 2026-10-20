@@ -44,7 +44,8 @@ var (
 	pyImport    = regexp.MustCompile(`^(import\s+\w+|from\s+[\w.]+\s+import\s)`)
 	jsLine      = regexp.MustCompile(`^\s*(function\s+\w*\s*\(|(const|let|var)\s+\w+\s*=|export\s+(default|function|const|class)\b|import\s.*\sfrom\s+['"]|import\s+['"])`)
 	cFunc       = regexp.MustCompile(`^\s*[\w:<>*&]+(\s+[\w:<>*&]+)*\s+[*&]?[\w:~]+\s*\([^;{}]*\)\s*(const\s*)?\{\s*$`)
-	cssOpen     = regexp.MustCompile(`^\s*[^{}:;()]+\{\s*$`)
+	rustFn      = regexp.MustCompile(`^\s*(pub(\([\w:]+\))?\s+)?(async\s+)?fn\s+\w+`)
+	cssOpen  = regexp.MustCompile(`^\s*[^{}:;()]+\{\s*$`)
 	cssDecl     = regexp.MustCompile(`^\s*[\w-]+\s*:\s*[^;{}]+;\s*$`)
 	tomlTable   = regexp.MustCompile(`^\[\[?[\w.\-"]+\]\]?\s*$`)
 	tomlPair    = regexp.MustCompile(`^[\w.\-"]+\s*=\s*\S`)
@@ -106,6 +107,8 @@ func Classify(value string) (Lang, bool) {
 		return Lang{"Python", ".py"}, true
 	case counts(jsLine) >= 2:
 		return Lang{"JavaScript", ".js"}, true
+	case counts(rustFn) > 0:
+		return Lang{"Rust", ".rs"}, true
 	case counts(cFunc) > 0:
 		return Lang{"C++", ".cpp"}, true
 	case counts(cssOpen) > 0 && counts(cssDecl) >= 2:
@@ -135,11 +138,19 @@ func nonBlank(text string) []string {
 
 // isGo reports whether text parses as a Go file.
 func isGo(text string) bool {
-	if !strings.Contains(text, "package ") {
-		return false
+	parses := func(src string) bool {
+		_, err := parser.ParseFile(token.NewFileSet(), "", src, parser.SkipObjectResolution)
+		return err == nil
 	}
-	_, err := parser.ParseFile(token.NewFileSet(), "", text, parser.PackageClauseOnly)
-	return err == nil
+	if strings.HasPrefix(text, "package ") || strings.HasPrefix(text, "//go:build") {
+		_, err := parser.ParseFile(token.NewFileSet(), "", text, parser.PackageClauseOnly)
+		return err == nil
+	}
+	if parses("package p\n" + text) {
+		return true
+	}
+	// A run of statements reads as Go only beside a token no other language here writes.
+	return (strings.Contains(text, ":=") || strings.Contains(text, "func ")) && parses("package p\nfunc _() {\n"+text+"\n}")
 }
 
 // shebang answers the language the program on a shebang line runs.
