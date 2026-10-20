@@ -43,12 +43,14 @@ var (
 	pyDef       = regexp.MustCompile(`^\s*(def|class)\s+\w+.*:\s*$`)
 	pyImport    = regexp.MustCompile(`^(import\s+\w+|from\s+[\w.]+\s+import\s)`)
 	jsLine      = regexp.MustCompile(`^\s*(function\s+\w*\s*\(|(const|let|var)\s+\w+\s*=|export\s+(default|function|const|class)\b|import\s.*\sfrom\s+['"]|import\s+['"])`)
-	cssOpen     = regexp.MustCompile(`^\s*[^{}:;]+\{\s*$`)
+	cFunc       = regexp.MustCompile(`^\s*[\w:<>*&]+(\s+[\w:<>*&]+)*\s+[*&]?[\w:~]+\s*\([^;{}]*\)\s*(const\s*)?\{\s*$`)
+	cssOpen     = regexp.MustCompile(`^\s*[^{}:;()]+\{\s*$`)
 	cssDecl     = regexp.MustCompile(`^\s*[\w-]+\s*:\s*[^;{}]+;\s*$`)
 	tomlTable   = regexp.MustCompile(`^\[\[?[\w.\-"]+\]\]?\s*$`)
 	tomlPair    = regexp.MustCompile(`^[\w.\-"]+\s*=\s*\S`)
 	yamlHead    = regexp.MustCompile(`^(-\s+)?[\w.\-/"']+\s*:(\s|$)`)
-	mdHeading   = regexp.MustCompile(`(?m)^#{1,6}\s+\S`)
+	// A heading stands alone before a blank line, which a run of comment lines does not.
+	mdHeading = regexp.MustCompile(`(?m)^#{1,6}[ \t]+\S.*\n[ \t]*\n`)
 	mdFence     = regexp.MustCompile("(?m)^\\s*(```|~~~)")
 	htmlTag     = regexp.MustCompile(`(?i)^<(!doctype\s+html|html|head|body|div|span|p|a|ul|ol|li|table|tr|td|script|style|template|section|main|form|nav|header|footer|h[1-6]|svg)[\s>/]`)
 	shellWord   = regexp.MustCompile(`^\s*(echo|printf|cd|export|set|exit|exec|source|\.|mkdir|rm|cp|mv|cat|chmod|curl|wget|git|go|make|apt-get|apt|sudo|test|\[|\[\[|trap|shift|read|local|readonly|unset|tar|grep|sed|awk|ln|touch|docker|npm|pnpm)(\s|$)`)
@@ -104,6 +106,8 @@ func Classify(value string) (Lang, bool) {
 		return Lang{"Python", ".py"}, true
 	case counts(jsLine) >= 2:
 		return Lang{"JavaScript", ".js"}, true
+	case counts(cFunc) > 0:
+		return Lang{"C++", ".cpp"}, true
 	case counts(cssOpen) > 0 && counts(cssDecl) >= 2:
 		return Lang{"CSS", ".css"}, true
 	case counts(tomlTable) > 0 && counts(tomlPair) >= 2:

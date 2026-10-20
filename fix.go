@@ -269,6 +269,11 @@ func fixText(req Request) Repair {
 	repair.refuse(rep.Refused)
 	// A new file answers to every rule, whatever the run selected, so it lands clean.
 	for _, c := range rep.Created {
+		// No walk reads testdata, so a fixture there keeps its bytes.
+		if tombstones.InTestdata(c.Path) {
+			repair.Created = append(repair.Created, c)
+			continue
+		}
 		settled := fixAll(Request{Content: c.Text, Path: c.Path, MaxCommentLines: req.MaxCommentLines, OneFile: true})
 		repair.Created = append(repair.Created, fixer.Created{Path: c.Path, Text: settled.Text})
 	}

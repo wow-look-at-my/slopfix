@@ -13,6 +13,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/goembed"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -224,6 +225,12 @@ func roundTripFixtures() []fixture {
 			path:    "fetch.sh",
 			content: pinnedFetch(),
 			wants:   []string{pins.ID},
+		},
+		{
+			name:    "go",
+			path:    "tool.go",
+			content: "package tool\n\nconst setup = `#!/bin/sh\nset -e\nif [ -z \"$HOME\" ]; then exit 1; fi\necho ok\n`\n",
+			wants:   []string{goembed.ID},
 		},
 	}
 }
