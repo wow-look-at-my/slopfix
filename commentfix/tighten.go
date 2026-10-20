@@ -7,18 +7,39 @@
 package commentfix
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/memo"
 )
 
-// tighten rewrites a comment run: it drops filler, applies the shorter phrasing,
+// tighten answers tightenUncached once for each comment run.
+func tighten(text []string) ([]string, int, bool) {
+	t := tightened.Get(strings.Join(text, "\n"), func() tightening {
+		out, n, ok := tightenUncached(text)
+		return tightening{out, n, ok}
+	})
+	return slices.Clone(t.out), t.n, t.ok
+}
+
+// tightening is one answer of tighten.
+type tightening struct {
+	out []string
+	n   int
+	ok  bool
+}
+
+// tightened keeps tighten's answer, which every repair pass asks again.
+var tightened = memo.New[string, tightening](4096)
+
+// tightenUncached rewrites a comment run: it drops filler, applies the shorter phrasing,
 // and reflows the prose to the block's own marker and width.
 //
 // It returns false when nothing changed, so the caller knows tightening bought
 // nothing and it is time to cut.
-func tighten(text []string) ([]string, int, bool) {
+func tightenUncached(text []string) ([]string, int, bool) {
 	if out, n, ok := starBlock(text); ok {
 		return out, n, true
 	}

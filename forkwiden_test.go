@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -11,11 +13,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
-// upstreamReadme holds a paragraph of one line, as the base has it.
-const upstreamReadme = "# Tool\n\nThe tool reads the file.\n\nIt writes the result.\n"
+//go:embed testdata/upstream-readme.md
+var upstreamReadme string
 
-// forkReadme adds lines to that paragraph. The paragraph is now hard-wrapped, and its first line is still the base's.
-const forkReadme = "# Tool\n\nThe tool reads the file.\nIt then checks the file\nand reports each error.\n\nIt writes the result.\n"
+//go:embed testdata/fork-readme.md
+var forkReadme string
 
 // A run that leaves the volume rule out never cuts a comment block to the cap.
 func TestTheVolumeCutNeedsTheVolumeRule(t *testing.T) {
@@ -27,11 +29,11 @@ func TestTheVolumeCutNeedsTheVolumeRule(t *testing.T) {
 	assert.NotEqual(t, src, slopfix.Fix(req).Text, "the volume rule alone still cuts the block")
 }
 
-// upstreamList holds list items that are both hard-wrapped.
-const upstreamList = "# Rules\n\n- The first item reads the file\n  and its rules.\n- The second item writes the file\n  and its result.\n"
+//go:embed testdata/upstream-list.md
+var upstreamList string
 
-// forkList edits the first line of the first item.
-const forkList = "# Rules\n\n- The first item reads the config\n  and its rules.\n- The second item writes the file\n  and its result.\n"
+//go:embed testdata/fork-list.md
+var forkList string
 
 // The fork's item is joined. The item under it is the base's, and stays as
 // the base wrapped it, although one diff hunk holds both joins.

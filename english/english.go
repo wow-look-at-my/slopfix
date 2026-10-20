@@ -16,6 +16,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/xmlcheck"
@@ -122,6 +123,8 @@ type Pattern struct {
 	Sensitive bool
 
 	re *regexp.Regexp
+	// needs holds literals, folded, of which every match holds one. Nil means none are known.
+	needs []string
 }
 
 type Case struct {
@@ -152,18 +155,30 @@ func (p Pattern) Apply(s string) string {
 }
 
 // ApplyN is Apply, and the count of what it changed.
+func (p Pattern) ApplyN(s string) (string, int) {
+	return p.applyN(s, precompiled.Fold(s))
+}
+
+// applyN is ApplyN for a caller that holds precompiled.Fold(s).
 //
 // A pattern naming a subject position rewrites only the matches whose clause
 // states the sentence's own assertion. The rest are left whole: the words fit
 // the shape, and the sentence around them says they report the data rather than
 // the tree.
-func (p Pattern) ApplyN(s string) (string, int) {
+func (p Pattern) applyN(s, folded string) (string, int) {
+	if !precompiled.HoldsAny(folded, p.needs) {
+		return s, 0
+	}
+	locs := p.re.FindAllStringIndex(s, -1)
+	if len(locs) == 0 {
+		return s, 0
+	}
 	var out strings.Builder
 	last, took := 0, 0
 	labels := linkLabel.FindAllStringIndex(s, -1)
 	quotes := quotation.FindAllStringIndex(s, -1)
 	spans := codeSpan.FindAllStringIndex(s, -1)
-	for _, loc := range p.re.FindAllStringIndex(s, -1) {
+	for _, loc := range locs {
 		if p.Subject != "" && !asserts(p.Subject, s, loc[0]) {
 			continue
 		}
@@ -470,11 +485,12 @@ func mustLoad() Table {
 			panic(fmt.Sprintf("english: <pattern match=%q> names the subject position %q, which is not one of %v",
 				p.Match, p.Subject, SubjectPositions()))
 		}
-		re, err := xmlcheck.Compile(p.Match, p.Sensitive)
+		re, err := precompiled.Compile(xmlcheck.Pattern(p.Match, p.Sensitive))
 		if err != nil {
 			panic(fmt.Sprintf("english: <pattern match=%q> does not compile: %v", p.Match, err))
 		}
 		p.re = re
+		p.needs = precompiled.Needs(re)
 	}
 	return e
 }

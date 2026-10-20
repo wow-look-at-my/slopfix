@@ -1,0 +1,7 @@
+on: {push: {branches: ['**']}}
+jobs:
+  all-builds:
+    runs-on: ubuntu-latest
+  ship:
+    needs: [all-builds]
+    runs-on: ubuntu-latest

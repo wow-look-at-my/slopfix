@@ -78,6 +78,10 @@ func listDivision(source, masked string, limit int) (string, bool) {
 	if !verbless(syntax.Parse(masked, nil)) {
 		return source, false
 	}
+	// The tagger reads the bare verb of an instruction as a noun, so an instruction looks verbless.
+	if opensImperative(lowerFirst(masked)) {
+		return source, false
+	}
 	best := forceCut{words: -1}
 	for _, c := range candidates(source, masked, false, limit) {
 		if seamBefore(source, c.left) != "," || cutsAside(masked, c.left, c.right) || c.words < minimumHalf {

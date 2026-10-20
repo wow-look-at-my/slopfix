@@ -91,8 +91,10 @@ var parser = goldmark.New(goldmark.WithExtensions(extension.Table)).Parser()
 // paragraphs maps the line each paragraph opens on to the line it ends on. A
 // paragraph in a block quote quotes somebody, and stays as they wrote it.
 func paragraphs(content string, lines []string) map[int]int {
-	src := blankTemplateTags([]byte(blankFrontMatter(content, lines)), lines)
 	starts := lineStarts(lines)
+	// The tag lines are blanked below, which ends the HTML block they open. The block is read first, so its lines stay markup.
+	html := htmlBlockLines([]byte(blankFrontMatter(content, lines)), lines, starts)
+	src := blankTemplateTags([]byte(blankFrontMatter(content, lines)), lines)
 	ends := map[int]int{}
 	_ = ast.Walk(parser.Parse(text.NewReader(src)), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -111,12 +113,12 @@ func paragraphs(content string, lines []string) map[int]int {
 				}
 				// A template directive line is not prose, so it divides the paragraph and stays as written.
 				for from := first; from <= last; {
-					if isDirective(lines[from]) {
+					if isDirective(lines[from]) || html[from] {
 						from++
 						continue
 					}
 					to := from
-					for to < last && !isDirective(lines[to+1]) {
+					for to < last && !isDirective(lines[to+1]) && !html[to+1] {
 						to++
 					}
 					if hasLetter(lines[from : to+1]) {
@@ -130,6 +132,26 @@ func paragraphs(content string, lines []string) map[int]int {
 		return ast.WalkContinue, nil
 	})
 	return ends
+}
+
+// htmlBlockLines answers each line of an HTML block that is itself markup. The words between a wrapper tag
+// pair stay prose, as the agent instructions inside a custom tag are.
+func htmlBlockLines(src []byte, lines []string, starts []int) map[int]bool {
+	out := map[int]bool{}
+	_ = ast.Walk(parser.Parse(text.NewReader(src)), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		block, ok := n.(*ast.HTMLBlock)
+		if !ok || !entering {
+			return ast.WalkContinue, nil
+		}
+		segments := block.Lines()
+		for i := 0; i < segments.Len(); i++ {
+			if at := lineOf(starts, segments.At(i).Start); strings.HasPrefix(strings.TrimSpace(lines[at]), "<") {
+				out[at] = true
+			}
+		}
+		return ast.WalkSkipChildren, nil
+	})
+	return out
 }
 
 // trailerLine matches a git trailer, a token of letters, digits and hyphens and then its value.

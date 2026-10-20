@@ -16,7 +16,7 @@ runs:
     - name: Download slopfix
       id: download
       if: steps.claim.outputs.first != 'false'
-      uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master
+      uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@lkgb
       with:
         project: slopfix
 

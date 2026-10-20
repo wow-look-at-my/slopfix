@@ -1,0 +1,5 @@
+  gated:
+    if: github.event.repository.visibility == 'public'
+    runs-on: macos-14
+    steps:
+      - run: make

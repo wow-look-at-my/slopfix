@@ -1,5 +1,7 @@
 package treecomments
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -107,7 +109,7 @@ func TestAScopeHoldsEveryEditInside(t *testing.T) {
 
 // The shell grammar reads a hash comment: a newline out of it is code.
 func TestAShellCommentCannotEscape(t *testing.T) {
-	src := "#!/bin/sh\n# say hello\necho hi\n"
+	src := testAShellCommentCannotEscapeSh
 	e := commentEdit(t, "s.sh", src, "say hello", "# say hello\nrm -rf /")
 	res := Apply("s.sh", src, []edit.Edit{e}, edit.Scope{})
 	require.Len(t, res.Refused, 1)
@@ -121,3 +123,6 @@ func TestTheInterpreterLineIsNotAComment(t *testing.T) {
 	require.Len(t, res.Refused, 1)
 	assert.Equal(t, src, res.Text)
 }
+
+//go:embed testdata/test-a-shell-comment-cannot-escape.sh
+var testAShellCommentCannotEscapeSh string

@@ -1,0 +1,9 @@
+  mixed:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-24.04
+    runs-on: ${{matrix.os}}
+    steps:
+      - run: docker build .

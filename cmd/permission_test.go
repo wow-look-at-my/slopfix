@@ -1,5 +1,7 @@
 package cmd
 
+import _ "embed"
+
 import (
 	"bytes"
 	"encoding/json"
@@ -19,7 +21,7 @@ func askPermission(t *testing.T, req permissionRequest) (permissionAnswer, strin
 	root := t.TempDir()
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	body := "permissions:\n  id-token: write\njobs:\n  build:\n    steps: []\n  tight:\n    permissions:\n      contents: read\n    steps: []\n"
+	body := askPermissionYml
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte(body), 0o644))
 	env := map[string]string{
 		"GITHUB_WORKFLOW_REF": "owner/repo/.github/workflows/ci.yml@refs/heads/main",
@@ -72,3 +74,6 @@ func TestABadLevelIsAnError(t *testing.T) {
 	_, _, err := askPermission(t, permissionRequest{permission: "id-token", level: "admin"})
 	assert.ErrorContains(t, err, "not none, read or write")
 }
+
+//go:embed testdata/ask-permission.yml
+var askPermissionYml string

@@ -1,0 +1,5 @@
+runs:
+  using: composite
+  steps:
+    - uses: wow-look-at-my/actions@secret-server/pi-signoff#1
+    - uses: wow-look-at-my/actions@secret-server/master#latest

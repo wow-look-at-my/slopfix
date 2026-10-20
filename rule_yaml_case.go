@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 // The workflow fixtures the yaml rules are driven on. Each rule file names
 // the one it needs.
 
@@ -8,14 +10,18 @@ func workflowCase(name, body string) RuleCase {
 }
 
 func workflowHeader() string {
-	return "name: CI\n\non:\n  push:\n    branches: ['**']\n\n" + workflowConcurrency
+	return workflowHeaderYml + workflowConcurrency
 }
 
-// workflowConcurrency is the concurrency block every workflow in these repositories carries.
-const workflowConcurrency = "concurrency:\n" +
-	"  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n" +
-	"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n\n"
+//go:embed testdata/workflow-concurrency.yml
+var workflowConcurrency string
 
 func workflowTail() string {
-	return "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n"
+	return workflowTailYml
 }
+
+//go:embed testdata/workflow-header.yml
+var workflowHeaderYml string
+
+//go:embed testdata/workflow-tail.yml
+var workflowTailYml string

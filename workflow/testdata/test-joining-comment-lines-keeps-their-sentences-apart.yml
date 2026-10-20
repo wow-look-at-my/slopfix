@@ -1,0 +1,6 @@
+jobs:
+  build:
+    steps:
+      # No fetch-cacerts step: the CA bundle is a generate directive
+      # The org module proxy is gone, so modules come direct with sumdb off.
+      - run: make

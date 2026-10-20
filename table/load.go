@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/memo"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/xmlcheck"
 )
 
@@ -134,16 +136,19 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 		if err != nil {
 			return nil, err
 		}
-		var head struct {
-			For string `xml:"for,attr"`
+		parsed := decoded.Get(string(raw), func() decoding {
+			var doc document
+			err := xml.Unmarshal(Readable(raw), &doc)
+			return decoding{doc, err}
+		})
+		if parsed.err != nil {
+			return nil, fmt.Errorf("%s does not parse: %w", path, parsed.err)
 		}
-		if err := xml.Unmarshal(Readable(raw), &head); err != nil {
-			return nil, fmt.Errorf("%s does not parse: %w", path, err)
-		}
-		if head.For == "" {
+		doc := parsed.doc
+		if doc.For == "" {
 			return nil, fmt.Errorf("%s: the root element needs a for= naming its consumer", path)
 		}
-		if head.For != target {
+		if doc.For != target {
 			continue
 		}
 		docs = append(docs, loaded{path: path, raw: raw})
@@ -192,6 +197,14 @@ func (t *Table) checkRephrasings() error {
 	return nil
 }
 
+// decoded keeps each file's document, because every consumer reads every file.
+var decoded = memo.New[string, decoding](64)
+
+type decoding struct {
+	doc document
+	err error
+}
+
 // MustLoad is Load for a package-level table. A rules folder that does not load
 // is a broken binary rather than a condition a caller can answer.
 func MustLoad(fsys fs.FS, target string) *Table {
@@ -231,12 +244,12 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 			return err
 		}
 		sens := sensitive(doc.Case, p.Case)
-		re, err := xmlcheck.Compile(p.Match, sens)
+		re, err := precompiled.Compile(xmlcheck.Pattern(p.Match, sens))
 		if err != nil {
 			return fmt.Errorf("%s: <pattern id=%q>: %w", path, p.ID, err)
 		}
 		t.Patterns = append(t.Patterns, Pattern{
-			ID: p.ID, Match: p.Match, To: p.To, Where: p.Where, Tests: tests(p.Tests), Sensitive: sens, re: re,
+			ID: p.ID, Match: p.Match, To: p.To, Where: p.Where, Tests: tests(p.Tests), Sensitive: sens, re: re, needs: precompiled.Needs(re),
 		})
 	}
 	for _, f := range doc.Flags {

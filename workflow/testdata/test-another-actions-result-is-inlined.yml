@@ -1,0 +1,9 @@
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - id: x
+        uses: some/action@v1
+      - env:
+          VALUE: ${{ steps.x.outputs.result }}
+        run: echo "$VALUE"

@@ -11,10 +11,7 @@ import (
 // Compile reads a pattern from a table. It matches without regard to case
 // unless the entry is sensitive, so the XML needs no (?i) of its own.
 func Compile(match string, sensitive bool) (*regexp.Regexp, error) {
-	if !sensitive {
-		match = "(?i)" + match
-	}
-	return regexp.Compile(match)
+	return regexp.Compile(Pattern(match, sensitive))
 }
 
 // HasPhrase reports whether text holds phrase, and ignores case unless the

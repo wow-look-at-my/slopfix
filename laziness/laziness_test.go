@@ -1,5 +1,7 @@
 package laziness_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -34,7 +36,7 @@ func TestAPardonInAnotherSentenceDoesNotExcuseThePunt(t *testing.T) {
 // Quoting the policy must not trip it. Fenced code, indented code and a
 // blockquote are what a message quotes rather than asserts.
 func TestQuotedTextIsExempt(t *testing.T) {
-	assert.Empty(t, laziness.Check("The rule catches this:\n\n```\nWant me to fix it?\n```\n"))
+	assert.Empty(t, laziness.Check(testQuotedTextIsExemptMd))
 	assert.Empty(t, laziness.Check("> Want me to fix it?"))
 	assert.Empty(t, laziness.Check("The shape is:\n\n    Want me to fix it?\n"))
 }
@@ -68,3 +70,6 @@ func TestASentenceIsReportedForASingleTell(t *testing.T) {
 func TestAnEmptyMessageIsClean(t *testing.T) {
 	assert.Empty(t, laziness.Check(""))
 }
+
+//go:embed testdata/test-quoted-text-is-exempt.md
+var testQuotedTextIsExemptMd string
