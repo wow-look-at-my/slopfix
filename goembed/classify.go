@@ -45,7 +45,7 @@ var (
 	jsLine      = regexp.MustCompile(`^\s*(function\s+\w*\s*\(|(const|let|var)\s+\w+\s*=|export\s+(default|function|const|class)\b|import\s.*\sfrom\s+['"]|import\s+['"])`)
 	cFunc       = regexp.MustCompile(`^\s*[\w:<>*&]+(\s+[\w:<>*&]+)*\s+[*&]?[\w:~]+\s*\([^;{}]*\)\s*(const\s*)?\{\s*$`)
 	rustFn      = regexp.MustCompile(`^\s*(pub(\([\w:]+\))?\s+)?(async\s+)?fn\s+\w+`)
-	cssOpen  = regexp.MustCompile(`^\s*[^{}:;()]+\{\s*$`)
+	cssOpen     = regexp.MustCompile(`^\s*[^{}:;()]+\{\s*$`)
 	cssDecl     = regexp.MustCompile(`^\s*[\w-]+\s*:\s*[^;{}]+;\s*$`)
 	tomlTable   = regexp.MustCompile(`^\[\[?[\w.\-"]+\]\]?\s*$`)
 	tomlPair    = regexp.MustCompile(`^[\w.\-"]+\s*=\s*\S`)
