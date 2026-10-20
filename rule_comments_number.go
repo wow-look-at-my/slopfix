@@ -46,9 +46,6 @@ func init() {
 	})
 }
 
-// cutParagraphCase opens with a paragraph of a single sentence the number cut
-// takes whole. The break under it then separates nothing, so it goes too.
-//
 //go:embed testdata/cut-paragraph-case.cpp
 var cutParagraphCase string
 
@@ -75,29 +72,18 @@ const chunkZeroWant = `struct FroxelPath {
 };
 `
 
-// valuesCase holds a count beside the value of a flag, a set literal and an
-// assignment. The repair says the count in words and cuts each sentence that
-// holds a value.
-//
 //go:embed testdata/values-case.cpp
 var valuesCase string
 
 //go:embed testdata/values-want.cpp
 var valuesWant string
 
-// frameZeroCase names frame zero at the start of a sentence and before a
-// possessive ending.
-//
 //go:embed testdata/frame-zero-case.cpp
 var frameZeroCase string
 
 //go:embed testdata/frame-zero-want.cpp
 var frameZeroWant string
 
-// ruledNumbersCase opens every comment line with a rule of dashes. The cut
-// takes the sentences that state numbers, and the rewrap puts the rule back
-// at the start of each line, never between words.
-//
 //go:embed testdata/ruled-numbers-case.cpp
 var ruledNumbersCase string
 

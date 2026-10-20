@@ -13,8 +13,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
-// releaseExclude is a path list a release script reads, with comments.
-//
 //go:embed testdata/release-exclude.md
 var releaseExclude string
 

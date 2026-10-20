@@ -151,20 +151,12 @@ const carrierConjunctionWant = `struct Governor {
 };
 `
 
-// variableOpensCase holds a sentence over the cap whose words after a colon
-// open on the variable q. A capital renames it, so "q" stays in lower case
-// behind a carrier.
-//
 //go:embed testdata/variable-opens-case.cpp
 var variableOpensCase string
 
 //go:embed testdata/variable-opens-want.cpp
 var variableOpensWant string
 
-// ruledCommentCase draws a rule of dashes at the start of each comment line
-// and at the end of the last. The rule frames the prose, so the division
-// rewraps the words between the rules and keeps every rule where it was.
-//
 //go:embed testdata/ruled-comment-case.cpp
 var ruledCommentCase string
 

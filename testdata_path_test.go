@@ -11,10 +11,6 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 )
 
-// scriptTest is a cmd/go script test. Its lines are commands. The prose rules
-// join them, strip the tab from each grep pattern and cut the year from each
-// date.
-//
 //go:embed testdata/script-test.sh
 var scriptTest string
 

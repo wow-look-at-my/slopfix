@@ -11,9 +11,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// commitMessage is a commit message as an agent writes it. Its body holds a
-// sentence that opens on a name from code, and its trailers close it.
-//
 //go:embed testdata/commit-message.yml
 var commitMessage string
 

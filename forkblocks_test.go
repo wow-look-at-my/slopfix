@@ -15,9 +15,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// upstreamWorkflow is the parent's workflow. Its comment run was over the
-// limit before the fork touched it.
-//
 //go:embed testdata/upstream-workflow.yml
 var upstreamWorkflow string
 

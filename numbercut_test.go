@@ -31,9 +31,6 @@ func TestAnExitCodeInADocCommentIsNoCount(t *testing.T) {
 	assert.Equal(t, doc, got.Text)
 }
 
-// A /* */ block laid out under its opener with no star on each line. The length
-// cut leaves the count on a line of its own, and the number repair takes it out.
-//
 //go:embed testdata/aligned-block.js
 var alignedBlock string
 

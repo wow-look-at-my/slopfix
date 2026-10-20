@@ -13,8 +13,6 @@ func workflowHeader() string {
 	return workflowHeaderYml + workflowConcurrency
 }
 
-// workflowConcurrency is the concurrency block every workflow in these repositories carries.
-//
 //go:embed testdata/workflow-concurrency.yml
 var workflowConcurrency string
 

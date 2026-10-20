@@ -66,7 +66,7 @@ func unheld(path, text string) bool {
 }
 
 // kebab writes a Go name as the stem of a file name.
-// An initialism stays one word: TestAPackageJSONCase is test-a-package-json-case.
+// An initialism stays one word, so a JSON in the name writes json.
 func kebab(name string) string {
 	runes := []rune(name)
 	var b strings.Builder

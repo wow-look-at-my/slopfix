@@ -15,9 +15,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// guardedRunScripts carries shell guards from sglang's fork-ci.yml. Each
-// annotates and exits inside an if, so the test-in-workflow rule reads it.
-//
 //go:embed testdata/guarded-run-scripts.yml
 var guardedRunScripts string
 

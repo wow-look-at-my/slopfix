@@ -22,10 +22,6 @@ func init() {
 	})
 }
 
-// identifierSentenceCase holds a comment of a couple of sentences above a
-// single statement. The second opens on the identifier cubeCount_ in lower
-// case, so the cut takes that sentence whole and never ends on its verb.
-//
 //go:embed testdata/identifier-sentence-case.cpp
 var identifierSentenceCase string
 
