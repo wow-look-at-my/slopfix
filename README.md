@@ -19,6 +19,7 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner`, `yaml/token-in-git-url` | yes, except a flow-style `push` mapping |
 | `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`. A warning never fails `check` |
 | `pins` | `pins/download-version` | yes, except a templated URL |
+| `go` | `go/foreign-source` | yes. The string moves into a file of its language, and a `//go:embed` var reads it |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
 
 - `repo`: `CLAUDE.md` holds only `@AGENTS.md`. Each root file, each `CLAUDE.md` and each `claude_snippets/` file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`. No executable is committed. No file is a near copy of another file of its name. Each JSON and XML file parses and meets the schema it names.
