@@ -20,7 +20,7 @@ func TestADockerDirectiveIsNotAComment(t *testing.T) {
 
 // A compose file carries the directive inside a dockerfile_inline block.
 func TestADockerDirectiveInComposeIsNotAComment(t *testing.T) {
-	src := "services:\n  app:\n    build:\n      dockerfile_inline: |\n        # syntax=docker/dockerfile:1\n        FROM alpine\n"
+	src := testADockerDirectiveInComposeIsNotACommentYml
 
 	assert.Empty(t, Extract("compose.yaml", src))
 }
@@ -34,3 +34,6 @@ func TestProseAboutADirectiveStaysAComment(t *testing.T) {
 
 //go:embed testdata/test-a-docker-directive-is-not-a-comment.md
 var testADockerDirectiveIsNotACommentMd string
+
+//go:embed testdata/test-a-docker-directive-in-compose-is-not-a-comment.yml
+var testADockerDirectiveInComposeIsNotACommentYml string

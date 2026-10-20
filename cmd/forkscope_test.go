@@ -44,7 +44,7 @@ func TestATreeCheckReportsABranchPin(t *testing.T) {
 	t.Cleanup(srv.Close)
 	env := map[string]string{"GITHUB_API_URL": srv.URL}
 	root := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte("runs:\n  using: composite\n  steps:\n    - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte(testATreeCheckReportsABranchPinYml), 0o644))
 	var out bytes.Buffer
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
@@ -55,7 +55,7 @@ func TestATreeCheckReportsABranchPin(t *testing.T) {
 	assert.True(t, failed)
 	assert.Contains(t, out.String(), "yaml/branch-pin")
 
-	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte("runs:\n  using: composite\n  steps:\n    - uses: o/hidden@v1\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte(testATreeCheckReportsABranchPinYml2), 0o644))
 	out.Reset()
 	failed, err = treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
 	require.NoError(t, err)
@@ -393,3 +393,9 @@ func TestTheWriteHookInAForkWithNoBaseRefuses(t *testing.T) {
 
 //go:embed testdata/poison-git.sh
 var poisonGitSh string
+
+//go:embed testdata/test-a-tree-check-reports-a-branch-pin.yml
+var testATreeCheckReportsABranchPinYml string
+
+//go:embed testdata/test-a-tree-check-reports-a-branch-pin-2.yml
+var testATreeCheckReportsABranchPinYml2 string

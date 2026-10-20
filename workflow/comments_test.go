@@ -46,7 +46,7 @@ func TestACarriageReturnDoesNotHideAComment(t *testing.T) {
 }
 
 func TestACommentBlockAtTheEndOfTheFileIsReported(t *testing.T) {
-	findings := workflow.Check("on: {push: {branches: ['**']}}\n# one\n# two\n")
+	findings := workflow.Check(testACommentBlockAtTheEndOfTheFileIsReportedYml)
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, 2, findings[0].Line)
@@ -72,9 +72,9 @@ func TestRepairingLeavesAScriptsCommentsAlone(t *testing.T) {
 func TestJoiningCommentLinesKeepsTheirSentencesApart(t *testing.T) {
 	keep := func(string) bool { return true }
 	for in, want := range map[string]string{
-		"jobs:\n  build:\n    steps:\n      # No fetch-cacerts step: the CA bundle is a generate directive\n      # The org module proxy is gone, so modules come direct with sumdb off.\n      - run: make\n": "      # No fetch-cacerts step: the CA bundle is a generate directive. The org module proxy is gone, so modules come direct with sumdb off.\n",
-		"jobs:\n  build:\n    steps:\n      # Stock Go cannot resolve the placeholder. Some are private, so\n      # the checksum database skips them.\n      - run: make\n":                                   "      # Stock Go cannot resolve the placeholder. Some are private, so the checksum database skips them.\n",
-		"jobs:\n  build:\n    steps:\n      # The token is minted by\n      # GitHub for each run.\n      - run: make\n":                                                                                       "      # The token is minted by GitHub for each run.\n",
+		testJoiningCommentLinesKeepsTheirSentencesApartYml:  "      # No fetch-cacerts step: the CA bundle is a generate directive. The org module proxy is gone, so modules come direct with sumdb off.\n",
+		testJoiningCommentLinesKeepsTheirSentencesApartYml2: "      # Stock Go cannot resolve the placeholder. Some are private, so the checksum database skips them.\n",
+		testJoiningCommentLinesKeepsTheirSentencesApartYml3: "      # The token is minted by GitHub for each run.\n",
 	} {
 		repair := workflow.Fix(in, keep)
 		require.True(t, repair.Changed, in)
@@ -107,3 +107,15 @@ var testABlankLineDoesNotSplitACommentBlockMd string
 
 //go:embed testdata/test-a-comment-block-after-a-block-scalar-is-still-reported.yml
 var testACommentBlockAfterABlockScalarIsStillReportedYml string
+
+//go:embed testdata/test-a-comment-block-at-the-end-of-the-file-is-reported.yml
+var testACommentBlockAtTheEndOfTheFileIsReportedYml string
+
+//go:embed testdata/test-joining-comment-lines-keeps-their-sentences-apart.yml
+var testJoiningCommentLinesKeepsTheirSentencesApartYml string
+
+//go:embed testdata/test-joining-comment-lines-keeps-their-sentences-apart-2.yml
+var testJoiningCommentLinesKeepsTheirSentencesApartYml2 string
+
+//go:embed testdata/test-joining-comment-lines-keeps-their-sentences-apart-3.yml
+var testJoiningCommentLinesKeepsTheirSentencesApartYml3 string

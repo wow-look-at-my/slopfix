@@ -1,0 +1,9 @@
+  partial:
+    strategy:
+      matrix:
+        os: ${{ fromJSON(needs.plan.outputs.os) }}
+        include:
+          - os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: make

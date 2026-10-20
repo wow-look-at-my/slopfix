@@ -40,7 +40,7 @@ func TestWriteAllGrantsEveryPermission(t *testing.T) {
 }
 
 func TestNoBlockAnywhereIsTheRepositoryDefault(t *testing.T) {
-	g, err := workflow.Permission("jobs:\n  a:\n    steps: []\n", "a", "contents")
+	g, err := workflow.Permission(testNoBlockAnywhereIsTheRepositoryDefaultYml, "a", "contents")
 	require.NoError(t, err)
 	assert.Equal(t, workflow.Grant{Level: "none", Source: "default"}, g)
 }
@@ -49,9 +49,18 @@ func TestABadWorkflowIsAnError(t *testing.T) {
 	_, err := workflow.Permission(permissionWorkflow, "missing", "contents")
 	assert.ErrorContains(t, err, `names no job "missing"`)
 
-	_, err = workflow.Permission("jobs:\n  a:\n    permissions:\n      contents: admin\n", "a", "contents")
+	_, err = workflow.Permission(testABadWorkflowIsAnErrorYml, "a", "contents")
 	assert.ErrorContains(t, err, "not read, write or none")
 
-	_, err = workflow.Permission("jobs:\n  a:\n    permissions: some\n", "a", "contents")
+	_, err = workflow.Permission(testABadWorkflowIsAnErrorYml2, "a", "contents")
 	assert.ErrorContains(t, err, "neither read-all nor write-all")
 }
+
+//go:embed testdata/test-no-block-anywhere-is-the-repository-default.yml
+var testNoBlockAnywhereIsTheRepositoryDefaultYml string
+
+//go:embed testdata/test-a-bad-workflow-is-an-error.yml
+var testABadWorkflowIsAnErrorYml string
+
+//go:embed testdata/test-a-bad-workflow-is-an-error-2.yml
+var testABadWorkflowIsAnErrorYml2 string

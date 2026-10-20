@@ -1,0 +1,12 @@
+jobs:
+  build:
+    steps:
+      - uses: wow-look-at-my/go-toolchain@master
+      - uses: wow-look-at-my/slopfix@master
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@main
+      - uses: wow-look-at-my/actions@secret-server#latest
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: ./local-action
+      - uses: docker://alpine:3.20
+      - uses: ${{ matrix.action }}

@@ -1,0 +1,4 @@
+  open:
+    runs-on: windows-2022
+    steps:
+      - run: make

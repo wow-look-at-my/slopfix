@@ -41,7 +41,7 @@ func TestSniffFindsAWorkflowThePathDoesNotName(t *testing.T) {
 }
 
 func TestSniffLeavesAnOrdinaryDocumentAlone(t *testing.T) {
-	assert.False(t, workflow.Sniff("services:\n  web:\n    image: nginx\n"))
+	assert.False(t, workflow.Sniff(testSniffLeavesAnOrdinaryDocumentAloneYml))
 	assert.False(t, workflow.Sniff("# jobs: the ones we run\ntext: here\n"))
 }
 
@@ -50,3 +50,6 @@ var testSniffFindsAWorkflowThePathDoesNotNameYml string
 
 //go:embed testdata/test-sniff-finds-a-workflow-the-path-does-not-name-2.yml
 var testSniffFindsAWorkflowThePathDoesNotNameYml2 string
+
+//go:embed testdata/test-sniff-leaves-an-ordinary-document-alone.yml
+var testSniffLeavesAnOrdinaryDocumentAloneYml string

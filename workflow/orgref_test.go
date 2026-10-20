@@ -101,7 +101,7 @@ func TestAnOrgActionAtLKGBPasses(t *testing.T) {
 		"docker://alpine:3",
 	)
 	assert.Empty(t, orgRefFindings(content))
-	assert.Empty(t, orgRefFindings("runs:\n  using: composite\n  steps:\n    - uses: wow-look-at-my/dats@lkgb\n"))
+	assert.Empty(t, orgRefFindings(testAnOrgActionAtLKGBPassesYml))
 }
 
 // A red master reaches every caller that names it. lkgb is the last master commit that passed CI.
@@ -114,7 +114,7 @@ func TestTheDefaultBranchOfARepositoryWithLKGBIsReported(t *testing.T) {
 	} {
 		require.Len(t, orgRefFindings(steps(uses)), 1, uses)
 	}
-	assert.Len(t, orgRefFindings("runs:\n  using: composite\n  steps:\n    - uses: wow-look-at-my/dats@master\n"), 1)
+	assert.Len(t, orgRefFindings(testTheDefaultBranchOfARepositoryWithLKGBIsReportedYml), 1)
 }
 
 func TestTheRepairPointsAtLKGB(t *testing.T) {
@@ -208,3 +208,9 @@ var testAReusableWorkflowOffMasterIsReportedYml string
 
 //go:embed testdata/test-a-uses-key-outside-a-job-or-a-step-is-not-an-action.yml
 var testAUsesKeyOutsideAJobOrAStepIsNotAnActionYml string
+
+//go:embed testdata/test-an-org-action-at-lkgb-passes.yml
+var testAnOrgActionAtLKGBPassesYml string
+
+//go:embed testdata/test-the-default-branch-of-a-repository-with-lkgb-is-reported.yml
+var testTheDefaultBranchOfARepositoryWithLKGBIsReportedYml string

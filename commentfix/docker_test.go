@@ -12,7 +12,7 @@ import (
 func TestTheRepairsLeaveDockerDirectivesAlone(t *testing.T) {
 	cases := map[string]string{
 		"Dockerfile":   testTheRepairsLeaveDockerDirectivesAloneDockerfile,
-		"compose.yaml": "services:\n  app:\n    build:\n      dockerfile_inline: |\n        # syntax=docker/dockerfile:1\n\n        FROM alpine\n",
+		"compose.yaml": testTheRepairsLeaveDockerDirectivesAloneYml,
 	}
 	for name, src := range cases {
 		assert.Equal(t, src, Fix(name, src).Text, name)
@@ -25,3 +25,6 @@ func TestTheRepairsLeaveDockerDirectivesAlone(t *testing.T) {
 
 //go:embed testdata/test-the-repairs-leave-docker-directives-alone.dockerfile
 var testTheRepairsLeaveDockerDirectivesAloneDockerfile string
+
+//go:embed testdata/test-the-repairs-leave-docker-directives-alone.yml
+var testTheRepairsLeaveDockerDirectivesAloneYml string

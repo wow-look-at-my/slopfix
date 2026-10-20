@@ -35,25 +35,13 @@ func TestTheRuleRunsAsPartOfAFix(t *testing.T) {
 }
 
 func TestAnEntryTheScriptNeverExpandsStays(t *testing.T) {
-	content := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - run: go build ./...\n" +
-		"        env:\n" +
-		"          GOFLAGS: ${{ inputs.flags }}\n"
+	content := testAnEntryTheScriptNeverExpandsStaysYml
 	assert.Empty(t, envIndirections(content))
 }
 
 // The env indirection is the defense against script injection. It stays.
 func TestAnUntrustedExpressionStaysInEnv(t *testing.T) {
-	content := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - env:\n" +
-		"          TITLE: ${{ github.event.pull_request.title }}\n" +
-		"        run: echo \"$TITLE\"\n"
+	content := testAnUntrustedExpressionStaysInEnvYml
 	assert.Empty(t, envIndirections(content))
 }
 
@@ -116,12 +104,7 @@ func TestACompositeActionInputStaysInEnv(t *testing.T) {
 // early. A secret written into the script lands in the script file on disk.
 func TestAScriptResultOrASecretStaysInEnv(t *testing.T) {
 	for _, uses := range []string{"./typescript", "wow-look-at-my/actions@typescript#latest", "actions/github-script@v7"} {
-		content := "jobs:\n" +
-			"  a:\n" +
-			"    runs-on: ubuntu-latest\n" +
-			"    steps:\n" +
-			"      - id: ts\n" +
-			"        uses: " + uses + "\n" +
+		content := testAScriptResultOrASecretStaysInEnvYml + uses + "\n" +
 			"      - env:\n" +
 			"          VALUE: ${{ steps.ts.outputs.result }}\n" +
 			"          TOKEN: ${{ secrets.TOKEN }}\n" +
@@ -132,59 +115,25 @@ func TestAScriptResultOrASecretStaysInEnv(t *testing.T) {
 
 // Another action's result output is no JSON the rule knows of, so it goes inline.
 func TestAnotherActionsResultIsInlined(t *testing.T) {
-	content := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - id: x\n" +
-		"        uses: some/action@v1\n" +
-		"      - env:\n" +
-		"          VALUE: ${{ steps.x.outputs.result }}\n" +
-		"        run: echo \"$VALUE\"\n"
+	content := testAnotherActionsResultIsInlinedYml
 	assert.Len(t, envIndirections(content), 1)
 }
 
 func TestAnEntryWithExtraTextOrAnOperatorStays(t *testing.T) {
-	content := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - env:\n" +
-		"          A: prefix-${{ inputs.a }}\n" +
-		"          B: ${{ inputs.b }}\n" +
-		"        run: |\n" +
-		"          echo \"$A\" \"${B:-none}\"\n"
+	content := testAnEntryWithExtraTextOrAnOperatorStaysYml
 	assert.Empty(t, envIndirections(content))
 }
 
 func TestASingleLineRunIsInlinedAndKeepsTheOtherEntries(t *testing.T) {
-	content := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - env:\n" +
-		"          KEEP: ${{ inputs.keep }}\n" +
-		"          OUT: ${{ steps.x.outputs.path }}\n" +
-		"        run: cat \"$OUT\"\n"
-	want := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - env:\n" +
-		"          KEEP: ${{ inputs.keep }}\n" +
-		"        run: cat \"${{ steps.x.outputs.path }}\"\n"
+	content := testASingleLineRunIsInlinedAndKeepsTheOtherEntriesYml
+	want := testASingleLineRunIsInlinedAndKeepsTheOtherEntriesYml2
 	got := Fix(content, func(id string) bool { return id == IDEnvIndirection })
 	assert.Equal(t, want, got.Text)
 }
 
 // Inside a container job the runner's paths differ from the container's.
 func TestAContainerJobKeepsTheRunnerVariable(t *testing.T) {
-	content := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    container: alpine\n" +
-		"    steps:\n" +
-		"      - run: ls \"$RUNNER_TEMP\"\n"
+	content := testAContainerJobKeepsTheRunnerVariableYml
 	assert.Empty(t, envIndirections(content))
 }
 
@@ -196,22 +145,12 @@ func TestACompositeActionKeepsTheRunnerVariable(t *testing.T) {
 }
 
 func TestAPlainJobStillNamesTheRunnerContext(t *testing.T) {
-	content := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - run: ls \"$RUNNER_TEMP\"\n"
+	content := testAPlainJobStillNamesTheRunnerContextYml
 	assert.Len(t, envIndirections(content), 1)
 }
 
 func TestAWindowsJobWithNoShellIsNotRead(t *testing.T) {
-	content := "jobs:\n" +
-		"  a:\n" +
-		"    runs-on: windows-latest\n" +
-		"    steps:\n" +
-		"      - env:\n" +
-		"          OUT: ${{ steps.x.outputs.path }}\n" +
-		"        run: echo $OUT\n"
+	content := testAWindowsJobWithNoShellIsNotReadYml
 	assert.Empty(t, envIndirections(content))
 }
 
@@ -223,3 +162,33 @@ var testACompositeActionInputStaysInEnvYml string
 
 //go:embed testdata/test-a-composite-action-keeps-the-runner-variable.yml
 var testACompositeActionKeepsTheRunnerVariableYml string
+
+//go:embed testdata/test-an-entry-the-script-never-expands-stays.yml
+var testAnEntryTheScriptNeverExpandsStaysYml string
+
+//go:embed testdata/test-an-untrusted-expression-stays-in-env.yml
+var testAnUntrustedExpressionStaysInEnvYml string
+
+//go:embed testdata/test-a-script-result-or-a-secret-stays-in-env.yml
+var testAScriptResultOrASecretStaysInEnvYml string
+
+//go:embed testdata/test-another-actions-result-is-inlined.yml
+var testAnotherActionsResultIsInlinedYml string
+
+//go:embed testdata/test-an-entry-with-extra-text-or-an-operator-stays.yml
+var testAnEntryWithExtraTextOrAnOperatorStaysYml string
+
+//go:embed testdata/test-a-single-line-run-is-inlined-and-keeps-the-other-entries.yml
+var testASingleLineRunIsInlinedAndKeepsTheOtherEntriesYml string
+
+//go:embed testdata/test-a-single-line-run-is-inlined-and-keeps-the-other-entries-2.yml
+var testASingleLineRunIsInlinedAndKeepsTheOtherEntriesYml2 string
+
+//go:embed testdata/test-a-container-job-keeps-the-runner-variable.yml
+var testAContainerJobKeepsTheRunnerVariableYml string
+
+//go:embed testdata/test-a-plain-job-still-names-the-runner-context.yml
+var testAPlainJobStillNamesTheRunnerContextYml string
+
+//go:embed testdata/test-a-windows-job-with-no-shell-is-not-read.yml
+var testAWindowsJobWithNoShellIsNotReadYml string

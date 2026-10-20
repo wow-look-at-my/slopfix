@@ -1,0 +1,5 @@
+jobs:
+  build:
+    steps:
+      - with:
+          uses: wow-look-at-my/go-toolchain@drop-common-checks

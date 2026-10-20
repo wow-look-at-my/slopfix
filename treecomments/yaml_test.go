@@ -1,5 +1,7 @@
 package treecomments
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -8,7 +10,9 @@ import (
 )
 
 // An apostrophe in a value opens a quote for the bash grammar, and the apostrophe in the comment closes it.
-const yamlInnerHash = "steps:\n  - name: Don't stop\n    run: echo hi\n  # The tool's table and every `#[cfg(test)]` module stay out.\n  - name: next\n    run: echo there\n"
+//
+//go:embed testdata/yaml-inner-hash.yml
+var yamlInnerHash string
 
 func TestAWorkflowCommentStartsAtItsOwnMarker(t *testing.T) {
 	var got []Comment

@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -26,18 +28,18 @@ func visible(label, variable string) string {
 
 func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
 	body := workflowHeader() + "jobs:\n" +
-		"  build:\n    runs-on: ubuntu-24.04 # pinned\n    steps:\n      - run: make\n" +
-		"  image:\n    runs-on: 'ubuntu-latest'\n    services:\n      db:\n        image: postgres\n    steps:\n      - run: make\n" +
-		"  old:\n    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }} # org runner\n    steps:\n      - run: docker build .\n" +
-		"  kept:\n    runs-on: \"${{ vars.CI_RUNNER_DIND||'ubuntu-22.04' }}\"\n    steps:\n      - run: make\n" +
-		"  tagged:\n    runs-on: &runner !!str ubuntu-latest\n    steps:\n      - run: make\n" +
-		"  plain:\n    runs-on: ubuntu-latest\n\n    # the steps\n    steps:\n      - run: make\n" +
+		testPrivateRunnerRewritesEachHostedLinuxJobYml +
+		testPrivateRunnerRewritesEachHostedLinuxJobYml2 +
+		testPrivateRunnerRewritesEachHostedLinuxJobYml3 +
+		testPrivateRunnerRewritesEachHostedLinuxJobYml4 +
+		testPrivateRunnerRewritesEachHostedLinuxJobYml5 +
+		testPrivateRunnerRewritesEachHostedLinuxJobYml6 +
 		"  flow: {runs-on: \"ubuntu-\\\n      latest\", steps: [{run: make}]}\n" +
-		"  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n" +
-		"  arm:\n    runs-on: ubuntu-24.04-arm\n    steps:\n      - run: make\n" +
-		"  matrix:\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
+		testPrivateRunnerRewritesEachHostedLinuxJobYml7 +
+		testPrivateRunnerRewritesEachHostedLinuxJobYml8 +
+		testPrivateRunnerRewritesEachHostedLinuxJobYml9 +
 		"  done:\n    runs-on: " + visible("ubuntu-latest", "CI_RUNNER") + "\n    steps:\n      - run: make\n" +
-		"  push:\n    runs-on: ubuntu-20.04\n    steps:\n      - uses: wow-look-at-my/actions@ghcr#latest\n"
+		testPrivateRunnerRewritesEachHostedLinuxJobYml10
 	path := runnerRepo(t, PrivateRunnerFixture, body)
 	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 10)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
@@ -57,7 +59,7 @@ func TestPrivateRunnerRewritesEachHostedLinuxJob(t *testing.T) {
 }
 
 func TestPrivateRunnerReadsNoVisibility(t *testing.T) {
-	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n"
+	body := workflowHeader() + testPrivateRunnerReadsNoVisibilityYml
 	path := runnerRepo(t, "https://github.com/wow-look-at-my/public-runner-fixture", body)
 	event := filepath.Join(t.TempDir(), "event.json")
 	require.NoError(t, os.WriteFile(event, []byte(`{"repository":{"full_name":"wow-look-at-my/public-runner-fixture","private":false,"visibility":"public"}}`), 0o644))
@@ -66,7 +68,7 @@ func TestPrivateRunnerReadsNoVisibility(t *testing.T) {
 }
 
 func TestPrivateRunnerSkipsRepositoriesItDoesNotGovern(t *testing.T) {
-	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n"
+	body := workflowHeader() + testPrivateRunnerSkipsRepositoriesItDoesNotGovernYml
 	for name, origin := range map[string]string{
 		"no origin":        "",
 		"another owner":    "https://github.com/someone/private-runner-fixture",
@@ -87,7 +89,7 @@ func TestPrivateRunnerSendsAContainerStepToTheDockerRunner(t *testing.T) {
 		"node action":      {"someone/node-action/sub@v3", "node20", runnerSlim},
 	}
 	for name, step := range steps {
-		body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: " + step.uses + "\n"
+		body := workflowHeader() + testPrivateRunnerSendsAContainerStepToTheDockerRunnerYml + step.uses + "\n"
 		c := RuleCase{Name: name, Path: ".github/workflows/ci.yml", Text: body, Origin: PrivateRunnerFixture}
 		if step.using != "" {
 			c.Actions = map[string]string{step.uses: step.using}
@@ -104,7 +106,7 @@ func TestPrivateRunnerSendsAContainerStepToTheDockerRunner(t *testing.T) {
 func TestPrivateRunnerChoosesTheDockerRunnerForAnUnreadAction(t *testing.T) {
 	t.Setenv("GITHUB_API_URL", "http://127.0.0.1:1")
 	t.Setenv("GITHUB_TOKEN", "fixture")
-	body := workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: someone/unread-action@v1\n"
+	body := workflowHeader() + testPrivateRunnerChoosesTheDockerRunnerForAnUnreadActionYml
 	path := runnerRepo(t, PrivateRunnerFixture, body)
 	found := only(CheckContent(path, body), workflow.IDPrivateRunner)
 	require.Len(t, found, 1)
@@ -122,7 +124,7 @@ func TestPrivateRunnerMovesAJobThatNeedsTheHost(t *testing.T) {
 		"systemd":       "      - run: sudo systemctl restart containerd\n",
 		"kvm":           "      - run: qemu-system-x86_64 -enable-kvm -m 2G disk.img\n",
 	} {
-		body := workflowHeader() + "jobs:\n  host:\n    runs-on: ubuntu-24.04 # slopfix: hosted the job boots a guest\n    steps:\n" + steps
+		body := workflowHeader() + testPrivateRunnerMovesAJobThatNeedsTheHostYml + steps
 		path := runnerRepo(t, PrivateRunnerFixture, body)
 		require.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 1, name)
 		got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
@@ -146,12 +148,12 @@ func matrixVisible(key, list, variable string) string {
 func TestPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrix(t *testing.T) {
 	done := matrixVisible("os", `["ubuntu-latest"]`, runnerSlim)
 	body := workflowHeader() + "jobs:\n" +
-		"  linux:\n    strategy:\n      matrix:\n        include:\n          - {os: ubuntu-22.04, arch: amd64}\n          - {os: ubuntu-24.04, arch: amd64}\n          - {os: ubuntu-22.04-arm, arch: arm64}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
-		"  mixed:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest, windows-latest]\n        include:\n          - os: ubuntu-24.04\n    runs-on: ${{matrix.os}}\n    steps:\n      - run: docker build .\n" +
-		"  apple:\n    strategy:\n      matrix:\n        os: [macos-14, macos-15]\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
-		"  dynamic:\n    strategy:\n      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
-		"  partial:\n    strategy:\n      matrix:\n        os: ${{ fromJSON(needs.plan.outputs.os) }}\n        include:\n          - os: ubuntu-latest\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
-		"  done:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest]\n    runs-on: " + done + "\n    steps:\n      - run: make\n" +
+		testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml +
+		testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml2 +
+		testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml3 +
+		testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml4 +
+		testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml5 +
+		testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml6 + done + "\n    steps:\n      - run: make\n" +
 		"  flow: {strategy: {matrix: {os: [ubuntu-latest, windows-latest]}}, runs-on: '${{ matrix.os }}', steps: [{run: make}]}\n"
 	path := runnerRepo(t, PrivateRunnerFixture, body)
 	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 7)
@@ -181,12 +183,12 @@ func split(whole, private string) string {
 
 func TestPrivateRunnerKeepsAForeignJobToAPublicRepository(t *testing.T) {
 	body := workflowHeader() + "jobs:\n" +
-		"  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n" +
-		"  win:\n    if: github.ref == 'refs/heads/master'\n    runs-on: windows-latest\n    steps:\n      - run: make\n" +
-		"  wrapped:\n    if: ${{ !cancelled() }} # keep going\n    runs-on: ubuntu-24.04-arm\n    steps:\n      - run: make\n" +
-		"  quoted:\n    if: \"needs.plan.outputs.go == 'yes'\"\n    runs-on: windows-11-arm\n    steps:\n      - run: make\n" +
-		"  gated:\n    if: ${{ github.event.repository.visibility == 'public' && always() }}\n    runs-on: macos-14\n    steps:\n      - run: make\n" +
-		"  self:\n    runs-on: [self-hosted, macOS]\n    steps:\n      - run: make\n"
+		testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml +
+		testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml2 +
+		testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml3 +
+		testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml4 +
+		testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml5 +
+		testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml6
 	path := runnerRepo(t, PrivateRunnerFixture, body)
 	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 4)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
@@ -200,8 +202,8 @@ func TestPrivateRunnerKeepsAForeignJobToAPublicRepository(t *testing.T) {
 }
 
 func TestPrivateRunnerLeavesForeignJobsOfAnExemptRepository(t *testing.T) {
-	body := workflowHeader() + "jobs:\n  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n" +
-		"  apple:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-14]\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"
+	body := workflowHeader() + testPrivateRunnerLeavesForeignJobsOfAnExemptRepositoryYml +
+		testPrivateRunnerLeavesForeignJobsOfAnExemptRepositoryYml2
 	for name, origin := range map[string]string{
 		"exempt":        "https://github.com/wow-look-at-my/buildhost",
 		"another owner": "https://github.com/someone/private-runner-fixture",
@@ -213,9 +215,9 @@ func TestPrivateRunnerLeavesForeignJobsOfAnExemptRepository(t *testing.T) {
 
 func TestPrivateRunnerSplitsAnIncludeList(t *testing.T) {
 	body := workflowHeader() + "jobs:\n" +
-		"  both:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-14]\n        include:\n          - os: windows-2022\n            flags: {cc: \"it's\", n: 2, on: true}\n          - os: ubuntu-latest\n            extra: [\"1.20\", 3]\n        # the end\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
-		"  apple:\n    strategy:\n      matrix:\n        include:\n          - os: macos-14\n          - os: macos-15\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n" +
-		"  alias:\n    strategy:\n      matrix:\n        os: [ubuntu-latest]\n        include:\n          - &win {os: windows-2022}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"
+		testPrivateRunnerSplitsAnIncludeListYml +
+		testPrivateRunnerSplitsAnIncludeListYml2 +
+		testPrivateRunnerSplitsAnIncludeListYml3
 	path := runnerRepo(t, PrivateRunnerFixture, body)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 	require.NoError(t, err)
@@ -231,10 +233,10 @@ func TestPrivateRunnerReadsTheMatrixKeyOfAWrittenExpression(t *testing.T) {
 	written := "${{ matrix.os == 'ubuntu-latest' && (vars.CI_RUNNER_DIND || 'ubuntu-latest') || matrix.os }}"
 	prefix := "${{ startsWith(matrix.os, 'ubuntu') && (vars.CI_RUNNER || matrix.os) || matrix.os }}"
 	body := workflowHeader() + "jobs:\n" +
-		"  test:\n    strategy:\n      matrix:\n        go: [1.25.x, 1.26.x]\n        os: [ubuntu-latest, macos-latest, windows-latest]\n    runs-on: " + written + "\n    steps:\n      - run: make\n" +
-		"  clippy:\n    strategy:\n      matrix:\n        include:\n          - name: Linux\n            os: ubuntu-24.04\n          - name: Mac\n            os: macos-14\n    runs-on: " + prefix + "\n    steps:\n      - run: make\n" +
-		"  mac:\n    runs-on: macOS-latest\n    steps:\n      - run: make\n" +
-		"  two:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-14]\n        host: [a]\n    runs-on: ${{ matrix.host == 'a' && matrix.os || 'ubuntu-latest' }}\n    steps:\n      - run: make\n"
+		testPrivateRunnerReadsTheMatrixKeyOfAWrittenExpressionYml + written + "\n    steps:\n      - run: make\n" +
+		testPrivateRunnerReadsTheMatrixKeyOfAWrittenExpressionYml2 + prefix + "\n    steps:\n      - run: make\n" +
+		testPrivateRunnerReadsTheMatrixKeyOfAWrittenExpressionYml3 +
+		testPrivateRunnerReadsTheMatrixKeyOfAWrittenExpressionYml4
 	path := runnerRepo(t, PrivateRunnerFixture, body)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
 	require.NoError(t, err)
@@ -245,7 +247,7 @@ func TestPrivateRunnerReadsTheMatrixKeyOfAWrittenExpression(t *testing.T) {
 }
 
 func TestPrivateRunnerSplitsABlockMatrixList(t *testing.T) {
-	body := workflowHeader() + "jobs:\n  build:\n    strategy:\n      matrix:\n        os:\n          - ubuntu-22.04\n          - macos-latest # apple\n          - self-hosted-box\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"
+	body := workflowHeader() + testPrivateRunnerSplitsABlockMatrixListYml
 	path := runnerRepo(t, PrivateRunnerFixture, body)
 	assert.Len(t, only(CheckContent(path, body), workflow.IDPrivateRunner), 2)
 	got, err := FixFileWith(path, Request{IDs: []string{workflow.IDPrivateRunner}})
@@ -253,3 +255,114 @@ func TestPrivateRunnerSplitsABlockMatrixList(t *testing.T) {
 	assert.Contains(t, got.Text, "      matrix:\n        os: "+split(`["ubuntu-22.04","macos-latest","self-hosted-box"]`, `["ubuntu-22.04","self-hosted-box"]`)+"\n    runs-on: "+matrixVisible("os", `["ubuntu-22.04"]`, runnerSlim)+"\n")
 	assert.Empty(t, only(CheckContent(path, got.Text), workflow.IDPrivateRunner))
 }
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml string
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job-2.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml2 string
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job-3.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml3 string
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job-4.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml4 string
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job-5.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml5 string
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job-6.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml6 string
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job-7.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml7 string
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job-8.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml8 string
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job-9.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml9 string
+
+//go:embed testdata/test-private-runner-rewrites-each-hosted-linux-job-10.yml
+var testPrivateRunnerRewritesEachHostedLinuxJobYml10 string
+
+//go:embed testdata/test-private-runner-reads-no-visibility.yml
+var testPrivateRunnerReadsNoVisibilityYml string
+
+//go:embed testdata/test-private-runner-skips-repositories-it-does-not-govern.yml
+var testPrivateRunnerSkipsRepositoriesItDoesNotGovernYml string
+
+//go:embed testdata/test-private-runner-sends-a-container-step-to-the-docker-runner.yml
+var testPrivateRunnerSendsAContainerStepToTheDockerRunnerYml string
+
+//go:embed testdata/test-private-runner-chooses-the-docker-runner-for-an-unread-action.yml
+var testPrivateRunnerChoosesTheDockerRunnerForAnUnreadActionYml string
+
+//go:embed testdata/test-private-runner-moves-a-job-that-needs-the-host.yml
+var testPrivateRunnerMovesAJobThatNeedsTheHostYml string
+
+//go:embed testdata/test-private-runner-routes-the-hosted-linux-values-of-a-matrix.yml
+var testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml string
+
+//go:embed testdata/test-private-runner-routes-the-hosted-linux-values-of-a-matrix-2.yml
+var testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml2 string
+
+//go:embed testdata/test-private-runner-routes-the-hosted-linux-values-of-a-matrix-3.yml
+var testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml3 string
+
+//go:embed testdata/test-private-runner-routes-the-hosted-linux-values-of-a-matrix-4.yml
+var testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml4 string
+
+//go:embed testdata/test-private-runner-routes-the-hosted-linux-values-of-a-matrix-5.yml
+var testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml5 string
+
+//go:embed testdata/test-private-runner-routes-the-hosted-linux-values-of-a-matrix-6.yml
+var testPrivateRunnerRoutesTheHostedLinuxValuesOfAMatrixYml6 string
+
+//go:embed testdata/test-private-runner-keeps-a-foreign-job-to-a-public-repository.yml
+var testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml string
+
+//go:embed testdata/test-private-runner-keeps-a-foreign-job-to-a-public-repository-2.yml
+var testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml2 string
+
+//go:embed testdata/test-private-runner-keeps-a-foreign-job-to-a-public-repository-3.yml
+var testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml3 string
+
+//go:embed testdata/test-private-runner-keeps-a-foreign-job-to-a-public-repository-4.yml
+var testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml4 string
+
+//go:embed testdata/test-private-runner-keeps-a-foreign-job-to-a-public-repository-5.yml
+var testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml5 string
+
+//go:embed testdata/test-private-runner-keeps-a-foreign-job-to-a-public-repository-6.yml
+var testPrivateRunnerKeepsAForeignJobToAPublicRepositoryYml6 string
+
+//go:embed testdata/test-private-runner-leaves-foreign-jobs-of-an-exempt-repository.yml
+var testPrivateRunnerLeavesForeignJobsOfAnExemptRepositoryYml string
+
+//go:embed testdata/test-private-runner-leaves-foreign-jobs-of-an-exempt-repository-2.yml
+var testPrivateRunnerLeavesForeignJobsOfAnExemptRepositoryYml2 string
+
+//go:embed testdata/test-private-runner-splits-an-include-list.yml
+var testPrivateRunnerSplitsAnIncludeListYml string
+
+//go:embed testdata/test-private-runner-splits-an-include-list-2.yml
+var testPrivateRunnerSplitsAnIncludeListYml2 string
+
+//go:embed testdata/test-private-runner-splits-an-include-list-3.yml
+var testPrivateRunnerSplitsAnIncludeListYml3 string
+
+//go:embed testdata/test-private-runner-reads-the-matrix-key-of-a-written-expression.yml
+var testPrivateRunnerReadsTheMatrixKeyOfAWrittenExpressionYml string
+
+//go:embed testdata/test-private-runner-reads-the-matrix-key-of-a-written-expression-2.yml
+var testPrivateRunnerReadsTheMatrixKeyOfAWrittenExpressionYml2 string
+
+//go:embed testdata/test-private-runner-reads-the-matrix-key-of-a-written-expression-3.yml
+var testPrivateRunnerReadsTheMatrixKeyOfAWrittenExpressionYml3 string
+
+//go:embed testdata/test-private-runner-reads-the-matrix-key-of-a-written-expression-4.yml
+var testPrivateRunnerReadsTheMatrixKeyOfAWrittenExpressionYml4 string
+
+//go:embed testdata/test-private-runner-splits-a-block-matrix-list.yml
+var testPrivateRunnerSplitsABlockMatrixListYml string

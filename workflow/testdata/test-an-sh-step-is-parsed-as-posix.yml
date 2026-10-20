@@ -1,0 +1,7 @@
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - shell: sh
+        run: |
+          X=(a b)

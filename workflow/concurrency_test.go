@@ -11,9 +11,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-const orgBlock = "concurrency:\n" +
-	"  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n" +
-	"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n"
+//go:embed testdata/org-block.yml
+var orgBlock string
 
 func concurrencyFindings(content string) []ste.Finding {
 	var out []ste.Finding
@@ -72,7 +71,7 @@ func TestTheRepairWritesTheOrgBlock(t *testing.T) {
 // The block goes after the blank line that ends the triggers. Every line of the
 // comment after it stays.
 func TestTheRepairKeepsTheCommentAfterTheTriggers(t *testing.T) {
-	head := "on:\n  push:\n    branches: [\"**\"]\n  pull_request:\n\n"
+	head := testTheRepairKeepsTheCommentAfterTheTriggersYml
 	tail := "# go-toolchain@v1 requirements. contents: write is the dependency-graph\n" +
 		"# submission (403 without it).\npermissions:\n  contents: write\njobs: {}\n"
 	only := func(id string) bool { return id == workflow.IDConcurrency }
@@ -113,3 +112,6 @@ var testTheRepairWritesTheOrgBlockYml3 string
 
 //go:embed testdata/test-the-repair-keeps-the-file-indent.yml
 var testTheRepairKeepsTheFileIndentYml string
+
+//go:embed testdata/test-the-repair-keeps-the-comment-after-the-triggers.yml
+var testTheRepairKeepsTheCommentAfterTheTriggersYml string

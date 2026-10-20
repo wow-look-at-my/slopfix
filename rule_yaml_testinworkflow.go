@@ -38,14 +38,14 @@ func autofixTestInYAML(c RuleCase) RuleCase {
 // testInYAMLCase is a workflow whose step asserts on a value beside its own
 // command.
 func testInYAMLCase() string {
-	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n" +
+	return workflowHeader() + testInYAMLCaseYml2 +
 		testInYAMLCaseYml
 }
 
 // testInYAMLExpressionCase is a workflow whose test reads an expression inside
 // a guard, which a cut of the line that exits would leave empty.
 func testInYAMLExpressionCase() string {
-	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n" +
+	return workflowHeader() + testInYAMLExpressionCaseYml +
 		"    steps:\n      - run: |\n" +
 		"          if ! grep -q \"${{ github.sha }}\" out.txt; then\n" +
 		"            echo \"::error::no build of ${{ github.sha }}\"; exit 1\n" +
@@ -54,3 +54,9 @@ func testInYAMLExpressionCase() string {
 
 //go:embed testdata/test-in-yaml-case.yml
 var testInYAMLCaseYml string
+
+//go:embed testdata/test-in-yaml-case-2.yml
+var testInYAMLCaseYml2 string
+
+//go:embed testdata/test-in-yaml-expression-case.yml
+var testInYAMLExpressionCaseYml string
