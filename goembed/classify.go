@@ -37,7 +37,8 @@ var interpreters = map[string]Lang{
 
 var (
 	sqlStart    = regexp.MustCompile(`(?is)^(select\s.+\sfrom\s|insert\s+into\s|update\s+\S+\s+set\s|delete\s+from\s|create\s+(table|index|unique\s+index|view|trigger)\s|alter\s+table\s|drop\s+(table|index|view)\s|with\s+\w+\s+as\s*\()`)
-	dockerFrom  = regexp.MustCompile(`^FROM\s+\S+`)
+	dockerDirective = regexp.MustCompile(`^#\s*(syntax|escape|check)=`)
+	dockerFrom  =regexp.MustCompile(`^FROM\s+\S+`)
 	dockerInstr = regexp.MustCompile(`^(RUN|COPY|ADD|CMD|ENTRYPOINT|ENV|ARG|WORKDIR|USER|EXPOSE|LABEL|VOLUME)\s`)
 	cInclude    = regexp.MustCompile(`^#include\s*[<"]`)
 	pyDef       = regexp.MustCompile(`^\s*(def|class)\s+\w+.*:\s*$`)
@@ -194,6 +195,10 @@ func dockerfile(lines []string) bool {
 	if from < 0 {
 		return false
 	}
+	// A parser directive names the Dockerfile frontend, so FROM alone is enough beside it.
+	if dockerDirective.MatchString(lines[0]) {
+		return true
+	}
 	for _, line := range lines[from+1:] {
 		if dockerInstr.MatchString(line) {
 			return true
@@ -202,8 +207,8 @@ func dockerfile(lines []string) bool {
 	return false
 }
 
-// yamlDoc reports whether text is a YAML mapping of keys or more, or a
-// sequence of mappings.
+// yamlDoc reports whether text is a YAML mapping with more than one key, a
+// key that holds a collection, or a sequence of mappings.
 func yamlDoc(text, first string) bool {
 	if !yamlHead.MatchString(first) {
 		return false
@@ -215,7 +220,7 @@ func yamlDoc(text, first string) bool {
 	root := doc.Content[0]
 	switch root.Kind {
 	case yaml.MappingNode:
-		return len(root.Content) >= 4
+		return len(root.Content) >= 4 || (len(root.Content) == 2 && root.Content[1].Kind != yaml.ScalarNode && root.Content[1].Kind != yaml.AliasNode)
 	case yaml.SequenceNode:
 		return len(root.Content) > 0 && root.Content[0].Kind == yaml.MappingNode
 	}

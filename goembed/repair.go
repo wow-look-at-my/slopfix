@@ -66,15 +66,19 @@ func unheld(path, text string) bool {
 }
 
 // kebab writes a Go name as the stem of a file name.
+// An initialism stays one word: TestAPackageJSONCase is test-a-package-json-case.
 func kebab(name string) string {
+	runes := []rune(name)
 	var b strings.Builder
-	for i, r := range name {
-		if unicode.IsUpper(r) {
-			if i > 0 {
+	for i, r := range runes {
+		if unicode.IsUpper(r) && i > 0 {
+			prev := runes[i-1]
+			nextLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+			if unicode.IsLower(prev) || unicode.IsDigit(prev) || (unicode.IsUpper(prev) && nextLower) {
 				b.WriteByte('-')
 			}
-			r = unicode.ToLower(r)
 		}
+		r = unicode.ToLower(r)
 		if r == '_' {
 			r = '-'
 		}
@@ -105,7 +109,7 @@ func varName(f found) string {
 
 // planFor answers the repair of src, which is headed for path.
 func planFor(path, src string) (plan, bool) {
-	hits := scan(src)
+	hits := scan(path, src)
 	if len(hits) == 0 {
 		return plan{}, false
 	}

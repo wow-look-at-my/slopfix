@@ -32,7 +32,7 @@ func CheckPath(path, src string) []ste.Finding {
 		return nil
 	}
 	var out []ste.Finding
-	for _, f := range scan(src) {
+	for _, f := range scan(path, src) {
 		first, _, _ := strings.Cut(strings.TrimSpace(f.value), "\n")
 		out = append(out, ste.Finding{
 			Line:   f.line,

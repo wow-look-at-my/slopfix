@@ -4,8 +4,12 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // found is a string expression in a Go file that holds another language.
@@ -58,7 +62,7 @@ func literal(expr ast.Expr) (string, bool) {
 
 // scan answers each string expression of src that holds another language,
 // where the repair can put a variable in its place.
-func scan(src string) []found {
+func scan(path, src string) []found {
 	if !strings.ContainsAny(src, "`\"") {
 		return nil
 	}
@@ -66,6 +70,7 @@ func scan(src string) []found {
 	if err != nil {
 		return nil
 	}
+	consts := constReads(path, file)
 	var out []found
 	add := func(expr ast.Expr, value string, spec *ast.ValueSpec, decl *ast.GenDecl, fn string) {
 		lang, ok := Classify(value)
@@ -89,8 +94,12 @@ func scan(src string) []found {
 				spec := s.(*ast.ValueSpec)
 				// A const or a typed spec of one name takes the file whole, so the
 				// spec becomes the embedded var.
+				// A const that another const reads must stay a const, so no var takes its place.
 				if len(spec.Names) == 1 && len(spec.Values) == 1 && embeddable(spec.Type) {
 					if v, ok := literal(spec.Values[0]); ok {
+						if d.Tok == token.CONST && consts.Contains(spec.Names[0].Name) {
+							continue
+						}
 						var whole *ast.GenDecl
 						if len(d.Specs) == 1 {
 							whole = d
@@ -103,7 +112,7 @@ func scan(src string) []found {
 					continue
 				}
 				for _, value := range spec.Values {
-					walk(value, "", add)
+					walk(value, spec.Names[0].Name, add)
 				}
 			}
 		case *ast.FuncDecl:
@@ -113,6 +122,54 @@ func scan(src string) []found {
 		}
 	}
 	return out
+}
+
+// constReads answers each name a const declaration reads, in file and in the
+// other Go files of its directory.
+func constReads(path string, file *ast.File) set.Set[string] {
+	names := set.New[string]()
+	read := func(f *ast.File) {
+		for _, d := range f.Decls {
+			ast.Inspect(d, func(n ast.Node) bool {
+				g, ok := n.(*ast.GenDecl)
+				if !ok {
+					return true
+				}
+				if g.Tok != token.CONST {
+					return g.Tok != token.IMPORT
+				}
+				for _, s := range g.Specs {
+					for _, v := range s.(*ast.ValueSpec).Values {
+						ast.Inspect(v, func(n ast.Node) bool {
+							if id, ok := n.(*ast.Ident); ok {
+								names.Add(id.Name)
+							}
+							return true
+						})
+					}
+				}
+				return false
+			})
+		}
+	}
+	read(file)
+	dir := filepath.Dir(path)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return names
+	}
+	for _, e := range entries {
+		other := filepath.Join(dir, e.Name())
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || other == filepath.Clean(path) {
+			continue
+		}
+		if b, err := os.ReadFile(other); err == nil {
+			if _, f, err := parse(string(b)); err == nil {
+				read(f)
+			}
+		}
+	}
+	return names
 }
 
 // embeddable reports whether a spec of this type can be a //go:embed var.
