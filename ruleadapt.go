@@ -4,9 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"slices"
 	"sort"
 	"sync"
@@ -16,15 +14,12 @@ import (
 	"github.com/wow-look-at-my/slopfix/english"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // The reads a rule's own detect and autofix functions are written on. Each rule
 // file names its own pair and registers itself, so no file holds a list of the
 // rules. A rule file that is deleted takes its rule with it.
-//
-// A case is a materialized fixture: a repository under Root and a message in
-// Text. Every read covers all of it, so no rule is blind to a part of a
-// fixture another rule's case put there.
 
 // fixtureFiles answers every regular file of the case's repository outside
 // .git, by absolute path, in order.
@@ -33,21 +28,11 @@ func fixtureFiles(c RuleCase) []string {
 		return nil
 	}
 	var out []string
-	err := filepath.WalkDir(c.Root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() && d.Name() == ".git" {
-			return filepath.SkipDir
-		}
-		if d.Type().IsRegular() {
+	walktree.Get(c.Root).Visit(nil, func(path string, e walktree.Entry) {
+		if e.IsRegular() {
 			out = append(out, path)
 		}
-		return nil
 	})
-	if err != nil {
-		panic(fmt.Sprintf("rule case %q: %v", c.Name, err))
-	}
 	sort.Strings(out)
 	return out
 }

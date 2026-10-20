@@ -9,7 +9,6 @@ package commentfix
 
 import (
 	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // skipDirs hold text nobody in the tree authored.
@@ -206,7 +206,11 @@ func WriteFile(path, text string) error {
 	if err := os.Chmod(tmp.Name(), mode); err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return err
+	}
+	walktree.Created(path)
+	return nil
 }
 
 // TreeFiles returns every file under root whose comments this rule reads.
@@ -224,24 +228,17 @@ func TreeFilesMatching(root string, reads func(string) bool) []string {
 	// A gitlink stays a submodule when nobody ran init and a build copied files into it.
 	gitlinks, _ := gitmod.Skip(root)
 	var out []string
-	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if skipDir(root, path, d.Name(), rootIsModule) || gitlinks.Contains(gitmod.Resolved(path)) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
+	enter := func(dir string) bool {
+		return !skipDir(root, dir, filepath.Base(dir), rootIsModule) && !gitlinks.Contains(gitmod.Resolved(dir))
+	}
+	walktree.Get(root).Visit(enter, func(path string, _ walktree.Entry) {
 		if !reads(path) {
-			return nil
+			return
 		}
-		if info, err := d.Info(); err == nil && info.Size() > MaxFileBytes {
-			return nil
+		if info, err := os.Lstat(path); err == nil && info.Size() > MaxFileBytes {
+			return
 		}
 		out = append(out, path)
-		return nil
 	})
 	return withoutVendored(root, withoutIgnored(root, out))
 }

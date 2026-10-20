@@ -2,7 +2,7 @@
 
 slopfix checks and repairs text against the org's writing rules. It reads markdown prose, code comments, GitHub Actions workflows and the markdown layout of a repository.
 
-It also answers the Claude Code hook events that the org's marketplace plugin sends it. A hook, a CI job and an editor all get the same verdict from the same binary.
+It also answers the events of the Claude Code hook that the org's marketplace plugin sends it. A hook, a CI job and an editor all get the same verdict from the same binary.
 
 ## The rules
 
@@ -23,7 +23,7 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
 
 - `repo`: `CLAUDE.md` holds only `@AGENTS.md`. Each root file, each `CLAUDE.md` and each `claude_snippets/` file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`. No executable is committed. No file is a near copy of another file of its name. Each JSON and XML file parses and meets the schema it names.
-- `wrap` and `ste`: a paragraph is one line, and its prose follows ASD-STE100 Simplified Technical English.
+- `wrap` and `ste`: a paragraph is one line, and its prose follows Simplified Technical English (ASD-STE100).
 - `english`: plain English usage that STE does not cover, such as a semicolon or a comma splice.
 - `counts` and `comments/number`: a stated count goes stale when the set changes.
 - `tombstones`: a comment that narrates history or argues for the diff.

@@ -15,6 +15,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // Created is a file the repair writes, by the path its Go file's path names it.
@@ -40,7 +41,7 @@ func taken(path, src string) set.Set[string] {
 	}
 	read(src)
 	dir := filepath.Dir(path)
-	entries, err := os.ReadDir(dir)
+	entries, err := walktree.List(dir)
 	if err != nil {
 		return names
 	}

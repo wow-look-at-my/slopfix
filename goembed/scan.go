@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // found is a string expression in a Go file that holds another language.
@@ -154,7 +155,7 @@ func constReads(path string, file *ast.File) set.Set[string] {
 	}
 	read(file)
 	dir := filepath.Dir(path)
-	entries, err := os.ReadDir(dir)
+	entries, err := walktree.List(dir)
 	if err != nil {
 		return names
 	}

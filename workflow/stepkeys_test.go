@@ -28,8 +28,7 @@ func TestAKeyNestedUnderAStepMayRepeat(test *testing.T) {
 	assert.Empty(test, duplicateStepKeys(content))
 }
 
-// Each step starts its own key set, so steps naming the same key is
-// ordinary.
+// Each step starts its own key set, so steps naming the same key is ordinary.
 func TestTwoStepsMayNameTheSameKey(test *testing.T) {
 	content := testTwoStepsMayNameTheSameKeyYml
 
