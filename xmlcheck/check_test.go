@@ -235,7 +235,7 @@ func TestATestRepeatsOnlyWhenItIsWrittenTheSameWay(t *testing.T) {
 		},
 		{
 			name: "the case-only pair the numbers table ships",
-			body: `<t><e word="alpha"><test in="consumed two ways" out="multiple ways"/><test in="consumed Two ways" out="multiple ways"/></e></t>`,
+			body: `<t><e word="ways"><test in="consumed two ways" out="multiple ways"/><test in="consumed Two ways" out="multiple ways"/></e></t>`,
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {

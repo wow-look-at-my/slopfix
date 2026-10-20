@@ -136,19 +136,18 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 		if err != nil {
 			return nil, err
 		}
-		parsed := decoded.Get(string(raw), func() decoding {
-			var doc document
-			err := xml.Unmarshal(Readable(raw), &doc)
-			return decoding{doc, err}
-		})
-		if parsed.err != nil {
-			return nil, fmt.Errorf("%s does not parse: %w", path, parsed.err)
+		// Only the for= attribute is read here: the schema is the authority on the
+		// shape of a file.
+		var head struct {
+			For string `xml:"for,attr"`
 		}
-		doc := parsed.doc
-		if doc.For == "" {
+		if err := xml.Unmarshal(Readable(raw), &head); err != nil {
+			return nil, fmt.Errorf("%s does not parse: %w", path, err)
+		}
+		if head.For == "" {
 			return nil, fmt.Errorf("%s: the root element needs a for= naming its consumer", path)
 		}
-		if doc.For != target {
+		if head.For != target {
 			continue
 		}
 		docs = append(docs, loaded{path: path, raw: raw})
@@ -163,11 +162,15 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 	// An id names an entry across the whole folder, so a duplicate is caught over every file rather than over each alone.
 	ids := map[string]string{}
 	for _, d := range docs {
-		var doc document
-		if err := xml.Unmarshal(Readable(d.raw), &doc); err != nil {
-			return nil, fmt.Errorf("%s does not parse: %w", d.path, err)
+		parsed := decoded.Get(string(d.raw), func() decoding {
+			var doc document
+			err := xml.Unmarshal(Readable(d.raw), &doc)
+			return decoding{doc, err}
+		})
+		if parsed.err != nil {
+			return nil, fmt.Errorf("%s does not parse: %w", d.path, parsed.err)
 		}
-		if err := out.add(d.path, doc, ids); err != nil {
+		if err := out.add(d.path, parsed.doc, ids); err != nil {
 			return nil, err
 		}
 	}
