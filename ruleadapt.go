@@ -20,10 +20,6 @@ import (
 // The reads a rule's own detect and autofix functions are written on. Each rule
 // file names its own pair and registers itself, so no file holds a list of the
 // rules. A rule file that is deleted takes its rule with it.
-//
-// A case is a materialized fixture: a repository under Root and a message in
-// Text. Every read covers all of it, so no rule is blind to a part of a
-// fixture another rule's case put there.
 
 // fixtureFiles answers every regular file of the case's repository outside
 // .git, by absolute path, in order.

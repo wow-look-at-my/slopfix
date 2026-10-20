@@ -1,7 +1,9 @@
 package treecomments
 
+import _ "embed"
+
 import (
-	"crypto/sha256"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -133,7 +135,7 @@ func TestExtractParsesTheSameSourceOnce(t *testing.T) {
 	src := "package p\n\n// Cached explains the cache test.\nfunc Cached() {}\n"
 	first := Extract("cache.go", src)
 	require.Len(t, first, 1)
-	key := extractKey{language: languageFor("cache.go"), sum: sha256.Sum256([]byte(src))}
+	key := extractKey{language: languageFor("cache.go"), src: src}
 	_, ok := extracted.get(key)
 	require.True(t, ok, "the first Extract must remember its parse")
 
@@ -145,17 +147,17 @@ func TestExtractParsesTheSameSourceOnce(t *testing.T) {
 func TestTheExtractCacheDropsItsOldestEntry(t *testing.T) {
 	c := &extractCache{byKey: map[extractKey][]Comment{}}
 	for i := range extractCacheSize + 1 {
-		c.put(extractKey{sum: [sha256.Size]byte{byte(i), byte(i >> 8)}}, nil)
+		c.put(extractKey{src: fmt.Sprint(i)}, nil)
 	}
 	assert.Len(t, c.byKey, extractCacheSize)
-	_, ok := c.get(extractKey{})
+	_, ok := c.get(extractKey{src: "0"})
 	assert.False(t, ok, "the oldest entry goes first")
 }
 
 // Each Rust line comment holds its own line alone, so the lines of a doc
 // paragraph are one run with no line read twice.
 func TestARustDocLineHoldsItsOwnLine(t *testing.T) {
-	src := "/// Frees the handle that\n/// `create` returned.\nfn free() {}\n"
+	src := testARustDocLineHoldsItsOwnLineRs
 	runs := Runs("x.rs", src)
 	require.Len(t, runs, 1)
 	assert.Equal(t, []string{"/// Frees the handle that", "/// `create` returned."}, texts(runs[0]))
@@ -217,3 +219,6 @@ func TestMissingNamesTheGrammarsWithoutTables(t *testing.T) {
 func TestEveryGrammarIsNamed(t *testing.T) {
 	assert.Len(t, ready, len(grammarNames))
 }
+
+//go:embed testdata/test-a-rust-doc-line-holds-its-own-line.rs
+var testARustDocLineHoldsItsOwnLineRs string

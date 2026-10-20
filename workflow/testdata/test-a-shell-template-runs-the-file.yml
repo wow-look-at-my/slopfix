@@ -1,0 +1,9 @@
+on: {push: {branches: ['**']}}
+defaults:
+  run:
+    shell: bash -x {0}
+jobs:
+  x:
+    runs-on: ubuntu-latest
+    steps:
+      - run: test -f out.txt || exit 1

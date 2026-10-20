@@ -1,0 +1,13 @@
+  both:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-14]
+        include:
+          - os: windows-2022
+            flags: {cc: "it's", n: 2, on: true}
+          - os: ubuntu-latest
+            extra: ["1.20", 3]
+        # the end
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: make

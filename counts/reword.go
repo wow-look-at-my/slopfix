@@ -36,6 +36,7 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	n := value(number)
 	noun := strings.ToLower(lastField(hit.Phrase))
 	unit := cardinal.IsUnit(noun)
+	sign, signAt := boundSign(content, from)
 
 	before := wordsBefore(content, from)
 	last := func(k int) string {
@@ -71,6 +72,13 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		text = "no "
 	case measures(hit.Phrase):
 		to = hit.Start + loc[1] + len(unitAfter(content[hit.Start+loc[1]:]))
+		if sign.text != "" {
+			from = signAt
+		}
+	case sign.text != "":
+		// "<=750 lines" caps the lines, so it reads as the words "at most" do.
+		from = signAt
+		text = sign.reword(n)
 	case len(before) > 0 && prepositionFloors.Contains(last(1)):
 		// "over" stays: "spreads over 32 banks" spans the banks.
 		text = vague(n)
@@ -94,6 +102,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		text = vague(n)
 	case floors.Contains(last(2)):
 		drop(2)
+		text = vague(n)
+	case len(before) > 0 && haveForms.Contains(last(1)) && participleFirst(hit.Phrase, content[hit.End:]):
+		// "has two expected results" must not become "has expected results", which reads as a perfect tense.
 		text = vague(n)
 	case determined(before):
 		text = ""
@@ -119,6 +130,23 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	}
 	return e, true
 }
+
+// haveForms open a perfect tense when a past participle follows.
+var haveForms = set.Of[string]("has", "have", "had")
+
+// participleFirst reports a phrase whose word after the number ends in -ed and
+// has a noun after it: "two expected results". The phrase may stop at the
+// participle, so the text behind it is read too.
+func participleFirst(phrase, behind string) bool {
+	fields := strings.Fields(phrase)
+	if len(fields) < 2 || !strings.HasSuffix(strings.ToLower(fields[1]), "ed") {
+		return false
+	}
+	return len(fields) > 2 || wordBehind.MatchString(behind)
+}
+
+// wordBehind is a blank and then a letter, the start of a word after a phrase.
+var wordBehind = regexp.MustCompile(`^[ \t]+[A-Za-z]`)
 
 // measures reports a number whose next word is a unit ahead of the noun, as
 // in "64 MiB chunks".
@@ -157,7 +185,63 @@ var rates = set.Of[string]("every", "each", "per")
 
 // ceilings cap the number. The cap is the fact, so the repair keeps that much.
 var ceilings = set.Of[string]("at most", "up to", "no more than", "fewer than",
-	"less than", "not more than", "under", "below", "within")
+	"less than", "not more than", "under", "below", "within", "max", "maximum")
+
+// bound is a comparison sign written against a number, as in "<=750 lines".
+type bound struct {
+	text string
+	// floor marks a sign that sets a minimum, and strict one that excludes the number itself.
+	floor, strict bool
+}
+
+// reword says what a bound on n reads as once the number is gone. A cap
+// keeps the cap, and a floor keeps the scale the way "at least" does.
+func (b bound) reword(n int) string {
+	switch {
+	case !b.floor:
+		return "a bounded number of "
+	case b.strict:
+		return vague(n + 1)
+	}
+	return vague(n)
+}
+
+var (
+	lessOrEqual    = string(rune(0x2264))
+	greaterOrEqual = string(rune(0x2265))
+)
+
+// boundSigns are the signs a bound writes, the longer spelling first so "<="
+// is never read as "<".
+var boundSigns = []bound{
+	{text: "<="}, {text: lessOrEqual}, {text: "<", strict: true},
+	{text: ">=", floor: true}, {text: greaterOrEqual, floor: true}, {text: ">", floor: true, strict: true},
+}
+
+// boundSign answers the sign that stands in front of the number at, with the
+// blanks between them, and where the sign starts. Consider a lone "<" or ">".
+// That < is a bound only against the number and after no word, because a
+// blockquote marker and the end of a tag spell it too.
+func boundSign(content string, at int) (bound, int) {
+	head := strings.TrimRight(content[:at], " \t")
+	for _, b := range boundSigns {
+		if !strings.HasSuffix(head, b.text) {
+			continue
+		}
+		start := len(head) - len(b.text)
+		if len(b.text) == 1 && (len(head) != at || (start > 0 && joinsASign(content[start-1]))) {
+			continue
+		}
+		return b, start
+	}
+	return bound{}, at
+}
+
+// joinsASign reports a byte that makes a lone "<" or ">" part of something
+// else: a word. That joinsASign is as the end of a tag, or an arrow.
+func joinsASign(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || strings.IndexByte("-=<>", c) >= 0
+}
 
 // ceilingAfter caps the number from behind the noun.
 var ceilingAfter = regexp.MustCompile(`^[ \t]+or (?:fewer|less)\b`)

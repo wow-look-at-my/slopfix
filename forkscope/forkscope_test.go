@@ -1,5 +1,7 @@
 package forkscope
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"fmt"
@@ -14,7 +16,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // gitT runs git in dir with no user or system config. A signing key or a
@@ -34,8 +35,8 @@ func writeT(t *testing.T, dir, name, body string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644))
 }
 
-// inherited is the parent's doc.md.
-const inherited = "# Doc\n\nThe parser opens the file; it writes nothing.\n\nThe loader opens the file; it writes nothing.\n"
+//go:embed testdata/inherited.md
+var inherited string
 
 type forkFixture struct {
 	parent, fork string
@@ -53,7 +54,7 @@ func newForkFixture(t *testing.T) forkFixture {
 
 	fork := filepath.Join(t.TempDir(), "fork")
 	gitT(t, work, "clone", "-q", parent, fork)
-	writeT(t, fork, "doc.md", "# Doc\n\nThe parser opens the file; it writes nothing.\n\nThe loader opens the tree; it writes nothing.\n\nThe fork adds this line; it writes nothing.\n")
+	writeT(t, fork, "doc.md", newForkFixtureMd)
 	writeT(t, fork, "new.md", "# New\n\nThe fork adds this file; it writes nothing.\n")
 	gitT(t, fork, "add", "-A")
 	gitT(t, fork, "commit", "-q", "-m", "fork work")
@@ -251,9 +252,9 @@ func TestKeepPutsBackEveryChangeToAnInheritedLine(t *testing.T) {
 // A change that replaces a couple of lines with a couple of lines pairs them.
 // The fork's line lands, but the inherited line beside it goes back.
 func TestKeepTakesEachPairedLineAlone(t *testing.T) {
-	before := "fork: 2 hits\nbase: Two jobs\nbase: rest\n"
-	after := "fork: Hits\nbase: Jobs\nbase: rest\n"
-	assert.Equal(t, "fork: Hits\nbase: Two jobs\nbase: rest\n", Keep(before, after, OfLines(1)))
+	before := testKeepTakesEachPairedLineAloneYml
+	after := testKeepTakesEachPairedLineAloneYml2
+	assert.Equal(t, testKeepTakesEachPairedLineAloneYml3, Keep(before, after, OfLines(1)))
 }
 
 func TestCarryFollowsTheLinesThroughARepair(t *testing.T) {
@@ -302,22 +303,6 @@ func TestAForkOwnsOnlyTheBinariesItWrote(t *testing.T) {
 	assert.True(t, own.Whole(filepath.Join(fork, "added.bin")), "a binary the fork added is the fork's")
 	assert.True(t, own.Whole(filepath.Join(fork, "edited.bin")), "a binary the fork changed is the fork's")
 	assert.False(t, own.Holds(filepath.Join(fork, "inherited.bin"), 0, 0), "a binary it inherited unchanged is not")
-}
-
-func TestBinaryDiffPath(t *testing.T) {
-	for pair, want := range map[string]string{
-		"/dev/null and b/new.bin":                 "new.bin",
-		"a/x.bin and b/x.bin":                     "x.bin",
-		"a/this and that and b/this and that":     "this and that",
-		`"a/t\303\251.bin" and "b/t\303\251.bin"`: "té.bin",
-		"a/gone.bin and /dev/null":                "",
-	} {
-		got, err := binaryDiffPath(pair)
-		require.NoError(t, err, pair)
-		assert.Equal(t, want, got, pair)
-	}
-	_, err := binaryDiffPath("a/x and b/yy")
-	assert.Error(t, err, "sides that name different paths are refused")
 }
 
 func TestARepositoryThatIsNoForkHasNoScope(t *testing.T) {
@@ -463,7 +448,7 @@ func squashFixture(t *testing.T, shared bool) forkFixture {
 		gitT(t, fork, "remote", "add", "origin", parent)
 	}
 
-	synced := "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the file; it writes nothing.\n"
+	synced := squashFixtureMd
 	writeT(t, work, "doc.md", synced)
 	writeT(t, work, "sync.md", "# Sync\n\nThe second upstream commit adds this; it writes nothing.\n")
 	writeT(t, work, "old.md", "# Old\n\nThe second upstream commit rewrites this.\n")
@@ -479,7 +464,7 @@ func squashFixture(t *testing.T, shared bool) forkFixture {
 	writeT(t, fork, "old.md", oldFirst)
 	gitT(t, fork, "add", "-A")
 	gitT(t, fork, "commit", "-q", "-m", "squashed sync of the second upstream commit")
-	writeT(t, fork, "doc.md", "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the tree; it writes nothing.\n\nThe fork adds this line; it writes nothing.\n")
+	writeT(t, fork, "doc.md", squashFixtureMd2)
 	writeT(t, fork, "new.md", "# New\n\nThe fork adds this file; it writes nothing.\n")
 	gitT(t, fork, "add", "-A")
 	gitT(t, fork, "commit", "-q", "-m", "fork work")
@@ -683,53 +668,20 @@ func TestAForkOutsideAWorkTreeFailsLoudly(t *testing.T) {
 	assert.Contains(t, err.Error(), "rev-parse --show-toplevel")
 }
 
-// A content line that reads like a header is counted as hunk body, and a
-// quoted path and a deleted file are read.
-func TestTheDiffReaderCountsHunkBodies(t *testing.T) {
-	diff := strings.Join([]string{
-		`diff --git a/x.md b/x.md`,
-		`--- a/x.md`,
-		`+++ b/x.md`,
-		`@@ -2 +2,2 @@`,
-		`-old`,
-		`+++ b/fake.md`,
-		`+@@ -1 +1,9 @@`,
-		`\ No newline at end of file`,
-		`diff --git "a/sp ace\t.md" "b/sp ace\t.md"`,
-		`--- /dev/null`,
-		`+++ "b/sp ace\t.md"`,
-		`@@ -0,0 +1 @@`,
-		`+new`,
-		`diff --git a/gone.md b/gone.md`,
-		`--- a/gone.md`,
-		`+++ /dev/null`,
-		`@@ -1 +0,0 @@`,
-		`-gone`,
-		``,
-	}, "\n")
-	own := &Lines{top: "/", whole: set.New[string](), lines: map[string]set.Set[int]{}}
-	require.NoError(t, own.readDiff(diff))
+//go:embed testdata/new-fork-fixture.md
+var newForkFixtureMd string
 
-	assert.True(t, own.Holds("/x.md", 2, 0))
-	assert.True(t, own.Holds("/x.md", 1, 3))
-	assert.False(t, own.Holds("/x.md", 1, 1))
-	assert.True(t, own.Holds("/x.md", 0, 0), "a file finding holds when any line changed")
-	assert.False(t, own.Holds("/fake.md", 1, 1))
-	assert.True(t, own.Holds("/sp ace\t.md", 40, 40))
-	assert.False(t, own.Holds("/gone.md", 1, 1))
-	assert.False(t, own.Holds("/untouched.md", 0, 0))
-}
+//go:embed testdata/test-keep-takes-each-paired-line-alone.yml
+var testKeepTakesEachPairedLineAloneYml string
 
-func TestTheDiffReaderRefusesWhatItCannotRead(t *testing.T) {
-	for name, diff := range map[string]string{
-		"bad header":   "@@ nonsense\n",
-		"bad range":    "@@ -1 +x @@\n",
-		"bad quote":    "+++ \"b/x\n",
-		"cut off hunk": "+++ b/x\n@@ -1 +1 @@\n-a\n",
-	} {
-		t.Run(name, func(t *testing.T) {
-			own := &Lines{top: "/", whole: set.New[string](), lines: map[string]set.Set[int]{}}
-			assert.Error(t, own.readDiff(diff))
-		})
-	}
-}
+//go:embed testdata/test-keep-takes-each-paired-line-alone-2.yml
+var testKeepTakesEachPairedLineAloneYml2 string
+
+//go:embed testdata/test-keep-takes-each-paired-line-alone-3.yml
+var testKeepTakesEachPairedLineAloneYml3 string
+
+//go:embed testdata/squash-fixture.md
+var squashFixtureMd string
+
+//go:embed testdata/squash-fixture-2.md
+var squashFixtureMd2 string

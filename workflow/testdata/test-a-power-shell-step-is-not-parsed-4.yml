@@ -1,0 +1,7 @@
+jobs:
+  a:
+    runs-on: windows-latest
+    steps:
+      - shell: bash
+        run: |
+          fi

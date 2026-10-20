@@ -1,5 +1,7 @@
 package counts
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -9,7 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const numbered = "# ADR\n\n## 1. The question\n\nText.\n\n## 9. Owning the renderer\n\nMore.\n\n### 9.2 The cap\n\nLast.\n"
+//go:embed testdata/numbered.md
+var numbered string
 
 func links(t *testing.T, path, doc string) []string {
 	t.Helper()
@@ -38,7 +41,7 @@ func TestACitationWithNoHeadingIsLeftAlone(t *testing.T) {
 
 // Sections with one title get distinct slugs, and their anchors follow GitHub.
 func TestRepeatedTitlesGetUniqueSlugs(t *testing.T) {
-	doc := "## 1. Notes\n\nA.\n\n## 2. Notes\n\nB.\n\nSee §1 and §2.\n"
+	doc := testRepeatedTitlesGetUniqueSlugsMd
 	assert.Equal(t, []string{
 		"§1 [§notes](#1-notes)",
 		"§2 [§notes-2](#2-notes)",
@@ -57,7 +60,7 @@ func TestACitationOfAnotherFileResolvesBesideIt(t *testing.T) {
 
 // A slug keeps the first words of the title that name the section.
 func TestALongTitleGetsAShortSlug(t *testing.T) {
-	doc := "## 2. Is a fork actually cheap? Tested: mostly yes, with caveats\n\nA.\n\nSee §2.\n"
+	doc := testALongTitleGetsAShortSlugMd
 	assert.Equal(t, []string{"§2 [§fork-actually-cheap](#2-is-a-fork-actually-cheap-tested-mostly-yes-with-caveats)"}, links(t, "", doc))
 }
 
@@ -74,3 +77,9 @@ func TestASectionCitationIsNoCount(t *testing.T) {
 	assert.Empty(t, Gate("The §9 trigger fires.\n"))
 	assert.Empty(t, Check("This repo's §3 rules hold.\n"))
 }
+
+//go:embed testdata/test-repeated-titles-get-unique-slugs.md
+var testRepeatedTitlesGetUniqueSlugsMd string
+
+//go:embed testdata/test-a-long-title-gets-a-short-slug.md
+var testALongTitleGetsAShortSlugMd string

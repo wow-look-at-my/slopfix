@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"go/format"
 	"testing"
@@ -80,7 +82,10 @@ func TestAGoFileNoRuleChangesIsNotReformatted(t *testing.T) {
 
 // Only Go has a layout to restore. A cut in another language leaves its blanks alone.
 func TestALayoutPassIsForGoAlone(t *testing.T) {
-	src := "fn f() {}\n\n// Each take pays for 1 add.\n\n\nfn g() {}\n"
+	src := testALayoutPassIsForGoAloneRs
 	repair := slopfix.Fix(slopfix.Request{Content: src, Path: "x.rs"})
 	assert.Equal(t, "fn f() {}\n\n\n\nfn g() {}\n", repair.Text)
 }
+
+//go:embed testdata/test-a-layout-pass-is-for-go-alone.rs
+var testALayoutPassIsForGoAloneRs string

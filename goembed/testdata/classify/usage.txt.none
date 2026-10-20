@@ -1,0 +1,4 @@
+Usage: tool [flags]
+
+Run the tool.
+It reads the tree.

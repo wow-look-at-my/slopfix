@@ -8,11 +8,6 @@ type envRead struct {
 	start, end int
 }
 
-// readText answers what goes over a read.
-func readText(literal string) string {
-	return "String(" + literal + ")"
-}
-
 // deadArms answers where the `??` arms after a read end. The entry always
 // defines the variable, so each arm is dead. With no arm, or an arm that does
 // not end on this line, it answers from, and the arms stay.

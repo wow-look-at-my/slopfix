@@ -1,0 +1,5 @@
+  quoted:
+    if: "needs.plan.outputs.go == 'yes'"
+    runs-on: windows-11-arm
+    steps:
+      - run: make

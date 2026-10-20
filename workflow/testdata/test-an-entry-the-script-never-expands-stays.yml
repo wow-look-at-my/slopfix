@@ -1,0 +1,7 @@
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: go build ./...
+        env:
+          GOFLAGS: ${{ inputs.flags }}

@@ -1,0 +1,5 @@
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - run: make

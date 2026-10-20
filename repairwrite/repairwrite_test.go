@@ -1,5 +1,7 @@
 package repairwrite_test
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"os"
@@ -43,7 +45,7 @@ func read(t *testing.T, path string) string {
 // The rule that reached disk unrepaired, which is why this hook exists.
 func TestAWorkflowCommentBlockIsJoinedOnDisk(t *testing.T) {
 	path, payload := wrote(t, ".github/workflows/ci.yml",
-		"name: CI\n# one line about a thing\n# a second line about it\non: {push: {branches: ['**']}}\n")
+		testAWorkflowCommentBlockIsJoinedOnDiskYml)
 
 	res := fire(t, payload)
 
@@ -56,7 +58,7 @@ func TestAWorkflowCommentBlockIsJoinedOnDisk(t *testing.T) {
 // The model has to learn the bytes moved, or it quotes what it wrote.
 func TestTheRepairIsNamedInTheContext(t *testing.T) {
 	_, payload := wrote(t, ".github/workflows/ci.yml",
-		"name: CI\n# one line about a thing\n# a second line about it\non: {push: {branches: ['**']}}\n")
+		testTheRepairIsNamedInTheContextYml)
 
 	res := fire(t, payload)
 
@@ -74,7 +76,7 @@ func TestTheRepairIsNamedInTheContext(t *testing.T) {
 
 // The control that proves the case above can fail.
 func TestAFileWithNothingToRepairSaysNothing(t *testing.T) {
-	path, payload := wrote(t, ".github/workflows/ci.yml", "name: CI\n# one line\non: {push: {branches: ['**']}}\n")
+	path, payload := wrote(t, ".github/workflows/ci.yml", testAFileWithNothingToRepairSaysNothingYml)
 	before := read(t, path)
 
 	res := fire(t, payload)
@@ -85,7 +87,7 @@ func TestAFileWithNothingToRepairSaysNothing(t *testing.T) {
 
 func TestAnotherEventIsLeftAlone(t *testing.T) {
 	_, payload := wrote(t, ".github/workflows/ci.yml",
-		"name: CI\n# one line about a thing\n# a second line about it\non: {push: {branches: ['**']}}\n")
+		testAnotherEventIsLeftAloneYml)
 	payload["hook_event_name"] = "PreToolUse"
 
 	assert.Empty(t, fire(t, payload).Stdout)
@@ -93,7 +95,7 @@ func TestAnotherEventIsLeftAlone(t *testing.T) {
 
 func TestAToolThatWritesNoFileIsLeftAlone(t *testing.T) {
 	_, payload := wrote(t, ".github/workflows/ci.yml",
-		"name: CI\n# one line about a thing\n# a second line about it\non: {push: {branches: ['**']}}\n")
+		testAToolThatWritesNoFileIsLeftAloneYml)
 	payload["tool_name"] = "Bash"
 
 	assert.Empty(t, fire(t, payload).Stdout)
@@ -114,3 +116,18 @@ func TestAMissingFileIsReportedOnStderr(t *testing.T) {
 func TestAnUnreadablePayloadIsLeftAlone(t *testing.T) {
 	assert.Empty(t, repairwrite.Run(strings.NewReader("{ not json")).Stdout)
 }
+
+//go:embed testdata/test-a-workflow-comment-block-is-joined-on-disk.yml
+var testAWorkflowCommentBlockIsJoinedOnDiskYml string
+
+//go:embed testdata/test-the-repair-is-named-in-the-context.yml
+var testTheRepairIsNamedInTheContextYml string
+
+//go:embed testdata/test-a-file-with-nothing-to-repair-says-nothing.yml
+var testAFileWithNothingToRepairSaysNothingYml string
+
+//go:embed testdata/test-another-event-is-left-alone.yml
+var testAnotherEventIsLeftAloneYml string
+
+//go:embed testdata/test-a-tool-that-writes-no-file-is-left-alone.yml
+var testAToolThatWritesNoFileIsLeftAloneYml string

@@ -1,0 +1,4 @@
+jobs:
+  a:
+    permissions:
+      contents: admin

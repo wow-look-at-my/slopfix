@@ -1,0 +1,7 @@
+on: push
+jobs:
+  build:
+    steps:
+      - name: one
+        run: echo hi
+        name: two

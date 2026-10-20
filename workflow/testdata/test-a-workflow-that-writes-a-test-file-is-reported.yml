@@ -1,0 +1,6 @@
+on: {push: {branches: ['**']}}
+jobs:
+  x:
+    steps:
+      - run: |
+          echo 'package main' > cache_test.go

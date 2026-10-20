@@ -1,4 +1,4 @@
-module github.com/wow-look-at-my/slopfix // go-toolchain:generate=165003bec91c
+module github.com/wow-look-at-my/slopfix // go-toolchain:generate=51ee948188c9
 
 go 1.26.0
 
@@ -20,6 +20,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/klauspost/compress v1.20.0
 	go.yaml.in/yaml/v3 v3.0.5
 	mvdan.cc/sh/v3 v3.14.1
 )
@@ -28,7 +29,6 @@ require (
 	github.com/dlclark/regexp2 v1.11.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	golang.org/x/text v0.14.0 // indirect

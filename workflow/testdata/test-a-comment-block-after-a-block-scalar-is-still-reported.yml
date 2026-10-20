@@ -1,0 +1,10 @@
+on: {push: {branches: ['**']}}
+jobs:
+  build:
+    steps:
+      - run: |
+          # a shell comment
+          make
+
+# one
+# two

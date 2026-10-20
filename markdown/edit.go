@@ -11,6 +11,7 @@ package markdown
 import (
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
@@ -25,10 +26,13 @@ func Apply(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 	if len(edits) == 0 {
 		return edit.Unchanged(content, scope)
 	}
-	spans := proseSpans(content)
-	want, wantShape := verbatim(content), shape(content)
+	// Gate drops an out-of-scope edit first, so a run that lands nothing parses nothing.
+	prose := sync.OnceValue(func() [][2]int { return proseSpans(content) })
+	want := sync.OnceValue(func() []string { return verbatim(content) })
+	wantShape := sync.OnceValue(func() string { return shape(content) })
 	return edit.Gate(content, edits, scope,
 		func(e edit.Edit) string {
+			spans := prose()
 			// The spans run in source order, so the only candidate is the last one that opens at or before the edit.
 			i := sort.Search(len(spans), func(i int) bool { return spans[i][0] > e.Start }) - 1
 			if i >= 0 && e.End <= spans[i][1] {
@@ -36,7 +40,7 @@ func Apply(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 			}
 			return "it reaches past its prose block"
 		},
-		func(text string) bool { return sameLines(verbatim(text), want) && shape(text) == wantShape })
+		func(text string) bool { return sameLines(verbatim(text), want()) && shape(text) == wantShape() })
 }
 
 // shape renders the container tree of a document. A run of paragraphs in one
@@ -47,7 +51,8 @@ func shape(content string) string {
 	src := []byte(blankFrontMatter(content, lines))
 	var b strings.Builder
 	_ = ast.Walk(parser.Parse(text.NewReader(src)), func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		paragraph := n.Kind() == ast.KindParagraph || n.Kind() == ast.KindTextBlock
+		// A list of one-word items renders as the paragraph of entry lines it replaces.
+		paragraph := n.Kind() == ast.KindParagraph || n.Kind() == ast.KindTextBlock || wordList(n, src)
 		if !entering {
 			if !paragraph {
 				b.WriteByte(')')
@@ -55,7 +60,7 @@ func shape(content string) string {
 			return ast.WalkContinue, nil
 		}
 		if paragraph {
-			if prev := n.PreviousSibling(); prev == nil || (prev.Kind() != ast.KindParagraph && prev.Kind() != ast.KindTextBlock) {
+			if prev := n.PreviousSibling(); prev == nil || (prev.Kind() != ast.KindParagraph && prev.Kind() != ast.KindTextBlock && !wordList(prev, src)) {
 				b.WriteString("P")
 			}
 			return ast.WalkSkipChildren, nil
@@ -67,6 +72,27 @@ func shape(content string) string {
 		return ast.WalkContinue, nil
 	})
 	return b.String()
+}
+
+func wordList(n ast.Node, src []byte) bool {
+	if n.Kind() != ast.KindList || n.ChildCount() < 2 {
+		return false
+	}
+	for item := n.FirstChild(); item != nil; item = item.NextSibling() {
+		body := item.FirstChild()
+		if body == nil || item.ChildCount() != 1 || body.Kind() != ast.KindTextBlock && body.Kind() != ast.KindParagraph {
+			return false
+		}
+		lines := body.Lines()
+		if lines.Len() != 1 {
+			return false
+		}
+		seg := lines.At(0)
+		if strings.ContainsAny(strings.TrimSpace(string(seg.Value(src))), " \t") {
+			return false
+		}
+	}
+	return true
 }
 
 // BlockEdit is an edit that replaces a whole prose block with lines.

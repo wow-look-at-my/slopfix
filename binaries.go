@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/wow-look-at-my/slopfix/gitmod"
+	"github.com/wow-look-at-my/slopfix/gitread"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/walktree"
 )
@@ -31,33 +31,43 @@ var executableMagic = []struct {
 }
 
 // trackedFile is a regular file git tracks, and the blob the index holds for
-// it. The blob is empty for a tree that git cannot list.
+// it. The blob is zero for a tree that no repository holds.
 type trackedFile struct {
 	rel  string
-	blob string
+	blob gitread.OID
 }
 
 // trackedFiles names each regular file git tracks under root, relative to it.
 // A directory with no repository is read from disk, without a .git directory.
-// A repository git cannot list is an error. A disk walk there would read every
-// ignored build output as a committed file.
-func trackedFiles(root string) ([]trackedFile, error) {
-	out, err := gitmod.Command(root, "ls-files", "-s", "-z").Output()
-	if err == nil {
+// A repository whose index cannot be read is an error. A disk walk there would
+// read every ignored build output as a committed file.
+func trackedFiles(root string) (*gitread.Repo, []trackedFile, error) {
+	repo, err := gitread.OpenWorkTree(root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read the repository at %s: %w", root, err)
+	}
+	if repo != nil {
+		idx, err := repo.Index()
+		if err != nil {
+			return nil, nil, fmt.Errorf("read the index in %s: %w", root, err)
+		}
+		under, _ := repo.Rel(root)
 		var files []trackedFile
-		for _, entry := range strings.Split(string(out), "\x00") {
-			meta, name, ok := strings.Cut(entry, "\t")
-			fields := strings.Fields(meta)
-			// Neither holds file bytes.
-			if !ok || len(fields) < 2 || !strings.HasPrefix(fields[0], "100") {
+		for _, entry := range idx.Entries() {
+			// Neither a gitlink nor a symlink holds file bytes.
+			if !strings.HasPrefix(entry.Mode, "100") {
 				continue
 			}
-			files = append(files, trackedFile{filepath.FromSlash(name), fields[1]})
+			rel := entry.Path
+			if under != "." && under != "" {
+				var ok bool
+				if rel, ok = strings.CutPrefix(rel, under+"/"); !ok {
+					continue
+				}
+			}
+			files = append(files, trackedFile{filepath.FromSlash(rel), entry.OID})
 		}
-		return files, nil
-	}
-	if reason := gitmod.Unexpected(err); reason != "" {
-		return nil, fmt.Errorf("git ls-files in %s: %s", root, reason)
+		return repo, files, nil
 	}
 	var files []trackedFile
 	walktree.Get(root).Visit(nil, func(path string, e walktree.Entry) {
@@ -68,7 +78,7 @@ func trackedFiles(root string) ([]trackedFile, error) {
 			files = append(files, trackedFile{rel: rel})
 		}
 	})
-	return files, nil
+	return nil, files, err
 }
 
 // executableKind names the executable format that head opens with, or answers "".
@@ -87,7 +97,7 @@ func executableKind(head []byte) string {
 // binary writable refuses stays a finding.
 func committedBinaries(root string, writing bool, writable func(string) bool) ([]TreeFinding, []string, error) {
 	defer trace.Phase("repo/binaries")()
-	files, err := trackedFiles(root)
+	repo, files, err := trackedFiles(root)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -97,7 +107,7 @@ func committedBinaries(root string, writing bool, writable func(string) bool) ([
 		path := filepath.Join(root, file.rel)
 		kind := fileKind(path)
 		// The checkout is cheap to read, so only an executable there costs a blob read.
-		if kind == "" || (file.blob != "" && blobKind(root, file.blob) == "") {
+		if kind == "" || (repo != nil && blobKind(repo, file.blob) == "") {
 			continue
 		}
 		if writing && writable(path) {
@@ -115,17 +125,12 @@ func committedBinaries(root string, writing bool, writable func(string) bool) ([
 }
 
 // blobKind reads the first bytes of a blob in the object store.
-func blobKind(root, blob string) string {
-	cmd := gitmod.Command(root, "cat-file", "blob", blob)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil || cmd.Start() != nil {
+func blobKind(repo *gitread.Repo, blob gitread.OID) string {
+	data, ok := repo.Blob(blob)
+	if !ok {
 		return ""
 	}
-	head := make([]byte, 4)
-	n, _ := io.ReadFull(stdout, head)
-	_ = cmd.Process.Kill()
-	_ = cmd.Wait()
-	return executableKind(head[:n])
+	return executableKind(data[:min(len(data), 4)])
 }
 
 // fileKind reads the first bytes of a regular file. A symlink and a path the
