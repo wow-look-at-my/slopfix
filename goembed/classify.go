@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"mvdan.cc/sh/v3/syntax"
 	yaml "go.yaml.in/yaml/v3"
+	"mvdan.cc/sh/v3/syntax"
 )
 
 // Lang is a language a string can hold, and the extension of its file.
