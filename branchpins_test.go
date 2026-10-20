@@ -221,7 +221,7 @@ func TestFixWritesTheDefaultBranchOverABranchPin(t *testing.T) {
 //go:embed testdata/test-branch-pins-tree-reports-a-workflow-finding.yml
 var testBranchPinsTreeReportsAWorkflowFindingYml string
 
-//go:embed testdata/test-a-tree-run-asks-the-a-p-i-when-given-no-refs.yml
+//go:embed testdata/test-a-tree-run-asks-the-api-when-given-no-refs.yml
 var testATreeRunAsksTheAPIWhenGivenNoRefsYml string
 
 //go:embed testdata/cached-tree.yml
@@ -233,7 +233,7 @@ var testAnUndeclaredFixtureRepositoryIsReportedYml string
 //go:embed testdata/test-an-undeclared-fixture-ref-is-reported.yml
 var testAnUndeclaredFixtureRefIsReportedYml string
 
-//go:embed testdata/test-a-recorded-branch-is-flagged-without-the-a-p-i.yml
+//go:embed testdata/test-a-recorded-branch-is-flagged-without-the-api.yml
 var testARecordedBranchIsFlaggedWithoutTheAPIYml string
 
 //go:embed testdata/test-an-unreadable-repository-is-a-finding-not-a-tag.yml

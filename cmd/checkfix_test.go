@@ -96,5 +96,5 @@ func TestOnlySTECatchesALongSentenceInAWorkflow(t *testing.T) {
 	assert.ErrorIs(t, runCheck(rootCmd, []string{path}), errFindings, "--only ste omits the sentence rule in a workflow")
 }
 
-//go:embed testdata/test-only-s-t-e-catches-a-long-sentence-in-a-workflow.yml
+//go:embed testdata/test-only-ste-catches-a-long-sentence-in-a-workflow.yml
 var testOnlySTECatchesALongSentenceInAWorkflowYml string

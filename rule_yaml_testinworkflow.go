@@ -39,7 +39,7 @@ func autofixTestInYAML(c RuleCase) RuleCase {
 // command.
 func testInYAMLCase() string {
 	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n" +
-		testInYAMLCaseSh
+		testInYAMLCaseYml
 }
 
 // testInYAMLExpressionCase is a workflow whose test reads an expression inside
@@ -52,5 +52,5 @@ func testInYAMLExpressionCase() string {
 		"          fi\n"
 }
 
-//go:embed testdata/test-in-y-a-m-l-case.sh
-var testInYAMLCaseSh string
+//go:embed testdata/test-in-yaml-case.yml
+var testInYAMLCaseYml string

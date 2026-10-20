@@ -144,7 +144,7 @@ func TestTwoRewritesOnOneLineAreBothRepaired(t *testing.T) {
 	assert.Contains(t, fixed, "https://x-access-token:${B}@github.com/b/\".insteadOf https://github.com/b/\n")
 }
 
-//go:embed testdata/token-u-r-l-job.yml
+//go:embed testdata/token-url-job.yml
 var tokenURLJobYml string
 
 //go:embed testdata/test-a-composite-action-step-is-reported.yml

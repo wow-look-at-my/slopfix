@@ -184,7 +184,7 @@ func TestAnHTMLBlockWithAnIndentedChildIsNotProse(t *testing.T) {
 //go:embed testdata/test-a-paragraph-is-prose-and-a-fence-is-not.md
 var testAParagraphIsProseAndAFenceIsNotMd string
 
-//go:embed testdata/test-an-h-t-m-l-block-is-not-prose.xml
+//go:embed testdata/test-an-html-block-is-not-prose.xml
 var testAnHTMLBlockIsNotProseXml string
 
 //go:embed testdata/test-an-import-list-is-not-prose.md
@@ -196,8 +196,8 @@ var testAnImportListIsNotProseMd2 string
 //go:embed testdata/test-a-lone-markup-tag-line-ends-the-paragraph.xml
 var testALoneMarkupTagLineEndsTheParagraphXml string
 
-//go:embed testdata/test-an-h-t-m-l-block-with-an-indented-child-is-not-prose.html
+//go:embed testdata/test-an-html-block-with-an-indented-child-is-not-prose.html
 var testAnHTMLBlockWithAnIndentedChildIsNotProseHtml string
 
-//go:embed testdata/test-an-h-t-m-l-block-with-an-indented-child-is-not-prose.svg
+//go:embed testdata/test-an-html-block-with-an-indented-child-is-not-prose.svg
 var testAnHTMLBlockWithAnIndentedChildIsNotProseSvg string

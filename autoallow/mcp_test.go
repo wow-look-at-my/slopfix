@@ -131,5 +131,5 @@ func TestLoadXMLRulesMCPServers(t *testing.T) {
 	}, rules.MCPServers)
 }
 
-//go:embed testdata/test-load-x-m-l-rules-m-c-p-servers.xml
+//go:embed testdata/test-load-xml-rules-mcp-servers.xml
 var testLoadXMLRulesMCPServersXml string

@@ -80,7 +80,7 @@ func TestOnlyPackageScriptsSelectsTheRule(t *testing.T) {
 	assert.Equal(t, []string{slopfix.IDPackageScripts}, ids(out.Findings))
 }
 
-//go:embed testdata/test-a-package-j-s-o-n-with-scripts-is-reported.json
+//go:embed testdata/test-a-package-json-with-scripts-is-reported.json
 var testAPackageJSONWithScriptsIsReportedJson string
 
 //go:embed testdata/test-lifecycle-scripts-alone-are-not-reported.json

@@ -18,7 +18,7 @@ const safetyLines = `///
 /// ` + "`converter_create`" + ` that has not already been freed.
 `
 
-const safetyDoc = "/// Free a converter handle\n" + safetyLines + freeFn
+var safetyDoc = "/// Free a converter handle\n" + safetyLines + freeFn
 
 //go:embed testdata/free-fn.js
 var freeFn string

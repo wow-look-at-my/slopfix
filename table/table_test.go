@@ -148,5 +148,5 @@ var testTheFolderIsReadInFileNameOrderXml string
 //go:embed testdata/test-the-folder-is-read-in-file-name-order-2.xml
 var testTheFolderIsReadInFileNameOrderXml2 string
 
-//go:embed testdata/test-load-refuses-a-duplicate-i-d-across-files.xml
+//go:embed testdata/test-load-refuses-a-duplicate-id-across-files.xml
 var testLoadRefusesADuplicateIDAcrossFilesXml string
