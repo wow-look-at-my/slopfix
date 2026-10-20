@@ -175,7 +175,7 @@ func TestTextIsReadWhereTheSchemaDeclaresIt(t *testing.T) {
 		err  string
 	}{
 		{"text in an element of children and attributes", `<t><e word="a">stray</e></t>`, "takes no text"},
-		{"text in an element of attributes alone", `<t><f word="a">stray</f></t>`, "takes no text"},
+		{"text in an element of attributes alone", `<t><f word="a">stray</f></t>`, "expects empty content"},
 		{"blanks where no text belongs", "<t><e word=\"a\">\n  </e></t>", ""},
 		{"a child where a child belongs", `<t><e word="a"><test in="an alpha" out="x"/></e></t>`, ""},
 	} {
