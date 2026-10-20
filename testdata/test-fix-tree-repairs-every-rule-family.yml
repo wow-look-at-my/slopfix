@@ -1,0 +1,4 @@
+name: CI
+# one
+# two
+on: {push: {branches: ['**']}}

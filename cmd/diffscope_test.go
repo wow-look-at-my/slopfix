@@ -1,5 +1,7 @@
 package cmd
 
+import _ "embed"
+
 import (
 	"path/filepath"
 	"testing"
@@ -14,11 +16,14 @@ import (
 const diffGoBase = "package p\n\n// Open waits 4 seconds before it starts.\n\n// Close keeps the lock.\n\nfunc Open() {}\n"
 const diffGoWork = "package p\n\n// Open waits 4 seconds before it starts.\n\n// Close waits 2 minutes before it stops.\n\nfunc Open() {}\n"
 
-const diffDocBase = "# Doc\n\nAlpha doesn't hold the lock.\n\nBeta holds the lock.\n"
-const diffDocWork = "# Doc\n\nAlpha doesn't hold the lock.\n\nBeta doesn't hold the lock.\n"
+//go:embed testdata/diff-doc-base.md
+var diffDocBase string
 
-// diffDocClean changes the same line to a spelling that holds no finding.
-const diffDocClean = "# Doc\n\nAlpha doesn't hold the lock.\n\nBeta clears the lock.\n"
+//go:embed testdata/diff-doc-work.md
+var diffDocWork string
+
+//go:embed testdata/diff-doc-clean.md
+var diffDocClean string
 
 // diffRepo builds a work tree with both files committed at their base state.
 func diffRepo(t *testing.T) (dir, goPath, docPath string) {

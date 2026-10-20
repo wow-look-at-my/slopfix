@@ -1,0 +1,10 @@
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          if [ "${{ inputs.mode }}" = fast ]; then
+            echo ${{ github.sha }}
+          fi
+          N=$(( ${{ inputs.count }} + 1 ))
+          ${{ inputs.command }} --flag '${{ matrix.os }}'

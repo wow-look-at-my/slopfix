@@ -1,0 +1,9 @@
+  apple:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+          - os: macos-15
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: make

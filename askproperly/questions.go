@@ -2,49 +2,20 @@
 // is a question put to the user in prose. The other is a deferral that hands
 // the user a decision without AskUserQuestion.
 //
-// Both tables are data on purpose. Extending either is editing a slice,
-// never touching the matcher.
+// Both tables live in questions.xml. Extending either is adding an entry
+// there, never touching the matcher.
 package askproperly
 
 import (
-	_ "embed"
-	"encoding/xml"
 	"regexp"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
-	"github.com/wow-look-at-my/slopfix/table"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
 // ID names this rule, on a report and on the command line alike.
 const ID = "ask/prose-decision"
-
-//go:embed deferrals.xml
-var deferralsXML []byte
-
-type deferralDoc struct {
-	Phrases []string `xml:"phrase"`
-}
-
-var deferralPhrases = loadDeferrals()
-
-func loadDeferrals() []string {
-	var doc deferralDoc
-	if err := xml.Unmarshal(table.Readable(deferralsXML), &doc); err != nil {
-		panic("askproperly: deferrals.xml: " + err.Error())
-	}
-	return doc.Phrases
-}
-
-// cueWords are the interrogative cues that separate a real question from a
-// question mark doing another job. A "?" alone is not enough: nullable types
-// and query strings both carry the mark, in a message that asked nothing.
-var cueWords = []string{
-	"what", "which", "why", "how", "when", "where", "who", "whose",
-	"should", "shall", "would", "could", "can", "will", "do", "does",
-	"did", "is", "are", "was", "were", "am", "have", "has", "any",
-	"want", "prefer", "ok", "okay", "right", "correct", "agree", "sound",
-}
 
 // Hit is a finding, with the line it sits on so the refusal can quote it.
 type Hit struct {
@@ -58,22 +29,22 @@ type phraseMatcher struct {
 	re   *regexp.Regexp
 }
 
-var deferralMatchers = compilePhrases(deferralPhrases)
+var deferralMatchers = compilePhrases(Rules.DeferralPhrases())
 
 func compilePhrases(phrases []string) []phraseMatcher {
 	out := make([]phraseMatcher, 0, len(phrases))
 	for _, p := range phrases {
 		out = append(out, phraseMatcher{
 			text: p,
-			re:   regexp.MustCompile(`(?i)` + regexp.QuoteMeta(p)),
+			re:   precompiled.MustCompile(`(?i)` + regexp.QuoteMeta(p)),
 		})
 	}
 	return out
 }
 
 var cueSet = func() map[string]bool {
-	m := make(map[string]bool, len(cueWords))
-	for _, w := range cueWords {
+	m := make(map[string]bool, len(Rules.Cues))
+	for _, w := range Rules.Cues {
 		m[w] = true
 	}
 	return m

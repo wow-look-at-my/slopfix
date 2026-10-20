@@ -1,0 +1,7 @@
+on: {push: {branches: ['**']}}
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: wait for all-builds
+        run: true

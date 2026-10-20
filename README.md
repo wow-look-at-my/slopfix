@@ -2,7 +2,7 @@
 
 slopfix checks and repairs text against the org's writing rules. It reads markdown prose, code comments, GitHub Actions workflows and the markdown layout of a repository.
 
-It also answers the Claude Code hook events that the org's marketplace plugin sends it. A hook, a CI job and an editor all get the same verdict from the same binary.
+It also answers the events of the Claude Code hook that the org's marketplace plugin sends it. A hook, a CI job and an editor all get the same verdict from the same binary.
 
 ## The rules
 
@@ -16,13 +16,14 @@ It also answers the Claude Code hook events that the org's marketplace plugin se
 | `counts` | `counts/inventory-count`, `counts/stated-count`, `counts/postdeterminer` | yes |
 | `tombstones` | `tombstones/*` | all but `tombstones/comment-volume` |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes, except a block no cut can fit |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes, except a flow-style `push` mapping |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner`, `yaml/token-in-git-url` | yes, except a flow-style `push` mapping |
 | `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`. A warning never fails `check` |
 | `pins` | `pins/download-version` | yes, except a templated URL |
+| `go` | `go/foreign-source` | yes. The string moves into a file of its language, and a `//go:embed` var reads it |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | no |
 
 - `repo`: `CLAUDE.md` holds only `@AGENTS.md`. Each root file, each `CLAUDE.md` and each `claude_snippets/` file stays under `40000` characters. `fix` moves the largest sections of a long file into `docs/`. No executable is committed. No file is a near copy of another file of its name. Each JSON and XML file parses and meets the schema it names.
-- `wrap` and `ste`: a paragraph is one line, and its prose follows ASD-STE100 Simplified Technical English.
+- `wrap` and `ste`: a paragraph is one line, and its prose follows Simplified Technical English (ASD-STE100).
 - `english`: plain English usage that STE does not cover, such as a semicolon or a comma splice.
 - `counts` and `comments/number`: a stated count goes stale when the set changes.
 - `tombstones`: a comment that narrates history or argues for the diff.
@@ -47,7 +48,7 @@ slopfix check .                       # report what the rules reject, exit 1 on 
 slopfix fix .                         # repair in place, then report what is left
 slopfix check --only ste docs/a.md    # narrow to a category
 slopfix fix --only english/semicolon a.md # narrow to a rule ID
-slopfix check --json --path a.md < a.md      # JSON findings for text on stdin
+slopfix check --json --path a.md - < a.md    # JSON findings for text on stdin
 slopfix check --message < message.txt        # judge a closing message
 slopfix fix --staged                         # repair only the lines staged against HEAD
 slopfix fix --diff origin/master .           # repair only the lines this branch adds
@@ -66,7 +67,7 @@ The commands are `check`, `hook`, `lsp`, `completion` and `help`.
 
 ```yml
 - uses: actions/checkout@v4
-- uses: wow-look-at-my/slopfix@master
+- uses: wow-look-at-my/slopfix@lkgb
 ```
 
 The action runs `check .` with every rule. No input narrows it to some paths or some rules, and it never repairs.

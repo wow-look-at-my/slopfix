@@ -28,20 +28,6 @@ var (
 	firstToken = regexp.MustCompile(`^\S+`)
 )
 
-// forceSentenceCap divides each sentence still over the cap at a word boundary.
-func forceSentenceCap(prose string, d capSpec) string {
-	over := overCap(prose, d.cap)
-	for range len(strings.Fields(prose)) + 1 {
-		next, divided := forceNext(prose, d)
-		// A division that leaves as many words past the cap moves nothing, so the loop stops on it.
-		if !divided || overCap(next, d.cap) >= over {
-			return prose
-		}
-		prose, over = next, overCap(next, d.cap)
-	}
-	return prose
-}
-
 // overCap counts the words past limit in every sentence Check reads in prose.
 func overCap(prose string, limit int) int {
 	n := 0
@@ -49,28 +35,6 @@ func overCap(prose string, limit int) int {
 		n += max(0, WordCount(sentence)-limit)
 	}
 	return n
-}
-
-// forceNext divides the earliest over-cap sentence, as Check reads it.
-func forceNext(prose string, d capSpec) (string, bool) {
-	masked := checkMask(prose)
-	for _, span := range sentenceSpans(masked) {
-		start, end := span[0], span[1]
-		// A filled span ends in a blank where the prose has its mark, so the sentence takes the mark back.
-		for start > 0 && masked[start-1] == ' ' && prose[start-1] != ' ' {
-			start--
-		}
-		for end < len(prose) && masked[end] == ' ' && prose[end] != ' ' {
-			end++
-		}
-		if WordCount(masked[start:end]) <= d.cap {
-			continue
-		}
-		if rewritten, ok := forceDivision(prose[start:end], masked[start:end], d); ok {
-			return prose[:start] + rewritten + prose[end:], true
-		}
-	}
-	return prose, false
 }
 
 // Masked is the prose as Check reads it, with every offset kept.
@@ -130,6 +94,8 @@ type forceCut struct {
 	score       int
 	// words is the count Check reads for the part before left.
 	words int
+	// afterNoun is a cut right after a noun, and bare a cut with no mark and no opener word.
+	afterNoun, bare bool
 }
 
 // forceDivision divides source at the best word boundary that leaves the first
@@ -141,6 +107,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := listDivision(source, masked, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
+	dashed := dashAsides(source)
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict, d.cap) {
@@ -149,6 +116,10 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			}
 			head := source[:c.left]
 			right, opened := openRest(source, masked, whole, c)
+			// A rest that only gains a capital leaves the dash aside halved.
+			if insideAny(dashed, c.left) && right == capitalizeOpening(strings.TrimLeft(source[c.right:], " —–-")) {
+				continue
+			}
 			left := closeHead(head)
 			seam := seamBefore(source, c.left)
 			// ", so" joins whole clauses, so the comma before it ends one wherever it sits.
@@ -170,6 +141,10 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 					continue
 				}
 				head, right, opened, left = ch, cr, co, cl
+			}
+			// A bare clause after a noun describes it: "the paths the file declared".
+			if opened == opensOwnClause && c.afterNoun && c.bare {
+				continue
 			}
 			// A rest that opens a clause of its own reads best.
 			if score := c.score + opened; best == "" || score > bestScore {
@@ -325,26 +300,43 @@ func endsOnPossessive(source string, left int) bool {
 	return strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s")
 }
 
+// endsOnOpener reports a cut whose head ends on a word that needs the next
+// one, such as an article, a preposition or a conjunction. The cut would part
+// a phrase: "understanding the. Environment".
+func endsOnOpener(source string, whole *syntax.Sentence, c forceCut) bool {
+	last := strings.ToLower(strings.Trim(lastField(strings.TrimRight(source[:c.left], " ,;:—–-")), ".,;:!?*_\"'`()[]“”‘’"))
+	if forceDangling.Contains(last) {
+		return true
+	}
+	w, ok := lastWordBefore(whole, c.left)
+	if ok && w.Tag == "VBG" {
+		return true
+	}
+	return ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start))
+}
+
 // lastResortCut answers the cut that keeps the most leading words under the
 // cap, for a sentence where no cut leaves both parts reading as sentences. A
 // finding that fix leaves standing breaks the guarantee, and an awkward pair
 // of sentences does not. The cut still lands between whole words, outside a
 // code span, a link, a quotation and a parenthesis.
 func lastResortCut(source, masked string, words, limit int) (forceCut, int) {
-	best, bestWords := forceCut{}, -1
+	best, bestWords, bestComma := forceCut{}, -1, false
 	whole := syntax.Parse(masked, nil)
 	for _, c := range candidates(source, masked, false, limit) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < 1 || words-c.words < 1 {
 			continue
 		}
-		if endsOnPossessive(source, c.left) {
+		if endsOnPossessive(source, c.left) || endsOnOpener(source, whole, c) {
 			continue
 		}
 		if n := wordsBefore(whole, c.right); n > 0 && n+1 < len(whole.Words) && relativeAfterNoun(whole, n) {
 			continue
 		}
-		if c.words > bestWords {
-			best, bestWords = c, c.words
+		// A cut at a comma parts a clause from the next, so it beats a longer cut inside a phrase.
+		comma := seamBefore(source, c.left) == ","
+		if bestWords < 0 || comma && !bestComma || comma == bestComma && c.words > bestWords {
+			best, bestWords, bestComma = c, c.words, comma
 		}
 	}
 	return best, bestWords
@@ -457,10 +449,10 @@ const phraseReach = 8
 // phraseSpans answers the inside of each noun phrase and verb group the parser
 // finds where a cut can land, and where each finite verb starts. A cut inside
 // a phrase leaves "a detached." behind.
-func phraseSpans(masked string, ends []int, limit int) ([][]int, set.Set[int]) {
-	finite := set.New[int]()
+func phraseSpans(masked string, ends []int, limit int) ([][]int, set.Set[int], set.Set[int]) {
+	finite, nounEnds := set.New[int](), set.New[int]()
 	if len(ends) == 0 {
-		return nil, finite
+		return nil, finite, nounEnds
 	}
 	head := masked[:ends[min(limit+phraseReach, len(ends)-1)]]
 	s := syntax.Parse(head, nil)
@@ -475,8 +467,11 @@ func phraseSpans(masked string, ends []int, limit int) ([][]int, set.Set[int]) {
 		if w.Tag == "VBZ" || w.Tag == "VBP" || w.Tag == "VBD" || w.Tag == "MD" {
 			finite.Add(w.Start)
 		}
+		if strings.HasPrefix(w.Tag, "NN") {
+			nounEnds.Add(w.End)
+		}
 	}
-	return out, finite
+	return out, finite, nounEnds
 }
 
 // isWordByte reports a byte that can open bold text's first word: a letter,
@@ -512,8 +507,8 @@ func candidates(source, masked string, strict bool, limit int) []forceCut {
 	off = append(off, linkText.FindAllStringIndex(masked, -1)...)
 	ends := wordEnds(masked)
 	verbs := set.New[int]()
+	spans, finite, nounEnds := phraseSpans(masked, ends, limit)
 	if strict {
-		spans, finite := phraseSpans(masked, ends, limit)
 		off, verbs = append(off, spans...), finite
 	}
 	var out []forceCut
@@ -550,7 +545,7 @@ func candidates(source, masked string, strict bool, limit int) []forceCut {
 		case forceOpener.Contains(next):
 			penalty = 3
 		}
-		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty, words: leftWords})
+		out = append(out, forceCut{left: p, right: q, score: leftWords - penalty, words: leftWords, afterNoun: nounEnds.Contains(p), bare: penalty == 8})
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].score > out[b].score })
 	return out

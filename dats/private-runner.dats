@@ -19,7 +19,7 @@ tests:
 		git remote add origin https://github.com/wow-look-at-my/private-runner-fixture
 		mkdir -p .github/workflows
 		printf 'name: CI\non:\n  push:\n    branches: ["**"]\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n  b:\n    runs-on: ubuntu-22.04\n    steps:\n      - run: docker build .\n  c:\n    runs-on: ${{ vars.CI_RUNNER || '"'"'ubuntu-24.04'"'"' }}\n    steps:\n      - run: make\n' > .github/workflows/ci.yml
-		"$slopfix" fix --only yaml/private-runner --path .github/workflows/ci.yml < .github/workflows/ci.yml
+		"$slopfix" fix --only yaml/private-runner --path .github/workflows/ci.yml - < .github/workflows/ci.yml
 	  outputs:
 		stdout:
 			- "runs-on: ${{ github.event.repository.visibility == 'public' && 'ubuntu-latest' || vars.CI_RUNNER || 'ubuntu-latest' }}"
@@ -36,7 +36,7 @@ tests:
 		git remote add origin https://github.com/someone/runner-fixture
 		mkdir -p .github/workflows
 		printf 'name: CI\non:\n  push:\n    branches: ["**"]\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n' > .github/workflows/ci.yml
-		"$slopfix" fix --only yaml/private-runner --path .github/workflows/ci.yml < .github/workflows/ci.yml
+		"$slopfix" fix --only yaml/private-runner --path .github/workflows/ci.yml - < .github/workflows/ci.yml
 	  outputs:
 		stdout:
 			- "runs-on: ubuntu-latest"

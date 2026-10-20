@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // ErrUnknownRevision marks a revision this package cannot name.
@@ -167,7 +169,7 @@ func (r *Repo) abbreviated(prefix string) (OID, bool) {
 			p.prefix(digits, odd, func(oid OID) { found.Add(oid) })
 		}
 		lower := strings.ToLower(prefix)
-		entries, _ := os.ReadDir(filepath.Join(db.dir, lower[:2]))
+		entries, _ := walktree.List(filepath.Join(db.dir, lower[:2]))
 		for _, e := range entries {
 			if strings.HasPrefix(e.Name(), lower[2:]) {
 				if oid, err := ParseOID(lower[:2] + e.Name()); err == nil {
@@ -269,18 +271,14 @@ func (r *Repo) Refs(prefix string) map[string]OID {
 		}
 	}
 	root := filepath.Join(r.commonDir, filepath.FromSlash(prefix))
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
+	walktree.Get(root).Visit(nil, func(path string, _ walktree.Entry) {
 		rel, err := filepath.Rel(r.commonDir, path)
 		if err != nil {
-			return nil
+			return
 		}
 		if oid, ok := r.ref(filepath.ToSlash(rel), 0); ok {
 			out[filepath.ToSlash(rel)] = oid
 		}
-		return nil
 	})
 	return out
 }

@@ -32,9 +32,10 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `counts` | `counts/inventory-count`, `counts/section-number`, `counts/stated-count`, `counts/postdeterminer` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner`, `yaml/id-token`, `yaml/script-expression`, `yaml/token-in-git-url` | yes |
 | `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`, and the step runs the file. No line is cut |
 | `pins` | `pins/download-version` | yes |
+| `go` | `go/foreign-source` | yes. The string moves into a file and a `//go:embed` var reads it |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | yes, with `fix --message`. Each sentence that carries the tell comes out |
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
@@ -67,7 +68,7 @@ The action at the repository root downloads the published binary from buildhost 
 
 ```yml
 - uses: actions/checkout@v4
-- uses: wow-look-at-my/slopfix@master
+- uses: wow-look-at-my/slopfix@lkgb
 ```
 
 Several org actions call this action, so one workflow run can reach it from many jobs. The check claims the run through `wow-look-at-my/actions@run-once#latest` with the name `slopfix-check`. One job runs it. Each other job logs the skip.
@@ -144,7 +145,9 @@ Prose requires a frame, because a document carries numbers that count nothing: a
 
 `counts/inventory-count` cuts the cardinal out of a sentence that counts what is here. `there are three sections` becomes `there are sections`, which stays true. The org rules that a count in markdown is not worth maintaining.
 
-Every reported count gets a repair. Where a bare cut breaks the sentence, `counts/reword.go` writes words that state no figure. A rate becomes `every few`. A cap becomes `a bounded number of`. A unit takes `a couple of`, `a few`, `several` or `many`, by size. After a preposition or a noun the number becomes `multiple`.
+Every reported count gets a repair. Where a bare cut breaks the sentence, `counts/reword.go` writes words that state no figure. A rate becomes `every few`. A cap becomes `a bounded number of`, whether words (`at most`, `max`) or a sign (`<=`, `<`) state it. A sign that sets a floor (`>=`, `>`) reads as a unit does. A unit takes `a couple of`, `a few`, `several` or `many`, by size.
+
+After a preposition or a noun the number becomes `multiple`.
 
 A hedge such as `about` or `exactly` goes with the number. A zero becomes `no`. A zero that is the subject of a verb names a value, and becomes `a value of zero`: `0 disables chunking` reads `a value of zero disables chunking`. A label goes stale like a count. It is a finding too, and `counts/label.go` names the item instead. Digits after a singular noun name an item, as in `branch 3 sees` (`cardinal.NamesAnItem`).
 
@@ -182,7 +185,7 @@ A referent line strips only when the comment is alone on its source line. A docu
 `--path` is required on stdin, because the path decides the comment syntax.
 
 ```sh
-slopfix fix --only tombstones --max-comment-lines 0 --path pkg/thing.go < pkg/thing.go
+slopfix fix --only tombstones --max-comment-lines 0 --path pkg/thing.go - < pkg/thing.go
 ```
 
 ## comments: what a comment gets wrong
@@ -208,7 +211,13 @@ It does not flag a comment above the package declaration, or a trailing comment 
 
 [docs/yaml-workflow-and-action-manifest-rules.md](docs/yaml-workflow-and-action-manifest-rules.md) holds this section.
 
-- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of the action's repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch, such as `wow-look-at-my/go-toolchain@master`, passes. So do a tag, a full commit SHA, a `./` path and a `docker://` image. The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too. The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. A lookup that fails, a private repository the token cannot read included, is a `yaml/branch-pin` finding with the reason, so no `--only` selection hides it. A tree run, a named file, text on stdin and a hook all run the rule. A tree run first reads answers a repository cached in `.git/slopfix-refs.json`, and looks up every repository or ref the cache lacks. The rule cases run against a fixture API that `Materialize` serves, and `GITHUB_API_URL` points at it. `fix` writes the default branch over a branch, and over an unresolvable ref. It writes `NAME#latest` over the tag of a branch build.
+- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of the action's repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch, such as `actions/checkout@main`, passes this rule. An org action at its default branch is a `yaml/org-action-ref` finding, which writes `@lkgb`. So do a tag, a full commit SHA, a `./` path and a `docker://` image.
+
+  The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too.
+
+  The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. A lookup that fails, a private repository the token cannot read included, is a `yaml/branch-pin` finding with the reason, so no `--only` selection hides it. A tree run, a named file, text on stdin and a hook all run the rule. A tree run first reads answers a repository cached in `.git/slopfix-refs.json`, and looks up every repository or ref the cache lacks.
+
+  The rule cases run against a fixture API that `Materialize` serves, and `GITHUB_API_URL` points at it. `fix` writes the default branch over a branch, and over an unresolvable ref. It writes `NAME#latest` over the tag of a branch build.
 - `yaml/run-script-syntax`: a `run:` script that the shell it runs in does not parse. Only bash and sh are read. The repair gives a keyword with an empty body the no-op `:`. The repair appends the closer of a statement, a bracket or a quote the script left open. It drops a closing word with nothing to close and quotes a stray operator. An `sh` step that uses a bash feature names `bash`. The rule reports exactly those error classes, because it reports only what its repair rewrites.
 - `yaml/duplicate-step-key`: a step that names a key twice. GitHub rejects the file. The repair keeps the last pair and deletes the earlier ones.
 
@@ -218,9 +227,17 @@ It does not flag a comment above the package declaration, or a trailing comment 
 
 `net/url` reads the query. The repair deletes `v` and writes the query back with `Encode`. `pins.Gate` admits only that rewrite, because the source gate lets an edit touch comments alone. `Encode` escapes `${OS}` and writes `&` for `&amp;`. A URL that holds either loses `v` as text instead, and keeps every other byte. A `${{ }}` expression is part of the URL, blanks included.
 
+## go: another language inside a Go string
+
+`go/foreign-source` reports a Go string that holds the source of another language. A shell script, SQL, YAML, JSON, HTML, Markdown and other files belong in a file of their own type. `goembed.Classify` reads the value of a literal, or of literals joined with `+`, of at least `minLines` lines. A string that parses as Go is not foreign.
+
+The repair writes the text to a file and declares `//go:embed` on a `string` var. A package-level var or const of one name keeps its name. A string inside a function becomes a var named for the function and the language, at the end of the file. A test file's string goes under `testdata/`. The file imports `embed` where it does not. A string in a const declaration of a function, a struct tag or an import stays, because no var can replace it.
+
 ## laziness: a turn that ends with the work undone
 
-`laziness/punt` reports a closing message that leaves the work undone because the work is harder. It covers a found defect left in place, and permission asked in place of action. Both leave the reader holding the work. One table therefore holds both.
+`laziness/punt` reports a closing message that leaves the work undone because the work is harder. It covers a found defect left in place, and permission asked in place of action. Both leave the reader holding the work. One table therefore holds both: `laziness/laziness.xml`, checked by `laziness.xsd`. Each pattern carries the punts that must fire it. Each pardon carries a message it must clear.
+
+`table_test.go` runs every row.
 
 The shapes are: disowning a defect you found, handing a repair back, leaving a defect in place. Excusing yourself from a repair, announcing an attribution hunt, offering authorship in place of a fix. And asking permission in place of acting.
 
@@ -251,7 +268,7 @@ A real blocker named plainly is never marked.
 
 These are hook guards. `check --message` also runs `ask/prose-decision`, and `repo/budget` covers the files `md-budget` measures.
 
-- `ask-properly` appends a line when a message puts a decision to the reader in prose. `AskUserQuestion` renders the choices instead. It refuses nothing and judges the message whole.
+- `ask-properly` appends a line when a message puts a decision to the reader in prose. `AskUserQuestion` renders the choices instead. It refuses nothing and judges the message whole. The phrases and question cues live in `askproperly/questions.xml`, and each phrase carries an example that must fire it.
 - `link-refs` renders a pull request, a commit or a branch as a markdown link as the message streams. A target it cannot show to exist stays plain text. A state file carries the fence state across flushes.
 - `busy-poll` serves Stop and PreToolUse. On Stop it refuses a turn that repeats the same call seconds apart. On PreToolUse it refuses a status read of a subject this session saw settle. It runs in a remote session only, because waiting for an event needs events. Evidence ages out. Every failure allows.
 - `md-budget` keeps each `CLAUDE.md` and each `claude_snippets/` file under `40000` characters, because every request re-sends them. It reports at session start and on a write. It blocks a Stop that leaves one broken. `CC_CLAUDE_MD_BUDGET` sets the budget. `CC_CLAUDE_MD_WIDTH` turns on the wrap check.

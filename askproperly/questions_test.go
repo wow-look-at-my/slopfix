@@ -1,5 +1,7 @@
 package askproperly
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -32,8 +34,8 @@ func TestADeferralWithNoQuestionMarkIsFound(t *testing.T) {
 	for _, msg := range []string{
 		"Four questions remain. Your call.",
 		"I won't touch them until you say.",
-			"I won't do that without your go-ahead.",
-			"I'm not going to change the rest until you confirm.",
+		"I won't do that without your go-ahead.",
+		"I'm not going to change the rest until you confirm.",
 		"Let me know and I'll land the rest.",
 		"Tell me which way you want it and I'll write it up.",
 		"Answer them here, or say \"your call\" and I'll pick.",
@@ -74,7 +76,7 @@ func TestProseThatMustNotTrip(t *testing.T) {
 }
 
 func TestFencedAndQuotedTextIsExempt(t *testing.T) {
-	fenced := "Here is the rule I wrote:\n\n```\nShould I land this?\n```\n\nIt is committed."
+	fenced := testFencedAndQuotedTextIsExemptMd
 	assert.Empty(t, FindQuestions(fenced))
 
 	quoted := "The snippet says:\n\n> Do you want me to fix it?\n\nSo I fixed it."
@@ -111,3 +113,6 @@ func TestFindingsAreDedupedPerLine(t *testing.T) {
 	hits := FindQuestions("Which one? Which one? Which one?")
 	assert.Len(t, hits, 1)
 }
+
+//go:embed testdata/test-fenced-and-quoted-text-is-exempt.md
+var testFencedAndQuotedTextIsExemptMd string

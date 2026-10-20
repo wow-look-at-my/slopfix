@@ -56,9 +56,12 @@ func init() {
 	})
 	register("yaml/fix-run-script", IDRunScriptSyntax, 40, repairRunScripts, false)
 	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
+	register("yaml/read-contexts", IDScriptExpression, 55, readContexts, false)
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
+	register("yaml/add-token-username", IDTokenInGitURL, 60, addTokenUsername, false)
 	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
 	register("yaml/set-concurrency", IDConcurrency, 70, setConcurrency, false)
+	register("yaml/grant-id-token", IDIDToken, 70, grantIDToken, false)
 	fixer.Register(fixer.Spec{
 		Label: "yaml/retarget-runner", Families: []string{Category}, Rules: []string{IDPrivateRunner},
 		Files: []fixer.Kind{fixer.Workflow}, Place: 70,

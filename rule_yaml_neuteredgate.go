@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -13,8 +15,8 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectNeuteredGate,
 		Autofix:  autofixNeuteredGate,
-		Cases: []RuleCase{workflowCase("neutered-gate", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
-			"    steps:\n      - uses: wow-look-at-my/slopfix@master\n        continue-on-error: true\n")},
+		Cases: []RuleCase{workflowCase("neutered-gate", workflowHeader()+embeddedYml24+
+			embeddedYml25)},
 	})
 }
 
@@ -27,3 +29,9 @@ func detectNeuteredGate(c RuleCase) []ste.Finding {
 func autofixNeuteredGate(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDNeuteredGate)
 }
+
+//go:embed testdata/embedded-11.yml
+var embeddedYml24 string
+
+//go:embed testdata/embedded-23.yml
+var embeddedYml25 string

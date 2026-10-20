@@ -6,6 +6,9 @@
 package commentfix
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/treecomments"
@@ -28,7 +31,37 @@ func blocks(filename, src string) []block {
 	if strings.HasSuffix(filename, "_test.go") {
 		parsed = withoutExampleOutput(parsed)
 	}
-	return withoutLicenseNotices(parsed)
+	return withEmbeddedFiles(filename, withoutLicenseNotices(parsed))
+}
+
+// embedDirective matches a //go:embed line and its patterns.
+var embedDirective = regexp.MustCompile(`^\s*//go:embed\s+(.+?)\s*$`)
+
+// withEmbeddedFiles adds each file a //go:embed line in a block names to the
+// code the block documents. The var is one line, and the text it holds is the file.
+func withEmbeddedFiles(filename string, parsed []block) []block {
+	if !strings.HasSuffix(filename, ".go") {
+		return parsed
+	}
+	dir := filepath.Dir(filename)
+	for i := range parsed {
+		for _, line := range parsed[i].text {
+			m := embedDirective.FindStringSubmatch(line)
+			if m == nil {
+				continue
+			}
+			for _, pattern := range strings.Fields(m[1]) {
+				content, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(strings.Trim(pattern, "`\""))))
+				if err != nil {
+					continue
+				}
+				lines, chars := measure(strings.Split(strings.TrimRight(string(content), "\n"), "\n"))
+				parsed[i].codeLines += lines
+				parsed[i].codeChars += chars
+			}
+		}
+	}
+	return parsed
 }
 
 // withoutExampleOutput ends each block at the line that opens an example's

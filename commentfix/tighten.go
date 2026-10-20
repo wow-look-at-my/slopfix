@@ -7,18 +7,39 @@
 package commentfix
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/memo"
 )
 
-// tighten rewrites a comment run: it drops filler, applies the shorter phrasing,
+// tighten answers tightenUncached once for each comment run.
+func tighten(text []string) ([]string, int, bool) {
+	t := tightened.Get(strings.Join(text, "\n"), func() tightening {
+		out, n, ok := tightenUncached(text)
+		return tightening{out, n, ok}
+	})
+	return slices.Clone(t.out), t.n, t.ok
+}
+
+// tightening is one answer of tighten.
+type tightening struct {
+	out []string
+	n   int
+	ok  bool
+}
+
+// tightened keeps tighten's answer, which every repair pass asks again.
+var tightened = memo.New[string, tightening](4096)
+
+// tightenUncached rewrites a comment run: it drops filler, applies the shorter phrasing,
 // and reflows the prose to the block's own marker and width.
 //
 // It returns false when nothing changed, so the caller knows tightening bought
 // nothing and it is time to cut.
-func tighten(text []string) ([]string, int, bool) {
+func tightenUncached(text []string) ([]string, int, bool) {
 	if out, n, ok := starBlock(text); ok {
 		return out, n, true
 	}
@@ -30,7 +51,7 @@ func tighten(text []string) ([]string, int, bool) {
 	// A paragraph break is structure, so reflow each paragraph on its own and put the breaks back between them.
 	var out []string
 	rewrites := 0
-	changed := false
+	changed, emptied := false, false
 	for _, para := range paragraphs(text) {
 		if para.blank {
 			out = append(out, indent+marker)
@@ -69,14 +90,34 @@ func tighten(text []string) ([]string, int, bool) {
 		}
 		// A paragraph the table emptied is gone.
 		if !hasWord(short) {
+			emptied = true
 			continue
 		}
 		out = append(out, reflow(short, indent, marker, wrapWidth)...)
+	}
+	if emptied {
+		out = tidyBreaks(out, indent+marker)
 	}
 	if !changed && len(out) >= len(text) {
 		return text, 0, false
 	}
 	return out, rewrites, true
+}
+
+// tidyBreaks drops the paragraph breaks an emptied paragraph leaves: one at
+// either end of the block, and one beside another.
+func tidyBreaks(lines []string, blank string) []string {
+	var out []string
+	for _, line := range lines {
+		if line == blank && (len(out) == 0 || out[len(out)-1] == blank) {
+			continue
+		}
+		out = append(out, line)
+	}
+	for len(out) > 0 && out[len(out)-1] == blank {
+		out = out[:len(out)-1]
+	}
+	return out
 }
 
 // starBlock rewrites a /* ... */ run. The delimiters carry no prose, so the

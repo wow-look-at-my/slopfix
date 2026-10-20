@@ -8,9 +8,13 @@ Everything else is subordinate to that. Committed work is reachable from the ref
 
 ## Preserve, then allow
 
-The invariant is about the content, not about the command. The ordinary dirty-tree case is the tracked, untracked and ignored hazard below. The hook satisfies the invariant there directly instead of refusing. It commits the at-risk paths onto the CURRENT BRANCH. A ref no ordinary command shows is a ref nobody reviews and the next session deletes. So the commit goes where the log, the diff and the next push already look. Every step runs against a throwaway `GIT_INDEX_FILE`. The user's own index is never written and the working tree is never touched. `git read-tree HEAD` seeds that temp index with the last committed tree. It is skipped when no HEAD exists yet. The commit then gets no parent.
+The invariant is about the content, not about the command. The ordinary dirty-tree case is the tracked, untracked and ignored hazard below. The hook satisfies the invariant there directly instead of refusing. It commits the at-risk paths onto the CURRENT BRANCH. A ref no ordinary command shows is a ref nobody reviews and the next session deletes. So the commit goes where the log, the diff and the next push already look.
 
-Commits can come out of it, because a file holds one thing in HEAD, another in the index and a third on disk. `stagedTree` copies the at-risk paths' INDEX entries into the temp index first and writes a tree. `git add --force` then overwrites them with the working-tree content and writes a second. A tree equal to the one below it is dropped. The ordinary case therefore makes exactly one commit and never writes an empty one. `git update-ref HEAD` advances the branch. `git reset -q <commit> -- <paths>` refreshes the real index for those paths alone. Without it the tree reads as a staged revert of what was just saved. A best-effort `git push origin HEAD` gets the content off the machine. A push failure still allows, because the local commit satisfies the invariant on its own. The line that reports this says the push failed and where the content sits instead.
+Every step runs against a throwaway `GIT_INDEX_FILE`. The user's own index is never written and the working tree is never touched. `git read-tree HEAD` seeds that temp index with the last committed tree. It is skipped when no HEAD exists yet. The commit then gets no parent.
+
+Commits can come out of it, because a file holds one thing in HEAD, another in the index and a third on disk. `stagedTree` copies the at-risk paths' INDEX entries into the temp index first and writes a tree. `git add --force` then overwrites them with the working-tree content and writes a second. A tree equal to the one below it is dropped. The ordinary case therefore makes exactly one commit and never writes an empty one. `git update-ref HEAD` advances the branch.
+
+`git reset -q <commit> -- <paths>` refreshes the real index for those paths alone. Without it the tree reads as a staged revert of what was just saved. A best-effort `git push origin HEAD` gets the content off the machine. A push failure still allows, because the local commit satisfies the invariant on its own. The line that reports this says the push failed and where the content sits instead.
 
 Content that was uncommitted before the hook ran is committed after it. So `git status` stops reporting the paths it saved. That is the mechanism working rather than a side effect to remove. Everything else must read exactly as it did. A file staged elsewhere keeps its staged blob and its `diff --cached` entry, and no byte on disk moves. `preserve_test.go` pins both halves.
 
@@ -18,7 +22,7 @@ Once that commit exists, the destructive command is safe by construction -- ther
 
 Hazard classes are deliberately excluded from this and still deny outright: a stash entry, and anything ref-destroying (the whole "reachability, not refusal" family below). Both ask a different question than "is there uncommitted work". Folding a stash pop or a synthesized ref into the same machinery is not worth the complexity here. `preserve_test.go`'s negative controls pin this as a stated boundary, not an oversight to fix later.
 
-A preservation ref is the ONLY copy of what it holds. So it gets the opposite treatment from every other ref-destroying command. `git update-ref -d`, and a force-pushing or deleting `git push` that names one under `refs/no-work-loss/`, are refused unconditionally. That skips the "does it exist somewhere else" question entirely, because the ref itself contains the content and the answer is wrongly yes. `git branch -D` cannot reach this prefix at all: a branch name always resolves under `refs/heads/`.
+A preservation ref is the ONLY copy of what it holds. So it gets the opposite treatment from every other ref-destroying command. `git update-ref -d`, and a force-pushing or deleting `git push` that names one under `refs/no-work-loss/`, are refused unconditionally. That skips the "does it exist somewhere else" question fully, because the ref itself contains the content and the answer is incorrectly yes. `git branch -D` cannot reach this prefix at all: a branch name always resolves under `refs/heads/`.
 
 Destruction and provenance are separate halves. See the provenance section in the top-level CLAUDE.md. A command a provenance rule denies for its own reasons still ends up denied after preservation: `git reset --hard`, `tee`, `truncate`, a truncating redirect. The preservation commit is then a harmless, redundant local artifact, and its notice is never surfaced, because the command never proceeded.
 
@@ -29,11 +33,11 @@ git checkout master             # a dirty tree silently rides along to master
 git reset --hard origin/master  # ...and the edits are gone, with no reflog entry
 ```
 
-Note the shape. The first command is individually reasonable and destroys nothing. It is what makes the second one lethal. A guard that only gated `reset --hard` will have watched this happen.
+Note the shape. The first command is individually reasonable and destroys nothing. It is what makes the second one lethal. A guard that only gated `reset --hard` will watched this happen.
 
 ## Hazard classes, and why they are not a single bit
 
-The most tempting simplification here is a boolean: is the tree dirty? It is wrong. It is the failure that gets a guard uninstalled. The verbs do not agree about what "dirty" means:
+The most tempting simplification here is a boolean: is the tree dirty? It is incorrect. It is the failure that gets a guard uninstalled. The verbs do not agree about what "dirty" means:
 
 | Command          | tracked modifications | untracked files | ignored files | stash entries |
 |------------------|-----------------------|-----------------|---------------|---------------|
@@ -62,7 +66,7 @@ None of these is destructive on its own. So the question asked is not "is this v
 | `reflog expire` / `delete` | nothing reflog-only | `fsck --unreachable --no-reflogs` finds no commit |
 | `worktree remove --force` | that worktree's edits | its `status --porcelain` is empty |
 
-Facts here were established by running git, and both had already produced a wrong answer in a draft:
+Facts here were established by running git, and both had already produced a incorrect answer in a draft:
 
 - **`--exclude` does not take a full refname.** For `--branches` and `--remotes` the pattern matches the name *without* the `refs/heads/` or `refs/remotes/` prefix. `--exclude=refs/heads/feature --branches` silently excludes nothing, so a branch holding the only copy of a commit reported "0 will be lost". A silent false negative is the worst outcome available here, which is why containment via `for-each-ref --contains` is used instead of hand-built exclusion lists.
 - **`refs/remotes/<remote>/HEAD` is a symbolic alias** for the branch being overwritten. Counting it as "somewhere else" made every force push look safe. It is filtered out explicitly.
@@ -76,7 +80,7 @@ A force push judged safe is still judged against possibly-stale local knowledge 
 ## What is deliberately NOT blocked
 
 - **Unpushed commits.** `git reset --hard origin/master` on a clean tree is allowed even when HEAD is ahead of upstream. Those commits are in the reflog. Blocking here will refuse a routine, reversible operation and buy nothing.
-- Note that it cannot apply to the working tree. That is why the dirty-tree verbs stay state-based and the ref verbs are reachability-based. `git stash drop` sits with the former: stashing is precisely the act of putting content somewhere no branch points at.
+- Note that it cannot apply to the working tree. That is why the dirty-tree verbs stay state-based and the ref verbs are reachability-based. `git stash drop` sits with the former: stashing is accurately the act of putting content somewhere no branch points at.
 - **`git checkout -b` / `git switch -c`.** Creating a branch carries changes across. It cannot drop them. Dirty or not, allowed.
 - **`git stash push`, `git commit`, `git add`.** These create recovery. `stash push` is also the suggested fix in most denials, so blocking it will make the guard unescapable.
 - **`git restore --staged`** without `--worktree`: it rewrites the index from HEAD and leaves the file on disk, so the content survives.
@@ -92,7 +96,7 @@ Substring matching on `git reset --hard` is not sufficient and gives false confi
 - **Working directory.** A `cd` is tracked across the sequence, so `cd /other/repo && git reset --hard` is checked against `/other/repo`. The cwd pointer is shared only where the shell shares one: `&&`, `||`, `;` and brace blocks carry a `cd` forward. A pipe stage, a subshell and a conditional body each get a copy. `git -C <path>` and `--work-tree` are applied the same way.
 - **Wrappers.** These all resolve to the same program: `env`, `sudo`, `doas`, `command`, `builtin`, `exec`, `nohup`. So do `nice`, `ionice`, `setsid`, `stdbuf`, `timeout`, `xargs`, a leading `\`, and an absolute path. Value-taking flags are understood. Otherwise `nice -n 10 git reset --hard` leaves `10` where the program must be, and the git behind it is never seen.
 - **Flags.** Short flags are unbundled, so `-fdx`, `-xdf` and `-f -d -x` are the same command. `--flag=value` registers as `--flag`. `--` separates operands.
-- **Aliases.** Resolved out of `git config --get-regexp '^alias\.'`, including the `!shell` form, which is re-parsed as shell. Builtin verbs skip the lookup entirely, since git refuses to let an alias shadow one. Chains resolve. Self-reference terminates at depth 3.
+- **Aliases.** Resolved out of `git config --get-regexp '^alias\.'`, including the `!shell` form, which is re-parsed as shell. Builtin verbs skip the lookup fully, since git refuses to let an alias shadow one. Chains resolve. Self-reference terminates at depth 3.
 
 ## Ambiguity resolves to denial
 
@@ -102,11 +106,15 @@ Cases produce a denial without a state answer. A destructive verb whose target c
 - An operand is not statically known -- `rm $TARGET`, `cd $DIR && git reset --hard`, `cd -`.
 - `GIT_DIR` / `GIT_WORK_TREE` / `--git-dir` relocate the repository away from the path words. The target is no longer knowable.
 
-A script FILE the walk follows as a new shell is the exception to all of it. Its variables, its working directory and the text it hands another shell are its own. This hook does not sandbox the programs it starts. A build script names its output from a variable. So an unresolvable operand, an unresolvable working directory and an unreadable inner shell are all out of scope inside one. A path the script names STATICALLY is still judged, so following a file still closes the write-elsewhere-then-run bypass. A blocker ABOUT the file, such as one that does not parse, still denies. It describes the command that named the file rather than the program inside it.
+A script FILE the walk follows as a new shell is the exception to all of it. Its variables, its working directory and the text it hands another shell are its own. This hook does not sandbox the programs it starts. A build script names its output from a variable. So an unresolvable operand, an unresolvable working directory and an unreadable inner shell are all out of scope inside one. A path the script names STATICALLY is still judged, so following a file still closes the write-elsewhere-then-run bypass.
+
+A blocker ABOUT the file, such as one that does not parse, still denies. It describes the command that named the file rather than the program inside it.
 
 ## A redirect has a descriptor as well as a target
 
-Redirect shapes cannot empty a file holding content no git object has. A device target swallows what it is given. `/dev/null`, `/dev/stdout`, `/dev/stderr`, `/dev/tty` and `/dev/fd/*` are all absolute, so no working directory is needed to resolve one. A descriptor other than stdout carries a stream rather than the command's output. The destruction half skips both. The provenance half judges every descriptor, because content reaching a file inside the tree is authored content whichever stream filled it. So `git status 2>/dev/null` runs and `echo x 2> tracked.go` is refused by name.
+Redirect shapes cannot empty a file holding content no git object has. A device target swallows what it is given. `/dev/null`, `/dev/stdout`, `/dev/stderr`, `/dev/tty` and `/dev/fd/*` are all absolute, so no working directory is needed to resolve one. A descriptor other than stdout carries a stream rather than the command's output. The destruction half skips both. The provenance half judges every descriptor, because content reaching a file inside the tree is authored content whichever stream filled it.
+
+So name refuses `git status 2>/dev/null` runs and `echo x 2> tracked.go`.
 
 ## Fail-safety, stated honestly
 

@@ -56,7 +56,7 @@ func Run(r io.Reader) Result {
 	if len(Check(message)) == 0 {
 		return Result{}
 	}
-	return Result{Stderr: "continue", Code: 2}
+	return Result{Stderr: Rules.Answer, Code: 2}
 }
 
 // transcriptEntry is a JSONL line. The content is a string on some entries and

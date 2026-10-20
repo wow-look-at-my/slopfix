@@ -38,6 +38,12 @@ func TestAPuntIsRefused(t *testing.T) {
 	assert.NotEmpty(t, res.Stderr)
 }
 
+// An offer held back for a reply gets the approval the reader would type.
+func TestAnOfferHeldForAReplyIsApproved(t *testing.T) {
+	res := run(t, payload(t, map[string]any{"last_assistant_message": "The retry fix is drafted. Tell me if you want it."}))
+	assert.Equal(t, Result{Stderr: "continue", Code: 2}, res)
+}
+
 // The control that proves the case above can fail.
 func TestAMessageThatFixedItIsAllowed(t *testing.T) {
 	assert.Equal(t, Result{}, run(t, payload(t, map[string]any{"last_assistant_message": clean})))

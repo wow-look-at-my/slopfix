@@ -64,40 +64,6 @@ var connectors = map[string]string{
 	"or":  "Otherwise,",
 }
 
-// fixSentenceCap divides every over-cap sentence. It tries the clause
-// boundaries first and then the word boundaries. A sentence that no division
-// reads is cut between words. That leaves no finding standing.
-func fixSentenceCap(prose string, d capSpec) string {
-	for range len(strings.Fields(prose)) + 1 {
-		next, divided := divideNext(prose, d.cap)
-		if !divided {
-			break
-		}
-		prose = next
-	}
-	return forceSentenceCap(prose, d)
-}
-
-// divideNext divides the earliest over-cap sentence that a clause boundary can divide.
-func divideNext(prose string, limit int) (string, bool) {
-	masked := mask(prose)
-	off := opaque(prose, masked)
-	for _, span := range sentenceSpans(prose) {
-		start, end := span[0], span[1]
-		if WordCount(masked[start:end]) <= limit {
-			continue
-		}
-		s := syntax.Parse(masked[start:end], shift(off, -start))
-		if rewritten, ok := bestDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
-			return prose[:start] + rewritten + prose[end:], true
-		}
-		if rewritten, ok := frontedDivision(s, prose[start:end]); ok && keepsCodeSpans(prose[start:end], rewritten) {
-			return prose[:start] + rewritten + prose[end:], true
-		}
-	}
-	return prose, false
-}
-
 // keepsCodeSpans reports that a division kept each code span whole, in order.
 func keepsCodeSpans(source, rewritten string) bool {
 	return slices.Equal(codeSpan.FindAllString(source, -1), codeSpan.FindAllString(rewritten, -1))
@@ -262,22 +228,6 @@ func withCloser(rest, closer string) string {
 	return body + " " + closer + rest[len(body):]
 }
 
-// objectRelative reports ", which X does not show" at the end of a sentence: a
-// relative clause with a subject of its own whose verb ends the sentence. The
-// relative word is the verb's object.
-func objectRelative(s *syntax.Sentence, c syntax.Clause) bool {
-	if c.Kind != syntax.Relative || !c.Comma || c.Depth != 1 || s.Words[c.Link].Lower() != "which" || c.Subject == nil || c.Verb == nil {
-		return false
-	}
-	last := len(s.Words) - 1
-	for last > 0 && punctuationTag(s.Words[last].Tag) {
-		last--
-	}
-	return c.Verb.Last == last && c.Subject.First == c.Link+1 && !strings.HasPrefix(s.Words[last].Tag, "VBN")
-}
-
-func punctuationTag(tag string) bool { return tag == "." || tag == "," || tag == ":" }
-
 // joinOpener puts the opener in front of the rest, and capitalizes what opens the sentence.
 func joinOpener(opener, rest string) string {
 	if opener != "" {
@@ -289,10 +239,17 @@ func joinOpener(opener, rest string) string {
 // divisions answers each clause boundary where both sides stand as sentences.
 func divisions(s *syntax.Sentence, source string) []division {
 	var out []division
+	dashed := dashAsides(source)
 	for k := 1; k < len(s.Clauses); k++ {
 		c := s.Clauses[k]
 		main, ok := mainBefore(s, k)
 		if !ok || c.Link < 0 || c.Link+1 >= len(s.Words) {
+			continue
+		}
+		// A division inside a pair of dashes, or at either dash, halves the aside, unless the rest names its subject again.
+		inAside := insideAny(dashed, s.Words[c.Link].Start)
+		// The part before a division needs a verb with tense: "so newly created files." has none.
+		if main.Verb == nil || (!main.Verb.Finite && !main.Verb.Imperative) {
 			continue
 		}
 		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {
@@ -304,13 +261,16 @@ func divisions(s *syntax.Sentence, source string) []division {
 				out = append(out, d)
 				continue
 			}
-			if objectRelative(s, c) {
+			if !inAside && objectRelative(s, c) {
 				out = append(out, division{
 					leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
 					rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
 					closer:     "that",
 				})
 			}
+			continue
+		}
+		if inAside && opener == "" {
 			continue
 		}
 		d := division{

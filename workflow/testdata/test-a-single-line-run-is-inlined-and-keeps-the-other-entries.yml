@@ -1,0 +1,8 @@
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          KEEP: ${{ inputs.keep }}
+          OUT: ${{ steps.x.outputs.path }}
+        run: cat "$OUT"

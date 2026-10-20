@@ -1,5 +1,7 @@
 package cmd
 
+import _ "embed"
+
 import (
 	"bytes"
 	"encoding/json"
@@ -45,7 +47,7 @@ func idsOf(out reportOutput) []string {
 const workflowPath = ".github/workflows/ci.yml"
 
 func TestAWorkflowIsReadByTheWorkflowRules(t *testing.T) {
-	content := "name: CI\n# one\n# two\n# three\non:\n  push:\n    branches: ['**']\n"
+	content := testAWorkflowIsReadByTheWorkflowRulesYml
 	out, _, err := report(t, workflowPath, nil, content)
 	require.NoError(t, err)
 	require.Len(t, out.Findings, 1)
@@ -59,14 +61,14 @@ func TestAWorkflowIsReadByTheWorkflowRules(t *testing.T) {
 // The negative control for the case above. A comment line inside the limit
 // reports nothing, which is what proves the case can fail.
 func TestASingleCommentLineIsNotAWall(t *testing.T) {
-	out, _, err := report(t, workflowPath, nil, "name: CI\n# one\non:\n  push:\n    branches: ['**']\n")
+	out, _, err := report(t, workflowPath, nil, testASingleCommentLineIsNotAWallYml)
 	require.NoError(t, err)
 	assert.Empty(t, out.Findings)
 }
 
 // A null crashes a caller that reads the length of what came back.
 func TestACleanFileAnswersWithAnEmptyList(t *testing.T) {
-	_, raw, err := report(t, workflowPath, nil, "name: CI\non:\n  push:\n    branches: ['**']\n")
+	_, raw, err := report(t, workflowPath, nil, testACleanFileAnswersWithAnEmptyListYml)
 	require.NoError(t, err)
 	assert.Contains(t, raw, `"findings":[]`)
 }
@@ -115,3 +117,12 @@ func TestAFindingIsNotAnError(t *testing.T) {
 	_, _, err := report(t, workflowPath, nil, "# one\n# two\non: {push: {branches: ['**']}}\n")
 	require.NoError(t, err)
 }
+
+//go:embed testdata/test-a-workflow-is-read-by-the-workflow-rules.yml
+var testAWorkflowIsReadByTheWorkflowRulesYml string
+
+//go:embed testdata/test-a-single-comment-line-is-not-a-wall.yml
+var testASingleCommentLineIsNotAWallYml string
+
+//go:embed testdata/test-a-clean-file-answers-with-an-empty-list.yml
+var testACleanFileAnswersWithAnEmptyListYml string
