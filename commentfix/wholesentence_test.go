@@ -10,11 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// zeroDiffIndicators is a comment that heads a run of declarations with no
-// blank line between them. Weighed against the first const alone, its repair
-// cut it to "... and the description opens." and dropped both sentences
-// after it.
-//
 //go:embed testdata/zero-diff-indicators.js
 var zeroDiffIndicators string
 

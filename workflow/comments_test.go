@@ -52,8 +52,6 @@ func TestACommentBlockAtTheEndOfTheFileIsReported(t *testing.T) {
 	assert.Equal(t, 2, findings[0].Line)
 }
 
-// A # inside a block scalar opens a shell comment.
-//
 //go:embed testdata/script-with-comments.yml
 var scriptWithComments string
 

@@ -9,8 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The step this rule protects, written both ways. They differ by a single key,
-// which is the point: nothing in the gate's own output shows it.
+// The step this rule protects, written both ways.
 const ()
 
 func TestAGateAllowedToFailIsReportedOnItsOwnLine(t *testing.T) {

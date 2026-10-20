@@ -23,10 +23,6 @@ func syntaxFindings(content string) []ste.Finding {
 	return out
 }
 
-// emptyIfBody is wow-look-at-my/sglang fork-ci.yml at c33f43989a. The job runs
-// on the default branch alone, so no pull request ran the script, and master
-// failed with: syntax error near unexpected token `fi'.
-//
 //go:embed testdata/empty-if-body.yml
 var emptyIfBody string
 

@@ -104,13 +104,9 @@ func TestATreeCheckInAForkWithNoBaseFails(t *testing.T) {
 // upstreamDoc is a file of the parent that the fork never touches.
 const upstreamDoc = "# Up\n\nIt doesn't hold the lock.\n"
 
-// parentDoc is the parent's doc.md. The fork rewrites its last line.
-//
 //go:embed testdata/parent-doc.md
 var parentDoc string
 
-// forkDoc is doc.md as the fork has it.
-//
 //go:embed testdata/fork-doc.md
 var forkDoc string
 

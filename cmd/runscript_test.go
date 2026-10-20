@@ -68,9 +68,6 @@ func TestTheHookKeepsALineAnEditAddsToARunScript(t *testing.T) {
 	}
 }
 
-// validateStep is a debugger check with an assertion in it. The if line
-// carries a yaml/test-in-workflow finding.
-//
 //go:embed testdata/validate-step.sh
 var validateStep string
 

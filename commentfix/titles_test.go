@@ -10,9 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// exporterSource is a test harness page.ts at EXPORTER_MODULE: a
-// one-line JSDoc, then a line comment, over the constant.
-//
 //go:embed testdata/exporter-source.js
 var exporterSource string
 

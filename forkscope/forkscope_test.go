@@ -35,8 +35,6 @@ func writeT(t *testing.T, dir, name, body string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644))
 }
 
-// inherited is the parent's doc.md.
-//
 //go:embed testdata/inherited.md
 var inherited string
 

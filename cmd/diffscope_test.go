@@ -22,8 +22,6 @@ var diffDocBase string
 //go:embed testdata/diff-doc-work.md
 var diffDocWork string
 
-// diffDocClean changes the same line to a spelling that holds no finding.
-//
 //go:embed testdata/diff-doc-clean.md
 var diffDocClean string
 

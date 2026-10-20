@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// An apostrophe in a value opens a quote for the bash grammar, and the apostrophe in the comment closes it.
-//
 //go:embed testdata/yaml-inner-hash.yml
 var yamlInnerHash string
 

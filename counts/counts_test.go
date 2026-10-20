@@ -108,9 +108,6 @@ func TestACountAfterANounBecomesMultiple(t *testing.T) {
 	assert.Equal(t, "against binaries built on all platforms.", out, "a determiner before the count still lets it go")
 }
 
-// The lines of a real document that names its branches by number, and then
-// cites them by number alone.
-//
 //go:embed testdata/attribution-verdict.md
 var attributionVerdict string
 
