@@ -71,6 +71,15 @@ const miniatureSchema = `<?xml version="1.1" encoding="UTF-8"?>
             <xs:attribute name="name" type="text" use="required"/>
           </xs:complexType>
         </xs:element>
+        <xs:element name="s">
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="xs:string">
+                <xs:attribute name="word" type="text" use="required"/>
+              </xs:extension>
+            </xs:simpleContent>
+          </xs:complexType>
+        </xs:element>
       </xs:choice>
       <xs:attribute name="case" type="case"/>
     </xs:complexType>
@@ -153,6 +162,32 @@ func TestTheSchemaRejectsAValueOutsideItsSet(t *testing.T) {
 
 func TestTheSchemaRejectsTextWhereNoneBelongs(t *testing.T) {
 	assert.ErrorContains(t, run(miniature(), `<t><e word="a">stray</e></t>`), "t.xml:2:")
+	assert.ErrorContains(t, run(miniature(), `<t><e word="a">stray</e></t>`), "takes no text")
+}
+
+// Text belongs to an element whose schema declares it, and an element whose
+// schema declares only children and attributes carries none.
+func TestTextIsReadWhereTheSchemaDeclaresIt(t *testing.T) {
+	require.NoError(t, run(miniature(), `<t><s word="a">body</s></t>`))
+	for _, c := range []struct {
+		name string
+		body string
+		err  string
+	}{
+		{"text in an element of children and attributes", `<t><e word="a">stray</e></t>`, "takes no text"},
+		{"text in an element of attributes alone", `<t><f word="a">stray</f></t>`, "takes no text"},
+		{"blanks where no text belongs", "<t><e word=\"a\">\n  </e></t>", ""},
+		{"a child where a child belongs", `<t><e word="a"><test in="an alpha" out="x"/></e></t>`, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			err := run(miniature(), c.body)
+			if c.err == "" {
+				require.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, c.err)
+		})
+	}
 }
 
 func TestTheSchemaRejectsACaseValueOutsideTheTwo(t *testing.T) {

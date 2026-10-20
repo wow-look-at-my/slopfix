@@ -23,6 +23,7 @@ func (p Problem) String() string {
 func Run(spec Spec, files ...File) error {
 	var problems []Problem
 	var roots []*Node
+	noText := textless(spec.Schema)
 	for _, f := range files {
 		if spec.Schema != nil {
 			if err := validator.ValidateWithSchemaBytes(f.Raw, spec.Schema); err != nil {
@@ -35,6 +36,7 @@ func Run(spec Spec, files ...File) error {
 			problems = append(problems, Problem{Msg: err.Error()})
 			continue
 		}
+		problems = append(problems, contentProblems(root, noText)...)
 		roots = append(roots, root)
 	}
 	if len(problems) == 0 {
