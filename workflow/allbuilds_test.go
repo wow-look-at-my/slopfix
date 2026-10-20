@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -9,7 +11,7 @@ import (
 )
 
 func TestAJobKeyedAllBuildsIsReported(t *testing.T) {
-	findings := checkOthers("on: {push: {branches: ['**']}}\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n")
+	findings := checkOthers(testAJobKeyedAllBuildsIsReportedYml)
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, workflow.IDAllBuildsJob, findings[0].ID)
@@ -19,7 +21,7 @@ func TestAJobKeyedAllBuildsIsReported(t *testing.T) {
 }
 
 func TestAJobNamedAllBuildsIsReported(t *testing.T) {
-	findings := checkOthers("on: {push: {branches: ['**']}}\njobs:\n  gate:\n    name: all-builds\n    runs-on: ubuntu-latest\n")
+	findings := checkOthers(testAJobNamedAllBuildsIsReportedYml)
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, 4, findings[0].Line)
@@ -43,7 +45,7 @@ func TestANameThatMerelyContainsTheWordIsAllowed(t *testing.T) {
 
 // An expression resolves on the runner, so no file can judge it.
 func TestAnExpressionNameIsLeftAlone(t *testing.T) {
-	assert.Empty(t, checkOthers("on: {push: {branches: ['**']}}\njobs:\n  gate:\n    name: ${{ matrix.target }}\n"))
+	assert.Empty(t, checkOthers(testAnExpressionNameIsLeftAloneYml))
 }
 
 func TestUnparseableYAMLReportsNoJob(t *testing.T) {
@@ -57,3 +59,12 @@ func TestUnparseableYAMLReportsNoJob(t *testing.T) {
 func TestAFileWithNoJobsReportsNothing(t *testing.T) {
 	assert.Empty(t, workflow.Check("runs:\n  using: composite\n"))
 }
+
+//go:embed testdata/test-a-job-keyed-all-builds-is-reported.yml
+var testAJobKeyedAllBuildsIsReportedYml string
+
+//go:embed testdata/test-a-job-named-all-builds-is-reported.yml
+var testAJobNamedAllBuildsIsReportedYml string
+
+//go:embed testdata/test-an-expression-name-is-left-alone.yml
+var testAnExpressionNameIsLeftAloneYml string

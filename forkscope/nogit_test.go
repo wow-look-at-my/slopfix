@@ -1,5 +1,7 @@
 package forkscope
 
+import _ "embed"
+
 import (
 	"net/http"
 	"os"
@@ -16,7 +18,7 @@ func poisonGit(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	marker := filepath.Join(t.TempDir(), "spawned")
-	script := "#!/bin/sh\nprintf spawned >> \"$SLOPFIX_GIT_MARKER\"\nexit 1\n"
+	script := poisonGitSh
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o755))
 	t.Setenv("SLOPFIX_GIT_MARKER", marker)
 	t.Setenv("PATH", dir)
@@ -65,3 +67,6 @@ func TestACachedListedForkStartsNoGitProcess(t *testing.T) {
 	assert.Equal(t, []int{5, 7}, held(own, fx.fork, "doc.md", prose...))
 	assert.Equal(t, []int{3}, held(own, fx.fork, "loose.md", 3))
 }
+
+//go:embed testdata/poison-git.sh
+var poisonGitSh string

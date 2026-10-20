@@ -1,5 +1,7 @@
 package commentfix
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -9,7 +11,7 @@ import (
 // The docker build reads a parser directive, so no comment repair may cut it.
 func TestTheRepairsLeaveDockerDirectivesAlone(t *testing.T) {
 	cases := map[string]string{
-		"Dockerfile":   "# syntax=docker/dockerfile:1\n# check=skip=JSONArgsRecommended\n\n# the base image\nFROM alpine\n",
+		"Dockerfile":   testTheRepairsLeaveDockerDirectivesAloneMd,
 		"compose.yaml": "services:\n  app:\n    build:\n      dockerfile_inline: |\n        # syntax=docker/dockerfile:1\n\n        FROM alpine\n",
 	}
 	for name, src := range cases {
@@ -20,3 +22,6 @@ func TestTheRepairsLeaveDockerDirectivesAlone(t *testing.T) {
 		assert.Empty(t, CheckLength(name, src), name)
 	}
 }
+
+//go:embed testdata/test-the-repairs-leave-docker-directives-alone.md
+var testTheRepairsLeaveDockerDirectivesAloneMd string

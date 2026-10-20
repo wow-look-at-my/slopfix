@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import "github.com/wow-look-at-my/slopfix/ste"
 
 // ste/sentence-length: a sentence over the STE word cap. The repair divides it
@@ -152,97 +154,22 @@ const carrierConjunctionWant = `struct Governor {
 // variableOpensCase holds a sentence over the cap whose words after a colon
 // open on the variable q. A capital renames it, so "q" stays in lower case
 // behind a carrier.
-const variableOpensCase = `void applyQuality(double q);
+//
+//go:embed testdata/variable-opens-case.cpp
+var variableOpensCase string
 
-double run(double lodNow, double resNow, double eLod, double eRes, bool lodOn, bool resPinned) {
-  // Pair demand at quality q relative to now: q split over the free rungs
-  // the way applyQuality spends it (before the res lattice), each rung's
-  // ratio raised to its measured elasticity. Non-decreasing in q.
-  const auto demandRatio = [&](double q) -> double {
-    double lod = lodNow;
-    double res = resNow;
-    if (lodOn && !resPinned) {
-      lod = std::clamp(q, kGovLodBiasMin, 1.0);
-      res = std::clamp(q / lod, kGovResScaleMin, 1.0);
-    } else if (lodOn) {
-      lod = std::clamp(q / std::max(resNow, 0.01), kGovLodBiasMin, 1.0);
-    } else if (!resPinned) {
-      res = std::clamp(q / lodNow, kGovResScaleMin, 1.0);
-    }
-    return std::pow(lod / lodNow, eLod) * std::pow(res / resNow, eRes);
-  };
-  return demandRatio(1.0);
-}
-`
-
-const variableOpensWant = `void applyQuality(double q);
-
-double run(double lodNow, double resNow, double eLod, double eRes, bool lodOn, bool resPinned) {
-  // Pair demand at quality q relative to now. This is q split over the
-  // free rungs the way applyQuality spends it (before the res lattice),
-  // each rung's ratio raised to its measured elasticity. Non-decreasing
-  // in q.
-  const auto demandRatio = [&](double q) -> double {
-    double lod = lodNow;
-    double res = resNow;
-    if (lodOn && !resPinned) {
-      lod = std::clamp(q, kGovLodBiasMin, 1.0);
-      res = std::clamp(q / lod, kGovResScaleMin, 1.0);
-    } else if (lodOn) {
-      lod = std::clamp(q / std::max(resNow, 0.01), kGovLodBiasMin, 1.0);
-    } else if (!resPinned) {
-      res = std::clamp(q / lodNow, kGovResScaleMin, 1.0);
-    }
-    return std::pow(lod / lodNow, eLod) * std::pow(res / resNow, eRes);
-  };
-  return demandRatio(1.0);
-}
-`
+//go:embed testdata/variable-opens-want.cpp
+var variableOpensWant string
 
 // ruledCommentCase draws a rule of dashes at the start of each comment line
 // and at the end of the last. The rule frames the prose, so the division
 // rewraps the words between the rules and keeps every rule where it was.
-const ruledCommentCase = `double sample(double demand) {
-  // ---- elasticity probe: the first sample past the last act's cooldown is
-  // ---- rendered at that act's scalars; its demand against the pre-act
-  // ---- demand measures the elasticity of the rung the act moved -------
-  if (probe_.armed && cooldownFrames_ == 0) {
-    probe_.armed = false;
-    if (lodBias_ == probe_.actLod && resScale_ == probe_.actRes) {
-      const double lr = std::log(lodBias_ / probe_.lod);
-      const double rr = std::log(resScale_ / probe_.res);
-      const double dr = std::log(demand / probe_.demand);
-      if (rr == 0.0 && std::abs(lr) >= minStep) {
-        eLod_ = std::clamp(dr / lr, 0.0, kGovDemandElasticityPrior);
-      } else if (lr == 0.0 && std::abs(rr) >= minStep) {
-        eRes_ = std::clamp(dr / rr, 0.0, kGovDemandElasticityPrior);
-      }
-    }
-  }
-  return demand;
-}
-`
+//
+//go:embed testdata/ruled-comment-case.cpp
+var ruledCommentCase string
 
-const ruledCommentWant = `double sample(double demand) {
-  // ---- elasticity probe: the first sample past the last act's cooldown is
-  // ---- rendered at that act's scalars. Its demand against the pre-act
-  // ---- demand measures the elasticity of the rung the act moved -------
-  if (probe_.armed && cooldownFrames_ == 0) {
-    probe_.armed = false;
-    if (lodBias_ == probe_.actLod && resScale_ == probe_.actRes) {
-      const double lr = std::log(lodBias_ / probe_.lod);
-      const double rr = std::log(resScale_ / probe_.res);
-      const double dr = std::log(demand / probe_.demand);
-      if (rr == 0.0 && std::abs(lr) >= minStep) {
-        eLod_ = std::clamp(dr / lr, 0.0, kGovDemandElasticityPrior);
-      } else if (lr == 0.0 && std::abs(rr) >= minStep) {
-        eRes_ = std::clamp(dr / rr, 0.0, kGovDemandElasticityPrior);
-      }
-    }
-  }
-  return demand;
-}
-`
+//go:embed testdata/ruled-comment-want.cpp
+var ruledCommentWant string
 
 // coordinatedObjectsCase holds a CMake comment whose list after a colon joins
 // clauses with semicolons. "on the copy and the in-place row wires" names a

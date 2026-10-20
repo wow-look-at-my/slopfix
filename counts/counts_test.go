@@ -1,5 +1,7 @@
 package counts
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -56,7 +58,7 @@ func TestAFunctionWordBreaksTheCount(t *testing.T) {
 // The exemptions come from the markdown splitter, so a fence, a table, a
 // heading and an indented block are all data.
 func TestVerbatimBlocksAreNeverJudged(t *testing.T) {
-	assert.Empty(t, Check("```go\n// it has three sections\n```"))
+	assert.Empty(t, Check(testVerbatimBlocksAreNeverJudgedMd))
 	assert.Empty(t, Check("| it has three sections |\n|---|"))
 	assert.Empty(t, Check("# it has three sections"))
 	assert.Empty(t, Check("    it has three sections"))
@@ -108,11 +110,9 @@ func TestACountAfterANounBecomesMultiple(t *testing.T) {
 
 // The lines of a real document that names its branches by number, and then
 // cites them by number alone.
-const attributionVerdict = "### 2. Keyless fallback (branch 3) ambiguity\n\n" +
-	"- branch (1) the still-streaming `current_agent_msg`, guarded by `streaming_matches`.\n" +
-	"- branch (2) the prompt→entry map `finished_prompt_costs` recorded by `finish_turn`.\n" +
-	"- branch (3) the keyless fallback `last_finished_agent_entry`.\n\n" +
-	"- during a newer stream → dropped (branch 1 prompt-mismatch rejects, branch 3 sees `last_finished_agent_entry` already cleared).\n"
+//
+//go:embed testdata/attribution-verdict.md
+var attributionVerdict string
 
 // Digits after a singular noun name an item, and a point on a scale is a
 // value. Each goes stale like a count, so each is a finding. The repair names
@@ -294,3 +294,6 @@ func TestAHitNamesItsLine(t *testing.T) {
 	assert.Equal(t, "There are three sections.", hits[0].Line)
 	assert.Equal(t, 3, hits[0].LineNo)
 }
+
+//go:embed testdata/test-verbatim-blocks-are-never-judged.md
+var testVerbatimBlocksAreNeverJudgedMd string

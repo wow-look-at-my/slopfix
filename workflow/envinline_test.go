@@ -1,5 +1,7 @@
 package workflow
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -7,36 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const envAction = "name: x\n" +
-	"runs:\n" +
-	"  using: composite\n" +
-	"  steps:\n" +
-	"    - id: download\n" +
-	"      uses: some/download@v1\n" +
-	"    - name: install\n" +
-	"      shell: bash\n" +
-	"      env:\n" +
-	"        BIN_DIR: ${{ runner.temp }}/go-toolchain-bin\n" +
-	"        DOWNLOADED: ${{ steps.download.outputs.path }}\n" +
-	"      run: |\n" +
-	"        set -euo pipefail\n" +
-	"        BIN_DIR=\"$RUNNER_TEMP/go-toolchain-bin\"\n" +
-	"        mkdir -p \"${BIN_DIR}\"\n" +
-	"        mv \"${DOWNLOADED}\" \"${BIN_DIR}/go-toolchain\"\n"
+//go:embed testdata/env-action.yml
+var envAction string
 
-const envActionFixed = "name: x\n" +
-	"runs:\n" +
-	"  using: composite\n" +
-	"  steps:\n" +
-	"    - id: download\n" +
-	"      uses: some/download@v1\n" +
-	"    - name: install\n" +
-	"      shell: bash\n" +
-	"      run: |\n" +
-	"        set -euo pipefail\n" +
-	"        BIN_DIR=\"$RUNNER_TEMP/go-toolchain-bin\"\n" +
-	"        mkdir -p \"${BIN_DIR}\"\n" +
-	"        mv \"${{ steps.download.outputs.path }}\" \"${BIN_DIR}/go-toolchain\"\n"
+//go:embed testdata/env-action-fixed.yml
+var envActionFixed string
 
 func TestAnEnvEntryThatOnlyCarriesAnExpressionIsInlined(t *testing.T) {
 	found := envIndirections(envAction)
@@ -83,30 +60,7 @@ func TestAnUntrustedExpressionStaysInEnv(t *testing.T) {
 // dispatched is a workflow whose dispatch takes a free-text tag and a boolean,
 // with one step reading the env entry the caller names.
 func dispatched(entry string) string {
-	return "on:\n" +
-		"  workflow_dispatch:\n" +
-		"    inputs:\n" +
-		"      image_tag:\n" +
-		"        type: string\n" +
-		"      untyped:\n" +
-		"        description: no type\n" +
-		"      build_docker:\n" +
-		"        type: boolean\n" +
-		"      flavor:\n" +
-		"        type: choice\n" +
-		"        options: [a, b]\n" +
-		"  workflow_call:\n" +
-		"    inputs:\n" +
-		"      called:\n" +
-		"        type: string\n" +
-		"      count:\n" +
-		"        type: number\n" +
-		"jobs:\n" +
-		"  a:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - env:\n" +
-		"          VALUE: " + entry + "\n" +
+	return dispatchedYml + entry + "\n" +
 		"        run: |\n" +
 		"          if [ -n \"$VALUE\" ]; then\n" +
 		"            IMAGE_TAGS=\"${VALUE}\"\n" +
@@ -154,17 +108,7 @@ func TestAnExpressionWithNoOutsideTextIsInlined(t *testing.T) {
 
 // Every input of a composite action is text its caller writes.
 func TestACompositeActionInputStaysInEnv(t *testing.T) {
-	content := "name: x\n" +
-		"inputs:\n" +
-		"  flag:\n" +
-		"    default: 'false'\n" +
-		"runs:\n" +
-		"  using: composite\n" +
-		"  steps:\n" +
-		"    - shell: bash\n" +
-		"      env:\n" +
-		"        FLAG: ${{ inputs.flag }}\n" +
-		"      run: echo \"$FLAG\"\n"
+	content := testACompositeActionInputStaysInEnvYml
 	assert.Empty(t, envIndirections(content))
 }
 
@@ -247,12 +191,7 @@ func TestAContainerJobKeepsTheRunnerVariable(t *testing.T) {
 // A composite action can run in a container job, where the expression names the
 // host path and the variable names the mount.
 func TestACompositeActionKeepsTheRunnerVariable(t *testing.T) {
-	content := "name: x\n" +
-		"runs:\n" +
-		"  using: composite\n" +
-		"  steps:\n" +
-		"    - shell: bash\n" +
-		"      run: ls \"$RUNNER_TEMP\"\n"
+	content := testACompositeActionKeepsTheRunnerVariableYml
 	assert.Empty(t, envIndirections(content))
 }
 
@@ -275,3 +214,12 @@ func TestAWindowsJobWithNoShellIsNotRead(t *testing.T) {
 		"        run: echo $OUT\n"
 	assert.Empty(t, envIndirections(content))
 }
+
+//go:embed testdata/dispatched.yml
+var dispatchedYml string
+
+//go:embed testdata/test-a-composite-action-input-stays-in-env.yml
+var testACompositeActionInputStaysInEnvYml string
+
+//go:embed testdata/test-a-composite-action-keeps-the-runner-variable.yml
+var testACompositeActionKeepsTheRunnerVariableYml string

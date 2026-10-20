@@ -1,5 +1,7 @@
 package bashclean
 
+import _ "embed"
+
 import (
 	"regexp"
 	"testing"
@@ -73,7 +75,7 @@ var rewriteCases = []cleanCase{
 	{"head on a non-final line preserved", "foo | head -3\nls done", "set -o pipefail\nfoo | head -3\nls done"},
 	{"tail on a non-final line preserved", "ls -1 \"$D\" | tail -12\nls done", "set -o pipefail\nls -1 \"$D\" | tail -12\nls done"},
 	{"stdout redirect on a non-final line preserved", "make >build.log\nwc -l build.log", "make >build.log\nwc -l build.log"},
-	{"multi-line mix of all rules (set -e preserved)", "set -e; ls /x 2>/dev/null | head -3\ngrep -r pat . 2>>/dev/null || true", "set -o pipefail\nset -e\nls /x | head -3\ngrep -r pat ."},
+	{"multi-line mix of all rules (set -e preserved)", "set -e; ls /x 2>/dev/null | head -3\ngrep -r pat . 2>>/dev/null || true", embeddedSh},
 	{"sed without -n transforms, not reads", "sed 's/a/b/' file.txt", "sed 's/a/b/' file.txt"},
 	{"sed -n on /proc allowed", "sed -n '1p' /proc/meminfo", "sed -n '1p' /proc/meminfo"},
 	{"cat /proc file allowed", "cat /proc/meminfo", "cat /proc/meminfo"},
@@ -305,10 +307,10 @@ var rewriteCases = []cleanCase{
 	{"perl as a grep argument untouched", "grep perl file", "grep perl file"},
 	{"command -v perl is a lookup", "command -v perl", "command -v perl"},
 	{"perl inside command substitution not denied", "echo $(perl -e 1)", "echo $(perl -e 1)"},
-	{"combined script keeps every statement that runs", "echo \"=== deploy ===\"\nscp app host:/srv/ 2>/dev/null\nwhile ! ssh host ok; do sleep 30; done\nout=$(echo probe)\necho done | tee -a log\necho finished", "set -o pipefail\nscp app host:/srv/\nwhile ! ssh host ok; do sleep 3; done\nout=$(echo probe)\necho done | tee -a log"},
+	{"combined script keeps every statement that runs", embeddedSh2, embeddedSh3},
 	{"narration_remove + sleep_cap compose", "echo start\nsleep 10\nls | tail -5", "set -o pipefail\nsleep 3\nls | tail -5"},
-	{"splat repro keeps every statement that runs (tail -12 and 2>&1 intact)", "cd /Users/mhaynie/repos/splat/splat-vulkan\nPRE=/private/tmp/claude-501/-Users-mhaynie-repos-splat/10878a52-8108-4974-ae5c-3ecf2bb62d3f/scratchpad/premerge-wt/splat-vulkan/build/test-out/t5b\nPOST=build/test-out/t5b\necho \"=== files present ===\"; ls -1 \"$PRE\" \"$POST\" 2>&1 | tail -12\necho \"=== REF: pre-merge vs post-merge ===\"; ./build/splat-compare \"$PRE/odd-size-ref.png\" \"$POST/odd-size-ref.png\" --within 2 --pct 99 --mean 0.5\necho \"=== FROXEL: pre-merge vs post-merge ===\"; ./build/splat-compare \"$PRE/odd-size-froxel.png\" \"$POST/odd-size-froxel.png\" --within 2 --pct 99 --mean 0.5", "set -o pipefail\ncd /Users/mhaynie/repos/splat/splat-vulkan\nPRE=/private/tmp/claude-501/-Users-mhaynie-repos-splat/10878a52-8108-4974-ae5c-3ecf2bb62d3f/scratchpad/premerge-wt/splat-vulkan/build/test-out/t5b\nPOST=build/test-out/t5b\nls -1 \"$PRE\" \"$POST\" 2>&1 | tail -12\n./build/splat-compare \"$PRE/odd-size-ref.png\" \"$POST/odd-size-ref.png\" --within 2 --pct 99 --mean 0.5\n./build/splat-compare \"$PRE/odd-size-froxel.png\" \"$POST/odd-size-froxel.png\" --within 2 --pct 99 --mean 0.5"},
-	{"a separator echo between two reads goes from the list", "sed -n 100,150p internal/trash/freedesktop_test.go; echo ===; git show 4ecc41f:internal/trash/freedesktop.go | grep -n \"dispose\" | head", "set -o pipefail\nsed -n 100,150p internal/trash/freedesktop_test.go\ngit show 4ecc41f:internal/trash/freedesktop.go | grep -n \"dispose\" | head"},
+	{"splat repro keeps every statement that runs (tail -12 and 2>&1 intact)", embeddedSh4, "set -o pipefail\ncd /Users/mhaynie/repos/splat/splat-vulkan\nPRE=/private/tmp/claude-501/-Users-mhaynie-repos-splat/10878a52-8108-4974-ae5c-3ecf2bb62d3f/scratchpad/premerge-wt/splat-vulkan/build/test-out/t5b\nPOST=build/test-out/t5b\nls -1 \"$PRE\" \"$POST\" 2>&1 | tail -12\n./build/splat-compare \"$PRE/odd-size-ref.png\" \"$POST/odd-size-ref.png\" --within 2 --pct 99 --mean 0.5\n./build/splat-compare \"$PRE/odd-size-froxel.png\" \"$POST/odd-size-froxel.png\" --within 2 --pct 99 --mean 0.5"},
+	{"a separator echo between two reads goes from the list", "sed -n 100,150p internal/trash/freedesktop_test.go; echo ===; git show 4ecc41f:internal/trash/freedesktop.go | grep -n \"dispose\" | head", embeddedSh5},
 	{"true beside real work goes from the list", "make; true; ls", "make\nls"},
 	{"a colon beside real work goes from the list", "make\n:\nls", "make\nls"},
 	{"a leading no-op goes from an && chain", ": && make", "make"},
@@ -316,7 +318,7 @@ var rewriteCases = []cleanCase{
 	{"a no-op after a narration that was the only work goes", "echo hi; true", "echo hi"},
 	{"a lone true stays", "true", "true"},
 	{"false beside real work stays", "make; false; ls", "make\nfalse\nls"},
-	{"a no-op before a read of its status stays", "make; :; echo $?", "make\n:\necho $?"},
+	{"a no-op before a read of its status stays", "make; :; echo $?", embeddedSh6},
 	{"true as a loop condition stays", "while true; do make; done", "while true; do make; done"},
 	{"true as a pipeline stage stays", "make | true", "set -o pipefail\nmake | true"},
 	{"a no-op with a redirect stays", "make; : > out.log; ls", "make\n: >out.log\nls"},
@@ -386,3 +388,21 @@ func TestDenies(t *testing.T) {
 		assert.Regexp(t, regexp.MustCompile(tc.want), denyReason(got.Reason), "%s", tc.name)
 	}
 }
+
+//go:embed testdata/embedded.sh
+var embeddedSh string
+
+//go:embed testdata/embedded-2.sh
+var embeddedSh2 string
+
+//go:embed testdata/embedded-3.sh
+var embeddedSh3 string
+
+//go:embed testdata/embedded-4.sh
+var embeddedSh4 string
+
+//go:embed testdata/embedded-5.sh
+var embeddedSh5 string
+
+//go:embed testdata/embedded-6.sh
+var embeddedSh6 string

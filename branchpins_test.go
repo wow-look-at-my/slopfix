@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"net/http"
@@ -81,7 +83,7 @@ func TestBranchPinsTreeReportsAWorkflowFinding(t *testing.T) {
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	ci := filepath.Join(dir, "ci.yml")
-	require.NoError(t, os.WriteFile(ci, []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@master\n      - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(ci, []byte(testBranchPinsTreeReportsAWorkflowFindingYml), 0o644))
 
 	pins := func(req slopfix.Request) []slopfix.TreeFinding {
 		var found []slopfix.TreeFinding
@@ -108,7 +110,7 @@ func TestATreeRunAsksTheAPIWhenGivenNoRefs(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte(testATreeRunAsksTheAPIWhenGivenNoRefsYml), 0o644))
 
 	var ids []string
 	for _, f := range slopfix.CheckTreeWith(root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings {
@@ -126,7 +128,7 @@ func cachedTree(t *testing.T, cache string) string {
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "slopfix-refs.json"), []byte(cache), 0o644))
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte(cachedTreeYml), 0o644))
 	return root
 }
 
@@ -144,7 +146,7 @@ func TestARecordedAnswerIsUsedInPlaceOfTheAPI(t *testing.T) {
 
 // The fixture API knows only what a fixture declares, so an undeclared repository is a finding and a declared one passes.
 func TestAnUndeclaredFixtureRepositoryIsReported(t *testing.T) {
-	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: acme/undeclared@v1\n"
+	text := testAnUndeclaredFixtureRepositoryIsReportedYml
 	judged := func(declared map[string]string) []slopfix.TreeFinding {
 		c, err := slopfix.Materialize(t.TempDir(), slopfix.RuleCase{Path: ".github/workflows/ci.yml", Text: text, Refs: declared})
 		require.NoError(t, err)
@@ -157,7 +159,7 @@ func TestAnUndeclaredFixtureRepositoryIsReported(t *testing.T) {
 }
 
 func TestAnUndeclaredFixtureRefIsReported(t *testing.T) {
-	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: acme/declared@v9\n"
+	text := testAnUndeclaredFixtureRefIsReportedYml
 	c, err := slopfix.Materialize(t.TempDir(), slopfix.RuleCase{Path: ".github/workflows/ci.yml", Text: text, Refs: map[string]string{"acme/declared": "master"}})
 	require.NoError(t, err)
 	found := slopfix.CheckTreeWith(c.Root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings
@@ -186,7 +188,7 @@ func TestARecordedBranchIsFlaggedWithoutTheAPI(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "slopfix-refs.json"), []byte(`{"o/r":"master","o/r@feature":"branch"}`), 0o644))
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte(testARecordedBranchIsFlaggedWithoutTheAPIYml), 0o644))
 
 	found := slopfix.CheckTreeWith(root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings
 	require.Len(t, found, 1)
@@ -198,7 +200,7 @@ func TestAnUnreadableRepositoryIsAFindingNotATag(t *testing.T) {
 	srv := refsAPI(t, &calls)
 	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
 	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
-	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/private@v1\n"
+	text := testAnUnreadableRepositoryIsAFindingNotATagYml
 	repair := slopfix.Report(slopfix.Request{Content: text, Path: ".github/workflows/ci.yml", Refs: refs, IDs: []string{workflow.IDBranchPin}})
 	require.Len(t, repair.Findings, 1)
 	assert.Equal(t, workflow.IDBranchPin, repair.Findings[0].ID)
@@ -210,8 +212,32 @@ func TestFixWritesTheDefaultBranchOverABranchPin(t *testing.T) {
 	srv := refsAPI(t, &calls)
 	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
 	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
-	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"
+	text := testFixWritesTheDefaultBranchOverABranchPinYml
 	repair := slopfix.Fix(slopfix.Request{Content: text, Path: ".github/workflows/ci.yml", Refs: refs, IDs: []string{workflow.IDBranchPin}})
 	assert.Contains(t, repair.Text, "uses: o/r@master")
 	assert.Empty(t, repair.Findings)
 }
+
+//go:embed testdata/test-branch-pins-tree-reports-a-workflow-finding.yml
+var testBranchPinsTreeReportsAWorkflowFindingYml string
+
+//go:embed testdata/test-a-tree-run-asks-the-a-p-i-when-given-no-refs.yml
+var testATreeRunAsksTheAPIWhenGivenNoRefsYml string
+
+//go:embed testdata/cached-tree.yml
+var cachedTreeYml string
+
+//go:embed testdata/test-an-undeclared-fixture-repository-is-reported.yml
+var testAnUndeclaredFixtureRepositoryIsReportedYml string
+
+//go:embed testdata/test-an-undeclared-fixture-ref-is-reported.yml
+var testAnUndeclaredFixtureRefIsReportedYml string
+
+//go:embed testdata/test-a-recorded-branch-is-flagged-without-the-a-p-i.yml
+var testARecordedBranchIsFlaggedWithoutTheAPIYml string
+
+//go:embed testdata/test-an-unreadable-repository-is-a-finding-not-a-tag.yml
+var testAnUnreadableRepositoryIsAFindingNotATagYml string
+
+//go:embed testdata/test-fix-writes-the-default-branch-over-a-branch-pin.yml
+var testFixWritesTheDefaultBranchOverABranchPinYml string

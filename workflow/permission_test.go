@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -9,26 +11,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-const permissionWorkflow = `on:
-  push:
-    branches: ['**']
-permissions:
-  contents: read
-  id-token: write
-jobs:
-  own:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps: []
-  inherits:
-    runs-on: ubuntu-latest
-    steps: []
-  all:
-    runs-on: ubuntu-latest
-    permissions: write-all
-    steps: []
-`
+//go:embed testdata/permission-workflow.yml
+var permissionWorkflow string
 
 func TestTheJobBlockWinsAndOmitsWhatItDoesNotName(t *testing.T) {
 	g, err := workflow.Permission(permissionWorkflow, "own", "contents")

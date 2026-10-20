@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"fmt"
@@ -26,7 +28,7 @@ func orgRefFindings(content string) []ste.Finding {
 }
 
 func steps(uses ...string) string {
-	out := "on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n"
+	out := stepsYml
 	for _, u := range uses {
 		out += "      - uses: " + u + "\n"
 	}
@@ -52,7 +54,7 @@ func TestAnOrgActionOffMasterIsReported(t *testing.T) {
 }
 
 func TestAReusableWorkflowOffMasterIsReported(t *testing.T) {
-	content := "on: workflow_dispatch\njobs:\n  preview:\n    uses: wow-look-at-my/buildhost/.github/workflows/preview.yml@wip\n"
+	content := testAReusableWorkflowOffMasterIsReportedYml
 	found := orgRefFindings(content)
 	require.Len(t, found, 1)
 	assert.Equal(t, 4, found[0].Line)
@@ -172,7 +174,7 @@ func TestASHAPinOfTheMonorepoWithNoDirectoryIsNotReported(t *testing.T) {
 // Only a uses: key the runner reads names an action. One under with: is an input value.
 func TestAUsesKeyOutsideAJobOrAStepIsNotAnAction(t *testing.T) {
 	orgAPI(t)
-	content := "on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          uses: wow-look-at-my/go-toolchain@v1\n"
+	content := testAUsesKeyOutsideAJobOrAStepIsNotAnActionYml
 	assert.Empty(t, orgRefFindings(content))
 	assert.Equal(t, content, repaired(t, content))
 }
@@ -197,3 +199,12 @@ func TestAMovingBranchRepairsToLKGBWhenGitHubCannotAnswer(t *testing.T) {
 		assert.Equal(t, steps(want), repaired(t, steps(uses)), uses)
 	}
 }
+
+//go:embed testdata/steps.yml
+var stepsYml string
+
+//go:embed testdata/test-a-reusable-workflow-off-master-is-reported.yml
+var testAReusableWorkflowOffMasterIsReportedYml string
+
+//go:embed testdata/test-a-uses-key-outside-a-job-or-a-step-is-not-an-action.yml
+var testAUsesKeyOutsideAJobOrAStepIsNotAnActionYml string

@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -37,7 +39,7 @@ func autofixTestInYAML(c RuleCase) RuleCase {
 // command.
 func testInYAMLCase() string {
 	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n" +
-		"    steps:\n      - run: |\n          echo hi\n          assert_ok() { exit 1; }\n"
+		testInYAMLCaseSh
 }
 
 // testInYAMLExpressionCase is a workflow whose test reads an expression inside
@@ -49,3 +51,6 @@ func testInYAMLExpressionCase() string {
 		"            echo \"::error::no build of ${{ github.sha }}\"; exit 1\n" +
 		"          fi\n"
 }
+
+//go:embed testdata/test-in-y-a-m-l-case.sh
+var testInYAMLCaseSh string

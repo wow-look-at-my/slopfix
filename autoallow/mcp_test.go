@@ -1,5 +1,7 @@
 package autoallow
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -120,16 +122,7 @@ func TestShippedRulesAllowReadOnlyMCPTools(t *testing.T) {
 }
 
 func TestLoadXMLRulesMCPServers(t *testing.T) {
-	xml := `<?xml version="1.0" encoding="UTF-8"?>
-<rules>
-  <mcpServer name="grafana">
-    <tool>get_*</tool>
-    <tool>list_*</tool>
-  </mcpServer>
-  <mcpServer name="cloudflare">
-    <tool>search_*</tool>
-  </mcpServer>
-</rules>`
+	xml := testLoadXMLRulesMCPServersXml
 	rules, err := loadXMLRules([]byte(xml))
 	assert.NoError(t, err)
 	assert.Equal(t, map[string][]string{
@@ -137,3 +130,6 @@ func TestLoadXMLRulesMCPServers(t *testing.T) {
 		"cloudflare": {"search_*"},
 	}, rules.MCPServers)
 }
+
+//go:embed testdata/test-load-x-m-l-rules-m-c-p-servers.xml
+var testLoadXMLRulesMCPServersXml string

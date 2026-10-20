@@ -1,5 +1,7 @@
 package rustfmt
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"os"
@@ -13,7 +15,9 @@ import (
 )
 
 const ugly = "fn  main( ){let x=1;println!(\"{}\",x);}\n"
-const pretty = "fn main() {\n    let x = 1;\n    println!(\"{}\", x);\n}\n"
+
+//go:embed testdata/pretty.rs
+var pretty string
 
 func requireRustfmt(t *testing.T) {
 	t.Helper()
@@ -105,9 +109,9 @@ func TestMissingRustfmtFailsLoud(t *testing.T) {
 
 func TestCargoEdition(t *testing.T) {
 	root := t.TempDir()
-	write(t, filepath.Join(root, "Cargo.toml"), "[workspace]\nmembers = [\"a\", \"b\", \"c\"]\n[workspace.package]\nedition = \"2024\"\n")
-	write(t, filepath.Join(root, "a", "Cargo.toml"), "[package]\nname = \"a\"\nedition = \"2018\"\n")
-	write(t, filepath.Join(root, "b", "Cargo.toml"), "[package]\nname = \"b\"\nedition.workspace = true\n")
+	write(t, filepath.Join(root, "Cargo.toml"), testCargoEditionToml)
+	write(t, filepath.Join(root, "a", "Cargo.toml"), testCargoEditionToml2)
+	write(t, filepath.Join(root, "b", "Cargo.toml"), testCargoEditionToml3)
 	write(t, filepath.Join(root, "c", "Cargo.toml"), "[package]\nname = \"c\"\n")
 	assert.Equal(t, "2018", cargoEdition(filepath.Join(root, "a", "src")))
 	assert.Equal(t, "2024", cargoEdition(filepath.Join(root, "b", "src")))
@@ -198,3 +202,12 @@ func TestCommitAllowedWithoutRustChanges(t *testing.T) {
 func TestBadPayloadGetsNoAnswer(t *testing.T) {
 	assert.Equal(t, Result{}, Run(strings.NewReader("not json")))
 }
+
+//go:embed testdata/test-cargo-edition.toml
+var testCargoEditionToml string
+
+//go:embed testdata/test-cargo-edition-2.toml
+var testCargoEditionToml2 string
+
+//go:embed testdata/test-cargo-edition-3.toml
+var testCargoEditionToml3 string

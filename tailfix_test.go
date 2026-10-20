@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -18,25 +20,8 @@ const safetyLines = `///
 
 const safetyDoc = "/// Free a converter handle\n" + safetyLines + freeFn
 
-const freeFn = `#[no_mangle]
-pub unsafe extern "C" fn converter_free(handle: *mut Handle) {
-    if handle.is_null() {
-        return;
-    }
-    let owned = Box::from_raw(handle);
-    let streams = owned.streams.lock().unwrap();
-    for (index, stream) in streams.iter() {
-        stream.flush(*index);
-        stream.close(*index);
-    }
-    drop(streams);
-    owned.tokenizer.release();
-    owned.parser.release();
-    owned.decoder.release();
-    owned.close();
-    drop(owned);
-}
-`
+//go:embed testdata/free-fn.js
+var freeFn string
 
 // A Rust doc paragraph reads to its last line. A sentence that wraps onto a line
 // opening with inline code ends where its full stop is. Check and fix agree.

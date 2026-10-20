@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -38,9 +40,9 @@ func init() {
 			},
 			{
 				Name: "yaml/id-token-workflow-block", Path: ".github/workflows/ci.yml",
-				Text: workflowHeader() + "permissions:\n  contents: read\n\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n" +
+				Text: workflowHeader() + embeddedYml2 +
 					"  b:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n",
-				Want: workflowHeader() + "permissions:\n  id-token: write\n  contents: read\n\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n" +
+				Want: workflowHeader() + embeddedYml3 +
 					"  b:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n",
 			},
 		},
@@ -56,3 +58,9 @@ func detectIDToken(c RuleCase) []ste.Finding {
 func autofixIDToken(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDIDToken)
 }
+
+//go:embed testdata/embedded-2.yml
+var embeddedYml2 string
+
+//go:embed testdata/embedded-3.yml
+var embeddedYml3 string

@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -24,19 +26,9 @@ func syntaxFindings(content string) []ste.Finding {
 // emptyIfBody is wow-look-at-my/sglang fork-ci.yml at c33f43989a. The job runs
 // on the default branch alone, so no pull request ran the script, and master
 // failed with: syntax error near unexpected token `fi'.
-const emptyIfBody = "on:\n" +
-	"  push:\n" +
-	"    branches: ['**']\n" +
-	"jobs:\n" +
-	"  release:\n" +
-	"    if: github.ref == 'refs/heads/master'\n" +
-	"    runs-on: ubuntu-latest\n" +
-	"    steps:\n" +
-	"      - run: |\n" +
-	"          shopt -s nullglob\n" +
-	"          WHEELS=(dist/*.whl)\n" +
-	"          if [ ${#WHEELS[@]} -eq 0 ]; then\n" +
-	"          fi\n"
+//
+//go:embed testdata/empty-if-body.yml
+var emptyIfBody string
 
 func TestAnIfWithNoBodyIsReportedOnItsThen(t *testing.T) {
 	found := syntaxFindings(emptyIfBody)
@@ -89,7 +81,7 @@ func TestAPowerShellStepIsNotParsed(t *testing.T) {
 	broken := "        run: |\n          if ($x) { exit 1 }\n          fi\n"
 	for _, content := range []string{
 		"jobs:\n  a:\n    runs-on: windows-latest\n    steps:\n      - name: x\n" + broken,
-		"defaults:\n  run:\n    shell: pwsh\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - name: x\n" + broken,
+		testAPowerShellStepIsNotParsedYml + broken,
 		"jobs:\n  a:\n    runs-on: ubuntu-latest\n    defaults:\n      run:\n        shell: pwsh\n    steps:\n      - name: x\n" + broken,
 	} {
 		assert.Empty(t, syntaxFindings(content), content)
@@ -140,7 +132,7 @@ func TestAScriptOnTheRunRowIsRepaired(t *testing.T) {
 
 // A closing word with nothing to close is dropped, and every command stays.
 func TestAStrayClosingWordIsDropped(t *testing.T) {
-	fixed := repairedBy(stepsHead + "      - run: |\n          echo hi\n          fi\n")
+	fixed := repairedBy(stepsHead + testAStrayClosingWordIsDroppedYml)
 	assert.Equal(t, stepsHead+"      - run: |\n          echo hi\n\n", fixed)
 	assert.Empty(t, syntaxFindings(fixed))
 }
@@ -203,3 +195,9 @@ func TestAParsingScriptIsNotRewritten(t *testing.T) {
 	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          echo hi\n"
 	assert.Equal(t, content, repairedBy(content))
 }
+
+//go:embed testdata/test-a-power-shell-step-is-not-parsed.yml
+var testAPowerShellStepIsNotParsedYml string
+
+//go:embed testdata/test-a-stray-closing-word-is-dropped.yml
+var testAStrayClosingWordIsDroppedYml string

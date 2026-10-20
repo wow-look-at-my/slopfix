@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -15,22 +17,9 @@ import (
 
 // upstreamWorkflow is the parent's workflow. Its comment run was over the
 // limit before the fork touched it.
-const upstreamWorkflow = `name: PR Test Base
-on:
-  pull_request:
-concurrency:
-  # - event_name prevents scheduled runs from colliding with fork PRs whose branch is named 'main'
-  #   (without it, both resolve the branch segment to 'main' and block each other)
-  # - a PR keys on its number: github.head_ref is a bare branch name with no owner,
-  #   so two forks using the same name would share one group and cancel each other
-  group: pr-test-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref_name }}
-  cancel-in-progress: true
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo ok
-`
+//
+//go:embed testdata/upstream-workflow.yml
+var upstreamWorkflow string
 
 // forkWorkflow rewords one line of that run, so the run holds a line the fork wrote.
 var forkWorkflow = strings.Replace(upstreamWorkflow, "so two forks using", "so forks using", 1)
@@ -70,23 +59,8 @@ func TestAForkEditInsideAnUpstreamCommentRunKeepsItsWords(t *testing.T) {
 	assert.Equal(t, forkWorkflow, repair.Text, "the fork's line stays as the fork wrote it")
 }
 
-const upstreamStage = `name: PR Test Stage (CPU)
-on:
-  workflow_call:
-jobs:
-  run:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      # This stage compiled the workspace too - 7+ minutes per partition on
-      # billable hosted minutes. rust-ext-build's modules need an older glibc than
-      # this runner has, which is the safe direction, and both pin Python 3.10.
-      - uses: ./.github/actions/download-rust-ext
-`
+//go:embed testdata/upstream-stage.yml
+var upstreamStage string
 
 var forkStage = strings.ReplaceAll(upstreamStage, "3.10", "3.12")
 

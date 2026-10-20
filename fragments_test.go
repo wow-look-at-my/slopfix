@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -12,20 +14,9 @@ import (
 )
 
 // releaseExclude is a path list a release script reads, with comments.
-const releaseExclude = "# exclude.txt - paths left out of the snapshot.\n" +
-	"#\n" +
-	"# Read by a script after it stages the working set. One entry per\n" +
-	"# line; blank lines and #-comments ignored.\n" +
-	"#   dir/           - path PREFIX from the repo root (the whole directory)\n" +
-	"#   **/name/       - a directory with that NAME at any depth\n" +
-	"\n" +
-	"# Tool configuration.\n" +
-	".tools/\n" +
-	"**/.tools/\n" +
-	"\n" +
-	"# Tool docs.\n" +
-	"NOTES.md\n" +
-	"**/NOTES.md\n"
+//
+//go:embed testdata/release-exclude.md
+var releaseExclude string
 
 // A wrapped run of one-word lines is a finding, and no repair joins the
 // entries. In markdown each becomes a list item.
@@ -67,9 +58,7 @@ func TestProseAfterEntriesStillJoins(t *testing.T) {
 }
 
 var unrepairedParagraphs = map[string]string{
-	"selector splice": "## Pattern selection\n\n" +
-		"`--regex` / `--regex-file` patterns use Go RE2 syntax. Anchoring is forced. Casing is the pattern's own:\n\n" +
-		"- **Patterns compile as written** (every pattern is compiled as `\\A(?:pattern)\\z`): matching is case-sensitive unless the pattern opts in with an inline `(?i)`. Short names are sometimes best distinguished by their case. That is the pattern author's call. The caveat: key equality IS case-insensitive, and different packages can legitimately store different casings of the same key. A case-sensitive pattern that matches only one casing rewrites some packages and misses others, so the \"same\" key stops matching itself across the build. When that happens by accident, the run-wide **casing-drift advisory** (below) flags it. When casings really are different parameters, nothing fires. (`--prefix` and `--keys-file` remain case-insensitive: they name keys, not text patterns.)\n",
+	"selector splice": embeddedMd,
 	"selector length": "**Relationship to `check-output`** (see [Leak gates](#leak-gates-check-source-and-check-output)): the self-check is the *automatic, post-rewrite* gate proving the keys *this run rewrote* are gone from the files. *this run processed*. `check-output` is the *standalone* end-of-build gate you point at ANY artifact (the shipped executable, third-party data) and judge against the *full selector* (every pattern, matched or not). Use both: self-check guards the rewrite itself, `check-output` guards everything the rewrite never saw.\n",
 	"frontend length": "# example.wasm\n\n" +
 		"The Go frontend ([example.ir](https://example.com/example.ir), vendored as the `.ir/` git submodule) lexes, parses, type-checks, and lowers source to a fully-resolved IR. This repo translates that IR into a WebAssembly module.\n",
@@ -144,3 +133,6 @@ func TestFixLeavesNoFragmentOfASentenceItCuts(t *testing.T) {
 	assert.NotContains(t, out, "//\nfunc", "the break before the cut paragraph goes too")
 	assert.Equal(t, strings.Count(out, "("), strings.Count(out, ")"), "every aside closes")
 }
+
+//go:embed testdata/embedded.md
+var embeddedMd string

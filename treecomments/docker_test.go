@@ -1,5 +1,7 @@
 package treecomments
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -9,7 +11,7 @@ import (
 
 // The docker build reads a parser directive, so a rule must never cut it.
 func TestADockerDirectiveIsNotAComment(t *testing.T) {
-	src := "# syntax=docker/dockerfile:1\n#check=skip=JSONArgsRecommended\n# ESCAPE = `\n\n# what this image holds\nFROM alpine\n"
+	src := testADockerDirectiveIsNotACommentMd
 
 	got := Extract("Dockerfile", src)
 	require.Len(t, got, 1)
@@ -29,3 +31,6 @@ func TestProseAboutADirectiveStaysAComment(t *testing.T) {
 
 	assert.Len(t, Extract("Dockerfile", src), 1)
 }
+
+//go:embed testdata/test-a-docker-directive-is-not-a-comment.md
+var testADockerDirectiveIsNotACommentMd string

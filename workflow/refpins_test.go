@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"errors"
 	"testing"
@@ -81,7 +83,7 @@ func pinFindings(t *testing.T, content string, refs workflow.Refs) []string {
 }
 
 func TestAFeatureBranchPinIsReported(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: wow-look-at-my/go-toolchain@drop-common-checks\n"
+	content := testAFeatureBranchPinIsReportedYml
 	found, err := workflow.BranchPins(content, orgRefs())
 	require.NoError(t, err)
 	require.Len(t, found, 1)
@@ -142,3 +144,6 @@ func TestOnlyAJobOrAStepUsesIsRead(t *testing.T) {
 	assert.Empty(t, workflow.Uses(content))
 	assert.Empty(t, workflow.Uses("jobs: [unbalanced\n"))
 }
+
+//go:embed testdata/test-a-feature-branch-pin-is-reported.yml
+var testAFeatureBranchPinIsReportedYml string

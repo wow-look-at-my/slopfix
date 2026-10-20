@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -11,7 +13,7 @@ import (
 // The incident: a comment block above a trigger took a pull request red, on a
 // workflow whose author had read the rule.
 func TestACommentRunPastTheLimitIsReported(t *testing.T) {
-	findings := workflow.Check("name: CI\n\n# A preview is republished by pushing, so a branch whose\n# last run predates a change had no way to pick it up.\n# This trigger exists for that.\non:\n  workflow_dispatch:\n")
+	findings := workflow.Check(testACommentRunPastTheLimitIsReportedYml)
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, workflow.IDCommentBlock, findings[0].ID)
@@ -26,7 +28,7 @@ func TestOneCommentLineIsAllowed(t *testing.T) {
 
 // A blank line does not end a block. A reader sees a single paragraph.
 func TestABlankLineDoesNotSplitACommentBlock(t *testing.T) {
-	findings := workflow.Check("# first\n\n# second\non: {push: {branches: ['**']}}\n")
+	findings := workflow.Check(testABlankLineDoesNotSplitACommentBlockMd)
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, "lines 1-3", findings[0].Detail)
@@ -51,7 +53,9 @@ func TestACommentBlockAtTheEndOfTheFileIsReported(t *testing.T) {
 }
 
 // A # inside a block scalar opens a shell comment.
-const scriptWithComments = "on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n          # install the backend\n          # the suites need it\n          apt-get install -y bubblewrap\n          apt-get clean\n"
+//
+//go:embed testdata/script-with-comments.yml
+var scriptWithComments string
 
 func TestShellCommentsInABlockScalarAreNotAYamlCommentBlock(t *testing.T) {
 	assert.Empty(t, checkOthers(scriptWithComments))
@@ -82,7 +86,7 @@ func TestJoiningCommentLinesKeepsTheirSentencesApart(t *testing.T) {
 // The scalar ends where the indentation does, so the comments after it are
 // judged as the YAML comments they are.
 func TestACommentBlockAfterABlockScalarIsStillReported(t *testing.T) {
-	findings := checkOthers("on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n          # a shell comment\n          make\n\n# one\n# two\n")
+	findings := checkOthers(testACommentBlockAfterABlockScalarIsStillReportedYml)
 
 	require.Len(t, findings, 1)
 	assert.Equal(t, "lines 9-10", findings[0].Detail)
@@ -94,3 +98,12 @@ func TestEveryBlockScalarHeaderOpensABody(t *testing.T) {
 		assert.Empty(t, workflow.Check("on: {push: {branches: ['**']}}\nscript: "+header+"\n  # one\n  # two\n"), "header %s", header)
 	}
 }
+
+//go:embed testdata/test-a-comment-run-past-the-limit-is-reported.yml
+var testACommentRunPastTheLimitIsReportedYml string
+
+//go:embed testdata/test-a-blank-line-does-not-split-a-comment-block.md
+var testABlankLineDoesNotSplitACommentBlockMd string
+
+//go:embed testdata/test-a-comment-block-after-a-block-scalar-is-still-reported.yml
+var testACommentBlockAfterABlockScalarIsStillReportedYml string

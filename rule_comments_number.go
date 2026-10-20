@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -46,29 +48,12 @@ func init() {
 
 // cutParagraphCase opens with a paragraph of a single sentence the number cut
 // takes whole. The break under it then separates nothing, so it goes too.
-const cutParagraphCase = `struct WarpPass {
-  // The pass ships 4 hooks.
-  //
-  // It reads N px/texel (N in {1,2,4,8}; 0 = off).
-  // Pin --warp-field 0 for the pre-field warp.
-  void record(int n) {
-    density_ = n;
-    mask_ = 0;
-    field_ = n * 2;
-    cells_ = n + 1;
-  }
-};
-`
+//
+//go:embed testdata/cut-paragraph-case.cpp
+var cutParagraphCase string
 
-const cutParagraphWant = `struct WarpPass {
-  void record(int n) {
-    density_ = n;
-    mask_ = 0;
-    field_ = n * 2;
-    cells_ = n + 1;
-  }
-};
-`
+//go:embed testdata/cut-paragraph-want.cpp
+var cutParagraphWant string
 
 // chunkZeroCase names an item by its index: "chunk 0" is the first chunk, and
 // "one chunk" says another thing.
@@ -93,135 +78,31 @@ const chunkZeroWant = `struct FroxelPath {
 // valuesCase holds a count beside the value of a flag, a set literal and an
 // assignment. The repair says the count in words and cuts each sentence that
 // holds a value.
-const valuesCase = `struct WarpPass {
-  // Run answers one call 3 ways and ships 4 hooks.
-  //
-  // It reads N px/texel (N in {1,2,4,8}; 0 = off).
-  // Pin --warp-field 0 for the pre-field warp.
-  void record(int n) {
-    density_ = n;
-    mask_ = 0;
-    field_ = n * 2;
-    cells_ = n + 1;
-  }
-};
-`
+//
+//go:embed testdata/values-case.cpp
+var valuesCase string
 
-const valuesWant = `struct WarpPass {
-  // Run answers one call multiple ways and ships hooks.
-  void record(int n) {
-    density_ = n;
-    mask_ = 0;
-    field_ = n * 2;
-    cells_ = n + 1;
-  }
-};
-`
+//go:embed testdata/values-want.cpp
+var valuesWant string
 
 // frameZeroCase names frame zero at the start of a sentence and before a
 // possessive ending.
-const frameZeroCase = `void FroxelPath::finishPrepack(Context& ctx) {
-  // Frame 0 goes live through the ordinary adopt, which installs frame 0's
-  // triple from the map.
-  if (prepack_.empty()) {
-    livePrepackFrame_ = kNoPrepackFrame;
-    prepackPending_ = 0;
-    adoptPrepacked(ctx);
-  }
-}
-`
+//
+//go:embed testdata/frame-zero-case.cpp
+var frameZeroCase string
 
-const frameZeroWant = `void FroxelPath::finishPrepack(Context& ctx) {
-  // The first frame goes live through the ordinary adopt, which installs
-  // the first frame's triple from the map.
-  if (prepack_.empty()) {
-    livePrepackFrame_ = kNoPrepackFrame;
-    prepackPending_ = 0;
-    adoptPrepacked(ctx);
-  }
-}
-`
+//go:embed testdata/frame-zero-want.cpp
+var frameZeroWant string
 
 // ruledNumbersCase opens every comment line with a rule of dashes. The cut
 // takes the sentences that state numbers, and the rewrap puts the rule back
 // at the start of each line, never between words.
-const ruledNumbersCase = `void testInertLodRung() {
-  // ---- (l) INERT LOD RUNG: the M5 animation telemetry (1.23M splats per
-  // ---- frame, 1280x720 internal, fgen feed budget 1000/36 - 4 = 23.8 ms).
-  // ---- Measured headless: lod-bias 1 -> 0.42 moved pair demand by -0.2%,
-  // ---- and res 1 -> 0.5 moved it 3.41M -> 2.60M (elasticity 0.39). Raster
-  // ---- 50.0 ms at res 1 and 19.4 ms at res 0.5 give kPx 39.8 ms/Mpx and
-  // ---- kPairR 3.94 ns/pair; bin+scatter+sort 3.8 ms gives kBss 1.12. Only
-  // ---- the res floor lands inside the deadband. The governor must learn
-  // ---- both elasticities from its own acts and reach that floor without
-  // ---- walking the inert lod rung act by act.
-  {
-    Governor gov;
-    Governor::Config cfg;
-    cfg.budgetMs = 1000.0 / 36.0 - 4.0;
-    cfg.lodAvailable = true;
-    World w;
-    w.demand0 = 3.41e6;
-    w.kPx = 39.8;
-    w.kPairR = 3.94;
-    w.kBss = 1.12;
-    w.fixed = 1.0;
-    w.canvasW = 1280;
-    w.canvasH = 720;
-    w.eLod = 0.0;
-    w.eRes = 0.39;
-    int floorSample = -1;
-    int lodOnlyActs = 0;
-    int acts = 0;
-    for (int i = 0; i < 200; i++) {
-      Governor::Sample s = w.step(gov);
-      const double lodBefore = gov.lodBias();
-      const double resBefore = gov.resolutionScale();
-      if (gov.sample(cfg, s)) {
-        acts++;
-        if (gov.resolutionScale() == resBefore && gov.lodBias() != lodBefore) lodOnlyActs++;
-      }
-      if (floorSample < 0 && gov.resolutionScale() == kGovResScaleMin) floorSample = i;
-    }
-  }
-}
-`
+//
+//go:embed testdata/ruled-numbers-case.cpp
+var ruledNumbersCase string
 
-const ruledNumbersWant = `void testInertLodRung() {
-  // ---- Only the res floor lands inside the deadband. The governor must
-  // ---- learn both elasticities from its own acts and reach that floor
-  // ---- without walking the inert lod rung act by act.
-  {
-    Governor gov;
-    Governor::Config cfg;
-    cfg.budgetMs = 1000.0 / 36.0 - 4.0;
-    cfg.lodAvailable = true;
-    World w;
-    w.demand0 = 3.41e6;
-    w.kPx = 39.8;
-    w.kPairR = 3.94;
-    w.kBss = 1.12;
-    w.fixed = 1.0;
-    w.canvasW = 1280;
-    w.canvasH = 720;
-    w.eLod = 0.0;
-    w.eRes = 0.39;
-    int floorSample = -1;
-    int lodOnlyActs = 0;
-    int acts = 0;
-    for (int i = 0; i < 200; i++) {
-      Governor::Sample s = w.step(gov);
-      const double lodBefore = gov.lodBias();
-      const double resBefore = gov.resolutionScale();
-      if (gov.sample(cfg, s)) {
-        acts++;
-        if (gov.resolutionScale() == resBefore && gov.lodBias() != lodBefore) lodOnlyActs++;
-      }
-      if (floorSample < 0 && gov.resolutionScale() == kGovResScaleMin) floorSample = i;
-    }
-  }
-}
-`
+//go:embed testdata/ruled-numbers-want.cpp
+var ruledNumbersWant string
 
 // detectCommentNumber answers every number this rule reports in a comment.
 func detectCommentNumber(c RuleCase) []ste.Finding {

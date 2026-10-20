@@ -1,5 +1,7 @@
 package cmd
 
+import _ "embed"
+
 import (
 	"bytes"
 	"encoding/json"
@@ -103,10 +105,14 @@ func TestATreeCheckInAForkWithNoBaseFails(t *testing.T) {
 const upstreamDoc = "# Up\n\nIt doesn't hold the lock.\n"
 
 // parentDoc is the parent's doc.md. The fork rewrites its last line.
-const parentDoc = "# Doc\n\nIt doesn't hold the lock.\n\nIt doesn't free the lock.\n"
+//
+//go:embed testdata/parent-doc.md
+var parentDoc string
 
 // forkDoc is doc.md as the fork has it.
-const forkDoc = "# Doc\n\nIt doesn't hold the lock.\n\nIt doesn't free the page.\n"
+//
+//go:embed testdata/fork-doc.md
+var forkDoc string
 
 // forkRepo is a fork, its origin on GitHub, and the resolver that reaches its parent.
 type forkRepo struct {
@@ -216,7 +222,7 @@ func poisonGit(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	marker := filepath.Join(t.TempDir(), "spawned")
-	script := "#!/bin/sh\nprintf spawned >> \"$SLOPFIX_GIT_MARKER\"\nexit 1\n"
+	script := poisonGitSh
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o755))
 	t.Setenv("SLOPFIX_GIT_MARKER", marker)
 	t.Setenv("PATH", dir)
@@ -384,3 +390,6 @@ func TestTheWriteHookInAForkWithNoBaseRefuses(t *testing.T) {
 	assert.Equal(t, "deny", got.out["permissionDecision"])
 	assert.Contains(t, got.out["permissionDecisionReason"], "500")
 }
+
+//go:embed testdata/poison-git.sh
+var poisonGitSh string

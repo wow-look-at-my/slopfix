@@ -1,5 +1,7 @@
 package commentfix
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -10,16 +12,9 @@ import (
 
 // exporterSource is a test harness page.ts at EXPORTER_MODULE: a
 // one-line JSDoc, then a line comment, over the constant.
-const exporterSource = "import path from 'node:path';\n" +
-	"\n" +
-	"/** Absolute path of the exporter under test. */\n" +
-	"// The path.resolve call (not `new URL(..., import.meta.url)`) avoids the shadowed URL global of the jsdom test environment.\n" +
-	"// Node's fileURLToPath rejects cross-realm URLs.\n" +
-	"// A file path avoids both problems.\n" +
-	"export const EXPORTER_MODULE = path.resolve(\n" +
-	"\timport.meta.dirname,\n" +
-	"\t'../../src/exporter.user.ts',\n" +
-	");\n"
+//
+//go:embed testdata/exporter-source.js
+var exporterSource string
 
 // A one-line JSDoc closes a sentence, so the cut keeps it and drops what follows.
 func TestAOneLineJSDocIsAnOpeningTheCutKeeps(t *testing.T) {

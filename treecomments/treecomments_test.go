@@ -1,5 +1,7 @@
 package treecomments
 
+import _ "embed"
+
 import (
 	"fmt"
 	"testing"
@@ -155,7 +157,7 @@ func TestTheExtractCacheDropsItsOldestEntry(t *testing.T) {
 // Each Rust line comment holds its own line alone, so the lines of a doc
 // paragraph are one run with no line read twice.
 func TestARustDocLineHoldsItsOwnLine(t *testing.T) {
-	src := "/// Frees the handle that\n/// `create` returned.\nfn free() {}\n"
+	src := testARustDocLineHoldsItsOwnLineRs
 	runs := Runs("x.rs", src)
 	require.Len(t, runs, 1)
 	assert.Equal(t, []string{"/// Frees the handle that", "/// `create` returned."}, texts(runs[0]))
@@ -217,3 +219,6 @@ func TestMissingNamesTheGrammarsWithoutTables(t *testing.T) {
 func TestEveryGrammarIsNamed(t *testing.T) {
 	assert.Len(t, ready, len(grammarNames))
 }
+
+//go:embed testdata/test-a-rust-doc-line-holds-its-own-line.rs
+var testARustDocLineHoldsItsOwnLineRs string

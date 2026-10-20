@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -45,9 +47,7 @@ func scriptActionManifest(env, script string) string {
 
 // scriptActionHead is the composite action up to its TypeScript step's uses line.
 func scriptActionHead() string {
-	return "name: Publish\ndescription: Publish a release.\n\ninputs:\n  project:\n    description: Project name\n    required: false\n" +
-		"  apt_depends:\n    description: Runtime prerequisites\n    required: false\n\n" +
-		"runs:\n  using: composite\n  steps:\n    - id: publish\n      uses: wow-look-at-my/actions@typescript#latest\n"
+	return scriptActionHeadYml
 }
 
 // envKeptCase holds entries with a job to do. A script that assigns the
@@ -72,3 +72,6 @@ func detectEnvIndirection(c RuleCase) []ste.Finding {
 func autofixEnvIndirection(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDEnvIndirection)
 }
+
+//go:embed testdata/script-action-head.yml
+var scriptActionHeadYml string

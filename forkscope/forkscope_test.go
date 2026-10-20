@@ -1,5 +1,7 @@
 package forkscope
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"fmt"
@@ -34,7 +36,9 @@ func writeT(t *testing.T, dir, name, body string) {
 }
 
 // inherited is the parent's doc.md.
-const inherited = "# Doc\n\nThe parser opens the file; it writes nothing.\n\nThe loader opens the file; it writes nothing.\n"
+//
+//go:embed testdata/inherited.md
+var inherited string
 
 type forkFixture struct {
 	parent, fork string
@@ -52,7 +56,7 @@ func newForkFixture(t *testing.T) forkFixture {
 
 	fork := filepath.Join(t.TempDir(), "fork")
 	gitT(t, work, "clone", "-q", parent, fork)
-	writeT(t, fork, "doc.md", "# Doc\n\nThe parser opens the file; it writes nothing.\n\nThe loader opens the tree; it writes nothing.\n\nThe fork adds this line; it writes nothing.\n")
+	writeT(t, fork, "doc.md", newForkFixtureMd)
 	writeT(t, fork, "new.md", "# New\n\nThe fork adds this file; it writes nothing.\n")
 	gitT(t, fork, "add", "-A")
 	gitT(t, fork, "commit", "-q", "-m", "fork work")
@@ -250,9 +254,9 @@ func TestKeepPutsBackEveryChangeToAnInheritedLine(t *testing.T) {
 // A change that replaces a couple of lines with a couple of lines pairs them.
 // The fork's line lands, but the inherited line beside it goes back.
 func TestKeepTakesEachPairedLineAlone(t *testing.T) {
-	before := "fork: 2 hits\nbase: Two jobs\nbase: rest\n"
-	after := "fork: Hits\nbase: Jobs\nbase: rest\n"
-	assert.Equal(t, "fork: Hits\nbase: Two jobs\nbase: rest\n", Keep(before, after, OfLines(1)))
+	before := testKeepTakesEachPairedLineAloneYml
+	after := testKeepTakesEachPairedLineAloneYml2
+	assert.Equal(t, testKeepTakesEachPairedLineAloneYml3, Keep(before, after, OfLines(1)))
 }
 
 func TestCarryFollowsTheLinesThroughARepair(t *testing.T) {
@@ -446,7 +450,7 @@ func squashFixture(t *testing.T, shared bool) forkFixture {
 		gitT(t, fork, "remote", "add", "origin", parent)
 	}
 
-	synced := "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the file; it writes nothing.\n"
+	synced := squashFixtureMd
 	writeT(t, work, "doc.md", synced)
 	writeT(t, work, "sync.md", "# Sync\n\nThe second upstream commit adds this; it writes nothing.\n")
 	writeT(t, work, "old.md", "# Old\n\nThe second upstream commit rewrites this.\n")
@@ -462,7 +466,7 @@ func squashFixture(t *testing.T, shared bool) forkFixture {
 	writeT(t, fork, "old.md", oldFirst)
 	gitT(t, fork, "add", "-A")
 	gitT(t, fork, "commit", "-q", "-m", "squashed sync of the second upstream commit")
-	writeT(t, fork, "doc.md", "# Doc\n\nThe parser reads the file; it writes nothing.\n\nThe loader opens the tree; it writes nothing.\n\nThe fork adds this line; it writes nothing.\n")
+	writeT(t, fork, "doc.md", squashFixtureMd2)
 	writeT(t, fork, "new.md", "# New\n\nThe fork adds this file; it writes nothing.\n")
 	gitT(t, fork, "add", "-A")
 	gitT(t, fork, "commit", "-q", "-m", "fork work")
@@ -665,3 +669,21 @@ func TestAForkOutsideAWorkTreeFailsLoudly(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rev-parse --show-toplevel")
 }
+
+//go:embed testdata/new-fork-fixture.md
+var newForkFixtureMd string
+
+//go:embed testdata/test-keep-takes-each-paired-line-alone.yml
+var testKeepTakesEachPairedLineAloneYml string
+
+//go:embed testdata/test-keep-takes-each-paired-line-alone-2.yml
+var testKeepTakesEachPairedLineAloneYml2 string
+
+//go:embed testdata/test-keep-takes-each-paired-line-alone-3.yml
+var testKeepTakesEachPairedLineAloneYml3 string
+
+//go:embed testdata/squash-fixture.md
+var squashFixtureMd string
+
+//go:embed testdata/squash-fixture-2.md
+var squashFixtureMd2 string

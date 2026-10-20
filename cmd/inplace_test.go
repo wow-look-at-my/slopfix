@@ -1,5 +1,7 @@
 package cmd
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -18,7 +20,7 @@ func inPlaceEdit(path, old, replacement string) map[string]any {
 // A line inside a fence is code. Judged as a fragment it reads as prose, and
 // the repair collapses its alignment and the space before the dot.
 func TestAnEditInsideAFenceIsJudgedWhereItLands(t *testing.T) {
-	path := onDisk(t, "doc.md", "# Use\n\n```sh\nslopfix fmt docs/*.md     # join\n```\n")
+	path := onDisk(t, "doc.md", testAnEditInsideAFenceIsJudgedWhereItLandsMd)
 	got := ask(t, inPlaceEdit(path, "slopfix fmt docs/*.md     # join", "slopfix purge .           # move"))
 	if got.out != nil {
 		assert.Nil(t, got.out["updatedInput"], "an edit inside a fence was rewritten")
@@ -38,7 +40,7 @@ func TestAnEditToProseIsRepairedWhereItLands(t *testing.T) {
 // A repair the file needs outside the edit is text the write never touched, so
 // it never lands. The edit's own text is still repaired.
 func TestARepairOutsideTheEditIsLeftForItsAuthor(t *testing.T) {
-	path := onDisk(t, "doc.md", "# Use\n\nIt doesn't hold.\n\nThe gate is open.\n")
+	path := onDisk(t, "doc.md", testARepairOutsideTheEditIsLeftForItsAuthorMd)
 	got := ask(t, inPlaceEdit(path, "The gate is open.", "The gate is shut; the write fails."))
 	require.NotNil(t, got.out)
 	updated, _ := got.out["updatedInput"].(map[string]any)
@@ -49,9 +51,18 @@ func TestARepairOutsideTheEditIsLeftForItsAuthor(t *testing.T) {
 // An edit that lands inside a paragraph cannot have the paragraph rejoined,
 // because the join rewrites words the write never touched.
 func TestAnEditInsideAParagraphLeavesTheParagraphAlone(t *testing.T) {
-	path := onDisk(t, "doc.md", "# Use\n\nThe gate is open\nand it doesn't close.\n")
+	path := onDisk(t, "doc.md", testAnEditInsideAParagraphLeavesTheParagraphAloneMd)
 	got := ask(t, inPlaceEdit(path, "The gate is open", "The gate is shut"))
 	if got.out != nil {
 		assert.Nil(t, got.out["updatedInput"])
 	}
 }
+
+//go:embed testdata/test-an-edit-inside-a-fence-is-judged-where-it-lands.md
+var testAnEditInsideAFenceIsJudgedWhereItLandsMd string
+
+//go:embed testdata/test-a-repair-outside-the-edit-is-left-for-its-author.md
+var testARepairOutsideTheEditIsLeftForItsAuthorMd string
+
+//go:embed testdata/test-an-edit-inside-a-paragraph-leaves-the-paragraph-alone.md
+var testAnEditInsideAParagraphLeavesTheParagraphAloneMd string

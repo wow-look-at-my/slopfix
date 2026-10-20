@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -31,22 +33,9 @@ func TestAnExitCodeInADocCommentIsNoCount(t *testing.T) {
 
 // A /* */ block laid out under its opener with no star on each line. The length
 // cut leaves the count on a line of its own, and the number repair takes it out.
-const alignedBlock = "const reveal = (() => {\n" +
-	"  /* Walks light DOM and open shadow roots alike, because the composer\n" +
-	"     builds its field and button inside its own shadow root - a document-only\n" +
-	"     query would light the standalone controls and miss those two. An element\n" +
-	"     whose definition has not loaded yet has no shadow root to descend into, so\n" +
-	"     it gets revisited once the definition lands. */\n" +
-	"  function visit(el: Element): void {\n" +
-	"    if (el.matches(SELECTOR)) track(el as HTMLElement);\n" +
-	"    if (el.shadowRoot) descend(el.shadowRoot);\n" +
-	"    else if (el.localName.includes('-') && !customElements.get(el.localName)) {\n" +
-	"      customElements.whenDefined(el.localName)\n" +
-	"        .then(() => { if (el.isConnected) visit(el); });\n" +
-	"    }\n" +
-	"  }\n" +
-	"  return { visit };\n" +
-	"})();\n"
+//
+//go:embed testdata/aligned-block.js
+var alignedBlock string
 
 // The count goes and the sentence still ends on its words, with the period on
 // the line it closes.
