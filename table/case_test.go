@@ -81,7 +81,8 @@ func TestLoadRefusesInvalidContent(t *testing.T) {
 	for name, c := range map[string]struct{ root, body, want string }{
 		"two drops that differ in case":                    {"", `<drop id="a" word="Just">` + test("It just fails", "It fails") + `</drop><drop id="b" word="just">` + test("It just fails", "It fails") + `</drop>`, "repeats the one"},
 		"two sensitive drops that differ in case are fine": {` case="sensitive"`, `<drop id="a" word="Just">` + test("It Just fails", "It fails") + `</drop><drop id="b" word="just">` + test("It just fails", "It fails") + `</drop>`, ""},
-		"two tests with one input":                         {"", `<drop id="a" word="just">` + test("It just fails", "It fails") + test("it JUST fails", "it fails") + `</drop>`, "repeats the one"},
+		"two tests with one input":                         {"", `<drop id="a" word="just">` + test("It just fails", "It fails") + test("It just fails", "It fails") + `</drop>`, "repeats the one"},
+		"two tests of one input in two cases are fine":     {"", `<drop id="a" word="just">` + test("It just fails", "It fails") + test("it JUST fails", "it fails") + `</drop>`, ""},
 		"two entries expecting two results":                {"", `<drop id="a" word="just">` + test("It just fails", "It fails") + `</drop><drop id="b" word="fails">` + test("It just fails", "It just") + `</drop>`, "expects a different result"},
 		"a test its entry does not match":                  {"", `<drop id="a" word="just">` + test("It really fails", "It fails") + `</drop>`, "is matched by nothing"},
 		"a rephrase test its match does not fit":           {"", `<rephrase id="r" match="only one" to="a single">` + test("Only two here", "A single here") + `</rephrase>`, "is matched by nothing"},

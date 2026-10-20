@@ -230,6 +230,10 @@ func TestATestRepeatsOnlyWhenItIsWrittenTheSameWay(t *testing.T) {
 			body: `<t><e word="alpha"><test in="an alpha" out="x"/><test in="An ALPHA" out="x"/></e></t>`,
 		},
 		{
+			name: "two examples of one input in two cases, answered in their own case",
+			body: `<t><e word="alpha"><test in="an alpha" out="x"/><test in="An ALPHA" out="X"/></e></t>`,
+		},
+		{
 			name: "the case-only pair the numbers table ships",
 			body: `<t><e word="alpha"><test in="consumed two ways" out="multiple ways"/><test in="consumed Two ways" out="multiple ways"/></e></t>`,
 		},

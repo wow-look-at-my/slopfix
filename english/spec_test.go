@@ -25,7 +25,9 @@ func TestTheTableFailsOnInvalidContent(t *testing.T) {
 			`<drop word="Just" test="It Just fails" case="sensitive"/><drop word="just" test="It just fails" case="sensitive"/>`, ""},
 		"a drop test that does not fire": {`<drop word="just" test="It really fails"/>`, "is matched by nothing"},
 		"a drop with child tests of one input": {
-			`<drop word="just" test="It just fails"><test in="It JUST fails" out="It fails"/></drop>`, "repeats the one"},
+			`<drop word="just" test="It just fails"><test in="It just fails" out="It fails"/></drop>`, "repeats the one"},
+		"a drop with child tests of two cases": {
+			`<drop word="just" test="It just fails"><test in="It JUST fails" out="It fails"/></drop>`, ""},
 		"a pattern with no expectation":    {`<pattern match="a+" replace="b" test="aa"/>`, `required attribute "expect" is missing`},
 		"a pattern naming a missing group": {`<pattern match="(a)" replace="$2" test="a" expect="b"/>`, "names the group"},
 		"a pattern that does not compile":  {`<pattern match="(" replace="b" test="(" expect="b"/>`, "does not compile"},

@@ -142,7 +142,6 @@ type testItem struct {
 	scope   *Node
 	in, out string
 	haveOut bool
-	sens    bool
 }
 
 // collectTests reads every worked example: the test elements, and the inline
@@ -154,12 +153,12 @@ func (c *checker) collectTests(roots []*Node) []testItem {
 			elem := c.spec.Elems[n.Name]
 			if elem.TestAttr != "" && strings.TrimSpace(n.Attrs[elem.TestAttr]) != "" {
 				expect, have := n.Attrs[elem.ExpectAttr]
-				out = append(out, testItem{node: n, owner: n, scope: n, in: n.Attrs[elem.TestAttr], out: expect, haveOut: have, sens: n.Sensitive()})
+				out = append(out, testItem{node: n, owner: n, scope: n, in: n.Attrs[elem.TestAttr], out: expect, haveOut: have})
 			}
 			if n.Name != c.spec.Test.Elem || n.Parent == nil || strings.TrimSpace(n.Attrs[c.spec.Test.In]) == "" {
 				return
 			}
-			item := testItem{node: n, scope: scopeOf(n), in: n.Attrs[c.spec.Test.In], sens: n.Sensitive()}
+			item := testItem{node: n, scope: scopeOf(n), in: n.Attrs[c.spec.Test.In]}
 			if n.Parent.Parent != nil {
 				item.owner = n.Parent
 				item.scope = n.Parent
@@ -196,7 +195,7 @@ func (c *checker) tests(roots []*Node) {
 	perScope := map[*Node]*index{}
 	global := newIndex()
 	for _, t := range all {
-		// A repeat is the same example written the same way.
+		// An example is its input as written: examples that differ only in case are probes of the entry's case rule.
 		it := item{node: t.node, fold: t.in, exact: t.in, sens: true}
 		ix := perScope[t.scope]
 		if ix == nil {
@@ -207,12 +206,10 @@ func (c *checker) tests(roots []*Node) {
 			c.add(t.node, "the test %q repeats the one at %s", t.in, prev[0].node.Where())
 		}
 		ix.put(it)
-		// A contradiction follows the entry's case rule.
-		cit := item{node: t.node, fold: t.in, sens: t.sens}
-		for _, prev := range global.find(cit) {
+		for _, prev := range global.find(it) {
 			c.contradiction(all, t, prev.node)
 		}
-		global.put(cit)
+		global.put(it)
 	}
 	c.fires(roots, all)
 }
