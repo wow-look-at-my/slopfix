@@ -4,6 +4,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // xsdNode is one node of a schema, read only as far as the content model of
@@ -24,13 +26,14 @@ type xsdNode struct {
 // An element the schema does not declare plainly is left to take text: a
 // reference. A type this reader cannot resolve, and declarations that
 // disagree all answer text as allowed.
-func textless(schema []byte) map[string]bool {
+func textless(schema []byte) set.Set[string] {
+	out := set.Of[string]()
 	if len(schema) == 0 {
-		return nil
+		return out
 	}
 	var root xsdNode
 	if err := xml.Unmarshal(Readable(schema), &root); err != nil {
-		return nil
+		return out
 	}
 	types := map[string]bool{}
 	walkXSD(root, func(n xsdNode) {
@@ -38,22 +41,25 @@ func textless(schema []byte) map[string]bool {
 			types[n.Name] = typeTakesText(n)
 		}
 	})
-	out := map[string]bool{}
-	seen := map[string]bool{}
+	takes := map[string]bool{}
+	declared := set.Of[string]()
 	walkXSD(root, func(n xsdNode) {
 		if n.XMLName.Local != "element" || n.Name == "" {
 			return
 		}
-		takes := elementTakesText(n, types)
-		if !seen[n.Name] {
-			seen[n.Name] = true
-			out[n.Name] = !takes
+		here := elementTakesText(n, types)
+		if declared.Contains(n.Name) {
+			takes[n.Name] = takes[n.Name] || here
 			return
 		}
-		if takes {
-			out[n.Name] = false
-		}
+		declared.Add(n.Name)
+		takes[n.Name] = here
 	})
+	for name, ok := range takes {
+		if !ok {
+			out.Add(name)
+		}
+	}
 	return out
 }
 
@@ -108,10 +114,10 @@ func walkXSD(n xsdNode, visit func(xsdNode)) {
 
 // contentProblems reports text an element carries where its schema declares an
 // element-only content.
-func contentProblems(root *Node, noText map[string]bool) []Problem {
+func contentProblems(root *Node, noText set.Set[string]) []Problem {
 	var out []Problem
 	walk(root, func(n *Node) {
-		if !noText[n.Name] || strings.TrimSpace(n.Text) == "" {
+		if !noText.Contains(n.Name) || strings.TrimSpace(n.Text) == "" {
 			return
 		}
 		out = append(out, Problem{File: n.File, Line: n.Line, Msg: fmt.Sprintf("<%s> takes no text: its schema declares an element-only content", n.Name)})
