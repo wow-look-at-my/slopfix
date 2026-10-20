@@ -1,0 +1,4 @@
+<t>
+  <e word="alpha"><test in="an alpha" out="x"/></e>
+  <e word="alp"><test in="an alpha" out="y"/></e>
+</t>

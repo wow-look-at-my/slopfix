@@ -9,87 +9,11 @@ import (
 	"github.com/wow-look-at-my/slopfix/xmlcheck"
 )
 
-// miniatureSchema is the shape of the small table: a root holding entries
-// (e), entries that take no case (f), named rows (r) and tests.
-const miniatureSchema = `<?xml version="1.1" encoding="UTF-8"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
-  <xs:simpleType name="text">
-    <xs:restriction base="xs:string">
-      <xs:pattern value="[\s\S]*\S[\s\S]*"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="case">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="sensitive"/>
-      <xs:enumeration value="insensitive"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="level">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="low"/>
-      <xs:enumeration value="high"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="surface">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="a"/>
-      <xs:enumeration value="b"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="surfaces">
-    <xs:list itemType="surface"/>
-  </xs:simpleType>
-  <xs:complexType name="test">
-    <xs:attribute name="in" type="text" use="required"/>
-    <xs:attribute name="out" type="xs:string"/>
-  </xs:complexType>
-  <xs:element name="t">
-    <xs:complexType>
-      <xs:choice minOccurs="0" maxOccurs="unbounded">
-        <xs:element name="test" type="test"/>
-        <xs:element name="e">
-          <xs:complexType>
-            <xs:sequence>
-              <xs:element name="test" type="test" minOccurs="0" maxOccurs="unbounded"/>
-            </xs:sequence>
-            <xs:attribute name="word" type="text" use="required"/>
-            <xs:attribute name="level" type="level"/>
-            <xs:attribute name="where" type="surfaces"/>
-            <xs:attribute name="probe" type="xs:string"/>
-            <xs:attribute name="expect" type="xs:string"/>
-            <xs:attribute name="case" type="case"/>
-          </xs:complexType>
-        </xs:element>
-        <xs:element name="f">
-          <xs:complexType>
-            <xs:attribute name="word" type="text" use="required"/>
-            <xs:attribute name="case" type="case"/>
-          </xs:complexType>
-        </xs:element>
-        <xs:element name="r">
-          <xs:complexType>
-            <xs:attribute name="name" type="text" use="required"/>
-          </xs:complexType>
-        </xs:element>
-        <xs:element name="s">
-          <xs:complexType>
-            <xs:simpleContent>
-              <xs:extension base="xs:string">
-                <xs:attribute name="word" type="text" use="required"/>
-              </xs:extension>
-            </xs:simpleContent>
-          </xs:complexType>
-        </xs:element>
-      </xs:choice>
-      <xs:attribute name="case" type="case"/>
-    </xs:complexType>
-  </xs:element>
-</xs:schema>`
-
-// miniature is a small table that exercises each kind of check.
+// miniature is a small table that exercises each kind of check, and its schema
+// is testdata/miniature.xsd.
 func miniature() xmlcheck.Spec {
 	return xmlcheck.Spec{
-		Schema: []byte(miniatureSchema),
+		Schema: miniatureSchema,
 		Elems: map[string]xmlcheck.Elem{
 			"t": {Case: true},
 			"e": {
@@ -121,19 +45,12 @@ func run(spec xmlcheck.Spec, body string) error {
 }
 
 func TestASoundTablePasses(t *testing.T) {
-	require.NoError(t, run(miniature(), `<t>
-  <e word="alpha" level="low" where="a b"><test in="an alpha" out="a"/></e>
-  <e word="beta" probe="a beta" expect="b"/>
-  <test in="an alpha one" out="x"/>
-</t>`))
+	require.NoError(t, run(miniature(), soundTable))
 }
 
 // Every defect names the file and the line it sits on.
 func TestAProblemNamesItsLine(t *testing.T) {
-	err := run(miniature(), `<t>
-  <e word="alpha"/>
-  <bogus/>
-</t>`)
+	err := run(miniature(), unknownElement)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "t.xml:4:")
 }
@@ -335,18 +252,12 @@ func TestARootTestAndAnInlineTestOfOneEntryAreOneScope(t *testing.T) {
 }
 
 func TestOneInputExpectingTwoResultsFails(t *testing.T) {
-	err := run(miniature(), `<t>
-  <e word="alpha"><test in="an alpha" out="x"/></e>
-  <e word="alp"><test in="an alpha" out="y"/></e>
-</t>`)
+	err := run(miniature(), twoResultsForOneInput)
 	assert.ErrorContains(t, err, "expects a different result")
 }
 
 func TestOneInputExpectingOneResultInTwoPlacesPasses(t *testing.T) {
-	require.NoError(t, run(miniature(), `<t>
-  <e word="alpha"><test in="an alpha" out="x"/></e>
-  <test in="an alpha" out="x"/>
-</t>`))
+	require.NoError(t, run(miniature(), oneResultInTwoPlaces))
 }
 
 func TestATestItsEntryDoesNotMatchFails(t *testing.T) {
@@ -446,7 +357,7 @@ func TestARewriteToItselfOrAroundItselfFails(t *testing.T) {
 }
 
 func TestAnXML11DeclarationReads(t *testing.T) {
-	root, err := xmlcheck.Parse("x.xml", []byte("<?xml version=\"1.1\"?>\n<t>\n  <e word=\"a\"/>\n</t>\n"))
+	root, err := xmlcheck.Parse("x.xml", []byte(xml11Table))
 	require.NoError(t, err)
 	require.Len(t, root.Children, 1)
 	assert.Equal(t, 3, root.Children[0].Line)
