@@ -1,0 +1,7 @@
+name: CI
+# one
+# two
+# three
+on:
+  push:
+    branches: ['**']

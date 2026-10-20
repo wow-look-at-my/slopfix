@@ -1,0 +1,5 @@
+on:
+  push: {}
+
+# the jobs
+jobs: {}

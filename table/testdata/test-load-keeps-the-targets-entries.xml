@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rules for="english">
+  <drop id="basically" word="basically"><test in="It basically fails"/></drop>
+</rules>
