@@ -196,20 +196,23 @@ func (c *checker) tests(roots []*Node) {
 	perScope := map[*Node]*index{}
 	global := newIndex()
 	for _, t := range all {
-		it := item{node: t.node, fold: t.in, sens: t.sens}
+		// A repeat is the same example written the same way.
+		it := item{node: t.node, fold: t.in, exact: t.in, sens: true}
 		ix := perScope[t.scope]
 		if ix == nil {
 			ix = newIndex()
 			perScope[t.scope] = ix
 		}
 		if prev := ix.find(it); len(prev) > 0 {
-			c.add(t.node, "the test %q repeats the one at %s%s", t.in, prev[0].node.Where(), foldNote(prev[0], it))
+			c.add(t.node, "the test %q repeats the one at %s", t.in, prev[0].node.Where())
 		}
 		ix.put(it)
-		for _, prev := range global.find(it) {
+		// A contradiction follows the entry's case rule.
+		cit := item{node: t.node, fold: t.in, sens: t.sens}
+		for _, prev := range global.find(cit) {
 			c.contradiction(all, t, prev.node)
 		}
-		global.put(it)
+		global.put(cit)
 	}
 	c.fires(roots, all)
 }

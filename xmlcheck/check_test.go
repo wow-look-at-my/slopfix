@@ -211,10 +211,80 @@ func TestTheSameKeyOnAnotherSurfaceIsAnotherEntry(t *testing.T) {
 	require.NoError(t, run(miniature(), `<t><e word="a" where="a"/><e word="a" where="b"/></t>`))
 }
 
-func TestTwoTestsWithOneInputInOneScopeFail(t *testing.T) {
-	err := run(miniature(), `<t><e word="alpha"><test in="an alpha" out="x"/><test in="An ALPHA" out="y"/></e></t>`)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), `the test "An ALPHA" repeats the one at t.xml:2`)
+// An example is its input as written. The example examples that differ only
+// in case are probes of what the entry does with case, not one example
+// written twice. Only the same text written twice repeats.
+func TestATestRepeatsOnlyWhenItIsWrittenTheSameWay(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		body string
+		err  string
+	}{
+		{
+			name: "one example written twice",
+			body: `<t><e word="alpha"><test in="an alpha" out="x"/><test in="an alpha" out="x"/></e></t>`,
+			err:  `the test "an alpha" repeats the one at t.xml:2`,
+		},
+		{
+			name: "two examples that differ in case",
+			body: `<t><e word="alpha"><test in="an alpha" out="x"/><test in="An ALPHA" out="x"/></e></t>`,
+		},
+		{
+			name: "the case-only pair the numbers table ships",
+			body: `<t><e word="alpha"><test in="consumed two ways" out="multiple ways"/><test in="consumed Two ways" out="multiple ways"/></e></t>`,
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			err := run(miniature(), c.body)
+			if c.err == "" {
+				require.NoError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, c.err)
+		})
+	}
+}
+
+// A broken table names each defect it holds, and the schema's defect is the
+// one reported while the table's shape is unsound.
+func TestABrokenTableNamesEveryDefectItHolds(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		body string
+		err  []string
+	}{
+		{
+			name: "duplicate keys",
+			body: `<t><e word="alpha"/><e word="alpha"/></t>`,
+			err:  []string{`<e> "alpha" repeats the one at t.xml:2`},
+		},
+		{
+			name: "keys that differ only in case under an insensitive root",
+			body: `<t><e word="Alpha"/><e word="alpha"/></t>`,
+			err:  []string{"repeats the one at t.xml:2", "case does not separate them"},
+		},
+		{
+			name: "a case-only pair under a sensitive root",
+			body: `<t case="sensitive"><e word="Alpha"/><e word="alpha"/></t>`,
+		},
+		{
+			name: "a row its entry never matches",
+			body: `<t><e word="alpha"><test in="a beta" out="x"/></e></t>`,
+			err:  []string{`the test "a beta" is matched by nothing in its <e>`},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			err := run(miniature(), c.body)
+			if len(c.err) == 0 {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			for _, want := range c.err {
+				assert.Contains(t, err.Error(), want)
+			}
+		})
+	}
 }
 
 func TestTwoSensitiveTestsDifferingInCaseAreDistinct(t *testing.T) {
