@@ -51,9 +51,9 @@ var (
 	yamlHead    = regexp.MustCompile(`^(-\s+)?[\w.\-/"']+\s*:(\s|$)`)
 	// A heading stands alone before a blank line, which a run of comment lines does not.
 	mdHeading = regexp.MustCompile(`(?m)^#{1,6}[ \t]+\S.*\n[ \t]*\n`)
-	mdFence     = regexp.MustCompile("(?m)^\\s*(```|~~~)")
-	htmlTag     = regexp.MustCompile(`(?i)^<(!doctype\s+html|html|head|body|div|span|p|a|ul|ol|li|table|tr|td|script|style|template|section|main|form|nav|header|footer|h[1-6]|svg)[\s>/]`)
-	shellWord   = regexp.MustCompile(`^\s*(echo|printf|cd|export|set|exit|exec|source|\.|mkdir|rm|cp|mv|cat|chmod|curl|wget|git|go|make|apt-get|apt|sudo|test|\[|\[\[|trap|shift|read|local|readonly|unset|tar|grep|sed|awk|ln|touch|docker|npm|pnpm)(\s|$)`)
+	mdFence   = regexp.MustCompile("(?m)^\\s*(```|~~~)")
+	htmlTag   = regexp.MustCompile(`(?i)^<(!doctype\s+html|html|head|body|div|span|p|a|ul|ol|li|table|tr|td|script|style|template|section|main|form|nav|header|footer|h[1-6]|svg)[\s>/]`)
+	shellWord = regexp.MustCompile(`^\s*(echo|printf|cd|export|set|exit|exec|source|\.|mkdir|rm|cp|mv|cat|chmod|curl|wget|git|go|make|apt-get|apt|sudo|test|\[|\[\[|trap|shift|read|local|readonly|unset|tar|grep|sed|awk|ln|touch|docker|npm|pnpm)(\s|$)`)
 )
 
 // Classify answers the language a string holds when it reads as the text of a
