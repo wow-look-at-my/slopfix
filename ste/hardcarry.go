@@ -49,6 +49,10 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 	room := limit - len(strings.Fields(carrierWords))
 	var cuts []forceCut
 	for _, c := range candidates(source, masked, false, limit) {
+		// A relative word binds its clause to the noun in front of it, so no cut opens the rest on it.
+		if n := wordsBefore(whole, c.right); n > 0 && n+1 < len(whole.Words) && relativeAfterNoun(whole, n) {
+			continue
+		}
 		if c.words <= limit && c.words >= minimumHalf && strings.TrimSpace(source[c.right:]) != "" && !endsOnPossessive(source, c.left) {
 			cuts = append(cuts, c)
 		}

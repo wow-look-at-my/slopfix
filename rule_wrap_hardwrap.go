@@ -17,6 +17,7 @@ func init() {
 				Name: "git trailers each hold a line", Path: "msg.txt", Unchanged: true,
 				Text: "The gate reads the file.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_013ERSrxHkx1TwBeoQVMojfm\n",
 			},
+			{Name: "entry run", Path: "paths.md", Text: ".claude/\n**/.claude/\nCLAUDE.md\n"},
 		},
 	})
 }
