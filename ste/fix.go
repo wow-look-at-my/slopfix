@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
 // Fix applies the repair Check names, for every rule Check reports.
@@ -64,7 +65,7 @@ func DivideTo(text string, maxWords int) string {
 var (
 	// verbatimSpan matches the data strip also hides from Check. An entity ends
 	// in a semicolon, which a repair must not touch.
-	verbatimSpan = regexp.MustCompile(
+	verbatimSpan = precompiled.MustCompile(
 		codeSpan.String() + `|` + linkTarget.String() + `|` + entity.String())
 	// semicolonRun matches a semicolon and the space that follows it.
 	semicolonRun = regexp.MustCompile(`;[ \t]*`)

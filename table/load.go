@@ -9,9 +9,11 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/fs"
-	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/memo"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
 // document mirrors a rules file. The table types the consumer reads carry no
@@ -114,10 +116,15 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 		if err != nil {
 			return nil, err
 		}
-		var doc document
-		if err := xml.Unmarshal(Readable(raw), &doc); err != nil {
-			return nil, fmt.Errorf("%s does not parse: %w", path, err)
+		parsed := decoded.Get(string(raw), func() decoding {
+			var doc document
+			err := xml.Unmarshal(Readable(raw), &doc)
+			return decoding{doc, err}
+		})
+		if parsed.err != nil {
+			return nil, fmt.Errorf("%s does not parse: %w", path, parsed.err)
 		}
+		doc := parsed.doc
 		if doc.For == "" {
 			return nil, fmt.Errorf("%s: the root element needs a for= naming its consumer", path)
 		}
@@ -132,6 +139,14 @@ func Load(fsys fs.FS, target string) (*Table, error) {
 		return nil, fmt.Errorf("no file in the rules folder carries for=%q", target)
 	}
 	return out, nil
+}
+
+// decoded keeps each file's document, because every consumer reads every file.
+var decoded = memo.New[string, decoding](64)
+
+type decoding struct {
+	doc document
+	err error
 }
 
 // MustLoad is Load for a package-level table. A rules folder that does not load
@@ -184,12 +199,12 @@ func (t *Table) add(path string, doc document, ids map[string]string) error {
 		if err := named("pattern", p.ID, p.Tests, p.Match == ""); err != nil {
 			return err
 		}
-		re, err := regexp.Compile(p.Match)
+		re, err := precompiled.Compile(p.Match)
 		if err != nil {
 			return fmt.Errorf("%s: <pattern id=%q>: %w", path, p.ID, err)
 		}
 		t.Patterns = append(t.Patterns, Pattern{
-			ID: p.ID, Match: p.Match, To: p.To, Where: p.Where, Tests: tests(p.Tests), re: re,
+			ID: p.ID, Match: p.Match, To: p.To, Where: p.Where, Tests: tests(p.Tests), re: re, needs: precompiled.Needs(re),
 		})
 	}
 	for _, f := range doc.Flags {

@@ -35,6 +35,27 @@ func TestIsDirective(t *testing.T) {
 	}
 }
 
+// A userscript metadata block is read by the browser extension, every line of it.
+func TestAUserscriptMetadataLineIsADirective(t *testing.T) {
+	lines := []string{
+		"// ==UserScript==",
+		"// @name         Example Colorizer",
+		"// @run-at       document-end",
+		"// @noframes",
+		"// ==/UserScript==",
+		"// @param count how many entries to read",
+		"// The @name key names the script.",
+		"// email me@example.com",
+	}
+	want := []bool{true, true, true, true, true, false, false, false}
+	assert.Equal(t, want, DirectiveMask(lines))
+}
+
+// An "// @param" line outside a metadata block is prose a rule may judge.
+func TestAnAtLineOutsideAMetadataBlockIsProse(t *testing.T) {
+	assert.False(t, DirectiveAt([]string{"// @param count how many entries to read"}, 0))
+}
+
 const headerSrc = "// Copyright 2026 The Go Authors. All rights reserved.\n" +
 	"// Use of this source code is governed by a BSD-style\n" +
 	"// license that can be found in the LICENSE file.\n\n" +

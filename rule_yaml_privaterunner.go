@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
@@ -12,7 +14,7 @@ const PrivateRunnerFixture = "https://github.com/wow-look-at-my/private-runner-f
 // visibility. The repair picks the runner from the visibility at run time.
 func init() {
 	jobs := func(steps string) string {
-		return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" + steps
+		return workflowHeader() + embeddedYml33 + steps
 	}
 	cases := []RuleCase{
 		privateRunnerCase("private-runner", jobs("      - run: go-toolchain\n")),
@@ -21,31 +23,31 @@ func init() {
 		containerActionCase(jobs("      - uses: " + ContainerActionFixture + "\n")),
 		privateRunnerCase("private-runner-host-job", jobs("      - run: sudo modprobe zfs\n      - run: sudo systemctl restart containerd\n")),
 		privateRunnerCase("private-runner-blind-fallback", workflowHeader()+"jobs:\n"+
-			"  build:\n    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}\n    steps:\n      - run: make\n"+
-			"  image:\n    runs-on: '${{ vars.CI_RUNNER_DIND || ''ubuntu-latest'' }}'\n    steps:\n      - run: make\n"+
-			"  db:\n    runs-on: \"ubuntu-22.04\"\n    services:\n      db:\n        image: postgres\n    steps:\n      - run: make\n"+
-			"  box:\n    runs-on: >-\n      ubuntu-latest\n    container: alpine\n    steps:\n      - run: make\n"),
+			embeddedYml34+
+			embeddedYml35+
+			embeddedYml36+
+			embeddedYml37),
 		privateRunnerCase("private-runner-flow", workflowHeader()+"jobs:\n"+
 			"  build: {runs-on: ubuntu-latest, steps: [{run: make}]}\n"+
 			"  image: {runs-on: 'ubuntu-24.04', steps: [{uses: docker/setup-buildx-action@v3}]}\n"),
 		privateRunnerCase("private-runner-matrix-linux", matrixJob("        os: [ubuntu-22.04, ubuntu-24.04]\n", "      - run: make\n")),
 		privateRunnerCase("private-runner-matrix-mixed", matrixJob("        os: [ubuntu-latest, macos-latest, windows-latest, ubuntu-24.04-arm]\n", "      - run: make\n")),
-		privateRunnerCase("private-runner-matrix-include", matrixJob("        include:\n          - {os: ubuntu-22.04, arch: amd64}\n          - {os: ubuntu-24.04-arm, arch: arm64}\n", "      - run: make\n")),
+		privateRunnerCase("private-runner-matrix-include", matrixJob(embeddedYml38, "      - run: make\n")),
 		privateRunnerCase("private-runner-matrix-docker", matrixJob("        os: [ubuntu-latest, macos-latest]\n", "      - run: docker build .\n")),
 		privateRunnerCase("private-runner-matrix-beside-done", matrixJob("        os: [ubuntu-latest]\n", "      - run: make\n")+
-			"  done:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest]\n"+
+			embeddedYml39+
 			"    runs-on: ${{ (github.event.repository.visibility == 'public' || !contains(fromJSON('[\"ubuntu-latest\"]'), matrix.os)) && matrix.os || vars.CI_RUNNER || matrix.os }}\n"+
 			"    steps:\n      - run: make\n"+
-			"  dynamic:\n    strategy:\n      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"),
+			embeddedYml40),
 		privateRunnerCase("private-runner-matrix-flow", workflowHeader()+"jobs:\n"+
 			"  build: {strategy: {matrix: {os: [ubuntu-latest, windows-latest]}}, runs-on: '${{ matrix.os }}', steps: [{run: make}]}\n"),
-		privateRunnerCase("private-runner-macos", workflowHeader()+"jobs:\n  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n"),
+		privateRunnerCase("private-runner-macos", workflowHeader()+embeddedYml41),
 		privateRunnerCase("private-runner-windows-if", workflowHeader()+"jobs:\n"+
-			"  windows:\n    if: github.ref == 'refs/heads/master'\n    runs-on: windows-latest\n    steps:\n      - run: make\n"+
-			"  arm:\n    if: ${{ !cancelled() }}\n    runs-on: ubuntu-24.04-arm\n    steps:\n      - run: make\n"),
+			embeddedYml42+
+			embeddedYml43),
 		privateRunnerCase("private-runner-beside-gated", workflowHeader()+"jobs:\n"+
-			"  gated:\n    if: github.event.repository.visibility == 'public'\n    runs-on: macos-14\n    steps:\n      - run: make\n"+
-			"  open:\n    runs-on: windows-2022\n    steps:\n      - run: make\n"),
+			embeddedYml44+
+			embeddedYml45),
 		privateRunnerCase("private-runner-matrix-foreign", matrixJob("        os: [macos-14, macos-15]\n", "      - run: make\n")),
 		privateRunnerCase("private-runner-matrix-split", matrixJob("        os:\n          - ubuntu-latest\n          - windows-latest\n        go: [stable]\n", "      - run: make\n")),
 	}
@@ -60,7 +62,7 @@ func init() {
 
 // matrixJob is a workflow whose build job takes its runner from the matrix value os.
 func matrixJob(matrix, steps string) string {
-	return workflowHeader() + "jobs:\n  build:\n    strategy:\n      matrix:\n" + matrix + "    runs-on: ${{ matrix.os }}\n    steps:\n" + steps
+	return workflowHeader() + matrixJobYml + matrix + "    runs-on: ${{ matrix.os }}\n    steps:\n" + steps
 }
 
 // ContainerActionFixture is a third-party action that the fixture records as a container action.
@@ -89,3 +91,45 @@ func detectPrivateRunner(c RuleCase) []ste.Finding {
 func autofixPrivateRunner(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDPrivateRunner)
 }
+
+//go:embed testdata/embedded-9.yml
+var embeddedYml33 string
+
+//go:embed testdata/embedded-29.yml
+var embeddedYml34 string
+
+//go:embed testdata/embedded-30.yml
+var embeddedYml35 string
+
+//go:embed testdata/embedded-31.yml
+var embeddedYml36 string
+
+//go:embed testdata/embedded-32.yml
+var embeddedYml37 string
+
+//go:embed testdata/embedded-33.yml
+var embeddedYml38 string
+
+//go:embed testdata/embedded-34.yml
+var embeddedYml39 string
+
+//go:embed testdata/embedded-35.yml
+var embeddedYml40 string
+
+//go:embed testdata/embedded-36.yml
+var embeddedYml41 string
+
+//go:embed testdata/embedded-37.yml
+var embeddedYml42 string
+
+//go:embed testdata/embedded-38.yml
+var embeddedYml43 string
+
+//go:embed testdata/embedded-39.yml
+var embeddedYml44 string
+
+//go:embed testdata/embedded-40.yml
+var embeddedYml45 string
+
+//go:embed testdata/matrix-job.yml
+var matrixJobYml string

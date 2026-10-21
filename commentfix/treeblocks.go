@@ -58,7 +58,7 @@ func commentColumns(root ts.Node) map[int]int {
 		}
 		count := node.NamedChildCount()
 		for i := uint32(0); i < count; i++ {
-			walk(node.NamedChild(i))
+			walk(code.NamedAt(node, i))
 		}
 	}
 	walk(root)
@@ -71,7 +71,7 @@ func commentColumns(root ts.Node) map[int]int {
 func collect(node ts.Node, root bool, src string, lines []string, commentCols map[int]int, out *[]block) {
 	count := node.NamedChildCount()
 	for i := uint32(0); i < count; i++ {
-		child := node.NamedChild(i)
+		child := code.NamedAt(node, i)
 		if code.IsInterpreter(child, src) {
 			continue
 		}
@@ -100,10 +100,10 @@ func collect(node ts.Node, root bool, src string, lines []string, commentCols ma
 // commentRun gathers the comments starting at index i that sit on adjoining
 // lines, and returns the index after the run.
 func commentRun(node ts.Node, i, count uint32) ([]ts.Node, uint32) {
-	run := []ts.Node{node.NamedChild(i)}
+	run := []ts.Node{code.NamedAt(node, i)}
 	j := i + 1
 	for ; j < count; j++ {
-		next := node.NamedChild(j)
+		next := code.NamedAt(node, j)
 		if !code.IsComment(next) {
 			break
 		}
@@ -157,10 +157,10 @@ func blockFor(run []ts.Node, parent ts.Node, next, count uint32, lines []string,
 // comment above the attributes documents that item, not the attribute line.
 func pastAttributes(parent ts.Node, next, count uint32) uint32 {
 	at := next
-	for at+1 < count && strings.Contains(parent.NamedChild(at).Type(), "attribute") {
+	for at+1 < count && strings.Contains(code.NamedAt(parent, at).Type(), "attribute") {
 		at++
 	}
-	if code.IsComment(parent.NamedChild(at)) {
+	if code.IsComment(code.NamedAt(parent, at)) {
 		return next
 	}
 	return at
@@ -175,9 +175,9 @@ func pastAttributes(parent ts.Node, next, count uint32) uint32 {
 // around it run on for reasons the comment does not describe.
 func paragraphSpan(parent ts.Node, next uint32, lines []string, commentCols map[int]int) (int, int) {
 	top := parent.Parent().IsNull()
-	node := parent.NamedChild(next)
+	node := code.NamedAt(parent, next)
 	for !node.IsNull() && isSequence(node) {
-		parent, next, node = node, 0, node.NamedChild(0)
+		parent, next, node = node, 0, code.NamedAt(node, 0)
 	}
 	codeLines, codeChars := nodeSpan(node, lines, commentCols)
 	if node.IsNull() || !top {
@@ -185,7 +185,7 @@ func paragraphSpan(parent ts.Node, next uint32, lines []string, commentCols map[
 	}
 	end := node.EndPoint().Row
 	for i := next + 1; i < parent.NamedChildCount(); i++ {
-		sibling := parent.NamedChild(i)
+		sibling := code.NamedAt(parent, i)
 		start := sibling.StartPoint().Row
 		// A sibling on a line already measured adds nothing, and a trailing comment belongs to its code.
 		if start <= end {
@@ -234,19 +234,19 @@ func indentWidth(line string) int {
 
 func isSequence(node ts.Node) bool {
 	count := node.NamedChildCount()
-	if count == 0 || node.StartByte() != node.NamedChild(0).StartByte() {
+	if count == 0 || node.StartByte() != code.NamedAt(node, 0).StartByte() {
 		return false
 	}
-	if node.NamedChild(0).EndPoint().Row >= node.EndPoint().Row {
+	if code.NamedAt(node, 0).EndPoint().Row >= node.EndPoint().Row {
 		return false
 	}
-	seen := node.NamedChild(0).StartPoint().Row
+	seen := code.NamedAt(node, 0).StartPoint().Row
 	for i := uint32(1); i < count; i++ {
 		// A trailing comment shares its statement's line and orders nothing.
-		if code.IsComment(node.NamedChild(i)) {
+		if code.IsComment(code.NamedAt(node, i)) {
 			continue
 		}
-		line := node.NamedChild(i).StartPoint().Row
+		line := code.NamedAt(node, i).StartPoint().Row
 		if line <= seen {
 			return false
 		}
@@ -257,7 +257,7 @@ func isSequence(node ts.Node) bool {
 
 // afterComments advances past a comment run the pairing must not measure.
 func afterComments(node ts.Node, next, count uint32) uint32 {
-	for next < count && code.IsComment(node.NamedChild(next)) {
+	for next < count && code.IsComment(code.NamedAt(node, next)) {
 		next++
 	}
 	return next
@@ -267,7 +267,7 @@ func documentsThePackage(node ts.Node, next, count uint32) bool {
 	if next >= count {
 		return false
 	}
-	return strings.Contains(node.NamedChild(next).Type(), "package")
+	return strings.Contains(code.NamedAt(node, next).Type(), "package")
 }
 
 // documentsTheCgoImport reports a run that cgo reads as C source, which a
@@ -276,7 +276,7 @@ func documentsTheCgoImport(node ts.Node, src string, next, count uint32) bool {
 	if next >= count {
 		return false
 	}
-	child := node.NamedChild(next)
+	child := code.NamedAt(node, next)
 	if child.IsNull() || child.Type() != "import_declaration" {
 		return false
 	}

@@ -1,5 +1,7 @@
 package langserver
 
+import _ "embed"
+
 import (
 	"context"
 	"encoding/json"
@@ -17,7 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const workflowWithCommentBlock = "name: CI\n# one\n# two\n# three\non: {push: {branches: ['**']}}\n"
+//go:embed testdata/workflow-with-comment-block.yml
+var workflowWithCommentBlock string
 
 // repo makes a work tree and answers its root.
 func repo(t *testing.T) string {

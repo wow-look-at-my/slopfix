@@ -1,0 +1,4 @@
+    steps:
+      - env:
+          OUT: ${{ github.sha }}
+        run: echo "$OUT"

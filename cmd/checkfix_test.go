@@ -1,5 +1,7 @@
 package cmd
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -85,19 +87,7 @@ func TestCheckTakesADirectoryAsTheTreeUnderIt(t *testing.T) {
 func TestOnlySTECatchesALongSentenceInAWorkflow(t *testing.T) {
 	t.Serial()
 	path := filepath.Join(t.TempDir(), "ci.yml")
-	body := "name: CI\n" +
-		"on:\n" +
-		"  push:\n" +
-		"concurrency:\n" +
-		"  group: g\n" +
-		"  cancel-in-progress: true\n" +
-		"jobs:\n" +
-		"  build:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - run: |\n" +
-		"          # Building from a directory also asks the module cache for nothing, so the generator that lives in the module needing it never has to complete that module earliest.\n" +
-		"          make\n"
+	body := testOnlySTECatchesALongSentenceInAWorkflowYml
 	require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
 
 	checkFix = false
@@ -105,3 +95,6 @@ func TestOnlySTECatchesALongSentenceInAWorkflow(t *testing.T) {
 	t.Cleanup(func() { checkOnly = nil })
 	assert.ErrorIs(t, runCheck(rootCmd, []string{path}), errFindings, "--only ste omits the sentence rule in a workflow")
 }
+
+//go:embed testdata/test-only-ste-catches-a-long-sentence-in-a-workflow.yml
+var testOnlySTECatchesALongSentenceInAWorkflowYml string

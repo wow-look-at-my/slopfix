@@ -1,0 +1,7 @@
+on: {push: {branches: ['**']}}
+jobs:
+  lint:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: wow-look-at-my/slopfix@master
+        continue-on-error: true

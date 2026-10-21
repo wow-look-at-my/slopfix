@@ -1,0 +1,4 @@
+  old:
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }} # org runner
+    steps:
+      - run: docker build .

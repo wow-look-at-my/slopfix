@@ -1,5 +1,7 @@
 package tombstones
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -80,7 +82,7 @@ func TestADocumentRewriteKeepsTheListStructure(t *testing.T) {
 }
 
 func TestAFencedBlockInADocumentIsNotProse(t *testing.T) {
-	doc := "Read the flag.\n\n```\n// this used to read the flag\n```\n"
+	doc := testAFencedBlockInADocumentIsNotProseMd
 	repair := Fix("notes.md", doc, DefaultMaxCommentLines)
 
 	assert.Equal(t, doc, repair.Text)
@@ -176,3 +178,6 @@ func TestIdentifierShapeRefusesANumber(t *testing.T) {
 	assert.False(t, isCandidate("0x7fffFFFF"))
 	assert.False(t, isCandidate("1_000_000_000"))
 }
+
+//go:embed testdata/test-a-fenced-block-in-a-document-is-not-prose.md
+var testAFencedBlockInADocumentIsNotProseMd string

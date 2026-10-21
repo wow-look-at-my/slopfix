@@ -1,0 +1,16 @@
+name: Publish
+description: Publish a release.
+
+inputs:
+  project:
+    description: Project name
+    required: false
+  apt_depends:
+    description: Runtime prerequisites
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - id: publish
+      uses: wow-look-at-my/actions@typescript#latest

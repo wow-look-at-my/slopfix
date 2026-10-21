@@ -1,0 +1,8 @@
+on: {push: {branches: ['**']}}
+jobs:
+  x:
+    steps:
+      - run: |
+          npm ci
+        env:
+          GREP: grep -q x || exit 1

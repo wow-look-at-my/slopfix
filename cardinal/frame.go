@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
 // quantity is the shape a frame governs. quantity.go spells it.
@@ -27,12 +28,12 @@ func words(class string) string {
 
 // possessiveFrame is a determiner claiming the things belong here, as in "this
 // repo's plugins" or "the payload's steps".
-var possessiveFrame = regexp.MustCompile(
+var possessiveFrame = precompiled.MustCompile(
 	`(?i)\b(?:this|these|our|the)\s+(?:[a-z][a-z-]*\s+){0,2}?[a-z][a-z-]*'s\s+(` + quantity + `)`)
 
 // havingFrame is a verb asserting possession or extent, as in "it ships
 // hooks" or "there are sections".
-var havingFrame = regexp.MustCompile(
+var havingFrame = precompiled.MustCompile(
 	`(?i)\b(?:` + words("framing") +
 		`|(?:` + words("durative") + `)\s+(?:` + words("duration") + `)` +
 		`|(?:` + words("existential") + `)\s+(?:` + words("existence") + `)` +
@@ -40,7 +41,7 @@ var havingFrame = regexp.MustCompile(
 
 // deicticFrame points inside the document, as in "the rules below". The count
 // is of what this page shows, so editing the page breaks it.
-var deicticFrame = regexp.MustCompile(
+var deicticFrame = precompiled.MustCompile(
 	`(?i)\b(?:the|these|those)\s+(` + quantity + `)\s+(?:\S+\s+){0,2}?(?:` + words("deictic") + `)\b`)
 
 var frames = []*regexp.Regexp{possessiveFrame, havingFrame, deicticFrame}

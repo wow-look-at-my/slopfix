@@ -3,9 +3,8 @@
 package cardinal
 
 import (
-	"regexp"
-
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
 // proseAlt is the prose vocabulary as a regular expression alternation, which is the form the frames need.
@@ -24,4 +23,4 @@ var gateWords = set.Of(numbersTable.WordsOf("gate")...)
 var commentWords = set.Of(numbersTable.WordsOf("comment")...)
 
 // Leading matches the cardinal at the front of a quantity, with the space after
-var Leading = regexp.MustCompile(`(?i)^(?:\d[\d,]*|` + proseAlt + `)\s+`)
+var Leading = precompiled.MustCompile(`(?i)^(?:\d[\d,]*|` + proseAlt + `)\s+`)

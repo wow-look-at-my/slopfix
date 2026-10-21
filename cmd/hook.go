@@ -299,21 +299,31 @@ const reportCap = 6
 
 // notice is what the model is told after the fact. The write always goes
 // through, so it names what was cut and flags what no rewrite reached, rather
-// than asking for a retry.
+// than asking for a retry. A flag must read as a CI failure: a model that
+// reads it as advice ships a red push.
 func notice(path string, removed []string, rewrites int, flags []string) string {
 	var b strings.Builder
-	if rewrites == 0 && len(removed) == 0 {
-		fmt.Fprintf(&b, "slopfix let this write to %s through and flagged what it reads.\n", path)
-	} else {
+	switch {
+	case len(flags) > 0:
+		fmt.Fprintf(&b, "slopfix: %s now FAILS CI. CI runs `slopfix check` and rejects each finding below.\n", path)
+		if rewrites > 0 || len(removed) > 0 {
+			fmt.Fprintf(&b, "slopfix also repaired this write. It took %d rewrites.\n", rewrites)
+		}
+	default:
 		fmt.Fprintf(&b, "slopfix repaired this write to %s. It took %d rewrites.\n", path, rewrites)
 	}
 	for _, line := range capped(removed) {
 		fmt.Fprintf(&b, "  removed %q\n", strings.TrimSpace(line))
 	}
 	for _, line := range capped(flags) {
-		fmt.Fprintf(&b, "  flagged %s\n", line)
+		fmt.Fprintf(&b, "  FAILS CI %s\n", line)
 	}
-	b.WriteString("\nThe write went through as it stands. Write prose that needs none of this.")
+	if len(flags) == 0 {
+		b.WriteString("\nThe write went through as it stands. Write prose that needs none of this.")
+		return b.String()
+	}
+	fmt.Fprintf(&b, "\nThe write went through, but the file is red. Run `slopfix fix %s` now, then fix by hand what it cannot repair. Do not push until `slopfix check` is clean.\n", path)
+	b.WriteString("A finding on a line you did not write is still yours: it fails the CI of this change all the same. \"Pre-existing\" and \"not my edit\" are never a reason to leave it.")
 	return b.String()
 }
 

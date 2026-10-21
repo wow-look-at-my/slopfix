@@ -1,5 +1,7 @@
 package noworkloss
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -103,14 +105,7 @@ func TestFollowsAScriptThatReExecsAMktempCopyOfItself(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
 	script := filepath.Join(t.TempDir(), "self-update.sh")
-	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/bash
-if [ -z "${STAGE2:-}" ]; then
-  _stage2="$(mktemp "${TMPDIR:-/tmp}/cc-self-update.XXXXXX")"
-  cp -- "${BASH_SOURCE[0]}" "$_stage2"
-  STAGE2=1 exec bash "$_stage2" "$@"
-fi
-rm -f "${BASH_SOURCE[0]}"
-`), 0o755))
+	require.NoError(t, os.WriteFile(script, []byte(testFollowsAScriptThatReExecsAMktempCopyOfItselfSh), 0o755))
 	allowed(t, dir, "bash "+script+" --check")
 }
 
@@ -131,11 +126,7 @@ func TestAScriptsUnresolvableTargetIsTheProgramsOwnBusiness(t *testing.T) {
 	dir := newRepo(t)
 	modify(t, dir)
 	script := filepath.Join(dir, "make.bash")
-	require.NoError(t, os.WriteFile(script, []byte(`#!/bin/bash
-OUT="$(dirname "$0")/../pkg/tool/$GOOS/link"
-echo built > "$OUT"
-rm -f "$OUT.tmp"
-`), 0o755))
+	require.NoError(t, os.WriteFile(script, []byte(testAScriptsUnresolvableTargetIsTheProgramsOwnBusinessSh), 0o755))
 	allowed(t, dir, "cd "+dir+" && ./make.bash")
 }
 
@@ -170,3 +161,9 @@ func TestUnresolvedPathDenialNamesAnExpansionRatherThanAnEmptyString(t *testing.
 	assert.Contains(t, r, "an unresolved expansion")
 	assert.NotContains(t, r, `("")`)
 }
+
+//go:embed testdata/test-follows-a-script-that-re-execs-a-mktemp-copy-of-itself.sh
+var testFollowsAScriptThatReExecsAMktempCopyOfItselfSh string
+
+//go:embed testdata/test-a-scripts-unresolvable-target-is-the-programs-own-business.sh
+var testAScriptsUnresolvableTargetIsTheProgramsOwnBusinessSh string

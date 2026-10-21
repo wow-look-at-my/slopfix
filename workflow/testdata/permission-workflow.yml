@@ -1,0 +1,19 @@
+on:
+  push:
+    branches: ['**']
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  own:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps: []
+  inherits:
+    runs-on: ubuntu-latest
+    steps: []
+  all:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps: []
