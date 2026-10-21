@@ -9,9 +9,9 @@ import (
 // verblessPenalty puts every cut whose rest holds no verb below every cut whose rest holds one.
 const verblessPenalty = 1 << 10
 
-// verbless reports a rest after cut c that holds no verb of its own, such as
+// verblessRest reports a rest after cut c that holds no verb of its own, such as
 // "At a time." or "Up to the noun it counts". It reads as no sentence.
-func verbless(whole *syntax.Sentence, c forceCut, source string) bool {
+func verblessRest(whole *syntax.Sentence, c forceCut, source string) bool {
 	rest := opening(hardRest(source, c.right))
 	if strandsPhrase(whole, c.right, rest) || !standsAsSentence(rest) {
 		return true
@@ -84,7 +84,7 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 		head = carriedHead(head)
 	}
 	right := hardRest(source, c.right)
-	if verbless(whole, c, source) {
+	if verblessRest(whole, c, source) {
 		right = carriedRest(whole, c, right)
 	}
 	return strings.TrimSpace(head + " " + right), true

@@ -261,7 +261,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		}
 		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
 		rank := hardSeamRank(source, whole, c)
-		if verbless(whole, c, source) {
+		if verblessRest(whole, c, source) {
 			rank -= verblessPenalty
 		}
 		if rank > bestRank || rank == bestRank && c.words > bestWords {
@@ -274,7 +274,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 
 	left := closeHead(source[:best.left])
 	right := hardRest(source, best.right)
-	if verbless(whole, best, source) {
+	if verblessRest(whole, best, source) {
 		right = carriedRest(whole, best, right)
 	}
 	if left == "" || right == "" {
