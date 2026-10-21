@@ -2,31 +2,30 @@ package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
 
-// ste/count: a stated count of items goes stale when somebody adds the item that makes it wrong. The repair writes words that state no figure. The case carries no frame, which keeps it to this
+// counts/stated-count: a stated count of items goes stale when somebody adds the item that makes it wrong. The repair writes words that state no figure. The case carries no frame, which keeps it to this
 // rule rather than the document count rule.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       ste.IDStaleCount,
-		Category: RuleSTE,
+		Category: RuleCounts,
 		Detect:   detectStaleCount,
 		Autofix:  autofixStaleCount,
 		Cases: []RuleCase{
 			{Name: ste.IDStaleCount, Path: "x.md", Text: "The gate reads 3 rows.\n"},
 			{
-				// From a splat2 AGENTS.md: the label repair wrote "A run still a later alive s later exits 124".
-				Name: "a duration with a unit abbreviation is no count", Path: "watchdog.md", Unchanged: true,
-				Text: "The watchdog sends SIGTERM when the budget runs out. A run still alive 15 s later exits 124.\n",
+				Name: "a duration with a unit abbreviation is written out", Path: "supervisor.md",
+				Text: "The supervisor sends SIGTERM when the budget runs out. A job still alive 15 s later exits 137.\n",
+				Want: "The supervisor sends SIGTERM when the budget runs out. A job still alive several seconds later exits 137.\n",
 			},
 			{
-				// From splat2's docs/handoff.md: "Quiet 30 s runs" lost its number and kept the unit.
-				Name: "a measure before its noun is no count", Path: "handoff.md", Unchanged: true,
-				Text: "Quiet 30 s runs show no stall.\n",
+				Name: "a measure before its noun leaves no unit behind", Path: "jobs.md",
+				Text: "Idle 30 s jobs show no drift.\n",
+				Want: "Idle jobs show no drift.\n",
 			},
 			{
-				// From a splat2 commit message: "recorded 2 intervals" became "recorded intervals".
 				Name: "a count of past events keeps an amount", Path: "msg.txt",
-				Text: "The probe recorded 2 intervals before the stall.\n",
-				Want: "The probe recorded a couple of intervals before the stall.\n",
+				Text: "The monitor logged 2 samples before the outage.\n",
+				Want: "The monitor logged a couple of samples before the outage.\n",
 			},
 			{
 				Name: "a count that opens a subject keeps a determiner", Path: "x.md",

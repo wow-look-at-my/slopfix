@@ -151,11 +151,15 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			}
 			bold = "**"
 		}
-		if !admissible(s, source, d) {
+		if !admissible(s, source, d) || absolutePhrase(source, d) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := bold + withCloser(joinOpener(d.opener, restOf(source, d)), d.closer)
+		opened := openDivision(source, d)
+		if opened == "" {
+			continue
+		}
+		right := bold + withCloser(opened, d.closer)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
@@ -195,7 +199,7 @@ func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."
-		right := joinOpener(d.opener, restOf(source, d))
+		right := openDivision(source, d)
 		if WordCount(left) < minimumHalf || WordCount(right) < minimumHalf {
 			continue
 		}
@@ -628,9 +632,12 @@ func restated(s *syntax.Sentence, main, c syntax.Clause, source string) (string,
 	if head.Tag == "PRP" {
 		return head.Text, true
 	}
-	short := subject.Last-subject.First < restateLimit && !subject.Coordinated &&
-		s.Words[subject.Last+1].Tag != "IN"
+	short := restates(s, subject) && s.Words[subject.Last+1].Tag != "IN"
 	if short && opensWithCapital(s, subject.First, source) {
+		// A noun that disagrees with the verb is not that verb's subject: "its reads ... keeps".
+		if !agrees(s, subject, *c.Verb) {
+			return "", false
+		}
 		text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 		if subject.Det == subject.First {
 			if det := s.Words[subject.Det].Lower(); det == "a" || det == "an" {
@@ -717,18 +724,6 @@ func joinsClauses(prose string, at int) bool {
 			}
 		}
 		return false
-	}
-	return false
-}
-
-// listBefore reports a comma inside the clause before c, which makes ", and"
-// the end of a list rather than a join between clauses.
-func listBefore(s *syntax.Sentence, c syntax.Clause) bool {
-	for i := c.Link - 2; i >= 0 && i >= clauseStart(s, c.Link); i-- {
-		// A comma inside a quotation reads as a name, and lists nothing.
-		if s.Words[i].Text == "," && s.Words[i].Tag == "," {
-			return true
-		}
 	}
 	return false
 }

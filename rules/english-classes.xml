@@ -29,7 +29,7 @@
        rather than a tally of items, so cutting it destroys the fact: "every 30
        seconds" becomes "every seconds". No set changes underneath it, which is
        the whole reason the count rule exists, so a unit is never stale. -->
-  <class name="unit" words="ns ms s min nanosecond nanoseconds microsecond microseconds
+  <class name="unit" words="nanosecond nanoseconds microsecond microseconds
     millisecond milliseconds second seconds minute minutes hour hours day days
     week weeks month months year years
     bit bits byte bytes kib mib gib tib kb mb gb tb kilobyte kilobytes

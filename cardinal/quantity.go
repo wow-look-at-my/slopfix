@@ -170,6 +170,28 @@ func governsObject(text string, q Match) bool {
 	return false
 }
 
+// ValueSubject reports a number that is the subject of the word after it, a
+// verb with an object. "0 disables chunking" states what a value does, and
+// "no disables chunking" is not English. The verb ends in s, and a noun, a
+// determiner, a pronoun or a gerund follows it.
+func ValueSubject(text string, q Match) bool {
+	end := q.At + len(q.Text)
+	words := syntax.Parse(text, nil).Words
+	for i, w := range words {
+		if w.End != end {
+			continue
+		}
+		if i+1 >= len(words) || !strings.HasSuffix(strings.ToLower(w.Text), "s") {
+			return false
+		}
+		return objectTags.Contains(words[i+1].Tag)
+	}
+	return false
+}
+
+// objectTags are the tags of a word that opens the object of a verb.
+var objectTags = set.Of("DT", "PRP", "PRP$", "CD", "NN", "NNP", "NNPS", "NNS", "VBG")
+
 // nominalTags are the tags a modifier between a cardinal and its noun carries.
 var nominalTags = set.Of("CD", "NN", "NNP", "JJ")
 
@@ -317,10 +339,6 @@ func NamesAnItem(text string, at int) bool {
 		if !allDigits(w.Text) || i < 1 || words[i-1].End == at {
 			return false
 		}
-		// Digits before a unit measure an amount, as in "alive 15 s later", and name no item.
-		if i+1 < len(words) && IsUnit(strings.ToLower(words[i+1].Text)) {
-			return false
-		}
 		prev := words[i-1]
 		name, opened := strings.CutPrefix(prev.Text, "(")
 		lower := strings.ToLower(name)
@@ -340,10 +358,6 @@ func NamesAnItem(text string, at int) bool {
 		before := words[i-2]
 		opened = opened || before.Text == "(" || (prev.Start > 0 && text[prev.Start-1] == '(')
 		if before.Tag == "CD" || singleItem.Contains(before.Lower()) {
-			return false
-		}
-		// A word that opens a coordinated predicate is its verb, and the digits count its object: "exit 0, report 0 validation errors".
-		if (before.Tag == "," || before.Tag == "CC") && !plural && CountedHead(words, i) >= 0 {
 			return false
 		}
 		if noun {

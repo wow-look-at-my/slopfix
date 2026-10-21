@@ -109,48 +109,48 @@ func TestARewriteLeavesLinesTheEditDidNotWrite(t *testing.T) {
 	assert.NotContains(t, strings.TrimPrefix(out, "It has three plugins.\n\n"), "three")
 }
 
-// From splat2's froxel-path-members.h: the hand edit closed the first line on
-// a period and opened the second on a capital. Fix wrote only the second line
-// of that sentence. It comes back with the first line fix wrote beside it,
-// and no sentence opens on a lower-case word.
+// A hand edit closes the first line on a period and opens the second on a
+// capital. Fix wrote only the second line of that sentence. It comes back with
+// the first line fix wrote beside it, and no sentence opens on a lower-case
+// word.
 func TestAHandRewordingOfAWrappedSentenceComesBackWhole(t *testing.T) {
 	doc := "struct Path {\n" +
-		"  // Returns the steady-clock ms stamped just before the first vkQueueSubmit:\n" +
-		"  // no pack work can start before it, so it is the start of the pack wall.\n" +
-		"  double submitFeedPack(Context& ctx);\n" +
+		"  // Returns the steady-clock ms stamped just before the first flush:\n" +
+		"  // no write work can start before it, so it is the start of the write wall.\n" +
+		"  double submitWrites(Context& ctx);\n" +
 		"};\n"
 	path := onDisk(t, "path.h", doc)
 	require.NotEqual(t, doc, fixed(t, path, doc), "the second line carries a finding fix repairs")
 
 	got := ask(t, editOf(path,
-		"vkQueueSubmit:\n  // no pack work can start before it, so it is the start of the pack wall.",
-		"vkQueueSubmit.\n  // No pack work can start before that stamp, so it opens the pack wall."))
+		"flush:\n  // no write work can start before it, so it is the start of the write wall.",
+		"flush.\n  // No write work can start before that stamp, so it opens the write wall."))
 
 	out := applied(t, doc, got)
 	assert.NotRegexp(t, `\.\n\s*// [a-z]`, out)
 	assert.Equal(t, fixed(t, path, doc), out)
 }
 
-// From splat2's froxel-path-members.h: the edit adds a sentence over the cap
-// to a comment paragraph that starts above it. Its division reads the whole
-// paragraph, so the repair reaches past the edit, and no finding stays.
+// An edit adds a sentence over the cap to a comment paragraph that starts
+// above it. Its division reads the whole paragraph, so the repair reaches past
+// the edit, and no finding stays.
 func TestAnEditWhoseSentenceNeedsTheParagraphIsRepairedWhole(t *testing.T) {
 	doc := "struct Path {\n" +
-		"  // Record and submit the tick pack from the staged rows.\n" +
-		"  void submitFeedPack(Context& ctx);\n" +
+		"  // Record and submit the write batch from the staged rows.\n" +
+		"  void submitWrites(Context& ctx);\n" +
 		"};\n"
 	path := onDisk(t, "path.h", doc)
 	got := ask(t, editOf(path,
-		"  void submitFeedPack(Context& ctx);",
-		"  // Returns the steady-clock ms stamped just before the first vkQueueSubmit:\n"+
-			"  // no pack work can start before it, so it is the start of the pack wall.\n"+
-			"  double submitFeedPack(Context& ctx);"))
+		"  void submitWrites(Context& ctx);",
+		"  // Returns the steady-clock ms stamped just before the first flush:\n"+
+			"  // no write work can start before it, so it is the start of the write wall.\n"+
+			"  double submitWrites(Context& ctx);"))
 
 	out := applied(t, doc, got)
 	for _, f := range slopfix.CheckContent(path, out) {
 		assert.NotEqual(t, "ste/sentence-length", f.ID, "%s\n%s", f.String(), out)
 	}
-	assert.Contains(t, out, "double submitFeedPack(Context& ctx);")
+	assert.Contains(t, out, "double submitWrites(Context& ctx);")
 }
 
 func TestKeepWrittenTakesOnlyTheWrittenLines(t *testing.T) {

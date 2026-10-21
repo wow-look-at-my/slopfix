@@ -173,17 +173,25 @@ var capSentences = []string{
 	"A map that carries no information is wasteful.",
 	"The file, which fails, is gone.",
 	"A user who reads the message leaves.",
-}
-
-// capPending names the sentence inputs the repair still leaves over the cap.
-// Each is a real comment. A division turns half of each into a fragment. The
-// reaching repair would have to write words the author did not. A subject for a
-// participial list item, a finite verb for a participle, or a subject for an
-// aside the sentence interrupts. The rule owns no rephrase for those.
-var capPending = []string{
-	"Bulk.txt v0 feat = A + shared.txt changed on the head side (the \"PR branch\") M1 = A + shared.txt changed differently (the conflict) + bulk.txt changed (a base-only blob the merge MUST materialize) Returns every sha the tests need.",
 	"Triggered by (A) a synchronize whose sender is not our own App bot and whose head the self-push recognizer cannot attribute to us, and (B) the leasehead guard catching a head that moved with no synchronize seen (same recognizer, same fallback).",
 	"With no settle record (prev == null) every later re-aggregation of a settled-green commit used to read as a \"first green\" and republish `pending` over the live `success` — the known first-green regression.",
 	"unless they have no commits unique to them (aka git checkout -b some-new-branch && git push = don't create and close a pr for this 'empty' branch)\" — and the follow-up: \"btw you need to *merge* zero-diff PRs so it wraps everything up properly and deletes the branhc.",
 	"The state CLIENT's own wire contract (get/put/delete/list, acquire/steal, the declared wait and its degradations) is covered once in sdk/state.test.ts — against a REAL local HTTP server rather than this suite's mock — now that this hook shares the SDK client.",
+	"The gate reads the cache file of the build host for each module of the tree in the order of the paths of the list of the repository at the start of the run.",
+	"A list of the cache files of the build host for each module of the tree in the order of the paths of the list of the repository at the start of the run.",
+	"The gate fits the samples with k1 = f/3 + 4f^2 - 5f^3/2 for every frame of the run and it writes the weight into the table that the loader reads at startup.",
+	"flushPage writes new index or journal entries into the segment no pending reader holds and flips to it before the next full commit starts its sync pass.",
+	"main() holds the \"disk\" lock for every sync-tool run except --help and --dump-config, so only one sync-tool uses the disk at a time.",
+	"Every job takes a slot in \"<state dir>.pool/\": a serial number from the index file, taken under flock on that file, names a slot file that its owner holds flock(LOCK_EX) on for as long as it waits or holds.",
+	"It carries a capital, a digit, an underscore or a dot inside it, or it is a single letter other than the article, as a variable such as q is.",
+	"Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube, and flatness ratio of the stack against an opaque layer of the same cube.",
+	"Pair-demand elasticity per rung, and the act whose demand response measures one of them: the demand and scalars before the act, and the scalars it set.",
+	"Pair demand at quality q relative to now: q split over the free rungs the way applyQuality spends it (before the res lattice), each rung's ratio raised to its measured elasticity.",
+	"Every adopted frame of a synthetic clip lands records, cubeBuf, C and a rendered image equal to the live async tick wire's, on the copy and the in-place (UMA direct) row wires; a repeated C reuses its pipeline triple; an edge repack of an adopted frame and a resumed live tick match too.",
+}
+
+// capPending names the sentence inputs the repair still leaves over the cap.
+// A division would turn half of each into a fragment.
+var capPending = []string{
+	"Bulk.txt v0 feat = A + shared.txt changed on the head side (the \"PR branch\") M1 = A + shared.txt changed differently (the conflict) + bulk.txt changed (a base-only blob the merge MUST materialize) Returns every sha the tests need.",
 }

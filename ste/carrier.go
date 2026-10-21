@@ -36,9 +36,6 @@ var (
 	auxiliaries = set.Of("do", "does", "did", "not", "never", "n't", "must", "can", "will", "may", "should", "cannot")
 )
 
-// thinAdverbial bounds the words of an adverbial that only measures its verb, such as "at a time".
-const thinAdverbial = 3
-
 // opensWithCarrier is what a division behind a carrier adds to a cut's score.
 const opensWithCarrier = -6
 
@@ -221,7 +218,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		return head, restate(source, prev, pronoun+" "+rest), opensWithCarrier
 	// "the words after the cut are no clause": a verb after the phrase makes it part of the subject.
-	case seam != ":" && carrierAdverbial.Contains(lower) && len(strings.Fields(rest)) > thinAdverbial && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
+	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
 		adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
 		(!inRelative(whole, first-1) || everyNext(whole, first)) && !coordinatedVerb(whole, first):
 		// A reason reads behind "This is", whatever the verb: "This is because X".
@@ -423,9 +420,9 @@ func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool)
 	if !unicode.IsLetter(rune(next.Text[0])) && next.Text[0] != '`' {
 		return false
 	}
-	// A state verb's "This holds" reads with any preposition. An action's "This happens" needs "every" or "each".
+	// A state verb's "This holds" reads with any preposition. An action's "This happens" needs "every" or "each", or a comma that already parts the phrase from the verb.
 	if carrierBound.Contains(s.Words[first].Lower()) && !state {
-		return next.Lower() == "every" || next.Lower() == "each"
+		return next.Lower() == "every" || next.Lower() == "each" || first > 0 && s.Words[first-1].Text == ","
 	}
 	return true
 }
@@ -565,7 +562,7 @@ func mainSubject(source string, s *syntax.Sentence, verb syntax.Phrase, tag stri
 		if head.Tag == "PRP" {
 			return lowerOpening(head.Text)
 		}
-		if subject.Last-subject.First < restateLimit && !subject.Coordinated {
+		if restates(s, subject) {
 			text := source[s.Words[subject.First].Start:s.Words[subject.Last].End]
 			if det := s.Words[subject.First].Lower(); det == "a" || det == "an" {
 				text = "the" + text[len(det):]
@@ -588,7 +585,8 @@ func mainSubject(source string, s *syntax.Sentence, verb syntax.Phrase, tag stri
 // and each part stays one.
 func closesPhrase(head string, whole *syntax.Sentence) bool {
 	n := wordsBefore(whole, len(head))
-	if n == 0 || finiteBetween(whole, 0, n) {
+	// A verb in a relative clause leaves the head a noun phrase: "a run of turns that each made a call".
+	if n == 0 || finiteOutsideRelativeIn(whole, 0, n) {
 		return false
 	}
 	// A head that opens on a preposition or a subordinator leads into the clause after it. Only a noun phrase stands as a fragment of its own.
@@ -669,4 +667,45 @@ func passive(s *syntax.Sentence, verb syntax.Phrase) bool {
 		}
 	}
 	return false
+}
+
+// becauseDivision divides at "because" when no other boundary serves, and opens
+// the reason behind "This is because". The reason must name a subject and a
+// verb; "because of X" is a prepositional phrase, not a reason.
+func becauseDivision(source, masked string, whole *syntax.Sentence, limit int) (string, bool) {
+	for i := 1; i+1 < len(whole.Words); i++ {
+		if whole.Words[i].Lower() != "because" || !opensSubject(whole, i+1) || !finiteBefore(whole, i+1, "") {
+			continue
+		}
+		head := strings.TrimRight(source[:whole.Words[i].Start], " ,")
+		if head == "" {
+			continue
+		}
+		left := closeHead(head)
+		rest := "This is " + source[whole.Words[i].Start:]
+		if WordCount(left) < minimumHalf || WordCount(rest) < minimumHalf || !divides(left, rest, limit) {
+			continue
+		}
+		return left + " " + rest, true
+	}
+	return source, false
+}
+
+// seamIsDash reports a seam that is a dash, which closes the clause before it.
+func seamIsDash(seam string) bool { return dashMark(seam) }
+
+// headNoun answers the head noun of the first noun phrase that ends before
+// byte at. A comma before a phrase that describes it names this noun again.
+func headNoun(whole *syntax.Sentence, at int) (syntax.Word, bool) {
+	n := wordsBefore(whole, at)
+	for i := 0; i < n; i++ {
+		ph, ok := whole.PhraseAt(i)
+		if !ok || ph.Kind != syntax.NounPhrase || ph.First != i || ph.Last >= n || ph.Head >= len(whole.Words) {
+			continue
+		}
+		if h := whole.Words[ph.Head]; strings.HasPrefix(h.Tag, "NN") {
+			return h, true
+		}
+	}
+	return syntax.Word{}, false
 }

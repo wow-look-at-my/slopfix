@@ -28,11 +28,12 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 		if !endsSentence(joined) {
 			joined += "."
 		}
-		sentences := ste.Sentences(ste.FixKeepingOpening(joined))
-		if len(sentences) == 0 {
+		// A comment sentence can open on an identifier in lower case: "adopt. cubeCount_ = 0 forces" holds a couple of sentences.
+		found := cutSentences(ste.FixKeepingOpening(joined))
+		if len(found) == 0 {
 			return nil, false
 		}
-		first := strings.TrimSpace(sentences[0])
+		first := strings.TrimSpace(found[0])
 		if ste.WordCount(first) > ste.SentenceWordCap {
 			if clause, ok := ste.Leading(first); ok {
 				first = strings.TrimSpace(ste.FixKeepingOpening(clause))
@@ -44,20 +45,21 @@ func steOpening(text []string, fit layout, shrink bool) ([]string, bool) {
 			return nil, false
 		}
 		out, fits := fit(first, indent, marker)
-		for limit := ste.WordCount(first) - 1; shrink && !fits && limit >= minimumOpening; limit-- {
-			divided := ste.Sentences(ste.DivideTo(first, limit))
-			if len(divided) < 2 {
-				continue
-			}
-			head := strings.TrimSpace(divided[0])
-			if !endsSentence(head) || isHeading(head) {
-				continue
-			}
-			if shorter, ok := fit(head, indent, marker); ok {
-				return shorter, true
-			}
-		}
 		if shrink && !fits {
+			// Only a boundary the division repair admits keeps every word the clause needs.
+			cuts := ste.Cuts(first)
+			for i := len(cuts) - 1; i >= 0; i-- {
+				head := strings.TrimSpace(first[:cuts[i]])
+				if !endsSentence(head) {
+					head += "."
+				}
+				if isHeading(head) || ste.WordCount(head) >= ste.WordCount(first) || ste.WordCount(head) < minimumOpening {
+					continue
+				}
+				if shorter, ok := fit(head, indent, marker); ok {
+					return shorter, true
+				}
+			}
 			if shorter, ok := phraseLines(para.lines, fit, indent, marker); ok {
 				return shorter, true
 			}

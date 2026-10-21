@@ -49,6 +49,12 @@ func init() {
 	register("yaml/ungate", IDNeuteredGate, 10, ungate, false)
 	register("yaml/join-comments", IDCommentBlock, 20, joinCommentBlocks, true)
 	register("yaml/rename-guarded-job", IDAllBuildsJob, 30, renameGuardedJob, false)
+	fixer.Register(fixer.Spec{
+		Label: "yaml/drop-duplicate-step-key", Families: []string{Category}, Rules: []string{IDDuplicateStepKey},
+		Files: []fixer.Kind{fixer.Workflow}, Place: 5,
+		Repair: func(f *fixer.File) { f.ApplyThrough(applyDroppingKeys, dropDuplicateKeys(f.Text())) },
+	})
+	register("yaml/fix-run-script", IDRunScriptSyntax, 40, repairRunScripts, false)
 	register("yaml/inline-env", IDEnvIndirection, 50, inlineEnv, false)
 	register("yaml/filter-push", IDPushTags, 60, filterPush, false)
 	register("yaml/retarget-org-action", IDOrgActionRef, 70, retarget, false)
@@ -85,15 +91,33 @@ func Fix(content string, keeps func(string) bool) Repair {
 	return Repair{Text: f.Text(), Changed: f.Text() != content, Removed: f.Report().Removed}
 }
 
-// apply writes edits into a workflow through the YAML gate. Every edit covers
-// whole lines, because a newline is syntax here. The result must parse, and a
-// comment edit must decode to the same data.
 func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) edit.Result {
+	return gate(content, edits, scope, comment, false)
+}
+
+func applyDroppingKeys(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
+	return gate(content, edits, scope, false, true)
+}
+
+// gate writes edits into a workflow through the YAML gate. Every edit covers
+// whole lines, because a newline is syntax here. The result must parse, and a
+// comment edit must decode to the same data. With repeatsAllowed the input
+// need only be well formed, since the edit removes the repeated key.
+func gate(content string, edits []edit.Edit, scope edit.Scope, comment, repeatsAllowed bool) edit.Result {
 	if len(edits) == 0 {
 		return edit.Unchanged(content, scope)
 	}
 	var want any
-	if yaml.Unmarshal([]byte(compareData(content, comment)), &want) != nil {
+	var err error
+	if repeatsAllowed {
+		var tree yaml.Node
+		if err = yaml.Unmarshal([]byte(content), &tree); err == nil {
+			want = keptData(&tree)
+		}
+	} else {
+		err = yaml.Unmarshal([]byte(compareData(content, comment)), &want)
+	}
+	if err != nil {
 		out := edit.Unchanged(content, scope)
 		for _, e := range edits {
 			out.Refused = append(out.Refused, edit.Refused{Edit: e, Reason: "the workflow does not parse"})
@@ -112,8 +136,40 @@ func apply(content string, edits []edit.Edit, scope edit.Scope, comment bool) ed
 			if yaml.Unmarshal([]byte(compareData(text, comment)), &got) != nil {
 				return false
 			}
-			return !comment || reflect.DeepEqual(got, want)
+			return !(comment || repeatsAllowed) || reflect.DeepEqual(got, want)
 		})
+}
+
+// keptData decodes a node the way a strict decode would, except that a key
+// repeated in a mapping keeps its last value. That is the data left once the
+// earlier repeats are gone.
+func keptData(n *yaml.Node) any {
+	switch n.Kind {
+	case yaml.DocumentNode:
+		if len(n.Content) == 0 {
+			return nil
+		}
+		return keptData(n.Content[0])
+	case yaml.AliasNode:
+		return keptData(n.Alias)
+	case yaml.SequenceNode:
+		out := make([]any, 0, len(n.Content))
+		for _, item := range n.Content {
+			out = append(out, keptData(item))
+		}
+		return out
+	case yaml.MappingNode:
+		out := map[string]any{}
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			out[n.Content[i].Value] = keptData(n.Content[i+1])
+		}
+		return out
+	}
+	var v any
+	if n.Decode(&v) != nil {
+		return nil
+	}
+	return v
 }
 
 // compareData answers the text a comment gate compares. A # inside a block

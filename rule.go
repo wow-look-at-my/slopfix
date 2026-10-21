@@ -44,14 +44,16 @@ type RuleCase struct {
 	Text string
 	// Files are the other files of the repository, by path from its root.
 	Files map[string]string
-	// Unchanged marks a case the rule must leave as written: it detects nothing there, and its autofix writes the text back.
+	// Unchanged marks a case the rule must leave as written.
 	Unchanged bool
-	// Want is the text Path holds after the rule's autofix, for a case that pins the words the repair writes.
+	// Want pins what the autofix writes: Path's content, or the message when the case has no Path.
 	Want string
 	// Origin is the URL of the repository's origin remote. With none, the repository has no remote.
 	Origin string
 	// Actions maps a step's uses value to the runs.using that Materialize records for it.
 	Actions map[string]string
+	// Refs are the answers the fixture GitHub API gives for the case: "owner/repo" to its default branch, "owner/repo@ref" to "branch" or "tag".
+	Refs map[string]string
 	// Root is the directory Materialize wrote the repository under.
 	Root string
 }
@@ -109,7 +111,10 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 			return c, err
 		}
 	}
-	c.Files, c.Actions, c.Root = nil, nil, dir
+	if err := serveFixtureRefs(c.Refs); err != nil {
+		return c, err
+	}
+	c.Files, c.Actions, c.Refs, c.Root = nil, nil, nil, dir
 	return c, nil
 }
 

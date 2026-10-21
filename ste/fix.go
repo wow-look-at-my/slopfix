@@ -41,7 +41,7 @@ func fixSelected(text string, keep func(id string) bool, reorder bool) string {
 		text = fixPostdeterminers(text)
 	}
 	if keep(IDSentenceCap) {
-		text = fixSentenceCap(text, capSpec{reorder: reorder, cap: SentenceWordCap})
+		text = fixSentenceCap(text, capSpec{reorder: reorder, cap: SentenceWordCap, every: reorder})
 	}
 	return fixWarnings(text, keep, reorder)
 }
@@ -51,6 +51,8 @@ func fixSelected(text string, keep func(id string) bool, reorder bool) string {
 type capSpec struct {
 	reorder bool
 	cap     int
+	// every divides a sentence no grammatical division reads, at a mark or between words.
+	every bool
 }
 
 // DivideTo divides each sentence of text over maxWords, as the cap repair
@@ -74,7 +76,7 @@ var (
 // alone. A semicolon inside `a; b` is the thing the sentence documents. A
 // quotation is another voice, so its words stay as Check reads them: unjudged.
 func fixProse(text string, repair func(string) string) string {
-	spans := append(dataSpans(text), quotedSpans(text)...)
+	spans := append(verbatimSpan.FindAllStringIndex(text, -1), quotedSpans(text)...)
 	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
 	var out strings.Builder
 	last := 0
@@ -292,9 +294,6 @@ func mask(prose string) string {
 		default:
 			fillLink(out[span[0]:span[1]], fill)
 		}
-	}
-	for _, span := range formulaSpans(prose) {
-		fillWith(out[span[0]:span[1]], "CODE")
 	}
 	return string(out)
 }

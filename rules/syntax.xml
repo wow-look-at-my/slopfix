@@ -42,7 +42,7 @@
   <!-- A determiner that opens a noun phrase. A past form after it describes the noun. "that" is absent, because it also opens a relative clause. -->
   <class name="determiner" words="a an the each every this these those no any some"/>
 
-  <!-- A quantifier that takes a singular noun. A modifier and an -s form after it are its noun and the verb: "each real packs". -->
+  <!-- A quantifier that takes a singular noun. A modifier and an -s form after it are its noun and the verb: "each static packs". -->
   <class name="singular-quantifier" words="each every one"/>
 
   <!-- A bare verb that no noun spells. The tagger reads it as a noun inside a compound: "setup become plain members". -->
@@ -50,6 +50,9 @@
 
   <!-- A place word that follows the noun it places: "the case above". -->
   <class name="postposed" words="above below here there"/>
+
+  <!-- An adjective the tagger reads as a past participle: "cannot be solid". -->
+  <class name="adjective" words="solid liquid rigid"/>
 
   <!-- A noun that names a person takes they rather than it. -->
   <class name="person" words="user users person people caller callers author

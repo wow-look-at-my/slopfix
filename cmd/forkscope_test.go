@@ -27,6 +27,47 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// A branch pin fails the tree check, and a lookup that cannot be done is the error.
+func TestATreeCheckReportsABranchPin(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/o/r":
+			_, _ = w.Write([]byte(`{"default_branch":"master"}`))
+		case "/repos/o/r/git/ref/heads/feature":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	env := map[string]string{"GITHUB_API_URL": srv.URL}
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte("runs:\n  using: composite\n  steps:\n    - uses: o/r@feature\n"), 0o644))
+	var out bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+
+	failed, err := treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
+	require.NoError(t, err)
+	assert.True(t, failed)
+	assert.Contains(t, out.String(), "yaml/branch-pin")
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte("runs:\n  using: composite\n  steps:\n    - uses: o/hidden@v1\n"), 0o644))
+	out.Reset()
+	failed, err = treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
+	require.NoError(t, err)
+	assert.True(t, failed)
+	assert.Contains(t, out.String(), "o/hidden")
+	assert.Contains(t, out.String(), "[yaml/branch-pin] the branch pins could not be judged")
+	assert.NotContains(t, out.String(), "repo/budget")
+
+	out.Reset()
+	failed, err = treeFindings(cmd, root, slopfix.Request{IDs: []string{"yaml/branch-pin"}}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
+	require.NoError(t, err)
+	assert.True(t, failed, "a selection of the rule still reports its lookup failure")
+}
+
 // noForks finds no fork: no origin is on its server, and it names no repository.
 var noForks = forkscope.Resolver{Getenv: func(key string) string {
 	if key == "GITHUB_SERVER_URL" {
@@ -167,6 +208,34 @@ func quietCmd() (*cobra.Command, *bytes.Buffer) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	return cmd, &out
+}
+
+// poisonGit puts a git on PATH that records every spawn, then exits nonzero.
+// It answers the marker path, which the check must leave absent.
+func poisonGit(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "spawned")
+	script := "#!/bin/sh\nprintf spawned >> \"$SLOPFIX_GIT_MARKER\"\nexit 1\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o755))
+	t.Setenv("SLOPFIX_GIT_MARKER", marker)
+	t.Setenv("PATH", dir)
+	return marker
+}
+
+// Once the fork's parent is fetched and recorded, `slopfix check .` reads the
+// repository itself, so the whole check starts no git process.
+func TestATreeCheckInACachedForkStartsNoGitProcess(t *testing.T) {
+	fx := newForkRepo(t, aFork)
+	cmd, _ := quietCmd()
+	_, err := treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks, nil)
+	require.NoError(t, err)
+	marker := poisonGit(t)
+
+	cmd, _ = quietCmd()
+	_, err = treeFindings(cmd, fx.dir, slopfix.Request{}, false, fx.forks, nil)
+	require.NoError(t, err)
+	assert.NoFileExists(t, marker, "a git process was spawned on the check path")
 }
 
 // `slopfix fix .` in a fork leaves every file the fork never touched as it

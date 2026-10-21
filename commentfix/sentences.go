@@ -122,6 +122,10 @@ func segmentsOf(lines []string, p para) []segment {
 		current.lines = append(current.lines, n)
 		current.prose = joinProse(current.prose, prose)
 		prev = prose
+		// A rule that closes a line ends a heading, so the segment ends with it.
+		if rule := suffixOf(lines[i], prose); rule != "" && !closesBlock(rule) {
+			current = nil
+		}
 	}
 	return out
 }

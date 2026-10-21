@@ -3,6 +3,7 @@ package commentfix
 import (
 	"regexp"
 	"slices"
+	"strings"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
 	"github.com/wow-look-at-my/slopfix/counts"
@@ -24,7 +25,11 @@ func countedPhrase(prose string, at int) string {
 	if k < 0 {
 		// The tokenizer joined the number to a mark, so the next word is the noun it counts, or none.
 		phrase := governed.FindString(prose[at:])
-		if phrase == "" || cardinal.NotAPluralNoun(prose, cardinal.Match{At: at, Text: phrase}) {
+		if phrase == "" {
+			return ""
+		}
+		zeroSubject := strings.HasPrefix(phrase, "0 ") && cardinal.ValueSubject(prose, cardinal.Match{At: at, Text: phrase})
+		if !zeroSubject && cardinal.NotAPluralNoun(prose, cardinal.Match{At: at, Text: phrase}) {
 			return ""
 		}
 		return phrase
@@ -34,6 +39,9 @@ func countedPhrase(prose string, at int) string {
 	}
 	for j := k + 1; j < len(words) && j <= k+compoundWords; j++ {
 		phrase := prose[at:words[j].End]
+		if strings.HasPrefix(phrase, "0 ") && cardinal.ValueSubject(prose, cardinal.Match{At: at, Text: phrase}) {
+			return phrase
+		}
 		if !cardinal.NotAPluralNoun(prose, cardinal.Match{At: at, Text: phrase}) {
 			return phrase
 		}

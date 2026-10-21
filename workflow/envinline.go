@@ -140,7 +140,12 @@ func envPlans(content string) []envPlan {
 	var out []envPlan
 	root := rootOf(&doc)
 	safe := safeInputs(root)
-	for _, s := range runSteps(root) {
+	steps := runSteps(root)
+	for _, s := range steps {
+		if p := scriptPlan(s, steps, root, content, fileLines, spans); len(p.findings) > 0 {
+			out = append(out, p)
+			continue
+		}
 		es, ok := readEnvStep(s.step, s.container, s.windows, fileLines, spans)
 		if !ok {
 			continue
@@ -159,6 +164,10 @@ type stepRef struct {
 	step      *yaml.Node
 	container bool
 	windows   bool
+	// shell is the default shell the job or the workflow names, or "".
+	shell string
+	// shellNode is the value node of that default, or nil.
+	shellNode *yaml.Node
 	uses      map[string]string
 }
 
@@ -184,14 +193,14 @@ func runSteps(root *yaml.Node) []stepRef {
 			if steps == nil || steps.Kind != yaml.SequenceNode {
 				continue
 			}
-			shell := defaultShell(job)
+			shell, shellNode := defaultShell(job), defaultShellNode(job)
 			if shell == "" {
-				shell = rootShell
+				shell, shellNode = rootShell, defaultShellNode(root)
 			}
 			windows := runsPowerShell(job, shell)
 			uses := usesByID(steps)
 			for _, step := range steps.Content {
-				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), uses: uses})
+				out = append(out, stepRef{step: step, container: mappingValue(job, "container") != nil, windows: windows || !bashLike(shell), shell: shell, shellNode: shellNode, uses: uses})
 			}
 		}
 	}
@@ -218,10 +227,15 @@ func runsPowerShell(job *yaml.Node, shell string) bool {
 }
 
 func defaultShell(node *yaml.Node) string {
-	if shell := mappingValue(mappingValue(mappingValue(node, "defaults"), "run"), "shell"); shell != nil {
+	if shell := defaultShellNode(node); shell != nil {
 		return shell.Value
 	}
 	return ""
+}
+
+// defaultShellNode answers the value of defaults.run.shell, or nil.
+func defaultShellNode(node *yaml.Node) *yaml.Node {
+	return mappingValue(mappingValue(mappingValue(node, "defaults"), "run"), "shell")
 }
 
 // bashLike reports whether a shell value runs a POSIX shell.
@@ -246,40 +260,11 @@ func readEnvStep(step *yaml.Node, container, windows bool, fileLines []string, s
 		return envStep{}, false
 	}
 	es := envStep{step: step, container: container, script: run.Value}
-	switch run.Style {
-	case yaml.LiteralStyle:
-		at, held := spans[run.Line]
-		if !held {
-			return envStep{}, false
-		}
-		script := strings.Split(strings.TrimSuffix(run.Value, "\n"), "\n")
-		if at.from+len(script) > len(fileLines) {
-			return envStep{}, false
-		}
-		for k, line := range script {
-			fileLine := fileLines[at.from+k]
-			if !strings.HasSuffix(fileLine, line) {
-				return envStep{}, false
-			}
-			es.lineNos = append(es.lineNos, at.from+k)
-			es.file = append(es.file, fileLine)
-			es.prefix = append(es.prefix, fileLine[:len(fileLine)-len(line)])
-		}
-	case 0:
-		if strings.Contains(run.Value, "\n") || run.Line-1 >= len(fileLines) {
-			return envStep{}, false
-		}
-		fileLine := fileLines[run.Line-1]
-		col := run.Column - 1
-		if col < 0 || col > len(fileLine) || strings.TrimRight(fileLine[col:], " \t") != run.Value {
-			return envStep{}, false
-		}
-		es.lineNos = []int{run.Line - 1}
-		es.file = []string{fileLine}
-		es.prefix = []string{fileLine[:col]}
-	default:
+	at, ok := scalarLines(run, fileLines, spans)
+	if !ok {
 		return envStep{}, false
 	}
+	es.lineNos, es.file, es.prefix = at.lineNos, at.file, at.prefix
 	parsed, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(es.script), "")
 	if err != nil {
 		return envStep{}, false

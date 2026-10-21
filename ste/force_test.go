@@ -29,6 +29,17 @@ func TestALongSentenceWithNoVerbRestatesANoun(t *testing.T) {
 	assert.Empty(t, sentenceLengths(ste.Fix(in)))
 }
 
+// A sentence where no cut leaves both parts reading as sentences still divides.
+// It came from an earlier repair that divided inside a parenthesis, in ts0's
+// build-prebuilt.ts, and fix left it standing.
+func TestASentenceNoGrammaticalCutReadsStillDivides(t *testing.T) {
+	in := "The generated bin/tsc driver above -- tsserver, the CLI rebuild, and the locale directories are never shipped), the whole @types/node package (so a Node-target project type-checks with no @types/node install of its own -- see nodeTypeRootsDir in commands/build.ts), and the fetch-interceptor template."
+	require.NotEmpty(t, sentenceLengths(in), "the control: the sentence is over the cap")
+	got := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(got), got)
+	assert.Contains(t, got, "(so a Node-target project type-checks with no @types/node install of its own -- see nodeTypeRootsDir in commands/build.ts)", got)
+}
+
 // A division never lands inside a code span, a quotation, a parenthesis or bold text.
 func TestAForcedDivisionKeepsEachSpanWhole(t *testing.T) {
 	spans := []string{"`a code span with several words in it`", "\"a quoted phrase with several words\"", "(an aside with several words)", "**bold words here**"}
@@ -141,6 +152,17 @@ func TestALongSentenceWithNoDivisionIsRepaired(t *testing.T) {
 	for _, s := range ste.Sentences(fixed) {
 		assert.LessOrEqual(t, ste.WordCount(s), ste.SentenceWordCap, fixed)
 	}
+}
+
+// A run of words that no division reads at all still divides, each part under
+// the cap, in one fix.
+func TestARunWithNoGrammarDividesUnderTheCap(t *testing.T) {
+	in := strings.TrimSpace(strings.Repeat("word ", 3*ste.SentenceWordCap+4)) + "."
+	require.NotEmpty(t, sentenceLengths(in), "the control: the sentence is over the cap")
+	fixed := ste.Fix(in)
+	assert.Empty(t, sentenceLengths(fixed), fixed)
+	assert.Equal(t, fixed, ste.Fix(fixed))
+	assert.Equal(t, strings.Count(in, "word"), strings.Count(strings.ToLower(fixed), "word"), "no word is dropped")
 }
 
 // The fallback is bounded: a sentence already under the cap is left as it is,

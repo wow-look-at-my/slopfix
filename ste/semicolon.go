@@ -177,7 +177,7 @@ func fixSemicolons(text string) string {
 			case strings.Contains(masked[span[0]:p], ":") && !strings.Contains(masked[p:span[1]], ":"):
 				// The list's conjunction goes with the semicolon: "This also covers or a subsystem" is no English.
 				end += len(leadingConjunction.FindString(text[end:]))
-				joins, openers = append(joins, []int{p, end}), append(openers, "This also covers")
+				joins, openers = append(joins, []int{p, end}), append(openers, listOpener(text, end, span[1]))
 			case end < span[1] && standsAsSentence(segmentAfter(text, end, span[1])):
 				joins, openers = append(joins, []int{p, end}), append(openers, "")
 			case end < span[1] && holdsFinite(segmentAfter(text, end, span[1])) && holdsFinite(masked[span[0]:p]):
@@ -203,6 +203,27 @@ func fixSemicolons(text string) string {
 		}
 	}
 	return breakWith(text, joins, openers)
+}
+
+// listOpener answers what opens the sentence an item of a list after a colon
+// becomes. An item that is a clause of its own, with a verb in the present
+// tense, opens as it stands: "a repeated C reuses its triple".
+func listOpener(text string, from, end int) string {
+	if from >= end {
+		return "This also covers"
+	}
+	item := segmentAfter(text, from, end)
+	if presentClause(item) && standsAsSentence(capitalizeOpening(item)) || closesPredicate(item) {
+		return ""
+	}
+	return "This also covers"
+}
+
+// closesPredicate reports an item that ends on "too", which closes a verb's
+// predicate and never a noun phrase: "a resumed live tick match too".
+func closesPredicate(item string) bool {
+	fields := strings.Fields(strings.TrimRight(item, " .;"))
+	return len(fields) > 2 && strings.ToLower(fields[len(fields)-1]) == "too"
 }
 
 // leadingConjunction is the "and" or "or" that opens the last item of a list.
@@ -316,8 +337,8 @@ func standsAsSentence(text string) bool {
 		return true
 	}
 	s := syntax.Parse(checkMask(text), nil)
-	// A gerund subject the parser missed: "deciding whether X can learn anything needs Y".
-	if len(s.Words) > 0 && s.Words[0].Tag == "VBG" && finiteBefore(s, 1, ",") {
+	// A gerund subject or a participle phrase the parser missed: "left in the text a rewrite wraps it".
+	if len(s.Words) > 0 && (s.Words[0].Tag == "VBG" || s.Words[0].Tag == "VBN" || s.Words[0].Tag == "VBD") && finiteBefore(s, 1, ",") {
 		return true
 	}
 	if !opensDependent(s) {

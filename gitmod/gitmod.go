@@ -8,19 +8,16 @@
 package gitmod
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/gitread"
 )
-
-// gitlinkMode is the index mode git gives a submodule entry.
-const gitlinkMode = "160000"
 
 // Skip returns the submodule directories that contain target, each spelled the
 // way Resolved spells a path. A caller tests a directory of its own against
@@ -28,11 +25,18 @@ const gitlinkMode = "160000"
 func Skip(target string) (set.Set[string], error) {
 	empty := set.New[string]()
 
-	root, ok := topLevel(target)
-	if !ok {
+	dir := target
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		dir = filepath.Dir(dir)
+	}
+	repo, err := gitread.OpenWorkTree(dir)
+	if err != nil {
+		return empty, err
+	}
+	if repo == nil {
 		return empty, nil
 	}
-	root = Resolved(root)
+	root := Resolved(repo.WorkTree())
 	declared, ok := declaredPaths(root)
 	if !ok {
 		return empty, nil
@@ -40,7 +44,7 @@ func Skip(target string) (set.Set[string], error) {
 
 	out := set.New[string]()
 	for _, path := range declared {
-		if err := verify(root, path); err != nil {
+		if err := verify(repo, path); err != nil {
 			return empty, err
 		}
 		out.Add(filepath.Join(root, filepath.FromSlash(path)))
@@ -65,16 +69,16 @@ func Resolved(path string) string {
 // verify requires the declared path to be a gitlink in the index. A directory
 // holding this repository's own source cannot become a gitlink without
 // replacing that source with a commit pointer.
-func verify(root, path string) error {
+func verify(repo *gitread.Repo, path string) error {
 	if path == "" || path == "." || filepath.IsAbs(path) ||
 		path != filepath.ToSlash(filepath.Clean(path)) || strings.HasPrefix(path, "../") {
 		return fmt.Errorf(".gitmodules names %q, which is not a path inside this repository", path)
 	}
-	staged, ok := git(root, "ls-files", "--stage", "--", path)
-	if !ok {
-		return fmt.Errorf("cannot read the index entry for the submodule %q", path)
+	idx, err := repo.Index()
+	if err != nil {
+		return fmt.Errorf("cannot read the index entry for the submodule %q: %w", path, err)
 	}
-	if !strings.HasPrefix(strings.TrimSpace(staged), gitlinkMode+" ") {
+	if entry, ok := idx.Tracked()[path]; !ok || !entry.IsGitlink() {
 		return fmt.Errorf(".gitmodules names %q as a submodule, but the index has no gitlink there."+
 			" A submodule carries its own CI, so its files are the only ones this skips;"+
 			" an entry that is not one would exempt this repository's own source", path)
@@ -84,41 +88,34 @@ func verify(root, path string) error {
 
 // declaredPaths reads the path of every submodule .gitmodules registers.
 func declaredPaths(root string) ([]string, bool) {
-	if _, err := os.Stat(filepath.Join(root, ".gitmodules")); err != nil {
-		return nil, false
-	}
-	out, ok := git(root, "config", "--file", ".gitmodules", "--get-regexp", `^submodule\..*\.path$`)
-	if !ok {
+	file := filepath.Join(root, ".gitmodules")
+	if _, err := os.Stat(file); err != nil {
 		return nil, false
 	}
 	var paths []string
-	for _, line := range strings.Split(out, "\n") {
-		_, value, found := strings.Cut(strings.TrimSpace(line), " ")
-		if !found {
+	for key, value := range gitread.ConfigFile(file) {
+		if !strings.HasPrefix(key, "submodule.") || !strings.HasSuffix(key, ".path") {
 			continue
 		}
 		if value = strings.TrimRight(strings.TrimSpace(value), "/"); value != "" {
 			paths = append(paths, value)
 		}
 	}
+	sort.Strings(paths)
 	return paths, true
 }
 
-// topLevel resolves the work tree holding target.
-func topLevel(target string) (string, bool) {
-	dir := target
-	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
-		dir = filepath.Dir(dir)
-	}
-	out, ok := git(dir, "rev-parse", "--show-toplevel")
+// TopLevel resolves the work tree holding target, absolute and free of symlinks.
+func TopLevel(target string) (string, bool) {
+	root, ok := gitread.TopLevel(target)
 	if !ok {
 		return "", false
 	}
-	root, err := Resolve(strings.TrimSpace(out))
+	resolved, err := Resolve(root)
 	if err != nil {
 		return "", false
 	}
-	return root, true
+	return resolved, true
 }
 
 // Resolve returns path absolute and free of symlinks, so both sides of a
@@ -134,35 +131,7 @@ func Resolve(path string) (string, error) {
 // Command is a git read in the work tree slopfix judges. It trusts that tree
 // whatever user owns it. A CI container checks out as another user.
 func Command(dir string, args ...string) *exec.Cmd {
-	return CommandContext(context.Background(), dir, args...)
-}
-
-// CommandContext is Command with a deadline.
-func CommandContext(ctx context.Context, dir string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-c", "safe.directory=*"}, args...)...)
+	cmd := exec.Command("git", append([]string{"-c", "safe.directory=*"}, args...)...)
 	cmd.Dir = dir
 	return cmd
-}
-
-// Unexpected answers why a git read failed, or "" when the cause is only that
-// the path is outside a work tree. A caller reports a reason it gets back,
-// because the read it lost turns a skip off.
-func Unexpected(err error) string {
-	var exit *exec.ExitError
-	if !errors.As(err, &exit) {
-		return err.Error()
-	}
-	reason := strings.TrimSpace(string(exit.Stderr))
-	if strings.Contains(reason, "not a git repository") {
-		return ""
-	}
-	return reason
-}
-
-func git(dir string, args ...string) (string, bool) {
-	out, err := Command(dir, args...).Output()
-	if err != nil {
-		return "", false
-	}
-	return string(out), true
 }

@@ -51,6 +51,12 @@ func IDsFor(rule Rule) set.Set[string] {
 	return ruleIDsIn(rule)
 }
 
+// categoryOf answers the category an ID names before its slash.
+func categoryOf(id string) Rule {
+	category, _, _ := strings.Cut(id, "/")
+	return Rule(category)
+}
+
 // Request is a piece of text put to Fix. Path decides the comment syntax, and
 // an empty Rules means AllRules.
 type Request struct {
@@ -67,6 +73,8 @@ type Request struct {
 	Owned *forkscope.Scope `json:"-"`
 	// Fork names the lines a fork wrote across a tree run. A file it holds no line of is neither read nor written.
 	Fork *forkscope.Lines `json:"-"`
+	// Refs answers the branch-pin lookups. With none, a run asks the GitHub API.
+	Refs workflow.Refs `json:"-"`
 	// OneFile marks a caller that writes Content's file and no other, such as a hook. A repair that needs a new file then leaves the text as it stands.
 	OneFile bool `json:"-"`
 }
@@ -249,6 +257,10 @@ func fixText(req Request) Repair {
 	}
 
 	text := f.Text()
+	var pinFindings []ste.Finding
+	if kind == fixer.Workflow && wants(RuleWorkflow) && keeps(workflow.IDBranchPin) {
+		text, pinFindings = pinsInText(req, text)
+	}
 	rep := f.Report()
 	repair := Repair{Text: text, Changed: text != req.Content, Removed: rep.Removed, Rewrites: rep.Rewrites, Scope: f.Scope()}
 	repair.refuse(rep.Refused)
@@ -286,6 +298,7 @@ func fixText(req Request) Repair {
 				repair.Findings = append(repair.Findings, finding)
 			}
 		}
+		repair.Findings = append(repair.Findings, pinFindings...)
 	case fixer.Source:
 		// Source keeps its own text for the prose rules, because a comma splice
 		// inside a code line is not a sentence.
@@ -314,11 +327,9 @@ func fixText(req Request) Repair {
 		if wants(RuleCounts) && keeps(counts.IDSection) {
 			repair.Findings = append(repair.Findings, counts.SectionFindings(req.Path, text)...)
 		}
-		if wants(RuleSTE) || wants(RuleEnglish) {
-			for _, finding := range Check(text) {
-				if keeps(finding.ID) {
-					repair.Findings = append(repair.Findings, finding)
-				}
+		for _, finding := range Check(text) {
+			if wants(categoryOf(finding.ID)) && keeps(finding.ID) {
+				repair.Findings = append(repair.Findings, finding)
 			}
 		}
 	}
@@ -420,22 +431,19 @@ func init() {
 		Place:    30,
 		Repair: func(f *fixer.File) {
 			defer trace.Phase("fix/wrap-and-ste")()
-			stePass := f.Wants(string(RuleSTE))
-			englishPass := f.Wants(string(RuleEnglish)) && f.Keeps(english.IDCommaNever)
+			// A rule runs when the caller wants its category and keeps its ID.
+			selected := func(id string) bool { return f.Wants(string(categoryOf(id))) && f.Keeps(id) }
 			word := func(text string) string {
-				if englishPass {
+				if selected(english.IDCommaNever) {
 					text = english.FixCommaNever(text)
 				}
-				if stePass {
-					// A paragraph divides as a block, below, so a list item keeps its parts.
-					text = ste.FixSelected(text, func(id string) bool { return id != ste.IDParagraphLength && f.Keeps(id) })
-				}
-				return text
+				// A paragraph divides as a block, below, so a list item keeps its parts.
+				return ste.FixSelected(text, func(id string) bool { return id != ste.IDParagraphLength && selected(id) })
 			}
 			if _, safe := Format(f.Text()); safe {
 				f.Apply(markdown.FormatEdits(f.Text(), word))
 			}
-			if stePass && f.Keeps(ste.IDParagraphLength) {
+			if selected(ste.IDParagraphLength) {
 				f.Apply(paragraphEdits(f.Text()))
 			}
 		},

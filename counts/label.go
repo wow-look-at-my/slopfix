@@ -37,6 +37,14 @@ func LabelAt(content string, start int, consts Constants) (edit.Edit, bool) {
 	}
 	line := content[from:to]
 	if cardinal.NamesAnItem(line, start-from) {
+		if digits == "0" {
+			if e, ok := countedEdit(content, from, line, start-from); ok {
+				return e, true
+			}
+		}
+		if e, ok := measureEdit(content, start, line, start-from, digits); ok {
+			return e, true
+		}
 		return itemEdit(content, from, line, start-from, digits)
 	}
 	if prep, ok := cardinal.APoint(line, start-from); ok {
@@ -65,7 +73,15 @@ func itemEdit(content string, from int, line string, at int, digits string) (edi
 		start = from + words[i-2].Start
 	}
 	name := resolveItem(content, noun, digits)
-	if name == "" {
+	switch {
+	case name != "":
+	case value(digits) == 0:
+		// Index zero is the first item, and the possessive before it already determines it: "the pack's first chunk".
+		name = "the first " + lowerNoun(noun)
+		if i >= 2 && !determined && possessive(words[i-2]) {
+			name = "first " + lowerNoun(noun)
+		}
+	default:
 		name = genericItem(noun, value(digits))
 	}
 	text := name
@@ -95,13 +111,25 @@ func verbBefore(words []syntax.Word, i int) bool {
 
 // genericItem names an item with no words of its own: "one id", "a later branch".
 func genericItem(noun string, n int) string {
-	if !isUpper(noun) {
-		noun = strings.ToLower(noun)
-	}
+	noun = lowerNoun(noun)
 	if n <= 1 {
 		return "one " + noun
 	}
 	return "a later " + noun
+}
+
+// lowerNoun writes a noun in lower case, unless it is written in capitals.
+func lowerNoun(noun string) string {
+	if isUpper(noun) {
+		return noun
+	}
+	return strings.ToLower(noun)
+}
+
+// possessive reports a word that determines the noun after it: "its", "the pack's".
+func possessive(w syntax.Word) bool {
+	lower := w.Lower()
+	return w.Tag == "PRP$" || w.Tag == "POS" || strings.HasSuffix(lower, "'s") || strings.HasSuffix(lower, "s'")
 }
 
 // resolveItem answers the words the text gives an item elsewhere, or "". It
