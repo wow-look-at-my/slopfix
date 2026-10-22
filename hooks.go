@@ -65,7 +65,7 @@ var hooks = []Hook{
 		Event:   "build",
 		Runs:    "slopfix check .",
 		Summary: "what a comment gets wrong, in any language the adapter knows",
-		Only:    []string{IDCommentNumber, commentfix.IDTail, commentfix.IDLength, ste.IDSentenceCap},
+		Only:    []string{IDCommentNumber, commentfix.IDTail, commentfix.IDHeader, commentfix.IDLength, ste.IDSentenceCap},
 	},
 	{
 		Name:    "ci check",

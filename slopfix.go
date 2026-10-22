@@ -147,6 +147,16 @@ func commentFindings(path, content string) []ste.Finding {
 			Fix:    "Finish the sentence, or let the repair close it. `slopfix fix` does this.",
 		})
 	}
+	for _, hit := range commentfix.CheckHeader(path, content) {
+		out = append(out, ste.Finding{
+			Line:     hit.Line,
+			ID:       commentfix.IDHeader,
+			Rule:     "the file opens with no header comment",
+			Detail:   hit.Sentence,
+			Fix:      "Open the file with a line that says what it is. `slopfix fix` copies this sentence to the top.",
+			Severity: ste.SeverityWarning,
+		})
+	}
 	return append(out, sentenceFindings(path, content)...)
 }
 
@@ -193,7 +203,7 @@ func isDocument(path string) bool {
 // before it selects nothing and reads as a clean file.
 func AllIDs() set.Set[string] {
 	ids := workflow.AllIDs.Union(ste.AllIDs).Union(pins.AllIDs).Union(goembed.AllIDs)
-	ids.AddRange(IDHardWrap, IDLongBlock, commentfix.IDLength, commentfix.ID, commentfix.IDTail)
+	ids.AddRange(IDHardWrap, IDLongBlock, commentfix.IDLength, commentfix.ID, commentfix.IDTail, commentfix.IDHeader)
 	ids.AddRange(english.AllIDs...)
 	return ids
 }
