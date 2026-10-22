@@ -9,6 +9,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/memo"
 	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/syntax"
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // danglingSpace matches the space a deletion leaves before punctuation that CLOSES something. A period with a word
@@ -59,9 +60,9 @@ func fixN(s, surface string) (string, int) {
 	n := 0
 	// Each entry reads the lower-case text, which changes only when an entry rewrites s.
 	lower := strings.ToLower(s)
-	swap := func(word, with string) {
+	swap := func(word, with string, sensitive bool) {
 		var took int
-		s, took = replaceWordLower(s, lower, word, with)
+		s, took = replaceWord(s, lower, word, with, sensitive)
 		if took > 0 {
 			n += took
 			lower = strings.ToLower(s)
@@ -71,12 +72,12 @@ func fixN(s, surface string) (string, int) {
 	// its middle to a <drop> and stop matching as a phrase at all.
 	for _, r := range Rewrites() {
 		if AppliesTo(r.Where, surface) {
-			swap(r.From, r.To)
+			swap(r.From, r.To, r.Sensitive)
 		}
 	}
 	for _, d := range Drops() {
 		if AppliesTo(d.Where, surface) {
-			swap(d.Word, "")
+			swap(d.Word, "", d.Sensitive)
 		}
 	}
 	for _, sh := range Shapes() {
@@ -168,18 +169,24 @@ func hasFiniteVerb(sentence string) bool {
 // ReplaceWord swaps a whole word or phrase, case-insensitively, leaving a
 // longer word that merely contains it alone.
 func ReplaceWord(s, word, with string) string {
-	out, _ := replaceWordN(s, word, with)
+	out, _ := replaceWordN(s, word, with, false)
 	return out
 }
 
-func replaceWordN(s, word, with string) (string, int) {
-	return replaceWordLower(s, strings.ToLower(s), word, with)
+// replaceWordN swaps each whole-word occurrence of word. A sensitive entry
+// matches as written.
+func replaceWordN(s, word, with string, sensitive bool) (string, int) {
+	return replaceWord(s, strings.ToLower(s), word, with, sensitive)
 }
 
-// replaceWordLower is replaceWordN for a caller that holds strings.ToLower(s).
-// The spans are read only when the word occurs, because most entries do not.
-func replaceWordLower(s, lower, word, with string) (string, int) {
+// replaceWord is replaceWordN for a caller that holds strings.ToLower(s). A
+// sensitive entry reads s as written, so lower goes unread. The spans are read
+// only when the word occurs, because most entries do not.
+func replaceWord(s, lower, word, with string, sensitive bool) (string, int) {
 	target := strings.ToLower(word)
+	if sensitive {
+		lower, target = s, word
+	}
 	if !strings.Contains(lower, target) {
 		return s, 0
 	}
@@ -201,7 +208,7 @@ func replaceWordLower(s, lower, word, with string) (string, int) {
 			continue
 		}
 		b.WriteString(s[i:at])
-		b.WriteString(with)
+		b.WriteString(table.MatchCase(s[at:end], with))
 		took++
 		i = end
 	}
