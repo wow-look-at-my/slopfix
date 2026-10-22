@@ -1,5 +1,5 @@
 <?xml version="1.1" encoding="UTF-8"?>
-<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd">
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" case="sensitive">
 	<!-- Cross-cutting tests: compounds, redirects, pipes, passthrough -->
 	<test cmd="git status &amp;&amp; git diff" expect="allow"/>
 	<test cmd="git status &amp;&amp; python --version" expect="deny"/>
@@ -829,38 +829,9 @@
 		</requiredFlags>
 	</rule>
 
-	<!-- docker compose run (requires rm flag) -->
-	<rule name="docker" description="docker compose run --rm">
-		<rule name="compose">
-			<flagsWithValue>
-				<flag name="-f" />
-				<flag name="--file" />
-				<flag name="-p" />
-				<flag name="--project-name" />
-				<flag name="--env-file" />
-				<flag name="--profile" />
-				<flag name="--progress" />
-				<flag name="--ansi" />
-			</flagsWithValue>
-			<rule name="run">
-				<test cmd="docker compose run --rm myservice" expect="allow"/>
-				<test cmd="docker compose run --rm myservice bash" expect="allow"/>
-				<test cmd="docker compose -f docker-compose.yml run --rm myservice" expect="allow"/>
-				<test cmd="docker compose --file docker-compose.yml run --rm myservice" expect="allow"/>
-				<test cmd="docker compose -f compose.yml -p myproject run --rm myservice" expect="allow"/>
-				<test cmd="docker compose -f compose.yml run myservice --rm" expect="allow"/>
-				<test cmd="docker compose run myservice" expect=""/>
-				<test cmd="docker compose up" expect=""/>
-				<test cmd="docker compose down" expect=""/>
-				<requiredFlags>
-					<flag name="--rm" />
-				</requiredFlags>
-			</rule>
-		</rule>
-	</rule>
-
-	<!-- docker-compose run (requires rm flag) -->
-	<rule name="docker-compose" description="docker-compose run --rm">
+	<!-- docker-compose: run requires the rm flag, and the rest is read-only -->
+	<rule name="docker-compose" description="docker-compose run --rm, and readonly docker-compose">
+		<test cmd="docker-compose ps" expect="allow"/>
 		<flagsWithValue>
 			<flag name="-f" />
 			<flag name="--file" />
@@ -879,21 +850,6 @@
 				<flag name="--rm" />
 			</requiredFlags>
 		</rule>
-	</rule>
-
-	<!-- docker-compose readonly -->
-	<rule name="docker-compose" description="readonly docker-compose">
-		<test cmd="docker-compose ps" expect="allow"/>
-		<flagsWithValue>
-			<flag name="-f" />
-			<flag name="--file" />
-			<flag name="-p" />
-			<flag name="--project-name" />
-			<flag name="--env-file" />
-			<flag name="--profile" />
-			<flag name="--progress" />
-			<flag name="--ansi" />
-		</flagsWithValue>
 		<rule name="ls" allowedFlags="*"/>
 		<rule name="ps" allowedFlags="*"/>
 		<rule name="top" allowedFlags="*"/>
@@ -921,8 +877,8 @@
 		<rule name="holds" allowedFlags="*"/>
 	</rule>
 
-	<!-- docker readonly -->
-	<rule name="docker" description="readonly docker">
+	<!-- docker: compose run requires the rm flag, and the rest is read-only -->
+	<rule name="docker" description="docker compose run --rm, and readonly docker">
 		<rule name="inspect" allowedFlags="*"/>
 		<rule name="ps" allowedFlags="*"/>
 		<rule name="images" allowedFlags="*"/>
@@ -1030,6 +986,20 @@
 				<flag name="--progress" />
 				<flag name="--ansi" />
 			</flagsWithValue>
+			<rule name="run">
+				<test cmd="docker compose run --rm myservice" expect="allow"/>
+				<test cmd="docker compose run --rm myservice bash" expect="allow"/>
+				<test cmd="docker compose -f docker-compose.yml run --rm myservice" expect="allow"/>
+				<test cmd="docker compose --file docker-compose.yml run --rm myservice" expect="allow"/>
+				<test cmd="docker compose -f compose.yml -p myproject run --rm myservice" expect="allow"/>
+				<test cmd="docker compose -f compose.yml run myservice --rm" expect="allow"/>
+				<test cmd="docker compose run myservice" expect=""/>
+				<test cmd="docker compose up" expect=""/>
+				<test cmd="docker compose down" expect=""/>
+				<requiredFlags>
+					<flag name="--rm" />
+				</requiredFlags>
+			</rule>
 			<rule name="ls" allowedFlags="*"/>
 			<rule name="ps" allowedFlags="*"/>
 			<rule name="top" allowedFlags="*"/>

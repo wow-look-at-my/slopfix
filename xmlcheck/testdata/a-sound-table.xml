@@ -1,0 +1,5 @@
+<t>
+  <e word="alpha" level="low" where="a b"><test in="an alpha" out="a"/></e>
+  <e word="beta" probe="a beta" expect="b"/>
+  <test in="an alpha one" out="x"/>
+</t>
