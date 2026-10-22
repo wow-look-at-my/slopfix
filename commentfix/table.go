@@ -83,7 +83,7 @@ func rewordRun(prose string) (string, []Rejection) {
 		prose = next
 	}
 	for _, r := range numbersTable.Rewrites {
-		step(r.ID, replaceWord(prose, r.From, r.To))
+		step(r.ID, replaceWord(prose, r.From, r.To, r.Sensitive))
 	}
 	lex := numbersTable.Lexicon()
 	for _, e := range numbersTable.Rephrasings {
@@ -122,21 +122,24 @@ func isSpaceByte(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\v' || b == '\f'
 }
 
-// replaceWord swaps a whole word or phrase, case-insensitively, leaving a
-// longer word that merely contains it alone. The replacement takes the case of
-// what it stands in for.
-func replaceWord(s, word, with string) string {
-	lower := strings.ToLower(s)
-	target := strings.ToLower(word)
+// replaceWord swaps a whole word or phrase, leaving a longer word that merely
+// contains it alone. Case is ignored unless the entry is sensitive. The
+// replacement takes the case of what it stands in for.
+func replaceWord(s, word, with string, sensitive bool) string {
+	lower, target := strings.ToLower(s), strings.ToLower(word)
+	hay, needle := lower, target
+	if sensitive {
+		hay, needle = s, word
+	}
 	var b strings.Builder
 	for i := 0; i < len(s); {
-		j := strings.Index(lower[i:], target)
+		j := strings.Index(hay[i:], needle)
 		if j < 0 {
 			b.WriteString(s[i:])
 			break
 		}
 		at := i + j
-		end := at + len(target)
+		end := at + len(needle)
 		if !wordBoundary(s, at, end) || afterPartitive(lower, at, with) {
 			b.WriteString(s[i : at+1])
 			i = at + 1

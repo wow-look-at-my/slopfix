@@ -19,13 +19,19 @@ import (
 	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
+	"github.com/wow-look-at-my/slopfix/xmlcheck"
 )
 
 //go:embed english.xml
 var englishXML []byte
 
+//go:embed english.xsd
+var schema []byte
+
 // Table mirrors english.xml.
 type Table struct {
+	// Case is the case rule of the file: "sensitive", or "insensitive" for the default.
+	Case     string    `xml:"case,attr"`
 	Classes  []Class   `xml:"class"`
 	Drops    []Drop    `xml:"drop"`
 	Rewrites []Rewrite `xml:"rewrite"`
@@ -72,7 +78,11 @@ type Flag struct {
 	Phrase string `xml:"phrase,attr"`
 	Say    string `xml:"say,attr"`
 	Test   string `xml:"test,attr"`
+	Case   string `xml:"case,attr"`
 	Cases  []Case `xml:"test"`
+
+	// Sensitive makes the phrase match as written.
+	Sensitive bool
 }
 
 // Flags is every phrase the table names without rewriting.
@@ -86,7 +96,7 @@ func Flagged(line string) []Flag {
 	lower := strings.ToLower(line)
 	var out []Flag
 	for _, f := range Flags() {
-		if ContainsWord(lower, strings.ToLower(f.Phrase)) {
+		if f.Sensitive && ContainsWord(line, f.Phrase) || !f.Sensitive && ContainsWord(lower, strings.ToLower(f.Phrase)) {
 			out = append(out, f)
 		}
 	}
@@ -107,6 +117,10 @@ type Pattern struct {
 
 	// Subject names where the clause's subject stands, and empty asks nothing.
 	Subject string `xml:"subject,attr"`
+
+	Case string `xml:"case,attr"`
+	// Sensitive makes the match case-sensitive.
+	Sensitive bool
 
 	re *regexp.Regexp
 	// needs holds literals, folded, of which every match holds one. Nil means none are known.
@@ -337,6 +351,7 @@ type Shape struct {
 	Test    string `xml:"test,attr"`
 	Expect  string `xml:"expect,attr"`
 	ID      string `xml:"id,attr"`
+	Case    string `xml:"case,attr"`
 	Cases   []Case `xml:"test"`
 
 	terms table.Match
@@ -373,7 +388,11 @@ type Drop struct {
 	Word  string `xml:"word,attr"`
 	Where string `xml:"where,attr"`
 	Test  string `xml:"test,attr"`
+	Case  string `xml:"case,attr"`
 	Cases []Case `xml:"test"`
+
+	// Sensitive makes the word match as written.
+	Sensitive bool
 }
 
 type Rewrite struct {
@@ -381,7 +400,11 @@ type Rewrite struct {
 	To    string `xml:"to,attr"`
 	Where string `xml:"where,attr"`
 	Test  string `xml:"test,attr"`
+	Case  string `xml:"case,attr"`
 	Cases []Case `xml:"test"`
+
+	// Sensitive makes the phrase match as written.
+	Sensitive bool
 }
 
 // AppliesTo says whether an entry covers a surface.
@@ -393,9 +416,30 @@ func AppliesTo(where, surface string) bool {
 var loaded = mustLoad()
 
 func mustLoad() Table {
+	if err := xmlcheck.Run(Spec(), xmlcheck.File{Name: "english/english.xml", Raw: englishXML}); err != nil {
+		panic(fmt.Sprintf("english: %v", err))
+	}
 	var e Table
 	if err := xml.Unmarshal(table.Readable(englishXML), &e); err != nil {
 		panic(fmt.Sprintf("english: english.xml does not parse: %v", err))
+	}
+	sensitive := func(entry string) bool {
+		if entry != "" {
+			return entry == xmlcheck.CaseSensitive
+		}
+		return e.Case == xmlcheck.CaseSensitive
+	}
+	for i := range e.Drops {
+		e.Drops[i].Sensitive = sensitive(e.Drops[i].Case)
+	}
+	for i := range e.Rewrites {
+		e.Rewrites[i].Sensitive = sensitive(e.Rewrites[i].Case)
+	}
+	for i := range e.Flags {
+		e.Flags[i].Sensitive = sensitive(e.Flags[i].Case)
+	}
+	for i := range e.Patterns {
+		e.Patterns[i].Sensitive = sensitive(e.Patterns[i].Case)
 	}
 	if len(e.Drops) == 0 || len(e.Rewrites) == 0 {
 		panic("english: english.xml carries no drops or no rewrites")
@@ -424,6 +468,7 @@ func mustLoad() Table {
 		if err != nil {
 			panic(fmt.Sprintf("english: <shape match=%q> does not parse: %v", s.Match, err))
 		}
+		terms.Sensitive = sensitive(s.Case)
 		s.terms = terms
 	}
 	for i := range e.Patterns {
@@ -440,7 +485,7 @@ func mustLoad() Table {
 			panic(fmt.Sprintf("english: <pattern match=%q> names the subject position %q, which is not one of %v",
 				p.Match, p.Subject, SubjectPositions()))
 		}
-		re, err := precompiled.Compile(p.Match)
+		re, err := precompiled.Compile(xmlcheck.Pattern(p.Match, p.Sensitive))
 		if err != nil {
 			panic(fmt.Sprintf("english: <pattern match=%q> does not compile: %v", p.Match, err))
 		}

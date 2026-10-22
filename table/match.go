@@ -12,6 +12,8 @@ type Term struct {
 	Also []string
 	// Word is the literal a term matches, lowercased.
 	Word string
+	// Spelled is the literal as the match wrote it.
+	Spelled string
 	// Name is what the replacement calls this term's text.
 	Name string
 	// Many lets the term match any number of words, including none.
@@ -21,6 +23,8 @@ type Term struct {
 // A Match is a parsed match string.
 type Match struct {
 	Terms []Term
+	// Sensitive makes a literal term compare as written. A class always ignores case.
+	Sensitive bool
 }
 
 // ParseMatch reads a match string. Its error reaches the generate step, so a
@@ -45,7 +49,7 @@ func ParseMatch(s string) (Match, error) {
 func parseTerm(field string) (Term, error) {
 	body, braced := strings.CutPrefix(field, "{")
 	if !braced {
-		return Term{Word: strings.ToLower(field)}, nil
+		return Term{Word: strings.ToLower(field), Spelled: field}, nil
 	}
 	body, closed := strings.CutSuffix(body, "}")
 	if !closed || body == "" {
@@ -83,11 +87,15 @@ func (m Match) Classes() []string {
 // name it lowercases is a name that does not exist.
 func (m Match) find(lex *Lexicon, tokens, written []string, i int) (end int, caught map[string]string, ok bool) {
 	caught = map[string]string{}
+	compared := tokens
+	if m.Sensitive {
+		compared = written
+	}
 	at := i
 	for _, term := range m.Terms {
 		if term.Many {
 			start := at
-			for at < len(tokens) && term.fits(lex, tokens[at]) {
+			for at < len(tokens) && term.fits(lex, compared[at], m.Sensitive) {
 				at++
 			}
 			if term.Name != "" {
@@ -95,7 +103,7 @@ func (m Match) find(lex *Lexicon, tokens, written []string, i int) (end int, cau
 			}
 			continue
 		}
-		if at >= len(tokens) || !term.fits(lex, tokens[at]) {
+		if at >= len(tokens) || !term.fits(lex, compared[at], m.Sensitive) {
 			return 0, nil, false
 		}
 		if term.Name != "" {
@@ -107,8 +115,11 @@ func (m Match) find(lex *Lexicon, tokens, written []string, i int) (end int, cau
 }
 
 // fits reports whether a word satisfies a term.
-func (t Term) fits(lex *Lexicon, word string) bool {
+func (t Term) fits(lex *Lexicon, word string, exact bool) bool {
 	if len(t.Classes) == 0 {
+		if exact {
+			return t.Spelled == word
+		}
 		return strings.EqualFold(t.Word, word)
 	}
 	for _, class := range t.Also {
