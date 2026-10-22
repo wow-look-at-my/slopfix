@@ -38,7 +38,7 @@ type SentenceHit struct {
 	Sentence string
 	// Tell says the cap and the count, as the document rule says them.
 	Tell string
-	// Fix is the finding's remedy. ste.ByHand reports one no repair writes.
+	// Fix is the finding's remedy.
 	Fix string
 }
 

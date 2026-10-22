@@ -8,7 +8,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
-// Each sentence came out of this tree over the cap, with the repair asking for a rewrite by hand.
+// Each sentence is a real sentence from this tree, over the cap.
 var leftovers = []string{
 	"It goes only where an EARLIER entry in the same list already sent stdout to /dev/null, so the reversed spelling, which sends stderr to the terminal, is left alone.",
 	"Asking the model to re-emit the message instead costs a round trip, and the message it writes to comply puts the decision back into prose while explaining itself.",

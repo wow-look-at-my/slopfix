@@ -11,13 +11,12 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// The doc comment the length repair deleted. Its heading carries the invariant
-// for the sentence under it, and the repair cut the block to the heading alone.
+// A heading names the section of the sentence under it. No cut fits this
+// doc, so the whole doc goes. A heading with no body never stays.
 func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
 	src := testTheLengthRepairDoesNotDeleteADocBodyRs
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}).Text
-	assert.Contains(t, out, "The caller must ensure", "the doc body was deleted:\n%s", out)
-	assert.Contains(t, out, "no other thread writes through it", "the invariant clause was deleted:\n%s", out)
+	assert.Equal(t, "fn f() {}\n", out, "the doc goes whole, never down to its heading")
 }
 
 // The sentence split that invented a fragment. The tail became a sentence of

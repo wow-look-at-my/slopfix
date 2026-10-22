@@ -151,10 +151,6 @@ func repairBlockComment(b block) ([]string, bool) {
 	if out := shape.render(kept); len(out) > 0 && fitsCode(out, b) {
 		return out, true
 	}
-	// No prose survives: the comment is a banner, and it goes.
-	if len(kept) == 0 {
-		return nil, true
-	}
-	// A cut between words leaves a fragment, so the comment stays for a rewrite by hand.
-	return nil, false
+	// No cut fits, or no prose survives. A cut between words leaves a fragment, so the whole comment goes.
+	return nil, true
 }

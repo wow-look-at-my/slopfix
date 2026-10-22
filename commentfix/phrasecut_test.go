@@ -1,6 +1,7 @@
 package commentfix
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,19 +15,16 @@ const unboundedSentence = "package p\n\n" +
 	"// set index plus binding slot plus array element offset plus sampler identity hash value.\n" +
 	"func cacheKeyFor() int { return 0 }\n"
 
-// fitsOrStays asserts both outcomes a length repair may have. The block fits
-// and keeps want, or no cut fits, the block stays as written, and no finding
-// names it.
-func fitsOrStays(t *testing.T, src, want string) {
+// fitsOrGoes asserts both outcomes a length repair may have. The block fits
+// and keeps want, or no cut fits and the whole comment goes.
+func fitsOrGoes(t *testing.T, src, want string) {
 	t.Helper()
-	hits := CheckLength("p.go", src)
+	require.NotEmpty(t, CheckLength("p.go", src), "the fixture must be a finding")
 	out, _ := FixLength("p.go", src)
-	if len(hits) == 0 {
-		assert.Equal(t, src, out, "a block no cut fits keeps its prose")
-		return
-	}
 	assert.Empty(t, CheckLength("p.go", out))
-	assert.Contains(t, out, want, "the cut keeps the claim:\n%s", out)
+	if !strings.Contains(out, want) {
+		assert.NotContains(t, out, "\t//", "a block no cut fits goes whole:\n%s", out)
+	}
 }
 
 // A cut before an aside keeps the claim the aside explains. A cut before
@@ -72,18 +70,18 @@ func TestACutMayUseOneLongLine(t *testing.T) {
 		"\t// for a real compile (via SetCompiledRegisters), and false when they are\n" +
 		"\t// re-derived from the disassembly.\n" +
 		"\tRegistersFromCompiler bool\n}\n"
-	fitsOrStays(t, src, "are the compiler-authoritative figures")
+	fitsOrGoes(t, src, "are the compiler-authoritative figures")
 }
 
 // The cut never stops between words, so a sentence no boundary divides either
-// fits or stays for a rewrite by hand.
+// fits or goes whole.
 func TestNoCutStopsBetweenWords(t *testing.T) {
 	src := "package p\n\ntype C struct {\n" +
 		"\t// Progress, when set, is called by the sampler every progressTick with the\n" +
 		"\t// current series' sample count and confidence interval. RunAll installs a\n" +
 		"\t// live-line printer; tests leave it nil.\n" +
 		"\tProgress func(samples int, rmePct, targetRMEPct float64)\n}\n"
-	fitsOrStays(t, src, "// Progress, when set, is called by the sampler")
+	fitsOrGoes(t, src, "// Progress, when set, is called by the sampler")
 }
 
 // A comment over a literal element with a trailing comment is weighed against
