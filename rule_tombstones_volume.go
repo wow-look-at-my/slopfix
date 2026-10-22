@@ -30,7 +30,7 @@ func autofixVolume(c RuleCase) RuleCase {
 // volumeCase is a comment run longer than the default cap, above code longer
 // than the comment. The run outweighs no code and only the cap reads it.
 func volumeCase() string {
-	out := "package main\n\n"
+	out := fixtureHeader + "package main\n\n"
 	for range tombstones.DefaultMaxCommentLines + 2 {
 		out += "// The loop reads each value from the input and adds it to the running total.\n"
 	}

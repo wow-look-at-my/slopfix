@@ -14,7 +14,7 @@ import (
 // alone never cuts it. The fix still brings it under the cap.
 func TestFixCutsABlockBackUnderTheVolumeCap(t *testing.T) {
 	var src strings.Builder
-	src.WriteString("package p\n\n")
+	src.WriteString("// Package p runs the queue.\npackage p\n\n")
 	for range 20 {
 		src.WriteString("// Run reads the queue and writes each entry out, then it waits for the next one to come in.\n")
 	}
@@ -32,7 +32,8 @@ func TestFixCutsABlockBackUnderTheVolumeCap(t *testing.T) {
 			comments++
 		}
 	}
-	assert.LessOrEqual(t, comments, tombstones.DefaultMaxCommentLines, repair.Text)
+	// The package doc is a line of its own, outside the block.
+	assert.LessOrEqual(t, comments, tombstones.DefaultMaxCommentLines+1, repair.Text)
 	assert.Contains(t, repair.Text, "func Run() {\n\tstep(theFirstArgumentOfTheCall", "the code is untouched")
 }
 

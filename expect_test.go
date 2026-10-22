@@ -31,6 +31,7 @@ func annotated(lines ...[2]string) string {
 // quote opened and never closed. It now cuts at the last clause that fits.
 func gitlinks(want string) string {
 	return annotated(
+		[2]string{"// Package codehost reads where a module came from.", "-"},
 		[2]string{"package codehost", "-"},
 		[2]string{"", "-"},
 		[2]string{"type Origin struct {", "-"},

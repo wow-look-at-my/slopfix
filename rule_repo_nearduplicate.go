@@ -10,7 +10,7 @@ import (
 // repair deletes the duplicated functions or classes from the later copy and
 // keeps whatever that copy alone holds, so the file itself stays.
 func init() {
-	head := "package tool\n\n"
+	head := fixtureHeader + "package tool\n\n"
 	unique := "// Only answers the value nothing else answers.\n" +
 		"func Only() int {\n" +
 		"\treturn 2\n" +

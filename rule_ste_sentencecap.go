@@ -24,12 +24,12 @@ func init() {
 				Text: "A sentence wraps across the lines of one replacement, so they come back together: a line fix wrote beside a line the edit wrote reads as neither.\n",
 				Want: "A sentence wraps across the lines of one replacement, so they come back together. A line fix wrote beside a line the edit wrote reads as neither.\n",
 			},
-			{Name: "a carrier never opens on a conjunction", Path: "governor.cpp", Text: carrierConjunctionCase, Want: carrierConjunctionWant},
-			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: variableOpensCase, Want: variableOpensWant},
-			{Name: "a rule around comment prose stays at the edges", Path: "governor.cpp", Text: ruledCommentCase, Want: ruledCommentWant},
+			{Name: "a carrier never opens on a conjunction", Path: "governor.cpp", Text: fixtureHeader + carrierConjunctionCase, Want: fixtureHeader + carrierConjunctionWant},
+			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: fixtureHeader + variableOpensCase, Want: fixtureHeader + variableOpensWant},
+			{Name: "a rule around comment prose stays at the edges", Path: "governor.cpp", Text: fixtureHeader + ruledCommentCase, Want: fixtureHeader + ruledCommentWant},
 			{Name: "the objects of a preposition stay joined", Path: "CMakeLists.txt", Text: coordinatedObjectsCase, Want: coordinatedObjectsWant},
-			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: mannerClauseCase, Want: mannerClauseWant},
-			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: verblessListCase, Want: verblessListWant},
+			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: fixtureHeader + mannerClauseCase, Want: fixtureHeader + mannerClauseWant},
+			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: fixtureHeader + verblessListCase, Want: fixtureHeader + verblessListWant},
 		},
 	})
 }

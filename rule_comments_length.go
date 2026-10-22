@@ -16,8 +16,8 @@ func init() {
 		Detect:   detectCommentLength,
 		Autofix:  autofixCommentLength,
 		Cases: []RuleCase{
-			{Name: commentfix.IDLength, Path: "main.go", Text: "package main\n\n" + overlongComment() + "func main() {}\n"},
-			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: identifierSentenceCase, Want: identifierSentenceWant},
+			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
+			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
 		},
 	})
 }
