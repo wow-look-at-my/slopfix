@@ -277,6 +277,16 @@ These are hook guards. `check --message` also runs `ask/prose-decision`, and `re
 
 `english/english.xml` also links an `owner/repo#N` reference in a message. That pattern cannot check existence. The `link-refs` guard thus stays the verified path.
 
+## xml tables: case and validation
+
+Every embedded XML table matches without regard to case unless the root or an entry says `case="sensitive"`. That covers `rules/*.xml`, `english/english.xml`, `autoallow/rules.xml` and `bashclean/grepjson.xml`. The nearest `case` on the way up from an entry decides, and `case="insensitive"` turns it back off. A rewrite takes the opening case of the text it replaces. `autoallow` and `grepjson` name shell words, flags and paths, so their schemas require a root that says `case="sensitive"`.
+
+The XSD beside each table owns its shape: elements, attributes, enumerations and non-blank required values. `wow-look-at-my/xml-validator` validates each file against it. The `xmlcheck` package runs that validation and then the semantic checks, and it holds no structural checker of its own. The embedded files are checked at package init, and a test loads every file through the same spec. A defect names its file and line.
+
+A table is refused for a repeated key, and for a repeated `<test>` input in one scope. Its own entry refuses it. It is refused when an earlier phrase always claims a later entry, and when a pattern does not compile or names a missing group. The semantic checks run only after every file passes its schema.
+
+Keys and inputs collide when they match without case, unless both entries are sensitive. Each spec sits beside its loader: `table.SpecFor`, `english.Spec`, `autoallow.Spec` and `bashclean.GrepJSONSpec`.
+
 ## auto-allow
 
 `auto-allow` approves read-only work and refuses a program this environment does not run. The table is `autoallow/rules.xml`, embedded and checked by `rules.xsd`. MCP trust is per SERVER, not per tool-name pattern.

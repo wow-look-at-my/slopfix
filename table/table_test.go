@@ -59,7 +59,7 @@ func TestABrokenListFailsTheLoad(t *testing.T) {
 
 	unnamed := `<?xml version="1.0" encoding="UTF-8"?><rules for="words"><list>a</list></rules>`
 	_, err = table.Load(folder(map[string]string{"a.xml": unnamed}), "words")
-	assert.ErrorContains(t, err, "no name")
+	assert.ErrorContains(t, err, `required attribute "name" is missing`)
 }
 
 // The folder is read in file name order. That is what lets a longer phrase in
