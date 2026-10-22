@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	yaml "go.yaml.in/yaml/v3"
 	"mvdan.cc/sh/v3/syntax"
 )
@@ -227,12 +228,12 @@ func yamlDoc(text, first string) bool {
 	switch root.Kind {
 	case yaml.MappingNode:
 		// A YAML mapping cannot repeat a key. Lines that repeat one prefix are text output.
-		seen := map[string]bool{}
+		seen := set.New[string]()
 		for idx := 0; idx < len(root.Content); idx += 2 {
-			if seen[root.Content[idx].Value] {
+			if seen.Contains(root.Content[idx].Value) {
 				return false
 			}
-			seen[root.Content[idx].Value] = true
+			seen.Add(root.Content[idx].Value)
 		}
 		return len(root.Content) >= 4 || (len(root.Content) == 2 && root.Content[1].Kind != yaml.ScalarNode && root.Content[1].Kind != yaml.AliasNode)
 	case yaml.SequenceNode:
