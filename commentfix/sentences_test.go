@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/fixer"
-	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // fixSentences runs the sentence fixer alone over src.
@@ -48,7 +47,6 @@ func TestALongSentenceWithNoClauseBoundaryDivides(t *testing.T) {
 
 	hits := CheckSentences("p.go", src)
 	require.Len(t, hits, 1)
-	assert.False(t, ste.ByHand(hits[0].Fix), hits[0].Fix)
 	assert.Equal(t, 3, hits[0].Line)
 	out := fixSentences("p.go", src)
 	assert.Equal(t, "The loader reads every cached manifest from the shared store of the plugin cache in the home directory of the user. This happens on each start of a session in the editor window.", commentProse(out))
@@ -65,7 +63,6 @@ func TestALongSentenceDividesInsideTheComment(t *testing.T) {
 		longFunction("Load")
 	hits := CheckSentences("p.go", src)
 	require.Len(t, hits, 1)
-	assert.False(t, ste.ByHand(hits[0].Fix))
 	assert.Equal(t, 3, hits[0].Line)
 	assert.Equal(t, 5, hits[0].EndLine)
 

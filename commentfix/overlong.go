@@ -8,8 +8,8 @@
 // treeblocks.go serves every grammar. Nothing here names a language.
 //
 // The repair cuts from the end, because a comment leads with its point. The
-// opening sentence is never cut: a block trimmed to nothing is a worse edit
-// than a block left long.
+// opening sentence stays whole. When no cut fits, the comment goes, because a
+// fragment is a worse edit than no comment.
 package commentfix
 
 import (
@@ -62,9 +62,8 @@ type block struct {
 	header bool
 }
 
-// Check reports every comment block in src that outweighs its code and that
-// the repair brings inside its budget. A block no cut fits keeps its opening
-// sentence whole, so no repair answers it and no finding names it.
+// CheckLength reports every comment block in src that outweighs its code. The
+// repair brings each inside its budget. A block no cut fits loses its prose.
 func CheckLength(filename, src string) []LengthHit {
 	defer trace.Phase("rule/comments-length")()
 	return slices.Clone(lengthHits.Get(fileKey{filename, src}, func() []LengthHit { return checkLength(filename, src) }))
@@ -278,11 +277,14 @@ func repairUncached(b block) []string {
 		return out
 	}
 	// The pragma stays. Its free text is the prose left to cut.
-	if bare := withoutPragmaProse(b.text); !sameText(bare, b.text) {
-		b.text = bare
-		return repairProse(b)
+	bare := withoutPragmaProse(b.text)
+	if !sameText(bare, b.text) {
+		if out := repairProse(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: bare, exact: b.exact, header: b.header}); fitsCode(out, b) {
+			return out
+		}
 	}
-	return out
+	// No cut fits without a fragment, so the prose goes and the directives stay.
+	return directivesOf(bare)
 }
 
 // repairProse rewrites a block's prose and puts its directive lines back verbatim.

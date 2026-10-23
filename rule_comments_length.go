@@ -20,6 +20,8 @@ func init() {
 		Cases: []RuleCase{
 			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
 			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
+			{Name: "a line comment no cut fits goes whole", Path: "f.rs", Text: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + "\nfn f() {}\n", Want: fixtureHeader + "fn f() {}\n"},
+			{Name: "a block comment no cut fits goes whole", Path: "f.c", Text: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + "\n */\nvoid f(void) {}\n", Want: fixtureHeader + "void f(void) {}\n"},
 		},
 	})
 }
@@ -29,6 +31,14 @@ var identifierSentenceCase string
 
 //go:embed testdata/identifier-sentence-want.cpp
 var identifierSentenceWant string
+
+// noCutHeading and noCutSentence make a doc that no cut fits. The sentence has
+// no clause boundary, and the heading and sentence together pass the word cap
+// of one sentence.
+const (
+	noCutHeading  = "# Safety of the raw pointer handoff to the worker pool"
+	noCutSentence = "The caller keeps the pointer valid for every read of the whole shared buffer during the entire call."
+)
 
 // detectCommentLength answers every overlong comment run this rule reports.
 func detectCommentLength(c RuleCase) []ste.Finding {

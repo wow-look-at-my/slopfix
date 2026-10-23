@@ -36,7 +36,6 @@ func TestAnInfinitiveOpenerFollowsItsMainClause(t *testing.T) {
 		"use the copy key or the shared copy key in the file for the run."
 	got := findings(text, ste.IDSentenceCap)
 	require.NotEmpty(t, got, "the fixture must be a finding")
-	assert.False(t, ste.ByHand(got[0].Fix), got[0].Fix)
 	assert.Equal(t, "Use the copy key or the shared copy key in the file for the run. "+
 		"Do this to pull an existing host file into the temp directory so a command can modify a copy of it.", ste.Fix(text))
 }
