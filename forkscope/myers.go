@@ -1,3 +1,5 @@
+// myers finds the lines a shortest edit script inserts.
+
 package forkscope
 
 // myers finds the lines a shortest edit script inserts.

@@ -1,3 +1,5 @@
+// Lines is the part of a fork's work tree that the fork wrote.
+
 package forkscope
 
 import (

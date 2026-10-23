@@ -1,3 +1,5 @@
+// Lang is a language a string can hold, and the extension of its file.
+
 package goembed
 
 import (

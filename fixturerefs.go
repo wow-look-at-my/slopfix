@@ -1,3 +1,5 @@
+// fixtureAPI is the GitHub API a rule case runs against.
+
 package slopfix
 
 import (

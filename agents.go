@@ -1,3 +1,5 @@
+// AgentsFile holds a repository's agent instructions.
+
 package slopfix
 
 import (

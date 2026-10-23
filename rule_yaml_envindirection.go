@@ -1,3 +1,5 @@
+// yaml/env-indirection: a step that sets an env var only to carry an expression into its run script.
+
 package slopfix
 
 import _ "embed"

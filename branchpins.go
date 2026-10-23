@@ -1,3 +1,5 @@
+// GitHubRefs answers workflow.Refs from the GitHub API, the way the fork scope reads it: GITHUB_API_URL.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// counts/stated-count: a stated count of items goes stale when somebody adds the item that makes it wrong.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

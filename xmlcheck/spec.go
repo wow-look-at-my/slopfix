@@ -1,3 +1,5 @@
+// A Key names an entry among its siblings.
+
 package xmlcheck
 
 // A Key names an entry among its siblings. Entries that produce the same key

@@ -1,3 +1,5 @@
+// EveryID names every rule the registry holds, the repository rules included.
+
 package slopfix
 
 import "github.com/wow-look-at-my/go-containers/set"

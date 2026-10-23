@@ -1,3 +1,5 @@
+// yaml/run-script-syntax: a run script the shell it runs in cannot parse.
+
 package slopfix
 
 import _ "embed"

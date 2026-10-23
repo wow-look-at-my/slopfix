@@ -1,3 +1,5 @@
+// yaml/push-tags: a push trigger that runs on a tag as well as on a branch.
+
 package slopfix
 
 import _ "embed"

@@ -1,3 +1,5 @@
+// declaredFixtureRefs are the repositories and refs the existing fixtures name in their workflows.
+
 package slopfix
 
 // declaredFixtureRefs are the repositories and refs the existing fixtures

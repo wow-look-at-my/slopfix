@@ -1,3 +1,5 @@
+// actionFile is the name, in the git common directory, of the action record.
+
 package forkscope
 
 import (

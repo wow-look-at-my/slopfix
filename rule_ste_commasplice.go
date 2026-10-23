@@ -1,3 +1,5 @@
+// english/comma-splice: a comma joins clauses that each stand alone.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

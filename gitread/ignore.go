@@ -1,3 +1,5 @@
+// Ignore answers whether git ignores a path, as git check-ignore does for an untracked path.
+
 package gitread
 
 import (

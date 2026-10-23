@@ -1,3 +1,5 @@
+// schema is rules.xsd, which every rules file is validated against.
+
 package table
 
 import (

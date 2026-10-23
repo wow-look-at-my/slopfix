@@ -1,3 +1,5 @@
+// yaml/test-in-workflow: a test written into a run: script.
+
 package slopfix
 
 import _ "embed"

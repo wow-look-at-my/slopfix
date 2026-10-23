@@ -1,3 +1,5 @@
+// isDirectiveLine reports a line a tool reads rather than a reader.
+
 package commentfix
 
 import (

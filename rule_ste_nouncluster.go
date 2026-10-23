@@ -1,3 +1,5 @@
+// ste/noun-cluster: more nouns stand together than a reader can hold apart.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

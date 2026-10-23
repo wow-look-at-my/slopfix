@@ -1,3 +1,5 @@
+// evaluateWrites runs the provenance analysis under a recover.
+
 package noworkloss
 
 import (

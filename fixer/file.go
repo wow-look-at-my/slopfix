@@ -1,3 +1,5 @@
+// Gate writes edits into text, answering what landed.
+
 package fixer
 
 import (

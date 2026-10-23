@@ -1,3 +1,5 @@
+// sed and awk are the filters that can write a file without being told to on the argv.
+
 package noworkloss
 
 import (

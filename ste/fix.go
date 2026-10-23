@@ -1,3 +1,5 @@
+// Fix applies the repair Check names, for every rule Check reports.
+
 package ste
 
 import (

@@ -1,3 +1,5 @@
+// Spec is what rules.xml is held to.
+
 package autoallow
 
 import (
