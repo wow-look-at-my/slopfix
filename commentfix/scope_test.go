@@ -38,7 +38,7 @@ func branched(t *testing.T) string {
 	run(t, root, "add", "-A")
 	run(t, root, "commit", "-q", "-m", "base")
 	run(t, root, "checkout", "-q", "-b", "feature")
-	require.NoError(t, os.WriteFile(filepath.Join(root, "new.go"), []byte("package m\n\n// It holds 4 keys.\nvar b int\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "new.go"), []byte("// The branch adds a key.\n\npackage m\n\n// It holds 4 keys.\nvar b int\n"), 0o644))
 	run(t, root, "add", "-A")
 	run(t, root, "commit", "-q", "-m", "change")
 	return root
