@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	yaml "go.yaml.in/yaml/v3"
 	"mvdan.cc/sh/v3/syntax"
 )
@@ -41,6 +42,8 @@ var (
 	dockerFrom      = regexp.MustCompile(`^FROM\s+\S+`)
 	dockerInstr     = regexp.MustCompile(`^(RUN|COPY|ADD|CMD|ENTRYPOINT|ENV|ARG|WORKDIR|USER|EXPOSE|LABEL|VOLUME)\s`)
 	cInclude        = regexp.MustCompile(`^#include\s*[<"]`)
+	goAsmText       = regexp.MustCompile(`^TEXT\s+\S*·\S*\(SB\)`)
+	goFuncHead      = regexp.MustCompile(`^\s*func\s+(\([^)]*\)\s*)?\w+\s*[\[(]`)
 	pyDef           = regexp.MustCompile(`^\s*(def|class)\s+\w+.*:\s*$`)
 	pyImport        = regexp.MustCompile(`^(import\s+\w+|from\s+[\w.]+\s+import\s)`)
 	jsLine          = regexp.MustCompile(`^\s*(function\s+\w*\s*\(|(const|let|var)\s+\w+\s*=|export\s+(default|function|const|class)\b|import\s.*\sfrom\s+['"]|import\s+['"])`)
@@ -101,6 +104,10 @@ func Classify(value string) (Lang, bool) {
 		}
 		return n
 	}
+	// Go assembly is a language of the Go toolchain. A .s file beside the package is assembled into it.
+	if counts(goAsmText) > 0 {
+		return Lang{}, false
+	}
 	switch {
 	case counts(cInclude) > 0:
 		return Lang{"C", ".c"}, true
@@ -110,7 +117,7 @@ func Classify(value string) (Lang, bool) {
 		return Lang{"JavaScript", ".js"}, true
 	case counts(rustFn) > 0:
 		return Lang{"Rust", ".rs"}, true
-	case counts(cFunc) > 0:
+	case counts(cFunc) > 0 && counts(goFuncHead) == 0:
 		return Lang{"C++", ".cpp"}, true
 	case counts(cssOpen) > 0 && counts(cssDecl) >= 2:
 		return Lang{"CSS", ".css"}, true
@@ -220,6 +227,14 @@ func yamlDoc(text, first string) bool {
 	root := doc.Content[0]
 	switch root.Kind {
 	case yaml.MappingNode:
+		// A YAML mapping cannot repeat a key. Lines that repeat one prefix are text output.
+		seen := set.New[string]()
+		for idx := 0; idx < len(root.Content); idx += 2 {
+			if seen.Contains(root.Content[idx].Value) {
+				return false
+			}
+			seen.Add(root.Content[idx].Value)
+		}
 		return len(root.Content) >= 4 || (len(root.Content) == 2 && root.Content[1].Kind != yaml.ScalarNode && root.Content[1].Kind != yaml.AliasNode)
 	case yaml.SequenceNode:
 		return len(root.Content) > 0 && root.Content[0].Kind == yaml.MappingNode
