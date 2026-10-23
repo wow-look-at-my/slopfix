@@ -1,5 +1,7 @@
 package forkscope
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"fmt"
