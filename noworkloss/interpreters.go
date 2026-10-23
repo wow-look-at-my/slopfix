@@ -1,3 +1,5 @@
+// An interpreter handed a script writes whatever the script says, and the script is not something this hook can resolve.
+
 package noworkloss
 
 import (

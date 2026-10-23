@@ -1,3 +1,5 @@
+// An alias hides a destructive verb behind a harmless name, so aliases are read from git rather than guessed.
+
 package noworkloss
 
 import (

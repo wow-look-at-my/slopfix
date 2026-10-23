@@ -1,3 +1,5 @@
+// go/foreign-source: a Go string that holds the source of another language.
+
 package slopfix
 
 import (

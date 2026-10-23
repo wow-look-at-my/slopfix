@@ -1,3 +1,5 @@
+// Attribute values, as git check-attr prints them.
+
 package gitread
 
 import (

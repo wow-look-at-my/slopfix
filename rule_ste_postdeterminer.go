@@ -1,3 +1,5 @@
+// counts/postdeterminer: a cardinal after a determiner, as in "all the rules".
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

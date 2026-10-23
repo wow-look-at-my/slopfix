@@ -1,3 +1,5 @@
+// The actor is the phrase after "by", and it must close the clause.
+
 package ste
 
 import (

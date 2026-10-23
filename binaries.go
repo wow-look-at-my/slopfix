@@ -1,3 +1,5 @@
+// IDBinary is a tracked file that starts with the magic number of an executable.
+
 package slopfix
 
 import (

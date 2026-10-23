@@ -56,6 +56,35 @@ func Apply(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Resul
 		})
 }
 
+// ApplyInsert writes edits that each insert whole lines of comment at a line
+// start. The code tree and the directive lines must stay as they were.
+func ApplyInsert(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Result {
+	language := languageFor(filename)
+	root, ok := ts.Node{}, false
+	if language != nil {
+		root, ok = parseWith(language, src)
+	}
+	if !ok {
+		out := edit.Unchanged(src, scope)
+		for _, e := range edits {
+			out.Refused = append(out.Refused, edit.Refused{Edit: e, Reason: "the source does not parse"})
+		}
+		return out
+	}
+	want := shape(root, src)
+	directives := directiveLines(filename, src)
+	return edit.Gate(src, edits, scope,
+		func(e edit.Edit) string {
+			if e.Start != e.End || (e.Start > 0 && src[e.Start-1] != '\n') || !strings.HasSuffix(e.Text, "\n") {
+				return "it does not insert whole lines"
+			}
+			return ""
+		},
+		func(text string) bool {
+			return sameShape(language, text, want) && slices.Equal(directiveLines(filename, text), directives)
+		})
+}
+
 // span is where a comment node sits.
 type span struct{ start, end int }
 

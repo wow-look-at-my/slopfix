@@ -1,3 +1,5 @@
+// admissible reports whether the left half of a clause division stands as a sentence.
+
 package ste
 
 import (

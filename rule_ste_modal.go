@@ -1,3 +1,5 @@
+// ste/modal: STE approves can, must and will, and bans the hedges that leave a reader unsure whether the instruction binds.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

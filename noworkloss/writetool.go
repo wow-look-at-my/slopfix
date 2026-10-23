@@ -1,3 +1,5 @@
+// The Write tool's own refusals.
+
 package noworkloss
 
 import (

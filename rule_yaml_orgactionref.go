@@ -1,3 +1,5 @@
+// yaml/org-action-ref: an org action referenced at a version tag, a SHA or a branch, its default branch included.
+
 package slopfix
 
 import _ "embed"

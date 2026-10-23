@@ -1,3 +1,5 @@
+// counts/inventory-count: a document that counts what is here.
+
 package slopfix
 
 import (

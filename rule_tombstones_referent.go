@@ -1,3 +1,5 @@
+// tombstones/name-nothing-in-the-repository-defines: a comment that names a symbol no file of the repository holds.
+
 package slopfix
 
 import _ "embed"
@@ -19,7 +21,7 @@ func init() {
 		Cases: []RuleCase{{
 			Name:  tombstones.IDDeadReferent,
 			Path:  "main.go",
-			Text:  "package main\n\n// parseLegacyFlag reads the input.\nfunc main() {}\n",
+			Text:  fixtureHeader + "package main\n\n// parseLegacyFlag reads the input.\nfunc main() {}\n",
 			Files: map[string]string{"util.go": "package main\n\nfunc readInput() {}\n"},
 		}, {
 			// The inline comment of a call names a dead parameter, and the call around it names members of an imported module.
@@ -31,7 +33,7 @@ func init() {
 			// A string literal before a trailing comment is code, and only the comment's own words name the dead symbol.
 			Name: "trailing comment after a TypeScript string",
 			Path: "src/highlight.ts",
-			Text: "export const PALETTE = new Map<string, string>([\n" +
+			Text: fixtureHeader + "export const PALETTE = new Map<string, string>([\n" +
 				"\t['built_in', fg('#ffa657')], // built-in types (string, number) and globals (console, Math). See paletteFor.\n" +
 				"]);\n",
 			Files: map[string]string{"src/other.ts": "export function fg(hex: string): string {\n\treturn hex;\n}\n"},

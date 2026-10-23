@@ -1,3 +1,5 @@
+// isYAML reports a YAML file, which the bash grammar reads for its comments.
+
 package treecomments
 
 import (

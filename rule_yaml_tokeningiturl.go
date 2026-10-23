@@ -1,3 +1,5 @@
+// yaml/token-in-git-url: a git config rewrite that puts a token in the user part of a github.com URL with no password.
+
 package slopfix
 
 import _ "embed"

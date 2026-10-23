@@ -1,3 +1,5 @@
+// force.go divides a long sentence that has no clause boundary.
+
 package ste
 
 import (

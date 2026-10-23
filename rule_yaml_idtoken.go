@@ -1,3 +1,5 @@
+// yaml/id-token: a job whose permissions block does not grant id-token: write.
+
 package slopfix
 
 import _ "embed"

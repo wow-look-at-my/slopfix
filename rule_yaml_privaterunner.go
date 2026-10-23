@@ -1,3 +1,5 @@
+// PrivateRunnerFixture is the origin of the org repository the private-runner cases run in.
+
 package slopfix
 
 import _ "embed"

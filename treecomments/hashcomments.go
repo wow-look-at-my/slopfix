@@ -1,3 +1,5 @@
+// hashNames are the file names, extensions apart, whose comments open on `#`.
+
 package treecomments
 
 import (

@@ -1,3 +1,5 @@
+// varTable holds the shell variables proven to hold a static value where they are read.
+
 package noworkloss
 
 import (
