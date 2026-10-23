@@ -34,6 +34,8 @@ func TestADeferralWithNoQuestionMarkIsFound(t *testing.T) {
 	for _, msg := range []string{
 		"Four questions remain. Your call.",
 		"I won't touch them until you say.",
+		"I won't do that without your go-ahead.",
+		"I'm not going to change the rest until you confirm.",
 		"Let me know and I'll land the rest.",
 		"Tell me which way you want it and I'll write it up.",
 		"Answer them here, or say \"your call\" and I'll pick.",

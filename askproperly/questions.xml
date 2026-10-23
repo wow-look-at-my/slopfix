@@ -22,6 +22,9 @@
 	<deferral phrase="do you want me to"><example>Do you want me to port it.</example></deferral>
 	<deferral phrase="shall i"><example>Shall I port it.</example></deferral>
 	<deferral phrase="should i proceed"><example>Should I proceed.</example></deferral>
+	<deferral phrase="still needs work"><example>Pushed the loader. The other half still needs work.</example></deferral>
+	<deferral phrase="i won't"><example>I won't do that without your go-ahead.</example></deferral>
+	<deferral phrase="i'm not going to"><example>I'm not going to change the rest until you confirm.</example></deferral>
 	<deferral phrase="i won't touch"><example>I won't touch the loader without a go.</example></deferral>
 	<deferral phrase="i will not touch"><example>I will not touch the loader without a go.</example></deferral>
 	<deferral phrase="and i'll pick"><example>Name one and I'll pick it up.</example></deferral>
