@@ -1,3 +1,5 @@
+// envRead is the byte span of one process.env.NAME read on a script line, with the dead `??` arms after it.
+
 package workflow
 
 import "strings"
@@ -6,11 +8,6 @@ import "strings"
 // with the dead `??` arms after it.
 type envRead struct {
 	start, end int
-}
-
-// readText answers what goes over a read.
-func readText(literal string) string {
-	return "String(" + literal + ")"
 }
 
 // deadArms answers where the `??` arms after a read end. The entry always

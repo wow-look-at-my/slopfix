@@ -1,3 +1,5 @@
+// renameEdits answers an edit for each dead name that a defined identifier replaces.
+
 package tombstones
 
 import (

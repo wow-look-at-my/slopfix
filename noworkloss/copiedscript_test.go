@@ -1,5 +1,7 @@
 package noworkloss
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -9,16 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const endpointBoilerplate = `const NAME = "qwen38-flash-next-nvfp4";
-const TOKEN = process.env.HF_TOKEN;
-if (!TOKEN) throw new Error("HF_TOKEN is required");
-const URL = ` + "`https://api.endpoints.huggingface.cloud/v2/endpoint/alternateraise/${NAME}`" + `;
-const headers = { Authorization: ` + "`Bearer ${TOKEN}`" + `, "Content-Type": "application/json" };
-
-const getRes = await fetch(URL, { headers });
-if (!getRes.ok) throw new Error(` + "`GET ${getRes.status}: ${await getRes.text()}`" + `);
-const model = (await getRes.json()).model;
-`
+//go:embed testdata/endpoint-boilerplate.js
+var endpointBoilerplate string
 
 func writeSibling(t *testing.T, dir, name, content string) {
 	t.Helper()
@@ -45,7 +39,7 @@ func TestAnUnrelatedNewScriptIsAllowed(t *testing.T) {
 
 	assert.Empty(t, askTool(t, "Write", dir, map[string]any{
 		"file_path": filepath.Join(dir, "resize.js"),
-		"content":   "import sharp from \"sharp\";\nconst input = process.argv[2];\nconst output = process.argv[3];\nawait sharp(input).resize(512, 512).toFile(output);\nconsole.log(`resized ${input} into ${output}`);\n",
+		"content":   testAnUnrelatedNewScriptIsAllowedJs,
 	}))
 }
 
@@ -77,6 +71,31 @@ func TestAFewCommonLinesAreAllowed(t *testing.T) {
 
 	assert.Empty(t, askTool(t, "Write", dir, map[string]any{
 		"file_path": filepath.Join(dir, "whoami.js"),
-		"content":   "const TOKEN = process.env.HF_TOKEN;\nif (!TOKEN) throw new Error(\"HF_TOKEN is required\");\nconst res = await fetch(\"https://huggingface.co/api/whoami-v2\", { headers: { Authorization: `Bearer ${TOKEN}` } });\nconsole.log(JSON.stringify(await res.json(), null, \"\\t\"));\n",
+		"content":   testAFewCommonLinesAreAllowedJs,
 	}))
 }
+
+// Importing the modules a sibling imports is how shared code gets shared.
+func TestSharedImportsAreNotACopy(t *testing.T) {
+	dir := outsideTree(t)
+	writeSibling(t, dir, "data-table.ts", sharedImportsSiblingTs)
+
+	assert.Empty(t, askTool(t, "Write", dir, map[string]any{
+		"file_path": filepath.Join(dir, "bar-chart.ts"),
+		"content":   sharedImportsNewTs,
+	}))
+}
+
+//go:embed testdata/shared-imports-sibling.ts
+var sharedImportsSiblingTs string
+
+// A .txt name keeps the check under test off its own fixture.
+//
+//go:embed testdata/shared-imports-new.ts.txt
+var sharedImportsNewTs string
+
+//go:embed testdata/test-an-unrelated-new-script-is-allowed.js
+var testAnUnrelatedNewScriptIsAllowedJs string
+
+//go:embed testdata/test-a-few-common-lines-are-allowed.js
+var testAFewCommonLinesAreAllowedJs string

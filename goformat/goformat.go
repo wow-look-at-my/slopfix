@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/wow-look-at-my/slopfix/edit"
 )
@@ -35,12 +36,7 @@ func Edits(src string) []edit.Edit {
 	i, j := 0, 0
 	for {
 		from, to := i, j
-		for i < len(src) && blank(src[i]) {
-			i++
-		}
-		for j < len(want) && blank(want[j]) {
-			j++
-		}
+		i, j = skipBlank(src, i), skipBlank(want, j)
 		if src[from:i] != want[to:j] {
 			edits = append(edits, edit.Edit{Start: from, End: i, Text: want[to:j]})
 		}
@@ -59,18 +55,59 @@ func Edits(src string) []edit.Edit {
 	return edits
 }
 
+// skipBlank answers where the blanks at s[i] end.
+func skipBlank(s string, i int) int {
+	for {
+		for i < len(s) && blank(s[i]) {
+			i++
+		}
+		if !bareComment(s, i) {
+			return i
+		}
+		i += len("//")
+	}
+}
+
+// bareComment reports a "//" at s[i] that is the whole of its line.
+func bareComment(s string, i int) bool {
+	if !strings.HasPrefix(s[i:], "//") {
+		return false
+	}
+	if end := i + len("//"); end < len(s) && s[end] != '\n' && s[end] != '\r' {
+		return false
+	}
+	k := i
+	for k > 0 && (s[k-1] == ' ' || s[k-1] == '\t') {
+		k--
+	}
+	return k == 0 || s[k-1] == '\n'
+}
+
 // Gate writes an edit only when it trades blanks for blanks. It holds only when
 // the scanner reads the tokens src holds, so a blank inside a literal or a
-// directive never moves.
+// directive never moves. An edit that adds or drops a bare comment line is
+// written only when gofmt itself makes that edit.
 func Gate(src string, edits []edit.Edit, scope edit.Scope) edit.Result {
-	want := tokens(src)
+	want := sync.OnceValue(func() []string { return tokens(src) })
+	var layout []edit.Edit
 	reach := func(e edit.Edit) string {
-		if !allBlank(src[e.Start:e.End]) || !allBlank(e.Text) {
+		if allBlank(src[e.Start:e.End]) && allBlank(e.Text) {
+			return ""
+		}
+		if skipBlank(src, e.Start) < e.End || skipBlank(e.Text, 0) != len(e.Text) {
 			return "it changes more than whitespace"
+		}
+		if layout == nil {
+			layout = Edits(src)
+		}
+		if !slices.ContainsFunc(layout, func(g edit.Edit) bool {
+			return g.Start == e.Start && g.End == e.End && g.Text == e.Text
+		}) {
+			return "it moves a comment line gofmt does not"
 		}
 		return ""
 	}
-	holds := func(text string) bool { return slices.Equal(tokens(text), want) }
+	holds := func(text string) bool { return slices.Equal(tokens(text), want()) }
 	return edit.Gate(src, edits, scope, reach, holds)
 }
 
@@ -88,6 +125,10 @@ func tokens(src string) []string {
 		}
 		if tok == token.COMMENT {
 			lit = trimLineEnds(lit)
+			// A bare marker line is a blank, so gofmt may add or drop it.
+			if lit == "//" {
+				continue
+			}
 		}
 		out = append(out, tok.String()+" "+lit)
 	}

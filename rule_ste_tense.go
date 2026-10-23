@@ -1,3 +1,5 @@
+// ste/tense: STE allows the simple tenses only.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
@@ -10,7 +12,9 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectTense,
 		Autofix:  autofixTense,
-		Cases:    []RuleCase{{Name: ste.IDTense, Path: "w.md", Text: "The gate has started the task.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDTense, Path: "w.md", Text: "The gate has started the task.\n", Want: "The gate started the task.\n"},
+		},
 	})
 }
 

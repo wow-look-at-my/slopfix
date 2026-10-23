@@ -6,7 +6,10 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/memo"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/syntax"
+	"github.com/wow-look-at-my/slopfix/table"
 )
 
 // danglingSpace matches the space a deletion leaves before punctuation that CLOSES something. A period with a word
@@ -35,22 +38,46 @@ func Fix(s, surface string) string {
 // FixN is Fix, and the number of rewrites it took. A caller hands that count
 // back to whoever wrote the prose, so the repair is visible rather than silent.
 func FixN(s, surface string) (string, int) {
+	f := fixed.Get(fixKey{s, surface}, func() fixing {
+		out, n := fixN(s, surface)
+		return fixing{out, n}
+	})
+	return f.out, f.n
+}
+
+type fixKey struct{ s, surface string }
+
+type fixing struct {
+	out string
+	n   int
+}
+
+// fixed keeps FixN's answer, which every repair pass asks again.
+var fixed = memo.New[fixKey, fixing](8192)
+
+func fixN(s, surface string) (string, int) {
 	original := s
 	n := 0
+	// Each entry reads the lower-case text, which changes only when an entry rewrites s.
+	lower := strings.ToLower(s)
+	swap := func(word, with string, sensitive bool) {
+		var took int
+		s, took = replaceWord(s, lower, word, with, sensitive)
+		if took > 0 {
+			n += took
+			lower = strings.ToLower(s)
+		}
+	}
 	// Rewrites go before drops: a phrase like "in order to" would otherwise lose
 	// its middle to a <drop> and stop matching as a phrase at all.
 	for _, r := range Rewrites() {
 		if AppliesTo(r.Where, surface) {
-			var took int
-			s, took = replaceWordN(s, r.From, r.To)
-			n += took
+			swap(r.From, r.To, r.Sensitive)
 		}
 	}
 	for _, d := range Drops() {
 		if AppliesTo(d.Where, surface) {
-			var took int
-			s, took = replaceWordN(s, d.Word, "")
-			n += took
+			swap(d.Word, "", d.Sensitive)
 		}
 	}
 	for _, sh := range Shapes() {
@@ -60,13 +87,18 @@ func FixN(s, surface string) (string, int) {
 			n += took
 		}
 	}
+	folded := precompiled.Fold(s)
 	// Patterns last: they carry a shape rather than a phrase, and a shape must
 	// see the text a word swap has already settled.
 	for _, p := range Patterns() {
 		if AppliesTo(p.Where, surface) {
 			var took int
-			s, took = p.ApplyN(s)
+			before := s
+			s, took = p.applyN(s, folded)
 			n += took
+			if s != before {
+				folded = precompiled.Fold(s)
+			}
 		}
 	}
 	s = strings.Join(strings.Fields(s), " ")
@@ -137,13 +169,27 @@ func hasFiniteVerb(sentence string) bool {
 // ReplaceWord swaps a whole word or phrase, case-insensitively, leaving a
 // longer word that merely contains it alone.
 func ReplaceWord(s, word, with string) string {
-	out, _ := replaceWordN(s, word, with)
+	out, _ := replaceWordN(s, word, with, false)
 	return out
 }
 
-func replaceWordN(s, word, with string) (string, int) {
-	lower := strings.ToLower(s)
+// replaceWordN swaps each whole-word occurrence of word. A sensitive entry
+// matches as written.
+func replaceWordN(s, word, with string, sensitive bool) (string, int) {
+	return replaceWord(s, strings.ToLower(s), word, with, sensitive)
+}
+
+// replaceWord is replaceWordN for a caller that holds strings.ToLower(s). A
+// sensitive entry reads s as written, so lower goes unread. The spans are read
+// only when the word occurs, because most entries do not.
+func replaceWord(s, lower, word, with string, sensitive bool) (string, int) {
 	target := strings.ToLower(word)
+	if sensitive {
+		lower, target = s, word
+	}
+	if !strings.Contains(lower, target) {
+		return s, 0
+	}
 	took := 0
 	spans := codeSpan.FindAllStringIndex(s, -1)
 	quotes := quotation.FindAllStringIndex(s, -1)
@@ -162,7 +208,7 @@ func replaceWordN(s, word, with string) (string, int) {
 			continue
 		}
 		b.WriteString(s[i:at])
-		b.WriteString(with)
+		b.WriteString(table.MatchCase(s[at:end], with))
 		took++
 		i = end
 	}

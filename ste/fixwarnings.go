@@ -1,3 +1,5 @@
+// The repairs the warning rules answer with.
+
 package ste
 
 import (
@@ -162,17 +164,21 @@ func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
 // fixInstructions divides each instruction over InstructionWordCap, as the
 // sentence cap divides a sentence over its own cap.
 func fixInstructions(prose string, reorder bool) string {
-	spans := sentenceSpans(prose)
-	for n := len(spans) - 1; n >= 0; n-- {
-		text := prose[spans[n][0]:spans[n][1]]
+	var out strings.Builder
+	last := 0
+	for _, span := range sentenceSpans(prose) {
+		text := prose[span[0]:span[1]]
 		masked := mask(text)
 		count := WordCount(masked)
 		if count <= InstructionWordCap || count > SentenceWordCap || !isInstruction(syntax.Parse(masked, opaque(text, masked))) {
 			continue
 		}
-		prose = prose[:spans[n][0]] + fixSentenceCap(text, capSpec{reorder: reorder, cap: InstructionWordCap}) + prose[spans[n][1]:]
+		out.WriteString(prose[last:span[0]])
+		out.WriteString(fixSentenceCap(text, capSpec{reorder: reorder, cap: InstructionWordCap}))
+		last = span[1]
 	}
-	return prose
+	out.WriteString(prose[last:])
+	return out.String()
 }
 
 // rewriteSentence answers the sentence with the first clause warning its own
@@ -433,6 +439,11 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 	start, end, ok := clusterAt(s, off)
 	if !ok {
 		return "", false
+	}
+	// An identifier in front of a name labels it: "ASD-STE100 Simplified Technical English" becomes "Simplified Technical English (ASD-STE100)".
+	if NameLike(s.Words[start].Text) && !strings.ContainsAny(s.Words[start].Text, " ") {
+		label := source[s.Words[start].Start:s.Words[start].End]
+		return splice(source, s, start, end, source[s.Words[start+1].Start:s.Words[end].End]+" ("+label+")"), true
 	}
 	var out strings.Builder
 	last := end

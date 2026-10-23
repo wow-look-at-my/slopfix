@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"os"
 	"os/exec"
@@ -32,11 +34,7 @@ func TestANameFromASubmoduleWithNoCheckoutIsNotDead(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "third_party", "OpenGL-Registry"), 0o755))
 	require.NoError(t, exec.Command("git", "-C", dir, "update-index", "--add", "--cacheinfo",
 		"160000,0123456789abcdef0123456789abcdef01234567,third_party/OpenGL-Registry").Run())
-	content := "#include \"shim_internal.h\"\n\n" +
-		"// macOS supports ARB_debug_output in some drivers. We emulate the KHR_debug interface.\n" +
-		"static int g_debug = 0;\n\n" +
-		"// Requires GL_ARB_vertex_attrib_binding, stub.\n" +
-		"static int g_binding = 0;\n"
+	content := testANameFromASubmoduleWithNoCheckoutIsNotDeadC
 
 	report := slopfix.Report(slopfix.Request{Path: path, Content: content})
 	assert.NotContains(t, keptIDs(report.Kept), tombstones.IDDeadReferent)
@@ -133,10 +131,10 @@ func TestFixCutsOnlyTheSentenceThatHoldsADeadName(t *testing.T) {
 // onto, and the comment keeps its other sentences.
 func TestFixCutsTheWholeSentenceThatWrapsADeadName(t *testing.T) {
 	path := deadReferentRepo(t, "main.go")
-	content := "package main\n\n// main reads the input. The check in\n// parseLegacyFlag runs first, so the caller\n// waits for it.\nfunc main() {}\n"
+	content := "// Package main runs the demo.\npackage main\n\n// main reads the input. The check in\n// parseLegacyFlag runs first, so the caller\n// waits for it.\nfunc main() {}\n"
 
 	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
-	assert.Equal(t, "package main\n\n// main reads the input.\nfunc main() {}\n", fixed.Text)
+	assert.Equal(t, "// Package main runs the demo.\npackage main\n\n// main reads the input.\nfunc main() {}\n", fixed.Text)
 }
 
 // A name in the code before a trailing comment is no name the comment carries.
@@ -161,3 +159,6 @@ func TestCheckReportsTheDeadNameFixStrips(t *testing.T) {
 	assert.NotContains(t, fixed.Text, "parseLegacyFlag")
 	assert.NotContains(t, keptIDs(fixed.Kept), tombstones.IDDeadReferent)
 }
+
+//go:embed testdata/test-a-name-from-a-submodule-with-no-checkout-is-not-dead.c
+var testANameFromASubmoduleWithNoCheckoutIsNotDeadC string

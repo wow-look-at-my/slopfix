@@ -1,3 +1,5 @@
+// ste/passive: STE prefers the active voice, because the reader has to find who acts.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
@@ -12,6 +14,7 @@ func init() {
 		Autofix:  autofixPassive,
 		Cases: []RuleCase{
 			{Name: ste.IDPassive, Path: "w.md", Text: "The task is started by the gate.\n", Want: "The gate starts the task.\n"},
+			{Name: "a participle in the passive that the tense retag also names", Path: "w.md", Text: "The result is expected by the gate.\n", Want: "The gate expects the result.\n"},
 			{Name: ste.IDPassive + "/modal", Path: "modal.md", Text: "A file must be read by the gate.\n", Want: "The gate must read a file.\n"},
 			{Name: ste.IDPassive + "/means", Path: "means.md", Text: "An answer is asserted by pairing it with `uname -s`.\n", Want: "Pairing it with `uname -s` asserts an answer.\n"},
 			{Name: ste.IDPassive + "/manner", Path: "manner.md", Text: "The sites are deduplicated by full URL.\n", Want: "By full URL, the sites are deduplicated.\n"},

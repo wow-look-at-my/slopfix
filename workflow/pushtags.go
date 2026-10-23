@@ -1,3 +1,5 @@
+// IDPushTags is a push trigger that names no ref filter, so a tag push starts the workflow.
+
 package workflow
 
 import (

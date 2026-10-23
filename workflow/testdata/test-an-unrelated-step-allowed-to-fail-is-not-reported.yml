@@ -1,0 +1,7 @@
+on: {push: {branches: ['**']}}
+jobs:
+  lint:
+    steps:
+      - uses: some/flaky-upload@v1
+        continue-on-error: true
+      - uses: wow-look-at-my/slopfix@master

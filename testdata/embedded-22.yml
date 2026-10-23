@@ -1,0 +1,4 @@
+  b:
+    runs-on: ubuntu-latest
+    steps:
+      - run: make

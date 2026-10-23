@@ -1,0 +1,3 @@
+        with:
+          script: |
+            core.info(process.env.SHA);

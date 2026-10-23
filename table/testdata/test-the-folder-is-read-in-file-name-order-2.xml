@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rules for="numbers"><rewrite id="one" from="one" to="a single">
+<test in="one" out="a single"/></rewrite></rules>

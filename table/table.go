@@ -9,6 +9,8 @@ package table
 import (
 	"regexp"
 	"sync"
+
+	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
 // A Test drives an entry. In is the prose somebody writes. Out is what the
@@ -33,6 +35,8 @@ type Drop struct {
 	Word  string
 	Where string
 	Tests []Test
+	// Sensitive makes the word match as written. Otherwise case is ignored.
+	Sensitive bool
 }
 
 // Rewrite swaps a whole phrase for another.
@@ -42,6 +46,8 @@ type Rewrite struct {
 	To    string
 	Where string
 	Tests []Test
+	// Sensitive makes the phrase match as written. Otherwise case is ignored.
+	Sensitive bool
 }
 
 // Flag names prose a rule refuses to rewrite, and what to write instead.
@@ -50,6 +56,8 @@ type Flag struct {
 	Phrase string
 	Say    string
 	Tests  []Test
+	// Sensitive makes the phrase match as written. Otherwise case is ignored.
+	Sensitive bool
 }
 
 // Pattern is a rewrite with captures.
@@ -59,9 +67,18 @@ type Pattern struct {
 	To    string
 	Where string
 	Tests []Test
+	// Sensitive makes the match case-sensitive. Otherwise it ignores case.
+	Sensitive bool
 
 	// re is Match, compiled when the folder is loaded.
 	re *regexp.Regexp
+	// needs holds literals, folded, of which every match holds one. Nil means none are known.
+	needs []string
+}
+
+// cannotMatch reports text that holds none of the literals a match needs.
+func (p Pattern) cannotMatch(s string) bool {
+	return p.needs != nil && !precompiled.HoldsAny(precompiled.Fold(s), p.needs)
 }
 
 type Table struct {
@@ -122,6 +139,9 @@ func AppliesTo(where, surface string) bool {
 // Replace rewrites every match of the pattern in s, and returns s untouched
 // when there is none.
 func (p Pattern) Replace(s string) string {
+	if p.cannotMatch(s) {
+		return s
+	}
 	return p.re.ReplaceAllStringFunc(s, func(matched string) string {
 		at := p.re.FindStringSubmatchIndex(matched)
 		if at == nil {
@@ -150,4 +170,4 @@ func MatchCase(matched, replacement string) string {
 }
 
 // Matches reports whether the pattern finds anything in s.
-func (p Pattern) Matches(s string) bool { return p.re.MatchString(s) }
+func (p Pattern) Matches(s string) bool { return !p.cannotMatch(s) && p.re.MatchString(s) }

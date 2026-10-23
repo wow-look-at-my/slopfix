@@ -84,7 +84,7 @@ func recordOffender(sessionID, path string) {
 
 // seedSnapshot records what every candidate looked like BEFORE this session
 // touched anything, or the earliest Bash-written edit gets away.
-func seedSnapshot(sessionID, cwd string) {
+func seedSnapshot(sessionID string, paths []string) {
 	if sessionID == "" {
 		return
 	}
@@ -92,7 +92,7 @@ func seedSnapshot(sessionID, cwd string) {
 	if m == nil {
 		m = newMarker()
 	}
-	m.Candidates = allCandidatePaths(cwd)
+	m.Candidates = paths
 	m.WalkedAt = time.Now().Unix()
 	m.Seen = snapshotOf(m.Candidates)
 	writeMarker(sessionID, m)

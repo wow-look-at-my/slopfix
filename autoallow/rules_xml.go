@@ -1,3 +1,5 @@
+// A <rule> matches the command as written or the resolved process name.
+
 package autoallow
 
 import (

@@ -1,3 +1,5 @@
+// tagger loads the model a single time per process, because decoding it is the costly part.
+
 package syntax
 
 import (
@@ -7,6 +9,7 @@ import (
 
 	"github.com/jdkato/prose/v3/tag"
 	"github.com/jdkato/prose/v3/tokenize"
+	"github.com/wow-look-at-my/slopfix/memo"
 )
 
 // tagger loads the model a single time per process, because decoding it is the costly part.
@@ -20,12 +23,23 @@ var tagger = sync.OnceValue(func() *tag.Tagger {
 
 var tokenizer = sync.OnceValue(func() *tokenize.Tokenizer { return tokenize.New() })
 
+// tags keeps each text's tagged tokens, because the tagger is the costly part.
+var tags = memo.New[string, []tokenize.Token](8192)
+
+// tagged answers text's tokens with their tags. Callers only read the slice.
+func tagged(text string) []tokenize.Token {
+	return tags.Get(text, func() []tokenize.Token {
+		tokens := tokenizer().Tokenize(text)
+		tagger().TagTokens(tokens)
+		return tokens
+	})
+}
+
 // Parse tags and parses a sentence. A word inside an opaque span, such as a
 // code span, is data rather than English, so it is read as a name.
 func Parse(text string, opaque [][]int) *Sentence {
 	// An emphasis marker is markup, not a word. A blank keeps every offset into text.
-	tokens := tokenizer().Tokenize(strings.ReplaceAll(text, "*", " "))
-	tagger().TagTokens(tokens)
+	tokens := tagged(strings.ReplaceAll(text, "*", " "))
 	s := &Sentence{Text: text}
 	for _, t := range tokens {
 		w := Word{Text: t.Text, Tag: t.Tag, Start: t.Start, End: t.End()}

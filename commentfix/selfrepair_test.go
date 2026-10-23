@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/wow-look-at-my/slopfix/code"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // Consider this repository's own source. That source is the rule's earliest
@@ -24,39 +25,36 @@ func TestTheRuleOverItsOwnRepository(t *testing.T) {
 	apply := os.Getenv("SLOPFIX_SELF_REPAIR") != ""
 
 	var files, findings, repaired int
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
+	enter := func(dir string) bool {
+		switch filepath.Base(dir) {
+		case "build", "bin", "grammars", "vendor":
+			return false
 		}
-		if info.IsDir() {
-			switch info.Name() {
-			case ".git", "build", "bin", "grammars", "vendor":
-				return filepath.SkipDir
-			}
-			return nil
-		}
+		return true
+	}
+	walktree.Get(root).Visit(enter, func(path string, _ walktree.Entry) {
 		if !Parsed(path) {
-			return nil
+			return
 		}
 		src, err := os.ReadFile(path)
 		if err != nil {
-			return nil
+			return
 		}
 		files++
 		hits := CheckLength(path, string(src))
 		findings += len(hits)
 		if !apply || len(hits) == 0 {
-			return nil
+			return
 		}
 		out, changed := FixLength(path, string(src))
 		if !changed {
-			return nil
+			return
 		}
+		info, err := os.Stat(path)
+		require.NoError(t, err)
 		require.NoError(t, os.WriteFile(path, []byte(out), info.Mode().Perm()))
 		repaired++
-		return nil
 	})
-	require.NoError(t, err)
 	require.NotZero(t, files, "the walk found no parsable file, so it proved nothing")
 
 	t.Logf("files parsed: %d", files)

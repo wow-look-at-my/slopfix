@@ -1,3 +1,5 @@
+// The verb forms a simple-tense repair needs.
+
 package ste
 
 import "strings"

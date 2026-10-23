@@ -1,3 +1,5 @@
+// SplitTarget is the size a split brings a root file down to.
+
 package slopfix
 
 import (
@@ -8,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // SplitTarget is the size a split brings a root file down to. The gap under CharBudget leaves room for the next edit.
@@ -121,7 +125,12 @@ func (s *splitter) write(name, doc string) error {
 	if err := os.MkdirAll(filepath.Join(s.root, DocsDir), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(s.root, filepath.FromSlash(name)), []byte(doc), s.perm)
+	path := filepath.Join(s.root, filepath.FromSlash(name))
+	if err := os.WriteFile(path, []byte(doc), s.perm); err != nil {
+		return err
+	}
+	walktree.Created(path)
+	return nil
 }
 
 // moveSections moves the largest sections at level until the text is at or

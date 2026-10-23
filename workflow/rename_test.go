@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -35,21 +37,21 @@ func checkOthers(content string) []ste.Finding {
 }
 
 func TestTheGuardedJobKeyIsRenamed(t *testing.T) {
-	out := repaired(t, "on: {push: {branches: ['**']}}\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n")
+	out := repaired(t, testTheGuardedJobKeyIsRenamedYml)
 
 	assert.Contains(t, out, "  builds:")
 	assert.NotContains(t, out, "all-builds")
 }
 
 func TestANeedsEntryPointingAtTheGuardedJobFollowsIt(t *testing.T) {
-	out := repaired(t, "on: {push: {branches: ['**']}}\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n  ship:\n    needs: [all-builds]\n    runs-on: ubuntu-latest\n")
+	out := repaired(t, testANeedsEntryPointingAtTheGuardedJobFollowsItYml)
 
 	assert.Contains(t, out, "needs: [builds]")
 	assert.NotContains(t, out, "all-builds")
 }
 
 func TestANeedsSequenceKeepsItsOtherEntries(t *testing.T) {
-	out := repaired(t, "on: {push: {branches: ['**']}}\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n  ship:\n    needs:\n      - lint\n      - all-builds\n    runs-on: ubuntu-latest\n")
+	out := repaired(t, testANeedsSequenceKeepsItsOtherEntriesYml)
 
 	assert.Contains(t, out, "      - lint")
 	assert.Contains(t, out, "      - builds")
@@ -70,7 +72,7 @@ func TestTheNameInsideARunScriptIsLeftAlone(t *testing.T) {
 
 // A step name is a label a person reads, not a reference the runner resolves.
 func TestAStepNameCarryingTheWordsIsLeftAlone(t *testing.T) {
-	out := repaired(t, "on: {push: {branches: ['**']}}\njobs:\n  gate:\n    runs-on: ubuntu-latest\n    steps:\n      - name: wait for all-builds\n        run: true\n")
+	out := repaired(t, testAStepNameCarryingTheWordsIsLeftAloneYml)
 
 	assert.Contains(t, out, "- name: wait for all-builds")
 }
@@ -83,3 +85,15 @@ func TestAWorkflowWithoutTheGuardedNameIsUntouched(t *testing.T) {
 	require.False(t, repair.Changed)
 	assert.Equal(t, clean, repair.Text)
 }
+
+//go:embed testdata/test-the-guarded-job-key-is-renamed.yml
+var testTheGuardedJobKeyIsRenamedYml string
+
+//go:embed testdata/test-a-needs-entry-pointing-at-the-guarded-job-follows-it.yml
+var testANeedsEntryPointingAtTheGuardedJobFollowsItYml string
+
+//go:embed testdata/test-a-needs-sequence-keeps-its-other-entries.yml
+var testANeedsSequenceKeepsItsOtherEntriesYml string
+
+//go:embed testdata/test-a-step-name-carrying-the-words-is-left-alone.yml
+var testAStepNameCarryingTheWordsIsLeftAloneYml string

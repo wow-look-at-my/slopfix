@@ -1,0 +1,6 @@
+services:
+  app:
+    build:
+      dockerfile_inline: |
+        # syntax=docker/dockerfile:1
+        FROM alpine

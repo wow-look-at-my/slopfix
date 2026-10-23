@@ -1,4 +1,8 @@
+// yaml/push-tags: a push trigger that runs on a tag as well as on a branch.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -14,7 +18,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectPushTags,
 		Autofix:  autofixPushTags,
-		Cases:    []RuleCase{workflowCase("push-tags", "name: CI\n\non:\n  push:\n\n"+workflowConcurrency+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+"    steps:\n      - run: echo hi\n")},
+		Cases:    []RuleCase{workflowCase("push-tags", embeddedYml4+workflowConcurrency+embeddedYml46+"    steps:\n      - run: echo hi\n")},
 	})
 }
 
@@ -27,3 +31,9 @@ func detectPushTags(c RuleCase) []ste.Finding {
 func autofixPushTags(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDPushTags)
 }
+
+//go:embed testdata/embedded-4.yml
+var embeddedYml4 string
+
+//go:embed testdata/embedded-11.yml
+var embeddedYml46 string

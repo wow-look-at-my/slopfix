@@ -38,7 +38,7 @@ func branched(t *testing.T) string {
 	run(t, root, "add", "-A")
 	run(t, root, "commit", "-q", "-m", "base")
 	run(t, root, "checkout", "-q", "-b", "feature")
-	require.NoError(t, os.WriteFile(filepath.Join(root, "new.go"), []byte("package m\n\n// It holds 4 keys.\nvar b int\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "new.go"), []byte("// The branch adds a key.\n\npackage m\n\n// It holds 4 keys.\nvar b int\n"), 0o644))
 	run(t, root, "add", "-A")
 	run(t, root, "commit", "-q", "-m", "change")
 	return root
@@ -151,6 +151,53 @@ func TestTheSweepInAForkWithNoBaseWritesNothing(t *testing.T) {
 
 	assert.Contains(t, result.Skipped, "500")
 	assert.Contains(t, read(t, root, "both.go"), "6 locks")
+}
+
+// headless is a repository whose master carries old.go, with a branch on top
+// that adds new.go. Neither file opens with a header.
+func headless(t *testing.T) string {
+	t.Helper()
+	root := tree(t, map[string]string{
+		"go.mod": "module example.com/m\n",
+		"old.go": "package m\n\n// Old reads the keys.\nfunc Old() {}\n",
+	})
+	run(t, root, "init", "-q", "-b", "master")
+	run(t, root, "add", "-A")
+	run(t, root, "commit", "-q", "-m", "base")
+	run(t, root, "checkout", "-q", "-b", "feature")
+	require.NoError(t, os.WriteFile(filepath.Join(root, "new.go"), []byte("package m\n\n// New writes the keys.\nfunc New() {}\n"), 0o644))
+	run(t, root, "add", "-A")
+	run(t, root, "commit", "-q", "-m", "change")
+	return root
+}
+
+// The sweep writes the header of a file the branch changed, the way it repairs a number there.
+func TestTheSweepWritesTheHeaderOfAChangedFile(t *testing.T) {
+	root := headless(t)
+	result := commentfix.FixTree(root)
+
+	assert.Equal(t, "// New writes the keys.\n\npackage m\n\n// New writes the keys.\nfunc New() {}\n", read(t, root, "new.go"))
+	require.Len(t, result.Rewrites, 1)
+	assert.Equal(t, commentfix.IDHeader, result.Rewrites[0].Rule)
+	assert.Equal(t, filepath.Join(root, "new.go"), result.Rewrites[0].Path)
+}
+
+// A file off the branch is not written. Its missing header is still reported, so a caller sees the whole tree.
+func TestTheSweepReportsTheHeaderOfAFileTheBranchDidNotChange(t *testing.T) {
+	root := headless(t)
+	result := commentfix.FixTree(root)
+
+	assert.Equal(t, "package m\n\n// Old reads the keys.\nfunc Old() {}\n", read(t, root, "old.go"))
+	assert.Equal(t, []commentfix.HeaderFinding{{Path: filepath.Join(root, "old.go"), Line: 1, Sentence: "Old reads the keys."}}, result.Headers)
+}
+
+// In a fork, a header goes only above a line the fork wrote. An inherited file is not reported.
+func TestTheSweepInAForkReportsNoInheritedHeader(t *testing.T) {
+	root, forks := forked(t, http.StatusOK)
+	result := commentfix.FixTreeIn(forks, root)
+
+	assert.Empty(t, result.Skipped)
+	assert.Empty(t, result.Headers)
 }
 
 // A repository with no default branch to measure against gives the sweep no
