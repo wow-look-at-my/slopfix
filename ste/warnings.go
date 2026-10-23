@@ -1,3 +1,5 @@
+// The warning rules.
+
 package ste
 
 import (

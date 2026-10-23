@@ -1,3 +1,5 @@
+// english/semicolon: a semicolon joins sentences that a period keeps apart.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

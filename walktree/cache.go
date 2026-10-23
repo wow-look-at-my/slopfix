@@ -1,3 +1,5 @@
+// PersistFloor is the fewest directories a walk reads before its listings are kept across processes.
+
 package walktree
 
 import (

@@ -1,3 +1,5 @@
+// IDInventoryCount names the stale-count rule over a document.
+
 package slopfix
 
 import (

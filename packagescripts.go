@@ -1,3 +1,5 @@
+// IDPackageScripts is a package.json with a scripts section.
+
 package slopfix
 
 import (

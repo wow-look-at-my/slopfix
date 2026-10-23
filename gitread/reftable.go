@@ -1,3 +1,5 @@
+// A reftable repository keeps its refs in a binary format.
+
 package gitread
 
 import (

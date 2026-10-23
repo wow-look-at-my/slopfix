@@ -1,3 +1,5 @@
+// yaml/concurrency: a workflow with no concurrency block, so a push starts a second run beside the first.
+
 package slopfix
 
 import _ "embed"

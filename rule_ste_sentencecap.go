@@ -1,3 +1,5 @@
+// ste/sentence-length: a sentence over the STE word cap.
+
 package slopfix
 
 import _ "embed"

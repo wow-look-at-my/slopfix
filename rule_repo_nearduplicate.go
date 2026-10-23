@@ -1,3 +1,5 @@
+// repo/near-duplicate: files with one name that hold almost the same lines.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// ErrUnknownRevision marks a revision this package cannot name.
+
 package gitread
 
 import (

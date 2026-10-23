@@ -1,3 +1,5 @@
+// readPlanInput is what the plugin's tool.call module sends for one Bash call.
+
 package cmd
 
 import (

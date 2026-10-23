@@ -1,3 +1,5 @@
+// Pattern is a table's match with the entry's case rule compiled into it, for a caller that precompiles the source rather than compiling it here.
+
 package xmlcheck
 
 // Pattern is a table's match with the entry's case rule compiled into it, for a

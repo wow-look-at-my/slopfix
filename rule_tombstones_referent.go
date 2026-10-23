@@ -1,3 +1,5 @@
+// tombstones/name-nothing-in-the-repository-defines: a comment that names a symbol no file of the repository holds.
+
 package slopfix
 
 import _ "embed"

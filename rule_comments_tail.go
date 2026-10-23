@@ -1,3 +1,5 @@
+// comments/tail: a comment that stops on a word which opens what a cut took away, as in a comment ending on "because".
+
 package slopfix
 
 import (

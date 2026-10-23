@@ -1,3 +1,5 @@
+// A division ends the left sentence at leftEnd.
+
 package ste
 
 import (

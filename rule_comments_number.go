@@ -1,3 +1,5 @@
+// comments/number: a number in a comment is a count of what exists today.
+
 package slopfix
 
 import _ "embed"

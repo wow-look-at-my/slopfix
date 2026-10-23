@@ -1,3 +1,5 @@
+// repo/binary: a compiled binary committed to the tree.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

@@ -1,3 +1,5 @@
+// tombstones/comment-volume: a comment run longer than the cap.
+
 package slopfix
 
 import (

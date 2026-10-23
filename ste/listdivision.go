@@ -1,3 +1,5 @@
+// dependentRest reports a cut whose rest cannot stand as a sentence of its own, though it holds a subject and a verb.
+
 package ste
 
 import (

@@ -1,3 +1,5 @@
+// ste/paragraph-length: a paragraph over the sentence cap.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

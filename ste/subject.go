@@ -1,3 +1,5 @@
+// quantifiers open a subject that picks members out of a set.
+
 package ste
 
 import (

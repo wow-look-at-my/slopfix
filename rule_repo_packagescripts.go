@@ -1,3 +1,5 @@
+// repo/package-scripts: a package.json whose scripts run a command wrapper the repository does not need.
+
 package slopfix
 
 import _ "embed"

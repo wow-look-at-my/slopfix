@@ -1,3 +1,5 @@
+// opener is "/*" or "/**".
+
 package commentfix
 
 import "strings"

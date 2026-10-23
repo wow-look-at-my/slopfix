@@ -1,3 +1,5 @@
+// GrepJSONSpec is what grepjson.xml is held to.
+
 package bashclean
 
 import (

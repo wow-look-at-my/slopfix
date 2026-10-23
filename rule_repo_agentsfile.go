@@ -1,3 +1,5 @@
+// repo/agents-file: a root CLAUDE.md that holds instructions of its own.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

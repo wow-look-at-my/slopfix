@@ -1,3 +1,5 @@
+// Created records a file or directory this process made, so every walk that covers its directory lists it.
+
 package walktree
 
 import (

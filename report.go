@@ -1,3 +1,5 @@
+// pending answers each comment-length hit in the text as written.
+
 package slopfix
 
 import (

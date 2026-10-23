@@ -1,3 +1,5 @@
+// The reads a rule's own detect and autofix functions are written on.
+
 package slopfix
 
 import (

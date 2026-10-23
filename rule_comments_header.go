@@ -1,3 +1,5 @@
+// comments/header: a source file that opens on code.
+
 package slopfix
 
 import (

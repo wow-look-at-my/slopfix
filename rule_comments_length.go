@@ -1,3 +1,5 @@
+// comments/length: a comment run weighed against the construct beneath it.
+
 package slopfix
 
 import _ "embed"

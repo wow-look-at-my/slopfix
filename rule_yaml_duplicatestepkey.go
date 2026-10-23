@@ -1,3 +1,5 @@
+// yaml/duplicate-step-key: a step that names one key twice.
+
 package slopfix
 
 import _ "embed"

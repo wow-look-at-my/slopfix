@@ -1,3 +1,5 @@
+// IDTokenInGitURL is a git config line that puts a token in the user part of a github.com URL with no password.
+
 package workflow
 
 import (
