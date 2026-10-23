@@ -1,3 +1,5 @@
+// carrier.go divides a long sentence where the words after the cut hold no clause.
+
 package ste
 
 import (

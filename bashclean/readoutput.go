@@ -1,3 +1,5 @@
+// postInput is the part of the PostToolUse payload RunPost reads.
+
 package bashclean
 
 import (

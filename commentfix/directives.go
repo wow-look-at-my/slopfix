@@ -134,9 +134,10 @@ func CapLines(text []string, maxLines int) []string {
 // binds to the declaration by position -- a build constraint leads.
 func splitDirectives(text []string) (lead, body, trail []string) {
 	seen := false
-	for _, line := range text {
+	directives := directiveMask(text)
+	for i, line := range text {
 		switch {
-		case !isDirectiveLine(line):
+		case !directives[i]:
 			seen = true
 			body = append(body, line)
 		case seen:
@@ -152,8 +153,9 @@ func splitDirectives(text []string) (lead, body, trail []string) {
 // prose drops.
 func directivesOf(text []string) []string {
 	kept := make([]string, 0, len(text))
-	for _, line := range text {
-		if isDirectiveLine(line) {
+	directives := directiveMask(text)
+	for i, line := range text {
+		if directives[i] {
 			kept = append(kept, line)
 		}
 	}
@@ -164,8 +166,9 @@ func directivesOf(text []string) []string {
 // instruction to a tool, so measuring it reports an essay nobody wrote.
 func prose(text []string) []string {
 	kept := make([]string, 0, len(text))
-	for _, line := range text {
-		if isDirectiveLine(line) {
+	directives := directiveMask(text)
+	for i, line := range text {
+		if directives[i] {
 			continue
 		}
 		kept = append(kept, line)

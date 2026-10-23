@@ -1,3 +1,5 @@
+// Type names, as git spells them.
+
 package gitread
 
 import (
@@ -10,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // Type names, as git spells them.
@@ -181,7 +185,7 @@ func (db *odb) packList(force bool) []*pack {
 		known[p.path] = p
 	}
 	var out []*pack
-	entries, _ := os.ReadDir(dir)
+	entries, _ := walktree.List(dir)
 	for _, e := range entries {
 		base, ok := strings.CutSuffix(e.Name(), ".idx")
 		if !ok || e.IsDir() {

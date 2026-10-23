@@ -16,15 +16,22 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/syntax"
 	"github.com/wow-look-at-my/slopfix/table"
+	"github.com/wow-look-at-my/slopfix/xmlcheck"
 )
 
 //go:embed english.xml
 var englishXML []byte
 
+//go:embed english.xsd
+var schema []byte
+
 // Table mirrors english.xml.
 type Table struct {
+	// Case is the case rule of the file: "sensitive", or "insensitive" for the default.
+	Case     string    `xml:"case,attr"`
 	Classes  []Class   `xml:"class"`
 	Drops    []Drop    `xml:"drop"`
 	Rewrites []Rewrite `xml:"rewrite"`
@@ -71,7 +78,11 @@ type Flag struct {
 	Phrase string `xml:"phrase,attr"`
 	Say    string `xml:"say,attr"`
 	Test   string `xml:"test,attr"`
+	Case   string `xml:"case,attr"`
 	Cases  []Case `xml:"test"`
+
+	// Sensitive makes the phrase match as written.
+	Sensitive bool
 }
 
 // Flags is every phrase the table names without rewriting.
@@ -85,7 +96,7 @@ func Flagged(line string) []Flag {
 	lower := strings.ToLower(line)
 	var out []Flag
 	for _, f := range Flags() {
-		if ContainsWord(lower, strings.ToLower(f.Phrase)) {
+		if f.Sensitive && ContainsWord(line, f.Phrase) || !f.Sensitive && ContainsWord(lower, strings.ToLower(f.Phrase)) {
 			out = append(out, f)
 		}
 	}
@@ -107,7 +118,13 @@ type Pattern struct {
 	// Subject names where the clause's subject stands, and empty asks nothing.
 	Subject string `xml:"subject,attr"`
 
+	Case string `xml:"case,attr"`
+	// Sensitive makes the match case-sensitive.
+	Sensitive bool
+
 	re *regexp.Regexp
+	// needs holds literals, folded, of which every match holds one. Nil means none are known.
+	needs []string
 }
 
 type Case struct {
@@ -138,18 +155,30 @@ func (p Pattern) Apply(s string) string {
 }
 
 // ApplyN is Apply, and the count of what it changed.
+func (p Pattern) ApplyN(s string) (string, int) {
+	return p.applyN(s, precompiled.Fold(s))
+}
+
+// applyN is ApplyN for a caller that holds precompiled.Fold(s).
 //
 // A pattern naming a subject position rewrites only the matches whose clause
 // states the sentence's own assertion. The rest are left whole: the words fit
 // the shape, and the sentence around them says they report the data rather than
 // the tree.
-func (p Pattern) ApplyN(s string) (string, int) {
+func (p Pattern) applyN(s, folded string) (string, int) {
+	if !precompiled.HoldsAny(folded, p.needs) {
+		return s, 0
+	}
+	locs := p.re.FindAllStringIndex(s, -1)
+	if len(locs) == 0 {
+		return s, 0
+	}
 	var out strings.Builder
 	last, took := 0, 0
 	labels := linkLabel.FindAllStringIndex(s, -1)
 	quotes := quotation.FindAllStringIndex(s, -1)
 	spans := codeSpan.FindAllStringIndex(s, -1)
-	for _, loc := range p.re.FindAllStringIndex(s, -1) {
+	for _, loc := range locs {
 		if p.Subject != "" && !asserts(p.Subject, s, loc[0]) {
 			continue
 		}
@@ -161,7 +190,12 @@ func (p Pattern) ApplyN(s string) (string, int) {
 			continue
 		}
 		from, to := loc[0], loc[1]
-		if strings.TrimSpace(with) == "" {
+		if strings.TrimSpace(with) == "" && closesAnAside(s, from, to) {
+			// The cut would leave the aside open and its sentence a fragment, so the sentence goes whole.
+			if from, to, with = join(s, sentenceStart(s, from), sentenceEnd(s, to)); from < last {
+				continue
+			}
+		} else if strings.TrimSpace(with) == "" {
 			// A cut: the parse says which punctuation attaches the phrase.
 			var ok bool
 			if from, to, ok = cutSpan(s, loc[0], loc[1]); !ok {
@@ -232,6 +266,39 @@ func strandsOpener(s string, from, to int, with string) bool {
 	return is(last, "article") || is(last, "relative") || is(last, "conjunction")
 }
 
+// closesAnAside reports a cut that takes the bracket closing an aside its
+// sentence opened before the cut. The words before the cut then end inside
+// the aside.
+func closesAnAside(s string, from, to int) bool {
+	head, cut := s[sentenceStart(s, from):from], s[from:to]
+	for _, pair := range []string{"()", "[]"} {
+		open, shut := pair[:1], pair[1:]
+		if strings.Count(head, open) > strings.Count(head, shut) && strings.Contains(cut, shut) {
+			return true
+		}
+	}
+	return false
+}
+
+// sentenceStart answers where the sentence that holds the byte at at begins.
+func sentenceStart(s string, at int) int {
+	start := 0
+	for _, stop := range []string{". ", "! ", "? "} {
+		if i := strings.LastIndex(s[:at], stop); i >= 0 {
+			start = max(start, i+len(stop))
+		}
+	}
+	return start
+}
+
+// sentenceEnd answers the byte after the mark that ends the sentence going on at at.
+func sentenceEnd(s string, at int) int {
+	if i := strings.IndexAny(s[at:], ".!?"); i >= 0 {
+		return at + i + 1
+	}
+	return len(s)
+}
+
 // insideAny reports whether from..to overlaps any of the spans.
 func insideAny(spans [][]int, from, to int) bool {
 	for _, sp := range spans {
@@ -284,6 +351,7 @@ type Shape struct {
 	Test    string `xml:"test,attr"`
 	Expect  string `xml:"expect,attr"`
 	ID      string `xml:"id,attr"`
+	Case    string `xml:"case,attr"`
 	Cases   []Case `xml:"test"`
 
 	terms table.Match
@@ -320,7 +388,11 @@ type Drop struct {
 	Word  string `xml:"word,attr"`
 	Where string `xml:"where,attr"`
 	Test  string `xml:"test,attr"`
+	Case  string `xml:"case,attr"`
 	Cases []Case `xml:"test"`
+
+	// Sensitive makes the word match as written.
+	Sensitive bool
 }
 
 type Rewrite struct {
@@ -328,7 +400,11 @@ type Rewrite struct {
 	To    string `xml:"to,attr"`
 	Where string `xml:"where,attr"`
 	Test  string `xml:"test,attr"`
+	Case  string `xml:"case,attr"`
 	Cases []Case `xml:"test"`
+
+	// Sensitive makes the phrase match as written.
+	Sensitive bool
 }
 
 // AppliesTo says whether an entry covers a surface.
@@ -340,9 +416,30 @@ func AppliesTo(where, surface string) bool {
 var loaded = mustLoad()
 
 func mustLoad() Table {
+	if err := xmlcheck.Run(Spec(), xmlcheck.File{Name: "english/english.xml", Raw: englishXML}); err != nil {
+		panic(fmt.Sprintf("english: %v", err))
+	}
 	var e Table
 	if err := xml.Unmarshal(table.Readable(englishXML), &e); err != nil {
 		panic(fmt.Sprintf("english: english.xml does not parse: %v", err))
+	}
+	sensitive := func(entry string) bool {
+		if entry != "" {
+			return entry == xmlcheck.CaseSensitive
+		}
+		return e.Case == xmlcheck.CaseSensitive
+	}
+	for i := range e.Drops {
+		e.Drops[i].Sensitive = sensitive(e.Drops[i].Case)
+	}
+	for i := range e.Rewrites {
+		e.Rewrites[i].Sensitive = sensitive(e.Rewrites[i].Case)
+	}
+	for i := range e.Flags {
+		e.Flags[i].Sensitive = sensitive(e.Flags[i].Case)
+	}
+	for i := range e.Patterns {
+		e.Patterns[i].Sensitive = sensitive(e.Patterns[i].Case)
 	}
 	if len(e.Drops) == 0 || len(e.Rewrites) == 0 {
 		panic("english: english.xml carries no drops or no rewrites")
@@ -371,6 +468,7 @@ func mustLoad() Table {
 		if err != nil {
 			panic(fmt.Sprintf("english: <shape match=%q> does not parse: %v", s.Match, err))
 		}
+		terms.Sensitive = sensitive(s.Case)
 		s.terms = terms
 	}
 	for i := range e.Patterns {
@@ -387,11 +485,12 @@ func mustLoad() Table {
 			panic(fmt.Sprintf("english: <pattern match=%q> names the subject position %q, which is not one of %v",
 				p.Match, p.Subject, SubjectPositions()))
 		}
-		re, err := regexp.Compile(p.Match)
+		re, err := precompiled.Compile(xmlcheck.Pattern(p.Match, p.Sensitive))
 		if err != nil {
 			panic(fmt.Sprintf("english: <pattern match=%q> does not compile: %v", p.Match, err))
 		}
 		p.re = re
+		p.needs = precompiled.Needs(re)
 	}
 	return e
 }

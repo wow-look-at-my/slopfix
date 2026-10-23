@@ -1,3 +1,5 @@
+// fixtureAPI is the GitHub API a rule case runs against.
+
 package slopfix
 
 import (
@@ -22,7 +24,7 @@ var fixtureAPI struct {
 // serveFixtureRefs adds a case's answers to the fixture API. The table maps
 // "owner/repo" to the default branch, and "owner/repo@ref" to "branch" or
 // "tag". The API answers for a repository or ref the table omits, so a
-// fixture declares each one it relies on.
+// fixture declares each it relies on.
 func serveFixtureRefs(table map[string]string) error {
 	fixtureAPI.once.Do(func() {
 		fixtureAPI.table = maps.Clone(declaredFixtureRefs)

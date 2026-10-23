@@ -1,3 +1,5 @@
+// ste/dictionary: a word the STE dictionary does not approve.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

@@ -1,3 +1,5 @@
+// userscriptOpen and userscriptClose bound a userscript metadata block.
+
 package treecomments
 
 import "strings"

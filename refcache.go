@@ -1,3 +1,5 @@
+// refsFile is the file under a repository's .git that caches ref answers.
+
 package slopfix
 
 import (

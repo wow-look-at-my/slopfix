@@ -1,3 +1,5 @@
+// ste/contraction: a contraction hides the word it stands for, and a reader whose English is a second language reads the full form faster.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
@@ -11,7 +13,7 @@ func init() {
 		Category: RuleSTE,
 		Detect:   detectContraction,
 		Autofix:  autofixContraction,
-		Cases:    []RuleCase{{Name: ste.IDContraction, Path: "x.md", Text: "The tool doesn't write the result.\n"}},
+		Cases:    []RuleCase{{Name: ste.IDContraction, Path: "x.md", Text: "The tool doesn't write the result.\n", Want: "The tool does not write the result.\n"}},
 	})
 }
 

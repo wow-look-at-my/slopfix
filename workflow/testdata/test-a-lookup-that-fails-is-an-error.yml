@@ -1,0 +1,4 @@
+jobs:
+  build:
+    steps:
+      - uses: someone/private@v1

@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -9,26 +11,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-const permissionWorkflow = `on:
-  push:
-    branches: ['**']
-permissions:
-  contents: read
-  id-token: write
-jobs:
-  own:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps: []
-  inherits:
-    runs-on: ubuntu-latest
-    steps: []
-  all:
-    runs-on: ubuntu-latest
-    permissions: write-all
-    steps: []
-`
+//go:embed testdata/permission-workflow.yml
+var permissionWorkflow string
 
 func TestTheJobBlockWinsAndOmitsWhatItDoesNotName(t *testing.T) {
 	g, err := workflow.Permission(permissionWorkflow, "own", "contents")
@@ -56,7 +40,7 @@ func TestWriteAllGrantsEveryPermission(t *testing.T) {
 }
 
 func TestNoBlockAnywhereIsTheRepositoryDefault(t *testing.T) {
-	g, err := workflow.Permission("jobs:\n  a:\n    steps: []\n", "a", "contents")
+	g, err := workflow.Permission(testNoBlockAnywhereIsTheRepositoryDefaultYml, "a", "contents")
 	require.NoError(t, err)
 	assert.Equal(t, workflow.Grant{Level: "none", Source: "default"}, g)
 }
@@ -65,9 +49,18 @@ func TestABadWorkflowIsAnError(t *testing.T) {
 	_, err := workflow.Permission(permissionWorkflow, "missing", "contents")
 	assert.ErrorContains(t, err, `names no job "missing"`)
 
-	_, err = workflow.Permission("jobs:\n  a:\n    permissions:\n      contents: admin\n", "a", "contents")
+	_, err = workflow.Permission(testABadWorkflowIsAnErrorYml, "a", "contents")
 	assert.ErrorContains(t, err, "not read, write or none")
 
-	_, err = workflow.Permission("jobs:\n  a:\n    permissions: some\n", "a", "contents")
+	_, err = workflow.Permission(testABadWorkflowIsAnErrorYml2, "a", "contents")
 	assert.ErrorContains(t, err, "neither read-all nor write-all")
 }
+
+//go:embed testdata/test-no-block-anywhere-is-the-repository-default.yml
+var testNoBlockAnywhereIsTheRepositoryDefaultYml string
+
+//go:embed testdata/test-a-bad-workflow-is-an-error.yml
+var testABadWorkflowIsAnErrorYml string
+
+//go:embed testdata/test-a-bad-workflow-is-an-error-2.yml
+var testABadWorkflowIsAnErrorYml2 string

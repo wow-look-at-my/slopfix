@@ -16,6 +16,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
 	"github.com/wow-look-at-my/slopfix/trace"
@@ -136,12 +137,12 @@ var (
 	parenthetical = regexp.MustCompile(`\([^()]*\)`)
 	// commaSplice wants a subject and a finite verb after the comma. The
 	// conjunction is optional, because a bare comma splices too.
-	commaSplice = regexp.MustCompile(
+	commaSplice = precompiled.MustCompile(
 		`(?i),\s+((?:` + spliceConjunction + `)\s+)?(?:` + clauseSubject +
 			`)\s+(?:\w+\s+){0,2}?(?:not\s+)?(?:` + finiteVerb + `)\b`)
-	finiteVerbRe = regexp.MustCompile(`(?i)\b(?:` + finiteVerb + `)\b`)
+	finiteVerbRe = precompiled.MustCompile(`(?i)\b(?:` + finiteVerb + `)\b`)
 	// subordinator opens a dependent clause, which a comma may join.
-	subordinator = regexp.MustCompile(`(?i)^(?:(?:` + subordinatorConjunction + `)\s+)?` +
+	subordinator = precompiled.MustCompile(`(?i)^(?:(?:` + subordinatorConjunction + `)\s+)?` +
 		`(?:` + subordinators + `)\b`)
 	// fileOrSection matches a lower-case sentence opener: a file name, or a
 	// section reference. Demanding a capital welds it onto its predecessor.
@@ -353,6 +354,7 @@ func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 	var out []string
 	runes := []rune(text)
 	start := 0
+	var marks markTally
 	for i := 0; i < len(runes); i++ {
 		if !terminator(runes[i]) {
 			continue
@@ -362,9 +364,10 @@ func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 			end++
 		}
 		stop := end
+		marks.span(runes, start, stop)
 		// A mark that closes emphasis, a quote or a parenthetical belongs to the
 		// sentence it ends.
-		for end+1 < len(runes) && closesMark(runes[start:stop], runes[end+1]) {
+		for end+1 < len(runes) && marks.closes(runes[end+1]) {
 			end++
 		}
 		gap := end + 1
@@ -376,7 +379,7 @@ func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 		for next < len(runes) && unicode.IsSpace(runes[next]) {
 			next++
 		}
-		if next >= len(runes) || !opens(runes[next:]) || endsWithAbbreviation(runes[start:stop+1]) {
+		if next >= len(runes) || !opens(runes[next:]) || abbreviations.Contains(finalWord(runes[start:stop+1])) {
 			i = end
 			continue
 		}
@@ -392,23 +395,6 @@ func SentencesOpenedBy(text string, opens func([]rune) bool) []string {
 
 func terminator(r rune) bool {
 	return r == '.' || r == '!' || r == '?'
-}
-
-// closesMark reports a mark after a terminator that closes what the sentence
-// so far opened. A `*` with no emphasis open before it is the glob of
-// `esnext.*`, and a `)` with no open parenthesis is a word.
-func closesMark(sentence []rune, mark rune) bool {
-	switch mark {
-	case ')':
-		return strings.Count(string(sentence), "(") > strings.Count(string(sentence), ")")
-	case '”':
-		return strings.ContainsRune(string(sentence), '“')
-	case '’':
-		return strings.ContainsRune(string(sentence), '‘')
-	case '*', '_', '"', '\'':
-		return strings.ContainsRune(string(sentence), mark)
-	}
-	return false
 }
 
 // opensSentence reports whether the text starts a new sentence.
@@ -432,16 +418,6 @@ func opensSentence(rest []rune) bool {
 
 // openerReach bounds how far opensSentence reads.
 const openerReach = 512
-
-func endsWithAbbreviation(sentence []rune) bool {
-	fields := strings.Fields(string(sentence))
-	if len(fields) == 0 {
-		return false
-	}
-	// "(e.g." is the abbreviation behind an opening mark.
-	last := strings.TrimLeft(fields[len(fields)-1], "([\"'“‘*_")
-	return abbreviations.Contains(strings.ToLower(last))
-}
 
 // WordCount counts the words in a sentence. Text in parentheses counts as a
 // single word, whatever it holds, which is what STE says.

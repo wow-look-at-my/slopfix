@@ -1,0 +1,4 @@
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          SHA: ${{ github.sha }}

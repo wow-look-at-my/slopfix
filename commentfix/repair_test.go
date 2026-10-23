@@ -1,5 +1,7 @@
 package commentfix_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -182,14 +184,7 @@ func TestAFileWithNoFindingIsUntouched(t *testing.T) {
 // does not make the digits a label to name. "exit code 2" was rewritten into
 // "exit a later code", which says something the author did not.
 func TestAnExitCodeIsNotACount(t *testing.T) {
-	src := "/// Dispatch the observe-only session-end `Stop`: runs in stop-gate mode so\n" +
-		"/// exit code 2 parses as a block, but the decision is discarded (no turn\n" +
-		"/// left to continue).\n" +
-		"pub(crate) async fn dispatch_session_end_stop(&self, reason: &str) {\n" +
-		"    if self.startup_hints.is_subagent {\n" +
-		"        return;\n" +
-		"    }\n" +
-		"}\n"
+	src := testAnExitCodeIsNotACountRs
 	got := commentfix.Fix("stop.rs", src)
 	assert.False(t, got.Changed, "the status is a value, not a count")
 	assert.Equal(t, src, got.Text, "the number repair leaves the phrase as written")
@@ -254,7 +249,7 @@ func TestAnEmptiedBlockLosesItsLines(t *testing.T) {
 // A doc comment opens with /**. Read as /* with prose that starts with a star,
 // the star went into the prose and the opener came back as /*.
 func TestADocBlockKeepsItsOpener(t *testing.T) {
-	src := "/** Keeps the ring.\n * Each take pays for 1 add. */\nfunction f() {}\n"
+	src := testADocBlockKeepsItsOpenerSh
 	got := commentfix.Fix("x.ts", src)
 
 	assert.Equal(t, "/** Keeps the ring. */\nfunction f() {}\n", got.Text)
@@ -327,3 +322,9 @@ func TestABlockWhoseCloserHasItsOwnLineIsRepaired(t *testing.T) {
 	assert.NotContains(t, got.Text, "sections. /", "the closer is not prose")
 	assert.Empty(t, commentfix.Check("x.c", got.Text))
 }
+
+//go:embed testdata/test-an-exit-code-is-not-a-count.rs
+var testAnExitCodeIsNotACountRs string
+
+//go:embed testdata/test-a-doc-block-keeps-its-opener.sh
+var testADocBlockKeepsItsOpenerSh string

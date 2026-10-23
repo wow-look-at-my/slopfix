@@ -1,3 +1,5 @@
+// dependentRest reports a cut whose rest cannot stand as a sentence of its own, though it holds a subject and a verb.
+
 package ste
 
 import (
@@ -76,6 +78,10 @@ func nounOpener(tag string) bool {
 // the rest of the list stands behind "This also covers".
 func listDivision(source, masked string, limit int) (string, bool) {
 	if !verbless(syntax.Parse(masked, nil)) {
+		return source, false
+	}
+	// The tagger reads the bare verb of an instruction as a noun, so an instruction looks verbless.
+	if opensImperative(lowerFirst(masked)) {
 		return source, false
 	}
 	best := forceCut{words: -1}

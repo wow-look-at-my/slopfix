@@ -21,6 +21,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"time"
+
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // HookInput is the subset of the MessageDisplay payload this plugin reads.
@@ -150,7 +152,7 @@ func forgetText(messageID string) { _ = os.Remove(stateFile(messageID)) }
 // sweep collects what a session that died mid-message left behind, so the
 // directory cannot grow without bound.
 func sweep() {
-	entries, err := os.ReadDir(stateDir)
+	entries, err := walktree.List(stateDir)
 	if err != nil {
 		return
 	}

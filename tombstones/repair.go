@@ -1,3 +1,5 @@
+// DefaultMaxCommentLines caps a comment block, the tier no rewording defeats.
+
 package tombstones
 
 import (
@@ -474,7 +476,7 @@ func commentLines(text string, blocks []Block, visit func(lineNo int, line strin
 	lines := strings.Split(text, "\n")
 	for _, b := range blocks {
 		for i, lineNo := range b.LineNos {
-			if i >= len(b.Pure) || !b.Pure[i] || lineNo < 0 || lineNo >= len(lines) || treecomments.IsDirective(lines[lineNo]) {
+			if i >= len(b.Pure) || !b.Pure[i] || lineNo < 0 || lineNo >= len(lines) || treecomments.DirectiveAt(lines, lineNo) {
 				continue
 			}
 			visit(lineNo, lines[lineNo])
@@ -562,7 +564,7 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 		over := b.Lines - maxLines
 		for i := len(b.LineNos) - 1; i >= 0 && over > 0; i-- {
 			no, pure := linePurity(b, i)
-			if pure && no >= 0 && no < len(lines) && !treecomments.IsDirective(lines[no]) {
+			if pure && no >= 0 && no < len(lines) && !treecomments.DirectiveAt(lines, no) {
 				drop.Add(no)
 				over--
 			}
@@ -605,7 +607,7 @@ func cuttable(text string, blocks []Block, maxLines, lineNo int) bool {
 func dropLastKept(lines []string, b Block, drop set.Set[int]) bool {
 	for i := len(b.LineNos) - 1; i >= 0; i-- {
 		no, pure := linePurity(b, i)
-		if pure && no >= 0 && no < len(lines) && !drop.Contains(no) && !treecomments.IsDirective(lines[no]) {
+		if pure && no >= 0 && no < len(lines) && !drop.Contains(no) && !treecomments.DirectiveAt(lines, no) {
 			drop.Add(no)
 			return true
 		}

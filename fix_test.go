@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"os"
 	"os/exec"
@@ -39,7 +41,7 @@ func TestFixLeavesACleanDocumentAlone(t *testing.T) {
 
 // A fence is data. Joining its lines changes what the code says.
 func TestFixKeepsAFencedBlockWhole(t *testing.T) {
-	doc := "# Title\n\n```sh\nfirst\nsecond\n```\n"
+	doc := testFixKeepsAFencedBlockWholeMd
 	repair := prose(doc)
 	assert.False(t, repair.Changed)
 	assert.Equal(t, doc, repair.Text)
@@ -82,7 +84,7 @@ func TestFixKeepsAListMarker(t *testing.T) {
 
 // A fence is data, so no prose rule reaches inside it.
 func TestFixLeavesProseInsideAFenceAlone(t *testing.T) {
-	doc := "```sh\nit doesn't run; nothing does\n```\n"
+	doc := testFixLeavesProseInsideAFenceAloneMd
 	repair := prose(doc)
 	assert.False(t, repair.Changed)
 	assert.Equal(t, doc, repair.Text)
@@ -331,3 +333,9 @@ func TestEveryCategoryNamesItsRules(t *testing.T) {
 	}
 	assert.True(t, slopfix.IDsFor(slopfix.Rule("nosuch")).IsEmpty())
 }
+
+//go:embed testdata/test-fix-keeps-a-fenced-block-whole.md
+var testFixKeepsAFencedBlockWholeMd string
+
+//go:embed testdata/test-fix-leaves-prose-inside-a-fence-alone.md
+var testFixLeavesProseInsideAFenceAloneMd string

@@ -7,3 +7,7 @@ grammars/*/parser.gen.go
 grammars/*/tables.zst
 grammars/parser.gen.go
 grammars/tables.zst
+
+# precompiled/internal/gen writes a constant regexp for each pattern a table
+# holds, so the compiler can precompile it.
+precompiled/regexps.gen.go

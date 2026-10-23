@@ -1,3 +1,5 @@
+// A commit can be made without any file ever existing locally: the GitHub contents API takes the bytes in the request body.
+
 package noworkloss
 
 import (

@@ -1,3 +1,5 @@
+// A new script that repeats another script's lines is a variant of that script.
+
 package noworkloss
 
 import (
@@ -7,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // A new script that repeats another script's lines is a variant of that
@@ -41,7 +45,7 @@ func copiedScriptReason(path, content string) string {
 		return ""
 	}
 	dir := filepath.Dir(path)
-	entries, err := os.ReadDir(dir)
+	entries, err := walktree.List(dir)
 	if err != nil {
 		return ""
 	}
@@ -77,7 +81,7 @@ func substantialLines(content string) map[string]bool {
 	lines := map[string]bool{}
 	for _, raw := range strings.Split(content, "\n") {
 		line := strings.TrimSpace(raw)
-		if len(line) < substantialLen || isCommentLine(line) {
+		if len(line) < substantialLen || isCommentLine(line) || isImportLine(line) {
 			continue
 		}
 		lines[line] = true
@@ -92,6 +96,17 @@ func isCommentLine(line string) bool {
 		}
 	}
 	return false
+}
+
+// isImportLine is true for a line that names a module to load. Scripts that
+// import one shared module are the fix this check asks for, not a copy.
+func isImportLine(line string) bool {
+	for _, prefix := range []string{"import ", "import{", "from ", "export * from ", "export {", "} from ", "source ", ". ./"} {
+		if strings.HasPrefix(line, prefix) {
+			return true
+		}
+	}
+	return strings.Contains(line, "require(") && strings.HasPrefix(line, "const ")
 }
 
 // sharedLines answers which of the added lines the sibling already carries.

@@ -1,3 +1,5 @@
+// ruleNames answers every category a caller may name to --only.
+
 package cmd
 
 import (
@@ -134,7 +136,8 @@ func init() {
 			"file. With --fix it repairs each file in place first, and reports what a\n" +
 			"rewrite cannot repair. A directory is walked. Walked from a repository\n" +
 			"root, the repo rules also judge which markdown files the repository keeps.\n\n" +
-			"With no file it reads text on stdin, headed for --path. Named as fix, or\n" +
+			"With no file it walks the current directory. It reads stdin only when the\n" +
+			"file is named -, with the text headed for --path. Named as fix, or\n" +
 			"given --fix, it writes the repaired text on stdout and its findings on\n" +
 			"stderr. --json writes the whole answer as one object instead, and exits 0\n" +
 			"on a finding, because the caller decides what a finding means.\n\n" +
@@ -160,16 +163,29 @@ func init() {
 	checkCmd = check
 }
 
+// stdinOperand is the file name that stands for stdin, as in cat and diff.
+const stdinOperand = "-"
+
 func runCheck(cmd *cobra.Command, args []string) error {
 	if checkMessage {
-		if len(args) > 0 || checkStaged || checkDiff != "" {
-			return fmt.Errorf("--message reads stdin, so it takes no file and no line selector")
+		if (len(args) > 0 && !slices.Equal(args, []string{stdinOperand})) || checkStaged || checkDiff != "" {
+			return fmt.Errorf("--message reads stdin, so it takes no file beyond %q and no line selector", stdinOperand)
 		}
 		return checkMessageStdin(cmd, checkOnly, checkJSON, checkFix || cmd.CalledAs() == "fix")
 	}
 	// Invoked as "fix", the repair is what was asked for, flag or no flag.
 	repairing := checkFix || cmd.CalledAs() == "fix"
-	if repairing && len(args) > 0 {
+	reading := slices.Contains(args, stdinOperand)
+	if reading && len(args) > 1 {
+		return fmt.Errorf("%q reads stdin as the one file, so it cannot be named beside another path", stdinOperand)
+	}
+	if !reading && checkPath != "" {
+		return fmt.Errorf("--path names the file that text on stdin is headed for, so it needs the operand %q", stdinOperand)
+	}
+	if len(args) == 0 {
+		args = []string{"."}
+	}
+	if repairing && !reading {
 		if err := fixWorkTree(args); err != nil {
 			return err
 		}
@@ -182,8 +198,8 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if sel != nil && len(args) == 0 {
-		return errors.New("--staged and --diff scope a set of files, so they need a file or directory")
+	if sel != nil && reading {
+		return errors.New("--staged and --diff scope the files of a work tree, so they cannot judge stdin")
 	}
 	request := slopfix.Request{
 		Path:            checkPath,
@@ -192,7 +208,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		MaxCommentLines: checkMaxLines,
 		Refs:            slopfix.NewGitHubRefs(os.Getenv),
 	}
-	if len(args) == 0 {
+	if reading {
 		return checkStdin(cmd, request, repairing, checkJSON)
 	}
 	found := false

@@ -1,3 +1,5 @@
+// lineMarkers open the prose of a single comment line.
+
 package commentfix
 
 import "strings"

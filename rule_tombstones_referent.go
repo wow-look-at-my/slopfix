@@ -1,4 +1,8 @@
+// tombstones/name-nothing-in-the-repository-defines: a comment that names a symbol no file of the repository holds.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -17,30 +21,26 @@ func init() {
 		Cases: []RuleCase{{
 			Name:  tombstones.IDDeadReferent,
 			Path:  "main.go",
-			Text:  "package main\n\n// parseLegacyFlag reads the input.\nfunc main() {}\n",
+			Text:  fixtureHeader + "package main\n\n// parseLegacyFlag reads the input.\nfunc main() {}\n",
 			Files: map[string]string{"util.go": "package main\n\nfunc readInput() {}\n"},
 		}, {
 			// The inline comment of a call names a dead parameter, and the call around it names members of an imported module.
-			Name: "inline block comment in a TypeScript call",
-			Path: "src/comments.ts",
-			Text: "import * as ts from 'typescript';\n\n" +
-				"export function commentOnlyLines(script: string): number {\n" +
-				"\tconst scanner = ts.createScanner(ts.ScriptTarget.Latest, /* skipTrivia */ false, ts.LanguageVariant.Standard, script);\n" +
-				"\treturn scanner.getTokenStart();\n" +
-				"}\n",
+			Name:  "inline block comment in a TypeScript call",
+			Path:  "src/comments.ts",
+			Text:  embeddedJs,
 			Files: map[string]string{"src/other.ts": "export const other = 1;\n"},
 		}, {
 			// A string literal before a trailing comment is code, and only the comment's own words name the dead symbol.
 			Name: "trailing comment after a TypeScript string",
 			Path: "src/highlight.ts",
-			Text: "export const PALETTE = new Map<string, string>([\n" +
+			Text: fixtureHeader + "export const PALETTE = new Map<string, string>([\n" +
 				"\t['built_in', fg('#ffa657')], // built-in types (string, number) and globals (console, Math). See paletteFor.\n" +
 				"]);\n",
 			Files: map[string]string{"src/other.ts": "export function fg(hex: string): string {\n\treturn hex;\n}\n"},
 		}, {
 			Name: tombstones.IDDeadReferent + " on the closer line of a JSDoc block",
 			Path: "plain.js",
-			Text: "/** Report whether the value is plain.\n * A plain value never equals `value === thisOperand` at runtime. */\nexport function isPlain(value) {\n\treturn value === null;\n}\n",
+			Text: embeddedCpp,
 		}},
 	})
 }
@@ -68,3 +68,9 @@ func detectDeadReferent(c RuleCase) []ste.Finding {
 func autofixDeadReferent(c RuleCase) RuleCase {
 	return caseAutofix(c, tombstones.IDDeadReferent)
 }
+
+//go:embed testdata/embedded.js
+var embeddedJs string
+
+//go:embed testdata/embedded.cpp
+var embeddedCpp string

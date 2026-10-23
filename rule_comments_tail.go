@@ -1,3 +1,5 @@
+// comments/tail: a comment that stops on a word which opens what a cut took away, as in a comment ending on "because".
+
 package slopfix
 
 import (
@@ -14,7 +16,7 @@ func init() {
 		Category: RuleComments,
 		Detect:   detectCommentTail,
 		Autofix:  autofixCommentTail,
-		Cases:    []RuleCase{{Name: commentfix.IDTail, Path: "main.go", Text: "package main\n\n// The loop reads each value because\nfunc main() {}\n"}},
+		Cases:    []RuleCase{{Name: commentfix.IDTail, Path: "main.go", Text: fixtureHeader + "package main\n\n// The loop reads each value because\nfunc main() {}\n"}},
 	})
 }
 

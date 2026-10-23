@@ -1,6 +1,9 @@
+// IsDirective reports a comment line that a tool reads, such as //go:nosplit.
+
 package treecomments
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 )
@@ -9,7 +12,7 @@ import (
 // A space after the marker turns it into prose, so no repair may touch it.
 func IsDirective(line string) bool {
 	text := strings.TrimSpace(line)
-	if strings.HasPrefix(text, "// +build") || tripleSlash(text) {
+	if strings.HasPrefix(text, "// +build") || metadataOpen.MatchString(text) || tripleSlash(text) {
 		return true
 	}
 	rest, found := strings.CutPrefix(text, "//")
@@ -36,12 +39,53 @@ func IsDirective(line string) bool {
 	return false
 }
 
+// metadataOpen and metadataClose delimit a userscript or userstyle metadata
+// block, which the browser extension parses line by line.
+var (
+	metadataOpen  = regexp.MustCompile(`^//\s*==User(?:Script|Style)==\s*$`)
+	metadataClose = regexp.MustCompile(`^//\s*==/User(?:Script|Style)==\s*$`)
+	metadataKey   = regexp.MustCompile(`^//\s*@[A-Za-z][A-Za-z0-9:_-]*(?:\s|$)`)
+)
+
+// DirectiveAt reports whether lines[i] is a directive: a line IsDirective
+// reads, or a line inside a userscript metadata block. An "// @name" line
+// anywhere else is prose.
+func DirectiveAt(lines []string, i int) bool {
+	if IsDirective(lines[i]) {
+		return true
+	}
+	text := strings.TrimSpace(lines[i])
+	if !metadataKey.MatchString(text) && !metadataClose.MatchString(text) {
+		return false
+	}
+	for j := i - 1; j >= 0; j-- {
+		prior := strings.TrimSpace(lines[j])
+		if metadataOpen.MatchString(prior) {
+			return true
+		}
+		if metadataClose.MatchString(prior) {
+			return false
+		}
+	}
+	return false
+}
+
+// DirectiveMask answers DirectiveAt for every line of lines.
+func DirectiveMask(lines []string) []bool {
+	mask := make([]bool, len(lines))
+	for i := range lines {
+		mask[i] = DirectiveAt(lines, i)
+	}
+	return mask
+}
+
 // directiveLines answers every directive line in the comments of src, in order.
 func directiveLines(filename, src string) []string {
 	var out []string
 	for _, comment := range Extract(filename, src) {
-		for _, line := range strings.Split(comment.Text, "\n") {
-			if IsDirective(line) {
+		lines := strings.Split(comment.Text, "\n")
+		for i, line := range lines {
+			if DirectiveAt(lines, i) {
 				out = append(out, strings.TrimSpace(line))
 			}
 		}

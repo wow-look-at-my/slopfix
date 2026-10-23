@@ -1,3 +1,5 @@
+// IDBranchPin is a uses: ref that names a feature branch, or nothing a run can resolve.
+
 package workflow
 
 import (
@@ -47,39 +49,57 @@ type Use struct {
 // fullSHA matches a full commit SHA, which needs no lookup.
 var fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
-// Uses answers every remote uses: value of a workflow or an action manifest:
-// a job's reusable workflow, a job's step, and a composite action's step. A
-// local path, a docker:// image and a value that holds an expression name no
-// remote ref. Unparseable YAML yields nothing, because the runner rejects it.
+// Uses answers every remote uses: value the runner reads. A local path, a docker:// image and an expression name no remote ref.
 func Uses(content string) []Use {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
 		return nil
 	}
-	root := rootOf(&doc)
-	var nodes []*yaml.Node
+	var out []Use
+	for _, site := range usesSites(&doc) {
+		if use, ok := remoteUse(site.value); ok {
+			out = append(out, use)
+		}
+	}
+	return out
+}
+
+// usesSite is one uses: key that the runner reads, and its value.
+type usesSite struct {
+	key, value *yaml.Node
+}
+
+// usesSites answers each uses: key the runner reads, in source order: a job's reusable workflow, a job's step, and a composite action's step.
+// A uses: key anywhere else, such as an input under with:, names no action.
+func usesSites(doc *yaml.Node) []usesSite {
+	root := rootOf(doc)
+	var out []usesSite
+	add := func(node *yaml.Node) {
+		if node == nil || node.Kind != yaml.MappingNode {
+			return
+		}
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			if node.Content[i].Value == "uses" {
+				out = append(out, usesSite{key: node.Content[i], value: node.Content[i+1]})
+			}
+		}
+	}
 	stepUses := func(steps *yaml.Node) {
 		if steps == nil || steps.Kind != yaml.SequenceNode {
 			return
 		}
 		for _, step := range steps.Content {
-			nodes = append(nodes, mappingValue(step, "uses"))
+			add(step)
 		}
 	}
 	if jobs := mappingValue(root, "jobs"); jobs != nil && jobs.Kind == yaml.MappingNode {
 		for i := 1; i < len(jobs.Content); i += 2 {
 			job := jobs.Content[i]
-			nodes = append(nodes, mappingValue(job, "uses"))
+			add(job)
 			stepUses(mappingValue(job, "steps"))
 		}
 	}
 	stepUses(mappingValue(mappingValue(root, "runs"), "steps"))
-	var out []Use
-	for _, node := range nodes {
-		if use, ok := remoteUse(node); ok {
-			out = append(out, use)
-		}
-	}
 	return out
 }
 

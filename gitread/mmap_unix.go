@@ -1,5 +1,7 @@
 //go:build unix
 
+// mapFile maps a whole file read-only.
+
 package gitread
 
 import (

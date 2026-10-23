@@ -1,3 +1,5 @@
+// script is a scripts entry, in the order the manifest lists it. value is its JSON text.
+
 package slopfix
 
 import (
@@ -10,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // script is a scripts entry, in the order the manifest lists it. value is its JSON text.
@@ -50,6 +53,7 @@ func moveScripts(path string, content []byte) ([]string, error) {
 	if err := os.WriteFile(justfile, []byte(justRecipes(string(existing), moved)), 0o644); err != nil {
 		return nil, err
 	}
+	walktree.Created(justfile)
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err

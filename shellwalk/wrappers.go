@@ -1,3 +1,5 @@
+// StripWrappers peels the layers between the words as written and the program that runs.
+
 package shellwalk
 
 import (

@@ -1,3 +1,5 @@
+// Rule names a repair Fix can apply, so a caller can select a repair by name.
+
 package slopfix
 
 import (
@@ -14,6 +16,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/expect"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/forkscope"
+	"github.com/wow-look-at-my/slopfix/goembed"
 	"github.com/wow-look-at-my/slopfix/goformat"
 	"github.com/wow-look-at-my/slopfix/markdown"
 	"github.com/wow-look-at-my/slopfix/pins"
@@ -43,6 +46,8 @@ const (
 	RuleWorkflow Rule = "yaml"
 	// RulePins is a download URL that names an exact release.
 	RulePins Rule = "pins"
+	// RuleGo is a Go string that holds the source of another language.
+	RuleGo Rule = goembed.Category
 )
 
 // IDsFor names every rule inside a category, so a caller can reject a typo
@@ -266,6 +271,11 @@ func fixText(req Request) Repair {
 	repair.refuse(rep.Refused)
 	// A new file answers to every rule, whatever the run selected, so it lands clean.
 	for _, c := range rep.Created {
+		// No walk reads testdata, so a fixture there keeps its bytes.
+		if tombstones.InTestdata(c.Path) {
+			repair.Created = append(repair.Created, c)
+			continue
+		}
 		settled := fixAll(Request{Content: c.Text, Path: c.Path, MaxCommentLines: req.MaxCommentLines, OneFile: true})
 		repair.Created = append(repair.Created, fixer.Created{Path: c.Path, Text: settled.Text})
 	}
@@ -312,6 +322,9 @@ func fixText(req Request) Repair {
 			if wants(family) && finding.ID != commentfix.IDLength && keeps(finding.ID) {
 				repair.Findings = append(repair.Findings, finding)
 			}
+		}
+		if wants(RuleGo) && keeps(goembed.ID) {
+			repair.Findings = append(repair.Findings, goembed.CheckPath(req.Path, text)...)
 		}
 		if wants(RuleComments) && keeps(commentfix.IDLength) {
 			for _, hit := range commentfix.CheckLength(req.Path, text) {
@@ -441,6 +454,11 @@ func init() {
 				return ste.FixSelected(text, func(id string) bool { return id != ste.IDParagraphLength && selected(id) })
 			}
 			if _, safe := Format(f.Text()); safe {
+				entries := markdown.EntryBullets
+				if strings.EqualFold(filepath.Ext(f.Path), ".txt") {
+					entries = markdown.EntryBlankLines
+				}
+				f.Apply(markdown.EntryRepair(f.Text(), entries))
 				f.Apply(markdown.FormatEdits(f.Text(), word))
 			}
 			if selected(ste.IDParagraphLength) {

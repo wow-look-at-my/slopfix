@@ -1,0 +1,9 @@
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          A: prefix-${{ inputs.a }}
+          B: ${{ inputs.b }}
+        run: |
+          echo "$A" "${B:-none}"

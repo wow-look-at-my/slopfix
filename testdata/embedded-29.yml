@@ -1,0 +1,4 @@
+  build:
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
+    steps:
+      - run: make

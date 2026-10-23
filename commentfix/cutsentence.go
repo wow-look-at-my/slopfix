@@ -1,3 +1,5 @@
+// CutSentence takes every sentence that holds name out of a comment block of line comments, and reflows each paragraph it changed.
+
 package commentfix
 
 import (

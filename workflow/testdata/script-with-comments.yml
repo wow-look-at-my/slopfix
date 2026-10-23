@@ -1,0 +1,9 @@
+on: {push: {branches: ['**']}}
+jobs:
+  build:
+    steps:
+      - run: |
+          # install the backend
+          # the suites need it
+          apt-get install -y bubblewrap
+          apt-get clean

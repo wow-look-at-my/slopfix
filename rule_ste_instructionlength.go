@@ -1,3 +1,5 @@
+// ste/instruction-length: an instruction over the word cap.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

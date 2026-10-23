@@ -1,3 +1,5 @@
+// RuleSpec is one rule: what it detects, the repair that answers that detection, and the cases that prove both.
+
 package slopfix
 
 import (
@@ -18,6 +20,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // RuleSpec is one rule: what it detects, the repair that answers that
@@ -82,6 +85,7 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			return c, err
 		}
+		walktree.Created(path)
 	}
 	// The files are committed, because a rule about a committed file asks git what the tree holds.
 	commit := [][]string{

@@ -1,3 +1,5 @@
+// The repairs the warning rules answer with.
+
 package ste
 
 import (
@@ -5,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -161,17 +164,21 @@ func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
 // fixInstructions divides each instruction over InstructionWordCap, as the
 // sentence cap divides a sentence over its own cap.
 func fixInstructions(prose string, reorder bool) string {
-	spans := sentenceSpans(prose)
-	for n := len(spans) - 1; n >= 0; n-- {
-		text := prose[spans[n][0]:spans[n][1]]
+	var out strings.Builder
+	last := 0
+	for _, span := range sentenceSpans(prose) {
+		text := prose[span[0]:span[1]]
 		masked := mask(text)
 		count := WordCount(masked)
 		if count <= InstructionWordCap || count > SentenceWordCap || !isInstruction(syntax.Parse(masked, opaque(text, masked))) {
 			continue
 		}
-		prose = prose[:spans[n][0]] + fixSentenceCap(text, capSpec{reorder: reorder, cap: InstructionWordCap}) + prose[spans[n][1]:]
+		out.WriteString(prose[last:span[0]])
+		out.WriteString(fixSentenceCap(text, capSpec{reorder: reorder, cap: InstructionWordCap}))
+		last = span[1]
 	}
-	return prose
+	out.WriteString(prose[last:])
+	return out.String()
 }
 
 // rewriteSentence answers the sentence with the first clause warning its own
@@ -220,6 +227,107 @@ func auxiliary(s *syntax.Sentence, from int, forms set.Set[string]) (int, int) {
 		}
 	}
 	return -1, -1
+}
+
+// lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
+// the start of one. A name keeps its capital.
+func lowerOpeningFor(phrase, tag string) string {
+	if tag == "NNP" || tag == "NNPS" {
+		return phrase
+	}
+	first, width := utf8.DecodeRuneInString(phrase)
+	if !unicode.IsUpper(first) {
+		return phrase
+	}
+	return string(unicode.ToLower(first)) + phrase[width:]
+}
+
+// passiveVerb answers the active form of a passive verb group: the participle
+// for a past clause, and the present tense of the base form otherwise.
+func passiveVerb(participle, beWord string, plural bool) string {
+	switch beWord {
+	case "was", "were", "been", "being":
+		return pastFromParticiple(participle)
+	}
+	return presentOf(baseFromParticiple(participle), plural)
+}
+
+// baseFromParticiple answers the verb a participle belongs to. A regular verb
+// spells its participle with -ed, so the ending answers it by rule. The table
+// answers each verb the ending hides.
+func baseFromParticiple(form string) string {
+	form = strings.ToLower(form)
+	if v, ok := verbBy(form); ok && v.participle == form {
+		return v.base
+	}
+	if !strings.HasSuffix(form, "ed") || len(form) <= 3 {
+		return form
+	}
+	stem := form[:len(form)-2]
+	if doubled(stem) {
+		return stem[:len(stem)-1]
+	}
+	if strings.HasSuffix(stem, "i") {
+		return stem[:len(stem)-1] + "y"
+	}
+	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
+		return stem + "e"
+	}
+	if silentE(stem) {
+		return stem + "e"
+	}
+	return stem
+}
+
+// silentE reports whether English spelling drops an e from the end of stem before
+// -ed. Endings like -dge, -ate, -ize, -ve, -ce and -ure need the e. A stem of one
+// syllable that ends on a single vowel and a single consonant took the e as well.
+// Because a stem without it doubles its consonant: "named" against "planned".
+func silentE(stem string) bool {
+	n := len(stem)
+	if n < 2 {
+		return false
+	}
+	last, prev := stem[n-1], stem[n-2]
+	consonant := func(c byte) bool { return c >= 'a' && c <= 'z' && !strings.ContainsRune("aeiou", rune(c)) }
+	switch {
+	case last == 'v', last == 'u' && prev != 'q':
+		return true
+	case last == 'c', last == 'z' && strings.ContainsRune("iy", rune(prev)):
+		return true
+	case last == 'g' && prev == 'd':
+		return true
+	case last == 's' && strings.ContainsRune("rnpl", rune(prev)):
+		return true
+	case last == 'l' && consonant(prev) && !strings.ContainsRune("lrw", rune(prev)):
+		return true
+	case n >= 3 && strings.ContainsRune("aiu", rune(prev)) && strings.ContainsRune("tr", rune(last)) && consonant(stem[n-3]):
+		// -ate, -ire, -ure and -are, after a consonant.
+		return prev != 'i' || last == 'r'
+	case n >= 3 && prev == 'i' && strings.ContainsRune("nd", rune(last)) && consonant(stem[n-3]):
+		// -ine and -ide, after a consonant.
+		return true
+	}
+	// The u of qu spells a consonant sound.
+	w := strings.ReplaceAll(stem, "qu", "q")
+	n = len(w)
+	return n >= 2 && oneSyllable(w) && strings.ContainsRune("aeiou", rune(w[n-2])) && (n == 2 || consonant(w[n-3])) &&
+		consonant(last) && !strings.ContainsRune("wxy", rune(last))
+}
+
+// oneSyllable reports whether word holds a single run of vowels. A y opens no
+// run at the start of a word, where it spells a consonant.
+func oneSyllable(word string) bool {
+	runs := 0
+	vowel := false
+	for i := 0; i < len(word); i++ {
+		v := strings.ContainsRune("aeiou", rune(word[i])) || word[i] == 'y' && i > 0
+		if v && !vowel {
+			runs++
+		}
+		vowel = v
+	}
+	return runs == 1
 }
 
 // simpleSpan reports whether a verb group from the auxiliary i to the

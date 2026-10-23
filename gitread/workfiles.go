@@ -1,3 +1,5 @@
+// WorkFiles answers every path the index tracks, and every untracked path git does not ignore.
+
 package gitread
 
 import (
@@ -8,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // WorkFiles answers every path the index tracks, and every untracked path git
@@ -63,46 +66,33 @@ func (r *Repo) untracked(idx *Index) ([]string, error) {
 	ignore := r.Ignore()
 	holding := trackedDirs(idx)
 	var out []string
-	err := filepath.WalkDir(r.workTree, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
+	walktree.Get(r.workTree).Visit(func(dir string) bool {
+		rel := filepath.ToSlash(dir[len(r.workTree)+1:])
+		if e, ok := idx.byPath[rel]; ok && e.IsGitlink() {
+			return false
 		}
-		if path == r.workTree {
-			return nil
-		}
-		if d.Name() == ".git" {
-			if d.IsDir() {
-				return filepath.SkipDir
+		if !holding.Contains(rel) {
+			if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+				if !ignore.Ignored(rel, true) {
+					out = append(out, rel+"/")
+				}
+				return false
 			}
-			return nil
+			if ignore.Ignored(rel, true) {
+				return false
+			}
 		}
+		return true
+	}, func(path string, _ walktree.Entry) {
 		rel := filepath.ToSlash(path[len(r.workTree)+1:])
-		if d.IsDir() {
-			if e, ok := idx.byPath[rel]; ok && e.IsGitlink() {
-				return filepath.SkipDir
-			}
-			if !holding.Contains(rel) {
-				if _, err := os.Lstat(filepath.Join(path, ".git")); err == nil {
-					if !ignore.Ignored(rel, true) {
-						out = append(out, rel+"/")
-					}
-					return filepath.SkipDir
-				}
-				if ignore.Ignored(rel, true) {
-					return filepath.SkipDir
-				}
-			}
-			return nil
-		}
 		if _, ok := idx.byPath[rel]; ok {
-			return nil
+			return
 		}
 		if !ignore.Ignored(rel, false) {
 			out = append(out, rel)
 		}
-		return nil
 	})
-	return out, err
+	return out, nil
 }
 
 // workOID answers the name git would give the work tree copy of an entry, and

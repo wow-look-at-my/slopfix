@@ -1,4 +1,8 @@
+// yaml/branch-pin: a uses: ref that names a branch other than the default branch of the action's repository.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -23,7 +27,7 @@ func init() {
 // names main the default branch of acme/tool, feature-x. A branch of it, and
 // v1 a tag of acme/other. A case marked kept is left as written.
 func branchPinCase(name, uses string, kept bool) RuleCase {
-	c := workflowCase(name, workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
+	c := workflowCase(name, workflowHeader()+branchPinCaseYml+
 		"    steps:\n      - uses: "+uses+"\n")
 	c.Unchanged = kept
 	c.Refs = map[string]string{
@@ -45,3 +49,6 @@ func detectBranchPin(c RuleCase) []ste.Finding {
 func autofixBranchPin(c RuleCase) RuleCase {
 	return treeAutofix(c, workflow.IDBranchPin)
 }
+
+//go:embed testdata/branch-pin-case.yml
+var branchPinCaseYml string
