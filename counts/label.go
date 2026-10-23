@@ -1,3 +1,5 @@
+// Constants answers the name of a constant whose value is the digits n, or "".
+
 package counts
 
 import (

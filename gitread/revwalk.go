@@ -1,3 +1,5 @@
+// Commit is the part of a commit object this package reads.
+
 package gitread
 
 import (

@@ -1,3 +1,5 @@
+// finiteOutsideReduced reports a finite verb from word from up to end that no reduced relative clause holds.
+
 package ste
 
 import (

@@ -1,3 +1,5 @@
+// An item is a value an index compares: a part read with the case rule, and a part that always compares exactly.
+
 package xmlcheck
 
 import (

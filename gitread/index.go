@@ -1,3 +1,5 @@
+// Index entry flags.
+
 package gitread
 
 import (

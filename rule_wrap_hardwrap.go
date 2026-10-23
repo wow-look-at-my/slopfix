@@ -1,3 +1,5 @@
+// wrap/hard-wrap: a paragraph split over several source lines freezes one window's width into the file.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

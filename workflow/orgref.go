@@ -1,3 +1,5 @@
+// IDOrgActionRef is an org action or reusable workflow that names a ref other than `lkgb`.
+
 package workflow
 
 import (

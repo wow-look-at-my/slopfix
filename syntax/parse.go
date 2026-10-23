@@ -1,3 +1,5 @@
+// tagger loads the model a single time per process, because decoding it is the costly part.
+
 package syntax
 
 import (

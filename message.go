@@ -1,3 +1,5 @@
+// MessageIDs names every rule that judges a closing message, which is never on disk.
+
 package slopfix
 
 import (

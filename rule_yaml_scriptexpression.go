@@ -1,3 +1,5 @@
+// yaml/script-expression: a TypeScript step script that writes a context value in as a ${{ }} expression.
+
 package slopfix
 
 import _ "embed"

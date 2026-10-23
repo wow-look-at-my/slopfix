@@ -1,3 +1,5 @@
+// fragmentDivision divides a sentence that holds no main clause.
+
 package ste
 
 import (

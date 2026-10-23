@@ -1,3 +1,5 @@
+// IDBranchPin is a uses: ref that names a feature branch, or nothing a run can resolve.
+
 package workflow
 
 import (

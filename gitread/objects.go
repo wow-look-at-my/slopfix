@@ -1,3 +1,5 @@
+// Type names, as git spells them.
+
 package gitread
 
 import (

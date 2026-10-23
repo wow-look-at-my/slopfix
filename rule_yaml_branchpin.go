@@ -1,3 +1,5 @@
+// yaml/branch-pin: a uses: ref that names a branch other than the default branch of the action's repository.
+
 package slopfix
 
 import _ "embed"

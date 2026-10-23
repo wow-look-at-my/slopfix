@@ -1,3 +1,5 @@
+// ByHand reports whether a Fix text asks for a rewrite by hand, which no repair writes.
+
 package ste
 
 import (

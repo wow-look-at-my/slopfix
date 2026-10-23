@@ -1,3 +1,5 @@
+// Created is a file the repair writes, by the path its Go file's path names it.
+
 package goembed
 
 import (

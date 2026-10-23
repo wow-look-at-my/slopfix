@@ -1,3 +1,5 @@
+// ste/tense: STE allows the simple tenses only.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

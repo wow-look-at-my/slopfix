@@ -1,3 +1,5 @@
+// The vocabulary the walk is built on: what a word says.
+
 package noworkloss
 
 import (

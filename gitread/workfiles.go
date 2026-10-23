@@ -1,3 +1,5 @@
+// WorkFiles answers every path the index tracks, and every untracked path git does not ignore.
+
 package gitread
 
 import (

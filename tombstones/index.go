@@ -1,3 +1,5 @@
+// indexTimeout bounds the read of the tree.
+
 package tombstones
 
 import (

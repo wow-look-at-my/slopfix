@@ -1,3 +1,5 @@
+// IDRunScriptSyntax is a run script that the shell it runs in cannot parse.
+
 package workflow
 
 import (

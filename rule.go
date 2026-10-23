@@ -1,3 +1,5 @@
+// RuleSpec is one rule: what it detects, the repair that answers that detection, and the cases that prove both.
+
 package slopfix
 
 import (

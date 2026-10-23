@@ -1,3 +1,5 @@
+// Compile reads a pattern from a table.
+
 package xmlcheck
 
 import (
