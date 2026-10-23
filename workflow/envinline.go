@@ -216,7 +216,6 @@ func runSteps(root *yaml.Node) []stepRef {
 	return out
 }
 
-
 // paramRef is one expansion of a variable in the script.
 type paramRef struct {
 	start, end int
