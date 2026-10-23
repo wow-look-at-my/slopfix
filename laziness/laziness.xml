@@ -110,11 +110,39 @@
 		<pattern re="(?i)\bsay\s+the\s+word\b">
 			<punt>Say the word.</punt>
 		</pattern>
+		<pattern re="(?i)\b(?:can|may|could)\s+I\s+(?:go\s+ahead\s+and\s+)?(?:fix|repair|patch|change|edit|touch|work\s+on)\b[^.!?\n]*\?">
+			<punt>Can I go ahead and fix the loader?</punt>
+			<punt>May I edit the build phase?</punt>
+		</pattern>
+		<pattern re="(?i)\b(?:ok|okay|alright|fine)\s+(?:if\s+I|to|for\s+me\s+to)\s+(?:fix|repair|patch|change|edit|touch|work\s+on|proceed|go\s+ahead)\b[^.!?\n]*\?">
+			<punt>Okay if I patch it?</punt>
+			<punt>Alright for me to proceed?</punt>
+		</pattern>
 		<pattern re="(?i)\b(?:tell\s+me|let\s+me\s+know)\s+(?:if|whether)\s+you\s*(?:'|’)?d?\s*(?:want|need|would\s+like)\b">
 			<punt>Tell me if you want it.</punt>
 			<punt>The loader fix is ready. Tell me if you want it.</punt>
 			<punt>Let me know if you want it.</punt>
 			<punt>Tell me whether you need the port too.</punt>
+		</pattern>
+	</shape>
+
+	<!-- A fix framed as something the user grants. Fixing needs no one's permission. -->
+	<shape name="treating a fix as needing permission">
+		<pattern re="(?i)\bthe\s+user\s+(?:has\s+)?(?:authori[sz]ed|approved|permitted|allowed|cleared|okayed|signed\s+off\s+on)\s+(?:fixing|repairing|changing|editing|touching|work(?:ing)?\s+on|me\s+to|you\s+to|the\s+fix|a\s+fix)\b">
+			<punt>The user has approved fixing the loader.</punt>
+			<punt>The user cleared me to touch the build phase.</punt>
+		</pattern>
+		<pattern re="(?i)\boff[- ]limits\s+(?:unless|until|without)\b">
+			<punt>The loader is off-limits unless the user says so.</punt>
+			<punt>The build phase stays off limits until we hear back.</punt>
+		</pattern>
+		<pattern re="(?i)\bI(?:\s+am|['’]m)\s+(?:asking|checking\s+with)\s+the\s+user\b">
+			<punt>I am asking the user before touching the loader.</punt>
+			<punt>I'm checking with the user first.</punt>
+		</pattern>
+		<pattern re="(?i)\b(?:needs?|needing|requires?|wait(?:s|ing)?\s+(?:for|on))\s+(?:the\s+user['’]?s?|your)\s+(?:permission|approval|authori[sz]ation|go-?ahead|OK|okay|sign-?off)\b">
+			<punt>Changing that needs the user's permission.</punt>
+			<punt>The repair requires your approval.</punt>
 		</pattern>
 	</shape>
 

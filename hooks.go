@@ -84,6 +84,13 @@ var hooks = []Hook{
 		Only:    []string{IDPunt},
 	},
 	{
+		Name:    "no-permission-to-fix",
+		Event:   "PreToolUse",
+		Runs:    "slopfix hook --only laziness",
+		Summary: "a question, an agent prompt or a message that asks permission to do a fix",
+		Only:    []string{IDPunt},
+	},
+	{
 		Name:    "no-blame-language",
 		Event:   "MessageDisplay",
 		Runs:    "slopfix hook --only blame-language",
