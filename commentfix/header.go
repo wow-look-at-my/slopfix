@@ -56,6 +56,14 @@ func CheckHeader(filename, src string) []HeaderHit {
 	return []HeaderHit{{Line: strings.Count(src[:at], "\n") + 1, Sentence: sentence}}
 }
 
+// WriteHeader answers src with the header that CheckHeader reports written
+// at the top. It answers src unchanged when CheckHeader reports nothing.
+func WriteHeader(filename, src string) string {
+	f := fixer.Open(filename, src, fixer.Options{Kind: fixer.Source})
+	fixer.Run(f, fixer.Named(FixerHeader))
+	return f.Text()
+}
+
 // headerEdit answers the insertion that writes the header.
 func headerEdit(filename, src string) (edit.Edit, bool) {
 	at, sentence, ok := missingHeader(filename, src)
