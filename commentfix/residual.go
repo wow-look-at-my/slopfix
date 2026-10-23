@@ -130,6 +130,13 @@ func closeGap(src string, at, stop int) edit.Edit {
 		after++
 	}
 	switch {
+	case before > lineStart && src[before-1] == '(' && after < lineEnd && src[after] == ')':
+		// A parenthesis that held the number alone holds nothing, so it goes with the blank before it.
+		open := before - 1
+		for open > lineStart && (src[open-1] == ' ' || src[open-1] == '\t') {
+			open--
+		}
+		return edit.Edit{Start: open, End: after + 1}
 	case after < lineEnd && lineStart > 0 && strings.Trim(src[lineStart:before], " \t*") == "" && strings.ContainsRune(".,;:)!?", rune(src[after])):
 		// The number opened a continuation line, so the mark after it joins the line above rather than standing on a line.
 		return edit.Edit{Start: len(strings.TrimRight(src[:lineStart-1], " \t")), End: after}

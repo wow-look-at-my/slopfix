@@ -158,6 +158,19 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 			return head, restate(source, noun, rest), opensWithCarrier
 		}
 	}
+	// ", or" before an object names the alternative the main verb takes, so the
+	// subject and the verb are named again: "It answers X, or Y when Z" becomes
+	// "It answers X. Otherwise, it answers Y when Z".
+	if seam == "," && lower == "or" && hasMain && first+1 < len(whole.Words) && !verbAt(whole, first+1) && !headOpen(whole, first) {
+		subject := mainSubject(source, whole, main, whole.Words[main.Head].Tag)
+		clause := strings.TrimLeft(rest[len(word.Text):], " ")
+		if subject != "" && clause != "" {
+			verb := source[whole.Words[main.First].Start:whole.Words[main.Last].End]
+			if StandsAlone(capitalizeOpening(subject) + " " + verb + " " + clause) {
+				return head, "Otherwise, " + lowerFirst(subject) + " " + verb + " " + clause, opensWithCarrier
+			}
+		}
+	}
 	// A verb group after "and" shares the main clause's subject, so the subject
 	// is named again: "Drives X and asserts Y" becomes "Drives X. It asserts Y".
 	if (seam == "," || seam == "") && (lower == "and" || lower == "or") && strings.HasPrefix(prev.Tag, "NN") &&

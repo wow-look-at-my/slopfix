@@ -56,7 +56,7 @@ A rule reports only what its repair rewrites. Where no rewrite can say a thing c
 * run ALL OTHER rules on the "fixed" fixture, confirming there are STILL no detctions.
 ```
 
-A fixture is a repository and a closing message. `Materialize` writes the repository to a temporary directory under `git init`. Every rule reads every text of it.
+A case with `Want` also pins the text its autofix writes, so a repair that writes broken English fails. A case marked `Unchanged` is text the rule must leave as written: the rule detects nothing there, and its autofix writes it back. Every rule still carries a case it detects. A fixture is a repository and a closing message. `Materialize` writes the repository to a temporary directory under `git init`. Every rule reads every text of it.
 
 A case may pin its repair in `Want`: the text the autofix writes to the case's `Path`, or the message when it has no `Path`. `TestEveryPinnedCaseRepairsToItsWant` requires exactly that text. A repair can clear its finding and still garble the prose around it, so a case taken from a garbled repair pins the grammatical result.
 

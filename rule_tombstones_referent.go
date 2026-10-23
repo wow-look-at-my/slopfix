@@ -17,6 +17,11 @@ func init() {
 		Detect:   detectDeadReferent,
 		Autofix:  autofixDeadReferent,
 		Cases: []RuleCase{{
+			// The session id in a URL is no identifier the rule judges.
+			Name: "an identifier inside a URL", Path: "msg.txt", Unchanged: true,
+			Text:  "The gate reads the file.\n\nClaude-Session: https://claude.ai/code/session_013ERSrxHkx1TwBeoQVMojfm\n",
+			Files: map[string]string{"util.go": "package main\n\nfunc readInput() {}\n"},
+		}, {
 			Name:  tombstones.IDDeadReferent,
 			Path:  "main.go",
 			Text:  "package main\n\n// parseLegacyFlag reads the input.\nfunc main() {}\n",
