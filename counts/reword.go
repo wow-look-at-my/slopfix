@@ -1,3 +1,5 @@
+// RewordAt is reword for a caller that holds the phrase but no Hit: the cardinal at start, and the words it governs.
+
 package counts
 
 import (

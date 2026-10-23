@@ -1,3 +1,5 @@
+// DefaultMaxCommentLines caps a comment block, the tier no rewording defeats.
+
 package tombstones
 
 import (

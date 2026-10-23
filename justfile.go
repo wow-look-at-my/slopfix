@@ -1,3 +1,5 @@
+// script is a scripts entry, in the order the manifest lists it. value is its JSON text.
+
 package slopfix
 
 import (

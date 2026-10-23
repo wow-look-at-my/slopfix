@@ -1,3 +1,5 @@
+// punctuationDivision divides at a colon or at the dash that closes an aside, when no clause boundary reads the sentence.
+
 package ste
 
 import (

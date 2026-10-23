@@ -1,3 +1,5 @@
+// The events a guard serves, as Claude Code spells them on the payload.
+
 package cmd
 
 import (

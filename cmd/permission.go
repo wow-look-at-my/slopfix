@@ -1,3 +1,5 @@
+// permissionRequest asks whether a workflow job holds a permission.
+
 package cmd
 
 import (

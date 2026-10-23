@@ -1,3 +1,5 @@
+// Spec is what english.xml is held to.
+
 package english
 
 import (

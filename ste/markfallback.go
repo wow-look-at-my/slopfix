@@ -1,3 +1,5 @@
+// markfallback.go divides a long sentence that every grammatical division refused.
+
 package ste
 
 import (

@@ -1,3 +1,5 @@
+// ProgressEvery is how often a tree run says where it is.
+
 package slopfix
 
 import (

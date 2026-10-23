@@ -1,3 +1,5 @@
+// isLicenseNotice reports a block that carries a license notice.
+
 package commentfix
 
 import "regexp"

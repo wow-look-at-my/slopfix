@@ -1,3 +1,5 @@
+// pattern is one gitignore or gitattributes pattern, parsed once.
+
 package gitread
 
 import (

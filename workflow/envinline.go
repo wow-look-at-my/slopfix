@@ -1,3 +1,5 @@
+// IDEnvIndirection is the rule that finds a step env entry with no job to do.
+
 package workflow
 
 import (

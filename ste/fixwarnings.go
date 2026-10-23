@@ -1,3 +1,5 @@
+// The repairs the warning rules answer with.
+
 package ste
 
 import (

@@ -1,3 +1,5 @@
+// blame/deflection: a closing message that shifts the work onto another author or an earlier time.
+
 package slopfix
 
 import (

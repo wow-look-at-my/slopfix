@@ -1,3 +1,5 @@
+// ste/passive: STE prefers the active voice, because the reader has to find who acts.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

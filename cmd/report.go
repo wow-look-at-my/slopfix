@@ -1,3 +1,5 @@
+// reportFinding is the JSON wire contract, held apart from ste.Finding so a rename cannot change it.
+
 package cmd
 
 import (

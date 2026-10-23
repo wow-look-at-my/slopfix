@@ -1,3 +1,5 @@
+// IsDirective reports a comment line that a tool reads, such as //go:nosplit.
+
 package treecomments
 
 import (

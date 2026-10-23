@@ -1,3 +1,5 @@
+// hookOnly restricts the run to the guards and the rules a caller names.
+
 package cmd
 
 import (

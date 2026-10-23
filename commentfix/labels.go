@@ -1,3 +1,5 @@
+// nameLabels rewrites each number of prose that names an item or sets a point, from the back, so an earlier offset stays valid.
+
 package commentfix
 
 import (

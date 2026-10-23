@@ -1,3 +1,5 @@
+// withoutIgnored drops each path git ignores, such as built output.
+
 package commentfix
 
 import (

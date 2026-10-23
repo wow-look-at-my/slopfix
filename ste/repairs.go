@@ -1,3 +1,5 @@
+// Repairs names the rules FixSelected rewrites, pinned by a test over every rule.
+
 package ste
 
 import "github.com/wow-look-at-my/go-containers/set"

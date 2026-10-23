@@ -1,3 +1,5 @@
+// Rule names a repair Fix can apply, so a caller can select a repair by name.
+
 package slopfix
 
 import (

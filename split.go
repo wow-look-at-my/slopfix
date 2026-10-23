@@ -1,3 +1,5 @@
+// SplitTarget is the size a split brings a root file down to.
+
 package slopfix
 
 import (

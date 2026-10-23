@@ -1,3 +1,5 @@
+// listRest writes the rest of a list as a sentence of its own: "It also covers D and E".
+
 package ste
 
 import (

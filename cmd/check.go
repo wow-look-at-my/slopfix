@@ -1,3 +1,5 @@
+// ruleNames answers every category a caller may name to --only.
+
 package cmd
 
 import (

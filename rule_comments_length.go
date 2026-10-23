@@ -1,3 +1,5 @@
+// comments/length: a comment run weighed against the construct beneath it.
+
 package slopfix
 
 import _ "embed"
@@ -16,10 +18,10 @@ func init() {
 		Detect:   detectCommentLength,
 		Autofix:  autofixCommentLength,
 		Cases: []RuleCase{
-			{Name: commentfix.IDLength, Path: "main.go", Text: "package main\n\n" + overlongComment() + "func main() {}\n"},
-			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: identifierSentenceCase, Want: identifierSentenceWant},
-			{Name: "a line comment no cut fits goes whole", Path: "f.rs", Text: "/// " + noCutHeading + "\n/// " + noCutSentence + "\nfn f() {}\n", Want: "fn f() {}\n"},
-			{Name: "a block comment no cut fits goes whole", Path: "f.c", Text: "/* " + noCutHeading + "\n * " + noCutSentence + "\n */\nvoid f(void) {}\n", Want: "void f(void) {}\n"},
+			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
+			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
+			{Name: "a line comment no cut fits goes whole", Path: "f.rs", Text: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + "\nfn f() {}\n", Want: fixtureHeader + "fn f() {}\n"},
+			{Name: "a block comment no cut fits goes whole", Path: "f.c", Text: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + "\n */\nvoid f(void) {}\n", Want: fixtureHeader + "void f(void) {}\n"},
 		},
 	})
 }

@@ -1,3 +1,5 @@
+// The workflow fixtures the yaml rules are driven on.
+
 package slopfix
 
 import _ "embed"
