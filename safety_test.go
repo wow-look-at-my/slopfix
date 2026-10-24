@@ -11,12 +11,13 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// A heading names the section of the sentence under it. No cut fits this
-// doc, so the whole doc goes. A heading with no body never stays.
+// The doc comment the length repair deleted. The code under it holds a single
+// line, so the doc keeps the opening sentence of its body. A cut never leaves the heading alone.
 func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
 	src := testTheLengthRepairDoesNotDeleteADocBodyRs
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}).Text
-	assert.Equal(t, "fn f() {}\n", out, "the doc goes whole, never down to its heading")
+	assert.Contains(t, out, "/// The caller must ensure that the pointer stays valid", "the doc body was deleted:\n%s", out)
+	assert.NotContains(t, out, "/// # Safety\nfn", "the heading was left alone:\n%s", out)
 }
 
 // The sentence split that invented a fragment. The tail became a sentence of

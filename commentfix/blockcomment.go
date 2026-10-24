@@ -150,9 +150,10 @@ func repairBlockComment(b block) ([]string, bool) {
 	}
 	lines := asLines(shape.indent, prose)
 	kept := fromLines(trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: lines, exact: b.exact}))
-	if out := shape.render(kept); len(out) > 0 && fitsCode(out, b) {
-		return out, true
+	// A banner holds no word, so nothing of it is kept.
+	if len(kept) == 0 {
+		return nil, true
 	}
-	// No cut fits, or no prose survives. A cut between words leaves a fragment, so the whole comment goes.
-	return nil, true
+	// A repair that does not fit still keeps the comment, so check reports none of it.
+	return shape.render(kept), true
 }

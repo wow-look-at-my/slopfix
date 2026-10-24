@@ -51,7 +51,7 @@ func TestEveryGrammarReportsAndRepairs(t *testing.T) {
 	}
 }
 
-// The repair keeps the opening sentence, in every language, where it fits.
+// The repair keeps the opening sentence, in every language.
 func TestTheRepairKeepsTheOpeningInEveryGrammar(t *testing.T) {
 	for name, src := range languageFixtures {
 		fixed, changed := FixLength(name, src)

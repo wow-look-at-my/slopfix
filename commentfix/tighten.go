@@ -82,7 +82,8 @@ func tightenUncached(text []string) ([]string, int, bool) {
 			}
 			continue
 		}
-		body := strings.Join(para.lines, " ")
+		// A line that ends a thought with no stop gets one, so the reflow never welds it to the next.
+		body := closeThoughts(para.lines)
 		short, took := english.FixN(body, english.Comment)
 		rewrites += took
 		if short != body {

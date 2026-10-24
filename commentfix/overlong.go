@@ -8,8 +8,8 @@
 // treeblocks.go serves every grammar. Nothing here names a language.
 //
 // The repair cuts from the end, because a comment leads with its point. The
-// opening sentence stays whole. When no cut fits, the comment goes, because a
-// fragment is a worse edit than no comment.
+// opening sentence stays whole. When no cut fits, the prose divides into
+// sentences, and the cut lands on one of their ends. A comment never goes whole.
 package commentfix
 
 import (
@@ -62,8 +62,8 @@ type block struct {
 	header bool
 }
 
-// CheckLength reports every comment block in src that outweighs its code. The
-// repair brings each inside its budget. A block no cut fits loses its prose.
+// CheckLength reports every comment block in src that outweighs its code and
+// that the repair brings inside its budget. A block no repair fits is not reported.
 func CheckLength(filename, src string) []LengthHit {
 	defer trace.Phase("rule/comments-length")()
 	return slices.Clone(lengthHits.Get(fileKey{filename, src}, func() []LengthHit { return checkLength(filename, src) }))
@@ -283,8 +283,8 @@ func repairUncached(b block) []string {
 			return out
 		}
 	}
-	// No cut fits without a fragment, so the prose goes and the directives stay.
-	return directivesOf(bare)
+	// No cut fits without a fragment. The comment stays, and check reports none of it.
+	return out
 }
 
 // repairProse rewrites a block's prose and puts its directive lines back verbatim.
@@ -362,15 +362,11 @@ func trim(b block) []string {
 		}
 	}
 
+	if out, ok := cutToFit(kept, b); ok {
+		return out
+	}
+	uncut := kept
 	for {
-		if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
-			return kept
-		}
-		if wider, did := widen(kept, max(floorChars, b.codeChars)); did {
-			if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
-				return wider
-			}
-		}
 		next, ok := cutLastThought(kept)
 		if !ok {
 			break
@@ -403,6 +399,20 @@ func trim(b block) []string {
 		if _, over := judge(block{text: wider, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 			return wider
 		}
+	}
+	// No cut lands on a sentence end, so the prose divides into sentences and the cut runs again.
+	if divided, ok := divideProse(uncut); ok {
+		if out, ok := cutToFit(divided, b); ok {
+			return out
+		}
+	}
+	// The floor admits a sentence under the cap on one line, so the opening sentence takes one.
+	wide := func(sentence, indent, marker string) ([]string, bool) {
+		out := reflow(sentence, indent, marker, oneLine)
+		return out, fitsCode(out, b)
+	}
+	if opening, ok := steOpening(kept, wide, true); ok && fitsCode(opening, b) {
+		return opening
 	}
 	return kept
 }
@@ -473,53 +483,6 @@ func unwrapAside(text string) string {
 func closesWhole(text string) bool {
 	sentences := ste.Sentences(text)
 	return len(sentences) > 0 && standsAlone(sentences[len(sentences)-1])
-}
-
-// oneLine is a reflow width no comment reaches, so the prose stays on one line.
-const oneLine = 1 << 20
-
-// fitReflow lays text out at the narrowest width that fits the budget of b.
-// The budget counts characters, not columns, so a single line is the last try.
-func fitReflow(text, indent, marker string, b block) ([]string, bool) {
-	budget := max(floorChars, b.codeChars)
-	var out []string
-	for _, width := range []int{min(budget, wrapWidth), budget, oneLine} {
-		out = reflow(text, indent, marker, width)
-		if fitsCode(out, b) {
-			return out, true
-		}
-	}
-	return out, false
-}
-
-// preferred answers the earliest cut that keeps at least a third of the words
-// the longest cut keeps. A cut that reads well and keeps almost nothing loses.
-func preferred(cuts [][]string) ([]string, bool) {
-	most := 0
-	for _, cut := range cuts {
-		most = max(most, wordCount(cut))
-	}
-	for _, cut := range cuts {
-		if 3*wordCount(cut) >= most {
-			return cut, true
-		}
-	}
-	return nil, false
-}
-
-// wordCount counts the words of a block's prose.
-func wordCount(text []string) int {
-	n := 0
-	for _, line := range prose(text) {
-		n += len(strings.Fields(stripMarker(line)))
-	}
-	return n
-}
-
-// fitsCode reports whether text fits the budget of the code under b.
-func fitsCode(text []string, b block) bool {
-	_, over := judge(block{text: text, codeLines: b.codeLines, codeChars: b.codeChars})
-	return !over
 }
 
 // clausesTable is what rules/ says for="comment-clauses".

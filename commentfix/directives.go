@@ -20,25 +20,25 @@ func capLines(b block, maxLines int) []string {
 	if strings.TrimSpace(closer) == "*/" {
 		limit--
 	}
+	// A thought with no stop gets one, so no rewrite and no cut welds it to the next.
+	if capCount(body) > limit {
+		if divided, ok := divideProse(body); ok {
+			body = divided
+		}
+	}
 	// Rewrite the prose to its budget before any cut. A block the rewrite brings
 	// under the cap keeps every thought it had.
-	if len(body) > limit {
+	if capCount(body) > limit {
 		if fitted, ok := fitVolume(body, limit); ok {
 			body = fitted
 		}
 	}
-	for len(body) > limit {
-		next, ok := cutLastThought(body)
-		if !ok {
-			break
-		}
-		body = next
-	}
-	if len(body) > limit {
+	body = cutThoughts(body, limit)
+	if capCount(body) > limit {
 		body = dropToSentenceEnd(body, limit)
 	}
 	// With no sentence end to cut at, the opening sentence stays, divided where it runs past the STE cap.
-	if len(body) > limit {
+	if capCount(body) > limit {
 		opening, whole := steOpening(body, func(sentence, indent, marker string) ([]string, bool) {
 			out := reflow(sentence, indent, marker, wrapWidth)
 			return out, len(out) <= limit
@@ -49,20 +49,61 @@ func capLines(b block, maxLines int) []string {
 	}
 	// Every rewrite has run, so the line the cap keeps is trimmed back to its
 	// last sentence end.
-	if len(body) > limit {
+	if capCount(body) > limit {
 		if trimmed, ok := trimBodyToSentenceEnd(body, limit); ok {
 			body = trimmed
 		}
-	}
-	// No cut lands on a sentence end, so the whole run goes. A fragment is worse than no comment.
-	if len(body) > limit {
-		return append(append([]string{}, lead...), trail...)
 	}
 	body = reclosed(body, closer)
 	out := make([]string, 0, len(lead)+len(body)+len(trail))
 	out = append(out, lead...)
 	out = append(out, body...)
 	return append(out, trail...)
+}
+
+// cutThoughts cuts the last thought from body until no more than limit of its lines count.
+func cutThoughts(body []string, limit int) []string {
+	for capCount(body) > limit {
+		next, ok := cutLastThought(body)
+		if !ok {
+			break
+		}
+		body = next
+	}
+	return body
+}
+
+// capCount counts the lines of a run the volume cap weighs.
+func capCount(text []string) int {
+	n := len(text)
+	for _, data := range DataLines(text) {
+		if data {
+			n--
+		}
+	}
+	return n
+}
+
+// DataLines marks each line of a comment run that a code block laid out by
+// hand holds. No repair reflows such a line, and the volume cap does not count it.
+func DataLines(text []string) []bool {
+	out := make([]bool, len(text))
+	directives := directiveMask(text)
+	at := 0
+	for _, para := range paragraphs(text) {
+		switch {
+		case para.blank:
+			at++
+		case para.verbatim:
+			for range para.raw {
+				out[at] = !directives[at] && !isHeading(stripMarker(text[at]))
+				at++
+			}
+		default:
+			at += len(para.lines)
+		}
+	}
+	return out
 }
 
 // dropToSentenceEnd drops whole lines from the end of body until no more than

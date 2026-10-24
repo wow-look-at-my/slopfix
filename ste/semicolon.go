@@ -1,4 +1,4 @@
-// ByHand reports whether a Fix text asks for a rewrite by hand, which no repair writes.
+// semicolon.go finds where a period can replace a semicolon.
 
 package ste
 

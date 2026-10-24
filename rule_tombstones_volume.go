@@ -17,7 +17,7 @@ func init() {
 		Autofix:  autofixVolume,
 		Cases: []RuleCase{
 			{Name: tombstones.IDVolume, Path: "main.go", Text: volumeCase()},
-			{Name: "a run with no sentence end goes whole", Path: "main.go", Text: fixtureHeader + "package main\n\n" + alignedRun() + volumeCode(), Want: fixtureHeader + "package main\n\n" + volumeCode()},
+			{Name: "a run with no sentence end divides into sentences", Path: "main.go", Text: fixtureHeader + "package main\n\n" + unstoppedRun() + volumeCode(), Want: fixtureHeader + "package main\n\n" + dividedRun + volumeCode()},
 		},
 	})
 }
@@ -51,13 +51,21 @@ func volumeCode() string {
 	return out + "}\n"
 }
 
-// alignedRun is a run over the cap whose lines are aligned columns. No line
-// ends a sentence, so no cut lands on a sentence end.
-func alignedRun() string {
+// dividedRun is unstoppedRun after the repair. Each thought gets its stop, and every word stays.
+const dividedRun = "// The loop reads the input. The loop reads the header. The loop reads the\n" +
+	"// body. The loop reads the cache. The loop reads the index. The loop reads\n" +
+	"// the table. The loop reads the queue. The loop reads the limit. The loop\n" +
+	"// reads the total. The loop reads the buffer. The loop reads the socket. The\n" +
+	"// loop reads the stream. The loop reads the record. The loop reads the\n" +
+	"// schema. The loop reads the token. The loop reads the value\n"
+
+// unstoppedRun is a run over the cap where each line is a thought with no stop.
+// No line ends a sentence until the repair divides the run.
+func unstoppedRun() string {
 	out := ""
 	for _, name := range []string{"input", "header", "body", "cache", "index", "table", "queue", "limit",
 		"total", "buffer", "socket", "stream", "record", "schema", "token", "value"} {
-		out += "//   " + name + "    the loop reads it\n"
+		out += "// The loop reads the " + name + "\n"
 	}
 	return out
 }
