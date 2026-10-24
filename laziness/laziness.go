@@ -153,5 +153,5 @@ func assertedText(message string) (text string, lines []int) {
 	return text, lines
 }
 
-// quotedDenial matches a quote of the reason a PreToolUse denial gives.
-var quotedDenial = regexp.MustCompile(regexp.QuoteMeta(ID) + `: [^"\n]*: ["“][^"”\n]*["”]\.?(?:\s*` + regexp.QuoteMeta(denialAdvice) + `)?`)
+// quotedDenial matches a quote of the reason a PreToolUse denial gives. The pattern spells out ID and denialAdvice.
+var quotedDenial = regexp.MustCompile(`laziness/punt: [^"\n]*: ["“][^"”\n]*["”]\.?(?:\s*A fix needs no one's permission\. Do the work, or name the real blocker plainly\.)?`)

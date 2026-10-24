@@ -122,6 +122,11 @@ func TestAPromptThatSetsTheScopeOfASearchIsAllowed(t *testing.T) {
 	}
 }
 
+// quotedDenial spells out the ID and the advice, so it must change with them.
+func TestTheDenialPatternNamesTheReason(t *testing.T) {
+	assert.True(t, quotedDenial.MatchString(ID+`: a shape: "A sentence.". `+denialAdvice))
+}
+
 // A brief that quotes the guard's own denial reports the guard. It must not
 // fire the guard a second time.
 func TestAPromptThatQuotesADenialIsAllowed(t *testing.T) {
