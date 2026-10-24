@@ -85,6 +85,19 @@ func TestAQuestionAskingPermissionToFixIsRefused(t *testing.T) {
 	assert.NotContains(t, reason, "\n")
 }
 
+// The user reads a question, so the guard never rewrites one. A question with
+// one punt among clean text is denied whole, and the model deals with it.
+func TestAQuestionIsDeniedNotRewritten(t *testing.T) {
+	in := question(
+		"Which store should the walk cache use?",
+		[2]string{"Per-directory mtimes", "One stat per directory. Let me know if you'd like the port."},
+		[2]string{"FSEvents journal", "Replays changes since the last event id."},
+	)
+	res := run(t, toolCall(t, "AskUserQuestion", in))
+	assert.Contains(t, denyReason(t, res), "Let me know if you'd like the port.")
+	assert.NotContains(t, res.Stdout, "updatedInput")
+}
+
 func TestAQuestionBetweenTwoDesignsIsAllowed(t *testing.T) {
 	in := question(
 		"Which store should the walk cache use?",

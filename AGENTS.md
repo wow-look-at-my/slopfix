@@ -199,7 +199,9 @@ Fences, indented code and blockquotes are exempt. Inline backticks are not. A se
 
 It reports only, because the repair is work. The `laziness` hook guard runs it at Stop, because only a Stop hook can stop the model stopping. The hook answers with the single word the reader types back. It gives nothing to argue with. The guard reads the transcript when the payload carries no message.
 
-On PreToolUse the same guard reads the questions and options of `AskUserQuestion`, the prompt of `Agent` and the message of `SendMessage`. It repairs one that asks permission to do a fix, or frames a fix as something the user grants. The `fix --message` cut removes each sentence that carries a tell. The call runs with that `updatedInput`. The guard denies only when the cut leaves a string empty. A quote of its own denial reason does not fire it.
+On PreToolUse the same guard reads the questions and options of `AskUserQuestion`, the prompt of `Agent` and the message of `SendMessage`. It repairs an agent prompt or a message that asks permission to do a fix, or frames a fix as something the user grants. The `fix --message` cut removes each sentence that carries a tell. The call runs with that `updatedInput`. The guard denies when the cut leaves a string empty. It never rewrites `AskUserQuestion`, because the user reads it: the punt is the model's to deal with.
+
+The guard denies the question and the reason goes to the model. A quote of its own denial reason does not fire it.
 
 `rules/laziness-tool.xml` holds the cases.
 

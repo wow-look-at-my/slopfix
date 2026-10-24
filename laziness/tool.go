@@ -5,6 +5,8 @@ package laziness
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // toolInput is the part of a PreToolUse payload this reads.
@@ -70,11 +72,13 @@ func eachString(v any, visit func(string) string) any {
 // denialAdvice closes the reason of a denial.
 const denialAdvice = "A fix needs no one's permission. Do the work, or name the real blocker plainly."
 
-// runTool repairs a question, an agent prompt or a message that asks
-// permission to do a fix. It frames a fix as something the user grants. repair
-// cuts each sentence that carries a tell, and the call runs with the repaired
-// input. The guard denies a call only when the cut leaves a string with
-// nothing in it, because then no input is left to run.
+// readByUser names each tool whose prose the user reads.
+var readByUser = set.Of("AskUserQuestion")
+
+// runTool repairs an agent prompt or a message that asks permission to do a
+// fix, or frames a fix as something the user grants. repair cuts each sentence
+// that carries a tell, and the call runs with the repaired input. The guard
+// denies a call the user reads, and a call the cut leaves with an empty string.
 func runTool(data []byte, repair func(string) string) Result {
 	var in toolInput
 	if json.Unmarshal(data, &in) != nil {
@@ -85,7 +89,7 @@ func runTool(data []byte, repair func(string) string) Result {
 		return Result{}
 	}
 	var first *Hit
-	emptied := false
+	deny := false
 	proseOf(in.ToolName, input, func(s string) string {
 		hits := Check(s)
 		if len(hits) == 0 {
@@ -94,9 +98,13 @@ func runTool(data []byte, repair func(string) string) Result {
 		if first == nil {
 			first = &hits[0]
 		}
+		if readByUser.Contains(in.ToolName) {
+			deny = true
+			return s
+		}
 		fixed := repair(s)
 		if strings.TrimSpace(fixed) == "" || len(Check(fixed)) > 0 {
-			emptied = true
+			deny = true
 		}
 		return fixed
 	})
@@ -104,13 +112,13 @@ func runTool(data []byte, repair func(string) string) Result {
 		return Result{}
 	}
 	output := map[string]any{"hookEventName": "PreToolUse"}
-	if emptied {
+	if deny {
 		output["permissionDecision"] = "deny"
 		output["permissionDecisionReason"] = ID + ": " + first.Tell + ": \"" + first.Sentence + "\". " + denialAdvice
 	} else {
 		output["updatedInput"] = input
 	}
-	out, err := json.Marshal(map[string]any{"hookSpecificOutput": output, "suppressOutput": !emptied})
+	out, err := json.Marshal(map[string]any{"hookSpecificOutput": output, "suppressOutput": !deny})
 	if err != nil {
 		return Result{}
 	}
