@@ -11,8 +11,10 @@
 package laziness
 
 import (
-	"github.com/wow-look-at-my/go-containers/set"
+	"regexp"
 	"strings"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -147,5 +149,9 @@ func assertedText(message string) (text string, lines []int) {
 			lines = append(lines, n+1)
 		}
 	}
-	return b.String(), lines
+	text = quotedDenial.ReplaceAllStringFunc(b.String(), func(s string) string { return strings.Repeat(" ", len(s)) })
+	return text, lines
 }
+
+// quotedDenial matches a quote of the reason a PreToolUse denial gives.
+var quotedDenial = regexp.MustCompile(regexp.QuoteMeta(ID) + `: [^"\n]*: ["“][^"”\n]*["”]\.?(?:\s*` + regexp.QuoteMeta(denialAdvice) + `)?`)

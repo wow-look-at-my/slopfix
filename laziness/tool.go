@@ -11,101 +11,104 @@ type toolInput struct {
 	ToolInput json.RawMessage `json:"tool_input"`
 }
 
-// toolText answers the prose a tool call puts in front of a reader. This covers
-// the questions and options of AskUserQuestion, the prompt of Agent, the
-// message of SendMessage. Any other tool answers nothing.
-func toolText(name string, raw json.RawMessage) string {
+// proseOf calls visit on each string of a tool call that a reader sees. This
+// covers the questions and options of AskUserQuestion, the prompt of Agent and
+// every string of the message of SendMessage. visit answers the new value of
+// the string. Any other tool visits nothing.
+func proseOf(name string, input map[string]any, visit func(string) string) {
+	field := func(m map[string]any, key string) {
+		if s, ok := m[key].(string); ok {
+			m[key] = visit(s)
+		}
+	}
 	switch name {
 	case "AskUserQuestion":
-		var in struct {
-			Questions []struct {
-				Question string `json:"question"`
-				Header   string `json:"header"`
-				Options  []struct {
-					Label       string `json:"label"`
-					Description string `json:"description"`
-				} `json:"options"`
-			} `json:"questions"`
-		}
-		if json.Unmarshal(raw, &in) != nil {
-			return ""
-		}
-		var parts []string
-		for _, q := range in.Questions {
-			parts = append(parts, q.Question)
-			for _, o := range q.Options {
-				parts = append(parts, o.Label+". "+o.Description)
+		questions, _ := input["questions"].([]any)
+		for _, q := range questions {
+			question, ok := q.(map[string]any)
+			if !ok {
+				continue
+			}
+			field(question, "question")
+			options, _ := question["options"].([]any)
+			for _, o := range options {
+				if option, ok := o.(map[string]any); ok {
+					field(option, "label")
+					field(option, "description")
+				}
 			}
 		}
-		return strings.Join(parts, "\n")
 	case "Agent":
-		var in struct {
-			Prompt string `json:"prompt"`
-		}
-		if json.Unmarshal(raw, &in) != nil {
-			return ""
-		}
-		return in.Prompt
+		field(input, "prompt")
 	case "SendMessage":
-		var in struct {
-			Message json.RawMessage `json:"message"`
+		if message, ok := input["message"]; ok {
+			input["message"] = eachString(message, visit)
 		}
-		if json.Unmarshal(raw, &in) != nil {
-			return ""
-		}
-		return strings.Join(stringsIn(in.Message), "\n")
 	}
-	return ""
 }
 
-// stringsIn answers every string a JSON value holds, at any depth. A message
-// can be plain text or a structured object.
-func stringsIn(raw json.RawMessage) []string {
-	var v any
-	if json.Unmarshal(raw, &v) != nil {
-		return nil
-	}
-	var out []string
-	var walk func(any)
-	walk = func(v any) {
-		switch t := v.(type) {
-		case string:
-			out = append(out, t)
-		case []any:
-			for _, e := range t {
-				walk(e)
-			}
-		case map[string]any:
-			for _, e := range t {
-				walk(e)
-			}
+// eachString answers v with visit applied to every string it holds, at any
+// depth. A message can be plain text or a structured object.
+func eachString(v any, visit func(string) string) any {
+	switch t := v.(type) {
+	case string:
+		return visit(t)
+	case []any:
+		for i, e := range t {
+			t[i] = eachString(e, visit)
+		}
+	case map[string]any:
+		for k, e := range t {
+			t[k] = eachString(e, visit)
 		}
 	}
-	walk(v)
-	return out
+	return v
 }
 
-// runTool refuses a question, an agent prompt or a message that asks
-// permission to do a fix. It frames a fix as something the user grants.
-func runTool(data []byte) Result {
+// denialAdvice closes the reason of a denial.
+const denialAdvice = "A fix needs no one's permission. Do the work, or name the real blocker plainly."
+
+// runTool repairs a question, an agent prompt or a message that asks
+// permission to do a fix. It frames a fix as something the user grants. repair
+// cuts each sentence that carries a tell, and the call runs with the repaired
+// input. The guard denies a call only when the cut leaves a string with
+// nothing in it, because then no input is left to run.
+func runTool(data []byte, repair func(string) string) Result {
 	var in toolInput
 	if json.Unmarshal(data, &in) != nil {
 		return Result{}
 	}
-	text := toolText(in.ToolName, in.ToolInput)
-	if text == "" {
+	var input map[string]any
+	if json.Unmarshal(in.ToolInput, &input) != nil {
 		return Result{}
 	}
-	hits := Check(text)
-	if len(hits) == 0 {
+	var first *Hit
+	emptied := false
+	proseOf(in.ToolName, input, func(s string) string {
+		hits := Check(s)
+		if len(hits) == 0 {
+			return s
+		}
+		if first == nil {
+			first = &hits[0]
+		}
+		fixed := repair(s)
+		if strings.TrimSpace(fixed) == "" || len(Check(fixed)) > 0 {
+			emptied = true
+		}
+		return fixed
+	})
+	if first == nil {
 		return Result{}
 	}
-	reason := ID + ": " + hits[0].Tell + ": \"" + hits[0].Sentence + "\". A fix needs no one's permission. Do the work, or name the real blocker plainly."
-	out, err := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
-		"hookEventName":            "PreToolUse",
-		"permissionDecision":       "deny",
-		"permissionDecisionReason": reason,
-	}})
+	output := map[string]any{"hookEventName": "PreToolUse"}
+	if emptied {
+		output["permissionDecision"] = "deny"
+		output["permissionDecisionReason"] = ID + ": " + first.Tell + ": \"" + first.Sentence + "\". " + denialAdvice
+	} else {
+		output["updatedInput"] = input
+	}
+	out, err := json.Marshal(map[string]any{"hookSpecificOutput": output, "suppressOutput": !emptied})
 	if err != nil {
 		return Result{}
 	}

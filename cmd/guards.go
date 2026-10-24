@@ -72,10 +72,15 @@ var guards = []guard{
 	{name: "auto-allow", events: []string{eventPreToolUse, eventPermissionRequest}, run: reader(func(r *strings.Reader) hookResult { return hookResult(autoallow.Run(r)) })},
 	{name: "busy-poll", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(busypoll.Run(r)) })},
 	{name: "md-budget", events: []string{eventSessionStart, eventPostToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(mdbudget.Run(r)) })},
-	{name: "laziness", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(laziness.Run(r)) })},
+	{name: "laziness", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(laziness.Run(r, repairPunt)) })},
 	{name: "link-refs", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(linkrefs.Run(r)) })},
 	{name: "blame-language", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(blamelanguage.Run(r)) })},
 	{name: "ask-properly", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(askproperly.Run(r)) })},
+}
+
+// repairPunt is the laziness/punt autofix, the one `fix --message` runs.
+func repairPunt(text string) string {
+	return slopfix.FixMessage(text, func(id string) bool { return id == laziness.ID })
 }
 
 // reader adapts a package entry point that reads its payload from a stream.
