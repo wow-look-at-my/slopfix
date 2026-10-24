@@ -254,7 +254,13 @@ Fences, indented code and blockquotes are exempt. Inline backticks are not. A se
 
 It reports only, because the repair is work. The `laziness` hook guard runs it at Stop, because only a Stop hook can stop the model stopping. The hook answers with the single word the reader types back. It gives nothing to argue with. The guard reads the transcript when the payload carries no message.
 
-On PreToolUse the same guard reads the questions and options of `AskUserQuestion`, the prompt of `Agent` and the message of `SendMessage`. It denies one that asks permission to do a fix, or frames a fix as something the user grants. The denial names the shape and quotes the sentence.
+On PreToolUse the same guard reads the questions and options of `AskUserQuestion`, the prompt of `Agent` and the message of `SendMessage`. It repairs one that asks permission to do a fix, or frames a fix as something the user grants. The `fix --message` cut removes each sentence that carries a tell. The call runs with that `updatedInput`. The guard denies only when the cut leaves a string empty. A quote of its own denial reason does not fire it.
+
+`rules/laziness-tool.xml` holds the cases.
+
+## agent-launch
+
+`agent-launch` repairs an `Agent` call of the read-only `Explore` or `Plan` type on PreToolUse. A `run_in_background: false` becomes `true`, because a foreground call holds the parent turn and the queued messages of the user. An `Explore` call that names no `model` gets `haiku`. The built-in Explore declares `model: inherit`, so `CLAUDE_CODE_SUBAGENT_MODEL` cannot reach it. With `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` set, the schema has no `model`, so the guard adds none. `rules/agent-launch.xml` holds the cases.
 
 ## blamelanguage: a message that deflects blame
 

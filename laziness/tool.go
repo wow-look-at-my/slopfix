@@ -1,3 +1,5 @@
+// toolInput is the part of a PreToolUse payload this reads.
+
 package laziness
 
 import (

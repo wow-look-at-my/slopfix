@@ -10,6 +10,7 @@ import (
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/agentlaunch"
 	"github.com/wow-look-at-my/slopfix/askproperly"
 	"github.com/wow-look-at-my/slopfix/autoallow"
 	"github.com/wow-look-at-my/slopfix/bashclean"
@@ -73,6 +74,7 @@ var guards = []guard{
 	{name: "busy-poll", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(busypoll.Run(r)) })},
 	{name: "md-budget", events: []string{eventSessionStart, eventPostToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(mdbudget.Run(r)) })},
 	{name: "laziness", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(laziness.Run(r, repairPunt)) })},
+	{name: "agent-launch", events: []string{eventPreToolUse}, run: reader(func(r *strings.Reader) hookResult { return hookResult(agentlaunch.Run(r)) })},
 	{name: "link-refs", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(linkrefs.Run(r)) })},
 	{name: "blame-language", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(blamelanguage.Run(r)) })},
 	{name: "ask-properly", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(askproperly.Run(r)) })},
