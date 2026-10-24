@@ -10,11 +10,12 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"slices"
+
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // readOnly holds each built-in subagent type that cannot edit a file.
-var readOnly = []string{"Explore", "Plan"}
+var readOnly = set.Of[string]("Explore", "Plan")
 
 // searchModel is the model an Explore call gets when it names none.
 const searchModel = "haiku"
@@ -65,7 +66,7 @@ func Run(r io.Reader) Result {
 // says that a variable pins the model, so the model stays as written.
 func Repair(input map[string]any, forced bool) (map[string]any, bool) {
 	kind, _ := input["subagent_type"].(string)
-	if !slices.Contains(readOnly, kind) {
+	if !readOnly.Contains(kind) {
 		return input, false
 	}
 	changed := false
