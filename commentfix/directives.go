@@ -43,7 +43,9 @@ func capLines(b block, maxLines int) []string {
 			out := reflow(sentence, indent, marker, wrapWidth)
 			return out, len(out) <= limit
 		}, true)
-		if whole && len(opening) <= limit {
+		if headed := keepHeadings(body, opening); whole && len(headed) <= limit {
+			body = headed
+		} else if whole && len(opening) <= limit {
 			body = opening
 		}
 	}

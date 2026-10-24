@@ -155,16 +155,19 @@ func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 // judge measures a block against its code and names every measure it failed.
 // Lines catch an essay; characters catch a dense paragraph.
 func judge(b block) (string, bool) {
-	lines, chars := measure(prose(b.text))
+	lines, chars := measure(weighed(b.text))
 	// The free text after a lint pragma is prose, so its characters count.
 	_, pragmaChars := measure(pragmaProse(b.text))
 	chars += pragmaChars
-	// Nothing to weigh against.
+	// A comment over no code gets the budget of a construct of one line.
 	if b.codeLines == 0 {
 		if lines == 0 {
 			return "", false
 		}
-		return "the comment documents nothing", true
+		if _, over := judge(block{text: b.text, codeLines: 1}); over {
+			return "the comment documents nothing", true
+		}
+		return "", false
 	}
 	limit := max(floorChars, b.codeChars)
 	var tells []string
@@ -185,7 +188,7 @@ func judge(b block) (string, bool) {
 // word cap. A line with no letter is a banner, not prose.
 func oneSentence(text []string) bool {
 	var words []string
-	for _, line := range prose(text) {
+	for _, line := range weighed(text) {
 		body := stripMarker(line)
 		if strings.IndexFunc(body, unicode.IsLetter) < 0 {
 			continue
@@ -294,11 +297,6 @@ func repairUncached(b block) []string {
 // variable it filled empty, and the tests reading it pass on nothing.
 func repairProse(b block) []string {
 	lead, body, trail := splitDirectives(b.text)
-	// A comment with no code under it has nothing to be measured against, so no
-	// amount of cutting brings it inside a budget.
-	if b.codeLines == 0 {
-		return append(append([]string{}, lead...), trail...)
-	}
 	if out, ok := repairBlockComment(b); ok {
 		return out
 	}
@@ -319,9 +317,11 @@ func repairProse(b block) []string {
 	kept := trim(bodyBlock)
 	if len(trail) > 0 {
 		kept = withSeparator(kept, trail)
-		// Doc and separator cannot fit, so the doc goes and the directive stays.
+		// The doc does not fit beside the directive, so its opening sentence stays with it.
 		if !fitsCode(kept, b) {
-			kept = nil
+			if opening, ok := fittedOpening(body, b); ok {
+				kept = withSeparator(opening, trail)
+			}
 		}
 	}
 	out := make([]string, 0, len(lead)+len(kept)+len(trail))
@@ -337,9 +337,9 @@ func withSeparator(kept, trail []string) []string {
 	return append(append([]string{}, kept...), indent+"//")
 }
 
-// trim cuts the block's trailing prose until it fits, keeping the opening.
+// cutProse cuts the block's trailing prose until it fits, keeping the opening.
 // A paragraph goes before a line does, and the opening paragraph always survives.
-func trim(b block) []string {
+func cutProse(b block) []string {
 	kept := withoutBanners(b.text)
 	if _, over := judge(block{text: kept, codeLines: b.codeLines, codeChars: b.codeChars}); !over {
 		return kept

@@ -8,14 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A comment with no code under it has nothing to be measured against, so no cut
-// ever brings it inside a budget. It was reported on every run and repaired on
-// none, which leaves a reader hand-editing prose or deleting the file.
-//
-// The rule's verdict is that it documents nothing, and the repair takes it at
-// its word.
-func TestACommentDocumentingNothingLosesItsLines(t *testing.T) {
-	src := "package p\n\nfunc f() {}\n\n// A trailing note nobody attached to any code at all, sitting at the end of the file and documenting nothing whatsoever.\n"
+// A comment with no code under it gets the budget of a construct of one line.
+// The repair cuts it to that budget and keeps its opening sentence.
+func TestACommentDocumentingNothingKeepsItsOpening(t *testing.T) {
+	src := "package p\n\nfunc f() {}\n\n// A trailing note sits at the end of the file.\n" +
+		"// It documents no code, and it runs on past the budget of a single line of code.\n"
 
 	hits := CheckLength("x.go", src)
 	require.Len(t, hits, 1)
@@ -24,20 +21,19 @@ func TestACommentDocumentingNothingLosesItsLines(t *testing.T) {
 
 	out, changed := FixLength("x.go", src)
 	require.True(t, changed)
-	assert.NotContains(t, out, "A trailing note")
-	assert.Contains(t, out, "func f() {}")
+	assert.Equal(t, "package p\n\nfunc f() {}\n\n// A trailing note sits at the end of the file.\n", out)
 	assert.Empty(t, CheckLength("x.go", out))
 }
 
-// The same inside a function body, where the code is above the comment rather
-// than below it.
-func TestATrailingCommentInsideABodyLosesItsLines(t *testing.T) {
+// A single sentence under the cap fits the budget of one line. A comment
+// over no code that says only that is not a finding.
+func TestATrailingCommentInsideABodyStays(t *testing.T) {
 	src := "package p\n\nfunc f() {\n\tg()\n\t// Nothing follows this, so it documents nothing at all and no cut can ever fit it to a budget.\n}\n"
 
+	assert.Empty(t, CheckLength("x.go", src))
 	out, changed := FixLength("x.go", src)
-	require.True(t, changed)
-	assert.Contains(t, out, "g()")
-	assert.Empty(t, CheckLength("x.go", out))
+	assert.False(t, changed)
+	assert.Equal(t, src, out)
 }
 
 // A directive in the run is an instruction the prose beside it explains, so it
@@ -56,8 +52,8 @@ func TestProseBesideADirectiveIsWeighedAgainstIt(t *testing.T) {
 }
 
 // A directive addresses a tool rather than a reader, and a lost //go:embed
-// leaves the variable it filled empty. So a run whose prose outweighs even its
-// directive keeps the directive and loses the prose.
+// leaves the variable it filled empty. So a cut keeps the directive, and the
+// prose keeps its opening.
 func TestADirectiveSurvivesTheCut(t *testing.T) {
 	src := "package p\n\nfunc f() {}\n\n//go:debug x=1\n" +
 		"// A trailing paragraph nobody attached to any code at all, sitting at the\n" +
@@ -66,6 +62,7 @@ func TestADirectiveSurvivesTheCut(t *testing.T) {
 
 	out, _ := FixLength("x.go", src)
 	assert.Contains(t, out, "//go:debug x=1")
+	assert.Contains(t, out, "// A trailing paragraph", "the prose lost its opening:\n%s", out)
 	assertWholeSTESentences(t, out)
 }
 

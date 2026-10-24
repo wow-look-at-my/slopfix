@@ -12,12 +12,12 @@ import (
 )
 
 // The doc comment the length repair deleted. The code under it holds a single
-// line, so the doc keeps the opening sentence of its body. A cut never leaves the heading alone.
+// line, so the doc keeps its heading and the opening sentence of its body.
 func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
 	src := testTheLengthRepairDoesNotDeleteADocBodyRs
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}).Text
-	assert.Contains(t, out, "/// The caller must ensure that the pointer stays valid", "the doc body was deleted:\n%s", out)
-	assert.NotContains(t, out, "/// # Safety\nfn", "the heading was left alone:\n%s", out)
+	assert.True(t, strings.HasPrefix(out, "/// # Safety\n/// The caller must ensure that the pointer stays valid"), "the heading or the doc body was deleted:\n%s", out)
+	assert.True(t, strings.HasSuffix(out, "\nfn f() {}\n"), out)
 }
 
 // The sentence split that invented a fragment. The tail became a sentence of
