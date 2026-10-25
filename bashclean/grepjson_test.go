@@ -180,10 +180,18 @@ func (s *syntheticJSON) ReadAt(p []byte, off int64) (int, error) {
 
 // The sniff reads a fixed head and tail.
 func TestTheSnifferTakesUnderFiftyMillisecondsAtAnySize(t *testing.T) {
+	items := make([]map[string]any, 4000)
+	for i := range items {
+		items[i] = map[string]any{"id": 1, "name": "item"}
+	}
+	items = append(items, map[string]any{"id": 2})
+	doc, err := json.Marshal(map[string]any{"items": items})
+	require.NoError(t, err)
+	cut := len(doc) - 16
 	huge := &syntheticJSON{
-		head: []byte(`{"items": [` + strings.Repeat(`{"id": 1, "name": "item"}, `, 4000)),
-		tail: []byte("{\"id\": 2}]}\n"),
-		size: 8<<30 + 12,
+		head: doc[:cut],
+		tail: append(doc[cut:len(doc):len(doc)], '\n'),
+		size: 8 << 30,
 	}
 	start := time.Now()
 	got := sniffReaderAt(huge, huge.size)
