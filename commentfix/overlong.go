@@ -250,8 +250,3 @@ func measure(text []string) (lines, chars int) {
 	}
 	return lines, chars
 }
-
-// repair answers repairUncached once for each block.
-func repair(b block) []string {
-	key := blockKey{text: strings.Join(b.text, "\n"), codeLines: b.codeLines, codeChars: b.codeChars, exact: b.exact, header: b.header}
-	return slices.Clone(repaired.Get(key, func() []string { return repairUncached(b) }))

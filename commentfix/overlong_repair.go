@@ -3,12 +3,17 @@
 package commentfix
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/memo"
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
+// repair answers repairUncached once for each block.
+func repair(b block) []string {
+	key := blockKey{text: strings.Join(b.text, "\n"), codeLines: b.codeLines, codeChars: b.codeChars, exact: b.exact, header: b.header}
+	return slices.Clone(repaired.Get(key, func() []string { return repairUncached(b) }))
 }
 
 // blockKey holds every field the repair reads, and not the block's place.

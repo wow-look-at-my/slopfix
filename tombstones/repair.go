@@ -3,11 +3,15 @@
 package tombstones
 
 import (
+	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/fixer"
 )
 
 // DefaultMaxCommentLines caps a comment block, the tier no rewording defeats.

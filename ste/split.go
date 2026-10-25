@@ -235,7 +235,3 @@ func joinOpener(opener, rest string) string {
 	}
 	return capitalizeOpening(rest)
 }
-
-// divisions answers each clause boundary where both sides stand as sentences.
-func divisions(s *syntax.Sentence, source string) []division {
-	var out []division

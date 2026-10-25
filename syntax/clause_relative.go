@@ -3,7 +3,7 @@
 package syntax
 
 import (
-"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/go-containers/set"
 )
 
 // quantifiers float after a plural subject: "the jobs all run".

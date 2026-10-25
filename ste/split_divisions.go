@@ -8,6 +8,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
+// divisions answers each clause boundary where both sides stand as sentences.
+func divisions(s *syntax.Sentence, source string) []division {
+	var out []division
 	dashed := dashAsides(source)
 	for k := 1; k < len(s.Clauses); k++ {
 		c := s.Clauses[k]
