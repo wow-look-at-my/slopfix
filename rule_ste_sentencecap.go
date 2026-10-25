@@ -106,7 +106,7 @@ const (
 
 const colonPluralSubjectWant = `package checks
 
-// The word is recalled after a tool result, not at a new user turn. Models such as DeepSeek discard earlier thinking at every user turn by design. A user-turn probe scores every host as dropping it.
+// The word is recalled after a tool result, not at a new user turn. Models such as DeepSeek discard earlier thinking at every user turn by design, so a user-turn probe scores every host as dropping it.
 const (
 	turnPrompt = "nonce %s\n" +
 		"Step 1: invent one random word in your reasoning only. " +

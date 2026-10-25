@@ -20,10 +20,11 @@ func init() {
 		Cases: []RuleCase{
 			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
 			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
-			{Name: "a run of doc comments is cut from its end", Path: "snapshot.ts", Text: fixtureHeader + stackedDocCase},
+			{Name: "a run of doc comments is cut from its end", Path: "snapshot.ts", Text: fixtureHeader + stackedDocCase, Want: fixtureHeader + stackedDocCase},
 			{
 				Name: "an opener inside a block comment is prose", Path: "records.ts", Text: fixtureHeader + innerOpenerCase,
 				Files: map[string]string{"ingest.ts": innerOpenerIngest},
+				Want:  fixtureHeader + innerOpenerCase,
 			},
 		},
 	})
