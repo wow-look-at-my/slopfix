@@ -28,6 +28,10 @@ func TestChildrenAnswerAsTheIndexedChildren(t *testing.T) {
 			case ".git", "build", "grammars":
 				return filepath.SkipDir
 			}
+			// A directory with a .git entry of its own is another working tree, such as a linked worktree or a submodule.
+			if _, err := os.Lstat(filepath.Join(path, ".git")); err == nil && path != ".." {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		language := LanguageFor(path)

@@ -38,6 +38,7 @@ func init() {
 				Files: map[string]string{"models.go": "package checks\n\nconst defaultModel = \"deepseek/deepseek-v4.1-flash\"\n"},
 				Want:  fixtureHeader + colonPluralSubjectWant,
 			},
+			{Name: "a phrase stays with the verb it follows", Path: "rename.go", Text: fixtureHeader + strandedPhraseCase, Want: fixtureHeader + strandedPhraseCase},
 		},
 	})
 }
@@ -85,6 +86,20 @@ func lowerIdentifier(word string) bool {
 		}
 	}
 	return strings.ToLower(word) != word
+}
+`
+
+// strandedPhraseCase holds a sentence over the cap with no mark where a cut
+// would fit. "for the product prose calls DeepSeek" is a phrase of the verb in
+// front of it, and opens no sentence.
+const strandedPhraseCase = `package tombstones
+
+import "strings"
+
+// heldAsPlainWord reports a name that the file or the repository holds in lower case alone, as a command line holds "deepseek" for the product prose calls DeepSeek. A word in lower case is no symbol, so the capitals mark a proper noun, and the name is not dead.
+func heldAsPlainWord(text, name string) bool {
+	lower := strings.ToLower(name)
+	return lower != name && strings.Contains(text, lower)
 }
 `
 

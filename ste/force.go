@@ -262,6 +262,9 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if rs := syntax.Parse(opening(hardRest(source, c.right)), nil); len(rs.Words) > 0 && (rs.Words[0].Tag == "IN" || rs.Words[0].Tag == "TO") && !finiteOutsideRelative(rs, 0) {
 			continue
 		}
+		if strandsPhrase(source, c) {
+			continue
+		}
 		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
 		rank := hardSeamRank(source, whole, c)
 		if rank > bestRank || rank == bestRank && c.words > bestWords {
@@ -280,6 +283,30 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		return source, false
 	}
 	return left + " " + right, true
+}
+
+// strandsPhrase reports a cut with no mark at its seam whose rest opens on a
+// preposition. The phrase belongs to the verb in front of the cut, as in
+// "holds "deepseek" | for the product prose calls DeepSeek". A phrase that
+// opens a sentence ends at a comma before the main verb, and no comma there
+// leaves the rest a fragment.
+func strandsPhrase(source string, c forceCut) bool {
+	if strings.ContainsAny(source[c.left:c.right], ",;:\u2014\u2013") || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",") {
+		return false
+	}
+	rest := syntax.Parse(opening(hardRest(source, c.right)), nil)
+	if len(rest.Words) == 0 || rest.Words[0].Tag != "IN" && rest.Words[0].Tag != "TO" {
+		return false
+	}
+	for _, w := range rest.Words[1:] {
+		if w.Text == "," {
+			return false
+		}
+		if finiteVerbTag(w.Tag) || w.Tag == "MD" {
+			return true
+		}
+	}
+	return true
 }
 
 // relativeAfterNoun reports a relative word at word n, such as "that" or
