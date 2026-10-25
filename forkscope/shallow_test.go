@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,12 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// hasObject reports whether the repository at dir holds the object oid.
-func hasObject(dir, oid string) bool {
-	cmd := exec.Command("git", "cat-file", "-e", oid)
+// hasObject reports whether the object store at dir holds oid. It lists the
+// store, because a read of a missing object in a partial clone fetches it.
+func hasObject(t *testing.T, dir, oid string) bool {
+	t.Helper()
+	cmd := exec.Command("git", "cat-file", "--batch-all-objects", "--batch-check=%(objectname)")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
-	return cmd.Run() == nil
+	out, err := cmd.Output()
+	require.NoError(t, err)
+	return slices.Contains(strings.Fields(string(out)), oid)
 }
 
 // commitN writes file name with body and commits it in dir.
@@ -66,7 +71,7 @@ func TestAShallowForkFindsItsBaseWithoutTheParentsHistory(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, base)
 	assert.Equal(t, forkPoint, base.Commit())
-	assert.False(t, hasObject(clone, root), "the parent's root commit came over: the fetch took the whole history")
+	assert.False(t, hasObject(t, clone, root), "the parent's root commit came over: the fetch took the whole history")
 
 	own, err := base.Lines()
 	require.NoError(t, err)

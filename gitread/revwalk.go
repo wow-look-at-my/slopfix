@@ -28,6 +28,8 @@ const maxPeel = 10
 // Commit answers a commit object. A commit on the shallow boundary has no
 // parents, as git reads it.
 func (r *Repo) Commit(oid OID) (*Commit, error) {
+	// A fetch that deepens the clone rewrites the shallow file.
+	shallow := r.shallowSet()
 	if c, ok := r.commits.Load(oid); ok {
 		return c.(*Commit), nil
 	}
@@ -42,7 +44,7 @@ func (r *Repo) Commit(oid OID) (*Commit, error) {
 	if err != nil {
 		return nil, err
 	}
-	if r.shallowSet()[oid] {
+	if shallow[oid] {
 		c.Parents = nil
 	}
 	r.commits.Store(oid, c)
