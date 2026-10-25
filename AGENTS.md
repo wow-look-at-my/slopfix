@@ -144,70 +144,15 @@ Prose requires a frame, because a document carries numbers that count nothing: a
 
 ## counts: a count in a document
 
-`counts/inventory-count` cuts the cardinal out of a sentence that counts what is here. `there are three sections` becomes `there are sections`, which stays true. The org rules that a count in markdown is not worth maintaining.
-
-Every reported count gets a repair. Where a bare cut breaks the sentence, `counts/reword.go` writes words that state no figure. A rate becomes `every few`. A cap becomes `a bounded number of`, whether words (`at most`, `max`) or a sign (`<=`, `<`) state it. A sign that sets a floor (`>=`, `>`) reads as a unit does. A unit takes `a couple of`, `a few`, `several` or `many`, by size.
-
-After a preposition or a noun the number becomes `multiple`.
-
-A hedge such as `about` or `exactly` goes with the number. A zero becomes `no`. A zero that is the subject of a verb names a value, and becomes `a value of zero`: `0 disables chunking` reads `a value of zero disables chunking`. A label goes stale like a count. It is a finding too, and `counts/label.go` names the item instead. Digits after a singular noun name an item, as in `branch 3 sees` (`cardinal.NamesAnItem`).
-
-The repair takes the words the text gives that item, as in `branch (3) the keyless fallback` or `Keyless fallback (branch 3)`. With none, it writes `one id` or `a later branch`. A plural noun after the label is what the label describes: `rule 6 inputs` becomes `the inputs of a later rule`. A point sits after `at`, `by` or `to`, before a noun that is not a unit (`cardinal.APoint`). In a comment it takes the name of a constant with that value, in backticks. Otherwise it takes `a set number of` before a noun, or `a set limit`, `a set value` or `a set amount`.
-
-A bare number that the same clause sets beside it, as in `warns at 500 lines and errors at 750`, says how it compares: `a higher count`, `a lower count` or `the same count`. No clause stays half converted.
-
-A count needs a frame and a quantity on the same line. The quantity is a cardinal that governs a plural noun. The frame is a possessive (`this repo's plugins`), a having verb (`it ships hooks`) or a deictic (`the rules below`). A quantity with no frame is ordinary technical prose.
-
-It does not flag the singular, which is overwhelmingly a pronoun in English. That gap is stated rather than closed. It drops a quantity reached through a function word, as in `2 of the format drops`. It drops a match that continues a longer number, such as a version. Fences, tables, headings and backtick spans never reach it. A measurement inside a frame IS reported, because the number belongs where it is enforced.
-
-A number behind a section sign cites a section, so neither count rule reads it. `counts/section-number` repairs it instead. A section number goes stale when a section is inserted above it. The repair writes a link named by a slug of the heading's title: `§9` becomes `[§owning-renderer](#9-owning-the-renderer)`. The slug keeps the first `slugWords` words that name the section. A repeated slug gets `-2`, and the anchor follows GitHub.
-
-The prose rules read the link as the citation it replaced, which holds no word. A file named right before the citation, or after it with `of`, resolves beside the document. A citation that no numbered heading answers keeps its number.
+[docs/counts-a-count-in-a-document.md](docs/counts-a-count-in-a-document.md) holds this section.
 
 ## tombstones: a comment about a state the code has left
 
-A tombstone describes a state the code left, or argues for the diff instead of telling the next editor what breaks. The wording tier is the weakest. A paraphrasing machine writes the judged text. It eventually writes around a phrase rule.
-
-- The wording tells are `pattern` entries with an `id` in `english/english.xml`. Each cuts the PHRASE, not the line. The rest of the sentence thus survives. A pattern with no `id` still rewrites.
-- `tombstones/name-nothing-in-the-repository-defines` reads no wording. A comment that names a symbol found nowhere in the repository describes a tree that is gone. The probe runs ripgrep on the working tree. A tree walk, and any run past `50` files, first reads the identifiers of every file git lists. That list holds tracked files and untracked files git does not ignore. It also holds the files on disk under a submodule path that holds a copy in place of a checkout. The index then answers every name with no probe.
-- A pattern cut never removes a negation while the words it negates stay. `no longer` is therefore a flag, not a cut.
-- A copyright year is cut on purpose. A yearly bump only pads a commit.
-- `tombstones/comment-volume` counts the lines of a merged comment run against the cap, which defaults to `14` lines. No rewording defeats it. The repair cuts the run from its end down to the cap, the way `comments/length` cuts. With no sentence left to cut, it drops whole lines only when the last line it keeps ends a sentence. Otherwise the run stays for a rewrite by hand.
-- A dead name that no whole-line strip resolves loses the sentence that holds it. On a line shared with code, the cut stops at the comment marker.
-
-A referent candidate must look like a symbol: an underscore, an internal case change, or a capital beside a digit. A name in capitals and a short name never qualify. The probe answers nothing when it cannot answer: no repository, no ripgrep, a timeout or an error. An absent answer must never read as a missing symbol. A comment that names too many candidates is skipped. A file that cites a line of a C family source the repository does not hold, such as `UnrealNames.cpp:4588`, ports that codebase.
-
-Its comments and those of its test partner name a foreign API, so the probe answers nothing for them.
-
-Only prose is judged. In source that means the comments. A string that holds `previously` is thus safe. In a document it means the paragraphs, without fences, HTML comments, frontmatter or backtick spans. A file with no known comment syntax is not judged. A document has no volume cap.
-
-A referent line strips only when the comment is alone on its source line. A document finding never strips, because a document line is a paragraph. The block is rewrapped after a strip. The response names each deleted line. Git history keeps the rest.
-
-`--path` is required on stdin, because the path decides the comment syntax.
-
-```sh
-slopfix fix --only tombstones --max-comment-lines 0 --path pkg/thing.go - < pkg/thing.go
-```
+[docs/tombstones-a-comment-about-a-state-the-code-has-left.md](docs/tombstones-a-comment-about-a-state-the-code-has-left.md) holds this section.
 
 ## comments: what a comment gets wrong
 
-The `commentfix` package reads a real syntax tree through `go-tree-sitter`. A comment is a node whose type carries `comment`. The documented construct is the next named sibling. No rule names a language. A file that does not parse yields nothing, because half a tree is worse than none.
-
-The languages are Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX. YAML. TOML, `.conf` and `.zsh` files read with the Bash grammar. `languages_test.go` refuses a grammar that no fixture proves. `selfrepair_test.go` runs the rules over this tree. The go-toolchain vet phase runs them on every build.
-
-- `comments/number`: a number in a comment, read with the `Comment` substrate. The repair says it in words. A count of a plural noun that no table entry covers gets the `counts` rewording. Only a sentence that still holds a number after that is cut. To point at a section, cite its slug or heading, not its position.
-- `comments/length`: a comment run weighed against the construct beneath it. Lines catch an essay. Characters catch a dense paragraph. The budget has a floor. A short comment is never a finding.
-- `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair closes the sentence where its last clause that stands alone ends.
-- `comments/header`, a warning: a source file that opens on code, past a shebang, directives and a license block. It reports only a file with a comment whose first sentence can serve as the header. A test file and a generated file stay out. The repair writes that sentence at the top as a line comment, with a blank line under it. A Go header never becomes the package doc. `commentfix.FixTree` writes the header in each file it writes, and lists every other file of the walk with no header in `TreeResult.Headers`.
-- `ste/sentence-length`: a sentence over the cap in a comment's prose, in every language above and in a workflow. It is a check of its own beside `comments/length`, which weighs the comment against its code. Directives, license notices, verbatim paragraphs, code spans and quotations stay out. `comments/sentence-length` divides the sentence as `ste` does in a document. It writes the result back through the comment gate, with the comment's marker, indent and wrap. `sentencecap_test.go` proves that both repairs settle in one fix.
-
-The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at a clause boundary the `syntax` parser finds, the same boundaries `ste/sentence-length` divides at (`ste.Leading`). Sentence ends come from `ste.Sentences`.
-
-A cut keeps text only when its last sentence stands alone (`ste.StandsAlone`). A cut may also land before a tail opener of `rules/comment-clauses.xml`, such as `so`, `because` or an open parenthesis. A cut before `when`, `if` or `that` changes the claim, so none lands there. When no clause boundary fits either, the comment stays as written, and the finding asks for a rewrite by hand. A cut between words leaves a fragment, so no repair makes one. The number repair runs after the length cut.
-
-The length cut then runs again if the words overflow.
-
-It does not flag a comment above the package declaration, or a trailing comment on a code line. It skips a directive line, such as a build constraint, a shebang, a linter pragma, a TypeScript triple-slash directive or a cgo preamble. It skips a number inside a quotation.
+[docs/comments-what-a-comment-gets-wrong.md](docs/comments-what-a-comment-gets-wrong.md) holds this section.
 
 ## yaml: workflow and action manifest rules
 
@@ -254,7 +199,15 @@ Fences, indented code and blockquotes are exempt. Inline backticks are not. A se
 
 It reports only, because the repair is work. The `laziness` hook guard runs it at Stop, because only a Stop hook can stop the model stopping. The hook answers with the single word the reader types back. It gives nothing to argue with. The guard reads the transcript when the payload carries no message.
 
-On PreToolUse the same guard reads the questions and options of `AskUserQuestion`, the prompt of `Agent` and the message of `SendMessage`. It denies one that asks permission to do a fix, or frames a fix as something the user grants. The denial names the shape and quotes the sentence.
+On PreToolUse the same guard reads the questions and options of `AskUserQuestion`, the prompt of `Agent` and the message of `SendMessage`. It repairs an agent prompt or a message that asks permission to do a fix, or frames a fix as something the user grants. The `fix --message` cut removes each sentence that carries a tell. The call runs with that `updatedInput`. The guard denies when the cut leaves a string empty. It never rewrites `AskUserQuestion`, because the user reads it: the punt is the model's to deal with.
+
+The guard denies the question and the reason goes to the model. A quote of its own denial reason does not fire it.
+
+`rules/laziness-tool.xml` holds the cases.
+
+## agent-launch
+
+`agent-launch` repairs an `Agent` call of the read-only `Explore` or `Plan` type on PreToolUse. A `run_in_background: false` becomes `true`, because a foreground call holds the parent turn and the queued messages of the user. An `Explore` call that names no `model` gets `haiku`. The built-in Explore declares `model: inherit`, so `CLAUDE_CODE_SUBAGENT_MODEL` cannot reach it. With `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` set, the schema has no `model`, so the guard adds none. `rules/agent-launch.xml` holds the cases.
 
 ## blamelanguage: a message that deflects blame
 
