@@ -3,12 +3,15 @@
 package commentfix
 
 import (
+	"path/filepath"
+	"regexp"
 	"strings"
 
+	ts "github.com/wow-look-at-my/go-tree-sitter"
+	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/pins"
-	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/trace"
 	"github.com/wow-look-at-my/slopfix/treecomments"
 )
@@ -44,9 +47,8 @@ type HeaderHit struct {
 	Sentence string
 }
 
-// CheckHeader reports a file that opens with no header comment. This
-// happens when one of its comments has a first sentence the repair can copy
-// to the top.
+// CheckHeader reports a file that opens with no header comment, when a
+// comment documents a top-level declaration whose name the header can give.
 func CheckHeader(filename, src string) []HeaderHit {
 	defer trace.Phase("rule/comments-header")()
 	at, sentence, ok := missingHeader(filename, src)
@@ -75,7 +77,7 @@ func headerEdit(filename, src string) (edit.Edit, bool) {
 }
 
 // missingHeader answers where the header goes and the sentence it holds. It
-// reports false for a file that has a header, or no comment to copy one from.
+// reports false for a file that has a header, or no documented declaration to name.
 func missingHeader(filename, src string) (int, string, bool) {
 	if !treecomments.Supported(filename) || pins.IsTest(filename) || IsGenerated(filename, src) {
 		return 0, "", false
@@ -137,36 +139,78 @@ func skipped(run treecomments.Run) bool {
 	return true
 }
 
-// headerSentence answers the first sentence of the first comment that can
-// stand as a one-line header.
+// headerSentence answers a header that names the file and the top-level
+// declaration its first comment documents, as in "store.go holds Open.". The
+// header is a sentence of its own: a copy of the comment would say the same
+// thing twice.
 func headerSentence(filename, src string) (string, bool) {
-	runs := treecomments.Runs(filename, src)
+	root, ok := code.Parse(filename, src)
+	if !ok {
+		return "", false
+	}
 	lines := strings.Split(src, "\n")
-	for _, p := range paragraphsOf(lines, runs) {
+	for _, p := range paragraphsOf(lines, treecomments.Runs(filename, src)) {
 		if !judged(lines, p) {
 			continue
 		}
-		sentences := ste.Sentences(p.prose)
-		if len(sentences) == 0 {
-			continue
-		}
-		first := strings.TrimSpace(sentences[0])
-		if usableHeader(first) {
-			return first, true
+		if name, ok := documentedName(root, src, uint32(p.lines[len(p.lines)-1])); ok {
+			return filepath.Base(filename) + " holds " + name + ".", true
 		}
 	}
 	return "", false
 }
 
-// usableHeader reports a sentence that closes and fits the STE cap.
-func usableHeader(sentence string) bool {
-	if sentence == "" || isHeading(sentence) || strings.Contains(sentence, "*/") {
-		return false
+// documentedName answers the name of the top-level declaration under the
+// comment on line. Only comments on adjoining lines may sit between them.
+func documentedName(root ts.Node, src string, line uint32) (string, bool) {
+	kids := code.NamedChildren(root)
+	for i, kid := range kids {
+		if !code.IsComment(kid) || kid.StartPoint().Row > line || lastLine(kid) < line {
+			continue
+		}
+		last := kid
+		for _, next := range kids[i+1:] {
+			if next.StartPoint().Row > lastLine(last)+1 {
+				return "", false
+			}
+			if !code.IsComment(next) {
+				return declarationName(next, src)
+			}
+			last = next
+		}
+		return "", false
 	}
-	if !strings.ContainsAny(sentence[len(sentence)-1:], ".!?") {
-		return false
+	return "", false
+}
+
+// nameDepth is how far below a declaration its name can sit.
+const nameDepth = 3
+
+// identifier matches a name a declaration can give.
+var identifier = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
+
+// declarationName answers the first child the grammar calls "name" under decl,
+// level by level. A body holds the names of other things, so the search skips it.
+func declarationName(decl ts.Node, src string) (string, bool) {
+	level := []ts.Node{decl}
+	for range nameDepth {
+		var next []ts.Node
+		for _, n := range level {
+			for i := range n.NamedChildCount() {
+				child := n.NamedChild(i)
+				field := n.FieldNameForNamedChild(i)
+				if field == "body" {
+					continue
+				}
+				if name := src[child.StartByte():child.EndByte()]; field == "name" && identifier.MatchString(name) {
+					return name, true
+				}
+				next = append(next, child)
+			}
+		}
+		level = next
 	}
-	return ste.WordCount(sentence) <= ste.SentenceWordCap
+	return "", false
 }
 
 // headerMarker answers the line comment marker the file's own comments use.

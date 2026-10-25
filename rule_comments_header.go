@@ -7,9 +7,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// comments/header: a source file that opens on code. The repair copies the
-// first sentence of its first comment to the top as a one-line header. It is a
-// warning, so it fails no check.
+// comments/header: a source file that opens on code. The repair writes a
+// one-line header at the top that names the file and the declaration its first
+// comment documents. It is a warning, so it fails no check.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       commentfix.IDHeader,
@@ -17,6 +17,7 @@ func init() {
 		Detect:   detectCommentHeader,
 		Autofix:  autofixCommentHeader,
 		Cases: []RuleCase{
+			{Name: "a doc that does not open on the name writes no copy of it above package", Path: "blob_read.go", Text: headerBuildTagCase, Want: headerBuildTagWant},
 			{Name: "a func doc gives the header", Path: "media.go", Text: headerGoCase, Want: headerGoWant},
 			{Name: "a JSDoc on an export gives the header", Path: "media.ts", Text: headerTSCase, Want: headerTSWant},
 			{Name: "a file with a header", Path: "media.go", Text: "// Package media matches media types.\npackage media\n\n" + headerGoBody, Unchanged: true},
@@ -42,7 +43,26 @@ func Wants(accept, mediaType string) bool {
 
 const headerGoCase = "package media\n\n" + headerGoBody
 
-const headerGoWant = "// Wants reports whether an Accept header names mediaType EXACTLY.\n\n" + headerGoCase
+const headerGoWant = "// media.go holds Wants.\n\n" + headerGoCase
+
+const headerBuildTagBody = `package commonai
+
+import "os"
+
+// The release call has nothing to free, so the collector reclaims the bytes
+// once no reader holds them.
+func mapBlob(path string) ([]byte, func() error, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	return data, func() error { return nil }, nil
+}
+`
+
+const headerBuildTagCase = "//go:build js || wasip1\n\n" + headerBuildTagBody
+
+const headerBuildTagWant = "//go:build js || wasip1\n\n// blob_read.go holds mapBlob.\n\n" + headerBuildTagBody
 
 const headerTSBody = `import { readFileSync } from 'node:fs';
 
@@ -54,7 +74,7 @@ export function load(path: string): string {
 
 const headerTSCase = headerTSBody
 
-const headerTSWant = "// Load reads the settings file from disk.\n\n" + headerTSBody
+const headerTSWant = "// media.ts holds load.\n\n" + headerTSBody
 
 // detectCommentHeader answers a file that opens with no header comment.
 func detectCommentHeader(c RuleCase) []ste.Finding {
