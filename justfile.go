@@ -171,7 +171,7 @@ func scriptsOf(raw json.RawMessage) ([]script, error) {
 var recipeChar = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
 // npmRun is a call to another script, which becomes a call to its recipe.
-var npmRun = regexp.MustCompile(`\bnpm run(?:-script)? ([A-Za-z0-9_:.-]+)`)
+var npmRun = regexp.MustCompile(`\b(?:npm|pnpm|yarn|bun) run(?:-script)? ([A-Za-z0-9_:.-]+)`)
 
 // recipeName turns a script name into a recipe name.
 func recipeName(name string) string {

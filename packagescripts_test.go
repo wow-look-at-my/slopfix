@@ -74,6 +74,14 @@ func TestFixMovesOtherScriptsAndKeepsLifecycleScripts(t *testing.T) {
 	assert.Empty(t, scriptFindings(slopfix.CheckTree(root).Findings))
 }
 
+func TestFixRewritesAPackageManagerRunToItsRecipe(t *testing.T) {
+	root := gitRoot(t, map[string]string{"package.json": testFixRewritesAPackageManagerRunToItsRecipeJson})
+	slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDPackageScripts}})
+	recipes, err := os.ReadFile(filepath.Join(root, "justfile"))
+	require.NoError(t, err)
+	assert.Contains(t, string(recipes), "check:\n\tjust typecheck && just test\n")
+}
+
 func TestOnlyPackageScriptsSelectsTheRule(t *testing.T) {
 	root := gitRoot(t, map[string]string{"package.json": "{\"scripts\": {}}\n"})
 	out := slopfix.CheckTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDPackageScripts}})
@@ -91,3 +99,6 @@ var testFixMovesOtherScriptsAndKeepsLifecycleScriptsJson string
 
 //go:embed testdata/test-fix-moves-other-scripts-and-keeps-lifecycle-scripts-2.json
 var testFixMovesOtherScriptsAndKeepsLifecycleScriptsJson2 string
+
+//go:embed testdata/test-fix-rewrites-a-package-manager-run-to-its-recipe.json
+var testFixRewritesAPackageManagerRunToItsRecipeJson string
