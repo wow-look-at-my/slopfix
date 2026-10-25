@@ -152,6 +152,10 @@ func forkLinesOf(forks forkscope.Resolver, path string) (forkLines, error) {
 	if path == "" {
 		return func(string) (*forkscope.Scope, error) { return nil, nil }, nil
 	}
+	// A file new to the work tree is the fork's whole, so the hook asks no remote about it.
+	if forkscope.Unborn(path) {
+		return func(string) (*forkscope.Scope, error) { return forkscope.Whole(), nil }, nil
+	}
 	base, err := slopfix.BaseOf(forks, path)
 	if err != nil {
 		return nil, err

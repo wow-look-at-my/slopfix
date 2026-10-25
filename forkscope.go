@@ -29,6 +29,9 @@ import (
 // headed for path, or nil when path is in no fork. A fork whose base cannot be
 // read is an error.
 func FileScope(r forkscope.Resolver, path, content string) (*forkscope.Scope, error) {
+	if forkscope.Unborn(path) {
+		return forkscope.Whole(), nil
+	}
 	base, err := BaseOf(r, path)
 	if err != nil || base == nil {
 		return nil, err
