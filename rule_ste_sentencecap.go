@@ -32,6 +32,7 @@ func init() {
 			{Name: "the objects of a preposition stay joined", Path: "CMakeLists.txt", Text: coordinatedObjectsCase, Want: coordinatedObjectsWant},
 			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: fixtureHeader + mannerClauseCase, Want: fixtureHeader + mannerClauseWant},
 			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: fixtureHeader + verblessListCase, Want: fixtureHeader + verblessListWant},
+			{Name: "a plural noun after a colon opens a subject of its own", Path: "preservation.go", Text: fixtureHeader + colonPluralSubjectCase, Want: fixtureHeader + colonPluralSubjectWant},
 		},
 	})
 }
@@ -80,6 +81,34 @@ func lowerIdentifier(word string) bool {
 	}
 	return strings.ToLower(word) != word
 }
+`
+
+// colonPluralSubjectCase holds a sentence over the cap whose clause after the
+// colon opens on a plural noun the tagger can read as a verb. "models such as
+// DeepSeek discard" names its own subject, so the division writes no subject
+// in front of it, and the name keeps its capitals.
+const colonPluralSubjectCase = `package checks
+
+// The word is recalled after a tool result, not at a new user turn: models such as DeepSeek discard earlier thinking at every user turn by design, so a user-turn probe scores every host as dropping it.
+const (
+	turnPrompt = "nonce %s\n" +
+		"Step 1: invent one random word in your reasoning only. " +
+		"Step 2: call the wait tool. " +
+		"Step 3: after the tool result arrives, reply with only the word."
+	waitResult = "tick"
+)
+`
+
+const colonPluralSubjectWant = `package checks
+
+// The word is recalled after a tool result, not at a new user turn. Models such as DeepSeek discard earlier thinking at every user turn by design. A user-turn probe scores every host as dropping it.
+const (
+	turnPrompt = "nonce %s\n" +
+		"Step 1: invent one random word in your reasoning only. " +
+		"Step 2: call the wait tool. " +
+		"Step 3: after the tool result arrives, reply with only the word."
+	waitResult = "tick"
+)
 `
 
 // verblessListCase holds a list over the cap that names terms and holds no

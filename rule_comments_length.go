@@ -20,6 +20,8 @@ func init() {
 		Cases: []RuleCase{
 			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
 			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
+			{Name: "a run of doc comments is cut from its end", Path: "snapshot.ts", Text: fixtureHeader + stackedDocCase},
+			{Name: "an opener inside a block comment is prose", Path: "records.ts", Text: fixtureHeader + innerOpenerCase},
 		},
 	})
 }
@@ -29,6 +31,18 @@ var identifierSentenceCase string
 
 //go:embed testdata/identifier-sentence-want.cpp
 var identifierSentenceWant string
+
+// stackedDocCase holds a doc comment left above another doc comment. The run
+// of both outweighs the function beneath it.
+//
+//go:embed testdata/stacked-doc-case.ts
+var stackedDocCase string
+
+// innerOpenerCase holds a block comment whose prose names a glob ending in a
+// comment opener. The comment still closes once, at its end.
+//
+//go:embed testdata/inner-opener-case.ts
+var innerOpenerCase string
 
 // detectCommentLength answers every overlong comment run this rule reports.
 func detectCommentLength(c RuleCase) []ste.Finding {
