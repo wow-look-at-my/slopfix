@@ -32,6 +32,8 @@ func init() {
 			{Name: "the objects of a preposition stay joined", Path: "CMakeLists.txt", Text: coordinatedObjectsCase, Want: coordinatedObjectsWant},
 			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: fixtureHeader + mannerClauseCase, Want: fixtureHeader + mannerClauseWant},
 			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: fixtureHeader + verblessListCase, Want: fixtureHeader + verblessListWant},
+			{Name: "a plural noun after a colon opens a subject of its own", Path: "schema.go", Text: fixtureHeader + colonPluralSubjectCase, Want: fixtureHeader + colonPluralSubjectWant},
+			{Name: "a phrase cut from its verb stands behind a carrier", Path: "pinned.go", Text: fixtureHeader + strandedPhraseCase, Want: fixtureHeader + strandedPhraseWant},
 		},
 	})
 }
@@ -64,8 +66,7 @@ const mannerClauseWant = `package ident
 
 import "strings"
 
-// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it. Otherwise, it is a single letter other than the article, as a variable such
-// as q is.
+// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it. Otherwise, it is a single letter other than the article, as a variable such as q is.
 func lowerIdentifier(word string) bool {
 	if word == "" {
 		return false
@@ -79,6 +80,82 @@ func lowerIdentifier(word string) bool {
 		}
 	}
 	return strings.ToLower(word) != word
+}
+`
+
+// colonPluralSubjectCase holds a sentence over the cap whose clause after the
+// colon opens on a plural noun the tagger reads as a verb. "models such as
+// Prisma cache" names its own subject, so the division writes no subject in
+// front of it. The words after the colon are under the cap, so they stay one
+// sentence.
+const colonPluralSubjectCase = `package schema
+
+// The schema is checked after a migration, not at a new connection: models such as Prisma cache earlier schemas at every connection by design, so a connection-only probe scores every server as stale.
+const (
+	cacheDir     = ".cache/schema/outputs"
+	lockFile     = ".cache/schema/outputs.lock"
+	manifestFile = ".cache/schema/manifest.json"
+	staleMarker  = ".cache/schema/stale"
+	readTimeout  = "30s"
+	writeTimeout = "60s"
+	maxAgeSecs   = 3600
+	maxEntries   = 4096
+)
+`
+
+const colonPluralSubjectWant = `package schema
+
+// The schema is checked after a migration, not at a new connection. Models such as Prisma cache earlier schemas at every connection by design, so a connection-only probe scores every server as stale.
+const (
+	cacheDir     = ".cache/schema/outputs"
+	lockFile     = ".cache/schema/outputs.lock"
+	manifestFile = ".cache/schema/manifest.json"
+	staleMarker  = ".cache/schema/stale"
+	readTimeout  = "30s"
+	writeTimeout = "60s"
+	maxAgeSecs   = 3600
+	maxEntries   = 4096
+)
+`
+
+// strandedPhraseCase holds a sentence over the cap whose only cut under the
+// cap opens on "for" with no mark before it. The phrase belongs to the verb in
+// front of the cut, so the rest stands behind "This is".
+const strandedPhraseCase = `package pinned
+
+import "strings"
+
+// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel" for the tool prose calls Bazel.
+func pinnedName(text, name string) bool {
+	lower := strings.ToLower(name)
+	if lower == name {
+		return false
+	}
+	for _, word := range strings.Fields(text) {
+		if strings.Trim(word, "\"'.,;:") == lower {
+			return true
+		}
+	}
+	return false
+}
+`
+
+const strandedPhraseWant = `package pinned
+
+import "strings"
+
+// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel". This is for the tool prose calls Bazel.
+func pinnedName(text, name string) bool {
+	lower := strings.ToLower(name)
+	if lower == name {
+		return false
+	}
+	for _, word := range strings.Fields(text) {
+		if strings.Trim(word, "\"'.,;:") == lower {
+			return true
+		}
+	}
+	return false
 }
 `
 
@@ -104,8 +181,7 @@ func octantMoments(masses, positions, colors []float64) (mass, mean, color float
 
 const verblessListWant = `package moments
 
-// Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube. This also covers flatness ratio of the stack against an opaque layer of
-// the same cube.
+// Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube. This also covers flatness ratio of the stack against an opaque layer of the same cube.
 func octantMoments(masses, positions, colors []float64) (mass, mean, color float64) {
 	for i, m := range masses {
 		mass += m

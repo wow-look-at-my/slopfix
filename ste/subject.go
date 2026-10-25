@@ -12,6 +12,29 @@ import (
 // quantifiers open a subject that picks members out of a set.
 var quantifiers = set.Of("every", "each", "all", "any", "some", "both")
 
+// pluralSubjectAt reports a word in -s at i that opens a subject the tagger
+// read as a verb. "such as" after it names examples of a noun, as in "models
+// such as Prisma cache". A plural verb after it, past nothing but
+// adjectives, prepositions and nouns, agrees with a plural noun too.
+func pluralSubjectAt(s *syntax.Sentence, i int) bool {
+	if i < 0 || i >= len(s.Words) || s.Words[i].Tag != "VBZ" && s.Words[i].Tag != "NNS" || !strings.HasSuffix(s.Words[i].Lower(), "s") {
+		return false
+	}
+	if i+2 < len(s.Words) && s.Words[i+1].Lower() == "such" && s.Words[i+2].Lower() == "as" {
+		return true
+	}
+	for j := i + 1; j < len(s.Words); j++ {
+		switch s.Words[j].Tag {
+		case "VBP", "MD":
+			return true
+		case "JJ", "IN", "NN", "NNS", "NNP", "NNPS", "CD", "POS":
+			continue
+		}
+		return false
+	}
+	return false
+}
+
 // restates reports a subject short enough to write again after a division, and
 // not opened by a quantifier.
 func restates(s *syntax.Sentence, subject syntax.Phrase) bool {

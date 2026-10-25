@@ -41,6 +41,12 @@ func init() {
 			Name: tombstones.IDDeadReferent + " on the closer line of a JSDoc block",
 			Path: "plain.js",
 			Text: embeddedCpp,
+		}, {
+			// The file holds the name in lower case alone, as a value. The capitals mark a proper noun, so the repair cuts the sentence rather than lower it.
+			Name: "a capitalized name is never renamed to a lower-case value",
+			Path: "loader.go",
+			Text: fixtureHeader + "package loader\n\n// Formats such as PageForge keep their own config.\n// The loader reads the config file first.\nconst (\n\thost = \"pageforge\"\n\tport = 8080\n)\n",
+			Want: fixtureHeader + "package loader\n\n// The loader reads the config file first.\nconst (\n\thost = \"pageforge\"\n\tport = 8080\n)\n",
 		}},
 	})
 }
