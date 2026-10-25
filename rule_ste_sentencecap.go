@@ -145,7 +145,8 @@ const strandedPhraseWant = `package pinned
 
 import "strings"
 
-// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel". This is for the tool prose calls Bazel.
+// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel". This is for the tool prose
+// calls Bazel.
 func pinnedName(text, name string) bool {
 	lower := strings.ToLower(name)
 	if lower == name {
