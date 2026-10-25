@@ -74,6 +74,14 @@ func TestFixMovesOtherScriptsAndKeepsLifecycleScripts(t *testing.T) {
 	assert.Empty(t, scriptFindings(slopfix.CheckTree(root).Findings))
 }
 
+func TestFixRewritesAPackageManagerRunToItsRecipe(t *testing.T) {
+	root := gitRoot(t, map[string]string{"package.json": "{\n\t\"name\": \"a\",\n\t\"scripts\": {\n\t\t\"typecheck\": \"tsc --noEmit\",\n\t\t\"test\": \"node --test\",\n\t\t\"check\": \"pnpm run typecheck && pnpm run test\"\n\t}\n}\n"})
+	slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDPackageScripts}})
+	recipes, err := os.ReadFile(filepath.Join(root, "justfile"))
+	require.NoError(t, err)
+	assert.Contains(t, string(recipes), "check:\n\tjust typecheck && just test\n")
+}
+
 func TestOnlyPackageScriptsSelectsTheRule(t *testing.T) {
 	root := gitRoot(t, map[string]string{"package.json": "{\"scripts\": {}}\n"})
 	out := slopfix.CheckTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDPackageScripts}})
