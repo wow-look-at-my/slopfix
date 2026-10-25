@@ -52,12 +52,21 @@ func sniffJSON(path string) jsonKind {
 		return notJSON
 	}
 	defer func() { _ = f.Close() }()
-	head := make([]byte, min(st.Size(), sniffHead))
-	if _, err := io.ReadFull(f, head); err != nil {
+	return sniffReaderAt(f, st.Size())
+}
+
+// sniffReaderAt decides the kind of size bytes of content from r, reading only
+// the head and the tail.
+func sniffReaderAt(r io.ReaderAt, size int64) jsonKind {
+	if size <= 0 {
 		return notJSON
 	}
-	whole := int64(len(head)) == st.Size()
-	if !whole && !closesJSON(f, st.Size()) {
+	head := make([]byte, min(size, sniffHead))
+	if n, err := r.ReadAt(head, 0); n < len(head) || (err != nil && !errors.Is(err, io.EOF)) {
+		return notJSON
+	}
+	whole := int64(len(head)) == size
+	if !whole && !closesJSON(r, size) {
 		return notJSON
 	}
 	return classify(bytes.TrimPrefix(head, utf8BOM), whole)
@@ -65,10 +74,10 @@ func sniffJSON(path string) jsonKind {
 
 // closesJSON asks whether the last byte that is not white space closes an
 // object or an array.
-func closesJSON(f *os.File, size int64) bool {
+func closesJSON(r io.ReaderAt, size int64) bool {
 	n := min(size, sniffTail)
 	tail := make([]byte, n)
-	if _, err := f.ReadAt(tail, size-n); err != nil {
+	if got, err := r.ReadAt(tail, size-n); got < len(tail) || (err != nil && !errors.Is(err, io.EOF)) {
 		return false
 	}
 	tail = bytes.TrimRight(tail, " \t\r\n")
