@@ -132,10 +132,30 @@ func caseVariant(path, text, name string, dead set.Set[string]) string {
 // lower case, such as "deepseek" for DeepSeek. A word in lower case is no
 // symbol, so the capitals mark a proper noun, and the name is not dead.
 func heldAsPlainWord(path, text, name string) bool {
-	plain := func(word string) bool {
-		return word != name && word == strings.ToLower(word) && strings.EqualFold(word, name)
+	lower := strings.ToLower(name)
+	if lower == name {
+		return false
 	}
-	return slices.ContainsFunc(identifierWords(text), plain) || slices.ContainsFunc(repoCaseVariants(path, name), plain)
+	if wordIndex(text, lower) >= 0 {
+		return true
+	}
+	root := RepoRoot(path)
+	if root == "" {
+		return false
+	}
+	if v, ok := indexes.Load(root); ok {
+		if ix := v.(*symbolIndex); ix.ok {
+			return ix.plain.Contains(lower)
+		}
+	}
+	rg, err := exec.LookPath("rg")
+	if err != nil {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, rg, "--no-messages", "--fixed-strings", "--word-regexp", "--files-with-matches", "--max-count", "1", "-e", lower, root).Output()
+	return err == nil && ctx.Err() == nil && strings.TrimSpace(string(out)) != ""
 }
 
 // repoCaseVariants answers each spelling of name, in any case, that a file of

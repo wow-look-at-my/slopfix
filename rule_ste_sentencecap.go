@@ -32,7 +32,12 @@ func init() {
 			{Name: "the objects of a preposition stay joined", Path: "CMakeLists.txt", Text: coordinatedObjectsCase, Want: coordinatedObjectsWant},
 			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: fixtureHeader + mannerClauseCase, Want: fixtureHeader + mannerClauseWant},
 			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: fixtureHeader + verblessListCase, Want: fixtureHeader + verblessListWant},
-			{Name: "a plural noun after a colon opens a subject of its own", Path: "preservation.go", Text: fixtureHeader + colonPluralSubjectCase, Want: fixtureHeader + colonPluralSubjectWant},
+			{
+				Name: "a plural noun after a colon opens a subject of its own", Path: "preservation.go",
+				Text:  fixtureHeader + colonPluralSubjectCase,
+				Files: map[string]string{"models.go": "package checks\n\nconst defaultModel = \"deepseek/deepseek-v4.1-flash\"\n"},
+				Want:  fixtureHeader + colonPluralSubjectWant,
+			},
 		},
 	})
 }

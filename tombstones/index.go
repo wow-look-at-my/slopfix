@@ -27,6 +27,8 @@ const indexFileCap = 4 << 20
 type symbolIndex struct {
 	once  sync.Once
 	files map[string]int
+	// plain holds every word in lower case letters alone, such as a product name on a command line.
+	plain set.Set[string]
 	ok    bool
 
 	pathOnce sync.Once
@@ -172,6 +174,7 @@ func (ix *symbolIndex) build(root string) {
 	// A failed submodule listing adds no file, and the index keeps the files of the tree itself.
 	nested, _ := repo.TrackedRecursive()
 	files := map[string]int{}
+	plain := set.New[string]()
 	seen := set.New[string]()
 	paths := append(append(listed, nested...), copiedSubmoduleFiles(ctx, root)...)
 	for _, rel := range paths {
@@ -191,8 +194,32 @@ func (ix *symbolIndex) build(root string) {
 		for word := range words.All() {
 			files[word]++
 		}
+		addPlainWords(plain, data)
 	}
-	ix.files, ix.ok = files, true
+	ix.files, ix.plain, ix.ok = files, plain, true
+}
+
+// addPlainWords adds every word of data that holds lower case letters alone,
+// and no fewer than a candidate holds.
+func addPlainWords(plain set.Set[string], data []byte) {
+	start := -1
+	for i := 0; i <= len(data); i++ {
+		if i < len(data) && data[i] >= 'a' && data[i] <= 'z' {
+			if start < 0 {
+				start = i
+			}
+			continue
+		}
+		if start >= 0 && i-start >= minCandidate && !identByteAt(data, start-1) && !identByteAt(data, i) {
+			plain.Add(string(data[start:i]))
+		}
+		start = -1
+	}
+}
+
+// identByteAt reports a byte of data at i that an identifier can hold.
+func identByteAt(data []byte, i int) bool {
+	return i >= 0 && i < len(data) && identByte(data[i])
 }
 
 // copiedSubmoduleFiles lists the files under each submodule path that holds
