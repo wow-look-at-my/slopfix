@@ -32,13 +32,8 @@ func init() {
 			{Name: "the objects of a preposition stay joined", Path: "CMakeLists.txt", Text: coordinatedObjectsCase, Want: coordinatedObjectsWant},
 			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: fixtureHeader + mannerClauseCase, Want: fixtureHeader + mannerClauseWant},
 			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: fixtureHeader + verblessListCase, Want: fixtureHeader + verblessListWant},
-			{
-				Name: "a plural noun after a colon opens a subject of its own", Path: "preservation.go",
-				Text:  fixtureHeader + colonPluralSubjectCase,
-				Files: map[string]string{"models.go": "package checks\n\nconst defaultModel = \"deepseek/deepseek-v4.1-flash\"\n"},
-				Want:  fixtureHeader + colonPluralSubjectWant,
-			},
-			{Name: "a phrase stays with the verb it follows", Path: "rename.go", Text: fixtureHeader + strandedPhraseCase, Want: fixtureHeader + strandedPhraseCase},
+			{Name: "a plural noun after a colon opens a subject of its own", Path: "schema.go", Text: fixtureHeader + colonPluralSubjectCase, Want: fixtureHeader + colonPluralSubjectWant},
+			{Name: "a phrase cut from its verb stands behind a carrier", Path: "pinned.go", Text: fixtureHeader + strandedPhraseCase, Want: fixtureHeader + strandedPhraseWant},
 		},
 	})
 }
@@ -89,46 +84,80 @@ func lowerIdentifier(word string) bool {
 }
 `
 
-// strandedPhraseCase holds a sentence over the cap with no mark where a cut
-// would fit. "for the product prose calls DeepSeek" is a phrase of the verb in
-// front of it, and opens no sentence.
-const strandedPhraseCase = `package tombstones
+// colonPluralSubjectCase holds a sentence over the cap whose clause after the
+// colon opens on a plural noun the tagger reads as a verb. "models such as
+// Prisma cache" names its own subject, so the division writes no subject in
+// front of it. The words after the colon are under the cap, so they stay one
+// sentence.
+const colonPluralSubjectCase = `package schema
+
+// The schema is checked after a migration, not at a new connection: models such as Prisma cache earlier schemas at every connection by design, so a connection-only probe scores every server as stale.
+const (
+	cacheDir     = ".cache/schema/outputs"
+	lockFile     = ".cache/schema/outputs.lock"
+	manifestFile = ".cache/schema/manifest.json"
+	staleMarker  = ".cache/schema/stale"
+	readTimeout  = "30s"
+	writeTimeout = "60s"
+	maxAgeSecs   = 3600
+	maxEntries   = 4096
+)
+`
+
+const colonPluralSubjectWant = `package schema
+
+// The schema is checked after a migration, not at a new connection. Models such as Prisma cache earlier schemas at every connection by design, so a connection-only probe scores every server as stale.
+const (
+	cacheDir     = ".cache/schema/outputs"
+	lockFile     = ".cache/schema/outputs.lock"
+	manifestFile = ".cache/schema/manifest.json"
+	staleMarker  = ".cache/schema/stale"
+	readTimeout  = "30s"
+	writeTimeout = "60s"
+	maxAgeSecs   = 3600
+	maxEntries   = 4096
+)
+`
+
+// strandedPhraseCase holds a sentence over the cap whose only cut under the
+// cap opens on "for" with no mark before it. The phrase belongs to the verb in
+// front of the cut, so the rest stands behind "This is".
+const strandedPhraseCase = `package pinned
 
 import "strings"
 
-// heldAsPlainWord reports a name that the file or the repository holds in lower case alone, as a command line holds "deepseek" for the product prose calls DeepSeek. A word in lower case is no symbol, so the capitals mark a proper noun, and the name is not dead.
-func heldAsPlainWord(text, name string) bool {
+// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel" for the tool prose calls Bazel.
+func pinnedName(text, name string) bool {
 	lower := strings.ToLower(name)
-	return lower != name && strings.Contains(text, lower)
+	if lower == name {
+		return false
+	}
+	for _, word := range strings.Fields(text) {
+		if strings.Trim(word, "\"'.,;:") == lower {
+			return true
+		}
+	}
+	return false
 }
 `
 
-// colonPluralSubjectCase holds a sentence over the cap whose clause after the
-// colon opens on a plural noun the tagger can read as a verb. "models such as
-// DeepSeek discard" names its own subject, so the division writes no subject
-// in front of it, and the name keeps its capitals.
-const colonPluralSubjectCase = `package checks
+const strandedPhraseWant = `package pinned
 
-// The word is recalled after a tool result, not at a new user turn: models such as DeepSeek discard earlier thinking at every user turn by design, so a user-turn probe scores every host as dropping it.
-const (
-	turnPrompt = "nonce %s\n" +
-		"Step 1: invent one random word in your reasoning only. " +
-		"Step 2: call the wait tool. " +
-		"Step 3: after the tool result arrives, reply with only the word."
-	waitResult = "tick"
-)
-`
+import "strings"
 
-const colonPluralSubjectWant = `package checks
-
-// The word is recalled after a tool result, not at a new user turn. Models such as DeepSeek discard earlier thinking at every user turn by design, so a user-turn probe scores every host as dropping it.
-const (
-	turnPrompt = "nonce %s\n" +
-		"Step 1: invent one random word in your reasoning only. " +
-		"Step 2: call the wait tool. " +
-		"Step 3: after the tool result arrives, reply with only the word."
-	waitResult = "tick"
-)
+// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel". This is for the tool prose calls Bazel.
+func pinnedName(text, name string) bool {
+	lower := strings.ToLower(name)
+	if lower == name {
+		return false
+	}
+	for _, word := range strings.Fields(text) {
+		if strings.Trim(word, "\"'.,;:") == lower {
+			return true
+		}
+	}
+	return false
+}
 `
 
 // verblessListCase holds a list over the cap that names terms and holds no

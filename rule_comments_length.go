@@ -20,12 +20,9 @@ func init() {
 		Cases: []RuleCase{
 			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
 			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
-			{Name: "a run of doc comments is cut from its end", Path: "snapshot.ts", Text: fixtureHeader + stackedDocCase, Want: fixtureHeader + stackedDocWant},
-			{
-				Name: "an opener inside a block comment is prose", Path: "records.ts", Text: fixtureHeader + innerOpenerCase,
-				Files: map[string]string{"ingest.ts": innerOpenerIngest},
-				Want:  fixtureHeader + innerOpenerWant,
-			},
+			{Name: "a run of doc comments is cut from its end", Path: "store.ts", Text: fixtureHeader + stackedDocCase, Want: fixtureHeader + stackedDocWant},
+			{Name: "a run of doc comments no single cut fits", Path: "retries.ts", Text: fixtureHeader + stackedSingleCase, Want: fixtureHeader + stackedSingleWant},
+			{Name: "an opener inside a block comment is prose", Path: "assets.ts", Text: fixtureHeader + innerOpenerCase, Want: fixtureHeader + innerOpenerWant},
 		},
 	})
 }
@@ -45,6 +42,12 @@ var stackedDocCase string
 //go:embed testdata/stacked-doc-want.ts
 var stackedDocWant string
 
+//go:embed testdata/stacked-single-case.ts
+var stackedSingleCase string
+
+//go:embed testdata/stacked-single-want.ts
+var stackedSingleWant string
+
 // innerOpenerCase holds a block comment whose prose names a glob ending in a
 // comment opener. The comment still closes once, at its end.
 //
@@ -53,11 +56,6 @@ var innerOpenerCase string
 
 //go:embed testdata/inner-opener-want.ts
 var innerOpenerWant string
-
-// innerOpenerIngest defines the names the comment of innerOpenerCase cites.
-//
-//go:embed testdata/inner-opener-ingest.ts
-var innerOpenerIngest string
 
 // detectCommentLength answers every overlong comment run this rule reports.
 func detectCommentLength(c RuleCase) []ste.Finding {

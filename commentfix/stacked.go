@@ -50,8 +50,8 @@ func renderStacked(comments []stackedComment) []string {
 // repairStacked cuts a run of /* */ comments from its end until it fits the
 // code under b. The last comment loses its trailing thoughts first, down to
 // its opening sentence on one line, and then the comment before it does. Each
-// comment keeps its own opener and closer. A run no cut fits keeps its text,
-// as a single comment no cut fits does.
+// comment keeps its own opener and closer. A run that still outweighs the code
+// joins into one comment, and the single-comment repair cuts that comment.
 func repairStacked(b block) ([]string, bool) {
 	comments, ok := splitStacked(b.text)
 	if !ok {
@@ -79,5 +79,20 @@ func repairStacked(b block) ([]string, bool) {
 			comments[g].lines = wider
 		}
 	}
-	return b.text, true
+	joined := b
+	joined.text = joinStacked(comments)
+	return repairBlockComment(joined)
+}
+
+// joinStacked writes every comment of a run as one comment in the first
+// comment's shape, each comment a paragraph of its own.
+func joinStacked(comments []stackedComment) []string {
+	var prose []string
+	for i, c := range comments {
+		if i > 0 {
+			prose = append(prose, "")
+		}
+		prose = append(prose, fromLines(c.lines)...)
+	}
+	return comments[0].shape.render(prose)
 }

@@ -262,7 +262,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		if rs := syntax.Parse(opening(hardRest(source, c.right)), nil); len(rs.Words) > 0 && (rs.Words[0].Tag == "IN" || rs.Words[0].Tag == "TO") && !finiteOutsideRelative(rs, 0) {
 			continue
 		}
-		if strandsPhrase(source, c) {
+		if strandsPhrase(source, c) && !carriesPhrase(source, c) {
 			continue
 		}
 		// The best seam wins, then the longest leading run. The first cut of a tie is deterministic.
@@ -279,6 +279,9 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 	}
 	left := closeHead(source[:best.left])
 	right := hardRest(source, best.right)
+	if strandsPhrase(source, best) && carriesPhrase(source, best) {
+		right = "This is " + strings.TrimLeft(source[best.right:], " ")
+	}
 	if left == "" || right == "" {
 		return source, false
 	}
@@ -286,8 +289,8 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 }
 
 // strandsPhrase reports a cut with no mark at its seam whose rest opens on a
-// preposition. The phrase belongs to the verb in front of the cut, as in
-// "holds "deepseek" | for the product prose calls DeepSeek". A phrase that
+// preposition or a subordinator. The words belong to the verb in front of the
+// cut, as in "holds "bazel" | for the tool prose calls Bazel". A phrase that
 // opens a sentence ends at a comma before the main verb, and no comma there
 // leaves the rest a fragment.
 func strandsPhrase(source string, c forceCut) bool {
@@ -307,6 +310,19 @@ func strandsPhrase(source string, c forceCut) bool {
 		}
 	}
 	return true
+}
+
+// carriesPhrase reports a stranded rest that opens on a preposition of place,
+// time or purpose. "This is" in front of it writes a sentence: "This is for
+// the tool prose calls Bazel". A subordinator, a relative word or a word of
+// comparison takes no such carrier.
+func carriesPhrase(source string, c forceCut) bool {
+	first := strings.ToLower(firstToken.FindString(source[c.right:]))
+	switch first {
+	case "as", "than", "like", "so":
+		return false
+	}
+	return !syntax.Is(first, "subordinator") && !syntax.Is(first, "relative") && !syntax.Is(first, "coordinator")
 }
 
 // relativeAfterNoun reports a relative word at word n, such as "that" or

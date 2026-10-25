@@ -11,7 +11,7 @@ import (
 // The clause after the colon opens on a plural noun the tagger can read as a
 // verb, and its own verb follows the noun group.
 func TestAPluralNounAfterAColonOpensItsOwnSubject(t *testing.T) {
-	in := "The word is recalled after a tool result, not at a new user turn: models such as DeepSeek discard earlier thinking at every user turn by design, so a user-turn probe scores every host as dropping it."
+	in := "The schema is checked after a migration, not at a new connection: models such as Prisma cache earlier schemas at every connection by design, so a connection-only probe scores every server as stale."
 	masked := mask(in)
 	s := syntax.Parse(masked, opaque(in, masked))
 	colon := -1

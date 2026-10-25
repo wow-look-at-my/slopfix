@@ -105,11 +105,17 @@ func replacementFor(path, text string, lines []string, blocks []Block, name stri
 	return ""
 }
 
-// caseVariant answers the identifier of the file or the repository that
-// equals name when case is ignored, or "" when none or several do.
+// caseVariant answers the identifier of the file or the repository that equals
+// name when case is ignored, or "" when none or several do. A word in lower
+// case alone is no spelling of a name that opens on a capital. That word is
+// plain prose or a value, and the name in the comment is a proper noun.
 func caseVariant(path, text, name string, dead set.Set[string]) string {
 	found := set.New[string]()
+	capital := name[0] >= 'A' && name[0] <= 'Z'
 	collect := func(word string) {
+		if capital && word == strings.ToLower(word) {
+			return
+		}
 		if word != name && strings.EqualFold(word, name) && !dead.Contains(word) {
 			found.Add(word)
 		}
@@ -126,36 +132,6 @@ func caseVariant(path, text, name string, dead set.Set[string]) string {
 		return ""
 	}
 	return slices.Collect(found.All())[0]
-}
-
-// heldAsPlainWord reports a name that the file or the repository holds in
-// lower case, such as "deepseek" for DeepSeek. A word in lower case is no
-// symbol, so the capitals mark a proper noun, and the name is not dead.
-func heldAsPlainWord(path, text, name string) bool {
-	lower := strings.ToLower(name)
-	if lower == name {
-		return false
-	}
-	if wordIndex(text, lower) >= 0 {
-		return true
-	}
-	root := RepoRoot(path)
-	if root == "" {
-		return false
-	}
-	if v, ok := indexes.Load(root); ok {
-		if ix := v.(*symbolIndex); ix.ok {
-			return ix.plain.Contains(lower)
-		}
-	}
-	rg, err := exec.LookPath("rg")
-	if err != nil {
-		return false
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, rg, "--no-messages", "--fixed-strings", "--word-regexp", "--files-with-matches", "--max-count", "1", "-e", lower, root).Output()
-	return err == nil && ctx.Err() == nil && strings.TrimSpace(string(out)) != ""
 }
 
 // repoCaseVariants answers each spelling of name, in any case, that a file of

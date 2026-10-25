@@ -42,12 +42,11 @@ func init() {
 			Path: "plain.js",
 			Text: embeddedCpp,
 		}, {
-			// The repository holds the product name in lower case only, so the capitals in prose mark a proper noun.
-			Name:      "a proper noun the repository holds in lower case",
-			Path:      "preservation.go",
-			Text:      fixtureHeader + "package checks\n\n// Models such as DeepSeek discard earlier thinking at every user turn.\nfunc discard() {}\n",
-			Files:     map[string]string{"models.go": "package checks\n\nconst defaultModel = \"deepseek/deepseek-v4.1-flash\"\n"},
-			Unchanged: true,
+			// The file holds the name in lower case alone, as a value. The capitals mark a proper noun, so the repair cuts the sentence rather than lower it.
+			Name: "a capitalized name is never renamed to a lower-case value",
+			Path: "loader.go",
+			Text: fixtureHeader + "package loader\n\n// Formats such as PageForge keep their own config.\n// The loader reads the config file first.\nconst (\n\thost = \"pageforge\"\n\tport = 8080\n)\n",
+			Want: fixtureHeader + "package loader\n\n// The loader reads the config file first.\nconst (\n\thost = \"pageforge\"\n\tport = 8080\n)\n",
 		}},
 	})
 }
