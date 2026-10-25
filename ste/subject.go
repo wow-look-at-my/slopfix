@@ -12,6 +12,26 @@ import (
 // quantifiers open a subject that picks members out of a set.
 var quantifiers = set.Of("every", "each", "all", "any", "some", "both")
 
+// pluralSubjectAt reports a word in -s at i that opens a subject the tagger
+// read as a verb. A plural verb follows it, past nothing but adjectives,
+// prepositions and nouns: "models such as DeepSeek discard". The verb agrees
+// with a plural noun, so the word at i is that noun.
+func pluralSubjectAt(s *syntax.Sentence, i int) bool {
+	if i < 0 || i >= len(s.Words) || s.Words[i].Tag != "VBZ" && s.Words[i].Tag != "NNS" || !strings.HasSuffix(s.Words[i].Lower(), "s") {
+		return false
+	}
+	for j := i + 1; j < len(s.Words); j++ {
+		switch s.Words[j].Tag {
+		case "VBP", "MD":
+			return true
+		case "JJ", "IN", "NN", "NNS", "NNP", "NNPS", "CD", "POS":
+			continue
+		}
+		return false
+	}
+	return false
+}
+
 // restates reports a subject short enough to write again after a division, and
 // not opened by a quantifier.
 func restates(s *syntax.Sentence, subject syntax.Phrase) bool {

@@ -185,7 +185,7 @@ func DeadReferents(path, added string, blocks []Block) []string {
 			dead = append(dead, name)
 		}
 	}
-	return dead
+	return slices.DeleteFunc(dead, func(name string) bool { return heldAsPlainWord(path, added, name) })
 }
 
 // RepoRoot walks up from path looking for a working tree. An empty result puts

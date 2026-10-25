@@ -128,6 +128,16 @@ func caseVariant(path, text, name string, dead set.Set[string]) string {
 	return slices.Collect(found.All())[0]
 }
 
+// heldAsPlainWord reports a name that the file or the repository holds in
+// lower case, such as "deepseek" for DeepSeek. A word in lower case is no
+// symbol, so the capitals mark a proper noun, and the name is not dead.
+func heldAsPlainWord(path, text, name string) bool {
+	plain := func(word string) bool {
+		return word != name && word == strings.ToLower(word) && strings.EqualFold(word, name)
+	}
+	return slices.ContainsFunc(identifierWords(text), plain) || slices.ContainsFunc(repoCaseVariants(path, name), plain)
+}
+
 // repoCaseVariants answers each spelling of name, in any case, that a file of
 // the repository holds. It answers nothing when it cannot search.
 func repoCaseVariants(path, name string) []string {
