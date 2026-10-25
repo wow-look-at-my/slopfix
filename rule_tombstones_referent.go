@@ -41,6 +41,13 @@ func init() {
 			Name: tombstones.IDDeadReferent + " on the closer line of a JSDoc block",
 			Path: "plain.js",
 			Text: embeddedCpp,
+		}, {
+			// The repository holds the product name in lower case only, so the capitals in prose mark a proper noun.
+			Name:      "a proper noun the repository holds in lower case",
+			Path:      "preservation.go",
+			Text:      fixtureHeader + "package checks\n\n// Models such as DeepSeek discard earlier thinking at every user turn.\nfunc discard() {}\n",
+			Files:     map[string]string{"models.go": "package checks\n\nconst defaultModel = \"deepseek/deepseek-v4.1-flash\"\n"},
+			Unchanged: true,
 		}},
 	})
 }
