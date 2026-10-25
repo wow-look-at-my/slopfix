@@ -20,11 +20,11 @@ func init() {
 		Cases: []RuleCase{
 			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
 			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
-			{Name: "a run of doc comments is cut from its end", Path: "snapshot.ts", Text: fixtureHeader + stackedDocCase, Want: fixtureHeader + stackedDocCase},
+			{Name: "a run of doc comments is cut from its end", Path: "snapshot.ts", Text: fixtureHeader + stackedDocCase, Want: fixtureHeader + stackedDocWant},
 			{
 				Name: "an opener inside a block comment is prose", Path: "records.ts", Text: fixtureHeader + innerOpenerCase,
 				Files: map[string]string{"ingest.ts": innerOpenerIngest},
-				Want:  fixtureHeader + innerOpenerCase,
+				Want:  fixtureHeader + innerOpenerWant,
 			},
 		},
 	})
@@ -42,11 +42,17 @@ var identifierSentenceWant string
 //go:embed testdata/stacked-doc-case.ts
 var stackedDocCase string
 
+//go:embed testdata/stacked-doc-want.ts
+var stackedDocWant string
+
 // innerOpenerCase holds a block comment whose prose names a glob ending in a
 // comment opener. The comment still closes once, at its end.
 //
 //go:embed testdata/inner-opener-case.ts
 var innerOpenerCase string
+
+//go:embed testdata/inner-opener-want.ts
+var innerOpenerWant string
 
 // innerOpenerIngest defines the names the comment of innerOpenerCase cites.
 //
