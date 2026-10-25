@@ -13,12 +13,15 @@ import (
 var quantifiers = set.Of("every", "each", "all", "any", "some", "both")
 
 // pluralSubjectAt reports a word in -s at i that opens a subject the tagger
-// read as a verb. A plural verb follows it, past nothing but adjectives,
-// prepositions and nouns: "models such as DeepSeek discard". The verb agrees
-// with a plural noun, so the word at i is that noun.
+// read as a verb. "such as" after it names examples of a noun, as in "models
+// such as DeepSeek discard". A plural verb after it, past nothing but
+// adjectives, prepositions and nouns, agrees with a plural noun too.
 func pluralSubjectAt(s *syntax.Sentence, i int) bool {
 	if i < 0 || i >= len(s.Words) || s.Words[i].Tag != "VBZ" && s.Words[i].Tag != "NNS" || !strings.HasSuffix(s.Words[i].Lower(), "s") {
 		return false
+	}
+	if i+2 < len(s.Words) && s.Words[i+1].Lower() == "such" && s.Words[i+2].Lower() == "as" {
+		return true
 	}
 	for j := i + 1; j < len(s.Words); j++ {
 		switch s.Words[j].Tag {
