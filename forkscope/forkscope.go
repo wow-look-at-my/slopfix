@@ -151,10 +151,7 @@ func (r Resolver) Base(root string) (*Base, error) {
 		}
 		return &Base{top: top, commit: commit, upstream: rec.Tip}, nil
 	case kindParent:
-		if err := deepen(top); err != nil {
-			return nil, err
-		}
-		base, err := mergeBase(top, "HEAD", rec.Parent)
+		base, err := parentBase(top, rec)
 		if err != nil {
 			return nil, fmt.Errorf("fork scope: no merge base between HEAD and the parent's %s (%s) from %s: %w", rec.Branch, rec.Parent, rec.ParentURL, err)
 		}
@@ -427,19 +424,6 @@ func gitIn(dir string, args ...string) (string, error) {
 		return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(exit.Stderr)))
 	}
 	return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
-}
-
-// fetchParent fetches the parent's branch into top and answers its commit. The
-// fetch leaves blobs behind, so only commits and trees cross the wire.
-func fetchParent(top, parentURL, branch string) (string, error) {
-	if _, err := gitIn(top, "fetch", "--quiet", "--filter=blob:none", "--no-tags", parentURL, "refs/heads/"+branch); err != nil {
-		return "", fmt.Errorf("fork scope: fetch the parent's %s from %s: %w", branch, parentURL, err)
-	}
-	commit, _, err := resolve(top, "FETCH_HEAD")
-	if err != nil {
-		return "", fmt.Errorf("fork scope: resolve the parent's %s: %w", branch, err)
-	}
-	return commit.String(), nil
 }
 
 // deepen fetches the whole history of a shallow clone from origin, without blobs.
