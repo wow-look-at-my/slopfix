@@ -75,7 +75,7 @@ func TestFixMovesOtherScriptsAndKeepsLifecycleScripts(t *testing.T) {
 }
 
 func TestFixRewritesAPackageManagerRunToItsRecipe(t *testing.T) {
-	root := gitRoot(t, map[string]string{"package.json": "{\n\t\"name\": \"a\",\n\t\"scripts\": {\n\t\t\"typecheck\": \"tsc --noEmit\",\n\t\t\"test\": \"node --test\",\n\t\t\"check\": \"pnpm run typecheck && pnpm run test\"\n\t}\n}\n"})
+	root := gitRoot(t, map[string]string{"package.json": testFixRewritesAPackageManagerRunToItsRecipeJson})
 	slopfix.FixTreeWith(root, slopfix.Request{Rules: []slopfix.Rule{slopfix.RuleRepo}, IDs: []string{slopfix.IDPackageScripts}})
 	recipes, err := os.ReadFile(filepath.Join(root, "justfile"))
 	require.NoError(t, err)
@@ -99,3 +99,6 @@ var testFixMovesOtherScriptsAndKeepsLifecycleScriptsJson string
 
 //go:embed testdata/test-fix-moves-other-scripts-and-keeps-lifecycle-scripts-2.json
 var testFixMovesOtherScriptsAndKeepsLifecycleScriptsJson2 string
+
+//go:embed testdata/test-fix-rewrites-a-package-manager-run-to-its-recipe.json
+var testFixRewritesAPackageManagerRunToItsRecipeJson string
