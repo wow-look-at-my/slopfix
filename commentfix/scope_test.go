@@ -176,7 +176,7 @@ func TestTheSweepWritesTheHeaderOfAChangedFile(t *testing.T) {
 	root := headless(t)
 	result := commentfix.FixTree(root)
 
-	assert.Equal(t, "// New writes the keys.\n\npackage m\n\n// New writes the keys.\nfunc New() {}\n", read(t, root, "new.go"))
+	assert.Equal(t, "// new.go holds New.\n\npackage m\n\n// New writes the keys.\nfunc New() {}\n", read(t, root, "new.go"))
 	require.Len(t, result.Rewrites, 1)
 	assert.Equal(t, commentfix.IDHeader, result.Rewrites[0].Rule)
 	assert.Equal(t, filepath.Join(root, "new.go"), result.Rewrites[0].Path)
@@ -188,7 +188,7 @@ func TestTheSweepReportsTheHeaderOfAFileTheBranchDidNotChange(t *testing.T) {
 	result := commentfix.FixTree(root)
 
 	assert.Equal(t, "package m\n\n// Old reads the keys.\nfunc Old() {}\n", read(t, root, "old.go"))
-	assert.Equal(t, []commentfix.HeaderFinding{{Path: filepath.Join(root, "old.go"), Line: 1, Sentence: "Old reads the keys."}}, result.Headers)
+	assert.Equal(t, []commentfix.HeaderFinding{{Path: filepath.Join(root, "old.go"), Line: 1, Sentence: "old.go holds Old."}}, result.Headers)
 }
 
 // In a fork, a header goes only above a line the fork wrote. An inherited file is not reported.
