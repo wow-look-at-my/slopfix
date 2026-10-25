@@ -295,7 +295,8 @@ func rewriteSegments(lines []string, p para, singleLine bool) ([]string, bool) {
 		for _, n := range seg.lines {
 			width = max(width, len(lines[p.lines[n]]))
 		}
-		if singleLine {
+		// A paragraph of one line was never wrapped, so its divided sentences stay on that line.
+		if singleLine || len(p.lines) == 1 {
 			width = 1 << 20
 		}
 		wrapped := wrap(divided, strings.TrimRight(lead, " ")+" ", strings.TrimRight(cont, " ")+" ", width)

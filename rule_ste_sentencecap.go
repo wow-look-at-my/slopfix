@@ -66,8 +66,7 @@ const mannerClauseWant = `package ident
 
 import "strings"
 
-// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it. Otherwise, it is a single letter other than the article, as a variable such
-// as q is.
+// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it. Otherwise, it is a single letter other than the article, as a variable such as q is.
 func lowerIdentifier(word string) bool {
 	if word == "" {
 		return false
@@ -145,8 +144,7 @@ const strandedPhraseWant = `package pinned
 
 import "strings"
 
-// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel". This is for the tool prose
-// calls Bazel.
+// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel". This is for the tool prose calls Bazel.
 func pinnedName(text, name string) bool {
 	lower := strings.ToLower(name)
 	if lower == name {
@@ -183,8 +181,7 @@ func octantMoments(masses, positions, colors []float64) (mass, mean, color float
 
 const verblessListWant = `package moments
 
-// Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube. This also covers flatness ratio of the stack against an opaque layer of
-// the same cube.
+// Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube. This also covers flatness ratio of the stack against an opaque layer of the same cube.
 func octantMoments(masses, positions, colors []float64) (mass, mean, color float64) {
 	for i, m := range masses {
 		mass += m
