@@ -29,7 +29,7 @@ func payload(t *testing.T, fields map[string]any) string {
 
 func run(t *testing.T, body string) Result {
 	t.Helper()
-	return Run(strings.NewReader(body))
+	return Run(strings.NewReader(body), cutPunts)
 }
 
 func TestAPuntIsRefused(t *testing.T) {

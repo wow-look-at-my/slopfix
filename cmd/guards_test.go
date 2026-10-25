@@ -106,6 +106,8 @@ func TestEveryGuardAnswersItsOwnInput(t *testing.T) {
 		{only: []string{"ask-properly"}, payload: display("guard-ask-properly", "I fixed the parser. Your call whether to ship it."), want: "ask-properly"},
 		{only: []string{"laziness"}, payload: envelope(map[string]any{"hook_event_name": "Stop", "last_assistant_message": "I found an off-by-one in the retry loop and left it alone."}), want: "continue"},
 		{only: []string{"laziness"}, payload: envelope(map[string]any{"hook_event_name": "PreToolUse", "tool_name": "Agent", "tool_input": map[string]any{"prompt": "The user authorized fixing wow-look-at-my/actions."}}), want: `"permissionDecision":"deny"`},
+		{only: []string{"laziness"}, payload: envelope(map[string]any{"hook_event_name": "PreToolUse", "tool_name": "Agent", "tool_input": map[string]any{"prompt": "The user authorized fixing the loader. Fix the loader."}}), want: `"updatedInput":{"prompt":" Fix the loader."}`},
+		{only: []string{"agent-launch"}, payload: envelope(map[string]any{"hook_event_name": "PreToolUse", "tool_name": "Agent", "tool_input": map[string]any{"prompt": "p", "run_in_background": false, "subagent_type": "Plan"}}), want: `"run_in_background":true`},
 	} {
 		t.Run(strings.Join(c.only, ","), func(t *testing.T) {
 			res := guarded(t, c.payload, c.only...)

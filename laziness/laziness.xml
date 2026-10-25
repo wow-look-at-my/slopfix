@@ -160,6 +160,18 @@
 		<clean>That was out of scope, so I fixed it in this commit.</clean>
 	</pardon>
 
+	<!-- A sentence that sets the scope of a search declines no repair. It limits what a read-only brief reads. -->
+	<pardon re="(?i)\b(?:limit|restrict|confine|narrow|keep)\s+(?:the\s+|your\s+|this\s+)?(?:search|exploration|survey|sweep|lookup|investigation)\b">
+		<clean>Limit the search to the laziness and cmd packages, because the others are out of scope.</clean>
+		<clean>Keep the exploration to the guard; the rules tables are outside the scope.</clean>
+	</pardon>
+	<pardon re="(?i)\b(?:out\s+of|outside\s+(?:the|its|your|this))\s+scope\s+(?:for|of)\s+(?:this|the|your)\s+(?:search|exploration|survey|sweep|lookup|investigation)\b">
+		<clean>The vendored grammars are out of scope for this search.</clean>
+	</pardon>
+	<pardon re="(?i)\bread-only\s+(?:search|exploration|survey|sweep|lookup|brief|pass)\b">
+		<clean>This is a read-only exploration, and the cmd package is out of scope.</clean>
+	</pardon>
+
 	<!-- Messages that own the work. None may fire. -->
 	<clean>The build phase was broken. I fixed it and pushed the fix.</clean>
 	<clean>This needs your call on A against B, so I pushed the branch with A and left the test red.</clean>

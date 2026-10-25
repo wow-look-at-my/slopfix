@@ -27,8 +27,9 @@ type Result struct {
 
 // Run judges the turn's closing message and refuses a turn that reports a
 // defect it did not fix. Every failure path allows the stop: a guard that
-// wedges a session is worse than no guard.
-func Run(r io.Reader) Result {
+// wedges a session is worse than no guard. On PreToolUse, repair is the cut
+// that `slopfix fix --message --only laziness/punt` makes.
+func Run(r io.Reader, repair func(string) string) Result {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return Result{}
@@ -38,7 +39,7 @@ func Run(r io.Reader) Result {
 		return Result{}
 	}
 	if in.HookEventName == "PreToolUse" {
-		return runTool(data)
+		return runTool(data, repair)
 	}
 	if in.HookEventName != "" && in.HookEventName != "Stop" {
 		return Result{}

@@ -1,0 +1,29 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  The agent-launch guard. Each test is the tool_input of an Agent call, as JSON.
+  out= is the input the guard lets the call run with. A test with no out= is a
+  call the guard leaves as written.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="agent-launch">
+
+  <!-- The call that held a parent turn for two minutes: Explore, in the foreground, on the session's model. -->
+  <test in='{"description":"d","prompt":"p","run_in_background":false,"subagent_type":"Explore"}'
+        out='{"description":"d","model":"haiku","prompt":"p","run_in_background":true,"subagent_type":"Explore"}'/>
+
+  <!-- A Plan call moves to the background, and keeps the session's model. -->
+  <test in='{"description":"d","prompt":"p","run_in_background":false,"subagent_type":"Plan"}'
+        out='{"description":"d","prompt":"p","run_in_background":true,"subagent_type":"Plan"}'/>
+
+  <!-- A model the call names stays. -->
+  <test in='{"description":"d","model":"opus","prompt":"p","run_in_background":false,"subagent_type":"Explore"}'
+        out='{"description":"d","model":"opus","prompt":"p","run_in_background":true,"subagent_type":"Explore"}'/>
+
+  <!-- No run_in_background key: the schema can lack the key, so the guard adds none. -->
+  <test in='{"description":"d","prompt":"p","subagent_type":"Explore"}'
+        out='{"description":"d","model":"haiku","prompt":"p","subagent_type":"Explore"}'/>
+
+  <!-- A call that is already right, and a type that can edit files, run as written. -->
+  <test in='{"description":"d","model":"haiku","prompt":"p","run_in_background":true,"subagent_type":"Explore"}'/>
+  <test in='{"description":"d","prompt":"p","run_in_background":false,"subagent_type":"general-purpose"}'/>
+  <test in='{"description":"d","prompt":"p","run_in_background":false}'/>
+</rules>
