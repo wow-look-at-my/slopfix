@@ -134,3 +134,18 @@ func TestNoSentenceRuleReadsADirectiveOrALicense(t *testing.T) {
 		assert.Empty(t, CheckSentences("p.go", src), src)
 	}
 }
+
+// A blank line in a comment block trims to nothing. Joining the block must
+// not read the first rune of it: that panicked and failed a whole CI run.
+func TestABlankCommentLineEndsNoThought(t *testing.T) {
+	assert.False(t, lineEndsThought("the byte at the checkpoint", ""))
+	// The doc comment in grok-build that crashed the check of its tree.
+	lines := []string{
+		"Build the default action definitions. `mouse_reporting_toggle_enabled`",
+		"",
+		"`mouse_reporting_toggle_enabled` gates the opt-in `ToggleMouseCapture` shortcut.",
+	}
+	assert.NotPanics(t, func() {
+		assert.Equal(t, strings.Join(lines, " "), closeThoughts(lines))
+	})
+}
