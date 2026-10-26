@@ -6,6 +6,7 @@ package commentfix
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/fixer"
@@ -156,7 +157,11 @@ func lineEndsThought(prev, next string) bool {
 	if dangling.Contains(strings.ToLower(trimWord(fields[len(fields)-1]))) {
 		return false
 	}
-	first := []rune(next)[0]
+	next = strings.TrimSpace(next)
+	if next == "" {
+		return false
+	}
+	first, _ := utf8.DecodeRuneInString(next)
 	return unicode.IsUpper(first) || strings.HasPrefix(next, "- ") || strings.HasPrefix(next, "* ")
 }
 
