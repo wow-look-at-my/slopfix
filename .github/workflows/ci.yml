@@ -1,3 +1,5 @@
+# go-toolchain runs dats/ after the build, and dats needs a sandbox backend or the suites run on the runner itself.
+
 name: CI
 
 on:

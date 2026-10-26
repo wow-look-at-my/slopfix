@@ -133,6 +133,14 @@ func starBlock(text []string) ([]string, int, bool) {
 		return nil, 0, false
 	}
 	indent := text[0][:len(text[0])-len(strings.TrimLeft(text[0], " \t"))]
+	// The join reads each line as prose. A star, a blank line or an indented example is not prose, so such a block stays.
+	column := indentOf(text[1])
+	for _, line := range text[1 : len(text)-1] {
+		body := strings.TrimSpace(line)
+		if body == "" || strings.HasPrefix(body, "*") || indentOf(line) != column {
+			return nil, 0, false
+		}
+	}
 	short, n := english.FixN(strings.Join(text[1:len(text)-1], " "), english.Comment)
 	if n == 0 {
 		return nil, 0, false

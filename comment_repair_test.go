@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/rules"
 	"github.com/wow-look-at-my/slopfix/table"
@@ -22,7 +23,12 @@ import (
 var commentRepairTable = table.MustLoad(rules.FS, "comment-repair")
 
 // commentRepairFiles names each commentfix file that a comment repair reaches.
-var commentRepairFiles = []string{}
+var commentRepairFiles = []string{
+	"blockcomment.go", "blocks.go", "budget.go", "commentfix.go", "directives.go", "divide.go", "fit.go",
+	"guard.go", "hashcomments.go", "header.go", "headings.go", "labels.go", "license.go", "linemarks.go",
+	"opening.go", "overlong.go", "pragma.go", "reflow.go", "repair.go", "residual.go", "rewording.go",
+	"sentences.go", "table.go", "tails.go", "tighten.go", "treeblocks.go",
+}
 
 // Each case in rules/comment-repair.xml is the file before and after slopfix fix.
 func TestEveryCommentRepairTestHolds(t *testing.T) {
@@ -55,7 +61,7 @@ func TestEveryCommentRepairFileIsNamed(t *testing.T) {
 	fset := token.NewFileSet()
 	decls := map[string][]*ast.FuncDecl{}
 	declFile := map[*ast.FuncDecl]string{}
-	reached := map[string]bool{}
+	reached := set.New[string]()
 	var queue []ast.Node
 	for _, path := range files {
 		if strings.HasSuffix(path, "_test.go") {
@@ -77,7 +83,7 @@ func TestEveryCommentRepairFileIsNamed(t *testing.T) {
 			}
 			if key, ok := kv.Key.(*ast.Ident); ok && key.Name == "Repair" {
 				if _, ok := kv.Value.(*ast.FuncLit); ok {
-					reached[name] = true
+					reached.Add(name)
 				}
 				queue = append(queue, kv.Value)
 			}
@@ -86,7 +92,7 @@ func TestEveryCommentRepairFileIsNamed(t *testing.T) {
 	}
 	queue = append(queue, ast.NewIdent("CapLines"))
 
-	seen := map[*ast.FuncDecl]bool{}
+	seen := set.New[*ast.FuncDecl]()
 	for len(queue) > 0 {
 		node := queue[0]
 		queue = queue[1:]
@@ -96,11 +102,11 @@ func TestEveryCommentRepairFileIsNamed(t *testing.T) {
 				return true
 			}
 			for _, fn := range decls[id.Name] {
-				if seen[fn] {
+				if seen.Contains(fn) {
 					continue
 				}
-				seen[fn] = true
-				reached[declFile[fn]] = true
+				seen.Add(fn)
+				reached.Add(declFile[fn])
 				if fn.Body != nil {
 					queue = append(queue, fn.Body)
 				}
@@ -110,7 +116,7 @@ func TestEveryCommentRepairFileIsNamed(t *testing.T) {
 	}
 
 	var got []string
-	for name := range reached {
+	for name := range reached.All() {
 		got = append(got, name)
 	}
 	slices.Sort(got)
