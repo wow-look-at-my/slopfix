@@ -20,6 +20,9 @@ func capLines(b block, maxLines int) []string {
 	if strings.TrimSpace(closer) == "*/" {
 		limit--
 	}
+	// A data block at the end is no thought, so no cut takes it. Its blank lines still count.
+	body, data := splitDataTail(body)
+	limit -= capCount(data)
 	// A thought with no stop gets one, so no rewrite and no cut welds it to the next.
 	if capCount(body) > limit {
 		if divided, ok := divideProse(body); ok {
@@ -56,11 +59,27 @@ func capLines(b block, maxLines int) []string {
 			body = trimmed
 		}
 	}
-	body = reclosed(body, closer)
+	body = append(reclosed(body, closer), data...)
 	out := make([]string, 0, len(lead)+len(body)+len(trail))
 	out = append(out, lead...)
 	out = append(out, body...)
 	return append(out, trail...)
+}
+
+// splitDataTail separates the lines laid out by hand at the end of body, with
+// the blank lines around them. It answers no tail when body ends on prose.
+func splitDataTail(body []string) (head, tail []string) {
+	data := DataLines(body)
+	i := len(body)
+	seen := false
+	for i > 0 && (data[i-1] || isBlankComment(body[i-1])) {
+		seen = seen || data[i-1]
+		i--
+	}
+	if !seen || i == 0 {
+		return body, nil
+	}
+	return body[:i], body[i:]
 }
 
 // cutThoughts cuts the last thought from body until no more than limit of its lines count.

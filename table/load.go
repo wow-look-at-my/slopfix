@@ -36,8 +36,9 @@ type document struct {
 }
 
 type xmlTest struct {
-	In  string `xml:"in,attr"`
-	Out string `xml:"out,attr"`
+	In   string `xml:"in,attr"`
+	Out  string `xml:"out,attr"`
+	Path string `xml:"path,attr"`
 }
 
 // xmlDetect states what a single substrate reports for a line. The
@@ -332,7 +333,7 @@ func (t *Table) addList(path string, l xmlList) error {
 func tests(in []xmlTest) []Test {
 	out := make([]Test, 0, len(in))
 	for _, c := range in {
-		out = append(out, Test{In: c.In, Out: c.Out})
+		out = append(out, Test{In: c.In, Out: c.Out, Path: c.Path})
 	}
 	return out
 }
