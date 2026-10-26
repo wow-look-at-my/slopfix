@@ -50,11 +50,14 @@ func orgRefs() *fakeRefs {
 			"wow-look-at-my/slopfix":      "master",
 			"wow-look-at-my/actions":      "master",
 			"wow-look-at-my/buildhost":    "master",
+			"other-org/tool":              "master",
 			"actions/checkout":            "main",
 		},
 		branches: set.Of(
 			"wow-look-at-my/go-toolchain@master",
 			"wow-look-at-my/go-toolchain@drop-common-checks",
+			"other-org/tool@master",
+			"other-org/tool@drop-common-checks",
 			"wow-look-at-my/slopfix@master",
 			"wow-look-at-my/actions@master",
 			"wow-look-at-my/actions@pi-signoff",
@@ -88,7 +91,7 @@ func TestAFeatureBranchPinIsReported(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, found, 1)
 	assert.Equal(t, 7, found[0].Line)
-	assert.Contains(t, found[0].Detail, "wow-look-at-my/go-toolchain@drop-common-checks")
+	assert.Contains(t, found[0].Detail, "other-org/tool@drop-common-checks")
 	assert.Contains(t, found[0].Detail, "not its default branch")
 }
 
