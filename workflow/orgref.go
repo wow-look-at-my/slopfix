@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/edit"
-	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/ste"
 	yaml "go.yaml.in/yaml/v3"
 )
@@ -77,44 +76,18 @@ func orgRefs(content string) []orgRef {
 // movingBranch matches a ref shaped like a branch: `v1`, `master`, `main`.
 var movingBranch = regexp.MustCompile(`^(?:[vV][0-9]+|master|main)$`)
 
-// allowedRef reports the `lkgb` tag, or an orphan tag. The default branch passes only in a repository that publishes no `lkgb`.
-// `<sha>#latest` names no tag.
-func allowedRef(repo, ref string) bool {
+// allowedRef reports the `lkgb` tag, or an orphan tag. `<sha>#latest` names no tag.
+// The rule never asks GitHub, so it repairs the same way offline.
+func allowedRef(_, ref string) bool {
 	if ref == lkgbTag {
 		return true
 	}
 	name, _, _ := strings.Cut(ref, "#")
-	if orphanTag.MatchString(ref) && !commitSHA.MatchString(name) {
-		return true
-	}
-	return ref == trackedBranch(repo) && stableRef(repo) != lkgbTag
+	return orphanTag.MatchString(ref) && !commitSHA.MatchString(name)
 }
 
-// stableRef answers `lkgb`, or the default branch of a repository GitHub says has no `lkgb`.
-func stableRef(repo string) string {
-	parts := strings.SplitN(repo, "/", 3)
-	if len(parts) < 2 {
-		return lkgbTag
-	}
-	if has, err := (forkscope.Resolver{}).HasTag(parts[0]+"/"+parts[1], lkgbTag); err == nil && !has {
-		return trackedBranch(repo)
-	}
-	return lkgbTag
-}
-
-// trackedBranch answers the default branch of the repository that holds an
-// action path. Where GitHub cannot answer, it answers master, the org's branch.
-func trackedBranch(repo string) string {
-	parts := strings.SplitN(repo, "/", 3)
-	if len(parts) < 2 {
-		return "master"
-	}
-	branch, err := forkscope.Resolver{}.DefaultBranch(parts[0] + "/" + parts[1])
-	if err != nil {
-		return "master"
-	}
-	return branch
-}
+// stableRef answers `lkgb` for every org repository.
+func stableRef(string) string { return lkgbTag }
 
 // refDetail names the reference, and says so when its shape is a moving branch.
 func refDetail(at orgRef) string {
@@ -168,15 +141,14 @@ func orgActionRefs(content string) []ste.Finding {
 			ID:     IDOrgActionRef,
 			Rule:   "an org action that names a ref other than `" + lkgbTag + "`",
 			Detail: refDetail(at),
-			Fix:    "Use `@" + stableRef(at.repo) + "`, or `@<directory>#latest` for an action of " + orgOwner + "/" + monorepo + ". `slopfix fix` writes `" + lkgbTag + "`, or the default branch of a repository that publishes no `" + lkgbTag + "`, or the directory tag.",
+			Fix:    "Use `@" + stableRef(at.repo) + "`, or `@<directory>#latest` for an action of " + orgOwner + "/" + monorepo + ". `slopfix fix` writes `" + lkgbTag + "` or the directory tag, with no lookup.",
 		})
 	}
 	return out
 }
 
-// masterRef answers the ref that tracks master for an action: `lkgb`, or the
-// default branch of a repository that publishes no `lkgb`. A numbered orphan
-// tag becomes its latest tag. A bare monorepo directory gets the tag the
+// masterRef answers the ref that tracks master for an action: `lkgb`. A
+// numbered orphan tag becomes its latest tag. A bare monorepo directory gets the tag the
 // monorepo publishes it to. A monorepo SHA pin gets the tag of the directory
 // its comment names.
 func masterRef(at orgRef) string {
@@ -190,7 +162,7 @@ func masterRef(at orgRef) string {
 	if tagged {
 		return name + "#latest"
 	}
-	if isMonorepo(at.repo) && !movingBranch.MatchString(at.ref) && at.ref != trackedBranch(at.repo) {
+	if isMonorepo(at.repo) && !movingBranch.MatchString(at.ref) {
 		return at.ref + "#latest"
 	}
 	return stableRef(at.repo)
