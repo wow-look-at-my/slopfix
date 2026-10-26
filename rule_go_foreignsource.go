@@ -35,6 +35,16 @@ func init() {
 					"\t_, err := db.Exec(migrateSql)\n\treturn err\n}\n\n//go:embed migrate.sql\nvar migrateSql string\n",
 			},
 			{
+				// A tree run plans both files before it writes one.
+				Name: "two-files-of-a-package-hoist-from-same-named-functions",
+				Path: "push_test.go",
+				Text: "package api\n\nfunc respond() string {\n\treturn `{\n\t\"sha\": \"push\",\n\t\"tree\": []\n}`\n}\n",
+				Files: map[string]string{
+					"merge_test.go": "package api\n\nfunc respond() string {\n\treturn `{\n\t\"sha\": \"merge\",\n\t\"tree\": []\n}`\n}\n",
+				},
+				Want: "package api\n\nimport _ \"embed\"\n\nfunc respond() string {\n\treturn respondJson2\n}\n\n//go:embed testdata/respond-2.json\nvar respondJson2 string\n",
+			},
+			{
 				Name:      "help-text-is-prose",
 				Path:      "help.go",
 				Text:      "package help\n\nconst usage = `Usage: tool [flags]\n\nRun the tool.\nIt reads the tree.\n`\n",

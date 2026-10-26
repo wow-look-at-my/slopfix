@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -112,6 +113,45 @@ func varName(f found) string {
 
 // planFor answers the repair of src, which is headed for path.
 func planFor(path, src string) (plan, bool) {
+	if len(scan(path, src)) == 0 {
+		return plan{}, false
+	}
+	names := taken(path, src)
+	files := set.New[string]()
+	claimEarlier(path, names, files)
+	return planWith(path, src, names, files)
+}
+
+// claimEarlier reserves the vars and files that the repair of each Go file
+// of the package before path takes. A tree run plans every file before it
+// writes one. Without the claim, files of one package hoist into the same
+// var and overwrite the same file.
+func claimEarlier(path string, names, files set.Set[string]) {
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+	entries, err := walktree.List(dir)
+	if err != nil {
+		return
+	}
+	var earlier []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".go") && e.Name() < base {
+			earlier = append(earlier, e.Name())
+		}
+	}
+	slices.Sort(earlier)
+	for _, name := range earlier {
+		sibling := filepath.Join(dir, name)
+		if b, err := os.ReadFile(sibling); err == nil {
+			planWith(sibling, string(b), names, files)
+		}
+	}
+}
+
+// planWith answers the repair of src, headed for path. A var it adds goes
+// into names, and a file it writes goes into files, by its path from the
+// directory of path.
+func planWith(path, src string, names, files set.Set[string]) (plan, bool) {
 	hits := scan(path, src)
 	if len(hits) == 0 {
 		return plan{}, false
@@ -126,8 +166,6 @@ func planFor(path, src string) (plan, bool) {
 	if strings.HasSuffix(path, "_test.go") {
 		prefix = "testdata/"
 	}
-	names := taken(path, src)
-	files := set.New[string]()
 	place := func(stem, ext, text string) (string, bool) {
 		for n := 1; n <= 100; n++ {
 			rel := prefix + stem

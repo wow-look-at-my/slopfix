@@ -14,6 +14,8 @@ func init() {
 		Autofix:  autofixTense,
 		Cases: []RuleCase{
 			{Name: ste.IDTense, Path: "w.md", Text: "The gate has started the task.\n", Want: "The gate started the task.\n"},
+			// A progressive with you as its subject became "You looks for".
+			{Name: "progressive-after-you", Path: "w.md", Text: "You are looking for the actions a careful developer will not take alone.\n", Want: "You look for the actions a careful developer will not take alone.\n"},
 		},
 	})
 }
