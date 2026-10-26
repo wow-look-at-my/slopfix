@@ -102,16 +102,3 @@ func TestARepairKeepsALeadingBuildConstraint(t *testing.T) {
 	assert.Contains(t, out, "//go:build cgo")
 	assert.True(t, strings.HasPrefix(out, "//go:build cgo"), "it stays first")
 }
-
-// gofmt puts a bare marker line between a doc and a directive. The budget does
-// not weigh it, so a one-line doc over a one-line var fits and stays.
-func TestADocOverAOneLineEmbedStays(t *testing.T) {
-	src := "// trivialASM holds the fixture.\n" +
-		"//\n" +
-		"//go:embed testdata/trivial.spvasm\n" +
-		"var trivialASM []byte\n"
-	assert.Empty(t, CheckLength("p.go", src), "the separator is not prose")
-	out, changed := FixLength("p.go", src)
-	assert.False(t, changed)
-	assert.Equal(t, src, out)
-}

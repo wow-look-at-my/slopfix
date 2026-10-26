@@ -211,6 +211,8 @@ A comment never goes whole. A block that no repair fits is not reported. The num
 
 The length cut then runs again if the words overflow.
 
+`rules/comment-repair.xml` holds each comment repair as a whole source file before and after `fix`. `comment_repair_test.go` runs every case. It also fails when a commentfix file that a repair reaches is missing from its list.
+
 It does not flag a comment above the package declaration, or a trailing comment on a code line. It skips a directive line, such as a build constraint, a shebang, a linter pragma, a TypeScript triple-slash directive or a cgo preamble. It skips a number inside a quotation.
 
 ## yaml: workflow and action manifest rules

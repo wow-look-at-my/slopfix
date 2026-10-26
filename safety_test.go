@@ -11,15 +11,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// The doc comment the length repair deleted. The code under it holds a single
-// line, so the doc keeps its heading and the opening sentence of its body.
-func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
-	src := testTheLengthRepairDoesNotDeleteADocBodyRs
-	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}).Text
-	assert.True(t, strings.HasPrefix(out, "/// # Safety\n/// The caller must ensure that the pointer stays valid"), "the heading or the doc body was deleted:\n%s", out)
-	assert.True(t, strings.HasSuffix(out, "\nfn f() {}\n"), out)
-}
-
 // The sentence split that invented a fragment. The tail became a sentence of
 // its own with a pronoun subject it never had: "It while this function runs."
 func TestALongDocSentenceDoesNotSplitIntoAFragment(t *testing.T) {
@@ -67,9 +58,6 @@ func TestACommaEndsALongFragmentDocSentence(t *testing.T) {
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "jail.rs", Rules: []slopfix.Rule{slopfix.RuleSTE}}).Text
 	assert.Contains(t, out, "off Linux as well. Because the emitted argv IS the contract", "the sentence was not divided at its comma:\n%s", out)
 }
-
-//go:embed testdata/test-the-length-repair-does-not-delete-a-doc-body.rs
-var testTheLengthRepairDoesNotDeleteADocBodyRs string
 
 //go:embed testdata/test-a-long-doc-sentence-does-not-split-into-a-fragment.rs
 var testALongDocSentenceDoesNotSplitIntoAFragmentRs string
