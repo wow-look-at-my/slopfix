@@ -47,7 +47,6 @@ func TestCheckReportsALongSentenceInAComment(t *testing.T) {
 		}
 	}
 	require.Len(t, found, 1)
-	assert.False(t, ste.ByHand(found[0].Fix))
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "demo.go"}).Text
 	assert.Contains(t, out, "// The loader reads every cached manifest from the shared store of the plugin cache in the home directory of the user.", out)
 	assert.Contains(t, strings.ReplaceAll(out, "\n// ", " "), "This happens on each start of a session in the editor window.", out)

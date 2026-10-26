@@ -53,10 +53,11 @@ func AddedBlocks(path, added string) []Block {
 		for no := run.Start; no < run.End; no++ {
 			lineNos = append(lineNos, no)
 		}
-		// A line shared with code is a note on that code, and a directive is an instruction to a tool.
+		// The cap counts prose. A line shared with code, a directive and a line laid out by hand are not prose.
+		data := commentfix.DataLines(lines[run.Start:run.End])
 		pure := 0
 		for idx, p := range run.Pure {
-			if p && !treecomments.DirectiveAt(lines, run.Start+idx) {
+			if p && (idx >= len(data) || !data[idx]) && !treecomments.DirectiveAt(lines, run.Start+idx) {
 				pure++
 			}
 		}

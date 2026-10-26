@@ -11,11 +11,20 @@
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
 
   <!-- One case for the entry holding it. out= is the text the repair must
-       produce, and an entry asserting only that it fires leaves it off. -->
+       produce, and an entry asserting only that it fires leaves it off. path=
+       names the file a whole-file case is, which decides its language. -->
   <xs:complexType name="test">
     <xs:attribute name="in" type="text" use="required"/>
     <xs:attribute name="out" type="xs:string"/>
+    <xs:attribute name="path" type="path"/>
   </xs:complexType>
+
+  <!-- A relative file name with an extension, such as "f.rs". -->
+  <xs:simpleType name="path">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9_.\-/]+\.[A-Za-z0-9]+"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <!-- A value with a visible character in it. -->
   <xs:simpleType name="text">

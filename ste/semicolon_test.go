@@ -89,12 +89,9 @@ func TestARealSemicolonComesOutGrammaticalOrAsWritten(t *testing.T) {
 	}
 }
 
-// Every semicolon has a repair, so no finding asks for a rewrite by hand.
+// A semicolon between list items has a repair too: the list is rewritten.
 func TestEverySemicolonIsRepairable(t *testing.T) {
 	in := "Each rule reads a source: for the build, the cache; for the test, the tree."
-	got := findings(in, ste.IDSemicolon)
-	if assert.Len(t, got, 1) {
-		assert.False(t, ste.ByHand(got[0].Fix), got[0].Fix)
-	}
+	assert.Len(t, findings(in, ste.IDSemicolon), 1)
 	assert.Equal(t, "Each rule reads a source: for the build (the cache) and for the test (the tree).", ste.FixSelected(in, func(id string) bool { return id == ste.IDSemicolon }))
 }

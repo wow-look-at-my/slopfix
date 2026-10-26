@@ -8,38 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A comment with no code under it has nothing to be measured against, so no cut
-// ever brings it inside a budget. It was reported on every run and repaired on
-// none, which leaves a reader hand-editing prose or deleting the file.
-//
-// The rule's verdict is that it documents nothing, and the repair takes it at
-// its word.
-func TestACommentDocumentingNothingLosesItsLines(t *testing.T) {
-	src := "package p\n\nfunc f() {}\n\n// A trailing note nobody attached to any code at all, sitting at the end of the file and documenting nothing whatsoever.\n"
-
-	hits := CheckLength("x.go", src)
-	require.Len(t, hits, 1)
-	assert.Equal(t, "the comment documents nothing", hits[0].Tell)
-	assert.True(t, hits[0].Repairable)
-
-	out, changed := FixLength("x.go", src)
-	require.True(t, changed)
-	assert.NotContains(t, out, "A trailing note")
-	assert.Contains(t, out, "func f() {}")
-	assert.Empty(t, CheckLength("x.go", out))
-}
-
-// The same inside a function body, where the code is above the comment rather
-// than below it.
-func TestATrailingCommentInsideABodyLosesItsLines(t *testing.T) {
-	src := "package p\n\nfunc f() {\n\tg()\n\t// Nothing follows this, so it documents nothing at all and no cut can ever fit it to a budget.\n}\n"
-
-	out, changed := FixLength("x.go", src)
-	require.True(t, changed)
-	assert.Contains(t, out, "g()")
-	assert.Empty(t, CheckLength("x.go", out))
-}
-
 // A directive in the run is an instruction the prose beside it explains, so it
 // is what the prose is weighed against. A gen.go carries nothing but a
 // //go:generate line and the paragraph saying why, and the deletion above
@@ -55,22 +23,8 @@ func TestProseBesideADirectiveIsWeighedAgainstIt(t *testing.T) {
 	assert.False(t, changed)
 }
 
-// A directive addresses a tool rather than a reader, and a lost //go:embed
-// leaves the variable it filled empty. So a run whose prose outweighs even its
-// directive keeps the directive and loses the prose.
-func TestADirectiveSurvivesTheCut(t *testing.T) {
-	src := "package p\n\nfunc f() {}\n\n//go:debug x=1\n" +
-		"// A trailing paragraph nobody attached to any code at all, sitting at the\n" +
-		"// end of the file, running several lines past anything it could be weighed\n" +
-		"// against, and documenting nothing whatsoever for the reader who finds it.\n"
-
-	out, _ := FixLength("x.go", src)
-	assert.Contains(t, out, "//go:debug x=1")
-	assertWholeSTESentences(t, out)
-}
-
 // The control. A comment that DOES document code is cut back to fit rather than
-// deleted. The case above is about the measure and not about comments.
+// deleted. The nothing.go case of rules/comment-repair.xml is about the measure.
 func TestACommentOverItsBudgetIsCutRatherThanDeleted(t *testing.T) {
 	src := "package p\n\n// The point.\n//\n// Then a paragraph of elaboration that runs well past the length of the\n// declaration it sits above, several lines of it, saying little.\nconst a = 1\n"
 

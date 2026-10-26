@@ -5,9 +5,8 @@ package slopfix
 import "github.com/wow-look-at-my/slopfix/ste"
 
 // english/semicolon: a semicolon joins sentences that a period keeps apart. The
-// repair writes a period. The repair starts a new sentence. The repair asks for
-// a rewrite by hand only where the semicolon joins items that a period would
-// leave as a fragment.
+// repair writes a period. The repair starts a new sentence. Where a period would
+// leave a list item as a fragment, the repair rewrites the list instead.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       ste.IDSemicolon,
