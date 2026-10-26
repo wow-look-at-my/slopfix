@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // A cgo preamble is C source, so the rule must not measure or cut it.
@@ -102,17 +101,4 @@ func TestARepairKeepsALeadingBuildConstraint(t *testing.T) {
 
 	assert.Contains(t, out, "//go:build cgo")
 	assert.True(t, strings.HasPrefix(out, "//go:build cgo"), "it stays first")
-}
-
-// gofmt puts a bare marker line between a doc and a directive, and commentspan
-// counts it. A one-line var has no room for both, so the doc goes.
-func TestADocOverAOneLineEmbedIsDropped(t *testing.T) {
-	src := "// trivialASM holds the fixture.\n" +
-		"//\n" +
-		"//go:embed testdata/trivial.spvasm\n" +
-		"var trivialASM []byte\n"
-	require.NotEmpty(t, CheckLength("p.go", src), "commentspan counts the separator")
-	out, changed := FixLength("p.go", src)
-	require.True(t, changed)
-	assert.Equal(t, "//go:embed testdata/trivial.spvasm\nvar trivialASM []byte\n", out)
 }

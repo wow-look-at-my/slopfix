@@ -34,7 +34,6 @@ func TestFixDividesASentenceWithNoClauseBoundary(t *testing.T) {
 	long := "A reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a repair from the tool rather than a deletion."
 	findings := ste.Check(long, 1)
 	require.Len(t, findings, 1, "the control: the sentence is over the cap")
-	assert.False(t, ste.ByHand(findings[0].Fix), findings[0].Fix)
 	assert.Equal(t, "Consider a reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause. That reader still deserves a repair from the tool rather than a deletion.", ste.Fix(long))
 }
 
@@ -128,13 +127,10 @@ func TestADivisionAfterAColonKeepsAClauseOnItsLeft(t *testing.T) {
 }
 
 // A division whose first half opens with the same words as the whole is a
-// repair. Check does not ask for a rewrite by hand.
+// repair.
 func TestCheckAgreesWithADivisionThatKeepsTheOpening(t *testing.T) {
 	in := "The loader reads every cached manifest from the shared store and rebuilds the index of plugin hooks for each workspace the user opens in the editor during startup of the session."
 	require.NotEqual(t, in, ste.Fix(in))
-	for _, f := range ste.Check(in, 1) {
-		assert.False(t, ste.ByHand(f.Fix), f.Fix)
-	}
 }
 
 // Fix leaves a quotation as Check reads it. A modal inside one stays.

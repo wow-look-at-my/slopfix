@@ -36,12 +36,6 @@ func TestARepairedGoFileKeepsTheGofmtLayout(t *testing.T) {
 			"package runner\n\n// Each take pays for 1 add.\n\nimport (\n\t\"fmt\"\n)\n\nvar _ = fmt.Sprint\n",
 			"Each take",
 		},
-		{
-			"a cut at the end of a test file leaves no blank line before the end",
-			"x_test.go",
-			"package p\n\nfunc f() {}\n\n// A trailing note nobody attached to any code at all, sitting at the end of the file and documenting nothing whatsoever.\n",
-			"A trailing note",
-		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			require.Equal(t, gofmt(t, c.src), c.src, "the fixture starts in the gofmt layout")

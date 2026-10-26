@@ -20,6 +20,8 @@ func init() {
 		Cases: []RuleCase{
 			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
 			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
+			{Name: "a line comment keeps its heading above the sentence a cut keeps", Path: "f.rs", Text: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + " " + noCutTail + "\nfn f() {}\n", Want: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + "\nfn f() {}\n"},
+			{Name: "a block comment keeps its heading above the sentence a cut keeps", Path: "f.c", Text: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + " " + noCutTail + "\n */\nvoid f(void) {}\n", Want: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + " */\nvoid f(void) {}\n"},
 		},
 	})
 }
@@ -29,6 +31,14 @@ var identifierSentenceCase string
 
 //go:embed testdata/identifier-sentence-want.cpp
 var identifierSentenceWant string
+
+// noCutHeading, noCutSentence and noCutTail make a doc over a single line of
+// code. The budget does not weigh the heading. The cut takes the tail.
+const (
+	noCutHeading  = "# Safety of the raw pointer handoff to the worker pool"
+	noCutSentence = "The caller keeps the pointer valid for every read of the whole shared buffer during the entire call."
+	noCutTail     = "The pool never frees the buffer before the call returns."
+)
 
 // detectCommentLength answers every overlong comment run this rule reports.
 func detectCommentLength(c RuleCase) []ste.Finding {

@@ -111,6 +111,14 @@ func paragraphs(text []string) []paragraph {
 			blank = false
 			continue
 		}
+		// A heading is structure, so it keeps its own line. A join would weld it to the sentence under it.
+		if isHeading(stripMarker(line)) {
+			flush()
+			flushBlock()
+			out = append(out, paragraph{verbatim: true, raw: []string{line}})
+			blank = false
+			continue
+		}
 		if codeLine(line) && (blank || len(block) > 0) {
 			flush()
 			block = append(block, line)
@@ -186,7 +194,7 @@ func widen(text []string, width int) ([]string, bool) {
 			out = append(out, para.raw...)
 			continue
 		}
-		out = append(out, reflow(strings.Join(para.lines, " "), indent, marker, width)...)
+		out = append(out, reflow(closeThoughts(para.lines), indent, marker, width)...)
 	}
 	if len(out) >= len(text) {
 		return text, false
