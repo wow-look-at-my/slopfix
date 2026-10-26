@@ -29,7 +29,7 @@ func init() {
 		Long: "hook reads any Claude Code hook payload on stdin and writes the hook's\n" +
 			"response on stdout. The event on the payload decides which guards run.\n" +
 			"Every guard that serves the event runs, unless --only names a subset.\n\n" +
-			"  PreToolUse         clean-bash, write, no-work-loss, rustfmt, auto-allow, busy-poll, laziness\n" +
+			"  PreToolUse         clean-bash, write, no-work-loss, rustfmt, auto-allow, busy-poll, laziness, agent-launch\n" +
 			"  PermissionRequest  auto-allow\n" +
 			"  PostToolUse        rustfmt, md-budget\n" +
 			"  SessionStart       md-budget\n" +
@@ -151,6 +151,10 @@ type forkLines func(text string) (*forkscope.Scope, error)
 func forkLinesOf(forks forkscope.Resolver, path string) (forkLines, error) {
 	if path == "" {
 		return func(string) (*forkscope.Scope, error) { return nil, nil }, nil
+	}
+	// A file new to the work tree is the fork's whole, so the hook asks no remote about it.
+	if forkscope.Unborn(path) {
+		return func(string) (*forkscope.Scope, error) { return forkscope.Whole(), nil }, nil
 	}
 	base, err := slopfix.BaseOf(forks, path)
 	if err != nil {

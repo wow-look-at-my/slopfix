@@ -399,6 +399,25 @@ func TestShallowBoundaryHasNoParents(t *testing.T) {
 	assert.Len(t, revs, 3)
 }
 
+// A deepen rewrites the shallow file. A walk after it must see the parents of
+// the boundary, which an earlier walk read and cached without them.
+func TestADeepenedCloneShowsTheOldBoundarysParents(t *testing.T) {
+	src := historyRepo(t)
+	dir := filepath.Join(t.TempDir(), "shallow")
+	gitT(t, src, "clone", "-q", "--depth", "1", "file://"+src, dir)
+	repo := open(t, dir)
+	head, err := repo.Head()
+	require.NoError(t, err)
+	revs, err := repo.RevList(head)
+	require.NoError(t, err)
+	require.Len(t, revs, 1)
+
+	gitT(t, dir, "fetch", "-q", "--deepen=2", "origin")
+	revs, err = repo.RevList(head)
+	require.NoError(t, err)
+	assert.Len(t, revs, 3, "the walk kept the boundary commit it cached before the deepen")
+}
+
 func TestNoRepository(t *testing.T) {
 	repo, err := gitread.OpenWorkTree(t.TempDir())
 	require.NoError(t, err)
