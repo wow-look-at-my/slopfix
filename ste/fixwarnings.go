@@ -358,7 +358,7 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	return splice(source, s, i, j, presentOf(baseFromGerund(s.Words[j].Lower()), s.Plural(subject))), true
+	return splice(source, s, i, j, presentOf(baseFromGerund(s.Words[j].Lower()), takesBaseVerb(s, subject))), true
 }
 
 // subjectBefore answers the noun phrase that stands in front of word i, which
