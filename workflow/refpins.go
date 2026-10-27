@@ -151,7 +151,7 @@ type branchPin struct {
 func branchPins(content string, refs Refs) ([]branchPin, error) {
 	var out []branchPin
 	for _, use := range Uses(content) {
-		if fullSHA.MatchString(use.Ref) {
+		if fullSHA.MatchString(use.Ref) || ownedByOrgActionRef(use) {
 			continue
 		}
 		kind, err := refs.Kind(use.Repo, use.Ref)
@@ -181,6 +181,12 @@ func branchPins(content string, refs Refs) ([]branchPin, error) {
 		}
 	}
 	return out, nil
+}
+
+// ownedByOrgActionRef reports an org action at a ref that names no orphan tag.
+func ownedByOrgActionRef(use Use) bool {
+	owner, _, _ := strings.Cut(use.Repo, "/")
+	return strings.EqualFold(owner, orgOwner) && !strings.Contains(use.Ref, "#")
 }
 
 // RetargetBranchPins writes each reported uses: value again with its

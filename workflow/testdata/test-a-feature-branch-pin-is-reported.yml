@@ -4,4 +4,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: wow-look-at-my/go-toolchain@drop-common-checks
+      - uses: other-org/tool@drop-common-checks
