@@ -30,7 +30,8 @@ func relativeAsideDivision(source string, s *syntax.Sentence) (string, bool) {
 			continue
 		}
 		closing := asideClose(s, i+1)
-		if closing < 0 {
+		// A colon or a dash in the main clause divides the sentence with the relative clause in place.
+		if closing < 0 || markFrom(s, closing+1) {
 			return source, false
 		}
 		kept := closeHead(source[:s.Words[i-1].End] + " " + source[s.Words[closing+1].Start:])
@@ -53,6 +54,16 @@ func asideClose(s *syntax.Sentence, i int) int {
 		}
 	}
 	return -1
+}
+
+// markFrom reports a colon or a dash from word i on.
+func markFrom(s *syntax.Sentence, i int) bool {
+	for _, w := range s.Words[i:] {
+		if introduces.Contains(w.Text) {
+			return true
+		}
+	}
+	return false
 }
 
 // relativeRest writes the relative clause at word which, up to byte end, as a
