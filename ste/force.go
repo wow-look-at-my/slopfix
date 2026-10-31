@@ -109,6 +109,9 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := listDivision(source, masked, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
+	if out, ok := relativeAsideDivision(source, whole); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
 	dashed := dashAsides(source)
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
