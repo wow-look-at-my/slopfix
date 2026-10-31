@@ -7,9 +7,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/ste"
 )
 
-// comments/header: a source file that opens on code. The repair copies the
-// first sentence of its first comment to the top as a one-line header. It is a
-// warning, so it fails no check.
+// comments/header: a source file that opens on code. The repair writes a
+// one-line header drawn from the file name. It is a warning, so it fails no
+// check.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       commentfix.IDHeader,
@@ -19,6 +19,7 @@ func init() {
 		Cases: []RuleCase{
 			{Name: "a func doc gives the header", Path: "media.go", Text: headerGoCase, Want: headerGoWant},
 			{Name: "a JSDoc on an export gives the header", Path: "media.ts", Text: headerTSCase, Want: headerTSWant},
+			{Name: "a doc on a method deep in the file gives a header from the file name", Path: "ollama-client.ts", Text: headerTSMethodCase, Want: headerTSMethodWant},
 			{Name: "a file with a header", Path: "media.go", Text: "// Package media matches media types.\npackage media\n\n" + headerGoBody, Unchanged: true},
 			{Name: "a test file", Path: "media_test.go", Text: headerGoCase, Unchanged: true},
 			{Name: "a file with no comment", Path: "media.go", Text: "package media\n\nfunc Wants() bool { return true }\n", Unchanged: true},
@@ -42,7 +43,7 @@ func Wants(accept, mediaType string) bool {
 
 const headerGoCase = "package media\n\n" + headerGoBody
 
-const headerGoWant = "// Wants reports whether an Accept header names mediaType EXACTLY.\n\n" + headerGoCase
+const headerGoWant = "// media.go holds the media code.\n\n" + headerGoCase
 
 const headerTSBody = `import { readFileSync } from 'node:fs';
 
@@ -54,7 +55,29 @@ export function load(path: string): string {
 
 const headerTSCase = headerTSBody
 
-const headerTSWant = "// Load reads the settings file from disk.\n\n" + headerTSBody
+const headerTSWant = "// media.ts holds the media code.\n\n" + headerTSBody
+
+const headerTSMethodCase = `import { request } from 'node:http';
+
+export interface Chunk {
+	text: string;
+}
+
+export class OllamaClient {
+	constructor(private host: string) {}
+
+	async stream(prompt: string): Promise<void> {
+		request(this.host + prompt);
+	}
+
+	/** Handle one NDJSON line. */
+	private handle(line: string): Chunk {
+		return { text: line };
+	}
+}
+`
+
+const headerTSMethodWant = "// ollama-client.ts holds the ollama client code.\n\n" + headerTSMethodCase
 
 // detectCommentHeader answers a file that opens with no header comment.
 func detectCommentHeader(c RuleCase) []ste.Finding {

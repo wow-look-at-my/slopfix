@@ -3,6 +3,7 @@
 package commentfix
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/edit"
@@ -45,8 +46,8 @@ type HeaderHit struct {
 }
 
 // CheckHeader reports a file that opens with no header comment. This
-// happens when one of its comments has a first sentence the repair can copy
-// to the top.
+// happens when one of its comments has a first sentence that closes and fits
+// the sentence cap. The repair writes a header drawn from the file name.
 func CheckHeader(filename, src string) []HeaderHit {
 	defer trace.Phase("rule/comments-header")()
 	at, sentence, ok := missingHeader(filename, src)
@@ -84,8 +85,23 @@ func missingHeader(filename, src string) (int, string, bool) {
 	if found {
 		return 0, "", false
 	}
-	sentence, ok := headerSentence(filename, src)
-	return at, sentence, ok
+	if _, ok := headerSentence(filename, src); !ok {
+		return 0, "", false
+	}
+	return at, headerCarrier(filename), true
+}
+
+// headerCarrier answers a header sentence that is true of any file with this
+// name. It reads the name of the file, so it never copies a sentence that
+// describes only one declaration deeper in the file.
+func headerCarrier(filename string) string {
+	base := filepath.Base(filename)
+	stem := strings.TrimSuffix(base, filepath.Ext(base))
+	words := strings.Fields(strings.NewReplacer("-", " ", "_", " ", ".", " ").Replace(stem))
+	if len(words) == 0 {
+		return base + " holds source code."
+	}
+	return base + " holds the " + strings.Join(words, " ") + " code."
 }
 
 // headerSlot answers the start of the line where the file's first code sits.
@@ -137,8 +153,9 @@ func skipped(run treecomments.Run) bool {
 	return true
 }
 
-// headerSentence answers the first sentence of the first comment that can
-// stand as a one-line header.
+// headerSentence answers the first sentence of the first comment that closes
+// and fits the sentence cap. It shows the file has prose to head, and is never
+// written as the header.
 func headerSentence(filename, src string) (string, bool) {
 	runs := treecomments.Runs(filename, src)
 	lines := strings.Split(src, "\n")
