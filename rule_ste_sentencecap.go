@@ -28,13 +28,13 @@ func init() {
 			},
 			{
 				Name: "a relative clause after a fronted phrase leaves the main clause whole", Path: "x.md",
-				Text: "On a host with no inotify, which is where the cosmo binary runs on macOS and Windows, it rescans those directories every `100ms` and logs that it is polling.\n",
-				Want: "On a host with no inotify, it rescans those directories every `100ms` and logs that it is polling. That host is where the cosmo binary runs on macOS and Windows.\n",
+				Text: "On a host with no inotify, which is where the cosmo binary runs on macOS and Windows, it rescans those directories every `100ms` and logs that it polls.\n",
+				Want: "On a host with no inotify, it rescans those directories every `100ms` and logs that it polls. That host is where the cosmo binary runs on macOS and Windows.\n",
 			},
 			{
 				Name: "a relative clause after a fragment names its noun again", Path: "x.md",
-				Text: "On a host with no inotify and no other event source that the watcher could read from at all during a run, which is where the cosmo binary runs on macOS and Windows.\n",
-				Want: "On a host with no inotify and no other event source that the watcher could read from at all during a run. That host is where the cosmo binary runs on macOS and Windows.\n",
+				Text: "On a host with no inotify and no other event source that the watcher can read from at all during a run, which is where the cosmo binary runs on macOS and Windows.\n",
+				Want: "On a host with no inotify and no other event source that the watcher can read from at all during a run. That host is where the cosmo binary runs on macOS and Windows.\n",
 			},
 			{Name: "a carrier never opens on a conjunction", Path: "governor.cpp", Text: fixtureHeader + carrierConjunctionCase, Want: fixtureHeader + carrierConjunctionWant},
 			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: fixtureHeader + variableOpensCase, Want: fixtureHeader + variableOpensWant},
