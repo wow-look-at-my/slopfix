@@ -3,7 +3,6 @@ package slopfix_test
 import _ "embed"
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"

@@ -18,22 +18,22 @@ func init() {
 		Autofix:  autofixBranchPin,
 		Cases: []RuleCase{
 			branchPinCase("branch-pin", "acme/tool@feature-x", false),
-			branchPinCase("branch-pin-default-and-tag", "acme/tool@main\n      - uses: acme/other@v1", true),
+			branchPinCase("branch-pin-default-and-tag", "acme/tool@master\n      - uses: acme/other@v1", true),
 		},
 	})
 }
 
 // branchPinCase is a workflow whose uses. Steps are judged over a table that
-// names main the default branch of acme/tool, feature-x. A branch of it, and
-// v1 a tag of acme/other. A case marked kept is left as written.
+// makes master and feature-x branches of acme/tool, and v1 a tag of
+// acme/other. A case marked kept is left as written.
 func branchPinCase(name, uses string, kept bool) RuleCase {
 	c := workflowCase(name, workflowHeader()+branchPinCaseYml+
 		"    steps:\n      - uses: "+uses+"\n")
 	c.Unchanged = kept
 	c.Refs = map[string]string{
-		"acme/tool":           "main",
-		"acme/other":          "main",
-		"acme/tool@main":      "branch",
+		"acme/tool":           "master",
+		"acme/other":          "master",
+		"acme/tool@master":    "branch",
 		"acme/tool@feature-x": "branch",
 		"acme/other@v1":       "tag",
 	}
