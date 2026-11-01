@@ -91,7 +91,7 @@ func TestAnEditToACommentKeepsTheEditedWords(t *testing.T) {
 	payload := editOf(path, "/// Counts the widgets in stock.", "/// Counts the widgets on the shelf.")
 	got := askIn(t, fx.forks, payload, "comments")
 
-	want := strings.Replace(widgetRs, "stock", "on the shelf", 1)
+	want := strings.Replace(widgetRs, "in stock", "on the shelf", 1)
 	assert.Equal(t, want, landed(t, widgetRs, payload, got))
 }
 
