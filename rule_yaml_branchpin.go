@@ -24,8 +24,8 @@ func init() {
 }
 
 // branchPinCase is a workflow whose uses. Steps are judged over a table that
-// names master the default branch of acme/tool, feature-x. A branch of it, and
-// v1 a tag of acme/other. A case marked kept is left as written.
+// makes master and feature-x branches of acme/tool, and v1 a tag of
+// acme/other. A case marked kept is left as written.
 func branchPinCase(name, uses string, kept bool) RuleCase {
 	c := workflowCase(name, workflowHeader()+branchPinCaseYml+
 		"    steps:\n      - uses: "+uses+"\n")

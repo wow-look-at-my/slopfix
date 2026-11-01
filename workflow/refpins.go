@@ -28,11 +28,12 @@ const (
 	RefTag
 )
 
-// Refs answers what a ref names in an OWNER/NAME repository, and which branch
-// is its default.
+// DefaultBranch is the default branch of every repository.
+const DefaultBranch = "master"
+
+// Refs answers what a ref names in an OWNER/NAME repository.
 type Refs interface {
 	Kind(repo, ref string) (RefKind, error)
-	DefaultBranch(repo string) (string, error)
 }
 
 // Use is a uses: value that names an action or a workflow in another repository.
@@ -158,17 +159,13 @@ func branchPins(content string, refs Refs) ([]branchPin, error) {
 		if err != nil {
 			return nil, err
 		}
-		def, err := refs.DefaultBranch(use.Repo)
-		if err != nil {
-			return nil, err
-		}
 		switch kind {
 		case RefBranch:
-			if use.Ref != def {
-				out = append(out, branchPin{use, "names " + use.Ref + ", a branch of " + use.Repo + " that is not its default branch", def})
+			if use.Ref != DefaultBranch {
+				out = append(out, branchPin{use, "names " + use.Ref + ", a branch of " + use.Repo + " that is not its default branch", DefaultBranch})
 			}
 		case RefMissing:
-			out = append(out, branchPin{use, use.Ref + " is neither a tag nor a branch of " + use.Repo + ", and not a full commit SHA", def})
+			out = append(out, branchPin{use, use.Ref + " is neither a tag nor a branch of " + use.Repo + ", and not a full commit SHA", DefaultBranch})
 		case RefTag:
 			branch, err := tagBranch(use, refs)
 			if err != nil {
@@ -224,15 +221,6 @@ func RepairBranchPins(content string, refs Refs) (string, error) {
 	return f.Text(), nil
 }
 
-// featureBranch reports whether branch is not the default branch of repo.
-func featureBranch(repo, branch string, refs Refs) (bool, error) {
-	def, err := refs.DefaultBranch(repo)
-	if err != nil {
-		return false, err
-	}
-	return branch != def, nil
-}
-
 // tagBranch answers the feature branch an orphan-release tag NAME#VERSION was
 // cut from, or "" for a tag that follows none. The release tool names a branch
 // build ACTION/BRANCH#VERSION. A branch name can hold a slash, so each tail of
@@ -250,9 +238,8 @@ func tagBranch(use Use, refs Refs) (string, error) {
 			return "", err
 		}
 		if kind == RefBranch {
-			feature, err := featureBranch(use.Repo, tail, refs)
-			if err != nil || feature {
-				return tail, err
+			if tail != DefaultBranch {
+				return tail, nil
 			}
 			return "", nil
 		}

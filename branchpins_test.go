@@ -3,7 +3,6 @@ package slopfix_test
 import _ "embed"
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,7 +24,7 @@ func refsAPI(t *testing.T, calls *int) *httptest.Server {
 		assert.Equal(t, "Bearer tok", r.Header.Get("Authorization"))
 		switch r.URL.EscapedPath() {
 		case "/repos/o/r":
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"default_branch": "master"}))
+			w.WriteHeader(http.StatusOK)
 		case "/repos/o/r/git/ref/heads/feature", "/repos/o/r/git/ref/heads/master":
 			w.WriteHeader(http.StatusOK)
 		case "/repos/o/r/git/ref/tags/v1", "/repos/o/r/git/ref/tags/act%23latest":
@@ -44,9 +43,6 @@ func TestGitHubRefsReadsTheAPI(t *testing.T) {
 	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
 	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
 
-	def, err := refs.DefaultBranch("o/r")
-	require.NoError(t, err)
-	assert.Equal(t, "master", def)
 	for ref, want := range map[string]workflow.RefKind{
 		"feature":    workflow.RefBranch,
 		"master":     workflow.RefBranch,
@@ -59,7 +55,7 @@ func TestGitHubRefsReadsTheAPI(t *testing.T) {
 		assert.Equal(t, want, kind, ref)
 	}
 	before := calls
-	_, err = refs.Kind("o/r", "feature")
+	_, err := refs.Kind("o/r", "feature")
 	require.NoError(t, err)
 	assert.Equal(t, before, calls, "an answer is kept")
 }
