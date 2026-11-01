@@ -19,6 +19,8 @@ func init() {
 		Autofix:  autofixCommentNumber,
 		Cases: []RuleCase{
 			{Name: commentfix.ID, Path: "main.go", Text: fixtureHeader + "package main\n\n// There are 3 modes today.\nfunc main() {}\n"},
+			// A GLSL shader reads through the C grammar, so its comments are judged too.
+			{Name: commentfix.ID + "-glsl", Path: "froxel-raster.comp", Text: fixtureHeader + "#version 450\nlayout(local_size_x = 16) in;\nlayout(std430, set = 0, binding = 1) readonly buffer Projected { float projected[]; };\n\n// There are 3 modes today.\nvoid main() {}\n"},
 			{Name: "a cut keeps the rule that opens each line", Path: "test-governor.cpp", Text: fixtureHeader + ruledNumbersCase, Want: fixtureHeader + ruledNumbersWant},
 			{Name: "index zero after a possessive is the first item", Path: "froxel-path.h", Text: fixtureHeader + chunkZeroCase, Want: fixtureHeader + chunkZeroWant},
 			{Name: "index zero is the first item", Path: "froxel-path.cpp", Text: fixtureHeader + frameZeroCase, Want: fixtureHeader + frameZeroWant},
