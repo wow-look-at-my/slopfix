@@ -90,7 +90,32 @@ func doubled(stem string) bool {
 	if len(stem) < 2 || stem[len(stem)-1] != stem[len(stem)-2] {
 		return false
 	}
-	return !strings.ContainsRune("aeiou", rune(stem[len(stem)-1]))
+	return !strings.ContainsRune("aeiou", rune(stem[len(stem)-1])) && !endsDoubled(stem)
+}
+
+// endsDoubled reports a base form that spells its last consonant twice, as in
+// "pass", "stuff", "buzz" and "poll".
+func endsDoubled(stem string) bool {
+	switch stem[len(stem)-1] {
+	case 's', 'f', 'z':
+		return true
+	case 'l':
+		return vowelRuns(stem) == 1
+	}
+	return false
+}
+
+// vowelRuns counts the runs of vowels in word, which stand for its syllables.
+func vowelRuns(word string) int {
+	runs, inside := 0, false
+	for _, r := range word {
+		vowel := strings.ContainsRune("aeiouy", r)
+		if vowel && !inside {
+			runs++
+		}
+		inside = vowel
+	}
+	return runs
 }
 
 // presentOf writes the simple present of a base form for the person its
