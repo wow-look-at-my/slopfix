@@ -23,14 +23,14 @@ import (
 
 // grammars maps a file extension to the grammar that parses it.
 var grammars = map[string]func() *ts.Language{
-	".go":   golang.Language,
-	".c":    clang.Language,
-	".h":    clang.Language,
-	".cc":   cpp.Language,
-	".cpp":  cpp.Language,
-	".cxx":  cpp.Language,
-	".hpp":  cpp.Language,
-	".hh":   cpp.Language,
+	".go":  golang.Language,
+	".c":   clang.Language,
+	".h":   clang.Language,
+	".cc":  cpp.Language,
+	".cpp": cpp.Language,
+	".cxx": cpp.Language,
+	".hpp": cpp.Language,
+	".hh":  cpp.Language,
 	// GLSL: the C grammar reads its comments, which is all a rule asks of it.
 	".glsl": clang.Language,
 	".comp": clang.Language,
