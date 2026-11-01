@@ -19,7 +19,7 @@ func init() {
 			// A base form that ends on a doubled consonant lost one: "pols".
 			{Name: "progressive-of-a-doubled-ending", Path: "w.md", Text: "The watcher is polling the directories.\n", Want: "The watcher polls the directories.\n"},
 			{Name: "progressive-of-a-doubled-f", Path: "w.md", Text: "The parser is stuffing the fields into a map.\n", Want: "The parser stuffs the fields into a map.\n"},
-				{Name: "has-before-a-noun", Path: "w.md", Text: "The Syslib has magic `\"slib\"` and version 10.\n", Want: "The Syslib has magic `\"slib\"` and version 10.\n"},
+			{Name: "has-before-a-noun", Path: "w.md", Text: "The Syslib has magic `\"slib\"` and version 10.\n", Want: "The Syslib has magic `\"slib\"` and version 10.\n"},
 		},
 	})
 }
