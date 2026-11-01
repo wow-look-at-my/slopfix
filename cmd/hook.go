@@ -234,7 +234,8 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 			findings = append(findings, f.String())
 		}
 		if p.repair != nil {
-			take(*p.repair, func(s string) { raw["new_string"] = s })
+			// The replacement place repaired holds the new text, in an Edit and in a MultiEdit.
+			take(*p.repair, writeUnits(in.ToolName, write, raw)[0].apply)
 		}
 	} else {
 		scope, err := fragmentScope(in.ToolName, write, owned)

@@ -117,9 +117,7 @@ func within(req Request, repair Repair) Repair {
 	}
 	text := forkscope.Keep(req.Content, repair.Text, scope)
 	if text != repair.Text {
-		if repair.Scope.Bounded && repair.Scope.Start <= repair.Scope.End {
-			repair.Scope.End = len(text) - (len(repair.Text) - repair.Scope.End)
-		}
+		repair.Scope = carryScope(repair.Scope, repair.Text, text)
 		again := req
 		again.Content, again.Owned = text, nil
 		again.Scope = edit.Nowhere()
@@ -137,6 +135,18 @@ func within(req Request, repair Repair) Repair {
 	repair.Findings = ownedFindings(repair.Findings, owned)
 	repair.Kept = ownedHits(repair.Kept, owned)
 	return upstreamRuns(req, req.Owned, repair.Text, repair)
+}
+
+// carryScope answers scope, which bounds bytes of before, as it bounds the
+// same text in after. Both ends move: a line cut above the scope shifts its
+// start as much as its end.
+func carryScope(scope edit.Scope, before, after string) edit.Scope {
+	if !scope.Bounded || scope.Start > scope.End {
+		return scope
+	}
+	scope.Start = forkscope.Offset(before, after, scope.Start, false)
+	scope.End = forkscope.Offset(before, after, scope.End, true)
+	return scope
 }
 
 // blockRun is the lines, counted from one, that a block finding judges.
@@ -201,9 +211,7 @@ func alone(req Request, repair Repair) Repair {
 		landed := Fix(again)
 		repair.Findings, repair.Kept = landed.Findings, landed.Kept
 		repair.Removed = append(repair.Removed, landedRemovals(repair.Text, text, fixed.Removed)...)
-		if repair.Scope.Bounded && repair.Scope.Start <= repair.Scope.End {
-			repair.Scope.End = len(text) - (len(repair.Text) - repair.Scope.End)
-		}
+		repair.Scope = carryScope(repair.Scope, repair.Text, text)
 		repair.Text, repair.Changed = text, text != req.Content
 	}
 	return repair
