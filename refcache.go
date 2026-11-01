@@ -45,13 +45,6 @@ type recordedRefs struct {
 	next  workflow.Refs
 }
 
-func (r recordedRefs) DefaultBranch(repo string) (string, error) {
-	if branch, ok := r.table[repo]; ok {
-		return branch, nil
-	}
-	return r.next.DefaultBranch(repo)
-}
-
 func (r recordedRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	switch r.table[repo+"@"+ref] {
 	case "branch":

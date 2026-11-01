@@ -6,7 +6,6 @@
 package slopfix
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -76,21 +75,6 @@ func githubGet(getenv func(string) string, path string) (int, []byte, error) {
 		return 0, nil, fmt.Errorf("GET %s: %w", url, err)
 	}
 	return resp.StatusCode, body, nil
-}
-
-// githubGetJSON decodes path into out.
-func githubGetJSON(getenv func(string) string, path string, out any) error {
-	status, body, err := githubGet(getenv, path)
-	if err != nil {
-		return err
-	}
-	if status != http.StatusOK {
-		return fmt.Errorf("GET %s: %d %s: %s", path, status, http.StatusText(status), strings.TrimSpace(string(body)))
-	}
-	if err := json.Unmarshal(body, out); err != nil {
-		return fmt.Errorf("GET %s: %w", path, err)
-	}
-	return nil
 }
 
 // BaseOf answers the fork base of the work tree path is in, or nil when it is

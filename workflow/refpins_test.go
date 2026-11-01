@@ -21,14 +21,6 @@ type fakeRefs struct {
 	asked    []string
 }
 
-func (f *fakeRefs) DefaultBranch(repo string) (string, error) {
-	def, ok := f.defaults[repo]
-	if !ok {
-		return "", errors.New("no access to " + repo)
-	}
-	return def, nil
-}
-
 func (f *fakeRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	f.asked = append(f.asked, repo+"@"+ref)
 	if _, ok := f.defaults[repo]; !ok {
