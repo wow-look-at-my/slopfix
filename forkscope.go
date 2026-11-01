@@ -43,9 +43,15 @@ func FileScope(r forkscope.Resolver, path, content string) (*forkscope.Scope, er
 const DefaultGitHubAPI = "https://api.github.com"
 
 // githubGet reads path from GITHUB_API_URL, with GITHUB_TOKEN as the bearer
-// when it is set. It answers the status and the body. A transport failure is
-// the error.
+// when it is set. With no token and no GITHUB_API_URL, gh asks with the user's
+// own credentials first. It answers the status and the body. A transport
+// failure is the error.
 func githubGet(getenv func(string) string, path string) (int, []byte, error) {
+	if getenv("GITHUB_TOKEN") == "" && getenv("GH_TOKEN") == "" && getenv("GITHUB_API_URL") == "" {
+		if status, body, ok := githubGetViaGH(path); ok {
+			return status, body, nil
+		}
+	}
 	api := strings.TrimRight(getenv("GITHUB_API_URL"), "/")
 	if api == "" {
 		api = DefaultGitHubAPI
