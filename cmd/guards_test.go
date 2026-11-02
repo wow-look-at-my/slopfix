@@ -104,6 +104,7 @@ func TestEveryGuardAnswersItsOwnInput(t *testing.T) {
 		{only: []string{"no-work-loss"}, payload: bash("truncate -s 0 README.md"), want: `"permissionDecision":"deny"`},
 		{only: []string{"link-refs"}, payload: display("guard-link-refs", "Fixed in PazerOP/foo#42."), want: "](https://github.com/PazerOP/foo/"},
 		{only: []string{"ask-properly"}, payload: display("guard-ask-properly", "I fixed the parser. Your call whether to ship it."), want: "ask-properly"},
+		{only: []string{"twelve-hour"}, payload: display("guard-twelve-hour", "About 19:10 PST at the latest, and more likely around 18:51."), want: "About 7:10 pm PST at the latest, and more likely around 6:51 pm."},
 		{only: []string{"laziness"}, payload: envelope(map[string]any{"hook_event_name": "Stop", "last_assistant_message": "I found an off-by-one in the retry loop and left it alone."}), want: "continue"},
 		{only: []string{"laziness"}, payload: envelope(map[string]any{"hook_event_name": "PreToolUse", "tool_name": "Agent", "tool_input": map[string]any{"prompt": "The user authorized fixing wow-look-at-my/actions."}}), want: `"permissionDecision":"deny"`},
 		{only: []string{"laziness"}, payload: envelope(map[string]any{"hook_event_name": "PreToolUse", "tool_name": "Agent", "tool_input": map[string]any{"prompt": "The user authorized fixing the loader. Fix the loader."}}), want: `"updatedInput":{"prompt":" Fix the loader."}`},
@@ -125,6 +126,10 @@ func TestEveryGuardRunsByDefault(t *testing.T) {
 
 	res = guarded(t, bash("python3 -c 1"))
 	assert.Contains(t, res.Stdout, `"permissionDecision":"deny"`)
+
+	res = guarded(t, display("guard-every-display", "Fixed in PazerOP/foo#42 at 18:51."))
+	assert.Contains(t, res.Stdout, "](https://github.com/PazerOP/foo/")
+	assert.Contains(t, res.Stdout, "at 6:51 pm.")
 }
 
 // An event no guard serves leaves the call alone. Printing there is how a hook
