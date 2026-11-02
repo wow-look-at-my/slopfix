@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
@@ -22,6 +23,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/mdbudget"
 	"github.com/wow-look-at-my/slopfix/noworkloss"
 	"github.com/wow-look-at-my/slopfix/rustfmt"
+	"github.com/wow-look-at-my/slopfix/twelvehour"
 )
 
 // The events a guard serves, as Claude Code spells them on the payload.
@@ -78,7 +80,11 @@ var guards = []guard{
 	{name: "link-refs", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(linkrefs.Run(r)) })},
 	{name: "blame-language", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(blamelanguage.Run(r)) })},
 	{name: "ask-properly", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(askproperly.Run(r)) })},
+	{name: twelveHourGuard, events: []string{eventMessageDisplay}, run: func([]byte, writeSelection) hookResult { return hookResult{} }},
 }
+
+// twelveHourGuard runs over what the other display guards answered, so its rewrite and theirs both reach the reader.
+const twelveHourGuard = "twelve-hour"
 
 // repairPunt is the laziness/punt autofix, the one `fix --message` runs.
 func repairPunt(text string) string {
@@ -246,6 +252,9 @@ func messageDisplay(payload []byte, serving []guard, write writeSelection) hookR
 			continue
 		}
 		base = content
+	}
+	if slices.ContainsFunc(serving, func(g guard) bool { return g.name == twelveHourGuard }) {
+		base = twelvehour.Rewrite(base, time.Now())
 	}
 	result := hookResult{Stderr: strings.Join(stderr, "")}
 	if base == in.Delta && len(notes) == 0 {
