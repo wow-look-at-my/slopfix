@@ -34,7 +34,7 @@ func init() {
 			"  PostToolUse        rustfmt, md-budget\n" +
 			"  SessionStart       md-budget\n" +
 			"  Stop               busy-poll, md-budget, laziness\n" +
-			"  MessageDisplay     link-refs, blame-language, ask-properly\n\n" +
+			"  MessageDisplay     link-refs, blame-language, ask-properly, twelve-hour\n\n" +
 			"On PreToolUse the guards run in that order. The first refusal is the\n" +
 			"answer, and a Bash rewrite reaches every guard after it. On Stop, every\n" +
 			"refusal is joined into one. On MessageDisplay, the rewrite and the notes\n" +
