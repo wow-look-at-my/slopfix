@@ -28,12 +28,24 @@ const (
 	RefTag
 )
 
-// DefaultBranch is the default branch of every repository.
+// DefaultBranch is the default branch of every repository of the org.
 const DefaultBranch = "master"
 
 // Refs answers what a ref names in an OWNER/NAME repository.
 type Refs interface {
 	Kind(repo, ref string) (RefKind, error)
+	// Default answers the default branch of a repository.
+	Default(repo string) (string, error)
+}
+
+// defaultBranchOf answers DefaultBranch for an org repository. Another owner
+// picks its own default branch, so the rule asks refs.
+func defaultBranchOf(repo string, refs Refs) (string, error) {
+	owner, _, _ := strings.Cut(repo, "/")
+	if strings.EqualFold(owner, orgOwner) {
+		return DefaultBranch, nil
+	}
+	return refs.Default(repo)
 }
 
 // Use is a uses: value that names an action or a workflow in another repository.
@@ -161,11 +173,19 @@ func branchPins(content string, refs Refs) ([]branchPin, error) {
 		}
 		switch kind {
 		case RefBranch:
-			if use.Ref != DefaultBranch {
-				out = append(out, branchPin{use, "names " + use.Ref + ", a branch of " + use.Repo + " that is not its default branch", DefaultBranch})
+			def, err := defaultBranchOf(use.Repo, refs)
+			if err != nil {
+				return nil, err
+			}
+			if use.Ref != def {
+				out = append(out, branchPin{use, "names " + use.Ref + ", a branch of " + use.Repo + " that is not its default branch " + def, def})
 			}
 		case RefMissing:
-			out = append(out, branchPin{use, use.Ref + " is neither a tag nor a branch of " + use.Repo + ", and not a full commit SHA", DefaultBranch})
+			def, err := defaultBranchOf(use.Repo, refs)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, branchPin{use, use.Ref + " is neither a tag nor a branch of " + use.Repo + ", and not a full commit SHA", def})
 		case RefTag:
 			branch, err := tagBranch(use, refs)
 			if err != nil {
@@ -231,6 +251,7 @@ func tagBranch(use Use, refs Refs) (string, error) {
 		return "", nil
 	}
 	name := use.Ref[:hash]
+	def := ""
 	for i := strings.Index(name, "/"); i >= 0; {
 		tail := name[i+1:]
 		kind, err := refs.Kind(use.Repo, tail)
@@ -238,7 +259,12 @@ func tagBranch(use Use, refs Refs) (string, error) {
 			return "", err
 		}
 		if kind == RefBranch {
-			if tail != DefaultBranch {
+			if def == "" {
+				if def, err = defaultBranchOf(use.Repo, refs); err != nil {
+					return "", err
+				}
+			}
+			if tail != def {
 				return tail, nil
 			}
 			return "", nil

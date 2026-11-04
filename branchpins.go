@@ -3,6 +3,7 @@
 package slopfix
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -17,14 +18,42 @@ import (
 // GitHubRefs answers workflow.Refs from the GitHub API, the way the fork
 // scope reads it: GITHUB_API_URL.
 type GitHubRefs struct {
-	getenv func(string) string
-	mu     sync.Mutex
-	kinds  map[string]workflow.RefKind
+	getenv   func(string) string
+	mu       sync.Mutex
+	kinds    map[string]workflow.RefKind
+	defaults map[string]string
 }
 
 // NewGitHubRefs reads the API settings through getenv.
 func NewGitHubRefs(getenv func(string) string) *GitHubRefs {
-	return &GitHubRefs{getenv: getenv, kinds: map[string]workflow.RefKind{}}
+	return &GitHubRefs{getenv: getenv, kinds: map[string]workflow.RefKind{}, defaults: map[string]string{}}
+}
+
+// Default asks GET /repos/{repo} for default_branch.
+func (g *GitHubRefs) Default(repo string) (string, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if def, ok := g.defaults[repo]; ok {
+		return def, nil
+	}
+	status, body, err := githubGet(g.getenv, "/repos/"+repo)
+	if err != nil {
+		return "", fmt.Errorf("branch pin: %w", err)
+	}
+	if status != http.StatusOK {
+		return "", fmt.Errorf("branch pin: GET /repos/%s: %d %s: %s", repo, status, http.StatusText(status), strings.TrimSpace(string(body)))
+	}
+	var info struct {
+		DefaultBranch string `json:"default_branch"`
+	}
+	if err := json.Unmarshal(body, &info); err != nil {
+		return "", fmt.Errorf("branch pin: GET /repos/%s: %w", repo, err)
+	}
+	if info.DefaultBranch == "" {
+		return "", fmt.Errorf("branch pin: GET /repos/%s names no default_branch", repo)
+	}
+	g.defaults[repo] = info.DefaultBranch
+	return info.DefaultBranch, nil
 }
 
 // Kind asks GET /repos/{repo}/git/ref/heads/{ref}, then .../tags/{ref}. That

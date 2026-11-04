@@ -55,6 +55,11 @@ func (r recordedRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	return r.next.Kind(repo, ref)
 }
 
+// Default asks next. The cache records ref kinds only.
+func (r recordedRefs) Default(repo string) (string, error) {
+	return r.next.Default(repo)
+}
+
 // refsAt answers the lookups for the repository at root: the ones recorded
 // under it, and next for the rest. With nothing recorded it answers next.
 func refsAt(root string, next workflow.Refs) (workflow.Refs, error) {
