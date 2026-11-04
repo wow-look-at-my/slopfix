@@ -55,8 +55,12 @@ func (r recordedRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	return r.next.Kind(repo, ref)
 }
 
-// Default asks next. The cache records ref kinds only.
+// Default answers the branch the cache records under the bare OWNER/NAME key,
+// and asks next when it records none.
 func (r recordedRefs) Default(repo string) (string, error) {
+	if def := r.table[repo]; def != "" {
+		return def, nil
+	}
 	return r.next.Default(repo)
 }
 

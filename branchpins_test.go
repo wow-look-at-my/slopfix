@@ -24,7 +24,7 @@ func refsAPI(t *testing.T, calls *int) *httptest.Server {
 		assert.Equal(t, "Bearer tok", r.Header.Get("Authorization"))
 		switch r.URL.EscapedPath() {
 		case "/repos/o/r":
-			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"default_branch":"master"}`))
 		case "/repos/o/r/git/ref/heads/feature", "/repos/o/r/git/ref/heads/master":
 			w.WriteHeader(http.StatusOK)
 		case "/repos/o/r/git/ref/tags/v1", "/repos/o/r/git/ref/tags/act%23latest":
@@ -58,6 +58,16 @@ func TestGitHubRefsReadsTheAPI(t *testing.T) {
 	_, err := refs.Kind("o/r", "feature")
 	require.NoError(t, err)
 	assert.Equal(t, before, calls, "an answer is kept")
+
+	def, err := refs.Default("o/r")
+	require.NoError(t, err)
+	assert.Equal(t, "master", def)
+	before = calls
+	_, err = refs.Default("o/r")
+	require.NoError(t, err)
+	assert.Equal(t, before, calls, "a default branch is kept")
+	_, err = refs.Default("o/private")
+	assert.ErrorContains(t, err, "404")
 }
 
 func TestGitHubRefsFailsOnARepositoryItCannotRead(t *testing.T) {

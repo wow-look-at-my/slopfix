@@ -34,11 +34,11 @@ func branchPinCase(name, uses string, kept bool) RuleCase {
 		"    steps:\n      - uses: "+uses+"\n")
 	c.Unchanged = kept
 	c.Refs = map[string]string{
-		"acme/tool":           "master",
-		"acme/other":          "master",
-		"acme/tool@master":    "branch",
-		"acme/tool@feature-x": "branch",
-		"acme/other@v1":       "tag",
+		"acme/tool":                "master",
+		"acme/other":               "master",
+		"acme/tool@master":         "branch",
+		"acme/tool@feature-x":      "branch",
+		"acme/other@v1":            "tag",
 		"acme/main-tool":           "main",
 		"acme/main-tool@main":      "branch",
 		"acme/main-tool@feature-x": "branch",
