@@ -19,24 +19,37 @@ func init() {
 		Cases: []RuleCase{
 			branchPinCase("branch-pin", "acme/tool@feature-x", false),
 			branchPinCase("branch-pin-default-and-tag", "acme/tool@master\n      - uses: acme/other@v1", true),
+			branchPinCase("branch-pin-main-default", "acme/main-tool@main", true),
+			branchPinRepairCase("branch-pin-main-default-feature", "acme/main-tool@feature-x", "acme/main-tool@main"),
 		},
 	})
 }
 
 // branchPinCase is a workflow whose uses. Steps are judged over a table that
 // makes master and feature-x branches of acme/tool, and v1 a tag of
-// acme/other. A case marked kept is left as written.
+// acme/other. The default branch of acme/main-tool is main. A case marked
+// kept is left as written.
 func branchPinCase(name, uses string, kept bool) RuleCase {
 	c := workflowCase(name, workflowHeader()+branchPinCaseYml+
 		"    steps:\n      - uses: "+uses+"\n")
 	c.Unchanged = kept
 	c.Refs = map[string]string{
-		"acme/tool":           "master",
-		"acme/other":          "master",
-		"acme/tool@master":    "branch",
-		"acme/tool@feature-x": "branch",
-		"acme/other@v1":       "tag",
+		"acme/tool":                "master",
+		"acme/other":               "master",
+		"acme/tool@master":         "branch",
+		"acme/tool@feature-x":      "branch",
+		"acme/other@v1":            "tag",
+		"acme/main-tool":           "main",
+		"acme/main-tool@main":      "branch",
+		"acme/main-tool@feature-x": "branch",
 	}
+	return c
+}
+
+// branchPinRepairCase is a branchPinCase whose repair must write want.
+func branchPinRepairCase(name, uses, want string) RuleCase {
+	c := branchPinCase(name, uses, false)
+	c.Want = workflowHeader() + branchPinCaseYml + "    steps:\n      - uses: " + want + "\n"
 	return c
 }
 
