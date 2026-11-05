@@ -55,6 +55,15 @@ func (r recordedRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	return r.next.Kind(repo, ref)
 }
 
+// Default answers the branch the cache records under the bare OWNER/NAME key,
+// and asks next when it records none.
+func (r recordedRefs) Default(repo string) (string, error) {
+	if def := r.table[repo]; def != "" {
+		return def, nil
+	}
+	return r.next.Default(repo)
+}
+
 // refsAt answers the lookups for the repository at root: the ones recorded
 // under it, and next for the rest. With nothing recorded it answers next.
 func refsAt(root string, next workflow.Refs) (workflow.Refs, error) {
