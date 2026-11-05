@@ -128,8 +128,8 @@ func DataLines(text []string) []bool {
 }
 
 // dropToSentenceEnd drops whole lines from the end of body until no more than
-// maxLines are left and the last line ends a sentence. With no such line, body
-// stays as it is, and the cuts after this one decide.
+// maxLines are left and the last line ends a sentence. With no such line,
+// body stays as it is, and the cuts after this decide.
 func dropToSentenceEnd(body []string, maxLines int) []string {
 	for n := min(maxLines, len(body)); n > 0; n-- {
 		last := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(stripMarker(body[n-1])), "*/"))
