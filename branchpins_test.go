@@ -70,6 +70,29 @@ func TestGitHubRefsReadsTheAPI(t *testing.T) {
 	assert.ErrorContains(t, err, "404")
 }
 
+// A reply that names no branch reads as master. A reply that is not JSON fails.
+func TestGitHubRefsDefaultWithNoBranchNamed(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.EscapedPath() {
+		case "/repos/o/empty":
+			w.WriteHeader(http.StatusOK)
+		case "/repos/o/garbage":
+			_, _ = w.Write([]byte("<html>"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
+	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
+
+	def, err := refs.Default("o/empty")
+	require.NoError(t, err)
+	assert.Equal(t, workflow.DefaultBranch, def)
+	_, err = refs.Default("o/garbage")
+	assert.Error(t, err)
+}
+
 func TestGitHubRefsFailsOnARepositoryItCannotRead(t *testing.T) {
 	calls := 0
 	srv := refsAPI(t, &calls)
