@@ -3,6 +3,7 @@
 package slopfix
 
 import (
+	"encoding/json"
 	"maps"
 	"net"
 	"net/http"
@@ -54,11 +55,13 @@ func answerFixtureRef(w http.ResponseWriter, r *http.Request) {
 	fixtureAPI.mu.Lock()
 	defer fixtureAPI.mu.Unlock()
 	if rest == "" {
-		if _, ok := fixtureAPI.table[repo]; !ok {
+		def, ok := fixtureAPI.table[repo]
+		if !ok {
 			http.NotFound(w, r)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"default_branch": def})
 		return
 	}
 	space, ref, ok := strings.Cut(strings.TrimPrefix(rest, "git/ref/"), "/")

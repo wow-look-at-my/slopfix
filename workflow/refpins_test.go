@@ -35,6 +35,15 @@ func (f *fakeRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	return workflow.RefMissing, nil
 }
 
+func (f *fakeRefs) Default(repo string) (string, error) {
+	f.asked = append(f.asked, repo)
+	def, ok := f.defaults[repo]
+	if !ok {
+		return "", errors.New("no access to " + repo)
+	}
+	return def, nil
+}
+
 func orgRefs() *fakeRefs {
 	return &fakeRefs{
 		defaults: map[string]string{
@@ -44,6 +53,7 @@ func orgRefs() *fakeRefs {
 			"wow-look-at-my/buildhost":    "master",
 			"other-org/tool":              "master",
 			"actions/checkout":            "main",
+			"Homebrew/actions":            "main",
 		},
 		branches: set.Of(
 			"wow-look-at-my/go-toolchain@master",
@@ -55,6 +65,8 @@ func orgRefs() *fakeRefs {
 			"wow-look-at-my/actions@pi-signoff",
 			"wow-look-at-my/buildhost@master",
 			"actions/checkout@main",
+			"Homebrew/actions@main",
+			"Homebrew/actions@feature-x",
 		),
 		tags: set.Of(
 			"actions/checkout@v4",
@@ -117,6 +129,24 @@ func TestARefThatNamesNothingIsReported(t *testing.T) {
 	assert.Contains(t, found[0], "neither a tag nor a branch")
 }
 
+// A repository outside the org picks its own default branch. Homebrew/actions uses main.
+func TestAnotherOwnersDefaultBranchPasses(t *testing.T) {
+	content := testAnotherOwnersDefaultBranchPassesYml
+	assert.Empty(t, pinFindings(t, content, orgRefs()))
+}
+
+func TestARepairWritesAnotherOwnersDefaultBranch(t *testing.T) {
+	content := testARepairWritesAnotherOwnersDefaultBranchYml
+	refs := orgRefs()
+	found := pinFindings(t, content, refs)
+	require.Len(t, found, 1)
+	assert.Contains(t, found[0], "not its default branch main")
+	fixed, err := workflow.RepairBranchPins(content, refs)
+	require.NoError(t, err)
+	assert.Contains(t, fixed, "Homebrew/actions/setup-homebrew@main")
+	assert.NotContains(t, fixed, "@master")
+}
+
 func TestALookupThatFailsIsAnError(t *testing.T) {
 	content := testALookupThatFailsIsAnErrorYml
 	_, err := workflow.BranchPins(content, orgRefs())
@@ -148,6 +178,12 @@ var testAReusableWorkflowAndACompositeStepAreReadYml2 string
 
 //go:embed testdata/test-a-ref-that-names-nothing-is-reported.yml
 var testARefThatNamesNothingIsReportedYml string
+
+//go:embed testdata/test-another-owners-default-branch-passes.yml
+var testAnotherOwnersDefaultBranchPassesYml string
+
+//go:embed testdata/test-a-repair-writes-another-owners-default-branch.yml
+var testARepairWritesAnotherOwnersDefaultBranchYml string
 
 //go:embed testdata/test-a-lookup-that-fails-is-an-error.yml
 var testALookupThatFailsIsAnErrorYml string
