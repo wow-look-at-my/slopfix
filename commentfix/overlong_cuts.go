@@ -206,7 +206,7 @@ func dropParagraph(text []string) ([]string, bool) {
 // comment block spells a paragraph break.
 func isBlankComment(line string) bool {
 	t := strings.TrimSpace(line)
-	for _, marker := range []string{"//!", "//", "#", "*"} {
+	for _, marker := range []string{"///", "//!", "//", "#", "*"} {
 		if t == marker {
 			return true
 		}

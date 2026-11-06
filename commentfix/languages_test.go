@@ -51,8 +51,7 @@ func TestEveryGrammarReportsAndRepairs(t *testing.T) {
 	}
 }
 
-// The repair keeps the opening sentence, in every language. A block cut to
-// nothing is a worse edit than a block left long.
+// The repair keeps the opening sentence, in every language.
 func TestTheRepairKeepsTheOpeningInEveryGrammar(t *testing.T) {
 	for name, src := range languageFixtures {
 		fixed, changed := FixLength(name, src)

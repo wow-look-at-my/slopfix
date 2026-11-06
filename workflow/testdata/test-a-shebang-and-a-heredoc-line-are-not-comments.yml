@@ -1,0 +1,5 @@
+on: {push: {branches: ['**']}}
+jobs:
+  build:
+    steps:
+      - run: |

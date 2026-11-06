@@ -44,7 +44,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		}
 		// A tail that opens on a finite verb leaves its subject behind:
 		// "the pointer. Stays valid for reads of n bytes".
-		if n := wordsBefore(whole, c.right); n < len(whole.Words) && finiteVerbTag(whole.Words[n].Tag) {
+		if n := wordsBefore(whole, c.right); n < len(whole.Words) && finiteVerbTag(whole.Words[n].Tag) || insideCompound(source, whole, c) {
 			continue
 		}
 		// A relative word binds its clause to the noun in front of it: "the verb. That governs it".

@@ -135,6 +135,13 @@ func indexOf(s *syntax.Sentence, c syntax.Clause) int {
 	return -1
 }
 
+// takesBaseVerb reports whether a subject takes the present verb with no -s:
+// a plural, or I or you.
+func takesBaseVerb(s *syntax.Sentence, subject syntax.Phrase) bool {
+	lower := s.Words[subject.Head].Lower()
+	return s.Plural(subject) || lower == "i" || lower == "you"
+}
+
 // agrees reports whether a verb agrees in number with its subject. A clause
 // that does not agree, as in "your own investigation are", is half of a
 // compound subject that the parser cut apart.
@@ -142,10 +149,9 @@ func agrees(s *syntax.Sentence, subject, verb syntax.Phrase) bool {
 	for i := verb.First; i <= verb.Last; i++ {
 		switch s.Words[i].Tag {
 		case "VBZ":
-			return !s.Plural(subject)
+			return !takesBaseVerb(s, subject)
 		case "VBP":
-			lower := s.Words[subject.Head].Lower()
-			return s.Plural(subject) || lower == "i" || lower == "you" || partitives.Contains(lower)
+			return takesBaseVerb(s, subject) || partitives.Contains(s.Words[subject.Head].Lower())
 		case "MD", "VBD", "VB":
 			return true
 		}

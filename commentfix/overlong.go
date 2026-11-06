@@ -8,8 +8,8 @@
 // treeblocks.go serves every grammar. Nothing here names a language.
 //
 // The repair cuts from the end, because a comment leads with its point. The
-// opening sentence is never cut: a block trimmed to nothing is a worse edit
-// than a block left long.
+// opening sentence stays whole. When no cut fits, the prose divides into
+// sentences, and the cut lands on one of their ends. A comment never goes whole.
 package commentfix
 
 import (
@@ -58,9 +58,8 @@ type block struct {
 	header bool
 }
 
-// Check reports every comment block in src that outweighs its code and that
-// the repair brings inside its budget. A block no cut fits keeps its opening
-// sentence whole, so no repair answers it and no finding names it.
+// CheckLength reports every comment block in src that outweighs its code and
+// that the repair brings inside its budget. A block no repair fits is not reported.
 func CheckLength(filename, src string) []LengthHit {
 	defer trace.Phase("rule/comments-length")()
 	return slices.Clone(lengthHits.Get(fileKey{filename, src}, func() []LengthHit { return checkLength(filename, src) }))
@@ -152,16 +151,19 @@ func lengthEdits(filename, src string, maxLines int) []edit.Edit {
 // judge measures a block against its code and names every measure it failed.
 // Lines catch an essay; characters catch a dense paragraph.
 func judge(b block) (string, bool) {
-	lines, chars := measure(prose(b.text))
+	lines, chars := measure(weighed(b.text))
 	// The free text after a lint pragma is prose, so its characters count.
 	_, pragmaChars := measure(pragmaProse(b.text))
 	chars += pragmaChars
-	// Nothing to weigh against.
+	// A comment over no code gets the budget of a construct of one line.
 	if b.codeLines == 0 {
 		if lines == 0 {
 			return "", false
 		}
-		return "the comment documents nothing", true
+		if _, over := judge(block{text: b.text, codeLines: 1}); over {
+			return "the comment documents nothing", true
+		}
+		return "", false
 	}
 	limit := max(floorChars, b.codeChars)
 	var tells []string
@@ -182,7 +184,7 @@ func judge(b block) (string, bool) {
 // word cap. A line with no letter is a banner, not prose.
 func oneSentence(text []string) bool {
 	var words []string
-	for _, line := range prose(text) {
+	for _, line := range weighed(text) {
 		body := stripMarker(line)
 		if strings.IndexFunc(body, unicode.IsLetter) < 0 {
 			continue

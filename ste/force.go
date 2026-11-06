@@ -45,7 +45,7 @@ func Masked(prose string) string { return checkMask(prose) }
 // and an offset into the mask is an offset into the prose.
 func checkMask(prose string) string {
 	out := []byte(prose)
-	for _, span := range verbatimSpan.FindAllStringIndex(prose, -1) {
+	for _, span := range verbatimSpans(prose) {
 		switch prose[span[0]] {
 		case '`':
 			fillCheckWord(out[span[0]:span[1]], "CODE")
@@ -104,6 +104,10 @@ type forceCut struct {
 func forceDivision(source, masked string, d capSpec) (string, bool) {
 	// The tags come from the whole sentence, because a fragment parsed alone reads "a faithful" as a noun.
 	whole := syntax.Parse(masked, nil)
+	// A gapped list divides into its items before any cut, because a cut between items leaves each without its verb.
+	if out, ok := gappedDivision(source, whole, d.cap); ok {
+		return out, true
+	}
 	if out, ok := listDivision(source, masked, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
@@ -111,7 +115,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict, d.cap) {
-			if cutsAside(masked, c.left, c.right) || splitsObject(whole, c) {
+			if cutsAside(masked, c.left, c.right) || splitsObject(whole, c) || insideCompound(source, whole, c) {
 				continue
 			}
 			head := source[:c.left]
@@ -129,7 +133,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			// A fragment head behind "This is" closes as a sentence of its own.
 			accept := func(h, r string) bool {
 				joined := closeHead(h) + " " + r
-				return r != "" && divides(closeHead(h), r, d.cap) &&
+				return r != "" && restStands(r) && divides(closeHead(h), r, d.cap) &&
 					(h == fragmentHead(source[:c.left]) || closesWhole(source[:c.left], seam, whole) || closesPhrase(source[:c.left], whole)) &&
 					overCap(joined, d.cap) < overCap(source, d.cap)
 			}
@@ -137,7 +141,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 				// The grammatical rest was refused, so the carrier division, which restates the main clause, gets its turn.
 				ch, cr, co := carrierOrNone(source, whole, c)
 				cl := closeHead(ch)
-				if cr == "" || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
+				if cr == "" || !restStands(cr) || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
 					continue
 				}
 				head, right, opened, left = ch, cr, co, cl
@@ -166,6 +170,9 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 		}
 	}
 	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
+	if out, ok := relativeAsideDivision(source, whole); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
 	if out, ok := markDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {

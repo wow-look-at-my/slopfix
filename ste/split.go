@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/cardinal"
+	"github.com/wow-look-at-my/slopfix/codespan"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -66,7 +67,16 @@ var connectors = map[string]string{
 
 // keepsCodeSpans reports that a division kept each code span whole, in order.
 func keepsCodeSpans(source, rewritten string) bool {
-	return slices.Equal(codeSpan.FindAllString(source, -1), codeSpan.FindAllString(rewritten, -1))
+	return slices.Equal(codeSpanTexts(source), codeSpanTexts(rewritten))
+}
+
+// codeSpanTexts answers the text of each code span in s, in source order.
+func codeSpanTexts(s string) []string {
+	var out []string
+	for _, span := range codespan.Find(s) {
+		out = append(out, s[span[0]:span[1]])
+	}
+	return out
 }
 
 // sentenceSpans answers the byte range of each sentence. It reads the source
@@ -118,6 +128,10 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 			bold = "**"
 		}
 		if !admissible(s, source, d) || absolutePhrase(source, d) {
+			continue
+		}
+		// "with no visibility test": with no mark or conjunction at the seam, a bare verb form after a noun continues the noun phrase.
+		if cutsNounPhrase(source, s, d.leftEnd, d.rightStart) || d.opener == "" && strings.TrimSpace(source[d.leftEnd:d.rightStart]) == "" && opensImperative(checkMask(lowerFirst(restOf(source, d)))) {
 			continue
 		}
 		left := strings.TrimRight(source[:d.leftEnd], " ,;:—–-") + "."

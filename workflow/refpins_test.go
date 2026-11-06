@@ -21,14 +21,6 @@ type fakeRefs struct {
 	asked    []string
 }
 
-func (f *fakeRefs) DefaultBranch(repo string) (string, error) {
-	def, ok := f.defaults[repo]
-	if !ok {
-		return "", errors.New("no access to " + repo)
-	}
-	return def, nil
-}
-
 func (f *fakeRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	f.asked = append(f.asked, repo+"@"+ref)
 	if _, ok := f.defaults[repo]; !ok {
@@ -43,6 +35,15 @@ func (f *fakeRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	return workflow.RefMissing, nil
 }
 
+func (f *fakeRefs) Default(repo string) (string, error) {
+	f.asked = append(f.asked, repo)
+	def, ok := f.defaults[repo]
+	if !ok {
+		return "", errors.New("no access to " + repo)
+	}
+	return def, nil
+}
+
 func orgRefs() *fakeRefs {
 	return &fakeRefs{
 		defaults: map[string]string{
@@ -50,16 +51,22 @@ func orgRefs() *fakeRefs {
 			"wow-look-at-my/slopfix":      "master",
 			"wow-look-at-my/actions":      "master",
 			"wow-look-at-my/buildhost":    "master",
+			"other-org/tool":              "master",
 			"actions/checkout":            "main",
+			"Homebrew/actions":            "main",
 		},
 		branches: set.Of(
 			"wow-look-at-my/go-toolchain@master",
 			"wow-look-at-my/go-toolchain@drop-common-checks",
+			"other-org/tool@master",
+			"other-org/tool@drop-common-checks",
 			"wow-look-at-my/slopfix@master",
 			"wow-look-at-my/actions@master",
 			"wow-look-at-my/actions@pi-signoff",
 			"wow-look-at-my/buildhost@master",
 			"actions/checkout@main",
+			"Homebrew/actions@main",
+			"Homebrew/actions@feature-x",
 		),
 		tags: set.Of(
 			"actions/checkout@v4",
@@ -88,7 +95,7 @@ func TestAFeatureBranchPinIsReported(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, found, 1)
 	assert.Equal(t, 7, found[0].Line)
-	assert.Contains(t, found[0].Detail, "wow-look-at-my/go-toolchain@drop-common-checks")
+	assert.Contains(t, found[0].Detail, "other-org/tool@drop-common-checks")
 	assert.Contains(t, found[0].Detail, "not its default branch")
 }
 
@@ -122,6 +129,24 @@ func TestARefThatNamesNothingIsReported(t *testing.T) {
 	assert.Contains(t, found[0], "neither a tag nor a branch")
 }
 
+// A repository outside the org picks its own default branch. Homebrew/actions uses main.
+func TestAnotherOwnersDefaultBranchPasses(t *testing.T) {
+	content := testAnotherOwnersDefaultBranchPassesYml
+	assert.Empty(t, pinFindings(t, content, orgRefs()))
+}
+
+func TestARepairWritesAnotherOwnersDefaultBranch(t *testing.T) {
+	content := testARepairWritesAnotherOwnersDefaultBranchYml
+	refs := orgRefs()
+	found := pinFindings(t, content, refs)
+	require.Len(t, found, 1)
+	assert.Contains(t, found[0], "not its default branch main")
+	fixed, err := workflow.RepairBranchPins(content, refs)
+	require.NoError(t, err)
+	assert.Contains(t, fixed, "Homebrew/actions/setup-homebrew@main")
+	assert.NotContains(t, fixed, "@master")
+}
+
 func TestALookupThatFailsIsAnError(t *testing.T) {
 	content := testALookupThatFailsIsAnErrorYml
 	_, err := workflow.BranchPins(content, orgRefs())
@@ -153,6 +178,12 @@ var testAReusableWorkflowAndACompositeStepAreReadYml2 string
 
 //go:embed testdata/test-a-ref-that-names-nothing-is-reported.yml
 var testARefThatNamesNothingIsReportedYml string
+
+//go:embed testdata/test-another-owners-default-branch-passes.yml
+var testAnotherOwnersDefaultBranchPassesYml string
+
+//go:embed testdata/test-a-repair-writes-another-owners-default-branch.yml
+var testARepairWritesAnotherOwnersDefaultBranchYml string
 
 //go:embed testdata/test-a-lookup-that-fails-is-an-error.yml
 var testALookupThatFailsIsAnErrorYml string
