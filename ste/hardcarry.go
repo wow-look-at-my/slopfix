@@ -99,7 +99,9 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 		head = carriedHead(head)
 	}
 	right := hardRest(source, c.right)
-	if verblessRest(whole, c, source) {
+	// A cut at a comma parts a clause from the next, so the rest there opens a
+	// sentence of its own and takes no carrier.
+	if !commaSeam(source, c) && verblessRest(whole, c, source) {
 		right = carriedRest(whole, c, right)
 	}
 	return strings.TrimSpace(head + " " + right), true

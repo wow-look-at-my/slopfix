@@ -15,7 +15,7 @@ func TestAHardDivisionWithNoVerbSafeCutCarriesTheRest(t *testing.T) {
 	out, ok := hardDivision(in, checkMask(in), SentenceWordCap)
 	assert.True(t, ok, out)
 	assert.Zero(t, overCap(out, SentenceWordCap), out)
-	assert.Regexp(t, `\. This is [a-z]`, out)
+	assert.Regexp(t, `\. This holds [a-z]`, out)
 }
 
 // A sentence whose head the tagger reads as a clause but whose rest holds no

@@ -372,8 +372,13 @@ func hardSeamRank(source string, whole *syntax.Sentence, c forceCut) int {
 	if strings.HasPrefix(next, "VB") || next == "MD" || next == "RP" || next == "POS" || strings.HasPrefix(last, "VB") || last == "MD" {
 		return 0
 	}
-	if strings.ContainsAny(source[c.left:c.right], ",;:—–") || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",") ||
-		next == "CC" || next == "IN" || next == "WDT" || next == "WRB" {
+	mark := strings.ContainsAny(source[c.left:c.right], ",;:—–") || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",")
+	// A mark before a clause link parts one clause from the next. A cut inside a
+	// phrase carries a mark or a preposition, and neither ends a clause.
+	if mark && (next == "CC" || next == "IN" || next == "WDT" || next == "WRB") {
+		return 3
+	}
+	if mark || next == "CC" || next == "IN" || next == "WDT" || next == "WRB" {
 		return 2
 	}
 	return 1
