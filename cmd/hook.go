@@ -235,7 +235,15 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 		}
 		if p.repair != nil {
 			// The replacement place repaired holds the new text, in an Edit and in a MultiEdit.
-			take(*p.repair, writeUnits(in.ToolName, write, raw)[0].apply)
+			take(*p.repair, func(s string) {
+				writeUnits(in.ToolName, write, raw)[0].apply(s)
+				// A repair that reached past the edit moved its old side, and an Edit that
+				// kept its own old text would then put the paragraph back beside the repair.
+				// A MultiEdit keeps a pair per edit, so its own old text stands.
+				if in.ToolName == "Edit" && p.old != "" {
+					raw["old_string"] = p.old
+				}
+			})
 		}
 	} else {
 		scope, err := fragmentScope(in.ToolName, write, owned)
