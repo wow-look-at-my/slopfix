@@ -34,7 +34,7 @@ func init() {
 			// "therefore" is an adverb, and no adverb is part of a noun cluster.
 			{
 				Name: "an adverb stays out of a cluster", Path: "w.md",
-				Text: "The Linux arm64 loader therefore has no local test.\n",
+				Text:      "The Linux arm64 loader therefore has no local test.\n",
 				Unchanged: true,
 			},
 		},
