@@ -109,11 +109,13 @@ func participleOfVerb(form string) bool {
 // A gerund names a means.
 func (p passiveClause) namesActor() bool {
 	w := p.s.Words[p.by+1]
+	// An underscore run stays in the word's own text, so the article reads with its markers off.
+	text := strings.Trim(w.Text, "*_")
 	switch w.Tag {
 	case "DT", "PRP", "PRP$", "CD", "NNP", "NNPS", "NNS":
 		return true
 	}
-	if syntax.Is(w.Text, "definite") || syntax.Is(w.Text, "indefinite") {
+	if syntax.Is(text, "definite") || syntax.Is(text, "indefinite") {
 		return true
 	}
 	ph, ok := p.s.PhraseAt(p.by + 1)

@@ -60,9 +60,10 @@ func weighed(text []string) []string {
 // fittedOpening answers the opening sentence of body that fits the budget of b,
 // divided where it runs past the STE cap. It reports false when none fits.
 func fittedOpening(body []string, b block) ([]string, bool) {
-	fit := func(sentence, indent, marker string) ([]string, bool) {
+	fit := func(head []string, sentence, indent, marker string) ([]string, bool) {
 		for _, width := range []int{wrapWidth, oneLine} {
-			if out := reflow(sentence, indent, marker, width); fitsCode(out, b) {
+			out := append(append([]string{}, head...), reflow(sentence, indent, marker, width)...)
+			if fitsCode(out, b) {
 				return out, true
 			}
 		}

@@ -21,10 +21,10 @@
         in="/* This file holds a worked example. */&#10;&#10;/* # Errors&#10; * The call fails when the file is missing from the store. The call also fails&#10; * when another process holds the lock on the file. The call fails last when the&#10; * disk has no room left for the new copy.&#10; */&#10;int f(void);&#10;"
         out="/* This file holds a worked example. */&#10;&#10;/* # Errors&#10; * The call fails when the file is missing from the store. */&#10;int f(void);&#10;"/>
 
-  <!-- A doc over one line of code keeps its heading and the opening sentence of its body. -->
+  <!-- A doc over one line of code keeps its heading and the restated invariant clause its body carries. -->
   <test path="safety.rs"
         in="//! This file holds a worked example.&#10;&#10;/// # Safety&#10;/// The caller must ensure that the pointer stays valid for reads of n bytes for the whole call, and that no other thread writes through it while this function runs.&#10;fn f() {}&#10;"
-        out="//! This file holds a worked example.&#10;&#10;/// # Safety&#10;/// The caller must ensure that the pointer stays valid for reads of n bytes for the whole call.&#10;fn f() {}&#10;"/>
+        out="//! This file holds a worked example.&#10;&#10;/// # Safety&#10;/// The caller must ensure that no other thread writes through it while this function runs.&#10;fn f() {}&#10;"/>
 
   <!-- A comment over no code gets the budget of one line, and keeps its opening sentence. -->
   <test path="nothing.go"

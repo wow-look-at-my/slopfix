@@ -362,6 +362,17 @@ func cutProse(b block) []string {
 		}
 	}
 
+	fit := func(head []string, sentence, indent, marker string) ([]string, bool) {
+		out := append(append([]string{}, head...), reflow(sentence, indent, marker, wrapWidth)...)
+		return out, fitsCode(out, b)
+	}
+	// A later "that" clause states a condition of its own, so a cut that drops it keeps the verb that governs it.
+	restating := func(head []string, sentence, indent, marker string) ([]string, bool) {
+		return fitReflow(head, sentence, indent, marker, b)
+	}
+	if restated, ok := restatedOpening(kept, restating); ok {
+		return restated
+	}
 	if out, ok := cutToFit(kept, b); ok {
 		return out
 	}
@@ -374,10 +385,6 @@ func cutProse(b block) []string {
 		kept = next
 	}
 	// The STE opening sentence reads best, then a clause cut.
-	fit := func(sentence, indent, marker string) ([]string, bool) {
-		out := reflow(sentence, indent, marker, wrapWidth)
-		return out, fitsCode(out, b)
-	}
 	opening, whole := steOpening(kept, fit, false)
 	var fits [][]string
 	if whole && fitsCode(opening, b) {
@@ -407,8 +414,8 @@ func cutProse(b block) []string {
 		}
 	}
 	// The floor admits a sentence under the cap on one line, so the opening sentence takes one.
-	wide := func(sentence, indent, marker string) ([]string, bool) {
-		out := reflow(sentence, indent, marker, oneLine)
+	wide := func(head []string, sentence, indent, marker string) ([]string, bool) {
+		out := append(append([]string{}, head...), reflow(sentence, indent, marker, oneLine)...)
 		return out, fitsCode(out, b)
 	}
 	if opening, ok := steOpening(kept, wide, true); ok && fitsCode(opening, b) {
@@ -432,6 +439,8 @@ func clauseFit(b block) ([]string, bool) {
 	}
 	// The cut stays inside the first paragraph. Joined across a paragraph break or a list, the prose only looks shorter.
 	var body []string
+	// A heading and its break lines stay, and the cut runs in the prose under them.
+	head := sectionHead(prose(b.text))
 	for _, para := range paragraphs(prose(b.text)) {
 		if para.blank || para.verbatim {
 			continue
@@ -442,7 +451,20 @@ func clauseFit(b block) ([]string, bool) {
 		body = para.lines
 		break
 	}
-	text := unwrapAside(strings.Join(strings.Fields(strings.Join(body, " ")), " "))
+	// A line that ends a thought with no stop gets one, so a cut keeps whole sentences.
+	text := unwrapAside(strings.Join(strings.Fields(closeThoughts(body)), " "))
+	if head != nil {
+		if out, ok := clauseUnder(head, text, indent, marker, b); ok {
+			return out, true
+		}
+	}
+	// Where no cut fits under the heading, the cut goes alone.
+	return clauseUnder(nil, text, indent, marker, b)
+}
+
+// clauseUnder cuts text back to the last clause boundary that fits under the
+// head lines.
+func clauseUnder(head []string, text, indent, marker string, b block) ([]string, bool) {
 	for _, cut := range clauseCuts(text) {
 		kept := strings.TrimRight(text[:cut], " ,;:-—–")
 		words := strings.Fields(kept)
@@ -456,7 +478,7 @@ func clauseFit(b block) ([]string, bool) {
 		if !endsSentence(kept) {
 			kept += "."
 		}
-		if out, ok := fitReflow(kept, indent, marker, b); ok {
+		if out, ok := fitReflow(head, kept, indent, marker, b); ok {
 			return out, true
 		}
 	}
@@ -680,7 +702,7 @@ func dropParagraph(text []string) ([]string, bool) {
 // comment block spells a paragraph break.
 func isBlankComment(line string) bool {
 	t := strings.TrimSpace(line)
-	for _, marker := range []string{"//!", "//", "#", "*"} {
+	for _, marker := range []string{"///", "//!", "//", "#", "*"} {
 		if t == marker {
 			return true
 		}
