@@ -32,6 +32,7 @@ func Check(content string) []ste.Finding {
 	var out []ste.Finding
 	inventory := inventoryFindings(content)
 	lists := listFindings(content)
+	inProse := make([]bool, len(lists))
 	for _, block := range markdown.Split(content) {
 		if block.Kind != markdown.Prose {
 			continue
@@ -44,9 +45,10 @@ func Check(content string) []ste.Finding {
 		}
 		out = append(out, counted...)
 		// An enumeration the list rule reports is that rule's finding, and it names the sentence the gate's copy would name again.
-		for _, f := range lists {
+		for i, f := range lists {
 			if f.Line >= block.Start && f.Line < block.Start+len(block.Lines) {
 				out = append(out, f)
+				inProse[i] = true
 			}
 		}
 		// A count the inventory rule reports is that rule's finding, and the gate's copy of it would name the same words twice.
@@ -62,6 +64,13 @@ func Check(content string) []ste.Finding {
 				Detail: "this line continues the paragraph on line " + strconv.Itoa(block.Start),
 				Fix:    "Join it back up and let the reader's window wrap it. `slopfix fix` does this.",
 			})
+		}
+	}
+	// A table, a fence and a heading hold no prose block, and an enumeration in
+	// one is still that rule's finding.
+	for i, f := range lists {
+		if !inProse[i] {
+			out = append(out, f)
 		}
 	}
 	return append(out, longBlocks(content)...)

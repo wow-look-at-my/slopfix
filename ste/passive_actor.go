@@ -89,12 +89,11 @@ func rewriteActor(s *syntax.Sentence, source string) (string, bool) {
 	subject, subjectMark := markOf(source, from, s.Words[subjectEnd].Start)
 	// A comma that closed the subject before the verb goes with the clause it ended, not with the subject the rewrite moves behind the verb.
 	subject = strings.TrimSpace(strings.TrimRight(subject, ","))
-	// A focusing adverb in front of "by" stays with the actor.
-	actorFrom := s.Words[by+1].Start
+	actor, actorMark := markOf(source, s.Words[by+1].Start, to)
+	// A focusing adverb in front of "by" stays with the actor, and "by" goes.
 	if by > j+1 && focusing.Contains(s.Words[by-1].Lower()) {
-		actorFrom = s.Words[by-1].Start
+		actor = source[s.Words[by-1].Start:s.Words[by-1].End] + " " + actor
 	}
-	actor, actorMark := markOf(source, actorFrom, to)
 	_, verbMark := markOf(source, s.Words[j].Start, s.Words[j].End)
 	if subject == "" || actor == "" || verb == "" {
 		return "", false
@@ -102,7 +101,7 @@ func rewriteActor(s *syntax.Sentence, source string) (string, bool) {
 	object := subject
 	if first == 0 {
 		actor = capitalizeOpening(actor)
-		object = lowerOpeningFor(subject, s.Words[0].Tag)
+		object = lowerSubject(subject, s.Words[0].Tag)
 	}
 	// A run that opens right before the clause.
 	if subjectMark != "" && strings.HasSuffix(source[:from], subjectMark) {
@@ -113,6 +112,15 @@ func rewriteActor(s *syntax.Sentence, source string) (string, bool) {
 	}
 	clause := actorMark + actor + actorMark + " " + verbMark + verb + verbMark + " " + subjectMark + object + subjectMark
 	return source[:from] + clause + source[to:], true
+}
+
+// lowerSubject writes a subject that opened the sentence as it reads behind
+// the verb.
+func lowerSubject(subject, tag string) string {
+	if (tag == "NNP" || tag == "NNPS") && !NameLike(subject) {
+		return lowerOpening(subject)
+	}
+	return lowerOpeningFor(subject, tag)
 }
 
 // byBelongsToOther reports a "by" that another participle governs, as in "is
