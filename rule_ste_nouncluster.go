@@ -31,10 +31,11 @@ func init() {
 				Text: "Its prose follows ASD-STE100 Simplified Technical English.\n",
 				Want: "Its prose follows Simplified Technical English (ASD-STE100).\n",
 			},
+			// "therefore" is an adverb, and no adverb is part of a noun cluster.
 			{
 				Name: "an adverb stays out of a cluster", Path: "w.md",
 				Text: "The Linux arm64 loader therefore has no local test.\n",
-				Want: "The Linux arm64 loader therefore has no local test.\n",
+				Unchanged: true,
 			},
 		},
 	})
