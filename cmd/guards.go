@@ -5,6 +5,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -230,7 +232,9 @@ func preToolUse(payload []byte, serving []guard, write writeSelection) hookResul
 // text replaces the base. A guard that appends a note adds its note.
 func messageDisplay(payload []byte, serving []guard, write writeSelection) hookResult {
 	var in struct {
-		Delta string `json:"delta"`
+		Delta     string `json:"delta"`
+		MessageID string `json:"message_id"`
+		Final     bool   `json:"final"`
 	}
 	if json.Unmarshal(payload, &in) != nil {
 		return hookResult{}
@@ -254,7 +258,12 @@ func messageDisplay(payload []byte, serving []guard, write writeSelection) hookR
 		base = content
 	}
 	if slices.ContainsFunc(serving, func(g guard) bool { return g.name == twelveHourGuard }) {
-		base = twelvehour.Rewrite(base, time.Now())
+		fences := filepath.Join(os.TempDir(), "slopfix-display-fences")
+		rewritten, err := twelvehour.Message(fences, in.MessageID, base, in.Final, time.Now())
+		base = rewritten
+		if err != nil {
+			stderr = append(stderr, err.Error()+"\n")
+		}
 	}
 	result := hookResult{Stderr: strings.Join(stderr, "")}
 	if base == in.Delta && len(notes) == 0 {
