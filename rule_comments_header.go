@@ -2,6 +2,8 @@
 
 package slopfix
 
+import _ "embed"
+
 import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -77,25 +79,8 @@ const headerTSCase = headerTSBody
 
 const headerTSWant = "// media.ts holds load.\n\n" + headerTSBody
 
-const headerTSMethodCase = `import { request } from 'node:http';
-
-export interface Chunk {
-	text: string;
-}
-
-export class OllamaClient {
-	constructor(private host: string) {}
-
-	async stream(prompt: string): Promise<void> {
-		request(this.host + prompt);
-	}
-
-	/** Handle one NDJSON line. */
-	private handle(line: string): Chunk {
-		return { text: line };
-	}
-}
-`
+//go:embed testdata/header-ts-method-case.js
+var headerTSMethodCase string
 
 // detectCommentHeader answers a file that opens with no header comment.
 func detectCommentHeader(c RuleCase) []ste.Finding {
