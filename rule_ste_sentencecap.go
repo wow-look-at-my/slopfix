@@ -94,8 +94,8 @@ func init() {
 			},
 			{
 				Name: "a so clause keeps its adverbial", Path: "lock.md",
-				Text: "main() holds the \"disk\" lock for every sync-tool run except --help and --dump-config, so only one sync-tool uses the disk at a time.\n",
-				Want: "main() holds the \"disk\" lock for every sync-tool run except --help and --dump-config. Only one sync-tool uses the disk at a time.\n",
+				Text: "The gate holds the \"disk\" lock for every sync-tool run except --help and --dump-config, so the second sync-tool waits until the first one finishes.\n",
+				Want: "The gate holds the \"disk\" lock. This holds for every sync-tool run except --help and --dump-config, so the second sync-tool waits until the first one finishes.\n",
 			},
 			{
 				Name: "a clause after a colon keeps its own subject", Path: "queue.md",
