@@ -53,7 +53,8 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 		return "", 0
 	}
 	s := syntax.Parse(opening(restMasked), nil)
-	first := wordFrom(whole, len(source)-len(rest))
+	// whole is parsed from masked, so the offset into the rest comes from masked too.
+	first := wordFrom(whole, len(masked)-len(restMasked))
 	if len(s.Words) == 0 || first < 0 {
 		return "", 0
 	}
