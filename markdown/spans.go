@@ -1,3 +1,5 @@
+// spans.go holds the spans code.
+
 package markdown
 
 import (

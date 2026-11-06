@@ -1,3 +1,5 @@
+// cluster.go holds the cluster code.
+
 package ste
 
 import (

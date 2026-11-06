@@ -74,7 +74,7 @@ func TestAScriptCommentMayShrinkButItsCodeMayNot(t *testing.T) {
 	shorter := edit.Lines(scriptWithComments, 5, 6, 0, []string{"          # the suites need the backend"})
 	res := gate(scriptWithComments, []edit.Edit{shorter}, edit.Scope{})
 	require.Len(t, res.Applied, 1)
-	assert.Equal(t, "on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n          # the suites need the backend\n          apt-get install -y bubblewrap\n          apt-get clean\n", res.Text)
+	assert.Equal(t, testAScriptCommentMayShrinkButItsCodeMayNotYml, res.Text)
 
 	code := edit.Lines(scriptWithComments, 5, 7, 0, []string{"          # the suites need the backend"})
 	res = gate(scriptWithComments, []edit.Edit{code}, edit.Scope{})
@@ -87,9 +87,9 @@ func TestAScriptCommentMayShrinkButItsCodeMayNot(t *testing.T) {
 // comment edit that removes either is refused.
 func TestAShebangAndAHeredocLineAreNotComments(t *testing.T) {
 	gate := workflow.Options(fixer.Options{}).Comments
-	head := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    steps:\n      - run: |\n"
+	head := testAShebangAndAHeredocLineAreNotCommentsYml
 	for name, script := range map[string]string{
-		"shebang": head + "          #!/bin/sh\n          # a note\n          make\n",
+		"shebang": head + testAShebangAndAHeredocLineAreNotCommentsSh,
 		"heredoc": head + "          cat <<EOF\n          # not a comment\n          EOF\n",
 	} {
 		res := gate(script, []edit.Edit{edit.Lines(script, 5, 5, 0, nil)}, edit.Scope{})
@@ -154,3 +154,12 @@ var testJoiningCommentLinesKeepsTheirSentencesApartYml2 string
 
 //go:embed testdata/test-joining-comment-lines-keeps-their-sentences-apart-3.yml
 var testJoiningCommentLinesKeepsTheirSentencesApartYml3 string
+
+//go:embed testdata/test-a-script-comment-may-shrink-but-its-code-may-not.yml
+var testAScriptCommentMayShrinkButItsCodeMayNotYml string
+
+//go:embed testdata/test-a-shebang-and-a-heredoc-line-are-not-comments.yml
+var testAShebangAndAHeredocLineAreNotCommentsYml string
+
+//go:embed testdata/test-a-shebang-and-a-heredoc-line-are-not-comments.sh
+var testAShebangAndAHeredocLineAreNotCommentsSh string

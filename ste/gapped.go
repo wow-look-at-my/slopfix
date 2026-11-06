@@ -1,3 +1,5 @@
+// gapped.go holds the gapped code.
+
 package ste
 
 import (

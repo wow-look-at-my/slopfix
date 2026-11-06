@@ -1,3 +1,5 @@
+// sharedhead.go holds the sharedhead code.
+
 package commentfix
 
 import (

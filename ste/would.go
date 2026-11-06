@@ -1,3 +1,5 @@
+// would.go holds the would code.
+
 package ste
 
 import (

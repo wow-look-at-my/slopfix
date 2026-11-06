@@ -39,7 +39,7 @@ func init() {
 			// A "that" clause after a list is another item of it.
 			{Name: ste.IDSentenceCap + " before a that clause in a list", Path: "x.md", Text: "- `queue_order_test.go` covers the priority order, the two-pass rule, the head-only window, case-folding, the size limit, that a failed fetch keeps the previous value.\n"},
 			// sglang .github/workflows/fork-ci.yml: a comment in a run: script is prose, and divides like any comment.
-			workflowCase("sentence-length in a run: script", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n"+
+			workflowCase("sentence-length in a run: script", workflowHeader()+embeddedYml56+
 				"          ON_DEFAULT=false\n\n"+
 				"          # The image installs only this fork's kernel build, so a PyPI wheel of\n"+
 				"          # the same version does not count: it lacks the fork's ops and archs.\n"+
@@ -241,3 +241,6 @@ func detectSentenceCap(c RuleCase) []ste.Finding {
 func autofixSentenceCap(c RuleCase) RuleCase {
 	return caseAutofix(c, ste.IDSentenceCap)
 }
+
+//go:embed embedded-2.yml
+var embeddedYml56 string

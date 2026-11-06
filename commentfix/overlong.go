@@ -367,10 +367,10 @@ func cutProse(b block) []string {
 		return out, fitsCode(out, b)
 	}
 	// A later "that" clause states a condition of its own, so a cut that drops it keeps the verb that governs it.
-	wide := func(head []string, sentence, indent, marker string) ([]string, bool) {
+	restating := func(head []string, sentence, indent, marker string) ([]string, bool) {
 		return fitReflow(head, sentence, indent, marker, b)
 	}
-	if restated, ok := restatedOpening(kept, wide); ok {
+	if restated, ok := restatedOpening(kept, restating); ok {
 		return restated
 	}
 	if out, ok := cutToFit(kept, b); ok {

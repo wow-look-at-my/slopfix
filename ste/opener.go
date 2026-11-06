@@ -1,3 +1,5 @@
+// opener.go holds the opener code.
+
 package ste
 
 import (

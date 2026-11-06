@@ -14,9 +14,7 @@ import (
 // The doc comment the length repair deleted. Its heading carries the invariant
 // for the sentence under it, and the repair cut the block to the heading alone.
 func TestTheLengthRepairDoesNotDeleteADocBody(t *testing.T) {
-	src := "/// # Safety\n" +
-		"/// The caller must ensure that the pointer stays valid for reads of n bytes for the whole call, and that no other thread writes through it while this function runs.\n" +
-		"fn f() {}\n"
+	src := testTheLengthRepairDoesNotDeleteADocBodyRs
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}).Text
 	assert.Contains(t, out, "The caller must ensure", "the doc body was deleted:\n%s", out)
 	assert.Contains(t, out, "no other thread writes through it", "the invariant clause was deleted:\n%s", out)
@@ -32,9 +30,7 @@ func TestTheSharedHeadDivisionShape(t *testing.T) {
 // The length repair leaves one whole opening sentence under the cap, and no
 // finding is left after fix.
 func TestTheLengthRepairLeavesAWholeOpeningSentenceAndNoFinding(t *testing.T) {
-	src := "/// # Safety\n" +
-		"/// The caller must ensure that the pointer stays valid for reads of n bytes for the whole call, and that no other thread writes through it while this function runs.\n" +
-		"fn f() {}\n"
+	src := testTheLengthRepairLeavesAWholeOpeningSentenceAndNoFindingRs
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs"}).Text
 	assert.Equal(t, out, slopfix.Fix(slopfix.Request{Content: out, Path: "f.rs"}).Text, "a second fix changed the text")
 	assert.Empty(t, slopfix.CheckContent("f.rs", out), "a finding is left after fix:\n%s", out)
@@ -58,14 +54,7 @@ func TestTheLengthRepairLeavesAWholeOpeningSentenceAndNoFinding(t *testing.T) {
 // A doc comment that opens on a heading is still repaired. The heading and
 // the break line under it stay, and the repair leaves no comment finding.
 func TestAHeadingLedDocCommentIsRepairedUnderItsHeading(t *testing.T) {
-	src := "/// # Safety\n" +
-		"///\n" +
-		"/// The caller keeps the pointer valid for the whole call. No other thread writes through it. The buffer holds at least n bytes. The length counts bytes and not characters. A null pointer is never passed here.\n" +
-		"unsafe fn first(p: *const u8, n: usize) -> u8 {\n" +
-		"    let s = std::slice::from_raw_parts(p, n);\n" +
-		"    let v = s[0];\n" +
-		"    v\n" +
-		"}\n"
+	src := testAHeadingLedDocCommentIsRepairedUnderItsHeadingJs
 	req := slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleComments}}
 	out := slopfix.Fix(req).Text
 	assert.True(t, strings.HasPrefix(out, "/// # Safety\n///\n/// The caller keeps the pointer valid for the whole call."), "the heading or its break went:\n%s", out)
@@ -152,3 +141,12 @@ func TestACommaEndsALongFragmentDocSentence(t *testing.T) {
 
 //go:embed testdata/test-a-long-doc-sentence-does-not-split-into-a-fragment.rs
 var testALongDocSentenceDoesNotSplitIntoAFragmentRs string
+
+//go:embed testdata/test-the-length-repair-does-not-delete-a-doc-body.rs
+var testTheLengthRepairDoesNotDeleteADocBodyRs string
+
+//go:embed testdata/test-the-length-repair-leaves-a-whole-opening-sentence-and-no-finding.rs
+var testTheLengthRepairLeavesAWholeOpeningSentenceAndNoFindingRs string
+
+//go:embed testdata/test-a-heading-led-doc-comment-is-repaired-under-its-heading.js
+var testAHeadingLedDocCommentIsRepairedUnderItsHeadingJs string
