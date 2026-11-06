@@ -23,11 +23,15 @@ func init() {
 			{Name: "a run of doc comments is cut from its end", Path: "store.ts", Text: fixtureHeader + stackedDocCase, Want: fixtureHeader + stackedDocWant},
 			{Name: "a run of doc comments no single cut fits", Path: "retries.ts", Text: fixtureHeader + stackedSingleCase, Want: fixtureHeader + stackedSingleWant},
 			{Name: "an opener inside a block comment is prose", Path: "assets.ts", Text: fixtureHeader + innerOpenerCase, Want: fixtureHeader + innerOpenerWant},
+			{Name: "a glob inside a JSDoc opens no second comment", Path: "shelf.ts", Text: fixtureHeader + globInBlockCommentCase},
 			{Name: "a line comment keeps its heading above the sentence a cut keeps", Path: "f.rs", Text: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + " " + noCutTail + "\nfn f() {}\n", Want: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + "\nfn f() {}\n"},
 			{Name: "a block comment keeps its heading above the sentence a cut keeps", Path: "f.c", Text: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + " " + noCutTail + "\n */\nvoid f(void) {}\n", Want: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + " */\nvoid f(void) {}\n"},
 		},
 	})
 }
+
+//go:embed testdata/glob-in-block-comment-case.ts
+var globInBlockCommentCase string
 
 //go:embed testdata/identifier-sentence-case.cpp
 var identifierSentenceCase string
