@@ -350,6 +350,33 @@ func Removed(before, after string) string {
 	return out.String()
 }
 
+// Offset answers where the byte at of before sits in after. A byte in text
+// the change kept moves with it. Consider a byte inside text the change. That
+// byte replaced or deleted lands on the start of what stands there now, or on
+// its end when end is set. An insertion right on the byte stays outside a
+// start and inside an end, so a span keeps the text it held.
+func Offset(before, after string, at int, end bool) int {
+	a, b := splitLines(before), splitLines(after)
+	inA, inB := 0, 0
+	for _, op := range opcodes(before, after) {
+		aLen, bLen := len(strings.Join(a[op.I1:op.I2], "")), len(strings.Join(b[op.J1:op.J2], ""))
+		switch {
+		case op.Tag == 'e' && at < inA+aLen:
+			return inB + (at - inA)
+		case op.Tag != 'e' && aLen == 0 && at == inA && end:
+			return inB + bLen
+		case op.Tag != 'e' && at < inA+aLen:
+			if end {
+				return inB + bLen
+			}
+			return inB
+		}
+		inA += aLen
+		inB += bLen
+	}
+	return inB
+}
+
 // opcodes answers the line diff from before to after.
 func opcodes(before, after string) []difflib.OpCode {
 	return difflib.NewMatcherWithJunk(splitLines(before), splitLines(after), false, nil).GetOpCodes()
