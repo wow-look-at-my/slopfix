@@ -161,7 +161,7 @@ func beforeSubordinate(s *syntax.Sentence, source string) []division {
 // outsideSpans moves an offset out of a verbatim span, to its end or to its start.
 // The parser reads a masked span, whose filler word stops short of the closing backtick.
 func outsideSpans(source string, at int, toEnd bool) int {
-	for _, span := range verbatimSpans(source) {
+	for _, span := range dataSpans(source) {
 		if span[0] < at && at < span[1] {
 			if toEnd {
 				return span[1]

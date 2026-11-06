@@ -186,8 +186,7 @@ func joinsClauses(prose string, at int) bool {
 	return false
 }
 
-// listBefore reports a comma inside the clause before c, which makes ", and"
-// the end of a list rather than a join between clauses.
+// clauseStart answers the earliest word of the clause that ends before word i.
 func listBefore(s *syntax.Sentence, c syntax.Clause) bool {
 	for i := c.Link - 2; i >= 0 && i >= clauseStart(s, c.Link); i-- {
 		// A comma inside a quotation reads as a name, and lists nothing.

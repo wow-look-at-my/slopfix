@@ -147,7 +147,14 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if !standsAsSentence(left) {
 			continue
 		}
-		if d.opener == "" && !standsAsSentence(right) {
+		if d.opener == "" && !standsAsSentenceOrCarries(right) {
+			continue
+		}
+		if d.opener == "" && strandsRest(s, d.rightStart, right) || contactRelative(s, source, d) {
+			continue
+		}
+		// "Otherwise," and "However," open a sentence that the words after them must still make: "Otherwise, "" when no noun ends" is none.
+		if connectorOpener(d.opener) && !standsAsSentence(capitalizeOpening(strings.TrimLeft(restOf(source, d), " "))) {
 			continue
 		}
 		// A noun phrase whose only verbs sit in relative clauses is a fragment: "A number that is true today".
@@ -162,9 +169,16 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 	return best, bestScore >= 0
 }
 
+// standsAsSentenceOrCarries reports text that reads as a sentence, or that holds
+// a finite verb of its own: "Only one sync-tool uses the disk at a time".
+func standsAsSentenceOrCarries(text string) bool {
+	return standsAsSentence(text) || finiteOutsideRelative(syntax.Parse(checkMask(text), nil), 0)
+}
+
 // coordinateDivision divides at a comma before a conjunction the clause pass
 // left inside one clause, as in "X, so Y" or "X, but Y". It is the fallback
-// behind the clause boundaries, and each half must read as a sentence.
+// behind the clause boundaries, and each half must read as a sentence or hold a
+// finite verb of its own.
 func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 	best, bestScore := "", -1
 	for _, d := range beforeCoordinate(s, source) {
@@ -186,7 +200,7 @@ func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 				continue
 			}
 		}
-		if !standsAsSentence(right) {
+		if !standsAsSentenceOrCarries(right) {
 			continue
 		}
 		score := max(WordCount(left), WordCount(right))
