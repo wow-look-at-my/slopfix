@@ -37,7 +37,9 @@ func starRun(text []string) (string, bool) {
 }
 
 // readBlock reports a run that is a single /* */ comment, closed on its last
-// line, and answers its prose lines. A layout line keeps its extra indent.
+// line, and answers its prose lines. A layout line keeps its extra indent. A
+// "/*" inside the prose, as in a glob like `pkg/*`, opens nothing: the closer
+// count alone says the run is one comment.
 func readBlock(text []string) (blockShape, []string, bool) {
 	if len(text) == 0 {
 		return blockShape{}, nil, false
@@ -45,7 +47,7 @@ func readBlock(text []string) (blockShape, []string, bool) {
 	first := strings.TrimLeft(text[0], " \t")
 	last := strings.TrimSpace(text[len(text)-1])
 	joined := strings.Join(text, "\n")
-	if !strings.HasPrefix(first, "/*") || !strings.HasSuffix(last, "*/") || strings.Count(joined, "*/") != 1 || strings.Count(joined, "/*") != 1 {
+	if !strings.HasPrefix(first, "/*") || !strings.HasSuffix(last, "*/") || strings.Count(joined, "*/") != 1 {
 		return blockShape{}, nil, false
 	}
 	shape := blockShape{indent: text[0][:len(text[0])-len(first)], opener: "/*"}
