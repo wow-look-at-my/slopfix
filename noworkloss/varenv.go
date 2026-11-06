@@ -1,3 +1,5 @@
+// varenv.go holds the varenv code.
+
 package noworkloss
 
 import (

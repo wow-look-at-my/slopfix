@@ -1,3 +1,5 @@
+// decide.go holds the decide code.
+
 package noworkloss
 
 import (

@@ -1,3 +1,5 @@
+// entry.go holds the entry code.
+
 package xmlcheck
 
 import (

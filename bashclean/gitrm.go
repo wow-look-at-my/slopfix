@@ -1,3 +1,5 @@
+// gitrm.go holds the gitrm code.
+
 package bashclean
 
 import (

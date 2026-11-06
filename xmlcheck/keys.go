@@ -1,3 +1,5 @@
+// keys.go holds the keys code.
+
 package xmlcheck
 
 import (

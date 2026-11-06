@@ -1,3 +1,5 @@
+// gitverb.go holds the gitverb code.
+
 package noworkloss
 
 import (

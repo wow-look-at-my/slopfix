@@ -1,3 +1,5 @@
+// gitcd.go holds the gitcd code.
+
 package bashclean
 
 import (

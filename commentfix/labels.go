@@ -1,3 +1,5 @@
+// labels.go holds the labels code.
+
 package commentfix
 
 import (

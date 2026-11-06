@@ -1,3 +1,5 @@
+// rule_yaml_orgactionref.go holds the rule yaml orgactionref code.
+
 package slopfix
 
 import _ "embed"

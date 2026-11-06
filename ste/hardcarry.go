@@ -1,3 +1,5 @@
+// hardcarry.go holds the hardcarry code.
+
 package ste
 
 import (

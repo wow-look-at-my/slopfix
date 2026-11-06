@@ -1,3 +1,5 @@
+// rule_yaml_pushtags.go holds the rule yaml pushtags code.
+
 package slopfix
 
 import _ "embed"

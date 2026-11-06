@@ -1,3 +1,5 @@
+// shellwords.go holds the shellwords code.
+
 package noworkloss
 
 import (

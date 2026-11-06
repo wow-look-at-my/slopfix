@@ -1,3 +1,5 @@
+// format.go holds the format code.
+
 package rustfmt
 
 import (

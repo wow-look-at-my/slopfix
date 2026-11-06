@@ -1,3 +1,5 @@
+// refcache.go holds the refcache code.
+
 package slopfix
 
 import (

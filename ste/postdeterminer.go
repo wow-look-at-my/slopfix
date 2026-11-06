@@ -1,3 +1,5 @@
+// postdeterminer.go holds the postdeterminer code.
+
 package ste
 
 import (

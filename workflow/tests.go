@@ -1,3 +1,5 @@
+// tests.go holds the tests code.
+
 package workflow
 
 import (

@@ -1,3 +1,5 @@
+// userscript.go holds the userscript code.
+
 package treecomments
 
 import "strings"

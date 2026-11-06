@@ -1,3 +1,5 @@
+// rule_go_foreignsource.go holds the rule go foreignsource code.
+
 package slopfix
 
 import (

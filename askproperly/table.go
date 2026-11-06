@@ -1,3 +1,5 @@
+// table.go holds the table code.
+
 package askproperly
 
 import (

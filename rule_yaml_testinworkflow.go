@@ -1,3 +1,5 @@
+// rule_yaml_testinworkflow.go holds the rule yaml testinworkflow code.
+
 package slopfix
 
 import _ "embed"

@@ -1,3 +1,5 @@
+// cutsentence.go holds the cutsentence code.
+
 package commentfix
 
 import (

@@ -1,3 +1,5 @@
+// refs.go holds the refs code.
+
 package gitread
 
 import (

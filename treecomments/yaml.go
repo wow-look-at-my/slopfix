@@ -1,3 +1,5 @@
+// yaml.go holds the yaml code.
+
 package treecomments
 
 import (

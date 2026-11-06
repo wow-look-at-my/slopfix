@@ -1,3 +1,5 @@
+// filedata.go holds the filedata code.
+
 package gitread
 
 import (

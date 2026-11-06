@@ -1,3 +1,5 @@
+// spec.go holds the spec code.
+
 package xmlcheck
 
 // A Key names an entry among its siblings. Entries that produce the same key

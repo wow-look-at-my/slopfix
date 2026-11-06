@@ -1,3 +1,5 @@
+// foreign.go holds the foreign code.
+
 package workflow
 
 import (

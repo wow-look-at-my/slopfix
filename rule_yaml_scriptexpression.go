@@ -1,3 +1,5 @@
+// rule_yaml_scriptexpression.go holds the rule yaml scriptexpression code.
+
 package slopfix
 
 import _ "embed"

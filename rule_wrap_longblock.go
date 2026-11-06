@@ -1,3 +1,5 @@
+// rule_wrap_longblock.go holds the rule wrap longblock code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

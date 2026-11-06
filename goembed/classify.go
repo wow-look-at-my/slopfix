@@ -1,3 +1,5 @@
+// classify.go holds the classify code.
+
 package goembed
 
 import (

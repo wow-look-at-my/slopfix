@@ -1,3 +1,5 @@
+// rule_yaml_neuteredgate.go holds the rule yaml neuteredgate code.
+
 package slopfix
 
 import _ "embed"

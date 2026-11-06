@@ -1,3 +1,5 @@
+// license.go holds the license code.
+
 package commentfix
 
 import "regexp"

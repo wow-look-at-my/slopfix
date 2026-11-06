@@ -1,3 +1,5 @@
+// warnings.go holds the warnings code.
+
 package ste
 
 import (

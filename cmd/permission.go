@@ -1,3 +1,5 @@
+// permission.go holds the permission code.
+
 package cmd
 
 import (

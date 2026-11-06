@@ -1,3 +1,5 @@
+// counted.go holds the counted code.
+
 package commentfix
 
 import (

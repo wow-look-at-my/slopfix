@@ -1,3 +1,5 @@
+// reftable.go holds the reftable code.
+
 package gitread
 
 import (

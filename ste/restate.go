@@ -1,3 +1,5 @@
+// restate.go holds the restate code.
+
 package ste
 
 import (

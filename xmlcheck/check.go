@@ -1,3 +1,5 @@
+// check.go holds the check code.
+
 package xmlcheck
 
 import (

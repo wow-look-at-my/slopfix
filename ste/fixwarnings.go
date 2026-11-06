@@ -1,3 +1,5 @@
+// fixwarnings.go holds the fixwarnings code.
+
 package ste
 
 import (

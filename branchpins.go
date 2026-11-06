@@ -1,3 +1,5 @@
+// branchpins.go holds the branchpins code.
+
 package slopfix
 
 import (

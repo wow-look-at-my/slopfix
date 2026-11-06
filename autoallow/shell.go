@@ -1,3 +1,5 @@
+// shell.go holds the shell code.
+
 package autoallow
 
 import (

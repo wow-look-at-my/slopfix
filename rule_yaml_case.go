@@ -1,3 +1,5 @@
+// rule_yaml_case.go holds the rule yaml case code.
+
 package slopfix
 
 import _ "embed"

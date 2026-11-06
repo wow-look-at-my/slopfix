@@ -1,3 +1,5 @@
+// rule_yaml_tokeningiturl.go holds the rule yaml tokeningiturl code.
+
 package slopfix
 
 import _ "embed"

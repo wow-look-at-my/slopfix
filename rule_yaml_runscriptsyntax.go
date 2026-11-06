@@ -1,3 +1,5 @@
+// rule_yaml_runscriptsyntax.go holds the rule yaml runscriptsyntax code.
+
 package slopfix
 
 import _ "embed"

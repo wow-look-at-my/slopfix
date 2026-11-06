@@ -1,3 +1,5 @@
+// punctuation.go holds the punctuation code.
+
 package ste
 
 import (

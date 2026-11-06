@@ -1,3 +1,5 @@
+// myers.go holds the myers code.
+
 package forkscope
 
 // myers finds the lines a shortest edit script inserts.

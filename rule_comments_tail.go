@@ -1,3 +1,5 @@
+// rule_comments_tail.go holds the rule comments tail code.
+
 package slopfix
 
 import (

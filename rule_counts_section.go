@@ -1,3 +1,5 @@
+// rule_counts_section.go holds the rule counts section code.
+
 package slopfix
 
 import (

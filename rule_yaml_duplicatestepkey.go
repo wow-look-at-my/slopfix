@@ -1,3 +1,5 @@
+// rule_yaml_duplicatestepkey.go holds the rule yaml duplicatestepkey code.
+
 package slopfix
 
 import _ "embed"

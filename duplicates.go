@@ -1,3 +1,5 @@
+// duplicates.go holds the duplicates code.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// grepjson_spec.go holds the grepjson spec code.
+
 package bashclean
 
 import (

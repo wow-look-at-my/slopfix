@@ -1,3 +1,5 @@
+// cut.go holds the cut code.
+
 package english
 
 import (

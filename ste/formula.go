@@ -1,3 +1,5 @@
+// formula.go holds the formula code.
+
 package ste
 
 import (

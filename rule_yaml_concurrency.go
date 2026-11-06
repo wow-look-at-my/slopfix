@@ -1,3 +1,5 @@
+// rule_yaml_concurrency.go holds the rule yaml concurrency code.
+
 package slopfix
 
 import _ "embed"

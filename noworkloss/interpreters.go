@@ -1,3 +1,5 @@
+// interpreters.go holds the interpreters code.
+
 package noworkloss
 
 import (

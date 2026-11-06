@@ -1,3 +1,5 @@
+// rule_yaml_allbuildsjob.go holds the rule yaml allbuildsjob code.
+
 package slopfix
 
 import _ "embed"

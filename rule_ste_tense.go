@@ -1,3 +1,5 @@
+// rule_ste_tense.go holds the rule ste tense code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

@@ -1,3 +1,5 @@
+// envinline.go holds the envinline code.
+
 package workflow
 
 import (

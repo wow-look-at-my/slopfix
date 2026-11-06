@@ -1,3 +1,5 @@
+// index.go holds the index code.
+
 package gitread
 
 import (

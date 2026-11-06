@@ -1,3 +1,5 @@
+// lines.go holds the lines code.
+
 package forkscope
 
 import (

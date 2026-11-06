@@ -1,3 +1,5 @@
+// sniff.go holds the sniff code.
+
 package code
 
 import (

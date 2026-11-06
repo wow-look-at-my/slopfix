@@ -1,3 +1,5 @@
+// blobs.go holds the blobs code.
+
 package forkscope
 
 import (

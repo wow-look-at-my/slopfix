@@ -1,3 +1,5 @@
+// rule_comments_length.go holds the rule comments length code.
+
 package slopfix
 
 import _ "embed"

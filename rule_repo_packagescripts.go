@@ -1,3 +1,5 @@
+// rule_repo_packagescripts.go holds the rule repo packagescripts code.
+
 package slopfix
 
 import _ "embed"

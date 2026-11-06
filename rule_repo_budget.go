@@ -1,3 +1,5 @@
+// rule_repo_budget.go holds the rule repo budget code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

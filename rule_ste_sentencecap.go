@@ -1,3 +1,5 @@
+// rule_ste_sentencecap.go holds the rule ste sentencecap code.
+
 package slopfix
 
 import _ "embed"

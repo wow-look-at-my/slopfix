@@ -1,3 +1,5 @@
+// split.go holds the split code.
+
 package ste
 
 import (

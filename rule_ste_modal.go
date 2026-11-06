@@ -1,3 +1,5 @@
+// rule_ste_modal.go holds the rule ste modal code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

@@ -1,3 +1,5 @@
+// ignore.go holds the ignore code.
+
 package gitread
 
 import (

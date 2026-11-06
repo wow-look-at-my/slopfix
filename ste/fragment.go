@@ -1,3 +1,5 @@
+// fragment.go holds the fragment code.
+
 package ste
 
 import (

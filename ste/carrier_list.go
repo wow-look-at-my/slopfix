@@ -1,3 +1,5 @@
+// carrier_list.go holds the carrier list code.
+
 package ste
 
 import (

@@ -1,3 +1,5 @@
+// relative.go holds the relative code.
+
 package ste
 
 import (

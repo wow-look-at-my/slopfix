@@ -1,3 +1,5 @@
+// passive.go holds the passive code.
+
 package ste
 
 import (

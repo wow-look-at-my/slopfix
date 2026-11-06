@@ -1,3 +1,5 @@
+// ignored.go holds the ignored code.
+
 package commentfix
 
 import (

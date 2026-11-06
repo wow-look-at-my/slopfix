@@ -1,3 +1,5 @@
+// children.go holds the children code.
+
 package code
 
 import (

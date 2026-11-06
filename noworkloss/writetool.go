@@ -1,3 +1,5 @@
+// writetool.go holds the writetool code.
+
 package noworkloss
 
 import (

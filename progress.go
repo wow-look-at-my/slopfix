@@ -1,3 +1,5 @@
+// progress.go holds the progress code.
+
 package slopfix
 
 import (

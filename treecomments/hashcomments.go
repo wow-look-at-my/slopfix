@@ -1,3 +1,5 @@
+// hashcomments.go holds the hashcomments code.
+
 package treecomments
 
 import (

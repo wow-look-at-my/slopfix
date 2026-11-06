@@ -1,3 +1,5 @@
+// clean.go holds the clean code.
+
 package bashclean
 
 import (

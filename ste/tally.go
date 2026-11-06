@@ -1,3 +1,5 @@
+// tally.go holds the tally code.
+
 package ste
 
 import (

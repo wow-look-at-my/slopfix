@@ -1,3 +1,5 @@
+// semicolon.go holds the semicolon code.
+
 package ste
 
 import (

@@ -1,3 +1,5 @@
+// wrap.go holds the wrap code.
+
 package commentfix
 
 import (

@@ -1,3 +1,5 @@
+// spec.go holds the spec code.
+
 package autoallow
 
 import (

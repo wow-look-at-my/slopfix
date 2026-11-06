@@ -1,3 +1,5 @@
+// rootfiles.go holds the rootfiles code.
+
 package slopfix
 
 import (

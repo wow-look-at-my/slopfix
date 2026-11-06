@@ -1,3 +1,5 @@
+// rule_ste_contraction.go holds the rule ste contraction code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

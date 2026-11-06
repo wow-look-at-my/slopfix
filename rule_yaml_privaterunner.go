@@ -1,3 +1,5 @@
+// rule_yaml_privaterunner.go holds the rule yaml privaterunner code.
+
 package slopfix
 
 import _ "embed"

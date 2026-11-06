@@ -1,3 +1,5 @@
+// file.go holds the file code.
+
 package fixer
 
 import (

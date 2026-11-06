@@ -1,3 +1,5 @@
+// lineprose.go holds the lineprose code.
+
 package commentfix
 
 import "strings"

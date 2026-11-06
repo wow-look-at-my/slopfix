@@ -1,3 +1,5 @@
+// readplan.go holds the readplan code.
+
 package bashclean
 
 import (

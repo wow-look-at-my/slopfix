@@ -1,3 +1,5 @@
+// fixturerefs.go holds the fixturerefs code.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// change.go holds the change code.
+
 package walktree
 
 import (

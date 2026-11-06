@@ -1,3 +1,5 @@
+// scan.go holds the scan code.
+
 package goembed
 
 import (

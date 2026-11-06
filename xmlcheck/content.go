@@ -1,3 +1,5 @@
+// content.go holds the content code.
+
 package xmlcheck
 
 import (

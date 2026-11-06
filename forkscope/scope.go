@@ -1,3 +1,5 @@
+// scope.go holds the scope code.
+
 package forkscope
 
 import (

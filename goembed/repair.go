@@ -1,3 +1,5 @@
+// repair.go holds the repair code.
+
 package goembed
 
 import (

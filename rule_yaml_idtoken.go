@@ -1,3 +1,5 @@
+// rule_yaml_idtoken.go holds the rule yaml idtoken code.
+
 package slopfix
 
 import _ "embed"

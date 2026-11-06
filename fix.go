@@ -1,3 +1,5 @@
+// fix.go holds the fix code.
+
 package slopfix
 
 import (

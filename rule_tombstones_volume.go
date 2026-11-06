@@ -1,3 +1,5 @@
+// rule_tombstones_volume.go holds the rule tombstones volume code.
+
 package slopfix
 
 import (

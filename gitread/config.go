@@ -1,3 +1,5 @@
+// config.go holds the config code.
+
 package gitread
 
 import (

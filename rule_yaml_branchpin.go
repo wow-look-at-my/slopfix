@@ -1,3 +1,5 @@
+// rule_yaml_branchpin.go holds the rule yaml branchpin code.
+
 package slopfix
 
 import _ "embed"

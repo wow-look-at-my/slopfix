@@ -1,3 +1,5 @@
+// agents.go holds the agents code.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// objects.go holds the objects code.
+
 package gitread
 
 import (

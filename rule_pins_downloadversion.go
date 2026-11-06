@@ -1,3 +1,5 @@
+// rule_pins_downloadversion.go holds the rule pins downloadversion code.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// forklist.go holds the forklist code.
+
 package forkscope
 
 import (

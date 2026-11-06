@@ -1,3 +1,5 @@
+// print.go holds the print code.
+
 package syntax
 
 import (

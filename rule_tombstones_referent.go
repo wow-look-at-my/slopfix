@@ -1,3 +1,5 @@
+// rule_tombstones_referent.go holds the rule tombstones referent code.
+
 package slopfix
 
 import _ "embed"

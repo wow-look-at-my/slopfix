@@ -1,3 +1,5 @@
+// rule_repo_binary.go holds the rule repo binary code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

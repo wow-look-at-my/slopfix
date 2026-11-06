@@ -1,3 +1,5 @@
+// fsverb.go holds the fsverb code.
+
 package noworkloss
 
 import (

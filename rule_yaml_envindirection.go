@@ -1,3 +1,5 @@
+// rule_yaml_envindirection.go holds the rule yaml envindirection code.
+
 package slopfix
 
 import _ "embed"
