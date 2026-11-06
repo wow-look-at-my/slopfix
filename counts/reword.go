@@ -128,6 +128,9 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 		text = ""
 	case unit:
 		text = vague(n)
+	case n == 2 && len(before) > 0 && last(1) == "between":
+		// "between two joiners" names a pair, and "between a pair of joiners" says what the phrase between them is.
+		text = "a pair of "
 	case len(before) > 0 && (cardinal.InClass(last(1), "preposition") || followsANoun(content, hit.Start)):
 		text = "multiple "
 	case len(before) > 0 && pastVerbBefore(content, hit):

@@ -1,3 +1,5 @@
+// words.go holds the words code.
+
 package bashclean
 
 import (
@@ -38,10 +40,7 @@ type effCmd struct {
 	index int
 }
 
-// effectiveCommand names the program a call runs, and where its word sits in
-// .Args. shellwalk peels the wrappers, so the `rm` rule covers a `sudo`,
-// `env`, `nice`, `timeout` or `xargs` prefix and an absolute path alike. A
-// non-static command word and a lookup both resolve to nothing.
+// A non-static command word and a lookup both resolve to nothing.
 func effectiveCommand(c *syntax.CallExpr) (effCmd, bool) {
 	if c == nil || len(c.Args) == 0 {
 		return effCmd{}, false
