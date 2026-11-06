@@ -1,4 +1,8 @@
+// yaml/test-in-workflow: a test written into a run: script.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -36,16 +40,25 @@ func autofixTestInYAML(c RuleCase) RuleCase {
 // testInYAMLCase is a workflow whose step asserts on a value beside its own
 // command.
 func testInYAMLCase() string {
-	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n" +
-		"    steps:\n      - run: |\n          echo hi\n          assert_ok() { exit 1; }\n"
+	return workflowHeader() + testInYAMLCaseYml2 +
+		testInYAMLCaseYml
 }
 
 // testInYAMLExpressionCase is a workflow whose test reads an expression inside
 // a guard, which a cut of the line that exits would leave empty.
 func testInYAMLExpressionCase() string {
-	return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n" +
+	return workflowHeader() + testInYAMLExpressionCaseYml +
 		"    steps:\n      - run: |\n" +
 		"          if ! grep -q \"${{ github.sha }}\" out.txt; then\n" +
 		"            echo \"::error::no build of ${{ github.sha }}\"; exit 1\n" +
 		"          fi\n"
 }
+
+//go:embed testdata/test-in-yaml-case.yml
+var testInYAMLCaseYml string
+
+//go:embed testdata/test-in-yaml-case-2.yml
+var testInYAMLCaseYml2 string
+
+//go:embed testdata/test-in-yaml-expression-case.yml
+var testInYAMLExpressionCaseYml string

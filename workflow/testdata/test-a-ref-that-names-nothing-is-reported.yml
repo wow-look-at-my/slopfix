@@ -1,0 +1,4 @@
+jobs:
+  build:
+    steps:
+      - uses: other-org/tool@deleted-branch

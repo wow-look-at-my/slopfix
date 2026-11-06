@@ -46,8 +46,7 @@ func Runs(filename, src string) (runs []Run, ok bool) {
 // cgo compiles them as C source, so no rule judges them as prose.
 func dropCgoPreamble(root ts.Node, src string, nodes []ts.Node) []ts.Node {
 	importAt := -1
-	for i := uint32(0); i < root.NamedChildCount(); i++ {
-		child := root.NamedChild(i)
+	for _, child := range NamedChildren(root) {
 		if child.IsNull() || child.Type() != "import_declaration" {
 			continue
 		}
@@ -84,9 +83,7 @@ func dropCgoPreamble(root ts.Node, src string, nodes []ts.Node) []ts.Node {
 }
 
 func gatherComments(node ts.Node, out *[]ts.Node) {
-	count := node.NamedChildCount()
-	for i := uint32(0); i < count; i++ {
-		child := node.NamedChild(i)
+	for _, child := range NamedChildren(node) {
 		if IsComment(child) {
 			*out = append(*out, child)
 			continue

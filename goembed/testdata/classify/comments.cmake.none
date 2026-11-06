@@ -1,0 +1,4 @@
+# first line of a comment
+# second line of a comment
+add_test(NAME gate
+  COMMAND tool --validate)

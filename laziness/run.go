@@ -27,8 +27,9 @@ type Result struct {
 
 // Run judges the turn's closing message and refuses a turn that reports a
 // defect it did not fix. Every failure path allows the stop: a guard that
-// wedges a session is worse than no guard.
-func Run(r io.Reader) Result {
+// wedges a session is worse than no guard. On PreToolUse, repair is the cut
+// that `slopfix fix --message --only laziness/punt` makes.
+func Run(r io.Reader, repair func(string) string) Result {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return Result{}
@@ -36,6 +37,9 @@ func Run(r io.Reader) Result {
 	var in Input
 	if json.Unmarshal(data, &in) != nil {
 		return Result{}
+	}
+	if in.HookEventName == "PreToolUse" {
+		return runTool(data, repair)
 	}
 	if in.HookEventName != "" && in.HookEventName != "Stop" {
 		return Result{}
@@ -56,7 +60,7 @@ func Run(r io.Reader) Result {
 	if len(Check(message)) == 0 {
 		return Result{}
 	}
-	return Result{Stderr: "continue", Code: 2}
+	return Result{Stderr: Rules.Answer, Code: 2}
 }
 
 // transcriptEntry is a JSONL line. The content is a string on some entries and

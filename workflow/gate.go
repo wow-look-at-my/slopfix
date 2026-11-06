@@ -1,3 +1,5 @@
+// GateMarkers name the steps this rule protects, a wrapper step included.
+
 package workflow
 
 import (

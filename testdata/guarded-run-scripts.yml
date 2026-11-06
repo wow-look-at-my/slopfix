@@ -1,0 +1,24 @@
+name: CI
+on:
+  push:
+    branches: ['**']
+concurrency:
+  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+jobs:
+  kernel:
+    runs-on: ${{ github.event.repository.visibility == 'public' && 'ubuntu-latest' || vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - run: |
+          shopt -s nullglob
+          WHEELS=(dist/*.whl)
+          if [ ${#WHEELS[@]} -eq 0 ]; then
+            echo "::error::no sglang-kernel wheel was built"; exit 1
+          fi
+      - run: |
+          for TAG in a b; do
+            SOURCES=()
+            if [ ${#SOURCES[@]} -eq 0 ]; then
+              echo "::error::no per-arch image was pushed for ${TAG}"; exit 1
+            fi
+          done

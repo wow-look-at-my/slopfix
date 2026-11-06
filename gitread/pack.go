@@ -1,3 +1,5 @@
+// Object kinds, as a pack numbers them.
+
 package gitread
 
 import (

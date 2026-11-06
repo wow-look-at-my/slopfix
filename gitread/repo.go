@@ -1,3 +1,5 @@
+// ErrUnsupported marks a repository format this package does not read.
+
 package gitread
 
 import (

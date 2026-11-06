@@ -178,6 +178,10 @@ func (out *TreeRepair) created(files []fixer.Created, req Request) {
 		if req.Fork != nil {
 			req.Fork.Claim(c.Path)
 		}
+		// The walk skips testdata, so the run judges a fixture there as it judges the rest.
+		if tombstones.InTestdata(c.Path) {
+			continue
+		}
 		repair := judgeFile(c.Path, req, false)
 		if repair == nil {
 			continue

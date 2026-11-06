@@ -1,3 +1,5 @@
+// wrap/long-block: a paragraph or a list item over the block cap.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

@@ -1,7 +1,10 @@
+// actionFile is the name, in the git common directory, of the action record.
+
 package forkscope
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -184,6 +187,30 @@ func (r Resolver) DefaultBranch(repo string) (string, error) {
 	return info.DefaultBranch, nil
 }
 
+var ErrNotFound = errors.New("not found")
+
+// tags remembers each tag lookup for the life of the process.
+var tags = struct {
+	sync.Mutex
+	byKey map[string]bool
+}{byKey: map[string]bool{}}
+
+// HasTag reports whether repo, as OWNER/REPO, publishes the tag. Any other failure is the error.
+func (r Resolver) HasTag(repo, tag string) (bool, error) {
+	key := r.api() + " " + repo + "@" + tag
+	tags.Lock()
+	defer tags.Unlock()
+	if has, ok := tags.byKey[key]; ok {
+		return has, nil
+	}
+	_, err := r.get("repos/"+repo+"/git/ref/tags/"+escapePath(tag), "application/vnd.github+json")
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return false, err
+	}
+	tags.byKey[key] = err == nil
+	return err == nil, nil
+}
+
 // fetchFile reads one file of repo at ref through the contents API.
 func (r Resolver) fetchFile(repo, file, ref string) ([]byte, error) {
 	return r.get("repos/"+repo+"/contents/"+escapePath(file)+"?ref="+url.QueryEscape(ref), "application/vnd.github.raw")
@@ -198,6 +225,9 @@ func (r Resolver) get(endpoint, accept string) ([]byte, error) {
 			run = runGH
 		}
 		out, err := run("api", "-H", "Accept: "+accept, endpoint)
+		if err != nil && strings.Contains(err.Error(), "(HTTP 404)") {
+			return nil, fmt.Errorf("gh api %s: %w: %w", endpoint, err, ErrNotFound)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("gh api %s: %w", endpoint, err)
 		}
@@ -221,6 +251,9 @@ func (r Resolver) get(endpoint, accept string) ([]byte, error) {
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return nil, fmt.Errorf("GET %s: %w", full, err)
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("GET %s: %s: %w", full, resp.Status, ErrNotFound)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET %s: %s", full, resp.Status)

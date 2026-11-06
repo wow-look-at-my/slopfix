@@ -1,12 +1,18 @@
 package cmd
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
 // runScriptGuards are shell guards from sglang's fork-ci.yml. Each line
@@ -24,18 +30,8 @@ var runScriptGuards = []struct{ open, body, close string }{
 	},
 }
 
-const runScriptHead = "name: CI\n" +
-	"on:\n" +
-	"  push:\n" +
-	"    branches: ['**']\n" +
-	"concurrency:\n" +
-	"  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n" +
-	"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n" +
-	"jobs:\n" +
-	"  kernel:\n" +
-	"    runs-on: ubuntu-latest\n" +
-	"    steps:\n" +
-	"      - run: |\n"
+//go:embed testdata/run-script-head.yml
+var runScriptHead string
 
 // runScriptFile writes content under a workflows directory, where the yaml
 // rules read it, and answers its path.
@@ -65,6 +61,40 @@ func TestTheHookKeepsALineAnEditAddsToARunScript(t *testing.T) {
 				},
 			}
 			got := ask(t, payload)
+
+			assert.NotContains(t, got.body, "permissionDecision")
+			assert.Nil(t, got.out["updatedInput"], "the hook rewrote the edit: %s", got.body)
+		})
+	}
+}
+
+//go:embed testdata/validate-step.sh
+var validateStep string
+
+// The finding has a repair, which moves the script to a file. The hook writes
+// one file, so an Edit to the line lands as written.
+func TestTheHookLetsAnEditChangeALineTheTreeRepairMoves(t *testing.T) {
+	content := runScriptHead + validateStep
+	path := runScriptFile(t, content)
+	var lines []int
+	for _, f := range slopfix.CheckContent(path, content) {
+		if f.ID == workflow.IDTestInYAML {
+			lines = append(lines, f.Line)
+		}
+	}
+	require.NotEmpty(t, lines, "the step carries the finding")
+	require.True(t, slopfix.Repairable(workflow.IDTestInYAML))
+
+	for name, text := range map[string]string{
+		"remove the assertion": "          go test ./...\n",
+		"change the assertion": strings.Replace(validateStep, "STOP_AT ==", "STOP_AT >=", 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := ask(t, map[string]any{
+				"hook_event_name": "PreToolUse",
+				"tool_name":       "Edit",
+				"tool_input":      map[string]any{"file_path": path, "old_string": validateStep, "new_string": text},
+			})
 
 			assert.NotContains(t, got.body, "permissionDecision")
 			assert.Nil(t, got.out["updatedInput"], "the hook rewrote the edit: %s", got.body)

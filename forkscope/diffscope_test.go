@@ -1,5 +1,7 @@
 package forkscope
 
+import _ "embed"
+
 import (
 	"path/filepath"
 	"testing"
@@ -15,10 +17,10 @@ import (
 func TestDiffLinesNamesTheSelectorLines(t *testing.T) {
 	work := t.TempDir()
 	gitT(t, work, "init", "-q", "-b", "main")
-	writeT(t, work, "doc.md", "# Doc\n\nAlpha.\n\nBeta.\n")
+	writeT(t, work, "doc.md", testDiffLinesNamesTheSelectorLinesMd)
 	gitT(t, work, "add", "-A")
 	gitT(t, work, "commit", "-q", "-m", "base")
-	writeT(t, work, "doc.md", "# Doc\n\nAlpha.\n\nChanged.\n")
+	writeT(t, work, "doc.md", testDiffLinesNamesTheSelectorLinesMd2)
 
 	own, err := DiffLines(work, "HEAD", false)
 	require.NoError(t, err)
@@ -74,3 +76,9 @@ func TestIntersectLinesKeepsOnlyTheSharedLines(t *testing.T) {
 	assert.Same(t, a, IntersectLines(a, nil))
 	assert.Same(t, b, IntersectLines(nil, b))
 }
+
+//go:embed testdata/test-diff-lines-names-the-selector-lines.md
+var testDiffLinesNamesTheSelectorLinesMd string
+
+//go:embed testdata/test-diff-lines-names-the-selector-lines-2.md
+var testDiffLinesNamesTheSelectorLinesMd2 string

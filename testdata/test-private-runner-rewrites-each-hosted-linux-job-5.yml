@@ -1,0 +1,4 @@
+  tagged:
+    runs-on: &runner !!str ubuntu-latest
+    steps:
+      - run: make

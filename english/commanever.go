@@ -1,3 +1,5 @@
+// IDCommaNever names the rule against a contrast added with ", never".
+
 package english
 
 import (

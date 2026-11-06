@@ -1,5 +1,7 @@
 package noworkloss
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -27,11 +29,7 @@ func TestAScriptsUnresolvableWorkingDirectoryIsTheProgramsOwnBusiness(t *testing
 	modify(t, dir)
 	untrack(t, dir, "scratch.txt")
 
-	cmd := writeScript(t, dir, "bootstrap.bash", `targ="$1"
-cd "$targ"
-rm -f .gitignore
-rm -rf pkg/bootstrap pkg/obj
-`)
+	cmd := writeScript(t, dir, "bootstrap.bash", testAScriptsUnresolvableWorkingDirectoryIsTheProgramsOwnBusinessSh)
 	allowed(t, dir, cmd)
 }
 
@@ -103,9 +101,7 @@ func TestShellOptionSetDoesNotDisableVariableResolution(t *testing.T) {
 	modify(t, dir)
 	scratch := t.TempDir()
 
-	allowed(t, dir, `set -e
-set +o pipefail
-OUT=`+scratch+`/out.log
+	allowed(t, dir, testShellOptionSetDoesNotDisableVariableResolutionSh+scratch+`/out.log
 echo x > "$OUT"`)
 }
 
@@ -124,3 +120,9 @@ echo x > "$OUT"`)
 		})
 	}
 }
+
+//go:embed testdata/test-a-scripts-unresolvable-working-directory-is-the-programs-own-business.sh
+var testAScriptsUnresolvableWorkingDirectoryIsTheProgramsOwnBusinessSh string
+
+//go:embed testdata/test-shell-option-set-does-not-disable-variable-resolution.sh
+var testShellOptionSetDoesNotDisableVariableResolutionSh string

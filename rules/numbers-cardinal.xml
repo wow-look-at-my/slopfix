@@ -42,6 +42,6 @@
   <!-- A word that names the item a number after it identifies, as in
        "Migration 014" or "HTTP 404". No edit renumbers what it names. -->
   <class name="label" words="http migration migrations rfc pr issue version
-    release port revision"/>
+    release port revision pid"/>
 
 </rules>

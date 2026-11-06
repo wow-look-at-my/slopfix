@@ -1,3 +1,5 @@
+// IDNearDuplicate is a file that is nearly the same as another file of the same name.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// Every tool fills the keys its own shape has and leaves the rest empty, so this reads the location out of whichever tool is asking.
+
 package autoallow
 
 import (

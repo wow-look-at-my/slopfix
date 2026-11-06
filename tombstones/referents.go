@@ -13,11 +13,14 @@ package tombstones
 
 import (
 	"context"
+	"go/parser"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -98,6 +101,65 @@ func foreignInGo(path, name string) bool {
 	return true
 }
 
+// selector finds each pkg.Name a comment writes.
+var selector = regexp.MustCompile(`\b([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)`)
+
+// versionElement is the major-version element that ends a module path, as in /v2.
+var versionElement = regexp.MustCompile(`^v[0-9]+$`)
+
+// importQualified answers each name a Go comment writes after a package the
+// file imports, as in http.DefaultClient. That package defines the name, so
+// the repository need not.
+func importQualified(path, added string, blocks []Block) set.Set[string] {
+	out := set.New[string]()
+	if !strings.HasSuffix(path, ".go") {
+		return out
+	}
+	packages := importNames(path, added)
+	if self, err := os.ReadFile(path); err == nil {
+		for name := range importNames(path, string(self)).All() {
+			packages.Add(name)
+		}
+	}
+	for _, b := range blocks {
+		for _, m := range selector.FindAllStringSubmatch(b.Prose, -1) {
+			if packages.Contains(m[1]) {
+				out.Add(m[2])
+			}
+		}
+	}
+	return out
+}
+
+// importNames answers the name each import of a Go source binds: its alias,
+// or the package name its path ends in.
+func importNames(path, src string) set.Set[string] {
+	out := set.New[string]()
+	file, err := parser.ParseFile(token.NewFileSet(), path, src, parser.ImportsOnly)
+	if err != nil {
+		return out
+	}
+	for _, spec := range file.Imports {
+		if spec.Name != nil {
+			out.Add(spec.Name.Name)
+			continue
+		}
+		p, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		elems := strings.Split(p, "/")
+		last := elems[len(elems)-1]
+		if versionElement.MatchString(last) && len(elems) > 1 {
+			last = elems[len(elems)-2]
+		}
+		// gopkg.in/yaml.v3 binds yaml.
+		last, _, _ = strings.Cut(last, ".")
+		out.Add(last)
+	}
+	return out
+}
+
 // DeadReferents returns the identifiers the blocks name that appear neither in
 // the text nor in the repository. It returns nothing when it cannot answer.
 //
@@ -129,9 +191,10 @@ func DeadReferents(path, added string, blocks []Block) []string {
 	if ix.missingDependency(root) {
 		return nil
 	}
+	imported := importQualified(path, added, blocks)
 	var ordered []string
 	for n := range names.All() {
-		if strings.Count(added, n) > 1 || foreignInGo(path, n) || ix.namesAFile(root, n) {
+		if strings.Count(added, n) > 1 || foreignInGo(path, n) || imported.Contains(n) || ix.namesAFile(root, n) {
 			continue
 		}
 		ordered = append(ordered, n)

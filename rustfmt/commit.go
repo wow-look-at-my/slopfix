@@ -1,3 +1,5 @@
+// commitDirs gives the directory of each `git commit` in a shell command.
+
 package rustfmt
 
 import (

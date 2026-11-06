@@ -1,0 +1,13 @@
+name: CI
+on:
+  push:
+concurrency:
+  group: g
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          # Building from a directory also asks the module cache for nothing, so the generator that lives in the module needing it never has to complete that module earliest.
+          make

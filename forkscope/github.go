@@ -1,3 +1,5 @@
+// forkParent is a fork's parent as GET /repos/{repo} names it.
+
 package forkscope
 
 import (

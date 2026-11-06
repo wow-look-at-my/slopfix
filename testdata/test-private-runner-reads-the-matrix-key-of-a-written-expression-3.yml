@@ -1,0 +1,4 @@
+  mac:
+    runs-on: macOS-latest
+    steps:
+      - run: make

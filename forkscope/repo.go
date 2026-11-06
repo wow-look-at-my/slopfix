@@ -1,3 +1,5 @@
+// openTop opens the repository of the work tree at top.
+
 package forkscope
 
 import (

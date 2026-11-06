@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -16,14 +18,14 @@ func TestFormatJoinsAParagraph(t *testing.T) {
 
 func TestFormatLeavesAFenceAlone(t *testing.T) {
 	// A fence is data. Joining its lines would change what the code does.
-	src := "```go\nif err != nil {\n\treturn err\n}\n```\n"
+	src := testFormatLeavesAFenceAloneMd
 	got, safe := Format(src)
 	require.True(t, safe)
 	assert.Equal(t, src, got)
 }
 
 func TestFormatLeavesTablesAndHeadingsAlone(t *testing.T) {
-	src := "# Heading\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"
+	src := testFormatLeavesTablesAndHeadingsAloneMd
 	got, safe := Format(src)
 	require.True(t, safe)
 	assert.Equal(t, src, got)
@@ -44,7 +46,7 @@ func TestFormatKeepsNestedIndentation(t *testing.T) {
 }
 
 func TestFormatIsIdempotent(t *testing.T) {
-	src := "One paragraph, wrapped\nover lines.\n\n```\ncode\n```\n\n- item one\n  continued\n"
+	src := testFormatIsIdempotentMd
 	once, safe := Format(src)
 	require.True(t, safe)
 	twice, safe := Format(once)
@@ -53,7 +55,7 @@ func TestFormatIsIdempotent(t *testing.T) {
 }
 
 func TestFormatLosesNoWords(t *testing.T) {
-	src := "# Title\n\nSome prose\nwrapped here.\n\n- a list item\n  continued on\n  three lines\n\n```\nverbatim\n```\n"
+	src := testFormatLosesNoWordsMd
 	got, safe := Format(src)
 	require.True(t, safe, "a rewrite that changes words must not be written back")
 	assert.Equal(t, strings.Fields(src), strings.Fields(got))
@@ -70,7 +72,7 @@ func TestCheckReportsAWrappedParagraph(t *testing.T) {
 
 func TestCheckIgnoresAFencesContents(t *testing.T) {
 	// The shell inside a fence carries semicolons and contractions. It is code.
-	src := "```sh\necho one; echo two   # don't touch this\n```\n"
+	src := testCheckIgnoresAFencesContentsMd
 	assert.Empty(t, Check(src))
 }
 
@@ -107,7 +109,24 @@ func TestCheckReportsALongSentence(t *testing.T) {
 }
 
 func TestCheckAcceptsCompliantProse(t *testing.T) {
-	src := "# Title\n\nThe runner reads the file. It reports one finding per rule.\n\n" +
-		"- Each item is one line.\n- The reader's window wraps it.\n\n```\ncode; here\n```\n"
+	src := testCheckAcceptsCompliantProseMd
 	assert.Empty(t, Check(src))
 }
+
+//go:embed testdata/test-format-leaves-a-fence-alone.md
+var testFormatLeavesAFenceAloneMd string
+
+//go:embed testdata/test-format-leaves-tables-and-headings-alone.md
+var testFormatLeavesTablesAndHeadingsAloneMd string
+
+//go:embed testdata/test-format-is-idempotent.md
+var testFormatIsIdempotentMd string
+
+//go:embed testdata/test-format-loses-no-words.md
+var testFormatLosesNoWordsMd string
+
+//go:embed testdata/test-check-ignores-a-fences-contents.md
+var testCheckIgnoresAFencesContentsMd string
+
+//go:embed testdata/test-check-accepts-compliant-prose.md
+var testCheckAcceptsCompliantProseMd string

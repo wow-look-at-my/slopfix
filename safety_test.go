@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -103,9 +105,7 @@ func TestARustDocHeadingAndItsBreaksStay(t *testing.T) {
 // The sentence split that invented a fragment. The tail became a sentence of
 // its own with a pronoun subject it never had: "It while this function runs."
 func TestALongDocSentenceDoesNotSplitIntoAFragment(t *testing.T) {
-	src := "/// # Safety\n" +
-		"/// The caller must ensure that the pointer stays valid for reads of n bytes for the whole call, and that no other thread writes through it while this function runs.\n" +
-		"fn f() {}\n"
+	src := testALongDocSentenceDoesNotSplitIntoAFragmentRs
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "f.rs", Rules: []slopfix.Rule{slopfix.RuleSTE}}).Text
 	assert.NotContains(t, out, "It while this function", "the split invented a sentence:\n%s", out)
 	assert.Contains(t, out, "no other thread writes through it", "the clause was cut:\n%s", out)
@@ -149,3 +149,6 @@ func TestACommaEndsALongFragmentDocSentence(t *testing.T) {
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "jail.rs", Rules: []slopfix.Rule{slopfix.RuleSTE}}).Text
 	assert.Contains(t, out, "off Linux as well. Because the emitted argv IS the contract", "the sentence was not divided at its comma:\n%s", out)
 }
+
+//go:embed testdata/test-a-long-doc-sentence-does-not-split-into-a-fragment.rs
+var testALongDocSentenceDoesNotSplitIntoAFragmentRs string

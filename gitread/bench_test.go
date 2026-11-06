@@ -20,7 +20,8 @@ func benchRepo(b *testing.B) string {
 	}
 	gitT(b, dir, "add", "-A")
 	gitT(b, dir, "commit", "-q", "-m", "files")
-	gitT(b, dir, "gc", "-q")
+	// gc writes a cruft pack, and that step fails on the CI runner's git. A repack packs the objects with no cruft step.
+	gitT(b, dir, "repack", "-a", "-d", "-q")
 	return dir
 }
 

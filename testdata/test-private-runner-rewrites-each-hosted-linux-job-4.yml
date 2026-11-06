@@ -1,0 +1,4 @@
+  kept:
+    runs-on: "${{ vars.CI_RUNNER_DIND||'ubuntu-22.04' }}"
+    steps:
+      - run: make

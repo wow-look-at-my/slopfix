@@ -1,3 +1,5 @@
+// IDInventoryCount names the stale-count rule over a document.
+
 package slopfix
 
 import (
@@ -57,7 +59,7 @@ var hooks = []Hook{
 	{
 		Name:    "common-checks",
 		Event:   "PreToolUse",
-		Runs:    "slopfix check --json --path <file>",
+		Runs:    "slopfix check --json --path <file> -",
 		Summary: "the default check set, which is what this gate means",
 	},
 	{
@@ -65,7 +67,7 @@ var hooks = []Hook{
 		Event:   "build",
 		Runs:    "slopfix check .",
 		Summary: "what a comment gets wrong, in any language the adapter knows",
-		Only:    []string{IDCommentNumber, commentfix.IDTail, commentfix.IDLength, ste.IDSentenceCap},
+		Only:    []string{IDCommentNumber, commentfix.IDTail, commentfix.IDHeader, commentfix.IDLength, ste.IDSentenceCap},
 	},
 	{
 		Name:    "ci check",
@@ -79,6 +81,13 @@ var hooks = []Hook{
 		Event:   "Stop",
 		Runs:    "slopfix hook --only laziness",
 		Summary: "a turn ending with the work undone",
+		Only:    []string{IDPunt},
+	},
+	{
+		Name:    "no-permission-to-fix",
+		Event:   "PreToolUse",
+		Runs:    "slopfix hook --only laziness",
+		Summary: "a question, an agent prompt or a message that asks permission to do a fix",
 		Only:    []string{IDPunt},
 	},
 	{

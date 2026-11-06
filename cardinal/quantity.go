@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/precompiled"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -23,7 +24,7 @@ var proseQuantity = `(?:\d{1,4}|\b(?:` + proseAlt + `))` +
 
 // gateQuantity is the merge gate's spelling. It reads a shorter list of
 // words, any run of digits, and a shorter adjective gap.
-var gateQuantity = regexp.MustCompile(`(?i)\b(?:` + gateAlt + `|[0-9]+)` +
+var gateQuantity = precompiled.MustCompile(`(?i)\b(?:` + gateAlt + `|[0-9]+)` +
 	`\s+(?:[0-9]+(?:\.[0-9]+)?\s+[a-z]+\s+)?(?:[a-z-]+\s+){0,2}?[a-z]+s\b`)
 
 // Match is a quantity the pattern found, and the parts an exemption asks about.

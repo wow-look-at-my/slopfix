@@ -1,3 +1,5 @@
+// This file ports git's wildmatch.c, which gitignore and gitattributes patterns run through.
+
 package gitread
 
 // This file ports git's wildmatch.c, which gitignore and gitattributes

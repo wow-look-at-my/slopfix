@@ -94,7 +94,8 @@ func paragraphs(text []string) []paragraph {
 	}
 	// A code block in a comment opens after a blank comment line.
 	blank := true
-	for _, line := range text {
+	directives := directiveMask(text)
+	for i, line := range text {
 		if isBlankComment(line) {
 			flush()
 			flushBlock()
@@ -111,10 +112,18 @@ func paragraphs(text []string) []paragraph {
 			continue
 		}
 		// A directive is read by a tool, so it keeps its bytes and its own line.
-		if isDirectiveLine(line) {
+		if directives[i] {
 			flush()
 			flushBlock()
 			block = append(block, line)
+			blank = false
+			continue
+		}
+		// A heading is structure, so it keeps its own line. A join would weld it to the sentence under it.
+		if isHeading(stripMarker(line)) {
+			flush()
+			flushBlock()
+			out = append(out, paragraph{verbatim: true, raw: []string{line}})
 			blank = false
 			continue
 		}
@@ -207,7 +216,6 @@ func widen(text []string, width int) ([]string, bool) {
 			out = append(out, para.raw...)
 			continue
 		}
-		// A line that ends a thought with no stop gets one, so the joined lines still read as sentences.
 		out = append(out, reflow(closeThoughts(para.lines), indent, marker, width)...)
 	}
 	if len(out) >= len(text) {

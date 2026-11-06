@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -9,9 +11,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-const orgBlock = "concurrency:\n" +
-	"  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n" +
-	"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n"
+//go:embed testdata/org-block.yml
+var orgBlock string
 
 func concurrencyFindings(content string) []ste.Finding {
 	var out []ste.Finding
@@ -25,11 +26,11 @@ func concurrencyFindings(content string) []ste.Finding {
 
 func TestAWorkflowWithoutTheOrgBlockIsReported(t *testing.T) {
 	cases := map[string]int{
-		"on: push\njobs: {}\n": 1,
-		"name: ci\non:\n  push:\n    branches: ['**']\njobs: {}\n":                    2,
-		"on: push\nconcurrency: ci\njobs: {}\n":                                       2,
-		"on: push\nconcurrency:\n  group: ci\n  cancel-in-progress: true\njobs: {}\n": 2,
-		"on: push\n" + orgBlock + "  extra: x\njobs: {}\n":                            2,
+		"on: push\njobs: {}\n":                             1,
+		testAWorkflowWithoutTheOrgBlockIsReportedYml:       2,
+		testAWorkflowWithoutTheOrgBlockIsReportedYml2:      2,
+		testAWorkflowWithoutTheOrgBlockIsReportedYml3:      2,
+		"on: push\n" + orgBlock + "  extra: x\njobs: {}\n": 2,
 	}
 	for content, line := range cases {
 		found := concurrencyFindings(content)
@@ -42,10 +43,10 @@ func TestAWorkflowWithoutTheOrgBlockIsReported(t *testing.T) {
 func TestTheOrgBlockPasses(t *testing.T) {
 	for _, content := range []string{
 		"on: push\n" + orgBlock + "jobs: {}\n",
-		"on: push\nconcurrency:\n  group: \"gha_${{github.repository}}_${{github.workflow}}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\"\n  cancel-in-progress: ${{github.ref != 'refs/heads/master'}}\njobs: {}\n",
+		testTheOrgBlockPassesYml,
 		// A reusable workflow runs in the caller's context, so the same group deadlocks.
 		"on: workflow_call\njobs: {}\n",
-		"on:\n  workflow_call:\n  push:\njobs: {}\n",
+		testTheOrgBlockPassesYml2,
 		"runs:\n  using: composite\n",
 	} {
 		assert.Empty(t, concurrencyFindings(content), content)
@@ -54,11 +55,11 @@ func TestTheOrgBlockPasses(t *testing.T) {
 
 func TestTheRepairWritesTheOrgBlock(t *testing.T) {
 	cases := map[string]string{
-		"on: workflow_dispatch\njobs: {}\n":                                                        "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
-		"on: workflow_dispatch\n\njobs: {}\n":                                                      "on: workflow_dispatch\n\n" + orgBlock + "\njobs: {}\n",
-		"on:\n  pull_request:\n# the jobs\njobs: {}\n":                                             "on:\n  pull_request:\n" + orgBlock + "# the jobs\njobs: {}\n",
-		"on: workflow_dispatch\nconcurrency: ci\njobs: {}\n":                                       "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
-		"on: workflow_dispatch\nconcurrency:\n  group: ci\n  cancel-in-progress: true\njobs: {}\n": "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
+		"on: workflow_dispatch\njobs: {}\n":   "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
+		"on: workflow_dispatch\n\njobs: {}\n": "on: workflow_dispatch\n\n" + orgBlock + "\njobs: {}\n",
+		testTheRepairWritesTheOrgBlockYml:     "on:\n  pull_request:\n" + orgBlock + "# the jobs\njobs: {}\n",
+		testTheRepairWritesTheOrgBlockYml2:    "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
+		testTheRepairWritesTheOrgBlockYml3:    "on: workflow_dispatch\n" + orgBlock + "jobs: {}\n",
 	}
 	for content, want := range cases {
 		out := workflow.Fix(content, func(string) bool { return true }).Text
@@ -70,7 +71,7 @@ func TestTheRepairWritesTheOrgBlock(t *testing.T) {
 // The block goes after the blank line that ends the triggers. Every line of the
 // comment after it stays.
 func TestTheRepairKeepsTheCommentAfterTheTriggers(t *testing.T) {
-	head := "on:\n  push:\n    branches: [\"**\"]\n  pull_request:\n\n"
+	head := testTheRepairKeepsTheCommentAfterTheTriggersYml
 	tail := "# go-toolchain@v1 requirements. contents: write is the dependency-graph\n" +
 		"# submission (403 without it).\npermissions:\n  contents: write\njobs: {}\n"
 	only := func(id string) bool { return id == workflow.IDConcurrency }
@@ -78,9 +79,39 @@ func TestTheRepairKeepsTheCommentAfterTheTriggers(t *testing.T) {
 }
 
 func TestTheRepairKeepsTheFileIndent(t *testing.T) {
-	content := "on:\n    workflow_dispatch:\njobs:\n    a:\n        runs-on: x\n"
+	content := testTheRepairKeepsTheFileIndentYml
 	out := workflow.Fix(content, func(string) bool { return true }).Text
 	assert.Contains(t, out, "concurrency:\n    group: gha_")
 	assert.Contains(t, out, "\n    cancel-in-progress: ${{")
 	assert.Empty(t, concurrencyFindings(out))
 }
+
+//go:embed testdata/test-a-workflow-without-the-org-block-is-reported.yml
+var testAWorkflowWithoutTheOrgBlockIsReportedYml string
+
+//go:embed testdata/test-a-workflow-without-the-org-block-is-reported-2.yml
+var testAWorkflowWithoutTheOrgBlockIsReportedYml2 string
+
+//go:embed testdata/test-a-workflow-without-the-org-block-is-reported-3.yml
+var testAWorkflowWithoutTheOrgBlockIsReportedYml3 string
+
+//go:embed testdata/test-the-org-block-passes.yml
+var testTheOrgBlockPassesYml string
+
+//go:embed testdata/test-the-org-block-passes-2.yml
+var testTheOrgBlockPassesYml2 string
+
+//go:embed testdata/test-the-repair-writes-the-org-block.yml
+var testTheRepairWritesTheOrgBlockYml string
+
+//go:embed testdata/test-the-repair-writes-the-org-block-2.yml
+var testTheRepairWritesTheOrgBlockYml2 string
+
+//go:embed testdata/test-the-repair-writes-the-org-block-3.yml
+var testTheRepairWritesTheOrgBlockYml3 string
+
+//go:embed testdata/test-the-repair-keeps-the-file-indent.yml
+var testTheRepairKeepsTheFileIndentYml string
+
+//go:embed testdata/test-the-repair-keeps-the-comment-after-the-triggers.yml
+var testTheRepairKeepsTheCommentAfterTheTriggersYml string

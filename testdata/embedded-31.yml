@@ -1,0 +1,7 @@
+  db:
+    runs-on: "ubuntu-22.04"
+    services:
+      db:
+        image: postgres
+    steps:
+      - run: make

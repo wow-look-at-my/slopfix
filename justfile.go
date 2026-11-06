@@ -1,3 +1,5 @@
+// script is a scripts entry, in the order the manifest lists it. value is its JSON text.
+
 package slopfix
 
 import (
@@ -10,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/wow-look-at-my/go-containers/set"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // script is a scripts entry, in the order the manifest lists it. value is its JSON text.
@@ -67,6 +70,7 @@ func moveScripts(path string, content []byte) ([]string, error) {
 	if err := os.WriteFile(justfile, []byte(recipes), 0o644); err != nil {
 		return nil, err
 	}
+	walktree.Created(justfile)
 	if err := os.WriteFile(path, manifest, info.Mode().Perm()); err != nil {
 		return nil, err
 	}
@@ -223,7 +227,7 @@ func scriptsOf(raw json.RawMessage) ([]script, error) {
 var recipeChar = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
 // npmRun is a call to another script, which becomes a call to its recipe.
-var npmRun = regexp.MustCompile(`\bnpm run(?:-script)? ([A-Za-z0-9_:.-]+)`)
+var npmRun = regexp.MustCompile(`\b(?:npm|pnpm|yarn|bun) run(?:-script)? ([A-Za-z0-9_:.-]+)`)
 
 // recipeName turns a script name into a recipe name.
 func recipeName(name string) string {

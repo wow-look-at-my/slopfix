@@ -1,3 +1,5 @@
+// These checks ask whether the commits survive somewhere else, so a ref-destroying command denies only when they do not.
+
 package noworkloss
 
 import (

@@ -1,5 +1,7 @@
 package cmd
 
+import _ "embed"
+
 import (
 	"bytes"
 	"encoding/json"
@@ -42,7 +44,7 @@ func TestATreeCheckReportsABranchPin(t *testing.T) {
 	t.Cleanup(srv.Close)
 	env := map[string]string{"GITHUB_API_URL": srv.URL}
 	root := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte("runs:\n  using: composite\n  steps:\n    - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte(testATreeCheckReportsABranchPinYml), 0o644))
 	var out bytes.Buffer
 	cmd := &cobra.Command{}
 	cmd.SetOut(&out)
@@ -53,7 +55,7 @@ func TestATreeCheckReportsABranchPin(t *testing.T) {
 	assert.True(t, failed)
 	assert.Contains(t, out.String(), "yaml/branch-pin")
 
-	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte("runs:\n  using: composite\n  steps:\n    - uses: o/hidden@v1\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "action.yml"), []byte(testATreeCheckReportsABranchPinYml2), 0o644))
 	out.Reset()
 	failed, err = treeFindings(cmd, root, slopfix.Request{}, false, forkscope.Resolver{Getenv: func(k string) string { return env[k] }}, nil)
 	require.NoError(t, err)
@@ -102,11 +104,11 @@ func TestATreeCheckInAForkWithNoBaseFails(t *testing.T) {
 // upstreamDoc is a file of the parent that the fork never touches.
 const upstreamDoc = "# Up\n\nIt doesn't hold the lock.\n"
 
-// parentDoc is the parent's doc.md. The fork rewrites its last line.
-const parentDoc = "# Doc\n\nIt doesn't hold the lock.\n\nIt doesn't free the lock.\n"
+//go:embed testdata/parent-doc.md
+var parentDoc string
 
-// forkDoc is doc.md as the fork has it.
-const forkDoc = "# Doc\n\nIt doesn't hold the lock.\n\nIt doesn't free the page.\n"
+//go:embed testdata/fork-doc.md
+var forkDoc string
 
 // forkRepo is a fork, its origin on GitHub, and the resolver that reaches its parent.
 type forkRepo struct {
@@ -216,7 +218,7 @@ func poisonGit(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	marker := filepath.Join(t.TempDir(), "spawned")
-	script := "#!/bin/sh\nprintf spawned >> \"$SLOPFIX_GIT_MARKER\"\nexit 1\n"
+	script := poisonGitSh
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o755))
 	t.Setenv("SLOPFIX_GIT_MARKER", marker)
 	t.Setenv("PATH", dir)
@@ -384,3 +386,12 @@ func TestTheWriteHookInAForkWithNoBaseRefuses(t *testing.T) {
 	assert.Equal(t, "deny", got.out["permissionDecision"])
 	assert.Contains(t, got.out["permissionDecisionReason"], "500")
 }
+
+//go:embed testdata/poison-git.sh
+var poisonGitSh string
+
+//go:embed testdata/test-a-tree-check-reports-a-branch-pin.yml
+var testATreeCheckReportsABranchPinYml string
+
+//go:embed testdata/test-a-tree-check-reports-a-branch-pin-2.yml
+var testATreeCheckReportsABranchPinYml2 string

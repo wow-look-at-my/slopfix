@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rules>
+  <mcpServer name="grafana">
+    <tool>get_*</tool>
+    <tool>list_*</tool>
+  </mcpServer>
+  <mcpServer name="cloudflare">
+    <tool>search_*</tool>
+  </mcpServer>
+</rules>

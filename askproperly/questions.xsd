@@ -1,0 +1,28 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+	The ask/prose-decision table: the phrases that hand the reader a decision in
+	prose, and the opening words that make a question mark a question.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+	<!-- A phrase, matched without regard to case. Each example must report it. -->
+	<xs:complexType name="deferral">
+		<xs:sequence>
+			<xs:element name="example" type="xs:string" minOccurs="1" maxOccurs="unbounded"/>
+		</xs:sequence>
+		<xs:attribute name="phrase" type="xs:string" use="required"/>
+	</xs:complexType>
+
+	<xs:complexType name="cue">
+		<xs:attribute name="word" type="xs:string" use="required"/>
+	</xs:complexType>
+
+	<xs:element name="questions">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="deferral" type="deferral" minOccurs="1" maxOccurs="unbounded"/>
+				<xs:element name="cue" type="cue" minOccurs="1" maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

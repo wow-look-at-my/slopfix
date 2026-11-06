@@ -1,3 +1,5 @@
+// FormatFile rewrites path in place with the rustfmt output.
+
 package rustfmt
 
 import (

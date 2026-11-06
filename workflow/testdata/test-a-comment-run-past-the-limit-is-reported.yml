@@ -1,0 +1,7 @@
+name: CI
+
+# A preview is republished by pushing, so a branch whose
+# last run predates a change had no way to pick it up.
+# This trigger exists for that.
+on:
+  workflow_dispatch:

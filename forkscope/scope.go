@@ -1,3 +1,5 @@
+// Scope is the lines of one file that the fork wrote, counted from one.
+
 package forkscope
 
 import (

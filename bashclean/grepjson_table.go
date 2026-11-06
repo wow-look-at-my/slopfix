@@ -82,10 +82,12 @@ type grepProgramSpec struct {
 	syntax regexSyntax
 }
 
-var grepEffects = set.Of[string]("pattern", "ignore-case", "case-sensitive", "smart-case",
+var grepEffectNames = []string{"pattern", "ignore-case", "case-sensitive", "smart-case",
 	"invert", "basic", "extended", "fixed", "perl",
 	"word", "line", "with-filename", "no-filename",
-	"line-number", "no-line-number", "count", "none")
+	"line-number", "no-line-number", "count", "none"}
+
+var grepEffects = set.Of[string](grepEffectNames...)
 
 var grepPrograms = mustLoadGrepPrograms(grepJSONXML)
 

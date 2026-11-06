@@ -1,0 +1,7 @@
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          if true; then
+            echo hi

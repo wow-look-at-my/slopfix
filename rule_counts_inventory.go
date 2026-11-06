@@ -1,3 +1,5 @@
+// counts/inventory-count: a document that counts what is here.
+
 package slopfix
 
 import (
@@ -15,6 +17,11 @@ func init() {
 		Autofix:  autofixInventoryCount,
 		Cases: []RuleCase{
 			{Name: counts.ID, Path: "x.md", Text: "This project has 20 rules.\n"},
+			{
+				Name: "a count between a have verb and a participle", Path: "x.md",
+				Text: "The tool has two expected results. Its own entry refuses it.\n",
+				Want: "The tool has a couple of expected results. Its own entry refuses it.\n",
+			},
 			{Name: counts.ID + " in a bullet item", Path: "x.md", Text: "- There are 20 rules here.\n", Want: "- There are rules here.\n"},
 			{Name: counts.ID + " in a numbered item", Path: "x.md", Text: "1. The repo ships 15 hooks.\n", Want: "1. The repo ships hooks.\n"},
 			{Name: counts.ID + " in a parenthesis numbered item", Path: "x.md", Text: "1) The repo ships 15 hooks.\n", Want: "1) The repo ships hooks.\n"},

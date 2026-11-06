@@ -1,3 +1,5 @@
+// The repository rules.
+
 package slopfix
 
 import (

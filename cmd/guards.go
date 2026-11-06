@@ -1,3 +1,5 @@
+// The events a guard serves, as Claude Code spells them on the payload.
+
 package cmd
 
 import (
@@ -5,9 +7,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
+	"github.com/wow-look-at-my/slopfix/agentlaunch"
 	"github.com/wow-look-at-my/slopfix/askproperly"
 	"github.com/wow-look-at-my/slopfix/autoallow"
 	"github.com/wow-look-at-my/slopfix/bashclean"
@@ -19,6 +23,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/mdbudget"
 	"github.com/wow-look-at-my/slopfix/noworkloss"
 	"github.com/wow-look-at-my/slopfix/rustfmt"
+	"github.com/wow-look-at-my/slopfix/twelvehour"
 )
 
 // The events a guard serves, as Claude Code spells them on the payload.
@@ -70,10 +75,20 @@ var guards = []guard{
 	{name: "auto-allow", events: []string{eventPreToolUse, eventPermissionRequest}, run: reader(func(r *strings.Reader) hookResult { return hookResult(autoallow.Run(r)) })},
 	{name: "busy-poll", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(busypoll.Run(r)) })},
 	{name: "md-budget", events: []string{eventSessionStart, eventPostToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(mdbudget.Run(r)) })},
-	{name: "laziness", events: []string{eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(laziness.Run(r)) })},
+	{name: "laziness", events: []string{eventPreToolUse, eventStop}, run: reader(func(r *strings.Reader) hookResult { return hookResult(laziness.Run(r, repairPunt)) })},
+	{name: "agent-launch", events: []string{eventPreToolUse}, run: reader(func(r *strings.Reader) hookResult { return hookResult(agentlaunch.Run(r)) })},
 	{name: "link-refs", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(linkrefs.Run(r)) })},
 	{name: "blame-language", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(blamelanguage.Run(r)) })},
 	{name: "ask-properly", events: []string{eventMessageDisplay}, run: reader(func(r *strings.Reader) hookResult { return hookResult(askproperly.Run(r)) })},
+	{name: twelveHourGuard, events: []string{eventMessageDisplay}, run: func([]byte, writeSelection) hookResult { return hookResult{} }},
+}
+
+// twelveHourGuard runs over what the other display guards answered, so its rewrite and theirs both reach the reader.
+const twelveHourGuard = "twelve-hour"
+
+// repairPunt is the laziness/punt autofix, the one `fix --message` runs.
+func repairPunt(text string) string {
+	return slopfix.FixMessage(text, func(id string) bool { return id == laziness.ID })
 }
 
 // reader adapts a package entry point that reads its payload from a stream.
@@ -237,6 +252,9 @@ func messageDisplay(payload []byte, serving []guard, write writeSelection) hookR
 			continue
 		}
 		base = content
+	}
+	if slices.ContainsFunc(serving, func(g guard) bool { return g.name == twelveHourGuard }) {
+		base = twelvehour.Rewrite(base, time.Now())
 	}
 	result := hookResult{Stderr: strings.Join(stderr, "")}
 	if base == in.Delta && len(notes) == 0 {

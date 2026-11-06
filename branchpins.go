@@ -1,6 +1,9 @@
+// GitHubRefs answers workflow.Refs from the GitHub API, the way the fork scope reads it: GITHUB_API_URL.
+
 package slopfix
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -17,42 +20,49 @@ import (
 type GitHubRefs struct {
 	getenv   func(string) string
 	mu       sync.Mutex
-	defaults map[string]string
 	kinds    map[string]workflow.RefKind
+	defaults map[string]string
 }
 
 // NewGitHubRefs reads the API settings through getenv.
 func NewGitHubRefs(getenv func(string) string) *GitHubRefs {
-	return &GitHubRefs{getenv: getenv, defaults: map[string]string{}, kinds: map[string]workflow.RefKind{}}
+	return &GitHubRefs{getenv: getenv, kinds: map[string]workflow.RefKind{}, defaults: map[string]string{}}
 }
 
-// DefaultBranch reads GET /repos/{repo}. A repository the token cannot read is
-// the error, because its refs cannot be judged either.
-func (g *GitHubRefs) DefaultBranch(repo string) (string, error) {
+// Default asks GET /repos/{repo} for default_branch. A reply that names no
+// branch answers workflow.DefaultBranch. A body that is not JSON fails.
+func (g *GitHubRefs) Default(repo string) (string, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if def, ok := g.defaults[repo]; ok {
 		return def, nil
 	}
+	status, body, err := githubGet(g.getenv, "/repos/"+repo)
+	if err != nil {
+		return "", fmt.Errorf("branch pin: %w", err)
+	}
+	if status != http.StatusOK {
+		return "", fmt.Errorf("branch pin: GET /repos/%s: %d %s: %s", repo, status, http.StatusText(status), strings.TrimSpace(string(body)))
+	}
 	var info struct {
 		DefaultBranch string `json:"default_branch"`
 	}
-	if err := githubGetJSON(g.getenv, "/repos/"+repo, &info); err != nil {
-		return "", fmt.Errorf("branch pin: %w", err)
+	if trimmed := strings.TrimSpace(string(body)); trimmed != "" {
+		if err := json.Unmarshal([]byte(trimmed), &info); err != nil {
+			return "", fmt.Errorf("branch pin: GET /repos/%s: %w", repo, err)
+		}
 	}
-	if info.DefaultBranch == "" {
-		return "", fmt.Errorf("branch pin: GET /repos/%s names no default branch", repo)
+	def := info.DefaultBranch
+	if def == "" {
+		def = workflow.DefaultBranch
 	}
-	g.defaults[repo] = info.DefaultBranch
-	return info.DefaultBranch, nil
+	g.defaults[repo] = def
+	return def, nil
 }
 
 // Kind asks GET /repos/{repo}/git/ref/heads/{ref}, then .../tags/{ref}. That
 // endpoint matches a ref exactly.
 func (g *GitHubRefs) Kind(repo, ref string) (workflow.RefKind, error) {
-	if _, err := g.DefaultBranch(repo); err != nil {
-		return workflow.RefMissing, err
-	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	key := repo + "@" + ref
@@ -75,6 +85,15 @@ func (g *GitHubRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 		}
 		if status != http.StatusNotFound {
 			return workflow.RefMissing, fmt.Errorf("branch pin: GET %s: %d %s: %s", path, status, http.StatusText(status), strings.TrimSpace(string(body)))
+		}
+	}
+	if kind == workflow.RefMissing {
+		status, body, err := githubGet(g.getenv, "/repos/"+repo)
+		if err != nil {
+			return workflow.RefMissing, fmt.Errorf("branch pin: %w", err)
+		}
+		if status != http.StatusOK {
+			return workflow.RefMissing, fmt.Errorf("branch pin: GET /repos/%s: %d %s: %s", repo, status, http.StatusText(status), strings.TrimSpace(string(body)))
 		}
 	}
 	g.kinds[key] = kind

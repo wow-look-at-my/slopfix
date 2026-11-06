@@ -1,0 +1,7 @@
+jobs:
+  a:
+    runs-on: windows-latest
+    steps:
+      - env:
+          OUT: ${{ steps.x.outputs.path }}
+        run: echo $OUT

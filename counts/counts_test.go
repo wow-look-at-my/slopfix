@@ -1,5 +1,7 @@
 package counts
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -56,7 +58,7 @@ func TestAFunctionWordBreaksTheCount(t *testing.T) {
 // The exemptions come from the markdown splitter, so a fence, a table, a
 // heading and an indented block are all data.
 func TestVerbatimBlocksAreNeverJudged(t *testing.T) {
-	assert.Empty(t, Check("```go\n// it has three sections\n```"))
+	assert.Empty(t, Check(testVerbatimBlocksAreNeverJudgedMd))
 	assert.Empty(t, Check("| it has three sections |\n|---|"))
 	assert.Empty(t, Check("# it has three sections"))
 	assert.Empty(t, Check("    it has three sections"))
@@ -106,13 +108,8 @@ func TestACountAfterANounBecomesMultiple(t *testing.T) {
 	assert.Equal(t, "against binaries built on all platforms.", out, "a determiner before the count still lets it go")
 }
 
-// The lines of a real document that names its branches by number, and then
-// cites them by number alone.
-const attributionVerdict = "### 2. Keyless fallback (branch 3) ambiguity\n\n" +
-	"- branch (1) the still-streaming `current_agent_msg`, guarded by `streaming_matches`.\n" +
-	"- branch (2) the prompt→entry map `finished_prompt_costs` recorded by `finish_turn`.\n" +
-	"- branch (3) the keyless fallback `last_finished_agent_entry`.\n\n" +
-	"- during a newer stream → dropped (branch 1 prompt-mismatch rejects, branch 3 sees `last_finished_agent_entry` already cleared).\n"
+//go:embed testdata/attribution-verdict.md
+var attributionVerdict string
 
 // Digits after a singular noun name an item, and a point on a scale is a
 // value. Each goes stale like a count, so each is a finding. The repair names
@@ -177,6 +174,41 @@ func TestEveryCountIsReworded(t *testing.T) {
 		assert.NotEmpty(t, cut, in)
 		assert.Equal(t, want, out, in)
 	}
+}
+
+// A sign written against the number bounds it the way "at most" does, and the
+// repair keeps the bound. The first case is a line of an
+// agent instruction file.
+func TestABoundSignIsRewordedWithTheBound(t *testing.T) {
+	le, ge, dash := lessOrEqual, greaterOrEqual, string(rune(0x2014))
+	for in, want := range map[string]string{
+		"- **" + le + "750 lines per file** " + dash + " this is why the parser is split into `parser.go` + `lexer.go`": "- **a bounded number of lines per file** " + dash + " this is why the parser is split into `parser.go` + `lexer.go`",
+		"It keeps " + le + "500 lines.":   "It keeps a bounded number of lines.",
+		"It keeps " + le + " 500 lines.":  "It keeps a bounded number of lines.",
+		"It keeps <= 500 lines.":          "It keeps a bounded number of lines.",
+		"It keeps <500 lines.":            "It keeps a bounded number of lines.",
+		"It keeps max 500 lines.":         "It keeps a bounded number of lines.",
+		"It needs " + ge + "3 reviewers.": "It needs a few reviewers.",
+		"It needs >5 reviewers.":          "It needs several reviewers.",
+	} {
+		out, cut := StripGate(in)
+		assert.NotEmpty(t, cut, in)
+		assert.Equal(t, want, out, in)
+		assert.NotContains(t, out, le, in)
+	}
+}
+
+// A blockquote marker is no bound, so the count in it goes as any count does.
+func TestABlockquoteMarkerIsNoBound(t *testing.T) {
+	sign, at := boundSign("> 15 plugins", 2)
+	assert.Empty(t, sign.text)
+	assert.Equal(t, 2, at)
+
+	sign, _ = boundSign("<br>5 files", 4)
+	assert.Empty(t, sign.text, "the end of a tag is no bound")
+
+	sign, _ = boundSign("a->3 files", 3)
+	assert.Empty(t, sign.text, "an arrow is no bound")
 }
 
 // Each of these is the cut a document reader caught. The repair either keeps
@@ -259,3 +291,6 @@ func TestAHitNamesItsLine(t *testing.T) {
 	assert.Equal(t, "There are three sections.", hits[0].Line)
 	assert.Equal(t, 3, hits[0].LineNo)
 }
+
+//go:embed testdata/test-verbatim-blocks-are-never-judged.md
+var testVerbatimBlocksAreNeverJudgedMd string

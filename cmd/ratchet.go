@@ -1,3 +1,5 @@
+// ratchet.go holds the command.
+
 package cmd
 
 import (

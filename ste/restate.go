@@ -1,3 +1,5 @@
+// nounText answers the source text of a word, a whole code span where the word is the filler the mask wrote over one.
+
 package ste
 
 import (

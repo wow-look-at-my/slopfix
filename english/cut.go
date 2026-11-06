@@ -1,3 +1,5 @@
+// A cut removes a phrase from its sentence.
+
 package english
 
 import (

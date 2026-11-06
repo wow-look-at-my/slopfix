@@ -1,7 +1,8 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,7 +24,7 @@ func refsAPI(t *testing.T, calls *int) *httptest.Server {
 		assert.Equal(t, "Bearer tok", r.Header.Get("Authorization"))
 		switch r.URL.EscapedPath() {
 		case "/repos/o/r":
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"default_branch": "master"}))
+			_, _ = w.Write([]byte(`{"default_branch":"master"}`))
 		case "/repos/o/r/git/ref/heads/feature", "/repos/o/r/git/ref/heads/master":
 			w.WriteHeader(http.StatusOK)
 		case "/repos/o/r/git/ref/tags/v1", "/repos/o/r/git/ref/tags/act%23latest":
@@ -42,9 +43,6 @@ func TestGitHubRefsReadsTheAPI(t *testing.T) {
 	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
 	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
 
-	def, err := refs.DefaultBranch("o/r")
-	require.NoError(t, err)
-	assert.Equal(t, "master", def)
 	for ref, want := range map[string]workflow.RefKind{
 		"feature":    workflow.RefBranch,
 		"master":     workflow.RefBranch,
@@ -57,9 +55,42 @@ func TestGitHubRefsReadsTheAPI(t *testing.T) {
 		assert.Equal(t, want, kind, ref)
 	}
 	before := calls
-	_, err = refs.Kind("o/r", "feature")
+	_, err := refs.Kind("o/r", "feature")
 	require.NoError(t, err)
 	assert.Equal(t, before, calls, "an answer is kept")
+
+	def, err := refs.Default("o/r")
+	require.NoError(t, err)
+	assert.Equal(t, "master", def)
+	before = calls
+	_, err = refs.Default("o/r")
+	require.NoError(t, err)
+	assert.Equal(t, before, calls, "a default branch is kept")
+	_, err = refs.Default("o/private")
+	assert.ErrorContains(t, err, "404")
+}
+
+// A reply that names no branch reads as master. A reply that is not JSON fails.
+func TestGitHubRefsDefaultWithNoBranchNamed(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.EscapedPath() {
+		case "/repos/o/empty":
+			w.WriteHeader(http.StatusOK)
+		case "/repos/o/garbage":
+			_, _ = w.Write([]byte("<html>"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
+	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
+
+	def, err := refs.Default("o/empty")
+	require.NoError(t, err)
+	assert.Equal(t, workflow.DefaultBranch, def)
+	_, err = refs.Default("o/garbage")
+	assert.Error(t, err)
 }
 
 func TestGitHubRefsFailsOnARepositoryItCannotRead(t *testing.T) {
@@ -81,7 +112,7 @@ func TestBranchPinsTreeReportsAWorkflowFinding(t *testing.T) {
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	ci := filepath.Join(dir, "ci.yml")
-	require.NoError(t, os.WriteFile(ci, []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@master\n      - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(ci, []byte(testBranchPinsTreeReportsAWorkflowFindingYml), 0o644))
 
 	pins := func(req slopfix.Request) []slopfix.TreeFinding {
 		var found []slopfix.TreeFinding
@@ -108,7 +139,7 @@ func TestATreeRunAsksTheAPIWhenGivenNoRefs(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte(testATreeRunAsksTheAPIWhenGivenNoRefsYml), 0o644))
 
 	var ids []string
 	for _, f := range slopfix.CheckTreeWith(root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings {
@@ -126,7 +157,7 @@ func cachedTree(t *testing.T, cache string) string {
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "slopfix-refs.json"), []byte(cache), 0o644))
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte(cachedTreeYml), 0o644))
 	return root
 }
 
@@ -144,7 +175,7 @@ func TestARecordedAnswerIsUsedInPlaceOfTheAPI(t *testing.T) {
 
 // The fixture API knows only what a fixture declares, so an undeclared repository is a finding and a declared one passes.
 func TestAnUndeclaredFixtureRepositoryIsReported(t *testing.T) {
-	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: acme/undeclared@v1\n"
+	text := testAnUndeclaredFixtureRepositoryIsReportedYml
 	judged := func(declared map[string]string) []slopfix.TreeFinding {
 		c, err := slopfix.Materialize(t.TempDir(), slopfix.RuleCase{Path: ".github/workflows/ci.yml", Text: text, Refs: declared})
 		require.NoError(t, err)
@@ -157,7 +188,7 @@ func TestAnUndeclaredFixtureRepositoryIsReported(t *testing.T) {
 }
 
 func TestAnUndeclaredFixtureRefIsReported(t *testing.T) {
-	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: acme/declared@v9\n"
+	text := testAnUndeclaredFixtureRefIsReportedYml
 	c, err := slopfix.Materialize(t.TempDir(), slopfix.RuleCase{Path: ".github/workflows/ci.yml", Text: text, Refs: map[string]string{"acme/declared": "master"}})
 	require.NoError(t, err)
 	found := slopfix.CheckTreeWith(c.Root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings
@@ -186,7 +217,7 @@ func TestARecordedBranchIsFlaggedWithoutTheAPI(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "slopfix-refs.json"), []byte(`{"o/r":"master","o/r@feature":"branch"}`), 0o644))
 	dir := filepath.Join(root, ".github", "workflows")
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ci.yml"), []byte(testARecordedBranchIsFlaggedWithoutTheAPIYml), 0o644))
 
 	found := slopfix.CheckTreeWith(root, slopfix.Request{IDs: []string{workflow.IDBranchPin}}).Findings
 	require.Len(t, found, 1)
@@ -198,7 +229,7 @@ func TestAnUnreadableRepositoryIsAFindingNotATag(t *testing.T) {
 	srv := refsAPI(t, &calls)
 	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
 	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
-	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/private@v1\n"
+	text := testAnUnreadableRepositoryIsAFindingNotATagYml
 	repair := slopfix.Report(slopfix.Request{Content: text, Path: ".github/workflows/ci.yml", Refs: refs, IDs: []string{workflow.IDBranchPin}})
 	require.Len(t, repair.Findings, 1)
 	assert.Equal(t, workflow.IDBranchPin, repair.Findings[0].ID)
@@ -210,8 +241,32 @@ func TestFixWritesTheDefaultBranchOverABranchPin(t *testing.T) {
 	srv := refsAPI(t, &calls)
 	env := map[string]string{"GITHUB_API_URL": srv.URL, "GITHUB_TOKEN": "tok"}
 	refs := slopfix.NewGitHubRefs(func(k string) string { return env[k] })
-	text := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: o/r@feature\n"
+	text := testFixWritesTheDefaultBranchOverABranchPinYml
 	repair := slopfix.Fix(slopfix.Request{Content: text, Path: ".github/workflows/ci.yml", Refs: refs, IDs: []string{workflow.IDBranchPin}})
 	assert.Contains(t, repair.Text, "uses: o/r@master")
 	assert.Empty(t, repair.Findings)
 }
+
+//go:embed testdata/test-branch-pins-tree-reports-a-workflow-finding.yml
+var testBranchPinsTreeReportsAWorkflowFindingYml string
+
+//go:embed testdata/test-a-tree-run-asks-the-api-when-given-no-refs.yml
+var testATreeRunAsksTheAPIWhenGivenNoRefsYml string
+
+//go:embed testdata/cached-tree.yml
+var cachedTreeYml string
+
+//go:embed testdata/test-an-undeclared-fixture-repository-is-reported.yml
+var testAnUndeclaredFixtureRepositoryIsReportedYml string
+
+//go:embed testdata/test-an-undeclared-fixture-ref-is-reported.yml
+var testAnUndeclaredFixtureRefIsReportedYml string
+
+//go:embed testdata/test-a-recorded-branch-is-flagged-without-the-api.yml
+var testARecordedBranchIsFlaggedWithoutTheAPIYml string
+
+//go:embed testdata/test-an-unreadable-repository-is-a-finding-not-a-tag.yml
+var testAnUnreadableRepositoryIsAFindingNotATagYml string
+
+//go:embed testdata/test-fix-writes-the-default-branch-over-a-branch-pin.yml
+var testFixWritesTheDefaultBranchOverABranchPinYml string

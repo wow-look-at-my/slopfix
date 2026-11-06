@@ -1,0 +1,6 @@
+  test:
+    strategy:
+      matrix:
+        go: [1.25.x, 1.26.x]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: 

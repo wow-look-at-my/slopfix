@@ -1,3 +1,5 @@
+// lspMaxPerFile caps the diagnostics a single file publishes.
+
 package cmd
 
 import (

@@ -13,6 +13,8 @@ package blamelanguage
 import (
 	"regexp"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/precompiled"
 )
 
 // ID names this rule, on a report and on the command line alike.
@@ -73,7 +75,7 @@ var matchers = compile(phrases)
 func compile(list []string) []matcher {
 	out := make([]matcher, len(list))
 	for i, p := range list {
-		out[i] = matcher{text: p, re: regexp.MustCompile(`(?i)` + regexp.QuoteMeta(p))}
+		out[i] = matcher{text: p, re: precompiled.MustCompile(`(?i)` + regexp.QuoteMeta(p))}
 	}
 	return out
 }

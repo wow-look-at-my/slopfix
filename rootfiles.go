@@ -1,3 +1,5 @@
+// The root files every request loads.
+
 package slopfix
 
 import (

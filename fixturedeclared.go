@@ -1,3 +1,5 @@
+// declaredFixtureRefs are the repositories and refs the existing fixtures name in their workflows.
+
 package slopfix
 
 // declaredFixtureRefs are the repositories and refs the existing fixtures
@@ -37,6 +39,10 @@ var declaredFixtureRefs = map[string]string{
 	"wow-look-at-my/go-toolchain@master":             "branch",
 	"wow-look-at-my/go-toolchain@lkgb":               "tag",
 	"wow-look-at-my/go-toolchain@drop-common-checks": "tag",
+	"wow-look-at-my/go-toolchain@v1":                 "tag",
+	"wow-look-at-my/slopfix@lkgb":                    "tag",
+	"wow-look-at-my/buildhost@lkgb":                  "tag",
+	"wow-look-at-my/dats@lkgb":                       "tag",
 	"wow-look-at-my/go-toolchain@deleted-branch":     "tag",
 	"wow-look-at-my/slopfix":                         "master",
 	"wow-look-at-my/slopfix@master":                  "branch",

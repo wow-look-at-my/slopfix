@@ -1,0 +1,8 @@
+defaults:
+  run:
+    shell: pwsh
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - name: x

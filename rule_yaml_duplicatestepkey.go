@@ -1,4 +1,8 @@
+// yaml/duplicate-step-key: a step that names one key twice.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -15,10 +19,10 @@ func init() {
 		Autofix:  autofixDuplicateStepKey,
 		Cases: []RuleCase{
 			workflowCase("duplicate-step-key-first-key", workflowHeader()+
-				"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"+
+				embeddedYml9+
 				"      - run: echo one\n        name: build\n        run: echo two\n"),
 			workflowCase("duplicate-step-key-block-value", workflowHeader()+
-				"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"+
+				embeddedYml10+
 				"      - name: build\n        run: |\n          echo a\n          echo b\n        run: echo c\n"),
 		},
 	})
@@ -33,3 +37,9 @@ func detectDuplicateStepKey(c RuleCase) []ste.Finding {
 func autofixDuplicateStepKey(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDDuplicateStepKey)
 }
+
+//go:embed testdata/embedded-9.yml
+var embeddedYml9 string
+
+//go:embed testdata/embedded-10.yml
+var embeddedYml10 string

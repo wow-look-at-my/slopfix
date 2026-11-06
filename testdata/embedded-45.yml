@@ -1,0 +1,3 @@
+    steps:
+      - id: download
+        run: echo "path=out" >> "$GITHUB_OUTPUT"

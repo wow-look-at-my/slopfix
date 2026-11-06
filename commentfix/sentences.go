@@ -38,7 +38,7 @@ type SentenceHit struct {
 	Sentence string
 	// Tell says the cap and the count, as the document rule says them.
 	Tell string
-	// Fix is the finding's remedy. ste.ByHand reports one no repair writes.
+	// Fix is the finding's remedy.
 	Fix string
 }
 
@@ -156,7 +156,7 @@ func opensListItem(prose string) bool {
 // a line, as in "the byte at the checkpoint" and then "This handles a list".
 func lineEndsThought(prev, next string) bool {
 	prev = strings.TrimSpace(prev)
-	if prev == "" || strings.ContainsAny(prev[len(prev)-1:], ".!?,;:-(—–/\\&|+=") {
+	if prev == "" || next == "" || strings.ContainsAny(prev[len(prev)-1:], ".!?,;:-(—–/\\&|+=") {
 		return false
 	}
 	fields := strings.Fields(prev)

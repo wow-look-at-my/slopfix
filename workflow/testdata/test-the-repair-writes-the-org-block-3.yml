@@ -1,0 +1,5 @@
+on: workflow_dispatch
+concurrency:
+  group: ci
+  cancel-in-progress: true
+jobs: {}

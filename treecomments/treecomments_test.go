@@ -1,7 +1,9 @@
 package treecomments
 
+import _ "embed"
+
 import (
-	"crypto/sha256"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -62,16 +64,26 @@ func TestAFallbackFileKeepsOnlyWholeLineComments(t *testing.T) {
 	assert.Len(t, Extract("run.sh", "echo a&#0;b\n"), 1, "a shell script keeps its trailing comment")
 }
 
-// A file of unknown syntax is not read at all. Read as shell, a GLSL
-// `#version` directive and a CSS `#id` selector are comments, and a repair
-// then cuts code the compiler needs.
+// A file of unknown syntax is not read at all. Read as shell, a CSS `#id`
+// selector is a comment, and a repair then cuts code the compiler needs.
 func TestAnUnknownExtensionIsNotRead(t *testing.T) {
-	glsl := "#version 450\n// a comment\nvoid main() {}\n"
 	css := "#bar { color: red; }\n#title { font-weight: 600; }\n"
-	for name, src := range map[string]string{"shader.frag": glsl, "shader.comp": glsl, "app.css": css, "x.unknownext": "# text\n"} {
+	for name, src := range map[string]string{"app.css": css, "x.unknownext": "# text\n"} {
 		assert.Nil(t, languageFor(name), "%s has no grammar", name)
 		assert.Empty(t, Extract(name, src), "%s yields no comment", name)
 		assert.Empty(t, Runs(name, src), "%s yields no run", name)
+	}
+}
+
+// A GLSL shader reads through the C grammar: its `#version` directive is
+// code, and only its comment is a comment.
+func TestAShaderReadsThroughTheCGrammar(t *testing.T) {
+	glsl := "#version 450\n// a comment\nvoid main() {}\n"
+	for _, name := range []string{"shader.frag", "shader.comp", "shader.glsl"} {
+		require.NotNil(t, languageFor(name), "%s has a grammar", name)
+		got := Extract(name, glsl)
+		require.Len(t, got, 1, "%s yields one comment", name)
+		assert.Equal(t, "// a comment", got[0].Text)
 	}
 }
 
@@ -133,7 +145,7 @@ func TestExtractParsesTheSameSourceOnce(t *testing.T) {
 	src := "package p\n\n// Cached explains the cache test.\nfunc Cached() {}\n"
 	first := Extract("cache.go", src)
 	require.Len(t, first, 1)
-	key := extractKey{language: languageFor("cache.go"), sum: sha256.Sum256([]byte(src))}
+	key := extractKey{language: languageFor("cache.go"), src: src}
 	_, ok := extracted.get(key)
 	require.True(t, ok, "the first Extract must remember its parse")
 
@@ -145,17 +157,17 @@ func TestExtractParsesTheSameSourceOnce(t *testing.T) {
 func TestTheExtractCacheDropsItsOldestEntry(t *testing.T) {
 	c := &extractCache{byKey: map[extractKey][]Comment{}}
 	for i := range extractCacheSize + 1 {
-		c.put(extractKey{sum: [sha256.Size]byte{byte(i), byte(i >> 8)}}, nil)
+		c.put(extractKey{src: fmt.Sprint(i)}, nil)
 	}
 	assert.Len(t, c.byKey, extractCacheSize)
-	_, ok := c.get(extractKey{})
+	_, ok := c.get(extractKey{src: "0"})
 	assert.False(t, ok, "the oldest entry goes first")
 }
 
 // Each Rust line comment holds its own line alone, so the lines of a doc
 // paragraph are one run with no line read twice.
 func TestARustDocLineHoldsItsOwnLine(t *testing.T) {
-	src := "/// Frees the handle that\n/// `create` returned.\nfn free() {}\n"
+	src := testARustDocLineHoldsItsOwnLineRs
 	runs := Runs("x.rs", src)
 	require.Len(t, runs, 1)
 	assert.Equal(t, []string{"/// Frees the handle that", "/// `create` returned."}, texts(runs[0]))
@@ -217,3 +229,6 @@ func TestMissingNamesTheGrammarsWithoutTables(t *testing.T) {
 func TestEveryGrammarIsNamed(t *testing.T) {
 	assert.Len(t, ready, len(grammarNames))
 }
+
+//go:embed testdata/test-a-rust-doc-line-holds-its-own-line.rs
+var testARustDocLineHoldsItsOwnLineRs string

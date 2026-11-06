@@ -30,9 +30,37 @@ func TestIsDirective(t *testing.T) {
 		`/// <amd-module name="NamedModule"/>`:    true,
 		"/// <summary>Prose in a tag.</summary>":  false,
 		"/// The doc comment is prose.":           false,
+		"//@ build-fail":                          true,
+		"//@[v0] compile-flags: -C opt-level=0":   true,
+		"//~^ ERROR symbol-name(_RNvXs_":          true,
+		"//~| NOTE demangling(<":                  true,
+		"//[v0]~^^ ERROR def-path(foo)":           true,
+		"// @param prose":                         false,
+		"// ~ prose":                              false,
 	} {
 		assert.Equal(t, want, IsDirective(line), line)
 	}
+}
+
+// A userscript metadata block is read by the browser extension, every line of it.
+func TestAUserscriptMetadataLineIsADirective(t *testing.T) {
+	lines := []string{
+		"// ==UserScript==",
+		"// @name         Example Colorizer",
+		"// @run-at       document-end",
+		"// @noframes",
+		"// ==/UserScript==",
+		"// @param count how many entries to read",
+		"// The @name key names the script.",
+		"// email me@example.com",
+	}
+	want := []bool{true, true, true, true, true, false, false, false}
+	assert.Equal(t, want, DirectiveMask(lines))
+}
+
+// An "// @param" line outside a metadata block is prose a rule may judge.
+func TestAnAtLineOutsideAMetadataBlockIsProse(t *testing.T) {
+	assert.False(t, DirectiveAt([]string{"// @param count how many entries to read"}, 0))
 }
 
 const headerSrc = "// Copyright 2026 The Go Authors. All rights reserved.\n" +

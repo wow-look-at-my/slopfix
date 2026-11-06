@@ -1,3 +1,5 @@
+// shellStep is a run: step whose script is POSIX shell.
+
 package workflow
 
 import (

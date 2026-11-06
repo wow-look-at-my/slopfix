@@ -96,6 +96,17 @@
   <class name="cardinal" words="two three four five six seven eight
     nine ten eleven twelve dozen hundred thousand million"/>
 
+  <!-- The cardinals grouped by the vague word that keeps a bound true. A floor
+       at the number or a bound above it takes the smallest word that still
+       claims as much: a couple of, a few, several, many. -->
+  <class name="tally-two" words="two"/>
+  <class name="tally-two-to-four" words="two three four"/>
+  <class name="tally-three-to-five" words="three four five"/>
+  <class name="tally-five-to-twelve" words="five six seven eight nine ten
+    eleven twelve dozen"/>
+  <class name="tally-six-to-twelve" words="six seven eight nine ten eleven
+    twelve dozen"/>
+
   <!-- Any number, in digits or in words. A shape that must not care how the
        author spelled it names this class. -->
   <class name="number" digits="true" words="two three four five six seven

@@ -1,3 +1,5 @@
+// The allow path's reader.
+
 package autoallow
 
 import (

@@ -1,0 +1,11 @@
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-22.04
+          - macos-latest # apple
+          - self-hosted-box
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: make

@@ -1,0 +1,7 @@
+name: x
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        git config --global url."https://${GH_TOKEN}@github.com/".insteadOf https://github.com/

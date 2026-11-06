@@ -32,9 +32,11 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `counts` | `counts/inventory-count`, `counts/section-number`, `counts/stated-count`, `counts/postdeterminer` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
-| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner` | yes |
+| `comments`, warnings | `comments/header` | yes. A one-line header drawn from the file name goes to the top |
+| `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner`, `yaml/id-token`, `yaml/script-expression`, `yaml/token-in-git-url` | yes |
 | `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`, and the step runs the file. No line is cut |
 | `pins` | `pins/download-version` | yes |
+| `go` | `go/foreign-source` | yes. The string moves into a file and a `//go:embed` var reads it |
 | message | `laziness/punt`, `blame/deflection`, `ask/prose-decision` | yes, with `fix --message`. Each sentence that carries the tell comes out |
 
 `hooks.go` also lists `link-all-refs` as pending. Its detection lives in the `link-refs` guard, not in a rule ID.
@@ -67,7 +69,7 @@ The action at the repository root downloads the published binary from buildhost 
 
 ```yml
 - uses: actions/checkout@v4
-- uses: wow-look-at-my/slopfix@master
+- uses: wow-look-at-my/slopfix@lkgb
 ```
 
 Several org actions call this action, so one workflow run can reach it from many jobs. The check claims the run through `wow-look-at-my/actions@run-once#latest` with the name `slopfix-check`. One job runs it. Each other job logs the skip.
@@ -142,73 +144,29 @@ Prose requires a frame, because a document carries numbers that count nothing: a
 
 ## counts: a count in a document
 
-`counts/inventory-count` cuts the cardinal out of a sentence that counts what is here. `there are three sections` becomes `there are sections`, which stays true. The org rules that a count in markdown is not worth maintaining.
-
-Every reported count gets a repair. Where a bare cut breaks the sentence, `counts/reword.go` writes words that state no figure. A rate becomes `every few`. A cap becomes `a bounded number of`. A unit takes `a couple of`, `a few`, `several` or `many`, by size. After a preposition or a noun the number becomes `multiple`.
-
-A hedge such as `about` or `exactly` goes with the number. A zero becomes `no`. A zero that is the subject of a verb names a value, and becomes `a value of zero`: `0 disables chunking` reads `a value of zero disables chunking`. A label goes stale like a count. It is a finding too, and `counts/label.go` names the item instead. Digits after a singular noun name an item, as in `branch 3 sees` (`cardinal.NamesAnItem`).
-
-The repair takes the words the text gives that item, as in `branch (3) the keyless fallback` or `Keyless fallback (branch 3)`. With none, it writes `one id` or `a later branch`. A plural noun after the label is what the label describes: `rule 6 inputs` becomes `the inputs of a later rule`. A point sits after `at`, `by` or `to`, before a noun that is not a unit (`cardinal.APoint`). In a comment it takes the name of a constant with that value, in backticks. Otherwise it takes `a set number of` before a noun, or `a set limit`, `a set value` or `a set amount`.
-
-A bare number that the same clause sets beside it, as in `warns at 500 lines and errors at 750`, says how it compares: `a higher count`, `a lower count` or `the same count`. No clause stays half converted.
-
-A count needs a frame and a quantity on the same line. The quantity is a cardinal that governs a plural noun. The frame is a possessive (`this repo's plugins`), a having verb (`it ships hooks`) or a deictic (`the rules below`). A quantity with no frame is ordinary technical prose.
-
-It does not flag the singular, which is overwhelmingly a pronoun in English. That gap is stated rather than closed. It drops a quantity reached through a function word, as in `2 of the format drops`. It drops a match that continues a longer number, such as a version. Fences, tables, headings and backtick spans never reach it. A measurement inside a frame IS reported, because the number belongs where it is enforced.
-
-A number behind a section sign cites a section, so neither count rule reads it. `counts/section-number` repairs it instead. A section number goes stale when a section is inserted above it. The repair writes a link named by a slug of the heading's title: `§9` becomes `[§owning-renderer](#9-owning-the-renderer)`. The slug keeps the first `slugWords` words that name the section. A repeated slug gets `-2`, and the anchor follows GitHub.
-
-The prose rules read the link as the citation it replaced, which holds no word. A file named right before the citation, or after it with `of`, resolves beside the document. A citation that no numbered heading answers keeps its number.
+[docs/counts-a-count-in-a-document.md](docs/counts-a-count-in-a-document.md) holds this section.
 
 ## tombstones: a comment about a state the code has left
 
-A tombstone describes a state the code left, or argues for the diff instead of telling the next editor what breaks. The wording tier is the weakest. A paraphrasing machine writes the judged text. It eventually writes around a phrase rule.
-
-- The wording tells are `pattern` entries with an `id` in `english/english.xml`. Each cuts the PHRASE, not the line. The rest of the sentence thus survives. A pattern with no `id` still rewrites.
-- `tombstones/name-nothing-in-the-repository-defines` reads no wording. A comment that names a symbol found nowhere in the repository describes a tree that is gone. The probe runs ripgrep on the working tree. A tree walk, and any run past `50` files, first reads the identifiers of every file git lists. That list holds tracked files and untracked files git does not ignore. It also holds the files on disk under a submodule path that holds a copy in place of a checkout. The index then answers every name with no probe.
-- A pattern cut never removes a negation while the words it negates stay. `no longer` is therefore a flag, not a cut.
-- A copyright year is cut on purpose. A yearly bump only pads a commit.
-- `tombstones/comment-volume` counts the lines of a merged comment run against the cap, which defaults to `14` lines. No rewording defeats it. The repair cuts the run from its end down to the cap, the way `comments/length` cuts. With no sentence left to cut, it drops whole lines only when the last line it keeps ends a sentence. Otherwise the run stays for a rewrite by hand.
-- A dead name that no whole-line strip resolves loses the sentence that holds it. On a line shared with code, the cut stops at the comment marker.
-
-A referent candidate must look like a symbol: an underscore, an internal case change, or a capital beside a digit. A name in capitals and a short name never qualify. The probe answers nothing when it cannot answer: no repository, no ripgrep, a timeout or an error. An absent answer must never read as a missing symbol. A comment that names too many candidates is skipped. A file that cites a line of a C family source the repository does not hold, such as `UnrealNames.cpp:4588`, ports that codebase.
-
-Its comments and those of its test partner name a foreign API, so the probe answers nothing for them.
-
-Only prose is judged. In source that means the comments. A string that holds `previously` is thus safe. In a document it means the paragraphs, without fences, HTML comments, frontmatter or backtick spans. A file with no known comment syntax is not judged. A document has no volume cap.
-
-A referent line strips only when the comment is alone on its source line. A document finding never strips, because a document line is a paragraph. The block is rewrapped after a strip. The response names each deleted line. Git history keeps the rest.
-
-`--path` is required on stdin, because the path decides the comment syntax.
-
-```sh
-slopfix fix --only tombstones --max-comment-lines 0 --path pkg/thing.go < pkg/thing.go
-```
+[docs/tombstones-a-comment-about-a-state-the-code-has-left.md](docs/tombstones-a-comment-about-a-state-the-code-has-left.md) holds this section.
 
 ## comments: what a comment gets wrong
 
-The `commentfix` package reads a real syntax tree through `go-tree-sitter`. A comment is a node whose type carries `comment`. The documented construct is the next named sibling. No rule names a language. A file that does not parse yields nothing, because half a tree is worse than none.
-
-The languages are Go, C, C++, Rust, Bash, JavaScript, TypeScript and TSX. YAML. TOML, `.conf` and `.zsh` files read with the Bash grammar. `languages_test.go` refuses a grammar that no fixture proves. `selfrepair_test.go` runs the rules over this tree. The go-toolchain vet phase runs them on every build.
-
-- `comments/number`: a number in a comment, read with the `Comment` substrate. The repair says it in words. A count of a plural noun that no table entry covers gets the `counts` rewording. Only a sentence that still holds a number after that is cut. To point at a section, cite its slug or heading, not its position.
-- `comments/length`: a comment run weighed against the construct beneath it. Lines catch an essay. Characters catch a dense paragraph. The budget has a floor. A short comment is never a finding.
-- `comments/tail`: a comment that stops on a word that opens what a cut took away. The repair closes the sentence where its last clause that stands alone ends.
-- `ste/sentence-length`: a sentence over the cap in a comment's prose, in every language above and in a workflow. It is a check of its own beside `comments/length`, which weighs the comment against its code. Directives, license notices, verbatim paragraphs, code spans and quotations stay out. `comments/sentence-length` divides the sentence as `ste` does in a document. It writes the result back through the comment gate, with the comment's marker, indent and wrap. `sentencecap_test.go` proves that both repairs settle in one fix.
-
-The length repair cuts from the end, because a comment leads with its point. Each cut lands on a sentence end. The opening sentence is never cut mid-clause. When no cut fits, the opening sentence stays, repaired to STE. One over the 25-word cap closes at a clause boundary the `syntax` parser finds, the same boundaries `ste/sentence-length` divides at (`ste.Leading`). Sentence ends come from `ste.Sentences`.
-
-A cut keeps text only when its last sentence stands alone (`ste.StandsAlone`). A cut may also land before a tail opener of `rules/comment-clauses.xml`, such as `so`, `because` or an open parenthesis. A cut before `when`, `if` or `that` changes the claim, so none lands there. When no clause boundary fits either, the comment stays as written, and the finding asks for a rewrite by hand. A cut between words leaves a fragment, so no repair makes one. The number repair runs after the length cut.
-
-The length cut then runs again if the words overflow.
-
-It does not flag a comment above the package declaration, or a trailing comment on a code line. It skips a directive line, such as a build constraint, a shebang, a linter pragma, a TypeScript triple-slash directive or a cgo preamble. It skips a number inside a quotation.
+[docs/comments-what-a-comment-gets-wrong.md](docs/comments-what-a-comment-gets-wrong.md) holds this section.
 
 ## yaml: workflow and action manifest rules
 
 [docs/yaml-workflow-and-action-manifest-rules.md](docs/yaml-workflow-and-action-manifest-rules.md) holds this section.
 
-- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of the action's repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch, such as `wow-look-at-my/go-toolchain@master`, passes. So do a tag, a full commit SHA, a `./` path and a `docker://` image. The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too. The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. A lookup that fails, a private repository the token cannot read included, is a `yaml/branch-pin` finding with the reason, so no `--only` selection hides it. A tree run, a named file, text on stdin and a hook all run the rule. A tree run first reads answers a repository cached in `.git/slopfix-refs.json`, and looks up every repository or ref the cache lacks. The rule cases run against a fixture API that `Materialize` serves, and `GITHUB_API_URL` points at it. `fix` writes the default branch over a branch, and over an unresolvable ref. It writes `NAME#latest` over the tag of a branch build.
+- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of its repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch of every org repository is `master` (`workflow.DefaultBranch`). The rule does not ask GitHub for it. An org repository with another default branch is the defect to fix. Another owner picks its own default branch. The rule reads `default_branch` from `GET /repos/{repo}`. The repair writes that branch. An org action at its default branch is a `yaml/org-action-ref` finding, which writes `@lkgb`. So do a tag, a full commit SHA, a `./` path and a `docker://` image.
+
+  The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too.
+
+  The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. With no token and no `GITHUB_API_URL`, it asks through `gh api --include` first, with the user's own credentials. A sandbox holds no token, and its `gh` asks the host. A lookup that fails, a private repository the token cannot read included, is a `yaml/branch-pin` finding with the reason, so no `--only` selection hides it. A tree run, a named file, text on stdin and a hook all run the rule. A tree run first reads answers a repository cached in `slopfix-refs.json` under the git directory its work trees share.
+
+  It then looks up every ref the cache lacks. A ref that is neither a branch nor a tag also gets a read of `GET /repos/{repo}`, so an unreadable repository fails loud. It does not get a repair.
+
+  The rule cases run against a fixture API that `Materialize` serves, and `GITHUB_API_URL` points at it. `fix` writes the default branch over a branch, and over an unresolvable ref. It writes `NAME#latest` over the tag of a branch build.
 - `yaml/run-script-syntax`: a `run:` script that the shell it runs in does not parse. Only bash and sh are read. The repair gives a keyword with an empty body the no-op `:`. The repair appends the closer of a statement, a bracket or a quote the script left open. It drops a closing word with nothing to close and quotes a stray operator. An `sh` step that uses a bash feature names `bash`. The rule reports exactly those error classes, because it reports only what its repair rewrites.
 - `yaml/duplicate-step-key`: a step that names a key twice. GitHub rejects the file. The repair keeps the last pair and deletes the earlier ones.
 
@@ -218,9 +176,17 @@ It does not flag a comment above the package declaration, or a trailing comment 
 
 `net/url` reads the query. The repair deletes `v` and writes the query back with `Encode`. `pins.Gate` admits only that rewrite, because the source gate lets an edit touch comments alone. `Encode` escapes `${OS}` and writes `&` for `&amp;`. A URL that holds either loses `v` as text instead, and keeps every other byte. A `${{ }}` expression is part of the URL, blanks included.
 
+## go: another language inside a Go string
+
+`go/foreign-source` reports a Go string that holds the source of another language. A shell script, SQL, YAML, JSON, HTML, Markdown and other files belong in a file of their own type. `goembed.Classify` reads the value of a literal, or of literals joined with `+`, of at least `minLines` lines. A string that parses as Go is not foreign.
+
+The repair writes the text to a file and declares `//go:embed` on a `string` var. A package-level var or const of one name keeps its name. A string inside a function becomes a var named for the function and the language, at the end of the file. A test file's string goes under `testdata/`. The file imports `embed` where it does not. A string in a const declaration of a function, a struct tag or an import stays, because no var can replace it.
+
 ## laziness: a turn that ends with the work undone
 
-`laziness/punt` reports a closing message that leaves the work undone because the work is harder. It covers a found defect left in place, and permission asked in place of action. Both leave the reader holding the work. One table therefore holds both.
+`laziness/punt` reports a closing message that leaves the work undone because the work is harder. It covers a found defect left in place, and permission asked in place of action. Both leave the reader holding the work. One table therefore holds both: `laziness/laziness.xml`, checked by `laziness.xsd`. Each pattern carries the punts that must fire it. Each pardon carries a message it must clear.
+
+`table_test.go` runs every row.
 
 The shapes are: disowning a defect you found, handing a repair back, leaving a defect in place. Excusing yourself from a repair, announcing an attribution hunt, offering authorship in place of a fix. And asking permission in place of acting.
 
@@ -234,6 +200,16 @@ A sentence that carries a shape AND says the repair happened is not a punt. A fi
 Fences, indented code and blockquotes are exempt. Inline backticks are not. A sentence reports a single shape.
 
 It reports only, because the repair is work. The `laziness` hook guard runs it at Stop, because only a Stop hook can stop the model stopping. The hook answers with the single word the reader types back. It gives nothing to argue with. The guard reads the transcript when the payload carries no message.
+
+On PreToolUse the same guard reads the questions and options of `AskUserQuestion`, the prompt of `Agent` and the message of `SendMessage`. It repairs an agent prompt or a message that asks permission to do a fix, or frames a fix as something the user grants. The `fix --message` cut removes each sentence that carries a tell. The call runs with that `updatedInput`. The guard denies when the cut leaves a string empty. It never rewrites `AskUserQuestion`, because the user reads it: the punt is the model's to deal with.
+
+The guard denies the question and the reason goes to the model. A quote of its own denial reason does not fire it.
+
+`rules/laziness-tool.xml` holds the cases.
+
+## agent-launch
+
+`agent-launch` repairs an `Agent` call of the read-only `Explore` or `Plan` type on PreToolUse. A `run_in_background: false` becomes `true`, because a foreground call holds the parent turn and the queued messages of the user. An `Explore` call that names no `model` gets `haiku`. The built-in Explore declares `model: inherit`, so `CLAUDE_CODE_SUBAGENT_MODEL` cannot reach it. With `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` set, the schema has no `model`, so the guard adds none. `rules/agent-launch.xml` holds the cases.
 
 ## blamelanguage: a message that deflects blame
 
@@ -251,32 +227,26 @@ A real blocker named plainly is never marked.
 
 These are hook guards. `check --message` also runs `ask/prose-decision`, and `repo/budget` covers the files `md-budget` measures.
 
-- `ask-properly` appends a line when a message puts a decision to the reader in prose. `AskUserQuestion` renders the choices instead. It refuses nothing and judges the message whole.
+- `ask-properly` appends a line when a message puts a decision to the reader in prose. `AskUserQuestion` renders the choices instead. It refuses nothing and judges the message whole. The phrases and question cues live in `askproperly/questions.xml`, and each phrase carries an example that must fire it.
 - `link-refs` renders a pull request, a commit or a branch as a markdown link as the message streams. A target it cannot show to exist stays plain text. A state file carries the fence state across flushes.
 - `busy-poll` serves Stop and PreToolUse. On Stop it refuses a turn that repeats the same call seconds apart. On PreToolUse it refuses a status read of a subject this session saw settle. It runs in a remote session only, because waiting for an event needs events. Evidence ages out. Every failure allows.
 - `md-budget` keeps each `CLAUDE.md` and each `claude_snippets/` file under `40000` characters, because every request re-sends them. It reports at session start and on a write. It blocks a Stop that leaves one broken. `CC_CLAUDE_MD_BUDGET` sets the budget. `CC_CLAUDE_MD_WIDTH` turns on the wrap check.
 
 `english/english.xml` also links an `owner/repo#N` reference in a message. That pattern cannot check existence. The `link-refs` guard thus stays the verified path.
 
+## xml tables: case and validation
+
+Every embedded XML table matches without regard to case unless the root or an entry says `case="sensitive"`. That covers `rules/*.xml`, `english/english.xml`, `autoallow/rules.xml` and `bashclean/grepjson.xml`. The nearest `case` on the way up from an entry decides, and `case="insensitive"` turns it back off. A rewrite takes the opening case of the text it replaces. `autoallow` and `grepjson` name shell words, flags and paths, so their schemas require a root that says `case="sensitive"`.
+
+The XSD beside each table owns its shape: elements, attributes, enumerations and non-blank required values. `wow-look-at-my/xml-validator` validates each file against it. The `xmlcheck` package runs that validation and then the semantic checks, and it holds no structural checker of its own. The embedded files are checked at package init, and a test loads every file through the same spec. A defect names its file and line.
+
+A table is refused for a repeated key, and for a repeated `<test>` input in one scope. Its own entry refuses it. It is refused when an earlier phrase always claims a later entry, and when a pattern does not compile or names a missing group. The semantic checks run only after every file passes its schema.
+
+Keys and inputs collide when they match without case, unless both entries are sensitive. Each spec sits beside its loader: `table.SpecFor`, `english.Spec`, `autoallow.Spec` and `bashclean.GrepJSONSpec`.
+
 ## auto-allow
 
-`auto-allow` approves read-only work and refuses a program this environment does not run. The table is `autoallow/rules.xml`, embedded and checked by `rules.xsd`. MCP trust is per SERVER, not per tool-name pattern.
-
-A rule with `wholeCommand="true"` refuses only a command that runs nothing else. The `true`, `false` and `:` rules work this way. A list that holds real work is never refused for a no-op inside it, because clean-bash repairs that list. A `while` loop on a bare `true` or `:` waits like `until`, and the `until` rule refuses it.
-
-The binary is registered on PermissionRequest and PreToolUse. In `cli.js` (checked at `2.1.220`), `createCanUseTool` evaluates the rules first. PermissionRequest hooks run only on the "ask" path. `defaultMode: "auto"` answers first. A deny that rides PermissionRequest thus never fires in auto mode.
-
-PreToolUse fires before the permission pipeline, whatever its outcome. A deny there stops the tool. The reason reaches the model as an error result. Deny therefore rides PreToolUse. Allow rides PermissionRequest, where it never outranks the user. `denyOnly` in `run.go` drops every non-deny verdict on PreToolUse.
-
-The events want different output objects. `decisionPayload` therefore branches on the event. The verdict comes from `tool_input` alone. A call judged on both events is therefore harmless.
-
-`rules.xml` has no `<mcpServer name="Claude_Code_Remote">` block, on purpose. Do not add one. The CCR proxy answers a call with `-32003` ("needs_approval"). The client then shows an approval card and runs the hooks beside it. A hook allow calls `cancelRequest`, which kills the card and the listener that a human click resolves through. The single retry carries no grant.
-
-The model then sees `MCP error -32003: MCP tool call requires approval`.
-
-Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` decision. No rule, mode or classifier runs. `extraAllowedTools` does not exist in the bundle. `serverApprovalWatch` is the shape of a real upstream fix. `anthropics/claude-code#81362` tracks it.
-
-Without `send_later`, use the `/loop` skill. Watch a pull request with `mcp__github__subscribe_pr_activity`.
+[docs/auto-allow.md](docs/auto-allow.md) holds this section.
 
 ## no-work-loss
 
@@ -294,27 +264,7 @@ Without `send_later`, use the `/loop` skill. Watch a pull request with `mcp__git
 
 ## clean-bash
 
-`clean-bash` rewrites a Bash command rather than refusing it, wherever a rewrite exists. The rules run on the parse tree to a fixed point. An unparseable command passes through. A rewrite is silent: it emits only the new input and `suppressOutput: true`. A visible message gives the model something to blame. A denial carries a reason.
-
-Without one, the model retries forever. `CLEANUP_BASH_CMDS_LOG=/path` logs each rewrite and each deny.
-
-Denials: `heredoc`, `perl` (`^perl[0-9.]*$` as the effective command), `shred`, `git_rm` with `--pathspec-from-file`, `truncate_zero` with an unknown flag, `rm_flag` for an `rm` flag it cannot drop. And `toolchain_capture` for `go-toolchain` inside a substitution.
-
-`cat`, `head`, `tail` and `sed` run as written. `readplan.go` maps one plain read onto Read calls, and `check read-plan` prints that mapping for one command.
-
-- `devnull` removes `2>/dev/null` in any spelling. It matches a parsed redirect. A `12>/dev/null` thus stays.
-- `rm_recycle`, `truncate_recycle` and `find_delete_recycle` turn deletion into `recycler trash`. Delete-then-Write is the loophole around the Write refusal.
-- `git_rm_recycle` writes `git rm` as `git rm --cached` and then `recycler trash` on the same paths, inside each `-C` directory. A dry run passes through.
-- `grep`, `or_true` and `stderr_merge` drop a trailing `| grep`, `|| true` or `2>&1` from the last statement.
-- `tee` turns a trailing stdout redirect on the last statement into `| tee file`.
-- `toolchain_output` strips every pipe stage or stdout redirect from `go-toolchain`.
-- `docker_compose_restart` writes `docker compose up -d --force-recreate`.
-- `grep_json` turns a `grep`, `egrep`, `fgrep` or `rg` over JSON files into `jq`. A fixed head and tail of each file decide, not the extension. JSON Lines prints each matching record. A document prints `.path = value` for each matching leaf. An unknown flag or a non-JSON operand leaves the grep alone. `bashclean/grepjson.xml` holds the programs, their flags, the fixtures and the tests beside each entry.
-- `gh_wait_ci` maps `gh run view`, `watch`, `rerun`, `list` and `gh pr checks` to `gh wait-ci`.
-- `sleep_cap` writes `sleep 3` for any sleep past `3` seconds or not literal.
-- `narration_remove` drops an `echo` or a `printf` of constant text that reaches the terminal from its list or chain. In a pipeline, or where its status decides a condition, it becomes `:`. A command whose only work is narration stays as written.
-- `noop_remove` drops a bare `true` or `:` from a list or chain that does real work. A no-op stays where nothing else runs, as a pipeline stage. Those stays are as the last statement of a nested list, and before a read of `$?`. A `false` stays, because it fails the list.
-- `pipefail` injects `set -o pipefail` when the command has a pipe. A `tee` then never masks a failure. A command with no pipe stays one command, so a permission rule still matches it.
+[docs/clean-bash.md](docs/clean-bash.md) holds this section.
 
 ## What no rule reads
 

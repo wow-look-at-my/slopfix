@@ -1,3 +1,5 @@
+// clauseParser walks a chunked sentence and cuts it into clauses.
+
 package syntax
 
 import (

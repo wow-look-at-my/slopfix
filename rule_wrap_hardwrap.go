@@ -1,3 +1,5 @@
+// wrap/hard-wrap: a paragraph split over several source lines freezes one window's width into the file.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
@@ -11,7 +13,10 @@ func init() {
 		Category: RuleWrap,
 		Detect:   detectHardWrap,
 		Autofix:  autofixHardWrap,
-		Cases:    []RuleCase{{Name: IDHardWrap, Path: "x.md", Text: "The gate reads the file\nand writes the result.\n"}},
+		Cases: []RuleCase{
+			{Name: IDHardWrap, Path: "x.md", Text: "The gate reads the file\nand writes the result.\n"},
+			{Name: "entry run", Path: "paths.md", Text: ".claude/\n**/.claude/\nCLAUDE.md\n"},
+		},
 	})
 }
 

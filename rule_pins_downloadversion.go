@@ -1,3 +1,5 @@
+// pins/download-version: a download URL that names an exact release breaks when that release is gone.
+
 package slopfix
 
 import (

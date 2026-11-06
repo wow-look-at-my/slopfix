@@ -1,3 +1,5 @@
+// classifyFS covers the destruction that never mentions git, scoped to the paths it names.
+
 package noworkloss
 
 import (

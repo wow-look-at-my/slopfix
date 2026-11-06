@@ -1,5 +1,7 @@
 package treecomments
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -12,7 +14,7 @@ import (
 // weld the prose under it onto the interpreter. The kernel then has no
 // program to start.
 func TestTheShebangIsNotAComment(t *testing.T) {
-	src := "#!/usr/bin/env bash\n# what this script does\nexit 0\n"
+	src := testTheShebangIsNotACommentSh
 
 	got := Extract("run.sh", src)
 	require.Len(t, got, 1)
@@ -23,7 +25,7 @@ func TestTheShebangIsNotAComment(t *testing.T) {
 // The run beneath a shebang stands on its own, so a reflow rewrites it without
 // reaching the line above.
 func TestAShebangStartsNoRun(t *testing.T) {
-	src := "#!/bin/sh\n# first\n# second\nexit 0\n"
+	src := testAShebangStartsNoRunSh
 
 	runs := Runs("run.sh", src)
 	require.Len(t, runs, 1)
@@ -37,3 +39,9 @@ func TestAMarkerBelowTheTopLineStaysAComment(t *testing.T) {
 
 	assert.Len(t, Extract("run.sh", src), 2)
 }
+
+//go:embed testdata/test-the-shebang-is-not-a-comment.sh
+var testTheShebangIsNotACommentSh string
+
+//go:embed testdata/test-a-shebang-starts-no-run.sh
+var testAShebangStartsNoRunSh string
