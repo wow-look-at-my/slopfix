@@ -373,9 +373,8 @@ func hardSeamRank(source string, whole *syntax.Sentence, c forceCut) int {
 		return 0
 	}
 	mark := strings.ContainsAny(source[c.left:c.right], ",;:—–") || strings.HasSuffix(strings.TrimRight(source[:c.left], " "), ",")
-	// A mark before a clause link parts one clause from the next. A cut inside a
-	// phrase carries a mark or a preposition, and neither ends a clause.
-	if mark && (next == "CC" || next == "IN" || next == "WDT" || next == "WRB") {
+	// A mark before a rest with its own verb ends a clause.
+	if mark && holdsFinite(checkMask(hardRest(source, c.right))) {
 		return 3
 	}
 	if mark || next == "CC" || next == "IN" || next == "WDT" || next == "WRB" {
