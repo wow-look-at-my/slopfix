@@ -2,4 +2,4 @@ runs:
   using: composite
   steps:
     - uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master
-    - uses: wow-look-at-my/go-toolchain@drop-common-checks
+    - uses: other-org/tool@drop-common-checks

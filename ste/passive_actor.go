@@ -72,8 +72,9 @@ func rewriteActor(s *syntax.Sentence, source string) (string, bool) {
 		verb = passiveVerb(s.Words[j].Lower(), s.Words[i].Lower(), !means && s.Plural(syntax.Phrase{Head: end}))
 	}
 	from, to := s.Words[first].Start, s.Words[end].End
-	subject := strings.TrimSpace(unbold(source[from:s.Words[subjectEnd].Start]))
-	actor := strings.TrimSpace(unbold(source[s.Words[by+1].Start:to]))
+	subject, subjectMark := markOf(source, from, s.Words[subjectEnd].Start)
+	actor, actorMark := markOf(source, s.Words[by+1].Start, to)
+	_, verbMark := markOf(source, s.Words[j].Start, s.Words[j].End)
 	if subject == "" || actor == "" || verb == "" {
 		return "", false
 	}
@@ -82,7 +83,14 @@ func rewriteActor(s *syntax.Sentence, source string) (string, bool) {
 		actor = capitalizeOpening(actor)
 		object = lowerOpeningFor(subject, s.Words[0].Tag)
 	}
-	clause := rebold(source, from, to, actor+" "+verb+" "+object)
+	// A run that opens right before the clause.
+	if subjectMark != "" && strings.HasSuffix(source[:from], subjectMark) {
+		from -= len(subjectMark)
+	}
+	if actorMark != "" && strings.HasPrefix(source[to:], actorMark) {
+		to += len(actorMark)
+	}
+	clause := actorMark + actor + actorMark + " " + verbMark + verb + verbMark + " " + subjectMark + object + subjectMark
 	return source[:from] + clause + source[to:], true
 }
 
@@ -146,26 +154,20 @@ func leadsClause(s *syntax.Sentence, first, k int) bool {
 	return false
 }
 
-// unbold drops the bold markers from a piece a rewrite moves.
-func unbold(piece string) string {
-	return strings.ReplaceAll(piece, "**", "")
-}
-
-// rebold writes the bold markers source carries between from and to around the
-// rewritten clause. A run that opens inside the clause opens at its start, and
-// a run that closes inside it closes at its end.
-func rebold(source string, from, to int, clause string) string {
-	inside := strings.Count(source[from:to], "**")
-	if inside == 0 {
-		return clause
+// markOf answers the text of the span from..to without the emphatic markers
+// that mark it, and those markers. A rewrite puts them back around the words
+// it moved. A marker sits outside the span or inside it. This is because the
+// parser answers a word's offsets and a marker's own, never both.
+// `**started**`, `**the gate**` and `__the gate__` each answer their words
+// and their own pair.
+func markOf(source string, from, to int) (string, string) {
+	text := strings.TrimSpace(source[from:to])
+	for _, mark := range []string{"**", "__"} {
+		opens := strings.HasSuffix(source[:from], mark) || strings.HasPrefix(text, mark)
+		closes := strings.HasPrefix(source[to:], mark) || strings.HasSuffix(text, mark)
+		if opens && closes {
+			return strings.TrimSpace(strings.Trim(text, mark)), mark
+		}
 	}
-	startBold := strings.Count(source[:from], "**")%2 == 1
-	endBold := (strings.Count(source[:from], "**")+inside)%2 == 1
-	if !startBold {
-		clause = "**" + clause
-	}
-	if !endBold {
-		clause += "**"
-	}
-	return clause
+	return text, ""
 }

@@ -32,7 +32,7 @@ GO_TOOLCHAIN_DATS_BUILD_DIR="$PWD/build" dats dats/no-work-loss.dats
 | `counts` | `counts/inventory-count`, `counts/section-number`, `counts/stated-count`, `counts/postdeterminer` | yes |
 | `tombstones` | `tombstones/date`, `tombstones/change-reference`, `tombstones/then-and-now-contrast`, `tombstones/position-reference`, `tombstones/hedged-time`, `tombstones/unstated-value`, `tombstones/shrug`, `tombstones/unexplained-workaround`, `tombstones/name-nothing-in-the-repository-defines`, `tombstones/comment-volume` | yes |
 | `comments` | `comments/number`, `comments/length`, `comments/tail` | yes |
-| `comments`, warnings | `comments/header` | yes. The first sentence of the file's first comment goes to the top as a one-line header |
+| `comments`, warnings | `comments/header` | yes. A one-line header drawn from the file name goes to the top |
 | `yaml` | `yaml/comment-block`, `yaml/all-builds-job`, `yaml/neutered-gate`, `yaml/duplicate-step-key`, `yaml/run-script-syntax`, `yaml/branch-pin`, `yaml/env-indirection`, `yaml/push-tags`, `yaml/org-action-ref`, `yaml/concurrency`, `yaml/private-runner`, `yaml/id-token`, `yaml/script-expression`, `yaml/token-in-git-url` | yes |
 | `yaml`, warnings | `yaml/test-in-workflow` | yes. The whole `run:` script moves into a file under `.github/scripts`, and the step runs the file. No line is cut |
 | `pins` | `pins/download-version` | yes |
@@ -158,11 +158,13 @@ Prose requires a frame, because a document carries numbers that count nothing: a
 
 [docs/yaml-workflow-and-action-manifest-rules.md](docs/yaml-workflow-and-action-manifest-rules.md) holds this section.
 
-- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of the action's repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch, such as `actions/checkout@main`, passes this rule. An org action at its default branch is a `yaml/org-action-ref` finding, which writes `@lkgb`. So do a tag, a full commit SHA, a `./` path and a `docker://` image.
+- `yaml/branch-pin`: a `uses:` ref that names a branch other than the default branch of its repository. A merge deletes that branch, and every job that names it then fails with `unable to find version`. The default branch of every org repository is `master` (`workflow.DefaultBranch`). The rule does not ask GitHub for it. An org repository with another default branch is the defect to fix. Another owner picks its own default branch. The rule reads `default_branch` from `GET /repos/{repo}`. The repair writes that branch. An org action at its default branch is a `yaml/org-action-ref` finding, which writes `@lkgb`. So do a tag, a full commit SHA, a `./` path and a `docker://` image.
 
   The org's `wow-look-at-my/actions@NAME#latest` is a tag that `orphan-release` moves on each master release. As a result, it passes. A branch build of that repository is tagged `NAME/BRANCH#N`, and `tag-cleanup` deletes it with the branch. Such a tag is reported when `BRANCH` is a branch that is not the default. A ref that names no branch, no tag and no full SHA is reported too.
 
-  The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. A lookup that fails, a private repository the token cannot read included, is a `yaml/branch-pin` finding with the reason, so no `--only` selection hides it. A tree run, a named file, text on stdin and a hook all run the rule. A tree run first reads answers a repository cached in `slopfix-refs.json` under the git directory its work trees share. It then looks up every repository or ref the cache lacks.
+  The rule asks the GitHub API, the way the fork scope does: `GITHUB_API_URL`, with `GITHUB_TOKEN` as the bearer. With no token and no `GITHUB_API_URL`, it asks through `gh api --include` first, with the user's own credentials. A sandbox holds no token, and its `gh` asks the host. A lookup that fails, a private repository the token cannot read included, is a `yaml/branch-pin` finding with the reason, so no `--only` selection hides it. A tree run, a named file, text on stdin and a hook all run the rule. A tree run first reads answers a repository cached in `slopfix-refs.json` under the git directory its work trees share.
+
+  It then looks up every ref the cache lacks. A ref that is neither a branch nor a tag also gets a read of `GET /repos/{repo}`, so an unreadable repository fails loud. It does not get a repair.
 
   The rule cases run against a fixture API that `Materialize` serves, and `GITHUB_API_URL` points at it. `fix` writes the default branch over a branch, and over an unresolvable ref. It writes `NAME#latest` over the tag of a branch build.
 - `yaml/run-script-syntax`: a `run:` script that the shell it runs in does not parse. Only bash and sh are read. The repair gives a keyword with an empty body the no-op `:`. The repair appends the closer of a statement, a bracket or a quote the script left open. It drops a closing word with nothing to close and quotes a stray operator. An `sh` step that uses a bash feature names `bash`. The rule reports exactly those error classes, because it reports only what its repair rewrites.
@@ -244,23 +246,7 @@ Keys and inputs collide when they match without case, unless both entries are se
 
 ## auto-allow
 
-`auto-allow` approves read-only work and refuses a program this environment does not run. The table is `autoallow/rules.xml`, embedded and checked by `rules.xsd`. MCP trust is per SERVER, not per tool-name pattern.
-
-A rule with `wholeCommand="true"` refuses only a command that runs nothing else. The `true`, `false` and `:` rules work this way. A list that holds real work is never refused for a no-op inside it, because clean-bash repairs that list. A `while` loop on a bare `true` or `:` waits like `until`, and the `until` rule refuses it.
-
-The binary is registered on PermissionRequest and PreToolUse. In `cli.js` (checked at `2.1.220`), `createCanUseTool` evaluates the rules first. PermissionRequest hooks run only on the "ask" path. `defaultMode: "auto"` answers first. A deny that rides PermissionRequest thus never fires in auto mode.
-
-PreToolUse fires before the permission pipeline, whatever its outcome. A deny there stops the tool. The reason reaches the model as an error result. Deny therefore rides PreToolUse. Allow rides PermissionRequest, where it never outranks the user. `denyOnly` in `run.go` drops every non-deny verdict on PreToolUse.
-
-The events want different output objects. `decisionPayload` therefore branches on the event. The verdict comes from `tool_input` alone. A call judged on both events is therefore harmless.
-
-`rules.xml` has no `<mcpServer name="Claude_Code_Remote">` block, on purpose. Do not add one. The CCR proxy answers a call with `-32003` ("needs_approval"). The client then shows an approval card and runs the hooks beside it. A hook allow calls `cancelRequest`, which kills the card and the listener that a human click resolves through. The single retry carries no grant.
-
-The model then sees `MCP error -32003: MCP tool call requires approval`.
-
-Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` decision. No rule, mode or classifier runs. `extraAllowedTools` does not exist in the bundle. `serverApprovalWatch` is the shape of a real upstream fix. `anthropics/claude-code#81362` tracks it.
-
-Without `send_later`, use the `/loop` skill. Watch a pull request with `mcp__github__subscribe_pr_activity`.
+[docs/auto-allow.md](docs/auto-allow.md) holds this section.
 
 ## no-work-loss
 
@@ -278,27 +264,7 @@ Without `send_later`, use the `/loop` skill. Watch a pull request with `mcp__git
 
 ## clean-bash
 
-`clean-bash` rewrites a Bash command rather than refusing it, wherever a rewrite exists. The rules run on the parse tree to a fixed point. An unparseable command passes through. A rewrite is silent: it emits only the new input and `suppressOutput: true`. A visible message gives the model something to blame. A denial carries a reason.
-
-Without one, the model retries forever. `CLEANUP_BASH_CMDS_LOG=/path` logs each rewrite and each deny.
-
-Denials: `heredoc`, `perl` (`^perl[0-9.]*$` as the effective command), `shred`, `git_rm` with `--pathspec-from-file`, `truncate_zero` with an unknown flag, `rm_flag` for an `rm` flag it cannot drop. And `toolchain_capture` for `go-toolchain` inside a substitution.
-
-`cat`, `head`, `tail` and `sed` run as written. `readplan.go` maps one plain read onto Read calls, and `check read-plan` prints that mapping for one command.
-
-- `devnull` removes `2>/dev/null` in any spelling. It matches a parsed redirect. A `12>/dev/null` thus stays.
-- `rm_recycle`, `truncate_recycle` and `find_delete_recycle` turn deletion into `recycler trash`. Delete-then-Write is the loophole around the Write refusal.
-- `git_rm_recycle` writes `git rm` as `git rm --cached` and then `recycler trash` on the same paths, inside each `-C` directory. A dry run passes through.
-- `grep`, `or_true` and `stderr_merge` drop a trailing `| grep`, `|| true` or `2>&1` from the last statement.
-- `tee` turns a trailing stdout redirect on the last statement into `| tee file`.
-- `toolchain_output` strips every pipe stage or stdout redirect from `go-toolchain`.
-- `docker_compose_restart` writes `docker compose up -d --force-recreate`.
-- `grep_json` turns a `grep`, `egrep`, `fgrep` or `rg` over JSON files into `jq`. A fixed head and tail of each file decide, not the extension. JSON Lines prints each matching record. A document prints `.path = value` for each matching leaf. An unknown flag or a non-JSON operand leaves the grep alone. `bashclean/grepjson.xml` holds the programs, their flags, the fixtures and the tests beside each entry.
-- `gh_wait_ci` maps `gh run view`, `watch`, `rerun`, `list` and `gh pr checks` to `gh wait-ci`.
-- `sleep_cap` writes `sleep 3` for any sleep past `3` seconds or not literal.
-- `narration_remove` drops an `echo` or a `printf` of constant text that reaches the terminal from its list or chain. In a pipeline, or where its status decides a condition, it becomes `:`. A command whose only work is narration stays as written.
-- `noop_remove` drops a bare `true` or `:` from a list or chain that does real work. A no-op stays where nothing else runs, as a pipeline stage. Those stays are as the last statement of a nested list, and before a read of `$?`. A `false` stays, because it fails the list.
-- `pipefail` injects `set -o pipefail` when the command has a pipe. A `tee` then never masks a failure. A command with no pipe stays one command, so a permission rule still matches it.
+[docs/clean-bash.md](docs/clean-bash.md) holds this section.
 
 ## What no rule reads
 

@@ -45,13 +45,6 @@ type recordedRefs struct {
 	next  workflow.Refs
 }
 
-func (r recordedRefs) DefaultBranch(repo string) (string, error) {
-	if branch, ok := r.table[repo]; ok {
-		return branch, nil
-	}
-	return r.next.DefaultBranch(repo)
-}
-
 func (r recordedRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	switch r.table[repo+"@"+ref] {
 	case "branch":
@@ -60,6 +53,15 @@ func (r recordedRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 		return workflow.RefTag, nil
 	}
 	return r.next.Kind(repo, ref)
+}
+
+// Default answers the branch the cache records under the bare OWNER/NAME key,
+// and asks next when it records none.
+func (r recordedRefs) Default(repo string) (string, error) {
+	if def := r.table[repo]; def != "" {
+		return def, nil
+	}
+	return r.next.Default(repo)
 }
 
 // refsAt answers the lookups for the repository at root: the ones recorded

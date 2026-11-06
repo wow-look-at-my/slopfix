@@ -326,6 +326,14 @@ func blockPara(lines []string, c treecomments.Comment) (para, bool) {
 			// A line inside the block carrying no marker at all: an indented example.
 			return b, false
 		}
+		// A star line indented past its prose is an example too. A join would weld it into the prose.
+		if n > 0 && prose != "" && strings.Contains(marker, "*  ") {
+			return b, false
+		}
+		// An opener alone on its line gets a space, so the prose a rewrite puts beside it does not touch it.
+		if n == 0 && prose == "" && !strings.HasSuffix(marker, " ") {
+			marker += " "
+		}
 		marker = line[:min(col, len(line))] + marker
 		switch {
 		case n == 0:

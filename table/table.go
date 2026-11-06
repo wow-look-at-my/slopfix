@@ -16,8 +16,9 @@ import (
 // A Test drives an entry. In is the prose somebody writes. Out is what the
 // repair must produce.
 type Test struct {
-	In  string
-	Out string
+	In   string
+	Out  string
+	Path string
 }
 
 // A Detect states what a single substrate reports for a line. An empty Found

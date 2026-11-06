@@ -38,6 +38,13 @@ func init() {
 				"]);\n",
 			Files: map[string]string{"src/other.ts": "export function fg(hex: string): string {\n\treturn hex;\n}\n"},
 		}, {
+			// The imported package defines a name the comment qualifies with it. The rule cut a true comment that named http.DefaultClient.
+			Name:      "a name qualified by an imported package",
+			Path:      "client.go",
+			Text:      fixtureHeader + "package main\n\nimport \"net/http\"\n\ntype Options struct {\n\t// HTTPClient performs every request; nil uses http.DefaultClient.\n\tHTTPClient *http.Client\n}\n",
+			Files:     map[string]string{"util.go": "package main\n\nfunc readInput() {}\n"},
+			Unchanged: true,
+		}, {
 			Name: tombstones.IDDeadReferent + " on the closer line of a JSDoc block",
 			Path: "plain.js",
 			Text: embeddedCpp,

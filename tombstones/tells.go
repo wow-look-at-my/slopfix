@@ -58,7 +58,7 @@ type Hit struct {
 	LineNo int `json:"lineNo"`
 	// EndLineNo is the last line of a hit that judges a whole block, counted from one, and zero for any other hit.
 	EndLineNo int `json:"endLineNo,omitempty"`
-	// Fix asks for a rewrite by hand when no repair can make the text whole. It is empty for any other hit.
+	// Fix names the repair for a cap cut that lands outside the scope of a run. It is empty for any other hit.
 	Fix string `json:"fix,omitempty"`
 }
 
