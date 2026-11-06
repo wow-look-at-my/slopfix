@@ -39,7 +39,7 @@ func starRun(text []string) (string, bool) {
 // readBlock reports a run that is a single /* */ comment, closed on its last
 // line, and answers its prose lines. A layout line keeps its extra indent. An
 // opener inside the prose, as in a glob such as "dir/*", opens nothing: the
-// one closer ends the comment.
+// closer ends the comment.
 func readBlock(text []string) (blockShape, []string, bool) {
 	if len(text) == 0 {
 		return blockShape{}, nil, false
