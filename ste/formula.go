@@ -38,4 +38,3 @@ func dataSpans(prose string) [][]int {
 	sort.Slice(out, func(i, j int) bool { return out[i][0] < out[j][0] })
 	return out
 }
-
