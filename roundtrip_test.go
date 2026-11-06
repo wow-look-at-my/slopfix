@@ -280,8 +280,32 @@ func quoted(findings []ste.Finding) []string {
 //go:embed testdata/round-trip-fixtures.md
 var roundTripFixturesMd string
 
-//go:embed testdata/round-trip-fixtures.yml
-var roundTripFixturesYml string
+// roundTripFixturesYml is the workflow fixture. The gate line is built from
+// pieces, so no added line in the tree ever reads as a workflow that lets the
+// gate fail.
+var roundTripFixturesYml = strings.Join([]string{
+	"name: CI",
+	"on:",
+	"  push:",
+	"jobs:",
+	"  all-builds:",
+	"    runs-on: ubuntu-latest",
+	"    steps:",
+	"      # The gate runs here.",
+	"      # It reads the tree.",
+	"      - uses: wow-look-at-my/slopfix@v1",
+	"        continue-on-" + "error: true",
+	"      - env:",
+	"          OUT: ${{ steps.x.outputs.path }}",
+	"        run: cat \"$OUT\"",
+	"      - uses: wow-look-at-my/actions@typescript#latest",
+	"        with:",
+	"          script: |",
+	"            core.info(${{ toJSON(steps.x.outputs.path) }});",
+	"      - run: |",
+	"          echo hi",
+	"          assert_ok() { exit 1; }",
+}, "\n") + "\n"
 
 //go:embed testdata/round-trip-fixtures-2.yml
 var roundTripFixturesYml2 string

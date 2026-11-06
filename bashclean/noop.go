@@ -1,6 +1,3 @@
-// noop.go drops the statements that run nothing: a bare `true`, `false` or
-// `:` beside real work.
-//
 // Such a statement makes a list or a chain look like work. A pipeline keeps
 // its stages, because a stage decides where the stage before it writes.
 package bashclean

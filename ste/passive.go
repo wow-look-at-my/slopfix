@@ -44,6 +44,11 @@ func rewriteWithoutActor(s *syntax.Sentence, source string) (string, bool) {
 	if end < by+1 {
 		return "", false
 	}
+	// A participle between the passive verb and "by" governs that phrase, so
+	// the clause names no actor of its own.
+	if byBelongsToOther(s, j, by) {
+		return "", false
+	}
 	start := clauseOpening(s, i)
 	if strings.TrimSpace(source[s.Words[start].Start:s.Words[i].Start]) == "" {
 		return "", false
