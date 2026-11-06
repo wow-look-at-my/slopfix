@@ -1,8 +1,9 @@
-// punctuation.go holds the punctuation code.
+// punctuationDivision divides at a colon or at the dash that closes an aside, when no clause boundary reads the sentence.
 
 package ste
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -20,11 +21,6 @@ func punctuationDivision(source, masked string, whole *syntax.Sentence, limit in
 		head := closeHead(strings.TrimRight(left, " "))
 		// "This is" carries a noun phrase that a dash introduces.
 		rest := carryRest(right)
-		if rest == "" {
-			if carried := thisCarried(strings.TrimLeft(right, " ")); StandsAlone(capitalizeOpening(carried)) {
-				rest = capitalizeOpening(carried)
-			}
-		}
 		if WordCount(head) < minimumHalf || WordCount(rest) < minimumHalf || !holdsFinite(checkMask(head)) {
 			continue
 		}
@@ -47,7 +43,7 @@ func punctuationDivision(source, masked string, whole *syntax.Sentence, limit in
 // limit cannot end a sentence under the cap. Its opening dash is a cut as well.
 // The aside then opens a sentence of its own.
 func punctuationCuts(masked string, limit int) []int {
-	off := verbatimSpan.FindAllStringIndex(masked, -1)
+	off := verbatimSpans(masked)
 	off = append(off, quotedSpans(masked)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 	var out []int
@@ -83,10 +79,17 @@ func punctuationCuts(masked string, limit int) []int {
 	return out
 }
 
-// thisCarried writes a phrase behind "This is", so it stands as a sentence.
-func thisCarried(rest string) string {
-	if after, ok := strings.CutPrefix(rest, "which "); ok {
-		return "This " + after
+// spacedDash is a dash with a blank on each side, which opens or closes an aside.
+var spacedDash = regexp.MustCompile(`\s(?:—|–|--)\s`)
+
+// dashAsides answers each aside between a pair of spaced dashes, from the
+// blank before the first dash to the blank after the second. A lone dash pairs
+// with nothing and stays a seam.
+func dashAsides(source string) [][]int {
+	dashes := spacedDash.FindAllStringIndex(source, -1)
+	var out [][]int
+	for i := 0; i+1 < len(dashes); i += 2 {
+		out = append(out, []int{dashes[i][0], dashes[i+1][1]})
 	}
-	return "This is " + rest
+	return out
 }

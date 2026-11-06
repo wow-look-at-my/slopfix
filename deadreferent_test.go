@@ -131,10 +131,10 @@ func TestFixCutsOnlyTheSentenceThatHoldsADeadName(t *testing.T) {
 // onto, and the comment keeps its other sentences.
 func TestFixCutsTheWholeSentenceThatWrapsADeadName(t *testing.T) {
 	path := deadReferentRepo(t, "main.go")
-	content := "package main\n\n// main reads the input. The check in\n// parseLegacyFlag runs first, so the caller\n// waits for it.\nfunc main() {}\n"
+	content := "// Package main runs the demo.\npackage main\n\n// main reads the input. The check in\n// parseLegacyFlag runs first, so the caller\n// waits for it.\nfunc main() {}\n"
 
 	fixed := slopfix.Fix(slopfix.Request{Path: path, Content: content})
-	assert.Equal(t, "package main\n\n// main reads the input.\nfunc main() {}\n", fixed.Text)
+	assert.Equal(t, "// Package main runs the demo.\npackage main\n\n// main reads the input.\nfunc main() {}\n", fixed.Text)
 }
 
 // A name in the code before a trailing comment is no name the comment carries.

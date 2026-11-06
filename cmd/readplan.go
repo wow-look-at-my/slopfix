@@ -1,4 +1,4 @@
-// readplan.go holds the readplan code.
+// readPlanInput is what the plugin's tool.call module sends for one Bash call.
 
 package cmd
 

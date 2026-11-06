@@ -1,4 +1,4 @@
-// rule_yaml_allbuildsjob.go holds the rule yaml allbuildsjob code.
+// yaml/all-builds-job.
 
 package slopfix
 
@@ -18,7 +18,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectAllBuildsJob,
 		Autofix:  autofixAllBuildsJob,
-		Cases:    []RuleCase{workflowCase("all-builds-job", workflowHeader()+embeddedYml+"    steps:\n      - run: echo hi\n")},
+		Cases:    []RuleCase{workflowCase("all-builds-job", workflowHeader()+embeddedYml8+"    steps:\n      - run: echo hi\n")},
 	})
 }
 
@@ -32,5 +32,5 @@ func autofixAllBuildsJob(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDAllBuildsJob)
 }
 
-//go:embed testdata/embedded.yml
-var embeddedYml string
+//go:embed testdata/embedded-8.yml
+var embeddedYml8 string

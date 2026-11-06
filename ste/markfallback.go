@@ -1,4 +1,4 @@
-// markfallback.go holds the markfallback code.
+// markfallback.go divides a long sentence that every grammatical division refused.
 
 package ste
 
@@ -35,10 +35,13 @@ func asideDivision(source, masked string, limit int) (string, bool) {
 		}
 		rest, restOK := restAfterMark(after)
 		var tries []string
-		if restOK {
+		aside := capitalizeOpening(body)
+		standing := !lowerIdentifier(firstToken.FindString(body)) && StandsAlone(aside)
+		// A comma between clauses that each stand alone is a splice, so a clause aside gets a sentence of its own.
+		if restOK && !standing {
 			tries = append(tries, closeHead(before+", "+body)+" "+rest)
 		}
-		if aside := capitalizeOpening(body); !lowerIdentifier(firstToken.FindString(body)) && StandsAlone(aside) {
+		if standing {
 			out := closeHead(before) + " " + closeHead(aside)
 			switch {
 			case restOK:
@@ -153,6 +156,14 @@ func anyCut(source, masked string, limit int) (string, string, bool) {
 				continue
 			}
 			left, right := closeHead(head), capitalizeOpening(restText)
+			// A prepositional rest with no main clause reads behind a carrier: "This happens with the verb that governs it".
+			if StandsAlone(restText) && !standsWithMainClause(restText) {
+				main, ok := mainVerb(whole, c.left)
+				if !ok {
+					continue
+				}
+				right = carrierFor(whole, main) + " " + restText
+			}
 			if !divides(left, right, limit) {
 				continue
 			}

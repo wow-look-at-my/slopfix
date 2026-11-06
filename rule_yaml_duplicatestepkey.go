@@ -1,4 +1,4 @@
-// rule_yaml_duplicatestepkey.go holds the rule yaml duplicatestepkey code.
+// yaml/duplicate-step-key: a step that names one key twice.
 
 package slopfix
 
@@ -19,10 +19,10 @@ func init() {
 		Autofix:  autofixDuplicateStepKey,
 		Cases: []RuleCase{
 			workflowCase("duplicate-step-key-first-key", workflowHeader()+
-				embeddedYml3+
+				embeddedYml9+
 				"      - run: echo one\n        name: build\n        run: echo two\n"),
 			workflowCase("duplicate-step-key-block-value", workflowHeader()+
-				embeddedYml4+
+				embeddedYml10+
 				"      - name: build\n        run: |\n          echo a\n          echo b\n        run: echo c\n"),
 		},
 	})
@@ -38,8 +38,8 @@ func autofixDuplicateStepKey(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDDuplicateStepKey)
 }
 
-//go:embed testdata/embedded-3.yml
-var embeddedYml3 string
+//go:embed testdata/embedded-9.yml
+var embeddedYml9 string
 
-//go:embed testdata/embedded-4.yml
-var embeddedYml4 string
+//go:embed testdata/embedded-10.yml
+var embeddedYml10 string

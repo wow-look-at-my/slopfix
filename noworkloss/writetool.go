@@ -1,4 +1,4 @@
-// writetool.go holds the writetool code.
+// The Write tool's own refusals.
 
 package noworkloss
 

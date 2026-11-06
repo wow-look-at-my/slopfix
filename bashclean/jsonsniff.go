@@ -1,4 +1,4 @@
-// jsonsniff.go holds the jsonsniff code.
+// jsonKind says how a file holds JSON.
 
 package bashclean
 

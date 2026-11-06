@@ -110,8 +110,8 @@ var testTheRepairWritesTheOrgBlockYml2 string
 //go:embed testdata/test-the-repair-writes-the-org-block-3.yml
 var testTheRepairWritesTheOrgBlockYml3 string
 
-//go:embed testdata/test-the-repair-keeps-the-comment-after-the-triggers.yml
-var testTheRepairKeepsTheCommentAfterTheTriggersYml string
-
 //go:embed testdata/test-the-repair-keeps-the-file-indent.yml
 var testTheRepairKeepsTheFileIndentYml string
+
+//go:embed testdata/test-the-repair-keeps-the-comment-after-the-triggers.yml
+var testTheRepairKeepsTheCommentAfterTheTriggersYml string

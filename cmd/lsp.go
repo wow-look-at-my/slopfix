@@ -1,4 +1,4 @@
-// lsp.go holds the lsp code.
+// lspMaxPerFile caps the diagnostics a single file publishes.
 
 package cmd
 

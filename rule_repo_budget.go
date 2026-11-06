@@ -1,4 +1,4 @@
-// rule_repo_budget.go holds the rule repo budget code.
+// repo/budget: a root file over the character budget every request pays for.
 
 package slopfix
 

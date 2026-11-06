@@ -1,4 +1,4 @@
-// rule_yaml_pushtags.go holds the rule yaml pushtags code.
+// yaml/push-tags: a push trigger that runs on a tag as well as on a branch.
 
 package slopfix
 
@@ -18,7 +18,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectPushTags,
 		Autofix:  autofixPushTags,
-		Cases:    []RuleCase{workflowCase("push-tags", embeddedYml32+workflowConcurrency+embeddedYml33+"    steps:\n      - run: echo hi\n")},
+		Cases:    []RuleCase{workflowCase("push-tags", embeddedYml4+workflowConcurrency+embeddedYml46+"    steps:\n      - run: echo hi\n")},
 	})
 }
 
@@ -32,8 +32,8 @@ func autofixPushTags(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDPushTags)
 }
 
-//go:embed testdata/embedded-32.yml
-var embeddedYml32 string
+//go:embed testdata/embedded-4.yml
+var embeddedYml4 string
 
-//go:embed testdata/embedded-33.yml
-var embeddedYml33 string
+//go:embed testdata/embedded-11.yml
+var embeddedYml46 string

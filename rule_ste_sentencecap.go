@@ -1,4 +1,4 @@
-// rule_ste_sentencecap.go holds the rule ste sentencecap code.
+// ste/sentence-length: a sentence over the STE word cap.
 
 package slopfix
 
@@ -16,12 +16,62 @@ func init() {
 		Autofix:  autofixSentenceCap,
 		Cases: []RuleCase{
 			{Name: ste.IDSentenceCap, Path: "x.md", Text: "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n"},
-			{Name: "a carrier never opens on a conjunction", Path: "governor.cpp", Text: carrierConjunctionCase, Want: carrierConjunctionWant},
-			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: variableOpensCase, Want: variableOpensWant},
-			{Name: "a rule around comment prose stays at the edges", Path: "governor.cpp", Text: ruledCommentCase, Want: ruledCommentWant},
+			// go-toolchain docs/CI.md: a stray backtick closes a path with no opener, and the code spans after it stay whole.
+			{Name: ste.IDSentenceCap + " with a stray backtick", Path: "docs/CI.md", Text: "Their jobs run .github/dats-fixtures/cache-profile.dats` asserts the tripwires themselves, run by the dats action in `host-build` the same way `same.dats` and `smoke.dats`.\n"},
+			// sglang .github/scripts/ghcr-image-retention.ts: "an image a week old" is the subject after the colon, so no other subject is put in front of it.
+			{Name: ste.IDSentenceCap + " with a measure after the subject", Path: "x.md", Text: "Ranked over every default-branch image, so the retention count is what bounds the history: an image a week old does not hold a slot that then falls to the newest of the images the age guard has already spared.\n"},
+			// go-ipc .github/workflows/ci.yml: "the C and Python ones" is one noun phrase, so no division lands inside it.
+			{Name: ste.IDSentenceCap + " around a gapped clause", Path: "x.md", Text: "Linux builds and tests the C, C++ and Python implementations and their peers first, macOS the C and Python ones, and Windows runs the interop matrix with the Go peer alone.\n"},
+			// "and by B to Q" names a second actor for the participle.
+			{Name: ste.IDSentenceCap + " with a second actor", Path: "x.md", Text: "Shared stage used by Dockerfile.worker to pre-install the static code lint extension and by the job scheduler (below) to seed the private build cache that it serves.\n"},
+			// A dash aside before "so".
+			{Name: ste.IDSentenceCap + " with a dash aside before so", Path: "x.md", Text: "A stale index is a different fault than a stale cache -- it is not on disk at all -- so it has to be rebuilt even when every file is on the server.\n"},
+			// ", each with" gives each item what follows.
+			{Name: ste.IDSentenceCap + " before each with", Path: "x.md", Text: "Lists what the client asked for and was denied, each with a one-step way to grant it going forward instead of searching through the access table above.\n"},
+			// A bare verb after the comma shares the subject and its modal, so both are named again.
+			{Name: ste.IDSentenceCap + " before a verb that shares the modal", Path: "x.md", Text: "A feature added to the registry after that rule was written must default to blocked, refuse the open default, and stay that way for every running job.\n"},
+			// A heading line stands apart from the prose around it, and is judged for its own length.
+			{Name: ste.IDSentenceCap + " in a comment heading", Path: "main.go", Text: fixtureHeader + "package main\n\n" +
+				"// # This heading carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n" +
+				"func main() {\n" +
+				"\tprintln(\"first\")\n\tprintln(\"second\")\n\tprintln(\"third\")\n\tprintln(\"fourth\")\n\tprintln(\"fifth\")\n" +
+				"\tprintln(\"sixth\")\n\tprintln(\"seventh\")\n\tprintln(\"eighth\")\n\tprintln(\"ninth\")\n\tprintln(\"tenth\")\n}\n"},
+			// A "that" clause after a list is another item of it.
+			{Name: ste.IDSentenceCap + " before a that clause in a list", Path: "x.md", Text: "- `queue_order_test.go` covers the priority order, the two-pass rule, the head-only window, case-folding, the size limit, that a failed fetch keeps the previous value.\n"},
+			// sglang .github/workflows/fork-ci.yml: a comment in a run: script is prose, and divides like any comment.
+			workflowCase("sentence-length in a run: script", workflowHeader()+embeddedYml56+
+				"          ON_DEFAULT=false\n\n"+
+				"          # The image installs only this fork's kernel build, so a PyPI wheel of\n"+
+				"          # the same version does not count: it lacks the fork's ops and archs.\n"+
+				"          KERNEL_AVAILABLE=false\n"),
+			{
+				Name: "a relative clause stays with its noun", Path: "x.md",
+				Text: "The reader answers the first prose paragraph of text as one restated sentence that carries a later \"that\" clause with the verb that governs it, laid out under a leading heading where both fit.\n",
+				Want: "The reader answers the first prose paragraph of text as one restated sentence that carries a later \"that\" clause with the verb. That verb governs it, laid out under a leading heading where both fit.\n",
+			},
+			{
+				Name: "a colon before a clause with its own subject", Path: "x.md",
+				Text: "A sentence wraps across the lines of one replacement, so they come back together: a line fix wrote beside a line the edit wrote reads as neither.\n",
+				Want: "A sentence wraps across the lines of one replacement, so they come back together. A line fix wrote beside a line the edit wrote reads as neither.\n",
+			},
+			{
+				Name: "a relative clause after a fronted phrase leaves the main clause whole", Path: "x.md",
+				Text: "On a host with no inotify, which is where the cosmo binary runs on macOS and Windows, it rescans those directories every `100ms` and logs that it polls.\n",
+				Want: "On a host with no inotify, it rescans those directories every `100ms` and logs that it polls. That host is where the cosmo binary runs on macOS and Windows.\n",
+			},
+			{
+				Name: "a relative clause after a fragment names its noun again", Path: "x.md",
+				Text: "On a host with no inotify and no other event source that the watcher can read from at all during a run, which is where the cosmo binary runs on macOS and Windows.\n",
+				Want: "On a host with no inotify and no other event source that the watcher can read from at all during a run. That host is where the cosmo binary runs on macOS and Windows.\n",
+			},
+			{Name: "a carrier never opens on a conjunction", Path: "governor.cpp", Text: fixtureHeader + carrierConjunctionCase, Want: fixtureHeader + carrierConjunctionWant},
+			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: fixtureHeader + variableOpensCase, Want: fixtureHeader + variableOpensWant},
+			{Name: "a rule around comment prose stays at the edges", Path: "governor.cpp", Text: fixtureHeader + ruledCommentCase, Want: fixtureHeader + ruledCommentWant},
 			{Name: "the objects of a preposition stay joined", Path: "CMakeLists.txt", Text: coordinatedObjectsCase, Want: coordinatedObjectsWant},
-			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: mannerClauseCase, Want: mannerClauseWant},
-			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: verblessListCase, Want: verblessListWant},
+			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: fixtureHeader + mannerClauseCase, Want: fixtureHeader + mannerClauseWant},
+			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: fixtureHeader + verblessListCase, Want: fixtureHeader + verblessListWant},
+			{Name: "a plural noun after a colon opens a subject of its own", Path: "schema.go", Text: fixtureHeader + colonPluralSubjectCase, Want: fixtureHeader + colonPluralSubjectWant},
+			{Name: "a phrase cut from its verb stands behind a carrier", Path: "pinned.go", Text: fixtureHeader + strandedPhraseCase, Want: fixtureHeader + strandedPhraseWant},
 		},
 	})
 }
@@ -54,8 +104,7 @@ const mannerClauseWant = `package ident
 
 import "strings"
 
-// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it. Otherwise, it is a single letter other than the article, as a variable such
-// as q is.
+// lowerIdentifier reports a word that reads as a name in code. It carries a capital, a digit, an underscore or a dot inside it. Otherwise, it is a single letter other than the article, as a variable such as q is.
 func lowerIdentifier(word string) bool {
 	if word == "" {
 		return false
@@ -69,6 +118,82 @@ func lowerIdentifier(word string) bool {
 		}
 	}
 	return strings.ToLower(word) != word
+}
+`
+
+// colonPluralSubjectCase holds a sentence over the cap whose clause after the
+// colon opens on a plural noun the tagger reads as a verb. "models such as
+// Prisma cache" names its own subject, so the division writes no subject in
+// front of it. The words after the colon are under the cap, so they stay one
+// sentence.
+const colonPluralSubjectCase = `package schema
+
+// The schema is checked after a migration, not at a new connection: models such as Prisma cache earlier schemas at every connection by design, so a connection-only probe scores every server as stale.
+const (
+	cacheDir     = ".cache/schema/outputs"
+	lockFile     = ".cache/schema/outputs.lock"
+	manifestFile = ".cache/schema/manifest.json"
+	staleMarker  = ".cache/schema/stale"
+	readTimeout  = "30s"
+	writeTimeout = "60s"
+	maxAgeSecs   = 3600
+	maxEntries   = 4096
+)
+`
+
+const colonPluralSubjectWant = `package schema
+
+// The schema is checked after a migration, not at a new connection. Models such as Prisma cache earlier schemas at every connection by design, so a connection-only probe scores every server as stale.
+const (
+	cacheDir     = ".cache/schema/outputs"
+	lockFile     = ".cache/schema/outputs.lock"
+	manifestFile = ".cache/schema/manifest.json"
+	staleMarker  = ".cache/schema/stale"
+	readTimeout  = "30s"
+	writeTimeout = "60s"
+	maxAgeSecs   = 3600
+	maxEntries   = 4096
+)
+`
+
+// strandedPhraseCase holds a sentence over the cap whose only cut under the
+// cap opens on "for" with no mark before it. The phrase belongs to the verb in
+// front of the cut, so the rest stands behind "This is".
+const strandedPhraseCase = `package pinned
+
+import "strings"
+
+// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel" for the tool prose calls Bazel.
+func pinnedName(text, name string) bool {
+	lower := strings.ToLower(name)
+	if lower == name {
+		return false
+	}
+	for _, word := range strings.Fields(text) {
+		if strings.Trim(word, "\"'.,;:") == lower {
+			return true
+		}
+	}
+	return false
+}
+`
+
+const strandedPhraseWant = `package pinned
+
+import "strings"
+
+// pinnedName reports a name that the file or the repository holds in lower case alone, as a config file holds "bazel". This is for the tool prose calls Bazel.
+func pinnedName(text, name string) bool {
+	lower := strings.ToLower(name)
+	if lower == name {
+		return false
+	}
+	for _, word := range strings.Fields(text) {
+		if strings.Trim(word, "\"'.,;:") == lower {
+			return true
+		}
+	}
+	return false
 }
 `
 
@@ -94,8 +219,7 @@ func octantMoments(masses, positions, colors []float64) (mass, mean, color float
 
 const verblessListWant = `package moments
 
-// Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube. This also covers flatness ratio of the stack against an opaque layer of
-// the same cube.
+// Per octant, total mass, mean position, second moment, weighted color, merged opacity, luma variance per cube. This also covers flatness ratio of the stack against an opaque layer of the same cube.
 func octantMoments(masses, positions, colors []float64) (mass, mean, color float64) {
 	for i, m := range masses {
 		mass += m
@@ -143,16 +267,12 @@ const carrierConjunctionWant = `struct Governor {
 };
 `
 
-// variableOpensCase holds a sentence over the cap whose words after a colon open on the variable q.
-//
 //go:embed testdata/variable-opens-case.cpp
 var variableOpensCase string
 
 //go:embed testdata/variable-opens-want.cpp
 var variableOpensWant string
 
-// ruledCommentCase draws a rule of dashes at the start of each comment line and at the end of the last.
-//
 //go:embed testdata/ruled-comment-case.cpp
 var ruledCommentCase string
 
@@ -197,3 +317,6 @@ func detectSentenceCap(c RuleCase) []ste.Finding {
 func autofixSentenceCap(c RuleCase) RuleCase {
 	return caseAutofix(c, ste.IDSentenceCap)
 }
+
+//go:embed embedded-2.yml
+var embeddedYml56 string

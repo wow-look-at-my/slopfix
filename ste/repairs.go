@@ -1,4 +1,4 @@
-// repairs.go holds the repairs code.
+// Repairs names the rules FixSelected rewrites, pinned by a test over every rule.
 
 package ste
 

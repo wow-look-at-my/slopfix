@@ -1,4 +1,4 @@
-// sniff.go holds the sniff code.
+// sniffers are the grammars that read text with no file name to choose one.
 
 package code
 

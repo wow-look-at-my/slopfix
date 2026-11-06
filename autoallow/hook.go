@@ -1,4 +1,4 @@
-// hook.go holds the hook code.
+// Every tool fills the keys its own shape has and leaves the rest empty, so this reads the location out of whichever tool is asking.
 
 package autoallow
 
@@ -394,8 +394,9 @@ func stripFlagsWithValue(args []string, flags []string) []string {
 	return result
 }
 
-// A flag given as the last word, with no value after it, yields an empty
-// value.
+// getFlagValues returns the value of every occurrence of any of flags, in the
+// spellings `-X V`, `--long=V` and `-XV`. A flag given as the last word, with
+// no value after it, yields an empty value.
 func getFlagValues(args []string, flags []string) []string {
 	var values []string
 	for i, arg := range args {

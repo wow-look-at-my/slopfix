@@ -1,4 +1,4 @@
-// gitcd.go holds the gitcd code.
+// splitGitC lifts every `-C dir` out of a git call's global options.
 
 package bashclean
 

@@ -145,9 +145,40 @@ func TestAListItemKeepsItsMarker(t *testing.T) {
 	assert.Equal(t, "- an item wrapped\n- the next\n", markdown.Format("- an item\n  wrapped\n- the next\n"))
 }
 
+// commitTrailers is the trailer block every commit message here ends with.
+const commitTrailers = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n" +
+	"Claude-Session: https://claude.ai/code/session_017LJqj9QeyPBBaQJcbngeEo\n"
+
+// Git reads a trailer a line at a time, so the trailer block is no prose
+// block and Format joins none of its lines.
+func TestATrailerBlockKeepsALinePerTrailer(t *testing.T) {
+	doc := "Join the paragraph\nwrapped by hand.\n\n" + commitTrailers
+	blocks := prose(doc)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Join the paragraph wrapped by hand.\n\n"+commitTrailers, markdown.Format(doc))
+}
+
+// A paragraph with a line that is no trailer is prose, and joins.
+func TestAParagraphThatOnlyOpensWithATrailerJoins(t *testing.T) {
+	doc := "Note: the cap holds\nfor every reader.\n"
+	assert.Equal(t, "Note: the cap holds for every reader.\n", markdown.Format(doc))
+}
+
 func TestASecondParagraphInAListItemKeepsItsIndent(t *testing.T) {
 	doc := "- an item\n\n  a second\n  paragraph\n"
 	assert.Equal(t, "- an item\n\n  a second paragraph\n", markdown.Format(doc))
+}
+
+func TestAnHTMLBlockWithAnIndentedChildIsNotProse(t *testing.T) {
+	for _, doc := range []string{
+		testAnHTMLBlockWithAnIndentedChildIsNotProseHtml,
+		testAnHTMLBlockWithAnIndentedChildIsNotProseSvg,
+	} {
+		for _, b := range markdown.Split(doc) {
+			t.Logf("%q kind=%v start=%d", b.Lines, b.Kind, b.Start)
+		}
+		assert.Empty(t, prose(doc), doc)
+	}
 }
 
 //go:embed testdata/test-a-paragraph-is-prose-and-a-fence-is-not.md
@@ -164,3 +195,9 @@ var testAnImportListIsNotProseMd2 string
 
 //go:embed testdata/test-a-lone-markup-tag-line-ends-the-paragraph.xml
 var testALoneMarkupTagLineEndsTheParagraphXml string
+
+//go:embed testdata/test-an-html-block-with-an-indented-child-is-not-prose.html
+var testAnHTMLBlockWithAnIndentedChildIsNotProseHtml string
+
+//go:embed testdata/test-an-html-block-with-an-indented-child-is-not-prose.svg
+var testAnHTMLBlockWithAnIndentedChildIsNotProseSvg string

@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// zeroDiffIndicators is a comment that heads a run of declarations with no blank line between them.
-//
 //go:embed testdata/zero-diff-indicators.js
 var zeroDiffIndicators string
 

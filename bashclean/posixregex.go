@@ -1,4 +1,4 @@
-// posixregex.go holds the posixregex code.
+// posixToOnig rewrites a POSIX basic or extended pattern for Oniguruma.
 
 package bashclean
 

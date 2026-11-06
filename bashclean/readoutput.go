@@ -1,4 +1,4 @@
-// readoutput.go holds the readoutput code.
+// postInput is the part of the PostToolUse payload RunPost reads.
 
 package bashclean
 

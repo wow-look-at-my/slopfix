@@ -1,6 +1,0 @@
-  box:
-    runs-on: >-
-      ubuntu-latest
-    container: alpine
-    steps:
-      - run: make

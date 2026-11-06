@@ -1,4 +1,4 @@
-// deny_command.go holds the deny command code.
+// A rule names the command a statement RUNS, never the argv spelling, which cannot be enumerated.
 
 package autoallow
 
@@ -130,6 +130,7 @@ func isInlineScript(d CommandRule, args []shellwalk.Word, fedByStdin bool) bool 
 			if arg == f {
 				return true
 			}
+			// A single-dash cluster: perl -pe, -ne, -lane, ruby -ne.
 			if len(f) == 2 && f[0] == '-' && strings.HasPrefix(arg, "-") && !strings.HasPrefix(arg, "--") &&
 				strings.ContainsRune(arg[1:], rune(f[1])) {
 				return true

@@ -1,4 +1,4 @@
-// ratchet.go holds the ratchet code.
+// ratchet.go holds the command.
 
 package cmd
 

@@ -11,8 +11,6 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 )
 
-// scriptTest is a cmd/go script test.
-//
 //go:embed testdata/script-test.sh
 var scriptTest string
 

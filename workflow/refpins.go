@@ -1,4 +1,4 @@
-// refpins.go holds the refpins code.
+// IDBranchPin is a uses: ref that names a feature branch, or nothing a run can resolve.
 
 package workflow
 
@@ -28,11 +28,24 @@ const (
 	RefTag
 )
 
-// Refs answers what a ref names in an OWNER/NAME repository, and which branch
-// is its default.
+// DefaultBranch is the default branch of every repository of the org.
+const DefaultBranch = "master"
+
+// Refs answers what a ref names in an OWNER/NAME repository.
 type Refs interface {
 	Kind(repo, ref string) (RefKind, error)
-	DefaultBranch(repo string) (string, error)
+	// Default answers the default branch of a repository.
+	Default(repo string) (string, error)
+}
+
+// defaultBranchOf answers DefaultBranch for an org repository. Another owner
+// picks its own default branch, so the rule asks refs.
+func defaultBranchOf(repo string, refs Refs) (string, error) {
+	owner, _, _ := strings.Cut(repo, "/")
+	if strings.EqualFold(owner, orgOwner) {
+		return DefaultBranch, nil
+	}
+	return refs.Default(repo)
 }
 
 // Use is a uses: value that names an action or a workflow in another repository.
@@ -49,38 +62,57 @@ type Use struct {
 // fullSHA matches a full commit SHA, which needs no lookup.
 var fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
-// A local path, a docker:// image and a value that holds an expression name
-// no remote ref. Unparseable YAML yields nothing, because the runner rejects
-// it.
+// Uses answers every remote uses: value the runner reads. A local path, a docker:// image and an expression name no remote ref.
 func Uses(content string) []Use {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
 		return nil
 	}
-	root := rootOf(&doc)
-	var nodes []*yaml.Node
+	var out []Use
+	for _, site := range usesSites(&doc) {
+		if use, ok := remoteUse(site.value); ok {
+			out = append(out, use)
+		}
+	}
+	return out
+}
+
+// usesSite is one uses: key that the runner reads, and its value.
+type usesSite struct {
+	key, value *yaml.Node
+}
+
+// usesSites answers each uses: key the runner reads, in source order: a job's reusable workflow, a job's step, and a composite action's step.
+// A uses: key anywhere else, such as an input under with:, names no action.
+func usesSites(doc *yaml.Node) []usesSite {
+	root := rootOf(doc)
+	var out []usesSite
+	add := func(node *yaml.Node) {
+		if node == nil || node.Kind != yaml.MappingNode {
+			return
+		}
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			if node.Content[i].Value == "uses" {
+				out = append(out, usesSite{key: node.Content[i], value: node.Content[i+1]})
+			}
+		}
+	}
 	stepUses := func(steps *yaml.Node) {
 		if steps == nil || steps.Kind != yaml.SequenceNode {
 			return
 		}
 		for _, step := range steps.Content {
-			nodes = append(nodes, mappingValue(step, "uses"))
+			add(step)
 		}
 	}
 	if jobs := mappingValue(root, "jobs"); jobs != nil && jobs.Kind == yaml.MappingNode {
 		for i := 1; i < len(jobs.Content); i += 2 {
 			job := jobs.Content[i]
-			nodes = append(nodes, mappingValue(job, "uses"))
+			add(job)
 			stepUses(mappingValue(job, "steps"))
 		}
 	}
 	stepUses(mappingValue(mappingValue(root, "runs"), "steps"))
-	var out []Use
-	for _, node := range nodes {
-		if use, ok := remoteUse(node); ok {
-			out = append(out, use)
-		}
-	}
 	return out
 }
 
@@ -132,23 +164,27 @@ type branchPin struct {
 func branchPins(content string, refs Refs) ([]branchPin, error) {
 	var out []branchPin
 	for _, use := range Uses(content) {
-		if fullSHA.MatchString(use.Ref) {
+		if fullSHA.MatchString(use.Ref) || ownedByOrgActionRef(use) {
 			continue
 		}
 		kind, err := refs.Kind(use.Repo, use.Ref)
 		if err != nil {
 			return nil, err
 		}
-		def, err := refs.DefaultBranch(use.Repo)
-		if err != nil {
-			return nil, err
-		}
 		switch kind {
 		case RefBranch:
+			def, err := defaultBranchOf(use.Repo, refs)
+			if err != nil {
+				return nil, err
+			}
 			if use.Ref != def {
-				out = append(out, branchPin{use, "names " + use.Ref + ", a branch of " + use.Repo + " that is not its default branch", def})
+				out = append(out, branchPin{use, "names " + use.Ref + ", a branch of " + use.Repo + " that is not its default branch " + def, def})
 			}
 		case RefMissing:
+			def, err := defaultBranchOf(use.Repo, refs)
+			if err != nil {
+				return nil, err
+			}
 			out = append(out, branchPin{use, use.Ref + " is neither a tag nor a branch of " + use.Repo + ", and not a full commit SHA", def})
 		case RefTag:
 			branch, err := tagBranch(use, refs)
@@ -162,6 +198,12 @@ func branchPins(content string, refs Refs) ([]branchPin, error) {
 		}
 	}
 	return out, nil
+}
+
+// ownedByOrgActionRef reports an org action at a ref that names no orphan tag.
+func ownedByOrgActionRef(use Use) bool {
+	owner, _, _ := strings.Cut(use.Repo, "/")
+	return strings.EqualFold(owner, orgOwner) && !strings.Contains(use.Ref, "#")
 }
 
 // RetargetBranchPins writes each reported uses: value again with its
@@ -199,15 +241,6 @@ func RepairBranchPins(content string, refs Refs) (string, error) {
 	return f.Text(), nil
 }
 
-// featureBranch reports whether branch is not the default branch of repo.
-func featureBranch(repo, branch string, refs Refs) (bool, error) {
-	def, err := refs.DefaultBranch(repo)
-	if err != nil {
-		return false, err
-	}
-	return branch != def, nil
-}
-
 // tagBranch answers the feature branch an orphan-release tag NAME#VERSION was
 // cut from, or "" for a tag that follows none. The release tool names a branch
 // build ACTION/BRANCH#VERSION. A branch name can hold a slash, so each tail of
@@ -218,6 +251,7 @@ func tagBranch(use Use, refs Refs) (string, error) {
 		return "", nil
 	}
 	name := use.Ref[:hash]
+	def := ""
 	for i := strings.Index(name, "/"); i >= 0; {
 		tail := name[i+1:]
 		kind, err := refs.Kind(use.Repo, tail)
@@ -225,9 +259,13 @@ func tagBranch(use Use, refs Refs) (string, error) {
 			return "", err
 		}
 		if kind == RefBranch {
-			feature, err := featureBranch(use.Repo, tail, refs)
-			if err != nil || feature {
-				return tail, err
+			if def == "" {
+				if def, err = defaultBranchOf(use.Repo, refs); err != nil {
+					return "", err
+				}
+			}
+			if tail != def {
+				return tail, nil
 			}
 			return "", nil
 		}

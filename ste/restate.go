@@ -1,8 +1,10 @@
-// restate.go holds the restate code.
+// nounText answers the source text of a word, a whole code span where the word is the filler the mask wrote over one.
 
 package ste
 
 import (
+	"strings"
+
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -14,6 +16,10 @@ func nounText(source string, w syntax.Word) string {
 
 // restate writes "That <noun> is <rest>", or "Those <nouns> are <rest>".
 func restate(source string, noun syntax.Word, rest string) string {
+	// A "that" clause is one more item of the list the head opened, not what the noun is: "This also covers that a fetch fails".
+	if strings.HasPrefix(strings.ToLower(rest), "that ") {
+		return "This also covers " + rest
+	}
 	det, be := "That", "is"
 	if noun.Tag == "NNS" || noun.Tag == "NNPS" {
 		det, be = "Those", "are"

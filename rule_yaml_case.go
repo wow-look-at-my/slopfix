@@ -1,4 +1,4 @@
-// rule_yaml_case.go holds the rule yaml case code.
+// The workflow fixtures the yaml rules are driven on.
 
 package slopfix
 
@@ -15,8 +15,6 @@ func workflowHeader() string {
 	return workflowHeaderYml + workflowConcurrency
 }
 
-// workflowConcurrency is the concurrency block every workflow in these repositories carries.
-//
 //go:embed testdata/workflow-concurrency.yml
 var workflowConcurrency string
 

@@ -1,4 +1,4 @@
-// rule_yaml_testinworkflow.go holds the rule yaml testinworkflow code.
+// yaml/test-in-workflow: a test written into a run: script.
 
 package slopfix
 
@@ -40,8 +40,8 @@ func autofixTestInYAML(c RuleCase) RuleCase {
 // testInYAMLCase is a workflow whose step asserts on a value beside its own
 // command.
 func testInYAMLCase() string {
-	return workflowHeader() + testInYAMLCaseYml +
-		testInYAMLCaseYml2
+	return workflowHeader() + testInYAMLCaseYml2 +
+		testInYAMLCaseYml
 }
 
 // testInYAMLExpressionCase is a workflow whose test reads an expression inside

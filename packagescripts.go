@@ -1,4 +1,4 @@
-// packagescripts.go holds the packagescripts code.
+// IDPackageScripts is a package.json with a scripts section.
 
 package slopfix
 

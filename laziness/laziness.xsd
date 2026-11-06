@@ -1,0 +1,45 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+	The laziness/punt table: the shapes a closing message must not end on, the
+	regular expressions that find each shape, and the pardons that clear one.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+	<!-- A Go regular expression with its examples. Each punt must fire the
+	     pattern it sits under. -->
+	<xs:complexType name="pattern">
+		<xs:sequence>
+			<xs:element name="punt" type="xs:string" minOccurs="1" maxOccurs="unbounded"/>
+		</xs:sequence>
+		<xs:attribute name="re" type="xs:string" use="required"/>
+	</xs:complexType>
+
+	<!-- A shape groups patterns under the name a report prints. -->
+	<xs:complexType name="shape">
+		<xs:sequence>
+			<xs:element name="pattern" type="pattern" minOccurs="1" maxOccurs="unbounded"/>
+		</xs:sequence>
+		<xs:attribute name="name" type="xs:string" use="required"/>
+	</xs:complexType>
+
+	<!-- A pardon clears a sentence that says the repair happened. Each clean
+	     example carries a pattern, and the pardon must clear it. -->
+	<xs:complexType name="pardon">
+		<xs:sequence>
+			<xs:element name="clean" type="xs:string" minOccurs="1" maxOccurs="unbounded"/>
+		</xs:sequence>
+		<xs:attribute name="re" type="xs:string" use="required"/>
+	</xs:complexType>
+
+	<xs:element name="laziness">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="shape" type="shape" minOccurs="1" maxOccurs="unbounded"/>
+				<xs:element name="pardon" type="pardon" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element name="clean" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:sequence>
+			<!-- The word the Stop hook sends back, as the reader would type it. -->
+			<xs:attribute name="answer" type="xs:string" use="required"/>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

@@ -1,4 +1,4 @@
-// rule_yaml_concurrency.go holds the rule yaml concurrency code.
+// yaml/concurrency: a workflow with no concurrency block, so a push starts a second run beside the first.
 
 package slopfix
 
@@ -17,7 +17,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectConcurrency,
 		Autofix:  autofixConcurrency,
-		Cases:    []RuleCase{workflowCase("concurrency", embeddedYml2)},
+		Cases:    []RuleCase{workflowCase("concurrency", embeddedYml)},
 	})
 }
 
@@ -31,5 +31,5 @@ func autofixConcurrency(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDConcurrency)
 }
 
-//go:embed testdata/embedded-2.yml
-var embeddedYml2 string
+//go:embed testdata/embedded.yml
+var embeddedYml string

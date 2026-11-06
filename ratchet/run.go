@@ -1,4 +1,4 @@
-// run.go holds the run code.
+// File names, on its default branch, the command that judges a branch.
 
 package ratchet
 

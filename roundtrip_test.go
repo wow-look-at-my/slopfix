@@ -15,6 +15,7 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix"
 	"github.com/wow-look-at-my/slopfix/english"
+	"github.com/wow-look-at-my/slopfix/goembed"
 	"github.com/wow-look-at-my/slopfix/pins"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
@@ -91,6 +92,7 @@ func roundTripFixtures() []fixture {
 				slopfix.IDCommentNumber,
 				"comments/length",
 				"comments/tail",
+				"comments/header",
 			},
 		},
 		{
@@ -103,6 +105,7 @@ func roundTripFixtures() []fixture {
 				"yaml/all-builds-job",
 				"yaml/neutered-gate",
 				"yaml/env-indirection",
+				"yaml/script-expression",
 				"yaml/push-tags",
 				"yaml/org-action-ref",
 				"yaml/concurrency",
@@ -115,7 +118,14 @@ func roundTripFixtures() []fixture {
 			wants: []string{
 				"yaml/run-script-syntax",
 				"yaml/duplicate-step-key",
+				"yaml/id-token",
 			},
+		},
+		{
+			name:    "token in a git url",
+			path:    ".github/workflows/ci.yml",
+			content: roundTripFixturesYml3,
+			wants:   []string{"yaml/token-in-git-url"},
 		},
 		{
 			name: "warnings",
@@ -139,7 +149,7 @@ func roundTripFixtures() []fixture {
 		{
 			name:    "private workflow",
 			path:    privateWorkflowPath(),
-			content: roundTripFixturesYml3,
+			content: roundTripFixturesYml4,
 			wants: []string{
 				"yaml/private-runner",
 				"yaml/concurrency",
@@ -150,6 +160,12 @@ func roundTripFixtures() []fixture {
 			path:    "fetch.sh",
 			content: pinnedFetch(),
 			wants:   []string{pins.ID},
+		},
+		{
+			name:    "go",
+			path:    "tool.go",
+			content: "package tool\n\nconst setup = `#!/bin/sh\nset -e\nif [ -z \"$HOME\" ]; then exit 1; fi\necho ok\n`\n",
+			wants:   []string{goembed.ID},
 		},
 	}
 }
@@ -264,9 +280,9 @@ func quoted(findings []ste.Finding) []string {
 //go:embed testdata/round-trip-fixtures.md
 var roundTripFixturesMd string
 
-// roundTripFixturesYml is the workflow fixture. The key that lets a step fail
-// is written in pieces. A workflow-aware guard reads this test fixture as
-// text, not as a workflow that weakens a gate.
+// roundTripFixturesYml is the workflow fixture. The gate line is built from
+// pieces, so no added line in the tree ever reads as a workflow that lets the
+// gate fail.
 var roundTripFixturesYml = strings.Join([]string{
 	"name: CI",
 	"on:",
@@ -282,6 +298,10 @@ var roundTripFixturesYml = strings.Join([]string{
 	"      - env:",
 	"          OUT: ${{ steps.x.outputs.path }}",
 	"        run: cat \"$OUT\"",
+	"      - uses: wow-look-at-my/actions@typescript#latest",
+	"        with:",
+	"          script: |",
+	"            core.info(${{ toJSON(steps.x.outputs.path) }});",
 	"      - run: |",
 	"          echo hi",
 	"          assert_ok() { exit 1; }",
@@ -292,3 +312,6 @@ var roundTripFixturesYml2 string
 
 //go:embed testdata/round-trip-fixtures-3.yml
 var roundTripFixturesYml3 string
+
+//go:embed testdata/round-trip-fixtures-4.yml
+var roundTripFixturesYml4 string

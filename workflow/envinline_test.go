@@ -154,17 +154,20 @@ func TestAWindowsJobWithNoShellIsNotRead(t *testing.T) {
 	assert.Empty(t, envIndirections(content))
 }
 
-//go:embed testdata/test-an-entry-the-script-never-expands-stays.yml
-var testAnEntryTheScriptNeverExpandsStaysYml string
-
-//go:embed testdata/test-an-untrusted-expression-stays-in-env.yml
-var testAnUntrustedExpressionStaysInEnvYml string
-
 //go:embed testdata/dispatched.yml
 var dispatchedYml string
 
 //go:embed testdata/test-a-composite-action-input-stays-in-env.yml
 var testACompositeActionInputStaysInEnvYml string
+
+//go:embed testdata/test-a-composite-action-keeps-the-runner-variable.yml
+var testACompositeActionKeepsTheRunnerVariableYml string
+
+//go:embed testdata/test-an-entry-the-script-never-expands-stays.yml
+var testAnEntryTheScriptNeverExpandsStaysYml string
+
+//go:embed testdata/test-an-untrusted-expression-stays-in-env.yml
+var testAnUntrustedExpressionStaysInEnvYml string
 
 //go:embed testdata/test-a-script-result-or-a-secret-stays-in-env.yml
 var testAScriptResultOrASecretStaysInEnvYml string
@@ -183,9 +186,6 @@ var testASingleLineRunIsInlinedAndKeepsTheOtherEntriesYml2 string
 
 //go:embed testdata/test-a-container-job-keeps-the-runner-variable.yml
 var testAContainerJobKeepsTheRunnerVariableYml string
-
-//go:embed testdata/test-a-composite-action-keeps-the-runner-variable.yml
-var testACompositeActionKeepsTheRunnerVariableYml string
 
 //go:embed testdata/test-a-plain-job-still-names-the-runner-context.yml
 var testAPlainJobStillNamesTheRunnerContextYml string

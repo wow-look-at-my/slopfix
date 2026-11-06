@@ -104,13 +104,9 @@ func TestATreeCheckInAForkWithNoBaseFails(t *testing.T) {
 // upstreamDoc is a file of the parent that the fork never touches.
 const upstreamDoc = "# Up\n\nIt doesn't hold the lock.\n"
 
-// parentDoc is the parent's doc.md. The fork rewrites its last line.
-//
 //go:embed testdata/parent-doc.md
 var parentDoc string
 
-// forkDoc is doc.md as the fork has it.
-//
 //go:embed testdata/fork-doc.md
 var forkDoc string
 
@@ -139,7 +135,8 @@ func newForkRepo(t *testing.T, api func(parent string) http.HandlerFunc) forkRep
 	return newForkRepoWith(t, api, nil)
 }
 
-// It also builds a fork that rewrites a line of doc.md and adds mine.md. The
+// newForkRepoWith builds a parent with upstream.md, doc.md and parentFiles. It
+// also builds a fork that rewrites a line of doc.md and adds mine.md. The
 // fork's origin names o/fork on GitHub. The server api builds, from the
 // parent's clone URL, answers both the API and the fork list.
 func newForkRepoWith(t *testing.T, api func(parent string) http.HandlerFunc, parentFiles map[string]string) forkRepo {
@@ -390,11 +387,11 @@ func TestTheWriteHookInAForkWithNoBaseRefuses(t *testing.T) {
 	assert.Contains(t, got.out["permissionDecisionReason"], "500")
 }
 
+//go:embed testdata/poison-git.sh
+var poisonGitSh string
+
 //go:embed testdata/test-a-tree-check-reports-a-branch-pin.yml
 var testATreeCheckReportsABranchPinYml string
 
 //go:embed testdata/test-a-tree-check-reports-a-branch-pin-2.yml
 var testATreeCheckReportsABranchPinYml2 string
-
-//go:embed testdata/poison-git.sh
-var poisonGitSh string

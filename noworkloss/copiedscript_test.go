@@ -75,6 +75,23 @@ func TestAFewCommonLinesAreAllowed(t *testing.T) {
 	}))
 }
 
+// Importing the modules a sibling imports is how shared code gets shared.
+func TestSharedImportsAreNotACopy(t *testing.T) {
+	dir := outsideTree(t)
+	writeSibling(t, dir, "data-table.ts", sharedImportsSiblingTs)
+
+	assert.Empty(t, askTool(t, "Write", dir, map[string]any{
+		"file_path": filepath.Join(dir, "bar-chart.ts"),
+		"content":   sharedImportsNewTs,
+	}))
+}
+
+//go:embed testdata/shared-imports-sibling.ts
+var sharedImportsSiblingTs string
+
+//go:embed testdata/shared-imports-new.ts.txt
+var sharedImportsNewTs string
+
 //go:embed testdata/test-an-unrelated-new-script-is-allowed.js
 var testAnUnrelatedNewScriptIsAllowedJs string
 

@@ -11,7 +11,7 @@ import (
 
 // The docker build reads a parser directive, so a rule must never cut it.
 func TestADockerDirectiveIsNotAComment(t *testing.T) {
-	src := testADockerDirectiveIsNotACommentDockerfile
+	src := testADockerDirectiveIsNotACommentMd
 
 	got := Extract("Dockerfile", src)
 	require.Len(t, got, 1)
@@ -32,8 +32,8 @@ func TestProseAboutADirectiveStaysAComment(t *testing.T) {
 	assert.Len(t, Extract("Dockerfile", src), 1)
 }
 
-//go:embed testdata/test-a-docker-directive-is-not-a-comment.dockerfile
-var testADockerDirectiveIsNotACommentDockerfile string
+//go:embed testdata/test-a-docker-directive-is-not-a-comment.md
+var testADockerDirectiveIsNotACommentMd string
 
 //go:embed testdata/test-a-docker-directive-in-compose-is-not-a-comment.yml
 var testADockerDirectiveInComposeIsNotACommentYml string

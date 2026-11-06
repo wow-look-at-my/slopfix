@@ -1,4 +1,4 @@
-// rule_wrap_longblock.go holds the rule wrap longblock code.
+// wrap/long-block: a paragraph or a list item over the block cap.
 
 package slopfix
 

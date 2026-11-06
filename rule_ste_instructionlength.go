@@ -1,4 +1,4 @@
-// rule_ste_instructionlength.go holds the rule ste instructionlength code.
+// ste/instruction-length: an instruction over the word cap.
 
 package slopfix
 

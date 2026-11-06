@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// rustConsts is the file a Write lost consts from.
-//
 //go:embed testdata/rust-consts.rs
 var rustConsts string
 

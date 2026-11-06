@@ -1,4 +1,4 @@
-// index.go holds the index code.
+// Index entry flags.
 
 package gitread
 

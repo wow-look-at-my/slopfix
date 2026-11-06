@@ -13,13 +13,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
-// upstreamReadme holds a paragraph of one line, as the base has it.
-//
 //go:embed testdata/upstream-readme.md
 var upstreamReadme string
 
-// forkReadme adds lines to that paragraph. The paragraph is now hard-wrapped, and its first line is still the base's.
-//
 //go:embed testdata/fork-readme.md
 var forkReadme string
 
@@ -33,13 +29,9 @@ func TestTheVolumeCutNeedsTheVolumeRule(t *testing.T) {
 	assert.NotEqual(t, src, slopfix.Fix(req).Text, "the volume rule alone still cuts the block")
 }
 
-// upstreamList holds list items that are both hard-wrapped.
-//
 //go:embed testdata/upstream-list.md
 var upstreamList string
 
-// forkList edits the first line of the first item.
-//
 //go:embed testdata/fork-list.md
 var forkList string
 

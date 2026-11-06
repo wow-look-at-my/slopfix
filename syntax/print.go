@@ -1,4 +1,4 @@
-// print.go holds the print code.
+// Brackets writes the sentence with each noun phrase in [ ] and each verb group in < >.
 
 package syntax
 

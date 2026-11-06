@@ -1,4 +1,4 @@
-// rule_tombstones_patterns.go holds the rule tombstones patterns code.
+// The tombstone wording rules.
 
 package slopfix
 

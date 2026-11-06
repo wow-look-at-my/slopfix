@@ -1,4 +1,4 @@
-// warnings.go holds the warnings code.
+// The warning rules.
 
 package ste
 
@@ -51,7 +51,8 @@ var dictionary = func() map[string][]string {
 var (
 	beForms = set.Of("am", "is", "are", "was", "were", "be", "been", "being")
 	// haveForms open a perfect tense. "will have" is the future perfect.
-	haveForms   = set.Of("has", "have", "had")
+	haveForms = set.Of("has", "have", "had")
+	// approvedIng are the -ing words the STE dictionary approves as an adjective, a pronoun or a preposition.
 	approvedIng = set.Of("mating", "missing", "remaining", "something", "during")
 	// masks are the words strip writes over data.
 	masks = set.Of("CODE", "URL", "ENTITY", "QUOTE")
@@ -102,7 +103,7 @@ func Warn(text string, line int, listItem bool) []Finding {
 // makes, and a form no rewrite can say otherwise is no finding.
 func clauseWarnings(s *syntax.Sentence, source string, off [][]int, line int) []Finding {
 	var out []Finding
-	if _, ok := rewritePassive(s, source, off); ok {
+	if _, ok := rewritePassive(s, source); ok {
 		i, j := auxiliary(s, 1, beForms)
 		out = append(out, warn(line, IDPassive, "STE prefers the active voice", s.Span(i, j),
 			"Name the actor as the subject. `slopfix fix` does this."))

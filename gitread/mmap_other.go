@@ -1,6 +1,6 @@
 //go:build !unix
 
-// mmap_other.go holds the mmap other code.
+// mapFile opens a file for reads at an offset, where no mmap is portable.
 
 package gitread
 

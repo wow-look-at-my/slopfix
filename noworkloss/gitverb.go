@@ -1,4 +1,4 @@
-// gitverb.go holds the gitverb code.
+// What class of content a command can destroy: `reset --hard` and `clean -fd` spare opposite halves.
 
 package noworkloss
 
@@ -101,7 +101,9 @@ func parseGit(argv []word, cwd string, gitEnv bool) (*gitCall, bool) {
 	return nil, false // `git` with no verb destroys nothing, but says nothing either
 }
 
-// splitArgs separates flags from operands.
+// splitArgs separates flags from operands. Short flags bundle, so -fdx has to
+// register as -f, -d and -x independently or a flag check misses every
+// clustered spelling.
 func splitArgs(rest []word) (flags map[string]bool, operands []word, dashDash, static bool) {
 	flags = map[string]bool{}
 	static = true

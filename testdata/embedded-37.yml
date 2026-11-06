@@ -1,3 +1,5 @@
-      - run: |
-          if true; then
-            echo hi
+  windows:
+    if: github.ref == 'refs/heads/master'
+    runs-on: windows-latest
+    steps:
+      - run: make

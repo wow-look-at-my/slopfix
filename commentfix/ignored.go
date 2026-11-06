@@ -1,4 +1,4 @@
-// ignored.go holds the ignored code.
+// withoutIgnored drops each path git ignores, such as built output.
 
 package commentfix
 

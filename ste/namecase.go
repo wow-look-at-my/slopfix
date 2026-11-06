@@ -1,4 +1,4 @@
-// namecase.go holds the namecase code.
+// capitalizeOpening capitalizes a lower-case letter at the start, and leaves anything else.
 
 package ste
 

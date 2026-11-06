@@ -1,4 +1,4 @@
-// allbuilds.go holds the allbuilds code.
+// GuardedName is the name no job may carry: the gate is a commit status.
 
 package workflow
 

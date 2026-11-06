@@ -1,4 +1,4 @@
-// rule_yaml_privaterunner.go holds the rule yaml privaterunner code.
+// PrivateRunnerFixture is the origin of the org repository the private-runner cases run in.
 
 package slopfix
 
@@ -16,7 +16,7 @@ const PrivateRunnerFixture = "https://github.com/wow-look-at-my/private-runner-f
 // visibility. The repair picks the runner from the visibility at run time.
 func init() {
 	jobs := func(steps string) string {
-		return workflowHeader() + embeddedYml19 + steps
+		return workflowHeader() + embeddedYml33 + steps
 	}
 	cases := []RuleCase{
 		privateRunnerCase("private-runner", jobs("      - run: go-toolchain\n")),
@@ -25,31 +25,31 @@ func init() {
 		containerActionCase(jobs("      - uses: " + ContainerActionFixture + "\n")),
 		privateRunnerCase("private-runner-host-job", jobs("      - run: sudo modprobe zfs\n      - run: sudo systemctl restart containerd\n")),
 		privateRunnerCase("private-runner-blind-fallback", workflowHeader()+"jobs:\n"+
-			embeddedYml20+
-			embeddedYml21+
-			embeddedYml22+
-			embeddedYml23),
+			embeddedYml34+
+			embeddedYml35+
+			embeddedYml36+
+			embeddedYml37),
 		privateRunnerCase("private-runner-flow", workflowHeader()+"jobs:\n"+
 			"  build: {runs-on: ubuntu-latest, steps: [{run: make}]}\n"+
 			"  image: {runs-on: 'ubuntu-24.04', steps: [{uses: docker/setup-buildx-action@v3}]}\n"),
 		privateRunnerCase("private-runner-matrix-linux", matrixJob("        os: [ubuntu-22.04, ubuntu-24.04]\n", "      - run: make\n")),
 		privateRunnerCase("private-runner-matrix-mixed", matrixJob("        os: [ubuntu-latest, macos-latest, windows-latest, ubuntu-24.04-arm]\n", "      - run: make\n")),
-		privateRunnerCase("private-runner-matrix-include", matrixJob(embeddedYml24, "      - run: make\n")),
+		privateRunnerCase("private-runner-matrix-include", matrixJob(embeddedYml38, "      - run: make\n")),
 		privateRunnerCase("private-runner-matrix-docker", matrixJob("        os: [ubuntu-latest, macos-latest]\n", "      - run: docker build .\n")),
 		privateRunnerCase("private-runner-matrix-beside-done", matrixJob("        os: [ubuntu-latest]\n", "      - run: make\n")+
-			embeddedYml25+
+			embeddedYml39+
 			"    runs-on: ${{ (github.event.repository.visibility == 'public' || !contains(fromJSON('[\"ubuntu-latest\"]'), matrix.os)) && matrix.os || vars.CI_RUNNER || matrix.os }}\n"+
 			"    steps:\n      - run: make\n"+
-			embeddedYml26),
+			embeddedYml40),
 		privateRunnerCase("private-runner-matrix-flow", workflowHeader()+"jobs:\n"+
 			"  build: {strategy: {matrix: {os: [ubuntu-latest, windows-latest]}}, runs-on: '${{ matrix.os }}', steps: [{run: make}]}\n"),
-		privateRunnerCase("private-runner-macos", workflowHeader()+embeddedYml27),
+		privateRunnerCase("private-runner-macos", workflowHeader()+embeddedYml41),
 		privateRunnerCase("private-runner-windows-if", workflowHeader()+"jobs:\n"+
-			embeddedYml28+
-			embeddedYml29),
+			embeddedYml42+
+			embeddedYml43),
 		privateRunnerCase("private-runner-beside-gated", workflowHeader()+"jobs:\n"+
-			embeddedYml30+
-			embeddedYml31),
+			embeddedYml44+
+			embeddedYml45),
 		privateRunnerCase("private-runner-matrix-foreign", matrixJob("        os: [macos-14, macos-15]\n", "      - run: make\n")),
 		privateRunnerCase("private-runner-matrix-split", matrixJob("        os:\n          - ubuntu-latest\n          - windows-latest\n        go: [stable]\n", "      - run: make\n")),
 	}
@@ -94,44 +94,44 @@ func autofixPrivateRunner(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDPrivateRunner)
 }
 
-//go:embed testdata/embedded-19.yml
-var embeddedYml19 string
-
-//go:embed testdata/embedded-20.yml
-var embeddedYml20 string
-
-//go:embed testdata/embedded-21.yml
-var embeddedYml21 string
-
-//go:embed testdata/embedded-22.yml
-var embeddedYml22 string
-
-//go:embed testdata/embedded-23.yml
-var embeddedYml23 string
-
-//go:embed testdata/embedded-24.yml
-var embeddedYml24 string
-
-//go:embed testdata/embedded-25.yml
-var embeddedYml25 string
-
-//go:embed testdata/embedded-26.yml
-var embeddedYml26 string
-
-//go:embed testdata/embedded-27.yml
-var embeddedYml27 string
-
-//go:embed testdata/embedded-28.yml
-var embeddedYml28 string
+//go:embed testdata/embedded-9.yml
+var embeddedYml33 string
 
 //go:embed testdata/embedded-29.yml
-var embeddedYml29 string
+var embeddedYml34 string
 
 //go:embed testdata/embedded-30.yml
-var embeddedYml30 string
+var embeddedYml35 string
 
 //go:embed testdata/embedded-31.yml
-var embeddedYml31 string
+var embeddedYml36 string
+
+//go:embed testdata/embedded-32.yml
+var embeddedYml37 string
+
+//go:embed testdata/embedded-33.yml
+var embeddedYml38 string
+
+//go:embed testdata/embedded-34.yml
+var embeddedYml39 string
+
+//go:embed testdata/embedded-35.yml
+var embeddedYml40 string
+
+//go:embed testdata/embedded-36.yml
+var embeddedYml41 string
+
+//go:embed testdata/embedded-37.yml
+var embeddedYml42 string
+
+//go:embed testdata/embedded-38.yml
+var embeddedYml43 string
+
+//go:embed testdata/embedded-39.yml
+var embeddedYml44 string
+
+//go:embed testdata/embedded-40.yml
+var embeddedYml45 string
 
 //go:embed testdata/matrix-job.yml
 var matrixJobYml string

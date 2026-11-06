@@ -11,17 +11,43 @@
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
 
   <!-- One case for the entry holding it. out= is the text the repair must
-       produce, and an entry asserting only that it fires leaves it off. -->
+       produce, and an entry asserting only that it fires leaves it off. path=
+       names the file a whole-file case is, which decides its language. -->
   <xs:complexType name="test">
-    <xs:attribute name="in" type="xs:string" use="required"/>
+    <xs:attribute name="in" type="text" use="required"/>
     <xs:attribute name="out" type="xs:string"/>
+    <xs:attribute name="path" type="path"/>
   </xs:complexType>
+
+  <!-- A relative file name with an extension, such as "f.rs". -->
+  <xs:simpleType name="path">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9_.\-/]+\.[A-Za-z0-9]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- A value with a visible character in it. -->
+  <xs:simpleType name="text">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[\s\S]*\S[\s\S]*"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <!-- where= narrows an entry to one surface, such as a comment. -->
   <xs:attributeGroup name="placement">
-    <xs:attribute name="id" type="xs:string"/>
+    <xs:attribute name="id" type="text" use="required"/>
     <xs:attribute name="where" type="xs:string"/>
+    <xs:attribute name="case" type="case"/>
   </xs:attributeGroup>
+
+  <!-- Matching ignores case unless the root or an entry says sensitive. The
+       nearest case= on the way up from an entry decides. -->
+  <xs:simpleType name="case">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="sensitive"/>
+      <xs:enumeration value="insensitive"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:element name="rules">
     <xs:complexType>
@@ -40,12 +66,12 @@
             <xs:sequence>
               <xs:element name="found" minOccurs="0" maxOccurs="unbounded">
                 <xs:complexType>
-                  <xs:attribute name="text" type="xs:string" use="required"/>
+                  <xs:attribute name="text" type="text" use="required"/>
                 </xs:complexType>
               </xs:element>
             </xs:sequence>
-            <xs:attribute name="in" type="xs:string" use="required"/>
-            <xs:attribute name="substrate" type="xs:string" use="required"/>
+            <xs:attribute name="in" type="text" use="required"/>
+            <xs:attribute name="substrate" type="text" use="required"/>
             <xs:attribute name="why" type="xs:string"/>
           </xs:complexType>
         </xs:element>
@@ -56,7 +82,7 @@
             <xs:sequence>
               <xs:element name="test" type="test" maxOccurs="unbounded"/>
             </xs:sequence>
-            <xs:attribute name="word" type="xs:string" use="required"/>
+            <xs:attribute name="word" type="text" use="required"/>
             <xs:attributeGroup ref="placement"/>
           </xs:complexType>
         </xs:element>
@@ -67,8 +93,8 @@
             <xs:sequence>
               <xs:element name="test" type="test" maxOccurs="unbounded"/>
             </xs:sequence>
-            <xs:attribute name="from" type="xs:string" use="required"/>
-            <xs:attribute name="to" type="xs:string" use="required"/>
+            <xs:attribute name="from" type="text" use="required"/>
+            <xs:attribute name="to" type="text" use="required"/>
             <xs:attributeGroup ref="placement"/>
           </xs:complexType>
         </xs:element>
@@ -80,7 +106,7 @@
             <xs:sequence>
               <xs:element name="test" type="test" maxOccurs="unbounded"/>
             </xs:sequence>
-            <xs:attribute name="match" type="xs:string" use="required"/>
+            <xs:attribute name="match" type="text" use="required"/>
             <xs:attribute name="to" type="xs:string"/>
             <xs:attributeGroup ref="placement"/>
           </xs:complexType>
@@ -92,8 +118,8 @@
             <xs:sequence>
               <xs:element name="test" type="test" maxOccurs="unbounded"/>
             </xs:sequence>
-            <xs:attribute name="phrase" type="xs:string" use="required"/>
-            <xs:attribute name="say" type="xs:string" use="required"/>
+            <xs:attribute name="phrase" type="text" use="required"/>
+            <xs:attribute name="say" type="text" use="required"/>
             <xs:attributeGroup ref="placement"/>
           </xs:complexType>
         </xs:element>
@@ -104,7 +130,7 @@
              except= takes one back out. -->
         <xs:element name="class">
           <xs:complexType>
-            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="name" type="text" use="required"/>
             <xs:attribute name="words" type="xs:string"/>
             <xs:attribute name="suffix" type="xs:string"/>
             <xs:attribute name="digits" type="xs:boolean"/>
@@ -120,7 +146,7 @@
           <xs:complexType>
             <xs:simpleContent>
               <xs:extension base="xs:string">
-                <xs:attribute name="name" type="xs:string" use="required"/>
+                <xs:attribute name="name" type="text" use="required"/>
               </xs:extension>
             </xs:simpleContent>
           </xs:complexType>
@@ -132,7 +158,7 @@
             <xs:sequence>
               <xs:element name="test" type="test" maxOccurs="unbounded"/>
             </xs:sequence>
-            <xs:attribute name="match" type="xs:string" use="required"/>
+            <xs:attribute name="match" type="text" use="required"/>
             <xs:attribute name="to" type="xs:string"/>
             <xs:attributeGroup ref="placement"/>
           </xs:complexType>
@@ -144,14 +170,15 @@
             <xs:sequence>
               <xs:element name="test" type="test" maxOccurs="unbounded"/>
             </xs:sequence>
-            <xs:attribute name="from" type="xs:string" use="required"/>
-            <xs:attribute name="to" type="xs:string" use="required"/>
-            <xs:attribute name="id" type="xs:string"/>
+            <xs:attribute name="from" type="text" use="required"/>
+            <xs:attribute name="to" type="text" use="required"/>
+            <xs:attribute name="id" type="text" use="required"/>
           </xs:complexType>
         </xs:element>
 
       </xs:choice>
-      <xs:attribute name="for" type="xs:string" use="required"/>
+      <xs:attribute name="for" type="text" use="required"/>
+      <xs:attribute name="case" type="case"/>
     </xs:complexType>
   </xs:element>
 

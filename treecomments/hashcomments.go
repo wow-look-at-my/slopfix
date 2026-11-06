@@ -1,4 +1,4 @@
-// hashcomments.go holds the hashcomments code.
+// hashNames are the file names, extensions apart, whose comments open on `#`.
 
 package treecomments
 

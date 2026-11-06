@@ -1,4 +1,4 @@
-// rule_repo_binary.go holds the rule repo binary code.
+// repo/binary: a compiled binary committed to the tree.
 
 package slopfix
 

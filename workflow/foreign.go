@@ -1,4 +1,4 @@
-// foreign.go holds the foreign code.
+// publicOnly is the condition that keeps a job or a matrix value to a public repository.
 
 package workflow
 

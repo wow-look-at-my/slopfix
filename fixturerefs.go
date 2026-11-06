@@ -1,4 +1,4 @@
-// fixturerefs.go holds the fixturerefs code.
+// fixtureAPI is the GitHub API a rule case runs against.
 
 package slopfix
 
@@ -21,10 +21,9 @@ var fixtureAPI struct {
 	err   error
 }
 
-// serveFixtureRefs adds a case's answers to the fixture API. The table maps
-// "owner/repo" to the default branch, and "owner/repo@ref" to "branch" or
-// "tag". The API answers for a repository or ref the table omits, so a
-// fixture declares each it relies on.
+// serveFixtureRefs adds a case's answers to the fixture API. An "owner/repo"
+// key makes the repository readable. The table maps "owner/repo@ref" to
+// "branch" or "tag".
 func serveFixtureRefs(table map[string]string) error {
 	fixtureAPI.once.Do(func() {
 		fixtureAPI.table = maps.Clone(declaredFixtureRefs)
@@ -61,7 +60,8 @@ func answerFixtureRef(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]string{"default_branch": def})
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"default_branch": def})
 		return
 	}
 	space, ref, ok := strings.Cut(strings.TrimPrefix(rest, "git/ref/"), "/")

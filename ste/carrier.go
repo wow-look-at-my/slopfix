@@ -1,4 +1,4 @@
-// carrier.go holds the carrier code.
+// carrier.go divides a long sentence where the words after the cut hold no clause.
 
 package ste
 
@@ -65,16 +65,6 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 	if headOpen(whole, first) {
 		return head, "", 0
 	}
-	// "a block in which the lines share a word": the clause after "in which" stands behind the noun it describes. It becomes "A block. In that block, the lines share a word."
-	if seam == "" && word.Tag == "IN" && first+2 < len(whole.Words) && whole.Words[first+1].Lower() == "which" &&
-		strings.HasPrefix(prev.Tag, "NN") && !indefinites.Contains(prev.Lower()) && finiteBetween(whole, first+2, len(whole.Words)) {
-		clause := strings.TrimLeft(strings.TrimLeft(rest[len(word.Text):], " ")[len("which"):], " ")
-		det := "that"
-		if prev.Tag == "NNS" || prev.Tag == "NNPS" {
-			det = "those"
-		}
-		return head, capitalizeOpening(lower) + " " + det + " " + nounText(source, prev) + ", " + clause, opensWithCarrier
-	}
 	// An aside that opens on a dash and closes on one, before "and <verb>",
 	// divides into the aside and the verb group with the subject named. Again:
 	// "X — A does Y — and yields Z" becomes "X. A does Y. It yields Z."
@@ -94,6 +84,21 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		for _, lead := range []string{"as is", "as are"} {
 			if body, ok := strings.CutPrefix(strings.TrimLeft(rest, " "), lead); ok {
 				return head, "The same holds for " + strings.TrimSpace(body), opensWithCarrier
+			}
+		}
+	}
+	// ", each with X" gives each item of the head what follows: "Each comes with X".
+	if seam == "," && lower == "each" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "with" {
+		if body, ok := strings.CutPrefix(strings.TrimLeft(rest, " "), word.Text+" with "); ok {
+			return head, "Each comes with " + body, opensWithCarrier
+		}
+	}
+	// "used by A to P and by B to Q" names a second actor for the same participle: "The same holds for B, to Q".
+	if seam == "" && lower == "and" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "by" {
+		for k := first - 1; k > 0; k-- {
+			if whole.Words[k].Lower() == "by" && whole.Words[k-1].Tag == "VBN" {
+				body := strings.TrimLeft(strings.TrimLeft(rest[len(word.Text):], " ")[len("by"):], " ")
+				return head, "The same holds for " + body, opensWithCarrier
 			}
 		}
 	}
@@ -207,7 +212,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return head, restate(source, prev, rest), opensWithCarrier
 	case describes && !predicateFollows && (word.Tag == "VBN" || word.Tag == "VBG") && first+1 < len(whole.Words) && !strings.HasPrefix(whole.Words[first+1].Tag, "NN"):
 		return head, restate(source, prev, rest), opensWithCarrier
-	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && plainPhrase(whole, first+2):
+	case seam == "" && noun && (lower == "that" || lower == "which" || lower == "who") && verbAt(whole, first+1) && (plainPhrase(whole, first+2) || relativeTail(whole, first+2)):
 		return head, restateBare(source, prev, strings.TrimLeft(rest[len(word.Text):], " ")), opensWithCarrier
 	case seam == "" && noun && !indefinites.Contains(prev.Lower()) && (lower == "that" || lower == "which") && relativeWithSubject(whole, first):
 		// "a plugin that the later run took from a cache": the relative clause has a subject of its own.
@@ -217,7 +222,7 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		}
 		return head, restate(source, prev, pronoun+" "+rest), opensWithCarrier
 	// "the words after the cut are no clause": a verb after the phrase makes it part of the subject.
-	case seam != ":" && carrierAdverbial.Contains(lower) && !StandsAlone(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
+	case seam != ":" && carrierAdverbial.Contains(lower) && !standsWithMainClause(rest) && !(noun && seam == "" && predicateFollows && !clauseOpeners.Contains(lower)) &&
 		adverbialMoves(whole, first, prev, carrierFor(whole, main) == "This holds") &&
 		(!inRelative(whole, first-1) || everyNext(whole, first)) && !coordinatedVerb(whole, first):
 		// A reason reads behind "This is", whatever the verb: "This is because X".
@@ -235,8 +240,8 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return listHead(head, "and", false, whole, main), capitalizeOpening(subject) + " also " + rest, opensWithCarrier
 	case seam == "," || seam == ":":
 		// "X must ensure that A, and that B" divides with the main clause
-		// restated: "X must also ensure that B".
-		if seam == "," && lower == "and" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "that" && !headOpen(whole, first) {
+		// restated: "X must also ensure that B". So does "X reads A, and whether B".
+		if seam == "," && lower == "and" && first+1 < len(whole.Words) && objectClauseOpeners.Contains(whole.Words[first+1].Lower()) && !headOpen(whole, first) {
 			if subject := mainSubject(source, whole, main, whole.Words[main.Head].Tag); subject != "" {
 				if clause := strings.TrimLeft(rest[len(word.Text):], " "); clause != "" {
 					return head, capitalizeOpening(subject) + " " + alsoVerb(source, whole, main) + " " + clause, opensWithCarrier
@@ -280,6 +285,29 @@ var clauseOpeners = set.Of("whether", "because", "if", "when", "while", "since",
 func opensAdverbialClause(s *syntax.Sentence, i int) bool {
 	lower := s.Words[i].Lower()
 	return (lower == "as" || syntax.Is(lower, "subordinator")) && finiteBefore(s, i+1, ",")
+}
+
+// headOpen reports words before word end that end inside an unfinished clause.
+// One is a subordinator with no finite verb after it: "reports whether the
+// words". The other is a noun with a new subject and no verb after them:
+// "answers the row the earliest node".
+func headOpen(s *syntax.Sentence, end int) bool {
+	open := -1
+	for i := 0; i < end && i < len(s.Words); i++ {
+		w := s.Words[i]
+		switch {
+		case finiteVerbTag(w.Tag) || w.Tag == "MD":
+			open = -1
+		case open >= 0 && i > open+1 && w.Tag == "NNS" && s.Words[i-1].Tag == "NN" && i+1 < len(s.Words) && s.Words[i+1].Tag == "IN":
+			// The tagger reads the verb of the new subject as a plural noun: "a word the actor of a clause stops in front of".
+			open = -1
+		case clauseOpeners.Contains(w.Lower()) && i > 0:
+			open = i
+		case i > 0 && strings.HasPrefix(s.Words[i-1].Tag, "NN") && (w.Tag == "DT" || w.Tag == "PRP"):
+			open = i
+		}
+	}
+	return open >= 0
 }
 
 // everyNext reports "every" or "each" after the preposition at word i: an
@@ -366,9 +394,11 @@ func hiddenVerb(s *syntax.Sentence, i int) bool {
 	return false
 }
 
-// adverbialMoves reports an adverbial at word first that a carrier can take. A
-// bound preposition moves only before "every" or "each". A preposition with no
-// object after it ("aimed at: a prose question") belongs to the words before it.
+// adverbialMoves reports an adverbial at word first that a carrier can take. It
+// never takes one right after a verb or a particle, which the adverbial completes:
+// "the question was aimed at", "a repair lands only on the lines". A bound
+// preposition moves only before "every" or "each". A preposition with no object
+// after it ("aimed at: a prose question") belongs to the words before it.
 func adverbialMoves(s *syntax.Sentence, first int, prev syntax.Word, state bool) bool {
 	// ", where the fork's changes made": after a comma a clause opener starts its own clause, whatever the verb before it.
 	opensClause := first > 0 && s.Words[first-1].Text == "," && clauseOpeners.Contains(s.Words[first].Lower()) && finiteBefore(s, first+1, ",")
@@ -470,6 +500,35 @@ func topCommas(text string, from int) []int {
 		}
 	}
 	return out
+}
+
+// standsWithMainClause reports text that stands alone and, when it opens on a
+// preposition, holds a finite verb outside a relative clause.
+func standsWithMainClause(rest string) bool {
+	if !StandsAlone(rest) {
+		return false
+	}
+	if startsWithPreposition(rest) {
+		return finiteOutsideRelative(syntax.Parse(checkMask(rest), nil), 0)
+	}
+	return true
+}
+
+// relativeTail reports the words from i to the end as the rest of a relative
+// clause whose antecedent sits behind the main verb.
+func relativeTail(s *syntax.Sentence, i int) bool {
+	for _, w := range s.Words[min(i, len(s.Words)):] {
+		if w.Tag == "CC" || w.Text == ":" || w.Text == ";" {
+			return false
+		}
+	}
+	return true
+}
+
+// startsWithPreposition reports text whose first word is a preposition.
+func startsWithPreposition(text string) bool {
+	s := syntax.Parse(checkMask(text), nil)
+	return len(s.Words) > 0 && (s.Words[0].Tag == "IN" || s.Words[0].Tag == "TO")
 }
 
 // plainPhrase reports the words from i to the end of the sentence when they// are plain. Outside a parenthesis, they hold no comma, no conjunction, no

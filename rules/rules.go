@@ -9,3 +9,6 @@ import "embed"
 
 //go:embed *.xml
 var FS embed.FS
+
+//go:embed rules.xsd
+var Schema []byte

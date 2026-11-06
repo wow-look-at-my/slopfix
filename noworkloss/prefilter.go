@@ -1,4 +1,4 @@
-// prefilter.go holds the prefilter code.
+// mayDestroy is the cheap gate in front of everything expensive: it matches raw substrings, and a false positive costs only a parse.
 
 package noworkloss
 

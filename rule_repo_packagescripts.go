@@ -1,4 +1,4 @@
-// rule_repo_packagescripts.go holds the rule repo packagescripts code.
+// repo/package-scripts: a package.json whose scripts run a command wrapper the repository does not need.
 
 package slopfix
 

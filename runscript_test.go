@@ -15,8 +15,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// guardedRunScripts carries shell guards from sglang's fork-ci.yml.
-//
 //go:embed testdata/guarded-run-scripts.yml
 var guardedRunScripts string
 
@@ -38,8 +36,8 @@ func TestATestInARunScriptIsAWarning(t *testing.T) {
 
 // The scripts guardedRunScripts moves out, by their path from the checkout root.
 var guardedScripts = map[string]string{
-	".github/scripts/fork-ci-kernel-1.sh": guardedScriptsSh,
-	".github/scripts/fork-ci-kernel-2.sh": guardedScriptsSh2,
+	".github/scripts/fork-ci-kernel-1.sh": embeddedSh,
+	".github/scripts/fork-ci-kernel-2.sh": embeddedSh2,
 }
 
 // guardedRunScriptsFixed is guardedRunScripts with each step running its file.
@@ -86,8 +84,8 @@ func TestFixingAWorkflowFileWritesItsRunScripts(t *testing.T) {
 	}
 }
 
-//go:embed testdata/guarded-scripts.sh
-var guardedScriptsSh string
+//go:embed testdata/embedded.sh
+var embeddedSh string
 
-//go:embed testdata/guarded-scripts-2.sh
-var guardedScriptsSh2 string
+//go:embed testdata/embedded-2.sh
+var embeddedSh2 string

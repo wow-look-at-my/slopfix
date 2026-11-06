@@ -1,4 +1,4 @@
-// fixguard.go holds the fixguard code.
+// fixWorkTree refuses a repair that writes files outside one git work tree.
 
 package cmd
 

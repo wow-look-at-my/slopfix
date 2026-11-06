@@ -78,7 +78,6 @@
   <drop word="somewhat" test="A somewhat long name"/>
   <drop word="fairly" test="A fairly long name"/>
   <drop word="just" test="It just fails"/>
-  <drop word="note that" test="Note that it fails"/>
   <drop word="it is worth noting that" test="It is worth noting that it fails"/>
   <drop word="please note that" test="Please note that it fails"/>
   <drop word="needless to say" test="Needless to say it fails"/>
@@ -149,6 +148,7 @@
   <rewrite from="— which" to=", which" where="message" test="It races — which is the bug"/>
   <rewrite from="that being said" to="but" where="message" test="That being said it races"/>
   <drop word="it is important to note that" where="message" test="It is important to note that it races"/>
+  <drop word="note that" test="Note that it fails"/>
 
   <!--
     A <pattern> is a rewrite with captures, for a shape no whole-word swap can

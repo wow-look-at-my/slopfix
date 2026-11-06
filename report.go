@@ -1,4 +1,4 @@
-// report.go holds the report code.
+// pending answers each comment-length hit in the text as written.
 
 package slopfix
 

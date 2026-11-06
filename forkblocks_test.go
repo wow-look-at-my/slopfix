@@ -15,8 +15,6 @@ import (
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
-// upstreamWorkflow is the parent's workflow.
-//
 //go:embed testdata/upstream-workflow.yml
 var upstreamWorkflow string
 

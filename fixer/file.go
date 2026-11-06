@@ -1,4 +1,4 @@
-// file.go holds the file code.
+// Gate writes edits into text, answering what landed.
 
 package fixer
 

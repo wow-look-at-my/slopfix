@@ -9,13 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// forkArgsDoc is a Rust doc from a real tree: paragraphs, then a list of errors.
-//
 //go:embed testdata/fork-args-doc.rs
 var forkArgsDoc string
 
-// stepComment is a numbered step that wraps, above the line it documents.
-//
 //go:embed testdata/step-comment.rs
 var stepComment string
 

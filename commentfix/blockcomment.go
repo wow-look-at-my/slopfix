@@ -1,4 +1,4 @@
-// blockcomment.go holds the blockcomment code.
+// opener is "/*" or "/**".
 
 package commentfix
 
@@ -37,7 +37,9 @@ func starRun(text []string) (string, bool) {
 }
 
 // readBlock reports a run that is a single /* */ comment, closed on its last
-// line, and answers its prose lines. A layout line keeps its extra indent.
+// line, and answers its prose lines. A layout line keeps its extra indent. A
+// "/*" inside the prose, as in a glob like `pkg/*`, opens nothing: the closer
+// count alone says the run is one comment.
 func readBlock(text []string) (blockShape, []string, bool) {
 	if len(text) == 0 {
 		return blockShape{}, nil, false
@@ -45,7 +47,7 @@ func readBlock(text []string) (blockShape, []string, bool) {
 	first := strings.TrimLeft(text[0], " \t")
 	last := strings.TrimSpace(text[len(text)-1])
 	joined := strings.Join(text, "\n")
-	if !strings.HasPrefix(first, "/*") || !strings.HasSuffix(last, "*/") || strings.Count(joined, "*/") != 1 || strings.Count(joined, "/*") != 1 {
+	if !strings.HasPrefix(first, "/*") || !strings.HasSuffix(last, "*/") || strings.Count(joined, "*/") != 1 {
 		return blockShape{}, nil, false
 	}
 	shape := blockShape{indent: text[0][:len(text[0])-len(first)], opener: "/*"}
@@ -146,17 +148,14 @@ func (s blockShape) render(prose []string) []string {
 func repairBlockComment(b block) ([]string, bool) {
 	shape, prose, ok := readBlock(b.text)
 	if !ok {
-		return nil, false
+		return repairStacked(b)
 	}
 	lines := asLines(shape.indent, prose)
 	kept := fromLines(trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: lines, exact: b.exact}))
-	if out := shape.render(kept); len(out) > 0 && fitsCode(out, b) {
-		return out, true
-	}
-	// No prose survives: the comment is a banner, and it goes.
+	// A banner holds no word, so nothing of it is kept.
 	if len(kept) == 0 {
 		return nil, true
 	}
-	// A cut between words leaves a fragment, so the comment stays for a rewrite by hand.
-	return nil, false
+	// A repair that does not fit still keeps the comment, so check reports none of it.
+	return shape.render(kept), true
 }

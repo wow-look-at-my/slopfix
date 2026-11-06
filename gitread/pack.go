@@ -1,4 +1,4 @@
-// pack.go holds the pack code.
+// Object kinds, as a pack numbers them.
 
 package gitread
 

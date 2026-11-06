@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -53,6 +55,18 @@ func hardCorpus(t *testing.T) map[string]string {
 	files["AGENTS.md"] = strings.Join(agents, "\n\n") + "\n"
 	// A list item over the block cap, with a parenthesis that runs past the division target.
 	files["README.md"] += "\n- **Admin port**: (" + strings.Repeat("The gate reads the file. ", 50) + ") " + strings.Repeat("The tool writes the result to the store. ", 30) + "\n"
+	// Sentences with a dash aside, the shapes that no division may halve and every one must still leave under the cap.
+	files["README.md"] += "\nThere is no way to declare additional writable paths: something to write is the temp directory \u2014 a real filesystem inside every backend \u2014 and a command that genuinely needs the host is not a sandboxed command, so it belongs to a run without the sandbox.\n" +
+		"\nEvery spawned workload command \u2014 test instances and setup hooks \u2014 runs at low priority (nice 19 applied to the command's process group) so a heavily parallel run does not starve the machine.\n" +
+		"\n**Reads are confined under the sandbox**: a command sees the OS tool tree, the working directory, and the paths the file declared \u2014 not the home directory, not the temp root, not another checkout on the machine.\n" +
+		"\nThe scrubber redacts sensitive names (material parameter names, asset names, and the paths built from them) in cooked output by **same-byte-length hash replacement** -- either on the loose files between cook and staging, or directly inside an existing archive (see the archive mode below).\n"
+	files["README.md"] += "\nOutput is buffered and printed in canonical order \u2014 files in the order given on the command line (or discovered), instances in expansion order within each file \u2014 regardless of completion order.\n" +
+		"\nEach re-run executes the **complete original argument scope**, never a subset. The runner has no test filtering or selection by design \u2014 every instance always runs \u2014 and `watch` adds no narrowing flags.\n" +
+		"\n- Every **directory argument** (and the current directory in no-arg mode), recursively \u2014 with the same hidden-directory skip rules as discovery \u2014 so newly created `.cfg` files and new subdirectories are picked up and join the scope.\n" +
+		"\nA reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a careful repair rather than a quiet deletion.\n"
+	// A one-line JSDoc and a banner title each end a thought that a length cut keeps.
+	files["page.ts"] = hardCorpusJs
+	files["steer.ts"] = "const FALLBACK_UNDER = 0.75;\n// ---- continuous wall-clock steer (hybrid signal) ----------------------------\n// Per-pass timestamps cannot see the overhead between passes, so the steer reads the wall clock between presents and folds it into the model each frame.\nconst STEER_GAIN = 0.2;\n"
 	// A block over the volume cap above code longer than the cap, so the length cut alone leaves it over. A separate paragraph states a count, so comments/number is exercised too.
 	files["main.go"] = "package main\n\n// There are 3 modes today.\n\n" + strings.Join(comment, "\n") + "\nfunc sum() int {\n\ttotal := 0\n" + strings.Join(body, "\n") + "\n\treturn total\n}\n\nfunc main() { sum() }\n"
 	return files
@@ -112,3 +126,6 @@ func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 	assert.FileExists(t, filepath.Join(root, "justfile"))
 	assert.FileExists(t, filepath.Join(root, "docs", "agents-continued.md"))
 }
+
+//go:embed testdata/hard-corpus.js
+var hardCorpusJs string

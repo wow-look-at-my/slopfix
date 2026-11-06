@@ -1,4 +1,4 @@
-// writeroutes.go holds the writeroutes code.
+// evaluateWrites runs the provenance analysis under a recover.
 
 package noworkloss
 

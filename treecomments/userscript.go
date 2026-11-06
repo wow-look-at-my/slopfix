@@ -1,4 +1,4 @@
-// userscript.go holds the userscript code.
+// userscriptOpen and userscriptClose bound a userscript metadata block.
 
 package treecomments
 

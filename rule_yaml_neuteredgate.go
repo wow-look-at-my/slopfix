@@ -1,23 +1,13 @@
-// rule_yaml_neuteredgate.go holds the rule yaml neuteredgate code.
+// yaml/neutered-gate: a step that runs the gate with continue-on-error, so a finding cannot fail the run.
 
 package slopfix
 
 import _ "embed"
 
 import (
-	"strings"
-
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
-
-// gateAllowedToFail is the case's step that runs the gate under the key that
-// lets it fail.
-var gateAllowedToFail = strings.Join([]string{
-	"    steps:",
-	"      - uses: wow-look-at-my/slopfix@master",
-	"        continue-on-" + "error: true",
-}, "\n") + "\n"
 
 // yaml/neutered-gate: a step that runs the gate with continue-on-error, so a
 // finding cannot fail the run. The repair drops the key.
@@ -27,8 +17,8 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectNeuteredGate,
 		Autofix:  autofixNeuteredGate,
-		Cases: []RuleCase{workflowCase("neutered-gate", workflowHeader()+embeddedYml11+
-			gateAllowedToFail)},
+		Cases: []RuleCase{workflowCase("neutered-gate", workflowHeader()+embeddedYml24+
+			neuteredGateStep)},
 	})
 }
 
@@ -43,4 +33,9 @@ func autofixNeuteredGate(c RuleCase) RuleCase {
 }
 
 //go:embed testdata/embedded-11.yml
-var embeddedYml11 string
+var embeddedYml24 string
+
+// neuteredGateStep is the case's step under the key that lets it fail.
+//
+//go:embed neutered-gate-step.yml
+var neuteredGateStep string

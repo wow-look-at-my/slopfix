@@ -1,3 +1,6 @@
-      - run: |
-          if [ -z "$WHEEL" ]; then
-          fi
+  dynamic:
+    strategy:
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: make

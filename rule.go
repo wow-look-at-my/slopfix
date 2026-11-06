@@ -1,4 +1,4 @@
-// rule.go holds the rule code.
+// RuleSpec is one rule: what it detects, the repair that answers that detection, and the cases that prove both.
 
 package slopfix
 
@@ -20,6 +20,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/laziness"
 	"github.com/wow-look-at-my/slopfix/ste"
 	"github.com/wow-look-at-my/slopfix/tombstones"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // RuleSpec is one rule: what it detects, the repair that answers that
@@ -84,6 +85,7 @@ func Materialize(dir string, c RuleCase) (RuleCase, error) {
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			return c, err
 		}
+		walktree.Created(path)
 	}
 	// The files are committed, because a rule about a committed file asks git what the tree holds.
 	commit := [][]string{
@@ -196,7 +198,7 @@ func mustBeRegistered(id string) {
 // from each package's own list rather than from the registry.
 func ReportableIDs() set.Set[string] {
 	ids := AllIDs().Union(RepoIDs).Union(tombstones.AllIDs())
-	ids.AddRange(counts.ID, counts.IDSection, counts.IDList, laziness.ID, blamelanguage.ID, askproperly.ID)
+	ids.AddRange(counts.ID, counts.IDSection, laziness.ID, blamelanguage.ID, askproperly.ID)
 	for _, p := range english.Patterns() {
 		if p.ID != "" {
 			ids.Add(p.ID)

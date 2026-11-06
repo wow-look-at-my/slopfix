@@ -1,3 +1,11 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+
 jobs:
-  all-builds:
+  build:
     runs-on: ubuntu-latest
+    steps:
+      - run: echo hi

@@ -1,4 +1,4 @@
-// lru.go holds the lru code.
+// entryCost is the bookkeeping an entry costs beyond its bytes.
 
 package gitread
 

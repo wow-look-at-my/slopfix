@@ -1,0 +1,12 @@
+import { adoptShadowStyles } from './shadow-styles.ts';
+import { onFirstListener } from './listener-watch.ts';
+import { upgradeProperties } from './upgrade-properties.ts';
+import { categoryColor, categoryHue } from './color.ts';
+export * from './chart-math.ts';
+
+export class ChartElement extends HTMLElement {
+  connectedCallback(): void {
+    upgradeProperties(this, ChartElement.prototype);
+    this.paintEveryBarOfTheChart();
+  }
+}

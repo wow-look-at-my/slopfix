@@ -1,3 +1,4 @@
-jobs:
-  build:
-    runs-on: ubuntu-latest
+      env:
+        # An env var carries the value, so no character in it can break the script.
+        BUILDHOST_PROJECT: ${{ inputs.project }}
+        BUILDHOST_APT_DEPENDS: ${{ inputs.apt_depends }}

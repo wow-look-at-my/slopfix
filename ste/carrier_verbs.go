@@ -1,4 +1,4 @@
-// carrier_verbs.go holds the carrier verbs code.
+// mainVerb answers the verb group of the main clause that holds the words before byte at.
 
 package ste
 

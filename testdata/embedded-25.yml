@@ -1,4 +1,3 @@
-  done:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+jobs:
+  build:
+    runs-on: ubuntu-latest

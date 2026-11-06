@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wow-look-at-my/slopfix/edit"
+	"github.com/wow-look-at-my/slopfix/fixer"
 	"github.com/wow-look-at-my/slopfix/workflow"
 )
 
@@ -52,8 +54,6 @@ func TestACommentBlockAtTheEndOfTheFileIsReported(t *testing.T) {
 	assert.Equal(t, 2, findings[0].Line)
 }
 
-// A # inside a block scalar opens a shell comment.
-//
 //go:embed testdata/script-with-comments.yml
 var scriptWithComments string
 
@@ -65,6 +65,41 @@ func TestRepairingLeavesAScriptsCommentsAlone(t *testing.T) {
 	repair := workflow.Fix(scriptWithComments, othersThanConcurrency)
 	assert.False(t, repair.Changed)
 	assert.Equal(t, scriptWithComments, repair.Text)
+}
+
+// A comment repair may change how many lines a script comment takes, and any
+// change to the script's code is still refused.
+func TestAScriptCommentMayShrinkButItsCodeMayNot(t *testing.T) {
+	gate := workflow.Options(fixer.Options{}).Comments
+	shorter := edit.Lines(scriptWithComments, 5, 6, 0, []string{"          # the suites need the backend"})
+	res := gate(scriptWithComments, []edit.Edit{shorter}, edit.Scope{})
+	require.Len(t, res.Applied, 1)
+	assert.Equal(t, testAScriptCommentMayShrinkButItsCodeMayNotYml, res.Text)
+
+	code := edit.Lines(scriptWithComments, 5, 7, 0, []string{"          # the suites need the backend"})
+	res = gate(scriptWithComments, []edit.Edit{code}, edit.Scope{})
+	assert.Empty(t, res.Applied)
+	assert.Len(t, res.Refused, 1)
+	assert.Equal(t, scriptWithComments, res.Text)
+}
+
+// The interpreter line and a # line inside a heredoc are code and data. A
+// comment edit that removes either is refused.
+func TestAShebangAndAHeredocLineAreNotComments(t *testing.T) {
+	gate := workflow.Options(fixer.Options{}).Comments
+	head := testAShebangAndAHeredocLineAreNotCommentsYml
+	for name, script := range map[string]string{
+		"shebang": head + testAShebangAndAHeredocLineAreNotCommentsSh,
+		"heredoc": head + "          cat <<EOF\n          # not a comment\n          EOF\n",
+	} {
+		res := gate(script, []edit.Edit{edit.Lines(script, 5, 5, 0, nil)}, edit.Scope{})
+		if name == "heredoc" {
+			res = gate(script, []edit.Edit{edit.Lines(script, 6, 6, 0, nil)}, edit.Scope{})
+		}
+		assert.Empty(t, res.Applied, name)
+		assert.Len(t, res.Refused, 1, name)
+		assert.Equal(t, script, res.Text, name)
+	}
 }
 
 // Comment lines whose first never closed its sentence join into sentences, not
@@ -105,6 +140,9 @@ var testACommentRunPastTheLimitIsReportedYml string
 //go:embed testdata/test-a-blank-line-does-not-split-a-comment-block.md
 var testABlankLineDoesNotSplitACommentBlockMd string
 
+//go:embed testdata/test-a-comment-block-after-a-block-scalar-is-still-reported.yml
+var testACommentBlockAfterABlockScalarIsStillReportedYml string
+
 //go:embed testdata/test-a-comment-block-at-the-end-of-the-file-is-reported.yml
 var testACommentBlockAtTheEndOfTheFileIsReportedYml string
 
@@ -117,5 +155,11 @@ var testJoiningCommentLinesKeepsTheirSentencesApartYml2 string
 //go:embed testdata/test-joining-comment-lines-keeps-their-sentences-apart-3.yml
 var testJoiningCommentLinesKeepsTheirSentencesApartYml3 string
 
-//go:embed testdata/test-a-comment-block-after-a-block-scalar-is-still-reported.yml
-var testACommentBlockAfterABlockScalarIsStillReportedYml string
+//go:embed testdata/test-a-script-comment-may-shrink-but-its-code-may-not.yml
+var testAScriptCommentMayShrinkButItsCodeMayNotYml string
+
+//go:embed testdata/test-a-shebang-and-a-heredoc-line-are-not-comments.yml
+var testAShebangAndAHeredocLineAreNotCommentsYml string
+
+//go:embed testdata/test-a-shebang-and-a-heredoc-line-are-not-comments.sh
+var testAShebangAndAHeredocLineAreNotCommentsSh string

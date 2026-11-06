@@ -1,3 +1,4 @@
-        with:
-          script: |
-            core.info(process.env.SHA);
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:

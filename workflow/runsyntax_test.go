@@ -23,8 +23,6 @@ func syntaxFindings(content string) []ste.Finding {
 	return out
 }
 
-// emptyIfBody is wow-look-at-my/sglang fork-ci.yml at c33f43989a.
-//
 //go:embed testdata/empty-if-body.yml
 var emptyIfBody string
 
@@ -78,8 +76,8 @@ func TestAnShStepIsParsedAsPOSIX(t *testing.T) {
 func TestAPowerShellStepIsNotParsed(t *testing.T) {
 	broken := "        run: |\n          if ($x) { exit 1 }\n          fi\n"
 	for _, content := range []string{
-		testAPowerShellStepIsNotParsedYml + broken,
 		testAPowerShellStepIsNotParsedYml2 + broken,
+		testAPowerShellStepIsNotParsedYml + broken,
 		testAPowerShellStepIsNotParsedYml3 + broken,
 	} {
 		assert.Empty(t, syntaxFindings(content), content)
@@ -190,6 +188,12 @@ func TestAParsingScriptIsNotRewritten(t *testing.T) {
 	assert.Equal(t, content, repairedBy(content))
 }
 
+//go:embed testdata/test-a-power-shell-step-is-not-parsed.yml
+var testAPowerShellStepIsNotParsedYml string
+
+//go:embed testdata/test-a-stray-closing-word-is-dropped.yml
+var testAStrayClosingWordIsDroppedYml string
+
 //go:embed testdata/test-a-script-on-the-run-row-is-reported-there.yml
 var testAScriptOnTheRunRowIsReportedThereYml string
 
@@ -201,9 +205,6 @@ var testAnShStepIsParsedAsPOSIXYml string
 
 //go:embed testdata/test-an-sh-step-is-parsed-as-posix-2.yml
 var testAnShStepIsParsedAsPOSIXYml2 string
-
-//go:embed testdata/test-a-power-shell-step-is-not-parsed.yml
-var testAPowerShellStepIsNotParsedYml string
 
 //go:embed testdata/test-a-power-shell-step-is-not-parsed-2.yml
 var testAPowerShellStepIsNotParsedYml2 string
@@ -219,9 +220,6 @@ var testAnExpressionParsesWhereAWordDoesYml string
 
 //go:embed testdata/test-an-unclosed-if-gets-its-fi.yml
 var testAnUnclosedIfGetsItsFiYml string
-
-//go:embed testdata/test-a-stray-closing-word-is-dropped.yml
-var testAStrayClosingWordIsDroppedYml string
 
 //go:embed testdata/test-a-parsing-script-is-not-rewritten.yml
 var testAParsingScriptIsNotRewrittenYml string
