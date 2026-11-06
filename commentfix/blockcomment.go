@@ -1,3 +1,5 @@
+// blockcomment.go holds the blockcomment code.
+
 package commentfix
 
 import "strings"

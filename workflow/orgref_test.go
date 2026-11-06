@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"fmt"
 	"net/http"
@@ -23,7 +25,7 @@ func orgRefFindings(content string) []ste.Finding {
 }
 
 func steps(uses ...string) string {
-	out := "on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n"
+	out := stepsYml
 	for _, u := range uses {
 		out += "      - uses: " + u + "\n"
 	}
@@ -48,7 +50,7 @@ func TestAnOrgActionOffMasterIsReported(t *testing.T) {
 }
 
 func TestAReusableWorkflowOffMasterIsReported(t *testing.T) {
-	content := "on: workflow_dispatch\njobs:\n  preview:\n    uses: wow-look-at-my/buildhost/.github/workflows/preview.yml@wip\n"
+	content := testAReusableWorkflowOffMasterIsReportedYml
 	found := orgRefFindings(content)
 	require.Len(t, found, 1)
 	assert.Equal(t, 4, found[0].Line)
@@ -65,7 +67,7 @@ func TestAnOrgActionOnMasterPasses(t *testing.T) {
 		"docker://alpine:3",
 	)
 	assert.Empty(t, orgRefFindings(content))
-	assert.Empty(t, orgRefFindings("runs:\n  using: composite\n  steps:\n    - uses: wow-look-at-my/dats@master\n"))
+	assert.Empty(t, orgRefFindings(testAnOrgActionOnMasterPassesYml))
 }
 
 func TestTheRepairPointsAtTheDefaultBranch(t *testing.T) {
@@ -128,3 +130,12 @@ func TestASHAPinOfTheMonorepoWithNoDirectoryIsNotReported(t *testing.T) {
 		assert.Empty(t, orgRefFindings(steps(uses)), uses)
 	}
 }
+
+//go:embed testdata/steps.yml
+var stepsYml string
+
+//go:embed testdata/test-a-reusable-workflow-off-master-is-reported.yml
+var testAReusableWorkflowOffMasterIsReportedYml string
+
+//go:embed testdata/test-an-org-action-on-master-passes.yml
+var testAnOrgActionOnMasterPassesYml string

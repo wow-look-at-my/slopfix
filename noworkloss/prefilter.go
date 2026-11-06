@@ -1,3 +1,5 @@
+// prefilter.go holds the prefilter code.
+
 package noworkloss
 
 import "strings"

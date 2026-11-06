@@ -1,3 +1,5 @@
+// reach.go holds the reach code.
+
 package noworkloss
 
 import (

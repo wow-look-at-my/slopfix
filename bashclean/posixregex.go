@@ -1,3 +1,5 @@
+// posixregex.go holds the posixregex code.
+
 package bashclean
 
 import "strings"

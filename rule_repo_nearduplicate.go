@@ -1,3 +1,5 @@
+// rule_repo_nearduplicate.go holds the rule repo nearduplicate code.
+
 package slopfix
 
 import (

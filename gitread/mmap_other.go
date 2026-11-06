@@ -1,5 +1,7 @@
 //go:build !unix
 
+// mmap_other.go holds the mmap other code.
+
 package gitread
 
 import "os"

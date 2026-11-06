@@ -1,3 +1,5 @@
+// fragment.go holds the fragment code.
+
 package ste
 
 import (
@@ -95,8 +97,7 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 			continue
 		}
 		left := closeHead(source[:c.left])
-		// The right part must read as a sentence, or open a list. A noun
-		// phrase before a mark stands behind "This is" instead of a fragment.
+		// The right part must read as a sentence, or open a list.
 		right := carryRest(source[c.right:])
 		if left == "" || right == "" || !divides(left, right, limit) {
 			continue

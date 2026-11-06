@@ -1,3 +1,5 @@
+// rename.go holds the rename code.
+
 package tombstones
 
 import (

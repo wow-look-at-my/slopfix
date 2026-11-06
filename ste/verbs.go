@@ -1,3 +1,5 @@
+// verbs.go holds the verbs code.
+
 package ste
 
 import "strings"

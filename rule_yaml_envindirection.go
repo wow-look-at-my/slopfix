@@ -1,4 +1,8 @@
+// rule_yaml_envindirection.go holds the rule yaml envindirection code.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -16,21 +20,20 @@ func init() {
 		Detect:   detectEnvIndirection,
 		Autofix:  autofixEnvIndirection,
 		Cases: []RuleCase{
-			workflowCase("env-indirection", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
-				"    steps:\n      - env:\n          OUT: ${{ github.sha }}\n        run: echo \"$OUT\"\n"),
+			workflowCase("env-indirection", workflowHeader()+embeddedYml5+
+				embeddedYml6),
 			// From buildhost's buildhost-publish action: the entry only carries an input into the script.
 			{Name: "yaml/env-indirection-typescript", Path: ".github/actions/buildhost-publish/action.yml", Text: scriptActionManifest(
-				"      env:\n        # An env var carries the value, so no character in it can break the script.\n"+
-					"        BUILDHOST_PROJECT: ${{ inputs.project }}\n        BUILDHOST_APT_DEPENDS: ${{ inputs.apt_depends }}\n",
+				embeddedYml7,
 				"          const inputAptDepends: string = process.env.BUILDHOST_APT_DEPENDS ?? \"\";\n"+
 					"          const project: string = process.env.BUILDHOST_PROJECT || \"repo\";\n"+
 					"          if (!process.env.BUILDHOST_PROJECT) {\n            core.info(\"no project input\");\n          }\n"+
 					"          if (inputAptDepends && process.env.BUILDHOST_PROJECT) {\n            core.info(\"project with prerequisites\");\n          }\n"+
 					"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT} as ${project} with ${inputAptDepends}`);\n")},
 			// A `??` arm that goes on past its line stays.
-			workflowCase("env-indirection-github-script", workflowHeader()+"jobs:\n  build:\n    runs-on: ubuntu-latest\n"+
-				"    steps:\n      - uses: actions/github-script@v7\n        env:\n          SHA: ${{ github.sha }}\n"+
-				"        with:\n          script: |\n            core.info(process.env.SHA);\n"+
+			workflowCase("env-indirection-github-script", workflowHeader()+embeddedYml8+
+				embeddedYml9+
+				embeddedYml10+
 				"            core.info(process.env.SHA ??\n              \"none\");\n"),
 			envKeptCase(),
 		},
@@ -40,9 +43,7 @@ func init() {
 // scriptActionManifest is a composite action whose one step runs a TypeScript
 // script with the given env block and script lines.
 func scriptActionManifest(env, script string) string {
-	return "name: Publish\ndescription: Publish a release.\n\ninputs:\n  project:\n    description: Project name\n    required: false\n" +
-		"  apt_depends:\n    description: Runtime prerequisites\n    required: false\n\n" +
-		"runs:\n  using: composite\n  steps:\n    - id: publish\n      uses: wow-look-at-my/actions@typescript#latest\n" +
+	return scriptActionManifestYml +
 		env + "      with:\n        script: |\n" + script
 }
 
@@ -51,7 +52,7 @@ func scriptActionManifest(env, script string) string {
 // entry too.
 func envKeptCase() RuleCase {
 	c := RuleCase{Name: "yaml/env-indirection-typescript-kept", Path: ".github/actions/buildhost-publish/action.yml", Text: scriptActionManifest(
-		"      env:\n        BUILDHOST_APT_DEPENDS: ${{ inputs.apt_depends }}\n        BUILDHOST_PROJECT: ${{ inputs.project }}\n",
+		envKeptCaseYml,
 		"          process.env.BUILDHOST_APT_DEPENDS ??= \"\";\n"+
 			"          core.info(`Publishing ${process.env.BUILDHOST_PROJECT} with ${process.env.BUILDHOST_APT_DEPENDS}`);\n"+
 			"    - shell: bash\n      run: echo \"$BUILDHOST_PROJECT\"\n")}
@@ -68,3 +69,27 @@ func detectEnvIndirection(c RuleCase) []ste.Finding {
 func autofixEnvIndirection(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDEnvIndirection)
 }
+
+//go:embed testdata/embedded-5.yml
+var embeddedYml5 string
+
+//go:embed testdata/embedded-6.yml
+var embeddedYml6 string
+
+//go:embed testdata/embedded-7.yml
+var embeddedYml7 string
+
+//go:embed testdata/embedded-8.yml
+var embeddedYml8 string
+
+//go:embed testdata/embedded-9.yml
+var embeddedYml9 string
+
+//go:embed testdata/embedded-10.yml
+var embeddedYml10 string
+
+//go:embed testdata/script-action-manifest.yml
+var scriptActionManifestYml string
+
+//go:embed testdata/env-kept-case.yml
+var envKeptCaseYml string

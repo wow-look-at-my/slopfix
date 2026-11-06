@@ -1,3 +1,5 @@
+// rule_message_ask.go holds the rule message ask code.
+
 package slopfix
 
 import (

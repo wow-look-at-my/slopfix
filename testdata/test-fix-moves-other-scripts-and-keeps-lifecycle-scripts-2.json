@@ -1,0 +1,6 @@
+{
+    "name": "a",
+    "scripts": {
+        "postinstall": "node bin/postinstall.js"
+    }
+}

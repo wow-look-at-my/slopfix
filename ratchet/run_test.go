@@ -1,5 +1,7 @@
 package ratchet
 
+import _ "embed"
+
 import (
 	"os"
 	"os/exec"
@@ -220,7 +222,7 @@ func TestAnUnreachableOriginFails(t *testing.T) {
 
 func TestCommandSkipsCommentsAndBlanks(t *testing.T) {
 	t.Serial()
-	assert.Equal(t, []string{"go", "run", "./cmd/ratchet"}, Command("# note\n\n  go run ./cmd/ratchet  \nignored\n"))
+	assert.Equal(t, []string{"go", "run", "./cmd/ratchet"}, Command(testCommandSkipsCommentsAndBlanksMd))
 	assert.Empty(t, Command("# only a comment\n\n"))
 }
 
@@ -273,3 +275,6 @@ func TestOrgGoFailsWithoutGoToolchain(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "go-toolchain is not on PATH")
 }
+
+//go:embed testdata/test-command-skips-comments-and-blanks.md
+var testCommandSkipsCommentsAndBlanksMd string

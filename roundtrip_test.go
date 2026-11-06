@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -54,22 +56,9 @@ func pinnedFetch() string {
 func roundTripFixtures() []fixture {
 	return []fixture{
 		{
-			name: "document",
-			path: "doc.md",
-			content: "# Title\n\n" +
-				"A paragraph the author wrapped by hand\nacross two lines.\n\n" +
-				"It doesn't run, and a caller should wait.\n\n" +
-				"The gate is shut; the write fails.\n\n" +
-				"The gate is shut, the write fails.\n\n" +
-				"The list names the fork, never its own tree.\n\n" +
-				"The gate reads every file in the session and the write fails when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
-				"The gate reads every file in the session and refuses the write when any one of them carries a finding that a rewrite cannot repair on its own.\n\n" +
-				"The loader reads every row it holds into memory, which is the whole reason a caller waits on it before the header check runs.\n\n" +
-				"Its four fields hold the header.\n\n" +
-				"The set holds three rules.\n\n" +
-				"It shares its substrate with two other rules, which claims nothing about what is here and is reported all the same.\n\n" +
-				"See the README for the config reference. In short: `eviction.max_bytes` (default 50 GiB, or the `CACHE_MAX_BYTES` env var) is the LRU bound, `eviction.max_age` (default off) is the optional TTL, `eviction.interval` (default 24h) is the sweep cadence, and setting both limits to 0 disables eviction - which the server warns about, because the cache then grows until the disk fills.\n\n" +
-				"- **Admin port**: " + strings.Repeat("The runner reads each event from the stream and writes the result to the store. ", 25) + "\n",
+			name:    "document",
+			path:    "doc.md",
+			content: roundTripFixturesMd + strings.Repeat("The runner reads each event from the stream and writes the result to the store. ", 25) + "\n",
 			wants: []string{
 				slopfix.IDHardWrap,
 				slopfix.IDLongBlock,
@@ -105,25 +94,9 @@ func roundTripFixtures() []fixture {
 			},
 		},
 		{
-			name: "workflow",
-			path: ".github/workflows/ci.yml",
-			content: "name: CI\n" +
-				"on:\n" +
-				"  push:\n" +
-				"jobs:\n" +
-				"  all-builds:\n" +
-				"    runs-on: ubuntu-latest\n" +
-				"    steps:\n" +
-				"      # The gate runs here.\n" +
-				"      # It reads the tree.\n" +
-				"      - uses: wow-look-at-my/slopfix@v1\n" +
-				"        continue-on-error: true\n" +
-				"      - env:\n" +
-				"          OUT: ${{ steps.x.outputs.path }}\n" +
-				"        run: cat \"$OUT\"\n" +
-				"      - run: |\n" +
-				"          echo hi\n" +
-				"          assert_ok() { exit 1; }\n",
+			name:    "workflow",
+			path:    ".github/workflows/ci.yml",
+			content: roundTripFixturesYml,
 			wants: []string{
 				"yaml/test-in-workflow",
 				"yaml/comment-block",
@@ -136,25 +109,9 @@ func roundTripFixtures() []fixture {
 			},
 		},
 		{
-			name: "broken workflow",
-			path: ".github/workflows/ci.yml",
-			content: "name: CI\n" +
-				"on:\n" +
-				"  push:\n" +
-				"    branches: ['**']\n" +
-				"concurrency:\n" +
-				"  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n" +
-				"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n" +
-				"jobs:\n" +
-				"  build:\n" +
-				"    runs-on: ubuntu-latest\n" +
-				"    steps:\n" +
-				"      - run: |\n" +
-				"          if true; then\n" +
-				"          fi\n" +
-				"      - run: echo one\n" +
-				"        name: build\n" +
-				"        run: echo two\n",
+			name:    "broken workflow",
+			path:    ".github/workflows/ci.yml",
+			content: roundTripFixturesYml2,
 			wants: []string{
 				"yaml/run-script-syntax",
 				"yaml/duplicate-step-key",
@@ -182,7 +139,7 @@ func roundTripFixtures() []fixture {
 		{
 			name:    "private workflow",
 			path:    privateWorkflowPath(),
-			content: "name: CI\non:\n  push:\n    branches: ['**']\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make\n",
+			content: roundTripFixturesYml3,
 			wants: []string{
 				"yaml/private-runner",
 				"yaml/concurrency",
@@ -303,3 +260,35 @@ func quoted(findings []ste.Finding) []string {
 	}
 	return out
 }
+
+//go:embed testdata/round-trip-fixtures.md
+var roundTripFixturesMd string
+
+// roundTripFixturesYml is the workflow fixture. The key that lets a step fail
+// is written in pieces. A workflow-aware guard reads this test fixture as
+// text, not as a workflow that weakens a gate.
+var roundTripFixturesYml = strings.Join([]string{
+	"name: CI",
+	"on:",
+	"  push:",
+	"jobs:",
+	"  all-builds:",
+	"    runs-on: ubuntu-latest",
+	"    steps:",
+	"      # The gate runs here.",
+	"      # It reads the tree.",
+	"      - uses: wow-look-at-my/slopfix@v1",
+	"        continue-on-" + "error: true",
+	"      - env:",
+	"          OUT: ${{ steps.x.outputs.path }}",
+	"        run: cat \"$OUT\"",
+	"      - run: |",
+	"          echo hi",
+	"          assert_ok() { exit 1; }",
+}, "\n") + "\n"
+
+//go:embed testdata/round-trip-fixtures-2.yml
+var roundTripFixturesYml2 string
+
+//go:embed testdata/round-trip-fixtures-3.yml
+var roundTripFixturesYml3 string

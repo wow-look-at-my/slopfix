@@ -1,5 +1,7 @@
 //go:build unix
 
+// mmap_unix.go holds the mmap unix code.
+
 package gitread
 
 import (

@@ -1,0 +1,4 @@
+name: CI
+# one line about a thing
+# a second line about it
+on: {push: {branches: ['**']}}

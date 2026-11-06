@@ -1,5 +1,7 @@
 package table_test
 
+import _ "embed"
+
 import (
 	"testing"
 	"testing/fstest"
@@ -19,29 +21,12 @@ func folder(files map[string]string) fstest.MapFS {
 	return out
 }
 
-const numbersFile = `<?xml version="1.0" encoding="UTF-8"?>
-<rules for="numbers">
-  <rewrite id="once" from="once" to="a single time">
-    <test in="It hashes once" out="It hashes a single time"/>
-  </rewrite>
-  <pattern id="one-noun" match="(?i)\bone\s+([a-z])" to="a single ${1}">
-    <test in="It reserves one slot" out="It reserves a single slot"/>
-  </pattern>
-  <class name="noun" open="true"/>
-  <rephrase id="only-one" match="only one" to="a single">
-    <test in="It locks only one" out="It locks a single"/>
-  </rephrase>
-  <test in="It reserves one slot" out="It reserves a single slot"/>
-</rules>
-`
+//go:embed testdata/numbers-file.xml
+var numbersFile string
 
 // A file declares its consumer, and Load keeps that consumer's entries alone.
 func TestLoadKeepsTheTargetsEntries(t *testing.T) {
-	other := `<?xml version="1.0" encoding="UTF-8"?>
-<rules for="english">
-  <drop id="basically" word="basically"><test in="It basically fails"/></drop>
-</rules>
-`
+	other := testLoadKeepsTheTargetsEntriesXml
 	loaded, err := table.Load(folder(map[string]string{"a.xml": numbersFile, "b.xml": other}), "numbers")
 	require.NoError(t, err)
 
@@ -55,15 +40,7 @@ func TestLoadKeepsTheTargetsEntries(t *testing.T) {
 
 // A list holds a string on each line, with no test per item.
 func TestAListHoldsOneItemOnEachLine(t *testing.T) {
-	body := `<?xml version="1.0" encoding="UTF-8"?>
-<rules for="words">
-  <list name="banned">
-    abate decrease
-
-    abandon go stop
-  </list>
-</rules>
-`
+	body := testAListHoldsOneItemOnEachLineXml
 	loaded, err := table.Load(folder(map[string]string{"a.xml": body}), "words")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"abate decrease", "abandon go stop"}, loaded.List("banned"))
@@ -88,14 +65,8 @@ func TestABrokenListFailsTheLoad(t *testing.T) {
 // The folder is read in file name order. That is what lets a longer phrase in
 // an earlier file beat the shorter phrase inside it, which a later file holds.
 func TestTheFolderIsReadInFileNameOrder(t *testing.T) {
-	first := `<?xml version="1.0" encoding="UTF-8"?>
-<rules for="numbers"><rewrite id="one-or-more" from="one or more" to="any number of">
-<test in="one or more" out="any number of"/></rewrite></rules>
-`
-	second := `<?xml version="1.0" encoding="UTF-8"?>
-<rules for="numbers"><rewrite id="one" from="one" to="a single">
-<test in="one" out="a single"/></rewrite></rules>
-`
+	first := testTheFolderIsReadInFileNameOrderXml
+	second := testTheFolderIsReadInFileNameOrderXml2
 	loaded, err := table.Load(folder(map[string]string{"b-later.xml": second, "a-first.xml": first}), "numbers")
 	require.NoError(t, err)
 
@@ -144,10 +115,7 @@ func TestLoadRefusesWhatCannotFire(t *testing.T) {
 // an id an earlier file used. A failure would otherwise name an entry the
 // reader cannot find.
 func TestLoadRefusesADuplicateIDAcrossFiles(t *testing.T) {
-	again := `<?xml version="1.0" encoding="UTF-8"?>
-<rules for="numbers"><rewrite id="once" from="once" to="a single time">
-<test in="It hashes once" out="It hashes a single time"/></rewrite></rules>
-`
+	again := testLoadRefusesADuplicateIDAcrossFilesXml
 	_, err := table.Load(folder(map[string]string{"a.xml": numbersFile, "b.xml": again}), "numbers")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "once")
@@ -167,3 +135,18 @@ func TestAppliesToReadsTheSurface(t *testing.T) {
 	assert.True(t, table.AppliesTo("message", "message"))
 	assert.False(t, table.AppliesTo("message", "comment"))
 }
+
+//go:embed testdata/test-load-keeps-the-targets-entries.xml
+var testLoadKeepsTheTargetsEntriesXml string
+
+//go:embed testdata/test-a-list-holds-one-item-on-each-line.xml
+var testAListHoldsOneItemOnEachLineXml string
+
+//go:embed testdata/test-the-folder-is-read-in-file-name-order.xml
+var testTheFolderIsReadInFileNameOrderXml string
+
+//go:embed testdata/test-the-folder-is-read-in-file-name-order-2.xml
+var testTheFolderIsReadInFileNameOrderXml2 string
+
+//go:embed testdata/test-load-refuses-a-duplicate-id-across-files.xml
+var testLoadRefusesADuplicateIDAcrossFilesXml string

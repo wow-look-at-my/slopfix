@@ -1,3 +1,5 @@
+// refuse.go holds the refuse code.
+
 package autoallow
 
 import "strings"

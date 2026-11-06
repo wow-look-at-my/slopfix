@@ -1,3 +1,5 @@
+// inventory_list_blocks.go holds the inventory list blocks code.
+
 package counts
 
 import (

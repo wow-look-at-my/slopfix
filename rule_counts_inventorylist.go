@@ -1,4 +1,8 @@
+// rule_counts_inventorylist.go holds the rule counts inventorylist code.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
@@ -16,11 +20,11 @@ func init() {
 		Autofix:  autofixInventoryList,
 		Cases: []RuleCase{
 			{Name: "commands", Path: "x.md", Text: "The commands are `check`, `hook`, `lsp`, `ratchet`, `version`, `completion` and `help`.\n"},
-			{Name: "frame", Path: "x.md", Text: "# Tool\n\nThe tool reads prose.\n\nThe modes are `fast` and `slow`.\n"},
-			{Name: "list-block", Path: "x.md", Text: "# Tool\n\nThe tool reads prose.\n\nRun one of these:\n\n- `check` reads a file.\n- `fix` repairs a file.\n- `hook` answers a hook.\n"},
-			{Name: "table", Path: "x.md", Text: "# Tool\n\nThe tool reads prose.\n\n| Name | Use |\n|---|---|\n| `a` | reads |\n| `b` | writes |\n| `c` | checks |\n"},
-			{Name: "catalog-fence", Path: "x.md", Text: "# Tool\n\nThe tool reads prose.\n\n```sh\nslopfix check .\nslopfix fix .\nslopfix hook\n```\n"},
-			{Name: "split", Path: "x.md", Text: "# Tool\n\nThe tool reads prose.\n\nThe tool reads `a`. The tool reads `b`. The tool reads `c`.\n"},
+			{Name: "frame", Path: "x.md", Text: embeddedMd},
+			{Name: "list-block", Path: "x.md", Text: embeddedMd2},
+			{Name: "table", Path: "x.md", Text: embeddedMd3},
+			{Name: "catalog-fence", Path: "x.md", Text: embeddedMd4},
+			{Name: "split", Path: "x.md", Text: embeddedMd5},
 			{Name: "comment", Path: "x.go", Text: "package x\n\n// The modes are `fast`, `slow` and `safe`.\nconst mode = 1\n"},
 			{Name: "message", Text: "I changed `a.go`, `b.go` and `c.go`.\n"},
 		},
@@ -60,3 +64,18 @@ func commentListFindings(path, content string) []ste.Finding {
 	}
 	return out
 }
+
+//go:embed testdata/embedded.md
+var embeddedMd string
+
+//go:embed testdata/embedded-2.md
+var embeddedMd2 string
+
+//go:embed testdata/embedded-3.md
+var embeddedMd3 string
+
+//go:embed testdata/embedded-4.md
+var embeddedMd4 string
+
+//go:embed testdata/embedded-5.md
+var embeddedMd5 string

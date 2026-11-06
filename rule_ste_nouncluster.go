@@ -1,3 +1,5 @@
+// rule_ste_nouncluster.go holds the rule ste nouncluster code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

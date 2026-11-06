@@ -1,5 +1,7 @@
 package tombstones
 
+import _ "embed"
+
 import (
 	"os"
 	"os/exec"
@@ -165,9 +167,7 @@ func gitTree(t *testing.T) string {
 // it, counted from one, and the code around the comment names nothing.
 func TestADeadNameInAnInlineBlockCommentIsReportedOnItsLine(t *testing.T) {
 	path := filepath.Join(gitTree(t), "a.ts")
-	src := "function commentOnlyLines(script: string): number[] {\n" +
-		"\tconst scanner = ts.createScanner(ts.ScriptTarget.Latest, /* skipTrivia */ false, ts.LanguageVariant.Standard, script);\n" +
-		"}\n"
+	src := testADeadNameInAnInlineBlockCommentIsReportedOnItsLineJs
 	hits := DeadReferentHits(path, src)
 	require.Len(t, hits, 1)
 	assert.Equal(t, "skipTrivia", hits[0].Phrase)
@@ -178,13 +178,9 @@ func TestADeadNameInAnInlineBlockCommentIsReportedOnItsLine(t *testing.T) {
 // call as it would read with no comment at all.
 func TestAnInlineBlockCommentEmptiedOfItsDeadNameGoesWhole(t *testing.T) {
 	path := filepath.Join(gitTree(t), "a.ts")
-	src := "function commentOnlyLines(script: string): number[] {\n" +
-		"\tconst scanner = ts.createScanner(ts.ScriptTarget.Latest, /* skipTrivia */ false, ts.LanguageVariant.Standard, script);\n" +
-		"}\n"
+	src := testAnInlineBlockCommentEmptiedOfItsDeadNameGoesWholeJs
 	repair := Fix(path, src, DefaultMaxCommentLines)
-	assert.Equal(t, "function commentOnlyLines(script: string): number[] {\n"+
-		"\tconst scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, script);\n"+
-		"}\n", repair.Text)
+	assert.Equal(t, testAnInlineBlockCommentEmptiedOfItsDeadNameGoesWholeJs2, repair.Text)
 	assert.Empty(t, repair.Kept)
 	assert.Empty(t, DeadReferentHits(path, repair.Text))
 }
@@ -310,3 +306,12 @@ func TestRepoRootFindsTheTreeAboveAFile(t *testing.T) {
 
 	assert.Equal(t, dir, RepoRoot(filepath.Join(dir, "sub", "a.go")))
 }
+
+//go:embed testdata/test-a-dead-name-in-an-inline-block-comment-is-reported-on-its-line.js
+var testADeadNameInAnInlineBlockCommentIsReportedOnItsLineJs string
+
+//go:embed testdata/test-an-inline-block-comment-emptied-of-its-dead-name-goes-whole.js
+var testAnInlineBlockCommentEmptiedOfItsDeadNameGoesWholeJs string
+
+//go:embed testdata/test-an-inline-block-comment-emptied-of-its-dead-name-goes-whole-2.js
+var testAnInlineBlockCommentEmptiedOfItsDeadNameGoesWholeJs2 string

@@ -1,3 +1,5 @@
+// subject.go holds the subject code.
+
 package ste
 
 import (

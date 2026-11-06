@@ -1,3 +1,5 @@
+// repairable.go holds the repairable code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/go-containers/set"

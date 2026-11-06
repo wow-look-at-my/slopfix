@@ -1,3 +1,5 @@
+// rule_wrap_hardwrap.go holds the rule wrap hardwrap code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

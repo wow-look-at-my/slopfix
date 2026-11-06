@@ -1,3 +1,5 @@
+// action.go holds the action code.
+
 package forkscope
 
 import (

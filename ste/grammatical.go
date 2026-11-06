@@ -1,3 +1,5 @@
+// grammatical.go holds the grammatical code.
+
 package ste
 
 import (

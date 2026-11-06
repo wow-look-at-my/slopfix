@@ -1,3 +1,5 @@
+// rule_message_laziness.go holds the rule message laziness code.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// rule_ste_instructionlength.go holds the rule ste instructionlength code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

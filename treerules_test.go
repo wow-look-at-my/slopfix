@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"os"
 	"os/exec"
@@ -153,7 +155,7 @@ func TestASymlinkIsNotACopy(t *testing.T) {
 }
 
 func TestFilesEachDirectoryNeedsAreNotCopies(t *testing.T) {
-	manifest := "{\n  \"name\": \"x\",\n  \"private\": true\n}\n"
+	manifest := testFilesEachDirectoryNeedsAreNotCopiesJson
 	root := gitRepo(t, map[string]string{"a/package.json": manifest, "b/package.json": manifest, "a/.keep": "", "b/.keep": ""})
 	assert.Empty(t, checkOnly(root, slopfix.IDNearDuplicate))
 }
@@ -161,7 +163,7 @@ func TestFilesEachDirectoryNeedsAreNotCopies(t *testing.T) {
 // ts0, pnpm and each read the file in the directory they build. The
 // repository-scripts repair writes a justfile beside each manifest.
 func TestBuildToolFilesInEachActionAreNotCopies(t *testing.T) {
-	ts0 := "{\n\t\"entry\": \"src/index.ts\",\n\t\"outfile\": \"dist/index.js\",\n\t\"target\": \"node\",\n\t\"format\": \"cjs\"\n}\n"
+	ts0 := testBuildToolFilesInEachActionAreNotCopiesJson
 	workspace := "allowBuilds:\n  esbuild: true\n"
 	recipes := "[private]\nhelp:\n\t@just --list\n\nbuild:\n\tpnpm install\n\tts0 build\n"
 	files := map[string]string{}
@@ -172,3 +174,9 @@ func TestBuildToolFilesInEachActionAreNotCopies(t *testing.T) {
 	}
 	assert.Empty(t, checkOnly(gitRepo(t, files), slopfix.IDNearDuplicate))
 }
+
+//go:embed testdata/test-files-each-directory-needs-are-not-copies.json
+var testFilesEachDirectoryNeedsAreNotCopiesJson string
+
+//go:embed testdata/test-build-tool-files-in-each-action-are-not-copies.json
+var testBuildToolFilesInEachActionAreNotCopiesJson string

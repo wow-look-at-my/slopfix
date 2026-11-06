@@ -1,0 +1,5 @@
+jobs:
+  a:
+    runs-on: windows-latest
+    steps:
+      - name: x

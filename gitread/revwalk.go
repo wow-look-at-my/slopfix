@@ -1,3 +1,5 @@
+// revwalk.go holds the revwalk code.
+
 package gitread
 
 import (

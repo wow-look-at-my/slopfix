@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -33,7 +35,7 @@ func TestMigrateAppendsClaudeToExistingAgents(t *testing.T) {
 	got, err := MigrateAgents(root, false)
 	require.NoError(t, err)
 	assert.Equal(t, Migration{Merged: true}, got)
-	assert.Equal(t, "# Agents\n\nshared rules\n\nclaude-only rules\n", readFile(t, root, "AGENTS.md"))
+	assert.Equal(t, testMigrateAppendsClaudeToExistingAgentsMd, readFile(t, root, "AGENTS.md"))
 	assert.Equal(t, ClaudeStub, readFile(t, root, "CLAUDE.md"))
 }
 
@@ -107,3 +109,6 @@ func TestSurveyRootMigratesAndKeepsTheAgentsFile(t *testing.T) {
 	assert.Equal(t, "kept", readFile(t, root, filepath.FromSlash("docs/x.md")))
 	assert.Equal(t, "rules\n", readFile(t, root, "AGENTS.md"))
 }
+
+//go:embed testdata/test-migrate-appends-claude-to-existing-agents.md
+var testMigrateAppendsClaudeToExistingAgentsMd string

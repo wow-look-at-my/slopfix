@@ -1,3 +1,5 @@
+// foundhook.go holds the foundhook code.
+
 package noworkloss
 
 import (

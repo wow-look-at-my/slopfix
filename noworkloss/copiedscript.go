@@ -1,3 +1,5 @@
+// copiedscript.go holds the copiedscript code.
+
 package noworkloss
 
 import (

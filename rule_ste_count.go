@@ -1,3 +1,5 @@
+// rule_ste_count.go holds the rule ste count code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

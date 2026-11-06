@@ -1,4 +1,8 @@
+// rule_comments_length.go holds the rule comments length code.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
@@ -20,29 +24,13 @@ func init() {
 	})
 }
 
-// identifierSentenceCase holds a comment of a couple of sentences above a
-// single statement. The second opens on the identifier cubeCount_ in lower
-// case, so the cut takes that sentence whole and never ends on its verb.
-const identifierSentenceCase = `void FroxelPath::finishPrepack(Context& ctx) {
-  ensureSplatCapacity(ctx, peakC);
-  // The first frame goes live through the ordinary adopt. cubeCount_ = 0 forces the
-  // adopt to install the triple of that frame from the map.
-  livePrepackFrame_ = kNoPrepackFrame;
-  prepackPending_ = 0;
-  cubeCount_ = 0;
-  adoptPrepacked(ctx);
-}
-`
+// identifierSentenceCase holds a comment of a couple of sentences above a single statement.
+//
+//go:embed testdata/identifier-sentence-case.cpp
+var identifierSentenceCase string
 
-const identifierSentenceWant = `void FroxelPath::finishPrepack(Context& ctx) {
-  ensureSplatCapacity(ctx, peakC);
-  // The first frame goes live through the ordinary adopt.
-  livePrepackFrame_ = kNoPrepackFrame;
-  prepackPending_ = 0;
-  cubeCount_ = 0;
-  adoptPrepacked(ctx);
-}
-`
+//go:embed testdata/identifier-sentence-want.cpp
+var identifierSentenceWant string
 
 // detectCommentLength answers every overlong comment run this rule reports.
 func detectCommentLength(c RuleCase) []ste.Finding {

@@ -1,3 +1,5 @@
+// rule_message_blame.go holds the rule message blame code.
+
 package slopfix
 
 import (

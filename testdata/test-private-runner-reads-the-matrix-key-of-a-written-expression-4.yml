@@ -1,0 +1,8 @@
+  two:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-14]
+        host: [a]
+    runs-on: ${{ matrix.host == 'a' && matrix.os || 'ubuntu-latest' }}
+    steps:
+      - run: make

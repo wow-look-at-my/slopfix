@@ -1,3 +1,5 @@
+// routes.go holds the routes code.
+
 package noworkloss
 
 import (

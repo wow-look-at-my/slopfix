@@ -1,4 +1,8 @@
+// rule_yaml_allbuildsjob.go holds the rule yaml allbuildsjob code.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -14,7 +18,7 @@ func init() {
 		Category: RuleWorkflow,
 		Detect:   detectAllBuildsJob,
 		Autofix:  autofixAllBuildsJob,
-		Cases:    []RuleCase{workflowCase("all-builds-job", workflowHeader()+"jobs:\n  all-builds:\n    runs-on: ubuntu-latest\n"+"    steps:\n      - run: echo hi\n")},
+		Cases:    []RuleCase{workflowCase("all-builds-job", workflowHeader()+embeddedYml+"    steps:\n      - run: echo hi\n")},
 	})
 }
 
@@ -27,3 +31,6 @@ func detectAllBuildsJob(c RuleCase) []ste.Finding {
 func autofixAllBuildsJob(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDAllBuildsJob)
 }
+
+//go:embed testdata/embedded.yml
+var embeddedYml string

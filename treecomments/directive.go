@@ -1,3 +1,5 @@
+// directive.go holds the directive code.
+
 package treecomments
 
 import (

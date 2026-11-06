@@ -1,3 +1,5 @@
+// rule_counts_inventory.go holds the rule counts inventory code.
+
 package slopfix
 
 import (

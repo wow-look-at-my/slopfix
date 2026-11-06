@@ -1,5 +1,7 @@
 package linkrefs
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"fmt"
@@ -236,9 +238,7 @@ func TestClassifyReadsWhatGHReports(t *testing.T) {
 // The checks come from `gh wait-ci checks --json`. The fixture is a real report's shape.
 func TestChecksReportReadsStatusesAndRuns(t *testing.T) {
 	var r checksReport
-	require.NoError(t, json.Unmarshal([]byte(`{"statuses":[{"state":"failure","context":"all-builds"}],
-		"check_runs":[{"status":"completed","conclusion":"skipped"},{"status":"in_progress","conclusion":""},
-		{"status":"completed","conclusion":"success"}]}`), &r))
+	require.NoError(t, json.Unmarshal([]byte(testChecksReportReadsStatusesAndRunsJson), &r))
 	assert.Equal(t, []string{"FAILURE", "SKIPPED", "PENDING", "SUCCESS"}, r.words())
 	assert.Equal(t, StateFailing, classify(pullView{State: "OPEN", Checks: r.words()}))
 }
@@ -310,3 +310,6 @@ func TestEveryStateRendersItsOwnDot(t *testing.T) {
 	assert.Equal(t, "🟢", dot(StateMergeable))
 	assert.Empty(t, dot(StateUnknown), "an unknown state must render no dot")
 }
+
+//go:embed testdata/test-checks-report-reads-statuses-and-runs.json
+var testChecksReportReadsStatusesAndRunsJson string

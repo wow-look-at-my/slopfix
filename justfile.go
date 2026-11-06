@@ -1,3 +1,5 @@
+// justfile.go holds the justfile code.
+
 package slopfix
 
 import (

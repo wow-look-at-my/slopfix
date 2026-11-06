@@ -1,3 +1,5 @@
+// fixturedeclared.go holds the fixturedeclared code.
+
 package slopfix
 
 // declaredFixtureRefs are the repositories and refs the existing fixtures

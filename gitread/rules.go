@@ -1,3 +1,5 @@
+// rules.go holds the rules code.
+
 package gitread
 
 import (

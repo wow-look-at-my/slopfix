@@ -1,3 +1,5 @@
+// rule_tombstones_patterns.go holds the rule tombstones patterns code.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// force.go holds the force code.
+
 package ste
 
 import (

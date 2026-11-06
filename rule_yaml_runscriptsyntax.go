@@ -1,4 +1,8 @@
+// rule_yaml_runscriptsyntax.go holds the rule yaml runscriptsyntax code.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -18,18 +22,18 @@ func init() {
 		Autofix:  autofixRunScriptSyntax,
 		Cases: []RuleCase{
 			workflowCase("run-script-syntax-empty-body", workflowHeader()+
-				"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"+
-				"      - run: |\n          if [ -z \"$WHEEL\" ]; then\n          fi\n"),
+				embeddedYml34+
+				embeddedYml35),
 			workflowCase("run-script-syntax-unclosed", workflowHeader()+
-				"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"+
-				"      - run: |\n          if true; then\n            echo hi\n"),
+				embeddedYml36+
+				embeddedYml37),
 			workflowCase("run-script-syntax-run-row", workflowHeader()+
-				"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo (\n"),
+				embeddedYml38),
 			workflowCase("run-script-syntax-stray-closer", workflowHeader()+
-				"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"+
-				"      - run: |\n          echo hi\n          fi\n"),
+				embeddedYml39+
+				embeddedYml40),
 			workflowCase("run-script-syntax-sh-array", workflowHeader()+
-				"jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n"+
+				embeddedYml41+
 				"      - shell: sh\n        run: |\n          FILES=(a b)\n          echo \"${FILES[0]}\"\n"),
 		},
 	})
@@ -44,3 +48,27 @@ func detectRunScriptSyntax(c RuleCase) []ste.Finding {
 func autofixRunScriptSyntax(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDRunScriptSyntax)
 }
+
+//go:embed testdata/embedded-34.yml
+var embeddedYml34 string
+
+//go:embed testdata/embedded-35.yml
+var embeddedYml35 string
+
+//go:embed testdata/embedded-36.yml
+var embeddedYml36 string
+
+//go:embed testdata/embedded-37.yml
+var embeddedYml37 string
+
+//go:embed testdata/embedded-38.yml
+var embeddedYml38 string
+
+//go:embed testdata/embedded-39.yml
+var embeddedYml39 string
+
+//go:embed testdata/embedded-40.yml
+var embeddedYml40 string
+
+//go:embed testdata/embedded-41.yml
+var embeddedYml41 string

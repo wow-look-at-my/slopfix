@@ -1,3 +1,5 @@
+// hook.go holds the hook code.
+
 package cmd
 
 import (

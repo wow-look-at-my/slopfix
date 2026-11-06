@@ -1,3 +1,5 @@
+// wasted.go holds the wasted code.
+
 package noworkloss
 
 import (

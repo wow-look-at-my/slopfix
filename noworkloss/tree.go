@@ -1,3 +1,5 @@
+// tree.go holds the tree code.
+
 package noworkloss
 
 import (

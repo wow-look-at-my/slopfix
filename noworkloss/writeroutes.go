@@ -1,3 +1,5 @@
+// writeroutes.go holds the writeroutes code.
+
 package noworkloss
 
 import (

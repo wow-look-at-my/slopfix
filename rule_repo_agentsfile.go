@@ -1,3 +1,5 @@
+// rule_repo_agentsfile.go holds the rule repo agentsfile code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

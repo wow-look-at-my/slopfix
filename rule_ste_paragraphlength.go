@@ -1,3 +1,5 @@
+// rule_ste_paragraphlength.go holds the rule ste paragraphlength code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

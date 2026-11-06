@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -20,7 +22,8 @@ func writeFile(t *testing.T, name, content string) string {
 	return path
 }
 
-const workflowWithFindings = "on: {push: {branches: ['**']}}\n\n# one\n# two\njobs:\n  all-builds:\n    runs-on: ubuntu-latest\n"
+//go:embed testdata/workflow-with-findings.yml
+var workflowWithFindings string
 
 func TestCheckFileSendsAWorkflowToTheWorkflowRules(t *testing.T) {
 	path := writeFile(t, ".github/workflows/ci.yml", workflowWithFindings)
@@ -46,7 +49,7 @@ func TestCheckFileSniffsAWorkflowThePathDoesNotName(t *testing.T) {
 }
 
 func TestCheckFileStillReadsADocumentWithTheProseRules(t *testing.T) {
-	path := writeFile(t, "notes.md", "# Title\n\nA paragraph the author wrapped\nin the middle by hand.\n")
+	path := writeFile(t, "notes.md", testCheckFileStillReadsADocumentWithTheProseRulesMd)
 
 	findings, err := slopfix.CheckFile(path)
 	require.NoError(t, err)
@@ -57,7 +60,7 @@ func TestCheckFileStillReadsADocumentWithTheProseRules(t *testing.T) {
 // A newline in YAML is syntax. Joining a wrapped concurrency: block makes
 // GitHub reject the whole workflow before a job starts.
 func TestFixFileNeverJoinsAWorkflow(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\nconcurrency:\n  group: release\n"
+	content := testFixFileNeverJoinsAWorkflowYml
 	path := writeFile(t, ".github/workflows/ci.yml", content)
 
 	_, err := slopfix.FixFile(path)
@@ -67,3 +70,9 @@ func TestFixFileNeverJoinsAWorkflow(t *testing.T) {
 	require.NoError(t, readErr)
 	assert.Equal(t, content, string(after))
 }
+
+//go:embed testdata/test-check-file-still-reads-a-document-with-the-prose-rules.md
+var testCheckFileStillReadsADocumentWithTheProseRulesMd string
+
+//go:embed testdata/test-fix-file-never-joins-a-workflow.yml
+var testFixFileNeverJoinsAWorkflowYml string

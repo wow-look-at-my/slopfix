@@ -1,3 +1,5 @@
+// sections.go holds the sections code.
+
 package counts
 
 import (

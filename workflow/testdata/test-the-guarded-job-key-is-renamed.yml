@@ -1,0 +1,4 @@
+on: {push: {branches: ['**']}}
+jobs:
+  all-builds:
+    runs-on: ubuntu-latest

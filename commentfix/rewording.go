@@ -1,3 +1,5 @@
+// rewording.go holds the rewording code.
+
 package commentfix
 
 import (

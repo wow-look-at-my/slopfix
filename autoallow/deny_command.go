@@ -1,3 +1,5 @@
+// deny_command.go holds the deny command code.
+
 package autoallow
 
 import (

@@ -1,3 +1,5 @@
+// ruleadapt.go holds the ruleadapt code.
+
 package slopfix
 
 import (

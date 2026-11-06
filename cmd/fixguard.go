@@ -1,3 +1,5 @@
+// fixguard.go holds the fixguard code.
+
 package cmd
 
 import (

@@ -1,3 +1,5 @@
+// lru.go holds the lru code.
+
 package gitread
 
 import (

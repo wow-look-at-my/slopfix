@@ -1,3 +1,5 @@
+// envscript.go holds the envscript code.
+
 package workflow
 
 import (

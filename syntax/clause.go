@@ -1,3 +1,5 @@
+// clause.go holds the clause code.
+
 package syntax
 
 import "github.com/wow-look-at-my/go-containers/set"

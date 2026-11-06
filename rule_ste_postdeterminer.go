@@ -1,3 +1,5 @@
+// rule_ste_postdeterminer.go holds the rule ste postdeterminer code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

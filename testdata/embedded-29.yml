@@ -1,0 +1,5 @@
+  arm:
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - run: make

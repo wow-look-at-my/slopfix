@@ -1,5 +1,7 @@
 package gitread_test
 
+import _ "embed"
+
 import (
 	"bytes"
 	"crypto/sha1"
@@ -65,7 +67,7 @@ func newRepo(t testing.TB) string {
 	gitT(t, dir, "tag", "-a", "-m", "v1", "v1")
 
 	gitT(t, dir, "checkout", "-q", "-b", "feature")
-	writeT(t, dir, "doc.md", "# Doc\n\nAlpha.\n\nBeta.\n")
+	writeT(t, dir, "doc.md", newRepoMd)
 	writeT(t, dir, "sub/deep.go", "package p\n\nvar A = 2\n")
 	gitT(t, dir, "add", "-A")
 	gitT(t, dir, "commit", "-q", "-m", "feature")
@@ -428,3 +430,6 @@ func TestAnUnsupportedFormatIsAnError(t *testing.T) {
 	_, err := gitread.OpenWorkTree(dir)
 	assert.ErrorIs(t, err, gitread.ErrUnsupported)
 }
+
+//go:embed testdata/new-repo.md
+var newRepoMd string

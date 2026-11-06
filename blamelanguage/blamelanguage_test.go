@@ -1,5 +1,7 @@
 package blamelanguage
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -43,8 +45,8 @@ func TestAPhraseSplitAcrossALineWrapIsFound(t *testing.T) {
 // are what a message quotes rather than asserts.
 func TestQuotedTextIsExempt(t *testing.T) {
 	for name, message := range map[string]string{
-		"fenced":     "The rule bans this:\n```\npre-existing\n```\nand that is all.",
-		"tilde":      "The rule bans this:\n~~~\nnot my problem\n~~~\nand that is all.",
+		"fenced":     testQuotedTextIsExemptMd,
+		"tilde":      testQuotedTextIsExemptMd2,
 		"indented":   "The rule bans this:\n\n    out of scope\n\nand that is all.",
 		"blockquote": "The owner wrote:\n\n> someone should fix it\n\nand that is all.",
 	} {
@@ -88,3 +90,9 @@ func TestAnEmptyMessageIsClean(t *testing.T) {
 	assert.Empty(t, Check(""))
 	assert.Empty(t, tells(Check("\n\n")))
 }
+
+//go:embed testdata/test-quoted-text-is-exempt.md
+var testQuotedTextIsExemptMd string
+
+//go:embed testdata/test-quoted-text-is-exempt-2.md
+var testQuotedTextIsExemptMd2 string

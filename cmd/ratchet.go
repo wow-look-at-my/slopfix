@@ -1,3 +1,5 @@
+// ratchet.go holds the ratchet code.
+
 package cmd
 
 import (

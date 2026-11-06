@@ -1,3 +1,5 @@
+// inventory_list.go holds the inventory list code.
+
 package counts
 
 import (

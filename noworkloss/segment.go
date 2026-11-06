@@ -1,3 +1,5 @@
+// segment.go holds the segment code.
+
 package noworkloss
 
 import (

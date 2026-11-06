@@ -1,3 +1,5 @@
+// namecase.go holds the namecase code.
+
 package ste
 
 import (

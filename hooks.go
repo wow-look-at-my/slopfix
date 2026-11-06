@@ -1,3 +1,5 @@
+// hooks.go holds the hooks code.
+
 package slopfix
 
 import (

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rules for="numbers">
+  <rewrite id="once" from="once" to="a single time">
+    <test in="It hashes once" out="It hashes a single time"/>
+  </rewrite>
+  <pattern id="one-noun" match="(?i)\bone\s+([a-z])" to="a single ${1}">
+    <test in="It reserves one slot" out="It reserves a single slot"/>
+  </pattern>
+  <class name="noun" open="true"/>
+  <rephrase id="only-one" match="only one" to="a single">
+    <test in="It locks only one" out="It locks a single"/>
+  </rephrase>
+  <test in="It reserves one slot" out="It reserves a single slot"/>
+</rules>

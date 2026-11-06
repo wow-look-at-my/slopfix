@@ -1,3 +1,5 @@
+// rule_ste_semicolon.go holds the rule ste semicolon code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

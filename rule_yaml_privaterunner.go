@@ -1,4 +1,8 @@
+// rule_yaml_privaterunner.go holds the rule yaml privaterunner code.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/ste"
@@ -12,7 +16,7 @@ const PrivateRunnerFixture = "https://github.com/wow-look-at-my/private-runner-f
 // visibility. The repair picks the runner from the visibility at run time.
 func init() {
 	jobs := func(steps string) string {
-		return workflowHeader() + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n" + steps
+		return workflowHeader() + embeddedYml19 + steps
 	}
 	cases := []RuleCase{
 		privateRunnerCase("private-runner", jobs("      - run: go-toolchain\n")),
@@ -21,31 +25,31 @@ func init() {
 		containerActionCase(jobs("      - uses: " + ContainerActionFixture + "\n")),
 		privateRunnerCase("private-runner-host-job", jobs("      - run: sudo modprobe zfs\n      - run: sudo systemctl restart containerd\n")),
 		privateRunnerCase("private-runner-blind-fallback", workflowHeader()+"jobs:\n"+
-			"  build:\n    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}\n    steps:\n      - run: make\n"+
-			"  image:\n    runs-on: '${{ vars.CI_RUNNER_DIND || ''ubuntu-latest'' }}'\n    steps:\n      - run: make\n"+
-			"  db:\n    runs-on: \"ubuntu-22.04\"\n    services:\n      db:\n        image: postgres\n    steps:\n      - run: make\n"+
-			"  box:\n    runs-on: >-\n      ubuntu-latest\n    container: alpine\n    steps:\n      - run: make\n"),
+			embeddedYml20+
+			embeddedYml21+
+			embeddedYml22+
+			embeddedYml23),
 		privateRunnerCase("private-runner-flow", workflowHeader()+"jobs:\n"+
 			"  build: {runs-on: ubuntu-latest, steps: [{run: make}]}\n"+
 			"  image: {runs-on: 'ubuntu-24.04', steps: [{uses: docker/setup-buildx-action@v3}]}\n"),
 		privateRunnerCase("private-runner-matrix-linux", matrixJob("        os: [ubuntu-22.04, ubuntu-24.04]\n", "      - run: make\n")),
 		privateRunnerCase("private-runner-matrix-mixed", matrixJob("        os: [ubuntu-latest, macos-latest, windows-latest, ubuntu-24.04-arm]\n", "      - run: make\n")),
-		privateRunnerCase("private-runner-matrix-include", matrixJob("        include:\n          - {os: ubuntu-22.04, arch: amd64}\n          - {os: ubuntu-24.04-arm, arch: arm64}\n", "      - run: make\n")),
+		privateRunnerCase("private-runner-matrix-include", matrixJob(embeddedYml24, "      - run: make\n")),
 		privateRunnerCase("private-runner-matrix-docker", matrixJob("        os: [ubuntu-latest, macos-latest]\n", "      - run: docker build .\n")),
 		privateRunnerCase("private-runner-matrix-beside-done", matrixJob("        os: [ubuntu-latest]\n", "      - run: make\n")+
-			"  done:\n    strategy:\n      matrix:\n        os: [ubuntu-latest, macos-latest]\n"+
+			embeddedYml25+
 			"    runs-on: ${{ (github.event.repository.visibility == 'public' || !contains(fromJSON('[\"ubuntu-latest\"]'), matrix.os)) && matrix.os || vars.CI_RUNNER || matrix.os }}\n"+
 			"    steps:\n      - run: make\n"+
-			"  dynamic:\n    strategy:\n      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n    runs-on: ${{ matrix.os }}\n    steps:\n      - run: make\n"),
+			embeddedYml26),
 		privateRunnerCase("private-runner-matrix-flow", workflowHeader()+"jobs:\n"+
 			"  build: {strategy: {matrix: {os: [ubuntu-latest, windows-latest]}}, runs-on: '${{ matrix.os }}', steps: [{run: make}]}\n"),
-		privateRunnerCase("private-runner-macos", workflowHeader()+"jobs:\n  mac:\n    runs-on: macos-latest\n    steps:\n      - run: make\n"),
+		privateRunnerCase("private-runner-macos", workflowHeader()+embeddedYml27),
 		privateRunnerCase("private-runner-windows-if", workflowHeader()+"jobs:\n"+
-			"  windows:\n    if: github.ref == 'refs/heads/master'\n    runs-on: windows-latest\n    steps:\n      - run: make\n"+
-			"  arm:\n    if: ${{ !cancelled() }}\n    runs-on: ubuntu-24.04-arm\n    steps:\n      - run: make\n"),
+			embeddedYml28+
+			embeddedYml29),
 		privateRunnerCase("private-runner-beside-gated", workflowHeader()+"jobs:\n"+
-			"  gated:\n    if: github.event.repository.visibility == 'public'\n    runs-on: macos-14\n    steps:\n      - run: make\n"+
-			"  open:\n    runs-on: windows-2022\n    steps:\n      - run: make\n"),
+			embeddedYml30+
+			embeddedYml31),
 		privateRunnerCase("private-runner-matrix-foreign", matrixJob("        os: [macos-14, macos-15]\n", "      - run: make\n")),
 		privateRunnerCase("private-runner-matrix-split", matrixJob("        os:\n          - ubuntu-latest\n          - windows-latest\n        go: [stable]\n", "      - run: make\n")),
 	}
@@ -60,7 +64,7 @@ func init() {
 
 // matrixJob is a workflow whose build job takes its runner from the matrix value os.
 func matrixJob(matrix, steps string) string {
-	return workflowHeader() + "jobs:\n  build:\n    strategy:\n      matrix:\n" + matrix + "    runs-on: ${{ matrix.os }}\n    steps:\n" + steps
+	return workflowHeader() + matrixJobYml + matrix + "    runs-on: ${{ matrix.os }}\n    steps:\n" + steps
 }
 
 // ContainerActionFixture is a third-party action that the fixture records as a container action.
@@ -89,3 +93,45 @@ func detectPrivateRunner(c RuleCase) []ste.Finding {
 func autofixPrivateRunner(c RuleCase) RuleCase {
 	return caseAutofix(c, workflow.IDPrivateRunner)
 }
+
+//go:embed testdata/embedded-19.yml
+var embeddedYml19 string
+
+//go:embed testdata/embedded-20.yml
+var embeddedYml20 string
+
+//go:embed testdata/embedded-21.yml
+var embeddedYml21 string
+
+//go:embed testdata/embedded-22.yml
+var embeddedYml22 string
+
+//go:embed testdata/embedded-23.yml
+var embeddedYml23 string
+
+//go:embed testdata/embedded-24.yml
+var embeddedYml24 string
+
+//go:embed testdata/embedded-25.yml
+var embeddedYml25 string
+
+//go:embed testdata/embedded-26.yml
+var embeddedYml26 string
+
+//go:embed testdata/embedded-27.yml
+var embeddedYml27 string
+
+//go:embed testdata/embedded-28.yml
+var embeddedYml28 string
+
+//go:embed testdata/embedded-29.yml
+var embeddedYml29 string
+
+//go:embed testdata/embedded-30.yml
+var embeddedYml30 string
+
+//go:embed testdata/embedded-31.yml
+var embeddedYml31 string
+
+//go:embed testdata/matrix-job.yml
+var matrixJobYml string

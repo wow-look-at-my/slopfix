@@ -1,3 +1,5 @@
+// pack.go holds the pack code.
+
 package gitread
 
 import (

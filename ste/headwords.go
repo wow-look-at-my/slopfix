@@ -1,3 +1,5 @@
+// headwords.go holds the headwords code.
+
 package ste
 
 import (

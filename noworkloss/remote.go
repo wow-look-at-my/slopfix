@@ -1,3 +1,5 @@
+// remote.go holds the remote code.
+
 package noworkloss
 
 import (

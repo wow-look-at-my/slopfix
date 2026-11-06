@@ -1,3 +1,5 @@
+// inventory_list_plan.go holds the inventory list plan code.
+
 package counts
 
 import (

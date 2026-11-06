@@ -47,7 +47,7 @@ Both are false positives on the safe half of a legitimate command, and both teac
 
 None of these is destructive on its own.
 
-Facts here were established by running git, and both had already produced an incorrect answer in a draft:
+Running git established facts here, and both had already produced an incorrect answer in a draft:
 
 - **`--exclude` does not take a full refname.** For `--branches` and `--remotes` the pattern matches the name *without* the `refs/heads/` or `refs/remotes/` prefix. `--exclude=refs/heads/feature --branches` silently excludes nothing, so a branch holding the only copy of a commit reported "0 will be lost". A silent false negative is the worst outcome available here, which is why containment via `for-each-ref --contains` is used instead of hand-built exclusion lists.
 - **`refs/remotes/<remote>/HEAD` is a symbolic alias** for the branch being overwritten. Counting it as "somewhere else" made every force push look safe. It is filtered out explicitly.

@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -10,17 +12,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/tombstones"
 )
 
-const dockerfileWithDirectives = `# syntax=docker/dockerfile:1
-# check=error=true
-
-# The control plane. The web UI is bundled by cmd/buildweb (esbuild via its Go
-# API) and go:embed'ed, so no Node toolchain exists in this image or in CI.
-FROM alpine:3.21 AS build
-WORKDIR /src
-COPY . .
-RUN go build -o /out/app ./cmd/app
-ENTRYPOINT ["/out/app"]
-`
+//go:embed testdata/dockerfile-with-directives.dockerfile
+var dockerfileWithDirectives string
 
 func TestFixKeepsDockerfileParserDirectives(t *testing.T) {
 	for _, path := range []string{"Dockerfile", "Containerfile", "Dockerfile.runner", "app.dockerfile"} {

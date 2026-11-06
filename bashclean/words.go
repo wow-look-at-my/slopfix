@@ -1,3 +1,5 @@
+// words.go holds the words code.
+
 package bashclean
 
 import (

@@ -1,0 +1,6 @@
+on: {push: {branches: ['**']}}
+jobs:
+  x:
+    steps:
+      - run: |
+          grep -q ready out.txt || { echo '::error::missing'; exit 1; }

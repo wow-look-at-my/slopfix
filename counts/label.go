@@ -1,3 +1,5 @@
+// label.go holds the label code.
+
 package counts
 
 import (

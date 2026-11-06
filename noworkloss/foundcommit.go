@@ -1,3 +1,5 @@
+// foundcommit.go holds the foundcommit code.
+
 package noworkloss
 
 import (

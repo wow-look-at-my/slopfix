@@ -1,0 +1,24 @@
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        type: string
+      untyped:
+        description: no type
+      build_docker:
+        type: boolean
+      flavor:
+        type: choice
+        options: [a, b]
+  workflow_call:
+    inputs:
+      called:
+        type: string
+      count:
+        type: number
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          VALUE: 

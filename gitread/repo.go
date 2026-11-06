@@ -1,3 +1,5 @@
+// repo.go holds the repo code.
+
 package gitread
 
 import (

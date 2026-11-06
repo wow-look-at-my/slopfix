@@ -1,0 +1,3 @@
+    steps:
+      - uses: wow-look-at-my/go-toolchain@lkgb
+      - uses: wow-look-at-my/actions@lkgb

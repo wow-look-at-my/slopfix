@@ -1,3 +1,5 @@
+// commit.go holds the commit code.
+
 package rustfmt
 
 import (

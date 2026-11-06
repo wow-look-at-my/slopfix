@@ -1,3 +1,5 @@
+// gerund.go holds the gerund code.
+
 package ste
 
 import (

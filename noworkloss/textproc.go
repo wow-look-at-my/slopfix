@@ -1,3 +1,5 @@
+// textproc.go holds the textproc code.
+
 package noworkloss
 
 import (

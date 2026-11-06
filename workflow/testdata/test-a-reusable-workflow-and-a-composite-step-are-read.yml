@@ -1,0 +1,3 @@
+jobs:
+  publish:
+    uses: wow-look-at-my/go-toolchain/.github/workflows/build.yml@drop-common-checks

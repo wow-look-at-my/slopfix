@@ -1,3 +1,5 @@
+// version.go holds the version code.
+
 package cmd
 
 import (

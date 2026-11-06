@@ -1,3 +1,5 @@
+// carrier_verbs.go holds the carrier verbs code.
+
 package ste
 
 import (

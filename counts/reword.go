@@ -1,3 +1,5 @@
+// reword.go holds the reword code.
+
 package counts
 
 import (

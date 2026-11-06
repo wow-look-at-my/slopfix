@@ -1,3 +1,5 @@
+// binaries.go holds the binaries code.
+
 package slopfix
 
 import (

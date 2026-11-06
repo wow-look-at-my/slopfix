@@ -1,3 +1,5 @@
+// parse.go holds the parse code.
+
 package syntax
 
 import (

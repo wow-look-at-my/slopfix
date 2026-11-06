@@ -1,3 +1,5 @@
+// rule_ste_dictionary.go holds the rule ste dictionary code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

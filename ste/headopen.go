@@ -1,3 +1,5 @@
+// headopen.go holds the headopen code.
+
 package ste
 
 import (

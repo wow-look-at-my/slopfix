@@ -1,3 +1,5 @@
+// pragma.go holds the pragma code.
+
 package commentfix
 
 import (

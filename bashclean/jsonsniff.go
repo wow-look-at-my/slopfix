@@ -1,3 +1,5 @@
+// jsonsniff.go holds the jsonsniff code.
+
 package bashclean
 
 import (

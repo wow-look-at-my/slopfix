@@ -1,3 +1,5 @@
+// packagescripts.go holds the packagescripts code.
+
 package slopfix
 
 import (

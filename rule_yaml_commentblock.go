@@ -1,3 +1,5 @@
+// rule_yaml_commentblock.go holds the rule yaml commentblock code.
+
 package slopfix
 
 import (

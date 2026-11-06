@@ -1,3 +1,5 @@
+// workfiles.go holds the workfiles code.
+
 package gitread
 
 import (

@@ -1,3 +1,5 @@
+// rule_english_commanever.go holds the rule english commanever code.
+
 package slopfix
 
 import (

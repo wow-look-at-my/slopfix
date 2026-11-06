@@ -1,3 +1,5 @@
+// readoutput.go holds the readoutput code.
+
 package bashclean
 
 import (

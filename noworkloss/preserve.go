@@ -1,3 +1,5 @@
+// preserve.go holds the preserve code.
+
 package noworkloss
 
 import (

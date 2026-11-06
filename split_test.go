@@ -1,5 +1,7 @@
 package slopfix
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -18,7 +20,7 @@ func TestSplitMovesTheLargestSectionsUntilUnderTheTarget(t *testing.T) {
 	big := para("big", 20_000)
 	mid := para("mid", 15_000)
 	small := para("small", 9_000)
-	agents := "# Title\n\nPreamble.\n\n## Big one\n\n" + big + "\n\n### Detail\n\nMore.\n\n## Mid\n\n" + mid + "\n\n## Small\n\n" + small + "\n"
+	agents := testSplitMovesTheLargestSectionsUntilUnderTheTargetMd + big + testSplitMovesTheLargestSectionsUntilUnderTheTargetMd2 + mid + "\n\n## Small\n\n" + small + "\n"
 	root := repo(t, map[string]string{"AGENTS.md": agents})
 
 	written, err := Split(root, "AGENTS.md", false)
@@ -27,7 +29,7 @@ func TestSplitMovesTheLargestSectionsUntilUnderTheTarget(t *testing.T) {
 
 	got := readFile(t, root, "AGENTS.md")
 	assert.LessOrEqual(t, len([]rune(got)), SplitTarget)
-	assert.Contains(t, got, "## Big one\n\n[docs/big-one.md](docs/big-one.md) holds this section.\n\n## Mid")
+	assert.Contains(t, got, testSplitMovesTheLargestSectionsUntilUnderTheTargetMd3)
 	assert.Contains(t, got, mid, "a section the target does not need stays")
 	assert.Contains(t, got, "Preamble.")
 
@@ -44,7 +46,7 @@ func TestSplitLeavesAFileUnderTheTargetAlone(t *testing.T) {
 }
 
 func TestSplitReadsNoHeadingInsideAFence(t *testing.T) {
-	lines := strings.Split("## Real\n\n```md\n## Not a heading\n```\n\n## Next\n", "\n")
+	lines := strings.Split(testSplitReadsNoHeadingInsideAFenceMd, "\n")
 	secs := sections(lines, 2)
 	require.Len(t, secs, 2)
 	assert.Equal(t, "Real", secs[0].title)
@@ -60,7 +62,7 @@ func TestSplitMovesASectionOfAnyLevel(t *testing.T) {
 	assert.Equal(t, []string{"docs/deep.md"}, written)
 	got := readFile(t, root, "AGENTS.md")
 	assert.LessOrEqual(t, len([]rune(got)), SplitTarget)
-	assert.Contains(t, got, "### Deep\n\n[docs/deep.md](docs/deep.md) holds this section.\n\n### Short\n\nkept\n")
+	assert.Contains(t, got, testSplitMovesASectionOfAnyLevelMd)
 }
 
 // A cut inside a fence closes it, and the moved part opens it again.
@@ -79,7 +81,7 @@ func TestSplitClosesAFenceItCutsThrough(t *testing.T) {
 	assert.Equal(t, 2, strings.Count(got, "```"), "the kept part closes its fence")
 	assert.True(t, strings.HasSuffix(got, "```\n\n[docs/agents-continued.md](docs/agents-continued.md) holds the rest of this file.\n"), got[len(got)-200:])
 	doc := readFile(t, root, filepath.FromSlash("docs/agents-continued.md"))
-	assert.True(t, strings.HasPrefix(doc, "# AGENTS, continued\n\n```sh\necho line of code\n"), doc[:80])
+	assert.True(t, strings.HasPrefix(doc, testSplitClosesAFenceItCutsThroughMd), doc[:80])
 	assert.Equal(t, len(code), strings.Count(got+doc, "echo line of code"), "no line is lost")
 }
 
@@ -110,3 +112,21 @@ func TestSlug(t *testing.T) {
 	assert.Equal(t, "ask-properly-link-refs", slug("`ask-properly`, `link-refs`"))
 	assert.Equal(t, "section", slug("!!!"))
 }
+
+//go:embed testdata/test-split-moves-the-largest-sections-until-under-the-target.md
+var testSplitMovesTheLargestSectionsUntilUnderTheTargetMd string
+
+//go:embed testdata/test-split-moves-the-largest-sections-until-under-the-target-2.md
+var testSplitMovesTheLargestSectionsUntilUnderTheTargetMd2 string
+
+//go:embed testdata/test-split-moves-the-largest-sections-until-under-the-target-3.md
+var testSplitMovesTheLargestSectionsUntilUnderTheTargetMd3 string
+
+//go:embed testdata/test-split-reads-no-heading-inside-a-fence.md
+var testSplitReadsNoHeadingInsideAFenceMd string
+
+//go:embed testdata/test-split-moves-a-section-of-any-level.md
+var testSplitMovesASectionOfAnyLevelMd string
+
+//go:embed testdata/test-split-closes-a-fence-it-cuts-through.md
+var testSplitClosesAFenceItCutsThroughMd string

@@ -1,0 +1,5 @@
+  wrapped:
+    if: ${{ !cancelled() }} # keep going
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - run: make

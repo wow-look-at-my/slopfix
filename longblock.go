@@ -1,3 +1,5 @@
+// longblock.go holds the longblock code.
+
 package slopfix
 
 import (

@@ -1,3 +1,5 @@
+// rules_xml.go holds the rules xml code.
+
 package autoallow
 
 import (

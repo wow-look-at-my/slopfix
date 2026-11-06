@@ -1,3 +1,5 @@
+// rule_ste_passive.go holds the rule ste passive code.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
