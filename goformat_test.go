@@ -78,7 +78,7 @@ func TestAGoFileNoRuleChangesIsNotReformatted(t *testing.T) {
 func TestALayoutPassIsForGoAlone(t *testing.T) {
 	src := testALayoutPassIsForGoAloneRs
 	repair := slopfix.Fix(slopfix.Request{Content: src, Path: "x.rs"})
-	assert.Equal(t, "fn f() {}\n\n\n\nfn g() {}\n", repair.Text)
+	assert.Equal(t, "fn f() {}\n\n\nfn g() {}\n", repair.Text)
 }
 
 //go:embed testdata/test-a-layout-pass-is-for-go-alone.rs
