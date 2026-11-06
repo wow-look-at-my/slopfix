@@ -83,6 +83,13 @@ func rewriteActor(s *syntax.Sentence, source string) (string, bool) {
 		actor = capitalizeOpening(actor)
 		object = lowerOpeningFor(subject, s.Words[0].Tag)
 	}
+	// A run that opens right before the clause.
+	if subjectMark != "" && strings.HasSuffix(source[:from], subjectMark) {
+		from -= len(subjectMark)
+	}
+	if actorMark != "" && strings.HasPrefix(source[to:], actorMark) {
+		to += len(actorMark)
+	}
 	clause := actorMark + actor + actorMark + " " + verbMark + verb + verbMark + " " + subjectMark + object + subjectMark
 	return source[:from] + clause + source[to:], true
 }
@@ -148,22 +155,19 @@ func leadsClause(s *syntax.Sentence, first, k int) bool {
 }
 
 // markOf answers the text of the span from..to without the emphatic markers
-// around it, and the markers it carried. A rewrite puts them back around the
-// words it moved. A run that opens right before the span and closes right
-// after it counts as around it. This is because a word's offsets can stop
-// short of the markers. `**started**`, `**the gate**` and `__the gate__` each
-// answer their words and their own pair.
+// that mark it, and those markers. A rewrite puts them back around the words
+// it moved. A marker sits outside the span or inside it. This is because the
+// parser answers a word's offsets and a marker's own, never both.
+// `**started**`, `**the gate**` and `__the gate__` each answer their words
+// and their own pair.
 func markOf(source string, from, to int) (string, string) {
-	span := strings.TrimSpace(source[from:to])
+	text := strings.TrimSpace(source[from:to])
 	for _, mark := range []string{"**", "__"} {
-		if strings.HasPrefix(span, mark) && strings.HasSuffix(span, mark) && len(span) > 2*len(mark) {
-			if inner := strings.TrimSpace(span[len(mark) : len(span)-len(mark)]); inner != "" {
-				return inner, mark
-			}
-		}
-		if strings.HasSuffix(source[:from], mark) && strings.HasPrefix(source[to:], mark) {
-			return span, mark
+		opens := strings.HasSuffix(source[:from], mark) || strings.HasPrefix(text, mark)
+		closes := strings.HasPrefix(source[to:], mark) || strings.HasSuffix(text, mark)
+		if opens && closes {
+			return strings.TrimSpace(strings.Trim(text, mark)), mark
 		}
 	}
-	return span, ""
+	return text, ""
 }
