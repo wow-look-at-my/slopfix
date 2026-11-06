@@ -252,6 +252,22 @@ func joinOpener(opener, rest string) string {
 	return capitalizeOpening(rest)
 }
 
+// sharedModal answers the modal a bare verb after a comma shares with the main
+// clause, as in "X must default to blocked, refuse the open default". It
+// answers "" where the clause names its own subject or the main clause holds
+// no modal, because "They refuse the default" has no verb to open on.
+func sharedModal(s *syntax.Sentence, c, main syntax.Clause) string {
+	if c.Verb == nil || !c.Verb.Imperative || c.Subject != nil || main.Verb == nil || main.Verb.Imperative || main.Subject == nil {
+		return ""
+	}
+	for i := main.Verb.First; i <= main.Verb.Last; i++ {
+		if s.Words[i].Tag == "MD" {
+			return s.Words[i].Lower()
+		}
+	}
+	return ""
+}
+
 // divisions answers each clause boundary where both sides stand as sentences.
 func divisions(s *syntax.Sentence, source string) []division {
 	var out []division
@@ -271,22 +287,16 @@ func divisions(s *syntax.Sentence, source string) []division {
 		if c.Verb == nil && !(c.Kind == syntax.Punctuated && resumesAfter(s, c.Link+1)) {
 			continue
 		}
-		// "X must default to blocked, never inherit Y": a bare verb after a comma shares the main clause's subject and modal, so both are named again rather than read as a command.
-		if c.Verb != nil && c.Verb.Imperative && c.Subject == nil && main.Verb != nil && !main.Verb.Imperative && main.Subject != nil {
+		// "X must default to blocked, never inherit Y": a bare verb after a comma shares the main clause's subject and modal, so both are named again rather than read as a command. A pronoun with no modal to name opens no sentence, so that boundary is left to the clause boundary itself.
+		if modal := sharedModal(s, c, main); modal != "" {
 			opener := "It"
 			if s.Plural(*main.Subject) {
 				opener = "They"
 			}
-			for i := main.Verb.First; i <= main.Verb.Last; i++ {
-				if s.Words[i].Tag == "MD" {
-					opener += " " + s.Words[i].Lower()
-					break
-				}
-			}
 			out = append(out, division{
 				leftEnd:    outsideSpans(source, s.Words[lastBefore(s, c.Link)].End, true),
 				rightStart: outsideSpans(source, s.Words[c.Link+1].Start, false),
-				opener:     opener,
+				opener:     opener + " " + modal,
 			})
 			continue
 		}

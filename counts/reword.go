@@ -74,7 +74,7 @@ func reword(content string, hit Hit) (edit.Edit, bool) {
 	case capSign != "":
 		from -= len(capSign)
 		text = "a bounded number of "
-		if opensSentence(content, from) || strings.HasSuffix(strings.TrimRight(content[:from], " "), "- **") {
+		if opensSentence(content, from) {
 			text = "A bounded number of "
 		}
 	case ceilingAfter.MatchString(content[hit.End:]):

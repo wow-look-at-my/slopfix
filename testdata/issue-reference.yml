@@ -1,0 +1,7 @@
+# This file holds a worked example.
+repos:
+  - repo: local
+    hooks:
+      - id: forbid-docs-new-path
+        # docs_new/ was renamed to docs/ in #32123.
+        language: fail
