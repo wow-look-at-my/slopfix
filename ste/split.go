@@ -149,7 +149,14 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 		if !standsAsSentence(left) {
 			continue
 		}
-		if d.opener == "" && !standsAsSentence(right) {
+		if d.opener == "" && !standsAsSentenceOrCarries(right) {
+			continue
+		}
+		if d.opener == "" && strandsRest(s, d.rightStart, right) || contactRelative(s, source, d) {
+			continue
+		}
+		// "Otherwise," and "However," open a sentence that the words after them must still make: "Otherwise, "" when no noun ends" is none.
+		if connectorOpener(d.opener) && !standsAsSentence(capitalizeOpening(strings.TrimLeft(restOf(source, d), " "))) {
 			continue
 		}
 		// A noun phrase whose only verbs sit in relative clauses is a fragment: "A number that is true today".
@@ -164,9 +171,16 @@ func bestDivision(s *syntax.Sentence, source string) (string, bool) {
 	return best, bestScore >= 0
 }
 
+// standsAsSentenceOrCarries reports text that reads as a sentence, or that holds
+// a finite verb of its own: "Only one sync-tool uses the disk at a time".
+func standsAsSentenceOrCarries(text string) bool {
+	return standsAsSentence(text) || finiteOutsideRelative(syntax.Parse(checkMask(text), nil), 0)
+}
+
 // coordinateDivision divides at a comma before a conjunction the clause pass
 // left inside one clause, as in "X, so Y" or "X, but Y". It is the fallback
-// behind the clause boundaries, and each half must read as a sentence.
+// behind the clause boundaries, and each half must read as a sentence or hold a
+// finite verb of its own.
 func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 	best, bestScore := "", -1
 	for _, d := range beforeCoordinate(s, source) {
@@ -188,7 +202,7 @@ func coordinateDivision(s *syntax.Sentence, source string) (string, bool) {
 				continue
 			}
 		}
-		if !standsAsSentence(right) {
+		if !standsAsSentenceOrCarries(right) {
 			continue
 		}
 		score := max(WordCount(left), WordCount(right))
@@ -405,7 +419,7 @@ func beforeSubordinate(s *syntax.Sentence, source string) []division {
 // outsideSpans moves an offset out of a verbatim span, to its end or to its start.
 // The parser reads a masked span, whose filler word stops short of the closing backtick.
 func outsideSpans(source string, at int, toEnd bool) int {
-	for _, span := range verbatimSpans(source) {
+	for _, span := range dataSpans(source) {
 		if span[0] < at && at < span[1] {
 			if toEnd {
 				return span[1]
@@ -607,18 +621,6 @@ func joinsClauses(prose string, at int) bool {
 			}
 		}
 		return false
-	}
-	return false
-}
-
-// listBefore reports a comma inside the clause before c, which makes ", and"
-// the end of a list rather than a join between clauses.
-func listBefore(s *syntax.Sentence, c syntax.Clause) bool {
-	for i := c.Link - 2; i >= 0 && i >= clauseStart(s, c.Link); i-- {
-		// A comma inside a quotation reads as a name, and lists nothing.
-		if s.Words[i].Text == "," && s.Words[i].Tag == "," {
-			return true
-		}
 	}
 	return false
 }

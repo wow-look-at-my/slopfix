@@ -343,7 +343,8 @@ var danglingTags = set.Of[string]("DT", "JJ", "JJR", "JJS", "PRP$", "IN", "CC",
 func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 	w, ok := lastWordBefore(whole, len(head))
 	n := wordsBefore(whole, len(head))
-	if !ok || danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) || !standsAlone(whole, 0, n) || !segmentStands(whole, n) {
+	if !ok || danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start)) && !adjectiveBeforeConjunction(whole, w, n) ||
+		!standsAlone(whole, 0, n) || !segmentStands(whole, n) {
 		return false
 	}
 	if seam != "," {
@@ -356,6 +357,17 @@ func closesWhole(head, seam string, whole *syntax.Sentence) bool {
 		}
 	}
 	return false
+}
+
+// adjectiveBeforeConjunction reports an adjective w that follows a verb and
+// ends before a conjunction, as in "MUST agree byte-for-byte or". No noun
+// follows it, so it completes its clause.
+func adjectiveBeforeConjunction(s *syntax.Sentence, w syntax.Word, n int) bool {
+	i := wordFrom(s, w.Start)
+	if i < 1 || n >= len(s.Words) || !strings.HasPrefix(w.Tag, "JJ") || s.Words[n].Tag != "CC" {
+		return false
+	}
+	return strings.HasPrefix(s.Words[i-1].Tag, "VB") || s.Words[i-1].Tag == "MD"
 }
 
 // predicateAdjective reports an adjective at i after a form of be, as in "the closer is not prose". It completes its clause, where an adjective before a noun waits for the noun.
@@ -417,6 +429,10 @@ func opensImperative(restMasked string) bool {
 	if c.Subject == nil || c.Subject.First != 0 || c.Verb == nil || c.Verb.First != 1 {
 		return false
 	}
+	// A call names a function, and no imperative opens on a name: "main() holds the disk".
+	if len(s.Words) > 2 && s.Words[2].Text == "(" {
+		return false
+	}
 	tag := s.Words[1].Tag
 	return tag == "VB" || tag == "VBP"
 }
@@ -439,6 +455,10 @@ func opensImperativeMain(head string) bool {
 		if c.Depth == 0 && c.Verb != nil {
 			if c.Verb.Imperative {
 				return true
+			}
+			// A clause that names its subject before a finite verb is a statement, whatever its first word could be.
+			if c.Verb.First > 0 && (c.Subject == nil || c.Subject.Last < c.Verb.First) && (finiteVerbTag(s.Words[c.Verb.Head].Tag) || s.Words[c.Verb.Head].Tag == "MD") {
+				return false
 			}
 			break
 		}
