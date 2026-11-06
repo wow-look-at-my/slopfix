@@ -1,7 +1,6 @@
 // ghwaitci.go spells an Actions read the way the shim accepts.
 //
-// The shim refuses `gh run`, `gh workflow` and `gh pr checks` at run time, so
-// each costs a tool call to fail. Only these forms are rewritten:
+// Only these forms are rewritten:
 //
 //	gh run view <id> --log-failed -> gh wait-ci log <id> --failed
 //	gh run view <id> --log        -> gh wait-ci log <id>

@@ -61,8 +61,6 @@ func Words(args []*syntax.Word) []Word {
 	return out
 }
 
-// CommandName resolves a spelling to the program it names: `\sed`,
-// `/usr/bin/sed` and `"sed"` are all sed.
 func CommandName(t string) string {
 	t = strings.TrimPrefix(t, `\`)
 	if t == "" {

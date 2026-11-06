@@ -101,7 +101,7 @@ func markDivision(source, masked string, whole *syntax.Sentence, limit int) (str
 		right := carryRest(source[c.right:])
 		// A relative clause reads as a sentence with its noun named again.
 		if first := wordFrom(whole, c.right); first > 0 && relativeWords.Contains(whole.Words[first].Lower()) {
-			right, _ = relativeRest(source, whole, first, len(source))
+			right, _ = relativeRestWithSubject(source, whole, first, len(source))
 		}
 		if left == "" || right == "" || !divides(left, right, limit) {
 			continue
