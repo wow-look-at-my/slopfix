@@ -22,7 +22,7 @@ func verblessRest(whole *syntax.Sentence, c forceCut, source string) bool {
 	if n := wordFrom(whole, c.right); n >= 0 && opensAfterAdverb(whole, n) && holdsFinite(checkMask(rest)) {
 		return false
 	}
-	if strandsPhrase(whole, c.right, rest) || !standsAsSentence(rest) {
+	if strandsRest(whole, c.right, rest) || !standsAsSentence(rest) {
 		return true
 	}
 	if holdsFinite(checkMask(rest)) {

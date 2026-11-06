@@ -18,11 +18,11 @@ func connectorOpener(opener string) bool {
 	return false
 }
 
-// strandsPhrase reports a rest that opens on a preposition with no clause
+// strandsRest reports a rest that opens on a preposition with no clause
 // after it, as in "Up to the plural noun it counts, as in X". That phrase
 // finishes the sentence before the cut and stands as no sentence of its own.
 // A fronted phrase that a comma closes before a clause is a sentence.
-func strandsPhrase(s *syntax.Sentence, rightStart int, right string) bool {
+func strandsRest(s *syntax.Sentence, rightStart int, right string) bool {
 	n := wordFrom(s, rightStart)
 	if n < 0 || n >= len(s.Words) {
 		return false

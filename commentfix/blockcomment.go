@@ -148,7 +148,7 @@ func (s blockShape) render(prose []string) []string {
 func repairBlockComment(b block) ([]string, bool) {
 	shape, prose, ok := readBlock(b.text)
 	if !ok {
-		return nil, false
+		return repairStacked(b)
 	}
 	lines := asLines(shape.indent, prose)
 	kept := fromLines(trim(block{start: b.start, end: b.end, codeLines: b.codeLines, codeChars: b.codeChars, text: lines, exact: b.exact}))
