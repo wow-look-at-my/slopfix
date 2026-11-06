@@ -34,7 +34,8 @@ func relativeInDivision(source string, s *syntax.Sentence, limit int) (string, b
 		if relativeDeterminers.Contains(s.Words[i+2].Lower()) && finiteBetween(s, i+2, min(i+5, len(s.Words))) {
 			continue
 		}
-		body := strings.TrimSpace(source[s.Words[i+2].Start:])
+		// The word after "which" can be the filler the mask wrote over a code span.
+		body := strings.TrimSpace(source[outsideSpans(source, s.Words[i+2].Start, false):])
 		if body == "" || !holdsFinite(body) {
 			continue
 		}
