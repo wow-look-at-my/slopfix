@@ -105,11 +105,17 @@ func replacementFor(path, text string, lines []string, blocks []Block, name stri
 	return ""
 }
 
-// caseVariant answers the identifier of the file or the repository that
-// equals name when case is ignored, or "" when none or several do.
+// caseVariant answers the identifier of the file or the repository that equals
+// name when case is ignored, or "" when none or several do. A word in lower
+// case alone is no spelling of a name that opens on a capital. That word is
+// plain prose or a value, and the name in the comment is a proper noun.
 func caseVariant(path, text, name string, dead set.Set[string]) string {
 	found := set.New[string]()
+	capital := name[0] >= 'A' && name[0] <= 'Z'
 	collect := func(word string) {
+		if capital && word == strings.ToLower(word) {
+			return
+		}
 		if word != name && strings.EqualFold(word, name) && !dead.Contains(word) {
 			found.Add(word)
 		}
