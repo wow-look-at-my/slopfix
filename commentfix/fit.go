@@ -24,13 +24,14 @@ func cutToFit(text []string, b block) ([]string, bool) {
 // oneLine is a reflow width no comment reaches, so the prose stays on one line.
 const oneLine = 1 << 20
 
-// fitReflow lays text out at the narrowest width that fits the budget of b.
-// The budget counts characters, not columns, so a single line is the last try.
-func fitReflow(text, indent, marker string, b block) ([]string, bool) {
+// fitReflow lays text out at the narrowest width that fits the budget of b,
+// under the head lines. The budget counts characters, not columns, so a single
+// line is the last try.
+func fitReflow(head []string, text, indent, marker string, b block) ([]string, bool) {
 	budget := max(floorChars, b.codeChars)
 	var out []string
 	for _, width := range []int{min(budget, wrapWidth), budget, oneLine} {
-		out = reflow(text, indent, marker, width)
+		out = append(append([]string{}, head...), reflow(text, indent, marker, width)...)
 		if fitsCode(out, b) {
 			return out, true
 		}
