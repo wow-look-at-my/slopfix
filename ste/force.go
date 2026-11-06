@@ -118,6 +118,10 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := relativeInDivision(source, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
+	// A clause after a comma that names the thing said again as "This is".
+	if out, ok := relativeThisDivision(source, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
 	dashed := dashAsides(source)
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0

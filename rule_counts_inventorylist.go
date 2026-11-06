@@ -25,7 +25,7 @@ func init() {
 			{Name: "table", Path: "x.md", Text: embeddedMd3},
 			{Name: "catalog-fence", Path: "x.md", Text: embeddedMd4},
 			{Name: "split", Path: "x.md", Text: embeddedMd5},
-			{Name: "comment", Path: "x.go", Text: "package x\n\n// The modes are `fast`, `slow` and `safe`.\nconst mode = 1\n"},
+			{Name: "comment", Path: "x.go", Text: "// x.go holds mode.\n\npackage x\n\n// The modes are `fast`, `slow` and `safe`.\nconst mode = 1\n"},
 			{Name: "message", Text: "I changed `a.go`, `b.go` and `c.go`.\n"},
 		},
 	})
