@@ -1,3 +1,5 @@
+// counts/stated-count: a stated count of items goes stale when somebody adds the item that makes it wrong.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"
@@ -10,7 +12,11 @@ func init() {
 		Category: RuleCounts,
 		Detect:   detectStaleCount,
 		Autofix:  autofixStaleCount,
-		Cases:    []RuleCase{{Name: ste.IDStaleCount, Path: "x.md", Text: "The gate reads 3 rows.\n"}},
+		Cases: []RuleCase{
+			{Name: ste.IDStaleCount, Path: "x.md", Text: "The gate reads 3 rows.\n"},
+			// A sign caps the number, and a list item holds it.
+			{Name: ste.IDStaleCount + " behind a cap sign in a list item", Path: "x.md", Text: "- **≤60 lines per module** keeps each module small.\n"},
+		},
 	})
 }
 

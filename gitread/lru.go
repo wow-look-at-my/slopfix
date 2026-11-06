@@ -1,3 +1,5 @@
+// entryCost is the bookkeeping an entry costs beyond its bytes.
+
 package gitread
 
 import (

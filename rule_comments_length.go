@@ -1,4 +1,8 @@
+// comments/length: a comment run weighed against the construct beneath it.
+
 package slopfix
+
+import _ "embed"
 
 import (
 	"github.com/wow-look-at-my/slopfix/commentfix"
@@ -14,35 +18,27 @@ func init() {
 		Detect:   detectCommentLength,
 		Autofix:  autofixCommentLength,
 		Cases: []RuleCase{
-			{Name: commentfix.IDLength, Path: "main.go", Text: "package main\n\n" + overlongComment() + "func main() {}\n"},
-			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: identifierSentenceCase, Want: identifierSentenceWant},
+			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
+			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
+			{Name: "a line comment keeps its heading above the sentence a cut keeps", Path: "f.rs", Text: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + " " + noCutTail + "\nfn f() {}\n", Want: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + "\nfn f() {}\n"},
+			{Name: "a block comment keeps its heading above the sentence a cut keeps", Path: "f.c", Text: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + " " + noCutTail + "\n */\nvoid f(void) {}\n", Want: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + " */\nvoid f(void) {}\n"},
 		},
 	})
 }
 
-// identifierSentenceCase holds a comment of a couple of sentences above a
-// single statement. The second opens on the identifier cubeCount_ in lower
-// case, so the cut takes that sentence whole and never ends on its verb.
-const identifierSentenceCase = `void FroxelPath::finishPrepack(Context& ctx) {
-  ensureSplatCapacity(ctx, peakC);
-  // The first frame goes live through the ordinary adopt. cubeCount_ = 0 forces the
-  // adopt to install the triple of that frame from the map.
-  livePrepackFrame_ = kNoPrepackFrame;
-  prepackPending_ = 0;
-  cubeCount_ = 0;
-  adoptPrepacked(ctx);
-}
-`
+//go:embed testdata/identifier-sentence-case.cpp
+var identifierSentenceCase string
 
-const identifierSentenceWant = `void FroxelPath::finishPrepack(Context& ctx) {
-  ensureSplatCapacity(ctx, peakC);
-  // The first frame goes live through the ordinary adopt.
-  livePrepackFrame_ = kNoPrepackFrame;
-  prepackPending_ = 0;
-  cubeCount_ = 0;
-  adoptPrepacked(ctx);
-}
-`
+//go:embed testdata/identifier-sentence-want.cpp
+var identifierSentenceWant string
+
+// noCutHeading, noCutSentence and noCutTail make a doc over a single line of
+// code. The budget does not weigh the heading. The cut takes the tail.
+const (
+	noCutHeading  = "# Safety of the raw pointer handoff to the worker pool"
+	noCutSentence = "The caller keeps the pointer valid for every read of the whole shared buffer during the entire call."
+	noCutTail     = "The pool never frees the buffer before the call returns."
+)
 
 // detectCommentLength answers every overlong comment run this rule reports.
 func detectCommentLength(c RuleCase) []ste.Finding {

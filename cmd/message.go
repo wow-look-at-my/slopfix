@@ -1,3 +1,5 @@
+// messageIDs names every rule that judges a closing message.
+
 package cmd
 
 import (

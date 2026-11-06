@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -21,12 +23,12 @@ func pushTagFindings(content string) []ste.Finding {
 
 func TestAnUnfilteredPushIsReported(t *testing.T) {
 	cases := map[string]int{
-		"on: push\njobs: {}\n":                                     1,
-		"on: [pull_request, push]\njobs: {}\n":                     1,
-		"on:\n  push:\n  workflow_dispatch:\njobs: {}\n":           2,
-		"on:\n  push:\n    paths: ['src/**']\njobs: {}\n":          2,
-		"'on':\n  push: {}\njobs: {}\n":                            2,
-		"name: ci\non:\n  workflow_dispatch:\n  push:\njobs: {}\n": 4,
+		"on: push\njobs: {}\n":                 1,
+		"on: [pull_request, push]\njobs: {}\n": 1,
+		testAnUnfilteredPushIsReportedYml:      2,
+		testAnUnfilteredPushIsReportedYml2:     2,
+		testAnUnfilteredPushIsReportedYml3:     2,
+		testAnUnfilteredPushIsReportedYml4:     4,
 	}
 	for content, line := range cases {
 		found := pushTagFindings(content)
@@ -38,11 +40,11 @@ func TestAnUnfilteredPushIsReported(t *testing.T) {
 
 func TestTheRepairWritesABranchFilter(t *testing.T) {
 	cases := map[string]string{
-		"on: push\njobs: {}\n":                                  "on:\n  push:\n    branches: ['**']\njobs: {}\n",
-		"on: push # ci\njobs: {}\n":                             "on: # ci\n  push:\n    branches: ['**']\njobs: {}\n",
-		"on: [pull_request, push]\njobs: {}\n":                  "on:\n  pull_request:\n  push:\n    branches: ['**']\njobs: {}\n",
-		"on:\n  push:\n  workflow_dispatch:\njobs: {}\n":        "on:\n  push:\n    branches: ['**']\n  workflow_dispatch:\njobs: {}\n",
-		"on:\n    push:\n        paths: ['src/**']\njobs: {}\n": "on:\n    push:\n        branches: ['**']\n        paths: ['src/**']\njobs: {}\n",
+		"on: push\njobs: {}\n":                 testTheRepairWritesABranchFilterYml,
+		"on: push # ci\njobs: {}\n":            testTheRepairWritesABranchFilterYml2,
+		"on: [pull_request, push]\njobs: {}\n": testTheRepairWritesABranchFilterYml3,
+		testTheRepairWritesABranchFilterYml4:   testTheRepairWritesABranchFilterYml5,
+		testTheRepairWritesABranchFilterYml6:   testTheRepairWritesABranchFilterYml7,
 	}
 	for content, want := range cases {
 		out := repaired(t, content)
@@ -54,10 +56,10 @@ func TestTheRepairWritesABranchFilter(t *testing.T) {
 // A shape no line edit reaches gets the whole on: value again, in block style.
 func TestAFlowStylePushIsWrittenAgainInBlockStyle(t *testing.T) {
 	cases := map[string]string{
-		"'on':\n  push: {}\njobs: {}\n":               "'on':\n  push:\n    branches: ['**']\njobs: {}\n",
-		"on: {push: {paths: [a]}}\njobs: {}\n":        "on:\n  push:\n    paths: [a]\n    branches: ['**']\njobs: {}\n",
-		"on:\n  - push\n  - pull_request\njobs: {}\n": "on:\n  push:\n    branches: ['**']\n  pull_request: null\njobs: {}\n",
-		"on:\n  push: {}\n\n# the jobs\njobs: {}\n":   "on:\n  push:\n    branches: ['**']\n\n# the jobs\njobs: {}\n",
+		testAFlowStylePushIsWrittenAgainInBlockStyleYml:  testAFlowStylePushIsWrittenAgainInBlockStyleYml2,
+		"on: {push: {paths: [a]}}\njobs: {}\n":           testAFlowStylePushIsWrittenAgainInBlockStyleYml3,
+		testAFlowStylePushIsWrittenAgainInBlockStyleYml4: testAFlowStylePushIsWrittenAgainInBlockStyleYml5,
+		testAFlowStylePushIsWrittenAgainInBlockStyleYml6: testAFlowStylePushIsWrittenAgainInBlockStyleYml7,
 	}
 	for content, want := range cases {
 		out := repaired(t, content)
@@ -68,10 +70,10 @@ func TestAFlowStylePushIsWrittenAgainInBlockStyle(t *testing.T) {
 
 func TestAFilteredPushPasses(t *testing.T) {
 	for _, content := range []string{
-		"on:\n  push:\n    branches: ['**']\njobs: {}\n",
-		"on:\n  push:\n    branches-ignore: [gh-pages]\njobs: {}\n",
-		"on:\n  push:\n    tags: ['v*']\njobs: {}\n",
-		"on:\n  push:\n    tags-ignore: ['**']\njobs: {}\n",
+		testAFilteredPushPassesYml,
+		testAFilteredPushPassesYml2,
+		testAFilteredPushPassesYml3,
+		testAFilteredPushPassesYml4,
 		"on: workflow_dispatch\njobs: {}\n",
 		"on: [pull_request]\njobs: {}\n",
 		"runs:\n  using: composite\n",
@@ -79,3 +81,69 @@ func TestAFilteredPushPasses(t *testing.T) {
 		assert.Empty(t, pushTagFindings(content), content)
 	}
 }
+
+//go:embed testdata/test-an-unfiltered-push-is-reported.yml
+var testAnUnfilteredPushIsReportedYml string
+
+//go:embed testdata/test-an-unfiltered-push-is-reported-2.yml
+var testAnUnfilteredPushIsReportedYml2 string
+
+//go:embed testdata/test-an-unfiltered-push-is-reported-3.yml
+var testAnUnfilteredPushIsReportedYml3 string
+
+//go:embed testdata/test-an-unfiltered-push-is-reported-4.yml
+var testAnUnfilteredPushIsReportedYml4 string
+
+//go:embed testdata/test-the-repair-writes-a-branch-filter.yml
+var testTheRepairWritesABranchFilterYml string
+
+//go:embed testdata/test-the-repair-writes-a-branch-filter-2.yml
+var testTheRepairWritesABranchFilterYml2 string
+
+//go:embed testdata/test-the-repair-writes-a-branch-filter-3.yml
+var testTheRepairWritesABranchFilterYml3 string
+
+//go:embed testdata/test-the-repair-writes-a-branch-filter-4.yml
+var testTheRepairWritesABranchFilterYml4 string
+
+//go:embed testdata/test-the-repair-writes-a-branch-filter-5.yml
+var testTheRepairWritesABranchFilterYml5 string
+
+//go:embed testdata/test-the-repair-writes-a-branch-filter-6.yml
+var testTheRepairWritesABranchFilterYml6 string
+
+//go:embed testdata/test-the-repair-writes-a-branch-filter-7.yml
+var testTheRepairWritesABranchFilterYml7 string
+
+//go:embed testdata/test-a-flow-style-push-is-written-again-in-block-style.yml
+var testAFlowStylePushIsWrittenAgainInBlockStyleYml string
+
+//go:embed testdata/test-a-flow-style-push-is-written-again-in-block-style-2.yml
+var testAFlowStylePushIsWrittenAgainInBlockStyleYml2 string
+
+//go:embed testdata/test-a-flow-style-push-is-written-again-in-block-style-3.yml
+var testAFlowStylePushIsWrittenAgainInBlockStyleYml3 string
+
+//go:embed testdata/test-a-flow-style-push-is-written-again-in-block-style-4.yml
+var testAFlowStylePushIsWrittenAgainInBlockStyleYml4 string
+
+//go:embed testdata/test-a-flow-style-push-is-written-again-in-block-style-5.yml
+var testAFlowStylePushIsWrittenAgainInBlockStyleYml5 string
+
+//go:embed testdata/test-a-flow-style-push-is-written-again-in-block-style-6.yml
+var testAFlowStylePushIsWrittenAgainInBlockStyleYml6 string
+
+//go:embed testdata/test-a-flow-style-push-is-written-again-in-block-style-7.yml
+var testAFlowStylePushIsWrittenAgainInBlockStyleYml7 string
+
+//go:embed testdata/test-a-filtered-push-passes.yml
+var testAFilteredPushPassesYml string
+
+//go:embed testdata/test-a-filtered-push-passes-2.yml
+var testAFilteredPushPassesYml2 string
+
+//go:embed testdata/test-a-filtered-push-passes-3.yml
+var testAFilteredPushPassesYml3 string
+
+//go:embed testdata/test-a-filtered-push-passes-4.yml
+var testAFilteredPushPassesYml4 string

@@ -1,3 +1,5 @@
+// repo/budget: a root file over the character budget every request pays for.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

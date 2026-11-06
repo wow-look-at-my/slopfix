@@ -1,0 +1,9 @@
+permissions:
+  id-token: write
+jobs:
+  build:
+    steps: []
+  tight:
+    permissions:
+      contents: read
+    steps: []

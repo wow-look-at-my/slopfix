@@ -1,3 +1,5 @@
+// finalWord answers the last blank-separated field of sentence in lower case, without the opening marks before it.
+
 package ste
 
 import (

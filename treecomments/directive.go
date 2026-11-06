@@ -1,3 +1,5 @@
+// IsDirective reports a comment line that a tool reads, such as //go:nosplit.
+
 package treecomments
 
 import (
@@ -10,7 +12,7 @@ import (
 // A space after the marker turns it into prose, so no repair may touch it.
 func IsDirective(line string) bool {
 	text := strings.TrimSpace(line)
-	if strings.HasPrefix(text, "// +build") || metadataOpen.MatchString(text) || tripleSlash(text) {
+	if strings.HasPrefix(text, "// +build") || metadataOpen.MatchString(text) || tripleSlash(text) || compiletestLine.MatchString(text) {
 		return true
 	}
 	rest, found := strings.CutPrefix(text, "//")
@@ -36,6 +38,9 @@ func IsDirective(line string) bool {
 	}
 	return false
 }
+
+// compiletestLine matches a line that the Rust compiletest harness reads: a directive (`//@ build-fail`) or an error annotation.
+var compiletestLine = regexp.MustCompile(`^//(@|~|\[[A-Za-z0-9_,-]+\]~)`)
 
 // metadataOpen and metadataClose delimit a userscript or userstyle metadata
 // block, which the browser extension parses line by line.

@@ -1,3 +1,5 @@
+// noFlags is scanArgs' "this command has no value-taking flags" argument.
+
 package noworkloss
 
 import (

@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -34,7 +36,7 @@ func read(t *testing.T, path string) string {
 // a workflow and a document in the same pass, which is the whole point.
 func TestFixTreeRepairsEveryRuleFamily(t *testing.T) {
 	root := tree(t, map[string]string{
-		".github/workflows/ci.yml": "name: CI\n# one\n# two\non: {push: {branches: ['**']}}\n",
+		".github/workflows/ci.yml": testFixTreeRepairsEveryRuleFamilyYml,
 		"notes.md":                 "It has three plugins.\n",
 	})
 
@@ -58,7 +60,7 @@ func TestFixTreeLeavesAFileNoRuleReads(t *testing.T) {
 // A clean tree is rewritten nowhere, which is what makes the sweep safe to run
 // on every build.
 func TestFixTreeWritesNothingWhenThereIsNothingToRepair(t *testing.T) {
-	root := tree(t, map[string]string{".github/workflows/ci.yml": "name: CI\n# one\non: {push: {branches: ['**']}}\n"})
+	root := tree(t, map[string]string{".github/workflows/ci.yml": testFixTreeWritesNothingWhenThereIsNothingToRepairYml})
 	path := filepath.Join(root, ".github/workflows/ci.yml")
 	before, err := os.Stat(path)
 	require.NoError(t, err)
@@ -86,3 +88,9 @@ func TestReadsAnswersTheFilesEveryRuleCovers(t *testing.T) {
 	assert.True(t, slopfix.Reads("main.go"))
 	assert.False(t, slopfix.Reads("data.bin"))
 }
+
+//go:embed testdata/test-fix-tree-repairs-every-rule-family.yml
+var testFixTreeRepairsEveryRuleFamilyYml string
+
+//go:embed testdata/test-fix-tree-writes-nothing-when-there-is-nothing-to-repair.yml
+var testFixTreeWritesNothingWhenThereIsNothingToRepairYml string

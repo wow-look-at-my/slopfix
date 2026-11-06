@@ -1,0 +1,4 @@
+on: # ci
+  push:
+    branches: ['**']
+jobs: {}

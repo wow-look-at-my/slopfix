@@ -1,0 +1,6 @@
+jobs:
+  build:
+    steps:
+      # The token is minted by
+      # GitHub for each run.
+      - run: make

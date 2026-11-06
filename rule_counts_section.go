@@ -1,3 +1,5 @@
+// counts/section-number: a section number goes stale when a section is inserted above it.
+
 package slopfix
 
 import (

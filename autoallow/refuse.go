@@ -1,3 +1,5 @@
+// Refusal denies a command outright, with Message as the reason.
+
 package autoallow
 
 import "strings"

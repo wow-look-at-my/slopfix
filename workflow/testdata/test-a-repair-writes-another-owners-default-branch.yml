@@ -1,0 +1,4 @@
+jobs:
+  build:
+    steps:
+      - uses: Homebrew/actions/setup-homebrew@feature-x

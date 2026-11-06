@@ -1,3 +1,5 @@
+// IsDocument reports whether path names prose rather than source.
+
 package slopfix
 
 import (

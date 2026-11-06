@@ -1,3 +1,5 @@
+// force.go divides a long sentence that has no clause boundary.
+
 package ste
 
 import (
@@ -45,7 +47,7 @@ func Masked(prose string) string { return checkMask(prose) }
 // and an offset into the mask is an offset into the prose.
 func checkMask(prose string) string {
 	out := []byte(prose)
-	for _, span := range verbatimSpan.FindAllStringIndex(prose, -1) {
+	for _, span := range verbatimSpans(prose) {
 		switch prose[span[0]] {
 		case '`':
 			fillCheckWord(out[span[0]:span[1]], "CODE")
@@ -104,6 +106,10 @@ type forceCut struct {
 func forceDivision(source, masked string, d capSpec) (string, bool) {
 	// The tags come from the whole sentence, because a fragment parsed alone reads "a faithful" as a noun.
 	whole := syntax.Parse(masked, nil)
+	// A gapped list divides into its items before any cut, because a cut between items leaves each without its verb.
+	if out, ok := gappedDivision(source, whole, d.cap); ok {
+		return out, true
+	}
 	if out, ok := listDivision(source, masked, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
@@ -111,7 +117,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
 		for _, c := range candidates(source, masked, strict, d.cap) {
-			if cutsAside(masked, c.left, c.right) || splitsObject(whole, c) {
+			if cutsAside(masked, c.left, c.right) || splitsObject(whole, c) || insideCompound(source, whole, c) {
 				continue
 			}
 			head := source[:c.left]
@@ -129,7 +135,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			// A fragment head behind "This is" closes as a sentence of its own.
 			accept := func(h, r string) bool {
 				joined := closeHead(h) + " " + r
-				return r != "" && divides(closeHead(h), r, d.cap) &&
+				return r != "" && restStands(r) && divides(closeHead(h), r, d.cap) &&
 					(h == fragmentHead(source[:c.left]) || closesWhole(source[:c.left], seam, whole) || closesPhrase(source[:c.left], whole)) &&
 					overCap(joined, d.cap) < overCap(source, d.cap)
 			}
@@ -137,7 +143,7 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 				// The grammatical rest was refused, so the carrier division, which restates the main clause, gets its turn.
 				ch, cr, co := carrierOrNone(source, whole, c)
 				cl := closeHead(ch)
-				if cr == "" || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
+				if cr == "" || !restStands(cr) || !divides(cl, cr, d.cap) || overCap(cl+" "+cr, d.cap) >= overCap(source, d.cap) {
 					continue
 				}
 				head, right, opened, left = ch, cr, co, cl
@@ -166,6 +172,9 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 		}
 	}
 	if out, ok := fragmentDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
+	if out, ok := relativeAsideDivision(source, whole); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
 	if out, ok := markDivision(source, masked, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
@@ -229,7 +238,7 @@ func hardDivision(source, masked string, limit int) (string, bool) {
 		}
 		// A tail that opens on a finite verb leaves its subject behind:
 		// "the pointer. Stays valid for reads of n bytes".
-		if n := wordsBefore(whole, c.right); n < len(whole.Words) && finiteVerbTag(whole.Words[n].Tag) {
+		if n := wordsBefore(whole, c.right); n < len(whole.Words) && finiteVerbTag(whole.Words[n].Tag) || insideCompound(source, whole, c) {
 			continue
 		}
 		// A relative word binds its clause to the noun in front of it: "the verb. That governs it".
@@ -300,26 +309,43 @@ func endsOnPossessive(source string, left int) bool {
 	return strings.HasSuffix(last, "'s") || strings.HasSuffix(last, "’s")
 }
 
+// endsOnOpener reports a cut whose head ends on a word that needs the next
+// one, such as an article, a preposition or a conjunction. The cut would part
+// a phrase: "understanding the. Environment".
+func endsOnOpener(source string, whole *syntax.Sentence, c forceCut) bool {
+	last := strings.ToLower(strings.Trim(lastField(strings.TrimRight(source[:c.left], " ,;:—–-")), ".,;:!?*_\"'`()[]“”‘’"))
+	if forceDangling.Contains(last) {
+		return true
+	}
+	w, ok := lastWordBefore(whole, c.left)
+	if ok && w.Tag == "VBG" {
+		return true
+	}
+	return ok && danglingTags.Contains(w.Tag) && !predicateAdjective(whole, wordFrom(whole, w.Start))
+}
+
 // lastResortCut answers the cut that keeps the most leading words under the
 // cap, for a sentence where no cut leaves both parts reading as sentences. A
 // finding that fix leaves standing breaks the guarantee, and an awkward pair
 // of sentences does not. The cut still lands between whole words, outside a
 // code span, a link, a quotation and a parenthesis.
 func lastResortCut(source, masked string, words, limit int) (forceCut, int) {
-	best, bestWords := forceCut{}, -1
+	best, bestWords, bestComma := forceCut{}, -1, false
 	whole := syntax.Parse(masked, nil)
 	for _, c := range candidates(source, masked, false, limit) {
 		if cutsAside(masked, c.left, c.right) || c.words > limit || c.words < 1 || words-c.words < 1 {
 			continue
 		}
-		if endsOnPossessive(source, c.left) {
+		if endsOnPossessive(source, c.left) || endsOnOpener(source, whole, c) {
 			continue
 		}
 		if n := wordsBefore(whole, c.right); n > 0 && n+1 < len(whole.Words) && relativeAfterNoun(whole, n) {
 			continue
 		}
-		if c.words > bestWords {
-			best, bestWords = c, c.words
+		// A cut at a comma parts a clause from the next, so it beats a longer cut inside a phrase.
+		comma := seamBefore(source, c.left) == ","
+		if bestWords < 0 || comma && !bestComma || comma == bestComma && c.words > bestWords {
+			best, bestWords, bestComma = c, c.words, comma
 		}
 	}
 	return best, bestWords
@@ -483,7 +509,7 @@ func wordEnds(masked string) []int {
 // candidates answers every admissible cut, best first. A strict pass also keeps
 // each part off a word that leaves it hanging.
 func candidates(source, masked string, strict bool, limit int) []forceCut {
-	off := verbatimSpan.FindAllStringIndex(source, -1)
+	off := verbatimSpans(source)
 	off = append(off, quotedSpans(source)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 	off = append(off, outerParens(masked)...)

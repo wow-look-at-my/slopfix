@@ -16,8 +16,9 @@ import (
 // A Test drives an entry. In is the prose somebody writes. Out is what the
 // repair must produce.
 type Test struct {
-	In  string
-	Out string
+	In   string
+	Out  string
+	Path string
 }
 
 // A Detect states what a single substrate reports for a line. An empty Found
@@ -35,6 +36,8 @@ type Drop struct {
 	Word  string
 	Where string
 	Tests []Test
+	// Sensitive makes the word match as written. Otherwise case is ignored.
+	Sensitive bool
 }
 
 // Rewrite swaps a whole phrase for another.
@@ -44,6 +47,8 @@ type Rewrite struct {
 	To    string
 	Where string
 	Tests []Test
+	// Sensitive makes the phrase match as written. Otherwise case is ignored.
+	Sensitive bool
 }
 
 // Flag names prose a rule refuses to rewrite, and what to write instead.
@@ -52,6 +57,8 @@ type Flag struct {
 	Phrase string
 	Say    string
 	Tests  []Test
+	// Sensitive makes the phrase match as written. Otherwise case is ignored.
+	Sensitive bool
 }
 
 // Pattern is a rewrite with captures.
@@ -61,6 +68,8 @@ type Pattern struct {
 	To    string
 	Where string
 	Tests []Test
+	// Sensitive makes the match case-sensitive. Otherwise it ignores case.
+	Sensitive bool
 
 	// re is Match, compiled when the folder is loaded.
 	re *regexp.Regexp

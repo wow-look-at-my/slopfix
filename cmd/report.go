@@ -1,3 +1,5 @@
+// reportFinding is the JSON wire contract, held apart from ste.Finding so a rename cannot change it.
+
 package cmd
 
 import (
@@ -59,7 +61,7 @@ func wireFinding(finding ste.Finding) reportFinding {
 		Rule:       finding.Rule,
 		Detail:     finding.Detail,
 		Fix:        finding.Fix,
-		Repairable: slopfix.Repairable(finding.ID) && !ste.ByHand(finding.Fix),
+		Repairable: slopfix.Repairable(finding.ID),
 		Severity:   severity(finding),
 	}
 }

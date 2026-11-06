@@ -1,0 +1,6 @@
+on: {push: {branches: ['**']}}
+jobs:
+  x:
+    steps:
+      - run: |
+          echo '::error::the cache was cold'

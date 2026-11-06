@@ -198,7 +198,7 @@ func TestRepairLeavesNoFinding(t *testing.T) {
 func TestRepairKeepsAFileItCannotImprove(t *testing.T) {
 	root := tree(t, map[string]string{
 		"go.mod":  "module example.com/m\n",
-		"main.go": "package main\n\n// It reserves the slots.\nfunc main() {}\n",
+		"main.go": "// The program reserves slots.\n\npackage main\n\n// It reserves the slots.\nfunc main() {}\n",
 	})
 	result := commentfix.FixTree(root)
 	assert.Empty(t, result.Repaired)

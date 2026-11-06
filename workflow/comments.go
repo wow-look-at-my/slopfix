@@ -1,3 +1,5 @@
+// MaxCommentLines bounds a run of comment lines, and takes no input.
+
 package workflow
 
 import (

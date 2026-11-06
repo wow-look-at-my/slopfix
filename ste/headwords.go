@@ -1,3 +1,5 @@
+// listsVerbs reports a comma after the main verb of head.
+
 package ste
 
 import (

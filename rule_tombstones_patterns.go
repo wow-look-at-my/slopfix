@@ -1,3 +1,5 @@
+// The tombstone wording rules.
+
 package slopfix
 
 import (

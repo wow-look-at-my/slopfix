@@ -1,3 +1,5 @@
+// byteReader is what the pack decoder and the inflater read from.
+
 package gitread
 
 import (

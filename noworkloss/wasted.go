@@ -1,3 +1,5 @@
+// The price of a refused Write over a file that existed, read from the session transcript and counted in Claude tokens.
+
 package noworkloss
 
 import (

@@ -1,5 +1,7 @@
 package markdown_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -10,7 +12,8 @@ import (
 	"github.com/wow-look-at-my/slopfix/markdown"
 )
 
-const doc = "# Title\n\nThe gate reads\nevery file.\n\n```sh\nslopfix check .\n```\n"
+//go:embed testdata/doc.md
+var doc string
 
 // replace answers the edit that swaps the first old in doc for text.
 func replace(old, text string) edit.Edit {

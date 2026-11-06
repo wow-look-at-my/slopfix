@@ -1,3 +1,5 @@
+// analyze flattens the command, classifies every unit, and consults repository state only for the units that could destroy something.
+
 package noworkloss
 
 import (

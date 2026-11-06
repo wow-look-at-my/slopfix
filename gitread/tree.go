@@ -1,3 +1,5 @@
+// Tree entry modes, as a tree spells them.
+
 package gitread
 
 import (

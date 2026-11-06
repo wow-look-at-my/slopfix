@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -21,22 +23,8 @@ func syntaxFindings(content string) []ste.Finding {
 	return out
 }
 
-// emptyIfBody is wow-look-at-my/sglang fork-ci.yml at c33f43989a. The job runs
-// on the default branch alone, so no pull request ran the script, and master
-// failed with: syntax error near unexpected token `fi'.
-const emptyIfBody = "on:\n" +
-	"  push:\n" +
-	"    branches: ['**']\n" +
-	"jobs:\n" +
-	"  release:\n" +
-	"    if: github.ref == 'refs/heads/master'\n" +
-	"    runs-on: ubuntu-latest\n" +
-	"    steps:\n" +
-	"      - run: |\n" +
-	"          shopt -s nullglob\n" +
-	"          WHEELS=(dist/*.whl)\n" +
-	"          if [ ${#WHEELS[@]} -eq 0 ]; then\n" +
-	"          fi\n"
+//go:embed testdata/empty-if-body.yml
+var emptyIfBody string
 
 func TestAnIfWithNoBodyIsReportedOnItsThen(t *testing.T) {
 	found := syntaxFindings(emptyIfBody)
@@ -57,7 +45,7 @@ func TestTheSameIfWithItsBodyPasses(t *testing.T) {
 }
 
 func TestAScriptOnTheRunRowIsReportedThere(t *testing.T) {
-	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo (\n"
+	content := testAScriptOnTheRunRowIsReportedThereYml
 	found := syntaxFindings(content)
 	require.Len(t, found, 1)
 	assert.Equal(t, 5, found[0].Line)
@@ -65,7 +53,7 @@ func TestAScriptOnTheRunRowIsReportedThere(t *testing.T) {
 
 // A composite action's step names its shell, and only bash and sh are parsed.
 func TestACompositeActionStepIsReadByItsShell(t *testing.T) {
-	head := "runs:\n  using: composite\n  steps:\n    - shell: "
+	head := testACompositeActionStepIsReadByItsShellYml
 	body := "\n      run: |\n        if true; then\n        fi\n"
 	for _, shell := range []string{"bash", "sh", "bash --noprofile --norc -eo pipefail {0}"} {
 		assert.Len(t, syntaxFindings(head+shell+body), 1, shell)
@@ -77,35 +65,30 @@ func TestACompositeActionStepIsReadByItsShell(t *testing.T) {
 
 // sh is POSIX, where an array does not parse.
 func TestAnShStepIsParsedAsPOSIX(t *testing.T) {
-	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - shell: sh\n        run: |\n          X=(a b)\n"
+	content := testAnShStepIsParsedAsPOSIXYml
 	found := syntaxFindings(content)
 	require.Len(t, found, 1)
 	assert.Equal(t, 7, found[0].Line)
-	assert.Empty(t, syntaxFindings("jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          X=(a b)\n"))
+	assert.Empty(t, syntaxFindings(testAnShStepIsParsedAsPOSIXYml2))
 }
 
 // A step whose shell is pwsh, by the job's runner or a default, is not shell.
 func TestAPowerShellStepIsNotParsed(t *testing.T) {
 	broken := "        run: |\n          if ($x) { exit 1 }\n          fi\n"
 	for _, content := range []string{
-		"jobs:\n  a:\n    runs-on: windows-latest\n    steps:\n      - name: x\n" + broken,
-		"defaults:\n  run:\n    shell: pwsh\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - name: x\n" + broken,
-		"jobs:\n  a:\n    runs-on: ubuntu-latest\n    defaults:\n      run:\n        shell: pwsh\n    steps:\n      - name: x\n" + broken,
+		testAPowerShellStepIsNotParsedYml2 + broken,
+		testAPowerShellStepIsNotParsedYml + broken,
+		testAPowerShellStepIsNotParsedYml3 + broken,
 	} {
 		assert.Empty(t, syntaxFindings(content), content)
 	}
-	bash := "jobs:\n  a:\n    runs-on: windows-latest\n    steps:\n      - shell: bash\n        run: |\n          fi\n"
+	bash := testAPowerShellStepIsNotParsedYml4
 	assert.Len(t, syntaxFindings(bash), 1)
 }
 
 // An expression is text the runner writes before the shell reads the script.
 func TestAnExpressionParsesWhereAWordDoes(t *testing.T) {
-	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n" +
-		"          if [ \"${{ inputs.mode }}\" = fast ]; then\n" +
-		"            echo ${{ github.sha }}\n" +
-		"          fi\n" +
-		"          N=$(( ${{ inputs.count }} + 1 ))\n" +
-		"          ${{ inputs.command }} --flag '${{ matrix.os }}'\n"
+	content := testAnExpressionParsesWhereAWordDoesYml
 	assert.Empty(t, syntaxFindings(content))
 }
 
@@ -123,13 +106,14 @@ func TestAnEmptyIfBodyGetsTheNoOp(t *testing.T) {
 
 // A statement the script never closes gets its closer.
 func TestAnUnclosedIfGetsItsFi(t *testing.T) {
-	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          if true; then\n            echo hi\n"
+	content := testAnUnclosedIfGetsItsFiYml
 	fixed := repairedBy(content)
 	assert.Empty(t, syntaxFindings(fixed))
 	assert.Contains(t, fixed, "            echo hi\n          fi\n")
 }
 
-const stepsHead = "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n"
+//go:embed testdata/steps-head.yml
+var stepsHead string
 
 // A script on the run row is written again as a quoted string, with the stray bracket quoted.
 func TestAScriptOnTheRunRowIsRepaired(t *testing.T) {
@@ -140,7 +124,7 @@ func TestAScriptOnTheRunRowIsRepaired(t *testing.T) {
 
 // A closing word with nothing to close is dropped, and every command stays.
 func TestAStrayClosingWordIsDropped(t *testing.T) {
-	fixed := repairedBy(stepsHead + "      - run: |\n          echo hi\n          fi\n")
+	fixed := repairedBy(stepsHead + testAStrayClosingWordIsDroppedYml)
 	assert.Equal(t, stepsHead+"      - run: |\n          echo hi\n\n", fixed)
 	assert.Empty(t, syntaxFindings(fixed))
 }
@@ -200,6 +184,42 @@ func TestARepeatedKeyAndAnotherFindingAreBothRepaired(t *testing.T) {
 
 // A script that parses is left as written.
 func TestAParsingScriptIsNotRewritten(t *testing.T) {
-	content := "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          echo hi\n"
+	content := testAParsingScriptIsNotRewrittenYml
 	assert.Equal(t, content, repairedBy(content))
 }
+
+//go:embed testdata/test-a-power-shell-step-is-not-parsed.yml
+var testAPowerShellStepIsNotParsedYml string
+
+//go:embed testdata/test-a-stray-closing-word-is-dropped.yml
+var testAStrayClosingWordIsDroppedYml string
+
+//go:embed testdata/test-a-script-on-the-run-row-is-reported-there.yml
+var testAScriptOnTheRunRowIsReportedThereYml string
+
+//go:embed testdata/test-a-composite-action-step-is-read-by-its-shell.yml
+var testACompositeActionStepIsReadByItsShellYml string
+
+//go:embed testdata/test-an-sh-step-is-parsed-as-posix.yml
+var testAnShStepIsParsedAsPOSIXYml string
+
+//go:embed testdata/test-an-sh-step-is-parsed-as-posix-2.yml
+var testAnShStepIsParsedAsPOSIXYml2 string
+
+//go:embed testdata/test-a-power-shell-step-is-not-parsed-2.yml
+var testAPowerShellStepIsNotParsedYml2 string
+
+//go:embed testdata/test-a-power-shell-step-is-not-parsed-3.yml
+var testAPowerShellStepIsNotParsedYml3 string
+
+//go:embed testdata/test-a-power-shell-step-is-not-parsed-4.yml
+var testAPowerShellStepIsNotParsedYml4 string
+
+//go:embed testdata/test-an-expression-parses-where-a-word-does.yml
+var testAnExpressionParsesWhereAWordDoesYml string
+
+//go:embed testdata/test-an-unclosed-if-gets-its-fi.yml
+var testAnUnclosedIfGetsItsFiYml string
+
+//go:embed testdata/test-a-parsing-script-is-not-rewritten.yml
+var testAParsingScriptIsNotRewrittenYml string

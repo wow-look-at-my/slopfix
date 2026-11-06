@@ -1,3 +1,5 @@
+// config maps a dotted key to its last value.
+
 package gitread
 
 import (

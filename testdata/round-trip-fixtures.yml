@@ -1,0 +1,21 @@
+name: CI
+on:
+  push:
+jobs:
+  all-builds:
+    runs-on: ubuntu-latest
+    steps:
+      # The gate runs here.
+      # It reads the tree.
+      - uses: wow-look-at-my/slopfix@v1
+        continue-on-error: true
+      - env:
+          OUT: ${{ steps.x.outputs.path }}
+        run: cat "$OUT"
+      - uses: wow-look-at-my/actions@typescript#latest
+        with:
+          script: |
+            core.info(${{ toJSON(steps.x.outputs.path) }});
+      - run: |
+          echo hi
+          assert_ok() { exit 1; }

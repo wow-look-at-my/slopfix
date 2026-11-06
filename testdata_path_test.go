@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -9,18 +11,8 @@ import (
 	"github.com/wow-look-at-my/slopfix"
 )
 
-// scriptTest is a cmd/go script test. Its lines are commands. The prose rules
-// join them, strip the tab from each grep pattern and cut the year from each
-// date.
-const scriptTest = "# go mod tidy keeps the placeholders too, and needs no go.sum entry for an org\n" +
-	"# module. A second tidy leaves go.mod byte-identical.\n" +
-	"cd $WORK/m\n" +
-	"go mod tidy\n" +
-	"grep '^\tgithub.com/wow-look-at-my/alpha v0\\.0\\.0$' go.mod\n" +
-	"grep '^\tgithub.com/wow-look-at-my/beta v0\\.0\\.0$' go.mod\n" +
-	"! exists go.sum\n" +
-	"env GIT_AUTHOR_DATE=2026-02-03T04:05:06Z\n" +
-	"exec git commit -am 'beta next'\n"
+//go:embed testdata/script-test.sh
+var scriptTest string
 
 func TestFixLeavesATestdataFileAlone(t *testing.T) {
 	for _, path := range []string{

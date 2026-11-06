@@ -1,0 +1,6 @@
+os: a FIFO opened read-write joins the poller on macOS
+
+The darwin rule exists because closing the last writer posts no kqueue event to a FIFO's readers. That still holds on this macOS: a reader parked in the poller never sees EOF. A descriptor opened O_RDWR is a writer itself, so its reads never reach that EOF. newFile now asks F_GETFL and keeps a darwin FIFO in the poller when it was opened for both reading and writing. Read-only and write-only FIFOs stay out.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01AMfYXHb8wiqSB4Gnub92W5

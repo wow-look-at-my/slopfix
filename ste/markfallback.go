@@ -1,3 +1,5 @@
+// markfallback.go divides a long sentence that every grammatical division refused.
+
 package ste
 
 import (
@@ -33,10 +35,13 @@ func asideDivision(source, masked string, limit int) (string, bool) {
 		}
 		rest, restOK := restAfterMark(after)
 		var tries []string
-		if restOK {
+		aside := capitalizeOpening(body)
+		standing := !lowerIdentifier(firstToken.FindString(body)) && StandsAlone(aside)
+		// A comma between clauses that each stand alone is a splice, so a clause aside gets a sentence of its own.
+		if restOK && !standing {
 			tries = append(tries, closeHead(before+", "+body)+" "+rest)
 		}
-		if aside := capitalizeOpening(body); !lowerIdentifier(firstToken.FindString(body)) && StandsAlone(aside) {
+		if standing {
 			out := closeHead(before) + " " + closeHead(aside)
 			switch {
 			case restOK:

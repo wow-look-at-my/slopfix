@@ -1,3 +1,5 @@
+# No input narrows the check: action_test.go fails the build on any input.
+
 name: slopfix
 description: Download slopfix and check the whole checkout with every rule
 

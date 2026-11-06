@@ -1,0 +1,4 @@
+on: workflow_dispatch
+jobs:
+  preview:
+    uses: wow-look-at-my/buildhost/.github/workflows/preview.yml@wip

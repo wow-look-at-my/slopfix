@@ -1,3 +1,5 @@
+// IDPostdeterminer names the rule that cuts a numeral from "the three rules".
+
 package ste
 
 import (

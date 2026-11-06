@@ -1,3 +1,5 @@
+// DefaultMaxCommentLines caps a comment block, the tier no rewording defeats.
+
 package tombstones
 
 import (
@@ -576,7 +578,7 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 				edits = append(edits, edit.Lines(text, lineNo, lineNo, 0, []string{trimmed}))
 				continue
 			}
-			// Lines go from the end until a kept line ends a sentence. A block with no such line keeps its prose.
+			// Lines go from the end until a kept line ends a sentence. A run with no such line keeps its prose.
 			for !endsOnSentence(lines, b, drop) && dropLastKept(lines, b, drop) {
 			}
 			if !endsOnSentence(lines, b, drop) {
@@ -589,8 +591,7 @@ func capEdits(text string, blocks []Block, maxLines int) []edit.Edit {
 }
 
 // cuttable reports whether the cap cut has an edit for the block whose first
-// line, counted from one, is lineNo. A block it cannot end on a sentence keeps
-// its prose, so no finding names it.
+// line, counted from one, is lineNo.
 func cuttable(text string, blocks []Block, maxLines, lineNo int) bool {
 	for _, b := range blocks {
 		if len(b.LineNos) > 0 && b.LineNos[0]+1 == lineNo {

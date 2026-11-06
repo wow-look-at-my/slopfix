@@ -1,3 +1,5 @@
+// Levels are the permission levels in rising order. write grants read.
+
 package workflow
 
 import (

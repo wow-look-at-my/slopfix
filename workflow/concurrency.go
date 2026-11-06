@@ -1,3 +1,5 @@
+// IDConcurrency is a workflow without the org's concurrency block.
+
 package workflow
 
 import (

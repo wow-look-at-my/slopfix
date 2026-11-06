@@ -1,3 +1,5 @@
+// cutWhatIsLeft rewords each number the table did not rewrite, as the document count rule does.
+
 package commentfix
 
 import (

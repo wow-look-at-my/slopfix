@@ -1,9 +1,15 @@
+// AgentsFile holds a repository's agent instructions.
+
 package slopfix
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/markdown"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // AgentsFile holds a repository's agent instructions. Every agent reads it by name.
@@ -70,10 +76,15 @@ func MigrateAgents(root string, dryRun bool) (Migration, error) {
 	if dryRun {
 		return result, nil
 	}
+	// The merge passes the markdown gate: each code span and link of both files stands in AGENTS.md or the stub after it.
+	if err := markdown.KeepsNodes([]string{string(raw), string(agents)}, []string{merged, ClaudeStub}); err != nil {
+		return Migration{}, fmt.Errorf("move %s into %s: %w", claudePath, agentsPath, err)
+	}
 	if merged != string(agents) || !exists {
 		if err := os.WriteFile(agentsPath, []byte(merged), info.Mode().Perm()); err != nil {
 			return Migration{}, err
 		}
+		walktree.Created(agentsPath)
 	}
 	if err := os.WriteFile(claudePath, []byte(ClaudeStub), info.Mode().Perm()); err != nil {
 		return Migration{}, err

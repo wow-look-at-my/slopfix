@@ -1,3 +1,5 @@
+// posixToOnig rewrites a POSIX basic or extended pattern for Oniguruma.
+
 package bashclean
 
 import "strings"

@@ -1,0 +1,4 @@
+  self:
+    runs-on: [self-hosted, macOS]
+    steps:
+      - run: make

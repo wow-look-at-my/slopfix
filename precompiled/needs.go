@@ -1,3 +1,5 @@
+// maxSet bounds a set, past which a search costs more than the regexp.
+
 package precompiled
 
 import (

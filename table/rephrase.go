@@ -29,23 +29,9 @@ type Normalize struct {
 
 // Rephrasings applies every entry to prose, earliest entry earliest.
 func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose string) string {
-	spans := wordSpans(prose)
+	spans, tokens, written := readWords(prose, norms)
 	if len(spans) == 0 || len(entries) == 0 {
 		return prose
-	}
-	tokens := make([]string, len(spans))
-	written := make([]string, len(spans))
-	for i, s := range spans {
-		written[i] = prose[s.at:s.end]
-		tokens[i] = strings.ToLower(written[i])
-	}
-	tokens = normalize(norms, tokens)
-	// A capture writes a word back, so it writes back the author's spelling.
-	// A token the normalizer settled is that spelling now.
-	for i, tok := range tokens {
-		if tok != strings.ToLower(written[i]) {
-			written[i] = tok
-		}
 	}
 
 	var out strings.Builder
@@ -64,6 +50,39 @@ func Rephrasings(lex *Lexicon, norms []Normalize, entries []Rephrase, prose stri
 	}
 	out.WriteString(prose[last:])
 	return closeGaps(out.String())
+}
+
+// readWords splits prose into its words: where each stands, the lowercased
+// token a match compares, and the spelling a capture writes back. A capture
+// writes a word back, so it writes back the author's spelling. A token the
+// normalizer settled is that spelling now.
+func readWords(prose string, norms []Normalize) ([]span, []string, []string) {
+	spans := wordSpans(prose)
+	tokens := make([]string, len(spans))
+	written := make([]string, len(spans))
+	for i, s := range spans {
+		written[i] = prose[s.at:s.end]
+		tokens[i] = strings.ToLower(written[i])
+	}
+	tokens = normalize(norms, tokens)
+	for i, tok := range tokens {
+		if tok != strings.ToLower(written[i]) {
+			written[i] = tok
+		}
+	}
+	return spans, tokens, written
+}
+
+// Matches reports whether the entry fits anywhere in the prose, before the
+// guards that keep a rewrite off a hyphenated compound.
+func (r Rephrase) Matches(lex *Lexicon, norms []Normalize, prose string) bool {
+	_, tokens, written := readWords(prose, norms)
+	for i := range tokens {
+		if end, _, ok := r.Terms.find(lex, tokens, written, i); ok && end > i {
+			return true
+		}
+	}
+	return false
 }
 
 // caseAt is MatchCase for a match at offset at in prose. A capital opens the

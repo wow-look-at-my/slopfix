@@ -1,3 +1,5 @@
+// Result is the parsed cleanup decision.
+
 package bashclean
 
 import (

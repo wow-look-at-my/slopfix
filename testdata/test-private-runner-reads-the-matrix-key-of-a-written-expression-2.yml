@@ -1,0 +1,9 @@
+  clippy:
+    strategy:
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+          - name: Mac
+            os: macos-14
+    runs-on: 

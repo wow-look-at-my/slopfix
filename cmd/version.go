@@ -1,3 +1,5 @@
+// buildSettings is the build info go-toolchain stamped the release into.
+
 package cmd
 
 import (

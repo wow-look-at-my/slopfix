@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -122,12 +123,29 @@ func TestEveryEditOfAMultiEditIsRepaired(t *testing.T) {
 }
 
 // Every error has a repair, so only a gate that refuses one leaves a finding.
-// Such a finding is flagged, and the notice still lets the write through.
+// Such a finding is flagged as a CI failure, and the write still goes through.
 func TestAFindingNoRewriteResolvesIsFlaggedNotRefused(t *testing.T) {
 	got := notice("a.go", nil, 0, []string{"3: [comments/length] the comment runs longer than the code it documents"})
-	assert.Contains(t, got, "let this write to a.go through and flagged")
-	assert.Contains(t, got, "flagged 3: [comments/length]")
+	assert.Contains(t, got, "a.go now FAILS CI")
+	assert.Contains(t, got, "FAILS CI 3: [comments/length]")
+	assert.Contains(t, got, "Run `slopfix fix a.go` now")
+	assert.Contains(t, got, "A finding on a line you did not write is still yours")
+	assert.NotContains(t, got, "as it stands")
+}
+
+// A repair with nothing left over is not a failure, so it does not say one.
+func TestACleanRepairDoesNotClaimACIFailure(t *testing.T) {
+	got := notice("a.go", []string{"// This used to read the flag."}, 1, nil)
+	assert.Contains(t, got, "slopfix repaired this write to a.go. It took 1 rewrites.")
+	assert.NotContains(t, got, "FAILS CI")
 	assert.Contains(t, got, "The write went through as it stands.")
+}
+
+// A repair that leaves a finding reports both, and the failure leads.
+func TestARepairWithAFindingLeftLeadsWithTheFailure(t *testing.T) {
+	got := notice("a.go", []string{"// This used to read the flag."}, 2, []string{"9: [yaml/org-action-ref] x"})
+	assert.True(t, strings.HasPrefix(got, "slopfix: a.go now FAILS CI."))
+	assert.Contains(t, got, "slopfix also repaired this write. It took 2 rewrites.")
 }
 
 // A tombstone alone on its own comment line is cut, and the write proceeds.

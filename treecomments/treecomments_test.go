@@ -1,5 +1,7 @@
 package treecomments
 
+import _ "embed"
+
 import (
 	"fmt"
 	"testing"
@@ -62,16 +64,26 @@ func TestAFallbackFileKeepsOnlyWholeLineComments(t *testing.T) {
 	assert.Len(t, Extract("run.sh", "echo a&#0;b\n"), 1, "a shell script keeps its trailing comment")
 }
 
-// A file of unknown syntax is not read at all. Read as shell, a GLSL
-// `#version` directive and a CSS `#id` selector are comments, and a repair
-// then cuts code the compiler needs.
+// A file of unknown syntax is not read at all. Read as shell, a CSS `#id`
+// selector is a comment, and a repair then cuts code the compiler needs.
 func TestAnUnknownExtensionIsNotRead(t *testing.T) {
-	glsl := "#version 450\n// a comment\nvoid main() {}\n"
 	css := "#bar { color: red; }\n#title { font-weight: 600; }\n"
-	for name, src := range map[string]string{"shader.frag": glsl, "shader.comp": glsl, "app.css": css, "x.unknownext": "# text\n"} {
+	for name, src := range map[string]string{"app.css": css, "x.unknownext": "# text\n"} {
 		assert.Nil(t, languageFor(name), "%s has no grammar", name)
 		assert.Empty(t, Extract(name, src), "%s yields no comment", name)
 		assert.Empty(t, Runs(name, src), "%s yields no run", name)
+	}
+}
+
+// A GLSL shader reads through the C grammar: its `#version` directive is
+// code, and only its comment is a comment.
+func TestAShaderReadsThroughTheCGrammar(t *testing.T) {
+	glsl := "#version 450\n// a comment\nvoid main() {}\n"
+	for _, name := range []string{"shader.frag", "shader.comp", "shader.glsl"} {
+		require.NotNil(t, languageFor(name), "%s has a grammar", name)
+		got := Extract(name, glsl)
+		require.Len(t, got, 1, "%s yields one comment", name)
+		assert.Equal(t, "// a comment", got[0].Text)
 	}
 }
 
@@ -155,7 +167,7 @@ func TestTheExtractCacheDropsItsOldestEntry(t *testing.T) {
 // Each Rust line comment holds its own line alone, so the lines of a doc
 // paragraph are one run with no line read twice.
 func TestARustDocLineHoldsItsOwnLine(t *testing.T) {
-	src := "/// Frees the handle that\n/// `create` returned.\nfn free() {}\n"
+	src := testARustDocLineHoldsItsOwnLineRs
 	runs := Runs("x.rs", src)
 	require.Len(t, runs, 1)
 	assert.Equal(t, []string{"/// Frees the handle that", "/// `create` returned."}, texts(runs[0]))
@@ -217,3 +229,6 @@ func TestMissingNamesTheGrammarsWithoutTables(t *testing.T) {
 func TestEveryGrammarIsNamed(t *testing.T) {
 	assert.Len(t, ready, len(grammarNames))
 }
+
+//go:embed testdata/test-a-rust-doc-line-holds-its-own-line.rs
+var testARustDocLineHoldsItsOwnLineRs string

@@ -1,3 +1,5 @@
+// The rule is scoped to paths, never to commands.
+
 package noworkloss
 
 import (

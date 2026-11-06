@@ -1,3 +1,5 @@
+// ste/contraction: a contraction hides the word it stands for, and a reader whose English is a second language reads the full form faster.
+
 package slopfix
 
 import "github.com/wow-look-at-my/slopfix/ste"

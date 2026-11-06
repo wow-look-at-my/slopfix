@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -63,7 +65,7 @@ func hardCorpus(t *testing.T) map[string]string {
 		"\n- Every **directory argument** (and the current directory in no-arg mode), recursively \u2014 with the same hidden-directory skip rules as discovery \u2014 so newly created `.cfg` files and new subdirectories are picked up and join the scope.\n" +
 		"\nA reader arriving at this paragraph without any conjunction anywhere inside its single enormous run-on clause still deserves a careful repair rather than a quiet deletion.\n"
 	// A one-line JSDoc and a banner title each end a thought that a length cut keeps.
-	files["page.ts"] = "import path from 'node:path';\n\n/** Absolute path of the exporter under test. */\n// The path.resolve call (not `new URL(..., import.meta.url)`) avoids the shadowed URL global of the jsdom test environment.\n// Node's fileURLToPath rejects cross-realm URLs.\n// A file path avoids both problems.\nexport const EXPORTER_MODULE = path.resolve(\n\timport.meta.dirname,\n\t'../../src/exporter.user.ts',\n);\n"
+	files["page.ts"] = hardCorpusJs
 	files["steer.ts"] = "const FALLBACK_UNDER = 0.75;\n// ---- continuous wall-clock steer (hybrid signal) ----------------------------\n// Per-pass timestamps cannot see the overhead between passes, so the steer reads the wall clock between presents and folds it into the model each frame.\nconst STEER_GAIN = 0.2;\n"
 	// A block over the volume cap above code longer than the cap, so the length cut alone leaves it over. A separate paragraph states a count, so comments/number is exercised too.
 	files["main.go"] = "package main\n\n// There are 3 modes today.\n\n" + strings.Join(comment, "\n") + "\nfunc sum() int {\n\ttotal := 0\n" + strings.Join(body, "\n") + "\n\treturn total\n}\n\nfunc main() { sum() }\n"
@@ -124,3 +126,6 @@ func TestFixLeavesNoErrorOnAnyTree(t *testing.T) {
 	assert.FileExists(t, filepath.Join(root, "justfile"))
 	assert.FileExists(t, filepath.Join(root, "docs", "agents-continued.md"))
 }
+
+//go:embed testdata/hard-corpus.js
+var hardCorpusJs string

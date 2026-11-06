@@ -1,5 +1,7 @@
 package gitread_test
 
+import _ "embed"
+
 import (
 	"bytes"
 	"crypto/sha1"
@@ -19,7 +21,7 @@ import (
 
 func gitT(t testing.TB, dir string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "protocol.file.allow=always"}, args...)...)
+	cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "protocol.file.allow=always", "-c", "gc.auto=0"}, args...)...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 	out, err := cmd.CombinedOutput()
@@ -65,7 +67,7 @@ func newRepo(t testing.TB) string {
 	gitT(t, dir, "tag", "-a", "-m", "v1", "v1")
 
 	gitT(t, dir, "checkout", "-q", "-b", "feature")
-	writeT(t, dir, "doc.md", "# Doc\n\nAlpha.\n\nBeta.\n")
+	writeT(t, dir, "doc.md", newRepoMd)
 	writeT(t, dir, "sub/deep.go", "package p\n\nvar A = 2\n")
 	gitT(t, dir, "add", "-A")
 	gitT(t, dir, "commit", "-q", "-m", "feature")
@@ -397,6 +399,25 @@ func TestShallowBoundaryHasNoParents(t *testing.T) {
 	assert.Len(t, revs, 3)
 }
 
+// A deepen rewrites the shallow file. A walk after it must see the parents of
+// the boundary, which an earlier walk read and cached without them.
+func TestADeepenedCloneShowsTheOldBoundarysParents(t *testing.T) {
+	src := historyRepo(t)
+	dir := filepath.Join(t.TempDir(), "shallow")
+	gitT(t, src, "clone", "-q", "--depth", "1", "file://"+src, dir)
+	repo := open(t, dir)
+	head, err := repo.Head()
+	require.NoError(t, err)
+	revs, err := repo.RevList(head)
+	require.NoError(t, err)
+	require.Len(t, revs, 1)
+
+	gitT(t, dir, "fetch", "-q", "--deepen=2", "origin")
+	revs, err = repo.RevList(head)
+	require.NoError(t, err)
+	assert.Len(t, revs, 3, "the walk kept the boundary commit it cached before the deepen")
+}
+
 func TestNoRepository(t *testing.T) {
 	repo, err := gitread.OpenWorkTree(t.TempDir())
 	require.NoError(t, err)
@@ -428,3 +449,6 @@ func TestAnUnsupportedFormatIsAnError(t *testing.T) {
 	_, err := gitread.OpenWorkTree(dir)
 	assert.ErrorIs(t, err, gitread.ErrUnsupported)
 }
+
+//go:embed testdata/new-repo.md
+var newRepoMd string

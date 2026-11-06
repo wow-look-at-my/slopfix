@@ -1,0 +1,9 @@
+on: push
+jobs:
+  build:
+    steps:
+      - uses: some/action
+        with:
+          name: one
+        env:
+          name: two

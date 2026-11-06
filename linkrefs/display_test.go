@@ -1,5 +1,7 @@
 package linkrefs
 
+import _ "embed"
+
 import (
 	"slices"
 	"strings"
@@ -305,7 +307,7 @@ func TestAURLIsRewrittenOnceNotTwice(t *testing.T) {
 }
 
 func TestQuotedAndFencedLinesAreLeftAlone(t *testing.T) {
-	text := "```\nPR #376 on claude/pushed\n```\n> quoted: PR #376\n    indented #376"
+	text := testQuotedAndFencedLinesAreLeftAloneMd
 	out, changed := RewriteDelta(text, false, live())
 	assert.False(t, changed, "expected no rewrite, got %q", out)
 }
@@ -316,7 +318,7 @@ func TestFenceStateCarriesAcrossFlushes(t *testing.T) {
 	assert.False(t, changed, "expected no rewrite inside a carried fence, got %q", out)
 
 	assert.True(t, EndsInsideFence("intro\n```\ncode"))
-	assert.False(t, EndsInsideFence("intro\n```\ncode\n```\nafter"))
+	assert.False(t, EndsInsideFence(testFenceStateCarriesAcrossFlushesMd))
 }
 
 // A reference wrapped in inline backticks must render with the backticks
@@ -341,3 +343,9 @@ func TestNothingToLinkReportsNoChange(t *testing.T) {
 		assert.False(t, changed, "for %q", text)
 	}
 }
+
+//go:embed testdata/test-quoted-and-fenced-lines-are-left-alone.md
+var testQuotedAndFencedLinesAreLeftAloneMd string
+
+//go:embed testdata/test-fence-state-carries-across-flushes.md
+var testFenceStateCarriesAcrossFlushesMd string

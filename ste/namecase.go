@@ -1,3 +1,5 @@
+// capitalizeOpening capitalizes a lower-case letter at the start, and leaves anything else.
+
 package ste
 
 import (

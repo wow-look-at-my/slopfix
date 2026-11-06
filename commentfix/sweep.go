@@ -9,7 +9,6 @@ package commentfix
 
 import (
 	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/forkscope"
 	"github.com/wow-look-at-my/slopfix/gitmod"
 	"github.com/wow-look-at-my/slopfix/trace"
+	"github.com/wow-look-at-my/slopfix/walktree"
 )
 
 // skipDirs hold text nobody in the tree authored.
@@ -40,6 +40,8 @@ type TreeResult struct {
 	Rewrites []Rewrite
 	// Rejected names each rewrite the guard threw away.
 	Rejected []Rejection
+	// Headers name each file of the walk that opens with no header, changed or not.
+	Headers []HeaderFinding
 	// Skipped says why the sweep wrote nothing at all. It is empty when it ran.
 	Skipped string
 }
@@ -55,6 +57,15 @@ type Rewrite struct {
 type Removal struct {
 	Path string
 	Text string
+}
+
+// HeaderFinding is a file that opens on code, although one of its comments can say what the file is.
+type HeaderFinding struct {
+	Path string
+	// Line is the line the header goes above, counted from one.
+	Line int
+	// Sentence is what the repair writes as the header.
+	Sentence string
 }
 
 // Finding is a number that survived the repair.
@@ -79,7 +90,8 @@ func FixTree(root string) TreeResult {
 // user. A root outside git has no branch to scope by, so the whole tree goes.
 // In a fork that forks finds, a file the fork never touched is neither read
 // nor written. A repair lands only on the lines the fork wrote. A fork
-// whose base cannot be read writes nothing.
+// whose base cannot be read writes nothing. The sweep writes a missing header
+// in a file it writes. It reports the header of every file it reads.
 func FixTreeIn(forks forkscope.Resolver, root string) TreeResult {
 	var out TreeResult
 	if stopped, err := operationInProgress(root); err == nil && stopped != "" {
@@ -98,14 +110,18 @@ func FixTreeIn(forks forkscope.Resolver, root string) TreeResult {
 		return out
 	}
 	for _, path := range TreeFiles(root) {
-		if scoped && !writable.Contains(realPath(path)) {
-			continue
-		}
 		scope := forkscope.Whole()
 		if own != nil {
 			if scope = own.Scope(path); scope.Empty() {
 				continue
 			}
+		}
+		if scoped && !writable.Contains(realPath(path)) {
+			// The branch did not change this file, so the sweep reads it for a header and writes nothing.
+			if src, err := os.ReadFile(path); err == nil {
+				out.Headers = append(out.Headers, headerFindings(path, string(src), scope)...)
+			}
+			continue
 		}
 		src, err := os.ReadFile(path)
 		if err != nil {
@@ -113,10 +129,16 @@ func FixTreeIn(forks forkscope.Resolver, root string) TreeResult {
 		}
 		out.Read++
 		fixed := Fix(path, string(src))
-		text := forkscope.Keep(string(src), fixed.Text, scope)
+		numbered := forkscope.Keep(string(src), fixed.Text, scope)
+		text := forkscope.Keep(numbered, WriteHeader(path, numbered), forkscope.Carry(string(src), numbered, scope))
 		if text != string(src) && write(path, text) == nil {
 			out.Repaired = append(out.Repaired, path)
-			out.Rewrites = append(out.Rewrites, Rewrite{Path: path, Rule: ID, Diff: UnifiedDiff(path, string(src), text)})
+			if numbered != string(src) {
+				out.Rewrites = append(out.Rewrites, Rewrite{Path: path, Rule: ID, Diff: UnifiedDiff(path, string(src), numbered)})
+			}
+			if text != numbered {
+				out.Rewrites = append(out.Rewrites, Rewrite{Path: path, Rule: IDHeader, Diff: UnifiedDiff(path, numbered, text)})
+			}
 		}
 		cut := forkscope.Removed(string(src), text)
 		for _, removed := range fixed.Removed {
@@ -130,6 +152,18 @@ func FixTreeIn(forks forkscope.Resolver, root string) TreeResult {
 			if owned.Owns(finding.Line) {
 				out.Findings = append(out.Findings, finding)
 			}
+		}
+		out.Headers = append(out.Headers, headerFindings(path, text, owned)...)
+	}
+	return out
+}
+
+// headerFindings answers the header src lacks, when scope owns the line it goes above.
+func headerFindings(path, src string, scope *forkscope.Scope) []HeaderFinding {
+	var out []HeaderFinding
+	for _, hit := range CheckHeader(path, src) {
+		if scope.Owns(hit.Line) {
+			out = append(out, HeaderFinding{Path: path, Line: hit.Line, Sentence: hit.Sentence})
 		}
 	}
 	return out
@@ -206,7 +240,11 @@ func WriteFile(path, text string) error {
 	if err := os.Chmod(tmp.Name(), mode); err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return err
+	}
+	walktree.Created(path)
+	return nil
 }
 
 // TreeFiles returns every file under root whose comments this rule reads.
@@ -224,24 +262,17 @@ func TreeFilesMatching(root string, reads func(string) bool) []string {
 	// A gitlink stays a submodule when nobody ran init and a build copied files into it.
 	gitlinks, _ := gitmod.Skip(root)
 	var out []string
-	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if skipDir(root, path, d.Name(), rootIsModule) || gitlinks.Contains(gitmod.Resolved(path)) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
+	enter := func(dir string) bool {
+		return !skipDir(root, dir, filepath.Base(dir), rootIsModule) && !gitlinks.Contains(gitmod.Resolved(dir))
+	}
+	walktree.Get(root).Visit(enter, func(path string, _ walktree.Entry) {
 		if !reads(path) {
-			return nil
+			return
 		}
-		if info, err := d.Info(); err == nil && info.Size() > MaxFileBytes {
-			return nil
+		if info, err := os.Lstat(path); err == nil && info.Size() > MaxFileBytes {
+			return
 		}
 		out = append(out, path)
-		return nil
 	})
 	return withoutVendored(root, withoutIgnored(root, out))
 }

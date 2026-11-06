@@ -1,0 +1,6 @@
+steps:
+  - name: Don't stop
+    run: echo hi
+  # The tool's table and every `#[cfg(test)]` module stay out.
+  - name: next
+    run: echo there

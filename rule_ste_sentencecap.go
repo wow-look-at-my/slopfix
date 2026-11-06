@@ -1,4 +1,8 @@
+// ste/sentence-length: a sentence over the STE word cap.
+
 package slopfix
+
+import _ "embed"
 
 import "github.com/wow-look-at-my/slopfix/ste"
 
@@ -12,6 +16,34 @@ func init() {
 		Autofix:  autofixSentenceCap,
 		Cases: []RuleCase{
 			{Name: ste.IDSentenceCap, Path: "x.md", Text: "This sentence carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n"},
+			// go-toolchain docs/CI.md: a stray backtick closes a path with no opener, and the code spans after it stay whole.
+			{Name: ste.IDSentenceCap + " with a stray backtick", Path: "docs/CI.md", Text: "Their jobs run .github/dats-fixtures/cache-profile.dats` asserts the tripwires themselves, run by the dats action in `host-build` the same way `same.dats` and `smoke.dats`.\n"},
+			// sglang .github/scripts/ghcr-image-retention.ts: "an image a week old" is the subject after the colon, so no other subject is put in front of it.
+			{Name: ste.IDSentenceCap + " with a measure after the subject", Path: "x.md", Text: "Ranked over every default-branch image, so the retention count is what bounds the history: an image a week old does not hold a slot that then falls to the newest of the images the age guard has already spared.\n"},
+			// go-ipc .github/workflows/ci.yml: "the C and Python ones" is one noun phrase, so no division lands inside it.
+			{Name: ste.IDSentenceCap + " around a gapped clause", Path: "x.md", Text: "Linux builds and tests the C, C++ and Python implementations and their peers first, macOS the C and Python ones, and Windows runs the interop matrix with the Go peer alone.\n"},
+			// "and by B to Q" names a second actor for the participle.
+			{Name: ste.IDSentenceCap + " with a second actor", Path: "x.md", Text: "Shared stage used by Dockerfile.worker to pre-install the static code lint extension and by the job scheduler (below) to seed the private build cache that it serves.\n"},
+			// A dash aside before "so".
+			{Name: ste.IDSentenceCap + " with a dash aside before so", Path: "x.md", Text: "A stale index is a different fault than a stale cache -- it is not on disk at all -- so it has to be rebuilt even when every file is on the server.\n"},
+			// ", each with" gives each item what follows.
+			{Name: ste.IDSentenceCap + " before each with", Path: "x.md", Text: "Lists what the client asked for and was denied, each with a one-step way to grant it going forward instead of searching through the access table above.\n"},
+			// A bare verb after the comma shares the subject and its modal, so both are named again.
+			{Name: ste.IDSentenceCap + " before a verb that shares the modal", Path: "x.md", Text: "A feature added to the registry after that rule was written must default to blocked, refuse the open default, and stay that way for every running job.\n"},
+			// A heading line stands apart from the prose around it, and is judged for its own length.
+			{Name: ste.IDSentenceCap + " in a comment heading", Path: "main.go", Text: "package main\n\n" +
+				"// # This heading carries far more words than any reader can hold in mind at one time and it keeps going well past the cap of the rule today.\n" +
+				"func main() {\n" +
+				"\tprintln(\"first\")\n\tprintln(\"second\")\n\tprintln(\"third\")\n\tprintln(\"fourth\")\n\tprintln(\"fifth\")\n" +
+				"\tprintln(\"sixth\")\n\tprintln(\"seventh\")\n\tprintln(\"eighth\")\n\tprintln(\"ninth\")\n\tprintln(\"tenth\")\n}\n"},
+			// A "that" clause after a list is another item of it.
+			{Name: ste.IDSentenceCap + " before a that clause in a list", Path: "x.md", Text: "- `queue_order_test.go` covers the priority order, the two-pass rule, the head-only window, case-folding, the size limit, that a failed fetch keeps the previous value.\n"},
+			// sglang .github/workflows/fork-ci.yml: a comment in a run: script is prose, and divides like any comment.
+			workflowCase("sentence-length in a run: script", workflowHeader()+embeddedYml56+
+				"          ON_DEFAULT=false\n\n"+
+				"          # The image installs only this fork's kernel build, so a PyPI wheel of\n"+
+				"          # the same version does not count: it lacks the fork's ops and archs.\n"+
+				"          KERNEL_AVAILABLE=false\n"),
 			{
 				Name: "a relative clause stays with its noun", Path: "x.md",
 				Text: "The reader answers the first prose paragraph of text as one restated sentence that carries a later \"that\" clause with the verb that governs it, laid out under a leading heading where both fit.\n",
@@ -22,12 +54,22 @@ func init() {
 				Text: "A sentence wraps across the lines of one replacement, so they come back together: a line fix wrote beside a line the edit wrote reads as neither.\n",
 				Want: "A sentence wraps across the lines of one replacement, so they come back together. A line fix wrote beside a line the edit wrote reads as neither.\n",
 			},
-			{Name: "a carrier never opens on a conjunction", Path: "governor.cpp", Text: carrierConjunctionCase, Want: carrierConjunctionWant},
-			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: variableOpensCase, Want: variableOpensWant},
-			{Name: "a rule around comment prose stays at the edges", Path: "governor.cpp", Text: ruledCommentCase, Want: ruledCommentWant},
+			{
+				Name: "a relative clause after a fronted phrase leaves the main clause whole", Path: "x.md",
+				Text: "On a host with no inotify, which is where the cosmo binary runs on macOS and Windows, it rescans those directories every `100ms` and logs that it polls.\n",
+				Want: "On a host with no inotify, it rescans those directories every `100ms` and logs that it polls. That host is where the cosmo binary runs on macOS and Windows.\n",
+			},
+			{
+				Name: "a relative clause after a fragment names its noun again", Path: "x.md",
+				Text: "On a host with no inotify and no other event source that the watcher can read from at all during a run, which is where the cosmo binary runs on macOS and Windows.\n",
+				Want: "On a host with no inotify and no other event source that the watcher can read from at all during a run. That host is where the cosmo binary runs on macOS and Windows.\n",
+			},
+			{Name: "a carrier never opens on a conjunction", Path: "governor.cpp", Text: fixtureHeader + carrierConjunctionCase, Want: fixtureHeader + carrierConjunctionWant},
+			{Name: "a capital never renames a variable", Path: "governor.cpp", Text: fixtureHeader + variableOpensCase, Want: fixtureHeader + variableOpensWant},
+			{Name: "a rule around comment prose stays at the edges", Path: "governor.cpp", Text: fixtureHeader + ruledCommentCase, Want: fixtureHeader + ruledCommentWant},
 			{Name: "the objects of a preposition stay joined", Path: "CMakeLists.txt", Text: coordinatedObjectsCase, Want: coordinatedObjectsWant},
-			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: mannerClauseCase, Want: mannerClauseWant},
-			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: verblessListCase, Want: verblessListWant},
+			{Name: "a clause of manner stays with its sentence", Path: "ident.go", Text: fixtureHeader + mannerClauseCase, Want: fixtureHeader + mannerClauseWant},
+			{Name: "a list with no verb divides behind a carrier", Path: "moments.go", Text: fixtureHeader + verblessListCase, Want: fixtureHeader + verblessListWant},
 		},
 	})
 }
@@ -149,100 +191,17 @@ const carrierConjunctionWant = `struct Governor {
 };
 `
 
-// variableOpensCase holds a sentence over the cap whose words after a colon
-// open on the variable q. A capital renames it, so "q" stays in lower case
-// behind a carrier.
-const variableOpensCase = `void applyQuality(double q);
+//go:embed testdata/variable-opens-case.cpp
+var variableOpensCase string
 
-double run(double lodNow, double resNow, double eLod, double eRes, bool lodOn, bool resPinned) {
-  // Pair demand at quality q relative to now: q split over the free rungs
-  // the way applyQuality spends it (before the res lattice), each rung's
-  // ratio raised to its measured elasticity. Non-decreasing in q.
-  const auto demandRatio = [&](double q) -> double {
-    double lod = lodNow;
-    double res = resNow;
-    if (lodOn && !resPinned) {
-      lod = std::clamp(q, kGovLodBiasMin, 1.0);
-      res = std::clamp(q / lod, kGovResScaleMin, 1.0);
-    } else if (lodOn) {
-      lod = std::clamp(q / std::max(resNow, 0.01), kGovLodBiasMin, 1.0);
-    } else if (!resPinned) {
-      res = std::clamp(q / lodNow, kGovResScaleMin, 1.0);
-    }
-    return std::pow(lod / lodNow, eLod) * std::pow(res / resNow, eRes);
-  };
-  return demandRatio(1.0);
-}
-`
+//go:embed testdata/variable-opens-want.cpp
+var variableOpensWant string
 
-const variableOpensWant = `void applyQuality(double q);
+//go:embed testdata/ruled-comment-case.cpp
+var ruledCommentCase string
 
-double run(double lodNow, double resNow, double eLod, double eRes, bool lodOn, bool resPinned) {
-  // Pair demand at quality q relative to now. This is q split over the
-  // free rungs the way applyQuality spends it (before the res lattice),
-  // each rung's ratio raised to its measured elasticity. Non-decreasing
-  // in q.
-  const auto demandRatio = [&](double q) -> double {
-    double lod = lodNow;
-    double res = resNow;
-    if (lodOn && !resPinned) {
-      lod = std::clamp(q, kGovLodBiasMin, 1.0);
-      res = std::clamp(q / lod, kGovResScaleMin, 1.0);
-    } else if (lodOn) {
-      lod = std::clamp(q / std::max(resNow, 0.01), kGovLodBiasMin, 1.0);
-    } else if (!resPinned) {
-      res = std::clamp(q / lodNow, kGovResScaleMin, 1.0);
-    }
-    return std::pow(lod / lodNow, eLod) * std::pow(res / resNow, eRes);
-  };
-  return demandRatio(1.0);
-}
-`
-
-// ruledCommentCase draws a rule of dashes at the start of each comment line
-// and at the end of the last. The rule frames the prose, so the division
-// rewraps the words between the rules and keeps every rule where it was.
-const ruledCommentCase = `double sample(double demand) {
-  // ---- elasticity probe: the first sample past the last act's cooldown is
-  // ---- rendered at that act's scalars; its demand against the pre-act
-  // ---- demand measures the elasticity of the rung the act moved -------
-  if (probe_.armed && cooldownFrames_ == 0) {
-    probe_.armed = false;
-    if (lodBias_ == probe_.actLod && resScale_ == probe_.actRes) {
-      const double lr = std::log(lodBias_ / probe_.lod);
-      const double rr = std::log(resScale_ / probe_.res);
-      const double dr = std::log(demand / probe_.demand);
-      if (rr == 0.0 && std::abs(lr) >= minStep) {
-        eLod_ = std::clamp(dr / lr, 0.0, kGovDemandElasticityPrior);
-      } else if (lr == 0.0 && std::abs(rr) >= minStep) {
-        eRes_ = std::clamp(dr / rr, 0.0, kGovDemandElasticityPrior);
-      }
-    }
-  }
-  return demand;
-}
-`
-
-const ruledCommentWant = `double sample(double demand) {
-  // ---- elasticity probe: the first sample past the last act's cooldown is
-  // ---- rendered at that act's scalars. Its demand against the pre-act
-  // ---- demand measures the elasticity of the rung the act moved -------
-  if (probe_.armed && cooldownFrames_ == 0) {
-    probe_.armed = false;
-    if (lodBias_ == probe_.actLod && resScale_ == probe_.actRes) {
-      const double lr = std::log(lodBias_ / probe_.lod);
-      const double rr = std::log(resScale_ / probe_.res);
-      const double dr = std::log(demand / probe_.demand);
-      if (rr == 0.0 && std::abs(lr) >= minStep) {
-        eLod_ = std::clamp(dr / lr, 0.0, kGovDemandElasticityPrior);
-      } else if (lr == 0.0 && std::abs(rr) >= minStep) {
-        eRes_ = std::clamp(dr / rr, 0.0, kGovDemandElasticityPrior);
-      }
-    }
-  }
-  return demand;
-}
-`
+//go:embed testdata/ruled-comment-want.cpp
+var ruledCommentWant string
 
 // coordinatedObjectsCase holds a CMake comment whose list after a colon joins
 // clauses with semicolons. "on the copy and the in-place row wires" names a
@@ -282,3 +241,6 @@ func detectSentenceCap(c RuleCase) []ste.Finding {
 func autofixSentenceCap(c RuleCase) RuleCase {
 	return caseAutofix(c, ste.IDSentenceCap)
 }
+
+//go:embed embedded-2.yml
+var embeddedYml56 string

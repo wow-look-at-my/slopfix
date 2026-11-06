@@ -1,5 +1,7 @@
 package cmd
 
+import _ "embed"
+
 import (
 	"os"
 	"path/filepath"
@@ -28,18 +30,8 @@ var runScriptGuards = []struct{ open, body, close string }{
 	},
 }
 
-const runScriptHead = "name: CI\n" +
-	"on:\n" +
-	"  push:\n" +
-	"    branches: ['**']\n" +
-	"concurrency:\n" +
-	"  group: gha_${{ github.repository }}_${{ github.workflow }}_${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}\n" +
-	"  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}\n" +
-	"jobs:\n" +
-	"  kernel:\n" +
-	"    runs-on: ubuntu-latest\n" +
-	"    steps:\n" +
-	"      - run: |\n"
+//go:embed testdata/run-script-head.yml
+var runScriptHead string
 
 // runScriptFile writes content under a workflows directory, where the yaml
 // rules read it, and answers its path.
@@ -76,15 +68,8 @@ func TestTheHookKeepsALineAnEditAddsToARunScript(t *testing.T) {
 	}
 }
 
-// validateStep is a debugger check with an assertion in it. The if line
-// carries a yaml/test-in-workflow finding.
-const validateStep = "          for f in artifacts/debugger/*.html; do\n" +
-	"            if ! grep -q 'STOP_AT ==' \"$f\"; then\n" +
-	"              echo \"FAIL: no STOP_AT breakpoints in $f\"\n" +
-	"              exit 1\n" +
-	"            fi\n" +
-	"            echo \"OK\"\n" +
-	"          done\n"
+//go:embed testdata/validate-step.sh
+var validateStep string
 
 // The finding has a repair, which moves the script to a file. The hook writes
 // one file, so an Edit to the line lands as written.

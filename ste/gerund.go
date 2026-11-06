@@ -1,3 +1,5 @@
+// frontedDivision divides at a conjunction that a fronted clause follows, as in "X but, when Y is set, benchmarks Z".
+
 package ste
 
 import (

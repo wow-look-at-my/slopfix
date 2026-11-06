@@ -1,0 +1,16 @@
+name: x
+runs:
+  using: composite
+  steps:
+    - id: download
+      uses: some/download@v1
+    - name: install
+      shell: bash
+      env:
+        BIN_DIR: ${{ runner.temp }}/go-toolchain-bin
+        DOWNLOADED: ${{ steps.download.outputs.path }}
+      run: |
+        set -euo pipefail
+        BIN_DIR="$RUNNER_TEMP/go-toolchain-bin"
+        mkdir -p "${BIN_DIR}"
+        mv "${DOWNLOADED}" "${BIN_DIR}/go-toolchain"

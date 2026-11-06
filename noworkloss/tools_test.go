@@ -1,5 +1,7 @@
 package noworkloss
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"os"
@@ -89,18 +91,7 @@ func fakeRecycler(t *testing.T, items []binItem) string {
 	listing, err := json.Marshal(items)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "items.json"), listing, 0o644))
-	script := `#!/bin/sh
-set -eu
-dir=$(dirname "$0")
-case "$1" in
-list) cat "$dir/items.json" ;;
-restore)
-	[ "$2" = broken ] && { echo "recycler: restore failed" >&2; exit 1; }
-	echo "$2" >> "$dir/restored-ids"
-	printf 'kept\n' > "$(jq -r --arg id "$2" '.[] | select(.id == $id) | .original_path' "$dir/items.json")"
-	;;
-esac
-`
+	script := fakeRecyclerSh
 	require.NoError(t, os.WriteFile(filepath.Join(bin, "recycler"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	return bin
@@ -388,3 +379,6 @@ func TestOtherEventsAndToolsAreIgnored(t *testing.T) {
 	assert.Empty(t, unparseable)
 	assert.Empty(t, notices, "an unparseable payload preserves nothing, so it announces nothing")
 }
+
+//go:embed testdata/fake-recycler.sh
+var fakeRecyclerSh string

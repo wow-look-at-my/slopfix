@@ -1,3 +1,5 @@
+// ask/prose-decision: a closing message that puts a decision to the reader in prose, or defers one without AskUserQuestion.
+
 package slopfix
 
 import (

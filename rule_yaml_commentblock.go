@@ -1,3 +1,5 @@
+// yaml/comment-block: more than one comment line in a run of them.
+
 package slopfix
 
 import (

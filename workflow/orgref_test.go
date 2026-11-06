@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"encoding/json"
 	"fmt"
@@ -26,7 +28,7 @@ func orgRefFindings(content string) []ste.Finding {
 }
 
 func steps(uses ...string) string {
-	out := "on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n"
+	out := stepsYml
 	for _, u := range uses {
 		out += "      - uses: " + u + "\n"
 	}
@@ -52,7 +54,7 @@ func TestAnOrgActionOffMasterIsReported(t *testing.T) {
 }
 
 func TestAReusableWorkflowOffMasterIsReported(t *testing.T) {
-	content := "on: workflow_dispatch\njobs:\n  preview:\n    uses: wow-look-at-my/buildhost/.github/workflows/preview.yml@wip\n"
+	content := testAReusableWorkflowOffMasterIsReportedYml
 	found := orgRefFindings(content)
 	require.Len(t, found, 1)
 	assert.Equal(t, 4, found[0].Line)
@@ -92,14 +94,13 @@ func TestAnOrgActionAtLKGBPasses(t *testing.T) {
 		"wow-look-at-my/go-toolchain@lkgb",
 		"wow-look-at-my/actions@typescript#latest",
 		"wow-look-at-my/buildhost/.github/actions/buildhost-publish@lkgb",
-		"wow-look-at-my/static-pkgsite-action@v1",
 		"actions/checkout@v4",
 		"PazerOP/pr-preview-action@v1",
 		"./local-action",
 		"docker://alpine:3",
 	)
 	assert.Empty(t, orgRefFindings(content))
-	assert.Empty(t, orgRefFindings("runs:\n  using: composite\n  steps:\n    - uses: wow-look-at-my/dats@lkgb\n"))
+	assert.Empty(t, orgRefFindings(testAnOrgActionAtLKGBPassesYml))
 }
 
 // A red master reaches every caller that names it. lkgb is the last master commit that passed CI.
@@ -112,7 +113,7 @@ func TestTheDefaultBranchOfARepositoryWithLKGBIsReported(t *testing.T) {
 	} {
 		require.Len(t, orgRefFindings(steps(uses)), 1, uses)
 	}
-	assert.Len(t, orgRefFindings("runs:\n  using: composite\n  steps:\n    - uses: wow-look-at-my/dats@master\n"), 1)
+	assert.Len(t, orgRefFindings(testTheDefaultBranchOfARepositoryWithLKGBIsReportedYml), 1)
 }
 
 func TestTheRepairPointsAtLKGB(t *testing.T) {
@@ -134,12 +135,13 @@ func TestTheRepairPointsAtLKGB(t *testing.T) {
 	}
 }
 
-// A repository that publishes no lkgb keeps its default branch, because @lkgb would not resolve there.
-func TestARepositoryWithoutLKGBKeepsItsDefaultBranch(t *testing.T) {
+// The org enforces lkgb on every repository. The rule asks GitHub nothing, so
+// no repository keeps its default branch and an unknown one is rewritten too.
+func TestEveryOrgRepositoryRepairsToLKGB(t *testing.T) {
 	orgAPI(t)
-	assert.Empty(t, orgRefFindings(steps("wow-look-at-my/static-pkgsite-action@v1")), "the default branch is the tracked ref")
-	assert.Equal(t, steps("wow-look-at-my/static-pkgsite-action@v1"), repaired(t, steps("wow-look-at-my/static-pkgsite-action@master")))
-	assert.Equal(t, steps("wow-look-at-my/unknown-action@master"), repaired(t, steps("wow-look-at-my/unknown-action@feature")), "an unanswered lookup keeps master")
+	assert.Len(t, orgRefFindings(steps("wow-look-at-my/static-pkgsite-action@v1")), 1)
+	assert.Equal(t, steps("wow-look-at-my/static-pkgsite-action@lkgb"), repaired(t, steps("wow-look-at-my/static-pkgsite-action@master")))
+	assert.Equal(t, steps("wow-look-at-my/unknown-action@lkgb"), repaired(t, steps("wow-look-at-my/unknown-action@feature")))
 }
 
 const pinnedSHA = "a9b20e200c7edc8e7bc23fbafbe5ae87eb5f2410"
@@ -172,7 +174,7 @@ func TestASHAPinOfTheMonorepoWithNoDirectoryIsNotReported(t *testing.T) {
 // Only a uses: key the runner reads names an action. One under with: is an input value.
 func TestAUsesKeyOutsideAJobOrAStepIsNotAnAction(t *testing.T) {
 	orgAPI(t)
-	content := "on: workflow_dispatch\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          uses: wow-look-at-my/go-toolchain@v1\n"
+	content := testAUsesKeyOutsideAJobOrAStepIsNotAnActionYml
 	assert.Empty(t, orgRefFindings(content))
 	assert.Equal(t, content, repaired(t, content))
 }
@@ -197,3 +199,18 @@ func TestAMovingBranchRepairsToLKGBWhenGitHubCannotAnswer(t *testing.T) {
 		assert.Equal(t, steps(want), repaired(t, steps(uses)), uses)
 	}
 }
+
+//go:embed testdata/steps.yml
+var stepsYml string
+
+//go:embed testdata/test-a-reusable-workflow-off-master-is-reported.yml
+var testAReusableWorkflowOffMasterIsReportedYml string
+
+//go:embed testdata/test-a-uses-key-outside-a-job-or-a-step-is-not-an-action.yml
+var testAUsesKeyOutsideAJobOrAStepIsNotAnActionYml string
+
+//go:embed testdata/test-an-org-action-at-lkgb-passes.yml
+var testAnOrgActionAtLKGBPassesYml string
+
+//go:embed testdata/test-the-default-branch-of-a-repository-with-lkgb-is-reported.yml
+var testTheDefaultBranchOfARepositoryWithLKGBIsReportedYml string

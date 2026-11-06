@@ -1,3 +1,5 @@
+// isTruncateZero reports a truncate that empties a file, in every spelling of the size flag: separate, attached, or long with an equals sign.
+
 package bashclean
 
 import (

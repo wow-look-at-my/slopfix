@@ -1,5 +1,7 @@
 package slopfix_test
 
+import _ "embed"
+
 import (
 	"strings"
 	"testing"
@@ -45,7 +47,6 @@ func TestCheckReportsALongSentenceInAComment(t *testing.T) {
 		}
 	}
 	require.Len(t, found, 1)
-	assert.False(t, ste.ByHand(found[0].Fix))
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "demo.go"}).Text
 	assert.Contains(t, out, "// The loader reads every cached manifest from the shared store of the plugin cache in the home directory of the user.", out)
 	assert.Contains(t, strings.ReplaceAll(out, "\n// ", " "), "This happens on each start of a session in the editor window.", out)
@@ -131,19 +132,7 @@ func TestAColonAndADashAsideDivideInAGoComment(t *testing.T) {
 // gate compares data with a block scalar's # lines blanked, because a # inside
 // a scalar is part of the script's string.
 func TestALongSentenceInARunScriptCommentIsRepaired(t *testing.T) {
-	src := "name: CI\n" +
-		"on:\n" +
-		"  push:\n" +
-		"concurrency:\n" +
-		"  group: g\n" +
-		"  cancel-in-progress: true\n" +
-		"jobs:\n" +
-		"  build:\n" +
-		"    runs-on: ubuntu-latest\n" +
-		"    steps:\n" +
-		"      - run: |\n" +
-		"          # Building from a directory also asks the module cache for nothing, so the generator that lives in the module needing it never has to complete that module earliest.\n" +
-		"          make\n"
+	src := testALongSentenceInARunScriptCommentIsRepairedYml
 	path := ".github/workflows/ci.yml"
 	require.Contains(t, findingIDs(slopfix.CheckContent(path, src)), ste.IDSentenceCap, "the control: the comment is over the cap")
 
@@ -166,3 +155,6 @@ func TestADivisionRestatesAnIdentifierSubjectWithItsCase(t *testing.T) {
 	assert.Contains(t, strings.ReplaceAll(out, "\n// ", " "), ". foreignJobs also answers", out)
 	assert.Empty(t, quoted(slopfix.CheckContent("demo.go", out)), out)
 }
+
+//go:embed testdata/test-a-long-sentence-in-a-run-script-comment-is-repaired.yml
+var testALongSentenceInARunScriptCommentIsRepairedYml string

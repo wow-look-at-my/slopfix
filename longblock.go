@@ -1,3 +1,5 @@
+// IDLongBlock is a paragraph or a list item too long to read as one.
+
 package slopfix
 
 import (

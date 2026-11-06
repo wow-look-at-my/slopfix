@@ -1,3 +1,5 @@
+// publicOnly is the condition that keeps a job or a matrix value to a public repository.
+
 package workflow
 
 import (
@@ -109,9 +111,10 @@ func foreignJobOf(job *yaml.Node) (foreignJob, bool) {
 	return foreignMatrix(f, job, key)
 }
 
-// onlyMatrixKey answers the one matrix key that a runs-on expression reads,
-// such as os in ${{ startsWith(matrix.os, 'ubuntu') && vars.CI_RUNNER || matrix.os }}.
-// The repair drops the foreign values from that key, and leaves the expression as written.
+// onlyMatrixKey answers the matrix key that a runs-on expression reads, such
+// as os in ${{ startsWith(matrix.os, 'ubuntu') && vars.CI_RUNNER || matrix.os
+// }}. The repair drops the foreign values from that key, and leaves the
+// expression as written.
 func onlyMatrixKey(value string) (string, bool) {
 	value = strings.TrimSpace(value)
 	if !strings.HasPrefix(value, "${{") || !strings.HasSuffix(value, "}}") || strings.Count(value, "${{") != 1 {

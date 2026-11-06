@@ -1,3 +1,5 @@
+// ReadArgs is the input of one Read tool call.
+
 package bashclean
 
 import (

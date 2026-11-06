@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"errors"
 	"testing"
@@ -19,14 +21,6 @@ type fakeRefs struct {
 	asked    []string
 }
 
-func (f *fakeRefs) DefaultBranch(repo string) (string, error) {
-	def, ok := f.defaults[repo]
-	if !ok {
-		return "", errors.New("no access to " + repo)
-	}
-	return def, nil
-}
-
 func (f *fakeRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	f.asked = append(f.asked, repo+"@"+ref)
 	if _, ok := f.defaults[repo]; !ok {
@@ -41,6 +35,15 @@ func (f *fakeRefs) Kind(repo, ref string) (workflow.RefKind, error) {
 	return workflow.RefMissing, nil
 }
 
+func (f *fakeRefs) Default(repo string) (string, error) {
+	f.asked = append(f.asked, repo)
+	def, ok := f.defaults[repo]
+	if !ok {
+		return "", errors.New("no access to " + repo)
+	}
+	return def, nil
+}
+
 func orgRefs() *fakeRefs {
 	return &fakeRefs{
 		defaults: map[string]string{
@@ -48,16 +51,22 @@ func orgRefs() *fakeRefs {
 			"wow-look-at-my/slopfix":      "master",
 			"wow-look-at-my/actions":      "master",
 			"wow-look-at-my/buildhost":    "master",
+			"other-org/tool":              "master",
 			"actions/checkout":            "main",
+			"Homebrew/actions":            "main",
 		},
 		branches: set.Of(
 			"wow-look-at-my/go-toolchain@master",
 			"wow-look-at-my/go-toolchain@drop-common-checks",
+			"other-org/tool@master",
+			"other-org/tool@drop-common-checks",
 			"wow-look-at-my/slopfix@master",
 			"wow-look-at-my/actions@master",
 			"wow-look-at-my/actions@pi-signoff",
 			"wow-look-at-my/buildhost@master",
 			"actions/checkout@main",
+			"Homebrew/actions@main",
+			"Homebrew/actions@feature-x",
 		),
 		tags: set.Of(
 			"actions/checkout@v4",
@@ -81,26 +90,17 @@ func pinFindings(t *testing.T, content string, refs workflow.Refs) []string {
 }
 
 func TestAFeatureBranchPinIsReported(t *testing.T) {
-	content := "on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: wow-look-at-my/go-toolchain@drop-common-checks\n"
+	content := testAFeatureBranchPinIsReportedYml
 	found, err := workflow.BranchPins(content, orgRefs())
 	require.NoError(t, err)
 	require.Len(t, found, 1)
 	assert.Equal(t, 7, found[0].Line)
-	assert.Contains(t, found[0].Detail, "wow-look-at-my/go-toolchain@drop-common-checks")
+	assert.Contains(t, found[0].Detail, "other-org/tool@drop-common-checks")
 	assert.Contains(t, found[0].Detail, "not its default branch")
 }
 
 func TestTheDefaultBranchATagAndAFullSHAPass(t *testing.T) {
-	content := "jobs:\n  build:\n    steps:\n" +
-		"      - uses: wow-look-at-my/go-toolchain@master\n" +
-		"      - uses: wow-look-at-my/slopfix@master\n" +
-		"      - uses: actions/checkout@v4\n" +
-		"      - uses: actions/checkout@main\n" +
-		"      - uses: wow-look-at-my/actions@secret-server#latest\n" +
-		"      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n" +
-		"      - uses: ./local-action\n" +
-		"      - uses: docker://alpine:3.20\n" +
-		"      - uses: ${{ matrix.action }}\n"
+	content := testTheDefaultBranchATagAndAFullSHAPassYml
 	refs := orgRefs()
 	assert.Empty(t, pinFindings(t, content, refs))
 	assert.NotContains(t, refs.asked, "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683", "a full SHA needs no lookup")
@@ -108,29 +108,47 @@ func TestTheDefaultBranchATagAndAFullSHAPass(t *testing.T) {
 
 // An orphan-release tag cut from a branch build is deleted with the branch.
 func TestATagCutFromAFeatureBranchIsReported(t *testing.T) {
-	content := "runs:\n  using: composite\n  steps:\n    - uses: wow-look-at-my/actions@secret-server/pi-signoff#1\n    - uses: wow-look-at-my/actions@secret-server/master#latest\n"
+	content := testATagCutFromAFeatureBranchIsReportedYml
 	found := pinFindings(t, content, orgRefs())
 	require.Len(t, found, 1)
 	assert.Contains(t, found[0], "a build of the branch pi-signoff")
 }
 
 func TestAReusableWorkflowAndACompositeStepAreRead(t *testing.T) {
-	content := "jobs:\n  publish:\n    uses: wow-look-at-my/go-toolchain/.github/workflows/build.yml@drop-common-checks\n"
+	content := testAReusableWorkflowAndACompositeStepAreReadYml
 	assert.Len(t, pinFindings(t, content, orgRefs()), 1)
-	composite := "runs:\n  using: composite\n  steps:\n    - uses: wow-look-at-my/buildhost/.github/actions/buildhost-download@master\n    - uses: wow-look-at-my/go-toolchain@drop-common-checks\n"
+	composite := testAReusableWorkflowAndACompositeStepAreReadYml2
 	assert.Len(t, pinFindings(t, composite, orgRefs()), 1)
 }
 
 // The incident: the branch is gone, so the ref names nothing.
 func TestARefThatNamesNothingIsReported(t *testing.T) {
-	content := "jobs:\n  build:\n    steps:\n      - uses: wow-look-at-my/go-toolchain@deleted-branch\n"
+	content := testARefThatNamesNothingIsReportedYml
 	found := pinFindings(t, content, orgRefs())
 	require.Len(t, found, 1)
 	assert.Contains(t, found[0], "neither a tag nor a branch")
 }
 
+// A repository outside the org picks its own default branch. Homebrew/actions uses main.
+func TestAnotherOwnersDefaultBranchPasses(t *testing.T) {
+	content := testAnotherOwnersDefaultBranchPassesYml
+	assert.Empty(t, pinFindings(t, content, orgRefs()))
+}
+
+func TestARepairWritesAnotherOwnersDefaultBranch(t *testing.T) {
+	content := testARepairWritesAnotherOwnersDefaultBranchYml
+	refs := orgRefs()
+	found := pinFindings(t, content, refs)
+	require.Len(t, found, 1)
+	assert.Contains(t, found[0], "not its default branch main")
+	fixed, err := workflow.RepairBranchPins(content, refs)
+	require.NoError(t, err)
+	assert.Contains(t, fixed, "Homebrew/actions/setup-homebrew@main")
+	assert.NotContains(t, fixed, "@master")
+}
+
 func TestALookupThatFailsIsAnError(t *testing.T) {
-	content := "jobs:\n  build:\n    steps:\n      - uses: someone/private@v1\n"
+	content := testALookupThatFailsIsAnErrorYml
 	_, err := workflow.BranchPins(content, orgRefs())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "someone/private")
@@ -138,7 +156,37 @@ func TestALookupThatFailsIsAnError(t *testing.T) {
 
 // A uses: key outside a job or a step is an input name, not an action.
 func TestOnlyAJobOrAStepUsesIsRead(t *testing.T) {
-	content := "jobs:\n  build:\n    steps:\n      - with:\n          uses: wow-look-at-my/go-toolchain@drop-common-checks\n"
+	content := testOnlyAJobOrAStepUsesIsReadYml
 	assert.Empty(t, workflow.Uses(content))
 	assert.Empty(t, workflow.Uses("jobs: [unbalanced\n"))
 }
+
+//go:embed testdata/test-a-feature-branch-pin-is-reported.yml
+var testAFeatureBranchPinIsReportedYml string
+
+//go:embed testdata/test-the-default-branch-a-tag-and-a-full-sha-pass.yml
+var testTheDefaultBranchATagAndAFullSHAPassYml string
+
+//go:embed testdata/test-a-tag-cut-from-a-feature-branch-is-reported.yml
+var testATagCutFromAFeatureBranchIsReportedYml string
+
+//go:embed testdata/test-a-reusable-workflow-and-a-composite-step-are-read.yml
+var testAReusableWorkflowAndACompositeStepAreReadYml string
+
+//go:embed testdata/test-a-reusable-workflow-and-a-composite-step-are-read-2.yml
+var testAReusableWorkflowAndACompositeStepAreReadYml2 string
+
+//go:embed testdata/test-a-ref-that-names-nothing-is-reported.yml
+var testARefThatNamesNothingIsReportedYml string
+
+//go:embed testdata/test-another-owners-default-branch-passes.yml
+var testAnotherOwnersDefaultBranchPassesYml string
+
+//go:embed testdata/test-a-repair-writes-another-owners-default-branch.yml
+var testARepairWritesAnotherOwnersDefaultBranchYml string
+
+//go:embed testdata/test-a-lookup-that-fails-is-an-error.yml
+var testALookupThatFailsIsAnErrorYml string
+
+//go:embed testdata/test-only-a-job-or-a-step-uses-is-read.yml
+var testOnlyAJobOrAStepUsesIsReadYml string

@@ -1,3 +1,5 @@
+// jsonKind says how a file holds JSON.
+
 package bashclean
 
 import (

@@ -1,5 +1,7 @@
 package workflow_test
 
+import _ "embed"
+
 import (
 	"testing"
 
@@ -34,11 +36,20 @@ func TestJudgesLeavesEveryOtherFileAlone(t *testing.T) {
 // A path says which file this is most of the time. It does not when the caller
 // names a file from inside the workflows directory.
 func TestSniffFindsAWorkflowThePathDoesNotName(t *testing.T) {
-	assert.True(t, workflow.Sniff("on: {push: {branches: ['**']}}\njobs:\n  build:\n    runs-on: ubuntu-latest\n"))
-	assert.True(t, workflow.Sniff("name: Thing\nruns:\n  using: composite\n"))
+	assert.True(t, workflow.Sniff(testSniffFindsAWorkflowThePathDoesNotNameYml))
+	assert.True(t, workflow.Sniff(testSniffFindsAWorkflowThePathDoesNotNameYml2))
 }
 
 func TestSniffLeavesAnOrdinaryDocumentAlone(t *testing.T) {
-	assert.False(t, workflow.Sniff("services:\n  web:\n    image: nginx\n"))
+	assert.False(t, workflow.Sniff(testSniffLeavesAnOrdinaryDocumentAloneYml))
 	assert.False(t, workflow.Sniff("# jobs: the ones we run\ntext: here\n"))
 }
+
+//go:embed testdata/test-sniff-finds-a-workflow-the-path-does-not-name.yml
+var testSniffFindsAWorkflowThePathDoesNotNameYml string
+
+//go:embed testdata/test-sniff-finds-a-workflow-the-path-does-not-name-2.yml
+var testSniffFindsAWorkflowThePathDoesNotNameYml2 string
+
+//go:embed testdata/test-sniff-leaves-an-ordinary-document-alone.yml
+var testSniffLeavesAnOrdinaryDocumentAloneYml string

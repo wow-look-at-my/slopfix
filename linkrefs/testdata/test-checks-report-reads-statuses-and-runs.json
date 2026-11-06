@@ -1,0 +1,3 @@
+{"statuses":[{"state":"failure","context":"all-builds"}],
+		"check_runs":[{"status":"completed","conclusion":"skipped"},{"status":"in_progress","conclusion":""},
+		{"status":"completed","conclusion":"success"}]}

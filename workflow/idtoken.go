@@ -1,3 +1,5 @@
+// IDIDToken is a job whose permissions do not grant id-token: write.
+
 package workflow
 
 import (
