@@ -20,6 +20,7 @@ func init() {
 			{Name: "a doc that does not open on the name writes no copy of it above package", Path: "blob_read.go", Text: headerBuildTagCase, Want: headerBuildTagWant},
 			{Name: "a func doc gives the header", Path: "media.go", Text: headerGoCase, Want: headerGoWant},
 			{Name: "a JSDoc on an export gives the header", Path: "media.ts", Text: headerTSCase, Want: headerTSWant},
+			{Name: "a doc on a method deep in the file names no declaration, so it writes no header", Path: "ollama-client.ts", Text: headerTSMethodCase, Unchanged: true},
 			{Name: "a file with a header", Path: "media.go", Text: "// Package media matches media types.\npackage media\n\n" + headerGoBody, Unchanged: true},
 			{Name: "a test file", Path: "media_test.go", Text: headerGoCase, Unchanged: true},
 			{Name: "a file with no comment", Path: "media.go", Text: "package media\n\nfunc Wants() bool { return true }\n", Unchanged: true},
@@ -75,6 +76,26 @@ export function load(path: string): string {
 const headerTSCase = headerTSBody
 
 const headerTSWant = "// media.ts holds load.\n\n" + headerTSBody
+
+const headerTSMethodCase = `import { request } from 'node:http';
+
+export interface Chunk {
+	text: string;
+}
+
+export class OllamaClient {
+	constructor(private host: string) {}
+
+	async stream(prompt: string): Promise<void> {
+		request(this.host + prompt);
+	}
+
+	/** Handle one NDJSON line. */
+	private handle(line: string): Chunk {
+		return { text: line };
+	}
+}
+`
 
 // detectCommentHeader answers a file that opens with no header comment.
 func detectCommentHeader(c RuleCase) []ste.Finding {

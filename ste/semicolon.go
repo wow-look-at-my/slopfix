@@ -1,4 +1,4 @@
-// ByHand reports whether a Fix text asks for a rewrite by hand, which no repair writes.
+// semicolon.go finds where a period can replace a semicolon.
 
 package ste
 
@@ -11,9 +11,6 @@ import (
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
-
-// ByHand reports whether a Fix text asks for a rewrite by hand, which no repair writes.
-func ByHand(fix string) bool { return strings.HasPrefix(fix, "Rewrite it by hand") }
 
 // semicolonJoins answers the offset of each semicolon of masked that a period
 // can replace. A semicolon divides only where the words before it hold a main

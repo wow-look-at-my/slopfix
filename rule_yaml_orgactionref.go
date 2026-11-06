@@ -11,8 +11,7 @@ import (
 
 // yaml/org-action-ref: an org action referenced at a version tag, a SHA or a
 // branch, its default branch included. The `lkgb` tag passes. The repair points
-// the action at `lkgb`, or at the default branch of a repository that
-// publishes no `lkgb`.
+// the action at `lkgb` and asks GitHub nothing.
 func init() {
 	RegisterRule(RuleSpec{
 		ID:       workflow.IDOrgActionRef,
