@@ -20,11 +20,15 @@ func init() {
 		Cases: []RuleCase{
 			{Name: commentfix.IDLength, Path: "main.go", Text: fixtureHeader + "package main\n\n" + overlongComment() + "func main() {}\n"},
 			{Name: "a sentence that opens on an identifier is cut whole", Path: "froxel-path.cpp", Text: fixtureHeader + identifierSentenceCase, Want: fixtureHeader + identifierSentenceWant},
+			{Name: "a glob inside a JSDoc opens no second comment", Path: "shelf.ts", Text: fixtureHeader + globInBlockCommentCase},
 			{Name: "a line comment keeps its heading above the sentence a cut keeps", Path: "f.rs", Text: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + " " + noCutTail + "\nfn f() {}\n", Want: fixtureHeader + "/// " + noCutHeading + "\n/// " + noCutSentence + "\nfn f() {}\n"},
 			{Name: "a block comment keeps its heading above the sentence a cut keeps", Path: "f.c", Text: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + " " + noCutTail + "\n */\nvoid f(void) {}\n", Want: fixtureHeader + "/* " + noCutHeading + "\n * " + noCutSentence + " */\nvoid f(void) {}\n"},
 		},
 	})
 }
+
+//go:embed testdata/glob-in-block-comment-case.ts
+var globInBlockCommentCase string
 
 //go:embed testdata/identifier-sentence-case.cpp
 var identifierSentenceCase string
