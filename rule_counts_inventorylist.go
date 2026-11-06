@@ -36,6 +36,11 @@ func detectInventoryList(c RuleCase) []ste.Finding {
 	return caseFindings(c, counts.IDList)
 }
 
+// autofixInventoryList deletes each enumeration the case carries.
+func autofixInventoryList(c RuleCase) RuleCase {
+	return caseAutofix(c, counts.IDList)
+}
+
 // listRule and listFix are what a finding of this rule says.
 const (
 	listRule = "a list of what the code holds goes stale when the code changes"
