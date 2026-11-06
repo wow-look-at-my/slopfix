@@ -1,4 +1,4 @@
-// blobs.go holds the blobs code.
+// binarySniff is how far into a file git looks for a NUL byte.
 
 package forkscope
 

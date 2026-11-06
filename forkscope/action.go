@@ -1,4 +1,4 @@
-// action.go holds the action code.
+// actionFile is the name, in the git common directory, of the action record.
 
 package forkscope
 

@@ -1,4 +1,4 @@
-// cutter.go holds the cutter code.
+// cutter finds where a window can end: never inside a span a division reads whole.
 
 package ste
 

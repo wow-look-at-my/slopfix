@@ -1,4 +1,4 @@
-// concurrency.go holds the concurrency code.
+// IDConcurrency is a workflow without the org's concurrency block.
 
 package workflow
 

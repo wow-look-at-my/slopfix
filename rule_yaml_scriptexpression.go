@@ -1,4 +1,4 @@
-// rule_yaml_scriptexpression.go holds the rule yaml scriptexpression code.
+// yaml/script-expression: a TypeScript step script that writes a context value in as a ${{ }} expression.
 
 package slopfix
 

@@ -1,4 +1,4 @@
-// rule_message_ask.go holds the rule message ask code.
+// ask/prose-decision: a closing message that puts a decision to the reader in prose, or defers one without AskUserQuestion.
 
 package slopfix
 

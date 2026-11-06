@@ -21,10 +21,10 @@ func formulaSpans(prose string) [][]int {
 	if !spacedOperator.MatchString(prose) {
 		return nil
 	}
-	verbatim := verbatimSpan.FindAllStringIndex(prose, -1)
+	verbatim := verbatimSpans(prose)
 	var out [][]int
 	for _, span := range formula.FindAllStringIndex(prose, -1) {
-		if !overlapsAny(verbatim, span) {
+		if !overlapsAny(span, verbatim) {
 			out = append(out, span)
 		}
 	}
@@ -34,17 +34,8 @@ func formulaSpans(prose string) [][]int {
 // dataSpans answers every span of prose that is data rather than words: the
 // verbatim spans and the formulas, in order.
 func dataSpans(prose string) [][]int {
-	out := append(verbatimSpan.FindAllStringIndex(prose, -1), formulaSpans(prose)...)
+	out := append(verbatimSpans(prose), formulaSpans(prose)...)
 	sort.Slice(out, func(i, j int) bool { return out[i][0] < out[j][0] })
 	return out
 }
 
-// overlapsAny reports a span that shares a byte with one of spans.
-func overlapsAny(spans [][]int, span []int) bool {
-	for _, s := range spans {
-		if span[0] < s[1] && s[0] < span[1] {
-			return true
-		}
-	}
-	return false
-}

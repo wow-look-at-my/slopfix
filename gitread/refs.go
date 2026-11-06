@@ -1,4 +1,4 @@
-// refs.go holds the refs code.
+// ErrUnknownRevision marks a revision this package cannot name.
 
 package gitread
 

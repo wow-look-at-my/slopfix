@@ -1,4 +1,4 @@
-// preserve.go holds the preserve code.
+// protectedRefPrefix names a ref that holds content nothing else does.
 
 package noworkloss
 

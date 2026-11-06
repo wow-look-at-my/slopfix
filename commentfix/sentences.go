@@ -38,7 +38,7 @@ type SentenceHit struct {
 	Sentence string
 	// Tell says the cap and the count, as the document rule says them.
 	Tell string
-	// Fix is the finding's remedy. ste.ByHand reports one no repair writes.
+	// Fix is the finding's remedy.
 	Fix string
 }
 
@@ -115,6 +115,13 @@ func segmentsOf(lines []string, p para) []segment {
 			current = nil
 			continue
 		}
+		// A heading never joins the prose on either side, and its own sentence is judged like any other.
+		if isHeadingLine(lines[i]) {
+			out = append(out, segment{lines: []int{n}, prose: prose})
+			current = nil
+			prev = ""
+			continue
+		}
 		if current == nil || strings.HasPrefix(prose, "@") || opensListItem(prose) || lineEndsThought(prev, prose) {
 			out = append(out, segment{})
 			current = &out[len(out)-1]
@@ -149,7 +156,7 @@ func opensListItem(prose string) bool {
 // a line, as in "the byte at the checkpoint" and then "This handles a list".
 func lineEndsThought(prev, next string) bool {
 	prev = strings.TrimSpace(prev)
-	if prev == "" || strings.ContainsAny(prev[len(prev)-1:], ".!?,;:-(—–/\\&|+=") {
+	if prev == "" || next == "" || strings.ContainsAny(prev[len(prev)-1:], ".!?,;:-(—–/\\&|+=") {
 		return false
 	}
 	fields := strings.Fields(prev)

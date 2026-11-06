@@ -1,4 +1,4 @@
-// longblock.go holds the longblock code.
+// IDLongBlock is a paragraph or a list item too long to read as one.
 
 package slopfix
 

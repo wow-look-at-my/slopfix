@@ -227,9 +227,6 @@ func TestAForcedDivisionRepeatsTheSubjectForAVerb(t *testing.T) {
 func TestALongSentenceWithNoDivisionIsRepaired(t *testing.T) {
 	in := "gotext comes from a checkout for the reason stringer does, and for any of its own: completing x/text runs that module's cmd/gotext/examples/extract directive, which starts gotext -- the program this install exists to produce."
 	require.NotEmpty(t, sentenceLengths(in), "the control: the sentence is over the cap")
-	for _, f := range ste.Check(in, 1) {
-		assert.False(t, ste.ByHand(f.Fix), "no finding asks for a rewrite by hand: %s", f.Fix)
-	}
 	fixed := ste.Fix(in)
 	assert.NotEqual(t, in, fixed)
 	assert.Empty(t, sentenceLengths(fixed), fixed)

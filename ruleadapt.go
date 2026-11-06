@@ -1,4 +1,4 @@
-// ruleadapt.go holds the ruleadapt code.
+// The reads a rule's own detect and autofix functions are written on.
 
 package slopfix
 
@@ -310,6 +310,9 @@ func repeatedPhrase(phrase string, times int) string {
 	}
 	return out
 }
+
+// fixtureHeader opens a source fixture, so comments/header finds nothing in it.
+const fixtureHeader = "// This file holds a worked example.\n\n"
 
 // sortedIDs answers the IDs of a set, in report order.
 func sortedIDs(ids set.Set[string]) []string { return slices.Sorted(ids.All()) }

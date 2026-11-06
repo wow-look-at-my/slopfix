@@ -1,4 +1,4 @@
-// progress.go holds the progress code.
+// ProgressEvery is how often a tree run says where it is.
 
 package slopfix
 

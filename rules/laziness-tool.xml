@@ -1,0 +1,27 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<!--
+  The laziness guard on PreToolUse. Each test is the prompt of an Agent call.
+  out= is the prompt the guard lets the call run with. A test with no out= is
+  a call the guard denies, because the repair leaves nothing of the prompt.
+-->
+<rules xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="rules.xsd" for="laziness-tool">
+
+  <!-- A read-only brief that sets the scope of its search declines no repair, so it runs as written. -->
+  <test in="Find where the laziness guard decides to deny a PreToolUse call. Limit the search to the laziness and cmd packages; the rules tables are out of scope. Report each file and function."
+        out="Find where the laziness guard decides to deny a PreToolUse call. Limit the search to the laziness and cmd packages; the rules tables are out of scope. Report each file and function."/>
+  <test in="Map how hooks.go lists each guard. The vendored grammars are out of scope for this search."
+        out="Map how hooks.go lists each guard. The vendored grammars are out of scope for this search."/>
+
+  <!-- A brief that quotes the guard's denial reports the guard, so it runs as written. -->
+  <test in="The guard denied the last brief: laziness/punt: excusing yourself from a repair: &quot;The rules tables are out of scope.&quot;. A fix needs no one's permission. Do the work, or name the real blocker plainly. Find the code that writes that reason."
+        out="The guard denied the last brief: laziness/punt: excusing yourself from a repair: &quot;The rules tables are out of scope.&quot;. A fix needs no one's permission. Do the work, or name the real blocker plainly. Find the code that writes that reason."/>
+
+  <!-- A sentence that carries a tell is cut, and the rest of the brief runs. -->
+  <test in="The user authorized fixing the loader. Fix the off-by-one in retry.go and run go-toolchain."
+        out=" Fix the off-by-one in retry.go and run go-toolchain."/>
+  <test in="Fix the loader.&#10;The parser bug is not my problem.&#10;Run go-toolchain after."
+        out="Fix the loader.&#10;&#10;Run go-toolchain after."/>
+
+  <!-- Nothing is left once the tell is cut, so the call is denied. -->
+  <test in="Can I go ahead and fix the loader?"/>
+</rules>

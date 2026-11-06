@@ -10,7 +10,10 @@
 package treecomments
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -19,6 +22,7 @@ import (
 	ts "github.com/wow-look-at-my/go-tree-sitter"
 	"github.com/wow-look-at-my/slopfix/code"
 	"github.com/wow-look-at-my/slopfix/edit"
+	yaml "go.yaml.in/yaml/v3"
 )
 
 // Apply writes the edits into src through the gate. An edit outside the scope
@@ -54,6 +58,64 @@ func Apply(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Resul
 				slices.Equal(directiveLines(filename, text), directives()) &&
 				(!IsCMake(filename) || sameCMake(src, text))
 		})
+}
+
+// ApplyInsert writes edits that each insert whole lines of comment at a line
+// start. The code tree and the directive lines must stay as they were.
+func ApplyInsert(filename, src string, edits []edit.Edit, scope edit.Scope) edit.Result {
+	language := languageFor(filename)
+	root, ok := ts.Node{}, false
+	if language != nil {
+		root, ok = parseWith(language, src)
+	}
+	if !ok {
+		out := edit.Unchanged(src, scope)
+		for _, e := range edits {
+			out.Refused = append(out.Refused, edit.Refused{Edit: e, Reason: "the source does not parse"})
+		}
+		return out
+	}
+	want := shape(root, src)
+	directives := directiveLines(filename, src)
+	// The bash grammar reads a YAML apostrophe as a quote, so its tree of a YAML file is no model of it.
+	sameCode := func(text string) bool { return sameShape(language, text, want) }
+	if isYAML(filename) {
+		if data, ok := yamlData(src); ok {
+			sameCode = func(text string) bool {
+				got, ok := yamlData(text)
+				return ok && reflect.DeepEqual(got, data)
+			}
+		}
+	}
+	return edit.Gate(src, edits, scope,
+		func(e edit.Edit) string {
+			if e.Start != e.End || (e.Start > 0 && src[e.Start-1] != '\n') || !strings.HasSuffix(e.Text, "\n") {
+				return "it does not insert whole lines"
+			}
+			return ""
+		},
+		func(text string) bool {
+			return sameCode(text) &&
+				slices.Equal(directiveLines(filename, text), directives) &&
+				(!IsCMake(filename) || sameCMake(src, text))
+		})
+}
+
+// yamlData decodes every document of a YAML file.
+func yamlData(text string) ([]any, bool) {
+	dec := yaml.NewDecoder(strings.NewReader(text))
+	var out []any
+	for {
+		var doc any
+		err := dec.Decode(&doc)
+		if errors.Is(err, io.EOF) {
+			return out, true
+		}
+		if err != nil {
+			return nil, false
+		}
+		out = append(out, doc)
+	}
 }
 
 // span is where a comment node sits.

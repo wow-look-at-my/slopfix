@@ -1,4 +1,4 @@
-// rule_ste_paragraphlength.go holds the rule ste paragraphlength code.
+// ste/paragraph-length: a paragraph over the sentence cap.
 
 package slopfix
 

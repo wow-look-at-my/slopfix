@@ -1,4 +1,4 @@
-// rule_yaml_duplicatestepkey.go holds the rule yaml duplicatestepkey code.
+// yaml/duplicate-step-key: a step that names one key twice.
 
 package slopfix
 

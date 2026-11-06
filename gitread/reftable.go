@@ -1,4 +1,4 @@
-// reftable.go holds the reftable code.
+// A reftable repository keeps its refs in a binary format.
 
 package gitread
 

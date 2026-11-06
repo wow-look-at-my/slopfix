@@ -1,4 +1,4 @@
-// label.go holds the label code.
+// Constants answers the name of a constant whose value is the digits n, or "".
 
 package counts
 
@@ -104,6 +104,9 @@ func verbBefore(words []syntax.Word, i int) bool {
 	for j := i - 1; j >= 0; j-- {
 		switch t := words[j].Tag; {
 		case t == "." || t == "," || t == ":" || t == "(":
+			return false
+		case syntax.Is(words[j].Lower(), "subordinator"):
+			// "begins only after instance 1 finishes".
 			return false
 		case finiteVerbTags.Contains(t):
 			return true

@@ -1,4 +1,4 @@
-// warnings.go holds the warnings code.
+// The warning rules.
 
 package ste
 

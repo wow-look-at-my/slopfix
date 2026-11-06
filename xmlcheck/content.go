@@ -1,4 +1,4 @@
-// content.go holds the content code.
+// xsdNode is one node of a schema, read only as far as the content model of the elements it declares.
 
 package xmlcheck
 

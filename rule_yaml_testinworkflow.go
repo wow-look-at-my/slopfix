@@ -1,4 +1,4 @@
-// rule_yaml_testinworkflow.go holds the rule yaml testinworkflow code.
+// yaml/test-in-workflow: a test written into a run: script.
 
 package slopfix
 

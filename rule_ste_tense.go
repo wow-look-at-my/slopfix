@@ -1,4 +1,4 @@
-// rule_ste_tense.go holds the rule ste tense code.
+// ste/tense: STE allows the simple tenses only.
 
 package slopfix
 
@@ -13,7 +13,14 @@ func init() {
 		Detect:   detectTense,
 		Autofix:  autofixTense,
 		Cases: []RuleCase{
+			// dats docs/cli.md: a perfect after \"after\" under a present verb becomes the simple present.
+			{Name: ste.IDTense + " after after", Path: "w.md", Text: "A later run begins only after the first run has finished.\n"},
 			{Name: ste.IDTense, Path: "w.md", Text: "The gate has started the task.\n", Want: "The gate started the task.\n"},
+			// A progressive with you as its subject became "You looks for".
+			{Name: "progressive-after-you", Path: "w.md", Text: "You are looking for the actions a careful developer will not take alone.\n", Want: "You look for the actions a careful developer will not take alone.\n"},
+			// A base form that ends on a doubled consonant lost one: "pols".
+			{Name: "progressive-of-a-doubled-ending", Path: "w.md", Text: "The watcher is polling the directories.\n", Want: "The watcher polls the directories.\n"},
+			{Name: "progressive-of-a-doubled-f", Path: "w.md", Text: "The parser is stuffing the fields into a map.\n", Want: "The parser stuffs the fields into a map.\n"},
 		},
 	})
 }

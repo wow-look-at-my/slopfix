@@ -1,4 +1,4 @@
-// carrier.go holds the carrier code.
+// carrier.go divides a long sentence where the words after the cut hold no clause.
 
 package ste
 
@@ -84,6 +84,21 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		for _, lead := range []string{"as is", "as are"} {
 			if body, ok := strings.CutPrefix(strings.TrimLeft(rest, " "), lead); ok {
 				return head, "The same holds for " + strings.TrimSpace(body), opensWithCarrier
+			}
+		}
+	}
+	// ", each with X" gives each item of the head what follows: "Each comes with X".
+	if seam == "," && lower == "each" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "with" {
+		if body, ok := strings.CutPrefix(strings.TrimLeft(rest, " "), word.Text+" with "); ok {
+			return head, "Each comes with " + body, opensWithCarrier
+		}
+	}
+	// "used by A to P and by B to Q" names a second actor for the same participle: "The same holds for B, to Q".
+	if seam == "" && lower == "and" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "by" {
+		for k := first - 1; k > 0; k-- {
+			if whole.Words[k].Lower() == "by" && whole.Words[k-1].Tag == "VBN" {
+				body := strings.TrimLeft(strings.TrimLeft(rest[len(word.Text):], " ")[len("by"):], " ")
+				return head, "The same holds for " + body, opensWithCarrier
 			}
 		}
 	}
@@ -238,8 +253,8 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		return listHead(head, "and", false, whole, main), capitalizeOpening(subject) + " also " + rest, opensWithCarrier
 	case seam == "," || seam == ":":
 		// "X must ensure that A, and that B" divides with the main clause
-		// restated: "X must also ensure that B".
-		if seam == "," && lower == "and" && first+1 < len(whole.Words) && whole.Words[first+1].Lower() == "that" && !headOpen(whole, first) {
+		// restated: "X must also ensure that B". So does "X reads A, and whether B".
+		if seam == "," && lower == "and" && first+1 < len(whole.Words) && objectClauseOpeners.Contains(whole.Words[first+1].Lower()) && !headOpen(whole, first) {
 			if subject := mainSubject(source, whole, main, whole.Words[main.Head].Tag); subject != "" {
 				if clause := strings.TrimLeft(rest[len(word.Text):], " "); clause != "" {
 					return head, capitalizeOpening(subject) + " " + alsoVerb(source, whole, main) + " " + clause, opensWithCarrier

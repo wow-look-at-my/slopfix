@@ -1,4 +1,4 @@
-// check.go holds the check code.
+// Run validates every file against the spec's schema, which owns the shape of the table, and then holds the trees to the spec's semantic checks.
 
 package xmlcheck
 

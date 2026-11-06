@@ -16,6 +16,20 @@ func TestDictionaryLeavesAHyphenatedNameAlone(t *testing.T) {
 	assert.Equal(t, text, widenDictionary(text))
 }
 
+// The approved word for a word with "re" means the action again. A swap
+// drops the "again": "need no restart" read as "need no start".
+func TestDictionaryKeepsTheRepeatOfAReWord(t *testing.T) {
+	for _, text := range []string{
+		"The settings need no restart.",
+		"Reinstall the package after the update.",
+	} {
+		for _, f := range Warn(text, 1, false) {
+			assert.NotEqual(t, IDDictionary, f.ID, f.Detail)
+		}
+		assert.Equal(t, text, widenDictionary(text))
+	}
+}
+
 // A free-standing banned word still gets its approved word.
 func TestDictionaryStillRepairsAFreeWord(t *testing.T) {
 	assert.Equal(t, "It works correctly.", widenDictionary("It works properly."))

@@ -14,19 +14,13 @@ const unboundedSentence = "package p\n\n" +
 	"// set index plus binding slot plus array element offset plus sampler identity hash value.\n" +
 	"func cacheKeyFor() int { return 0 }\n"
 
-// fitsOrStays asserts both outcomes a length repair may have. The block fits
-// and keeps want, or no cut fits, the block stays as written, and no finding
-// names it.
-func fitsOrStays(t *testing.T, src, want string) {
+// fitsAndKeeps asserts that a length repair keeps the claim. A block the
+// repair fits holds no finding after it, and a block it cannot fit is not a finding.
+func fitsAndKeeps(t *testing.T, src, want string) {
 	t.Helper()
-	hits := CheckLength("p.go", src)
 	out, _ := FixLength("p.go", src)
-	if len(hits) == 0 {
-		assert.Equal(t, src, out, "a block no cut fits keeps its prose")
-		return
-	}
+	assert.Contains(t, out, want, "the repair keeps the claim:\n%s", out)
 	assert.Empty(t, CheckLength("p.go", out))
-	assert.Contains(t, out, want, "the cut keeps the claim:\n%s", out)
 }
 
 // A cut before an aside keeps the claim the aside explains. A cut before
@@ -72,18 +66,18 @@ func TestACutMayUseOneLongLine(t *testing.T) {
 		"\t// for a real compile (via SetCompiledRegisters), and false when they are\n" +
 		"\t// re-derived from the disassembly.\n" +
 		"\tRegistersFromCompiler bool\n}\n"
-	fitsOrStays(t, src, "are the compiler-authoritative figures")
+	fitsAndKeeps(t, src, "are the compiler-authoritative figures")
 }
 
 // The cut never stops between words, so a sentence no boundary divides either
-// fits or stays for a rewrite by hand.
+// fits or keeps its claim.
 func TestNoCutStopsBetweenWords(t *testing.T) {
 	src := "package p\n\ntype C struct {\n" +
 		"\t// Progress, when set, is called by the sampler every progressTick with the\n" +
 		"\t// current series' sample count and confidence interval. RunAll installs a\n" +
 		"\t// live-line printer; tests leave it nil.\n" +
 		"\tProgress func(samples int, rmePct, targetRMEPct float64)\n}\n"
-	fitsOrStays(t, src, "// Progress, when set, is called by the sampler")
+	fitsAndKeeps(t, src, "// Progress, when set, is called by the sampler")
 }
 
 // A comment over a literal element with a trailing comment is weighed against

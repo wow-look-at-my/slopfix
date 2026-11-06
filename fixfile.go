@@ -1,4 +1,4 @@
-// fixfile.go holds the fixfile code.
+// IsDocument reports whether path names prose rather than source.
 
 package slopfix
 

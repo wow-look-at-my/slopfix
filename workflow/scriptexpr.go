@@ -1,4 +1,4 @@
-// scriptexpr.go holds the scriptexpr code.
+// IDScriptExpression is a TypeScript step script that writes a context value in as a ${{ }} expression.
 
 package workflow
 

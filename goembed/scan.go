@@ -1,4 +1,4 @@
-// scan.go holds the scan code.
+// found is a string expression in a Go file that holds another language.
 
 package goembed
 

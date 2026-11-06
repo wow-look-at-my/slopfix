@@ -77,7 +77,7 @@ With a selector, `check` exits nonzero when a selected finding remains and zero 
 
 | Event | Guards |
 |---|---|
-| PreToolUse | `clean-bash`, `write`, `no-work-loss`, `rustfmt`, `auto-allow`, `busy-poll` |
+| PreToolUse | `clean-bash`, `write`, `no-work-loss`, `rustfmt`, `auto-allow`, `busy-poll`, `laziness`, `agent-launch` |
 | PermissionRequest | `auto-allow` |
 | PostToolUse | `rustfmt`, `md-budget` |
 | SessionStart | `md-budget` |

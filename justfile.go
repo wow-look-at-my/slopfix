@@ -1,4 +1,4 @@
-// justfile.go holds the justfile code.
+// script is a scripts entry, in the order the manifest lists it. value is its JSON text.
 
 package slopfix
 
@@ -50,10 +50,7 @@ func moveScripts(path string, content []byte) ([]string, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	if err := os.WriteFile(justfile, []byte(justRecipes(string(existing), moved)), 0o644); err != nil {
-		return nil, err
-	}
-	walktree.Created(justfile)
+	recipes := justRecipes(string(existing), moved)
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -64,10 +61,69 @@ func moveScripts(path string, content []byte) ([]string, error) {
 		replacement = scriptsObject(kept, indentOf(content, member.valueStart))
 	}
 	manifest := append(append(append([]byte{}, content[:start]...), replacement...), content[end:]...)
+	if err := manifestGate(content, manifest, kept); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	if !strings.HasPrefix(recipes, strings.TrimRight(string(existing), "\n")) {
+		return nil, fmt.Errorf("%s: the recipes would rewrite what the justfile held", justfile)
+	}
+	if err := os.WriteFile(justfile, []byte(recipes), 0o644); err != nil {
+		return nil, err
+	}
+	walktree.Created(justfile)
 	if err := os.WriteFile(path, manifest, info.Mode().Perm()); err != nil {
 		return nil, err
 	}
 	return []string{path, justfile}, nil
+}
+
+// manifestGate is the JSON gate a manifest rewrite passes. The result parses,
+// every member but scripts decodes as it did, and scripts holds exactly the
+// kept entries, or is gone when none stay.
+func manifestGate(before, after []byte, kept []script) error {
+	var was, now map[string]json.RawMessage
+	if err := json.Unmarshal(before, &was); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(after, &now); err != nil {
+		return fmt.Errorf("the rewrite does not parse: %w", err)
+	}
+	for key, value := range was {
+		if key == "scripts" {
+			continue
+		}
+		if !jsonEqual(value, now[key]) {
+			return fmt.Errorf("the rewrite changed the %s member", key)
+		}
+	}
+	if len(now) != len(was) && !(len(kept) == 0 && len(now) == len(was)-1) {
+		return fmt.Errorf("the rewrite added or dropped a member")
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	got, err := scriptsOf(now["scripts"])
+	if err != nil {
+		return err
+	}
+	if len(got) != len(kept) {
+		return fmt.Errorf("the rewrite kept %d scripts, not %d", len(got), len(kept))
+	}
+	for i := range got {
+		if got[i].name != kept[i].name || got[i].command != kept[i].command {
+			return fmt.Errorf("the rewrite changed the %s script", kept[i].name)
+		}
+	}
+	return nil
+}
+
+// jsonEqual reports whether JSON values decode to the same data.
+func jsonEqual(a, b json.RawMessage) bool {
+	var x, y any
+	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
+		return false
+	}
+	return fmt.Sprint(x) == fmt.Sprint(y)
 }
 
 // indentOf answers the blanks that open the line holding offset.
@@ -171,7 +227,7 @@ func scriptsOf(raw json.RawMessage) ([]script, error) {
 var recipeChar = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
 // npmRun is a call to another script, which becomes a call to its recipe.
-var npmRun = regexp.MustCompile(`\bnpm run(?:-script)? ([A-Za-z0-9_:.-]+)`)
+var npmRun = regexp.MustCompile(`\b(?:npm|pnpm|yarn|bun) run(?:-script)? ([A-Za-z0-9_:.-]+)`)
 
 // recipeName turns a script name into a recipe name.
 func recipeName(name string) string {

@@ -1,4 +1,4 @@
-// rule_message_blame.go holds the rule message blame code.
+// blame/deflection: a closing message that shifts the work onto another author or an earlier time.
 
 package slopfix
 

@@ -30,6 +30,13 @@ func TestIsDirective(t *testing.T) {
 		`/// <amd-module name="NamedModule"/>`:    true,
 		"/// <summary>Prose in a tag.</summary>":  false,
 		"/// The doc comment is prose.":           false,
+		"//@ build-fail":                          true,
+		"//@[v0] compile-flags: -C opt-level=0":   true,
+		"//~^ ERROR symbol-name(_RNvXs_":          true,
+		"//~| NOTE demangling(<":                  true,
+		"//[v0]~^^ ERROR def-path(foo)":           true,
+		"// @param prose":                         false,
+		"// ~ prose":                              false,
 	} {
 		assert.Equal(t, want, IsDirective(line), line)
 	}

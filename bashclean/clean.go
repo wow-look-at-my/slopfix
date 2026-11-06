@@ -1,4 +1,4 @@
-// clean.go holds the clean code.
+// Result is the parsed cleanup decision.
 
 package bashclean
 

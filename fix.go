@@ -1,4 +1,4 @@
-// fix.go holds the fix code.
+// Rule names a repair Fix can apply, so a caller can select a repair by name.
 
 package slopfix
 
@@ -96,7 +96,7 @@ type Repair struct {
 	Rewrites int `json:"rewrites,omitempty"`
 	// Kept carries the tombstones no whole-line deletion resolves.
 	Kept []tombstones.Hit `json:"kept,omitempty"`
-	// Findings are what a reader must repair by hand.
+	// Findings are what a check of Text still reports.
 	Findings []ste.Finding `json:"findings"`
 	// Refused quotes each rewrite a parser would not let land, and why.
 	Refused []string `json:"refused,omitempty"`

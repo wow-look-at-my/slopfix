@@ -1,4 +1,4 @@
-// punctuation.go holds the punctuation code.
+// punctuationDivision divides at a colon or at the dash that closes an aside, when no clause boundary reads the sentence.
 
 package ste
 
@@ -43,7 +43,7 @@ func punctuationDivision(source, masked string, whole *syntax.Sentence, limit in
 // limit cannot end a sentence under the cap. Its opening dash is a cut as well.
 // The aside then opens a sentence of its own.
 func punctuationCuts(masked string, limit int) []int {
-	off := verbatimSpan.FindAllStringIndex(masked, -1)
+	off := verbatimSpans(masked)
 	off = append(off, quotedSpans(masked)...)
 	off = append(off, parenthetical.FindAllStringIndex(masked, -1)...)
 	var out []int

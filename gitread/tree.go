@@ -1,4 +1,4 @@
-// tree.go holds the tree code.
+// Tree entry modes, as a tree spells them.
 
 package gitread
 

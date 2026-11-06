@@ -1,4 +1,4 @@
-// rule_english_commanever.go holds the rule english commanever code.
+// english/comma-never: ", never" contrasts a clause with the one before it, and the contrast reads as a claim the sentence does not make.
 
 package slopfix
 

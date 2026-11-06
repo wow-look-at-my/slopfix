@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wow-look-at-my/slopfix/english"
-	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 func TestCommaNever(t *testing.T) {
@@ -41,10 +40,7 @@ func TestCommaNeverBeforeAVerb(t *testing.T) {
 	} {
 		t.Run(in, func(t *testing.T) {
 			assert.Equal(t, want, english.FixCommaNever(in))
-			findings := english.CheckCommaNever(in, 1)
-			if assert.NotEmpty(t, findings) {
-				assert.False(t, ste.ByHand(findings[0].Fix))
-			}
+			assert.NotEmpty(t, english.CheckCommaNever(in, 1))
 			assert.Empty(t, english.CheckCommaNever(want, 1))
 		})
 	}

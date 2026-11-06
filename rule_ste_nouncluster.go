@@ -1,4 +1,4 @@
-// rule_ste_nouncluster.go holds the rule ste nouncluster code.
+// ste/noun-cluster: more nouns stand together than a reader can hold apart.
 
 package slopfix
 

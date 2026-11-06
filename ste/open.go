@@ -57,6 +57,11 @@ func openRest(source, masked string, whole *syntax.Sentence, c forceCut) (string
 	if len(s.Words) == 0 || first < 0 {
 		return "", 0
 	}
+	// A bare "and" between nouns joins a noun phrase, as "the C and Python ones" does, so a cut there splits it.
+	if seam == "" && conjunction == "and" && first > 1 && strings.HasPrefix(whole.Words[first].Tag, "NN") &&
+		strings.HasPrefix(whole.Words[first-2].Tag, "NN") && whole.Words[first-1].Lower() == "and" {
+		return "", 0
+	}
 	strong := seam == "—" || seam == "–" || seam == "--" || seam == ":"
 	tagAt := whole.Words[first].Tag
 	if conjunction == "and" && verbAfterConjunction(whole, first) {

@@ -1,4 +1,4 @@
-// shell.go holds the shell code.
+// The allow path's reader.
 
 package autoallow
 

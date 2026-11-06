@@ -1,4 +1,4 @@
 jobs:
   build:
     steps:
-      - uses: wow-look-at-my/go-toolchain@deleted-branch
+      - uses: other-org/tool@deleted-branch

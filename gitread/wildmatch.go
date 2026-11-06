@@ -1,4 +1,4 @@
-// wildmatch.go holds the wildmatch code.
+// This file ports git's wildmatch.c, which gitignore and gitattributes patterns run through.
 
 package gitread
 

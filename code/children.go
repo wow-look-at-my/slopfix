@@ -1,4 +1,4 @@
-// children.go holds the children code.
+// named keeps each node's named children, which a rule reads by index.
 
 package code
 

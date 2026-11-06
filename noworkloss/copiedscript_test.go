@@ -89,8 +89,6 @@ func TestSharedImportsAreNotACopy(t *testing.T) {
 //go:embed testdata/shared-imports-sibling.ts
 var sharedImportsSiblingTs string
 
-// A .txt name keeps the check under test off its own fixture.
-//
 //go:embed testdata/shared-imports-new.ts.txt
 var sharedImportsNewTs string
 

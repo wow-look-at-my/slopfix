@@ -1,4 +1,4 @@
-// script.go holds the script code.
+// StdinMarkers are the operands naming stdin as the source of the program.
 
 package shellwalk
 

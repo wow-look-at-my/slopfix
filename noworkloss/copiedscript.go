@@ -1,4 +1,4 @@
-// copiedscript.go holds the copiedscript code.
+// A new script that repeats another script's lines is a variant of that script.
 
 package noworkloss
 

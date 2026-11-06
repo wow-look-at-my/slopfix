@@ -1,4 +1,4 @@
-// rule_tombstones_referent.go holds the rule tombstones referent code.
+// tombstones/name-nothing-in-the-repository-defines: a comment that names a symbol no file of the repository holds.
 
 package slopfix
 
@@ -26,7 +26,7 @@ func init() {
 		}, {
 			Name:  tombstones.IDDeadReferent,
 			Path:  "main.go",
-			Text:  "package main\n\n// parseLegacyFlag reads the input.\nfunc main() {}\n",
+			Text:  fixtureHeader + "package main\n\n// parseLegacyFlag reads the input.\nfunc main() {}\n",
 			Files: map[string]string{"util.go": "package main\n\nfunc readInput() {}\n"},
 		}, {
 			// The inline comment of a call names a dead parameter, and the call around it names members of an imported module.
@@ -38,10 +38,17 @@ func init() {
 			// A string literal before a trailing comment is code, and only the comment's own words name the dead symbol.
 			Name: "trailing comment after a TypeScript string",
 			Path: "src/highlight.ts",
-			Text: "export const PALETTE = new Map<string, string>([\n" +
+			Text: fixtureHeader + "export const PALETTE = new Map<string, string>([\n" +
 				"\t['built_in', fg('#ffa657')], // built-in types (string, number) and globals (console, Math). See paletteFor.\n" +
 				"]);\n",
 			Files: map[string]string{"src/other.ts": "export function fg(hex: string): string {\n\treturn hex;\n}\n"},
+		}, {
+			// The imported package defines a name the comment qualifies with it. The rule cut a true comment that named http.DefaultClient.
+			Name:      "a name qualified by an imported package",
+			Path:      "client.go",
+			Text:      fixtureHeader + "package main\n\nimport \"net/http\"\n\ntype Options struct {\n\t// HTTPClient performs every request; nil uses http.DefaultClient.\n\tHTTPClient *http.Client\n}\n",
+			Files:     map[string]string{"util.go": "package main\n\nfunc readInput() {}\n"},
+			Unchanged: true,
 		}, {
 			Name: tombstones.IDDeadReferent + " on the closer line of a JSDoc block",
 			Path: "plain.js",

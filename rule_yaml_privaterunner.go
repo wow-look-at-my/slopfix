@@ -1,4 +1,4 @@
-// rule_yaml_privaterunner.go holds the rule yaml privaterunner code.
+// PrivateRunnerFixture is the origin of the org repository the private-runner cases run in.
 
 package slopfix
 

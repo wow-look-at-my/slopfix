@@ -1,4 +1,4 @@
-// rule_wrap_hardwrap.go holds the rule wrap hardwrap code.
+// wrap/hard-wrap: a paragraph split over several source lines freezes one window's width into the file.
 
 package slopfix
 

@@ -1,4 +1,4 @@
-// fixwarnings.go holds the fixwarnings code.
+// The repairs the warning rules answer with.
 
 package ste
 
@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/wow-look-at-my/go-containers/set"
 	"github.com/wow-look-at-my/slopfix/syntax"
@@ -145,7 +146,7 @@ func fixSentenceWarnings(text string, keep func(id string) bool) string {
 // target or an entity to the whole span. A rewrite that moves the word then
 // moves all of the span.
 func coverVerbatim(s *syntax.Sentence, text string) *syntax.Sentence {
-	for _, span := range verbatimSpan.FindAllStringIndex(text, -1) {
+	for _, span := range verbatimSpans(text) {
 		from, to := span[0], span[1]
 		// mask fills a link target inside its parentheses.
 		if to-from >= 3 && text[from] == ']' && text[from+1] == '(' && text[to-1] == ')' {
@@ -228,10 +229,137 @@ func auxiliary(s *syntax.Sentence, from int, forms set.Set[string]) (int, int) {
 	return -1, -1
 }
 
+// lowerOpeningFor writes a phrase as it reads inside a sentence rather than at
+// the start of one. A name keeps its capital.
+func lowerOpeningFor(phrase, tag string) string {
+	if tag == "NNP" || tag == "NNPS" {
+		return phrase
+	}
+	first, width := utf8.DecodeRuneInString(phrase)
+	if !unicode.IsUpper(first) {
+		return phrase
+	}
+	return string(unicode.ToLower(first)) + phrase[width:]
+}
+
+// passiveVerb answers the active form of a passive verb group: the participle
+// for a past clause, and the present tense of the base form otherwise.
+func passiveVerb(participle, beWord string, plural bool) string {
+	switch beWord {
+	case "was", "were", "been", "being":
+		return pastFromParticiple(participle)
+	}
+	return presentOf(baseFromParticiple(participle), plural)
+}
+
+// baseFromParticiple answers the verb a participle belongs to. A regular verb
+// spells its participle with -ed, so the ending answers it by rule. The table
+// answers each verb the ending hides.
+func baseFromParticiple(form string) string {
+	form = strings.ToLower(form)
+	if v, ok := verbBy(form); ok && v.participle == form {
+		return v.base
+	}
+	if !strings.HasSuffix(form, "ed") || len(form) <= 3 {
+		return form
+	}
+	stem := form[:len(form)-2]
+	if doubled(stem) {
+		return stem[:len(stem)-1]
+	}
+	if strings.HasSuffix(stem, "i") {
+		return stem[:len(stem)-1] + "y"
+	}
+	if v, ok := verbBy(stem + "e"); ok && v.base == stem+"e" {
+		return stem + "e"
+	}
+	if silentE(stem) {
+		return stem + "e"
+	}
+	return stem
+}
+
+// silentE reports whether English spelling drops an e from the end of stem before
+// -ed. Endings like -dge, -ate, -ize, -ve, -ce and -ure need the e. A stem of one
+// syllable that ends on a single vowel and a single consonant took the e as well.
+// Because a stem without it doubles its consonant: "named" against "planned".
+func silentE(stem string) bool {
+	n := len(stem)
+	if n < 2 {
+		return false
+	}
+	last, prev := stem[n-1], stem[n-2]
+	consonant := func(c byte) bool { return c >= 'a' && c <= 'z' && !strings.ContainsRune("aeiou", rune(c)) }
+	switch {
+	case last == 'v', last == 'u' && prev != 'q':
+		return true
+	case last == 'c', last == 'z' && strings.ContainsRune("iy", rune(prev)):
+		return true
+	case last == 'g' && prev == 'd':
+		return true
+	case last == 's' && strings.ContainsRune("rnpl", rune(prev)):
+		return true
+	case last == 'l' && consonant(prev) && !strings.ContainsRune("lrw", rune(prev)):
+		return true
+	case n >= 3 && strings.ContainsRune("aiu", rune(prev)) && strings.ContainsRune("tr", rune(last)) && consonant(stem[n-3]):
+		// -ate, -ire, -ure and -are, after a consonant.
+		return prev != 'i' || last == 'r'
+	case n >= 3 && prev == 'i' && strings.ContainsRune("nd", rune(last)) && consonant(stem[n-3]):
+		// -ine and -ide, after a consonant.
+		return true
+	}
+	// The u of qu spells a consonant sound.
+	w := strings.ReplaceAll(stem, "qu", "q")
+	n = len(w)
+	return n >= 2 && oneSyllable(w) && strings.ContainsRune("aeiou", rune(w[n-2])) && (n == 2 || consonant(w[n-3])) &&
+		consonant(last) && !strings.ContainsRune("wxy", rune(last))
+}
+
+// oneSyllable reports whether word holds a single run of vowels. A y opens no
+// run at the start of a word, where it spells a consonant.
+func oneSyllable(word string) bool {
+	runs := 0
+	vowel := false
+	for i := 0; i < len(word); i++ {
+		v := strings.ContainsRune("aeiou", rune(word[i])) || word[i] == 'y' && i > 0
+		if v && !vowel {
+			runs++
+		}
+		vowel = v
+	}
+	return runs == 1
+}
+
 // simpleSpan reports whether a verb group from the auxiliary i to the
 // participle j holds only the words the simple-tense repair replaces.
 func simpleSpan(s *syntax.Sentence, i, j int) bool {
 	return j == i+1
+}
+
+// completedAfter opens a clause whose perfect verb names something done before the main verb.
+var completedAfter = set.Of("after", "once", "until")
+
+func clauseOpenerBefore(s *syntax.Sentence, i int) int {
+	for k := i - 1; k >= 0; k-- {
+		w := s.Words[k]
+		if strings.HasPrefix(w.Tag, "VB") || w.Tag == "MD" || w.Text == "," {
+			return -1
+		}
+		if completedAfter.Contains(w.Lower()) {
+			return k
+		}
+	}
+	return -1
+}
+
+// presentBefore reports a present-tense verb before word end.
+func presentBefore(s *syntax.Sentence, end int) bool {
+	for k := 0; k < end; k++ {
+		if s.Words[k].Tag == "VBZ" || s.Words[k].Tag == "VBP" {
+			return true
+		}
+	}
+	return false
 }
 
 // rewriteTense writes a simple tense for a perfect or a progressive verb
@@ -242,6 +370,16 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
 		if !simpleSpan(s, i, j) {
 			return "", false
+		}
+		// "would have failed" is the modal's verb group, not a perfect tense, and ste/modal writes it in the present.
+		if k := i - 1; k >= 0 && (s.Words[k].Tag == "MD" || s.Words[k].Lower() == "not" && k > 0 && s.Words[k-1].Tag == "MD") {
+			return "", false
+		}
+		// After "after", "once" or "until" under a present-tense verb, the perfect is a completed condition, and the simple present says it: "begins only after it has finished" becomes "after it finishes".
+		if at := clauseOpenerBefore(s, i); at > 0 && presentBefore(s, at) {
+			if base := baseFromParticiple(s.Words[j].Lower()); base != "" {
+				return splice(source, s, i, j, presentOf(base, s.Words[i].Lower() == "have")), true
+			}
 		}
 		return splice(source, s, i, j, pastFromParticiple(s.Words[j].Lower())), true
 	}
@@ -256,7 +394,7 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	return splice(source, s, i, j, presentOf(baseFromGerund(s.Words[j].Lower()), s.Plural(subject))), true
+	return splice(source, s, i, j, presentOf(baseFromGerund(s.Words[j].Lower()), takesBaseVerb(s, subject))), true
 }
 
 // subjectBefore answers the noun phrase that stands in front of word i, which
@@ -307,9 +445,39 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 		if end-start+1 > NounClusterCap {
 			return start, end, true
 		}
+		if far, ok := bridgedRun(s, noun, start, end, last); ok {
+			return start, far, true
+		}
 		start = end
 	}
 	return -1, -1, false
+}
+
+// bridgedRun answers the end of the noun run behind a mark that stands for a
+// conjunction, after the run from start to end. The mark joins noun phrases, and
+// the repair writes the conjunction. A list of single names is no cluster, so one
+// side must hold a multi-noun phrase. A hyphenated compound such as session-token
+// is a noun here, though the tagger reads it as an adjective.
+func bridgedRun(s *syntax.Sentence, noun func(int) bool, start, end, last int) (int, bool) {
+	if end+2 > last {
+		return 0, false
+	}
+	part := func(k int) bool {
+		w := s.Words[k]
+		return noun(k) || w.Tag == "JJ" && strings.Contains(w.Text, "-") && wordlike(w.Text)
+	}
+	if _, isMark := markConjunctions[s.Words[end+1].Text]; !isMark || !part(end+2) {
+		return 0, false
+	}
+	far := end + 2
+	for far+1 <= last && noun(far+1) {
+		far++
+	}
+	left, right := end-start+1, far-(end+2)+1
+	if left+right <= NounClusterCap || max(left, right) < 2 {
+		return 0, false
+	}
+	return far, true
 }
 
 // wordlike reports a token made of letters and digits, which can be a noun. The
@@ -342,6 +510,12 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 	if NameLike(s.Words[start].Text) && !strings.ContainsAny(s.Words[start].Text, " ") {
 		label := source[s.Words[start].Start:s.Words[start].End]
 		return splice(source, s, start, end, source[s.Words[start+1].Start:s.Words[end].End]+" ("+label+")"), true
+	}
+	if out, ok := conjoinMark(s, source, start, end); ok {
+		return out, true
+	}
+	if out, ok := ownerAfter(s, source, start, end); ok {
+		return out, true
 	}
 	var out strings.Builder
 	last := end

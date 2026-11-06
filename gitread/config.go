@@ -1,4 +1,4 @@
-// config.go holds the config code.
+// config maps a dotted key to its last value.
 
 package gitread
 

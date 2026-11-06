@@ -1,4 +1,4 @@
-// rule_yaml_neuteredgate.go holds the rule yaml neuteredgate code.
+// yaml/neutered-gate: a step that runs the gate with continue-on-error, so a finding cannot fail the run.
 
 package slopfix
 

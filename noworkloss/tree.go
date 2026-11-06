@@ -1,4 +1,4 @@
-// tree.go holds the tree code.
+// The rule is scoped to paths, never to commands.
 
 package noworkloss
 

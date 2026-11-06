@@ -1,4 +1,4 @@
-// grepjson_spec.go holds the grepjson spec code.
+// GrepJSONSpec is what grepjson.xml is held to.
 
 package bashclean
 

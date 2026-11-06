@@ -1,4 +1,4 @@
-// rule_go_foreignsource.go holds the rule go foreignsource code.
+// go/foreign-source: a Go string that holds the source of another language.
 
 package slopfix
 
@@ -33,6 +33,16 @@ func init() {
 					"\treturn err\n}\n",
 				Want: "package store\n\nimport _ \"embed\"\n\nimport \"database/sql\"\n\nfunc migrate(db *sql.DB) error {\n" +
 					"\t_, err := db.Exec(migrateSql)\n\treturn err\n}\n\n//go:embed migrate.sql\nvar migrateSql string\n",
+			},
+			{
+				// A tree run plans both files before it writes one.
+				Name: "two-files-of-a-package-hoist-from-same-named-functions",
+				Path: "push_test.go",
+				Text: "package api\n\nfunc respond() string {\n\treturn `{\n\t\"sha\": \"push\",\n\t\"tree\": []\n}`\n}\n",
+				Files: map[string]string{
+					"merge_test.go": "package api\n\nfunc respond() string {\n\treturn `{\n\t\"sha\": \"merge\",\n\t\"tree\": []\n}`\n}\n",
+				},
+				Want: "package api\n\nimport _ \"embed\"\n\nfunc respond() string {\n\treturn respondJson2\n}\n\n//go:embed testdata/respond-2.json\nvar respondJson2 string\n",
 			},
 			{
 				Name:      "help-text-is-prose",

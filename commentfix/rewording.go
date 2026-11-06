@@ -1,4 +1,4 @@
-// rewording.go holds the rewording code.
+// cutWhatIsLeft rewords each number the table did not rewrite, as the document count rule does.
 
 package commentfix
 

@@ -1,4 +1,4 @@
-// rule_yaml_idtoken.go holds the rule yaml idtoken code.
+// yaml/id-token: a job whose permissions block does not grant id-token: write.
 
 package slopfix
 

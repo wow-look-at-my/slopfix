@@ -1,4 +1,4 @@
-// rootfiles.go holds the rootfiles code.
+// The root files every request loads.
 
 package slopfix
 

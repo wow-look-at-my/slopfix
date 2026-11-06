@@ -1,4 +1,4 @@
-// cut.go holds the cut code.
+// cutReferents cuts the sentence around each dead name a whole-line strip left, and notes every name it could not cut.
 
 package tombstones
 

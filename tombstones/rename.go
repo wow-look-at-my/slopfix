@@ -1,4 +1,4 @@
-// rename.go holds the rename code.
+// renameEdits answers an edit for each dead name that a defined identifier replaces.
 
 package tombstones
 

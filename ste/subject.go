@@ -1,4 +1,4 @@
-// subject.go holds the subject code.
+// quantifiers open a subject that picks members out of a set.
 
 package ste
 

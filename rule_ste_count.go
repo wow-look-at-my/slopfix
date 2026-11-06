@@ -1,4 +1,4 @@
-// rule_ste_count.go holds the rule ste count code.
+// counts/stated-count: a stated count of items goes stale when somebody adds the item that makes it wrong.
 
 package slopfix
 
@@ -34,6 +34,8 @@ func init() {
 				Text: "The run passed, and 17 gates sat \"Skipped\" in a green suite.\n",
 				Want: "The run passed, and the gates sat \"Skipped\" in a green suite.\n",
 			},
+			// A sign caps the number, and a list item holds it.
+			{Name: ste.IDStaleCount + " behind a cap sign in a list item", Path: "x.md", Text: "- **≤60 lines per module** keeps each module small.\n"},
 		},
 	})
 }

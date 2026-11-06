@@ -1,4 +1,4 @@
-// repo.go holds the repo code.
+// A hung git costs the session directly, and past this budget unknown denies.
 
 package noworkloss
 

@@ -1,4 +1,4 @@
-// check.go holds the check code.
+// ruleNames answers every category a caller may name to --only.
 
 package cmd
 

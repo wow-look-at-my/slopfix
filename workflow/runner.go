@@ -1,4 +1,4 @@
-// runner.go holds the runner code.
+// IDPrivateRunner is a job of an org repository whose runs-on ignores the repository's visibility.
 
 package workflow
 

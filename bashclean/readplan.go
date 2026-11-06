@@ -1,4 +1,4 @@
-// readplan.go holds the readplan code.
+// ReadArgs is the input of one Read tool call.
 
 package bashclean
 

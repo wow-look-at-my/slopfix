@@ -1,4 +1,4 @@
-// rule_message_laziness.go holds the rule message laziness code.
+// laziness/punt: a closing message that leaves the work undone because the work is harder, or that asks permission in place of acting.
 
 package slopfix
 

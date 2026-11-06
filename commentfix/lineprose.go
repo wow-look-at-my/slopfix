@@ -1,4 +1,4 @@
-// lineprose.go holds the lineprose code.
+// lineMarkers open the prose of a single comment line.
 
 package commentfix
 

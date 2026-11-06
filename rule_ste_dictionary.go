@@ -1,4 +1,4 @@
-// rule_ste_dictionary.go holds the rule ste dictionary code.
+// ste/dictionary: a word the STE dictionary does not approve.
 
 package slopfix
 

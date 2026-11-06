@@ -1,4 +1,4 @@
-// permission.go holds the permission code.
+// Levels are the permission levels in rising order. write grants read.
 
 package workflow
 

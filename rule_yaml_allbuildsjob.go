@@ -1,4 +1,4 @@
-// rule_yaml_allbuildsjob.go holds the rule yaml allbuildsjob code.
+// yaml/all-builds-job.
 
 package slopfix
 

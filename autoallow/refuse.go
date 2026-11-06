@@ -1,4 +1,4 @@
-// refuse.go holds the refuse code.
+// Refusal denies a command outright, with Message as the reason.
 
 package autoallow
 

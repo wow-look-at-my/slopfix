@@ -1,4 +1,4 @@
-// spec.go holds the spec code.
+// Spec is what rules.xml is held to.
 
 package autoallow
 

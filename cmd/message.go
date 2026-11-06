@@ -1,4 +1,4 @@
-// message.go holds the message code.
+// messageIDs names every rule that judges a closing message.
 
 package cmd
 

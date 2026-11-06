@@ -16,7 +16,7 @@ Otherwise `check` on a directory reads `GET /repos/{repo}`. With `GITHUB_TOKEN` 
 
 When the answer says `fork`, the parent clones from its `clone_url`. A parent named only by `full_name`, as github-state-mirror answers, clones from `GITHUB_SERVER_URL`. `check` fetches the parent's default branch and finds the merge base with `HEAD`. Only a finding on a line added or changed since that merge base fails the check. A new file and an untracked file count whole. Both fetches skip blobs.
 
-A shallow clone is deepened first.
+A listed fork in a shallow clone is deepened first. A GitHub fork in a shallow clone fetches the parent's tip alone. The parent knows none of the fork's commits. A plain fetch carries the parent's whole history. Both sides then deepen in doubling steps until the merge base shows, and a step that brings in nothing ends the search. A file that neither HEAD nor the index holds is the fork's whole, and needs no base and no fetch.
 
 A fork whose base cannot be read fails the check with the reason: an API error, a failed fetch, or no merge base. A repository that is not a fork is checked whole. The `forkscope` package holds this.
 

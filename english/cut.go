@@ -1,10 +1,11 @@
-// cut.go holds the cut code.
+// A cut removes a phrase from its sentence.
 
 package english
 
 import (
 	"strings"
 
+	"github.com/wow-look-at-my/slopfix/codespan"
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
@@ -19,7 +20,7 @@ import (
 // takes part of a noun phrase. It leaves the rest without its head or its
 // determiner.
 func cutSpan(s string, from, to int) (int, int, bool) {
-	sent := syntax.Parse(s, codeSpan.FindAllStringIndex(s, -1))
+	sent := syntax.Parse(s, codespan.Find(s))
 	first, last := -1, -1
 	for i, w := range sent.Words {
 		if w.Start >= from && w.End <= to && !isMark(w.Text) {

@@ -94,7 +94,6 @@ func TestAnOrgActionAtLKGBPasses(t *testing.T) {
 		"wow-look-at-my/go-toolchain@lkgb",
 		"wow-look-at-my/actions@typescript#latest",
 		"wow-look-at-my/buildhost/.github/actions/buildhost-publish@lkgb",
-		"wow-look-at-my/static-pkgsite-action@v1",
 		"actions/checkout@v4",
 		"PazerOP/pr-preview-action@v1",
 		"./local-action",
@@ -136,12 +135,13 @@ func TestTheRepairPointsAtLKGB(t *testing.T) {
 	}
 }
 
-// A repository that publishes no lkgb keeps its default branch, because @lkgb would not resolve there.
-func TestARepositoryWithoutLKGBKeepsItsDefaultBranch(t *testing.T) {
+// The org enforces lkgb on every repository. The rule asks GitHub nothing, so
+// no repository keeps its default branch and an unknown one is rewritten too.
+func TestEveryOrgRepositoryRepairsToLKGB(t *testing.T) {
 	orgAPI(t)
-	assert.Empty(t, orgRefFindings(steps("wow-look-at-my/static-pkgsite-action@v1")), "the default branch is the tracked ref")
-	assert.Equal(t, steps("wow-look-at-my/static-pkgsite-action@v1"), repaired(t, steps("wow-look-at-my/static-pkgsite-action@master")))
-	assert.Equal(t, steps("wow-look-at-my/unknown-action@master"), repaired(t, steps("wow-look-at-my/unknown-action@feature")), "an unanswered lookup keeps master")
+	assert.Len(t, orgRefFindings(steps("wow-look-at-my/static-pkgsite-action@v1")), 1)
+	assert.Equal(t, steps("wow-look-at-my/static-pkgsite-action@lkgb"), repaired(t, steps("wow-look-at-my/static-pkgsite-action@master")))
+	assert.Equal(t, steps("wow-look-at-my/unknown-action@lkgb"), repaired(t, steps("wow-look-at-my/unknown-action@feature")))
 }
 
 const pinnedSHA = "a9b20e200c7edc8e7bc23fbafbe5ae87eb5f2410"

@@ -1,4 +1,4 @@
-// gitverb.go holds the gitverb code.
+// What class of content a command can destroy: `reset --hard` and `clean -fd` spare opposite halves.
 
 package noworkloss
 

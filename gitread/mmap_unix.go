@@ -1,6 +1,6 @@
 //go:build unix
 
-// mmap_unix.go holds the mmap unix code.
+// mapFile maps a whole file read-only.
 
 package gitread
 

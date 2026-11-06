@@ -1,4 +1,4 @@
-// gate.go holds the gate code.
+// GateMarkers name the steps this rule protects, a wrapper step included.
 
 package workflow
 

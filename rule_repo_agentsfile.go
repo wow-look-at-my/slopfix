@@ -1,4 +1,4 @@
-// rule_repo_agentsfile.go holds the rule repo agentsfile code.
+// repo/agents-file: a root CLAUDE.md that holds instructions of its own.
 
 package slopfix
 

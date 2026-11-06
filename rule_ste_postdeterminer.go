@@ -1,4 +1,4 @@
-// rule_ste_postdeterminer.go holds the rule ste postdeterminer code.
+// counts/postdeterminer: a cardinal after a determiner, as in "all the rules".
 
 package slopfix
 

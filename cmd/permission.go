@@ -1,4 +1,4 @@
-// permission.go holds the permission code.
+// permissionRequest asks whether a workflow job holds a permission.
 
 package cmd
 

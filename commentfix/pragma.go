@@ -1,4 +1,4 @@
-// pragma.go holds the pragma code.
+// isDirectiveLine reports a line a tool reads rather than a reader.
 
 package commentfix
 

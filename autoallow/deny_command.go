@@ -1,4 +1,4 @@
-// deny_command.go holds the deny command code.
+// A rule names the command a statement RUNS, never the argv spelling, which cannot be enumerated.
 
 package autoallow
 

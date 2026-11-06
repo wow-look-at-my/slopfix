@@ -1,4 +1,4 @@
-// format.go holds the format code.
+// Format puts each prose block on a single line, moving newlines only.
 
 package markdown
 

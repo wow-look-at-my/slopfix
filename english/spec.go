@@ -1,4 +1,4 @@
-// spec.go holds the spec code.
+// Spec is what english.xml is held to.
 
 package english
 

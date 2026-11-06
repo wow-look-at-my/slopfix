@@ -1,4 +1,4 @@
-// routes.go holds the routes code.
+// noFlags is scanArgs' "this command has no value-taking flags" argument.
 
 package noworkloss
 

@@ -1,4 +1,4 @@
-// rule_yaml_pushtags.go holds the rule yaml pushtags code.
+// yaml/push-tags: a push trigger that runs on a tag as well as on a branch.
 
 package slopfix
 

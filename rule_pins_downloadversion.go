@@ -1,4 +1,4 @@
-// rule_pins_downloadversion.go holds the rule pins downloadversion code.
+// pins/download-version: a download URL that names an exact release breaks when that release is gone.
 
 package slopfix
 

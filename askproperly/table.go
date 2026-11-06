@@ -1,4 +1,4 @@
-// table.go holds the table code.
+// Deferral is a phrase that hands the reader a decision, with the messages that must report it.
 
 package askproperly
 

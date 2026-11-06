@@ -1,4 +1,4 @@
-// runsyntax.go holds the runsyntax code.
+// IDRunScriptSyntax is a run script that the shell it runs in cannot parse.
 
 package workflow
 

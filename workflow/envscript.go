@@ -1,4 +1,4 @@
-// envscript.go holds the envscript code.
+// placedLines are the file lines a scalar's text sits on.
 
 package workflow
 

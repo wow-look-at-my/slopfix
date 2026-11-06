@@ -1,4 +1,4 @@
-// auditedroutes.go holds the auditedroutes code.
+// Routes found by reading the commands this environment's own permission rules already allow, rather than by listing writers from memory.
 
 package noworkloss
 

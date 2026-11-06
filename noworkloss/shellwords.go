@@ -1,4 +1,4 @@
-// shellwords.go holds the shellwords code.
+// The vocabulary the walk is built on: what a word says.
 
 package noworkloss
 

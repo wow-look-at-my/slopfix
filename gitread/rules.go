@@ -1,4 +1,4 @@
-// rules.go holds the rules code.
+// pattern is one gitignore or gitattributes pattern, parsed once.
 
 package gitread
 

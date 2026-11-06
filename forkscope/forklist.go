@@ -1,4 +1,4 @@
-// forklist.go holds the forklist code.
+// listedUpstream answers the upstream URL that the fork list at url gives repo, an OWNER/NAME pair.
 
 package forkscope
 

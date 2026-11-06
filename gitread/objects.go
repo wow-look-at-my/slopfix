@@ -1,4 +1,4 @@
-// objects.go holds the objects code.
+// Type names, as git spells them.
 
 package gitread
 

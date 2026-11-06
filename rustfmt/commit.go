@@ -1,4 +1,4 @@
-// commit.go holds the commit code.
+// commitDirs gives the directory of each `git commit` in a shell command.
 
 package rustfmt
 

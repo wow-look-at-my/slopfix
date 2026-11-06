@@ -1,4 +1,4 @@
-// rule_yaml_commentblock.go holds the rule yaml commentblock code.
+// yaml/comment-block: more than one comment line in a run of them.
 
 package slopfix
 

@@ -1,4 +1,4 @@
-// gitroutes.go holds the gitroutes code.
+// git is a legitimate thing for Bash to run, and most of it stays out of this hook's way.
 
 package noworkloss
 

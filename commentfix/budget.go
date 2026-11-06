@@ -47,7 +47,7 @@ func fitVolume(text []string, maxLines int) ([]string, bool) {
 			}
 			lines += len(para.lines)
 		default:
-			prose := strings.Join(para.lines, " ")
+			prose := closeThoughts(para.lines)
 			short, _ := ste.FitToBudget(prose, len(para.lines)*width, func(s string) string {
 				return english.Fix(s, english.Comment)
 			})

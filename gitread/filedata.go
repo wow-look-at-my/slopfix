@@ -1,4 +1,4 @@
-// filedata.go holds the filedata code.
+// byteReader is what the pack decoder and the inflater read from.
 
 package gitread
 

@@ -1,4 +1,4 @@
-// gitrm.go holds the gitrm code.
+// gitRM is a `git rm` call that deletes working-tree files.
 
 package bashclean
 

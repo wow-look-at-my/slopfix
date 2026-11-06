@@ -1,4 +1,4 @@
-// spec.go holds the spec code.
+// A Key names an entry among its siblings.
 
 package xmlcheck
 

@@ -1,4 +1,4 @@
-// tests.go holds the tests code.
+// shellStep is a run: step whose script is POSIX shell.
 
 package workflow
 

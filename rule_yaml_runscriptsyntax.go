@@ -1,4 +1,4 @@
-// rule_yaml_runscriptsyntax.go holds the rule yaml runscriptsyntax code.
+// yaml/run-script-syntax: a run script the shell it runs in cannot parse.
 
 package slopfix
 

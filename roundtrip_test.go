@@ -92,6 +92,7 @@ func roundTripFixtures() []fixture {
 				slopfix.IDCommentNumber,
 				"comments/length",
 				"comments/tail",
+				"comments/header",
 			},
 		},
 		{

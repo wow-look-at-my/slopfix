@@ -1,4 +1,4 @@
-// entry.go holds the entry code.
+// Compile reads a pattern from a table.
 
 package xmlcheck
 

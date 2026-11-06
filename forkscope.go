@@ -6,7 +6,6 @@
 package slopfix
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -29,6 +28,9 @@ import (
 // headed for path, or nil when path is in no fork. A fork whose base cannot be
 // read is an error.
 func FileScope(r forkscope.Resolver, path, content string) (*forkscope.Scope, error) {
+	if forkscope.Unborn(path) {
+		return forkscope.Whole(), nil
+	}
 	base, err := BaseOf(r, path)
 	if err != nil || base == nil {
 		return nil, err
@@ -40,9 +42,15 @@ func FileScope(r forkscope.Resolver, path, content string) (*forkscope.Scope, er
 const DefaultGitHubAPI = "https://api.github.com"
 
 // githubGet reads path from GITHUB_API_URL, with GITHUB_TOKEN as the bearer
-// when it is set. It answers the status and the body. A transport failure is
-// the error.
+// when it is set. With no token and no GITHUB_API_URL, gh asks with the user's
+// own credentials first. It answers the status and the body. A transport
+// failure is the error.
 func githubGet(getenv func(string) string, path string) (int, []byte, error) {
+	if getenv("GITHUB_TOKEN") == "" && getenv("GH_TOKEN") == "" && getenv("GITHUB_API_URL") == "" {
+		if status, body, ok := githubGetViaGH(path); ok {
+			return status, body, nil
+		}
+	}
 	api := strings.TrimRight(getenv("GITHUB_API_URL"), "/")
 	if api == "" {
 		api = DefaultGitHubAPI
@@ -67,21 +75,6 @@ func githubGet(getenv func(string) string, path string) (int, []byte, error) {
 		return 0, nil, fmt.Errorf("GET %s: %w", url, err)
 	}
 	return resp.StatusCode, body, nil
-}
-
-// githubGetJSON decodes path into out.
-func githubGetJSON(getenv func(string) string, path string, out any) error {
-	status, body, err := githubGet(getenv, path)
-	if err != nil {
-		return err
-	}
-	if status != http.StatusOK {
-		return fmt.Errorf("GET %s: %d %s: %s", path, status, http.StatusText(status), strings.TrimSpace(string(body)))
-	}
-	if err := json.Unmarshal(body, out); err != nil {
-		return fmt.Errorf("GET %s: %w", path, err)
-	}
-	return nil
 }
 
 // BaseOf answers the fork base of the work tree path is in, or nil when it is

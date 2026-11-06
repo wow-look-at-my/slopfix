@@ -1,4 +1,4 @@
-// rule_yaml_concurrency.go holds the rule yaml concurrency code.
+// yaml/concurrency: a workflow with no concurrency block, so a push starts a second run beside the first.
 
 package slopfix
 

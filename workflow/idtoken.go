@@ -1,4 +1,4 @@
-// idtoken.go holds the idtoken code.
+// IDIDToken is a job whose permissions do not grant id-token: write.
 
 package workflow
 

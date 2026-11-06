@@ -1,4 +1,4 @@
-// envfallback.go holds the envfallback code.
+// envRead is the byte span of one process.env.NAME read on a script line, with the dead `??` arms after it.
 
 package workflow
 

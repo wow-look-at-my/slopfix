@@ -1,4 +1,4 @@
-// sections.go holds the sections code.
+// IDSection names the rule over a section cited by its number.
 
 package counts
 

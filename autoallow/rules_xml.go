@@ -1,4 +1,4 @@
-// rules_xml.go holds the rules xml code.
+// A <rule> matches the command as written or the resolved process name.
 
 package autoallow
 

@@ -1,4 +1,4 @@
-// rule_counts_section.go holds the rule counts section code.
+// counts/section-number: a section number goes stale when a section is inserted above it.
 
 package slopfix
 

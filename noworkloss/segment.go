@@ -1,4 +1,4 @@
-// segment.go holds the segment code.
+// A word carries its literal text plus whether that text is the whole story.
 
 package noworkloss
 

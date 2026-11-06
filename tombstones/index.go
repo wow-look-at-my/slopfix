@@ -1,4 +1,4 @@
-// index.go holds the index code.
+// indexTimeout bounds the read of the tree.
 
 package tombstones
 

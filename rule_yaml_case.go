@@ -1,4 +1,4 @@
-// rule_yaml_case.go holds the rule yaml case code.
+// The workflow fixtures the yaml rules are driven on.
 
 package slopfix
 

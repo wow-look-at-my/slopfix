@@ -1,4 +1,4 @@
-// comments.go holds the comments code.
+// MaxCommentLines bounds a run of comment lines, and takes no input.
 
 package workflow
 

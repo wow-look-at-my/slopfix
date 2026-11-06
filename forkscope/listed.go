@@ -1,4 +1,4 @@
-// listed.go holds the listed code.
+// tagBase answers the newest commit of HEAD's history that an upstream tag names, or "" when HEAD contains none.
 
 package forkscope
 

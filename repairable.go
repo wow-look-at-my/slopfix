@@ -1,4 +1,4 @@
-// repairable.go holds the repairable code.
+// EveryID names every rule the registry holds, the repository rules included.
 
 package slopfix
 

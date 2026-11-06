@@ -1,4 +1,4 @@
-// repo.go holds the repo code.
+// ErrUnsupported marks a repository format this package does not read.
 
 package gitread
 

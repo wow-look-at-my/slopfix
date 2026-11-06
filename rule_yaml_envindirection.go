@@ -1,4 +1,4 @@
-// rule_yaml_envindirection.go holds the rule yaml envindirection code.
+// yaml/env-indirection: a step that sets an env var only to carry an expression into its run script.
 
 package slopfix
 

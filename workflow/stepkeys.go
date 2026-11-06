@@ -1,4 +1,4 @@
-// stepkeys.go holds the stepkeys code.
+// stepItem matches the line that opens a step: a sequence dash and its first key.
 
 package workflow
 

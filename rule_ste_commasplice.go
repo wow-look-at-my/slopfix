@@ -1,4 +1,4 @@
-// rule_ste_commasplice.go holds the rule ste commasplice code.
+// english/comma-splice: a comma joins clauses that each stand alone.
 
 package slopfix
 
