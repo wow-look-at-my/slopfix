@@ -36,22 +36,26 @@ func detectInventoryList(c RuleCase) []ste.Finding {
 	return caseFindings(c, counts.IDList)
 }
 
-// autofixInventoryList deletes each enumeration the case carries.
-func autofixInventoryList(c RuleCase) RuleCase {
-	return caseAutofix(c, counts.IDList)
-}
-
 // listRule and listFix are what a finding of this rule says.
 const (
 	listRule = "a list of what the code holds goes stale when the code changes"
 	listFix  = "Name the set and let the reader ask the code. `slopfix fix` deletes the list."
 )
 
-// listFindings answers each enumeration in one document.
+// listFindings answers each enumeration in one document. It reports at warning
+// severity, so a document that names a set is named rather than failed, and
+// `slopfix fix` is what removes it.
 func listFindings(doc string) []ste.Finding {
 	var out []ste.Finding
 	for _, hit := range counts.FindLists(doc) {
-		out = append(out, ste.Finding{Line: hit.LineNo, ID: counts.IDList, Rule: listRule, Detail: hit.Detail, Fix: listFix})
+		out = append(out, ste.Finding{
+			Line:     hit.LineNo,
+			ID:       counts.IDList,
+			Rule:     listRule,
+			Detail:   hit.Detail,
+			Fix:      listFix,
+			Severity: ste.SeverityWarning,
+		})
 	}
 	return out
 }
@@ -60,7 +64,14 @@ func listFindings(doc string) []ste.Finding {
 func commentListFindings(path, content string) []ste.Finding {
 	var out []ste.Finding
 	for _, hit := range commentfix.CheckLists(path, content) {
-		out = append(out, ste.Finding{Line: hit.Line, ID: counts.IDList, Rule: listRule, Detail: hit.Sentence, Fix: listFix})
+		out = append(out, ste.Finding{
+			Line:     hit.Line,
+			ID:       counts.IDList,
+			Rule:     listRule,
+			Detail:   hit.Sentence,
+			Fix:      listFix,
+			Severity: ste.SeverityWarning,
+		})
 	}
 	return out
 }

@@ -31,6 +31,7 @@ const IDHardWrap = "wrap/hard-wrap"
 func Check(content string) []ste.Finding {
 	var out []ste.Finding
 	inventory := inventoryFindings(content)
+	lists := listFindings(content)
 	for _, block := range markdown.Split(content) {
 		if block.Kind != markdown.Prose {
 			continue
@@ -42,6 +43,12 @@ func Check(content string) []ste.Finding {
 			}
 		}
 		out = append(out, counted...)
+		// An enumeration the list rule reports is that rule's finding, and it names the sentence the gate's copy would name again.
+		for _, f := range lists {
+			if f.Line >= block.Start && f.Line < block.Start+len(block.Lines) {
+				out = append(out, f)
+			}
+		}
 		// A count the inventory rule reports is that rule's finding, and the gate's copy of it would name the same words twice.
 		out = append(out, slices.DeleteFunc(ste.Check(block.Text(), block.Start), func(f ste.Finding) bool {
 			return f.ID == ste.IDStaleCount && slices.ContainsFunc(counted, func(c ste.Finding) bool { return c.Detail == f.Detail })
@@ -107,7 +114,8 @@ func CheckContent(path, content string) []ste.Finding {
 // kindFindings are the rules the file's kind selects.
 func kindFindings(path, content string) []ste.Finding {
 	if isWorkflow(path, content) {
-		return append(workflow.CheckPath(path, content), sentenceFindings(path, content)...)
+		out := append(workflow.CheckPath(path, content), sentenceFindings(path, content)...)
+		return append(out, commentListFindings(path, content)...)
 	}
 	if isDocument(path) {
 		return append(Check(content), Warnings(content)...)
@@ -157,6 +165,7 @@ func commentFindings(path, content string) []ste.Finding {
 			Severity: ste.SeverityWarning,
 		})
 	}
+	out = append(out, commentListFindings(path, content)...)
 	return append(out, sentenceFindings(path, content)...)
 }
 
