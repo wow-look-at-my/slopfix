@@ -260,7 +260,7 @@ func sentenceEdits(filename, src string, singleLine bool) []edit.Edit {
 		if !judged(lines, p) {
 			continue
 		}
-		out, changed := rewriteSegments(lines, p, singleLine || p.code != "" && len(p.lines) == 1)
+		out, changed := rewriteSegments(lines, p, singleLine || p.code != "" && len(p.lines) == 1, divideSentences)
 		if !changed {
 			continue
 		}
