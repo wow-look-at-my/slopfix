@@ -429,6 +429,10 @@ func opensImperative(restMasked string) bool {
 	if c.Subject == nil || c.Subject.First != 0 || c.Verb == nil || c.Verb.First != 1 {
 		return false
 	}
+	// A call names a function, and no imperative opens on a name: "main() holds the disk".
+	if len(s.Words) > 2 && s.Words[2].Text == "(" {
+		return false
+	}
 	tag := s.Words[1].Tag
 	return tag == "VB" || tag == "VBP"
 }
