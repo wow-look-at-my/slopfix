@@ -27,8 +27,8 @@ var commentRepairFiles = []string{
 	"blockcomment.go", "blocks.go", "budget.go", "commentfix.go", "directives.go", "divide.go", "fit.go",
 	"guard.go", "hashcomments.go", "header.go", "headings.go", "labels.go", "license.go", "linemarks.go",
 	"opening.go", "overlong.go", "overlong_cuts.go", "overlong_repair.go", "pragma.go", "reflow.go",
-	"repair.go", "residual.go", "rewording.go", "sentences.go", "sharedhead.go", "table.go", "tails.go",
-	"tighten.go", "treeblocks.go",
+	"repair.go", "residual.go", "rewording.go", "sentences.go", "sharedhead.go", "stacked.go", "table.go",
+	"tails.go", "tighten.go", "treeblocks.go",
 }
 
 // Each case in rules/comment-repair.xml is the file before and after slopfix fix.
