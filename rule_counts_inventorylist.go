@@ -81,9 +81,6 @@ func commentListFindings(path, content string) []ste.Finding {
 	return out
 }
 
-//go:embed testdata/embedded.md
-var embeddedMd string
-
 //go:embed testdata/embedded-2.md
 var embeddedMd2 string
 
