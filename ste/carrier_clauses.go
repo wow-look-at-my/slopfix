@@ -183,6 +183,3 @@ func finiteBefore(s *syntax.Sentence, i int, stop string) bool {
 	}
 	return false
 }
-
-// plainPhrase reports the words from i to the end of the sentence when they// are plain. Outside a parenthesis, they hold no comma, no conjunction, no
-// subordinator and no finite verb. Only such a phrase moves behind a restated noun whole.

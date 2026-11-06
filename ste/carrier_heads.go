@@ -8,6 +8,7 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
+// plainPhrase reports the words from i to the end of the sentence when they are plain.
 func plainPhrase(s *syntax.Sentence, i int) bool {
 	depth := 0
 	for k, w := range s.Words[min(i, len(s.Words)):] {
