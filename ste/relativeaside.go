@@ -84,6 +84,17 @@ func relativeRest(source string, s *syntax.Sentence, which, end int) (string, bo
 	return restate(source, noun, pronoun+" "+source[s.Words[which].Start:end]), true
 }
 
+// relativeRestWithSubject names a relative clause after "which is a" as the
+// subject "this": "..., which is a usage block that walks X" becomes "This is a
+// usage block that walks X". Any other clause names its noun again.
+func relativeRestWithSubject(source string, s *syntax.Sentence, which, end int) (string, bool) {
+	if s.Words[which].Lower() == "which" && which+2 < len(s.Words) && s.Words[which+1].Lower() == "is" &&
+		(s.Words[which+2].Lower() == "a" || s.Words[which+2].Lower() == "an") {
+		return "This " + source[s.Words[which+1].Start:end], true
+	}
+	return relativeRest(source, s, which, end)
+}
+
 // antecedent answers the head of the earliest noun phrase before the relative
 // word at i that agrees with the verb after that word. The noun right before
 // the word can sit in a phrase that describes the real one: "a host with no

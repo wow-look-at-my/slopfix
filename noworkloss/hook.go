@@ -37,6 +37,8 @@ type hookInput struct {
 	ToolInput      json.RawMessage `json:"tool_input"`
 	ToolUseID      string          `json:"tool_use_id"`
 	TranscriptPath string          `json:"transcript_path"`
+	SessionID      string          `json:"session_id"`
+	ToolResponse   json.RawMessage `json:"tool_response"`
 }
 
 // Result is what an invocation emits. A refusal rides stdout as a deny
@@ -73,9 +75,26 @@ func Run(r io.Reader) Result {
 		// Reading the payload failed, so nothing is known about the call. A hook that knows nothing stays out of the way.
 		return Result{}
 	}
+	var in hookInput
+	if json.Unmarshal(raw, &in) == nil {
+		switch in.HookEventName {
+		case "PostToolUse":
+			return foundAfterTool(in)
+		case "Stop":
+			return foundAtStop(in)
+		}
+	}
+	found, updated := foundBeforeTool(in)
+	if updated != nil {
+		raw = withCommand(raw, *updated)
+	}
 	reason, notices := decide(raw)
 	if reason != "" {
 		return Result{Stdout: denyPayload(reason)}
+	}
+	notices = append(found, notices...)
+	if updated != nil {
+		return Result{Stdout: rewritePayload(raw, notices)}
 	}
 	// A preservation moved content into a ref, which must never happen silently.
 	if len(notices) > 0 {
