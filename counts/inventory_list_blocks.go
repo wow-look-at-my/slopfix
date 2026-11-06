@@ -103,6 +103,28 @@ func groupEnd(lines []string, group []proseBlock) int {
 	return last
 }
 
+// memberOnly reports a list item that is a bare member and no prose around it:
+// a path or a name the document holds. memberOnly is not a sentence that
+// enumerates what the code holds.
+func memberOnly(text string) bool {
+	text = strings.TrimLeft(strings.TrimSpace(text), "*_")
+	loc := tokenPattern.FindStringIndex(text)
+	if loc == nil || loc[0] != 0 || !IsMember(text[loc[0]:loc[1]]) {
+		return false
+	}
+	return strings.Trim(text[loc[1]:], " \t.,;:!?") == ""
+}
+
+// bareMembers reports a list whose every item is one member.
+func bareMembers(group []proseBlock) bool {
+	for _, b := range group {
+		if !memberOnly(b.text) {
+			return false
+		}
+	}
+	return true
+}
+
 // catalog reports a usage fence. Its code lines open with one word. The word
 // after it differs on MinMembers lines or more.
 func catalog(body []string) bool {

@@ -198,6 +198,11 @@ func planLists(content string) plan {
 		}
 	}
 	for _, group := range listGroups(lines, blocks) {
+		// A list whose every item is one member is data the document holds. A
+		// paths file or an allowlist reads this way, and no prose enumerates it.
+		if bareMembers(group) {
+			continue
+		}
 		opening := 0
 		keys := make([]string, len(group))
 		for n, b := range group {

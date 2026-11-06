@@ -20,7 +20,7 @@ func init() {
 		Autofix:  autofixInventoryList,
 		Cases: []RuleCase{
 			{Name: "commands", Path: "x.md", Text: "The commands are `check`, `hook`, `lsp`, `ratchet`, `version`, `completion` and `help`.\n"},
-			{Name: "frame", Path: "x.md", Text: embeddedMd},
+			{Name: "frame", Path: "x.md", Text: embeddedFrame},
 			{Name: "list-block", Path: "x.md", Text: embeddedMd2},
 			{Name: "table", Path: "x.md", Text: embeddedMd3},
 			{Name: "catalog-fence", Path: "x.md", Text: embeddedMd4},
@@ -95,3 +95,6 @@ var embeddedMd4 string
 
 //go:embed testdata/embedded-5.md
 var embeddedMd5 string
+
+//go:embed testdata/inventory-frame.md
+var embeddedFrame string
