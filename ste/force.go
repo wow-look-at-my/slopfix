@@ -113,6 +113,11 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := listDivision(source, masked, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
+	// A comma before a conjunction is a real clause boundary, so the clause
+	// division it offers comes before a cut inside the clause's phrase.
+	if out, ok := coordinateDivision(whole, source); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
 	dashed := dashAsides(source)
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0
