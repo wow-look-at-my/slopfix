@@ -18,8 +18,8 @@ const verblessPenalty = 1 << 10
 // "At a time." or "Up to the noun it counts". It reads as no sentence.
 func verblessRest(whole *syntax.Sentence, c forceCut, source string) bool {
 	rest := opening(hardRest(source, c.right))
-	// An adverb in front of the subject hides the verb from the tagger: "only one sync-tool uses the disk".
-	if n := wordFrom(whole, c.right); n >= 0 && opensAfterAdverb(whole, n) && holdsFinite(checkMask(rest)) {
+	// A finite verb outside a relative clause is the rest's own verb.
+	if finiteOutsideRelative(syntax.Parse(checkMask(rest), nil), 0) {
 		return false
 	}
 	if strandsRest(whole, c.right, rest) || !standsAsSentence(rest) {
