@@ -18,7 +18,7 @@ func init() {
 		Detect:   detectNeuteredGate,
 		Autofix:  autofixNeuteredGate,
 		Cases: []RuleCase{workflowCase("neutered-gate", workflowHeader()+embeddedYml24+
-			embeddedYml25)},
+			neuteredGateStep)},
 	})
 }
 
@@ -35,5 +35,7 @@ func autofixNeuteredGate(c RuleCase) RuleCase {
 //go:embed testdata/embedded-11.yml
 var embeddedYml24 string
 
-//go:embed testdata/embedded-23.yml
-var embeddedYml25 string
+// neuteredGateStep is the case's step under the key that lets it fail.
+//
+//go:embed neutered-gate-step.yml
+var neuteredGateStep string

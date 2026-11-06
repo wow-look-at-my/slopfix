@@ -25,7 +25,7 @@ var commentRepairTable = table.MustLoad(rules.FS, "comment-repair")
 // commentRepairFiles names each commentfix file that a comment repair reaches.
 var commentRepairFiles = []string{
 	"blockcomment.go", "blocks.go", "budget.go", "commentfix.go", "counted.go", "directives.go", "divide.go", "fit.go",
-	"guard.go", "hashcomments.go", "header.go", "headings.go", "labels.go", "license.go", "linemarks.go",
+	"guard.go", "hashcomments.go", "header.go", "headings.go", "labels.go", "license.go", "linemarks.go", "lists.go",
 	"opening.go", "overlong.go", "overlong_cuts.go", "overlong_repair.go", "pragma.go", "reflow.go",
 	"repair.go", "residual.go", "rewording.go", "sentences.go", "sharedhead.go", "stacked.go", "table.go",
 	"tails.go", "tighten.go", "treeblocks.go", "wrap.go",

@@ -111,6 +111,15 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 	if out, ok := listDivision(source, masked, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
 		return out, true
 	}
+	// A clause a noun opens with "in which" describes that noun, so it restates
+	// the noun: "A block in which X share Y" becomes "A block.
+	if out, ok := relativeInDivision(source, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
+	// A clause after a comma that names the thing said again as "This is".
+	if out, ok := relativeThisDivision(source, whole, d.cap); ok && overCap(out, d.cap) < overCap(source, d.cap) {
+		return out, true
+	}
 	dashed := dashAsides(source)
 	for _, strict := range []bool{true, false} {
 		best, bestScore := "", 0

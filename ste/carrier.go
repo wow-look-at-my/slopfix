@@ -175,6 +175,13 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 			return head, restate(source, noun, rest), opensWithCarrier
 		}
 	}
+	// ", which is a <noun>" names the thing said again as "This is <noun>":
+	// "..., which is a usage block that walks X" becomes "This is a usage block
+	// that walks X".
+	if seam == "," && lower == "which" && first+2 < len(whole.Words) && whole.Words[first+1].Lower() == "is" &&
+		(whole.Words[first+2].Lower() == "a" || whole.Words[first+2].Lower() == "an") {
+		return head, "This " + source[whole.Words[first+1].Start:], opensWithCarrier
+	}
 	// ", or" before an object names the alternative the main verb takes, so the
 	// subject and the verb are named again: "It answers X, or Y when Z" becomes
 	// "It answers X. Otherwise, it answers Y when Z".
@@ -202,7 +209,12 @@ func carrierDivision(source string, whole *syntax.Sentence, c forceCut) (string,
 		if subject := subjectFor(source, checkMask(source), c, whole.Words[first+1].Tag); subject != "" {
 			return head, capitalizeOpening(subject) + " " + clause, opensWithCarrier
 		}
-		return head, "It " + lowerFirst(clause), opensWithCarrier
+		// A verb group in the plural names a plural subject again as "they".
+		pronoun := "It"
+		if w := whole.Words[first+1]; w.Tag == "VBP" || w.Lower() == "are" || w.Lower() == "were" {
+			pronoun = "They"
+		}
+		return head, pronoun + " " + lowerFirst(clause), opensWithCarrier
 	}
 	// A phrase after a noun that a verb then follows is the subject's own: "the case above passes".
 	predicateFollows := finiteBefore(whole, first+1, ",")
