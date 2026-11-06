@@ -237,9 +237,7 @@ func judge(data []byte, rules []slopfix.Rule, ids []string, forks forkscope.Reso
 			// The replacement place repaired holds the new text, in an Edit and in a MultiEdit.
 			take(*p.repair, func(s string) {
 				writeUnits(in.ToolName, write, raw)[0].apply(s)
-				// A repair that reached past the edit moved its old side, and an Edit that
-				// kept its own old text would then put the paragraph back beside the repair.
-				// A MultiEdit keeps a pair per edit, so its own old text stands.
+				// A repair that reached past the edit moved its old side.
 				if in.ToolName == "Edit" && p.old != "" {
 					raw["old_string"] = p.old
 				}
