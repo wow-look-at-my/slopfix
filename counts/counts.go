@@ -68,18 +68,6 @@ func find(content string, substrate cardinal.Substrate, mask func(string) string
 	return hits
 }
 
-// itemMarker matches the marker that opens a list item, with the blanks around it.
-var itemMarker = regexp.MustCompile(`^\s*(?:[-*+]|\d+[.)])\s+`)
-
-// blankListMarker writes blanks over a list item's marker, so offsets stay.
-func blankListMarker(text string) string {
-	loc := itemMarker.FindStringIndex(text)
-	if loc == nil {
-		return text
-	}
-	return strings.Repeat(" ", loc[1]) + text[loc[1]:]
-}
-
 func init() {
 	// The inventory count runs before the join. The stale-count cut runs after
 	// it, because a hand wrap hides the frame the gate reads.
