@@ -8,6 +8,9 @@ import (
 	"github.com/wow-look-at-my/slopfix/syntax"
 )
 
+// commaSeam reports a cut that lands on a comma.
+func commaSeam(source string, c forceCut) bool { return seamBefore(source, c.left) == "," }
+
 // verblessPenalty puts every cut whose rest holds no verb below every cut whose rest holds one.
 const verblessPenalty = 1 << 10
 
@@ -15,6 +18,10 @@ const verblessPenalty = 1 << 10
 // "At a time." or "Up to the noun it counts". It reads as no sentence.
 func verblessRest(whole *syntax.Sentence, c forceCut, source string) bool {
 	rest := opening(hardRest(source, c.right))
+	// An adverb in front of the subject hides the verb from the tagger: "only one sync-tool uses the disk".
+	if n := wordFrom(whole, c.right); n >= 0 && opensAfterAdverb(whole, n) && holdsFinite(checkMask(rest)) {
+		return false
+	}
 	if strandsPhrase(whole, c.right, rest) || !standsAsSentence(rest) {
 		return true
 	}
@@ -59,10 +66,16 @@ func lastResortDivision(source, masked string, whole *syntax.Sentence, limit int
 			cuts = append(cuts, c)
 		}
 	}
+	// A cut at a comma parts a clause from the next, so it beats a longer cut
+	// inside a phrase.
 	pick := func(ok func(forceCut) bool) (forceCut, bool) {
 		best, found := forceCut{}, false
 		for _, c := range cuts {
-			if ok(c) && (!found || c.words > best.words) {
+			if !ok(c) {
+				continue
+			}
+			comma, bestComma := commaSeam(source, c), commaSeam(source, best)
+			if !found || comma && !bestComma || comma == bestComma && c.words > best.words {
 				best, found = c, true
 			}
 		}

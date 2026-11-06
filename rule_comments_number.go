@@ -28,8 +28,12 @@ func init() {
 			},
 			{
 				Name: "an exit status wrapped onto the next comment line", Path: "gate.h",
-				Text: fixtureHeader + embeddedCpp2,
-				Want: fixtureHeader + embeddedCpp3,
+				Text: fixtureHeader + "// Under --strict the lint errors of the build phases fail the run (exit\n" +
+					"// 2), the convention of the old suite.\n" +
+					"int runSuite() {\n" +
+					"\tint failed = lint();\n" +
+					"\treturn failed;\n" +
+					"}\n",
 			},
 			{
 				Name: "a comment after code continues on the aligned lines under it", Path: "opts.h",
@@ -150,12 +154,6 @@ func detectCommentNumber(c RuleCase) []ste.Finding {
 func autofixCommentNumber(c RuleCase) RuleCase {
 	return caseAutofix(c, commentfix.ID)
 }
-
-//go:embed embedded.cpp
-var embeddedCpp2 string
-
-//go:embed embedded-2.cpp
-var embeddedCpp3 string
 
 //go:embed testdata/issue-reference.yml
 var issueReferenceYml string

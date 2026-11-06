@@ -135,7 +135,10 @@ func forceDivision(source, masked string, d capSpec) (string, bool) {
 			// A fragment head behind "This is" closes as a sentence of its own.
 			accept := func(h, r string) bool {
 				joined := closeHead(h) + " " + r
-				return r != "" && restStands(r) && divides(closeHead(h), r, d.cap) &&
+				// An adverb in front of the subject hides its verb from the tagger: "only one sync-tool uses the disk".
+				n := wordFrom(whole, c.right)
+				opens := restStands(r) || n >= 0 && opensAfterAdverb(whole, n) && holdsFinite(checkMask(r))
+				return r != "" && opens && divides(closeHead(h), r, d.cap) &&
 					(h == fragmentHead(source[:c.left]) || closesWhole(source[:c.left], seam, whole) || closesPhrase(source[:c.left], whole) || standsBeforeConjunction(whole, source[:c.left])) &&
 					overCap(joined, d.cap) < overCap(source, d.cap)
 			}
