@@ -44,9 +44,6 @@ var (
 	nameShapes    = shapes(listTable.List("name-shape"))
 	linkTarget    = regexp.MustCompile(`\]\(([^)\s]+)\)`)
 	tokenPattern  = regexp.MustCompile("`[^`]*`|\\[[^\\]]*\\]\\([^)\\s]*\\)|\\S+")
-	fenceOpen     = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})")
-	headingOpen   = regexp.MustCompile(`^ {0,3}#{1,6}(\s|$)`)
-	tableRule     = regexp.MustCompile(`^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$`)
 )
 
 // splitter builds the pattern that divides a list into its elements.

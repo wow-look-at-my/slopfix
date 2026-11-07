@@ -125,99 +125,6 @@ func bareMembers(group []proseBlock) bool {
 	return true
 }
 
-// catalog reports a usage fence. Its code lines open with one word. The word
-// after it differs on MinMembers lines or more.
-func catalog(body []string) bool {
-	seconds := map[string]map[string]bool{}
-	for _, line := range body {
-		if i := strings.Index(line, " #"); i >= 0 {
-			line = line[:i]
-		}
-		trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "$ "))
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") {
-			continue
-		}
-		words := strings.Fields(trimmed)
-		if len(words) < 2 {
-			continue
-		}
-		if seconds[words[0]] == nil {
-			seconds[words[0]] = map[string]bool{}
-		}
-		seconds[words[0]][words[1]] = true
-	}
-	for _, second := range seconds {
-		if len(second) >= MinMembers {
-			return true
-		}
-	}
-	return false
-}
-
-// tableList reports a table that lists members. One column holds a member on
-// MinMembers rows or more, or one row holds a member in MinMembers cells or more.
-func tableList(rows []string) (string, bool) {
-	columns := map[int]int{}
-	for n, row := range rows {
-		if n == 1 {
-			continue
-		}
-		cells := strings.Split(strings.Trim(strings.TrimSpace(row), "|"), "|")
-		inRow := 0
-		for c, cell := range cells {
-			if holdsMember(cell) {
-				inRow++
-				if n > 1 {
-					columns[c]++
-				}
-			}
-		}
-		if inRow >= MinMembers {
-			return strings.TrimSpace(row), true
-		}
-	}
-	for _, count := range columns {
-		if count >= MinMembers {
-			return strings.TrimSpace(rows[0]), true
-		}
-	}
-	return "", false
-}
-
-// coverEmptySections covers each heading whose section the repair empties.
-func coverEmptySections(lines []string, st structure, covered []bool) {
-	level := func(i int) int {
-		trimmed := strings.TrimSpace(lines[i])
-		return len(trimmed) - len(strings.TrimLeft(trimmed, "#"))
-	}
-	for k := len(st.headings) - 1; k >= 0; k-- {
-		h := st.headings[k]
-		if covered[h] {
-			continue
-		}
-		end := len(lines)
-		for _, next := range st.headings[k+1:] {
-			if level(next) <= level(h) {
-				end = next
-				break
-			}
-		}
-		content, cut := false, true
-		for i := h + 1; i < end; i++ {
-			if strings.TrimSpace(lines[i]) == "" {
-				continue
-			}
-			content = true
-			if !covered[i] {
-				cut = false
-			}
-		}
-		if content && cut {
-			covered[h] = true
-		}
-	}
-}
-
 // tidyBlanks covers the blank line after each deleted run when a blank line
 // already sits before it, so no run of blank lines is left.
 func tidyBlanks(lines []string, covered []bool) {
@@ -242,8 +149,8 @@ func tidyBlanks(lines []string, covered []bool) {
 }
 
 // ListGate writes the deletions the repair answers. Each edit only deletes:
-// whole lines, or bytes inside one prose block. Every verbatim line of the
-// result must be a line of the source, in the same order.
+// whole lines, or bytes inside one prose block. The result must keep every
+// verbatim line of the source, in the same order.
 func ListGate(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 	if len(edits) == 0 {
 		return edit.Unchanged(content, scope)
@@ -266,7 +173,23 @@ func ListGate(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 			}
 			return "it reaches past its prose block"
 		},
-		func(text string) bool { return subsequence(verbatimLines(text), want) })
+		func(text string) bool { return slices.Equal(verbatimLines(text), want) })
+}
+
+// verbatimRows marks each line, from zero, that is not blank and that a verbatim block holds.
+func verbatimRows(content string, n int) []bool {
+	out := make([]bool, n)
+	for _, b := range markdown.Split(content) {
+		if b.Kind != markdown.Verbatim {
+			continue
+		}
+		for k, line := range b.Lines {
+			if i := b.Start - 1 + k; i < n && strings.TrimSpace(line) != "" {
+				out[i] = true
+			}
+		}
+	}
+	return out
 }
 
 // verbatimLines answers every line the parser keeps as written, in order.
@@ -283,19 +206,4 @@ func verbatimLines(content string) []string {
 		}
 	}
 	return out
-}
-
-// subsequence reports whether every line of got appears in want, in order.
-func subsequence(got, want []string) bool {
-	i := 0
-	for _, line := range got {
-		for i < len(want) && want[i] != line {
-			i++
-		}
-		if i == len(want) {
-			return false
-		}
-		i++
-	}
-	return true
 }
