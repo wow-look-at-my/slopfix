@@ -142,6 +142,11 @@ func planLists(content string) plan {
 		if slices.Contains(verbatim[group[0].first:groupEnd(lines, group)+1], true) {
 			continue
 		}
+		// An item of more than one sentence describes its member. The list is
+		// prose, and only the sentence pass below may cut from it.
+		if slices.ContainsFunc(group, func(b proseBlock) bool { return len(SentenceSpans(b.text)) > 1 }) {
+			continue
+		}
 		opening := 0
 		keys := make([]string, len(group))
 		for n, b := range group {
