@@ -22,8 +22,9 @@ func init() {
 			{Name: "commands", Path: "x.md", Text: "The commands are `check`, `hook`, `lsp`, `ratchet`, `version`, `completion` and `help`.\n"},
 			{Name: "frame", Path: "x.md", Text: embeddedFrame},
 			{Name: "list-block", Path: "x.md", Text: embeddedMd2},
-			{Name: "table", Path: "x.md", Text: embeddedMd3},
-			{Name: "catalog-fence", Path: "x.md", Text: embeddedMd4},
+			{Name: "a table is content, not a list", Path: "x.md", Text: embeddedMd3, Unchanged: true},
+			{Name: "a fence is content, not a list", Path: "x.md", Text: embeddedMd4, Unchanged: true},
+			{Name: "a list of items of several sentences is prose", Path: "x.md", Text: embeddedProseItems, Unchanged: true},
 			{Name: "split", Path: "x.md", Text: embeddedMd5},
 			{Name: "comment", Path: "x.go", Text: "// x.go holds mode.\n\npackage x\n\n// The modes are `fast`, `slow` and `safe`.\nconst mode = 1\n"},
 			{Name: "message", Text: "I changed `a.go`, `b.go` and `c.go`.\n"},
@@ -95,3 +96,6 @@ var embeddedMd5 string
 
 //go:embed testdata/inventory-frame.md
 var embeddedFrame string
+
+//go:embed testdata/inventory-prose-items.md
+var embeddedProseItems string

@@ -4,7 +4,9 @@ package noworkloss
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -94,6 +96,10 @@ func submodules(root string) []string {
 // for every repository that held found work.
 func commitFound(root, session string, depth int) []foundResult {
 	var out []foundResult
+	// A root that is gone, or that holds no .git now, has no work to save.
+	if _, err := os.Stat(filepath.Join(root, ".git")); errors.Is(err, fs.ErrNotExist) {
+		return out
+	}
 	if depth < maxScriptDepth {
 		for _, sub := range submodules(root) {
 			dir := filepath.Join(root, sub)
