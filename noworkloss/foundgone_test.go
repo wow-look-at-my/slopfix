@@ -3,6 +3,7 @@
 package noworkloss
 
 import (
+	"github.com/stretchr/testify/require"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,18 +15,15 @@ func TestADeletedRepositoryDoesNotBlockTheStop(t *testing.T) {
 	t.Setenv("TMPDIR", t.TempDir())
 	session := "deleted-worktree-session"
 	repo := filepath.Join(t.TempDir(), "scratch-worktree")
-	if out, err := exec.Command("git", "init", "-q", repo).CombinedOutput(); err != nil {
-		t.Fatalf("git init: %v: %s", err, out)
-	}
-	if got := recordRepos(session, []string{repo}); len(got) != 1 {
-		t.Fatalf("the repository must be recorded, got %v", got)
-	}
-	if err := os.RemoveAll(repo); err != nil {
-		t.Fatal(err)
-	}
+	out, err := exec.Command("git", "init", "-q", repo).CombinedOutput()
+	require.Nil(t, err)
+
+	got := recordRepos(session, []string{repo})
+	require.Equal(t, 1, len(got))
+
+	require.NoError(t, os.RemoveAll(repo))
 
 	res := foundAtStop(hookInput{HookEventName: "Stop", SessionID: session})
-	if strings.Contains(res.Stdout, `"block"`) {
-		t.Fatalf("a deleted repository holds no work, so the stop must pass: %s", res.Stdout)
-	}
+	require.NotContains(t, res.Stdout, `"block"`)
+
 }
