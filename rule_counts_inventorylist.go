@@ -129,5 +129,20 @@ var embeddedListNames string
 //go:embed testdata/inventory-list-item-cut.md
 var embeddedListItemCut string
 
+//go:embed testdata/inventory-aside.md
+var embeddedAside string
+
+//go:embed testdata/inventory-lead-in.md
+var embeddedLeadIn string
+
+//go:embed testdata/inventory-table-cell-only.md
+var embeddedTableCellOnly string
+
+//go:embed testdata/inventory-pointer.md
+var embeddedPointer string
+
+//go:embed testdata/inventory-item-only-list.md
+var embeddedItemOnlyList string
+
 // listKept is what each fixture keeps above the list it tests.
 const listKept = "# Tool\n\nThe tool reads prose.\n"
