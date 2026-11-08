@@ -17,13 +17,23 @@ import (
 var releaseExclude string
 
 // A wrapped run of one-word lines is a finding, and no repair joins the
-// entries. In markdown each becomes a list item.
+// entries. In markdown each becomes a list item. The run names fewer than
+// MinMembers members, so counts/inventory-list keeps the list.
 func TestAnEntryRunInMarkdownBecomesAList(t *testing.T) {
+	src := ".claude/\n**/.claude/\n"
+	require.NotEmpty(t, slopfix.CheckContent("paths.md", src))
+	out := slopfix.Fix(slopfix.Request{Content: src, Path: "paths.md", MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
+	assert.Equal(t, "- .claude/\n- **/.claude/\n", out)
+	assert.Empty(t, slopfix.CheckContent("paths.md", out))
+}
+
+// A run of MinMembers members or more is a list of things. The entries become
+// a list, and counts/inventory-list deletes that list.
+func TestAnEntryRunOfMembersIsDeleted(t *testing.T) {
 	src := ".claude/\n**/.claude/\nCLAUDE.md\n"
 	require.NotEmpty(t, slopfix.CheckContent("paths.md", src))
 	out := slopfix.Fix(slopfix.Request{Content: src, Path: "paths.md", MaxCommentLines: tombstones.DefaultMaxCommentLines}).Text
-	assert.Equal(t, "- .claude/\n- **/.claude/\n- CLAUDE.md\n", out)
-	assert.Empty(t, slopfix.CheckContent("paths.md", out))
+	assert.Empty(t, out)
 }
 
 // A text file a program reads keeps every entry a bare line: the repair parts

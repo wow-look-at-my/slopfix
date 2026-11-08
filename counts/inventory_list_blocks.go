@@ -124,6 +124,17 @@ func tidyBlanks(lines []string, covered []bool) {
 		}
 		i = j + 1
 	}
+	// A deletion that reaches the end of the document takes the blank lines before it.
+	last := len(lines) - 1
+	if last > 0 && lines[last] == "" {
+		last--
+	}
+	if last < 0 || !covered[last] {
+		return
+	}
+	for k := last; k >= 0 && (covered[k] || blank(k)); k-- {
+		covered[k] = true
+	}
 }
 
 // ListGate writes the deletions the repair answers. Each edit only deletes.

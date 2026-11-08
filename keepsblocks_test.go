@@ -54,8 +54,8 @@ func keptLines(doc string) []string {
 	return out
 }
 
-// A table row and a fenced line are content. No rule reads them as a list,
-// and a repair keeps each byte for byte.
+// A table row that describes its member and a fenced line are content. No
+// rule reads them as a list, and a repair keeps each byte for byte.
 func TestARepairKeepsEveryTableRowAndFencedLine(t *testing.T) {
 	verbatim := verbatimRowsOf(readmeTablesAndFences)
 	require.NotEmpty(t, verbatim)
