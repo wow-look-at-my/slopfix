@@ -2,6 +2,7 @@ package bashclean
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -147,29 +148,64 @@ func TestTheSnifferNeverOpensAFIFO(t *testing.T) {
 	}
 }
 
+// syntheticJSON is size bytes of content: head, then spaces, then tail.
+type syntheticJSON struct {
+	head, tail []byte
+	size, read int64
+}
+
+func (s *syntheticJSON) ReadAt(p []byte, off int64) (int, error) {
+	if off >= s.size {
+		return 0, io.EOF
+	}
+	n := int(min(int64(len(p)), s.size-off))
+	tailStart := s.size - int64(len(s.tail))
+	for i := range n {
+		pos := off + int64(i)
+		switch {
+		case pos < int64(len(s.head)):
+			p[i] = s.head[pos]
+		case pos >= tailStart:
+			p[i] = s.tail[pos-tailStart]
+		default:
+			p[i] = ' '
+		}
+	}
+	s.read += int64(n)
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
+}
+
 // The sniff reads a fixed head and tail.
 func TestTheSnifferTakesUnderFiftyMillisecondsAtAnySize(t *testing.T) {
-	dir := t.TempDir()
-	huge := filepath.Join(dir, "huge.json")
-	f, err := os.Create(huge)
+	items := make([]map[string]any, 4000)
+	for i := range items {
+		items[i] = map[string]any{"id": 1, "name": "item"}
+	}
+	items = append(items, map[string]any{"id": 2})
+	doc, err := json.Marshal(map[string]any{"items": items})
 	require.NoError(t, err)
-	_, err = f.WriteString(`{"items": [`)
-	require.NoError(t, err)
-	_, err = f.WriteString(strings.Repeat(`{"id": 1, "name": "item"}, `, 4000))
-	require.NoError(t, err)
-	_, err = f.WriteAt([]byte("{\"id\": 2}]}\n"), 8<<30)
-	require.NoError(t, err)
-	require.NoError(t, f.Close())
+	cut := len(doc) - 16
+	huge := &syntheticJSON{
+		head: doc[:cut],
+		tail: append(doc[cut:len(doc):len(doc)], '\n'),
+		size: 8 << 30,
+	}
+	start := time.Now()
+	got := sniffReaderAt(huge, huge.size)
+	elapsed := time.Since(start)
+	assert.Equal(t, jsonDoc, got)
+	assert.Less(t, elapsed, 50*time.Millisecond, "sniffing 8 GiB took %s", elapsed)
+	assert.LessOrEqual(t, huge.read, int64(sniffHead+sniffTail), "the sniff read %d bytes of 8 GiB", huge.read)
 
-	big := filepath.Join(dir, "big.jsonl")
+	big := filepath.Join(t.TempDir(), "big.jsonl")
 	require.NoError(t, os.WriteFile(big,
 		[]byte(strings.Repeat(`{"level":"info","msg":"a line of a log","n":12345}`+"\n", 200000)), 0o644))
-
-	for path, want := range map[string]jsonKind{huge: jsonDoc, big: jsonLines} {
-		start := time.Now()
-		got := sniffJSON(path)
-		elapsed := time.Since(start)
-		assert.Equal(t, want, got, path)
-		assert.Less(t, elapsed, 50*time.Millisecond, "sniffing %s took %s", path, elapsed)
-	}
+	start = time.Now()
+	got = sniffJSON(big)
+	elapsed = time.Since(start)
+	assert.Equal(t, jsonLines, got, big)
+	assert.Less(t, elapsed, 50*time.Millisecond, "sniffing %s took %s", big, elapsed)
 }
