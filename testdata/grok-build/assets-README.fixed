@@ -606,13 +606,7 @@ grok -p "Your prompt here"
 
 Use `--tools` to restrict the agent to an explicit set of tools (allowlist), or `--disallowed-tools` to remove specific tools from the default set (denylist). Both accept a comma-separated list of tool names.
 
-Tool names correspond to the internal tool IDs shown below. For quick reference:
-
-| Display Name   | Tool ID for `--tools` / `--disallowed-tools` |
-| -------------- | --------------------------------------------- |
-| bash           | `run_terminal_cmd`                            |
-| grep           | `grep`                                        |
-| task           | `task`                                        |
+Tool names correspond to the internal tool IDs shown below.
 
 ```bash
 # Only allow read-only tools
@@ -1400,6 +1394,7 @@ Grok can connect to Language Server Protocol (LSP) servers configured in JSON fi
 LSP support is used in multiple ways:
 
 - **Passive diagnostics** — after edits, Grok can surface language-server diagnostics such as errors and warnings.
+- **The `lsp` tool** — Grok can actively query the language server for `goToDefinition`, `findReferences`, `hover`, `goToImplementation`, `documentSymbol`, and `workspaceSymbol`.
 
 Reference: [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
 
@@ -1465,6 +1460,7 @@ If LSP tools are enabled but no usable server config is found, Grok emits a non-
 | Field | Description |
 |-------|-------------|
 | `args` | Command-line arguments for the server process. |
+| `transport` | `stdio` (default) or `socket`. |
 | `env` | Extra environment variables for the server process. |
 | `initializationOptions` | JSON passed during LSP initialize. |
 | `settings` | Configuration sent via workspace settings updates. |
@@ -1567,8 +1563,6 @@ Grok scans for agent rules in this order:
 1. `~/.grok/` (global rules)
 2. If inside a git repo: every directory from the repo root → current working directory (inclusive)
 3. If **not** inside a git repo: only the current working directory
-
-Within each directory, Grok checks for these filenames:
 
 Ordering matters: files found later (deeper directories) come last, so they effectively take precedence if instructions conflict. Files ignored by gitignore are skipped. Each file is capped at 10,000 characters (truncated with a warning if exceeded).
 
@@ -2442,6 +2436,7 @@ grok --sandbox devbox
 
 The sandbox is applied to the **entire grok process** at startup using kernel primitives — not per-command wrapping. This means all tool operations are covered:
 
+- `read_file`, `search_replace`, `list_dir` — restricted by Landlock/Seatbelt in-process
 - `bash` commands, `grep` (rg) — child processes inherit FS restrictions automatically
 - Network — child processes can be blocked via seccomp (Linux)
 

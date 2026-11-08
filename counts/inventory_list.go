@@ -246,6 +246,24 @@ func SentenceList(sentence string) (string, bool) {
 	return "", false
 }
 
+// FramedList reports a sentence that is a list behind a complete-set frame,
+// such as "The modes are `a` and `b`." It names a set and its members, and
+// says nothing else.
+func FramedList(sentence string) bool {
+	masked := ste.Masked(sentence)
+	end := len(strings.TrimRight(sentence, " \t\n.!?"))
+	if end <= 0 {
+		return false
+	}
+	outer, outerMasked := []byte(sentence), []byte(masked)
+	for _, loc := range parenthetical.FindAllStringIndex(masked, -1) {
+		for i := loc[0]; i < loc[1]; i++ {
+			outer[i], outerMasked[i] = ' ', ' '
+		}
+	}
+	return framed(string(outer), string(outerMasked), end)
+}
+
 // coordinated reports a run of at least MinMembers elements in text[from:to].
 func coordinated(text, masked string, s *syntax.Sentence, from, to int) bool {
 	elements := elementsOf(text, masked, from, to, boundarySplit)

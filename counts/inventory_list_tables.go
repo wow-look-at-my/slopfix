@@ -123,41 +123,61 @@ type row struct {
 
 // tableRows judges each body row of table t. A row whose cells only name
 // things has names above zero. A row that states something keeps its cuts.
+//
+// A cell names things when it holds only members, or when it is one word in
+// a column of names. A column of names holds only such cells, and members in
+// half of them or more. A cell of members in a column of descriptions is the
+// description of its row, so the row stays.
 func tableRows(lines []string, starts []int, t [2]int) []row {
-	var out []row
+	type cell struct {
+		col, names int
+		word       bool
+	}
+	var body [][]cell
+	nameCol := map[int]bool{}
+	filled, members := map[int]int{}, map[int]int{}
 	for i := t[0] + 2; i <= t[1]; i++ {
-		r := row{line: i}
-		entry := true
-		for _, c := range cells(lines[i]) {
-			text := lines[i][c[0]:c[1]]
-			if strings.TrimSpace(text) == "" {
+		var rowCells []cell
+		for k, c := range cells(lines[i]) {
+			text := strings.TrimSpace(lines[i][c[0]:c[1]])
+			if text == "" {
 				continue
 			}
-			cuts := inlineCuts(text, starts[i]+c[0])
-			r.cuts = append(r.cuts, cuts...)
-			rest := strings.TrimSpace(text)
-			if len(cuts) > 0 {
-				rest = CutProse(rest, shifted(cuts, starts[i]+c[0]+len(text)-len(strings.TrimLeft(text, " \t"))))
+			ce := cell{col: k, names: NamesOnly(text), word: len(strings.Fields(text)) == 1}
+			rowCells = append(rowCells, ce)
+			filled[k]++
+			if ce.names > 0 {
+				members[k]++
 			}
-			n := NamesOnly(rest)
-			if n == 0 {
-				entry = false
+			if _, seen := nameCol[k]; !seen {
+				nameCol[k] = true
 			}
-			r.names += n
+			if ce.names == 0 && !ce.word {
+				nameCol[k] = false
+			}
 		}
-		if !entry {
-			r.names = 0
+		body = append(body, rowCells)
+	}
+	for k := range nameCol {
+		nameCol[k] = nameCol[k] && members[k]*2 >= filled[k]
+	}
+	var out []row
+	for n, rowCells := range body {
+		i := t[0] + 2 + n
+		r := row{line: i}
+		for _, ce := range rowCells {
+			if !nameCol[ce.col] {
+				r.names = 0
+				break
+			}
+			r.names += max(ce.names, 1)
+		}
+		if r.names == 0 {
+			for _, c := range cells(lines[i]) {
+				r.cuts = append(r.cuts, inlineCuts(lines[i][c[0]:c[1]], starts[i]+c[0])...)
+			}
 		}
 		out = append(out, r)
-	}
-	return out
-}
-
-// shifted answers the spans of cuts moved back by base.
-func shifted(cuts []ProseCut, base int) []Span {
-	out := make([]Span, len(cuts))
-	for i, c := range cuts {
-		out[i] = Span{c.Start - base, c.End - base}
 	}
 	return out
 }

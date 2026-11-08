@@ -166,14 +166,9 @@ func (pl *planner) list(group []proseBlock) {
 }
 
 // itemNames answers the members an item names when the item, its nested
-// lines included, only names things. The enumerations inside its own
-// sentences are judged as gone.
+// lines included, only names things.
 func (pl *planner) itemNames(b proseBlock) int {
-	text := b.text
-	if cuts := ProseCuts(text); len(cuts) > 0 {
-		text = CutProse(text, spansOf(cuts))
-	}
-	n := NamesOnly(text)
+	n := NamesOnly(b.text)
 	if n == 0 {
 		return 0
 	}
@@ -208,7 +203,9 @@ func (pl *planner) blockAt(i int) *proseBlock {
 }
 
 // prose takes the enumerations out of a paragraph or an item that stays. A
-// block of nothing else goes whole, unless it is an item with nested lines.
+// paragraph of nothing else goes whole. An item of nothing else goes whole
+// only when each of its sentences is a bare list behind a set frame. It has
+// no nested lines. An item that states something keeps a word.
 func (pl *planner) prose(b proseBlock) {
 	if pl.covered[b.first] {
 		return
@@ -218,10 +215,17 @@ func (pl *planner) prose(b proseBlock) {
 	if len(cuts) == 0 {
 		return
 	}
-	if len(cuts) == len(SentenceSpans(text)) {
-		if b.item && groupEnd(pl.lines, []proseBlock{b}) > b.last {
+	if b.item && !keepsWords(text, spansOf(cuts)) {
+		if len(cuts) < len(SentenceSpans(text)) || groupEnd(pl.lines, []proseBlock{b}) > b.last {
 			return
 		}
+		for _, c := range cuts {
+			if !FramedList(text[c.Start:c.End]) {
+				return
+			}
+		}
+	}
+	if len(cuts) == len(SentenceSpans(text)) {
 		for _, c := range cuts {
 			pl.hit(lineAt(pl.starts, b.start+c.Start), c.Detail)
 		}
