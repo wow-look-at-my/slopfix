@@ -5,6 +5,7 @@ package counts
 import (
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/wow-look-at-my/go-containers/set"
 )
@@ -59,22 +60,19 @@ func maskSpans(text string) string {
 }
 
 // keepsWords reports whether prose, with each span taken out, still holds a
-// word that is not a member. A cell or a heading takes a cut only then.
+// word that is not a member. A cell, a heading or an item takes such a cut
+// only then.
 func keepsWords(prose string, spans []Span) bool {
 	rest := CutProse(prose, spans)
 	if NamesOnly(rest) > 0 {
 		return false
 	}
 	for _, tok := range tokenPattern.FindAllString(rest, -1) {
-		if !IsMember(strings.Trim(tok, "*_~")) && strings.IndexFunc(tok, isWordRune) >= 0 {
+		if !IsMember(strings.Trim(tok, "*_~")) && strings.IndexFunc(tok, unicode.IsLetter) >= 0 {
 			return true
 		}
 	}
 	return false
-}
-
-func isWordRune(r rune) bool {
-	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r > 127
 }
 
 // spansOf answers the spans of cuts.
