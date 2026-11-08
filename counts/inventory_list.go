@@ -127,13 +127,6 @@ func firstMember(text string) (int, int, bool) {
 	return 0, 0, false
 }
 
-// OpensWithMember reports whether text opens with a member, under any bold or italic marker.
-func OpensWithMember(text string) bool {
-	text = strings.TrimLeft(strings.TrimSpace(text), "*_")
-	loc := tokenPattern.FindStringIndex(text)
-	return loc != nil && loc[0] == 0 && IsMember(text[loc[0]:loc[1]])
-}
-
 // element is a phrase of a list, as a byte span into its sentence.
 type element struct {
 	start, end int
@@ -355,19 +348,25 @@ func nounPhrase(s *syntax.Sentence, from int, e element) bool {
 	return noun
 }
 
-// FrameKey answers the frame a sentence names its member in: the words before
-// its earliest member, and the word after it.
+// FrameKey answers a sentence with each member written as one mark. Sentences
+// with one key differ only in the member they name, so they say nothing about
+// it: a run of them is an enumeration. A sentence that says something
+// different about each member is a description, and has a key of its own.
 func FrameKey(sentence string) (string, bool) {
-	start, end, ok := firstMember(sentence)
-	if !ok {
+	if _, _, ok := firstMember(sentence); !ok {
 		return "", false
 	}
-	before := strings.ToLower(strings.Join(strings.Fields(ste.Masked(sentence[:start])), " "))
-	after := ""
-	if words := strings.Fields(sentence[end:]); len(words) > 0 {
-		after = strings.ToLower(strings.Trim(words[0], ".,;:!?"))
+	tokens := tokenPattern.FindAllString(sentence, -1)
+	words := make([]string, 0, len(tokens))
+	for _, tok := range tokens {
+		bare := strings.Trim(tok, ".,;:!?")
+		if IsMember(bare) || IsMember(tok) {
+			words = append(words, "\x00")
+			continue
+		}
+		words = append(words, strings.ToLower(bare))
 	}
-	return before + "|" + after, true
+	return strings.Join(words, " "), true
 }
 
 // Span is a byte range of a text.
