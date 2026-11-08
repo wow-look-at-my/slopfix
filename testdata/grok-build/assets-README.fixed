@@ -591,6 +591,7 @@ grok -p "Your prompt here"
 | `-r, --resume <ID_OR_TITLE>` | Resume an existing session by ID, or by title for the current directory, ignoring letter case (a sole explicitly renamed title wins among duplicates; remaining duplicates error with their IDs; UUID-shaped values are always treated as IDs) |
 | `-c, --continue`        | Continue the most recent session in current directory |
 | `--cwd <PATH>`          | Working directory                                     |
+| `--output-format <FMT>` | Output format|
 | `--always-approve`      | Auto-approve tool executions                          |
 | `--rules <TEXT>`        | Custom rules for the system prompt                    |
 | `--tools <TOOLS>`       | Allowlist of built-in tools (comma-separated). Only the listed tools will be available; all others are removed. Headless mode only. |
@@ -604,8 +605,6 @@ grok -p "Your prompt here"
 #### Tool Filtering (`--tools` / `--disallowed-tools`)
 
 Use `--tools` to restrict the agent to an explicit set of tools (allowlist), or `--disallowed-tools` to remove specific tools from the default set (denylist). Both accept a comma-separated list of tool names.
-
-Tool names correspond to the internal tool IDs shown below.
 
 ```bash
 # Only allow read-only tools
@@ -1370,7 +1369,7 @@ Each feature section below documents its own config. This section covers the gen
 
 ### Telemetry
 
-Configure telemetry destinations and credentials. Empty values disable the corresponding sink. Env vars take precedence over config values. `mixpanel_enabled` is `false`, so nothing is sent unless you supply values here or via env.
+Configure telemetry destinations and credentials. Empty values disable the corresponding sink. Env vars take precedence over config values. Builds from the public source tree carry no telemetry defaultsare unset. `mixpanel_enabled` is `false`, so nothing is sent unless you supply values here or via env.
 
 ```json
 {
@@ -1713,7 +1712,7 @@ export GROK_SUBAGENTS=0              # Environment variable
 
 ### Usage Frequency
 
-`usage_frequency` does not gate the tool.
+`usage_frequency` does not gate the tool. It tunes how strongly the system prompt and tool wording nudge the model toward spawning subagents.
 
 ```json
 {
