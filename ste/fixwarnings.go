@@ -367,7 +367,7 @@ func presentBefore(s *syntax.Sentence, end int) bool {
 // "has not read" is left as written, because the negative is not part of the
 // tense and no rewrite here writes it back.
 func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
-	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
+	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" && isParticiple(s.Words[j].Text) {
 		if !simpleSpan(s, i, j) {
 			return "", false
 		}
@@ -418,7 +418,7 @@ func splice(source string, s *syntax.Sentence, first, last int, replacement stri
 // tenseAt answers the verb group rewriteTense rewrites, and whether it is a
 // perfect tense rather than a progressive one.
 func tenseAt(s *syntax.Sentence) (int, int, bool) {
-	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
+	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" && isParticiple(s.Words[j].Text) {
 		return i, j, true
 	}
 	i, j := auxiliary(s, 1, beForms)

@@ -19,6 +19,9 @@ var readmeTablesAndFences string
 //go:embed testdata/readme-prose-bullets.md
 var readmeProseBullets string
 
+//go:embed testdata/notes-doc-bullets.md
+var notesDocBullets string
+
 // verbatimRowsOf answers each line, from one, that a fence, a table or a heading holds.
 func verbatimRowsOf(doc string) map[int]string {
 	out := map[int]string{}
@@ -74,5 +77,16 @@ func TestARepairKeepsAListOfProseItems(t *testing.T) {
 
 	got := Fix(Request{Content: readmeProseBullets, Path: "docs/json-config-notes.md", MaxCommentLines: 14})
 	assert.True(t, strings.HasPrefix(got.Text, "# JSON config notes\n"), "the heading went: %q", got.Text)
+	assert.Equal(t, items, strings.Count(got.Text, "\n- "), "removed %q", got.Removed)
+}
+
+// A notes file that is one heading and one list of prose items is the whole
+// document. A repair that reads the list as an inventory writes an empty file.
+func TestARepairKeepsANotesFileThatIsOneList(t *testing.T) {
+	items := strings.Count(notesDocBullets, "\n- ")
+	require.Greater(t, items, 1)
+
+	got := Fix(Request{Content: notesDocBullets, Path: "docs/sandbox-jail-notes.md", MaxCommentLines: 14})
+	assert.True(t, strings.HasPrefix(got.Text, "# `--sandbox` jail notes\n"), "the heading went: %q", got.Text)
 	assert.Equal(t, items, strings.Count(got.Text, "\n- "), "removed %q", got.Removed)
 }
