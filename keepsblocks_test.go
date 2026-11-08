@@ -3,6 +3,8 @@ package slopfix
 import _ "embed"
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wow-look-at-my/slopfix/counts"
+	"github.com/wow-look-at-my/slopfix/edit"
 	"github.com/wow-look-at-my/slopfix/markdown"
 )
 
@@ -78,6 +81,62 @@ func TestARepairKeepsAListOfProseItems(t *testing.T) {
 	got := Fix(Request{Content: readmeProseBullets, Path: "docs/json-config-notes.md", MaxCommentLines: 14})
 	assert.True(t, strings.HasPrefix(got.Text, "# JSON config notes\n"), "the heading went: %q", got.Text)
 	assert.Equal(t, items, strings.Count(got.Text, "\n- "), "removed %q", got.Removed)
+}
+
+// realDocs are grok-build documents. Each holds reference tables, fences and
+// prose bullets that must survive, beside enumerations that must go.
+var realDocs = []string{
+	"assets-README.md",
+	"sandbox-jail-notes.md",
+	"output-rate-floor-notes.md",
+	"local-runtime-notes-ollama-and-lm-studio.md",
+}
+
+// The repair of a real document deletes only its enumerations. The golden
+// beside each document is what it keeps. SLOPFIX_UPDATE_GOLDEN=1 writes the
+// golden again.
+func TestARepairOfARealDocumentDeletesOnlyEnumerations(t *testing.T) {
+	for _, name := range realDocs {
+		t.Run(name, func(t *testing.T) {
+			src, err := os.ReadFile(filepath.Join("testdata", "grok-build", name))
+			require.NoError(t, err)
+			doc := string(src)
+			got := counts.ListGate(doc, counts.ListEdits(doc), edit.Scope{})
+			require.Empty(t, got.Refused, "the gate refused an edit")
+
+			golden := filepath.Join("testdata", "grok-build", strings.TrimSuffix(name, ".md")+".fixed")
+			if os.Getenv("SLOPFIX_UPDATE_GOLDEN") == "1" {
+				require.NoError(t, os.WriteFile(golden, []byte(got.Text), 0o644))
+			}
+			want, err := os.ReadFile(golden)
+			require.NoError(t, err)
+			assert.Equal(t, string(want), got.Text)
+
+			assert.Equal(t, fenceLines(doc), fenceLines(got.Text), "a fenced line went")
+			assert.Equal(t, strings.Count(doc, "\n#"), strings.Count(got.Text, "\n#"), "a heading went")
+			assert.Empty(t, counts.FindLists(got.Text), "the repair left an enumeration")
+		})
+	}
+}
+
+// fenceLines answers every line inside a fence, the fence lines included.
+func fenceLines(doc string) []string {
+	var out []string
+	in := ""
+	for _, line := range strings.Split(doc, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case in == "" && (strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~")):
+			in = trimmed[:3]
+			out = append(out, line)
+		case in != "":
+			out = append(out, line)
+			if strings.HasPrefix(trimmed, in) && strings.Trim(trimmed, in[:1]) == "" {
+				in = ""
+			}
+		}
+	}
+	return out
 }
 
 // A notes file that is one heading and one list of prose items is the whole
