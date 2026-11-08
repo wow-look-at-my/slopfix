@@ -367,7 +367,7 @@ func presentBefore(s *syntax.Sentence, end int) bool {
 // "has not read" is left as written, because the negative is not part of the
 // tense and no rewrite here writes it back.
 func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
-	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
+	if i, j := auxiliary(s, 0, haveForms); i >= 0 && perfectParticiple(s, j) {
 		if !simpleSpan(s, i, j) {
 			return "", false
 		}
@@ -397,6 +397,21 @@ func rewriteTense(s *syntax.Sentence, source string) (string, bool) {
 	return splice(source, s, i, j, presentOf(baseFromGerund(s.Words[j].Lower()), takesBaseVerb(s, subject))), true
 }
 
+// perfectParticiple reports whether word j is a participle after "has" or
+// "have". "has magic" is the simple present of "has" followed by a noun. The
+// word must be spelled as a participle: -ed, or a form the verb table lists.
+func perfectParticiple(s *syntax.Sentence, j int) bool {
+	if s.Words[j].Tag != "VBN" {
+		return false
+	}
+	form := s.Words[j].Lower()
+	if strings.HasSuffix(form, "ed") {
+		return true
+	}
+	v, ok := verbBy(form)
+	return ok && v.participle == form
+}
+
 // subjectBefore answers the noun phrase that stands in front of word i, which
 // is the subject the verb of a progressive clause agrees with.
 func subjectBefore(s *syntax.Sentence, i int) (syntax.Phrase, bool) {
@@ -418,7 +433,7 @@ func splice(source string, s *syntax.Sentence, first, last int, replacement stri
 // tenseAt answers the verb group rewriteTense rewrites, and whether it is a
 // perfect tense rather than a progressive one.
 func tenseAt(s *syntax.Sentence) (int, int, bool) {
-	if i, j := auxiliary(s, 0, haveForms); i >= 0 && s.Words[j].Tag == "VBN" {
+	if i, j := auxiliary(s, 0, haveForms); i >= 0 && perfectParticiple(s, j) {
 		return i, j, true
 	}
 	i, j := auxiliary(s, 1, beForms)
@@ -432,7 +447,7 @@ func clusterAt(s *syntax.Sentence, off [][]int) (int, int, bool) {
 	noun := func(k int) bool {
 		w := s.Words[k]
 		return strings.HasPrefix(w.Tag, "NN") && !insideAny(off, w.Start) && !masks.Contains(w.Text) &&
-			wordlike(w.Text) && !versus.Contains(w.Lower())
+			wordlike(w.Text) && !versus.Contains(w.Lower()) && !sentenceAdverbs.Contains(w.Lower())
 	}
 	for start := 0; start <= last; start++ {
 		if !noun(start) {
@@ -534,6 +549,9 @@ func rewriteCluster(s *syntax.Sentence, source string, off [][]int) (string, boo
 	}
 	return splice(source, s, start, end, rewritten+rest), true
 }
+
+// sentenceAdverbs are adverbs the tagger reads as a noun after a noun. An adverb is no part of a noun cluster.
+var sentenceAdverbs = set.Of("therefore", "however", "thus", "hence", "moreover", "furthermore", "otherwise", "meanwhile", "instead", "also", "then", "afterward", "afterwards", "nevertheless", "nonetheless", "consequently", "accordingly", "likewise", "anyway", "besides")
 
 // versus joins noun phrases and is no noun of either, though the tagger reads it as one.
 var versus = set.Of("vs", "vs.", "versus")
