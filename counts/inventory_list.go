@@ -217,8 +217,9 @@ var parenthetical = regexp.MustCompile(`\([^()]*\)`)
 // ListSpan answers the part of one sentence that an enumeration takes out: a
 // coordinated run of members, or a list behind a complete-set frame. A
 // parenthesis is read as a list of its own. The span is the parenthesis, or
-// the run behind its lead-in, when the sentence keeps a statement without
-// it. Otherwise the span is the whole sentence: the list is its content.
+// the run behind its lead-in word or its colon, when the sentence keeps a
+// statement without it. Otherwise the span is the whole sentence: the list
+// is its content.
 func ListSpan(sentence string) (Span, bool) {
 	whole := Span{0, len(sentence)}
 	masked := ste.Masked(sentence)
@@ -241,6 +242,11 @@ func ListSpan(sentence string) (Span, bool) {
 		}
 		return whole, true
 	}
+	// A set noun and a complete-set word name the set: the list is the content.
+	found, colon := framed(string(outer), string(outerMasked), end)
+	if found && colon < 0 {
+		return whole, true
+	}
 	if a, b, ok := coordinated(string(outer), string(outerMasked), s, 0, end); ok {
 		if sp, ok := behindLeadIn(masked, a, b, end); ok {
 			return keeps(sp)
@@ -252,8 +258,8 @@ func ListSpan(sentence string) (Span, bool) {
 			return keeps(Span{loc[0], loc[1]})
 		}
 	}
-	if framed(string(outer), string(outerMasked), end) {
-		return whole, true
+	if found {
+		return keeps(Span{colon, end})
 	}
 	return Span{}, false
 }
@@ -290,9 +296,9 @@ func coordinated(text, masked string, s *syntax.Sentence, from, to int) (int, in
 // dashes open or close an aside.
 var dashes = []string{"—", "–", "--"}
 
-// behindLeadIn answers the span of a run that a lead-in word opens, such as
-// "such as `a`, `b` and `c`". The span takes the comma or the dash before the
-// lead-in, and the comma or the dash that closes the aside.
+// behindLeadIn answers the span of a run that a lead-in word or a colon opens,
+// such as "such as `a`, `b` and `c`". The span takes the comma or the dash
+// before the lead-in, and the comma or the dash that closes the aside.
 func behindLeadIn(masked string, a, b, end int) (Span, bool) {
 	before := strings.TrimRight(masked[:a], " ")
 	lower := strings.ToLower(before)
@@ -305,7 +311,11 @@ func behindLeadIn(masked string, a, b, end int) (Span, bool) {
 		}
 	}
 	if open < 0 {
-		return Span{}, false
+		// A colon before the run opens it as a lead-in word does: "Output format: `a`, `b` and `c`".
+		if !strings.HasSuffix(before, ":") {
+			return Span{}, false
+		}
+		return Span{len(before) - 1, b}, true
 	}
 	pre := strings.TrimRight(masked[:open], " ")
 	closer := ""
@@ -325,9 +335,10 @@ func behindLeadIn(masked string, a, b, end int) (Span, bool) {
 	return Span{open, b}, true
 }
 
-// framed reports a set noun, then a complete-set word or a colon, then a list
-// of at least MinFramedMembers noun phrases.
-func framed(sentence, masked string, end int) bool {
+// framed finds a set noun with a list after it. A complete-set word or a colon
+// comes first. The list holds MinFramedMembers noun phrases or more, and each
+// names a member. When a colon opens the list, colon answers where it sits.
+func framed(sentence, masked string, end int) (found bool, colon int) {
 	s := syntax.Parse(masked, inlineCode.FindAllStringIndex(sentence, -1))
 	for i, w := range s.Words {
 		if w.Tag != "NNS" && w.Tag != "NNPS" {
@@ -337,6 +348,10 @@ func framed(sentence, masked string, end int) bool {
 		if !ok || at >= end {
 			continue
 		}
+		colon = -1
+		if masked[at-1] == ':' {
+			colon = at - 1
+		}
 		elements := elementsOf(sentence, masked, at, end, listSplit)
 		if len(elements) < MinFramedMembers {
 			continue
@@ -344,7 +359,8 @@ func framed(sentence, masked string, end int) bool {
 		every := true
 		for n, e := range elements {
 			place := placeOf(sentence, s, e)
-			if !nounPhrase(s, i+1, e) && !place.tail || finite(s, e) {
+			// Each element must name a member. A title such as "Notes: Ollama and LM Studio" names none.
+			if !e.member || !nounPhrase(s, i+1, e) && !place.tail || finite(s, e) {
 				every = false
 			}
 			// A joiner after "between" pairs the ends of one phrase. It divides no list.
@@ -353,10 +369,10 @@ func framed(sentence, masked string, end int) bool {
 			}
 		}
 		if every {
-			return true
+			return true, colon
 		}
 	}
-	return false
+	return false, -1
 }
 
 // pairs matches a word that takes both ends of a pair as one phrase.

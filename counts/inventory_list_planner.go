@@ -81,8 +81,8 @@ func (pl *planner) inline(cuts []ProseCut) {
 	}
 }
 
-// intro takes out the sentence right before the block at line, when it leads
-// in to that block. It ends in a colon, or it holds a pointer word.
+// intro takes out the sentences right before the block at line that lead in
+// to it. Each ends in a colon, or holds a pointer word.
 func (pl *planner) intro(line int) {
 	i := line - 1
 	for i >= 0 && strings.TrimSpace(pl.lines[i]) == "" {
@@ -96,11 +96,12 @@ func (pl *planner) intro(line int) {
 		return
 	}
 	spans := SentenceSpans(pl.content[b.start:b.end])
-	if len(spans) == 0 {
-		return
+	// The lead-in is each sentence at the end of the block that points at the list.
+	first := len(spans)
+	for first > 0 && leadsIn(pl.content[b.start+spans[first-1].Start:b.start+spans[first-1].End]) {
+		first--
 	}
-	last := spans[len(spans)-1]
-	if !leadsIn(pl.content[b.start+last.Start : b.start+last.End]) {
+	if first == len(spans) {
 		return
 	}
 	// An item that leads in to a list keeps any other content nested under it.
@@ -111,11 +112,11 @@ func (pl *planner) intro(line int) {
 			}
 		}
 	}
-	if len(spans) == 1 {
+	if first == 0 {
 		pl.cover(b.first, b.last)
 		return
 	}
-	pl.cuts = append(pl.cuts, Span{b.start + last.Start, b.start + last.End})
+	pl.cuts = append(pl.cuts, Span{b.start + spans[first].Start, b.start + spans[len(spans)-1].End})
 }
 
 // leadsIn reports a sentence that ends in a colon or holds a word of the pointer class.
