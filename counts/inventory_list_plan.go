@@ -4,7 +4,6 @@ package counts
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/wow-look-at-my/slopfix/edit"
 )
@@ -89,4 +88,3 @@ func lineOffsets(content string) []int {
 func lineAt(starts []int, at int) int {
 	return sort.Search(len(starts), func(i int) bool { return starts[i] > at }) - 1
 }
-
