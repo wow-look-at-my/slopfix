@@ -95,6 +95,10 @@ func submodules(root string) []string {
 // first, so the parent's commit records the pushed gitlink. It answers a result
 // for every repository that held found work.
 func commitFound(root, session string, depth int) []foundResult {
+	if _, err := os.Stat(root); errors.Is(err, fs.ErrNotExist) {
+		// A repository that no longer exists on this machine holds no work to lose.
+		return nil
+	}
 	var out []foundResult
 	// A root that is gone, or that holds no .git now, has no work to save.
 	if _, err := os.Stat(filepath.Join(root, ".git")); errors.Is(err, fs.ErrNotExist) {
