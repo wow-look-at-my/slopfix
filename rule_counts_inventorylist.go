@@ -105,3 +105,24 @@ var embeddedFrame string
 
 //go:embed testdata/inventory-prose-items.md
 var embeddedProseItems string
+
+//go:embed testdata/inventory-table-names.md
+var embeddedTableNames string
+
+//go:embed testdata/inventory-table-reference.md
+var embeddedTableReference string
+
+//go:embed testdata/inventory-table-mixed.md
+var embeddedTableMixed string
+
+//go:embed testdata/inventory-table-cell.md
+var embeddedTableCell string
+
+//go:embed testdata/inventory-list-names.md
+var embeddedListNames string
+
+//go:embed testdata/inventory-list-item-cut.md
+var embeddedListItemCut string
+
+// listKept is what each fixture keeps above the list it tests.
+const listKept = "# Tool\n\nThe tool reads prose.\n"
