@@ -52,15 +52,16 @@ func ListSpans(sentence string) ([]Span, bool) {
 	}
 	if a, b, ok := coordinated(string(outer), string(outerMasked), s, 0, end); ok {
 		for _, try := range runCuts(masked, s, a, b, end) {
-			if accept(try) {
-				return try, true
+			if try.aside && keepsWords(sentence, append([]Span(nil), try.spans...)) || accept(try.spans) {
+				return try.spans, true
 			}
 		}
 		return whole, true
 	}
+	// An aside leaves the grammar of its sentence whole, so its cut must only keep a word.
 	for _, loc := range asides {
 		if _, _, ok := coordinated(sentence, masked, s, loc[0]+1, loc[1]-1); ok {
-			if try := []Span{{loc[0], loc[1]}}; accept(try) {
+			if try := []Span{{loc[0], loc[1]}}; keepsWords(sentence, try) {
 				return try, true
 			}
 			return whole, true
@@ -75,33 +76,41 @@ func ListSpans(sentence string) ([]Span, bool) {
 	return nil, false
 }
 
+// cut is a way to take out a run. An aside leaves the grammar around it
+// whole, so its remainder must only keep a word.
+type cut struct {
+	spans []Span
+	aside bool
+}
+
 // runCuts answers each cut that can take out the run masked[a:b], in the
-// order ListSpans tries them.
-func runCuts(masked string, s *syntax.Sentence, a, b, end int) [][]Span {
-	var out [][]Span
+// order ListSpans tries them. A run that ends the sentence after a colon is
+// an aside: "Output format: `a`, `b` and `c`".
+func runCuts(masked string, s *syntax.Sentence, a, b, end int) []cut {
+	var out []cut
 	aside, open := leadIn(masked, s, a, b, end)
-	if aside != nil {
-		out = append(out, aside)
+	for _, spans := range aside {
+		out = append(out, cut{spans: spans, aside: true})
 	}
 	if start, ok := preposition(s, a); ok {
-		out = append(out, []Span{{start, b}})
+		out = append(out, cut{spans: []Span{{start, b}}})
 	}
 	if i := strings.LastIndex(masked[:a], ":"); i >= 0 {
-		out = append(out, []Span{{i, end}})
+		out = append(out, cut{spans: []Span{{i, end}}, aside: strings.TrimSpace(masked[b:end]) == ""})
 	}
 	if aside == nil && open >= 0 {
-		out = append(out, []Span{{open, b}})
+		out = append(out, cut{spans: []Span{{open, b}}})
 	}
 	return out
 }
 
 // leadIn finds a lead-in word, such as "such as", right before the run
-// masked[a:b]. aside is the cut when a comma or a dash opens the lead-in. It
-// runs to the comma or the dash that closes the aside. An aside between a
-// phrase with no finite verb and the main clause keeps one comma, so "To
-// read files — such as `a`, `b`, or others — run" becomes "To read
-// files, run".
-func leadIn(masked string, s *syntax.Sentence, a, b, end int) (aside []Span, open int) {
+// masked[a:b]. aside holds the cuts when a comma or a dash opens the lead-in.
+// Each runs to the comma or the dash that closes the aside. An aside between
+// a phrase with no finite verb and the main clause first tries a cut that
+// keeps one comma, so "To read files — such as `a`, `b`, or others — run"
+// becomes "To read files, run".
+func leadIn(masked string, s *syntax.Sentence, a, b, end int) (aside [][]Span, open int) {
 	before := strings.TrimRight(masked[:a], " ")
 	lower := strings.ToLower(before)
 	open = -1
@@ -135,10 +144,10 @@ func leadIn(masked string, s *syntax.Sentence, a, b, end int) (aside []Span, ope
 	if closer != "," && to < end && !finiteBefore(s, from) {
 		if comma := strings.LastIndex(masked[b:to], ","); comma >= 0 {
 			comma += b
-			return []Span{{from, comma}, {comma + 1, to}}, open
+			aside = append(aside, []Span{{from, comma}, {comma + 1, to}})
 		}
 	}
-	return []Span{{from, to}}, open
+	return append(aside, []Span{{from, to}}), open
 }
 
 // finiteBefore reports a finite verb in a word that ends before at.
