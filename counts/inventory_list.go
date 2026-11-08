@@ -44,9 +44,6 @@ var (
 	nameShapes    = shapes(listTable.List("name-shape"))
 	linkTarget    = regexp.MustCompile(`\]\(([^)\s]+)\)`)
 	tokenPattern  = regexp.MustCompile("`[^`]*`|\\[[^\\]]*\\]\\([^)\\s]*\\)|\\S+")
-	fenceOpen     = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})")
-	headingOpen   = regexp.MustCompile(`^ {0,3}#{1,6}(\s|$)`)
-	tableRule     = regexp.MustCompile(`^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$`)
 )
 
 // splitter builds the pattern that divides a list into its elements.
@@ -130,13 +127,6 @@ func firstMember(text string) (int, int, bool) {
 	return 0, 0, false
 }
 
-// OpensWithMember reports whether text opens with a member, under any bold or italic marker.
-func OpensWithMember(text string) bool {
-	text = strings.TrimLeft(strings.TrimSpace(text), "*_")
-	loc := tokenPattern.FindStringIndex(text)
-	return loc != nil && loc[0] == 0 && IsMember(text[loc[0]:loc[1]])
-}
-
 // element is a phrase of a list, as a byte span into its sentence.
 type element struct {
 	start, end int
@@ -201,74 +191,62 @@ func placeOf(text string, s *syntax.Sentence, e element) listPlace {
 	}
 }
 
-// longestRun answers the most elements in a row that read as one list: the earliest
-// ends on a member. The last opens on one, and each between is a bare member.
-func longestRun(places []listPlace) int {
-	best := 0
+// longestRun answers the most elements in a row that read as one list, and
+// the first and the last of them. This is the earliest ends on a member.
+// The last opens on one, and each between is a bare member.
+func longestRun(places []listPlace) (best, first, last int) {
 	for i := range places {
 		if !places[i].head {
 			continue
 		}
 		for j := i + 1; j < len(places); j++ {
-			if places[j].tail {
-				best = max(best, j-i+1)
+			if places[j].tail && j-i+1 > best {
+				best, first, last = j-i+1, i, j
 			}
 			if !places[j].inner || !places[j].tail {
 				break
 			}
 		}
 	}
-	return best
+	return best, first, last
 }
 
 // parenthetical matches a parenthesis with no parenthesis inside it.
 var parenthetical = regexp.MustCompile(`\([^()]*\)`)
 
-// SentenceList reports whether one sentence holds an enumeration: a
-// coordinated run of members, or a list behind a complete-set frame. detail
-// quotes the list. A parenthesis is read as a list of its own.
-func SentenceList(sentence string) (string, bool) {
-	masked := ste.Masked(sentence)
-	end := len(strings.TrimRight(sentence, " \t\n.!?"))
-	if end <= 0 {
-		return "", false
-	}
-	outer, outerMasked := []byte(sentence), []byte(masked)
-	var asides [][]int
-	for _, loc := range parenthetical.FindAllStringIndex(masked, -1) {
-		asides = append(asides, loc)
-		for i := loc[0]; i < loc[1]; i++ {
-			outer[i], outerMasked[i] = ' ', ' '
-		}
-	}
-	s := syntax.Parse(masked, inlineCode.FindAllStringIndex(sentence, -1))
-	if coordinated(string(outer), string(outerMasked), s, 0, end) {
-		return strings.TrimSpace(sentence), true
-	}
-	for _, loc := range asides {
-		if coordinated(sentence, masked, s, loc[0]+1, loc[1]-1) {
-			return strings.TrimSpace(sentence), true
-		}
-	}
-	if framed(string(outer), string(outerMasked), end) {
-		return strings.TrimSpace(sentence), true
-	}
-	return "", false
-}
-
-// coordinated reports a run of at least MinMembers elements in text[from:to].
-func coordinated(text, masked string, s *syntax.Sentence, from, to int) bool {
+// coordinated answers the run of at least MinMembers elements in
+// text[from:to], from its first member to its last.
+func coordinated(text, masked string, s *syntax.Sentence, from, to int) (int, int, bool) {
 	elements := elementsOf(text, masked, from, to, boundarySplit)
 	places := make([]listPlace, len(elements))
 	for i, e := range elements {
 		places[i] = placeOf(text, s, e)
 	}
-	return longestRun(places) >= MinMembers
+	n, first, last := longestRun(places)
+	if n < MinMembers {
+		return 0, 0, false
+	}
+	head, tail := elements[first], elements[last]
+	start, end := head.start, tail.end
+	for _, loc := range tokenPattern.FindAllStringIndex(text[head.start:head.end], -1) {
+		if IsMember(strings.TrimRight(text[head.start+loc[0]:head.start+loc[1]], ".,;:!?")) {
+			start = head.start + loc[0]
+		}
+	}
+	for _, loc := range tokenPattern.FindAllStringIndex(text[tail.start:tail.end], -1) {
+		tok := text[tail.start+loc[0] : tail.start+loc[1]]
+		if IsMember(strings.TrimRight(tok, ".,;:!?")) {
+			end = tail.start + loc[0] + len(strings.TrimRight(tok, ".,;:!?"))
+			break
+		}
+	}
+	return start, end, true
 }
 
-// framed reports a set noun, then a complete-set word or a colon, then a list
-// of at least MinFramedMembers noun phrases.
-func framed(sentence, masked string, end int) bool {
+// framed finds a set noun with a list after it. A complete-set word or a colon
+// comes first. The list holds MinFramedMembers noun phrases or more, and each
+// names a member. When a colon opens the list, colon answers where it sits.
+func framed(sentence, masked string, end int) (found bool, colon int) {
 	s := syntax.Parse(masked, inlineCode.FindAllStringIndex(sentence, -1))
 	for i, w := range s.Words {
 		if w.Tag != "NNS" && w.Tag != "NNPS" {
@@ -278,6 +256,10 @@ func framed(sentence, masked string, end int) bool {
 		if !ok || at >= end {
 			continue
 		}
+		colon = -1
+		if masked[at-1] == ':' {
+			colon = at - 1
+		}
 		elements := elementsOf(sentence, masked, at, end, listSplit)
 		if len(elements) < MinFramedMembers {
 			continue
@@ -285,7 +267,8 @@ func framed(sentence, masked string, end int) bool {
 		every := true
 		for n, e := range elements {
 			place := placeOf(sentence, s, e)
-			if !nounPhrase(s, i+1, e) && !place.tail || finite(s, e) {
+			// Each element must name a member. A title such as "Notes: Ollama and LM Studio" names none.
+			if !e.member || !nounPhrase(s, i+1, e) && !place.tail || finite(s, e) {
 				every = false
 			}
 			// A joiner after "between" pairs the ends of one phrase. It divides no list.
@@ -294,10 +277,10 @@ func framed(sentence, masked string, end int) bool {
 			}
 		}
 		if every {
-			return true
+			return true, colon
 		}
 	}
-	return false
+	return false, -1
 }
 
 // pairs matches a word that takes both ends of a pair as one phrase.
@@ -358,19 +341,25 @@ func nounPhrase(s *syntax.Sentence, from int, e element) bool {
 	return noun
 }
 
-// FrameKey answers the frame a sentence names its member in: the words before
-// its earliest member, and the word after it.
+// FrameKey answers a sentence with each member written as one mark. Sentences
+// with one key differ only in the member they name, so they say nothing about
+// it: a run of them is an enumeration. A sentence that says something
+// different about each member is a description, and has a key of its own.
 func FrameKey(sentence string) (string, bool) {
-	start, end, ok := firstMember(sentence)
-	if !ok {
+	if _, _, ok := firstMember(sentence); !ok {
 		return "", false
 	}
-	before := strings.ToLower(strings.Join(strings.Fields(ste.Masked(sentence[:start])), " "))
-	after := ""
-	if words := strings.Fields(sentence[end:]); len(words) > 0 {
-		after = strings.ToLower(strings.Trim(words[0], ".,;:!?"))
+	tokens := tokenPattern.FindAllString(sentence, -1)
+	words := make([]string, 0, len(tokens))
+	for _, tok := range tokens {
+		bare := strings.Trim(tok, ".,;:!?")
+		if IsMember(bare) || IsMember(tok) {
+			words = append(words, "\x00")
+			continue
+		}
+		words = append(words, strings.ToLower(bare))
 	}
-	return before + "|" + after, true
+	return strings.Join(words, " "), true
 }
 
 // Span is a byte range of a text.
@@ -396,20 +385,24 @@ func SentenceSpans(prose string) []Span {
 	return out
 }
 
-// ProseCut is a sentence of prose an enumeration takes out, and the list it quotes.
+// ProseCut is a part of prose an enumeration takes out, and the sentence it
+// quotes.
 type ProseCut struct {
 	Span
 	Detail string
 }
 
-// ProseCuts answers each sentence of prose that holds an enumeration, or that
-// belongs to an enumeration split across sentences.
+// ProseCuts answers the parts of each sentence that an enumeration takes out
+// (see ListSpans), and each whole sentence of an enumeration split across
+// sentences.
 func ProseCuts(prose string) []ProseCut {
 	spans := SentenceSpans(prose)
-	cut := make([]string, len(spans))
+	cut := make([][]Span, len(spans))
 	for i, sp := range spans {
-		if detail, ok := SentenceList(prose[sp.Start:sp.End]); ok {
-			cut[i] = detail
+		if parts, ok := ListSpans(prose[sp.Start:sp.End]); ok {
+			for _, in := range parts {
+				cut[i] = append(cut[i], Span{sp.Start + in.Start, sp.Start + in.End})
+			}
 		}
 	}
 	keys := make([]string, len(spans))
@@ -418,15 +411,17 @@ func ProseCuts(prose string) []ProseCut {
 	}
 	for _, run := range SameKeyRuns(keys) {
 		for i := run[0]; i < run[1]; i++ {
-			if cut[i] == "" {
-				cut[i] = strings.TrimSpace(prose[spans[i].Start:spans[i].End])
-			}
+			cut[i] = []Span{spans[i]}
 		}
 	}
 	var out []ProseCut
 	for i, sp := range spans {
-		if cut[i] != "" {
-			out = append(out, ProseCut{Span: sp, Detail: cut[i]})
+		for n, part := range cut[i] {
+			c := ProseCut{Span: part}
+			if n == 0 {
+				c.Detail = strings.TrimSpace(prose[sp.Start:sp.End])
+			}
+			out = append(out, c)
 		}
 	}
 	return out
@@ -458,9 +453,17 @@ func CutProse(prose string, spans []Span) string {
 		if sp.Start < at {
 			continue
 		}
-		b.WriteString(prose[at:sp.Start])
+		kept := prose[at:sp.Start]
+		// A cut before a closing mark leaves no blank in front of it.
+		if sp.End < len(prose) && closesClause(prose[sp.End]) {
+			kept = strings.TrimRight(kept, " \t\n")
+		}
+		b.WriteString(kept)
 		at = sp.End
 	}
 	b.WriteString(prose[at:])
 	return strings.Join(strings.Fields(b.String()), " ")
 }
+
+// closesClause reports a mark that takes no blank before it.
+func closesClause(c byte) bool { return strings.IndexByte(".,;:!?)", c) >= 0 }

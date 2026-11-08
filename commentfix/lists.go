@@ -61,15 +61,18 @@ func CheckLists(filename, src string) []ListHit {
 				continue
 			}
 			for _, c := range counts.ProseCuts(seg.prose) {
-				hits = append(hits, ListHit{Line: line, Sentence: c.Detail})
+				// A later part of a cut quotes nothing: its first part reports it.
+				if c.Detail != "" {
+					hits = append(hits, ListHit{Line: line, Sentence: c.Detail})
+				}
 			}
 		}
 	}
 	return hits
 }
 
-// droppedItems marks each segment that is an item of a comment list whose
-// items open with a member, when at least MinMembers of them do.
+// droppedItems marks each item of a comment list that only names things, when
+// such items name at least MinMembers members. An item that states something stays.
 func droppedItems(segs []segment) []bool {
 	out := make([]bool, len(segs))
 	for k := 0; k < len(segs); {
@@ -77,16 +80,14 @@ func droppedItems(segs []segment) []bool {
 			k++
 			continue
 		}
-		j, opening := k, 0
+		j, names := k, 0
 		for j < len(segs) && opensListItem(segs[j].prose) {
-			if counts.OpensWithMember(itemText(segs[j].prose)) {
-				opening++
-			}
+			names += counts.NamesOnly(itemText(segs[j].prose))
 			j++
 		}
-		if opening >= counts.MinMembers {
+		if names >= counts.MinMembers {
 			for i := k; i < j; i++ {
-				out[i] = true
+				out[i] = counts.NamesOnly(itemText(segs[i].prose)) > 0
 			}
 		}
 		k = j

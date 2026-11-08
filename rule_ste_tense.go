@@ -16,6 +16,8 @@ func init() {
 			// dats docs/cli.md: a perfect after \"after\" under a present verb becomes the simple present.
 			{Name: ste.IDTense + " after after", Path: "w.md", Text: "A later run begins only after the first run has finished.\n"},
 			{Name: ste.IDTense, Path: "w.md", Text: "The gate has started the task.\n", Want: "The gate started the task.\n"},
+			// The tagger read "focus" as a participle, and the repair wrote "while the scrollback focus".
+			{Name: "have-with-a-noun-object", Path: "w.md", Text: "The option collapses the prompt while the scrollback has focus.\n", Unchanged: true},
 			// A progressive with you as its subject became "You looks for".
 			{Name: "progressive-after-you", Path: "w.md", Text: "You are looking for the actions a careful developer will not take alone.\n", Want: "You look for the actions a careful developer will not take alone.\n"},
 			// A base form that ends on a doubled consonant lost one: "pols".

@@ -103,121 +103,6 @@ func groupEnd(lines []string, group []proseBlock) int {
 	return last
 }
 
-// memberOnly reports a list item that is a bare member and no prose around it:
-// a path or a name the document holds. memberOnly is not a sentence that
-// enumerates what the code holds.
-func memberOnly(text string) bool {
-	text = strings.TrimLeft(strings.TrimSpace(text), "*_")
-	loc := tokenPattern.FindStringIndex(text)
-	if loc == nil || loc[0] != 0 || !IsMember(text[loc[0]:loc[1]]) {
-		return false
-	}
-	return strings.Trim(text[loc[1]:], " \t.,;:!?") == ""
-}
-
-// bareMembers reports a list whose every item is one member.
-func bareMembers(group []proseBlock) bool {
-	for _, b := range group {
-		if !memberOnly(b.text) {
-			return false
-		}
-	}
-	return true
-}
-
-// catalog reports a usage fence. Its code lines open with one word. The word
-// after it differs on MinMembers lines or more.
-func catalog(body []string) bool {
-	seconds := map[string]map[string]bool{}
-	for _, line := range body {
-		if i := strings.Index(line, " #"); i >= 0 {
-			line = line[:i]
-		}
-		trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "$ "))
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") {
-			continue
-		}
-		words := strings.Fields(trimmed)
-		if len(words) < 2 {
-			continue
-		}
-		if seconds[words[0]] == nil {
-			seconds[words[0]] = map[string]bool{}
-		}
-		seconds[words[0]][words[1]] = true
-	}
-	for _, second := range seconds {
-		if len(second) >= MinMembers {
-			return true
-		}
-	}
-	return false
-}
-
-// tableList reports a table that lists members. One column holds a member on
-// MinMembers rows or more, or one row holds a member in MinMembers cells or more.
-func tableList(rows []string) (string, bool) {
-	columns := map[int]int{}
-	for n, row := range rows {
-		if n == 1 {
-			continue
-		}
-		cells := strings.Split(strings.Trim(strings.TrimSpace(row), "|"), "|")
-		inRow := 0
-		for c, cell := range cells {
-			if holdsMember(cell) {
-				inRow++
-				if n > 1 {
-					columns[c]++
-				}
-			}
-		}
-		if inRow >= MinMembers {
-			return strings.TrimSpace(row), true
-		}
-	}
-	for _, count := range columns {
-		if count >= MinMembers {
-			return strings.TrimSpace(rows[0]), true
-		}
-	}
-	return "", false
-}
-
-// coverEmptySections covers each heading whose section the repair empties.
-func coverEmptySections(lines []string, st structure, covered []bool) {
-	level := func(i int) int {
-		trimmed := strings.TrimSpace(lines[i])
-		return len(trimmed) - len(strings.TrimLeft(trimmed, "#"))
-	}
-	for k := len(st.headings) - 1; k >= 0; k-- {
-		h := st.headings[k]
-		if covered[h] {
-			continue
-		}
-		end := len(lines)
-		for _, next := range st.headings[k+1:] {
-			if level(next) <= level(h) {
-				end = next
-				break
-			}
-		}
-		content, cut := false, true
-		for i := h + 1; i < end; i++ {
-			if strings.TrimSpace(lines[i]) == "" {
-				continue
-			}
-			content = true
-			if !covered[i] {
-				cut = false
-			}
-		}
-		if content && cut {
-			covered[h] = true
-		}
-	}
-}
-
 // tidyBlanks covers the blank line after each deleted run when a blank line
 // already sits before it, so no run of blank lines is left.
 func tidyBlanks(lines []string, covered []bool) {
@@ -239,24 +124,44 @@ func tidyBlanks(lines []string, covered []bool) {
 		}
 		i = j + 1
 	}
+	// A deletion that reaches the end of the document takes the blank lines before it.
+	last := len(lines) - 1
+	if last > 0 && lines[last] == "" {
+		last--
+	}
+	if last < 0 || !covered[last] {
+		return
+	}
+	for k := last; k >= 0 && (covered[k] || blank(k)); k-- {
+		covered[k] = true
+	}
 }
 
-// ListGate writes the deletions the repair answers. Each edit only deletes:
-// whole lines, or bytes inside one prose block. Every verbatim line of the
-// result must be a line of the source, in the same order.
+// ListGate writes the deletions the repair answers. Each edit only deletes.
+// Whole lines that are not a fence line or a heading, or bytes inside one
+// prose block. One table cell or the words of one heading. The result must
+// keep every other verbatim line of the source, in the same order, and every
+// heading. Each table it keeps must keep its header, its rule and a body row.
 func ListGate(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 	if len(edits) == 0 {
 		return edit.Unchanged(content, scope)
 	}
+	lines := strings.Split(content, "\n")
 	starts := lineOffsets(content)
 	blocks := proseBlocks(content)
-	want := verbatimLines(content)
+	st := scan(lines)
+	want := shapeOf(content)
 	return edit.Gate(content, edits, scope,
 		func(e edit.Edit) string {
 			if e.Text != "" {
 				return "it writes text, and the repair only deletes"
 			}
-			if slices.Contains(starts, e.Start) && (e.End == len(content) || slices.Contains(starts, e.End)) {
+			if from, to, ok := wholeLines(content, starts, e); ok {
+				for i := from; i <= to; i++ {
+					if st.fence[i] || st.heading[i] {
+						return "it deletes a fence line or a heading"
+					}
+				}
 				return ""
 			}
 			for _, b := range blocks {
@@ -264,38 +169,74 @@ func ListGate(content string, edits []edit.Edit, scope edit.Scope) edit.Result {
 					return ""
 				}
 			}
-			return "it reaches past its prose block"
+			i := lineAt(starts, e.Start)
+			if lineAt(starts, e.End) != i && e.End != starts[i]+len(lines[i]) {
+				return "it reaches past its line"
+			}
+			s, t := e.Start-starts[i], e.End-starts[i]
+			if st.table[i] {
+				for _, c := range cells(lines[i]) {
+					if s >= c[0] && t <= c[1] {
+						return ""
+					}
+				}
+			}
+			if st.heading[i] && s >= headingText(lines[i]) {
+				return ""
+			}
+			return "it reaches past its prose block, its cell or its heading"
 		},
-		func(text string) bool { return subsequence(verbatimLines(text), want) })
+		func(text string) bool { return shapeOf(text) == want })
 }
 
-// verbatimLines answers every line the parser keeps as written, in order.
-func verbatimLines(content string) []string {
-	var out []string
-	for _, b := range markdown.Split(content) {
-		if b.Kind != markdown.Verbatim {
+// wholeLines answers the lines, from zero, that e deletes whole.
+func wholeLines(content string, starts []int, e edit.Edit) (int, int, bool) {
+	if e.End != len(content) && !slices.Contains(starts, e.End) {
+		return 0, 0, false
+	}
+	start := e.Start
+	// The last line has no line end of its own, so the one before it goes with it.
+	if e.End == len(content) && start < len(content) && content[start] == '\n' {
+		start++
+	}
+	if !slices.Contains(starts, start) || start >= e.End {
+		return 0, 0, false
+	}
+	return lineAt(starts, start), lineAt(starts, e.End-1), true
+}
+
+// shapeOf answers what the repair must keep of a document: each verbatim line
+// that no table holds. This also covers the count of its headings, and each
+// table that is short of a body row. A row that holds a pipe outside a table
+// counts too.
+func shapeOf(content string) string {
+	lines := strings.Split(content, "\n")
+	st := scan(lines)
+	var b strings.Builder
+	for _, blk := range markdown.Split(content) {
+		if blk.Kind != markdown.Verbatim {
 			continue
 		}
-		for _, line := range b.Lines {
-			if strings.TrimSpace(line) != "" {
-				out = append(out, line)
+		for k, line := range blk.Lines {
+			i := blk.Start - 1 + k
+			switch {
+			case strings.TrimSpace(line) == "" || st.table[i]:
+			case st.heading[i]:
+				b.WriteString("#\n")
+			default:
+				b.WriteString(line + "\n")
 			}
 		}
 	}
-	return out
-}
-
-// subsequence reports whether every line of got appears in want, in order.
-func subsequence(got, want []string) bool {
-	i := 0
-	for _, line := range got {
-		for i < len(want) && want[i] != line {
-			i++
+	for _, t := range st.tables {
+		if t[1] < t[0]+2 {
+			b.WriteString("table without a body row\n")
 		}
-		if i == len(want) {
-			return false
-		}
-		i++
 	}
-	return true
+	for i, line := range lines {
+		if piped(line) && !st.table[i] && !st.fence[i] {
+			b.WriteString("row outside a table\n")
+		}
+	}
+	return b.String()
 }

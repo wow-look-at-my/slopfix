@@ -100,6 +100,10 @@ func commitFound(root, session string, depth int) []foundResult {
 		return nil
 	}
 	var out []foundResult
+	// A root that is gone, or that holds no .git now, has no work to save.
+	if _, err := os.Stat(filepath.Join(root, ".git")); errors.Is(err, fs.ErrNotExist) {
+		return out
+	}
 	if depth < maxScriptDepth {
 		for _, sub := range submodules(root) {
 			dir := filepath.Join(root, sub)

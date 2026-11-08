@@ -11,6 +11,12 @@
   <!-- A lead-in opens a list. An underscore joins the words of a lead-in that is a phrase. -->
   <class name="lead-in" words="including namely such_as especially e.g. i.e."/>
 
+  <!-- A pointer, in the sentence right before a list or a table, refers to it. That sentence goes with the list. -->
+  <class name="pointer" words="shown_below listed_below given_below the_following as_follows listed_here these"/>
+
+  <!-- A preposition right before a run introduces it. The cut takes the preposition with the run: "query the server for `a`, `b` and `c`". -->
+  <class name="run-preposition" words="for with by to via from of into onto on in at through over"/>
+
   <!-- A complete-set word, after a plural noun, says the list that follows is the whole set. -->
   <class name="complete-set" words="are were comprise consist_of consists_of"/>
 

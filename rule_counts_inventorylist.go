@@ -21,9 +21,26 @@ func init() {
 		Cases: []RuleCase{
 			{Name: "commands", Path: "x.md", Text: "The commands are `check`, `hook`, `lsp`, `ratchet`, `version`, `completion` and `help`.\n"},
 			{Name: "frame", Path: "x.md", Text: embeddedFrame},
-			{Name: "list-block", Path: "x.md", Text: embeddedMd2},
-			{Name: "table", Path: "x.md", Text: embeddedMd3},
-			{Name: "catalog-fence", Path: "x.md", Text: embeddedMd4},
+			{Name: "a list of statements is prose", Path: "x.md", Text: embeddedMd2, Unchanged: true},
+			{Name: "a table that describes each row is content", Path: "x.md", Text: embeddedMd3, Unchanged: true},
+			{Name: "a reference table is content", Path: "x.md", Text: embeddedTableReference, Unchanged: true},
+			{Name: "a fence is content, not a list", Path: "x.md", Text: embeddedMd4, Unchanged: true},
+			{Name: "a list of items of several sentences is prose", Path: "x.md", Text: embeddedProseItems, Unchanged: true},
+			{Name: "a table of names goes", Path: "x.md", Text: embeddedTableNames, Want: listKept},
+			{Name: "a mixed table loses its rows of names", Path: "x.md", Text: embeddedTableMixed, Want: listKept + "\n| Command | Description |\n|---|---|\n| `check` | Reads each file and reports each finding. |\n"},
+			{Name: "a cell loses its enumeration", Path: "x.md", Text: embeddedTableCell, Want: listKept + "\n| Command | Description |\n|---|---|\n| `check` | Reads each file. |\n| `fix` | Repairs each file. |\n"},
+			{Name: "a list of names goes", Path: "x.md", Text: embeddedListNames, Want: listKept},
+			{Name: "an item loses its enumeration", Path: "x.md", Text: embeddedListItemCut, Want: listKept + "\n- `check` reads a file.\n- `fix` repairs a file.\n"},
+			{Name: "a sentence loses its parenthesis of names", Path: "x.md", Text: embeddedAside, Want: listKept + "\nThe tool skips hidden paths on each run.\n"},
+			{Name: "a sentence loses its run behind a lead-in", Path: "x.md", Text: embeddedLeadIn, Want: listKept + "\nThe tool skips hidden paths.\n"},
+			{Name: "a row goes when a cell is only names", Path: "x.md", Text: embeddedTableCellOnly, Want: listKept + "\n| Command | Description |\n|---|---|\n| `check` | Reads each file. |\n"},
+			{Name: "a pointer sentence goes with its table", Path: "x.md", Text: embeddedPointer, Want: listKept},
+			{Name: "an item goes when its enumeration is its content", Path: "x.md", Text: embeddedItemOnlyList, Want: listKept + "\n- `check` reads a file.\n"},
+			{Name: "a run goes with its preposition", Path: "x.md", Text: embeddedCutPreposition, Want: listKept + "\n- The tool queries the server.\n- The tool writes a report.\n"},
+			{Name: "a run goes with its participle phrase", Path: "x.md", Text: embeddedCutParticiple, Want: listKept + "\nThe tool builds the file in the environment.\n"},
+			{Name: "a clause after a colon goes with its run", Path: "x.md", Text: embeddedCutColon, Want: listKept + "\nThe tool keeps no defaults.\n"},
+			{Name: "an instruction keeps its verb", Path: "x.md", Text: embeddedCutImperative, Want: listKept + "\nManage plugins at runtime.\n"},
+			{Name: "a dash aside leaves its comma", Path: "x.md", Text: embeddedCutDash, Want: listKept + "\nTo search hidden files, prefix the query with `!`.\n"},
 			{Name: "split", Path: "x.md", Text: embeddedMd5},
 			{Name: "comment", Path: "x.go", Text: "// x.go holds mode.\n\npackage x\n\n// The modes are `fast`, `slow` and `safe`.\nconst mode = 1\n"},
 			{Name: "message", Text: "I changed `a.go`, `b.go` and `c.go`.\n"},
@@ -95,3 +112,57 @@ var embeddedMd5 string
 
 //go:embed testdata/inventory-frame.md
 var embeddedFrame string
+
+//go:embed testdata/inventory-prose-items.md
+var embeddedProseItems string
+
+//go:embed testdata/inventory-table-names.md
+var embeddedTableNames string
+
+//go:embed testdata/inventory-table-reference.md
+var embeddedTableReference string
+
+//go:embed testdata/inventory-table-mixed.md
+var embeddedTableMixed string
+
+//go:embed testdata/inventory-table-cell.md
+var embeddedTableCell string
+
+//go:embed testdata/inventory-list-names.md
+var embeddedListNames string
+
+//go:embed testdata/inventory-list-item-cut.md
+var embeddedListItemCut string
+
+//go:embed testdata/inventory-aside.md
+var embeddedAside string
+
+//go:embed testdata/inventory-lead-in.md
+var embeddedLeadIn string
+
+//go:embed testdata/inventory-table-cell-only.md
+var embeddedTableCellOnly string
+
+//go:embed testdata/inventory-pointer.md
+var embeddedPointer string
+
+//go:embed testdata/inventory-item-only-list.md
+var embeddedItemOnlyList string
+
+//go:embed testdata/inventory-cut-preposition.md
+var embeddedCutPreposition string
+
+//go:embed testdata/inventory-cut-participle.md
+var embeddedCutParticiple string
+
+//go:embed testdata/inventory-cut-colon.md
+var embeddedCutColon string
+
+//go:embed testdata/inventory-cut-imperative.md
+var embeddedCutImperative string
+
+//go:embed testdata/inventory-cut-dash.md
+var embeddedCutDash string
+
+// listKept is what each fixture keeps above the list it tests.
+const listKept = "# Tool\n\nThe tool reads prose.\n"
