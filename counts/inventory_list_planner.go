@@ -49,7 +49,7 @@ func planLists(content string) plan {
 			continue
 		}
 		for _, c := range cuts {
-			pl.hit(i, c.Detail+" "+headingNote)
+			pl.hit(i, noted(c.Detail, headingNote))
 		}
 	}
 	for _, b := range pl.blocks {
@@ -69,8 +69,21 @@ func (pl *planner) cover(from, to int) {
 	}
 }
 
+// hit reports an enumeration. A cut with no detail is a later part of an
+// enumeration that its first part reports.
 func (pl *planner) hit(line int, detail string) {
+	if detail == "" {
+		return
+	}
 	pl.hits = append(pl.hits, ListHit{LineNo: line + 1, Detail: detail})
+}
+
+// noted answers detail with note after it, or nothing for a later part.
+func noted(detail, note string) string {
+	if detail == "" {
+		return ""
+	}
+	return detail + " " + note
 }
 
 // inline takes out each cut inside a line that stays.
@@ -291,7 +304,7 @@ func (pl *planner) prose(b proseBlock) {
 	}
 	if b.item && groupEnd(pl.lines, []proseBlock{b}) > b.last {
 		for _, c := range cuts {
-			pl.hit(lineAt(pl.starts, b.start+c.Start), c.Detail+" "+itemNote)
+			pl.hit(lineAt(pl.starts, b.start+c.Start), noted(c.Detail, itemNote))
 		}
 		return
 	}

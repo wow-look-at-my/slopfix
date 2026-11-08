@@ -214,56 +214,6 @@ func longestRun(places []listPlace) (best, first, last int) {
 // parenthetical matches a parenthesis with no parenthesis inside it.
 var parenthetical = regexp.MustCompile(`\([^()]*\)`)
 
-// ListSpan answers the part of one sentence that an enumeration takes out: a
-// coordinated run of members, or a list behind a complete-set frame. A
-// parenthesis is read as a list of its own. The span is the parenthesis, or
-// the run behind its lead-in word or its colon, when the sentence keeps a
-// statement without it. Otherwise the span is the whole sentence: the list
-// is its content.
-func ListSpan(sentence string) (Span, bool) {
-	whole := Span{0, len(sentence)}
-	masked := ste.Masked(sentence)
-	end := len(strings.TrimRight(sentence, " \t\n.!?"))
-	if end <= 0 {
-		return Span{}, false
-	}
-	outer, outerMasked := []byte(sentence), []byte(masked)
-	var asides [][]int
-	for _, loc := range parenthetical.FindAllStringIndex(masked, -1) {
-		asides = append(asides, loc)
-		for i := loc[0]; i < loc[1]; i++ {
-			outer[i], outerMasked[i] = ' ', ' '
-		}
-	}
-	s := syntax.Parse(masked, inlineCode.FindAllStringIndex(sentence, -1))
-	keeps := func(sp Span) (Span, bool) {
-		if keepsWords(sentence, []Span{sp}) {
-			return sp, true
-		}
-		return whole, true
-	}
-	// A set noun and a complete-set word name the set: the list is the content.
-	found, colon := framed(string(outer), string(outerMasked), end)
-	if found && colon < 0 {
-		return whole, true
-	}
-	if a, b, ok := coordinated(string(outer), string(outerMasked), s, 0, end); ok {
-		if sp, ok := behindLeadIn(masked, a, b, end); ok {
-			return keeps(sp)
-		}
-		return whole, true
-	}
-	for _, loc := range asides {
-		if _, _, ok := coordinated(sentence, masked, s, loc[0]+1, loc[1]-1); ok {
-			return keeps(Span{loc[0], loc[1]})
-		}
-	}
-	if found {
-		return keeps(Span{colon, end})
-	}
-	return Span{}, false
-}
-
 // coordinated answers the run of at least MinMembers elements in
 // text[from:to], from its first member to its last.
 func coordinated(text, masked string, s *syntax.Sentence, from, to int) (int, int, bool) {
@@ -291,49 +241,6 @@ func coordinated(text, masked string, s *syntax.Sentence, from, to int) (int, in
 		}
 	}
 	return start, end, true
-}
-
-// dashes open or close an aside.
-var dashes = []string{"—", "–", "--"}
-
-// behindLeadIn answers the span of a run that a lead-in word or a colon opens,
-// such as "such as `a`, `b` and `c`". The span takes the comma or the dash
-// before the lead-in, and the comma or the dash that closes the aside.
-func behindLeadIn(masked string, a, b, end int) (Span, bool) {
-	before := strings.TrimRight(masked[:a], " ")
-	lower := strings.ToLower(before)
-	open := -1
-	for _, w := range listTable.WordsOf("lead-in") {
-		phrase := strings.ReplaceAll(w, "_", " ")
-		if strings.HasSuffix(lower, phrase) && (len(lower) == len(phrase) || !isLetter(lower[len(lower)-len(phrase)-1])) {
-			open = len(before) - len(phrase)
-			break
-		}
-	}
-	if open < 0 {
-		// A colon before a run that ends the sentence opens it as a lead-in word
-		// does: "Output format: `a`, `b` and `c`".
-		if !strings.HasSuffix(before, ":") || strings.TrimSpace(masked[b:end]) != "" {
-			return Span{}, false
-		}
-		return Span{len(before) - 1, b}, true
-	}
-	pre := strings.TrimRight(masked[:open], " ")
-	closer := ""
-	if strings.HasSuffix(pre, ",") {
-		open, closer = len(pre)-1, ","
-	}
-	for _, d := range dashes {
-		if strings.HasSuffix(pre, d) {
-			open, closer = len(pre)-len(d), d
-		}
-	}
-	if closer != "" && b < end {
-		if i := strings.Index(masked[b:end], closer); i >= 0 {
-			b += i + len(closer)
-		}
-	}
-	return Span{open, b}, true
 }
 
 // framed finds a set noun with a list after it. A complete-set word or a colon
@@ -478,21 +385,24 @@ func SentenceSpans(prose string) []Span {
 	return out
 }
 
-// ProseCut is the part of prose an enumeration takes out, and the sentence it quotes.
+// ProseCut is a part of prose an enumeration takes out, and the sentence it
+// quotes.
 type ProseCut struct {
 	Span
 	Detail string
 }
 
-// ProseCuts answers the part of each sentence that an enumeration takes out
-// (see ListSpan), and each whole sentence of an enumeration split across
+// ProseCuts answers the parts of each sentence that an enumeration takes out
+// (see ListSpans), and each whole sentence of an enumeration split across
 // sentences.
 func ProseCuts(prose string) []ProseCut {
 	spans := SentenceSpans(prose)
-	cut := make([]*Span, len(spans))
+	cut := make([][]Span, len(spans))
 	for i, sp := range spans {
-		if in, ok := ListSpan(prose[sp.Start:sp.End]); ok {
-			cut[i] = &Span{sp.Start + in.Start, sp.Start + in.End}
+		if parts, ok := ListSpans(prose[sp.Start:sp.End]); ok {
+			for _, in := range parts {
+				cut[i] = append(cut[i], Span{sp.Start + in.Start, sp.Start + in.End})
+			}
 		}
 	}
 	keys := make([]string, len(spans))
@@ -501,14 +411,17 @@ func ProseCuts(prose string) []ProseCut {
 	}
 	for _, run := range SameKeyRuns(keys) {
 		for i := run[0]; i < run[1]; i++ {
-			whole := spans[i]
-			cut[i] = &whole
+			cut[i] = []Span{spans[i]}
 		}
 	}
 	var out []ProseCut
 	for i, sp := range spans {
-		if cut[i] != nil {
-			out = append(out, ProseCut{Span: *cut[i], Detail: strings.TrimSpace(prose[sp.Start:sp.End])})
+		for n, part := range cut[i] {
+			c := ProseCut{Span: part}
+			if n == 0 {
+				c.Detail = strings.TrimSpace(prose[sp.Start:sp.End])
+			}
+			out = append(out, c)
 		}
 	}
 	return out

@@ -36,6 +36,11 @@ func init() {
 			{Name: "a row goes when a cell is only names", Path: "x.md", Text: embeddedTableCellOnly, Want: listKept + "\n| Command | Description |\n|---|---|\n| `check` | Reads each file. |\n"},
 			{Name: "a pointer sentence goes with its table", Path: "x.md", Text: embeddedPointer, Want: listKept},
 			{Name: "an item goes when its enumeration is its content", Path: "x.md", Text: embeddedItemOnlyList, Want: listKept + "\n- `check` reads a file.\n"},
+			{Name: "a run goes with its preposition", Path: "x.md", Text: embeddedCutPreposition, Want: listKept + "\n- The tool queries the server.\n- The tool writes a report.\n"},
+			{Name: "a run goes with its participle phrase", Path: "x.md", Text: embeddedCutParticiple, Want: listKept + "\nThe tool builds the file in the environment.\n"},
+			{Name: "a clause after a colon goes with its run", Path: "x.md", Text: embeddedCutColon, Want: listKept + "\nThe tool keeps no defaults.\n"},
+			{Name: "an instruction keeps its verb", Path: "x.md", Text: embeddedCutImperative, Want: listKept + "\nManage plugins at runtime.\n"},
+			{Name: "a dash aside leaves its comma", Path: "x.md", Text: embeddedCutDash, Want: listKept + "\nTo search hidden files, prefix the query with `!`.\n"},
 			{Name: "split", Path: "x.md", Text: embeddedMd5},
 			{Name: "comment", Path: "x.go", Text: "// x.go holds mode.\n\npackage x\n\n// The modes are `fast`, `slow` and `safe`.\nconst mode = 1\n"},
 			{Name: "message", Text: "I changed `a.go`, `b.go` and `c.go`.\n"},
@@ -143,6 +148,21 @@ var embeddedPointer string
 
 //go:embed testdata/inventory-item-only-list.md
 var embeddedItemOnlyList string
+
+//go:embed testdata/inventory-cut-preposition.md
+var embeddedCutPreposition string
+
+//go:embed testdata/inventory-cut-participle.md
+var embeddedCutParticiple string
+
+//go:embed testdata/inventory-cut-colon.md
+var embeddedCutColon string
+
+//go:embed testdata/inventory-cut-imperative.md
+var embeddedCutImperative string
+
+//go:embed testdata/inventory-cut-dash.md
+var embeddedCutDash string
 
 // listKept is what each fixture keeps above the list it tests.
 const listKept = "# Tool\n\nThe tool reads prose.\n"

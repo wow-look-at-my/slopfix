@@ -61,7 +61,10 @@ func CheckLists(filename, src string) []ListHit {
 				continue
 			}
 			for _, c := range counts.ProseCuts(seg.prose) {
-				hits = append(hits, ListHit{Line: line, Sentence: c.Detail})
+				// A later part of a cut quotes nothing: its first part reports it.
+				if c.Detail != "" {
+					hits = append(hits, ListHit{Line: line, Sentence: c.Detail})
+				}
 			}
 		}
 	}
