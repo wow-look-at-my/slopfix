@@ -4,6 +4,7 @@ package counts
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/wow-look-at-my/slopfix/edit"
 )
@@ -64,6 +65,10 @@ func cutEdits(content string, p plan) []edit.Edit {
 		}
 		if after < len(content) && content[after] != '\n' && !closesClause(content[after]) {
 			end = after
+			// A cut that opens against a word keeps one blank before the next word.
+			if start > 0 && !strings.ContainsRune(" \t\n", rune(content[start-1])) && after > c.End {
+				end = after - 1
+			}
 		} else {
 			for start > 0 && (content[start-1] == ' ' || content[start-1] == '\t') {
 				start--

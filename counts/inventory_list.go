@@ -311,8 +311,9 @@ func behindLeadIn(masked string, a, b, end int) (Span, bool) {
 		}
 	}
 	if open < 0 {
-		// A colon before the run opens it as a lead-in word does: "Output format: `a`, `b` and `c`".
-		if !strings.HasSuffix(before, ":") {
+		// A colon before a run that ends the sentence opens it as a lead-in word
+		// does: "Output format: `a`, `b` and `c`".
+		if !strings.HasSuffix(before, ":") || strings.TrimSpace(masked[b:end]) != "" {
 			return Span{}, false
 		}
 		return Span{len(before) - 1, b}, true
