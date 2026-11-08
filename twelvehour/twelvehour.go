@@ -15,13 +15,21 @@ var (
 	clock    = regexp.MustCompile(`\b([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?(Z\b)?`)
 	code     = regexp.MustCompile("`[^`\n]*`|\\]\\([^)\n]*\\)|https?://[^\\s)]+")
 	meridiem = regexp.MustCompile(`(?i)^\s*[ap]\.?m\b`)
+
+	durationAfter  = regexp.MustCompile(`(?i)^\s*(?:mins?|minutes?|hrs?|hours?|long|elapsed)\b`)
+	durationBefore = regexp.MustCompile(`(?i)\b(?:took|lasted|elapsed|runtime|duration)\s*:?\s*$`)
 )
 
 // Rewrite answers text with every 24-hour time written for a 12-hour reader.
-// Fenced blocks, inline code, link targets and URLs keep their exact text.
 func Rewrite(text string, now time.Time) string {
+	out, _ := rewriteFrom(text, now, false)
+	return out
+}
+
+// rewriteFrom rewrites text that starts inside a fence when inFence is true,
+// and answers whether the text ends inside one.
+func rewriteFrom(text string, now time.Time, inFence bool) (string, bool) {
 	lines := strings.SplitAfter(text, "\n")
-	inFence := false
 	for i, line := range lines {
 		if strings.HasPrefix(strings.TrimSpace(line), "```") {
 			inFence = !inFence
@@ -31,7 +39,7 @@ func Rewrite(text string, now time.Time) string {
 			lines[i] = rewriteLine(line, now)
 		}
 	}
-	return strings.Join(lines, "")
+	return strings.Join(lines, ""), inFence
 }
 
 // rewriteLine rewrites the stretches between the code spans of one line.
@@ -70,6 +78,25 @@ func rewriteProse(text string, now time.Time) string {
 	return out.String()
 }
 
+// isDuration reports whether the words around a match make it a length of time.
+func isDuration(before, after string) bool {
+	return durationAfter.MatchString(after) || durationBefore.MatchString(before)
+}
+
+func nearestMeridiem(hour, minute int, now time.Time) string {
+	const day = 24 * 60
+	clockNow := now.Hour()*60 + now.Minute()
+	distance := func(target int) int {
+		gap := (target - clockNow + day) % day
+		return min(gap, day-gap)
+	}
+	morning := hour*60 + minute
+	if distance(morning) < distance(morning+12*60) {
+		return "am"
+	}
+	return "pm"
+}
+
 // convert answers the 12-hour spelling of one match.
 func convert(text string, m []int, now time.Time) (string, bool) {
 	if m[0] > 0 && strings.ContainsRune(".:/-#_", rune(text[m[0]-1])) {
@@ -95,8 +122,15 @@ func convert(text string, m []int, now time.Time) (string, bool) {
 		utc := time.Date(now.Year(), now.Month(), now.Day(), hour, minutes, 0, 0, time.UTC)
 		return utc.In(now.Location()).Format("3:04 pm MST"), true
 	}
-	if hour >= 1 && hour <= 11 && len(hourText) == 1 {
+	if isDuration(text[:m[0]], text[m[1]:]) {
 		return "", false
+	}
+	if hour >= 1 && hour <= 11 && !strings.HasPrefix(hourText, "0") {
+		minutes, err := strconv.Atoi(minute)
+		if err != nil {
+			return "", false
+		}
+		return fmt.Sprintf("%d:%s %s", hour, minute, nearestMeridiem(hour, minutes, now)), true
 	}
 	switch {
 	case hour == 0:
