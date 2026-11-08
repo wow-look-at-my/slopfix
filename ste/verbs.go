@@ -59,16 +59,6 @@ func gerundOf(base string) string {
 	return base + "ing"
 }
 
-// isParticiple answers whether a word is a past participle in form: the table
-// names it as one, or it ends in -ed.
-func isParticiple(form string) bool {
-	lower := strings.ToLower(form)
-	if v, ok := verbBy(lower); ok && v.participle == lower {
-		return true
-	}
-	return strings.HasSuffix(lower, "ed")
-}
-
 // pastFromParticiple answers the simple past of a participle.
 func pastFromParticiple(form string) string {
 	if v, ok := verbBy(form); ok && strings.EqualFold(v.participle, form) {
