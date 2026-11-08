@@ -119,6 +119,24 @@ func TestARepairOfARealDocumentDeletesOnlyEnumerations(t *testing.T) {
 	}
 }
 
+// One repair pass leaves no enumeration in a markdown case of
+// counts/inventory-list: each is cut, or its container goes.
+func TestOneRepairPassLeavesNoEnumerationInACase(t *testing.T) {
+	for _, rule := range AllRuleSpecs() {
+		if rule.ID != counts.IDList {
+			continue
+		}
+		for _, c := range rule.Cases {
+			if !strings.HasSuffix(c.Path, ".md") {
+				continue
+			}
+			got := counts.ListGate(c.Text, counts.ListEdits(c.Text), edit.Scope{})
+			assert.Empty(t, got.Refused, "case %q: the gate refused an edit", c.Name)
+			assert.Empty(t, counts.FindLists(got.Text), "case %q: an enumeration is left", c.Name)
+		}
+	}
+}
+
 // fenceLines answers every line inside a fence, the fence lines included.
 func fenceLines(doc string) []string {
 	var out []string
