@@ -552,7 +552,7 @@ Use the `@` operator in your prompt to attach file contents to your message. Typ
 
 **Exposing hidden files with `!`**
 
-By default, the `@` file picker respects `.gitignore` rules and hides dotfiles (files and directories starting with `.`).
+By default, the `@` file picker respects `.gitignore` rules and hides dotfiles (files and directories starting with `.`). To search hidden files prefix your query with `!`:
 
 ```
 @!.github                 # Search for .github/ and other hidden files
@@ -591,13 +591,12 @@ grok -p "Your prompt here"
 | `-r, --resume <ID_OR_TITLE>` | Resume an existing session by ID, or by title for the current directory, ignoring letter case (a sole explicitly renamed title wins among duplicates; remaining duplicates error with their IDs; UUID-shaped values are always treated as IDs) |
 | `-c, --continue`        | Continue the most recent session in current directory |
 | `--cwd <PATH>`          | Working directory                                     |
-| `--output-format <FMT>` | Output format: `plain`, `json`, `streaming-json`      |
 | `--always-approve`      | Auto-approve tool executions                          |
 | `--rules <TEXT>`        | Custom rules for the system prompt                    |
 | `--tools <TOOLS>`       | Allowlist of built-in tools (comma-separated). Only the listed tools will be available; all others are removed. Headless mode only. |
 | `--disallowed-tools <TOOLS>` | Denylist of built-in tools to remove (comma-separated). Listed tools are stripped from the agent's toolset. Supports `Agent` / `Agent(type)` entries to restrict subagent spawning (see below). Headless mode only. |
 | `--max-turns <N>`       | Maximum number of agentic turns before stopping       |
-| `--reasoning-effort` / `--effort <LEVEL>` | TUI and headless. |
+| `--reasoning-effort` / `--effort <LEVEL>` | Reasoning effort. TUI and headless. |
 | `--permission-mode <MODE>` | Permission mode for tool approvals                 |
 | `--allow <RULE>`        | Permission allow rule with glob patterns (repeatable). See below. |
 | `--deny <RULE>`         | Permission deny rule with glob patterns (repeatable). See below.  |
@@ -1394,7 +1393,6 @@ Grok can connect to Language Server Protocol (LSP) servers configured in JSON fi
 LSP support is used in multiple ways:
 
 - **Passive diagnostics** — after edits, Grok can surface language-server diagnostics such as errors and warnings.
-- **The `lsp` tool** — Grok can actively query the language server for `goToDefinition`, `findReferences`, `hover`, `goToImplementation`, `documentSymbol`, and `workspaceSymbol`.
 
 Reference: [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
 
@@ -2402,6 +2400,8 @@ grok --sandbox strict
 | `read-only`     | Everywhere         | `~/.grok/` only           | Blocked       | Exploration, code review |
 | `strict`        | CWD + system paths | CWD + `/tmp` + `~/.grok/` | Blocked       | Untrusted code           |
 
+Sensitive paths are always write-protected regardless of profile.
+
 ### Custom Profiles
 
 Create `~/.grok/sandbox.json` (global) or `.grok/sandbox.json` (per-project):
@@ -2436,7 +2436,6 @@ grok --sandbox devbox
 
 The sandbox is applied to the **entire grok process** at startup using kernel primitives — not per-command wrapping. This means all tool operations are covered:
 
-- `read_file`, `search_replace`, `list_dir` — restricted by Landlock/Seatbelt in-process
 - `bash` commands, `grep` (rg) — child processes inherit FS restrictions automatically
 - Network — child processes can be blocked via seccomp (Linux)
 

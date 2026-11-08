@@ -95,7 +95,12 @@ func (pl *planner) intro(line int) {
 	if b == nil || b.last != i {
 		return
 	}
-	if spans := SentenceSpans(pl.content[b.start:b.end]); len(spans) == 0 || !leadsIn(pl.content[b.start+spans[len(spans)-1].Start:b.start+spans[len(spans)-1].End]) {
+	spans := SentenceSpans(pl.content[b.start:b.end])
+	if len(spans) == 0 {
+		return
+	}
+	last := spans[len(spans)-1]
+	if !leadsIn(pl.content[b.start+last.Start : b.start+last.End]) {
 		return
 	}
 	// An item that leads in to a list keeps any other content nested under it.
@@ -106,12 +111,10 @@ func (pl *planner) intro(line int) {
 			}
 		}
 	}
-	spans := SentenceSpans(pl.content[b.start:b.end])
-	if len(spans) <= 1 {
+	if len(spans) == 1 {
 		pl.cover(b.first, b.last)
 		return
 	}
-	last := spans[len(spans)-1]
 	pl.cuts = append(pl.cuts, Span{b.start + last.Start, b.start + last.End})
 }
 
