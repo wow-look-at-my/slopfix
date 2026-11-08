@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -16,7 +15,7 @@ func TestADeletedRepositoryDoesNotBlockTheStop(t *testing.T) {
 	session := "deleted-worktree-session"
 	repo := filepath.Join(t.TempDir(), "scratch-worktree")
 	out, err := exec.Command("git", "init", "-q", repo).CombinedOutput()
-	require.Nil(t, err)
+	require.NoError(t, err, string(out))
 
 	got := recordRepos(session, []string{repo})
 	require.Equal(t, 1, len(got))
