@@ -62,7 +62,7 @@ func cutEdits(content string, p plan) []edit.Edit {
 		for after < len(content) && (content[after] == ' ' || content[after] == '\t') {
 			after++
 		}
-		if after < len(content) && content[after] != '\n' {
+		if after < len(content) && content[after] != '\n' && !closesClause(content[after]) {
 			end = after
 		} else {
 			for start > 0 && (content[start-1] == ' ' || content[start-1] == '\t') {

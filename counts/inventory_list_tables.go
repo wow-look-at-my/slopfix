@@ -97,21 +97,22 @@ func headingText(line string) int {
 	return at
 }
 
-// inlineCuts answers the enumerations of text at offset base, when text keeps
-// a word after they go. A cell or a heading cannot be deleted whole, so a cut
-// that empties one is no repair.
-func inlineCuts(text string, base int) []ProseCut {
+// inlineCuts answers the enumerations of text, at offset base. whole reports
+// that no statement is left once they go: the enumerations are the content
+// of text, and the cuts are its whole sentences.
+func inlineCuts(text string, base int) (cuts []ProseCut, whole bool) {
 	lead := len(text) - len(strings.TrimLeft(text, " \t"))
 	text = strings.TrimSpace(text)
-	cuts := ProseCuts(text)
-	if len(cuts) == 0 || !keepsWords(text, spansOf(cuts)) {
-		return nil
+	cuts = ProseCuts(text)
+	if len(cuts) == 0 {
+		return nil, false
 	}
+	whole = !keepsWords(text, spansOf(cuts))
 	for i := range cuts {
 		cuts[i].Start += base + lead
 		cuts[i].End += base + lead
 	}
-	return cuts
+	return cuts, whole
 }
 
 // row is what one table body row holds.
@@ -119,6 +120,8 @@ type row struct {
 	line  int
 	names int
 	cuts  []ProseCut
+	// gone reports a cell whose enumerations are its whole content.
+	gone bool
 }
 
 // tableRows judges each body row of table t. A row whose cells only name
@@ -174,7 +177,11 @@ func tableRows(lines []string, starts []int, t [2]int) []row {
 		}
 		if r.names == 0 {
 			for _, c := range cells(lines[i]) {
-				r.cuts = append(r.cuts, inlineCuts(lines[i][c[0]:c[1]], starts[i]+c[0])...)
+				cuts, whole := inlineCuts(lines[i][c[0]:c[1]], starts[i]+c[0])
+				r.cuts = append(r.cuts, cuts...)
+				if whole {
+					r.gone = true
+				}
 			}
 		}
 		out = append(out, r)

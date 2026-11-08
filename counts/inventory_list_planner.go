@@ -3,8 +3,11 @@
 package counts
 
 import (
+	"slices"
 	"sort"
 	"strings"
+
+	"github.com/wow-look-at-my/slopfix/ste"
 )
 
 // planner builds the plan of one document.
@@ -19,8 +22,9 @@ type planner struct {
 
 // planLists reads a document for enumerations. A table row or a list item
 // that only names things goes, and a table or a list of nothing else goes
-// whole. A row or an item that states something stays, and loses only the
-// enumerations inside its sentences. A fence is never read.
+// whole. That row is with the sentence that leads in to it. A row, an item or
+// a paragraph that states something stays, and loses only its enumerations.
+// One whose enumerations are its whole content goes. A fence is never read.
 func planLists(content string) plan {
 	lines := strings.Split(content, "\n")
 	pl := &planner{
@@ -35,9 +39,17 @@ func planLists(content string) plan {
 		pl.list(group)
 	}
 	for i, line := range lines {
-		if pl.st.heading[i] {
-			at := headingText(line)
-			pl.inline(inlineCuts(line[at:], pl.starts[i]+at))
+		if !pl.st.heading[i] {
+			continue
+		}
+		at := headingText(line)
+		cuts, whole := inlineCuts(line[at:], pl.starts[i]+at)
+		if !whole {
+			pl.inline(cuts)
+			continue
+		}
+		for _, c := range cuts {
+			pl.hit(i, c.Detail+" "+headingNote)
 		}
 	}
 	for _, b := range pl.blocks {
@@ -69,17 +81,21 @@ func (pl *planner) inline(cuts []ProseCut) {
 	}
 }
 
-// intro covers the sentence that ends in a colon and introduces the block at line.
+// intro takes out the sentence right before the block at line, when it leads
+// in to that block. It ends in a colon, or it holds a pointer word.
 func (pl *planner) intro(line int) {
 	i := line - 1
 	for i >= 0 && strings.TrimSpace(pl.lines[i]) == "" {
 		i--
 	}
-	if i < 0 || !strings.HasSuffix(strings.TrimSpace(pl.lines[i]), ":") {
+	if i < 0 {
 		return
 	}
 	b := pl.blockAt(i)
-	if b == nil {
+	if b == nil || b.last != i {
+		return
+	}
+	if spans := SentenceSpans(pl.content[b.start:b.end]); len(spans) == 0 || !leadsIn(pl.content[b.start+spans[len(spans)-1].Start:b.start+spans[len(spans)-1].End]) {
 		return
 	}
 	// An item that leads in to a list keeps any other content nested under it.
@@ -99,25 +115,56 @@ func (pl *planner) intro(line int) {
 	pl.cuts = append(pl.cuts, Span{b.start + last.Start, b.start + last.End})
 }
 
-// table deletes the rows of t that only name things, when they name
-// MinMembers members or more. It deletes t whole when no other row is left.
-func (pl *planner) table(t [2]int) {
-	rows := tableRows(pl.lines, pl.starts, t)
-	names, entries := 0, 0
-	for _, r := range rows {
-		if r.names > 0 {
-			names += r.names
-			entries++
+// leadsIn reports a sentence that ends in a colon or holds a word of the pointer class.
+func leadsIn(sentence string) bool {
+	if strings.HasSuffix(strings.TrimSpace(sentence), ":") {
+		return true
+	}
+	lower := " " + strings.ToLower(ste.Masked(sentence)) + " "
+	for _, w := range listTable.WordsOf("pointer") {
+		phrase := strings.ReplaceAll(w, "_", " ")
+		for at := strings.Index(lower, phrase); at >= 0; {
+			end := at + len(phrase)
+			if !isLetter(lower[at-1]) && (end >= len(lower) || !isLetter(lower[end])) {
+				return true
+			}
+			next := strings.Index(lower[end:], phrase)
+			if next < 0 {
+				break
+			}
+			at = end + next
 		}
 	}
-	if names >= MinMembers && entries == len(rows) {
+	return false
+}
+
+// table deletes the rows of t that only name things, when they name
+// MinMembers members or more, and each row with a cell whose enumerations
+// are its whole content. It deletes t whole when no other row is left.
+func (pl *planner) table(t [2]int) {
+	rows := tableRows(pl.lines, pl.starts, t)
+	if len(rows) == 0 {
+		return
+	}
+	names := 0
+	for _, r := range rows {
+		names += r.names
+	}
+	goes := func(r row) bool { return r.gone || r.names > 0 && names >= MinMembers }
+	left := 0
+	for _, r := range rows {
+		if !goes(r) {
+			left++
+		}
+	}
+	if left == 0 {
 		pl.hit(t[0], strings.TrimSpace(pl.lines[rows[0].line]))
 		pl.cover(t[0], t[1])
 		pl.intro(t[0])
 		return
 	}
 	for _, r := range rows {
-		if r.names > 0 && names >= MinMembers {
+		if goes(r) {
 			pl.hit(r.line, strings.TrimSpace(pl.lines[r.line]))
 			pl.cover(r.line, r.line)
 			continue
@@ -202,38 +249,50 @@ func (pl *planner) blockAt(i int) *proseBlock {
 	return nil
 }
 
-// prose takes the enumerations out of a paragraph or an item that stays. A
-// paragraph of nothing else goes whole. An item of nothing else goes whole
-// only when each of its sentences is a bare list behind a set frame. It has
-// no nested lines. An item that states something keeps a word.
+// headingNote ends the detail of an enumeration that is a whole heading.
+const headingNote = "(the repair never deletes a heading: name the set in its place)"
+
+// itemNote ends the detail of an enumeration that is a whole item with nested lines.
+const itemNote = "(the repair keeps an item with nested lines: name the set in its place)"
+
+// prose takes the enumerations out of a paragraph or an item, and keeps the
+// statement around them. A block left with no statement goes whole. An item
+// with nested lines is reported and stays, because its lines need a parent.
 func (pl *planner) prose(b proseBlock) {
 	if pl.covered[b.first] {
 		return
 	}
 	text := pl.content[b.start:b.end]
-	cuts := ProseCuts(text)
+	var taken []Span
+	for _, c := range pl.cuts {
+		if c.Start >= b.start && c.End <= b.end {
+			taken = append(taken, Span{c.Start - b.start, c.End - b.start})
+		}
+	}
+	var cuts []ProseCut
+	for _, c := range ProseCuts(text) {
+		if !slices.ContainsFunc(taken, func(t Span) bool { return c.Start < t.End && t.Start < c.End }) {
+			cuts = append(cuts, c)
+		}
+	}
 	if len(cuts) == 0 {
 		return
 	}
-	if b.item && !keepsWords(text, spansOf(cuts)) {
-		if len(cuts) < len(SentenceSpans(text)) || groupEnd(pl.lines, []proseBlock{b}) > b.last {
-			return
-		}
-		for _, c := range cuts {
-			if !FramedList(text[c.Start:c.End]) {
-				return
-			}
-		}
-	}
-	if len(cuts) == len(SentenceSpans(text)) {
+	if keepsWords(text, append(spansOf(cuts), taken...)) {
 		for _, c := range cuts {
 			pl.hit(lineAt(pl.starts, b.start+c.Start), c.Detail)
+			pl.cuts = append(pl.cuts, Span{b.start + c.Start, b.start + c.End})
 		}
-		pl.cover(b.first, b.last)
+		return
+	}
+	if b.item && groupEnd(pl.lines, []proseBlock{b}) > b.last {
+		for _, c := range cuts {
+			pl.hit(lineAt(pl.starts, b.start+c.Start), c.Detail+" "+itemNote)
+		}
 		return
 	}
 	for _, c := range cuts {
 		pl.hit(lineAt(pl.starts, b.start+c.Start), c.Detail)
-		pl.cuts = append(pl.cuts, Span{b.start + c.Start, b.start + c.End})
 	}
+	pl.cover(b.first, b.last)
 }

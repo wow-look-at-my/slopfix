@@ -191,37 +191,40 @@ func placeOf(text string, s *syntax.Sentence, e element) listPlace {
 	}
 }
 
-// longestRun answers the most elements in a row that read as one list: the earliest
-// ends on a member. The last opens on one, and each between is a bare member.
-func longestRun(places []listPlace) int {
-	best := 0
+// longestRun answers the most elements in a row that read as one list, and
+// the first and the last of them. This is the earliest ends on a member.
+// The last opens on one, and each between is a bare member.
+func longestRun(places []listPlace) (best, first, last int) {
 	for i := range places {
 		if !places[i].head {
 			continue
 		}
 		for j := i + 1; j < len(places); j++ {
-			if places[j].tail {
-				best = max(best, j-i+1)
+			if places[j].tail && j-i+1 > best {
+				best, first, last = j-i+1, i, j
 			}
 			if !places[j].inner || !places[j].tail {
 				break
 			}
 		}
 	}
-	return best
+	return best, first, last
 }
 
 // parenthetical matches a parenthesis with no parenthesis inside it.
 var parenthetical = regexp.MustCompile(`\([^()]*\)`)
 
-// SentenceList reports whether one sentence holds an enumeration: a
-// coordinated run of members, or a list behind a complete-set frame. detail
-// quotes the list. A parenthesis is read as a list of its own.
-func SentenceList(sentence string) (string, bool) {
+// ListSpan answers the part of one sentence that an enumeration takes out: a
+// coordinated run of members, or a list behind a complete-set frame. A
+// parenthesis is read as a list of its own. The span is the parenthesis, or
+// the run behind its lead-in, when the sentence keeps a statement without
+// it. Otherwise the span is the whole sentence: the list is its content.
+func ListSpan(sentence string) (Span, bool) {
+	whole := Span{0, len(sentence)}
 	masked := ste.Masked(sentence)
 	end := len(strings.TrimRight(sentence, " \t\n.!?"))
 	if end <= 0 {
-		return "", false
+		return Span{}, false
 	}
 	outer, outerMasked := []byte(sentence), []byte(masked)
 	var asides [][]int
@@ -232,46 +235,94 @@ func SentenceList(sentence string) (string, bool) {
 		}
 	}
 	s := syntax.Parse(masked, inlineCode.FindAllStringIndex(sentence, -1))
-	if coordinated(string(outer), string(outerMasked), s, 0, end) {
-		return strings.TrimSpace(sentence), true
+	keeps := func(sp Span) (Span, bool) {
+		if keepsWords(sentence, []Span{sp}) {
+			return sp, true
+		}
+		return whole, true
+	}
+	if a, b, ok := coordinated(string(outer), string(outerMasked), s, 0, end); ok {
+		if sp, ok := behindLeadIn(masked, a, b, end); ok {
+			return keeps(sp)
+		}
+		return whole, true
 	}
 	for _, loc := range asides {
-		if coordinated(sentence, masked, s, loc[0]+1, loc[1]-1) {
-			return strings.TrimSpace(sentence), true
+		if _, _, ok := coordinated(sentence, masked, s, loc[0]+1, loc[1]-1); ok {
+			return keeps(Span{loc[0], loc[1]})
 		}
 	}
 	if framed(string(outer), string(outerMasked), end) {
-		return strings.TrimSpace(sentence), true
+		return whole, true
 	}
-	return "", false
+	return Span{}, false
 }
 
-// FramedList reports a sentence that is a list behind a complete-set frame,
-// such as "The modes are `a` and `b`." It names a set and its members, and
-// says nothing else.
-func FramedList(sentence string) bool {
-	masked := ste.Masked(sentence)
-	end := len(strings.TrimRight(sentence, " \t\n.!?"))
-	if end <= 0 {
-		return false
-	}
-	outer, outerMasked := []byte(sentence), []byte(masked)
-	for _, loc := range parenthetical.FindAllStringIndex(masked, -1) {
-		for i := loc[0]; i < loc[1]; i++ {
-			outer[i], outerMasked[i] = ' ', ' '
-		}
-	}
-	return framed(string(outer), string(outerMasked), end)
-}
-
-// coordinated reports a run of at least MinMembers elements in text[from:to].
-func coordinated(text, masked string, s *syntax.Sentence, from, to int) bool {
+// coordinated answers the run of at least MinMembers elements in
+// text[from:to], from its first member to its last.
+func coordinated(text, masked string, s *syntax.Sentence, from, to int) (int, int, bool) {
 	elements := elementsOf(text, masked, from, to, boundarySplit)
 	places := make([]listPlace, len(elements))
 	for i, e := range elements {
 		places[i] = placeOf(text, s, e)
 	}
-	return longestRun(places) >= MinMembers
+	n, first, last := longestRun(places)
+	if n < MinMembers {
+		return 0, 0, false
+	}
+	head, tail := elements[first], elements[last]
+	start, end := head.start, tail.end
+	for _, loc := range tokenPattern.FindAllStringIndex(text[head.start:head.end], -1) {
+		if IsMember(strings.TrimRight(text[head.start+loc[0]:head.start+loc[1]], ".,;:!?")) {
+			start = head.start + loc[0]
+		}
+	}
+	for _, loc := range tokenPattern.FindAllStringIndex(text[tail.start:tail.end], -1) {
+		tok := text[tail.start+loc[0] : tail.start+loc[1]]
+		if IsMember(strings.TrimRight(tok, ".,;:!?")) {
+			end = tail.start + loc[0] + len(strings.TrimRight(tok, ".,;:!?"))
+			break
+		}
+	}
+	return start, end, true
+}
+
+// dashes open or close an aside.
+var dashes = []string{"—", "–", "--"}
+
+// behindLeadIn answers the span of a run that a lead-in word opens, such as
+// "such as `a`, `b` and `c`". The span takes the comma or the dash before the
+// lead-in, and the comma or the dash that closes the aside.
+func behindLeadIn(masked string, a, b, end int) (Span, bool) {
+	before := strings.TrimRight(masked[:a], " ")
+	lower := strings.ToLower(before)
+	open := -1
+	for _, w := range listTable.WordsOf("lead-in") {
+		phrase := strings.ReplaceAll(w, "_", " ")
+		if strings.HasSuffix(lower, phrase) && (len(lower) == len(phrase) || !isLetter(lower[len(lower)-len(phrase)-1])) {
+			open = len(before) - len(phrase)
+			break
+		}
+	}
+	if open < 0 {
+		return Span{}, false
+	}
+	pre := strings.TrimRight(masked[:open], " ")
+	closer := ""
+	if strings.HasSuffix(pre, ",") {
+		open, closer = len(pre)-1, ","
+	}
+	for _, d := range dashes {
+		if strings.HasSuffix(pre, d) {
+			open, closer = len(pre)-len(d), d
+		}
+	}
+	if closer != "" && b < end {
+		if i := strings.Index(masked[b:end], closer); i >= 0 {
+			b += i + len(closer)
+		}
+	}
+	return Span{open, b}, true
 }
 
 // framed reports a set noun, then a complete-set word or a colon, then a list
@@ -410,20 +461,21 @@ func SentenceSpans(prose string) []Span {
 	return out
 }
 
-// ProseCut is a sentence of prose an enumeration takes out, and the list it quotes.
+// ProseCut is the part of prose an enumeration takes out, and the sentence it quotes.
 type ProseCut struct {
 	Span
 	Detail string
 }
 
-// ProseCuts answers each sentence of prose that holds an enumeration, or that
-// belongs to an enumeration split across sentences.
+// ProseCuts answers the part of each sentence that an enumeration takes out
+// (see ListSpan), and each whole sentence of an enumeration split across
+// sentences.
 func ProseCuts(prose string) []ProseCut {
 	spans := SentenceSpans(prose)
-	cut := make([]string, len(spans))
+	cut := make([]*Span, len(spans))
 	for i, sp := range spans {
-		if detail, ok := SentenceList(prose[sp.Start:sp.End]); ok {
-			cut[i] = detail
+		if in, ok := ListSpan(prose[sp.Start:sp.End]); ok {
+			cut[i] = &Span{sp.Start + in.Start, sp.Start + in.End}
 		}
 	}
 	keys := make([]string, len(spans))
@@ -432,15 +484,14 @@ func ProseCuts(prose string) []ProseCut {
 	}
 	for _, run := range SameKeyRuns(keys) {
 		for i := run[0]; i < run[1]; i++ {
-			if cut[i] == "" {
-				cut[i] = strings.TrimSpace(prose[spans[i].Start:spans[i].End])
-			}
+			whole := spans[i]
+			cut[i] = &whole
 		}
 	}
 	var out []ProseCut
 	for i, sp := range spans {
-		if cut[i] != "" {
-			out = append(out, ProseCut{Span: sp, Detail: cut[i]})
+		if cut[i] != nil {
+			out = append(out, ProseCut{Span: *cut[i], Detail: strings.TrimSpace(prose[sp.Start:sp.End])})
 		}
 	}
 	return out
@@ -472,9 +523,17 @@ func CutProse(prose string, spans []Span) string {
 		if sp.Start < at {
 			continue
 		}
-		b.WriteString(prose[at:sp.Start])
+		kept := prose[at:sp.Start]
+		// A cut before a closing mark leaves no blank in front of it.
+		if sp.End < len(prose) && closesClause(prose[sp.End]) {
+			kept = strings.TrimRight(kept, " \t\n")
+		}
+		b.WriteString(kept)
 		at = sp.End
 	}
 	b.WriteString(prose[at:])
 	return strings.Join(strings.Fields(b.String()), " ")
 }
+
+// closesClause reports a mark that takes no blank before it.
+func closesClause(c byte) bool { return strings.IndexByte(".,;:!?)", c) >= 0 }
