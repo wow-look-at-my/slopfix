@@ -59,3 +59,10 @@ func TestAStepWithACommaThenNeverGetsTheListCarrier(t *testing.T) {
 	got := slopfix.Fix(slopfix.Request{Path: "README.md", Content: in})
 	assert.NotContains(t, got.Text, "This also covers")
 }
+
+// A repair read ` #{client_height}' ...` as a trailing comment and cut it from the code.
+func TestAHashInsideShellQuotesSurvivesTheRepair(t *testing.T) {
+	line := "\tsize=$(tmux display-message -p -t \"$TMUX_PANE\" '#{client_width} #{client_height}' 2>/dev/null) || size=\n"
+	got := slopfix.Fix(slopfix.Request{Path: "terminal.bash", Content: "cat <<A <<B\nit's\nA\nit's\nB\n" + line})
+	assert.Contains(t, got.Text, line)
+}
