@@ -170,10 +170,13 @@ func Extract(filename, src string) []Comment {
 	if language == nil {
 		return nil
 	}
-	key := extractKey{language: language, src: src}
+	key := extractKey{language: language, src: src, shell: isShell(filename)}
 	cached, ok := extracted.get(key)
 	if !ok {
 		cached = extract(language, src)
+		if key.shell {
+			cached = shellComments(src, cached)
+		}
 		extracted.put(key, cached)
 	}
 	out := slices.Clone(cached)
@@ -237,6 +240,8 @@ func withoutExampleOutput(comments []Comment) []Comment {
 type extractKey struct {
 	language *ts.Language
 	src      string
+	// shell marks a parse that bash also checked.
+	shell bool
 }
 
 // extractCacheSize bounds the remembered parses. Every rule on a file asks for the same parse.
