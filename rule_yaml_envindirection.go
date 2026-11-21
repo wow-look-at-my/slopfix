@@ -36,8 +36,21 @@ func init() {
 				embeddedYml16+
 				"            core.info(process.env.SHA ??\n              \"none\");\n"),
 			envKeptCase(),
+			inputOnPushCase(),
 		},
 	})
+}
+
+// inputOnPushCase is from cc-marketplace's release workflow. A push run has an
+// empty inputs object, so a string input keeps its empty default. Without it
+// the script reads the text "undefined".
+func inputOnPushCase() RuleCase {
+	head := "name: CI\n\non:\n  push:\n    branches: ['**']\n  workflow_dispatch:\n    inputs:\n      plugins:\n        type: string\n\n" +
+		workflowConcurrency + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: wow-look-at-my/actions@typescript#latest\n"
+	c := workflowCase("env-indirection-input-on-push", head+
+		"        env:\n          WANTED: ${{ inputs.plugins }}\n        with:\n          script: |\n            core.info(process.env.WANTED);\n")
+	c.Want = head + "        with:\n          inputs: ${{ toJSON(inputs) }}\n          script: |\n            core.info(String(inputs.plugins ?? \"\"));\n"
+	return c
 }
 
 // scriptActionManifest is a composite action whose one step runs a TypeScript
