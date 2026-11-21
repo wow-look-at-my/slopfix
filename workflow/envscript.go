@@ -152,8 +152,39 @@ func wholeEnv(script string) bool {
 	return false
 }
 
+// inputTriggers are the triggers that supply a value for each declared input.
+var inputTriggers = set.Of("workflow_dispatch", "workflow_call")
+
+// onlyInputTriggers reports whether every trigger of a workflow supplies its inputs.
+// A push or a schedule leaves the inputs object empty.
+func onlyInputTriggers(on *yaml.Node) bool {
+	if on == nil {
+		return false
+	}
+	switch on.Kind {
+	case yaml.ScalarNode:
+		return inputTriggers.Contains(on.Value)
+	case yaml.SequenceNode:
+		for _, item := range on.Content {
+			if !inputTriggers.Contains(item.Value) {
+				return false
+			}
+		}
+		return len(on.Content) > 0
+	case yaml.MappingNode:
+		for i := 0; i < len(on.Content); i += 2 {
+			if !inputTriggers.Contains(on.Content[i].Value) {
+				return false
+			}
+		}
+		return len(on.Content) > 0
+	}
+	return false
+}
+
 // stringInputs names the inputs whose value is always a string. Every input of
-// a composite action, and each workflow input typed as text on every trigger.
+// a composite action, and each workflow input typed as text on every trigger,
+// when every trigger supplies the inputs.
 func stringInputs(root *yaml.Node) set.Set[string] {
 	out := set.New[string]()
 	if mappingValue(root, "runs") != nil {
@@ -167,6 +198,9 @@ func stringInputs(root *yaml.Node) set.Set[string] {
 	}
 	other := set.New[string]()
 	on := mappingValue(root, "on")
+	if !onlyInputTriggers(on) {
+		return out
+	}
 	for _, trigger := range []string{"workflow_dispatch", "workflow_call"} {
 		inputs := mappingValue(mappingValue(on, trigger), "inputs")
 		if inputs == nil || inputs.Kind != yaml.MappingNode {

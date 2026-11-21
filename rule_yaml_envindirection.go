@@ -36,8 +36,21 @@ func init() {
 				embeddedYml16+
 				"            core.info(process.env.SHA ??\n              \"none\");\n"),
 			envKeptCase(),
+			inputOnPushCase(),
 		},
 	})
+}
+
+// inputOnPushCase is from cc-marketplace's release workflow. A push run has an
+// empty inputs object, so a string input keeps its empty default. Without it
+// the script reads the text "undefined".
+func inputOnPushCase() RuleCase {
+	head := inputOnPushCaseYml +
+		workflowConcurrency + inputOnPushCaseYml2
+	c := workflowCase("env-indirection-input-on-push", head+
+		"        env:\n          WANTED: ${{ inputs.plugins }}\n        with:\n          script: |\n            core.info(process.env.WANTED);\n")
+	c.Want = head + inputOnPushCaseYml3
+	return c
 }
 
 // scriptActionManifest is a composite action whose one step runs a TypeScript
@@ -97,3 +110,12 @@ var embeddedYml16 string
 
 //go:embed testdata/env-kept-case.yml
 var envKeptCaseYml string
+
+//go:embed input-on-push-case.yml
+var inputOnPushCaseYml string
+
+//go:embed input-on-push-case-2.yml
+var inputOnPushCaseYml2 string
+
+//go:embed input-on-push-case-3.yml
+var inputOnPushCaseYml3 string
