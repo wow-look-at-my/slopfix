@@ -45,11 +45,11 @@ func init() {
 // empty inputs object, so a string input keeps its empty default. Without it
 // the script reads the text "undefined".
 func inputOnPushCase() RuleCase {
-	head := "name: CI\n\non:\n  push:\n    branches: ['**']\n  workflow_dispatch:\n    inputs:\n      plugins:\n        type: string\n\n" +
-		workflowConcurrency + "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: wow-look-at-my/actions@typescript#latest\n"
+	head := inputOnPushCaseYml +
+		workflowConcurrency + inputOnPushCaseYml2
 	c := workflowCase("env-indirection-input-on-push", head+
 		"        env:\n          WANTED: ${{ inputs.plugins }}\n        with:\n          script: |\n            core.info(process.env.WANTED);\n")
-	c.Want = head + "        with:\n          inputs: ${{ toJSON(inputs) }}\n          script: |\n            core.info(String(inputs.plugins ?? \"\"));\n"
+	c.Want = head + inputOnPushCaseYml3
 	return c
 }
 
@@ -110,3 +110,12 @@ var embeddedYml16 string
 
 //go:embed testdata/env-kept-case.yml
 var envKeptCaseYml string
+
+//go:embed input-on-push-case.yml
+var inputOnPushCaseYml string
+
+//go:embed input-on-push-case-2.yml
+var inputOnPushCaseYml2 string
+
+//go:embed input-on-push-case-3.yml
+var inputOnPushCaseYml3 string
