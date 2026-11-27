@@ -255,7 +255,15 @@
 	<rule name="cat" allowedFlags="*"/>
 	<rule name="head" allowedFlags="*"/>
 	<rule name="tail" allowedFlags="*"/>
-	<rule name="file" allowedFlags="*"/>
+	<!-- file -C writes a compiled magic database. -->
+	<rule name="file" allowedFlags="*">
+		<test cmd="file README.md" expect="allow"/>
+		<test cmd="file -C -m magic" expect=""/>
+		<deniedFlags>
+			<flag name="-C" />
+			<flag name="--compile" />
+		</deniedFlags>
+	</rule>
 	<rule name="wc" allowedFlags="*"/>
 	<rule name="stat" allowedFlags="*"/>
 	<rule name="du" allowedFlags="*"/>
@@ -308,12 +316,44 @@
 	<rule name="false" allowedFlags="*"/>
 	<rule name="test" allowedFlags="*"/>
 	<rule name="[" allowedFlags="*"/>
-	<rule name="date" allowedFlags="*"/>
-	<rule name="hostname" allowedFlags="*"/>
+	<!-- date sets the clock with -s. -->
+	<rule name="date" allowedFlags="*">
+		<test cmd="date -u +%FT%T" expect="allow"/>
+		<test cmd="date -s 2020-01-01" expect=""/>
+		<deniedFlags>
+			<flag name="-s" />
+			<flag name="--set" />
+		</deniedFlags>
+	</rule>
+	<!-- An operand of hostname, or a file named by -F, sets the name. -->
+	<rule name="hostname" allowedFlags="*" maxPositionals="0">
+		<test cmd="hostname -f" expect="allow"/>
+		<test cmd="hostname newname" expect=""/>
+		<test cmd="hostname -F /etc/hostname" expect=""/>
+		<deniedFlags>
+			<flag name="-F" />
+			<flag name="--file" />
+		</deniedFlags>
+	</rule>
 	<rule name="pwd" allowedFlags="*"/>
 	<rule name="env" allowedFlags="*"/>
-	<rule name="sort" allowedFlags="*"/>
-	<rule name="uniq" allowedFlags="*"/>
+	<!-- sort -o writes a file, and the compress program is a command of the caller's choosing. -->
+	<rule name="sort" allowedFlags="*">
+		<test cmd="sort -u f" expect="allow"/>
+		<test cmd="sort -o out f" expect=""/>
+		<test cmd="sort -uo out f" expect=""/>
+		<test cmd="sort --output=out f" expect=""/>
+		<deniedFlags>
+			<flag name="-o" />
+			<flag name="--output" />
+			<flag name="--compress-program" />
+		</deniedFlags>
+	</rule>
+	<!-- The second operand of uniq is a file it writes. -->
+	<rule name="uniq" allowedFlags="*" maxPositionals="1">
+		<test cmd="uniq -c f" expect="allow"/>
+		<test cmd="uniq a b" expect=""/>
+	</rule>
 	<rule name="tr" allowedFlags="*"/>
 	<rule name="cut" allowedFlags="*"/>
 	<rule name="diff" allowedFlags="*"/>
@@ -345,7 +385,15 @@
 		<test cmd="pkg_config --libs openssl" expect="allow"/>
 	</rule>
 	<rule name="dig" allowedFlags="*"/>
-	<rule name="base64" allowedFlags="*"/>
+	<!-- base64 on macOS writes a file with -o. -->
+	<rule name="base64" allowedFlags="*">
+		<test cmd="base64 -d f" expect="allow"/>
+		<test cmd="base64 -i f -o out" expect=""/>
+		<deniedFlags>
+			<flag name="-o" />
+			<flag name="--output" />
+		</deniedFlags>
+	</rule>
 	<rule name="md5sum" allowedFlags="*"/>
 	<rule name="sha1sum" allowedFlags="*"/>
 	<rule name="sha256sum" allowedFlags="*"/>
@@ -354,22 +402,177 @@
 	<rule name="b2sum" allowedFlags="*"/>
 	<rule name="cksum" allowedFlags="*"/>
 	<rule name="sum" allowedFlags="*"/>
-	<rule name="xxd" allowedFlags="*"/>
+	<!-- The second operand of xxd is a file it writes. -->
+	<rule name="xxd" allowedFlags="*" maxPositionals="1">
+		<test cmd="xxd f" expect="allow"/>
+		<test cmd="xxd a b" expect=""/>
+	</rule>
 	<rule name="jq" allowedFlags="*"/>
 	<rule name="nproc" allowedFlags="*"/>
 	<rule name="free" allowedFlags="*"/>
 	<rule name="lscpu" allowedFlags="*"/>
 	<rule name="lsblk" allowedFlags="*"/>
-	<rule name="fd" allowedFlags="*"/>
-	<rule name="fdfind" allowedFlags="*"/>
+	<!-- fd runs a command on every match with -x and -X. -->
+	<rule name="fd,fdfind" allowedFlags="*">
+		<test cmd="fd '\.go$'" expect="allow"/>
+		<test cmd="fd -e tmp -x rm" expect=""/>
+		<test cmd="fd -Hx rm" expect=""/>
+		<test cmd="fdfind --exec-batch rm" expect=""/>
+		<deniedFlags>
+			<flag name="-x" />
+			<flag name="--exec" />
+			<flag name="-X" />
+			<flag name="--exec-batch" />
+		</deniedFlags>
+	</rule>
 	<rule name="readelf" allowedFlags="*"/>
 	<rule name="objdump" allowedFlags="*"/>
 	<rule name="nm" allowedFlags="*"/>
 	<rule name="size" allowedFlags="*"/>
 	<rule name="ldd" allowedFlags="*"/>
-	<rule name="ar" allowedFlags="*"/>
+	<!-- ar lists and prints with its t and p keys. Every other key changes the archive. -->
+	<rule name="ar">
+		<test cmd="ar t libx.a" expect="allow"/>
+		<test cmd="ar rcs libx.a x.o" expect=""/>
+		<rule name="t,tv,vt,p,pv,vp" allowedFlags="*"/>
+	</rule>
 	<rule name="addr2line" allowedFlags="*"/>
-	<rule name="rg" allowedFlags="*"/>
+	<!-- The pre flag of rg runs a program on every file it searches. -->
+	<rule name="rg" allowedFlags="*">
+		<test cmd="rg -n TODO src" expect="allow"/>
+		<test cmd="rg --pre ./x.sh pattern" expect=""/>
+		<test cmd="rg --pre=./x.sh pattern" expect=""/>
+		<deniedFlags>
+			<flag name="--pre" />
+		</deniedFlags>
+	</rule>
+
+	<!-- More inspection and reading -->
+	<rule name="dir,vdir,eza,exa,lsd" allowedFlags="*">
+		<test cmd="eza -l --git" expect="allow"/>
+	</rule>
+	<rule name="pushd,popd,dirs" allowedFlags="*"/>
+	<!-- tree -o writes its listing to a file. -->
+	<rule name="tree" allowedFlags="*">
+		<test cmd="tree -L 2" expect="allow"/>
+		<test cmd="tree -o out.txt" expect=""/>
+		<deniedFlags>
+			<flag name="-o" />
+		</deniedFlags>
+	</rule>
+	<rule name="zcat,bzcat,xzcat,zstdcat" allowedFlags="*"/>
+	<!-- bat runs its pager as a command line of its own. -->
+	<rule name="bat,batcat" allowedFlags="*">
+		<test cmd="bat -n main.go" expect="allow"/>
+		<test cmd="bat --pager 'sh -c x' f" expect=""/>
+		<deniedFlags>
+			<flag name="--pager" />
+		</deniedFlags>
+	</rule>
+	<rule name="egrep,fgrep,zgrep,zegrep" allowedFlags="*"/>
+	<!-- The pager flag of ag runs a command. -->
+	<rule name="ag" allowedFlags="*">
+		<deniedFlags>
+			<flag name="--pager" />
+		</deniedFlags>
+	</rule>
+	<rule name="cmp,diff3,expr" allowedFlags="*">
+		<test cmd="cmp a b" expect="allow"/>
+	</rule>
+	<rule name="getconf,locale,tty,logname,who,w,lsof,netstat" allowedFlags="*">
+		<test cmd="lsof -i :8080" expect="allow"/>
+	</rule>
+	<!-- ss closes sockets with -K. -->
+	<rule name="ss" allowedFlags="*">
+		<test cmd="ss -tlnp" expect="allow"/>
+		<test cmd="ss -K dst 1.2.3.4" expect=""/>
+		<deniedFlags>
+			<flag name="-K" />
+			<flag name="--kill" />
+		</deniedFlags>
+	</rule>
+
+	<!-- Archives, listed and never unpacked -->
+	<rule name="tar" allowedFlags="*">
+		<test cmd="tar -tzf release.tar.gz" expect="allow"/>
+		<test cmd="tar --list -f a.tar" expect="allow"/>
+		<test cmd="tar -xzf release.tar.gz" expect=""/>
+		<test cmd="tar -tf a.tar -I ./x.sh" expect=""/>
+		<test cmd="tar -czf a.tar.gz dir" expect=""/>
+		<requiredFlags>
+			<flag name="-t" />
+			<flag name="--list" />
+		</requiredFlags>
+		<deniedFlags>
+			<flag name="-x" />
+			<flag name="--extract" />
+			<flag name="--get" />
+			<flag name="-c" />
+			<flag name="--create" />
+			<flag name="-r" />
+			<flag name="--append" />
+			<flag name="-u" />
+			<flag name="--update" />
+			<flag name="-A" />
+			<flag name="--catenate" />
+			<flag name="--concatenate" />
+			<flag name="--delete" />
+			<flag name="-I" />
+			<flag name="--use-compress-program" />
+			<flag name="--to-command" />
+			<flag name="--checkpoint-action" />
+			<flag name="-F" />
+			<flag name="--info-script" />
+			<flag name="--new-volume-script" />
+			<flag name="--rsh-command" />
+			<flag name="--rmt-command" />
+		</deniedFlags>
+	</rule>
+	<rule name="unzip">
+		<test cmd="unzip -l a.zip" expect="allow"/>
+		<test cmd="unzip a.zip" expect=""/>
+		<requiredFlags>
+			<flag name="-l" />
+			<flag name="-v" />
+			<flag name="-Z" />
+			<flag name="-t" />
+			<flag name="-p" />
+		</requiredFlags>
+	</rule>
+	<rule name="zipinfo" allowedFlags="*"/>
+
+	<!-- Toolchain queries -->
+	<rule name="npm">
+		<test cmd="npm ls --depth=0" expect="allow"/>
+		<test cmd="npm config get registry" expect="allow"/>
+		<test cmd="npm config set registry x" expect=""/>
+		<rule name="ls,list,view,info" allowedFlags="*"/>
+		<rule name="config">
+			<rule name="get" allowedFlags="*"/>
+		</rule>
+	</rule>
+	<rule name="pnpm">
+		<test cmd="pnpm ls" expect="allow"/>
+		<rule name="ls,list" allowedFlags="*"/>
+	</rule>
+	<!-- A version flag and nothing else prints a version. -->
+	<rule name="rustc,cargo,yarn,deno,bun,gcc,g++,clang,clang++,cc,make,cmake,ninja,java,javac,ruby,perl,php,kubectl,tsc" maxPositionals="0">
+		<test cmd="rustc -V" expect="allow"/>
+		<test cmd="make --version" expect="allow"/>
+		<test cmd="make -j8" expect=""/>
+		<allowedFlags>
+			<flag name="--version" />
+			<flag name="-V" />
+			<flag name="-v" />
+			<flag name="-version" />
+		</allowedFlags>
+		<requiredFlags>
+			<flag name="--version" />
+			<flag name="-V" />
+			<flag name="-v" />
+			<flag name="-version" />
+		</requiredFlags>
+	</rule>
 
 	<!-- yq -->
 	<rule name="yq" allowedFlags="*">
@@ -393,8 +596,14 @@
 		<test cmd='find /home/mhaynie/repos/UnrealEngine -name "*.h" -type f -exec grep -l "class FSkeletalMeshSceneProxy" {} \;' expect="allow"/>
 		<test cmd="find . -name '*.tmp' -exec rm {} \;" expect=""/>
 		<test cmd="find . -name '*.tmp' -delete" expect=""/>
+		<test cmd="find . -name '*.go' -fprint list.txt" expect=""/>
 		<deniedFlags>
 			<flag name="-delete" />
+			<!-- These write their output to a file. -->
+			<flag name="-fprint" />
+			<flag name="-fprint0" />
+			<flag name="-fprintf" />
+			<flag name="-fls" />
 		</deniedFlags>
 		<execFlags>
 			<flag name="-exec" />
@@ -476,9 +685,22 @@
 		<test cmd="grep -n 'go build' rules.xml" expect="allow"/>
 		<test cmd="grep -rn &quot;go test&quot; docs/" expect="allow"/>
 		<test cmd="git commit -m 'go build notes'" expect=""/>
+		<test cmd="go env -w GOFLAGS=-mod=mod" expect=""/>
+		<test cmd="go list -m all" expect="allow"/>
 		<rule name="version" allowedFlags="*"/>
-		<rule name="env" allowedFlags="*"/>
+		<!-- go env -w and -u write the go env file of the user. -->
+		<rule name="env" allowedFlags="*">
+			<deniedFlags>
+				<flag name="-w" />
+				<flag name="-u" />
+			</deniedFlags>
+		</rule>
 		<rule name="doc" allowedFlags="*"/>
+		<rule name="list" allowedFlags="*">
+			<requiredFlags>
+				<flag name="-m" />
+			</requiredFlags>
+		</rule>
 		<rule name="build" denyWithMessage="Direct 'go build' is not allowed. Use 'go-toolchain' instead: it builds, tests, vets, and checks coverage in one command"/>
 		<rule name="test" denyWithMessage="Direct 'go test' is not allowed. Use 'go-toolchain' instead: it builds, tests, vets, and checks coverage in one command"/>
 	</rule>
@@ -489,10 +711,47 @@
 		<test cmd="git diff" expect="allow"/>
 		<test cmd="git log --oneline -10" expect="allow"/>
 		<test cmd="git status 2>&amp;1" expect="allow"/>
+		<test cmd="git -C spec log --oneline -3" expect="allow"/>
+		<test cmd="git --no-pager diff --stat" expect="allow"/>
+		<test cmd="git -c core.pager=./x.sh log" expect=""/>
+		<test cmd="git --no-pager commit -m x" expect=""/>
+		<test cmd="git diff --output=patch.txt" expect=""/>
+		<test cmd="git log --output=log.txt" expect=""/>
+		<!-- The global flags that only choose where git looks. -c is not among them: it sets core.pager and the
+		     other settings that run a program. -->
+		<allowedFlags>
+			<flag name="-C" />
+			<flag name="--no-pager" />
+			<flag name="-P" />
+			<flag name="--no-optional-locks" />
+			<flag name="--literal-pathspecs" />
+			<flag name="--no-replace-objects" />
+			<flag name="--git-dir" />
+			<flag name="--work-tree" />
+			<flag name="--version" />
+		</allowedFlags>
+		<flagsWithValue>
+			<flag name="-C" />
+		</flagsWithValue>
 		<rule name="status" allowedFlags="*"/>
-		<rule name="diff" allowedFlags="*"/>
-		<rule name="log" allowedFlags="*"/>
-		<rule name="show" allowedFlags="*"/>
+		<!-- The output flag writes the diff or the log to a file. -->
+		<rule name="diff,log,show,diff-tree,diff-files,diff-index,range-diff" allowedFlags="*">
+			<deniedFlags>
+				<flag name="--output" />
+			</deniedFlags>
+		</rule>
+		<rule name="show-ref,show-branch,check-ignore,check-attr,check-ref-format,var,version,cherry,verify-commit,verify-tag" allowedFlags="*">
+			<test cmd="git check-ignore -v build/x" expect="allow"/>
+		</rule>
+		<!-- The open-files-in-pager flag runs a pager on the matches. -->
+		<rule name="grep" allowedFlags="*">
+			<test cmd="git grep -n TODO" expect="allow"/>
+			<test cmd="git grep -Ovim TODO" expect=""/>
+			<deniedFlags>
+				<flag name="-O" />
+				<flag name="--open-files-in-pager" />
+			</deniedFlags>
+		</rule>
 		<rule name="fetch" allowedFlags="*"/>
 		<rule name="ls-files" allowedFlags="*"/>
 		<rule name="ls-tree" allowedFlags="*"/>
@@ -503,16 +762,31 @@
 		<rule name="blame" allowedFlags="*"/>
 		<rule name="shortlog" allowedFlags="*"/>
 		<rule name="whatchanged" allowedFlags="*"/>
-		<rule name="reflog" allowedFlags="*"/>
+		<!-- reflog alone shows. Its expire and delete subcommands rewrite it. -->
+		<rule name="reflog" allowedFlags="*" maxPositionals="0">
+			<test cmd="git reflog -5" expect="allow"/>
+			<test cmd="git reflog show main" expect="allow"/>
+			<test cmd="git reflog delete HEAD@{1}" expect=""/>
+			<test cmd="git reflog expire --all" expect=""/>
+			<rule name="show,exists" allowedFlags="*"/>
+		</rule>
 		<rule name="count-objects" allowedFlags="*"/>
-		<rule name="fsck" allowedFlags="*"/>
+		<rule name="fsck" allowedFlags="*">
+			<test cmd="git fsck --lost-found" expect=""/>
+			<deniedFlags>
+				<flag name="--lost-found" />
+			</deniedFlags>
+		</rule>
 		<rule name="verify-pack" allowedFlags="*"/>
 		<rule name="cat-file" allowedFlags="*"/>
 		<rule name="for-each-ref" allowedFlags="*"/>
 		<rule name="name-rev" allowedFlags="*"/>
 		<rule name="merge-base" allowedFlags="*"/>
-		<rule name="branch">
+		<!-- branch and tag list with flags alone. An operand names a branch or a tag to create. -->
+		<rule name="branch" maxPositionals="0">
 			<test cmd="git branch -a" expect="allow"/>
+			<test cmd="git branch" expect="allow"/>
+			<test cmd="git branch feature" expect=""/>
 			<test cmd="git branch -d feature" expect="deny"/>
 			<allowedFlags>
 				<flag name="-a" />
@@ -523,19 +797,34 @@
 				<flag name="--all" />
 				<flag name="--remotes" />
 				<flag name="--verbose" />
+				<flag name="--show-current" />
+				<flag name="--merged" />
+				<flag name="--no-merged" />
+				<flag name="--sort" />
+				<flag name="--format" />
+				<flag name="--color" />
+				<flag name="--no-color" />
 			</allowedFlags>
 		</rule>
-		<rule name="tag">
+		<rule name="tag" maxPositionals="0">
+			<test cmd="git tag" expect="allow"/>
+			<test cmd="git tag -l" expect="allow"/>
+			<test cmd="git tag v1.0" expect=""/>
 			<allowedFlags>
 				<flag name="-l" />
 				<flag name="-n" />
 				<flag name="--list" />
 				<flag name="--sort" />
+				<flag name="--format" />
 			</allowedFlags>
 		</rule>
+		<!-- remote lists with -v alone. Its add, remove and set-url subcommands change the repository. -->
 		<rule name="remote">
 			<test cmd="git remote -v" expect="allow"/>
 			<test cmd="git remote show origin" expect="allow"/>
+			<test cmd="git remote get-url origin" expect="allow"/>
+			<test cmd="git remote -v add x https://example.com/x.git" expect=""/>
+			<test cmd="git remote add x https://example.com/x.git" expect=""/>
 			<allowedFlags>
 				<flag name="-v" />
 				<flag name="--verbose" />
@@ -543,11 +832,38 @@
 			<rule name="show" allowedFlags="*"/>
 			<rule name="get-url" allowedFlags="*"/>
 		</rule>
-		<rule name="submodule">
+		<!-- submodule alone is status. -->
+		<rule name="submodule" maxPositionals="0">
+			<test cmd="git submodule" expect="allow"/>
 			<test cmd="git submodule status" expect="allow"/>
 			<test cmd="git submodule status --recursive" expect="allow"/>
+			<test cmd="git submodule summary" expect="allow"/>
 			<test cmd="git submodule update --init" expect=""/>
-			<rule name="status" allowedFlags="*"/>
+			<allowedFlags>
+				<flag name="-q" />
+				<flag name="--quiet" />
+			</allowedFlags>
+			<rule name="status,summary" allowedFlags="*"/>
+		</rule>
+		<!-- stash alone pushes, so only its read subcommands are here. -->
+		<rule name="stash">
+			<test cmd="git stash list" expect="allow"/>
+			<test cmd="git stash show -p" expect="allow"/>
+			<test cmd="git stash" expect=""/>
+			<test cmd="git stash pop" expect=""/>
+			<rule name="list,show" allowedFlags="*"/>
+		</rule>
+		<rule name="worktree">
+			<test cmd="git worktree list" expect="allow"/>
+			<test cmd="git worktree add ../x" expect=""/>
+			<rule name="list" allowedFlags="*"/>
+		</rule>
+		<rule name="notes" maxPositionals="0">
+			<test cmd="git notes" expect="allow"/>
+			<test cmd="git notes show HEAD" expect="allow"/>
+			<test cmd="git notes add -m x" expect=""/>
+			<allowedFlags/>
+			<rule name="list,show" allowedFlags="*"/>
 		</rule>
 		<rule name="config">
 			<test cmd="git config --get user.email" expect="allow"/>
@@ -555,6 +871,26 @@
 			<test cmd="git config --local --list 2>&amp;1" expect="allow"/>
 			<test cmd="git config --get-urlmatch http https://example.com" expect="allow"/>
 			<test cmd="git config user.email foo@bar.com" expect=""/>
+			<test cmd="git config --get user.name --add user.name x" expect=""/>
+			<test cmd="git config -l --show-origin" expect="allow"/>
+			<allowedFlags>
+				<flag name="--global" />
+				<flag name="--system" />
+				<flag name="--local" />
+				<flag name="--worktree" />
+				<flag name="--show-origin" />
+				<flag name="--show-scope" />
+				<flag name="--null" />
+				<flag name="-z" />
+				<flag name="--name-only" />
+				<flag name="--includes" />
+				<flag name="--no-includes" />
+				<flag name="--type" />
+				<flag name="--bool" />
+				<flag name="--int" />
+				<flag name="--path" />
+				<flag name="--default" />
+			</allowedFlags>
 			<requiredFlags>
 				<flag name="--get" />
 				<flag name="--list" />
@@ -570,6 +906,10 @@
 			<test cmd="git replace -l 2>&amp;1" expect="allow"/>
 			<test cmd="git replace --list" expect="allow"/>
 			<test cmd="git replace abc123 def456" expect=""/>
+			<test cmd="git replace -l -d abc123" expect=""/>
+			<allowedFlags>
+				<flag name="--format" />
+			</allowedFlags>
 			<requiredFlags>
 				<flag name="-l" />
 				<flag name="--list" />

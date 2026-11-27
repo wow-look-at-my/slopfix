@@ -56,7 +56,9 @@ type CommandNode struct {
 	DenyWithMessage    string           `json:"denyWithMessage,omitempty"`
 	FlagsWithValue     []string         `json:"flagsWithValue,omitempty"`
 	HelpAlwaysAllowed  bool             `json:"helpAlwaysAllowed,omitempty"`
-	BareOnly           bool             `json:"bareOnly,omitempty"`
+	BareOnly          bool             `json:"bareOnly,omitempty"`
+	// MaxPositionals caps the operands.
+	MaxPositionals     *int          `json:"maxPositionals,omitempty"`
 	DenyArgSubstrings  []string         `json:"denyArgSubstrings,omitempty"`
 	Refusals           []Refusal        `json:"refusals,omitempty"`
 	AllowedArgPrefixes []string         `json:"allowedArgPrefixes,omitempty"`
@@ -228,11 +230,9 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 		}
 	}
 
-	// Check required flags
-	if len(node.RequiredFlags) > 0 {
-		if hasAnyFlag(args, node.RequiredFlags) {
-			return "allow", ""
-		}
+	// A required flag admits the command to the checks below. It does not skip them: `tar -t` reads, and
+	// `tar -t -x` still extracts.
+	if len(node.RequiredFlags) > 0 && !hasAnyFlagWord(args, node.RequiredFlags) {
 		return "", ""
 	}
 
@@ -267,22 +267,25 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 		subcommandArgs = stripFlagsWithValue(remaining, node.FlagsWithValue)
 	}
 
-	// If there are subcommands, recurse
-	if len(node.Subcommands) > 0 && len(subcommandArgs) > 0 {
-		decision, msg := evaluateArgs(subcommandArgs, node.Subcommands, allow)
-		if decision != "" {
-			return decision, msg
-		}
-		// A leading non-flag word matching no known subcommand is unknown or
-		// mutating: never fall through to allowedFlags.
-		if !strings.HasPrefix(subcommandArgs[0], "-") {
-			return "", ""
+	// A rule with subcommands skips the leading flags it allows, then the next
+	// word must be one of its subcommands. `git -C dir log` and `git --no-pager
+	// diff` reach their subcommand.
+	if len(node.Subcommands) > 0 {
+		lead := skipAllowedFlags(subcommandArgs, node.AllowedFlags)
+		if len(lead) > 0 && !strings.HasPrefix(lead[0], "-") {
+			return evaluateArgs(lead, node.Subcommands, allow)
 		}
 	}
 
-	// Check denied flags
-	if len(node.DeniedFlags) > 0 && hasAnyFlag(args, node.DeniedFlags) {
+	if len(node.DeniedFlags) > 0 && hasAnyFlagWord(args, node.DeniedFlags) {
 		return "", ""
+	}
+
+	if node.MaxPositionals != nil {
+		_, positionals := splitFlagsAndArgs(subcommandArgs)
+		if len(positionals) > *node.MaxPositionals {
+			return "", ""
+		}
 	}
 
 	// Check exec flags: extract sub-commands and evaluate them
@@ -299,8 +302,14 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 		}
 	}
 
+	// A rule that names required flags and no allowed flags allows once the checks above pass.
+	if node.AllowedFlags == nil && len(node.RequiredFlags) > 0 {
+		return "allow", ""
+	}
+
 	// Check allowed flags (and optionally constrain positional args by prefix)
 	if node.AllowedFlags != nil {
+		allowedFlags := withRequired(node.AllowedFlags, node.RequiredFlags)
 		effectiveRemaining := remaining
 		if len(node.FlagsWithValue) > 0 {
 			effectiveRemaining = stripFlagsWithValue(remaining, node.FlagsWithValue)
@@ -314,15 +323,61 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 			if !allArgsMatchPrefix(positionals, node.AllowedArgPrefixes) {
 				return "", ""
 			}
-			if checkAllowedFlags(flags, node.AllowedFlags) {
+			if checkAllowedFlags(flags, allowedFlags) {
 				return "allow", ""
 			}
-		} else if checkAllowedFlags(remaining, node.AllowedFlags) {
+		} else if checkAllowedFlags(remaining, allowedFlags) {
 			return "allow", ""
 		}
 	}
 
 	return "", ""
+}
+
+// withRequired adds the required flags to an allowed-flags list. A required flag is one the rule expects to see.
+// "*" stays "*".
+func withRequired(allowed interface{}, required []string) interface{} {
+	list, ok := allowed.([]interface{})
+	if !ok || len(required) == 0 {
+		return allowed
+	}
+	out := append([]interface{}{}, list...)
+	for _, f := range required {
+		out = append(out, f)
+	}
+	return out
+}
+
+// skipAllowedFlags drops the leading flags an allowed-flags list admits: every flag for "*", the listed ones for a
+// list. What is left starts at the first word the list does not admit.
+func skipAllowedFlags(args []string, allowed interface{}) []string {
+	list, isList := allowed.([]interface{})
+	any := allowed == "*"
+	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
+		ok := any
+		for _, f := range list {
+			if s, _ := f.(string); s == args[0] || strings.HasPrefix(args[0], s+"=") {
+				ok = true
+				break
+			}
+		}
+		if !ok || (!any && !isList) {
+			return args
+		}
+		args = args[1:]
+	}
+	return args
+}
+
+// hasAnyFlagWord is hasAnyFlag that also finds a single-letter flag inside a
+// cluster: `sort -uo out` carries -o.
+func hasAnyFlagWord(args []string, flags []string) bool {
+	for _, a := range args {
+		if flagWordMatches(a, flags) {
+			return true
+		}
+	}
+	return false
 }
 
 func matchesName(nameField interface{}, target string) bool {

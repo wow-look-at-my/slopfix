@@ -60,6 +60,7 @@ type xmlCommand struct {
 	DenyWithMessage    string          `xml:"denyWithMessage,attr,omitempty"`
 	HelpAlwaysAllowed  bool            `xml:"helpAlwaysAllowed,attr,omitempty"`
 	BareOnly           bool            `xml:"bareOnly,attr,omitempty"`
+	MaxPositionals     *int            `xml:"maxPositionals,attr,omitempty"`
 	Tests              []xmlTest       `xml:"test"`
 	AllowedFlags       *xmlFlagList    `xml:"allowedFlags"`
 	DeniedFlags        *xmlFlagList    `xml:"deniedFlags"`
@@ -176,6 +177,7 @@ func convertXMLCommand(xc xmlCommand) CommandNode {
 		DenyWithMessage:   xc.DenyWithMessage,
 		HelpAlwaysAllowed: xc.HelpAlwaysAllowed,
 		BareOnly:          xc.BareOnly,
+		MaxPositionals:    xc.MaxPositionals,
 	}
 
 	names := strings.Split(xc.Name, ",")
