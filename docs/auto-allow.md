@@ -17,3 +17,14 @@ The model then sees `MCP error -32003: MCP tool call requires approval`.
 Nothing else automates the click. The retry hands `canUseTool` a prebuilt `ask` decision. No rule, mode or classifier runs. `extraAllowedTools` does not exist in the bundle. `serverApprovalWatch` is the shape of a real upstream fix. `anthropics/claude-code#81362` tracks it.
 
 Without `send_later`, use the `/loop` skill. Watch a pull request with `mcp__github__subscribe_pr_activity`.
+
+## The table as a library
+
+`autoallow.Allowed(argv)` judges one simple command against the shipped table, and `autoallow.AllowedMCP(server, tool)` judges one MCP tool. A program with a permission chain of its own calls them, so it allows exactly what these sessions allow. `simple-llm-harness` does. A deny or ask rule that matches makes `Allowed` false, and so does a process rule that names the program. A `wholeCommand` rule judges a whole command line, so `Allowed` leaves it out.
+
+## Rule attributes the engine reads
+
+- A denied or required flag of a single letter also matches inside a cluster: `sort -uo out` carries `-o`, and `tar -tzf` carries `-t`.
+- A required flag admits a command to the other checks. It does not skip them: `tar -t -x` still extracts.
+- A rule with subcommands skips the leading flags it allows. The next word must then be one of its subcommands. `git -C dir log` reaches `log`. `git remote -v add x` does not fall through to the `-v` that `remote` allows alone.
+- `maxPositionals` caps the operands. The second operand of `uniq` is a file it writes.
