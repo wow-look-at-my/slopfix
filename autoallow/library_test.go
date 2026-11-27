@@ -30,6 +30,45 @@ func TestAllowedJudgesOneCommandAgainstTheShippedTable(t *testing.T) {
 	}
 }
 
+// allowedFlags="*" admits any flag, in any spelling, and any operand.
+func TestARuleThatAllowsEveryFlagAllowsEverySpelling(t *testing.T) {
+	for _, argv := range [][]string{
+		{"ls", "-la", "--color=auto", "--group-directories-first", "a", "b"},
+		{"cat", "-nA", "f"},
+		{"grep", "-rniE", "--include=*.go", "foo|bar", "."},
+		{"git", "status", "--porcelain=v2", "-uno", "--branch"},
+		{"wc", "-l"},
+	} {
+		assert.True(t, Allowed(argv), "%q", argv)
+	}
+}
+
+// An argument nobody can read passes only a rule that admits every argument.
+func TestAnUnknownWordPassesOnlyARuleThatAdmitsEveryArgument(t *testing.T) {
+	for _, argv := range [][]string{
+		{"cat", UnknownWord},
+		{"ls", "-la", UnknownWord},
+		{"git", "status", UnknownWord},
+		{"git", "-C", UnknownWord, "status"},
+	} {
+		assert.True(t, Allowed(argv), "%q", argv)
+	}
+	for _, argv := range [][]string{
+		// The word could be --output=FILE, which the rule denies.
+		{"git", "log", UnknownWord},
+		// The word stands where a subcommand goes.
+		{"git", UnknownWord},
+		// find runs commands through -exec, and fd through -x.
+		{"find", ".", "-name", UnknownWord},
+		{"fd", UnknownWord},
+		// The word could be a second operand, which uniq writes.
+		{"uniq", UnknownWord},
+		{"sort", UnknownWord},
+	} {
+		assert.False(t, Allowed(argv), "%q", argv)
+	}
+}
+
 // A wholeCommand rule judges a whole command line, so it does not refuse one statement of it.
 func TestAllowedIgnoresTheRulesThatJudgeAWholeCommandLine(t *testing.T) {
 	assert.True(t, Allowed([]string{"true"}))

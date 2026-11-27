@@ -210,6 +210,12 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 		return "deny", node.DenyWithMessage
 	}
 
+	// A rule with subcommands judges only the subcommand word, which an unknown
+	// word never matches.
+	if len(node.Subcommands) == 0 && slices.Contains(remaining, UnknownWord) && !admitsEveryArgument(node) {
+		return "", ""
+	}
+
 	// A refusal is a verdict of its own: the command is ordinary, and what its
 	// arguments carry decides it.
 	for _, r := range node.Refusals {
