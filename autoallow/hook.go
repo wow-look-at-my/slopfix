@@ -46,23 +46,23 @@ type Rules struct {
 }
 
 type CommandNode struct {
-	Name               interface{}      `json:"name"` // string or []string
-	Description        string           `json:"description,omitempty"`
-	AllowedFlags       interface{}      `json:"allowedFlags,omitempty"` // "*" or []string
-	DeniedFlags        []string         `json:"deniedFlags,omitempty"`
-	ExecFlags          []string         `json:"execFlags,omitempty"`
-	RequiredFlags      []string         `json:"requiredFlags,omitempty"`
-	RequireFlagValue   *RequireFlagRule `json:"requireFlagValue,omitempty"`
-	DenyWithMessage    string           `json:"denyWithMessage,omitempty"`
-	FlagsWithValue     []string         `json:"flagsWithValue,omitempty"`
-	HelpAlwaysAllowed  bool             `json:"helpAlwaysAllowed,omitempty"`
+	Name              interface{}      `json:"name"` // string or []string
+	Description       string           `json:"description,omitempty"`
+	AllowedFlags      interface{}      `json:"allowedFlags,omitempty"` // "*" or []string
+	DeniedFlags       []string         `json:"deniedFlags,omitempty"`
+	ExecFlags         []string         `json:"execFlags,omitempty"`
+	RequiredFlags     []string         `json:"requiredFlags,omitempty"`
+	RequireFlagValue  *RequireFlagRule `json:"requireFlagValue,omitempty"`
+	DenyWithMessage   string           `json:"denyWithMessage,omitempty"`
+	FlagsWithValue    []string         `json:"flagsWithValue,omitempty"`
+	HelpAlwaysAllowed bool             `json:"helpAlwaysAllowed,omitempty"`
 	BareOnly          bool             `json:"bareOnly,omitempty"`
 	// MaxPositionals caps the operands.
 	MaxPositionals     *int          `json:"maxPositionals,omitempty"`
-	DenyArgSubstrings  []string         `json:"denyArgSubstrings,omitempty"`
-	Refusals           []Refusal        `json:"refusals,omitempty"`
-	AllowedArgPrefixes []string         `json:"allowedArgPrefixes,omitempty"`
-	Subcommands        []CommandNode    `json:"subcommands,omitempty"`
+	DenyArgSubstrings  []string      `json:"denyArgSubstrings,omitempty"`
+	Refusals           []Refusal     `json:"refusals,omitempty"`
+	AllowedArgPrefixes []string      `json:"allowedArgPrefixes,omitempty"`
+	Subcommands        []CommandNode `json:"subcommands,omitempty"`
 }
 
 type RequireFlagRule struct {
