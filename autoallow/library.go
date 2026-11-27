@@ -34,7 +34,7 @@ func Allowed(argv []string) bool {
 		return false
 	}
 	// An unknown word could carry whatever a deny or ask rule of the program looks for.
-	if slices.Contains(argv[1:], UnknownWord) && (namesAny(t.Deny, argv[0]) || namesAny(t.Ask, argv[0])) {
+	if slices.Contains(argv[1:], UnknownWord) && (mayMatch(t.Deny, argv) || mayMatch(t.Ask, argv)) {
 		return false
 	}
 	for _, nodes := range [][]CommandNode{t.Deny, t.Ask} {
@@ -65,10 +65,34 @@ func quoteArgv(argv []string) string {
 	return strings.Join(words, " ")
 }
 
-// namesAny reports whether a rule of nodes names the program.
-func namesAny(nodes []CommandNode, program string) bool {
+// mayMatch reports whether a rule of nodes could match args, given that an unknown word could be any word. It follows
+// a rule's subcommands as evaluateOneNode does. A known subcommand word that names none of them rules the rule out. An
+// unknown word in the subcommand slot, or anywhere a leaf rule reads, could match.
+func mayMatch(nodes []CommandNode, args []string) bool {
 	for _, n := range nodes {
-		if matchesName(n.Name, program) {
+		if !matchesName(n.Name, args[0]) {
+			continue
+		}
+		rest := args[1:]
+		if len(n.FlagsWithValue) > 0 {
+			rest = stripFlagsWithValue(rest, n.FlagsWithValue)
+		}
+		if len(n.Subcommands) > 0 {
+			lead := skipAllowedFlags(rest, n.AllowedFlags)
+			if len(lead) > 0 && lead[0] == UnknownWord {
+				return true
+			}
+			if len(lead) > 0 && !strings.HasPrefix(lead[0], "-") {
+				if mayMatch(n.Subcommands, lead) {
+					return true
+				}
+				continue
+			}
+		}
+		if slices.Contains(rest, UnknownWord) {
+			return true
+		}
+		if d, _ := evaluateOneNode(n, args, args[1:], nil); d != "" {
 			return true
 		}
 	}

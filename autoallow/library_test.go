@@ -58,6 +58,8 @@ func TestAnUnknownWordPassesOnlyARuleThatAdmitsEveryArgument(t *testing.T) {
 		{"git", "log", UnknownWord},
 		// The word stands where a subcommand goes.
 		{"git", UnknownWord},
+		// The word could be --delete, which a deny rule of git push refuses.
+		{"git", "push", UnknownWord},
 		// find runs commands through -exec, and fd through -x.
 		{"find", ".", "-name", UnknownWord},
 		{"fd", UnknownWord},
