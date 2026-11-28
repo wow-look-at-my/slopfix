@@ -111,6 +111,8 @@
     <xs:attribute name="denyWithMessage" type="xs:string"/>
     <xs:attribute name="helpAlwaysAllowed" type="xs:boolean"/>
     <xs:attribute name="bareOnly" type="xs:boolean"/>
+    <!-- The most operands the rule allows. -->
+    <xs:attribute name="maxPositionals" type="xs:nonNegativeInteger"/>
   </xs:complexType>
 
   <xs:complexType name="section">

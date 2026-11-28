@@ -55,7 +55,7 @@ func TestEvaluateCommands(t *testing.T) {
 // Run evaluates through the package-level rules. A wrapper reading some
 // other variable denies nothing in production.
 func TestEvaluateCommandReadsTheLoadedRules(t *testing.T) {
-	t.Serial()
+	t.Serial("it replaces the package-level rules, which every evaluation in the package reads")
 	saved := rules
 	t.Cleanup(func() { rules = saved })
 

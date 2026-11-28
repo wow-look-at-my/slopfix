@@ -46,21 +46,23 @@ type Rules struct {
 }
 
 type CommandNode struct {
-	Name               interface{}      `json:"name"` // string or []string
-	Description        string           `json:"description,omitempty"`
-	AllowedFlags       interface{}      `json:"allowedFlags,omitempty"` // "*" or []string
-	DeniedFlags        []string         `json:"deniedFlags,omitempty"`
-	ExecFlags          []string         `json:"execFlags,omitempty"`
-	RequiredFlags      []string         `json:"requiredFlags,omitempty"`
-	RequireFlagValue   *RequireFlagRule `json:"requireFlagValue,omitempty"`
-	DenyWithMessage    string           `json:"denyWithMessage,omitempty"`
-	FlagsWithValue     []string         `json:"flagsWithValue,omitempty"`
-	HelpAlwaysAllowed  bool             `json:"helpAlwaysAllowed,omitempty"`
-	BareOnly           bool             `json:"bareOnly,omitempty"`
-	DenyArgSubstrings  []string         `json:"denyArgSubstrings,omitempty"`
-	Refusals           []Refusal        `json:"refusals,omitempty"`
-	AllowedArgPrefixes []string         `json:"allowedArgPrefixes,omitempty"`
-	Subcommands        []CommandNode    `json:"subcommands,omitempty"`
+	Name              interface{}      `json:"name"` // string or []string
+	Description       string           `json:"description,omitempty"`
+	AllowedFlags      interface{}      `json:"allowedFlags,omitempty"` // "*" or []string
+	DeniedFlags       []string         `json:"deniedFlags,omitempty"`
+	ExecFlags         []string         `json:"execFlags,omitempty"`
+	RequiredFlags     []string         `json:"requiredFlags,omitempty"`
+	RequireFlagValue  *RequireFlagRule `json:"requireFlagValue,omitempty"`
+	DenyWithMessage   string           `json:"denyWithMessage,omitempty"`
+	FlagsWithValue    []string         `json:"flagsWithValue,omitempty"`
+	HelpAlwaysAllowed bool             `json:"helpAlwaysAllowed,omitempty"`
+	BareOnly          bool             `json:"bareOnly,omitempty"`
+	// MaxPositionals caps the operands.
+	MaxPositionals     *int          `json:"maxPositionals,omitempty"`
+	DenyArgSubstrings  []string      `json:"denyArgSubstrings,omitempty"`
+	Refusals           []Refusal     `json:"refusals,omitempty"`
+	AllowedArgPrefixes []string      `json:"allowedArgPrefixes,omitempty"`
+	Subcommands        []CommandNode `json:"subcommands,omitempty"`
 }
 
 type RequireFlagRule struct {
@@ -208,6 +210,12 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 		return "deny", node.DenyWithMessage
 	}
 
+	// A rule with subcommands judges only the subcommand word, which an unknown
+	// word never matches.
+	if len(node.Subcommands) == 0 && slices.Contains(remaining, UnknownWord) && !admitsEveryArgument(node) {
+		return "", ""
+	}
+
 	// A refusal is a verdict of its own: the command is ordinary, and what its
 	// arguments carry decides it.
 	for _, r := range node.Refusals {
@@ -228,11 +236,9 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 		}
 	}
 
-	// Check required flags
-	if len(node.RequiredFlags) > 0 {
-		if hasAnyFlag(args, node.RequiredFlags) {
-			return "allow", ""
-		}
+	// A required flag admits the command to the checks below. It does not skip them: `tar -t` reads, and
+	// `tar -t -x` still extracts.
+	if len(node.RequiredFlags) > 0 && !hasAnyFlagWord(args, node.RequiredFlags) {
 		return "", ""
 	}
 
@@ -267,22 +273,25 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 		subcommandArgs = stripFlagsWithValue(remaining, node.FlagsWithValue)
 	}
 
-	// If there are subcommands, recurse
-	if len(node.Subcommands) > 0 && len(subcommandArgs) > 0 {
-		decision, msg := evaluateArgs(subcommandArgs, node.Subcommands, allow)
-		if decision != "" {
-			return decision, msg
-		}
-		// A leading non-flag word matching no known subcommand is unknown or
-		// mutating: never fall through to allowedFlags.
-		if !strings.HasPrefix(subcommandArgs[0], "-") {
-			return "", ""
+	// A rule with subcommands skips the leading flags it allows, then the next
+	// word must be one of its subcommands. `git -C dir log` and `git --no-pager
+	// diff` reach their subcommand.
+	if len(node.Subcommands) > 0 {
+		lead := skipAllowedFlags(subcommandArgs, node.AllowedFlags)
+		if len(lead) > 0 && !strings.HasPrefix(lead[0], "-") {
+			return evaluateArgs(lead, node.Subcommands, allow)
 		}
 	}
 
-	// Check denied flags
-	if len(node.DeniedFlags) > 0 && hasAnyFlag(args, node.DeniedFlags) {
+	if len(node.DeniedFlags) > 0 && hasAnyFlagWord(args, node.DeniedFlags) {
 		return "", ""
+	}
+
+	if node.MaxPositionals != nil {
+		_, positionals := splitFlagsAndArgs(subcommandArgs)
+		if len(positionals) > *node.MaxPositionals {
+			return "", ""
+		}
 	}
 
 	// Check exec flags: extract sub-commands and evaluate them
@@ -299,8 +308,14 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 		}
 	}
 
+	// A rule that names required flags and no allowed flags allows once the checks above pass.
+	if node.AllowedFlags == nil && len(node.RequiredFlags) > 0 {
+		return "allow", ""
+	}
+
 	// Check allowed flags (and optionally constrain positional args by prefix)
 	if node.AllowedFlags != nil {
+		allowedFlags := withRequired(node.AllowedFlags, node.RequiredFlags)
 		effectiveRemaining := remaining
 		if len(node.FlagsWithValue) > 0 {
 			effectiveRemaining = stripFlagsWithValue(remaining, node.FlagsWithValue)
@@ -314,10 +329,10 @@ func evaluateOneNode(node CommandNode, args []string, remaining []string, allow 
 			if !allArgsMatchPrefix(positionals, node.AllowedArgPrefixes) {
 				return "", ""
 			}
-			if checkAllowedFlags(flags, node.AllowedFlags) {
+			if checkAllowedFlags(flags, allowedFlags) {
 				return "allow", ""
 			}
-		} else if checkAllowedFlags(remaining, node.AllowedFlags) {
+		} else if checkAllowedFlags(remaining, allowedFlags) {
 			return "allow", ""
 		}
 	}
